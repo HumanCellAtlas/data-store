@@ -1,1 +1,4 @@
-flask-restful-swagger
+boto3
+google-cloud-storage
+azure-storage
+flask-restplus
