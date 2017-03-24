@@ -10,7 +10,7 @@ from datetime import datetime, timedelta
 import boto3
 import google.cloud.storage
 from azure.storage.blob import BlockBlobService, BlobPermissions
-from flask import Flask, request, redirect
+from flask import Flask, request, redirect, jsonify
 from flask_restplus import Resource, Api, reqparse, fields
 
 app = Flask(__name__)
@@ -43,6 +43,10 @@ dss_bundle = api.model('Bundle', {
     'contents': fields.List(fields.String, description='List of files in the bundle'),
     'metadata': fields.String(required=True, description='Bundle metadata')
 })
+
+@app.route("/swagger")
+def swagger():
+    return jsonify(api.__schema__)
 
 if __name__ == '__main__':
     app.run(debug=True)
