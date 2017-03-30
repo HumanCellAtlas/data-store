@@ -8,7 +8,7 @@ from .blobstore import *
 
 class S3BlobStore(BlobStore):
     def __init__(self, container, access_key, secret_key):
-        super(__class__, self).__init__()
+        super(S3BlobStore, self).__init__()
 
         self.s3_client = boto3.client(
             's3',
