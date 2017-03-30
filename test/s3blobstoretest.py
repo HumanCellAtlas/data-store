@@ -15,8 +15,8 @@ from blobstore.s3blobstore import S3BlobStore
 
 class TestS3BlobStore(unittest.TestCase):
     def setUp(self):
-        self.aws_access_key = os.getenv['AWS_ACCESS_KEY']
-        self.aws_secret_key = os.getenv['AWS_SECRET_KEY']
+        self.aws_access_key = os.environ['AWS_ACCESS_KEY']
+        self.aws_secret_key = os.environ['AWS_SECRET_KEY']
 
     def tearDown(self):
         pass
