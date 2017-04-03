@@ -10,7 +10,7 @@ import unittest
 pkg_root = os.path.abspath(os.path.join(os.path.dirname(__file__), '..'))
 sys.path.insert(0, pkg_root)
 
-from blobstore.s3blobstore import S3BlobStore
+from blobstore.s3blobstore import S3BlobStore # noqa
 
 
 class TestS3BlobStore(unittest.TestCase):
@@ -23,6 +23,7 @@ class TestS3BlobStore(unittest.TestCase):
 
     def test_connect(self):
         s3blobstore = S3BlobStore("czi-hca-test", self.aws_access_key, self.aws_secret_key)
+        print(s3blobstore)
 
 if __name__ == '__main__':
     unittest.main()

@@ -3,7 +3,7 @@ from __future__ import absolute_import, division, print_function, unicode_litera
 import boto3
 import botocore
 
-from .blobstore import *
+from .blobstore import BlobStore, BlobContainerNotFoundError, BlobStoreCredentialError
 
 
 class S3BlobStore(BlobStore):

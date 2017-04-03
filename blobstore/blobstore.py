@@ -14,7 +14,7 @@ class BlobStore(object):
         raise NotImplementedError()
 
     def set(self, objname, src_file_handle):
-        """Reads from src_file_handle and populate a blob  a blob objname and writes the content to out_file_handle.  
+        """Reads from src_file_handle and populate a blob  a blob objname and writes the content to out_file_handle.
         Raises BlobNotFoundError if the blob is not present."""
         raise NotImplementedError()
 
