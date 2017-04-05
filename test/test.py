@@ -9,7 +9,7 @@ import requests
 pkg_root = os.path.abspath(os.path.join(os.path.dirname(__file__), '..'))
 sys.path.insert(0, pkg_root)
 
-import dss
+import dss # noqa
 
 class TestDSS(unittest.TestCase):
     def setUp(self):
