@@ -1,0 +1,150 @@
+swagger: '2.0'
+info:
+  title: HCA DCP DSS API
+  description: Human Cell Atlas Data Coordination Platform Data Storage System API
+  version: "0.0.1"
+host: dss-api.czi.technology
+schemes:
+  - https
+basePath: /v1
+produces:
+  - application/json
+paths:
+  /files:
+    get:
+      summary: Query files
+      description: |
+        Returns a list of files matching given criteria.
+      responses:
+        200:
+          description: OK
+          schema:
+            type: object
+            properties:
+              files:
+                type: array
+                items:
+                  $ref: "#/definitions/File"
+            required:
+              - files
+    post:
+      summary: Create a file
+      description: |
+        TODO
+      responses:
+        200:
+          description: OK
+  /files/{uuid}:
+    get:
+      parameters:
+        - name: replica
+          in: query
+          description: Replica to fetch from.
+          required: true
+          type: string
+        - name: uuid
+          in: path
+          description: File unique ID.
+          required: true
+          type: string
+      responses:
+        302:
+          description: Redirect to a file location
+        default:
+          description: Unexpected error
+          schema:
+            $ref: '#/definitions/Error'
+  /bundles:
+    get:
+      summary: Query bundles
+      description: |
+        Returns a list of bundles matching given criteria.
+      responses:
+        200:
+          description: OK
+          schema:
+            type: object
+            properties:
+              bundles:
+                type: array
+                items:
+                  $ref: "#/definitions/Bundle"
+            required:
+              - bundles
+    post:
+      summary: Create a bundle
+      description: |
+        TODO
+      responses:
+        200:
+          description: OK
+  /bundles/{uuid}:
+    get:
+      parameters:
+        - name: replica
+          in: query
+          description: Replica to fetch from.
+          required: true
+          type: string
+        - name: uuid
+          in: path
+          description: Bundle unique ID.
+          required: true
+          type: string
+      responses:
+        200:
+          description: OK
+          schema:
+            type: object
+            properties:
+              files:
+                type: array
+                items:
+                  $ref: "#/definitions/File"
+            required:
+              - files
+        default:
+          description: Unexpected error
+          schema:
+            $ref: '#/definitions/Error'
+definitions:
+  File:
+    type: object
+    properties:
+      uuid:
+        type: string
+        description: File unique ID
+      name:
+        type: string
+        description: Filename (unique within a bundle)
+      versions:
+        type: array
+        description: List of versions
+        items:
+          type: string
+    required:
+      - uuid
+      - name
+      - versions
+  Bundle:
+    type: object
+    properties:
+      uuid:
+        type: string
+        description: Bundle unique ID
+  Error:
+    type: object
+    properties:
+      code:
+        type: integer
+        format: int32
+      message:
+        type: string
+      fields:
+        type: string
+  FilesGetResponse:
+    type: object
+    properties:
+      files:
+        type: string
+
