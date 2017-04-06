@@ -42,6 +42,7 @@ paths:
           description: Replica to fetch from.
           required: true
           type: string
+          enum: ["aws", "gcs", "abs"]
         - name: uuid
           in: path
           description: File unique ID.
