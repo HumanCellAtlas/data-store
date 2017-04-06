@@ -24,7 +24,7 @@ def get(uuid, replica):
         )
     elif replica == "gcs":
         blob = gcs.get_bucket(bucket).blob(key)
-        url = blob.generate_signed_url(expiration=int(time.time()+9000))
+        url = blob.generate_signed_url(expiration=int(time.time() + 9000))
     elif replica == "abs":
         abs_alias = "czi"
 
