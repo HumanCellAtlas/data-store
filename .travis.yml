@@ -6,6 +6,9 @@ python:
   - 3.6
 before_install:
   - openssl aes-256-cbc -K $encrypted_06d20418fbcf_key -iv $encrypted_06d20418fbcf_iv -in gcs-credentials.json.enc -out gcs-credentials.json -d
+  - echo Temporary fixup for variable names
+  - export AWS_ACCESS_KEY_ID=$AWS_ACCESS_KEY
+  - export AWS_SECRET_ACCESS_KEY=$AWS_SECRET_KEY
 install:
   - pip install coverage flake8
   - pip install -r requirements.txt
