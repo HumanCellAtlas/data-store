@@ -4,6 +4,8 @@ This repository contains design specs and prototypes for the
 replicated data storage system (aka the "blue box") of
 the [Human Cell Atlas](https://www.humancellatlas.org/).
 
+See the [google drive folder](https://drive.google.com/open?id=0B-_4IWxXwazQbWE5YmtqUWx3RVE) for live collaborative documents.
+
 #### About this prototype
 The prototype in this repository uses [Swagger](http://swagger.io/) to specify the API in [dss-api.yml](dss-api.yml), and
 [Connexion](https://github.com/zalando/connexion) to map the API specification to its implementation in Python.
