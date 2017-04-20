@@ -31,5 +31,8 @@ npm-debug.log
 # OS X metadata files
 .DS_Store
 
-# Python coverage 
+# Python coverage
 .coverage
+
+# Credential files
+/gcs-credentials.json
