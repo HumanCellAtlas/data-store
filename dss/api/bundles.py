@@ -4,7 +4,7 @@ def get(uuid, replica):
     return redirect("http://example.com")
 
 def list():
-    return dict(files=[dict(uuid="", name="", versions=[])])
+    return dict(bundles=[dict(uuid="", versions=[])])
 
 def post():
     pass
