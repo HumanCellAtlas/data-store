@@ -132,6 +132,15 @@ definitions:
       uuid:
         type: string
         description: Bundle unique ID
+      versions:
+        type: array
+        items:
+          type: integer
+          format: int64
+          description: Timestamp of bundle creation measured in milliseconds since epoch
+    required:
+      - uuid
+      - versions
   Error:
     type: object
     properties:
