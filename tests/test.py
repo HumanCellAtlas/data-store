@@ -13,7 +13,7 @@ import dss # noqa
 
 class TestDSS(unittest.TestCase):
     def setUp(self):
-        self.app = dss.app.app.test_client()
+        self.app = dss.create_app().app.test_client()
 
     def test_dss_api(self):
         res = self.app.get("/v1/files")
