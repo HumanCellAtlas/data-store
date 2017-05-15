@@ -24,5 +24,19 @@ Run `./dss-api` in this directory.
 #### Running tests
 Run `make test` in this directory.
 
+#### Configuring cloud-specific access credentials
+
+**AWS**: Follow the instructions in
+http://docs.aws.amazon.com/cli/latest/userguide/cli-chap-getting-started.html. Create an S3 bucket that you want DSS to
+use. Set the environment variable `DSS_S3_TEST_BUCKET`.
+
+**GCE**: Go to https://console.cloud.google.com/. Select the correct Google user account on the top right and the
+correct GCE project in the drop down in the top center. Go to "IAM & Admin", then "Service accounts", then click "Create
+service account" and select "Furnish a new private key". Create the account and download the service account key JSON
+file. Run `gcloud auth activate-service-account --key-file=/path/to/service-account.json`. Run `gcloud config set
+project 'PROJECT NAME'`. Set the environment variable `DSS_GCS_TEST_BUCKET`.
+
+**Azure**: Set the environment variables `AZURE_STORAGE_ACCOUNT_NAME` and `AZURE_STORAGE_ACCOUNT_KEY`.
+
 [![](https://img.shields.io/badge/slack-%23data--store-557EBF.svg)](https://humancellatlas.slack.com/messages/data-store/)
 [![Build Status](https://travis-ci.org/HumanCellAtlas/data-store.svg?branch=master)](https://travis-ci.org/HumanCellAtlas/data-store)

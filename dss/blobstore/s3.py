@@ -3,18 +3,14 @@ from __future__ import absolute_import, division, print_function, unicode_litera
 import boto3
 import botocore
 
-from .blobstore import BlobStore, BlobContainerNotFoundError, BlobStoreCredentialError
+from . import BlobStore, BlobContainerNotFoundError, BlobStoreCredentialError
 
 
 class S3BlobStore(BlobStore):
-    def __init__(self, container, access_key, secret_key):
+    def __init__(self, container):
         super(S3BlobStore, self).__init__()
 
-        self.s3_client = boto3.client(
-            's3',
-            aws_access_key_id=access_key,
-            aws_secret_access_key=secret_key,
-        )
+        self.s3_client = boto3.client("s3")
 
         try:
             self.s3_client.head_bucket(Bucket=container)

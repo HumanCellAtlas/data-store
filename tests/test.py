@@ -11,17 +11,30 @@ sys.path.insert(0, pkg_root)
 
 import dss # noqa
 
-class TestDSS(unittest.TestCase):
+class TestRequest:
+    def call(self, method, path, json={}, headers={}, **kwargs):
+        headers = [(k, v) for k, v in headers.items()]
+        return self.app.open(path, method=method, headers=headers, data=json.dumps(json),
+                             content_type="application/json", **kwargs)
+
+class TestDSS(unittest.TestCase, TestRequest):
     def setUp(self):
         self.app = dss.create_app().app.test_client()
 
     def test_dss_api(self):
         res = self.app.get("/v1/files")
         self.assertEqual(res.status_code, requests.codes.ok)
+
         res = self.app.get("/v1/files/123")
         self.assertEqual(res.status_code, requests.codes.bad_request)
-        res = self.app.get("/v1/files/123?replica=foo")
+        res = self.app.get("/v1/files/123?replica=aws")
         self.assertEqual(res.status_code, requests.codes.found)
+
+        print(self.app.post('/v1/files',
+                            headers=[["x-header-1", "foo"], ["x-header-2", "bar"]],
+                            data=json.dumps(dict(foo='bar')),
+                            content_type='application/json',
+                            query_string=dict(x="y")))
 
 if __name__ == '__main__':
     unittest.main()
