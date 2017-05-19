@@ -3,7 +3,7 @@ from __future__ import absolute_import, division, print_function, unicode_litera
 from google.cloud.storage import Client
 from google.cloud import exceptions
 
-from .blobstore import BlobStore, BlobContainerNotFoundError, BlobStoreCredentialError
+from . import BlobStore, BlobContainerNotFoundError, BlobStoreCredentialError
 
 
 class GCSBlobStore(BlobStore):
@@ -14,7 +14,7 @@ class GCSBlobStore(BlobStore):
 
         try:
             self.bucket = self.gcs_client.get_bucket(container)
-        except exceptions.NotFound:
-            raise BlobContainerNotFoundError()
-        except exceptions.Forbidden:
-            raise BlobStoreCredentialError()
+        except exceptions.NotFound as e:
+            raise BlobContainerNotFoundError(e)
+        except exceptions.Forbidden as e:
+            raise BlobStoreCredentialError(e)

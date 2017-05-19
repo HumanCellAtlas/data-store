@@ -1,5 +1,5 @@
 lint:
-	flake8
+	flake8 dss test
 
 test: lint
 	python -m unittest discover tests
