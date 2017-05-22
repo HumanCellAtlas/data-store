@@ -126,6 +126,73 @@ definitions:
       - uuid
       - name
       - versions
+  blob_common_metadata:
+    type: object
+    description: Common fields between the files list of a bundle and the metadata tracking an unique file.
+    properties:
+      uuid:
+        type: string
+        description: A RFC4122-compliant ID for the file.
+      timestamp:
+        type: string
+        format: date-time
+        description: Timestamp of bundle creation in RFC3339.
+      crc32c:
+        type: string
+        description: CRC-32C of the file contents in hex
+      md5:
+        type: string
+        description: MD5 of the file contents in hex
+      sha1:
+        type: string
+        description: SHA-1 of the file contents in hex
+      sha256:
+        type: string
+        description: SHA-256 of the file contents in hex
+    required:
+      - uuid
+      - timestamp
+      - crc32c
+      - md5
+      - sha1
+      - sha256
+  file_version:
+    type: object
+    description: Object describing a single file in the files list of a bundle.
+    allOf:
+      - $ref: '#/definitions/blob_common_metadata'
+      - type: object
+        properties:
+          name:
+            type: string
+            description: Filename (unique within a bundle)
+          content-type:
+            type: string
+            description: Content-type of the file.
+        required:
+          - name
+          - content-type
+  file_metadata:
+    type: object
+    description: Object describing a single file in the files list of a bundle.
+    allOf:
+      - $ref: '#/definitions/blob_common_metadata'
+      - type: object
+        properties:
+          version:
+            type: string
+            description: Version of the file metadata object.
+          bundle_uuid:
+            type: string
+            description: A RFC4122-compliant ID for the bundle that contains this file.
+          creator_uid:
+            type: integer
+            format: int64
+            description: User ID who created this file.
+        required:
+          - version
+          - bundle_uuid
+          - creator_uid
   Bundle:
     type: object
     properties:
