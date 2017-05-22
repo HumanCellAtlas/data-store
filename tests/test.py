@@ -21,7 +21,7 @@ class TestDSS(unittest.TestCase, TestRequest):
     def setUp(self):
         self.app = dss.create_app().app.test_client()
 
-    def test_dss_api(self):
+    def test_file_api(self):
         res = self.app.get("/v1/files")
         self.assertEqual(res.status_code, requests.codes.ok)
 
