@@ -36,5 +36,15 @@ class TestDSS(unittest.TestCase, TestRequest):
                             content_type='application/json',
                             query_string=dict(x="y")))
 
+    def test_bundle_api(self):
+        res = self.app.get("/v1/bundles")
+        self.assertEqual(res.status_code, requests.codes.ok)
+        res = self.app.get("/v1/bundles/123")
+        self.assertEqual(res.status_code, requests.codes.ok)
+        res = self.app.get("/v1/bundles/123/55555")
+        self.assertEqual(res.status_code, requests.codes.bad_request)
+        res = self.app.get("/v1/bundles/123/55555?replica=foo")
+        self.assertEqual(res.status_code, requests.codes.ok)
+
 if __name__ == '__main__':
     unittest.main()
