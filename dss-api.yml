@@ -80,6 +80,28 @@ paths:
           description: OK
   /bundles/{uuid}:
     get:
+      operationId: dss.api.bundles.list_versions
+      parameters:
+        - name: uuid
+          in: path
+          description: Bundle unique ID.
+          required: true
+          type: string
+      responses:
+        200:
+          description: OK
+          schema:
+            type: array
+            items:
+              type: string
+              format: date-time
+              description: Timestamp of bundle creation in RFC3339.
+        default:
+          description: Unexpected error
+          schema:
+            $ref: '#/definitions/Error'
+  /bundles/{uuid}/{bundle_version}:
+    get:
       parameters:
         - name: replica
           in: query
@@ -91,18 +113,18 @@ paths:
           description: Bundle unique ID.
           required: true
           type: string
+        - name: bundle_version
+          in: path
+          description: Version of the bundle.
+          required: true
+          type: string
       responses:
         200:
           description: OK
           schema:
-            type: object
-            properties:
-              files:
-                type: array
-                items:
-                  $ref: "#/definitions/File"
-            required:
-              - files
+            type: array
+            items:
+              $ref: "#/definitions/bundle_version"
         default:
           description: Unexpected error
           schema:
@@ -208,6 +230,24 @@ definitions:
     required:
       - uuid
       - versions
+  bundle_version:
+    type: object
+    properties:
+      uuid:
+        type: string
+        description: Bundle unique ID
+      bundle_timestamp:
+        type: string
+        format: date-time
+        description: Timestamp of bundle creation in RFC3339.
+      contents:
+        type: array
+        items:
+          $ref: "#/definitions/file_version"
+      writer_uid:
+        type: integer
+        format: int
+        description: ID of the user who created this bundle manifest
   Error:
     type: object
     properties:
