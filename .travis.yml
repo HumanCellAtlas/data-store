@@ -13,6 +13,12 @@ script:
 - make test
 after_success:
 - bash <(curl -s https://codecov.io/bash)
+deploy:
+  provider: script
+  script: make deploy
+  on:
+    branch: master
+    python: 3.6
 env:
   global:
   - DSS_S3_TEST_BUCKET=czi-hca-test
