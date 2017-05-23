@@ -9,6 +9,6 @@ deploy: chalice/chalicelib
 	pip install -r requirements.txt
 	git clean -df chalice/chalicelib
 	cp -R dss dss-api.yml chalice/chalicelib
-	(cd chalice; chalice deploy)
+	(cd chalice; chalice deploy --no-autogen-policy)
 
 .PHONY: test lint
