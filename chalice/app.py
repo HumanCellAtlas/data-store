@@ -1,9 +1,6 @@
 import os, sys, re, logging, collections
 
-logging.basicConfig(level=logging.INFO)
-
-import flask # noqa
-from chalice import Chalice, Response # noqa
+import flask, chalice
 
 pkg_root = os.path.abspath(os.path.join(os.path.dirname(__file__), 'chalicelib'))
 sys.path.insert(0, pkg_root)
@@ -11,7 +8,7 @@ sys.path.insert(0, pkg_root)
 from dss import create_app # noqa
 
 def get_chalice_app(flask_app):
-    app = Chalice(app_name=flask_app.name)
+    app = chalice.Chalice(app_name=flask_app.name)
     flask_app.debug = True
     app.debug = flask_app.debug
     app.log.setLevel(logging.DEBUG)
@@ -27,9 +24,9 @@ def get_chalice_app(flask_app):
                                             data=app.current_request.raw_body,
                                             environ_base=app.current_request.stage_vars):
             flask_res = flask_app.full_dispatch_request()
-        return Response(status_code=flask_res._status_code,
-                        headers=dict(flask_res.headers),
-                        body="".join([c.decode() if isinstance(c, bytes) else c for c in flask_res.response]))
+        return chalice.Response(status_code=flask_res._status_code,
+                                headers=dict(flask_res.headers),
+                                body="".join([c.decode() if isinstance(c, bytes) else c for c in flask_res.response]))
 
     routes = collections.defaultdict(list)
     for rule in flask_app.url_map.iter_rules():
