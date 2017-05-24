@@ -11,7 +11,7 @@ sys.path.insert(0, pkg_root)
 from dss import create_app # noqa
 
 def get_chalice_app(flask_app):
-    app = Chalice(app_name=__name__)
+    app = Chalice(app_name="dss")
     app.debug = True
 
     def dispatch(*args, **kwargs):
@@ -21,9 +21,6 @@ def get_chalice_app(flask_app):
                                             base_url="https://{}".format(app.current_request.headers["host"]),
                                             query_string=app.current_request.query_params,
                                             method=app.current_request.method,
-                                            content_type=None,
-                                            content_length=None,
-                                            errors_stream=None,
                                             headers=list(app.current_request.headers.items()),
                                             data=app.current_request.raw_body,
                                             environ_base=app.current_request.stage_vars):
