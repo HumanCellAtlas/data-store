@@ -2,7 +2,7 @@ SHELL=/bin/bash
 STAGE=dev
 
 lint:
-	flake8 dss test
+	flake8 dss tests chalice/*.py
 
 test: lint
 	python -m unittest discover tests

@@ -2,15 +2,13 @@ import os, sys, re, logging, collections
 
 logging.basicConfig(level=logging.INFO)
 
-import flask
-from chalice import Chalice, Response
+import flask # noqa
+from chalice import Chalice, Response # noqa
 
 pkg_root = os.path.abspath(os.path.join(os.path.dirname(__file__), 'chalicelib'))
-assert os.path.exists(pkg_root)
 sys.path.insert(0, pkg_root)
 
-from dss import create_app
-
+from dss import create_app # noqa
 
 def get_chalice_app(flask_app):
     app = Chalice(app_name=__name__)
