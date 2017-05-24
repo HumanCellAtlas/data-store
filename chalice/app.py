@@ -15,7 +15,6 @@ def get_chalice_app(flask_app):
     flask_app.debug = True
     app.debug = flask_app.debug
     app.log.setLevel(logging.DEBUG)
-    flask_app._logger = app.log
 
     def dispatch(*args, **kwargs):
         uri_params = app.current_request.uri_params or {}
