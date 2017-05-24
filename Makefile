@@ -13,6 +13,6 @@ deploy:
 	git clean -df chalice/chalicelib
 	cp -R dss dss-api.yml chalice/chalicelib
 	chalice/build_deploy_config.sh $(STAGE)
-	(cd chalice; chalice deploy --no-autogen-policy --stage $(STAGE))
+	cd chalice; chalice deploy --no-autogen-policy --stage $(STAGE)
 
 .PHONY: test lint
