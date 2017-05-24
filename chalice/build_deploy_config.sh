@@ -1,4 +1,6 @@
-#!/bin/bash -euo pipefail
+#!/bin/bash
+
+set -euo pipefail
 
 get_api_id() {
     for api_id in $(aws apigateway get-rest-apis | jq -r .items[].id); do
