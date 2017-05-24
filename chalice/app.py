@@ -11,8 +11,11 @@ sys.path.insert(0, pkg_root)
 from dss import create_app # noqa
 
 def get_chalice_app(flask_app):
-    app = Chalice(app_name="dss")
-    app.debug = True
+    app = Chalice(app_name=flask_app.name)
+    flask_app.debug = True
+    app.debug = flask_app.debug
+    app.log.setLevel(logging.DEBUG)
+    flask_app._logger = app.log
 
     def dispatch(*args, **kwargs):
         uri_params = app.current_request.uri_params or {}
