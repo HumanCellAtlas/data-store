@@ -33,7 +33,6 @@ def get_chalice_app(flask_app):
     for rule in flask_app.url_map.iter_rules():
         routes[re.sub(r"<(.+?)(:.+?)?>", r"{\1}", rule.rule).rstrip("/")] += rule.methods
     for route, methods in routes.items():
-        print("ROUTE", route)
         app.route(route, methods=methods)(dispatch)
     return app
 
