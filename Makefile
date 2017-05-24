@@ -7,7 +7,7 @@ lint:
 test: lint
 	python -m unittest discover tests
 
-deploy: chalice/chalicelib
+deploy:
 	pip install chalice
 	pip install -r requirements.txt
 	git clean -df chalice/chalicelib
