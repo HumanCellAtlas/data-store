@@ -135,9 +135,9 @@ definitions:
       versions:
         type: array
         items:
-          type: integer
-          format: int64
-          description: Timestamp of bundle creation measured in milliseconds since epoch
+          type: string
+          format: date-time
+          description: Timestamp of bundle creation in RFC3339.
     required:
       - uuid
       - versions
