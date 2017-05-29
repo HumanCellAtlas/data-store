@@ -21,6 +21,7 @@ deploy:
     python: 3.6
 env:
   global:
+  - AWS_DEFAULT_REGION=us-east-1
   - DSS_S3_TEST_BUCKET=czi-hca-test
   - DSS_GCS_TEST_BUCKET=czi-hca-test
   - GOOGLE_APPLICATION_CREDENTIALS=gcs-credentials.json
