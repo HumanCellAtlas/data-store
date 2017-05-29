@@ -15,8 +15,6 @@ import connexion
 from connexion.resolver import RestyResolver
 from flask_failsafe import failsafe
 
-logging.basicConfig(level=logging.DEBUG)
-
 def get_logger():
     return flask.current_app.logger
 
