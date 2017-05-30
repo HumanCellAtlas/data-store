@@ -27,13 +27,6 @@ paths:
                   $ref: "#/definitions/File"
             required:
               - files
-    post:
-      summary: Create a file
-      description: |
-        TODO
-      responses:
-        200:
-          description: OK
   /files/{uuid}:
     get:
       parameters:
