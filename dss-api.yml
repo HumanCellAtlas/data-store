@@ -30,14 +30,14 @@ paths:
   /files/{uuid}:
     get:
       parameters:
-        - name: replica
-          in: query
-          description: Replica to fetch from.
-          required: true
-          type: string
         - name: uuid
           in: path
           description: File unique ID.
+          required: true
+          type: string
+        - name: replica
+          in: query
+          description: Replica to fetch from.
           required: true
           type: string
       responses:
