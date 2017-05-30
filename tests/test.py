@@ -25,6 +25,9 @@ class TestDSS(unittest.TestCase, TestRequest):
         res = self.app.get("/v1/files")
         self.assertEqual(res.status_code, requests.codes.ok)
 
+        res = self.app.head("/v1/files/123")
+        self.assertEqual(res.status_code, requests.codes.ok)
+
         res = self.app.get("/v1/files/123")
         self.assertEqual(res.status_code, requests.codes.bad_request)
         res = self.app.get("/v1/files/123?replica=aws")
