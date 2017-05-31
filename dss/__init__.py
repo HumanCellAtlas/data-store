@@ -4,12 +4,6 @@
 DSS description FIXME: elaborate
 """
 
-import os, sys, json, time, logging
-from datetime import datetime, timedelta
-
-import boto3
-import google.cloud.storage
-from azure.storage.blob import BlockBlobService, BlobPermissions
 import flask
 import connexion
 from connexion.resolver import RestyResolver
