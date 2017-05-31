@@ -237,10 +237,10 @@ definitions:
         type: array
         items:
           $ref: "#/definitions/file_version"
-      writer_uid:
+      creator_uid:
         type: integer
         format: int
-        description: ID of the user who created this bundle manifest
+        description: User ID who created this bundle manifest.
   Error:
     type: object
     properties:
