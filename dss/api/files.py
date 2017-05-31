@@ -1,7 +1,7 @@
 from flask import redirect
 from .. import get_logger
 
-def get(uuid, replica):
+def get(uuid: str, replica: str):
     get_logger().info("This is a log message.")
     return redirect("http://example.com")
 
