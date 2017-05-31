@@ -23,7 +23,7 @@ def get(uuid: str, replica: str=None, timestamp: str=None):
     headers['X-DSS-TIMESTAMP'] = 5353
     headers['X-DSS-CONTENT-TYPE'] = "abcde"
     headers['X-DSS-CRC32C'] = "%08X" % (binascii.crc32(b"abcde"),)
-    headers['X-DSS-MD5'] = hashlib.md5().hexdigest()
+    headers['X-DSS-S3_ETAG'] = hashlib.md5().hexdigest()
     headers['X-DSS-SHA1'] = hashlib.sha1().hexdigest()
     headers['X-DSS-SHA256'] = hashlib.sha256().hexdigest()
 
