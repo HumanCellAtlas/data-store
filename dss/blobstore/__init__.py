@@ -5,11 +5,11 @@ class BlobStore(object):
     def __init__(self):
         pass
 
-    def list(self, prefix=None):
+    def list(self, prefix: str=None):
         """Returns a list of all blob entries in a container that match a given prefix."""
         raise NotImplementedError()
 
-    def generate_presigned_url(self, object_name, method):
+    def generate_presigned_url(self, object_name: str, method: str):
         """
         Retrieves a presigned URL for the given HTTP method for blob
         ``object_name``. Raises BlobNotFoundError if the blob is not
@@ -17,7 +17,7 @@ class BlobStore(object):
         """
         raise NotImplementedError()
 
-    def delete(self, object_name):
+    def delete(self, object_name: str):
         raise NotImplementedError()
 
 

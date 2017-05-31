@@ -7,7 +7,7 @@ from . import BlobStore, BlobContainerNotFoundError, BlobStoreCredentialError
 
 
 class GCSBlobStore(BlobStore):
-    def __init__(self, container, json_keyfile):
+    def __init__(self, container: str, json_keyfile: str) -> None:
         super(GCSBlobStore, self).__init__()
 
         self.gcs_client = Client.from_service_account_json(json_keyfile)
