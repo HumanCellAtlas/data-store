@@ -15,8 +15,11 @@ You can use the
 to review and edit the prototype API specification. When the prototype app is running, the Swagger spec is also available at
 `/v1/swagger.json`.
 
+The prototype is deployed continuously from the `master` branch, with the resulting producer and consumer API available at
+`https://hca-dss.czi.technology/v1/`.
+
 #### Installing dependencies for the prototype
-Run `pip install -r requirements.txt` in this directory.
+The HCA DSS prototype requires Python 3.4+ to run. Run `pip install -r requirements.txt` in this directory.
 
 #### Running the prototype
 Run `./dss-api` in this directory.
