@@ -3,7 +3,9 @@
 
 from __future__ import absolute_import, division, print_function, unicode_literals
 
-import os, sys, unittest, collections, datetime, glob
+import uuid
+
+import os, sys, unittest, collections, json, datetime, glob
 import requests
 
 pkg_root = os.path.abspath(os.path.join(os.path.dirname(__file__), '..'))
@@ -32,6 +34,20 @@ class TestDSS(unittest.TestCase, TestRequest):
         self.assertEqual(res.status_code, requests.codes.bad_request)
         res = self.app.get("/v1/files/123?replica=aws")
         self.assertEqual(res.status_code, requests.codes.found)
+
+        res = self.app.put(
+            '/v1/files/123',
+            data=json.dumps(
+                dict(source_url="s3://foobar",
+                     bundle_uuid=str(uuid.uuid4()),
+                     creator_uid=4321,
+                     content_type="text/html",
+                     )),
+            content_type='application/json')
+        self.assertEqual(res.status_code, requests.codes.created)
+        self.assertEqual(res.headers['content-type'], "application/json")
+        jsonres = json.loads(res.data.decode("utf-8"))
+        self.assertIn('timestamp', jsonres)
 
     def test_bundle_api(self):
         res = self.app.get("/v1/bundles")
