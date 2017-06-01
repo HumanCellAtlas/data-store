@@ -3,7 +3,7 @@
 
 from __future__ import absolute_import, division, print_function, unicode_literals
 
-import os, sys, unittest, collections, json, datetime, glob
+import os, sys, unittest, collections, datetime, glob
 import requests
 
 pkg_root = os.path.abspath(os.path.join(os.path.dirname(__file__), '..'))
@@ -32,12 +32,6 @@ class TestDSS(unittest.TestCase, TestRequest):
         self.assertEqual(res.status_code, requests.codes.bad_request)
         res = self.app.get("/v1/files/123?replica=aws")
         self.assertEqual(res.status_code, requests.codes.found)
-
-        print(self.app.post('/v1/files',
-                            headers=[["x-header-1", "foo"], ["x-header-2", "bar"]],
-                            data=json.dumps(dict(foo='bar')),
-                            content_type='application/json',
-                            query_string=dict(x="y")))
 
     def test_bundle_api(self):
         res = self.app.get("/v1/bundles")
