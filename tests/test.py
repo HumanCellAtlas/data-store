@@ -5,7 +5,8 @@ from __future__ import absolute_import, division, print_function, unicode_litera
 
 import uuid
 
-import os, sys, unittest, collections, json, datetime, glob
+import os, sys, unittest
+import json
 import requests
 
 pkg_root = os.path.abspath(os.path.join(os.path.dirname(__file__), '..'))
