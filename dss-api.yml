@@ -119,6 +119,55 @@ paths:
           description: Unexpected error
           schema:
             $ref: '#/definitions/Error'
+    put:
+      summary: Create a file
+      description: |
+        Create a new file with a given UUID.  The file content is passed in through a cloud URL.  The file on the cloud
+        provider must have metadata set reflecting the file checksums and the file content type.
+      parameters:
+        - name: uuid
+          in: path
+          description: A RFC4122-compliant ID for the file.
+          required: true
+          type: string
+        - name: extras
+          in: body
+          required: true
+          schema:
+            type: object
+            properties:
+              source_url:
+                description: Cloud URL for source data.
+                type: string
+                pattern: "^(gs|s3|wasb)://"
+              bundle_uuid:
+                description: A RFC4122-compliant ID for the bundle that contains this file.
+                type: string
+              creator_uid:
+                description: User ID who is creating this file.
+                type: integer
+                format: int64
+              timestamp:
+                description: Timestamp of file creation in RFC3339.
+                type: string
+                format: date-time
+            required:
+              - source_url
+              - bundle_uuid
+              - creator_uid
+      responses:
+        201:
+          description: OK
+          schema:
+            type: object
+            properties:
+              timestamp:
+                description: Timestamp of file creation in RFC3339.
+                type: string
+                format: date-time
+            required:
+              - timestamp
+
   /bundles:
     get:
       summary: Query bundles
@@ -328,4 +377,3 @@ definitions:
     properties:
       files:
         type: string
-
