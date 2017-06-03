@@ -22,6 +22,7 @@ fi
 
 stage=$1
 deployed_json="$(dirname $0)/.chalice/deployed.json"
+config_json="$(dirname $0)/.chalice/config.json"
 export lambda_name=$(jq -r .$stage.api_handler_name "$deployed_json")
 
 if [[ $lambda_name == "null" ]]; then
@@ -36,4 +37,8 @@ if [[ -z $lambda_arn ]]; then
 else
     export api_id=$(get_api_id)
     cat "$deployed_json" | jq .$stage.api_handler_arn=env.lambda_arn | jq .$stage.rest_api_id=env.api_id | sponge "$deployed_json"
+fi
+
+if [[ ${CONTINUOUS_INTEGRATION:-} == true ]]; then
+    cat "$config_json" | jq .manage_iam_role=false | jq .iam_role_arn=env.chalice_lambda_iam_role_arn | sponge "$config_json"
 fi
