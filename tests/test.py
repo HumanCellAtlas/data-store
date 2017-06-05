@@ -12,13 +12,7 @@ sys.path.insert(0, pkg_root)
 
 import dss # noqa
 
-class TestRequest:
-    def call(self, method, path, json={}, headers={}, **kwargs):
-        headers = [(k, v) for k, v in headers.items()]
-        return self.app.open(path, method=method, headers=headers, data=json.dumps(json),
-                             content_type="application/json", **kwargs)
-
-class TestDSS(unittest.TestCase, TestRequest):
+class TestDSS(unittest.TestCase):
     def setUp(self):
         self.app = dss.create_app().app.test_client()
 
