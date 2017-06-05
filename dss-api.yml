@@ -3,7 +3,7 @@ info:
   title: HCA DCP DSS API
   description: Human Cell Atlas Data Coordination Platform Data Storage System API
   version: "0.0.1"
-host: dss-api.czi.technology
+host: hca-dss.czi.technology
 schemes:
   - https
 basePath: /v1
