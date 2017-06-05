@@ -34,12 +34,6 @@ class TestDSS(unittest.TestCase, TestRequest):
         res = self.app.get("/v1/files/123?replica=aws")
         self.assertEqual(res.status_code, requests.codes.found)
 
-        print(self.app.post('/v1/files',
-                            headers=[["x-header-1", "foo"], ["x-header-2", "bar"]],
-                            data=json.dumps(dict(foo='bar')),
-                            content_type='application/json',
-                            query_string=dict(x="y")))
-
     def test_bundle_api(self):
         res = self.app.get("/v1/bundles")
         self.assertEqual(res.status_code, requests.codes.ok)
