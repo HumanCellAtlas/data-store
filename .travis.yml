@@ -12,8 +12,9 @@ addons:
 before_install:
 - openssl aes-256-cbc -K $encrypted_ead445d7a1e2_key -iv $encrypted_ead445d7a1e2_iv -in gcs-credentials.json.enc -out gcs-credentials.json -d
 install:
-- pip install coverage flake8 awscli
+- pip install coverage awscli
 - pip install -r requirements.txt
+- pip install -r requirements-dev.txt
 script:
 - make test
 after_success:

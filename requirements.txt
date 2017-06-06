@@ -3,4 +3,3 @@ google-cloud-storage
 azure-storage
 connexion
 flask-failsafe
-mypy
