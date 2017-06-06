@@ -185,13 +185,6 @@ paths:
                   $ref: "#/definitions/Bundle"
             required:
               - bundles
-    post:
-      summary: Create a bundle
-      description: |
-        TODO
-      responses:
-        200:
-          description: OK
   /bundles/{uuid}:
     get:
       operationId: dss.api.bundles.list_versions
