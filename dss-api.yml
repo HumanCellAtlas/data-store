@@ -260,29 +260,33 @@ definitions:
     description: Common fields between the files list of a bundle and the metadata tracking an unique file.
     properties:
       uuid:
-        type: string
         description: A RFC4122-compliant ID for the file.
+        type: string
       timestamp:
+        description: Timestamp of bundle creation in RFC3339.
         type: string
         format: date-time
-        description: Timestamp of bundle creation in RFC3339.
       crc32c:
-        type: string
         description: CRC-32C of the file contents in hex
-      md5:
         type: string
-        description: MD5 of the file contents in hex
+        pattern: "^[A-Za-z0-9]{8}$"
+      s3_etag:
+        description: S3 ETag of the file contents.
+        type: string
+        pattern: "^[A-Za-z0-9]{32}(-([2-9]|[1-8][0-9]|9[0-9]|[1-8][0-9]{2}|9[0-8][0-9]|99[0-9]|[1-8][0-9]{3}|9[0-8][0-9]{2}|99[0-8][0-9]|999[0-9]|10000))?$"
       sha1:
-        type: string
         description: SHA-1 of the file contents in hex
-      sha256:
         type: string
+        pattern: "^[A-Za-z0-9]{40}$"
+      sha256:
         description: SHA-256 of the file contents in hex
+        type: string
+        pattern: "^[A-Za-z0-9]{64}$"
     required:
       - uuid
       - timestamp
       - crc32c
-      - md5
+      - s3_etag
       - sha1
       - sha256
   file_version:
