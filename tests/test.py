@@ -80,40 +80,36 @@ class TestDSS(unittest.TestCase):
             raise AttributeError(item)
 
     def test_file_api(self):
-        res = self.app.get("/v1/files")
-        self.assertEqual(res.status_code, requests.codes.ok)
+        self.assertGetResponse("/v1/files", requests.codes.ok)
 
-        res = self.app.head("/v1/files/123")
-        self.assertEqual(res.status_code, requests.codes.ok)
+        self.assertHeadResponse("/v1/files/123", requests.codes.ok)
 
-        res = self.app.get("/v1/files/123")
-        self.assertEqual(res.status_code, requests.codes.bad_request)
-        res = self.app.get("/v1/files/123?replica=aws")
-        self.assertEqual(res.status_code, requests.codes.found)
+        self.assertGetResponse("/v1/files/123", requests.codes.bad_request)
+        self.assertGetResponse("/v1/files/123?replica=aws", requests.codes.found)
 
-        res = self.app.put(
+        response = self.assertPutResponse(
             '/v1/files/123',
-            data=json.dumps(
-                dict(source_url="s3://foobar",
-                     bundle_uuid=str(uuid.uuid4()),
-                     creator_uid=4321,
-                     content_type="text/html",
-                     )),
-            content_type='application/json')
-        self.assertEqual(res.status_code, requests.codes.created)
-        self.assertEqual(res.headers['content-type'], "application/json")
-        jsonres = json.loads(res.data.decode("utf-8"))
-        self.assertIn('timestamp', jsonres)
+            requests.codes.created,
+            json_request_body=dict(
+                source_url="s3://foobar",
+                bundle_uuid=str(uuid.uuid4()),
+                creator_uid=4321,
+                content_type="text/html",
+            ),
+        )
+        self.assertHeaders(
+            response[0],
+            {
+                'content-type': "application/json",
+            }
+        )
+        self.assertIn('timestamp', response[2])
 
     def test_bundle_api(self):
-        res = self.app.get("/v1/bundles")
-        self.assertEqual(res.status_code, requests.codes.ok)
-        res = self.app.get("/v1/bundles/123")
-        self.assertEqual(res.status_code, requests.codes.ok)
-        res = self.app.get("/v1/bundles/123/55555")
-        self.assertEqual(res.status_code, requests.codes.bad_request)
-        res = self.app.get("/v1/bundles/123/55555?replica=foo")
-        self.assertEqual(res.status_code, requests.codes.ok)
+        self.assertGetResponse("/v1/bundles", requests.codes.ok)
+        self.assertGetResponse("/v1/bundles/123", requests.codes.ok)
+        self.assertGetResponse("/v1/bundles/123/55555", requests.codes.bad_request)
+        self.assertGetResponse("/v1/bundles/123/55555?replica=foo", requests.codes.ok)
 
 if __name__ == '__main__':
     unittest.main()
