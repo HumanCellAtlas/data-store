@@ -52,68 +52,68 @@ paths:
           headers:
             # edits to here should probably be reflected in the 302 section immediately below.
             X-DSS-BUNDLE-UUID:
-              type: string
               description: A RFC4122-compliant ID for the bundle that contains this file.
+              type: string
             X-DSS-CREATOR-UID:
+              description: User ID who created this file.
               type: integer
               format: int64
-              description: User ID who created this file.
             X-DSS-TIMESTAMP:
+              description: Timestamp of file creation in RFC3339.
               type: string
               format: date-time
-              description: Timestamp of file creation in RFC3339.
             X-DSS-CONTENT-TYPE:
-              type: string
               description: Content-type of the file.
-            X-DSS-CRC32C:
               type: string
+            X-DSS-CRC32C:
               description: CRC32C of the file contents in hex.
+              type: string
               pattern: "^[A-Za-z0-9]{8}$"
             X-DSS-S3-ETAG:
-              type: string
               description: S3 ETag of the file contents.
+              type: string
               pattern: "^[A-Za-z0-9]{32}(-([2-9]|[1-8][0-9]|9[0-9]|[1-8][0-9]{2}|9[0-8][0-9]|99[0-9]|[1-8][0-9]{3}|9[0-8][0-9]{2}|99[0-8][0-9]|999[0-9]|10000))?$"
             X-DSS-SHA1:
-              type: string
               description: SHA-1 of the file contents in hex.
+              type: string
               pattern: "^[A-Za-z0-9]{40}$"
             X-DSS-SHA256:
-              type: string
               description: SHA-256 of the file contents in hex.
+              type: string
               pattern: "^[A-Za-z0-9]{64}$"
         302:
           description: On a GET request, redirects to a signed URL.
           headers:
-            # edits to here should probably be reflected in the 200 section immediately above.
+            # edits to here should probably be reflected in the 302 section immediately below.
             X-DSS-BUNDLE-UUID:
-              type: string
               description: A RFC4122-compliant ID for the bundle that contains this file.
+              type: string
             X-DSS-CREATOR-UID:
+              description: User ID who created this file.
               type: integer
               format: int64
-              description: User ID who created this file.
             X-DSS-TIMESTAMP:
+              description: Timestamp of file creation in RFC3339.
               type: string
               format: date-time
-              description: Timestamp of file creation in RFC3339.
             X-DSS-CONTENT-TYPE:
-              type: string
               description: Content-type of the file.
-            X-DSS-CRC32C:
               type: string
+            X-DSS-CRC32C:
               description: CRC32C of the file contents in hex.
+              type: string
               pattern: "^[A-Za-z0-9]{8}$"
             X-DSS-S3-ETAG:
-              type: string
               description: S3 ETag of the file contents.
+              type: string
               pattern: "^[A-Za-z0-9]{32}(-([2-9]|[1-8][0-9]|9[0-9]|[1-8][0-9]{2}|9[0-8][0-9]|99[0-9]|[1-8][0-9]{3}|9[0-8][0-9]{2}|99[0-8][0-9]|999[0-9]|10000))?$"
             X-DSS-SHA1:
-              type: string
               description: SHA-1 of the file contents in hex.
+              type: string
               pattern: "^[A-Za-z0-9]{40}$"
             X-DSS-SHA256:
-              type: string
               description: SHA-256 of the file contents in hex.
+              type: string
               pattern: "^[A-Za-z0-9]{64}$"
         default:
           description: Unexpected error
