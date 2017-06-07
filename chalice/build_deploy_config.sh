@@ -33,12 +33,16 @@ fi
 export lambda_arn=$(aws lambda list-functions | jq -r '.Functions[] | select(.FunctionName==env.lambda_name) | .FunctionArn')
 if [[ -z $lambda_arn ]]; then
     echo "Lambda function $lambda_name not found, resetting Chalice config"
-    rm "$deployed_json"
+    rm -f "$deployed_json"
 else
     export api_id=$(get_api_id)
     cat "$deployed_json" | jq .$stage.api_handler_arn=env.lambda_arn | jq .$stage.rest_api_id=env.api_id | sponge "$deployed_json"
 fi
 
-if [[ ${CONTINUOUS_INTEGRATION:-} == true ]]; then
+for var in $EXPORT_ENV_VARS_TO_LAMBDA; do
+    cat "$config_json" | jq .stages.$stage.environment_variables.$var=env.$var | sponge "$config_json"
+done
+
+if [[ ${CI:-} == true ]]; then
     cat "$config_json" | jq .manage_iam_role=false | jq .iam_role_arn=env.chalice_lambda_iam_role_arn | sponge "$config_json"
 fi

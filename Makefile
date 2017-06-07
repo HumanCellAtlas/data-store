@@ -1,5 +1,6 @@
-SHELL=/bin/bash
-STAGE=dev
+export SHELL=/bin/bash
+export STAGE=dev
+export EXPORT_ENV_VARS_TO_LAMBDA=DSS_S3_TEST_BUCKET DSS_GCS_TEST_BUCKET
 MODULES=dss tests
 
 lint:
@@ -12,11 +13,7 @@ test: lint mypy
 	python -m unittest discover tests
 
 deploy:
-	pip install chalice
-	pip install -r requirements.txt
-	git clean -df chalice/chalicelib
-	cp -R dss dss-api.yml chalice/chalicelib
-	chalice/build_deploy_config.sh $(STAGE)
-	cd chalice; chalice deploy --no-autogen-policy --stage $(STAGE)
+	$(MAKE) -C chalice deploy
+	$(MAKE) -C daemons deploy
 
 .PHONY: test lint mypy
