@@ -1,5 +1,8 @@
 language: python
-cache: pip
+cache:
+  pip: true
+  directories:
+  - chalice/.chalice/venv
 python:
 - 3.4
 - 3.6
