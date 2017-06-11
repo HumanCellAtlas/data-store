@@ -23,6 +23,7 @@ fi
 stage=$1
 deployed_json="$(dirname $0)/.chalice/deployed.json"
 config_json="$(dirname $0)/.chalice/config.json"
+policy_json="$(dirname $0)/.chalice/policy.json"
 export lambda_name=$(jq -r .$stage.api_handler_name "$deployed_json")
 
 if [[ $lambda_name == "null" ]]; then
@@ -46,3 +47,5 @@ done
 if [[ ${CI:-} == true ]]; then
     cat "$config_json" | jq .manage_iam_role=false | jq .iam_role_arn=env.chalice_lambda_iam_role_arn | sponge "$config_json"
 fi
+
+cat "${policy_json}.template" | envsubst '$DSS_S3_TEST_BUCKET' > "$policy_json"

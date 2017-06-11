@@ -11,6 +11,7 @@ export daemon_name=$1 stage=$2
 export lambda_name="${daemon_name}-${stage}" iam_role_name="${daemon_name}-${stage}"
 deployed_json="$(dirname $0)/${daemon_name}/.chalice/deployed.json"
 config_json="$(dirname $0)/${daemon_name}/.chalice/config.json"
+policy_json="$(dirname $0)/${daemon_name}/.chalice/policy.json"
 
 export lambda_arn=$(aws lambda list-functions | jq -r '.Functions[] | select(.FunctionName==env.lambda_name) | .FunctionArn')
 if [[ -z $lambda_arn ]]; then
@@ -28,3 +29,5 @@ if [[ ${CI:-} == true ]]; then
     export iam_role_arn=$(aws iam list-roles | jq -r '.Roles[] | select(.RoleName==env.iam_role_name) | .Arn')
     cat "$config_json" | jq .manage_iam_role=false | jq .iam_role_arn=env.iam_role_arn | sponge "$config_json"
 fi
+
+cat "${policy_json}.template" | envsubst '$DSS_S3_TEST_BUCKET' > "$policy_json"
