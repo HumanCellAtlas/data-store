@@ -48,6 +48,13 @@ def get_chalice_app(flask_app):
         return chalice.Response(status_code=200,
                                 headers={"Content-Type": "text/html"},
                                 body=swagger_ui_html)
+
+    @app.route("/internal/notify", methods=["POST"])
+    def get_notification():
+        app.log.info("GOT A NOTIFICATION")
+        app.log.info(app.current_request.json_body)
+        return dict(test=1)
+
     return app
 
 app = get_chalice_app(create_app().app)

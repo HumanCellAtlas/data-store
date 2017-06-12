@@ -1,2 +1,5 @@
 flake8
 mypy
+domovoi
+coverage
+awscli
