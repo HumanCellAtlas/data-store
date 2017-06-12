@@ -23,8 +23,7 @@ class TestS3BlobStore(unittest.TestCase):
         pass
 
     def test_connect(self):
-        s3blobstore = S3BlobStore(self.test_bucket)
-        print(s3blobstore)
+        S3BlobStore()
 
 if __name__ == '__main__':
     unittest.main()

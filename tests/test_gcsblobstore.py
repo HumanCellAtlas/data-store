@@ -24,8 +24,7 @@ class TestGCSBlobStore(unittest.TestCase):
         pass
 
     def test_connect(self):
-        gcsblobstore = GCSBlobStore(self.test_bucket, self.credentials)
-        print(gcsblobstore)
+        GCSBlobStore(self.credentials)
 
 
 if __name__ == '__main__':
