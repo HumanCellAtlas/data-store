@@ -25,6 +25,18 @@ class BlobStore(object):
         """
         raise NotImplementedError()
 
+    def get_metadata(self, container: str, object_name: str):
+        """
+        Retrieves the metadata for a given object in a given container.  If the
+        platform has any mandatory prefixes or suffixes for the metadata keys,
+        they should be stripped before being returned.
+        :param container: the container the object resides in.
+        :param object_name: the name of the object for which metadata is being
+        retrieved.
+        :return: a dictionary mapping metadata keys to metadata values.
+        """
+        raise NotImplementedError()
+
 
 class BlobStoreError(Exception):
     pass
