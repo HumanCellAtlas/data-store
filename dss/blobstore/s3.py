@@ -51,3 +51,19 @@ class S3BlobStore(BlobStore):
             Key=object_name
         )
         return response['Metadata']
+
+    def copy(
+            self,
+            src_container: str, src_object_name: str,
+            dst_container: str, dst_object_name: str,
+            **kwargs
+    ):
+        self.s3_client.copy(
+            dict(
+                Bucket=src_container,
+                Key=src_object_name,
+            ),
+            Bucket=dst_container,
+            Key=dst_object_name,
+            ExtraArgs=kwargs,
+        )

@@ -37,6 +37,13 @@ class BlobStore(object):
         """
         raise NotImplementedError()
 
+    def copy(
+            self,
+            src_container: str, src_object_name: str,
+            dst_container: str, dst_object_name: str,
+            **kwargs):
+        raise NotImplementedError()
+
 
 class BlobStoreError(Exception):
     pass
