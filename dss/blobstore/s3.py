@@ -51,3 +51,26 @@ class S3BlobStore(BlobStore):
             Key=object_name
         )
         return response['Metadata']
+
+    def copy(
+            self,
+            src_container: str, src_object_name: str,
+            dst_container: str, dst_object_name: str,
+            **kwargs
+    ):
+        # TODO: note that this implementation does not (yet) copy objects larger
+        # than 5GB.  for such files, we need a multipart copy operation.  see
+        # http://docs.aws.amazon.com/AmazonS3/latest/API/mpUploadUploadPartCopy.html
+        # and
+        # http://boto3.readthedocs.io/en/latest/reference/services/s3.html#S3.Client.upload_part_copy
+        # for more details.
+
+        self.s3_client.copy_object(
+            Bucket=dst_container,
+            Key=dst_object_name,
+            CopySource=dict(
+                Bucket=src_container,
+                Key=src_object_name,
+            ),
+            **kwargs
+        )
