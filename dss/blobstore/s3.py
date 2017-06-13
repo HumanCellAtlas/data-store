@@ -30,5 +30,8 @@ class S3BlobStore(BlobStore):
     def set(self, objname: str, src_file_handle: typing.BinaryIO):
         pass
 
-    def delete(self, objname: str):
-        pass
+    def delete(self, container: str, object_name: str):
+        self.s3_client.delete_object(
+            Bucket=container,
+            key=object_name
+        )

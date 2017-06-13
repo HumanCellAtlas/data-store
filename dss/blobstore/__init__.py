@@ -17,7 +17,12 @@ class BlobStore(object):
         """
         raise NotImplementedError()
 
-    def delete(self, object_name: str):
+    def delete(self, container: str, object_name: str):
+        """
+        Deletes an object in a container.  If the operation definitely did not
+        delete anything, return False.  Any other return value is treated as
+        something was possibly deleted.
+        """
         raise NotImplementedError()
 
 
