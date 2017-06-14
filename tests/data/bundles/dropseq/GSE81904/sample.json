@@ -1,0 +1,28 @@
+{
+    "body_part": {
+        "name": "retina", 
+        "ontology": "UBERON:0000966", 
+        "organ": "eye"
+    }, 
+    "donor": {
+        "age": "17", 
+        "age_unit": "day", 
+        "genotype": "Vsx2-GFP", 
+        "life_stage": "postpartum", 
+        "ncbi_taxon": "10090", 
+        "species": "Mus musculus"
+    }, 
+    "geo_sample": "GSM2177570", 
+    "last_update_date": "2016-08-25", 
+    "long_label": "P17 Vsx2-GFP sorted mouse bipolar retina cells 1 (Batch 1)", 
+    "ncbi_biosample": "SAMN05177285", 
+    "protocols": [
+        {
+            "description": "suspensions were processed through Drop-Seq to generate single-cell cDNA libraries attached to microbeads. Microbeads were counted, and amplified by PCR, and the 3' end of the cDNA prepared for sequencing using a modified Nextera XT protocol.", 
+            "type": "nucleic acid library construction protocol"
+        }
+    ], 
+    "short_label": "retina bipolar 1", 
+    "submission_date": "2016-05-25", 
+    "uuid": "5aca931f-9c88-4483-ba46-685b70c08a73"
+}
