@@ -1,0 +1,1 @@
+TESTOUTPUT_PREFIX = "testoutput"
