@@ -1,0 +1,14 @@
+{
+    "version": "1",
+    "dir" : "http://hgwdev.soe.ucsc.edu/~kent/hca/geo_examples/GSE75140/bundles/bundle509/",
+    "files": [
+        {
+            "format": ".fastq.gz", 
+            "name": "SRR3587500_1.fastq.gz"
+        }, 
+        {
+            "format": ".fastq.gz", 
+            "name": "SRR3587500_2.fastq.gz" 
+        }
+   ]
+}

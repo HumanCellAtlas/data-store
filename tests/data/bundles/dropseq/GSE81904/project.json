@@ -1,0 +1,37 @@
+{
+    "array_express": {
+        "accession": "E-MTAB-81904"
+    }, 
+    "contact": {
+        "address": "415 Main St.; Cambridge, MA 02142 USA", 
+        "city": "Cambridge", 
+        "country": "USA", 
+        "email": "karthik@broadinstitute.org", 
+        "institute": "Broad Institute", 
+        "name": "Karthik,,Shekhar", 
+        "phone": "217-979-9852", 
+        "postal_code": "02142", 
+        "state": "MA", 
+        "street_address": "415 Main St."
+    }, 
+    "contributor": "Karthik,,Shekhar", 
+    "geo_parent_series": "GSE81905", 
+    "geo_series": "GSE81904", 
+    "last_update_date": "2017-05-26", 
+    "ncbi_bioproject": "PRJNA323370", 
+    "overall_design": "Drop-Seq was performed on two different batches. Bipolar1-Bipolar4 are replicates from batch 1 and Bipolar5-6 are replicates from Batch 2", 
+    "pmid": "27565351", 
+    "release_status": "Public on Aug 25 2016", 
+    "sra_project": "SRP075719", 
+    "submission_date": "2016-05-25", 
+    "summary": "Vsx2-GFP mouse retinas were dissected, FACS sorted for GFP+ cells and single-cell mRNAseq libraries generated with Drop-Seq", 
+    "supplementary_files": [
+        "ftp://ftp.ncbi.nlm.nih.gov/pub/geo/DATA/supplementary/series/GSE81904/GSE81904_BipolarUMICounts_Cell2016.txt.gz", 
+        "ftp://ftp.ncbi.nlm.nih.gov/pub/geo/DATA/supplementary/series/GSE81904/GSE81904_RAW.tar", 
+        "ftp://ftp.ncbi.nlm.nih.gov/pub/geo/DATA/supplementary/series/GSE81904/GSE81904_bipolar_data_Cell2016.Rdata.gz", 
+        "ftp://ftp.ncbi.nlm.nih.gov/pub/geo/DATA/supplementary/series/GSE81904/GSE81904_class.R.gz", 
+        "ftp://ftp-trace.ncbi.nlm.nih.gov/sra/sra-instant/reads/ByStudy/sra/SRP/SRP075/SRP075719"
+    ], 
+    "title": "Drop-Seq analysis of  P17 FACS sorted retinal cells from the Tg(Chx10-EGFP/cre,-ALPP)2Clc or Vsx2-GFP transgenic line", 
+    "uuid": "f35c2bce-a4a7-4e1e-a8a6-8637e65d19a7"
+}

@@ -1,6 +1,8 @@
 azure-storage
 boto3
 connexion
+elasticsearch
+elasticsearch_dsl
 flask-failsafe
 google-cloud-storage
 pyrfc3339
