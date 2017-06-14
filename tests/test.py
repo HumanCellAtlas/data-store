@@ -3,22 +3,23 @@
 
 from __future__ import absolute_import, division, print_function, unicode_literals
 
-import functools
-import json
-import os
-import re
-import requests
-import sys
-import typing
-import unittest
-import uuid
+import os, sys, re, json, functools, uuid, logging, unittest, typing
 
+import boto3
+import google.cloud.storage
+import requests
 from flask import wrappers
 
 pkg_root = os.path.abspath(os.path.join(os.path.dirname(__file__), '..'))
 sys.path.insert(0, pkg_root)
 
 import dss # noqa
+from dss.events.handlers import sync # noqa
+
+logging.basicConfig(level=logging.DEBUG)
+for logger_name in logging.Logger.manager.loggerDict:  # type: ignore
+    if logger_name.startswith("botocore") or logger_name.startswith("boto3.resources"):
+        logging.getLogger(logger_name).setLevel(logging.WARNING)
 
 class TestDSS(unittest.TestCase):
     def setUp(self):
@@ -110,6 +111,24 @@ class TestDSS(unittest.TestCase):
         self.assertGetResponse("/v1/bundles/123", requests.codes.ok)
         self.assertGetResponse("/v1/bundles/123/55555", requests.codes.bad_request)
         self.assertGetResponse("/v1/bundles/123/55555?replica=foo", requests.codes.ok)
+
+class TestSyncUtils(unittest.TestCase):
+    def test_sync_blob(self):
+        logger = logging.getLogger(__name__)
+        s3 = boto3.resource("s3")
+        payload = os.urandom(2**20)
+        test_key = "hca-dss-s3-to-gcs-sync-test"
+        s3.Bucket(os.environ["DSS_S3_TEST_BUCKET"]).Object(test_key).put(Body=payload)
+        sync.sync_blob(source_platform="s3", source_key=test_key, dest_platform="gcs", logger=logger)
+        # TODO: wait for GCSTS job and read back key
+
+        test_key = "hca-dss-gcs-to-s3-sync-test"
+        gcs_key_file = os.environ["GOOGLE_APPLICATION_CREDENTIALS"]
+        gcs = google.cloud.storage.Client.from_service_account_json(gcs_key_file)
+        gcs.bucket(os.environ["DSS_GCS_TEST_BUCKET"]).blob(test_key).upload_from_string(payload)
+        sync.sync_blob(source_platform="gcs", source_key=test_key, dest_platform="s3", logger=logger)
+        dest_blob = s3.Bucket(os.environ["DSS_S3_TEST_BUCKET"]).Object(test_key)
+        self.assertEqual(dest_blob.get()["Body"].read(), payload)
 
 if __name__ == '__main__':
     unittest.main()
