@@ -8,6 +8,19 @@ from werkzeug.exceptions import BadRequest
 
 from .. import get_logger
 
+
+def head(uuid: str, replica: str=None, timestamp: str=None):
+    # NOTE: THIS IS NEVER ACTUALLY CALLED DUE TO A BUG IN CONNEXION.
+    # HEAD requests always calls the same endpoint as get, even if we tell it to
+    # go to a different method.  However, connexion freaks out if:
+    # 1) there is no head() function defined in code.  *or*
+    # 2) we tell the head() function to hit the same method using operationId.
+    #
+    # So in short, do not expect that this function actually gets called.  This
+    # is only here to keep connexion from freaking out.
+    return get(uuid, replica, timestamp)
+
+
 def get(uuid: str, replica: str=None, timestamp: str=None):
     if request.method == "GET" and replica is None:
         # replica must be set when it's a GET request.
