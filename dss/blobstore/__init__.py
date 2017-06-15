@@ -12,7 +12,15 @@ class BlobStore(object):
         """Returns a list of all blob entries in a container that match a given prefix."""
         raise NotImplementedError()
 
-    def generate_presigned_url(self, object_name: str, method: str):
+    def generate_presigned_url(
+            self,
+            container: str,
+            object_name: str,
+            method: str,
+            **kwargs):
+        # TODO: things like http ranges need to be explicit parameters.
+        # users of this API should not need to know the argument names presented
+        # to the cloud API.
         """
         Retrieves a presigned URL for the given HTTP method for blob
         ``object_name``. Raises BlobNotFoundError if the blob is not

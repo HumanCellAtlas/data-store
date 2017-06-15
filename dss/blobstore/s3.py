@@ -24,8 +24,19 @@ class S3BlobStore(BlobStore):
     def list(self, prefix: str=None):
         pass
 
-    def get_presigned_url(self, objname: str):
-        pass
+    def generate_presigned_url(
+            self,
+            container: str,
+            object_name: str,
+            method: str,
+            **kwargs):
+        args = kwargs.copy()
+        args['Bucket'] = container
+        args['Key'] = object_name
+        return self.s3_client.generate_presigned_url(
+            ClientMethod=method,
+            Params=args,
+        )
 
     def upload_file_handle(
             self,
