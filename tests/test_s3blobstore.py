@@ -22,7 +22,7 @@ class TestS3BlobStore(unittest.TestCase, BlobStoreTests):
     def setUp(self):
         if "DSS_S3_TEST_BUCKET" not in os.environ:
             raise Exception("Please set the DSS_S3_TEST_BUCKET environment variable")
-        self.test_bucket = os.environ["DSS_S3_TEST_BUCKET"]
+        self.test_container = os.environ["DSS_S3_TEST_BUCKET"]
         self.handle = S3BlobStore()
 
     def tearDown(self):
@@ -40,14 +40,14 @@ class TestS3BlobStore(unittest.TestCase, BlobStoreTests):
             TESTOUTPUT_PREFIX, function_name, str(uuid.uuid4()))
 
         self.handle.upload_file_handle(
-            self.test_bucket,
+            self.test_container,
             dst_blob_name,
             fobj
         )
 
         # should be able to get metadata for the file.
         self.handle.get_metadata(
-            self.test_bucket, dst_blob_name)
+            self.test_container, dst_blob_name)
 
 if __name__ == '__main__':
     unittest.main()
