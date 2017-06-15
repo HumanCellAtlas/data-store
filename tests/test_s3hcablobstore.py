@@ -42,7 +42,7 @@ class TestS3HCABlobStore(unittest.TestCase):
             self.test_src_data_container, "test_good_source_data")
         dst_metadata = self.blobhandle.get_metadata(
             self.test_container, dst_blob_name)
-        self.assertEquals(src_metadata, dst_metadata)
+        self.assertEqual(src_metadata, dst_metadata)
 
 
 if __name__ == '__main__':

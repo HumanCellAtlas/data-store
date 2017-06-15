@@ -65,7 +65,7 @@ class TestS3BlobStore(unittest.TestCase, BlobStoreTests):
         )
 
         resp = requests.get(presigned_url)
-        self.assertEquals(resp.status_code, requests.codes.ok)
+        self.assertEqual(resp.status_code, requests.codes.ok)
 
 if __name__ == '__main__':
     unittest.main()
