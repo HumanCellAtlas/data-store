@@ -82,13 +82,19 @@ class TestDSS(unittest.TestCase):
     def test_file_api(self):
         self.assertGetResponse("/v1/files", requests.codes.ok)
 
-        self.assertHeadResponse("/v1/files/123", requests.codes.ok)
+        self.assertHeadResponse(
+            "/v1/files/91839244-66ab-408f-9be5-c82def201f26",
+            requests.codes.ok)
 
-        self.assertGetResponse("/v1/files/123", requests.codes.bad_request)
-        self.assertGetResponse("/v1/files/123?replica=aws", requests.codes.found)
+        self.assertGetResponse(
+            "/v1/files/91839244-66ab-408f-9be5-c82def201f26",
+            requests.codes.bad_request)
+        self.assertGetResponse(
+            "/v1/files/91839244-66ab-408f-9be5-c82def201f26?replica=aws",
+            requests.codes.found)
 
         response = self.assertPutResponse(
-            '/v1/files/123',
+            '/v1/files/91839244-66ab-408f-9be5-c82def201f26',
             requests.codes.created,
             json_request_body=dict(
                 source_url="s3://foobar",
@@ -107,9 +113,15 @@ class TestDSS(unittest.TestCase):
 
     def test_bundle_api(self):
         self.assertGetResponse("/v1/bundles", requests.codes.ok)
-        self.assertGetResponse("/v1/bundles/123", requests.codes.ok)
-        self.assertGetResponse("/v1/bundles/123/55555", requests.codes.bad_request)
-        self.assertGetResponse("/v1/bundles/123/55555?replica=foo", requests.codes.ok)
+        self.assertGetResponse(
+            "/v1/bundles/91839244-66ab-408f-9be5-c82def201f26",
+            requests.codes.ok)
+        self.assertGetResponse(
+            "/v1/bundles/91839244-66ab-408f-9be5-c82def201f26/55555",
+            requests.codes.bad_request)
+        self.assertGetResponse(
+            "/v1/bundles/91839244-66ab-408f-9be5-c82def201f26/55555?replica=foo",
+            requests.codes.ok)
 
 if __name__ == '__main__':
     unittest.main()

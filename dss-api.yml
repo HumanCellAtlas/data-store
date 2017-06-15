@@ -35,6 +35,7 @@ paths:
           description: A RFC4122-compliant ID for the file.
           required: true
           type: string
+          pattern: "[A-Za-z0-9]{8}-[A-Za-z0-9]{4}-[A-Za-z0-9]{4}-[A-Za-z0-9]{4}-[A-Za-z0-9]{12}"
         - name: replica
           in: query
           description: Replica to fetch from.
@@ -144,6 +145,7 @@ paths:
           description: A RFC4122-compliant ID for the file.
           required: true
           type: string
+          pattern: "[A-Za-z0-9]{8}-[A-Za-z0-9]{4}-[A-Za-z0-9]{4}-[A-Za-z0-9]{4}-[A-Za-z0-9]{12}"
         - name: extras
           in: body
           required: true
@@ -208,6 +210,7 @@ paths:
           description: Bundle unique ID.
           required: true
           type: string
+          pattern: "[A-Za-z0-9]{8}-[A-Za-z0-9]{4}-[A-Za-z0-9]{4}-[A-Za-z0-9]{4}-[A-Za-z0-9]{12}"
       responses:
         200:
           description: OK
@@ -234,6 +237,7 @@ paths:
           description: Bundle unique ID.
           required: true
           type: string
+          pattern: "[A-Za-z0-9]{8}-[A-Za-z0-9]{4}-[A-Za-z0-9]{4}-[A-Za-z0-9]{4}-[A-Za-z0-9]{12}"
         - name: bundle_version
           in: path
           description: Version of the bundle.
@@ -257,6 +261,7 @@ definitions:
       uuid:
         type: string
         description: File unique ID
+        pattern: "[A-Za-z0-9]{8}-[A-Za-z0-9]{4}-[A-Za-z0-9]{4}-[A-Za-z0-9]{4}-[A-Za-z0-9]{12}"
       name:
         type: string
         description: Filename (unique within a bundle)
@@ -276,6 +281,7 @@ definitions:
       uuid:
         type: string
         description: A RFC4122-compliant ID for the file.
+        pattern: "[A-Za-z0-9]{8}-[A-Za-z0-9]{4}-[A-Za-z0-9]{4}-[A-Za-z0-9]{4}-[A-Za-z0-9]{12}"
       timestamp:
         type: string
         format: date-time
@@ -328,6 +334,7 @@ definitions:
           bundle_uuid:
             type: string
             description: A RFC4122-compliant ID for the bundle that contains this file.
+            pattern: "[A-Za-z0-9]{8}-[A-Za-z0-9]{4}-[A-Za-z0-9]{4}-[A-Za-z0-9]{4}-[A-Za-z0-9]{12}"
           creator_uid:
             type: integer
             format: int64
@@ -342,6 +349,7 @@ definitions:
       uuid:
         type: string
         description: Bundle unique ID
+        pattern: "[A-Za-z0-9]{8}-[A-Za-z0-9]{4}-[A-Za-z0-9]{4}-[A-Za-z0-9]{4}-[A-Za-z0-9]{12}"
       versions:
         type: array
         items:
@@ -357,6 +365,7 @@ definitions:
       uuid:
         type: string
         description: Bundle unique ID
+        pattern: "[A-Za-z0-9]{8}-[A-Za-z0-9]{4}-[A-Za-z0-9]{4}-[A-Za-z0-9]{4}-[A-Za-z0-9]{12}"
       bundle_timestamp:
         type: string
         format: date-time
