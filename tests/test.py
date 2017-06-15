@@ -51,7 +51,7 @@ class TestDSS(unittest.TestCase):
             kwargs['content_type'] = 'application/json'
 
         response = getattr(self.app, method)(path, **kwargs)
-        self.assertEqual(response.status_code, expected_code)
+        self.assertEquals(response.status_code, expected_code)
 
         try:
             actual_json = json.loads(response.data.decode("utf-8"))
@@ -64,7 +64,7 @@ class TestDSS(unittest.TestCase):
             response: wrappers.Response,
             expected_headers: dict = {}) -> None:
         for header_name, header_value in expected_headers.items():
-            self.assertEqual(response.headers[header_name], header_value)
+            self.assertEquals(response.headers[header_name], header_value)
 
     # this allows for assert*Response, where * = the request method.
     def __getattr__(self, item: str) -> typing.Any:
