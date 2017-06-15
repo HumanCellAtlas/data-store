@@ -27,8 +27,16 @@ class S3BlobStore(BlobStore):
     def get_presigned_url(self, objname: str):
         pass
 
-    def set(self, objname: str, src_file_handle: typing.BinaryIO):
-        pass
+    def upload_file_handle(
+            self,
+            container: str,
+            object_name: str,
+            src_file_handle: typing.BinaryIO):
+        self.s3_client.upload_fileobj(
+            src_file_handle,
+            Bucket=container,
+            Key=object_name,
+        )
 
     def delete(self, container: str, object_name: str):
         self.s3_client.delete_object(

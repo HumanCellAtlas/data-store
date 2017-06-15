@@ -1,5 +1,8 @@
 from __future__ import absolute_import, division, print_function, unicode_literals
 
+import typing
+
+
 class BlobStore(object):
     """Abstract base class for all blob stores."""
     def __init__(self):
@@ -14,6 +17,17 @@ class BlobStore(object):
         Retrieves a presigned URL for the given HTTP method for blob
         ``object_name``. Raises BlobNotFoundError if the blob is not
         present.
+        """
+        raise NotImplementedError()
+
+    def upload_file_handle(
+            self,
+            container: str,
+            object_name: str,
+            src_file_handle: typing.BinaryIO):
+        """
+        Saves the contents of a file handle as the contents of an object in a
+        container.
         """
         raise NotImplementedError()
 
