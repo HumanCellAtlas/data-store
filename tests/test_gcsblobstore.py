@@ -21,6 +21,7 @@ class TestGCSBlobStore(unittest.TestCase, BlobStoreTests):
         if "DSS_GCS_TEST_BUCKET" not in os.environ:
             raise Exception("Please set the DSS_GCS_TEST_BUCKET environment variable")
         self.test_bucket = os.environ["DSS_GCS_TEST_BUCKET"]
+        self.test_src_data_bucket = os.environ["DSS_GCS_TEST_SRC_DATA_BUCKET"]
         self.handle = GCSBlobStore(self.credentials)
 
     def tearDown(self):
