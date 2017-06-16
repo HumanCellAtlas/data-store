@@ -12,6 +12,9 @@ mypy:
 test: lint mypy
 	python -m unittest discover tests
 
+integration_test:
+	python -m unittest discover -p "integration_test_*.py"
+
 deploy:
 	$(MAKE) -C chalice deploy
 	$(MAKE) -C daemons deploy
