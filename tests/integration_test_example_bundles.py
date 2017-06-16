@@ -21,7 +21,7 @@ class TestExampleBundles(unittest.TestCase):
 
     def test_example_bundles(self):
         for bundle in ExampleBundle.all():
-            self.progress(f"Processing bundle {bundle.path}")
+            self.progress("Processing bundle %s" % bundle.path)
             self.upload_bundle(bundle)
             self.check_bundle(bundle)
 
@@ -31,8 +31,8 @@ class TestExampleBundles(unittest.TestCase):
         self.create_bundle(bundle)
 
     def upload_file(self, file):
-        self.progress(f"Uploading file {file.path}")
-        upload_url = f"{self.DSS_API_URI_BASE}/files/{file.uuid}"
+        self.progress("Uploading file %s" % file.path)
+        upload_url = "%s/files/%s" % (self.DSS_API_URI_BASE, file.uuid)
         headers = {'Content-type': 'application/json'}
         payload = self.file_upload_payload(file)
         response = requests.put(upload_url, headers=headers, data=json.dumps(payload))
@@ -78,7 +78,7 @@ class ExampleBundle:
     DSS_S3_REGION = 'us-east-1'
     BUNDLE_EXAMPLES_BUCKET = 'hca-dss-test-src'
     BUNDLE_EXAMPLES_ROOT = 'data-bundle-examples'
-    BUNDLE_EXAMPLES_BUNDLE_LIST_PATH = f"{BUNDLE_EXAMPLES_ROOT}/import/bundle_list"
+    BUNDLE_EXAMPLES_BUNDLE_LIST_PATH = "%s/import/bundle_list" % BUNDLE_EXAMPLES_ROOT
 
     s3client = boto3.client('s3', region_name=DSS_S3_REGION)
 
@@ -96,7 +96,7 @@ class ExampleBundle:
             yield cls(bundle_path)
 
     def __get_s3_files(self):
-        bundle_folder_path = f"{self.BUNDLE_EXAMPLES_ROOT}/{self.path}"
+        bundle_folder_path = "%s/%s" % (self.BUNDLE_EXAMPLES_ROOT, self.path)
         response = self.s3client.list_objects(Bucket=self.BUNDLE_EXAMPLES_BUCKET, Prefix=bundle_folder_path)
         return [ExampleFile(s3_file_metadata, self) for s3_file_metadata in response['Contents']]
 
@@ -105,6 +105,6 @@ class ExampleFile:
     def __init__(self, s3_file_metadata, bundle):
         self.bundle = bundle
         self.path = s3_file_metadata['Key']
-        self.url = f"s3://{bundle.BUNDLE_EXAMPLES_BUCKET}/{bundle.BUNDLE_EXAMPLES_ROOT}/{self.path}"
+        self.url = "s3://%s/%s/%s" % (bundle.BUNDLE_EXAMPLES_BUCKET, bundle.BUNDLE_EXAMPLES_ROOT, self.path)
         self.timestamp = s3_file_metadata['LastModified']
         self.uuid = str(uuid.uuid4())
