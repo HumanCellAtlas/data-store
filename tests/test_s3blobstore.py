@@ -14,21 +14,15 @@ pkg_root = os.path.abspath(os.path.join(os.path.dirname(__file__), '..'))
 sys.path.insert(0, pkg_root)
 
 from dss.blobstore.s3 import S3BlobStore # noqa
-from tests import TESTOUTPUT_PREFIX # noqa
+from tests import TESTOUTPUT_PREFIX, utils # noqa
 from tests.test_blobstore import BlobStoreTests # noqa
 
 
 class TestS3BlobStore(unittest.TestCase, BlobStoreTests):
     def setUp(self):
-        if "DSS_S3_TEST_BUCKET" not in os.environ:
-            raise Exception(
-                "Please set the DSS_S3_TEST_BUCKET environment variable")
-        if "DSS_S3_TEST_SRC_DATA_BUCKET" not in os.environ:
-            raise Exception(
-                "Please set the DSS_S3_TEST_SRC_DATA_BUCKET "
-                "environment variable")
-        self.test_src_data_bucket = os.environ["DSS_S3_TEST_SRC_DATA_BUCKET"]
-        self.test_bucket = os.environ["DSS_S3_TEST_BUCKET"]
+        self.test_bucket = utils.get_env("DSS_S3_TEST_BUCKET")
+        self.test_src_data_bucket = utils.get_env("DSS_S3_TEST_SRC_DATA_BUCKET")
+
         self.handle = S3BlobStore()
 
     def tearDown(self):
