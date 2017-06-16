@@ -47,6 +47,16 @@ class BlobStore(object):
         """
         raise NotImplementedError()
 
+    def get(self, bucket: str, object_name: str):
+        """
+        Retrieves the data for a given object in a given bucket.
+        :param bucket: the bucket the object resides in.
+        :param object_name: the name of the object for which metadata is being
+        retrieved.
+        :return: the data
+        """
+        raise NotImplementedError
+
     def get_metadata(self, bucket: str, object_name: str):
         """
         Retrieves the metadata for a given object in a given bucket.  If the
