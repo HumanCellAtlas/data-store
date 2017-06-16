@@ -16,3 +16,18 @@ class HCABlobStore(object):
         dst_bucket: str, dst_object_name: str,
     ):
         raise NotImplementedError()
+
+
+class FileMetadata(object):
+
+    FILE_FORMAT_VERSION = "0.0.1"
+
+    VERSION = "version"
+    BUNDLE_UUID = "bundle_uuid"
+    CREATOR_UID = "creator_uid"
+    TIMESTAMP = "timestamp"
+    CONTENT_TYPE = "content-type"
+    CRC32C = "crc32c"
+    S3_ETAG = "s3-etag"
+    SHA1 = "sha1"
+    SHA256 = "sha256"
