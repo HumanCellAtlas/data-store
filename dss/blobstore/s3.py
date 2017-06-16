@@ -60,6 +60,25 @@ class S3BlobStore(BlobStore):
             key=object_name
         )
 
+    def get(self, bucket: str, object_name: str):
+        """
+        Retrieves the data for a given object in a given bucket.
+        :param bucket: the bucket the object resides in.
+        :param object_name: the name of the object for which metadata is being
+        retrieved.
+        :return: the data
+        """
+        try:
+            response = self.s3_client.get_object(
+                Bucket=bucket,
+                Key=object_name
+            )
+            return response['Body'].read()
+        except botocore.exceptions.ClientError as ex:
+            if ex.response['Error']['Code'] == "NoSuchKey":
+                raise BlobNotFoundError(ex)
+            raise BlobStoreUnknownError(ex)
+
     def get_metadata(self, bucket: str, object_name: str):
         """
         Retrieves the metadata for a given object in a given bucket.  If the
