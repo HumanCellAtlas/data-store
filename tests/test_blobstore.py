@@ -10,6 +10,6 @@ class BlobStoreTests(object):
         """
         handle = self.handle  # type: BlobStore
         metadata = handle.get_metadata(
-            self.test_bucket,
-            "sourcedata/test_good_source_data")
+            self.test_src_data_bucket,
+            "test_good_source_data")
         self.assertIn('hca-dss-content-type', metadata)
