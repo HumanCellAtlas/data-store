@@ -1,4 +1,9 @@
-import os, sys, datetime, json, time, hashlib
+import os
+import sys
+import datetime
+import json
+import time
+import hashlib
 from contextlib import closing
 
 import boto3
@@ -19,13 +24,14 @@ class GCStorageTransferConnection(JSONConnection):
     API_VERSION = "v1"
     API_URL_TEMPLATE = "{api_base_url}/{api_version}{path}"
 
-# TODO: access keys used here should be separate role credentials with need-based access
-# TODO: schedule a lambda to check the status of the job, get it permissions to execute:
-#       storagetransfer.transferJobs().get(jobName=gcsts_job["name"]).execute()
-# TODO: parallelize S3->GCS transfers with range request lambdas
+# TODO akislyuk: access keys used here should be separate role credentials with need-based access
+# TODO akislyuk: schedule a lambda to check the status of the job, get it permissions to execute:
+#                storagetransfer.transferJobs().get(jobName=gcsts_job["name"]).execute()
+# TODO akislyuk: parallelize S3->GCS transfers with range request lambdas
 def sync_blob(source_platform, source_key, dest_platform, logger):
     logger.info("Begin transfer of {} from {} to {}".format(source_key, source_platform, dest_platform))
     gcs = google.cloud.storage.Client()
+    gcs_bucket_name, s3_bucket_name = os.environ["DSS_GCS_TEST_BUCKET"], os.environ["DSS_S3_TEST_BUCKET"]
     if source_platform == "s3" and dest_platform == "gcs":
         gcsts_client = GCStorageTransferClient()
         gcsts_conn = GCStorageTransferConnection(client=gcsts_client)
@@ -43,14 +49,14 @@ def sync_blob(source_platform, source_key, dest_platform, logger):
             },
             "transferSpec": {
                 "awsS3DataSource": {
-                    "bucketName": os.environ["DSS_S3_TEST_BUCKET"],
+                    "bucketName": s3_bucket_name,
                     "awsAccessKey": {
                         "accessKeyId": botocore.session.get_session().get_credentials().access_key,
                         "secretAccessKey": botocore.session.get_session().get_credentials().secret_key
                     }
                 },
                 "gcsDataSink": {
-                    "bucketName": os.environ["DSS_GCS_TEST_BUCKET"]
+                    "bucketName": gcs_bucket_name
                 },
                 "transferOptions": {
                     "overwriteObjectsAlreadyExistingInSink": False,
@@ -64,7 +70,7 @@ def sync_blob(source_platform, source_key, dest_platform, logger):
         }
         gcsts_job = gcsts_conn.api_request("POST", "/transferJobs", data=gcsts_job_def)
         logger.info(gcsts_job)
-        # FIXME: the service account doesn't have permission to look at the
+        # FIXME akislyuk: the service account doesn't have permission to look at the
         # status of the job, even though it has permission to create it.  I
         # couldn't figure out what permission scope to give the principal in the
         # IAM console, and the service definition at
@@ -73,10 +79,10 @@ def sync_blob(source_platform, source_key, dest_platform, logger):
         # gcsts_job = gcsts_conn.api_request("GET", "/" + gcsts_job["name"])
     elif source_platform == "gcs" and dest_platform == "s3":
         s3 = boto3.resource("s3")
-        gcs_blob = gcs.get_bucket(os.environ["DSS_GCS_TEST_BUCKET"]).blob(source_key)
+        gcs_blob = gcs.get_bucket(gcs_bucket_name).blob(source_key)
         gcs_blob_url = gcs_blob.generate_signed_url(expiration=int(time.time() + gcs_presigned_url_lifetime_seconds))
         http = urllib3.PoolManager(cert_reqs="CERT_REQUIRED")
         with closing(http.request("GET", gcs_blob_url, preload_content=False)) as fh:
-            s3.Bucket(os.environ["DSS_S3_TEST_BUCKET"]).Object(source_key).upload_fileobj(fh)
+            s3.Bucket(s3_bucket_name).Object(source_key).upload_fileobj(fh)
     else:
         raise NotImplementedError()
