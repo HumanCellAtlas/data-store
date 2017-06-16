@@ -4,13 +4,18 @@
 DSS description FIXME: elaborate
 """
 
+import logging
+
 import flask
 import connexion
 from connexion.resolver import RestyResolver
 from flask_failsafe import failsafe
 
 def get_logger():
-    return flask.current_app.logger
+    try:
+        return flask.current_app.logger
+    except RuntimeError:
+        return logging.getLogger(__name__)
 
 @failsafe
 def create_app():
