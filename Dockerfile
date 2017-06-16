@@ -14,7 +14,8 @@ RUN apt-get update && DEBIAN_FRONTEND=noninteractive apt-get install -y --no-ins
   vim
 RUN pip install awscli --upgrade
 
-ADD .dockerfiles/* /root/
+RUN sed 's/#force_color_prompt=yes/force_color_prompt=yes/' /etc/skel/.bashrc > /root/.bashrc
+ADD .dockerfiles/.vimrc /root/
 
 WORKDIR /code/data-store
 ADD requirements-dev.txt .
