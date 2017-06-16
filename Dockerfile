@@ -5,9 +5,9 @@
 # Use docker-compose for development.  It is far more convenient.
 # However, to use docker directly:
 #
-#   docker build --tag hca_dss
+#   docker build --tag hca_dcp_dss
 #
-#   docker run -it --rm -p5000:5000 hca_dss
+#   docker run -it --rm -p5000:5000 hca_dcp_dss
 #
 FROM python:3.6
 RUN apt-get update && DEBIAN_FRONTEND=noninteractive apt-get install -y --no-install-recommends \
