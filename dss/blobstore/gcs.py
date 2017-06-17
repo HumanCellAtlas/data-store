@@ -5,7 +5,7 @@ import typing
 from google.cloud.storage import Client
 from google.cloud.storage.bucket import Bucket
 
-from . import BlobStore
+from . import BlobNotFoundError, BlobStore
 
 
 class GCSBlobStore(BlobStore):
@@ -35,4 +35,6 @@ class GCSBlobStore(BlobStore):
         """
         bucket_obj = self._ensure_bucket_loaded(bucket)
         response = bucket_obj.get_blob(object_name)
+        if response is None:
+            raise BlobNotFoundError()
         return response.metadata

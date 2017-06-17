@@ -71,6 +71,10 @@ class BlobStoreError(Exception):
     pass
 
 
+class BlobStoreUnknownError(BlobStoreError):
+    pass
+
+
 class BlobStoreCredentialError(BlobStoreError):
     pass
 
