@@ -22,9 +22,10 @@ function create_elasticsearch_domain() {
 function update_elasticsearch_domain_policy() {
     local elasticsearch_domain_name=$1
     echo "Updating policy for Elasticsearch domain with name: $elasticsearch_domain_name"
-    sed "s/ELASTICSEARCH_DOMAIN/$elasticsearch_domain_name/g" ./es_policy.json.template > ./es_policy.json
+    local directory=$(dirname $0)
+    sed "s/ELASTICSEARCH_DOMAIN/$elasticsearch_domain_name/g" $directory/es_policy.json.template > $directory/es_policy.json
     aws es update-elasticsearch-domain-config --domain-name $elasticsearch_domain_name \
-         --access-policies "$(< ./es_policy.json)"
+         --access-policies "$(< $directory/es_policy.json)"
 }
 
 function delete_elasticsearch_domain() {
