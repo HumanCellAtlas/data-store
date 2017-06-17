@@ -9,3 +9,10 @@ class HCABlobStore(object):
         "hca-dss-s3_etag",
         "hca-dss-content-type",
     )
+
+    def copy_blob_from_staging(
+        self,
+        src_bucket: str, src_object_name: str,
+        dst_bucket: str, dst_object_name: str,
+    ):
+        raise NotImplementedError()
