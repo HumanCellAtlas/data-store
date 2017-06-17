@@ -23,7 +23,11 @@ class GCSBlobStore(BlobStore):
         self.bucket_map[bucket] = bucket_obj
         return bucket_obj
 
-    def get_metadata(self, bucket: str, object_name: str):
+    def get_metadata(
+            self,
+            bucket: str,
+            object_name: str
+    ) -> typing.Dict[str, str]:
         """
         Retrieves the metadata for a given object in a given bucket.  If the
         platform has any mandatory prefixes or suffixes for the metadata keys,

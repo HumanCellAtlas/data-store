@@ -1,7 +1,9 @@
 from __future__ import absolute_import, division, print_function, unicode_literals
 
-from ..blobstore import BlobStore
+import typing
+
 from . import HCABlobStore
+from ..blobstore import BlobStore
 
 
 class S3HCABlobStore(HCABlobStore):
@@ -18,7 +20,7 @@ class S3HCABlobStore(HCABlobStore):
             src_bucket, src_object_name)
 
         # build up the dict for executing the copy.
-        kwargs = dict()
+        kwargs = dict()  # type: typing.Dict[str, typing.Any]
         kwargs['CopySourceIfMatch'] = source_metadata['hca-dss-s3_etag']
         kwargs['Metadata'] = dict()
         for metadata_key in HCABlobStore.COPIED_METADATA:
