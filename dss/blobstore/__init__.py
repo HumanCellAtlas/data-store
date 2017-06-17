@@ -8,8 +8,17 @@ class BlobStore(object):
     def __init__(self):
         pass
 
-    def list(self, prefix: str=None):
-        """Returns a list of all blob entries in a bucket that match a given prefix."""
+    def list(
+            self,
+            bucket: str,
+            prefix: str=None,
+            delimiter: str=None,
+    ) -> typing.Iterator[str]:
+        """
+        Returns an iterator of all blob entries in a bucket that match a given
+        prefix.  Do not return any keys that contain the delimiter past the
+        prefix.
+        """
         raise NotImplementedError()
 
     def generate_presigned_url(

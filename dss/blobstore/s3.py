@@ -26,8 +26,42 @@ class S3BlobStore(BlobStore):
 
         self.s3_client = boto3.client("s3")
 
-    def list(self, prefix: str=None):
-        pass
+    def list(
+            self,
+            bucket: str,
+            prefix: str=None,
+            delimiter: str=None,
+            batch_size: typing.Optional[int] = None,
+    ) -> typing.Iterator[str]:
+        """
+        Returns an iterator of all blob entries in a bucket that match a given
+        prefix.  Do not return any keys that contain the delimiter past the
+        prefix.
+        """
+        next_marker = None
+        kwargs_template = dict(
+            Bucket=bucket)  # type: typing.Dict[str, typing.Union[str, int]]
+        if prefix is not None:
+            kwargs_template['Prefix'] = prefix
+        if delimiter is not None:
+            kwargs_template['Delimiter'] = delimiter
+        if batch_size is not None:
+            kwargs_template['MaxKeys'] = batch_size
+
+        while True:
+            kwargs = kwargs_template.copy()
+            if next_marker is not None:
+                kwargs['Marker'] = next_marker
+
+            response = self.s3_client.list_objects(**kwargs)
+            for item in response['Contents']:
+                yield item['Key']
+
+            if response['IsTruncated']:
+                next_marker = response.get(
+                    'NextMarker', response['Contents'][-1]['Key'])
+            else:
+                return
 
     def generate_presigned_url(
             self,
