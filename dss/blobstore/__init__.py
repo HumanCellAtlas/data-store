@@ -9,10 +9,18 @@ class BlobStore(object):
         pass
 
     def list(self, prefix: str=None):
-        """Returns a list of all blob entries in a container that match a given prefix."""
+        """Returns a list of all blob entries in a bucket that match a given prefix."""
         raise NotImplementedError()
 
-    def generate_presigned_url(self, object_name: str, method: str):
+    def generate_presigned_url(
+            self,
+            bucket: str,
+            object_name: str,
+            method: str,
+            **kwargs):
+        # TODO: things like http ranges need to be explicit parameters.
+        # users of this API should not need to know the argument names presented
+        # to the cloud API.
         """
         Retrieves a presigned URL for the given HTTP method for blob
         ``object_name``. Raises BlobNotFoundError if the blob is not
@@ -22,29 +30,29 @@ class BlobStore(object):
 
     def upload_file_handle(
             self,
-            container: str,
+            bucket: str,
             object_name: str,
             src_file_handle: typing.BinaryIO):
         """
         Saves the contents of a file handle as the contents of an object in a
-        container.
+        bucket.
         """
         raise NotImplementedError()
 
-    def delete(self, container: str, object_name: str):
+    def delete(self, bucket: str, object_name: str):
         """
-        Deletes an object in a container.  If the operation definitely did not
+        Deletes an object in a bucket.  If the operation definitely did not
         delete anything, return False.  Any other return value is treated as
         something was possibly deleted.
         """
         raise NotImplementedError()
 
-    def get_metadata(self, container: str, object_name: str):
+    def get_metadata(self, bucket: str, object_name: str):
         """
-        Retrieves the metadata for a given object in a given container.  If the
+        Retrieves the metadata for a given object in a given bucket.  If the
         platform has any mandatory prefixes or suffixes for the metadata keys,
         they should be stripped before being returned.
-        :param container: the container the object resides in.
+        :param bucket: the bucket the object resides in.
         :param object_name: the name of the object for which metadata is being
         retrieved.
         :return: a dictionary mapping metadata keys to metadata values.
@@ -53,8 +61,8 @@ class BlobStore(object):
 
     def copy(
             self,
-            src_container: str, src_object_name: str,
-            dst_container: str, dst_object_name: str,
+            src_bucket: str, src_object_name: str,
+            dst_bucket: str, dst_object_name: str,
             **kwargs):
         raise NotImplementedError()
 
@@ -67,7 +75,7 @@ class BlobStoreCredentialError(BlobStoreError):
     pass
 
 
-class BlobContainerNotFoundError(BlobStoreError):
+class BlobBucketNotFoundError(BlobStoreError):
     pass
 
 

@@ -35,6 +35,7 @@ paths:
           description: A RFC4122-compliant ID for the file.
           required: true
           type: string
+          pattern: "[A-Za-z0-9]{8}-[A-Za-z0-9]{4}-[A-Za-z0-9]{4}-[A-Za-z0-9]{4}-[A-Za-z0-9]{12}"
         - name: replica
           in: query
           description: Replica to fetch from.
@@ -47,42 +48,8 @@ paths:
           type: string
           format: date-time
       responses:
-        200:
-          description: On a HEAD request, returns metadata
-          headers:
-            # edits to here should probably be reflected in the 302 section immediately below.
-            X-DSS-BUNDLE-UUID:
-              description: A RFC4122-compliant ID for the bundle that contains this file.
-              type: string
-            X-DSS-CREATOR-UID:
-              description: User ID who created this file.
-              type: integer
-              format: int64
-            X-DSS-TIMESTAMP:
-              description: Timestamp of file creation in RFC3339.
-              type: string
-              format: date-time
-            X-DSS-CONTENT-TYPE:
-              description: Content-type of the file.
-              type: string
-            X-DSS-CRC32C:
-              description: CRC32C of the file contents in hex.
-              type: string
-              pattern: "^[A-Za-z0-9]{8}$"
-            X-DSS-S3-ETAG:
-              description: S3 ETag of the file contents.
-              type: string
-              pattern: "^[A-Za-z0-9]{32}(-([2-9]|[1-8][0-9]|9[0-9]|[1-8][0-9]{2}|9[0-8][0-9]|99[0-9]|[1-8][0-9]{3}|9[0-8][0-9]{2}|99[0-8][0-9]|999[0-9]|10000))?$"
-            X-DSS-SHA1:
-              description: SHA-1 of the file contents in hex.
-              type: string
-              pattern: "^[A-Za-z0-9]{40}$"
-            X-DSS-SHA256:
-              description: SHA-256 of the file contents in hex.
-              type: string
-              pattern: "^[A-Za-z0-9]{64}$"
         302:
-          description: On a GET request, redirects to a signed URL.
+          description: Redirects to a signed URL with the data.
           headers:
             # edits to here should probably be reflected in the 302 section immediately below.
             X-DSS-BUNDLE-UUID:
@@ -119,6 +86,54 @@ paths:
           description: Unexpected error
           schema:
             $ref: '#/definitions/Error'
+    head:
+      parameters:
+        - name: uuid
+          in: path
+          description: A RFC4122-compliant ID for the file.
+          required: true
+          type: string
+        - name: timestamp
+          in: query
+          description: Timestamp of file creation in RFC3339.  If this is not provided, the latest version is returned.
+          required: false
+          type: string
+          format: date-time
+      responses:
+        200:
+          description: Returns metadata
+          headers:
+            # edits to here should probably be reflected in the 302 section immediately below.
+            X-DSS-BUNDLE-UUID:
+              description: A RFC4122-compliant ID for the bundle that contains this file.
+              type: string
+            X-DSS-CREATOR-UID:
+              description: User ID who created this file.
+              type: integer
+              format: int64
+            X-DSS-TIMESTAMP:
+              description: Timestamp of file creation in RFC3339.
+              type: string
+              format: date-time
+            X-DSS-CONTENT-TYPE:
+              description: Content-type of the file.
+              type: string
+            X-DSS-CRC32C:
+              description: CRC32C of the file contents in hex.
+              type: string
+              pattern: "^[A-Za-z0-9]{8}$"
+            X-DSS-S3-ETAG:
+              description: S3 ETag of the file contents.
+              type: string
+              pattern: "^[A-Za-z0-9]{32}(-([2-9]|[1-8][0-9]|9[0-9]|[1-8][0-9]{2}|9[0-8][0-9]|99[0-9]|[1-8][0-9]{3}|9[0-8][0-9]{2}|99[0-8][0-9]|999[0-9]|10000))?$"
+            X-DSS-SHA1:
+              description: SHA-1 of the file contents in hex.
+              type: string
+              pattern: "^[A-Za-z0-9]{40}$"
+            X-DSS-SHA256:
+              description: SHA-256 of the file contents in hex.
+              type: string
+              pattern: "^[A-Za-z0-9]{64}$"
     put:
       summary: Create a file
       description: |
@@ -130,6 +145,7 @@ paths:
           description: A RFC4122-compliant ID for the file.
           required: true
           type: string
+          pattern: "[A-Za-z0-9]{8}-[A-Za-z0-9]{4}-[A-Za-z0-9]{4}-[A-Za-z0-9]{4}-[A-Za-z0-9]{12}"
         - name: extras
           in: body
           required: true
@@ -194,6 +210,7 @@ paths:
           description: Bundle unique ID.
           required: true
           type: string
+          pattern: "[A-Za-z0-9]{8}-[A-Za-z0-9]{4}-[A-Za-z0-9]{4}-[A-Za-z0-9]{4}-[A-Za-z0-9]{12}"
       responses:
         200:
           description: OK
@@ -220,6 +237,7 @@ paths:
           description: Bundle unique ID.
           required: true
           type: string
+          pattern: "[A-Za-z0-9]{8}-[A-Za-z0-9]{4}-[A-Za-z0-9]{4}-[A-Za-z0-9]{4}-[A-Za-z0-9]{12}"
         - name: bundle_version
           in: path
           description: Version of the bundle.
@@ -243,6 +261,7 @@ definitions:
       uuid:
         type: string
         description: File unique ID
+        pattern: "[A-Za-z0-9]{8}-[A-Za-z0-9]{4}-[A-Za-z0-9]{4}-[A-Za-z0-9]{4}-[A-Za-z0-9]{12}"
       name:
         type: string
         description: Filename (unique within a bundle)
@@ -262,6 +281,7 @@ definitions:
       uuid:
         type: string
         description: A RFC4122-compliant ID for the file.
+        pattern: "[A-Za-z0-9]{8}-[A-Za-z0-9]{4}-[A-Za-z0-9]{4}-[A-Za-z0-9]{4}-[A-Za-z0-9]{12}"
       timestamp:
         type: string
         format: date-time
@@ -314,6 +334,7 @@ definitions:
           bundle_uuid:
             type: string
             description: A RFC4122-compliant ID for the bundle that contains this file.
+            pattern: "[A-Za-z0-9]{8}-[A-Za-z0-9]{4}-[A-Za-z0-9]{4}-[A-Za-z0-9]{4}-[A-Za-z0-9]{12}"
           creator_uid:
             type: integer
             format: int64
@@ -328,6 +349,7 @@ definitions:
       uuid:
         type: string
         description: Bundle unique ID
+        pattern: "[A-Za-z0-9]{8}-[A-Za-z0-9]{4}-[A-Za-z0-9]{4}-[A-Za-z0-9]{4}-[A-Za-z0-9]{12}"
       versions:
         type: array
         items:
@@ -343,6 +365,7 @@ definitions:
       uuid:
         type: string
         description: Bundle unique ID
+        pattern: "[A-Za-z0-9]{8}-[A-Za-z0-9]{4}-[A-Za-z0-9]{4}-[A-Za-z0-9]{4}-[A-Za-z0-9]{12}"
       bundle_timestamp:
         type: string
         format: date-time

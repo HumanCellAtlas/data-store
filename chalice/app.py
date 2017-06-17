@@ -6,6 +6,7 @@ pkg_root = os.path.abspath(os.path.join(os.path.dirname(__file__), 'chalicelib')
 sys.path.insert(0, pkg_root)
 
 from dss import create_app # noqa
+from dss.events.handlers.sync import sync_blob # noqa
 
 def get_chalice_app(flask_app):
     app = chalice.Chalice(app_name=flask_app.name)
@@ -50,10 +51,17 @@ def get_chalice_app(flask_app):
                                 body=swagger_ui_html)
 
     @app.route("/internal/notify", methods=["POST"])
-    def get_notification():
-        app.log.info("GOT A NOTIFICATION")
-        app.log.info(app.current_request.json_body)
-        return dict(test=1)
+    def handle_notification():
+        event = app.current_request.json_body
+        if event["kind"] == "storage#object" and event["selfLink"].startswith("https://www.googleapis.com/storage"):
+            gcs_key_name = event["name"]
+            sync_result = sync_blob(source_platform="gce",
+                                    source_key=gcs_key_name,
+                                    dest_platform="s3",
+                                    logger=app.logger)
+            return sync_result
+        else:
+            raise NotImplementedError()
 
     return app
 

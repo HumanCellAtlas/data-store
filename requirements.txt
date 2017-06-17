@@ -1,5 +1,6 @@
-boto3
-google-cloud-storage
 azure-storage
+boto3
 connexion
 flask-failsafe
+google-cloud-storage
+pyrfc3339
