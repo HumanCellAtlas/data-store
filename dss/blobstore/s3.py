@@ -1,11 +1,16 @@
 from __future__ import absolute_import, division, print_function, unicode_literals
 
-import typing
-
 import boto3
 import botocore
+import requests
+import typing
 
-from . import BlobStore, BlobStoreCredentialError
+from . import (
+    BlobNotFoundError,
+    BlobStore,
+    BlobStoreCredentialError,
+    BlobStoreUnknownError,
+)
 
 
 class S3BlobStore(BlobStore):
@@ -65,11 +70,17 @@ class S3BlobStore(BlobStore):
         retrieved.
         :return: a dictionary mapping metadata keys to metadata values.
         """
-        response = self.s3_client.head_object(
-            Bucket=bucket,
-            Key=object_name
-        )
-        return response['Metadata']
+        try:
+            response = self.s3_client.head_object(
+                Bucket=bucket,
+                Key=object_name
+            )
+            return response['Metadata']
+        except botocore.exceptions.ClientError as ex:
+            if int(ex.response['Error']['Code']) == \
+                    int(requests.codes.not_found):
+                raise BlobNotFoundError(ex)
+            raise BlobStoreUnknownError(ex)
 
     def copy(
             self,
