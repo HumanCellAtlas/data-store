@@ -39,46 +39,49 @@ function check_elasticsearch_domain_exists() {
     set +e # Don't terminate the program if grep doesn't to find a match.
     aws es list-domain-names | grep $elasticsearch_domain_name > /dev/null
     result=$?
+    set +e
     return $result
 }
 
 function wait_for_elasticsearch_domain_removed() {
     local elasticsearch_domain_name=$1
     local timeout_value=$2
-    local start_time=`date +'%s'`
+    local start_time=$(date +'%s')
     local timeout_expiration=$(($start_time + $timeout_value))
 
-    while [[ `date +'%s'` -lt $timeout_expiration ]]; do
+    echo "Waiting for Elasticsearch domain to be removed. Wait timeout: $((timeout_value / 60)) minutes ($timeout_value seconds) starting $(date)"
+    while [[ $(date +'%s') -lt $timeout_expiration ]]; do
         check_elasticsearch_domain_exists $elasticsearch_domain_name
         if [[ $? -ne 0 ]]; then
-            echo "Elasticsearch domain has been removed"
+            echo "Elasticsearch domain has been removed (actual wait $(( ($(date +'%s') - $start_time) / 60 )) minutes)"
             return 0
         fi
         echo "Waiting for Elasticsearch domain to be removed ..."
         sleep 5
     done
-    echo "Timeout waiting for Elasticsearch domain to be removed"
-    return 1
+    echo "Timeout after waiting $((timeout_value / 60)) minutes for Elasticsearch domain to be removed"
+    return 1 # Exit instead?
 }
 
 function wait_for_elasticsearch_endpoint() {
     local elasticsearch_domain_name=$1
     local timeout_value=$2
-    local start_time=`date +'%s'`
+    local start_time=$(date +'%s')
     local timeout_expiration=$(($start_time + $timeout_value))
 
-    while [[ `date +'%s'` -lt $timeout_expiration ]]; do
-        get_elasticsearch_endpoint $elasticsearch_domain_name
-        if [[ "`get_elasticsearch_endpoint $elasticsearch_domain_name`" == "null" ]]; then
+    echo "Waiting for Elasticsearch endpoint. Wait timeout: $((timeout_value / 60)) minutes ($timeout_value seconds) starting $(date)"
+    while [[ $(date +'%s') -lt $timeout_expiration ]]; do
+        result=$(get_elasticsearch_endpoint $elasticsearch_domain_name)
+        if [[ -z "$result" ]] || [[ "$result" == "null" ]]; then
             echo "Waiting for Elasticsearch endpoint to be become available ..."
             sleep 5
         else
-            echo "Elasticsearch endpoint is available."
+            echo "Elasticsearch endpoint is available (actual wait $(( ($(date +'%s') - $start_time) / 60 )) minutes)"
             return 0
         fi
     done
-    echo "Timeout waiting for Elasticsearch endpoint"
-    return 1
+    echo "Timeout after waiting $((timeout_value / 60)) minutes for Elasticsearch endpoint"
+    return 1 # Exit instead?
 }
 
 function get_elasticsearch_arn() {
@@ -115,7 +118,7 @@ function setup_elasticsearch_domain() {
             echo "Deleting existing Elasticsearch domain"
             delete_elasticsearch_domain $elasticsearch_domain_name
 
-            wait_for_elasticsearch_domain_removed $elasticsearch_domain_name 600
+            wait_for_elasticsearch_domain_removed $elasticsearch_domain_name 900 # Up to 15 minutes
        fi
     fi
 
@@ -147,7 +150,7 @@ declare -r global_delete_existing_es_instance="False"
 
 setup_elasticsearch_domain $global_elasticsearch_domain_name $global_delete_existing_es_instance
 
-wait_for_elasticsearch_endpoint $global_elasticsearch_domain_name 600
+wait_for_elasticsearch_endpoint $global_elasticsearch_domain_name 1800 # Up to 30 minutes
 
 # TODO Delete existing indexes here via Python script
 
