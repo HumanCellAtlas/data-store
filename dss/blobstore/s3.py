@@ -5,7 +5,7 @@ import typing
 import boto3
 import botocore
 
-from . import BlobStore, BlobContainerNotFoundError, BlobStoreCredentialError
+from . import BlobStore, BlobStoreCredentialError
 
 
 class S3BlobStore(BlobStore):
@@ -26,12 +26,12 @@ class S3BlobStore(BlobStore):
 
     def generate_presigned_url(
             self,
-            container: str,
+            bucket: str,
             object_name: str,
             method: str,
             **kwargs):
         args = kwargs.copy()
-        args['Bucket'] = container
+        args['Bucket'] = bucket
         args['Key'] = object_name
         return self.s3_client.generate_presigned_url(
             ClientMethod=method,
@@ -40,49 +40,49 @@ class S3BlobStore(BlobStore):
 
     def upload_file_handle(
             self,
-            container: str,
+            bucket: str,
             object_name: str,
             src_file_handle: typing.BinaryIO):
         self.s3_client.upload_fileobj(
             src_file_handle,
-            Bucket=container,
+            Bucket=bucket,
             Key=object_name,
         )
 
-    def delete(self, container: str, object_name: str):
+    def delete(self, bucket: str, object_name: str):
         self.s3_client.delete_object(
-            Bucket=container,
+            Bucket=bucket,
             key=object_name
         )
 
-    def get_metadata(self, container: str, object_name: str):
+    def get_metadata(self, bucket: str, object_name: str):
         """
-        Retrieves the metadata for a given object in a given container.  If the
+        Retrieves the metadata for a given object in a given bucket.  If the
         platform has any mandatory prefixes or suffixes for the metadata keys,
         they should be stripped before being returned.
-        :param container: the container the object resides in.
+        :param bucket: the bucket the object resides in.
         :param object_name: the name of the object for which metadata is being
         retrieved.
         :return: a dictionary mapping metadata keys to metadata values.
         """
         response = self.s3_client.head_object(
-            Bucket=container,
+            Bucket=bucket,
             Key=object_name
         )
         return response['Metadata']
 
     def copy(
             self,
-            src_container: str, src_object_name: str,
-            dst_container: str, dst_object_name: str,
+            src_bucket: str, src_object_name: str,
+            dst_bucket: str, dst_object_name: str,
             **kwargs
     ):
         self.s3_client.copy(
             dict(
-                Bucket=src_container,
+                Bucket=src_bucket,
                 Key=src_object_name,
             ),
-            Bucket=dst_container,
+            Bucket=dst_bucket,
             Key=dst_object_name,
             ExtraArgs=kwargs,
         )
