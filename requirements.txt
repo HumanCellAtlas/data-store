@@ -4,3 +4,4 @@ connexion
 flask-failsafe
 google-cloud-storage
 pyrfc3339
+urllib3
