@@ -26,7 +26,7 @@ class BlobStore(object):
             bucket: str,
             object_name: str,
             method: str,
-            **kwargs):
+            **kwargs) -> str:
         # TODO: things like http ranges need to be explicit parameters.
         # users of this API should not need to know the argument names presented
         # to the cloud API.
@@ -56,7 +56,7 @@ class BlobStore(object):
         """
         raise NotImplementedError()
 
-    def get(self, bucket: str, object_name: str):
+    def get(self, bucket: str, object_name: str) -> bytes:
         """
         Retrieves the data for a given object in a given bucket.
         :param bucket: the bucket the object resides in.
@@ -66,7 +66,11 @@ class BlobStore(object):
         """
         raise NotImplementedError
 
-    def get_metadata(self, bucket: str, object_name: str):
+    def get_metadata(
+            self,
+            bucket: str,
+            object_name: str
+    ) -> typing.Dict[str, str]:
         """
         Retrieves the metadata for a given object in a given bucket.  If the
         platform has any mandatory prefixes or suffixes for the metadata keys,

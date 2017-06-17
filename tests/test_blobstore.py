@@ -1,4 +1,4 @@
-from dss.blobstore import BlobNotFoundError
+from dss.blobstore import BlobNotFoundError, BlobStore
 
 
 class BlobStoreTests(object):
