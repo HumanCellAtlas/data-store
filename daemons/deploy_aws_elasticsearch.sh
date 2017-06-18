@@ -98,6 +98,23 @@ function get_elasticsearch_endpoint() {
             | jq -r '.DomainStatus.Endpoint'
 }
 
+function set_elasticsearch_endpoint_in_chalice_config() {
+    local elasticsearch_domain_name=$1
+    local daemon_name=$2
+    local stage=$3
+    elasticsearch_endpoint=$(get_elasticsearch_endpoint $elasticsearch_domain_name)
+    if [[ -n "$elasticsearch_endpoint" ]] && [[ "$elasticsearch_endpoint" == *amazonaws.com ]]; then
+        var=DSS_ES_ENDPOINT
+        export DSS_ES_ENDPOINT=$elasticsearch_endpoint
+        config_json="$(dirname $0)/${daemon_name}/.chalice/config.json"
+        cat "$config_json" | jq .stages.$stage.environment_variables.$var=env.$var | sponge "$config_json"
+    else
+        echo "Elasticsearch endpoint value is invalid: $elasticsearch_endpoint"
+        echo Exiting
+        exit 1
+    fi
+}
+
 function display_elasticsearch_domain_info() {
     local elasticsearch_domain_name=$1
     elasticsearch_arn=$(get_elasticsearch_arn $elasticsearch_domain_name)
@@ -144,15 +161,25 @@ if [[ $# != 2 ]]; then
     echo "Usage: $(basename $0) daemon-name stage"
     exit 1
 fi
-daemon_name=$1 stage=$2
-declare -r global_elasticsearch_domain_name="${daemon_name}-${stage}"
+declare -r global_daemon_name=$1
+declare -r global_stage=$2
+declare -r global_elasticsearch_domain_name="${global_daemon_name}-${global_stage}"
 declare -r global_delete_existing_es_instance="False"
 
 setup_elasticsearch_domain $global_elasticsearch_domain_name $global_delete_existing_es_instance
 
 wait_for_elasticsearch_endpoint $global_elasticsearch_domain_name 1800 # Up to 30 minutes
 
-# TODO Delete existing indexes here via Python script
+# Add the Elasticsearch endpoint to the Chalice config.
+# Because we plan to reuse the Elasticsearch domain across deployments
+# the Elasticsearch endpoint should be stable and could be added
+# to the Chalice configuration in the same way the other environment variables are.
+set_elasticsearch_endpoint_in_chalice_config $global_elasticsearch_domain_name $global_daemon_name $global_stage
+
+# Delete any existing Elasticsearch indexes
+# There is no AWS CLI for this, so use python
+echo "Removing all existing indexes in AWS Elasticsearch domain $global_elasticsearch_domain_name"
+python $(dirname 0)/aws_elasticsearch_delete_index.py --domainname "$global_elasticsearch_domain_name" --index "_all"
 
 display_elasticsearch_domain_info $global_elasticsearch_domain_name
 
