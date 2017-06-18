@@ -102,11 +102,13 @@ class TestDSS(unittest.TestCase):
             "/v1/files/91839244-66ab-408f-9be5-c82def201f26?replica=aws",
             requests.codes.found)
 
+    def test_file_put(self):
+        file_uuid = uuid.uuid4()
         response = self.assertPutResponse(
-            '/v1/files/91839244-66ab-408f-9be5-c82def201f26',
+            "/v1/files/" + str(file_uuid),
             requests.codes.created,
             json_request_body=dict(
-                source_url="s3://foobar",
+                source_url="s3://hca-dss-test-src/test_good_source_data",
                 bundle_uuid=str(uuid.uuid4()),
                 creator_uid=4321,
                 content_type="text/html",

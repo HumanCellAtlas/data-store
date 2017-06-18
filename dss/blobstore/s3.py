@@ -1,11 +1,16 @@
 from __future__ import absolute_import, division, print_function, unicode_literals
 
-import typing
-
 import boto3
 import botocore
+import requests
+import typing
 
-from . import BlobStore, BlobStoreCredentialError
+from . import (
+    BlobNotFoundError,
+    BlobStore,
+    BlobStoreCredentialError,
+    BlobStoreUnknownError,
+)
 
 
 class S3BlobStore(BlobStore):
@@ -55,6 +60,25 @@ class S3BlobStore(BlobStore):
             key=object_name
         )
 
+    def get(self, bucket: str, object_name: str):
+        """
+        Retrieves the data for a given object in a given bucket.
+        :param bucket: the bucket the object resides in.
+        :param object_name: the name of the object for which metadata is being
+        retrieved.
+        :return: the data
+        """
+        try:
+            response = self.s3_client.get_object(
+                Bucket=bucket,
+                Key=object_name
+            )
+            return response['Body'].read()
+        except botocore.exceptions.ClientError as ex:
+            if ex.response['Error']['Code'] == "NoSuchKey":
+                raise BlobNotFoundError(ex)
+            raise BlobStoreUnknownError(ex)
+
     def get_metadata(self, bucket: str, object_name: str):
         """
         Retrieves the metadata for a given object in a given bucket.  If the
@@ -65,11 +89,17 @@ class S3BlobStore(BlobStore):
         retrieved.
         :return: a dictionary mapping metadata keys to metadata values.
         """
-        response = self.s3_client.head_object(
-            Bucket=bucket,
-            Key=object_name
-        )
-        return response['Metadata']
+        try:
+            response = self.s3_client.head_object(
+                Bucket=bucket,
+                Key=object_name
+            )
+            return response['Metadata']
+        except botocore.exceptions.ClientError as ex:
+            if int(ex.response['Error']['Code']) == \
+                    int(requests.codes.not_found):
+                raise BlobNotFoundError(ex)
+            raise BlobStoreUnknownError(ex)
 
     def copy(
             self,

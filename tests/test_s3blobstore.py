@@ -13,6 +13,7 @@ import uuid
 pkg_root = os.path.abspath(os.path.join(os.path.dirname(__file__), '..'))
 sys.path.insert(0, pkg_root)
 
+from dss.blobstore import BlobNotFoundError # noqa
 from dss.blobstore.s3 import S3BlobStore # noqa
 from tests import TESTOUTPUT_PREFIX, utils # noqa
 from tests.test_blobstore import BlobStoreTests # noqa
@@ -48,6 +49,21 @@ class TestS3BlobStore(unittest.TestCase, BlobStoreTests):
         # should be able to get metadata for the file.
         self.handle.get_metadata(
             self.test_bucket, dst_blob_name)
+
+    # TODO: this should be moved to BlobStoreTests once we build the GCS
+    # equivalents out
+    def testGet(self):
+        data = self.handle.get(
+            self.test_src_data_bucket,
+            "test_good_source_data",
+        )
+        self.assertEqual(len(data), 11358)
+
+        with self.assertRaises(BlobNotFoundError):
+            self.handle.get(
+                self.test_src_data_bucket,
+                "test_good_source_data_DOES_NOT_EXIST",
+            )
 
     # TODO: this should be moved to BlobStoreTests once we build the GCS
     # equivalents out
