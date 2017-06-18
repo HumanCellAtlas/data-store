@@ -152,7 +152,10 @@ setup_elasticsearch_domain $global_elasticsearch_domain_name $global_delete_exis
 
 wait_for_elasticsearch_endpoint $global_elasticsearch_domain_name 1800 # Up to 30 minutes
 
-# TODO Delete existing indexes here via Python script
+# Delete any existing Elasticsearch indexes
+# There is now AWS CLI for this, so use python
+echo "Removing all existing indexes in AWS Elasticsearch domain $global_elasticsearch_domain_name"
+python $(dirname 0)/aws_elasticsearch_delete_index.py --domainname "$global_elasticsearch_domain_name" --index "_all"
 
 display_elasticsearch_domain_info $global_elasticsearch_domain_name
 
