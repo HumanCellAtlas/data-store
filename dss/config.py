@@ -1,5 +1,6 @@
 import os
 import typing
+from contextlib import contextmanager
 
 from .blobstore import BlobStore
 from .blobstore.s3 import S3BlobStore
@@ -36,3 +37,13 @@ class Config(object):
             Config._S3_BUCKET = os.environ["DSS_S3_TEST_BUCKET"]
 
         return Config._S3_BUCKET
+
+
+@contextmanager
+def override_s3_config(s3_bucket: str):
+    original_s3_bucket = Config._S3_BUCKET
+    try:
+        Config._S3_BUCKET = s3_bucket
+        yield
+    finally:
+        Config._S3_BUCKET = original_s3_bucket
