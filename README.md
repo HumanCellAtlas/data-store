@@ -30,6 +30,9 @@ Run `./dss-api` in this directory.
 #### Running tests
 Run `make test` in this directory.
 
+Note: Some tests require the Elasticsearch service to be running on the local system.
+Run: elasticsearch
+
 #### Configuring cloud-specific access credentials
 
 **AWS**: Follow the instructions in
