@@ -9,12 +9,9 @@ import re
 import json
 import functools
 import uuid
-import logging
 import unittest
 import typing
 
-import boto3
-import google.cloud.storage
 import requests
 from flask import wrappers
 
@@ -22,12 +19,7 @@ pkg_root = os.path.abspath(os.path.join(os.path.dirname(__file__), '..'))
 sys.path.insert(0, pkg_root)
 
 import dss # noqa
-from dss.events.handlers import sync # noqa
 
-logging.basicConfig(level=logging.DEBUG)
-for logger_name in logging.Logger.manager.loggerDict:  # type: ignore
-    if logger_name.startswith("botocore") or logger_name.startswith("boto3.resources"):
-        logging.getLogger(logger_name).setLevel(logging.WARNING)
 
 class TestDSS(unittest.TestCase):
     def setUp(self):
@@ -40,18 +32,24 @@ class TestDSS(unittest.TestCase):
             path: str,
             expected_code: int,
             json_request_body: typing.Optional[dict]=None,
-            **kwargs) -> typing.Tuple[wrappers.Response, str, typing.Optional[dict]]:
+            **kwargs) -> typing.Tuple[
+                wrappers.Response,
+                str,
+                typing.Optional[dict]]:
         """
-        Make a request given a HTTP method and a path.  The HTTP status code is checked against `expected_code`.
+        Make a request given a HTTP method and a path.  The HTTP status code is
+        checked against `expected_code`.
 
-        If json_request_body is provided, it is serialized and set as the request body, and the content-type of the
-        request is set to application/json.
+        If json_request_body is provided, it is serialized and set as the
+        request body, and the content-type of the request is set to
+        application/json.
 
         The first element of the return value is the response object.
         The second element of the return value is the response text.
 
-        If `parse_response_as_json` is true, then attempt to parse the response body as JSON and return that as the
-        third element of the return value.  Otherwise, the third element of the return value is None.
+        If `parse_response_as_json` is true, then attempt to parse the response
+        body as JSON and return that as the third element of the return value.
+        Otherwise, the third element of the return value is None.
         """
         if json_request_body is not None:
             if 'data' in kwargs:
@@ -134,24 +132,6 @@ class TestDSS(unittest.TestCase):
             "/v1/bundles/91839244-66ab-408f-9be5-c82def201f26/55555?replica=foo",
             requests.codes.ok)
 
-class TestSyncUtils(unittest.TestCase):
-    def test_sync_blob(self):
-        gcs_bucket_name, s3_bucket_name = os.environ["DSS_GCS_TEST_BUCKET"], os.environ["DSS_S3_TEST_BUCKET"]
-        logger = logging.getLogger(__name__)
-        s3 = boto3.resource("s3")
-        payload = os.urandom(2**20)
-        test_key = "hca-dss-s3-to-gcs-sync-test"
-        s3.Bucket(s3_bucket_name).Object(test_key).put(Body=payload)
-        sync.sync_blob(source_platform="s3", source_key=test_key, dest_platform="gcs", logger=logger)
-        # TODO: wait for GCSTS job and read back key
-
-        test_key = "hca-dss-gcs-to-s3-sync-test"
-        gcs_key_file = os.environ["GOOGLE_APPLICATION_CREDENTIALS"]
-        gcs = google.cloud.storage.Client.from_service_account_json(gcs_key_file)
-        gcs.bucket(gcs_bucket_name).blob(test_key).upload_from_string(payload)
-        sync.sync_blob(source_platform="gcs", source_key=test_key, dest_platform="s3", logger=logger)
-        dest_blob = s3.Bucket(s3_bucket_name).Object(test_key)
-        self.assertEqual(dest_blob.get()["Body"].read(), payload)
 
 if __name__ == '__main__':
     unittest.main()
