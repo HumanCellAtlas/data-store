@@ -26,8 +26,27 @@ class S3BlobStore(BlobStore):
 
         self.s3_client = boto3.client("s3")
 
-    def list(self, prefix: str=None):
-        pass
+    def list(
+            self,
+            bucket: str,
+            prefix: str=None,
+            delimiter: str=None,
+    ) -> typing.Iterator[str]:
+        """
+        Returns an iterator of all blob entries in a bucket that match a given
+        prefix.  Do not return any keys that contain the delimiter past the
+        prefix.
+        """
+        kwargs = dict()
+        if prefix is not None:
+            kwargs['Prefix'] = prefix
+        if delimiter is not None:
+            kwargs['Delimiter'] = delimiter
+        for item in (
+                boto3.resource("s3").Bucket(bucket).
+                objects.
+                filter(**kwargs)):
+            yield item.key
 
     def generate_presigned_url(
             self,
