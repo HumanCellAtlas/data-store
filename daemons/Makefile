@@ -1,3 +1,4 @@
+SHELL=/bin/bash
 STAGE ?= dev
 
 deploy: dss-sync dss-index
