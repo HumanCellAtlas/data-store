@@ -21,6 +21,9 @@ class BlobStore(object):
         """
         raise NotImplementedError()
 
+    def get_blob_method(self) -> str:
+        raise NotImplementedError()
+
     def generate_presigned_url(
             self,
             bucket: str,

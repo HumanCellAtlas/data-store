@@ -48,6 +48,9 @@ class S3BlobStore(BlobStore):
                 filter(**kwargs)):
             yield item.key
 
+    def get_blob_method(self) -> str:
+        return "get_object"
+
     def generate_presigned_url(
             self,
             bucket: str,
