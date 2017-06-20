@@ -20,6 +20,11 @@ before_install:
 install:
 - pip install -r requirements.txt
 - pip install -r requirements-dev.txt
+- wget ${ES_DOWNLOAD_URL}
+- tar -xzf elasticsearch-${ES_VERSION}.tar.gz
+- ./elasticsearch-${ES_VERSION}/bin/elasticsearch &
+before_script:
+- wget -q --tries 60 --waitretry 1 --retry-connrefused -O - http://127.0.0.1:9200
 script:
 - make test
 after_success:
@@ -32,6 +37,7 @@ deploy:
     python: 3.6
 env:
   global:
+  - ES_VERSION=5.4.2 ES_DOWNLOAD_URL=https://artifacts.elastic.co/downloads/elasticsearch/elasticsearch-${ES_VERSION}.tar.gz
   - AWS_DEFAULT_REGION=us-east-1
   - DSS_S3_TEST_BUCKET=hca-dss-test
   - DSS_S3_TEST_SRC_DATA_BUCKET=hca-dss-test-src
