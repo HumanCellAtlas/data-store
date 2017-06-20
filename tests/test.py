@@ -11,10 +11,12 @@ import functools
 import uuid
 import logging
 import unittest
+import time
+import datetime
 import typing
 
 import boto3
-import google.cloud.storage
+import google.cloud.storage, google.cloud.exceptions
 import requests
 from flask import wrappers
 
@@ -135,22 +137,43 @@ class TestDSS(unittest.TestCase):
             requests.codes.ok)
 
 class TestSyncUtils(unittest.TestCase):
-    def test_sync_blob(self):
-        gcs_bucket_name, s3_bucket_name = os.environ["DSS_GCS_TEST_BUCKET"], os.environ["DSS_S3_TEST_BUCKET"]
-        logger = logging.getLogger(__name__)
-        s3 = boto3.resource("s3")
-        payload = os.urandom(2**20)
-        test_key = "hca-dss-s3-to-gcs-sync-test"
-        s3.Bucket(s3_bucket_name).Object(test_key).put(Body=payload)
-        sync.sync_blob(source_platform="s3", source_key=test_key, dest_platform="gcs", logger=logger)
-        # TODO: wait for GCSTS job and read back key
-
-        test_key = "hca-dss-gcs-to-s3-sync-test"
+    def setUp(self):
+        self.gcs_bucket_name = os.environ["DSS_GCS_TEST_BUCKET"]
+        self.s3_bucket_name = os.environ["DSS_S3_TEST_BUCKET"]
+        self.logger = logging.getLogger(__name__)
         gcs_key_file = os.environ["GOOGLE_APPLICATION_CREDENTIALS"]
         gcs = google.cloud.storage.Client.from_service_account_json(gcs_key_file)
-        gcs.bucket(gcs_bucket_name).blob(test_key).upload_from_string(payload)
-        sync.sync_blob(source_platform="gcs", source_key=test_key, dest_platform="s3", logger=logger)
-        dest_blob = s3.Bucket(s3_bucket_name).Object(test_key)
+        self.gcs_bucket = gcs.bucket(self.gcs_bucket_name)
+        s3 = boto3.resource("s3")
+        self.s3_bucket = s3.Bucket(self.s3_bucket_name)
+
+    def cleanup_sync_test_objects(self, prefix="hca-dss-sync-test", age=datetime.timedelta(days=1)):
+        for key in self.s3_bucket.objects.filter(Prefix=prefix):
+            if key.last_modified < datetime.datetime.now(datetime.timezone.utc) - age:
+                key.delete()
+        for key in self.gcs_bucket.list_blobs(prefix=prefix):
+            if key.time_created < datetime.datetime.now(datetime.timezone.utc) - age:
+                key.delete()
+
+    def test_sync_blob(self):
+        self.cleanup_sync_test_objects()
+        payload, readback = os.urandom(2**20), b""
+        test_key = "hca-dss-sync-test/s3-to-gcs/{}".format(uuid.uuid4())
+        self.s3_bucket.Object(test_key).put(Body=payload)
+        sync.sync_blob(source_platform="s3", source_key=test_key, dest_platform="gcs", logger=self.logger)
+        if os.environ.get("DSS_RUN_LONG_TESTS"):
+            for i in range(90):
+                try:
+                    readback = self.gcs_bucket.blob(test_key).download_as_string()
+                    break
+                except Exception as e:
+                    time.sleep(5)
+            self.assertEqual(readback, payload)
+
+        test_key = "hca-dss-sync-test/gcs-to-s3/{}".format(uuid.uuid4())
+        dest_blob = self.s3_bucket.Object(test_key)
+        self.gcs_bucket.blob(test_key).upload_from_string(payload)
+        sync.sync_blob(source_platform="gcs", source_key=test_key, dest_platform="s3", logger=self.logger)
         self.assertEqual(dest_blob.get()["Body"].read(), payload)
 
 if __name__ == '__main__':
