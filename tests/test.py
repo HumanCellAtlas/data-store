@@ -26,7 +26,7 @@ sys.path.insert(0, pkg_root)
 import dss # noqa
 from dss.events.handlers import sync # noqa
 
-logging.basicConfig(level=logging.DEBUG)
+logging.basicConfig(level=logging.INFO)
 for logger_name in logging.Logger.manager.loggerDict:  # type: ignore
     if logger_name.startswith("botocore") or logger_name.startswith("boto3.resources"):
         logging.getLogger(logger_name).setLevel(logging.WARNING)
