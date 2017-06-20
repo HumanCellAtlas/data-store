@@ -109,11 +109,11 @@ class TestEventHandlers(unittest.TestCase):
             expected_value = expected_json_dict[key]
             actual_value = actual_json_dict[key]
             if key in keys_to_normalize:
-                if  (len(expected_value) == len(actual_value)):
+                if (len(expected_value) == len(actual_value)):
                     actual_json_dict[key] = expected_json_dict[key]
                 else:
                     self.fail("The expected and actual values are different")
-            elif type(expected_value) is type({}):
+            elif isinstance(expected_value, dict):
                 self.normalize_values(expected_value, actual_value)
 
 # Check if the Elasticsearch service is running,
