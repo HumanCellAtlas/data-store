@@ -204,9 +204,31 @@ paths:
                   $ref: "#/definitions/Bundle"
             required:
               - bundles
+# TODO: this sort of thing actually belongs in the /bundles query interface.
+#    get:
+#      operationId: dss.api.bundles.list_versions
+#      parameters:
+#        - name: uuid
+#          in: path
+#          description: Bundle unique ID.
+#          required: true
+#          type: string
+#          pattern: "[A-Za-z0-9]{8}-[A-Za-z0-9]{4}-[A-Za-z0-9]{4}-[A-Za-z0-9]{4}-[A-Za-z0-9]{12}"
+#      responses:
+#        200:
+#          description: OK
+#          schema:
+#            type: array
+#            items:
+#              type: string
+#              format: date-time
+#              description: Version of bundle creation in RFC3339.
+#        default:
+#          description: Unexpected error
+#          schema:
+#            $ref: '#/definitions/Error'
   /bundles/{uuid}:
     get:
-      operationId: dss.api.bundles.list_versions
       parameters:
         - name: uuid
           in: path
@@ -214,38 +236,18 @@ paths:
           required: true
           type: string
           pattern: "[A-Za-z0-9]{8}-[A-Za-z0-9]{4}-[A-Za-z0-9]{4}-[A-Za-z0-9]{4}-[A-Za-z0-9]{12}"
-      responses:
-        200:
-          description: OK
-          schema:
-            type: array
-            items:
-              type: string
-              format: date-time
-              description: Version of bundle creation in RFC3339.
-        default:
-          description: Unexpected error
-          schema:
-            $ref: '#/definitions/Error'
-  /bundles/{uuid}/{bundle_version}:
-    get:
-      parameters:
+        - name: version
+          in: query
+          description: Timestamp of bundle creation in RFC3339.
+          required: true
+          type: string
+          format: date-time
         - name: replica
           in: query
           description: Replica to fetch from.
           required: true
           type: string
-        - name: uuid
-          in: path
-          description: Bundle unique ID.
-          required: true
-          type: string
-          pattern: "[A-Za-z0-9]{8}-[A-Za-z0-9]{4}-[A-Za-z0-9]{4}-[A-Za-z0-9]{4}-[A-Za-z0-9]{12}"
-        - name: bundle_version
-          in: path
-          description: Version of the bundle.
-          required: true
-          type: string
+          enum: [aws, gc, azure]
       responses:
         200:
           description: OK
