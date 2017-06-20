@@ -10,7 +10,7 @@ mypy:
 	mypy --ignore-missing-imports $(MODULES)
 
 test: lint mypy
-	python -m unittest discover tests
+	python -m unittest discover tests -v
 
 deploy:
 	$(MAKE) -C chalice deploy
