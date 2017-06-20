@@ -41,6 +41,7 @@ paths:
           description: Replica to fetch from.
           required: false
           type: string
+          enum: [aws, gc, azure]
         - name: timestamp
           in: query
           description: Timestamp of file creation in RFC3339.  If this is not provided, the latest version is returned.
