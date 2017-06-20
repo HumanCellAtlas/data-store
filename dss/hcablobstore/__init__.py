@@ -20,12 +20,12 @@ class HCABlobStore(object):
 
 class FileMetadata(object):
 
-    FILE_FORMAT_VERSION = "0.0.1"
+    FILE_FORMAT_VERSION = "0.0.2"
 
-    VERSION = "version"
+    FORMAT = "format"
     BUNDLE_UUID = "bundle_uuid"
     CREATOR_UID = "creator_uid"
-    TIMESTAMP = "timestamp"
+    VERSION = "version"
     CONTENT_TYPE = "content-type"
     CRC32C = "crc32c"
     S3_ETAG = "s3-etag"
