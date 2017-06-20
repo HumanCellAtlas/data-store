@@ -2,23 +2,23 @@
     "state": "new",
     "manifest": {
         "version": "0.0.0",
-        "timestamp": "1497910454",
+        "timestamp": "1498001450",
         "files": {
             "assay.json": {
                 "name": "assay.json",
-                "uuid": "36b7d1a6-5477-46da-a850-4d36bec4f3ab",
-                "timestamp": "1497894509",
+                "uuid": "525564a9-860a-44b8-b301-af0a983e7c95",
+                "timestamp": "1498000186",
                 "content-type": "metadata",
                 "indexed": "True",
-                "sha256": "1846b4426afcde1e8ba545be36a36790689be567ee297d16df4721e3b7ef0152",
-                "sha1": "f04ce04f373a0ddfec67fd8cda60fbbcb6c2d43a",
-                "s3-etag": "01c685ab6264894615aec21977267447",
-                "crc32c": "3197335405"
+                "sha256": "7a900ce44e7ce7eb3daebef8baf402596c9533f74f5a06f1d191c2e4391d9e06",
+                "sha1": "e9f08d8e7856d09ce2d68c0abb0909615cf44365",
+                "s3-etag": "7edf489368f8a5ce72d7665c97155ba8",
+                "crc32c": "1600867755"
             },
             "project.json": {
                 "name": "project.json",
-                "uuid": "4ebe75d6-762b-43e4-9bd7-c2eba1526e45",
-                "timestamp": "1497894509",
+                "uuid": "42e33125-a9bc-4a84-a04e-a9606d5251b5",
+                "timestamp": "1498000186",
                 "content-type": "metadata",
                 "indexed": "True",
                 "sha256": "c155a0762eb2b270eb024b517fe90aa2a922f9cf4cc2d4a7be7073fde36c8d8d",
@@ -28,8 +28,8 @@
             },
             "sample.json": {
                 "name": "sample.json",
-                "uuid": "72d49292-863c-4094-be6b-369ae692ff0f",
-                "timestamp": "1497894509",
+                "uuid": "86146cee-f440-4a40-9b85-dcdba42cd377",
+                "timestamp": "1498000186",
                 "content-type": "metadata",
                 "indexed": "True",
                 "sha256": "9836291e0be8d0a542c8d5445798bf4075571fc273eb7ed7df30a6653db5ba82",
@@ -37,27 +37,27 @@
                 "s3-etag": "dfb861e512bd25157eebeb0415c4f71a",
                 "crc32c": "483430158"
             },
-            "SRR3587500_1.fastq.gz": {
-                "name": "SRR3587500_1.fastq.gz",
-                "uuid": "5098ce70-907c-4e81-a681-67a3d28c8a6e",
-                "timestamp": "1497894509",
+            "tmp_test_nonindexed_file1.txt": {
+                "name": "tmp_test_nonindexed_file1.txt",
+                "uuid": "b643e71e-5d5b-4d11-8db7-f55caf43e215",
+                "timestamp": "1498032186",
                 "content-type": "metadata",
                 "indexed": "False",
-                "sha256": "8a0d8429176923af2d86a06d03fd20f9b2a5836b9996b6d5f0f0fbff48a7daec",
-                "sha1": "10c3e7d0d4b49b165aa6f82aa2af0ab9de96ea3e",
-                "s3-etag": "bd93c060bc17e788604e8ebfe3a27f5a",
-                "crc32c": "2972857503"
+                "sha256": "c9e68d982364f171aa80199d88ee6c938cedb4f374576cf892a9de48a351bf01",
+                "sha1": "8cbefaa487f4223a8c805e16c76fdaa1a8084e21",
+                "s3-etag": "aca4dc4b72b13700d270122fa93c5709",
+                "crc32c": "1143479872"
             },
-            "SRR3587500_2.fastq.gz": {
-                "name": "SRR3587500_2.fastq.gz",
-                "uuid": "1df50045-67c2-4e8c-939d-2bf711dabcbd",
-                "timestamp": "1497894509",
+            "tmp_test_nonindexed_file2.txt": {
+                "name": "tmp_test_nonindexed_file2.txt",
+                "uuid": "3bc116c8-84ef-4e60-9ca1-e9930b8797ba",
+                "timestamp": "1498032186",
                 "content-type": "metadata",
                 "indexed": "False",
-                "sha256": "8a0d8429176923af2d86a06d03fd20f9b2a5836b9996b6d5f0f0fbff48a7daec",
-                "sha1": "10c3e7d0d4b49b165aa6f82aa2af0ab9de96ea3e",
-                "s3-etag": "bd93c060bc17e788604e8ebfe3a27f5a",
-                "crc32c": "2972857503"
+                "sha256": "1e085356099f660686fa7b5401d35015bd9ea8bf9eecdaa9675125daae9ed893",
+                "sha1": "b5379bd1ae67d265b93311b996098f303dd50535",
+                "s3-etag": "99e110c1732d7c8048a0d4e5365013d0",
+                "crc32c": "59270288"
             }
         },
         "creator_uid": "5"
@@ -87,11 +87,13 @@
                 "paired_ends": "index1_reads2",
                 "prep": "modified Nextera XT",
                 "umi_barcode_offset": "12",
-                "umi_barcode_size": "8"
+                "umi_barcode_size": "8",
+                "umi_barcode_read": "index"
             },
             "single_cell": {
                 "cell_barcode_offset": "0",
                 "cell_barcode_size": "12",
+                "cell_barcode_read": "index",
                 "method": "drop-seq"
             },
             "sra_experiment": "SRX1800075",

@@ -1,5 +1,5 @@
 #
-# Load sample data bundle (currently from data-store/test/data/bundles)
+# Load sample data bundle from data-store/data-bundle-examples
 # into a (mock or actual) S3 test bucket, as described in:
 #     HCA Storage System Disk Format
 #     https://docs.google.com/document/d/1jQGC0Ah2gdtzUxEeVvj0OiGM9HbmOjn8wt6LazIeUhI
@@ -55,16 +55,29 @@ def create_dropseq_bundle(data_bundle_path: str, s3_client: object) -> str:
     for filename in ["assay.json", "project.json", "sample.json"]:
         files_info[filename] = create_file_info(data_bundle_path, filename, True)
     # Load files not to be indexed, to verify they are not put into the index.
-    for filename in ["SRR3587500_1.fastq.gz", "SRR3587500_2.fastq.gz"]:
-        files_info[filename] = create_file_info(data_bundle_path, filename, False)
-    bundle_manifest = create_bundle_manifest(files_info)
-    bundle_uuid = uuid.uuid4()
-    bundle_key = "bundles/{}.{}".format(bundle_uuid, int(time.time()))
-    log.debug("bundle_key=%s", bundle_key)
-    upload_bundle_files(s3_client, data_bundle_path, files_info)
-    upload_bundle_manifest(s3_client, bundle_key, bundle_manifest)
+    # These files do not exist in the "data-bundle-examples" subrepository.
+    # Therefore, create temporary files there for the purpose of this test, then remove them.
+    tmp_nonindexed_filename1 = "tmp_test_nonindexed_file1.txt"
+    tmp_nonindexed_filename2 = "tmp_test_nonindexed_file2.txt"
+    try:
+        create_nonindexed_test_file(data_bundle_path, tmp_nonindexed_filename1)
+        create_nonindexed_test_file(data_bundle_path, tmp_nonindexed_filename2)
+        for filename in [tmp_nonindexed_filename1, tmp_nonindexed_filename2]:
+            files_info[filename] = create_file_info(data_bundle_path, filename, False)
+        bundle_manifest = create_bundle_manifest(files_info)
+        bundle_uuid = uuid.uuid4()
+        bundle_key = "bundles/{}.{}".format(bundle_uuid, int(time.time()))
+        log.debug("bundle_key=%s", bundle_key)
+        upload_bundle_files(s3_client, data_bundle_path, files_info)
+        upload_bundle_manifest(s3_client, bundle_key, bundle_manifest)
+    finally:
+        os.remove(os.path.join(data_bundle_path, tmp_nonindexed_filename1))
+        os.remove(os.path.join(data_bundle_path, tmp_nonindexed_filename2))
     return bundle_key
 
+def create_nonindexed_test_file(path, filename):
+    with open(os.path.join(path, filename), "w+") as fh:
+        fh.write("Temp test mock data " + filename)
 
 def create_bundle_manifest(files_info) -> str:
     bundle_info = {}
@@ -116,17 +129,12 @@ def compute_file_crc32(filename):
 
 
 def path_to_data_bundle_examples() -> str:
-    # Access sample bundle data.
-    # This could be obtained from data-store/data-bundle-examples, yet
-    # this would require everyone running "make test" to download that
-    # subrepository.
-    # I expect that somepoint soon the data-bundle-examples will be
-    # readily available online somewhere, and at that point,
-    # and the test data could be obtained from there.
-    # However, we only need a tiny amount of data for unit testing,
-    # so at least for now use data-store/test/data/bundles/dropseq/GSE81904
-    data_bundles = os.path.abspath(os.path.join(os.path.dirname(__file__), "data", "bundles"))
-    return data_bundles
+    data_bundle_path = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "data-bundle-examples"))
+    if not os.path.exists(os.path.join(data_bundle_path, "dropseq")):
+        raise Exception(("The example data bundles are required for testing "
+                         "yet the directory " + data_bundle_path + " does not contain the expected data. "
+                         "Please run: \"git submodule update --init\" to populate this directory."))
+    return data_bundle_path
 
 
 def upload_bundle_manifest(s3_client, bundle_key, bundle_manifest: str) -> None:

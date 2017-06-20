@@ -4,11 +4,9 @@
 import json
 import logging
 import os
-import subprocess
 import sys
 import time
 import unittest
-from logging import DEBUG
 from typing import Dict
 
 import moto
@@ -24,8 +22,9 @@ HCA_METADATA_DOC_TYPE = "hca"
 
 USE_AWS_S3_MOCK = os.environ.get("USE_AWS_S3_MOCK", True)
 
-logging.basicConfig(level=logging.DEBUG)
+logging.basicConfig(level=logging.INFO)
 log = logging.getLogger(__name__)
+log.setLevel(logging.INFO)
 
 pkg_root = os.path.abspath(os.path.join(os.path.dirname(__file__), '..'))
 sys.path.insert(0, pkg_root)
@@ -44,7 +43,7 @@ sys.path.insert(0, pkg_root)
 class MockEventContext:
     def __init__(self):
         self.log = logging.getLogger(__name__)
-        self.log.setLevel(DEBUG)
+        self.log.setLevel(logging.INFO)
 
 
 class TestEventHandlers(unittest.TestCase):
@@ -95,15 +94,22 @@ class TestEventHandlers(unittest.TestCase):
         self.assertEqual(expectedHitCount, len(response.hits))
         for hit in response:
             print(hit.meta.score, hit)
-        with open(os.path.join(os.path.dirname(__file__), "expected_index_document.json")) as fh:
+        with open(os.path.join(os.path.dirname(__file__), "expected_index_document.json"), "r") as fh:
             expected_index_document = json.load(fh)
         actual_index_document = response.hits.hits[0]['_source']
-        self.normalize_values(expected_index_document, actual_index_document)
-        self.assertEqual(json.dumps(expected_index_document, indent=4),
-                         json.dumps(actual_index_document, indent=4))
+        self.normalize_inherently_different_values(expected_index_document, actual_index_document)
+        expected_index_string = json.dumps(expected_index_document, indent=4)
+        actual_index_string = json.dumps(actual_index_document, indent=4)
+        if expected_index_string != actual_index_string:
+            log.error(("Actual index returned from search is different than expected value. "
+                       "Expected value: %s Actual value: %s"), expected_index_string, actual_index_string)
+            # Uncomment the following to write the actual value to a file to faciltate comparison with the expected.
+            # with open(os.path.join(os.path.dirname(__file__), "tmp_actual_index_document.json"), "w+") as fh:
+            #    fh.write(actual_index_string)
+        self.assertEqual(expected_index_string, actual_index_string)
         close_elasticsearch_connections(es_client)
 
-    def normalize_values(self, expected_json_dict, actual_json_dict):
+    def normalize_inherently_different_values(self, expected_json_dict, actual_json_dict):
         keys_to_normalize = {'timestamp', 'uuid'}
         for key in expected_json_dict.keys():
             expected_value = expected_json_dict[key]
@@ -114,7 +120,7 @@ class TestEventHandlers(unittest.TestCase):
                 else:
                     self.fail("The expected and actual values are different")
             elif isinstance(expected_value, dict):
-                self.normalize_values(expected_value, actual_value)
+                self.normalize_inherently_different_values(expected_value, actual_value)
 
 # Check if the Elasticsearch service is running,
 # and if not, raise and exception with instructions to start it.

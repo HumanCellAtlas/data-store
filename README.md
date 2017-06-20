@@ -30,8 +30,11 @@ Run `./dss-api` in this directory.
 #### Running tests
 Run `make test` in this directory.
 
-Note: Some tests require the Elasticsearch service to be running on the local system.
+Some tests require the Elasticsearch service to be running on the local system.
 Run: elasticsearch
+
+Tests also use data from the data-bundle-examples subrepository.
+Run: git submodule update --init
 
 #### Configuring cloud-specific access credentials
 
