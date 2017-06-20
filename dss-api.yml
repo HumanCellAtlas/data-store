@@ -147,6 +147,12 @@ paths:
           required: true
           type: string
           pattern: "[A-Za-z0-9]{8}-[A-Za-z0-9]{4}-[A-Za-z0-9]{4}-[A-Za-z0-9]{4}-[A-Za-z0-9]{12}"
+        - name: version
+          in: query
+          description: Timestamp of file creation in RFC3339.  If this is not provided, the latest version is returned.
+          required: false
+          type: string
+          format: date-time
         - name: extras
           in: body
           required: true
@@ -164,10 +170,6 @@ paths:
                 description: User ID who is creating this file.
                 type: integer
                 format: int64
-              version:
-                description: Timestamp of file creation in RFC3339.
-                type: string
-                format: date-time
             required:
               - source_url
               - bundle_uuid
