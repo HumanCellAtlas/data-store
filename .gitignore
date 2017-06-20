@@ -37,3 +37,6 @@ npm-debug.log
 
 # Credential files
 /gcs-credentials.json
+
+# Temporary folder
+/tmp
