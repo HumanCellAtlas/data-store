@@ -24,13 +24,10 @@ class TestDSS(unittest.TestCase, DSSAsserts):
     def test_bundle_api(self):
         self.assertGetResponse("/v1/bundles", requests.codes.ok)
         self.assertGetResponse(
-            "/v1/bundles/91839244-66ab-408f-9be5-c82def201f26",
-            requests.codes.ok)
-        self.assertGetResponse(
-            "/v1/bundles/91839244-66ab-408f-9be5-c82def201f26/55555",
+            "/v1/bundles/91839244-66ab-408f-9be5-c82def201f26?version=2017-06-16T19:36:04.240704Z",
             requests.codes.bad_request)
         self.assertGetResponse(
-            "/v1/bundles/91839244-66ab-408f-9be5-c82def201f26/55555?replica=foo",
+            "/v1/bundles/91839244-66ab-408f-9be5-c82def201f26?version=2017-06-16T19:36:04.240704Z&replica=aws",
             requests.codes.ok)
 
 
