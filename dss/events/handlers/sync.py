@@ -68,8 +68,11 @@ def sync_blob(source_platform, source_key, dest_platform, logger):
                 }
             }
         }
-        gcsts_job = gcsts_conn.api_request("POST", "/transferJobs", data=gcsts_job_def)
-        logger.info(gcsts_job)
+        try:
+            gcsts_job = gcsts_conn.api_request("POST", "/transferJobs", data=gcsts_job_def)
+            logger.info(gcsts_job)
+        except Exception as e:
+            logger.error("FIXME: (akislyuk) GCSTS job submission failed: {}".format(e))
         # FIXME akislyuk: the service account doesn't have permission to look at the
         # status of the job, even though it has permission to create it.  I
         # couldn't figure out what permission scope to give the principal in the
