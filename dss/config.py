@@ -14,7 +14,7 @@ class Config(object):
     @staticmethod
     def get_cloud_specific_handles(replica: str) -> typing.Tuple[
             BlobStore, HCABlobStore, str]:
-        if replica == 'AWS':
+        if replica == 'aws':
             handle = S3BlobStore()
             return (
                 handle,
