@@ -75,7 +75,7 @@ def put(uuid: str):
     mobj = cre.match(source_url)
     if mobj and mobj.group('schema') == "s3":
         handle, hca_handle, dst_bucket = \
-            Config.get_cloud_specific_handles("AWS")
+            Config.get_cloud_specific_handles("aws")
     else:
         # TODO: (ttung) better error messages pls.
         return (
