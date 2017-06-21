@@ -33,6 +33,7 @@ after_success:
 deploy:
   provider: script
   script: make deploy
+  skip_cleanup: true
   on:
     branch: master
     python: 3.6
