@@ -21,6 +21,8 @@ else
     cat "$deployed_json" | jq .$stage.api_handler_arn=env.lambda_arn | sponge "$deployed_json"
 fi
 
+export DSS_ES_ENDPOINT=$(aws es describe-elasticsearch-domain --domain-name dss-index-$stage | jq -r .DomainStatus.Endpoint)
+
 for var in $EXPORT_ENV_VARS_TO_LAMBDA; do
     cat "$config_json" | jq .stages.$stage.environment_variables.$var=env.$var | sponge "$config_json"
 done

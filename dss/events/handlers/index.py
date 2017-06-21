@@ -18,7 +18,7 @@ DSS_BUNDLE_KEY_REGEX = "^bundles/[0-9A-Fa-f]{8}-[0-9A-Fa-f]{4}-4[0-9A-Fa-f]{3}-[
 def process_new_indexable_object(event, context) -> None:
     try:
         # Currently this function is only called for S3 creation events
-        log = context.log
+        log = logging.getLogger(__name__)
         validate_environment_variables("AWS_DEFAULT_REGION", "DSS_S3_TEST_BUCKET", "DSS_ES_ENDPOINT")
 
         key = event['Records'][0]["s3"]["object"]["key"]
@@ -35,7 +35,7 @@ def process_new_indexable_object(event, context) -> None:
         else:
             log.debug("Not indexing S3 creation event for key: %s", key)
     except Exception as e:
-        context.log.error("Exception occurred while processing S3 event: %s Event: %s", e, json.dumps(event, indent=4))
+        log.error("Exception occurred while processing S3 event: %s Event: %s", e, json.dumps(event, indent=4))
 
 
 def is_bundle_to_index(key) -> bool:
