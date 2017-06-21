@@ -13,9 +13,4 @@ dss-sync dss-index:
 	cd $@; domovoi deploy
 	./invoke_lambda.sh $@ $(STAGE) ../tests/sample_s3_bundle_created_event.json
 
-[[ $(echo "$lambda_output" | jq -r .FunctionError) == null ]]
-
-logs=$(echo "$lambda_output" | jq -r .LogResult | base64 --decode)
-
-
 .PHONY: dss-sync dss-index
