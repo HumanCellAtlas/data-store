@@ -43,18 +43,18 @@ class TestFileApi(unittest.TestCase, DSSAsserts):
                 'content-type': "application/json",
             }
         )
-        self.assertIn('timestamp', response[2])
+        self.assertIn('version', response[2])
 
     def test_file_head(self):
-        file_uuid = "1245b18c-b36b-4ebb-8220-0e0c6f4a87a4"
-        timestamp = "2017-06-16T19:36:04.240704Z"
+        file_uuid = "ce55fd51-7833-469b-be0b-5da88ebebfcd"
+        version = "2017-06-16T19:36:04.240704Z"
 
         url = urllib.parse.urlunsplit(
             urllib.parse.urlsplit("")._replace(
                 path="/v1/files/" + file_uuid,
                 query=urllib.parse.urlencode(
                     (("replica", "aws"),
-                     ("timestamp", timestamp)),
+                     ("version", version)),
                     doseq=True,
                 ),
             )
@@ -72,15 +72,15 @@ class TestFileApi(unittest.TestCase, DSSAsserts):
         """
         Verify we can successfully fetch a specific file UUID+version.
         """
-        file_uuid = "1245b18c-b36b-4ebb-8220-0e0c6f4a87a4"
-        timestamp = "2017-06-16T19:36:04.240704Z"
+        file_uuid = "ce55fd51-7833-469b-be0b-5da88ebebfcd"
+        version = "2017-06-16T19:36:04.240704Z"
 
         url = urllib.parse.urlunsplit(
             urllib.parse.urlsplit("")._replace(
                 path="/v1/files/" + file_uuid,
                 query=urllib.parse.urlencode(
                     (("replica", "aws"),
-                     ("timestamp", timestamp)),
+                     ("version", version)),
                     doseq=True,
                 ),
             )
@@ -108,7 +108,7 @@ class TestFileApi(unittest.TestCase, DSSAsserts):
         """
         Verify we can successfully fetch the latest version of a file UUID.
         """
-        file_uuid = "1245b18c-b36b-4ebb-8220-0e0c6f4a87a4"
+        file_uuid = "ce55fd51-7833-469b-be0b-5da88ebebfcd"
 
         url = urllib.parse.urlunsplit(
             urllib.parse.urlsplit("")._replace(

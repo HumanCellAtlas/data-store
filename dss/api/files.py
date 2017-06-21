@@ -14,7 +14,7 @@ from ..config import Config
 from ..hcablobstore import FileMetadata
 
 
-def head(uuid: str, replica: str=None, timestamp: str=None):
+def head(uuid: str, replica: str=None, version: str=None):
     # NOTE: THIS IS NEVER ACTUALLY CALLED DUE TO A BUG IN CONNEXION.
     # HEAD requests always calls the same endpoint as get, even if we tell it to
     # go to a different method.  However, connexion freaks out if:
@@ -23,10 +23,10 @@ def head(uuid: str, replica: str=None, timestamp: str=None):
     #
     # So in short, do not expect that this function actually gets called.  This
     # is only here to keep connexion from freaking out.
-    return get(uuid, replica, timestamp)
+    return get(uuid, replica, version)
 
 
-def get(uuid: str, replica: str=None, timestamp: str=None):
+def get(uuid: str, replica: str=None, version: str=None):
     if request.method == "GET" and replica is None:
         # replica must be set when it's a GET request.
         raise BadRequest()
@@ -40,15 +40,15 @@ def get(uuid: str, replica: str=None, timestamp: str=None):
     handle, hca_handle, bucket = \
         Config.get_cloud_specific_handles(replica)
 
-    if timestamp is None:
+    if version is None:
         # list the files and find the one that is the most recent.
         prefix = "files/{}.".format(uuid)
         for matching_file in handle.list(bucket, prefix):
             matching_file = matching_file[len(prefix):]
-            if timestamp is None or matching_file > timestamp:
-                timestamp = matching_file
+            if version is None or matching_file > version:
+                version = matching_file
 
-    if timestamp is None:
+    if version is None:
         # no matches!
         return make_response("Cannot find file!", 404)
 
@@ -56,7 +56,7 @@ def get(uuid: str, replica: str=None, timestamp: str=None):
     file_metadata = json.loads(
         handle.get(
             bucket,
-            "files/{}.{}".format(uuid, timestamp)
+            "files/{}.{}".format(uuid, version)
         ).decode("utf-8"))
 
     blob_path = "blobs/" + ".".join((
@@ -77,7 +77,7 @@ def get(uuid: str, replica: str=None, timestamp: str=None):
     headers = response.headers
     headers['X-DSS-BUNDLE-UUID'] = uuid
     headers['X-DSS-CREATOR-UID'] = file_metadata[FileMetadata.CREATOR_UID]
-    headers['X-DSS-TIMESTAMP'] = timestamp
+    headers['X-DSS-VERSION'] = version
     headers['X-DSS-CONTENT-TYPE'] = file_metadata[FileMetadata.CONTENT_TYPE]
     headers['X-DSS-CRC32C'] = file_metadata[FileMetadata.CRC32C]
     headers['X-DSS-S3-ETAG'] = file_metadata[FileMetadata.S3_ETAG]
@@ -142,14 +142,14 @@ def put(uuid: str):
             dst_bucket, dst_object_name)
 
     # what's the target object name for the file metadata?
-    timestamp = request_data.get(
-        'timestamp',
+    version = request_data.get(
+        'version',
         pyrfc3339.generate(
             datetime.datetime.utcnow(),
             accept_naive=True,
             microseconds=True,
             utc=True))
-    metadata_object_name = "files/" + uuid + "." + timestamp
+    metadata_object_name = "files/" + uuid + "." + version
 
     # if it already exists, then it's a failure.
     try:
@@ -165,10 +165,10 @@ def put(uuid: str):
 
     # build the json document for the file metadata.
     document = json.dumps({
-        FileMetadata.VERSION: FileMetadata.FILE_FORMAT_VERSION,
+        FileMetadata.FORMAT: FileMetadata.FILE_FORMAT_VERSION,
         FileMetadata.BUNDLE_UUID: request_data['bundle_uuid'],
         FileMetadata.CREATOR_UID: request_data['creator_uid'],
-        FileMetadata.TIMESTAMP: timestamp,
+        FileMetadata.VERSION: version,
         FileMetadata.CONTENT_TYPE: metadata['hca-dss-content-type'],
         FileMetadata.CRC32C: metadata['hca-dss-crc32c'],
         FileMetadata.S3_ETAG: metadata['hca-dss-s3_etag'],
@@ -182,4 +182,4 @@ def put(uuid: str):
         io.BytesIO(document.encode("utf-8")))
 
     return jsonify(
-        dict(timestamp=timestamp)), requests.codes.created
+        dict(version=version)), requests.codes.created

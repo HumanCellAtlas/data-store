@@ -42,7 +42,7 @@ paths:
           required: false
           type: string
           enum: [aws, gc, azure]
-        - name: timestamp
+        - name: version
           in: query
           description: Timestamp of file creation in RFC3339.  If this is not provided, the latest version is returned.
           required: false
@@ -60,7 +60,7 @@ paths:
               description: User ID who created this file.
               type: integer
               format: int64
-            X-DSS-TIMESTAMP:
+            X-DSS-VERSION:
               description: Timestamp of file creation in RFC3339.
               type: string
               format: date-time
@@ -94,7 +94,7 @@ paths:
           description: A RFC4122-compliant ID for the file.
           required: true
           type: string
-        - name: timestamp
+        - name: version
           in: query
           description: Timestamp of file creation in RFC3339.  If this is not provided, the latest version is returned.
           required: false
@@ -112,7 +112,7 @@ paths:
               description: User ID who created this file.
               type: integer
               format: int64
-            X-DSS-TIMESTAMP:
+            X-DSS-VERSION:
               description: Timestamp of file creation in RFC3339.
               type: string
               format: date-time
@@ -164,7 +164,7 @@ paths:
                 description: User ID who is creating this file.
                 type: integer
                 format: int64
-              timestamp:
+              version:
                 description: Timestamp of file creation in RFC3339.
                 type: string
                 format: date-time
@@ -178,12 +178,12 @@ paths:
           schema:
             type: object
             properties:
-              timestamp:
+              version:
                 description: Timestamp of file creation in RFC3339.
                 type: string
                 format: date-time
             required:
-              - timestamp
+              - version
 
   /bundles:
     get:
@@ -220,7 +220,7 @@ paths:
             items:
               type: string
               format: date-time
-              description: Timestamp of bundle creation in RFC3339.
+              description: Version of bundle creation in RFC3339.
         default:
           description: Unexpected error
           schema:
@@ -283,7 +283,7 @@ definitions:
         type: string
         description: A RFC4122-compliant ID for the file.
         pattern: "[A-Za-z0-9]{8}-[A-Za-z0-9]{4}-[A-Za-z0-9]{4}-[A-Za-z0-9]{4}-[A-Za-z0-9]{12}"
-      timestamp:
+      version:
         type: string
         format: date-time
         description: Timestamp of bundle creation in RFC3339.
@@ -301,7 +301,7 @@ definitions:
         description: SHA-256 of the file contents in hex
     required:
       - uuid
-      - timestamp
+      - version
       - crc32c
       - md5
       - sha1
@@ -367,7 +367,7 @@ definitions:
         type: string
         description: Bundle unique ID
         pattern: "[A-Za-z0-9]{8}-[A-Za-z0-9]{4}-[A-Za-z0-9]{4}-[A-Za-z0-9]{4}-[A-Za-z0-9]{12}"
-      bundle_timestamp:
+      bundle_version:
         type: string
         format: date-time
         description: Timestamp of bundle creation in RFC3339.
