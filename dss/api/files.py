@@ -1,6 +1,4 @@
-import binascii
 import datetime
-import hashlib
 import io
 import json
 import pyrfc3339
@@ -154,7 +152,6 @@ def put(uuid: str, version: str=None):
             dst_bucket, dst_object_name)
 
     # what's the target object name for the file metadata?
-
     metadata_object_name = "files/" + uuid + "." + version
 
     # if it already exists, then it's a failure.
