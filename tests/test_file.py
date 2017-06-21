@@ -17,7 +17,7 @@ import dss  # noqa
 from tests.infra import DSSAsserts  # noqa
 
 
-class TestDSS(unittest.TestCase, DSSAsserts):
+class TestFileApi(unittest.TestCase, DSSAsserts):
     def setUp(self):
         DSSAsserts.setup(self)
         self.app = dss.create_app().app.test_client()
@@ -55,18 +55,6 @@ class TestDSS(unittest.TestCase, DSSAsserts):
             }
         )
         self.assertIn('timestamp', response[2])
-
-    def test_bundle_api(self):
-        self.assertGetResponse("/v1/bundles", requests.codes.ok)
-        self.assertGetResponse(
-            "/v1/bundles/91839244-66ab-408f-9be5-c82def201f26",
-            requests.codes.ok)
-        self.assertGetResponse(
-            "/v1/bundles/91839244-66ab-408f-9be5-c82def201f26/55555",
-            requests.codes.bad_request)
-        self.assertGetResponse(
-            "/v1/bundles/91839244-66ab-408f-9be5-c82def201f26/55555?replica=foo",
-            requests.codes.ok)
 
 
 if __name__ == '__main__':
