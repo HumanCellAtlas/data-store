@@ -91,8 +91,18 @@ def list():
     return dict(files=[dict(uuid=str(uuid.uuid4()), name="", versions=[])])
 
 
-def put(uuid: str):
+def put(uuid: str, version: str=None):
     uuid = uuid.lower()
+    if version is not None:
+        # convert it to date-time so we can format exactly as the system requires (with microsecond precision)
+        timestamp = pyrfc3339.parse(version, utc=True)
+    else:
+        timestamp = datetime.datetime.utcnow()
+    version = pyrfc3339.generate(
+        timestamp,
+        accept_naive=True,
+        microseconds=True,
+        utc=True)
 
     # get the metadata to find out what the eventual file will be called.
     request_data = request.get_json()
@@ -142,13 +152,6 @@ def put(uuid: str):
             dst_bucket, dst_object_name)
 
     # what's the target object name for the file metadata?
-    version = request_data.get(
-        'version',
-        pyrfc3339.generate(
-            datetime.datetime.utcnow(),
-            accept_naive=True,
-            microseconds=True,
-            utc=True))
     metadata_object_name = "files/" + uuid + "." + version
 
     # if it already exists, then it's a failure.
