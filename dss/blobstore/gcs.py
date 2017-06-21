@@ -23,6 +23,26 @@ class GCSBlobStore(BlobStore):
         self.bucket_map[bucket] = bucket_obj
         return bucket_obj
 
+    def list(
+            self,
+            bucket: str,
+            prefix: str=None,
+            delimiter: str=None,
+    ) -> typing.Iterator[str]:
+        """
+        Returns an iterator of all blob entries in a bucket that match a given
+        prefix.  Do not return any keys that contain the delimiter past the
+        prefix.
+        """
+        kwargs = dict()
+        if prefix is not None:
+            kwargs['prefix'] = prefix
+        if delimiter is not None:
+            kwargs['delimiter'] = delimiter
+        bucket_obj = self._ensure_bucket_loaded(bucket)
+        for blob_obj in bucket_obj.list_blobs(**kwargs):
+            yield blob_obj.name
+
     def get_metadata(
             self,
             bucket: str,

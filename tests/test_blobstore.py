@@ -21,3 +21,44 @@ class BlobStoreTests(object):
             handle.get_metadata(
                 self.test_src_data_bucket,
                 "test_good_source_data_DOES_NOT_EXIST")
+
+    def testList(self):
+        """
+        Ensure that the ```list``` method returns sane data.
+        """
+        items = [item for item in
+                 self.handle.list(
+                     self.test_src_data_bucket,
+                     "test_good_source_data/0",
+                 )]
+        self.assertTrue(len(items) > 0)
+        for item in items:
+            if item == "test_good_source_data/0":
+                break
+        else:
+            self.fail("did not find the requisite key")
+
+        # fetch a bunch of items all at once.
+        items = [item for item in
+                 self.handle.list(
+                     self.test_src_data_bucket,
+                     "testList/prefix",
+                 )]
+        self.assertEqual(len(items), 100)
+
+        # this should fetch both testList/delimiter and testList/delimiter/test
+        items = [item for item in
+                 self.handle.list(
+                     self.test_src_data_bucket,
+                     "testList/delimiter",
+                 )]
+        self.assertEqual(len(items), 2)
+
+        # this should fetch only testList/delimiter
+        items = [item for item in
+                 self.handle.list(
+                     self.test_src_data_bucket,
+                     "testList/delimiter",
+                     delimiter="/"
+                 )]
+        self.assertEqual(len(items), 1)
