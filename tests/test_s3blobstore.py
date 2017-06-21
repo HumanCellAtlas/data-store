@@ -108,10 +108,9 @@ class TestS3BlobStore(unittest.TestCase, BlobStoreTests):
     # TODO: this should be moved to BlobStoreTests once we build the GCS
     # equivalents out
     def testGetPresignedUrl(self):
-        presigned_url = self.handle.generate_presigned_url(
+        presigned_url = self.handle.generate_presigned_GET_url(
             self.test_src_data_bucket,
             "test_good_source_data/0",
-            method="get_object"
         )
 
         resp = requests.get(presigned_url)

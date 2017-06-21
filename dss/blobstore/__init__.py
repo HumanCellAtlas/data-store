@@ -24,11 +24,10 @@ class BlobStore(object):
     def get_blob_method(self) -> str:
         raise NotImplementedError()
 
-    def generate_presigned_url(
+    def generate_presigned_GET_url(
             self,
             bucket: str,
             object_name: str,
-            method: str,
             **kwargs) -> str:
         # TODO: things like http ranges need to be explicit parameters.
         # users of this API should not need to know the argument names presented
