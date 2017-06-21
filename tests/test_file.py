@@ -31,7 +31,7 @@ class TestFileApi(unittest.TestCase, DSSAsserts):
             "/v1/files/" + str(file_uuid),
             requests.codes.created,
             json_request_body=dict(
-                source_url="s3://hca-dss-test-src/test_good_source_data",
+                source_url="s3://hca-dss-test-src/test_good_source_data/0",
                 bundle_uuid=str(uuid.uuid4()),
                 creator_uid=4321,
                 content_type="text/html",

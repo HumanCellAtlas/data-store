@@ -35,11 +35,11 @@ class TestS3BlobStore(unittest.TestCase, BlobStoreTests):
         items = [item for item in
                  self.handle.list(
                      self.test_src_data_bucket,
-                     "test_good_source_data",
+                     "test_good_source_data/0",
                  )]
         self.assertTrue(len(items) > 0)
         for item in items:
-            if item == "test_good_source_data":
+            if item == "test_good_source_data/0":
                 break
         else:
             self.fail("did not find the requisite key")
@@ -95,7 +95,7 @@ class TestS3BlobStore(unittest.TestCase, BlobStoreTests):
     def testGet(self):
         data = self.handle.get(
             self.test_src_data_bucket,
-            "test_good_source_data",
+            "test_good_source_data/0",
         )
         self.assertEqual(len(data), 11358)
 
@@ -110,7 +110,7 @@ class TestS3BlobStore(unittest.TestCase, BlobStoreTests):
     def testGetPresignedUrl(self):
         presigned_url = self.handle.generate_presigned_url(
             self.test_src_data_bucket,
-            "test_good_source_data",
+            "test_good_source_data/0",
             method="get_object"
         )
 
