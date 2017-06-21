@@ -3,3 +3,4 @@ mypy
 domovoi
 coverage
 awscli
+moto
