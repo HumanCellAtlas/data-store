@@ -1,6 +1,4 @@
-import binascii
 import datetime
-import hashlib
 import io
 import json
 import pyrfc3339
@@ -11,7 +9,6 @@ import uuid
 from flask import jsonify, make_response, redirect, request
 from werkzeug.exceptions import BadRequest
 
-from .. import get_logger
 from ..blobstore import BlobNotFoundError
 from ..config import Config
 from ..hcablobstore import FileMetadata
@@ -33,22 +30,59 @@ def get(uuid: str, replica: str=None, timestamp: str=None):
     if request.method == "GET" and replica is None:
         # replica must be set when it's a GET request.
         raise BadRequest()
-    get_logger().info("This is a log message.")
+
+    # if it's a HEAD, we can just default to AWS for now.
+    # TODO: (ttung) once we can run the endpoints from each cloud, we should
+    # just default to the local cloud.
+    if request.method == "HEAD" and replica is None:
+        replica = "AWS"
+
+    handle, hca_handle, bucket = \
+        Config.get_cloud_specific_handles(replica)
+
+    if timestamp is None:
+        # list the files and find the one that is the most recent.
+        prefix = "files/{}.".format(uuid)
+        for matching_file in handle.list(bucket, prefix):
+            matching_file = matching_file[len(prefix):]
+            if timestamp is None or matching_file > timestamp:
+                timestamp = matching_file
+
+    if timestamp is None:
+        # no matches!
+        return make_response("Cannot find file!", 404)
+
+    # retrieve the file metadata.
+    file_metadata = json.loads(
+        handle.get(
+            bucket,
+            "files/{}.{}".format(uuid, timestamp)
+        ).decode("utf-8"))
+
+    blob_path = "blobs/" + ".".join((
+        file_metadata[FileMetadata.SHA256],
+        file_metadata[FileMetadata.SHA1],
+        file_metadata[FileMetadata.S3_ETAG],
+        file_metadata[FileMetadata.CRC32C],
+    ))
 
     if request.method == "GET":
-        response = redirect("http://example.com")
+        response = redirect(handle.generate_presigned_url(
+            bucket,
+            blob_path,
+            handle.get_blob_method()))
     else:
         response = make_response('', 200)
 
     headers = response.headers
     headers['X-DSS-BUNDLE-UUID'] = uuid
-    headers['X-DSS-CREATOR-UID'] = 123
-    headers['X-DSS-TIMESTAMP'] = 5353
-    headers['X-DSS-CONTENT-TYPE'] = "abcde"
-    headers['X-DSS-CRC32C'] = "%08X" % (binascii.crc32(b"abcde"),)
-    headers['X-DSS-S3-ETAG'] = hashlib.md5().hexdigest()
-    headers['X-DSS-SHA1'] = hashlib.sha1().hexdigest()
-    headers['X-DSS-SHA256'] = hashlib.sha256().hexdigest()
+    headers['X-DSS-CREATOR-UID'] = file_metadata[FileMetadata.CREATOR_UID]
+    headers['X-DSS-TIMESTAMP'] = timestamp
+    headers['X-DSS-CONTENT-TYPE'] = file_metadata[FileMetadata.CONTENT_TYPE]
+    headers['X-DSS-CRC32C'] = file_metadata[FileMetadata.CRC32C]
+    headers['X-DSS-S3-ETAG'] = file_metadata[FileMetadata.S3_ETAG]
+    headers['X-DSS-SHA1'] = file_metadata[FileMetadata.SHA1]
+    headers['X-DSS-SHA256'] = file_metadata[FileMetadata.SHA256]
 
     return response
 
