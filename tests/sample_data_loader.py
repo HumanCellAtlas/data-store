@@ -34,13 +34,13 @@ def load_sample_data_bundle() -> str:
     # Load sample-data-bundles dropseq
     data_bundle_examples_path = path_to_data_bundle_examples()
     data_bundle_path = os.path.join(data_bundle_examples_path, "dropseq", "GSE81904")
-    s3_client = boto3.client('s3', region_name=utils.get_env("AWS_DEFAULT_REGION"))
+    s3_client = boto3.client('s3')
     bundle_key = create_dropseq_bundle(data_bundle_path, s3_client)
     return bundle_key
 
 
 def create_s3_test_bucket() -> None:
-    conn = boto3.resource('s3', region_name=utils.get_env("AWS_DEFAULT_REGION"))
+    conn = boto3.resource('s3')
     bucket_name = utils.get_env("DSS_S3_TEST_BUCKET")
     try:
         conn.create_bucket(Bucket=bucket_name)
@@ -50,10 +50,10 @@ def create_s3_test_bucket() -> None:
 
 
 def create_dropseq_bundle(data_bundle_path: str, s3_client: object) -> str:
-    files_info = {}
+    files_info = []
     # Load files marked for indexing
     for filename in ["assay.json", "project.json", "sample.json"]:
-        files_info[filename] = create_file_info(data_bundle_path, filename, True)
+        files_info.append(create_file_info(data_bundle_path, filename, True))
     # Load files not to be indexed, to verify they are not put into the index.
     # These files do not exist in the "data-bundle-examples" subrepository.
     # Therefore, create temporary files there for the purpose of this test, then remove them.
@@ -63,7 +63,7 @@ def create_dropseq_bundle(data_bundle_path: str, s3_client: object) -> str:
         create_nonindexed_test_file(data_bundle_path, tmp_nonindexed_filename1)
         create_nonindexed_test_file(data_bundle_path, tmp_nonindexed_filename2)
         for filename in [tmp_nonindexed_filename1, tmp_nonindexed_filename2]:
-            files_info[filename] = create_file_info(data_bundle_path, filename, False)
+            files_info.append(create_file_info(data_bundle_path, filename, False))
         bundle_manifest = create_bundle_manifest(files_info)
         bundle_uuid = uuid.uuid4()
         bundle_key = "bundles/{}.{}".format(bundle_uuid, int(time.time()))
@@ -138,23 +138,23 @@ def path_to_data_bundle_examples() -> str:
 
 
 def upload_bundle_manifest(s3_client, bundle_key, bundle_manifest: str) -> None:
-    AWS_DEFAULT_REGION = utils.get_env("AWS_DEFAULT_REGION")
     DSS_S3_TEST_BUCKET = utils.get_env("DSS_S3_TEST_BUCKET")
     log.debug("Uploading bundle manifest to bucket %s as %s: %s",
               DSS_S3_TEST_BUCKET, bundle_key, json.dumps(json.loads(bundle_manifest), indent=4))
     s3_client.put_object(Bucket=DSS_S3_TEST_BUCKET, Key=bundle_key, Body=bundle_manifest)
     s3_client.get_object(Bucket=DSS_S3_TEST_BUCKET, Key=bundle_key)
     # Verify downloaded manifest matches the original, to ensure (mock) infrastructure is working as expected
-    conn = boto3.resource('s3', region_name=AWS_DEFAULT_REGION)
+    conn = boto3.resource('s3')
     downloaded_manifest = conn.Object(DSS_S3_TEST_BUCKET, bundle_key).get()['Body'].read().decode("utf-8")
     assert (bundle_manifest == downloaded_manifest)
 
 
 def upload_bundle_files(s3_client, bundle_path, files_info) -> None:
     DSS_S3_TEST_BUCKET = utils.get_env("DSS_S3_TEST_BUCKET")
-    for filename in files_info.keys():
+    for file_info in files_info:
+        filename = file_info["name"]
         file_path = os.path.join(bundle_path, filename)
-        file_key = create_file_key(files_info[filename])
+        file_key = create_file_key(file_info)
         log.debug("Uploading file %s to bucket %s as %s", file_path, DSS_S3_TEST_BUCKET, file_key)
         s3_client.upload_file(Filename=file_path, Bucket=DSS_S3_TEST_BUCKET, Key=file_key)
 

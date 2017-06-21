@@ -47,7 +47,9 @@ for var in $EXPORT_ENV_VARS_TO_LAMBDA; do
 done
 
 if [[ ${CI:-} == true ]]; then
-    cat "$config_json" | jq .manage_iam_role=false | jq .iam_role_arn=env.chalice_lambda_iam_role_arn | sponge "$config_json"
+    account_id=$(aws sts get-caller-identity | jq -r .Account)
+    export iam_role_arn="arn:aws:iam::${account_id}:role/dss-${stage}"
+    cat "$config_json" | jq .manage_iam_role=false | jq .iam_role_arn=env.iam_role_arn | sponge "$config_json"
 fi
 
 cat "${policy_json}.template" | envsubst '$DSS_S3_TEST_BUCKET' > "$policy_json"

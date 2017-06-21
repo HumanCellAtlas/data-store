@@ -1,9 +1,9 @@
 import os, sys, json, boto3, domovoi
 
-pkg_root = os.path.abspath(os.path.join(os.path.dirname(__file__), 'domovoilib'))
-sys.path.insert(0, pkg_root)
+pkg_root = os.path.abspath(os.path.join(os.path.dirname(__file__), 'domovoilib')) # noqa
+sys.path.insert(0, pkg_root) # noqa
 
-from dss.events.handlers.sync import sync_blob # noqa
+from dss.events.handlers.sync import sync_blob
 
 app = domovoi.Domovoi()
 

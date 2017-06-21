@@ -23,6 +23,11 @@ fi
 
 export DSS_ES_ENDPOINT=$(aws es describe-elasticsearch-domain --domain-name dss-index-$stage | jq -r .DomainStatus.Endpoint)
 
+export account_id=$(aws sts get-caller-identity | jq -r .Account)
+es_policy_json="$(dirname $0)/es_policy.json"
+cat "$es_policy_json" | envsubst '$account_id $stage' | sponge "$es_policy_json"
+aws es update-elasticsearch-domain-config --domain-name dss-index-$stage --access-policies "$(cat "$es_policy_json")"
+
 for var in $EXPORT_ENV_VARS_TO_LAMBDA; do
     cat "$config_json" | jq .stages.$stage.environment_variables.$var=env.$var | sponge "$config_json"
 done

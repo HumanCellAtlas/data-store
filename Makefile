@@ -4,7 +4,7 @@ export EXPORT_ENV_VARS_TO_LAMBDA=DSS_S3_TEST_BUCKET DSS_GCS_TEST_BUCKET DSS_ES_E
 MODULES=dss tests
 
 lint:
-	flake8 $(MODULES) chalice/*.py
+	flake8 $(MODULES) chalice/*.py daemons/*/*.py
 
 mypy:
 	mypy --ignore-missing-imports $(MODULES)

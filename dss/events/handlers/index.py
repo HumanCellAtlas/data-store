@@ -6,36 +6,38 @@ import re
 import boto3
 from elasticsearch import Elasticsearch, RequestsHttpConnection
 
+from ...util import AWSV4Sign
+
 HCA_ES_INDEX_NAME = "hca-metadata"
 HCA_METADATA_DOC_TYPE = "hca"
 
-DSS_BUNDLE_KEY_REGEX = "^bundles/[0-9A-Fa-f]{8}-[0-9A-Fa-f]{4}-4[0-9A-Fa-f]{3}-[0-9A-Fa-f]{4}-[0-9A-Fa-f]{12}\.[0-9]+$"
+DSS_BUNDLE_KEY_REGEX = r"^bundles/[0-9A-Fa-f]{8}-[0-9A-Fa-f]{4}-4[0-9A-Fa-f]{3}-[0-9A-Fa-f]{4}-[0-9A-Fa-f]{12}\..+$"
 
 #
 # Lambda function for DSS indexing
 #
 
-def process_new_indexable_object(event, context) -> None:
+def process_new_indexable_object(event, logger) -> None:
     try:
         # Currently this function is only called for S3 creation events
-        log = logging.getLogger(__name__)
-        validate_environment_variables("AWS_DEFAULT_REGION", "DSS_S3_TEST_BUCKET", "DSS_ES_ENDPOINT")
+        validate_environment_variables("DSS_S3_TEST_BUCKET", "DSS_ES_ENDPOINT")
 
         key = event['Records'][0]["s3"]["object"]["key"]
         if is_bundle_to_index(key):
-            log.info("Received S3 creation event for bundle which will be indexed: %s", key)
+            logger.info("Received S3 creation event for bundle which will be indexed: %s", key)
             bucket = boto3.resource("s3").Bucket(event['Records'][0]["s3"]["bucket"]["name"])
-            debug_log_object_info(bucket, key, log)
-            check_for_tombstone(bucket, key, log)
-            conn = boto3.resource('s3', region_name=os.getenv("AWS_DEFAULT_REGION"))
-            manifest = read_bundle_manifest(conn, bucket, key, log)
-            index_data = create_index_data(conn, bucket, key, manifest, log)
-            add_index_data_to_elasticsearch(os.getenv("DSS_ES_ENDPOINT"), key, index_data, log)
-            log.debug("Finished index processing of S3 creation event for bundle: %s", key)
+            debug_log_object_info(bucket, key, logger)
+            check_for_tombstone(bucket, key, logger)
+            s3 = boto3.resource('s3')
+            manifest = read_bundle_manifest(s3, bucket, key, logger)
+            index_data = create_index_data(s3, bucket, key, manifest, logger)
+            add_index_data_to_elasticsearch(os.getenv("DSS_ES_ENDPOINT"), key, index_data, logger)
+            logger.debug("Finished index processing of S3 creation event for bundle: %s", key)
         else:
-            log.debug("Not indexing S3 creation event for key: %s", key)
+            logger.debug("Not indexing S3 creation event for key: %s", key)
     except Exception as e:
-        log.error("Exception occurred while processing S3 event: %s Event: %s", e, json.dumps(event, indent=4))
+        logger.error("Exception occurred while processing S3 event: %s Event: %s", e, json.dumps(event, indent=4))
+        raise
 
 
 def is_bundle_to_index(key) -> bool:
@@ -52,30 +54,28 @@ def check_for_tombstone(bucket, key, log):
     pass
 
 
-def read_bundle_manifest(conn, bucket, bundle_key, log):
-    manifest_string = conn.Object(os.getenv("DSS_S3_TEST_BUCKET"), bundle_key).get()['Body'].read().decode("utf-8")
+def read_bundle_manifest(s3, bucket, bundle_key, log):
+    manifest_string = s3.Object(os.getenv("DSS_S3_TEST_BUCKET"), bundle_key).get()['Body'].read().decode("utf-8")
     log.debug("Read bundle manifest from bucket %s with bundle key %s: %s", bucket.name, bundle_key, manifest_string)
     manifest = json.loads(manifest_string, encoding="utf-8")
     return manifest
 
 
-def create_index_data(conn, bucket, bundle_key, manifest, log):
-    index = {}
-    index['state'] = 'new'
-    index['manifest'] = manifest
+def create_index_data(s3, bucket, bundle_key, manifest, log):
+    index = dict(state="new", manifest=manifest)
     files_info = manifest['files']
     index_files = {}
-    for filename in files_info.keys():
-        if files_info[filename]['indexed'] == 'True':
-            if not filename.endswith(".json"):
+    bucket = s3.Bucket(os.getenv("DSS_S3_TEST_BUCKET"))
+    for file_info in files_info:
+        if file_info['indexed'] is True:
+            if not file_info["name"].endswith(".json"):
                 log.warning("File %s is marked for indexing but is not of type JSON. It will not be indexed.")
                 continue
-            log.debug("Indexing file: %s", filename)
-            file_info = files_info[filename]
+            log.debug("Indexing file: %s", file_info["name"])
             file_key = create_file_key(file_info)
-            file_string = conn.Object(os.getenv("DSS_S3_TEST_BUCKET"), file_key).get()['Body'].read().decode("utf-8")
+            file_string = bucket.Object(file_key).get()['Body'].read().decode("utf-8")
             file_json = json.loads(file_string)
-            index_files[filename] = file_json
+            index_files[file_info["name"]] = file_json
     index['files'] = index_files
     return index
 
@@ -100,11 +100,14 @@ def connect_elasticsearch(elasticsearch_endpoint: str, log) -> Elasticsearch:
 
         if elasticsearch_endpoint.endswith(".amazonaws.com"):
             log.debug("Connecting to AWS Elasticsearch service with endpoint: %s", elasticsearch_endpoint)
+            session = boto3.session.Session()
+            es_auth = AWSV4Sign(session.get_credentials(), session.region_name, service="es")
             es_client = Elasticsearch(
                 hosts=[{'host': elasticsearch_endpoint, 'port': 443}],
                 use_ssl=True,
                 verify_certs=True,
-                connection_class=RequestsHttpConnection)
+                connection_class=RequestsHttpConnection,
+                http_auth=es_auth)
         else:
             log.debug("Connecting to local Elasticsearch service.")
             es_client = Elasticsearch()  # Connect to local Elasticsearch
