@@ -142,13 +142,18 @@ def put(uuid: str, version: str=None):
     )).lower()
 
     # does it exist? if so, we can skip the copy part.
+    do_copy = True
     try:
-        handle.get_metadata(
-            dst_bucket, dst_object_name)
+        if hca_handle.verify_blob_checksum(dst_bucket, dst_object_name, metadata):
+            do_copy = False
     except BlobNotFoundError:
-        hca_handle.copy_blob_from_staging(
-            src_bucket, src_object_name,
-            dst_bucket, dst_object_name)
+        pass
+
+    if do_copy:
+        handle.copy(src_bucket, src_object_name, dst_bucket, dst_object_name)
+
+        # verify the copy was done correctly.
+        assert hca_handle.verify_blob_checksum(dst_bucket, dst_object_name, metadata)
 
     # what's the target object name for the file metadata?
     metadata_object_name = "files/" + uuid + "." + version
