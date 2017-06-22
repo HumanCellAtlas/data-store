@@ -19,7 +19,6 @@ class HCABlobStore(object):
 
 
 class FileMetadata(object):
-
     FILE_FORMAT_VERSION = "0.0.2"
 
     FORMAT = "format"
@@ -27,6 +26,27 @@ class FileMetadata(object):
     CREATOR_UID = "creator_uid"
     VERSION = "version"
     CONTENT_TYPE = "content-type"
+    CRC32C = "crc32c"
+    S3_ETAG = "s3-etag"
+    SHA1 = "sha1"
+    SHA256 = "sha256"
+
+
+class BundleMetadata(object):
+    FILE_FORMAT_VERSION = "0.0.1"
+
+    FORMAT = "format"
+    CREATOR_UID = "creator_uid"
+    VERSION = "version"
+    FILES = "files"
+
+
+class BundleFileMetadata(object):
+    NAME = "name"
+    UUID = "uuid"
+    VERSION = "version"
+    CONTENT_TYPE = "content-type"
+    INDEXED = "indexed"
     CRC32C = "crc32c"
     S3_ETAG = "s3-etag"
     SHA1 = "sha1"

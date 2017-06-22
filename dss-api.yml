@@ -143,7 +143,7 @@ paths:
       parameters:
         - name: uuid
           in: path
-          description: A RFC4122-compliant ID for the file.
+          description: A RFC4122-compliant ID for the bundle.
           required: true
           type: string
           pattern: "[A-Za-z0-9]{8}-[A-Za-z0-9]{4}-[A-Za-z0-9]{4}-[A-Za-z0-9]{4}-[A-Za-z0-9]{12}"
@@ -259,6 +259,79 @@ paths:
           description: Unexpected error
           schema:
             $ref: '#/definitions/Error'
+    put:
+      summary: Create a bundle
+      description: |
+        Create a new bundle with a given UUID.  The list of files UUID+versions to be included must be provided.
+      parameters:
+        - name: uuid
+          in: path
+          description: A RFC4122-compliant ID for the bundle.
+          required: true
+          type: string
+          pattern: "[A-Za-z0-9]{8}-[A-Za-z0-9]{4}-[A-Za-z0-9]{4}-[A-Za-z0-9]{4}-[A-Za-z0-9]{12}"
+        - name: version
+          in: query
+          description: Timestamp of bundle creation in RFC3339.
+          required: false
+          type: string
+          format: date-time
+        - name: replica
+          in: query
+          description: Replica to write to.
+          required: true
+          type: string
+          enum: [aws, gc, azure]
+        - name: extras
+          in: body
+          required: true
+          schema:
+            type: object
+            properties:
+              files:
+                type: array
+                items:
+                  type: object
+                  properties:
+                    uuid:
+                      description: A RFC4122-compliant ID for the file.
+                      type: string
+                      pattern: "[A-Za-z0-9]{8}-[A-Za-z0-9]{4}-[A-Za-z0-9]{4}-[A-Za-z0-9]{4}-[A-Za-z0-9]{12}"
+                    version:
+                      description: Timestamp of file creation in RFC3339.
+                      type: string
+                      format: date-time
+                    name:
+                      description: Name of the file.
+                      type: string
+                      pattern: "^[^/\\\\]+$"
+                    indexed:
+                      description: True iff this file should be indexed.
+                      type: boolean
+                  required:
+                    - uuid
+                    - version
+                    - name
+                    - indexed
+              creator_uid:
+                description: User ID who is creating this bundle.
+                type: integer
+                format: int64
+            required:
+              - files
+              - creator_uid
+      responses:
+        201:
+          description: OK
+          schema:
+            type: object
+            properties:
+              version:
+                description: Timestamp of bundle creation in RFC3339.
+                type: string
+                format: date-time
+            required:
+              - version
 definitions:
   File:
     type: object

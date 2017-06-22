@@ -6,6 +6,7 @@ from __future__ import absolute_import, division, print_function, unicode_litera
 import os
 import sys
 import unittest
+import uuid
 
 import requests
 
@@ -29,6 +30,43 @@ class TestDSS(unittest.TestCase, DSSAsserts):
         self.assertGetResponse(
             "/v1/bundles/91839244-66ab-408f-9be5-c82def201f26?version=2017-06-16T19:36:04.240704Z&replica=aws",
             requests.codes.ok)
+
+        file_uuid = uuid.uuid4()
+        bundle_uuid = uuid.uuid4()
+        response = self.assertPutResponse(
+            "/v1/files/" + str(file_uuid),
+            requests.codes.created,
+            json_request_body=dict(
+                source_url="s3://hca-dss-test-src/test_good_source_data/0",
+                bundle_uuid=str(bundle_uuid),
+                creator_uid=4321,
+                content_type="text/html",
+            ),
+        )
+        version = response[2]['version']
+
+        response = self.assertPutResponse(
+            '/v1/bundles/{}?replica=aws'.format(bundle_uuid),
+            requests.codes.created,
+            json_request_body=dict(
+                files=[
+                    dict(
+                        uuid=str(file_uuid),
+                        version=version,
+                        name="LICENSE",
+                        indexed=False,
+                    ),
+                ],
+                creator_uid=12345,
+            ),
+        )
+        self.assertHeaders(
+            response[0],
+            {
+                'content-type': "application/json",
+            }
+        )
+        self.assertIn('version', response[2])
 
 
 if __name__ == '__main__':
