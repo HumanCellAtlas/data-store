@@ -5,6 +5,8 @@ import botocore
 import requests
 import typing
 
+from boto3.s3.transfer import TransferConfig
+
 from . import (
     BlobNotFoundError,
     BlobStore,
@@ -183,4 +185,8 @@ class S3BlobStore(BlobStore):
             Bucket=dst_bucket,
             Key=dst_object_name,
             ExtraArgs=kwargs,
+            Config=TransferConfig(
+                multipart_threshold=64 * 1024 * 1024,
+                multipart_chunksize=64 * 1024 * 1024,
+            ),
         )
