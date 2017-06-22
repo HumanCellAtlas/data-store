@@ -13,13 +13,6 @@ class HCABlobStore(object):
         CONTENT_TYPE="hca-dss-content-type",
     )
 
-    def copy_blob_from_staging(
-        self,
-        src_bucket: str, src_object_name: str,
-        bucket: str, object_name: str,
-    ):
-        raise NotImplementedError()
-
     def verify_blob_checksum(self, bucket: str, object_name: str, metadata: typing.Dict[str, str]) -> bool:
         """
         Given a blob, verify that the checksum on the cloud store matches the checksum in the metadata dictionary.  The
