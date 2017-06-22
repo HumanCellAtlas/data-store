@@ -23,7 +23,7 @@ class S3HCABlobStore(HCABlobStore):
         kwargs = dict()  # type: typing.Dict[str, typing.Any]
         kwargs['CopySourceIfMatch'] = source_metadata['hca-dss-s3_etag']
         kwargs['Metadata'] = dict()
-        for metadata_key in HCABlobStore.COPIED_METADATA:
+        for metadata_key in HCABlobStore.MANDATORY_METADATA.values():
             kwargs['Metadata'][metadata_key] = source_metadata[metadata_key]
         kwargs['MetadataDirective'] = "REPLACE"
 
