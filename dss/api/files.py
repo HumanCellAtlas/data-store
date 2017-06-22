@@ -131,6 +131,13 @@ def put(uuid: str, version: str=None):
 
     metadata = handle.get_metadata(src_bucket, src_object_name)
 
+    # format all the checksums so they're lower-case.
+    # TODO: should do this in a cleaner format.
+    metadata['hca-dss-sha256'] = metadata['hca-dss-sha256'].lower()
+    metadata['hca-dss-sha1'] = metadata['hca-dss-sha1'].lower()
+    metadata['hca-dss-s3_etag'] = metadata['hca-dss-s3_etag'].lower()
+    metadata['hca-dss-crc32c'] = metadata['hca-dss-crc32c'].lower()
+
     # what's the target object name for the actual data?
     dst_object_name = ("blobs/" + ".".join(
         (
