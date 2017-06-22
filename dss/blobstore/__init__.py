@@ -67,7 +67,7 @@ class BlobStore(object):
         retrieved.
         :return: the data
         """
-        raise NotImplementedError
+        raise NotImplementedError()
 
     def get_metadata(
             self,
