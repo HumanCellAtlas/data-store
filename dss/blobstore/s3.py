@@ -152,7 +152,17 @@ class S3BlobStore(BlobStore):
                 Bucket=bucket,
                 Key=object_name
             )
-            return response['Metadata']
+            metadata = response['Metadata'].copy()
+
+            response = self.s3_client.get_object_tagging(
+                Bucket=bucket,
+                Key=object_name,
+            )
+            for tag in response['TagSet']:
+                key, value = tag['Key'], tag['Value']
+                metadata[key] = value
+
+            return metadata
         except botocore.exceptions.ClientError as ex:
             if int(ex.response['Error']['Code']) == \
                     int(requests.codes.not_found):
