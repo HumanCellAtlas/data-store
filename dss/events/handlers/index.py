@@ -2,6 +2,7 @@ import json
 import logging
 import os
 import re
+from urllib.parse import unquote
 
 import boto3
 from elasticsearch import Elasticsearch, RequestsHttpConnection
@@ -22,7 +23,7 @@ def process_new_indexable_object(event, logger) -> None:
         # Currently this function is only called for S3 creation events
         validate_environment_variables("DSS_S3_TEST_BUCKET", "DSS_ES_ENDPOINT")
 
-        key = event['Records'][0]["s3"]["object"]["key"]
+        key = unquote(event['Records'][0]["s3"]["object"]["key"])
         if is_bundle_to_index(key):
             logger.info("Received S3 creation event for bundle which will be indexed: %s", key)
             bucket = boto3.resource("s3").Bucket(event['Records'][0]["s3"]["bucket"]["name"])

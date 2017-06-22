@@ -13,7 +13,7 @@ import google.cloud.storage
 from google.cloud.client import ClientWithProject
 from google.cloud._http import JSONConnection
 
-gcs_presigned_url_lifetime_seconds = 3600
+presigned_url_lifetime_seconds = 3600
 gcsts_sched_delay_minutes = 2
 
 class GCStorageTransferClient(ClientWithProject):
@@ -83,7 +83,7 @@ def sync_blob(source_platform, source_key, dest_platform, logger):
     elif source_platform == "gcs" and dest_platform == "s3":
         s3 = boto3.resource("s3")
         gcs_blob = gcs.get_bucket(gcs_bucket_name).blob(source_key)
-        gcs_blob_url = gcs_blob.generate_signed_url(expiration=int(time.time() + gcs_presigned_url_lifetime_seconds))
+        gcs_blob_url = gcs_blob.generate_signed_url(expiration=int(time.time() + presigned_url_lifetime_seconds))
         http = urllib3.PoolManager(cert_reqs="CERT_REQUIRED")
         with closing(http.request("GET", gcs_blob_url, preload_content=False)) as fh:
             s3.Bucket(s3_bucket_name).Object(source_key).upload_fileobj(fh)
