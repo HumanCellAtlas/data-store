@@ -1,4 +1,15 @@
+import datetime
+import io
+import json
 import uuid
+
+import pyrfc3339
+import requests
+from flask import jsonify, make_response, request
+
+from ..blobstore import BlobNotFoundError
+from ..config import Config
+from ..hcablobstore import BundleFileMetadata, BundleMetadata, FileMetadata
 
 
 def get(uuid: str, version: str, replica: str):
@@ -15,3 +26,77 @@ def list():
 
 def post():
     pass
+
+
+def put(uuid: str, replica: str, version: str=None):
+    uuid = uuid.lower()
+    if version is not None:
+        # convert it to date-time so we can format exactly as the system requires (with microsecond precision)
+        timestamp = pyrfc3339.parse(version, utc=True)
+    else:
+        timestamp = datetime.datetime.utcnow()
+    version = pyrfc3339.generate(
+        timestamp,
+        accept_naive=True,
+        microseconds=True,
+        utc=True)
+
+    handle, hca_handle, bucket = \
+        Config.get_cloud_specific_handles("aws")
+
+    # what's the target object name for the bundle manifest?
+    bundle_manifest_object_name = "bundles/" + uuid + "." + version
+
+    # if it already exists, then it's a failure.
+    try:
+        handle.get_metadata(bucket, bundle_manifest_object_name)
+    except BlobNotFoundError:
+        pass
+    else:
+        # TODO: (ttung) better error messages pls.
+        return (
+            make_response("bundle already exists!"),
+            requests.codes.conflict
+        )
+
+    # decode the list of files.
+    request_data = request.get_json()
+    files = [{'user_supplied_metadata': file}
+             for file in request_data['files']]
+
+    # fetch the corresponding file metadata files.  if any do not exist, immediately fail.
+    for file in files:
+        user_supplied_metadata = file['user_supplied_metadata']
+        metadata_path = 'files/{}.{}'.format(user_supplied_metadata['uuid'], user_supplied_metadata['version'])
+        file['file_metadata'] = json.loads(handle.get(bucket, metadata_path))
+
+    # build a manifest consisting of all the files.
+    document = json.dumps({
+        BundleMetadata.FORMAT: BundleMetadata.FILE_FORMAT_VERSION,
+        BundleMetadata.VERSION: version,
+        BundleMetadata.FILES: [
+            {
+                BundleFileMetadata.NAME: file['user_supplied_metadata']['name'],
+                BundleFileMetadata.UUID: file['user_supplied_metadata']['uuid'],
+                BundleFileMetadata.VERSION: file['user_supplied_metadata']['version'],
+                BundleFileMetadata.CONTENT_TYPE: file['file_metadata'][FileMetadata.CONTENT_TYPE],
+                BundleFileMetadata.INDEXED: file['user_supplied_metadata']['indexed'],
+                BundleFileMetadata.CRC32C: file['file_metadata'][FileMetadata.CRC32C],
+                BundleFileMetadata.S3_ETAG: file['file_metadata'][FileMetadata.S3_ETAG],
+                BundleFileMetadata.SHA1: file['file_metadata'][FileMetadata.SHA1],
+                BundleFileMetadata.SHA256: file['file_metadata'][FileMetadata.SHA256],
+            }
+            for file in files
+        ],
+        BundleMetadata.CREATOR_UID: request_data['creator_uid']
+    })
+
+    # write manifest to persistent store
+    handle.upload_file_handle(
+        bucket,
+        bundle_manifest_object_name,
+        io.BytesIO(document.encode("utf-8")))
+
+    # TODO: write transaction to persistent store.
+
+    return jsonify(dict(version=version)), requests.codes.created
