@@ -16,7 +16,7 @@ sys.path.insert(0, pkg_root)
 
 import dss  # noqa
 from dss.config import override_s3_config  # noqa
-from tests.infra import DSSAsserts  # noqa
+from tests.infra import DSSAsserts, UrlBuilder  # noqa
 
 
 class TestDSS(unittest.TestCase, DSSAsserts):
@@ -28,18 +28,10 @@ class TestDSS(unittest.TestCase, DSSAsserts):
         bundle_uuid = "011c7340-9b3c-4d62-bf49-090d79daf198"
         version = "2017-06-20T21:45:06.766634Z"
 
-        url = urllib.parse.urlunparse((
-            "",
-            "",
-            "/v1/bundles/" + bundle_uuid,
-            "",
-            urllib.parse.urlencode(
-                (("replica", "aws"),
-                 ("version", version)),
-                doseq=True,
-            ),
-            "",
-        ))
+        url = str(UrlBuilder()
+                  .set(path="/v1/bundles/" + bundle_uuid)
+                  .add_query("replica", "aws")
+                  .add_query("version", version))
 
         with override_s3_config("hca-dss-test-src"):
             response = self.assertGetResponse(
@@ -60,27 +52,31 @@ class TestDSS(unittest.TestCase, DSSAsserts):
         self.assertEqual(response[2]['bundle']['files'][0]['version'], "2017-06-16T19:36:04.240704Z")
 
     def test_bundle_put(self):
-        file_uuid = uuid.uuid4()
-        bundle_uuid = uuid.uuid4()
+        file_uuid = str(uuid.uuid4())
+        bundle_uuid = str(uuid.uuid4())
         response = self.assertPutResponse(
-            "/v1/files/" + str(file_uuid),
+            "/v1/files/" + file_uuid,
             requests.codes.created,
             json_request_body=dict(
                 source_url="s3://hca-dss-test-src/test_good_source_data/0",
-                bundle_uuid=str(bundle_uuid),
+                bundle_uuid=bundle_uuid,
                 creator_uid=4321,
                 content_type="text/html",
             ),
         )
         version = response[2]['version']
 
+        url = str(UrlBuilder()
+                  .set(path="/v1/bundles/" + bundle_uuid)
+                  .add_query("replica", "aws"))
+
         response = self.assertPutResponse(
-            '/v1/bundles/{}?replica=aws'.format(bundle_uuid),
+            url,
             requests.codes.created,
             json_request_body=dict(
                 files=[
                     dict(
-                        uuid=str(file_uuid),
+                        uuid=file_uuid,
                         version=version,
                         name="LICENSE",
                         indexed=False,

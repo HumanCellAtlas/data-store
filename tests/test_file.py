@@ -17,7 +17,7 @@ sys.path.insert(0, pkg_root)
 
 import dss  # noqa
 from dss.config import override_s3_config  # noqa
-from tests.infra import DSSAsserts  # noqa
+from tests.infra import DSSAsserts, UrlBuilder  # noqa
 
 
 class TestFileApi(unittest.TestCase, DSSAsserts):
@@ -49,16 +49,10 @@ class TestFileApi(unittest.TestCase, DSSAsserts):
         file_uuid = "ce55fd51-7833-469b-be0b-5da88ebebfcd"
         version = "2017-06-16T19:36:04.240704Z"
 
-        url = urllib.parse.urlunsplit(
-            urllib.parse.urlsplit("")._replace(
-                path="/v1/files/" + file_uuid,
-                query=urllib.parse.urlencode(
-                    (("replica", "aws"),
-                     ("version", version)),
-                    doseq=True,
-                ),
-            )
-        )
+        url = str(UrlBuilder()
+                  .set(path="/v1/files/" + file_uuid)
+                  .add_query("replica", "aws")
+                  .add_query("version", version))
 
         with override_s3_config("hca-dss-test-src"):
             self.assertHeadResponse(
@@ -75,16 +69,10 @@ class TestFileApi(unittest.TestCase, DSSAsserts):
         file_uuid = "ce55fd51-7833-469b-be0b-5da88ebebfcd"
         version = "2017-06-16T19:36:04.240704Z"
 
-        url = urllib.parse.urlunsplit(
-            urllib.parse.urlsplit("")._replace(
-                path="/v1/files/" + file_uuid,
-                query=urllib.parse.urlencode(
-                    (("replica", "aws"),
-                     ("version", version)),
-                    doseq=True,
-                ),
-            )
-        )
+        url = str(UrlBuilder()
+                  .set(path="/v1/files/" + file_uuid)
+                  .add_query("replica", "aws")
+                  .add_query("version", version))
 
         with override_s3_config("hca-dss-test-src"):
             response = self.assertGetResponse(
@@ -110,15 +98,9 @@ class TestFileApi(unittest.TestCase, DSSAsserts):
         """
         file_uuid = "ce55fd51-7833-469b-be0b-5da88ebebfcd"
 
-        url = urllib.parse.urlunsplit(
-            urllib.parse.urlsplit("")._replace(
-                path="/v1/files/" + file_uuid,
-                query=urllib.parse.urlencode(
-                    (("replica", "aws"),),
-                    doseq=True,
-                ),
-            )
-        )
+        url = str(UrlBuilder()
+                  .set(path="/v1/files/" + file_uuid)
+                  .add_query("replica", "aws"))
 
         with override_s3_config("hca-dss-test-src"):
             response = self.assertGetResponse(
