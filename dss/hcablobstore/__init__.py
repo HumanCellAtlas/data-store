@@ -1,5 +1,7 @@
 from __future__ import absolute_import, division, print_function, unicode_literals
 
+import typing
+
 
 class HCABlobStore(object):
     """Abstract base class for all HCA-specific logic for dealing with individual clouds."""
@@ -14,8 +16,20 @@ class HCABlobStore(object):
     def copy_blob_from_staging(
         self,
         src_bucket: str, src_object_name: str,
-        dst_bucket: str, dst_object_name: str,
+        bucket: str, object_name: str,
     ):
+        raise NotImplementedError()
+
+    def verify_blob_checksum(self, bucket: str, object_name: str, metadata: typing.Dict[str, str]) -> bool:
+        """
+        Given a blob, verify that the checksum on the cloud store matches the checksum in the metadata dictionary.  The
+        keys to the metadata dictionary will be the items in ``COPIED_METADATA``.  Each cloud-specific implementation
+        of ``HCABlobStore`` should extract the correct field and check it against the cloud-provided checksum.
+        :param bucket:
+        :param object_name:
+        :param metadata:
+        :return: True iff the checksum is correct.
+        """
         raise NotImplementedError()
 
 
