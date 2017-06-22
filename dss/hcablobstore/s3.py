@@ -21,4 +21,4 @@ class S3HCABlobStore(HCABlobStore):
         :return: True iff the checksum is correct.
         """
         checksum = self.handle.get_cloud_checksum(bucket, object_name)
-        return checksum == metadata[HCABlobStore.MANDATORY_METADATA['S3_ETAG']]
+        return checksum.lower() == metadata[HCABlobStore.MANDATORY_METADATA['S3_ETAG']].lower()
