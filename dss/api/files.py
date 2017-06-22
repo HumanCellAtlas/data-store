@@ -67,10 +67,9 @@ def get(uuid: str, replica: str=None, version: str=None):
     ))
 
     if request.method == "GET":
-        response = redirect(handle.generate_presigned_url(
+        response = redirect(handle.generate_presigned_GET_url(
             bucket,
-            blob_path,
-            handle.get_blob_method()))
+            blob_path))
     else:
         response = make_response('', 200)
 
