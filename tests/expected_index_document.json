@@ -1,168 +1,168 @@
 {
-  "state": "new",
-  "manifest": {
-    "version": "0.0.0",
-    "timestamp": "1498001450",
-    "files": [
-      {
-        "name": "assay.json",
-        "uuid": "525564a9-860a-44b8-b301-af0a983e7c95",
-        "timestamp": "1498000186",
-        "content-type": "metadata",
-        "indexed": "True",
-        "sha256": "7a900ce44e7ce7eb3daebef8baf402596c9533f74f5a06f1d191c2e4391d9e06",
-        "sha1": "e9f08d8e7856d09ce2d68c0abb0909615cf44365",
-        "s3-etag": "7edf489368f8a5ce72d7665c97155ba8",
-        "crc32c": "1600867755"
-      },
-      {
-        "name": "project.json",
-        "uuid": "42e33125-a9bc-4a84-a04e-a9606d5251b5",
-        "timestamp": "1498000186",
-        "content-type": "metadata",
-        "indexed": "True",
-        "sha256": "c155a0762eb2b270eb024b517fe90aa2a922f9cf4cc2d4a7be7073fde36c8d8d",
-        "sha1": "7d6852f696488d681b0e9053b83e2441737bb8bd",
-        "s3-etag": "e3417cd5c70b43201849965192f1ab54",
-        "crc32c": "4224375424"
-      },
-      {
-        "name": "sample.json",
-        "uuid": "86146cee-f440-4a40-9b85-dcdba42cd377",
-        "timestamp": "1498000186",
-        "content-type": "metadata",
-        "indexed": "True",
-        "sha256": "9836291e0be8d0a542c8d5445798bf4075571fc273eb7ed7df30a6653db5ba82",
-        "sha1": "d1c4b9a5b382797849a8a1c1abe8e750f3e4a661",
-        "s3-etag": "dfb861e512bd25157eebeb0415c4f71a",
-        "crc32c": "483430158"
-      },
-      {
-        "name": "tmp_test_nonindexed_file1.txt",
-        "uuid": "b643e71e-5d5b-4d11-8db7-f55caf43e215",
-        "timestamp": "1498032186",
-        "content-type": "metadata",
-        "indexed": "False",
-        "sha256": "c9e68d982364f171aa80199d88ee6c938cedb4f374576cf892a9de48a351bf01",
-        "sha1": "8cbefaa487f4223a8c805e16c76fdaa1a8084e21",
-        "s3-etag": "aca4dc4b72b13700d270122fa93c5709",
-        "crc32c": "1143479872"
-      },
-      {
-        "name": "tmp_test_nonindexed_file2.txt",
-        "uuid": "3bc116c8-84ef-4e60-9ca1-e9930b8797ba",
-        "timestamp": "1498032186",
-        "content-type": "metadata",
-        "indexed": "False",
-        "sha256": "1e085356099f660686fa7b5401d35015bd9ea8bf9eecdaa9675125daae9ed893",
-        "sha1": "b5379bd1ae67d265b93311b996098f303dd50535",
-        "s3-etag": "99e110c1732d7c8048a0d4e5365013d0",
-        "crc32c": "59270288"
-      }
-    ],
-    "creator_uid": "5"
-  },
-  "files": {
-    "assay.json": {
-      "files": [
-        {
-          "format": ".fastq.gz",
-          "name": "SRR3587500_1.fastq.gz",
-          "lane": "1",
-          "type": "index"
+    "state": "new",
+    "manifest": {
+        "version": "0.0.0",
+        "timestamp": "1498097754",
+        "files": [
+            {
+                "name": "assay.json",
+                "uuid": "1268b2d2-52cd-4348-bf71-5ce84a03d0d3",
+                "timestamp": "1498088347",
+                "content-type": "metadata",
+                "indexed": true,
+                "sha256": "7a900ce44e7ce7eb3daebef8baf402596c9533f74f5a06f1d191c2e4391d9e06",
+                "sha1": "e9f08d8e7856d09ce2d68c0abb0909615cf44365",
+                "s3-etag": "7edf489368f8a5ce72d7665c97155ba8",
+                "crc32c": "1600867755"
+            },
+            {
+                "name": "project.json",
+                "uuid": "d88b74d8-301e-4f52-97a7-949582730d46",
+                "timestamp": "1498088347",
+                "content-type": "metadata",
+                "indexed": true,
+                "sha256": "c155a0762eb2b270eb024b517fe90aa2a922f9cf4cc2d4a7be7073fde36c8d8d",
+                "sha1": "7d6852f696488d681b0e9053b83e2441737bb8bd",
+                "s3-etag": "e3417cd5c70b43201849965192f1ab54",
+                "crc32c": "4224375424"
+            },
+            {
+                "name": "sample.json",
+                "uuid": "5bc89fbb-7f6f-4390-9bbe-132cfbf215aa",
+                "timestamp": "1498088347",
+                "content-type": "metadata",
+                "indexed": true,
+                "sha256": "9836291e0be8d0a542c8d5445798bf4075571fc273eb7ed7df30a6653db5ba82",
+                "sha1": "d1c4b9a5b382797849a8a1c1abe8e750f3e4a661",
+                "s3-etag": "dfb861e512bd25157eebeb0415c4f71a",
+                "crc32c": "483430158"
+            },
+            {
+                "name": "tmp_test_nonindexed_file1.txt",
+                "uuid": "fa75c7c0-9a4d-4715-9e38-7d156f88c0d9",
+                "timestamp": "1498097754",
+                "content-type": "metadata",
+                "indexed": false,
+                "sha256": "c9e68d982364f171aa80199d88ee6c938cedb4f374576cf892a9de48a351bf01",
+                "sha1": "8cbefaa487f4223a8c805e16c76fdaa1a8084e21",
+                "s3-etag": "aca4dc4b72b13700d270122fa93c5709",
+                "crc32c": "1143479872"
+            },
+            {
+                "name": "tmp_test_nonindexed_file2.txt",
+                "uuid": "ff259726-dfd5-4bd6-aa55-23b60edfe92c",
+                "timestamp": "1498097754",
+                "content-type": "metadata",
+                "indexed": false,
+                "sha256": "1e085356099f660686fa7b5401d35015bd9ea8bf9eecdaa9675125daae9ed893",
+                "sha1": "b5379bd1ae67d265b93311b996098f303dd50535",
+                "s3-etag": "99e110c1732d7c8048a0d4e5365013d0",
+                "crc32c": "59270288"
+            }
+        ],
+        "creator_uid": 5
+    },
+    "files": {
+        "assay.json": {
+            "files": [
+                {
+                    "format": ".fastq.gz",
+                    "name": "SRR3587500_1.fastq.gz",
+                    "lane": "1",
+                    "type": "index"
+                },
+                {
+                    "format": ".fastq.gz",
+                    "name": "SRR3587500_2.fastq.gz",
+                    "lane": "1",
+                    "type": "reads"
+                }
+            ],
+            "rna": {
+                "primer": "poly-dt"
+            },
+            "seq": {
+                "machine": "Illumina NextSeq 500",
+                "molecule": "total RNA",
+                "paired_ends": "index1_reads2",
+                "prep": "modified Nextera XT",
+                "umi_barcode_offset": "12",
+                "umi_barcode_size": "8",
+                "umi_barcode_read": "index"
+            },
+            "single_cell": {
+                "cell_barcode_offset": "0",
+                "cell_barcode_size": "12",
+                "cell_barcode_read": "index",
+                "method": "drop-seq"
+            },
+            "sra_experiment": "SRX1800075",
+            "sra_run": "SRR3587500"
         },
-        {
-          "format": ".fastq.gz",
-          "name": "SRR3587500_2.fastq.gz",
-          "lane": "1",
-          "type": "reads"
+        "project.json": {
+            "array_express": {
+                "accession": "E-MTAB-81904"
+            },
+            "contact": {
+                "address": "415 Main St.; Cambridge, MA 02142 USA",
+                "city": "Cambridge",
+                "country": "USA",
+                "email": "karthik@broadinstitute.org",
+                "institute": "Broad Institute",
+                "name": "Karthik,,Shekhar",
+                "phone": "217-979-9852",
+                "postal_code": "02142",
+                "state": "MA",
+                "street_address": "415 Main St."
+            },
+            "contributor": "Karthik,,Shekhar",
+            "geo_parent_series": "GSE81905",
+            "geo_series": "GSE81904",
+            "last_update_date": "2017-05-26",
+            "ncbi_bioproject": "PRJNA323370",
+            "overall_design": "Drop-Seq was performed on two different batches. Bipolar1-Bipolar4 are replicates from batch 1 and Bipolar5-6 are replicates from Batch 2",
+            "pmid": "27565351",
+            "release_status": "Public on Aug 25 2016",
+            "sra_project": "SRP075719",
+            "submission_date": "2016-05-25",
+            "summary": "Vsx2-GFP mouse retinas were dissected, FACS sorted for GFP+ cells and single-cell mRNAseq libraries generated with Drop-Seq",
+            "supplementary_files": [
+                "ftp://ftp.ncbi.nlm.nih.gov/pub/geo/DATA/supplementary/series/GSE81904/GSE81904_BipolarUMICounts_Cell2016.txt.gz",
+                "ftp://ftp.ncbi.nlm.nih.gov/pub/geo/DATA/supplementary/series/GSE81904/GSE81904_RAW.tar",
+                "ftp://ftp.ncbi.nlm.nih.gov/pub/geo/DATA/supplementary/series/GSE81904/GSE81904_bipolar_data_Cell2016.Rdata.gz",
+                "ftp://ftp.ncbi.nlm.nih.gov/pub/geo/DATA/supplementary/series/GSE81904/GSE81904_class.R.gz",
+                "ftp://ftp-trace.ncbi.nlm.nih.gov/sra/sra-instant/reads/ByStudy/sra/SRP/SRP075/SRP075719"
+            ],
+            "title": "Drop-Seq analysis of  P17 FACS sorted retinal cells from the Tg(Chx10-EGFP/cre,-ALPP)2Clc or Vsx2-GFP transgenic line",
+            "uuid": "f35c2bce-a4a7-4e1e-a8a6-8637e65d19a7"
+        },
+        "sample.json": {
+            "body_part": {
+                "name": "retina",
+                "ontology": "UBERON:0000966",
+                "organ": "eye"
+            },
+            "donor": {
+                "age": "17",
+                "age_unit": "day",
+                "genotype": "Vsx2-GFP",
+                "life_stage": "postpartum",
+                "ncbi_taxon": "10090",
+                "species": "Mus musculus"
+            },
+            "geo_sample": "GSM2177570",
+            "last_update_date": "2016-08-25",
+            "long_label": "P17 Vsx2-GFP sorted mouse bipolar retina cells 1 (Batch 1)",
+            "ncbi_biosample": "SAMN05177285",
+            "protocols": [
+                {
+                    "description": "suspensions were processed through Drop-Seq to generate single-cell cDNA libraries attached to microbeads. Microbeads were counted, and amplified by PCR, and the 3' end of the cDNA prepared for sequencing using a modified Nextera XT protocol.",
+                    "type": "nucleic acid library construction protocol"
+                }
+            ],
+            "short_label": "retina bipolar 1",
+            "submission_date": "2016-05-25",
+            "uuid": "5aca931f-9c88-4483-ba46-685b70c08a73"
         }
-      ],
-      "rna": {
-        "primer": "poly-dt"
-      },
-      "seq": {
-        "machine": "Illumina NextSeq 500",
-        "molecule": "total RNA",
-        "paired_ends": "index1_reads2",
-        "prep": "modified Nextera XT",
-        "umi_barcode_offset": "12",
-        "umi_barcode_size": "8",
-        "umi_barcode_read": "index"
-      },
-      "single_cell": {
-        "cell_barcode_offset": "0",
-        "cell_barcode_size": "12",
-        "cell_barcode_read": "index",
-        "method": "drop-seq"
-      },
-      "sra_experiment": "SRX1800075",
-      "sra_run": "SRR3587500"
-    },
-    "project.json": {
-      "array_express": {
-        "accession": "E-MTAB-81904"
-      },
-      "contact": {
-        "address": "415 Main St.; Cambridge, MA 02142 USA",
-        "city": "Cambridge",
-        "country": "USA",
-        "email": "karthik@broadinstitute.org",
-        "institute": "Broad Institute",
-        "name": "Karthik,,Shekhar",
-        "phone": "217-979-9852",
-        "postal_code": "02142",
-        "state": "MA",
-        "street_address": "415 Main St."
-      },
-      "contributor": "Karthik,,Shekhar",
-      "geo_parent_series": "GSE81905",
-      "geo_series": "GSE81904",
-      "last_update_date": "2017-05-26",
-      "ncbi_bioproject": "PRJNA323370",
-      "overall_design": "Drop-Seq was performed on two different batches. Bipolar1-Bipolar4 are replicates from batch 1 and Bipolar5-6 are replicates from Batch 2",
-      "pmid": "27565351",
-      "release_status": "Public on Aug 25 2016",
-      "sra_project": "SRP075719",
-      "submission_date": "2016-05-25",
-      "summary": "Vsx2-GFP mouse retinas were dissected, FACS sorted for GFP+ cells and single-cell mRNAseq libraries generated with Drop-Seq",
-      "supplementary_files": [
-        "ftp://ftp.ncbi.nlm.nih.gov/pub/geo/DATA/supplementary/series/GSE81904/GSE81904_BipolarUMICounts_Cell2016.txt.gz",
-        "ftp://ftp.ncbi.nlm.nih.gov/pub/geo/DATA/supplementary/series/GSE81904/GSE81904_RAW.tar",
-        "ftp://ftp.ncbi.nlm.nih.gov/pub/geo/DATA/supplementary/series/GSE81904/GSE81904_bipolar_data_Cell2016.Rdata.gz",
-        "ftp://ftp.ncbi.nlm.nih.gov/pub/geo/DATA/supplementary/series/GSE81904/GSE81904_class.R.gz",
-        "ftp://ftp-trace.ncbi.nlm.nih.gov/sra/sra-instant/reads/ByStudy/sra/SRP/SRP075/SRP075719"
-      ],
-      "title": "Drop-Seq analysis of  P17 FACS sorted retinal cells from the Tg(Chx10-EGFP/cre,-ALPP)2Clc or Vsx2-GFP transgenic line",
-      "uuid": "f35c2bce-a4a7-4e1e-a8a6-8637e65d19a7"
-    },
-    "sample.json": {
-      "body_part": {
-        "name": "retina",
-        "ontology": "UBERON:0000966",
-        "organ": "eye"
-      },
-      "donor": {
-        "age": "17",
-        "age_unit": "day",
-        "genotype": "Vsx2-GFP",
-        "life_stage": "postpartum",
-        "ncbi_taxon": "10090",
-        "species": "Mus musculus"
-      },
-      "geo_sample": "GSM2177570",
-      "last_update_date": "2016-08-25",
-      "long_label": "P17 Vsx2-GFP sorted mouse bipolar retina cells 1 (Batch 1)",
-      "ncbi_biosample": "SAMN05177285",
-      "protocols": [
-        {
-          "description": "suspensions were processed through Drop-Seq to generate single-cell cDNA libraries attached to microbeads. Microbeads were counted, and amplified by PCR, and the 3' end of the cDNA prepared for sequencing using a modified Nextera XT protocol.",
-          "type": "nucleic acid library construction protocol"
-        }
-      ],
-      "short_label": "retina bipolar 1",
-      "submission_date": "2016-05-25",
-      "uuid": "5aca931f-9c88-4483-ba46-685b70c08a73"
     }
-  }
 }

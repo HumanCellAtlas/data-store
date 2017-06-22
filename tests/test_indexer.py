@@ -89,26 +89,36 @@ class TestEventHandlers(unittest.TestCase):
         with open(os.path.join(os.path.dirname(__file__), "expected_index_document.json"), "r") as fh:
             expected_index_document = json.load(fh)
         actual_index_document = response.hits.hits[0]['_source']
-        # FIXME: (mbaumann) re-enable this test
-        try:
-            self.normalize_inherently_different_values(expected_index_document, actual_index_document)
-            self.assertEqual(expected_index_document, actual_index_document)
-        except Exception as e:
-            print(e)
+        self.normalize_inherently_different_values_in_dict(expected_index_document, actual_index_document)
+        expected_index_string = json.dumps(expected_index_document, indent=4)
+        actual_index_string = json.dumps(actual_index_document, indent=4)
+        if expected_index_string != actual_index_string:
+            log.error(("Actual index returned from search is different than expected value. "
+                       "Expected value: %s Actual value: %s"), expected_index_string, actual_index_string)
+            # Uncomment the following to write the actual value to a file to faciltate comparison with the expected.
+            # with open(os.path.join(os.path.dirname(__file__), "tmp_actual_index_document.json"), "w+") as fh:
+            #    fh.write(actual_index_string)
+            #    fh.write(os.linesep)
+        self.assertEqual(expected_index_string, actual_index_string)
         close_elasticsearch_connections(es_client)
 
-    def normalize_inherently_different_values(self, expected_json_dict, actual_json_dict):
+    def normalize_inherently_different_values_in_dict(self, expected_json_dict, actual_json_dict):
         keys_to_normalize = {'timestamp', 'uuid'}
         for key in expected_json_dict.keys():
             expected_value = expected_json_dict[key]
             actual_value = actual_json_dict[key]
             if key in keys_to_normalize:
-                if (len(expected_value) == len(actual_value)):
-                    actual_json_dict[key] = expected_json_dict[key]
-                else:
-                    self.fail("The expected and actual values are different")
+                actual_json_dict[key] = expected_json_dict[key]
             elif isinstance(expected_value, dict):
-                self.normalize_inherently_different_values(expected_value, actual_value)
+                self.normalize_inherently_different_values_in_dict(expected_value, actual_value)
+            elif isinstance(expected_value, list):
+                self.normalize_inherently_different_values_in_list(expected_value, actual_value)
+
+    def normalize_inherently_different_values_in_list(self, expected_list, actual_list):
+        for i in range(0, len(expected_list)):
+            if isinstance(expected_list[i], dict):
+                self.normalize_inherently_different_values_in_dict(expected_list[i], actual_list[i])
+
 
 # Check if the Elasticsearch service is running,
 # and if not, raise and exception with instructions to start it.

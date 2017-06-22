@@ -17,6 +17,8 @@ import os
 import time
 import uuid
 
+from typing import Dict, Any
+
 import boto3
 from botocore.exceptions import ClientError
 
@@ -80,22 +82,22 @@ def create_nonindexed_test_file(path, filename):
         fh.write("Temp test mock data " + filename)
 
 def create_bundle_manifest(files_info) -> str:
-    bundle_info = {}
+    bundle_info = {}  # type: Dict[str, Any]
     bundle_info['version'] = '0.0.0'
-    bundle_info['timestamp'] = str(int(time.time()))
-    bundle_info['files'] = files_info  # type ignore # OK to have a value of type Dict when building json
-    bundle_info['creator_uid'] = str(5)
+    bundle_info['timestamp'] = int(time.time())  # TODO Replace with rfc3339 timestamp
+    bundle_info['files'] = files_info
+    bundle_info['creator_uid'] = 5
     return json.dumps(bundle_info, indent=4)
 
 
 def create_file_info(bundle_path: str, filename: str, indexed: bool):
-    file_info = {}
+    file_info = {}  # type: Dict[str, Any]
     file_path = os.path.join(bundle_path, filename)
     file_info['name'] = filename
     file_info['uuid'] = str(uuid.uuid4())
-    file_info['timestamp'] = str(int(os.path.getctime(file_path)))
+    file_info['timestamp'] = int(os.path.getctime(file_path))  # TODO Replace with rfc3339 timestamp
     file_info['content-type'] = "metadata"  # TODO What should the content type be?
-    file_info['indexed'] = str(indexed)
+    file_info['indexed'] = indexed
     add_file_hashes(file_info, file_path)
     return file_info
 
