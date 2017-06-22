@@ -68,6 +68,19 @@ class BlobStore(object):
         """
         raise NotImplementedError()
 
+    def get_cloud_checksum(
+            self,
+            bucket: str,
+            object_name: str
+    ) -> str:
+        """
+        Retrieves the cloud-provided checksum for a given object in a given bucket.
+        :param bucket: the bucket the object resides in.
+        :param object_name: the name of the object for which checksum is being retrieved.
+        :return: the cloud-provided checksum
+        """
+        raise NotImplementedError()
+
     def get_metadata(
             self,
             bucket: str,

@@ -116,5 +116,20 @@ class TestS3BlobStore(unittest.TestCase, BlobStoreTests):
         resp = requests.get(presigned_url)
         self.assertEqual(resp.status_code, requests.codes.ok)
 
+    def test_get_checksum(self):
+        """
+        Ensure that the ``get_metadata`` methods return sane data.
+        """
+        handle = self.handle  # type: BlobStore
+        checksum = handle.get_cloud_checksum(
+            self.test_src_data_bucket,
+            "test_good_source_data/0")
+        self.assertEqual(checksum, "3b83ef96387f14655fc854ddc3c6bd57")
+
+        with self.assertRaises(BlobNotFoundError):
+            handle.get_metadata(
+                self.test_src_data_bucket,
+                "test_good_source_data_DOES_NOT_EXIST")
+
 if __name__ == '__main__':
     unittest.main()
