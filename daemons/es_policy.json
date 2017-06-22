@@ -1,0 +1,22 @@
+{
+  "Version": "2012-10-17",
+  "Statement": [
+    {
+      "Effect": "Allow",
+      "Principal": {
+        "AWS": [
+          "arn:aws:iam::$account_id:role/dss-$stage",
+          "arn:aws:iam::$account_id:role/dss-index-$stage"
+        ]
+      },
+      "Action": [
+        "es:ESHttpDelete",
+        "es:ESHttpGet",
+        "es:ESHttpHead",
+        "es:ESHttpPost",
+        "es:ESHttpPut"
+      ],
+      "Resource": "arn:aws:es:$region_name:$account_id:domain/dss-index-$stage/*"
+    }
+  ]
+}

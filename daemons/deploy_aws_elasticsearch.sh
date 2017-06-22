@@ -19,15 +19,6 @@ function create_elasticsearch_domain() {
       --ebs-options $ebs_options
 }
 
-function update_elasticsearch_domain_policy() {
-    local elasticsearch_domain_name=$1
-    echo "Updating policy for Elasticsearch domain with name: $elasticsearch_domain_name"
-    local directory=$(dirname $0)
-    sed "s/ELASTICSEARCH_DOMAIN/$elasticsearch_domain_name/g" $directory/es_policy.json.template > $directory/es_policy.json
-    aws es update-elasticsearch-domain-config --domain-name $elasticsearch_domain_name \
-         --access-policies "$(< $directory/es_policy.json)"
-}
-
 function delete_elasticsearch_domain() {
     local elasticsearch_domain_name=$1
     echo "Deleting Elasticsearch domain with name: $elasticsearch_domain_name"
@@ -126,11 +117,6 @@ function setup_elasticsearch_domain() {
     if [[ $? -ne 0 ]]; then
         echo "Creating new Elasticsearch domain with name: $elasticsearch_domain_name"
         create_elasticsearch_domain $elasticsearch_domain_name
-
-        # Should we only update the policy when the the elasticsearch domain is newly created
-        # or always update the policy in case the policy has changed?
-        echo "Setting/updating Elasticsearch policy"
-        update_elasticsearch_domain_policy $elasticsearch_domain_name
     else
         echo "Using existing Elasticsearch domain with name: $elasticsearch_domain_name"
     fi
