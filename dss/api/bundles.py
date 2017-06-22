@@ -13,7 +13,7 @@ from ..hcablobstore import BundleFileMetadata, BundleMetadata, FileMetadata
 
 
 def get(uuid: str, version: str, replica: str):
-    return []
+    return {}
 
 
 def list_versions(uuid: str):

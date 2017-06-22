@@ -6,6 +6,7 @@ from __future__ import absolute_import, division, print_function, unicode_litera
 import os
 import sys
 import unittest
+import urllib
 import uuid
 
 import requests
@@ -22,15 +23,28 @@ class TestDSS(unittest.TestCase, DSSAsserts):
         DSSAsserts.setup(self)
         self.app = dss.create_app().app.test_client()
 
-    def test_bundle_api(self):
-        self.assertGetResponse("/v1/bundles", requests.codes.ok)
+    def test_bundle_get(self):
+        bundle_uuid = "ce55fd51-7833-469b-be0b-5da88ebebfcd"
+        version = "2017-06-16T19:36:04.240704Z"
+
+        url = urllib.parse.urlunparse((
+            "",
+            "",
+            "/v1/bundles/" + bundle_uuid,
+            "",
+            urllib.parse.urlencode(
+                (("replica", "aws"),
+                 ("version", version)),
+                doseq=True,
+            ),
+            "",
+        ))
+
         self.assertGetResponse(
-            "/v1/bundles/91839244-66ab-408f-9be5-c82def201f26?version=2017-06-16T19:36:04.240704Z",
-            requests.codes.bad_request)
-        self.assertGetResponse(
-            "/v1/bundles/91839244-66ab-408f-9be5-c82def201f26?version=2017-06-16T19:36:04.240704Z&replica=aws",
+            url,
             requests.codes.ok)
 
+    def test_bundle_put(self):
         file_uuid = uuid.uuid4()
         bundle_uuid = uuid.uuid4()
         response = self.assertPutResponse(
