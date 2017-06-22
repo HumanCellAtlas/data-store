@@ -16,7 +16,7 @@
         "es:ESHttpPost",
         "es:ESHttpPut"
       ],
-      "Resource": "arn:aws:es:us-east-1:$account_id:domain/dss-index-$stage/*"
+      "Resource": "arn:aws:es:$region_name:$account_id:domain/dss-index-$stage/*"
     }
   ]
 }
