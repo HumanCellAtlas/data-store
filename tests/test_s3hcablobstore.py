@@ -26,20 +26,6 @@ class TestS3HCABlobStore(unittest.TestCase):
     def tearDown(self):
         pass
 
-    def testCopy(self):
-        function_name = self.testCopy.__name__
-        dst_blob_name = os.path.join(
-            TESTOUTPUT_PREFIX, function_name, str(uuid.uuid4()))
-        self.hcahandle.copy_blob_from_staging(
-            self.test_src_data_bucket, "test_good_source_data/0",
-            self.test_bucket, dst_blob_name
-        )
-        src_metadata = self.blobhandle.get_metadata(
-            self.test_src_data_bucket, "test_good_source_data/0")
-        dst_metadata = self.blobhandle.get_metadata(
-            self.test_bucket, dst_blob_name)
-        self.assertEqual(src_metadata, dst_metadata)
-
     def test_verify_blob_checksum(self):
         self.assertTrue(
             self.hcahandle.verify_blob_checksum(
