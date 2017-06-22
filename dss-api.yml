@@ -239,22 +239,23 @@ paths:
         - name: version
           in: query
           description: Timestamp of bundle creation in RFC3339.
-          required: true
+          required: false
           type: string
           format: date-time
         - name: replica
           in: query
           description: Replica to fetch from.
-          required: true
+          required: false
           type: string
           enum: [aws, gc, azure]
       responses:
         200:
           description: OK
           schema:
-            type: array
-            items:
-              $ref: "#/definitions/bundle_version"
+            type: object
+            properties:
+              bundle:
+                $ref: "#/definitions/bundle_version"
         default:
           description: Unexpected error
           schema:
@@ -366,21 +367,21 @@ definitions:
         description: Timestamp of bundle creation in RFC3339.
       crc32c:
         type: string
-        description: CRC-32C of the file contents in hex
-      md5:
+        description: CRC-32C (in hex format) of the file contents in hex.
+      s3_etag:
         type: string
-        description: MD5 of the file contents in hex
+        description: S3 ETag (in hex format) of the file contents.
       sha1:
         type: string
-        description: SHA-1 of the file contents in hex
+        description: SHA-1 (in hex format) of the file contents in hex.
       sha256:
         type: string
-        description: SHA-256 of the file contents in hex
+        description: SHA-256 (in hex format) of the file contents in hex.
     required:
       - uuid
       - version
       - crc32c
-      - md5
+      - s3_etag
       - sha1
       - sha256
   file_version:
@@ -444,11 +445,11 @@ definitions:
         type: string
         description: Bundle unique ID
         pattern: "[A-Za-z0-9]{8}-[A-Za-z0-9]{4}-[A-Za-z0-9]{4}-[A-Za-z0-9]{4}-[A-Za-z0-9]{12}"
-      bundle_version:
+      version:
         type: string
         format: date-time
         description: Timestamp of bundle creation in RFC3339.
-      contents:
+      files:
         type: array
         items:
           $ref: "#/definitions/file_version"
