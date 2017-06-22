@@ -130,8 +130,8 @@ class S3BlobStore(BlobStore):
             # hilariously, the ETag is quoted.  Unclear why.
             return response['ETag'][1:-1]
         except botocore.exceptions.ClientError as ex:
-            if int(ex.response['Error']['Code']) == \
-                    int(requests.codes.not_found):
+            if str(ex.response['Error']['Code']) == \
+                    str(requests.codes.not_found):
                 raise BlobNotFoundError(ex)
             raise BlobStoreUnknownError(ex)
 
@@ -166,8 +166,8 @@ class S3BlobStore(BlobStore):
 
             return metadata
         except botocore.exceptions.ClientError as ex:
-            if int(ex.response['Error']['Code']) == \
-                    int(requests.codes.not_found):
+            if str(ex.response['Error']['Code']) == \
+                    str(requests.codes.not_found):
                 raise BlobNotFoundError(ex)
             raise BlobStoreUnknownError(ex)
 
