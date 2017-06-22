@@ -28,3 +28,9 @@ class AWSV4Sign(requests.auth.AuthBase):
         SigV4Auth(self.credentials, self.service, self.region).add_auth(request)
         r.headers.update(dict(request.headers.items()))
         return r
+
+def paginate(boto3_paginator, *args, **kwargs):
+    for page in boto3_paginator.paginate(*args, **kwargs):
+        for result_key in boto3_paginator.result_keys:
+            for value in page.get(result_key.parsed.get("value"), []):
+                yield value

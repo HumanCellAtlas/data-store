@@ -1,12 +1,15 @@
-import os, sys, re, logging, collections
+import os, sys, re, logging, collections, datetime
 
-import flask, chalice
+import flask
+import chalice
+import boto3
 
-pkg_root = os.path.abspath(os.path.join(os.path.dirname(__file__), 'chalicelib'))
-sys.path.insert(0, pkg_root)
+pkg_root = os.path.abspath(os.path.join(os.path.dirname(__file__), 'chalicelib')) # noqa
+sys.path.insert(0, pkg_root) # noqa
 
-from dss import create_app # noqa
-from dss.events.handlers.sync import sync_blob # noqa
+from dss import create_app
+from dss.events.handlers.sync import sync_blob
+from dss.util import paginate
 
 def get_chalice_app(flask_app):
     app = chalice.Chalice(app_name=flask_app.name)
@@ -60,6 +63,20 @@ def get_chalice_app(flask_app):
             return sync_result
         else:
             raise NotImplementedError()
+
+    @app.route("/internal/logs/{group}", methods=["GET"])
+    def get_logs(group):
+        assert group in {"dss-dev", "dss-index-dev", "dss-sync-dev"}
+        logs = []
+        start_time = datetime.datetime.now() - datetime.timedelta(minutes=10)
+        filter_args = dict(logGroupName="/aws/lambda/{}".format(group), startTime=int(start_time.timestamp()))
+        if app.current_request.query_params and "pattern" in app.current_request.query_params:
+            filter_args.update(filterPattern=app.current_request.query_params["pattern"])
+        for event in paginate(boto3.client("logs").get_paginator("filter_log_events"), **filter_args):
+            if "timestamp" not in event or "message" not in event:
+                continue
+            logs.append(event)
+        return dict(logs=logs)
 
     return app
 
