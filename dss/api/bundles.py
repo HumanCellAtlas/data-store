@@ -91,7 +91,7 @@ def put(uuid: str, replica: str, version: str=None):
     version = timestamp.strftime("%Y-%m-%dT%H%M%S.%fZ")
 
     handle, hca_handle, bucket = \
-        Config.get_cloud_specific_handles("aws")
+        Config.get_cloud_specific_handles(replica)
 
     # what's the target object name for the bundle manifest?
     bundle_manifest_object_name = "bundles/" + uuid + "." + version
