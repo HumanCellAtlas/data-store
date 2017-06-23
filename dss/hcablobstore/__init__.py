@@ -5,12 +5,30 @@ import typing
 
 class HCABlobStore(object):
     """Abstract base class for all HCA-specific logic for dealing with individual clouds."""
+
+    """
+    Metadata fields we expect the staging area to set.  Each field points to a metadata spec, which is a dictionary
+    consisting of the following fields:
+
+    keyname: the actual keyname that references the data on the object in the staging area.
+    downcase: True iff we are required to downcase the field.
+    """
     MANDATORY_METADATA = dict(
-        SHA1="hca-dss-sha1",
-        CRC32C="hca-dss-crc32c",
-        SHA256="hca-dss-sha256",
-        S3_ETAG="hca-dss-s3_etag",
-        CONTENT_TYPE="hca-dss-content-type",
+        SHA1=dict(
+            keyname="hca-dss-sha1",
+            downcase=True),
+        CRC32C=dict(
+            keyname="hca-dss-crc32c",
+            downcase=True),
+        SHA256=dict(
+            keyname="hca-dss-sha256",
+            downcase=True),
+        S3_ETAG=dict(
+            keyname="hca-dss-s3_etag",
+            downcase=True),
+        CONTENT_TYPE=dict(
+            keyname="hca-dss-content-type",
+            downcase=False),
     )
 
     def verify_blob_checksum(self, bucket: str, object_name: str, metadata: typing.Dict[str, str]) -> bool:

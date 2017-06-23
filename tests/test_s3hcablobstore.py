@@ -30,7 +30,7 @@ class TestS3HCABlobStore(unittest.TestCase):
             self.hcahandle.verify_blob_checksum(
                 self.test_src_data_bucket, "test_good_source_data/0",
                 {
-                    HCABlobStore.MANDATORY_METADATA['S3_ETAG']: "3b83ef96387f14655fc854ddc3c6bd57",
+                    HCABlobStore.MANDATORY_METADATA['S3_ETAG']['keyname']: "3b83ef96387f14655fc854ddc3c6bd57",
                 }
             )
         )
@@ -39,7 +39,7 @@ class TestS3HCABlobStore(unittest.TestCase):
             self.hcahandle.verify_blob_checksum(
                 self.test_src_data_bucket, "test_good_source_data/1",
                 {
-                    HCABlobStore.MANDATORY_METADATA['S3_ETAG']: "3b83ef96387f14655fc854ddc3c6bd57",
+                    HCABlobStore.MANDATORY_METADATA['S3_ETAG']['keyname']: "3b83ef96387f14655fc854ddc3c6bd57",
                 }
             )
         )
@@ -48,7 +48,7 @@ class TestS3HCABlobStore(unittest.TestCase):
             self.hcahandle.verify_blob_checksum(
                 self.test_src_data_bucket, "test_good_source_data/0/DOES_NOT_EXIST",
                 {
-                    HCABlobStore.MANDATORY_METADATA['S3_ETAG']: "3b83ef96387f14655fc854ddc3c6bd57",
+                    HCABlobStore.MANDATORY_METADATA['S3_ETAG']['keyname']: "3b83ef96387f14655fc854ddc3c6bd57",
                 }
             )
 

@@ -4,6 +4,7 @@ import json
 import pyrfc3339
 import re
 import requests
+import typing
 import uuid
 
 from flask import jsonify, make_response, redirect, request
@@ -11,7 +12,7 @@ from werkzeug.exceptions import BadRequest
 
 from ..blobstore import BlobNotFoundError
 from ..config import Config
-from ..hcablobstore import FileMetadata
+from ..hcablobstore import FileMetadata, HCABlobStore
 
 
 def head(uuid: str, replica: str=None, version: str=None):
@@ -138,11 +139,10 @@ def put(uuid: str, version: str=None):
     metadata = handle.get_metadata(src_bucket, src_object_name)
 
     # format all the checksums so they're lower-case.
-    # TODO: should do this in a cleaner format.
-    metadata['hca-dss-sha256'] = metadata['hca-dss-sha256'].lower()
-    metadata['hca-dss-sha1'] = metadata['hca-dss-sha1'].lower()
-    metadata['hca-dss-s3_etag'] = metadata['hca-dss-s3_etag'].lower()
-    metadata['hca-dss-crc32c'] = metadata['hca-dss-crc32c'].lower()
+    for metadata_spec in HCABlobStore.MANDATORY_METADATA.values():
+        if metadata_spec['downcase']:
+            keyname = typing.cast(str, metadata_spec['keyname'])
+            metadata[keyname] = metadata[keyname].lower()
 
     # what's the target object name for the actual data?
     dst_object_name = ("blobs/" + ".".join(
