@@ -123,6 +123,8 @@ def put(uuid: str, replica: str, version: str=None):
         metadata_path = 'files/{}.{}'.format(user_supplied_metadata['uuid'], user_supplied_metadata['version'])
         file['file_metadata'] = json.loads(handle.get(bucket, metadata_path))
 
+    # TODO: (ttung) should validate the files' bundle UUID points back at us.
+
     # build a manifest consisting of all the files.
     document = json.dumps({
         BundleMetadata.FORMAT: BundleMetadata.FILE_FORMAT_VERSION,
