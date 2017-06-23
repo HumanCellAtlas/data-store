@@ -1,3 +1,5 @@
+import requests
+
 from dss.blobstore import BlobNotFoundError, BlobStore
 
 
@@ -62,3 +64,12 @@ class BlobStoreTests(object):
                      delimiter="/"
                  )]
         self.assertEqual(len(items), 1)
+
+    def testGetPresignedUrl(self):
+        presigned_url = self.handle.generate_presigned_GET_url(
+            self.test_src_data_bucket,
+            "test_good_source_data/0",
+        )
+
+        resp = requests.get(presigned_url)
+        self.assertEqual(resp.status_code, requests.codes.ok)

@@ -1,5 +1,6 @@
 from __future__ import absolute_import, division, print_function, unicode_literals
 
+import datetime
 import typing
 
 from google.cloud.storage import Client
@@ -42,6 +43,15 @@ class GCSBlobStore(BlobStore):
         bucket_obj = self._ensure_bucket_loaded(bucket)
         for blob_obj in bucket_obj.list_blobs(**kwargs):
             yield blob_obj.name
+
+    def generate_presigned_GET_url(
+            self,
+            bucket: str,
+            object_name: str,
+            **kwargs) -> str:
+        bucket_obj = self._ensure_bucket_loaded(bucket)
+        blob_obj = bucket_obj.get_blob(object_name)
+        return blob_obj.generate_signed_url(datetime.timedelta(days=1))
 
     def get_metadata(
             self,

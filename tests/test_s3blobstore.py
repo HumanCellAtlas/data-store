@@ -5,7 +5,6 @@ from __future__ import absolute_import, division, print_function, unicode_litera
 
 import io
 import os
-import requests
 import sys
 import unittest
 import uuid
@@ -64,17 +63,6 @@ class TestS3BlobStore(unittest.TestCase, BlobStoreTests):
                 self.test_src_data_bucket,
                 "test_good_source_data_DOES_NOT_EXIST",
             )
-
-    # TODO: this should be moved to BlobStoreTests once we build the GCS
-    # equivalents out
-    def testGetPresignedUrl(self):
-        presigned_url = self.handle.generate_presigned_GET_url(
-            self.test_src_data_bucket,
-            "test_good_source_data/0",
-        )
-
-        resp = requests.get(presigned_url)
-        self.assertEqual(resp.status_code, requests.codes.ok)
 
     def test_get_checksum(self):
         """
