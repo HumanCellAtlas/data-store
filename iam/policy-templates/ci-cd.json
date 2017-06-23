@@ -2,7 +2,7 @@
   "Version": "2012-10-17",
   "Statement": [
     {
-      "Sid": "hca-dss-ci-cd-s3-read-write-access",
+      "Sid": "hcaDssCiCdS3ReadWriteAccess",
       "Effect": "Allow",
       "Action": [
         "s3:AbortMultipartUpload",
@@ -61,7 +61,7 @@
       ]
     },
     {
-      "Sid": "hca-dss-ci-cd-s3-read-only-access",
+      "Sid": "hcaDssCiCdS3ReadOnlyAccess",
       "Effect": "Allow",
       "Action": [
         "s3:GetAccelerateConfiguration",
@@ -96,7 +96,7 @@
       ]
     },
     {
-      "Sid": "hca-dss-ci-cd-lambda-read-access",
+      "Sid": "hcaDssCiCdLambdaReadAccess",
       "Action": [
         "lambda:ListFunctions",
         "lambda:ListTags",
@@ -107,7 +107,7 @@
       "Effect": "Allow"
     },
     {
-      "Sid": "hca-dss-ci-cd-lambda-admin-access",
+      "Sid": "hcaDssCiCdLambdaAdminAccess",
       "Action": [
         "lambda:*"
       ],
@@ -115,7 +115,7 @@
       "Effect": "Allow"
     },
     {
-      "Sid": "hca-dss-ci-cd-iam-list-roles-access",
+      "Sid": "hcaDssCiCdIamListRolesAccess",
       "Effect": "Allow",
       "Action": [
         "iam:ListRoles"
@@ -123,7 +123,7 @@
       "Resource": "arn:aws:iam::$account_id:role/"
     },
     {
-      "Sid": "hca-dss-ci-cd-elasticsearch-admin-access",
+      "Sid": "hcaDssCiCdElasticsearchAdminAccess",
       "Action": [
         "es:*"
       ],
