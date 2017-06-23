@@ -4,7 +4,6 @@
 import os
 import sys
 import unittest
-import uuid
 
 pkg_root = os.path.abspath(os.path.join(os.path.dirname(__file__), '..'))
 sys.path.insert(0, pkg_root)
@@ -13,7 +12,7 @@ from dss.blobstore import BlobNotFoundError  # noqa
 from dss.blobstore.s3 import S3BlobStore  # noqa
 from dss.hcablobstore import HCABlobStore  # noqa
 from dss.hcablobstore.s3 import S3HCABlobStore  # noqa
-from tests import TESTOUTPUT_PREFIX, utils  # noqa
+from tests import utils  # noqa
 
 
 class TestS3HCABlobStore(unittest.TestCase):
