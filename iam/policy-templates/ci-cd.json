@@ -2,7 +2,7 @@
   "Version": "2012-10-17",
   "Statement": [
     {
-      "Sid": "hcaDssCiCdS3ReadWriteAccess",
+      "Sid": "hcaDssCiCdS3WriteAccess",
       "Effect": "Allow",
       "Action": [
         "s3:AbortMultipartUpload",
@@ -10,31 +10,6 @@
         "s3:DeleteBucketWebsite",
         "s3:DeleteObject",
         "s3:DeleteObjectVersion",
-        "s3:GetAccelerateConfiguration",
-        "s3:GetBucketAcl",
-        "s3:GetBucketCORS",
-        "s3:GetBucketLocation",
-        "s3:GetBucketLogging",
-        "s3:GetBucketNotification",
-        "s3:GetBucketPolicy",
-        "s3:GetBucketRequestPayment",
-        "s3:GetBucketTagging",
-        "s3:GetBucketVersioning",
-        "s3:GetBucketWebsite",
-        "s3:GetLifecycleConfiguration",
-        "s3:GetObject",
-        "s3:GetObjectAcl",
-        "s3:GetObjectTagging",
-        "s3:GetObjectTorrent",
-        "s3:GetObjectVersionAcl",
-        "s3:GetObjectVersionTorrent",
-        "s3:GetReplicationConfiguration",
-        "s3:ListAllMyBuckets",
-        "s3:ListBucket",
-        "s3:ListBucketMultipartUploads",
-        "s3:ListBucketVersions",
-        "s3:ListMultipartUploadParts",
-        "s3:ListObjects",
         "s3:PutAccelerateConfiguration",
         "s3:PutBucketAcl",
         "s3:PutBucketCORS",
@@ -91,6 +66,8 @@
         "s3:ListObjects"
       ],
       "Resource": [
+        "arn:aws:s3:::$DSS_S3_TEST_BUCKET",
+        "arn:aws:s3:::$DSS_S3_TEST_BUCKET/*",
         "arn:aws:s3:::$DSS_S3_TEST_SRC_DATA_BUCKET",
         "arn:aws:s3:::$DSS_S3_TEST_SRC_DATA_BUCKET/*"
       ]
@@ -107,14 +84,6 @@
       "Effect": "Allow"
     },
     {
-      "Sid": "hcaDssCiCdLambdaAdminAccess",
-      "Action": [
-        "lambda:*"
-      ],
-      "Resource": "arn:aws:lambda:$region_name:$account_id:function:dss-*",
-      "Effect": "Allow"
-    },
-    {
       "Sid": "hcaDssCiCdIamListRolesAccess",
       "Effect": "Allow",
       "Action": [
@@ -123,13 +92,17 @@
       "Resource": "arn:aws:iam::$account_id:role/"
     },
     {
-      "Sid": "hcaDssCiCdElasticsearchAdminAccess",
+      "Sid": "hcaDssCiCdLambdaElasticsearchSNSAdminAccess",
       "Action": [
-        "es:*"
+        "lambda:*",
+        "es:*",
+        "sns:*"
       ],
       "Resource": [
+        "arn:aws:lambda:$region_name:$account_id:function:dss-*",
         "arn:aws:es:$region_name:$account_id:domain/dss-index-dev",
-        "arn:aws:es:$region_name:$account_id:domain/dss-index-dev/*"
+        "arn:aws:es:$region_name:$account_id:domain/dss-index-dev/*",
+        "arn:aws:sns:$region_name:$account_id:domovoi-s3-bucket-events-$DSS_S3_TEST_BUCKET"
       ],
       "Effect": "Allow"
     }

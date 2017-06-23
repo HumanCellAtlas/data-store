@@ -53,6 +53,7 @@ class TestSyncUtils(unittest.TestCase):
         test_key = "hca-dss-sync-test/s3-to-gcs/{}".format(uuid.uuid4())
         self.s3_bucket.Object(test_key).put(Body=payload)
         sync.sync_blob(source_platform="s3", source_key=test_key, dest_platform="gcs", logger=self.logger)
+        self.assertEqual(self.gcs_bucket.blob(test_key).download_as_string(), payload)
         if os.environ.get("DSS_RUN_LONG_TESTS"):
             for i in range(90):
                 try:
