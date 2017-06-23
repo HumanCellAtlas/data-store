@@ -5,5 +5,5 @@ elasticsearch
 elasticsearch_dsl
 flask-failsafe
 google-cloud-storage
-pyrfc3339
+iso8601
 urllib3

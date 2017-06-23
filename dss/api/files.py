@@ -1,11 +1,12 @@
 import datetime
 import io
 import json
-import pyrfc3339
 import re
-import requests
 import typing
 import uuid
+
+import iso8601
+import requests
 
 from flask import jsonify, make_response, redirect, request
 from werkzeug.exceptions import BadRequest
@@ -101,14 +102,10 @@ def put(uuid: str, version: str=None):
     uuid = uuid.lower()
     if version is not None:
         # convert it to date-time so we can format exactly as the system requires (with microsecond precision)
-        timestamp = pyrfc3339.parse(version, utc=True)
+        timestamp = iso8601.parse_date(version)
     else:
         timestamp = datetime.datetime.utcnow()
-    version = pyrfc3339.generate(
-        timestamp,
-        accept_naive=True,
-        microseconds=True,
-        utc=True)
+    version = timestamp.strftime("%Y-%m-%dT%H%M%S.%fZ")
 
     # get the metadata to find out what the eventual file will be called.
     request_data = request.get_json()
