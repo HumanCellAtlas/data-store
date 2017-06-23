@@ -91,8 +91,8 @@
         "s3:ListObjects"
       ],
       "Resource": [
-        "arn:aws:s3:::hca-dss-test-src",
-        "arn:aws:s3:::hca-dss-test-src/*"
+        "arn:aws:s3:::$DSS_S3_TEST_SRC_DATA_BUCKET",
+        "arn:aws:s3:::$DSS_S3_TEST_SRC_DATA_BUCKET/*"
       ]
     },
     {

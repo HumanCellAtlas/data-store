@@ -20,4 +20,4 @@ policy_json="$(dirname $0)/../iam/policy-templates/ci-cd.json"
 export region_name=$(aws configure get region)
 export account_id=$(aws sts get-caller-identity | jq -r .Account)
 
-aws iam put-${iam_principal_type}-policy --${iam_principal_type}-name $iam_principal_name --policy-name hca-dss-ci-cd --policy-document file://<(cat "$policy_json" | envsubst '$DSS_S3_TEST_BUCKET $account_id $region_name')
+aws iam put-${iam_principal_type}-policy --${iam_principal_type}-name $iam_principal_name --policy-name hca-dss-ci-cd --policy-document file://<(cat "$policy_json" | envsubst '$DSS_S3_TEST_BUCKET $DSS_S3_TEST_SRC_DATA_BUCKET $account_id $region_name')
