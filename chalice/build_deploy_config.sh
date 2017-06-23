@@ -41,6 +41,8 @@ else
 fi
 
 export DSS_ES_ENDPOINT=$(aws es describe-elasticsearch-domain --domain-name dss-index-$stage | jq -r .DomainStatus.Endpoint)
+export region_name=$(aws configure get region)
+export account_id=$(aws sts get-caller-identity | jq -r .Account)
 
 for var in $EXPORT_ENV_VARS_TO_LAMBDA; do
     cat "$config_json" | jq .stages.$stage.environment_variables.$var=env.$var | sponge "$config_json"
@@ -52,4 +54,4 @@ if [[ ${CI:-} == true ]]; then
     cat "$config_json" | jq .manage_iam_role=false | jq .iam_role_arn=env.iam_role_arn | sponge "$config_json"
 fi
 
-cat "${policy_json}.template" | envsubst '$DSS_S3_TEST_BUCKET' > "$policy_json"
+cat "${policy_json}.template" | envsubst '$DSS_S3_TEST_BUCKET $account_id $stage $region_name' > "$policy_json"

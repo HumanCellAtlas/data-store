@@ -1,0 +1,26 @@
+# HCA DSS environment variables
+#
+# Source this file in your bash shell using "source environment".
+#
+# The environment variables set in this file are appropriate for the
+# HCA DSS development environment. Individual environment variable
+# values are overridden when deployed, based on the deployment stage.
+# That logic resides in {chalice,daemons}/build_deploy_config.sh.
+
+# TODO: (akislyuk) document configuration ingestion order
+
+# Resolve the location of this file and set DSS_HOME to the root
+SOURCE="${BASH_SOURCE[0]}"
+while [ -h "$SOURCE" ] ; do SOURCE="$(readlink "$SOURCE")"; done
+export DSS_HOME="$( cd -P "$( dirname "$SOURCE" )" && pwd )"
+
+set -a
+STAGE=dev
+EXPORT_ENV_VARS_TO_LAMBDA="DSS_S3_TEST_BUCKET DSS_GCS_TEST_BUCKET DSS_ES_ENDPOINT"
+AWS_DEFAULT_REGION=us-east-1
+DSS_S3_TEST_BUCKET=hca-dss-test
+DSS_S3_TEST_SRC_DATA_BUCKET=hca-dss-test-src
+DSS_GCS_TEST_BUCKET=czi-hca-test
+DSS_GCS_TEST_SRC_DATA_BUCKET=hca-dss-test-src
+GOOGLE_APPLICATION_CREDENTIALS=gcs-credentials.json
+set +a

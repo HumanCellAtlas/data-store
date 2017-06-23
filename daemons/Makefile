@@ -1,5 +1,4 @@
-SHELL=/bin/bash
-STAGE ?= dev
+include ../common.mk
 
 deploy: dss-sync dss-index
 

@@ -31,10 +31,10 @@ Run `./dss-api` in this directory.
 Run `make test` in this directory.
 
 Some tests require the Elasticsearch service to be running on the local system.
-Run: elasticsearch
+Run: `elasticsearch`
 
 Tests also use data from the data-bundle-examples subrepository.
-Run: git submodule update --init
+Run: `git submodule update --init`
 
 #### Configuring cloud-specific access credentials
 
@@ -49,6 +49,21 @@ file. Run `gcloud auth activate-service-account --key-file=/path/to/service-acco
 project 'PROJECT NAME'`. Set the environment variable `DSS_GCS_TEST_BUCKET`.
 
 **Azure**: Set the environment variables `AZURE_STORAGE_ACCOUNT_NAME` and `AZURE_STORAGE_ACCOUNT_KEY`.
+
+### CI/CD with Travis CI
+We use [Travis CI](https://travis-ci.org/HumanCellAtlas/data-store) for continuous integration testing and
+deployment. When `make test` succeeds, Travis CI deploys the application into the `dev` stage on AWS for every commit
+that goes on the master branch. This behavior is defined in the `deploy` seciton of `.travis.yml`.
+
+#### Authorizing Travis CI to deploy
+Encrypted environment variables give Travis CI the AWS credentials needed to run the tests and deploy the app. Run
+`scripts/authorize_aws_deploy.sh ARN`, where ARN is an AWS IAM principal (user or
+role) [ARN](http://docs.aws.amazon.com/general/latest/gr/aws-arns-and-namespaces.html), to give that principal the
+permissions needed to deploy the app. Because this is a limited set of permissions, it does not have write access to
+IAM. To set up the IAM policies for resources in your account that the app will use, run `make deploy` using privileged
+account credentials once from your workstation. After this is done, Travis CI will be able to deploy on its own. You
+must repeat the `make deploy` step from a privileged account any time you change the IAM policies in
+`policy.json.template` files.
 
 [![](https://img.shields.io/badge/slack-%23data--store-557EBF.svg)](https://humancellatlas.slack.com/messages/data-store/)
 [![Build Status](https://travis-ci.org/HumanCellAtlas/data-store.svg?branch=master)](https://travis-ci.org/HumanCellAtlas/data-store)
