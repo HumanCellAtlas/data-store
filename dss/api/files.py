@@ -53,11 +53,17 @@ def get(uuid: str, replica: str=None, version: str=None):
         return make_response("Cannot find file!", 404)
 
     # retrieve the file metadata.
-    file_metadata = json.loads(
-        handle.get(
-            bucket,
-            "files/{}.{}".format(uuid, version)
-        ).decode("utf-8"))
+    try:
+        file_metadata = json.loads(
+            handle.get(
+                bucket,
+                "files/{}.{}".format(uuid, version)
+            ).decode("utf-8"))
+    except BlobNotFoundError as ex:
+        return jsonify(dict(
+            message="Cannot find file.",
+            exception=str(ex),
+            HTTPStatusCode=requests.codes.not_found)), requests.codes.not_found
 
     blob_path = "blobs/" + ".".join((
         file_metadata[FileMetadata.SHA256],

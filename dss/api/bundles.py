@@ -35,11 +35,17 @@ def get(
         return make_response("Cannot find file!", 404)
 
     # retrieve the bundle metadata.
-    bundle_metadata = json.loads(
-        handle.get(
-            bucket,
-            "bundles/{}.{}".format(uuid, version)
-        ).decode("utf-8"))
+    try:
+        bundle_metadata = json.loads(
+            handle.get(
+                bucket,
+                "bundles/{}.{}".format(uuid, version)
+            ).decode("utf-8"))
+    except BlobNotFoundError as ex:
+        return jsonify(dict(
+            message="Cannot find bundle.",
+            exception=str(ex),
+            HTTPStatusCode=requests.codes.not_found)), requests.codes.not_found
 
     return dict(
         bundle=dict(
