@@ -80,7 +80,7 @@ def get(uuid: str, replica: str=None, version: str=None):
         response = make_response('', 200)
 
     headers = response.headers
-    headers['X-DSS-BUNDLE-UUID'] = uuid
+    headers['X-DSS-BUNDLE-UUID'] = file_metadata[FileMetadata.BUNDLE_UUID]
     headers['X-DSS-CREATOR-UID'] = file_metadata[FileMetadata.CREATOR_UID]
     headers['X-DSS-VERSION'] = version
     headers['X-DSS-CONTENT-TYPE'] = file_metadata[FileMetadata.CONTENT_TYPE]
