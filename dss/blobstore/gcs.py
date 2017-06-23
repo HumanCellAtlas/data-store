@@ -116,3 +116,14 @@ class GCSBlobStore(BlobStore):
         if response is None:
             raise BlobNotFoundError()
         return response.metadata
+
+    def copy(
+            self,
+            src_bucket: str, src_object_name: str,
+            dst_bucket: str, dst_object_name: str,
+            **kwargs
+    ):
+        src_bucket_obj = self._ensure_bucket_loaded(src_bucket)
+        src_blob_obj = src_bucket_obj.get_blob(src_object_name)
+        dst_bucket_obj = self._ensure_bucket_loaded(dst_bucket)
+        src_bucket_obj.copy_blob(src_blob_obj, dst_bucket_obj, new_name=dst_object_name)
