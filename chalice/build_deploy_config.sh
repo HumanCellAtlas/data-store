@@ -52,4 +52,5 @@ if [[ ${CI:-} == true ]]; then
     cat "$config_json" | jq .manage_iam_role=false | jq .iam_role_arn=env.iam_role_arn | sponge "$config_json"
 fi
 
-cat "${policy_json}.template" | envsubst '$DSS_S3_TEST_BUCKET' > "$policy_json"
+cat "${policy_json}.template" | envsubst '$DSS_S3_TEST_BUCKET' \
+                              | envsubst '$DSS_S3_TEST_SRC_DATA_BUCKET' > "$policy_json"
