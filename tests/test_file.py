@@ -65,6 +65,26 @@ class TestFileApi(unittest.TestCase, DSSAsserts):
         )
         self.assertIn('version', response[2])
 
+    def test_file_put_upper_case_checksums(self):
+        file_uuid = uuid.uuid4()
+        response = self.assertPutResponse(
+            "/v1/files/" + str(file_uuid),
+            requests.codes.created,
+            json_request_body=dict(
+                source_url="s3://hca-dss-test-src/test_good_source_data/incorrect_case_checksum",
+                bundle_uuid=str(uuid.uuid4()),
+                creator_uid=4321,
+                content_type="text/html",
+            ),
+        )
+        self.assertHeaders(
+            response[0],
+            {
+                'content-type': "application/json",
+            }
+        )
+        self.assertIn('version', response[2])
+
     def test_file_head(self):
         file_uuid = "ce55fd51-7833-469b-be0b-5da88ebebfcd"
         version = "2017-06-16T19:36:04.240704Z"
