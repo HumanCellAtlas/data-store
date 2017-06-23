@@ -49,6 +49,7 @@ class TestFileApi(unittest.TestCase, DSSAsserts):
         )
         self.assertIn('version', response[2])
 
+    # This is a test specific to AWS since it has separate notion of metadata and tags.
     def test_file_put_metadata_from_tags(self):
         file_uuid = uuid.uuid4()
         response = self.assertPutResponse(
@@ -70,12 +71,16 @@ class TestFileApi(unittest.TestCase, DSSAsserts):
         self.assertIn('version', response[2])
 
     def test_file_put_upper_case_checksums(self):
+        self._test_file_put_upper_case_checksums("s3")
+        self._test_file_put_upper_case_checksums("gs")
+
+    def _test_file_put_upper_case_checksums(self, scheme):
         file_uuid = uuid.uuid4()
         response = self.assertPutResponse(
             "/v1/files/" + str(file_uuid),
             requests.codes.created,
             json_request_body=dict(
-                source_url="s3://hca-dss-test-src/test_good_source_data/incorrect_case_checksum",
+                source_url=scheme + "://hca-dss-test-src/test_good_source_data/incorrect_case_checksum",
                 bundle_uuid=str(uuid.uuid4()),
                 creator_uid=4321,
                 content_type="text/html",
@@ -90,12 +95,16 @@ class TestFileApi(unittest.TestCase, DSSAsserts):
         self.assertIn('version', response[2])
 
     def test_file_head(self):
+        self._test_file_head("aws")
+        self._test_file_head("gcs")
+
+    def _test_file_head(self, replica):
         file_uuid = "ce55fd51-7833-469b-be0b-5da88ebebfcd"
         version = "2017-06-16T19:36:04.240704Z"
 
         url = str(UrlBuilder()
                   .set(path="/v1/files/" + file_uuid)
-                  .add_query("replica", "aws")
+                  .add_query("replica", replica)
                   .add_query("version", version))
 
         with override_bucket_config(BucketConfig.TEST_FIXTURE):
@@ -107,6 +116,10 @@ class TestFileApi(unittest.TestCase, DSSAsserts):
             # TODO: (ttung) verify headers
 
     def test_file_get_specific(self):
+        self._test_file_get_specific("aws")
+        self._test_file_get_specific("gcs")
+
+    def _test_file_get_specific(self, replica):
         """
         Verify we can successfully fetch a specific file UUID+version.
         """
@@ -115,7 +128,7 @@ class TestFileApi(unittest.TestCase, DSSAsserts):
 
         url = str(UrlBuilder()
                   .set(path="/v1/files/" + file_uuid)
-                  .add_query("replica", "aws")
+                  .add_query("replica", replica)
                   .add_query("version", version))
 
         with override_bucket_config(BucketConfig.TEST_FIXTURE):
@@ -137,6 +150,10 @@ class TestFileApi(unittest.TestCase, DSSAsserts):
             # TODO: (ttung) verify more of the headers
 
     def test_file_get_latest(self):
+        self._test_file_get_latest("aws")
+        self._test_file_get_latest("gcs")
+
+    def _test_file_get_latest(self, replica):
         """
         Verify we can successfully fetch the latest version of a file UUID.
         """
@@ -144,7 +161,7 @@ class TestFileApi(unittest.TestCase, DSSAsserts):
 
         url = str(UrlBuilder()
                   .set(path="/v1/files/" + file_uuid)
-                  .add_query("replica", "aws"))
+                  .add_query("replica", replica))
 
         with override_bucket_config(BucketConfig.TEST_FIXTURE):
             response = self.assertGetResponse(
