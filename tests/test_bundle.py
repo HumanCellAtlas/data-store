@@ -25,12 +25,16 @@ class TestDSS(unittest.TestCase, DSSAsserts):
         self.app = dss.create_app().app.test_client()
 
     def test_bundle_get(self):
+        self._test_bundle_get("aws")
+        self._test_bundle_get("gcs")
+
+    def _test_bundle_get(self, replica):
         bundle_uuid = "011c7340-9b3c-4d62-bf49-090d79daf198"
         version = "2017-06-20T21:45:06.766634Z"
 
         url = str(UrlBuilder()
                   .set(path="/v1/bundles/" + bundle_uuid)
-                  .add_query("replica", "aws")
+                  .add_query("replica", replica)
                   .add_query("version", version))
 
         with override_bucket_config(BucketConfig.TEST_FIXTURE):
@@ -52,13 +56,22 @@ class TestDSS(unittest.TestCase, DSSAsserts):
         self.assertEqual(response[2]['bundle']['files'][0]['version'], "2017-06-16T19:36:04.240704Z")
 
     def test_bundle_put(self):
+        self._test_bundle_put("aws")
+        self._test_bundle_put("gcs")
+
+    def _test_bundle_put(self, replica):
+        if replica == "aws":
+            schema = "s3"
+        elif replica == "gcs":
+            schema = "gs"
+
         file_uuid = str(uuid.uuid4())
         bundle_uuid = str(uuid.uuid4())
         response = self.assertPutResponse(
             "/v1/files/" + file_uuid,
             requests.codes.created,
             json_request_body=dict(
-                source_url="s3://hca-dss-test-src/test_good_source_data/0",
+                source_url=schema + "://hca-dss-test-src/test_good_source_data/0",
                 bundle_uuid=bundle_uuid,
                 creator_uid=4321,
                 content_type="text/html",
@@ -68,7 +81,7 @@ class TestDSS(unittest.TestCase, DSSAsserts):
 
         url = str(UrlBuilder()
                   .set(path="/v1/bundles/" + bundle_uuid)
-                  .add_query("replica", "aws"))
+                  .add_query("replica", replica))
 
         response = self.assertPutResponse(
             url,
