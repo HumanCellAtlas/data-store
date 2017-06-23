@@ -14,8 +14,7 @@ if [[ $# != 2 ]]; then
     exit 1
 fi
 
-export iam_principal_type=$1
-export iam_principal_name=$2
+export iam_principal_type=$1 iam_principal_name=$2
 policy_json="$(dirname $0)/../iam/policy-templates/ci-cd.json"
 export region_name=$(aws configure get region)
 export account_id=$(aws sts get-caller-identity | jq -r .Account)
