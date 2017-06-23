@@ -1,5 +1,7 @@
 from __future__ import absolute_import, division, print_function, unicode_literals
 
+import base64
+import binascii
 import datetime
 import typing
 
@@ -76,6 +78,24 @@ class GCSBlobStore(BlobStore):
             raise BlobNotFoundError()
 
         return blob_obj.download_as_string()
+
+    def get_cloud_checksum(
+            self,
+            bucket: str,
+            object_name: str
+    ) -> str:
+        """
+        Retrieves the cloud-provided checksum for a given object in a given bucket.
+        :param bucket: the bucket the object resides in.
+        :param object_name: the name of the object for which checksum is being retrieved.
+        :return: the cloud-provided checksum
+        """
+        bucket_obj = self._ensure_bucket_loaded(bucket)
+        blob_obj = bucket_obj.get_blob(object_name)
+        if blob_obj is None:
+            raise BlobNotFoundError()
+
+        return binascii.hexlify(base64.b64decode(blob_obj.crc32c)).decode("utf-8").lower()
 
     def get_metadata(
             self,
