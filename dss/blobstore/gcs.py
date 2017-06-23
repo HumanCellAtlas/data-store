@@ -62,6 +62,21 @@ class GCSBlobStore(BlobStore):
         blob_obj = bucket_obj.blob(object_name, chunk_size=1 * 1024 * 1024)
         blob_obj.upload_from_file(src_file_handle)
 
+    def get(self, bucket: str, object_name: str) -> bytes:
+        """
+        Retrieves the data for a given object in a given bucket.
+        :param bucket: the bucket the object resides in.
+        :param object_name: the name of the object for which metadata is being
+        retrieved.
+        :return: the data
+        """
+        bucket_obj = self._ensure_bucket_loaded(bucket)
+        blob_obj = bucket_obj.get_blob(object_name)
+        if blob_obj is None:
+            raise BlobNotFoundError()
+
+        return blob_obj.download_as_string()
+
     def get_metadata(
             self,
             bucket: str,

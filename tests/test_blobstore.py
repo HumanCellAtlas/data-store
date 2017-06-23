@@ -97,3 +97,16 @@ class BlobStoreTests(object):
         # should be able to get metadata for the file.
         self.handle.get_metadata(
             self.test_bucket, dst_blob_name)
+
+    def testGet(self):
+        data = self.handle.get(
+            self.test_src_data_bucket,
+            "test_good_source_data/0",
+        )
+        self.assertEqual(len(data), 11358)
+
+        with self.assertRaises(BlobNotFoundError):
+            self.handle.get(
+                self.test_src_data_bucket,
+                "test_good_source_data_DOES_NOT_EXIST",
+            )

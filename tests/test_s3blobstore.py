@@ -26,21 +26,6 @@ class TestS3BlobStore(unittest.TestCase, BlobStoreTests):
     def tearDown(self):
         pass
 
-    # TODO: this should be moved to BlobStoreTests once we build the GCS
-    # equivalents out
-    def testGet(self):
-        data = self.handle.get(
-            self.test_src_data_bucket,
-            "test_good_source_data/0",
-        )
-        self.assertEqual(len(data), 11358)
-
-        with self.assertRaises(BlobNotFoundError):
-            self.handle.get(
-                self.test_src_data_bucket,
-                "test_good_source_data_DOES_NOT_EXIST",
-            )
-
     def test_get_checksum(self):
         """
         Ensure that the ``get_metadata`` methods return sane data.
