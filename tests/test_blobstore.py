@@ -1,6 +1,11 @@
+import io
+import os
+import uuid
+
 import requests
 
 from dss.blobstore import BlobNotFoundError, BlobStore
+from tests import TESTOUTPUT_PREFIX
 
 
 class BlobStoreTests(object):
@@ -73,3 +78,22 @@ class BlobStoreTests(object):
 
         resp = requests.get(presigned_url)
         self.assertEqual(resp.status_code, requests.codes.ok)
+
+    def testUploadFileHandle(self):
+        fobj = io.BytesIO(b"abcabcabc")
+        function_name = "%s.%s" % (
+            self.__class__.__name__,
+            self.testUploadFileHandle.__name__
+        )
+        dst_blob_name = os.path.join(
+            TESTOUTPUT_PREFIX, function_name, str(uuid.uuid4()))
+
+        self.handle.upload_file_handle(
+            self.test_bucket,
+            dst_blob_name,
+            fobj
+        )
+
+        # should be able to get metadata for the file.
+        self.handle.get_metadata(
+            self.test_bucket, dst_blob_name)

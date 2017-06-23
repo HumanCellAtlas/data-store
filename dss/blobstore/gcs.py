@@ -53,6 +53,15 @@ class GCSBlobStore(BlobStore):
         blob_obj = bucket_obj.get_blob(object_name)
         return blob_obj.generate_signed_url(datetime.timedelta(days=1))
 
+    def upload_file_handle(
+            self,
+            bucket: str,
+            object_name: str,
+            src_file_handle: typing.BinaryIO):
+        bucket_obj = self._ensure_bucket_loaded(bucket)
+        blob_obj = bucket_obj.blob(object_name, chunk_size=1 * 1024 * 1024)
+        blob_obj.upload_from_file(src_file_handle)
+
     def get_metadata(
             self,
             bucket: str,
