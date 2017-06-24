@@ -6,7 +6,7 @@ from . import HCABlobStore
 from ..blobstore import BlobStore
 
 
-class S3HCABlobStore(HCABlobStore):
+class GCSHCABlobStore(HCABlobStore):
     def __init__(self, handle: BlobStore) -> None:
         self.handle = handle
 
@@ -21,5 +21,5 @@ class S3HCABlobStore(HCABlobStore):
         :return: True iff the checksum is correct.
         """
         checksum = self.handle.get_cloud_checksum(bucket, object_name)
-        metadata_checksum_key = typing.cast(str, HCABlobStore.MANDATORY_METADATA['S3_ETAG']['keyname'])
+        metadata_checksum_key = typing.cast(str, HCABlobStore.MANDATORY_METADATA['CRC32C']['keyname'])
         return checksum.lower() == metadata[metadata_checksum_key].lower()
