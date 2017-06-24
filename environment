@@ -12,7 +12,7 @@
 # Resolve the location of this file and set DSS_HOME to the root
 SOURCE="${BASH_SOURCE[0]}"
 while [ -h "$SOURCE" ] ; do SOURCE="$(readlink "$SOURCE")"; done
-export DSS_HOME="$( cd -P "$( dirname "$SOURCE" )" && pwd )"
+export DSS_HOME="$(cd -P "$(dirname "$SOURCE")" && pwd)"
 
 set -a
 STAGE=dev
