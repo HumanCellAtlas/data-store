@@ -20,7 +20,7 @@ before_install:
 install:
 - pip install -r requirements.txt
 - pip install -r requirements-dev.txt
-- wget ${ES_DOWNLOAD_URL}
+- wget -q ${ES_DOWNLOAD_URL}
 - tar -xzf elasticsearch-${ES_VERSION}.tar.gz
 - ./elasticsearch-${ES_VERSION}/bin/elasticsearch &
 - git submodule update --init
