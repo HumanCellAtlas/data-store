@@ -110,3 +110,22 @@ class BlobStoreTests(object):
                 self.test_src_data_bucket,
                 "test_good_source_data_DOES_NOT_EXIST",
             )
+
+    def testCopy(self):
+        function_name = "%s.%s" % (
+            self.__class__.__name__,
+            self.testCopy.__name__
+        )
+        dst_blob_name = os.path.join(
+            TESTOUTPUT_PREFIX, function_name, str(uuid.uuid4()))
+
+        self.handle.copy(
+            self.test_src_data_bucket,
+            "test_good_source_data/0",
+            self.test_bucket,
+            dst_blob_name,
+        )
+
+        # should be able to get metadata for the file.
+        self.handle.get_metadata(
+            self.test_bucket, dst_blob_name)
