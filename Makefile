@@ -1,6 +1,4 @@
-export SHELL=/bin/bash
-export STAGE=dev
-export EXPORT_ENV_VARS_TO_LAMBDA=DSS_S3_TEST_BUCKET DSS_GCS_TEST_BUCKET DSS_ES_ENDPOINT
+include common.mk
 MODULES=dss tests
 
 lint:

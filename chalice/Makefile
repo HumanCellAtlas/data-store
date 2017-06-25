@@ -1,3 +1,5 @@
+include ../common.mk
+
 deploy:
 	git clean -df chalicelib
 	cp -R ../dss ../dss-api.yml ../gcs-credentials.json chalicelib

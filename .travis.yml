@@ -15,6 +15,7 @@ addons:
     - moreutils
     - gettext
 before_install:
+- source environment
 - openssl aes-256-cbc -K $encrypted_ead445d7a1e2_key -iv $encrypted_ead445d7a1e2_iv
   -in gcs-credentials.json.enc -out gcs-credentials.json -d
 install:
@@ -40,11 +41,5 @@ deploy:
 env:
   global:
   - ES_VERSION=5.4.2 ES_DOWNLOAD_URL=https://artifacts.elastic.co/downloads/elasticsearch/elasticsearch-${ES_VERSION}.tar.gz
-  - AWS_DEFAULT_REGION=us-east-1
-  - DSS_S3_TEST_BUCKET=hca-dss-test
-  - DSS_S3_TEST_SRC_DATA_BUCKET=hca-dss-test-src
-  - DSS_GCS_TEST_BUCKET=czi-hca-test
-  - DSS_GCS_TEST_SRC_DATA_BUCKET=hca-dss-test-src
-  - GOOGLE_APPLICATION_CREDENTIALS=gcs-credentials.json
   - secure: 0VO7F3mL6Kx95nc+12wthX2SzwOIO8kptzH0s+d2ZFYWuE9zgBioV3bZf6Cat9jScoKED12QyVkDKkoAhY/QFxJZrv15aDTVZExfEPV86uTpl1qDokT6qGtoy03ZvDgHq6+OfDbUf4RQWAA8daMNs3n19qFrQQmUd6/IGnPweTZ7bLyLDSaYxJn5Hej99u7UduWiz5WWIJBtSsPGnbijV5ZiTEn1sUsxy4N4pDo9ajS13Jru6zl5oMzxPUqycvzIbLSOI9qeBVsVA2IScggDY5wcDaXqLQ5tbkbUW0nqfo84umL1/D1U+QLs4lDFH8L2xEXHWmHdk/lnsXvF89Ag2aN1V+S4G14XivyKiaghrYPLvNCKXA8UaTF+C90hRnHG47HEBpLUESw1C/WzX07Rcjg8fPAI37JVsllujLXC9uNHHlT14dIU2B7wDjBP7M+ttaJ2iPxqRghHUgg2iMq1qpDFomB3Z9S4zMdW5KgEaK1pGpdVATHI4USdABTaYIyiEH+cGt1vZDBgymtX/4pDoiiT0Feq13XaMcFzOv4ndM1453X7+eHgNn6Ii581gAgA4EzmIsUj/75vs6RRPx/f3+pmzJWKsoreg2ZZNpeIkI4it3o9wqMnbQBu2K/ah2ZS354egzxOBHqchU3xuILD+K3GUWQcWTGDFH9HWCMk3vM=
   - secure: HuGRclbIoZpqBrOg9yBgwD0iCbOzOTg+uprrPlaIPBj5vX6bjw9ugaju2Qkin1An4B+rJenZd5NSwfKBGNOI+fGg0fwhfMTjNSHX4gj6MNTxXcmzIL9bFjSjAWvD5gxOAhfu6DoCC0bwIhkyA5wwK0MwekixmrNa7gfWv5hwwlhNtp1RrP/0Kga6HDpamy5oX50bHjBFpF/4fzFRYnv71yoRC7PXS5i4nnevForGBYsdXZzy1bqNlxBN4Kd50kPJxEg0InySgrixftp8avZhJe9Qf+1aEd438MrHPScytKsDGoozSSrOA/dJZsGFN47fknpoc38y/5X8VV6Y8hjJru7AvVXkpdZDFTFlIU09UZv87Fgc5S6ZFZgdI0OmNF8y4t2RzQFeN13ARUGaZ1r5qztGdpiR5d25ujt2C3UAlqoE9nm7waATtTxJl8fphOhaax/rkSb4VtQopLU2riTNgVXZpltpzL3uXYFt6lCNtxXcI15oi3mnjQci7Y5WxPWcdVj2IMUeWnHLX3HP7L12fbHXFnWtNurSne0ySQA4tIQhm8jEm0AEjlLS3hhTdHq2oQrL4kKP1m4r5rX7JOs59BEVD6CWWk665dXhhnwE2pw880OW04MfjRThoozyaGspWBamFTfWzV4Ix4vgtRBPpwnqbsNTsYRC1VFTeK0Ei1s=
