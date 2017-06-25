@@ -50,10 +50,10 @@ project 'PROJECT NAME'`. Set the environment variable `DSS_GCS_TEST_BUCKET`.
 
 **Azure**: Set the environment variables `AZURE_STORAGE_ACCOUNT_NAME` and `AZURE_STORAGE_ACCOUNT_KEY`.
 
-### CI/CD with Travis CI
+#### CI/CD with Travis CI
 We use [Travis CI](https://travis-ci.org/HumanCellAtlas/data-store) for continuous integration testing and
 deployment. When `make test` succeeds, Travis CI deploys the application into the `dev` stage on AWS for every commit
-that goes on the master branch. This behavior is defined in the `deploy` seciton of `.travis.yml`.
+that goes on the master branch. This behavior is defined in the `deploy` section of `.travis.yml`.
 
 #### Authorizing Travis CI to deploy
 Encrypted environment variables give Travis CI the AWS credentials needed to run the tests and deploy the app. Run
