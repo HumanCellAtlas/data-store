@@ -11,6 +11,10 @@ import connexion
 from connexion.resolver import RestyResolver
 from flask_failsafe import failsafe
 
+# Constants common to the indexer and query route.
+DSS_ELASTICSEARCH_INDEX_NAME = "hca"
+DSS_ELASTICSEARCH_DOC_TYPE = "hca"
+
 def get_logger():
     try:
         return flask.current_app.logger

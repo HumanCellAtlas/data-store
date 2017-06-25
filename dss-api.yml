@@ -10,6 +10,20 @@ basePath: /v1
 produces:
   - application/json
 paths:
+  /search:
+    get:
+      description: |
+        Returns a list of files matching given criteria.
+      summary: Find files and bundles by querying their metadata
+      parameters:
+        - name: query
+          in: query
+          description: Metadata query
+          required: true
+          type: string
+      responses:
+        200:
+          description: OK
   /files:
     get:
       summary: Query files

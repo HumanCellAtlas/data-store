@@ -17,14 +17,15 @@ from dss.events.handlers.index import process_new_indexable_object  # noqa
 from tests import utils
 from tests.sample_data_loader import load_sample_data_bundle
 
-HCA_ES_INDEX_NAME = "hca-metadata"
-HCA_METADATA_DOC_TYPE = "hca"
+DSS_ELASTICSEARCH_INDEX_NAME = "hca"
+DSS_ELASTICSEARCH_DOC_TYPE = "hca"
 
 USE_AWS_S3_MOCK = os.environ.get("USE_AWS_S3_MOCK", True)
 
 logging.basicConfig(level=logging.INFO)
 log = logging.getLogger(__name__)
 log.setLevel(logging.INFO)
+
 
 pkg_root = os.path.abspath(os.path.join(os.path.dirname(__file__), '..'))
 sys.path.insert(0, pkg_root)
@@ -39,6 +40,7 @@ sys.path.insert(0, pkg_root)
 #      The index document is then added to Elasticsearch
 #   4. Perform as simple search to verify the index is in Elasticsearch.
 #
+
 
 class TestEventHandlers(unittest.TestCase):
 
@@ -62,7 +64,7 @@ class TestEventHandlers(unittest.TestCase):
 
     def test_process_new_indexable_object(self):
         bundle_key = load_sample_data_bundle()
-        sample_s3_event = self._create_sample_s3_bundle_created_event(bundle_key)
+        sample_s3_event = self.create_sample_s3_bundle_created_event(bundle_key)
         log.debug("Submitting s3 bundle created event: %s", json.dumps(sample_s3_event, indent=4))
         process_new_indexable_object(sample_s3_event, log)
         # It seems there is sometimes a slight delay between when a document
@@ -72,23 +74,44 @@ class TestEventHandlers(unittest.TestCase):
         # Better to write a search test method that would retry the search until
         # the expected result was acheived or a timeout was reached.
         time.sleep(5)
-        self._verify_search_results(1)
+        self.verify_search_results(1)
 
-    def _create_sample_s3_bundle_created_event(self, bundle_key: str) -> Dict:
+    @staticmethod
+    def create_sample_s3_bundle_created_event(bundle_key: str) -> Dict:
         with open(os.path.join(os.path.dirname(__file__), "sample_s3_bundle_created_event.json")) as fh:
             sample_s3_event = json.load(fh)
         sample_s3_event['Records'][0]["s3"]["bucket"]["name"] = utils.get_env("DSS_S3_TEST_BUCKET")
         sample_s3_event['Records'][0]["s3"]["object"]["key"] = bundle_key
         return sample_s3_event
 
-    def _verify_search_results(self, expectedHitCount):
+    def verify_search_results(self, expected_hit_count):
         es_client = Elasticsearch()
-        s = Search(using=es_client, index=HCA_ES_INDEX_NAME, doc_type=HCA_METADATA_DOC_TYPE).query("match", state="new")
-        response = s.execute()
-        self.assertEqual(expectedHitCount, len(response.hits))
+        query = "\
+            { \
+                \"query\": { \
+                    \"bool\": { \
+                        \"must\": [{ \
+                            \"match\": { \
+                                \"files.sample_json.donor.species\": \"Homo sapiens\" \
+                            } \
+                        }, { \
+                            \"match\": { \
+                                \"files.assay_json.single_cell.method\": \"Fluidigm C1\" \
+                            } \
+                        }, { \
+                            \"match\": { \
+                                \"files.sample_json.ncbi_biosample\": \"SAMN04303778\" \
+                            } \
+                        }] \
+                    } \
+                } \
+            }"
+        response = es_client.search(index=DSS_ELASTICSEARCH_INDEX_NAME, doc_type=DSS_ELASTICSEARCH_DOC_TYPE,
+                                    body=query)
+        self.assertEqual(expected_hit_count, response['hits']['total'])
         with open(os.path.join(os.path.dirname(__file__), "expected_index_document.json"), "r") as fh:
             expected_index_document = json.load(fh)
-        actual_index_document = response.hits.hits[0]['_source']
+        actual_index_document = response['hits']['hits'][0]['_source']
         self.normalize_inherently_different_values_in_dict(expected_index_document, actual_index_document)
         expected_index_string = json.dumps(expected_index_document, indent=4)
         actual_index_string = json.dumps(actual_index_document, indent=4)
@@ -103,7 +126,7 @@ class TestEventHandlers(unittest.TestCase):
         close_elasticsearch_connections(es_client)
 
     def normalize_inherently_different_values_in_dict(self, expected_json_dict, actual_json_dict):
-        keys_to_normalize = {'timestamp', 'uuid'}
+        keys_to_normalize = {'version', 'uuid'}
         for key in expected_json_dict.keys():
             expected_value = expected_json_dict[key]
             actual_value = actual_json_dict[key]
@@ -126,20 +149,22 @@ def check_start_elasticsearch_service():
     try:
         es_client = Elasticsearch()
         es_info = es_client.info()
-        log.info("The Elasticsearch service is running.")
+        log.debug("The Elasticsearch service is running.")
         log.debug("Elasticsearch info: %s", es_info)
         close_elasticsearch_connections(es_client)
-    except Exception as e:
+    except Exception:
         raise Exception("The Elasticsearch service does not appear to be running on this system, "
                         "yet it is required for this test. Please start it by running: elasticsearch")
+
 
 def elasticsearch_delete_index(index_name: str):
     try:
         es_client = Elasticsearch()
-        es_client.indices.delete(index=index_name, ignore=[400, 404])
+        es_client.indices.delete(index=index_name, ignore=[404])
         close_elasticsearch_connections(es_client)  # Prevents end-of-test complaints about open sockets
     except Exception as e:
-        log.warning("Error occurred while removing Elasticsearch index:%s Exception:%s", index_name, e)
+        log.warning("Error occurred while removing Elasticsearch index:%s Exception: %s", index_name, e)
+
 
 # This prevents open socket errors after the test is over.
 def close_elasticsearch_connections(es_client):
