@@ -1,6 +1,10 @@
-import os, sys, json, boto3, logging
+import os
+import sys
+import json
+import logging
 from urllib.parse import unquote
 
+import boto3
 import domovoi
 
 pkg_root = os.path.abspath(os.path.join(os.path.dirname(__file__), 'domovoilib')) # noqa

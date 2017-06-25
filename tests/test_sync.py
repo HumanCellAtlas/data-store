@@ -49,25 +49,26 @@ class TestSyncUtils(unittest.TestCase):
 
     def test_sync_blob(self):
         self.cleanup_sync_test_objects()
-        payload, readback = os.urandom(2**20), b""
+        payload = os.urandom(2**20)
+        test_metadata = {"metadata-sync-test": str(uuid.uuid4())}
         test_key = "hca-dss-sync-test/s3-to-gcs/{}".format(uuid.uuid4())
-        self.s3_bucket.Object(test_key).put(Body=payload)
+        src_blob = self.s3_bucket.Object(test_key)
+        dest_blob = self.gcs_bucket.blob(test_key)
+        src_blob.put(Body=payload, Metadata=test_metadata)
         sync.sync_blob(source_platform="s3", source_key=test_key, dest_platform="gcs", logger=self.logger)
-        self.assertEqual(self.gcs_bucket.blob(test_key).download_as_string(), payload)
-        if os.environ.get("DSS_RUN_LONG_TESTS"):
-            for i in range(90):
-                try:
-                    readback = self.gcs_bucket.blob(test_key).download_as_string()
-                    break
-                except Exception as e:
-                    time.sleep(5)
-            self.assertEqual(readback, payload)
+        self.assertEqual(dest_blob.download_as_string(), payload)
+        dest_blob.reload()
+        self.assertEqual(dest_blob.metadata, test_metadata)
 
         test_key = "hca-dss-sync-test/gcs-to-s3/{}".format(uuid.uuid4())
+        src_blob = self.gcs_bucket.blob(test_key)
         dest_blob = self.s3_bucket.Object(test_key)
-        self.gcs_bucket.blob(test_key).upload_from_string(payload)
+        src_blob.upload_from_string(payload)
+        src_blob.metadata = test_metadata
+        src_blob.patch()
         sync.sync_blob(source_platform="gcs", source_key=test_key, dest_platform="s3", logger=self.logger)
         self.assertEqual(dest_blob.get()["Body"].read(), payload)
+        self.assertEqual(dest_blob.metadata, test_metadata)
 
 
 if __name__ == '__main__':
