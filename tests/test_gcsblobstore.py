@@ -10,9 +10,10 @@ import unittest
 pkg_root = os.path.abspath(os.path.join(os.path.dirname(__file__), '..'))
 sys.path.insert(0, pkg_root)
 
-from dss.blobstore.gcs import GCSBlobStore # noqa
-from tests import utils # noqa
-from tests.test_blobstore import BlobNotFoundError, BlobStoreTests # noqa
+from dss.blobstore.gcs import GCSBlobStore  # noqa
+from dss.blobstore import BlobNotFoundError  # noqa
+from tests import utils  # noqa
+from tests.test_blobstore import BlobStoreTests  # noqa
 
 
 class TestGCSBlobStore(unittest.TestCase, BlobStoreTests):
