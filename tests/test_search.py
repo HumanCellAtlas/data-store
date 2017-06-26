@@ -29,27 +29,27 @@ class TestSearch(unittest.TestCase, DSSAsserts):
             expected_code=requests.codes.ok)
 
     def test_search_post(self):
-        query = "\
-            { \
-                \"query\": { \
-                    \"bool\": { \
-                        \"must\": [{ \
-                            \"match\": { \
-                                \"files.sample_json.donor.species\": \"Homo sapiens\" \
-                            } \
-                        }, { \
-                            \"match\": { \
-                                \"files.assay_json.single_cell.method\": \"Fluidigm C1\" \
-                            } \
-                        }, { \
-                            \"match\": { \
-                                \"files.sample_json.ncbi_biosample\": \"SAMN04303778\" \
-                            } \
-                        }] \
-                    } \
-                } \
-            }"
+        query = \
+            {
+                "query": {
+                    "bool": {
+                        "must": [{
+                            "match": {
+                                "files.sample_json.donor.species": "Homo sapiens"
+                            }
+                        }, {
+                            "match": {
+                                "files.assay_json.single_cell.method": "Fluidigm C1"
+                            }
+                        }, {
+                            "match": {
+                                "files.sample_json.ncbi_biosample": "SAMN04303778"
+                            }
+                        }]
+                    }
+                }
+            }
         self.assertPostResponse(
             '/v1/search',
-            json_request_body=(json.loads(query)),
+            json_request_body=(query),
             expected_code=requests.codes.ok)

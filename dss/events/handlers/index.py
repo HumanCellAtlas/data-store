@@ -58,7 +58,7 @@ def create_index_data(s3, bucket_name, manifest, logger):
     for file_info in files_info:
         if file_info['indexed'] is True:
             if not file_info["name"].endswith(".json"):  # TODO Don't check filename, if file is 'indexed' load json
-                logger.warning("File %s is marked for indexing but is not of type JSON. It will not be indexed.",
+                logger.warning("File %s is marked for indexing but does not end in .json. It will not be indexed.",
                                file_info["name"])
                 continue
             logger.debug("Indexing file: %s", file_info["name"])

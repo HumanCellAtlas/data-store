@@ -86,28 +86,28 @@ class TestEventHandlers(unittest.TestCase):
 
     def verify_search_results(self, expected_hit_count):
         es_client = Elasticsearch()
-        query = "\
-            { \
-                \"query\": { \
-                    \"bool\": { \
-                        \"must\": [{ \
-                            \"match\": { \
-                                \"files.sample_json.donor.species\": \"Homo sapiens\" \
-                            } \
-                        }, { \
-                            \"match\": { \
-                                \"files.assay_json.single_cell.method\": \"Fluidigm C1\" \
-                            } \
-                        }, { \
-                            \"match\": { \
-                                \"files.sample_json.ncbi_biosample\": \"SAMN04303778\" \
-                            } \
-                        }] \
-                    } \
-                } \
-            }"
+        query = \
+            {
+                "query": {
+                    "bool": {
+                        "must": [{
+                            "match": {
+                                "files.sample_json.donor.species": "Homo sapiens"
+                            }
+                        }, {
+                            "match": {
+                                "files.assay_json.single_cell.method": "Fluidigm C1"
+                            }
+                        }, {
+                            "match": {
+                                "files.sample_json.ncbi_biosample": "SAMN04303778"
+                            }
+                        }]
+                    }
+                }
+            }
         response = es_client.search(index=DSS_ELASTICSEARCH_INDEX_NAME, doc_type=DSS_ELASTICSEARCH_DOC_TYPE,
-                                    body=query)
+                                    body=json.dumps(query))
         self.assertEqual(expected_hit_count, response['hits']['total'])
         with open(os.path.join(os.path.dirname(__file__), "expected_index_document.json"), "r") as fh:
             expected_index_document = json.load(fh)

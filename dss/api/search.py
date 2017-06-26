@@ -10,8 +10,9 @@ from ..util import connect_elasticsearch
 
 
 def list():
-    es_client = connect_elasticsearch(os.getenv("DSS_ES_ENDPOINT"), get_logger())  # TODO Use a connection manager
     get_logger().debug("Searching for: %s", request.values["query"])
+    # TODO (mbaumann) Use a connection manager
+    es_client = connect_elasticsearch(os.getenv("DSS_ES_ENDPOINT"), get_logger())
     query = json.loads(request.values["query"])
     response = Search(using=es_client,
                       index=DSS_ELASTICSEARCH_INDEX_NAME,
@@ -21,7 +22,8 @@ def list():
 
 def post(query: dict):
     get_logger().debug("Received posted query: %s", json.dumps(query, indent=4))
-    es_client = connect_elasticsearch(os.getenv("DSS_ES_ENDPOINT"), get_logger())  # TODO Use a connection manager
+    # TODO (mbaumann) Use a connection manager
+    es_client = connect_elasticsearch(os.getenv("DSS_ES_ENDPOINT"), get_logger())
     response = Search(using=es_client,
                       index=DSS_ELASTICSEARCH_INDEX_NAME,
                       doc_type=DSS_ELASTICSEARCH_DOC_TYPE).update_from_dict(query).execute()
@@ -29,7 +31,9 @@ def post(query: dict):
 
 
 def format_results(request, response):
-    bundles_url_base = request.host_url + request.full_path[1:].replace('search?', 'bundles/')
+    # TODO (mbaumann) extract version from the request path instead of hard-coding it here
+    # The previous code worked for post but incorrectly included the query string in the case of get.
+    bundles_url_base = request.host_url + 'v1/bundles/'
     result_list = []
     for hit in response:
         result = {

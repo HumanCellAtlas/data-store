@@ -13,8 +13,8 @@ paths:
   /search:
     get:
       description: |
-        Returns a list of files matching given criteria.
-      summary: Find files and bundles by querying their metadata
+        Returns a list of bundles matching the given simple criteria
+      summary: Find bundles by querying their metadata using simple criteria
       parameters:
         - name: query
           in: query
