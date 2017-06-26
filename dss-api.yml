@@ -24,6 +24,32 @@ paths:
       responses:
         200:
           description: OK
+        default:
+          description: Unexpected error
+          schema:
+            $ref: '#/definitions/Error'
+    post:
+      description: |
+        Accepts Elasticsearch JSON query and returns matching bundle identifiers
+      summary: |
+        Find bundles by searching their metadata with an Elasticsearch query
+      consumes:
+        - application/json
+      parameters:
+        - name: query
+          in: body
+          description: Elasticsearch query
+          schema:
+            type: object
+      produces:
+        - application/json
+      responses:
+        200:
+          description: OK
+        default:
+          description: Unexpected error
+          schema:
+            $ref: '#/definitions/Error'
   /files:
     get:
       summary: Query files
