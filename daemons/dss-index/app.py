@@ -19,4 +19,7 @@ s3_bucket = os.environ.get("DSS_S3_TEST_BUCKET")
 @app.s3_event_handler(bucket=s3_bucket, events=["s3:ObjectCreated:*"])
 def dispatch_indexer_event(event, context) -> None:
     app.log.setLevel(logging.DEBUG)
-    process_new_indexable_object(event, logger=app.log)
+    if event.get("Event") == "s3:TestEvent":
+        app.log.info("DSS index daemon received S3 test event")
+    else:
+        process_new_indexable_object(event, logger=app.log)
