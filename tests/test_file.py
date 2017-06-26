@@ -16,7 +16,7 @@ pkg_root = os.path.abspath(os.path.join(os.path.dirname(__file__), '..'))
 sys.path.insert(0, pkg_root)
 
 import dss  # noqa
-from dss.config import override_s3_config  # noqa
+from dss.config import BucketConfig, override_bucket_config  # noqa
 from tests.infra import DSSAsserts, UrlBuilder  # noqa
 
 
@@ -98,7 +98,7 @@ class TestFileApi(unittest.TestCase, DSSAsserts):
                   .add_query("replica", "aws")
                   .add_query("version", version))
 
-        with override_s3_config("hca-dss-test-src"):
+        with override_bucket_config(BucketConfig.TEST_FIXTURE):
             self.assertHeadResponse(
                 url,
                 requests.codes.ok
@@ -118,7 +118,7 @@ class TestFileApi(unittest.TestCase, DSSAsserts):
                   .add_query("replica", "aws")
                   .add_query("version", version))
 
-        with override_s3_config("hca-dss-test-src"):
+        with override_bucket_config(BucketConfig.TEST_FIXTURE):
             response = self.assertGetResponse(
                 url,
                 requests.codes.found
@@ -146,7 +146,7 @@ class TestFileApi(unittest.TestCase, DSSAsserts):
                   .set(path="/v1/files/" + file_uuid)
                   .add_query("replica", "aws"))
 
-        with override_s3_config("hca-dss-test-src"):
+        with override_bucket_config(BucketConfig.TEST_FIXTURE):
             response = self.assertGetResponse(
                 url,
                 requests.codes.found

@@ -1,6 +1,7 @@
 import os
 import typing
 from contextlib import contextmanager
+from enum import Enum, unique
 
 from .blobstore import BlobStore
 from .blobstore.s3 import S3BlobStore
@@ -10,9 +11,15 @@ from .hcablobstore.s3 import S3HCABlobStore
 from .hcablobstore.gcs import GCSHCABlobStore
 
 
+class BucketConfig(Enum):
+    PROD = 0
+    TEST = 1
+    TEST_FIXTURE = 2
+
 class Config(object):
     _S3_BUCKET = None  # type: str
     _GS_BUCKET = None  # type: str
+    _CURRENT_CONFIG = BucketConfig.TEST  # type: BucketConfig
 
     @staticmethod
     def get_cloud_specific_handles(replica: str) -> typing.Tuple[
@@ -45,10 +52,15 @@ class Config(object):
         #
         # Tests will continue to operate on the test bucket, however.
         if Config._S3_BUCKET is None:
-            if "DSS_S3_TEST_BUCKET" not in os.environ:
+            if Config._CURRENT_CONFIG == BucketConfig.TEST:
+                envvar = "DSS_S3_TEST_BUCKET"
+            elif Config._CURRENT_CONFIG == BucketConfig.TEST_FIXTURE:
+                envvar = "DSS_S3_TEST_SRC_DATA_BUCKET"
+
+            if envvar not in os.environ:
                 raise Exception(
-                    "Please set the DSS_S3_TEST_BUCKET environment variable")
-            Config._S3_BUCKET = os.environ["DSS_S3_TEST_BUCKET"]
+                    "Please set the {} environment variable".format(envvar))
+            Config._S3_BUCKET = os.environ[envvar]
 
         return Config._S3_BUCKET
 
@@ -59,20 +71,33 @@ class Config(object):
         # different bucket than the tests.
         #
         # Tests will continue to operate on the test bucket, however.
-        if Config._GS_BUCKET is None:
-            if "DSS_GCS_TEST_BUCKET" not in os.environ:
-                raise Exception(
-                    "Please set the DSS_GCS_TEST_BUCKET environment variable")
-            Config._GS_BUCKET = os.environ["DSS_GCS_TEST_BUCKET"]
+        if Config._CURRENT_CONFIG == BucketConfig.TEST:
+            envvar = "DSS_GCS_TEST_BUCKET"
+        elif Config._CURRENT_CONFIG == BucketConfig.TEST_FIXTURE:
+            envvar = "DSS_GCS_TEST_SRC_DATA_BUCKET"
+
+        if envvar not in os.environ:
+            raise Exception(
+                "Please set the {} environment variable".format(envvar))
+        Config._GS_BUCKET = os.environ[envvar]
 
         return Config._GS_BUCKET
 
+    @staticmethod
+    def _clear_cached_config():
+        # clear out the cached bucket settings.
+        Config._S3_BUCKET = None
+        Config._GS_BUCKET = None
+
 
 @contextmanager
-def override_s3_config(s3_bucket: str):
-    original_s3_bucket = Config._S3_BUCKET
+def override_bucket_config(temp_config: BucketConfig):
+    original_config = Config._CURRENT_CONFIG
+    Config._clear_cached_config()
+
     try:
-        Config._S3_BUCKET = s3_bucket
+        Config._CURRENT_CONFIG = temp_config
         yield
     finally:
-        Config._S3_BUCKET = original_s3_bucket
+        Config._CURRENT_CONFIG = original_config
+        Config._clear_cached_config()
