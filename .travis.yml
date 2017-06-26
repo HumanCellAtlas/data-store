@@ -26,7 +26,7 @@ install:
 - ./elasticsearch-${ES_VERSION}/bin/elasticsearch &
 - git submodule update --init
 before_script:
-- wget -q --tries 60 --waitretry 1 --retry-connrefused -O - http://127.0.0.1:9200
+- for i in {0..60}; do nc -z localhost 9200 && break; sleep 1; [[ $i == 60 ]] && exit 1; done
 script:
 - make test
 after_success:
