@@ -4,6 +4,6 @@ connexion
 elasticsearch
 elasticsearch_dsl
 flask-failsafe
-google-cloud-storage
+./packages/google-cloud-storage
 iso8601
 urllib3

@@ -14,6 +14,7 @@ from google.cloud.client import ClientWithProject
 from google.cloud._http import JSONConnection
 
 presigned_url_lifetime_seconds = 3600
+use_gcsts = False
 gcsts_sched_delay_minutes = 2
 
 class GCStorageTransferClient(ClientWithProject):
@@ -28,11 +29,14 @@ class GCStorageTransferConnection(JSONConnection):
 # TODO akislyuk: schedule a lambda to check the status of the job, get it permissions to execute:
 #                storagetransfer.transferJobs().get(jobName=gcsts_job["name"]).execute()
 # TODO akislyuk: parallelize S3->GCS transfers with range request lambdas
+# FIXME: (akislyuk) Copy DSS tags/object store metadata channel across clouds
 def sync_blob(source_platform, source_key, dest_platform, logger):
     logger.info("Begin transfer of {} from {} to {}".format(source_key, source_platform, dest_platform))
+    http = urllib3.PoolManager(cert_reqs="CERT_REQUIRED")
     gcs = google.cloud.storage.Client()
+    s3 = boto3.resource("s3")
     gcs_bucket_name, s3_bucket_name = os.environ["DSS_GCS_TEST_BUCKET"], os.environ["DSS_S3_TEST_BUCKET"]
-    if source_platform == "s3" and dest_platform == "gcs":
+    if source_platform == "s3" and dest_platform == "gcs" and use_gcsts:
         gcsts_client = GCStorageTransferClient()
         gcsts_conn = GCStorageTransferConnection(client=gcsts_client)
         now = datetime.datetime.utcnow()
@@ -80,12 +84,26 @@ def sync_blob(source_platform, source_key, dest_platform, logger):
         # https://storagetransfer.googleapis.com/$discovery/rest?version=v1
         # doesn't tell me either.
         # gcsts_job = gcsts_conn.api_request("GET", "/" + gcsts_job["name"])
+    elif source_platform == "s3" and dest_platform == "gcs":
+        s3_blob_url = s3.meta.client.generate_presigned_url(
+            ClientMethod='get_object',
+            Params=dict(Bucket=s3_bucket_name, Key=source_key),
+            ExpiresIn=presigned_url_lifetime_seconds
+        )
+        with closing(http.request("GET", s3_blob_url, preload_content=False)) as fh:
+            gcs_bucket = gcs.get_bucket(gcs_bucket_name)
+            gcs_blob = gcs_bucket.blob(source_key, chunk_size=1024 * 1024)
+            gcs_blob.upload_from_file(fh)
+            gcs_blob.metadata = s3.Bucket(s3_bucket_name).Object(source_key).metadata
+            gcs_blob.patch()
+        logger.info("Completed transfer of {} from {} to {}".format(source_key, s3_bucket_name, gcs_bucket_name))
     elif source_platform == "gcs" and dest_platform == "s3":
-        s3 = boto3.resource("s3")
-        gcs_blob = gcs.get_bucket(gcs_bucket_name).blob(source_key)
-        gcs_blob_url = gcs_blob.generate_signed_url(expiration=int(time.time() + presigned_url_lifetime_seconds))
-        http = urllib3.PoolManager(cert_reqs="CERT_REQUIRED")
+        gcs_blob = gcs.get_bucket(gcs_bucket_name).get_blob(source_key)
+        expires_timestamp = int(time.time() + presigned_url_lifetime_seconds)
+        gcs_blob_url = gcs_blob.generate_signed_url(expiration=expires_timestamp)
+        s3_blob = s3.Bucket(s3_bucket_name).Object(source_key)
         with closing(http.request("GET", gcs_blob_url, preload_content=False)) as fh:
-            s3.Bucket(s3_bucket_name).Object(source_key).upload_fileobj(fh)
+            s3_blob.upload_fileobj(fh, ExtraArgs=dict(Metadata=gcs_blob.metadata))
+        logger.info("Completed transfer of {} from {} to {}".format(source_key, gcs_bucket_name, s3_bucket_name))
     else:
         raise NotImplementedError()
