@@ -53,22 +53,23 @@ class TestSyncUtils(unittest.TestCase):
         test_metadata = {"metadata-sync-test": str(uuid.uuid4())}
         test_key = "hca-dss-sync-test/s3-to-gcs/{}".format(uuid.uuid4())
         src_blob = self.s3_bucket.Object(test_key)
-        dest_blob = self.gcs_bucket.blob(test_key)
+        gcs_dest_blob = self.gcs_bucket.blob(test_key)
         src_blob.put(Body=payload, Metadata=test_metadata)
         sync.sync_blob(source_platform="s3", source_key=test_key, dest_platform="gcs", logger=self.logger)
-        self.assertEqual(dest_blob.download_as_string(), payload)
-        dest_blob.reload()
-        self.assertEqual(dest_blob.metadata, test_metadata)
+        self.assertEqual(gcs_dest_blob.download_as_string(), payload)
 
         test_key = "hca-dss-sync-test/gcs-to-s3/{}".format(uuid.uuid4())
         src_blob = self.gcs_bucket.blob(test_key)
         dest_blob = self.s3_bucket.Object(test_key)
-        src_blob.upload_from_string(payload)
         src_blob.metadata = test_metadata
-        src_blob.patch()
+        src_blob.upload_from_string(payload)
         sync.sync_blob(source_platform="gcs", source_key=test_key, dest_platform="s3", logger=self.logger)
         self.assertEqual(dest_blob.get()["Body"].read(), payload)
         self.assertEqual(dest_blob.metadata, test_metadata)
+
+        # GCS metadata seems to take a while to propagate, so we wait until the above test completes to read it back
+        gcs_dest_blob.reload()
+        self.assertEqual(gcs_dest_blob.metadata, test_metadata)
 
 
 if __name__ == '__main__':

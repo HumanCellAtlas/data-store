@@ -29,7 +29,6 @@ class GCStorageTransferConnection(JSONConnection):
 # TODO akislyuk: schedule a lambda to check the status of the job, get it permissions to execute:
 #                storagetransfer.transferJobs().get(jobName=gcsts_job["name"]).execute()
 # TODO akislyuk: parallelize S3->GCS transfers with range request lambdas
-# FIXME: (akislyuk) Copy DSS tags/object store metadata channel across clouds
 def sync_blob(source_platform, source_key, dest_platform, logger):
     logger.info("Begin transfer of {} from {} to {}".format(source_key, source_platform, dest_platform))
     http = urllib3.PoolManager(cert_reqs="CERT_REQUIRED")
@@ -93,9 +92,8 @@ def sync_blob(source_platform, source_key, dest_platform, logger):
         with closing(http.request("GET", s3_blob_url, preload_content=False)) as fh:
             gcs_bucket = gcs.get_bucket(gcs_bucket_name)
             gcs_blob = gcs_bucket.blob(source_key, chunk_size=1024 * 1024)
-            gcs_blob.upload_from_file(fh)
             gcs_blob.metadata = s3.Bucket(s3_bucket_name).Object(source_key).metadata
-            gcs_blob.patch()
+            gcs_blob.upload_from_file(fh)
         logger.info("Completed transfer of {} from {} to {}".format(source_key, s3_bucket_name, gcs_bucket_name))
     elif source_platform == "gcs" and dest_platform == "s3":
         gcs_blob = gcs.get_bucket(gcs_bucket_name).get_blob(source_key)
