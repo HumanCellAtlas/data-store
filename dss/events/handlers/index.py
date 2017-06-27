@@ -1,16 +1,12 @@
 import json
-import logging
 import os
 import re
 from urllib.parse import unquote
 
 import boto3
-from elasticsearch import Elasticsearch, RequestsHttpConnection
 
-from ...util import AWSV4Sign
-
-HCA_ES_INDEX_NAME = "hca-metadata"
-HCA_METADATA_DOC_TYPE = "hca"
+from ... import DSS_ELASTICSEARCH_INDEX_NAME, DSS_ELASTICSEARCH_DOC_TYPE
+from ...util import connect_elasticsearch
 
 DSS_BUNDLE_KEY_REGEX = r"^bundles/[0-9A-Fa-f]{8}-[0-9A-Fa-f]{4}-4[0-9A-Fa-f]{3}-[0-9A-Fa-f]{4}-[0-9A-Fa-f]{12}\..+$"
 
@@ -18,20 +14,17 @@ DSS_BUNDLE_KEY_REGEX = r"^bundles/[0-9A-Fa-f]{8}-[0-9A-Fa-f]{4}-4[0-9A-Fa-f]{3}-
 # Lambda function for DSS indexing
 #
 
+
 def process_new_indexable_object(event, logger) -> None:
     try:
-        # Currently this function is only called for S3 creation events
-        validate_environment_variables("DSS_S3_TEST_BUCKET", "DSS_ES_ENDPOINT")
-
+        # This function is only called for S3 creation events
         key = unquote(event['Records'][0]["s3"]["object"]["key"])
         if is_bundle_to_index(key):
             logger.info("Received S3 creation event for bundle which will be indexed: %s", key)
-            bucket = boto3.resource("s3").Bucket(event['Records'][0]["s3"]["bucket"]["name"])
-            debug_log_object_info(bucket, key, logger)
-            check_for_tombstone(bucket, key, logger)
             s3 = boto3.resource('s3')
-            manifest = read_bundle_manifest(s3, bucket, key, logger)
-            index_data = create_index_data(s3, bucket, key, manifest, logger)
+            bucket_name = event['Records'][0]["s3"]["bucket"]["name"]
+            manifest = read_bundle_manifest(s3, bucket_name, key, logger)
+            index_data = create_index_data(s3, bucket_name, manifest, logger)
             add_index_data_to_elasticsearch(os.getenv("DSS_ES_ENDPOINT"), key, index_data, logger)
             logger.debug("Finished index processing of S3 creation event for bundle: %s", key)
         else:
@@ -50,33 +43,41 @@ def is_bundle_to_index(key) -> bool:
     return result is not None
 
 
-# TODO Future - Identified in the spec yet not needed for current prototype.
-def check_for_tombstone(bucket, key, log):
-    pass
-
-
-def read_bundle_manifest(s3, bucket, bundle_key, log):
-    manifest_string = s3.Object(os.getenv("DSS_S3_TEST_BUCKET"), bundle_key).get()['Body'].read().decode("utf-8")
-    log.debug("Read bundle manifest from bucket %s with bundle key %s: %s", bucket.name, bundle_key, manifest_string)
+def read_bundle_manifest(s3, bucket_name, bundle_key, logger):
+    manifest_string = s3.Object(bucket_name, bundle_key).get()['Body'].read().decode("utf-8")
+    logger.debug("Read bundle manifest from bucket %s with bundle key %s: %s", bucket_name, bundle_key, manifest_string)
     manifest = json.loads(manifest_string, encoding="utf-8")
     return manifest
 
 
-def create_index_data(s3, bucket, bundle_key, manifest, log):
+def create_index_data(s3, bucket_name, manifest, logger):
     index = dict(state="new", manifest=manifest)
     files_info = manifest['files']
     index_files = {}
-    bucket = s3.Bucket(os.getenv("DSS_S3_TEST_BUCKET"))
+    bucket = s3.Bucket(bucket_name)
     for file_info in files_info:
         if file_info['indexed'] is True:
-            if not file_info["name"].endswith(".json"):
-                log.warning("File %s is marked for indexing but is not of type JSON. It will not be indexed.")
+            if not file_info["name"].endswith(".json"):  # TODO Don't check filename, if file is 'indexed' load json
+                logger.warning("File %s is marked for indexing but does not end in .json. It will not be indexed.",
+                               file_info["name"])
                 continue
-            log.debug("Indexing file: %s", file_info["name"])
+            logger.debug("Indexing file: %s", file_info["name"])
             file_key = create_file_key(file_info)
             file_string = bucket.Object(file_key).get()['Body'].read().decode("utf-8")
             file_json = json.loads(file_string)
-            index_files[file_info["name"]] = file_json
+            # There are two reasons in favor of not using dot in the name of the individual
+            # files in the index document, and instead replacing it with an underscore.
+            # 1. Ambiguity regarding interpretation/processing of dots in field names,
+            #    which could potentially change between Elasticsearch versions. For example, see:
+            #       https://github.com/elastic/elasticsearch/issues/15951
+            # 2. The ES DSL queries are easier to read when there is no abiguity regarding
+            #    dot as a field separator, as may be seen in the Boston demo query.
+            # The Boston demo query spec uses underscore instead of dot in the filename portion
+            # of the query spec, so go with that, at least for now. Do so by substituting
+            # dot for underscore in the key filename portion of the index.
+            # As due diligence, additional investigation should be performed.
+            index_filename = file_info["name"].replace(".", "_")
+            index_files[index_filename] = file_json
     index['files'] = index_files
     return index
 
@@ -85,76 +86,34 @@ def create_file_key(file_info) -> str:
     return "blobs/{}.{}.{}.{}".format(file_info['sha256'], file_info['sha1'], file_info['s3-etag'], file_info['crc32c'])
 
 
-def add_index_data_to_elasticsearch(elasticsearchEndpoint, bundle_key, index_data, log) -> None:
-    es_client = connect_elasticsearch(elasticsearchEndpoint, log)
-    create_elasticsearch_index(es_client, log)
-    log.debug("Adding index data to Elasticsearch: %s", json.dumps(index_data, indent=4))
-    add_data_to_elasticsearch(es_client, bundle_key, index_data, log)
+def add_index_data_to_elasticsearch(elasticsearch_endpoint, bundle_key, index_data, logger) -> None:
+    es_client = connect_elasticsearch(elasticsearch_endpoint, logger)
+    create_elasticsearch_index(es_client, logger)
+    logger.debug("Adding index data to Elasticsearch: %s", json.dumps(index_data, indent=4))
+    add_data_to_elasticsearch(es_client, bundle_key, index_data, logger)
 
 
-def connect_elasticsearch(elasticsearch_endpoint: str, log) -> Elasticsearch:
-    log.debug('Connecting to the ES Endpoint: %s', elasticsearch_endpoint)
+def create_elasticsearch_index(es_client, logger):
     try:
-        if (elasticsearch_endpoint is None or elasticsearch_endpoint == ""):
-            raise Exception("The Elasticsearch endpoint is null or empty. " +
-                            "Set environment variable DSS_ES_ENDPOINT to the Elasticsearch endpoint.")
-
-        if elasticsearch_endpoint.endswith(".amazonaws.com"):
-            log.debug("Connecting to AWS Elasticsearch service with endpoint: %s", elasticsearch_endpoint)
-            session = boto3.session.Session()
-            es_auth = AWSV4Sign(session.get_credentials(), session.region_name, service="es")
-            es_client = Elasticsearch(
-                hosts=[{'host': elasticsearch_endpoint, 'port': 443}],
-                use_ssl=True,
-                verify_certs=True,
-                connection_class=RequestsHttpConnection,
-                http_auth=es_auth)
-        else:
-            log.debug("Connecting to local Elasticsearch service.")
-            es_client = Elasticsearch()  # Connect to local Elasticsearch
-        return es_client
-    except Exception as ex:
-        log.error("Unable to connect to Elasticsearch endpoint %s. Exception: %s", elasticsearch_endpoint, ex)
-        raise ex
-
-
-def create_elasticsearch_index(es_client, log):
-    try:
-        response = es_client.indices.exists(HCA_ES_INDEX_NAME)
+        response = es_client.indices.exists(DSS_ELASTICSEARCH_INDEX_NAME)
         if response is False:
-            log.debug("Creating new Elasticsearch index: %s", HCA_ES_INDEX_NAME)
-            response = es_client.indices.create(HCA_ES_INDEX_NAME, body=None)
-            log.debug("Index creation response: %s", json.dumps(response, indent=4))
+            logger.debug("Creating new Elasticsearch index: %s", DSS_ELASTICSEARCH_INDEX_NAME)
+            response = es_client.indices.create(DSS_ELASTICSEARCH_INDEX_NAME, body=None)
+            logger.debug("Index creation response: %s", json.dumps(response, indent=4))
         else:
-            log.debug("Using existing Elasticsearch index: %s", HCA_ES_INDEX_NAME)
+            logger.debug("Using existing Elasticsearch index: %s", DSS_ELASTICSEARCH_INDEX_NAME)
     except Exception as ex:
-        log.critical("Unable to create index %s  Exception: %s", HCA_ES_INDEX_NAME, ex)
+        logger.critical("Unable to create index %s  Exception: %s", DSS_ELASTICSEARCH_INDEX_NAME, ex)
 
 
-def add_data_to_elasticsearch(es_client, bundle_key, index_data, log) -> None:
+def add_data_to_elasticsearch(es_client, bundle_key, index_data, logger) -> None:
     try:
-        if bundle_key.startswith("bundle/"):
-            bundle_key = bundle_key[7:]
-        es_client.index(index=HCA_ES_INDEX_NAME,
-                        doc_type=HCA_METADATA_DOC_TYPE,
+        if bundle_key.startswith("bundles/"):
+            bundle_key = bundle_key[8:]
+        es_client.index(index=DSS_ELASTICSEARCH_INDEX_NAME,
+                        doc_type=DSS_ELASTICSEARCH_DOC_TYPE,
                         id=bundle_key,
                         body=json.dumps(index_data, indent=4))
 
     except Exception as ex:
-        log.error("Document not indexed. Exception: %s  Index data: %s", ex, json.dumps(index_data, indent=4))
-
-
-def validate_environment_variables(*environment_variable_names):
-    invalid_variables = set()
-    for environment_variable_name in environment_variable_names:
-        variable_value = os.getenv(environment_variable_name)
-        if variable_value is None or variable_value == "":
-            invalid_variables.add(environment_variable_name)
-    if invalid_variables:
-        raise Exception("These required environment variables are unset or empty: {}".format(invalid_variables))
-
-
-def debug_log_object_info(bucket, key, log) -> None:
-    if log.isEnabledFor(logging.DEBUG):
-        obj = bucket.Object(key)
-        log.debug("Received an event from S3, object head: %s", obj.get(Range='bytes=0-80')["Body"].read())
+        logger.error("Document not indexed. Exception: %s  Index data: %s", ex, json.dumps(index_data, indent=4))

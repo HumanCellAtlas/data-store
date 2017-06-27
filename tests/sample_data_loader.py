@@ -10,13 +10,12 @@
 #
 
 import binascii
+import datetime
 import hashlib
 import json
 import logging
 import os
-import time
 import uuid
-
 from typing import Dict, Any
 
 import boto3
@@ -35,7 +34,7 @@ def load_sample_data_bundle() -> str:
 
     # Load sample-data-bundles dropseq
     data_bundle_examples_path = path_to_data_bundle_examples()
-    data_bundle_path = os.path.join(data_bundle_examples_path, "dropseq", "GSE81904")
+    data_bundle_path = os.path.join(data_bundle_examples_path, "smartseq2", "paired_ends")
     s3_client = boto3.client('s3')
     bundle_key = create_dropseq_bundle(data_bundle_path, s3_client)
     return bundle_key
@@ -68,7 +67,7 @@ def create_dropseq_bundle(data_bundle_path: str, s3_client: object) -> str:
             files_info.append(create_file_info(data_bundle_path, filename, False))
         bundle_manifest = create_bundle_manifest(files_info)
         bundle_uuid = uuid.uuid4()
-        bundle_key = "bundles/{}.{}".format(bundle_uuid, int(time.time()))
+        bundle_key = "bundles/{}.{}".format(bundle_uuid, create_version())
         log.debug("bundle_key=%s", bundle_key)
         upload_bundle_files(s3_client, data_bundle_path, files_info)
         upload_bundle_manifest(s3_client, bundle_key, bundle_manifest)
@@ -77,17 +76,24 @@ def create_dropseq_bundle(data_bundle_path: str, s3_client: object) -> str:
         os.remove(os.path.join(data_bundle_path, tmp_nonindexed_filename2))
     return bundle_key
 
+
 def create_nonindexed_test_file(path, filename):
     with open(os.path.join(path, filename), "w+") as fh:
         fh.write("Temp test mock data " + filename)
 
+
 def create_bundle_manifest(files_info) -> str:
     bundle_info = {}  # type: Dict[str, Any]
-    bundle_info['version'] = '0.0.0'
-    bundle_info['timestamp'] = int(time.time())  # TODO Replace with rfc3339 timestamp
+    bundle_info['format'] = '0.0.1'
+    bundle_info['version'] = create_version()
     bundle_info['files'] = files_info
-    bundle_info['creator_uid'] = 5
+    bundle_info['creator_uid'] = 12345
     return json.dumps(bundle_info, indent=4)
+
+
+def create_version():
+    timestamp = datetime.datetime.utcnow()
+    return timestamp.strftime("%Y-%m-%dT%H%M%S.%fZ")
 
 
 def create_file_info(bundle_path: str, filename: str, indexed: bool):
@@ -95,7 +101,7 @@ def create_file_info(bundle_path: str, filename: str, indexed: bool):
     file_path = os.path.join(bundle_path, filename)
     file_info['name'] = filename
     file_info['uuid'] = str(uuid.uuid4())
-    file_info['timestamp'] = int(os.path.getctime(file_path))  # TODO Replace with rfc3339 timestamp
+    file_info['version'] = create_version()
     file_info['content-type'] = "metadata"  # TODO What should the content type be?
     file_info['indexed'] = indexed
     add_file_hashes(file_info, file_path)
