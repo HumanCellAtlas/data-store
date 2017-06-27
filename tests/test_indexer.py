@@ -13,7 +13,7 @@ import moto
 from elasticsearch import Elasticsearch
 from elasticsearch_dsl import Search
 
-from dss.events.handlers.index import process_new_indexable_object  # noqa
+from dss.events.handlers.index import process_new_indexable_object
 from tests import utils
 from tests.sample_data_loader import load_sample_data_bundle
 
