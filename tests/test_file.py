@@ -12,12 +12,12 @@ import uuid
 
 import requests
 
-pkg_root = os.path.abspath(os.path.join(os.path.dirname(__file__), '..'))
-sys.path.insert(0, pkg_root)
+pkg_root = os.path.abspath(os.path.join(os.path.dirname(__file__), '..')) # noqa
+sys.path.insert(0, pkg_root) # noqa
 
-import dss  # noqa
-from dss.config import BucketConfig, override_bucket_config  # noqa
-from tests.infra import DSSAsserts, UrlBuilder  # noqa
+import dss
+from dss.config import BucketConfig, override_bucket_config
+from tests.infra import DSSAsserts, UrlBuilder
 
 
 class TestFileApi(unittest.TestCase, DSSAsserts):

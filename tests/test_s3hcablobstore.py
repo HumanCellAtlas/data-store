@@ -5,14 +5,14 @@ import os
 import sys
 import unittest
 
-pkg_root = os.path.abspath(os.path.join(os.path.dirname(__file__), '..'))
-sys.path.insert(0, pkg_root)
+pkg_root = os.path.abspath(os.path.join(os.path.dirname(__file__), '..')) # noqa
+sys.path.insert(0, pkg_root) # noqa
 
-from dss.blobstore import BlobNotFoundError  # noqa
-from dss.blobstore.s3 import S3BlobStore  # noqa
-from dss.hcablobstore import HCABlobStore  # noqa
-from dss.hcablobstore.s3 import S3HCABlobStore  # noqa
-from tests import utils  # noqa
+from dss.blobstore import BlobNotFoundError
+from dss.blobstore.s3 import S3BlobStore
+from dss.hcablobstore import HCABlobStore
+from dss.hcablobstore.s3 import S3HCABlobStore
+from tests import utils
 
 
 class TestS3HCABlobStore(unittest.TestCase):
