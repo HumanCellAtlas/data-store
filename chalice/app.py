@@ -56,7 +56,7 @@ def get_chalice_app(flask_app):
         event = app.current_request.json_body
         if event["kind"] == "storage#object" and event["selfLink"].startswith("https://www.googleapis.com/storage"):
             gcs_key_name = event["name"]
-            sync_result = sync_blob(source_platform="gce",
+            sync_result = sync_blob(source_platform="gcs",
                                     source_key=gcs_key_name,
                                     dest_platform="s3",
                                     logger=app.logger)
