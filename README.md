@@ -19,10 +19,10 @@ The prototype is deployed continuously from the `master` branch, with the result
 https://hca-dss.czi.technology/.
 
 #### Installing dependencies for development on the prototype
-The HCA DSS prototype development environment requires Python 3.4+ to run. Run `pip install -r requirements-dev.txt` in this directory.
+The HCA DSS prototype development environment requires Python 3.6+ to run. Run `pip install -r requirements-dev.txt` in this directory.
 
 #### Installing dependencies for the prototype
-The HCA DSS prototype requires Python 3.4+ to run. Run `pip install -r requirements.txt` in this directory.
+The HCA DSS prototype requires Python 3.6+ to run. Run `pip install -r requirements.txt` in this directory.
 
 You must do this step regardless of whether or not you installed the dev requirements above.
 
