@@ -64,6 +64,10 @@ def upload(uploader: Uploader):
         "9cdc9050cecf59381fed55a2433140b69596fc861bee55abeafd1f9150f3e2da",
         "blobs/9cdc9050cecf59381fed55a2433140b69596fc861bee55abeafd1f9150f3e2da.15684690e8132044f378b4d4af8a7331c8da17b1.7f54939b30ae7b6d45d473a4c82a41b0.114dee2c"  # noqa
     )
+    uploader.upload_file(
+        "cfc7749b96f63bd31c3c42b5c471bf756814053e847c10f3eb003417bc523d30",
+        "blobs/cfc7749b96f63bd31c3c42b5c471bf756814053e847c10f3eb003417bc523d30.2b8b815229aa8a61e483fb4ba0588b8b6c491890.3b83ef96387f14655fc854ddc3c6bd57.e16e07b9"  # noqa
+    )
 
     # upload the /files.
     uploader.upload_file(
