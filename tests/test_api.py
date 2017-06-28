@@ -32,7 +32,8 @@ class TestApi(unittest.TestCase, DSSAsserts):
     BUNDLE_FIXTURE = 'fixtures/test_api/bundle'  # 's3://hca-dss-test-src/fixtures/test_api/bundle'
 
     def test_creation_and_retrieval_of_files_and_bundle(self):
-        """Test file and bundle lifecycle.
+        """
+        Test file and bundle lifecycle.
         Exercises:
           - PUT /files/<uuid>
           - PUT /bundles/<uuid>
