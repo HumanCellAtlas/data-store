@@ -32,14 +32,19 @@ Run: `git submodule update --init`
 #### Configuring cloud-specific access credentials
 
 **AWS**: Follow the instructions in
-http://docs.aws.amazon.com/cli/latest/userguide/cli-chap-getting-started.html to get the `aws` command line utility. Create an S3 bucket that you want DSS to
-use. Set the environment variable `DSS_S3_TEST_BUCKET`.
+http://docs.aws.amazon.com/cli/latest/userguide/cli-chap-getting-started.html to get the `aws` command line
+utility. Create an S3 bucket that you want DSS to use. Set the environment variable `DSS_S3_TEST_BUCKET`. If you wish to
+run the unit tests, you must create a second S3 bucket to store the test fixtures, and set the environment variable
+`DSS_S3_TEST_SRC_DATA_BUCKET` to the name of that bucket.
 
-**GCE**: Follow the instructions in https://cloud.google.com/sdk/downloads to get the `gcloud` command line utility.  Next, go to https://console.cloud.google.com/. Select the correct Google user account on the top right and the
-correct GCE project in the drop down in the top center. Go to "IAM & Admin", then "Service accounts", then click "Create
-service account" and select "Furnish a new private key". Create the account and download the service account key JSON
-file. Run `gcloud auth activate-service-account --key-file=/path/to/service-account.json`. Run `gcloud config set
-project 'PROJECT NAME'`. Create a Google Storage bucket that you want DSS to use. Set the environment variable `DSS_GCS_TEST_BUCKET`.
+**GCP**: Follow the instructions in https://cloud.google.com/sdk/downloads to get the `gcloud` command line utility.
+Next, go to https://console.cloud.google.com/. Select the correct Google user account on the top right and the correct
+GCP project in the drop down in the top center. Go to "IAM & Admin", then "Service accounts", then click "Create service
+account" and select "Furnish a new private key". Create the account and download the service account key JSON file. Run
+`gcloud auth activate-service-account --key-file=/path/to/service-account.json`. Run `gcloud config set project 'PROJECT
+NAME'`. Create a bucket on Google Cloud Platform and set the environment variable `DSS_GCS_TEST_BUCKET`.  If you wish to
+run the unit tests, you must create a second Google Cloud Platform bucket to store the test fixtures, and set the
+environment variable `DSS_GS_TEST_SRC_DATA_BUCKET` to the name of that bucket.
 
 **Azure**: Set the environment variables `AZURE_STORAGE_ACCOUNT_NAME` and `AZURE_STORAGE_ACCOUNT_KEY`.
 
