@@ -7,19 +7,14 @@ Functional Test of the API
 
 from __future__ import absolute_import, division, print_function, unicode_literals
 
-import boto3
-import os
-import requests
-import sys
-import unittest
-import uuid
-import json
-from tests import utils
+import os, sys, unittest, uuid, json
+import boto3, requests
 
 pkg_root = os.path.abspath(os.path.join(os.path.dirname(__file__), '..'))  # noqa
 sys.path.insert(0, pkg_root)  # noqa
 
 import dss
+from tests import utils
 from tests.infra import DSSAsserts, UrlBuilder, progress
 
 
