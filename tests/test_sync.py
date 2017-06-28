@@ -33,8 +33,8 @@ class TestSyncUtils(unittest.TestCase):
         self.gs_bucket_name = os.environ["DSS_GS_TEST_BUCKET"]
         self.s3_bucket_name = os.environ["DSS_S3_TEST_BUCKET"]
         self.logger = logging.getLogger(__name__)
-        gcs_key_file = os.environ["GOOGLE_APPLICATION_CREDENTIALS"]
-        gs = google.cloud.storage.Client.from_service_account_json(gcs_key_file)
+        gcp_key_file = os.environ["GOOGLE_APPLICATION_CREDENTIALS"]
+        gs = google.cloud.storage.Client.from_service_account_json(gcp_key_file)
         self.gs_bucket = gs.bucket(self.gs_bucket_name)
         s3 = boto3.resource("s3")
         self.s3_bucket = s3.Bucket(self.s3_bucket_name)

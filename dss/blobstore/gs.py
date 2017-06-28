@@ -15,14 +15,14 @@ class GSBlobStore(BlobStore):
     def __init__(self, json_keyfile: str) -> None:
         super(GSBlobStore, self).__init__()
 
-        self.gcs_client = Client.from_service_account_json(json_keyfile)
+        self.gcp_client = Client.from_service_account_json(json_keyfile)
         self.bucket_map = dict()  # type: typing.MutableMapping[str, Bucket]
 
     def _ensure_bucket_loaded(self, bucket: str):
         cached_bucket_obj = self.bucket_map.get(bucket, None)
         if cached_bucket_obj is not None:
             return cached_bucket_obj
-        bucket_obj = self.gcs_client.bucket(bucket)  # type: Bucket
+        bucket_obj = self.gcp_client.bucket(bucket)  # type: Bucket
         self.bucket_map[bucket] = bucket_obj
         return bucket_obj
 

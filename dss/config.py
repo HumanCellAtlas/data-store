@@ -34,7 +34,7 @@ class Config(object):
                 S3HCABlobStore(handle),
                 Config.get_s3_bucket()
             )
-        elif replica == 'gcs':
+        elif replica == 'gcp':
             credentials = os.environ["GOOGLE_APPLICATION_CREDENTIALS"]
             handle = GSBlobStore(credentials)
             return (

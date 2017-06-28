@@ -26,7 +26,7 @@ class TestDSS(unittest.TestCase, DSSAsserts):
 
     def test_bundle_get(self):
         self._test_bundle_get("aws")
-        self._test_bundle_get("gcs")
+        self._test_bundle_get("gcp")
 
     def _test_bundle_get(self, replica):
         bundle_uuid = "011c7340-9b3c-4d62-bf49-090d79daf198"
@@ -57,12 +57,12 @@ class TestDSS(unittest.TestCase, DSSAsserts):
 
     def test_bundle_put(self):
         self._test_bundle_put("aws")
-        self._test_bundle_put("gcs")
+        self._test_bundle_put("gcp")
 
     def _test_bundle_put(self, replica):
         if replica == "aws":
             schema = "s3"
-        elif replica == "gcs":
+        elif replica == "gcp":
             schema = "gs"
 
         file_uuid = str(uuid.uuid4())
