@@ -46,9 +46,9 @@ class TestApi(unittest.TestCase, DSSAsserts):
         self.get_bundle_and_check_files(bundle)
 
     def upload_files_and_create_bundle(self, bundle):
-        for file in bundle.files:
-            version = self.upload_file(file)
-            file.version = version
+        for s3file in bundle.files:
+            version = self.upload_file(s3file)
+            s3file.version = version
         self.create_bundle(bundle)
 
     def upload_file(self, file):
@@ -112,23 +112,23 @@ class TestApi(unittest.TestCase, DSSAsserts):
 
     def check_bundle_contains_same_files(self, bundle, file_metadata):
         self.assertEqual(len(bundle.files), len(file_metadata))
-        for file in bundle.files:
+        for bundle_file in bundle.files:
             try:
-                filedata = next(data for data in file_metadata if data['uuid'] == file.uuid)
+                filedata = next(data for data in file_metadata if data['uuid'] == bundle_file.uuid)
             except StopIteration:
-                self.fail(f"File {file.uuid} is missing from bundle")
-            self.assertEqual(filedata['uuid'], file.uuid)
-            self.assertEqual(filedata['name'], file.name)
-            self.assertEqual(filedata['version'], file.version)
+                self.fail(f"File {bundle_file.uuid} is missing from bundle")
+            self.assertEqual(filedata['uuid'], bundle_file.uuid)
+            self.assertEqual(filedata['name'], bundle_file.name)
+            self.assertEqual(filedata['version'], bundle_file.version)
 
     def check_files_are_associated_with_bundle(self, bundle):
-        for file in bundle.files:
+        for bundle_file in bundle.files:
             response = self.assertGetResponse(
-                str(UrlBuilder().set(path='/v1/files/' + file.uuid).add_query('replica', 'aws')),
+                str(UrlBuilder().set(path='/v1/files/' + bundle_file.uuid).add_query('replica', 'aws')),
                 requests.codes.found,
             )
-            self.assertEqual(file.bundle.uuid, response[0].headers['X-DSS-BUNDLE-UUID'])
-            self.assertEqual(file.version, response[0].headers['X-DSS-VERSION'])
+            self.assertEqual(bundle_file.bundle.uuid, response[0].headers['X-DSS-BUNDLE-UUID'])
+            self.assertEqual(bundle_file.version, response[0].headers['X-DSS-VERSION'])
 
     @classmethod
     def progress(cls, message):
