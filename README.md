@@ -24,6 +24,11 @@ The HCA DSS prototype development environment requires Python 3.4+ to run. Run `
 #### Installing dependencies for the prototype
 The HCA DSS prototype requires Python 3.4+ to run. Run `pip install -r requirements.txt` in this directory.
 
+#### Pull sample data bundles
+
+Tests also use data from the data-bundle-examples subrepository.
+Run: `git submodule update --init`
+
 #### Configuring cloud-specific access credentials
 
 **AWS**: Follow the instructions in
@@ -46,9 +51,6 @@ Run `make test` in this directory.
 
 Some tests require the Elasticsearch service to be running on the local system.
 Run: `elasticsearch`
-
-Tests also use data from the data-bundle-examples subrepository.
-Run: `git submodule update --init`
 
 #### CI/CD with Travis CI
 We use [Travis CI](https://travis-ci.org/HumanCellAtlas/data-store) for continuous integration testing and
