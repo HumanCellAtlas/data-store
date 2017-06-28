@@ -24,6 +24,20 @@ The HCA DSS prototype development environment requires Python 3.4+ to run. Run `
 #### Installing dependencies for the prototype
 The HCA DSS prototype requires Python 3.4+ to run. Run `pip install -r requirements.txt` in this directory.
 
+#### Configuring cloud-specific access credentials
+
+**AWS**: Follow the instructions in
+http://docs.aws.amazon.com/cli/latest/userguide/cli-chap-getting-started.html to get the `aws` command line utility. Create an S3 bucket that you want DSS to
+use. Set the environment variable `DSS_S3_TEST_BUCKET`.
+
+**GCE**: Follow the instructions in https://cloud.google.com/sdk/downloads to get the `gcloud` command line utility.  Next, go to https://console.cloud.google.com/. Select the correct Google user account on the top right and the
+correct GCE project in the drop down in the top center. Go to "IAM & Admin", then "Service accounts", then click "Create
+service account" and select "Furnish a new private key". Create the account and download the service account key JSON
+file. Run `gcloud auth activate-service-account --key-file=/path/to/service-account.json`. Run `gcloud config set
+project 'PROJECT NAME'`. Create a bucket on Google cloud and set the environment variable `DSS_GCS_TEST_BUCKET`.
+
+**Azure**: Set the environment variables `AZURE_STORAGE_ACCOUNT_NAME` and `AZURE_STORAGE_ACCOUNT_KEY`.
+
 #### Running the prototype
 Run `./dss-api` in this directory.
 
@@ -35,20 +49,6 @@ Run: `elasticsearch`
 
 Tests also use data from the data-bundle-examples subrepository.
 Run: `git submodule update --init`
-
-#### Configuring cloud-specific access credentials
-
-**AWS**: Follow the instructions in
-http://docs.aws.amazon.com/cli/latest/userguide/cli-chap-getting-started.html. Create an S3 bucket that you want DSS to
-use. Set the environment variable `DSS_S3_TEST_BUCKET`.
-
-**GCE**: Go to https://console.cloud.google.com/. Select the correct Google user account on the top right and the
-correct GCE project in the drop down in the top center. Go to "IAM & Admin", then "Service accounts", then click "Create
-service account" and select "Furnish a new private key". Create the account and download the service account key JSON
-file. Run `gcloud auth activate-service-account --key-file=/path/to/service-account.json`. Run `gcloud config set
-project 'PROJECT NAME'`. Set the environment variable `DSS_GCS_TEST_BUCKET`.
-
-**Azure**: Set the environment variables `AZURE_STORAGE_ACCOUNT_NAME` and `AZURE_STORAGE_ACCOUNT_KEY`.
 
 #### CI/CD with Travis CI
 We use [Travis CI](https://travis-ci.org/HumanCellAtlas/data-store) for continuous integration testing and
