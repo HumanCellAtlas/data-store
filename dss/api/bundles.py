@@ -19,8 +19,7 @@ def get(
         replica: str="AWS"):
     uuid = uuid.lower()
 
-    handle, hca_handle, bucket = \
-        Config.get_cloud_specific_handles(replica)
+    handle, hca_handle, bucket = Config.get_cloud_specific_handles(replica)
 
     if version is None:
         # list the files and find the one that is the most recent.
@@ -90,8 +89,7 @@ def put(uuid: str, replica: str, extras: dict, version: str=None):
         timestamp = datetime.datetime.utcnow()
     version = timestamp.strftime("%Y-%m-%dT%H%M%S.%fZ")
 
-    handle, hca_handle, bucket = \
-        Config.get_cloud_specific_handles(replica)
+    handle, hca_handle, bucket = Config.get_cloud_specific_handles(replica)
 
     # what's the target object name for the bundle manifest?
     bundle_manifest_object_name = "bundles/" + uuid + "." + version

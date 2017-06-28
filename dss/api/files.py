@@ -39,8 +39,7 @@ def get(uuid: str, replica: str=None, version: str=None):
     if request.method == "HEAD" and replica is None:
         replica = "AWS"
 
-    handle, hca_handle, bucket = \
-        Config.get_cloud_specific_handles(replica)
+    handle, hca_handle, bucket = Config.get_cloud_specific_handles(replica)
 
     if version is None:
         # list the files and find the one that is the most recent.
@@ -118,11 +117,9 @@ def put(uuid: str, extras: dict, version: str=None):
         "$")
     mobj = cre.match(source_url)
     if mobj and mobj.group('schema') == "s3":
-        handle, hca_handle, dst_bucket = \
-            Config.get_cloud_specific_handles("aws")
+        handle, hca_handle, dst_bucket = Config.get_cloud_specific_handles("aws")
     elif mobj and mobj.group('schema') == "gs":
-        handle, hca_handle, dst_bucket = \
-            Config.get_cloud_specific_handles("gcp")
+        handle, hca_handle, dst_bucket = Config.get_cloud_specific_handles("gcp")
     else:
         # TODO: (ttung) better error messages pls.
         return (
