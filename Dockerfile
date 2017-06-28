@@ -21,6 +21,7 @@ WORKDIR /code/data-store
 ADD requirements-dev.txt .
 RUN pip install --requirement requirements-dev.txt
 ADD requirements.txt .
+ADD packages packages
 RUN pip install --requirement requirements.txt
 ADD . /code/data-store
 
