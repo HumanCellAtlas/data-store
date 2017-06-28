@@ -39,7 +39,7 @@ use. Set the environment variable `DSS_S3_TEST_BUCKET`.
 correct GCE project in the drop down in the top center. Go to "IAM & Admin", then "Service accounts", then click "Create
 service account" and select "Furnish a new private key". Create the account and download the service account key JSON
 file. Run `gcloud auth activate-service-account --key-file=/path/to/service-account.json`. Run `gcloud config set
-project 'PROJECT NAME'`. Create a bucket on Google cloud and set the environment variable `DSS_GCS_TEST_BUCKET`.
+project 'PROJECT NAME'`. Create a Google Storage bucket that you want DSS to use. Set the environment variable `DSS_GCS_TEST_BUCKET`.
 
 **Azure**: Set the environment variables `AZURE_STORAGE_ACCOUNT_NAME` and `AZURE_STORAGE_ACCOUNT_KEY`.
 
