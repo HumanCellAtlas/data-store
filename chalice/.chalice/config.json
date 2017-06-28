@@ -6,7 +6,7 @@
     "dev": {
       "api_gateway_stage": "dev",
       "environment_variables": {
-        "GOOGLE_APPLICATION_CREDENTIALS": "/var/task/chalicelib/gcs-credentials.json"
+        "GOOGLE_APPLICATION_CREDENTIALS": "/var/task/chalicelib/gcp-credentials.json"
       }
     }
   }
