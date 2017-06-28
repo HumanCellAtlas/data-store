@@ -9,6 +9,16 @@ schemes:
 basePath: /v1
 produces:
   - application/json
+securityDefinitions:
+  googAuth:
+    type: oauth2
+    flow: accessCode
+    authorizationUrl: https://accounts.google.com/o/oauth2/v2/auth
+    tokenUrl: https://www.googleapis.com/oauth2/v4/token
+    scopes:
+      read: Grants read access
+      write: Grants write access
+      admin: Grants read and write access to administrative information
 paths:
   /search:
     get:
@@ -16,6 +26,8 @@ paths:
         Returns a list of bundles matching the given simple criteria
       summary: Find bundles by querying their metadata using simple criteria
       operationId: dss.api.search.find
+      security:
+        - googAuth: [admin]
       parameters:
         - name: query
           in: query
