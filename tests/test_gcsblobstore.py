@@ -18,7 +18,7 @@ from tests.test_blobstore import BlobStoreTests
 
 class TestGCSBlobStore(unittest.TestCase, BlobStoreTests):
     def setUp(self):
-        self.credentials = os.path.join(pkg_root, "gcs-credentials.json")
+        self.credentials = utils.get_env("GOOGLE_APPLICATION_CREDENTIALS")
         self.test_bucket = utils.get_env("DSS_GCS_TEST_BUCKET")
         self.test_src_data_bucket = utils.get_env(
             "DSS_GCS_TEST_SRC_DATA_BUCKET")

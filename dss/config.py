@@ -1,7 +1,7 @@
 import os
 import typing
 from contextlib import contextmanager
-from enum import Enum, unique
+from enum import Enum
 
 from .blobstore import BlobStore
 from .blobstore.s3 import S3BlobStore
@@ -15,6 +15,7 @@ class BucketConfig(Enum):
     PROD = 0
     TEST = 1
     TEST_FIXTURE = 2
+
 
 class Config(object):
     _S3_BUCKET = None  # type: str
@@ -34,8 +35,7 @@ class Config(object):
                 Config.get_s3_bucket()
             )
         elif replica == 'gcs':
-            pkg_root = os.path.abspath(os.path.join(os.path.dirname(__file__), '..'))
-            credentials = os.path.join(pkg_root, "gcs-credentials.json")
+            credentials = os.environ["GOOGLE_APPLICATION_CREDENTIALS"]
             handle = GCSBlobStore(credentials)
             return (
                 handle,
