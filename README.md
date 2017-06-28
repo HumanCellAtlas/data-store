@@ -24,6 +24,8 @@ The HCA DSS prototype development environment requires Python 3.4+ to run. Run `
 #### Installing dependencies for the prototype
 The HCA DSS prototype requires Python 3.4+ to run. Run `pip install -r requirements.txt` in this directory.
 
+You must do this step regardless of whether or not you installed the dev requirements above.
+
 #### Pull sample data bundles
 
 Tests also use data from the data-bundle-examples subrepository.
