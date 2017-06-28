@@ -5,10 +5,10 @@ from enum import Enum
 
 from .blobstore import BlobStore
 from .blobstore.s3 import S3BlobStore
-from .blobstore.gcs import GCSBlobStore
+from .blobstore.gs import GSBlobStore
 from .hcablobstore import HCABlobStore
 from .hcablobstore.s3 import S3HCABlobStore
-from .hcablobstore.gcs import GCSHCABlobStore
+from .hcablobstore.gs import GSHCABlobStore
 
 
 class BucketConfig(Enum):
@@ -36,10 +36,10 @@ class Config(object):
             )
         elif replica == 'gcs':
             credentials = os.environ["GOOGLE_APPLICATION_CREDENTIALS"]
-            handle = GCSBlobStore(credentials)
+            handle = GSBlobStore(credentials)
             return (
                 handle,
-                GCSHCABlobStore(handle),
+                GSHCABlobStore(handle),
                 Config.get_gs_bucket()
             )
         raise ValueError("I don't understand this replica!")
@@ -67,14 +67,14 @@ class Config(object):
     @staticmethod
     def get_gs_bucket() -> str:
         # TODO: (ttung) right now, we use the bucket defined in
-        # DSS_GCS_TEST_BUCKET.  Eventually, the deployed version should use a
+        # DSS_GS_TEST_BUCKET.  Eventually, the deployed version should use a
         # different bucket than the tests.
         #
         # Tests will continue to operate on the test bucket, however.
         if Config._CURRENT_CONFIG == BucketConfig.TEST:
-            envvar = "DSS_GCS_TEST_BUCKET"
+            envvar = "DSS_GS_TEST_BUCKET"
         elif Config._CURRENT_CONFIG == BucketConfig.TEST_FIXTURE:
-            envvar = "DSS_GCS_TEST_SRC_DATA_BUCKET"
+            envvar = "DSS_GS_TEST_SRC_DATA_BUCKET"
 
         if envvar not in os.environ:
             raise Exception(

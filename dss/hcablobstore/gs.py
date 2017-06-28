@@ -6,7 +6,7 @@ from . import HCABlobStore
 from ..blobstore import BlobStore
 
 
-class GCSHCABlobStore(HCABlobStore):
+class GSHCABlobStore(HCABlobStore):
     def __init__(self, handle: BlobStore) -> None:
         self.handle = handle
 

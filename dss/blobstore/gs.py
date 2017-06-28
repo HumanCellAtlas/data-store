@@ -11,9 +11,9 @@ from google.cloud.storage.bucket import Bucket
 from . import BlobNotFoundError, BlobStore
 
 
-class GCSBlobStore(BlobStore):
+class GSBlobStore(BlobStore):
     def __init__(self, json_keyfile: str) -> None:
-        super(GCSBlobStore, self).__init__()
+        super(GSBlobStore, self).__init__()
 
         self.gcs_client = Client.from_service_account_json(json_keyfile)
         self.bucket_map = dict()  # type: typing.MutableMapping[str, Bucket]

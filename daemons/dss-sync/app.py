@@ -25,4 +25,4 @@ def process_new_syncable_object(event, context):
         s3 = boto3.resource("s3")
         bucket = s3.Bucket(event['Records'][0]["s3"]["bucket"]["name"])
         obj = bucket.Object(unquote(event['Records'][0]["s3"]["object"]["key"]))
-        sync_blob(source_platform="s3", source_key=obj.key, dest_platform="gcs", logger=app.log)
+        sync_blob(source_platform="s3", source_key=obj.key, dest_platform="gs", logger=app.log)

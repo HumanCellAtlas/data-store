@@ -30,12 +30,12 @@ infra.start_verbose_logging()
 
 class TestSyncUtils(unittest.TestCase):
     def setUp(self):
-        self.gcs_bucket_name = os.environ["DSS_GCS_TEST_BUCKET"]
+        self.gs_bucket_name = os.environ["DSS_GS_TEST_BUCKET"]
         self.s3_bucket_name = os.environ["DSS_S3_TEST_BUCKET"]
         self.logger = logging.getLogger(__name__)
         gcs_key_file = os.environ["GOOGLE_APPLICATION_CREDENTIALS"]
-        gcs = google.cloud.storage.Client.from_service_account_json(gcs_key_file)
-        self.gcs_bucket = gcs.bucket(self.gcs_bucket_name)
+        gs = google.cloud.storage.Client.from_service_account_json(gcs_key_file)
+        self.gs_bucket = gs.bucket(self.gs_bucket_name)
         s3 = boto3.resource("s3")
         self.s3_bucket = s3.Bucket(self.s3_bucket_name)
 
@@ -43,7 +43,7 @@ class TestSyncUtils(unittest.TestCase):
         for key in self.s3_bucket.objects.filter(Prefix=prefix):
             if key.last_modified < datetime.datetime.now(datetime.timezone.utc) - age:
                 key.delete()
-        for key in self.gcs_bucket.list_blobs(prefix=prefix):
+        for key in self.gs_bucket.list_blobs(prefix=prefix):
             if key.time_created < datetime.datetime.now(datetime.timezone.utc) - age:
                 key.delete()
 
@@ -53,23 +53,23 @@ class TestSyncUtils(unittest.TestCase):
         test_metadata = {"metadata-sync-test": str(uuid.uuid4())}
         test_key = "hca-dss-sync-test/s3-to-gcs/{}".format(uuid.uuid4())
         src_blob = self.s3_bucket.Object(test_key)
-        gcs_dest_blob = self.gcs_bucket.blob(test_key)
+        gs_dest_blob = self.gs_bucket.blob(test_key)
         src_blob.put(Body=payload, Metadata=test_metadata)
-        sync.sync_blob(source_platform="s3", source_key=test_key, dest_platform="gcs", logger=self.logger)
-        self.assertEqual(gcs_dest_blob.download_as_string(), payload)
+        sync.sync_blob(source_platform="s3", source_key=test_key, dest_platform="gs", logger=self.logger)
+        self.assertEqual(gs_dest_blob.download_as_string(), payload)
 
         test_key = "hca-dss-sync-test/gcs-to-s3/{}".format(uuid.uuid4())
-        src_blob = self.gcs_bucket.blob(test_key)
+        src_blob = self.gs_bucket.blob(test_key)
         dest_blob = self.s3_bucket.Object(test_key)
         src_blob.metadata = test_metadata
         src_blob.upload_from_string(payload)
-        sync.sync_blob(source_platform="gcs", source_key=test_key, dest_platform="s3", logger=self.logger)
+        sync.sync_blob(source_platform="gs", source_key=test_key, dest_platform="s3", logger=self.logger)
         self.assertEqual(dest_blob.get()["Body"].read(), payload)
         self.assertEqual(dest_blob.metadata, test_metadata)
 
-        # GCS metadata seems to take a while to propagate, so we wait until the above test completes to read it back
-        gcs_dest_blob.reload()
-        self.assertEqual(gcs_dest_blob.metadata, test_metadata)
+        # GS metadata seems to take a while to propagate, so we wait until the above test completes to read it back
+        gs_dest_blob.reload()
+        self.assertEqual(gs_dest_blob.metadata, test_metadata)
 
 
 if __name__ == '__main__':
