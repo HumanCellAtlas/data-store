@@ -47,7 +47,7 @@ the environment variable `GOOGLE_APPLICATION_CREDENTIALS` to the path of the ser
 auth activate-service-account --key-file=/path/to/service-account.json`. Run `gcloud config set project 'PROJECT
 NAME'`. Create a bucket on Google Cloud Platform and set the environment variable `DSS_GCS_TEST_BUCKET`.  If you wish to
 run the unit tests, you must create a second Google Cloud Platform bucket to store the test fixtures, and set the
-environment variable `DSS_GS_TEST_SRC_DATA_BUCKET` to the name of that bucket.
+environment variable `DSS_GCS_TEST_SRC_DATA_BUCKET` to the name of that bucket.
 
 **Azure**: Set the environment variables `AZURE_STORAGE_ACCOUNT_NAME` and `AZURE_STORAGE_ACCOUNT_KEY`.
 
