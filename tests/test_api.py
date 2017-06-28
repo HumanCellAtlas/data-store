@@ -20,7 +20,7 @@ pkg_root = os.path.abspath(os.path.join(os.path.dirname(__file__), '..'))  # noq
 sys.path.insert(0, pkg_root)  # noqa
 
 import dss
-from tests.infra import DSSAsserts, UrlBuilder
+from tests.infra import DSSAsserts, UrlBuilder, progress
 
 
 class TestApi(unittest.TestCase, DSSAsserts):
@@ -52,7 +52,7 @@ class TestApi(unittest.TestCase, DSSAsserts):
         self.create_bundle(bundle)
 
     def upload_file(self, file):
-        self.progress(f"Uploading file {file.name} as {file.uuid} ")
+        progress(f"Uploading file {file.name} as {file.uuid} ")
         response = self.assertPutResponse(
             f"/v1/files/{file.uuid}",
             requests.codes.created,
@@ -65,11 +65,11 @@ class TestApi(unittest.TestCase, DSSAsserts):
         response_data = json.loads(response[1])
         self.assertIs(type(response_data), dict)
         self.assertIn('version', response_data)
-        self.progress(f"-> {response_data['version']}\n")
+        progress(f"-> {response_data['version']}\n")
         return response_data['version']
 
     def create_bundle(self, bundle):
-        self.progress(f"Creating bundle {bundle.uuid} ")
+        progress(f"Creating bundle {bundle.uuid} ")
         response = self.assertPutResponse(
             str(UrlBuilder().set(path='/v1/bundles/' + bundle.uuid).add_query('replica', 'aws')),
             requests.codes.created,
@@ -79,7 +79,7 @@ class TestApi(unittest.TestCase, DSSAsserts):
         self.assertIs(type(response_data), dict)
         self.assertIn('version', response_data)
         bundle.version = response_data['version']
-        self.progress(f"-> {bundle.version}\n")
+        progress(f"-> {bundle.version}\n")
 
     @staticmethod
     def put_bundle_payload(bundle):
@@ -101,7 +101,7 @@ class TestApi(unittest.TestCase, DSSAsserts):
         return payload
 
     def get_bundle_and_check_files(self, bundle):
-        self.progress(f"Checking bundle {bundle.uuid}\n")
+        progress(f"Checking bundle {bundle.uuid}\n")
         response = self.assertGetResponse(
             str(UrlBuilder().set(path='/v1/bundles/' + bundle.uuid).add_query('replica', 'aws')),
             requests.codes.ok
@@ -129,12 +129,6 @@ class TestApi(unittest.TestCase, DSSAsserts):
             )
             self.assertEqual(bundle_file.bundle.uuid, response[0].headers['X-DSS-BUNDLE-UUID'])
             self.assertEqual(bundle_file.version, response[0].headers['X-DSS-VERSION'])
-
-    @classmethod
-    def progress(cls, message):
-        if 'VERBOSE' in os.environ:
-            sys.stdout.write(message)
-            sys.stdout.flush()
 
 
 class S3TestBundle:

@@ -1,3 +1,5 @@
+import os
+import sys
 import json
 import logging
 import re
@@ -13,6 +15,17 @@ def start_verbose_logging():
     for logger_name in logging.Logger.manager.loggerDict:  # type: ignore
         if logger_name.startswith("botocore") or logger_name.startswith("boto3.resources"):
             logging.getLogger(logger_name).setLevel(logging.WARNING)
+
+
+def progress(message):
+    """
+    Print progress commentary if env 'VERBOSE' is set to anything.
+
+    Note it doesn't include a newline so you can produce dots... or "doing...done" lines.
+    """
+    if 'VERBOSE' in os.environ:
+        sys.stdout.write(message)
+        sys.stdout.flush()
 
 
 class DSSAsserts(object):
