@@ -24,6 +24,9 @@ paths:
         Returns a list of bundles matching the given simple criteria
       summary: Find bundles by querying their metadata using simple criteria
       operationId: dss.api.search.find
+      security:
+        - googAuth:
+            - https://www.googleapis.com/auth/userinfo.email
       parameters:
         - name: query
           in: query
