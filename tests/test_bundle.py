@@ -30,7 +30,7 @@ class TestDSS(unittest.TestCase, DSSAsserts):
 
     def _test_bundle_get(self, replica):
         bundle_uuid = "011c7340-9b3c-4d62-bf49-090d79daf198"
-        version = "2017-06-20T21:45:06.766634Z"
+        version = "2017-06-20T214506.766634Z"
 
         url = str(UrlBuilder()
                   .set(path="/v1/bundles/" + bundle_uuid)
@@ -53,7 +53,7 @@ class TestDSS(unittest.TestCase, DSSAsserts):
         self.assertEqual(response[2]['bundle']['files'][0]['sha256'],
                          "cfc7749b96f63bd31c3c42b5c471bf756814053e847c10f3eb003417bc523d30")
         self.assertEqual(response[2]['bundle']['files'][0]['uuid'], "ce55fd51-7833-469b-be0b-5da88ebebfcd")
-        self.assertEqual(response[2]['bundle']['files'][0]['version'], "2017-06-16T19:36:04.240704Z")
+        self.assertEqual(response[2]['bundle']['files'][0]['version'], "2017-06-16T193604.240704Z")
 
     def test_bundle_put(self):
         self._test_bundle_put("aws")

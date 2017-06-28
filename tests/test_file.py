@@ -100,7 +100,7 @@ class TestFileApi(unittest.TestCase, DSSAsserts):
 
     def _test_file_head(self, replica):
         file_uuid = "ce55fd51-7833-469b-be0b-5da88ebebfcd"
-        version = "2017-06-16T19:36:04.240704Z"
+        version = "2017-06-16T193604.240704Z"
 
         url = str(UrlBuilder()
                   .set(path="/v1/files/" + file_uuid)
@@ -124,7 +124,7 @@ class TestFileApi(unittest.TestCase, DSSAsserts):
         Verify we can successfully fetch a specific file UUID+version.
         """
         file_uuid = "ce55fd51-7833-469b-be0b-5da88ebebfcd"
-        version = "2017-06-16T19:36:04.240704Z"
+        version = "2017-06-16T193604.240704Z"
 
         url = str(UrlBuilder()
                   .set(path="/v1/files/" + file_uuid)
