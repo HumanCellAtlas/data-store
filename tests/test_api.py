@@ -15,7 +15,7 @@ sys.path.insert(0, pkg_root)  # noqa
 
 import dss
 from tests import utils
-from tests.infra import DSSAsserts, UrlBuilder, progress
+from tests.infra import DSSAsserts, UrlBuilder
 
 
 class TestApi(unittest.TestCase, DSSAsserts):
@@ -47,7 +47,6 @@ class TestApi(unittest.TestCase, DSSAsserts):
         self.create_bundle(bundle)
 
     def upload_file(self, file):
-        progress(f"Uploading file {file.name} as {file.uuid} ")
         response = self.assertPutResponse(
             f"/v1/files/{file.uuid}",
             requests.codes.created,
@@ -60,11 +59,9 @@ class TestApi(unittest.TestCase, DSSAsserts):
         response_data = json.loads(response[1])
         self.assertIs(type(response_data), dict)
         self.assertIn('version', response_data)
-        progress(f"-> {response_data['version']}\n")
         return response_data['version']
 
     def create_bundle(self, bundle):
-        progress(f"Creating bundle {bundle.uuid} ")
         response = self.assertPutResponse(
             str(UrlBuilder().set(path='/v1/bundles/' + bundle.uuid).add_query('replica', 'aws')),
             requests.codes.created,
@@ -74,7 +71,6 @@ class TestApi(unittest.TestCase, DSSAsserts):
         self.assertIs(type(response_data), dict)
         self.assertIn('version', response_data)
         bundle.version = response_data['version']
-        progress(f"-> {bundle.version}\n")
 
     @staticmethod
     def put_bundle_payload(bundle):
@@ -96,7 +92,6 @@ class TestApi(unittest.TestCase, DSSAsserts):
         return payload
 
     def get_bundle_and_check_files(self, bundle):
-        progress(f"Checking bundle {bundle.uuid}\n")
         response = self.assertGetResponse(
             str(UrlBuilder().set(path='/v1/bundles/' + bundle.uuid).add_query('replica', 'aws')),
             requests.codes.ok
