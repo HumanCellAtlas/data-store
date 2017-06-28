@@ -85,7 +85,7 @@ class TestApi(unittest.TestCase, DSSAsserts):
     def put_bundle_payload(bundle):
         payload = {
             'uuid': bundle.uuid,
-            'creator_uid': 0,
+            'creator_uid': 1234,
             'version': bundle.version,
             'files': []
         }
