@@ -98,7 +98,7 @@ def list():
     return dict(files=[dict(uuid=str(uuid.uuid4()), name="", versions=[])])
 
 
-def put(uuid: str, version: str=None):
+def put(uuid: str, extras: dict, version: str=None):
     uuid = uuid.lower()
     if version is not None:
         # convert it to date-time so we can format exactly as the system requires (with microsecond precision)
@@ -107,10 +107,7 @@ def put(uuid: str, version: str=None):
         timestamp = datetime.datetime.utcnow()
     version = timestamp.strftime("%Y-%m-%dT%H%M%S.%fZ")
 
-    # get the metadata to find out what the eventual file will be called.
-    request_data = request.get_json()
-
-    source_url = request_data['source_url']
+    source_url = extras['source_url']
     cre = re.compile(
         "^"
         "(?P<schema>(?:s3|gs|wasb))"
@@ -186,8 +183,8 @@ def put(uuid: str, version: str=None):
     # build the json document for the file metadata.
     document = json.dumps({
         FileMetadata.FORMAT: FileMetadata.FILE_FORMAT_VERSION,
-        FileMetadata.BUNDLE_UUID: request_data['bundle_uuid'],
-        FileMetadata.CREATOR_UID: request_data['creator_uid'],
+        FileMetadata.BUNDLE_UUID: extras['bundle_uuid'],
+        FileMetadata.CREATOR_UID: extras['creator_uid'],
         FileMetadata.VERSION: version,
         FileMetadata.CONTENT_TYPE: metadata['hca-dss-content-type'],
         FileMetadata.CRC32C: metadata['hca-dss-crc32c'],
