@@ -96,7 +96,7 @@ class TestFileApi(unittest.TestCase, DSSAsserts):
 
     def test_file_head(self):
         self._test_file_head("aws")
-        self._test_file_head("gcs")
+        self._test_file_head("gcp")
 
     def _test_file_head(self, replica):
         file_uuid = "ce55fd51-7833-469b-be0b-5da88ebebfcd"
@@ -117,7 +117,7 @@ class TestFileApi(unittest.TestCase, DSSAsserts):
 
     def test_file_get_specific(self):
         self._test_file_get_specific("aws")
-        self._test_file_get_specific("gcs")
+        self._test_file_get_specific("gcp")
 
     def _test_file_get_specific(self, replica):
         """
@@ -151,7 +151,7 @@ class TestFileApi(unittest.TestCase, DSSAsserts):
 
     def test_file_get_latest(self):
         self._test_file_get_latest("aws")
-        self._test_file_get_latest("gcs")
+        self._test_file_get_latest("gcp")
 
     def _test_file_get_latest(self, replica):
         """

@@ -81,7 +81,7 @@ paths:
           description: Replica to fetch from.
           required: false
           type: string
-          enum: [aws, gcs, azure]
+          enum: [aws, gcp, azure]
         - name: version
           in: query
           description: Timestamp of file creation in RFC3339.  If this is not provided, the latest version is returned.
@@ -287,7 +287,7 @@ paths:
           description: Replica to fetch from.
           required: false
           type: string
-          enum: [aws, gcs, azure]
+          enum: [aws, gcp, azure]
       responses:
         200:
           description: OK
@@ -322,7 +322,7 @@ paths:
           description: Replica to write to.
           required: true
           type: string
-          enum: [aws, gcs, azure]
+          enum: [aws, gcp, azure]
         - name: extras
           in: body
           required: true

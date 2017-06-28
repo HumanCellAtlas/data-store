@@ -122,7 +122,7 @@ def put(uuid: str, extras: dict, version: str=None):
             Config.get_cloud_specific_handles("aws")
     elif mobj and mobj.group('schema') == "gs":
         handle, hca_handle, dst_bucket = \
-            Config.get_cloud_specific_handles("gcs")
+            Config.get_cloud_specific_handles("gcp")
     else:
         # TODO: (ttung) better error messages pls.
         return (
