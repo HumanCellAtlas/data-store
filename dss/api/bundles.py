@@ -5,7 +5,7 @@ import uuid
 
 import iso8601
 import requests
-from flask import jsonify, make_response, request
+from flask import jsonify, make_response
 
 from ..blobstore import BlobNotFoundError
 from ..config import Config
@@ -81,7 +81,7 @@ def post():
     pass
 
 
-def put(uuid: str, replica: str, version: str=None):
+def put(uuid: str, replica: str, extras: dict, version: str=None):
     uuid = uuid.lower()
     if version is not None:
         # convert it to date-time so we can format exactly as the system requires (with microsecond precision)
@@ -109,9 +109,8 @@ def put(uuid: str, replica: str, version: str=None):
         )
 
     # decode the list of files.
-    request_data = request.get_json()
     files = [{'user_supplied_metadata': file}
-             for file in request_data['files']]
+             for file in extras['files']]
 
     # fetch the corresponding file metadata files.  if any do not exist, immediately fail.
     for file in files:
@@ -139,7 +138,7 @@ def put(uuid: str, replica: str, version: str=None):
             }
             for file in files
         ],
-        BundleMetadata.CREATOR_UID: request_data['creator_uid']
+        BundleMetadata.CREATOR_UID: extras['creator_uid']
     })
 
     # write manifest to persistent store
