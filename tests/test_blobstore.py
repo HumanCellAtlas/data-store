@@ -51,7 +51,7 @@ class BlobStoreTests(object):
                      self.test_src_data_bucket,
                      "testList/prefix",
                  )]
-        self.assertEqual(len(items), 100)
+        self.assertEqual(len(items), 10)
 
         # this should fetch both testList/delimiter and testList/delimiter/test
         items = [item for item in

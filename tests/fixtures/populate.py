@@ -59,6 +59,19 @@ def upload(uploader: Uploader):
             }
         )
 
+    # upload the "bad" source files
+    uploader.upload_file(
+        "cfc7749b96f63bd31c3c42b5c471bf756814053e847c10f3eb003417bc523d30",
+        "test_bad_source_data/incorrect_checksum",
+        {
+            "hca-dss-content-type": "text/plain",
+            "hca-dss-crc32c": "07b9e16e",
+            "hca-dss-s3_etag": "55fc854ddc3c6bd573b83ef96387f146",
+            "hca-dss-sha1": "fb4ba0588b8b6c4918902b8b815229aa8a61e483",
+            "hca-dss-sha256": "756814053e847c10f3eb003417bc523d30cfc7749b96f63bd31c3c42b5c471bf",
+        }
+    )
+
     # upload the /blobs.
     uploader.upload_file(
         "9cdc9050cecf59381fed55a2433140b69596fc861bee55abeafd1f9150f3e2da",
@@ -86,7 +99,7 @@ def upload(uploader: Uploader):
     )
 
     # upload the files used for testList
-    for ix in range(100):
+    for ix in range(10):
         uploader.upload_file(
             "empty",
             "testList/prefix.{:03d}".format(ix)
