@@ -46,14 +46,14 @@ class TestApi(unittest.TestCase, DSSAsserts):
             s3file.version = version
         self.create_bundle(bundle)
 
-    def upload_file(self, file):
+    def upload_file(self, bundle_file):
         response = self.assertPutResponse(
-            f"/v1/files/{file.uuid}",
+            f"/v1/files/{bundle_file.uuid}",
             requests.codes.created,
             json_request_body=dict(
-                bundle_uuid=file.bundle.uuid,
+                bundle_uuid=bundle_file.bundle.uuid,
                 creator_uid=0,
-                source_url=file.url
+                source_url=bundle_file.url
             )
         )
         response_data = json.loads(response[1])
@@ -78,17 +78,16 @@ class TestApi(unittest.TestCase, DSSAsserts):
             'uuid': bundle.uuid,
             'creator_uid': 1234,
             'version': bundle.version,
-            'files': []
-        }
-        for file in bundle.files:
-            payload['files'].append(
+            'files': [
                 {
                     'indexed': True,
-                    'name': file.name,
-                    'uuid': file.uuid,
-                    'version': file.version
+                    'name': bundle_file.name,
+                    'uuid': bundle_file.uuid,
+                    'version': bundle_file.version
                 }
-            )
+                for bundle_file in bundle.files
+            ]
+        }
         return payload
 
     def get_bundle_and_check_files(self, bundle):
@@ -152,3 +151,7 @@ class S3File:
         self.url = f"s3://{bundle.bucket.name}/{self.path}"
         self.uuid = str(uuid.uuid4())
         self.version = None
+
+
+if __name__ == '__main__':
+    unittest.main()
