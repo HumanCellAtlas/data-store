@@ -10,26 +10,18 @@ def upload(uploader: Uploader):
     uploader.reset()
 
     # upload the "good" source files
-    uploader.upload_file(
+    uploader.checksum_and_upload_file(
         "cfc7749b96f63bd31c3c42b5c471bf756814053e847c10f3eb003417bc523d30",
         "test_good_source_data/0",
         {
             "hca-dss-content-type": "text/plain",
-            "hca-dss-crc32c": "e16e07b9",
-            "hca-dss-s3_etag": "3b83ef96387f14655fc854ddc3c6bd57",
-            "hca-dss-sha1": "2b8b815229aa8a61e483fb4ba0588b8b6c491890",
-            "hca-dss-sha256": "cfc7749b96f63bd31c3c42b5c471bf756814053e847c10f3eb003417bc523d30",
         }
     )
-    uploader.upload_file(
+    uploader.checksum_and_upload_file(
         "9cdc9050cecf59381fed55a2433140b69596fc861bee55abeafd1f9150f3e2da",
         "test_good_source_data/1",
         {
             "hca-dss-content-type": "text/plain",
-            "hca-dss-crc32c": "114dee2c",
-            "hca-dss-s3_etag": "7f54939b30ae7b6d45d473a4c82a41b0",
-            "hca-dss-sha1": "15684690e8132044f378b4d4af8a7331c8da17b1",
-            "hca-dss-sha256": "9cdc9050cecf59381fed55a2433140b69596fc861bee55abeafd1f9150f3e2da",
         }
     )
     uploader.upload_file(
