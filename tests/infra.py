@@ -1,5 +1,6 @@
 import json
 import logging
+import os
 import re
 import typing
 import urllib.parse
@@ -13,6 +14,13 @@ def start_verbose_logging():
     for logger_name in logging.Logger.manager.loggerDict:  # type: ignore
         if logger_name.startswith("botocore") or logger_name.startswith("boto3.resources"):
             logging.getLogger(logger_name).setLevel(logging.WARNING)
+
+
+def get_env(varname):
+    if varname not in os.environ:
+        raise RuntimeError(
+            "Please set the {} environment variable".format(varname))
+    return os.environ[varname]
 
 
 class DSSAsserts:
