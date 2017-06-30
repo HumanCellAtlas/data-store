@@ -8,7 +8,7 @@ mypy:
 	mypy --ignore-missing-imports $(MODULES)
 
 test: lint mypy
-	PYTHONWARNINGS=ignore:ResourceWarning coverage run -m unittest discover tests -v
+	PYTHONWARNINGS=ignore:ResourceWarning coverage run --source=dss -m unittest discover tests -v
 
 deploy:
 	$(MAKE) -C chalice deploy
