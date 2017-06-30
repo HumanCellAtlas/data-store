@@ -15,7 +15,7 @@ def start_verbose_logging():
             logging.getLogger(logger_name).setLevel(logging.WARNING)
 
 
-class DSSAsserts(object):
+class DSSAsserts:
     def setup(self):
         self.sre = re.compile("^assert(.+)Response")
 
@@ -74,7 +74,7 @@ class DSSAsserts(object):
             raise AttributeError(item)
 
 
-class UrlBuilder(object):
+class UrlBuilder:
     def __init__(self):
         self.splitted = urllib.parse.SplitResult("", "", "", "", "")
         self.query = list()

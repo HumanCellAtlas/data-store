@@ -1,7 +1,7 @@
 from dss.blobstore import BlobNotFoundError
 
 
-class HCABlobStoreTests(object):
+class HCABlobStoreTests:
     """
     Common HCA blobstore tests.  We want to avoid repeating ourselves, so if we
     built the abstractions correctly, common operations can all be tested here.

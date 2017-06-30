@@ -3,7 +3,7 @@ from __future__ import absolute_import, division, print_function, unicode_litera
 import typing
 
 
-class BlobStore(object):
+class BlobStore:
     """Abstract base class for all blob stores."""
     def __init__(self):
         pass

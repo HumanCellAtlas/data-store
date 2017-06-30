@@ -17,7 +17,7 @@ class BucketConfig(Enum):
     TEST_FIXTURE = 2
 
 
-class Config(object):
+class Config:
     _S3_BUCKET = None  # type: str
     _GS_BUCKET = None  # type: str
     _CURRENT_CONFIG = BucketConfig.TEST  # type: BucketConfig

@@ -3,7 +3,7 @@ from __future__ import absolute_import, division, print_function, unicode_litera
 import typing
 
 
-class HCABlobStore(object):
+class HCABlobStore:
     """Abstract base class for all HCA-specific logic for dealing with individual clouds."""
 
     """
@@ -44,7 +44,7 @@ class HCABlobStore(object):
         raise NotImplementedError()
 
 
-class FileMetadata(object):
+class FileMetadata:
     FILE_FORMAT_VERSION = "0.0.2"
 
     FORMAT = "format"
@@ -58,7 +58,7 @@ class FileMetadata(object):
     SHA256 = "sha256"
 
 
-class BundleMetadata(object):
+class BundleMetadata:
     FILE_FORMAT_VERSION = "0.0.1"
 
     FORMAT = "format"
@@ -67,7 +67,7 @@ class BundleMetadata(object):
     FILES = "files"
 
 
-class BundleFileMetadata(object):
+class BundleFileMetadata:
     NAME = "name"
     UUID = "uuid"
     VERSION = "version"

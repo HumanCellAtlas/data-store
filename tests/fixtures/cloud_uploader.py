@@ -4,7 +4,7 @@ import subprocess
 import typing
 
 
-class Uploader(object):
+class Uploader:
     def __init__(self, local_root: str) -> None:
         self.local_root = local_root
 

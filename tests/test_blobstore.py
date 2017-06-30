@@ -8,7 +8,7 @@ from dss.blobstore import BlobNotFoundError, BlobStore
 from tests import TESTOUTPUT_PREFIX
 
 
-class BlobStoreTests(object):
+class BlobStoreTests:
     """
     Common blobstore tests.  We want to avoid repeating ourselves, so if we
     built the abstractions correctly, common operations can all be tested here.
