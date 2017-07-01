@@ -1,14 +1,8 @@
 #!/usr/bin/env python
 # coding: utf-8
 
-from __future__ import (
-    absolute_import,
-    division,
-    print_function,
-    unicode_literals,
-)
-
 import datetime
+import io
 import logging
 import os
 import sys
@@ -16,6 +10,7 @@ import unittest
 import uuid
 
 import boto3
+from botocore.vendored import requests
 import google.cloud.storage
 
 pkg_root = os.path.abspath(os.path.join(os.path.dirname(__file__), '..'))  # noqa
@@ -23,6 +18,7 @@ sys.path.insert(0, pkg_root)  # noqa
 
 import dss
 from dss.events.handlers import sync
+from dss.util.streaming import get_pool_manager, S3SigningChunker
 from tests import infra
 
 infra.start_verbose_logging()
@@ -36,8 +32,8 @@ class TestSyncUtils(unittest.TestCase):
         gcp_key_file = os.environ["GOOGLE_APPLICATION_CREDENTIALS"]
         gs = google.cloud.storage.Client.from_service_account_json(gcp_key_file)
         self.gs_bucket = gs.bucket(self.gs_bucket_name)
-        s3 = boto3.resource("s3")
-        self.s3_bucket = s3.Bucket(self.s3_bucket_name)
+        self.s3 = boto3.resource("s3")
+        self.s3_bucket = self.s3.Bucket(self.s3_bucket_name)
 
     def cleanup_sync_test_objects(self, prefix="hca-dss-sync-test", age=datetime.timedelta(days=1)):
         for key in self.s3_bucket.objects.filter(Prefix=prefix):
@@ -55,7 +51,7 @@ class TestSyncUtils(unittest.TestCase):
         src_blob = self.s3_bucket.Object(test_key)
         gs_dest_blob = self.gs_bucket.blob(test_key)
         src_blob.put(Body=payload, Metadata=test_metadata)
-        sync.sync_blob(source_platform="s3", source_key=test_key, dest_platform="gs", logger=self.logger)
+        sync.sync_blob(source_platform="s3", source_key=test_key, dest_platform="gs", logger=self.logger, context=None)
         self.assertEqual(gs_dest_blob.download_as_string(), payload)
 
         test_key = "hca-dss-sync-test/gcs-to-s3/{}".format(uuid.uuid4())
@@ -63,7 +59,7 @@ class TestSyncUtils(unittest.TestCase):
         dest_blob = self.s3_bucket.Object(test_key)
         src_blob.metadata = test_metadata
         src_blob.upload_from_string(payload)
-        sync.sync_blob(source_platform="gs", source_key=test_key, dest_platform="s3", logger=self.logger)
+        sync.sync_blob(source_platform="gs", source_key=test_key, dest_platform="s3", logger=self.logger, context=None)
         self.assertEqual(dest_blob.get()["Body"].read(), payload)
         self.assertEqual(dest_blob.metadata, test_metadata)
 
@@ -71,6 +67,23 @@ class TestSyncUtils(unittest.TestCase):
         gs_dest_blob.reload()
         self.assertEqual(gs_dest_blob.metadata, test_metadata)
 
+    def test_s3_streaming(self):
+        boto3_session = boto3.session.Session()
+        payload = io.BytesIO(os.urandom(2**20))
+        chunker = S3SigningChunker(fh=payload,
+                                   total_bytes=len(payload.getvalue()),
+                                   credentials=boto3_session.get_credentials(),
+                                   service_name="s3",
+                                   region_name=boto3_session.region_name)
+        upload_url = "{host}/{bucket}/{key}".format(host=self.s3.meta.client.meta.endpoint_url,
+                                                    bucket=self.s3_bucket.name,
+                                                    key="hca-dss-sync-test/s3-streaming-upload")
+        res = get_pool_manager().request("PUT", upload_url,
+                                         headers=chunker.get_headers("PUT", upload_url),
+                                         body=chunker,
+                                         chunked=True,
+                                         retries=False)
+        self.assertEqual(res.status, requests.codes.ok)
 
 if __name__ == '__main__':
     unittest.main()
