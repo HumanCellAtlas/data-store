@@ -13,7 +13,8 @@ from chalice.cli import CLIFactory, run_local_server
 
 parser = argparse.ArgumentParser(description=__doc__)
 parser.add_argument("--port", type=int, default=5000)
-parser.add_argument("--no-debug", dest="debug", action="store_false")
+parser.add_argument("--no-debug", dest="debug", action="store_false",
+                    help="Disable Chalice/Connexion/Flask debug mode")
 parser.add_argument("--project-dir", help=argparse.SUPPRESS,
                     default=os.path.join(os.path.dirname(__file__), "chalice"))
 parser.add_argument("--log-level",
