@@ -24,3 +24,7 @@ DSS_GS_TEST_BUCKET=czi-hca-test
 DSS_GS_TEST_SRC_DATA_BUCKET=hca-dss-test-src
 GOOGLE_APPLICATION_CREDENTIALS=gcp-credentials.json
 set +a
+
+if [[ -f "${SOURCE}/environment.local" ]]; then
+    source "${SOURCE}/environment.local"
+fi

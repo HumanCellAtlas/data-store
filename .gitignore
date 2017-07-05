@@ -40,3 +40,6 @@ npm-debug.log
 
 # Temporary folder
 /tmp
+
+# Local environment configuration
+/environment.local

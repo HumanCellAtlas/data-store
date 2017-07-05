@@ -1,0 +1,11 @@
+# HCA DSS environment variables: local configuration file
+
+# Set your site-specific or deploy-specific environment variable
+# values here. These settings override the values in the "environment"
+# file in this directory. This file is sourced when you run "source
+# environment".
+
+set -a
+# Environment variable assignments (var=value) in "set -a" mode are
+# automatically exported.
+set +a
