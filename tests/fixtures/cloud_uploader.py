@@ -3,6 +3,7 @@ import os
 import subprocess
 import typing
 
+from checksumming_io.checksumming_io import ChecksummingSink
 
 class Uploader:
     def __init__(self, local_root: str) -> None:
@@ -19,6 +20,30 @@ class Uploader:
             *args,
             **kwargs) -> None:
         raise NotImplementedError()
+
+    def checksum_and_upload_file(
+            self,
+            local_path: str,
+            remote_path: str,
+            metadata: typing.Dict[str, str]=None,
+            *args,
+            **kwargs
+    ) -> None:
+        if metadata is None:
+            metadata = dict()
+
+        with ChecksummingSink() as sink, open(os.path.join(self.local_root, local_path), "rb") as fh:
+            data = fh.read()
+            sink.write(data)
+
+            sums = sink.get_checksums()
+
+        metadata['hca-dss-crc32c'] = sums['crc32c'].lower()
+        metadata['hca-dss-s3_etag'] = sums['s3_etag'].lower()
+        metadata['hca-dss-sha1'] = sums['sha1'].lower()
+        metadata['hca-dss-sha256'] = sums['sha256'].lower()
+
+        self.upload_file(local_path, remote_path, metadata, *args, **kwargs)  # noqa
 
 
 class S3Uploader(Uploader):
