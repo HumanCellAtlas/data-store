@@ -12,14 +12,14 @@ sys.path.insert(0, pkg_root) # noqa
 
 from dss.blobstore import BlobNotFoundError
 from dss.blobstore.s3 import S3BlobStore
-from tests import utils
+from tests import infra
 from tests.test_blobstore import BlobStoreTests
 
 
 class TestS3BlobStore(unittest.TestCase, BlobStoreTests):
     def setUp(self):
-        self.test_bucket = utils.get_env("DSS_S3_TEST_BUCKET")
-        self.test_src_data_bucket = utils.get_env("DSS_S3_TEST_SRC_DATA_BUCKET")
+        self.test_bucket = infra.get_env("DSS_S3_TEST_BUCKET")
+        self.test_src_data_bucket = infra.get_env("DSS_S3_TEST_SRC_DATA_BUCKET")
 
         self.handle = S3BlobStore()
 

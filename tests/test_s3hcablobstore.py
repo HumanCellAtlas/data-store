@@ -10,14 +10,14 @@ sys.path.insert(0, pkg_root) # noqa
 
 from dss.blobstore.s3 import S3BlobStore
 from dss.hcablobstore.s3 import S3HCABlobStore
-from tests import utils
+from tests import infra
 from tests.test_hcablobstore import HCABlobStoreTests
 
 
 class TestS3HCABlobStore(unittest.TestCase, HCABlobStoreTests):
     def setUp(self):
-        self.test_bucket = utils.get_env("DSS_S3_TEST_BUCKET")
-        self.test_src_data_bucket = utils.get_env("DSS_S3_TEST_SRC_DATA_BUCKET")
+        self.test_bucket = infra.get_env("DSS_S3_TEST_BUCKET")
+        self.test_src_data_bucket = infra.get_env("DSS_S3_TEST_SRC_DATA_BUCKET")
         self.blobhandle = S3BlobStore()
         self.hcahandle = S3HCABlobStore(self.blobhandle)
 

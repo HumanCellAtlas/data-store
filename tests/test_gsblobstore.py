@@ -12,15 +12,15 @@ sys.path.insert(0, pkg_root) # noqa
 
 from dss.blobstore.gs import GSBlobStore
 from dss.blobstore import BlobNotFoundError
-from tests import utils
+from tests import infra
 from tests.test_blobstore import BlobStoreTests
 
 
 class TestGSBlobStore(unittest.TestCase, BlobStoreTests):
     def setUp(self):
-        self.credentials = utils.get_env("GOOGLE_APPLICATION_CREDENTIALS")
-        self.test_bucket = utils.get_env("DSS_GS_TEST_BUCKET")
-        self.test_src_data_bucket = utils.get_env("DSS_GS_TEST_SRC_DATA_BUCKET")
+        self.credentials = infra.get_env("GOOGLE_APPLICATION_CREDENTIALS")
+        self.test_bucket = infra.get_env("DSS_GS_TEST_BUCKET")
+        self.test_src_data_bucket = infra.get_env("DSS_GS_TEST_SRC_DATA_BUCKET")
         self.handle = GSBlobStore(self.credentials)
 
     def tearDown(self):

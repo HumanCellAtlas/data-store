@@ -14,8 +14,7 @@ pkg_root = os.path.abspath(os.path.join(os.path.dirname(__file__), '..'))  # noq
 sys.path.insert(0, pkg_root)  # noqa
 
 import dss
-from tests import utils
-from tests.infra import DSSAsserts, UrlBuilder
+from tests.infra import DSSAsserts, UrlBuilder, get_env
 
 
 class TestApi(unittest.TestCase, DSSAsserts):
@@ -126,7 +125,7 @@ class S3TestBundle:
 
     This class does a little bit of "double duty" as we also use it to store the uuid and versions used with the API
     """
-    TEST_FIXTURES_BUCKET = utils.get_env('DSS_S3_TEST_SRC_DATA_BUCKET')
+    TEST_FIXTURES_BUCKET = get_env('DSS_S3_TEST_SRC_DATA_BUCKET')
 
     def __init__(self, path, bucket=TEST_FIXTURES_BUCKET):
         self.bucket = boto3.resource('s3').Bucket(bucket)

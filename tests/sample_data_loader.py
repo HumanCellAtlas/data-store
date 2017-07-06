@@ -21,7 +21,7 @@ from typing import Dict, Any
 import boto3
 from botocore.exceptions import ClientError
 
-from tests import utils
+from tests import infra
 
 logging.basicConfig(level=logging.INFO)
 log = logging.getLogger(__name__)
@@ -42,7 +42,7 @@ def load_sample_data_bundle() -> str:
 
 def create_s3_test_bucket() -> None:
     conn = boto3.resource('s3')
-    bucket_name = utils.get_env("DSS_S3_TEST_BUCKET")
+    bucket_name = infra.get_env("DSS_S3_TEST_BUCKET")
     try:
         conn.create_bucket(Bucket=bucket_name)
     except ClientError as e:
@@ -146,7 +146,7 @@ def path_to_data_bundle_examples() -> str:
 
 
 def upload_bundle_manifest(s3_client, bundle_key, bundle_manifest: str) -> None:
-    DSS_S3_TEST_BUCKET = utils.get_env("DSS_S3_TEST_BUCKET")
+    DSS_S3_TEST_BUCKET = infra.get_env("DSS_S3_TEST_BUCKET")
     log.debug("Uploading bundle manifest to bucket %s as %s: %s",
               DSS_S3_TEST_BUCKET, bundle_key, json.dumps(json.loads(bundle_manifest), indent=4))
     s3_client.put_object(Bucket=DSS_S3_TEST_BUCKET, Key=bundle_key, Body=bundle_manifest)
@@ -158,7 +158,7 @@ def upload_bundle_manifest(s3_client, bundle_key, bundle_manifest: str) -> None:
 
 
 def upload_bundle_files(s3_client, bundle_path, files_info) -> None:
-    DSS_S3_TEST_BUCKET = utils.get_env("DSS_S3_TEST_BUCKET")
+    DSS_S3_TEST_BUCKET = infra.get_env("DSS_S3_TEST_BUCKET")
     for file_info in files_info:
         filename = file_info["name"]
         file_path = os.path.join(bundle_path, filename)
