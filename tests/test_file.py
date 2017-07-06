@@ -17,13 +17,14 @@ sys.path.insert(0, pkg_root) # noqa
 
 import dss
 from dss.config import BucketConfig, override_bucket_config
-from tests.infra import DSSAsserts, UrlBuilder
+from tests.infra import DSSAsserts, UrlBuilder, get_env
 
 
 class TestFileApi(unittest.TestCase, DSSAsserts):
     def setUp(self):
         DSSAsserts.setup(self)
         self.app = dss.create_app().app.test_client()
+        self.test_src_data_bucket = get_env("DSS_S3_TEST_SRC_DATA_BUCKET")
 
     def test_file_put(self):
         self._test_file_put("s3")
@@ -35,7 +36,7 @@ class TestFileApi(unittest.TestCase, DSSAsserts):
             "/v1/files/" + str(file_uuid),
             requests.codes.created,
             json_request_body=dict(
-                source_url=scheme + "://hca-dss-test-src/test_good_source_data/0",
+                source_url=f"{scheme}://{self.test_src_data_bucket}/test_good_source_data/0",
                 bundle_uuid=str(uuid.uuid4()),
                 creator_uid=4321,
                 content_type="text/html",
@@ -56,7 +57,7 @@ class TestFileApi(unittest.TestCase, DSSAsserts):
             "/v1/files/" + str(file_uuid),
             requests.codes.created,
             json_request_body=dict(
-                source_url="s3://hca-dss-test-src/test_good_source_data/metadata_in_tags",
+                source_url=f"s3://{self.test_src_data_bucket}/test_good_source_data/metadata_in_tags",
                 bundle_uuid=str(uuid.uuid4()),
                 creator_uid=4321,
                 content_type="text/html",
@@ -80,7 +81,7 @@ class TestFileApi(unittest.TestCase, DSSAsserts):
             "/v1/files/" + str(file_uuid),
             requests.codes.created,
             json_request_body=dict(
-                source_url=scheme + "://hca-dss-test-src/test_good_source_data/incorrect_case_checksum",
+                source_url=f"{scheme}://{self.test_src_data_bucket}/test_good_source_data/incorrect_case_checksum",
                 bundle_uuid=str(uuid.uuid4()),
                 creator_uid=4321,
                 content_type="text/html",

@@ -16,13 +16,14 @@ sys.path.insert(0, pkg_root) # noqa
 
 import dss
 from dss.config import BucketConfig, override_bucket_config
-from tests.infra import DSSAsserts, UrlBuilder
+from tests.infra import DSSAsserts, UrlBuilder, get_env
 
 
 class TestDSS(unittest.TestCase, DSSAsserts):
     def setUp(self):
         DSSAsserts.setup(self)
         self.app = dss.create_app().app.test_client()
+        self.test_src_data_bucket = get_env("DSS_S3_TEST_SRC_DATA_BUCKET")
 
     def test_bundle_get(self):
         self._test_bundle_get("aws")
@@ -71,7 +72,7 @@ class TestDSS(unittest.TestCase, DSSAsserts):
             "/v1/files/" + file_uuid,
             requests.codes.created,
             json_request_body=dict(
-                source_url=schema + "://hca-dss-test-src/test_good_source_data/0",
+                source_url=f"{schema}://{self.test_src_data_bucket}/test_good_source_data/0",
                 bundle_uuid=bundle_uuid,
                 creator_uid=4321,
                 content_type="text/html",
