@@ -14,4 +14,9 @@ deploy:
 	$(MAKE) -C chalice deploy
 	$(MAKE) -C daemons deploy
 
+clean:
+	git clean -Xdf chalice daemons $(MODULES)
+	git clean -df chalice/chalicelib daemons/*/domovoilib
+	git checkout {chalice,daemons/*}/.chalice/{config,deployed}.json
+
 .PHONY: test lint mypy
