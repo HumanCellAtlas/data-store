@@ -105,6 +105,15 @@ def upload(uploader: Uploader):
         "testList/delimiter/test"
     )
 
+    for fname in ["assay.json", "cell.json", "manifest.json", "project.json", "sample.json"]:
+        uploader.checksum_and_upload_file(
+            f"test_api/{fname}",
+            f"fixtures/test_api/bundle/{fname}",
+            {
+                "hca-dss-content-type": "application/javascript",
+            },
+        )
+
 
 if __name__ == '__main__':
     # find the 'datafiles' subdirectory.
