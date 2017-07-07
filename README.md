@@ -52,11 +52,83 @@ environment variable `DSS_GS_BUCKET_TEST_FIXTURES` to the name of that bucket.
 #### Running the prototype
 Run `./dss-api` in this directory.
 
+#### Populate test data
+
+In order to run the tests below you need to have some test data staged into your buckets:
+
+    python tests/fixtures/populate.py --s3-bucket $DSS_S3_TEST_SRC_DATA_BUCKET --gs-bucket $DSS_GS_TEST_SRC_DATA_BUCKET
+
 #### Running tests
+
+Some tests require the Elasticsearch service to be running on the local system:
+
+Run: `elasticsearch`
+
+Then to perform the data store tests:
+
 Run `make test` in this directory.
 
-Some tests require the Elasticsearch service to be running on the local system.
-Run: `elasticsearch`
+#### Deployment
+
+Assuming the tests have passed above, the next step is to manually deploy.  See the section below for information on CI/CD with Travis if continuous deployment is your goal.
+
+You will need to ensure you are ready for deployment refer to `.travis.yml` to ensure you have all needed requirements.  Right now the deployment is designed for an Ubuntu Trusty (14.04) with the following packages apt-get installed:
+
+    sudo apt-get install jq moreutils gettext
+
+Currently you need to setup an Elasticsearch hosted instance on AWS for the indexer:
+
+    # TODO
+
+Now deploy using make:
+
+    make deploy
+
+Setup API gateway.  The gateway is automatically setup for you and associated with the Lambda.  However, to get a friendly domain name you need to follow the directions at this [page](http://docs.aws.amazon.com/apigateway/latest/developerguide/how-to-custom-domains.html). In summary:
+
+* generate a HTTPS certificate via AWS Certificate Manager, make sure it's in us-east-1
+* setup the domain name in the API gateway console
+* setup in Amazon Route 53 to point the domain to the API gateway
+* in the API gateway fill in the endpoints for the custom domain name e.g. Path=`/`, Destination=`dss` and `dev`.  These might be different based on the profile used (dev, stage, etc).
+
+If successful you should be able to see the API Swagger docs at:
+
+    https://<domain_name>/v1/
+
+And you should be able to list bundles like this:
+
+    curl -X GET "https://<domain_name>/v1/bundles" -H  "accept: application/json"
+
+Note, the Swagger docs have a hard-coded path for the API endpoint in them.
+
+#### Using the Client
+
+Now that you have deployed the data store, the next step will be to use the CLI to upload and download data to the system.
+
+The client requires you change `hca/api_spec.json` to point to the correct host, schemes, and, possibly, basePath. Note, the port should not be included if using https.
+
+    # list bundles
+    hca get-bundles
+    # upload full bundle
+    hca upload --replica aws --staging-bucket hca-demo-files paired_ends
+    # upload a new bundle
+    hca upload --replica aws --staging-bucket hca-demo-files paired_ends
+
+
+Make sure the temp location you're staging to on S3 is accessible to the Lambda IAM role.  Look at the IAM role policy.
+
+#### Checking Indexing
+
+Now that you've uploaded data, the next step is to confirm the indexing is working properly and you can query on the hosted elasticsearch.
+
+Make sure the IAM policy is right, there's a bug where the region is not setup properly:
+
+```
+    "Resource":
+    "arn:aws:es::719818754276:domain/dss-index-de/*"
+    # Becomes
+    arn:aws:es:us-west-2:719818754276:domain/dss-index-dev
+```
 
 #### CI/CD with Travis CI
 We use [Travis CI](https://travis-ci.org/HumanCellAtlas/data-store) for continuous integration testing and
