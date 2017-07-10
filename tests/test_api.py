@@ -23,7 +23,7 @@ class TestApi(unittest.TestCase, DSSAsserts):
         DSSAsserts.setup(self)
         self.app = dss.create_app().app.test_client()
 
-    BUNDLE_FIXTURE = 'fixtures/test_api/bundle'  # 's3://hca-dss-test-src/fixtures/test_api/bundle'
+    BUNDLE_FIXTURE = 'fixtures/test_api/bundle'
 
     def test_creation_and_retrieval_of_files_and_bundle(self):
         """
