@@ -18,8 +18,8 @@ class BucketConfig(Enum):
 
 
 class Config:
-    _S3_BUCKET = None  # type: str
-    _GS_BUCKET = None  # type: str
+    _S3_BUCKET = None  # type: typing.Optional[str]
+    _GS_BUCKET = None  # type: typing.Optional[str]
     _CURRENT_CONFIG = BucketConfig.TEST  # type: BucketConfig
 
     @staticmethod
