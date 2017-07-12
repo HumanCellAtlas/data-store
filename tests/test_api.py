@@ -125,7 +125,7 @@ class S3TestBundle:
 
     This class does a little bit of "double duty" as we also use it to store the uuid and versions used with the API
     """
-    TEST_FIXTURES_BUCKET = get_env('DSS_S3_TEST_SRC_DATA_BUCKET')
+    TEST_FIXTURES_BUCKET = get_env('DSS_S3_TEST_FIXTURES_BUCKET')
 
     def __init__(self, path, bucket=TEST_FIXTURES_BUCKET):
         self.bucket = boto3.resource('s3').Bucket(bucket)

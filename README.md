@@ -35,7 +35,7 @@ Run: `git submodule update --init`
 http://docs.aws.amazon.com/cli/latest/userguide/cli-chap-getting-started.html to get the `aws` command line
 utility. Create an S3 bucket that you want DSS to use. Set the environment variable `DSS_S3_TEST_BUCKET`. If you wish to
 run the unit tests, you must create a second S3 bucket to store the test fixtures, and set the environment variable
-`DSS_S3_TEST_SRC_DATA_BUCKET` to the name of that bucket.
+`DSS_S3_TEST_FIXTURES_BUCKET` to the name of that bucket.
 
 **GCP**: Follow the instructions in https://cloud.google.com/sdk/downloads to get the `gcloud` command line utility.
 Next, go to https://console.cloud.google.com/. Select the correct Google user account on the top right and the correct
@@ -45,7 +45,7 @@ the environment variable `GOOGLE_APPLICATION_CREDENTIALS` to the path of the ser
 auth activate-service-account --key-file=/path/to/service-account.json`. Run `gcloud config set project 'PROJECT
 NAME'`. Create a bucket on Google Cloud Platform and set the environment variable `DSS_GS_TEST_BUCKET`.  If you wish to
 run the unit tests, you must create a second Google Cloud Platform bucket to store the test fixtures, and set the
-environment variable `DSS_GS_TEST_SRC_DATA_BUCKET` to the name of that bucket.
+environment variable `DSS_GS_TEST_FIXTURES_BUCKET` to the name of that bucket.
 
 **Azure**: Set the environment variables `AZURE_STORAGE_ACCOUNT_NAME` and `AZURE_STORAGE_ACCOUNT_KEY`.
 

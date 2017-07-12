@@ -8,7 +8,7 @@ class HCABlobStoreTests:
     """
 
     def test_verify_blob_checksum(self):
-        bucket = self.test_src_data_bucket
+        bucket = self.test_fixtures_bucket
         object_name = "test_good_source_data/0"
         self.assertTrue(
             self.hcahandle.verify_blob_checksum(

@@ -24,12 +24,12 @@ class TestFileApi(unittest.TestCase, DSSAsserts):
     def setUp(self):
         DSSAsserts.setup(self)
         self.app = dss.create_app().app.test_client()
-        self.s3_test_src_data_bucket = get_env("DSS_S3_TEST_SRC_DATA_BUCKET")
-        self.gs_test_src_data_bucket = get_env("DSS_GS_TEST_SRC_DATA_BUCKET")
+        self.s3_test_fixtures_bucket = get_env("DSS_S3_TEST_FIXTURES_BUCKET")
+        self.gs_test_fixtures_bucket = get_env("DSS_GS_TEST_FIXTURES_BUCKET")
 
     def test_file_put(self):
-        self._test_file_put("s3", self.s3_test_src_data_bucket)
-        self._test_file_put("gs", self.gs_test_src_data_bucket)
+        self._test_file_put("s3", self.s3_test_fixtures_bucket)
+        self._test_file_put("gs", self.gs_test_fixtures_bucket)
 
     def _test_file_put(self, scheme, fixtures_bucket):
         file_uuid = uuid.uuid4()
@@ -58,7 +58,7 @@ class TestFileApi(unittest.TestCase, DSSAsserts):
             "/v1/files/" + str(file_uuid),
             requests.codes.created,
             json_request_body=dict(
-                source_url=f"s3://{self.s3_test_src_data_bucket}/test_good_source_data/metadata_in_tags",
+                source_url=f"s3://{self.s3_test_fixtures_bucket}/test_good_source_data/metadata_in_tags",
                 bundle_uuid=str(uuid.uuid4()),
                 creator_uid=4321,
                 content_type="text/html",
@@ -73,8 +73,8 @@ class TestFileApi(unittest.TestCase, DSSAsserts):
         self.assertIn('version', response[2])
 
     def test_file_put_upper_case_checksums(self):
-        self._test_file_put_upper_case_checksums("s3", self.s3_test_src_data_bucket)
-        self._test_file_put_upper_case_checksums("gs", self.gs_test_src_data_bucket)
+        self._test_file_put_upper_case_checksums("s3", self.s3_test_fixtures_bucket)
+        self._test_file_put_upper_case_checksums("gs", self.gs_test_fixtures_bucket)
 
     def _test_file_put_upper_case_checksums(self, scheme, fixtures_bucket):
         file_uuid = uuid.uuid4()
