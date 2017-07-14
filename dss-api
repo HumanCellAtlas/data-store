@@ -11,6 +11,8 @@ import argparse
 
 from chalice.cli import CLIFactory, run_local_server
 
+import dss
+
 parser = argparse.ArgumentParser(description=__doc__)
 parser.add_argument("--port", type=int, default=5000)
 parser.add_argument("--no-debug", dest="debug", action="store_false",
@@ -25,6 +27,8 @@ args = parser.parse_args()
 
 if "DSS_HOME" not in os.environ:
     parser.exit('Please run "source environment" in the data-store repo root directory')
+
+dss.Config.set_config_by_env()
 
 logging.basicConfig(level=args.log_level, stream=sys.stderr)
 
