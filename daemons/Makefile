@@ -8,6 +8,6 @@ dss-sync dss-index:
 	cp "$(GOOGLE_APPLICATION_CREDENTIALS)" $@/domovoilib/gcp-credentials.json
 	./build_deploy_config.sh $@ $(STAGE)
 	cd $@; domovoi deploy --stage $(STAGE)
-	./invoke_lambda.sh $@ $(STAGE) ../tests/sample_s3_bundle_created_event.json
+	./invoke_lambda.sh $@ $(STAGE) ../tests/daemons/sample_s3_bundle_created_event.json.template ../tests/daemons/a47b90b2-0967-4fbf-87bc-c6c12db3fedf.2017-07-12T055120.037644Z
 
 .PHONY: dss-sync dss-index
