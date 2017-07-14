@@ -19,8 +19,8 @@ from tests.test_blobstore import BlobStoreTests
 class TestGSBlobStore(unittest.TestCase, BlobStoreTests):
     def setUp(self):
         self.credentials = infra.get_env("GOOGLE_APPLICATION_CREDENTIALS")
-        self.test_bucket = infra.get_env("DSS_GS_TEST_BUCKET")
-        self.test_fixtures_bucket = infra.get_env("DSS_GS_TEST_FIXTURES_BUCKET")
+        self.test_bucket = infra.get_env("DSS_GS_BUCKET_TEST")
+        self.test_fixtures_bucket = infra.get_env("DSS_GS_BUCKET_TEST_FIXTURES")
         self.handle = GSBlobStore(self.credentials)
 
     def tearDown(self):

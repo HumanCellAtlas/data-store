@@ -30,8 +30,8 @@ infra.start_verbose_logging()
 
 class TestSyncUtils(unittest.TestCase):
     def setUp(self):
-        self.gs_bucket_name = os.environ["DSS_GS_TEST_BUCKET"]
-        self.s3_bucket_name = os.environ["DSS_S3_TEST_BUCKET"]
+        self.gs_bucket_name = os.environ["DSS_GS_BUCKET_TEST"]
+        self.s3_bucket_name = os.environ["DSS_S3_BUCKET_TEST"]
         self.logger = logging.getLogger(__name__)
         gcp_key_file = os.environ["GOOGLE_APPLICATION_CREDENTIALS"]
         gs = google.cloud.storage.Client.from_service_account_json(gcp_key_file)

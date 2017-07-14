@@ -42,7 +42,7 @@ def load_sample_data_bundle() -> str:
 
 def create_s3_test_bucket() -> None:
     conn = boto3.resource('s3')
-    bucket_name = infra.get_env("DSS_S3_TEST_BUCKET")
+    bucket_name = infra.get_env("DSS_S3_BUCKET_TEST")
     try:
         conn.create_bucket(Bucket=bucket_name)
     except ClientError as e:
@@ -146,25 +146,25 @@ def path_to_data_bundle_examples() -> str:
 
 
 def upload_bundle_manifest(s3_client, bundle_key, bundle_manifest: str) -> None:
-    DSS_S3_TEST_BUCKET = infra.get_env("DSS_S3_TEST_BUCKET")
+    DSS_S3_BUCKET_TEST = infra.get_env("DSS_S3_BUCKET_TEST")
     log.debug("Uploading bundle manifest to bucket %s as %s: %s",
-              DSS_S3_TEST_BUCKET, bundle_key, json.dumps(json.loads(bundle_manifest), indent=4))
-    s3_client.put_object(Bucket=DSS_S3_TEST_BUCKET, Key=bundle_key, Body=bundle_manifest)
-    s3_client.get_object(Bucket=DSS_S3_TEST_BUCKET, Key=bundle_key)
+              DSS_S3_BUCKET_TEST, bundle_key, json.dumps(json.loads(bundle_manifest), indent=4))
+    s3_client.put_object(Bucket=DSS_S3_BUCKET_TEST, Key=bundle_key, Body=bundle_manifest)
+    s3_client.get_object(Bucket=DSS_S3_BUCKET_TEST, Key=bundle_key)
     # Verify downloaded manifest matches the original, to ensure (mock) infrastructure is working as expected
     conn = boto3.resource('s3')
-    downloaded_manifest = conn.Object(DSS_S3_TEST_BUCKET, bundle_key).get()['Body'].read().decode("utf-8")
+    downloaded_manifest = conn.Object(DSS_S3_BUCKET_TEST, bundle_key).get()['Body'].read().decode("utf-8")
     assert (bundle_manifest == downloaded_manifest)
 
 
 def upload_bundle_files(s3_client, bundle_path, files_info) -> None:
-    DSS_S3_TEST_BUCKET = infra.get_env("DSS_S3_TEST_BUCKET")
+    DSS_S3_BUCKET_TEST = infra.get_env("DSS_S3_BUCKET_TEST")
     for file_info in files_info:
         filename = file_info["name"]
         file_path = os.path.join(bundle_path, filename)
         file_key = create_file_key(file_info)
-        log.debug("Uploading file %s to bucket %s as %s", file_path, DSS_S3_TEST_BUCKET, file_key)
-        s3_client.upload_file(Filename=file_path, Bucket=DSS_S3_TEST_BUCKET, Key=file_key)
+        log.debug("Uploading file %s to bucket %s as %s", file_path, DSS_S3_BUCKET_TEST, file_key)
+        s3_client.upload_file(Filename=file_path, Bucket=DSS_S3_BUCKET_TEST, Key=file_key)
 
 
 def create_file_key(file_info) -> str:
