@@ -17,8 +17,8 @@ from tests.test_hcablobstore import HCABlobStoreTests
 class TestGSHCABlobStore(unittest.TestCase, HCABlobStoreTests):
     def setUp(self):
         self.credentials = infra.get_env("GOOGLE_APPLICATION_CREDENTIALS")
-        self.test_bucket = infra.get_env("DSS_GS_TEST_BUCKET")
-        self.test_fixtures_bucket = infra.get_env("DSS_GS_TEST_FIXTURES_BUCKET")
+        self.test_bucket = infra.get_env("DSS_GS_BUCKET_TEST")
+        self.test_fixtures_bucket = infra.get_env("DSS_GS_BUCKET_TEST_FIXTURES")
         self.blobhandle = GSBlobStore(self.credentials)
         self.hcahandle = GSHCABlobStore(self.blobhandle)
 

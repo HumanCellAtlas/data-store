@@ -16,8 +16,8 @@ from tests.test_hcablobstore import HCABlobStoreTests
 
 class TestS3HCABlobStore(unittest.TestCase, HCABlobStoreTests):
     def setUp(self):
-        self.test_bucket = infra.get_env("DSS_S3_TEST_BUCKET")
-        self.test_fixtures_bucket = infra.get_env("DSS_S3_TEST_FIXTURES_BUCKET")
+        self.test_bucket = infra.get_env("DSS_S3_BUCKET_TEST")
+        self.test_fixtures_bucket = infra.get_env("DSS_S3_BUCKET_TEST_FIXTURES")
         self.blobhandle = S3BlobStore()
         self.hcahandle = S3HCABlobStore(self.blobhandle)
 

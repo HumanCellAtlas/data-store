@@ -65,11 +65,11 @@ class Config:
     def get_s3_bucket() -> str:
         if Config._S3_BUCKET is None:
             if Config._CURRENT_CONFIG == BucketStage.DEV:
-                envvar = "DSS_S3_DEV_BUCKET"
+                envvar = "DSS_S3_BUCKET_DEV"
             elif Config._CURRENT_CONFIG == BucketStage.TEST:
-                    envvar = "DSS_S3_TEST_BUCKET"
+                    envvar = "DSS_S3_BUCKET_TEST"
             elif Config._CURRENT_CONFIG == BucketStage.TEST_FIXTURE:
-                envvar = "DSS_S3_TEST_FIXTURES_BUCKET"
+                envvar = "DSS_S3_BUCKET_TEST_FIXTURES"
             elif Config._CURRENT_CONFIG == BucketStage.ILLEGAL:
                 raise Exception("bucket config not set")
 
@@ -84,11 +84,11 @@ class Config:
     def get_gs_bucket() -> str:
         if Config._GS_BUCKET is None:
             if Config._CURRENT_CONFIG == BucketStage.DEV:
-                envvar = "DSS_GS_DEV_BUCKET"
+                envvar = "DSS_GS_BUCKET_DEV"
             elif Config._CURRENT_CONFIG == BucketStage.TEST:
-                envvar = "DSS_GS_TEST_BUCKET"
+                envvar = "DSS_GS_BUCKET_TEST"
             elif Config._CURRENT_CONFIG == BucketStage.TEST_FIXTURE:
-                envvar = "DSS_GS_TEST_FIXTURES_BUCKET"
+                envvar = "DSS_GS_BUCKET_TEST_FIXTURES"
             elif Config._CURRENT_CONFIG == BucketStage.ILLEGAL:
                 raise Exception("bucket config not set")
 

@@ -80,7 +80,7 @@ class TestEventHandlers(unittest.TestCase):
     def create_sample_s3_bundle_created_event(bundle_key: str) -> Dict:
         with open(os.path.join(os.path.dirname(__file__), "sample_s3_bundle_created_event.json")) as fh:
             sample_s3_event = json.load(fh)
-        sample_s3_event['Records'][0]["s3"]["bucket"]["name"] = infra.get_env("DSS_S3_TEST_BUCKET")
+        sample_s3_event['Records'][0]["s3"]["bucket"]["name"] = infra.get_env("DSS_S3_BUCKET_TEST")
         sample_s3_event['Records'][0]["s3"]["object"]["key"] = bundle_key
         return sample_s3_event
 

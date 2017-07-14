@@ -25,8 +25,8 @@ class TestFileApi(unittest.TestCase, DSSAsserts):
         DSSAsserts.setup(self)
         self.app = dss.create_app().app.test_client()
         dss.Config.set_config(dss.BucketStage.TEST)
-        self.s3_test_fixtures_bucket = get_env("DSS_S3_TEST_FIXTURES_BUCKET")
-        self.gs_test_fixtures_bucket = get_env("DSS_GS_TEST_FIXTURES_BUCKET")
+        self.s3_test_fixtures_bucket = get_env("DSS_S3_BUCKET_TEST_FIXTURES")
+        self.gs_test_fixtures_bucket = get_env("DSS_GS_BUCKET_TEST_FIXTURES")
 
     def test_file_put(self):
         self._test_file_put("s3", self.s3_test_fixtures_bucket)
