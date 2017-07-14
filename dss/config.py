@@ -71,15 +71,16 @@ class Config:
         # different bucket than the tests.
         #
         # Tests will continue to operate on the test bucket, however.
-        if Config._CURRENT_CONFIG == BucketConfig.TEST:
-            envvar = "DSS_GS_TEST_BUCKET"
-        elif Config._CURRENT_CONFIG == BucketConfig.TEST_FIXTURE:
-            envvar = "DSS_GS_TEST_FIXTURES_BUCKET"
+        if Config._GS_BUCKET is None:
+            if Config._CURRENT_CONFIG == BucketConfig.TEST:
+                envvar = "DSS_GS_TEST_BUCKET"
+            elif Config._CURRENT_CONFIG == BucketConfig.TEST_FIXTURE:
+                envvar = "DSS_GS_TEST_FIXTURES_BUCKET"
 
-        if envvar not in os.environ:
-            raise Exception(
-                "Please set the {} environment variable".format(envvar))
-        Config._GS_BUCKET = os.environ[envvar]
+            if envvar not in os.environ:
+                raise Exception(
+                    "Please set the {} environment variable".format(envvar))
+            Config._GS_BUCKET = os.environ[envvar]
 
         return Config._GS_BUCKET
 
