@@ -31,7 +31,7 @@ class Config:
 
     @staticmethod
     def set_config_by_env() -> None:
-        stage = os.environ['STAGE']
+        stage = os.environ['DSS_DEPLOYMENT_STAGE']
         if stage == "dev":
             Config.set_config(BucketStage.DEV)
         elif stage == "beta" or stage == "prod":

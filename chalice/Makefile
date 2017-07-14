@@ -4,5 +4,5 @@ deploy:
 	git clean -df chalicelib
 	cp -R ../dss ../dss-api.yml chalicelib
 	cp "$(GOOGLE_APPLICATION_CREDENTIALS)" chalicelib/gcp-credentials.json
-	./build_deploy_config.sh $(STAGE)
-	chalice deploy --no-autogen-policy --stage $(STAGE) --api-gateway-stage $(STAGE)
+	./build_deploy_config.sh $(DSS_DEPLOYMENT_STAGE)
+	chalice deploy --no-autogen-policy --stage $(DSS_DEPLOYMENT_STAGE) --api-gateway-stage $(DSS_DEPLOYMENT_STAGE)
