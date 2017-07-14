@@ -23,7 +23,8 @@ class TestDSS(unittest.TestCase, DSSAsserts):
     def setUp(self):
         DSSAsserts.setup(self)
         self.app = dss.create_app().app.test_client()
-        self.test_src_data_bucket = get_env("DSS_S3_TEST_SRC_DATA_BUCKET")
+        self.s3_test_src_data_bucket = get_env("DSS_S3_TEST_SRC_DATA_BUCKET")
+        self.gs_test_src_data_bucket = get_env("DSS_GS_TEST_SRC_DATA_BUCKET")
 
     def test_bundle_get(self):
         self._test_bundle_get("aws")
@@ -57,10 +58,10 @@ class TestDSS(unittest.TestCase, DSSAsserts):
         self.assertEqual(response[2]['bundle']['files'][0]['version'], "2017-06-16T193604.240704Z")
 
     def test_bundle_put(self):
-        self._test_bundle_put("aws")
-        self._test_bundle_put("gcp")
+        self._test_bundle_put("aws", self.s3_test_src_data_bucket)
+        self._test_bundle_put("gcp", self.gs_test_src_data_bucket)
 
-    def _test_bundle_put(self, replica):
+    def _test_bundle_put(self, replica, fixtures_bucket):
         if replica == "aws":
             schema = "s3"
         elif replica == "gcp":
@@ -72,7 +73,7 @@ class TestDSS(unittest.TestCase, DSSAsserts):
             "/v1/files/" + file_uuid,
             requests.codes.created,
             json_request_body=dict(
-                source_url=f"{schema}://{self.test_src_data_bucket}/test_good_source_data/0",
+                source_url=f"{schema}://{fixtures_bucket}/test_good_source_data/0",
                 bundle_uuid=bundle_uuid,
                 creator_uid=4321,
                 content_type="text/html",
