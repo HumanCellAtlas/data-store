@@ -8,6 +8,7 @@ if [[ $# != 2 ]]; then
 fi
 
 export daemon_name=$1 stage=$2
+stage_ucase=$(echo $stage | awk '{print toupper($0)}')
 export lambda_name="${daemon_name}-${stage}" iam_role_name="${daemon_name}-${stage}"
 deployed_json="$(dirname $0)/${daemon_name}/.chalice/deployed.json"
 config_json="$(dirname $0)/${daemon_name}/.chalice/config.json"
@@ -38,10 +39,16 @@ for var in $EXPORT_ENV_VARS_TO_LAMBDA; do
     cat "$config_json" | jq .stages.$stage.environment_variables.$var=env.$var | sponge "$config_json"
 done
 
+for var in $EXPORT_ENV_PREFIXES_TO_LAMBDA; do
+    cat "$config_json" | jq .stages.$stage.environment_variables.${var}${stage_ucase}=env.${var}${stage_ucase} | sponge "$config_json"
+done
+
 if [[ ${CI:-} == true ]]; then
     export iam_role_arn=$(aws iam list-roles | jq -r '.Roles[] | select(.RoleName==env.iam_role_name) | .Arn')
     cat "$config_json" | jq .manage_iam_role=false | jq .iam_role_arn=env.iam_role_arn | sponge "$config_json"
 fi
 
-cat "$policy_template" | envsubst '$DSS_S3_BUCKET_TEST $account_id $stage $region_name' > "$policy_json"
+dss_s3_bucket_env_name=DSS_S3_BUCKET_${stage_ucase}
+export DSS_S3_BUCKET=${!dss_s3_bucket_env_name}
+cat "$policy_template" | envsubst '$DSS_S3_BUCKET $account_id $stage $region_name' > "$policy_json"
 cp "$policy_json" "$stage_policy_json"
