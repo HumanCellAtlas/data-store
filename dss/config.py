@@ -1,7 +1,7 @@
 import os
 import typing
 from contextlib import contextmanager
-from enum import Enum
+from enum import Enum, auto
 
 from .blobstore import BlobStore
 from .blobstore.s3 import S3BlobStore
@@ -11,16 +11,33 @@ from .hcablobstore.s3 import S3HCABlobStore
 from .hcablobstore.gs import GSHCABlobStore
 
 
-class BucketConfig(Enum):
-    PROD = 0
-    TEST = 1
-    TEST_FIXTURE = 2
+class BucketStage(Enum):
+    ILLEGAL = auto()
+    DEV = auto()
+    PROD = auto()
+    TEST = auto()
+    TEST_FIXTURE = auto()
 
 
 class Config:
     _S3_BUCKET = None  # type: typing.Optional[str]
     _GS_BUCKET = None  # type: typing.Optional[str]
-    _CURRENT_CONFIG = BucketConfig.TEST  # type: BucketConfig
+    _CURRENT_CONFIG = BucketStage.ILLEGAL  # type: BucketStage
+
+    @staticmethod
+    def set_config(config: BucketStage):
+        Config._clear_cached_config()
+        Config._CURRENT_CONFIG = config
+
+    @staticmethod
+    def set_config_by_env() -> None:
+        stage = os.environ['STAGE']
+        if stage == "dev":
+            Config.set_config(BucketStage.DEV)
+        elif stage == "beta" or stage == "prod":
+            Config.set_config(BucketStage.PROD)
+        else:
+            raise ValueError("Unknown stage!")
 
     @staticmethod
     def get_cloud_specific_handles(replica: str) -> typing.Tuple[
@@ -46,16 +63,15 @@ class Config:
 
     @staticmethod
     def get_s3_bucket() -> str:
-        # TODO: (ttung) right now, we use the bucket defined in
-        # DSS_S3_TEST_BUCKET.  Eventually, the deployed version should use a
-        # different bucket than the tests.
-        #
-        # Tests will continue to operate on the test bucket, however.
         if Config._S3_BUCKET is None:
-            if Config._CURRENT_CONFIG == BucketConfig.TEST:
-                envvar = "DSS_S3_TEST_BUCKET"
-            elif Config._CURRENT_CONFIG == BucketConfig.TEST_FIXTURE:
+            if Config._CURRENT_CONFIG == BucketStage.DEV:
+                envvar = "DSS_S3_DEV_BUCKET"
+            elif Config._CURRENT_CONFIG == BucketStage.TEST:
+                    envvar = "DSS_S3_TEST_BUCKET"
+            elif Config._CURRENT_CONFIG == BucketStage.TEST_FIXTURE:
                 envvar = "DSS_S3_TEST_FIXTURES_BUCKET"
+            elif Config._CURRENT_CONFIG == BucketStage.ILLEGAL:
+                raise Exception("bucket config not set")
 
             if envvar not in os.environ:
                 raise Exception(
@@ -66,16 +82,15 @@ class Config:
 
     @staticmethod
     def get_gs_bucket() -> str:
-        # TODO: (ttung) right now, we use the bucket defined in
-        # DSS_GS_TEST_BUCKET.  Eventually, the deployed version should use a
-        # different bucket than the tests.
-        #
-        # Tests will continue to operate on the test bucket, however.
         if Config._GS_BUCKET is None:
-            if Config._CURRENT_CONFIG == BucketConfig.TEST:
+            if Config._CURRENT_CONFIG == BucketStage.DEV:
+                envvar = "DSS_GS_DEV_BUCKET"
+            elif Config._CURRENT_CONFIG == BucketStage.TEST:
                 envvar = "DSS_GS_TEST_BUCKET"
-            elif Config._CURRENT_CONFIG == BucketConfig.TEST_FIXTURE:
+            elif Config._CURRENT_CONFIG == BucketStage.TEST_FIXTURE:
                 envvar = "DSS_GS_TEST_FIXTURES_BUCKET"
+            elif Config._CURRENT_CONFIG == BucketStage.ILLEGAL:
+                raise Exception("bucket config not set")
 
             if envvar not in os.environ:
                 raise Exception(
@@ -92,7 +107,7 @@ class Config:
 
 
 @contextmanager
-def override_bucket_config(temp_config: BucketConfig):
+def override_bucket_config(temp_config: BucketStage):
     original_config = Config._CURRENT_CONFIG
     Config._clear_cached_config()
 

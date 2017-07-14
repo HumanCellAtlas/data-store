@@ -15,7 +15,7 @@ pkg_root = os.path.abspath(os.path.join(os.path.dirname(__file__), '..')) # noqa
 sys.path.insert(0, pkg_root) # noqa
 
 import dss
-from dss.config import BucketConfig, override_bucket_config
+from dss.config import BucketStage, override_bucket_config
 from tests.infra import DSSAsserts, UrlBuilder, get_env
 
 
@@ -23,6 +23,7 @@ class TestDSS(unittest.TestCase, DSSAsserts):
     def setUp(self):
         DSSAsserts.setup(self)
         self.app = dss.create_app().app.test_client()
+        dss.Config.set_config(dss.BucketStage.TEST)
         self.s3_test_fixtures_bucket = get_env("DSS_S3_TEST_FIXTURES_BUCKET")
         self.gs_test_fixtures_bucket = get_env("DSS_GS_TEST_FIXTURES_BUCKET")
 
@@ -39,7 +40,7 @@ class TestDSS(unittest.TestCase, DSSAsserts):
                   .add_query("replica", replica)
                   .add_query("version", version))
 
-        with override_bucket_config(BucketConfig.TEST_FIXTURE):
+        with override_bucket_config(BucketStage.TEST_FIXTURE):
             response = self.assertGetResponse(
                 url,
                 requests.codes.ok)

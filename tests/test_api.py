@@ -21,6 +21,7 @@ class TestApi(unittest.TestCase, DSSAsserts):
 
     def setUp(self):
         DSSAsserts.setup(self)
+        dss.Config.set_config(dss.BucketStage.TEST)
         self.app = dss.create_app().app.test_client()
 
     BUNDLE_FIXTURE = 'fixtures/test_api/bundle'
