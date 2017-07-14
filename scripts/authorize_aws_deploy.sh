@@ -15,10 +15,9 @@ if [[ $# != 2 ]]; then
 fi
 
 export iam_principal_type=$1 iam_principal_name=$2
-export region_name=$(aws configure get region)
 export account_id=$(aws sts get-caller-identity | jq -r .Account)
 policy_json="$(dirname $0)/../iam/policy-templates/ci-cd.json"
-envsubst_vars='$DSS_S3_BUCKET_DEV $DSS_S3_BUCKET_TEST $DSS_S3_BUCKET_TEST_FIXTURES $account_id $region_name'
+envsubst_vars='$DSS_S3_BUCKET_DEV $DSS_S3_BUCKET_TEST $DSS_S3_BUCKET_TEST_FIXTURES $account_id'
 
 aws iam put-${iam_principal_type}-policy \
     --${iam_principal_type}-name $iam_principal_name \
