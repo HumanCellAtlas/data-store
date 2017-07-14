@@ -15,7 +15,6 @@ config_json="$(dirname $0)/${daemon_name}/.chalice/config.json"
 policy_json="$(dirname $0)/${daemon_name}/.chalice/policy.json"
 stage_policy_json="$(dirname $0)/${daemon_name}/.chalice/policy-${stage}.json"
 policy_template="$(dirname $0)/../iam/policy-templates/${daemon_name}-lambda.json"
-export region_name=$(aws configure get region)
 export account_id=$(aws sts get-caller-identity | jq -r .Account)
 
 dss_es_domain=${DSS_ES_DOMAIN:-dss-index-$stage}
@@ -50,5 +49,5 @@ fi
 
 dss_s3_bucket_env_name=DSS_S3_BUCKET_${stage_ucase}
 export DSS_S3_BUCKET=${!dss_s3_bucket_env_name}
-cat "$policy_template" | envsubst '$DSS_S3_BUCKET $account_id $stage $region_name' > "$policy_json"
+cat "$policy_template" | envsubst '$DSS_S3_BUCKET $account_id $stage' > "$policy_json"
 cp "$policy_json" "$stage_policy_json"

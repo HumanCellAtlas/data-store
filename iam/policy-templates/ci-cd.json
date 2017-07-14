@@ -80,10 +80,10 @@
         "sns:*"
       ],
       "Resource": [
-        "arn:aws:lambda:$region_name:$account_id:function:dss-*",
-        "arn:aws:es:$region_name:$account_id:domain/dss-index-dev",
-        "arn:aws:es:$region_name:$account_id:domain/dss-index-dev/*",
-        "arn:aws:sns:$region_name:$account_id:domovoi-s3-bucket-events-$DSS_S3_BUCKET_DEV"
+        "arn:aws:lambda:*:$account_id:function:dss-*",
+        "arn:aws:es:*:$account_id:domain/dss-index-dev",
+        "arn:aws:es:*:$account_id:domain/dss-index-dev/*",
+        "arn:aws:sns:*:$account_id:domovoi-s3-bucket-events-$DSS_S3_BUCKET_DEV"
       ],
       "Effect": "Allow"
     }

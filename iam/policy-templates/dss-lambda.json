@@ -24,7 +24,7 @@
         "es:ESHttpGet",
         "es:ESHttpHead"
       ],
-      "Resource": "arn:aws:es:$region_name:$account_id:domain/dss-index-$stage/*"
+      "Resource": "arn:aws:es:*:$account_id:domain/dss-index-$stage/*"
     }
   ]
 }
