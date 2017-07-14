@@ -23,8 +23,8 @@ class TestDSS(unittest.TestCase, DSSAsserts):
     def setUp(self):
         DSSAsserts.setup(self)
         self.app = dss.create_app().app.test_client()
-        self.s3_test_src_data_bucket = get_env("DSS_S3_TEST_SRC_DATA_BUCKET")
-        self.gs_test_src_data_bucket = get_env("DSS_GS_TEST_SRC_DATA_BUCKET")
+        self.s3_test_fixtures_bucket = get_env("DSS_S3_TEST_FIXTURES_BUCKET")
+        self.gs_test_fixtures_bucket = get_env("DSS_GS_TEST_FIXTURES_BUCKET")
 
     def test_bundle_get(self):
         self._test_bundle_get("aws")
@@ -58,8 +58,8 @@ class TestDSS(unittest.TestCase, DSSAsserts):
         self.assertEqual(response[2]['bundle']['files'][0]['version'], "2017-06-16T193604.240704Z")
 
     def test_bundle_put(self):
-        self._test_bundle_put("aws", self.s3_test_src_data_bucket)
-        self._test_bundle_put("gcp", self.gs_test_src_data_bucket)
+        self._test_bundle_put("aws", self.s3_test_fixtures_bucket)
+        self._test_bundle_put("gcp", self.gs_test_fixtures_bucket)
 
     def _test_bundle_put(self, replica, fixtures_bucket):
         if replica == "aws":

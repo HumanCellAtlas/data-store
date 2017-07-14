@@ -55,7 +55,7 @@ class Config:
             if Config._CURRENT_CONFIG == BucketConfig.TEST:
                 envvar = "DSS_S3_TEST_BUCKET"
             elif Config._CURRENT_CONFIG == BucketConfig.TEST_FIXTURE:
-                envvar = "DSS_S3_TEST_SRC_DATA_BUCKET"
+                envvar = "DSS_S3_TEST_FIXTURES_BUCKET"
 
             if envvar not in os.environ:
                 raise Exception(
@@ -74,7 +74,7 @@ class Config:
         if Config._CURRENT_CONFIG == BucketConfig.TEST:
             envvar = "DSS_GS_TEST_BUCKET"
         elif Config._CURRENT_CONFIG == BucketConfig.TEST_FIXTURE:
-            envvar = "DSS_GS_TEST_SRC_DATA_BUCKET"
+            envvar = "DSS_GS_TEST_FIXTURES_BUCKET"
 
         if envvar not in os.environ:
             raise Exception(

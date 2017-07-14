@@ -19,9 +19,9 @@ STAGE=dev
 EXPORT_ENV_VARS_TO_LAMBDA="DSS_S3_TEST_BUCKET DSS_GS_TEST_BUCKET DSS_ES_ENDPOINT"
 AWS_DEFAULT_REGION=us-east-1
 DSS_S3_TEST_BUCKET=org-humancellatlas-dss-test
-DSS_S3_TEST_SRC_DATA_BUCKET=org-humancellatlas-dss-test-fixtures
+DSS_S3_TEST_FIXTURES_BUCKET=org-humancellatlas-dss-test-fixtures
 DSS_GS_TEST_BUCKET=czi-hca-test
-DSS_GS_TEST_SRC_DATA_BUCKET=hca-dss-test-src
+DSS_GS_TEST_FIXTURES_BUCKET=hca-dss-test-src
 GOOGLE_APPLICATION_CREDENTIALS="${DSS_HOME}/gcp-credentials.json"
 set +a
 

@@ -19,7 +19,7 @@ from tests.test_blobstore import BlobStoreTests
 class TestS3BlobStore(unittest.TestCase, BlobStoreTests):
     def setUp(self):
         self.test_bucket = infra.get_env("DSS_S3_TEST_BUCKET")
-        self.test_src_data_bucket = infra.get_env("DSS_S3_TEST_SRC_DATA_BUCKET")
+        self.test_fixtures_bucket = infra.get_env("DSS_S3_TEST_FIXTURES_BUCKET")
 
         self.handle = S3BlobStore()
 
@@ -32,13 +32,13 @@ class TestS3BlobStore(unittest.TestCase, BlobStoreTests):
         """
         handle = self.handle  # type: BlobStore
         checksum = handle.get_cloud_checksum(
-            self.test_src_data_bucket,
+            self.test_fixtures_bucket,
             "test_good_source_data/0")
         self.assertEqual(checksum, "3b83ef96387f14655fc854ddc3c6bd57")
 
         with self.assertRaises(BlobNotFoundError):
             handle.get_metadata(
-                self.test_src_data_bucket,
+                self.test_fixtures_bucket,
                 "test_good_source_data_DOES_NOT_EXIST")
 
 if __name__ == '__main__':

@@ -20,13 +20,13 @@ class BlobStoreTests:
         """
         handle = self.handle  # type: BlobStore
         metadata = handle.get_metadata(
-            self.test_src_data_bucket,
+            self.test_fixtures_bucket,
             "test_good_source_data/0")
         self.assertIn('hca-dss-content-type', metadata)
 
         with self.assertRaises(BlobNotFoundError):
             handle.get_metadata(
-                self.test_src_data_bucket,
+                self.test_fixtures_bucket,
                 "test_good_source_data_DOES_NOT_EXIST")
 
     def testList(self):
@@ -35,7 +35,7 @@ class BlobStoreTests:
         """
         items = [item for item in
                  self.handle.list(
-                     self.test_src_data_bucket,
+                     self.test_fixtures_bucket,
                      "test_good_source_data/0",
                  )]
         self.assertTrue(len(items) > 0)
@@ -48,7 +48,7 @@ class BlobStoreTests:
         # fetch a bunch of items all at once.
         items = [item for item in
                  self.handle.list(
-                     self.test_src_data_bucket,
+                     self.test_fixtures_bucket,
                      "testList/prefix",
                  )]
         self.assertEqual(len(items), 10)
@@ -56,7 +56,7 @@ class BlobStoreTests:
         # this should fetch both testList/delimiter and testList/delimiter/test
         items = [item for item in
                  self.handle.list(
-                     self.test_src_data_bucket,
+                     self.test_fixtures_bucket,
                      "testList/delimiter",
                  )]
         self.assertEqual(len(items), 2)
@@ -64,7 +64,7 @@ class BlobStoreTests:
         # this should fetch only testList/delimiter
         items = [item for item in
                  self.handle.list(
-                     self.test_src_data_bucket,
+                     self.test_fixtures_bucket,
                      "testList/delimiter",
                      delimiter="/"
                  )]
@@ -72,7 +72,7 @@ class BlobStoreTests:
 
     def testGetPresignedUrl(self):
         presigned_url = self.handle.generate_presigned_GET_url(
-            self.test_src_data_bucket,
+            self.test_fixtures_bucket,
             "test_good_source_data/0",
         )
 
@@ -100,14 +100,14 @@ class BlobStoreTests:
 
     def testGet(self):
         data = self.handle.get(
-            self.test_src_data_bucket,
+            self.test_fixtures_bucket,
             "test_good_source_data/0",
         )
         self.assertEqual(len(data), 11358)
 
         with self.assertRaises(BlobNotFoundError):
             self.handle.get(
-                self.test_src_data_bucket,
+                self.test_fixtures_bucket,
                 "test_good_source_data_DOES_NOT_EXIST",
             )
 
@@ -120,7 +120,7 @@ class BlobStoreTests:
             TESTOUTPUT_PREFIX, function_name, str(uuid.uuid4()))
 
         self.handle.copy(
-            self.test_src_data_bucket,
+            self.test_fixtures_bucket,
             "test_good_source_data/0",
             self.test_bucket,
             dst_blob_name,
