@@ -53,10 +53,6 @@ for var in $EXPORT_ENV_VARS_TO_LAMBDA; do
     cat "$config_json" | jq .stages.$stage.environment_variables.$var=env.$var | sponge "$config_json"
 done
 
-for var in $EXPORT_ENV_PREFIXES_TO_LAMBDA; do
-    cat "$config_json" | jq .stages.$stage.environment_variables.${var}${stage_ucase}=env.${var}${stage_ucase} | sponge "$config_json"
-done
-
 if [[ ${CI:-} == true ]]; then
     account_id=$(aws sts get-caller-identity | jq -r .Account)
     export iam_role_arn="arn:aws:iam::${account_id}:role/dss-${stage}"

@@ -38,10 +38,6 @@ for var in $EXPORT_ENV_VARS_TO_LAMBDA; do
     cat "$config_json" | jq .stages.$stage.environment_variables.$var=env.$var | sponge "$config_json"
 done
 
-for var in $EXPORT_ENV_PREFIXES_TO_LAMBDA; do
-    cat "$config_json" | jq .stages.$stage.environment_variables.${var}${stage_ucase}=env.${var}${stage_ucase} | sponge "$config_json"
-done
-
 if [[ ${CI:-} == true ]]; then
     export iam_role_arn=$(aws iam list-roles | jq -r '.Roles[] | select(.RoleName==env.iam_role_name) | .Arn')
     cat "$config_json" | jq .manage_iam_role=false | jq .iam_role_arn=env.iam_role_arn | sponge "$config_json"
