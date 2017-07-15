@@ -13,8 +13,7 @@ from .hcablobstore.gs import GSHCABlobStore
 
 class BucketStage(Enum):
     ILLEGAL = auto()
-    DEV = auto()
-    PROD = auto()
+    NORMAL = auto()
     TEST = auto()
     TEST_FIXTURE = auto()
 
@@ -28,16 +27,6 @@ class Config:
     def set_config(config: BucketStage):
         Config._clear_cached_config()
         Config._CURRENT_CONFIG = config
-
-    @staticmethod
-    def set_config_by_env() -> None:
-        stage = os.environ['DSS_DEPLOYMENT_STAGE']
-        if stage == "dev":
-            Config.set_config(BucketStage.DEV)
-        elif stage == "beta" or stage == "prod":
-            Config.set_config(BucketStage.PROD)
-        else:
-            raise ValueError("Unknown stage!")
 
     @staticmethod
     def get_cloud_specific_handles(replica: str) -> typing.Tuple[
@@ -64,8 +53,8 @@ class Config:
     @staticmethod
     def get_s3_bucket() -> str:
         if Config._S3_BUCKET is None:
-            if Config._CURRENT_CONFIG == BucketStage.DEV:
-                envvar = "DSS_S3_BUCKET_DEV"
+            if Config._CURRENT_CONFIG == BucketStage.NORMAL:
+                envvar = "DSS_S3_BUCKET"
             elif Config._CURRENT_CONFIG == BucketStage.TEST:
                     envvar = "DSS_S3_BUCKET_TEST"
             elif Config._CURRENT_CONFIG == BucketStage.TEST_FIXTURE:
@@ -83,8 +72,8 @@ class Config:
     @staticmethod
     def get_gs_bucket() -> str:
         if Config._GS_BUCKET is None:
-            if Config._CURRENT_CONFIG == BucketStage.DEV:
-                envvar = "DSS_GS_BUCKET_DEV"
+            if Config._CURRENT_CONFIG == BucketStage.NORMAL:
+                envvar = "DSS_GS_BUCKET"
             elif Config._CURRENT_CONFIG == BucketStage.TEST:
                 envvar = "DSS_GS_BUCKET_TEST"
             elif Config._CURRENT_CONFIG == BucketStage.TEST_FIXTURE:

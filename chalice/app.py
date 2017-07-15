@@ -7,12 +7,12 @@ import boto3
 pkg_root = os.path.abspath(os.path.join(os.path.dirname(__file__), 'chalicelib')) # noqa
 sys.path.insert(0, pkg_root) # noqa
 
-from dss import Config, create_app
+from dss import BucketStage, Config, create_app
 from dss.events.handlers.sync import sync_blob
 from dss.util import paginate
 
 
-Config.set_config_by_env()
+Config.set_config(BucketStage.NORMAL)
 
 
 def get_chalice_app(flask_app):

@@ -63,7 +63,5 @@ if [[ ${CI:-} == true ]]; then
     cat "$config_json" | jq .manage_iam_role=false | jq .iam_role_arn=env.iam_role_arn | sponge "$config_json"
 fi
 
-dss_s3_bucket_env_name=DSS_S3_BUCKET_${stage_ucase}
-export DSS_S3_BUCKET=${!dss_s3_bucket_env_name}
 cat "$policy_template" | envsubst '$DSS_S3_BUCKET $account_id $stage' > "$policy_json"
 cp "$policy_json" "$stage_policy_json"

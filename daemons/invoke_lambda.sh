@@ -10,8 +10,6 @@ fi
 lambda_name="$1-$2"
 lambda_input_file=$3
 bundle_file="$4"
-DSS_S3_BUCKET_ENV_NAME=DSS_S3_BUCKET_$(echo $2 | awk '{print toupper($0)}')
-export DSS_S3_BUCKET=${!DSS_S3_BUCKET_ENV_NAME}
 
 
 BUNDLE_KEY="bundles/$(basename "${bundle_file}")"
