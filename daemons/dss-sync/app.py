@@ -15,7 +15,7 @@ from dss.events.handlers.sync import sync_blob
 
 app = domovoi.Domovoi()
 
-dss.Config.set_config_by_env()
+dss.Config.set_config(dss.BucketStage.NORMAL)
 
 s3_bucket = dss.Config.get_s3_bucket()
 

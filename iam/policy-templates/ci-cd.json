@@ -31,8 +31,8 @@
         "s3:RestoreObject"
       ],
       "Resource": [
-        "arn:aws:s3:::$DSS_S3_BUCKET_DEV",
-        "arn:aws:s3:::$DSS_S3_BUCKET_DEV/*",
+        "arn:aws:s3:::$DSS_S3_BUCKET",
+        "arn:aws:s3:::$DSS_S3_BUCKET/*",
         "arn:aws:s3:::$DSS_S3_BUCKET_TEST",
         "arn:aws:s3:::$DSS_S3_BUCKET_TEST/*"
       ]
@@ -45,8 +45,8 @@
         "s3:List*"
       ],
       "Resource": [
-        "arn:aws:s3:::$DSS_S3_BUCKET_DEV",
-        "arn:aws:s3:::$DSS_S3_BUCKET_DEV/*",
+        "arn:aws:s3:::$DSS_S3_BUCKET",
+        "arn:aws:s3:::$DSS_S3_BUCKET/*",
         "arn:aws:s3:::$DSS_S3_BUCKET_TEST",
         "arn:aws:s3:::$DSS_S3_BUCKET_TEST/*",
         "arn:aws:s3:::$DSS_S3_BUCKET_TEST_FIXTURES",
@@ -83,7 +83,7 @@
         "arn:aws:lambda:*:$account_id:function:dss-*",
         "arn:aws:es:*:$account_id:domain/dss-index-dev",
         "arn:aws:es:*:$account_id:domain/dss-index-dev/*",
-        "arn:aws:sns:*:$account_id:domovoi-s3-bucket-events-$DSS_S3_BUCKET_DEV"
+        "arn:aws:sns:*:$account_id:domovoi-s3-bucket-events-$DSS_S3_BUCKET"
       ],
       "Effect": "Allow"
     }

@@ -15,14 +15,13 @@ while [ -h "$SOURCE" ] ; do SOURCE="$(readlink "$SOURCE")"; done
 export DSS_HOME="$(cd -P "$(dirname "$SOURCE")" && pwd)"
 
 set -a
-EXPORT_ENV_VARS_TO_LAMBDA="DSS_DEPLOYMENT_STAGE DSS_ES_ENDPOINT"
-EXPORT_ENV_PREFIXES_TO_LAMBDA="DSS_S3_BUCKET_ DSS_GS_BUCKET_"
+EXPORT_ENV_VARS_TO_LAMBDA="DSS_DEPLOYMENT_STAGE DSS_ES_ENDPOINT DSS_S3_BUCKET DSS_GS_BUCKET"
 DSS_DEPLOYMENT_STAGE=dev
 AWS_DEFAULT_REGION=us-east-1
-DSS_S3_BUCKET_DEV=org-humancellatlas-dss-dev
+DSS_S3_BUCKET=org-humancellatlas-dss-dev
 DSS_S3_BUCKET_TEST=org-humancellatlas-dss-test
 DSS_S3_BUCKET_TEST_FIXTURES=org-humancellatlas-dss-test-fixtures
-DSS_GS_BUCKET_DEV=org-humancellatlas-dss-dev
+DSS_GS_BUCKET=org-humancellatlas-dss-dev
 DSS_GS_BUCKET_TEST=org-humancellatlas-dss-test
 DSS_GS_BUCKET_TEST_FIXTURES=org-humancellatlas-dss-test-fixtures
 GOOGLE_APPLICATION_CREDENTIALS="${DSS_HOME}/gcp-credentials.json"
