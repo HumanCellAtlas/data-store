@@ -114,11 +114,33 @@ def upload(uploader: Uploader):
             },
         )
 
+    # Create a bundle based on data-bundle-examples/smartseq2/paired_ends.
+    # The files are accessed from the data-bundle-examples subrepository to avoid
+    # duplicating them in our test infrastructure.
+    # Then some non-indexed files are added for a more complete and realistic bundle test.
+    for fname in ["assay.json", "cell.json", "manifest.json", "project.json", "sample.json"]:
+        bundle_path = os.path.join(data_bundle_examples_dir, "smartseq2", "paired_ends")
+        uploader.checksum_and_upload_file(
+            f"{bundle_path}/{fname}",
+            f"fixtures/smartseq2/paired_ends/{fname}",
+            {
+                "hca-dss-content-type": "application/json",
+            },
+        )
+    for fname in ["nonindexed_file1.txt", "nonindexed_file2.txt"]:
+        uploader.checksum_and_upload_file(
+            f"indexing/{fname}",
+            f"fixtures/smartseq2/paired_ends/{fname}",
+            {
+                "hca-dss-content-type": "text/plain",
+            },
+        )
 
 if __name__ == '__main__':
     # find the 'datafiles' subdirectory.
     root_dir = os.path.dirname(__file__)
     datafiles_dir = os.path.join(root_dir, "datafiles")
+    data_bundle_examples_dir = os.path.abspath(os.path.join(root_dir, "..", "..", "data-bundle-examples"))
 
     parser = argparse.ArgumentParser(description="Set up test fixtures in cloud storage buckets")
     parser.add_argument("--s3-bucket", type=str)

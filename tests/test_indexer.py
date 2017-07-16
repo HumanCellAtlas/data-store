@@ -9,18 +9,15 @@ import time
 import unittest
 from typing import Dict
 
-import moto
+import boto3
 from elasticsearch import Elasticsearch
-from elasticsearch_dsl import Search
 
+import dss
 from dss.events.handlers.index import process_new_indexable_object
-from tests import infra
-from tests.sample_data_loader import load_sample_data_bundle
+from tests.infra import get_env, StorageTestSupport, S3TestBundle
 
 DSS_ELASTICSEARCH_INDEX_NAME = "hca"
 DSS_ELASTICSEARCH_DOC_TYPE = "hca"
-
-USE_AWS_S3_MOCK = os.environ.get("USE_AWS_S3_MOCK", True)
 
 logging.basicConfig(level=logging.INFO)
 log = logging.getLogger(__name__)
@@ -32,24 +29,21 @@ sys.path.insert(0, pkg_root)
 
 #
 # Basic test for DSS indexer:
-#   1. Populate S3 bucket (mock or real) with data for a bundle as defined
+#   1. Populate S3 bucket with data for a bundle as defined
 #      in the HCA Storage System Disk Format specification
 #   2. Inject a mock S3 event into function used by the indexing AWS Lambda
 #   3. Read and process the bundle manifest to produce an index as
 #      defined in HCA Storage System Index, Query, and Eventing Functional Spec & Use Cases
 #      The index document is then added to Elasticsearch
-#   4. Perform as simple search to verify the index is in Elasticsearch.
+#   4. Perform a search to verify the bundle index document is in Elasticsearch.
+#   5. Verify the structure and content of bundle the index document
 #
 
 
-class TestEventHandlers(unittest.TestCase):
+class TestIndexer(unittest.TestCase, StorageTestSupport):
 
     @classmethod
     def setUpClass(cls):
-        if USE_AWS_S3_MOCK is True:
-            cls.mock_s3 = moto.mock_s3()
-            cls.mock_s3.start()
-
         if "DSS_ES_ENDPOINT" not in os.environ:
             os.environ["DSS_ES_ENDPOINT"] = "localhost"
 
@@ -57,13 +51,22 @@ class TestEventHandlers(unittest.TestCase):
         check_start_elasticsearch_service()
         elasticsearch_delete_index("_all")
 
-    @classmethod
-    def tearDownClass(cls):
-        if USE_AWS_S3_MOCK is True:
-            cls.mock_s3.stop()
+    def setUp(self):
+        StorageTestSupport.setup(self)
+        dss.Config.set_config(dss.BucketStage.TEST)
+        self.app = dss.create_app().app.test_client()
+
+    def tearDown(self):
+        self.app = None
+        self.storageHelper = None
+
+    def load_test_data_bundle(self, fixture_path: str):
+        bundle = S3TestBundle(fixture_path)
+        self.upload_files_and_create_bundle(bundle)
+        return f"bundles/{bundle.uuid}.{bundle.version}"
 
     def test_process_new_indexable_object(self):
-        bundle_key = load_sample_data_bundle()
+        bundle_key = self.load_test_data_bundle('fixtures/smartseq2/paired_ends')
         sample_s3_event = self.create_sample_s3_bundle_created_event(bundle_key)
         log.debug("Submitting s3 bundle created event: %s", json.dumps(sample_s3_event, indent=4))
         process_new_indexable_object(sample_s3_event, log)
@@ -74,18 +77,6 @@ class TestEventHandlers(unittest.TestCase):
         # Better to write a search test method that would retry the search until
         # the expected result was acheived or a timeout was reached.
         time.sleep(5)
-        self.verify_search_results(1)
-
-    @staticmethod
-    def create_sample_s3_bundle_created_event(bundle_key: str) -> Dict:
-        with open(os.path.join(os.path.dirname(__file__), "sample_s3_bundle_created_event.json")) as fh:
-            sample_s3_event = json.load(fh)
-        sample_s3_event['Records'][0]["s3"]["bucket"]["name"] = infra.get_env("DSS_S3_BUCKET_TEST")
-        sample_s3_event['Records'][0]["s3"]["object"]["key"] = bundle_key
-        return sample_s3_event
-
-    def verify_search_results(self, expected_hit_count):
-        es_client = Elasticsearch()
         query = \
             {
                 "query": {
@@ -106,41 +97,82 @@ class TestEventHandlers(unittest.TestCase):
                     }
                 }
             }
-        response = es_client.search(index=DSS_ELASTICSEARCH_INDEX_NAME, doc_type=DSS_ELASTICSEARCH_DOC_TYPE,
-                                    body=json.dumps(query))
-        self.assertEqual(expected_hit_count, response['hits']['total'])
-        with open(os.path.join(os.path.dirname(__file__), "expected_index_document.json"), "r") as fh:
-            expected_index_document = json.load(fh)
-        actual_index_document = response['hits']['hits'][0]['_source']
-        self.normalize_inherently_different_values_in_dict(expected_index_document, actual_index_document)
-        expected_index_string = json.dumps(expected_index_document, indent=4)
-        actual_index_string = json.dumps(actual_index_document, indent=4)
-        if expected_index_string != actual_index_string:
-            log.error(("Actual index returned from search is different than expected value. "
-                       "Expected value: %s Actual value: %s"), expected_index_string, actual_index_string)
-            # Uncomment the following to write the actual value to a file to faciltate comparison with the expected.
-            # with open(os.path.join(os.path.dirname(__file__), "tmp_actual_index_document.json"), "w+") as fh:
-            #    fh.write(actual_index_string)
-            #    fh.write(os.linesep)
-        self.assertEqual(expected_index_string, actual_index_string)
-        close_elasticsearch_connections(es_client)
+        search_results = self.get_search_results(query)
+        self.assertEquals(1, len(search_results))
+        self.verify_index_document_structure_and_content(search_results[0], bundle_key,
+                                                         files=["assay_json", "cell_json", "manifest_json",
+                                                                "project_json", "sample_json"])
 
-    def normalize_inherently_different_values_in_dict(self, expected_json_dict, actual_json_dict):
-        keys_to_normalize = {'version', 'uuid'}
-        for key in expected_json_dict.keys():
-            expected_value = expected_json_dict[key]
-            actual_value = actual_json_dict[key]
-            if key in keys_to_normalize:
-                actual_json_dict[key] = expected_json_dict[key]
-            elif isinstance(expected_value, dict):
-                self.normalize_inherently_different_values_in_dict(expected_value, actual_value)
-            elif isinstance(expected_value, list):
-                self.normalize_inherently_different_values_in_list(expected_value, actual_value)
+    @staticmethod
+    def create_sample_s3_bundle_created_event(bundle_key: str) -> Dict:
+        with open(os.path.join(os.path.dirname(__file__), "sample_s3_bundle_created_event.json")) as fh:
+            sample_s3_event = json.load(fh)
+        sample_s3_event['Records'][0]["s3"]["bucket"]["name"] = get_env("DSS_S3_BUCKET_TEST")
+        sample_s3_event['Records'][0]["s3"]["object"]["key"] = bundle_key
+        return sample_s3_event
 
-    def normalize_inherently_different_values_in_list(self, expected_list, actual_list):
-        for i in range(0, len(expected_list)):
-            if isinstance(expected_list[i], dict):
-                self.normalize_inherently_different_values_in_dict(expected_list[i], actual_list[i])
+    def verify_index_document_structure_and_content(self, actual_index_document, bundle_key, files):
+        self.verify_index_document_structure(actual_index_document, files)
+        expected_index_document = generate_expected_index_document(get_env("DSS_S3_BUCKET_TEST"), bundle_key)
+        if expected_index_document != actual_index_document:
+            log.error("Expected index document: %s", json.dumps(expected_index_document, indent=4))
+            log.error("Actual index document: %s", json.dumps(actual_index_document, indent=4))
+            self.assertDictEqual(expected_index_document, actual_index_document)
+
+    @staticmethod
+    def get_search_results(query):
+        es_client = Elasticsearch()
+        try:
+            response = es_client.search(index=DSS_ELASTICSEARCH_INDEX_NAME,
+                                        doc_type=DSS_ELASTICSEARCH_DOC_TYPE,
+                                        body=json.dumps(query))
+            return [hit['_source'] for hit in response['hits']['hits']]
+
+        finally:
+            close_elasticsearch_connections(es_client)
+
+    def verify_index_document_structure(self, index_document, files):
+        self.assertEqual(3, len(index_document.keys()))
+        self.assertEqual("new", index_document['state'])
+        self.assertIsNotNone(index_document['manifest'])
+        self.assertIsNotNone(index_document['files'])
+        self.assertEqual(len(files), len(index_document['files'].keys()))
+        for filename in files:
+            self.assertIsNotNone(index_document['files'][filename])
+
+
+def generate_expected_index_document(bucket_name, bundle_key):
+    s3 = boto3.resource('s3')
+    manifest = read_bundle_manifest(s3, bucket_name, bundle_key)
+    index_data = create_index_data(s3, bucket_name, manifest)
+    return index_data
+
+
+def read_bundle_manifest(s3, bucket_name, bundle_key):
+    manifest_string = s3.Object(bucket_name, bundle_key).get()['Body'].read().decode("utf-8")
+    manifest = json.loads(manifest_string, encoding="utf-8")
+    return manifest
+
+
+def create_index_data(s3, bucket_name, manifest):
+    index = dict(state="new", manifest=manifest)
+    files_info = manifest['files']
+    index_files = {}
+    bucket = s3.Bucket(bucket_name)
+    for file_info in files_info:
+        if file_info['indexed'] is True:
+            file_key = create_file_key(file_info)
+            file_string = bucket.Object(file_key).get()['Body'].read().decode("utf-8")
+            file_json = json.loads(file_string)
+            index_filename = file_info["name"].replace(".", "_")
+            index_files[index_filename] = file_json
+    index['files'] = index_files
+    return index
+
+
+def create_file_key(file_info) -> str:
+    return "blobs/{}.{}.{}.{}".format(file_info['sha256'], file_info['sha1'], file_info['s3-etag'],
+                                      file_info['crc32c'])
 
 
 # Check if the Elasticsearch service is running,
