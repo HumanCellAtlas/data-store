@@ -46,37 +46,32 @@ class TestIndexer(unittest.TestCase, StorageTestSupport):
     def setUpClass(cls):
         if "DSS_ES_ENDPOINT" not in os.environ:
             os.environ["DSS_ES_ENDPOINT"] = "localhost"
+        cls.check_connect_elasticsearch_service()
 
-        log.debug("Setting up Elasticsearch")
-        check_start_elasticsearch_service()
-        elasticsearch_delete_index("_all")
+    @classmethod
+    def tearDownClass(cls):
+        cls.close_elasticsearch_connections()
 
     def setUp(self):
         StorageTestSupport.setup(self)
         dss.Config.set_config(dss.BucketStage.TEST)
         self.app = dss.create_app().app.test_client()
+        self.elasticsearch_delete_index("_all")
 
     def tearDown(self):
         self.app = None
         self.storageHelper = None
-
-    def load_test_data_bundle(self, fixture_path: str):
-        bundle = S3TestBundle(fixture_path)
-        self.upload_files_and_create_bundle(bundle)
-        return f"bundles/{bundle.uuid}.{bundle.version}"
 
     def test_process_new_indexable_object(self):
         bundle_key = self.load_test_data_bundle('fixtures/smartseq2/paired_ends')
         sample_s3_event = self.create_sample_s3_bundle_created_event(bundle_key)
         log.debug("Submitting s3 bundle created event: %s", json.dumps(sample_s3_event, indent=4))
         process_new_indexable_object(sample_s3_event, log)
-        # It seems there is sometimes a slight delay between when a document
-        # is added to Elasticsearch and when it starts showing-up in searches.
-        # This is especially true if the index has just been deleted, recreated,
-        # document added then seached - all in immediate succession.
-        # Better to write a search test method that would retry the search until
-        # the expected result was acheived or a timeout was reached.
-        time.sleep(5)
+        # Elasticsearch periodically refreshes the searchable data with newly added data.
+        # By default, the refresh interval is one second.
+        # https://www.elastic.co/guide/en/elasticsearch/reference/5.5/_modifying_your_data.html
+        # Yet, sometimes one second is not quite enough given the churn in the local Elasticsearch instance.
+        time.sleep(2)
         query = \
             {
                 "query": {
@@ -98,10 +93,15 @@ class TestIndexer(unittest.TestCase, StorageTestSupport):
                 }
             }
         search_results = self.get_search_results(query)
-        self.assertEquals(1, len(search_results))
+        self.assertEqual(1, len(search_results))
         self.verify_index_document_structure_and_content(search_results[0], bundle_key,
                                                          files=["assay_json", "cell_json", "manifest_json",
                                                                 "project_json", "sample_json"])
+
+    def load_test_data_bundle(self, fixture_path: str):
+        bundle = S3TestBundle(fixture_path)
+        self.upload_files_and_create_bundle(bundle)
+        return f"bundles/{bundle.uuid}.{bundle.version}"
 
     @staticmethod
     def create_sample_s3_bundle_created_event(bundle_key: str) -> Dict:
@@ -119,18 +119,6 @@ class TestIndexer(unittest.TestCase, StorageTestSupport):
             log.error("Actual index document: %s", json.dumps(actual_index_document, indent=4))
             self.assertDictEqual(expected_index_document, actual_index_document)
 
-    @staticmethod
-    def get_search_results(query):
-        es_client = Elasticsearch()
-        try:
-            response = es_client.search(index=DSS_ELASTICSEARCH_INDEX_NAME,
-                                        doc_type=DSS_ELASTICSEARCH_DOC_TYPE,
-                                        body=json.dumps(query))
-            return [hit['_source'] for hit in response['hits']['hits']]
-
-        finally:
-            close_elasticsearch_connections(es_client)
-
     def verify_index_document_structure(self, index_document, files):
         self.assertEqual(3, len(index_document.keys()))
         self.assertEqual("new", index_document['state'])
@@ -139,6 +127,35 @@ class TestIndexer(unittest.TestCase, StorageTestSupport):
         self.assertEqual(len(files), len(index_document['files'].keys()))
         for filename in files:
             self.assertIsNotNone(index_document['files'][filename])
+
+    @classmethod
+    def check_connect_elasticsearch_service(cls):
+        try:
+            cls.es_client = Elasticsearch()
+            log.debug("The Elasticsearch service is running. %s", cls.es_client.info())
+        except Exception:
+            raise Exception("The Elasticsearch service does not appear to be running on this system, "
+                            "yet it is required for this test. Please start it by running: elasticsearch")
+
+    @classmethod
+    def get_search_results(cls, query):
+        response = cls.es_client.search(index=DSS_ELASTICSEARCH_INDEX_NAME,
+                                        doc_type=DSS_ELASTICSEARCH_DOC_TYPE,
+                                        body=json.dumps(query))
+        return [hit['_source'] for hit in response['hits']['hits']]
+
+    @classmethod
+    def elasticsearch_delete_index(cls, index_name):
+        try:
+            cls.es_client.indices.delete(index=index_name, ignore=[404])
+        except Exception as e:
+            log.warning("Error occurred while removing Elasticsearch index:%s Exception: %s", index_name, e)
+
+    @classmethod
+    def close_elasticsearch_connections(cls):
+        # This prevents open socket errors after the test is over.
+        for conn in cls.es_client.transport.connection_pool.connections:
+            conn.pool.close()
 
 
 def generate_expected_index_document(bucket_name, bundle_key):
@@ -174,34 +191,6 @@ def create_file_key(file_info) -> str:
     return "blobs/{}.{}.{}.{}".format(file_info['sha256'], file_info['sha1'], file_info['s3-etag'],
                                       file_info['crc32c'])
 
-
-# Check if the Elasticsearch service is running,
-# and if not, raise and exception with instructions to start it.
-def check_start_elasticsearch_service():
-    try:
-        es_client = Elasticsearch()
-        es_info = es_client.info()
-        log.debug("The Elasticsearch service is running.")
-        log.debug("Elasticsearch info: %s", es_info)
-        close_elasticsearch_connections(es_client)
-    except Exception:
-        raise Exception("The Elasticsearch service does not appear to be running on this system, "
-                        "yet it is required for this test. Please start it by running: elasticsearch")
-
-
-def elasticsearch_delete_index(index_name: str):
-    try:
-        es_client = Elasticsearch()
-        es_client.indices.delete(index=index_name, ignore=[404])
-        close_elasticsearch_connections(es_client)  # Prevents end-of-test complaints about open sockets
-    except Exception as e:
-        log.warning("Error occurred while removing Elasticsearch index:%s Exception: %s", index_name, e)
-
-
-# This prevents open socket errors after the test is over.
-def close_elasticsearch_connections(es_client):
-    for conn in es_client.transport.connection_pool.connections:
-        conn.pool.close()
 
 if __name__ == '__main__':
     unittest.main()
