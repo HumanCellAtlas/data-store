@@ -7,6 +7,7 @@ import boto3
 
 from ... import DSS_ELASTICSEARCH_INDEX_NAME, DSS_ELASTICSEARCH_DOC_TYPE
 from ...util import connect_elasticsearch
+from ...hcablobstore import BundleMetadata, BundleFileMetadata
 
 DSS_BUNDLE_KEY_REGEX = r"^bundles/[0-9A-Fa-f]{8}-[0-9A-Fa-f]{4}-4[0-9A-Fa-f]{3}-[0-9A-Fa-f]{4}-[0-9A-Fa-f]{12}\..+$"
 
@@ -24,8 +25,9 @@ def process_new_indexable_object(event, logger) -> None:
             s3 = boto3.resource('s3')
             bucket_name = event['Records'][0]["s3"]["bucket"]["name"]
             manifest = read_bundle_manifest(s3, bucket_name, key, logger)
-            index_data = create_index_data(s3, bucket_name, manifest, logger)
-            add_index_data_to_elasticsearch(os.getenv("DSS_ES_ENDPOINT"), key, index_data, logger)
+            bundle_id = get_bundle_id_from_key(key)
+            index_data = create_index_data(s3, bucket_name, bundle_id, manifest, logger)
+            add_index_data_to_elasticsearch(os.getenv("DSS_ES_ENDPOINT"), bundle_id, index_data, logger)
             logger.debug("Finished index processing of S3 creation event for bundle: %s", key)
         else:
             logger.debug("Not indexing S3 creation event for key: %s", key)
@@ -50,18 +52,27 @@ def read_bundle_manifest(s3, bucket_name, bundle_key, logger):
     return manifest
 
 
-def create_index_data(s3, bucket_name, manifest, logger):
+def create_index_data(s3, bucket_name, bundle_id, manifest, logger):
     index = dict(state="new", manifest=manifest)
-    files_info = manifest['files']
+    files_info = manifest[BundleMetadata.FILES]
     index_files = {}
     bucket = s3.Bucket(bucket_name)
     for file_info in files_info:
-        if file_info['indexed'] is True:
-            if not file_info["name"].endswith(".json"):  # TODO Don't check filename, if file is 'indexed' load json
-                logger.warning("File %s is marked for indexing but does not end in .json. It will not be indexed.",
-                               file_info["name"])
+        if file_info[BundleFileMetadata.INDEXED] is True:
+            if file_info[BundleFileMetadata.CONTENT_TYPE] != 'application/json':
+                logger.warning(("In bundle %s the file \"%s\" is marked for indexing yet has content type \"%s\""
+                                " instead of the required content type \"application/json\"."
+                                " This file will not be indexed."),
+                               bundle_id,
+                               file_info[BundleFileMetadata.NAME],
+                               file_info[BundleFileMetadata.CONTENT_TYPE])
                 continue
-            logger.debug("Indexing file: %s", file_info["name"])
+            # TODO Don't check filename, if file is 'indexed' load json
+            if not file_info[BundleFileMetadata.NAME].endswith(".json"):
+                logger.warning("File %s is marked for indexing but does not end in .json. It will not be indexed.",
+                               file_info[BundleFileMetadata.NAME])
+                continue
+            logger.debug("Indexing file: %s", file_info[BundleFileMetadata.NAME])
             file_key = create_file_key(file_info)
             file_string = bucket.Object(file_key).get()['Body'].read().decode("utf-8")
             file_json = json.loads(file_string)
@@ -76,14 +87,25 @@ def create_index_data(s3, bucket_name, manifest, logger):
             # of the query spec, so go with that, at least for now. Do so by substituting
             # dot for underscore in the key filename portion of the index.
             # As due diligence, additional investigation should be performed.
-            index_filename = file_info["name"].replace(".", "_")
+            index_filename = file_info[BundleFileMetadata.NAME].replace(".", "_")
             index_files[index_filename] = file_json
     index['files'] = index_files
     return index
 
 
+def get_bundle_id_from_key(bundle_key):
+    if bundle_key.startswith("bundles/"):
+        bundle_key = bundle_key[8:]
+    return bundle_key
+
+
 def create_file_key(file_info) -> str:
-    return "blobs/{}.{}.{}.{}".format(file_info['sha256'], file_info['sha1'], file_info['s3-etag'], file_info['crc32c'])
+    return "blobs/" + ".".join((
+        file_info[BundleFileMetadata.SHA256],
+        file_info[BundleFileMetadata.SHA1],
+        file_info[BundleFileMetadata.S3_ETAG],
+        file_info[BundleFileMetadata.CRC32C]
+    ))
 
 
 def add_index_data_to_elasticsearch(elasticsearch_endpoint, bundle_key, index_data, logger) -> None:
@@ -106,13 +128,11 @@ def create_elasticsearch_index(es_client, logger):
         logger.critical("Unable to create index %s  Exception: %s", DSS_ELASTICSEARCH_INDEX_NAME, ex)
 
 
-def add_data_to_elasticsearch(es_client, bundle_key, index_data, logger) -> None:
+def add_data_to_elasticsearch(es_client, bundle_id, index_data, logger) -> None:
     try:
-        if bundle_key.startswith("bundles/"):
-            bundle_key = bundle_key[8:]
         es_client.index(index=DSS_ELASTICSEARCH_INDEX_NAME,
                         doc_type=DSS_ELASTICSEARCH_DOC_TYPE,
-                        id=bundle_key,
+                        id=bundle_id,
                         body=json.dumps(index_data, indent=4))
 
     except Exception as ex:

@@ -114,6 +114,7 @@ class S3File:
         self.bundle = bundle
         self.path = object_summary.key
         self.metadata = object_summary.Object().metadata
+        self.indexed = True if self.metadata['hca-dss-content-type'] == "application/json" else False
         self.name = os.path.basename(self.path)
         self.url = f"s3://{bundle.bucket.name}/{self.path}"
         self.uuid = str(uuid.uuid4())
@@ -170,7 +171,7 @@ class StorageTestSupport(DSSAsserts):
             'version': bundle.version,
             'files': [
                 {
-                    'indexed': True if bundle_file.metadata['hca-dss-content-type'] == "application/json" else False,
+                    'indexed': bundle_file.indexed,
                     'name': bundle_file.name,
                     'uuid': bundle_file.uuid,
                     'version': bundle_file.version

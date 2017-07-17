@@ -127,7 +127,7 @@ def upload(uploader: Uploader):
                 "hca-dss-content-type": "application/json",
             },
         )
-    for fname in ["nonindexed_file1.txt", "nonindexed_file2.txt"]:
+    for fname in ["text_data_file1.txt", "text_data_file2.txt"]:
         uploader.checksum_and_upload_file(
             f"indexing/{fname}",
             f"fixtures/smartseq2/paired_ends/{fname}",
