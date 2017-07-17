@@ -14,7 +14,8 @@ pkg_root = os.path.abspath(os.path.join(os.path.dirname(__file__), '..'))  # noq
 sys.path.insert(0, pkg_root)  # noqa
 
 import dss
-from tests.infra import DSSAsserts, UrlBuilder, get_env
+from dss.util import UrlBuilder
+from tests.infra import DSSAsserts, get_env
 
 
 class TestApi(unittest.TestCase, DSSAsserts):

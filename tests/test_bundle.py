@@ -16,7 +16,8 @@ sys.path.insert(0, pkg_root) # noqa
 
 import dss
 from dss.config import BucketStage, override_bucket_config
-from tests.infra import DSSAsserts, UrlBuilder, get_env
+from dss.util import UrlBuilder
+from tests.infra import DSSAsserts, get_env
 
 
 class TestDSS(unittest.TestCase, DSSAsserts):
