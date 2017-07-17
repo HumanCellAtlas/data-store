@@ -103,6 +103,21 @@ class TestIndexer(unittest.TestCase, StorageTestSupport):
         self.verify_index_document_structure_and_content(search_results[0], bundle_key,
                                                          files=smartseq2_paried_ends_indexed_file_list)
 
+    def test_es_client_reuse(self):
+        bundle_key = self.load_test_data_bundle_for_path('fixtures/smartseq2/paired_ends')
+        sample_s3_event = self.create_sample_s3_bundle_created_event(bundle_key)
+
+        dss.events.handlers.index.es_client = None
+        process_new_indexable_object(sample_s3_event, logger)
+        self.assertIsNotNone(dss.events.handlers.index.es_client)
+        es_client_after_first_call = dss.events.handlers.index.es_client
+
+        process_new_indexable_object(sample_s3_event, logger)
+        self.assertIsNotNone(dss.events.handlers.index.es_client)
+        es_client_after_second_call = dss.events.handlers.index.es_client
+
+        self.assertIs(es_client_after_first_call, es_client_after_second_call)
+
     def load_test_data_bundle_for_path(self, fixture_path: str):
         bundle = S3TestBundle(fixture_path)
         return self.load_test_data_bundle(bundle)

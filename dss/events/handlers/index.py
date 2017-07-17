@@ -11,12 +11,17 @@ from ...util import connect_elasticsearch
 
 DSS_BUNDLE_KEY_REGEX = r"^bundles/[0-9A-Fa-f]{8}-[0-9A-Fa-f]{4}-4[0-9A-Fa-f]{3}-[0-9A-Fa-f]{4}-[0-9A-Fa-f]{12}\..+$"
 
-#
-# Lambda function for DSS indexing
-#
+"""
+Lambda function for DSS indexing
+"""
+
+es_client = None
 
 
 def process_new_indexable_object(event, logger) -> None:
+    global es_client
+    if es_client is None:
+        es_client = connect_elasticsearch(os.getenv("DSS_ES_ENDPOINT"), logger)
     try:
         # This function is only called for S3 creation events
         key = unquote(event['Records'][0]["s3"]["object"]["key"])
@@ -27,7 +32,7 @@ def process_new_indexable_object(event, logger) -> None:
             manifest = read_bundle_manifest(s3, bucket_name, key, logger)
             bundle_id = get_bundle_id_from_key(key)
             index_data = create_index_data(s3, bucket_name, bundle_id, manifest, logger)
-            add_index_data_to_elasticsearch(os.getenv("DSS_ES_ENDPOINT"), bundle_id, index_data, logger)
+            add_index_data_to_elasticsearch(bundle_id, index_data, logger)
             logger.debug("Finished index processing of S3 creation event for bundle: %s", key)
         else:
             logger.debug("Not indexing S3 creation event for key: %s", key)
@@ -78,7 +83,6 @@ def create_index_data(s3, bucket_name, bundle_id, manifest, logger):
                                file_info[BundleFileMetadata.NAME],
                                str(e))
                 continue
-
             logger.debug("Indexing file: %s", file_info[BundleFileMetadata.NAME])
             # There are two reasons in favor of not using dot in the name of the individual
             # files in the index document, and instead replacing it with an underscore.
@@ -112,14 +116,13 @@ def create_file_key(file_info) -> str:
     ))
 
 
-def add_index_data_to_elasticsearch(elasticsearch_endpoint, bundle_key, index_data, logger) -> None:
-    es_client = connect_elasticsearch(elasticsearch_endpoint, logger)
-    create_elasticsearch_index(es_client, logger)
+def add_index_data_to_elasticsearch(bundle_key, index_data, logger) -> None:
+    create_elasticsearch_index(logger)
     logger.debug("Adding index data to Elasticsearch: %s", json.dumps(index_data, indent=4))
-    add_data_to_elasticsearch(es_client, bundle_key, index_data, logger)
+    add_data_to_elasticsearch(bundle_key, index_data, logger)
 
 
-def create_elasticsearch_index(es_client, logger):
+def create_elasticsearch_index(logger):
     try:
         response = es_client.indices.exists(DSS_ELASTICSEARCH_INDEX_NAME)
         if response is False:
@@ -132,7 +135,7 @@ def create_elasticsearch_index(es_client, logger):
         logger.critical("Unable to create index %s  Exception: %s", DSS_ELASTICSEARCH_INDEX_NAME, ex)
 
 
-def add_data_to_elasticsearch(es_client, bundle_id, index_data, logger) -> None:
+def add_data_to_elasticsearch(bundle_id, index_data, logger) -> None:
     try:
         es_client.index(index=DSS_ELASTICSEARCH_INDEX_NAME,
                         doc_type=DSS_ELASTICSEARCH_DOC_TYPE,
