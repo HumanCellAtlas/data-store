@@ -6,8 +6,8 @@ from urllib.parse import unquote
 import boto3
 
 from ... import DSS_ELASTICSEARCH_INDEX_NAME, DSS_ELASTICSEARCH_DOC_TYPE
-from ...util import connect_elasticsearch
 from ...hcablobstore import BundleMetadata, BundleFileMetadata
+from ...util import connect_elasticsearch
 
 DSS_BUNDLE_KEY_REGEX = r"^bundles/[0-9A-Fa-f]{8}-[0-9A-Fa-f]{4}-4[0-9A-Fa-f]{3}-[0-9A-Fa-f]{4}-[0-9A-Fa-f]{12}\..+$"
 
@@ -67,15 +67,19 @@ def create_index_data(s3, bucket_name, bundle_id, manifest, logger):
                                file_info[BundleFileMetadata.NAME],
                                file_info[BundleFileMetadata.CONTENT_TYPE])
                 continue
-            # TODO Don't check filename, if file is 'indexed' load json
-            if not file_info[BundleFileMetadata.NAME].endswith(".json"):
-                logger.warning("File %s is marked for indexing but does not end in .json. It will not be indexed.",
-                               file_info[BundleFileMetadata.NAME])
+            try:
+                file_key = create_file_key(file_info)
+                file_string = bucket.Object(file_key).get()['Body'].read().decode("utf-8")
+                file_json = json.loads(file_string)
+            except Exception as e:
+                logger.warning(("In bundle %s the file \"%s\" is marked for indexing yet could not be parsed."
+                                " This file will not be indexed. Exception: %s"),
+                               bundle_id,
+                               file_info[BundleFileMetadata.NAME],
+                               str(e))
                 continue
+
             logger.debug("Indexing file: %s", file_info[BundleFileMetadata.NAME])
-            file_key = create_file_key(file_info)
-            file_string = bucket.Object(file_key).get()['Body'].read().decode("utf-8")
-            file_json = json.loads(file_string)
             # There are two reasons in favor of not using dot in the name of the individual
             # files in the index document, and instead replacing it with an underscore.
             # 1. Ambiguity regarding interpretation/processing of dots in field names,

@@ -65,14 +65,8 @@ class TestIndexer(unittest.TestCase, StorageTestSupport):
     def test_process_new_indexable_object(self):
         bundle_key = self.load_test_data_bundle_for_path('fixtures/smartseq2/paired_ends')
         sample_s3_event = self.create_sample_s3_bundle_created_event(bundle_key)
-        logger.debug("Submitting s3 bundle created event: %s", json.dumps(sample_s3_event, indent=4))
         process_new_indexable_object(sample_s3_event, logger)
-        # Elasticsearch periodically refreshes the searchable data with newly added data.
-        # By default, the refresh interval is one second.
-        # https://www.elastic.co/guide/en/elasticsearch/reference/5.5/_modifying_your_data.html
-        # Yet, sometimes one second is not quite enough given the churn in the local Elasticsearch instance.
-        time.sleep(2)
-        search_results = self.get_search_results(smartseq2_paired_ends_query)
+        search_results = self.get_search_results(smartseq2_paired_ends_query, 1)
         self.assertEqual(1, len(search_results))
         self.verify_index_document_structure_and_content(search_results[0], bundle_key,
                                                          files=smartseq2_paried_ends_indexed_file_list)
@@ -85,15 +79,26 @@ class TestIndexer(unittest.TestCase, StorageTestSupport):
                 file.indexed = True
         bundle_key = self.load_test_data_bundle(bundle)
         sample_s3_event = self.create_sample_s3_bundle_created_event(bundle_key)
-        logger.debug("Submitting s3 bundle created event: %s", json.dumps(sample_s3_event, indent=4))
         with self.assertLogs(logger, level="WARNING") as log_monitor:
             process_new_indexable_object(sample_s3_event, logger)
         self.assertRegex(log_monitor.output[0],
                          "WARNING:.*:In bundle .* the file \"text_data_file1.txt\" is marked for indexing"
                          " yet has content type \"text/plain\" instead of the required"
                          " content type \"application/json\". This file will not be indexed.")
-        time.sleep(2)
-        search_results = self.get_search_results(smartseq2_paired_ends_query)
+        search_results = self.get_search_results(smartseq2_paired_ends_query, 1)
+        self.assertEqual(1, len(search_results))
+        self.verify_index_document_structure_and_content(search_results[0], bundle_key,
+                                                         files=smartseq2_paried_ends_indexed_file_list)
+
+    def test_indexed_file_unparsable(self):
+        bundle_key = self.load_test_data_bundle_for_path('fixtures/unparseable_indexed_file')
+        sample_s3_event = self.create_sample_s3_bundle_created_event(bundle_key)
+        with self.assertLogs(logger, level="WARNING") as log_monitor:
+            process_new_indexable_object(sample_s3_event, logger)
+        self.assertRegex(log_monitor.output[0],
+                         "WARNING:.*:In bundle .* the file \"unparseable_json.json\" is marked for indexing"
+                         " yet could not be parsed. This file will not be indexed. Exception:")
+        search_results = self.get_search_results(smartseq2_paired_ends_query, 1)
         self.assertEqual(1, len(search_results))
         self.verify_index_document_structure_and_content(search_results[0], bundle_key,
                                                          files=smartseq2_paried_ends_indexed_file_list)
@@ -141,11 +146,22 @@ class TestIndexer(unittest.TestCase, StorageTestSupport):
                             "yet it is required for this test. Please start it by running: elasticsearch")
 
     @classmethod
-    def get_search_results(cls, query):
-        response = cls.es_client.search(index=DSS_ELASTICSEARCH_INDEX_NAME,
-                                        doc_type=DSS_ELASTICSEARCH_DOC_TYPE,
-                                        body=json.dumps(query))
-        return [hit['_source'] for hit in response['hits']['hits']]
+    def get_search_results(cls, query, expected_hit_count):
+        # Elasticsearch periodically refreshes the searchable data with newly added data.
+        # By default, the refresh interval is one second.
+        # https://www.elastic.co/guide/en/elasticsearch/reference/5.5/_modifying_your_data.html
+        # Yet, sometimes one second is not quite enough given the churn in the local Elasticsearch instance.
+        timeout = 2
+        timeout_time = time.time() + timeout
+        while True:
+            response = cls.es_client.search(index=DSS_ELASTICSEARCH_INDEX_NAME,
+                                            doc_type=DSS_ELASTICSEARCH_DOC_TYPE,
+                                            body=json.dumps(query))
+            if (len(response['hits']['hits']) >= expected_hit_count) \
+                    or (time.time() >= timeout_time):
+                return [hit['_source'] for hit in response['hits']['hits']]
+            else:
+                time.sleep(0.5)
 
     @classmethod
     def elasticsearch_delete_index(cls, index_name):
@@ -210,8 +226,11 @@ def create_index_data(s3, bucket_name, manifest):
             obj = bucket.Object(file_key)
             if obj.metadata['hca-dss-content-type'] != 'application/json':
                 continue
-            file_string = obj.get()['Body'].read().decode("utf-8")
-            file_json = json.loads(file_string)
+            try:
+                file_string = obj.get()['Body'].read().decode("utf-8")
+                file_json = json.loads(file_string)
+            except Exception:
+                continue
             index_filename = file_info["name"].replace(".", "_")
             index_files[index_filename] = file_json
     index['files'] = index_files
