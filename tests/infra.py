@@ -205,7 +205,7 @@ class StorageTestSupport:
             'version': bundle.version,
             'files': [
                 {
-                    'indexed': True if bundle_file.metadata['hca-dss-content-type'] == "application/json" else False,
+                    'indexed': bundle_file.indexed,
                     'name': bundle_file.name,
                     'uuid': bundle_file.uuid,
                     'version': bundle_file.version
