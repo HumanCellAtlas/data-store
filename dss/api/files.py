@@ -93,7 +93,7 @@ def get(uuid: str, replica: str=None, version: str=None):
     return response
 
 
-def list():
+def find():
     return dict(files=[dict(uuid=str(uuid.uuid4()), name="", versions=[])])
 
 

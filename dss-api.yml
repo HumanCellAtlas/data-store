@@ -15,6 +15,7 @@ paths:
       description: |
         Returns a list of bundles matching the given simple criteria
       summary: Find bundles by querying their metadata using simple criteria
+      operationId: dss.api.search.find
       parameters:
         - name: query
           in: query
@@ -55,6 +56,7 @@ paths:
       summary: Query files
       description: |
         Returns a list of files matching given criteria.
+      operationId: dss.api.files.find
       responses:
         200:
           description: OK
@@ -256,6 +258,7 @@ paths:
       summary: Query bundles
       description: |
         Returns a list of bundles matching given criteria.
+      operationId: dss.api.bundles.find
       responses:
         200:
           description: OK
