@@ -12,7 +12,6 @@ import datetime
 import logging
 import os
 import sys
-import time
 import unittest
 import uuid
 
@@ -22,6 +21,7 @@ import google.cloud.storage
 pkg_root = os.path.abspath(os.path.join(os.path.dirname(__file__), '..')) # noqa
 sys.path.insert(0, pkg_root) # noqa
 
+import dss
 from dss.events.handlers import sync
 from tests import infra
 
@@ -30,8 +30,8 @@ infra.start_verbose_logging()
 
 class TestSyncUtils(unittest.TestCase):
     def setUp(self):
-        self.gs_bucket_name = os.environ["DSS_GS_BUCKET_TEST"]
-        self.s3_bucket_name = os.environ["DSS_S3_BUCKET_TEST"]
+        dss.Config.set_config(dss.BucketStage.TEST)
+        self.gs_bucket_name, self.s3_bucket_name = dss.Config.get_gs_bucket(), dss.Config.get_s3_bucket()
         self.logger = logging.getLogger(__name__)
         gcp_key_file = os.environ["GOOGLE_APPLICATION_CREDENTIALS"]
         gs = google.cloud.storage.Client.from_service_account_json(gcp_key_file)
