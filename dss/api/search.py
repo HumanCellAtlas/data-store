@@ -9,7 +9,7 @@ from .. import get_logger
 from ..util import connect_elasticsearch
 
 
-def list():
+def find():
     get_logger().debug("Searching for: %s", request.values["query"])
     # TODO (mbaumann) Use a connection manager
     es_client = connect_elasticsearch(os.getenv("DSS_ES_ENDPOINT"), get_logger())
