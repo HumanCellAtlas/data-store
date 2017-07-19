@@ -70,6 +70,7 @@ class TestSyncUtils(unittest.TestCase):
     def test_s3_streaming(self):
         boto3_session = boto3.session.Session()
         payload = io.BytesIO(os.urandom(2**20))
+        test_key = "hca-dss-sync-test/s3-streaming-upload/{}".format(uuid.uuid4())
         chunker = S3SigningChunker(fh=payload,
                                    total_bytes=len(payload.getvalue()),
                                    credentials=boto3_session.get_credentials(),
@@ -77,13 +78,29 @@ class TestSyncUtils(unittest.TestCase):
                                    region_name=boto3_session.region_name)
         upload_url = "{host}/{bucket}/{key}".format(host=self.s3.meta.client.meta.endpoint_url,
                                                     bucket=self.s3_bucket.name,
-                                                    key="hca-dss-sync-test/s3-streaming-upload")
+                                                    key=test_key)
         res = get_pool_manager().request("PUT", upload_url,
                                          headers=chunker.get_headers("PUT", upload_url),
                                          body=chunker,
                                          chunked=True,
                                          retries=False)
         self.assertEqual(res.status, requests.codes.ok)
+        self.assertEqual(self.s3_bucket.Object(test_key).get()["Body"].read(), payload.getvalue())
+
+    def test_compose_gs_blobs(self):
+        test_key = "hca-dss-sync-test/compose-gs-blobs/{}".format(uuid.uuid4())
+        blob_names = []
+        total_payload = b""
+        for part in range(3):
+            payload = os.urandom(2**10)
+            self.gs_bucket.blob(f"{test_key}.part{part}").upload_from_string(payload)
+            blob_names.append(f"{test_key}.part{part}")
+            total_payload += payload
+        sync.compose_gs_blobs(self.gs_bucket, blob_names, test_key)
+        self.assertEqual(self.gs_bucket.blob(test_key).download_as_string(), total_payload)
+        for part in range(3):
+            self.assertFalse(self.gs_bucket.blob(f"{test_key}.part{part}").exists())
+
 
 if __name__ == '__main__':
     unittest.main()
