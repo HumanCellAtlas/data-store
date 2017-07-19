@@ -63,13 +63,18 @@ environment variable `DSS_GS_BUCKET_TEST_FIXTURES` to the name of that bucket.
 #### Running the DSS API locally
 Run `./dss-api` in the top-level `data-store` directory.
 
+#### Check and install software required to test and deploy
+Check that software packages required to test and deploy are available, and install them if necessary.
+
+Run: `make --dry-run`
+
 #### Populate test data
 
 To run the tests, test fixture data must be setup using the following command.
 **This command will completely empty the given buckets** before populating them with test fixture data, please 
 ensure the correct bucket names are provided.
 
-    python tests/fixtures/populate.py --s3-bucket $DSS_S3_BUCKET_TEST_FIXTURES --gs-bucket $DSS_GS_BUCKET_TEST_FIXTURES
+    tests/fixtures/populate.py --s3-bucket $DSS_S3_BUCKET_TEST_FIXTURES --gs-bucket $DSS_GS_BUCKET_TEST_FIXTURES
 
 
 #### Running tests
@@ -85,14 +90,6 @@ Run `make test` in the top-level `data-store` directory.
 #### Deployment
 
 Assuming the tests have passed above, the next step is to manually deploy.  See the section below for information on CI/CD with Travis if continuous deployment is your goal.
-
-You will need to ensure you are ready for deployment refer to `.travis.yml` to ensure you have all needed requirements.  Currently, the Travis deployment uses Ubuntu Trusty (14.04) with the following packages apt-get installed:
-
-    sudo apt-get install jq moreutils gettext
-    
-For Mac OS, install these packages using Homebrew:
-
-    brew install jq moreutils gettext
 
 The AWS Elasticsearch Service is used for metadata indexing.
 Currently, the AWS Elasticsearch Service must be configured manually.
