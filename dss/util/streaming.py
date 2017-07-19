@@ -71,7 +71,6 @@ class ChunkingHTTPSConnection(urllib3.connection.HTTPSConnection):
             self.putheader(header, value)
         self.endheaders()
         for chunk in body:
-            print("Sending", len(chunk))
             self.send(chunk)
 
 class ChunkingHTTPSConnectionPool(urllib3.HTTPSConnectionPool):
