@@ -285,7 +285,7 @@ paths:
         - name: replica
           in: query
           description: Replica to fetch from. Can be one of aws, gcp, or azure.
-          required: false
+          required: true
           type: string
           enum: [aws, gcp, azure]
       responses:
