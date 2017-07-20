@@ -82,7 +82,7 @@ def sync_s3_to_gcsts(project_id, s3_bucket_name, gs_bucket_name, source_key, log
         gsts_job = gsts_conn.api_request("POST", "/transferJobs", data=gsts_job_def)
         logger.info(gsts_job)
     except Exception as e:
-        logger.error("FIXME: (akislyuk) GSTS job submission failed: {}".format(e))
+        logger.error(f"FIXME: (akislyuk) GSTS job submission failed: {e}")
     # FIXME akislyuk: the service account doesn't have permission to look at the
     # status of the job, even though it has permission to create it.  I
     # couldn't figure out what permission scope to give the principal in the
@@ -140,7 +140,7 @@ def dispatch_multipart_sync(source, dest, logger, context):
 
 def sync_blob(source_platform, source_key, dest_platform, logger, context):
     gs = Config.get_cloud_specific_handles("gcp")[0].gcp_client
-    logger.info("Begin transfer of {} from {} to {}".format(source_key, source_platform, dest_platform))
+    logger.info(f"Begin transfer of {source_key} from {source_platform} to {dest_platform}")
     gs_bucket, s3_bucket = gs.bucket(Config.get_gs_bucket()), resources.s3.Bucket(Config.get_s3_bucket())
     if source_platform == "s3" and dest_platform == "gs":
         source = BlobLocation(platform=source_platform, bucket=s3_bucket, blob=s3_bucket.Object(source_key))
@@ -155,7 +155,7 @@ def sync_blob(source_platform, source_key, dest_platform, logger, context):
         sync_s3_to_gcsts(gs.project, source.bucket.name, dest.bucket.name, source_key, logger)
     elif source_platform == "s3" and dest_platform == "gs":
         if dest.blob.exists():
-            logger.info("Key {} already exists in GS".format(source_key))
+            logger.info(f"Key {source_key} already exists in GS")
             return
         elif source.blob.content_length < part_size["s3"]:
             sync_s3_to_gs_oneshot(source, dest, logger)
@@ -164,7 +164,7 @@ def sync_blob(source_platform, source_key, dest_platform, logger, context):
     elif source_platform == "gs" and dest_platform == "s3":
         try:
             dest.blob.load()
-            logger.info("Key {} already exists in S3".format(source_key))
+            logger.info(f"Key {source_key} already exists in S3")
             return
         except clients.s3.exceptions.ClientError as e:
             if e.response["Error"].get("Message") != "Not Found":
@@ -174,7 +174,7 @@ def sync_blob(source_platform, source_key, dest_platform, logger, context):
             sync_gs_to_s3_oneshot(source, dest, logger)
         else:
             dispatch_multipart_sync(source, dest, logger, context)
-    logger.info("Completed transfer of {} from {} to {}".format(source_key, source.bucket, dest.bucket))
+    logger.info(f"Completed transfer of {source_key} from {source.bucket} to {dest.bucket}")
 
 def compose_gs_blobs(gs_bucket, blob_names, dest_blob_name):
     blobs = [gs_bucket.get_blob(b) for b in blob_names]
@@ -182,7 +182,7 @@ def compose_gs_blobs(gs_bucket, blob_names, dest_blob_name):
     assert not any(b is None for b in blobs)
     dest_blob = gs_bucket.blob(dest_blob_name)
     dest_blob.content_type = blobs[0].content_type
-    print("Composing blobs {} into {}".format(blob_names, dest_blob_name))
+    print("Composing blobs", blob_names, "into", dest_blob_name)
     dest_blob.compose(blobs)
     for blob in blobs:
         try:
@@ -205,11 +205,11 @@ def copy_part(upload_url, source_url, dest_platform, part, context):
                                body=chunker,
                                chunked=True,
                                retries=False)
-            context.log("Part upload result: {}".format(res.status))
+            context.log(f"Part upload result: {res.status}")
             assert 200 <= res.status < 300
             context.log("Part etag: {}".format(res.headers["ETag"]))
         elif dest_platform == "gs":
-            context.log("Uploading part {} to gs".format(part))
+            context.log(f"Uploading part {part} to gs")
             gs_transport = google.auth.transport.requests.AuthorizedSession(gs._credentials)
             for start in range(0, part["end"] - part["start"] + 1, gs_upload_chunk_size):
                 chunk = fh.read(gs_upload_chunk_size)
@@ -219,4 +219,4 @@ def copy_part(upload_url, source_url, dest_platform, part, context):
             assert res.status_code == 200
 
 def range_request(url, start, end):
-    return http.request("GET", url, preload_content=False, headers=dict(Range="bytes={}-{}".format(start, end)))
+    return http.request("GET", url, preload_content=False, headers=dict(Range=f"bytes={start}-{end}"))
