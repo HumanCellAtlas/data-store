@@ -25,7 +25,7 @@ from tests.sample_data_loader import load_sample_data_bundle, create_s3_bucket
 DSS_ELASTICSEARCH_INDEX_NAME = "hca"
 DSS_ELASTICSEARCH_DOC_TYPE = "hca"
 
-USE_AWS_S3_MOCK = os.environ.get("USE_AWS_S3_MOCK", True)
+USE_AWS_S3 = bool(os.environ.get("USE_AWS_S3"))
 
 logging.basicConfig(level=logging.INFO)
 log = logging.getLogger(__name__)
@@ -45,16 +45,11 @@ sys.path.insert(0, pkg_root)
 #   4. Perform as simple search to verify the index is in Elasticsearch.
 #
 
-def populate_moto_test_fixture_data():
-    s3_bucket_test_fixtures = (infra.get_env("DSS_S3_BUCKET_TEST_FIXTURES"))
-    create_s3_bucket(s3_bucket_test_fixtures)
-    populate(s3_bucket_test_fixtures, None)
-
 class TestEventHandlers(unittest.TestCase):
 
     @classmethod
     def setUpClass(cls):
-        if USE_AWS_S3_MOCK is True:
+        if not USE_AWS_S3:  # Setup moto S3 mock
             cls.mock_s3 = moto.mock_s3()
             cls.mock_s3.start()
             populate_moto_test_fixture_data()
@@ -68,7 +63,7 @@ class TestEventHandlers(unittest.TestCase):
 
     @classmethod
     def tearDownClass(cls):
-        if USE_AWS_S3_MOCK is True:
+        if not USE_AWS_S3:  # Teardown moto S3 mock
             cls.mock_s3.stop()
 
     def test_process_new_indexable_object(self):
@@ -151,6 +146,10 @@ class TestEventHandlers(unittest.TestCase):
             if isinstance(expected_list[i], dict):
                 self.normalize_inherently_different_values_in_dict(expected_list[i], actual_list[i])
 
+def populate_moto_test_fixture_data():
+    s3_bucket_test_fixtures = (infra.get_env("DSS_S3_BUCKET_TEST_FIXTURES"))
+    create_s3_bucket(s3_bucket_test_fixtures)
+    populate(s3_bucket_test_fixtures, None)
 
 # Check if the Elasticsearch service is running,
 # and if not, raise and exception with instructions to start it.
