@@ -1,3 +1,31 @@
+"""
+Utilities in this module support the S3 chunked upload protocol as described in
+http://docs.aws.amazon.com/AmazonS3/latest/API/sigv4-streaming.html.
+
+S3 requires the use of chunk extensions to sign individual chunks when
+performing chunked transfer encoded upload. Because chunk extensions
+are not supported by httplib, urllib3, or requests, this module
+provides a patched urllib3 PoolManager (via ``get_pool_manager``) that
+supports it.
+
+Example:
+
+    chunker = S3SigningChunker(fh=payload,
+                               total_bytes=payload_length,
+                               credentials=boto3_session.get_credentials(),
+                               service_name="s3",
+                               region_name=boto3_session.region_name)
+    upload_url = "{host}/{bucket}/{key}".format(host=boto3.client("s3").meta.endpoint_url,
+                                                bucket=s3_bucket_name,
+                                                key=key_name)
+    res = get_pool_manager().request("PUT", upload_url,
+                                     headers=chunker.get_headers("PUT", upload_url),
+                                     body=chunker,
+                                     chunked=True,
+                                     retries=False)
+    self.assertEqual(res.status, 200)
+"""
+
 import hashlib
 
 from botocore.auth import S3SigV4Auth, EMPTY_SHA256_HASH
