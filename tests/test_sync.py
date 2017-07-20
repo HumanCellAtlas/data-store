@@ -35,8 +35,8 @@ class TestSyncUtils(unittest.TestCase):
         self.gs_bucket_name, self.s3_bucket_name = dss.Config.get_gs_bucket(), dss.Config.get_s3_bucket()
         self.logger = logging.getLogger(__name__)
         gcp_key_file = os.environ["GOOGLE_APPLICATION_CREDENTIALS"]
-        gs = google.cloud.storage.Client.from_service_account_json(gcp_key_file)
-        self.gs_bucket = gs.bucket(self.gs_bucket_name)
+        self.gs = google.cloud.storage.Client.from_service_account_json(gcp_key_file)
+        self.gs_bucket = self.gs.bucket(self.gs_bucket_name)
         self.s3 = boto3.resource("s3")
         self.s3_bucket = self.s3.Bucket(self.s3_bucket_name)
 
@@ -138,6 +138,10 @@ class TestSyncUtils(unittest.TestCase):
         source = sync.BlobLocation(platform="s3", bucket=self.s3_bucket, blob=Namespace(content_length=0))
         dest = sync.BlobLocation(platform="gs", bucket=self.gs_bucket, blob=None)
         sync.dispatch_multipart_sync(source, dest, logger=None, context=Namespace(log=logging.info))
+
+    def test_sync_s3_to_gcsts(self):
+        # FIXME: (akislyuk) finish this test
+        sync.sync_s3_to_gcsts(self.gs.project, self.s3_bucket_name, self.gs_bucket_name, "test_key", self.logger)
 
 if __name__ == '__main__':
     unittest.main()
