@@ -335,9 +335,9 @@ paths:
                 description: Url to send request to when a bundle comes in that matches this query.
                 type: string
             required:
-              - files
+              - query
               - creator_uid
-              - extras
+              - callback_url
       responses:
         201:
           description: OK
@@ -676,6 +676,7 @@ definitions:
         type: object
     required:
       - uuid
+      - replica
       - creator_uid
       - callback_url
       - query
