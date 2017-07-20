@@ -5,10 +5,13 @@ DSS description FIXME: elaborate
 """
 
 import os
+import json
 import logging
 
 import flask
 import connexion
+import connexion.apis.abstract
+from connexion.operation import Operation
 from connexion.resolver import RestyResolver
 from flask_failsafe import failsafe
 
@@ -33,6 +36,23 @@ def get_logger():
         return flask.current_app.logger
     except RuntimeError:
         return logging.getLogger(__name__)
+
+class OperationWithAuthorizer(Operation):
+    def oauth2_authorize(self, function):
+        def wrapper(request):
+            if "token_info" in request.context.values:
+                token_info = request.context.values["token_info"]
+                authorized_domains = os.environ["AUTHORIZED_DOMAINS"].split()
+                assert int(token_info["expires_in"]) > 0
+                assert json.loads(token_info["email_verified"]) is True
+                assert any(token_info["email"].endswith(f"@{ad}") for ad in authorized_domains)
+            return function(request)
+        return wrapper
+
+    def security_decorator(self, function):
+        return super().security_decorator(self.oauth2_authorize(function))
+
+connexion.apis.abstract.Operation = OperationWithAuthorizer
 
 @failsafe
 def create_app():

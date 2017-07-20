@@ -27,6 +27,7 @@ DSS_GS_BUCKET_TEST_FIXTURES=org-humancellatlas-dss-test-fixtures
 GOOGLE_APPLICATION_CREDENTIALS="${DSS_HOME}/gcp-credentials.json"
 API_HOST=hca-dss.czi.technology
 TOKENINFO_URL=https://hca-dss.czi.technology/internal/tokeninfo
+AUTHORIZED_DOMAINS="chanzuckerberg.com ucsc.edu broadinstitute.org ebi.ac.uk"
 set +a
 
 if [[ -f "${DSS_HOME}/environment.local" ]]; then
