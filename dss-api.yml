@@ -252,7 +252,121 @@ paths:
                 format: date-time
             required:
               - version
-
+  /subscriptions/{uuid}:
+    get:
+      summary: Retrieve an event subscription given a UUID.
+      description: |
+        Given a subscription UUID, return the latest version of that bundle.  If the version is provided, that version of the
+        bundle is returned instead.
+      parameters:
+        - name: uuid
+          in: path
+          description: Subscription unique ID.
+          required: true
+          type: string
+          pattern: "[A-Za-z0-9]{8}-[A-Za-z0-9]{4}-[A-Za-z0-9]{4}-[A-Za-z0-9]{4}-[A-Za-z0-9]{12}"
+        - name: replica
+          in: query
+          description: Replica to fetch from. Can be one of aws, gcp, or azure.
+          required: false
+          type: string
+          enum: [aws, gcp, azure]
+      responses:
+        200:
+          description: OK
+          schema:
+            type: object
+            properties:
+              subscription:
+                $ref: "#/definitions/Subscription"
+        default:
+          description: Unexpected error
+          schema:
+            $ref: '#/definitions/Error'
+    put:
+      summary: Create a event subscription.
+      description: |
+        Create a new event subscription. Every time an added bundle matches this query, 
+        a request is sent to callback_url.
+      parameters:
+        - name: uuid
+          in: path
+          description: A RFC4122-compliant ID for the subscription.
+          required: true
+          type: string
+          pattern: "[A-Za-z0-9]{8}-[A-Za-z0-9]{4}-[A-Za-z0-9]{4}-[A-Za-z0-9]{4}-[A-Za-z0-9]{12}"
+        - name: replica
+          in: query
+          description: Replica to write to. Can be one of aws, gcp, or azure.
+          required: true
+          type: string
+          enum: [aws, gcp, azure]
+        - name: extras
+          in: body
+          required: true
+          schema:
+            type: object
+            properties:
+              query:
+                description: Elasticsearch query that will trigger the callback.
+                type: object
+              creator_uid:
+                description: User ID who is creating this subscription.
+                type: integer
+                format: int64
+              callback_url:
+                description: Url to send request to when a bundle comes in that matches this query.
+                type: string
+            required:
+              - files
+              - creator_uid
+              - extras
+      responses:
+        201:
+          description: OK
+          schema:
+            type: object
+            properties:
+              timeAdded:
+                description: Timestamp of query subscription in RFC3339.
+                type: string
+                format: date-time
+            required:
+              - timeAdded
+    delete:
+      summary: Delete an event subscription.
+      description: |
+        Delete a registered event subscription. The associated query will no longer trigger a callback
+        if a matching document is added to the system.
+      parameters:
+        - name: uuid
+          in: path
+          description: A RFC4122-compliant ID for the subscription.
+          required: true
+          type: string
+          pattern: "[A-Za-z0-9]{8}-[A-Za-z0-9]{4}-[A-Za-z0-9]{4}-[A-Za-z0-9]{4}-[A-Za-z0-9]{12}"
+        - name: replica
+          in: query
+          description: Replica to delete from. Can be one of aws, gcp, or azure.
+          required: true
+          type: string
+          enum: [aws, gcp, azure]
+      responses:
+        200:
+          description: OK
+          schema:
+            type: object
+            properties:
+              timeDeleted:
+                description: Timestamp of query subscription deletion in RFC3339.
+                type: string
+                format: date-time
+            required:
+              - timeDeleted
+        default:
+          description: Unexpected error
+          schema:
+            $ref: '#/definitions/Error'
   /bundles:
     get:
       summary: Query bundles
@@ -514,6 +628,32 @@ definitions:
     required:
       - uuid
       - versions
+  Subscription:
+    type: object
+    properties:
+      uuid:
+        type: string
+        description: Subscription unique ID
+        pattern: "[a-z0-9]{8}-[a-z0-9]{4}-[a-z0-9]{4}-[a-z0-9]{4}-[a-z0-9]{12}"
+      replica:
+        description: Replica this query is monitoring. One of aws, gcp, or azure.
+        type: string
+        enum: [aws, gcp, azure]
+      creator_uid:
+        type: integer
+        format: int
+        description: User ID who created this subscription.
+      callback_url:
+        description: Url to send request to when a bundle comes in that matches this query.
+        type: string
+      query:
+        description: Elasticsearch query that will trigger the callback.
+        type: object
+    required:
+      - uuid
+      - creator_uid
+      - callback_url
+      - query
   bundle_version:
     type: object
     properties:
