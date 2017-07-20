@@ -29,6 +29,17 @@ The HCA DSS prototype requires Python 3.6+ to run. Run `pip install -r requireme
 Tests also use data from the data-bundle-examples subrepository.
 Run: `git submodule update --init`
 
+#### Environment Variables
+
+Environment variables are required for test and deployment.
+The required environment variables and their default values are in the file `environment`
+To customize the values of these environment variables:
+
+1. Copy `environment.local.example` to `environment.local`
+2. Edit `environment.local` to add custom entries that override the default values in `environment`
+    
+Run `source environment`  now and whenever these environment files are modified.
+
 #### Configuring cloud-specific access credentials
 
 **AWS**: Follow the instructions in
@@ -49,14 +60,103 @@ environment variable `DSS_GS_BUCKET_TEST_FIXTURES` to the name of that bucket.
 
 **Azure**: Set the environment variables `AZURE_STORAGE_ACCOUNT_NAME` and `AZURE_STORAGE_ACCOUNT_KEY`.
 
-#### Running the prototype
-Run `./dss-api` in this directory.
+#### Running the DSS API locally
+Run `./dss-api` in the top-level `data-store` directory.
+
+#### Check and install software required to test and deploy
+Check that software packages required to test and deploy are available, and install them if necessary.
+
+Run: `make --dry-run`
+
+#### Populate test data
+
+To run the tests, test fixture data must be setup using the following command.
+**This command will completely empty the given buckets** before populating them with test fixture data, please 
+ensure the correct bucket names are provided.
+
+    tests/fixtures/populate.py --s3-bucket $DSS_S3_BUCKET_TEST_FIXTURES --gs-bucket $DSS_GS_BUCKET_TEST_FIXTURES
+
 
 #### Running tests
-Run `make test` in this directory.
 
-Some tests require the Elasticsearch service to be running on the local system.
+Some tests require the Elasticsearch service to be running on the local system:
+
 Run: `elasticsearch`
+
+Then to perform the data store tests:
+
+Run `make test` in the top-level `data-store` directory.
+
+#### Deployment
+
+Assuming the tests have passed above, the next step is to manually deploy.  See the section below for information on CI/CD with Travis if continuous deployment is your goal.
+
+The AWS Elasticsearch Service is used for metadata indexing.
+Currently, the AWS Elasticsearch Service must be configured manually.
+The AWS Eslasticsearch Service domain name must either:
+* have the value "dss-index-$DSS_DEPLOYMENT_STAGE"
+* or, the environment variable `DSS_ES_DOMAIN` must be set to the domain name of the AWS Elasticsearch Service instance to be used.
+
+Note, the Swagger API specification in `dss-api.yml` currently has the `host` set to `hca-dss.czi.technology`.
+This may be set to a value appropriate for your deployment (see AWS API Gateway setup below).
+
+Now deploy using make:
+
+    make deploy
+
+Setup AWS API Gateway.  The gateway is automatically setup for you and associated with the Lambda.
+However, to get a friendly domain name you need to follow the directions at this [page](http://docs.aws.amazon.com/apigateway/latest/developerguide/how-to-custom-domains.html). In summary:
+
+* generate a HTTPS certificate via AWS Certificate Manager, make sure it's in us-east-1
+* setup the domain name in the API gateway console
+* setup in Amazon Route 53 to point the domain to the API gateway
+* in the API gateway fill in the endpoints for the custom domain name e.g. Path=`/`, Destination=`dss` and `dev`.  These might be different based on the profile used (dev, stage, etc).
+
+If successful, you should be able to see the Swagger API documentation at:
+
+    https://<domain_name>
+
+And you should be able to list bundles like this:
+
+    curl -X GET "https://<domain_name>/v1/bundles" -H  "accept: application/json"
+
+
+#### Using the HCA Data Store CLI Client
+
+Now that you have deployed the data store, the next step is to use the HCA Data Store CLI to upload and download data to the system.
+See [data-store-cli](https://github.com/HumanCellAtlas/data-store-cli) for installation instructions.
+The client requires you change `hca/api_spec.json` to point to the correct host, schemes, and, possibly, basePath.
+Examples CLI use:
+
+    # list bundles
+    hca get-bundles
+    # upload full bundle
+    hca upload --replica aws --staging-bucket staging_bucket_name data-bundle-examples/smartseq2/paired_ends
+
+#### Checking Indexing
+
+Now that you've uploaded data, the next step is to confirm the indexing is working properly and you can query the indexed metadata.
+
+    hca post-search --query '
+    {
+        "query": {
+            "bool": {
+                "must": [{
+                    "match": {
+                        "files.sample_json.donor.species": "Homo sapiens"
+                    }
+                }, {
+                    "match": {
+                        "files.assay_json.single_cell.method": "Fluidigm C1"
+                    }
+                }, {
+                    "match": {
+                        "files.sample_json.ncbi_biosample": "SAMN04303778"
+                    }
+                }]
+            }
+        }
+    }'
 
 #### CI/CD with Travis CI
 We use [Travis CI](https://travis-ci.org/HumanCellAtlas/data-store) for continuous integration testing and
