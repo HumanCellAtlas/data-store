@@ -217,6 +217,7 @@ def copy_part(upload_url, source_url, dest_platform, part, context):
                 res = gs_transport.request("PUT", upload_url, data=chunk, headers=headers)
                 assert 200 <= res.status_code < 400
             assert res.status_code == 200
+    return res
 
 def range_request(url, start, end):
     return http.request("GET", url, preload_content=False, headers=dict(Range=f"bytes={start}-{end}"))

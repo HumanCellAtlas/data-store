@@ -1,16 +1,21 @@
 #!/usr/bin/env python
 # coding: utf-8
 
+import base64
 import datetime
 import io
 import logging
 import os
 import sys
+import json
+import hashlib
 import unittest
 import uuid
+from argparse import Namespace
 
 import boto3
 from botocore.vendored import requests
+import crcmod
 import google.cloud.storage
 
 pkg_root = os.path.abspath(os.path.join(os.path.dirname(__file__), '..'))  # noqa
@@ -101,6 +106,32 @@ class TestSyncUtils(unittest.TestCase):
         for part in range(3):
             self.assertFalse(self.gs_bucket.blob(f"{test_key}.part{part}").exists())
 
+    def test_copy_part_s3_to_gs(self):
+        payload = os.urandom(2**20)
+        test_key = "hca-dss-sync-test/copy-part/{}".format(uuid.uuid4())
+        test_blob = self.s3_bucket.Object(test_key)
+        test_blob.put(Body=payload)
+        source_url = self.s3.meta.client.generate_presigned_url("get_object",
+                                                                Params=dict(Bucket=self.s3_bucket.name, Key=test_key))
+        part = dict(start=0, end=len(payload) - 1)
+        upload_url = self.gs_bucket.blob(test_key).create_resumable_upload_session(size=len(payload))
+        res = sync.copy_part(upload_url, source_url, dest_platform="gs", part=part, context=Namespace(log=logging.info))
+        crc = crcmod.predefined.Crc('crc-32c')
+        crc.update(payload)
+        self.assertEqual(base64.b64decode(json.loads(res.content)["crc32c"]), crc.digest())
+
+    def test_copy_part_gs_to_s3(self):
+        payload = os.urandom(2**20)
+        test_key = "hca-dss-sync-test/copy-part/{}".format(uuid.uuid4())
+        test_blob = self.gs_bucket.blob(test_key)
+        test_blob.upload_from_string(payload)
+        source_url = test_blob.generate_signed_url(datetime.timedelta(hours=1))
+        part = dict(start=0, end=2**20 - 1)
+        upload_url = "{host}/{bucket}/{key}".format(host=self.s3.meta.client.meta.endpoint_url,
+                                                    bucket=self.s3_bucket.name,
+                                                    key=test_key)
+        res = sync.copy_part(upload_url, source_url, dest_platform="s3", part=part, context=Namespace(log=logging.info))
+        self.assertEqual(json.loads(res.headers["ETag"]), hashlib.md5(payload).hexdigest())
 
 if __name__ == '__main__':
     unittest.main()
