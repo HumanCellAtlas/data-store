@@ -133,5 +133,11 @@ class TestSyncUtils(unittest.TestCase):
         res = sync.copy_part(upload_url, source_url, dest_platform="s3", part=part, context=Namespace(log=logging.info))
         self.assertEqual(json.loads(res.headers["ETag"]), hashlib.md5(payload).hexdigest())
 
+    def test_dispatch_multipart_sync(self):
+        # FIXME: (akislyuk) finish this test
+        source = sync.BlobLocation(platform="s3", bucket=self.s3_bucket, blob=Namespace(content_length=0))
+        dest = sync.BlobLocation(platform="gs", bucket=self.gs_bucket, blob=None)
+        sync.dispatch_multipart_sync(source, dest, logger=None, context=Namespace(log=logging.info))
+
 if __name__ == '__main__':
     unittest.main()
