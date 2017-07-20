@@ -3,7 +3,14 @@ import os
 import subprocess
 import typing
 
+import boto3
+import logging
+
 from checksumming_io.checksumming_io import ChecksummingSink
+
+logging.basicConfig(level=logging.INFO)
+logger = logging.getLogger(__name__)
+logger.setLevel(logging.INFO)
 
 class Uploader:
     def __init__(self, local_root: str) -> None:
@@ -52,14 +59,8 @@ class S3Uploader(Uploader):
         self.bucket = bucket
 
     def reset(self) -> None:
-        args = [
-            "aws",
-            "s3",
-            "rm",
-            "s3://{}".format(self.bucket),
-            "--recursive"
-        ]
-        subprocess.check_call(args)
+        s3 = boto3.resource('s3')
+        s3.Bucket(self.bucket).objects.delete()
 
     def upload_file(
             self,
@@ -73,14 +74,12 @@ class S3Uploader(Uploader):
             metadata_keys = dict()
         if tags is None:
             tags = dict()
-        subprocess_args = [
-            "aws", "s3", "cp",
-            os.path.join(self.local_root, local_path),
-            "s3://{}/{}".format(self.bucket, remote_path),
-            "--metadata",
-            json.dumps(metadata_keys)
-        ]
-        subprocess.check_call(subprocess_args)
+        s3_client = boto3.client('s3')
+        logger.info(f"Uploading {local_path} to s3://{self.bucket}/{remote_path}")
+        s3_client.upload_file(os.path.join(self.local_root, local_path),
+                              self.bucket,
+                              remote_path,
+                              ExtraArgs={"Metadata": metadata_keys})
 
         tagset = dict(TagSet=[])  # type: typing.Dict[str, typing.List[dict]]
         for tag_key, tag_value in tags.items():
@@ -88,14 +87,9 @@ class S3Uploader(Uploader):
                 dict(
                     Key=tag_key,
                     Value=tag_value))
-        subprocess_args = [
-            "aws",
-            "s3api",
-            "put-object-tagging",
-            "--bucket", self.bucket,
-            "--key", remote_path,
-            "--tagging", json.dumps(tagset)]
-        subprocess.check_call(subprocess_args)
+        s3_client.put_object_tagging(Bucket=self.bucket,
+                                     Key=remote_path,
+                                     Tagging=tagset)
 
 
 class GSUploader(Uploader):

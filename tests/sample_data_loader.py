@@ -30,7 +30,7 @@ log.setLevel(logging.INFO)
 
 def load_sample_data_bundle() -> str:
     # Needed when using moto S3 mock, in which case the required bucket does not yet exist.
-    create_s3_test_bucket()
+    create_s3_bucket(infra.get_env("DSS_S3_BUCKET_TEST"))
 
     # Load sample-data-bundles dropseq
     data_bundle_examples_path = path_to_data_bundle_examples()
@@ -40,9 +40,8 @@ def load_sample_data_bundle() -> str:
     return bundle_key
 
 
-def create_s3_test_bucket() -> None:
+def create_s3_bucket(bucket_name) -> None:
     conn = boto3.resource('s3')
-    bucket_name = infra.get_env("DSS_S3_BUCKET_TEST")
     try:
         conn.create_bucket(Bucket=bucket_name)
     except ClientError as e:

@@ -9,13 +9,18 @@ import time
 import unittest
 from typing import Dict
 
+import boto3
 import moto
 from elasticsearch import Elasticsearch
-from elasticsearch_dsl import Search
 
 from dss.events.handlers.index import process_new_indexable_object
 from tests import infra
-from tests.sample_data_loader import load_sample_data_bundle
+
+fixtures_root = os.path.abspath(os.path.join(os.path.dirname(__file__), 'fixtures'))  # noqa
+sys.path.insert(0, fixtures_root)  # noqa
+
+from tests.fixtures.populate import populate
+from tests.sample_data_loader import load_sample_data_bundle, create_s3_bucket
 
 DSS_ELASTICSEARCH_INDEX_NAME = "hca"
 DSS_ELASTICSEARCH_DOC_TYPE = "hca"
@@ -25,7 +30,6 @@ USE_AWS_S3_MOCK = os.environ.get("USE_AWS_S3_MOCK", True)
 logging.basicConfig(level=logging.INFO)
 log = logging.getLogger(__name__)
 log.setLevel(logging.INFO)
-
 
 pkg_root = os.path.abspath(os.path.join(os.path.dirname(__file__), '..'))
 sys.path.insert(0, pkg_root)
@@ -41,6 +45,10 @@ sys.path.insert(0, pkg_root)
 #   4. Perform as simple search to verify the index is in Elasticsearch.
 #
 
+def populate_moto_test_fixture_data():
+    s3_bucket_test_fixtures = (infra.get_env("DSS_S3_BUCKET_TEST_FIXTURES"))
+    create_s3_bucket(s3_bucket_test_fixtures)
+    populate(s3_bucket_test_fixtures, None)
 
 class TestEventHandlers(unittest.TestCase):
 
@@ -49,6 +57,7 @@ class TestEventHandlers(unittest.TestCase):
         if USE_AWS_S3_MOCK is True:
             cls.mock_s3 = moto.mock_s3()
             cls.mock_s3.start()
+            populate_moto_test_fixture_data()
 
         if "DSS_ES_ENDPOINT" not in os.environ:
             os.environ["DSS_ES_ENDPOINT"] = "localhost"
