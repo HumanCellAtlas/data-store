@@ -1,3 +1,28 @@
+"""
+Event handlers in the dss-sync daemon use utility functions in dss.events.handlers.sync.
+
+Events are first received from S3. If the event concerns an object less than 64MB in size (the size of one S3 part), it
+is copied immediately in the process. Otherwise, work to copy parts of the object is dispatched by triggering lambdas
+over the SNS topic ``dss-copy-parts``. After copying its assigned parts, each lambda queries the destination object
+store for the state of the object's parts. If the work is almost complete, the lambdas call another SNS topic to join
+the parts and finalize the upload (``dss-s3-mpu-ready`` for S3, ``dss-gs-composite-upload-ready`` for GS).
+
+All the event handler lambdas above are actually the same lambda distribution (dss-sync), called via different entry
+points by different S3 or SNS events, as seen in decorators below.
+
+An example SNS message sent to the worker lambdas: (TODO: (akislyuk) formalize SNS message schema/protocol)
+
+    {"source_platform": "s3",
+     "source_bucket": "hca-test",
+     "source_key": "hca-dss-sync-test/copy-part/991a4058-4671-43f4-86c7-77ef69157f56",
+     "dest_platform": "gs",
+     "dest_bucket": "hca-test",
+     "dest_key": "hca-dss-sync-test/copy-part/991a4058-4671-43f4-86c7-77ef69157f56",
+     "parts": [{"start": 0, "end": 1048575, "id": 1, "total_parts": 1}],
+     "total_parts": 1,
+     "mpu": None}
+"""
+
 import os
 import sys
 import logging
@@ -35,6 +60,10 @@ def process_new_syncable_object(event, context):
 
 @app.sns_topic_subscriber("dss-gs-composite-upload-ready")
 def compose_upload(event, context):
+    """
+    See https://cloud.google.com/storage/docs/composite-objects for details of the Google Storage API used here.
+    """
+    gs_max_compose_parts = 32
     msg = json.loads(event["Records"][0]["Sns"]["Message"])
     gs = dss.Config.get_cloud_specific_handles("gcp")[0].gcp_client
     gs_bucket = gs.get_bucket(msg["dest_bucket"])
@@ -42,11 +71,11 @@ def compose_upload(event, context):
         try:
             context.log("Composing, stage 1")
             compose_stage2_blob_names = []
-            if msg["total_parts"] > 32:
-                for part_id in range(1, msg["total_parts"] + 1, 32):
-                    parts_to_compose = range(part_id, min(part_id + 32, msg["total_parts"] + 1))
+            if msg["total_parts"] > gs_max_compose_parts:
+                for part_id in range(1, msg["total_parts"] + 1, gs_max_compose_parts):
+                    parts_to_compose = range(part_id, min(part_id + gs_max_compose_parts, msg["total_parts"] + 1))
                     source_blob_names = ["{}.part{}".format(msg["dest_key"], p) for p in parts_to_compose]
-                    dest_blob_name = "{}.part{}".format(msg["dest_key"], ascii_letters[part_id // 32])
+                    dest_blob_name = "{}.part{}".format(msg["dest_key"], ascii_letters[part_id // gs_max_compose_parts])
                     if gs_bucket.get_blob(dest_blob_name) is None:
                         compose_gs_blobs(gs_bucket, source_blob_names, dest_blob_name)
                     compose_stage2_blob_names.append(dest_blob_name)
@@ -61,7 +90,7 @@ def compose_upload(event, context):
         time.sleep(5)
 
 @app.sns_topic_subscriber("dss-s3-mpu-ready")
-def complete_mpu(event, context):
+def complete_multipart_upload(event, context):
     msg = json.loads(event["Records"][0]["Sns"]["Message"])
     mpu = resources.s3.Bucket(msg["dest_bucket"]).Object(msg["dest_key"]).MultipartUpload(msg["mpu"])
     while True:
