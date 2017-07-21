@@ -70,7 +70,7 @@ Run: `make --dry-run`
 
 #### Populate test data
 
-To run the tests, test fixture data must be setup using the following command.
+To run the tests, test fixture data must be set up using the following command.
 **This command will completely empty the given buckets** before populating them with test fixture data, please 
 ensure the correct bucket names are provided.
 
@@ -89,28 +89,29 @@ Run `make test` in the top-level `data-store` directory.
 
 #### Deployment
 
-Assuming the tests have passed above, the next step is to manually deploy.  See the section below for information on CI/CD with Travis if continuous deployment is your goal.
+Assuming the tests have passed above, the next step is to manually deploy.  See the section below for information on
+CI/CD with Travis if continuous deployment is your goal.
 
-The AWS Elasticsearch Service is used for metadata indexing.
-Currently, the AWS Elasticsearch Service must be configured manually.
-The AWS Eslasticsearch Service domain name must either:
-* have the value "dss-index-$DSS_DEPLOYMENT_STAGE"
+The AWS Elasticsearch Service is used for metadata indexing.  Currently, the AWS Elasticsearch Service must be
+configured manually.  The AWS Eslasticsearch Service domain name must either:
+
+* have the value `dss-index-$DSS_DEPLOYMENT_STAGE`
 * or, the environment variable `DSS_ES_DOMAIN` must be set to the domain name of the AWS Elasticsearch Service instance to be used.
-
-Note, the Swagger API specification in `dss-api.yml` currently has the `host` set to `hca-dss.czi.technology`.
-This may be set to a value appropriate for your deployment (see AWS API Gateway setup below).
 
 Now deploy using make:
 
     make deploy
 
-Setup AWS API Gateway.  The gateway is automatically setup for you and associated with the Lambda.
-However, to get a friendly domain name you need to follow the directions at this [page](http://docs.aws.amazon.com/apigateway/latest/developerguide/how-to-custom-domains.html). In summary:
+Set up AWS API Gateway.  The gateway is automatically set up for you and associated with the Lambda.  However, to get a
+friendly domain name, you need to follow the
+directions [here](http://docs.aws.amazon.com/apigateway/latest/developerguide/how-to-custom-domains.html). In summary:
 
-* generate a HTTPS certificate via AWS Certificate Manager, make sure it's in us-east-1
-* setup the domain name in the API gateway console
-* setup in Amazon Route 53 to point the domain to the API gateway
-* in the API gateway fill in the endpoints for the custom domain name e.g. Path=`/`, Destination=`dss` and `dev`.  These might be different based on the profile used (dev, stage, etc).
+* Generate a HTTPS certificate via AWS Certificate Manager, make sure it's in us-east-1
+* Set up the domain name in the API gateway console
+* Set up in Amazon Route 53 to point the domain to the API gateway
+* In the API Gateway, fill in the endpoints for the custom domain name e.g. Path=`/`, Destination=`dss` and `dev`.
+  These might be different based on the profile used (dev, stage, etc).
+* Set the environment variable `API_HOST` to your domain name in the `environment.local` file.
 
 If successful, you should be able to see the Swagger API documentation at:
 
@@ -123,10 +124,10 @@ And you should be able to list bundles like this:
 
 #### Using the HCA Data Store CLI Client
 
-Now that you have deployed the data store, the next step is to use the HCA Data Store CLI to upload and download data to the system.
-See [data-store-cli](https://github.com/HumanCellAtlas/data-store-cli) for installation instructions.
-The client requires you change `hca/api_spec.json` to point to the correct host, schemes, and, possibly, basePath.
-Examples CLI use:
+Now that you have deployed the data store, the next step is to use the HCA Data Store CLI to upload and download data to
+the system.  See [data-store-cli](https://github.com/HumanCellAtlas/data-store-cli) for installation instructions.  The
+client requires you change `hca/api_spec.json` to point to the correct host, schemes, and, possibly, basePath.  Examples
+of CLI use:
 
     # list bundles
     hca get-bundles
@@ -135,7 +136,8 @@ Examples CLI use:
 
 #### Checking Indexing
 
-Now that you've uploaded data, the next step is to confirm the indexing is working properly and you can query the indexed metadata.
+Now that you've uploaded data, the next step is to confirm the indexing is working properly and you can query the
+indexed metadata.
 
     hca post-search --query '
     {
