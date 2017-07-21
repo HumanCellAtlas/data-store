@@ -35,7 +35,7 @@ deploy:
   script: make deploy
   skip_cleanup: true
   on:
-    branch: akislyuk-oauth2-prototype
+    branch: master
     python: 3.6
 env:
   global:
