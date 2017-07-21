@@ -69,9 +69,8 @@ def _create_elasticsearch_index(es_client, idx):
 
     except Exception as ex:
         logger.critical("Unable to create index {} Exception: {}".format(idx))
-        except BlobNotFoundError as ex:
-            return (jsonify(dict(
-                message="Unable to create elasticsearch index {}.".format(idx),
-                exception=str(ex),
-                HTTPStatusCode=requests.codes.internal_server_error)),
-                requests.codes.internal_server_error)
+        return (jsonify(dict(
+            message="Unable to create elasticsearch index {}.".format(idx),
+            exception=str(ex),
+            HTTPStatusCode=requests.codes.internal_server_error)),
+            requests.codes.internal_server_error)
