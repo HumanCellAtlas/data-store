@@ -286,7 +286,7 @@ paths:
     put:
       summary: Create a event subscription.
       description: |
-        Create a new event subscription. Every time a new bundle version matches this query, 
+        Create a new event subscription. Every time a new bundle version matches this query,
         a request is sent to callback_url.
       parameters:
         - name: uuid
