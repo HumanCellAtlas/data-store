@@ -51,6 +51,14 @@ class Config:
         raise ValueError("I don't understand this replica!")
 
     @staticmethod
+    def get_storage_schema(replica: str) -> str:
+        if replica == 'aws':
+            return "s3"
+        elif replica == 'gcp':
+            return "gs"
+        raise ValueError("I don't understand this replica!")
+
+    @staticmethod
     def get_s3_bucket() -> str:
         if Config._S3_BUCKET is None:
             if Config._CURRENT_CONFIG == BucketStage.NORMAL:
