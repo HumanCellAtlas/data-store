@@ -7,6 +7,7 @@ import typing
 import iso8601
 import requests
 
+from elasticsearch import Elasticsearch
 from flask import jsonify, make_response, redirect, request
 from werkzeug.exceptions import BadRequest
 
@@ -36,7 +37,7 @@ def delete(uuid: str, replica: str):
     pass
 
 
-def _connect_elasticsearch_with_indices_defined():
+def _connect_elasticsearch_with_indices_defined() -> Elasticsearch:
     es_client = connect_elasticsearch(ELASTICSEARCH_ENDPOINT, logger)
     for idx in ELASTICSEARCH_INDICES:
         _create_elasticsearch_index(es_client, idx)
