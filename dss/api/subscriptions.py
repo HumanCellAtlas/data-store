@@ -50,7 +50,18 @@ def _create_elasticsearch_index(es_client, idx):
             logger.debug("Using existing Elasticsearch index: {}".format(idx))
         else:
             logger.debug("Creating new Elasticsearch index: {}".format(idx))
-            response = es_client.indices.create(idx, body=None)
+            index_mapping = {
+                "mappings": {
+                    DSS_ELASTICSEARCH_QUERIES_DOC_TYPE: {
+                        "properties": {
+                            "query": {
+                                "type": "percolator"
+                            }
+                        }
+                    }
+                }
+            }
+            response = es_client.indices.create(idx, body=index_mapping)
             logger.debug("Index creation response: {}", (json.dumps(response, indent=4)))
 
     except Exception as ex:
