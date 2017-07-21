@@ -3,6 +3,7 @@
 import argparse
 import os
 
+import typing
 from cloud_uploader import GSUploader, S3Uploader, Uploader
 
 
@@ -114,7 +115,8 @@ def upload(uploader: Uploader):
             },
         )
 
-def populate(s3_bucket: str, gs_bucket: str):
+
+def populate(s3_bucket: typing.Optional[str], gs_bucket: typing.Optional[str]):
     # find the 'datafiles' subdirectory.
     root_dir = os.path.dirname(__file__)
     datafiles_dir = os.path.join(root_dir, "datafiles")

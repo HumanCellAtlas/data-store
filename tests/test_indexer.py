@@ -147,7 +147,7 @@ class TestEventHandlers(unittest.TestCase):
                 self.normalize_inherently_different_values_in_dict(expected_list[i], actual_list[i])
 
 def populate_moto_test_fixture_data():
-    s3_bucket_test_fixtures = (infra.get_env("DSS_S3_BUCKET_TEST_FIXTURES"))
+    s3_bucket_test_fixtures = infra.get_env("DSS_S3_BUCKET_TEST_FIXTURES")
     create_s3_bucket(s3_bucket_test_fixtures)
     populate(s3_bucket_test_fixtures, None)
 
