@@ -1,6 +1,7 @@
 import datetime
 import io
 import json
+import os
 import re
 import typing
 
@@ -11,12 +12,12 @@ from elasticsearch import Elasticsearch
 from flask import jsonify, make_response, redirect, request
 from werkzeug.exceptions import BadRequest
 
+from .. import DSS_ELASTICSEARCH_INDEX_NAME, DSS_ELASTICSEARCH_DOC_TYPE, get_logger
+from .. import DSS_ELASTICSEARCH_QUERIES_INDEX_NAME, DSS_ELASTICSEARCH_QUERIES_DOC_TYPE
 from ..blobstore import BlobNotFoundError
 from ..config import Config
 from ..hcablobstore import FileMetadata, HCABlobStore
-from ... import DSS_ELASTICSEARCH_INDEX_NAME, DSS_ELASTICSEARCH_DOC_TYPE, get_logger
-from ... import DSS_ELASTICSEARCH_QUERIES_INDEX_NAME, DSS_ELASTICSEARCH_QUERIES_DOC_TYPE
-from ...util import connect_elasticsearch
+from ..util import connect_elasticsearch
 
 
 logger = get_logger()
