@@ -23,7 +23,7 @@ def find():
 def post(query: dict):
     get_logger().debug("Received posted query: %s", json.dumps(query, indent=4))
     # TODO (mbaumann) Use a connection manager
-    es_client = ElasticsearchClient.get(os.getenv(get_logger())
+    es_client = ElasticsearchClient.get(get_logger())
     response = Search(using=es_client,
                       index=DSS_ELASTICSEARCH_INDEX_NAME,
                       doc_type=DSS_ELASTICSEARCH_DOC_TYPE).update_from_dict(query).execute()

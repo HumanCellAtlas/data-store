@@ -58,7 +58,9 @@ class ElasticsearchClient:
                     es_client = Elasticsearch([elasticsearch_endpoint], use_ssl=False, port=9200)
                 ElasticsearchClient._es_client = es_client
             except Exception as ex:
-                logger.error("Unable to connect to Elasticsearch endpoint {}. Exception: {}".format(elasticsearch_endpoint, ex))
+                logger.error("Unable to connect to Elasticsearch endpoint {}. Exception: {}".format(
+                    elasticsearch_endpoint, ex)
+                )
                 raise ex
 
         return ElasticsearchClient._es_client
