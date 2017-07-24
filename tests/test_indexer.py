@@ -260,6 +260,18 @@ def deleteFileBlob(bundle_key, filename):
     raise Exception(f"The file {filename} was not found in the manifest for bundle {bundle_key}")
 
 
+def deleteFileBlob(bundle_key, filename):
+    s3 = boto3.resource('s3')
+    manifest = read_bundle_manifest(s3, Config.get_s3_bucket(), bundle_key)
+    files = manifest['files']
+    for file_info in files:
+        if file_info['name'] == filename:
+            file_blob_key = create_file_key(file_info)
+            s3.Object(Config.get_s3_bucket(), file_blob_key).delete()
+            return
+    raise Exception(f"The file {filename} was not found in the manifest for bundle {bundle_key}")
+
+
 def generate_expected_index_document(bucket_name, bundle_key):
     s3 = boto3.resource('s3')
     manifest = read_bundle_manifest(s3, bucket_name, bundle_key)
@@ -281,7 +293,6 @@ def create_index_data(s3, bucket_name, manifest):
     for file_info in files_info:
         if file_info['indexed'] is True:
             try:
-                file_key = create_blob_key(file_info)
                 obj = bucket.Object(file_key)
                 if obj.metadata['hca-dss-content-type'] != 'application/json':
                     continue
