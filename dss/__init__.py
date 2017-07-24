@@ -15,6 +15,7 @@ import requests
 import connexion.apis.abstract
 from connexion.operation import Operation
 from connexion.resolver import RestyResolver
+from connexion.exceptions import OAuthProblem
 from flask_failsafe import failsafe
 
 from .config import BucketStage, Config
@@ -73,9 +74,12 @@ class OperationWithAuthorizer(Operation):
         def wrapper(request):
             if "token_info" in request.context.values:
                 token_info = request.context.values["token_info"]
-                assert int(token_info["expires_in"]) > 0
-                assert json.loads(token_info["email_verified"]) is True
-                assert any(token_info["email"].endswith(f"@{ad}") for ad in self.authorized_domains)
+                if not int(token_info["expires_in"]) > 0:
+                    raise OAuthProblem(description="Authorization token has expired")
+                if json.loads(token_info["email_verified"]) is not True:
+                    raise OAuthProblem(description="User email is unverified")
+                if not any(token_info["email"].endswith(f"@{ad}") for ad in self.authorized_domains):
+                    raise OAuthProblem(description="User email is unauthorized")
             return function(request)
         return wrapper
 
