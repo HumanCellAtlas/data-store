@@ -1,9 +1,15 @@
-import json
+import logging
 import os
-import subprocess
 import typing
 
+import boto3
 from checksumming_io.checksumming_io import ChecksummingSink
+from google.cloud.storage import Client
+
+logging.basicConfig(level=logging.INFO)
+logger = logging.getLogger(__name__)
+logger.setLevel(logging.INFO)
+
 
 class Uploader:
     def __init__(self, local_root: str) -> None:
@@ -50,16 +56,12 @@ class S3Uploader(Uploader):
     def __init__(self, local_root: str, bucket: str) -> None:
         super(S3Uploader, self).__init__(local_root)
         self.bucket = bucket
+        self.s3_client = boto3.client('s3')
 
     def reset(self) -> None:
-        args = [
-            "aws",
-            "s3",
-            "rm",
-            "s3://{}".format(self.bucket),
-            "--recursive"
-        ]
-        subprocess.check_call(args)
+        logger.info(f"Emptying bucket: s3://{self.bucket}")
+        s3 = boto3.resource('s3')
+        s3.Bucket(self.bucket).objects.delete()
 
     def upload_file(
             self,
@@ -73,14 +75,12 @@ class S3Uploader(Uploader):
             metadata_keys = dict()
         if tags is None:
             tags = dict()
-        subprocess_args = [
-            "aws", "s3", "cp",
-            os.path.join(self.local_root, local_path),
-            "s3://{}/{}".format(self.bucket, remote_path),
-            "--metadata",
-            json.dumps(metadata_keys)
-        ]
-        subprocess.check_call(subprocess_args)
+
+        logger.info(f"Uploading {local_path} to s3://{self.bucket}/{remote_path}")
+        self.s3_client.upload_file(os.path.join(self.local_root, local_path),
+                                   self.bucket,
+                                   remote_path,
+                                   ExtraArgs={"Metadata": metadata_keys})
 
         tagset = dict(TagSet=[])  # type: typing.Dict[str, typing.List[dict]]
         for tag_key, tag_value in tags.items():
@@ -88,32 +88,22 @@ class S3Uploader(Uploader):
                 dict(
                     Key=tag_key,
                     Value=tag_value))
-        subprocess_args = [
-            "aws",
-            "s3api",
-            "put-object-tagging",
-            "--bucket", self.bucket,
-            "--key", remote_path,
-            "--tagging", json.dumps(tagset)]
-        subprocess.check_call(subprocess_args)
+        self.s3_client.put_object_tagging(Bucket=self.bucket,
+                                          Key=remote_path,
+                                          Tagging=tagset)
 
 
 class GSUploader(Uploader):
-    def __init__(self, local_root: str, bucket: str) -> None:
+    def __init__(self, local_root: str, bucket_name: str) -> None:
         super(GSUploader, self).__init__(local_root)
-        self.bucket = bucket
+        credentials = os.getenv("GOOGLE_APPLICATION_CREDENTIALS")
+        self.gcp_client = Client.from_service_account_json(credentials)
+        self.bucket = self.gcp_client.bucket(bucket_name)
 
     def reset(self) -> None:
-        args = [
-            "gsutil",
-            "-m",
-            "rm",
-            "-r",
-            "gs://{}/**".format(self.bucket),
-        ]
-
-        # This is not a check_call because of https://github.com/GoogleCloudPlatform/gsutil/issues/417
-        subprocess.call(args)
+        logger.info(f"Emptying bucket: gs://{self.bucket.name}")
+        for blob in self.bucket.list_blobs():
+            blob.delete()
 
     def upload_file(
             self,
@@ -122,20 +112,9 @@ class GSUploader(Uploader):
             metadata_keys: typing.Dict[str, str]=None,
             *args,
             **kwargs) -> None:
-        if metadata_keys is None:
-            metadata_keys = dict()
-        subprocess_args = [
-            "gsutil",
-        ]
-        for metadata_key, metadata_value in metadata_keys.items():
-            subprocess_args.extend([
-                "-h",
-                "x-goog-meta-{}:{}".format(metadata_key, metadata_value)
-            ])
-
-        subprocess_args.extend([
-            "cp",
-            os.path.join(self.local_root, local_path),
-            "gs://{}/{}".format(self.bucket, remote_path),
-        ])
-        subprocess.check_call(subprocess_args)
+        logger.info(f"Uploading {local_path} to gs://{self.bucket.name}/{remote_path}")
+        blob = self.bucket.blob(remote_path)
+        blob.upload_from_filename(os.path.join(self.local_root, local_path))
+        if metadata_keys:
+            blob.metadata = metadata_keys
+            blob.patch()

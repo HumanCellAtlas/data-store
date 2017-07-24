@@ -4,6 +4,7 @@
 DSS description FIXME: elaborate
 """
 
+import os
 import logging
 
 import flask
@@ -37,5 +38,5 @@ def get_logger():
 def create_app():
     app = connexion.App(__name__)
     resolver = RestyResolver("dss.api", collection_endpoint_name="list")
-    app.add_api('../dss-api.yml', resolver=resolver, validate_responses=True)
+    app.add_api('../dss-api.yml', resolver=resolver, validate_responses=True, arguments=os.environ)
     return app

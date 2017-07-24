@@ -3,7 +3,7 @@ info:
   title: HCA DCP DSS API
   description: Human Cell Atlas Data Coordination Platform Data Storage System API
   version: "0.0.1"
-host: hca-dss.czi.technology
+host: {{API_HOST}}
 schemes:
   - https
 basePath: /v1
@@ -319,6 +319,11 @@ paths:
           required: false
           type: string
           enum: [aws, gcp, azure]
+        - name: directurls
+          in: query
+          description: Include direct-access URLs in the response.
+          required: false
+          type: boolean
       responses:
         200:
           description: OK
@@ -473,6 +478,9 @@ definitions:
           content-type:
             type: string
             description: Content-type of the file.
+          url:
+            description: Direct access URL, if requested.
+            type: string
         required:
           - name
           - content-type

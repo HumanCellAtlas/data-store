@@ -3,6 +3,7 @@
 import argparse
 import os
 
+import typing
 from cloud_uploader import GSUploader, S3Uploader, Uploader
 
 
@@ -115,10 +116,21 @@ def upload(uploader: Uploader):
         )
 
 
-if __name__ == '__main__':
+def populate(s3_bucket: typing.Optional[str], gs_bucket: typing.Optional[str]):
     # find the 'datafiles' subdirectory.
     root_dir = os.path.dirname(__file__)
     datafiles_dir = os.path.join(root_dir, "datafiles")
+
+    uploaders = []
+    if s3_bucket is not None:
+        uploaders.append(S3Uploader(datafiles_dir, s3_bucket))
+    if gs_bucket is not None:
+        uploaders.append(GSUploader(datafiles_dir, gs_bucket))
+
+    for uploader in uploaders:
+        upload(uploader)
+
+if __name__ == '__main__':
 
     parser = argparse.ArgumentParser(description="Set up test fixtures in cloud storage buckets")
     parser.add_argument("--s3-bucket", type=str)
@@ -126,11 +138,4 @@ if __name__ == '__main__':
 
     args = parser.parse_args()
 
-    uploaders = []
-    if args.s3_bucket is not None:
-        uploaders.append(S3Uploader(datafiles_dir, args.s3_bucket))
-    if args.gs_bucket is not None:
-        uploaders.append(GSUploader(datafiles_dir, args.gs_bucket))
-
-    for uploader in uploaders:
-        upload(uploader)
+    populate(args.s3_bucket, args.gs_bucket)

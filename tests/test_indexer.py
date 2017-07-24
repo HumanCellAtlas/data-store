@@ -9,25 +9,30 @@ import time
 import unittest
 from typing import Dict
 
+import boto3
 import moto
 from elasticsearch import Elasticsearch
-from elasticsearch_dsl import Search
 
 from dss.events.handlers.index import process_new_indexable_object
 from tests import infra
-from tests.sample_data_loader import load_sample_data_bundle
+
+fixtures_root = os.path.abspath(os.path.join(os.path.dirname(__file__), 'fixtures'))  # noqa
+sys.path.insert(0, fixtures_root)  # noqa
+
+from tests.es import check_start_elasticsearch_service, close_elasticsearch_connections, elasticsearch_delete_index
+from tests.fixtures.populate import populate
+from tests.sample_data_loader import load_sample_data_bundle, create_s3_bucket
 
 pkg_root = os.path.abspath(os.path.join(os.path.dirname(__file__), '..'))
 sys.path.insert(0, pkg_root)
 
 from dss import DSS_ELASTICSEARCH_INDEX_NAME, DSS_ELASTICSEARCH_DOC_TYPE  # noqa
 
-USE_AWS_S3_MOCK = os.environ.get("USE_AWS_S3_MOCK", True)
+USE_AWS_S3 = bool(os.environ.get("USE_AWS_S3"))
 
 logging.basicConfig(level=logging.INFO)
 log = logging.getLogger(__name__)
 log.setLevel(logging.INFO)
-
 
 #
 # Basic test for DSS indexer:
@@ -40,14 +45,14 @@ log.setLevel(logging.INFO)
 #   4. Perform as simple search to verify the index is in Elasticsearch.
 #
 
-
 class TestEventHandlers(unittest.TestCase):
 
     @classmethod
     def setUpClass(cls):
-        if USE_AWS_S3_MOCK is True:
+        if not USE_AWS_S3:  # Setup moto S3 mock
             cls.mock_s3 = moto.mock_s3()
             cls.mock_s3.start()
+            populate_moto_test_fixture_data()
 
         if "DSS_ES_ENDPOINT" not in os.environ:
             os.environ["DSS_ES_ENDPOINT"] = "localhost"
@@ -58,7 +63,7 @@ class TestEventHandlers(unittest.TestCase):
 
     @classmethod
     def tearDownClass(cls):
-        if USE_AWS_S3_MOCK is True:
+        if not USE_AWS_S3:  # Teardown moto S3 mock
             cls.mock_s3.stop()
 
     def test_process_new_indexable_object(self):
@@ -141,34 +146,11 @@ class TestEventHandlers(unittest.TestCase):
             if isinstance(expected_list[i], dict):
                 self.normalize_inherently_different_values_in_dict(expected_list[i], actual_list[i])
 
+def populate_moto_test_fixture_data():
+    s3_bucket_test_fixtures = infra.get_env("DSS_S3_BUCKET_TEST_FIXTURES")
+    create_s3_bucket(s3_bucket_test_fixtures)
+    populate(s3_bucket_test_fixtures, None)
 
-# Check if the Elasticsearch service is running,
-# and if not, raise and exception with instructions to start it.
-def check_start_elasticsearch_service():
-    try:
-        es_client = Elasticsearch()
-        es_info = es_client.info()
-        log.debug("The Elasticsearch service is running.")
-        log.debug("Elasticsearch info: %s", es_info)
-        close_elasticsearch_connections(es_client)
-    except Exception:
-        raise Exception("The Elasticsearch service does not appear to be running on this system, "
-                        "yet it is required for this test. Please start it by running: elasticsearch")
-
-
-def elasticsearch_delete_index(index_name: str):
-    try:
-        es_client = Elasticsearch()
-        es_client.indices.delete(index=index_name, ignore=[404])
-        close_elasticsearch_connections(es_client)  # Prevents end-of-test complaints about open sockets
-    except Exception as e:
-        log.warning("Error occurred while removing Elasticsearch index:%s Exception: %s", index_name, e)
-
-
-# This prevents open socket errors after the test is over.
-def close_elasticsearch_connections(es_client):
-    for conn in es_client.transport.connection_pool.connections:
-        conn.pool.close()
 
 if __name__ == '__main__':
     unittest.main()
