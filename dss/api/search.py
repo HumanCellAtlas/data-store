@@ -6,7 +6,7 @@ from flask import request
 
 from .. import DSS_ELASTICSEARCH_INDEX_NAME, DSS_ELASTICSEARCH_DOC_TYPE
 from .. import get_logger
-from ..util import connect_elasticsearch
+from ..util.es import connect_elasticsearch
 
 
 def find():

@@ -13,6 +13,7 @@ from werkzeug.exceptions import BadRequest
 from ..blobstore import BlobNotFoundError
 from ..config import Config
 from ..hcablobstore import FileMetadata, HCABlobStore
+from ..util.es import connect_elasticsearch, get_elasticsearch_index
 
 
 def get(uuid: str, replica: str):
