@@ -4,6 +4,7 @@ import re
 from urllib.parse import unquote
 
 import boto3
+import botocore
 
 from ... import DSS_ELASTICSEARCH_INDEX_NAME, DSS_ELASTICSEARCH_DOC_TYPE
 from ...hcablobstore import BundleMetadata, BundleFileMetadata
@@ -81,9 +82,15 @@ def create_index_data(s3, bucket_name, bundle_id, manifest, logger):
                 file_key = create_file_key(file_info)
                 file_string = bucket.Object(file_key).get()['Body'].read().decode("utf-8")
                 file_json = json.loads(file_string)
-            except Exception as e:
+            # TODO (mbaumann) Are there other JSON-related exceptions that should be checked below?
+            except json.decoder.JSONDecodeError as e:
                 logger.warning((f"In bundle {bundle_id} the file \"{file_info[BundleFileMetadata.NAME]}\""
                                 " is marked for indexing yet could not be parsed."
+                                f" This file will not be indexed. Exception: {e}"))
+                continue
+            except botocore.exceptions.ClientError as e:
+                logger.warning((f"In bundle {bundle_id} the file \"{file_info[BundleFileMetadata.NAME]}\""
+                                " is marked for indexing yet could not be accessed."
                                 f" This file will not be indexed. Exception: {e}"))
                 continue
             logger.debug(f"Indexing file: {file_info[BundleFileMetadata.NAME]}")

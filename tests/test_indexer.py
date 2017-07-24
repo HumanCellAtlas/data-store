@@ -129,6 +129,22 @@ class TestIndexer(unittest.TestCase, StorageTestSupport):
         self.verify_index_document_structure_and_content(search_results[0], bundle_key,
                                                          files=smartseq2_paried_ends_indexed_file_list)
 
+    def test_indexed_file_access_error(self):
+        bundle_key = self.load_test_data_bundle_for_path('fixtures/smartseq2/paired_ends')
+        filename = "project.json"
+        deleteFileBlob(bundle_key, filename)
+        sample_s3_event = self.create_sample_s3_bundle_created_event(bundle_key)
+        with self.assertLogs(logger, level="WARNING") as log_monitor:
+            process_new_indexable_object(sample_s3_event, logger)
+        self.assertRegex(log_monitor.output[0],
+                         f"WARNING:.*:In bundle .* the file \"{filename}\" is marked for indexing"
+                         " yet could not be accessed. This file will not be indexed. Exception:")
+        search_results = self.get_search_results(smartseq2_paired_ends_query, 1)
+        self.assertEqual(1, len(search_results))
+        self.verify_index_document_structure_and_content(search_results[0], bundle_key,
+                                                         files=smartseq2_paried_ends_indexed_file_list,
+                                                         excluded_files=[filename.replace('.','_')])
+
     def test_es_client_reuse(self):
         from dss.events.handlers.index import ElasticsearchClient
         bundle_key = self.load_test_data_bundle_for_path('fixtures/smartseq2/paired_ends')
@@ -157,26 +173,29 @@ class TestIndexer(unittest.TestCase, StorageTestSupport):
     def create_sample_s3_bundle_created_event(bundle_key: str) -> Dict:
         with open(os.path.join(os.path.dirname(__file__), "sample_s3_bundle_created_event.json")) as fh:
             sample_s3_event = json.load(fh)
-        sample_s3_event['Records'][0]["s3"]["bucket"]["name"] = get_env("DSS_S3_BUCKET_TEST")
+        sample_s3_event['Records'][0]["s3"]["bucket"]["name"] = Config.get_s3_bucket()
         sample_s3_event['Records'][0]["s3"]["object"]["key"] = bundle_key
         return sample_s3_event
 
-    def verify_index_document_structure_and_content(self, actual_index_document, bundle_key, files):
-        self.verify_index_document_structure(actual_index_document, files)
-        expected_index_document = generate_expected_index_document(get_env("DSS_S3_BUCKET_TEST"), bundle_key)
+    def verify_index_document_structure_and_content(self, actual_index_document,
+                                                    bundle_key, files, excluded_files=[]):
+        self.verify_index_document_structure(actual_index_document, files, excluded_files)
+        expected_index_document = generate_expected_index_document(Config.get_s3_bucket(), bundle_key)
         if expected_index_document != actual_index_document:
             logger.error(f"Expected index document: {json.dumps(expected_index_document, indent=4)}")
             logger.error(f"Actual index document: {json.dumps(actual_index_document, indent=4)}")
             self.assertDictEqual(expected_index_document, actual_index_document)
 
-    def verify_index_document_structure(self, index_document, files):
+    def verify_index_document_structure(self, index_document, files, excluded_files):
         self.assertEqual(3, len(index_document.keys()))
         self.assertEqual("new", index_document['state'])
         self.assertIsNotNone(index_document['manifest'])
         self.assertIsNotNone(index_document['files'])
-        self.assertEqual(len(files), len(index_document['files'].keys()))
+        self.assertEqual((len(files) - len(excluded_files)),
+                         len(index_document['files'].keys()))
         for filename in files:
-            self.assertIsNotNone(index_document['files'][filename])
+            if not filename in excluded_files:
+                self.assertIsNotNone(index_document['files'][filename])
 
     @classmethod
     def check_connect_elasticsearch_service(cls):
@@ -253,6 +272,18 @@ def create_s3_bucket(bucket_name) -> None:
             logger.error(f"An unexpected error occured when creating test bucket: {bucket_name}")
 
 
+def deleteFileBlob(bundle_key, filename):
+    s3 = boto3.resource('s3')
+    manifest = read_bundle_manifest(s3, Config.get_s3_bucket(), bundle_key)
+    files = manifest['files']
+    for file_info in files:
+        if file_info['name'] == filename:
+            file_blob_key = create_file_key(file_info)
+            s3.Object(Config.get_s3_bucket(), file_blob_key).delete()
+            return
+    raise Exception(f"The file {filename} was not found in the manifest for bundle {bundle_key}")
+
+
 def generate_expected_index_document(bucket_name, bundle_key):
     s3 = boto3.resource('s3')
     manifest = read_bundle_manifest(s3, bucket_name, bundle_key)
@@ -273,11 +304,11 @@ def create_index_data(s3, bucket_name, manifest):
     bucket = s3.Bucket(bucket_name)
     for file_info in files_info:
         if file_info['indexed'] is True:
-            file_key = create_file_key(file_info)
-            obj = bucket.Object(file_key)
-            if obj.metadata['hca-dss-content-type'] != 'application/json':
-                continue
             try:
+                file_key = create_file_key(file_info)
+                obj = bucket.Object(file_key)
+                if obj.metadata['hca-dss-content-type'] != 'application/json':
+                    continue
                 file_string = obj.get()['Body'].read().decode("utf-8")
                 file_json = json.loads(file_string)
             except Exception:
