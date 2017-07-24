@@ -10,22 +10,35 @@ import unittest
 from typing import Dict
 
 import boto3
+import moto
+from botocore.exceptions import ClientError
 from elasticsearch import Elasticsearch
 
 import dss
+from dss import BucketStage, Config
 from dss.events.handlers.index import process_new_indexable_object
+
+fixtures_root = os.path.abspath(os.path.join(os.path.dirname(__file__), 'fixtures'))  # noqa
+sys.path.insert(0, fixtures_root)  # noqa
+
+pkg_root = os.path.abspath(os.path.join(os.path.dirname(__file__), '..'))  # noqa
+sys.path.insert(0, pkg_root)  # noqa
+
+from tests.fixtures.populate import populate
 from tests.infra import get_env, StorageTestSupport, S3TestBundle
 
 DSS_ELASTICSEARCH_INDEX_NAME = "hca"
 DSS_ELASTICSEARCH_DOC_TYPE = "hca"
 
+# The moto mock has two defects that show up when used by the dss core storage system.
+# Use actual S3 until these defects are fixed in moto.
+# TODO (mbaumann) When the defects in moto have been fixed, remove True from the line below.
+USE_AWS_S3 = bool(os.environ.get("USE_AWS_S3", True))
+
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 logger.setLevel(logging.INFO)
 
-
-pkg_root = os.path.abspath(os.path.join(os.path.dirname(__file__), '..'))
-sys.path.insert(0, pkg_root)
 
 #
 # Basic test for DSS indexer:
@@ -36,7 +49,7 @@ sys.path.insert(0, pkg_root)
 #      defined in HCA Storage System Index, Query, and Eventing Functional Spec & Use Cases
 #      The index document is then added to Elasticsearch
 #   4. Perform a search to verify the bundle index document is in Elasticsearch.
-#   5. Verify the structure and content of bundle the index document
+#   5. Verify the structure and content of the index document
 #
 
 
@@ -44,17 +57,30 @@ class TestIndexer(unittest.TestCase, StorageTestSupport):
 
     @classmethod
     def setUpClass(cls):
+        if not USE_AWS_S3:  # Setup moto mocks
+            cls.mock_s3 = moto.mock_s3()
+            cls.mock_s3.start()
+            cls.mock_sts = moto.mock_sts()
+            cls.mock_sts.start()
+            Config.set_config(BucketStage.TEST_FIXTURE)
+            create_s3_bucket(Config.get_s3_bucket())
+            populate(Config.get_s3_bucket(), None)
+            Config.set_config(BucketStage.TEST)
+            create_s3_bucket(Config.get_s3_bucket())
+
         if "DSS_ES_ENDPOINT" not in os.environ:
             os.environ["DSS_ES_ENDPOINT"] = "localhost"
         cls.check_connect_elasticsearch_service()
 
     @classmethod
     def tearDownClass(cls):
-        cls.close_elasticsearch_connections()
+        if not USE_AWS_S3:  # Teardown moto mocks
+            cls.mock_sts.stop()
+            cls.mock_s3.stop()
 
     def setUp(self):
         StorageTestSupport.setup(self)
-        dss.Config.set_config(dss.BucketStage.TEST)
+        Config.set_config(BucketStage.TEST)
         self.app = dss.create_app().app.test_client()
         self.elasticsearch_delete_index("_all")
 
@@ -215,6 +241,15 @@ smartseq2_paired_ends_query = \
             }
         }
     }
+
+
+def create_s3_bucket(bucket_name) -> None:
+    conn = boto3.resource('s3')
+    try:
+        conn.create_bucket(Bucket=bucket_name)
+    except ClientError as e:
+        if e.response['Error']['Code'] != 'BucketAlreadyOwnedByYou':
+            logger.error("An unexpected error occured when creating test bucket: %s", bucket_name)
 
 
 def generate_expected_index_document(bucket_name, bundle_key):

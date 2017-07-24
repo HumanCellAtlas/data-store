@@ -1,6 +1,7 @@
 import datetime
 import io
 import json
+import typing
 import uuid
 
 import iso8601
@@ -10,13 +11,15 @@ from flask import jsonify, make_response
 from ..blobstore import BlobNotFoundError
 from ..config import Config
 from ..hcablobstore import BundleFileMetadata, BundleMetadata, FileMetadata
+from ..util import UrlBuilder
 
 
 def get(
         uuid: str,
         version: str=None,
         # TODO: (ttung) once we can run the endpoints from each cloud, we should default to the local cloud.
-        replica: str="AWS"):
+        replica: str="AWS",
+        directurls: bool=False):
     uuid = uuid.lower()
 
     handle, hca_handle, bucket = Config.get_cloud_specific_handles(replica)
@@ -46,23 +49,31 @@ def get(
             exception=str(ex),
             HTTPStatusCode=requests.codes.not_found)), requests.codes.not_found
 
+    filesresponse = []  # type: typing.List[dict]
+    for file in bundle_metadata[BundleMetadata.FILES]:
+        file_version = {
+            'name': file[BundleFileMetadata.NAME],
+            'content-type': file[BundleFileMetadata.CONTENT_TYPE],
+            'uuid': file[BundleFileMetadata.UUID],
+            'version': file[BundleFileMetadata.VERSION],
+            'crc32c': file[BundleFileMetadata.CRC32C],
+            's3_etag': file[BundleFileMetadata.S3_ETAG],
+            'sha1': file[BundleFileMetadata.SHA1],
+            'sha256': file[BundleFileMetadata.SHA256],
+        }
+        if directurls:
+            file_version['url'] = str(UrlBuilder().set(
+                scheme=Config.get_storage_schema(replica),
+                netloc=bucket,
+                path=f"blobs/{file[BundleFileMetadata.SHA256]}.{file[BundleFileMetadata.SHA1]}.{file[BundleFileMetadata.S3_ETAG]}.{file[BundleFileMetadata.CRC32C]}"  # noqa
+            ))
+        filesresponse.append(file_version)
+
     return dict(
         bundle=dict(
             uuid=uuid,
             version=version,
-            files=[
-                {
-                    'name': file[BundleFileMetadata.NAME],
-                    'content-type': file[BundleFileMetadata.CONTENT_TYPE],
-                    'uuid': file[BundleFileMetadata.UUID],
-                    'version': file[BundleFileMetadata.VERSION],
-                    'crc32c': file[BundleFileMetadata.CRC32C],
-                    's3_etag': file[BundleFileMetadata.S3_ETAG],
-                    'sha1': file[BundleFileMetadata.SHA1],
-                    'sha256': file[BundleFileMetadata.SHA256],
-                }
-                for file in bundle_metadata[BundleMetadata.FILES]
-            ],
+            files=filesresponse,
             creator_uid=bundle_metadata[BundleMetadata.CREATOR_UID],
         )
     )
@@ -72,7 +83,7 @@ def list_versions(uuid: str):
     return ["2014-10-23T00:35:14.800221Z"]
 
 
-def list():
+def find():
     return dict(bundles=[dict(uuid=str(uuid.uuid4()), versions=[])])
 
 

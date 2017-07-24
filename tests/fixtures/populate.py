@@ -2,6 +2,7 @@
 
 import argparse
 import os
+import typing
 
 from cloud_uploader import GSUploader, S3Uploader, Uploader
 
@@ -117,6 +118,9 @@ def upload(uploader: Uploader):
     # Create a bundle based on data-bundle-examples/smartseq2/paired_ends.
     # The files are accessed from the data-bundle-examples subrepository to avoid
     # duplicating them in our test infrastructure.
+    data_bundle_examples_dir = os.path.abspath(os.path.join(os.path.dirname(__file__),
+                                                            "..", "..", "data-bundle-examples"))
+
     def load_example_smartseq2_paired_ends(target_path):
         for fname in ["assay.json", "cell.json", "manifest.json", "project.json", "sample.json"]:
             source_path = os.path.join(data_bundle_examples_dir, "smartseq2", "paired_ends")
@@ -159,11 +163,22 @@ def upload(uploader: Uploader):
     )
 
 
-if __name__ == '__main__':
+def populate(s3_bucket: typing.Optional[str], gs_bucket: typing.Optional[str]):
     # find the 'datafiles' subdirectory.
     root_dir = os.path.dirname(__file__)
     datafiles_dir = os.path.join(root_dir, "datafiles")
-    data_bundle_examples_dir = os.path.abspath(os.path.join(root_dir, "..", "..", "data-bundle-examples"))
+
+    uploaders = []
+    if s3_bucket is not None:
+        uploaders.append(S3Uploader(datafiles_dir, s3_bucket))
+    if gs_bucket is not None:
+        uploaders.append(GSUploader(datafiles_dir, gs_bucket))
+
+    for uploader in uploaders:
+        upload(uploader)
+
+
+if __name__ == '__main__':
 
     parser = argparse.ArgumentParser(description="Set up test fixtures in cloud storage buckets")
     parser.add_argument("--s3-bucket", type=str)
@@ -171,11 +186,4 @@ if __name__ == '__main__':
 
     args = parser.parse_args()
 
-    uploaders = []
-    if args.s3_bucket is not None:
-        uploaders.append(S3Uploader(datafiles_dir, args.s3_bucket))
-    if args.gs_bucket is not None:
-        uploaders.append(GSUploader(datafiles_dir, args.gs_bucket))
-
-    for uploader in uploaders:
-        upload(uploader)
+    populate(args.s3_bucket, args.gs_bucket)

@@ -3,7 +3,7 @@ info:
   title: HCA DCP DSS API
   description: Human Cell Atlas Data Coordination Platform Data Storage System API
   version: "0.0.1"
-host: hca-dss.czi.technology
+host: {{API_HOST}}
 schemes:
   - https
 basePath: /v1
@@ -15,6 +15,7 @@ paths:
       description: |
         Returns a list of bundles matching the given simple criteria
       summary: Find bundles by querying their metadata using simple criteria
+      operationId: dss.api.search.find
       parameters:
         - name: query
           in: query
@@ -55,6 +56,7 @@ paths:
       summary: Query files
       description: |
         Returns a list of files matching given criteria.
+      operationId: dss.api.files.find
       responses:
         200:
           description: OK
@@ -256,6 +258,7 @@ paths:
       summary: Query bundles
       description: |
         Returns a list of bundles matching given criteria.
+      operationId: dss.api.bundles.find
       responses:
         200:
           description: OK
@@ -316,6 +319,11 @@ paths:
           required: false
           type: string
           enum: [aws, gcp, azure]
+        - name: directurls
+          in: query
+          description: Include direct-access URLs in the response.
+          required: false
+          type: boolean
       responses:
         200:
           description: OK
@@ -470,6 +478,9 @@ definitions:
           content-type:
             type: string
             description: Content-type of the file.
+          url:
+            description: Direct access URL, if requested.
+            type: string
         required:
           - name
           - content-type
