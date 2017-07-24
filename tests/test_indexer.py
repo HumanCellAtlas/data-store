@@ -266,7 +266,7 @@ def deleteFileBlob(bundle_key, filename):
     files = manifest['files']
     for file_info in files:
         if file_info['name'] == filename:
-            file_blob_key = create_file_key(file_info)
+            file_blob_key = create_blob_key(file_info)
             s3.Object(Config.get_s3_bucket(), file_blob_key).delete()
             return
     raise Exception(f"The file {filename} was not found in the manifest for bundle {bundle_key}")
@@ -293,6 +293,7 @@ def create_index_data(s3, bucket_name, manifest):
     for file_info in files_info:
         if file_info['indexed'] is True:
             try:
+                file_key = create_blob_key(file_info)
                 obj = bucket.Object(file_key)
                 if obj.metadata['hca-dss-content-type'] != 'application/json':
                     continue
