@@ -8,6 +8,7 @@ mypy:
 	mypy --ignore-missing-imports $(MODULES)
 
 test: lint mypy
+	tests/fixtures/populate.py --s3-bucket $(DSS_S3_BUCKET_TEST_FIXTURES) --gs-bucket $(DSS_GS_BUCKET_TEST_FIXTURES)
 	PYTHONWARNINGS=ignore:ResourceWarning coverage run --source=dss -m unittest discover tests -v
 
 deploy:
