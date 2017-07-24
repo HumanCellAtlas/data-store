@@ -544,13 +544,25 @@ definitions:
   Error:
     type: object
     properties:
-      code:
+      http-error-code:
         type: integer
         format: int32
+        description: HTTP error code.
+      code:
+        type: string
+        description: |
+          Machine-readable error code.  The types of return values should not be changed lightly.  Individual endpoints
+          should list an enumeration of possible return codes.  All endpoints should expect the possibility of the
+          return code `unhandled_exception`.
       message:
         type: string
-      fields:
+        description: Human-readable error code.
+      stacktrace:
         type: string
+        description: Exception stacktrace, if any.
+    required:
+      # once we fix up all the existing endpoints, we can add 'code' to the set of required fields.
+      - message
   FilesGetResponse:
     type: object
     properties:
