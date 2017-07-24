@@ -130,17 +130,18 @@ class TestIndexer(unittest.TestCase, StorageTestSupport):
                                                          files=smartseq2_paried_ends_indexed_file_list)
 
     def test_es_client_reuse(self):
+        from dss.events.handlers.index import ElasticsearchClient
         bundle_key = self.load_test_data_bundle_for_path('fixtures/smartseq2/paired_ends')
         sample_s3_event = self.create_sample_s3_bundle_created_event(bundle_key)
 
-        dss.events.handlers.index.es_client = None
+        ElasticsearchClient._es_client = None
         process_new_indexable_object(sample_s3_event, logger)
-        self.assertIsNotNone(dss.events.handlers.index.es_client)
-        es_client_after_first_call = dss.events.handlers.index.es_client
+        self.assertIsNotNone(ElasticsearchClient._es_client)
+        es_client_after_first_call = ElasticsearchClient._es_client
 
         process_new_indexable_object(sample_s3_event, logger)
-        self.assertIsNotNone(dss.events.handlers.index.es_client)
-        es_client_after_second_call = dss.events.handlers.index.es_client
+        self.assertIsNotNone(ElasticsearchClient._es_client)
+        es_client_after_second_call = ElasticsearchClient._es_client
 
         self.assertIs(es_client_after_first_call, es_client_after_second_call)
 
@@ -164,8 +165,8 @@ class TestIndexer(unittest.TestCase, StorageTestSupport):
         self.verify_index_document_structure(actual_index_document, files)
         expected_index_document = generate_expected_index_document(get_env("DSS_S3_BUCKET_TEST"), bundle_key)
         if expected_index_document != actual_index_document:
-            logger.error("Expected index document: %s", json.dumps(expected_index_document, indent=4))
-            logger.error("Actual index document: %s", json.dumps(actual_index_document, indent=4))
+            logger.error(f"Expected index document: {json.dumps(expected_index_document, indent=4)}")
+            logger.error(f"Actual index document: {json.dumps(actual_index_document, indent=4)}")
             self.assertDictEqual(expected_index_document, actual_index_document)
 
     def verify_index_document_structure(self, index_document, files):
@@ -181,7 +182,7 @@ class TestIndexer(unittest.TestCase, StorageTestSupport):
     def check_connect_elasticsearch_service(cls):
         try:
             cls.es_client = Elasticsearch()
-            logger.debug("The Elasticsearch service is running. %s", cls.es_client.info())
+            logger.debug(f"The Elasticsearch service is running. {cls.es_client.info()}")
         except Exception:
             raise Exception("The Elasticsearch service does not appear to be running on this system, "
                             "yet it is required for this test. Please start it by running: elasticsearch")
@@ -209,7 +210,7 @@ class TestIndexer(unittest.TestCase, StorageTestSupport):
         try:
             cls.es_client.indices.delete(index=index_name, ignore=[404])
         except Exception as e:
-            logger.warning("Error occurred while removing Elasticsearch index:%s Exception: %s", index_name, e)
+            logger.warning(f"Error occurred while removing Elasticsearch index: {index_name} Exception: {e}")
 
     @classmethod
     def close_elasticsearch_connections(cls):
@@ -249,7 +250,7 @@ def create_s3_bucket(bucket_name) -> None:
         conn.create_bucket(Bucket=bucket_name)
     except ClientError as e:
         if e.response['Error']['Code'] != 'BucketAlreadyOwnedByYou':
-            logger.error("An unexpected error occured when creating test bucket: %s", bucket_name)
+            logger.error(f"An unexpected error occured when creating test bucket: {bucket_name}")
 
 
 def generate_expected_index_document(bucket_name, bundle_key):

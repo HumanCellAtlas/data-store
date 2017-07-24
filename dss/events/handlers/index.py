@@ -15,29 +15,33 @@ DSS_BUNDLE_KEY_REGEX = r"^bundles/[0-9A-Fa-f]{8}-[0-9A-Fa-f]{4}-4[0-9A-Fa-f]{3}-
 Lambda function for DSS indexing
 """
 
-es_client = None
+class ElasticsearchClient:
+    _es_client = None
+
+    @staticmethod
+    def get(logger):
+        if ElasticsearchClient._es_client is None:
+            ElasticsearchClient._es_client = connect_elasticsearch(os.getenv("DSS_ES_ENDPOINT"), logger)
+        return ElasticsearchClient._es_client
 
 
 def process_new_indexable_object(event, logger) -> None:
-    global es_client
-    if es_client is None:
-        es_client = connect_elasticsearch(os.getenv("DSS_ES_ENDPOINT"), logger)
     try:
         # This function is only called for S3 creation events
         key = unquote(event['Records'][0]["s3"]["object"]["key"])
         if is_bundle_to_index(key):
-            logger.info("Received S3 creation event for bundle which will be indexed: %s", key)
+            logger.info(f"Received S3 creation event for bundle which will be indexed: {key}")
             s3 = boto3.resource('s3')
             bucket_name = event['Records'][0]["s3"]["bucket"]["name"]
             manifest = read_bundle_manifest(s3, bucket_name, key, logger)
             bundle_id = get_bundle_id_from_key(key)
             index_data = create_index_data(s3, bucket_name, bundle_id, manifest, logger)
             add_index_data_to_elasticsearch(bundle_id, index_data, logger)
-            logger.debug("Finished index processing of S3 creation event for bundle: %s", key)
+            logger.debug(f"Finished index processing of S3 creation event for bundle: {key}")
         else:
-            logger.debug("Not indexing S3 creation event for key: %s", key)
+            logger.debug(f"Not indexing S3 creation event for key: {key}")
     except Exception as e:
-        logger.error("Exception occurred while processing S3 event: %s Event: %s", e, json.dumps(event, indent=4))
+        logger.error(f"Exception occurred while processing S3 event: {e} Event: {json.dumps(event, indent=4)}")
         raise
 
 
@@ -52,7 +56,8 @@ def is_bundle_to_index(key) -> bool:
 
 def read_bundle_manifest(s3, bucket_name, bundle_key, logger):
     manifest_string = s3.Object(bucket_name, bundle_key).get()['Body'].read().decode("utf-8")
-    logger.debug("Read bundle manifest from bucket %s with bundle key %s: %s", bucket_name, bundle_key, manifest_string)
+    logger.debug(f"Read bundle manifest from bucket {bucket_name}"
+                 f" with bundle key {bundle_key}: {manifest_string}")
     manifest = json.loads(manifest_string, encoding="utf-8")
     return manifest
 
@@ -65,25 +70,23 @@ def create_index_data(s3, bucket_name, bundle_id, manifest, logger):
     for file_info in files_info:
         if file_info[BundleFileMetadata.INDEXED] is True:
             if file_info[BundleFileMetadata.CONTENT_TYPE] != 'application/json':
-                logger.warning(("In bundle %s the file \"%s\" is marked for indexing yet has content type \"%s\""
+                logger.warning((f"In bundle {bundle_id} the file \"{file_info[BundleFileMetadata.NAME]}\""
+                                " is marked for indexing yet has content type"
+                                f" \"{file_info[BundleFileMetadata.CONTENT_TYPE]}\""
                                 " instead of the required content type \"application/json\"."
-                                " This file will not be indexed."),
-                               bundle_id,
-                               file_info[BundleFileMetadata.NAME],
-                               file_info[BundleFileMetadata.CONTENT_TYPE])
+                                " This file will not be indexed.")
+                               )
                 continue
             try:
                 file_key = create_file_key(file_info)
                 file_string = bucket.Object(file_key).get()['Body'].read().decode("utf-8")
                 file_json = json.loads(file_string)
             except Exception as e:
-                logger.warning(("In bundle %s the file \"%s\" is marked for indexing yet could not be parsed."
-                                " This file will not be indexed. Exception: %s"),
-                               bundle_id,
-                               file_info[BundleFileMetadata.NAME],
-                               str(e))
+                logger.warning((f"In bundle {bundle_id} the file \"{file_info[BundleFileMetadata.NAME]}\""
+                                " is marked for indexing yet could not be parsed."
+                                f" This file will not be indexed. Exception: {e}"))
                 continue
-            logger.debug("Indexing file: %s", file_info[BundleFileMetadata.NAME])
+            logger.debug(f"Indexing file: {file_info[BundleFileMetadata.NAME]}")
             # There are two reasons in favor of not using dot in the name of the individual
             # files in the index document, and instead replacing it with an underscore.
             # 1. Ambiguity regarding interpretation/processing of dots in field names,
@@ -118,29 +121,30 @@ def create_file_key(file_info) -> str:
 
 def add_index_data_to_elasticsearch(bundle_key, index_data, logger) -> None:
     create_elasticsearch_index(logger)
-    logger.debug("Adding index data to Elasticsearch: %s", json.dumps(index_data, indent=4))
+    logger.debug(f"Adding index data to Elasticsearch: {json.dumps(index_data, indent=4)}")
     add_data_to_elasticsearch(bundle_key, index_data, logger)
 
 
 def create_elasticsearch_index(logger):
     try:
+        es_client = ElasticsearchClient.get(logger)
         response = es_client.indices.exists(DSS_ELASTICSEARCH_INDEX_NAME)
         if response is False:
-            logger.debug("Creating new Elasticsearch index: %s", DSS_ELASTICSEARCH_INDEX_NAME)
+            logger.debug(f"Creating new Elasticsearch index: {DSS_ELASTICSEARCH_INDEX_NAME}")
             response = es_client.indices.create(DSS_ELASTICSEARCH_INDEX_NAME, body=None)
-            logger.debug("Index creation response: %s", json.dumps(response, indent=4))
+            logger.debug(f"Index creation response: {json.dumps(response, indent=4)}")
         else:
-            logger.debug("Using existing Elasticsearch index: %s", DSS_ELASTICSEARCH_INDEX_NAME)
+            logger.debug(f"Using existing Elasticsearch index: {DSS_ELASTICSEARCH_INDEX_NAME}", )
     except Exception as ex:
-        logger.critical("Unable to create index %s  Exception: %s", DSS_ELASTICSEARCH_INDEX_NAME, ex)
+        logger.critical(f"Unable to create index {DSS_ELASTICSEARCH_INDEX_NAME}  Exception: {ex}")
 
 
 def add_data_to_elasticsearch(bundle_id, index_data, logger) -> None:
     try:
-        es_client.index(index=DSS_ELASTICSEARCH_INDEX_NAME,
-                        doc_type=DSS_ELASTICSEARCH_DOC_TYPE,
-                        id=bundle_id,
-                        body=json.dumps(index_data, indent=4))
+        ElasticsearchClient.get(logger).index(index=DSS_ELASTICSEARCH_INDEX_NAME,
+                                              doc_type=DSS_ELASTICSEARCH_DOC_TYPE,
+                                              id=bundle_id,
+                                              body=json.dumps(index_data, indent=4))
 
     except Exception as ex:
-        logger.error("Document not indexed. Exception: %s  Index data: %s", ex, json.dumps(index_data, indent=4))
+        logger.error(f"Document not indexed. Exception: {ex}  Index data: {json.dumps(index_data, indent=4)}")
