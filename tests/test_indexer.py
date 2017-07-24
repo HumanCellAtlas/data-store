@@ -23,17 +23,16 @@ from tests.es import check_start_elasticsearch_service, close_elasticsearch_conn
 from tests.fixtures.populate import populate
 from tests.sample_data_loader import load_sample_data_bundle, create_s3_bucket
 
-DSS_ELASTICSEARCH_INDEX_NAME = "hca"
-DSS_ELASTICSEARCH_DOC_TYPE = "hca"
+pkg_root = os.path.abspath(os.path.join(os.path.dirname(__file__), '..'))
+sys.path.insert(0, pkg_root)
+
+from dss import DSS_ELASTICSEARCH_INDEX_NAME, DSS_ELASTICSEARCH_DOC_TYPE  # noqa
 
 USE_AWS_S3 = bool(os.environ.get("USE_AWS_S3"))
 
 logging.basicConfig(level=logging.INFO)
 log = logging.getLogger(__name__)
 log.setLevel(logging.INFO)
-
-pkg_root = os.path.abspath(os.path.join(os.path.dirname(__file__), '..'))
-sys.path.insert(0, pkg_root)
 
 #
 # Basic test for DSS indexer:
