@@ -19,7 +19,11 @@ def get(uuid: str, replica: str):
     pass
 
 
-def put(uuid: str, extras: dict, replica: str):
+def find(replica: str):
+    pass
+
+
+def put(extras: dict, replica: str):
     pass
 
 
