@@ -19,6 +19,7 @@ from tests import infra
 fixtures_root = os.path.abspath(os.path.join(os.path.dirname(__file__), 'fixtures'))  # noqa
 sys.path.insert(0, fixtures_root)  # noqa
 
+from tests.es import check_start_elasticsearch_service, close_elasticsearch_connections, elasticsearch_delete_index
 from tests.fixtures.populate import populate
 from tests.sample_data_loader import load_sample_data_bundle, create_s3_bucket
 
@@ -151,33 +152,6 @@ def populate_moto_test_fixture_data():
     create_s3_bucket(s3_bucket_test_fixtures)
     populate(s3_bucket_test_fixtures, None)
 
-# Check if the Elasticsearch service is running,
-# and if not, raise and exception with instructions to start it.
-def check_start_elasticsearch_service():
-    try:
-        es_client = Elasticsearch()
-        es_info = es_client.info()
-        log.debug("The Elasticsearch service is running.")
-        log.debug("Elasticsearch info: %s", es_info)
-        close_elasticsearch_connections(es_client)
-    except Exception:
-        raise Exception("The Elasticsearch service does not appear to be running on this system, "
-                        "yet it is required for this test. Please start it by running: elasticsearch")
-
-
-def elasticsearch_delete_index(index_name: str):
-    try:
-        es_client = Elasticsearch()
-        es_client.indices.delete(index=index_name, ignore=[404])
-        close_elasticsearch_connections(es_client)  # Prevents end-of-test complaints about open sockets
-    except Exception as e:
-        log.warning("Error occurred while removing Elasticsearch index:%s Exception: %s", index_name, e)
-
-
-# This prevents open socket errors after the test is over.
-def close_elasticsearch_connections(es_client):
-    for conn in es_client.transport.connection_pool.connections:
-        conn.pool.close()
 
 if __name__ == '__main__':
     unittest.main()
