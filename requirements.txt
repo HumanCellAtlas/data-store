@@ -1,6 +1,6 @@
 azure-storage
 boto3
-connexion
+connexion==1.1.11
 elasticsearch
 elasticsearch_dsl
 flask-failsafe
