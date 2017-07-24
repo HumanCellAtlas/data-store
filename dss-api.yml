@@ -24,9 +24,6 @@ paths:
         Returns a list of bundles matching the given simple criteria
       summary: Find bundles by querying their metadata using simple criteria
       operationId: dss.api.search.find
-      security:
-        - googAuth:
-            - https://www.googleapis.com/auth/userinfo.email
       parameters:
         - name: query
           in: query
@@ -279,6 +276,9 @@ paths:
         Return a list of associated subscriptions, which contains the uuid,
         replica, query, creator_uid, and callback_url.
       operationId: dss.api.subscriptions.find
+      security:
+        - googAuth:
+            - https://www.googleapis.com/auth/userinfo.email
       parameters:
         - name: replica
           in: query
@@ -307,6 +307,9 @@ paths:
       description: |
         Create a new event subscription. Every time a new bundle version matches this query,
         a request is sent to callback_url.
+      security:
+        - googAuth:
+            - https://www.googleapis.com/auth/userinfo.email
       parameters:
         - name: replica
           in: query
@@ -348,6 +351,9 @@ paths:
       description: |
         Given a subscription UUID, return the associated subscription, which contains the uuid,
         replica, query, creator_uid, and callback_url.
+      security:
+        - googAuth:
+            - https://www.googleapis.com/auth/userinfo.email
       parameters:
         - name: uuid
           in: path
@@ -378,6 +384,9 @@ paths:
       description: |
         Delete a registered event subscription. The associated query will no longer trigger a callback
         if a matching document is added to the system.
+      security:
+        - googAuth:
+            - https://www.googleapis.com/auth/userinfo.email
       parameters:
         - name: uuid
           in: path
