@@ -37,7 +37,7 @@ def get(uuid: str, replica: str=None, version: str=None):
     # TODO: (ttung) once we can run the endpoints from each cloud, we should
     # just default to the local cloud.
     if request.method == "HEAD" and replica is None:
-        replica = "AWS"
+        replica = "aws"
 
     handle, hca_handle, bucket = Config.get_cloud_specific_handles(replica)
 
