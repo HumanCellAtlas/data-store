@@ -14,9 +14,19 @@ from flask_failsafe import failsafe
 
 from .config import BucketStage, Config
 
-# Constants common to the indexer and query route.
+# CONSTANTS COMMON TO THE INDEXER AND QUERY ROUTE.
+
+# ES index containing all docs
 DSS_ELASTICSEARCH_INDEX_NAME = "hca"
-DSS_ELASTICSEARCH_DOC_TYPE = "hca"
+# ES type within DSS_ELASTICSEARCH_INDEX_NAME with docs
+DSS_ELASTICSEARCH_DOC_TYPE = "doc"
+# ES type within DSS_ELASTICSEARCH_INDEX_NAME with percolate queries
+DSS_ELASTICSEARCH_QUERY_TYPE = "query"
+
+# ES index with all registered percolate queries
+DSS_ELASTICSEARCH_SUBSCRIPTION_INDEX_NAME = "subscriptions"
+# ES type in DSS_ELASTICSEARCH_SUBSCRIPTION_INDEX_NAME with subscriptions
+DSS_ELASTICSEARCH_SUBSCRIPTION_TYPE = "subscription"
 
 def get_logger():
     try:
