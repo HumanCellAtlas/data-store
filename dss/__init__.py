@@ -16,6 +16,8 @@ from .config import BucketStage, Config
 # Constants common to the indexer and query route.
 DSS_ELASTICSEARCH_INDEX_NAME = "hca"
 DSS_ELASTICSEARCH_DOC_TYPE = "hca"
+DSS_ELASTICSEARCH_QUERIES_INDEX_NAME = "queries"
+DSS_ELASTICSEARCH_QUERIES_DOC_TYPE = "queries_type"
 
 def get_logger():
     try:
