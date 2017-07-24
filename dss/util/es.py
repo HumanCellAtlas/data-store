@@ -1,4 +1,5 @@
 import json
+import os
 from urllib.parse import SplitResult, parse_qs, urlencode, urlparse, urlunsplit
 
 import boto3
@@ -33,26 +34,36 @@ class AWSV4Sign(requests.auth.AuthBase):
         return r
 
 
-def connect_elasticsearch(elasticsearch_endpoint, logger) -> Elasticsearch:
-    try:
-        if elasticsearch_endpoint is None:
-            elasticsearch_endpoint = "localhost"
-        logger.debug("Connecting to Elasticsearch at host: {}".format(elasticsearch_endpoint))
-        if elasticsearch_endpoint.endswith(".amazonaws.com"):
-            session = boto3.session.Session()
-            es_auth = AWSV4Sign(session.get_credentials(), session.region_name, service="es")
-            es_client = Elasticsearch(
-                hosts=[{'host': elasticsearch_endpoint, 'port': 443}],
-                use_ssl=True,
-                verify_certs=True,
-                connection_class=RequestsHttpConnection,
-                http_auth=es_auth)
-        else:
-            es_client = Elasticsearch([elasticsearch_endpoint], use_ssl=False, port=9200)
-        return es_client
-    except Exception as ex:
-        logger.error("Unable to connect to Elasticsearch endpoint {}. Exception: {}".format(elasticsearch_endpoint, ex))
-        raise ex
+class ElasticsearchClient:
+    _es_client = None
+
+    @staticmethod
+    def get(logger):
+        if ElasticsearchClient._es_client is None:
+            elasticsearch_endpoint = os.getenv("DSS_ES_ENDPOINT")
+            try:
+                if elasticsearch_endpoint is None:
+                    elasticsearch_endpoint = "localhost"
+                logger.debug("Connecting to Elasticsearch at host: {}".format(elasticsearch_endpoint))
+                if elasticsearch_endpoint.endswith(".amazonaws.com"):
+                    session = boto3.session.Session()
+                    es_auth = AWSV4Sign(session.get_credentials(), session.region_name, service="es")
+                    es_client = Elasticsearch(
+                        hosts=[{'host': elasticsearch_endpoint, 'port': 443}],
+                        use_ssl=True,
+                        verify_certs=True,
+                        connection_class=RequestsHttpConnection,
+                        http_auth=es_auth)
+                else:
+                    es_client = Elasticsearch([elasticsearch_endpoint], use_ssl=False, port=9200)
+                ElasticsearchClient._es_client = es_client
+            except Exception as ex:
+                logger.error("Unable to connect to Elasticsearch endpoint {}. Exception: {}".format(
+                    elasticsearch_endpoint, ex)
+                )
+                raise ex
+
+        return ElasticsearchClient._es_client
 
 
 def get_elasticsearch_index(es_client, idx, logger, index_mapping=None):
