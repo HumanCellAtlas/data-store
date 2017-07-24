@@ -15,8 +15,8 @@ from botocore.exceptions import ClientError
 from elasticsearch import Elasticsearch
 
 import dss
-from dss import BucketStage, Config
-from dss.events.handlers.index import process_new_indexable_object
+from dss import BucketStage, Config, DSS_ELASTICSEARCH_INDEX_NAME, DSS_ELASTICSEARCH_DOC_TYPE
+from dss.events.handlers.index import process_new_indexable_object, ElasticsearchClient
 from dss.util import create_blob_key
 
 fixtures_root = os.path.abspath(os.path.join(os.path.dirname(__file__), 'fixtures'))  # noqa
@@ -25,11 +25,9 @@ sys.path.insert(0, fixtures_root)  # noqa
 pkg_root = os.path.abspath(os.path.join(os.path.dirname(__file__), '..'))  # noqa
 sys.path.insert(0, pkg_root)  # noqa
 
+from tests.es import check_start_elasticsearch_service, elasticsearch_delete_index
 from tests.fixtures.populate import populate
 from tests.infra import get_env, StorageTestSupport, S3TestBundle
-
-DSS_ELASTICSEARCH_INDEX_NAME = "hca"
-DSS_ELASTICSEARCH_DOC_TYPE = "hca"
 
 # The moto mock has two defects that show up when used by the dss core storage system.
 # Use actual S3 until these defects are fixed in moto.
@@ -71,7 +69,7 @@ class TestIndexer(unittest.TestCase, StorageTestSupport):
 
         if "DSS_ES_ENDPOINT" not in os.environ:
             os.environ["DSS_ES_ENDPOINT"] = "localhost"
-        cls.check_connect_elasticsearch_service()
+        check_start_elasticsearch_service()
 
     @classmethod
     def tearDownClass(cls):
@@ -83,7 +81,7 @@ class TestIndexer(unittest.TestCase, StorageTestSupport):
         StorageTestSupport.setup(self)
         Config.set_config(BucketStage.TEST)
         self.app = dss.create_app().app.test_client()
-        self.elasticsearch_delete_index("_all")
+        elasticsearch_delete_index("_all")
 
     def tearDown(self):
         self.app = None
@@ -199,15 +197,6 @@ class TestIndexer(unittest.TestCase, StorageTestSupport):
                 self.assertIsNotNone(index_document['files'][filename])
 
     @classmethod
-    def check_connect_elasticsearch_service(cls):
-        try:
-            cls.es_client = Elasticsearch()
-            logger.debug(f"The Elasticsearch service is running. {cls.es_client.info()}")
-        except Exception:
-            raise Exception("The Elasticsearch service does not appear to be running on this system, "
-                            "yet it is required for this test. Please start it by running: elasticsearch")
-
-    @classmethod
     def get_search_results(cls, query, expected_hit_count):
         # Elasticsearch periodically refreshes the searchable data with newly added data.
         # By default, the refresh interval is one second.
@@ -216,27 +205,15 @@ class TestIndexer(unittest.TestCase, StorageTestSupport):
         timeout = 2
         timeout_time = time.time() + timeout
         while True:
-            response = cls.es_client.search(index=DSS_ELASTICSEARCH_INDEX_NAME,
-                                            doc_type=DSS_ELASTICSEARCH_DOC_TYPE,
-                                            body=json.dumps(query))
+            response = ElasticsearchClient.get(logger).search(
+                index=DSS_ELASTICSEARCH_INDEX_NAME,
+                doc_type=DSS_ELASTICSEARCH_DOC_TYPE,
+                body=json.dumps(query))
             if (len(response['hits']['hits']) >= expected_hit_count) \
                     or (time.time() >= timeout_time):
                 return [hit['_source'] for hit in response['hits']['hits']]
             else:
                 time.sleep(0.5)
-
-    @classmethod
-    def elasticsearch_delete_index(cls, index_name):
-        try:
-            cls.es_client.indices.delete(index=index_name, ignore=[404])
-        except Exception as e:
-            logger.warning(f"Error occurred while removing Elasticsearch index: {index_name} Exception: {e}")
-
-    @classmethod
-    def close_elasticsearch_connections(cls):
-        # This prevents open socket errors after the test is over.
-        for conn in cls.es_client.transport.connection_pool.connections:
-            conn.pool.close()
 
 
 smartseq2_paried_ends_indexed_file_list = ["assay_json", "cell_json", "manifest_json", "project_json", "sample_json"]
