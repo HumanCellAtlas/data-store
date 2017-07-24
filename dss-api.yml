@@ -70,73 +70,6 @@ paths:
             required:
               - files
   /files/{uuid}:
-    get:
-      summary: Retrieve a file given a UUID and optionally a version.
-      description: |
-        Given a file UUID, return the latest version of that file.  If the version is provided, that version of the file
-        is returned instead.
-
-        Headers will contain the data store metadata for the file.
-
-        This endpoint will do a HTTP redirect to another HTTP endpoint with the file contents.
-      parameters:
-        - name: uuid
-          in: path
-          description: A RFC4122-compliant ID for the file.
-          required: true
-          type: string
-          pattern: "[A-Za-z0-9]{8}-[A-Za-z0-9]{4}-[A-Za-z0-9]{4}-[A-Za-z0-9]{4}-[A-Za-z0-9]{12}"
-        - name: replica
-          in: query
-          description: Replica to fetch from.
-          required: false
-          type: string
-          enum: [aws, gcp, azure]
-        - name: version
-          in: query
-          description: Timestamp of file creation in RFC3339.  If this is not provided, the latest version is returned.
-          required: false
-          type: string
-          format: date-time
-      responses:
-        302:
-          description: Redirects to a signed URL with the data.
-          headers:
-            # edits to here should probably be reflected in the 302 section immediately below.
-            X-DSS-BUNDLE-UUID:
-              description: A RFC4122-compliant ID for the bundle that contains this file.
-              type: string
-            X-DSS-CREATOR-UID:
-              description: User ID who created this file.
-              type: integer
-              format: int64
-            X-DSS-VERSION:
-              description: Timestamp of file creation in RFC3339.
-              type: string
-              format: date-time
-            X-DSS-CONTENT-TYPE:
-              description: Content-type of the file.
-              type: string
-            X-DSS-CRC32C:
-              description: CRC-32C (in hex format) of the file contents in hex.
-              type: string
-              pattern: "^[a-z0-9]{8}$"
-            X-DSS-S3-ETAG:
-              description: S3 ETag (in hex format) of the file contents.
-              type: string
-              pattern: "^[a-z0-9]{32}(-([2-9]|[1-8][0-9]|9[0-9]|[1-8][0-9]{2}|9[0-8][0-9]|99[0-9]|[1-8][0-9]{3}|9[0-8][0-9]{2}|99[0-8][0-9]|999[0-9]|10000))?$"
-            X-DSS-SHA1:
-              description: SHA-1 (in hex format) of the file contents in hex.
-              type: string
-              pattern: "^[a-z0-9]{40}$"
-            X-DSS-SHA256:
-              description: SHA-256 (in hex format) of the file contents in hex.
-              type: string
-              pattern: "^[a-z0-9]{64}$"
-        default:
-          description: Unexpected error
-          schema:
-            $ref: '#/definitions/Error'
     head:
       summary: Retrieve a file's metadata given an UUID and optionally a version.
       description: |
@@ -189,6 +122,73 @@ paths:
               description: SHA-256 (in hex format) of the file contents in hex.
               type: string
               pattern: "^[a-z0-9]{64}$"
+    get:
+      summary: Retrieve a file given a UUID and optionally a version.
+      description: |
+        Given a file UUID, return the latest version of that file.  If the version is provided, that version of the file
+        is returned instead.
+
+        Headers will contain the data store metadata for the file.
+
+        This endpoint will do a HTTP redirect to another HTTP endpoint with the file contents.
+      parameters:
+        - name: uuid
+          in: path
+          description: A RFC4122-compliant ID for the file.
+          required: true
+          type: string
+          pattern: "[A-Za-z0-9]{8}-[A-Za-z0-9]{4}-[A-Za-z0-9]{4}-[A-Za-z0-9]{4}-[A-Za-z0-9]{12}"
+        - name: replica
+          in: query
+          description: Replica to fetch from.
+          required: false
+          type: string
+          enum: [aws, gcp, azure]
+        - name: version
+          in: query
+          description: Timestamp of file creation in RFC3339.  If this is not provided, the latest version is returned.
+          required: false
+          type: string
+          format: date-time
+      responses:
+        302:
+          description: Redirects to a signed URL with the data.
+          headers:
+            # edits to here should probably be reflected in the 200 section above.
+            X-DSS-BUNDLE-UUID:
+              description: A RFC4122-compliant ID for the bundle that contains this file.
+              type: string
+            X-DSS-CREATOR-UID:
+              description: User ID who created this file.
+              type: integer
+              format: int64
+            X-DSS-VERSION:
+              description: Timestamp of file creation in RFC3339.
+              type: string
+              format: date-time
+            X-DSS-CONTENT-TYPE:
+              description: Content-type of the file.
+              type: string
+            X-DSS-CRC32C:
+              description: CRC-32C (in hex format) of the file contents in hex.
+              type: string
+              pattern: "^[a-z0-9]{8}$"
+            X-DSS-S3-ETAG:
+              description: S3 ETag (in hex format) of the file contents.
+              type: string
+              pattern: "^[a-z0-9]{32}(-([2-9]|[1-8][0-9]|9[0-9]|[1-8][0-9]{2}|9[0-8][0-9]|99[0-9]|[1-8][0-9]{3}|9[0-8][0-9]{2}|99[0-8][0-9]|999[0-9]|10000))?$"
+            X-DSS-SHA1:
+              description: SHA-1 (in hex format) of the file contents in hex.
+              type: string
+              pattern: "^[a-z0-9]{40}$"
+            X-DSS-SHA256:
+              description: SHA-256 (in hex format) of the file contents in hex.
+              type: string
+              pattern: "^[a-z0-9]{64}$"
+        default:
+          description: Unexpected error
+          schema:
+            $ref: '#/definitions/Error'
     put:
       summary: Create a new version of a file
       description: |
