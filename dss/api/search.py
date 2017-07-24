@@ -6,13 +6,13 @@ from flask import request
 
 from .. import DSS_ELASTICSEARCH_INDEX_NAME, DSS_ELASTICSEARCH_DOC_TYPE
 from .. import get_logger
-from ..util.es import connect_elasticsearch
+from ..util.es import ElasticsearchClient
 
 
 def find():
     get_logger().debug("Searching for: %s", request.values["query"])
     # TODO (mbaumann) Use a connection manager
-    es_client = connect_elasticsearch(os.getenv("DSS_ES_ENDPOINT"), get_logger())
+    es_client = ElasticsearchClient.get(get_logger())
     query = json.loads(request.values["query"])
     response = Search(using=es_client,
                       index=DSS_ELASTICSEARCH_INDEX_NAME,
@@ -23,7 +23,7 @@ def find():
 def post(query: dict):
     get_logger().debug("Received posted query: %s", json.dumps(query, indent=4))
     # TODO (mbaumann) Use a connection manager
-    es_client = connect_elasticsearch(os.getenv("DSS_ES_ENDPOINT"), get_logger())
+    es_client = ElasticsearchClient.get(os.getenv(get_logger())
     response = Search(using=es_client,
                       index=DSS_ELASTICSEARCH_INDEX_NAME,
                       doc_type=DSS_ELASTICSEARCH_DOC_TYPE).update_from_dict(query).execute()
