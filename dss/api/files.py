@@ -16,19 +16,15 @@ from ..config import Config
 from ..hcablobstore import FileMetadata, HCABlobStore
 
 
-def head(uuid: str, replica: str=None, version: str=None):
-    # NOTE: THIS IS NEVER ACTUALLY CALLED DUE TO A BUG IN CONNEXION.
-    # HEAD requests always calls the same endpoint as get, even if we tell it to
-    # go to a different method.  However, connexion freaks out if:
-    # 1) there is no head() function defined in code.  *or*
-    # 2) we tell the head() function to hit the same method using operationId.
-    #
-    # So in short, do not expect that this function actually gets called.  This
-    # is only here to keep connexion from freaking out.
-    return get(uuid, replica, version)
+def head(uuid: str, version: str=None):
+    return get(uuid, None, version)
 
 
-def get(uuid: str, replica: str=None, version: str=None):
+def get(uuid: str, replica: str, version: str=None):
+    return get_helper(uuid, replica, version)
+
+
+def get_helper(uuid: str, replica: typing.Optional[str]=None, version: str=None):
     if request.method == "GET" and replica is None:
         # replica must be set when it's a GET request.
         raise BadRequest()
