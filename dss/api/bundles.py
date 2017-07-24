@@ -18,7 +18,7 @@ def get(
         uuid: str,
         version: str=None,
         # TODO: (ttung) once we can run the endpoints from each cloud, we should default to the local cloud.
-        replica: str="AWS",
+        replica: str="aws",
         directurls: bool=False):
     uuid = uuid.lower()
 
