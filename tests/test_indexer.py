@@ -17,6 +17,7 @@ from elasticsearch import Elasticsearch
 import dss
 from dss import BucketStage, Config
 from dss.events.handlers.index import process_new_indexable_object
+from dss.util import create_blob_key
 
 fixtures_root = os.path.abspath(os.path.join(os.path.dirname(__file__), 'fixtures'))  # noqa
 sys.path.insert(0, fixtures_root)  # noqa
@@ -143,7 +144,7 @@ class TestIndexer(unittest.TestCase, StorageTestSupport):
         self.assertEqual(1, len(search_results))
         self.verify_index_document_structure_and_content(search_results[0], bundle_key,
                                                          files=smartseq2_paried_ends_indexed_file_list,
-                                                         excluded_files=[filename.replace('.','_')])
+                                                         excluded_files=[filename.replace('.', '_')])
 
     def test_es_client_reuse(self):
         from dss.events.handlers.index import ElasticsearchClient
@@ -194,7 +195,7 @@ class TestIndexer(unittest.TestCase, StorageTestSupport):
         self.assertEqual((len(files) - len(excluded_files)),
                          len(index_document['files'].keys()))
         for filename in files:
-            if not filename in excluded_files:
+            if filename not in excluded_files:
                 self.assertIsNotNone(index_document['files'][filename])
 
     @classmethod
@@ -278,7 +279,7 @@ def deleteFileBlob(bundle_key, filename):
     files = manifest['files']
     for file_info in files:
         if file_info['name'] == filename:
-            file_blob_key = create_file_key(file_info)
+            file_blob_key = create_blob_key(file_info)
             s3.Object(Config.get_s3_bucket(), file_blob_key).delete()
             return
     raise Exception(f"The file {filename} was not found in the manifest for bundle {bundle_key}")
@@ -305,7 +306,7 @@ def create_index_data(s3, bucket_name, manifest):
     for file_info in files_info:
         if file_info['indexed'] is True:
             try:
-                file_key = create_file_key(file_info)
+                file_key = create_blob_key(file_info)
                 obj = bucket.Object(file_key)
                 if obj.metadata['hca-dss-content-type'] != 'application/json':
                     continue
@@ -317,13 +318,6 @@ def create_index_data(s3, bucket_name, manifest):
             index_files[index_filename] = file_json
     index['files'] = index_files
     return index
-
-
-def create_file_key(file_info) -> str:
-    return "blobs/" + ".".join(((file_info['sha256'],
-                                 file_info['sha1'],
-                                 file_info['s3-etag'],
-                                 file_info['crc32c'])))
 
 
 if __name__ == '__main__':

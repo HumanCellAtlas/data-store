@@ -1,10 +1,13 @@
 from urllib.parse import SplitResult, parse_qs, urlencode, urlparse, urlunsplit
 
 import boto3
+import typing
 from botocore.auth import SigV4Auth
 from botocore.awsrequest import AWSRequest
 from botocore.vendored import requests
 from elasticsearch import RequestsHttpConnection, Elasticsearch
+
+from ..hcablobstore import BundleFileMetadata
 
 
 class AWSV4Sign(requests.auth.AuthBase):
@@ -30,6 +33,15 @@ class AWSV4Sign(requests.auth.AuthBase):
         SigV4Auth(self.credentials, self.service, self.region).add_auth(request)
         r.headers.update(dict(request.headers.items()))
         return r
+
+
+def create_blob_key(file_info: typing.Dict[str, str]) -> str:
+    return "blobs/" + ".".join((
+        file_info[BundleFileMetadata.SHA256],
+        file_info[BundleFileMetadata.SHA1],
+        file_info[BundleFileMetadata.S3_ETAG],
+        file_info[BundleFileMetadata.CRC32C]
+    ))
 
 
 def paginate(boto3_paginator, *args, **kwargs):

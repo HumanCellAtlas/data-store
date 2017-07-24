@@ -8,13 +8,14 @@ import botocore
 
 from ... import DSS_ELASTICSEARCH_INDEX_NAME, DSS_ELASTICSEARCH_DOC_TYPE
 from ...hcablobstore import BundleMetadata, BundleFileMetadata
-from ...util import connect_elasticsearch
+from ...util import connect_elasticsearch, create_blob_key
 
 DSS_BUNDLE_KEY_REGEX = r"^bundles/[0-9A-Fa-f]{8}-[0-9A-Fa-f]{4}-4[0-9A-Fa-f]{3}-[0-9A-Fa-f]{4}-[0-9A-Fa-f]{12}\..+$"
 
 """
 Lambda function for DSS indexing
 """
+
 
 class ElasticsearchClient:
     _es_client = None
@@ -79,7 +80,7 @@ def create_index_data(s3, bucket_name, bundle_id, manifest, logger):
                                )
                 continue
             try:
-                file_key = create_file_key(file_info)
+                file_key = create_blob_key(file_info)
                 file_string = bucket.Object(file_key).get()['Body'].read().decode("utf-8")
                 file_json = json.loads(file_string)
             # TODO (mbaumann) Are there other JSON-related exceptions that should be checked below?
@@ -112,18 +113,10 @@ def create_index_data(s3, bucket_name, bundle_id, manifest, logger):
 
 
 def get_bundle_id_from_key(bundle_key):
-    if bundle_key.startswith("bundles/"):
-        bundle_key = bundle_key[8:]
-    return bundle_key
-
-
-def create_file_key(file_info) -> str:
-    return "blobs/" + ".".join((
-        file_info[BundleFileMetadata.SHA256],
-        file_info[BundleFileMetadata.SHA1],
-        file_info[BundleFileMetadata.S3_ETAG],
-        file_info[BundleFileMetadata.CRC32C]
-    ))
+    bundle_prefix = "bundles/"
+    if bundle_key.startswith(bundle_prefix):
+        return bundle_key[len(bundle_prefix):]
+    raise Exception(f"This is not a key for a bundle: {bundle_key}")
 
 
 def add_index_data_to_elasticsearch(bundle_key, index_data, logger) -> None:
