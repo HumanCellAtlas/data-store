@@ -17,10 +17,8 @@ from dss.events.handlers.index import process_new_indexable_object
 from tests import infra
 from tests.sample_data_loader import load_sample_data_bundle
 
-pkg_root = os.path.abspath(os.path.join(os.path.dirname(__file__), '..'))
-sys.path.insert(0, pkg_root)
-
-from dss import DSS_ELASTICSEARCH_INDEX_NAME, DSS_ELASTICSEARCH_DOC_TYPE  # noqa
+DSS_ELASTICSEARCH_INDEX_NAME = "hca"
+DSS_ELASTICSEARCH_DOC_TYPE = "hca"
 
 USE_AWS_S3_MOCK = os.environ.get("USE_AWS_S3_MOCK", True)
 
@@ -28,6 +26,9 @@ logging.basicConfig(level=logging.INFO)
 log = logging.getLogger(__name__)
 log.setLevel(logging.INFO)
 
+
+pkg_root = os.path.abspath(os.path.join(os.path.dirname(__file__), '..'))
+sys.path.insert(0, pkg_root)
 
 #
 # Basic test for DSS indexer:
