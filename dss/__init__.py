@@ -68,14 +68,14 @@ class DSSApp(connexion.App):
         )
 
 class OperationWithAuthorizer(Operation):
+    authorized_domains = os.environ["AUTHORIZED_DOMAINS"].split()
     def oauth2_authorize(self, function):
         def wrapper(request):
             if "token_info" in request.context.values:
                 token_info = request.context.values["token_info"]
-                authorized_domains = os.environ["AUTHORIZED_DOMAINS"].split()
                 assert int(token_info["expires_in"]) > 0
                 assert json.loads(token_info["email_verified"]) is True
-                assert any(token_info["email"].endswith(f"@{ad}") for ad in authorized_domains)
+                assert any(token_info["email"].endswith(f"@{ad}") for ad in self.authorized_domains)
             return function(request)
         return wrapper
 
