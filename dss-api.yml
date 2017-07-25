@@ -9,6 +9,14 @@ schemes:
 basePath: /v1
 produces:
   - application/json
+securityDefinitions:
+  googAuth:
+    type: oauth2
+    flow: implicit
+    authorizationUrl: https://accounts.google.com/o/oauth2/v2/auth
+    x-tokenInfoUrl: https://www.googleapis.com/oauth2/v3/tokeninfo
+    scopes:
+      https://www.googleapis.com/auth/userinfo.email: read user email
 paths:
   /search:
     get:

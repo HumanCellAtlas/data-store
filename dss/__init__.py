@@ -6,12 +6,16 @@ DSS description FIXME: elaborate
 import traceback
 
 import os
+import json
 import logging
 
 import connexion
 import flask
 import requests
+import connexion.apis.abstract
+from connexion.operation import Operation
 from connexion.resolver import RestyResolver
+from connexion.exceptions import OAuthProblem, OAuthResponseProblem, OAuthScopeProblem
 from flask_failsafe import failsafe
 
 from .config import BucketStage, Config
@@ -38,7 +42,6 @@ def get_logger():
     except RuntimeError:
         return logging.getLogger(__name__)
 
-
 class DSSApp(connexion.App):
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
@@ -55,16 +58,37 @@ class DSSApp(connexion.App):
         In both cases, the exception would be punted here, and we return this very generic error that also happens to
         bypass all validation.
         """
-        return (
-            flask.jsonify({
-                'status': requests.codes.server_error,
-                'code': "unhandled_exception",
-                'title': str(exception),
-                'stacktrace': traceback.format_exc(),
-            }),
-            requests.codes.server_error,
-        )
+        problem = {
+            'status': requests.codes.server_error,
+            'code': "unhandled_exception",
+            'title': str(exception),
+            'stacktrace': traceback.format_exc(),
+        }
+        if isinstance(exception, (OAuthProblem, OAuthResponseProblem, OAuthScopeProblem)):
+            problem['status'] = exception.code
+            problem['code'] = exception.__class__.__name__
+            problem['title'] = exception.description
+        return (flask.jsonify(problem), problem['http-error-code'])
 
+class OperationWithAuthorizer(Operation):
+    authorized_domains = os.environ["AUTHORIZED_DOMAINS"].split()
+    def oauth2_authorize(self, function):
+        def wrapper(request):
+            if "token_info" in request.context.values:
+                token_info = request.context.values["token_info"]
+                if not int(token_info["expires_in"]) > 0:
+                    raise OAuthProblem(description="Authorization token has expired")
+                if json.loads(token_info["email_verified"]) is not True:
+                    raise OAuthProblem(description="User email is unverified")
+                if not any(token_info["email"].endswith(f"@{ad}") for ad in self.authorized_domains):
+                    raise OAuthProblem(description="User email is unauthorized")
+            return function(request)
+        return wrapper
+
+    def security_decorator(self, function):
+        return super().security_decorator(self.oauth2_authorize(function))
+
+connexion.apis.abstract.Operation = OperationWithAuthorizer
 
 @failsafe
 def create_app():
