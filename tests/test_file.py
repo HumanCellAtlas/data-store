@@ -184,6 +184,31 @@ class TestFileApi(unittest.TestCase, DSSAsserts):
 
             # TODO: (ttung) verify more of the headers
 
+    def test_file_get_not_found(self):
+        self._test_file_get_not_found("aws")
+        self._test_file_get_not_found("gcp")
+
+    def _test_file_get_not_found(self, replica):
+        """
+        Verify we can successfully fetch the latest version of a file UUID.
+        """
+        file_uuid = "ce55fd51-7833-469b-be0b-5da88ec0ffee"
+
+        url = str(UrlBuilder()
+                  .set(path="/v1/files/" + file_uuid)
+                  .add_query("replica", replica))
+
+        with override_bucket_config(BucketStage.TEST_FIXTURE):
+            response = self.assertGetResponse(
+                url,
+                requests.codes.not_found
+            )
+
+            self.assertEqual(response[2]['code'], "not_found")
+            self.assertEqual(response[2]['http-error-code'], requests.codes.not_found)
+            self.assertIn('message', response[2])
+            self.assertIn('stacktrace', response[2])
+
 
 if __name__ == '__main__':
     unittest.main()

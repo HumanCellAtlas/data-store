@@ -188,7 +188,16 @@ paths:
         default:
           description: Unexpected error
           schema:
-            $ref: '#/definitions/Error'
+            allOf:
+              - $ref: '#/definitions/Error'
+              - type: object
+                properties:
+                  code:
+                    type: string
+                    description: Machine-readable error code.  The types of return values should not be changed lightly.
+                    enum: [unhandled_exception, not_found]
+                required:
+                  - code
     put:
       summary: Create a new version of a file
       description: |
