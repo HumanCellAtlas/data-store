@@ -4,14 +4,15 @@ import flask
 import functools
 import requests
 import werkzeug.exceptions
+from connexion.lifecycle import ConnexionResponse
 
 
 class DSSException(Exception):
-    def __init__(self, http_error_code: int, code: str, message: str, *args, **kwargs) -> None:
+    def __init__(self, status: int, code: str, title: str, *args, **kwargs) -> None:
         super().__init__(*args, **kwargs)
-        self.http_error_code = http_error_code
+        self.status = status
         self.code = code
-        self.message = message
+        self.message = title
 
 
 def dss_handler(func):
@@ -20,29 +21,30 @@ def dss_handler(func):
         try:
             return func(*args, **kwargs)
         except werkzeug.exceptions.HTTPException as ex:
-            http_error_code = ex.code
+            status = ex.code
             code = ex.name
-            message = str(ex)
+            title = str(ex)
             stacktrace = traceback.format_exc()
         except DSSException as ex:
-            http_error_code = ex.http_error_code
+            status = ex.status
             code = ex.code
-            message = ex.message
+            title = ex.message
             stacktrace = traceback.format_exc()
         except Exception as ex:
-            http_error_code = requests.codes.server_error
+            status = requests.codes.server_error
             code = "unhandled_exception"
-            message = str(ex)
+            title = str(ex)
             stacktrace = traceback.format_exc()
 
-        return (
-            flask.jsonify({
-                'http-error-code': http_error_code,
+        return ConnexionResponse(
+            status_code=status,
+            mimetype="application/problem+json",
+            content_type="application/problem+json",
+            body={
+                'status': status,
                 'code': code,
-                'message': message,
+                'title': title,
                 'stacktrace': stacktrace,
-            }),
-            http_error_code
-        )
+            })
 
     return wrapper

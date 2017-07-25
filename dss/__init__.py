@@ -57,9 +57,9 @@ class DSSApp(connexion.App):
         """
         return (
             flask.jsonify({
-                'http-error-code': requests.codes.server_error,
+                'status': requests.codes.server_error,
                 'code': "unhandled_exception",
-                'message': str(exception),
+                'title': str(exception),
                 'stacktrace': traceback.format_exc(),
             }),
             requests.codes.server_error,
