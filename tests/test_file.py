@@ -23,7 +23,6 @@ from tests.infra import DSSAsserts, get_env
 
 class TestFileApi(unittest.TestCase, DSSAsserts):
     def setUp(self):
-        DSSAsserts.setup(self)
         self.app = dss.create_app().app.test_client()
         dss.Config.set_config(dss.BucketStage.TEST)
         self.s3_test_fixtures_bucket = get_env("DSS_S3_BUCKET_TEST_FIXTURES")
