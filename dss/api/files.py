@@ -11,15 +11,18 @@ import requests
 from flask import jsonify, make_response, redirect, request
 from werkzeug.exceptions import BadRequest
 
+from .. import DSSException, dss_handler
 from ..blobstore import BlobNotFoundError
 from ..config import Config
 from ..hcablobstore import FileMetadata, HCABlobStore
 
 
+@dss_handler
 def head(uuid: str, version: str=None):
     return get(uuid, None, version)
 
 
+@dss_handler
 def get(uuid: str, replica: str, version: str=None):
     return get_helper(uuid, replica, version)
 
@@ -47,7 +50,7 @@ def get_helper(uuid: str, replica: typing.Optional[str]=None, version: str=None)
 
     if version is None:
         # no matches!
-        return make_response("Cannot find file!", 404)
+        raise DSSException(404, "not_found", "Cannot find file!")
 
     # retrieve the file metadata.
     try:
