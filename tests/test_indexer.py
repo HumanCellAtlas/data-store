@@ -27,7 +27,7 @@ sys.path.insert(0, pkg_root)  # noqa
 
 from tests.es import check_start_elasticsearch_service, elasticsearch_delete_index
 from tests.fixtures.populate import populate
-from tests.infra import get_env, StorageTestSupport, S3TestBundle
+from tests.infra import DSSAsserts, StorageTestSupport, S3TestBundle
 
 # The moto mock has two defects that show up when used by the dss core storage system.
 # Use actual S3 until these defects are fixed in moto.
@@ -52,7 +52,7 @@ logger.setLevel(logging.INFO)
 #
 
 
-class TestIndexer(unittest.TestCase, StorageTestSupport):
+class TestIndexer(unittest.TestCase, DSSAsserts, StorageTestSupport):
 
     @classmethod
     def setUpClass(cls):
@@ -78,7 +78,7 @@ class TestIndexer(unittest.TestCase, StorageTestSupport):
             cls.mock_s3.stop()
 
     def setUp(self):
-        StorageTestSupport.setup(self)
+        DSSAsserts.setup(self)
         Config.set_config(BucketStage.TEST)
         self.app = dss.create_app().app.test_client()
         elasticsearch_delete_index("_all")

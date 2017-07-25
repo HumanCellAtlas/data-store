@@ -9,6 +9,7 @@ import uuid
 import boto3
 import requests
 from flask import wrappers
+from typing import Any
 
 from dss.util import UrlBuilder
 
@@ -122,7 +123,7 @@ class S3File:
         self.version = None
 
 
-class StorageTestSupport(DSSAsserts):
+class StorageTestSupport:
 
     """
     Storage test operations for files and bundles.
@@ -137,7 +138,7 @@ class StorageTestSupport(DSSAsserts):
             s3file.version = version
         self.create_bundle(bundle)
 
-    def upload_file(self, bundle_file: S3File) -> str:
+    def upload_file(self: Any, bundle_file: S3File) -> str:
         response = self.assertPutResponse(
             f"/v1/files/{bundle_file.uuid}",
             requests.codes.created,
@@ -152,7 +153,7 @@ class StorageTestSupport(DSSAsserts):
         self.assertIn('version', response_data)
         return response_data['version']
 
-    def create_bundle(self, bundle: S3TestBundle):
+    def create_bundle(self: Any, bundle: S3TestBundle):
         response = self.assertPutResponse(
             str(UrlBuilder().set(path='/v1/bundles/' + bundle.uuid)
                 .add_query('replica', 'aws')),
@@ -182,7 +183,7 @@ class StorageTestSupport(DSSAsserts):
         }
         return payload
 
-    def get_bundle_and_check_files(self, bundle: S3TestBundle):
+    def get_bundle_and_check_files(self: Any, bundle: S3TestBundle):
         response = self.assertGetResponse(
             str(UrlBuilder().set(path='/v1/bundles/' + bundle.uuid)
                 .add_query('replica', 'aws')),
@@ -192,7 +193,7 @@ class StorageTestSupport(DSSAsserts):
         self.check_bundle_contains_same_files(bundle, response_data['bundle']['files'])
         self.check_files_are_associated_with_bundle(bundle)
 
-    def check_bundle_contains_same_files(self, bundle: S3TestBundle, file_metadata: dict):
+    def check_bundle_contains_same_files(self: Any, bundle: S3TestBundle, file_metadata: dict):
         self.assertEqual(len(bundle.files), len(file_metadata))
         for bundle_file in bundle.files:
             try:
@@ -203,7 +204,7 @@ class StorageTestSupport(DSSAsserts):
             self.assertEqual(filedata['name'], bundle_file.name)
             self.assertEqual(filedata['version'], bundle_file.version)
 
-    def check_files_are_associated_with_bundle(self, bundle: S3TestBundle):
+    def check_files_are_associated_with_bundle(self: Any, bundle: S3TestBundle):
         for bundle_file in bundle.files:
             response = self.assertGetResponse(
                 str(UrlBuilder().set(path='/v1/files/' + bundle_file.uuid)
