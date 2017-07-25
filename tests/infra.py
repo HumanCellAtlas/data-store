@@ -23,8 +23,7 @@ def get_env(varname):
 
 
 class DSSAsserts:
-    def setup(self):
-        self.sre = re.compile("^assert(.+)Response")
+    sre = re.compile("^assert(.+)Response")
 
     def assertResponse(
             self,
