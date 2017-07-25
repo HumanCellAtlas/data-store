@@ -204,9 +204,15 @@ class TestFileApi(unittest.TestCase, DSSAsserts):
                 requests.codes.not_found
             )
 
+            self.assertHeaders(
+                response[0],
+                {
+                    'content-type': "application/problem+json",
+                }
+            )
             self.assertEqual(response[2]['code'], "not_found")
-            self.assertEqual(response[2]['http-error-code'], requests.codes.not_found)
-            self.assertIn('message', response[2])
+            self.assertEqual(response[2]['status'], requests.codes.not_found)
+            self.assertIn('title', response[2])
             self.assertIn('stacktrace', response[2])
 
 
