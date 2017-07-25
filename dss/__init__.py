@@ -15,7 +15,7 @@ import requests
 import connexion.apis.abstract
 from connexion.operation import Operation
 from connexion.resolver import RestyResolver
-from connexion.exceptions import OAuthProblem
+from connexion.exceptions import OAuthProblem, OAuthResponseProblem, OAuthScopeProblem
 from flask_failsafe import failsafe
 
 from .config import BucketStage, Config
@@ -58,15 +58,17 @@ class DSSApp(connexion.App):
         In both cases, the exception would be punted here, and we return this very generic error that also happens to
         bypass all validation.
         """
-        return (
-            flask.jsonify({
-                'status': requests.codes.server_error,
-                'code': "unhandled_exception",
-                'title': str(exception),
-                'stacktrace': traceback.format_exc(),
-            }),
-            requests.codes.server_error,
-        )
+        problem = {
+            'status': requests.codes.server_error,
+            'code': "unhandled_exception",
+            'title': str(exception),
+            'stacktrace': traceback.format_exc(),
+        }
+        if isinstance(exception, (OAuthProblem, OAuthResponseProblem, OAuthScopeProblem)):
+            problem['status'] = exception.code
+            problem['code'] = exception.__class__.__name__
+            problem['title'] = exception.description
+        return (flask.jsonify(problem), problem['http-error-code'])
 
 class OperationWithAuthorizer(Operation):
     authorized_domains = os.environ["AUTHORIZED_DOMAINS"].split()
