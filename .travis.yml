@@ -28,6 +28,7 @@ before_script:
 - for i in {0..60}; do nc -z localhost 9200 && break; sleep 1; [[ $i == 60 ]] && exit 1; done
 script:
 - make test
+- if [[ $TRAVIS_EVENT_TYPE == cron ]]; then echo "FIXME (sampierson) insert integration test entry point here"; fi
 after_success:
 - bash <(curl -s https://codecov.io/bash)
 deploy:
