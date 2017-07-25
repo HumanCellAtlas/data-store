@@ -245,8 +245,8 @@ def create_s3_bucket(bucket_name) -> None:
     conn = boto3.resource('s3')
     try:
         conn.create_bucket(Bucket=bucket_name)
-    except ClientError as e:
-        if e.response['Error']['Code'] != 'BucketAlreadyOwnedByYou':
+    except ClientError as ex:
+        if ex.response['Error']['Code'] != 'BucketAlreadyOwnedByYou':
             logger.error(f"An unexpected error occured when creating test bucket: {bucket_name}")
 
 

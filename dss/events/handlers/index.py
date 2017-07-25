@@ -1,3 +1,6 @@
+
+"""Lambda function for DSS indexing"""
+
 import json
 import os
 import re
@@ -11,10 +14,6 @@ from ...hcablobstore import BundleMetadata, BundleFileMetadata
 from ...util import connect_elasticsearch, create_blob_key
 
 DSS_BUNDLE_KEY_REGEX = r"^bundles/[0-9A-Fa-f]{8}-[0-9A-Fa-f]{4}-4[0-9A-Fa-f]{3}-[0-9A-Fa-f]{4}-[0-9A-Fa-f]{12}\..+$"
-
-"""
-Lambda function for DSS indexing
-"""
 
 
 class ElasticsearchClient:
@@ -42,8 +41,8 @@ def process_new_indexable_object(event, logger) -> None:
             logger.debug(f"Finished index processing of S3 creation event for bundle: {key}")
         else:
             logger.debug(f"Not indexing S3 creation event for key: {key}")
-    except Exception as e:
-        logger.error(f"Exception occurred while processing S3 event: {e} Event: {json.dumps(event, indent=4)}")
+    except Exception as ex:
+        logger.error(f"Exception occurred while processing S3 event: {ex} Event: {json.dumps(event, indent=4)}")
         raise
 
 
@@ -72,27 +71,26 @@ def create_index_data(s3, bucket_name, bundle_id, manifest, logger):
     for file_info in files_info:
         if file_info[BundleFileMetadata.INDEXED] is True:
             if file_info[BundleFileMetadata.CONTENT_TYPE] != 'application/json':
-                logger.warning((f"In bundle {bundle_id} the file \"{file_info[BundleFileMetadata.NAME]}\""
-                                " is marked for indexing yet has content type"
-                                f" \"{file_info[BundleFileMetadata.CONTENT_TYPE]}\""
-                                " instead of the required content type \"application/json\"."
-                                " This file will not be indexed.")
-                               )
+                logger.warning(f"In bundle {bundle_id} the file \"{file_info[BundleFileMetadata.NAME]}\""
+                               " is marked for indexing yet has content type"
+                               f" \"{file_info[BundleFileMetadata.CONTENT_TYPE]}\""
+                               " instead of the required content type \"application/json\"."
+                               " This file will not be indexed.")
                 continue
             try:
                 file_key = create_blob_key(file_info)
                 file_string = bucket.Object(file_key).get()['Body'].read().decode("utf-8")
                 file_json = json.loads(file_string)
             # TODO (mbaumann) Are there other JSON-related exceptions that should be checked below?
-            except json.decoder.JSONDecodeError as e:
-                logger.warning((f"In bundle {bundle_id} the file \"{file_info[BundleFileMetadata.NAME]}\""
-                                " is marked for indexing yet could not be parsed."
-                                f" This file will not be indexed. Exception: {e}"))
+            except json.decoder.JSONDecodeError as ex:
+                logger.warning(f"In bundle {bundle_id} the file \"{file_info[BundleFileMetadata.NAME]}\""
+                               " is marked for indexing yet could not be parsed."
+                               f" This file will not be indexed. Exception: {ex}")
                 continue
-            except botocore.exceptions.ClientError as e:
-                logger.warning((f"In bundle {bundle_id} the file \"{file_info[BundleFileMetadata.NAME]}\""
-                                " is marked for indexing yet could not be accessed."
-                                f" This file will not be indexed. Exception: {e}"))
+            except botocore.exceptions.ClientError as ex:
+                logger.warning(f"In bundle {bundle_id} the file \"{file_info[BundleFileMetadata.NAME]}\""
+                               " is marked for indexing yet could not be accessed."
+                               f" This file will not be indexed. Exception: {ex}")
                 continue
             logger.debug(f"Indexing file: {file_info[BundleFileMetadata.NAME]}")
             # There are two reasons in favor of not using dot in the name of the individual
