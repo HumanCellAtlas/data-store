@@ -1,4 +1,5 @@
 
+
 """Lambda function for DSS indexing"""
 
 import json
@@ -181,8 +182,8 @@ def process_notifications(bundle_id, subscription_ids, logger):
             # TODO Batch this request
             subscription = get_subscription(subscription_id, logger)
             notify(subscription, bundle_id, logger)
-        except Exception as e:
-            logger.error(f"Error occurred while processing subscription {subscription_id} for bundle {bundle_id}. {e}")
+        except Exception as ex:
+            logger.error(f"Error occurred while processing subscription {subscription_id} for bundle {bundle_id}. {ex}")
 
 
 def get_subscription(subscription_id, logger):
