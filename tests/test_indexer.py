@@ -10,20 +10,24 @@ import unittest
 from typing import Dict
 
 import boto3
-import moto
 from botocore.exceptions import ClientError
-from elasticsearch import Elasticsearch
+
 
 import dss
-from dss import BucketStage, Config, DSS_ELASTICSEARCH_INDEX_NAME, DSS_ELASTICSEARCH_DOC_TYPE
-from dss.events.handlers.index import process_new_indexable_object, ElasticsearchClient
-from dss.util import create_blob_key
-
-fixtures_root = os.path.abspath(os.path.join(os.path.dirname(__file__), 'fixtures'))  # noqa
-sys.path.insert(0, fixtures_root)  # noqa
+import moto
+from dss import BucketStage, Config
+from dss import DSS_ELASTICSEARCH_INDEX_NAME, DSS_ELASTICSEARCH_DOC_TYPE
+from dss import DSS_ELASTICSEARCH_QUERY_TYPE
+from dss import DSS_ELASTICSEARCH_SUBSCRIPTION_INDEX_NAME, DSS_ELASTICSEARCH_SUBSCRIPTION_TYPE
+from dss.events.handlers.index import process_new_indexable_object
+from dss.util import create_blob_key, connect_elasticsearch
 
 pkg_root = os.path.abspath(os.path.join(os.path.dirname(__file__), '..'))  # noqa
 sys.path.insert(0, pkg_root)  # noqa
+fixtures_root = os.path.abspath(os.path.join(os.path.dirname(__file__), 'fixtures'))  # noqa
+sys.path.insert(0, fixtures_root)  # noqa
+
+
 
 from tests.es import check_start_elasticsearch_service, elasticsearch_delete_index
 from tests.fixtures.populate import populate
@@ -50,6 +54,16 @@ logger.setLevel(logging.INFO)
 #   4. Perform a search to verify the bundle index document is in Elasticsearch.
 #   5. Verify the structure and content of the index document
 #
+
+
+class ElasticsearchTestClient:
+    _es_client = None
+
+    @staticmethod
+    def get(logger):
+        if ElasticsearchTestClient._es_client is None:
+            ElasticsearchTestClient._es_client = connect_elasticsearch(os.getenv("DSS_ES_ENDPOINT"), logger)
+        return ElasticsearchTestClient._es_client
 
 
 class TestIndexer(unittest.TestCase, DSSAsserts, StorageTestSupport):
@@ -158,6 +172,21 @@ class TestIndexer(unittest.TestCase, DSSAsserts, StorageTestSupport):
 
         self.assertIs(es_client_after_first_call, es_client_after_second_call)
 
+    def test_subscription_notification(self):
+        bundle_key = self.load_test_data_bundle_for_path('fixtures/smartseq2/paired_ends')
+        sample_s3_event = self.create_sample_s3_bundle_created_event(bundle_key)
+        process_new_indexable_object(sample_s3_event, logger)
+
+        ElasticsearchTestClient.get(logger).indices.create(DSS_ELASTICSEARCH_SUBSCRIPTION_INDEX_NAME)
+        subscribe_for_notification(smartseq2_paired_ends_query,
+                                   "http://green.box.com/notification",
+                                   "6112f2a3-8b89-4e54-bbc0-65a98bf8fb8b")
+
+        bundle_key = self.load_test_data_bundle_for_path('fixtures/smartseq2/paired_ends')
+        sample_s3_event = self.create_sample_s3_bundle_created_event(bundle_key)
+        process_new_indexable_object(sample_s3_event, logger)
+        # TODO (mbaumann) Verify notification
+
     def load_test_data_bundle_for_path(self, fixture_path: str):
         bundle = S3TestBundle(fixture_path)
         return self.load_test_data_bundle(bundle)
@@ -203,7 +232,7 @@ class TestIndexer(unittest.TestCase, DSSAsserts, StorageTestSupport):
         timeout = 2
         timeout_time = time.time() + timeout
         while True:
-            response = ElasticsearchClient.get(logger).search(
+            response = ElasticsearchTestClient.get(logger).search(
                 index=DSS_ELASTICSEARCH_INDEX_NAME,
                 doc_type=DSS_ELASTICSEARCH_DOC_TYPE,
                 body=json.dumps(query))
@@ -212,7 +241,6 @@ class TestIndexer(unittest.TestCase, DSSAsserts, StorageTestSupport):
                 return [hit['_source'] for hit in response['hits']['hits']]
             else:
                 time.sleep(0.5)
-
 
 smartseq2_paried_ends_indexed_file_list = ["assay_json", "cell_json", "manifest_json", "project_json", "sample_json"]
 
@@ -248,16 +276,25 @@ def create_s3_bucket(bucket_name) -> None:
             logger.error(f"An unexpected error occured when creating test bucket: {bucket_name}")
 
 
-def deleteFileBlob(bundle_key, filename):
-    s3 = boto3.resource('s3')
-    manifest = read_bundle_manifest(s3, Config.get_s3_bucket(), bundle_key)
-    files = manifest['files']
-    for file_info in files:
-        if file_info['name'] == filename:
-            file_blob_key = create_blob_key(file_info)
-            s3.Object(Config.get_s3_bucket(), file_blob_key).delete()
-            return
-    raise Exception(f"The file {filename} was not found in the manifest for bundle {bundle_key}")
+def subscribe_for_notification(query, callback_url, subscription_id):
+    subscription = {
+        "subscription_id": subscription_id,
+        "owner": "test@green.box.com",
+        "callback_url": callback_url,
+        "query": query
+    }
+    # Add query
+    ElasticsearchTestClient.get(logger).index(index=DSS_ELASTICSEARCH_INDEX_NAME,
+                                              doc_type=DSS_ELASTICSEARCH_QUERY_TYPE,
+                                              id=subscription_id,
+                                              body=query,
+                                              refresh=True)
+    # Add subscription
+    ElasticsearchTestClient.get(logger).index(index=DSS_ELASTICSEARCH_SUBSCRIPTION_INDEX_NAME,
+                                              doc_type=DSS_ELASTICSEARCH_SUBSCRIPTION_TYPE,
+                                              id=subscription_id,
+                                              body=subscription,
+                                              refresh=True)
 
 
 def deleteFileBlob(bundle_key, filename):
@@ -305,7 +342,6 @@ def create_index_data(s3, bucket_name, manifest):
             index_files[index_filename] = file_json
     index['files'] = index_files
     return index
-
 
 if __name__ == '__main__':
     unittest.main()

@@ -4,10 +4,12 @@
 import json
 import os
 import re
+import uuid
 from urllib.parse import unquote
 
 import boto3
 import botocore
+import requests
 
 from ... import DSS_ELASTICSEARCH_INDEX_NAME, DSS_ELASTICSEARCH_DOC_TYPE
 from ...hcablobstore import BundleMetadata, BundleFileMetadata
@@ -29,6 +31,8 @@ def process_new_indexable_object(event, logger) -> None:
             bundle_id = get_bundle_id_from_key(key)
             index_data = create_index_data(s3, bucket_name, bundle_id, manifest, logger)
             add_index_data_to_elasticsearch(bundle_id, index_data, logger)
+            subscriptions = find_matching_subscriptions(index_data, logger)
+            process_notifications(bundle_id, subscriptions, logger)
             logger.debug(f"Finished index processing of S3 creation event for bundle: {key}")
         else:
             logger.debug(f"Not indexing S3 creation event for key: {key}")
@@ -114,18 +118,30 @@ def add_index_data_to_elasticsearch(bundle_id, index_data, logger) -> None:
     add_data_to_elasticsearch(bundle_id, index_data, logger)
 
 
-def create_elasticsearch_index(logger):
+def create_elasticsearch_index(es_client, logger):
+    index_mapping = {
+        "mappings": {
+            "query": {
+                "properties": {
+                    "query": {
+                        "type": "percolator"
+                    }
+                }
+            }
+        }
+    }
     try:
         es_client = ElasticsearchClient.get(logger)
         response = es_client.indices.exists(DSS_ELASTICSEARCH_INDEX_NAME)
-        if response is False:
+        if not response:
             logger.debug(f"Creating new Elasticsearch index: {DSS_ELASTICSEARCH_INDEX_NAME}")
-            response = es_client.indices.create(DSS_ELASTICSEARCH_INDEX_NAME, body=None)
+            response = es_client.indices.create(DSS_ELASTICSEARCH_INDEX_NAME, body=index_mapping)
             logger.debug(f"Index creation response: {json.dumps(response, indent=4)}")
         else:
             logger.debug(f"Using existing Elasticsearch index: {DSS_ELASTICSEARCH_INDEX_NAME}", )
     except Exception as ex:
         logger.critical(f"Unable to create index {DSS_ELASTICSEARCH_INDEX_NAME}  Exception: {ex}")
+        raise
 
 
 def add_data_to_elasticsearch(bundle_id, index_data, logger) -> None:
@@ -136,3 +152,76 @@ def add_data_to_elasticsearch(bundle_id, index_data, logger) -> None:
                                               body=json.dumps(index_data, indent=4))
     except Exception as ex:
         logger.error(f"Document not indexed. Exception: {ex}  Index data: {json.dumps(index_data, indent=4)}")
+        raise
+
+
+def find_matching_subscriptions(index_data, logger):
+    percolate_document = {
+        "query": {
+            "percolate": {
+                "field": "query",
+                "document_type": DSS_ELASTICSEARCH_DOC_TYPE,
+                "document": index_data
+            }
+        }
+    }
+    response = ElasticsearchClient.get(logger).search(
+        index=DSS_ELASTICSEARCH_INDEX_NAME,
+        body=percolate_document)
+    logger.debug("Found matching subscription count: %i", len(response['hits']['hits']))
+    subscription_ids = set()
+    for hit in response['hits']['hits']:
+        subscription_ids.add(hit["_id"])
+    return subscription_ids
+
+
+def process_notifications(bundle_id, subscription_ids, logger):
+    for subscription_id in subscription_ids:
+        try:
+            # TODO Batch this request
+            subscription = get_subscription(subscription_id, logger)
+            notify(subscription, bundle_id, logger)
+        except Exception as e:
+            logger.error(f"Error occurred while processing subscription {subscription_id} for bundle {bundle_id}. {e}")
+
+
+def get_subscription(subscription_id, logger):
+    subscription_query = {
+        "query": {
+            "ids": {
+                "type": DSS_ELASTICSEARCH_SUBSCRIPTION_TYPE,
+                "values": [subscription_id]
+            }
+        }
+    }
+    response = ElasticsearchClient.get(logger).search(
+        index=DSS_ELASTICSEARCH_SUBSCRIPTION_INDEX_NAME,
+        body=subscription_query)
+    if len(response['hits']['hits']) == 1:
+        return response['hits']['hits'][0]['_source']
+
+
+def notify(subscription, bundle_id, logger):
+    bundle_uuid, bundle_version = split_bundle_id(bundle_id)
+    transaction_id = uuid.uuid4()
+    payload = {
+        "transaction_id": transaction_id,
+        "subscription_id": subscription['subscription_id'],
+        "query": subscription['query'],
+        "match": {
+            "bundle_uuid": bundle_uuid,
+            "bundle_version": bundle_version
+        }
+    }
+    callback_url = subscription['callback_url']
+    response = requests.post(callback_url, data=payload)
+    if response.status_code == requests.codes.ok:
+        logger.info(f"Successfully notified for subscription {subscription['subscription_id']}"
+                    f" for bundle {bundle_id} with transaction id {transaction_id} Code: {response.status.code}")
+    else:
+        logger.warning(f"Failed notification for subscription {subscription['subscription_id']}"
+                       f" for bundle {bundle_id} with transaction id {transaction_id} Code: {response.status.code}")
+
+
+def split_bundle_id(bundle_id):
+    return bundle_id[:36], bundle_id[37:]
