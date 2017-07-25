@@ -18,7 +18,7 @@ sys.path.insert(0, pkg_root)  # noqa
 import dss
 from dss.config import BucketStage, override_bucket_config
 from dss.util import UrlBuilder
-from tests.infra import DSSAsserts, get_env
+from tests.infra import DSSAsserts, ExpectedErrorFields, get_env
 
 
 class TestFileApi(unittest.TestCase, DSSAsserts):
@@ -199,21 +199,14 @@ class TestFileApi(unittest.TestCase, DSSAsserts):
                   .add_query("replica", replica))
 
         with override_bucket_config(BucketStage.TEST_FIXTURE):
-            response = self.assertGetResponse(
+            self.assertGetResponse(
                 url,
-                requests.codes.not_found
+                requests.codes.not_found,
+                expected_error=ExpectedErrorFields(
+                    code="not_found",
+                    status=requests.codes.not_found,
+                    expect_stacktrace=True)
             )
-
-            self.assertHeaders(
-                response[0],
-                {
-                    'content-type': "application/problem+json",
-                }
-            )
-            self.assertEqual(response[2]['code'], "not_found")
-            self.assertEqual(response[2]['status'], requests.codes.not_found)
-            self.assertIn('title', response[2])
-            self.assertIn('stacktrace', response[2])
 
 
 if __name__ == '__main__':
