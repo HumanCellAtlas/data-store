@@ -5,10 +5,11 @@ from elasticsearch_dsl import Search
 from flask import request
 
 from .. import DSS_ELASTICSEARCH_INDEX_NAME, DSS_ELASTICSEARCH_DOC_TYPE
-from .. import get_logger
+from .. import dss_handler, get_logger
 from ..util.es import ElasticsearchClient
 
 
+@dss_handler
 def find():
     get_logger().debug("Searching for: %s", request.values["query"])
     # TODO (mbaumann) Use a connection manager
@@ -20,6 +21,7 @@ def find():
     return {"query": query, "results": format_results(request, response)}
 
 
+@dss_handler
 def post(query: dict):
     get_logger().debug("Received posted query: %s", json.dumps(query, indent=4))
     # TODO (mbaumann) Use a connection manager
