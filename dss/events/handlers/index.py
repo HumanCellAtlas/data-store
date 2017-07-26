@@ -217,7 +217,7 @@ def notify(subscription, bundle_id, logger):
     }
     callback_url = subscription['callback_url']
     response = requests.post(callback_url, data=payload)
-    if response.status_code == requests.codes.ok:
+    if 200 <= response.status_code < 300:
         logger.info(f"Successfully notified for subscription {subscription['subscription_id']}"
                     f" for bundle {bundle_id} with transaction id {transaction_id} Code: {response.status.code}")
     else:
