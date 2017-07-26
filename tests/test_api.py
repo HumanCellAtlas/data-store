@@ -47,7 +47,7 @@ class TestApi(unittest.TestCase, DSSAsserts):
         self.create_bundle(bundle)
 
     def upload_file(self, bundle_file):
-        response = self.assertPutResponse(
+        resp_obj = self.assertPutResponse(
             f"/v1/files/{bundle_file.uuid}",
             requests.codes.created,
             json_request_body=dict(
@@ -56,21 +56,19 @@ class TestApi(unittest.TestCase, DSSAsserts):
                 source_url=bundle_file.url
             )
         )
-        response_data = json.loads(response[1])
-        self.assertIs(type(response_data), dict)
-        self.assertIn('version', response_data)
-        return response_data['version']
+        self.assertIs(type(resp_obj.json), dict)
+        self.assertIn('version', resp_obj.json)
+        return resp_obj.json['version']
 
     def create_bundle(self, bundle):
-        response = self.assertPutResponse(
+        resp_obj = self.assertPutResponse(
             str(UrlBuilder().set(path='/v1/bundles/' + bundle.uuid).add_query('replica', 'aws')),
             requests.codes.created,
             json_request_body=self.put_bundle_payload(bundle)
         )
-        response_data = json.loads(response[1])
-        self.assertIs(type(response_data), dict)
-        self.assertIn('version', response_data)
-        bundle.version = response_data['version']
+        self.assertIs(type(resp_obj.json), dict)
+        self.assertIn('version', resp_obj.json)
+        bundle.version = resp_obj.json['version']
 
     @staticmethod
     def put_bundle_payload(bundle):
@@ -91,12 +89,11 @@ class TestApi(unittest.TestCase, DSSAsserts):
         return payload
 
     def get_bundle_and_check_files(self, bundle):
-        response = self.assertGetResponse(
+        resp_obj = self.assertGetResponse(
             str(UrlBuilder().set(path='/v1/bundles/' + bundle.uuid).add_query('replica', 'aws')),
             requests.codes.ok
         )
-        response_data = json.loads(response[1])
-        self.check_bundle_contains_same_files(bundle, response_data['bundle']['files'])
+        self.check_bundle_contains_same_files(bundle, resp_obj.json['bundle']['files'])
         self.check_files_are_associated_with_bundle(bundle)
 
     def check_bundle_contains_same_files(self, bundle, file_metadata):
@@ -112,12 +109,12 @@ class TestApi(unittest.TestCase, DSSAsserts):
 
     def check_files_are_associated_with_bundle(self, bundle):
         for bundle_file in bundle.files:
-            response = self.assertGetResponse(
+            resp_obj = self.assertGetResponse(
                 str(UrlBuilder().set(path='/v1/files/' + bundle_file.uuid).add_query('replica', 'aws')),
                 requests.codes.found,
             )
-            self.assertEqual(bundle_file.bundle.uuid, response[0].headers['X-DSS-BUNDLE-UUID'])
-            self.assertEqual(bundle_file.version, response[0].headers['X-DSS-VERSION'])
+            self.assertEqual(bundle_file.bundle.uuid, resp_obj.response.headers['X-DSS-BUNDLE-UUID'])
+            self.assertEqual(bundle_file.version, resp_obj.response.headers['X-DSS-VERSION'])
 
 
 class S3TestBundle:
