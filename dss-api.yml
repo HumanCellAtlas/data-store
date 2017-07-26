@@ -45,11 +45,17 @@ paths:
       consumes:
         - application/json
       parameters:
-        - name: query
+        - name: extras
           in: body
-          description: Elasticsearch query
+          required: true
           schema:
             type: object
+            properties:
+              query:
+                description: Elasticsearch query
+                type: object
+            required:
+              - query
       produces:
         - application/json
       responses:

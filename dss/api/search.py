@@ -20,7 +20,8 @@ def find():
     return {"query": query, "results": format_results(request, response)}
 
 
-def post(query: dict):
+def post(extras: dict):
+    query = extras
     get_logger().debug("Received posted query: %s", json.dumps(query, indent=4))
     # TODO (mbaumann) Use a connection manager
     es_client = ElasticsearchClient.get(get_logger())
