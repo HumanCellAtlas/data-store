@@ -123,11 +123,11 @@ def add_index_data_to_elasticsearch(bundle_id, index_data, logger) -> None:
 
 def create_elasticsearch_index(es_client, logger):
     index_mapping = {
-        "mappings": {
+        'mappings': {
             DSS_ELASTICSEARCH_QUERY_TYPE: {
-                "properties": {
-                    "query": {
-                        "type": "percolator"
+                'properties': {
+                    'query': {
+                        'type': "percolator"
                     }
                 }
             }
@@ -160,11 +160,11 @@ def add_data_to_elasticsearch(bundle_id, index_data, logger) -> None:
 
 def find_matching_subscriptions(index_data, logger):
     percolate_document = {
-        "query": {
-            "percolate": {
-                "field": "query",
-                "document_type": DSS_ELASTICSEARCH_DOC_TYPE,
-                "document": index_data
+        'query': {
+            'percolate': {
+                'field': "query",
+                'document_type': DSS_ELASTICSEARCH_DOC_TYPE,
+                'document': index_data
             }
         }
     }
@@ -189,10 +189,10 @@ def process_notifications(bundle_id, subscription_ids, logger):
 
 def get_subscription(subscription_id, logger):
     subscription_query = {
-        "query": {
-            "ids": {
-                "type": DSS_ELASTICSEARCH_SUBSCRIPTION_TYPE,
-                "values": [subscription_id]
+        'query': {
+            'ids': {
+                'type': DSS_ELASTICSEARCH_SUBSCRIPTION_TYPE,
+                'values': [subscription_id]
             }
         }
     }

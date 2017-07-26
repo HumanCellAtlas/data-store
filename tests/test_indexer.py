@@ -247,18 +247,18 @@ smartseq2_paried_ends_indexed_file_list = ["assay_json", "cell_json", "manifest_
 
 smartseq2_paired_ends_query = \
     {
-        "query": {
-            "bool": {
-                "must": [{
-                    "match": {
+        'query': {
+            'bool': {
+                'must': [{
+                    'match': {
                         "files.sample_json.donor.species": "Homo sapiens"
                     }
                 }, {
-                    "match": {
+                    'match': {
                         "files.assay_json.single_cell.method": "Fluidigm C1"
                     }
                 }, {
-                    "match": {
+                    'match': {
                         "files.sample_json.ncbi_biosample": "SAMN04303778"
                     }
                 }]
@@ -278,10 +278,10 @@ def create_s3_bucket(bucket_name) -> None:
 
 def subscribe_for_notification(query, callback_url, subscription_id):
     subscription = {
-        "subscription_id": subscription_id,
-        "owner": "test@green.box.com",
-        "callback_url": callback_url,
-        "query": query
+        'subscription_id': subscription_id,
+        'owner': "test@green.box.com",
+        'callback_url': callback_url,
+        'query': query
     }
     # Add query
     ElasticsearchTestClient.get(logger).index(index=DSS_ELASTICSEARCH_INDEX_NAME,
