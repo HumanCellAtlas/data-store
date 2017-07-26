@@ -12,7 +12,8 @@ import boto3
 import botocore
 import requests
 
-from ... import DSS_ELASTICSEARCH_INDEX_NAME, DSS_ELASTICSEARCH_DOC_TYPE
+from ... import DSS_ELASTICSEARCH_INDEX_NAME, DSS_ELASTICSEARCH_DOC_TYPE, DSS_ELASTICSEARCH_QUERY_TYPE
+from ... import DSS_ELASTICSEARCH_SUBSCRIPTION_INDEX_NAME, DSS_ELASTICSEARCH_SUBSCRIPTION_TYPE
 from ...hcablobstore import BundleMetadata, BundleFileMetadata
 from ...util import create_blob_key
 from ...util.es import ElasticsearchClient
@@ -122,7 +123,7 @@ def add_index_data_to_elasticsearch(bundle_id, index_data, logger) -> None:
 def create_elasticsearch_index(es_client, logger):
     index_mapping = {
         "mappings": {
-            "query": {
+            DSS_ELASTICSEARCH_QUERY_TYPE: {
                 "properties": {
                     "query": {
                         "type": "percolator"
