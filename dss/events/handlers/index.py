@@ -11,6 +11,7 @@ from urllib.parse import unquote
 import boto3
 import botocore
 import requests
+from elasticsearch.helpers import scan
 
 from ... import DSS_ELASTICSEARCH_INDEX_NAME, DSS_ELASTICSEARCH_DOC_TYPE, DSS_ELASTICSEARCH_QUERY_TYPE
 from ... import DSS_ELASTICSEARCH_SUBSCRIPTION_INDEX_NAME, DSS_ELASTICSEARCH_SUBSCRIPTION_TYPE
@@ -167,13 +168,12 @@ def find_matching_subscriptions(index_data, logger):
             }
         }
     }
-    response = ElasticsearchClient.get(logger).search(
-        index=DSS_ELASTICSEARCH_INDEX_NAME,
-        body=percolate_document)
-    logger.debug("Found matching subscription count: %i", len(response['hits']['hits']))
     subscription_ids = set()
-    for hit in response['hits']['hits']:
+    for hit in scan(ElasticsearchClient.get(logger),
+                    index=DSS_ELASTICSEARCH_INDEX_NAME,
+                    query=percolate_document):
         subscription_ids.add(hit["_id"])
+    logger.debug("Found matching subscription count: %i", len(subscription_ids))
     return subscription_ids
 
 
