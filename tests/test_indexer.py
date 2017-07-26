@@ -179,7 +179,7 @@ class TestIndexer(unittest.TestCase, DSSAsserts, StorageTestSupport):
 
         ElasticsearchTestClient.get().indices.create(DSS_ELASTICSEARCH_SUBSCRIPTION_INDEX_NAME)
         subscribe_for_notification(smartseq2_paired_ends_query,
-                                   "http://green.box.com/notification",
+                                   "https://example.com/notification",
                                    "6112f2a3-8b89-4e54-bbc0-65a98bf8fb8b")
 
         bundle_key = self.load_test_data_bundle_for_path('fixtures/smartseq2/paired_ends')
