@@ -60,7 +60,7 @@ class ElasticsearchTestClient:
     _es_client = None
 
     @staticmethod
-    def get(logger):
+    def get():
         if ElasticsearchTestClient._es_client is None:
             ElasticsearchTestClient._es_client = connect_elasticsearch(os.getenv("DSS_ES_ENDPOINT"), logger)
         return ElasticsearchTestClient._es_client
@@ -177,7 +177,7 @@ class TestIndexer(unittest.TestCase, DSSAsserts, StorageTestSupport):
         sample_s3_event = self.create_sample_s3_bundle_created_event(bundle_key)
         process_new_indexable_object(sample_s3_event, logger)
 
-        ElasticsearchTestClient.get(logger).indices.create(DSS_ELASTICSEARCH_SUBSCRIPTION_INDEX_NAME)
+        ElasticsearchTestClient.get().indices.create(DSS_ELASTICSEARCH_SUBSCRIPTION_INDEX_NAME)
         subscribe_for_notification(smartseq2_paired_ends_query,
                                    "http://green.box.com/notification",
                                    "6112f2a3-8b89-4e54-bbc0-65a98bf8fb8b")
@@ -232,7 +232,7 @@ class TestIndexer(unittest.TestCase, DSSAsserts, StorageTestSupport):
         timeout = 2
         timeout_time = time.time() + timeout
         while True:
-            response = ElasticsearchTestClient.get(logger).search(
+            response = ElasticsearchTestClient.get().search(
                 index=DSS_ELASTICSEARCH_INDEX_NAME,
                 doc_type=DSS_ELASTICSEARCH_DOC_TYPE,
                 body=json.dumps(query))
@@ -284,17 +284,17 @@ def subscribe_for_notification(query, callback_url, subscription_id):
         'query': query
     }
     # Add query
-    ElasticsearchTestClient.get(logger).index(index=DSS_ELASTICSEARCH_INDEX_NAME,
-                                              doc_type=DSS_ELASTICSEARCH_QUERY_TYPE,
-                                              id=subscription_id,
-                                              body=query,
-                                              refresh=True)
+    ElasticsearchTestClient.get().index(index=DSS_ELASTICSEARCH_INDEX_NAME,
+                                        doc_type=DSS_ELASTICSEARCH_QUERY_TYPE,
+                                        id=subscription_id,
+                                        body=query,
+                                        refresh=True)
     # Add subscription
-    ElasticsearchTestClient.get(logger).index(index=DSS_ELASTICSEARCH_SUBSCRIPTION_INDEX_NAME,
-                                              doc_type=DSS_ELASTICSEARCH_SUBSCRIPTION_TYPE,
-                                              id=subscription_id,
-                                              body=subscription,
-                                              refresh=True)
+    ElasticsearchTestClient.get().index(index=DSS_ELASTICSEARCH_SUBSCRIPTION_INDEX_NAME,
+                                        doc_type=DSS_ELASTICSEARCH_SUBSCRIPTION_TYPE,
+                                        id=subscription_id,
+                                        body=subscription,
+                                        refresh=True)
 
 
 def deleteFileBlob(bundle_key, filename):
