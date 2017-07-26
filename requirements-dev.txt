@@ -1,5 +1,5 @@
 flake8
-mypy
+mypy >= 0.521
 domovoi
 chalice >= 0.9.0, < 0.10.0
 coverage
