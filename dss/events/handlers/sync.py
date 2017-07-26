@@ -24,7 +24,7 @@ from dss.blobstore.gs import GSBlobStore
 presigned_url_lifetime_seconds = 3600
 use_gsts = False
 gsts_sched_delay_minutes = 2
-part_size = {"s3": 64 * 1024 * 1024, "gs": 64 * 1024 * 1024 * 10}
+part_size = {"s3": 64 * 1024 * 1024, "gs": 640 * 1024 * 1024}
 parts_per_worker = {"s3": 8, "gs": 1}
 gs_upload_chunk_size = 1024 * 1024 * 32
 http = get_pool_manager()
