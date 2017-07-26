@@ -33,7 +33,7 @@ def get(uuid: str, replica: str):
                                  doc_type=DSS_ELASTICSEARCH_SUBSCRIPTION_TYPE,
                                  id=uuid)
     if not id_exists:
-        return jsonify(dict(message="Subscription {} does not exist".format(uuid),
+        return jsonify(dict(message=f"Subscription {uuid} does not exist",
                             exception="Placeholder",
                             HTTPStatusCode=requests.codes.not_found)), requests.codes.not_found
 
@@ -47,7 +47,7 @@ def get(uuid: str, replica: str):
 
     if source['owner'] != owner:
         return jsonify(dict(
-            message="You don't own subscription {}.".format(uuid),
+            message=f"You don't own subscription {uuid}.",
             exception="Placeholder",
             HTTPStatusCode=requests.codes.forbidden)), requests.codes.forbidden
 
@@ -99,11 +99,11 @@ def put(extras: dict, replica: str):
     percolate_registration = _register_percolate(es_client, uuid, query)
 
     if percolate_registration['created']:
-        logger.debug("Percolate query registration succeeded:\n{}".format(percolate_registration))
+        logger.debug(f"Percolate query registration succeeded:\n{percolate_registration}")
     else:
-        logger.critical("Percolate query registration failed:\n{}".format(percolate_registration))
+        logger.critical(f"Percolate query registration failed:\n{percolate_registration}")
         return (jsonify(dict(
-            message="Unable to register elasticsearch percolate query {}.".format(uuid),
+            message=f"Unable to register elasticsearch percolate query {uuid}.",
             exception="Placeholder",
             HTTPStatusCode=requests.codes.internal_server_error)),
             requests.codes.internal_server_error)
@@ -111,11 +111,11 @@ def put(extras: dict, replica: str):
     extras['owner'] = owner
     subscription_registration = _register_subscription(es_client, uuid, extras)
     if subscription_registration['created']:
-        logger.debug("Event Subscription succeeded:\n{}".format(subscription_registration))
+        logger.debug(f"Event Subscription succeeded:\n{subscription_registration}")
     else:
-        logger.critical("Event Subscription failed:\n{}".format(subscription_registration))
+        logger.critical(f"Event Subscription failed:\n{subscription_registration}")
         return (jsonify(dict(
-            message="Unable to register elasticsearch percolate query {}.".format(uuid),
+            message=f"Unable to register elasticsearch percolate query {uuid}.",
             exception="Placeholder",
             HTTPStatusCode=requests.codes.internal_server_error)),
             requests.codes.internal_server_error)
@@ -132,7 +132,7 @@ def delete(uuid: str, replica: str):
                                  id=uuid)
     if not id_exists:
         return (jsonify(dict(
-                message="Subscription {} does not exist".format(uuid),
+                message=f"Subscription {uuid} does not exist",
                 exception="Placeholder",
                 HTTPStatusCode=requests.codes.not_found)),
                 requests.codes.not_found)
@@ -145,7 +145,7 @@ def delete(uuid: str, replica: str):
 
     if source['owner'] != owner:
         return (jsonify(dict(
-            message="You don't have rights to delete subscription {}.".format(uuid),
+            message=f"You don't have rights to delete subscription {uuid}.",
             exception="Placeholder",
             HTTPStatusCode=requests.codes.forbidden)),
             requests.codes.forbidden)

@@ -143,7 +143,7 @@ class EmailConfig:
 
             if envvar not in os.environ:
                 raise Exception(
-                    "Please set the {} environment variable".format(envvar))
+                    f"Please set the {envvar} environment variable")
             EmailConfig._ALLOWED_EMAILS = os.environ[envvar]
 
         return EmailConfig._ALLOWED_EMAILS
