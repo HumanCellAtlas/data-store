@@ -226,4 +226,8 @@ def notify(subscription, bundle_id, logger):
 
 
 def split_bundle_id(bundle_id):
-    return bundle_id[:36], bundle_id[37:]
+    split_index = bundle_id.find('.')
+    if split_index >= 0:
+        return bundle_id[:split_index], bundle_id[(split_index + 1):]
+    else:
+        return bundle_id, None
