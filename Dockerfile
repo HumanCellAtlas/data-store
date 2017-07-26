@@ -11,7 +11,7 @@
 #
 FROM python:3.6
 RUN apt-get update && DEBIAN_FRONTEND=noninteractive apt-get install -y --no-install-recommends \
-  vim
+  vim jq moreutils gettext
 RUN pip install awscli --upgrade
 
 RUN sed 's/#force_color_prompt=yes/force_color_prompt=yes/' /etc/skel/.bashrc > /root/.bashrc
