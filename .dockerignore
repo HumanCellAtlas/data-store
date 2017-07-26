@@ -6,3 +6,4 @@
 docker-compose.yml
 Dockerfile
 data-bundle-examples
+daemons

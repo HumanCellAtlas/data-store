@@ -18,11 +18,8 @@ RUN sed 's/#force_color_prompt=yes/force_color_prompt=yes/' /etc/skel/.bashrc > 
 ADD .dockerfiles/.vimrc /root/
 
 WORKDIR /code/data-store
-ADD requirements-dev.txt .
+ADD requirements-dev.txt requirements.txt ./
 RUN pip install --requirement requirements-dev.txt
-ADD requirements.txt .
-ADD packages packages
-RUN pip install --requirement requirements.txt
 ADD . /code/data-store
 
 # AWS cli binaries are installed in ~/.local/bin
@@ -30,4 +27,4 @@ ENV PATH=~/.local/bin:/usr/local/bin:/usr/local/sbin:/usr/local/bin:/usr/sbin:/u
 
 EXPOSE 5000
 
-CMD ["python","dss-api"]
+CMD ["/bin/bash", "-c", "source environment ; python dss-api"]
