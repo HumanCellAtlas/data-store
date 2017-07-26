@@ -24,8 +24,6 @@ from dss.util.es import ElasticsearchClient, get_elasticsearch_index
 from tests.es import check_start_elasticsearch_service, close_elasticsearch_connections, elasticsearch_delete_index
 from tests.infra import DSSAsserts
 
-USE_AWS_S3 = bool(os.environ.get("USE_AWS_S3"))
-
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 logger.setLevel(logging.INFO)
@@ -34,11 +32,6 @@ logger.setLevel(logging.INFO)
 class TestSubscriptions(unittest.TestCase, DSSAsserts):
 
     def setUp(self):
-
-        # if not USE_AWS_S3:  # Setup moto S3 mock
-        #     cls.mock_s3 = moto.mock_s3()
-        #     cls.mock_s3.start()
-        #     populate_moto_test_fixture_data()
         os.environ['DSS_ES_ENDPOINT'] = os.getenv('DSS_ES_ENDPOINT', "localhost")
 
         DSSAsserts.setup(self)
