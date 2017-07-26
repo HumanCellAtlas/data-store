@@ -78,7 +78,6 @@ class TestIndexer(unittest.TestCase, DSSAsserts, StorageTestSupport):
             cls.mock_s3.stop()
 
     def setUp(self):
-        DSSAsserts.setup(self)
         Config.set_config(BucketStage.TEST)
         self.app = dss.create_app().app.test_client()
         elasticsearch_delete_index("_all")
