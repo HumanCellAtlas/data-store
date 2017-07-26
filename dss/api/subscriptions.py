@@ -3,7 +3,7 @@ import io
 import json
 import re
 import typing
-import uuid as uuid_
+from uuid import uuid4
 
 import iso8601
 import requests
@@ -76,7 +76,7 @@ def find(replica: str):
 
 
 def put(extras: dict, replica: str):
-    uuid = str(uuid_.uuid4())
+    uuid = str(uuid4())
     query = extras['query']
     owner = request.token_info['email']
 
