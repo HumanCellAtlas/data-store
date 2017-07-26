@@ -17,6 +17,13 @@
         "arn:aws:s3:::$DSS_S3_BUCKET",
         "arn:aws:s3:::$DSS_S3_BUCKET/*"
       ]
-    }
+    },
+    {
+      "Effect": "Allow",
+      "Action": "sns:Publish",
+      "Resource": [
+        "arn:aws:sns:*:$account_id:*"
+      ]
+    }    
   ]
 }
