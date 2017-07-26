@@ -56,13 +56,13 @@ def compose_upload(event, context):
                     source_blob_names = ["{}.part{}".format(msg["dest_key"], p) for p in parts_to_compose]
                     dest_blob_name = "{}.part{}".format(msg["dest_key"], ascii_letters[part_id // gs_max_compose_parts])
                     if gs_bucket.get_blob(dest_blob_name) is None:
-                        compose_gs_blobs(gs_bucket, source_blob_names, dest_blob_name)
+                        compose_gs_blobs(gs_bucket, source_blob_names, dest_blob_name, logger=app.log)
                     compose_stage2_blob_names.append(dest_blob_name)
             else:
                 parts_to_compose = range(1, msg["total_parts"] + 1)
                 compose_stage2_blob_names = ["{}.part{}".format(msg["dest_key"], p) for p in parts_to_compose]
             context.log("Composing, stage 2")
-            compose_gs_blobs(gs_bucket, compose_stage2_blob_names, msg["dest_key"])
+            compose_gs_blobs(gs_bucket, compose_stage2_blob_names, msg["dest_key"], logger=app.log)
             break
         except AssertionError:
             pass

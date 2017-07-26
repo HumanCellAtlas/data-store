@@ -122,7 +122,7 @@ def dispatch_multipart_sync(source, dest, logger, context):
                                          end=min(total_size - 1, part_start + part_size[dest.platform] - 1),
                                          total_parts=len(all_parts)))
             if len(parts_for_worker) >= parts_per_worker[dest.platform] or part_id == all_parts[-1][0]:
-                print("Invoking dss-copy-parts with parts", ", ".join(str(p["id"]) for p in parts_for_worker))
+                logger.info("Invoking dss-copy-parts with %s", ", ".join(str(p["id"]) for p in parts_for_worker))
                 sns_msg = dict(source_platform=source.platform,
                                source_bucket=source.bucket.name,
                                source_key=source.blob.key if source.platform == "s3" else source.blob.name,
@@ -176,13 +176,13 @@ def sync_blob(source_platform, source_key, dest_platform, logger, context):
             dispatch_multipart_sync(source, dest, logger, context)
     logger.info(f"Completed transfer of {source_key} from {source.bucket} to {dest.bucket}")
 
-def compose_gs_blobs(gs_bucket, blob_names, dest_blob_name):
+def compose_gs_blobs(gs_bucket, blob_names, dest_blob_name, logger):
     blobs = [gs_bucket.get_blob(b) for b in blob_names]
-    print("{} of {} blobs found".format(len([b for b in blobs if b is not None]), len(blob_names)))
+    logger.info("%d of %d blobs found", len([b for b in blobs if b is not None]), len(blob_names))
     assert not any(b is None for b in blobs)
     dest_blob = gs_bucket.blob(dest_blob_name)
     dest_blob.content_type = blobs[0].content_type
-    print("Composing blobs", blob_names, "into", dest_blob_name)
+    logger.info("Composing blobs %s into %s", blob_names, dest_blob_name)
     dest_blob.compose(blobs)
     for blob in blobs:
         try:

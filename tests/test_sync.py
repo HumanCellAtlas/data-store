@@ -101,7 +101,7 @@ class TestSyncUtils(unittest.TestCase):
             self.gs_bucket.blob(f"{test_key}.part{part}").upload_from_string(payload)
             blob_names.append(f"{test_key}.part{part}")
             total_payload += payload
-        sync.compose_gs_blobs(self.gs_bucket, blob_names, test_key)
+        sync.compose_gs_blobs(self.gs_bucket, blob_names, test_key, logger=self.logger)
         self.assertEqual(self.gs_bucket.blob(test_key).download_as_string(), total_payload)
         for part in range(3):
             self.assertFalse(self.gs_bucket.blob(f"{test_key}.part{part}").exists())
