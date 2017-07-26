@@ -6,7 +6,7 @@ from urllib.parse import unquote
 import boto3
 
 from ... import DSS_ELASTICSEARCH_INDEX_NAME, DSS_ELASTICSEARCH_DOC_TYPE
-from ...util import connect_elasticsearch
+from ...util.es import ElasticsearchClient
 
 DSS_BUNDLE_KEY_REGEX = r"^bundles/[0-9A-Fa-f]{8}-[0-9A-Fa-f]{4}-4[0-9A-Fa-f]{3}-[0-9A-Fa-f]{4}-[0-9A-Fa-f]{12}\..+$"
 
@@ -25,7 +25,7 @@ def process_new_indexable_object(event, logger) -> None:
             bucket_name = event['Records'][0]["s3"]["bucket"]["name"]
             manifest = read_bundle_manifest(s3, bucket_name, key, logger)
             index_data = create_index_data(s3, bucket_name, manifest, logger)
-            add_index_data_to_elasticsearch(os.getenv("DSS_ES_ENDPOINT"), key, index_data, logger)
+            add_index_data_to_elasticsearch(key, index_data, logger)
             logger.debug("Finished index processing of S3 creation event for bundle: %s", key)
         else:
             logger.debug("Not indexing S3 creation event for key: %s", key)
@@ -86,8 +86,8 @@ def create_file_key(file_info) -> str:
     return "blobs/{}.{}.{}.{}".format(file_info['sha256'], file_info['sha1'], file_info['s3-etag'], file_info['crc32c'])
 
 
-def add_index_data_to_elasticsearch(elasticsearch_endpoint, bundle_key, index_data, logger) -> None:
-    es_client = connect_elasticsearch(elasticsearch_endpoint, logger)
+def add_index_data_to_elasticsearch(bundle_key, index_data, logger) -> None:
+    es_client = ElasticsearchClient.get(logger)
     create_elasticsearch_index(es_client, logger)
     logger.debug("Adding index data to Elasticsearch: %s", json.dumps(index_data, indent=4))
     add_data_to_elasticsearch(es_client, bundle_key, index_data, logger)
