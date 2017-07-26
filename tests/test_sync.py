@@ -14,9 +14,9 @@ import uuid
 from argparse import Namespace
 
 import boto3
-from botocore.vendored import requests
 import crcmod
 import google.cloud.storage
+from botocore.vendored import requests
 
 pkg_root = os.path.abspath(os.path.join(os.path.dirname(__file__), '..'))  # noqa
 sys.path.insert(0, pkg_root)  # noqa
