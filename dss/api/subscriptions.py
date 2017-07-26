@@ -19,12 +19,14 @@ from .. import (get_logger,
                 DSS_ELASTICSEARCH_SUBSCRIPTION_INDEX_NAME, DSS_ELASTICSEARCH_SUBSCRIPTION_TYPE)
 from ..blobstore import BlobNotFoundError
 from ..config import Config
+from ..error import DSSException, dss_handler
 from ..hcablobstore import FileMetadata, HCABlobStore
 from ..util.es import ElasticsearchClient, get_elasticsearch_index
 
 logger = get_logger()
 
 
+@dss_handler
 def get(uuid: str, replica: str):
     owner = request.token_info['email']
 
@@ -33,9 +35,7 @@ def get(uuid: str, replica: str):
                                  doc_type=DSS_ELASTICSEARCH_SUBSCRIPTION_TYPE,
                                  id=uuid)
     if not id_exists:
-        return jsonify(dict(message=f"Subscription {uuid} does not exist",
-                            exception="Placeholder",
-                            HTTPStatusCode=requests.codes.not_found)), requests.codes.not_found
+        raise DSSException(requests.codes.not_found, "not_found", "Cannot find subscription!")
 
     response = es_client.get(index=DSS_ELASTICSEARCH_SUBSCRIPTION_INDEX_NAME,
                              doc_type=DSS_ELASTICSEARCH_SUBSCRIPTION_TYPE,
@@ -46,14 +46,12 @@ def get(uuid: str, replica: str):
     source['replica'] = replica
 
     if source['owner'] != owner:
-        return jsonify(dict(
-            message=f"You don't own subscription {uuid}.",
-            exception="Placeholder",
-            HTTPStatusCode=requests.codes.forbidden)), requests.codes.forbidden
+        raise DSSException(requests.codes.forbidden, "forbidden", "Your credentials can't access this subscription!")
 
     return jsonify(source), requests.codes.okay
 
 
+@dss_handler
 def find(replica: str):
     owner = request.token_info['email']
     es_client = ElasticsearchClient.get(logger)
@@ -75,6 +73,7 @@ def find(replica: str):
     return jsonify(full_response), requests.codes.okay
 
 
+@dss_handler
 def put(extras: dict, replica: str):
     uuid = str(uuid4())
     query = extras['query']
@@ -102,11 +101,9 @@ def put(extras: dict, replica: str):
         logger.debug(f"Percolate query registration succeeded:\n{percolate_registration}")
     else:
         logger.critical(f"Percolate query registration failed:\n{percolate_registration}")
-        return (jsonify(dict(
-            message=f"Unable to register elasticsearch percolate query {uuid}.",
-            exception="Placeholder",
-            HTTPStatusCode=requests.codes.internal_server_error)),
-            requests.codes.internal_server_error)
+        raise DSSException(requests.codes.internal_server_error,
+                           "internal_server_error",
+                           "Unable to register elasticsearch percolate query!")
 
     extras['owner'] = owner
     subscription_registration = _register_subscription(es_client, uuid, extras)
@@ -121,15 +118,14 @@ def put(extras: dict, replica: str):
                          id=uuid,
                          refresh=True)
 
-        return (jsonify(dict(
-            message=f"Unable to register elasticsearch percolate query {uuid}.",
-            exception="Placeholder",
-            HTTPStatusCode=requests.codes.internal_server_error)),
-            requests.codes.internal_server_error)
+        raise DSSException(requests.codes.internal_server_error,
+                           "internal_server_error",
+                           "Unable to register subscription! Rolling back percolate query.")
 
     return jsonify(dict(uuid=uuid)), requests.codes.created
 
 
+@dss_handler
 def delete(uuid: str, replica: str):
     owner = request.token_info['email']
 
@@ -138,11 +134,7 @@ def delete(uuid: str, replica: str):
                                  doc_type=DSS_ELASTICSEARCH_SUBSCRIPTION_TYPE,
                                  id=uuid)
     if not id_exists:
-        return (jsonify(dict(
-                message=f"Subscription {uuid} does not exist",
-                exception="Placeholder",
-                HTTPStatusCode=requests.codes.not_found)),
-                requests.codes.not_found)
+        raise DSSException(requests.codes.not_found, "not_found", "Cannot find subscription!")
 
     response = es_client.get(index=DSS_ELASTICSEARCH_SUBSCRIPTION_INDEX_NAME,
                              doc_type=DSS_ELASTICSEARCH_SUBSCRIPTION_TYPE,
@@ -151,11 +143,7 @@ def delete(uuid: str, replica: str):
     source = response['_source']
 
     if source['owner'] != owner:
-        return (jsonify(dict(
-            message=f"You don't have rights to delete subscription {uuid}.",
-            exception="Placeholder",
-            HTTPStatusCode=requests.codes.forbidden)),
-            requests.codes.forbidden)
+        raise DSSException(requests.codes.forbidden, "forbidden", "Your credentials can't access this subscription!")
 
     es_client.delete(index=DSS_ELASTICSEARCH_INDEX_NAME,
                      doc_type=DSS_ELASTICSEARCH_QUERY_TYPE,
