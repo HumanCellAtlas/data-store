@@ -58,7 +58,7 @@ class TestSubscriptions(unittest.TestCase, DSSAsserts):
             index_document = json.load(fh)
 
         self.callback_url = "https://example.com"
-        with open(os.path.join(os.path.dirname(__file__), "sample_percolate_query.json"), "r") as fh:
+        with open(os.path.join(os.path.dirname(__file__), "sample_query.json"), "r") as fh:
             self.sample_percolate_query = json.load(fh)
 
         es_client.index(index=DSS_ELASTICSEARCH_INDEX_NAME,
@@ -71,12 +71,11 @@ class TestSubscriptions(unittest.TestCase, DSSAsserts):
         uuid_ = self._put_subscription()
 
         es_client = ElasticsearchClient.get(logger)
-        full_query = {'query': self.sample_percolate_query}
         response = es_client.get(index=DSS_ELASTICSEARCH_INDEX_NAME,
                                  doc_type=DSS_ELASTICSEARCH_QUERY_TYPE,
                                  id=uuid_)
         registered_query = response['_source']
-        self.assertEqual(full_query, registered_query)
+        self.assertEqual(self.sample_percolate_query, registered_query)
 
     def test_get(self):
         find_uuid = self._put_subscription()

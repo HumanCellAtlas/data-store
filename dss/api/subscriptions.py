@@ -161,11 +161,10 @@ def delete(uuid: str, replica: str):
 
 
 def _register_percolate(es_client: Elasticsearch, uuid: str, query: dict):
-    full_body = {'query': query}
     return es_client.index(index=DSS_ELASTICSEARCH_INDEX_NAME,
                            doc_type=DSS_ELASTICSEARCH_QUERY_TYPE,
                            id=uuid,
-                           body=full_body,
+                           body=query,
                            refresh=True)
 
 
