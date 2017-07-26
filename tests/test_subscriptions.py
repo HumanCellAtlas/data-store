@@ -18,6 +18,7 @@ sys.path.insert(0, pkg_root) # noqa
 
 import dss
 from dss import DSS_ELASTICSEARCH_INDEX_NAME, DSS_ELASTICSEARCH_DOC_TYPE, DSS_ELASTICSEARCH_QUERY_TYPE
+from dss.config import EmailStage, override_email_config
 from dss.util import UrlBuilder
 from dss.util.es import ElasticsearchClient, get_elasticsearch_index
 from tests.es import check_start_elasticsearch_service, close_elasticsearch_connections, elasticsearch_delete_index
@@ -38,17 +39,16 @@ class TestSubscriptions(unittest.TestCase, DSSAsserts):
         #     cls.mock_s3 = moto.mock_s3()
         #     cls.mock_s3.start()
         #     populate_moto_test_fixture_data()
+        os.environ['DSS_ES_ENDPOINT'] = os.getenv('DSS_ES_ENDPOINT', "localhost")
 
         DSSAsserts.setup(self)
         self.app = dss.create_app().app.test_client()
         dss.Config.set_config(dss.BucketStage.TEST)
-        os.environ['DSS_ES_ENDPOINT'] = os.getenv('DSS_ES_ENDPOINT', "localhost")
-        os.environ['AUTHORIZED_DOMAINS'] = "human-cell-atlas-travis-test.iam.gserviceaccount.com"
 
         logger.debug("Setting up Elasticsearch")
         es_client = ElasticsearchClient.get(logger)
         es_client.indices.delete(index="_all", ignore=[404])  # Disregard if no indices - don't error.
-        index_mapping = {
+        index_mapping = {  # Need to make a mapping for the percolator type before we add any.
             "mappings": {
                 DSS_ELASTICSEARCH_QUERY_TYPE: {
                     "properties": {
@@ -90,10 +90,11 @@ class TestSubscriptions(unittest.TestCase, DSSAsserts):
         url = str(UrlBuilder()
                   .set(path="/v1/subscriptions/" + str(find_uuid))
                   .add_query("replica", "aws"))
-        _, _, json_response = self.assertGetResponse(
-            url,
-            requests.codes.okay,
-            headers=self._get_auth_header())
+        with override_email_config(EmailStage.TEST):
+            _, _, json_response = self.assertGetResponse(
+                url,
+                requests.codes.okay,
+                headers=self._get_auth_header())
         self.assertEqual(self.sample_percolate_query, json_response['query'])
         self.assertEqual(self.callback_url, json_response['callback_url'])
 
@@ -104,10 +105,11 @@ class TestSubscriptions(unittest.TestCase, DSSAsserts):
         url = str(UrlBuilder()
                   .set(path="/v1/subscriptions")
                   .add_query("replica", "aws"))
-        _, _, json_response = self.assertGetResponse(
-            url,
-            requests.codes.okay,
-            headers=self._get_auth_header())
+        with override_email_config(EmailStage.TEST):
+            _, _, json_response = self.assertGetResponse(
+                url,
+                requests.codes.okay,
+                headers=self._get_auth_header())
         self.assertEqual(self.sample_percolate_query, json_response['subscriptions'][0]['query'])
         self.assertEqual(self.callback_url, json_response['subscriptions'][0]['callback_url'])
         self.assertEqual(NUM_ADDITIONS, len(json_response['subscriptions']))
@@ -117,31 +119,34 @@ class TestSubscriptions(unittest.TestCase, DSSAsserts):
         url = str(UrlBuilder()
                   .set(path="/v1/subscriptions/" + find_uuid)
                   .add_query("replica", "aws"))
-        response, _, _ = self.assertDeleteResponse(
-            url,
-            requests.codes.okay,
-            headers=self._get_auth_header())
+        with override_email_config(EmailStage.TEST):
+            self.assertDeleteResponse(
+                url,
+                requests.codes.okay,
+                headers=self._get_auth_header())
 
         # Test that grabbing that id gives an error now
         url = str(UrlBuilder()
                   .set(path="/v1/subscriptions/" + str(find_uuid))
                   .add_query("replica", "aws"))
-        self.assertGetResponse(url,
-                               requests.codes.not_found,
-                               headers=self._get_auth_header())
+        with override_email_config(EmailStage.TEST):
+            self.assertGetResponse(url,
+                                   requests.codes.not_found,
+                                   headers=self._get_auth_header())
 
     def _put_subscription(self):
         url = str(UrlBuilder()
                   .set(path="/v1/subscriptions")
                   .add_query("replica", "aws"))
-        _, _, json_response = self.assertPutResponse(
-            url,
-            requests.codes.created,
-            json_request_body=dict(
-                query=self.sample_percolate_query,
-                callback_url=self.callback_url),
-            headers=self._get_auth_header()
-        )
+        with override_email_config(EmailStage.TEST):
+            _, _, json_response = self.assertPutResponse(
+                url,
+                requests.codes.created,
+                json_request_body=dict(
+                    query=self.sample_percolate_query,
+                    callback_url=self.callback_url),
+                headers=self._get_auth_header()
+            )
         uuid_ = json_response['uuid']
         return uuid_
 

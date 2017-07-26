@@ -114,3 +114,54 @@ def override_bucket_config(temp_config: DeploymentStage):
     finally:
         Config._CURRENT_CONFIG = original_config
         Config._clear_cached_config()
+
+
+class EmailStage(Enum):
+    ILLEGAL = auto()
+    NORMAL = auto()
+    TEST = auto()
+
+
+class EmailConfig:
+    _ALLOWED_EMAILS = None  # type: typing.Optional[str]
+    _CURRENT_CONFIG = EmailStage.ILLEGAL  # type: EmailStage
+
+    @staticmethod
+    def set_config(config: EmailStage):
+        EmailConfig._clear_cached_config()
+        EmailConfig._CURRENT_CONFIG = config
+
+    @staticmethod
+    def get_allowed_emails() -> str:
+        if EmailConfig._ALLOWED_EMAILS is None:
+            if EmailConfig._CURRENT_CONFIG == EmailStage.NORMAL:
+                envvar = "DSS_SUBSCRIPTION_AUTHORIZED_DOMAINS"
+            elif EmailConfig._CURRENT_CONFIG == EmailStage.TEST:
+                envvar = "DSS_SUBSCRIPTION_AUTHORIZED_DOMAINS_TEST"
+            elif EmailConfig._CURRENT_CONFIG == EmailStage.ILLEGAL:
+                raise Exception("bucket config not set")
+
+            if envvar not in os.environ:
+                raise Exception(
+                    "Please set the {} environment variable".format(envvar))
+            EmailConfig._ALLOWED_EMAILS = os.environ[envvar]
+
+        return EmailConfig._ALLOWED_EMAILS
+
+    @staticmethod
+    def _clear_cached_config():
+        # clear out the cached email settings.
+        EmailConfig._ALLOWED_EMAILS = None
+
+
+@contextmanager
+def override_email_config(temp_config: EmailStage):
+    original_config = EmailConfig._CURRENT_CONFIG
+    EmailConfig._clear_cached_config()
+
+    try:
+        EmailConfig._CURRENT_CONFIG = temp_config
+        yield
+    finally:
+        EmailConfig._CURRENT_CONFIG = original_config
+        EmailConfig._clear_cached_config()
