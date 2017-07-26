@@ -138,7 +138,7 @@ setup_elasticsearch_domain $global_elasticsearch_domain_name $global_delete_exis
 
 wait_for_elasticsearch_endpoint $global_elasticsearch_domain_name 1800 # Up to 30 minutes
 
-# TODO Delete existing indexes here via Python script
+# TODO Delete existing NON-SUBSCRIPTION (dss.DSS_ELASTICSEARCH_SUBSCRIPTION_INDEX_NAME) indexes here via Python script
 
 display_elasticsearch_domain_info $global_elasticsearch_domain_name
 

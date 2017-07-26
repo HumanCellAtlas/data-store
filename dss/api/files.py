@@ -11,24 +11,23 @@ import requests
 from flask import jsonify, make_response, redirect, request
 from werkzeug.exceptions import BadRequest
 
+from .. import DSSException, dss_handler
 from ..blobstore import BlobNotFoundError
 from ..config import Config
 from ..hcablobstore import FileMetadata, HCABlobStore
 
 
-def head(uuid: str, replica: str=None, version: str=None):
-    # NOTE: THIS IS NEVER ACTUALLY CALLED DUE TO A BUG IN CONNEXION.
-    # HEAD requests always calls the same endpoint as get, even if we tell it to
-    # go to a different method.  However, connexion freaks out if:
-    # 1) there is no head() function defined in code.  *or*
-    # 2) we tell the head() function to hit the same method using operationId.
-    #
-    # So in short, do not expect that this function actually gets called.  This
-    # is only here to keep connexion from freaking out.
-    return get(uuid, replica, version)
+@dss_handler
+def head(uuid: str, version: str=None):
+    return get(uuid, None, version)
 
 
-def get(uuid: str, replica: str=None, version: str=None):
+@dss_handler
+def get(uuid: str, replica: str, version: str=None):
+    return get_helper(uuid, replica, version)
+
+
+def get_helper(uuid: str, replica: typing.Optional[str]=None, version: str=None):
     if request.method == "GET" and replica is None:
         # replica must be set when it's a GET request.
         raise BadRequest()
@@ -51,7 +50,7 @@ def get(uuid: str, replica: str=None, version: str=None):
 
     if version is None:
         # no matches!
-        return make_response("Cannot find file!", 404)
+        raise DSSException(404, "not_found", "Cannot find file!")
 
     # retrieve the file metadata.
     try:

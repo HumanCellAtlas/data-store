@@ -18,12 +18,11 @@ sys.path.insert(0, pkg_root)  # noqa
 import dss
 from dss.config import BucketStage, override_bucket_config
 from dss.util import UrlBuilder
-from tests.infra import DSSAsserts, get_env
+from tests.infra import DSSAsserts, ExpectedErrorFields, get_env
 
 
 class TestFileApi(unittest.TestCase, DSSAsserts):
     def setUp(self):
-        DSSAsserts.setup(self)
         self.app = dss.create_app().app.test_client()
         dss.Config.set_config(dss.BucketStage.TEST)
         self.s3_test_fixtures_bucket = get_env("DSS_S3_BUCKET_TEST_FIXTURES")
@@ -184,6 +183,30 @@ class TestFileApi(unittest.TestCase, DSSAsserts):
             self.assertEqual(hasher.hexdigest(), sha1)
 
             # TODO: (ttung) verify more of the headers
+
+    def test_file_get_not_found(self):
+        self._test_file_get_not_found("aws")
+        self._test_file_get_not_found("gcp")
+
+    def _test_file_get_not_found(self, replica):
+        """
+        Verify we can successfully fetch the latest version of a file UUID.
+        """
+        file_uuid = "ce55fd51-7833-469b-be0b-5da88ec0ffee"
+
+        url = str(UrlBuilder()
+                  .set(path="/v1/files/" + file_uuid)
+                  .add_query("replica", replica))
+
+        with override_bucket_config(BucketStage.TEST_FIXTURE):
+            self.assertGetResponse(
+                url,
+                requests.codes.not_found,
+                expected_error=ExpectedErrorFields(
+                    code="not_found",
+                    status=requests.codes.not_found,
+                    expect_stacktrace=True)
+            )
 
 
 if __name__ == '__main__':

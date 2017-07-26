@@ -28,9 +28,23 @@ def get_env(varname):
     return os.environ[varname]
 
 
+class ExpectedErrorFields(typing.NamedTuple):
+    code: str
+
+    status: typing.Optional[int] = None
+    """
+    If this is None, then we not check the status.  For all other values, we test that it matches.
+    """
+
+    expect_stacktrace: typing.Optional[bool] = None
+    """
+    If this is True, then we expect the stacktrace to be present.  If this is False, then we expect the stacktrace to be
+    absent.  If this is None, then we do not test the presence of the stacktrace.
+    """
+
+
 class DSSAsserts:
-    def setup(self):
-        self.sre = re.compile("^assert(.+)Response")
+    sre = re.compile("^assert(.+)Response")
 
     def assertResponse(
             self,
@@ -38,6 +52,7 @@ class DSSAsserts:
             path: str,
             expected_code: int,
             json_request_body: typing.Optional[dict]=None,
+            expected_error: typing.Optional[ExpectedErrorFields]=None,
             **kwargs) -> typing.Tuple[wrappers.Response, str, typing.Optional[dict]]:
         """
         Make a request given a HTTP method and a path.  The HTTP status code is checked against `expected_code`.
@@ -46,10 +61,11 @@ class DSSAsserts:
         request is set to application/json.
 
         The first element of the return value is the response object.  The second element of the return value is the
-        response text.
+        response text.  Attempt to parse the response body as JSON and return that as the third element of the return
+        value.  Otherwise, the third element of the return value is None.
 
-        If `parse_response_as_json` is true, then attempt to parse the response body as JSON and return that as the
-        third element of the return value.  Otherwise, the third element of the return value is None.
+        If expected_error is provided, the content-type is expected to be "application/problem+json" and the response is
+        tested in accordance to the documentation of `ExpectedErrorFields`.
         """
         if json_request_body is not None:
             if 'data' in kwargs:
@@ -64,6 +80,16 @@ class DSSAsserts:
             actual_json = json.loads(response.data.decode("utf-8"))
         except Exception:
             actual_json = None
+
+        if expected_error is not None:
+            self.assertEqual(response.headers['content-type'], "application/problem+json")
+            self.assertEqual(actual_json['code'], expected_error.code)
+            self.assertIn('title', actual_json)
+            if expected_error.status is not None:
+                self.assertEqual(actual_json['status'], expected_error.status)
+            if expected_error.expect_stacktrace is not None:
+                self.assertEqual('stacktrace' in actual_json, expected_error.expect_stacktrace)
+
         return response, response.data, actual_json
 
     def assertHeaders(
