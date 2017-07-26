@@ -114,6 +114,13 @@ def put(extras: dict, replica: str):
         logger.debug(f"Event Subscription succeeded:\n{subscription_registration}")
     else:
         logger.critical(f"Event Subscription failed:\n{subscription_registration}")
+
+        # Delete percolate query to make sure queries and subscriptions are in sync.
+        es_client.delete(index=DSS_ELASTICSEARCH_INDEX_NAME,
+                         doc_type=DSS_ELASTICSEARCH_QUERY_TYPE,
+                         id=uuid,
+                         refresh=True)
+
         return (jsonify(dict(
             message=f"Unable to register elasticsearch percolate query {uuid}.",
             exception="Placeholder",
