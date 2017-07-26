@@ -15,10 +15,10 @@ from botocore.exceptions import ClientError
 
 import dss
 import moto
-from dss import BucketStage, Config
-from dss import DSS_ELASTICSEARCH_INDEX_NAME, DSS_ELASTICSEARCH_DOC_TYPE
-from dss import DSS_ELASTICSEARCH_QUERY_TYPE
-from dss import DSS_ELASTICSEARCH_SUBSCRIPTION_INDEX_NAME, DSS_ELASTICSEARCH_SUBSCRIPTION_TYPE
+from dss import (BucketStage, Config,
+                 DSS_ELASTICSEARCH_INDEX_NAME, DSS_ELASTICSEARCH_DOC_TYPE,
+                 DSS_ELASTICSEARCH_QUERY_TYPE, DSS_ELASTICSEARCH_SUBSCRIPTION_INDEX_NAME,
+                 DSS_ELASTICSEARCH_SUBSCRIPTION_TYPE)
 from dss.events.handlers.index import process_new_indexable_object
 from dss.util import create_blob_key, connect_elasticsearch
 

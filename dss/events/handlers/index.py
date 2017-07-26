@@ -13,8 +13,9 @@ import botocore
 import requests
 from elasticsearch.helpers import scan
 
-from ... import DSS_ELASTICSEARCH_INDEX_NAME, DSS_ELASTICSEARCH_DOC_TYPE, DSS_ELASTICSEARCH_QUERY_TYPE
-from ... import DSS_ELASTICSEARCH_SUBSCRIPTION_INDEX_NAME, DSS_ELASTICSEARCH_SUBSCRIPTION_TYPE
+from dss import (DSS_ELASTICSEARCH_INDEX_NAME, DSS_ELASTICSEARCH_DOC_TYPE,
+                 DSS_ELASTICSEARCH_QUERY_TYPE, DSS_ELASTICSEARCH_SUBSCRIPTION_INDEX_NAME,
+                 DSS_ELASTICSEARCH_SUBSCRIPTION_TYPE)
 from ...hcablobstore import BundleMetadata, BundleFileMetadata
 from ...util import create_blob_key
 from ...util.es import ElasticsearchClient
