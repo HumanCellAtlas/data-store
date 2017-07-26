@@ -151,7 +151,7 @@ def add_data_to_elasticsearch(bundle_id, index_data, logger) -> None:
         ElasticsearchClient.get(logger).index(index=DSS_ELASTICSEARCH_INDEX_NAME,
                                               doc_type=DSS_ELASTICSEARCH_DOC_TYPE,
                                               id=bundle_id,
-                                              body=json.dumps(index_data, indent=4))
+                                              body=json.dumps(index_data))
     except Exception as ex:
         logger.error(f"Document not indexed. Exception: {ex}  Index data: {json.dumps(index_data, indent=4)}")
         raise
