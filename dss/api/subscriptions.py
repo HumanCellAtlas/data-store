@@ -63,13 +63,13 @@ def find(replica: str):
                         doc_type=DSS_ELASTICSEARCH_SUBSCRIPTION_TYPE)
     search = search_obj.query({'match': {'owner': owner}})
 
-    responses = []
-    for hit in search.scan():
-        responses.append({'uuid': hit.meta.id,
-                          'replica': replica,
-                          'owner': owner,
-                          'callback_url': hit.callback_url,
-                          'query': hit.query.to_dict()})
+    responses = [{
+        'uuid': hit.meta.id,
+        'replica': replica,
+        'owner': owner,
+        'callback_url': hit.callback_url,
+        'query': hit.query.to_dict()}
+        for hit in search.scan()]
 
     full_response = {'subscriptions': responses}
     return jsonify(full_response), requests.codes.okay
