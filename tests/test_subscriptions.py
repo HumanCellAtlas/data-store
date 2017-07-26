@@ -34,7 +34,6 @@ class TestSubscriptions(unittest.TestCase, DSSAsserts):
     def setUp(self):
         os.environ['DSS_ES_ENDPOINT'] = os.getenv('DSS_ES_ENDPOINT', "localhost")
 
-        DSSAsserts.setup(self)
         self.app = dss.create_app().app.test_client()
         dss.Config.set_config(dss.BucketStage.TEST)
 
