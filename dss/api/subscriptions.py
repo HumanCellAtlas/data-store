@@ -157,6 +157,11 @@ def delete(uuid: str, replica: str):
             HTTPStatusCode=requests.codes.forbidden)),
             requests.codes.forbidden)
 
+    es_client.delete(index=DSS_ELASTICSEARCH_INDEX_NAME,
+                     doc_type=DSS_ELASTICSEARCH_QUERY_TYPE,
+                     id=uuid,
+                     refresh=True)
+
     es_client.delete(index=DSS_ELASTICSEARCH_SUBSCRIPTION_INDEX_NAME,
                      doc_type=DSS_ELASTICSEARCH_SUBSCRIPTION_TYPE,
                      id=uuid)
