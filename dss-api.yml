@@ -687,10 +687,10 @@ definitions:
         description: Replica this query is monitoring. One of aws, gcp, or azure.
         type: string
         enum: [aws, gcp, azure]
-      creator_uid:
-        type: integer
-        format: int
-        description: User ID who created this subscription.
+      owner:
+        type: string
+        format: email
+        description: User who created this subscription.
       callback_url:
         description: Url to send request to when a bundle comes in that matches this query.
         type: string
@@ -700,7 +700,7 @@ definitions:
     required:
       - uuid
       - replica
-      - creator_uid
+      - owner
       - callback_url
       - query
   bundle_version:
