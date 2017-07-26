@@ -150,8 +150,10 @@ class TestSubscriptions(unittest.TestCase, DSSAsserts):
 
         r = google.auth.transport.requests.Request()
         credentials.refresh(r)
+        r.session.close()
 
         token = credentials.token
+
         return {"Authorization": f"Bearer {token}"}
 
 
