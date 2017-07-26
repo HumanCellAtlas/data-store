@@ -27,8 +27,6 @@ logger = get_logger()
 
 def get(uuid: str, replica: str):
     owner = request.token_info['email']
-    print("\n\nOWNER!")
-    print(owner)
 
     es_client = ElasticsearchClient.get(logger)
     id_exists = es_client.exists(index=DSS_ELASTICSEARCH_SUBSCRIPTION_INDEX_NAME,

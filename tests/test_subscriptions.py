@@ -43,7 +43,7 @@ class TestSubscriptions(unittest.TestCase, DSSAsserts):
         self.app = dss.create_app().app.test_client()
         dss.Config.set_config(dss.BucketStage.TEST)
         os.environ['DSS_ES_ENDPOINT'] = os.getenv('DSS_ES_ENDPOINT', "localhost")
-        os.putenv('AUTHORIZED_DOMAINS', "human-cell-atlas-travis-test.iam.gserviceaccount.com")
+        os.environ['AUTHORIZED_DOMAINS'] = "human-cell-atlas-travis-test.iam.gserviceaccount.com"
 
         logger.debug("Setting up Elasticsearch")
         es_client = ElasticsearchClient.get(logger)
