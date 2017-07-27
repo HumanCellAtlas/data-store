@@ -1,4 +1,3 @@
-
 """Lambda function for DSS indexing"""
 
 import json
