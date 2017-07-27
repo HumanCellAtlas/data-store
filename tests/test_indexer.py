@@ -10,20 +10,24 @@ import unittest
 from typing import Dict
 
 import boto3
-import moto
 from botocore.exceptions import ClientError
-from elasticsearch import Elasticsearch
+import moto
+
 
 import dss
-from dss import BucketStage, Config, DSS_ELASTICSEARCH_INDEX_NAME, DSS_ELASTICSEARCH_DOC_TYPE
-from dss.events.handlers.index import process_new_indexable_object, ElasticsearchClient
+from dss import (BucketStage, Config,
+                 DSS_ELASTICSEARCH_INDEX_NAME, DSS_ELASTICSEARCH_DOC_TYPE,
+                 DSS_ELASTICSEARCH_QUERY_TYPE, DSS_ELASTICSEARCH_SUBSCRIPTION_INDEX_NAME,
+                 DSS_ELASTICSEARCH_SUBSCRIPTION_TYPE)
+from dss.events.handlers.index import process_new_indexable_object
 from dss.util import create_blob_key
-
-fixtures_root = os.path.abspath(os.path.join(os.path.dirname(__file__), 'fixtures'))  # noqa
-sys.path.insert(0, fixtures_root)  # noqa
+from dss.util.es import ElasticsearchClient
 
 pkg_root = os.path.abspath(os.path.join(os.path.dirname(__file__), '..'))  # noqa
 sys.path.insert(0, pkg_root)  # noqa
+fixtures_root = os.path.abspath(os.path.join(os.path.dirname(__file__), 'fixtures'))  # noqa
+sys.path.insert(0, fixtures_root)  # noqa
+
 
 from tests.es import check_start_elasticsearch_service, elasticsearch_delete_index
 from tests.fixtures.populate import populate
@@ -78,7 +82,6 @@ class TestIndexer(unittest.TestCase, DSSAsserts, StorageTestSupport):
             cls.mock_s3.stop()
 
     def setUp(self):
-        Config.set_config(BucketStage.TEST)
         self.app = dss.create_app().app.test_client()
         elasticsearch_delete_index("_all")
 
@@ -159,6 +162,21 @@ class TestIndexer(unittest.TestCase, DSSAsserts, StorageTestSupport):
 
         self.assertIs(es_client_after_first_call, es_client_after_second_call)
 
+    def test_subscription_notification(self):
+        bundle_key = self.load_test_data_bundle_for_path('fixtures/smartseq2/paired_ends')
+        sample_s3_event = self.create_sample_s3_bundle_created_event(bundle_key)
+        process_new_indexable_object(sample_s3_event, logger)
+
+        ElasticsearchClient.get(logger).indices.create(DSS_ELASTICSEARCH_SUBSCRIPTION_INDEX_NAME)
+        subscribe_for_notification(smartseq2_paired_ends_query,
+                                   "https://example.com/notification",
+                                   "6112f2a3-8b89-4e54-bbc0-65a98bf8fb8b")
+
+        bundle_key = self.load_test_data_bundle_for_path('fixtures/smartseq2/paired_ends')
+        sample_s3_event = self.create_sample_s3_bundle_created_event(bundle_key)
+        process_new_indexable_object(sample_s3_event, logger)
+        # TODO (mbaumann) Verify notification
+
     def load_test_data_bundle_for_path(self, fixture_path: str):
         bundle = S3TestBundle(fixture_path)
         return self.load_test_data_bundle(bundle)
@@ -214,24 +232,23 @@ class TestIndexer(unittest.TestCase, DSSAsserts, StorageTestSupport):
             else:
                 time.sleep(0.5)
 
-
 smartseq2_paried_ends_indexed_file_list = ["assay_json", "cell_json", "manifest_json", "project_json", "sample_json"]
 
 
 smartseq2_paired_ends_query = \
     {
-        "query": {
-            "bool": {
-                "must": [{
-                    "match": {
+        'query': {
+            'bool': {
+                'must': [{
+                    'match': {
                         "files.sample_json.donor.species": "Homo sapiens"
                     }
                 }, {
-                    "match": {
+                    'match': {
                         "files.assay_json.single_cell.method": "Fluidigm C1"
                     }
                 }, {
-                    "match": {
+                    'match': {
                         "files.sample_json.ncbi_biosample": "SAMN04303778"
                     }
                 }]
@@ -247,6 +264,26 @@ def create_s3_bucket(bucket_name) -> None:
     except ClientError as ex:
         if ex.response['Error']['Code'] != 'BucketAlreadyOwnedByYou':
             logger.error(f"An unexpected error occured when creating test bucket: {bucket_name}")
+
+
+def subscribe_for_notification(query, callback_url, subscription_id):
+    subscription = {
+        'owner': "test@example.com",
+        'callback_url': callback_url,
+        'query': query
+    }
+    # Add query
+    ElasticsearchClient.get(logger).index(index=DSS_ELASTICSEARCH_INDEX_NAME,
+                                          doc_type=DSS_ELASTICSEARCH_QUERY_TYPE,
+                                          id=subscription_id,
+                                          body=query,
+                                          refresh=True)  # Okay to refresh when adding a subscription in a test.
+    # Add subscription
+    ElasticsearchClient.get(logger).index(index=DSS_ELASTICSEARCH_SUBSCRIPTION_INDEX_NAME,
+                                          doc_type=DSS_ELASTICSEARCH_SUBSCRIPTION_TYPE,
+                                          id=subscription_id,
+                                          body=subscription,
+                                          refresh=True)  # Okay to refresh when adding a subscription in a test.
 
 
 def deleteFileBlob(bundle_key, filename):
@@ -294,7 +331,6 @@ def create_index_data(s3, bucket_name, manifest):
             index_files[index_filename] = file_json
     index['files'] = index_files
     return index
-
 
 if __name__ == '__main__':
     unittest.main()
