@@ -11,12 +11,12 @@ import botocore
 import requests
 from elasticsearch.helpers import scan
 
-from dss import (DSS_ELASTICSEARCH_INDEX_NAME, DSS_ELASTICSEARCH_DOC_TYPE,
+from ... import (DSS_ELASTICSEARCH_INDEX_NAME, DSS_ELASTICSEARCH_DOC_TYPE,
                  DSS_ELASTICSEARCH_QUERY_TYPE, DSS_ELASTICSEARCH_SUBSCRIPTION_INDEX_NAME,
                  DSS_ELASTICSEARCH_SUBSCRIPTION_TYPE)
-from dss.util import create_blob_key
-from dss.hcablobstore import BundleMetadata, BundleFileMetadata
-from dss.util.es import ElasticsearchClient
+from ...util import create_blob_key
+from ...hcablobstore import BundleMetadata, BundleFileMetadata
+from ...util.es import ElasticsearchClient
 
 DSS_BUNDLE_KEY_REGEX = r"^bundles/[0-9A-Fa-f]{8}-[0-9A-Fa-f]{4}-4[0-9A-Fa-f]{3}-[0-9A-Fa-f]{4}-[0-9A-Fa-f]{12}\..+$"
 

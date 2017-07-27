@@ -11,10 +11,10 @@ from typing import Dict
 
 import boto3
 from botocore.exceptions import ClientError
+import moto
 
 
 import dss
-import moto
 from dss import (BucketStage, Config,
                  DSS_ELASTICSEARCH_INDEX_NAME, DSS_ELASTICSEARCH_DOC_TYPE,
                  DSS_ELASTICSEARCH_QUERY_TYPE, DSS_ELASTICSEARCH_SUBSCRIPTION_INDEX_NAME,
