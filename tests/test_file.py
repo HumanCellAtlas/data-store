@@ -7,7 +7,6 @@ import hashlib
 import os
 import sys
 import unittest
-import urllib
 import uuid
 
 import requests
@@ -34,7 +33,7 @@ class TestFileApi(unittest.TestCase, DSSAsserts):
 
     def _test_file_put(self, scheme, fixtures_bucket):
         file_uuid = uuid.uuid4()
-        response = self.assertPutResponse(
+        resp_obj = self.assertPutResponse(
             "/v1/files/" + str(file_uuid),
             requests.codes.created,
             json_request_body=dict(
@@ -45,17 +44,17 @@ class TestFileApi(unittest.TestCase, DSSAsserts):
             ),
         )
         self.assertHeaders(
-            response[0],
+            resp_obj.response,
             {
                 'content-type': "application/json",
             }
         )
-        self.assertIn('version', response[2])
+        self.assertIn('version', resp_obj.json)
 
     # This is a test specific to AWS since it has separate notion of metadata and tags.
     def test_file_put_metadata_from_tags(self):
         file_uuid = uuid.uuid4()
-        response = self.assertPutResponse(
+        resp_obj = self.assertPutResponse(
             "/v1/files/" + str(file_uuid),
             requests.codes.created,
             json_request_body=dict(
@@ -66,12 +65,12 @@ class TestFileApi(unittest.TestCase, DSSAsserts):
             ),
         )
         self.assertHeaders(
-            response[0],
+            resp_obj.response,
             {
                 'content-type': "application/json",
             }
         )
-        self.assertIn('version', response[2])
+        self.assertIn('version', resp_obj.json)
 
     def test_file_put_upper_case_checksums(self):
         self._test_file_put_upper_case_checksums("s3", self.s3_test_fixtures_bucket)
@@ -79,7 +78,7 @@ class TestFileApi(unittest.TestCase, DSSAsserts):
 
     def _test_file_put_upper_case_checksums(self, scheme, fixtures_bucket):
         file_uuid = uuid.uuid4()
-        response = self.assertPutResponse(
+        resp_obj = self.assertPutResponse(
             "/v1/files/" + str(file_uuid),
             requests.codes.created,
             json_request_body=dict(
@@ -90,12 +89,12 @@ class TestFileApi(unittest.TestCase, DSSAsserts):
             ),
         )
         self.assertHeaders(
-            response[0],
+            resp_obj.response,
             {
                 'content-type': "application/json",
             }
         )
-        self.assertIn('version', response[2])
+        self.assertIn('version', resp_obj.json)
 
     def test_file_head(self):
         self._test_file_head("aws")
@@ -135,13 +134,13 @@ class TestFileApi(unittest.TestCase, DSSAsserts):
                   .add_query("version", version))
 
         with override_bucket_config(BucketStage.TEST_FIXTURE):
-            response = self.assertGetResponse(
+            resp_obj = self.assertGetResponse(
                 url,
                 requests.codes.found
             )
 
-            url = response[0].headers['Location']
-            sha1 = response[0].headers['X-DSS-SHA1']
+            url = resp_obj.response.headers['Location']
+            sha1 = resp_obj.response.headers['X-DSS-SHA1']
             data = requests.get(url)
             self.assertEqual(len(data.content), 11358)
 
@@ -167,13 +166,13 @@ class TestFileApi(unittest.TestCase, DSSAsserts):
                   .add_query("replica", replica))
 
         with override_bucket_config(BucketStage.TEST_FIXTURE):
-            response = self.assertGetResponse(
+            resp_obj = self.assertGetResponse(
                 url,
                 requests.codes.found
             )
 
-            url = response[0].headers['Location']
-            sha1 = response[0].headers['X-DSS-SHA1']
+            url = resp_obj.response.headers['Location']
+            sha1 = resp_obj.response.headers['X-DSS-SHA1']
             data = requests.get(url)
             self.assertEqual(len(data.content), 8685)
 

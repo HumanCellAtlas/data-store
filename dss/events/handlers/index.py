@@ -11,19 +11,10 @@ import botocore
 
 from ... import DSS_ELASTICSEARCH_INDEX_NAME, DSS_ELASTICSEARCH_DOC_TYPE
 from ...hcablobstore import BundleMetadata, BundleFileMetadata
-from ...util import connect_elasticsearch, create_blob_key
+from ...util import create_blob_key
+from ...util.es import ElasticsearchClient
 
 DSS_BUNDLE_KEY_REGEX = r"^bundles/[0-9A-Fa-f]{8}-[0-9A-Fa-f]{4}-4[0-9A-Fa-f]{3}-[0-9A-Fa-f]{4}-[0-9A-Fa-f]{12}\..+$"
-
-
-class ElasticsearchClient:
-    _es_client = None
-
-    @staticmethod
-    def get(logger):
-        if ElasticsearchClient._es_client is None:
-            ElasticsearchClient._es_client = connect_elasticsearch(os.getenv("DSS_ES_ENDPOINT"), logger)
-        return ElasticsearchClient._es_client
 
 
 def process_new_indexable_object(event, logger) -> None:
@@ -117,10 +108,10 @@ def get_bundle_id_from_key(bundle_key):
     raise Exception(f"This is not a key for a bundle: {bundle_key}")
 
 
-def add_index_data_to_elasticsearch(bundle_key, index_data, logger) -> None:
+def add_index_data_to_elasticsearch(bundle_id, index_data, logger) -> None:
     create_elasticsearch_index(logger)
     logger.debug(f"Adding index data to Elasticsearch: {json.dumps(index_data, indent=4)}")
-    add_data_to_elasticsearch(bundle_key, index_data, logger)
+    add_data_to_elasticsearch(bundle_id, index_data, logger)
 
 
 def create_elasticsearch_index(logger):
@@ -143,6 +134,5 @@ def add_data_to_elasticsearch(bundle_id, index_data, logger) -> None:
                                               doc_type=DSS_ELASTICSEARCH_DOC_TYPE,
                                               id=bundle_id,
                                               body=json.dumps(index_data, indent=4))
-
     except Exception as ex:
         logger.error(f"Document not indexed. Exception: {ex}  Index data: {json.dumps(index_data, indent=4)}")

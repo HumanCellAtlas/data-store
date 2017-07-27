@@ -43,6 +43,12 @@ class ExpectedErrorFields(typing.NamedTuple):
     """
 
 
+class DSSAssertResponse(typing.NamedTuple):
+    response: wrappers.Response
+    body: str
+    json: typing.Optional[typing.Any]
+
+
 class DSSAsserts:
     sre = re.compile("^assert(.+)Response")
 
@@ -53,7 +59,7 @@ class DSSAsserts:
             expected_code: int,
             json_request_body: typing.Optional[dict]=None,
             expected_error: typing.Optional[ExpectedErrorFields]=None,
-            **kwargs) -> typing.Tuple[wrappers.Response, str, typing.Optional[dict]]:
+            **kwargs) -> DSSAssertResponse:
         """
         Make a request given a HTTP method and a path.  The HTTP status code is checked against `expected_code`.
 
@@ -90,7 +96,7 @@ class DSSAsserts:
             if expected_error.expect_stacktrace is not None:
                 self.assertEqual('stacktrace' in actual_json, expected_error.expect_stacktrace)
 
-        return response, response.data, actual_json
+        return DSSAssertResponse(response, response.data, actual_json)
 
     def assertHeaders(
             self,

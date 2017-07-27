@@ -92,10 +92,12 @@ def get_helper(uuid: str, replica: typing.Optional[str]=None, version: str=None)
     return response
 
 
+@dss_handler
 def find():
     return dict(files=[dict(uuid=str(uuid.uuid4()), name="", versions=[])])
 
 
+@dss_handler
 def put(uuid: str, extras: dict, version: str=None):
     uuid = uuid.lower()
     if version is not None:

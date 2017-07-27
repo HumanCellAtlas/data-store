@@ -42,22 +42,22 @@ class TestDSS(unittest.TestCase, DSSAsserts):
                   .add_query("version", version))
 
         with override_bucket_config(BucketStage.TEST_FIXTURE):
-            response = self.assertGetResponse(
+            resp_obj = self.assertGetResponse(
                 url,
                 requests.codes.ok)
 
-        self.assertEqual(response[2]['bundle']['uuid'], bundle_uuid)
-        self.assertEqual(response[2]['bundle']['version'], version)
-        self.assertEqual(response[2]['bundle']['creator_uid'], 12345)
-        self.assertEqual(response[2]['bundle']['files'][0]['content-type'], "text/plain")
-        self.assertEqual(response[2]['bundle']['files'][0]['crc32c'], "e16e07b9")
-        self.assertEqual(response[2]['bundle']['files'][0]['name'], "LICENSE")
-        self.assertEqual(response[2]['bundle']['files'][0]['s3_etag'], "3b83ef96387f14655fc854ddc3c6bd57")
-        self.assertEqual(response[2]['bundle']['files'][0]['sha1'], "2b8b815229aa8a61e483fb4ba0588b8b6c491890")
-        self.assertEqual(response[2]['bundle']['files'][0]['sha256'],
+        self.assertEqual(resp_obj.json['bundle']['uuid'], bundle_uuid)
+        self.assertEqual(resp_obj.json['bundle']['version'], version)
+        self.assertEqual(resp_obj.json['bundle']['creator_uid'], 12345)
+        self.assertEqual(resp_obj.json['bundle']['files'][0]['content-type'], "text/plain")
+        self.assertEqual(resp_obj.json['bundle']['files'][0]['crc32c'], "e16e07b9")
+        self.assertEqual(resp_obj.json['bundle']['files'][0]['name'], "LICENSE")
+        self.assertEqual(resp_obj.json['bundle']['files'][0]['s3_etag'], "3b83ef96387f14655fc854ddc3c6bd57")
+        self.assertEqual(resp_obj.json['bundle']['files'][0]['sha1'], "2b8b815229aa8a61e483fb4ba0588b8b6c491890")
+        self.assertEqual(resp_obj.json['bundle']['files'][0]['sha256'],
                          "cfc7749b96f63bd31c3c42b5c471bf756814053e847c10f3eb003417bc523d30")
-        self.assertEqual(response[2]['bundle']['files'][0]['uuid'], "ce55fd51-7833-469b-be0b-5da88ebebfcd")
-        self.assertEqual(response[2]['bundle']['files'][0]['version'], "2017-06-16T193604.240704Z")
+        self.assertEqual(resp_obj.json['bundle']['files'][0]['uuid'], "ce55fd51-7833-469b-be0b-5da88ebebfcd")
+        self.assertEqual(resp_obj.json['bundle']['files'][0]['version'], "2017-06-16T193604.240704Z")
 
     def test_bundle_get_directaccess(self):
         self._test_bundle_get_directaccess("aws")
@@ -79,11 +79,11 @@ class TestDSS(unittest.TestCase, DSSAsserts):
                   .add_query("directurls", "true"))
 
         with override_bucket_config(BucketStage.TEST_FIXTURE):
-            response = self.assertGetResponse(
+            resp_obj = self.assertGetResponse(
                 url,
                 requests.codes.ok)
 
-        url = response[2]['bundle']['files'][0]['url']
+        url = resp_obj.json['bundle']['files'][0]['url']
         splitted = urllib.parse.urlparse(url)
         self.assertEqual(splitted.scheme, schema)
         bucket = splitted.netloc
@@ -109,7 +109,7 @@ class TestDSS(unittest.TestCase, DSSAsserts):
 
         file_uuid = str(uuid.uuid4())
         bundle_uuid = str(uuid.uuid4())
-        response = self.assertPutResponse(
+        resp_obj = self.assertPutResponse(
             "/v1/files/" + file_uuid,
             requests.codes.created,
             json_request_body=dict(
@@ -119,13 +119,13 @@ class TestDSS(unittest.TestCase, DSSAsserts):
                 content_type="text/html",
             ),
         )
-        version = response[2]['version']
+        version = resp_obj.json['version']
 
         url = str(UrlBuilder()
                   .set(path="/v1/bundles/" + bundle_uuid)
                   .add_query("replica", replica))
 
-        response = self.assertPutResponse(
+        resp_obj = self.assertPutResponse(
             url,
             requests.codes.created,
             json_request_body=dict(
@@ -141,12 +141,12 @@ class TestDSS(unittest.TestCase, DSSAsserts):
             ),
         )
         self.assertHeaders(
-            response[0],
+            resp_obj.response,
             {
                 'content-type': "application/json",
             }
         )
-        self.assertIn('version', response[2])
+        self.assertIn('version', resp_obj.json)
 
 
 if __name__ == '__main__':

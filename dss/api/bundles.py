@@ -8,12 +8,14 @@ import iso8601
 import requests
 from flask import jsonify, make_response
 
+from .. import dss_handler
 from ..blobstore import BlobNotFoundError
 from ..config import Config
 from ..hcablobstore import BundleFileMetadata, BundleMetadata, FileMetadata
 from ..util import UrlBuilder
 
 
+@dss_handler
 def get(
         uuid: str,
         version: str=None,
@@ -79,18 +81,22 @@ def get(
     )
 
 
+@dss_handler
 def list_versions(uuid: str):
     return ["2014-10-23T00:35:14.800221Z"]
 
 
+@dss_handler
 def find():
     return dict(bundles=[dict(uuid=str(uuid.uuid4()), versions=[])])
 
 
+@dss_handler
 def post():
     pass
 
 
+@dss_handler
 def put(uuid: str, replica: str, extras: dict, version: str=None):
     uuid = uuid.lower()
     if version is not None:
