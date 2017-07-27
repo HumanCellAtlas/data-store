@@ -1,5 +1,4 @@
 
-
 """Lambda function for DSS indexing"""
 
 import json
@@ -183,7 +182,7 @@ def process_notifications(bundle_id, subscription_ids, logger):
         try:
             # TODO Batch this request
             subscription = get_subscription(subscription_id, logger)
-            notify(subscription, bundle_id, logger)
+            notify(subscription_id, subscription, bundle_id, logger)
         except Exception as ex:
             logger.error(f"Error occurred while processing subscription {subscription_id} for bundle {bundle_id}. {ex}")
 
@@ -204,12 +203,12 @@ def get_subscription(subscription_id, logger):
         return response['hits']['hits'][0]['_source']
 
 
-def notify(subscription, bundle_id, logger):
+def notify(subscription_id, subscription, bundle_id, logger):
     bundle_uuid, bundle_version = split_bundle_id(bundle_id)
     transaction_id = uuid.uuid4()
     payload = {
         "transaction_id": transaction_id,
-        "subscription_id": subscription['subscription_id'],
+        "subscription_id": subscription_id,
         "query": subscription['query'],
         "match": {
             "bundle_uuid": bundle_uuid,
@@ -221,10 +220,10 @@ def notify(subscription, bundle_id, logger):
     response = requests.post(callback_url, data=payload)
     # TODO (mbaumann) Add webhook retry logic
     if 200 <= response.status_code < 300:
-        logger.info(f"Successfully notified for subscription {subscription['subscription_id']}"
+        logger.info(f"Successfully notified for subscription {subscription_id}"
                     f" for bundle {bundle_id} with transaction id {transaction_id} Code: {response.status_code}")
     else:
-        logger.warning(f"Failed notification for subscription {subscription['subscription_id']}"
+        logger.warning(f"Failed notification for subscription {subscription_id}"
                        f" for bundle {bundle_id} with transaction id {transaction_id} Code: {response.status_code}")
 
 

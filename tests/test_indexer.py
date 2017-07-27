@@ -278,7 +278,6 @@ def create_s3_bucket(bucket_name) -> None:
 
 def subscribe_for_notification(query, callback_url, subscription_id):
     subscription = {
-        'subscription_id': subscription_id,
         'owner': "test@example.com",
         'callback_url': callback_url,
         'query': query
