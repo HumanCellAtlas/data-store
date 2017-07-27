@@ -18,7 +18,7 @@ sys.path.insert(0, pkg_root) # noqa
 
 import dss
 from dss import DSS_ELASTICSEARCH_INDEX_NAME, DSS_ELASTICSEARCH_DOC_TYPE, DSS_ELASTICSEARCH_QUERY_TYPE
-from dss.config import EmailStage, override_email_config
+from dss.config import DeploymentStage, override_email_config
 from dss.util import UrlBuilder
 from dss.util.es import ElasticsearchClient, get_elasticsearch_index
 from tests.es import check_start_elasticsearch_service, close_elasticsearch_connections, elasticsearch_delete_index
@@ -35,7 +35,7 @@ class TestSubscriptions(unittest.TestCase, DSSAsserts):
         os.environ['DSS_ES_ENDPOINT'] = os.getenv('DSS_ES_ENDPOINT', "localhost")
 
         self.app = dss.create_app().app.test_client()
-        dss.Config.set_config(dss.BucketStage.TEST)
+        dss.Config.set_config(dss.DeploymentStage.TEST)
 
         logger.debug("Setting up Elasticsearch")
         es_client = ElasticsearchClient.get(logger)
@@ -81,7 +81,7 @@ class TestSubscriptions(unittest.TestCase, DSSAsserts):
         url = str(UrlBuilder()
                   .set(path="/v1/subscriptions/" + str(find_uuid))
                   .add_query("replica", "aws"))
-        with override_email_config(EmailStage.TEST):
+        with override_email_config(DeploymentStage.TEST):
             _, _, json_response = self.assertGetResponse(
                 url,
                 requests.codes.okay,
@@ -96,7 +96,7 @@ class TestSubscriptions(unittest.TestCase, DSSAsserts):
         url = str(UrlBuilder()
                   .set(path="/v1/subscriptions")
                   .add_query("replica", "aws"))
-        with override_email_config(EmailStage.TEST):
+        with override_email_config(DeploymentStage.TEST):
             _, _, json_response = self.assertGetResponse(
                 url,
                 requests.codes.okay,
@@ -110,7 +110,7 @@ class TestSubscriptions(unittest.TestCase, DSSAsserts):
         url = str(UrlBuilder()
                   .set(path="/v1/subscriptions/" + find_uuid)
                   .add_query("replica", "aws"))
-        with override_email_config(EmailStage.TEST):
+        with override_email_config(DeploymentStage.TEST):
             self.assertDeleteResponse(
                 url,
                 requests.codes.okay,
@@ -120,7 +120,7 @@ class TestSubscriptions(unittest.TestCase, DSSAsserts):
         url = str(UrlBuilder()
                   .set(path="/v1/subscriptions/" + str(find_uuid))
                   .add_query("replica", "aws"))
-        with override_email_config(EmailStage.TEST):
+        with override_email_config(DeploymentStage.TEST):
             self.assertGetResponse(url,
                                    requests.codes.not_found,
                                    headers=self._get_auth_header())
@@ -129,7 +129,7 @@ class TestSubscriptions(unittest.TestCase, DSSAsserts):
         url = str(UrlBuilder()
                   .set(path="/v1/subscriptions")
                   .add_query("replica", "aws"))
-        with override_email_config(EmailStage.TEST):
+        with override_email_config(DeploymentStage.TEST):
             _, _, json_response = self.assertPutResponse(
                 url,
                 requests.codes.created,
