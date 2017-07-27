@@ -153,7 +153,7 @@ def add_data_to_elasticsearch(bundle_id, index_data, logger) -> None:
         ElasticsearchClient.get(logger).index(index=DSS_ELASTICSEARCH_INDEX_NAME,
                                               doc_type=DSS_ELASTICSEARCH_DOC_TYPE,
                                               id=bundle_id,
-                                              body=json.dumps(index_data))
+                                              body=json.dumps(index_data))  # Do not use refresh here - too expensive.
     except Exception as ex:
         logger.error(f"Document not indexed. Exception: {ex}  Index data: {json.dumps(index_data, indent=4)}")
         raise
@@ -216,8 +216,10 @@ def notify(subscription, bundle_id, logger):
             "bundle_version": bundle_version
         }
     }
+    # TODO (mbaumann) Ensure webhooks are only delivered over verified HTTPS (unless maybe when running a test)
     callback_url = subscription['callback_url']
     response = requests.post(callback_url, data=payload)
+    # TODO (mbaumann) Add webhook retry logic
     if 200 <= response.status_code < 300:
         logger.info(f"Successfully notified for subscription {subscription['subscription_id']}"
                     f" for bundle {bundle_id} with transaction id {transaction_id} Code: {response.status_code}")

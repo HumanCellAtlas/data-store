@@ -279,7 +279,7 @@ def create_s3_bucket(bucket_name) -> None:
 def subscribe_for_notification(query, callback_url, subscription_id):
     subscription = {
         'subscription_id': subscription_id,
-        'owner': "test@green.box.com",
+        'owner': "test@example.com",
         'callback_url': callback_url,
         'query': query
     }
@@ -288,13 +288,13 @@ def subscribe_for_notification(query, callback_url, subscription_id):
                                         doc_type=DSS_ELASTICSEARCH_QUERY_TYPE,
                                         id=subscription_id,
                                         body=query,
-                                        refresh=True)
+                                        refresh=True)  # Okay to refresh when adding a subscription in a test.
     # Add subscription
     ElasticsearchTestClient.get().index(index=DSS_ELASTICSEARCH_SUBSCRIPTION_INDEX_NAME,
                                         doc_type=DSS_ELASTICSEARCH_SUBSCRIPTION_TYPE,
                                         id=subscription_id,
                                         body=subscription,
-                                        refresh=True)
+                                        refresh=True)  # Okay to refresh when adding a subscription in a test.
 
 
 def deleteFileBlob(bundle_key, filename):
