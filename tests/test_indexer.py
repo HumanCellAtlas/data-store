@@ -20,13 +20,13 @@ from dss import (BucketStage, Config,
                  DSS_ELASTICSEARCH_QUERY_TYPE, DSS_ELASTICSEARCH_SUBSCRIPTION_INDEX_NAME,
                  DSS_ELASTICSEARCH_SUBSCRIPTION_TYPE)
 from dss.events.handlers.index import process_new_indexable_object
-from dss.util import create_blob_key, connect_elasticsearch
+from dss.util import create_blob_key
+from dss.util.es import ElasticsearchClient
 
 pkg_root = os.path.abspath(os.path.join(os.path.dirname(__file__), '..'))  # noqa
 sys.path.insert(0, pkg_root)  # noqa
 fixtures_root = os.path.abspath(os.path.join(os.path.dirname(__file__), 'fixtures'))  # noqa
 sys.path.insert(0, fixtures_root)  # noqa
-
 
 
 from tests.es import check_start_elasticsearch_service, elasticsearch_delete_index
@@ -54,16 +54,6 @@ logger.setLevel(logging.INFO)
 #   4. Perform a search to verify the bundle index document is in Elasticsearch.
 #   5. Verify the structure and content of the index document
 #
-
-
-class ElasticsearchTestClient:
-    _es_client = None
-
-    @staticmethod
-    def get():
-        if ElasticsearchTestClient._es_client is None:
-            ElasticsearchTestClient._es_client = connect_elasticsearch(os.getenv("DSS_ES_ENDPOINT"), logger)
-        return ElasticsearchTestClient._es_client
 
 
 class TestIndexer(unittest.TestCase, DSSAsserts, StorageTestSupport):
@@ -177,7 +167,7 @@ class TestIndexer(unittest.TestCase, DSSAsserts, StorageTestSupport):
         sample_s3_event = self.create_sample_s3_bundle_created_event(bundle_key)
         process_new_indexable_object(sample_s3_event, logger)
 
-        ElasticsearchTestClient.get().indices.create(DSS_ELASTICSEARCH_SUBSCRIPTION_INDEX_NAME)
+        ElasticsearchClient.get(logger).indices.create(DSS_ELASTICSEARCH_SUBSCRIPTION_INDEX_NAME)
         subscribe_for_notification(smartseq2_paired_ends_query,
                                    "https://example.com/notification",
                                    "6112f2a3-8b89-4e54-bbc0-65a98bf8fb8b")
@@ -232,7 +222,7 @@ class TestIndexer(unittest.TestCase, DSSAsserts, StorageTestSupport):
         timeout = 2
         timeout_time = time.time() + timeout
         while True:
-            response = ElasticsearchTestClient.get().search(
+            response = ElasticsearchClient.get(logger).search(
                 index=DSS_ELASTICSEARCH_INDEX_NAME,
                 doc_type=DSS_ELASTICSEARCH_DOC_TYPE,
                 body=json.dumps(query))
@@ -283,17 +273,17 @@ def subscribe_for_notification(query, callback_url, subscription_id):
         'query': query
     }
     # Add query
-    ElasticsearchTestClient.get().index(index=DSS_ELASTICSEARCH_INDEX_NAME,
-                                        doc_type=DSS_ELASTICSEARCH_QUERY_TYPE,
-                                        id=subscription_id,
-                                        body=query,
-                                        refresh=True)  # Okay to refresh when adding a subscription in a test.
+    ElasticsearchClient.get(logger).index(index=DSS_ELASTICSEARCH_INDEX_NAME,
+                                          doc_type=DSS_ELASTICSEARCH_QUERY_TYPE,
+                                          id=subscription_id,
+                                          body=query,
+                                          refresh=True)  # Okay to refresh when adding a subscription in a test.
     # Add subscription
-    ElasticsearchTestClient.get().index(index=DSS_ELASTICSEARCH_SUBSCRIPTION_INDEX_NAME,
-                                        doc_type=DSS_ELASTICSEARCH_SUBSCRIPTION_TYPE,
-                                        id=subscription_id,
-                                        body=subscription,
-                                        refresh=True)  # Okay to refresh when adding a subscription in a test.
+    ElasticsearchClient.get(logger).index(index=DSS_ELASTICSEARCH_SUBSCRIPTION_INDEX_NAME,
+                                          doc_type=DSS_ELASTICSEARCH_SUBSCRIPTION_TYPE,
+                                          id=subscription_id,
+                                          body=subscription,
+                                          refresh=True)  # Okay to refresh when adding a subscription in a test.
 
 
 def deleteFileBlob(bundle_key, filename):

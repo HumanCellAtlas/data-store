@@ -14,9 +14,9 @@ from elasticsearch.helpers import scan
 from dss import (DSS_ELASTICSEARCH_INDEX_NAME, DSS_ELASTICSEARCH_DOC_TYPE,
                  DSS_ELASTICSEARCH_QUERY_TYPE, DSS_ELASTICSEARCH_SUBSCRIPTION_INDEX_NAME,
                  DSS_ELASTICSEARCH_SUBSCRIPTION_TYPE)
-from ...hcablobstore import BundleMetadata, BundleFileMetadata
-from ...util import create_blob_key
-from ...util.es import ElasticsearchClient
+from dss.util import create_blob_key
+from dss.hcablobstore import BundleMetadata, BundleFileMetadata
+from dss.util.es import ElasticsearchClient
 
 DSS_BUNDLE_KEY_REGEX = r"^bundles/[0-9A-Fa-f]{8}-[0-9A-Fa-f]{4}-4[0-9A-Fa-f]{3}-[0-9A-Fa-f]{4}-[0-9A-Fa-f]{12}\..+$"
 
@@ -120,7 +120,7 @@ def add_index_data_to_elasticsearch(bundle_id, index_data, logger) -> None:
     add_data_to_elasticsearch(bundle_id, index_data, logger)
 
 
-def create_elasticsearch_index(es_client, logger):
+def create_elasticsearch_index(logger):
     index_mapping = {
         'mappings': {
             DSS_ELASTICSEARCH_QUERY_TYPE: {
