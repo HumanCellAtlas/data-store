@@ -93,6 +93,10 @@ def put(extras: dict, replica: str):
             }
         }
     }
+    # Elasticsearch preprocesses inputs by splitting strings on punctuation.
+    # So for john@example.com, if I searched for people with the email address jill@example.com,
+    # john@example.com would show up because elasticsearch matched example w/ example.
+    # By including "index": "not_analyzed", Elasticsearch leaves all owner inputs alone.
     get_elasticsearch_index(es_client, DSS_ELASTICSEARCH_SUBSCRIPTION_INDEX_NAME, logger, index_mapping)
 
     try:
