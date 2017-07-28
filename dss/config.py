@@ -99,7 +99,7 @@ class Config:
         return Config._GS_BUCKET
 
     @staticmethod
-    def get_allowed_emails() -> str:
+    def get_allowed_email_domains() -> str:
         if Config._ALLOWED_EMAILS is None:
             if Config._CURRENT_CONFIG == DeploymentStage.NORMAL:
                 envvar = "DSS_SUBSCRIPTION_AUTHORIZED_DOMAINS"

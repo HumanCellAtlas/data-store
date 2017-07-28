@@ -81,7 +81,7 @@ class DSSApp(connexion.App):
 class OperationWithAuthorizer(Operation):
     def oauth2_authorize(self, function):
         def wrapper(request):
-            authorized_domains = Config.get_allowed_emails().split()
+            authorized_domains = Config.get_allowed_email_domains().split()
             if "token_info" in request.context.values:
                 token_info = request.context.values["token_info"]
 
