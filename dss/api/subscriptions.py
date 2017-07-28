@@ -15,10 +15,9 @@ from flask import jsonify, make_response, redirect, request
 from werkzeug.exceptions import BadRequest
 
 from .. import (
-                    get_logger,
-                    DSS_ELASTICSEARCH_INDEX_NAME, DSS_ELASTICSEARCH_DOC_TYPE, DSS_ELASTICSEARCH_QUERY_TYPE,
-                    DSS_ELASTICSEARCH_SUBSCRIPTION_INDEX_NAME, DSS_ELASTICSEARCH_SUBSCRIPTION_TYPE
-                )
+    get_logger,
+    DSS_ELASTICSEARCH_INDEX_NAME, DSS_ELASTICSEARCH_DOC_TYPE, DSS_ELASTICSEARCH_QUERY_TYPE,
+    DSS_ELASTICSEARCH_SUBSCRIPTION_INDEX_NAME, DSS_ELASTICSEARCH_SUBSCRIPTION_TYPE)
 from ..blobstore import BlobNotFoundError
 from ..config import Config
 from ..error import DSSException, dss_handler
