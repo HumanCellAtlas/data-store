@@ -78,16 +78,33 @@ class TestSubscriptions(unittest.TestCase, DSSAsserts):
 
     def test_get(self):
         find_uuid = self._put_subscription()
+
+        # Normal request
         url = str(UrlBuilder()
                   .set(path="/v1/subscriptions/" + str(find_uuid))
                   .add_query("replica", "aws"))
-        with override_email_config(DeploymentStage.TEST):
-            _, _, json_response = self.assertGetResponse(
-                url,
-                requests.codes.okay,
-                headers=self._get_auth_header())
+        _, _, json_response = self.assertGetResponse(
+            url,
+            requests.codes.okay,
+            headers=self._get_auth_header())
         self.assertEqual(self.sample_percolate_query, json_response['query'])
         self.assertEqual(self.callback_url, json_response['callback_url'])
+
+        # Forbidden request w/ previous url
+        with override_email_config(DeploymentStage.NO_AUTH):
+            self.assertGetResponse(
+                url,
+                requests.codes.forbidden,
+                headers=self._get_auth_header())
+
+        # File not found request
+        url = str(UrlBuilder()
+                  .set(path="/v1/subscriptions/" + str(uuid.uuid4()))
+                  .add_query("replica", "aws"))
+        self.assertGetResponse(
+            url,
+            requests.codes.not_found,
+            headers=self._get_auth_header())
 
     def test_find(self):
         NUM_ADDITIONS = 25
@@ -110,20 +127,17 @@ class TestSubscriptions(unittest.TestCase, DSSAsserts):
         url = str(UrlBuilder()
                   .set(path="/v1/subscriptions/" + find_uuid)
                   .add_query("replica", "aws"))
-        with override_email_config(DeploymentStage.TEST):
-            self.assertDeleteResponse(
-                url,
-                requests.codes.okay,
-                headers=self._get_auth_header())
 
-        # Test that grabbing that id gives an error now
-        url = str(UrlBuilder()
-                  .set(path="/v1/subscriptions/" + str(find_uuid))
-                  .add_query("replica", "aws"))
-        with override_email_config(DeploymentStage.TEST):
-            self.assertGetResponse(url,
-                                   requests.codes.not_found,
-                                   headers=self._get_auth_header())
+        # Forbidden delete request
+        with override_email_config(DeploymentStage.NO_AUTH):
+            self.assertDeleteResponse(url, requests.codes.forbidden, headers=self._get_auth_header())
+
+        # Authorized delete
+        self.assertDeleteResponse(url, requests.codes.okay, headers=self._get_auth_header())
+
+        # 1. Check that previous delete worked
+        # 2. Check that we can't delete files that don't exist
+        self.assertDeleteResponse(url, requests.codes.not_found, headers=self._get_auth_header())
 
     def _put_subscription(self):
         url = str(UrlBuilder()
