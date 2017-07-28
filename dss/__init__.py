@@ -79,8 +79,6 @@ class DSSApp(connexion.App):
         ))
 
 class OperationWithAuthorizer(Operation):
-    Config.set_config(DeploymentStage.NORMAL)
-
     def oauth2_authorize(self, function):
         def wrapper(request):
             authorized_domains = Config.get_allowed_emails().split()
