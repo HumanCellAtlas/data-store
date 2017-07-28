@@ -11,7 +11,7 @@ from .hcablobstore.s3 import S3HCABlobStore
 from .hcablobstore.gs import GSHCABlobStore
 
 
-class BucketStage(Enum):
+class DeploymentStage(Enum):
     ILLEGAL = auto()
     NORMAL = auto()
     TEST = auto()
@@ -21,10 +21,10 @@ class BucketStage(Enum):
 class Config:
     _S3_BUCKET = None  # type: typing.Optional[str]
     _GS_BUCKET = None  # type: typing.Optional[str]
-    _CURRENT_CONFIG = BucketStage.ILLEGAL  # type: BucketStage
+    _CURRENT_CONFIG = DeploymentStage.ILLEGAL  # type: DeploymentStage
 
     @staticmethod
-    def set_config(config: BucketStage):
+    def set_config(config: DeploymentStage):
         Config._clear_cached_config()
         Config._CURRENT_CONFIG = config
 
@@ -61,13 +61,13 @@ class Config:
     @staticmethod
     def get_s3_bucket() -> str:
         if Config._S3_BUCKET is None:
-            if Config._CURRENT_CONFIG == BucketStage.NORMAL:
+            if Config._CURRENT_CONFIG == DeploymentStage.NORMAL:
                 envvar = "DSS_S3_BUCKET"
-            elif Config._CURRENT_CONFIG == BucketStage.TEST:
+            elif Config._CURRENT_CONFIG == DeploymentStage.TEST:
                     envvar = "DSS_S3_BUCKET_TEST"
-            elif Config._CURRENT_CONFIG == BucketStage.TEST_FIXTURE:
+            elif Config._CURRENT_CONFIG == DeploymentStage.TEST_FIXTURE:
                 envvar = "DSS_S3_BUCKET_TEST_FIXTURES"
-            elif Config._CURRENT_CONFIG == BucketStage.ILLEGAL:
+            elif Config._CURRENT_CONFIG == DeploymentStage.ILLEGAL:
                 raise Exception("bucket config not set")
 
             if envvar not in os.environ:
@@ -80,13 +80,13 @@ class Config:
     @staticmethod
     def get_gs_bucket() -> str:
         if Config._GS_BUCKET is None:
-            if Config._CURRENT_CONFIG == BucketStage.NORMAL:
+            if Config._CURRENT_CONFIG == DeploymentStage.NORMAL:
                 envvar = "DSS_GS_BUCKET"
-            elif Config._CURRENT_CONFIG == BucketStage.TEST:
+            elif Config._CURRENT_CONFIG == DeploymentStage.TEST:
                 envvar = "DSS_GS_BUCKET_TEST"
-            elif Config._CURRENT_CONFIG == BucketStage.TEST_FIXTURE:
+            elif Config._CURRENT_CONFIG == DeploymentStage.TEST_FIXTURE:
                 envvar = "DSS_GS_BUCKET_TEST_FIXTURES"
-            elif Config._CURRENT_CONFIG == BucketStage.ILLEGAL:
+            elif Config._CURRENT_CONFIG == DeploymentStage.ILLEGAL:
                 raise Exception("bucket config not set")
 
             if envvar not in os.environ:
@@ -104,7 +104,7 @@ class Config:
 
 
 @contextmanager
-def override_bucket_config(temp_config: BucketStage):
+def override_bucket_config(temp_config: DeploymentStage):
     original_config = Config._CURRENT_CONFIG
     Config._clear_cached_config()
 

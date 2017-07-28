@@ -23,7 +23,7 @@ from dss.util.aws import ARN, send_sns_msg, clients, resources
 
 app = domovoi.Domovoi()
 
-dss.Config.set_config(dss.BucketStage.NORMAL)
+dss.Config.set_config(dss.DeploymentStage.NORMAL)
 
 s3_bucket = dss.Config.get_s3_bucket()
 

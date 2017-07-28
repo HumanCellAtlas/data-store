@@ -15,7 +15,7 @@ import moto
 
 
 import dss
-from dss import (BucketStage, Config,
+from dss import (DeploymentStage, Config,
                  DSS_ELASTICSEARCH_INDEX_NAME, DSS_ELASTICSEARCH_DOC_TYPE,
                  DSS_ELASTICSEARCH_QUERY_TYPE, DSS_ELASTICSEARCH_SUBSCRIPTION_INDEX_NAME,
                  DSS_ELASTICSEARCH_SUBSCRIPTION_TYPE)
@@ -65,10 +65,10 @@ class TestIndexer(unittest.TestCase, DSSAsserts, StorageTestSupport):
             cls.mock_s3.start()
             cls.mock_sts = moto.mock_sts()
             cls.mock_sts.start()
-            Config.set_config(BucketStage.TEST_FIXTURE)
+            Config.set_config(DeploymentStage.TEST_FIXTURE)
             create_s3_bucket(Config.get_s3_bucket())
             populate(Config.get_s3_bucket(), None)
-            Config.set_config(BucketStage.TEST)
+            Config.set_config(DeploymentStage.TEST)
             create_s3_bucket(Config.get_s3_bucket())
 
         if "DSS_ES_ENDPOINT" not in os.environ:

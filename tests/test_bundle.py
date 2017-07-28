@@ -16,7 +16,7 @@ pkg_root = os.path.abspath(os.path.join(os.path.dirname(__file__), '..'))  # noq
 sys.path.insert(0, pkg_root)  # noqa
 
 import dss
-from dss.config import BucketStage, Config, override_bucket_config
+from dss.config import DeploymentStage, Config, override_bucket_config
 from dss.util import UrlBuilder
 from tests.infra import DSSAsserts, get_env
 
@@ -24,7 +24,7 @@ from tests.infra import DSSAsserts, get_env
 class TestDSS(unittest.TestCase, DSSAsserts):
     def setUp(self):
         self.app = dss.create_app().app.test_client()
-        dss.Config.set_config(dss.BucketStage.TEST)
+        dss.Config.set_config(dss.DeploymentStage.TEST)
         self.s3_test_fixtures_bucket = get_env("DSS_S3_BUCKET_TEST_FIXTURES")
         self.gs_test_fixtures_bucket = get_env("DSS_GS_BUCKET_TEST_FIXTURES")
 
@@ -41,7 +41,7 @@ class TestDSS(unittest.TestCase, DSSAsserts):
                   .add_query("replica", replica)
                   .add_query("version", version))
 
-        with override_bucket_config(BucketStage.TEST_FIXTURE):
+        with override_bucket_config(DeploymentStage.TEST_FIXTURE):
             resp_obj = self.assertGetResponse(
                 url,
                 requests.codes.ok)
@@ -78,7 +78,7 @@ class TestDSS(unittest.TestCase, DSSAsserts):
                   .add_query("version", version)
                   .add_query("directurls", "true"))
 
-        with override_bucket_config(BucketStage.TEST_FIXTURE):
+        with override_bucket_config(DeploymentStage.TEST_FIXTURE):
             resp_obj = self.assertGetResponse(
                 url,
                 requests.codes.ok)
@@ -88,7 +88,7 @@ class TestDSS(unittest.TestCase, DSSAsserts):
         self.assertEqual(splitted.scheme, schema)
         bucket = splitted.netloc
         key = splitted.path[1:]  # ignore the / part of the path.
-        with override_bucket_config(BucketStage.TEST_FIXTURE):
+        with override_bucket_config(DeploymentStage.TEST_FIXTURE):
             handle, hca_handle, bucket = Config.get_cloud_specific_handles(replica)
             contents = handle.get(bucket, key)
 

@@ -9,7 +9,6 @@ import os
 import json
 import logging
 
-import connexion
 import flask
 import requests
 import connexion.apis.abstract
@@ -19,7 +18,7 @@ from connexion.resolver import RestyResolver
 from connexion.exceptions import OAuthProblem, OAuthResponseProblem, OAuthScopeProblem
 from flask_failsafe import failsafe
 
-from .config import BucketStage, Config
+from .config import DeploymentStage, Config
 from .error import DSSException, dss_handler
 
 # CONSTANTS COMMON TO THE INDEXER AND QUERY ROUTE.
