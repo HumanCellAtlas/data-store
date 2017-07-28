@@ -37,7 +37,7 @@ def get(uuid: str, replica: str):
         response = es_client.get(index=DSS_ELASTICSEARCH_SUBSCRIPTION_INDEX_NAME,
                                  doc_type=DSS_ELASTICSEARCH_SUBSCRIPTION_TYPE,
                                  id=uuid)
-    except elasticsearch.exceptions.NotFoundError as ex:
+    except NotFoundError as ex:
         raise DSSException(requests.codes.not_found, "not_found", "Cannot find subscription!")
 
     source = response['_source']
@@ -101,7 +101,7 @@ def put(extras: dict, replica: str):
     try:
         percolate_registration = _register_percolate(es_client, uuid, query)
         logger.debug(f"Percolate query registration succeeded:\n{percolate_registration}")
-    except elasticsearch.exceptions.ElasticsearchException:
+    except ElasticsearchException:
         logger.critical(f"Percolate query registration failed:\n{percolate_registration}")
         raise DSSException(requests.codes.internal_server_error,
                            "internal_server_error",
@@ -112,7 +112,7 @@ def put(extras: dict, replica: str):
     try:
         subscription_registration = _register_subscription(es_client, uuid, extras)
         logger.debug(f"Event Subscription succeeded:\n{subscription_registration}")
-    except elasticsearch.exceptions.ElasticsearchException:
+    except ElasticsearchException:
         logger.critical(f"Event Subscription failed:\n{subscription_registration}")
 
         # Delete percolate query to make sure queries and subscriptions are in sync.
@@ -137,7 +137,7 @@ def delete(uuid: str, replica: str):
         response = es_client.get(index=DSS_ELASTICSEARCH_SUBSCRIPTION_INDEX_NAME,
                                  doc_type=DSS_ELASTICSEARCH_SUBSCRIPTION_TYPE,
                                  id=uuid)
-    except elasticsearch.exceptions.NotFoundError as ex:
+    except NotFoundError as ex:
         raise DSSException(requests.codes.not_found, "not_found", "Cannot find subscription!")
 
     source = response['_source']
