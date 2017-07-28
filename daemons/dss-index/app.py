@@ -12,7 +12,7 @@ from dss.events.handlers.index import process_new_indexable_object
 
 app = domovoi.Domovoi()
 
-dss.Config.set_config(dss.BucketStage.NORMAL)
+dss.Config.set_config(dss.DeploymentStage.NORMAL)
 
 s3_bucket = dss.Config.get_s3_bucket()
 

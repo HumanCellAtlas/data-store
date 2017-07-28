@@ -19,7 +19,7 @@ from tests.infra import DSSAsserts, StorageTestSupport, S3TestBundle
 class TestApi(unittest.TestCase, DSSAsserts, StorageTestSupport):
 
     def setUp(self):
-        dss.Config.set_config(dss.BucketStage.TEST)
+        dss.Config.set_config(dss.DeploymentStage.TEST)
         self.app = dss.create_app().app.test_client()
 
     BUNDLE_FIXTURE = 'fixtures/test_api/bundle'

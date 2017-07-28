@@ -15,7 +15,7 @@ pkg_root = os.path.abspath(os.path.join(os.path.dirname(__file__), '..'))  # noq
 sys.path.insert(0, pkg_root)  # noqa
 
 import dss
-from dss.config import BucketStage, override_bucket_config
+from dss.config import DeploymentStage, override_bucket_config
 from dss.util import UrlBuilder
 from tests.infra import DSSAsserts, ExpectedErrorFields, get_env
 
@@ -23,7 +23,7 @@ from tests.infra import DSSAsserts, ExpectedErrorFields, get_env
 class TestFileApi(unittest.TestCase, DSSAsserts):
     def setUp(self):
         self.app = dss.create_app().app.test_client()
-        dss.Config.set_config(dss.BucketStage.TEST)
+        dss.Config.set_config(dss.DeploymentStage.TEST)
         self.s3_test_fixtures_bucket = get_env("DSS_S3_BUCKET_TEST_FIXTURES")
         self.gs_test_fixtures_bucket = get_env("DSS_GS_BUCKET_TEST_FIXTURES")
 
@@ -109,7 +109,7 @@ class TestFileApi(unittest.TestCase, DSSAsserts):
                   .add_query("replica", replica)
                   .add_query("version", version))
 
-        with override_bucket_config(BucketStage.TEST_FIXTURE):
+        with override_bucket_config(DeploymentStage.TEST_FIXTURE):
             self.assertHeadResponse(
                 url,
                 requests.codes.ok
@@ -133,7 +133,7 @@ class TestFileApi(unittest.TestCase, DSSAsserts):
                   .add_query("replica", replica)
                   .add_query("version", version))
 
-        with override_bucket_config(BucketStage.TEST_FIXTURE):
+        with override_bucket_config(DeploymentStage.TEST_FIXTURE):
             resp_obj = self.assertGetResponse(
                 url,
                 requests.codes.found
@@ -165,7 +165,7 @@ class TestFileApi(unittest.TestCase, DSSAsserts):
                   .set(path="/v1/files/" + file_uuid)
                   .add_query("replica", replica))
 
-        with override_bucket_config(BucketStage.TEST_FIXTURE):
+        with override_bucket_config(DeploymentStage.TEST_FIXTURE):
             resp_obj = self.assertGetResponse(
                 url,
                 requests.codes.found
@@ -197,7 +197,7 @@ class TestFileApi(unittest.TestCase, DSSAsserts):
                   .set(path="/v1/files/" + file_uuid)
                   .add_query("replica", replica))
 
-        with override_bucket_config(BucketStage.TEST_FIXTURE):
+        with override_bucket_config(DeploymentStage.TEST_FIXTURE):
             self.assertGetResponse(
                 url,
                 requests.codes.not_found,
