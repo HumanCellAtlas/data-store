@@ -203,7 +203,7 @@ def get_subscription(subscription_id, logger):
 
 
 def notify(subscription_id, subscription, bundle_id, logger):
-    bundle_uuid, bundle_version = split_bundle_id(bundle_id)
+    bundle_uuid, _, bundle_version = bundle_id.partition(".")
     transaction_id = uuid.uuid4()
     payload = {
         "transaction_id": transaction_id,
@@ -224,11 +224,3 @@ def notify(subscription_id, subscription, bundle_id, logger):
     else:
         logger.warning(f"Failed notification for subscription {subscription_id}"
                        f" for bundle {bundle_id} with transaction id {transaction_id} Code: {response.status_code}")
-
-
-def split_bundle_id(bundle_id):
-    split_index = bundle_id.find('.')
-    if split_index >= 0:
-        return bundle_id[:split_index], bundle_id[(split_index + 1):]
-    else:
-        return bundle_id, None
