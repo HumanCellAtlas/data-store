@@ -345,6 +345,14 @@ paths:
                 pattern: "[A-Za-z0-9]{8}-[A-Za-z0-9]{4}-[A-Za-z0-9]{4}-[A-Za-z0-9]{4}-[A-Za-z0-9]{12}"
             required:
               - uuid
+        500:
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/Error'
+        default:
+          description: Unexpected error
+          schema:
+            $ref: '#/definitions/Error'
   /subscriptions/{uuid}:
     get:
       summary: Retrieve an event subscription given a UUID.
@@ -375,6 +383,14 @@ paths:
             properties:
               subscription:
                 $ref: "#/definitions/Subscription"
+        403:
+          description: Forbidden
+          schema:
+            $ref: '#/definitions/Error'
+        404:
+          description: Subscription Not Found
+          schema:
+            $ref: '#/definitions/Error'
         default:
           description: Unexpected error
           schema:
@@ -412,6 +428,14 @@ paths:
                 format: date-time
             required:
               - timeDeleted
+        403:
+          description: Forbidden
+          schema:
+            $ref: '#/definitions/Error'
+        404:
+          description: Subscription Not Found
+          schema:
+            $ref: '#/definitions/Error'
         default:
           description: Unexpected error
           schema:
