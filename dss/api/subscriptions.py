@@ -9,7 +9,7 @@ import iso8601
 import requests
 
 from elasticsearch import Elasticsearch
-from elasticsearch.exceptions import NotFoundError
+from elasticsearch.exceptions import ElasticsearchException, NotFoundError
 from elasticsearch_dsl import Search
 from flask import jsonify, make_response, redirect, request
 from werkzeug.exceptions import BadRequest
@@ -93,21 +93,21 @@ def put(extras: dict, replica: str):
     }
     get_elasticsearch_index(es_client, DSS_ELASTICSEARCH_SUBSCRIPTION_INDEX_NAME, logger, index_mapping)
 
-    percolate_registration = _register_percolate(es_client, uuid, query)
-
-    if percolate_registration['created']:
+    try:
+        percolate_registration = _register_percolate(es_client, uuid, query)
         logger.debug(f"Percolate query registration succeeded:\n{percolate_registration}")
-    else:
+    except elasticsearch.exceptions.ElasticsearchException:
         logger.critical(f"Percolate query registration failed:\n{percolate_registration}")
         raise DSSException(requests.codes.internal_server_error,
                            "internal_server_error",
                            "Unable to register elasticsearch percolate query!")
 
     extras['owner'] = owner
-    subscription_registration = _register_subscription(es_client, uuid, extras)
-    if subscription_registration['created']:
+
+    try:
+        subscription_registration = _register_subscription(es_client, uuid, extras)
         logger.debug(f"Event Subscription succeeded:\n{subscription_registration}")
-    else:
+    except elasticsearch.exceptions.ElasticsearchException:
         logger.critical(f"Event Subscription failed:\n{subscription_registration}")
 
         # Delete percolate query to make sure queries and subscriptions are in sync.
@@ -115,7 +115,6 @@ def put(extras: dict, replica: str):
                          doc_type=DSS_ELASTICSEARCH_QUERY_TYPE,
                          id=uuid,
                          refresh=True)
-
         raise DSSException(requests.codes.internal_server_error,
                            "internal_server_error",
                            "Unable to register subscription! Rolling back percolate query.")
