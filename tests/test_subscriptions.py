@@ -83,10 +83,11 @@ class TestSubscriptions(unittest.TestCase, DSSAsserts):
         url = str(UrlBuilder()
                   .set(path="/v1/subscriptions/" + str(find_uuid))
                   .add_query("replica", "aws"))
-        _, _, json_response = self.assertGetResponse(
+            resp_obj = self.assertGetResponse(
             url,
             requests.codes.okay,
             headers=self._get_auth_header())
+        json_response = resp_obj.json
         self.assertEqual(self.sample_percolate_query, json_response['query'])
         self.assertEqual(self.callback_url, json_response['callback_url'])
 
@@ -114,10 +115,11 @@ class TestSubscriptions(unittest.TestCase, DSSAsserts):
                   .set(path="/v1/subscriptions")
                   .add_query("replica", "aws"))
         with override_email_config(DeploymentStage.TEST):
-            _, _, json_response = self.assertGetResponse(
+            resp_obj = self.assertGetResponse(
                 url,
                 requests.codes.okay,
                 headers=self._get_auth_header())
+        json_response = resp_obj.json
         self.assertEqual(self.sample_percolate_query, json_response['subscriptions'][0]['query'])
         self.assertEqual(self.callback_url, json_response['subscriptions'][0]['callback_url'])
         self.assertEqual(NUM_ADDITIONS, len(json_response['subscriptions']))
@@ -144,7 +146,7 @@ class TestSubscriptions(unittest.TestCase, DSSAsserts):
                   .set(path="/v1/subscriptions")
                   .add_query("replica", "aws"))
         with override_email_config(DeploymentStage.TEST):
-            _, _, json_response = self.assertPutResponse(
+            resp_obj = self.assertPutResponse(
                 url,
                 requests.codes.created,
                 json_request_body=dict(
@@ -152,7 +154,7 @@ class TestSubscriptions(unittest.TestCase, DSSAsserts):
                     callback_url=self.callback_url),
                 headers=self._get_auth_header()
             )
-        uuid_ = json_response['uuid']
+        uuid_ = resp_obj.json['uuid']
         return uuid_
 
     def _get_auth_header(self):
