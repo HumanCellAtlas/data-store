@@ -31,15 +31,13 @@ def get(uuid: str, replica: str):
     owner = request.token_info['email']
 
     es_client = ElasticsearchClient.get(logger)
-    id_exists = es_client.exists(index=DSS_ELASTICSEARCH_SUBSCRIPTION_INDEX_NAME,
+
+    try:
+        response = es_client.get(index=DSS_ELASTICSEARCH_SUBSCRIPTION_INDEX_NAME,
                                  doc_type=DSS_ELASTICSEARCH_SUBSCRIPTION_TYPE,
                                  id=uuid)
-    if not id_exists:
+    except elasticsearch.exceptions.NotFoundError as ex:
         raise DSSException(requests.codes.not_found, "not_found", "Cannot find subscription!")
-
-    response = es_client.get(index=DSS_ELASTICSEARCH_SUBSCRIPTION_INDEX_NAME,
-                             doc_type=DSS_ELASTICSEARCH_SUBSCRIPTION_TYPE,
-                             id=uuid)
 
     source = response['_source']
     source['uuid'] = uuid
@@ -130,15 +128,13 @@ def delete(uuid: str, replica: str):
     owner = request.token_info['email']
 
     es_client = ElasticsearchClient.get(logger)
-    id_exists = es_client.exists(index=DSS_ELASTICSEARCH_SUBSCRIPTION_INDEX_NAME,
+
+    try:
+        response = es_client.get(index=DSS_ELASTICSEARCH_SUBSCRIPTION_INDEX_NAME,
                                  doc_type=DSS_ELASTICSEARCH_SUBSCRIPTION_TYPE,
                                  id=uuid)
-    if not id_exists:
+    except elasticsearch.exceptions.NotFoundError as ex:
         raise DSSException(requests.codes.not_found, "not_found", "Cannot find subscription!")
-
-    response = es_client.get(index=DSS_ELASTICSEARCH_SUBSCRIPTION_INDEX_NAME,
-                             doc_type=DSS_ELASTICSEARCH_SUBSCRIPTION_TYPE,
-                             id=uuid)
 
     source = response['_source']
 
