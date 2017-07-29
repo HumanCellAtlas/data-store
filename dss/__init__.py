@@ -12,6 +12,7 @@ import logging
 import flask
 import requests
 import connexion.apis.abstract
+from connexion.apis.flask_api import FlaskApi
 from connexion.lifecycle import ConnexionResponse
 from connexion.operation import Operation
 from connexion.resolver import RestyResolver
@@ -68,12 +69,12 @@ class DSSApp(connexion.App):
             problem['status'] = exception.code
             problem['code'] = exception.__class__.__name__
             problem['title'] = exception.description
-        return ConnexionResponse(
+        return FlaskApi.get_response(ConnexionResponse(
             status_code=problem['status'],
             mimetype="application/problem+json",
             content_type="application/problem+json",
             body=problem,
-        )
+        ))
 
 class OperationWithAuthorizer(Operation):
     authorized_domains = os.environ["AUTHORIZED_DOMAINS"].split()
