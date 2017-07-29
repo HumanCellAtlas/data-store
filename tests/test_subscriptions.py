@@ -83,7 +83,7 @@ class TestSubscriptions(unittest.TestCase, DSSAsserts):
         url = str(UrlBuilder()
                   .set(path="/v1/subscriptions/" + str(find_uuid))
                   .add_query("replica", "aws"))
-            resp_obj = self.assertGetResponse(
+        resp_obj = self.assertGetResponse(
             url,
             requests.codes.okay,
             headers=self._get_auth_header())
