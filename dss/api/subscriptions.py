@@ -130,7 +130,7 @@ def put(extras: dict, replica: str):
 
 @dss_handler
 def delete(uuid: str, replica: str):
-    owner = request.token_info['email']
+    authenticated_user_email = request.token_info['email']
 
     es_client = ElasticsearchClient.get(logger)
 
@@ -141,9 +141,9 @@ def delete(uuid: str, replica: str):
     except NotFoundError as ex:
         raise DSSException(requests.codes.not_found, "not_found", "Cannot find subscription!")
 
-    source = response['_source']
+    stored_metadata = response['_source']
 
-    if source['owner'] != owner:
+    if stored_metadata['owner'] != authenticated_user_email:
         # common_error_handler defaults code to capitalized 'Forbidden' for Werkzeug exception. Keeping consistent.
         raise DSSException(requests.codes.forbidden, "Forbidden", "Your credentials can't access this subscription!")
 
