@@ -66,7 +66,7 @@ class DSSApp(connexion.App):
             'title': str(exception),
             'stacktrace': traceback.format_exc(),
         }
-        if isinstance(exception, (OAuthProblem, OAuthResponseProblem, OAuthScopeProblem)):
+        if isinstance(exception, (OAuthProblem, OAuthResponseProblem, OAuthScopeProblem, Forbidden)):
             problem['status'] = exception.code
             problem['code'] = exception.__class__.__name__
             problem['title'] = exception.description
@@ -80,7 +80,6 @@ class DSSApp(connexion.App):
 class OperationWithAuthorizer(Operation):
     authorized_domains = os.environ["AUTHORIZED_DOMAINS"].split()
     def oauth2_authorize(self, function):
-        @dss_handler
         def wrapper(request):
             if "token_info" in request.context.values:
                 token_info = request.context.values["token_info"]
@@ -89,7 +88,7 @@ class OperationWithAuthorizer(Operation):
                 if json.loads(token_info["email_verified"]) is not True:
                     raise OAuthProblem(description="User email is unverified")
                 if not any(token_info["email"].endswith(f"@{ad}") for ad in self.authorized_domains):
-                    raise Forbidden(description="User email is forbidden")
++                    raise Forbidden(description="User email is not authorized to access this resource")
             return function(request)
         return wrapper
 
