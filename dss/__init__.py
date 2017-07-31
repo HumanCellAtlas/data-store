@@ -18,6 +18,7 @@ from connexion.operation import Operation
 from connexion.resolver import RestyResolver
 from connexion.exceptions import OAuthProblem, OAuthResponseProblem, OAuthScopeProblem
 from flask_failsafe import failsafe
+from werkzeug.exceptions import Forbidden
 
 from .config import DeploymentStage, Config
 from .error import DSSException, dss_handler
@@ -65,7 +66,7 @@ class DSSApp(connexion.App):
             'title': str(exception),
             'stacktrace': traceback.format_exc(),
         }
-        if isinstance(exception, (OAuthProblem, OAuthResponseProblem, OAuthScopeProblem)):
+        if isinstance(exception, (OAuthProblem, OAuthResponseProblem, OAuthScopeProblem, Forbidden)):
             problem['status'] = exception.code
             problem['code'] = exception.__class__.__name__
             problem['title'] = exception.description
@@ -87,7 +88,7 @@ class OperationWithAuthorizer(Operation):
                 if json.loads(token_info["email_verified"]) is not True:
                     raise OAuthProblem(description="User email is unverified")
                 if not any(token_info["email"].endswith(f"@{ad}") for ad in self.authorized_domains):
-                    raise OAuthProblem(description="User email is unauthorized")
+                    raise Forbidden(description="User email is not authorized to access this resource")
             return function(request)
         return wrapper
 
