@@ -66,6 +66,18 @@ class TestSubscriptions(unittest.TestCase, DSSAsserts):
                         body=index_document,
                         refresh=True)
 
+    def test_auth_errors(self):
+        url = str(UrlBuilder()
+                  .set(path="/v1/subscriptions/" + str(uuid.uuid4()))
+                  .add_query("replica", "aws"))
+
+        with override_email_config(DeploymentStage.NO_AUTH):
+            resp_obj = self.assertGetResponse(url, requests.codes.forbidden, headers=self._get_auth_header())
+        self.assertEqual(resp_obj.response.headers['Content-Type'], "application/problem+json")
+
+        resp_obj = self.assertGetResponse(url, requests.codes.unauthorized, headers=self._get_auth_header(False))
+        self.assertEqual(resp_obj.response.headers['Content-Type'], "application/problem+json")
+
     def test_put(self):
         uuid_ = self._put_subscription()
 
@@ -114,11 +126,10 @@ class TestSubscriptions(unittest.TestCase, DSSAsserts):
         url = str(UrlBuilder()
                   .set(path="/v1/subscriptions")
                   .add_query("replica", "aws"))
-        with override_email_config(DeploymentStage.TEST):
-            resp_obj = self.assertGetResponse(
-                url,
-                requests.codes.okay,
-                headers=self._get_auth_header())
+        resp_obj = self.assertGetResponse(
+            url,
+            requests.codes.okay,
+            headers=self._get_auth_header())
         json_response = resp_obj.json
         self.assertEqual(self.sample_percolate_query, json_response['subscriptions'][0]['query'])
         self.assertEqual(self.callback_url, json_response['subscriptions'][0]['callback_url'])
@@ -145,26 +156,25 @@ class TestSubscriptions(unittest.TestCase, DSSAsserts):
         url = str(UrlBuilder()
                   .set(path="/v1/subscriptions")
                   .add_query("replica", "aws"))
-        with override_email_config(DeploymentStage.TEST):
-            resp_obj = self.assertPutResponse(
-                url,
-                requests.codes.created,
-                json_request_body=dict(
-                    query=self.sample_percolate_query,
-                    callback_url=self.callback_url),
-                headers=self._get_auth_header()
-            )
+        resp_obj = self.assertPutResponse(
+            url,
+            requests.codes.created,
+            json_request_body=dict(
+                query=self.sample_percolate_query,
+                callback_url=self.callback_url),
+            headers=self._get_auth_header()
+        )
         uuid_ = resp_obj.json['uuid']
         return uuid_
 
-    def _get_auth_header(self):
+    def _get_auth_header(self, real_header=True):
         credentials, project_id = google.auth.default(scopes=["https://www.googleapis.com/auth/userinfo.email"])
 
         r = google.auth.transport.requests.Request()
         credentials.refresh(r)
         r.session.close()
 
-        token = credentials.token
+        token = credentials.token if real_header else str(uuid.uuid4())
 
         return {"Authorization": f"Bearer {token}"}
 
