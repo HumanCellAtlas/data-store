@@ -9,7 +9,6 @@ import os
 import json
 import logging
 
-import connexion
 import flask
 import requests
 import connexion.apis.abstract
