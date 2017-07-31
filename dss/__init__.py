@@ -77,7 +77,13 @@ class DSSApp(connexion.App):
             body=problem,
         ))
 
+
 class OperationWithAuthorizer(Operation):
+    # Can't set authorized_domains here b/c config needs to be set before you
+    # call get_allowed_email_domains or else when this file imported from
+    # test_subscriptions, this will throw an error. Instead, testing_403 is
+    # set to true in the test environment when needed.
+    testing_403 = False
     def oauth2_authorize(self, function):
         def wrapper(request):
             authorized_domains = Config.get_allowed_email_domains().split()
@@ -88,7 +94,7 @@ class OperationWithAuthorizer(Operation):
                     raise OAuthProblem(description="Authorization token has expired")
                 if json.loads(token_info["email_verified"]) is not True:
                     raise OAuthProblem(description="User email is unverified")
-                if not any(token_info["email"].endswith(f"@{ad}") for ad in authorized_domains):
+                if self.testing_403 or not any(token_info["email"].endswith(f"@{ad}") for ad in authorized_domains):
                     raise Forbidden(description="User email is not authorized to access this resource")
             return function(request)
         return wrapper

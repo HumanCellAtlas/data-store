@@ -7,8 +7,10 @@ import os
 import sys
 import unittest
 import uuid
+from contextlib import contextmanager
 from io import open
 
+import connexion.apis.abstract
 import google.auth
 import google.auth.transport.requests
 import requests
@@ -18,7 +20,7 @@ sys.path.insert(0, pkg_root) # noqa
 
 import dss
 from dss import DSS_ELASTICSEARCH_INDEX_NAME, DSS_ELASTICSEARCH_DOC_TYPE, DSS_ELASTICSEARCH_QUERY_TYPE
-from dss.config import DeploymentStage, override_email_config
+from dss.config import DeploymentStage
 from dss.util import UrlBuilder
 from dss.util.es import ElasticsearchClient, get_elasticsearch_index
 from tests.es import check_start_elasticsearch_service, close_elasticsearch_connections, elasticsearch_delete_index
@@ -71,7 +73,7 @@ class TestSubscriptions(unittest.TestCase, DSSAsserts):
                   .set(path="/v1/subscriptions/" + str(uuid.uuid4()))
                   .add_query("replica", "aws"))
 
-        with override_email_config(DeploymentStage.NO_AUTH):
+        with self.throw_403():
             resp_obj = self.assertGetResponse(url, requests.codes.forbidden, headers=self._get_auth_header())
         self.assertEqual(resp_obj.response.headers['Content-Type'], "application/problem+json")
 
@@ -104,7 +106,7 @@ class TestSubscriptions(unittest.TestCase, DSSAsserts):
         self.assertEqual(self.callback_url, json_response['callback_url'])
 
         # Forbidden request w/ previous url
-        with override_email_config(DeploymentStage.NO_AUTH):
+        with self.throw_403():
             self.assertGetResponse(
                 url,
                 requests.codes.forbidden,
@@ -142,7 +144,7 @@ class TestSubscriptions(unittest.TestCase, DSSAsserts):
                   .add_query("replica", "aws"))
 
         # Forbidden delete request
-        with override_email_config(DeploymentStage.NO_AUTH):
+        with self.throw_403():
             self.assertDeleteResponse(url, requests.codes.forbidden, headers=self._get_auth_header())
 
         # Authorized delete
@@ -177,6 +179,15 @@ class TestSubscriptions(unittest.TestCase, DSSAsserts):
         token = credentials.token if real_header else str(uuid.uuid4())
 
         return {"Authorization": f"Bearer {token}"}
+
+    @contextmanager
+    def throw_403(self):
+        orig_testing_403 = connexion.apis.abstract.Operation.testing_403
+        try:
+            connexion.apis.abstract.Operation.testing_403 = True
+            yield
+        finally:
+            connexion.apis.abstract.Operation.testing_403 = orig_testing_403
 
 
 if __name__ == '__main__':

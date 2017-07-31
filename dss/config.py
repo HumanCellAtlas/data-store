@@ -16,7 +16,6 @@ class DeploymentStage(Enum):
     NORMAL = auto()
     TEST = auto()
     TEST_FIXTURE = auto()
-    NO_AUTH = auto()
 
 
 class Config:
@@ -66,8 +65,6 @@ class Config:
         if Config._S3_BUCKET is None:
             if Config._CURRENT_CONFIG == DeploymentStage.NORMAL:
                 envvar = "DSS_S3_BUCKET"
-            elif Config._CURRENT_CONFIG == DeploymentStage.NO_AUTH:
-                envvar = "DSS_S3_BUCKET_TEST"
             elif Config._CURRENT_CONFIG == DeploymentStage.TEST:
                 envvar = "DSS_S3_BUCKET_TEST"
             elif Config._CURRENT_CONFIG == DeploymentStage.TEST_FIXTURE:
@@ -87,8 +84,6 @@ class Config:
         if Config._GS_BUCKET is None:
             if Config._CURRENT_CONFIG == DeploymentStage.NORMAL:
                 envvar = "DSS_GS_BUCKET"
-            elif Config._CURRENT_CONFIG == DeploymentStage.NO_AUTH:
-                envvar = "DSS_GS_BUCKET_TEST"
             elif Config._CURRENT_CONFIG == DeploymentStage.TEST:
                 envvar = "DSS_GS_BUCKET_TEST"
             elif Config._CURRENT_CONFIG == DeploymentStage.TEST_FIXTURE:
@@ -108,8 +103,6 @@ class Config:
         if Config._ALLOWED_EMAILS is None:
             if Config._CURRENT_CONFIG == DeploymentStage.NORMAL:
                 envvar = "DSS_SUBSCRIPTION_AUTHORIZED_DOMAINS"
-            elif Config._CURRENT_CONFIG == DeploymentStage.NO_AUTH:
-                envvar = "DSS_SUBSCRIPTION_AUTHORIZED_DOMAINS_EMPTY"
             elif Config._CURRENT_CONFIG == DeploymentStage.TEST:
                 envvar = "DSS_SUBSCRIPTION_AUTHORIZED_DOMAINS_TEST"
             elif Config._CURRENT_CONFIG == DeploymentStage.TEST_FIXTURE:
