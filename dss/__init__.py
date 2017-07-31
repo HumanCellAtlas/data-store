@@ -88,7 +88,7 @@ class OperationWithAuthorizer(Operation):
                 if json.loads(token_info["email_verified"]) is not True:
                     raise OAuthProblem(description="User email is unverified")
                 if not any(token_info["email"].endswith(f"@{ad}") for ad in self.authorized_domains):
-+                    raise Forbidden(description="User email is not authorized to access this resource")
+                    raise Forbidden(description="User email is not authorized to access this resource")
             return function(request)
         return wrapper
 
