@@ -45,7 +45,8 @@ def get(uuid: str, replica: str):
     source['replica'] = replica
 
     if source['owner'] != owner:
-        raise DSSException(requests.codes.forbidden, "forbidden", "Your credentials can't access this subscription!")
+        # common_error_handler defaults code to capitalized 'Forbidden' for Werkzeug exception. Keeping consistent.
+        raise DSSException(requests.codes.forbidden, "Forbidden", "Your credentials can't access this subscription!")
 
     return jsonify(source), requests.codes.okay
 
@@ -104,7 +105,7 @@ def put(extras: dict, replica: str):
     except ElasticsearchException:
         logger.critical(f"Percolate query registration failed:\n{percolate_registration}")
         raise DSSException(requests.codes.internal_server_error,
-                           "internal_server_error",
+                           "elasticsearch_error",
                            "Unable to register elasticsearch percolate query!")
 
     extras['owner'] = owner
@@ -121,7 +122,7 @@ def put(extras: dict, replica: str):
                          id=uuid,
                          refresh=True)
         raise DSSException(requests.codes.internal_server_error,
-                           "internal_server_error",
+                           "elasticsearch_error",
                            "Unable to register subscription! Rolling back percolate query.")
 
     return jsonify(dict(uuid=uuid)), requests.codes.created
@@ -143,7 +144,8 @@ def delete(uuid: str, replica: str):
     source = response['_source']
 
     if source['owner'] != owner:
-        raise DSSException(requests.codes.forbidden, "forbidden", "Your credentials can't access this subscription!")
+        # common_error_handler defaults code to capitalized 'Forbidden' for Werkzeug exception. Keeping consistent.
+        raise DSSException(requests.codes.forbidden, "Forbidden", "Your credentials can't access this subscription!")
 
     es_client.delete(index=DSS_ELASTICSEARCH_INDEX_NAME,
                      doc_type=DSS_ELASTICSEARCH_QUERY_TYPE,

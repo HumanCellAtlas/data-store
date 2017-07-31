@@ -301,7 +301,16 @@ paths:
         default:
           description: Unexpected error
           schema:
-            $ref: '#/definitions/Error'
+            allOf:
+              - $ref: '#/definitions/Error'
+              - type: object
+                properties:
+                  code:
+                    type: string
+                    description: Machine-readable error code.  The types of return values should not be changed lightly.
+                    enum: [unhandled_exception, Forbidden, OAuthResponseProblem]
+                required:
+                  - code
     put:
       summary: Create a event subscription.
       description: |
@@ -345,14 +354,19 @@ paths:
                 pattern: "[A-Za-z0-9]{8}-[A-Za-z0-9]{4}-[A-Za-z0-9]{4}-[A-Za-z0-9]{4}-[A-Za-z0-9]{12}"
             required:
               - uuid
-        500:
-          description: Internal Server Error
-          schema:
-            $ref: '#/definitions/Error'
         default:
           description: Unexpected error
           schema:
-            $ref: '#/definitions/Error'
+            allOf:
+              - $ref: '#/definitions/Error'
+              - type: object
+                properties:
+                  code:
+                    type: string
+                    description: Machine-readable error code.  The types of return values should not be changed lightly.
+                    enum: [unhandled_exception, Forbidden, OAuthResponseProblem, elasticsearch_error]
+                required:
+                  - code
   /subscriptions/{uuid}:
     get:
       summary: Retrieve an event subscription given a UUID.
@@ -383,18 +397,19 @@ paths:
             properties:
               subscription:
                 $ref: "#/definitions/Subscription"
-        403:
-          description: Forbidden
-          schema:
-            $ref: '#/definitions/Error'
-        404:
-          description: Subscription Not Found
-          schema:
-            $ref: '#/definitions/Error'
         default:
           description: Unexpected error
           schema:
-            $ref: '#/definitions/Error'
+            allOf:
+              - $ref: '#/definitions/Error'
+              - type: object
+                properties:
+                  code:
+                    type: string
+                    description: Machine-readable error code.  The types of return values should not be changed lightly.
+                    enum: [unhandled_exception, Forbidden, OAuthResponseProblem, not_found]
+                required:
+                  - code
     delete:
       summary: Delete an event subscription.
       description: |
@@ -428,18 +443,19 @@ paths:
                 format: date-time
             required:
               - timeDeleted
-        403:
-          description: Forbidden
-          schema:
-            $ref: '#/definitions/Error'
-        404:
-          description: Subscription Not Found
-          schema:
-            $ref: '#/definitions/Error'
         default:
           description: Unexpected error
           schema:
-            $ref: '#/definitions/Error'
+            allOf:
+              - $ref: '#/definitions/Error'
+              - type: object
+                properties:
+                  code:
+                    type: string
+                    description: Machine-readable error code.  The types of return values should not be changed lightly.
+                    enum: [unhandled_exception, Forbidden, OAuthResponseProblem, not_found]
+                required:
+                  - code
   /bundles:
     get:
       summary: Query bundles
