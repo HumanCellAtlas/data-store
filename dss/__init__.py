@@ -83,6 +83,7 @@ class OperationWithAuthorizer(Operation):
     # call get_allowed_email_domains or else when this file imported from
     # test_subscriptions, this will throw an error. Instead, testing_403 is
     # set to true in the test environment when needed.
+    # TODO: Remove flag trigger
     testing_403 = False
     def oauth2_authorize(self, function):
         def wrapper(request):
