@@ -140,16 +140,3 @@ def override_bucket_config(temp_config: DeploymentStage):
     finally:
         Config._CURRENT_CONFIG = original_config
         Config._clear_cached_bucket_config()
-
-
-@contextmanager
-def override_email_config(temp_config: DeploymentStage):
-    original_config = Config._CURRENT_CONFIG
-    Config._clear_cached_email_config()
-
-    try:
-        Config._CURRENT_CONFIG = temp_config
-        yield
-    finally:
-        Config._CURRENT_CONFIG = original_config
-        Config._clear_cached_email_config()
