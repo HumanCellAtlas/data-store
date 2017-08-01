@@ -29,7 +29,6 @@ API_HOST=hca-dss.czi.technology
 TOKENINFO_URL=https://hca-dss.czi.technology/internal/tokeninfo
 DSS_SUBSCRIPTION_AUTHORIZED_DOMAINS="chanzuckerberg.com ucsc.edu broadinstitute.org ebi.ac.uk"
 DSS_SUBSCRIPTION_AUTHORIZED_DOMAINS_TEST="human-cell-atlas-travis-test.iam.gserviceaccount.com"
-DSS_SUBSCRIPTION_AUTHORIZED_DOMAINS_EMPTY=""
 set +a
 
 if [[ -f "${DSS_HOME}/environment.local" ]]; then
