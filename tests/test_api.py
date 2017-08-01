@@ -5,8 +5,6 @@
 Functional Test of the API
 """
 
-from __future__ import absolute_import, division, print_function, unicode_literals
-
 import os, sys, unittest
 
 pkg_root = os.path.abspath(os.path.join(os.path.dirname(__file__), '..'))  # noqa
