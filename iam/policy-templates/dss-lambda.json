@@ -31,7 +31,8 @@
       "Action": [
         "es:ESHttpGet",
         "es:ESHttpHead",
-        "es:ESHttpPut"
+        "es:ESHttpPut",
+        "es:ESHttpDelete"
       ],
       "Resource": "arn:aws:es:*:$account_id:domain/dss-index-$stage/*"
     }
