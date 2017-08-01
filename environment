@@ -26,7 +26,9 @@ DSS_GS_BUCKET_TEST=org-humancellatlas-dss-test
 DSS_GS_BUCKET_TEST_FIXTURES=org-humancellatlas-dss-test-fixtures
 GOOGLE_APPLICATION_CREDENTIALS="${DSS_HOME}/gcp-credentials.json"
 API_HOST=hca-dss.czi.technology
-AUTHORIZED_DOMAINS="chanzuckerberg.com ucsc.edu broadinstitute.org ebi.ac.uk"
+TOKENINFO_URL=https://hca-dss.czi.technology/internal/tokeninfo
+DSS_SUBSCRIPTION_AUTHORIZED_DOMAINS="chanzuckerberg.com ucsc.edu broadinstitute.org ebi.ac.uk"
+DSS_SUBSCRIPTION_AUTHORIZED_DOMAINS_TEST="human-cell-atlas-travis-test.iam.gserviceaccount.com"
 set +a
 
 if [[ -f "${DSS_HOME}/environment.local" ]]; then

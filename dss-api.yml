@@ -301,7 +301,16 @@ paths:
         default:
           description: Unexpected error
           schema:
-            $ref: '#/definitions/Error'
+            allOf:
+              - $ref: '#/definitions/Error'
+              - type: object
+                properties:
+                  code:
+                    type: string
+                    description: Machine-readable error code.  The types of return values should not be changed lightly.
+                    enum: [unhandled_exception, Forbidden, OAuthResponseProblem]
+                required:
+                  - code
     put:
       summary: Create a event subscription.
       description: |
@@ -345,6 +354,19 @@ paths:
                 pattern: "[A-Za-z0-9]{8}-[A-Za-z0-9]{4}-[A-Za-z0-9]{4}-[A-Za-z0-9]{4}-[A-Za-z0-9]{12}"
             required:
               - uuid
+        default:
+          description: Unexpected error
+          schema:
+            allOf:
+              - $ref: '#/definitions/Error'
+              - type: object
+                properties:
+                  code:
+                    type: string
+                    description: Machine-readable error code.  The types of return values should not be changed lightly.
+                    enum: [unhandled_exception, Forbidden, OAuthResponseProblem, elasticsearch_error]
+                required:
+                  - code
   /subscriptions/{uuid}:
     get:
       summary: Retrieve an event subscription given a UUID.
@@ -378,7 +400,16 @@ paths:
         default:
           description: Unexpected error
           schema:
-            $ref: '#/definitions/Error'
+            allOf:
+              - $ref: '#/definitions/Error'
+              - type: object
+                properties:
+                  code:
+                    type: string
+                    description: Machine-readable error code.  The types of return values should not be changed lightly.
+                    enum: [unhandled_exception, Forbidden, OAuthResponseProblem, not_found]
+                required:
+                  - code
     delete:
       summary: Delete an event subscription.
       description: |
@@ -415,7 +446,16 @@ paths:
         default:
           description: Unexpected error
           schema:
-            $ref: '#/definitions/Error'
+            allOf:
+              - $ref: '#/definitions/Error'
+              - type: object
+                properties:
+                  code:
+                    type: string
+                    description: Machine-readable error code.  The types of return values should not be changed lightly.
+                    enum: [unhandled_exception, Forbidden, OAuthResponseProblem, not_found]
+                required:
+                  - code
   /bundles:
     get:
       summary: Query bundles
@@ -696,10 +736,10 @@ definitions:
         description: Replica this query is monitoring. One of aws, gcp, or azure.
         type: string
         enum: [aws, gcp, azure]
-      creator_uid:
-        type: integer
-        format: int
-        description: User ID who created this subscription.
+      owner:
+        type: string
+        format: email
+        description: User who created this subscription.
       callback_url:
         description: Url to send request to when a bundle comes in that matches this query.
         type: string
@@ -709,7 +749,7 @@ definitions:
     required:
       - uuid
       - replica
-      - creator_uid
+      - owner
       - callback_url
       - query
   bundle_version:
