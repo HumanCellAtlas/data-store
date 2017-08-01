@@ -30,7 +30,8 @@
       "Effect": "Allow",
       "Action": [
         "es:ESHttpGet",
-        "es:ESHttpHead"
+        "es:ESHttpHead",
+        "es:ESHttpPut"
       ],
       "Resource": "arn:aws:es:*:$account_id:domain/dss-index-$stage/*"
     }
