@@ -73,12 +73,17 @@ class TestSubscriptions(unittest.TestCase, DSSAsserts):
                   .set(path="/v1/subscriptions/" + str(uuid.uuid4()))
                   .add_query("replica", "aws"))
 
+        # Unauthorized email
         with self.throw_403():
             resp_obj = self.assertGetResponse(url, requests.codes.forbidden, headers=self._get_auth_header())
         self.assertEqual(resp_obj.response.headers['Content-Type'], "application/problem+json")
 
+        # Gibberish auth header
         resp_obj = self.assertGetResponse(url, requests.codes.unauthorized, headers=self._get_auth_header(False))
         self.assertEqual(resp_obj.response.headers['Content-Type'], "application/problem+json")
+
+        # No auth header
+        resp_obj = self.assertGetResponse(url, requests.codes.unauthorized)
 
     def test_put(self):
         uuid_ = self._put_subscription()
