@@ -13,9 +13,8 @@ class BlobStore:
             delimiter: str=None,
     ) -> typing.Iterator[str]:
         """
-        Returns an iterator of all blob entries in a bucket that match a given
-        prefix.  Do not return any keys that contain the delimiter past the
-        prefix.
+        Returns an iterator of all blob entries in a bucket that match a given prefix.  Do not return any keys that
+        contain the delimiter past the prefix.
         """
         raise NotImplementedError()
 
@@ -28,9 +27,8 @@ class BlobStore:
         # users of this API should not need to know the argument names presented
         # to the cloud API.
         """
-        Retrieves a presigned URL for the given HTTP method for blob
-        ``object_name``. Raises BlobNotFoundError if the blob is not
-        present.
+        Retrieves a presigned URL for the given HTTP method for blob `object_name`. Raises BlobNotFoundError if the blob
+        is not present.
         """
         raise NotImplementedError()
 
@@ -40,16 +38,14 @@ class BlobStore:
             object_name: str,
             src_file_handle: typing.BinaryIO):
         """
-        Saves the contents of a file handle as the contents of an object in a
-        bucket.
+        Saves the contents of a file handle as the contents of an object in a bucket.
         """
         raise NotImplementedError()
 
     def delete(self, bucket: str, object_name: str):
         """
-        Deletes an object in a bucket.  If the operation definitely did not
-        delete anything, return False.  Any other return value is treated as
-        something was possibly deleted.
+        Deletes an object in a bucket.  If the operation definitely did not delete anything, return False.  Any other
+        return value is treated as something was possibly deleted.
         """
         raise NotImplementedError()
 
@@ -82,9 +78,8 @@ class BlobStore:
             object_name: str
     ) -> typing.Dict[str, str]:
         """
-        Retrieves the metadata for a given object in a given bucket.  If the
-        platform has any mandatory prefixes or suffixes for the metadata keys,
-        they should be stripped before being returned.
+        Retrieves the metadata for a given object in a given bucket.  If the platform has any mandatory prefixes or
+        suffixes for the metadata keys, they should be stripped before being returned.
         :param bucket: the bucket the object resides in.
         :param object_name: the name of the object for which metadata is being
         retrieved.

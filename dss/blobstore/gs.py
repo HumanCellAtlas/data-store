@@ -31,8 +31,8 @@ class GSBlobStore(BlobStore):
             delimiter: str=None,
     ) -> typing.Iterator[str]:
         """
-        Returns an iterator of all blob entries in a bucket that match a given
-        prefix.  Do not return any keys that contain the delimiter past the
+        Returns an iterator of all blob entries in a bucket that match a given prefix.  Do not return any keys that
+        contain the delimiter past the
         prefix.
         """
         kwargs = dict()
@@ -101,9 +101,8 @@ class GSBlobStore(BlobStore):
             object_name: str
     ) -> typing.Dict[str, str]:
         """
-        Retrieves the metadata for a given object in a given bucket.  If the
-        platform has any mandatory prefixes or suffixes for the metadata keys,
-        they should be stripped before being returned.
+        Retrieves the metadata for a given object in a given bucket.  If the platform has any mandatory prefixes or
+        suffixes for the metadata keys, they should be stripped before being returned.
         :param bucket: the bucket the object resides in.
         :param object_name: the name of the object for which metadata is being
         retrieved.
