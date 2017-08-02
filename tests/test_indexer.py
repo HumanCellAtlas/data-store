@@ -5,22 +5,26 @@ import json
 import logging
 import os
 import sys
+import threading
 import time
 import unittest
+import uuid
+from http.server import BaseHTTPRequestHandler, HTTPServer
 from typing import Dict
 
 import boto3
-from botocore.exceptions import ClientError
+import google.auth
+import google.auth.transport.requests
 import moto
-
+import requests
+from botocore.exceptions import ClientError
 
 import dss
 from dss import (DeploymentStage, Config,
                  DSS_ELASTICSEARCH_INDEX_NAME, DSS_ELASTICSEARCH_DOC_TYPE,
-                 DSS_ELASTICSEARCH_QUERY_TYPE, DSS_ELASTICSEARCH_SUBSCRIPTION_INDEX_NAME,
-                 DSS_ELASTICSEARCH_SUBSCRIPTION_TYPE)
+                 DSS_ELASTICSEARCH_SUBSCRIPTION_INDEX_NAME)
 from dss.events.handlers.index import process_new_indexable_object
-from dss.util import create_blob_key
+from dss.util import create_blob_key, UrlBuilder
 from dss.util.es import ElasticsearchClient
 
 pkg_root = os.path.abspath(os.path.join(os.path.dirname(__file__), '..'))  # noqa
@@ -31,7 +35,8 @@ sys.path.insert(0, fixtures_root)  # noqa
 
 from tests.es import check_start_elasticsearch_service, elasticsearch_delete_index
 from tests.fixtures.populate import populate
-from tests.infra import DSSAsserts, StorageTestSupport, S3TestBundle
+from tests.infra import DSSAsserts, StorageTestSupport, S3TestBundle, start_verbose_logging
+
 
 # The moto mock has two defects that show up when used by the dss core storage system.
 # Use actual S3 until these defects are fixed in moto.
@@ -41,6 +46,12 @@ USE_AWS_S3 = bool(os.environ.get("USE_AWS_S3", True))
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 logger.setLevel(logging.INFO)
+
+
+start_verbose_logging()
+for logger_name in logging.Logger.manager.loggerDict:  # type: ignore
+    if logger_name.startswith("elasticsearch"):
+        logging.getLogger(logger_name).setLevel(logging.WARNING)
 
 
 #
@@ -58,8 +69,12 @@ logger.setLevel(logging.INFO)
 
 class TestIndexer(unittest.TestCase, DSSAsserts, StorageTestSupport):
 
+    http_server_address = "127.0.0.1"
+    http_server_port = 8729
+
     @classmethod
     def setUpClass(cls):
+        Config.set_config(DeploymentStage.TEST)
         if not USE_AWS_S3:  # Setup moto mocks
             cls.mock_s3 = moto.mock_s3()
             cls.mock_s3.start()
@@ -75,15 +90,21 @@ class TestIndexer(unittest.TestCase, DSSAsserts, StorageTestSupport):
             os.environ["DSS_ES_ENDPOINT"] = "localhost"
         check_start_elasticsearch_service()
 
+        cls.http_server = HTTPServer((cls.http_server_address, cls.http_server_port), PostTestHandler)
+        cls.http_server_thread = threading.Thread(target=cls.http_server.serve_forever)
+        cls.http_server_thread.start()
+
     @classmethod
     def tearDownClass(cls):
         if not USE_AWS_S3:  # Teardown moto mocks
             cls.mock_sts.stop()
             cls.mock_s3.stop()
+        cls.http_server.shutdown()
 
     def setUp(self):
         self.app = dss.create_app().app.test_client()
         elasticsearch_delete_index("_all")
+        PostTestHandler.reset()
 
     def tearDown(self):
         self.app = None
@@ -162,20 +183,67 @@ class TestIndexer(unittest.TestCase, DSSAsserts, StorageTestSupport):
 
         self.assertIs(es_client_after_first_call, es_client_after_second_call)
 
-    def test_subscription_notification(self):
+    def test_subscription_notification_successful(self):
         bundle_key = self.load_test_data_bundle_for_path('fixtures/smartseq2/paired_ends')
         sample_s3_event = self.create_sample_s3_bundle_created_event(bundle_key)
         process_new_indexable_object(sample_s3_event, logger)
 
         ElasticsearchClient.get(logger).indices.create(DSS_ELASTICSEARCH_SUBSCRIPTION_INDEX_NAME)
-        subscribe_for_notification(smartseq2_paired_ends_query,
-                                   "https://example.com/notification",
-                                   "6112f2a3-8b89-4e54-bbc0-65a98bf8fb8b")
+        subscription_id = self.subscribe_for_notification(smartseq2_paired_ends_query,
+                                                          f"http://{self.http_server_address}:{self.http_server_port}")
 
         bundle_key = self.load_test_data_bundle_for_path('fixtures/smartseq2/paired_ends')
         sample_s3_event = self.create_sample_s3_bundle_created_event(bundle_key)
         process_new_indexable_object(sample_s3_event, logger)
-        # TODO (mbaumann) Verify notification
+        prefix, _, bundle_id = bundle_key.partition("/")
+        self.verify_notification(subscription_id, smartseq2_paired_ends_query, bundle_id)
+
+    def test_subscription_notification_unsuccessful(self):
+        bundle_key = self.load_test_data_bundle_for_path('fixtures/smartseq2/paired_ends')
+        sample_s3_event = self.create_sample_s3_bundle_created_event(bundle_key)
+        process_new_indexable_object(sample_s3_event, logger)
+
+        ElasticsearchClient.get(logger).indices.create(DSS_ELASTICSEARCH_SUBSCRIPTION_INDEX_NAME)
+        subscription_id = self.subscribe_for_notification(smartseq2_paired_ends_query,
+                                                          f"http://{self.http_server_address}:{self.http_server_port}")
+
+        bundle_key = self.load_test_data_bundle_for_path('fixtures/smartseq2/paired_ends')
+        sample_s3_event = self.create_sample_s3_bundle_created_event(bundle_key)
+        error_response_code = 500
+        PostTestHandler.set_response_code(error_response_code)
+        with self.assertLogs(logger, level="WARNING") as log_monitor:
+            process_new_indexable_object(sample_s3_event, logger)
+        prefix, _, bundle_id = bundle_key.partition("/")
+        self.assertRegex(log_monitor.output[0],
+                         f"WARNING:.*:Failed notification for subscription {subscription_id}"
+                         f" for bundle {bundle_id} with transaction id .+ Code: {error_response_code}")
+
+    def verify_notification(self, subscription_id, query, bundle_id):
+        posted_payload_string = self.get_notification_payload()
+        self.assertIsNotNone(posted_payload_string)
+        posted_json = json.loads(posted_payload_string)
+        self.assertIn("transaction_id", posted_json)
+        self.assertIn("subscription_id", posted_json)
+        self.assertEqual(subscription_id, posted_json['subscription_id'])
+        self.assertIn("query", posted_json)
+        self.assertEqual(query, posted_json['query'])
+        self.assertIn("match", posted_json)
+        bundle_uuid, _, bundle_version = bundle_id.partition(".")
+        self.assertEqual(bundle_uuid, posted_json['match']['bundle_uuid'])
+        self.assertEqual(bundle_version, posted_json['match']['bundle_version'])
+
+    @staticmethod
+    def get_notification_payload():
+        timeout = 2
+        timeout_time = time.time() + timeout
+        while True:
+            posted_payload_string = PostTestHandler.get_payload()
+            if posted_payload_string:
+                return posted_payload_string
+            if time.time() >= timeout_time:
+                return None
+            else:
+                time.sleep(0.5)
 
     def load_test_data_bundle_for_path(self, fixture_path: str):
         bundle = S3TestBundle(fixture_path)
@@ -184,6 +252,32 @@ class TestIndexer(unittest.TestCase, DSSAsserts, StorageTestSupport):
     def load_test_data_bundle(self, bundle: S3TestBundle):
         self.upload_files_and_create_bundle(bundle)
         return f"bundles/{bundle.uuid}.{bundle.version}"
+
+    def subscribe_for_notification(self, query, callback_url):
+        url = str(UrlBuilder()
+                  .set(path="/v1/subscriptions")
+                  .add_query("replica", "aws"))
+        resp_obj = self.assertPutResponse(
+            url,
+            requests.codes.created,
+            json_request_body=dict(
+                query=query,
+                callback_url=callback_url),
+            headers=self.get_auth_header()
+        )
+        uuid_ = resp_obj.json['uuid']
+        return uuid_
+
+    def get_auth_header(self, token=None):
+        credentials, project_id = google.auth.default(scopes=["https://www.googleapis.com/auth/userinfo.email"])
+
+        if not token:
+            r = google.auth.transport.requests.Request()
+            credentials.refresh(r)
+            r.session.close()
+            token = credentials.token
+
+        return {"Authorization": f"Bearer {token}"}
 
     @staticmethod
     def create_sample_s3_bundle_created_event(bundle_key: str) -> Dict:
@@ -232,6 +326,31 @@ class TestIndexer(unittest.TestCase, DSSAsserts, StorageTestSupport):
             else:
                 time.sleep(0.5)
 
+
+class PostTestHandler(BaseHTTPRequestHandler):
+    _response_code = 200
+    _payload = None
+
+    def do_POST(self):
+        self.send_response(self._response_code)
+        self.end_headers()
+        length = int(self.headers['content-length'])
+        if length:
+            PostTestHandler._payload = self.rfile.read(length).decode("utf-8")
+
+    @classmethod
+    def reset(cls):
+        cls._response_code = 200
+        cls._payload = None
+
+    @classmethod
+    def set_response_code(cls, code: int):
+        cls._response_code = code
+
+    @classmethod
+    def get_payload(cls):
+        return cls._payload
+
 smartseq2_paried_ends_indexed_file_list = ["assay_json", "cell_json", "manifest_json", "project_json", "sample_json"]
 
 
@@ -264,27 +383,6 @@ def create_s3_bucket(bucket_name) -> None:
     except ClientError as ex:
         if ex.response['Error']['Code'] != 'BucketAlreadyOwnedByYou':
             logger.error(f"An unexpected error occured when creating test bucket: {bucket_name}")
-
-
-def subscribe_for_notification(query, callback_url, subscription_id):
-    subscription = {
-        'owner': "test@example.com",
-        'callback_url': callback_url,
-        'query': query
-    }
-    # Add query
-    ElasticsearchClient.get(logger).index(index=DSS_ELASTICSEARCH_INDEX_NAME,
-                                          doc_type=DSS_ELASTICSEARCH_QUERY_TYPE,
-                                          id=subscription_id,
-                                          body=query,
-                                          refresh=True)  # Okay to refresh when adding a subscription in a test.
-    # Add subscription
-    ElasticsearchClient.get(logger).index(index=DSS_ELASTICSEARCH_SUBSCRIPTION_INDEX_NAME,
-                                          doc_type=DSS_ELASTICSEARCH_SUBSCRIPTION_TYPE,
-                                          id=subscription_id,
-                                          body=subscription,
-                                          refresh=True)  # Okay to refresh when adding a subscription in a test.
-
 
 def deleteFileBlob(bundle_key, filename):
     s3 = boto3.resource('s3')
