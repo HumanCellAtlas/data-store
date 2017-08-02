@@ -204,7 +204,7 @@ def get_subscription(subscription_id, logger):
 
 def notify(subscription_id, subscription, bundle_id, logger):
     bundle_uuid, _, bundle_version = bundle_id.partition(".")
-    transaction_id = uuid.uuid4()
+    transaction_id = str(uuid.uuid4())
     payload = {
         "transaction_id": transaction_id,
         "subscription_id": subscription_id,
@@ -216,7 +216,7 @@ def notify(subscription_id, subscription, bundle_id, logger):
     }
     # TODO (mbaumann) Ensure webhooks are only delivered over verified HTTPS (unless maybe when running a test)
     callback_url = subscription['callback_url']
-    response = requests.post(callback_url, data=payload)
+    response = requests.post(callback_url, json=payload)
     # TODO (mbaumann) Add webhook retry logic
     if 200 <= response.status_code < 300:
         logger.info(f"Successfully notified for subscription {subscription_id}"
