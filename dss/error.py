@@ -1,7 +1,7 @@
+import functools
+import inspect
 import traceback
 
-import flask
-import functools
 import requests
 import werkzeug.exceptions
 from connexion.lifecycle import ConnexionResponse
@@ -15,10 +15,19 @@ class DSSException(Exception):
         self.message = title
 
 
+class DSSBindingException(DSSException):
+    def __init__(self, title, *args, **kwargs) -> None:
+        super().__init__(requests.codes.bad_request, "illegal_arguments", title, *args, **kwargs)
+
+
 def dss_handler(func):
     @functools.wraps(func)
     def wrapper(*args, **kwargs):
         try:
+            try:
+                inspect.getcallargs(func, *args, **kwargs)
+            except TypeError as ex:
+                raise DSSBindingException(str(ex))
             return func(*args, **kwargs)
         except werkzeug.exceptions.HTTPException as ex:
             status = ex.code
