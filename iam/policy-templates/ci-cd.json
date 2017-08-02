@@ -73,6 +73,14 @@
       "Resource": "arn:aws:iam::$account_id:role/"
     },
     {
+      "Sid": "hcaDssCiCdFilterLogEvents",
+      "Effect": "Allow",
+      "Action": [
+        "logs:FilterLogEvents"
+      ],
+      "Resource": "arn:aws:logs:*:$account_id:log-group:/aws/lambda/dss-chunked-task-${DSS_DEPLOYMENT_STAGE}*"
+    },
+    {
       "Sid": "hcaDssCiCdLambdaElasticsearchSNSAdminAccess",
       "Action": [
         "lambda:*",
