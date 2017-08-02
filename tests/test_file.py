@@ -205,6 +205,24 @@ class TestFileApi(unittest.TestCase, DSSAsserts):
                     expect_stacktrace=True)
             )
 
+    def test_file_get_no_replica(self):
+        """
+        Verify we raise the correct error code when we provide no replica.
+        """
+        file_uuid = "ce55fd51-7833-469b-be0b-5da88ec0ffee"
+
+        url = str(UrlBuilder()
+                  .set(path="/v1/files/" + file_uuid))
+
+        with override_bucket_config(DeploymentStage.TEST_FIXTURE):
+            self.assertGetResponse(
+                url,
+                requests.codes.bad_request,
+                expected_error=ExpectedErrorFields(
+                    code="illegal_arguments",
+                    status=requests.codes.bad_request,
+                    expect_stacktrace=True)
+            )
 
 if __name__ == '__main__':
     unittest.main()
