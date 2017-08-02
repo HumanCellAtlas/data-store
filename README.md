@@ -32,7 +32,7 @@ Run: `git submodule update --init`
 #### Environment Variables
 
 Environment variables are required for test and deployment.
-The required environment variables and their default values are in the file `environment`
+The required environment variables and their default values are in the file `environment`.
 To customize the values of these environment variables:
 
 1. Copy `environment.local.example` to `environment.local`
