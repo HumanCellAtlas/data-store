@@ -263,19 +263,19 @@ class TestIndexer(unittest.TestCase, DSSAsserts, StorageTestSupport):
             json_request_body=dict(
                 query=query,
                 callback_url=callback_url),
-            headers=self._get_auth_header()
+            headers=self.get_auth_header()
         )
         uuid_ = resp_obj.json['uuid']
         return uuid_
 
-    def _get_auth_header(self, real_header=True):
+    def get_auth_header(self, token=None):
         credentials, project_id = google.auth.default(scopes=["https://www.googleapis.com/auth/userinfo.email"])
 
-        r = google.auth.transport.requests.Request()
-        credentials.refresh(r)
-        r.session.close()
-
-        token = credentials.token if real_header else str(uuid.uuid4())
+        if not token:
+            r = google.auth.transport.requests.Request()
+            credentials.refresh(r)
+            r.session.close()
+            token = credentials.token
 
         return {"Authorization": f"Bearer {token}"}
 
