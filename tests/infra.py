@@ -1,4 +1,5 @@
 import functools
+import inspect
 import json
 import logging
 import os
@@ -245,3 +246,12 @@ class StorageTestSupport:
             )
             self.assertEqual(bundle_file.bundle.uuid, response[0].headers['X-DSS-BUNDLE-UUID'])
             self.assertEqual(bundle_file.version, response[0].headers['X-DSS-VERSION'])
+
+
+def generate_test_key() -> str:
+    callerframerecord = inspect.stack()[1]  # 0 represents this line, 1 represents line at caller.
+    frame = callerframerecord[0]
+    info = inspect.getframeinfo(frame)
+    unique_key = str(uuid.uuid4())
+
+    return f"{info.filename}/{info.function}/{unique_key}"
