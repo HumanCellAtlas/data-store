@@ -108,7 +108,7 @@ class Config:
             elif Config._CURRENT_CONFIG == DeploymentStage.TEST_FIXTURE:
                 envvar = "DSS_SUBSCRIPTION_AUTHORIZED_DOMAINS_TEST"
             elif Config._CURRENT_CONFIG == DeploymentStage.ILLEGAL:
-                raise Exception("bucket config not set")
+                raise Exception("authorized domains config not set")
 
             if envvar not in os.environ:
                 raise Exception(
