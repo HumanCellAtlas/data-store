@@ -30,3 +30,13 @@ class ARN:
 def send_sns_msg(topic_arn, message):
     sns_topic = resources.sns.Topic(str(topic_arn))
     sns_topic.publish(Message=json.dumps(message))
+
+
+def get_s3_chunk_size(filesize: int) -> int:
+    if filesize <= 10000 * 64 * 1024 * 1024:
+        return 64 * 1024 * 1024
+    else:
+        div = filesize // 10000
+        if div * 10000 < filesize:
+            div += 1
+        return ((div + 1048575) // 1048576) * 1048576
