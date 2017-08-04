@@ -1,1 +1,0 @@
-TESTOUTPUT_PREFIX = "testoutput"
