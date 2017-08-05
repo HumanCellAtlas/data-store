@@ -1,6 +1,6 @@
 import json
 import botocore
-from . import resources, clients
+from . import clients, resources, logging
 
 class ARN:
     fields = "arn partition service region account_id resource".split()

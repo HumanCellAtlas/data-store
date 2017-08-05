@@ -73,6 +73,14 @@
       "Resource": "arn:aws:iam::$account_id:role/"
     },
     {
+      "Sid": "hcaDssCiCdTestLogging",
+      "Effect": "Allow",
+      "Action": [
+        "logs:*"
+      ],
+      "Resource": "arn:aws:logs:*:$account_id:log-group:test_logging*"
+    },
+    {
       "Sid": "hcaDssCiCdFilterLogEvents",
       "Effect": "Allow",
       "Action": [
