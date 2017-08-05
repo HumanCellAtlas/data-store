@@ -7,8 +7,15 @@ lint:
 mypy:
 	mypy --ignore-missing-imports $(MODULES)
 
+test_srcs := $(wildcard tests/test_*.py)
+
 test: lint mypy
 	PYTHONWARNINGS=ignore:ResourceWarning coverage run --source=dss -m unittest discover tests -v
+
+fast_test: lint mypy $(test_srcs)
+
+$(test_srcs): %.py :
+	PYTHONWARNINGS=ignore:ResourceWarning python -m unittest $@
 
 deploy:
 	$(MAKE) -C chalice deploy
@@ -19,4 +26,4 @@ clean:
 	git clean -df chalice/chalicelib daemons/*/domovoilib
 	git checkout {chalice,daemons/*}/.chalice/{config,deployed}.json
 
-.PHONY: test lint mypy
+.PHONY: test lint mypy $(test_srcs)
