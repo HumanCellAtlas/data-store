@@ -17,6 +17,7 @@ from tests.infra import DSSAsserts
 
 class TestSearch(unittest.TestCase, DSSAsserts):
     def setUp(self):
+        dss.Config.set_config(dss.DeploymentStage.TEST)
         self.app = dss.create_app().app.test_client()
 
     def test_search_get(self):
