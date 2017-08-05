@@ -1,11 +1,9 @@
 import io
-import os
-import uuid
 
 import requests
 
 from dss.blobstore import BlobNotFoundError, BlobStore
-from tests import TESTOUTPUT_PREFIX
+from tests import infra
 
 
 class BlobStoreTests:
@@ -81,12 +79,7 @@ class BlobStoreTests:
 
     def testUploadFileHandle(self):
         fobj = io.BytesIO(b"abcabcabc")
-        function_name = "%s.%s" % (
-            self.__class__.__name__,
-            self.testUploadFileHandle.__name__
-        )
-        dst_blob_name = os.path.join(
-            TESTOUTPUT_PREFIX, function_name, str(uuid.uuid4()))
+        dst_blob_name = infra.generate_test_key()
 
         self.handle.upload_file_handle(
             self.test_bucket,
@@ -112,12 +105,7 @@ class BlobStoreTests:
             )
 
     def testCopy(self):
-        function_name = "%s.%s" % (
-            self.__class__.__name__,
-            self.testCopy.__name__
-        )
-        dst_blob_name = os.path.join(
-            TESTOUTPUT_PREFIX, function_name, str(uuid.uuid4()))
+        dst_blob_name = infra.generate_test_key()
 
         self.handle.copy(
             self.test_fixtures_bucket,
