@@ -44,7 +44,7 @@ from tests.infra import DSSAsserts, StorageTestSupport, S3TestBundle, start_verb
 # The moto mock has two defects that show up when used by the dss core storage system.
 # Use actual S3 until these defects are fixed in moto.
 # TODO (mbaumann) When the defects in moto have been fixed, remove True from the line below.
-USE_AWS_S3 = bool(os.environ.get("USE_AWS_S3", True))
+USE_AWS_S3 = bool(os.environ.get('USE_AWS_S3', True))
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
@@ -53,7 +53,7 @@ logger.setLevel(logging.INFO)
 
 start_verbose_logging()
 for logger_name in logging.Logger.manager.loggerDict:  # type: ignore
-    if logger_name.startswith("elasticsearch"):
+    if logger_name.startswith('elasticsearch'):
         logging.getLogger(logger_name).setLevel(logging.WARNING)
 
 
@@ -72,7 +72,7 @@ for logger_name in logging.Logger.manager.loggerDict:  # type: ignore
 
 class TestIndexer(unittest.TestCase, DSSAsserts, StorageTestSupport):
 
-    http_server_address = "127.0.0.1"
+    http_server_address = '127.0.0.1'
     http_server_port = 8729
 
     @classmethod
@@ -89,8 +89,8 @@ class TestIndexer(unittest.TestCase, DSSAsserts, StorageTestSupport):
             Config.set_config(DeploymentStage.TEST)
             create_s3_bucket(Config.get_s3_bucket())
 
-        if "DSS_ES_ENDPOINT" not in os.environ:
-            os.environ["DSS_ES_ENDPOINT"] = "localhost"
+        if 'DSS_ES_ENDPOINT' not in os.environ:
+            os.environ['DSS_ES_ENDPOINT'] = 'localhost'
         check_start_elasticsearch_service()
 
         cls.http_server = HTTPServer((cls.http_server_address, cls.http_server_port), PostTestHandler)
@@ -106,7 +106,7 @@ class TestIndexer(unittest.TestCase, DSSAsserts, StorageTestSupport):
 
     def setUp(self):
         self.app = dss.create_app().app.test_client()
-        elasticsearch_delete_index("_all")
+        elasticsearch_delete_index('_all')
         PostTestHandler.reset()
 
     def tearDown(self):
@@ -126,16 +126,16 @@ class TestIndexer(unittest.TestCase, DSSAsserts, StorageTestSupport):
         bundle = S3TestBundle('fixtures/smartseq2/paired_ends')
         # Configure a file to be indexed that is not of context type 'application/json'
         for file in bundle.files:
-            if file.name == "text_data_file1.txt":
+            if file.name == 'text_data_file1.txt':
                 file.indexed = True
         bundle_key = self.load_test_data_bundle(bundle)
         sample_s3_event = self.create_sample_s3_bundle_created_event(bundle_key)
-        with self.assertLogs(logger, level="WARNING") as log_monitor:
+        with self.assertLogs(logger, level='WARNING') as log_monitor:
             process_new_indexable_object(sample_s3_event, logger)
         self.assertRegex(log_monitor.output[0],
-                         "WARNING:.*:In bundle .* the file \"text_data_file1.txt\" is marked for indexing"
-                         " yet has content type \"text/plain\" instead of the required"
-                         " content type \"application/json\". This file will not be indexed.")
+                         'WARNING:.*:In bundle .* the file \"text_data_file1.txt\" is marked for indexing'
+                         ' yet has content type \"text/plain\" instead of the required'
+                         ' content type \"application/json\". This file will not be indexed.')
         search_results = self.get_search_results(smartseq2_paired_ends_query, 1)
         self.assertEqual(1, len(search_results))
         self.verify_index_document_structure_and_content(search_results[0], bundle_key,
@@ -144,33 +144,33 @@ class TestIndexer(unittest.TestCase, DSSAsserts, StorageTestSupport):
     def test_indexed_file_unparsable(self):
         bundle_key = self.load_test_data_bundle_for_path('fixtures/unparseable_indexed_file')
         sample_s3_event = self.create_sample_s3_bundle_created_event(bundle_key)
-        with self.assertLogs(logger, level="WARNING") as log_monitor:
+        with self.assertLogs(logger, level='WARNING') as log_monitor:
             process_new_indexable_object(sample_s3_event, logger)
         self.assertRegex(log_monitor.output[0],
-                         "WARNING:.*:In bundle .* the file \"unparseable_json.json\" is marked for indexing"
-                         " yet could not be parsed. This file will not be indexed. Exception:")
+                         'WARNING:.*:In bundle .* the file \"unparseable_json.json\" is marked for indexing'
+                         ' yet could not be parsed. This file will not be indexed. Exception:')
         search_results = self.get_search_results(smartseq2_paired_ends_query, 1)
         self.assertEqual(1, len(search_results))
         self.verify_index_document_structure_and_content(search_results[0], bundle_key,
                                                          files=smartseq2_paried_ends_indexed_file_list)
 
     def test_indexed_file_access_error(self):
-        filename = "inaccessible_file.json"
+        inaccessible_file_name = 'inaccessible_file.json'
         bundle_key = self.load_test_data_bundle_with_inaccessible_file(
-            'fixtures/smartseq2/paired_ends', filename, 'application/json', True)
+            'fixtures/smartseq2/paired_ends', inaccessible_file_name, 'application/json', True)
         sample_s3_event = self.create_sample_s3_bundle_created_event(bundle_key)
-        with self.assertLogs(logger, level="WARNING") as log_monitor:
+        with self.assertLogs(logger, level='WARNING') as log_monitor:
             process_new_indexable_object(sample_s3_event, logger)
         self.assertRegex(log_monitor.output[0],
-                         f"WARNING:.*:In bundle .* the file \"{filename}\" is marked for indexing"
-                         " yet could not be accessed. This file will not be indexed. Exception:")
+                         f'WARNING:.*:In bundle .* the file \"{inaccessible_file_name}\" is marked for indexing'
+                         ' yet could not be accessed. This file will not be indexed. Exception:')
         search_results = self.get_search_results(smartseq2_paired_ends_query, 1)
         self.assertEqual(1, len(search_results))
         files = list(smartseq2_paried_ends_indexed_file_list)
-        files.append(filename.replace('.', '_'))
+        files.append(inaccessible_file_name.replace('.', '_'))
         self.verify_index_document_structure_and_content(search_results[0], bundle_key,
                                                          files=files,
-                                                         excluded_files=[filename.replace('.', '_')])
+                                                         excluded_files=[inaccessible_file_name.replace('.', '_')])
 
     def test_es_client_reuse(self):
         from dss.events.handlers.index import ElasticsearchClient
@@ -195,12 +195,12 @@ class TestIndexer(unittest.TestCase, DSSAsserts, StorageTestSupport):
 
         ElasticsearchClient.get(logger).indices.create(DSS_ELASTICSEARCH_SUBSCRIPTION_INDEX_NAME)
         subscription_id = self.subscribe_for_notification(smartseq2_paired_ends_query,
-                                                          f"http://{self.http_server_address}:{self.http_server_port}")
+                                                          f'http://{self.http_server_address}:{self.http_server_port}')
 
         bundle_key = self.load_test_data_bundle_for_path('fixtures/smartseq2/paired_ends')
         sample_s3_event = self.create_sample_s3_bundle_created_event(bundle_key)
         process_new_indexable_object(sample_s3_event, logger)
-        prefix, _, bundle_id = bundle_key.partition("/")
+        prefix, _, bundle_id = bundle_key.partition('/')
         self.verify_notification(subscription_id, smartseq2_paired_ends_query, bundle_id)
 
     def test_subscription_notification_unsuccessful(self):
@@ -210,30 +210,30 @@ class TestIndexer(unittest.TestCase, DSSAsserts, StorageTestSupport):
 
         ElasticsearchClient.get(logger).indices.create(DSS_ELASTICSEARCH_SUBSCRIPTION_INDEX_NAME)
         subscription_id = self.subscribe_for_notification(smartseq2_paired_ends_query,
-                                                          f"http://{self.http_server_address}:{self.http_server_port}")
+                                                          f'http://{self.http_server_address}:{self.http_server_port}')
 
         bundle_key = self.load_test_data_bundle_for_path('fixtures/smartseq2/paired_ends')
         sample_s3_event = self.create_sample_s3_bundle_created_event(bundle_key)
         error_response_code = 500
         PostTestHandler.set_response_code(error_response_code)
-        with self.assertLogs(logger, level="WARNING") as log_monitor:
+        with self.assertLogs(logger, level='WARNING') as log_monitor:
             process_new_indexable_object(sample_s3_event, logger)
-        prefix, _, bundle_id = bundle_key.partition("/")
+        prefix, _, bundle_id = bundle_key.partition('/')
         self.assertRegex(log_monitor.output[0],
-                         f"WARNING:.*:Failed notification for subscription {subscription_id}"
-                         f" for bundle {bundle_id} with transaction id .+ Code: {error_response_code}")
+                         f'WARNING:.*:Failed notification for subscription {subscription_id}'
+                         f' for bundle {bundle_id} with transaction id .+ Code: {error_response_code}')
 
     def verify_notification(self, subscription_id, query, bundle_id):
         posted_payload_string = self.get_notification_payload()
         self.assertIsNotNone(posted_payload_string)
         posted_json = json.loads(posted_payload_string)
-        self.assertIn("transaction_id", posted_json)
-        self.assertIn("subscription_id", posted_json)
+        self.assertIn('transaction_id', posted_json)
+        self.assertIn('subscription_id', posted_json)
         self.assertEqual(subscription_id, posted_json['subscription_id'])
-        self.assertIn("query", posted_json)
+        self.assertIn('query', posted_json)
         self.assertEqual(query, posted_json['query'])
-        self.assertIn("match", posted_json)
-        bundle_uuid, _, bundle_version = bundle_id.partition(".")
+        self.assertIn('match', posted_json)
+        bundle_uuid, _, bundle_version = bundle_id.partition('.')
         self.assertEqual(bundle_uuid, posted_json['match']['bundle_uuid'])
         self.assertEqual(bundle_version, posted_json['match']['bundle_version'])
 
@@ -271,12 +271,12 @@ class TestIndexer(unittest.TestCase, DSSAsserts, StorageTestSupport):
 
     def load_test_data_bundle(self, bundle: S3TestBundle):
         self.upload_files_and_create_bundle(bundle)
-        return f"bundles/{bundle.uuid}.{bundle.version}"
+        return f'bundles/{bundle.uuid}.{bundle.version}'
 
     def subscribe_for_notification(self, query, callback_url):
         url = str(UrlBuilder()
-                  .set(path="/v1/subscriptions")
-                  .add_query("replica", "aws"))
+                  .set(path='/v1/subscriptions')
+                  .add_query('replica', 'aws'))
         resp_obj = self.assertPutResponse(
             url,
             requests.codes.created,
@@ -289,7 +289,7 @@ class TestIndexer(unittest.TestCase, DSSAsserts, StorageTestSupport):
         return uuid_
 
     def get_auth_header(self, token=None):
-        credentials, project_id = google.auth.default(scopes=["https://www.googleapis.com/auth/userinfo.email"])
+        credentials, project_id = google.auth.default(scopes=['https://www.googleapis.com/auth/userinfo.email'])
 
         if not token:
             r = google.auth.transport.requests.Request()
@@ -297,14 +297,14 @@ class TestIndexer(unittest.TestCase, DSSAsserts, StorageTestSupport):
             r.session.close()
             token = credentials.token
 
-        return {"Authorization": f"Bearer {token}"}
+        return {'Authorization': f'Bearer {token}'}
 
     @staticmethod
     def create_sample_s3_bundle_created_event(bundle_key: str) -> Dict:
-        with open(os.path.join(os.path.dirname(__file__), "sample_s3_bundle_created_event.json")) as fh:
+        with open(os.path.join(os.path.dirname(__file__), 'sample_s3_bundle_created_event.json')) as fh:
             sample_s3_event = json.load(fh)
-        sample_s3_event['Records'][0]["s3"]["bucket"]["name"] = Config.get_s3_bucket()
-        sample_s3_event['Records'][0]["s3"]["object"]["key"] = bundle_key
+        sample_s3_event['Records'][0]['s3']['bucket']['name'] = Config.get_s3_bucket()
+        sample_s3_event['Records'][0]['s3']['object']['key'] = bundle_key
         return sample_s3_event
 
     def verify_index_document_structure_and_content(self, actual_index_document,
@@ -312,13 +312,13 @@ class TestIndexer(unittest.TestCase, DSSAsserts, StorageTestSupport):
         self.verify_index_document_structure(actual_index_document, files, excluded_files)
         expected_index_document = generate_expected_index_document(Config.get_s3_bucket(), bundle_key)
         if expected_index_document != actual_index_document:
-            logger.error(f"Expected index document: {json.dumps(expected_index_document, indent=4)}")
-            logger.error(f"Actual index document: {json.dumps(actual_index_document, indent=4)}")
+            logger.error(f'Expected index document: {json.dumps(expected_index_document, indent=4)}')
+            logger.error(f'Actual index document: {json.dumps(actual_index_document, indent=4)}')
             self.assertDictEqual(expected_index_document, actual_index_document)
 
     def verify_index_document_structure(self, index_document, files, excluded_files):
         self.assertEqual(3, len(index_document.keys()))
-        self.assertEqual("new", index_document['state'])
+        self.assertEqual('new', index_document['state'])
         self.assertIsNotNone(index_document['manifest'])
         self.assertIsNotNone(index_document['files'])
         self.assertEqual((len(files) - len(excluded_files)),
@@ -348,6 +348,13 @@ class TestIndexer(unittest.TestCase, DSSAsserts, StorageTestSupport):
 
 
 class BundleBuilder:
+    """
+    Utility class for creating a new bundle for testing purposes.
+
+    The bundle may be composed of existing files in DSS storage
+    and/or intentionally invalid files which cannot be accessed.
+    """
+
     def __init__(self, bundle_id=None, bundle_version=None):
         self.bundle_id = bundle_id if bundle_id else str(uuid.uuid4())
         self.bundle_version = bundle_version if bundle_version else self._get_version()
@@ -355,7 +362,7 @@ class BundleBuilder:
             BundleMetadata.FORMAT: BundleMetadata.FILE_FORMAT_VERSION,
             BundleMetadata.VERSION: self.bundle_version,
             BundleMetadata.FILES: [],
-            BundleMetadata.CREATOR_UID: "0"
+            BundleMetadata.CREATOR_UID: '0'
         }
 
     def get_bundle_id(self):
@@ -363,11 +370,11 @@ class BundleBuilder:
 
     def add_file(self, bucket_name, name, indexed, file_id):
         # Add the existing file to the bundle manifest
-        s3 = boto3.resource("s3")
+        s3 = boto3.resource('s3')
         file_manifest_string = s3.Object(bucket_name=bucket_name,
                                          key=f'files/{file_id}').get()['Body'].read().decode('utf-8')
-        file_manifest = json.loads(file_manifest_string, encoding="utf-8")
-        file_uuid, _, file_version = file_id.partition(".")
+        file_manifest = json.loads(file_manifest_string, encoding='utf-8')
+        file_uuid, _, file_version = file_id.partition('.')
         bundle_file_manifest = {
             BundleFileMetadata.NAME: name,
             BundleFileMetadata.UUID: file_uuid,
@@ -388,22 +395,22 @@ class BundleBuilder:
             BundleFileMetadata.VERSION: self._get_version(),
             BundleFileMetadata.CONTENT_TYPE: content_type,
             BundleFileMetadata.INDEXED: indexed,
-            BundleFileMetadata.CRC32C: "0",
-            BundleFileMetadata.S3_ETAG: "0",
-            BundleFileMetadata.SHA1: "0",
-            BundleFileMetadata.SHA256: "0",
+            BundleFileMetadata.CRC32C: '0',
+            BundleFileMetadata.S3_ETAG: '0',
+            BundleFileMetadata.SHA1: '0',
+            BundleFileMetadata.SHA256: '0',
         }
         self.bundle_manifest[BundleMetadata.FILES].append(bundle_file_manifest)
 
     def store(self, bucket_name):
         boto3.client('s3').upload_fileobj(
-            io.BytesIO(json.dumps(self.bundle_manifest).encode("utf-8")),
+            io.BytesIO(json.dumps(self.bundle_manifest).encode('utf-8')),
             Bucket=bucket_name,
             Key='bundles/' + self.get_bundle_id()
         )
 
     def _get_version(self):
-        return datetime.datetime.utcnow().strftime("%Y-%m-%dT%H%M%S.%fZ")
+        return datetime.datetime.utcnow().strftime('%Y-%m-%dT%H%M%S.%fZ')
 
 
 class PostTestHandler(BaseHTTPRequestHandler):
@@ -415,7 +422,7 @@ class PostTestHandler(BaseHTTPRequestHandler):
         self.end_headers()
         length = int(self.headers['content-length'])
         if length:
-            PostTestHandler._payload = self.rfile.read(length).decode("utf-8")
+            PostTestHandler._payload = self.rfile.read(length).decode('utf-8')
 
     @classmethod
     def reset(cls):
@@ -430,7 +437,7 @@ class PostTestHandler(BaseHTTPRequestHandler):
     def get_payload(cls):
         return cls._payload
 
-smartseq2_paried_ends_indexed_file_list = ["assay_json", "cell_json", "manifest_json", "project_json", "sample_json"]
+smartseq2_paried_ends_indexed_file_list = ['assay_json', 'cell_json', 'manifest_json', 'project_json', 'sample_json']
 
 
 smartseq2_paired_ends_query = \
@@ -439,15 +446,15 @@ smartseq2_paired_ends_query = \
             'bool': {
                 'must': [{
                     'match': {
-                        "files.sample_json.donor.species": "Homo sapiens"
+                        'files.sample_json.donor.species': 'Homo sapiens'
                     }
                 }, {
                     'match': {
-                        "files.assay_json.single_cell.method": "Fluidigm C1"
+                        'files.assay_json.single_cell.method': 'Fluidigm C1'
                     }
                 }, {
                     'match': {
-                        "files.sample_json.ncbi_biosample": "SAMN04303778"
+                        'files.sample_json.ncbi_biosample': 'SAMN04303778'
                     }
                 }]
             }
@@ -461,7 +468,7 @@ def create_s3_bucket(bucket_name) -> None:
         conn.create_bucket(Bucket=bucket_name)
     except ClientError as ex:
         if ex.response['Error']['Code'] != 'BucketAlreadyOwnedByYou':
-            logger.error(f"An unexpected error occured when creating test bucket: {bucket_name}")
+            logger.error(f'An unexpected error occured when creating test bucket: {bucket_name}')
 
 
 def generate_expected_index_document(bucket_name, bundle_key):
@@ -472,13 +479,13 @@ def generate_expected_index_document(bucket_name, bundle_key):
 
 
 def read_bundle_manifest(s3, bucket_name, bundle_key):
-    manifest_string = s3.Object(bucket_name, bundle_key).get()['Body'].read().decode("utf-8")
-    manifest = json.loads(manifest_string, encoding="utf-8")
+    manifest_string = s3.Object(bucket_name, bundle_key).get()['Body'].read().decode('utf-8')
+    manifest = json.loads(manifest_string, encoding='utf-8')
     return manifest
 
 
 def create_index_data(s3, bucket_name, manifest):
-    index = dict(state="new", manifest=manifest)
+    index = dict(state='new', manifest=manifest)
     files_info = manifest['files']
     index_files = {}
     bucket = s3.Bucket(bucket_name)
@@ -489,11 +496,11 @@ def create_index_data(s3, bucket_name, manifest):
                 obj = bucket.Object(file_key)
                 if obj.metadata['hca-dss-content-type'] != 'application/json':
                     continue
-                file_string = obj.get()['Body'].read().decode("utf-8")
+                file_string = obj.get()['Body'].read().decode('utf-8')
                 file_json = json.loads(file_string)
             except Exception:
                 continue
-            index_filename = file_info["name"].replace(".", "_")
+            index_filename = file_info['name'].replace('.', '_')
             index_files[index_filename] = file_json
     index['files'] = index_files
     return index
