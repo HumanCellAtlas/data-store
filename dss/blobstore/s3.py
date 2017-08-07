@@ -125,7 +125,7 @@ class S3BlobStore(BlobStore):
                 Key=object_name
             )
             # hilariously, the ETag is quoted.  Unclear why.
-            return response['ETag'][1:-1]
+            return response['ETag'].strip("\"")
         except botocore.exceptions.ClientError as ex:
             if str(ex.response['Error']['Code']) == \
                     str(requests.codes.not_found):
