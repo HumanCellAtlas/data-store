@@ -108,6 +108,28 @@ class S3BlobStore(BlobStore):
                 raise BlobNotFoundError(ex)
             raise BlobStoreUnknownError(ex)
 
+    def get_all_metadata(
+            self,
+            bucket: str,
+            object_name: str
+    ) -> dict:
+        """
+        Retrieves all the metadata for a given object in a given bucket.
+        :param bucket: the bucket the object resides in.
+        :param object_name: the name of the object for which metadata is being retrieved.
+        :return: the metadata
+        """
+        try:
+            return self.s3_client.head_object(
+                Bucket=bucket,
+                Key=object_name
+            )
+        except botocore.exceptions.ClientError as ex:
+            if str(ex.response['Error']['Code']) == \
+                    str(requests.codes.not_found):
+                raise BlobNotFoundError(ex)
+            raise BlobStoreUnknownError(ex)
+
     def get_cloud_checksum(
             self,
             bucket: str,
@@ -119,18 +141,9 @@ class S3BlobStore(BlobStore):
         :param object_name: the name of the object for which checksum is being retrieved.
         :return: the cloud-provided checksum
         """
-        try:
-            response = self.s3_client.head_object(
-                Bucket=bucket,
-                Key=object_name
-            )
-            # hilariously, the ETag is quoted.  Unclear why.
-            return response['ETag'].strip("\"")
-        except botocore.exceptions.ClientError as ex:
-            if str(ex.response['Error']['Code']) == \
-                    str(requests.codes.not_found):
-                raise BlobNotFoundError(ex)
-            raise BlobStoreUnknownError(ex)
+        response = self.get_all_metadata(bucket, object_name)
+        # hilariously, the ETag is quoted.  Unclear why.
+        return response['ETag'].strip("\"")
 
     def get_user_metadata(
             self,
@@ -146,10 +159,7 @@ class S3BlobStore(BlobStore):
         :return: a dictionary mapping metadata keys to metadata values.
         """
         try:
-            response = self.s3_client.head_object(
-                Bucket=bucket,
-                Key=object_name
-            )
+            response = self.get_all_metadata(bucket, object_name)
             metadata = response['Metadata'].copy()
 
             response = self.s3_client.get_object_tagging(
