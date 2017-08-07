@@ -13,13 +13,13 @@ class HCABlobStoreTests:
         self.assertTrue(
             self.hcahandle.verify_blob_checksum(
                 bucket, object_name,
-                self.blobhandle.get_metadata(bucket, object_name)))
+                self.blobhandle.get_user_metadata(bucket, object_name)))
 
         object_name = "test_bad_source_data/incorrect_checksum"
         self.assertFalse(
             self.hcahandle.verify_blob_checksum(
                 bucket, object_name,
-                self.blobhandle.get_metadata(bucket, object_name)))
+                self.blobhandle.get_user_metadata(bucket, object_name)))
 
         object_name = "DOES_NOT_EXIST"
         with self.assertRaises(BlobNotFoundError):

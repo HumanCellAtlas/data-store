@@ -17,13 +17,13 @@ class BlobStoreTests:
         Ensure that the ``get_metadata`` methods return sane data.
         """
         handle = self.handle  # type: BlobStore
-        metadata = handle.get_metadata(
+        metadata = handle.get_user_metadata(
             self.test_fixtures_bucket,
             "test_good_source_data/0")
         self.assertIn('hca-dss-content-type', metadata)
 
         with self.assertRaises(BlobNotFoundError):
-            handle.get_metadata(
+            handle.get_user_metadata(
                 self.test_fixtures_bucket,
                 "test_good_source_data_DOES_NOT_EXIST")
 
@@ -88,7 +88,7 @@ class BlobStoreTests:
         )
 
         # should be able to get metadata for the file.
-        self.handle.get_metadata(
+        self.handle.get_user_metadata(
             self.test_bucket, dst_blob_name)
 
     def testGet(self):
@@ -115,5 +115,5 @@ class BlobStoreTests:
         )
 
         # should be able to get metadata for the file.
-        self.handle.get_metadata(
+        self.handle.get_user_metadata(
             self.test_bucket, dst_blob_name)
