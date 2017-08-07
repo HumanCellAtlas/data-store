@@ -113,7 +113,7 @@ def put(uuid: str, replica: str, extras: dict, version: str=None):
 
     # if it already exists, then it's a failure.
     try:
-        handle.get_metadata(bucket, bundle_manifest_object_name)
+        handle.get_user_metadata(bucket, bundle_manifest_object_name)
     except BlobNotFoundError:
         pass
     else:

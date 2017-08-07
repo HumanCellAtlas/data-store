@@ -35,7 +35,7 @@ class TestGSBlobStore(unittest.TestCase, BlobStoreTests):
         self.assertEqual(checksum, "e16e07b9")
 
         with self.assertRaises(BlobNotFoundError):
-            handle.get_metadata(
+            handle.get_user_metadata(
                 self.test_fixtures_bucket,
                 "test_good_source_data_DOES_NOT_EXIST")
 

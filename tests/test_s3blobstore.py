@@ -35,7 +35,7 @@ class TestS3BlobStore(unittest.TestCase, BlobStoreTests):
         self.assertEqual(checksum, "3b83ef96387f14655fc854ddc3c6bd57")
 
         with self.assertRaises(BlobNotFoundError):
-            handle.get_metadata(
+            handle.get_user_metadata(
                 self.test_fixtures_bucket,
                 "test_good_source_data_DOES_NOT_EXIST")
 

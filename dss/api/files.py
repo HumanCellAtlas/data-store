@@ -131,7 +131,7 @@ def put(uuid: str, extras: dict, version: str=None):
     src_bucket = mobj.group('bucket')
     src_object_name = mobj.group('object_name')
 
-    metadata = handle.get_metadata(src_bucket, src_object_name)
+    metadata = handle.get_user_metadata(src_bucket, src_object_name)
 
     # format all the checksums so they're lower-case.
     for metadata_spec in HCABlobStore.MANDATORY_METADATA.values():
@@ -168,7 +168,7 @@ def put(uuid: str, extras: dict, version: str=None):
 
     # if it already exists, then it's a failure.
     try:
-        handle.get_metadata(dst_bucket, metadata_object_name)
+        handle.get_user_metadata(dst_bucket, metadata_object_name)
     except BlobNotFoundError:
         pass
     else:

@@ -95,13 +95,13 @@ class GSBlobStore(BlobStore):
 
         return binascii.hexlify(base64.b64decode(blob_obj.crc32c)).decode("utf-8").lower()
 
-    def get_metadata(
+    def get_user_metadata(
             self,
             bucket: str,
             object_name: str
     ) -> typing.Dict[str, str]:
         """
-        Retrieves the metadata for a given object in a given bucket.  If the platform has any mandatory prefixes or
+        Retrieves the user metadata for a given object in a given bucket.  If the platform has any mandatory prefixes or
         suffixes for the metadata keys, they should be stripped before being returned.
         :param bucket: the bucket the object resides in.
         :param object_name: the name of the object for which metadata is being
