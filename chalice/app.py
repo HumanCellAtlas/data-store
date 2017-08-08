@@ -1,8 +1,9 @@
 import os, sys, re, logging, collections, datetime
 
-import flask
 import chalice
 import boto3
+import requests
+from flask import json
 
 pkg_root = os.path.abspath(os.path.join(os.path.dirname(__file__), 'chalicelib'))  # noqa
 sys.path.insert(0, pkg_root)  # noqa
@@ -81,6 +82,19 @@ def get_chalice_app(flask_app):
                 continue
             logs.append(event)
         return dict(logs=logs)
+
+    @app.route("/internal/application_secrets", methods=["GET"])
+    def get_application_secrets():
+        application_secret_file = os.environ["GOOGLE_APPLICATION_SECRETS"]
+
+        with open(application_secret_file, 'r') as fh:
+            data = json.loads(fh.read())
+
+        return chalice.Response(
+            status_code=requests.codes.ok,
+            headers={'Content-Type': "application/json", },
+            body=data,
+        )
 
     return app
 
