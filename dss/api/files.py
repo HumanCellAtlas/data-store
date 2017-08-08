@@ -118,15 +118,16 @@ def put(uuid: str, extras: dict, version: str=None):
         "$")
     mobj = cre.match(source_url)
     if mobj and mobj.group('schema') == "s3":
-        handle, hca_handle, dst_bucket = Config.get_cloud_specific_handles("aws")
+        replica = "aws"
     elif mobj and mobj.group('schema') == "gs":
-        handle, hca_handle, dst_bucket = Config.get_cloud_specific_handles("gcp")
+        replica = "gcp"
     else:
         # TODO: (ttung) better error messages pls.
         return (
             make_response("I can't support this source_data schema!"),
             requests.codes.bad_request,
         )
+    handle, hca_handle, dst_bucket = Config.get_cloud_specific_handles(replica)
 
     src_bucket = mobj.group('bucket')
     src_object_name = mobj.group('object_name')
