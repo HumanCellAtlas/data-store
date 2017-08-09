@@ -111,7 +111,7 @@ class TestIndexer(unittest.TestCase, DSSAsserts, StorageTestSupport):
         self.storageHelper = None
 
     def test_process_new_indexable_object(self):
-        bundle_key = self.load_test_data_bundle_for_path('fixtures/smartseq2/paired_ends')
+        bundle_key = self.load_test_data_bundle_for_path("fixtures/smartseq2/paired_ends")
         sample_s3_event = self.create_sample_s3_bundle_created_event(bundle_key)
         process_new_indexable_object(sample_s3_event, logger)
         search_results = self.get_search_results(smartseq2_paired_ends_query, 1)
@@ -120,7 +120,7 @@ class TestIndexer(unittest.TestCase, DSSAsserts, StorageTestSupport):
                                                          files=smartseq2_paried_ends_indexed_file_list)
 
     def test_indexed_file_with_invalid_content_type(self):
-        bundle = S3TestBundle('fixtures/smartseq2/paired_ends')
+        bundle = S3TestBundle("fixtures/smartseq2/paired_ends")
         # Configure a file to be indexed that is not of context type 'application/json'
         for file in bundle.files:
             if file.name == "text_data_file1.txt":
@@ -139,7 +139,7 @@ class TestIndexer(unittest.TestCase, DSSAsserts, StorageTestSupport):
                                                          files=smartseq2_paried_ends_indexed_file_list)
 
     def test_indexed_file_unparsable(self):
-        bundle_key = self.load_test_data_bundle_for_path('fixtures/unparseable_indexed_file')
+        bundle_key = self.load_test_data_bundle_for_path("fixtures/unparseable_indexed_file")
         sample_s3_event = self.create_sample_s3_bundle_created_event(bundle_key)
         with self.assertLogs(logger, level="WARNING") as log_monitor:
             process_new_indexable_object(sample_s3_event, logger)
@@ -152,7 +152,7 @@ class TestIndexer(unittest.TestCase, DSSAsserts, StorageTestSupport):
                                                          files=smartseq2_paried_ends_indexed_file_list)
 
     def test_indexed_file_access_error(self):
-        bundle_key = self.load_test_data_bundle_for_path('fixtures/smartseq2/paired_ends')
+        bundle_key = self.load_test_data_bundle_for_path("fixtures/smartseq2/paired_ends")
         filename = "project.json"
         deleteFileBlob(bundle_key, filename)
         sample_s3_event = self.create_sample_s3_bundle_created_event(bundle_key)
@@ -169,7 +169,7 @@ class TestIndexer(unittest.TestCase, DSSAsserts, StorageTestSupport):
 
     def test_es_client_reuse(self):
         from dss.events.handlers.index import ElasticsearchClient
-        bundle_key = self.load_test_data_bundle_for_path('fixtures/smartseq2/paired_ends')
+        bundle_key = self.load_test_data_bundle_for_path("fixtures/smartseq2/paired_ends")
         sample_s3_event = self.create_sample_s3_bundle_created_event(bundle_key)
 
         ElasticsearchClient._es_client = None
@@ -184,7 +184,7 @@ class TestIndexer(unittest.TestCase, DSSAsserts, StorageTestSupport):
         self.assertIs(es_client_after_first_call, es_client_after_second_call)
 
     def test_subscription_notification_successful(self):
-        bundle_key = self.load_test_data_bundle_for_path('fixtures/smartseq2/paired_ends')
+        bundle_key = self.load_test_data_bundle_for_path("fixtures/smartseq2/paired_ends")
         sample_s3_event = self.create_sample_s3_bundle_created_event(bundle_key)
         process_new_indexable_object(sample_s3_event, logger)
 
@@ -192,14 +192,14 @@ class TestIndexer(unittest.TestCase, DSSAsserts, StorageTestSupport):
         subscription_id = self.subscribe_for_notification(smartseq2_paired_ends_query,
                                                           f"http://{self.http_server_address}:{self.http_server_port}")
 
-        bundle_key = self.load_test_data_bundle_for_path('fixtures/smartseq2/paired_ends')
+        bundle_key = self.load_test_data_bundle_for_path("fixtures/smartseq2/paired_ends")
         sample_s3_event = self.create_sample_s3_bundle_created_event(bundle_key)
         process_new_indexable_object(sample_s3_event, logger)
         prefix, _, bundle_id = bundle_key.partition("/")
         self.verify_notification(subscription_id, smartseq2_paired_ends_query, bundle_id)
 
     def test_subscription_notification_unsuccessful(self):
-        bundle_key = self.load_test_data_bundle_for_path('fixtures/smartseq2/paired_ends')
+        bundle_key = self.load_test_data_bundle_for_path("fixtures/smartseq2/paired_ends")
         sample_s3_event = self.create_sample_s3_bundle_created_event(bundle_key)
         process_new_indexable_object(sample_s3_event, logger)
 
@@ -207,7 +207,7 @@ class TestIndexer(unittest.TestCase, DSSAsserts, StorageTestSupport):
         subscription_id = self.subscribe_for_notification(smartseq2_paired_ends_query,
                                                           f"http://{self.http_server_address}:{self.http_server_port}")
 
-        bundle_key = self.load_test_data_bundle_for_path('fixtures/smartseq2/paired_ends')
+        bundle_key = self.load_test_data_bundle_for_path("fixtures/smartseq2/paired_ends")
         sample_s3_event = self.create_sample_s3_bundle_created_event(bundle_key)
         error_response_code = 500
         PostTestHandler.set_response_code(error_response_code)
@@ -222,12 +222,12 @@ class TestIndexer(unittest.TestCase, DSSAsserts, StorageTestSupport):
         posted_payload_string = self.get_notification_payload()
         self.assertIsNotNone(posted_payload_string)
         posted_json = json.loads(posted_payload_string)
-        self.assertIn("transaction_id", posted_json)
-        self.assertIn("subscription_id", posted_json)
+        self.assertIn('transaction_id', posted_json)
+        self.assertIn('subscription_id', posted_json)
         self.assertEqual(subscription_id, posted_json['subscription_id'])
-        self.assertIn("query", posted_json)
+        self.assertIn('query', posted_json)
         self.assertEqual(query, posted_json['query'])
-        self.assertIn("match", posted_json)
+        self.assertIn('match', posted_json)
         bundle_uuid, _, bundle_version = bundle_id.partition(".")
         self.assertEqual(bundle_uuid, posted_json['match']['bundle_uuid'])
         self.assertEqual(bundle_version, posted_json['match']['bundle_version'])
@@ -277,14 +277,14 @@ class TestIndexer(unittest.TestCase, DSSAsserts, StorageTestSupport):
             r.session.close()
             token = credentials.token
 
-        return {"Authorization": f"Bearer {token}"}
+        return {'Authorization': f"Bearer {token}"}
 
     @staticmethod
     def create_sample_s3_bundle_created_event(bundle_key: str) -> Dict:
         with open(os.path.join(os.path.dirname(__file__), "sample_s3_bundle_created_event.json")) as fh:
             sample_s3_event = json.load(fh)
-        sample_s3_event['Records'][0]["s3"]["bucket"]["name"] = Config.get_s3_bucket()
-        sample_s3_event['Records'][0]["s3"]["object"]["key"] = bundle_key
+        sample_s3_event['Records'][0]["s3"]['bucket']['name'] = Config.get_s3_bucket()
+        sample_s3_event['Records'][0]["s3"]['object']['key'] = bundle_key
         return sample_s3_event
 
     def verify_index_document_structure_and_content(self, actual_index_document,
@@ -377,15 +377,15 @@ smartseq2_paired_ends_query = \
 
 
 def create_s3_bucket(bucket_name) -> None:
-    conn = boto3.resource('s3')
+    conn = boto3.resource("s3")
     try:
         conn.create_bucket(Bucket=bucket_name)
     except ClientError as ex:
-        if ex.response['Error']['Code'] != 'BucketAlreadyOwnedByYou':
+        if ex.response['Error']['Code'] != "BucketAlreadyOwnedByYou":
             logger.error(f"An unexpected error occured when creating test bucket: {bucket_name}")
 
 def deleteFileBlob(bundle_key, filename):
-    s3 = boto3.resource('s3')
+    s3 = boto3.resource("s3")
     manifest = read_bundle_manifest(s3, Config.get_s3_bucket(), bundle_key)
     files = manifest['files']
     for file_info in files:
@@ -397,7 +397,7 @@ def deleteFileBlob(bundle_key, filename):
 
 
 def generate_expected_index_document(bucket_name, bundle_key):
-    s3 = boto3.resource('s3')
+    s3 = boto3.resource("s3")
     manifest = read_bundle_manifest(s3, bucket_name, bundle_key)
     index_data = create_index_data(s3, bucket_name, manifest)
     return index_data
@@ -419,7 +419,7 @@ def create_index_data(s3, bucket_name, manifest):
             try:
                 file_key = create_blob_key(file_info)
                 obj = bucket.Object(file_key)
-                if obj.metadata['hca-dss-content-type'] != 'application/json':
+                if obj.metadata['hca-dss-content-type'] != "application/json":
                     continue
                 file_string = obj.get()['Body'].read().decode("utf-8")
                 file_json = json.loads(file_string)
@@ -430,5 +430,5 @@ def create_index_data(s3, bucket_name, manifest):
     index['files'] = index_files
     return index
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     unittest.main()
