@@ -1,6 +1,8 @@
 #!/usr/bin/env python
 # coding: utf-8
 
+import datetime
+import io
 import json
 import logging
 import os
@@ -24,6 +26,7 @@ from dss import (DeploymentStage, Config,
                  DSS_ELASTICSEARCH_INDEX_NAME, DSS_ELASTICSEARCH_DOC_TYPE,
                  DSS_ELASTICSEARCH_SUBSCRIPTION_INDEX_NAME)
 from dss.events.handlers.index import process_new_indexable_object
+from dss.hcablobstore import BundleMetadata, BundleFileMetadata, FileMetadata
 from dss.util import create_blob_key, UrlBuilder
 from dss.util.es import ElasticsearchClient
 
@@ -152,20 +155,22 @@ class TestIndexer(unittest.TestCase, DSSAsserts, StorageTestSupport):
                                                          files=smartseq2_paried_ends_indexed_file_list)
 
     def test_indexed_file_access_error(self):
-        bundle_key = self.load_test_data_bundle_for_path("fixtures/smartseq2/paired_ends")
-        filename = "project.json"
-        deleteFileBlob(bundle_key, filename)
+        inaccesssible_filename = "inaccessible_file.json"
+        bundle_key = self.load_test_data_bundle_with_inaccessible_file(
+            "fixtures/smartseq2/paired_ends", inaccesssible_filename, "application/json", True)
         sample_s3_event = self.create_sample_s3_bundle_created_event(bundle_key)
         with self.assertLogs(logger, level="WARNING") as log_monitor:
             process_new_indexable_object(sample_s3_event, logger)
         self.assertRegex(log_monitor.output[0],
-                         f"WARNING:.*:In bundle .* the file \"{filename}\" is marked for indexing"
+                         f"WARNING:.*:In bundle .* the file \"{inaccesssible_filename}\" is marked for indexing"
                          " yet could not be accessed. This file will not be indexed. Exception:")
         search_results = self.get_search_results(smartseq2_paired_ends_query, 1)
         self.assertEqual(1, len(search_results))
+        files = list(smartseq2_paried_ends_indexed_file_list)
+        files.append(inaccesssible_filename.replace(".", "_"))
         self.verify_index_document_structure_and_content(search_results[0], bundle_key,
-                                                         files=smartseq2_paried_ends_indexed_file_list,
-                                                         excluded_files=[filename.replace('.', '_')])
+                                                         files=files,
+                                                         excluded_files=[inaccesssible_filename.replace(".", "_")])
 
     def test_es_client_reuse(self):
         from dss.events.handlers.index import ElasticsearchClient
@@ -249,6 +254,21 @@ class TestIndexer(unittest.TestCase, DSSAsserts, StorageTestSupport):
         bundle = S3TestBundle(fixture_path)
         return self.load_test_data_bundle(bundle)
 
+    def load_test_data_bundle_with_inaccessible_file(self, fixture_path: str,
+                                                     inaccessible_filename: str,
+                                                     inaccessible_file_content_type: str,
+                                                     inaccessible_file_indexed: bool):
+        bundle = S3TestBundle(fixture_path)
+        self.load_test_data_bundle(bundle)
+        bundle_builder = BundleBuilder()
+        for file in bundle.files:
+            bundle_builder.add_file(Config.get_s3_bucket(), file.name, file.indexed, f'{file.uuid}.{file.version}')
+        bundle_builder.add_invalid_file(inaccessible_filename,
+                                        inaccessible_file_content_type,
+                                        inaccessible_file_indexed)
+        bundle_builder.store(Config.get_s3_bucket())
+        return 'bundles/' + bundle_builder.get_bundle_id()
+
     def load_test_data_bundle(self, bundle: S3TestBundle):
         self.upload_files_and_create_bundle(bundle)
         return f"bundles/{bundle.uuid}.{bundle.version}"
@@ -327,6 +347,65 @@ class TestIndexer(unittest.TestCase, DSSAsserts, StorageTestSupport):
                 time.sleep(0.5)
 
 
+class BundleBuilder:
+    def __init__(self, bundle_id=None, bundle_version=None):
+        self.bundle_id = bundle_id if bundle_id else str(uuid.uuid4())
+        self.bundle_version = bundle_version if bundle_version else self._get_version()
+        self.bundle_manifest = {
+            BundleMetadata.FORMAT: BundleMetadata.FILE_FORMAT_VERSION,
+            BundleMetadata.VERSION: self.bundle_version,
+            BundleMetadata.FILES: [],
+            BundleMetadata.CREATOR_UID: "0"
+        }
+
+    def get_bundle_id(self):
+        return f'{self.bundle_id}.{self.bundle_version}'
+
+    def add_file(self, bucket_name, name, indexed, file_id):
+        # Add the existing file to the bundle manifest
+        s3 = boto3.resource("s3")
+        file_manifest_string = s3.Object(bucket_name=bucket_name,
+                                         key=f"files/{file_id}").get()['Body'].read().decode("utf-8")
+        file_manifest = json.loads(file_manifest_string, encoding="utf-8")
+        file_uuid, file_version = file_id.split(".", 1)
+        bundle_file_manifest = {
+            BundleFileMetadata.NAME: name,
+            BundleFileMetadata.UUID: file_uuid,
+            BundleFileMetadata.VERSION: file_version,
+            BundleFileMetadata.CONTENT_TYPE: file_manifest[FileMetadata.CONTENT_TYPE],
+            BundleFileMetadata.INDEXED: indexed,
+            BundleFileMetadata.CRC32C: file_manifest[FileMetadata.CRC32C],
+            BundleFileMetadata.S3_ETAG: file_manifest[FileMetadata.S3_ETAG],
+            BundleFileMetadata.SHA1: file_manifest[FileMetadata.SHA1],
+            BundleFileMetadata.SHA256: file_manifest[FileMetadata.SHA256],
+        }
+        self.bundle_manifest[BundleMetadata.FILES].append(bundle_file_manifest)
+
+    def add_invalid_file(self, name, content_type, indexed):
+        bundle_file_manifest = {
+            BundleFileMetadata.NAME: name,
+            BundleFileMetadata.UUID: str(uuid.uuid4()),
+            BundleFileMetadata.VERSION: self._get_version(),
+            BundleFileMetadata.CONTENT_TYPE: content_type,
+            BundleFileMetadata.INDEXED: indexed,
+            BundleFileMetadata.CRC32C: "0",
+            BundleFileMetadata.S3_ETAG: "0",
+            BundleFileMetadata.SHA1: "0",
+            BundleFileMetadata.SHA256: "0",
+        }
+        self.bundle_manifest[BundleMetadata.FILES].append(bundle_file_manifest)
+
+    def store(self, bucket_name):
+        boto3.client('s3').upload_fileobj(
+            io.BytesIO(json.dumps(self.bundle_manifest).encode("utf-8")),
+            Bucket=bucket_name,
+            Key='bundles/' + self.get_bundle_id()
+        )
+
+    def _get_version(self):
+        return datetime.datetime.utcnow().strftime("%Y-%m-%dT%H%M%S.%fZ")
+
+
 class PostTestHandler(BaseHTTPRequestHandler):
     _response_code = 200
     _payload = None
@@ -383,17 +462,6 @@ def create_s3_bucket(bucket_name) -> None:
     except ClientError as ex:
         if ex.response['Error']['Code'] != "BucketAlreadyOwnedByYou":
             logger.error(f"An unexpected error occured when creating test bucket: {bucket_name}")
-
-def deleteFileBlob(bundle_key, filename):
-    s3 = boto3.resource("s3")
-    manifest = read_bundle_manifest(s3, Config.get_s3_bucket(), bundle_key)
-    files = manifest['files']
-    for file_info in files:
-        if file_info['name'] == filename:
-            file_blob_key = create_blob_key(file_info)
-            s3.Object(Config.get_s3_bucket(), file_blob_key).delete()
-            return
-    raise Exception(f"The file {filename} was not found in the manifest for bundle {bundle_key}")
 
 
 def generate_expected_index_document(bucket_name, bundle_key):
