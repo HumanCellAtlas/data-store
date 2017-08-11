@@ -196,3 +196,49 @@ class S3BlobStore(BlobStore):
                 multipart_chunksize=64 * 1024 * 1024,
             ),
         )
+
+    def find_next_missing_parts(
+            self,
+            bucket: str,
+            key: str,
+            upload_id: str,
+            part_count: int,
+            search_start: int=1,
+            return_count: int=1) -> typing.Sequence[int]:
+        """
+        Given a `bucket`, `key`, and `upload_id`, find the next N missing parts of a multipart upload, where
+        N=`return_count`.  If `search_start` is provided, start the search at part M, where M=`search_start`.
+        `part_count` is the number of parts expected for the upload.
+
+        Note that the return value may contain fewer than N parts.
+        """
+        if part_count < search_start:
+            raise ValueError("")
+        result = list()
+        while True:
+            kwargs = dict(Bucket=bucket, Key=key, UploadId=upload_id)  # type: dict
+            if search_start > 1:
+                kwargs['PartNumberMarker'] = search_start - 1
+
+            # retrieve all the parts after the one we *think* we need to start from.
+            parts_resp = self.s3_client.list_parts(**kwargs)
+
+            # build a set of all the parts known to be uploaded, detailed in this request.
+            parts_map = set()  # type: typing.Set[int]
+            for part_detail in parts_resp.get('Parts', []):
+                parts_map.add(part_detail['PartNumber'])
+
+            while True:
+                if search_start not in parts_map:
+                    # not found, add it to the list of parts we still need.
+                    result.append(search_start)
+
+                # have we met our requirements?
+                if len(result) == return_count or search_start == part_count:
+                    return result
+
+                search_start += 1
+
+                if parts_resp['IsTruncated'] and search_start == parts_resp['NextPartNumberMarker']:
+                    # finished examining the results of this batch, move onto the next one
+                    break
