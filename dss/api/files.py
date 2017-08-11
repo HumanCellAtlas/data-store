@@ -11,7 +11,7 @@ from flask import jsonify, make_response, redirect, request
 from werkzeug.exceptions import BadRequest
 
 from .. import DSSException, dss_handler
-from ..blobstore import BlobNotFoundError
+from ..blobstore import BlobAlreadyExistsError, BlobNotFoundError, BlobStore
 from ..config import Config
 from ..hcablobstore import FileMetadata, HCABlobStore
 
@@ -186,10 +186,30 @@ def put(uuid: str, extras: dict, version: str=None):
         FileMetadata.SHA256: metadata['hca-dss-sha256'],
     })
 
+    write_file_metadata(handle, dst_bucket, uuid, version, document)
+
+    return jsonify(
+        dict(version=version)), requests.codes.created
+
+
+def write_file_metadata(
+        handle: BlobStore,
+        dst_bucket: str,
+        file_uuid: str,
+        file_version: str,
+        document: str):
+    # what's the target object name for the file metadata?
+    metadata_object_name = f"files/{file_uuid}.{file_version}"
+
+    # if it already exists, then it's a failure.
+    try:
+        handle.get_user_metadata(dst_bucket, metadata_object_name)
+    except BlobNotFoundError:
+        pass
+    else:
+        raise BlobAlreadyExistsError()
+
     handle.upload_file_handle(
         dst_bucket,
         metadata_object_name,
         io.BytesIO(document.encode("utf-8")))
-
-    return jsonify(
-        dict(version=version)), requests.codes.created
