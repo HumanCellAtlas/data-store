@@ -59,24 +59,6 @@ paths:
           description: Unexpected error
           schema:
             $ref: '#/definitions/Error'
-  /files:
-    get:
-      summary: Query files
-      description: |
-        Returns a list of files matching given criteria.
-      operationId: dss.api.files.find
-      responses:
-        200:
-          description: OK
-          schema:
-            type: object
-            properties:
-              files:
-                type: array
-                items:
-                  $ref: "#/definitions/File"
-            required:
-              - files
   /files/{uuid}:
     head:
       summary: Retrieve a file's metadata given an UUID and optionally a version.
@@ -456,47 +438,6 @@ paths:
                     enum: [unhandled_exception, Forbidden, OAuthResponseProblem, not_found]
                 required:
                   - code
-  /bundles:
-    get:
-      summary: Query bundles
-      description: |
-        Returns a list of bundles matching given criteria.
-      operationId: dss.api.bundles.find
-      responses:
-        200:
-          description: OK
-          schema:
-            type: object
-            properties:
-              bundles:
-                type: array
-                items:
-                  $ref: "#/definitions/Bundle"
-            required:
-              - bundles
-# TODO: this sort of thing actually belongs in the /bundles query interface.
-#    get:
-#      operationId: dss.api.bundles.list_versions
-#      parameters:
-#        - name: uuid
-#          in: path
-#          description: Bundle unique ID.
-#          required: true
-#          type: string
-#          pattern: "[A-Za-z0-9]{8}-[A-Za-z0-9]{4}-[A-Za-z0-9]{4}-[A-Za-z0-9]{4}-[A-Za-z0-9]{12}"
-#      responses:
-#        200:
-#          description: OK
-#          schema:
-#            type: array
-#            items:
-#              type: string
-#              format: date-time
-#              description: Version of bundle creation in RFC3339.
-#        default:
-#          description: Unexpected error
-#          schema:
-#            $ref: '#/definitions/Error'
   /bundles/{uuid}:
     get:
       summary: Retrieve a bundle given a UUID and optionally a version.

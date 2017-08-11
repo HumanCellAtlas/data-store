@@ -3,7 +3,6 @@ import io
 import json
 import re
 import typing
-import uuid
 
 import iso8601
 import requests
@@ -90,11 +89,6 @@ def get_helper(uuid: str, replica: typing.Optional[str]=None, version: str=None)
     headers['X-DSS-SHA256'] = file_metadata[FileMetadata.SHA256]
 
     return response
-
-
-@dss_handler
-def find():
-    return dict(files=[dict(uuid=str(uuid.uuid4()), name="", versions=[])])
 
 
 @dss_handler
