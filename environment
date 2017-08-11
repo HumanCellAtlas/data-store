@@ -37,7 +37,14 @@ GOOGLE_APPLICATION_CREDENTIALS="${DSS_HOME}/gcp-credentials.json"
 GOOGLE_APPLICATION_SECRETS="${DSS_HOME}/application_secrets.json"
 API_HOST=hca-dss.czi.technology
 TOKENINFO_URL=https://hca-dss.czi.technology/internal/tokeninfo
-DSS_SUBSCRIPTION_AUTHORIZED_DOMAINS="chanzuckerberg.com ucsc.edu broadinstitute.org ebi.ac.uk human-cell-atlas-travis-test.iam.gserviceaccount.com"
+DSS_SUBSCRIPTION_AUTHORIZED_DOMAINS_ARRAY=(
+    chanzuckerberg.com
+    ucsc.edu
+    broadinstitute.org
+    ebi.ac.uk
+    {human-cell-atlas-travis-test,broad-dsde-mint-dev}.iam.gserviceaccount.com
+)
+DSS_SUBSCRIPTION_AUTHORIZED_DOMAINS=${DSS_SUBSCRIPTION_AUTHORIZED_DOMAINS_ARRAY[*]}
 DSS_SUBSCRIPTION_AUTHORIZED_DOMAINS_TEST="human-cell-atlas-travis-test.iam.gserviceaccount.com"
 set +a
 
