@@ -21,6 +21,9 @@ import moto
 import requests
 from botocore.exceptions import ClientError
 
+pkg_root = os.path.abspath(os.path.join(os.path.dirname(__file__), '..'))  # noqa
+sys.path.insert(0, pkg_root)  # noqa
+
 import dss
 from dss import (DeploymentStage, Config,
                  DSS_ELASTICSEARCH_INDEX_NAME, DSS_ELASTICSEARCH_DOC_TYPE,
@@ -29,12 +32,6 @@ from dss.events.handlers.index import process_new_indexable_object
 from dss.hcablobstore import BundleMetadata, BundleFileMetadata, FileMetadata
 from dss.util import create_blob_key, UrlBuilder
 from dss.util.es import ElasticsearchClient
-
-pkg_root = os.path.abspath(os.path.join(os.path.dirname(__file__), '..'))  # noqa
-sys.path.insert(0, pkg_root)  # noqa
-fixtures_root = os.path.abspath(os.path.join(os.path.dirname(__file__), 'fixtures'))  # noqa
-sys.path.insert(0, fixtures_root)  # noqa
-
 
 from tests.es import check_start_elasticsearch_service, elasticsearch_delete_index
 from tests.fixtures.populate import populate

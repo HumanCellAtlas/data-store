@@ -3,7 +3,7 @@ import os
 import typing
 
 import boto3
-from checksumming_io.checksumming_io import ChecksummingSink
+from .checksumming_io.checksumming_io import ChecksummingSink
 from google.cloud.storage import Client
 
 logging.basicConfig(level=logging.INFO)
