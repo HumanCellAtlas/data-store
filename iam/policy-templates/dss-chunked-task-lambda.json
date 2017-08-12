@@ -17,6 +17,24 @@
       "Resource": [
         "arn:aws:sns:*:$account_id:*"
       ]
+    },
+    {
+      "Effect": "Allow",
+      "Action": "s3:*",
+      "Resource": [
+        "arn:aws:s3:::$DSS_S3_BUCKET",
+        "arn:aws:s3:::$DSS_S3_BUCKET/*",
+        "arn:aws:s3:::$DSS_S3_BUCKET_TEST",
+        "arn:aws:s3:::$DSS_S3_BUCKET_TEST/*"
+      ]
+    },
+    {
+      "Effect": "Allow",
+      "Action": [
+        "s3:Get*",
+        "s3:List*"
+      ],
+      "Resource": "*"
     }
   ]
 }
