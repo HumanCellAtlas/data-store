@@ -27,6 +27,7 @@ class TestChunkedTaskRuntime(chunkedtask.Runtime[tuple]):
         self.remaining_time = initial_time_millis
         self.tick_iterator = tick_iterator
         self.rescheduled_state = None  # type: typing.Optional[tuple]
+        self.complete = False
 
     def get_remaining_time_in_millis(self) -> int:
         return self.remaining_time
@@ -39,8 +40,8 @@ class TestChunkedTaskRuntime(chunkedtask.Runtime[tuple]):
     def advance_time(self):
         self.remaining_time -= self.tick_iterator.__next__()
 
-    def get_rescheduled_state(self) -> tuple:
-        return self.rescheduled_state
+    def work_complete_callback(self):
+        self.complete = True
 
 
 class TestChunkedTask(chunkedtask.Task):
@@ -88,16 +89,15 @@ class TestChunkedTaskRunner(unittest.TestCase):
 
             runner.run()
 
-            rescheduled_state = env.get_rescheduled_state()
-            if rescheduled_state is None:
+            if env.complete:
                 # we're done!
                 final_state = task.get_state()
                 self.assertEqual(final_state, (196418, 121393, 0))
                 self.assertEqual(serialize_count, 2)
                 break
             else:
+                current_state = env.rescheduled_state
                 serialize_count += 1
-                current_state = rescheduled_state
 
 
 class TestAWSChunkedTask(unittest.TestCase):
