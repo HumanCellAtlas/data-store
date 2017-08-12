@@ -1,0 +1,85 @@
+#!/usr/bin/env python
+# coding: utf-8
+
+from __future__ import absolute_import, division, print_function, unicode_literals
+
+import os
+import sys
+import unittest
+
+
+pkg_root = os.path.abspath(os.path.join(os.path.dirname(__file__), '..'))  # noqa
+sys.path.insert(0, pkg_root)  # noqa
+
+from dss.blobstore.s3 import S3BlobStore
+from dss.events import chunkedtask
+from dss.events.chunkedtask.awscopyclient import S3CopyTask
+from tests import infra
+
+
+class TestStingyRuntime(chunkedtask.Runtime[dict]):
+    def __init__(self):
+        self.rescheduled_state = None  # typing.Optional[dict]
+
+    def get_remaining_time_in_millis(self) -> int:
+        return 0
+
+    def schedule_work(self, state: dict):
+        # it's illegal for there to be no state.
+        assert state is not None
+        self.rescheduled_state = state
+
+    def get_rescheduled_state(self) -> dict:
+        return self.rescheduled_state
+
+
+class TestAWSCopy(unittest.TestCase):
+    def setUp(self):
+        self.test_bucket = infra.get_env("DSS_S3_BUCKET_TEST")
+        self.s3_blobstore = S3BlobStore()
+        self.test_src_key = infra.generate_test_key()
+        mpu = self.s3_blobstore.s3_client.create_multipart_upload(Bucket=self.test_bucket, Key=self.test_src_key)
+
+        parts = list()
+        for part_to_upload in range(1, 5):
+            etag = self.s3_blobstore.s3_client.upload_part(
+                Bucket=self.test_bucket,
+                Key=self.test_src_key,
+                UploadId=mpu['UploadId'],
+                PartNumber=part_to_upload,
+                ContentLength=(5 * 1024 * 1024),
+                Body=chr(part_to_upload) * (5 * 1024 * 1024))['ETag']
+            parts.append(dict(ETag=etag, PartNumber=part_to_upload))
+
+        self.test_src_etag = self.s3_blobstore.s3_client.complete_multipart_upload(
+            Bucket=self.test_bucket,
+            Key=self.test_src_key,
+            MultipartUpload=dict(Parts=parts),
+            UploadId=mpu['UploadId'],
+        )['ETag'].strip("\"")
+
+    def test_simple_copy(self):
+        dest_key = infra.generate_test_key()
+
+        current_state = S3CopyTask.setup_copy_task(
+            self.test_bucket, self.test_src_key, self.test_bucket, dest_key, lambda blob_size: (5 * 1024 * 1024))
+
+        while True:
+            env = TestStingyRuntime()
+            task = S3CopyTask(current_state)
+            runner = chunkedtask.Runner(task, env)
+
+            runner.run()
+
+            current_state = env.get_rescheduled_state()
+            if current_state is None:
+                # we're done!
+                break
+
+        # verify that the destination has the same checksum.
+        dst_etag = S3BlobStore().get_all_metadata(self.test_bucket, dest_key)['ETag'].strip("\"")
+        self.assertEqual(self.test_src_etag, dst_etag)
+
+
+if __name__ == '__main__':
+    unittest.main()
