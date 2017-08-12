@@ -19,7 +19,7 @@ from tests import infra
 
 class TestStingyRuntime(chunkedtask.Runtime[dict]):
     def __init__(self):
-        self.rescheduled_state = None  # typing.Optional[dict]
+        self.complete = False
 
     def get_remaining_time_in_millis(self) -> int:
         return 0
@@ -29,8 +29,8 @@ class TestStingyRuntime(chunkedtask.Runtime[dict]):
         assert state is not None
         self.rescheduled_state = state
 
-    def get_rescheduled_state(self) -> dict:
-        return self.rescheduled_state
+    def work_complete_callback(self):
+        self.complete = True
 
 
 class TestAWSCopy(unittest.TestCase):
@@ -71,10 +71,11 @@ class TestAWSCopy(unittest.TestCase):
 
             runner.run()
 
-            current_state = env.get_rescheduled_state()
-            if current_state is None:
+            if env.complete:
                 # we're done!
                 break
+            else:
+                current_state = env.rescheduled_state
 
         # verify that the destination has the same checksum.
         dst_etag = S3BlobStore().get_all_metadata(self.test_bucket, dest_key)['ETag'].strip("\"")

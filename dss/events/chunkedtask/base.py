@@ -41,3 +41,9 @@ class Runtime(typing.Generic[RuntimeStateType]):
         In implementations of `Runtime` should, this should schedule a task given its serialized state.
         """
         raise NotImplementedError()
+
+    def work_complete_callback(self):
+        """
+        Implementations of `Runtime` may implement this if they need to know that the task completed.
+        """
+        pass

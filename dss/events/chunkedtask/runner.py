@@ -32,6 +32,7 @@ class Runner(typing.Generic[RunnerStateType]):
         while True:
             before = self.runtime.get_remaining_time_in_millis()
             if not self.chunkedtask.run_one_unit():
+                self.runtime.work_complete_callback()
                 return
             after = self.runtime.get_remaining_time_in_millis()
 
