@@ -18,7 +18,7 @@ pkg_root = os.path.abspath(os.path.join(os.path.dirname(__file__), '..'))  # noq
 sys.path.insert(0, pkg_root)  # noqa
 
 from dss.events import chunkedtask
-from dss.events.chunkedtask import awsconstants
+from dss.events.chunkedtask import aws, awsconstants
 from dss.events.chunkedtask._awsimpl import AWS_FAST_TEST_CLIENT_NAME
 
 
@@ -102,34 +102,26 @@ class TestChunkedTaskRunner(unittest.TestCase):
 
 class TestAWSChunkedTask(unittest.TestCase):
     def test_fast(self):
-        uuid = uuid4()
-        payload = {
-            awsconstants.CLIENT_KEY: AWS_FAST_TEST_CLIENT_NAME,
-            awsconstants.STATE_KEY: (str(uuid), 0, 5),
-        }
-
-        sts_client = boto3.client('sts')
-        accountid = sts_client.get_caller_identity()['Account']
-
-        sns_client = boto3.client('sns')
-        region = os.environ['AWS_DEFAULT_REGION']
-        topic = awsconstants.get_worker_sns_topic()
-        arn = f"arn:aws:sns:{region}:{accountid}:{topic}"
-        sns_client.publish(
-            TopicArn=arn,
-            Message=json.dumps(payload),
+        task_id = aws.schedule_task(
+            AWS_FAST_TEST_CLIENT_NAME,
+            [0, 5],
         )
 
         logs_client = boto3.client('logs')
         starttime = time.time()
         while time.time() < starttime + 30:
             response = logs_client.filter_log_events(
-                logGroupName="/aws/lambda/" + awsconstants.get_worker_sns_topic(),
-                filterPattern="Completed task"
+                logGroupName=awsconstants.LOG_GROUP_NAME,
+                logStreamNames=[task_id],
             )
 
             for event in response['events']:
-                if event['message'].find(str(uuid)) != -1:
+                try:
+                    message = json.loads(event['message'])
+                except json.JSONDecodeError:
+                    continue
+
+                if message.get('action') == awsconstants.LogActions.COMPLETE:
                     return
 
         self.fail("Did not find success marker in logs")
