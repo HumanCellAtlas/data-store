@@ -23,7 +23,7 @@ class S3CopyTaskKeys:
     PART_COUNT = "count"
 
 
-class S3CopyTask(Task[dict]):
+class S3CopyTask(Task[dict, typing.Any]):
     """
     This is a chunked task that does a multipart copy from one blob to another.
     """
@@ -94,7 +94,7 @@ class S3CopyTask(Task[dict]):
         # expect that in the worst case, we take 60 seconds to copy one part.
         return 60 * 1000
 
-    def run_one_unit(self) -> bool:
+    def run_one_unit(self) -> typing.Optional[typing.Any]:
         if len(self.queue) == 0 and self.next_part < self.part_count:
             self.queue.extend(
                 self.s3_blobstore.find_next_missing_parts(
@@ -128,7 +128,7 @@ class S3CopyTask(Task[dict]):
 
             mpu.complete(MultipartUpload=dict(Parts=parts_list))
 
-            return False
+            return True
 
         part_id = self.queue[0]
 
@@ -149,7 +149,7 @@ class S3CopyTask(Task[dict]):
 
         self.queue.popleft()
 
-        return True
+        return None
 
     def calculate_range_for_part(self, part_id) -> typing.Tuple[int, int]:
         """Calculate the byte range for `part_id`.  Assume these are S3 part IDs, which are 1-indexed."""

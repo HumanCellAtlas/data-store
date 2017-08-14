@@ -4,17 +4,18 @@ from .base import Task, Runtime
 from .constants import TIME_OVERHEAD_FACTOR
 
 RunnerStateType = typing.TypeVar('RunnerStateType')
+RunnerResultType = typing.TypeVar('RunnerResultType')
 
 
-class Runner(typing.Generic[RunnerStateType]):
+class Runner(typing.Generic[RunnerStateType, RunnerResultType]):
     """
     This utilizes a given `Runtime` to execute a `Task` as long as it can.  Once there is doubt that the task can
     finish, the task's state is serialized and the system attempts to schedule the continuation of the work.
     """
     def __init__(
             self,
-            chunkedtask: Task[RunnerStateType],
-            runtime: Runtime[RunnerStateType]) -> None:
+            chunkedtask: Task[RunnerStateType, RunnerResultType],
+            runtime: Runtime[RunnerStateType, RunnerResultType]) -> None:
         self.chunkedtask = chunkedtask
         self.runtime = runtime
         self.observed_max_one_unit_runtime_millis = min(
@@ -31,8 +32,9 @@ class Runner(typing.Generic[RunnerStateType]):
         """
         while True:
             before = self.runtime.get_remaining_time_in_millis()
-            if not self.chunkedtask.run_one_unit():
-                self.runtime.work_complete_callback()
+            result = self.chunkedtask.run_one_unit()
+            if result is not None:
+                self.runtime.work_complete_callback(result)
                 return
             after = self.runtime.get_remaining_time_in_millis()
 

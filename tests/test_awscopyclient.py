@@ -17,7 +17,7 @@ from dss.events.chunkedtask.awscopyclient import S3CopyTask
 from tests import infra
 
 
-class TestStingyRuntime(chunkedtask.Runtime[dict]):
+class TestStingyRuntime(chunkedtask.Runtime[dict, bool]):
     def __init__(self):
         self.complete = False
 
@@ -29,7 +29,7 @@ class TestStingyRuntime(chunkedtask.Runtime[dict]):
         assert state is not None
         self.rescheduled_state = state
 
-    def work_complete_callback(self):
+    def work_complete_callback(self, bool):
         self.complete = True
 
 

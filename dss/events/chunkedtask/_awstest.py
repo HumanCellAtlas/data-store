@@ -33,7 +33,7 @@ class AWSFastTestRuntime(AWSRuntime):
         return self.time_remaining_iterator.__next__()
 
 
-class AWSFastTestTask(Task[typing.MutableSequence]):
+class AWSFastTestTask(Task[typing.MutableSequence, bool]):
     """
     This is a chunked task that counts from a number to another.  Once the counting is complete, it prints something to
     console, which is detected by the unit test.
@@ -48,9 +48,9 @@ class AWSFastTestTask(Task[typing.MutableSequence]):
     def expected_max_one_unit_runtime_millis(self) -> int:
         return AWS_FAST_TEST_EST_TIME_MS
 
-    def run_one_unit(self) -> bool:
+    def run_one_unit(self) -> typing.Optional[bool]:
         if self.state[0] >= self.state[1]:
-            return False
+            return True
         else:
             self.state[0] += 1
-            return True  # more work to be done.
+            return None  # more work to be done.

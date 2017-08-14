@@ -9,7 +9,7 @@ from ...util.aws import ARN, send_sns_msg
 from .base import Runtime
 
 
-class AWSRuntime(Runtime[dict]):
+class AWSRuntime(Runtime[dict, typing.Any]):
     """
     This is an implementation of `Runtime` specialized for AWS Lambda.  Work scheduling is done by posting a message
     containing the serialized state to SNS.
@@ -41,11 +41,12 @@ class AWSRuntime(Runtime[dict]):
             )),
         )
 
-    def work_complete_callback(self):
+    def work_complete_callback(self, result: typing.Any):
         AWSRuntime.log(
             self.task_id,
             json.dumps(dict(
                 action=awsconstants.LogActions.COMPLETE,
+                message=result,
             )),
         )
 
