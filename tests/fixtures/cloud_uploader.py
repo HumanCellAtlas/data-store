@@ -6,7 +6,7 @@ import boto3
 from .checksumming_io.checksumming_io import ChecksummingSink
 from google.cloud.storage import Client
 
-logging.basicConfig(level=logging.INFO)
+logging.basicConfig(level=logging.ERROR)
 logger = logging.getLogger(__name__)
 logger.setLevel(logging.INFO)
 
