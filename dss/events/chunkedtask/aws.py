@@ -6,12 +6,13 @@ import uuid
 
 import boto3
 
-from . import _awsimpl, awsconstants
+from . import _awstest, awsconstants
+from ._awsimpl import AWSRuntime
 from .runner import Runner
 
 # this is the authoritative mapping between client names and Task classes.
 CLIENTS = {
-    _awsimpl.AWS_FAST_TEST_CLIENT_NAME: _awsimpl.AWSFastTestTask,
+    _awstest.AWS_FAST_TEST_CLIENT_NAME: _awstest.AWSFastTestTask,
 }
 
 logger = logging.getLogger()
@@ -40,7 +41,7 @@ def schedule_task(client_name: str, state: typing.Any):
         Message=json.dumps(payload),
     )
 
-    _awsimpl.AWSRuntime.log(
+    AWSRuntime.log(
         task_id,
         json.dumps(dict(
             action=awsconstants.LogActions.SCHEDULED,
@@ -55,7 +56,7 @@ def get_payload(payload):
     try:
         task_id = payload[awsconstants.TASK_ID_KEY]
     except KeyError as ex:
-        _awsimpl.AWSRuntime.log(
+        AWSRuntime.log(
             awsconstants.FALLBACK_LOG_STREAM_NAME,
             json.dumps(dict(
                 action=awsconstants.LogActions.EXCEPTION,
@@ -73,7 +74,7 @@ def get_payload(payload):
         version = payload[awsconstants.REQUEST_VERSION_KEY]
         state = payload[awsconstants.STATE_KEY]
     except KeyError as ex:
-        _awsimpl.AWSRuntime.log(
+        AWSRuntime.log(
             task_id,
             json.dumps(dict(
                 action=awsconstants.LogActions.EXCEPTION,
@@ -85,7 +86,7 @@ def get_payload(payload):
         return None
 
     if version < awsconstants.MIN_SUPPORTED_VERSION or version > awsconstants.MAX_SUPPORTED_VERSION:
-        _awsimpl.AWSRuntime.log(
+        AWSRuntime.log(
             task_id,
             json.dumps(dict(
                 action=awsconstants.LogActions.EXCEPTION,
@@ -106,10 +107,10 @@ def dispatch(context, payload):
 
     # special case: if the client name is `AWS_FAST_TEST_CLIENT_NAME`, we use a special runtime environment so we don't
     # take forever running the test.
-    if client_name == _awsimpl.AWS_FAST_TEST_CLIENT_NAME:
-        runtime = _awsimpl.AWSFastTestRuntime(context, task_id)
+    if client_name == _awstest.AWS_FAST_TEST_CLIENT_NAME:
+        runtime = _awstest.AWSFastTestRuntime(context, task_id)
     else:
-        runtime = _awsimpl.AWSRuntime(context, client_name, task_id)
+        runtime = AWSRuntime(context, client_name, task_id)
 
     task = client_class(state)
 
