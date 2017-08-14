@@ -2,6 +2,7 @@
 # coding: utf-8
 
 import json
+import logging
 import os
 import sys
 import unittest
@@ -12,6 +13,7 @@ pkg_root = os.path.abspath(os.path.join(os.path.dirname(__file__), '..'))  # noq
 sys.path.insert(0, pkg_root)  # noqa
 
 import dss
+from dss.events.handlers.index import create_elasticsearch_index
 from tests.infra import DSSAsserts
 
 
@@ -19,6 +21,8 @@ class TestSearch(unittest.TestCase, DSSAsserts):
     def setUp(self):
         dss.Config.set_config(dss.DeploymentStage.TEST)
         self.app = dss.create_app().app.test_client()
+
+        create_elasticsearch_index(logging.getLogger(__name__))
 
     def test_search_get(self):
         self.assertGetResponse(
