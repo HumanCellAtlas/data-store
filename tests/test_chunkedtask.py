@@ -18,7 +18,7 @@ sys.path.insert(0, pkg_root)  # noqa
 
 from dss.events import chunkedtask
 from dss.events.chunkedtask import aws, awsconstants
-from dss.events.chunkedtask._awsimpl import AWS_FAST_TEST_CLIENT_NAME
+from dss.events.chunkedtask._awstest import AWS_FAST_TEST_CLIENT_NAME
 
 
 class TestChunkedTaskRuntime(chunkedtask.Runtime[tuple]):
