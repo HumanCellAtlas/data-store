@@ -3,10 +3,10 @@
 
 from __future__ import absolute_import, division, print_function, unicode_literals
 
+import itertools
 import os
 import sys
 import unittest
-
 
 pkg_root = os.path.abspath(os.path.join(os.path.dirname(__file__), '..'))  # noqa
 sys.path.insert(0, pkg_root)  # noqa
@@ -18,11 +18,15 @@ from tests import infra
 
 
 class TestStingyRuntime(chunkedtask.Runtime[dict, bool]):
-    def __init__(self):
+    """This is runtime that returns a pre-determined sequence, and then 0s for the remaining time."""
+    def __init__(self, seq=None):
         self.complete = False
+        if seq is None:
+            seq = list()
+        self.seq = itertools.chain(seq, itertools.repeat(0))
 
     def get_remaining_time_in_millis(self) -> int:
-        return 0
+        return self.seq.__next__()
 
     def schedule_work(self, state: dict):
         # it's illegal for there to be no state.
@@ -67,6 +71,29 @@ class TestAWSCopy(unittest.TestCase):
         while True:
             env = TestStingyRuntime()
             task = S3CopyTask(current_state)
+            runner = chunkedtask.Runner(task, env)
+
+            runner.run()
+
+            if env.complete:
+                # we're done!
+                break
+            else:
+                current_state = env.rescheduled_state
+
+        # verify that the destination has the same checksum.
+        dst_etag = S3BlobStore().get_all_metadata(self.test_bucket, dest_key)['ETag'].strip("\"")
+        self.assertEqual(self.test_src_etag, dst_etag)
+
+    def test_off_by_one(self):
+        dest_key = infra.generate_test_key()
+
+        current_state = S3CopyTask.setup_copy_task(
+            self.test_bucket, self.test_src_key, self.test_bucket, dest_key, lambda blob_size: (5 * 1024 * 1024))
+
+        while True:
+            env = TestStingyRuntime(seq=itertools.repeat(sys.maxsize, 9))
+            task = S3CopyTask(current_state, fetch_size=4)
             runner = chunkedtask.Runner(task, env)
 
             runner.run()

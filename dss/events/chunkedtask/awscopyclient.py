@@ -27,7 +27,7 @@ class S3CopyTask(Task[dict, typing.Any]):
     """
     This is a chunked task that does a multipart copy from one blob to another.
     """
-    def __init__(self, state: dict) -> None:
+    def __init__(self, state: dict, fetch_size: int=100) -> None:
         self.source_bucket = state[S3CopyTaskKeys.SOURCE_BUCKET]
         self.source_key = state[S3CopyTaskKeys.SOURCE_KEY]
         self.source_etag = state[S3CopyTaskKeys.SOURCE_ETAG]
@@ -41,6 +41,8 @@ class S3CopyTask(Task[dict, typing.Any]):
 
         self.s3_blobstore = S3BlobStore()
         self.queue = collections.deque()  # type: typing.Deque[int]
+
+        self.fetch_size = fetch_size
 
     @staticmethod
     def setup_copy_task(
@@ -103,9 +105,9 @@ class S3CopyTask(Task[dict, typing.Any]):
                     self.upload_id,
                     self.part_count,
                     self.next_part,
-                    100))
+                    self.fetch_size))
 
-        if len(self.queue) == 0 or self.next_part == self.part_count:
+        if len(self.queue) == 0 or self.next_part > self.part_count:
             # get all the components
             s3_resource = boto3.resource("s3")
 
@@ -146,6 +148,7 @@ class S3CopyTask(Task[dict, typing.Any]):
             PartNumber=part_id,
             UploadId=self.upload_id,
         )
+        self.next_part = part_id + 1
 
         self.queue.popleft()
 
