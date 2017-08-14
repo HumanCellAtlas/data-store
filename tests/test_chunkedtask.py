@@ -21,7 +21,7 @@ from dss.events.chunkedtask import aws, awsconstants
 from dss.events.chunkedtask._awstest import AWS_FAST_TEST_CLIENT_NAME
 
 
-class TestChunkedTaskRuntime(chunkedtask.Runtime[tuple]):
+class TestChunkedTaskRuntime(chunkedtask.Runtime[tuple, bool]):
     def __init__(self, initial_time_millis: int, tick_iterator: typing.Iterator[int]) -> None:
         self.remaining_time = initial_time_millis
         self.tick_iterator = tick_iterator
@@ -39,11 +39,11 @@ class TestChunkedTaskRuntime(chunkedtask.Runtime[tuple]):
     def advance_time(self):
         self.remaining_time -= self.tick_iterator.__next__()
 
-    def work_complete_callback(self):
+    def work_complete_callback(self, result):
         self.complete = True
 
 
-class TestChunkedTask(chunkedtask.Task):
+class TestChunkedTask(chunkedtask.Task[tuple, bool]):
     def __init__(
             self,
             state: tuple,
@@ -60,7 +60,7 @@ class TestChunkedTask(chunkedtask.Task):
     def get_state(self) -> typing.Any:
         return self.x0, self.x1, self.rounds_remaining
 
-    def run_one_unit(self) -> bool:
+    def run_one_unit(self) -> typing.Optional[bool]:
         x0new = self.x0 + self.x1
         self.x1 = self.x0
         self.x0 = x0new
@@ -68,7 +68,9 @@ class TestChunkedTask(chunkedtask.Task):
 
         self.rounds_remaining -= 1
 
-        return self.rounds_remaining > 0
+        if self.rounds_remaining == 0:
+            return True
+        return None
 
 
 class TestChunkedTaskRunner(unittest.TestCase):

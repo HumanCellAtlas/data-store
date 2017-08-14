@@ -1,13 +1,16 @@
 import typing
 
 TaskStateType = typing.TypeVar('TaskStateType')
+TaskResultType = typing.TypeVar('TaskResultType')
 RuntimeStateType = typing.TypeVar('RuntimeStateType')
+RuntimeResultType = typing.TypeVar('RuntimeResultType')
 
 
-class Task(typing.Generic[TaskStateType]):
-    def run_one_unit(self) -> bool:
+class Task(typing.Generic[TaskStateType, TaskResultType]):
+    def run_one_unit(self) -> typing.Optional[TaskResultType]:
         """
-        In implementations of `Task`, this should run one unit of work.  Returns true if there's more work to do.
+        In implementations of `Task`, this should run one unit of work.  Returns None if there's more work to do, or any
+        non-None value if the work is complete.  The returned value is passed to `Runtime.work_complete_callback(..)`.
         """
         raise NotImplementedError()
 
@@ -24,7 +27,7 @@ class Task(typing.Generic[TaskStateType]):
         raise NotImplementedError()
 
 
-class Runtime(typing.Generic[RuntimeStateType]):
+class Runtime(typing.Generic[RuntimeStateType, RuntimeResultType]):
     """
     This is the execution environment that the task is running in.
     """
@@ -42,7 +45,7 @@ class Runtime(typing.Generic[RuntimeStateType]):
         """
         raise NotImplementedError()
 
-    def work_complete_callback(self):
+    def work_complete_callback(self, result: RuntimeResultType):
         """
         Implementations of `Runtime` may implement this if they need to know that the task completed.
         """
