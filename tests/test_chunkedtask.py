@@ -10,7 +10,6 @@ import sys
 import time
 import typing
 import unittest
-from uuid import uuid4
 
 import boto3
 
@@ -123,6 +122,8 @@ class TestAWSChunkedTask(unittest.TestCase):
 
                 if message.get('action') == awsconstants.LogActions.COMPLETE:
                     return
+
+            time.sleep(1)
 
         self.fail("Did not find success marker in logs")
 
