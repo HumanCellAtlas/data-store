@@ -3,6 +3,7 @@
 
 from __future__ import absolute_import, division, print_function, unicode_literals
 
+import io
 import itertools
 import os
 import sys
@@ -94,6 +95,42 @@ class TestAWSCopy(unittest.TestCase):
         while True:
             env = TestStingyRuntime(seq=itertools.repeat(sys.maxsize, 9))
             task = S3CopyTask(current_state, fetch_size=4)
+            runner = chunkedtask.Runner(task, env)
+
+            runner.run()
+
+            if env.complete:
+                # we're done!
+                break
+            else:
+                current_state = env.rescheduled_state
+
+        # verify that the destination has the same checksum.
+        dst_etag = S3BlobStore().get_all_metadata(self.test_bucket, dest_key)['ETag'].strip("\"")
+        self.assertEqual(self.test_src_etag, dst_etag)
+
+
+class TestAWSCopyNonMultipart(unittest.TestCase):
+    def setUp(self):
+        self.test_bucket = infra.get_env("DSS_S3_BUCKET_TEST")
+        self.s3_blobstore = S3BlobStore()
+        self.test_src_key = infra.generate_test_key()
+        self.s3_blobstore.upload_file_handle(
+            self.test_bucket,
+            self.test_src_key,
+            io.BytesIO(b"abcabcabc"))
+
+        self.test_src_etag = self.s3_blobstore.get_cloud_checksum(self.test_bucket, self.test_src_key)
+
+    def test_simple_copy(self):
+        dest_key = infra.generate_test_key()
+
+        current_state = S3CopyTask.setup_copy_task(
+            self.test_bucket, self.test_src_key, self.test_bucket, dest_key, lambda blob_size: (5 * 1024 * 1024))
+
+        while True:
+            env = TestStingyRuntime()
+            task = S3CopyTask(current_state)
             runner = chunkedtask.Runner(task, env)
 
             runner.run()
