@@ -58,11 +58,15 @@ class S3CopyTask(Task[dict, typing.Any]):
         blobinfo = s3_blobstore.get_all_metadata(source_bucket, source_key)
         source_etag = blobinfo['ETag'].strip("\"")  # the ETag is returned with an extra set of quotes.
         source_size = blobinfo['ContentLength']  # type: int
-        mpu = s3_blobstore.s3_client.create_multipart_upload(Bucket=destination_bucket, Key=destination_key)
         part_size = part_size_calculator(source_size)
         part_count = source_size // part_size
         if part_count * part_size < source_size:
             part_count += 1
+        if part_count > 1:
+            mpu = s3_blobstore.s3_client.create_multipart_upload(Bucket=destination_bucket, Key=destination_key)
+            upload_id = mpu['UploadId']
+        else:
+            upload_id = None
 
         return {
             S3CopyTaskKeys.SOURCE_BUCKET: source_bucket,
@@ -70,7 +74,7 @@ class S3CopyTask(Task[dict, typing.Any]):
             S3CopyTaskKeys.SOURCE_ETAG: source_etag,
             S3CopyTaskKeys.DESTINATION_BUCKET: destination_bucket,
             S3CopyTaskKeys.DESTINATION_KEY: destination_key,
-            S3CopyTaskKeys.UPLOAD_ID: mpu['UploadId'],
+            S3CopyTaskKeys.UPLOAD_ID: upload_id,
             S3CopyTaskKeys.SIZE: source_size,
             S3CopyTaskKeys.PART_SIZE: part_size,
             S3CopyTaskKeys.NEXT_PART: 1,
@@ -97,7 +101,15 @@ class S3CopyTask(Task[dict, typing.Any]):
         return 60 * 1000
 
     def run_one_unit(self) -> typing.Optional[typing.Any]:
-        if len(self.queue) == 0 and self.next_part < self.part_count:
+        if self.part_count == 1:
+            # it's not a multipart copy.
+            self.s3_blobstore.copy(
+                self.source_bucket, self.source_key,
+                self.destination_bucket, self.destination_key)
+
+            return True
+
+        if len(self.queue) == 0 and self.next_part <= self.part_count:
             self.queue.extend(
                 self.s3_blobstore.find_next_missing_parts(
                     self.destination_bucket,
