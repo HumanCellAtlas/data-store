@@ -31,9 +31,9 @@ from dss import (DeploymentStage, Config,
 from dss.events.handlers.index import process_new_indexable_object
 from dss.hcablobstore import BundleMetadata, BundleFileMetadata, FileMetadata
 from dss.util import create_blob_key, UrlBuilder
-from dss.util.es import ElasticsearchClient
+from dss.util.es import ElasticsearchClient, ElasticsearchServer
 
-from tests.es import check_start_elasticsearch_service, elasticsearch_delete_index
+from tests.es import elasticsearch_delete_index
 from tests.fixtures.populate import populate
 from tests.infra import DSSAsserts, StorageTestSupport, S3TestBundle, start_verbose_logging
 
@@ -86,9 +86,8 @@ class TestIndexer(unittest.TestCase, DSSAsserts, StorageTestSupport):
             Config.set_config(DeploymentStage.TEST)
             create_s3_bucket(Config.get_s3_bucket())
 
-        if "DSS_ES_ENDPOINT" not in os.environ:
-            os.environ["DSS_ES_ENDPOINT"] = "localhost"
-        check_start_elasticsearch_service()
+        cls.es_server = ElasticsearchServer()
+        os.environ['DSS_ES_PORT'] = str(cls.es_server.port)
 
         cls.http_server = HTTPServer((cls.http_server_address, cls.http_server_port), PostTestHandler)
         cls.http_server_thread = threading.Thread(target=cls.http_server.serve_forever)
@@ -96,6 +95,7 @@ class TestIndexer(unittest.TestCase, DSSAsserts, StorageTestSupport):
 
     @classmethod
     def tearDownClass(cls):
+        cls.es_server.shutdown()
         if not USE_AWS_S3:  # Teardown moto mocks
             cls.mock_sts.stop()
             cls.mock_s3.stop()
@@ -168,22 +168,6 @@ class TestIndexer(unittest.TestCase, DSSAsserts, StorageTestSupport):
         self.verify_index_document_structure_and_content(search_results[0], bundle_key,
                                                          files=files,
                                                          excluded_files=[inaccesssible_filename.replace(".", "_")])
-
-    def test_es_client_reuse(self):
-        from dss.events.handlers.index import ElasticsearchClient
-        bundle_key = self.load_test_data_bundle_for_path("fixtures/smartseq2/paired_ends")
-        sample_s3_event = self.create_sample_s3_bundle_created_event(bundle_key)
-
-        ElasticsearchClient._es_client = None
-        process_new_indexable_object(sample_s3_event, logger)
-        self.assertIsNotNone(ElasticsearchClient._es_client)
-        es_client_after_first_call = ElasticsearchClient._es_client
-
-        process_new_indexable_object(sample_s3_event, logger)
-        self.assertIsNotNone(ElasticsearchClient._es_client)
-        es_client_after_second_call = ElasticsearchClient._es_client
-
-        self.assertIs(es_client_after_first_call, es_client_after_second_call)
 
     def test_subscription_notification_successful(self):
         bundle_key = self.load_test_data_bundle_for_path("fixtures/smartseq2/paired_ends")

@@ -1,6 +1,12 @@
 import json
 import os
-from urllib.parse import SplitResult, parse_qs, urlencode, urlparse, urlunsplit
+import random
+import socket
+import subprocess
+import tempfile
+import time
+import typing
+from urllib.parse import parse_qs, urlencode, urlparse
 
 import boto3
 from botocore.auth import SigV4Auth
@@ -34,36 +40,99 @@ class AWSV4Sign(requests.auth.AuthBase):
         return r
 
 
+class ElasticsearchServer:
+    def __init__(self, startup_timeout_seconds: int=60) -> None:
+        elasticsearch_binary = os.getenv("DSS_TEST_ES_PATH")
+        self.tempdir = tempfile.TemporaryDirectory()
+        while True:
+            port = random.randint(1024, 65535)
+            transport_port = random.randint(1024, 65535)
+
+            # try to check if the randomly assigned ports already have a running service.
+            conflict = False
+            for port_to_test in port, transport_port:
+                try:
+                    sock = socket.create_connection(("localhost", port_to_test), 1)
+                    sock.close()
+                    # there's something there already.
+                    conflict = True
+                    break
+                except (ConnectionRefusedError, socket.timeout):
+                    # ok this is an open port.
+                    pass
+            if conflict:
+                continue
+
+            proc = subprocess.Popen(
+                [
+                    elasticsearch_binary,
+                    "-E", f"http.port={port}",
+                    "-E", f"transport.tcp.port={transport_port}",
+                    "-E", f"path.data={self.tempdir.name}",
+                ],
+            )
+
+            for ix in range(startup_timeout_seconds):
+                try:
+                    sock = socket.create_connection(("localhost", port), 1)
+                    sock.close()
+                    break
+                except (ConnectionRefusedError, socket.timeout):
+                    # failed :(
+                    pass
+                time.sleep(1)
+            else:
+                # still not running.  try a different port.
+                continue
+
+            # is the process still running?  if not, we're probably talking to someone else.
+            if proc.poll() is None:
+                self.port = port
+                self.proc = proc
+                break
+
+    def shutdown(self) -> None:
+        self.proc.kill()
+        self.proc.communicate()
+        self.proc.wait()
+        self.tempdir.cleanup()
+
+
 class ElasticsearchClient:
-    _es_client = None
+    _es_client = dict()  # type: typing.Mapping[typing.Tuple[str, int], Elasticsearch]
 
     @staticmethod
     def get(logger):
-        if ElasticsearchClient._es_client is None:
-            elasticsearch_endpoint = os.getenv("DSS_ES_ENDPOINT")
+        elasticsearch_endpoint = os.getenv("DSS_ES_ENDPOINT", "localhost")
+        elasticsearch_port = int(os.getenv("DSS_ES_PORT", "443"))
+
+        client = ElasticsearchClient._es_client.get((elasticsearch_endpoint, elasticsearch_port), None)
+
+        if client is None:
             try:
-                if elasticsearch_endpoint is None:
-                    elasticsearch_endpoint = "localhost"
                 logger.debug("Connecting to Elasticsearch at host: {}".format(elasticsearch_endpoint))
                 if elasticsearch_endpoint.endswith(".amazonaws.com"):
                     session = boto3.session.Session()
                     es_auth = AWSV4Sign(session.get_credentials(), session.region_name, service="es")
-                    es_client = Elasticsearch(
-                        hosts=[{'host': elasticsearch_endpoint, 'port': 443}],
+                    client = Elasticsearch(
+                        hosts=[{'host': elasticsearch_endpoint, 'port': elasticsearch_port}],
                         use_ssl=True,
                         verify_certs=True,
                         connection_class=RequestsHttpConnection,
                         http_auth=es_auth)
                 else:
-                    es_client = Elasticsearch([elasticsearch_endpoint], use_ssl=False, port=9200)
-                ElasticsearchClient._es_client = es_client
+                    client = Elasticsearch(
+                        [{'host': elasticsearch_endpoint, 'port': elasticsearch_port}],
+                        use_ssl=False
+                    )
+                ElasticsearchClient._es_client[(elasticsearch_endpoint, elasticsearch_port)] = client
             except Exception as ex:
                 logger.error("Unable to connect to Elasticsearch endpoint {}. Exception: {}".format(
                     elasticsearch_endpoint, ex)
                 )
                 raise ex
 
-        return ElasticsearchClient._es_client
+        return client
 
 
 def get_elasticsearch_index(es_client, idx, logger, index_mapping=None):

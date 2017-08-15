@@ -20,10 +20,8 @@ sys.path.insert(0, pkg_root) # noqa
 
 import dss
 from dss import DSS_ELASTICSEARCH_INDEX_NAME, DSS_ELASTICSEARCH_DOC_TYPE, DSS_ELASTICSEARCH_QUERY_TYPE
-from dss.config import DeploymentStage
 from dss.util import UrlBuilder
-from dss.util.es import ElasticsearchClient, get_elasticsearch_index
-from tests.es import check_start_elasticsearch_service, close_elasticsearch_connections, elasticsearch_delete_index
+from dss.util.es import ElasticsearchClient, ElasticsearchServer, get_elasticsearch_index
 from tests.infra import DSSAsserts
 
 logging.basicConfig(level=logging.INFO)
@@ -32,6 +30,14 @@ logger.setLevel(logging.INFO)
 
 
 class TestSubscriptions(unittest.TestCase, DSSAsserts):
+    @classmethod
+    def setUpClass(cls):
+        cls.es_server = ElasticsearchServer()
+        os.environ['DSS_ES_PORT'] = str(cls.es_server.port)
+
+    @classmethod
+    def tearDownClass(cls):
+        cls.es_server.shutdown()
 
     def setUp(self):
         os.environ['DSS_ES_ENDPOINT'] = os.getenv('DSS_ES_ENDPOINT', "localhost")

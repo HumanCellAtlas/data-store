@@ -14,10 +14,20 @@ sys.path.insert(0, pkg_root)  # noqa
 
 import dss
 from dss.events.handlers.index import create_elasticsearch_index
+from dss.util.es import ElasticsearchServer
 from tests.infra import DSSAsserts
 
 
 class TestSearch(unittest.TestCase, DSSAsserts):
+    @classmethod
+    def setUpClass(cls):
+        cls.es_server = ElasticsearchServer()
+        os.environ['DSS_ES_PORT'] = str(cls.es_server.port)
+
+    @classmethod
+    def tearDownClass(cls):
+        cls.es_server.shutdown()
+
     def setUp(self):
         dss.Config.set_config(dss.DeploymentStage.TEST)
         self.app = dss.create_app().app.test_client()
