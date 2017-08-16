@@ -86,14 +86,14 @@ class TestDSS(unittest.TestCase, DSSAsserts):
         self.assertEqual(splitted.scheme, schema)
         bucket = splitted.netloc
         key = splitted.path[1:]  # ignore the / part of the path.
-        with override_bucket_config(DeploymentStage.TEST_FIXTURE):
-            handle, hca_handle, bucket = Config.get_cloud_specific_handles(replica)
-            contents = handle.get(bucket, key)
 
-            hasher = hashlib.sha1()
-            hasher.update(contents)
-            sha1 = hasher.hexdigest()
-            self.assertEqual(sha1, "2b8b815229aa8a61e483fb4ba0588b8b6c491890")
+        handle, _, _ = Config.get_cloud_specific_handles(replica)
+        contents = handle.get(bucket, key)
+
+        hasher = hashlib.sha1()
+        hasher.update(contents)
+        sha1 = hasher.hexdigest()
+        self.assertEqual(sha1, "2b8b815229aa8a61e483fb4ba0588b8b6c491890")
 
     def test_bundle_put(self):
         self._test_bundle_put("aws", self.s3_test_fixtures_bucket)
