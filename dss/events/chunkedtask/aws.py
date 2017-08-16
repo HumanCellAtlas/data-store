@@ -1,6 +1,5 @@
 import json
 import logging
-import os
 import typing
 import uuid
 
@@ -11,12 +10,14 @@ from . import _awstest, awsconstants
 from ._awsimpl import AWSRuntime
 from .runner import Runner
 
+
 # this is the authoritative mapping between client names and Task classes.
-CLIENTS = {
-    _awstest.AWS_FAST_TEST_CLIENT_NAME: _awstest.AWSFastTestTask,
-    awscopyclient.AWS_S3_COPY_CLIENT_NAME: awscopyclient.S3CopyTask,
-    awscopyclient.AWS_S3_COPY_AND_WRITE_METADATA_CLIENT_NAME: awscopyclient.S3CopyWriteBundleTask,
-}
+def get_clients():
+    return {
+        _awstest.AWS_FAST_TEST_CLIENT_NAME: _awstest.AWSFastTestTask,
+        awscopyclient.AWS_S3_COPY_CLIENT_NAME: awscopyclient.S3CopyTask,
+        awscopyclient.AWS_S3_COPY_AND_WRITE_METADATA_CLIENT_NAME: awscopyclient.S3CopyWriteBundleTask,
+    }
 
 logger = logging.getLogger()
 logger.setLevel(logging.INFO)
@@ -73,7 +74,7 @@ def parse_payload(payload):
     # look up by client name
     try:
         client_name = payload[awsconstants.CLIENT_KEY]
-        client_class = CLIENTS[client_name]
+        client_class = get_clients()[client_name]
         version = payload[awsconstants.REQUEST_VERSION_KEY]
         state = payload[awsconstants.STATE_KEY]
     except KeyError as ex:
