@@ -4,6 +4,7 @@ import inspect
 import json
 import logging
 import os
+import pprint
 import re
 import typing
 import uuid
@@ -82,24 +83,30 @@ class DSSAsserts:
             kwargs['content_type'] = 'application/json'
 
         response = getattr(self.app, method)(path, **kwargs)
-        if isinstance(expected_code, collections.abc.Container):
-            self.assertIn(response.status_code, expected_code)
-        else:
-            self.assertEqual(response.status_code, expected_code)
-
         try:
             actual_json = json.loads(response.data.decode("utf-8"))
         except Exception:
             actual_json = None
 
-        if expected_error is not None:
-            self.assertEqual(response.headers['content-type'], "application/problem+json")
-            self.assertEqual(actual_json['code'], expected_error.code)
-            self.assertIn('title', actual_json)
-            if expected_error.status is not None:
-                self.assertEqual(actual_json['status'], expected_error.status)
-            if expected_error.expect_stacktrace is not None:
-                self.assertEqual('stacktrace' in actual_json, expected_error.expect_stacktrace)
+        try:
+            if isinstance(expected_code, collections.abc.Container):
+                self.assertIn(response.status_code, expected_code)
+            else:
+                self.assertEqual(response.status_code, expected_code)
+
+            if expected_error is not None:
+                self.assertEqual(response.headers['content-type'], "application/problem+json")
+                self.assertEqual(actual_json['code'], expected_error.code)
+                self.assertIn('title', actual_json)
+                if expected_error.status is not None:
+                    self.assertEqual(actual_json['status'], expected_error.status)
+                if expected_error.expect_stacktrace is not None:
+                    self.assertEqual('stacktrace' in actual_json, expected_error.expect_stacktrace)
+        except AssertionError:
+            if actual_json is not None:
+                print("Response:")
+                pprint.pprint(actual_json)
+            raise
 
         return DSSAssertResponse(response, response.data, actual_json)
 
