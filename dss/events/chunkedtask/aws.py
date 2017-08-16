@@ -6,6 +6,7 @@ import uuid
 
 import boto3
 
+from . import awscopyclient
 from . import _awstest, awsconstants
 from ._awsimpl import AWSRuntime
 from .runner import Runner
@@ -13,6 +14,8 @@ from .runner import Runner
 # this is the authoritative mapping between client names and Task classes.
 CLIENTS = {
     _awstest.AWS_FAST_TEST_CLIENT_NAME: _awstest.AWSFastTestTask,
+    awscopyclient.AWS_S3_COPY_CLIENT_NAME: awscopyclient.S3CopyTask,
+    awscopyclient.AWS_S3_COPY_AND_WRITE_METADATA_CLIENT_NAME: awscopyclient.S3CopyWriteBundleTask,
 }
 
 logger = logging.getLogger()
