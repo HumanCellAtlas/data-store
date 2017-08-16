@@ -55,7 +55,7 @@ def schedule_task(client_name: str, state: typing.Any):
     return task_id
 
 
-def get_payload(payload):
+def parse_payload(payload):
     try:
         task_id = payload[awsconstants.TASK_ID_KEY]
     except KeyError as ex:
@@ -103,7 +103,7 @@ def get_payload(payload):
 
 
 def dispatch(context, payload):
-    decoded_payload = get_payload(payload)
+    decoded_payload = parse_payload(payload)
     if decoded_payload is None:
         return
     task_id, client_name, client_class, state = decoded_payload
