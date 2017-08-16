@@ -6,6 +6,7 @@ import logging
 import os
 import pprint
 import re
+import time
 import typing
 import uuid
 
@@ -165,6 +166,49 @@ class S3File:
         self.url = f"s3://{bundle.bucket.name}/{self.path}"
         self.uuid = str(uuid.uuid4())
         self.version = None
+
+
+def upload_file_wait(
+        test_class_instance: DSSAsserts,
+        source_url: str,
+        replica: str,
+        file_uuid: str=None,
+        bundle_uuid: str=None,
+        timeout_seconds: int=120) -> DSSAssertResponse:
+    """
+    Upload a file.  If the request is being handled asynchronously, wait until the file has landed in the data store.
+    """
+    file_uuid = str(uuid.uuid4()) if file_uuid is None else file_uuid
+    bundle_uuid = str(uuid.uuid4()) if bundle_uuid is None else bundle_uuid
+    resp_obj = test_class_instance.assertPutResponse(
+        f"/v1/files/{file_uuid}",
+        (requests.codes.created, requests.codes.accepted),
+        json_request_body=dict(
+            bundle_uuid=bundle_uuid,
+            creator_uid=0,
+            source_url=source_url,
+        ),
+    )
+
+    if resp_obj.response.status_code == requests.codes.accepted:
+        # hit the GET /files endpoint until we succeed.
+        start_time = time.time()
+        timeout_time = start_time + timeout_seconds
+
+        while time.time() < timeout_time:
+            try:
+                test_class_instance.assertHeadResponse(
+                    f"/v1/files/{file_uuid}?replica={replica}",
+                    requests.codes.ok)
+                break
+            except AssertionError:
+                pass
+
+            time.sleep(1)
+        else:
+            test_class_instance.fail("Could not find the output file")
+
+    return resp_obj
 
 
 class StorageTestSupport:
