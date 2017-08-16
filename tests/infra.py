@@ -1,3 +1,4 @@
+import collections.abc
 import functools
 import inspect
 import json
@@ -57,7 +58,7 @@ class DSSAsserts:
             self,
             method: str,
             path: str,
-            expected_code: int,
+            expected_code: typing.Union[int, typing.Container[int]],
             json_request_body: typing.Optional[dict]=None,
             expected_error: typing.Optional[ExpectedErrorFields]=None,
             **kwargs) -> DSSAssertResponse:
@@ -81,7 +82,10 @@ class DSSAsserts:
             kwargs['content_type'] = 'application/json'
 
         response = getattr(self.app, method)(path, **kwargs)
-        self.assertEqual(response.status_code, expected_code)
+        if isinstance(expected_code, collections.abc.Container):
+            self.assertIn(response.status_code, expected_code)
+        else:
+            self.assertEqual(response.status_code, expected_code)
 
         try:
             actual_json = json.loads(response.data.decode("utf-8"))
