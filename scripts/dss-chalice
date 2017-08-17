@@ -9,7 +9,7 @@ import chalice.awsclient, chalice.deploy.deployer
 class DSSChaliceTypedAWSClient(chalice.awsclient.TypedAWSClient):
     def update_function(self, *args, **kwargs):
         kwargs.pop("role_arn", None)
-        chalice.awsclient.TypedAWSClient.update_function(self, *args, **kwargs)
+        super().update_function(*args, **kwargs)
 
 chalice.awsclient.TypedAWSClient = DSSChaliceTypedAWSClient
 chalice.deploy.deployer.TypedAWSClient = DSSChaliceTypedAWSClient
