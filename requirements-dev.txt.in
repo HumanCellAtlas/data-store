@@ -2,7 +2,7 @@
 flake8
 mypy >= 0.521
 domovoi
-chalice >= 1.0.1, < 2.0.0
+chalice >= 1.0.1
 coverage
 awscli
 moto
