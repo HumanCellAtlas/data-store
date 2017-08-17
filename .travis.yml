@@ -36,7 +36,7 @@ deploy:
   script: make deploy
   skip_cleanup: true
   on:
-    branch: akislyuk-fix-gss3-sync
+    branch: master
     python: 3.6
 env:
   global:
