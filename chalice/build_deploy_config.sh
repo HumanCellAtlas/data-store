@@ -56,7 +56,7 @@ done
 if [[ ${CI:-} == true ]]; then
     account_id=$(aws sts get-caller-identity | jq -r .Account)
     export iam_role_arn="arn:aws:iam::${account_id}:role/dss-${stage}"
-    cat "$config_json" | jq .manage_iam_role=false | sponge "$config_json"
+    cat "$config_json" | jq .manage_iam_role=false | jq .iam_role_arn=env.iam_role_arn | sponge "$config_json"
 fi
 
 cat "$policy_template" | envsubst '$DSS_S3_BUCKET $account_id $stage' > "$policy_json"
