@@ -60,11 +60,13 @@ def get_chalice_app(flask_app):
     def handle_notification():
         event = app.current_request.json_body
         if event["kind"] == "storage#object" and event["selfLink"].startswith("https://www.googleapis.com/storage"):
+            # FIXME: (akislyuk) authenticate the message
             gs_key_name = event["name"]
             sync_result = sync_blob(source_platform="gs",
                                     source_key=gs_key_name,
                                     dest_platform="s3",
-                                    logger=app.logger)
+                                    logger=app.log,
+                                    context=app.lambda_context)
             return sync_result
         else:
             raise NotImplementedError()
