@@ -22,7 +22,7 @@ crcmod==1.7
 cryptography==2.0.3
 dicttoxml==1.7.4
 docutils==0.14
-domovoi==1.2.2
+domovoi==1.2.3
 elasticsearch==5.4.0
 elasticsearch-dsl==5.3.0
 flake8==3.4.1
