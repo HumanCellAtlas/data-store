@@ -16,7 +16,7 @@ sys.path.insert(0, pkg_root)  # noqa
 import dss
 from dss.config import DeploymentStage, Config, override_bucket_config
 from dss.util import UrlBuilder
-from tests.infra import DSSAsserts, get_env
+from tests.infra import DSSAsserts, get_env, upload_file_wait
 
 
 class TestDSS(unittest.TestCase, DSSAsserts):
@@ -107,15 +107,12 @@ class TestDSS(unittest.TestCase, DSSAsserts):
 
         file_uuid = str(uuid.uuid4())
         bundle_uuid = str(uuid.uuid4())
-        resp_obj = self.assertPutResponse(
-            "/v1/files/" + file_uuid,
-            requests.codes.created,
-            json_request_body=dict(
-                source_url=f"{schema}://{fixtures_bucket}/test_good_source_data/0",
-                bundle_uuid=bundle_uuid,
-                creator_uid=4321,
-                content_type="text/html",
-            ),
+        resp_obj = upload_file_wait(
+            self,
+            f"{schema}://{fixtures_bucket}/test_good_source_data/0",
+            replica,
+            file_uuid,
+            bundle_uuid,
         )
         version = resp_obj.json['version']
 

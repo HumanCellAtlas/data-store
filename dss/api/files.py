@@ -13,7 +13,10 @@ from werkzeug.exceptions import BadRequest
 from .. import DSSException, dss_handler
 from ..blobstore import BlobAlreadyExistsError, BlobNotFoundError, BlobStore
 from ..config import Config
+from ..events.chunkedtask import aws
+from ..events.chunkedtask import awscopyclient
 from ..hcablobstore import FileMetadata, HCABlobStore
+from ..util.aws import get_s3_chunk_size
 
 
 @dss_handler
@@ -152,27 +155,6 @@ def put(uuid: str, extras: dict, version: str=None):
     except BlobNotFoundError:
         pass
 
-    if do_copy:
-        handle.copy(src_bucket, src_object_name, dst_bucket, dst_object_name)
-
-        # verify the copy was done correctly.
-        assert hca_handle.verify_blob_checksum(dst_bucket, dst_object_name, metadata)
-
-    # what's the target object name for the file metadata?
-    metadata_object_name = "files/" + uuid + "." + version
-
-    # if it already exists, then it's a failure.
-    try:
-        handle.get_user_metadata(dst_bucket, metadata_object_name)
-    except BlobNotFoundError:
-        pass
-    else:
-        # TODO: (ttung) better error messages pls.
-        return (
-            make_response("file already exists!"),
-            requests.codes.conflict
-        )
-
     # build the json document for the file metadata.
     document = json.dumps({
         FileMetadata.FORMAT: FileMetadata.FILE_FORMAT_VERSION,
@@ -186,7 +168,35 @@ def put(uuid: str, extras: dict, version: str=None):
         FileMetadata.SHA256: metadata['hca-dss-sha256'],
     })
 
-    write_file_metadata(handle, dst_bucket, uuid, version, document)
+    if do_copy:
+        if replica == "aws":
+            state = awscopyclient.S3CopyTask.setup_copy_task(
+                src_bucket, src_object_name,
+                dst_bucket, dst_object_name,
+                get_s3_chunk_size,
+            )
+            state[awscopyclient.S3CopyWriteBundleTaskKeys.FILE_UUID] = uuid
+            state[awscopyclient.S3CopyWriteBundleTaskKeys.FILE_VERSION] = version
+            state[awscopyclient.S3CopyWriteBundleTaskKeys.METADATA] = document
+
+            # start a lambda to do the copy.
+            task_id = aws.schedule_task(awscopyclient.AWS_S3_COPY_AND_WRITE_METADATA_CLIENT_NAME, state)
+
+            return jsonify(dict(task_id=task_id, version=version)), requests.codes.accepted
+        else:
+            handle.copy(src_bucket, src_object_name, dst_bucket, dst_object_name)
+
+            # verify the copy was done correctly.
+            assert hca_handle.verify_blob_checksum(dst_bucket, dst_object_name, metadata)
+
+    try:
+        write_file_metadata(handle, dst_bucket, uuid, version, document)
+    except BlobAlreadyExistsError:
+        # TODO: (ttung) better error messages pls.
+        return (
+            make_response("file already exists!"),
+            requests.codes.conflict
+        )
 
     return jsonify(
         dict(version=version)), requests.codes.created

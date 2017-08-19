@@ -227,14 +227,12 @@ class StorageTestSupport:
         self.create_bundle(bundle)
 
     def upload_file(self: Any, bundle_file: S3File) -> str:
-        response = self.assertPutResponse(
-            f"/v1/files/{bundle_file.uuid}",
-            requests.codes.created,
-            json_request_body=dict(
-                bundle_uuid=bundle_file.bundle.uuid,
-                creator_uid=0,
-                source_url=bundle_file.url
-            )
+        response = upload_file_wait(
+            typing.cast(DSSAsserts, self),
+            bundle_file.url,
+            "aws",
+            file_uuid=bundle_file.uuid,
+            bundle_uuid=bundle_file.bundle.uuid,
         )
         response_data = json.loads(response[1])
         self.assertIs(type(response_data), dict)
