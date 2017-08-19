@@ -305,6 +305,7 @@ def generate_test_key() -> str:
     callerframerecord = inspect.stack()[1]  # 0 represents this line, 1 represents line at caller.
     frame = callerframerecord[0]
     info = inspect.getframeinfo(frame)
+    filename = os.path.basename(info.filename)
     unique_key = str(uuid.uuid4())
 
-    return f"{info.filename}/{info.function}/{unique_key}"
+    return f"{filename}/{info.function}/{unique_key}"
