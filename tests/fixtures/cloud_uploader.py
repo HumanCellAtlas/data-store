@@ -3,8 +3,11 @@ import os
 import typing
 
 import boto3
-from .checksumming_io.checksumming_io import ChecksummingSink
+from boto3.s3.transfer import TransferConfig
 from google.cloud.storage import Client
+
+from dss.util.aws import get_s3_chunk_size
+from .checksumming_io.checksumming_io import ChecksummingSink
 
 logging.basicConfig(level=logging.ERROR)
 logger = logging.getLogger(__name__)
@@ -76,11 +79,23 @@ class S3Uploader(Uploader):
         if tags is None:
             tags = dict()
 
+        fp = os.path.join(self.local_root, local_path)
+        sz = os.stat(fp).st_size
+
+        chunk_sz = get_s3_chunk_size(sz)
+        transfer_config = TransferConfig(
+            multipart_threshold=64 * 1024 * 1024,
+            multipart_chunksize=chunk_sz,
+        )
+
         logger.info(f"Uploading {local_path} to s3://{self.bucket}/{remote_path}")
-        self.s3_client.upload_file(os.path.join(self.local_root, local_path),
-                                   self.bucket,
-                                   remote_path,
-                                   ExtraArgs={"Metadata": metadata_keys})
+        self.s3_client.upload_file(
+            fp,
+            self.bucket,
+            remote_path,
+            ExtraArgs={"Metadata": metadata_keys},
+            Config=transfer_config
+        )
 
         tagset = dict(TagSet=[])  # type: typing.Dict[str, typing.List[dict]]
         for tag_key, tag_value in tags.items():
