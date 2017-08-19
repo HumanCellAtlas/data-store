@@ -3,6 +3,7 @@ import io
 import json
 import re
 import typing
+from enum import Enum, auto
 
 import iso8601
 import requests
@@ -96,6 +97,11 @@ def get_helper(uuid: str, replica: typing.Optional[str]=None, version: str=None)
 
 @dss_handler
 def put(uuid: str, extras: dict, version: str=None):
+    class CopyMode(Enum):
+        NO_COPY = auto()
+        COPY_INLINE = auto()
+        COPY_ASYNC = auto()
+
     uuid = uuid.lower()
     if version is not None:
         # convert it to date-time so we can format exactly as the system requires (with microsecond precision)
@@ -148,10 +154,10 @@ def put(uuid: str, extras: dict, version: str=None):
     )).lower()
 
     # does it exist? if so, we can skip the copy part.
-    do_copy = True
+    copy_mode = CopyMode.COPY_INLINE
     try:
         if hca_handle.verify_blob_checksum(dst_bucket, dst_object_name, metadata):
-            do_copy = False
+            copy_mode = CopyMode.NO_COPY
     except BlobNotFoundError:
         pass
 
@@ -168,26 +174,28 @@ def put(uuid: str, extras: dict, version: str=None):
         FileMetadata.SHA256: metadata['hca-dss-sha256'],
     })
 
-    if do_copy:
-        if replica == "aws":
-            state = awscopyclient.S3CopyTask.setup_copy_task(
-                src_bucket, src_object_name,
-                dst_bucket, dst_object_name,
-                get_s3_chunk_size,
-            )
-            state[awscopyclient.S3CopyWriteBundleTaskKeys.FILE_UUID] = uuid
-            state[awscopyclient.S3CopyWriteBundleTaskKeys.FILE_VERSION] = version
-            state[awscopyclient.S3CopyWriteBundleTaskKeys.METADATA] = document
+    if copy_mode != CopyMode.NO_COPY and replica == "aws":
+        copy_mode = CopyMode.COPY_ASYNC
 
-            # start a lambda to do the copy.
-            task_id = aws.schedule_task(awscopyclient.AWS_S3_COPY_AND_WRITE_METADATA_CLIENT_NAME, state)
+    if copy_mode == CopyMode.COPY_ASYNC:
+        state = awscopyclient.S3CopyTask.setup_copy_task(
+            src_bucket, src_object_name,
+            dst_bucket, dst_object_name,
+            get_s3_chunk_size,
+        )
+        state[awscopyclient.S3CopyWriteBundleTaskKeys.FILE_UUID] = uuid
+        state[awscopyclient.S3CopyWriteBundleTaskKeys.FILE_VERSION] = version
+        state[awscopyclient.S3CopyWriteBundleTaskKeys.METADATA] = document
 
-            return jsonify(dict(task_id=task_id, version=version)), requests.codes.accepted
-        else:
-            handle.copy(src_bucket, src_object_name, dst_bucket, dst_object_name)
+        # start a lambda to do the copy.
+        task_id = aws.schedule_task(awscopyclient.AWS_S3_COPY_AND_WRITE_METADATA_CLIENT_NAME, state)
 
-            # verify the copy was done correctly.
-            assert hca_handle.verify_blob_checksum(dst_bucket, dst_object_name, metadata)
+        return jsonify(dict(task_id=task_id, version=version)), requests.codes.accepted
+    elif copy_mode == CopyMode.COPY_INLINE:
+        handle.copy(src_bucket, src_object_name, dst_bucket, dst_object_name)
+
+        # verify the copy was done correctly.
+        assert hca_handle.verify_blob_checksum(dst_bucket, dst_object_name, metadata)
 
     try:
         write_file_metadata(handle, dst_bucket, uuid, version, document)
