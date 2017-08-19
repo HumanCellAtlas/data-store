@@ -6,7 +6,6 @@ import os
 import sys
 import tempfile
 import unittest
-import uuid
 
 import requests
 
@@ -17,7 +16,7 @@ import dss
 from dss.config import DeploymentStage, override_bucket_config
 from dss.util import UrlBuilder
 from tests.fixtures.cloud_uploader import GSUploader, S3Uploader, Uploader
-from tests.infra import DSSAsserts, ExpectedErrorFields, get_env, generate_test_key
+from tests.infra import DSSAsserts, ExpectedErrorFields, get_env, generate_test_key, upload_file_wait
 
 
 class TestFileApi(unittest.TestCase, DSSAsserts):
@@ -31,10 +30,10 @@ class TestFileApi(unittest.TestCase, DSSAsserts):
 
     def test_file_put(self):
         tempdir = tempfile.gettempdir()
-        self._test_file_put("s3", self.s3_test_bucket, S3Uploader(tempdir, self.s3_test_bucket))
-        self._test_file_put("gs", self.gs_test_bucket, GSUploader(tempdir, self.gs_test_bucket))
+        self._test_file_put("aws", "s3", self.s3_test_bucket, S3Uploader(tempdir, self.s3_test_bucket))
+        self._test_file_put("gcp", "gs", self.gs_test_bucket, GSUploader(tempdir, self.gs_test_bucket))
 
-    def _test_file_put(self, scheme: str, test_bucket: str, uploader: Uploader):
+    def _test_file_put(self, replica: str, scheme: str, test_bucket: str, uploader: Uploader):
         src_key = generate_test_key()
         src_data = os.urandom(1024)
         with tempfile.NamedTemporaryFile(delete=True) as fh:
@@ -46,16 +45,7 @@ class TestFileApi(unittest.TestCase, DSSAsserts):
 
         # should be able to do this twice (i.e., same payload, different UUIDs)
         for _ in range(2):
-            resp_obj = self.assertPutResponse(
-                "/v1/files/" + str(uuid.uuid4()),
-                requests.codes.created,
-                json_request_body=dict(
-                    source_url=f"{scheme}://{test_bucket}/{src_key}",
-                    bundle_uuid=str(uuid.uuid4()),
-                    creator_uid=4321,
-                    content_type="text/html",
-                ),
-            )
+            resp_obj = upload_file_wait(self, f"{scheme}://{test_bucket}/{src_key}", replica)
             self.assertHeaders(
                 resp_obj.response,
                 {
@@ -66,16 +56,10 @@ class TestFileApi(unittest.TestCase, DSSAsserts):
 
     # This is a test specific to AWS since it has separate notion of metadata and tags.
     def test_file_put_metadata_from_tags(self):
-        file_uuid = uuid.uuid4()
-        resp_obj = self.assertPutResponse(
-            "/v1/files/" + str(file_uuid),
-            requests.codes.created,
-            json_request_body=dict(
-                source_url=f"s3://{self.s3_test_fixtures_bucket}/test_good_source_data/metadata_in_tags",
-                bundle_uuid=str(uuid.uuid4()),
-                creator_uid=4321,
-                content_type="text/html",
-            ),
+        resp_obj = upload_file_wait(
+            self,
+            f"s3://{self.s3_test_fixtures_bucket}/test_good_source_data/metadata_in_tags",
+            "aws",
         )
         self.assertHeaders(
             resp_obj.response,
@@ -90,16 +74,10 @@ class TestFileApi(unittest.TestCase, DSSAsserts):
         self._test_file_put_upper_case_checksums("gs", self.gs_test_fixtures_bucket)
 
     def _test_file_put_upper_case_checksums(self, scheme, fixtures_bucket):
-        file_uuid = uuid.uuid4()
-        resp_obj = self.assertPutResponse(
-            "/v1/files/" + str(file_uuid),
-            requests.codes.created,
-            json_request_body=dict(
-                source_url=f"{scheme}://{fixtures_bucket}/test_good_source_data/incorrect_case_checksum",
-                bundle_uuid=str(uuid.uuid4()),
-                creator_uid=4321,
-                content_type="text/html",
-            ),
+        resp_obj = upload_file_wait(
+            self,
+            f"{scheme}://{fixtures_bucket}/test_good_source_data/incorrect_case_checksum",
+            "aws",
         )
         self.assertHeaders(
             resp_obj.response,
