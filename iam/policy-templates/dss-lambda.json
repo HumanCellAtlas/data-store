@@ -28,6 +28,13 @@
     },
     {
       "Effect": "Allow",
+      "Action": "sns:Publish",
+      "Resource": [
+        "arn:aws:sns:*:$account_id:dss*"
+      ]
+    },
+    {
+      "Effect": "Allow",
       "Action": [
         "es:ESHttpGet",
         "es:ESHttpHead",
