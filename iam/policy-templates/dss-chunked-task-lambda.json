@@ -15,7 +15,7 @@
       "Effect": "Allow",
       "Action": "sns:Publish",
       "Resource": [
-        "arn:aws:sns:*:$account_id:*"
+        "arn:aws:sns:*:$account_id:dss-*-$stage"
       ]
     },
     {
