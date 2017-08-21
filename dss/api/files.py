@@ -96,7 +96,7 @@ def get_helper(uuid: str, replica: typing.Optional[str]=None, version: str=None)
 
 
 @dss_handler
-def put(uuid: str, extras: dict, version: str=None):
+def put(uuid: str, json_request_body: dict, version: str=None):
     class CopyMode(Enum):
         NO_COPY = auto()
         COPY_INLINE = auto()
@@ -110,7 +110,7 @@ def put(uuid: str, extras: dict, version: str=None):
         timestamp = datetime.datetime.utcnow()
     version = timestamp.strftime("%Y-%m-%dT%H%M%S.%fZ")
 
-    source_url = extras['source_url']
+    source_url = json_request_body['source_url']
     cre = re.compile(
         "^"
         "(?P<schema>(?:s3|gs|wasb))"
@@ -164,8 +164,8 @@ def put(uuid: str, extras: dict, version: str=None):
     # build the json document for the file metadata.
     document = json.dumps({
         FileMetadata.FORMAT: FileMetadata.FILE_FORMAT_VERSION,
-        FileMetadata.BUNDLE_UUID: extras['bundle_uuid'],
-        FileMetadata.CREATOR_UID: extras['creator_uid'],
+        FileMetadata.BUNDLE_UUID: json_request_body['bundle_uuid'],
+        FileMetadata.CREATOR_UID: json_request_body['creator_uid'],
         FileMetadata.VERSION: version,
         FileMetadata.CONTENT_TYPE: metadata['hca-dss-content-type'],
         FileMetadata.CRC32C: metadata['hca-dss-crc32c'],
