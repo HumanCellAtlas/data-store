@@ -91,7 +91,7 @@ def post():
 
 
 @dss_handler
-def put(uuid: str, replica: str, extras: dict, version: str=None):
+def put(uuid: str, replica: str, json_request_body: dict, version: str=None):
     uuid = uuid.lower()
     if version is not None:
         # convert it to date-time so we can format exactly as the system requires (with microsecond precision)
@@ -119,7 +119,7 @@ def put(uuid: str, replica: str, extras: dict, version: str=None):
 
     # decode the list of files.
     files = [{'user_supplied_metadata': file}
-             for file in extras['files']]
+             for file in json_request_body['files']]
 
     # fetch the corresponding file metadata files.  if any do not exist, immediately fail.
     for file in files:
@@ -147,7 +147,7 @@ def put(uuid: str, replica: str, extras: dict, version: str=None):
             }
             for file in files
         ],
-        BundleMetadata.CREATOR_UID: extras['creator_uid']
+        BundleMetadata.CREATOR_UID: json_request_body['creator_uid']
     })
 
     # write manifest to persistent store

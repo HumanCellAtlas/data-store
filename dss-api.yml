@@ -218,7 +218,7 @@ paths:
           required: false
           type: string
           format: date-time
-        - name: extras
+        - name: json_request_body
           in: body
           required: true
           schema:
@@ -308,7 +308,7 @@ paths:
           required: true
           type: string
           enum: [aws, gcp, azure]
-        - name: extras
+        - name: json_request_body
           in: body
           required: true
           schema:
@@ -504,7 +504,7 @@ paths:
           required: true
           type: string
           enum: [aws, gcp, azure]
-        - name: extras
+        - name: json_request_body
           in: body
           required: true
           schema:

@@ -74,9 +74,9 @@ def find(replica: str):
 
 
 @dss_handler
-def put(extras: dict, replica: str):
+def put(json_request_body: dict, replica: str):
     uuid = str(uuid4())
-    query = extras['query']
+    query = json_request_body['query']
     owner = request.token_info['email']
 
     es_client = ElasticsearchClient.get(logger)
@@ -108,10 +108,10 @@ def put(extras: dict, replica: str):
                            "elasticsearch_error",
                            "Unable to register elasticsearch percolate query!")
 
-    extras['owner'] = owner
+    json_request_body['owner'] = owner
 
     try:
-        subscription_registration = _register_subscription(es_client, uuid, extras)
+        subscription_registration = _register_subscription(es_client, uuid, json_request_body)
         logger.debug(f"Event Subscription succeeded:\n{subscription_registration}")
     except ElasticsearchException:
         logger.critical(f"Event Subscription failed:\n{subscription_registration}")
@@ -170,9 +170,9 @@ def _register_percolate(es_client: Elasticsearch, uuid: str, query: dict):
                            refresh=True)
 
 
-def _register_subscription(es_client: Elasticsearch, uuid: str, extras: dict):
+def _register_subscription(es_client: Elasticsearch, uuid: str, json_request_body: dict):
     return es_client.index(index=DSS_ELASTICSEARCH_SUBSCRIPTION_INDEX_NAME,
                            doc_type=DSS_ELASTICSEARCH_SUBSCRIPTION_TYPE,
                            id=uuid,
-                           body=extras,
+                           body=json_request_body,
                            refresh=True)
