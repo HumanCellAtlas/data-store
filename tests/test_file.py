@@ -15,6 +15,7 @@ sys.path.insert(0, pkg_root)  # noqa
 import dss
 from dss.config import DeploymentStage, override_bucket_config
 from dss.util import UrlBuilder
+from dss.util.aws import AWS_MIN_CHUNK_SIZE
 from tests.fixtures.cloud_uploader import GSUploader, S3Uploader, Uploader
 from tests.infra import DSSAsserts, ExpectedErrorFields, get_env, generate_test_key, upload_file_wait
 
@@ -45,7 +46,34 @@ class TestFileApi(unittest.TestCase, DSSAsserts):
 
         # should be able to do this twice (i.e., same payload, different UUIDs)
         for _ in range(2):
-            resp_obj = upload_file_wait(self, f"{scheme}://{test_bucket}/{src_key}", replica)
+            resp_obj = upload_file_wait(self, f"{scheme}://{test_bucket}/{src_key}", replica, expect_async=False)
+            self.assertHeaders(
+                resp_obj.response,
+                {
+                    'content-type': "application/json",
+                }
+            )
+            self.assertIn('version', resp_obj.json)
+
+    def test_file_put_large(self):
+        tempdir = tempfile.gettempdir()
+        self._test_file_put_large("aws", "s3", self.s3_test_bucket, S3Uploader(tempdir, self.s3_test_bucket))
+        # There's no equivalent for GCP ... yet. :)
+
+    def _test_file_put_large(self, replica: str, scheme: str, test_bucket: str, uploader: Uploader):
+        src_key = generate_test_key()
+        src_data = os.urandom(AWS_MIN_CHUNK_SIZE + 1)
+        with tempfile.NamedTemporaryFile(delete=True) as fh:
+            fh.write(src_data)
+            fh.flush()
+
+            uploader.checksum_and_upload_file(
+                fh.name, src_key, {"hca-dss-content-type": "text/plain", })
+
+        # should be able to do this twice (i.e., same payload, different UUIDs).  first time should be asynchronous
+        # since it's new data.  second time should be synchronous since the data is present.
+        for expect_async in (True, False):
+            resp_obj = upload_file_wait(self, f"{scheme}://{test_bucket}/{src_key}", replica, expect_async=expect_async)
             self.assertHeaders(
                 resp_obj.response,
                 {

@@ -13,11 +13,12 @@ from werkzeug.exceptions import BadRequest
 
 from .. import DSSException, dss_handler
 from ..blobstore import BlobAlreadyExistsError, BlobNotFoundError, BlobStore
+from ..blobstore.s3 import S3BlobStore
 from ..config import Config
 from ..events.chunkedtask import aws
 from ..events.chunkedtask import awscopyclient
 from ..hcablobstore import FileMetadata, HCABlobStore
-from ..util.aws import get_s3_chunk_size
+from ..util.aws import get_s3_chunk_size, AWS_MIN_CHUNK_SIZE
 
 
 @dss_handler
@@ -175,7 +176,9 @@ def put(uuid: str, json_request_body: dict, version: str=None):
     })
 
     if copy_mode != CopyMode.NO_COPY and replica == "aws":
-        copy_mode = CopyMode.COPY_ASYNC
+        source_metadata = typing.cast(S3BlobStore, handle).get_all_metadata(src_bucket, src_object_name)
+        if source_metadata['ContentLength'] > AWS_MIN_CHUNK_SIZE:
+            copy_mode = CopyMode.COPY_ASYNC
 
     if copy_mode == CopyMode.COPY_ASYNC:
         state = awscopyclient.S3CopyTask.setup_copy_task(
