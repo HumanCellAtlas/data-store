@@ -14,7 +14,7 @@ sys.path.insert(0, pkg_root)  # noqa
 
 from dss.blobstore.s3 import S3BlobStore
 from dss.events import chunkedtask
-from dss.events.chunkedtask.awscopyclient import S3CopyTask
+from dss.events.chunkedtask.s3copyclient import S3CopyTask
 from tests import infra
 
 

@@ -16,7 +16,7 @@ from ..blobstore import BlobAlreadyExistsError, BlobNotFoundError, BlobStore
 from ..blobstore.s3 import S3BlobStore
 from ..config import Config
 from ..events.chunkedtask import aws
-from ..events.chunkedtask import awscopyclient
+from ..events.chunkedtask import s3copyclient
 from ..hcablobstore import FileMetadata, HCABlobStore
 from ..util.aws import get_s3_chunk_size, AWS_MIN_CHUNK_SIZE
 
@@ -182,17 +182,17 @@ def put(uuid: str, json_request_body: dict, version: str=None):
             copy_mode = CopyMode.COPY_ASYNC
 
     if copy_mode == CopyMode.COPY_ASYNC:
-        state = awscopyclient.S3CopyTask.setup_copy_task(
+        state = s3copyclient.S3CopyTask.setup_copy_task(
             src_bucket, src_object_name,
             dst_bucket, dst_object_name,
             get_s3_chunk_size,
         )
-        state[awscopyclient.S3CopyWriteBundleTaskKeys.FILE_UUID] = uuid
-        state[awscopyclient.S3CopyWriteBundleTaskKeys.FILE_VERSION] = version
-        state[awscopyclient.S3CopyWriteBundleTaskKeys.METADATA] = document
+        state[s3copyclient.S3CopyWriteBundleTaskKeys.FILE_UUID] = uuid
+        state[s3copyclient.S3CopyWriteBundleTaskKeys.FILE_VERSION] = version
+        state[s3copyclient.S3CopyWriteBundleTaskKeys.METADATA] = document
 
         # start a lambda to do the copy.
-        task_id = aws.schedule_task(awscopyclient.AWS_S3_COPY_AND_WRITE_METADATA_CLIENT_NAME, state)
+        task_id = aws.schedule_task(s3copyclient.AWS_S3_COPY_AND_WRITE_METADATA_CLIENT_NAME, state)
 
         return jsonify(dict(task_id=task_id, version=version)), requests.codes.accepted
     elif copy_mode == CopyMode.COPY_INLINE:
