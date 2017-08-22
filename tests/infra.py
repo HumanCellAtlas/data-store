@@ -174,15 +174,26 @@ def upload_file_wait(
         replica: str,
         file_uuid: str=None,
         bundle_uuid: str=None,
-        timeout_seconds: int=120) -> DSSAssertResponse:
+        timeout_seconds: int=120,
+        expect_async: typing.Optional[bool]=None) -> DSSAssertResponse:
     """
     Upload a file.  If the request is being handled asynchronously, wait until the file has landed in the data store.
+
+    If `expect_async` is None, we don't care whether the request is handled synchronously or not.  If `expect_async` is
+    False, then we expect a synchronous copy.  If `expect_async` is True, then we expect an asynchronous copy.
     """
     file_uuid = str(uuid.uuid4()) if file_uuid is None else file_uuid
     bundle_uuid = str(uuid.uuid4()) if bundle_uuid is None else bundle_uuid
+    if expect_async is True:
+        expected_codes = requests.codes.accepted
+    elif expect_async is False:
+        expected_codes = requests.codes.created
+    else:
+        expected_codes = requests.codes.created, requests.codes.accepted
+
     resp_obj = test_class_instance.assertPutResponse(
         f"/v1/files/{file_uuid}",
-        (requests.codes.created, requests.codes.accepted),
+        expected_codes,
         json_request_body=dict(
             bundle_uuid=bundle_uuid,
             creator_uid=0,
