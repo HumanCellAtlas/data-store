@@ -79,11 +79,8 @@ ensure the correct bucket names are provided.
 
 #### Running tests
 
-Some tests require the Elasticsearch service to be running on the local system:
-
-Run: `elasticsearch`
-
-Then to perform the data store tests:
+Set the environment variable DSS_TEST_ES_PATH to the path of your
+elasticsearch binary.  Then to perform the data store tests:
 
 Run `make test` in the top-level `data-store` directory.
 
