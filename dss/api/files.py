@@ -126,11 +126,12 @@ def put(uuid: str, json_request_body: dict, version: str=None):
     elif mobj and mobj.group('schema') == "gs":
         replica = "gcp"
     else:
-        # TODO: (ttung) better error messages pls.
-        return (
-            make_response("I can't support this source_data schema!"),
+        schema = mobj.group('schema')
+        raise DSSException(
             requests.codes.bad_request,
-        )
+            "unknown_source_schema",
+            f"source_url schema {schema} not supported")
+
     handle, hca_handle, dst_bucket = Config.get_cloud_specific_handles(replica)
 
     src_bucket = mobj.group('bucket')
@@ -203,11 +204,10 @@ def put(uuid: str, json_request_body: dict, version: str=None):
     try:
         write_file_metadata(handle, dst_bucket, uuid, version, document)
     except BlobAlreadyExistsError:
-        # TODO: (ttung) better error messages pls.
-        return (
-            make_response("file already exists!"),
-            requests.codes.conflict
-        )
+        raise DSSException(
+            requests.codes.conflict,
+            "file_already_exists",
+            f"file with UUID {uuid} and version {version} already exists")
 
     return jsonify(
         dict(version=version)), requests.codes.created
