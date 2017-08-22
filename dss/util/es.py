@@ -42,7 +42,7 @@ class AWSV4Sign(requests.auth.AuthBase):
 
 class ElasticsearchServer:
     def __init__(self, startup_timeout_seconds: int=60) -> None:
-        elasticsearch_binary = os.getenv("DSS_TEST_ES_PATH")
+        elasticsearch_binary = os.getenv("DSS_TEST_ES_PATH", "elasticsearch")
         self.tempdir = tempfile.TemporaryDirectory()
         while True:
             port = random.randint(1024, 65535)
