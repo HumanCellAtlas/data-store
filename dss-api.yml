@@ -241,7 +241,7 @@ paths:
               - creator_uid
       responses:
         201:
-          description: OK
+          description: Returned when the file is successfully copied.
           schema:
             type: object
             properties:
@@ -251,6 +251,34 @@ paths:
                 format: date-time
             required:
               - version
+        202:
+          description: Returned when the file has been queued up for copying.
+          schema:
+            type: object
+            properties:
+              version:
+                description: Timestamp of file creation in RFC3339.
+                type: string
+                format: date-time
+              task_id:
+                description: ID for the task responsible for managing the copy.
+                type: string
+                pattern: "[A-Za-z0-9]{8}-[A-Za-z0-9]{4}-[A-Za-z0-9]{4}-[A-Za-z0-9]{4}-[A-Za-z0-9]{12}"
+            required:
+              - version
+        default:
+          description: Unexpected error
+          schema:
+            allOf:
+              - $ref: '#/definitions/Error'
+              - type: object
+                properties:
+                  code:
+                    type: string
+                    description: Machine-readable error code.  The types of return values should not be changed lightly.
+                    enum: [unhandled_exception, illegal_arguments, unknown_source_schema, file_already_exists]
+                required:
+                  - code
   /subscriptions:
     get:
       summary: Retrieve an user's event subscriptions.
