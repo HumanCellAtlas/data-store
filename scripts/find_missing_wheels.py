@@ -11,9 +11,9 @@ from chalice.utils import OSUtils
 from chalice.deploy.packager import DependencyBuilder
 
 parser = argparse.ArgumentParser(description=__doc__)
-parser.add_argument("pip_requirements_file", dest="reqs")
+parser.add_argument("pip_reqs")
 args = parser.parse_args()
 
 with TemporaryDirectory() as td:
-    compatible_wheels, missing_wheels = DependencyBuilder(OSUtils())._download_dependencies(td, args.reqs)
+    compatible_wheels, missing_wheels = DependencyBuilder(OSUtils())._download_dependencies(td, args.pip_reqs)
     print(" ".join(wheel.identifier for wheel in missing_wheels))
