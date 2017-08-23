@@ -12,6 +12,6 @@ vendor: vendor.in
 	cd vendor; unzip ../vendor.in/*.whl
 
 wheels:
-	cd vendor.in; pip download $$($(DSS_HOME)/scripts/find_missing_wheels.py)
-	cd vendor.in; pip wheel *.tar.gz
-	cd vendor.in; rm -f *.tar.gz
+	pip download --dest vendor.in $$(../scripts/find_missing_wheels.py requirements.txt)
+	pip wheel --wheel-dir vendor.in vendor.in/*.tar.gz
+	rm -f vendor.in/*.tar.gz
