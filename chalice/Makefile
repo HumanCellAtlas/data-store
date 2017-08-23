@@ -8,8 +8,10 @@ deploy: vendor
 	./build_deploy_config.sh $(DSS_DEPLOYMENT_STAGE)
 	../scripts/dss-chalice deploy --no-autogen-policy --stage $(DSS_DEPLOYMENT_STAGE) --api-gateway-stage $(DSS_DEPLOYMENT_STAGE)
 
-vendor: vendor.in
-	cd vendor; unzip ../vendor.in/*.whl
+vendor: vendor.in/*.whl
+
+vendor.in/*.whl:
+	unzip -d vendor $@
 
 wheels:
 	pip download --dest vendor.in $$(../scripts/find_missing_wheels.py requirements.txt)
