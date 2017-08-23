@@ -6,8 +6,6 @@ import re
 import uuid
 from urllib.parse import unquote
 
-# import boto3
-# import botocore
 import requests
 from elasticsearch.helpers import scan
 
@@ -18,6 +16,7 @@ from ...util import create_blob_key
 from ...hcablobstore import BundleMetadata, BundleFileMetadata
 from ...util.es import ElasticsearchClient
 from ...blobstore.s3 import S3BlobStore
+from ...blobstore.gs import GSBlobStore
 from ...blobstore import BlobNotFoundError
 
 DSS_BUNDLE_KEY_REGEX = r"^bundles/[0-9A-Fa-f]{8}-[0-9A-Fa-f]{4}-4[0-9A-Fa-f]{3}-[0-9A-Fa-f]{4}-[0-9A-Fa-f]{12}\..+$"
@@ -29,10 +28,24 @@ def process_new_s3_indexable_object(event, logger) -> None:
         key = unquote(event['Records'][0]["s3"]["object"]["key"])
         bucket_name = event['Records'][0]["s3"]["bucket"]["name"]
         blobstore = S3BlobStore()
-        process_new_indexable_object(blobstore, bucket_name, key, "S3", logger)
+        process_new_indexable_object(blobstore, bucket_name, key, "aws", logger)
     except Exception as ex:
         logger.error(f"Exception occurred while processing S3 event: {ex} Event: {json.dumps(event, indent=4)}")
         raise
+
+
+def process_new_gs_indexable_object(event, logger) -> None:
+    try:
+        # This function is only called for GS creation events
+        # TODO retreive bucket_name and key from gs_event
+        bucket_name = None
+        key = None
+        blobstore = GSBlobStore(os.environ["GOOGLE_APPLICATION_CREDENTIALS"])
+        process_new_indexable_object(blobstore, bucket_name, key, "gcp", logger)
+    except Exception as ex:
+        logger.error(f"Exception occurred while processing GS event: {ex} Event: {json.dumps(event, indent=4)}")
+        raise
+
 
 def process_new_indexable_object(blobstore, bucket_name, key, replica, logger) -> None:
     if is_bundle_to_index(key):
@@ -46,7 +59,6 @@ def process_new_indexable_object(blobstore, bucket_name, key, replica, logger) -
         logger.debug(f"Finished index processing of {replica} creation event for bundle: {key}")
     else:
         logger.debug(f"Not indexing {replica} creation event for key: {key}")
-
 
 
 def is_bundle_to_index(key) -> bool:
