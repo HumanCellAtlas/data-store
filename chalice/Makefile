@@ -1,6 +1,6 @@
 include ../common.mk
 
-deploy: vendor
+deploy: vendor.in/*.whl
 	git clean -df chalicelib
 	cp -R ../dss ../dss-api.yml chalicelib
 	cp "$(GOOGLE_APPLICATION_CREDENTIALS)" chalicelib/gcp-credentials.json
@@ -8,7 +8,7 @@ deploy: vendor
 	./build_deploy_config.sh $(DSS_DEPLOYMENT_STAGE)
 	../scripts/dss-chalice deploy --no-autogen-policy --stage $(DSS_DEPLOYMENT_STAGE) --api-gateway-stage $(DSS_DEPLOYMENT_STAGE)
 
-vendor: vendor.in/*.whl
+#vendor: vendor.in/*.whl
 
 vendor.in/*.whl:
 	unzip -d vendor $@
