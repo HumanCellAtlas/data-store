@@ -1,19 +1,15 @@
 include ../common.mk
 
-deploy: vendor.in/*.whl
-	git clean -df chalicelib
+deploy:
+	git clean -df chalicelib vendor
+	$(MAKE) vendor.in/*.whl
 	cp -R ../dss ../dss-api.yml chalicelib
 	cp "$(GOOGLE_APPLICATION_CREDENTIALS)" chalicelib/gcp-credentials.json
 	cp "$(GOOGLE_APPLICATION_SECRETS)" chalicelib/application_secrets.json
 	./build_deploy_config.sh $(DSS_DEPLOYMENT_STAGE)
 	../scripts/dss-chalice deploy --no-autogen-policy --stage $(DSS_DEPLOYMENT_STAGE) --api-gateway-stage $(DSS_DEPLOYMENT_STAGE)
 
-#vendor: vendor.in/*.whl
-
 vendor.in/*.whl:
-	unzip -d vendor $@
+	unzip -o -d vendor $@
 
-wheels:
-	pip download --dest vendor.in $$(../scripts/find_missing_wheels.py requirements.txt)
-	pip wheel --wheel-dir vendor.in vendor.in/*.tar.gz
-	rm -f vendor.in/*.tar.gz
+.PHONY: vendor.in/*.whl
