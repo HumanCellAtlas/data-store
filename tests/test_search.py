@@ -31,14 +31,7 @@ class TestSearch(unittest.TestCase, DSSAsserts):
     def setUp(self):
         dss.Config.set_config(dss.DeploymentStage.TEST)
         self.app = dss.create_app().app.test_client()
-
         create_elasticsearch_index(logging.getLogger(__name__))
-
-    def test_search_get(self):
-        self.assertGetResponse(
-            '/v1/search',
-            query_string=dict(query=json.dumps(dict(foo=1))),
-            expected_code=requests.codes.ok)
 
     def test_search_post(self):
         query = \

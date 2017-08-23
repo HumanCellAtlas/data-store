@@ -19,24 +19,6 @@ securityDefinitions:
       https://www.googleapis.com/auth/userinfo.email: read user email
 paths:
   /search:
-    get:
-      description: |
-        Returns a list of bundles matching the given simple criteria
-      summary: Find bundles by querying their metadata using simple criteria
-      operationId: dss.api.search.find
-      parameters:
-        - name: query
-          in: query
-          description: Metadata query
-          required: true
-          type: string
-      responses:
-        200:
-          description: OK
-        default:
-          description: Unexpected error
-          schema:
-            $ref: '#/definitions/Error'
     post:
       description: |
         Accepts Elasticsearch JSON query and returns matching bundle identifiers
