@@ -6,8 +6,8 @@ import re
 import uuid
 from urllib.parse import unquote
 
-import boto3
-import botocore
+# import boto3
+# import botocore
 import requests
 from elasticsearch.helpers import scan
 
@@ -17,30 +17,36 @@ from ... import (DSS_ELASTICSEARCH_INDEX_NAME, DSS_ELASTICSEARCH_DOC_TYPE,
 from ...util import create_blob_key
 from ...hcablobstore import BundleMetadata, BundleFileMetadata
 from ...util.es import ElasticsearchClient
+from ...blobstore.s3 import S3BlobStore
+from ...blobstore import BlobNotFoundError
 
 DSS_BUNDLE_KEY_REGEX = r"^bundles/[0-9A-Fa-f]{8}-[0-9A-Fa-f]{4}-4[0-9A-Fa-f]{3}-[0-9A-Fa-f]{4}-[0-9A-Fa-f]{12}\..+$"
 
 
-def process_new_indexable_object(event, logger) -> None:
+def process_new_s3_indexable_object(event, logger) -> None:
     try:
         # This function is only called for S3 creation events
         key = unquote(event['Records'][0]["s3"]["object"]["key"])
-        if is_bundle_to_index(key):
-            logger.info(f"Received S3 creation event for bundle which will be indexed: {key}")
-            s3 = boto3.resource('s3')
-            bucket_name = event['Records'][0]["s3"]["bucket"]["name"]
-            manifest = read_bundle_manifest(s3, bucket_name, key, logger)
-            bundle_id = get_bundle_id_from_key(key)
-            index_data = create_index_data(s3, bucket_name, bundle_id, manifest, logger)
-            add_index_data_to_elasticsearch(bundle_id, index_data, logger)
-            subscriptions = find_matching_subscriptions(index_data, logger)
-            process_notifications(bundle_id, subscriptions, logger)
-            logger.debug(f"Finished index processing of S3 creation event for bundle: {key}")
-        else:
-            logger.debug(f"Not indexing S3 creation event for key: {key}")
+        bucket_name = event['Records'][0]["s3"]["bucket"]["name"]
+        blobstore = S3BlobStore()
+        process_new_indexable_object(blobstore, bucket_name, key, "S3", logger)
     except Exception as ex:
         logger.error(f"Exception occurred while processing S3 event: {ex} Event: {json.dumps(event, indent=4)}")
         raise
+
+def process_new_indexable_object(blobstore, bucket_name, key, replica, logger) -> None:
+    if is_bundle_to_index(key):
+        logger.info(f"Received {replica} creation event for bundle which will be indexed: {key}")
+        manifest = read_bundle_manifest(blobstore, bucket_name, key, logger)
+        bundle_id = get_bundle_id_from_key(key)
+        index_data = create_index_data(blobstore, bucket_name, bundle_id, manifest, logger)
+        add_index_data_to_elasticsearch(bundle_id, index_data, logger)
+        subscriptions = find_matching_subscriptions(index_data, logger)
+        process_notifications(bundle_id, subscriptions, logger)
+        logger.debug(f"Finished index processing of {replica} creation event for bundle: {key}")
+    else:
+        logger.debug(f"Not indexing {replica} creation event for key: {key}")
+
 
 
 def is_bundle_to_index(key) -> bool:
@@ -52,19 +58,18 @@ def is_bundle_to_index(key) -> bool:
     return result is not None
 
 
-def read_bundle_manifest(s3, bucket_name, bundle_key, logger):
-    manifest_string = s3.Object(bucket_name, bundle_key).get()['Body'].read().decode("utf-8")
+def read_bundle_manifest(blobstore, bucket_name, bundle_key, logger):
+    manifest_string = blobstore.get(bucket_name, bundle_key).decode("utf-8")
     logger.debug(f"Read bundle manifest from bucket {bucket_name}"
                  f" with bundle key {bundle_key}: {manifest_string}")
     manifest = json.loads(manifest_string, encoding="utf-8")
     return manifest
 
 
-def create_index_data(s3, bucket_name, bundle_id, manifest, logger):
+def create_index_data(blobstore, bucket_name, bundle_id, manifest, logger):
     index = dict(state="new", manifest=manifest)
     files_info = manifest[BundleMetadata.FILES]
     index_files = {}
-    bucket = s3.Bucket(bucket_name)
     for file_info in files_info:
         if file_info[BundleFileMetadata.INDEXED] is True:
             if file_info[BundleFileMetadata.CONTENT_TYPE] != 'application/json':
@@ -76,7 +81,7 @@ def create_index_data(s3, bucket_name, bundle_id, manifest, logger):
                 continue
             try:
                 file_key = create_blob_key(file_info)
-                file_string = bucket.Object(file_key).get()['Body'].read().decode("utf-8")
+                file_string = blobstore.get(bucket_name, file_key).decode("utf-8")
                 file_json = json.loads(file_string)
             # TODO (mbaumann) Are there other JSON-related exceptions that should be checked below?
             except json.decoder.JSONDecodeError as ex:
@@ -84,7 +89,7 @@ def create_index_data(s3, bucket_name, bundle_id, manifest, logger):
                                " is marked for indexing yet could not be parsed."
                                f" This file will not be indexed. Exception: {ex}")
                 continue
-            except botocore.exceptions.ClientError as ex:
+            except BlobNotFoundError as ex:
                 logger.warning(f"In bundle {bundle_id} the file \"{file_info[BundleFileMetadata.NAME]}\""
                                " is marked for indexing yet could not be accessed."
                                f" This file will not be indexed. Exception: {ex}")
