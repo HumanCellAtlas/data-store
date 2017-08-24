@@ -36,7 +36,7 @@ from dss.util.es import ElasticsearchClient, ElasticsearchServer
 from tests.es import elasticsearch_delete_index
 from tests.fixtures.populate import populate
 from tests.infra import DSSAsserts, StorageTestSupport, S3TestBundle, start_verbose_logging
-from tests import IndexSearchTestSupport
+from tests import smartseq2_paired_ends_query
 
 # The moto mock has two defects that show up when used by the dss core storage system.
 # Use actual S3 until these defects are fixed in moto.
@@ -64,7 +64,7 @@ start_verbose_logging()
 #
 
 
-class TestIndexer(unittest.TestCase, DSSAsserts, StorageTestSupport, IndexSearchTestSupport):
+class TestIndexer(unittest.TestCase, DSSAsserts, StorageTestSupport):
 
     http_server_address = "127.0.0.1"
     http_server_port = 8729
@@ -111,7 +111,7 @@ class TestIndexer(unittest.TestCase, DSSAsserts, StorageTestSupport, IndexSearch
         bundle_key = self.load_test_data_bundle_for_path("fixtures/smartseq2/paired_ends")
         sample_s3_event = self.create_sample_s3_bundle_created_event(bundle_key)
         process_new_indexable_object(sample_s3_event, logger)
-        search_results = self.get_search_results(self.smartseq2_paired_ends_query, 1)
+        search_results = self.get_search_results(smartseq2_paired_ends_query, 1)
         self.assertEqual(1, len(search_results))
         self.verify_index_document_structure_and_content(search_results[0], bundle_key,
                                                          files=smartseq2_paried_ends_indexed_file_list)
@@ -130,7 +130,7 @@ class TestIndexer(unittest.TestCase, DSSAsserts, StorageTestSupport, IndexSearch
                          "WARNING:.*:In bundle .* the file \"text_data_file1.txt\" is marked for indexing"
                          " yet has content type \"text/plain\" instead of the required"
                          " content type \"application/json\". This file will not be indexed.")
-        search_results = self.get_search_results(self.smartseq2_paired_ends_query, 1)
+        search_results = self.get_search_results(smartseq2_paired_ends_query, 1)
         self.assertEqual(1, len(search_results))
         self.verify_index_document_structure_and_content(search_results[0], bundle_key,
                                                          files=smartseq2_paried_ends_indexed_file_list)
@@ -143,7 +143,7 @@ class TestIndexer(unittest.TestCase, DSSAsserts, StorageTestSupport, IndexSearch
         self.assertRegex(log_monitor.output[0],
                          "WARNING:.*:In bundle .* the file \"unparseable_json.json\" is marked for indexing"
                          " yet could not be parsed. This file will not be indexed. Exception:")
-        search_results = self.get_search_results(self.smartseq2_paired_ends_query, 1)
+        search_results = self.get_search_results(smartseq2_paired_ends_query, 1)
         self.assertEqual(1, len(search_results))
         self.verify_index_document_structure_and_content(search_results[0], bundle_key,
                                                          files=smartseq2_paried_ends_indexed_file_list)
@@ -158,7 +158,7 @@ class TestIndexer(unittest.TestCase, DSSAsserts, StorageTestSupport, IndexSearch
         self.assertRegex(log_monitor.output[0],
                          f"WARNING:.*:In bundle .* the file \"{inaccesssible_filename}\" is marked for indexing"
                          " yet could not be accessed. This file will not be indexed. Exception:")
-        search_results = self.get_search_results(self.smartseq2_paired_ends_query, 1)
+        search_results = self.get_search_results(smartseq2_paired_ends_query, 1)
         self.assertEqual(1, len(search_results))
         files = list(smartseq2_paried_ends_indexed_file_list)
         files.append(inaccesssible_filename.replace(".", "_"))
@@ -172,14 +172,14 @@ class TestIndexer(unittest.TestCase, DSSAsserts, StorageTestSupport, IndexSearch
         process_new_indexable_object(sample_s3_event, logger)
 
         ElasticsearchClient.get(logger).indices.create(DSS_ELASTICSEARCH_SUBSCRIPTION_INDEX_NAME)
-        subscription_id = self.subscribe_for_notification(self.smartseq2_paired_ends_query,
+        subscription_id = self.subscribe_for_notification(smartseq2_paired_ends_query,
                                                           f"http://{self.http_server_address}:{self.http_server_port}")
 
         bundle_key = self.load_test_data_bundle_for_path("fixtures/smartseq2/paired_ends")
         sample_s3_event = self.create_sample_s3_bundle_created_event(bundle_key)
         process_new_indexable_object(sample_s3_event, logger)
         prefix, _, bundle_id = bundle_key.partition("/")
-        self.verify_notification(subscription_id, self.smartseq2_paired_ends_query, bundle_id)
+        self.verify_notification(subscription_id, smartseq2_paired_ends_query, bundle_id)
 
     def test_subscription_notification_unsuccessful(self):
         bundle_key = self.load_test_data_bundle_for_path("fixtures/smartseq2/paired_ends")
@@ -187,7 +187,7 @@ class TestIndexer(unittest.TestCase, DSSAsserts, StorageTestSupport, IndexSearch
         process_new_indexable_object(sample_s3_event, logger)
 
         ElasticsearchClient.get(logger).indices.create(DSS_ELASTICSEARCH_SUBSCRIPTION_INDEX_NAME)
-        subscription_id = self.subscribe_for_notification(self.smartseq2_paired_ends_query,
+        subscription_id = self.subscribe_for_notification(smartseq2_paired_ends_query,
                                                           f"http://{self.http_server_address}:{self.http_server_port}")
 
         bundle_key = self.load_test_data_bundle_for_path("fixtures/smartseq2/paired_ends")

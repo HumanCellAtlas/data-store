@@ -21,7 +21,7 @@ from dss.events.handlers.index import create_elasticsearch_index
 from dss.util.es import ElasticsearchServer, ElasticsearchClient
 from tests.infra import DSSAsserts, start_verbose_logging
 from tests.es import elasticsearch_delete_index
-from tests import IndexSearchTestSupport
+from tests import smartseq2_paired_ends_query, get_version
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
@@ -29,7 +29,8 @@ logger.setLevel(logging.INFO)
 
 start_verbose_logging()
 
-class TestSearch(unittest.TestCase, DSSAsserts, IndexSearchTestSupport):
+
+class TestSearch(unittest.TestCase, DSSAsserts):
     @classmethod
     def setUpClass(cls):
         cls.es_server = ElasticsearchServer()
@@ -53,7 +54,7 @@ class TestSearch(unittest.TestCase, DSSAsserts, IndexSearchTestSupport):
 
     def test_search_post(self):
         bundle_uuid = str(uuid.uuid4())
-        version = self.get_version()
+        version = get_version()
         self.index_document['manifest']['version'] = version
         bundle_id = f"{bundle_uuid}.{version}"
         bundle_url = f"http://localhost/v1/bundles/{bundle_uuid}?version={version}"
@@ -67,17 +68,17 @@ class TestSearch(unittest.TestCase, DSSAsserts, IndexSearchTestSupport):
 
         response = self.assertPostResponse(
             "/v1/search",
-            json_request_body=(self.smartseq2_paired_ends_query),
+            json_request_body=smartseq2_paired_ends_query,
             expected_code=requests.codes.ok)
         search_response = response.json
-        self.assertDictEqual(search_response['query'], self.smartseq2_paired_ends_query)
+        self.assertDictEqual(search_response['query'], smartseq2_paired_ends_query)
         self.assertEqual(len(search_response), 2)
         self.assertEqual(len(search_response['results']), 1)
         self.assertEqual(search_response['results'][0]['bundle_id'], bundle_id)
         self.assertEqual(search_response['results'][0]['bundle_url'], bundle_url)
 
     def test_search_returns_no_results_when_no_documents_indexed(self):
-        self.verify_search_results(self.smartseq2_paired_ends_query)
+        self.verify_search_results(smartseq2_paired_ends_query)
 
     def test_search_returns_no_result_when_query_does_not_match_indexed_documents(self):
         query = \
@@ -133,7 +134,7 @@ class TestSearch(unittest.TestCase, DSSAsserts, IndexSearchTestSupport):
             indexed = x
             bundle_ids.extend(self.populate_search_index(self.index_document, create))
             with self.subTest("Search Returns %i Matches When %i Documents Indexed.".format(x, x)):
-                self.verify_search_results(self.smartseq2_paired_ends_query, x, bundle_ids)
+                self.verify_search_results(smartseq2_paired_ends_query, x, bundle_ids)
 
     def test_elasticsearch_exception(self):
         # Test Elasticsearch exception handling by setting an invalid endpoint
@@ -144,7 +145,7 @@ class TestSearch(unittest.TestCase, DSSAsserts, IndexSearchTestSupport):
             os.environ['DSS_ES_ENDPOINT'] = "bogus"
             response = self.assertPostResponse(
                 "/v1/search",
-                json_request_body=(self.smartseq2_paired_ends_query),
+                json_request_body=smartseq2_paired_ends_query,
                 expected_code=requests.codes.internal_server_error)
             self.assertEqual(response.json['code'], "elasticsearch_error")
             self.assertEqual(response.json['title'], "Elasticsearch operation failed")
@@ -157,7 +158,7 @@ class TestSearch(unittest.TestCase, DSSAsserts, IndexSearchTestSupport):
         bundles = []
         for i in range(count):
             bundle_uuid = str(uuid.uuid4())
-            version = self.get_version()
+            version = get_version()
             index_document['manifest']['version'] = version
             bundle_id = f"{bundle_uuid}.{version}"
             bundle_url = f"http://localhost/v1/bundles/{bundle_uuid}?version={version}"
