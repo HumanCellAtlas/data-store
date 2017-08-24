@@ -50,7 +50,7 @@ class TestSearch(unittest.TestCase, DSSAsserts):
         cls.es_server.shutdown()
 
     def setUp(self):
-        elasticsearch_delete_index("_all")
+        elasticsearch_delete_index(DSS_ELASTICSEARCH_INDEX_NAME)
         create_elasticsearch_index(logger)
 
     def test_search_post(self):

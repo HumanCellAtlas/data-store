@@ -24,4 +24,3 @@ smartseq2_paired_ends_query = \
 
 def get_version():
     return datetime.datetime.utcnow().strftime("%Y-%m-%dT%H%M%S.%fZ")
-
