@@ -120,13 +120,18 @@ class TestSearch(unittest.TestCase, DSSAsserts):
 
         self.populate_search_index(self.index_document, 1)
         for query_data in invalid_query_data:
-            with self.subTest("Invalid Queries"):
+            with self.subTest("Invalid Queries", bad_query=query_data):
                 self.assertPostResponse(
                     "/v1/search",
                     json_request_body=(query_data[0]),
                     expected_code=query_data[1])
 
     def test_search_returns_X_results_when_X_documents_match_query(self):
+        """The number of documents indexed is equal to the number of search results returned.
+        - 0 documents are indexed and 0 results is expected.
+        - 1 document is indexed and 1 results is expected.
+        ...
+        test_match: the total number of documents being indexed."""
         test_matches = [0, 1, 9, 10, 11, 1000, 5000]
         bundle_ids = []
         indexed = 0
