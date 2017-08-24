@@ -25,7 +25,7 @@ with TemporaryDirectory() as td:
             if platform.system != "Linux":
                 parser.exit(f"{parser.prog}: Expected to run on a Linux system.")
             for wheel in need_wheels:
-                wd = os.path.join(args.wheel_dir, w.identifier)
+                wd = os.path.join(args.wheel_dir, wheel.identifier)
                 os.mkdir(wd)
                 subprocess.check_output(["pip", "download", wheel.identifier], cwd=wd)
                 if glob.glob(os.path.join(wd, "*.tar.gz")):
@@ -33,4 +33,4 @@ with TemporaryDirectory() as td:
             print(f'Please run "git add {args.wheel_dir}" and commit the result.')
         else:
             w = " ".join(wheel.identifier for wheel in need_wheels)
-            parser.exit(f'Missing wheels: {w}. Please run "FIXME --build-wheels" in a Linux VM')
+            parser.exit(f'Missing wheels: {w}. Please run "{parser.prog} --build-wheels" in a Linux VM')
