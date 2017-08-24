@@ -146,7 +146,7 @@ class TestSearch(unittest.TestCase, DSSAsserts):
         # Test Elasticsearch exception handling by setting an invalid endpoint
         es_logger = logging.getLogger("elasticsearch")
         original_es_level = es_logger.getEffectiveLevel()
-        original_es_endpoint = os.environ['DSS_ES_ENDPOINT']
+        original_es_endpoint = os.getenv("DSS_ES_ENDPOINT", "localhost")
 
         es_logger.setLevel("ERROR")
         try:
