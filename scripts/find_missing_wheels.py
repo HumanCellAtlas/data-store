@@ -24,6 +24,7 @@ with TemporaryDirectory() as td:
         if args.build_wheels:
             if platform.system() != "Linux":
                 parser.exit(f"{parser.prog}: Expected to run on a Linux system.")
+            os.makedirs(args.wheel_dir)
             for wheel in need_wheels:
                 wd = os.path.join(args.wheel_dir, wheel.identifier)
                 os.mkdir(wd)
