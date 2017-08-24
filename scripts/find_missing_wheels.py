@@ -26,6 +26,7 @@ with TemporaryDirectory() as td:
                 parser.exit(f"{parser.prog}: Expected to run on a Linux system.")
             os.makedirs(args.wheel_dir)
             for wheel in need_wheels:
+                print(f"Processing wheels for {wheel}")
                 wd = os.path.join(args.wheel_dir, wheel.identifier)
                 os.mkdir(wd)
                 subprocess.check_output(["pip", "download", wheel.identifier], cwd=wd)
