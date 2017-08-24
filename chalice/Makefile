@@ -8,5 +8,3 @@ deploy:
 	cp "$(GOOGLE_APPLICATION_SECRETS)" chalicelib/application_secrets.json
 	./build_deploy_config.sh $(DSS_DEPLOYMENT_STAGE)
 	../scripts/dss-chalice deploy --no-autogen-policy --stage $(DSS_DEPLOYMENT_STAGE) --api-gateway-stage $(DSS_DEPLOYMENT_STAGE)
-
-.PHONY: vendor.in/*.whl
