@@ -141,6 +141,8 @@ class TestSearch(unittest.TestCase, DSSAsserts):
         # Test Elasticsearch exception handling by setting an invalid endpoint
         es_logger = logging.getLogger("elasticsearch")
         original_es_level = es_logger.getEffectiveLevel()
+        original_es_endpoint = os.environ['DSS_ES_ENDPOINT']
+
         es_logger.setLevel("ERROR")
         try:
             os.environ['DSS_ES_ENDPOINT'] = "bogus"
@@ -151,7 +153,7 @@ class TestSearch(unittest.TestCase, DSSAsserts):
             self.assertEqual(response.json['code'], "elasticsearch_error")
             self.assertEqual(response.json['title'], "Elasticsearch operation failed")
         finally:
-            os.environ.pop('DSS_ES_ENDPOINT')
+            os.environ['DSS_ES_ENDPOINT'] = original_es_endpoint
             es_logger.setLevel(original_es_level)
 
     def populate_search_index(self, index_document: dict, count: int) -> list:
@@ -174,18 +176,20 @@ class TestSearch(unittest.TestCase, DSSAsserts):
     def verify_search_results(self, query, expected_result_length=0, bundles=[]):
         timeout = 5
         timeout_time = timeout + time.time()
-        while True:
+        while time.time() <= timeout_time:
             response = self.assertPostResponse(
                 "/v1/search",
                 json_request_body=(query),
                 expected_code=requests.codes.ok)
             search_response = response.json
-            if len(search_response['results']) >= expected_result_length:
+            if len(search_response['results']) == expected_result_length:
                 break
-            elif time.time() > timeout_time:
-                self.fail("elasticsearch failed to return all results.")
+            elif len(search_response['results']) > expected_result_length:
+                self.fail("elasticsearch more results than expected.")
             else:
                 time.sleep(0.5)
+        else:
+            self.fail("elasticsearch failed to return all results.")
 
         self.assertDictEqual(search_response['query'], query)
         self.assertEqual(len(search_response), 2)
