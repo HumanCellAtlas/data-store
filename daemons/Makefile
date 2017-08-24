@@ -4,7 +4,7 @@ deploy: dss-chunked-task dss-sync dss-index
 
 dss-sync dss-index:
 	git clean -df $@/domovoilib $@/vendor
-	shopt -s nullglob; for wheel in $@/vendor.in/*/*.whl; do unzip -o -d vendor $$wheel; done
+	shopt -s nullglob; for wheel in $@/vendor.in/*/*.whl; do unzip -o -d $@/vendor $$wheel; done
 	cp -R ../dss ../dss-api.yml $@/domovoilib
 	cp "$(GOOGLE_APPLICATION_CREDENTIALS)" $@/domovoilib/gcp-credentials.json
 	./build_deploy_config.sh $@ $(DSS_DEPLOYMENT_STAGE)
@@ -13,7 +13,7 @@ dss-sync dss-index:
 
 dss-chunked-task:
 	git clean -df $@/domovoilib $@/vendor
-	shopt -s nullglob; for wheel in $@/vendor.in/*/*.whl; do unzip -o -d vendor $$wheel; done
+	shopt -s nullglob; for wheel in $@/vendor.in/*/*.whl; do unzip -o -d $@/vendor $$wheel; done
 	cp -R ../dss ../dss-api.yml $@/domovoilib
 	cp "$(GOOGLE_APPLICATION_CREDENTIALS)" $@/domovoilib/gcp-credentials.json
 	./build_deploy_config.sh $@ $(DSS_DEPLOYMENT_STAGE)
