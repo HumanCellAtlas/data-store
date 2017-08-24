@@ -19,7 +19,15 @@ def post(query: dict):
         search_obj = Search(using=es_client,
                             index=DSS_ELASTICSEARCH_INDEX_NAME,
                             doc_type=DSS_ELASTICSEARCH_DOC_TYPE).update_from_dict(query)
-        return jsonify({"query": query, "results": format_results(request, search_obj)})
+
+        # TODO (mbaumann) extract version from the request path instead of hard-coding it here
+        bundles_url_base = request.host_url + 'v1/bundles/'
+        result_list = [{
+            'bundle_id': hit.meta.id,
+            'bundle_url': bundles_url_base + hit.meta.id.replace(".", "?version=", 1),
+            'search_score': hit.meta.score
+        } for hit in search_obj.scan()]
+        return jsonify({'query': query, 'results': result_list})
 
     except ElasticsearchDslException:
         raise DSSException(requests.codes.bad_request,
@@ -29,14 +37,3 @@ def post(query: dict):
         raise DSSException(requests.codes.internal_server_error,
                            "elasticsearch_error",
                            "Elasticsearch operation failed")
-
-def format_results(request, search_obj):
-    # TODO (mbaumann) extract version from the request path instead of hard-coding it here
-    # The previous code worked for post but incorrectly included the query string in the case of get.
-    bundles_url_base = request.host_url + 'v1/bundles/'
-    result_list = [{
-        'bundle_id': hit.meta.id,
-        'bundle_url': bundles_url_base + hit.meta.id.replace(".", "?version=", 1),
-        'search_score': hit.meta.score
-    } for hit in search_obj.scan()]
-    return result_list
