@@ -18,6 +18,7 @@ $(test_srcs): %.py :
 	PYTHONWARNINGS=ignore:ResourceWarning python -m unittest $@
 
 deploy:
+	scripts/find_missing_wheels.py
 	$(MAKE) -C chalice deploy
 	$(MAKE) -C daemons deploy
 
