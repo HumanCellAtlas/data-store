@@ -37,7 +37,8 @@ class TestSearch(unittest.TestCase, DSSAsserts):
         os.environ['DSS_ES_PORT'] = str(cls.es_server.port)
         dss.Config.set_config(dss.DeploymentStage.TEST)
         cls.app = dss.create_app().app.test_client()
-        cls.index_document = cls.load_sample_document("sample_index_doc.json")
+        with open(os.path.join(os.path.dirname(__file__), "sample_index_doc.json"), "r") as fh:
+            cls.index_document = json.load(fh)
 
     @classmethod
     def load_sample_document(cls, file_name):
