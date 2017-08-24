@@ -22,7 +22,7 @@ with TemporaryDirectory() as td:
     need_wheels = [w for w in missing_wheels if not os.path.exists(os.path.join(args.wheel_dir, w.identifier))]
     if need_wheels:
         if args.build_wheels:
-            if platform.system != "Linux":
+            if platform.system() != "Linux":
                 parser.exit(f"{parser.prog}: Expected to run on a Linux system.")
             for wheel in need_wheels:
                 wd = os.path.join(args.wheel_dir, wheel.identifier)
