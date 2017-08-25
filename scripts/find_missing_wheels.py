@@ -5,7 +5,7 @@ This script manages installation dependencies for AWS Lambda functions.
 See http://chalice.readthedocs.io/en/latest/topics/packaging.html.
 """
 
-import os, argparse, platform, subprocess, glob
+import os, argparse, platform, subprocess, glob, shutil
 from tempfile import TemporaryDirectory
 
 from chalice.utils import OSUtils
@@ -24,6 +24,7 @@ with TemporaryDirectory() as td:
         if args.build_wheels:
             if platform.system() != "Linux":
                 parser.exit(f"{parser.prog}: Expected to run on a Linux system.")
+            shutil.rmtree(args.wheel_dir)
             os.makedirs(args.wheel_dir)
             for wheel in need_wheels:
                 print(f"Processing wheels for {wheel}")
