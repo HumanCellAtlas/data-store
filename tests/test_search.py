@@ -176,8 +176,7 @@ class TestSearch(unittest.TestCase, DSSAsserts):
             bundles.append((bundle_id, bundle_url))
         return bundles
 
-    def verify_search_results(self, query, expected_result_length=0, bundles=[]):
-        timeout = 5
+    def verify_search_results(self, query, expected_result_length=0, bundles=[], timeout=5):
         timeout_time = timeout + time.time()
         while time.time() <= timeout_time:
             response = self.assertPostResponse(
