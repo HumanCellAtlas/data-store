@@ -126,12 +126,10 @@ class TestSearch(unittest.TestCase, DSSAsserts):
                     json_request_body=(query_data[0]),
                     expected_code=query_data[1])
 
-    def test_search_returns_X_results_when_X_documents_match_query(self):
-        """The number of documents indexed is equal to the number of search results returned.
-        - 0 documents are indexed and 0 results is expected.
-        - 1 document is indexed and 1 results is expected.
-        ...
-        test_match: the total number of documents being indexed."""
+    def test_search_returns_N_results_when_N_documents_match_query(self):
+        """Create N identical documents. A search query is executed to match the document. All documents created must be
+        present in the query results. N is varied across a variety of values.
+        """
         test_matches = [0, 1, 9, 10, 11, 1000, 5000]
         bundle_ids = []
         indexed = 0
