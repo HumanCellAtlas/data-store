@@ -72,8 +72,8 @@ class TestSearch(unittest.TestCase, DSSAsserts):
             json_request_body=smartseq2_paired_ends_query,
             expected_code=requests.codes.ok)
         search_response = response.json
-        self.assertDictEqual(search_response['query'], smartseq2_paired_ends_query)
         self.assertEqual(len(search_response), 2)
+        self.assertDictEqual(search_response['query'], smartseq2_paired_ends_query)
         self.assertEqual(len(search_response['results']), 1)
         self.assertEqual(search_response['results'][0]['bundle_id'], bundle_id)
         self.assertEqual(search_response['results'][0]['bundle_url'], bundle_url)
@@ -193,9 +193,8 @@ class TestSearch(unittest.TestCase, DSSAsserts):
                 time.sleep(0.5)
         else:
             self.fail("elasticsearch failed to return all results.")
-
-        self.assertDictEqual(search_response['query'], query)
         self.assertEqual(len(search_response), 2)
+        self.assertDictEqual(search_response['query'], query)
         self.assertEqual(len(search_response['results']), expected_result_length)
         result_bundles = [(hit['bundle_id'], hit['bundle_url'])
                           for hit in search_response['results']]
