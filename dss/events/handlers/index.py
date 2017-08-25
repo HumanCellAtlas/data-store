@@ -9,15 +9,14 @@ from urllib.parse import unquote
 import requests
 from elasticsearch.helpers import scan
 
+from dss import Config
 from ... import (DSS_ELASTICSEARCH_INDEX_NAME, DSS_ELASTICSEARCH_DOC_TYPE,
                  DSS_ELASTICSEARCH_QUERY_TYPE, DSS_ELASTICSEARCH_SUBSCRIPTION_INDEX_NAME,
                  DSS_ELASTICSEARCH_SUBSCRIPTION_TYPE)
 from ...util import create_blob_key
 from ...hcablobstore import BundleMetadata, BundleFileMetadata
 from ...util.es import ElasticsearchClient
-from ...blobstore.s3 import S3BlobStore
-from ...blobstore.gs import GSBlobStore
-from ...blobstore import BlobNotFoundError
+from ...blobstore import BlobStore, BlobNotFoundError
 
 DSS_BUNDLE_KEY_REGEX = r"^bundles/[0-9A-Fa-f]{8}-[0-9A-Fa-f]{4}-4[0-9A-Fa-f]{3}-[0-9A-Fa-f]{4}-[0-9A-Fa-f]{12}\..+$"
 
@@ -27,8 +26,7 @@ def process_new_s3_indexable_object(event, logger) -> None:
         # This function is only called for S3 creation events
         key = unquote(event['Records'][0]["s3"]["object"]["key"])
         bucket_name = event['Records'][0]["s3"]["bucket"]["name"]
-        blobstore = S3BlobStore()
-        process_new_indexable_object(blobstore, bucket_name, key, "aws", logger)
+        process_new_indexable_object(bucket_name, key, "aws", logger)
     except Exception as ex:
         logger.error(f"Exception occurred while processing S3 event: {ex} Event: {json.dumps(event, indent=4)}")
         raise
@@ -37,19 +35,19 @@ def process_new_s3_indexable_object(event, logger) -> None:
 def process_new_gs_indexable_object(event, logger) -> None:
     try:
         # This function is only called for GS creation events
-        # TODO retreive bucket_name and key from gs_event
+        # TODO retreive key from gs_event
         bucket_name = None
         key = None
-        blobstore = GSBlobStore(os.environ["GOOGLE_APPLICATION_CREDENTIALS"])
-        process_new_indexable_object(blobstore, bucket_name, key, "gcp", logger)
+        process_new_indexable_object(bucket_name, key, "gcp", logger)
     except Exception as ex:
         logger.error(f"Exception occurred while processing GS event: {ex} Event: {json.dumps(event, indent=4)}")
         raise
 
 
-def process_new_indexable_object(blobstore, bucket_name, key, replica, logger) -> None:
+def process_new_indexable_object(bucket_name: str, key: str, replica: str, logger) -> None:
     if is_bundle_to_index(key):
         logger.info(f"Received {replica} creation event for bundle which will be indexed: {key}")
+        blobstore, _, _ = Config.get_cloud_specific_handles(replica)
         manifest = read_bundle_manifest(blobstore, bucket_name, key, logger)
         bundle_id = get_bundle_id_from_key(key)
         index_data = create_index_data(blobstore, bucket_name, bundle_id, manifest, logger)
