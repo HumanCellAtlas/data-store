@@ -17,9 +17,16 @@ dss.Config.set_config(dss.DeploymentStage.NORMAL)
 s3_bucket = dss.Config.get_s3_bucket()
 
 @app.s3_event_handler(bucket=s3_bucket, events=["s3:ObjectCreated:*"])
-def dispatch_indexer_event(event, context) -> None:
+def dispatch_s3_indexer_event(event, context) -> None:
     app.log.setLevel(logging.DEBUG)
     if event.get("Event") == "s3:TestEvent":
         app.log.info("DSS index daemon received S3 test event")
     else:
         process_new_indexable_object(event, logger=app.log)
+
+@app.sns_topic_subscriber("dss-gs-bucket-events-" + os.environ["DSS_GS_BUCKET"])
+def dispatch_gs_indexer_event(event, context):
+    """
+    This handler receives GS events via the Google Cloud Function deployed from daemons/dss-gs-event-relay.
+    """
+    context.log(f"dss-index daemon got a GS event: {event}")

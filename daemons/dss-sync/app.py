@@ -42,7 +42,7 @@ def process_new_gs_syncable_object(event, context):
     """
     This handler receives GS events via the Google Cloud Function deployed from daemons/dss-gs-event-relay.
     """
-    context.log("Got a GS event")
+    context.log(f"dss-sync daemon got a GS event: {event}")
 
 @app.sns_topic_subscriber("dss-gs-composite-upload-ready")
 def compose_upload(event, context):
