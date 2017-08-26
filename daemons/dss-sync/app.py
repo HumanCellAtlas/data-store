@@ -40,9 +40,11 @@ def process_new_s3_syncable_object(event, context):
 @app.sns_topic_subscriber("dss-gs-bucket-events-" + os.environ["DSS_GS_BUCKET"])
 def process_new_gs_syncable_object(event, context):
     """
-    This handler receives GS events via the Google Cloud Function deployed from daemons/dss-gs-event-relay.
+    This handler receives GS events via SNS through the Google Cloud Function deployed from daemons/dss-gs-event-relay.
     """
-    context.log(f"dss-sync daemon got a GS event: {event}")
+    gs_event = json.loads(event["Records"][0]["Sns"]["Message"])
+    gs_key_name = gs_event["data"]["name"]
+    sync_blob(source_platform="gs", source_key=gs_key_name, dest_platform="s3", logger=app.log, context=context)
 
 @app.sns_topic_subscriber("dss-gs-composite-upload-ready")
 def compose_upload(event, context):

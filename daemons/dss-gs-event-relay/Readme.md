@@ -4,8 +4,10 @@ gcloud service-management enable cloudfunctions.googleapis.com
 gcloud service-management enable runtimeconfig.googleapis.com
 ```
 
-#### Example Google Storage event
+#### Retrieving GCF logs
+`gcloud beta functions logs read dss-gs-event-relay`
 
+#### Example Google Storage event
 ```
 {
   "timestamp": "2017-08-25T23:08:25.270Z",
