@@ -16,7 +16,7 @@ from flask import wrappers
 from typing import Any
 
 from dss.util import UrlBuilder
-
+from dss.blobstore import BlobStore
 
 def start_verbose_logging():
     logging.basicConfig(level=logging.INFO)
@@ -132,39 +132,29 @@ class DSSAsserts:
             raise AttributeError(item)
 
 
-class S3TestBundle:
-    """
-    A test bundle staged in S3
-
-    This class does a little bit of "double duty" as we also use it to store the uuid and versions used with the API
-    """
-    BUCKET_TEST_FIXTURES = get_env('DSS_S3_BUCKET_TEST_FIXTURES')
-
-    def __init__(self, path, bucket=BUCKET_TEST_FIXTURES):
-        self.bucket = boto3.resource('s3').Bucket(bucket)
+class TestBundle:
+    def __init__(self, blobstore: BlobStore, path: str, bucket: str) -> None:
         self.path = path
-        self.files = self.enumerate_bundle_files()
         self.uuid = str(uuid.uuid4())
         self.version = None
+        self.blobstore = blobstore
+        self.bucket = bucket
+        self.files = self.enumerate_bundle_files()
 
-    def enumerate_bundle_files(self):
-        object_summaries = self.bucket.objects.filter(Prefix=f"{self.path}/")
-        return [S3File(objectSummary, self) for objectSummary in object_summaries]
+    def enumerate_bundle_files(self) -> list:
+        object_summaries = self.blobstore.list(self.bucket, prefix=f"{self.path}/")
+        return [TestFile(object_summary, self) for object_summary in object_summaries]
 
 
-class S3File:
-    """
-    A test file staged in S3
-    """
-
-    def __init__(self, object_summary, bundle):
+class TestFile:
+    def __init__(self, object_summary, bundle) -> None:
         self.bundle = bundle
-        self.path = object_summary.key
-        self.metadata = object_summary.Object().metadata
+        self.metadata = bundle.blobstore.get_user_metadata(bundle.bucket, object_summary)
         self.indexed = True if self.metadata['hca-dss-content-type'] == "application/json" else False
-        self.name = os.path.basename(self.path)
-        self.url = f"s3://{bundle.bucket.name}/{self.path}"
+        self.name = os.path.basename(object_summary)
+        self.path = object_summary
         self.uuid = str(uuid.uuid4())
+        self.url = f"s3://{bundle.bucket}/{self.path}"
         self.version = None
 
 
@@ -231,13 +221,13 @@ class StorageTestSupport:
     expects the client app to be available as 'self.app'
     """
 
-    def upload_files_and_create_bundle(self, bundle: S3TestBundle):
+    def upload_files_and_create_bundle(self, bundle: TestBundle):
         for s3file in bundle.files:
             version = self.upload_file(s3file)
             s3file.version = version
         self.create_bundle(bundle)
 
-    def upload_file(self: Any, bundle_file: S3File) -> str:
+    def upload_file(self: Any, bundle_file: TestFile) -> str:
         response = upload_file_wait(
             typing.cast(DSSAsserts, self),
             bundle_file.url,
@@ -250,7 +240,7 @@ class StorageTestSupport:
         self.assertIn('version', response_data)
         return response_data['version']
 
-    def create_bundle(self: Any, bundle: S3TestBundle):
+    def create_bundle(self: Any, bundle: TestBundle):
         response = self.assertPutResponse(
             str(UrlBuilder().set(path='/v1/bundles/' + bundle.uuid)
                 .add_query('replica', 'aws')),
@@ -263,7 +253,7 @@ class StorageTestSupport:
         bundle.version = response_data['version']
 
     @staticmethod
-    def put_bundle_payload(bundle: S3TestBundle):
+    def put_bundle_payload(bundle: TestBundle):
         payload = {
             'uuid': bundle.uuid,
             'creator_uid': 1234,
@@ -280,7 +270,7 @@ class StorageTestSupport:
         }
         return payload
 
-    def get_bundle_and_check_files(self: Any, bundle: S3TestBundle):
+    def get_bundle_and_check_files(self: Any, bundle: TestBundle):
         response = self.assertGetResponse(
             str(UrlBuilder().set(path='/v1/bundles/' + bundle.uuid)
                 .add_query('replica', 'aws')),
@@ -290,7 +280,7 @@ class StorageTestSupport:
         self.check_bundle_contains_same_files(bundle, response_data['bundle']['files'])
         self.check_files_are_associated_with_bundle(bundle)
 
-    def check_bundle_contains_same_files(self: Any, bundle: S3TestBundle, file_metadata: dict):
+    def check_bundle_contains_same_files(self: Any, bundle: TestBundle, file_metadata: dict):
         self.assertEqual(len(bundle.files), len(file_metadata))
         for bundle_file in bundle.files:
             try:
@@ -301,7 +291,7 @@ class StorageTestSupport:
             self.assertEqual(filedata['name'], bundle_file.name)
             self.assertEqual(filedata['version'], bundle_file.version)
 
-    def check_files_are_associated_with_bundle(self: Any, bundle: S3TestBundle):
+    def check_files_are_associated_with_bundle(self: Any, bundle: TestBundle):
         for bundle_file in bundle.files:
             response = self.assertGetResponse(
                 str(UrlBuilder().set(path='/v1/files/' + bundle_file.uuid)

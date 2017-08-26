@@ -14,12 +14,11 @@ import uuid
 from http.server import BaseHTTPRequestHandler, HTTPServer
 from typing import Dict
 
-import boto3
 import google.auth
 import google.auth.transport.requests
 import moto
 import requests
-from botocore.exceptions import ClientError
+
 
 pkg_root = os.path.abspath(os.path.join(os.path.dirname(__file__), '..'))  # noqa
 sys.path.insert(0, pkg_root)  # noqa
@@ -29,14 +28,14 @@ from dss import (DeploymentStage, Config,
                  DSS_ELASTICSEARCH_INDEX_NAME, DSS_ELASTICSEARCH_DOC_TYPE,
                  DSS_ELASTICSEARCH_SUBSCRIPTION_INDEX_NAME)
 from dss.events.handlers.index import process_new_s3_indexable_object
+from dss.blobstore.s3 import S3BlobStore
 from dss.hcablobstore import BundleMetadata, BundleFileMetadata, FileMetadata
 from dss.util import create_blob_key, UrlBuilder
 from dss.util.es import ElasticsearchClient, ElasticsearchServer
 
 from tests.es import elasticsearch_delete_index
 from tests.fixtures.populate import populate
-from tests.infra import DSSAsserts, StorageTestSupport, S3TestBundle, start_verbose_logging
-
+from tests.infra import DSSAsserts, StorageTestSupport, start_verbose_logging, TestBundle, get_env
 
 # The moto mock has two defects that show up when used by the dss core storage system.
 # Use actual S3 until these defects are fixed in moto.
@@ -74,7 +73,12 @@ class TestIndexer(unittest.TestCase, DSSAsserts, StorageTestSupport):
 
     @classmethod
     def setUpClass(cls):
+        cls.replica = "aws"
+        Config.set_config(DeploymentStage.TEST_FIXTURE)
+        cls.blobstore, _, cls.test_fixture_bucket = Config.get_cloud_specific_handles(cls.replica)
         Config.set_config(DeploymentStage.TEST)
+        _, _, cls.test_bucket = Config.get_cloud_specific_handles(cls.replica)
+
         if not USE_AWS_S3:  # Setup moto mocks
             cls.mock_s3 = moto.mock_s3()
             cls.mock_s3.start()
@@ -120,7 +124,7 @@ class TestIndexer(unittest.TestCase, DSSAsserts, StorageTestSupport):
                                                          files=smartseq2_paried_ends_indexed_file_list)
 
     def test_indexed_file_with_invalid_content_type(self):
-        bundle = S3TestBundle("fixtures/smartseq2/paired_ends")
+        bundle = TestBundle(self.blobstore, "fixtures/smartseq2/paired_ends", self.test_fixture_bucket)
         # Configure a file to be indexed that is not of context type 'application/json'
         for file in bundle.files:
             if file.name == "text_data_file1.txt":
@@ -232,16 +236,17 @@ class TestIndexer(unittest.TestCase, DSSAsserts, StorageTestSupport):
                 time.sleep(0.5)
 
     def load_test_data_bundle_for_path(self, fixture_path: str):
-        bundle = S3TestBundle(fixture_path)
+        """Loads files into test bucket and returns bundle id"""
+        bundle = TestBundle(self.blobstore, fixture_path, self.test_fixture_bucket)
         return self.load_test_data_bundle(bundle)
 
     def load_test_data_bundle_with_inaccessible_file(self, fixture_path: str,
                                                      inaccessible_filename: str,
                                                      inaccessible_file_content_type: str,
                                                      inaccessible_file_indexed: bool):
-        bundle = S3TestBundle(fixture_path)
+        bundle = TestBundle(self.blobstore, fixture_path, self.test_fixture_bucket)
         self.load_test_data_bundle(bundle)
-        bundle_builder = BundleBuilder()
+        bundle_builder = BundleBuilder(self.replica)
         for file in bundle.files:
             bundle_builder.add_file(Config.get_s3_bucket(), file.name, file.indexed, f'{file.uuid}.{file.version}')
         bundle_builder.add_invalid_file(inaccessible_filename,
@@ -250,7 +255,7 @@ class TestIndexer(unittest.TestCase, DSSAsserts, StorageTestSupport):
         bundle_builder.store(Config.get_s3_bucket())
         return 'bundles/' + bundle_builder.get_bundle_id()
 
-    def load_test_data_bundle(self, bundle: S3TestBundle):
+    def load_test_data_bundle(self, bundle: TestBundle):
         self.upload_files_and_create_bundle(bundle)
         return f"bundles/{bundle.uuid}.{bundle.version}"
 
@@ -280,18 +285,18 @@ class TestIndexer(unittest.TestCase, DSSAsserts, StorageTestSupport):
 
         return {'Authorization': f"Bearer {token}"}
 
-    @staticmethod
-    def create_sample_s3_bundle_created_event(bundle_key: str) -> Dict:
+    def create_sample_s3_bundle_created_event(self, bundle_key: str) -> Dict:
         with open(os.path.join(os.path.dirname(__file__), "sample_s3_bundle_created_event.json")) as fh:
             sample_s3_event = json.load(fh)
-        sample_s3_event['Records'][0]["s3"]['bucket']['name'] = Config.get_s3_bucket()
+        sample_s3_event['Records'][0]["s3"]['bucket']['name'] = self.test_bucket
         sample_s3_event['Records'][0]["s3"]['object']['key'] = bundle_key
         return sample_s3_event
 
     def verify_index_document_structure_and_content(self, actual_index_document,
                                                     bundle_key, files, excluded_files=[]):
         self.verify_index_document_structure(actual_index_document, files, excluded_files)
-        expected_index_document = generate_expected_index_document(Config.get_s3_bucket(), bundle_key)
+        expected_index_document = generate_expected_index_document(self.blobstore, self.test_bucket, bundle_key)
+        # expected_index_document = generate_expected_index_document(self.test_bucket, bundle_key)
         if expected_index_document != actual_index_document:
             logger.error(f"Expected index document: {json.dumps(expected_index_document, indent=4)}")
             logger.error(f"Actual index document: {json.dumps(actual_index_document, indent=4)}")
@@ -329,7 +334,8 @@ class TestIndexer(unittest.TestCase, DSSAsserts, StorageTestSupport):
 
 
 class BundleBuilder:
-    def __init__(self, bundle_id=None, bundle_version=None):
+    def __init__(self, replica, bundle_id=None, bundle_version=None):
+        self.blobstore, _, _ = Config.get_cloud_specific_handles(replica)
         self.bundle_id = bundle_id if bundle_id else str(uuid.uuid4())
         self.bundle_version = bundle_version if bundle_version else self._get_version()
         self.bundle_manifest = {
@@ -344,9 +350,7 @@ class BundleBuilder:
 
     def add_file(self, bucket_name, name, indexed, file_id):
         # Add the existing file to the bundle manifest
-        s3 = boto3.resource("s3")
-        file_manifest_string = s3.Object(bucket_name=bucket_name,
-                                         key=f"files/{file_id}").get()['Body'].read().decode("utf-8")
+        file_manifest_string = self.blobstore.get(bucket_name, f"files/{file_id}").decode("utf-8")
         file_manifest = json.loads(file_manifest_string, encoding="utf-8")
         file_uuid, file_version = file_id.split(".", 1)
         bundle_file_manifest = {
@@ -377,11 +381,9 @@ class BundleBuilder:
         self.bundle_manifest[BundleMetadata.FILES].append(bundle_file_manifest)
 
     def store(self, bucket_name):
-        boto3.client('s3').upload_fileobj(
-            io.BytesIO(json.dumps(self.bundle_manifest).encode("utf-8")),
-            Bucket=bucket_name,
-            Key='bundles/' + self.get_bundle_id()
-        )
+        self.blobstore.upload_file_handle(bucket_name,
+                                          'bundles/' + self.get_bundle_id(),
+                                          io.BytesIO(json.dumps(self.bundle_manifest).encode("utf-8")))
 
     def _get_version(self):
         return datetime.datetime.utcnow().strftime("%Y-%m-%dT%H%M%S.%fZ")
@@ -435,8 +437,10 @@ smartseq2_paired_ends_query = \
         }
     }
 
-
+# Only used with moto mock
 def create_s3_bucket(bucket_name) -> None:
+    import boto3
+    from botocore.exceptions import ClientError
     conn = boto3.resource("s3")
     try:
         conn.create_bucket(Bucket=bucket_name)
@@ -445,32 +449,30 @@ def create_s3_bucket(bucket_name) -> None:
             logger.error(f"An unexpected error occured when creating test bucket: {bucket_name}")
 
 
-def generate_expected_index_document(bucket_name, bundle_key):
-    s3 = boto3.resource("s3")
-    manifest = read_bundle_manifest(s3, bucket_name, bundle_key)
-    index_data = create_index_data(s3, bucket_name, manifest)
+def generate_expected_index_document(blobstore, bucket_name, bundle_key):
+    manifest = read_bundle_manifest(blobstore, bucket_name, bundle_key)
+    index_data = create_index_data(blobstore, bucket_name, manifest)
     return index_data
 
 
-def read_bundle_manifest(s3, bucket_name, bundle_key):
-    manifest_string = s3.Object(bucket_name, bundle_key).get()['Body'].read().decode("utf-8")
+def read_bundle_manifest(blobstore, bucket_name, bundle_key):
+    manifest_string = blobstore.get(bucket_name, bundle_key).decode("utf-8")
     manifest = json.loads(manifest_string, encoding="utf-8")
     return manifest
 
 
-def create_index_data(s3, bucket_name, manifest):
+def create_index_data(blobstore, bucket_name, manifest):
     index = dict(state="new", manifest=manifest)
     files_info = manifest['files']
     index_files = {}
-    bucket = s3.Bucket(bucket_name)
     for file_info in files_info:
         if file_info['indexed'] is True:
             try:
                 file_key = create_blob_key(file_info)
-                obj = bucket.Object(file_key)
-                if obj.metadata['hca-dss-content-type'] != "application/json":
+                obj = blobstore.get_user_metadata(bucket_name, file_key)
+                if obj['hca-dss-content-type'] != "application/json":
                     continue
-                file_string = obj.get()['Body'].read().decode("utf-8")
+                file_string = blobstore.get(bucket_name, file_key).decode("utf-8")
                 file_json = json.loads(file_string)
             except Exception:
                 continue

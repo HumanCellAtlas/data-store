@@ -11,13 +11,14 @@ pkg_root = os.path.abspath(os.path.join(os.path.dirname(__file__), '..'))  # noq
 sys.path.insert(0, pkg_root)  # noqa
 
 import dss
-from tests.infra import DSSAsserts, StorageTestSupport, S3TestBundle
+from tests.infra import DSSAsserts, StorageTestSupport, TestBundle
 
 
 class TestApi(unittest.TestCase, DSSAsserts, StorageTestSupport):
 
     def setUp(self):
         dss.Config.set_config(dss.DeploymentStage.TEST)
+        self.blobstore, _, self.bucket = dss.Config.get_cloud_specific_handles("aws")
         self.app = dss.create_app().app.test_client()
 
     BUNDLE_FIXTURE = 'fixtures/test_api/bundle'
@@ -32,7 +33,7 @@ class TestApi(unittest.TestCase, DSSAsserts, StorageTestSupport):
           - GET /files/<uuid>
         and checks that data corresponds where appropriate.
         """
-        bundle = S3TestBundle(self.BUNDLE_FIXTURE)
+        bundle = TestBundle(self.blobstore, self.BUNDLE_FIXTURE, self.bucket)
         self.upload_files_and_create_bundle(bundle)
         self.get_bundle_and_check_files(bundle)
 
