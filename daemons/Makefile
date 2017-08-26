@@ -18,6 +18,6 @@ dss-chunked-task:
 	cd $@; domovoi deploy --stage $(DSS_DEPLOYMENT_STAGE)
 
 dss-gs-event-relay:
-	./deploy_gcf.py $@ --entry-point "dss_gs_bucket_events_$(subst -,_,$(DSS_GS_BUCKET))"
+	$(DSS_HOME)/scripts/deploy_gcf.py $@ --entry-point "dss_gs_bucket_events_$(subst -,_,$(DSS_GS_BUCKET))"
 
 .PHONY: dss-chunked-task dss-sync dss-index dss-gs-event-relay
