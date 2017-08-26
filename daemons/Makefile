@@ -1,6 +1,6 @@
 include ../common.mk
 
-deploy: dss-chunked-task dss-sync dss-index
+deploy: dss-chunked-task dss-sync dss-index dss-gs-event-relay
 
 dss-sync dss-index:
 	git clean -df $@/domovoilib
@@ -17,4 +17,7 @@ dss-chunked-task:
 	./build_deploy_config.sh $@ $(DSS_DEPLOYMENT_STAGE)
 	cd $@; domovoi deploy --stage $(DSS_DEPLOYMENT_STAGE)
 
-.PHONY: dss-chunked-task dss-sync dss-index
+dss-gs-event-relay:
+	./deploy_gcf.py $@ --entry-point "dss_gs_bucket_events_$(subst -,_,$(DSS_GS_BUCKET))"
+
+.PHONY: dss-chunked-task dss-sync dss-index dss-gs-event-relay

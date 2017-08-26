@@ -28,7 +28,7 @@ dss.Config.set_config(dss.DeploymentStage.NORMAL)
 s3_bucket = dss.Config.get_s3_bucket()
 
 @app.s3_event_handler(bucket=s3_bucket, events=["s3:ObjectCreated:*"])
-def process_new_syncable_object(event, context):
+def process_new_s3_syncable_object(event, context):
     app.log.setLevel(logging.DEBUG)
     if event.get("Event") == "s3:TestEvent":
         app.log.info("DSS sync daemon received S3 test event")
@@ -36,6 +36,13 @@ def process_new_syncable_object(event, context):
         bucket = resources.s3.Bucket(event['Records'][0]["s3"]["bucket"]["name"])
         obj = bucket.Object(unquote(event['Records'][0]["s3"]["object"]["key"]))
         sync_blob(source_platform="s3", source_key=obj.key, dest_platform="gs", logger=app.log, context=context)
+
+@app.sns_topic_subscriber("dss-gs-bucket-events-" + os.environ["DSS_GS_BUCKET"])
+def process_new_gs_syncable_object(event, context):
+    """
+    This handler receives GS events via the Google Cloud Function deployed from daemons/dss-gs-event-relay.
+    """
+    context.log("Got a GS event")
 
 @app.sns_topic_subscriber("dss-gs-composite-upload-ready")
 def compose_upload(event, context):
