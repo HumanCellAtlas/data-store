@@ -22,15 +22,15 @@ function dss_gs_event_relay(event, callback) {
     const file = event.data;
     if (file.resourceState === 'not_exists') {
       console.log(`File ${file.name} deleted.`);
+      callback();
     } else if (file.metageneration === '1') {
       // metageneration attribute is updated on metadata changes.
       // on create value is 1
       console.log(`File ${file.name} uploaded.`);
 
       sns.publish({
-        Message: JSON.stringify(event),
-        MessageStructure: 'json',
-        TargetArn: sns_topic_arn
+        TargetArn: sns_topic_arn,
+        Message: JSON.stringify(event)
       }, function(err, data) {
         if (err) {
           console.log(err.stack);
@@ -38,11 +38,12 @@ function dss_gs_event_relay(event, callback) {
         }
         console.log(`Sent push notification to ${sns_topic_arn}`);
         console.log(data);
+        callback();
       });
     } else {
       console.log(`File ${file.name} metadata updated.`);
+      callback();
     }
-    callback();
   });
 }
 

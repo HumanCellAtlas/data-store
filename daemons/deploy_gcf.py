@@ -3,7 +3,7 @@
 This script manages the deployment of Google Cloud Functions.
 """
 
-import os, sys, time, io, zipfile, random, string, binascii, datetime, argparse
+import os, sys, time, io, zipfile, random, string, binascii, datetime, argparse, base64
 
 import boto3
 import google.cloud.storage
@@ -12,7 +12,8 @@ from google.cloud.client import ClientWithProject
 from google.cloud._http import JSONConnection
 
 class GCPClient(ClientWithProject):
-    SCOPE = ["https://www.googleapis.com/auth/cloud-platform"]
+    SCOPE = ["https://www.googleapis.com/auth/cloud-platform",
+             "https://www.googleapis.com/auth/cloudruntimeconfig"]
 
 class GoogleCloudFunctionsConnection(JSONConnection):
     API_BASE_URL = "https://cloudfunctions.googleapis.com"
@@ -51,18 +52,18 @@ config_ns = f"projects/{gcp_client.project}/configs"
 try:
     print(grtc_conn.api_request("POST", f"/{config_ns}", data=dict(name=f"{config_ns}/{args.entry_point}")))
 except google.api.core.exceptions.Conflict:
-    pass
+    print(f"GRTC config {args.entry_point} found")
 
 var_ns = f"{config_ns}/{args.entry_point}/variables"
 for k, v in config_vars.items():
     print("Writing GRTC variable", k)
+    b64v = base64.b64encode(v.encode()).decode()
     try:
-        grtc_conn.api_request("POST", f"/{var_ns}", data=dict(name=f"{var_ns}/{k}", text=v))
+        grtc_conn.api_request("POST", f"/{var_ns}", data=dict(name=f"{var_ns}/{k}", value=b64v))
     except google.api.core.exceptions.Conflict:
-        grtc_conn.api_request("PUT", f"/{var_ns}/{k}", data=dict(name=f"{var_ns}/{k}", text=v))
+        grtc_conn.api_request("PUT", f"/{var_ns}/{k}", data=dict(name=f"{var_ns}/{k}", value=b64v))
 
 now = datetime.datetime.now().strftime("%Y-%m-%d-%H-%M-%S")
-
 deploy_filename = "{}-deploy-{}-{}.zip".format(args.gcf_name, now, binascii.hexlify(os.urandom(4)).decode())
 deploy_blob = gs.bucket(os.environ["DSS_GS_BUCKET_TEST_FIXTURES"]).blob(deploy_filename)
 with io.BytesIO() as buf:
