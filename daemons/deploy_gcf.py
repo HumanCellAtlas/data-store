@@ -7,7 +7,7 @@ import os, sys, time, io, zipfile, random, string, binascii, datetime, argparse,
 
 import boto3
 import google.cloud.storage
-import google.api.core.exceptions
+import google.cloud.exceptions
 from google.cloud.client import ClientWithProject
 from google.cloud._http import JSONConnection
 
@@ -51,7 +51,7 @@ config_vars = {
 config_ns = f"projects/{gcp_client.project}/configs"
 try:
     print(grtc_conn.api_request("POST", f"/{config_ns}", data=dict(name=f"{config_ns}/{args.entry_point}")))
-except google.api.core.exceptions.Conflict:
+except google.cloud.exceptions.Conflict:
     print(f"GRTC config {args.entry_point} found")
 
 var_ns = f"{config_ns}/{args.entry_point}/variables"
@@ -60,7 +60,7 @@ for k, v in config_vars.items():
     b64v = base64.b64encode(v.encode()).decode()
     try:
         grtc_conn.api_request("POST", f"/{var_ns}", data=dict(name=f"{var_ns}/{k}", value=b64v))
-    except google.api.core.exceptions.Conflict:
+    except google.cloud.exceptions.Conflict:
         grtc_conn.api_request("PUT", f"/{var_ns}/{k}", data=dict(name=f"{var_ns}/{k}", value=b64v))
 
 now = datetime.datetime.now().strftime("%Y-%m-%d-%H-%M-%S")
@@ -79,7 +79,7 @@ with io.BytesIO() as buf:
     deploy_blob.upload_from_string(buf.getvalue())
     print("Uploaded", deploy_blob)
 
-gcf_data = {
+gcf_config = {
     "name": f"{gcf_ns}/{args.gcf_name}",
     "entryPoint": args.entry_point,
     "timeout": "60s",
@@ -92,9 +92,9 @@ gcf_data = {
 }
 
 try:
-    print(gcf_conn.api_request("POST", f"/{gcf_ns}", data=gcf_data))
-except google.api.core.exceptions.Conflict:
-    print(gcf_conn.api_request("PUT", f"/{gcf_ns}/{args.gcf_name}", data=gcf_data))
+    print(gcf_conn.api_request("POST", f"/{gcf_ns}", data=gcf_config))
+except google.cloud.exceptions.Conflict:
+    print(gcf_conn.api_request("PUT", f"/{gcf_ns}/{args.gcf_name}", data=gcf_config))
 
 sys.stderr.write("Waiting for deployment...")
 sys.stderr.flush()
