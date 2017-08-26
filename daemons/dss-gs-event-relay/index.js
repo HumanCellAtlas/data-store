@@ -1,7 +1,7 @@
 const runtimeConfig = require('cloud-functions-runtime-config');
 const AWS = require('aws-sdk');
 
-// FIXME: aws creds should be grabbed for a role, not taken from Travis
+// FIXME: aws creds should be grabbed for a role, not borrowed from Travis
 function dss_gs_event_relay(event, callback) {
   Promise.all(
     [runtimeConfig.getVariable(process.env.ENTRY_POINT, 'AWS_ACCESS_KEY_ID'),
