@@ -35,9 +35,8 @@ def process_new_s3_indexable_object(event, logger) -> None:
 def process_new_gs_indexable_object(event, logger) -> None:
     try:
         # This function is only called for GS creation events
-        # TODO retreive key from gs_event
-        bucket_name = None
-        key = None
+        bucket_name = event["bucket"]
+        key = event["name"]
         process_new_indexable_object(bucket_name, key, "gcp", logger)
     except Exception as ex:
         logger.error(f"Exception occurred while processing GS event: {ex} Event: {json.dumps(event, indent=4)}")
@@ -47,7 +46,7 @@ def process_new_gs_indexable_object(event, logger) -> None:
 def process_new_indexable_object(bucket_name: str, key: str, replica: str, logger) -> None:
     if is_bundle_to_index(key):
         logger.info(f"Received {replica} creation event for bundle which will be indexed: {key}")
-        blobstore, _, _ = Config.get_cloud_specific_handles(replica)
+        blobstore = Config.get_cloud_specific_handles(replica)[0]
         manifest = read_bundle_manifest(blobstore, bucket_name, key, logger)
         bundle_id = get_bundle_id_from_key(key)
         index_data = create_index_data(blobstore, bucket_name, bundle_id, manifest, logger)
