@@ -4,7 +4,7 @@
 # for https://github.com/aws/chalice/issues/479. TODO: (akislyuk)
 # revert to using the standard entry point when fixed.
 
-import sys
+import os, sys
 
 from chalice.cli import main
 
