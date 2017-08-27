@@ -36,7 +36,7 @@ deploy:
   script: make deploy
   skip_cleanup: true
   on:
-    branch: master
+    branch: akislyuk-add-wheels
     python: 3.6
 env:
   global:
