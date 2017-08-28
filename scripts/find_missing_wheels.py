@@ -5,7 +5,7 @@ This script manages installation dependencies for AWS Lambda functions.
 See http://chalice.readthedocs.io/en/latest/topics/packaging.html.
 """
 
-import os, sys, argparse, platform, subprocess, glob, shutil
+import os, sys, argparse, platform, subprocess, glob, shutil, re
 from tempfile import TemporaryDirectory
 
 import chalice.deploy.packager
@@ -19,6 +19,13 @@ def build_wheel(wheel_identifier, wheels_dir):
     subprocess.check_output(["pip", "download", wheel_identifier], cwd=wd)
     if glob.glob(os.path.join(wd, "*.tar.gz")):
         subprocess.check_output("pip wheel *.tar.gz && rm -f *.tar.gz", shell=True, cwd=wd)
+    # The sub-dependency wheels downloaded and built here do not obey the pins set by pip freeze in the overall
+    # requirements.txt. We only keep the top level wheel. Since requirements.txt contains the whole flattened dependency
+    # graph, each missing sub-dependency wheel is handled at top level in the overall scan.
+    for wheel_filename in os.listdir(wd):
+        if not re.match(wheel_identifier.replace("-", "_").replace("==", "-"), wheel_filename):
+            os.unlink(os.path.join(wd, wheel_filename))
+    assert len(os.listdir(wd)) == 1, f"Expected to find one wheel in {wd}, but found {os.listdir(wd)}"
 
 # See https://github.com/aws/chalice/issues/497 for discussion
 chalice.deploy.packager.subprocess_python_base_environ = {"PATH": os.environ["PATH"]}
