@@ -25,7 +25,7 @@ def build_wheel(wheel_identifier, wheels_dir):
     for wheel_filename in os.listdir(wd):
         if wheel_filename.find(wheel_identifier.replace("-", "_").replace("==", "-")) != 0:
             os.unlink(os.path.join(wd, wheel_filename))
-    assert len(os.listdir(wd)) == 1, f"Expected to find one wheel in {wd}, but found {os.listdir(wd)}"
+    assert len(os.listdir(wd)) == 1, "Expected to find one wheel in {}, but found {}".format(wd, os.listdir(wd))
 
 # See https://github.com/aws/chalice/issues/497 for discussion
 chalice.deploy.packager.subprocess_python_base_environ = {"PATH": os.environ["PATH"]}
