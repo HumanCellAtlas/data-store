@@ -356,49 +356,6 @@ class TestS3Indexer(unittest.TestCase, TestIndexerHelper):
         return sample_s3_event
 
 
-class TestGSIndexer(unittest.TestCase, TestIndexerHelper):
-
-    http_server_address = "127.0.0.1"
-    http_server_port = 8729
-
-    @classmethod
-    def setUpClass(cls):
-        cls.replica = "gcp"
-        Config.set_config(DeploymentStage.TEST_FIXTURE)
-        cls.blobstore, _, cls.test_fixture_bucket = Config.get_cloud_specific_handles(cls.replica)
-        Config.set_config(DeploymentStage.TEST)
-        _, _, cls.test_bucket = Config.get_cloud_specific_handles(cls.replica)
-
-        if not USE_AWS_S3:  # Setup moto mocks
-            cls.mock_s3 = moto.mock_s3()
-            cls.mock_s3.start()
-            cls.mock_sts = moto.mock_sts()
-            cls.mock_sts.start()
-            Config.set_config(DeploymentStage.TEST_FIXTURE)
-            create_s3_bucket(Config.get_s3_bucket())
-            populate(Config.get_s3_bucket(), None)
-            Config.set_config(DeploymentStage.TEST)
-            create_s3_bucket(Config.get_s3_bucket())
-
-        cls.es_server = ElasticsearchServer()
-        os.environ['DSS_ES_PORT'] = str(cls.es_server.port)
-
-        cls.http_server = HTTPServer((cls.http_server_address, cls.http_server_port), PostTestHandler)
-        cls.http_server_thread = threading.Thread(target=cls.http_server.serve_forever)
-        cls.http_server_thread.start()
-
-    @staticmethod
-    def process_new_indexable_object(sample_event, logger):
-        process_new_gs_indexable_object(sample_event, logger)
-
-    def create_sample_bundle_created_event(self, bundle_key: str) -> Dict:
-        with open(os.path.join(os.path.dirname(__file__), "sample_gs_bundle_created_event.json")) as fh:
-            sample_event = json.load(fh)
-        sample_event["bucket"] = self.test_bucket
-        sample_event["name"] = bundle_key
-        return sample_event
-
-
 class BundleBuilder:
     def __init__(self, replica, bundle_id=None, bundle_version=None):
         self.blobstore, _, _ = Config.get_cloud_specific_handles(replica)
