@@ -33,9 +33,9 @@ from dss.hcablobstore import BundleMetadata, BundleFileMetadata, FileMetadata
 from dss.util import create_blob_key, UrlBuilder
 from dss.util.es import ElasticsearchClient, ElasticsearchServer
 
+from tests.infra import DSSAsserts, DSSUploadMixin, StorageTestSupport, S3TestBundle, start_verbose_logging
 from tests.es import elasticsearch_delete_index
 from tests.fixtures.populate import populate
-from tests.infra import DSSAsserts, StorageTestSupport, S3TestBundle, start_verbose_logging
 
 
 # The moto mock has two defects that show up when used by the dss core storage system.
@@ -67,7 +67,7 @@ for logger_name in logging.Logger.manager.loggerDict:  # type: ignore
 #
 
 
-class TestIndexer(unittest.TestCase, DSSAsserts, StorageTestSupport):
+class TestIndexer(unittest.TestCase, DSSAsserts, StorageTestSupport, DSSUploadMixin):
 
     http_server_address = "127.0.0.1"
     http_server_port = 8729
