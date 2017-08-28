@@ -316,7 +316,7 @@ class TestIndexerHelper(DSSAsserts, StorageTestSupport):
 class TestS3Indexer(unittest.TestCase, TestIndexerHelper):
 
     http_server_address = "127.0.0.1"
-    http_server_port = 8728
+    http_server_port = 8729
 
     @classmethod
     def setUpClass(cls):
@@ -343,14 +343,6 @@ class TestS3Indexer(unittest.TestCase, TestIndexerHelper):
         cls.http_server = HTTPServer((cls.http_server_address, cls.http_server_port), PostTestHandler)
         cls.http_server_thread = threading.Thread(target=cls.http_server.serve_forever)
         cls.http_server_thread.start()
-
-    @classmethod
-    def tearDownClass(cls):
-        cls.es_server.shutdown()
-        if not USE_AWS_S3:  # Teardown moto mocks
-            cls.mock_sts.stop()
-            cls.mock_s3.stop()
-        cls.http_server.shutdown()
 
     def process_new_indexable_object(self, sample_event, logger):
         process_new_s3_indexable_object(sample_event, logger)
@@ -393,14 +385,6 @@ class TestGSIndexer(unittest.TestCase, TestIndexerHelper):
         cls.http_server = HTTPServer((cls.http_server_address, cls.http_server_port), PostTestHandler)
         cls.http_server_thread = threading.Thread(target=cls.http_server.serve_forever)
         cls.http_server_thread.start()
-
-    @classmethod
-    def tearDownClass(cls):
-        cls.es_server.shutdown()
-        if not USE_AWS_S3:  # Teardown moto mocks
-            cls.mock_sts.stop()
-            cls.mock_s3.stop()
-        cls.http_server.shutdown()
 
     def process_new_indexable_object(self, sample_event, logger):
         process_new_gs_indexable_object(sample_event, logger)
