@@ -65,12 +65,16 @@ for logger_name in logging.Logger.manager.loggerDict:  # type: ignore
 #   5. Verify the structure and content of the index document
 #
 
-class TestIndexerHelper:
+class TestIndexerHelper(DSSAsserts, StorageTestSupport):
     http_server_address = "127.0.0.1"
     http_server_port = 8729
 
     @classmethod
     def setUpClass(cls):
+        cls.blobstore = None
+        cls.test_bucket = None
+        cls.test_fixture_bucket = None
+        cls.replica = None
         raise NotImplementedError()
 
     @classmethod
@@ -309,7 +313,7 @@ class TestIndexerHelper:
                 time.sleep(0.5)
 
 
-class TestS3Indexer(unittest.TestCase, DSSAsserts, StorageTestSupport, TestIndexerHelper):
+class TestS3Indexer(unittest.TestCase, TestIndexerHelper):
 
     http_server_address = "127.0.0.1"
     http_server_port = 8729
@@ -359,7 +363,7 @@ class TestS3Indexer(unittest.TestCase, DSSAsserts, StorageTestSupport, TestIndex
         return sample_s3_event
 
 
-class TestGSIndexer(unittest.TestCase, DSSAsserts, StorageTestSupport, TestIndexerHelper):
+class TestGSIndexer(unittest.TestCase, TestIndexerHelper):
 
     http_server_address = "127.0.0.1"
     http_server_port = 8729
