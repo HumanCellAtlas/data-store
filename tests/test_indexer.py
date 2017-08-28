@@ -364,7 +364,6 @@ class TestGSIndexer(unittest.TestCase, DSSAsserts, StorageTestSupport, TestIndex
     http_server_address = "127.0.0.1"
     http_server_port = 8729
 
-
     @classmethod
     def setUpClass(cls):
         cls.replica = "gcp"
@@ -391,7 +390,6 @@ class TestGSIndexer(unittest.TestCase, DSSAsserts, StorageTestSupport, TestIndex
         cls.http_server_thread = threading.Thread(target=cls.http_server.serve_forever)
         cls.http_server_thread.start()
 
-
     @classmethod
     def tearDownClass(cls):
         cls.es_server.shutdown()
@@ -400,10 +398,8 @@ class TestGSIndexer(unittest.TestCase, DSSAsserts, StorageTestSupport, TestIndex
             cls.mock_s3.stop()
         cls.http_server.shutdown()
 
-
     def process_new_indexable_object(self, sample_event, logger):
         process_new_gs_indexable_object(sample_event, logger)
-
 
     def create_sample_bundle_created_event(self, bundle_key: str) -> Dict:
         with open(os.path.join(os.path.dirname(__file__), "sample_gs_bundle_created_event.json")) as fh:
