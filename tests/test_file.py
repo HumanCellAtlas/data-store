@@ -17,10 +17,10 @@ from dss.config import DeploymentStage, override_bucket_config
 from dss.util import UrlBuilder
 from dss.util.aws import AWS_MIN_CHUNK_SIZE
 from tests.fixtures.cloud_uploader import GSUploader, S3Uploader, Uploader
-from tests.infra import DSSAsserts, ExpectedErrorFields, get_env, generate_test_key, upload_file_wait
+from tests.infra import DSSAsserts, DSSUploadMixin, ExpectedErrorFields, get_env, generate_test_key
 
 
-class TestFileApi(unittest.TestCase, DSSAsserts):
+class TestFileApi(unittest.TestCase, DSSAsserts, DSSUploadMixin):
     def setUp(self):
         self.app = dss.create_app().app.test_client()
         dss.Config.set_config(dss.DeploymentStage.TEST)
@@ -46,7 +46,7 @@ class TestFileApi(unittest.TestCase, DSSAsserts):
 
         # should be able to do this twice (i.e., same payload, different UUIDs)
         for _ in range(2):
-            resp_obj = upload_file_wait(self, f"{scheme}://{test_bucket}/{src_key}", replica, expect_async=False)
+            resp_obj = self.upload_file_wait(f"{scheme}://{test_bucket}/{src_key}", replica, expect_async=False)
             self.assertHeaders(
                 resp_obj.response,
                 {
@@ -73,7 +73,7 @@ class TestFileApi(unittest.TestCase, DSSAsserts):
         # should be able to do this twice (i.e., same payload, different UUIDs).  first time should be asynchronous
         # since it's new data.  second time should be synchronous since the data is present.
         for expect_async in (True, False):
-            resp_obj = upload_file_wait(self, f"{scheme}://{test_bucket}/{src_key}", replica, expect_async=expect_async)
+            resp_obj = self.upload_file_wait(f"{scheme}://{test_bucket}/{src_key}", replica, expect_async=expect_async)
             self.assertHeaders(
                 resp_obj.response,
                 {
@@ -84,8 +84,7 @@ class TestFileApi(unittest.TestCase, DSSAsserts):
 
     # This is a test specific to AWS since it has separate notion of metadata and tags.
     def test_file_put_metadata_from_tags(self):
-        resp_obj = upload_file_wait(
-            self,
+        resp_obj = self.upload_file_wait(
             f"s3://{self.s3_test_fixtures_bucket}/test_good_source_data/metadata_in_tags",
             "aws",
         )
@@ -102,8 +101,7 @@ class TestFileApi(unittest.TestCase, DSSAsserts):
         self._test_file_put_upper_case_checksums("gs", self.gs_test_fixtures_bucket)
 
     def _test_file_put_upper_case_checksums(self, scheme, fixtures_bucket):
-        resp_obj = upload_file_wait(
-            self,
+        resp_obj = self.upload_file_wait(
             f"{scheme}://{fixtures_bucket}/test_good_source_data/incorrect_case_checksum",
             "aws",
         )

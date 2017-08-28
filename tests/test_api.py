@@ -11,10 +11,10 @@ pkg_root = os.path.abspath(os.path.join(os.path.dirname(__file__), '..'))  # noq
 sys.path.insert(0, pkg_root)  # noqa
 
 import dss
-from tests.infra import DSSAsserts, StorageTestSupport, S3TestBundle
+from tests.infra import DSSAsserts, DSSUploadMixin, StorageTestSupport, S3TestBundle
 
 
-class TestApi(unittest.TestCase, DSSAsserts, StorageTestSupport):
+class TestApi(unittest.TestCase, DSSAsserts, DSSUploadMixin, StorageTestSupport):
 
     def setUp(self):
         dss.Config.set_config(dss.DeploymentStage.TEST)
