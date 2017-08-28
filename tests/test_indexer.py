@@ -483,4 +483,3 @@ def create_index_data(blobstore, bucket_name, manifest):
 
 if __name__ == "__main__":
     unittest.main()
-    
