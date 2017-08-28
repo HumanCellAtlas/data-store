@@ -316,7 +316,7 @@ class TestIndexerHelper(DSSAsserts, StorageTestSupport):
 class TestS3Indexer(unittest.TestCase, TestIndexerHelper):
 
     http_server_address = "127.0.0.1"
-    http_server_port = 8729
+    http_server_port = 8728
 
     @classmethod
     def setUpClass(cls):
