@@ -344,7 +344,8 @@ class TestS3Indexer(unittest.TestCase, TestIndexerHelper):
         cls.http_server_thread = threading.Thread(target=cls.http_server.serve_forever)
         cls.http_server_thread.start()
 
-    def process_new_indexable_object(self, sample_event, logger):
+    @staticmethod
+    def process_new_indexable_object(sample_event, logger):
         process_new_s3_indexable_object(sample_event, logger)
 
     def create_sample_bundle_created_event(self, bundle_key: str) -> Dict:
@@ -386,7 +387,8 @@ class TestGSIndexer(unittest.TestCase, TestIndexerHelper):
         cls.http_server_thread = threading.Thread(target=cls.http_server.serve_forever)
         cls.http_server_thread.start()
 
-    def process_new_indexable_object(self, sample_event, logger):
+    @staticmethod
+    def process_new_indexable_object(sample_event, logger):
         process_new_gs_indexable_object(sample_event, logger)
 
     def create_sample_bundle_created_event(self, bundle_key: str) -> Dict:
