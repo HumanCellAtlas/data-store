@@ -227,11 +227,11 @@ class StorageTestSupport:
             s3file.version = version
         self.create_bundle(bundle)
 
-    def upload_file(self: Any, bundle_file: TestFile) -> str:
+    def upload_file(self: Any, bundle_file: TestFile, replica: str = "aws") -> str:
         response = upload_file_wait(
             typing.cast(DSSAsserts, self),
             bundle_file.url,
-            "aws",
+            replica,
             file_uuid=bundle_file.uuid,
             bundle_uuid=bundle_file.bundle.uuid,
         )

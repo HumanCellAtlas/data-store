@@ -240,10 +240,6 @@ class TestIndexerHelper(DSSAsserts, StorageTestSupport):
         bundle_builder.store(self.test_bucket)
         return 'bundles/' + bundle_builder.get_bundle_id()
 
-    def load_test_data_bundle(self, bundle: TestBundle):
-        self.upload_files_and_create_bundle(bundle)
-        return f"bundles/{bundle.uuid}.{bundle.version}"
-
     def subscribe_for_notification(self, query, callback_url):
         url = str(UrlBuilder()
                   .set(path="/v1/subscriptions")
@@ -362,6 +358,9 @@ class TestS3Indexer(unittest.TestCase, TestIndexerHelper):
         sample_s3_event['Records'][0]["s3"]['object']['key'] = bundle_key
         return sample_s3_event
 
+    def load_test_data_bundle(self, bundle: TestBundle):
+        self.upload_files_and_create_bundle(bundle, self.replica)
+        return f"bundles/{bundle.uuid}.{bundle.version}"
 
 class TestGSIndexer(unittest.TestCase, TestIndexerHelper):
 
