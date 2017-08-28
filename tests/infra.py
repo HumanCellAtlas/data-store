@@ -221,10 +221,10 @@ class StorageTestSupport:
     expects the client app to be available as 'self.app'
     """
 
-    def upload_files_and_create_bundle(self, bundle: TestBundle):
-        for s3file in bundle.files:
-            version = self.upload_file(s3file)
-            s3file.version = version
+    def upload_files_and_create_bundle(self, bundle: TestBundle, replica: str = "aws"):
+        for file in bundle.files:
+            version = self.upload_file(file, replica)
+            file.version = version
         self.create_bundle(bundle)
 
     def upload_file(self: Any, bundle_file: TestFile, replica: str = "aws") -> str:
@@ -270,10 +270,10 @@ class StorageTestSupport:
         }
         return payload
 
-    def get_bundle_and_check_files(self: Any, bundle: TestBundle):
+    def get_bundle_and_check_files(self: Any, bundle: TestBundle, replica: str = "aws"):
         response = self.assertGetResponse(
             str(UrlBuilder().set(path='/v1/bundles/' + bundle.uuid)
-                .add_query('replica', 'aws')),
+                .add_query('replica', replica)),
             requests.codes.ok
         )
         response_data = json.loads(response[1])
@@ -291,11 +291,11 @@ class StorageTestSupport:
             self.assertEqual(filedata['name'], bundle_file.name)
             self.assertEqual(filedata['version'], bundle_file.version)
 
-    def check_files_are_associated_with_bundle(self: Any, bundle: TestBundle):
+    def check_files_are_associated_with_bundle(self: Any, bundle: TestBundle, replica: str = "aws"):
         for bundle_file in bundle.files:
             response = self.assertGetResponse(
                 str(UrlBuilder().set(path='/v1/files/' + bundle_file.uuid)
-                    .add_query('replica', 'aws')),
+                    .add_query('replica', replica)),
                 requests.codes.found,
             )
             self.assertEqual(bundle_file.bundle.uuid, response[0].headers['X-DSS-BUNDLE-UUID'])
