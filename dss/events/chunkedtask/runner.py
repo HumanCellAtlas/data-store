@@ -18,12 +18,7 @@ class Runner(typing.Generic[RunnerStateType, RunnerResultType]):
             runtime: Runtime[RunnerStateType, RunnerResultType]) -> None:
         self.chunkedtask = chunkedtask
         self.runtime = runtime
-        self.observed_max_one_unit_runtime_millis = min(
-            # TODO: may want to scale `expected_max_one_unit_runtime_millis` based on how old the task is.  rationale:
-            # if the task has lived in the system a long time, it's quite possible that
-            # expected_max_one_unit_runtime_millis is too optimistic.
-            self.chunkedtask.expected_max_one_unit_runtime_millis,
-            self.runtime.get_remaining_time_in_millis())
+        self.observed_max_one_unit_runtime_millis = self.chunkedtask.expected_max_one_unit_runtime_millis
 
     def run(self) -> None:
         """
@@ -38,15 +33,15 @@ class Runner(typing.Generic[RunnerStateType, RunnerResultType]):
                 return
             after = self.runtime.get_remaining_time_in_millis()
 
-            if after * TIME_OVERHEAD_FACTOR < self.observed_max_one_unit_runtime_millis:
-                break
-
             duration = before - after
             if duration > self.observed_max_one_unit_runtime_millis:
                 self.observed_max_one_unit_runtime_millis = duration
             else:
                 # TODO: this formula may need some tweaking.
                 self.observed_max_one_unit_runtime_millis = (self.observed_max_one_unit_runtime_millis + duration) // 2
+
+            if after < self.observed_max_one_unit_runtime_millis * TIME_OVERHEAD_FACTOR:
+                break
 
         # schedule the next chunk of work.
         state = self.chunkedtask.get_state()

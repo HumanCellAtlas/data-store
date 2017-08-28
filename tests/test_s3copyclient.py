@@ -93,7 +93,7 @@ class TestAWSCopy(unittest.TestCase):
             self.test_bucket, self.test_src_key, self.test_bucket, dest_key, lambda blob_size: (5 * 1024 * 1024))
 
         while True:
-            env = TestStingyRuntime(seq=itertools.repeat(sys.maxsize, 9))
+            env = TestStingyRuntime(seq=itertools.repeat(sys.maxsize, 7))
             task = S3CopyTask(current_state, fetch_size=4)
             runner = chunkedtask.Runner(task, env)
 
