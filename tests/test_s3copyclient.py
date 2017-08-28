@@ -68,6 +68,7 @@ class TestAWSCopy(unittest.TestCase):
 
         current_state = S3CopyTask.setup_copy_task(
             self.test_bucket, self.test_src_key, self.test_bucket, dest_key, lambda blob_size: (5 * 1024 * 1024))
+        freezes = 0
 
         while True:
             env = TestStingyRuntime()
@@ -81,6 +82,9 @@ class TestAWSCopy(unittest.TestCase):
                 break
             else:
                 current_state = env.rescheduled_state
+                freezes += 1
+
+        self.assertGreater(freezes, 0)
 
         # verify that the destination has the same checksum.
         dst_etag = S3BlobStore().get_all_metadata(self.test_bucket, dest_key)['ETag'].strip("\"")
@@ -91,6 +95,7 @@ class TestAWSCopy(unittest.TestCase):
 
         current_state = S3CopyTask.setup_copy_task(
             self.test_bucket, self.test_src_key, self.test_bucket, dest_key, lambda blob_size: (5 * 1024 * 1024))
+        freezes = 0
 
         while True:
             env = TestStingyRuntime(seq=itertools.repeat(sys.maxsize, 7))
@@ -104,6 +109,9 @@ class TestAWSCopy(unittest.TestCase):
                 break
             else:
                 current_state = env.rescheduled_state
+                freezes += 1
+
+        self.assertGreater(freezes, 0)
 
         # verify that the destination has the same checksum.
         dst_etag = S3BlobStore().get_all_metadata(self.test_bucket, dest_key)['ETag'].strip("\"")
