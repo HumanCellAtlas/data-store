@@ -17,7 +17,7 @@ from typing import Any
 
 from dss.util import UrlBuilder
 from dss.blobstore import BlobStore
-from dss import config
+from dss import Config
 
 def start_verbose_logging():
     logging.basicConfig(level=logging.INFO)
@@ -140,12 +140,11 @@ class TestBundle:
         self.version = None
         self.handle = handle
         self.bucket = bucket
-        self.replica = replica
         self.files = self.enumerate_bundle_files(replica)
 
     def enumerate_bundle_files(self, replica) -> list:
         object_summaries = self.handle.list(self.bucket, prefix=f"{self.path}/")
-        return [TestFile(object_summary, self) for object_summary in object_summaries]
+        return [TestFile(object_summary, self, replica) for object_summary in object_summaries]
 
 
 class TestFile:
@@ -156,7 +155,7 @@ class TestFile:
         self.name = os.path.basename(object_summary)
         self.path = object_summary
         self.uuid = str(uuid.uuid4())
-        self.url = f"{config.get_storage_schema(replica)}://{bundle.bucket}/{self.path}"
+        self.url = f"{Config.get_storage_schema(replica)}://{bundle.bucket}/{self.path}"
         self.version = None
 
 
