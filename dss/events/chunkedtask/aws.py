@@ -1,5 +1,6 @@
 import json
 import logging
+import traceback
 import typing
 import uuid
 
@@ -108,14 +109,24 @@ def dispatch(context, payload):
         return
     task_id, client_name, client_class, state = decoded_payload
 
-    # special case: if the client name is `AWS_FAST_TEST_CLIENT_NAME`, we use a special runtime environment so we don't
-    # take forever running the test.
-    if client_name == _awstest.AWS_FAST_TEST_CLIENT_NAME:
-        runtime = _awstest.AWSFastTestRuntime(context, task_id)
-    else:
-        runtime = AWSRuntime(context, client_name, task_id)
+    try:
+        # special case: if the client name is `AWS_FAST_TEST_CLIENT_NAME`, we use a special runtime environment so we
+        # don't take forever running the test.
+        if client_name == _awstest.AWS_FAST_TEST_CLIENT_NAME:
+            runtime = _awstest.AWSFastTestRuntime(context, task_id)
+        else:
+            runtime = AWSRuntime(context, client_name, task_id)
 
-    task = client_class(state)
+        task = client_class(state)
 
-    runner = Runner(task, runtime)
-    runner.run()
+        runner = Runner(task, runtime)
+        runner.run()
+    except Exception as ex:
+        AWSRuntime.log(
+            task_id,
+            json.dumps(dict(
+                action=awsconstants.LogActions.EXCEPTION,
+                stacktrace=traceback.format_exc(),
+            )),
+        )
+        raise
