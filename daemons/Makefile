@@ -1,6 +1,6 @@
 include ../common.mk
 
-deploy: dss-chunked-task dss-sync dss-index
+deploy: dss-chunked-task dss-sync dss-index dss-gs-event-relay
 
 dss-chunked-task dss-sync dss-index:
 	git clean -df $@/domovoilib $@/vendor
@@ -15,4 +15,7 @@ dss-chunked-task dss-sync dss-index:
 	        ../tests/daemons/a47b90b2-0967-4fbf-87bc-c6c12db3fedf.2017-07-12T055120.037644Z; \
 	fi
 
-.PHONY: dss-chunked-task dss-sync dss-index
+dss-gs-event-relay:
+	$(DSS_HOME)/scripts/deploy_gcf.py $@ --entry-point "dss_gs_bucket_events_$(subst -,_,$(DSS_GS_BUCKET))"
+
+.PHONY: dss-chunked-task dss-sync dss-index dss-gs-event-relay
