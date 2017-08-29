@@ -20,6 +20,7 @@ MAX_SUPPORTED_VERSION = 1
 class LogActions:
     SCHEDULED = "scheduled"
     RESCHEDULED = "rescheduled"
+    RUNNING = "running"
     EXCEPTION = "exception"
     COMPLETE = "complete"
 
