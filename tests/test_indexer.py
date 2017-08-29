@@ -226,16 +226,16 @@ class TestIndexerBase(DSSAsserts, StorageTestSupport):
         uuid_ = resp_obj.json['uuid']
         return uuid_
 
-    # def get_auth_header(self, token=None):
-    #     credentials, project_id = google.auth.default(scopes=["https://www.googleapis.com/auth/userinfo.email"])
-    #
-    #     if not token:
-    #         r = google.auth.transport.requests.Request()
-    #         credentials.refresh(r)
-    #         r.session.close()
-    #         token = credentials.token
-    #
-    #     return {'Authorization': f"Bearer {token}"}
+    def get_auth_header(self, token=None):
+        credentials, project_id = google.auth.default(scopes=["https://www.googleapis.com/auth/userinfo.email"])
+
+        if not token:
+            r = google.auth.transport.requests.Request()
+            credentials.refresh(r)
+            r.session.close()
+            token = credentials.token
+
+        return {'Authorization': f"Bearer {token}"}
 
     def verify_index_document_structure_and_content(self, actual_index_document,
                                                     bundle_key, files, excluded_files=[]):
@@ -285,7 +285,7 @@ class TestIndexerBase(DSSAsserts, StorageTestSupport):
         raise NotImplemented()
 
 
-class TestIndexer(unittest.TestCase, TestIndexerBase):
+class TestAWSIndexer(unittest.TestCase, TestIndexerBase):
 
     http_server_address = "127.0.0.1"
     http_server_port = 8729
