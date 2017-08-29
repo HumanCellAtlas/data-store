@@ -109,6 +109,14 @@ def dispatch(context, payload):
         return
     task_id, client_name, client_class, state = decoded_payload
 
+    AWSRuntime.log(
+        task_id,
+        json.dumps(dict(
+            action=awsconstants.LogActions.RUNNING,
+            state=state,
+        )),
+    )
+
     try:
         # special case: if the client name is `AWS_FAST_TEST_CLIENT_NAME`, we use a special runtime environment so we
         # don't take forever running the test.
