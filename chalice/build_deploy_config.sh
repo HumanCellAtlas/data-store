@@ -46,7 +46,14 @@ if [[ -z $lambda_arn ]]; then
     rm -f "$deployed_json"
 else
     export api_id=$(get_api_id)
-    cat "$deployed_json" | jq .$stage.api_handler_arn=env.lambda_arn | jq .$stage.rest_api_id=env.api_id | sponge "$deployed_json"
+    jq -n ".$stage.api_handler_name = env.lambda_name | \
+           .$stage.api_handler_arn = env.lambda_arn | \
+           .$stage.rest_api_id = env.api_id | \
+           .$stage.region = env.AWS_DEFAULT_REGION | \
+           .$stage.api_gateway_stage = env.stage | \
+           .$stage.backend = \"api\" | \
+           .$stage.chalice_version = \"1.0.1\" | \
+           .$stage.lambda_functions = {}" > "$deployed_json"
 fi
 
 for var in $EXPORT_ENV_VARS_TO_LAMBDA; do

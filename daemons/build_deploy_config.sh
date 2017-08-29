@@ -31,7 +31,14 @@ if [[ -z $lambda_arn ]]; then
     echo "Lambda function $lambda_name not found, resetting deploy config"
     rm -f "$deployed_json"
 else
-    cat "$deployed_json" | jq .$stage.api_handler_arn=env.lambda_arn | sponge "$deployed_json"
+    jq -n ".$stage.api_handler_name = env.lambda_name | \
+           .$stage.api_handler_arn = env.lambda_arn | \
+           .$stage.rest_api_id = \"\" | \
+           .$stage.region = env.AWS_DEFAULT_REGION | \
+           .$stage.api_gateway_stage = null | \
+           .$stage.backend = \"api\" | \
+           .$stage.chalice_version = \"1.0.1\" | \
+           .$stage.lambda_functions = {}" > "$deployed_json"
 fi
 
 for var in $EXPORT_ENV_VARS_TO_LAMBDA; do
