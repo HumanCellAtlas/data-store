@@ -41,11 +41,6 @@ class TestSearch(unittest.TestCase, DSSAsserts):
             cls.index_document = json.load(fh)
 
     @classmethod
-    def load_sample_document(cls, file_name):
-        with open(os.path.join(os.path.dirname(__file__), file_name), "r") as fh:
-            return json.load(fh)
-
-    @classmethod
     def tearDownClass(cls):
         cls.es_server.shutdown()
 
@@ -72,7 +67,6 @@ class TestSearch(unittest.TestCase, DSSAsserts):
             json_request_body=smartseq2_paired_ends_query,
             expected_code=requests.codes.ok)
         search_response = response.json
-        self.assertEqual(len(search_response), 2)
         self.assertDictEqual(search_response['query'], smartseq2_paired_ends_query)
         self.assertEqual(len(search_response['results']), 1)
         self.assertEqual(search_response['results'][0]['bundle_id'], bundle_id)
@@ -192,7 +186,6 @@ class TestSearch(unittest.TestCase, DSSAsserts):
                 time.sleep(0.5)
         else:
             self.fail("elasticsearch failed to return all results.")
-        self.assertEqual(len(search_response), 2)
         self.assertDictEqual(search_response['query'], query)
         self.assertEqual(len(search_response['results']), expected_result_length)
         result_bundles = [(hit['bundle_id'], hit['bundle_url'])
