@@ -150,7 +150,7 @@ class TestBundle:
 class TestFile:
     def __init__(self, object_summary, bundle, replica) -> None:
         self.bundle = bundle
-        self.metadata = bundle.blobstore.get_user_metadata(bundle.bucket, object_summary)
+        self.metadata = bundle.handle.get_user_metadata(bundle.bucket, object_summary)
         self.indexed = True if self.metadata['hca-dss-content-type'] == "application/json" else False
         self.name = os.path.basename(object_summary)
         self.path = object_summary
