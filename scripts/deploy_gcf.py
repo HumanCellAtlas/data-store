@@ -63,49 +63,54 @@ for k, v in config_vars.items():
     except google.cloud.exceptions.Conflict:
         grtc_conn.api_request("PUT", f"/{var_ns}/{k}", data=dict(name=f"{var_ns}/{k}", value=b64v))
 
-now = datetime.datetime.now().strftime("%Y-%m-%d-%H-%M-%S")
-deploy_filename = "{}-deploy-{}-{}.zip".format(args.gcf_name, now, binascii.hexlify(os.urandom(4)).decode())
-deploy_blob = gs.bucket(os.environ["DSS_GS_BUCKET_TEST_FIXTURES"]).blob(deploy_filename)
-with io.BytesIO() as buf:
-    with zipfile.ZipFile(buf, 'w', compression=zipfile.ZIP_DEFLATED) as zbuf:
-        for root, dirs, files in os.walk(args.gcf_name):
-            for f in files:
-                archive_path = os.path.relpath(os.path.join(root, f), args.gcf_name)
-                if archive_path.startswith("node_modules"):
-                    continue
-                print("Adding", archive_path)
-                zbuf.write(os.path.join(root, f), archive_path)
-        zbuf.close()
-    deploy_blob.upload_from_string(buf.getvalue())
-    print("Uploaded", deploy_blob)
-
-gcf_config = {
-    "name": f"{gcf_ns}/{args.gcf_name}",
-    "entryPoint": args.entry_point,
-    "timeout": "60s",
-    "availableMemoryMb": 256,
-    "sourceArchiveUrl": f"gs://{deploy_blob.bucket.name}/{deploy_blob.name}",
-    "eventTrigger": {
-        "eventType": "providers/cloud.storage/eventTypes/object.change",
-        "resource": f"projects/_/buckets/{os.environ['DSS_GS_BUCKET']}"
-    }
-}
-
 try:
-    print(gcf_conn.api_request("POST", f"/{gcf_ns}", data=gcf_config))
-except google.cloud.exceptions.Conflict:
-    print(gcf_conn.api_request("PUT", f"/{gcf_ns}/{args.gcf_name}", data=gcf_config))
+    now = datetime.datetime.now().strftime("%Y-%m-%d-%H-%M-%S")
+    deploy_filename = "{}-deploy-{}-{}.zip".format(args.gcf_name, now, binascii.hexlify(os.urandom(4)).decode())
+    deploy_blob = gs.bucket(os.environ["DSS_GS_BUCKET_TEST_FIXTURES"]).blob(deploy_filename)
+    with io.BytesIO() as buf:
+        with zipfile.ZipFile(buf, 'w', compression=zipfile.ZIP_DEFLATED) as zbuf:
+            for root, dirs, files in os.walk(args.gcf_name):
+                for f in files:
+                    archive_path = os.path.relpath(os.path.join(root, f), args.gcf_name)
+                    if archive_path.startswith("node_modules"):
+                        continue
+                    print("Adding", archive_path)
+                    zbuf.write(os.path.join(root, f), archive_path)
+            zbuf.close()
+        deploy_blob.upload_from_string(buf.getvalue())
+        print("Uploaded", deploy_blob)
 
-sys.stderr.write("Waiting for deployment...")
-sys.stderr.flush()
-while gcf_conn.api_request("GET", f"/{gcf_ns}/{args.gcf_name}")["status"] == "DEPLOYING":
-    sys.stderr.write(".")
+    gcf_config = {
+        "name": f"{gcf_ns}/{args.gcf_name}",
+        "entryPoint": args.entry_point,
+        "timeout": "60s",
+        "availableMemoryMb": 256,
+        "sourceArchiveUrl": f"gs://{deploy_blob.bucket.name}/{deploy_blob.name}",
+        "eventTrigger": {
+            "eventType": "providers/cloud.storage/eventTypes/object.change",
+            "resource": f"projects/_/buckets/{os.environ['DSS_GS_BUCKET']}"
+        }
+    }
+
+    try:
+        print(gcf_conn.api_request("POST", f"/{gcf_ns}", data=gcf_config))
+    except google.cloud.exceptions.Conflict:
+        print(gcf_conn.api_request("PUT", f"/{gcf_ns}/{args.gcf_name}", data=gcf_config))
+
+    sys.stderr.write("Waiting for deployment...")
     sys.stderr.flush()
-    time.sleep(1)
-sys.stderr.write("done\n")
+    for t in range(90):
+        if gcf_conn.api_request("GET", f"/{gcf_ns}/{args.gcf_name}")["status"] != "DEPLOYING":
+            break
+        sys.stderr.write(".")
+        sys.stderr.flush()
+        time.sleep(1)
+    else:
+        sys.exit("Timeout while waiting for GCF deployment to complete")
+    sys.stderr.write("done\n")
 
-res = gcf_conn.api_request("GET", f"/{gcf_ns}/{args.gcf_name}")
-print(res)
-assert gcf_conn.api_request("GET", f"/{gcf_ns}/{args.gcf_name}")["status"] == "READY"
-
-deploy_blob.delete()
+    res = gcf_conn.api_request("GET", f"/{gcf_ns}/{args.gcf_name}")
+    print(res)
+    assert res["status"] == "READY"
+finally:
+    deploy_blob.delete()
