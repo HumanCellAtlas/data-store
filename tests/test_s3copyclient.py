@@ -29,7 +29,7 @@ class TestStingyRuntime(chunkedtask.Runtime[dict, bool]):
     def get_remaining_time_in_millis(self) -> int:
         return self.seq.__next__()
 
-    def schedule_work(self, state: dict):
+    def reschedule_work(self, state: dict):
         # it's illegal for there to be no state.
         assert state is not None
         self.rescheduled_state = state

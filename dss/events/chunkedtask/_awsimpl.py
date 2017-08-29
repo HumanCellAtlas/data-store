@@ -22,7 +22,7 @@ class AWSRuntime(Runtime[dict, typing.Any]):
     def get_remaining_time_in_millis(self) -> int:
         return self.context.get_remaining_time_in_millis()
 
-    def schedule_work(self, state: dict):
+    def reschedule_work(self, state: dict):
         payload = {
             awsconstants.CLIENT_KEY: self.client_name,
             awsconstants.REQUEST_VERSION_KEY: awsconstants.CURRENT_VERSION,
