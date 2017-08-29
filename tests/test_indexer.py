@@ -72,7 +72,7 @@ class TestIndexer(unittest.TestCase, DSSAsserts, StorageTestSupport):
 
     @classmethod
     def setUpClass(cls):
-        cls.replica = "gcp"
+        cls.replica = "aws"
         Config.set_config(DeploymentStage.TEST_FIXTURE)
         cls.blobstore, _, cls.test_fixture_bucket = Config.get_cloud_specific_handles(cls.replica)
         Config.set_config(DeploymentStage.TEST)
@@ -95,7 +95,6 @@ class TestIndexer(unittest.TestCase, DSSAsserts, StorageTestSupport):
         cls.http_server = HTTPServer((cls.http_server_address, cls.http_server_port), PostTestHandler)
         cls.http_server_thread = threading.Thread(target=cls.http_server.serve_forever)
         cls.http_server_thread.start()
-        cls.process_new_indexable_object = process_new_s3_indexable_object
 
     @classmethod
     def tearDownClass(cls):
@@ -104,6 +103,10 @@ class TestIndexer(unittest.TestCase, DSSAsserts, StorageTestSupport):
             cls.mock_sts.stop()
             cls.mock_s3.stop()
         cls.http_server.shutdown()
+
+    @staticmethod
+    def process_new_indexable_object(event, logger):
+        process_new_s3_indexable_object(event, logger)
 
     def setUp(self):
         self.app = dss.create_app().app.test_client()
