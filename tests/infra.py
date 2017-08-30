@@ -279,7 +279,7 @@ class StorageTestSupport:
         )
         response_data = json.loads(response[1])
         self.check_bundle_contains_same_files(bundle, response_data['bundle']['files'])
-        self.check_files_are_associated_with_bundle(bundle)
+        self.check_files_are_associated_with_bundle(bundle, replica)
 
     def check_bundle_contains_same_files(self: Any, bundle: TestBundle, file_metadata: dict):
         self.assertEqual(len(bundle.files), len(file_metadata))

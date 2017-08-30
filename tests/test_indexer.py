@@ -64,20 +64,19 @@ for logger_name in logging.Logger.manager.loggerDict:  # type: ignore
 #   5. Verify the structure and content of the index document
 #
 
-http_server_address = "127.0.0.1"
-http_server_port = 8729
-http_server = None
+class HTTPInfo:
+    address = "127.0.0.1"
+    port = 8729
+    server = None
 
 def setUpModule():
-    global http_server
-    http_server = HTTPServer((http_server_address, http_server_port), PostTestHandler)
-    http_server_thread = threading.Thread(target=http_server.serve_forever)
+    HTTPInfo.server = HTTPServer((HTTPInfo.address, HTTPInfo.port), PostTestHandler)
+    http_server_thread = threading.Thread(target=HTTPInfo.server.serve_forever)
     http_server_thread.start()
 
 
 def tearDownModule():
-    global http_server
-    http_server.shutdown()
+    HTTPInfo.shutdown()
 
 
 class TestIndexerBase(DSSAsserts, StorageTestSupport):
@@ -148,7 +147,7 @@ class TestIndexerBase(DSSAsserts, StorageTestSupport):
 
         ElasticsearchClient.get(logger).indices.create(DSS_ELASTICSEARCH_SUBSCRIPTION_INDEX_NAME)
         subscription_id = self.subscribe_for_notification(smartseq2_paired_ends_query,
-                                                          f"http://{http_server_address}:{http_server_port}")
+                                                          f"http://{HTTPInfo.address}:{HTTPInfo.port}")
 
         bundle_key = self.load_test_data_bundle_for_path("fixtures/smartseq2/paired_ends")
         sample_event = self.create_sample_bundle_created_event(bundle_key)
@@ -164,7 +163,7 @@ class TestIndexerBase(DSSAsserts, StorageTestSupport):
 
         ElasticsearchClient.get(logger).indices.create(DSS_ELASTICSEARCH_SUBSCRIPTION_INDEX_NAME)
         subscription_id = self.subscribe_for_notification(smartseq2_paired_ends_query,
-                                                          f"http://{http_server_address}:{http_server_port}")
+                                                          f"http://{HTTPInfo.address}:{HTTPInfo.port}")
 
         bundle_key = self.load_test_data_bundle_for_path("fixtures/smartseq2/paired_ends")
         sample_event = self.create_sample_bundle_created_event(bundle_key)
