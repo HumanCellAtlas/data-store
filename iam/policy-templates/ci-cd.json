@@ -97,8 +97,8 @@
       ],
       "Resource": [
         "arn:aws:lambda:*:$account_id:function:dss-*",
-        "arn:aws:es:*:$account_id:domain/dss-index-dev",
-        "arn:aws:es:*:$account_id:domain/dss-index-dev/*",
+        "arn:aws:es:*:$account_id:domain/dss-*",
+        "arn:aws:es:*:$account_id:domain/dss-*/*",
         "arn:aws:sns:*:$account_id:dss-*",
         "arn:aws:sns:*:$account_id:domovoi-s3-bucket-events-$DSS_S3_BUCKET"
       ],

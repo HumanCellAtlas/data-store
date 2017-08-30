@@ -31,7 +31,7 @@ policy_template="$(dirname $0)/../iam/policy-templates/${app_name}-lambda.json"
 export lambda_name="${app_name}-${stage}"
 export account_id=$(aws sts get-caller-identity | jq -r .Account)
 
-dss_es_domain=${DSS_ES_DOMAIN:-dss-index-$stage}
+export dss_es_domain=${DSS_ES_DOMAIN:-dss-index-$stage}
 if ! aws es describe-elasticsearch-domain --domain-name $dss_es_domain; then
     echo "Please create AWS elasticsearch domain $dss_es_domain or set DSS_ES_DOMAIN to an existing domain and try again"
     exit 1

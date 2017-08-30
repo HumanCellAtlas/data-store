@@ -41,7 +41,7 @@
         "es:ESHttpPut",
         "es:ESHttpDelete"
       ],
-      "Resource": "arn:aws:es:*:$account_id:domain/dss-index-$stage/*"
+      "Resource": "arn:aws:es:*:$account_id:domain/$dss_es_domain/*"
     }
   ]
 }
