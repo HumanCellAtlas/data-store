@@ -68,15 +68,16 @@ class HTTPInfo:
     address = "127.0.0.1"
     port = 8729
     server = None
+    thread = None
 
 def setUpModule():
     HTTPInfo.server = HTTPServer((HTTPInfo.address, HTTPInfo.port), PostTestHandler)
-    http_server_thread = threading.Thread(target=HTTPInfo.server.serve_forever)
-    http_server_thread.start()
+    HTTPInfo.thread = threading.Thread(target=HTTPInfo.server.serve_forever)
+    HTTPInfo.thread.start()
 
 
 def tearDownModule():
-    HTTPInfo.shutdown()
+    HTTPInfo.server.shutdown()
 
 
 class TestIndexerBase(DSSAsserts, StorageTestSupport):
@@ -301,7 +302,7 @@ class TestIndexerBase(DSSAsserts, StorageTestSupport):
         raise NotImplemented()
 
     @classmethod
-    def setUpClassCommon(cls):
+    def setUpClass(cls):
         Config.set_config(DeploymentStage.TEST_FIXTURE)
         cls.blobstore, _, cls.test_fixture_bucket = Config.get_cloud_specific_handles(cls.replica)
         Config.set_config(DeploymentStage.TEST)
@@ -327,9 +328,8 @@ class TestAWSIndexer(TestIndexerBase, unittest.TestCase):
 
     @classmethod
     def setUpClass(cls):
-        # TODO move to TestindexBase
         cls.replica = "aws"
-        cls.setUpClassCommon()
+        super(TestAWSIndexer, cls).setUpClass()
 
     @staticmethod
     def process_new_indexable_object(event, logger):
@@ -348,7 +348,7 @@ class TestGCPIndexer(TestIndexerBase, unittest.TestCase):
     @classmethod
     def setUpClass(cls):
         cls.replica = "gcp"
-        cls.setUpClassCommon()
+        super(TestGCPIndexer, cls).setUpClass()
 
     @staticmethod
     def process_new_indexable_object(event, logger):
