@@ -17,7 +17,7 @@ stage_policy_json="$(dirname $0)/${daemon_name}/.chalice/policy-${stage}.json"
 policy_template="$(dirname $0)/../iam/policy-templates/${daemon_name}-lambda.json"
 export account_id=$(aws sts get-caller-identity | jq -r .Account)
 
-dss_es_domain=${DSS_ES_DOMAIN:-dss-index-$stage}
+export dss_es_domain=${DSS_ES_DOMAIN:-dss-index-$stage}
 if ! aws es describe-elasticsearch-domain --domain-name $dss_es_domain; then
     echo "Please create AWS elasticsearch domain $dss_es_domain or set DSS_ES_DOMAIN to an existing domain and try again"
     exit 1
@@ -31,7 +31,14 @@ if [[ -z $lambda_arn ]]; then
     echo "Lambda function $lambda_name not found, resetting deploy config"
     rm -f "$deployed_json"
 else
-    cat "$deployed_json" | jq .$stage.api_handler_arn=env.lambda_arn | sponge "$deployed_json"
+    jq -n ".$stage.api_handler_name = env.lambda_name | \
+           .$stage.api_handler_arn = env.lambda_arn | \
+           .$stage.rest_api_id = \"\" | \
+           .$stage.region = env.AWS_DEFAULT_REGION | \
+           .$stage.api_gateway_stage = null | \
+           .$stage.backend = \"api\" | \
+           .$stage.chalice_version = \"1.0.1\" | \
+           .$stage.lambda_functions = {}" > "$deployed_json"
 fi
 
 for var in $EXPORT_ENV_VARS_TO_LAMBDA; do
@@ -43,5 +50,5 @@ if [[ ${CI:-} == true ]]; then
     cat "$config_json" | jq .manage_iam_role=false | jq .iam_role_arn=env.iam_role_arn | sponge "$config_json"
 fi
 
-cat "$policy_template" | envsubst '$DSS_S3_BUCKET $DSS_S3_BUCKET_TEST $account_id $stage' > "$policy_json"
+cat "$policy_template" | envsubst '$DSS_S3_BUCKET $DSS_S3_BUCKET_TEST $dss_es_domain $account_id $stage' > "$policy_json"
 cp "$policy_json" "$stage_policy_json"
