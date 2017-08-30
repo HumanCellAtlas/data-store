@@ -32,17 +32,6 @@ def process_new_s3_indexable_object(event, logger) -> None:
         raise
 
 
-def process_new_gs_indexable_object(event, logger) -> None:
-    try:
-        # This function is only called for GS creation events
-        bucket_name = event["bucket"]
-        key = event["name"]
-        process_new_indexable_object(bucket_name, key, "gcp", logger)
-    except Exception as ex:
-        logger.error(f"Exception occurred while processing GS event: {ex} Event: {json.dumps(event, indent=4)}")
-        raise
-
-
 def process_new_indexable_object(bucket_name: str, key: str, replica: str, logger) -> None:
     if is_bundle_to_index(key):
         logger.info(f"Received {replica} creation event for bundle which will be indexed: {key}")
