@@ -21,7 +21,8 @@ from dss.events.handlers.index import create_elasticsearch_index
 from dss.util.es import ElasticsearchServer, ElasticsearchClient
 from tests.infra import DSSAsserts, start_verbose_logging
 from tests.es import elasticsearch_delete_index
-from tests import smartseq2_paired_ends_query, get_version
+from tests import get_version
+from tests.sample_search_queries import smartseq2_paired_ends_query
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
@@ -113,12 +114,12 @@ class TestSearch(unittest.TestCase, DSSAsserts):
         ]
 
         self.populate_search_index(self.index_document, 1)
-        for query_data in invalid_query_data:
-            with self.subTest("Invalid Queries", bad_query=query_data):
+        for bad_query in invalid_query_data:
+            with self.subTest("Invalid Queries: bad_query={bad_query[0]}"):
                 self.assertPostResponse(
                     "/v1/search",
-                    json_request_body=(query_data[0]),
-                    expected_code=query_data[1])
+                    json_request_body=(bad_query[0]),
+                    expected_code=bad_query[1])
 
     def test_search_returns_N_results_when_N_documents_match_query(self):
         """Create N identical documents. A search query is executed to match the document. All documents created must be

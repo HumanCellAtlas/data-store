@@ -36,7 +36,7 @@ from dss.util.es import ElasticsearchClient, ElasticsearchServer
 from tests.es import elasticsearch_delete_index
 from tests.fixtures.populate import populate
 from tests.infra import DSSAsserts, StorageTestSupport, S3TestBundle, start_verbose_logging
-from tests import smartseq2_paired_ends_query
+from tests.sample_search_queries import smartseq2_paired_ends_query
 
 # The moto mock has two defects that show up when used by the dss core storage system.
 # Use actual S3 until these defects are fixed in moto.
