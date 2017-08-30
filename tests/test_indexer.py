@@ -200,21 +200,21 @@ class TestIndexerBase(DSSAsserts, StorageTestSupport):
         self.load_test_data_bundle(bundle)
         bundle_builder = BundleBuilder(self.replica)
         for file in bundle.files:
-            bundle_builder.add_file(Config.get_s3_bucket(), file.name, file.indexed, f'{file.uuid}.{file.version}')
+            bundle_builder.add_file(self.test_bucket, file.name, file.indexed, f'{file.uuid}.{file.version}')
         bundle_builder.add_invalid_file(inaccessible_filename,
                                         inaccessible_file_content_type,
                                         inaccessible_file_indexed)
-        bundle_builder.store(Config.get_s3_bucket())
+        bundle_builder.store(self.test_bucket)
         return 'bundles/' + bundle_builder.get_bundle_id()
 
     def load_test_data_bundle(self, bundle: TestBundle):
-        self.upload_files_and_create_bundle(bundle)
+        self.upload_files_and_create_bundle(bundle, self.replica)
         return f"bundles/{bundle.uuid}.{bundle.version}"
 
     def subscribe_for_notification(self, query, callback_url):
         url = str(UrlBuilder()
                   .set(path="/v1/subscriptions")
-                  .add_query("replica", "aws"))
+                  .add_query("replica", self.replica))
         resp_obj = self.assertPutResponse(
             url,
             requests.codes.created,
@@ -297,24 +297,19 @@ class TestAWSIndexer(unittest.TestCase, TestIndexerBase):
         cls.blobstore, _, cls.test_fixture_bucket = Config.get_cloud_specific_handles(cls.replica)
         Config.set_config(DeploymentStage.TEST)
         _, _, cls.test_bucket = Config.get_cloud_specific_handles(cls.replica)
-
-        if not USE_AWS_S3:  # Setup moto mocks
-            cls.mock_s3 = moto.mock_s3()
-            cls.mock_s3.start()
-            cls.mock_sts = moto.mock_sts()
-            cls.mock_sts.start()
-            Config.set_config(DeploymentStage.TEST_FIXTURE)
-            create_s3_bucket(Config.get_s3_bucket())
-            populate(Config.get_s3_bucket(), None)
-            Config.set_config(DeploymentStage.TEST)
-            create_s3_bucket(Config.get_s3_bucket())
-
         cls.es_server = ElasticsearchServer()
         os.environ['DSS_ES_PORT'] = str(cls.es_server.port)
+        try:
+            cls.http_server = HTTPServer((cls.http_server_address, cls.http_server_port), PostTestHandler)
+            cls.http_server_thread = threading.Thread(target=cls.http_server.serve_forever)
+            cls.http_server_thread.start()
+        except OSError as ex:
+            logger.warning("Warning: error occured during test setup: {ex}")
 
-        cls.http_server = HTTPServer((cls.http_server_address, cls.http_server_port), PostTestHandler)
-        cls.http_server_thread = threading.Thread(target=cls.http_server.serve_forever)
-        cls.http_server_thread.start()
+    @classmethod
+    def tearDownClass(cls):
+        cls.es_server.shutdown()
+        cls.http_server.shutdown()
 
     @staticmethod
     def process_new_indexable_object(event, logger):
@@ -356,7 +351,12 @@ class TestGCPIndexer(unittest.TestCase, TestIndexerBase):
             cls.http_server_thread = threading.Thread(target=cls.http_server.serve_forever)
             cls.http_server_thread.start()
         except OSError as ex:
-            logger.warning(f"Warning: occurred during test suite setup {ex}")
+            logger.warning("Warning: error occured during test setup: {ex}")
+
+    @classmethod
+    def tearDownClass(cls):
+        cls.es_server.shutdown()
+        cls.http_server.shutdown()
 
     @staticmethod
     def process_new_indexable_object(event, logger):

@@ -34,8 +34,8 @@ class TestApi(unittest.TestCase, DSSAsserts, StorageTestSupport):
         and checks that data corresponds where appropriate.
         """
         bundle = TestBundle(self.blobstore, self.BUNDLE_FIXTURE, self.bucket)
-        self.upload_files_and_create_bundle(bundle)
-        self.get_bundle_and_check_files(bundle)
+        self.upload_files_and_create_bundle(bundle, "aws")
+        self.get_bundle_and_check_files(bundle, "aws")
 
 
 if __name__ == '__main__':
