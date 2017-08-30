@@ -64,6 +64,22 @@ for logger_name in logging.Logger.manager.loggerDict:  # type: ignore
 #   5. Verify the structure and content of the index document
 #
 
+http_server_address = "127.0.0.1"
+http_server_port = 8729
+http_server = None
+
+def setUpModule():
+    global http_server
+    http_server = HTTPServer((http_server_address, http_server_port), PostTestHandler)
+    http_server_thread = threading.Thread(target=http_server.serve_forever)
+    http_server_thread.start()
+
+
+def tearDownModule():
+    global http_server
+    http_server.shutdown()
+
+
 class TestIndexerBase(DSSAsserts, StorageTestSupport):
 
     def test_process_new_indexable_object(self):
@@ -132,10 +148,11 @@ class TestIndexerBase(DSSAsserts, StorageTestSupport):
 
         ElasticsearchClient.get(logger).indices.create(DSS_ELASTICSEARCH_SUBSCRIPTION_INDEX_NAME)
         subscription_id = self.subscribe_for_notification(smartseq2_paired_ends_query,
-                                                          f"http://{self.http_server_address}:{self.http_server_port}")
+                                                          f"http://{http_server_address}:{http_server_port}")
 
         bundle_key = self.load_test_data_bundle_for_path("fixtures/smartseq2/paired_ends")
         sample_event = self.create_sample_bundle_created_event(bundle_key)
+        # FIXME: determine why this freezes for GCP
         self.process_new_indexable_object(sample_event, logger)
         prefix, _, bundle_id = bundle_key.partition("/")
         self.verify_notification(subscription_id, smartseq2_paired_ends_query, bundle_id)
@@ -147,7 +164,7 @@ class TestIndexerBase(DSSAsserts, StorageTestSupport):
 
         ElasticsearchClient.get(logger).indices.create(DSS_ELASTICSEARCH_SUBSCRIPTION_INDEX_NAME)
         subscription_id = self.subscribe_for_notification(smartseq2_paired_ends_query,
-                                                          f"http://{self.http_server_address}:{self.http_server_port}")
+                                                          f"http://{http_server_address}:{http_server_port}")
 
         bundle_key = self.load_test_data_bundle_for_path("fixtures/smartseq2/paired_ends")
         sample_event = self.create_sample_bundle_created_event(bundle_key)
@@ -284,36 +301,18 @@ class TestIndexerBase(DSSAsserts, StorageTestSupport):
     def process_new_indexable_object(event, logger):
         raise NotImplemented()
 
-
-class TestAWSIndexer(unittest.TestCase, TestIndexerBase):
-
-    http_server_address = "127.0.0.1"
-    http_server_port = 8729
-
     @classmethod
-    def setUpClass(cls):
-        cls.replica = "aws"
+    def setUpClassCommon(cls):
         Config.set_config(DeploymentStage.TEST_FIXTURE)
         cls.blobstore, _, cls.test_fixture_bucket = Config.get_cloud_specific_handles(cls.replica)
         Config.set_config(DeploymentStage.TEST)
         _, _, cls.test_bucket = Config.get_cloud_specific_handles(cls.replica)
         cls.es_server = ElasticsearchServer()
         os.environ['DSS_ES_PORT'] = str(cls.es_server.port)
-        try:
-            cls.http_server = HTTPServer((cls.http_server_address, cls.http_server_port), PostTestHandler)
-            cls.http_server_thread = threading.Thread(target=cls.http_server.serve_forever)
-            cls.http_server_thread.start()
-        except OSError as ex:
-            logger.warning("Warning: error occured during test setup: {ex}")
 
     @classmethod
     def tearDownClass(cls):
         cls.es_server.shutdown()
-        cls.http_server.shutdown()
-
-    @staticmethod
-    def process_new_indexable_object(event, logger):
-        process_new_s3_indexable_object(event, logger)
 
     def setUp(self):
         self.app = dss.create_app().app.test_client()
@@ -323,6 +322,19 @@ class TestAWSIndexer(unittest.TestCase, TestIndexerBase):
     def tearDown(self):
         self.app = None
         self.storageHelper = None
+
+
+class TestAWSIndexer(TestIndexerBase, unittest.TestCase):
+
+    @classmethod
+    def setUpClass(cls):
+        # TODO move to TestindexBase
+        cls.replica = "aws"
+        cls.setUpClassCommon()
+
+    @staticmethod
+    def process_new_indexable_object(event, logger):
+        process_new_s3_indexable_object(event, logger)
 
     def create_sample_bundle_created_event(self, bundle_key: str) -> Dict:
         with open(os.path.join(os.path.dirname(__file__), "sample_s3_bundle_created_event.json")) as fh:
@@ -332,44 +344,16 @@ class TestAWSIndexer(unittest.TestCase, TestIndexerBase):
         return sample_event
 
 
-class TestGCPIndexer(unittest.TestCase, TestIndexerBase):
-
-    http_server_address = "127.0.0.1"
-    http_server_port = 8729
+class TestGCPIndexer(TestIndexerBase, unittest.TestCase):
 
     @classmethod
     def setUpClass(cls):
         cls.replica = "gcp"
-        Config.set_config(DeploymentStage.TEST_FIXTURE)
-        cls.blobstore, _, cls.test_fixture_bucket = Config.get_cloud_specific_handles(cls.replica)
-        Config.set_config(DeploymentStage.TEST)
-        _, _, cls.test_bucket = Config.get_cloud_specific_handles(cls.replica)
-        cls.es_server = ElasticsearchServer()
-        os.environ['DSS_ES_PORT'] = str(cls.es_server.port)
-        try:
-            cls.http_server = HTTPServer((cls.http_server_address, cls.http_server_port), PostTestHandler)
-            cls.http_server_thread = threading.Thread(target=cls.http_server.serve_forever)
-            cls.http_server_thread.start()
-        except OSError as ex:
-            logger.warning("Warning: error occured during test setup: {ex}")
-
-    @classmethod
-    def tearDownClass(cls):
-        cls.es_server.shutdown()
-        cls.http_server.shutdown()
+        cls.setUpClassCommon()
 
     @staticmethod
     def process_new_indexable_object(event, logger):
         process_new_gs_indexable_object(event, logger)
-
-    def setUp(self):
-        self.app = dss.create_app().app.test_client()
-        elasticsearch_delete_index("_all")
-        PostTestHandler.reset()
-
-    def tearDown(self):
-        self.app = None
-        self.storageHelper = None
 
     def create_sample_bundle_created_event(self, bundle_key: str) -> Dict:
         with open(os.path.join(os.path.dirname(__file__), "sample_gs_bundle_created_event.json")) as fh:
