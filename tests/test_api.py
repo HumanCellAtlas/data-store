@@ -17,8 +17,9 @@ from tests.infra import DSSAsserts, StorageTestSupport, TestBundle
 class TestApi(unittest.TestCase, DSSAsserts, StorageTestSupport):
 
     def setUp(self):
+        self.replica = "aws"
         dss.Config.set_config(dss.DeploymentStage.TEST)
-        self.blobstore, _, self.bucket = dss.Config.get_cloud_specific_handles("aws")
+        self.blobstore, _, self.bucket = dss.Config.get_cloud_specific_handles(self.replica)
         self.app = dss.create_app().app.test_client()
 
     BUNDLE_FIXTURE = 'fixtures/test_api/bundle'
@@ -33,7 +34,7 @@ class TestApi(unittest.TestCase, DSSAsserts, StorageTestSupport):
           - GET /files/<uuid>
         and checks that data corresponds where appropriate.
         """
-        bundle = TestBundle(self.blobstore, self.BUNDLE_FIXTURE, self.bucket)
+        bundle = TestBundle(self.blobstore, self.BUNDLE_FIXTURE, self.bucket, self.replica)
         self.upload_files_and_create_bundle(bundle)
         self.get_bundle_and_check_files(bundle)
 
