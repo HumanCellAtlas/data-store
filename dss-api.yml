@@ -332,7 +332,7 @@ paths:
                   - code
   /subscriptions:
     get:
-      summary: Retrieve an user's event subscriptions.
+      summary: Retrieve a user\'s event subscriptions.
       description: |
         Return a list of associated subscriptions, which contains the uuid,
         replica, query, creator_uid, and callback_url.
@@ -400,6 +400,14 @@ paths:
                 description: Url to send request to when a bundle comes in that matches this query.
                 type: string
                 format: url # Seems that this is possible now because of https://github.com/swagger-api/swagger-core/issues/1045
+                pattern: "http://.+"
+              secret:
+                description: |
+                  A key used to sign notifications sent to `callback_url`. The signature will be constructed according
+                  to https://tools.ietf.org/html/draft-cavage-http-signatures and transmitted in the Authorization
+                  header.
+                type: string
+                pattern: "[A-Za-z0-9]{8}-[A-Za-z0-9]{4}-[A-Za-z0-9]{4}-[A-Za-z0-9]{4}-[A-Za-z0-9]{12}"
             required:
               - es_query
               - callback_url

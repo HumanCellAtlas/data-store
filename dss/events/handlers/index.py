@@ -218,7 +218,10 @@ def notify(subscription_id: str, subscription: dict, bundle_id: str, logger):
             "bundle_version": bundle_version
         }
     }
-    # TODO (mbaumann) Ensure webhooks are only delivered over verified HTTPS (unless maybe when running a test)
+    #verify_signature(payload_body)
+    #signature = 'sha1=' + OpenSSL::HMAC.hexdigest(OpenSSL::Digest.new('sha1'), ENV['SECRET_TOKEN'], payload_body)
+    #return halt 500, "Signatures didn't match!" unless Rack::Utils.secure_compare(signature, request.env['HTTP_X_HUB_SIGNATURE'])
+
     callback_url = subscription['callback_url']
     response = requests.post(callback_url, json=payload)
     # TODO (mbaumann) Add webhook retry logic

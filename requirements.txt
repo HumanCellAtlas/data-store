@@ -38,7 +38,8 @@ pycparser==2.18
 python-dateutil==2.6.1
 PyYAML==3.12
 requests==2.18.4
-requests_aws4auth==0.9
+requests-aws4auth==0.9
+requests-http-signature==0.0.2
 rsa==3.4.2
 s3transfer==0.1.11
 six==1.11.0
