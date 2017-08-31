@@ -26,9 +26,10 @@ class GoogleRuntimeConfigConnection(JSONConnection):
     API_URL_TEMPLATE = "{api_base_url}/{api_version}{path}"
 
 parser = argparse.ArgumentParser(description=__doc__)
-parser.add_argument("gcf_name", help="Name of directory containing cloud function source")
+parser.add_argument("src_dir", help="Name of directory containing cloud function source")
 parser.add_argument("--entry-point", help="Name of entry point to deploy with", required=True)
 args = parser.parse_args()
+args.gcf_name = "-".join([args.src_dir, os.environ["DSS_DEPLOYMENT_STAGE"]])
 
 gcp_region = os.environ["GCP_DEFAULT_REGION"]
 gcp_key_file = os.environ["GOOGLE_APPLICATION_CREDENTIALS"]
@@ -69,9 +70,9 @@ try:
     deploy_blob = gs.bucket(os.environ["DSS_GS_BUCKET_TEST_FIXTURES"]).blob(deploy_filename)
     with io.BytesIO() as buf:
         with zipfile.ZipFile(buf, 'w', compression=zipfile.ZIP_DEFLATED) as zbuf:
-            for root, dirs, files in os.walk(args.gcf_name):
+            for root, dirs, files in os.walk(args.src_dir):
                 for f in files:
-                    archive_path = os.path.relpath(os.path.join(root, f), args.gcf_name)
+                    archive_path = os.path.relpath(os.path.join(root, f), args.src_dir)
                     if archive_path.startswith("node_modules"):
                         continue
                     print("Adding", archive_path)
@@ -88,7 +89,7 @@ try:
         "sourceArchiveUrl": f"gs://{deploy_blob.bucket.name}/{deploy_blob.name}",
         "eventTrigger": {
             "eventType": "providers/cloud.storage/eventTypes/object.change",
-            "resource": f"projects/_/buckets/{os.environ['DSS_GS_BUCKET']}"
+            "resource": "projects/_/buckets/" + os.environ['DSS_GS_BUCKET']
         }
     }
 
