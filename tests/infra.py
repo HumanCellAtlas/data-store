@@ -17,6 +17,7 @@ from typing import Any
 
 from dss.util import UrlBuilder
 from dss.blobstore import BlobStore
+from dss import Config
 
 def start_verbose_logging():
     logging.basicConfig(level=logging.INFO)
@@ -133,28 +134,29 @@ class DSSAsserts:
 
 
 class TestBundle:
-    def __init__(self, blobstore: BlobStore, path: str, bucket: str) -> None:
+    def __init__(self, blobstore: BlobStore, path: str, bucket: str, replica: str) -> None:
         self.path = path
         self.uuid = str(uuid.uuid4())
         self.version = None
         self.blobstore = blobstore
         self.bucket = bucket
+        self.replica = replica
         self.files = self.enumerate_bundle_files()
 
     def enumerate_bundle_files(self) -> list:
         object_summaries = self.blobstore.list(self.bucket, prefix=f"{self.path}/")
-        return [TestFile(object_summary, self) for object_summary in object_summaries]
+        return [TestFile(object_summary, self, self.replica) for object_summary in object_summaries]
 
 
 class TestFile:
-    def __init__(self, object_summary, bundle) -> None:
+    def __init__(self, object_summary, bundle, replica) -> None:
         self.bundle = bundle
         self.metadata = bundle.blobstore.get_user_metadata(bundle.bucket, object_summary)
         self.indexed = True if self.metadata['hca-dss-content-type'] == "application/json" else False
         self.name = os.path.basename(object_summary)
         self.path = object_summary
         self.uuid = str(uuid.uuid4())
-        self.url = f"s3://{bundle.bucket}/{self.path}"
+        self.url = f"{Config.get_storage_schema(replica)}://{bundle.bucket}/{self.path}"
         self.version = None
 
 

@@ -124,7 +124,7 @@ class TestIndexer(unittest.TestCase, DSSAsserts, StorageTestSupport):
                                                          files=smartseq2_paried_ends_indexed_file_list)
 
     def test_indexed_file_with_invalid_content_type(self):
-        bundle = TestBundle(self.blobstore, "fixtures/smartseq2/paired_ends", self.test_fixture_bucket)
+        bundle = TestBundle(self.blobstore, "fixtures/smartseq2/paired_ends", self.test_fixture_bucket, self.replica)
         # Configure a file to be indexed that is not of context type 'application/json'
         for file in bundle.files:
             if file.name == "text_data_file1.txt":
@@ -237,14 +237,14 @@ class TestIndexer(unittest.TestCase, DSSAsserts, StorageTestSupport):
 
     def load_test_data_bundle_for_path(self, fixture_path: str):
         """Loads files into test bucket and returns bundle id"""
-        bundle = TestBundle(self.blobstore, fixture_path, self.test_fixture_bucket)
+        bundle = TestBundle(self.blobstore, fixture_path, self.test_fixture_bucket, self.replica)
         return self.load_test_data_bundle(bundle)
 
     def load_test_data_bundle_with_inaccessible_file(self, fixture_path: str,
                                                      inaccessible_filename: str,
                                                      inaccessible_file_content_type: str,
                                                      inaccessible_file_indexed: bool):
-        bundle = TestBundle(self.blobstore, fixture_path, self.test_fixture_bucket)
+        bundle = TestBundle(self.blobstore, fixture_path, self.test_fixture_bucket, self.replica)
         self.load_test_data_bundle(bundle)
         bundle_builder = BundleBuilder(self.replica)
         for file in bundle.files:
