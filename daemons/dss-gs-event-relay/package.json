@@ -1,0 +1,12 @@
+{
+  "name": "dss-gs-event-relay",
+  "version": "0.0.1",
+  "private": true,
+  "dependencies": {
+    "aws-sdk": "2.103.0",
+    "cloud-functions-runtime-config": "0.1.1"
+  },
+  "jshintConfig": {
+    "esversion": 6
+  }
+}

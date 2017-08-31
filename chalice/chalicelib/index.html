@@ -69,7 +69,7 @@
 <script>
 window.onload = function() {
   const ui = SwaggerUIBundle({
-    url: "https://hca-dss.czi.technology/v1/swagger.json",
+    url: window.location.origin + "/v1/swagger.json",
     dom_id: '#swagger-ui',
     presets: [
       SwaggerUIBundle.presets.apis,
