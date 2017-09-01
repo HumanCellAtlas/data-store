@@ -146,12 +146,12 @@ def delete(uuid: str, replica: str):
         # common_error_handler defaults code to capitalized 'Forbidden' for Werkzeug exception. Keeping consistent.
         raise DSSException(requests.codes.forbidden, "Forbidden", "Your credentials can't access this subscription!")
 
-    es_client.delete(index=Config.get_es_index_name(ESIndexType.docs),
+    es_client.delete(index=Config.get_es_index_name(ESIndexType.docs, Replica[replica]),
                      doc_type=ESDocType.query,
                      id=uuid,
                      refresh=True)
 
-    es_client.delete(index=Config.get_es_index_name(ESIndexType.subscriptions),
+    es_client.delete(index=Config.get_es_index_name(ESIndexType.subscriptions, Replica[replica]),
                      doc_type=ESDocType.subscription,
                      id=uuid)
 
@@ -162,7 +162,7 @@ def delete(uuid: str, replica: str):
 
 
 def _register_percolate(es_client: Elasticsearch, uuid: str, query: dict, replica: str):
-    index_name = Config.get_es_index_name(ESIndexType.docs)
+    index_name = Config.get_es_index_name(ESIndexType.docs, Replica[replica])
     return es_client.index(index=index_name,
                            doc_type=ESDocType.query,
                            id=uuid,
@@ -171,7 +171,7 @@ def _register_percolate(es_client: Elasticsearch, uuid: str, query: dict, replic
 
 
 def _register_subscription(es_client: Elasticsearch, uuid: str, json_request_body: dict, replica: str):
-    index_name = Config.get_es_index_name(ESIndexType.subscriptions)
+    index_name = Config.get_es_index_name(ESIndexType.subscriptions, Replica[replica])
     return es_client.index(index=index_name,
                            doc_type=ESDocType.subscription,
                            id=uuid,

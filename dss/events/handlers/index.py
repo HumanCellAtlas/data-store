@@ -198,7 +198,7 @@ def get_subscription(subscription_id: str, replica: str, logger):
         }
     }
     response = ElasticsearchClient.get(logger).search(
-        index=Config.get_es_index_name(ESIndexType.subscription, Replica[replica]),
+        index=Config.get_es_index_name(ESIndexType.subscriptions, Replica[replica]),
         body=subscription_query)
     if len(response['hits']['hits']) == 1:
         return response['hits']['hits'][0]['_source']
