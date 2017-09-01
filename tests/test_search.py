@@ -18,7 +18,7 @@ sys.path.insert(0, pkg_root)  # noqa
 import dss
 from dss import DSS_ELASTICSEARCH_INDEX_NAME, DSS_ELASTICSEARCH_DOC_TYPE
 from dss.events.handlers.index import create_elasticsearch_index
-from dss.util.es import ElasticsearchServer, ElasticsearchClient
+from dss.util.es import ElasticsearchServer, ElasticsearchClient, get_elasticsearch_index_name
 from tests.infra import DSSAsserts, start_verbose_logging
 from tests.es import elasticsearch_delete_index
 from tests import get_version
@@ -36,6 +36,7 @@ class TestSearch(unittest.TestCase, DSSAsserts):
     def setUpClass(cls):
         cls.es_server = ElasticsearchServer()
         os.environ['DSS_ES_PORT'] = str(cls.es_server.port)
+        cls.dss_index_name = get_elasticsearch_index_name(dss.DSS_ELASTICSEARCH_INDEX_NAME, "aws")
         dss.Config.set_config(dss.DeploymentStage.TEST)
         cls.app = dss.create_app().app.test_client()
         with open(os.path.join(os.path.dirname(__file__), "sample_index_doc.json"), "r") as fh:

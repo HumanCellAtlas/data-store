@@ -32,7 +32,7 @@ from dss import (DeploymentStage, Config,
 from dss.events.handlers.index import process_new_s3_indexable_object, process_new_gs_indexable_object
 from dss.hcablobstore import BundleMetadata, BundleFileMetadata, FileMetadata
 from dss.util import create_blob_key, UrlBuilder
-from dss.util.es import ElasticsearchClient, ElasticsearchServer
+from dss.util.es import ElasticsearchClient, ElasticsearchServer, get_elasticsearch_index_name
 
 from tests.es import elasticsearch_delete_index
 from tests.fixtures.populate import populate
@@ -285,7 +285,7 @@ class TestIndexerBase(DSSAsserts, StorageTestSupport, DSSUploadMixin):
         timeout_time = time.time() + timeout
         while True:
             response = ElasticsearchClient.get(logger).search(
-                index=DSS_ELASTICSEARCH_INDEX_NAME,
+                index=cls.dss_index_name,
                 doc_type=DSS_ELASTICSEARCH_DOC_TYPE,
                 body=json.dumps(query))
             if (len(response['hits']['hits']) >= expected_hit_count) \
@@ -308,6 +308,8 @@ class TestIndexerBase(DSSAsserts, StorageTestSupport, DSSUploadMixin):
         _, _, cls.test_bucket = Config.get_cloud_specific_handles(cls.replica)
         cls.es_server = ElasticsearchServer()
         os.environ['DSS_ES_PORT'] = str(cls.es_server.port)
+        cls.dss_index_name = get_elasticsearch_index_name(
+            DSS_ELASTICSEARCH_INDEX_NAME, cls.replica)
 
     @classmethod
     def tearDownClass(cls):
