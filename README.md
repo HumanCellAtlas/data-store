@@ -15,7 +15,7 @@ to review and edit the prototype API specification. When the prototype app is ru
 `/v1/swagger.json`.
 
 The prototype is deployed continuously from the `master` branch, with the resulting producer and consumer API available at
-https://hca-dss.czi.technology/.
+https://dss.staging.data.humancellatlas.org/.
 
 #### Installing dependencies for development on the prototype
 The HCA DSS prototype development environment requires Python 3.6+ to run. Run `pip install -r requirements-dev.txt` in this directory.
