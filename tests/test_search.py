@@ -14,7 +14,7 @@ sys.path.insert(0, pkg_root)  # noqa
 
 import dss
 from dss.events.handlers.index import create_elasticsearch_index
-from dss.util.es import ElasticsearchServer, get_elasticsearch_index_name
+from dss.util.es import ElasticsearchServer
 from tests.infra import DSSAsserts
 
 
@@ -23,7 +23,7 @@ class TestSearch(unittest.TestCase, DSSAsserts):
     def setUpClass(cls):
         cls.es_server = ElasticsearchServer()
         os.environ['DSS_ES_PORT'] = str(cls.es_server.port)
-        cls.dss_index_name = get_elasticsearch_index_name(dss.DSS_ELASTICSEARCH_INDEX_NAME, "aws")
+        cls.dss_index_name = dss.Config.get_es_index_name(dss.ESIndexType.docs, dss.Replica.aws)
 
     @classmethod
     def tearDownClass(cls):
@@ -66,3 +66,6 @@ class TestSearch(unittest.TestCase, DSSAsserts):
             '/v1/search',
             json_request_body=(query),
             expected_code=requests.codes.ok)
+
+if __name__ == "__main__":
+    unittest.main()

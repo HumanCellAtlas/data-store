@@ -135,13 +135,6 @@ class ElasticsearchClient:
         return client
 
 
-def get_elasticsearch_index_name(index_basename: str, replica: str):
-    """Make index name replica specific byusing the replica as an index name suffix. """
-    assert index_basename and replica
-
-    return f"{index_basename}-{replica}"
-
-
 def get_elasticsearch_index(es_client, index_name, logger, index_mapping=None):
     try:
         response = es_client.indices.exists(index_name)
