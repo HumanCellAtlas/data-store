@@ -1,10 +1,9 @@
 # HCA DSS: The Human Cell Atlas Data Storage System
 
-This repository contains design specs and prototypes for the
-replicated data storage system (aka the "blue box") of
-the [Human Cell Atlas](https://www.humancellatlas.org/).
-
-See the [google drive folder](https://drive.google.com/open?id=0B-_4IWxXwazQbWE5YmtqUWx3RVE) for live collaborative documents.
+This repository contains design specs and prototypes for the replicated data storage system (aka the "blue box") of
+the [Human Cell Atlas](https://www.humancellatlas.org/). We use
+[this Google Drive folder](https://drive.google.com/open?id=0B-_4IWxXwazQbWE5YmtqUWx3RVE) for design docs and meeting notes,
+and [this Waffle board](https://waffle.io/HumanCellAtlas/data-store) to track our GitHub work.
 
 #### About this prototype
 The prototype in this repository uses [Swagger](http://swagger.io/) to specify the API in [dss-api.yml](dss-api.yml), and
