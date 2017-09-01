@@ -15,7 +15,7 @@ from ... import (DSS_ELASTICSEARCH_INDEX_NAME, DSS_ELASTICSEARCH_DOC_TYPE,
                  DSS_ELASTICSEARCH_SUBSCRIPTION_TYPE)
 from ...util import create_blob_key
 from ...hcablobstore import BundleMetadata, BundleFileMetadata
-from ...util.es import ElasticsearchClient
+from ...util.es import ElasticsearchClient, get_elasticsearch_index_name, get_elasticsearch_index
 from ...blobstore import BlobStore, BlobNotFoundError
 
 DSS_BUNDLE_KEY_REGEX = r"^bundles/[0-9A-Fa-f]{8}-[0-9A-Fa-f]{4}-4[0-9A-Fa-f]{3}-[0-9A-Fa-f]{4}-[0-9A-Fa-f]{12}\..+$"
@@ -50,9 +50,10 @@ def process_new_indexable_object(bucket_name: str, key: str, replica: str, logge
         manifest = read_bundle_manifest(blobstore, bucket_name, key, logger)
         bundle_id = get_bundle_id_from_key(key)
         index_data = create_index_data(blobstore, bucket_name, bundle_id, manifest, logger)
-        add_index_data_to_elasticsearch(bundle_id, index_data, logger)
-        subscriptions = find_matching_subscriptions(index_data, logger)
-        process_notifications(bundle_id, subscriptions, logger)
+        index_name = get_elasticsearch_index_name(DSS_ELASTICSEARCH_INDEX_NAME, replica)
+        add_index_data_to_elasticsearch(bundle_id, index_data, index_name, logger)
+        subscriptions = find_matching_subscriptions(index_data, index_name, logger)
+        process_notifications(bundle_id, subscriptions, replica, logger)
         logger.debug(f"Finished index processing of {replica} creation event for bundle: {key}")
     else:
         logger.debug(f"Not indexing {replica} creation event for key: {key}")
@@ -128,13 +129,13 @@ def get_bundle_id_from_key(bundle_key: str) -> str:
     raise Exception(f"This is not a key for a bundle: {bundle_key}")
 
 
-def add_index_data_to_elasticsearch(bundle_id: str, index_data: dict, logger) -> None:
-    create_elasticsearch_index(logger)
-    logger.debug(f"Adding index data to Elasticsearch: {json.dumps(index_data, indent=4)}")
-    add_data_to_elasticsearch(bundle_id, index_data, logger)
+def add_index_data_to_elasticsearch(bundle_id: str, index_data: dict, index_name: str, logger) -> None:
+    create_elasticsearch_index(index_name, logger)
+    logger.debug(f"Adding data to Elasticsearch index '{index_name}': %s", json.dumps(index_data, indent=4))
+    add_data_to_elasticsearch(bundle_id, index_data, index_name, logger)
 
 
-def create_elasticsearch_index(logger):
+def create_elasticsearch_index(index_name, logger):
     index_mapping = {
         'mappings': {
             DSS_ELASTICSEARCH_QUERY_TYPE: {
@@ -146,32 +147,22 @@ def create_elasticsearch_index(logger):
             }
         }
     }
-    try:
-        es_client = ElasticsearchClient.get(logger)
-        response = es_client.indices.exists(DSS_ELASTICSEARCH_INDEX_NAME)
-        if not response:
-            logger.debug(f"Creating new Elasticsearch index: {DSS_ELASTICSEARCH_INDEX_NAME}")
-            response = es_client.indices.create(DSS_ELASTICSEARCH_INDEX_NAME, body=index_mapping)
-            logger.debug(f"Index creation response: {json.dumps(response, indent=4)}")
-        else:
-            logger.debug(f"Using existing Elasticsearch index: {DSS_ELASTICSEARCH_INDEX_NAME}", )
-    except Exception as ex:
-        logger.critical(f"Unable to create index {DSS_ELASTICSEARCH_INDEX_NAME}  Exception: {ex}")
-        raise
+    get_elasticsearch_index(ElasticsearchClient.get(logger), index_name, logger, index_mapping)
 
 
-def add_data_to_elasticsearch(bundle_id: str, index_data: dict, logger) -> None:
+def add_data_to_elasticsearch(bundle_id: str, index_data: dict, index_name: str, logger) -> None:
     try:
-        ElasticsearchClient.get(logger).index(index=DSS_ELASTICSEARCH_INDEX_NAME,
+        ElasticsearchClient.get(logger).index(index=index_name,
                                               doc_type=DSS_ELASTICSEARCH_DOC_TYPE,
                                               id=bundle_id,
                                               body=json.dumps(index_data))  # Do not use refresh here - too expensive.
     except Exception as ex:
-        logger.error(f"Document not indexed. Exception: {ex}  Index data: {json.dumps(index_data, indent=4)}")
+        logger.error(f"Document not indexed. Exception: {ex}, Index name: {index_name},  Index data: %s",
+                     json.dumps(index_data, indent=4))
         raise
 
 
-def find_matching_subscriptions(index_data: dict, logger) -> set:
+def find_matching_subscriptions(index_data: dict, index_name: str, logger) -> set:
     percolate_document = {
         'query': {
             'percolate': {
@@ -183,24 +174,24 @@ def find_matching_subscriptions(index_data: dict, logger) -> set:
     }
     subscription_ids = set()
     for hit in scan(ElasticsearchClient.get(logger),
-                    index=DSS_ELASTICSEARCH_INDEX_NAME,
+                    index=index_name,
                     query=percolate_document):
         subscription_ids.add(hit["_id"])
     logger.debug("Found matching subscription count: %i", len(subscription_ids))
     return subscription_ids
 
 
-def process_notifications(bundle_id: str, subscription_ids: set, logger) -> None:
+def process_notifications(bundle_id: str, subscription_ids: set, replica, logger) -> None:
     for subscription_id in subscription_ids:
         try:
             # TODO Batch this request
-            subscription = get_subscription(subscription_id, logger)
+            subscription = get_subscription(subscription_id, replica, logger)
             notify(subscription_id, subscription, bundle_id, logger)
         except Exception as ex:
             logger.error(f"Error occurred while processing subscription {subscription_id} for bundle {bundle_id}. {ex}")
 
 
-def get_subscription(subscription_id: str, logger):
+def get_subscription(subscription_id: str, replica: str, logger):
     subscription_query = {
         'query': {
             'ids': {
@@ -210,7 +201,7 @@ def get_subscription(subscription_id: str, logger):
         }
     }
     response = ElasticsearchClient.get(logger).search(
-        index=DSS_ELASTICSEARCH_SUBSCRIPTION_INDEX_NAME,
+        index=get_elasticsearch_index_name(DSS_ELASTICSEARCH_SUBSCRIPTION_INDEX_NAME, replica),
         body=subscription_query)
     if len(response['hits']['hits']) == 1:
         return response['hits']['hits'][0]['_source']

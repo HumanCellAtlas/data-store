@@ -135,16 +135,23 @@ class ElasticsearchClient:
         return client
 
 
-def get_elasticsearch_index(es_client, idx, logger, index_mapping=None):
+def get_elasticsearch_index_name(index_basename: str, replica: str):
+    """Make index name replica specific byusing the replica as an index name suffix. """
+    assert index_basename and replica
+
+    return f"{index_basename}-{replica}"
+
+
+def get_elasticsearch_index(es_client, index_name, logger, index_mapping=None):
     try:
-        response = es_client.indices.exists(idx)
+        response = es_client.indices.exists(index_name)
         if response:
-            logger.debug("Using existing Elasticsearch index: {}".format(idx))
+            logger.debug(f"Using existing Elasticsearch index: {index_name}")
         else:
-            logger.debug("Creating new Elasticsearch index: {}".format(idx))
-            response = es_client.indices.create(idx, body=index_mapping)
-            logger.debug("Index creation response: {}", (json.dumps(response, indent=4)))
+            logger.debug(f"Creating new Elasticsearch index: {index_name}")
+            response = es_client.indices.create(index_name, body=index_mapping)
+            logger.debug("Index creation response: %s", json.dumps(response, indent=4))
 
     except Exception as ex:
-        logger.error("Unable to create index {} Exception: {}".format(idx))
+        logger.error(f"Unable to create index: {index_name} Exception: {ex}")
         raise ex
