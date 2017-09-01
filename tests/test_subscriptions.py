@@ -19,9 +19,8 @@ pkg_root = os.path.abspath(os.path.join(os.path.dirname(__file__), '..')) # noqa
 sys.path.insert(0, pkg_root) # noqa
 
 import dss
-from dss import DSS_ELASTICSEARCH_INDEX_NAME, DSS_ELASTICSEARCH_DOC_TYPE, DSS_ELASTICSEARCH_QUERY_TYPE
 from dss.util import UrlBuilder
-from dss.util.es import ElasticsearchClient, ElasticsearchServer, get_elasticsearch_index_name, get_elasticsearch_index
+from dss.util.es import ElasticsearchClient, ElasticsearchServer, get_elasticsearch_index
 from tests.infra import DSSAsserts
 
 logging.basicConfig(level=logging.INFO)
@@ -50,7 +49,7 @@ class TestSubscriptions(unittest.TestCase, DSSAsserts):
         es_client.indices.delete(index="_all", ignore=[404])  # Disregard if no indices - don't error.
         index_mapping = {  # Need to make a mapping for the percolator type before we add any.
             "mappings": {
-                DSS_ELASTICSEARCH_QUERY_TYPE: {
+                dss.ESDocType.query.name: {
                     "properties": {
                         "query": {
                             "type": "percolator"
@@ -59,7 +58,7 @@ class TestSubscriptions(unittest.TestCase, DSSAsserts):
                 }
             }
         }
-        index_name = get_elasticsearch_index_name(DSS_ELASTICSEARCH_INDEX_NAME, "aws")
+        index_name = dss.Config.get_es_index_name(dss.ESIndexType.docs, dss.Replica.aws)
         get_elasticsearch_index(es_client, index_name, logger, index_mapping)
 
         with open(os.path.join(os.path.dirname(__file__), "sample_index_doc.json"), "r") as fh:
@@ -70,7 +69,7 @@ class TestSubscriptions(unittest.TestCase, DSSAsserts):
             self.sample_percolate_query = json.load(fh)
 
         es_client.index(index=index_name,
-                        doc_type=DSS_ELASTICSEARCH_DOC_TYPE,
+                        doc_type=dss.ESDocType.doc.name,
                         id=str(uuid.uuid4()),
                         body=index_document,
                         refresh=True)
@@ -96,8 +95,8 @@ class TestSubscriptions(unittest.TestCase, DSSAsserts):
         uuid_ = self._put_subscription()
 
         es_client = ElasticsearchClient.get(logger)
-        response = es_client.get(index=get_elasticsearch_index_name(DSS_ELASTICSEARCH_INDEX_NAME, "aws"),
-                                 doc_type=DSS_ELASTICSEARCH_QUERY_TYPE,
+        response = es_client.get(index=dss.Config.get_es_index_name(dss.ESIndexType.docs, dss.Replica.aws),
+                                 doc_type=dss.ESDocType.query.name,
                                  id=uuid_)
         registered_query = response['_source']
         self.assertEqual(self.sample_percolate_query, registered_query)
