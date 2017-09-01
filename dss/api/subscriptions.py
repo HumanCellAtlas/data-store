@@ -80,7 +80,7 @@ def put(json_request_body: dict, replica: str):
 
     index_mapping = {
         "mappings": {
-            ESDocType.subscription: {
+            ESDocType.subscription.name: {
                 "properties": {
                     "owner": {
                         "type": "string",
