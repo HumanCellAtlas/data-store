@@ -17,6 +17,18 @@ class DeploymentStage(Enum):
     TEST = auto()
     TEST_FIXTURE = auto()
 
+class ESIndexType(Enum):
+    docs = auto()
+    subscriptions = auto()
+
+class ESDocType(Enum):
+    doc = auto()  # Metadata docs in the dss-docs index
+    query = auto()  # Percolate queries (for event subscriptions) in the dss-docs index
+    subscription = auto()  # Event subscriptions in the ds-subscriptions index
+
+class Replica(Enum):
+    aws = auto()
+    gcp = auto()
 
 class Config:
     _S3_BUCKET = None  # type: typing.Optional[str]
@@ -116,6 +128,11 @@ class Config:
             Config._ALLOWED_EMAILS = os.environ[envvar]
 
         return Config._ALLOWED_EMAILS
+
+    @staticmethod
+    def get_es_index_name(index_type: ESIndexType, replica: Replica) -> str:
+        deployment_stage = os.environ["DSS_DEPLOYMENT_STAGE"]
+        return f"dss-{index_type.name}-{replica.name}-{deployment_stage}"
 
     @staticmethod
     def _clear_cached_bucket_config():

@@ -20,23 +20,8 @@ from connexion.exceptions import OAuthProblem, OAuthResponseProblem, OAuthScopeP
 from flask_failsafe import failsafe
 from werkzeug.exceptions import Forbidden
 
-from .config import DeploymentStage, Config
+from .config import Config, DeploymentStage, ESIndexType, ESDocType, Replica
 from .error import DSSException, dss_handler
-
-# CONSTANTS COMMON TO THE INDEXER AND QUERY ROUTE.
-
-# ES index containing all docs
-DSS_ELASTICSEARCH_INDEX_NAME = "hca-" + os.environ["DSS_DEPLOYMENT_STAGE"]
-# ES type within DSS_ELASTICSEARCH_INDEX_NAME with docs
-DSS_ELASTICSEARCH_DOC_TYPE = "doc"
-# ES type within DSS_ELASTICSEARCH_INDEX_NAME with percolate queries
-DSS_ELASTICSEARCH_QUERY_TYPE = "query"
-
-# ES index with all registered percolate queries
-DSS_ELASTICSEARCH_SUBSCRIPTION_INDEX_NAME = "subscriptions-" + os.environ["DSS_DEPLOYMENT_STAGE"]
-# ES type in DSS_ELASTICSEARCH_SUBSCRIPTION_INDEX_NAME with subscriptions
-DSS_ELASTICSEARCH_SUBSCRIPTION_TYPE = "subscription"
-
 
 def get_logger():
     try:

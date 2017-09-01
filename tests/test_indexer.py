@@ -25,13 +25,11 @@ pkg_root = os.path.abspath(os.path.join(os.path.dirname(__file__), '..'))  # noq
 sys.path.insert(0, pkg_root)  # noqa
 
 import dss
-from dss import (DeploymentStage, Config,
-                 DSS_ELASTICSEARCH_INDEX_NAME, DSS_ELASTICSEARCH_DOC_TYPE,
-                 DSS_ELASTICSEARCH_SUBSCRIPTION_INDEX_NAME)
+from dss import Config, DeploymentStage
 from dss.events.handlers.index import process_new_s3_indexable_object, process_new_gs_indexable_object
 from dss.hcablobstore import BundleMetadata, BundleFileMetadata, FileMetadata
 from dss.util import create_blob_key, UrlBuilder
-from dss.util.es import ElasticsearchClient, ElasticsearchServer, get_elasticsearch_index_name
+from dss.util.es import ElasticsearchClient, ElasticsearchServer
 
 from tests.es import elasticsearch_delete_index
 from tests.fixtures.populate import populate
