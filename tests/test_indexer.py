@@ -26,13 +26,11 @@ pkg_root = os.path.abspath(os.path.join(os.path.dirname(__file__), '..'))  # noq
 sys.path.insert(0, pkg_root)  # noqa
 
 import dss
-from dss import (DeploymentStage, Config,
-                 DSS_ELASTICSEARCH_INDEX_NAME, DSS_ELASTICSEARCH_DOC_TYPE,
-                 DSS_ELASTICSEARCH_SUBSCRIPTION_INDEX_NAME)
+from dss import Config, DeploymentStage
 from dss.events.handlers.index import process_new_s3_indexable_object, process_new_gs_indexable_object
 from dss.hcablobstore import BundleMetadata, BundleFileMetadata, FileMetadata
 from dss.util import create_blob_key, UrlBuilder
-from dss.util.es import ElasticsearchClient, ElasticsearchServer, get_elasticsearch_index_name
+from dss.util.es import ElasticsearchClient, ElasticsearchServer
 
 from tests.es import elasticsearch_delete_index
 from tests.fixtures.populate import populate
@@ -148,7 +146,7 @@ class TestIndexerBase(DSSAsserts, StorageTestSupport, DSSUploadMixin):
         sample_event = self.create_sample_bundle_created_event(bundle_key)
         self.process_new_indexable_object(sample_event, logger)
 
-        ElasticsearchClient.get(logger).indices.create(DSS_ELASTICSEARCH_SUBSCRIPTION_INDEX_NAME)
+        ElasticsearchClient.get(logger).indices.create(dss.ESIndexType.subscriptions.name)
         subscription_id = self.subscribe_for_notification(smartseq2_paired_ends_query,
                                                           f"http://{HTTPInfo.address}:{HTTPInfo.port}")
 
@@ -163,7 +161,7 @@ class TestIndexerBase(DSSAsserts, StorageTestSupport, DSSUploadMixin):
         sample_event = self.create_sample_bundle_created_event(bundle_key)
         self.process_new_indexable_object(sample_event, logger)
 
-        ElasticsearchClient.get(logger).indices.create(DSS_ELASTICSEARCH_SUBSCRIPTION_INDEX_NAME)
+        ElasticsearchClient.get(logger).indices.create(dss.ESIndexType.subscriptions.name)
         subscription_id = self.subscribe_for_notification(smartseq2_paired_ends_query,
                                                           f"http://{HTTPInfo.address}:{HTTPInfo.port}")
 
@@ -286,7 +284,7 @@ class TestIndexerBase(DSSAsserts, StorageTestSupport, DSSUploadMixin):
         while True:
             response = ElasticsearchClient.get(logger).search(
                 index=cls.dss_index_name,
-                doc_type=DSS_ELASTICSEARCH_DOC_TYPE,
+                doc_type=dss.ESDocType.doc.name,
                 body=json.dumps(query))
             if (len(response['hits']['hits']) >= expected_hit_count) \
                     or (time.time() >= timeout_time):
@@ -308,8 +306,7 @@ class TestIndexerBase(DSSAsserts, StorageTestSupport, DSSUploadMixin):
         _, _, cls.test_bucket = Config.get_cloud_specific_handles(cls.replica)
         cls.es_server = ElasticsearchServer()
         os.environ['DSS_ES_PORT'] = str(cls.es_server.port)
-        cls.dss_index_name = get_elasticsearch_index_name(
-            DSS_ELASTICSEARCH_INDEX_NAME, cls.replica)
+        cls.dss_index_name = dss.Config.get_es_index_name(dss.ESIndexType.docs, dss.Replica[cls.replica])
 
     @classmethod
     def tearDownClass(cls):

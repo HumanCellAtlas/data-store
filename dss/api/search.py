@@ -6,9 +6,8 @@ from elasticsearch_dsl import Search
 from elasticsearch_dsl.exceptions import ElasticsearchDslException
 from flask import request, jsonify
 
-from .. import DSS_ELASTICSEARCH_INDEX_NAME, DSS_ELASTICSEARCH_DOC_TYPE
-from .. import dss_handler, get_logger, DSSException
-from ..util.es import ElasticsearchClient, get_elasticsearch_index_name
+from .. import Config, Replica, ESIndexType, dss_handler, get_logger, DSSException
+from ..util.es import ElasticsearchClient
 
 # TODO Adding replica as a search parameter and including tests for gcp
 # will be done in a different PR.
@@ -20,8 +19,8 @@ def post(query: dict):
     try:
         es_client = ElasticsearchClient.get(get_logger())
         search_obj = Search(using=es_client,
-                            index=get_elasticsearch_index_name(DSS_ELASTICSEARCH_INDEX_NAME, replica),
-                            doc_type=DSS_ELASTICSEARCH_DOC_TYPE).update_from_dict(query)
+                     index=Config.get_es_index_name(ESIndexType.docs, Replica[replica]),
+                             doc_type=DSS_ELASTICSEARCH_DOC_TYPE).update_from_dict(query)
 
         # TODO (mbaumann) extract version from the request path instead of hard-coding it here
         bundles_url_base = request.host_url + 'v1/bundles/'

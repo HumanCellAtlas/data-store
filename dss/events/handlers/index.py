@@ -9,13 +9,10 @@ from urllib.parse import unquote
 import requests
 from elasticsearch.helpers import scan
 
-from dss import Config
-from ... import (DSS_ELASTICSEARCH_INDEX_NAME, DSS_ELASTICSEARCH_DOC_TYPE,
-                 DSS_ELASTICSEARCH_QUERY_TYPE, DSS_ELASTICSEARCH_SUBSCRIPTION_INDEX_NAME,
-                 DSS_ELASTICSEARCH_SUBSCRIPTION_TYPE)
+from dss import Config, ESIndexType, ESDocType, Replica
 from ...util import create_blob_key
 from ...hcablobstore import BundleMetadata, BundleFileMetadata
-from ...util.es import ElasticsearchClient, get_elasticsearch_index_name, get_elasticsearch_index
+from ...util.es import ElasticsearchClient, get_elasticsearch_index
 from ...blobstore import BlobStore, BlobNotFoundError
 
 DSS_BUNDLE_KEY_REGEX = r"^bundles/[0-9A-Fa-f]{8}-[0-9A-Fa-f]{4}-4[0-9A-Fa-f]{3}-[0-9A-Fa-f]{4}-[0-9A-Fa-f]{12}\..+$"
@@ -50,7 +47,7 @@ def process_new_indexable_object(bucket_name: str, key: str, replica: str, logge
         manifest = read_bundle_manifest(blobstore, bucket_name, key, logger)
         bundle_id = get_bundle_id_from_key(key)
         index_data = create_index_data(blobstore, bucket_name, bundle_id, manifest, logger)
-        index_name = get_elasticsearch_index_name(DSS_ELASTICSEARCH_INDEX_NAME, replica)
+        index_name = Config.get_es_index_name(ESIndexType.docs, Replica[replica])
         add_index_data_to_elasticsearch(bundle_id, index_data, index_name, logger)
         subscriptions = find_matching_subscriptions(index_data, index_name, logger)
         process_notifications(bundle_id, subscriptions, replica, logger)
@@ -138,7 +135,7 @@ def add_index_data_to_elasticsearch(bundle_id: str, index_data: dict, index_name
 def create_elasticsearch_index(index_name, logger):
     index_mapping = {
         'mappings': {
-            DSS_ELASTICSEARCH_QUERY_TYPE: {
+            ESDocType.query.name: {
                 'properties': {
                     'query': {
                         'type': "percolator"
@@ -153,7 +150,7 @@ def create_elasticsearch_index(index_name, logger):
 def add_data_to_elasticsearch(bundle_id: str, index_data: dict, index_name: str, logger) -> None:
     try:
         ElasticsearchClient.get(logger).index(index=index_name,
-                                              doc_type=DSS_ELASTICSEARCH_DOC_TYPE,
+                                              doc_type=ESDocType.doc.name,
                                               id=bundle_id,
                                               body=json.dumps(index_data))  # Do not use refresh here - too expensive.
     except Exception as ex:
@@ -167,7 +164,7 @@ def find_matching_subscriptions(index_data: dict, index_name: str, logger) -> se
         'query': {
             'percolate': {
                 'field': "query",
-                'document_type': DSS_ELASTICSEARCH_DOC_TYPE,
+                'document_type': ESDocType.doc.name,
                 'document': index_data
             }
         }
@@ -195,13 +192,13 @@ def get_subscription(subscription_id: str, replica: str, logger):
     subscription_query = {
         'query': {
             'ids': {
-                'type': DSS_ELASTICSEARCH_SUBSCRIPTION_TYPE,
+                'type': ESDocType.subscription.name,
                 'values': [subscription_id]
             }
         }
     }
     response = ElasticsearchClient.get(logger).search(
-        index=get_elasticsearch_index_name(DSS_ELASTICSEARCH_SUBSCRIPTION_INDEX_NAME, replica),
+        index=Config.get_es_index_name(ESIndexType.subscriptions, Replica[replica]),
         body=subscription_query)
     if len(response['hits']['hits']) == 1:
         return response['hits']['hits'][0]['_source']

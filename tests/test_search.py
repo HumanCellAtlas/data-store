@@ -16,9 +16,8 @@ pkg_root = os.path.abspath(os.path.join(os.path.dirname(__file__), ".."))  # noq
 sys.path.insert(0, pkg_root)  # noqa
 
 import dss
-from dss import DSS_ELASTICSEARCH_INDEX_NAME, DSS_ELASTICSEARCH_DOC_TYPE
 from dss.events.handlers.index import create_elasticsearch_index
-from dss.util.es import ElasticsearchServer, ElasticsearchClient, get_elasticsearch_index_name
+from dss.util.es import ElasticsearchServer, ElasticsearchClient
 from tests.infra import DSSAsserts, start_verbose_logging
 from tests.es import elasticsearch_delete_index
 from tests import get_version
@@ -30,13 +29,12 @@ logger.setLevel(logging.INFO)
 
 start_verbose_logging()
 
-
 class TestSearch(unittest.TestCase, DSSAsserts):
     @classmethod
     def setUpClass(cls):
         cls.es_server = ElasticsearchServer()
         os.environ['DSS_ES_PORT'] = str(cls.es_server.port)
-        cls.dss_index_name = get_elasticsearch_index_name(dss.DSS_ELASTICSEARCH_INDEX_NAME, "aws")
+        cls.dss_index_name = dss.Config.get_es_index_name(dss.ESIndexType.docs, dss.Replica.aws)
         dss.Config.set_config(dss.DeploymentStage.TEST)
         cls.app = dss.create_app().app.test_client()
         with open(os.path.join(os.path.dirname(__file__), "sample_index_doc.json"), "r") as fh:
@@ -47,8 +45,10 @@ class TestSearch(unittest.TestCase, DSSAsserts):
         cls.es_server.shutdown()
 
     def setUp(self):
-        elasticsearch_delete_index(DSS_ELASTICSEARCH_INDEX_NAME)
-        create_elasticsearch_index(logger)
+        dss.Config.set_config(dss.DeploymentStage.TEST)
+        self.app = dss.create_app().app.test_client()
+        create_elasticsearch_index(self.dss_index_name)
+        create_elasticsearch_index(self.dss_index_name, logger)
 
     def test_search_post(self):
         bundle_uuid = str(uuid.uuid4())
@@ -194,3 +194,6 @@ class TestSearch(unittest.TestCase, DSSAsserts):
                           for hit in search_response['results']]
         for bundle in bundles:
             self.assertIn(bundle, result_bundles)
+
+if __name__ == "__main__":
+    unittest.main()
