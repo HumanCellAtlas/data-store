@@ -19,7 +19,7 @@ def find():
     query = json.loads(request.values["query"])
     response = Search(using=es_client,
                       index=Config.get_es_index_name(ESIndexType.docs, Replica[replica]),
-                      doc_type=ESIndexType.docs).query("match", **query).execute()
+                      doc_type=ESIndexType.docs.name).query("match", **query).execute()
     return {"query": query, "results": format_results(request, response)}
 
 
@@ -30,7 +30,7 @@ def post(query: dict):
     es_client = ElasticsearchClient.get(get_logger())
     response = Search(using=es_client,
                       index=Config.get_es_index_name(ESIndexType.docs, Replica[replica]),
-                      doc_type=ESIndexType.docs).update_from_dict(query).execute()
+                      doc_type=ESIndexType.docs.name).update_from_dict(query).execute()
     return {"query": query, "results": format_results(request, response)}
 
 

@@ -135,7 +135,7 @@ def add_index_data_to_elasticsearch(bundle_id: str, index_data: dict, index_name
 def create_elasticsearch_index(index_name, logger):
     index_mapping = {
         'mappings': {
-            ESDocType.query: {
+            ESDocType.query.name: {
                 'properties': {
                     'query': {
                         'type': "percolator"
@@ -150,7 +150,7 @@ def create_elasticsearch_index(index_name, logger):
 def add_data_to_elasticsearch(bundle_id: str, index_data: dict, index_name: str, logger) -> None:
     try:
         ElasticsearchClient.get(logger).index(index=index_name,
-                                              doc_type=ESDocType.doc,
+                                              doc_type=ESDocType.doc.name,
                                               id=bundle_id,
                                               body=json.dumps(index_data))  # Do not use refresh here - too expensive.
     except Exception as ex:
@@ -164,7 +164,7 @@ def find_matching_subscriptions(index_data: dict, index_name: str, logger) -> se
         'query': {
             'percolate': {
                 'field': "query",
-                'document_type': ESDocType.doc,
+                'document_type': ESDocType.doc.name,
                 'document': index_data
             }
         }
@@ -192,7 +192,7 @@ def get_subscription(subscription_id: str, replica: str, logger):
     subscription_query = {
         'query': {
             'ids': {
-                'type': ESDocType.subscription,
+                'type': ESDocType.subscription.name,
                 'values': [subscription_id]
             }
         }

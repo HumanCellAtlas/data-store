@@ -49,7 +49,7 @@ class TestSubscriptions(unittest.TestCase, DSSAsserts):
         es_client.indices.delete(index="_all", ignore=[404])  # Disregard if no indices - don't error.
         index_mapping = {  # Need to make a mapping for the percolator type before we add any.
             "mappings": {
-                dss.ESDocType.query: {
+                dss.ESDocType.query.name: {
                     "properties": {
                         "query": {
                             "type": "percolator"
@@ -69,7 +69,7 @@ class TestSubscriptions(unittest.TestCase, DSSAsserts):
             self.sample_percolate_query = json.load(fh)
 
         es_client.index(index=index_name,
-                        doc_type=dss.ESDocType.doc,
+                        doc_type=dss.ESDocType.doc.name,
                         id=str(uuid.uuid4()),
                         body=index_document,
                         refresh=True)
@@ -96,7 +96,7 @@ class TestSubscriptions(unittest.TestCase, DSSAsserts):
 
         es_client = ElasticsearchClient.get(logger)
         response = es_client.get(index=dss.Config.get_es_index_name(dss.ESIndexType.docs, dss.Replica.aws),
-                                 doc_type=dss.ESDocType.query,
+                                 doc_type=dss.ESDocType.query.name,
                                  id=uuid_)
         registered_query = response['_source']
         self.assertEqual(self.sample_percolate_query, registered_query)

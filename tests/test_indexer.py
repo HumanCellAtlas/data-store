@@ -144,7 +144,7 @@ class TestIndexerBase(DSSAsserts, StorageTestSupport):
         sample_event = self.create_sample_bundle_created_event(bundle_key)
         self.process_new_indexable_object(sample_event, logger)
 
-        ElasticsearchClient.get(logger).indices.create(dss.ESIndexType.subscriptions)
+        ElasticsearchClient.get(logger).indices.create(dss.ESIndexType.subscriptions.name)
         subscription_id = self.subscribe_for_notification(smartseq2_paired_ends_query,
                                                           f"http://{HTTPInfo.address}:{HTTPInfo.port}")
 
@@ -160,7 +160,7 @@ class TestIndexerBase(DSSAsserts, StorageTestSupport):
         sample_event = self.create_sample_bundle_created_event(bundle_key)
         self.process_new_indexable_object(sample_event, logger)
 
-        ElasticsearchClient.get(logger).indices.create(dss.ESIndexType.subscriptions)
+        ElasticsearchClient.get(logger).indices.create(dss.ESIndexType.subscriptions.name)
         subscription_id = self.subscribe_for_notification(smartseq2_paired_ends_query,
                                                           f"http://{HTTPInfo.address}:{HTTPInfo.port}")
 
@@ -284,7 +284,7 @@ class TestIndexerBase(DSSAsserts, StorageTestSupport):
         while True:
             response = ElasticsearchClient.get(logger).search(
                 index=cls.dss_index_name,
-                doc_type=dss.ESDocType.doc,
+                doc_type=dss.ESDocType.doc.name,
                 body=json.dumps(query))
             if (len(response['hits']['hits']) >= expected_hit_count) \
                     or (time.time() >= timeout_time):

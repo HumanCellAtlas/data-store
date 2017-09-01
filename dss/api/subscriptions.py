@@ -32,7 +32,7 @@ def get(uuid: str, replica: str):
     try:
         response = es_client.get(index=Config.get_es_index_name(ESIndexType.subscriptions,
                                                                 Replica[replica]),
-                                 doc_type=ESDocType.subscription,
+                                 doc_type=ESDocType.subscription.name,
                                  id=uuid)
     except NotFoundError as ex:
         raise DSSException(requests.codes.not_found, "not_found", "Cannot find subscription!")
@@ -55,7 +55,7 @@ def find(replica: str):
 
     search_obj = Search(using=es_client,
                         index=Config.get_es_index_name(ESIndexType.subscriptions, Replica[replica]),
-                        doc_type=ESDocType.subscription)
+                        doc_type=ESDocType.subscription.name)
     search = search_obj.query({'match': {'owner': owner}})
 
     responses = [{
@@ -116,7 +116,7 @@ def put(json_request_body: dict, replica: str):
 
         # Delete percolate query to make sure queries and subscriptions are in sync.
         es_client.delete(index=index_name,
-                         doc_type=ESDocType.query,
+                         doc_type=ESDocType.query.name,
                          id=uuid,
                          refresh=True)
         raise DSSException(requests.codes.internal_server_error,
@@ -135,7 +135,7 @@ def delete(uuid: str, replica: str):
     try:
         response = es_client.get(index=Config.get_es_index_name(ESIndexType.subscriptions,
                                                                 Replica[replica]),
-                                 doc_type=ESDocType.subscription,
+                                 doc_type=ESDocType.subscription.name,
                                  id=uuid)
     except NotFoundError as ex:
         raise DSSException(requests.codes.not_found, "not_found", "Cannot find subscription!")
@@ -147,12 +147,12 @@ def delete(uuid: str, replica: str):
         raise DSSException(requests.codes.forbidden, "Forbidden", "Your credentials can't access this subscription!")
 
     es_client.delete(index=Config.get_es_index_name(ESIndexType.docs, Replica[replica]),
-                     doc_type=ESDocType.query,
+                     doc_type=ESDocType.query.name,
                      id=uuid,
                      refresh=True)
 
     es_client.delete(index=Config.get_es_index_name(ESIndexType.subscriptions, Replica[replica]),
-                     doc_type=ESDocType.subscription,
+                     doc_type=ESDocType.subscription.name,
                      id=uuid)
 
     timestamp = datetime.datetime.utcnow()
@@ -164,7 +164,7 @@ def delete(uuid: str, replica: str):
 def _register_percolate(es_client: Elasticsearch, uuid: str, query: dict, replica: str):
     index_name = Config.get_es_index_name(ESIndexType.docs, Replica[replica])
     return es_client.index(index=index_name,
-                           doc_type=ESDocType.query,
+                           doc_type=ESDocType.query.name,
                            id=uuid,
                            body=query,
                            refresh=True)
@@ -173,7 +173,7 @@ def _register_percolate(es_client: Elasticsearch, uuid: str, query: dict, replic
 def _register_subscription(es_client: Elasticsearch, uuid: str, json_request_body: dict, replica: str):
     index_name = Config.get_es_index_name(ESIndexType.subscriptions, Replica[replica])
     return es_client.index(index=index_name,
-                           doc_type=ESDocType.subscription,
+                           doc_type=ESDocType.subscription.name,
                            id=uuid,
                            body=json_request_body,
                            refresh=True)
