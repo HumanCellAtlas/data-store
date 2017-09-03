@@ -78,7 +78,10 @@
       "Action": [
         "logs:*"
       ],
-      "Resource": "arn:aws:logs:*:$account_id:log-group:chunked_task_worker*"
+      "Resource": [
+        "arn:aws:logs:*:$account_id:log-group:chunked_task_worker*",
+        "arn:aws:logs:*:$account_id:log-group:dss-test-logging*"
+      ]
     },
     {
       "Sid": "hcaDssCiCdFilterLogEvents",
