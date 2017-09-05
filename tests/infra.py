@@ -156,7 +156,7 @@ class TestFile:
         self.name = os.path.basename(object_summary)
         self.path = object_summary
         self.uuid = str(uuid.uuid4())
-        self.url = f"{Config.get_storage_schema(replica)}://{bundle.bucket}/{self.path}"
+        self.url = Config.get_storage_schema(replica) + "://" + bundle.bucket + "/" + self.path
         self.version = None
 
 
