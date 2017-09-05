@@ -2,10 +2,9 @@ import json
 import logging
 import typing
 
-import watchtower
-
 from . import awsconstants
 from ...util.aws import ARN, send_sns_msg
+from ...util.aws.logging import log_message
 from .base import Runtime
 
 
@@ -50,25 +49,6 @@ class AWSRuntime(Runtime[dict, typing.Any]):
             )),
         )
 
-    logger = dict()  # type: typing.Mapping[str, logging.Logger]
-
     @staticmethod
     def log(task_id: str, message: str):
-        logger_name = f"chunkedtasklogger-{task_id}"
-
-        logger = AWSRuntime.logger.get(logger_name, AWSRuntime._make_logger(logger_name, task_id))
-        logger.info(message)
-
-    @staticmethod
-    def _make_logger(logger_name: str, task_id: str) -> logging.Logger:
-        logger = logging.getLogger(logger_name)
-        logger.propagate = False
-        handler = watchtower.CloudWatchLogHandler(
-            log_group=awsconstants.LOG_GROUP_NAME,
-            stream_name=task_id,
-            use_queues=False)
-        handler.setFormatter(logging.Formatter("%(message)s"))
-        logger.addHandler(handler)
-        logger.setLevel(logging.INFO)
-
-        return logger
+        log_message(awsconstants.LOG_GROUP_NAME, task_id, message)

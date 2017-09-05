@@ -47,5 +47,4 @@ swagger-spec-validator==2.1.0
 tenacity==4.4.0
 typing==3.6.2
 urllib3==1.22
-watchtower==0.4.0
 Werkzeug==0.12.2
