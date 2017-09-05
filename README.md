@@ -1,10 +1,9 @@
 # HCA DSS: The Human Cell Atlas Data Storage System
 
-This repository contains design specs and prototypes for the
-replicated data storage system (aka the "blue box") of
-the [Human Cell Atlas](https://www.humancellatlas.org/).
-
-See the [google drive folder](https://drive.google.com/open?id=0B-_4IWxXwazQbWE5YmtqUWx3RVE) for live collaborative documents.
+This repository contains design specs and prototypes for the replicated data storage system (aka the "blue box") of
+the [Human Cell Atlas](https://www.humancellatlas.org/). We use
+[this Google Drive folder](https://drive.google.com/open?id=0B-_4IWxXwazQbWE5YmtqUWx3RVE) for design docs and meeting notes,
+and [this Waffle board](https://waffle.io/HumanCellAtlas/data-store) to track our GitHub work.
 
 #### About this prototype
 The prototype in this repository uses [Swagger](http://swagger.io/) to specify the API in [dss-api.yml](dss-api.yml), and
@@ -16,7 +15,7 @@ to review and edit the prototype API specification. When the prototype app is ru
 `/v1/swagger.json`.
 
 The prototype is deployed continuously from the `master` branch, with the resulting producer and consumer API available at
-https://hca-dss.czi.technology/.
+https://dss.staging.data.humancellatlas.org/.
 
 #### Installing dependencies for development on the prototype
 The HCA DSS prototype development environment requires Python 3.6+ to run. Run `pip install -r requirements-dev.txt` in this directory.
@@ -42,23 +41,33 @@ Run `source environment`  now and whenever these environment files are modified.
 
 #### Configuring cloud-specific access credentials
 
-**AWS**: Follow the instructions in
-http://docs.aws.amazon.com/cli/latest/userguide/cli-chap-getting-started.html to get the `aws` command line
-utility. Create an S3 bucket that you want DSS to use. Set the environment variable `DSS_S3_BUCKET_TEST`. If you wish to
-run the unit tests, you must create a second S3 bucket to store the test fixtures, and set the environment variable
-`DSS_S3_BUCKET_TEST_FIXTURES` to the name of that bucket.
+##### AWS
+* Follow the instructions in http://docs.aws.amazon.com/cli/latest/userguide/cli-chap-getting-started.html to get the
+  `aws` command line utility.
+* Create an S3 bucket that you want DSS to use.
+* In `environment.local`, set the environment variable `DSS_S3_BUCKET_TEST`.
+* If you wish to run the unit tests, you must create a second S3 bucket to store the test fixtures, and set the
+  environment variable `DSS_S3_BUCKET_TEST_FIXTURES` to the name of that bucket.
 
-**GCP**: Follow the instructions in https://cloud.google.com/sdk/downloads to get the `gcloud` command line utility.
-Next, go to https://console.cloud.google.com/. Select the correct Google user account on the top right and the correct
-GCP project in the drop down in the top center. Go to "IAM & Admin", then "Service accounts", then click "Create service
-account" and select "Furnish a new private key". Create the account and download the service account key JSON file. Set
-the environment variable `GOOGLE_APPLICATION_CREDENTIALS` to the path of the service account key JSON file. Run `gcloud
-auth activate-service-account --key-file=/path/to/service-account.json`. Run `gcloud config set project 'PROJECT
-NAME'`. Create a bucket on Google Cloud Platform and set the environment variable `DSS_GS_BUCKET_TEST`.  If you wish to
-run the unit tests, you must create a second Google Cloud Platform bucket to store the test fixtures, and set the
-environment variable `DSS_GS_BUCKET_TEST_FIXTURES` to the name of that bucket.
+##### GCP
+* Follow the instructions in https://cloud.google.com/sdk/downloads to get the `gcloud` command line utility.
+* In the [Google Cloud Console](https://console.cloud.google.com/), select the correct Google user account on the top
+  right and the correct GCP project in the drop down in the top center. Go to "IAM & Admin", then "Service accounts",
+  then click "Create service account" and select "Furnish a new private key". Create the account and download the
+  service account key JSON file.
+* In `environment.local`, set the environment variable `GOOGLE_APPLICATION_CREDENTIALS` to the path of the service
+  account key JSON file.
+* Run `gcloud auth activate-service-account --key-file=/path/to/service-account.json`.
+* Run `gcloud config set project 'PROJECT_NAME'`.
+* Enable required APIs: `gcloud service-management enable cloudfunctions.googleapis.com`; `gcloud service-management
+  enable runtimeconfig.googleapis.com`
+* Create a Google Cloud Storage bucket. In `environment.local`, set the environment variable `DSS_GS_BUCKET_TEST` to the
+  name of the bucket.
+* If you wish to run the unit tests, you must create a second Google Cloud Platform bucket to store the test fixtures,
+  and set the environment variable `DSS_GS_BUCKET_TEST_FIXTURES` to the name of that bucket.
 
-**Azure**: Set the environment variables `AZURE_STORAGE_ACCOUNT_NAME` and `AZURE_STORAGE_ACCOUNT_KEY`.
+##### Azure
+* Set the environment variables `AZURE_STORAGE_ACCOUNT_NAME` and `AZURE_STORAGE_ACCOUNT_KEY`.
 
 #### Running the DSS API locally
 Run `./dss-api` in the top-level `data-store` directory.

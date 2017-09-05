@@ -27,6 +27,7 @@ set -a
 EXPORT_ENV_VARS_TO_LAMBDA=${EXPORT_ENV_VARS_TO_LAMBDA_ARRAY[*]}
 DSS_DEPLOYMENT_STAGE=dev
 AWS_DEFAULT_REGION=us-east-1
+GCP_DEFAULT_REGION=us-central1
 DSS_S3_BUCKET=org-humancellatlas-dss-dev
 DSS_S3_BUCKET_TEST=org-humancellatlas-dss-test
 DSS_S3_BUCKET_TEST_FIXTURES=org-humancellatlas-dss-test-fixtures
@@ -36,7 +37,8 @@ DSS_GS_BUCKET_TEST_FIXTURES=org-humancellatlas-dss-test-fixtures
 GOOGLE_APPLICATION_CREDENTIALS="${DSS_HOME}/gcp-credentials.json"
 GOOGLE_APPLICATION_SECRETS="${DSS_HOME}/application_secrets.json"
 API_HOST=hca-dss.czi.technology
-TOKENINFO_URL=https://hca-dss.czi.technology/internal/tokeninfo
+TOKENINFO_URL=https://${API_HOST}/internal/tokeninfo
+NOTIFY_URL=https://${API_HOST}/internal/notify
 DSS_SUBSCRIPTION_AUTHORIZED_DOMAINS_ARRAY=(
     chanzuckerberg.com
     ucsc.edu

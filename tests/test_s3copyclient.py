@@ -29,7 +29,7 @@ class TestStingyRuntime(chunkedtask.Runtime[dict, bool]):
     def get_remaining_time_in_millis(self) -> int:
         return self.seq.__next__()
 
-    def schedule_work(self, state: dict):
+    def reschedule_work(self, state: dict):
         # it's illegal for there to be no state.
         assert state is not None
         self.rescheduled_state = state
@@ -68,6 +68,7 @@ class TestAWSCopy(unittest.TestCase):
 
         current_state = S3CopyTask.setup_copy_task(
             self.test_bucket, self.test_src_key, self.test_bucket, dest_key, lambda blob_size: (5 * 1024 * 1024))
+        freezes = 0
 
         while True:
             env = TestStingyRuntime()
@@ -81,6 +82,9 @@ class TestAWSCopy(unittest.TestCase):
                 break
             else:
                 current_state = env.rescheduled_state
+                freezes += 1
+
+        self.assertGreater(freezes, 0)
 
         # verify that the destination has the same checksum.
         dst_etag = S3BlobStore().get_all_metadata(self.test_bucket, dest_key)['ETag'].strip("\"")
@@ -91,9 +95,10 @@ class TestAWSCopy(unittest.TestCase):
 
         current_state = S3CopyTask.setup_copy_task(
             self.test_bucket, self.test_src_key, self.test_bucket, dest_key, lambda blob_size: (5 * 1024 * 1024))
+        freezes = 0
 
         while True:
-            env = TestStingyRuntime(seq=itertools.repeat(sys.maxsize, 9))
+            env = TestStingyRuntime(seq=itertools.repeat(sys.maxsize, 7))
             task = S3CopyTask(current_state, fetch_size=4)
             runner = chunkedtask.Runner(task, env)
 
@@ -104,6 +109,9 @@ class TestAWSCopy(unittest.TestCase):
                 break
             else:
                 current_state = env.rescheduled_state
+                freezes += 1
+
+        self.assertGreater(freezes, 0)
 
         # verify that the destination has the same checksum.
         dst_etag = S3BlobStore().get_all_metadata(self.test_bucket, dest_key)['ETag'].strip("\"")

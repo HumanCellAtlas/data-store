@@ -31,7 +31,7 @@ class TestChunkedTaskRuntime(chunkedtask.Runtime[tuple, bool]):
     def get_remaining_time_in_millis(self) -> int:
         return self.remaining_time
 
-    def schedule_work(self, state: tuple):
+    def reschedule_work(self, state: tuple):
         # it's illegal for there to be no state.
         assert state is not None
         self.rescheduled_state = state

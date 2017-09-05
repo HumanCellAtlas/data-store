@@ -37,6 +37,7 @@ npm-debug.log
 
 # Credential files
 /gcp-credentials.json
+/application_secrets.json
 
 # Temporary folder
 /tmp

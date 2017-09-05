@@ -16,10 +16,10 @@ sys.path.insert(0, pkg_root)  # noqa
 import dss
 from dss.config import DeploymentStage, Config, override_bucket_config
 from dss.util import UrlBuilder
-from tests.infra import DSSAsserts, get_env, upload_file_wait
+from tests.infra import DSSAsserts, DSSUploadMixin, get_env
 
 
-class TestDSS(unittest.TestCase, DSSAsserts):
+class TestDSS(unittest.TestCase, DSSAsserts, DSSUploadMixin):
     def setUp(self):
         self.app = dss.create_app().app.test_client()
         dss.Config.set_config(dss.DeploymentStage.TEST)
@@ -107,8 +107,7 @@ class TestDSS(unittest.TestCase, DSSAsserts):
 
         file_uuid = str(uuid.uuid4())
         bundle_uuid = str(uuid.uuid4())
-        resp_obj = upload_file_wait(
-            self,
+        resp_obj = self.upload_file_wait(
             f"{schema}://{fixtures_bucket}/test_good_source_data/0",
             replica,
             file_uuid,

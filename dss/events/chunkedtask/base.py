@@ -39,9 +39,9 @@ class Runtime(typing.Generic[RuntimeStateType, RuntimeResultType]):
         """
         raise NotImplementedError()
 
-    def schedule_work(self, state: RuntimeStateType):
+    def reschedule_work(self, state: RuntimeStateType):
         """
-        In implementations of `Runtime` should, this should schedule a task given its serialized state.
+        In implementations of `Runtime` should, this should reschedule a task given its serialized state.
         """
         raise NotImplementedError()
 

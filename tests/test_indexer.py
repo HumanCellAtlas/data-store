@@ -35,7 +35,8 @@ from dss.util.es import ElasticsearchClient, ElasticsearchServer
 
 from tests.es import elasticsearch_delete_index
 from tests.fixtures.populate import populate
-from tests.infra import DSSAsserts, StorageTestSupport, start_verbose_logging, TestBundle, get_env
+from tests.infra import DSSAsserts, DSSUploadMixin, StorageTestSupport, TestBundle, start_verbose_logging
+from tests.sample_search_queries import smartseq2_paired_ends_query
 
 # The moto mock has two defects that show up when used by the dss core storage system.
 # Use actual S3 until these defects are fixed in moto.
@@ -48,9 +49,6 @@ logger.setLevel(logging.INFO)
 
 
 start_verbose_logging()
-for logger_name in logging.Logger.manager.loggerDict:  # type: ignore
-    if logger_name.startswith("elasticsearch"):
-        logging.getLogger(logger_name).setLevel(logging.WARNING)
 
 
 #
@@ -66,7 +64,7 @@ for logger_name in logging.Logger.manager.loggerDict:  # type: ignore
 #
 
 
-class TestIndexer(unittest.TestCase, DSSAsserts, StorageTestSupport):
+class TestIndexer(unittest.TestCase, DSSAsserts, StorageTestSupport, DSSUploadMixin):
 
     http_server_address = "127.0.0.1"
     http_server_port = 8729
@@ -96,6 +94,7 @@ class TestIndexer(unittest.TestCase, DSSAsserts, StorageTestSupport):
         cls.http_server = HTTPServer((cls.http_server_address, cls.http_server_port), PostTestHandler)
         cls.http_server_thread = threading.Thread(target=cls.http_server.serve_forever)
         cls.http_server_thread.start()
+        cls.app = dss.create_app().app.test_client()
 
     @classmethod
     def tearDownClass(cls):
@@ -106,7 +105,6 @@ class TestIndexer(unittest.TestCase, DSSAsserts, StorageTestSupport):
         cls.http_server.shutdown()
 
     def setUp(self):
-        self.app = dss.create_app().app.test_client()
         elasticsearch_delete_index("_all")
         PostTestHandler.reset()
 
@@ -416,28 +414,6 @@ class PostTestHandler(BaseHTTPRequestHandler):
 smartseq2_paried_ends_indexed_file_list = ["assay_json", "cell_json", "manifest_json", "project_json", "sample_json"]
 
 
-smartseq2_paired_ends_query = \
-    {
-        'query': {
-            'bool': {
-                'must': [{
-                    'match': {
-                        "files.sample_json.donor.species": "Homo sapiens"
-                    }
-                }, {
-                    'match': {
-                        "files.assay_json.single_cell.method": "Fluidigm C1"
-                    }
-                }, {
-                    'match': {
-                        "files.sample_json.ncbi_biosample": "SAMN04303778"
-                    }
-                }]
-            }
-        }
-    }
-
-# Only used with moto mock
 def create_s3_bucket(bucket_name) -> None:
     import boto3
     from botocore.exceptions import ClientError

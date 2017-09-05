@@ -29,6 +29,10 @@ parts_per_worker = {"s3": 8, "gs": 1}
 gs_upload_chunk_size = 1024 * 1024 * 32
 http = get_pool_manager()
 
+sns_topics = dict(copy_parts="dss-copy-parts-" + os.environ["DSS_DEPLOYMENT_STAGE"],
+                  closer=dict(s3="dss-s3-mpu-ready-" + os.environ["DSS_DEPLOYMENT_STAGE"],
+                              gs="dss-gs-composite-upload-ready-" + os.environ["DSS_DEPLOYMENT_STAGE"]))
+
 BlobLocation = namedtuple("BlobLocation", "platform bucket blob")
 
 class GStorageTransferClient(ClientWithProject):
@@ -106,14 +110,14 @@ def sync_gs_to_s3_oneshot(source, dest, logger):
     expires_timestamp = int(time.time() + presigned_url_lifetime_seconds)
     gs_blob_url = source.blob.generate_signed_url(expiration=expires_timestamp)
     with closing(http.request("GET", gs_blob_url, preload_content=False)) as fh:
-        dest.blob.upload_fileobj(fh, ExtraArgs=dict(Metadata=source.blob.metadata))
+        dest.blob.upload_fileobj(fh, ExtraArgs=dict(Metadata=source.blob.metadata or {}))
 
 def dispatch_multipart_sync(source, dest, logger, context):
     parts_for_worker = []
     futures = []
     total_size = source.blob.content_length if source.platform == "s3" else source.blob.size
     all_parts = list(enumerate(range(0, total_size, part_size[dest.platform])))
-    mpu = dest.blob.initiate_multipart_upload() if dest.platform == "s3" else None
+    mpu = dest.blob.initiate_multipart_upload(Metadata=source.blob.metadata or {}) if dest.platform == "s3" else None
 
     with ThreadPoolExecutor(max_workers=4) as executor:
         for part_id, part_start in all_parts:
@@ -132,7 +136,7 @@ def dispatch_multipart_sync(source, dest, logger, context):
                                mpu=mpu.id if mpu else None,
                                parts=parts_for_worker,
                                total_parts=len(all_parts))
-                sns_arn = ARN(context.invoked_function_arn, service="sns", resource="dss-copy-parts")
+                sns_arn = ARN(context.invoked_function_arn, service="sns", resource=sns_topics["copy_parts"])
                 futures.append(executor.submit(send_sns_msg, sns_arn, sns_msg))
                 parts_for_worker = []
     for future in futures:
