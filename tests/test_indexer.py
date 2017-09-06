@@ -6,12 +6,14 @@ import io
 import json
 import logging
 import os
+import socket
 import sys
 import threading
 import time
 import unittest
 import uuid
 from http.server import BaseHTTPRequestHandler, HTTPServer
+from random import randint
 from typing import Dict
 
 import google.auth
@@ -64,14 +66,15 @@ for logger_name in logging.Logger.manager.loggerDict:  # type: ignore
 #   5. Verify the structure and content of the index document
 #
 
-# TODO: find an open port issue #423
 class HTTPInfo:
     address = "127.0.0.1"
-    port = 8729
+    port = None
     server = None
     thread = None
 
+
 def setUpModule():
+    HTTPInfo.port = findOpenPort()
     HTTPInfo.server = HTTPServer((HTTPInfo.address, HTTPInfo.port), PostTestHandler)
     HTTPInfo.thread = threading.Thread(target=HTTPInfo.server.serve_forever)
     HTTPInfo.thread.start()
@@ -506,6 +509,19 @@ def create_index_data(blobstore, bucket_name, manifest):
             index_files[index_filename] = file_json
     index['files'] = index_files
     return index
+
+
+def findOpenPort() -> int:
+    while True:
+        port = randint(1024, 65535)
+        try:
+            sock = socket.create_connection((HTTPInfo.address, port), 1)
+            sock.close()
+            # there's something there already.
+        except (ConnectionRefusedError, socket.timeout):
+            # ok this is an open port.
+            break
+    return port
 
 if __name__ == "__main__":
     unittest.main()
