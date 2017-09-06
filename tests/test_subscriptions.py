@@ -21,7 +21,7 @@ sys.path.insert(0, pkg_root) # noqa
 import dss
 from dss import DSS_ELASTICSEARCH_INDEX_NAME, DSS_ELASTICSEARCH_DOC_TYPE, DSS_ELASTICSEARCH_QUERY_TYPE
 from dss.util import UrlBuilder
-from dss.util.es import ElasticsearchClient, ElasticsearchServer, get_elasticsearch_index
+from dss.util.es import ElasticsearchClient, ElasticsearchServer, get_elasticsearch_index_name, get_elasticsearch_index
 from tests.infra import DSSAsserts
 
 logging.basicConfig(level=logging.INFO)
@@ -59,7 +59,8 @@ class TestSubscriptions(unittest.TestCase, DSSAsserts):
                 }
             }
         }
-        get_elasticsearch_index(es_client, DSS_ELASTICSEARCH_INDEX_NAME, logger, index_mapping)
+        index_name = get_elasticsearch_index_name(DSS_ELASTICSEARCH_INDEX_NAME, "aws")
+        get_elasticsearch_index(es_client, index_name, logger, index_mapping)
 
         with open(os.path.join(os.path.dirname(__file__), "sample_index_doc.json"), "r") as fh:
             index_document = json.load(fh)
@@ -68,7 +69,7 @@ class TestSubscriptions(unittest.TestCase, DSSAsserts):
         with open(os.path.join(os.path.dirname(__file__), "sample_query.json"), "r") as fh:
             self.sample_percolate_query = json.load(fh)
 
-        es_client.index(index=DSS_ELASTICSEARCH_INDEX_NAME,
+        es_client.index(index=index_name,
                         doc_type=DSS_ELASTICSEARCH_DOC_TYPE,
                         id=str(uuid.uuid4()),
                         body=index_document,
@@ -95,7 +96,7 @@ class TestSubscriptions(unittest.TestCase, DSSAsserts):
         uuid_ = self._put_subscription()
 
         es_client = ElasticsearchClient.get(logger)
-        response = es_client.get(index=DSS_ELASTICSEARCH_INDEX_NAME,
+        response = es_client.get(index=get_elasticsearch_index_name(DSS_ELASTICSEARCH_INDEX_NAME, "aws"),
                                  doc_type=DSS_ELASTICSEARCH_QUERY_TYPE,
                                  id=uuid_)
         registered_query = response['_source']

@@ -8,8 +8,11 @@ from flask import request, jsonify
 
 from .. import DSS_ELASTICSEARCH_INDEX_NAME, DSS_ELASTICSEARCH_DOC_TYPE
 from .. import dss_handler, get_logger, DSSException
-from ..util.es import ElasticsearchClient
+from ..util.es import ElasticsearchClient, get_elasticsearch_index_name
 
+# TODO Adding replica as a search parameter and including tests for gcp
+# will be done in a different PR.
+replica = "aws"
 
 @dss_handler
 def post(json_request_body: dict):
@@ -18,7 +21,7 @@ def post(json_request_body: dict):
     try:
         es_client = ElasticsearchClient.get(get_logger())
         search_obj = Search(using=es_client,
-                            index=DSS_ELASTICSEARCH_INDEX_NAME,
+                            index=get_elasticsearch_index_name(DSS_ELASTICSEARCH_INDEX_NAME, replica),
                             doc_type=DSS_ELASTICSEARCH_DOC_TYPE).update_from_dict(es_query)
 
         # TODO (mbaumann) extract version from the request path instead of hard-coding it here
