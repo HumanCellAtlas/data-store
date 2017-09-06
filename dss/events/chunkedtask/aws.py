@@ -46,6 +46,7 @@ def schedule_task(client_name: str, state: typing.Any):
     )
 
     AWSRuntime.log(
+        client_name,
         task_id,
         json.dumps(dict(
             action=awsconstants.LogActions.SCHEDULED,
@@ -56,11 +57,12 @@ def schedule_task(client_name: str, state: typing.Any):
     return task_id
 
 
-def parse_payload(payload):
+def parse_payload(payload: dict, expected_client_name: str):
     try:
         task_id = payload[awsconstants.TASK_ID_KEY]
     except KeyError as ex:
         AWSRuntime.log(
+            expected_client_name,
             awsconstants.FALLBACK_LOG_STREAM_NAME,
             json.dumps(dict(
                 action=awsconstants.LogActions.EXCEPTION,
@@ -79,6 +81,7 @@ def parse_payload(payload):
         state = payload[awsconstants.STATE_KEY]
     except KeyError as ex:
         AWSRuntime.log(
+            expected_client_name,
             task_id,
             json.dumps(dict(
                 action=awsconstants.LogActions.EXCEPTION,
@@ -89,8 +92,22 @@ def parse_payload(payload):
         )
         return None
 
+    if client_name != expected_client_name:
+        AWSRuntime.log(
+            expected_client_name,
+            task_id,
+            json.dumps(dict(
+                action=awsconstants.LogActions.MISMATCHED_CLIENTS,
+                client_name=client_name,
+                expected_client_name=expected_client_name,
+                state=state,
+            )),
+        )
+        return
+
     if version < awsconstants.MIN_SUPPORTED_VERSION or version > awsconstants.MAX_SUPPORTED_VERSION:
         AWSRuntime.log(
+            expected_client_name,
             task_id,
             json.dumps(dict(
                 action=awsconstants.LogActions.EXCEPTION,
@@ -104,12 +121,13 @@ def parse_payload(payload):
 
 
 def dispatch(context, payload, expected_client_name):
-    decoded_payload = parse_payload(payload)
+    decoded_payload = parse_payload(payload, expected_client_name)
     if decoded_payload is None:
         return
     task_id, client_name, client_class, state = decoded_payload
 
     AWSRuntime.log(
+        expected_client_name,
         task_id,
         json.dumps(dict(
             action=awsconstants.LogActions.RUNNING,
@@ -143,6 +161,7 @@ def dispatch(context, payload, expected_client_name):
         runner.run()
     except Exception as ex:
         AWSRuntime.log(
+            expected_client_name,
             task_id,
             json.dumps(dict(
                 action=awsconstants.LogActions.EXCEPTION,
