@@ -33,12 +33,12 @@ after_success:
 - bash <(curl -s https://codecov.io/bash)
 deploy:
   - provider: script
-    script: make deploy
+    script: make -j deploy
     skip_cleanup: true
     on:
-      branch: master
+      branch: akislyuk-parallel-deploy
   - provider: script
-    script: export DSS_DEPLOYMENT_STAGE=staging; make deploy
+    script: export DSS_DEPLOYMENT_STAGE=staging; make -j deploy
     skip_cleanup: true
     on:
       branch: staging
