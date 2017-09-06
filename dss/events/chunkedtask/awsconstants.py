@@ -25,6 +25,6 @@ class LogActions:
     COMPLETE = "complete"
 
 
-def get_worker_sns_topic():
+def get_worker_sns_topic(expected_client_name):
     deployment_stage = os.getenv("DSS_DEPLOYMENT_STAGE")
-    return TASK_SNS_TOPIC_PREFIX + deployment_stage
+    return TASK_SNS_TOPIC_PREFIX + expected_client_name + "-" + deployment_stage
