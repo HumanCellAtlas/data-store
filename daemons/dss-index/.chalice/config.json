@@ -6,14 +6,7 @@
   "stages": {
     "dev": {
       "api_gateway_stage": "dev",
-      "environment_variables": {
-        "DSS_DEPLOYMENT_STAGE": "dev",
-        "DSS_ES_ENDPOINT": "search-dss-index-dev-wc7kz2vuj7mpfjbxnp4ftplpuu.us-east-1.es.amazonaws.com",
-        "DSS_S3_BUCKET": "org-humancellatlas-dss-dev",
-        "DSS_GS_BUCKET": "org-humancellatlas-dss-dev",
-        "API_HOST": "hca-dss.czi.technology",
-        "DSS_SUBSCRIPTION_AUTHORIZED_DOMAINS": "chanzuckerberg.com ucsc.edu broadinstitute.org ebi.ac.uk human-cell-atlas-travis-test.iam.gserviceaccount.com broad-dsde-mint-dev.iam.gserviceaccount.com"
-      }
+      "environment_variables": {}
     }
   },
   "version": "2.0",
