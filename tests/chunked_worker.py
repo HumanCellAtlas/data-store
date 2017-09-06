@@ -1,8 +1,29 @@
 import collections
+import itertools
 import typing
 import uuid
 
 from dss.events.chunkedtask import Runner, Runtime, Task
+
+
+class TestStingyRuntime(Runtime[dict, bool]):
+    """This is runtime that returns a pre-determined sequence, and then 0s for the remaining time."""
+    def __init__(self, seq=None):
+        self.complete = False
+        if seq is None:
+            seq = list()
+        self.seq = itertools.chain(seq, itertools.repeat(0))
+
+    def get_remaining_time_in_millis(self) -> int:
+        return self.seq.__next__()
+
+    def reschedule_work(self, state: dict):
+        # it's illegal for there to be no state.
+        assert state is not None
+        self.rescheduled_state = state
+
+    def work_complete_callback(self, bool):
+        self.complete = True
 
 
 def run_task_to_completion(
