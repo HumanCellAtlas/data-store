@@ -11,14 +11,15 @@ pkg_root = os.path.abspath(os.path.join(os.path.dirname(__file__), '..'))  # noq
 sys.path.insert(0, pkg_root)  # noqa
 
 import dss
-from tests.infra import DSSAsserts, StorageTestSupport, TestBundle
+from tests.infra import DSSAsserts, DSSUploadMixin, StorageTestSupport, TestBundle
 
 
-class TestApi(unittest.TestCase, DSSAsserts, StorageTestSupport):
+class TestApi(unittest.TestCase, DSSAsserts, DSSUploadMixin, StorageTestSupport):
 
     def setUp(self):
+        self.replica = "aws"
         dss.Config.set_config(dss.DeploymentStage.TEST)
-        self.blobstore, _, self.bucket = dss.Config.get_cloud_specific_handles("aws")
+        self.blobstore, _, self.bucket = dss.Config.get_cloud_specific_handles(self.replica)
         self.app = dss.create_app().app.test_client()
 
     BUNDLE_FIXTURE = 'fixtures/test_api/bundle'
@@ -33,9 +34,9 @@ class TestApi(unittest.TestCase, DSSAsserts, StorageTestSupport):
           - GET /files/<uuid>
         and checks that data corresponds where appropriate.
         """
-        bundle = TestBundle(self.blobstore, self.BUNDLE_FIXTURE, self.bucket)
-        self.upload_files_and_create_bundle(bundle, "aws")
-        self.get_bundle_and_check_files(bundle, "aws")
+        bundle = TestBundle(self.blobstore, self.BUNDLE_FIXTURE, self.bucket, self.replica)
+        self.upload_files_and_create_bundle(bundle, self.replica)
+        self.get_bundle_and_check_files(bundle, self.replica)
 
 
 if __name__ == '__main__':
