@@ -31,19 +31,18 @@ install:
 - export PATH=$(pwd)/make4/usr/bin:$PATH
 script:
 - set -eo pipefail
-- make --version
-#- make test
-#- if [[ $TRAVIS_EVENT_TYPE == cron ]]; then echo "FIXME (sampierson) insert integration test entry point here"; fi
+- make test
+- if [[ $TRAVIS_EVENT_TYPE == cron ]]; then echo "FIXME (sampierson) insert integration test entry point here"; fi
 after_success:
 - bash <(curl -s https://codecov.io/bash)
 deploy:
   - provider: script
-    script: make -j deploy
+    script: make -jO deploy
     skip_cleanup: true
     on:
       branch: master
   - provider: script
-    script: export DSS_DEPLOYMENT_STAGE=staging; make -j deploy
+    script: export DSS_DEPLOYMENT_STAGE=staging; make -jO deploy
     skip_cleanup: true
     on:
       branch: staging
