@@ -39,14 +39,18 @@ run("pip install -r data-store-cli/requirements.txt")
 run("python -c 'import sys, hca.regenerate_api as r; r.generate_python_bindings(sys.argv[1])' swagger.json", cwd="data-store-cli")
 run("find data-store-cli/hca -name '*.pyc' -delete")
 run("pip install --upgrade .", cwd="data-store-cli")
+
 run("hca upload --replica aws --staging-bucket $DSS_S3_BUCKET_TEST --file-or-dir data-bundle-examples/10X_v2/pbmc8k > bundle_upload_result.json")
 run("hca download --replica aws $(jq -r .bundle_uuid bundle_upload_result.json)")
 for i in range(10):
     try:
-        run("http --check-status https://${API_HOST}/v1/bundles/$(jq -r .bundle_uuid bundle_upload_result.json)?replica=gcp")
+        run("http -v --check-status https://${API_HOST}/v1/bundles/$(jq -r .bundle_uuid bundle_upload_result.json)?replica=gcp")
         break
     except SystemExit:
         time.sleep(1)
 else:
     parser.exit(RED("Failed to replicate bundle from AWS to GCP"))
 run("hca download --replica gcp $(jq -r .bundle_uuid bundle_upload_result.json)")
+
+run("hca post-search")
+run('jq -n .query.match.foo=1 | http -v --check-status https://${API_HOST}/v1/search')

@@ -28,7 +28,7 @@ install:
 - tar -xzf elasticsearch-${ES_VERSION}.tar.gz
 script:
 - set -eo pipefail
-- make smoketest
+- make test
 - if [[ $TRAVIS_EVENT_TYPE == cron ]]; then make smoketest; fi
 after_success:
 - bash <(curl -s https://codecov.io/bash)
