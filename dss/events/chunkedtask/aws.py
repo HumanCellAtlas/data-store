@@ -38,7 +38,7 @@ def schedule_task(client_name: str, state: typing.Any):
 
     sns_client = boto3.client("sns")
     region = boto3.Session().region_name
-    topic = awsconstants.get_worker_sns_topic()
+    topic = awsconstants.get_worker_sns_topic(client_name)
     arn = f"arn:aws:sns:{region}:{accountid}:{topic}"
     sns_client.publish(
         TopicArn=arn,
@@ -103,7 +103,7 @@ def parse_payload(payload):
     return task_id, client_name, client_class, state
 
 
-def dispatch(context, payload):
+def dispatch(context, payload, expected_client_name):
     decoded_payload = parse_payload(payload)
     if decoded_payload is None:
         return
@@ -116,6 +116,18 @@ def dispatch(context, payload):
             state=state,
         )),
     )
+
+    if client_name != expected_client_name:
+        AWSRuntime.log(
+            task_id,
+            json.dumps(dict(
+                action=awsconstants.LogActions.MISMATCHED_CLIENTS,
+                client_name=client_name,
+                expected_client_name=expected_client_name,
+                state=state,
+            )),
+        )
+        return
 
     try:
         # special case: if the client name is `AWS_FAST_TEST_CLIENT_NAME`, we use a special runtime environment so we

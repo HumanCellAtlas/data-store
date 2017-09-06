@@ -29,7 +29,10 @@ class AWSRuntime(Runtime[dict, typing.Any]):
             awsconstants.STATE_KEY: state,
         }
 
-        sns_arn = ARN(self.context.invoked_function_arn, service="sns", resource=awsconstants.get_worker_sns_topic())
+        sns_arn = ARN(
+            self.context.invoked_function_arn,
+            service="sns",
+            resource=awsconstants.get_worker_sns_topic(self.client_name))
         send_sns_msg(sns_arn, payload)
 
         AWSRuntime.log(
