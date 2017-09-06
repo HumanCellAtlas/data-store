@@ -112,7 +112,7 @@ class TestAWSChunkedTask(unittest.TestCase):
         starttime = time.time()
         while time.time() < starttime + 30:
             response = logs_client.filter_log_events(
-                logGroupName=awsconstants.LOG_GROUP_NAME,
+                logGroupName=awsconstants.get_worker_sns_topic(AWS_FAST_TEST_CLIENT_NAME),
                 logStreamNames=[task_id],
             )
 

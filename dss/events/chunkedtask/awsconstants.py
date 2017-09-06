@@ -8,7 +8,6 @@ REQUEST_VERSION_KEY = "request_version"
 TASK_ID_KEY = "chunked_worker_task_id"
 STATE_KEY = "state"
 
-LOG_GROUP_NAME = "chunked_task_worker"
 FALLBACK_LOG_STREAM_NAME = "fallback"
 
 CURRENT_VERSION = 1
@@ -22,6 +21,7 @@ class LogActions:
     RESCHEDULED = "rescheduled"
     RUNNING = "running"
     EXCEPTION = "exception"
+    MISMATCHED_CLIENTS = "mismatched_clients"
     COMPLETE = "complete"
 
 

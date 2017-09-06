@@ -1,5 +1,4 @@
 import json
-import logging
 import typing
 
 from . import awsconstants
@@ -36,6 +35,7 @@ class AWSRuntime(Runtime[dict, typing.Any]):
         send_sns_msg(sns_arn, payload)
 
         AWSRuntime.log(
+            self.client_name,
             self.task_id,
             json.dumps(dict(
                 action=awsconstants.LogActions.RESCHEDULED,
@@ -45,6 +45,7 @@ class AWSRuntime(Runtime[dict, typing.Any]):
 
     def work_complete_callback(self, result: typing.Any):
         AWSRuntime.log(
+            self.client_name,
             self.task_id,
             json.dumps(dict(
                 action=awsconstants.LogActions.COMPLETE,
@@ -53,5 +54,8 @@ class AWSRuntime(Runtime[dict, typing.Any]):
         )
 
     @staticmethod
-    def log(task_id: str, message: str):
-        log_message(awsconstants.LOG_GROUP_NAME, task_id, message)
+    def log(client_key: str, task_id: str, message: str):
+        log_message(awsconstants.get_worker_sns_topic(client_key), task_id, message)
+        # TODO: (ttung) remove this when the existing branches that depend on the old log group have landed.
+        # Additionally, the chunked_task_worker perm for the ci-cd user should be removed.
+        log_message("chunked_task_worker", task_id, message)
