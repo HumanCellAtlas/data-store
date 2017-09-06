@@ -70,3 +70,4 @@ urllib3==1.22
 virtualenv==15.1.0
 Werkzeug==0.12.2
 xmltodict==0.11.0
+httpie
