@@ -14,7 +14,6 @@ addons:
     - jq
     - moreutils
     - gettext
-    - httpie
 before_install:
 - source environment
 - openssl aes-256-cbc -K $encrypted_ead445d7a1e2_key -iv $encrypted_ead445d7a1e2_iv

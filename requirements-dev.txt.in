@@ -7,4 +7,5 @@ coverage
 awscli
 moto
 crcmod
+httpie
 -r requirements.txt
