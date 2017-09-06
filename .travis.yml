@@ -27,8 +27,8 @@ install:
 - tar -xzf elasticsearch-${ES_VERSION}.tar.gz
 script:
 - set -eo pipefail
-- make test
-- if [[ $TRAVIS_EVENT_TYPE == cron ]]; then echo "FIXME (sampierson) insert integration test entry point here"; fi
+- make smoketest
+- if [[ $TRAVIS_EVENT_TYPE == cron ]]; then make smoketest; fi
 after_success:
 - bash <(curl -s https://codecov.io/bash)
 deploy:

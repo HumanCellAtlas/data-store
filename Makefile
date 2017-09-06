@@ -17,6 +17,9 @@ fast_test: lint mypy $(test_srcs)
 $(test_srcs): %.py :
 	PYTHONWARNINGS=ignore:ResourceWarning python -m unittest $@
 
+smoketest:
+	scripts/smoketest.py
+
 deploy:
 	scripts/find_missing_wheels.py requirements.txt
 	$(MAKE) -C chalice deploy
