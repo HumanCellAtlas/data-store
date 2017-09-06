@@ -1,6 +1,7 @@
+import logging
 import os
 import sys
-import logging
+import urllib.parse
 
 import domovoi
 
@@ -22,7 +23,10 @@ def dispatch_s3_indexer_event(event, context) -> None:
     if event.get("Event") == "s3:TestEvent":
         app.log.info("DSS index daemon received S3 test event")
     else:
-        process_new_indexable_object(event, logger=app.log)
+        bucket_name = event['Records'][0]["s3"]["bucket"]["name"]
+        key = urllib.parse.unquote(event['Records'][0]["s3"]["object"]["key"])
+
+        process_new_indexable_object(bucket_name, key, "aws", logger=app.log)
 
 @app.sns_topic_subscriber("dss-gs-bucket-events-" + os.environ["DSS_GS_BUCKET"])
 def dispatch_gs_indexer_event(event, context):
