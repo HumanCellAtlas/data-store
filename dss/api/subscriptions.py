@@ -22,7 +22,7 @@ from ..blobstore import BlobNotFoundError
 from ..config import Config
 from ..error import DSSException, dss_handler
 from ..hcablobstore import FileMetadata, HCABlobStore
-from ..util.es import ElasticsearchClient, get_elasticsearch_index
+from ..util.es import ElasticsearchClient, get_elasticsearch_index_name, get_elasticsearch_index
 
 logger = get_logger()
 
@@ -34,7 +34,7 @@ def get(uuid: str, replica: str):
     es_client = ElasticsearchClient.get(logger)
 
     try:
-        response = es_client.get(index=DSS_ELASTICSEARCH_SUBSCRIPTION_INDEX_NAME,
+        response = es_client.get(index=get_elasticsearch_index_name(DSS_ELASTICSEARCH_SUBSCRIPTION_INDEX_NAME, replica),
                                  doc_type=DSS_ELASTICSEARCH_SUBSCRIPTION_TYPE,
                                  id=uuid)
     except NotFoundError as ex:
@@ -57,7 +57,7 @@ def find(replica: str):
     es_client = ElasticsearchClient.get(logger)
 
     search_obj = Search(using=es_client,
-                        index=DSS_ELASTICSEARCH_SUBSCRIPTION_INDEX_NAME,
+                        index=get_elasticsearch_index_name(DSS_ELASTICSEARCH_SUBSCRIPTION_INDEX_NAME, replica),
                         doc_type=DSS_ELASTICSEARCH_SUBSCRIPTION_TYPE)
     search = search_obj.query({'match': {'owner': owner}})
 
@@ -97,10 +97,11 @@ def put(json_request_body: dict, replica: str):
     # So for john@example.com, if I searched for people with the email address jill@example.com,
     # john@example.com would show up because elasticsearch matched example w/ example.
     # By including "index": "not_analyzed", Elasticsearch leaves all owner inputs alone.
-    get_elasticsearch_index(es_client, DSS_ELASTICSEARCH_SUBSCRIPTION_INDEX_NAME, logger, index_mapping)
+    index_name = get_elasticsearch_index_name(DSS_ELASTICSEARCH_SUBSCRIPTION_INDEX_NAME, replica)
+    get_elasticsearch_index(es_client, index_name, logger, index_mapping)
 
     try:
-        percolate_registration = _register_percolate(es_client, uuid, query)
+        percolate_registration = _register_percolate(es_client, uuid, query, replica)
         logger.debug(f"Percolate query registration succeeded:\n{percolate_registration}")
     except ElasticsearchException:
         logger.critical(f"Percolate query registration failed:\n{percolate_registration}")
@@ -111,13 +112,13 @@ def put(json_request_body: dict, replica: str):
     json_request_body['owner'] = owner
 
     try:
-        subscription_registration = _register_subscription(es_client, uuid, json_request_body)
+        subscription_registration = _register_subscription(es_client, uuid, json_request_body, replica)
         logger.debug(f"Event Subscription succeeded:\n{subscription_registration}")
     except ElasticsearchException:
         logger.critical(f"Event Subscription failed:\n{subscription_registration}")
 
         # Delete percolate query to make sure queries and subscriptions are in sync.
-        es_client.delete(index=DSS_ELASTICSEARCH_INDEX_NAME,
+        es_client.delete(index=index_name,
                          doc_type=DSS_ELASTICSEARCH_QUERY_TYPE,
                          id=uuid,
                          refresh=True)
@@ -135,7 +136,7 @@ def delete(uuid: str, replica: str):
     es_client = ElasticsearchClient.get(logger)
 
     try:
-        response = es_client.get(index=DSS_ELASTICSEARCH_SUBSCRIPTION_INDEX_NAME,
+        response = es_client.get(index=get_elasticsearch_index_name(DSS_ELASTICSEARCH_SUBSCRIPTION_INDEX_NAME, replica),
                                  doc_type=DSS_ELASTICSEARCH_SUBSCRIPTION_TYPE,
                                  id=uuid)
     except NotFoundError as ex:
@@ -147,12 +148,12 @@ def delete(uuid: str, replica: str):
         # common_error_handler defaults code to capitalized 'Forbidden' for Werkzeug exception. Keeping consistent.
         raise DSSException(requests.codes.forbidden, "Forbidden", "Your credentials can't access this subscription!")
 
-    es_client.delete(index=DSS_ELASTICSEARCH_INDEX_NAME,
+    es_client.delete(index=get_elasticsearch_index_name(DSS_ELASTICSEARCH_INDEX_NAME, replica),
                      doc_type=DSS_ELASTICSEARCH_QUERY_TYPE,
                      id=uuid,
                      refresh=True)
 
-    es_client.delete(index=DSS_ELASTICSEARCH_SUBSCRIPTION_INDEX_NAME,
+    es_client.delete(index=get_elasticsearch_index_name(DSS_ELASTICSEARCH_SUBSCRIPTION_INDEX_NAME, replica),
                      doc_type=DSS_ELASTICSEARCH_SUBSCRIPTION_TYPE,
                      id=uuid)
 
@@ -162,16 +163,18 @@ def delete(uuid: str, replica: str):
     return jsonify({'timeDeleted': time_deleted}), requests.codes.okay
 
 
-def _register_percolate(es_client: Elasticsearch, uuid: str, query: dict):
-    return es_client.index(index=DSS_ELASTICSEARCH_INDEX_NAME,
+def _register_percolate(es_client: Elasticsearch, uuid: str, query: dict, replica: str):
+    index_name = get_elasticsearch_index_name(DSS_ELASTICSEARCH_INDEX_NAME, replica)
+    return es_client.index(index=index_name,
                            doc_type=DSS_ELASTICSEARCH_QUERY_TYPE,
                            id=uuid,
                            body=query,
                            refresh=True)
 
 
-def _register_subscription(es_client: Elasticsearch, uuid: str, json_request_body: dict):
-    return es_client.index(index=DSS_ELASTICSEARCH_SUBSCRIPTION_INDEX_NAME,
+def _register_subscription(es_client: Elasticsearch, uuid: str, json_request_body: dict, replica: str):
+    index_name = get_elasticsearch_index_name(DSS_ELASTICSEARCH_SUBSCRIPTION_INDEX_NAME, replica)
+    return es_client.index(index=index_name,
                            doc_type=DSS_ELASTICSEARCH_SUBSCRIPTION_TYPE,
                            id=uuid,
                            body=json_request_body,
