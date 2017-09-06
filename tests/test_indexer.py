@@ -64,6 +64,7 @@ for logger_name in logging.Logger.manager.loggerDict:  # type: ignore
 #   5. Verify the structure and content of the index document
 #
 
+# TODO: find an open port issue #423
 class HTTPInfo:
     address = "127.0.0.1"
     port = 8729
@@ -152,7 +153,6 @@ class TestIndexerBase(DSSAsserts, StorageTestSupport):
 
         bundle_key = self.load_test_data_bundle_for_path("fixtures/smartseq2/paired_ends")
         sample_event = self.create_sample_bundle_created_event(bundle_key)
-        # FIXME: determine why this freezes for GCP
         self.process_new_indexable_object(sample_event, logger)
         prefix, _, bundle_id = bundle_key.partition("/")
         self.verify_notification(subscription_id, smartseq2_paired_ends_query, bundle_id)
@@ -297,8 +297,7 @@ class TestIndexerBase(DSSAsserts, StorageTestSupport):
     def create_sample_bundle_created_event(self, bundle_key):
         raise NotImplemented()
 
-    @staticmethod
-    def process_new_indexable_object(event, logger):
+    def process_new_indexable_object(self, event, logger):
         raise NotImplemented()
 
     @classmethod
@@ -329,10 +328,9 @@ class TestAWSIndexer(TestIndexerBase, unittest.TestCase):
     @classmethod
     def setUpClass(cls):
         cls.replica = "aws"
-        super(TestAWSIndexer, cls).setUpClass()
+        super().setUpClass()
 
-    @staticmethod
-    def process_new_indexable_object(event, logger):
+    def process_new_indexable_object(self, event, logger):
         process_new_s3_indexable_object(event, logger)
 
     def create_sample_bundle_created_event(self, bundle_key: str) -> Dict:
@@ -348,10 +346,9 @@ class TestGCPIndexer(TestIndexerBase, unittest.TestCase):
     @classmethod
     def setUpClass(cls):
         cls.replica = "gcp"
-        super(TestGCPIndexer, cls).setUpClass()
+        super().setUpClass()
 
-    @staticmethod
-    def process_new_indexable_object(event, logger):
+    def process_new_indexable_object(self, event, logger):
         process_new_gs_indexable_object(event, logger)
 
     def create_sample_bundle_created_event(self, bundle_key: str) -> Dict:
