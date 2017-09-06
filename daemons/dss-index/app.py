@@ -1,6 +1,6 @@
+import logging
 import os
 import sys
-import logging
 
 import domovoi
 
@@ -8,7 +8,7 @@ pkg_root = os.path.abspath(os.path.join(os.path.dirname(__file__), 'domovoilib')
 sys.path.insert(0, pkg_root)  # noqa
 
 import dss
-from dss.events.handlers.index import process_new_indexable_object
+from dss.events.handlers.index import process_new_s3_indexable_object
 
 app = domovoi.Domovoi()
 
@@ -22,7 +22,7 @@ def dispatch_s3_indexer_event(event, context) -> None:
     if event.get("Event") == "s3:TestEvent":
         app.log.info("DSS index daemon received S3 test event")
     else:
-        process_new_indexable_object(event, logger=app.log)
+        process_new_s3_indexable_object(event, app.log)
 
 @app.sns_topic_subscriber("dss-gs-bucket-events-" + os.environ["DSS_GS_BUCKET"])
 def dispatch_gs_indexer_event(event, context):
