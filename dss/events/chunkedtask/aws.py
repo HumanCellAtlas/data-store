@@ -19,6 +19,8 @@ def get_clients():
         _awstest.AWS_SUPERVISOR_TEST_CLIENT_NAME: _awstest.AWSSupervisorTask,
         s3copyclient.AWS_S3_COPY_CLIENT_NAME: s3copyclient.S3CopyTask,
         s3copyclient.AWS_S3_COPY_AND_WRITE_METADATA_CLIENT_NAME: s3copyclient.S3CopyWriteBundleTask,
+        s3copyclient.AWS_S3_PARALLEL_COPY_SUPERVISOR_CLIENT_NAME: s3copyclient.S3ParallelCopySupervisorTask,
+        s3copyclient.AWS_S3_PARALLEL_COPY_WORKER_CLIENT_NAME: s3copyclient.S3ParallelCopyWorkerTask,
     }
 
 logger = logging.getLogger()
