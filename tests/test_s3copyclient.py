@@ -50,15 +50,16 @@ class TestAWSCopy(unittest.TestCase):
         current_state = S3CopyTask.setup_copy_task(
             self.test_bucket, self.test_src_key, self.test_bucket, dest_key, lambda blob_size: (5 * 1024 * 1024))
         freezes = 0
+        all_results = dict()
 
         while True:
-            env = TestStingyRuntime()
+            env = TestStingyRuntime(all_results)
             task = S3CopyTask(current_state)
             runner = chunkedtask.Runner(task, env)
 
             runner.run()
 
-            if env.complete:
+            if env.result is not None:
                 # we're done!
                 break
             else:
@@ -77,15 +78,16 @@ class TestAWSCopy(unittest.TestCase):
         current_state = S3CopyTask.setup_copy_task(
             self.test_bucket, self.test_src_key, self.test_bucket, dest_key, lambda blob_size: (5 * 1024 * 1024))
         freezes = 0
+        all_results = dict()
 
         while True:
-            env = TestStingyRuntime(seq=itertools.repeat(sys.maxsize, 7))
+            env = TestStingyRuntime(all_results, seq=itertools.repeat(sys.maxsize, 7))
             task = S3CopyTask(current_state, fetch_size=4)
             runner = chunkedtask.Runner(task, env)
 
             runner.run()
 
-            if env.complete:
+            if env.result is not None:
                 # we're done!
                 break
             else:
@@ -116,15 +118,16 @@ class TestAWSCopyNonMultipart(unittest.TestCase):
 
         current_state = S3CopyTask.setup_copy_task(
             self.test_bucket, self.test_src_key, self.test_bucket, dest_key, lambda blob_size: (5 * 1024 * 1024))
+        all_results = dict()
 
         while True:
-            env = TestStingyRuntime()
+            env = TestStingyRuntime(all_results)
             task = S3CopyTask(current_state)
             runner = chunkedtask.Runner(task, env)
 
             runner.run()
 
-            if env.complete:
+            if env.result is not None:
                 # we're done!
                 break
             else:

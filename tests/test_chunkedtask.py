@@ -55,16 +55,17 @@ class TestChunkedTaskRunner(unittest.TestCase):
         expected_max_one_unit_runtime_millis = 10  # we know exactly how long we'll take.  we're so good at guessing!
 
         current_state = initial_state
+        all_results = dict()
 
         serialize_count = 0
         while True:
-            env = TestStingyRuntime(itertools.repeat(sys.maxsize, 19))
+            env = TestStingyRuntime(all_results, itertools.repeat(sys.maxsize, 19))
             task = TestChunkedTask(current_state, expected_max_one_unit_runtime_millis)
             runner = chunkedtask.Runner(task, env)
 
             runner.run()
 
-            if env.complete:
+            if env.result is not None:
                 # we're done!
                 final_state = task.get_state()
                 self.assertEqual(final_state, (196418, 121393, 0))

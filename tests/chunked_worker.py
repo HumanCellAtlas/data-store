@@ -6,10 +6,14 @@ import uuid
 from dss.events.chunkedtask import Runner, Runtime, Task
 
 
-class TestStingyRuntime(Runtime[dict, bool]):
+class TestStingyRuntime(Runtime[dict, typing.Any]):
     """This is runtime that returns a pre-determined sequence, and then 0s for the remaining time."""
-    def __init__(self, seq=None):
-        self.complete = False
+    def __init__(
+            self,
+            global_results: typing.Mapping[str, typing.Any],
+            seq: typing.Optional[typing.Iterable[int]]=None) -> None:
+        self.global_results = global_results
+        self.result = None  # type: typing.Optional[typing.Any]
         if seq is None:
             seq = list()
         self.seq = itertools.chain(seq, itertools.repeat(0))
@@ -22,8 +26,8 @@ class TestStingyRuntime(Runtime[dict, bool]):
         assert state is not None
         self.rescheduled_state = state
 
-    def work_complete_callback(self, bool):
-        self.complete = True
+    def work_complete_callback(self, result: typing.Any):
+        self.result = result
 
 
 def run_task_to_completion(
