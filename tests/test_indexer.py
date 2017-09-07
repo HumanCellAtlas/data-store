@@ -30,7 +30,7 @@ from dss.events.handlers.index import process_new_s3_indexable_object, process_n
 from dss.hcablobstore import BundleMetadata, BundleFileMetadata, FileMetadata
 from dss.util import create_blob_key, UrlBuilder
 from dss.util.es import ElasticsearchClient, ElasticsearchServer
-
+from tests import get_version
 from tests.es import elasticsearch_delete_index
 from tests.fixtures.populate import populate
 from tests.infra import DSSAsserts, DSSUploadMixin, StorageTestSupport, TestBundle, start_verbose_logging
@@ -193,7 +193,7 @@ class TestIndexerBase(DSSAsserts, StorageTestSupport, DSSUploadMixin):
         sample_event = self.create_sample_bundle_created_event(bundle_key)
         self.process_new_indexable_object(sample_event, logger)
 
-        ElasticsearchClient.get(logger).indices.create(DSS_ELASTICSEARCH_SUBSCRIPTION_INDEX_NAME)
+        ElasticsearchClient.get(logger).indices.create(self.subscription_index_name)
         subscription_id = self.subscribe_for_notification(smartseq2_paired_ends_query,
                                                           f"http://{HTTPInfo.address}:{HTTPInfo.port}")
 
@@ -208,7 +208,7 @@ class TestIndexerBase(DSSAsserts, StorageTestSupport, DSSUploadMixin):
         sample_event = self.create_sample_bundle_created_event(bundle_key)
         self.process_new_indexable_object(sample_event, logger)
 
-        ElasticsearchClient.get(logger).indices.create(DSS_ELASTICSEARCH_SUBSCRIPTION_INDEX_NAME)
+        ElasticsearchClient.get(logger).indices.create(self.subscription_index_name)
         subscription_id = self.subscribe_for_notification(smartseq2_paired_ends_query,
                                                           f"http://{HTTPInfo.address}:{HTTPInfo.port}")
 
@@ -331,7 +331,7 @@ class TestIndexerBase(DSSAsserts, StorageTestSupport, DSSUploadMixin):
         while True:
             response = ElasticsearchClient.get(logger).search(
                 index=cls.dss_index_name,
-                doc_type=DSS_ELASTICSEARCH_DOC_TYPE,
+                doc_type=dss.ESDocType.doc.name,
                 body=json.dumps(query))
             if (len(response['hits']['hits']) >= expected_hit_count) \
                     or (time.time() >= timeout_time):
