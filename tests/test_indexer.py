@@ -105,7 +105,7 @@ class TestIndexerBase(DSSAsserts, StorageTestSupport, DSSUploadMixin):
         self.app = None
         self.storageHelper = None
 
-    def test_process_new_s3_indexable_object(self):
+    def test_process_new_indexable_object(self):
         bundle_key = self.load_test_data_bundle_for_path("fixtures/smartseq2/paired_ends")
         sample_event = self.create_sample_bundle_created_event(bundle_key)
         self.process_new_indexable_object(sample_event, logger)
