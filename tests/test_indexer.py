@@ -70,6 +70,8 @@ class HTTPInfo:
     server = None
     thread = None
 
+class ESInfo:
+    server = None
 
 def setUpModule():
     HTTPInfo.port = findOpenPort()
@@ -77,8 +79,11 @@ def setUpModule():
     HTTPInfo.thread = threading.Thread(target=HTTPInfo.server.serve_forever)
     HTTPInfo.thread.start()
 
+    ESInfo.server = ElasticsearchServer()
+    os.environ['DSS_ES_PORT'] = str(ESInfo.server.port)
 
 def tearDownModule():
+    ESInfo.server.shutdown()
     HTTPInfo.server.shutdown()
 
 
@@ -306,12 +311,6 @@ class TestIndexerBase(DSSAsserts, StorageTestSupport, DSSUploadMixin):
         cls.blobstore, _, cls.test_fixture_bucket = Config.get_cloud_specific_handles(cls.replica)
         Config.set_config(DeploymentStage.TEST)
         _, _, cls.test_bucket = Config.get_cloud_specific_handles(cls.replica)
-        cls.es_server = ElasticsearchServer()
-        os.environ['DSS_ES_PORT'] = str(cls.es_server.port)
-
-    @classmethod
-    def tearDownClass(cls):
-        cls.es_server.shutdown()
 
     def setUp(self):
         self.app = dss.create_app().app.test_client()
