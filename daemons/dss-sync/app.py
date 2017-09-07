@@ -18,7 +18,7 @@ pkg_root = os.path.abspath(os.path.join(os.path.dirname(__file__), 'domovoilib')
 sys.path.insert(0, pkg_root)  # noqa
 
 import dss
-from dss.events.handlers.sync import sync_blob, compose_gs_blobs, copy_part, parts_per_worker
+from dss.events.handlers.sync import sync_blob, compose_gs_blobs, copy_part, parts_per_worker, sns_topics
 from dss.util.aws import ARN, send_sns_msg, clients, resources
 
 app = domovoi.Domovoi()
@@ -46,7 +46,7 @@ def process_new_gs_syncable_object(event, context):
     gs_key_name = gs_event["data"]["name"]
     sync_blob(source_platform="gs", source_key=gs_key_name, dest_platform="s3", logger=app.log, context=context)
 
-@app.sns_topic_subscriber("dss-gs-composite-upload-ready")
+@app.sns_topic_subscriber(sns_topics["closer"]["gs"])
 def compose_upload(event, context):
     """
     See https://cloud.google.com/storage/docs/composite-objects for details of the Google Storage API used here.
@@ -76,8 +76,14 @@ def compose_upload(event, context):
         except AssertionError:
             pass
         time.sleep(5)
+    if msg["source_platform"] == "s3":
+        source_blob = resources.s3.Bucket(msg["source_bucket"]).Object(msg["source_key"])
+        dest_blob = gs_bucket.get_key(msg["dest_key"])
+        dest_blob.metadata = source_blob.metadata
+    else:
+        raise NotImplementedError()
 
-@app.sns_topic_subscriber("dss-s3-mpu-ready")
+@app.sns_topic_subscriber(sns_topics["closer"]["s3"])
 def complete_multipart_upload(event, context):
     msg = json.loads(event["Records"][0]["Sns"]["Message"])
     mpu = resources.s3.Bucket(msg["dest_bucket"]).Object(msg["dest_key"]).MultipartUpload(msg["mpu"])
@@ -94,7 +100,7 @@ def complete_multipart_upload(event, context):
 
 log_msg = "Copying {source_key}:{part} from {source_platform}://{source_bucket} to {dest_platform}://{dest_bucket}"
 platform_to_replica = dict(s3="aws", gs="gcp")
-@app.sns_topic_subscriber("dss-copy-parts")
+@app.sns_topic_subscriber(sns_topics["copy_parts"])
 def copy_parts(event, context):
     topic_arn = event["Records"][0]["Sns"]["TopicArn"]
     msg = json.loads(event["Records"][0]["Sns"]["Message"])
@@ -122,7 +128,6 @@ def copy_parts(event, context):
     for future in futures:
         future.result()
 
-    closer_sns_topics = dict(s3="dss-s3-mpu-ready", gs="dss-gs-composite-upload-ready")
     if msg["dest_platform"] == "s3":
         mpu = resources.s3.Bucket(msg["dest_bucket"]).Object(msg["dest_key"]).MultipartUpload(msg["mpu"])
         parts = list(mpu.parts.all())
@@ -134,5 +139,5 @@ def copy_parts(event, context):
     context.log("Parts outstanding: {}".format(msg["total_parts"] - len(parts)))
     if msg["total_parts"] - len(parts) < parts_per_worker[msg["dest_platform"]] * 2:
         context.log("Calling closer")
-        send_sns_msg(ARN(topic_arn, resource=closer_sns_topics[msg["dest_platform"]]), msg)
+        send_sns_msg(ARN(topic_arn, resource=sns_topics["closer"][msg["dest_platform"]]), msg)
         context.log("Called closer")

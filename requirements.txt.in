@@ -8,4 +8,3 @@ flask-failsafe
 google-cloud-storage
 iso8601
 urllib3
-watchtower

@@ -8,7 +8,6 @@ REQUEST_VERSION_KEY = "request_version"
 TASK_ID_KEY = "chunked_worker_task_id"
 STATE_KEY = "state"
 
-LOG_GROUP_NAME = "chunked_task_worker"
 FALLBACK_LOG_STREAM_NAME = "fallback"
 
 CURRENT_VERSION = 1
@@ -22,9 +21,10 @@ class LogActions:
     RESCHEDULED = "rescheduled"
     RUNNING = "running"
     EXCEPTION = "exception"
+    MISMATCHED_CLIENTS = "mismatched_clients"
     COMPLETE = "complete"
 
 
-def get_worker_sns_topic():
+def get_worker_sns_topic(expected_client_name):
     deployment_stage = os.getenv("DSS_DEPLOYMENT_STAGE")
-    return TASK_SNS_TOPIC_PREFIX + deployment_stage
+    return TASK_SNS_TOPIC_PREFIX + expected_client_name + "-" + deployment_stage

@@ -32,12 +32,16 @@ script:
 after_success:
 - bash <(curl -s https://codecov.io/bash)
 deploy:
-  provider: script
-  script: make deploy
-  skip_cleanup: true
-  on:
-    branch: master
-    python: 3.6
+  - provider: script
+    script: make deploy
+    skip_cleanup: true
+    on:
+      branch: master
+  - provider: script
+    script: export DSS_DEPLOYMENT_STAGE=staging; make deploy
+    skip_cleanup: true
+    on:
+      branch: staging
 env:
   global:
   - ES_VERSION=5.4.2

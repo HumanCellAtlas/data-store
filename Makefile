@@ -18,7 +18,6 @@ $(test_srcs): %.py :
 	PYTHONWARNINGS=ignore:ResourceWarning python -m unittest $@
 
 deploy:
-	scripts/find_missing_wheels.py requirements.txt
 	$(MAKE) -C chalice deploy
 	$(MAKE) -C daemons deploy
 
@@ -35,6 +34,7 @@ requirements.txt requirements-dev.txt : %.txt : %.txt.in
 	pip install -r $< && \
 	pip freeze >> $@
 	rm -rf .requirements-env
+	scripts/find_missing_wheels.py requirements.txt
 
 requirements-dev.txt : requirements.txt.in
 

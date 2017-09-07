@@ -19,38 +19,15 @@ sys.path.insert(0, pkg_root)  # noqa
 from dss.events import chunkedtask
 from dss.events.chunkedtask import aws, awsconstants
 from dss.events.chunkedtask._awstest import AWS_FAST_TEST_CLIENT_NAME
+from tests.chunked_worker import TestStingyRuntime
 
 
-class TestChunkedTaskRuntime(chunkedtask.Runtime[tuple, bool]):
-    def __init__(self, initial_time_millis: int, tick_iterator: typing.Iterator[int]) -> None:
-        self.remaining_time = initial_time_millis
-        self.tick_iterator = tick_iterator
-        self.rescheduled_state = None  # type: typing.Optional[tuple]
-        self.complete = False
-
-    def get_remaining_time_in_millis(self) -> int:
-        return self.remaining_time
-
-    def reschedule_work(self, state: tuple):
-        # it's illegal for there to be no state.
-        assert state is not None
-        self.rescheduled_state = state
-
-    def advance_time(self):
-        self.remaining_time -= self.tick_iterator.__next__()
-
-    def work_complete_callback(self, result):
-        self.complete = True
-
-
-class TestChunkedTask(chunkedtask.Task[tuple, bool]):
+class TestChunkedTask(chunkedtask.Task[typing.Tuple[int, int, int], typing.Tuple[int, int]]):
     def __init__(
             self,
-            state: tuple,
-            runtime: TestChunkedTaskRuntime,
+            state: typing.Tuple[int, int, int],
             expected_max_one_unit_runtime_millis: int) -> None:
         self.x0, self.x1, self.rounds_remaining = state
-        self.runtime = runtime
         self._expected_max_one_unit_runtime_millis = expected_max_one_unit_runtime_millis
 
     @property
@@ -60,16 +37,15 @@ class TestChunkedTask(chunkedtask.Task[tuple, bool]):
     def get_state(self) -> typing.Any:
         return self.x0, self.x1, self.rounds_remaining
 
-    def run_one_unit(self) -> typing.Optional[bool]:
+    def run_one_unit(self) -> typing.Optional[typing.Tuple[int, int]]:
         x0new = self.x0 + self.x1
         self.x1 = self.x0
         self.x0 = x0new
-        self.runtime.advance_time()
 
         self.rounds_remaining -= 1
 
         if self.rounds_remaining == 0:
-            return True
+            return self.x0, self.x1
         return None
 
 
@@ -77,15 +53,13 @@ class TestChunkedTaskRunner(unittest.TestCase):
     def test_workload_resumes(self):
         initial_state = (1, 1, 25)
         expected_max_one_unit_runtime_millis = 10  # we know exactly how long we'll take.  we're so good at guessing!
-        tick_iterator = itertools.repeat(10)
-        initial_time_millis = 100
 
         current_state = initial_state
 
         serialize_count = 0
         while True:
-            env = TestChunkedTaskRuntime(initial_time_millis, tick_iterator)
-            task = TestChunkedTask(current_state, env, expected_max_one_unit_runtime_millis)
+            env = TestStingyRuntime(itertools.repeat(sys.maxsize, 19))
+            task = TestChunkedTask(current_state, expected_max_one_unit_runtime_millis)
             runner = chunkedtask.Runner(task, env)
 
             runner.run()
@@ -112,7 +86,7 @@ class TestAWSChunkedTask(unittest.TestCase):
         starttime = time.time()
         while time.time() < starttime + 30:
             response = logs_client.filter_log_events(
-                logGroupName=awsconstants.LOG_GROUP_NAME,
+                logGroupName=awsconstants.get_worker_sns_topic(AWS_FAST_TEST_CLIENT_NAME),
                 logStreamNames=[task_id],
             )
 

@@ -67,7 +67,6 @@ class TestSearch(unittest.TestCase, DSSAsserts):
         search_response = response.json
         self.assertDictEqual(search_response['es_query'], smartseq2_paired_ends_query)
         self.assertEqual(len(search_response['results']), 1)
-        self.assertEqual(len(search_response['results']), 1)
         self.assertEqual(search_response['results'][0]['bundle_id'], bundle_id)
         self.assertEqual(search_response['results'][0]['bundle_url'], bundle_url)
 
@@ -169,7 +168,7 @@ class TestSearch(unittest.TestCase, DSSAsserts):
             "/v1/search",
             json_request_body=dict(es_query=query),
             expected_code=status_code)
-    
+
     def verify_search_results(self, query, expected_result_length=0, bundles=[], timeout=5):
         timeout_time = timeout + time.time()
         while time.time() <= timeout_time:
