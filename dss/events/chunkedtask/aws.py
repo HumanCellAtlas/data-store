@@ -171,7 +171,7 @@ def dispatch(context, payload, expected_client_name):
         else:
             runtime = AWSRuntime(context, client_name, task_id)
 
-        task = client_class(state)
+        task = client_class(state, runtime=runtime)
 
         runner = Runner(task, runtime)
         runner.run()

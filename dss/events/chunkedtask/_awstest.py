@@ -67,7 +67,7 @@ class AWSFastTestTask(Task[typing.MutableSequence, bool]):
     This is a chunked task that counts from a number to another.  Once the counting is complete, it prints something to
     console, which is detected by the unit test.
     """
-    def __init__(self, state: typing.MutableSequence) -> None:
+    def __init__(self, state: typing.MutableSequence, *args, **kwargs) -> None:
         self.state = state
 
     def get_state(self) -> typing.MutableSequence:
