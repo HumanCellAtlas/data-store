@@ -28,7 +28,7 @@ def process_new_s3_indexable_object(event, logger) -> None:
         bucket_name = event['Records'][0]["s3"]["bucket"]["name"]
         process_new_indexable_object(bucket_name, key, "aws", logger)
     except Exception as ex:
-        logger.error(f"Exception occurred while processing S3 event: {ex} Event: {json.dumps(event, indent=4)}")
+        logger.error(f"Exception occurred while processing S3 event: {ex} Event: %s", json.dumps(event, indent=4))
         raise
 
 
@@ -39,7 +39,7 @@ def process_new_gs_indexable_object(event, logger) -> None:
         key = event["name"]
         process_new_indexable_object(bucket_name, key, "gcp", logger)
     except Exception as ex:
-        logger.error(f"Exception occurred while processing GS event: {ex} Event: {json.dumps(event, indent=4)}")
+        logger.error(f"Exception occurred while processing GS event: {ex} Event: %s", json.dumps(event, indent=4))
         raise
 
 
@@ -130,7 +130,7 @@ def get_bundle_id_from_key(bundle_key: str) -> str:
 
 def add_index_data_to_elasticsearch(bundle_id: str, index_data: dict, logger) -> None:
     create_elasticsearch_index(logger)
-    logger.debug(f"Adding index data to Elasticsearch: {json.dumps(index_data, indent=4)}")
+    logger.debug(f"Adding index data to Elasticsearch: %s", json.dumps(index_data, indent=4))
     add_data_to_elasticsearch(bundle_id, index_data, logger)
 
 
@@ -152,7 +152,7 @@ def create_elasticsearch_index(logger):
         if not response:
             logger.debug(f"Creating new Elasticsearch index: {DSS_ELASTICSEARCH_INDEX_NAME}")
             response = es_client.indices.create(DSS_ELASTICSEARCH_INDEX_NAME, body=index_mapping)
-            logger.debug(f"Index creation response: {json.dumps(response, indent=4)}")
+            logger.debug(f"Index creation response: %s", json.dumps(response, indent=4))
         else:
             logger.debug(f"Using existing Elasticsearch index: {DSS_ELASTICSEARCH_INDEX_NAME}", )
     except Exception as ex:
@@ -167,7 +167,7 @@ def add_data_to_elasticsearch(bundle_id: str, index_data: dict, logger) -> None:
                                               id=bundle_id,
                                               body=json.dumps(index_data))  # Do not use refresh here - too expensive.
     except Exception as ex:
-        logger.error(f"Document not indexed. Exception: {ex}  Index data: {json.dumps(index_data, indent=4)}")
+        logger.error(f"Document not indexed. Exception: {ex}  Index data: %s", json.dumps(index_data, indent=4))
         raise
 
 
