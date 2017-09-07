@@ -12,6 +12,8 @@ import uuid
 
 import requests
 
+from dss import ESDocType
+
 pkg_root = os.path.abspath(os.path.join(os.path.dirname(__file__), ".."))  # noqa
 sys.path.insert(0, pkg_root)  # noqa
 
@@ -47,7 +49,7 @@ class TestSearch(unittest.TestCase, DSSAsserts):
     def setUp(self):
         dss.Config.set_config(dss.DeploymentStage.TEST)
         self.app = dss.create_app().app.test_client()
-        create_elasticsearch_index(self.dss_index_name)
+        elasticsearch_delete_index(self.dss_index_name)
         create_elasticsearch_index(self.dss_index_name, logger)
 
     def test_search_post(self):
@@ -58,8 +60,8 @@ class TestSearch(unittest.TestCase, DSSAsserts):
         bundle_url = f"http://localhost/v1/bundles/{bundle_uuid}?version={version}"
 
         es_client = ElasticsearchClient.get(logger)
-        es_client.index(index=DSS_ELASTICSEARCH_INDEX_NAME,
-                        doc_type=DSS_ELASTICSEARCH_DOC_TYPE,
+        es_client.index(index=self.dss_index_name,
+                        doc_type=ESDocType.doc.name,
                         id=bundle_id,
                         body=self.index_document,
                         refresh=True)
@@ -165,8 +167,8 @@ class TestSearch(unittest.TestCase, DSSAsserts):
             bundle_id = f"{bundle_uuid}.{version}"
             bundle_url = f"http://localhost/v1/bundles/{bundle_uuid}?version={version}"
 
-            es_client.index(index=DSS_ELASTICSEARCH_INDEX_NAME,
-                            doc_type=DSS_ELASTICSEARCH_DOC_TYPE,
+            es_client.index(index=self.dss_index_name,
+                            doc_type=ESDocType.doc.name,
                             id=bundle_id,
                             body=index_document)
             bundles.append((bundle_id, bundle_url))

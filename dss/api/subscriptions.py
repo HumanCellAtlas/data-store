@@ -30,8 +30,7 @@ def get(uuid: str, replica: str):
     es_client = ElasticsearchClient.get(logger)
 
     try:
-        response = es_client.get(index=Config.get_es_index_name(ESIndexType.subscriptions,
-                                                                Replica[replica]),
+        response = es_client.get(index=Config.get_es_index_name(ESIndexType.subscriptions, Replica[replica]),
                                  doc_type=ESDocType.subscription.name,
                                  id=uuid)
     except NotFoundError as ex:
@@ -133,8 +132,7 @@ def delete(uuid: str, replica: str):
     es_client = ElasticsearchClient.get(logger)
 
     try:
-        response = es_client.get(index=Config.get_es_index_name(ESIndexType.subscriptions,
-                                                                Replica[replica]),
+        response = es_client.get(index=Config.get_es_index_name(ESIndexType.subscriptions, Replica[replica]),
                                  doc_type=ESDocType.subscription.name,
                                  id=uuid)
     except NotFoundError as ex:

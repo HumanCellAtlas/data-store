@@ -146,7 +146,7 @@ class TestIndexerBase(DSSAsserts, StorageTestSupport, DSSUploadMixin):
         sample_event = self.create_sample_bundle_created_event(bundle_key)
         self.process_new_indexable_object(sample_event, logger)
 
-        ElasticsearchClient.get(logger).indices.create(dss.ESIndexType.subscriptions.name)
+        ElasticsearchClient.get(logger).indices.create(self.subscription_index_name)
         subscription_id = self.subscribe_for_notification(smartseq2_paired_ends_query,
                                                           f"http://{HTTPInfo.address}:{HTTPInfo.port}")
 
@@ -161,7 +161,7 @@ class TestIndexerBase(DSSAsserts, StorageTestSupport, DSSUploadMixin):
         sample_event = self.create_sample_bundle_created_event(bundle_key)
         self.process_new_indexable_object(sample_event, logger)
 
-        ElasticsearchClient.get(logger).indices.create(dss.ESIndexType.subscriptions.name)
+        ElasticsearchClient.get(logger).indices.create(self.subscription_index_name)
         subscription_id = self.subscribe_for_notification(smartseq2_paired_ends_query,
                                                           f"http://{HTTPInfo.address}:{HTTPInfo.port}")
 
@@ -307,6 +307,8 @@ class TestIndexerBase(DSSAsserts, StorageTestSupport, DSSUploadMixin):
         cls.es_server = ElasticsearchServer()
         os.environ['DSS_ES_PORT'] = str(cls.es_server.port)
         cls.dss_index_name = dss.Config.get_es_index_name(dss.ESIndexType.docs, dss.Replica[cls.replica])
+        cls.subscription_index_name = dss.Config.get_es_index_name(dss.ESIndexType.subscriptions,
+                                                                   dss.Replica[cls.replica])
 
     @classmethod
     def tearDownClass(cls):

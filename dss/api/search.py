@@ -6,6 +6,7 @@ from elasticsearch_dsl import Search
 from elasticsearch_dsl.exceptions import ElasticsearchDslException
 from flask import request, jsonify
 
+from dss import ESDocType
 from .. import Config, Replica, ESIndexType, dss_handler, get_logger, DSSException
 from ..util.es import ElasticsearchClient
 
@@ -19,8 +20,8 @@ def post(query: dict):
     try:
         es_client = ElasticsearchClient.get(get_logger())
         search_obj = Search(using=es_client,
-                     index=Config.get_es_index_name(ESIndexType.docs, Replica[replica]),
-                             doc_type=DSS_ELASTICSEARCH_DOC_TYPE).update_from_dict(query)
+                            index=Config.get_es_index_name(ESIndexType.docs, Replica[replica]),
+                            doc_type=ESDocType.doc.name).update_from_dict(query)
 
         # TODO (mbaumann) extract version from the request path instead of hard-coding it here
         bundles_url_base = request.host_url + 'v1/bundles/'
