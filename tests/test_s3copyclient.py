@@ -55,7 +55,7 @@ class TestAWSCopy(unittest.TestCase):
             lambda results: TestStingyRuntime(results),
             lambda task_class, task_state, runtime: task_class(task_state),
             lambda runtime: runtime.result,
-            lambda runtime: [(S3CopyTask, runtime.rescheduled_state, None)],
+            lambda runtime: runtime.scheduled_work,
         )
 
         self.assertGreater(freezes, 0)
@@ -76,7 +76,7 @@ class TestAWSCopy(unittest.TestCase):
             lambda results: TestStingyRuntime(results, seq=itertools.repeat(sys.maxsize, 7)),
             lambda task_class, task_state, runtime: task_class(task_state, fetch_size=4),
             lambda runtime: runtime.result,
-            lambda runtime: [(S3CopyTask, runtime.rescheduled_state, None)],
+            lambda runtime: runtime.scheduled_work,
         )
 
         self.assertGreater(freezes, 0)
@@ -110,7 +110,7 @@ class TestAWSCopyNonMultipart(unittest.TestCase):
             lambda results: TestStingyRuntime(results),
             lambda task_class, task_state, runtime: task_class(task_state),
             lambda runtime: runtime.result,
-            lambda runtime: [(S3CopyTask, runtime.rescheduled_state, None)],
+            lambda runtime: runtime.scheduled_work,
         )
 
         # verify that the destination has the same checksum.
