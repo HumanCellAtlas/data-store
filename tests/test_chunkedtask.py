@@ -4,21 +4,18 @@
 from __future__ import absolute_import, division, print_function, unicode_literals
 
 import itertools
-import json
 import os
 import sys
 import time
 import typing
 import unittest
 
-import boto3
-
 pkg_root = os.path.abspath(os.path.join(os.path.dirname(__file__), '..'))  # noqa
 sys.path.insert(0, pkg_root)  # noqa
 
 from dss.events import chunkedtask
-from dss.events.chunkedtask import aws, awsconstants
-from dss.events.chunkedtask._awstest import AWS_FAST_TEST_CLIENT_NAME, AWSFastTestTask
+from dss.events.chunkedtask import aws
+from dss.events.chunkedtask._awstest import AWS_FAST_TEST_CLIENT_NAME, AWSFastTestTask, is_task_complete
 from tests.chunked_worker import TestStingyRuntime, run_task_to_completion
 
 
@@ -71,22 +68,10 @@ class TestAWSChunkedTask(unittest.TestCase):
     def test_fast(self):
         task_id = aws.schedule_task(AWSFastTestTask, [0, 5])
 
-        logs_client = boto3.client('logs')
         starttime = time.time()
         while time.time() < starttime + 30:
-            response = logs_client.filter_log_events(
-                logGroupName=awsconstants.get_worker_sns_topic(AWS_FAST_TEST_CLIENT_NAME),
-                logStreamNames=[task_id],
-            )
-
-            for event in response['events']:
-                try:
-                    message = json.loads(event['message'])
-                except json.JSONDecodeError:
-                    continue
-
-                if message.get('action') == awsconstants.LogActions.COMPLETE:
-                    return
+            if is_task_complete(AWS_FAST_TEST_CLIENT_NAME, task_id):
+                return
 
             time.sleep(1)
 

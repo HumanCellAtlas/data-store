@@ -1,9 +1,36 @@
 import itertools
+import json
 import typing
 
+import boto3
+
 from ._awsimpl import AWSRuntime
+from .awsconstants import LogActions, get_worker_sns_topic
 from .constants import TIME_OVERHEAD_FACTOR
 from .base import Task
+
+
+def is_task_complete(client_name: str, task_id: str):
+    """
+    Scan AWS Cloudwatch logs to check if a chunked task is complete.
+    """
+    logs_client = boto3.client('logs')
+    response = logs_client.filter_log_events(
+        logGroupName=get_worker_sns_topic(client_name),
+        logStreamNames=[task_id],
+    )
+
+    for event in response['events']:
+        try:
+            message = json.loads(event['message'])
+        except json.JSONDecodeError:
+            continue
+
+        if message.get('action') == LogActions.COMPLETE:
+            return True
+
+    return False
+
 
 # The rest of this file is for unit tests.  The reason they are in this file is because they need to be deployed to the
 # lambda.  For production code, it may make sense to disable this, although it's pretty harmless.
