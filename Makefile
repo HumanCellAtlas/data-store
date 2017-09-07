@@ -17,6 +17,9 @@ fast_test: lint mypy $(test_srcs)
 $(test_srcs): %.py :
 	PYTHONWARNINGS=ignore:ResourceWarning python -m unittest $@
 
+smoketest:
+	scripts/smoketest.py
+
 deploy:
 	$(MAKE) -C chalice deploy
 	$(MAKE) -C daemons deploy
