@@ -104,6 +104,25 @@ class TestForkedTask(unittest.TestCase):
         self.assertGreater(freeze_count, 0)
         self.assertTrue(result is True)
 
+    def test_forked_task_AWS(self, timeout_seconds: int=90):
+        """
+        This is an elaborate test that involves an initial task that spawns another task to complete some work.  Once
+        that work is complete, the initial task will complete.
+
+        In this case, the initial task spawns second task that counts from 0 to a number on AWS.  The initial task then
+        spins until it sees the completion marker written in AWS Cloudwatch by the spawned task.
+        """
+        task_id = aws.schedule_task(_awstest.AWSSupervisorTask, dict())
+
+        starttime = time.time()
+        while time.time() < starttime + timeout_seconds:
+            if _awstest.is_task_complete(_awstest.AWS_SUPERVISOR_TEST_CLIENT_NAME, task_id):
+                return
+
+            time.sleep(1)
+
+        self.fail("Did not find success marker in logs")
+
 
 class TestAWSChunkedTask(unittest.TestCase):
     def test_fast(self):

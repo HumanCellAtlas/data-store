@@ -122,3 +122,23 @@ class SupervisorTask(Task[dict, bool]):
 
     def check_success_marker(self):
         raise NotImplementedError()
+
+
+AWS_SUPERVISOR_TEST_CLIENT_NAME = "supervisortest"
+
+
+class AWSSupervisorTask(SupervisorTask):
+    def __init__(self, state: dict, runtime: AWSRuntime) -> None:
+        super().__init__(state, runtime)
+
+    def check_success_marker(self):
+        # don't pound the filter logs API to a pulp.
+        if (self.last_checked is not None and
+                time.time() < self.last_checked + 1):
+            time.sleep(1)
+
+        if is_task_complete(AWS_FAST_TEST_CLIENT_NAME, self.state[SupervisorTask.SPAWNED_TASK_KEY]):
+            return True
+
+        self.last_checked = time.time()
+        return None
