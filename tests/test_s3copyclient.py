@@ -13,10 +13,9 @@ pkg_root = os.path.abspath(os.path.join(os.path.dirname(__file__), '..'))  # noq
 sys.path.insert(0, pkg_root)  # noqa
 
 from dss.blobstore.s3 import S3BlobStore
-from dss.events import chunkedtask
 from dss.events.chunkedtask.s3copyclient import S3CopyTask
 from tests import infra
-from tests.chunked_worker import TestStingyRuntime
+from tests.chunked_worker import TestStingyRuntime, run_task_to_completion
 
 
 class TestAWSCopy(unittest.TestCase):
@@ -47,24 +46,17 @@ class TestAWSCopy(unittest.TestCase):
     def test_simple_copy(self):
         dest_key = infra.generate_test_key()
 
-        current_state = S3CopyTask.setup_copy_task(
+        initial_state = S3CopyTask.setup_copy_task(
             self.test_bucket, self.test_src_key, self.test_bucket, dest_key, lambda blob_size: (5 * 1024 * 1024))
-        freezes = 0
-        all_results = dict()
 
-        while True:
-            env = TestStingyRuntime(all_results)
-            task = S3CopyTask(current_state)
-            runner = chunkedtask.Runner(task, env)
-
-            runner.run()
-
-            if env.result is not None:
-                # we're done!
-                break
-            else:
-                current_state = env.rescheduled_state
-                freezes += 1
+        freezes, _ = run_task_to_completion(
+            S3CopyTask,
+            initial_state,
+            lambda results: TestStingyRuntime(results),
+            lambda task_class, task_state, runtime: task_class(task_state),
+            lambda runtime: runtime.result,
+            lambda runtime: [(S3CopyTask, runtime.rescheduled_state, None)],
+        )
 
         self.assertGreater(freezes, 0)
 
@@ -75,24 +67,17 @@ class TestAWSCopy(unittest.TestCase):
     def test_off_by_one(self):
         dest_key = infra.generate_test_key()
 
-        current_state = S3CopyTask.setup_copy_task(
+        initial_state = S3CopyTask.setup_copy_task(
             self.test_bucket, self.test_src_key, self.test_bucket, dest_key, lambda blob_size: (5 * 1024 * 1024))
-        freezes = 0
-        all_results = dict()
 
-        while True:
-            env = TestStingyRuntime(all_results, seq=itertools.repeat(sys.maxsize, 7))
-            task = S3CopyTask(current_state, fetch_size=4)
-            runner = chunkedtask.Runner(task, env)
-
-            runner.run()
-
-            if env.result is not None:
-                # we're done!
-                break
-            else:
-                current_state = env.rescheduled_state
-                freezes += 1
+        freezes, _ = run_task_to_completion(
+            S3CopyTask,
+            initial_state,
+            lambda results: TestStingyRuntime(results, seq=itertools.repeat(sys.maxsize, 7)),
+            lambda task_class, task_state, runtime: task_class(task_state, fetch_size=4),
+            lambda runtime: runtime.result,
+            lambda runtime: [(S3CopyTask, runtime.rescheduled_state, None)],
+        )
 
         self.assertGreater(freezes, 0)
 
@@ -116,22 +101,17 @@ class TestAWSCopyNonMultipart(unittest.TestCase):
     def test_simple_copy(self):
         dest_key = infra.generate_test_key()
 
-        current_state = S3CopyTask.setup_copy_task(
+        initial_state = S3CopyTask.setup_copy_task(
             self.test_bucket, self.test_src_key, self.test_bucket, dest_key, lambda blob_size: (5 * 1024 * 1024))
-        all_results = dict()
 
-        while True:
-            env = TestStingyRuntime(all_results)
-            task = S3CopyTask(current_state)
-            runner = chunkedtask.Runner(task, env)
-
-            runner.run()
-
-            if env.result is not None:
-                # we're done!
-                break
-            else:
-                current_state = env.rescheduled_state
+        run_task_to_completion(
+            S3CopyTask,
+            initial_state,
+            lambda results: TestStingyRuntime(results),
+            lambda task_class, task_state, runtime: task_class(task_state),
+            lambda runtime: runtime.result,
+            lambda runtime: [(S3CopyTask, runtime.rescheduled_state, None)],
+        )
 
         # verify that the destination has the same checksum.
         dst_etag = S3BlobStore().get_all_metadata(self.test_bucket, dest_key)['ETag'].strip("\"")

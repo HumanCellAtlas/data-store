@@ -19,7 +19,7 @@ sys.path.insert(0, pkg_root)  # noqa
 from dss.events import chunkedtask
 from dss.events.chunkedtask import aws, awsconstants
 from dss.events.chunkedtask._awstest import AWS_FAST_TEST_CLIENT_NAME
-from tests.chunked_worker import TestStingyRuntime
+from tests.chunked_worker import TestStingyRuntime, run_task_to_completion
 
 
 class TestChunkedTask(chunkedtask.Task[typing.Tuple[int, int, int], typing.Tuple[int, int]]):
@@ -54,26 +54,17 @@ class TestChunkedTaskRunner(unittest.TestCase):
         initial_state = (1, 1, 25)
         expected_max_one_unit_runtime_millis = 10  # we know exactly how long we'll take.  we're so good at guessing!
 
-        current_state = initial_state
-        all_results = dict()
+        freeze_count, result = run_task_to_completion(
+            TestChunkedTask,
+            initial_state,
+            lambda results: TestStingyRuntime(results, itertools.repeat(sys.maxsize, 19)),
+            lambda task_class, task_state, runtime: task_class(task_state, expected_max_one_unit_runtime_millis),
+            lambda runtime: runtime.result,
+            lambda runtime: [(TestChunkedTask, runtime.rescheduled_state, None)],
+        )
 
-        serialize_count = 0
-        while True:
-            env = TestStingyRuntime(all_results, itertools.repeat(sys.maxsize, 19))
-            task = TestChunkedTask(current_state, expected_max_one_unit_runtime_millis)
-            runner = chunkedtask.Runner(task, env)
-
-            runner.run()
-
-            if env.result is not None:
-                # we're done!
-                final_state = task.get_state()
-                self.assertEqual(final_state, (196418, 121393, 0))
-                self.assertEqual(serialize_count, 2)
-                break
-            else:
-                current_state = env.rescheduled_state
-                serialize_count += 1
+        self.assertEqual(result, (196418, 121393))
+        self.assertEqual(freeze_count, 2)
 
 
 class TestAWSChunkedTask(unittest.TestCase):
