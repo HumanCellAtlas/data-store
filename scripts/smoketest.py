@@ -55,4 +55,4 @@ else:
 run("hca download --replica gcp $(jq -r .bundle_uuid upload.json)")
 
 run("hca post-search")
-run('jq -n .query.match.foo=1 | http -v --check-status https://${API_HOST}/v1/search')
+run('jq -n .es_query.query.match.foo=1 | http -v --check-status https://${API_HOST}/v1/search')
