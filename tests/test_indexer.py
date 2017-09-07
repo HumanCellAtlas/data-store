@@ -89,6 +89,22 @@ def tearDownModule():
 
 class TestIndexerBase(DSSAsserts, StorageTestSupport, DSSUploadMixin):
 
+    @classmethod
+    def setUpClass(cls):
+        Config.set_config(DeploymentStage.TEST_FIXTURE)
+        cls.blobstore, _, cls.test_fixture_bucket = Config.get_cloud_specific_handles(cls.replica)
+        Config.set_config(DeploymentStage.TEST)
+        _, _, cls.test_bucket = Config.get_cloud_specific_handles(cls.replica)
+
+    def setUp(self):
+        self.app = dss.create_app().app.test_client()
+        elasticsearch_delete_index("_all")
+        PostTestHandler.reset()
+
+    def tearDown(self):
+        self.app = None
+        self.storageHelper = None
+
     def test_process_new_s3_indexable_object(self):
         bundle_key = self.load_test_data_bundle_for_path("fixtures/smartseq2/paired_ends")
         sample_event = self.create_sample_bundle_created_event(bundle_key)
@@ -304,22 +320,6 @@ class TestIndexerBase(DSSAsserts, StorageTestSupport, DSSUploadMixin):
 
     def process_new_indexable_object(self, event, logger):
         raise NotImplemented()
-
-    @classmethod
-    def setUpClass(cls):
-        Config.set_config(DeploymentStage.TEST_FIXTURE)
-        cls.blobstore, _, cls.test_fixture_bucket = Config.get_cloud_specific_handles(cls.replica)
-        Config.set_config(DeploymentStage.TEST)
-        _, _, cls.test_bucket = Config.get_cloud_specific_handles(cls.replica)
-
-    def setUp(self):
-        self.app = dss.create_app().app.test_client()
-        elasticsearch_delete_index("_all")
-        PostTestHandler.reset()
-
-    def tearDown(self):
-        self.app = None
-        self.storageHelper = None
 
 
 class TestAWSIndexer(TestIndexerBase, unittest.TestCase):
