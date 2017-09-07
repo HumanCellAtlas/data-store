@@ -32,7 +32,7 @@ class S3CopyTask(Task[dict, typing.Any]):
     """
     This is a chunked task that does a multipart copy from one blob to another.
     """
-    def __init__(self, state: dict, fetch_size: int=100) -> None:
+    def __init__(self, state: dict, fetch_size: int=100, *args, **kwargs) -> None:
         self.source_bucket = state[S3CopyTaskKeys.SOURCE_BUCKET]
         self.source_key = state[S3CopyTaskKeys.SOURCE_KEY]
         self.source_etag = state[S3CopyTaskKeys.SOURCE_ETAG]
@@ -192,7 +192,7 @@ class S3CopyWriteBundleTask(S3CopyTask):
     """
     This is a chunked task that does a multipart copy from one blob to another and writes a bundle manifest.
     """
-    def __init__(self, state: dict) -> None:
+    def __init__(self, state: dict, *args, **kwargs) -> None:
         super().__init__(state)
         self.metadata = state[S3CopyWriteBundleTaskKeys.METADATA]
         self.file_uuid = state[S3CopyWriteBundleTaskKeys.FILE_UUID]
