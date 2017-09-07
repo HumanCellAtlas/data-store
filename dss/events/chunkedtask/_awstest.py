@@ -1,5 +1,7 @@
 import itertools
 import json
+import sys
+import time
 import typing
 
 import boto3
@@ -7,7 +9,7 @@ import boto3
 from ._awsimpl import AWSRuntime
 from .awsconstants import LogActions, get_worker_sns_topic
 from .constants import TIME_OVERHEAD_FACTOR
-from .base import Task
+from .base import Runtime, Task
 
 
 def is_task_complete(client_name: str, task_id: str):
@@ -81,3 +83,42 @@ class AWSFastTestTask(Task[typing.MutableSequence, bool]):
         else:
             self.state[0] += 1
             return None  # more work to be done.
+
+
+class SupervisorTask(Task[dict, bool]):
+    SPAWNED_TASK_KEY = "key"
+    TIMEOUT_KEY = "timeout"
+    DEFAULT_TIMEOUT = 30.0
+
+    def __init__(self, state: dict, runtime: Runtime) -> None:
+        self.state = state
+        self.runtime = runtime
+        self.last_checked = None  # type: typing.Optional[float]
+
+    @property
+    def expected_max_one_unit_runtime_millis(self) -> int:
+        return sys.maxsize
+
+    def get_state(self) -> dict:
+        return self.state
+
+    def run_one_unit(self) -> typing.Optional[bool]:
+        if SupervisorTask.SPAWNED_TASK_KEY not in self.state:
+            # start the job
+            task_id = self.runtime.schedule_work(AWSFastTestTask, [0, 5], True)
+            timeout = time.time() + SupervisorTask.DEFAULT_TIMEOUT
+
+            self.state[SupervisorTask.SPAWNED_TASK_KEY] = task_id
+            self.state[SupervisorTask.TIMEOUT_KEY] = timeout
+
+            return None
+
+        if time.time() > self.state[SupervisorTask.TIMEOUT_KEY]:
+            return False
+
+        if self.check_success_marker():
+            return True
+        return None
+
+    def check_success_marker(self):
+        raise NotImplementedError()
