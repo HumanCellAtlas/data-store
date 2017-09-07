@@ -33,7 +33,7 @@ from dss.events.handlers.index import process_new_s3_indexable_object, process_n
 from dss.hcablobstore import BundleMetadata, BundleFileMetadata, FileMetadata
 from dss.util import create_blob_key, UrlBuilder
 from dss.util.es import ElasticsearchClient, ElasticsearchServer
-
+from tests import get_version
 from tests.es import elasticsearch_delete_index
 from tests.fixtures.populate import populate
 from tests.infra import DSSAsserts, DSSUploadMixin, StorageTestSupport, TestBundle, start_verbose_logging
@@ -132,6 +132,32 @@ class TestIndexerBase(DSSAsserts, StorageTestSupport, DSSUploadMixin):
         self.assertEqual(1, len(search_results))
         self.verify_index_document_structure_and_content(search_results[0], bundle_key,
                                                          files=smartseq2_paried_ends_indexed_file_list)
+
+    def test_debug_message_logged_when_indexing_an_invalid_bundle_name(self):
+        bundle_uuid = "{}.{}".format(str(uuid.uuid4()), get_version())
+        bundle_key = "files/" + bundle_uuid
+        sample_event = self.create_sample_bundle_created_event(bundle_key)
+        log_last = logger.getEffectiveLevel()
+        logger.setLevel(logging.DEBUG)
+        try:
+            with self.assertLogs(logger, level="DEBUG") as log_monitor:
+                self.process_new_indexable_object(sample_event, logger)
+            self.assertRegex(log_monitor.output[0], "DEBUG:.*Not indexing .* creation event for key: .*")
+            with self.assertRaises(Exception) as ex:
+                ElasticsearchClient.get(logger).get(index=DSS_ELASTICSEARCH_INDEX_NAME,
+                                                    doc_type=DSS_ELASTICSEARCH_DOC_TYPE,
+                                                    id=bundle_uuid)
+            self.assertEqual('index_not_found_exception', ex.exception.error)
+        finally:
+            logger.setLevel(log_last)
+
+    def test_error_message_logged_when_invalid_bucket_in_event(self):
+        bundle_key = "bundles/{}.{}".format(str(uuid.uuid4()), get_version())
+        sample_event = self.create_bundle_created_event(bundle_key, "fake")
+        with self.assertLogs(logger, level="ERROR") as log_monitor:
+            with self.assertRaises(Exception):
+                self.process_new_indexable_object(sample_event, logger)
+        self.assertRegex(log_monitor.output[0], "ERROR:.*Exception occurred while processing .* event:.*")
 
     def test_indexed_file_unparsable(self):
         bundle_key = self.load_test_data_bundle_for_path("fixtures/unparseable_indexed_file")
@@ -316,6 +342,9 @@ class TestIndexerBase(DSSAsserts, StorageTestSupport, DSSUploadMixin):
                 time.sleep(0.5)
 
     def create_sample_bundle_created_event(self, bundle_key):
+        return self.create_bundle_created_event(bundle_key, self.test_bucket)
+
+    def create_bundle_created_event(self, bundle_key, bucket_name):
         raise NotImplemented()
 
     def process_new_indexable_object(self, event, logger):
@@ -332,10 +361,10 @@ class TestAWSIndexer(TestIndexerBase, unittest.TestCase):
     def process_new_indexable_object(self, event, logger):
         process_new_s3_indexable_object(event, logger)
 
-    def create_sample_bundle_created_event(self, bundle_key: str) -> Dict:
+    def create_bundle_created_event(self, bundle_key, bucket_name) -> Dict:
         with open(os.path.join(os.path.dirname(__file__), "sample_s3_bundle_created_event.json")) as fh:
             sample_event = json.load(fh)
-        sample_event['Records'][0]["s3"]['bucket']['name'] = self.test_bucket
+        sample_event['Records'][0]["s3"]['bucket']['name'] = bucket_name
         sample_event['Records'][0]["s3"]['object']['key'] = bundle_key
         return sample_event
 
@@ -350,10 +379,10 @@ class TestGCPIndexer(TestIndexerBase, unittest.TestCase):
     def process_new_indexable_object(self, event, logger):
         process_new_gs_indexable_object(event, logger)
 
-    def create_sample_bundle_created_event(self, bundle_key: str) -> Dict:
+    def create_bundle_created_event(self, bundle_key, bucket_name) -> Dict:
         with open(os.path.join(os.path.dirname(__file__), "sample_gs_bundle_created_event.json")) as fh:
             sample_event = json.load(fh)
-        sample_event["bucket"] = self.test_bucket
+        sample_event["bucket"] = bucket_name
         sample_event["name"] = bundle_key
         return sample_event
 
