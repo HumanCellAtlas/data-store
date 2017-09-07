@@ -8,6 +8,7 @@ import boto3
 
 from . import _awstest, awsconstants, s3copyclient
 from ._awsimpl import AWSRuntime
+from .base import Task
 from .runner import Runner
 
 
@@ -23,8 +24,23 @@ logger = logging.getLogger()
 logger.setLevel(logging.INFO)
 
 
-def schedule_task(client_name: str, state: typing.Any):
-    task_id = str(uuid.uuid4())
+def schedule_task(task_class: typing.Type[Task[dict, typing.Any]], state: dict, task_id: str=None) -> str:
+    """
+    Schedule or reschedule a task for execution.  If it's a new task, task_id should be None.  If it's the resumption of
+    an existing task, then task_id should be the original task's task_id.
+    """
+    clients = get_clients()
+    for client_name, client_class in clients.items():
+        if client_class == task_class:
+            break
+    else:
+        raise ValueError(f"Unknown task class {task_class}.")
+
+    if task_id is None:
+        task_id = str(uuid.uuid4())
+        action = awsconstants.LogActions.SCHEDULED
+    else:
+        action = awsconstants.LogActions.RESCHEDULED
 
     payload = {
         awsconstants.CLIENT_KEY: client_name,
@@ -49,7 +65,7 @@ def schedule_task(client_name: str, state: typing.Any):
         client_name,
         task_id,
         json.dumps(dict(
-            action=awsconstants.LogActions.SCHEDULED,
+            action=action,
             payload=payload,
         )),
     )

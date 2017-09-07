@@ -18,7 +18,7 @@ sys.path.insert(0, pkg_root)  # noqa
 
 from dss.events import chunkedtask
 from dss.events.chunkedtask import aws, awsconstants
-from dss.events.chunkedtask._awstest import AWS_FAST_TEST_CLIENT_NAME
+from dss.events.chunkedtask._awstest import AWS_FAST_TEST_CLIENT_NAME, AWSFastTestTask
 from tests.chunked_worker import TestStingyRuntime, run_task_to_completion
 
 
@@ -60,7 +60,7 @@ class TestChunkedTaskRunner(unittest.TestCase):
             lambda results: TestStingyRuntime(results, itertools.repeat(sys.maxsize, 19)),
             lambda task_class, task_state, runtime: task_class(task_state, expected_max_one_unit_runtime_millis),
             lambda runtime: runtime.result,
-            lambda runtime: [(TestChunkedTask, runtime.rescheduled_state, None)],
+            lambda runtime: runtime.scheduled_work,
         )
 
         self.assertEqual(result, (196418, 121393))
@@ -69,10 +69,7 @@ class TestChunkedTaskRunner(unittest.TestCase):
 
 class TestAWSChunkedTask(unittest.TestCase):
     def test_fast(self):
-        task_id = aws.schedule_task(
-            AWS_FAST_TEST_CLIENT_NAME,
-            [0, 5],
-        )
+        task_id = aws.schedule_task(AWSFastTestTask, [0, 5])
 
         logs_client = boto3.client('logs')
         starttime = time.time()

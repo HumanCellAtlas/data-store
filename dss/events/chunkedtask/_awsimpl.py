@@ -1,10 +1,9 @@
 import json
 import typing
 
-from . import awsconstants
-from ...util.aws import ARN, send_sns_msg
+from . import aws, awsconstants
 from ...util.aws.logging import log_message
-from .base import Runtime
+from .base import Runtime, Task
 
 
 class AWSRuntime(Runtime[dict, typing.Any]):
@@ -20,28 +19,13 @@ class AWSRuntime(Runtime[dict, typing.Any]):
     def get_remaining_time_in_millis(self) -> int:
         return self.context.get_remaining_time_in_millis()
 
-    def reschedule_work(self, state: dict):
-        payload = {
-            awsconstants.CLIENT_KEY: self.client_name,
-            awsconstants.REQUEST_VERSION_KEY: awsconstants.CURRENT_VERSION,
-            awsconstants.TASK_ID_KEY: self.task_id,
-            awsconstants.STATE_KEY: state,
-        }
+    def schedule_work(self, task_class: typing.Type[Task[dict, typing.Any]], state: dict, new_task: bool) -> str:
+        if new_task:
+            task_id = None
+        else:
+            task_id = self.task_id
 
-        sns_arn = ARN(
-            self.context.invoked_function_arn,
-            service="sns",
-            resource=awsconstants.get_worker_sns_topic(self.client_name))
-        send_sns_msg(sns_arn, payload)
-
-        AWSRuntime.log(
-            self.client_name,
-            self.task_id,
-            json.dumps(dict(
-                action=awsconstants.LogActions.RESCHEDULED,
-                payload=payload,
-            )),
-        )
+        return aws.schedule_task(task_class, state, task_id)
 
     def work_complete_callback(self, result: typing.Any):
         AWSRuntime.log(

@@ -17,14 +17,24 @@ class TestStingyRuntime(Runtime[dict, typing.Any]):
         if seq is None:
             seq = list()
         self.seq = itertools.chain(seq, itertools.repeat(0))
+        self.scheduled_work = list()  \
+            # type: typing.List[typing.Tuple[typing.Type[Task], dict, typing.Optional[str]]]
 
     def get_remaining_time_in_millis(self) -> int:
         return self.seq.__next__()
 
-    def reschedule_work(self, state: dict):
+    def schedule_work(
+            self,
+            task_class: typing.Type[Task[typing.Any, typing.Any]],
+            state: typing.Any,
+            new_task: bool,
+    ) -> str:
         # it's illegal for there to be no state.
         assert state is not None
-        self.rescheduled_state = state
+
+        task_id = str(uuid.uuid4()) if new_task else None
+        self.scheduled_work.append((task_class, state, task_id))
+        return task_id
 
     def work_complete_callback(self, result: typing.Any):
         self.result = result
