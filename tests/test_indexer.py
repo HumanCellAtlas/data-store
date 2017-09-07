@@ -68,6 +68,8 @@ class HTTPInfo:
     server = None
     thread = None
 
+class ESInfo:
+    server = None
 
 def setUpModule():
     HTTPInfo.port = findOpenPort()
@@ -75,12 +77,34 @@ def setUpModule():
     HTTPInfo.thread = threading.Thread(target=HTTPInfo.server.serve_forever)
     HTTPInfo.thread.start()
 
+    ESInfo.server = ElasticsearchServer()
+    os.environ['DSS_ES_PORT'] = str(ESInfo.server.port)
 
 def tearDownModule():
+    ESInfo.server.shutdown()
     HTTPInfo.server.shutdown()
 
 
 class TestIndexerBase(DSSAsserts, StorageTestSupport, DSSUploadMixin):
+
+    @classmethod
+    def setUpClass(cls):
+        Config.set_config(DeploymentStage.TEST_FIXTURE)
+        cls.blobstore, _, cls.test_fixture_bucket = Config.get_cloud_specific_handles(cls.replica)
+        Config.set_config(DeploymentStage.TEST)
+        _, _, cls.test_bucket = Config.get_cloud_specific_handles(cls.replica)
+        cls.dss_index_name = dss.Config.get_es_index_name(dss.ESIndexType.docs, dss.Replica[cls.replica])
+        cls.subscription_index_name = dss.Config.get_es_index_name(dss.ESIndexType.subscriptions,
+                                                                   dss.Replica[cls.replica])
+
+    def setUp(self):
+        self.app = dss.create_app().app.test_client()
+        elasticsearch_delete_index("_all")
+        PostTestHandler.reset()
+
+    def tearDown(self):
+        self.app = None
+        self.storageHelper = None
 
     def test_process_new_s3_indexable_object(self):
         bundle_key = self.load_test_data_bundle_for_path("fixtures/smartseq2/paired_ends")
@@ -297,31 +321,6 @@ class TestIndexerBase(DSSAsserts, StorageTestSupport, DSSUploadMixin):
 
     def process_new_indexable_object(self, event, logger):
         raise NotImplemented()
-
-    @classmethod
-    def setUpClass(cls):
-        Config.set_config(DeploymentStage.TEST_FIXTURE)
-        cls.blobstore, _, cls.test_fixture_bucket = Config.get_cloud_specific_handles(cls.replica)
-        Config.set_config(DeploymentStage.TEST)
-        _, _, cls.test_bucket = Config.get_cloud_specific_handles(cls.replica)
-        cls.es_server = ElasticsearchServer()
-        os.environ['DSS_ES_PORT'] = str(cls.es_server.port)
-        cls.dss_index_name = dss.Config.get_es_index_name(dss.ESIndexType.docs, dss.Replica[cls.replica])
-        cls.subscription_index_name = dss.Config.get_es_index_name(dss.ESIndexType.subscriptions,
-                                                                   dss.Replica[cls.replica])
-
-    @classmethod
-    def tearDownClass(cls):
-        cls.es_server.shutdown()
-
-    def setUp(self):
-        self.app = dss.create_app().app.test_client()
-        elasticsearch_delete_index("_all")
-        PostTestHandler.reset()
-
-    def tearDown(self):
-        self.app = None
-        self.storageHelper = None
 
 
 class TestAWSIndexer(TestIndexerBase, unittest.TestCase):

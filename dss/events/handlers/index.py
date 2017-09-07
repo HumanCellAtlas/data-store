@@ -25,7 +25,7 @@ def process_new_s3_indexable_object(event, logger) -> None:
         bucket_name = event['Records'][0]["s3"]["bucket"]["name"]
         process_new_indexable_object(bucket_name, key, "aws", logger)
     except Exception as ex:
-        logger.error(f"Exception occurred while processing S3 event: {ex} Event: {json.dumps(event, indent=4)}")
+        logger.error(f"Exception occurred while processing S3 event: {ex} Event: %s", json.dumps(event, indent=4))
         raise
 
 
@@ -36,7 +36,7 @@ def process_new_gs_indexable_object(event, logger) -> None:
         key = event["name"]
         process_new_indexable_object(bucket_name, key, "gcp", logger)
     except Exception as ex:
-        logger.error(f"Exception occurred while processing GS event: {ex} Event: {json.dumps(event, indent=4)}")
+        logger.error(f"Exception occurred while processing GS event: {ex} Event: %s", json.dumps(event, indent=4))
         raise
 
 
