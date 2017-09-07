@@ -3,7 +3,7 @@
 This script runs a basic integration test of the DSS. It is invoked by Travis CI from a periodic cron job.
 """
 
-import os, sys, argparse, platform, subprocess, glob, shutil, time
+import os, sys, argparse, subprocess, time, uuid, json
 from tempfile import TemporaryDirectory
 
 parser = argparse.ArgumentParser(description=__doc__)
@@ -29,11 +29,13 @@ def run(command, **kwargs):
         kwargs["shell"] = True
     print(GREEN(command))
     try:
-        subprocess.check_call(command, **kwargs)
+        return subprocess.check_call(command, **kwargs)
     except subprocess.CalledProcessError as e:
         parser.exit(RED(f'{parser.prog}: Exit status {e.returncode} while running "{command}". Stopping.'))
 
-run("git clone --depth 1 --recurse-submodules https://github.com/HumanCellAtlas/data-store-cli")
+if not os.path.exists("data-store-cli"):
+    run("git clone --depth 1 --recurse-submodules https://github.com/HumanCellAtlas/data-store-cli")
+
 run("http --check-status https://${API_HOST}/v1/swagger.json > data-store-cli/swagger.json")
 run("pip install -r data-store-cli/requirements.txt")
 run("python -c 'import sys, hca.regenerate_api as r; r.generate_python_bindings(sys.argv[1])' swagger.json",
@@ -41,7 +43,9 @@ run("python -c 'import sys, hca.regenerate_api as r; r.generate_python_bindings(
 run("find data-store-cli/hca -name '*.pyc' -delete")
 run("pip install --upgrade .", cwd="data-store-cli")
 
+sample_id = str(uuid.uuid4())
 bundle_dir = "data-bundle-examples/10X_v2/pbmc8k"
+run(f"cat {bundle_dir}/sample.json | jq .uuid=env.sid | sponge {bundle_dir}/sample.json", env=dict(sid=sample_id))
 run(f"hca upload --replica aws --staging-bucket $DSS_S3_BUCKET_TEST --file-or-dir {bundle_dir} > upload.json")
 run("hca download --replica aws $(jq -r .bundle_uuid upload.json)")
 for i in range(10):
@@ -55,4 +59,10 @@ else:
 run("hca download --replica gcp $(jq -r .bundle_uuid upload.json)")
 
 run("hca post-search")
-run('jq -n .es_query.query.match.foo=1 | http -v --check-status https://${API_HOST}/v1/search')
+run("jq -n '.es_query.query.match[env.k]=env.v' | http --check-status https://${API_HOST}/v1/search > res.json",
+    env=dict(os.environ, k="files.sample_json.uuid", v=sample_id))
+
+with open("res.json") as fh:
+    res = json.load(fh)
+    print(json.dumps(res, indent=4))
+    assert len(res["results"]) == 1
