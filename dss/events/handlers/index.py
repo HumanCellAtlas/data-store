@@ -32,6 +32,17 @@ def process_new_s3_indexable_object(event, logger) -> None:
         raise
 
 
+def process_new_gs_indexable_object(event, logger) -> None:
+    try:
+        # This function is only called for GS creation events
+        bucket_name = event["bucket"]
+        key = event["name"]
+        process_new_indexable_object(bucket_name, key, "gcp", logger)
+    except Exception as ex:
+        logger.error(f"Exception occurred while processing GS event: {ex} Event: {json.dumps(event, indent=4)}")
+        raise
+
+
 def process_new_indexable_object(bucket_name: str, key: str, replica: str, logger) -> None:
     if is_bundle_to_index(key):
         logger.info(f"Received {replica} creation event for bundle which will be indexed: {key}")
@@ -47,7 +58,7 @@ def process_new_indexable_object(bucket_name: str, key: str, replica: str, logge
         logger.debug(f"Not indexing {replica} creation event for key: {key}")
 
 
-def is_bundle_to_index(key) -> bool:
+def is_bundle_to_index(key: str) -> bool:
     # Check for pattern /bundles/<bundle_uuid>.<timestamp>
     # Don't process notifications explicitly for the latest bundle, of the format /bundles/<bundle_uuid>
     # The versioned/timestamped name for this same bundle will get processed, and the fully qualified
@@ -56,15 +67,15 @@ def is_bundle_to_index(key) -> bool:
     return result is not None
 
 
-def read_bundle_manifest(blobstore, bucket_name, bundle_key, logger):
-    manifest_string = blobstore.get(bucket_name, bundle_key).decode("utf-8")
+def read_bundle_manifest(handle: BlobStore, bucket_name: str, bundle_key: str, logger) -> dict:
+    manifest_string = handle.get(bucket_name, bundle_key).decode("utf-8")
     logger.debug(f"Read bundle manifest from bucket {bucket_name}"
                  f" with bundle key {bundle_key}: {manifest_string}")
     manifest = json.loads(manifest_string, encoding="utf-8")
     return manifest
 
 
-def create_index_data(blobstore, bucket_name, bundle_id, manifest, logger):
+def create_index_data(handle: BlobStore, bucket_name: str, bundle_id: str, manifest: dict, logger) -> dict:
     index = dict(state="new", manifest=manifest)
     files_info = manifest[BundleMetadata.FILES]
     index_files = {}
@@ -79,7 +90,7 @@ def create_index_data(blobstore, bucket_name, bundle_id, manifest, logger):
                 continue
             try:
                 file_key = create_blob_key(file_info)
-                file_string = blobstore.get(bucket_name, file_key).decode("utf-8")
+                file_string = handle.get(bucket_name, file_key).decode("utf-8")
                 file_json = json.loads(file_string)
             # TODO (mbaumann) Are there other JSON-related exceptions that should be checked below?
             except json.decoder.JSONDecodeError as ex:
@@ -110,14 +121,14 @@ def create_index_data(blobstore, bucket_name, bundle_id, manifest, logger):
     return index
 
 
-def get_bundle_id_from_key(bundle_key):
+def get_bundle_id_from_key(bundle_key: str) -> str:
     bundle_prefix = "bundles/"
     if bundle_key.startswith(bundle_prefix):
         return bundle_key[len(bundle_prefix):]
     raise Exception(f"This is not a key for a bundle: {bundle_key}")
 
 
-def add_index_data_to_elasticsearch(bundle_id, index_data, logger) -> None:
+def add_index_data_to_elasticsearch(bundle_id: str, index_data: dict, logger) -> None:
     create_elasticsearch_index(logger)
     logger.debug(f"Adding index data to Elasticsearch: {json.dumps(index_data, indent=4)}")
     add_data_to_elasticsearch(bundle_id, index_data, logger)
@@ -149,7 +160,7 @@ def create_elasticsearch_index(logger):
         raise
 
 
-def add_data_to_elasticsearch(bundle_id, index_data, logger) -> None:
+def add_data_to_elasticsearch(bundle_id: str, index_data: dict, logger) -> None:
     try:
         ElasticsearchClient.get(logger).index(index=DSS_ELASTICSEARCH_INDEX_NAME,
                                               doc_type=DSS_ELASTICSEARCH_DOC_TYPE,
@@ -160,7 +171,7 @@ def add_data_to_elasticsearch(bundle_id, index_data, logger) -> None:
         raise
 
 
-def find_matching_subscriptions(index_data, logger):
+def find_matching_subscriptions(index_data: dict, logger) -> set:
     percolate_document = {
         'query': {
             'percolate': {
@@ -179,7 +190,7 @@ def find_matching_subscriptions(index_data, logger):
     return subscription_ids
 
 
-def process_notifications(bundle_id, subscription_ids, logger):
+def process_notifications(bundle_id: str, subscription_ids: set, logger) -> None:
     for subscription_id in subscription_ids:
         try:
             # TODO Batch this request
@@ -189,7 +200,7 @@ def process_notifications(bundle_id, subscription_ids, logger):
             logger.error(f"Error occurred while processing subscription {subscription_id} for bundle {bundle_id}. {ex}")
 
 
-def get_subscription(subscription_id, logger):
+def get_subscription(subscription_id: str, logger):
     subscription_query = {
         'query': {
             'ids': {
@@ -205,7 +216,7 @@ def get_subscription(subscription_id, logger):
         return response['hits']['hits'][0]['_source']
 
 
-def notify(subscription_id, subscription, bundle_id, logger):
+def notify(subscription_id: str, subscription: dict, bundle_id: str, logger):
     bundle_uuid, _, bundle_version = bundle_id.partition(".")
     transaction_id = str(uuid.uuid4())
     payload = {

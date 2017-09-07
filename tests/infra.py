@@ -135,24 +135,23 @@ class DSSAsserts:
 
 
 class TestBundle:
-    def __init__(self, blobstore: BlobStore, path: str, bucket: str, replica: str) -> None:
+    def __init__(self, handle: BlobStore, path: str, bucket: str, replica: str = "aws") -> None:
         self.path = path
         self.uuid = str(uuid.uuid4())
         self.version = None
-        self.blobstore = blobstore
+        self.handle = handle
         self.bucket = bucket
-        self.replica = replica
-        self.files = self.enumerate_bundle_files()
+        self.files = self.enumerate_bundle_files(replica)
 
-    def enumerate_bundle_files(self) -> list:
-        object_summaries = self.blobstore.list(self.bucket, prefix=f"{self.path}/")
-        return [TestFile(object_summary, self, self.replica) for object_summary in object_summaries]
+    def enumerate_bundle_files(self, replica) -> list:
+        object_summaries = self.handle.list(self.bucket, prefix=f"{self.path}/")
+        return [TestFile(object_summary, self, replica) for object_summary in object_summaries]
 
 
 class TestFile:
     def __init__(self, object_summary, bundle, replica) -> None:
         self.bundle = bundle
-        self.metadata = bundle.blobstore.get_user_metadata(bundle.bucket, object_summary)
+        self.metadata = bundle.handle.get_user_metadata(bundle.bucket, object_summary)
         self.indexed = True if self.metadata['hca-dss-content-type'] == "application/json" else False
         self.name = os.path.basename(object_summary)
         self.path = object_summary
@@ -223,16 +222,16 @@ class StorageTestSupport:
     expects the client app to be available as 'self.app'
     """
 
-    def upload_files_and_create_bundle(self, bundle: TestBundle):
-        for s3file in bundle.files:
-            version = self.upload_file(s3file)
-            s3file.version = version
-        self.create_bundle(bundle)
+    def upload_files_and_create_bundle(self, bundle: TestBundle, replica: str):
+        for file in bundle.files:
+            version = self.upload_file(file, replica)
+            file.version = version
+        self.create_bundle(bundle, replica)
 
-    def upload_file(self: typing.Any, bundle_file: TestFile) -> str:
+    def upload_file(self: Any, bundle_file: TestFile, replica: str) -> str:
         response = self.upload_file_wait(
             bundle_file.url,
-            "aws",
+            replica,
             file_uuid=bundle_file.uuid,
             bundle_uuid=bundle_file.bundle.uuid,
         )
@@ -241,10 +240,10 @@ class StorageTestSupport:
         self.assertIn('version', response_data)
         return response_data['version']
 
-    def create_bundle(self: Any, bundle: TestBundle):
+    def create_bundle(self: Any, bundle: TestBundle, replica: str):
         response = self.assertPutResponse(
             str(UrlBuilder().set(path='/v1/bundles/' + bundle.uuid)
-                .add_query('replica', 'aws')),
+                .add_query('replica', replica)),
             requests.codes.created,
             json_request_body=self.put_bundle_payload(bundle)
         )
@@ -271,15 +270,15 @@ class StorageTestSupport:
         }
         return payload
 
-    def get_bundle_and_check_files(self: Any, bundle: TestBundle):
+    def get_bundle_and_check_files(self: Any, bundle: TestBundle, replica: str):
         response = self.assertGetResponse(
             str(UrlBuilder().set(path='/v1/bundles/' + bundle.uuid)
-                .add_query('replica', 'aws')),
+                .add_query('replica', replica)),
             requests.codes.ok
         )
         response_data = json.loads(response[1])
         self.check_bundle_contains_same_files(bundle, response_data['bundle']['files'])
-        self.check_files_are_associated_with_bundle(bundle)
+        self.check_files_are_associated_with_bundle(bundle, replica)
 
     def check_bundle_contains_same_files(self: Any, bundle: TestBundle, file_metadata: dict):
         self.assertEqual(len(bundle.files), len(file_metadata))
@@ -292,11 +291,11 @@ class StorageTestSupport:
             self.assertEqual(filedata['name'], bundle_file.name)
             self.assertEqual(filedata['version'], bundle_file.version)
 
-    def check_files_are_associated_with_bundle(self: Any, bundle: TestBundle):
+    def check_files_are_associated_with_bundle(self: Any, bundle: TestBundle, replica: str):
         for bundle_file in bundle.files:
             response = self.assertGetResponse(
                 str(UrlBuilder().set(path='/v1/files/' + bundle_file.uuid)
-                    .add_query('replica', 'aws')),
+                    .add_query('replica', replica)),
                 requests.codes.found,
             )
             self.assertEqual(bundle_file.bundle.uuid, response[0].headers['X-DSS-BUNDLE-UUID'])
