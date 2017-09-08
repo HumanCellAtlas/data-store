@@ -4,7 +4,7 @@ deploy: dss-sync dss-index dss-gs-event-relay dss-chunked-task
 
 dss-sync dss-index:
 	git clean -df $@/domovoilib $@/vendor
-	shopt -s nullglob; for wheel in $@/vendor.in/*/*.whl; do unzip -o -d $@/vendor $$wheel; done
+	shopt -s nullglob; for wheel in $@/vendor.in/*/*.whl; do unzip -q -o -d $@/vendor $$wheel; done
 	cp -R ../dss ../dss-api.yml $@/domovoilib
 	cp "$(GOOGLE_APPLICATION_CREDENTIALS)" $@/domovoilib/gcp-credentials.json
 	./build_deploy_config.sh $@ $(DSS_DEPLOYMENT_STAGE)
@@ -19,7 +19,7 @@ $(awschunkedtasktargets): dss-chunked-task-%:
 	rm -rf $@
 	cp -rf dss-chunked-task $@
 	cat dss-chunked-task/.chalice/config.json | jq '.app_name="$@" | .stages.$(DSS_DEPLOYMENT_STAGE).environment_variables.DSS_CHUNKED_TASK_CLIENT_NAME="$*"' > $@/.chalice/config.json
-	shopt -s nullglob; for wheel in $@/vendor.in/*/*.whl; do unzip -o -d $@/vendor $$wheel; done
+	shopt -s nullglob; for wheel in $@/vendor.in/*/*.whl; do unzip -q -o -d $@/vendor $$wheel; done
 	cp -R ../dss ../dss-api.yml $@/domovoilib
 	cp "$(GOOGLE_APPLICATION_CREDENTIALS)" $@/domovoilib/gcp-credentials.json
 	./build_deploy_config.sh $@ $(DSS_DEPLOYMENT_STAGE)

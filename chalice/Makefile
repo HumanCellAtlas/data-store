@@ -2,7 +2,7 @@ include ../common.mk
 
 deploy:
 	git clean -df chalicelib vendor
-	shopt -s nullglob; for wheel in vendor.in/*/*.whl; do unzip -o -d vendor $$wheel; done
+	shopt -s nullglob; for wheel in vendor.in/*/*.whl; do unzip -q -o -d vendor $$wheel; done
 	cp -R ../dss ../dss-api.yml chalicelib
 	cp "$(GOOGLE_APPLICATION_CREDENTIALS)" chalicelib/gcp-credentials.json
 	cp "$(GOOGLE_APPLICATION_SECRETS)" chalicelib/application_secrets.json

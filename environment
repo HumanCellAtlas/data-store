@@ -52,6 +52,7 @@ DSS_SUBSCRIPTION_AUTHORIZED_DOMAINS_ARRAY=(
 )
 DSS_SUBSCRIPTION_AUTHORIZED_DOMAINS=${DSS_SUBSCRIPTION_AUTHORIZED_DOMAINS_ARRAY[*]}
 DSS_SUBSCRIPTION_AUTHORIZED_DOMAINS_TEST="human-cell-atlas-travis-test.iam.gserviceaccount.com"
+PYTHONWARNINGS=ignore:ResourceWarning,ignore::UserWarning:zipfile:
 set +a
 
 if [[ -f "${DSS_HOME}/environment.local" ]]; then
