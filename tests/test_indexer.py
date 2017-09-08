@@ -134,7 +134,7 @@ class TestIndexerBase(DSSAsserts, StorageTestSupport, DSSUploadMixin):
         self.verify_index_document_structure_and_content(search_results[0], bundle_key,
                                                          files=smartseq2_paried_ends_indexed_file_list)
 
-    def test_debug_message_logged_when_indexing_an_invalid_bundle_name(self):
+    def test_key_is_not_indexed_when_processing_an_event_with_a_nonbundle_key(self):
         bundle_uuid = "{}.{}".format(str(uuid.uuid4()), get_version())
         bundle_key = "files/" + bundle_uuid
         sample_event = self.create_sample_bundle_created_event(bundle_key)
