@@ -130,7 +130,7 @@ def get_bundle_id_from_key(bundle_key: str) -> str:
 
 def add_index_data_to_elasticsearch(bundle_id: str, index_data: dict, logger) -> None:
     create_elasticsearch_index(logger)
-    logger.debug(f"Adding index data to Elasticsearch: %s", json.dumps(index_data, indent=4))
+    logger.debug("Adding index data to Elasticsearch: %s", json.dumps(index_data, indent=4))
     add_data_to_elasticsearch(bundle_id, index_data, logger)
 
 
