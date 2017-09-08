@@ -96,12 +96,12 @@ def create_index_data(handle: BlobStore, bucket_name: str, bundle_id: str, manif
             except json.decoder.JSONDecodeError as ex:
                 logger.warning(f"In bundle {bundle_id} the file \"{file_info[BundleFileMetadata.NAME]}\""
                                " is marked for indexing yet could not be parsed."
-                               f" This file will not be indexed. Exception: {ex}")
+                               " This file will not be indexed. Exception: %s", ex)
                 continue
             except BlobNotFoundError as ex:
                 logger.warning(f"In bundle {bundle_id} the file \"{file_info[BundleFileMetadata.NAME]}\""
                                " is marked for indexing yet could not be accessed."
-                               f" This file will not be indexed. Exception: {ex}")
+                               " This file will not be indexed. Exception: %s", ex)
                 continue
             logger.debug(f"Indexing file: {file_info[BundleFileMetadata.NAME]}")
             # There are two reasons in favor of not using dot in the name of the individual
@@ -152,11 +152,11 @@ def create_elasticsearch_index(logger):
         if not response:
             logger.debug(f"Creating new Elasticsearch index: {DSS_ELASTICSEARCH_INDEX_NAME}")
             response = es_client.indices.create(DSS_ELASTICSEARCH_INDEX_NAME, body=index_mapping)
-            logger.debug(f"Index creation response: %s", json.dumps(response, indent=4))
+            logger.debug("Index creation response: %s", json.dumps(response, indent=4))
         else:
             logger.debug(f"Using existing Elasticsearch index: {DSS_ELASTICSEARCH_INDEX_NAME}", )
     except Exception as ex:
-        logger.critical(f"Unable to create index {DSS_ELASTICSEARCH_INDEX_NAME}  Exception: {ex}")
+        logger.critical("Unable to create index %s  Exception: %s", DSS_ELASTICSEARCH_INDEX_NAME, ex)
         raise
 
 
@@ -167,7 +167,7 @@ def add_data_to_elasticsearch(bundle_id: str, index_data: dict, logger) -> None:
                                               id=bundle_id,
                                               body=json.dumps(index_data))  # Do not use refresh here - too expensive.
     except Exception as ex:
-        logger.error(f"Document not indexed. Exception: {ex}  Index data: %s", json.dumps(index_data, indent=4))
+        logger.error("Document not indexed. Exception: %s  Index data: %s", ex, json.dumps(index_data, indent=4))
         raise
 
 
@@ -197,7 +197,8 @@ def process_notifications(bundle_id: str, subscription_ids: set, logger) -> None
             subscription = get_subscription(subscription_id, logger)
             notify(subscription_id, subscription, bundle_id, logger)
         except Exception as ex:
-            logger.error(f"Error occurred while processing subscription {subscription_id} for bundle {bundle_id}. {ex}")
+            logger.error("Error occurred while processing subscription %s for bundle %s. %s",
+                         subscription_id, bundle_id, ex)
 
 
 def get_subscription(subscription_id: str, logger):
