@@ -38,6 +38,13 @@ paths:
                 type: object
             required:
               - es_query
+                    type: object
+        - name: replica
+          in: query
+          description: Replica to search.
+          required: false
+          type: string
+          enum: [aws, gcp, azure]
       produces:
         - application/json
       responses:

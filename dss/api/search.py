@@ -1,4 +1,5 @@
 import json
+import typing
 
 import requests
 from elasticsearch.exceptions import ElasticsearchException
@@ -10,14 +11,12 @@ from dss import ESDocType
 from .. import Config, Replica, ESIndexType, dss_handler, get_logger, DSSException
 from ..util.es import ElasticsearchClient
 
-# TODO Adding replica as a search parameter and including tests for gcp
-# will be done in a different PR.
-replica = "aws"
-
 @dss_handler
-def post(json_request_body: dict):
+def post(json_request_body: dict, replica: typing.Optional[str]=None):
     es_query = json_request_body['es_query']
-    get_logger().debug("Received posted query: %s", json.dumps(es_query, indent=4))
+    get_logger().debug("Received posted query. Replica: %s Query: %s", replica, json.dumps(es_query, indent=4))
+    if replica is None:
+        replica = "aws"
     try:
         es_client = ElasticsearchClient.get(get_logger())
         search_obj = Search(using=es_client,
