@@ -2,8 +2,8 @@
 
 set -a
 DSS_DEPLOYMENT_STAGE=staging
-DSS_S3_BUCKET=org-humancellatlas-dss-staging
-DSS_GS_BUCKET=org-humancellatlas-dss-staging
+DSS_S3_BUCKET=$DSS_S3_BUCKET_STAGING
+DSS_GS_BUCKET=$DSS_GS_BUCKET_STAGING
 DSS_ES_DOMAIN=dss-index-dev
 API_HOST=dss.staging.data.humancellatlas.org
 set +a

@@ -10,18 +10,6 @@
         "s3:DeleteBucketWebsite",
         "s3:DeleteObject",
         "s3:DeleteObjectVersion",
-        "s3:PutAccelerateConfiguration",
-        "s3:PutBucketAcl",
-        "s3:PutBucketCORS",
-        "s3:PutBucketLogging",
-        "s3:PutBucketNotification",
-        "s3:PutBucketPolicy",
-        "s3:PutBucketRequestPayment",
-        "s3:PutBucketTagging",
-        "s3:PutBucketVersioning",
-        "s3:PutBucketWebsite",
-        "s3:PutLifecycleConfiguration",
-        "s3:PutReplicationConfiguration",
         "s3:PutObject",
         "s3:PutObjectAcl",
         "s3:PutObjectTagging",
@@ -38,6 +26,21 @@
       ]
     },
     {
+      "Sid": "hcaDssCiCdS3ConfigAccess",
+      "Effect": "Allow",
+      "Action": [
+        "s3:PutAccelerateConfiguration",
+        "s3:PutBucket*",
+        "s3:PutLifecycleConfiguration",
+        "s3:PutReplicationConfiguration"
+      ],
+      "Resource": [
+        "arn:aws:s3:::$DSS_S3_BUCKET",
+        "arn:aws:s3:::$DSS_S3_BUCKET_TEST",
+        "arn:aws:s3:::$DSS_S3_BUCKET_STAGING"
+      ]
+    },
+    {
       "Sid": "hcaDssCiCdS3ReadOnlyAccess",
       "Effect": "Allow",
       "Action": [
@@ -50,7 +53,9 @@
         "arn:aws:s3:::$DSS_S3_BUCKET_TEST",
         "arn:aws:s3:::$DSS_S3_BUCKET_TEST/*",
         "arn:aws:s3:::$DSS_S3_BUCKET_TEST_FIXTURES",
-        "arn:aws:s3:::$DSS_S3_BUCKET_TEST_FIXTURES/*"
+        "arn:aws:s3:::$DSS_S3_BUCKET_TEST_FIXTURES/*",
+        "arn:aws:s3:::$DSS_S3_BUCKET_STAGING",
+        "arn:aws:s3:::$DSS_S3_BUCKET_STAGING/*"
       ]
     },
     {
