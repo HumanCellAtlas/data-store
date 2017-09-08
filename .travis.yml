@@ -42,7 +42,7 @@ deploy:
     on:
       branch: master
   - provider: script
-    script: export DSS_DEPLOYMENT_STAGE=staging; make -j4 -O deploy
+    script: source environment.staging; make -j4 -O deploy
     skip_cleanup: true
     on:
       branch: staging
