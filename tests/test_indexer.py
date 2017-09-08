@@ -90,7 +90,7 @@ def tearDownModule():
 class TestIndexerBase(DSSAsserts, StorageTestSupport, DSSUploadMixin):
 
     @classmethod
-    def IndexerSetup(cls, replica):
+    def indexer_setup(cls, replica):
         cls.replica = replica
         Config.set_config(DeploymentStage.TEST_FIXTURE)
         cls.blobstore, _, cls.test_fixture_bucket = Config.get_cloud_specific_handles(cls.replica)
@@ -356,7 +356,7 @@ class TestAWSIndexer(TestIndexerBase, unittest.TestCase):
 
     @classmethod
     def setUpClass(cls):
-        super().IndexerSetup("aws")
+        super().indexer_setup("aws")
 
     def process_new_indexable_object(self, event, logger):
         process_new_s3_indexable_object(event, logger)
@@ -373,7 +373,7 @@ class TestGCPIndexer(TestIndexerBase, unittest.TestCase):
 
     @classmethod
     def setUpClass(cls):
-        super().IndexerSetup("gcp")
+        super().indexer_setup("gcp")
 
     def process_new_indexable_object(self, event, logger):
         process_new_gs_indexable_object(event, logger)
