@@ -43,7 +43,7 @@ deploy:
     on:
       branch: master
   - provider: script
-    script: . environment.staging && make -j4 -O deploy
+    script: make -j4 -O deploy
     skip_cleanup: true
     on:
       branch: staging
