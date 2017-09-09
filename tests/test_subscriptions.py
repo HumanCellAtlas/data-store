@@ -22,6 +22,7 @@ import dss
 from dss.util import UrlBuilder
 from dss.util.es import ElasticsearchClient, ElasticsearchServer, get_elasticsearch_index
 from tests.infra import DSSAsserts, ExpectedErrorFields
+from tests.es import elasticsearch_delete_index
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
@@ -32,6 +33,7 @@ class ESInfo:
     server = None
 
 def setUpModule():
+    os.environ['TEST_MODULE_NAME'] = __name__.split('.')[-1]
     ESInfo.server = ElasticsearchServer()
     os.environ['DSS_ES_PORT'] = str(ESInfo.server.port)
 
@@ -52,6 +54,7 @@ class TestSubscriptionsBase(DSSAsserts):
 
         logger.debug("Setting up Elasticsearch")
         es_client = ElasticsearchClient.get(logger)
+        elasticsearch_delete_index(f"*{os.environ['TEST_MODULE_NAME']}")
         es_client.indices.delete(index="_all", ignore=[404])  # Disregard if no indices - don't error.
         index_mapping = {  # Need to make a mapping for the percolator type before we add any.
             "mappings": {

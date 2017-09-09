@@ -71,6 +71,7 @@ class ESInfo:
     server = None
 
 def setUpModule():
+    os.environ['TEST_MODULE_NAME'] = __name__.split('.')[-1]
     HTTPInfo.port = findOpenPort()
     HTTPInfo.server = HTTPServer((HTTPInfo.address, HTTPInfo.port), PostTestHandler)
     HTTPInfo.thread = threading.Thread(target=HTTPInfo.server.serve_forever)
@@ -82,6 +83,7 @@ def setUpModule():
 def tearDownModule():
     ESInfo.server.shutdown()
     HTTPInfo.server.shutdown()
+    os.unsetenv("TEST_MODULE_NAME")
 
 
 class TestIndexerBase(DSSAsserts, StorageTestSupport, DSSUploadMixin):
@@ -99,7 +101,7 @@ class TestIndexerBase(DSSAsserts, StorageTestSupport, DSSUploadMixin):
 
     def setUp(self):
         self.app = dss.create_app().app.test_client()
-        elasticsearch_delete_index("_all")
+        elasticsearch_delete_index(f"*{os.environ['TEST_MODULE_NAME']}")
         PostTestHandler.reset()
 
     def tearDown(self):

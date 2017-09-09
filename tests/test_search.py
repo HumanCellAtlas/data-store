@@ -38,20 +38,22 @@ class ESInfo:
 
 
 def setUpModule():
+    os.environ['TEST_MODULE_NAME'] = __name__.split('.')[-1]
     ESInfo.server = ElasticsearchServer()
     os.environ['DSS_ES_PORT'] = str(ESInfo.server.port)
 
 
 def tearDownModule():
     ESInfo.server.shutdown()
+    os.unsetenv("TEST_MODULE_NAME")
 
 
 class TestSearchBase(DSSAsserts):
     @classmethod
     def search_setup(cls, replica):
         cls.replica_name = replica.name
-        cls.dss_index_name = dss.Config.get_es_index_name(dss.ESIndexType.docs, replica)
         dss.Config.set_config(dss.DeploymentStage.TEST)
+        cls.dss_index_name = dss.Config.get_es_index_name(dss.ESIndexType.docs, replica)
         cls.app = dss.create_app().app.test_client()
         with open(os.path.join(os.path.dirname(__file__), "sample_index_doc.json"), "r") as fh:
             cls.index_document = json.load(fh)
@@ -59,6 +61,7 @@ class TestSearchBase(DSSAsserts):
     def setUp(self):
         dss.Config.set_config(dss.DeploymentStage.TEST)
         self.app = dss.create_app().app.test_client()
+        elasticsearch_delete_index(f"*{os.environ['TEST_MODULE_NAME']}")
         elasticsearch_delete_index(self.dss_index_name)
         create_elasticsearch_index(self.dss_index_name, logger)
 
