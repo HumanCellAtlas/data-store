@@ -25,7 +25,7 @@ def process_new_s3_indexable_object(event, logger) -> None:
         bucket_name = event['Records'][0]["s3"]["bucket"]["name"]
         process_new_indexable_object(bucket_name, key, "aws", logger)
     except Exception as ex:
-        logger.error(f"Exception occurred while processing S3 event: {ex} Event: %s", json.dumps(event, indent=4))
+        logger.error("Exception occurred while processing S3 event: %s Event: %s", ex, json.dumps(event, indent=4))
         raise
 
 
@@ -36,7 +36,7 @@ def process_new_gs_indexable_object(event, logger) -> None:
         key = event["name"]
         process_new_indexable_object(bucket_name, key, "gcp", logger)
     except Exception as ex:
-        logger.error(f"Exception occurred while processing GS event: {ex} Event: %s", json.dumps(event, indent=4))
+        logger.error("Exception occurred while processing GS event: %s Event: %s", ex, json.dumps(event, indent=4))
         raise
 
 
@@ -94,12 +94,12 @@ def create_index_data(handle: BlobStore, bucket_name: str, bundle_id: str, manif
             except json.decoder.JSONDecodeError as ex:
                 logger.warning(f"In bundle {bundle_id} the file \"{file_info[BundleFileMetadata.NAME]}\""
                                " is marked for indexing yet could not be parsed."
-                               f" This file will not be indexed. Exception: {ex}")
+                               " This file will not be indexed. Exception: %s", ex)
                 continue
             except BlobNotFoundError as ex:
                 logger.warning(f"In bundle {bundle_id} the file \"{file_info[BundleFileMetadata.NAME]}\""
                                " is marked for indexing yet could not be accessed."
-                               f" This file will not be indexed. Exception: {ex}")
+                               " This file will not be indexed. Exception: %s", ex)
                 continue
             logger.debug(f"Indexing file: {file_info[BundleFileMetadata.NAME]}")
             # There are two reasons in favor of not using dot in the name of the individual
@@ -128,7 +128,7 @@ def get_bundle_id_from_key(bundle_key: str) -> str:
 
 def add_index_data_to_elasticsearch(bundle_id: str, index_data: dict, index_name: str, logger) -> None:
     create_elasticsearch_index(index_name, logger)
-    logger.debug(f"Adding data to Elasticsearch index '{index_name}': %s", json.dumps(index_data, indent=4))
+    logger.debug("Adding index data to Elasticsearch: %s", json.dumps(index_data, indent=4))
     add_data_to_elasticsearch(bundle_id, index_data, index_name, logger)
 
 
@@ -154,8 +154,7 @@ def add_data_to_elasticsearch(bundle_id: str, index_data: dict, index_name: str,
                                               id=bundle_id,
                                               body=json.dumps(index_data))  # Do not use refresh here - too expensive.
     except Exception as ex:
-        logger.error(f"Document not indexed. Exception: {ex}, Index name: {index_name},  Index data: %s",
-                     json.dumps(index_data, indent=4))
+        logger.error("Document not indexed. Exception: %s  Index data: %s", ex, json.dumps(index_name, indent=4))
         raise
 
 
@@ -185,7 +184,8 @@ def process_notifications(bundle_id: str, subscription_ids: set, replica, logger
             subscription = get_subscription(subscription_id, replica, logger)
             notify(subscription_id, subscription, bundle_id, logger)
         except Exception as ex:
-            logger.error(f"Error occurred while processing subscription {subscription_id} for bundle {bundle_id}. {ex}")
+            logger.error("Error occurred while processing subscription %s for bundle %s. %s",
+                         subscription_id, bundle_id, ex)
 
 
 def get_subscription(subscription_id: str, replica: str, logger):

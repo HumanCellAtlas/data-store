@@ -66,12 +66,9 @@ class TestSearch(unittest.TestCase, DSSAsserts):
                         body=self.index_document,
                         refresh=True)
 
-        response = self.assertPostResponse(
-            "/v1/search",
-            json_request_body=smartseq2_paired_ends_query,
-            expected_code=requests.codes.ok)
+        response = self.post_search(smartseq2_paired_ends_query, requests.codes.ok)
         search_response = response.json
-        self.assertDictEqual(search_response['query'], smartseq2_paired_ends_query)
+        self.assertDictEqual(search_response['es_query'], smartseq2_paired_ends_query)
         self.assertEqual(len(search_response['results']), 1)
         self.assertEqual(search_response['results'][0]['bundle_id'], bundle_id)
         self.assertEqual(search_response['results'][0]['bundle_url'], bundle_url)
@@ -119,10 +116,7 @@ class TestSearch(unittest.TestCase, DSSAsserts):
         self.populate_search_index(self.index_document, 1)
         for bad_query in invalid_query_data:
             with self.subTest("Invalid Queries: bad_query={bad_query[0]}"):
-                self.assertPostResponse(
-                    "/v1/search",
-                    json_request_body=(bad_query[0]),
-                    expected_code=bad_query[1])
+                self.post_search(*bad_query)
 
     def test_search_returns_N_results_when_N_documents_match_query(self):
         """Create N identical documents. A search query is executed to match the document. All documents created must be
@@ -147,10 +141,8 @@ class TestSearch(unittest.TestCase, DSSAsserts):
         es_logger.setLevel("ERROR")
         try:
             os.environ['DSS_ES_ENDPOINT'] = "bogus"
-            response = self.assertPostResponse(
-                "/v1/search",
-                json_request_body=smartseq2_paired_ends_query,
-                expected_code=requests.codes.internal_server_error)
+            response = self.post_search(smartseq2_paired_ends_query,
+                                        requests.codes.internal_server_error)
             self.assertEqual(response.json['code'], "elasticsearch_error")
             self.assertEqual(response.json['title'], "Elasticsearch operation failed")
         finally:
@@ -174,13 +166,16 @@ class TestSearch(unittest.TestCase, DSSAsserts):
             bundles.append((bundle_id, bundle_url))
         return bundles
 
+    def post_search(self, query: dict, status_code: int):
+        return self.assertPostResponse(
+            "/v1/search",
+            json_request_body=dict(es_query=query),
+            expected_code=status_code)
+
     def verify_search_results(self, query, expected_result_length=0, bundles=[], timeout=5):
         timeout_time = timeout + time.time()
         while time.time() <= timeout_time:
-            response = self.assertPostResponse(
-                "/v1/search",
-                json_request_body=(query),
-                expected_code=requests.codes.ok)
+            response = self.post_search(query, requests.codes.ok)
             search_response = response.json
             if len(search_response['results']) == expected_result_length:
                 break
@@ -190,7 +185,8 @@ class TestSearch(unittest.TestCase, DSSAsserts):
                 time.sleep(0.5)
         else:
             self.fail("elasticsearch failed to return all results.")
-        self.assertDictEqual(search_response['query'], query)
+
+        self.assertDictEqual(search_response['es_query'], query)
         self.assertEqual(len(search_response['results']), expected_result_length)
         result_bundles = [(hit['bundle_id'], hit['bundle_url'])
                           for hit in search_response['results']]

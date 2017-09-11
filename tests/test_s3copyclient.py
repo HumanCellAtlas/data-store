@@ -7,35 +7,18 @@ import io
 import itertools
 import os
 import sys
+import time
 import unittest
 
 pkg_root = os.path.abspath(os.path.join(os.path.dirname(__file__), '..'))  # noqa
 sys.path.insert(0, pkg_root)  # noqa
 
+from dss.blobstore import BlobNotFoundError
 from dss.blobstore.s3 import S3BlobStore
-from dss.events import chunkedtask
-from dss.events.chunkedtask.s3copyclient import S3CopyTask
+from dss.events.chunkedtask import aws
+from dss.events.chunkedtask.s3copyclient import S3CopyTask, S3ParallelCopySupervisorTask
 from tests import infra
-
-
-class TestStingyRuntime(chunkedtask.Runtime[dict, bool]):
-    """This is runtime that returns a pre-determined sequence, and then 0s for the remaining time."""
-    def __init__(self, seq=None):
-        self.complete = False
-        if seq is None:
-            seq = list()
-        self.seq = itertools.chain(seq, itertools.repeat(0))
-
-    def get_remaining_time_in_millis(self) -> int:
-        return self.seq.__next__()
-
-    def reschedule_work(self, state: dict):
-        # it's illegal for there to be no state.
-        assert state is not None
-        self.rescheduled_state = state
-
-    def work_complete_callback(self, bool):
-        self.complete = True
+from tests.chunked_worker import TestStingyRuntime, run_task_to_completion
 
 
 class TestAWSCopy(unittest.TestCase):
@@ -66,23 +49,17 @@ class TestAWSCopy(unittest.TestCase):
     def test_simple_copy(self):
         dest_key = infra.generate_test_key()
 
-        current_state = S3CopyTask.setup_copy_task(
+        initial_state = S3CopyTask.setup_copy_task(
             self.test_bucket, self.test_src_key, self.test_bucket, dest_key, lambda blob_size: (5 * 1024 * 1024))
-        freezes = 0
 
-        while True:
-            env = TestStingyRuntime()
-            task = S3CopyTask(current_state)
-            runner = chunkedtask.Runner(task, env)
-
-            runner.run()
-
-            if env.complete:
-                # we're done!
-                break
-            else:
-                current_state = env.rescheduled_state
-                freezes += 1
+        freezes, _ = run_task_to_completion(
+            S3CopyTask,
+            initial_state,
+            lambda results: TestStingyRuntime(results),
+            lambda task_class, task_state, runtime: task_class(task_state),
+            lambda runtime: runtime.result,
+            lambda runtime: runtime.scheduled_work,
+        )
 
         self.assertGreater(freezes, 0)
 
@@ -93,29 +70,110 @@ class TestAWSCopy(unittest.TestCase):
     def test_off_by_one(self):
         dest_key = infra.generate_test_key()
 
-        current_state = S3CopyTask.setup_copy_task(
+        initial_state = S3CopyTask.setup_copy_task(
             self.test_bucket, self.test_src_key, self.test_bucket, dest_key, lambda blob_size: (5 * 1024 * 1024))
-        freezes = 0
 
-        while True:
-            env = TestStingyRuntime(seq=itertools.repeat(sys.maxsize, 7))
-            task = S3CopyTask(current_state, fetch_size=4)
-            runner = chunkedtask.Runner(task, env)
-
-            runner.run()
-
-            if env.complete:
-                # we're done!
-                break
-            else:
-                current_state = env.rescheduled_state
-                freezes += 1
+        freezes, _ = run_task_to_completion(
+            S3CopyTask,
+            initial_state,
+            lambda results: TestStingyRuntime(results, seq=itertools.repeat(sys.maxsize, 7)),
+            lambda task_class, task_state, runtime: task_class(task_state, fetch_size=4),
+            lambda runtime: runtime.result,
+            lambda runtime: runtime.scheduled_work,
+        )
 
         self.assertGreater(freezes, 0)
 
         # verify that the destination has the same checksum.
         dst_etag = S3BlobStore().get_all_metadata(self.test_bucket, dest_key)['ETag'].strip("\"")
         self.assertEqual(self.test_src_etag, dst_etag)
+
+    def test_parallel_copy_locally_many_workers(self, timeout_seconds=60):
+        """
+        Executes a parallel copy with many workers.  Since this is done with a local runtime, the parallelism is more
+        akin to cooperative multitasking.  However, it validates the basic code path.
+        """
+        dest_key = infra.generate_test_key()
+
+        # a small batch size means we spawn a lot of workers.
+        initial_state = S3ParallelCopySupervisorTask.setup_copy_task(
+            self.test_bucket, self.test_src_key,
+            self.test_bucket, dest_key,
+            lambda blob_size: (5 * 1024 * 1024),
+            timeout_seconds,
+            batch_size=1)
+
+        freezes, _ = run_task_to_completion(
+            S3ParallelCopySupervisorTask,
+            initial_state,
+            lambda results: TestStingyRuntime(results),
+            lambda task_class, task_state, runtime: task_class(task_state, runtime),
+            lambda runtime: runtime.result,
+            lambda runtime: runtime.scheduled_work,
+        )
+
+        self.assertGreater(freezes, 0)
+
+        # verify that the destination has the same checksum.
+        dst_etag = S3BlobStore().get_all_metadata(self.test_bucket, dest_key)['ETag'].strip("\"")
+        self.assertEqual(self.test_src_etag, dst_etag)
+
+    def test_parallel_copy_locally_parallel_worker(self, timeout_seconds=60):
+        """
+        Executes a parallel copy with a single worker tasked with many chunks.  This tests the thread-level parallelism
+        in the workers.
+        """
+        dest_key = infra.generate_test_key()
+
+        # a large batch size means each worker is responsible for many chunks.
+        initial_state = S3ParallelCopySupervisorTask.setup_copy_task(
+            self.test_bucket, self.test_src_key,
+            self.test_bucket, dest_key,
+            lambda blob_size: (5 * 1024 * 1024),
+            timeout_seconds,
+            batch_size=100)
+
+        freezes, _ = run_task_to_completion(
+            S3ParallelCopySupervisorTask,
+            initial_state,
+            lambda results: TestStingyRuntime(results),
+            lambda task_class, task_state, runtime: task_class(task_state, runtime),
+            lambda runtime: runtime.result,
+            lambda runtime: runtime.scheduled_work,
+        )
+
+        self.assertGreater(freezes, 0)
+
+        # verify that the destination has the same checksum.
+        dst_etag = S3BlobStore().get_all_metadata(self.test_bucket, dest_key)['ETag'].strip("\"")
+        self.assertEqual(self.test_src_etag, dst_etag)
+
+    def test_parallel_copy_aws(self, timeout_seconds=60):
+        """
+        Executes a parallel copy on AWS.
+        """
+        dest_key = infra.generate_test_key()
+
+        initial_state = S3ParallelCopySupervisorTask.setup_copy_task(
+            self.test_bucket, self.test_src_key,
+            self.test_bucket, dest_key,
+            lambda blob_size: (5 * 1024 * 1024),
+            timeout_seconds)
+
+        aws.schedule_task(S3ParallelCopySupervisorTask, initial_state)
+
+        timeout = time.time() + timeout_seconds
+        while time.time() < timeout:
+            try:
+                # verify that the destination has the same checksum.
+                dst_etag = S3BlobStore().get_all_metadata(self.test_bucket, dest_key)['ETag'].strip("\"")
+                self.assertEqual(self.test_src_etag, dst_etag)
+                break
+            except BlobNotFoundError:
+                time.sleep(1)
+                continue
+        else:
+            self.fail(f"Could not find destination s3://{self.test_bucket}/{dest_key} after {timeout_seconds} seconds")
 
 
 class TestAWSCopyNonMultipart(unittest.TestCase):
@@ -133,21 +191,17 @@ class TestAWSCopyNonMultipart(unittest.TestCase):
     def test_simple_copy(self):
         dest_key = infra.generate_test_key()
 
-        current_state = S3CopyTask.setup_copy_task(
+        initial_state = S3CopyTask.setup_copy_task(
             self.test_bucket, self.test_src_key, self.test_bucket, dest_key, lambda blob_size: (5 * 1024 * 1024))
 
-        while True:
-            env = TestStingyRuntime()
-            task = S3CopyTask(current_state)
-            runner = chunkedtask.Runner(task, env)
-
-            runner.run()
-
-            if env.complete:
-                # we're done!
-                break
-            else:
-                current_state = env.rescheduled_state
+        run_task_to_completion(
+            S3CopyTask,
+            initial_state,
+            lambda results: TestStingyRuntime(results),
+            lambda task_class, task_state, runtime: task_class(task_state),
+            lambda runtime: runtime.result,
+            lambda runtime: runtime.scheduled_work,
+        )
 
         # verify that the destination has the same checksum.
         dst_etag = S3BlobStore().get_all_metadata(self.test_bucket, dest_key)['ETag'].strip("\"")

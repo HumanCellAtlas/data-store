@@ -15,13 +15,14 @@ from ..util.es import ElasticsearchClient
 replica = "aws"
 
 @dss_handler
-def post(query: dict):
-    get_logger().debug("Received posted query: %s", json.dumps(query, indent=4))
+def post(json_request_body: dict):
+    es_query = json_request_body['es_query']
+    get_logger().debug("Received posted query: %s", json.dumps(es_query, indent=4))
     try:
         es_client = ElasticsearchClient.get(get_logger())
         search_obj = Search(using=es_client,
                             index=Config.get_es_index_name(ESIndexType.docs, Replica[replica]),
-                            doc_type=ESDocType.doc.name).update_from_dict(query)
+                            doc_type=ESDocType.doc.name).update_from_dict(es_query)
 
         # TODO (mbaumann) extract version from the request path instead of hard-coding it here
         bundles_url_base = request.host_url + 'v1/bundles/'
@@ -30,7 +31,7 @@ def post(query: dict):
             'bundle_url': bundles_url_base + hit.meta.id.replace(".", "?version=", 1),
             'search_score': hit.meta.score
         } for hit in search_obj.scan()]
-        return jsonify({'query': query, 'results': result_list})
+        return jsonify({'es_query': es_query, 'results': result_list})
 
     except ElasticsearchDslException:
         raise DSSException(requests.codes.bad_request,

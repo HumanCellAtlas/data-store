@@ -10,15 +10,17 @@ mypy:
 test_srcs := $(wildcard tests/test_*.py)
 
 test: lint mypy
-	PYTHONWARNINGS=ignore:ResourceWarning coverage run --source=dss -m unittest discover tests -v
+	coverage run --source=dss -m unittest discover tests -v
 
 fast_test: lint mypy $(test_srcs)
 
 $(test_srcs): %.py :
-	PYTHONWARNINGS=ignore:ResourceWarning python -m unittest $@
+	python -m unittest $@
+
+smoketest:
+	scripts/smoketest.py
 
 deploy:
-	scripts/find_missing_wheels.py requirements.txt
 	$(MAKE) -C chalice deploy
 	$(MAKE) -C daemons deploy
 
@@ -35,6 +37,7 @@ requirements.txt requirements-dev.txt : %.txt : %.txt.in
 	pip install -r $< && \
 	pip freeze >> $@
 	rm -rf .requirements-env
+	scripts/find_missing_wheels.py requirements.txt
 
 requirements-dev.txt : requirements.txt.in
 

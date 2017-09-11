@@ -192,7 +192,7 @@ def put(uuid: str, json_request_body: dict, version: str=None):
         state[s3copyclient.S3CopyWriteBundleTaskKeys.METADATA] = document
 
         # start a lambda to do the copy.
-        task_id = aws.schedule_task(s3copyclient.AWS_S3_COPY_AND_WRITE_METADATA_CLIENT_NAME, state)
+        task_id = aws.schedule_task(s3copyclient.S3CopyWriteBundleTask, state)
 
         return jsonify(dict(task_id=task_id, version=version)), requests.codes.accepted
     elif copy_mode == CopyMode.COPY_INLINE:

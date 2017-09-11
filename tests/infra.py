@@ -144,17 +144,17 @@ class TestBundle:
         self.files = self.enumerate_bundle_files(replica)
 
     def enumerate_bundle_files(self, replica) -> list:
-        object_summaries = self.handle.list(self.bucket, prefix=f"{self.path}/")
-        return [TestFile(object_summary, self, replica) for object_summary in object_summaries]
+        file_keys = self.handle.list(self.bucket, prefix=f"{self.path}/")
+        return [TestFile(file_key, self, replica) for file_key in file_keys]
 
 
 class TestFile:
-    def __init__(self, object_summary, bundle, replica) -> None:
+    def __init__(self, file_key, bundle, replica) -> None:
         self.bundle = bundle
-        self.metadata = bundle.handle.get_user_metadata(bundle.bucket, object_summary)
+        self.metadata = bundle.handle.get_user_metadata(bundle.bucket, file_key)
         self.indexed = True if self.metadata['hca-dss-content-type'] == "application/json" else False
-        self.name = os.path.basename(object_summary)
-        self.path = object_summary
+        self.name = os.path.basename(file_key)
+        self.path = file_key
         self.uuid = str(uuid.uuid4())
         self.url = Config.get_storage_schema(replica) + "://" + bundle.bucket + "/" + self.path
         self.version = None
