@@ -6,6 +6,7 @@
       "Action": [
         "logs:CreateLogGroup",
         "logs:CreateLogStream",
+        "logs:DescribeLogGroups",
         "logs:DescribeLogStreams",
         "logs:PutLogEvents"
       ],
