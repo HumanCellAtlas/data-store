@@ -32,5 +32,5 @@ dss.Config.set_config(dss.DeploymentStage.NORMAL)
 
 logging.basicConfig(level=args.log_level, stream=sys.stderr)
 
-chalice_app = CLIFactory(project_dir=args.project_dir, debug=args.debug).load_chalice_app()
-run_local_server(chalice_app, port=args.port)
+factory = CLIFactory(project_dir=args.project_dir, debug=args.debug)
+run_local_server(factory, port=args.port, env=os.environ)
