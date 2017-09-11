@@ -40,6 +40,3 @@ class AWSRuntime(Runtime[dict, typing.Any]):
     @staticmethod
     def log(client_key: str, task_id: str, message: str):
         log_message(awsconstants.get_worker_sns_topic(client_key), task_id, message)
-        # TODO: (ttung) remove this when the existing branches that depend on the old log group have landed.
-        # Additionally, the chunked_task_worker perm for the ci-cd user should be removed.
-        log_message("chunked_task_worker", task_id, message)
