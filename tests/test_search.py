@@ -174,14 +174,11 @@ class TestSearch(unittest.TestCase, DSSAsserts):
                   .set(path="/v1/search")
                   .add_query("replica", self.replica))
         return self.assertPostResponse(
-                path=url,
-                json_request_body=dict(es_query=query),
-                expected_code=requests.codes.ok)
+            path=url,
+            json_request_body=dict(es_query=query),
+            expected_code=status_code)
 
     def verify_search_results(self, query, expected_result_length=0, bundles=[], timeout=5):
-        url = str(UrlBuilder()
-                  .set(path="/v1/search")
-                  .add_query("replica", self.replica))
         timeout_time = timeout + time.time()
         while time.time() <= timeout_time:
             response = self.post_search(query, requests.codes.ok)

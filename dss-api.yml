@@ -38,7 +38,6 @@ paths:
                 type: object
             required:
               - es_query
-                    type: object
         - name: replica
           in: query
           description: Replica to search.
