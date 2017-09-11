@@ -142,8 +142,8 @@ class TestIndexerBase(DSSAsserts, StorageTestSupport, DSSUploadMixin):
                 self.process_new_indexable_object(sample_event, logger)
             self.assertRegex(log_monitor.output[0], "DEBUG:.*Not indexing .* creation event for key: .*")
             with self.assertRaises(Exception) as ex:
-                ElasticsearchClient.get(logger).get(index=DSS_ELASTICSEARCH_INDEX_NAME,
-                                                    doc_type=DSS_ELASTICSEARCH_DOC_TYPE,
+                ElasticsearchClient.get(logger).get(index=self.dss_index_name,
+                                                    doc_type=dss.ESIndexType.docs,
                                                     id=bundle_uuid)
             self.assertEqual('index_not_found_exception', ex.exception.error)
         finally:
