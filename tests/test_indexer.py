@@ -6,12 +6,14 @@ import io
 import json
 import logging
 import os
+import socket
 import sys
 import threading
 import time
 import unittest
 import uuid
 from http.server import BaseHTTPRequestHandler, HTTPServer
+from random import randint
 from typing import Dict
 
 import google.auth
@@ -26,12 +28,11 @@ import dss
 from dss import (DeploymentStage, Config,
                  DSS_ELASTICSEARCH_INDEX_NAME, DSS_ELASTICSEARCH_DOC_TYPE,
                  DSS_ELASTICSEARCH_SUBSCRIPTION_INDEX_NAME)
-from dss.events.handlers.index import process_new_s3_indexable_object
-from dss.blobstore.s3 import S3BlobStore
+from dss.events.handlers.index import process_new_s3_indexable_object, process_new_gs_indexable_object
 from dss.hcablobstore import BundleMetadata, BundleFileMetadata, FileMetadata
 from dss.util import create_blob_key, UrlBuilder
 from dss.util.es import ElasticsearchClient, ElasticsearchServer
-
+from tests import get_version
 from tests.es import elasticsearch_delete_index
 from tests.fixtures.populate import populate
 from tests.infra import DSSAsserts, DSSUploadMixin, StorageTestSupport, TestBundle, start_verbose_logging
@@ -62,48 +63,41 @@ start_verbose_logging()
 #   5. Verify the structure and content of the index document
 #
 
+class HTTPInfo:
+    address = "127.0.0.1"
+    port = None
+    server = None
+    thread = None
 
-class TestIndexer(unittest.TestCase, DSSAsserts, StorageTestSupport, DSSUploadMixin):
+class ESInfo:
+    server = None
 
-    http_server_address = "127.0.0.1"
-    http_server_port = 8729
+def setUpModule():
+    HTTPInfo.port = findOpenPort()
+    HTTPInfo.server = HTTPServer((HTTPInfo.address, HTTPInfo.port), PostTestHandler)
+    HTTPInfo.thread = threading.Thread(target=HTTPInfo.server.serve_forever)
+    HTTPInfo.thread.start()
+
+    ESInfo.server = ElasticsearchServer()
+    os.environ['DSS_ES_PORT'] = str(ESInfo.server.port)
+
+def tearDownModule():
+    ESInfo.server.shutdown()
+    HTTPInfo.server.shutdown()
+
+
+class TestIndexerBase(DSSAsserts, StorageTestSupport, DSSUploadMixin):
 
     @classmethod
-    def setUpClass(cls):
-        cls.replica = "aws"
+    def indexer_setup(cls, replica):
+        cls.replica = replica
         Config.set_config(DeploymentStage.TEST_FIXTURE)
         cls.blobstore, _, cls.test_fixture_bucket = Config.get_cloud_specific_handles(cls.replica)
         Config.set_config(DeploymentStage.TEST)
         _, _, cls.test_bucket = Config.get_cloud_specific_handles(cls.replica)
 
-        if not USE_AWS_S3:  # Setup moto mocks
-            cls.mock_s3 = moto.mock_s3()
-            cls.mock_s3.start()
-            cls.mock_sts = moto.mock_sts()
-            cls.mock_sts.start()
-            Config.set_config(DeploymentStage.TEST_FIXTURE)
-            create_s3_bucket(Config.get_s3_bucket())
-            populate(Config.get_s3_bucket(), None)
-            Config.set_config(DeploymentStage.TEST)
-            create_s3_bucket(Config.get_s3_bucket())
-
-        cls.es_server = ElasticsearchServer()
-        os.environ['DSS_ES_PORT'] = str(cls.es_server.port)
-
-        cls.http_server = HTTPServer((cls.http_server_address, cls.http_server_port), PostTestHandler)
-        cls.http_server_thread = threading.Thread(target=cls.http_server.serve_forever)
-        cls.http_server_thread.start()
-        cls.app = dss.create_app().app.test_client()
-
-    @classmethod
-    def tearDownClass(cls):
-        cls.es_server.shutdown()
-        if not USE_AWS_S3:  # Teardown moto mocks
-            cls.mock_sts.stop()
-            cls.mock_s3.stop()
-        cls.http_server.shutdown()
-
     def setUp(self):
+        self.app = dss.create_app().app.test_client()
         elasticsearch_delete_index("_all")
         PostTestHandler.reset()
 
@@ -111,10 +105,10 @@ class TestIndexer(unittest.TestCase, DSSAsserts, StorageTestSupport, DSSUploadMi
         self.app = None
         self.storageHelper = None
 
-    def test_process_new_s3_indexable_object(self):
+    def test_process_new_indexable_object(self):
         bundle_key = self.load_test_data_bundle_for_path("fixtures/smartseq2/paired_ends")
-        sample_s3_event = self.create_sample_s3_bundle_created_event(bundle_key)
-        process_new_s3_indexable_object(sample_s3_event, logger)
+        sample_event = self.create_sample_bundle_created_event(bundle_key)
+        self.process_new_indexable_object(sample_event, logger)
         search_results = self.get_search_results(smartseq2_paired_ends_query, 1)
         self.assertEqual(1, len(search_results))
         self.verify_index_document_structure_and_content(search_results[0], bundle_key,
@@ -127,9 +121,9 @@ class TestIndexer(unittest.TestCase, DSSAsserts, StorageTestSupport, DSSUploadMi
             if file.name == "text_data_file1.txt":
                 file.indexed = True
         bundle_key = self.load_test_data_bundle(bundle)
-        sample_s3_event = self.create_sample_s3_bundle_created_event(bundle_key)
+        sample_event = self.create_sample_bundle_created_event(bundle_key)
         with self.assertLogs(logger, level="WARNING") as log_monitor:
-            process_new_s3_indexable_object(sample_s3_event, logger)
+            self.process_new_indexable_object(sample_event, logger)
         self.assertRegex(log_monitor.output[0],
                          "WARNING:.*:In bundle .* the file \"text_data_file1.txt\" is marked for indexing"
                          " yet has content type \"text/plain\" instead of the required"
@@ -139,11 +133,37 @@ class TestIndexer(unittest.TestCase, DSSAsserts, StorageTestSupport, DSSUploadMi
         self.verify_index_document_structure_and_content(search_results[0], bundle_key,
                                                          files=smartseq2_paried_ends_indexed_file_list)
 
+    def test_key_is_not_indexed_when_processing_an_event_with_a_nonbundle_key(self):
+        bundle_uuid = "{}.{}".format(str(uuid.uuid4()), get_version())
+        bundle_key = "files/" + bundle_uuid
+        sample_event = self.create_sample_bundle_created_event(bundle_key)
+        log_last = logger.getEffectiveLevel()
+        logger.setLevel(logging.DEBUG)
+        try:
+            with self.assertLogs(logger, level="DEBUG") as log_monitor:
+                self.process_new_indexable_object(sample_event, logger)
+            self.assertRegex(log_monitor.output[0], "DEBUG:.*Not indexing .* creation event for key: .*")
+            with self.assertRaises(Exception) as ex:
+                ElasticsearchClient.get(logger).get(index=DSS_ELASTICSEARCH_INDEX_NAME,
+                                                    doc_type=DSS_ELASTICSEARCH_DOC_TYPE,
+                                                    id=bundle_uuid)
+            self.assertEqual('index_not_found_exception', ex.exception.error)
+        finally:
+            logger.setLevel(log_last)
+
+    def test_error_message_logged_when_invalid_bucket_in_event(self):
+        bundle_key = "bundles/{}.{}".format(str(uuid.uuid4()), get_version())
+        sample_event = self.create_bundle_created_event(bundle_key, "fake")
+        with self.assertLogs(logger, level="ERROR") as log_monitor:
+            with self.assertRaises(Exception):
+                self.process_new_indexable_object(sample_event, logger)
+        self.assertRegex(log_monitor.output[0], "ERROR:.*Exception occurred while processing .* event:.*")
+
     def test_indexed_file_unparsable(self):
         bundle_key = self.load_test_data_bundle_for_path("fixtures/unparseable_indexed_file")
-        sample_s3_event = self.create_sample_s3_bundle_created_event(bundle_key)
+        sample_event = self.create_sample_bundle_created_event(bundle_key)
         with self.assertLogs(logger, level="WARNING") as log_monitor:
-            process_new_s3_indexable_object(sample_s3_event, logger)
+            self.process_new_indexable_object(sample_event, logger)
         self.assertRegex(log_monitor.output[0],
                          "WARNING:.*:In bundle .* the file \"unparseable_json.json\" is marked for indexing"
                          " yet could not be parsed. This file will not be indexed. Exception:")
@@ -156,9 +176,9 @@ class TestIndexer(unittest.TestCase, DSSAsserts, StorageTestSupport, DSSUploadMi
         inaccesssible_filename = "inaccessible_file.json"
         bundle_key = self.load_test_data_bundle_with_inaccessible_file(
             "fixtures/smartseq2/paired_ends", inaccesssible_filename, "application/json", True)
-        sample_s3_event = self.create_sample_s3_bundle_created_event(bundle_key)
+        sample_event = self.create_sample_bundle_created_event(bundle_key)
         with self.assertLogs(logger, level="WARNING") as log_monitor:
-            process_new_s3_indexable_object(sample_s3_event, logger)
+            self.process_new_indexable_object(sample_event, logger)
         self.assertRegex(log_monitor.output[0],
                          f"WARNING:.*:In bundle .* the file \"{inaccesssible_filename}\" is marked for indexing"
                          " yet could not be accessed. This file will not be indexed. Exception:")
@@ -172,34 +192,34 @@ class TestIndexer(unittest.TestCase, DSSAsserts, StorageTestSupport, DSSUploadMi
 
     def test_subscription_notification_successful(self):
         bundle_key = self.load_test_data_bundle_for_path("fixtures/smartseq2/paired_ends")
-        sample_s3_event = self.create_sample_s3_bundle_created_event(bundle_key)
-        process_new_s3_indexable_object(sample_s3_event, logger)
+        sample_event = self.create_sample_bundle_created_event(bundle_key)
+        self.process_new_indexable_object(sample_event, logger)
 
         ElasticsearchClient.get(logger).indices.create(DSS_ELASTICSEARCH_SUBSCRIPTION_INDEX_NAME)
         subscription_id = self.subscribe_for_notification(smartseq2_paired_ends_query,
-                                                          f"http://{self.http_server_address}:{self.http_server_port}")
+                                                          f"http://{HTTPInfo.address}:{HTTPInfo.port}")
 
         bundle_key = self.load_test_data_bundle_for_path("fixtures/smartseq2/paired_ends")
-        sample_s3_event = self.create_sample_s3_bundle_created_event(bundle_key)
-        process_new_s3_indexable_object(sample_s3_event, logger)
+        sample_event = self.create_sample_bundle_created_event(bundle_key)
+        self.process_new_indexable_object(sample_event, logger)
         prefix, _, bundle_id = bundle_key.partition("/")
         self.verify_notification(subscription_id, smartseq2_paired_ends_query, bundle_id)
 
     def test_subscription_notification_unsuccessful(self):
         bundle_key = self.load_test_data_bundle_for_path("fixtures/smartseq2/paired_ends")
-        sample_s3_event = self.create_sample_s3_bundle_created_event(bundle_key)
-        process_new_s3_indexable_object(sample_s3_event, logger)
+        sample_event = self.create_sample_bundle_created_event(bundle_key)
+        self.process_new_indexable_object(sample_event, logger)
 
         ElasticsearchClient.get(logger).indices.create(DSS_ELASTICSEARCH_SUBSCRIPTION_INDEX_NAME)
         subscription_id = self.subscribe_for_notification(smartseq2_paired_ends_query,
-                                                          f"http://{self.http_server_address}:{self.http_server_port}")
+                                                          f"http://{HTTPInfo.address}:{HTTPInfo.port}")
 
         bundle_key = self.load_test_data_bundle_for_path("fixtures/smartseq2/paired_ends")
-        sample_s3_event = self.create_sample_s3_bundle_created_event(bundle_key)
+        sample_event = self.create_sample_bundle_created_event(bundle_key)
         error_response_code = 500
         PostTestHandler.set_response_code(error_response_code)
         with self.assertLogs(logger, level="WARNING") as log_monitor:
-            process_new_s3_indexable_object(sample_s3_event, logger)
+            self.process_new_indexable_object(sample_event, logger)
         prefix, _, bundle_id = bundle_key.partition("/")
         self.assertRegex(log_monitor.output[0],
                          f"WARNING:.*:Failed notification for subscription {subscription_id}"
@@ -245,21 +265,21 @@ class TestIndexer(unittest.TestCase, DSSAsserts, StorageTestSupport, DSSUploadMi
         self.load_test_data_bundle(bundle)
         bundle_builder = BundleBuilder(self.replica)
         for file in bundle.files:
-            bundle_builder.add_file(Config.get_s3_bucket(), file.name, file.indexed, f'{file.uuid}.{file.version}')
+            bundle_builder.add_file(self.test_bucket, file.name, file.indexed, f'{file.uuid}.{file.version}')
         bundle_builder.add_invalid_file(inaccessible_filename,
                                         inaccessible_file_content_type,
                                         inaccessible_file_indexed)
-        bundle_builder.store(Config.get_s3_bucket())
+        bundle_builder.store(self.test_bucket)
         return 'bundles/' + bundle_builder.get_bundle_id()
 
     def load_test_data_bundle(self, bundle: TestBundle):
-        self.upload_files_and_create_bundle(bundle)
+        self.upload_files_and_create_bundle(bundle, self.replica)
         return f"bundles/{bundle.uuid}.{bundle.version}"
 
     def subscribe_for_notification(self, query, callback_url):
         url = str(UrlBuilder()
                   .set(path="/v1/subscriptions")
-                  .add_query("replica", "aws"))
+                  .add_query("replica", self.replica))
         resp_obj = self.assertPutResponse(
             url,
             requests.codes.created,
@@ -282,18 +302,10 @@ class TestIndexer(unittest.TestCase, DSSAsserts, StorageTestSupport, DSSUploadMi
 
         return {'Authorization': f"Bearer {token}"}
 
-    def create_sample_s3_bundle_created_event(self, bundle_key: str) -> Dict:
-        with open(os.path.join(os.path.dirname(__file__), "sample_s3_bundle_created_event.json")) as fh:
-            sample_s3_event = json.load(fh)
-        sample_s3_event['Records'][0]["s3"]['bucket']['name'] = self.test_bucket
-        sample_s3_event['Records'][0]["s3"]['object']['key'] = bundle_key
-        return sample_s3_event
-
     def verify_index_document_structure_and_content(self, actual_index_document,
                                                     bundle_key, files, excluded_files=[]):
         self.verify_index_document_structure(actual_index_document, files, excluded_files)
         expected_index_document = generate_expected_index_document(self.blobstore, self.test_bucket, bundle_key)
-        # expected_index_document = generate_expected_index_document(self.test_bucket, bundle_key)
         if expected_index_document != actual_index_document:
             logger.error(f"Expected index document: {json.dumps(expected_index_document, indent=4)}")
             logger.error(f"Actual index document: {json.dumps(actual_index_document, indent=4)}")
@@ -328,6 +340,49 @@ class TestIndexer(unittest.TestCase, DSSAsserts, StorageTestSupport, DSSUploadMi
                 return [hit['_source'] for hit in response['hits']['hits']]
             else:
                 time.sleep(0.5)
+
+    def create_sample_bundle_created_event(self, bundle_key):
+        return self.create_bundle_created_event(bundle_key, self.test_bucket)
+
+    def create_bundle_created_event(self, bundle_key, bucket_name):
+        raise NotImplemented()
+
+    def process_new_indexable_object(self, event, logger):
+        raise NotImplemented()
+
+
+class TestAWSIndexer(TestIndexerBase, unittest.TestCase):
+
+    @classmethod
+    def setUpClass(cls):
+        super().indexer_setup("aws")
+
+    def process_new_indexable_object(self, event, logger):
+        process_new_s3_indexable_object(event, logger)
+
+    def create_bundle_created_event(self, bundle_key, bucket_name) -> Dict:
+        with open(os.path.join(os.path.dirname(__file__), "sample_s3_bundle_created_event.json")) as fh:
+            sample_event = json.load(fh)
+        sample_event['Records'][0]["s3"]['bucket']['name'] = bucket_name
+        sample_event['Records'][0]["s3"]['object']['key'] = bundle_key
+        return sample_event
+
+
+class TestGCPIndexer(TestIndexerBase, unittest.TestCase):
+
+    @classmethod
+    def setUpClass(cls):
+        super().indexer_setup("gcp")
+
+    def process_new_indexable_object(self, event, logger):
+        process_new_gs_indexable_object(event, logger)
+
+    def create_bundle_created_event(self, bundle_key, bucket_name) -> Dict:
+        with open(os.path.join(os.path.dirname(__file__), "sample_gs_bundle_created_event.json")) as fh:
+            sample_event = json.load(fh)
+        sample_event["bucket"] = bucket_name
+        sample_event["name"] = bundle_key
+        return sample_event
 
 
 class BundleBuilder:
@@ -455,6 +510,19 @@ def create_index_data(blobstore, bucket_name, manifest):
             index_files[index_filename] = file_json
     index['files'] = index_files
     return index
+
+
+def findOpenPort() -> int:
+    while True:
+        port = randint(1024, 65535)
+        try:
+            sock = socket.create_connection((HTTPInfo.address, port), 1)
+            sock.close()
+            # there's something there already.
+        except (ConnectionRefusedError, socket.timeout):
+            # ok this is an open port.
+            break
+    return port
 
 if __name__ == "__main__":
     unittest.main()

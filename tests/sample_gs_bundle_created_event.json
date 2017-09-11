@@ -1,9 +1,9 @@
 {
   "kind": "storage#object",
-  "id": "BucketName/ObjectName",
+  "id": "testBucket/bundles/fc41cec8-4854-44e2-8c95-afa8d2255b02.2017-06-21T18:41:03.778690Z",
   "selfLink": "https://www.googleapis.com/storage/v1/b/BucketName/o/ObjectName",
-  "name": "ObjectName",
-  "bucket": "BucketName",
+  "name": "bundles/fc41cec8-4854-44e2-8c95-afa8d2255b02.2017-06-21T18:41:03.778690Z",
+  "bucket": "testBucket",
   "generation": "1367014943964000",
   "metageneration": "1",
   "contentType": "application/octet-stream",
