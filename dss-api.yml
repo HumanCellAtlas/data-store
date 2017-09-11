@@ -27,11 +27,17 @@ paths:
       consumes:
         - application/json
       parameters:
-        - name: query
+        - name: json_request_body
           in: body
-          description: Elasticsearch query
+          required: true
           schema:
             type: object
+            properties:
+              es_query:
+                description: Elasticsearch query
+                type: object
+            required:
+              - es_query
       produces:
         - application/json
       responses:

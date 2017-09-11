@@ -31,12 +31,16 @@ GCP_DEFAULT_REGION=us-central1
 DSS_S3_BUCKET=org-humancellatlas-dss-dev
 DSS_S3_BUCKET_TEST=org-humancellatlas-dss-test
 DSS_S3_BUCKET_TEST_FIXTURES=org-humancellatlas-dss-test-fixtures
+DSS_S3_BUCKET_STAGING=org-humancellatlas-dss-staging
+DSS_S3_BUCKET_PROD=org-humancellatlas-dss-prod
 DSS_GS_BUCKET=org-humancellatlas-dss-dev
 DSS_GS_BUCKET_TEST=org-humancellatlas-dss-test
 DSS_GS_BUCKET_TEST_FIXTURES=org-humancellatlas-dss-test-fixtures
+DSS_GS_BUCKET_STAGING=org-humancellatlas-dss-staging
+DSS_GS_BUCKET_PROD=org-humancellatlas-dss-prod
 GOOGLE_APPLICATION_CREDENTIALS="${DSS_HOME}/gcp-credentials.json"
 GOOGLE_APPLICATION_SECRETS="${DSS_HOME}/application_secrets.json"
-API_HOST=hca-dss.czi.technology
+API_HOST=dss.dev.data.humancellatlas.org
 TOKENINFO_URL=https://${API_HOST}/internal/tokeninfo
 NOTIFY_URL=https://${API_HOST}/internal/notify
 DSS_SUBSCRIPTION_AUTHORIZED_DOMAINS_ARRAY=(
@@ -48,6 +52,7 @@ DSS_SUBSCRIPTION_AUTHORIZED_DOMAINS_ARRAY=(
 )
 DSS_SUBSCRIPTION_AUTHORIZED_DOMAINS=${DSS_SUBSCRIPTION_AUTHORIZED_DOMAINS_ARRAY[*]}
 DSS_SUBSCRIPTION_AUTHORIZED_DOMAINS_TEST="human-cell-atlas-travis-test.iam.gserviceaccount.com"
+PYTHONWARNINGS=ignore:ResourceWarning,ignore::UserWarning:zipfile:
 set +a
 
 if [[ -f "${DSS_HOME}/environment.local" ]]; then

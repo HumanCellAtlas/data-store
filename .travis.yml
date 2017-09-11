@@ -25,20 +25,25 @@ install:
 - pip install -r requirements-dev.txt
 - wget -q ${ES_DOWNLOAD_URL}
 - tar -xzf elasticsearch-${ES_VERSION}.tar.gz
+- wget -q http://us-east-1.ec2.archive.ubuntu.com/ubuntu/pool/main/m/make-dfsg/make_4.1-6_amd64.deb
+- mkdir make4
+- dpkg -x make*.deb make4
+- export PATH=$(pwd)/make4/usr/bin:$PATH
 script:
 - set -eo pipefail
 - make test
-- if [[ $TRAVIS_EVENT_TYPE == cron ]]; then echo "FIXME (sampierson) insert integration test entry point here"; fi
+- if [[ $TRAVIS_BRANCH == staging ]]; then source environment.staging; fi
+- if [[ $TRAVIS_EVENT_TYPE == cron ]]; then make smoketest; fi
 after_success:
 - bash <(curl -s https://codecov.io/bash)
 deploy:
   - provider: script
-    script: make deploy
+    script: make -j4 -O deploy
     skip_cleanup: true
     on:
       branch: master
   - provider: script
-    script: export DSS_DEPLOYMENT_STAGE=staging; make deploy
+    script: make -j4 -O deploy
     skip_cleanup: true
     on:
       branch: staging

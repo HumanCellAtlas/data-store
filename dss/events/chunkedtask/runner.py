@@ -45,4 +45,4 @@ class Runner(typing.Generic[RunnerStateType, RunnerResultType]):
 
         # schedule the next chunk of work.
         state = self.chunkedtask.get_state()
-        self.runtime.reschedule_work(state)
+        self.runtime.schedule_work(self.chunkedtask.__class__, state, False)

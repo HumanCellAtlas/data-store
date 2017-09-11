@@ -1,0 +1,9 @@
+# HCA DSS environment variables: production deployment
+
+set -a
+DSS_DEPLOYMENT_STAGE=prod
+DSS_S3_BUCKET=$DSS_S3_BUCKET_PROD
+DSS_GS_BUCKET=$DSS_GS_BUCKET_PROD
+DSS_ES_DOMAIN=dss-index-prod
+API_HOST=dss.data.humancellatlas.org
+set +a

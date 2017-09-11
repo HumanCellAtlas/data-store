@@ -14,7 +14,9 @@ bundle_file="$4"
 
 BUNDLE_KEY="bundles/$(basename "${bundle_file}")"
 
-aws s3 cp "${bundle_file}" s3://${DSS_S3_BUCKET}/"${BUNDLE_KEY}"
+if ! aws s3 ls s3://${DSS_S3_BUCKET}/"${BUNDLE_KEY}"; then
+    aws s3 cp "${bundle_file}" s3://${DSS_S3_BUCKET}/"${BUNDLE_KEY}"
+fi
 BUNDLE_FILE_ETAG=$(aws s3api head-object --bucket ${DSS_S3_BUCKET} --key "${BUNDLE_KEY}" | jq -r '.ETag | fromjson')
 BUNDLE_FILE_SIZE=$(cat "${bundle_file}" | wc -c)
 

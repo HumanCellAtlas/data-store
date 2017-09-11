@@ -15,10 +15,11 @@ app = domovoi.Domovoi()
 
 dss.Config.set_config(dss.DeploymentStage.NORMAL)
 
-worker_sns_topic = awsconstants.get_worker_sns_topic()
+expected_client_name = os.getenv("DSS_CHUNKED_TASK_CLIENT_NAME")
+worker_sns_topic = awsconstants.get_worker_sns_topic(expected_client_name)
 
 
 @app.sns_topic_subscriber(worker_sns_topic)
 def process_work(event: dict, context) -> None:
     payload = json.loads(event["Records"][0]["Sns"]["Message"])
-    aws.dispatch(context, payload)
+    aws.dispatch(context, payload, expected_client_name)
