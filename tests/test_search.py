@@ -179,7 +179,7 @@ class TestSearchBase(DSSAsserts):
     def post_search(self, query: dict, status_code: int):
         url = str(UrlBuilder()
                   .set(path="/v1/search")
-                  .add_query("replica", self.replica))
+                  .add_query("replica", self.replica_name))
         return self.assertPostResponse(
             path=url,
             json_request_body=dict(es_query=query),
