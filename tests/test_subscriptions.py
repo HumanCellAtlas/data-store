@@ -28,15 +28,21 @@ logger = logging.getLogger(__name__)
 logger.setLevel(logging.INFO)
 
 
-class TestSubscriptions(unittest.TestCase, DSSAsserts):
-    @classmethod
-    def setUpClass(cls):
-        cls.es_server = ElasticsearchServer()
-        os.environ['DSS_ES_PORT'] = str(cls.es_server.port)
+class ESInfo:
+    server = None
 
+def setUpModule():
+    ESInfo.server = ElasticsearchServer()
+    os.environ['DSS_ES_PORT'] = str(ESInfo.server.port)
+
+def tearDownModule():
+    ESInfo.server.shutdown()
+
+
+class TestSubscriptionsBase(DSSAsserts):
     @classmethod
-    def tearDownClass(cls):
-        cls.es_server.shutdown()
+    def subsciption_setup(cls, replica):
+        cls.replica = replica
 
     def setUp(self):
         os.environ['DSS_ES_ENDPOINT'] = os.getenv('DSS_ES_ENDPOINT', "localhost")
@@ -58,7 +64,7 @@ class TestSubscriptions(unittest.TestCase, DSSAsserts):
                 }
             }
         }
-        index_name = dss.Config.get_es_index_name(dss.ESIndexType.docs, dss.Replica.aws)
+        index_name = dss.Config.get_es_index_name(dss.ESIndexType.docs, self.replica)
         get_elasticsearch_index(es_client, index_name, logger, index_mapping)
 
         with open(os.path.join(os.path.dirname(__file__), "sample_index_doc.json"), "r") as fh:
@@ -77,7 +83,7 @@ class TestSubscriptions(unittest.TestCase, DSSAsserts):
     def test_auth_errors(self):
         url = str(UrlBuilder()
                   .set(path="/v1/subscriptions/" + str(uuid.uuid4()))
-                  .add_query("replica", "aws"))
+                  .add_query("replica", self.replica.name))
 
         # Unauthorized email
         with self.throw_403():
@@ -95,7 +101,7 @@ class TestSubscriptions(unittest.TestCase, DSSAsserts):
         uuid_ = self._put_subscription()
 
         es_client = ElasticsearchClient.get(logger)
-        response = es_client.get(index=dss.Config.get_es_index_name(dss.ESIndexType.docs, dss.Replica.aws),
+        response = es_client.get(index=dss.Config.get_es_index_name(dss.ESIndexType.docs, self.replica),
                                  doc_type=dss.ESDocType.query.name,
                                  id=uuid_)
         registered_query = response['_source']
@@ -107,7 +113,7 @@ class TestSubscriptions(unittest.TestCase, DSSAsserts):
         # Normal request
         url = str(UrlBuilder()
                   .set(path="/v1/subscriptions/" + str(find_uuid))
-                  .add_query("replica", "aws"))
+                  .add_query("replica", self.replica.name))
         resp_obj = self.assertGetResponse(
             url,
             requests.codes.okay,
@@ -126,7 +132,7 @@ class TestSubscriptions(unittest.TestCase, DSSAsserts):
         # File not found request
         url = str(UrlBuilder()
                   .set(path="/v1/subscriptions/" + str(uuid.uuid4()))
-                  .add_query("replica", "aws"))
+                  .add_query("replica", self.replica.name))
         self.assertGetResponse(
             url,
             requests.codes.not_found,
@@ -138,7 +144,7 @@ class TestSubscriptions(unittest.TestCase, DSSAsserts):
             self._put_subscription()
         url = str(UrlBuilder()
                   .set(path="/v1/subscriptions")
-                  .add_query("replica", "aws"))
+                  .add_query("replica", self.replica.name))
         resp_obj = self.assertGetResponse(
             url,
             requests.codes.okay,
@@ -152,7 +158,7 @@ class TestSubscriptions(unittest.TestCase, DSSAsserts):
         find_uuid = self._put_subscription()
         url = str(UrlBuilder()
                   .set(path="/v1/subscriptions/" + find_uuid)
-                  .add_query("replica", "aws"))
+                  .add_query("replica", self.replica.name))
 
         # Forbidden delete request
         with self.throw_403():
@@ -168,7 +174,7 @@ class TestSubscriptions(unittest.TestCase, DSSAsserts):
     def _put_subscription(self):
         url = str(UrlBuilder()
                   .set(path="/v1/subscriptions")
-                  .add_query("replica", "aws"))
+                  .add_query("replica", self.replica.name))
         resp_obj = self.assertPutResponse(
             url,
             requests.codes.created,
@@ -199,6 +205,18 @@ class TestSubscriptions(unittest.TestCase, DSSAsserts):
             yield
         finally:
             connexion.apis.abstract.Operation.testing_403 = orig_testing_403
+
+
+class TestGCPSubscription(TestSubscriptionsBase, unittest.TestCase):
+    @classmethod
+    def setUpClass(cls):
+        super().subsciption_setup(dss.Replica.gcp)
+
+
+class TestAWSSubscription(TestSubscriptionsBase, unittest.TestCase):
+    @classmethod
+    def setUpClass(cls):
+        super().subsciption_setup(dss.Replica.aws)
 
 
 if __name__ == '__main__':
