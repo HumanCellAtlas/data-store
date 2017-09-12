@@ -1,5 +1,4 @@
 import json
-import typing
 
 import requests
 from elasticsearch.exceptions import ElasticsearchException
@@ -12,7 +11,7 @@ from .. import Config, Replica, ESIndexType, dss_handler, get_logger, DSSExcepti
 from ..util.es import ElasticsearchClient
 
 @dss_handler
-def post(json_request_body: dict, replica: typing.Optional[str]=None):
+def post(json_request_body: dict, replica: str):
     es_query = json_request_body['es_query']
     get_logger().debug("Received posted query. Replica: %s Query: %s", replica, json.dumps(es_query, indent=4))
     if replica is None:

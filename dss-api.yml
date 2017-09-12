@@ -41,7 +41,7 @@ paths:
         - name: replica
           in: query
           description: Replica to search.
-          required: false
+          required: true
           type: string
           enum: [aws, gcp, azure]
       produces:
