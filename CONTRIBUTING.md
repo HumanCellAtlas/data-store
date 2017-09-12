@@ -18,3 +18,10 @@ expected to abide by the following guidelines.
 
 - Keep the build simple: Automated CI checks that are fragile or don't
   serve a clear agreed upon purpose will be removed.
+
+- All Pull Request comments must be addressed, even after merge.
+
+- All code must be review by at least 1 other team member.
+
+- All Pull Request relating to an issue must include "connected to 
+  #123", where #123 is the issue number.
