@@ -3,7 +3,8 @@
 This script runs a basic integration test of the DSS. It is invoked by Travis CI from a periodic cron job.
 """
 
-import os, sys, argparse, subprocess, time, uuid, json
+import os, sys, argparse, time, uuid, json
+from subprocess import check_call, check_output, CalledProcessError
 from tempfile import TemporaryDirectory
 
 parser = argparse.ArgumentParser(description=__doc__)
@@ -24,13 +25,13 @@ def RED(message=None):
 def ENDC():
     return "\033[0m" if sys.stdout.isatty() else ""
 
-def run(command, **kwargs):
+def run(command, runner=check_call, **kwargs):
     if isinstance(command, str):
         kwargs["shell"] = True
     print(GREEN(command))
     try:
-        return subprocess.check_call(command, **kwargs)
-    except subprocess.CalledProcessError as e:
+        return runner(command, **kwargs)
+    except CalledProcessError as e:
         parser.exit(RED(f'{parser.prog}: Exit status {e.returncode} while running "{command}". Stopping.'))
 
 if not os.path.exists("data-store-cli"):
@@ -45,6 +46,9 @@ run("pip install --upgrade .", cwd="data-store-cli")
 
 sample_id = str(uuid.uuid4())
 bundle_dir = "data-bundle-examples/10X_v2/pbmc8k"
+with open(os.path.join(bundle_dir, "large_file"), "wb") as fh:
+    fh.write(os.urandom((1024 * 1024 * 64) + 1))
+
 run(f"cat {bundle_dir}/sample.json | jq .uuid=env.sid | sponge {bundle_dir}/sample.json", env=dict(sid=sample_id))
 run(f"hca upload --replica aws --staging-bucket $DSS_S3_BUCKET_TEST --file-or-dir {bundle_dir} > upload.json")
 run("hca download --replica aws $(jq -r .bundle_uuid upload.json)")
@@ -61,6 +65,13 @@ run("hca download --replica gcp $(jq -r .bundle_uuid upload.json)")
 run("hca post-search")
 run("jq -n '.es_query.query.match[env.k]=env.v' | http --check-status https://${API_HOST}/v1/search > res.json",
     env=dict(os.environ, k="files.sample_json.uuid", v=sample_id))
+
+for replica in "aws", "gcp":
+    res = run(f"hca put-subscriptions --callback-url https://example.com/ --query '{{}}' --replica {replica}",
+              runner=check_output)
+    sub_id = json.loads(res.decode())["uuid"]
+    run(f"hca get-subscriptions --replica {replica}")
+    run(f"hca delete-subscriptions --replica {replica} {sub_id}")
 
 with open("res.json") as fh:
     res = json.load(fh)
