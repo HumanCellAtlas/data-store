@@ -37,7 +37,7 @@ def setUpModule():
 
 def tearDownModule():
     ESInfo.server.shutdown()
-
+    os.unsetenv('DSS_ES_PORT')
 
 class TestSubscriptionsBase(DSSAsserts):
     @classmethod
