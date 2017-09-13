@@ -1,5 +1,4 @@
 import functools
-import inspect
 import traceback
 
 import requests
@@ -24,10 +23,6 @@ def dss_handler(func):
     @functools.wraps(func)
     def wrapper(*args, **kwargs):
         try:
-            try:
-                inspect.getcallargs(func, *args, **kwargs)
-            except TypeError as ex:
-                raise DSSBindingException(str(ex))
             return func(*args, **kwargs)
         except werkzeug.exceptions.HTTPException as ex:
             status = ex.code
