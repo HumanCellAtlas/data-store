@@ -49,6 +49,10 @@ run("python -c 'import sys, hca.regenerate_api as r; r.generate_python_bindings(
 run("find data-store-cli/hca -name '*.pyc' -delete")
 run("pip install --upgrade .", cwd="data-store-cli")
 
+for replica in "aws", "gcp":
+    res = run("""hca put-subscriptions --callback-url https://example.com/ --query '{"match_all":{}}' --replica """ +
+              replica, runner=check_output)
+
 sample_id = str(uuid.uuid4())
 bundle_dir = "data-bundle-examples/10X_v2/pbmc8k"
 with open(os.path.join(bundle_dir, "async_copied_file"), "wb") as fh:
@@ -72,10 +76,8 @@ run("jq -n '.es_query.query.match[env.k]=env.v' | http --check-status https://${
     env=dict(os.environ, k="files.sample_json.uuid", v=sample_id))
 
 for replica in "aws", "gcp":
-    res = run(f"hca put-subscriptions --callback-url https://example.com/ --query '{{}}' --replica {replica}",
-              runner=check_output)
-    sub_id = json.loads(res.decode())["uuid"]
     run(f"hca get-subscriptions --replica {replica}")
+    sub_id = json.loads(res.decode())["subscriptions"][0]["uuid"]
     run(f"hca delete-subscriptions --replica {replica} {sub_id}")
 
 with open("res.json") as fh:
