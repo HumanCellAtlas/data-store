@@ -13,7 +13,7 @@ from dss import Config, ESIndexType, ESDocType, Replica
 from ...util import create_blob_key
 from ...hcablobstore import BundleMetadata, BundleFileMetadata
 from ...util.es import ElasticsearchClient, get_elasticsearch_index
-from ...blobstore import BlobStore, BlobNotFoundError
+from ...blobstore import BlobStore, BlobStoreError
 
 DSS_BUNDLE_KEY_REGEX = r"^bundles/[0-9A-Fa-f]{8}-[0-9A-Fa-f]{4}-4[0-9A-Fa-f]{3}-[0-9A-Fa-f]{4}-[0-9A-Fa-f]{12}\..+$"
 
@@ -87,8 +87,8 @@ def create_index_data(handle: BlobStore, bucket_name: str, bundle_id: str, manif
                                " This file will not be indexed.")
                 continue
             try:
-                file_key = create_blob_key(file_info)
-                file_string = handle.get(bucket_name, file_key).decode("utf-8")
+                file_blob_key = create_blob_key(file_info)
+                file_string = handle.get(bucket_name, file_blob_key).decode("utf-8")
                 file_json = json.loads(file_string)
             # TODO (mbaumann) Are there other JSON-related exceptions that should be checked below?
             except json.decoder.JSONDecodeError as ex:
@@ -96,10 +96,11 @@ def create_index_data(handle: BlobStore, bucket_name: str, bundle_id: str, manif
                                " is marked for indexing yet could not be parsed."
                                " This file will not be indexed. Exception: %s", ex)
                 continue
-            except BlobNotFoundError as ex:
+            except BlobStoreError as ex:
                 logger.warning(f"In bundle {bundle_id} the file \"{file_info[BundleFileMetadata.NAME]}\""
                                " is marked for indexing yet could not be accessed."
-                               " This file will not be indexed. Exception: %s", ex)
+                               " This file will not be indexed. Exception: %s, File blob key: %s",
+                               type(ex).__name__, file_blob_key)
                 continue
             logger.debug(f"Indexing file: {file_info[BundleFileMetadata.NAME]}")
             # There are two reasons in favor of not using dot in the name of the individual
@@ -128,7 +129,7 @@ def get_bundle_id_from_key(bundle_key: str) -> str:
 
 def add_index_data_to_elasticsearch(bundle_id: str, index_data: dict, index_name: str, logger) -> None:
     create_elasticsearch_index(index_name, logger)
-    logger.debug(f"Adding index data to Elasticsearch index '{index_name}': %s", json.dumps(index_data, indent=4))
+    logger.debug("Adding index data to Elasticsearch index '%s': %s", index_name, json.dumps(index_data, indent=4))
     add_data_to_elasticsearch(bundle_id, index_data, index_name, logger)
 
 
@@ -154,7 +155,7 @@ def add_data_to_elasticsearch(bundle_id: str, index_data: dict, index_name: str,
                                               id=bundle_id,
                                               body=json.dumps(index_data))  # Do not use refresh here - too expensive.
     except Exception as ex:
-        logger.error(f"Document not indexed. Exception: {ex}, Index name: {index_name},  Index data: %s",
+        logger.error("Document not indexed. Exception: %s, Index name: %s,  Index data: %s", ex, index_name,
                      json.dumps(index_data, indent=4))
         raise
 

@@ -19,8 +19,8 @@ def post(json_request_body: dict, replica: str):
     try:
         es_client = ElasticsearchClient.get(get_logger())
         search_obj = Search(using=es_client,
-                     index=Config.get_es_index_name(ESIndexType.docs, Replica[replica]),
-                             doc_type=ESDocType.doc.name).update_from_dict(es_query)
+                            index=Config.get_es_index_name(ESIndexType.docs, Replica[replica]),
+                            doc_type=ESDocType.doc.name).update_from_dict(es_query)
 
         # TODO (mbaumann) extract version from the request path instead of hard-coding it here
         bundles_url_base = request.host_url + 'v1/bundles/'
