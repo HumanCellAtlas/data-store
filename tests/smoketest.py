@@ -7,6 +7,11 @@ import os, sys, argparse, time, uuid, json
 from subprocess import check_call, check_output, CalledProcessError
 from tempfile import TemporaryDirectory
 
+pkg_root = os.path.abspath(os.path.join(os.path.dirname(__file__), '..'))  # noqa
+sys.path.insert(0, pkg_root)  # noqa
+
+from dss.api.files import ASYNC_COPY_THRESHOLD
+
 parser = argparse.ArgumentParser(description=__doc__)
 args = parser.parse_args()
 
@@ -46,8 +51,8 @@ run("pip install --upgrade .", cwd="data-store-cli")
 
 sample_id = str(uuid.uuid4())
 bundle_dir = "data-bundle-examples/10X_v2/pbmc8k"
-with open(os.path.join(bundle_dir, "large_file"), "wb") as fh:
-    fh.write(os.urandom((1024 * 1024 * 64) + 1))
+with open(os.path.join(bundle_dir, "async_copied_file"), "wb") as fh:
+    fh.write(os.urandom(ASYNC_COPY_THRESHOLD + 1))
 
 run(f"cat {bundle_dir}/sample.json | jq .uuid=env.sid | sponge {bundle_dir}/sample.json", env=dict(sid=sample_id))
 run(f"hca upload --replica aws --staging-bucket $DSS_S3_BUCKET_TEST --file-or-dir {bundle_dir} > upload.json")
