@@ -78,7 +78,7 @@ def create_index_data(handle: BlobStore, bucket_name: str, bundle_id: str, manif
     files_info = manifest[BundleMetadata.FILES]
     index_files = {}
     for file_info in files_info:
-        if file_info[BundleFileMetadata.INDEXED]:
+        if file_info[BundleFileMetadata.INDEXED] is True:
             if file_info[BundleFileMetadata.CONTENT_TYPE] != 'application/json':
                 logger.warning(f"In bundle {bundle_id} the file \"{file_info[BundleFileMetadata.NAME]}\""
                                " is marked for indexing yet has content type"

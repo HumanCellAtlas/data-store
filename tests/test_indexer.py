@@ -182,7 +182,7 @@ class TestIndexerBase(DSSAsserts, StorageTestSupport, DSSUploadMixin):
             self.process_new_indexable_object(sample_event, logger)
         self.assertRegex(log_monitor.output[0],
                          f"WARNING:.*:In bundle .* the file \"{inaccesssible_filename}\" is marked for indexing"
-                         " yet could not be accessed. This file will not be indexed. Exception: .* File blob key:")
+                         " yet could not be accessed. This file will not be indexed. Exception: .*, File blob key:")
         search_results = self.get_search_results(smartseq2_paired_ends_query, 1)
         self.assertEqual(1, len(search_results))
         files = list(smartseq2_paried_ends_indexed_file_list)
