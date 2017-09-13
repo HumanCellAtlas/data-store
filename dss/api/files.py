@@ -21,6 +21,10 @@ from ..hcablobstore import FileMetadata, HCABlobStore
 from ..util.aws import get_s3_chunk_size, AWS_MIN_CHUNK_SIZE
 
 
+ASYNC_COPY_THRESHOLD = AWS_MIN_CHUNK_SIZE
+"""This is the maximum file size that we will copy synchronously."""
+
+
 @dss_handler
 def head(uuid: str, version: str=None):
     return get(uuid, None, version)
@@ -178,7 +182,7 @@ def put(uuid: str, json_request_body: dict, version: str=None):
 
     if copy_mode != CopyMode.NO_COPY and replica == "aws":
         source_metadata = typing.cast(S3BlobStore, handle).get_all_metadata(src_bucket, src_object_name)
-        if source_metadata['ContentLength'] > AWS_MIN_CHUNK_SIZE:
+        if source_metadata['ContentLength'] > ASYNC_COPY_THRESHOLD:
             copy_mode = CopyMode.COPY_ASYNC
 
     if copy_mode == CopyMode.COPY_ASYNC:
