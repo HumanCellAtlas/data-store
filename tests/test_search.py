@@ -13,6 +13,7 @@ import uuid
 import requests
 
 from dss import ESDocType
+from dss.util import UrlBuilder
 
 pkg_root = os.path.abspath(os.path.join(os.path.dirname(__file__), ".."))  # noqa
 sys.path.insert(0, pkg_root)  # noqa
@@ -31,9 +32,11 @@ logger.setLevel(logging.INFO)
 
 start_verbose_logging()
 
+
 class TestSearch(unittest.TestCase, DSSAsserts):
     @classmethod
     def setUpClass(cls):
+        cls.replica = dss.Replica.aws.name
         cls.es_server = ElasticsearchServer()
         os.environ['DSS_ES_PORT'] = str(cls.es_server.port)
         cls.dss_index_name = dss.Config.get_es_index_name(dss.ESIndexType.docs, dss.Replica.aws)
@@ -167,8 +170,11 @@ class TestSearch(unittest.TestCase, DSSAsserts):
         return bundles
 
     def post_search(self, query: dict, status_code: int):
+        url = str(UrlBuilder()
+                  .set(path="/v1/search")
+                  .add_query("replica", self.replica))
         return self.assertPostResponse(
-            "/v1/search",
+            path=url,
             json_request_body=dict(es_query=query),
             expected_code=status_code)
 
@@ -185,7 +191,6 @@ class TestSearch(unittest.TestCase, DSSAsserts):
                 time.sleep(0.5)
         else:
             self.fail("elasticsearch failed to return all results.")
-
         self.assertDictEqual(search_response['es_query'], query)
         self.assertEqual(len(search_response['results']), expected_result_length)
         result_bundles = [(hit['bundle_id'], hit['bundle_url'])
