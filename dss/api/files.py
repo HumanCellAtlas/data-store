@@ -22,8 +22,8 @@ from ..util.aws import get_s3_chunk_size, AWS_MIN_CHUNK_SIZE
 
 
 @dss_handler
-def head(uuid: str, version: str=None):
-    return get(uuid, None, version)
+def head(uuid: str, replica: str, version: str=None):
+    return get_helper(uuid, replica, version)
 
 
 @dss_handler
@@ -31,17 +31,7 @@ def get(uuid: str, replica: str, version: str=None):
     return get_helper(uuid, replica, version)
 
 
-def get_helper(uuid: str, replica: typing.Optional[str]=None, version: str=None):
-    if request.method == "GET" and replica is None:
-        # replica must be set when it's a GET request.
-        raise BadRequest()
-
-    # if it's a HEAD, we can just default to AWS for now.
-    # TODO: (ttung) once we can run the endpoints from each cloud, we should
-    # just default to the local cloud.
-    if request.method == "HEAD" and replica is None:
-        replica = "aws"
-
+def get_helper(uuid: str, replica: str, version: str=None):
     handle, hca_handle, bucket = Config.get_cloud_specific_handles(replica)
 
     if version is None:
