@@ -33,21 +33,28 @@ logger.setLevel(logging.INFO)
 start_verbose_logging()
 
 
-class TestSearch(unittest.TestCase, DSSAsserts):
+class ESInfo:
+    server = None
+
+
+def setUpModule():
+    ESInfo.server = ElasticsearchServer()
+    os.environ['DSS_ES_PORT'] = str(ESInfo.server.port)
+
+
+def tearDownModule():
+    ESInfo.server.shutdown()
+
+
+class TestSearchBase(DSSAsserts):
     @classmethod
-    def setUpClass(cls):
-        cls.replica = dss.Replica.aws.name
-        cls.es_server = ElasticsearchServer()
-        os.environ['DSS_ES_PORT'] = str(cls.es_server.port)
-        cls.dss_index_name = dss.Config.get_es_index_name(dss.ESIndexType.docs, dss.Replica.aws)
+    def search_setup(cls, replica):
+        cls.replica_name = replica.name
+        cls.dss_index_name = dss.Config.get_es_index_name(dss.ESIndexType.docs, replica)
         dss.Config.set_config(dss.DeploymentStage.TEST)
         cls.app = dss.create_app().app.test_client()
         with open(os.path.join(os.path.dirname(__file__), "sample_index_doc.json"), "r") as fh:
             cls.index_document = json.load(fh)
-
-    @classmethod
-    def tearDownClass(cls):
-        cls.es_server.shutdown()
 
     def setUp(self):
         dss.Config.set_config(dss.DeploymentStage.TEST)
@@ -132,7 +139,7 @@ class TestSearch(unittest.TestCase, DSSAsserts):
             create = x - indexed
             indexed = x
             bundle_ids.extend(self.populate_search_index(self.index_document, create))
-            with self.subTest("Search Returns %i Matches When %i Documents Indexed.".format(x, x)):
+            with self.subTest(f"Search Returns {x} Matches When {x} Documents Indexed"):
                 self.verify_search_results(smartseq2_paired_ends_query, x, bundle_ids)
 
     def test_elasticsearch_exception(self):
@@ -172,7 +179,7 @@ class TestSearch(unittest.TestCase, DSSAsserts):
     def post_search(self, query: dict, status_code: int):
         url = str(UrlBuilder()
                   .set(path="/v1/search")
-                  .add_query("replica", self.replica))
+                  .add_query("replica", self.replica_name))
         return self.assertPostResponse(
             path=url,
             json_request_body=dict(es_query=query),
@@ -197,6 +204,19 @@ class TestSearch(unittest.TestCase, DSSAsserts):
                           for hit in search_response['results']]
         for bundle in bundles:
             self.assertIn(bundle, result_bundles)
+
+
+class TestGCPSearch(TestSearchBase, unittest.TestCase, ):
+    @classmethod
+    def setUpClass(cls):
+        super().search_setup(dss.Replica.gcp)
+
+
+class TestAWSSearch(TestSearchBase, unittest.TestCase):
+    @classmethod
+    def setUpClass(cls):
+        super().search_setup(dss.Replica.aws)
+
 
 if __name__ == "__main__":
     unittest.main()
