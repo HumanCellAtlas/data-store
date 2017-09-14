@@ -18,7 +18,7 @@ $(test_srcs): %.py :
 	python -m unittest $@
 
 smoketest:
-	scripts/smoketest.py
+	tests/smoketest.py
 
 deploy:
 	$(MAKE) -C chalice deploy
