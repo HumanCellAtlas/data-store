@@ -68,17 +68,18 @@ else:
 run("hca download --replica gcp $(jq -r .bundle_uuid upload.json)")
 
 run("hca post-search")
-run("jq -n '.es_query.query.match[env.k]=env.v' | http --check-status https://${API_HOST}/v1/search > res.json",
-    env=dict(os.environ, k="files.sample_json.uuid", v=sample_id))
 
+search_route = "https://${API_HOST}/v1/search"
 for replica in "aws", "gcp":
+    run(f"jq -n '.es_query.query.match[env.k]=env.v' | http --check {search_route} replica==aws > res.json",
+        env=dict(os.environ, k="files.sample_json.uuid", v=sample_id))
+    with open("res.json") as fh:
+        res = json.load(fh)
+        print(json.dumps(res, indent=4))
+        assert len(res["results"]) == 1
+
     res = run(f"hca put-subscriptions --callback-url https://example.com/ --query '{{}}' --replica {replica}",
               runner=check_output)
     sub_id = json.loads(res.decode())["uuid"]
     run(f"hca get-subscriptions --replica {replica}")
     run(f"hca delete-subscriptions --replica {replica} {sub_id}")
-
-with open("res.json") as fh:
-    res = json.load(fh)
-    print(json.dumps(res, indent=4))
-    assert len(res["results"]) == 1
