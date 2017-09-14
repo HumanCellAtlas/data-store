@@ -73,8 +73,8 @@ search_route = "https://${API_HOST}/v1/search"
 for replica in "aws", "gcp":
     run(f"jq -n '.es_query.query.match[env.k]=env.v' | http --check {search_route} replica==aws > res.json",
         env=dict(os.environ, k="files.sample_json.uuid", v=sample_id))
-    with open("res.json") as fh:
-        res = json.load(fh)
+    with open("res.json") as fh2:
+        res = json.load(fh2)
         print(json.dumps(res, indent=4))
         assert len(res["results"]) == 1
 
