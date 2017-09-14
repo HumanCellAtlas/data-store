@@ -119,7 +119,7 @@ class TestSubscriptionsBase(DSSAsserts):
             requests.codes.okay,
             headers=self._get_auth_header())
         json_response = resp_obj.json
-        self.assertEqual(self.sample_percolate_query, json_response['query'])
+        self.assertEqual(self.sample_percolate_query, json_response['es_query'])
         self.assertEqual(self.callback_url, json_response['callback_url'])
 
         # Forbidden request w/ previous url
@@ -150,7 +150,7 @@ class TestSubscriptionsBase(DSSAsserts):
             requests.codes.okay,
             headers=self._get_auth_header())
         json_response = resp_obj.json
-        self.assertEqual(self.sample_percolate_query, json_response['subscriptions'][0]['query'])
+        self.assertEqual(self.sample_percolate_query, json_response['subscriptions'][0]['es_query'])
         self.assertEqual(self.callback_url, json_response['subscriptions'][0]['callback_url'])
         self.assertEqual(NUM_ADDITIONS, len(json_response['subscriptions']))
 
@@ -179,7 +179,7 @@ class TestSubscriptionsBase(DSSAsserts):
             url,
             requests.codes.created,
             json_request_body=dict(
-                query=self.sample_percolate_query,
+                es_query=self.sample_percolate_query,
                 callback_url=self.callback_url),
             headers=self._get_auth_header()
         )

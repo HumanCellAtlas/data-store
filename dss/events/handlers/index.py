@@ -212,7 +212,7 @@ def notify(subscription_id: str, subscription: dict, bundle_id: str, logger):
     payload = {
         "transaction_id": transaction_id,
         "subscription_id": subscription_id,
-        "query": subscription['query'],
+        "es_query": subscription['es_query'],
         "match": {
             "bundle_uuid": bundle_uuid,
             "bundle_version": bundle_version
