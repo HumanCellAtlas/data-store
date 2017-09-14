@@ -78,7 +78,7 @@ for replica in "aws", "gcp":
         print(json.dumps(res, indent=4))
         assert len(res["results"]) == 1
 
-    res = run(f"hca put-subscriptions --callback-url https://example.com/ --query '{{}}' --replica {replica}",
+    res = run(f"hca put-subscriptions --callback-url https://example.com/ --es-query '{{}}' --replica {replica}",
               runner=check_output)
     sub_id = json.loads(res.decode())["uuid"]
     run(f"hca get-subscriptions --replica {replica}")
