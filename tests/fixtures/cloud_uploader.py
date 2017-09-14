@@ -62,7 +62,7 @@ class S3Uploader(Uploader):
         self.s3_client = boto3.client('s3')
 
     def reset(self) -> None:
-        logger.info(f"Emptying bucket: s3://{self.bucket}")
+        logger.info("%s", f"Emptying bucket: s3://{self.bucket}")
         s3 = boto3.resource('s3')
         s3.Bucket(self.bucket).objects.delete()
 
@@ -88,7 +88,7 @@ class S3Uploader(Uploader):
             multipart_chunksize=chunk_sz,
         )
 
-        logger.info(f"Uploading {local_path} to s3://{self.bucket}/{remote_path}")
+        logger.info("%s", f"Uploading {local_path} to s3://{self.bucket}/{remote_path}")
         self.s3_client.upload_file(
             fp,
             self.bucket,
@@ -116,7 +116,7 @@ class GSUploader(Uploader):
         self.bucket = self.gcp_client.bucket(bucket_name)
 
     def reset(self) -> None:
-        logger.info(f"Emptying bucket: gs://{self.bucket.name}")
+        logger.info("%s", f"Emptying bucket: gs://{self.bucket.name}")
         for blob in self.bucket.list_blobs():
             blob.delete()
 
@@ -127,7 +127,7 @@ class GSUploader(Uploader):
             metadata_keys: typing.Dict[str, str]=None,
             *args,
             **kwargs) -> None:
-        logger.info(f"Uploading {local_path} to gs://{self.bucket.name}/{remote_path}")
+        logger.info("%s", f"Uploading {local_path} to gs://{self.bucket.name}/{remote_path}")
         blob = self.bucket.blob(remote_path)
         blob.upload_from_filename(os.path.join(self.local_root, local_path))
         if metadata_keys:
