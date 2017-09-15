@@ -47,7 +47,7 @@ run("pip install -r data-store-cli/requirements.txt")
 run("python -c 'import sys, hca.regenerate_api as r; r.generate_python_bindings(sys.argv[1])' swagger.json",
     cwd="data-store-cli")
 run("find data-store-cli/hca -name '*.pyc' -delete")
-run("pip install --upgrade .", cwd="data-store-cli")
+run("pip install --upgrade --no-deps .", cwd="data-store-cli")
 
 sample_id = str(uuid.uuid4())
 bundle_dir = "data-bundle-examples/10X_v2/pbmc8k"
