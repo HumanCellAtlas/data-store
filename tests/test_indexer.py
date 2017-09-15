@@ -226,15 +226,15 @@ class TestIndexerBase(DSSAsserts, StorageTestSupport, DSSUploadMixin):
                          f"WARNING:.*:Failed notification for subscription {subscription_id}"
                          f" for bundle {bundle_id} with transaction id .+ Code: {error_response_code}")
 
-    def verify_notification(self, subscription_id, query, bundle_id):
+    def verify_notification(self, subscription_id, es_query, bundle_id):
         posted_payload_string = self.get_notification_payload()
         self.assertIsNotNone(posted_payload_string)
         posted_json = json.loads(posted_payload_string)
         self.assertIn('transaction_id', posted_json)
         self.assertIn('subscription_id', posted_json)
         self.assertEqual(subscription_id, posted_json['subscription_id'])
-        self.assertIn('query', posted_json)
-        self.assertEqual(query, posted_json['query'])
+        self.assertIn('es_query', posted_json)
+        self.assertEqual(es_query, posted_json['es_query'])
         self.assertIn('match', posted_json)
         bundle_uuid, _, bundle_version = bundle_id.partition(".")
         self.assertEqual(bundle_uuid, posted_json['match']['bundle_uuid'])
@@ -277,7 +277,7 @@ class TestIndexerBase(DSSAsserts, StorageTestSupport, DSSUploadMixin):
         self.upload_files_and_create_bundle(bundle, self.replica)
         return f"bundles/{bundle.uuid}.{bundle.version}"
 
-    def subscribe_for_notification(self, query, callback_url):
+    def subscribe_for_notification(self, es_query, callback_url):
         url = str(UrlBuilder()
                   .set(path="/v1/subscriptions")
                   .add_query("replica", self.replica))
@@ -285,7 +285,7 @@ class TestIndexerBase(DSSAsserts, StorageTestSupport, DSSUploadMixin):
             url,
             requests.codes.created,
             json_request_body=dict(
-                query=query,
+                es_query=es_query,
                 callback_url=callback_url),
             headers=self.get_auth_header()
         )

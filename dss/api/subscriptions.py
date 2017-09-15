@@ -62,7 +62,7 @@ def find(replica: str):
         'replica': replica,
         'owner': owner,
         'callback_url': hit.callback_url,
-        'query': hit.query.to_dict()}
+        'es_query': hit.es_query.to_dict()}
         for hit in search.scan()]
 
     full_response = {'subscriptions': responses}
@@ -72,7 +72,7 @@ def find(replica: str):
 @dss_handler
 def put(json_request_body: dict, replica: str):
     uuid = str(uuid4())
-    query = json_request_body['query']
+    es_query = json_request_body['es_query']
     owner = request.token_info['email']
 
     es_client = ElasticsearchClient.get(logger)
@@ -97,7 +97,7 @@ def put(json_request_body: dict, replica: str):
     get_elasticsearch_index(es_client, index_name, logger, index_mapping)
 
     try:
-        percolate_registration = _register_percolate(es_client, uuid, query, replica)
+        percolate_registration = _register_percolate(es_client, uuid, es_query, replica)
         logger.debug(f"Percolate query registration succeeded:\n{percolate_registration}")
     except ElasticsearchException:
         logger.critical(f"Percolate query registration failed:\n{percolate_registration}")
@@ -159,12 +159,12 @@ def delete(uuid: str, replica: str):
     return jsonify({'timeDeleted': time_deleted}), requests.codes.okay
 
 
-def _register_percolate(es_client: Elasticsearch, uuid: str, query: dict, replica: str):
+def _register_percolate(es_client: Elasticsearch, uuid: str, es_query: dict, replica: str):
     index_name = Config.get_es_index_name(ESIndexType.docs, Replica[replica])
     return es_client.index(index=index_name,
                            doc_type=ESDocType.query.name,
                            id=uuid,
-                           body=query,
+                           body=es_query,
                            refresh=True)
 
 

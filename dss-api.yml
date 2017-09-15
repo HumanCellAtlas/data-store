@@ -336,7 +336,7 @@ paths:
           schema:
             type: object
             properties:
-              query:
+              es_query:
                 description: Elasticsearch query that will trigger the callback.
                 type: object
               callback_url:
@@ -344,7 +344,7 @@ paths:
                 type: string
                 format: url # Seems that this is possible now because of https://github.com/swagger-api/swagger-core/issues/1045
             required:
-              - query
+              - es_query
               - callback_url
       responses:
         201:
@@ -706,7 +706,7 @@ definitions:
       callback_url:
         description: Url to send request to when a bundle comes in that matches this query.
         type: string
-      query:
+      es_query:
         description: Elasticsearch query that will trigger the callback.
         type: object
     required:
@@ -714,7 +714,7 @@ definitions:
       - replica
       - owner
       - callback_url
-      - query
+      - es_query
   bundle_version:
     type: object
     properties:

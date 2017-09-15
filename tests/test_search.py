@@ -176,19 +176,19 @@ class TestSearchBase(DSSAsserts):
             bundles.append((bundle_id, bundle_url))
         return bundles
 
-    def post_search(self, query: dict, status_code: int):
+    def post_search(self, es_query: dict, status_code: int):
         url = str(UrlBuilder()
                   .set(path="/v1/search")
                   .add_query("replica", self.replica_name))
         return self.assertPostResponse(
             path=url,
-            json_request_body=dict(es_query=query),
+            json_request_body=dict(es_query=es_query),
             expected_code=status_code)
 
-    def verify_search_results(self, query, expected_result_length=0, bundles=[], timeout=5):
+    def verify_search_results(self, es_query, expected_result_length=0, bundles=[], timeout=5):
         timeout_time = timeout + time.time()
         while time.time() <= timeout_time:
-            response = self.post_search(query, requests.codes.ok)
+            response = self.post_search(es_query, requests.codes.ok)
             search_response = response.json
             if len(search_response['results']) == expected_result_length:
                 break
@@ -198,7 +198,7 @@ class TestSearchBase(DSSAsserts):
                 time.sleep(0.5)
         else:
             self.fail("elasticsearch failed to return all results.")
-        self.assertDictEqual(search_response['es_query'], query)
+        self.assertDictEqual(search_response['es_query'], es_query)
         self.assertEqual(len(search_response['results']), expected_result_length)
         result_bundles = [(hit['bundle_id'], hit['bundle_url'])
                           for hit in search_response['results']]
