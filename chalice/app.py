@@ -26,6 +26,12 @@ def get_chalice_app(flask_app):
         uri_params = app.current_request.uri_params or {}
         path = app.current_request.context["resourcePath"].format(**uri_params)
         req_body = app.current_request.raw_body if app.current_request._body is not None else None
+        app.log.info(
+            "[dispatch] path: %s query_string: %s method: %s",
+            path,
+            app.current_request.query_params,
+            app.current_request.method,
+        )
         with flask_app.test_request_context(path=path,
                                             base_url="https://{}".format(app.current_request.headers["host"]),
                                             query_string=app.current_request.query_params,
