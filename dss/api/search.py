@@ -26,7 +26,7 @@ def post(json_request_body: dict, replica: str):
         bundles_url_base = request.host_url + 'v1/bundles/'
         result_list = [{
             'bundle_id': hit.meta.id,
-            'bundle_url': bundles_url_base + hit.meta.id.replace(".", "?version=", 1),
+            'bundle_url': bundles_url_base + hit.meta.id.replace(".", "?version=", 1) + f"&replica={replica}",
             'search_score': hit.meta.score
         } for hit in search_obj.scan()]
         return jsonify({'es_query': es_query, 'results': result_list})
