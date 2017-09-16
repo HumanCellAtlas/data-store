@@ -10,6 +10,7 @@ import google.cloud.storage
 import google.cloud.exceptions
 from google.cloud.client import ClientWithProject
 from google.cloud._http import JSONConnection
+from urllib3.util.retry import Retry
 
 class GCPClient(ClientWithProject):
     SCOPE = ["https://www.googleapis.com/auth/cloud-platform",
@@ -35,6 +36,7 @@ gcp_region = os.environ["GCP_DEFAULT_REGION"]
 gcp_key_file = os.environ["GOOGLE_APPLICATION_CREDENTIALS"]
 gs = google.cloud.storage.Client.from_service_account_json(gcp_key_file)
 gcp_client = GCPClient()
+gcp_client._http.adapters["https://"].max_retries = Retry(status_forcelist={503, 504})
 grtc_conn = GoogleRuntimeConfigConnection(client=gcp_client)
 gcf_conn = GoogleCloudFunctionsConnection(client=gcp_client)
 gcf_ns = f"projects/{gcp_client.project}/locations/{gcp_region}/functions"
