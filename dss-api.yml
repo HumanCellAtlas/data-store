@@ -74,23 +74,17 @@ paths:
           type: string
       responses:
         200:
-          description: OK
+          description: OK all results retrieved
           schema:
-            type: object
-            properties:
-              es_query:
-                description: Elasticsearch query used to produce the results.
-                type: object
-              results:
-                description: Results matching the `es_query`.
-                type: array
-              total_hits:
-                description: The total number of matching results found.
-                type: integer
+            $ref: '#/definitions/SearchResult'
+        206:
+          description: OK page of result retrieved
+          schema:
+            $ref: '#/definitions/SearchResult'
           headers:
             Link:
               type: string
-              description: URL to retrieve paginated results in [RFC 5988](https://tools.ietf.org/html/rfc5988) format.
+              description: URL to retrieve paginated results.
         default:
           description: Unexpected error
           schema:
@@ -832,6 +826,18 @@ definitions:
         type: integer
         format: int
         description: User ID who created this bundle manifest.
+  SearchResult:
+    type: object
+    properties:
+      es_query:
+        description: Elasticsearch query used to produce the results.
+        type: object
+      results:
+        description: Results matching the `es_query`.
+        type: array
+      total_hits:
+        description: The total number of matching results found.
+        type: integer
   Error:
     type: object
     properties:
