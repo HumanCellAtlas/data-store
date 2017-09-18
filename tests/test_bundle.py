@@ -16,7 +16,7 @@ sys.path.insert(0, pkg_root)  # noqa
 import dss
 from dss.config import DeploymentStage, Config, override_bucket_config
 from dss.util import UrlBuilder
-from tests.infra import DSSAsserts, DSSUploadMixin, get_env
+from tests.infra import DSSAsserts, DSSUploadMixin, ExpectedErrorFields, get_env
 
 
 class TestDSS(unittest.TestCase, DSSAsserts, DSSUploadMixin):
@@ -142,6 +142,51 @@ class TestDSS(unittest.TestCase, DSSAsserts, DSSUploadMixin):
         )
         self.assertIn('version', resp_obj.json)
 
+    def test_no_replica(self):
+        """
+        Verify we raise the correct error code when we provide no replica.
+        """
+        bundle_uuid = "ce55fd51-7833-469b-be0b-5da88ec0ffee"
+
+        url = str(UrlBuilder()
+                  .set(path="/v1/bundles/" + bundle_uuid))
+
+        with override_bucket_config(DeploymentStage.TEST_FIXTURE):
+            self.assertPutResponse(
+                url,
+                requests.codes.bad_request,
+                json_request_body=dict(
+                    files=[],
+                    creator_uid=12345,
+                ),
+                expected_error=ExpectedErrorFields(
+                    code="illegal_arguments",
+                    status=requests.codes.bad_request,
+                    expect_stacktrace=True)
+            )
+
+    def test_no_files(self):
+        """
+        Verify we raise the correct error code when we do not provide the list of files.
+        """
+        bundle_uuid = "ce55fd51-7833-469b-be0b-5da88ec0ffee"
+
+        url = str(UrlBuilder()
+                  .set(path="/v1/bundles/" + bundle_uuid)
+                  .add_query("replica", "aws"))
+
+        with override_bucket_config(DeploymentStage.TEST_FIXTURE):
+            self.assertPutResponse(
+                url,
+                requests.codes.bad_request,
+                json_request_body=dict(
+                    creator_uid=12345,
+                ),
+                expected_error=ExpectedErrorFields(
+                    code="illegal_arguments",
+                    status=requests.codes.bad_request,
+                    expect_stacktrace=True)
+            )
 
 if __name__ == '__main__':
     unittest.main()

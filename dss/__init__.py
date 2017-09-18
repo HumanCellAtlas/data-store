@@ -3,16 +3,17 @@
 """
 DSS description FIXME: elaborate
 """
-import traceback
-
-import os
+import functools
 import json
 import logging
+import os
+import traceback
 
 import flask
 import requests
 import connexion.apis.abstract
 from connexion.apis.flask_api import FlaskApi
+from connexion.decorators.validation import ParameterValidator, RequestBodyValidator
 from connexion.lifecycle import ConnexionResponse
 from connexion.operation import Operation
 from connexion.resolver import RestyResolver
@@ -21,7 +22,7 @@ from flask_failsafe import failsafe
 from werkzeug.exceptions import Forbidden
 
 from .config import Config, DeploymentStage, ESIndexType, ESDocType, Replica
-from .error import DSSException, dss_handler
+from .error import DSSBindingException, DSSException, dss_handler
 
 def get_logger():
     try:
@@ -90,9 +91,104 @@ class OperationWithAuthorizer(Operation):
 
 connexion.apis.abstract.Operation = OperationWithAuthorizer
 
+
+class DSSParameterValidator(ParameterValidator):
+    """
+    The ParameterValidator provided by Connexion immediately returns a value if the validation fails.  Therefore, our
+    code is never invoked, and the common_error_handler in the connexion.App object is never called.  This means error
+    messsages are not returned using our standard error formats.
+
+    The solution is to trap the validation results, and if it fails, exit the validation flow.  We catch the exception
+    at the top level where the various validators are called, and return a value according to our specs.
+    """
+
+    @staticmethod
+    def validate_parameter(*args, **kwargs):
+        result = ParameterValidator.validate_parameter(*args, **kwargs)
+        if result is not None:
+            raise DSSBindingException(result)
+        return result
+
+    def __call__(self, function):
+        origwrapper = super().__call__(function)
+
+        @functools.wraps(origwrapper)
+        def wrapper(request):
+            try:
+                return origwrapper(request)
+            except DSSBindingException as ex:
+                status = ex.status
+                code = ex.code
+                title = ex.message
+                stacktrace = traceback.format_exc()
+
+                return FlaskApi.get_response(ConnexionResponse(
+                    status_code=status,
+                    mimetype="application/problem+json",
+                    content_type="application/problem+json",
+                    body={
+                        'status': status,
+                        'code': code,
+                        'title': title,
+                        'stacktrace': stacktrace,
+                    },
+                ))
+
+        return wrapper
+
+
+class DSSRequestBodyValidator(RequestBodyValidator):
+    """
+    The RequestBodyValidator provided by Connexion immediately returns a value if the validation fails.  Therefore, our
+    code is never invoked, and the common_error_handler in the connexion.App object is never called.  This means error
+    messsages are not returned using our standard error formats.
+
+    The solution is to trap the validation results, and if it fails, exit the validation flow.  We catch the exception
+    at the top level where the various validators are called, and return a value according to our specs.
+    """
+
+    def validate_schema(self, *args, **kwargs):
+        result = super().validate_schema(*args, **kwargs)
+        if result is not None:
+            raise DSSBindingException(result.body['detail'])
+        return result
+
+    def __call__(self, function):
+        origwrapper = super().__call__(function)
+
+        @functools.wraps(origwrapper)
+        def wrapper(request):
+            try:
+                return origwrapper(request)
+            except DSSBindingException as ex:
+                status = ex.status
+                code = ex.code
+                title = ex.message
+                stacktrace = traceback.format_exc()
+
+                return FlaskApi.get_response(ConnexionResponse(
+                    status_code=status,
+                    mimetype="application/problem+json",
+                    content_type="application/problem+json",
+                    body={
+                        'status': status,
+                        'code': code,
+                        'title': title,
+                        'stacktrace': stacktrace,
+                    },
+                ))
+
+        return wrapper
+
 @failsafe
 def create_app():
-    app = DSSApp(__name__)
+    app = DSSApp(
+        __name__,
+        validator_map={
+            'body': DSSRequestBodyValidator,
+            'parameter': DSSParameterValidator,
+        },
+    )
     resolver = RestyResolver("dss.api", collection_endpoint_name="list")
     app.add_api('../dss-api.yml', resolver=resolver, validate_responses=True, arguments=os.environ)
     return app
