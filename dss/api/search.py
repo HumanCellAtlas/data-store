@@ -9,6 +9,7 @@ from flask import request, jsonify
 from dss import ESDocType
 from .. import Config, Replica, ESIndexType, dss_handler, get_logger, DSSException
 from ..util.es import ElasticsearchClient
+from ..util import UrlBuilder
 
 @dss_handler
 def post(json_request_body: dict, replica: str):
@@ -23,11 +24,9 @@ def post(json_request_body: dict, replica: str):
                             doc_type=ESDocType.doc.name).update_from_dict(es_query)
 
         # TODO (mbaumann) extract version from the request path instead of hard-coding it here
-        bundles_url_base = request.host_url + 'v1/bundles/'
         result_list = [{
             'bundle_id': hit.meta.id,
-            # TODO:  use dss.util.UrlBuilder for bundle_url
-            'bundle_url': bundles_url_base + hit.meta.id.replace(".", "?version=", 1) + f"&replica={replica}",
+            'bundle_url': _build_bundle_url(hit, replica),
             'search_score': hit.meta.score
         } for hit in search_obj.scan()]
         return jsonify({'es_query': es_query, 'results': result_list})
@@ -40,3 +39,9 @@ def post(json_request_body: dict, replica: str):
         raise DSSException(requests.codes.internal_server_error,
                            "elasticsearch_error",
                            "Elasticsearch operation failed")
+
+def _build_bundle_url(hit, replica):
+    uuid, version = hit.meta.id.split('.', 1)
+    return request.host_url + str(UrlBuilder().set(path='v1/bundles/' + uuid)
+                                  .add_query("version", version)
+                                  .add_query("replica", replica))
