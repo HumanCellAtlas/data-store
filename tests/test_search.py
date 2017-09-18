@@ -67,7 +67,7 @@ class TestSearchBase(DSSAsserts):
         version = get_version()
         self.index_document['manifest']['version'] = version
         bundle_id = f"{bundle_uuid}.{version}"
-        bundle_url = f"http://localhost/v1/bundles/{bundle_uuid}?version={version}"
+        bundle_url = f"http://localhost/v1/bundles/{bundle_uuid}?version={version}&replica={self.replica_name}"
 
         es_client = ElasticsearchClient.get(logger)
         es_client.index(index=self.dss_index_name,
@@ -167,7 +167,7 @@ class TestSearchBase(DSSAsserts):
             version = get_version()
             index_document['manifest']['version'] = version
             bundle_id = f"{bundle_uuid}.{version}"
-            bundle_url = f"http://localhost/v1/bundles/{bundle_uuid}?version={version}"
+            bundle_url = f"http://localhost/v1/bundles/{bundle_uuid}?version={version}&replica={self.replica_name}"
 
             es_client.index(index=self.dss_index_name,
                             doc_type=ESDocType.doc.name,
