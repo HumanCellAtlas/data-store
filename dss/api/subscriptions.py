@@ -99,8 +99,9 @@ def put(json_request_body: dict, replica: str):
     try:
         percolate_registration = _register_percolate(es_client, uuid, es_query, replica)
         logger.debug(f"Percolate query registration succeeded:\n{percolate_registration}")
-    except ElasticsearchException:
-        logger.critical(f"Percolate query registration failed:\n{percolate_registration}")
+    except ElasticsearchException as ex:
+        logger.critical("%s", f"Percolate query registration failed: owner: {owner}, uuid: {uuid}, "
+                              f"replica: {replica}, es_query: {es_query}, Exception: {ex}")
         raise DSSException(requests.codes.internal_server_error,
                            "elasticsearch_error",
                            "Unable to register elasticsearch percolate query!")
@@ -110,8 +111,9 @@ def put(json_request_body: dict, replica: str):
     try:
         subscription_registration = _register_subscription(es_client, uuid, json_request_body, replica)
         logger.debug(f"Event Subscription succeeded:\n{subscription_registration}")
-    except ElasticsearchException:
-        logger.critical(f"Event Subscription failed:\n{subscription_registration}")
+    except ElasticsearchException as ex:
+        logger.critical("%s", f"Event Subscription failed: owner: {owner}, uuid: {uuid}, "
+                              f"replica: {replica}, Exception: {ex}")
 
         # Delete percolate query to make sure queries and subscriptions are in sync.
         es_client.delete(index=index_name,
