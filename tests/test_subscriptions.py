@@ -21,7 +21,7 @@ sys.path.insert(0, pkg_root) # noqa
 import dss
 from dss.util import UrlBuilder
 from dss.util.es import ElasticsearchClient, ElasticsearchServer, get_elasticsearch_index
-from tests.infra import DSSAsserts
+from tests.infra import DSSAsserts, ExpectedErrorFields
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
@@ -130,11 +130,14 @@ class TestSubscriptionsBase(DSSAsserts):
             json_request_body=dict(
                 es_query=es_query,
                 callback_url=self.callback_url),
-            headers=self._get_auth_header()
+            headers=self._get_auth_header(),
+            expected_error=ExpectedErrorFields(
+                code="elasticsearch_error",
+                status=requests.codes.internal_server_error,
+                expect_stacktrace=True)
         )
         self.assertIn("No field mapping can be found for the field with name [assay.fake_field]",
                       resp_obj.json['stacktrace'])
-        self.assertEqual(resp_obj.json['code'], 'elasticsearch_error')
         self.assertEqual(resp_obj.json['title'], 'Unable to register elasticsearch percolate query!')
 
     def test_get(self):
