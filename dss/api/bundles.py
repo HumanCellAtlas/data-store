@@ -61,6 +61,7 @@ def get(
             's3_etag': file[BundleFileMetadata.S3_ETAG],
             'sha1': file[BundleFileMetadata.SHA1],
             'sha256': file[BundleFileMetadata.SHA256],
+            'indexed': file[BundleFileMetadata.INDEXED],
         }
         if directurls:
             file_version['url'] = str(UrlBuilder().set(

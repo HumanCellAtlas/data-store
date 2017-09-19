@@ -644,12 +644,16 @@ definitions:
           content-type:
             type: string
             description: Content-type of the file.
+          indexed:
+            type: boolean
+            description: True if this file is to be indexed.
           url:
             description: Direct access URL, if requested.
             type: string
         required:
           - name
           - content-type
+          - indexed
   file_metadata:
     type: object
     description: Object describing a single file in the files list of a bundle.
