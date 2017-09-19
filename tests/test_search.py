@@ -62,8 +62,6 @@ class TestSearchBase(DSSAsserts):
         dss.Config.set_config(dss.DeploymentStage.TEST)
         self.app = dss.create_app().app.test_client()
         elasticsearch_delete_index(f"*{os.environ['TEST_MODULE_NAME']}")
-        elasticsearch_delete_index(self.dss_index_name)
-        create_elasticsearch_index(self.dss_index_name, logger)
 
     def test_search_post(self):
         bundle_uuid = str(uuid.uuid4())
@@ -87,6 +85,7 @@ class TestSearchBase(DSSAsserts):
         self.assertEqual(search_response['results'][0]['bundle_url'], bundle_url)
 
     def test_search_returns_no_results_when_no_documents_indexed(self):
+        create_elasticsearch_index(self.dss_index_name, logger)
         self.verify_search_results(smartseq2_paired_ends_query)
 
     def test_search_returns_no_result_when_query_does_not_match_indexed_documents(self):
@@ -98,7 +97,6 @@ class TestSearchBase(DSSAsserts):
                     }
                 }
             }
-
         self.populate_search_index(self.index_document, 1)
         self.verify_search_results(query)
 
@@ -135,9 +133,10 @@ class TestSearchBase(DSSAsserts):
         """Create N identical documents. A search query is executed to match the document. All documents created must be
         present in the query results. N is varied across a variety of values.
         """
-        test_matches = [0, 1, 9, 10, 11, 1000, 5000]
+        test_matches = [0, 1, 9, 10, 11, 1000, 10001]
         bundle_ids = []
         indexed = 0
+        create_elasticsearch_index(self.dss_index_name, logger)
         for x in test_matches:
             create = x - indexed
             indexed = x

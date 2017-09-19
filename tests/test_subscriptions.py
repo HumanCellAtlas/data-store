@@ -55,7 +55,6 @@ class TestSubscriptionsBase(DSSAsserts):
         logger.debug("Setting up Elasticsearch")
         es_client = ElasticsearchClient.get(logger)
         elasticsearch_delete_index(f"*{os.environ['TEST_MODULE_NAME']}")
-        es_client.indices.delete(index="_all", ignore=[404])  # Disregard if no indices - don't error.
         index_mapping = {  # Need to make a mapping for the percolator type before we add any.
             "mappings": {
                 dss.ESDocType.query.name: {
