@@ -227,7 +227,7 @@ def notify(subscription_id: str, subscription: dict, bundle_id: str, logger):
     if os.environ["DSS_DEPLOYMENT_STAGE"] not in {"dev", "staging"}:
         hostname = urlparse(callback_url).hostname
         for family, socktype, proto, canonname, sockaddr in socket.getaddrinfo(hostname, port=None):
-            assert ipaddress.ip_address(sockaddr[0]).is_global
+            assert ipaddress.ip_address(sockaddr[0]).is_global  # type: ignore
         assert urlparse(callback_url).scheme == "https"
 
     auth = None
