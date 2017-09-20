@@ -21,7 +21,7 @@ sys.path.insert(0, pkg_root) # noqa
 import dss
 from dss.util import UrlBuilder
 from dss.util.es import ElasticsearchClient, ElasticsearchServer, get_elasticsearch_index
-from tests.infra import DSSAsserts
+from tests.infra import DSSAsserts, ExpectedErrorFields
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
@@ -106,6 +106,39 @@ class TestSubscriptionsBase(DSSAsserts):
                                  id=uuid_)
         registered_query = response['_source']
         self.assertEqual(self.sample_percolate_query, registered_query)
+
+    def test_subscription_registration_fails_when_query_does_not_match_schema(self):
+        es_query = {
+            "query": {
+                "bool": {
+                    "must": [{
+                        "match": {
+                            "assay.fake_field": "this is a negative test"
+                        }
+                    }],
+                }
+            }
+        }
+        self._put_subscription()
+
+        url = str(UrlBuilder()
+                  .set(path="/v1/subscriptions")
+                  .add_query("replica", self.replica.name))
+        resp_obj = self.assertPutResponse(
+            url,
+            requests.codes.internal_server_error,
+            json_request_body=dict(
+                es_query=es_query,
+                callback_url=self.callback_url),
+            headers=self._get_auth_header(),
+            expected_error=ExpectedErrorFields(
+                code="elasticsearch_error",
+                status=requests.codes.internal_server_error,
+                expect_stacktrace=True)
+        )
+        self.assertIn("No field mapping can be found for the field with name [assay.fake_field]",
+                      resp_obj.json['stacktrace'])
+        self.assertEqual(resp_obj.json['title'], 'Unable to register elasticsearch percolate query!')
 
     def test_get(self):
         find_uuid = self._put_subscription()
