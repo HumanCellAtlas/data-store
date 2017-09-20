@@ -4,7 +4,9 @@ import json
 import os
 import re
 import uuid
-from urllib.parse import unquote
+import ipaddress
+import socket
+from urllib.parse import urlparse, unquote
 
 import requests
 from requests_http_signature import HTTPSignatureAuth
@@ -220,6 +222,13 @@ def notify(subscription_id: str, subscription: dict, bundle_id: str, logger):
         }
     }
     callback_url = subscription['callback_url']
+
+    assert urlparse(callback_url).scheme in {"http", "https"}
+    if os.environ["DSS_DEPLOYMENT_STAGE"] not in {"dev", "staging"}:
+        hostname = urlparse(callback_url).hostname
+        for family, socktype, proto, canonname, sockaddr in socket.getaddrinfo(hostname, port=None):
+            assert ipaddress.ip_address(sockaddr[0]).is_global
+        assert urlparse(callback_url).scheme == "https"
 
     auth = None
     if "hmac_secret_key" in subscription:
