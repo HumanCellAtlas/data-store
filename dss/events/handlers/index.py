@@ -219,15 +219,12 @@ def notify(subscription_id: str, subscription: dict, bundle_id: str, logger):
             "bundle_version": bundle_version
         }
     }
-    #verify_signature(payload_body)
-    #signature = 'sha1=' + OpenSSL::HMAC.hexdigest(OpenSSL::Digest.new('sha1'), ENV['SECRET_TOKEN'], payload_body)
-    #return halt 500, "Signatures didn't match!" unless Rack::Utils.secure_compare(signature, request.env['HTTP_X_HUB_SIGNATURE'])
-
     callback_url = subscription['callback_url']
 
     auth = None
-    if "hmac_secret" in subscription:
-        auth = HTTPSignatureAuth(key=subscription["hmac_secret"], key_id="hca-dss:" + subscription_id)
+    if "hmac_secret_key" in subscription:
+        auth = HTTPSignatureAuth(key=subscription["hmac_secret_key"].encode(),
+                                 key_id=subscription.get("hmac_key_id", "hca-dss:" + subscription_id))
     response = requests.post(callback_url, json=payload, auth=auth)
 
     # TODO (mbaumann) Add webhook retry logic

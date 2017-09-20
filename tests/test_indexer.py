@@ -20,6 +20,7 @@ import google.auth
 import google.auth.transport.requests
 import moto
 import requests
+from requests_http_signature import HTTPSignatureAuth
 
 pkg_root = os.path.abspath(os.path.join(os.path.dirname(__file__), '..'))  # noqa
 sys.path.insert(0, pkg_root)  # noqa
@@ -289,7 +290,8 @@ class TestIndexerBase(DSSAssertMixin, DSSStorageMixin, DSSUploadMixin):
             requests.codes.created,
             json_request_body=dict(
                 es_query=es_query,
-                callback_url=callback_url),
+                callback_url=callback_url,
+                hmac_secret_key=PostTestHandler.hmac_secret_key),
             headers=self.get_auth_header()
         )
         uuid_ = resp_obj.json['uuid']
@@ -448,8 +450,17 @@ class BundleBuilder:
 class PostTestHandler(BaseHTTPRequestHandler):
     _response_code = 200
     _payload = None
+    hmac_secret_key = "ribos0me"
 
     def do_POST(self):
+        HTTPSignatureAuth.verify(requests.Request("POST", self.path, self.headers),
+                                 key_resolver=lambda key_id, algorithm: self.hmac_secret_key.encode())
+        try:
+            HTTPSignatureAuth.verify(requests.Request("POST", self.path, self.headers),
+                                     key_resolver=lambda key_id, algorithm: self.hmac_secret_key[::-1].encode())
+            raise Exception("Expected AssertionError")
+        except AssertionError:
+            pass
         self.send_response(self._response_code)
         self.send_header("Content-length", "0")
         self.end_headers()
