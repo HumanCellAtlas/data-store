@@ -44,20 +44,19 @@ paths:
           required: true
           type: string
           enum: [aws, gcp, azure]
-        - name: scroll
-          in: query
-          description: timeout for a scroll search context.
-          required: false
-          type: string
         - name: per_page
           in: query
-          description: max number of results to return per page.
+          description: Max number of results to return per page.
           required: false
           type: integer
           format: int32
+          minimum: 10
+          maximum: 500
+          default: 100
         - name: _scroll_id
           in: query
-          description: max number of results to return.
+          description: Used to retreive the next batch of results from Elasticsearch. This is returned by the server and
+           should not be populated by the user.
           required: false
           type: string
       produces:

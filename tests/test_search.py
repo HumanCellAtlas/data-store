@@ -106,8 +106,6 @@ class TestSearchBase(DSSAsserts):
         self.verify_search_result(search_response, query, 0)
 
     def test_search_returns_error_when_invalid_query_used(self):
-        # Some types of invalid queries are detected by Elasticsearch DSL
-        # and others by Elasticsearch itself, and the response codes differ.
         invalid_query_data = [
             (
                 {
@@ -139,7 +137,7 @@ class TestSearchBase(DSSAsserts):
                     path=url,
                     json_request_body=dict(es_query=bad_query),
                     expected_code=error,
-                    expected_error=ExpectedErrorFields(code="Elasticsearch Invalid Query",
+                    expected_error=ExpectedErrorFields(code="elasticsearch_bad_request",
                                                        status=error)
                 )
 
@@ -176,7 +174,7 @@ class TestSearchBase(DSSAsserts):
                 path=url,
                 json_request_body=dict(es_query=smartseq2_paired_ends_query),
                 expected_code=requests.codes.internal_server_error,
-                expected_error=ExpectedErrorFields(code="Elasticsearch Internal Server Error",
+                expected_error=ExpectedErrorFields(code="internal_server_error",
                                                    status=requests.codes.internal_server_error))
         finally:
             os.environ['DSS_ES_ENDPOINT'] = original_es_endpoint
@@ -203,14 +201,12 @@ class TestSearchBase(DSSAsserts):
 
     def test_page_has_N_results_when_per_page_is_N(self):
                         # per_page, expected
-        per_page_tests = [(9, 10),  # min is 10
-                          (10, 10),
+        per_page_tests = [(10, 10),
                           (100, 100),
-                          (500, 500),
-                          (510, 500)]  # max is 500
+                          (500, 500)]  # max is 500
 
-        self.populate_search_index(self.index_document, 550)
-        self.check_count(smartseq2_paired_ends_query, 550)
+        self.populate_search_index(self.index_document, 500)
+        self.check_count(smartseq2_paired_ends_query, 500)
         for per_page, expected in per_page_tests:
             url = self.build_url({"per_page": per_page})
             with self.subTest(per_page=per_page, expected=expected):
@@ -220,21 +216,21 @@ class TestSearchBase(DSSAsserts):
                     expected_code=requests.codes.ok).json
                 self.verify_search_result(search_response, smartseq2_paired_ends_query, expected)
 
-    # def test_paging_session_expires_when_not_used_for_N_seconds(self):
-    #     self.populate_search_index(self.index_document, 20)
-    #     self.check_count(smartseq2_paired_ends_query, 20)
-    #     url = self.build_url({"scroll": "1s", "per_page": 10})
-    #     search_response = self.assertPostResponse(
-    #             path=url,
-    #             json_request_body=dict(es_query=smartseq2_paired_ends_query),
-    #             expected_code=requests.codes.ok).json
-    #     self.verify_search_result(search_response, smartseq2_paired_ends_query, 10)
-    #     time.sleep(30)
-    #     search_response = self.assertPostResponse(
-    #             path=search_response['next_url'],
-    #             json_request_body=dict(es_query=smartseq2_paired_ends_query),
-    #             expected_code=requests.codes.ok).json
-    #     self.verify_search_result(search_response, smartseq2_paired_ends_query, 0)
+    def test_error_returned_when_per_page_is_out_of_range(self):
+        expected_error = ExpectedErrorFields(code="illegal_arguments",
+                                             status=requests.codes.bad_request,
+                                             expect_stacktrace=True)
+        per_page_tests = [(9, {'expected_code': requests.codes.bad_request,
+                               'expected_error': expected_error}),  # min is 10
+                          (510, {'expected_code': requests.codes.bad_request,
+                                 'expected_error': expected_error})]  # max is 500
+        for per_page, expected in per_page_tests:
+            url = self.build_url({"per_page": per_page})
+            with self.subTest(per_page=per_page, expected=expected):
+                self.assertPostResponse(
+                    path=url,
+                    json_request_body=dict(es_query=smartseq2_paired_ends_query),
+                    **expected)
 
     def test_search_session_expired_when_session_deleted(self):
         self.populate_search_index(self.index_document, 20)
@@ -252,7 +248,7 @@ class TestSearchBase(DSSAsserts):
             path=search_response['next_url'],
             json_request_body=dict(es_query=smartseq2_paired_ends_query),
             expected_code=requests.codes.not_found,
-            expected_error=ExpectedErrorFields(code="Elasticsearch Page Expired",
+            expected_error=ExpectedErrorFields(code="elasticsearch_context_not_found",
                                                status=requests.codes.not_found))
 
     def test_search_session_deleted_when_0_results_found_using_next_url(self):
@@ -264,7 +260,7 @@ class TestSearchBase(DSSAsserts):
             path=search_response['next_url'],
             json_request_body=dict(es_query=smartseq2_paired_ends_query),
             expected_code=requests.codes.not_found,
-            expected_error=ExpectedErrorFields(code="Elasticsearch Page Expired",
+            expected_error=ExpectedErrorFields(code="elasticsearch_context_not_found",
                                                status=requests.codes.not_found))
 
     def populate_search_index(self, index_document: dict, count: int) -> list:
@@ -300,11 +296,10 @@ class TestSearchBase(DSSAsserts):
         for bundle in expected_bundles:
             self.assertIn(bundle, result_bundles)
 
-    def verify_next_url(self, next_url, scroll='1m'):
+    def verify_next_url(self, next_url):
         parsed_url = urlparse(next_url)
         self.assertEqual(parsed_url.path, "/v1/search")
         parsed_q = parse_qs(parsed_url.query)
-        self.assertEqual(parsed_q['scroll'], [scroll])
         self.assertEqual(parsed_q['replica'], [self.replica_name])
         self.assertIn('_scroll_id', parsed_q.keys())
         return parsed_q['_scroll_id'][0]
@@ -324,10 +319,7 @@ class TestSearchBase(DSSAsserts):
                 path=search_response['next_url'],
                 json_request_body=dict(es_query=es_query),
                 expected_code=requests.codes.ok).json
-            if 'scroll' in url_params.keys():
-                self.verify_next_url(search_response['next_url'], url_params['scroll'])
-            else:
-                self.verify_next_url(search_response['next_url'])
+            self.verify_next_url(search_response['next_url'])
             found_bundles.extend(search_response['results'])
         return search_response, found_bundles
 
