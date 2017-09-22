@@ -15,7 +15,8 @@
       ],
       "Resource": [
         "arn:aws:s3:::$DSS_S3_BUCKET/*",
-        "arn:aws:s3:::$DSS_S3_BUCKET_TEST/*"
+        "arn:aws:s3:::$DSS_S3_BUCKET_TEST/*",
+        "arn:aws:s3:::$DSS_S3_BUCKET_STAGING/*"
       ]
     },
     {
