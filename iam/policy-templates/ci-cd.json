@@ -8,20 +8,13 @@
         "s3:AbortMultipartUpload",
         "s3:DeleteBucketPolicy",
         "s3:DeleteBucketWebsite",
-        "s3:DeleteObject",
-        "s3:DeleteObjectVersion",
-        "s3:PutObject",
-        "s3:PutObjectAcl",
-        "s3:PutObjectTagging",
-        "s3:PutObjectVersionAcl",
-        "s3:ReplicateDelete",
-        "s3:ReplicateObject",
+        "s3:DeleteObject*",
+        "s3:PutObject*",
+        "s3:Replicate*",
         "s3:RestoreObject"
       ],
       "Resource": [
-        "arn:aws:s3:::$DSS_S3_BUCKET",
         "arn:aws:s3:::$DSS_S3_BUCKET/*",
-        "arn:aws:s3:::$DSS_S3_BUCKET_TEST",
         "arn:aws:s3:::$DSS_S3_BUCKET_TEST/*"
       ]
     },
