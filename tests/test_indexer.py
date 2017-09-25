@@ -72,7 +72,7 @@ class ESInfo:
     server = None
 
 def setUpModule():
-    IndexSuffix.name = __name__.split('.')[-1]
+    IndexSuffix.name = __name__.rsplit('.', 1)[-1]
     HTTPInfo.port = findOpenPort()
     HTTPInfo.server = HTTPServer((HTTPInfo.address, HTTPInfo.port), PostTestHandler)
     HTTPInfo.thread = threading.Thread(target=HTTPInfo.server.serve_forever)

@@ -34,7 +34,7 @@ class ESInfo:
     server = None
 
 def setUpModule():
-    IndexSuffix.name = __name__.split('.')[-1]
+    IndexSuffix.name = __name__.rsplit('.', 1)[-1]
     ESInfo.server = ElasticsearchServer()
     os.environ['DSS_ES_PORT'] = str(ESInfo.server.port)
 
