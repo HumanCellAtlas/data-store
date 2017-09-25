@@ -19,6 +19,7 @@ pkg_root = os.path.abspath(os.path.join(os.path.dirname(__file__), ".."))  # noq
 sys.path.insert(0, pkg_root)  # noqa
 
 import dss
+from dss.config import IndexSuffix
 from dss.events.handlers.index import create_elasticsearch_index
 from dss.util.es import ElasticsearchServer, ElasticsearchClient
 from tests.infra import DSSAsserts, start_verbose_logging
@@ -38,15 +39,14 @@ class ESInfo:
 
 
 def setUpModule():
-    os.environ['TEST_MODULE_NAME'] = __name__.split('.')[-1]
+    IndexSuffix.name = __name__.split('.')[-1]
     ESInfo.server = ElasticsearchServer()
     os.environ['DSS_ES_PORT'] = str(ESInfo.server.port)
 
 
 def tearDownModule():
     ESInfo.server.shutdown()
-    os.unsetenv("TEST_MODULE_NAME")
-
+    os.unsetenv('DSS_ES_PORT')
 
 class TestSearchBase(DSSAsserts):
     @classmethod
@@ -61,7 +61,7 @@ class TestSearchBase(DSSAsserts):
     def setUp(self):
         dss.Config.set_config(dss.DeploymentStage.TEST)
         self.app = dss.create_app().app.test_client()
-        elasticsearch_delete_index(f"*{os.environ['TEST_MODULE_NAME']}")
+        elasticsearch_delete_index(f"*{IndexSuffix.name}")
 
     def test_search_post(self):
         bundle_uuid = str(uuid.uuid4())

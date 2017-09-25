@@ -26,6 +26,7 @@ sys.path.insert(0, pkg_root)  # noqa
 
 import dss
 from dss import Config, DeploymentStage
+from dss.config import IndexSuffix
 from dss.events.handlers.index import process_new_s3_indexable_object, process_new_gs_indexable_object
 from dss.hcablobstore import BundleMetadata, BundleFileMetadata, FileMetadata
 from dss.util import create_blob_key, UrlBuilder
@@ -71,7 +72,7 @@ class ESInfo:
     server = None
 
 def setUpModule():
-    os.environ['TEST_MODULE_NAME'] = __name__.split('.')[-1]
+    IndexSuffix.name = __name__.split('.')[-1]
     HTTPInfo.port = findOpenPort()
     HTTPInfo.server = HTTPServer((HTTPInfo.address, HTTPInfo.port), PostTestHandler)
     HTTPInfo.thread = threading.Thread(target=HTTPInfo.server.serve_forever)
@@ -83,7 +84,7 @@ def setUpModule():
 def tearDownModule():
     ESInfo.server.shutdown()
     HTTPInfo.server.shutdown()
-    os.unsetenv("TEST_MODULE_NAME")
+    os.unsetenv('DSS_ES_PORT')
 
 
 class TestIndexerBase(DSSAsserts, StorageTestSupport, DSSUploadMixin):
@@ -101,7 +102,7 @@ class TestIndexerBase(DSSAsserts, StorageTestSupport, DSSUploadMixin):
 
     def setUp(self):
         self.app = dss.create_app().app.test_client()
-        elasticsearch_delete_index(f"*{os.environ['TEST_MODULE_NAME']}")
+        elasticsearch_delete_index(f"*{IndexSuffix.name}")
         PostTestHandler.reset()
 
     def tearDown(self):
