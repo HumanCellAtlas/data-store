@@ -18,7 +18,6 @@ from connexion.lifecycle import ConnexionResponse
 from connexion.operation import Operation
 from connexion.resolver import RestyResolver
 from connexion.exceptions import OAuthProblem, OAuthResponseProblem, OAuthScopeProblem
-from flask_failsafe import failsafe
 from werkzeug.exceptions import Forbidden
 
 from .config import Config, DeploymentStage, ESIndexType, ESDocType, Replica
@@ -180,7 +179,7 @@ class DSSRequestBodyValidator(RequestBodyValidator):
 
         return wrapper
 
-@failsafe
+
 def create_app():
     app = DSSApp(
         __name__,

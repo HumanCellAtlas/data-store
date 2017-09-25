@@ -4,7 +4,6 @@ boto3
 connexion
 elasticsearch
 elasticsearch_dsl
-flask-failsafe
 google-cloud-storage
 iso8601
 urllib3
