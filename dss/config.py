@@ -42,6 +42,10 @@ class IndexSuffix:
     def name(self, value: str):
         self.__suf__ = value
 
+    @classmethod
+    def reset(cls):
+        cls.name = ''
+
 class Config:
     _S3_BUCKET = None  # type: typing.Optional[str]
     _GS_BUCKET = None  # type: typing.Optional[str]

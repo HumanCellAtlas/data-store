@@ -84,6 +84,7 @@ def setUpModule():
 def tearDownModule():
     ESInfo.server.shutdown()
     HTTPInfo.server.shutdown()
+    IndexSuffix.reset()
     os.unsetenv('DSS_ES_PORT')
 
 

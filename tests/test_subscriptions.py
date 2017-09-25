@@ -40,6 +40,7 @@ def setUpModule():
 
 def tearDownModule():
     ESInfo.server.shutdown()
+    IndexSuffix.reset()
     os.unsetenv('DSS_ES_PORT')
 
 class TestSubscriptionsBase(DSSAsserts):
