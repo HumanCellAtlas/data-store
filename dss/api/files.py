@@ -187,14 +187,14 @@ def put(uuid: str, json_request_body: dict, version: str=None):
             copy_mode = CopyMode.COPY_ASYNC
 
     if copy_mode == CopyMode.COPY_ASYNC:
-        state = s3copyclient.S3CopyTask.setup_copy_task(
+        state = s3copyclient.S3CopyWriteBundleTask.setup_copy_task(
+            document,
+            uuid,
+            version,
             src_bucket, src_object_name,
             dst_bucket, dst_object_name,
             get_s3_chunk_size,
         )
-        state[s3copyclient.S3CopyWriteBundleTaskKeys.FILE_UUID] = uuid
-        state[s3copyclient.S3CopyWriteBundleTaskKeys.FILE_VERSION] = version
-        state[s3copyclient.S3CopyWriteBundleTaskKeys.METADATA] = document
 
         # start a lambda to do the copy.
         task_id = chainedawslambda.aws.schedule_task(s3copyclient.S3CopyWriteBundleTask, state)
