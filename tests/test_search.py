@@ -63,6 +63,7 @@ class TestSearchBase(DSSAsserts):
         dss.Config.set_config(dss.DeploymentStage.TEST)
         self.app = dss.create_app().app.test_client()
         elasticsearch_delete_index(f"*{IndexSuffix.name}")
+        create_elasticsearch_index(self.dss_index_name, logger)
 
     def test_search_post(self):
         bundle_uuid = str(uuid.uuid4())
@@ -86,7 +87,6 @@ class TestSearchBase(DSSAsserts):
         self.assertEqual(search_response['results'][0]['bundle_url'], bundle_url)
 
     def test_search_returns_no_results_when_no_documents_indexed(self):
-        create_elasticsearch_index(self.dss_index_name, logger)
         self.verify_search_results(smartseq2_paired_ends_query)
 
     def test_search_returns_no_result_when_query_does_not_match_indexed_documents(self):
