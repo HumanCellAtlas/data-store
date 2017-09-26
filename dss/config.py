@@ -30,6 +30,22 @@ class Replica(Enum):
     aws = auto()
     gcp = auto()
 
+class IndexSuffix:
+    '''Creates a test specific index when in test config.'''
+    __suf__ = ''  # index suffix to use
+
+    @property
+    def name(self):
+        return self.__suf__
+
+    @name.setter
+    def name(self, value: str):
+        self.__suf__ = value
+
+    @classmethod
+    def reset(cls):
+        cls.name = ''
+
 class Config:
     _S3_BUCKET = None  # type: typing.Optional[str]
     _GS_BUCKET = None  # type: typing.Optional[str]
@@ -132,7 +148,10 @@ class Config:
     @staticmethod
     def get_es_index_name(index_type: ESIndexType, replica: Replica) -> str:
         deployment_stage = os.environ["DSS_DEPLOYMENT_STAGE"]
-        return f"dss-{index_type.name}-{replica.name}-{deployment_stage}"
+        index = f"dss-{index_type.name}-{replica.name}-{deployment_stage}"
+        if Config._CURRENT_CONFIG == DeploymentStage.TEST:
+            index = f"{index}-{IndexSuffix.name}"
+        return index
 
     @staticmethod
     def _clear_cached_bucket_config():

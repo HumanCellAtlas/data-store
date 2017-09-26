@@ -19,6 +19,7 @@ pkg_root = os.path.abspath(os.path.join(os.path.dirname(__file__), ".."))  # noq
 sys.path.insert(0, pkg_root)  # noqa
 
 import dss
+from dss.config import IndexSuffix
 from dss.events.handlers.index import create_elasticsearch_index
 from dss.util.es import ElasticsearchServer, ElasticsearchClient
 from tests.infra import DSSAsserts, start_verbose_logging
@@ -38,20 +39,22 @@ class ESInfo:
 
 
 def setUpModule():
+    IndexSuffix.name = __name__.rsplit('.', 1)[-1]
     ESInfo.server = ElasticsearchServer()
     os.environ['DSS_ES_PORT'] = str(ESInfo.server.port)
 
 
 def tearDownModule():
     ESInfo.server.shutdown()
-
+    IndexSuffix.reset()
+    os.unsetenv('DSS_ES_PORT')
 
 class TestSearchBase(DSSAsserts):
     @classmethod
     def search_setup(cls, replica):
         cls.replica_name = replica.name
-        cls.dss_index_name = dss.Config.get_es_index_name(dss.ESIndexType.docs, replica)
         dss.Config.set_config(dss.DeploymentStage.TEST)
+        cls.dss_index_name = dss.Config.get_es_index_name(dss.ESIndexType.docs, replica)
         cls.app = dss.create_app().app.test_client()
         with open(os.path.join(os.path.dirname(__file__), "sample_index_doc.json"), "r") as fh:
             cls.index_document = json.load(fh)
@@ -59,7 +62,7 @@ class TestSearchBase(DSSAsserts):
     def setUp(self):
         dss.Config.set_config(dss.DeploymentStage.TEST)
         self.app = dss.create_app().app.test_client()
-        elasticsearch_delete_index(self.dss_index_name)
+        elasticsearch_delete_index(f"*{IndexSuffix.name}")
         create_elasticsearch_index(self.dss_index_name, logger)
 
     def test_search_post(self):
@@ -95,7 +98,6 @@ class TestSearchBase(DSSAsserts):
                     }
                 }
             }
-
         self.populate_search_index(self.index_document, 1)
         self.verify_search_results(query)
 
@@ -132,9 +134,10 @@ class TestSearchBase(DSSAsserts):
         """Create N identical documents. A search query is executed to match the document. All documents created must be
         present in the query results. N is varied across a variety of values.
         """
-        test_matches = [0, 1, 9, 10, 11, 1000, 5000]
+        test_matches = [0, 1, 9, 10, 11, 1000, 10001]
         bundle_ids = []
         indexed = 0
+        create_elasticsearch_index(self.dss_index_name, logger)
         for x in test_matches:
             create = x - indexed
             indexed = x

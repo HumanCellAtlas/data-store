@@ -19,9 +19,11 @@ pkg_root = os.path.abspath(os.path.join(os.path.dirname(__file__), '..')) # noqa
 sys.path.insert(0, pkg_root) # noqa
 
 import dss
+from dss.config import IndexSuffix
 from dss.util import UrlBuilder
 from dss.util.es import ElasticsearchClient, ElasticsearchServer, get_elasticsearch_index
 from tests.infra import DSSAsserts, ExpectedErrorFields
+from tests.es import elasticsearch_delete_index
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
@@ -32,11 +34,13 @@ class ESInfo:
     server = None
 
 def setUpModule():
+    IndexSuffix.name = __name__.rsplit('.', 1)[-1]
     ESInfo.server = ElasticsearchServer()
     os.environ['DSS_ES_PORT'] = str(ESInfo.server.port)
 
 def tearDownModule():
     ESInfo.server.shutdown()
+    IndexSuffix.reset()
     os.unsetenv('DSS_ES_PORT')
 
 class TestSubscriptionsBase(DSSAsserts):
@@ -52,7 +56,7 @@ class TestSubscriptionsBase(DSSAsserts):
 
         logger.debug("Setting up Elasticsearch")
         es_client = ElasticsearchClient.get(logger)
-        es_client.indices.delete(index="_all", ignore=[404])  # Disregard if no indices - don't error.
+        elasticsearch_delete_index(f"*{IndexSuffix.name}")
         index_mapping = {  # Need to make a mapping for the percolator type before we add any.
             "mappings": {
                 dss.ESDocType.query.name: {
