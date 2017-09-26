@@ -1,6 +1,7 @@
 # Be sure to run "make requirements.txt requirements-dev.txt" after editing this file.
 azure-storage
 boto3
+chained-aws-lambda
 connexion
 elasticsearch
 elasticsearch_dsl
