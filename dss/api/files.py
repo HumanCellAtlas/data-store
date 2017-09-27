@@ -3,6 +3,8 @@ import io
 import json
 import re
 import typing
+
+import chainedawslambda.aws
 from enum import Enum, auto
 
 import iso8601
@@ -11,11 +13,10 @@ import requests
 from flask import jsonify, make_response, redirect, request
 from werkzeug.exceptions import BadRequest
 
-from .. import DSSException, dss_handler
+from dss import DSSException, dss_handler
 from ..blobstore import BlobAlreadyExistsError, BlobNotFoundError, BlobStore
 from ..blobstore.s3 import S3BlobStore
 from ..config import Config
-from ..events.chunkedtask import aws
 from ..events.chunkedtask import s3copyclient
 from ..hcablobstore import FileMetadata, HCABlobStore
 from ..util.aws import get_s3_chunk_size, AWS_MIN_CHUNK_SIZE
@@ -196,7 +197,7 @@ def put(uuid: str, json_request_body: dict, version: str=None):
         state[s3copyclient.S3CopyWriteBundleTaskKeys.METADATA] = document
 
         # start a lambda to do the copy.
-        task_id = aws.schedule_task(s3copyclient.S3CopyWriteBundleTask, state)
+        task_id = chainedawslambda.aws.schedule_task(s3copyclient.S3CopyWriteBundleTask, state)
 
         return jsonify(dict(task_id=task_id, version=version)), requests.codes.accepted
     elif copy_mode == CopyMode.COPY_INLINE:
