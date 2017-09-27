@@ -194,6 +194,8 @@ def put(uuid: str, json_request_body: dict, version: str=None):
             src_bucket, src_object_name,
             dst_bucket, dst_object_name,
             get_s3_chunk_size,
+            use_parallel=True,
+            timeout_seconds=3600,
         )
 
         # start a lambda to do the copy.
