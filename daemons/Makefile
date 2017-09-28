@@ -31,7 +31,7 @@ $(chainedawslambdatargets): dss-%:
 	shopt -s nullglob; for wheel in $@/vendor.in/*/*.whl; do unzip -q -o -d $@/vendor $$wheel; done
 	cp -R ../dss $@/domovoilib
 	cp "$(GOOGLE_APPLICATION_CREDENTIALS)" $@/domovoilib/gcp-credentials.json
-	policy_template=$@/policy.json.template ./build_deploy_config.sh $@ $(DSS_DEPLOYMENT_STAGE)
+	iam_policy_template=$@/policy.json.template ./build_deploy_config.sh $@ $(DSS_DEPLOYMENT_STAGE)
 	cd $@; domovoi deploy --stage $(DSS_DEPLOYMENT_STAGE)
 
 dss-gs-event-relay:
