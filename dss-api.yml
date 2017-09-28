@@ -65,6 +65,12 @@ paths:
           description: A RFC4122-compliant ID for the file.
           required: true
           type: string
+        - name: replica
+          in: query
+          description: Replica to fetch from.
+          required: true
+          type: string
+          enum: [aws, gcp, azure]
         - name: version
           in: query
           description: Timestamp of file creation in RFC3339.  If this is not provided, the latest version is returned.
@@ -125,7 +131,7 @@ paths:
         - name: replica
           in: query
           description: Replica to fetch from.
-          required: false
+          required: true
           type: string
           enum: [aws, gcp, azure]
         - name: version
@@ -482,7 +488,7 @@ paths:
         - name: replica
           in: query
           description: Replica to fetch from.
-          required: false
+          required: true
           type: string
           enum: [aws, gcp, azure]
         - name: directurls

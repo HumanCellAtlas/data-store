@@ -17,9 +17,9 @@ from ..util import UrlBuilder
 @dss_handler
 def get(
         uuid: str,
+        replica: str,
         version: str=None,
         # TODO: (ttung) once we can run the endpoints from each cloud, we should default to the local cloud.
-        replica: str="aws",
         directurls: bool=False):
     uuid = uuid.lower()
 
