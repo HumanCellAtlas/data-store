@@ -1,6 +1,6 @@
 include ../common.mk
 
-deploy: dss-sync dss-index dss-gs-event-relay dss-chunked-task
+deploy: dss-sync dss-index dss-gs-event-relay chained-aws-lambda
 
 dss-sync dss-index:
 	git clean -df $@/domovoilib $@/vendor
