@@ -223,6 +223,7 @@ def notify(subscription_id: str, subscription: dict, bundle_id: str, logger):
     }
     callback_url = subscription['callback_url']
 
+    # FIXME wrap all errors in this block with an exception handler
     assert urlparse(callback_url).scheme in {"http", "https"}
     if os.environ["DSS_DEPLOYMENT_STAGE"] not in {"dev", "staging"}:
         hostname = urlparse(callback_url).hostname
