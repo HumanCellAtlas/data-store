@@ -183,3 +183,4 @@ in `policy.json.template` files.
 [![](https://img.shields.io/badge/slack-%23data--store-557EBF.svg)](https://humancellatlas.slack.com/messages/data-store/)
 [![Build Status](https://travis-ci.org/HumanCellAtlas/data-store.svg?branch=master)](https://travis-ci.org/HumanCellAtlas/data-store)
 [![codecov](https://codecov.io/gh/HumanCellAtlas/data-store/branch/master/graph/badge.svg)](https://codecov.io/gh/HumanCellAtlas/data-store)
+[![Waffle.io - Issues in progress](https://badge.waffle.io/HumanCellAtlas/data-store.svg?label=in%20progress&title=In%20Progress)](http://waffle.io/HumanCellAtlas/data-store)
