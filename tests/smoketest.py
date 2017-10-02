@@ -44,7 +44,7 @@ if not os.path.exists("data-store-cli"):
 
 run("http --check-status https://${API_HOST}/v1/swagger.json > data-store-cli/swagger.json")
 run("pip install -r data-store-cli/requirements.txt")
-run("python -c 'import sys, hca.regenerate_api as r; r.generate_python_bindings(sys.argv[1])' swagger.json",
+run("python -c 'import sys, hca.dss.regenerate_api as r; r.generate_python_bindings(sys.argv[1])' swagger.json",
     cwd="data-store-cli")
 run("find data-store-cli/hca -name '*.pyc' -delete")
 run("pip install --upgrade --no-deps .", cwd="data-store-cli")
@@ -55,8 +55,8 @@ with open(os.path.join(bundle_dir, "async_copied_file"), "wb") as fh:
     fh.write(os.urandom(ASYNC_COPY_THRESHOLD + 1))
 
 run(f"cat {bundle_dir}/sample.json | jq .uuid=env.sid | sponge {bundle_dir}/sample.json", env=dict(sid=sample_id))
-run(f"hca upload --replica aws --staging-bucket $DSS_S3_BUCKET_TEST --file-or-dir {bundle_dir} > upload.json")
-run("hca download --replica aws $(jq -r .bundle_uuid upload.json)")
+run(f"hca dss upload --replica aws --staging-bucket $DSS_S3_BUCKET_TEST --file-or-dir {bundle_dir} > upload.json")
+run("hca dss download --replica aws $(jq -r .bundle_uuid upload.json)")
 for i in range(10):
     try:
         run("http -v --check-status https://${API_HOST}/v1/bundles/$(jq -r .bundle_uuid upload.json)?replica=gcp")
@@ -65,9 +65,9 @@ for i in range(10):
         time.sleep(1)
 else:
     parser.exit(RED("Failed to replicate bundle from AWS to GCP"))
-run("hca download --replica gcp $(jq -r .bundle_uuid upload.json)")
+run("hca dss download --replica gcp $(jq -r .bundle_uuid upload.json)")
 
-run("hca post-search")
+run("hca dss post-search")
 
 search_route = "https://${API_HOST}/v1/search"
 for replica in "aws", "gcp":
@@ -78,8 +78,8 @@ for replica in "aws", "gcp":
         print(json.dumps(res, indent=4))
         assert len(res["results"]) == 1
 
-    res = run(f"hca put-subscriptions --callback-url https://example.com/ --es-query '{{}}' --replica {replica}",
+    res = run(f"hca dss put-subscriptions --callback-url https://example.com/ --es-query '{{}}' --replica {replica}",
               runner=check_output)
     sub_id = json.loads(res.decode())["uuid"]
-    run(f"hca get-subscriptions --replica {replica}")
-    run(f"hca delete-subscriptions --replica {replica} {sub_id}")
+    run(f"hca dss get-subscriptions --replica {replica}")
+    run(f"hca dss delete-subscriptions --replica {replica} {sub_id}")
