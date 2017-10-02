@@ -73,6 +73,7 @@ class S3CopyWriteBundleTask(Task[dict, dict]):
             S3CopyWriteBundleTaskKeys.FILE_VERSION: file_version,
             S3CopyWriteBundleTaskKeys.METADATA: metadata,
             S3CopyWriteBundleTaskKeys.STAGE: S3CopyWriteBundleTaskKeys.S3CopyWriteBundleTaskStages.COPYING,
+            S3CopyWriteBundleTaskKeys.USE_PARALLEL: use_parallel,
         }  # type: dict
         if use_parallel:
             state[S3CopyWriteBundleTaskKeys.COPY_STATE] = S3ParallelCopySupervisorTask.setup_copy_task(
