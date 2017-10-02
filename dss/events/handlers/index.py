@@ -225,7 +225,7 @@ def notify(subscription_id: str, subscription: dict, bundle_id: str, logger):
 
     # FIXME wrap all errors in this block with an exception handler
     assert urlparse(callback_url).scheme in {"http", "https"}
-    if os.environ["DSS_DEPLOYMENT_STAGE"] not in {"dev", "staging"}:
+    if os.environ["DSS_DEPLOYMENT_STAGE"] == "prod":
         hostname = urlparse(callback_url).hostname
         for family, socktype, proto, canonname, sockaddr in socket.getaddrinfo(hostname, port=None):
             assert ipaddress.ip_address(sockaddr[0]).is_global  # type: ignore
