@@ -188,7 +188,7 @@ class TestSearchBase(DSSAsserts):
             json_request_body=dict(es_query=es_query),
             expected_code=status_code)
 
-    def verify_search_results(self, es_query, expected_result_length=0, bundles=[], timeout=5):
+    def verify_search_results(self, es_query, expected_result_length=0, bundles=[], timeout=8):
         timeout_time = timeout + time.time()
         while time.time() <= timeout_time:
             response = self.post_search(es_query, requests.codes.ok)

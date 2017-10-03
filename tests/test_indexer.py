@@ -246,7 +246,7 @@ class TestIndexerBase(DSSAsserts, StorageTestSupport, DSSUploadMixin):
 
     @staticmethod
     def get_notification_payload():
-        timeout = 2
+        timeout = 5
         timeout_time = time.time() + timeout
         while True:
             posted_payload_string = PostTestHandler.get_payload()
@@ -333,7 +333,7 @@ class TestIndexerBase(DSSAsserts, StorageTestSupport, DSSUploadMixin):
         # By default, the refresh interval is one second.
         # https://www.elastic.co/guide/en/elasticsearch/reference/5.5/_modifying_your_data.html
         # Yet, sometimes one second is not quite enough given the churn in the local Elasticsearch instance.
-        timeout = 2
+        timeout = 5
         timeout_time = time.time() + timeout
         while True:
             response = ElasticsearchClient.get(logger).search(
