@@ -9,13 +9,12 @@ mypy:
 
 test_srcs := $(wildcard tests/test_*.py)
 
-test: lint mypy
-	coverage run --source=dss -m unittest discover tests -v
-
-fast_test: lint mypy $(test_srcs)
+test: lint mypy $(test_srcs)
+	coverage combine
+	rm -f .coverage.*
 
 $(test_srcs): %.py :
-	python -m unittest $@
+	coverage run -p --source=dss -m unittest $@
 
 smoketest:
 	tests/smoketest.py
