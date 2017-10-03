@@ -31,7 +31,7 @@ install:
 - export PATH=$(pwd)/make4/usr/bin:$PATH
 script:
 - set -eo pipefail
-- make test
+- make -j4 test
 - if [[ $TRAVIS_BRANCH == staging ]]; then source environment.staging; fi
 - if [[ $TRAVIS_EVENT_TYPE == cron ]]; then make smoketest; fi
 after_success:
