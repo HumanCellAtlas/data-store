@@ -56,21 +56,10 @@ paths:
         - name: _scroll_id
           in: query
           description: |
-            #scroll-search-context
-            An internal state pointer parameter for use with pagination. This parameter is referenced by the `Link` header
-            as described in the "Pagination" section. The API client should not need to set this
-            parameter directly; it should instead directly fetch the URL given in the `Link` header.
-
+            # Scroll-Search-Context
+            An internal state pointer parameter for use with pagination. This parameter is referenced by the `Link` header as described in the "Pagination" section. The API client should not need to set this parameter directly; it should instead directly fetch the URL given in the `Link` header.
             # Pagination
-            The DSS API supports pagination in a manner consistent with the GitHub API
-            (https://developer.github.com/v3/guides/traversing-with-pagination/), which is based on RFC 5988
-            (https://tools.ietf.org/html/rfc5988). When the results of an API call exceed the page size specified, the
-            HTTP response will contain a `Link` header of the following form:
-            `Link: <https://dss.data.humancellatlas.org/v1/search?_scroll_id=123>; rel="next"`. The URL in the
-            header refers to the next page of the results to be fetched; if no `Link rel="next"` URL is included, then all
-            results have been fetched. The client should recognize and parse the `Link` header appropriately
-            according to RFC 5988, and retrieve the next page if requested by the user, or if all results are being
-            retrieved.
+            The DSS API supports pagination in a manner consistent with the [GitHub API](https://developer.github.com/v3/guides/traversing-with-pagination/), which is based on [RFC 5988](https://tools.ietf.org/html/rfc5988). When the results of an API call exceed the page size specified, the HTTP response will contain a `Link` header of the following form: `Link: <https://dss.data.humancellatlas.org/v1/search?_scroll_id=123>; rel="next"`. The URL in the header refers to the next page of the results to be fetched; if no `Link rel="next"` URL is included, then all results have been fetched. The client should recognize and parse the `Link` header appropriately according to RFC 5988, and retrieve the next page if requested by the user, or if all results are being retrieved.
           required: false
           type: string
       produces:  # TODO (tsmith12) remove, see bellow
@@ -89,10 +78,9 @@ paths:
                 type: array
           headers:
             Link:
-              description: Links to retrieve paginated results based on the GitHub API
-            (https://developer.github.com/v3/guides/traversing-with-pagination/) and RFC 5988
-            (https://tools.ietf.org/html/rfc5988).
               type: string
+              description: |
+                URL to retrieve paginated results.
         default:
           description: Unexpected error
           schema:
@@ -826,3 +814,4 @@ definitions:
     properties:
       files:
         type: string
+  
