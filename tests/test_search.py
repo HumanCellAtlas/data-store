@@ -9,6 +9,7 @@ import time
 import unittest
 import uuid
 from urllib.parse import parse_qs, urlparse
+from requests.utils import parse_header_links
 
 import requests
 
@@ -70,22 +71,24 @@ class TestSearchBase(DSSAsserts):
         bundles = self.populate_search_index(self.index_document, 1)
         self.check_count(smartseq2_paired_ends_query, 1)
         url = self.build_url()
-        search_response = self.assertPostResponse(
+        search_obj = self.assertPostResponse(
             path=url,
             json_request_body=dict(es_query=smartseq2_paired_ends_query),
-            expected_code=requests.codes.ok).json
-        self.verify_next_url(search_response['next_url'])
-        self.verify_search_result(search_response, smartseq2_paired_ends_query, 1)
-        self.verify_bundles(search_response['results'], bundles)
+            expected_code=requests.codes.ok)
+        next_url = self.get_next_url(search_obj.response.headers['Link'])
+        self.verify_next_url(next_url)
+        self.verify_search_result(search_obj.json, smartseq2_paired_ends_query, 1)
+        self.verify_bundles(search_obj.json['results'], bundles)
 
     def test_search_returns_no_results_when_no_documents_indexed(self):
         url = self.build_url()
-        search_response = self.assertPostResponse(
+        search_obj = self.assertPostResponse(
             path=url,
             json_request_body=dict(es_query=smartseq2_paired_ends_query),
-            expected_code=requests.codes.ok).json
-        self.verify_next_url(search_response['next_url'])
-        self.verify_search_result(search_response, smartseq2_paired_ends_query, 0)
+            expected_code=requests.codes.ok)
+        next_url = self.get_next_url(search_obj.response.headers['Link'])
+        self.verify_next_url(next_url)
+        self.verify_search_result(search_obj.json, smartseq2_paired_ends_query, 0)
 
     def test_search_returns_no_result_when_query_does_not_match_indexed_documents(self):
         query = \
@@ -98,12 +101,13 @@ class TestSearchBase(DSSAsserts):
             }
         self.populate_search_index(self.index_document, 1)
         url = self.build_url()
-        search_response = self.assertPostResponse(
+        search_obj = self.assertPostResponse(
             path=url,
             json_request_body=dict(es_query=query),
-            expected_code=requests.codes.ok).json
-        self.verify_next_url(search_response['next_url'])
-        self.verify_search_result(search_response, query, 0)
+            expected_code=requests.codes.ok)
+        next_url = self.get_next_url(search_obj.response.headers['Link'])
+        self.verify_next_url(next_url)
+        self.verify_search_result(search_obj.json, query, 0)
 
     def test_search_returns_error_when_invalid_query_used(self):
         invalid_query_data = [
@@ -155,9 +159,9 @@ class TestSearchBase(DSSAsserts):
             with self.subTest(msg="Find Indexed Documents:", indexed_docs=indexed_docs):
                 bundles.extend(self.populate_search_index(self.index_document, create))
                 self.check_count(smartseq2_paired_ends_query, indexed_docs)
-                search_response, found_bundles = self.get_search_results(smartseq2_paired_ends_query,
-                                                                         url_params=url_params)
-                self.verify_search_result(search_response, smartseq2_paired_ends_query, 0)
+                search_obj, found_bundles = self.get_search_results(smartseq2_paired_ends_query,
+                                                                    url_params=url_params)
+                self.verify_search_result(search_obj.json, smartseq2_paired_ends_query, 0)
                 self.verify_bundles(found_bundles, bundles)
 
     def test_elasticsearch_exception(self):
@@ -184,19 +188,20 @@ class TestSearchBase(DSSAsserts):
         bundles = self.populate_search_index(self.index_document, 150)
         self.check_count(smartseq2_paired_ends_query, 150)
         url = self.build_url()
-        search_response = self.assertPostResponse(
+        search_obj = self.assertPostResponse(
             path=url,
             json_request_body=dict(es_query=smartseq2_paired_ends_query),
-            expected_code=requests.codes.ok).json
-        found_bundles = search_response['results']
-        self.verify_next_url(search_response['next_url'])
-        self.verify_search_result(search_response, smartseq2_paired_ends_query, 100)
-        search_response = self.assertPostResponse(
-            path=search_response['next_url'],
+            expected_code=requests.codes.ok)
+        found_bundles = search_obj.json['results']
+        next_url = self.get_next_url(search_obj.response.headers['Link'])
+        self.verify_next_url(next_url)
+        self.verify_search_result(search_obj.json, smartseq2_paired_ends_query, 100)
+        search_obj = self.assertPostResponse(
+            path=next_url,
             json_request_body=dict(es_query=smartseq2_paired_ends_query),
-            expected_code=requests.codes.ok).json
-        found_bundles.extend(search_response['results'])
-        self.verify_search_result(search_response, smartseq2_paired_ends_query, 50)
+            expected_code=requests.codes.ok)
+        found_bundles.extend(search_obj.json['results'])
+        self.verify_search_result(search_obj.json, smartseq2_paired_ends_query, 50)
         self.verify_bundles(found_bundles, bundles)
 
     def test_page_has_N_results_when_per_page_is_N(self):
@@ -210,11 +215,11 @@ class TestSearchBase(DSSAsserts):
         for per_page, expected in per_page_tests:
             url = self.build_url({"per_page": per_page})
             with self.subTest(per_page=per_page, expected=expected):
-                search_response = self.assertPostResponse(
+                search_obj = self.assertPostResponse(
                     path=url,
                     json_request_body=dict(es_query=smartseq2_paired_ends_query),
-                    expected_code=requests.codes.ok).json
-                self.verify_search_result(search_response, smartseq2_paired_ends_query, expected)
+                    expected_code=requests.codes.ok)
+                self.verify_search_result(search_obj.json, smartseq2_paired_ends_query, expected)
 
     def test_error_returned_when_per_page_is_out_of_range(self):
         expected_error = ExpectedErrorFields(code="illegal_arguments",
@@ -236,28 +241,17 @@ class TestSearchBase(DSSAsserts):
         self.populate_search_index(self.index_document, 20)
         self.check_count(smartseq2_paired_ends_query, 20)
         url = self.build_url({"per_page": 10})
-        search_response = self.assertPostResponse(
+        search_obj = self.assertPostResponse(
             path=url,
             json_request_body=dict(es_query=smartseq2_paired_ends_query),
-            expected_code=requests.codes.ok).json
-        self.verify_search_result(search_response, smartseq2_paired_ends_query, 10)
-        scroll_id = self.verify_next_url(search_response['next_url'])
+            expected_code=requests.codes.ok)
+        self.verify_search_result(search_obj.json, smartseq2_paired_ends_query, 10)
+        next_url = self.get_next_url(search_obj.response.headers['Link'])
+        scroll_id = self.verify_next_url(next_url)
         es_client = ElasticsearchClient.get(logger)
         es_client.clear_scroll(scroll_id)
         self.assertPostResponse(
-            path=search_response['next_url'],
-            json_request_body=dict(es_query=smartseq2_paired_ends_query),
-            expected_code=requests.codes.not_found,
-            expected_error=ExpectedErrorFields(code="elasticsearch_context_not_found",
-                                               status=requests.codes.not_found))
-
-    def test_search_session_deleted_when_0_results_found_using_next_url(self):
-        self.populate_search_index(self.index_document, 20)
-        self.check_count(smartseq2_paired_ends_query, 20)
-        search_response, _ = self.get_search_results(smartseq2_paired_ends_query)
-        self.verify_search_result(search_response, smartseq2_paired_ends_query, 0)
-        self.assertPostResponse(
-            path=search_response['next_url'],
+            path=next_url,
             json_request_body=dict(es_query=smartseq2_paired_ends_query),
             expected_code=requests.codes.not_found,
             expected_error=ExpectedErrorFields(code="elasticsearch_context_not_found",
@@ -286,9 +280,9 @@ class TestSearchBase(DSSAsserts):
                 url = url.add_query(param, url_params[param])
         return str(url)
 
-    def verify_search_result(self, search_response, es_query, expected_result_length=0):
-        self.assertDictEqual(search_response['es_query'], es_query)
-        self.assertEqual(len(search_response['results']), expected_result_length)
+    def verify_search_result(self, search_json, es_query, expected_result_length=0):
+        self.assertDictEqual(search_json['es_query'], es_query)
+        self.assertEqual(len(search_json['results']), expected_result_length)
 
     def verify_bundles(self, found_bundles, expected_bundles):
         result_bundles = [(hit['bundle_id'], hit['bundle_url'])
@@ -304,24 +298,32 @@ class TestSearchBase(DSSAsserts):
         self.assertIn('_scroll_id', parsed_q.keys())
         return parsed_q['_scroll_id'][0]
 
+    def get_next_url(self, links):
+        for link in parse_header_links(links):
+            if link['rel'] == 'next':
+                return link["url"]
+        self.fail("next url not found.")
+
     def get_search_results(self, es_query, url_params=None):
         if not url_params:
             url_params = {}
         url = self.build_url(url_params)
-        search_response = self.assertPostResponse(
+        search_obj = self.assertPostResponse(
             path=url,
             json_request_body=dict(es_query=es_query),
-            expected_code=requests.codes.ok).json
-        found_bundles = search_response['results']
+            expected_code=requests.codes.ok)
+        next_url = self.get_next_url(search_obj.response.headers["Link"])
+        found_bundles = search_obj.json['results']
 
-        while len(search_response['results']) != 0:
-            search_response = self.assertPostResponse(
-                path=search_response['next_url'],
+        while len(search_obj.json['results']) != 0:
+            search_obj = self.assertPostResponse(
+                path=next_url,
                 json_request_body=dict(es_query=es_query),
-                expected_code=requests.codes.ok).json
-            self.verify_next_url(search_response['next_url'])
-            found_bundles.extend(search_response['results'])
-        return search_response, found_bundles
+                expected_code=requests.codes.ok)
+            next_url = self.get_next_url(search_obj.response.headers["Link"])
+            self.verify_next_url(next_url)
+            found_bundles.extend(search_obj.json['results'])
+        return search_obj, found_bundles
 
     def check_count(self, es_query, expected_count, timeout=8):
         es_client = ElasticsearchClient.get(logger)

@@ -3,7 +3,7 @@ import typing
 
 import requests
 from elasticsearch.exceptions import ElasticsearchException, TransportError
-from flask import request, jsonify
+from flask import request, jsonify, make_response
 
 from dss import ESDocType
 from .. import Config, Replica, ESIndexType, dss_handler, get_logger, DSSException
@@ -58,20 +58,28 @@ def post(json_request_body: dict, replica: str, per_page: int, _scroll_id: typin
         else:
             get_logger().debug("Retrieve ES results from scroll instance Scroll_id: %s", _scroll_id)
             page = es_client.scroll(scroll_id=_scroll_id, scroll=scroll)
-            # if page returns 0 hits, then all results have been found. Delete search_id
-            if len(page['hits']['hits']) == 0:
-                es_client.clear_scroll(_scroll_id)
-                get_logger().debug("Deleted ES scroll instance Scroll_id: %s", _scroll_id)
+
+        # TODO: (tsmith12) if page returns 0 hits, then all results have been found. delete search id
+
+        # TODO: (tsmith12) allow users to retrieve previous search results
         _scroll_id = page['_scroll_id']
         result_list = [{
             'bundle_id': hit['_id'],
             'bundle_url': _build_bundle_url(hit, replica),
             'search_score': hit['_score']
         } for hit in page['hits']['hits']]
-        next_url = request.host_url + str(UrlBuilder().set(path="v1/search")
-                                          .add_query("replica", replica)
-                                          .add_query("_scroll_id", _scroll_id))
-        return jsonify({'es_query': es_query, 'results': result_list, 'next_url': next_url})
+
+        next_link = request.host_url + str(UrlBuilder().set(path="v1/search")
+                                           .add_query("replica", replica)
+                                           .add_query("_scroll_id", _scroll_id))
+        next_link = {next_link: {"rel": "next"}}
+
+        # TODO: (tsmith12) check if all results found and return request.code.ok.
+        # TODO: (tsmith12) if all results not found return request.code.partial.
+        response = make_response(jsonify({'es_query': es_query, 'results': result_list}), requests.codes.ok)
+        response.headers['Link'] = build_link_header(next_link)
+
+        return response
 
     except TransportError as ex:
         if ex.status_code == requests.codes.bad_request:
@@ -102,3 +110,28 @@ def _build_bundle_url(hit: dict, replica: str) -> str:
     return request.host_url + str(UrlBuilder().set(path='v1/bundles/' + uuid)
                                   .add_query("version", version)
                                   .add_query("replica", replica))
+
+
+def build_link_header(links):
+    """Builds a Link header according to RFC 5988.
+    The format is a dict where the keys are the URI with the value being
+    a dict of link parameters:
+        {
+            '/page=3': {
+                'rel': 'next',
+            },
+            '/page=1': {
+                'rel': 'prev',
+            },
+            ...
+        }
+    See https://tools.ietf.org/html/rfc5988#section-6.2.2 for registered
+    link relation types.
+    """
+    _links = []
+    for uri, params in links.items():
+        link = [f"<{uri}>"]
+        for key, value in params.items():
+            link.append(f'{key}="{str(value)}"')
+        _links.append('; '.join(link))
+    return ', '.join(_links)
