@@ -19,6 +19,7 @@ class PerPageBounds:
     def check(cls, n):
         return max(min(cls.per_page_max, n), cls.per_page_min)
 
+
 @dss_handler
 def post(json_request_body: dict, replica: str, per_page: int, _scroll_id: typing.Optional[str] = None) -> dict:
     es_query = json_request_body['es_query']
@@ -59,8 +60,6 @@ def post(json_request_body: dict, replica: str, per_page: int, _scroll_id: typin
             get_logger().debug("Retrieve ES results from scroll instance Scroll_id: %s", _scroll_id)
             page = es_client.scroll(scroll_id=_scroll_id, scroll=scroll)
 
-        # TODO: (tsmith12) if page returns 0 hits, then all results have been found. delete search id
-
         # TODO: (tsmith12) allow users to retrieve previous search results
         _scroll_id = page['_scroll_id']
         result_list = [{
@@ -69,15 +68,21 @@ def post(json_request_body: dict, replica: str, per_page: int, _scroll_id: typin
             'search_score': hit['_score']
         } for hit in page['hits']['hits']]
 
-        next_link = request.host_url + str(UrlBuilder().set(path="v1/search")
-                                           .add_query("replica", replica)
-                                           .add_query("_scroll_id", _scroll_id))
-        next_link = {next_link: {"rel": "next"}}
+        # TODO: (tsmith12) if page returns 0 hits, then all results have been found. delete search id
+        # TODO: (tsmith12) if all results found return request.code.ok.
+        if len(result_list) < per_page:
+            links = ''
+        else:
+            next_url = request.host_url + str(UrlBuilder().set(path="v1/search")
+                                              .add_query('per_page', str(per_page))
+                                              .add_query("replica", replica)
+                                              .add_query("_scroll_id", _scroll_id))
+            links = build_link_header({next_url: {"rel": "next"}})
 
         # TODO: (tsmith12) check if all results found and return request.code.ok.
         # TODO: (tsmith12) if all results not found return request.code.partial.
         response = make_response(jsonify({'es_query': es_query, 'results': result_list}), requests.codes.ok)
-        response.headers['Link'] = build_link_header(next_link)
+        response.headers['Link'] = links
 
         return response
 
