@@ -80,9 +80,11 @@ def post(json_request_body: dict, replica: str, per_page: int, _scroll_id: typin
                                               .add_query("_scroll_id", _scroll_id))
             links = build_link_header({next_url: {"rel": "next"}})
 
-        # TODO: (tsmith12) check if all results found and return request.code.ok.
-        # TODO: (tsmith12) if all results not found return request.code.partial.
-        response = make_response(jsonify({'es_query': es_query, 'results': result_list}), requests.codes.ok)
+        # TODO: (tsmith12) if all results found, do not return a next link.
+        # TODO: (tsmith12) if all results not found return request.code.partial and return a next url
+        response = make_response(jsonify({'es_query': es_query,
+                                          'results': result_list,
+                                          'count': page['hits']['total']}), requests.codes.ok)
         response.headers['Link'] = links
 
         return response
