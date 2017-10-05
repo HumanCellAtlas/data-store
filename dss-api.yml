@@ -24,8 +24,6 @@ paths:
         Accepts Elasticsearch JSON query and returns matching bundle identifiers
       summary: |
         Find bundles by searching their metadata with an Elasticsearch query
-      consumes:  # TODO (tsmith12) remove, see bellow
-        - application/json # TODO (tsmith12)remove. This is the same as the default value.
       parameters:
         - name: json_request_body
           in: body
@@ -71,8 +69,6 @@ paths:
             are being retrieved.
           required: false
           type: string
-      produces:  # TODO (tsmith12) remove, see bellow
-        - application/json  # TODO (tsmith12)remove. This is the same as the default value.
       responses:
         200:
           description: OK
