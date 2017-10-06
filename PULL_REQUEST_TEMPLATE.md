@@ -5,7 +5,7 @@
 ### Test plan
 <!-- Describe how you tested this PR, and how you will test the feature after it's merged. -->
 
-<!-- Add notes to highlight the feature when it's released/demoed. Uncomment below:
+<!-- Add notes to highlight the feature when it's released/demoed. Uncomment the headings below:
 ### Release notes -->
 
 <!-- Describe any special instructions to the operator who will deploy your code to staging and production. Uncomment below:
