@@ -18,11 +18,20 @@ from dss.util import UrlBuilder
 from dss.util.aws import AWS_MIN_CHUNK_SIZE
 from tests.fixtures.cloud_uploader import GSUploader, S3Uploader, Uploader
 from tests.infra import DSSAssertMixin, DSSUploadMixin, ExpectedErrorFields, get_env, generate_test_key
+from tests.infra.server import ThreadedLocalServer
 
 
 class TestFileApi(unittest.TestCase, DSSAssertMixin, DSSUploadMixin):
+    @classmethod
+    def setUpClass(cls):
+        cls.app = ThreadedLocalServer()
+        cls.app.start()
+
+    @classmethod
+    def tearDownClass(cls):
+        cls.app.shutdown()
+
     def setUp(self):
-        self.app = dss.create_app().app.test_client()
         dss.Config.set_config(dss.DeploymentStage.TEST)
         self.s3_test_fixtures_bucket = get_env("DSS_S3_BUCKET_TEST_FIXTURES")
         self.gs_test_fixtures_bucket = get_env("DSS_GS_BUCKET_TEST_FIXTURES")

@@ -22,9 +22,10 @@ import dss
 from dss.config import IndexSuffix
 from dss.events.handlers.index import create_elasticsearch_index
 from dss.util.es import ElasticsearchServer, ElasticsearchClient
-from tests.infra import DSSAssertMixin, start_verbose_logging
-from tests.es import elasticsearch_delete_index
 from tests import get_version
+from tests.es import elasticsearch_delete_index
+from tests.infra import DSSAssertMixin, start_verbose_logging
+from tests.infra.server import ThreadedLocalServer
 from tests.sample_search_queries import smartseq2_paired_ends_query
 
 logging.basicConfig(level=logging.INFO)
@@ -52,16 +53,20 @@ def tearDownModule():
 class TestSearchBase(DSSAssertMixin):
     @classmethod
     def search_setup(cls, replica):
+        cls.app = ThreadedLocalServer()
+        cls.app.start()
         cls.replica_name = replica.name
         dss.Config.set_config(dss.DeploymentStage.TEST)
         cls.dss_index_name = dss.Config.get_es_index_name(dss.ESIndexType.docs, replica)
-        cls.app = dss.create_app().app.test_client()
         with open(os.path.join(os.path.dirname(__file__), "sample_index_doc.json"), "r") as fh:
             cls.index_document = json.load(fh)
 
+    @classmethod
+    def tearDownClass(cls):
+        cls.app.shutdown()
+
     def setUp(self):
         dss.Config.set_config(dss.DeploymentStage.TEST)
-        self.app = dss.create_app().app.test_client()
         elasticsearch_delete_index(f"*{IndexSuffix.name}")
         create_elasticsearch_index(self.dss_index_name, logger)
 
@@ -70,7 +75,8 @@ class TestSearchBase(DSSAssertMixin):
         version = get_version()
         self.index_document['manifest']['version'] = version
         bundle_id = f"{bundle_uuid}.{version}"
-        bundle_url = f"http://localhost/v1/bundles/{bundle_uuid}?version={version}&replica={self.replica_name}"
+        port = self.app._port
+        bundle_url = f"https://localhost:{port}/v1/bundles/{bundle_uuid}?version={version}&replica={self.replica_name}"
 
         es_client = ElasticsearchClient.get(logger)
         es_client.index(index=self.dss_index_name,
@@ -170,7 +176,9 @@ class TestSearchBase(DSSAssertMixin):
             version = get_version()
             index_document['manifest']['version'] = version
             bundle_id = f"{bundle_uuid}.{version}"
-            bundle_url = f"http://localhost/v1/bundles/{bundle_uuid}?version={version}&replica={self.replica_name}"
+            port = self.app._port
+            bundle_url = \
+                f"https://localhost:{port}/v1/bundles/{bundle_uuid}?version={version}&replica={self.replica_name}"
 
             es_client.index(index=self.dss_index_name,
                             doc_type=ESDocType.doc.name,

@@ -34,6 +34,7 @@ from dss.util.es import ElasticsearchClient, ElasticsearchServer
 from tests import get_version
 from tests.es import elasticsearch_delete_index
 from tests.infra import DSSAssertMixin, DSSUploadMixin, DSSStorageMixin, TestBundle, start_verbose_logging
+from tests.infra.server import ThreadedLocalServer
 from tests.sample_search_queries import smartseq2_paired_ends_query
 
 # The moto mock has two defects that show up when used by the dss core storage system.
@@ -88,9 +89,10 @@ def tearDownModule():
 
 
 class TestIndexerBase(DSSAssertMixin, DSSStorageMixin, DSSUploadMixin):
-
     @classmethod
     def indexer_setup(cls, replica):
+        cls.app = ThreadedLocalServer()
+        cls.app.start()
         cls.replica = replica
         Config.set_config(DeploymentStage.TEST_FIXTURE)
         cls.blobstore, _, cls.test_fixture_bucket = Config.get_cloud_specific_handles(cls.replica)
@@ -100,13 +102,15 @@ class TestIndexerBase(DSSAssertMixin, DSSStorageMixin, DSSUploadMixin):
         cls.subscription_index_name = dss.Config.get_es_index_name(dss.ESIndexType.subscriptions,
                                                                    dss.Replica[cls.replica])
 
+    @classmethod
+    def tearDownClass(cls):
+        cls.app.shutdown()
+
     def setUp(self):
-        self.app = dss.create_app().app.test_client()
         elasticsearch_delete_index(f"*{IndexSuffix.name}")
         PostTestHandler.reset()
 
     def tearDown(self):
-        self.app = None
         self.storageHelper = None
 
     def test_process_new_indexable_object(self):

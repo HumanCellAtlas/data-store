@@ -17,11 +17,20 @@ import dss
 from dss.config import DeploymentStage, Config, override_bucket_config
 from dss.util import UrlBuilder
 from tests.infra import DSSAssertMixin, DSSUploadMixin, ExpectedErrorFields, get_env
+from tests.infra.server import ThreadedLocalServer
 
 
 class TestDSS(unittest.TestCase, DSSAssertMixin, DSSUploadMixin):
+    @classmethod
+    def setUpClass(cls):
+        cls.app = ThreadedLocalServer()
+        cls.app.start()
+
+    @classmethod
+    def tearDownClass(cls):
+        cls.app.shutdown()
+
     def setUp(self):
-        self.app = dss.create_app().app.test_client()
         dss.Config.set_config(dss.DeploymentStage.TEST)
         self.s3_test_fixtures_bucket = get_env("DSS_S3_BUCKET_TEST_FIXTURES")
         self.gs_test_fixtures_bucket = get_env("DSS_GS_BUCKET_TEST_FIXTURES")

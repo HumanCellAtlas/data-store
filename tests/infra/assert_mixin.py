@@ -58,12 +58,14 @@ class DSSAssertMixin:
             if 'data' in kwargs:
                 self.fail("both json_input and data are defined")
             kwargs['data'] = json.dumps(json_request_body)
-            kwargs['content_type'] = 'application/json'
+            if 'headers' not in kwargs:
+                kwargs['headers'] = {}
+            kwargs['headers']['Content-Type'] = "application/json"
 
         response = getattr(self.app, method)(path, **kwargs)
         try:
-            actual_json = json.loads(response.data.decode("utf-8"))
-        except Exception:
+            actual_json = response.json()
+        except json.decoder.JSONDecodeError:
             actual_json = None
 
         try:
@@ -86,7 +88,7 @@ class DSSAssertMixin:
                 pprint.pprint(actual_json)
             raise
 
-        return DSSAssertResponse(response, response.data, actual_json)
+        return DSSAssertResponse(response, response.content, actual_json)
 
     def assertHeaders(
             self,
