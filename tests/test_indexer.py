@@ -452,6 +452,7 @@ class PostTestHandler(BaseHTTPRequestHandler):
 
     def do_POST(self):
         self.send_response(self._response_code)
+        self.send_header("Content-length", "0")
         self.end_headers()
         length = int(self.headers['content-length'])
         if length:
