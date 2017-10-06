@@ -17,6 +17,7 @@ class PerPageBounds:
 
     @classmethod
     def check(cls, n):
+        '''Limits per_page from exceed its min and max value'''
         return max(min(cls.per_page_max, n), cls.per_page_min)
 
 
@@ -57,7 +58,7 @@ def post(json_request_body: dict, replica: str, per_page: int, _scroll_id: typin
                                     )
             get_logger().debug("Created ES scroll instance")
         else:
-            get_logger().debug("Retrieve ES results from scroll instance Scroll_id: %s", _scroll_id)
+            get_logger().debug("%s", f"Retrieve ES results from scroll instance Scroll_id: {_scroll_id}")
             page = es_client.scroll(scroll_id=_scroll_id, scroll=scroll)
 
         # TODO: (tsmith12) allow users to retrieve previous search results
