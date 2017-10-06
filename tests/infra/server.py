@@ -43,6 +43,7 @@ class ThreadedLocalServer(threading.Thread):
         factory = CLIFactory(project_dir=project_dir)
         app = factory.load_chalice_app()
         app.log.setLevel(logging.WARNING)
+        app._default_exptime_seconds = 15.0
 
         self._server = LocalDevServer(app, self._port, handler_cls=SilentHandler)
         self._server_ready.set()
