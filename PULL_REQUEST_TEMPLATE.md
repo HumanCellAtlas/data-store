@@ -1,19 +1,12 @@
-<!--- Provide a general summary of your changes in the Title above -->
+<!-- Please make sure to provide a meaningful title to your PR. Do not keep the default title. -->
+<!-- Use the following GitHub keyword if your PR completely resolves an issue: "Fixes #123" -->
+<!-- Use the following Waffle keyword if your PR is related to an issue: "Connects to #123" -->
 
-## Description
-<!--- Describe your changes in detail -->
+### Test plan
+<!-- Describe how you tested this PR, and how you will test the feature after it's merged. -->
 
-## Related Issue
-<!--- This project only accepts pull requests related to open issues -->
-<!--- If suggesting a new feature or change, please discuss it in an issue first -->
-<!--- If fixing a bug, there should be an issue describing it with steps to reproduce -->
-<!--- Please link to the issue here: -->
+<!-- Add notes to highlight the feature when it's released/demoed. Uncomment below:
+### Release notes -->
 
-## Motivation and Context
-<!--- Why is this change required? What problem does it solve? -->
-<!--- If it fixes an open issue, please link to the issue here. -->
-
-## How Has This Been Tested?
-<!--- Please describe in detail how you tested your changes. -->
-<!--- Include details of your testing environment, and the tests you ran to -->
-<!--- see how your change affects other areas of the code, etc. -->
+<!-- Describe any special instructions to the operator who will deploy your code to staging and production. Uncomment below:
+### Deployment instructions & migrations -->
