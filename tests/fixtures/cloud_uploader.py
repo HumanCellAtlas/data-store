@@ -44,6 +44,7 @@ class Uploader:
         with ChecksummingSink() as sink, open(os.path.join(self.local_root, local_path), "rb") as fh:
             data = fh.read()
             sink.write(data)
+            size = len(data)
 
             sums = sink.get_checksums()
 
@@ -51,6 +52,7 @@ class Uploader:
         metadata['hca-dss-s3_etag'] = sums['s3_etag'].lower()
         metadata['hca-dss-sha1'] = sums['sha1'].lower()
         metadata['hca-dss-sha256'] = sums['sha256'].lower()
+        metadata['hca-dss-size'] = str(size)
 
         self.upload_file(local_path, remote_path, metadata, *args, **kwargs)  # noqa
 
