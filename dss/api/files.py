@@ -159,7 +159,7 @@ def put(uuid: str, json_request_body: dict, version: str=None):
         pass
 
     # build the json document for the file metadata.
-    document = json.dumps({
+    file_metadata = {
         FileMetadata.FORMAT: FileMetadata.FILE_FORMAT_VERSION,
         FileMetadata.BUNDLE_UUID: json_request_body['bundle_uuid'],
         FileMetadata.CREATOR_UID: json_request_body['creator_uid'],
@@ -169,7 +169,8 @@ def put(uuid: str, json_request_body: dict, version: str=None):
         FileMetadata.S3_ETAG: metadata['hca-dss-s3_etag'],
         FileMetadata.SHA1: metadata['hca-dss-sha1'],
         FileMetadata.SHA256: metadata['hca-dss-sha256'],
-    })
+    }
+    file_metadata_json = json.dumps(file_metadata)
 
     if copy_mode != CopyMode.NO_COPY and replica == "aws":
         source_metadata = typing.cast(S3BlobStore, handle).get_all_metadata(src_bucket, src_object_name)
@@ -178,7 +179,7 @@ def put(uuid: str, json_request_body: dict, version: str=None):
 
     if copy_mode == CopyMode.COPY_ASYNC:
         state = s3copyclient.S3CopyWriteBundleTask.setup_copy_task(
-            document,
+            file_metadata_json,
             uuid,
             version,
             src_bucket, src_object_name,
@@ -199,15 +200,24 @@ def put(uuid: str, json_request_body: dict, version: str=None):
         assert hca_handle.verify_blob_checksum(dst_bucket, dst_object_name, metadata)
 
     try:
-        write_file_metadata(handle, dst_bucket, uuid, version, document)
+        write_file_metadata(handle, dst_bucket, uuid, version, file_metadata_json)
+        status_code = requests.codes.created
     except BlobAlreadyExistsError:
-        raise DSSException(
-            requests.codes.conflict,
-            "file_already_exists",
-            f"file with UUID {uuid} and version {version} already exists")
+        # fetch the file metadata, compare it to what we have.
+        existing_file_metadata = json.loads(
+            handle.get(
+                dst_bucket,
+                "files/{}.{}".format(uuid, version)
+            ).decode("utf-8"))
+        if existing_file_metadata != file_metadata:
+            raise DSSException(
+                requests.codes.conflict,
+                "file_already_exists",
+                f"file with UUID {uuid} and version {version} already exists")
+        status_code = requests.codes.ok
 
     return jsonify(
-        dict(version=version)), requests.codes.created
+        dict(version=version)), status_code
 
 
 def write_file_metadata(

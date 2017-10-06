@@ -240,6 +240,17 @@ paths:
               - bundle_uuid
               - creator_uid
       responses:
+        200:
+          description: Returned when the file is already present and is identical to the file being uploaded.
+          schema:
+            type: object
+            properties:
+              version:
+                description: Timestamp of file creation in RFC3339.
+                type: string
+                format: date-time
+            required:
+              - version
         201:
           description: Returned when the file is successfully copied.
           schema:
