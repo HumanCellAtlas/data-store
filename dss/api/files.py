@@ -13,7 +13,7 @@ import requests
 from flask import jsonify, make_response, redirect, request
 from werkzeug.exceptions import BadRequest
 
-from dss import DSSException, dss_handler
+from .. import DSSException, dss_handler
 from ..blobstore import BlobAlreadyExistsError, BlobNotFoundError, BlobStore
 from ..blobstore.s3 import S3BlobStore
 from ..config import Config
@@ -59,10 +59,7 @@ def get_helper(uuid: str, replica: str, version: str=None):
                 "files/{}.{}".format(uuid, version)
             ).decode("utf-8"))
     except BlobNotFoundError as ex:
-        return jsonify(dict(
-            message="Cannot find file.",
-            exception=str(ex),
-            HTTPStatusCode=requests.codes.not_found)), requests.codes.not_found
+        raise DSSException(404, "not_found", "Cannot find file!")
 
     blob_path = "blobs/" + ".".join((
         file_metadata[FileMetadata.SHA256],

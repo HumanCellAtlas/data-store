@@ -188,5 +188,44 @@ class TestDSS(unittest.TestCase, DSSAsserts, DSSUploadMixin):
                     expect_stacktrace=True)
             )
 
+    def test_bundle_get_not_found(self):
+        """
+        Verify that we return the correct error message when the bundle cannot be found.
+        """
+        self._test_bundle_get_not_found("aws")
+        self._test_bundle_get_not_found("gcp")
+
+    def _test_bundle_get_not_found(self, replica):
+        bundle_uuid = str(uuid.uuid4())
+
+        url = str(UrlBuilder()
+                  .set(path="/v1/bundles/" + bundle_uuid)
+                  .add_query("replica", replica))
+
+        with override_bucket_config(DeploymentStage.TEST_FIXTURE):
+            self.assertGetResponse(
+                url,
+                requests.codes.not_found,
+                expected_error=ExpectedErrorFields(
+                    code="not_found",
+                    status=requests.codes.not_found)
+            )
+
+        version = "2017-06-16T193604.240704Z"
+        url = str(UrlBuilder()
+                  .set(path="/v1/bundles/" + bundle_uuid)
+                  .add_query("replica", replica)
+                  .add_query("version", version))
+
+        with override_bucket_config(DeploymentStage.TEST_FIXTURE):
+            self.assertGetResponse(
+                url,
+                requests.codes.not_found,
+                expected_error=ExpectedErrorFields(
+                    code="not_found",
+                    status=requests.codes.not_found)
+            )
+
+
 if __name__ == '__main__':
     unittest.main()
