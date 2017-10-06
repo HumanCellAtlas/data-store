@@ -7,7 +7,7 @@ import iso8601
 import requests
 from flask import jsonify, make_response
 
-from .. import dss_handler
+from .. import DSSException, dss_handler
 from ..blobstore import BlobNotFoundError
 from ..config import Config
 from ..hcablobstore import BundleFileMetadata, BundleMetadata, FileMetadata
@@ -35,7 +35,7 @@ def get(
 
     if version is None:
         # no matches!
-        return make_response("Cannot find file!", 404)
+        raise DSSException(404, "not_found", "Cannot find file!")
 
     # retrieve the bundle metadata.
     try:
@@ -45,10 +45,7 @@ def get(
                 "bundles/{}.{}".format(uuid, version)
             ).decode("utf-8"))
     except BlobNotFoundError as ex:
-        return jsonify(dict(
-            message="Cannot find bundle.",
-            exception=str(ex),
-            HTTPStatusCode=requests.codes.not_found)), requests.codes.not_found
+        raise DSSException(404, "not_found", "Cannot find file!")
 
     filesresponse = []  # type: typing.List[dict]
     for file in bundle_metadata[BundleMetadata.FILES]:

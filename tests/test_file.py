@@ -240,18 +240,34 @@ class TestFileApi(unittest.TestCase, DSSAsserts, DSSUploadMixin):
             # TODO: (ttung) verify more of the headers
 
     def test_file_get_not_found(self):
+        """
+        Verify that we return the correct error message when the file cannot be found.
+        """
         self._test_file_get_not_found("aws")
         self._test_file_get_not_found("gcp")
 
     def _test_file_get_not_found(self, replica):
-        """
-        Verify we can successfully fetch the latest version of a file UUID.
-        """
         file_uuid = "ce55fd51-7833-469b-be0b-5da88ec0ffee"
 
         url = str(UrlBuilder()
                   .set(path="/v1/files/" + file_uuid)
                   .add_query("replica", replica))
+
+        with override_bucket_config(DeploymentStage.TEST_FIXTURE):
+            self.assertGetResponse(
+                url,
+                requests.codes.not_found,
+                expected_error=ExpectedErrorFields(
+                    code="not_found",
+                    status=requests.codes.not_found,
+                    expect_stacktrace=True)
+            )
+
+        version = "2017-06-16T193604.240704Z"
+        url = str(UrlBuilder()
+                  .set(path="/v1/files/" + file_uuid)
+                  .add_query("replica", replica)
+                  .add_query("version", version))
 
         with override_bucket_config(DeploymentStage.TEST_FIXTURE):
             self.assertGetResponse(
