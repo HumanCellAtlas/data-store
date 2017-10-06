@@ -24,7 +24,8 @@ def start_verbose_logging():
     for logger_name in logging.Logger.manager.loggerDict:  # type: ignore
         if (logger_name.startswith("botocore") or
                 logger_name.startswith("boto3.resources") or
-                logger_name.startswith("elasticsearch")):
+                logger_name.startswith("elasticsearch") or
+                logger_name.startswith("org.elasticsearch")):
             logging.getLogger(logger_name).setLevel(logging.WARNING)
 
 def get_env(varname):

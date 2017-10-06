@@ -24,8 +24,6 @@ paths:
         Accepts Elasticsearch JSON query and returns matching bundle identifiers
       summary: |
         Find bundles by searching their metadata with an Elasticsearch query
-      consumes:
-        - application/json
       parameters:
         - name: json_request_body
           in: body
@@ -44,11 +42,49 @@ paths:
           required: true
           type: string
           enum: [aws, gcp, azure]
-      produces:
-        - application/json
+        - name: per_page
+          in: query
+          description: Max number of results to return per page.
+          required: false
+          type: integer
+          format: int32
+          minimum: 10
+          maximum: 500
+          default: 100
+        - name: _scroll_id
+          in: query
+          description: |
+            # Scroll-Search-Context
+            An internal state pointer parameter for use with pagination. This parameter is referenced by the `Link`
+            header as described in the "Pagination" section. The API client should not need to set this parameter
+            directly; it should instead directly fetch the URL given in the `Link` header.
+            # Pagination
+            The DSS API supports pagination in a manner consistent with the [GitHub API](https://developer.github.com/v3/guides/traversing-with-pagination/), which is based on
+            [RFC 5988](https://tools.ietf.org/html/rfc5988). When the results of an API call exceed the page size
+            specified, the HTTP response will contain a `Link` header of the following form:
+            `Link: <https://dss.data.humancellatlas.org/v1/search?replica=aws&per_page=100&_scroll_id=123>; rel="next"`.
+            The URL in the header refers to the next page of the results to be fetched; if no `Link rel="next"` URL is
+            included, then all results have been fetched. The client should recognize and parse the `Link` header
+            appropriately according to RFC 5988, and retrieve the next page if requested by the user, or if all results
+            are being retrieved.
+          required: false
+          type: string
       responses:
         200:
           description: OK
+          schema:
+            type: object
+            properties:
+              es_query:
+                description: Elasticsearch query used to produce the results.
+                type: object
+              results:
+                description: Results matching the `es_query`.
+                type: array
+          headers:
+            Link:
+              type: string
+              description: URL to retrieve paginated results in [RFC 5988](https://tools.ietf.org/html/rfc5988) format.
         default:
           description: Unexpected error
           schema:
@@ -782,3 +818,4 @@ definitions:
     properties:
       files:
         type: string
+  

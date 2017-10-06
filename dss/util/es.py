@@ -13,7 +13,7 @@ from botocore.auth import SigV4Auth
 from botocore.awsrequest import AWSRequest
 from botocore.vendored import requests
 from elasticsearch import RequestsHttpConnection, Elasticsearch
-
+from requests_aws4auth import AWS4Auth
 
 class AWSV4Sign(requests.auth.AuthBase):
     """
@@ -113,7 +113,16 @@ class ElasticsearchClient:
                 logger.debug("Connecting to Elasticsearch at host: {}".format(elasticsearch_endpoint))
                 if elasticsearch_endpoint.endswith(".amazonaws.com"):
                     session = boto3.session.Session()
-                    es_auth = AWSV4Sign(session.get_credentials(), session.region_name, service="es")
+                    # TODO (akislyuk) Identify/resolve why use of AWSV4Sign results in an AWS auth error
+                    # when Elasticsearch scroll is used. Work around this by using the
+                    # requests_aws4auth package as described here:
+                    # https://elasticsearch-py.readthedocs.io/en/master/#running-on-aws-with-iam
+                    # es_auth = AWSV4Sign(session.get_credentials(), session.region_name, service="es")
+                    # Begin workaround
+                    current_credentials = session.get_credentials().get_frozen_credentials()
+                    es_auth = AWS4Auth(current_credentials.access_key, current_credentials.secret_key,
+                                       session.region_name, "es", session_token=current_credentials.token)
+                    # End workaround
                     client = Elasticsearch(
                         hosts=[{'host': elasticsearch_endpoint, 'port': elasticsearch_port}],
                         use_ssl=True,

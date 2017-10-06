@@ -7,4 +7,5 @@ elasticsearch
 elasticsearch_dsl
 google-cloud-storage
 iso8601
+requests_aws4auth
 urllib3
