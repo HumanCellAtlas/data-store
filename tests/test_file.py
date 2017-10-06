@@ -1,11 +1,13 @@
 #!/usr/bin/env python
 # coding: utf-8
 
+import datetime
 import hashlib
 import os
 import sys
 import tempfile
 import unittest
+import uuid
 
 import requests
 
@@ -44,16 +46,45 @@ class TestFileApi(unittest.TestCase, DSSAsserts, DSSUploadMixin):
             uploader.checksum_and_upload_file(
                 fh.name, src_key, {"hca-dss-content-type": "text/plain", })
 
-        # should be able to do this twice (i.e., same payload, different UUIDs)
-        for _ in range(2):
-            resp_obj = self.upload_file_wait(f"{scheme}://{test_bucket}/{src_key}", replica, expect_async=False)
-            self.assertHeaders(
-                resp_obj.response,
-                {
-                    'content-type': "application/json",
-                }
+        source_url = f"{scheme}://{test_bucket}/{src_key}"
+
+        def upload_file(
+                file_uuid: str,
+                bundle_uuid: str=None,
+                version: str=None,
+                expected_code: int=requests.codes.created,
+        ):
+            bundle_uuid = str(uuid.uuid4()) if bundle_uuid is None else bundle_uuid
+            if version is None:
+                timestamp = datetime.datetime.utcnow()
+                version = timestamp.strftime("%Y-%m-%dT%H%M%S.%fZ")
+
+            urlbuilder = UrlBuilder().set(path='/v1/files/' + file_uuid)
+            urlbuilder.add_query("version", version)
+            resp_obj = self.assertPutResponse(
+                str(urlbuilder),
+                expected_code,
+                json_request_body=dict(
+                    bundle_uuid=bundle_uuid,
+                    creator_uid=0,
+                    source_url=source_url,
+                ),
             )
-            self.assertIn('version', resp_obj.json)
+
+            if resp_obj.response.status_code == requests.codes.created:
+                self.assertHeaders(
+                    resp_obj.response,
+                    {
+                        'content-type': "application/json",
+                    }
+                )
+                self.assertIn('version', resp_obj.json)
+
+        file_uuid = str(uuid.uuid4())
+
+        # should be able to do this twice (i.e., same payload, different UUIDs)
+        upload_file(file_uuid)
+        upload_file(str(uuid.uuid4()))
 
     def test_file_put_large(self):
         tempdir = tempfile.gettempdir()
