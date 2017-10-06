@@ -29,7 +29,6 @@ def upload(uploader: Uploader):
         "test_good_source_data/incorrect_case_checksum",
         {
             "hca-dss-content-type": "text/plain",
-            "hca-dss-size": "8685",
             "hca-dss-crc32c": "114DEE2C",
             "hca-dss-s3_etag": "7F54939B30AE7B6D45D473A4C82A41B0",
             "hca-dss-sha1": "15684690E8132044F378B4D4AF8A7331C8DA17B1",
@@ -45,7 +44,6 @@ def upload(uploader: Uploader):
             {},
             {
                 "hca-dss-content-type": "text/plain",
-                "hca-dss-size": "8685",
                 "hca-dss-crc32c": "114dee2c",
                 "hca-dss-s3_etag": "7f54939b30ae7b6d45d473a4c82a41b0",
                 "hca-dss-sha1": "15684690e8132044f378b4d4af8a7331c8da17b1",
@@ -59,7 +57,6 @@ def upload(uploader: Uploader):
         "test_bad_source_data/incorrect_checksum",
         {
             "hca-dss-content-type": "text/plain",
-            "hca-dss-size": "11358",
             "hca-dss-crc32c": "07b9e16e",
             "hca-dss-s3_etag": "55fc854ddc3c6bd573b83ef96387f146",
             "hca-dss-sha1": "fb4ba0588b8b6c4918902b8b815229aa8a61e483",

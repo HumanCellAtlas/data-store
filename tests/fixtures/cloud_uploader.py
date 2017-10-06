@@ -44,7 +44,6 @@ class Uploader:
         with ChecksummingSink() as sink, open(os.path.join(self.local_root, local_path), "rb") as fh:
             data = fh.read()
             sink.write(data)
-            size = len(data)
 
             sums = sink.get_checksums()
 
@@ -52,7 +51,6 @@ class Uploader:
         metadata['hca-dss-s3_etag'] = sums['s3_etag'].lower()
         metadata['hca-dss-sha1'] = sums['sha1'].lower()
         metadata['hca-dss-sha256'] = sums['sha256'].lower()
-        metadata['hca-dss-size'] = str(size)
 
         self.upload_file(local_path, remote_path, metadata, *args, **kwargs)  # noqa
 
@@ -76,10 +74,6 @@ class S3Uploader(Uploader):
             tags: typing.Dict[str, str]=None,
             *args,
             **kwargs) -> None:
-        if metadata_keys is None:
-            metadata_keys = dict()
-        if tags is None:
-            tags = dict()
 
         fp = os.path.join(self.local_root, local_path)
         sz = os.stat(fp).st_size
@@ -89,6 +83,16 @@ class S3Uploader(Uploader):
             multipart_threshold=64 * 1024 * 1024,
             multipart_chunksize=chunk_sz,
         )
+
+        if metadata_keys is None:
+            metadata_keys = dict()
+        else:
+            metadata_keys['hca-dss-size'] = str(sz)
+
+        if tags is None:
+            tags = dict()
+        else:
+            tags['hca-dss-size'] = str(sz)
 
         logger.info("%s", f"Uploading {local_path} to s3://{self.bucket}/{remote_path}")
         self.s3_client.upload_file(
@@ -130,8 +134,11 @@ class GSUploader(Uploader):
             *args,
             **kwargs) -> None:
         logger.info("%s", f"Uploading {local_path} to gs://{self.bucket.name}/{remote_path}")
+        fp = os.path.join(self.local_root, local_path)
         blob = self.bucket.blob(remote_path)
-        blob.upload_from_filename(os.path.join(self.local_root, local_path))
+        blob.upload_from_filename(fp)
         if metadata_keys:
+            sz = os.stat(fp).st_size
+            metadata_keys['hca-dss-size'] = str(sz)
             blob.metadata = metadata_keys
             blob.patch()
