@@ -9,3 +9,4 @@ Uncomment the headings below:
 ### Steps to reproduce the behavior -->
 
 <!-- If you are on the core dev team for this repo, mention your issue in daily scrum, sprint review, or to the PM. -->
+<!-- Also, assign the issue to someone or to yourself. -->
