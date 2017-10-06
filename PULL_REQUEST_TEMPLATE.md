@@ -1,9 +1,9 @@
-<!-- Please make sure to provide a meaningful title to your PR. Do not keep the default title. -->
+<!-- Please make sure to provide a meaningful title for your PR. Do not keep the default title. -->
 <!-- Use the following GitHub keyword if your PR completely resolves an issue: "Fixes #123" -->
 <!-- Use the following Waffle keyword if your PR is related to an issue: "Connects to #123" -->
 
 ### Test plan
-<!-- Describe how you tested this PR, and how you will test the feature after it's merged. -->
+<!-- Describe how you tested this PR, and how you will test the feature after it is merged. -->
 
 <!-- Add notes to highlight the feature when it's released/demoed. Uncomment the headings below:
 ### Release notes -->
