@@ -81,10 +81,18 @@ class TestFileApi(unittest.TestCase, DSSAsserts, DSSUploadMixin):
                 self.assertIn('version', resp_obj.json)
 
         file_uuid = str(uuid.uuid4())
+        bundle_uuid = str(uuid.uuid4())
+        version = datetime.datetime.utcnow().strftime("%Y-%m-%dT%H%M%S.%fZ")
 
         # should be able to do this twice (i.e., same payload, different UUIDs)
-        upload_file(file_uuid)
+        upload_file(file_uuid, bundle_uuid=bundle_uuid, version=version)
         upload_file(str(uuid.uuid4()))
+
+        # should be able to do this twice (i.e., same payload, same UUIDs)
+        upload_file(file_uuid, bundle_uuid=bundle_uuid, version=version, expected_code=requests.codes.ok)
+
+        # should *NOT* be able to do this twice (i.e., different payload, same UUIDs)
+        upload_file(file_uuid, version=version, expected_code=requests.codes.conflict)
 
     def test_file_put_large(self):
         tempdir = tempfile.gettempdir()
