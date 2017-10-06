@@ -84,7 +84,7 @@ paths:
           headers:
             Link:
               type: string
-              description: URL to retrieve paginated results.
+              description: URL to retrieve paginated results in [RFC 5988](https://tools.ietf.org/html/rfc5988) format.
         default:
           description: Unexpected error
           schema:
