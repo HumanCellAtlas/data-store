@@ -3,7 +3,7 @@
 <!-- Check https://waffle.io/HumanCellAtlas/data-store for other tags in use and decorate your issue as appropriate. -->
 
 <!-- If you are filing a bug, please summarize the expected behavior, actual behavior, and steps to reproduce the bug.
-Uncomment the titles below:
+Uncomment the headings below:
 ## Expected behavior
 ## Actual behavior
 ## Steps to reproduce the behavior -->
