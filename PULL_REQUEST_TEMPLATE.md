@@ -5,10 +5,10 @@
 ### Test plan
 <!-- Describe how you tested this PR, and how you will test the feature after it is merged. -->
 
-<!-- Add notes to highlight the feature when it's released/demoed. Uncomment the headings below:
-### Release notes -->
-
 <!-- Describe any special instructions to the operator who will deploy your code to staging and production. Uncomment below:
 ### Deployment instructions & migrations -->
+
+<!-- Add notes to highlight the feature when it's released/demoed. Uncomment the headings below:
+### Release notes -->
 
 <!-- Do you want your PR to be merged by the reviewer using squash or rebase merging? If so, mention it here. -->
