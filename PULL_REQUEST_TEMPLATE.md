@@ -10,3 +10,5 @@
 
 <!-- Describe any special instructions to the operator who will deploy your code to staging and production. Uncomment below:
 ### Deployment instructions & migrations -->
+
+<!-- Do you want your PR to be merged by the reviewer using squash or rebase merging? If so, mention it here. -->
