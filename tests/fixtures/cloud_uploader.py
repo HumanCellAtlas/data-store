@@ -11,7 +11,7 @@ from .checksumming_io.checksumming_io import ChecksummingSink
 
 logging.basicConfig(level=logging.ERROR)
 logger = logging.getLogger(__name__)
-logger.setLevel(logging.INFO)
+logger.setLevel(logging.WARNING)
 
 
 class Uploader:
