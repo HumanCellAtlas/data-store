@@ -22,7 +22,7 @@ import dss
 from dss.config import IndexSuffix
 from dss.util import UrlBuilder
 from dss.util.es import ElasticsearchClient, ElasticsearchServer, get_elasticsearch_index
-from tests.infra import DSSAsserts, ExpectedErrorFields
+from tests.infra import DSSAssertMixin, ExpectedErrorFields
 from tests.es import elasticsearch_delete_index
 
 logging.basicConfig(level=logging.INFO)
@@ -43,7 +43,7 @@ def tearDownModule():
     IndexSuffix.reset()
     os.unsetenv('DSS_ES_PORT')
 
-class TestSubscriptionsBase(DSSAsserts):
+class TestSubscriptionsBase(DSSAssertMixin):
     @classmethod
     def subsciption_setup(cls, replica):
         cls.replica = replica

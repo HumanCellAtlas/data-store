@@ -17,10 +17,10 @@ from dss.config import DeploymentStage, override_bucket_config
 from dss.util import UrlBuilder
 from dss.util.aws import AWS_MIN_CHUNK_SIZE
 from tests.fixtures.cloud_uploader import GSUploader, S3Uploader, Uploader
-from tests.infra import DSSAsserts, DSSUploadMixin, ExpectedErrorFields, get_env, generate_test_key
+from tests.infra import DSSAssertMixin, DSSUploadMixin, ExpectedErrorFields, get_env, generate_test_key
 
 
-class TestFileApi(unittest.TestCase, DSSAsserts, DSSUploadMixin):
+class TestFileApi(unittest.TestCase, DSSAssertMixin, DSSUploadMixin):
     def setUp(self):
         self.app = dss.create_app().app.test_client()
         dss.Config.set_config(dss.DeploymentStage.TEST)

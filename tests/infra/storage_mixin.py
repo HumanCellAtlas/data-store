@@ -36,13 +36,13 @@ class TestFile:
         self.version = None
 
 
-class StorageTestSupport:
+class DSSStorageMixin:
 
     """
     Storage test operations for files and bundles.
 
-    This class extends DSSAsserts, and like DSSAsserts,
-    expects the client app to be available as 'self.app'
+    This class is a mixin like DSSAssertMixin, and like DSSAssertMixin, expects the client app to be available as
+    'self.app'
     """
 
     def upload_files_and_create_bundle(self, bundle: TestBundle, replica: str):
