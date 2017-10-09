@@ -4,6 +4,7 @@
 
 <!-- If you are filing a bug, please summarize the expected behavior, actual behavior, and steps to reproduce the bug.
      Uncomment the headings below:
+### On which version of the code did the bug occur? (git hash, date, branch, be specific)
 ### Expected behavior
 ### Actual behavior
 ### Steps to reproduce the behavior -->
