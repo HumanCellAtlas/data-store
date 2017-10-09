@@ -54,7 +54,7 @@ bundle_dir = "data-bundle-examples/10X_v2/pbmc8k"
 with open(os.path.join(bundle_dir, "async_copied_file"), "wb") as fh:
     fh.write(os.urandom(ASYNC_COPY_THRESHOLD + 1))
 
-run(f"cat {bundle_dir}/sample.json | jq .uuid=env.sid | sponge {bundle_dir}/sample.json", env=dict(sid=sample_id))
+run(f"cat {bundle_dir}/sample.json | jq .uuid=\"{sample_id}\" | sponge {bundle_dir}/sample.json")
 run(f"hca dss upload --replica aws --staging-bucket $DSS_S3_BUCKET_TEST --file-or-dir {bundle_dir} > upload.json")
 run("hca dss download --replica aws $(jq -r .bundle_uuid upload.json)")
 for i in range(10):
