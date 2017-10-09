@@ -4,6 +4,7 @@
 import hashlib
 import os
 import sys
+import typing
 import unittest
 import urllib.parse
 import uuid
@@ -105,42 +106,60 @@ class TestDSS(unittest.TestCase, DSSAsserts, DSSUploadMixin):
         elif replica == "gcp":
             schema = "gs"
 
-        file_uuid = str(uuid.uuid4())
+        def upload_bundle(
+                bundle_uuid: str,
+                files: typing.Iterable[typing.Tuple[str, str, str]],
+                bundle_version: typing.Optional[str]=None,
+                expected_code: int=requests.codes.created):
+            builder = (UrlBuilder()
+                       .set(path="/v1/bundles/" + bundle_uuid)
+                       .add_query("replica", replica))
+            if bundle_version is not None:
+                builder.add_query("version", bundle_version)
+            url = str(builder)
+
+            resp_obj = self.assertPutResponse(
+                url,
+                expected_code,
+                json_request_body=dict(
+                    files=[
+                        dict(
+                            uuid=file_uuid,
+                            version=file_version,
+                            name=file_name,
+                            indexed=False,
+                        )
+                        for file_uuid, file_version, file_name in files
+                    ],
+                    creator_uid=12345,
+                ),
+            )
+
+            if 200 <= resp_obj.response.status_code < 300:
+                self.assertHeaders(
+                    resp_obj.response,
+                    {
+                        'content-type': "application/json",
+                    }
+                )
+                self.assertIn('version', resp_obj.json)
+
+            return resp_obj
+
         bundle_uuid = str(uuid.uuid4())
+        file_uuid = str(uuid.uuid4())
         resp_obj = self.upload_file_wait(
             f"{schema}://{fixtures_bucket}/test_good_source_data/0",
             replica,
             file_uuid,
             bundle_uuid,
         )
-        version = resp_obj.json['version']
+        file_version = resp_obj.json['version']
 
-        url = str(UrlBuilder()
-                  .set(path="/v1/bundles/" + bundle_uuid)
-                  .add_query("replica", replica))
-
-        resp_obj = self.assertPutResponse(
-            url,
-            requests.codes.created,
-            json_request_body=dict(
-                files=[
-                    dict(
-                        uuid=file_uuid,
-                        version=version,
-                        name="LICENSE",
-                        indexed=False,
-                    ),
-                ],
-                creator_uid=12345,
-            ),
+        upload_bundle(
+            bundle_uuid,
+            [(file_uuid, file_version, "LICENSE")],
         )
-        self.assertHeaders(
-            resp_obj.response,
-            {
-                'content-type': "application/json",
-            }
-        )
-        self.assertIn('version', resp_obj.json)
 
     def test_no_replica(self):
         """
