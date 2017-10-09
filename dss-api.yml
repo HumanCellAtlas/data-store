@@ -74,11 +74,11 @@ paths:
           type: string
       responses:
         200:
-          description: OK all results retrieved
+          description: All results retrieved.
           schema:
             $ref: '#/definitions/SearchResult'
         206:
-          description: OK page of result retrieved
+          description: Page of result retrieved.
           schema:
             $ref: '#/definitions/SearchResult'
           headers:

@@ -82,7 +82,7 @@ class TestSearchBase(DSSAssertMixin):
             json_request_body=dict(es_query=smartseq2_paired_ends_query),
             expected_code=requests.codes.ok)
         next_url = self.get_next_url(search_obj.response.headers)
-        self.assertEqual(next_url, None)
+        self.assertIsNone(next_url)
         self.verify_search_result(search_obj.json, smartseq2_paired_ends_query, 1)
         self.verify_bundles(search_obj.json['results'], bundles)
 
@@ -93,7 +93,7 @@ class TestSearchBase(DSSAssertMixin):
             json_request_body=dict(es_query=smartseq2_paired_ends_query),
             expected_code=requests.codes.ok)
         next_url = self.get_next_url(search_obj.response.headers)
-        self.assertEqual(next_url, None)
+        self.assertIsNone(next_url)
         self.verify_search_result(search_obj.json, smartseq2_paired_ends_query, 0)
 
     def test_search_returns_no_result_when_query_does_not_match_indexed_documents(self):
@@ -112,7 +112,7 @@ class TestSearchBase(DSSAssertMixin):
             json_request_body=dict(es_query=query),
             expected_code=requests.codes.ok)
         next_url = self.get_next_url(search_obj.response.headers)
-        self.assertEqual(next_url, None)
+        self.assertIsNone(next_url)
         self.verify_search_result(search_obj.json, query, 0)
 
     def test_next_url_is_empty_when_all_results_returned(self):
@@ -124,7 +124,7 @@ class TestSearchBase(DSSAssertMixin):
             json_request_body=dict(es_query=smartseq2_paired_ends_query),
             expected_code=requests.codes.ok)
         next_url = self.get_next_url(search_obj.response.headers)
-        self.assertEqual(next_url, None)
+        self.assertIsNone(next_url)
 
     def test_search_returns_error_when_invalid_query_used(self):
         invalid_query_data = [
@@ -351,15 +351,14 @@ class TestSearchBase(DSSAssertMixin):
             path=url,
             json_request_body=dict(es_query=es_query),
             expected_code=(requests.codes.ok, requests.codes.partial))
-        next_url = self.get_next_url(search_obj.response.headers)
         found_bundles = search_obj.json['results']
 
         while search_obj.response.status_code != 200:
+            next_url = self.get_next_url(search_obj.response.headers)
             search_obj = self.assertPostResponse(
                 path=self.strip_next_url(next_url),
                 json_request_body=dict(es_query=es_query),
                 expected_code=(requests.codes.ok, requests.codes.partial))
-            next_url = self.get_next_url(search_obj.response.headers)
             found_bundles.extend(search_obj.json['results'])
         return search_obj, found_bundles
 
