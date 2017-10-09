@@ -33,7 +33,6 @@ from dss.util import create_blob_key, UrlBuilder
 from dss.util.es import ElasticsearchClient, ElasticsearchServer
 from tests import get_version
 from tests.es import elasticsearch_delete_index
-from tests.fixtures.populate import populate
 from tests.infra import DSSAsserts, DSSUploadMixin, StorageTestSupport, TestBundle, start_verbose_logging
 from tests.sample_search_queries import smartseq2_paired_ends_query
 
