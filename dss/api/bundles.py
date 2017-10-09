@@ -103,18 +103,6 @@ def put(uuid: str, replica: str, json_request_body: dict, version: str=None):
     # what's the target object name for the bundle manifest?
     bundle_manifest_object_name = "bundles/" + uuid + "." + version
 
-    # if it already exists, then it's a failure.
-    try:
-        handle.get_user_metadata(bucket, bundle_manifest_object_name)
-    except BlobNotFoundError:
-        pass
-    else:
-        # TODO: (ttung) better error messages pls.
-        return (
-            make_response("bundle already exists!"),
-            requests.codes.conflict
-        )
-
     # decode the list of files.
     files = [{'user_supplied_metadata': file}
              for file in json_request_body['files']]
@@ -128,7 +116,7 @@ def put(uuid: str, replica: str, json_request_body: dict, version: str=None):
     # TODO: (ttung) should validate the files' bundle UUID points back at us.
 
     # build a manifest consisting of all the files.
-    document = json.dumps({
+    bundle_metadata = {
         BundleMetadata.FORMAT: BundleMetadata.FILE_FORMAT_VERSION,
         BundleMetadata.VERSION: version,
         BundleMetadata.FILES: [
@@ -145,15 +133,31 @@ def put(uuid: str, replica: str, json_request_body: dict, version: str=None):
             }
             for file in files
         ],
-        BundleMetadata.CREATOR_UID: json_request_body['creator_uid']
-    })
+        BundleMetadata.CREATOR_UID: json_request_body['creator_uid'],
+    }
 
-    # write manifest to persistent store
-    handle.upload_file_handle(
-        bucket,
-        bundle_manifest_object_name,
-        io.BytesIO(document.encode("utf-8")))
+    # if it already exists, then it's a failure.
+    try:
+        handle.get_user_metadata(bucket, bundle_manifest_object_name)
+    except BlobNotFoundError:
+        # write manifest to persistent store
+        handle.upload_file_handle(
+            bucket,
+            bundle_manifest_object_name,
+            io.BytesIO(json.dumps(bundle_metadata).encode("utf-8")))
+        status_code = requests.codes.created
 
-    # TODO: write transaction to persistent store.
+        # TODO: write transaction to persistent store.
+    else:
+        # fetch the file metadata, compare it to what we have.
+        existing_bundle_metadata = json.loads(
+            handle.get(bucket, bundle_manifest_object_name).decode("utf-8"))
 
-    return jsonify(dict(version=version)), requests.codes.created
+        if existing_bundle_metadata != bundle_metadata:
+            raise DSSException(
+                requests.codes.conflict,
+                "bundle_already_exists",
+                f"bundle with UUID {uuid} and version {version} already exists")
+        status_code = requests.codes.ok
+
+    return jsonify(dict(version=version)), status_code

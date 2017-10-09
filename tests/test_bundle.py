@@ -1,6 +1,7 @@
 #!/usr/bin/env python
 # coding: utf-8
 
+import datetime
 import hashlib
 import os
 import sys
@@ -156,9 +157,28 @@ class TestDSS(unittest.TestCase, DSSAsserts, DSSUploadMixin):
         )
         file_version = resp_obj.json['version']
 
+        # first bundle.
+        bundle_version = datetime.datetime.utcnow().strftime("%Y-%m-%dT%H%M%S.%fZ")
         upload_bundle(
             bundle_uuid,
             [(file_uuid, file_version, "LICENSE")],
+            bundle_version,
+        )
+
+        # should be able to do this twice (i.e., same payload, same UUIDs)
+        upload_bundle(
+            bundle_uuid,
+            [(file_uuid, file_version, "LICENSE")],
+            bundle_version,
+            requests.codes.ok,
+        )
+
+        # should *NOT* be able to do this twice with different payload.
+        upload_bundle(
+            bundle_uuid,
+            [(file_uuid, file_version, "LICENSE1")],
+            bundle_version,
+            requests.codes.conflict,
         )
 
     def test_no_replica(self):

@@ -618,6 +618,17 @@ paths:
               - files
               - creator_uid
       responses:
+        200:
+          description: OK
+          schema:
+            type: object
+            properties:
+              version:
+                description: Timestamp of bundle creation in RFC3339.
+                type: string
+                format: date-time
+            required:
+              - version
         201:
           description: OK
           schema:
@@ -629,6 +640,19 @@ paths:
                 format: date-time
             required:
               - version
+        default:
+          description: Unexpected error
+          schema:
+            allOf:
+              - $ref: '#/definitions/Error'
+              - type: object
+                properties:
+                  code:
+                    type: string
+                    description: Machine-readable error code.  The types of return values should not be changed lightly.
+                    enum: [unhandled_exception, illegal_arguments, bundle_already_exists]
+                required:
+                  - code
 definitions:
   File:
     type: object
