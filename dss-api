@@ -33,4 +33,17 @@ dss.Config.set_config(dss.DeploymentStage.NORMAL)
 logging.basicConfig(level=args.log_level, stream=sys.stderr)
 
 factory = CLIFactory(project_dir=args.project_dir, debug=args.debug)
-run_local_server(factory, port=args.port, env=os.environ, stage=os.environ["DSS_DEPLOYMENT_STAGE"])
+
+# The following code snippet is basically stolen from chalice/__init__py:run_local_server
+config = factory.create_config_obj(
+    chalice_stage_name=os.environ["DSS_DEPLOYMENT_STAGE"]
+)
+app_obj = factory.load_chalice_app()
+# When running `chalice local`, a stdout logger is configured
+# so you'll see the same stdout logging as you would when
+# running in lambda.  This is configuring the root logger.
+# The app-specific logger (app.log) will still continue
+# to work.
+logging.basicConfig(stream=sys.stdout)
+server = factory.create_local_server(app_obj, config, args.port)
+server.serve_forever()
