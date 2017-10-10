@@ -78,13 +78,13 @@ paths:
           schema:
             $ref: '#/definitions/SearchResult'
         206:
-          description: Page of result retrieved.
+          description: A single page of results was retrieved.
           schema:
             $ref: '#/definitions/SearchResult'
           headers:
             Link:
               type: string
-              description: URL to retrieve paginated results.
+              description: URL to retrieve the next page of results.
         default:
           description: Unexpected error
           schema:

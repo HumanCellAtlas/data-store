@@ -347,19 +347,16 @@ class TestSearchBase(DSSAssertMixin):
         if not url_params:
             url_params = {}
         url = self.build_url(url_params)
-        search_obj = self.assertPostResponse(
-            path=url,
-            json_request_body=dict(es_query=es_query),
-            expected_code=(requests.codes.ok, requests.codes.partial))
-        found_bundles = search_obj.json['results']
-
-        while search_obj.response.status_code != 200:
-            next_url = self.get_next_url(search_obj.response.headers)
+        found_bundles = []
+        while True:
             search_obj = self.assertPostResponse(
-                path=self.strip_next_url(next_url),
+                path=self.strip_next_url(url),
                 json_request_body=dict(es_query=es_query),
                 expected_code=(requests.codes.ok, requests.codes.partial))
             found_bundles.extend(search_obj.json['results'])
+            if search_obj.response.status_code == 200:
+                break
+            url = self.get_next_url(search_obj.response.headers)
         return search_obj, found_bundles
 
     def check_count(self, es_query, expected_count, timeout=5):
