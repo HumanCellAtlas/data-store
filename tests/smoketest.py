@@ -67,7 +67,8 @@ else:
     parser.exit(RED("Failed to replicate bundle from AWS to GCP"))
 run("hca dss download --replica gcp $(jq -r .bundle_uuid upload.json)")
 
-run("hca dss post-search")
+for replica in "aws", "gcp":
+    run(f"hca dss post-search --es-query='{{}}' --replica {replica}")
 
 search_route = "https://${API_HOST}/v1/search"
 for replica in "aws", "gcp":
