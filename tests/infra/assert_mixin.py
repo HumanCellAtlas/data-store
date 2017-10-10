@@ -30,7 +30,7 @@ class DSSAssertResponse(typing.NamedTuple):
     json: typing.Optional[typing.Any]
 
 
-class DSSAsserts:
+class DSSAssertMixin:
     sre = re.compile("^assert(.+)Response")
 
     def assertResponse(
@@ -103,7 +103,7 @@ class DSSAsserts:
                 method = mo.group(1).lower()
                 return functools.partial(self.assertResponse, method)
 
-        if hasattr(super(DSSAsserts, self), '__getattr__'):
-            return super(DSSAsserts, self).__getattr__(item)  # type: ignore
+        if hasattr(super(DSSAssertMixin, self), '__getattr__'):
+            return super(DSSAssertMixin, self).__getattr__(item)  # type: ignore
         else:
             raise AttributeError(item)

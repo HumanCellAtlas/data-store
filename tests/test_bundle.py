@@ -18,10 +18,10 @@ sys.path.insert(0, pkg_root)  # noqa
 import dss
 from dss.config import DeploymentStage, Config, override_bucket_config
 from dss.util import UrlBuilder
-from tests.infra import DSSAsserts, DSSUploadMixin, ExpectedErrorFields, get_env
+from tests.infra import DSSAssertMixin, DSSUploadMixin, ExpectedErrorFields, get_env
 
 
-class TestDSS(unittest.TestCase, DSSAsserts, DSSUploadMixin):
+class TestDSS(unittest.TestCase, DSSAssertMixin, DSSUploadMixin):
     def setUp(self):
         self.app = dss.create_app().app.test_client()
         dss.Config.set_config(dss.DeploymentStage.TEST)

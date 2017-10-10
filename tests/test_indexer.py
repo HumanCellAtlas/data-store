@@ -33,7 +33,7 @@ from dss.util import create_blob_key, UrlBuilder
 from dss.util.es import ElasticsearchClient, ElasticsearchServer
 from tests import get_version
 from tests.es import elasticsearch_delete_index
-from tests.infra import DSSAsserts, DSSUploadMixin, StorageTestSupport, TestBundle, start_verbose_logging
+from tests.infra import DSSAssertMixin, DSSUploadMixin, DSSStorageMixin, TestBundle, start_verbose_logging
 from tests.sample_search_queries import smartseq2_paired_ends_query
 
 # The moto mock has two defects that show up when used by the dss core storage system.
@@ -87,7 +87,7 @@ def tearDownModule():
     os.unsetenv('DSS_ES_PORT')
 
 
-class TestIndexerBase(DSSAsserts, StorageTestSupport, DSSUploadMixin):
+class TestIndexerBase(DSSAssertMixin, DSSStorageMixin, DSSUploadMixin):
 
     @classmethod
     def indexer_setup(cls, replica):

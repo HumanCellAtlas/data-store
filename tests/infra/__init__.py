@@ -2,9 +2,9 @@ import inspect
 import os
 import uuid
 
-from .assert_mixin import DSSAssertResponse, DSSAsserts, ExpectedErrorFields
+from .assert_mixin import DSSAssertResponse, DSSAssertMixin, ExpectedErrorFields
 from .logging import start_verbose_logging
-from .storage_mixin import StorageTestSupport, TestBundle
+from .storage_mixin import DSSStorageMixin, TestBundle
 from .upload_mixin import DSSUploadMixin
 
 

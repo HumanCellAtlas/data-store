@@ -11,10 +11,10 @@ pkg_root = os.path.abspath(os.path.join(os.path.dirname(__file__), '..'))  # noq
 sys.path.insert(0, pkg_root)  # noqa
 
 import dss
-from tests.infra import DSSAsserts, DSSUploadMixin, StorageTestSupport, TestBundle
+from tests.infra import DSSAssertMixin, DSSUploadMixin, DSSStorageMixin, TestBundle
 
 
-class TestApi(unittest.TestCase, DSSAsserts, DSSUploadMixin, StorageTestSupport):
+class TestApi(unittest.TestCase, DSSAssertMixin, DSSUploadMixin, DSSStorageMixin):
 
     def setUp(self):
         self.replica = "aws"

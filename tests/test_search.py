@@ -23,7 +23,7 @@ import dss
 from dss.config import IndexSuffix
 from dss.events.handlers.index import create_elasticsearch_index
 from dss.util.es import ElasticsearchServer, ElasticsearchClient
-from tests.infra import DSSAsserts, start_verbose_logging, ExpectedErrorFields
+from tests.infra import DSSAssertMixin, start_verbose_logging, ExpectedErrorFields
 from tests.es import elasticsearch_delete_index
 from tests import get_version
 from tests.sample_search_queries import smartseq2_paired_ends_query
@@ -52,7 +52,7 @@ def tearDownModule():
     os.unsetenv('DSS_ES_PORT')
 
 
-class TestSearchBase(DSSAsserts):
+class TestSearchBase(DSSAssertMixin):
     @classmethod
     def search_setup(cls, replica):
         cls.replica_name = replica.name
