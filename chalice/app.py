@@ -9,7 +9,6 @@ pkg_root = os.path.abspath(os.path.join(os.path.dirname(__file__), 'chalicelib')
 sys.path.insert(0, pkg_root)  # noqa
 
 from dss import DeploymentStage, Config, create_app
-from dss.events.handlers.sync import sync_blob
 from dss.util import paginate
 
 
@@ -18,8 +17,6 @@ Config.set_config(DeploymentStage.NORMAL)
 
 def get_chalice_app(flask_app):
     app = chalice.Chalice(app_name=flask_app.name)
-    flask_app.debug = True
-    app.debug = flask_app.debug
     app.log.setLevel(logging.DEBUG)
 
     def dispatch(*args, **kwargs):
