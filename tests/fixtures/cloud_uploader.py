@@ -28,6 +28,7 @@ class Uploader:
             metadata_keys: typing.Dict[str, str]=None,
             *args,
             **kwargs) -> None:
+        """upload file to cloud, adding 'hca-dss-size' to metadata if other metadata is present"""
         raise NotImplementedError()
 
     def checksum_and_upload_file(
@@ -74,6 +75,10 @@ class S3Uploader(Uploader):
             tags: typing.Dict[str, str]=None,
             *args,
             **kwargs) -> None:
+        if metadata_keys is None:
+            metadata_keys = dict()
+        if tags is None:
+            tags = dict()
 
         fp = os.path.join(self.local_root, local_path)
         sz = os.stat(fp).st_size
@@ -84,16 +89,6 @@ class S3Uploader(Uploader):
             multipart_chunksize=chunk_sz,
         )
 
-        if metadata_keys is None:
-            metadata_keys = dict()
-        else:
-            metadata_keys['hca-dss-size'] = str(sz)
-
-        if tags is None:
-            tags = dict()
-        else:
-            tags['hca-dss-size'] = str(sz)
-
         logger.info("%s", f"Uploading {local_path} to s3://{self.bucket}/{remote_path}")
         self.s3_client.upload_file(
             fp,
@@ -102,6 +97,10 @@ class S3Uploader(Uploader):
             ExtraArgs={"Metadata": metadata_keys},
             Config=transfer_config
         )
+
+        if len(metadata_keys) or len(tags):
+            # Add size tag when other metadata is present
+            tags['hca-dss-size'] = str(sz)
 
         tagset = dict(TagSet=[])  # type: typing.Dict[str, typing.List[dict]]
         for tag_key, tag_value in tags.items():
@@ -138,6 +137,7 @@ class GSUploader(Uploader):
         blob = self.bucket.blob(remote_path)
         blob.upload_from_filename(fp)
         if metadata_keys:
+            # Add size tag when other metadata is present
             sz = os.stat(fp).st_size
             metadata_keys['hca-dss-size'] = str(sz)
             blob.metadata = metadata_keys

@@ -14,14 +14,14 @@ def upload(uploader: Uploader):
         "cfc7749b96f63bd31c3c42b5c471bf756814053e847c10f3eb003417bc523d30",
         "test_good_source_data/0",
         {
-            "hca-dss-content-type": "text/plain"
+            "hca-dss-content-type": "text/plain",
         }
     )
     uploader.checksum_and_upload_file(
         "9cdc9050cecf59381fed55a2433140b69596fc861bee55abeafd1f9150f3e2da",
         "test_good_source_data/1",
         {
-            "hca-dss-content-type": "text/plain"
+            "hca-dss-content-type": "text/plain",
         }
     )
     uploader.upload_file(
