@@ -224,16 +224,17 @@ def notify(subscription_id: str, subscription: dict, bundle_id: str, logger):
     callback_url = subscription['callback_url']
 
     # FIXME wrap all errors in this block with an exception handler
-    assert urlparse(callback_url).scheme in {"http", "https"}
+    assert urlparse(callback_url).scheme in {"http", "https"}, "Unexpected scheme for callback URL"
     if os.environ["DSS_DEPLOYMENT_STAGE"] == "prod":
         hostname = urlparse(callback_url).hostname
         for family, socktype, proto, canonname, sockaddr in socket.getaddrinfo(hostname, port=None):
-            assert ipaddress.ip_address(sockaddr[0]).is_global  # type: ignore
-        assert urlparse(callback_url).scheme == "https"
+            msg = "Callback hostname resolves to forbidden network"
+            assert ipaddress.ip_address(sockaddr[0]).is_global, msg  # type: ignore
+        assert urlparse(callback_url).scheme == "https", "Unexpected scheme for callback URL"
 
     auth = None
     if "hmac_secret_key" in subscription:
-        auth = HTTPSignatureAuth(key=subscription["hmac_secret_key"].encode(),
+        auth = HTTPSignatureAuth(key=subscription['hmac_secret_key'].encode(),
                                  key_id=subscription.get("hmac_key_id", "hca-dss:" + subscription_id))
     response = requests.post(callback_url, json=payload, auth=auth)
 

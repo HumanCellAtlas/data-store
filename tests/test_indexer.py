@@ -196,6 +196,25 @@ class TestIndexerBase(DSSAssertMixin, DSSStorageMixin, DSSUploadMixin):
                                                          excluded_files=[inaccesssible_filename.replace(".", "_")])
 
     def test_subscription_notification_successful(self):
+        PostTestHandler.verify_payloads = True
+        bundle_key = self.load_test_data_bundle_for_path("fixtures/smartseq2/paired_ends")
+        sample_event = self.create_sample_bundle_created_event(bundle_key)
+        self.process_new_indexable_object(sample_event, logger)
+
+        ElasticsearchClient.get(logger).indices.create(self.subscription_index_name)
+        subscription_id = self.subscribe_for_notification(smartseq2_paired_ends_query,
+                                                          f"http://{HTTPInfo.address}:{HTTPInfo.port}",
+                                                          hmac_secret_key=PostTestHandler.hmac_secret_key,
+                                                          hmac_key_id="test")
+
+        bundle_key = self.load_test_data_bundle_for_path("fixtures/smartseq2/paired_ends")
+        sample_event = self.create_sample_bundle_created_event(bundle_key)
+        self.process_new_indexable_object(sample_event, logger)
+        prefix, _, bundle_id = bundle_key.partition("/")
+        self.verify_notification(subscription_id, smartseq2_paired_ends_query, bundle_id)
+
+    def test_unsigned_subscription_notification_successful(self):
+        PostTestHandler.verify_payloads = False
         bundle_key = self.load_test_data_bundle_for_path("fixtures/smartseq2/paired_ends")
         sample_event = self.create_sample_bundle_created_event(bundle_key)
         self.process_new_indexable_object(sample_event, logger)
@@ -281,17 +300,14 @@ class TestIndexerBase(DSSAssertMixin, DSSStorageMixin, DSSUploadMixin):
         self.upload_files_and_create_bundle(bundle, self.replica)
         return f"bundles/{bundle.uuid}.{bundle.version}"
 
-    def subscribe_for_notification(self, es_query, callback_url):
+    def subscribe_for_notification(self, es_query, callback_url, **kwargs):
         url = str(UrlBuilder()
                   .set(path="/v1/subscriptions")
                   .add_query("replica", self.replica))
         resp_obj = self.assertPutResponse(
             url,
             requests.codes.created,
-            json_request_body=dict(
-                es_query=es_query,
-                callback_url=callback_url,
-                hmac_secret_key=PostTestHandler.hmac_secret_key),
+            json_request_body=dict(es_query=es_query, callback_url=callback_url, **kwargs),
             headers=self.get_auth_header()
         )
         uuid_ = resp_obj.json['uuid']
@@ -451,16 +467,18 @@ class PostTestHandler(BaseHTTPRequestHandler):
     _response_code = 200
     _payload = None
     hmac_secret_key = "ribos0me"
+    verify_payloads = True
 
     def do_POST(self):
-        HTTPSignatureAuth.verify(requests.Request("POST", self.path, self.headers),
-                                 key_resolver=lambda key_id, algorithm: self.hmac_secret_key.encode())
-        try:
+        if self.verify_payloads:
             HTTPSignatureAuth.verify(requests.Request("POST", self.path, self.headers),
-                                     key_resolver=lambda key_id, algorithm: self.hmac_secret_key[::-1].encode())
-            raise Exception("Expected AssertionError")
-        except AssertionError:
-            pass
+                                     key_resolver=lambda key_id, algorithm: self.hmac_secret_key.encode())
+            try:
+                HTTPSignatureAuth.verify(requests.Request("POST", self.path, self.headers),
+                                         key_resolver=lambda key_id, algorithm: self.hmac_secret_key[::-1].encode())
+                raise Exception("Expected AssertionError")
+            except AssertionError:
+                pass
         self.send_response(self._response_code)
         self.send_header("Content-length", "0")
         self.end_headers()
@@ -472,6 +490,7 @@ class PostTestHandler(BaseHTTPRequestHandler):
     def reset(cls):
         cls._response_code = 200
         cls._payload = None
+        cls.authenticated_requests = 0
 
     @classmethod
     def set_response_code(cls, code: int):
