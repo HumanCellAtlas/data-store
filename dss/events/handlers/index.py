@@ -224,13 +224,18 @@ def notify(subscription_id: str, subscription: dict, bundle_id: str, logger):
     callback_url = subscription['callback_url']
 
     # FIXME wrap all errors in this block with an exception handler
-    assert urlparse(callback_url).scheme in {"http", "https"}, "Unexpected scheme for callback URL"
+    if os.environ["DSS_DEPLOYMENT_STAGE"] == "prod":
+        allowed_schemes = {'https'}
+    else:
+        allowed_schemes = {'https', 'http'}
+
+    assert urlparse(callback_url).scheme in allowed_schemes, "Unexpected scheme for callback URL"
+
     if os.environ["DSS_DEPLOYMENT_STAGE"] == "prod":
         hostname = urlparse(callback_url).hostname
         for family, socktype, proto, canonname, sockaddr in socket.getaddrinfo(hostname, port=None):
             msg = "Callback hostname resolves to forbidden network"
             assert ipaddress.ip_address(sockaddr[0]).is_global, msg  # type: ignore
-        assert urlparse(callback_url).scheme == "https", "Unexpected scheme for callback URL"
 
     auth = None
     if "hmac_secret_key" in subscription:

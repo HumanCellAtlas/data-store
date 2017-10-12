@@ -28,7 +28,7 @@ sys.path.insert(0, pkg_root)  # noqa
 import dss
 from dss import Config, DeploymentStage
 from dss.config import IndexSuffix
-from dss.events.handlers.index import process_new_s3_indexable_object, process_new_gs_indexable_object
+from dss.events.handlers.index import process_new_s3_indexable_object, process_new_gs_indexable_object, notify
 from dss.hcablobstore import BundleMetadata, BundleFileMetadata, FileMetadata
 from dss.util import create_blob_key, UrlBuilder
 from dss.util.es import ElasticsearchClient, ElasticsearchServer
@@ -195,6 +195,32 @@ class TestIndexerBase(DSSAssertMixin, DSSStorageMixin, DSSUploadMixin):
                                                          files=files,
                                                          excluded_files=[inaccesssible_filename.replace(".", "_")])
 
+    def test_notify(self):
+        def _notify(subscription, bundle_id="i.v"):
+            notify(subscription_id=subscription["id"], subscription=subscription, bundle_id=bundle_id, logger=logger)
+        with self.assertRaisesRegex(requests.exceptions.InvalidURL, "Invalid URL 'http://': No host supplied"):
+            _notify(subscription=dict(id="", es_query={}, callback_url="http://"))
+        with self.assertRaisesRegex(AssertionError, "Unexpected scheme for callback URL"):
+            _notify(subscription=dict(id="", es_query={}, callback_url=""))
+        with self.assertRaisesRegex(AssertionError, "Unexpected scheme for callback URL"):
+            _notify(subscription=dict(id="", es_query={}, callback_url="wss://localhost"))
+        try:
+            environ_backup = os.environ
+            os.environ = dict(DSS_DEPLOYMENT_STAGE="prod")
+            with self.assertRaisesRegex(AssertionError, "Unexpected scheme for callback URL"):
+                _notify(subscription=dict(id="", es_query={}, callback_url="http://example.com"))
+            with self.assertRaisesRegex(AssertionError, "Callback hostname resolves to forbidden network"):
+                _notify(subscription=dict(id="", es_query={}, callback_url="https://localhost"))
+        finally:
+            os.environ = environ_backup
+
+    def delete_subscription(self, subscription_id):
+        self.assertDeleteResponse(
+            str(UrlBuilder().set(path=f"/v1/subscriptions/{subscription_id}").add_query("replica", self.replica)),
+            requests.codes.ok,
+            headers=self.get_auth_header()
+        )
+
     def test_subscription_notification_successful(self):
         PostTestHandler.verify_payloads = True
         bundle_key = self.load_test_data_bundle_for_path("fixtures/smartseq2/paired_ends")
@@ -212,14 +238,9 @@ class TestIndexerBase(DSSAssertMixin, DSSStorageMixin, DSSUploadMixin):
         self.process_new_indexable_object(sample_event, logger)
         prefix, _, bundle_id = bundle_key.partition("/")
         self.verify_notification(subscription_id, smartseq2_paired_ends_query, bundle_id)
+        self.delete_subscription(subscription_id)
 
-    def test_unsigned_subscription_notification_successful(self):
         PostTestHandler.verify_payloads = False
-        bundle_key = self.load_test_data_bundle_for_path("fixtures/smartseq2/paired_ends")
-        sample_event = self.create_sample_bundle_created_event(bundle_key)
-        self.process_new_indexable_object(sample_event, logger)
-
-        ElasticsearchClient.get(logger).indices.create(self.subscription_index_name)
         subscription_id = self.subscribe_for_notification(smartseq2_paired_ends_query,
                                                           f"http://{HTTPInfo.address}:{HTTPInfo.port}")
 
@@ -228,6 +249,7 @@ class TestIndexerBase(DSSAssertMixin, DSSStorageMixin, DSSUploadMixin):
         self.process_new_indexable_object(sample_event, logger)
         prefix, _, bundle_id = bundle_key.partition("/")
         self.verify_notification(subscription_id, smartseq2_paired_ends_query, bundle_id)
+        self.delete_subscription(subscription_id)
 
     def test_subscription_notification_unsuccessful(self):
         PostTestHandler.verify_payloads = True
@@ -493,7 +515,7 @@ class PostTestHandler(BaseHTTPRequestHandler):
     def reset(cls):
         cls._response_code = 200
         cls._payload = None
-        cls.authenticated_requests = 0
+        cls.verify_payloads = True
 
     @classmethod
     def set_response_code(cls, code: int):
