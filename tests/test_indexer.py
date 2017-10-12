@@ -230,13 +230,16 @@ class TestIndexerBase(DSSAssertMixin, DSSStorageMixin, DSSUploadMixin):
         self.verify_notification(subscription_id, smartseq2_paired_ends_query, bundle_id)
 
     def test_subscription_notification_unsuccessful(self):
+        PostTestHandler.verify_payloads = True
         bundle_key = self.load_test_data_bundle_for_path("fixtures/smartseq2/paired_ends")
         sample_event = self.create_sample_bundle_created_event(bundle_key)
         self.process_new_indexable_object(sample_event, logger)
 
         ElasticsearchClient.get(logger).indices.create(self.subscription_index_name)
         subscription_id = self.subscribe_for_notification(smartseq2_paired_ends_query,
-                                                          f"http://{HTTPInfo.address}:{HTTPInfo.port}")
+                                                          f"http://{HTTPInfo.address}:{HTTPInfo.port}",
+                                                          hmac_secret_key=PostTestHandler.hmac_secret_key,
+                                                          hmac_key_id="test")
 
         bundle_key = self.load_test_data_bundle_for_path("fixtures/smartseq2/paired_ends")
         sample_event = self.create_sample_bundle_created_event(bundle_key)
