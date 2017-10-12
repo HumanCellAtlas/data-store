@@ -1,3 +1,4 @@
+import chalice.config
 import contextlib
 import logging
 import os
@@ -8,8 +9,6 @@ import types
 import requests
 from chalice.cli import CLIFactory
 from chalice.local import LocalDevServer, ChaliceRequestHandler
-
-from dss import Config, DeploymentStage
 
 
 class SilentHandler(ChaliceRequestHandler):
@@ -30,6 +29,7 @@ class ThreadedLocalServer(threading.Thread):
         self._port = _unused_tcp_port()
         self._server = None
         self._server_ready = threading.Event()
+        self._chalice_app = None
 
     def start(self, *args, **kwargs):
         """
@@ -41,14 +41,13 @@ class ThreadedLocalServer(threading.Thread):
     def run(self):
         project_dir = os.path.join(os.path.dirname(__file__), "..", "..", "chalice")
         factory = CLIFactory(project_dir=project_dir)
-        app = factory.load_chalice_app()
-        app.log.setLevel(logging.WARNING)
+        self._chalice_app = factory.load_chalice_app()
+        self._chalice_app.log.setLevel(logging.WARNING)
+        self._chalice_app._override_exptime_seconds = 86400  # something large.  sys.maxsize causes chalice to flip.
 
-        config = factory.create_config_obj(
-            chalice_stage_name=os.environ["DSS_DEPLOYMENT_STAGE"],
-        )
+        config = chalice.config.Config.create(lambda_timeout=self._chalice_app._override_exptime_seconds)
 
-        self._server = LocalDevServer(app, config, self._port, handler_cls=SilentHandler)
+        self._server = LocalDevServer(self._chalice_app, config, self._port, handler_cls=SilentHandler)
         self._server_ready.set()
         self._server.server.serve_forever()
 

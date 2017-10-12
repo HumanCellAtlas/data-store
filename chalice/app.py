@@ -1,4 +1,15 @@
-import os, sys, re, logging, collections, datetime
+import collections
+import datetime
+import functools
+import logging
+import os
+import re
+import sys
+import threading
+import time
+import traceback
+import typing
+from concurrent.futures import ThreadPoolExecutor, TimeoutError
 
 import chalice
 import boto3
@@ -15,10 +26,78 @@ from dss.util import paginate
 Config.set_config(DeploymentStage.NORMAL)
 
 
-def get_chalice_app(flask_app):
-    app = chalice.Chalice(app_name=flask_app.name)
+EXECUTION_TERMINATION_THRESHOLD_SECONDS = 5.0
+"""We will terminate execution if we have this many seconds left to process the request."""
+
+API_GATEWAY_TIMEOUT_SECONDS = 30.0
+"""
+This is how quickly API Gateway gives up on Lambda.  This allows us to terminate the request if the lambda has a longer
+timeout than API Gateway.
+"""
+
+OVERRIDE_EXECUTION_LIMIT_SECONDS = None
+"""
+This is how long we wait for a request, if set.  If the value is None, we try to use the lambda's timeout.
+"""
+
+
+class DSSChaliceApp(chalice.Chalice):
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self._override_exptime_seconds = OVERRIDE_EXECUTION_LIMIT_SECONDS
+
+
+def time_limited(chalice_app: DSSChaliceApp):
+    """
+    When this decorator is applied to a route handler, we will process the request in a secondary thread.  If the
+    processing exceeds the time allowed, we will return a standardized error message.
+    """
+    def real_decorator(method: callable):
+        @functools.wraps(method)
+        def wrapper(*args, **kwargs):
+            executor = ThreadPoolExecutor()
+            try:
+                future = executor.submit(method, *args, **kwargs)
+                time_remaining_s = chalice_app._override_exptime_seconds  # type: typing.Optional[float]
+                if time_remaining_s is None:
+                    time_remaining_s = min(
+                        API_GATEWAY_TIMEOUT_SECONDS,
+                        chalice_app.lambda_context.get_remaining_time_in_millis() / 1000)
+                    time_remaining_s = max(0.0, time_remaining_s - EXECUTION_TERMINATION_THRESHOLD_SECONDS)
+
+                try:
+                    chalice_response = future.result(timeout=time_remaining_s)
+                    return chalice_response
+                except TimeoutError:
+                    frames = sys._current_frames()
+                    current_threadid = threading.get_ident()
+                    trace_dump = {
+                        thread_id: traceback.format_stack(frame)
+                        for thread_id, frame in frames.items()
+                        if thread_id != current_threadid}
+
+                    problem = {
+                        'status': requests.codes.gateway_timeout,
+                        'code': "timed_out",
+                        'title': "Timed out processing request.",
+                        'traces': trace_dump,
+                    }
+                    return chalice.Response(
+                        status_code=problem['status'],
+                        headers={"Content-Type": "application/problem+json"},
+                        body=json.dumps(problem),
+                    )
+            finally:
+                executor.shutdown(wait=False)
+        return wrapper
+    return real_decorator
+
+
+def get_chalice_app(flask_app) -> DSSChaliceApp:
+    app = DSSChaliceApp(app_name=flask_app.name)
     app.log.setLevel(logging.DEBUG)
 
+    @time_limited(app)
     def dispatch(*args, **kwargs):
         uri_params = app.current_request.uri_params or {}
         path = app.current_request.context["resourcePath"].format(**uri_params)
@@ -54,12 +133,22 @@ def get_chalice_app(flask_app):
         swagger_ui_html = fh.read()
 
     @app.route("/")
+    @time_limited(app)
     def serve_swagger_ui():
         return chalice.Response(status_code=200,
                                 headers={"Content-Type": "text/html"},
                                 body=swagger_ui_html)
 
+    @app.route("/internal/slow_request", methods=["GET"])
+    @time_limited(app)
+    def slow_request():
+        time.sleep(40)
+        return chalice.Response(status_code=200,
+                                headers={"Content-Type": "text/html"},
+                                body="Slow request completed!")
+
     @app.route("/internal/notify", methods=["POST"])
+    @time_limited(app)
     def handle_notification():
         event = app.current_request.json_body
         if event["kind"] == "storage#object" and event["selfLink"].startswith("https://www.googleapis.com/storage"):
@@ -68,6 +157,7 @@ def get_chalice_app(flask_app):
             raise NotImplementedError()
 
     @app.route("/internal/logs/{group}", methods=["GET"])
+    @time_limited(app)
     def get_logs(group):
         assert group in {"dss-dev", "dss-index-dev", "dss-sync-dev"}
         logs = []
@@ -82,6 +172,7 @@ def get_chalice_app(flask_app):
         return dict(logs=logs)
 
     @app.route("/internal/application_secrets", methods=["GET"])
+    @time_limited(app)
     def get_application_secrets():
         application_secret_file = os.environ["GOOGLE_APPLICATION_SECRETS"]
 
