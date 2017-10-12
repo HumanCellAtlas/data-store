@@ -12,15 +12,23 @@ sys.path.insert(0, pkg_root)  # noqa
 
 import dss
 from tests.infra import DSSAssertMixin, DSSUploadMixin, DSSStorageMixin, TestBundle
+from tests.infra.server import ThreadedLocalServer
 
 
 class TestApi(unittest.TestCase, DSSAssertMixin, DSSUploadMixin, DSSStorageMixin):
+    @classmethod
+    def setUpClass(cls):
+        cls.app = ThreadedLocalServer()
+        cls.app.start()
+
+    @classmethod
+    def tearDownClass(cls):
+        cls.app.shutdown()
 
     def setUp(self):
         self.replica = "aws"
         dss.Config.set_config(dss.DeploymentStage.TEST)
         self.blobstore, _, self.bucket = dss.Config.get_cloud_specific_handles(self.replica)
-        self.app = dss.create_app().app.test_client()
 
     BUNDLE_FIXTURE = 'fixtures/test_api/bundle'
 

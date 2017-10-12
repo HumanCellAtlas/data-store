@@ -22,8 +22,9 @@ import dss
 from dss.config import IndexSuffix
 from dss.util import UrlBuilder
 from dss.util.es import ElasticsearchClient, ElasticsearchServer, get_elasticsearch_index
-from tests.infra import DSSAssertMixin, ExpectedErrorFields
 from tests.es import elasticsearch_delete_index
+from tests.infra import DSSAssertMixin, ExpectedErrorFields
+from tests.infra.server import ThreadedLocalServer
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
@@ -47,11 +48,16 @@ class TestSubscriptionsBase(DSSAssertMixin):
     @classmethod
     def subsciption_setup(cls, replica):
         cls.replica = replica
+        cls.app = ThreadedLocalServer()
+        cls.app.start()
+
+    @classmethod
+    def tearDownClass(cls):
+        cls.app.shutdown()
 
     def setUp(self):
         os.environ['DSS_ES_ENDPOINT'] = os.getenv('DSS_ES_ENDPOINT', "localhost")
 
-        self.app = dss.create_app().app.test_client()
         dss.Config.set_config(dss.DeploymentStage.TEST)
 
         logger.debug("Setting up Elasticsearch")

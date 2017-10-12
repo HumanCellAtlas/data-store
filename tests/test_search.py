@@ -8,7 +8,7 @@ import sys
 import time
 import unittest
 import uuid
-from urllib.parse import parse_qs, urlparse
+from urllib.parse import parse_qs, parse_qsl, urlparse, urlsplit
 from requests.utils import parse_header_links
 
 import requests
@@ -23,9 +23,10 @@ import dss
 from dss.config import IndexSuffix
 from dss.events.handlers.index import create_elasticsearch_index
 from dss.util.es import ElasticsearchServer, ElasticsearchClient
-from tests.infra import DSSAssertMixin, start_verbose_logging, ExpectedErrorFields
-from tests.es import elasticsearch_delete_index
 from tests import get_version
+from tests.es import elasticsearch_delete_index
+from tests.infra import DSSAssertMixin, ExpectedErrorFields, start_verbose_logging
+from tests.infra.server import ThreadedLocalServer
 from tests.sample_search_queries import smartseq2_paired_ends_query
 
 
@@ -55,16 +56,20 @@ def tearDownModule():
 class TestSearchBase(DSSAssertMixin):
     @classmethod
     def search_setup(cls, replica):
+        cls.app = ThreadedLocalServer()
+        cls.app.start()
         cls.replica_name = replica.name
         dss.Config.set_config(dss.DeploymentStage.TEST)
         cls.dss_index_name = dss.Config.get_es_index_name(dss.ESIndexType.docs, replica)
-        cls.app = dss.create_app().app.test_client()
         with open(os.path.join(os.path.dirname(__file__), "sample_index_doc.json"), "r") as fh:
             cls.index_document = json.load(fh)
 
+    @classmethod
+    def tearDownClass(cls):
+        cls.app.shutdown()
+
     def setUp(self):
         dss.Config.set_config(dss.DeploymentStage.TEST)
-        self.app = dss.create_app().app.test_client()
         elasticsearch_delete_index(f"*{IndexSuffix.name}")
         create_elasticsearch_index(self.dss_index_name, logger)
 
@@ -213,7 +218,7 @@ class TestSearchBase(DSSAssertMixin):
         self.verify_next_url(next_url)
         self.verify_search_result(search_obj.json, smartseq2_paired_ends_query, 100)
         search_obj = self.assertPostResponse(
-            path=next_url,
+            path=self.strip_next_url(next_url),
             json_request_body=dict(es_query=smartseq2_paired_ends_query),
             expected_code=requests.codes.ok)
         found_bundles.extend(search_obj.json['results'])
@@ -269,7 +274,7 @@ class TestSearchBase(DSSAssertMixin):
         es_client = ElasticsearchClient.get(logger)
         es_client.clear_scroll(scroll_id)
         self.assertPostResponse(
-            path=next_url,
+            path=self.strip_next_url(next_url),
             json_request_body=dict(es_query=smartseq2_paired_ends_query),
             expected_code=requests.codes.not_found,
             expected_error=ExpectedErrorFields(code="elasticsearch_context_not_found",
@@ -283,7 +288,8 @@ class TestSearchBase(DSSAssertMixin):
             version = get_version()
             index_document['manifest']['version'] = version
             bundle_id = f"{bundle_uuid}.{version}"
-            bundle_url = f"http://localhost/v1/bundles/{bundle_uuid}?version={version}&replica={self.replica_name}"
+            bundle_url = (f"https://localhost:{self.app._port}"
+                          f"/v1/bundles/{bundle_uuid}?version={version}&replica={self.replica_name}")
             es_client.index(index=self.dss_index_name,
                             doc_type=ESDocType.doc.name,
                             id=bundle_id,
@@ -318,6 +324,15 @@ class TestSearchBase(DSSAssertMixin):
         return parsed_q['_scroll_id'][0]
 
     @staticmethod
+    def strip_next_url(next_url: str) -> str:
+        """
+        The API returns a fully-qualified url, but hitting self.assert* requires just the path.  This method just strips
+        the scheme and the host from the url.
+        """
+        parsed = urlsplit(next_url)
+        return str(UrlBuilder().set(path=parsed.path, query=parse_qsl(parsed.query), fragment=parsed.fragment))
+
+    @staticmethod
     def get_next_url(links):
         try:
             for link in parse_header_links(links):
@@ -339,7 +354,7 @@ class TestSearchBase(DSSAssertMixin):
 
         while len(search_obj.json['results']) != 0 and next_url != '':
             search_obj = self.assertPostResponse(
-                path=next_url,
+                path=self.strip_next_url(next_url),
                 json_request_body=dict(es_query=es_query),
                 expected_code=requests.codes.ok)
             next_url = self.get_next_url(search_obj.response.headers["Link"])
