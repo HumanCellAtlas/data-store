@@ -28,6 +28,7 @@ class Uploader:
             metadata_keys: typing.Dict[str, str]=None,
             *args,
             **kwargs) -> None:
+        """upload file to cloud, adding 'hca-dss-size' to metadata if other metadata is present"""
         raise NotImplementedError()
 
     def checksum_and_upload_file(
@@ -97,6 +98,10 @@ class S3Uploader(Uploader):
             Config=transfer_config
         )
 
+        if len(metadata_keys) or len(tags):
+            # Add size tag when other metadata is present
+            tags['hca-dss-size'] = str(sz)
+
         tagset = dict(TagSet=[])  # type: typing.Dict[str, typing.List[dict]]
         for tag_key, tag_value in tags.items():
             tagset['TagSet'].append(
@@ -127,9 +132,15 @@ class GSUploader(Uploader):
             metadata_keys: typing.Dict[str, str]=None,
             *args,
             **kwargs) -> None:
+        if metadata_keys is None:
+            metadata_keys = dict()
         logger.info("%s", f"Uploading {local_path} to gs://{self.bucket.name}/{remote_path}")
+        fp = os.path.join(self.local_root, local_path)
         blob = self.bucket.blob(remote_path)
-        blob.upload_from_filename(os.path.join(self.local_root, local_path))
-        if metadata_keys:
+        blob.upload_from_filename(fp)
+        if len(metadata_keys):
+            # Add size tag when other metadata is present
+            sz = os.stat(fp).st_size
+            metadata_keys['hca-dss-size'] = str(sz)
             blob.metadata = metadata_keys
             blob.patch()
