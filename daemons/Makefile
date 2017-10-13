@@ -21,7 +21,7 @@ $(chainedawslambdatargets): chained-aws-lambda-%:
 	rm -rf $@
 	cp -rf chained-aws-lambda $@
 	chained_aws_lambda.py '$$account_id' \
-	  --enable-s3-parallel-copy-worker --s3-parallel-copy-worker-lambda-name chained-aws-lambda-s3-parallel-copy-worker-dev \
+	  --enable-s3-parallel-copy-worker --s3-parallel-copy-worker-lambda-name chained-aws-lambda-s3-parallel-copy-worker-$(DSS_DEPLOYMENT_STAGE) \
 	  --s3-parallel-copy-worker-policy-path $@/policy.json.template \
 	  --s3-parallel-copy-worker-app-path $@/app.py
 
@@ -31,13 +31,13 @@ $(chainedawslambdatargets): chained-aws-lambda-%:
 	cp -R ../dss $@/domovoilib
 	cp "$(GOOGLE_APPLICATION_CREDENTIALS)" $@/domovoilib/gcp-credentials.json
 	iam_policy_template=$@/policy.json.template ./build_deploy_config.sh $@ $(DSS_DEPLOYMENT_STAGE)
-	cd $@; domovoi deploy --stage dev
+	cd $@; domovoi deploy --stage $(DSS_DEPLOYMENT_STAGE)
 
 dss-s3-copy-write-metadata: dss-%:
 	rm -rf $@
 	cp -rf chained-aws-lambda $@
 	chained_aws_lambda.py '$$account_id' \
-	  --enable-s3-parallel-copy-worker --s3-parallel-copy-worker-lambda-name chained-aws-lambda-s3-parallel-copy-worker-dev \
+	  --enable-s3-parallel-copy-worker --s3-parallel-copy-worker-lambda-name chained-aws-lambda-s3-parallel-copy-worker-$(DSS_DEPLOYMENT_STAGE) \
 	  --policy-path $@/policy.json.template \
 	  --app-path $@/app.py \
 	  --lambda-name dss-$*-$(DSS_DEPLOYMENT_STAGE)
