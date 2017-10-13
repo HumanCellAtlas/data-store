@@ -84,7 +84,7 @@ paths:
               results:
                 description: Results matching the `es_query`.
                 type: array
-              count:
+              total_hits:
                 description: The total number of matching results found.
                 type: integer
           headers:

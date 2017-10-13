@@ -84,7 +84,7 @@ def post(json_request_body: dict, replica: str, per_page: int, _scroll_id: typin
         # TODO: (tsmith12) if all results not found return request.code.partial and return a next url
         response = make_response(jsonify({'es_query': es_query,
                                           'results': result_list,
-                                          'count': page['hits']['total']}), requests.codes.ok)
+                                          'total_hits': page['hits']['total']}), requests.codes.ok)
         response.headers['Link'] = links
 
         return response

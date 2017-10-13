@@ -298,10 +298,10 @@ class TestSearchBase(DSSAssertMixin):
                 url = url.add_query(param, url_params[param])
         return str(url)
 
-    def verify_search_result(self, search_json, es_query, count, expected_result_length=0):
+    def verify_search_result(self, search_json, es_query, total_hits, expected_result_length=0):
         self.assertDictEqual(search_json['es_query'], es_query)
         self.assertEqual(len(search_json['results']), expected_result_length)
-        self.assertEqual(search_json['count'], count)
+        self.assertEqual(search_json['total_hits'], total_hits)
 
     def verify_bundles(self, found_bundles, expected_bundles):
         result_bundles = [(hit['bundle_id'], hit['bundle_url'])
