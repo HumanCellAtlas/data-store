@@ -83,7 +83,7 @@ class TestSearchBase(DSSAssertMixin):
             expected_code=requests.codes.ok)
         next_url = self.get_next_url(search_obj.response.headers['Link'])
         self.assertEqual(next_url, '')
-        self.verify_search_result(search_obj.json, smartseq2_paired_ends_query, 1)
+        self.verify_search_result(search_obj.json, smartseq2_paired_ends_query, len(bundles), 1)
         self.verify_bundles(search_obj.json['results'], bundles)
 
     def test_search_returns_no_results_when_no_documents_indexed(self):
@@ -94,7 +94,7 @@ class TestSearchBase(DSSAssertMixin):
             expected_code=requests.codes.ok)
         next_url = self.get_next_url(search_obj.response.headers['Link'])
         self.assertEqual(next_url, '')
-        self.verify_search_result(search_obj.json, smartseq2_paired_ends_query, 0)
+        self.verify_search_result(search_obj.json, smartseq2_paired_ends_query, 0, 0)
 
     def test_search_returns_no_result_when_query_does_not_match_indexed_documents(self):
         query = \
@@ -182,7 +182,7 @@ class TestSearchBase(DSSAssertMixin):
                 self.check_count(smartseq2_paired_ends_query, indexed_docs)
                 search_obj, found_bundles = self.get_search_results(smartseq2_paired_ends_query,
                                                                     url_params=url_params)
-                self.verify_search_result(search_obj.json, smartseq2_paired_ends_query, expected_results)
+                self.verify_search_result(search_obj.json, smartseq2_paired_ends_query, docs, expected_results)
                 self.verify_bundles(found_bundles, bundles)
 
     def test_elasticsearch_exception(self):
@@ -216,13 +216,13 @@ class TestSearchBase(DSSAssertMixin):
         found_bundles = search_obj.json['results']
         next_url = self.get_next_url(search_obj.response.headers['Link'])
         self.verify_next_url(next_url)
-        self.verify_search_result(search_obj.json, smartseq2_paired_ends_query, 100)
+        self.verify_search_result(search_obj.json, smartseq2_paired_ends_query, len(bundles), 100)
         search_obj = self.assertPostResponse(
             path=self.strip_next_url(next_url),
             json_request_body=dict(es_query=smartseq2_paired_ends_query),
             expected_code=requests.codes.ok)
         found_bundles.extend(search_obj.json['results'])
-        self.verify_search_result(search_obj.json, smartseq2_paired_ends_query, 50)
+        self.verify_search_result(search_obj.json, smartseq2_paired_ends_query, len(bundles), 50)
         self.verify_bundles(found_bundles, bundles)
 
     def test_page_has_N_results_when_per_page_is_N(self):
@@ -240,7 +240,7 @@ class TestSearchBase(DSSAssertMixin):
                     path=url,
                     json_request_body=dict(es_query=smartseq2_paired_ends_query),
                     expected_code=requests.codes.ok)
-                self.verify_search_result(search_obj.json, smartseq2_paired_ends_query, expected)
+                self.verify_search_result(search_obj.json, smartseq2_paired_ends_query, 500, expected)
                 next_url = self.get_next_url(search_obj.response.headers['Link'])
                 self.verify_next_url(next_url, per_page)
 
@@ -268,7 +268,7 @@ class TestSearchBase(DSSAssertMixin):
             path=url,
             json_request_body=dict(es_query=smartseq2_paired_ends_query),
             expected_code=requests.codes.ok)
-        self.verify_search_result(search_obj.json, smartseq2_paired_ends_query, 10)
+        self.verify_search_result(search_obj.json, smartseq2_paired_ends_query, 20, 10)
         next_url = self.get_next_url(search_obj.response.headers['Link'])
         scroll_id = self.verify_next_url(next_url, 10)
         es_client = ElasticsearchClient.get(logger)
@@ -304,9 +304,10 @@ class TestSearchBase(DSSAssertMixin):
                 url = url.add_query(param, url_params[param])
         return str(url)
 
-    def verify_search_result(self, search_json, es_query, expected_result_length=0):
+    def verify_search_result(self, search_json, es_query, total_hits, expected_result_length=0):
         self.assertDictEqual(search_json['es_query'], es_query)
         self.assertEqual(len(search_json['results']), expected_result_length)
+        self.assertEqual(search_json['total_hits'], total_hits)
 
     def verify_bundles(self, found_bundles, expected_bundles):
         result_bundles = [(hit['bundle_id'], hit['bundle_url'])
