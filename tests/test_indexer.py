@@ -222,34 +222,23 @@ class TestIndexerBase(DSSAssertMixin, DSSStorageMixin, DSSUploadMixin):
         )
 
     def test_subscription_notification_successful(self):
-        PostTestHandler.verify_payloads = True
         bundle_key = self.load_test_data_bundle_for_path("fixtures/smartseq2/paired_ends")
         sample_event = self.create_sample_bundle_created_event(bundle_key)
         self.process_new_indexable_object(sample_event, logger)
-
         ElasticsearchClient.get(logger).indices.create(self.subscription_index_name)
-        subscription_id = self.subscribe_for_notification(smartseq2_paired_ends_query,
-                                                          f"http://{HTTPInfo.address}:{HTTPInfo.port}",
-                                                          hmac_secret_key=PostTestHandler.hmac_secret_key,
-                                                          hmac_key_id="test")
+        for verify_payloads, subscribe_kwargs in ((True, dict(hmac_secret_key=PostTestHandler.hmac_secret_key)),
+                                                  (False, dict())):
+            PostTestHandler.verify_payloads = verify_payloads
+            subscription_id = self.subscribe_for_notification(smartseq2_paired_ends_query,
+                                                              f"http://{HTTPInfo.address}:{HTTPInfo.port}",
+                                                              **subscribe_kwargs)
 
-        bundle_key = self.load_test_data_bundle_for_path("fixtures/smartseq2/paired_ends")
-        sample_event = self.create_sample_bundle_created_event(bundle_key)
-        self.process_new_indexable_object(sample_event, logger)
-        prefix, _, bundle_id = bundle_key.partition("/")
-        self.verify_notification(subscription_id, smartseq2_paired_ends_query, bundle_id)
-        self.delete_subscription(subscription_id)
-
-        PostTestHandler.verify_payloads = False
-        subscription_id = self.subscribe_for_notification(smartseq2_paired_ends_query,
-                                                          f"http://{HTTPInfo.address}:{HTTPInfo.port}")
-
-        bundle_key = self.load_test_data_bundle_for_path("fixtures/smartseq2/paired_ends")
-        sample_event = self.create_sample_bundle_created_event(bundle_key)
-        self.process_new_indexable_object(sample_event, logger)
-        prefix, _, bundle_id = bundle_key.partition("/")
-        self.verify_notification(subscription_id, smartseq2_paired_ends_query, bundle_id)
-        self.delete_subscription(subscription_id)
+            bundle_key = self.load_test_data_bundle_for_path("fixtures/smartseq2/paired_ends")
+            sample_event = self.create_sample_bundle_created_event(bundle_key)
+            self.process_new_indexable_object(sample_event, logger)
+            prefix, _, bundle_id = bundle_key.partition("/")
+            self.verify_notification(subscription_id, smartseq2_paired_ends_query, bundle_id)
+            self.delete_subscription(subscription_id)
 
     def test_subscription_notification_unsuccessful(self):
         PostTestHandler.verify_payloads = True
