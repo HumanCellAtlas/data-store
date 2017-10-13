@@ -51,13 +51,13 @@ if [[ "$(git --no-pager log --graph --abbrev-commit --pretty=oneline --no-merges
     fi
 fi
 
-if git --no-pager diff --ignore-submodules=untracked --exit-code; then
+if ! git --no-pager diff --ignore-submodules=untracked --exit-code; then
     echo "Working tree contains changes to tracked files. Please commit or discard your changes and try again."
     exit 1
 fi
 
 git fetch --all
-git checkout origin/$PROMOTE_FROM_BRANCH
+git -c advice.detachedHead=false checkout origin/$PROMOTE_FROM_BRANCH
 git checkout -B $PROMOTE_DEST_BRANCH
 git tag $RELEASE_TAG
 git push --force origin $PROMOTE_DEST_BRANCH
