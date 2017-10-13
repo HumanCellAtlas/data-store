@@ -83,7 +83,7 @@ class TestSearchBase(DSSAssertMixin):
             expected_code=requests.codes.ok)
         next_url = self.get_next_url(search_obj.response.headers)
         self.assertIsNone(next_url)
-        self.verify_search_result(search_obj.json, smartseq2_paired_ends_query, 1)
+        self.verify_search_result(search_obj.json, smartseq2_paired_ends_query, 1, 1)
         self.verify_bundles(search_obj.json['results'], bundles)
 
     def test_search_returns_no_results_when_no_documents_indexed(self):
