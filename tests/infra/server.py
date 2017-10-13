@@ -55,6 +55,7 @@ class ThreadedLocalServer(threading.Thread):
         return method(
             f"http://localhost:{self._port}{path}",
             allow_redirects=False,
+            timeout=(1.0, 30.0),
             **kwargs)
 
     def __getattr__(self, name):
