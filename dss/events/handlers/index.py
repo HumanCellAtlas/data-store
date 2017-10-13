@@ -4,9 +4,12 @@ import json
 import os
 import re
 import uuid
-from urllib.parse import unquote
+import ipaddress
+import socket
+from urllib.parse import urlparse, unquote
 
 import requests
+from requests_http_signature import HTTPSignatureAuth
 from elasticsearch.helpers import scan
 
 from dss import Config, ESIndexType, ESDocType, Replica
@@ -218,9 +221,28 @@ def notify(subscription_id: str, subscription: dict, bundle_id: str, logger):
             "bundle_version": bundle_version
         }
     }
-    # TODO (mbaumann) Ensure webhooks are only delivered over verified HTTPS (unless maybe when running a test)
     callback_url = subscription['callback_url']
-    response = requests.post(callback_url, json=payload)
+
+    # FIXME wrap all errors in this block with an exception handler
+    if os.environ["DSS_DEPLOYMENT_STAGE"] == "prod":
+        allowed_schemes = {'https'}
+    else:
+        allowed_schemes = {'https', 'http'}
+
+    assert urlparse(callback_url).scheme in allowed_schemes, "Unexpected scheme for callback URL"
+
+    if os.environ["DSS_DEPLOYMENT_STAGE"] == "prod":
+        hostname = urlparse(callback_url).hostname
+        for family, socktype, proto, canonname, sockaddr in socket.getaddrinfo(hostname, port=None):
+            msg = "Callback hostname resolves to forbidden network"
+            assert ipaddress.ip_address(sockaddr[0]).is_global, msg  # type: ignore
+
+    auth = None
+    if "hmac_secret_key" in subscription:
+        auth = HTTPSignatureAuth(key=subscription['hmac_secret_key'].encode(),
+                                 key_id=subscription.get("hmac_key_id", "hca-dss:" + subscription_id))
+    response = requests.post(callback_url, json=payload, auth=auth)
+
     # TODO (mbaumann) Add webhook retry logic
     if 200 <= response.status_code < 300:
         logger.info(f"Successfully notified for subscription {subscription_id}"

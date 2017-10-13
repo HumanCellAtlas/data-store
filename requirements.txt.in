@@ -9,3 +9,4 @@ google-cloud-storage
 iso8601
 requests_aws4auth
 urllib3
+requests-http-signature

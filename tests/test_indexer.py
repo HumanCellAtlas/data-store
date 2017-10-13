@@ -20,6 +20,7 @@ import google.auth
 import google.auth.transport.requests
 import moto
 import requests
+from requests_http_signature import HTTPSignatureAuth
 
 pkg_root = os.path.abspath(os.path.join(os.path.dirname(__file__), '..'))  # noqa
 sys.path.insert(0, pkg_root)  # noqa
@@ -27,7 +28,7 @@ sys.path.insert(0, pkg_root)  # noqa
 import dss
 from dss import Config, DeploymentStage
 from dss.config import IndexSuffix
-from dss.events.handlers.index import process_new_s3_indexable_object, process_new_gs_indexable_object
+from dss.events.handlers.index import process_new_s3_indexable_object, process_new_gs_indexable_object, notify
 from dss.hcablobstore import BundleMetadata, BundleFileMetadata, FileMetadata
 from dss.util import create_blob_key, UrlBuilder
 from dss.util.es import ElasticsearchClient, ElasticsearchServer
@@ -198,29 +199,62 @@ class TestIndexerBase(DSSAssertMixin, DSSStorageMixin, DSSUploadMixin):
                                                          files=files,
                                                          excluded_files=[inaccesssible_filename.replace(".", "_")])
 
+    def test_notify(self):
+        def _notify(subscription, bundle_id="i.v"):
+            notify(subscription_id=subscription["id"], subscription=subscription, bundle_id=bundle_id, logger=logger)
+        with self.assertRaisesRegex(requests.exceptions.InvalidURL, "Invalid URL 'http://': No host supplied"):
+            _notify(subscription=dict(id="", es_query={}, callback_url="http://"))
+        with self.assertRaisesRegex(AssertionError, "Unexpected scheme for callback URL"):
+            _notify(subscription=dict(id="", es_query={}, callback_url=""))
+        with self.assertRaisesRegex(AssertionError, "Unexpected scheme for callback URL"):
+            _notify(subscription=dict(id="", es_query={}, callback_url="wss://localhost"))
+        try:
+            environ_backup = os.environ
+            os.environ = dict(DSS_DEPLOYMENT_STAGE="prod")
+            with self.assertRaisesRegex(AssertionError, "Unexpected scheme for callback URL"):
+                _notify(subscription=dict(id="", es_query={}, callback_url="http://example.com"))
+            with self.assertRaisesRegex(AssertionError, "Callback hostname resolves to forbidden network"):
+                _notify(subscription=dict(id="", es_query={}, callback_url="https://localhost"))
+        finally:
+            os.environ = environ_backup
+
+    def delete_subscription(self, subscription_id):
+        self.assertDeleteResponse(
+            str(UrlBuilder().set(path=f"/v1/subscriptions/{subscription_id}").add_query("replica", self.replica)),
+            requests.codes.ok,
+            headers=self.get_auth_header()
+        )
+
     def test_subscription_notification_successful(self):
         bundle_key = self.load_test_data_bundle_for_path("fixtures/smartseq2/paired_ends")
         sample_event = self.create_sample_bundle_created_event(bundle_key)
         self.process_new_indexable_object(sample_event, logger)
-
         ElasticsearchClient.get(logger).indices.create(self.subscription_index_name)
-        subscription_id = self.subscribe_for_notification(smartseq2_paired_ends_query,
-                                                          f"http://{HTTPInfo.address}:{HTTPInfo.port}")
+        for verify_payloads, subscribe_kwargs in ((True, dict(hmac_secret_key=PostTestHandler.hmac_secret_key)),
+                                                  (False, dict())):
+            PostTestHandler.verify_payloads = verify_payloads
+            subscription_id = self.subscribe_for_notification(smartseq2_paired_ends_query,
+                                                              f"http://{HTTPInfo.address}:{HTTPInfo.port}",
+                                                              **subscribe_kwargs)
 
-        bundle_key = self.load_test_data_bundle_for_path("fixtures/smartseq2/paired_ends")
-        sample_event = self.create_sample_bundle_created_event(bundle_key)
-        self.process_new_indexable_object(sample_event, logger)
-        prefix, _, bundle_id = bundle_key.partition("/")
-        self.verify_notification(subscription_id, smartseq2_paired_ends_query, bundle_id)
+            bundle_key = self.load_test_data_bundle_for_path("fixtures/smartseq2/paired_ends")
+            sample_event = self.create_sample_bundle_created_event(bundle_key)
+            self.process_new_indexable_object(sample_event, logger)
+            prefix, _, bundle_id = bundle_key.partition("/")
+            self.verify_notification(subscription_id, smartseq2_paired_ends_query, bundle_id)
+            self.delete_subscription(subscription_id)
 
     def test_subscription_notification_unsuccessful(self):
+        PostTestHandler.verify_payloads = True
         bundle_key = self.load_test_data_bundle_for_path("fixtures/smartseq2/paired_ends")
         sample_event = self.create_sample_bundle_created_event(bundle_key)
         self.process_new_indexable_object(sample_event, logger)
 
         ElasticsearchClient.get(logger).indices.create(self.subscription_index_name)
         subscription_id = self.subscribe_for_notification(smartseq2_paired_ends_query,
-                                                          f"http://{HTTPInfo.address}:{HTTPInfo.port}")
+                                                          f"http://{HTTPInfo.address}:{HTTPInfo.port}",
+                                                          hmac_secret_key=PostTestHandler.hmac_secret_key,
+                                                          hmac_key_id="test")
 
         bundle_key = self.load_test_data_bundle_for_path("fixtures/smartseq2/paired_ends")
         sample_event = self.create_sample_bundle_created_event(bundle_key)
@@ -284,16 +318,14 @@ class TestIndexerBase(DSSAssertMixin, DSSStorageMixin, DSSUploadMixin):
         self.upload_files_and_create_bundle(bundle, self.replica)
         return f"bundles/{bundle.uuid}.{bundle.version}"
 
-    def subscribe_for_notification(self, es_query, callback_url):
+    def subscribe_for_notification(self, es_query, callback_url, **kwargs):
         url = str(UrlBuilder()
                   .set(path="/v1/subscriptions")
                   .add_query("replica", self.replica))
         resp_obj = self.assertPutResponse(
             url,
             requests.codes.created,
-            json_request_body=dict(
-                es_query=es_query,
-                callback_url=callback_url),
+            json_request_body=dict(es_query=es_query, callback_url=callback_url, **kwargs),
             headers=self.get_auth_header()
         )
         uuid_ = resp_obj.json['uuid']
@@ -452,8 +484,19 @@ class BundleBuilder:
 class PostTestHandler(BaseHTTPRequestHandler):
     _response_code = 200
     _payload = None
+    hmac_secret_key = "ribos0me"
+    verify_payloads = True
 
     def do_POST(self):
+        if self.verify_payloads:
+            HTTPSignatureAuth.verify(requests.Request("POST", self.path, self.headers),
+                                     key_resolver=lambda key_id, algorithm: self.hmac_secret_key.encode())
+            try:
+                HTTPSignatureAuth.verify(requests.Request("POST", self.path, self.headers),
+                                         key_resolver=lambda key_id, algorithm: self.hmac_secret_key[::-1].encode())
+                raise Exception("Expected AssertionError")
+            except AssertionError:
+                pass
         self.send_response(self._response_code)
         self.send_header("Content-length", "0")
         self.end_headers()
@@ -465,6 +508,7 @@ class PostTestHandler(BaseHTTPRequestHandler):
     def reset(cls):
         cls._response_code = 200
         cls._payload = None
+        cls.verify_payloads = True
 
     @classmethod
     def set_response_code(cls, code: int):
