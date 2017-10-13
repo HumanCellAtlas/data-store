@@ -40,15 +40,20 @@ fi
 
 RELEASE_TAG=${PROMOTE_DEST_BRANCH}-$(date -u +"%Y-%m-%d-%H-%M-%S").deploy
 
-if [[ "$(git --no-pager history $PROMOTE_DEST_BRANCH ^$PROMOTE_FROM_BRANCH --no-merges)" != "" ]]; then
+if [[ "$(git --no-pager log --graph --abbrev-commit --pretty=oneline --no-merges $PROMOTE_DEST_BRANCH ^$PROMOTE_FROM_BRANCH)" != "" ]]; then
     echo "Warning: The following commits are present on $PROMOTE_DEST_BRANCH but not on $PROMOTE_FROM_BRANCH"
-    git --no-pager history $PROMOTE_DEST_BRANCH ^$PROMOTE_FROM_BRANCH --no-merges
+    git --no-pager log --graph --abbrev-commit --pretty=oneline --no-merges $PROMOTE_DEST_BRANCH ^$PROMOTE_FROM_BRANCH
     if [[ $# == 3 ]] && [[ $3 == "--force" ]]; then
         echo -e "\nThey will be overwritten on $PROMOTE_DEST_BRANCH and discarded."
     else
         echo -e "\nRun with --force to overwrite and discard these commits from $PROMOTE_DEST_BRANCH."
         exit 1
     fi
+fi
+
+if git --no-pager diff --ignore-submodules=untracked --exit-code; then
+    echo "Working tree contains changes to tracked files. Please commit or discard your changes and try again."
+    exit 1
 fi
 
 git fetch --all
