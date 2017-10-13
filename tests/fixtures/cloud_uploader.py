@@ -132,11 +132,13 @@ class GSUploader(Uploader):
             metadata_keys: typing.Dict[str, str]=None,
             *args,
             **kwargs) -> None:
+        if metadata_keys is None:
+            metadata_keys = dict()
         logger.info("%s", f"Uploading {local_path} to gs://{self.bucket.name}/{remote_path}")
         fp = os.path.join(self.local_root, local_path)
         blob = self.bucket.blob(remote_path)
         blob.upload_from_filename(fp)
-        if metadata_keys is not None:
+        if len(metadata_keys):
             # Add size tag when other metadata is present
             sz = os.stat(fp).st_size
             metadata_keys['hca-dss-size'] = str(sz)
