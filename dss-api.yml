@@ -48,6 +48,12 @@ paths:
                 type: object
             required:
               - es_query
+        - name: format
+          in: query
+          description: Specifies the output format. Raw will return the json meta data in the results.
+          required: false
+          type: string
+          enum: [raw]
         - name: replica
           in: query
           description: Replica to search.

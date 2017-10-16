@@ -22,7 +22,11 @@ class PerPageBounds:
 
 
 @dss_handler
-def post(json_request_body: dict, replica: str, per_page: int, _scroll_id: typing.Optional[str] = None) -> dict:
+def post(json_request_body: dict,
+         replica: str,
+         per_page: int,
+         _scroll_id: typing.Optional[str] = None,
+         format: typing.Optional[str] = None) -> dict:
     es_query = json_request_body['es_query']
     get_logger().debug("Received posted query. Replica: %s Query: %s Per_page: %i Timeout: %s Scroll_id: %s",
                        replica, json.dumps(es_query, indent=4), per_page, _scroll_id)
@@ -63,14 +67,24 @@ def post(json_request_body: dict, replica: str, per_page: int, _scroll_id: typin
 
         # TODO: (tsmith12) allow users to retrieve previous search results
         _scroll_id = page['_scroll_id']
-        result_list = [{
-            'bundle_id': hit['_id'],
-            'bundle_url': _build_bundle_url(hit, replica),
-            'search_score': hit['_score']
-        } for hit in page['hits']['hits']]
+
+        if format == 'raw':
+            result_list = [{
+                'bundle_id': hit['_id'],
+                'bundle_url': _build_bundle_url(hit, replica),
+                'meta_data': hit['_source'],
+                'search_score': hit['_score']
+            } for hit in page['hits']['hits']]
+        else:
+            result_list = [{
+                'bundle_id': hit['_id'],
+                'bundle_url': _build_bundle_url(hit, replica),
+                'search_score': hit['_score']
+            } for hit in page['hits']['hits']]
 
         # TODO: (tsmith12) if page returns 0 hits, then all results have been found. delete search id
         request_body = jsonify({'es_query': es_query, 'results': result_list, 'total_hits': page['hits']['total']})
+
         if len(result_list) < per_page:
             response = make_response(request_body, requests.codes.ok)
         else:
