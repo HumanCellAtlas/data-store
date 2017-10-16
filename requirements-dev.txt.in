@@ -8,4 +8,5 @@ awscli
 moto
 crcmod
 httpie
+yq
 -r requirements.txt

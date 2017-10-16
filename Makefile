@@ -23,6 +23,12 @@ deploy:
 	$(MAKE) -C chalice deploy
 	$(MAKE) -C daemons deploy
 
+release_staging:
+	scripts/release.sh master staging
+
+release_prod:
+	scripts/release.sh staging prod
+
 clean:
 	git clean -Xdf chalice daemons $(MODULES)
 	git clean -df {chalice,daemons/*}/{chalicelib,domovoilib,vendor}
