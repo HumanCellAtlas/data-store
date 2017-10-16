@@ -70,23 +70,16 @@ def post(json_request_body: dict, replica: str, per_page: int, _scroll_id: typin
         } for hit in page['hits']['hits']]
 
         # TODO: (tsmith12) if page returns 0 hits, then all results have been found. delete search id
-        # TODO: (tsmith12) if all results found return request.code.ok.
+        request_body = jsonify({'es_query': es_query, 'results': result_list, 'total_hits': page['hits']['total']})
         if len(result_list) < per_page:
-            links = ''
+            response = make_response(request_body, requests.codes.ok)
         else:
+            response = make_response(request_body, requests.codes.partial)
             next_url = request.host_url + str(UrlBuilder().set(path="v1/search")
                                               .add_query('per_page', str(per_page))
                                               .add_query("replica", replica)
                                               .add_query("_scroll_id", _scroll_id))
-            links = build_link_header({next_url: {"rel": "next"}})
-
-        # TODO: (tsmith12) if all results found, do not return a next link.
-        # TODO: (tsmith12) if all results not found return request.code.partial and return a next url
-        response = make_response(jsonify({'es_query': es_query,
-                                          'results': result_list,
-                                          'total_hits': page['hits']['total']}), requests.codes.ok)
-        response.headers['Link'] = links
-
+            response.headers['Link'] = build_link_header({next_url: {"rel": "next"}})
         return response
 
     except TransportError as ex:
