@@ -15,6 +15,9 @@ from botocore.vendored import requests
 from elasticsearch import RequestsHttpConnection, Elasticsearch
 from requests_aws4auth import AWS4Auth
 
+from . import networking
+
+
 class AWSV4Sign(requests.auth.AuthBase):
     """
     AWS V4 Request Signer for Requests.
@@ -44,24 +47,10 @@ class ElasticsearchServer:
     def __init__(self, startup_timeout_seconds: int=60) -> None:
         elasticsearch_binary = os.getenv("DSS_TEST_ES_PATH", "elasticsearch")
         self.tempdir = tempfile.TemporaryDirectory()
-        while True:
-            port = random.randint(1024, 65535)
-            transport_port = random.randint(1024, 65535)
 
-            # try to check if the randomly assigned ports already have a running service.
-            conflict = False
-            for port_to_test in port, transport_port:
-                try:
-                    sock = socket.create_connection(("localhost", port_to_test), 1)
-                    sock.close()
-                    # there's something there already.
-                    conflict = True
-                    break
-                except (ConnectionRefusedError, socket.timeout):
-                    # ok this is an open port.
-                    pass
-            if conflict:
-                continue
+        while True:
+            port = networking.unused_tcp_port()
+            transport_port = networking.unused_tcp_port()
 
             proc = subprocess.Popen(
                 [
