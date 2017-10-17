@@ -1,14 +1,14 @@
 import chalice.config
-import contextlib
 import logging
 import os
-import socket
 import threading
 import types
 
 import requests
 from chalice.cli import CLIFactory
 from chalice.local import LocalDevServer, ChaliceRequestHandler
+
+from dss.util import networking
 
 
 class SilentHandler(ChaliceRequestHandler):
@@ -26,7 +26,7 @@ class ThreadedLocalServer(threading.Thread):
     """
     def __init__(self):
         super().__init__()
-        self._port = _unused_tcp_port()
+        self._port = networking.unused_tcp_port()
         self._server = None
         self._server_ready = threading.Event()
         self._chalice_app = None
@@ -74,9 +74,3 @@ class ThreadedLocalServer(threading.Thread):
     def shutdown(self):
         if self._server is not None:
             self._server.server.shutdown()
-
-
-def _unused_tcp_port():
-    with contextlib.closing(socket.socket()) as sock:
-        sock.bind(('127.0.0.1', 0))
-        return sock.getsockname()[1]

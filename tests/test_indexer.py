@@ -30,7 +30,7 @@ from dss import Config, DeploymentStage
 from dss.config import IndexSuffix
 from dss.events.handlers.index import process_new_s3_indexable_object, process_new_gs_indexable_object, notify
 from dss.hcablobstore import BundleMetadata, BundleFileMetadata, FileMetadata
-from dss.util import create_blob_key, UrlBuilder
+from dss.util import create_blob_key, networking, UrlBuilder
 from dss.util.es import ElasticsearchClient, ElasticsearchServer
 from tests import get_version
 from tests.es import elasticsearch_delete_index
@@ -74,7 +74,7 @@ class ESInfo:
 
 def setUpModule():
     IndexSuffix.name = __name__.rsplit('.', 1)[-1]
-    HTTPInfo.port = findOpenPort()
+    HTTPInfo.port = networking.unused_tcp_port()
     HTTPInfo.server = HTTPServer((HTTPInfo.address, HTTPInfo.port), PostTestHandler)
     HTTPInfo.thread = threading.Thread(target=HTTPInfo.server.serve_forever)
     HTTPInfo.thread.start()
@@ -564,18 +564,6 @@ def create_index_data(blobstore, bucket_name, manifest):
     index['files'] = index_files
     return index
 
-
-def findOpenPort() -> int:
-    while True:
-        port = randint(1024, 65535)
-        try:
-            sock = socket.create_connection((HTTPInfo.address, port), 1)
-            sock.close()
-            # there's something there already.
-        except (ConnectionRefusedError, socket.timeout):
-            # ok this is an open port.
-            break
-    return port
 
 if __name__ == "__main__":
     unittest.main()
