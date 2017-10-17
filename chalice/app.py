@@ -47,6 +47,31 @@ class DSSChaliceApp(chalice.Chalice):
         self._override_exptime_seconds = OVERRIDE_EXECUTION_LIMIT_SECONDS
 
 
+def timeout_response() -> chalice.Response:
+    """
+    Produce a chalice Response object that indicates a timeout.  Stacktraces for all running threads, other than the
+    current thread, are provided in the response object.
+    """
+    frames = sys._current_frames()
+    current_threadid = threading.get_ident()
+    trace_dump = {
+        thread_id: traceback.format_stack(frame)
+        for thread_id, frame in frames.items()
+        if thread_id != current_threadid}
+
+    problem = {
+        'status': requests.codes.gateway_timeout,
+        'code': "timed_out",
+        'title': "Timed out processing request.",
+        'traces': trace_dump,
+    }
+    return chalice.Response(
+        status_code=problem['status'],
+        headers={"Content-Type": "application/problem+json"},
+        body=json.dumps(problem),
+    )
+
+
 def time_limited(chalice_app: DSSChaliceApp):
     """
     When this decorator is applied to a route handler, we will process the request in a secondary thread.  If the
@@ -69,24 +94,7 @@ def time_limited(chalice_app: DSSChaliceApp):
                     chalice_response = future.result(timeout=time_remaining_s)
                     return chalice_response
                 except TimeoutError:
-                    frames = sys._current_frames()
-                    current_threadid = threading.get_ident()
-                    trace_dump = {
-                        thread_id: traceback.format_stack(frame)
-                        for thread_id, frame in frames.items()
-                        if thread_id != current_threadid}
-
-                    problem = {
-                        'status': requests.codes.gateway_timeout,
-                        'code': "timed_out",
-                        'title': "Timed out processing request.",
-                        'traces': trace_dump,
-                    }
-                    return chalice.Response(
-                        status_code=problem['status'],
-                        headers={"Content-Type": "application/problem+json"},
-                        body=json.dumps(problem),
-                    )
+                    return timeout_response()
             finally:
                 executor.shutdown(wait=False)
         return wrapper
