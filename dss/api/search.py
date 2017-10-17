@@ -68,19 +68,18 @@ def post(json_request_body: dict,
         # TODO: (tsmith12) allow users to retrieve previous search results
         _scroll_id = page['_scroll_id']
 
-        if format == 'raw':
-            result_list = [{
-                'bundle_id': hit['_id'],
-                'bundle_url': _build_bundle_url(hit, replica),
-                'meta_data': hit['_source'],
-                'search_score': hit['_score']
-            } for hit in page['hits']['hits']]
-        else:
-            result_list = [{
-                'bundle_id': hit['_id'],
-                'bundle_url': _build_bundle_url(hit, replica),
-                'search_score': hit['_score']
-            } for hit in page['hits']['hits']]
+        result_list = [typing.Any]
+        for hit in page['hits']['hits']:
+            result = {}
+            if format == 'raw':
+                result.update({'meta_data': hit['_source']})
+            else:
+                result.update(
+                    {'bundle_id': hit['_id'],
+                     'bundle_url': _build_bundle_url(hit, replica),
+                     'search_score': hit['_score']
+                     })
+                result_list.append(result)
 
         # TODO: (tsmith12) if page returns 0 hits, then all results have been found. delete search id
         request_body = jsonify({'es_query': es_query, 'results': result_list, 'total_hits': page['hits']['total']})
