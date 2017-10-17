@@ -70,15 +70,12 @@ def post(json_request_body: dict,
 
         result_list = []  # type: typing.List[dict]
         for hit in page['hits']['hits']:
-            result = {}
+            result = {'bundle_id': hit['_id'],
+                      'bundle_url': _build_bundle_url(hit, replica),
+                      'search_score': hit['_score']
+                      }
             if format == 'raw':
                 result.update({'meta_data': hit['_source']})
-                
-            result.update(
-                {'bundle_id': hit['_id'],
-                 'bundle_url': _build_bundle_url(hit, replica),
-                 'search_score': hit['_score']
-                 })
             result_list.append(result)
 
         # TODO: (tsmith12) if page returns 0 hits, then all results have been found. delete search id
