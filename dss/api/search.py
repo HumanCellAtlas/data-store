@@ -75,7 +75,7 @@ def post(json_request_body: dict,
                       'search_score': hit['_score']
                       }
             if format == 'raw':
-                result.update({'meta_data': hit['_source']})
+                result['meta_data'] = hit['_source']
             result_list.append(result)
 
         # TODO: (tsmith12) if page returns 0 hits, then all results have been found. delete search id
