@@ -87,6 +87,20 @@ class BlobStore:
         """
         raise NotImplementedError()
 
+    def get_size(
+            self,
+            bucket: str,
+            object_name: str
+    ) -> int:
+        """
+        Retrieves the filesize
+        :param bucket: the bucket the object resides in.
+        :param object_name: the name of the object for which metadata is being
+        retrieved.
+        :return: integer equal to filesize in bytes
+        """
+        raise NotImplementedError()
+
     def copy(
             self,
             src_bucket: str, src_object_name: str,

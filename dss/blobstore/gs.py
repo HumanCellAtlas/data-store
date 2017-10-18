@@ -114,6 +114,25 @@ class GSBlobStore(BlobStore):
             raise BlobNotFoundError()
         return response.metadata
 
+    def get_size(
+            self,
+            bucket: str,
+            object_name: str
+    ) -> int:
+        """
+        Retrieves the filesize
+        :param bucket: the bucket the object resides in.
+        :param object_name: the name of the object for which metadata is being
+        retrieved.
+        :return: integer equal to filesize in bytes
+        """
+        bucket_obj = self._ensure_bucket_loaded(bucket)
+        response = bucket_obj.get_blob(object_name)
+        if response is None:
+            raise BlobNotFoundError()
+        res = response.size
+        return res
+
     def copy(
             self,
             src_bucket: str, src_object_name: str,

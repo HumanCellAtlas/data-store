@@ -59,6 +59,7 @@ class TestDSS(unittest.TestCase, DSSAssertMixin, DSSUploadMixin):
         self.assertEqual(resp_obj.json['bundle']['version'], version)
         self.assertEqual(resp_obj.json['bundle']['creator_uid'], 12345)
         self.assertEqual(resp_obj.json['bundle']['files'][0]['content-type'], "text/plain")
+        self.assertEqual(resp_obj.json['bundle']['files'][0]['size'], 11358)
         self.assertEqual(resp_obj.json['bundle']['files'][0]['crc32c'], "e16e07b9")
         self.assertEqual(resp_obj.json['bundle']['files'][0]['name'], "LICENSE")
         self.assertEqual(resp_obj.json['bundle']['files'][0]['s3_etag'], "3b83ef96387f14655fc854ddc3c6bd57")

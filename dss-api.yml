@@ -138,6 +138,10 @@ paths:
             X-DSS-CONTENT-TYPE:
               description: Content-type of the file.
               type: string
+            X-DSS-SIZE:
+              description: Filesize (bytes).
+              type: integer
+              format: int64
             X-DSS-CRC32C:
               description: CRC-32C (in hex format) of the file contents in hex.
               type: string
@@ -201,6 +205,10 @@ paths:
             X-DSS-CONTENT-TYPE:
               description: Content-type of the file.
               type: string
+            X-DSS-SIZE:
+              description: Filesize (bytes).
+              type: integer
+              format: int64
             X-DSS-CRC32C:
               description: CRC-32C (in hex format) of the file contents in hex.
               type: string
@@ -702,6 +710,10 @@ definitions:
         type: string
         format: date-time
         description: Timestamp of bundle creation in RFC3339.
+      size:
+        type: integer
+        format: int64
+        description: filesize (bytes).
       crc32c:
         type: string
         description: CRC-32C (in hex format) of the file contents in hex.
@@ -721,6 +733,7 @@ definitions:
     required:
       - uuid
       - version
+      - size
       - crc32c
       - s3_etag
       - sha1

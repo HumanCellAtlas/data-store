@@ -52,6 +52,7 @@ def get(
         file_version = {
             'name': file[BundleFileMetadata.NAME],
             'content-type': file[BundleFileMetadata.CONTENT_TYPE],
+            'size': file[BundleFileMetadata.SIZE],
             'uuid': file[BundleFileMetadata.UUID],
             'version': file[BundleFileMetadata.VERSION],
             'crc32c': file[BundleFileMetadata.CRC32C],
@@ -125,6 +126,7 @@ def put(uuid: str, replica: str, json_request_body: dict, version: str=None):
                 BundleFileMetadata.UUID: file['user_supplied_metadata']['uuid'],
                 BundleFileMetadata.VERSION: file['user_supplied_metadata']['version'],
                 BundleFileMetadata.CONTENT_TYPE: file['file_metadata'][FileMetadata.CONTENT_TYPE],
+                BundleFileMetadata.SIZE: file['file_metadata'][FileMetadata.SIZE],
                 BundleFileMetadata.INDEXED: file['user_supplied_metadata']['indexed'],
                 BundleFileMetadata.CRC32C: file['file_metadata'][FileMetadata.CRC32C],
                 BundleFileMetadata.S3_ETAG: file['file_metadata'][FileMetadata.S3_ETAG],
