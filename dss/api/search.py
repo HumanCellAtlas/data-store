@@ -25,8 +25,8 @@ class PerPageBounds:
 def post(json_request_body: dict,
          replica: str,
          per_page: int,
-         _scroll_id: typing.Optional[str] = None,
-         format: typing.Optional[str] = None) -> dict:
+         output_format: str,
+         _scroll_id: typing.Optional[str] = None) -> dict:
     es_query = json_request_body['es_query']
     get_logger().debug("Received posted query. Replica: %s Query: %s Per_page: %i Timeout: %s Scroll_id: %s",
                        replica, json.dumps(es_query, indent=4), per_page, _scroll_id)
@@ -74,8 +74,8 @@ def post(json_request_body: dict,
                       'bundle_url': _build_bundle_url(hit, replica),
                       'search_score': hit['_score']
                       }
-            if format == 'raw':
-                result['meta_data'] = hit['_source']
+            if output_format == 'raw':
+                result['metadata'] = hit['_source']
             result_list.append(result)
 
         # TODO: (tsmith12) if page returns 0 hits, then all results have been found. delete search id
@@ -88,7 +88,8 @@ def post(json_request_body: dict,
             next_url = request.host_url + str(UrlBuilder().set(path="v1/search")
                                               .add_query('per_page', str(per_page))
                                               .add_query("replica", replica)
-                                              .add_query("_scroll_id", _scroll_id))
+                                              .add_query("_scroll_id", _scroll_id)
+                                              .add_query("output_format", output_format))
             response.headers['Link'] = build_link_header({next_url: {"rel": "next"}})
         return response
 
