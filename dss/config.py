@@ -3,9 +3,10 @@ import typing
 from contextlib import contextmanager
 from enum import Enum, auto
 
-from .blobstore import BlobStore
-from .blobstore.s3 import S3BlobStore
-from .blobstore.gs import GSBlobStore
+from cloud_blobstore import BlobStore
+from cloud_blobstore.s3 import S3BlobStore
+from cloud_blobstore.gs import GSBlobStore
+
 from .hcablobstore import HCABlobStore
 from .hcablobstore.s3 import S3HCABlobStore
 from .hcablobstore.gs import GSHCABlobStore

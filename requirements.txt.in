@@ -2,6 +2,7 @@
 azure-storage
 boto3
 chained-aws-lambda
+cloud-blobstore
 connexion
 elasticsearch
 elasticsearch_dsl

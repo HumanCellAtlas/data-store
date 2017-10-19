@@ -3,19 +3,17 @@ import io
 import json
 import re
 import typing
-
-import chainedawslambda.aws
 from enum import Enum, auto
 
 import iso8601
 import requests
-
+import chainedawslambda.aws
+from cloud_blobstore import BlobAlreadyExistsError, BlobNotFoundError, BlobStore
+from cloud_blobstore.s3 import S3BlobStore
 from flask import jsonify, make_response, redirect, request
 from werkzeug.exceptions import BadRequest
 
 from .. import DSSException, dss_handler
-from ..blobstore import BlobAlreadyExistsError, BlobNotFoundError, BlobStore
-from ..blobstore.s3 import S3BlobStore
 from ..config import Config
 from ..events.chunkedtask import s3copyclient
 from ..hcablobstore import FileMetadata, HCABlobStore

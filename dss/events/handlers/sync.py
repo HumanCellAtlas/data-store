@@ -12,6 +12,7 @@ import boto3
 import botocore.session
 import urllib3
 import google.cloud.storage
+from cloud_blobstore.gs import GSBlobStore
 from google.resumable_media._upload import get_content_range
 from google.cloud.client import ClientWithProject
 from google.cloud._http import JSONConnection
@@ -19,7 +20,6 @@ from google.cloud._http import JSONConnection
 from dss import Config
 from dss.util.aws import resources, clients, send_sns_msg, ARN
 from dss.util.streaming import get_pool_manager, S3SigningChunker
-from dss.blobstore.gs import GSBlobStore
 
 presigned_url_lifetime_seconds = 3600
 use_gsts = False

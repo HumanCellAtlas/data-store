@@ -1,4 +1,4 @@
-from dss.blobstore import BlobNotFoundError
+from cloud_blobstore import BlobNotFoundError
 
 
 class HCABlobStoreTests:

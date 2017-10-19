@@ -1,7 +1,8 @@
 import typing
 
+from cloud_blobstore import BlobStore
+
 from . import HCABlobStore
-from ..blobstore import BlobStore
 
 
 class S3HCABlobStore(HCABlobStore):
