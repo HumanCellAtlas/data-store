@@ -48,12 +48,15 @@ paths:
                 type: object
             required:
               - es_query
-        - name: format
+        - name: output_format
           in: query
-          description: Specifies the output format. `raw` will return the json meta data in the results.
+          description: |
+            Specifies the output format. The default format, `summary`, is a list of UUIDs for bundles that match
+            the query. Set this parameter to `raw` to get the verbatim JSON metadata for bundles that match the query.
           required: false
           type: string
-          enum: [raw]
+          enum: [summary, raw]
+          default: summary
         - name: replica
           in: query
           description: Replica to search.
