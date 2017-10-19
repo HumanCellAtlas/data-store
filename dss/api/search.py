@@ -103,6 +103,11 @@ def post(json_request_body: dict,
             raise DSSException(requests.codes.not_found,
                                "elasticsearch_context_not_found",
                                "Elasticsearch context has returned all results or timeout has expired.")
+        elif ex.status_code == 'N/A':
+            get_logger().error("%s", f"Elasticsearch Invalid Endpoint. Exception: {ex}")
+            raise DSSException(requests.codes.not_found,
+                               "not_found",
+                               "Elasticsearch Invalid Endpoint")
         else:
             get_logger().error("%s", f"Elasticsearch Internal Server Error. Exception: {ex}")
             raise DSSException(requests.codes.internal_server_error,
