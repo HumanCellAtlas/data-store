@@ -5,10 +5,10 @@ import typing
 
 import iso8601
 import requests
+from cloud_blobstore import BlobNotFoundError
 from flask import jsonify, make_response
 
 from .. import DSSException, dss_handler
-from ..blobstore import BlobNotFoundError
 from ..config import Config
 from ..hcablobstore import BundleFileMetadata, BundleMetadata, FileMetadata
 from ..util import UrlBuilder

@@ -4,9 +4,9 @@ import typing
 import uuid
 
 import requests
+from cloud_blobstore import BlobStore
 
 from dss import Config
-from dss.blobstore import BlobStore
 from dss.util import UrlBuilder
 
 

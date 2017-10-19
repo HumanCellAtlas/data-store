@@ -8,6 +8,7 @@ from uuid import uuid4
 import iso8601
 import requests
 
+from cloud_blobstore import BlobNotFoundError
 from elasticsearch import Elasticsearch
 from elasticsearch.exceptions import ElasticsearchException, NotFoundError
 from elasticsearch_dsl import Search
@@ -15,7 +16,6 @@ from flask import jsonify, make_response, redirect, request
 from werkzeug.exceptions import BadRequest
 
 from .. import Config, Replica, ESIndexType, ESDocType, get_logger
-from ..blobstore import BlobNotFoundError
 from ..error import DSSException, dss_handler
 from ..hcablobstore import FileMetadata, HCABlobStore
 from ..util.es import ElasticsearchClient, get_elasticsearch_index

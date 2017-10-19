@@ -9,14 +9,14 @@ import socket
 from urllib.parse import urlparse, unquote
 
 import requests
-from requests_http_signature import HTTPSignatureAuth
+from cloud_blobstore import BlobStore, BlobStoreError
 from elasticsearch.helpers import scan
+from requests_http_signature import HTTPSignatureAuth
 
 from dss import Config, ESIndexType, ESDocType, Replica
 from ...util import create_blob_key
 from ...hcablobstore import BundleMetadata, BundleFileMetadata
 from ...util.es import ElasticsearchClient, get_elasticsearch_index
-from ...blobstore import BlobStore, BlobStoreError
 
 DSS_BUNDLE_KEY_REGEX = r"^bundles/[0-9A-Fa-f]{8}-[0-9A-Fa-f]{4}-4[0-9A-Fa-f]{3}-[0-9A-Fa-f]{4}-[0-9A-Fa-f]{12}\..+$"
 
