@@ -198,9 +198,10 @@ class TestSearchBase(DSSAssertMixin):
             self.assertPostResponse(
                 path=url,
                 json_request_body=dict(es_query=smartseq2_paired_ends_query),
-                expected_code=requests.codes.not_found,
-                expected_error=ExpectedErrorFields(code="not_found",
-                                                   status=requests.codes.not_found))
+                expected_code=requests.codes.service_unavailable,
+                expected_error=ExpectedErrorFields(code="service_unavailable",
+                                                   status=requests.codes.service_unavailable,
+                                                   expect_stacktrace=True))
         finally:
             os.environ['DSS_ES_ENDPOINT'] = original_es_endpoint
             es_logger.setLevel(original_es_level)
