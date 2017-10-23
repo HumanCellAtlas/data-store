@@ -59,6 +59,44 @@ def process_new_indexable_object(bucket_name: str, key: str, replica: str, logge
         logger.debug(f"Not indexing {replica} creation event for key: {key}")
 
 
+def process_s3_removed_object(event, logger) -> None:
+    try:
+        # This function is only called for S3 removal events
+        key = unquote(event['Records'][0]["s3"]["object"]["key"])
+        process_removed_object(key, "aws", logger)
+    except Exception as ex:
+        logger.error("Exception occurred while processing S3 event: %s Event: %s", ex, json.dumps(event, indent=4))
+        raise
+
+
+def process_removed_object(key: str, replica: str, logger) -> None:
+    index_name = Config.get_es_index_name(ESIndexType.docs, Replica[replica])
+    bundle_id = get_bundle_id_from_key(key)
+    if bundle_is_indexed(index_name, bundle_id, logger):
+        logger.info(f"Received {replica} removal event for bundle which will be de-indexed: {key}")
+        ElasticsearchClient.get(logger).delete(index_name,
+                                               ESDocType.doc.name,
+                                               bundle_id)
+
+        # TODO Is this bad? deletes should be rare
+        ElasticsearchClient.get(logger).indices.refresh(index_name)
+
+        # TODO (brianh): Notification on removal?
+        logger.debug(f"Finished de-index processing of {replica} removal event for bundle: {key}")
+    else:
+        logger.debug(f"Not de-indexing {replica} removal event for key: {key}")
+
+
+def bundle_is_indexed(index_name: str, bundle_id: str, logger) -> bool:
+    if not ElasticsearchClient.get(logger).indices.exists(index_name):
+        return False
+
+    if not ElasticsearchClient.get(logger).exists(index_name, ESDocType.doc.name, bundle_id):
+        return False
+
+    return True
+
+
 def is_bundle_to_index(key: str) -> bool:
     # Check for pattern /bundles/<bundle_uuid>.<timestamp>
     # Don't process notifications explicitly for the latest bundle, of the format /bundles/<bundle_uuid>
