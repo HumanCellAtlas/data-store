@@ -52,6 +52,7 @@ def get(
         file_version = {
             'name': file[BundleFileMetadata.NAME],
             'content-type': file[BundleFileMetadata.CONTENT_TYPE],
+            'size': file[BundleFileMetadata.SIZE],
             'uuid': file[BundleFileMetadata.UUID],
             'version': file[BundleFileMetadata.VERSION],
             'crc32c': file[BundleFileMetadata.CRC32C],
