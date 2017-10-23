@@ -128,6 +128,7 @@ def put(uuid: str, json_request_body: dict, version: str=None):
     src_object_name = mobj.group('object_name')
 
     metadata = handle.get_user_metadata(src_bucket, src_object_name)
+    size = handle.get_size(src_bucket, src_object_name)
 
     # format all the checksums so they're lower-case.
     for metadata_spec in HCABlobStore.MANDATORY_METADATA.values():
@@ -160,6 +161,7 @@ def put(uuid: str, json_request_body: dict, version: str=None):
         FileMetadata.CREATOR_UID: json_request_body['creator_uid'],
         FileMetadata.VERSION: version,
         FileMetadata.CONTENT_TYPE: metadata['hca-dss-content-type'],
+        FileMetadata.SIZE: size,
         FileMetadata.CRC32C: metadata['hca-dss-crc32c'],
         FileMetadata.S3_ETAG: metadata['hca-dss-s3_etag'],
         FileMetadata.SHA1: metadata['hca-dss-sha1'],
@@ -168,8 +170,7 @@ def put(uuid: str, json_request_body: dict, version: str=None):
     file_metadata_json = json.dumps(file_metadata)
 
     if copy_mode != CopyMode.NO_COPY and replica == "aws":
-        source_metadata = typing.cast(S3BlobStore, handle).get_all_metadata(src_bucket, src_object_name)
-        if source_metadata['ContentLength'] > ASYNC_COPY_THRESHOLD:
+        if size > ASYNC_COPY_THRESHOLD:
             copy_mode = CopyMode.COPY_ASYNC
 
     if copy_mode == CopyMode.COPY_ASYNC:
