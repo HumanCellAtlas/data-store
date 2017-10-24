@@ -185,7 +185,7 @@ class TestSearchBase(DSSAssertMixin):
                 self.verify_search_result(search_obj.json, smartseq2_paired_ends_query, docs, expected_results)
                 self.verify_bundles(found_bundles, bundles)
 
-    def test_elasticsearch_exception(self):
+    def test_elasticsearch_bogus_endpoint_exception(self):
         # Test Elasticsearch exception handling by setting an invalid endpoint
         es_logger = logging.getLogger("elasticsearch")
         original_es_level = es_logger.getEffectiveLevel()
@@ -198,9 +198,10 @@ class TestSearchBase(DSSAssertMixin):
             self.assertPostResponse(
                 path=url,
                 json_request_body=dict(es_query=smartseq2_paired_ends_query),
-                expected_code=requests.codes.internal_server_error,
-                expected_error=ExpectedErrorFields(code="internal_server_error",
-                                                   status=requests.codes.internal_server_error))
+                expected_code=requests.codes.service_unavailable,
+                expected_error=ExpectedErrorFields(code="service_unavailable",
+                                                   status=requests.codes.service_unavailable,
+                                                   expect_stacktrace=True))
         finally:
             os.environ['DSS_ES_ENDPOINT'] = original_es_endpoint
             es_logger.setLevel(original_es_level)
