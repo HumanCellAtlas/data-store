@@ -244,10 +244,10 @@ class TestSearchBase(DSSAssertMixin):
                 next_url = self.get_next_url(search_obj.response.headers)
                 self.verify_next_url(next_url, per_page)
 
-    def test_format_is_raw(self):
+    def test_output_format_is_raw(self):
         bundles = self.populate_search_index(self.index_document, 1)
         self.check_count(smartseq2_paired_ends_query, 1)
-        url = self.build_url(url_params={'format': 'raw'})
+        url = self.build_url(url_params={'output_format': 'raw'})
         search_obj = self.assertPostResponse(
             path=url,
             json_request_body=dict(es_query=smartseq2_paired_ends_query),
@@ -256,7 +256,7 @@ class TestSearchBase(DSSAssertMixin):
         self.assertIsNone(next_url)
         self.verify_search_result(search_obj.json, smartseq2_paired_ends_query, 1, 1)
         self.verify_bundles(search_obj.json['results'], bundles)
-        self.assertEqual(search_obj.json['results'][0]['meta_data'], self.index_document)
+        self.assertEqual(search_obj.json['results'][0]['metadata'], self.index_document)
 
     def test_error_returned_when_per_page_is_out_of_range(self):
         expected_error = ExpectedErrorFields(code="illegal_arguments",
@@ -329,13 +329,14 @@ class TestSearchBase(DSSAssertMixin):
         for bundle in expected_bundles:
             self.assertIn(bundle, result_bundles)
 
-    def verify_next_url(self, next_url, per_page=100):
+    def verify_next_url(self, next_url, per_page=100, output_format='summary'):
         parsed_url = urlparse(next_url)
         self.assertEqual(parsed_url.path, "/v1/search")
         parsed_q = parse_qs(parsed_url.query)
         self.assertEqual(parsed_q['replica'], [self.replica_name])
         self.assertIn('_scroll_id', parsed_q.keys())
         self.assertEqual(parsed_q['per_page'], [str(per_page)])
+        self.assertEqual(parsed_q['output_format'], ['summary'])
         return parsed_q['_scroll_id'][0]
 
     @staticmethod
