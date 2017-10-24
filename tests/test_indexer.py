@@ -243,6 +243,7 @@ class TestIndexerBase(DSSAssertMixin, DSSStorageMixin, DSSUploadMixin):
             prefix, _, bundle_id = bundle_key.partition("/")
             self.verify_notification(subscription_id, smartseq2_paired_ends_query, bundle_id)
             self.delete_subscription(subscription_id)
+            PostTestHandler.reset()
 
     def test_subscription_notification_unsuccessful(self):
         PostTestHandler.verify_payloads = True
