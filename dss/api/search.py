@@ -107,7 +107,7 @@ def post(json_request_body: dict,
             get_logger().error("%s", f"Elasticsearch Invalid Endpoint. Exception: {ex}")
             raise DSSException(requests.codes.service_unavailable,
                                "service_unavailable",
-                               "Elasticsearch Invalid Endpoint")
+                               "Elasticsearch reached an invalid endpoint. Try again later.")
         else:
             get_logger().error("%s", f"Elasticsearch Internal Server Error. Exception: {ex}")
             raise DSSException(requests.codes.internal_server_error,
