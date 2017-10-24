@@ -445,8 +445,8 @@ class TestGCPIndexer(TestIndexerBase, unittest.TestCase):
     def process_new_indexable_object(self, event, logger):
         process_new_gs_indexable_object(event, logger)
 
+    @unittest.skip('objects de-indexed on s3 only')
     def test_process_removed_object(self):
-        # objects de-indexed on s3 only
         pass
 
     def create_bundle_created_event(self, bundle_key, bucket_name) -> Dict:
