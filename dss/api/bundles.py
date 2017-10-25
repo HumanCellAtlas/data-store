@@ -111,7 +111,15 @@ def put(uuid: str, replica: str, json_request_body: dict, version: str=None):
     for file in files:
         user_supplied_metadata = file['user_supplied_metadata']
         metadata_path = 'files/{}.{}'.format(user_supplied_metadata['uuid'], user_supplied_metadata['version'])
-        file['file_metadata'] = json.loads(handle.get(bucket, metadata_path))
+        try:
+            file_metadata = handle.get(bucket, metadata_path)
+        except BlobNotFoundError:
+            raise DSSException(
+                requests.codes.conflict,
+                "file_missing",
+                f"Could not find file {user_supplied_metadata['uuid']}/{user_supplied_metadata['version']}."
+            )
+        file['file_metadata'] = json.loads(file_metadata)
 
     # TODO: (ttung) should validate the files' bundle UUID points back at us.
 

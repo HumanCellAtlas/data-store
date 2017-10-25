@@ -158,6 +158,7 @@ class TestDSS(unittest.TestCase, DSSAssertMixin, DSSUploadMixin):
 
         bundle_uuid = str(uuid.uuid4())
         file_uuid = str(uuid.uuid4())
+        missing_file_uuid = str(uuid.uuid4())
         resp_obj = self.upload_file_wait(
             f"{schema}://{fixtures_bucket}/test_good_source_data/0",
             replica,
@@ -189,6 +190,17 @@ class TestDSS(unittest.TestCase, DSSAssertMixin, DSSUploadMixin):
             bundle_version,
             requests.codes.conflict,
         )
+
+        # should *NOT* be able to upload a bundle with a missing file, but we should get requests.codes.conflict.
+        resp_obj = upload_bundle(
+            bundle_uuid,
+            [
+                (file_uuid, file_version, "LICENSE0"),
+                (missing_file_uuid, file_version, "LICENSE1"),
+            ],
+            expected_code=requests.codes.conflict,
+        )
+        self.assertEqual(resp_obj.json['code'], "file_missing")
 
     def test_no_replica(self):
         """
