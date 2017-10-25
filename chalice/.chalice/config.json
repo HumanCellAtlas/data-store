@@ -11,5 +11,6 @@
       "environment_variables": {
       }
     }
-  }
+  },
+  "lambda_timeout": 300
 }

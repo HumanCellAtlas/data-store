@@ -36,6 +36,8 @@ factory = CLIFactory(project_dir=args.project_dir, debug=args.debug)
 config = factory.create_config_obj(
     chalice_stage_name=os.environ["DSS_DEPLOYMENT_STAGE"]
 )
+# TODO: Remove this hack when https://github.com/aws/chalice/pull/579 is pulled into our repo.
+config._user_provided_params['lambda_timeout'] = 30000
 app_obj = factory.load_chalice_app()
 # When running `chalice local`, a stdout logger is configured
 # so you'll see the same stdout logging as you would when
