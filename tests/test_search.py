@@ -59,7 +59,7 @@ class TestSearchBase(DSSAssertMixin):
         cls.app = ThreadedLocalServer()
         cls.app.start()
         cls.replica_name = replica.name
-        dss.Config.set_config(dss.DeploymentStage.TEST)
+        dss.Config.set_config(dss.BucketConfig.TEST)
         cls.dss_index_name = dss.Config.get_es_index_name(dss.ESIndexType.docs, replica)
         with open(os.path.join(os.path.dirname(__file__), "sample_index_doc.json"), "r") as fh:
             cls.index_document = json.load(fh)
@@ -69,7 +69,7 @@ class TestSearchBase(DSSAssertMixin):
         cls.app.shutdown()
 
     def setUp(self):
-        dss.Config.set_config(dss.DeploymentStage.TEST)
+        dss.Config.set_config(dss.BucketConfig.TEST)
         elasticsearch_delete_index(f"*{IndexSuffix.name}")
         create_elasticsearch_index(self.dss_index_name, logger)
 

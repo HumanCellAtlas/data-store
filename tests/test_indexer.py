@@ -6,19 +6,16 @@ import io
 import json
 import logging
 import os
-import socket
 import sys
 import threading
 import time
 import unittest
 import uuid
 from http.server import BaseHTTPRequestHandler, HTTPServer
-from random import randint
 from typing import Dict
 
 import google.auth
 import google.auth.transport.requests
-import moto
 import requests
 from requests_http_signature import HTTPSignatureAuth
 
@@ -26,7 +23,7 @@ pkg_root = os.path.abspath(os.path.join(os.path.dirname(__file__), '..'))  # noq
 sys.path.insert(0, pkg_root)  # noqa
 
 import dss
-from dss import Config, DeploymentStage
+from dss import Config, BucketConfig
 from dss.config import IndexSuffix
 from dss.events.handlers.index import process_new_s3_indexable_object, process_new_gs_indexable_object, notify
 from dss.hcablobstore import BundleMetadata, BundleFileMetadata, FileMetadata
@@ -95,9 +92,9 @@ class TestIndexerBase(DSSAssertMixin, DSSStorageMixin, DSSUploadMixin):
         cls.app = ThreadedLocalServer()
         cls.app.start()
         cls.replica = replica
-        Config.set_config(DeploymentStage.TEST_FIXTURE)
+        Config.set_config(BucketConfig.TEST_FIXTURE)
         cls.blobstore, _, cls.test_fixture_bucket = Config.get_cloud_specific_handles(cls.replica)
-        Config.set_config(DeploymentStage.TEST)
+        Config.set_config(BucketConfig.TEST)
         _, _, cls.test_bucket = Config.get_cloud_specific_handles(cls.replica)
         cls.dss_index_name = dss.Config.get_es_index_name(dss.ESIndexType.docs, dss.Replica[cls.replica])
         cls.subscription_index_name = dss.Config.get_es_index_name(dss.ESIndexType.subscriptions,

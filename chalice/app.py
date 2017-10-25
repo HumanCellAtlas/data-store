@@ -19,11 +19,11 @@ from flask import json
 pkg_root = os.path.abspath(os.path.join(os.path.dirname(__file__), 'chalicelib'))  # noqa
 sys.path.insert(0, pkg_root)  # noqa
 
-from dss import DeploymentStage, Config, create_app
+from dss import BucketConfig, Config, create_app
 from dss.util import paginate
 
 
-Config.set_config(DeploymentStage.NORMAL)
+Config.set_config(BucketConfig.NORMAL)
 
 
 EXECUTION_TERMINATION_THRESHOLD_SECONDS = 5.0

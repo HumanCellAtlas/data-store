@@ -16,7 +16,7 @@ pkg_root = os.path.abspath(os.path.join(os.path.dirname(__file__), '..'))  # noq
 sys.path.insert(0, pkg_root)  # noqa
 
 import dss
-from dss.config import DeploymentStage, Config, override_bucket_config
+from dss.config import BucketConfig, Config, override_bucket_config
 from dss.util import UrlBuilder
 from tests.infra import DSSAssertMixin, DSSUploadMixin, ExpectedErrorFields, get_env
 from tests.infra.server import ThreadedLocalServer
@@ -33,7 +33,7 @@ class TestDSS(unittest.TestCase, DSSAssertMixin, DSSUploadMixin):
         cls.app.shutdown()
 
     def setUp(self):
-        dss.Config.set_config(dss.DeploymentStage.TEST)
+        dss.Config.set_config(dss.BucketConfig.TEST)
         self.s3_test_fixtures_bucket = get_env("DSS_S3_BUCKET_TEST_FIXTURES")
         self.gs_test_fixtures_bucket = get_env("DSS_GS_BUCKET_TEST_FIXTURES")
 
@@ -50,7 +50,7 @@ class TestDSS(unittest.TestCase, DSSAssertMixin, DSSUploadMixin):
                   .add_query("replica", replica)
                   .add_query("version", version))
 
-        with override_bucket_config(DeploymentStage.TEST_FIXTURE):
+        with override_bucket_config(BucketConfig.TEST_FIXTURE):
             resp_obj = self.assertGetResponse(
                 url,
                 requests.codes.ok)
@@ -87,7 +87,7 @@ class TestDSS(unittest.TestCase, DSSAssertMixin, DSSUploadMixin):
                   .add_query("version", version)
                   .add_query("directurls", "true"))
 
-        with override_bucket_config(DeploymentStage.TEST_FIXTURE):
+        with override_bucket_config(BucketConfig.TEST_FIXTURE):
             resp_obj = self.assertGetResponse(
                 url,
                 requests.codes.ok)
@@ -199,7 +199,7 @@ class TestDSS(unittest.TestCase, DSSAssertMixin, DSSUploadMixin):
         url = str(UrlBuilder()
                   .set(path="/v1/bundles/" + bundle_uuid))
 
-        with override_bucket_config(DeploymentStage.TEST_FIXTURE):
+        with override_bucket_config(BucketConfig.TEST_FIXTURE):
             self.assertPutResponse(
                 url,
                 requests.codes.bad_request,
@@ -223,7 +223,7 @@ class TestDSS(unittest.TestCase, DSSAssertMixin, DSSUploadMixin):
                   .set(path="/v1/bundles/" + bundle_uuid)
                   .add_query("replica", "aws"))
 
-        with override_bucket_config(DeploymentStage.TEST_FIXTURE):
+        with override_bucket_config(BucketConfig.TEST_FIXTURE):
             self.assertPutResponse(
                 url,
                 requests.codes.bad_request,
@@ -250,7 +250,7 @@ class TestDSS(unittest.TestCase, DSSAssertMixin, DSSUploadMixin):
                   .set(path="/v1/bundles/" + bundle_uuid)
                   .add_query("replica", replica))
 
-        with override_bucket_config(DeploymentStage.TEST_FIXTURE):
+        with override_bucket_config(BucketConfig.TEST_FIXTURE):
             self.assertGetResponse(
                 url,
                 requests.codes.not_found,
@@ -265,7 +265,7 @@ class TestDSS(unittest.TestCase, DSSAssertMixin, DSSUploadMixin):
                   .add_query("replica", replica)
                   .add_query("version", version))
 
-        with override_bucket_config(DeploymentStage.TEST_FIXTURE):
+        with override_bucket_config(BucketConfig.TEST_FIXTURE):
             self.assertGetResponse(
                 url,
                 requests.codes.not_found,

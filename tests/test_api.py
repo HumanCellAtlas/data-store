@@ -27,7 +27,7 @@ class TestApi(unittest.TestCase, DSSAssertMixin, DSSUploadMixin, DSSStorageMixin
 
     def setUp(self):
         self.replica = "aws"
-        dss.Config.set_config(dss.DeploymentStage.TEST)
+        dss.Config.set_config(dss.BucketConfig.TEST)
         self.blobstore, _, self.bucket = dss.Config.get_cloud_specific_handles(self.replica)
 
     BUNDLE_FIXTURE = 'fixtures/test_api/bundle'
