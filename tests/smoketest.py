@@ -69,7 +69,7 @@ else:
 run("hca dss download --replica gcp $(jq -r .bundle_uuid upload.json)")
 
 for replica in "aws", "gcp":
-    run(f"hca dss post-search --es-query='{{}}' --output_format raw --replica {replica} > /dev/null")
+    run(f"hca dss post-search --es-query='{{}}' --output-format raw --replica {replica} > /dev/null")
 
 search_route = "https://${API_HOST}/v1/search"
 for replica in "aws", "gcp":
