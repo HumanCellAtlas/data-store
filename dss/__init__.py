@@ -24,7 +24,7 @@ from connexion.resolver import RestyResolver
 from connexion.exceptions import OAuthProblem, OAuthResponseProblem, OAuthScopeProblem
 from werkzeug.exceptions import Forbidden
 
-from .config import Config, BucketConfig, ESIndexType, ESDocType, Replica
+from .config import BucketConfig, Config, DeploymentStage, ESIndexType, ESDocType, Replica
 from .error import DSSBindingException, DSSException, dss_handler
 
 def get_logger():

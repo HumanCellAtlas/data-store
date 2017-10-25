@@ -23,7 +23,7 @@ pkg_root = os.path.abspath(os.path.join(os.path.dirname(__file__), '..'))  # noq
 sys.path.insert(0, pkg_root)  # noqa
 
 import dss
-from dss import Config, BucketConfig
+from dss import Config, BucketConfig, DeploymentStage
 from dss.config import IndexSuffix
 from dss.events.handlers.index import process_new_s3_indexable_object, process_new_gs_indexable_object, notify
 from dss.hcablobstore import BundleMetadata, BundleFileMetadata, FileMetadata
@@ -207,7 +207,7 @@ class TestIndexerBase(DSSAssertMixin, DSSStorageMixin, DSSUploadMixin):
             _notify(subscription=dict(id="", es_query={}, callback_url="wss://localhost"))
         try:
             environ_backup = os.environ
-            os.environ = dict(DSS_DEPLOYMENT_STAGE="prod")
+            os.environ = dict(DSS_DEPLOYMENT_STAGE=DeploymentStage.PROD.value)
             with self.assertRaisesRegex(AssertionError, "Unexpected scheme for callback URL"):
                 _notify(subscription=dict(id="", es_query={}, callback_url="http://example.com"))
             with self.assertRaisesRegex(AssertionError, "Callback hostname resolves to forbidden network"):

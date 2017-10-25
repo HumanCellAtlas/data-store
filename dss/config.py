@@ -1,7 +1,7 @@
 import os
 import typing
 from contextlib import contextmanager
-from enum import Enum, auto
+from enum import Enum, EnumMeta, auto
 
 from cloud_blobstore import BlobStore
 from cloud_blobstore.s3 import S3BlobStore
@@ -10,6 +10,30 @@ from cloud_blobstore.gs import GSBlobStore
 from .hcablobstore import HCABlobStore
 from .hcablobstore.s3 import S3HCABlobStore
 from .hcablobstore.gs import GSHCABlobStore
+
+
+class DeploymentStageMeta(EnumMeta):
+    _MAGIC_PREFIX = "IS_"
+
+    def __getattr__(cls, item: str):
+        if item.startswith(DeploymentStageMeta._MAGIC_PREFIX):
+            trailer = item[len(DeploymentStageMeta._MAGIC_PREFIX):]
+            attr = getattr(DeploymentStage, trailer, None)
+            if isinstance(attr, DeploymentStage):
+                return lambda: os.environ["DSS_DEPLOYMENT_STAGE"] == attr.value
+        raise AttributeError(item)
+
+
+class DeploymentStage(Enum, metaclass=DeploymentStageMeta):
+    """
+    Represents the current deployment stage.  Through the `DeploymentStageMeta` metaclass, we provide the magic methods
+    IS_{STAGE}, which return True if the current deployment stage matches `STAGE`.
+
+    e.g., IS_PROD() will return True iff the current deployment is a production deployment.
+    """
+    PROD = "prod"
+    STAGING = "staging"
+    DEV = "dev"
 
 
 class BucketConfig(Enum):
