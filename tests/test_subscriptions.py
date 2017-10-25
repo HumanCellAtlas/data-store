@@ -58,7 +58,7 @@ class TestSubscriptionsBase(DSSAssertMixin):
     def setUp(self):
         os.environ['DSS_ES_ENDPOINT'] = os.getenv('DSS_ES_ENDPOINT', "localhost")
 
-        dss.Config.set_config(dss.DeploymentStage.TEST)
+        dss.Config.set_config(dss.BucketConfig.TEST)
 
         logger.debug("Setting up Elasticsearch")
         es_client = ElasticsearchClient.get(logger)

@@ -15,7 +15,7 @@ pkg_root = os.path.abspath(os.path.join(os.path.dirname(__file__), '..'))  # noq
 sys.path.insert(0, pkg_root)  # noqa
 
 import dss
-from dss.config import DeploymentStage, override_bucket_config
+from dss.config import BucketConfig, override_bucket_config
 from dss.util import UrlBuilder
 from dss.util.aws import AWS_MIN_CHUNK_SIZE
 from tests.fixtures.cloud_uploader import GSUploader, S3Uploader, Uploader
@@ -34,7 +34,7 @@ class TestFileApi(unittest.TestCase, DSSAssertMixin, DSSUploadMixin):
         cls.app.shutdown()
 
     def setUp(self):
-        dss.Config.set_config(dss.DeploymentStage.TEST)
+        dss.Config.set_config(dss.BucketConfig.TEST)
         self.s3_test_fixtures_bucket = get_env("DSS_S3_BUCKET_TEST_FIXTURES")
         self.gs_test_fixtures_bucket = get_env("DSS_GS_BUCKET_TEST_FIXTURES")
         self.s3_test_bucket = get_env("DSS_S3_BUCKET_TEST")
@@ -174,7 +174,7 @@ class TestFileApi(unittest.TestCase, DSSAssertMixin, DSSUploadMixin):
                   .add_query("replica", replica)
                   .add_query("version", version))
 
-        with override_bucket_config(DeploymentStage.TEST_FIXTURE):
+        with override_bucket_config(BucketConfig.TEST_FIXTURE):
             self.assertHeadResponse(
                 url,
                 requests.codes.ok
@@ -198,7 +198,7 @@ class TestFileApi(unittest.TestCase, DSSAssertMixin, DSSUploadMixin):
                   .add_query("replica", replica)
                   .add_query("version", version))
 
-        with override_bucket_config(DeploymentStage.TEST_FIXTURE):
+        with override_bucket_config(BucketConfig.TEST_FIXTURE):
             resp_obj = self.assertGetResponse(
                 url,
                 requests.codes.found
@@ -230,7 +230,7 @@ class TestFileApi(unittest.TestCase, DSSAssertMixin, DSSUploadMixin):
                   .set(path="/v1/files/" + file_uuid)
                   .add_query("replica", replica))
 
-        with override_bucket_config(DeploymentStage.TEST_FIXTURE):
+        with override_bucket_config(BucketConfig.TEST_FIXTURE):
             resp_obj = self.assertGetResponse(
                 url,
                 requests.codes.found
@@ -262,7 +262,7 @@ class TestFileApi(unittest.TestCase, DSSAssertMixin, DSSUploadMixin):
                   .set(path="/v1/files/" + file_uuid)
                   .add_query("replica", replica))
 
-        with override_bucket_config(DeploymentStage.TEST_FIXTURE):
+        with override_bucket_config(BucketConfig.TEST_FIXTURE):
             self.assertGetResponse(
                 url,
                 requests.codes.not_found,
@@ -278,7 +278,7 @@ class TestFileApi(unittest.TestCase, DSSAssertMixin, DSSUploadMixin):
                   .add_query("replica", replica)
                   .add_query("version", version))
 
-        with override_bucket_config(DeploymentStage.TEST_FIXTURE):
+        with override_bucket_config(BucketConfig.TEST_FIXTURE):
             self.assertGetResponse(
                 url,
                 requests.codes.not_found,
@@ -297,7 +297,7 @@ class TestFileApi(unittest.TestCase, DSSAssertMixin, DSSUploadMixin):
         url = str(UrlBuilder()
                   .set(path="/v1/files/" + file_uuid))
 
-        with override_bucket_config(DeploymentStage.TEST_FIXTURE):
+        with override_bucket_config(BucketConfig.TEST_FIXTURE):
             self.assertGetResponse(
                 url,
                 requests.codes.bad_request,
