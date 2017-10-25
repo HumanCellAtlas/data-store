@@ -43,13 +43,14 @@ class HCABlobStore:
 
 
 class FileMetadata:
-    FILE_FORMAT_VERSION = "0.0.2"
+    FILE_FORMAT_VERSION = "0.0.3"
 
     FORMAT = "format"
     BUNDLE_UUID = "bundle_uuid"
     CREATOR_UID = "creator_uid"
     VERSION = "version"
     CONTENT_TYPE = "content-type"
+    SIZE = "size"
     CRC32C = "crc32c"
     S3_ETAG = "s3-etag"
     SHA1 = "sha1"
@@ -70,6 +71,7 @@ class BundleFileMetadata:
     UUID = "uuid"
     VERSION = "version"
     CONTENT_TYPE = "content-type"
+    SIZE = "size"
     INDEXED = "indexed"
     CRC32C = "crc32c"
     S3_ETAG = "s3-etag"
