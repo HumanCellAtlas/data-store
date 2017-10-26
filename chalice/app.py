@@ -3,6 +3,7 @@ import datetime
 import functools
 import logging
 import os
+import random
 import re
 import sys
 import threading
@@ -10,6 +11,7 @@ import time
 import traceback
 import typing
 from concurrent.futures import ThreadPoolExecutor, TimeoutError
+from http.cookies import SimpleCookie
 
 import chalice
 import boto3
@@ -19,7 +21,7 @@ from flask import json
 pkg_root = os.path.abspath(os.path.join(os.path.dirname(__file__), 'chalicelib'))  # noqa
 sys.path.insert(0, pkg_root)  # noqa
 
-from dss import BucketConfig, Config, create_app
+from dss import BucketConfig, Config, DeploymentStage, create_app
 from dss.util import paginate
 
 
@@ -116,13 +118,36 @@ def get_chalice_app(flask_app) -> DSSChaliceApp:
             app.current_request.query_params,
             app.current_request.method,
         )
-        with flask_app.test_request_context(path=path,
-                                            base_url="https://{}".format(app.current_request.headers["host"]),
-                                            query_string=app.current_request.query_params,
-                                            method=app.current_request.method,
-                                            headers=list(app.current_request.headers.items()),
-                                            data=req_body,
-                                            environ_base=app.current_request.stage_vars):
+
+        def maybe_fake_504() -> typing.Optional[chalice.Response]:
+            cookies = SimpleCookie(app.current_request.headers.get("Cookie", ""))
+            fake_504_probabliity_morsel = cookies.get("DSS_FAKE_504_PROBABILITY")
+            if fake_504_probabliity_morsel is None:
+                return None
+
+            try:
+                fake_504_probabliity = float(fake_504_probabliity_morsel.value)
+            except ValueError:
+                return None
+
+            if random.random() > fake_504_probabliity:
+                return None
+
+            return timeout_response()
+
+        if not DeploymentStage.IS_PROD():
+            maybe_fake_504_result = maybe_fake_504()
+            if maybe_fake_504_result is not None:
+                return maybe_fake_504_result
+
+        with flask_app.test_request_context(
+                path=path,
+                base_url="https://{}".format(app.current_request.headers["host"]),
+                query_string=app.current_request.query_params,
+                method=app.current_request.method,
+                headers=list(app.current_request.headers.items()),
+                data=req_body,
+                environ_base=app.current_request.stage_vars):
             flask_res = flask_app.full_dispatch_request()
         res_headers = dict(flask_res.headers)
         # API Gateway/Cloudfront adds a duplicate Content-Length with a different value (not sure why)
