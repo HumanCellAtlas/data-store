@@ -25,7 +25,8 @@ sys.path.insert(0, pkg_root)  # noqa
 import dss
 from dss import Config, BucketConfig, DeploymentStage
 from dss.config import IndexSuffix
-from dss.events.handlers.index import process_new_s3_indexable_object, process_new_gs_indexable_object, notify
+from dss.events.handlers.index import process_new_s3_indexable_object, process_s3_removed_object
+from dss.events.handlers.index import process_new_gs_indexable_object, notify
 from dss.hcablobstore import BundleMetadata, BundleFileMetadata, FileMetadata
 from dss.util import create_blob_key, networking, UrlBuilder
 from dss.util.es import ElasticsearchClient, ElasticsearchServer
@@ -112,13 +113,18 @@ class TestIndexerBase(DSSAssertMixin, DSSStorageMixin, DSSUploadMixin):
         self.storageHelper = None
 
     def test_process_new_indexable_object(self):
-        bundle_key = self.load_test_data_bundle_for_path("fixtures/smartseq2/paired_ends")
-        sample_event = self.create_sample_bundle_created_event(bundle_key)
-        self.process_new_indexable_object(sample_event, logger)
+        bundle_key = self.insert_and_process_new_indexable_object()
         search_results = self.get_search_results(smartseq2_paired_ends_query, 1)
         self.assertEqual(1, len(search_results))
         self.verify_index_document_structure_and_content(search_results[0], bundle_key,
                                                          files=smartseq2_paried_ends_indexed_file_list)
+
+    def test_process_removed_object(self):
+        bundle_key = self.insert_and_process_new_indexable_object()
+        sample_event = self.create_sample_bundle_removed_event(bundle_key)
+        self.process_removed_object(sample_event, logger)
+        search_results = self.get_search_results(smartseq2_paired_ends_query, 0)
+        self.assertEqual(0, len(search_results))
 
     def test_indexed_file_with_invalid_content_type(self):
         bundle = TestBundle(self.blobstore, "fixtures/smartseq2/paired_ends", self.test_fixture_bucket, self.replica)
@@ -340,6 +346,12 @@ class TestIndexerBase(DSSAssertMixin, DSSStorageMixin, DSSUploadMixin):
 
         return {'Authorization': f"Bearer {token}"}
 
+    def insert_and_process_new_indexable_object(self):
+        bundle_key = self.load_test_data_bundle_for_path("fixtures/smartseq2/paired_ends")
+        sample_event = self.create_sample_bundle_created_event(bundle_key)
+        self.process_new_indexable_object(sample_event, logger)
+        return bundle_key
+
     def verify_index_document_structure_and_content(self, actual_index_document,
                                                     bundle_key, files, excluded_files=[]):
         self.verify_index_document_structure(actual_index_document, files, excluded_files)
@@ -385,6 +397,12 @@ class TestIndexerBase(DSSAssertMixin, DSSStorageMixin, DSSUploadMixin):
     def create_bundle_created_event(self, bundle_key, bucket_name):
         raise NotImplemented()
 
+    def create_sample_bundle_removed_event(self, bundle_key):
+        return self.create_bundle_removed_event(bundle_key, self.test_bucket)
+
+    def create_bundle_removed_event(self, bundle_key, bucket_name):
+        raise NotImplemented()
+
     def process_new_indexable_object(self, event, logger):
         raise NotImplemented()
 
@@ -398,8 +416,18 @@ class TestAWSIndexer(TestIndexerBase, unittest.TestCase):
     def process_new_indexable_object(self, event, logger):
         process_new_s3_indexable_object(event, logger)
 
+    def process_removed_object(self, event, logger):
+        process_s3_removed_object(event, logger)
+
     def create_bundle_created_event(self, bundle_key, bucket_name) -> Dict:
         with open(os.path.join(os.path.dirname(__file__), "sample_s3_bundle_created_event.json")) as fh:
+            sample_event = json.load(fh)
+        sample_event['Records'][0]["s3"]['bucket']['name'] = bucket_name
+        sample_event['Records'][0]["s3"]['object']['key'] = bundle_key
+        return sample_event
+
+    def create_bundle_removed_event(self, bundle_key, bucket_name):
+        with open(os.path.join(os.path.dirname(__file__), "sample_s3_bundle_removed_event.json")) as fh:
             sample_event = json.load(fh)
         sample_event['Records'][0]["s3"]['bucket']['name'] = bucket_name
         sample_event['Records'][0]["s3"]['object']['key'] = bundle_key
@@ -414,6 +442,10 @@ class TestGCPIndexer(TestIndexerBase, unittest.TestCase):
 
     def process_new_indexable_object(self, event, logger):
         process_new_gs_indexable_object(event, logger)
+
+    @unittest.skip('objects de-indexed on s3 only')
+    def test_process_removed_object(self):
+        pass
 
     def create_bundle_created_event(self, bundle_key, bucket_name) -> Dict:
         with open(os.path.join(os.path.dirname(__file__), "sample_gs_bundle_created_event.json")) as fh:
