@@ -8,6 +8,7 @@ from chainedawslambda.s3copyclient import S3CopyTask, S3ParallelCopySupervisorTa
 from ...api import files
 
 # this must match the lambda name in daemons/Makefile
+AWS_S3_COPY_CLIENT_PREFIX = "chained-aws-lambda-s3-parallel-copy-supervisor-"
 AWS_S3_COPY_AND_WRITE_METADATA_CLIENT_PREFIX = "dss-s3-copy-write-metadata-"
 
 

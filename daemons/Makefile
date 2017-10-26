@@ -13,7 +13,7 @@ dss-sync dss-index:
 	    ../tests/daemons/sample_s3_bundle_created_event.json.template \
 	    ../tests/daemons/a47b90b2-0967-4fbf-87bc-c6c12db3fedf.2017-07-12T055120.037644Z; \
 
-chainedawslambdatargets := chained-aws-lambda-s3-parallel-copy-worker
+chainedawslambdatargets := chained-aws-lambda-s3-parallel-copy-supervisor chained-aws-lambda-s3-parallel-copy-worker
 dsschainedawslambdatargets := dss-s3-copy-write-metadata
 chained-aws-lambda: $(chainedawslambdatargets) $(dsschainedawslambdatargets)
 
@@ -21,9 +21,10 @@ $(chainedawslambdatargets): chained-aws-lambda-%:
 	rm -rf $@
 	cp -rf chained-aws-lambda $@
 	chained_aws_lambda.py '$$account_id' \
+	  --enable-s3-parallel-copy-supervisor --s3-parallel-copy-supervisor-lambda-name chained-aws-lambda-s3-parallel-copy-supervisor-$(DSS_DEPLOYMENT_STAGE) \
 	  --enable-s3-parallel-copy-worker --s3-parallel-copy-worker-lambda-name chained-aws-lambda-s3-parallel-copy-worker-$(DSS_DEPLOYMENT_STAGE) \
-	  --s3-parallel-copy-worker-policy-path $@/policy.json.template \
-	  --s3-parallel-copy-worker-app-path $@/app.py
+	  --$*-policy-path $@/policy.json.template \
+	  --$*-app-path $@/app.py
 
 	cat chained-aws-lambda/.chalice/config.json | jq '.app_name="$@"' > $@/.chalice/config.json
 	# blindly enable access to our test S3 bucket.  This is ok since most daemons require it anyway.

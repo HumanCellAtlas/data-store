@@ -13,6 +13,7 @@ import traceback
 
 import chainedawslambda
 import chainedawslambda.aws
+import chainedawslambda.s3copyclient
 import flask
 import requests
 import connexion.apis.abstract
@@ -189,6 +190,8 @@ def chained_lambda_clients() -> typing.Iterable[typing.Tuple[str, typing.Type[ch
 
     deployment_stage = os.getenv("DSS_DEPLOYMENT_STAGE")
     return (
+        (s3copyclient.AWS_S3_COPY_CLIENT_PREFIX + deployment_stage,
+         chainedawslambda.s3copyclient.S3ParallelCopySupervisorTask),
         (s3copyclient.AWS_S3_COPY_AND_WRITE_METADATA_CLIENT_PREFIX + deployment_stage,
          s3copyclient.S3CopyWriteBundleTask),
     )
