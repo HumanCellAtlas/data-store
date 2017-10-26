@@ -13,7 +13,7 @@ from cloud_blobstore import BlobStore, BlobStoreError
 from elasticsearch.helpers import scan
 from requests_http_signature import HTTPSignatureAuth
 
-from dss import Config, ESIndexType, ESDocType, Replica
+from dss import Config, DeploymentStage, ESIndexType, ESDocType, Replica
 from ...util import create_blob_key
 from ...hcablobstore import BundleMetadata, BundleFileMetadata
 from ...util.es import ElasticsearchClient, get_elasticsearch_index
@@ -224,14 +224,14 @@ def notify(subscription_id: str, subscription: dict, bundle_id: str, logger):
     callback_url = subscription['callback_url']
 
     # FIXME wrap all errors in this block with an exception handler
-    if os.environ["DSS_DEPLOYMENT_STAGE"] == "prod":
+    if DeploymentStage.IS_PROD():
         allowed_schemes = {'https'}
     else:
         allowed_schemes = {'https', 'http'}
 
     assert urlparse(callback_url).scheme in allowed_schemes, "Unexpected scheme for callback URL"
 
-    if os.environ["DSS_DEPLOYMENT_STAGE"] == "prod":
+    if DeploymentStage.IS_PROD():
         hostname = urlparse(callback_url).hostname
         for family, socktype, proto, canonname, sockaddr in socket.getaddrinfo(hostname, port=None):
             msg = "Callback hostname resolves to forbidden network"
