@@ -737,7 +737,7 @@ definitions:
       size:
         type: integer
         format: int64
-        description: filesize (bytes).
+        description: File size (bytes).
       crc32c:
         type: string
         description: CRC-32C (in hex format) of the file contents in hex.
