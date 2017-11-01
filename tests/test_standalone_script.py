@@ -23,7 +23,7 @@ from dss.util import networking
 
 class TestStandaloneScript(unittest.TestCase):
     @classmethod
-    def setUpClass(cls):
+    def setUpClass(cls, timeout_seconds=10):
         dss_root_path = os.path.abspath(os.path.join(os.path.dirname(__file__), '..'))
         cls.port = networking.unused_tcp_port()
         cls.subprocess = subprocess.Popen(
@@ -37,7 +37,7 @@ class TestStandaloneScript(unittest.TestCase):
             cwd=dss_root_path
         )
 
-        end_time = time.time() + 5.0
+        end_time = time.time() + timeout_seconds
         delay = 0.05
         while time.time() < end_time:
             try:
