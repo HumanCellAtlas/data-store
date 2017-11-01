@@ -8,19 +8,11 @@ import requests
 from cloud_blobstore import BlobNotFoundError
 from flask import jsonify, make_response
 
-<<<<<<< Updated upstream:dss/api/bundles.py
-from .. import DSSException, dss_handler
-from ..config import Config
-from ..hcablobstore import BundleFileMetadata, BundleMetadata, FileMetadata
-from ..util import UrlBuilder
-=======
 from dss.util.bundles import get_bundle
 from ... import DSSException, dss_handler
-from ...blobstore import BlobNotFoundError
 from ...config import Config
 from ...hcablobstore import BundleFileMetadata, BundleMetadata, FileMetadata
 from ...util import UrlBuilder
->>>>>>> Stashed changes:dss/api/bundles/__init__.py
 
 
 @dss_handler
@@ -30,7 +22,7 @@ def get(
         version: str=None,
         # TODO: (ttung) once we can run the endpoints from each cloud, we should default to the local cloud.
         directurls: bool=False):
-   return get_bundle(uuid, replica, version, directurls);
+    return get_bundle(uuid, replica, version, directurls)
 
 
 @dss_handler
