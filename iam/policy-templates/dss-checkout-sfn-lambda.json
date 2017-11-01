@@ -1,0 +1,38 @@
+{
+  "Version": "2012-10-17",
+  "Statement": [
+    {
+      "Effect": "Allow",
+      "Action": [
+        "logs:CreateLogGroup",
+        "logs:CreateLogStream",
+        "logs:PutLogEvents"
+      ],
+      "Resource": "arn:aws:logs:*:*:*"
+    },
+    {
+      "Effect": "Allow",
+      "Action": "s3:*",
+      "Resource": [
+        "arn:aws:s3:::$DSS_S3_BUCKET",
+        "arn:aws:s3:::$DSS_S3_BUCKET/*"
+      ]
+    },
+    {
+      "Effect": "Allow",
+      "Action": "sns:Publish",
+      "Resource": [
+        "arn:aws:sns:*:$account_id:dss-*-$stage"
+      ]
+    },
+    {
+      "Effect": "Allow",
+      "Action": "lambda:*",
+      "Resource": [
+        "arn:aws:lambda:*:$account_id:function:dss-*",
+        "arn:aws:lambda:*:$account_id:function:chained-aws-lambda-*"
+      ]
+    }
+
+  ]
+}

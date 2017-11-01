@@ -94,8 +94,7 @@ class BlobStore:
             **kwargs):
         raise NotImplementedError()
 
-    def check_bucket_exists(self,
-                      bucket: str) -> bool:
+    def check_bucket_exists(self, bucket: str) -> bool:
         """
         Checks if bucket with specified name exists.
         :param bucket: the bucket to be checked.
@@ -126,4 +125,3 @@ class BlobNotFoundError(BlobStoreError):
 
 class BlobAlreadyExistsError(BlobStoreError):
     pass
-
