@@ -2,8 +2,10 @@ import typing
 
 from chainedawslambda import aws
 from chainedawslambda.s3copyclient import S3ParallelCopySupervisorTask
+from cloud_blobstore import BlobNotFoundError
 from enum import Enum, auto
-from ...blobstore import BlobNotFoundError, BlobStore
+from ...blobstore import BlobStore
+
 from ...hcablobstore import HCABlobStore
 from ...util.aws import get_s3_chunk_size, AWS_MIN_CHUNK_SIZE
 
@@ -26,14 +28,14 @@ class BundleFileMeta:
     SHA1 = "sha1"
     SHA256 = "sha256"
 
-USER_OWNED_STORE = "destination";
+USER_OWNED_STORE = "destination"
 
 def copyInline(handle: BlobStore, src_bucket, src_object, dst_bucket, dst_object):
     handle.copy(src_bucket, src_object, dst_bucket, dst_object)
 
 
 def get_copy_mode(handle: BlobStore, file_metadata: dict, src_bucket: str, src_object_name: str, dst_bucket: str,
-                  dst_object_name: str, replica: str):
+                  dst_object_name: str, replica: str) -> CopyMode:
     copy_mode = CopyMode.COPY_INLINE
     source_metadata = handle.get_all_metadata(src_bucket, src_object_name)
     # does object with a given name exists at the destination? if so, we can skip the copy part.
@@ -44,8 +46,7 @@ def get_copy_mode(handle: BlobStore, file_metadata: dict, src_bucket: str, src_o
         pass
 
     if copy_mode != CopyMode.NO_COPY and replica == "aws":
-#        if source_metadata['ContentLength'] > ASYNC_COPY_THRESHOLD:
-        if source_metadata['ContentLength'] > 10*1024*1024:
+        if source_metadata['ContentLength'] > ASYNC_COPY_THRESHOLD:
             copy_mode = CopyMode.COPY_ASYNC
     return copy_mode
 
@@ -67,21 +68,10 @@ def verify_checksum(handle: BlobStore, file_metadata: dict, dst_bucket, dst_obje
     return dst_checksum.lower() == src_checksum.lower()
 
 def get_src_cheksum(file_metadata: dict):
-    return  file_metadata[BundleFileMeta.S3_ETAG]
-
-
-def sanity_check_dst(handle: BlobStore, json_request_body: dict):
-    if (handle.check_bucket_exists(get_destination_bucket(json_request_body))):
-        # TODO: add check if dst bucket is writeable,
-        return True
-    else:
-        return False
+    return file_metadata[BundleFileMeta.S3_ETAG]
 
 def get_destination_bucket(json_request_body: dict):
     return json_request_body.get(USER_OWNED_STORE)
-
-def sanity_check_src(handle: BlobStore, bundle: str):
-    return True
 
 def parallel_copy(
         source_bucket: str, source_key: str,
@@ -89,7 +79,6 @@ def parallel_copy(
     initial_state = S3ParallelCopySupervisorTask.setup_copy_task(
         source_bucket, source_key,
         destination_bucket, destination_key,
-        lambda blob_size: (5 * 1024 * 1024),
+        get_s3_chunk_size,
         3600)
     aws.schedule_task(S3ParallelCopySupervisorTask, initial_state)
-

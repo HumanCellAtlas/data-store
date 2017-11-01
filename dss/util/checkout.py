@@ -11,4 +11,3 @@ class CopyParams:
     SOURCE_KEY = "source_key",
     DESTINATION_BUCKET = "dest_bucket",
     DESTINATION_KEY = "dest_key"
-
