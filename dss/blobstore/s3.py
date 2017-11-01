@@ -243,8 +243,7 @@ class S3BlobStore(BlobStore):
                     # finished examining the results of this batch, move onto the next one
                     break
 
-    def check_bucket_exists(self,
-                      bucket: str) -> bool:
+    def check_bucket_exists(self, bucket: str) -> bool:
         """
         Checks if bucket with specified name exists.
         :param bucket: the bucket to be checked.
