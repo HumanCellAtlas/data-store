@@ -63,7 +63,7 @@ class ElasticsearchServer:
 
             for ix in range(startup_timeout_seconds):
                 try:
-                    sock = socket.create_connection(("localhost", port), 1)
+                    sock = socket.create_connection(("127.0.0.1", port), 1)
                     sock.close()
                     break
                 except (ConnectionRefusedError, socket.timeout):

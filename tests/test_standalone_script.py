@@ -41,7 +41,7 @@ class TestStandaloneScript(unittest.TestCase):
         delay = 0.05
         while time.time() < end_time:
             try:
-                socket.create_connection(("localhost", cls.port))
+                socket.create_connection(("127.0.0.1", cls.port))
                 break
             except ConnectionError:
                 delay = max(1.0, delay * 2)
@@ -55,7 +55,7 @@ class TestStandaloneScript(unittest.TestCase):
 
     def test_simple_request(self):
         file_uuid = str(uuid.uuid4())
-        response = requests.api.get(f"http://localhost:{self.port}/v1/files/{file_uuid}?replica=aws")
+        response = requests.api.get(f"http://127.0.0.1:{self.port}/v1/files/{file_uuid}?replica=aws")
         self.assertEqual(response.status_code, requests.codes.not_found)
 
 

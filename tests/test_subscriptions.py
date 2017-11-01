@@ -56,7 +56,7 @@ class TestSubscriptionsBase(DSSAssertMixin):
         cls.app.shutdown()
 
     def setUp(self):
-        os.environ['DSS_ES_ENDPOINT'] = os.getenv('DSS_ES_ENDPOINT', "localhost")
+        os.environ['DSS_ES_ENDPOINT'] = os.getenv('DSS_ES_ENDPOINT', "127.0.0.1")
 
         dss.Config.set_config(dss.BucketConfig.TEST)
 
