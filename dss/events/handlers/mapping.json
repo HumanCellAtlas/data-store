@@ -1,0 +1,53 @@
+{
+  "settings": {
+    "analysis": {
+      "normalizer": {
+        "keyword_lowercase": {
+          "type": "custom",
+          "filter": ["lowercase"]
+        }
+      }
+    }
+  },
+  "mappings": {
+    "doc": {
+      "date_detection": true,
+      "dynamic_date_formats": [
+        "yyyy-MM-dd HH:mm:ss",
+        "strict_date_optional_time"
+      ],
+      "dynamic_templates": [
+        {
+          "dates": {
+            "match_mapping_type": "date",
+            "mapping": {
+              "type": "date"
+            }
+          }
+        },
+        {
+          "short_strings": {
+            "match_mapping_type": "string",
+            "mapping": {
+              "type": "text",
+              "fields": {
+                "keyword": {
+                  "normalizer": "keyword_lowercase",
+                  "type": "keyword",
+                  "ignore_above": 256
+                }
+              }
+            }
+          }
+        }
+      ]
+    },
+    "queries":{
+      "properties":{
+        "query": {
+          "type": "percolator"
+        }
+      }
+    }
+  }
+}
