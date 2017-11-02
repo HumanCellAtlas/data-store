@@ -9,10 +9,10 @@ import os
 import sys
 import threading
 import time
+import typing
 import unittest
 import uuid
 from http.server import BaseHTTPRequestHandler, HTTPServer
-from typing import Dict
 
 import google.auth
 import google.auth.transport.requests
@@ -398,7 +398,7 @@ class TestAWSIndexer(TestIndexerBase, unittest.TestCase):
     def process_new_indexable_object(self, event, logger):
         process_new_s3_indexable_object(event, logger)
 
-    def create_bundle_created_event(self, bundle_key, bucket_name) -> Dict:
+    def create_bundle_created_event(self, bundle_key, bucket_name) -> typing.Dict:
         with open(os.path.join(os.path.dirname(__file__), "sample_s3_bundle_created_event.json")) as fh:
             sample_event = json.load(fh)
         sample_event['Records'][0]["s3"]['bucket']['name'] = bucket_name
@@ -415,7 +415,7 @@ class TestGCPIndexer(TestIndexerBase, unittest.TestCase):
     def process_new_indexable_object(self, event, logger):
         process_new_gs_indexable_object(event, logger)
 
-    def create_bundle_created_event(self, bundle_key, bucket_name) -> Dict:
+    def create_bundle_created_event(self, bundle_key, bucket_name) -> typing.Dict:
         with open(os.path.join(os.path.dirname(__file__), "sample_gs_bundle_created_event.json")) as fh:
             sample_event = json.load(fh)
         sample_event["bucket"] = bucket_name
