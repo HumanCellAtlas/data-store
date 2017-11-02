@@ -25,6 +25,7 @@ from dss.util.es import ElasticsearchClient, ElasticsearchServer, get_elasticsea
 from tests.es import elasticsearch_delete_index
 from tests.infra import DSSAssertMixin, ExpectedErrorFields
 from tests.infra.server import ThreadedLocalServer
+from tests.sample_search_queries import smartseq2_paired_ends_v3_query
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
@@ -77,12 +78,11 @@ class TestSubscriptionsBase(DSSAssertMixin):
         index_name = dss.Config.get_es_index_name(dss.ESIndexType.docs, self.replica)
         get_elasticsearch_index(es_client, index_name, logger, index_mapping)
 
-        with open(os.path.join(os.path.dirname(__file__), "sample_index_doc.json"), "r") as fh:
+        with open(os.path.join(os.path.dirname(__file__), "sample_v3_index_doc.json"), "r") as fh:
             index_document = json.load(fh)
 
         self.callback_url = "https://example.com"
-        with open(os.path.join(os.path.dirname(__file__), "sample_query.json"), "r") as fh:
-            self.sample_percolate_query = json.load(fh)
+        self.sample_percolate_query = smartseq2_paired_ends_v3_query
 
         es_client.index(index=index_name,
                         doc_type=dss.ESDocType.doc.name,
