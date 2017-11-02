@@ -204,14 +204,14 @@ class TestIndexerBase(DSSAssertMixin, DSSStorageMixin, DSSUploadMixin):
         with self.assertRaisesRegex(AssertionError, "Unexpected scheme for callback URL"):
             _notify(subscription=dict(id="", es_query={}, callback_url=""))
         with self.assertRaisesRegex(AssertionError, "Unexpected scheme for callback URL"):
-            _notify(subscription=dict(id="", es_query={}, callback_url="wss://localhost"))
+            _notify(subscription=dict(id="", es_query={}, callback_url="wss://127.0.0.1"))
         try:
             environ_backup = os.environ
             os.environ = dict(DSS_DEPLOYMENT_STAGE=DeploymentStage.PROD.value)
             with self.assertRaisesRegex(AssertionError, "Unexpected scheme for callback URL"):
                 _notify(subscription=dict(id="", es_query={}, callback_url="http://example.com"))
             with self.assertRaisesRegex(AssertionError, "Callback hostname resolves to forbidden network"):
-                _notify(subscription=dict(id="", es_query={}, callback_url="https://localhost"))
+                _notify(subscription=dict(id="", es_query={}, callback_url="https://127.0.0.1"))
         finally:
             os.environ = environ_backup
 

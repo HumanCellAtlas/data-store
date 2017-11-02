@@ -53,7 +53,7 @@ class ThreadedLocalServer(threading.Thread):
 
     def _make_call(self, method, path, **kwargs):
         return method(
-            f"http://localhost:{self._port}{path}",
+            f"http://127.0.0.1:{self._port}{path}",
             allow_redirects=False,
             timeout=(1.0, 30.0),
             **kwargs)

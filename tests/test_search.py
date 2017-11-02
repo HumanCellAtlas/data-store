@@ -189,7 +189,7 @@ class TestSearchBase(DSSAssertMixin):
         # Test Elasticsearch exception handling by setting an invalid endpoint
         es_logger = logging.getLogger("elasticsearch")
         original_es_level = es_logger.getEffectiveLevel()
-        original_es_endpoint = os.getenv("DSS_ES_ENDPOINT", "localhost")
+        original_es_endpoint = os.getenv("DSS_ES_ENDPOINT", "127.0.0.1")
 
         es_logger.setLevel("ERROR")
         try:
@@ -303,7 +303,7 @@ class TestSearchBase(DSSAssertMixin):
             version = get_version()
             index_document['manifest']['version'] = version
             bundle_id = f"{bundle_uuid}.{version}"
-            bundle_url = (f"https://localhost:{self.app._port}"
+            bundle_url = (f"https://127.0.0.1:{self.app._port}"
                           f"/v1/bundles/{bundle_uuid}?version={version}&replica={self.replica_name}")
             es_client.index(index=self.dss_index_name,
                             doc_type=ESDocType.doc.name,
