@@ -87,6 +87,8 @@ def tearDownModule():
 
 
 class TestIndexerBase(DSSAssertMixin, DSSStorageMixin, DSSUploadMixin):
+    bundle_key_by_replica = dict()  # type: typing.MutableMapping[str, str]
+
     @classmethod
     def indexer_setup(cls, replica):
         cls.app = ThreadedLocalServer()
@@ -105,6 +107,11 @@ class TestIndexerBase(DSSAssertMixin, DSSStorageMixin, DSSUploadMixin):
         cls.app.shutdown()
 
     def setUp(self):
+        if self.replica not in TestIndexerBase.bundle_key_by_replica:
+            TestIndexerBase.bundle_key_by_replica[self.replica] = self.load_test_data_bundle_for_path(
+                "fixtures/smartseq2/paired_ends")
+        self.bundle_key = TestIndexerBase.bundle_key_by_replica[self.replica]
+
         elasticsearch_delete_index(f"*{IndexSuffix.name}")
         PostTestHandler.reset()
 
@@ -112,12 +119,11 @@ class TestIndexerBase(DSSAssertMixin, DSSStorageMixin, DSSUploadMixin):
         self.storageHelper = None
 
     def test_process_new_indexable_object(self):
-        bundle_key = self.load_test_data_bundle_for_path("fixtures/smartseq2/paired_ends")
-        sample_event = self.create_sample_bundle_created_event(bundle_key)
+        sample_event = self.create_sample_bundle_created_event(self.bundle_key)
         self.process_new_indexable_object(sample_event, logger)
         search_results = self.get_search_results(smartseq2_paired_ends_v3_query, 1)
         self.assertEqual(1, len(search_results))
-        self.verify_index_document_structure_and_content(search_results[0], bundle_key,
+        self.verify_index_document_structure_and_content(search_results[0], self.bundle_key,
                                                          files=smartseq2_paried_ends_indexed_file_list)
 
     def test_indexed_file_with_invalid_content_type(self):
@@ -223,8 +229,7 @@ class TestIndexerBase(DSSAssertMixin, DSSStorageMixin, DSSUploadMixin):
         )
 
     def test_subscription_notification_successful(self):
-        bundle_key = self.load_test_data_bundle_for_path("fixtures/smartseq2/paired_ends")
-        sample_event = self.create_sample_bundle_created_event(bundle_key)
+        sample_event = self.create_sample_bundle_created_event(self.bundle_key)
         self.process_new_indexable_object(sample_event, logger)
         ElasticsearchClient.get(logger).indices.create(self.subscription_index_name)
         for verify_payloads, subscribe_kwargs in ((True, dict(hmac_secret_key=PostTestHandler.hmac_secret_key)),
@@ -234,18 +239,16 @@ class TestIndexerBase(DSSAssertMixin, DSSStorageMixin, DSSUploadMixin):
                                                               f"http://{HTTPInfo.address}:{HTTPInfo.port}",
                                                               **subscribe_kwargs)
 
-            bundle_key = self.load_test_data_bundle_for_path("fixtures/smartseq2/paired_ends")
-            sample_event = self.create_sample_bundle_created_event(bundle_key)
+            sample_event = self.create_sample_bundle_created_event(self.bundle_key)
             self.process_new_indexable_object(sample_event, logger)
-            prefix, _, bundle_id = bundle_key.partition("/")
+            prefix, _, bundle_id = self.bundle_key.partition("/")
             self.verify_notification(subscription_id, smartseq2_paired_ends_v3_query, bundle_id)
             self.delete_subscription(subscription_id)
             PostTestHandler.reset()
 
     def test_subscription_notification_unsuccessful(self):
         PostTestHandler.verify_payloads = True
-        bundle_key = self.load_test_data_bundle_for_path("fixtures/smartseq2/paired_ends")
-        sample_event = self.create_sample_bundle_created_event(bundle_key)
+        sample_event = self.create_sample_bundle_created_event(self.bundle_key)
         self.process_new_indexable_object(sample_event, logger)
 
         ElasticsearchClient.get(logger).indices.create(self.subscription_index_name)
