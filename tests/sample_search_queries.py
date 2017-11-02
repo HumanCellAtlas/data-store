@@ -6,11 +6,11 @@ smartseq2_paired_ends_query = \
             'bool': {
                 'must': [{
                     'match': {
-                        "files.sample_json.donor.species": "Homo sapiens"
+                        "files.sample_json.donor.species.text": "Homo sapiens"
                     }
                 }, {
                     'match': {
-                        "files.assay_json.single_cell.method": "Fluidigm C1"
+                        "files.assay_json.single_cell.cell_handling": "Fluidigm C1"
                     }
                 }, {
                     'match': {
