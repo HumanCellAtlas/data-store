@@ -1,6 +1,6 @@
 """Sample queries for testing elastic search"""
 
-smartseq2_paired_ends_query = \
+smartseq2_paired_ends_v3_query = \
     {
         'query': {
             'bool': {
