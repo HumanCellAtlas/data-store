@@ -1,6 +1,7 @@
 #!/usr/bin/env python
 # coding: utf-8
 
+import typing
 import datetime
 import hashlib
 import os
@@ -57,51 +58,20 @@ class TestFileApi(unittest.TestCase, DSSAssertMixin, DSSUploadMixin):
 
         source_url = f"{scheme}://{test_bucket}/{src_key}"
 
-        def upload_file(
-                file_uuid: str,
-                bundle_uuid: str=None,
-                version: str=None,
-                expected_code: int=requests.codes.created,
-        ):
-            bundle_uuid = str(uuid.uuid4()) if bundle_uuid is None else bundle_uuid
-            if version is None:
-                timestamp = datetime.datetime.utcnow()
-                version = timestamp.strftime("%Y-%m-%dT%H%M%S.%fZ")
-
-            urlbuilder = UrlBuilder().set(path='/v1/files/' + file_uuid)
-            urlbuilder.add_query("version", version)
-            resp_obj = self.assertPutResponse(
-                str(urlbuilder),
-                expected_code,
-                json_request_body=dict(
-                    bundle_uuid=bundle_uuid,
-                    creator_uid=0,
-                    source_url=source_url,
-                ),
-            )
-
-            if resp_obj.response.status_code == requests.codes.created:
-                self.assertHeaders(
-                    resp_obj.response,
-                    {
-                        'content-type': "application/json",
-                    }
-                )
-                self.assertIn('version', resp_obj.json)
-
         file_uuid = str(uuid.uuid4())
         bundle_uuid = str(uuid.uuid4())
         version = datetime.datetime.utcnow().strftime("%Y-%m-%dT%H%M%S.%fZ")
 
         # should be able to do this twice (i.e., same payload, different UUIDs)
-        upload_file(file_uuid, bundle_uuid=bundle_uuid, version=version)
-        upload_file(str(uuid.uuid4()))
+        self.upload_file(source_url, file_uuid, bundle_uuid=bundle_uuid, version=version)
+        self.upload_file(source_url, str(uuid.uuid4()))
 
         # should be able to do this twice (i.e., same payload, same UUIDs)
-        upload_file(file_uuid, bundle_uuid=bundle_uuid, version=version, expected_code=requests.codes.ok)
+        self.upload_file(source_url, file_uuid, bundle_uuid=bundle_uuid,
+                         version=version, expected_code=requests.codes.ok)
 
         # should *NOT* be able to do this twice (i.e., different payload, same UUIDs)
-        upload_file(file_uuid, version=version, expected_code=requests.codes.conflict)
+        self.upload_file(source_url, file_uuid, version=version, expected_code=requests.codes.conflict)
 
     def test_file_put_large(self):
         tempdir = tempfile.gettempdir()
@@ -208,6 +178,7 @@ class TestFileApi(unittest.TestCase, DSSAssertMixin, DSSUploadMixin):
             sha1 = resp_obj.response.headers['X-DSS-SHA1']
             data = requests.get(url)
             self.assertEqual(len(data.content), 11358)
+            self.assertEqual(resp_obj.response.headers['X-DSS-SIZE'], '11358')
 
             # verify that the downloaded data matches the stated checksum
             hasher = hashlib.sha1()
@@ -240,6 +211,7 @@ class TestFileApi(unittest.TestCase, DSSAssertMixin, DSSUploadMixin):
             sha1 = resp_obj.response.headers['X-DSS-SHA1']
             data = requests.get(url)
             self.assertEqual(len(data.content), 8685)
+            self.assertEqual(resp_obj.response.headers['X-DSS-SIZE'], '8685')
 
             # verify that the downloaded data matches the stated checksum
             hasher = hashlib.sha1()
@@ -306,6 +278,83 @@ class TestFileApi(unittest.TestCase, DSSAssertMixin, DSSUploadMixin):
                     status=requests.codes.bad_request,
                     expect_stacktrace=True)
             )
+
+    def test_file_size(self):
+        """
+        Verify size is correct after dss put and get
+        """
+        tempdir = tempfile.gettempdir()
+        self._test_file_size("aws", "s3", self.s3_test_bucket, S3Uploader(tempdir, self.s3_test_bucket))
+        self._test_file_size("gcp", "gs", self.gs_test_bucket, GSUploader(tempdir, self.gs_test_bucket))
+
+    def _test_file_size(self, replica: str, scheme: str, test_bucket: str, uploader: Uploader):
+        src_key = generate_test_key()
+        src_size = 1024 + int.from_bytes(os.urandom(1), byteorder='little')
+        src_data = os.urandom(src_size)
+        with tempfile.NamedTemporaryFile(delete=True) as fh:
+            fh.write(src_data)
+            fh.flush()
+
+            uploader.checksum_and_upload_file(
+                fh.name, src_key, {"hca-dss-content-type": "text/plain", })
+
+        source_url = f"{scheme}://{test_bucket}/{src_key}"
+
+        file_uuid = str(uuid.uuid4())
+        bundle_uuid = str(uuid.uuid4())
+        version = datetime.datetime.utcnow().strftime("%Y-%m-%dT%H%M%S.%fZ")
+
+        self.upload_file(source_url, file_uuid, bundle_uuid=bundle_uuid, version=version)
+
+        url = str(UrlBuilder()
+                  .set(path="/v1/files/" + file_uuid)
+                  .add_query("replica", replica))
+
+        with override_bucket_config(BucketConfig.TEST):
+            resp_obj = self.assertGetResponse(
+                url,
+                requests.codes.found
+            )
+
+            url = resp_obj.response.headers['Location']
+            data = requests.get(url)
+            self.assertEqual(len(data.content), src_size)
+            self.assertEqual(resp_obj.response.headers['X-DSS-SIZE'], str(src_size))
+
+    def upload_file(
+            self: typing.Any,
+            source_url: str,
+            file_uuid: str,
+            bundle_uuid: str=None,
+            version: str=None,
+            expected_code: int=requests.codes.created,
+    ):
+        bundle_uuid = str(uuid.uuid4()) if bundle_uuid is None else bundle_uuid
+        if version is None:
+            timestamp = datetime.datetime.utcnow()
+            version = timestamp.strftime("%Y-%m-%dT%H%M%S.%fZ")
+
+        urlbuilder = UrlBuilder().set(path='/v1/files/' + file_uuid)
+        urlbuilder.add_query("version", version)
+
+        resp_obj = self.assertPutResponse(
+            str(urlbuilder),
+            expected_code,
+            json_request_body=dict(
+                bundle_uuid=bundle_uuid,
+                creator_uid=0,
+                source_url=source_url,
+            ),
+        )
+
+        if resp_obj.response.status_code == requests.codes.created:
+            self.assertHeaders(
+                resp_obj.response,
+                {
+                    'content-type': "application/json",
+                }
+            )
+            self.assertIn('version', resp_obj.json)
 
 if __name__ == '__main__':
     unittest.main()

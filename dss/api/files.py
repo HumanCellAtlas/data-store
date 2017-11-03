@@ -78,6 +78,7 @@ def get_helper(uuid: str, replica: str, version: str=None):
     headers['X-DSS-CREATOR-UID'] = file_metadata[FileMetadata.CREATOR_UID]
     headers['X-DSS-VERSION'] = version
     headers['X-DSS-CONTENT-TYPE'] = file_metadata[FileMetadata.CONTENT_TYPE]
+    headers['X-DSS-SIZE'] = file_metadata[FileMetadata.SIZE]
     headers['X-DSS-CRC32C'] = file_metadata[FileMetadata.CRC32C]
     headers['X-DSS-S3-ETAG'] = file_metadata[FileMetadata.S3_ETAG]
     headers['X-DSS-SHA1'] = file_metadata[FileMetadata.SHA1]
