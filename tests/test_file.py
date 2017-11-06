@@ -53,8 +53,7 @@ class TestFileApi(unittest.TestCase, DSSAssertMixin, DSSUploadMixin):
             fh.write(src_data)
             fh.flush()
 
-            uploader.checksum_and_upload_file(
-                fh.name, src_key, {"hca-dss-content-type": "text/plain", })
+            uploader.checksum_and_upload_file(fh.name, src_key, "text/plain")
 
         source_url = f"{scheme}://{test_bucket}/{src_key}"
 
@@ -85,8 +84,7 @@ class TestFileApi(unittest.TestCase, DSSAssertMixin, DSSUploadMixin):
             fh.write(src_data)
             fh.flush()
 
-            uploader.checksum_and_upload_file(
-                fh.name, src_key, {"hca-dss-content-type": "text/plain", })
+            uploader.checksum_and_upload_file(fh.name, src_key, "text/plain")
 
         # should be able to do this twice (i.e., same payload, different UUIDs).  first time should be asynchronous
         # since it's new data.  second time should be synchronous since the data is present.
@@ -295,8 +293,7 @@ class TestFileApi(unittest.TestCase, DSSAssertMixin, DSSUploadMixin):
             fh.write(src_data)
             fh.flush()
 
-            uploader.checksum_and_upload_file(
-                fh.name, src_key, {"hca-dss-content-type": "text/plain", })
+            uploader.checksum_and_upload_file(fh.name, src_key, "text/plain")
 
         source_url = f"{scheme}://{test_bucket}/{src_key}"
 

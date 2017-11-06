@@ -13,22 +13,18 @@ def upload(uploader: Uploader):
     uploader.checksum_and_upload_file(
         "cfc7749b96f63bd31c3c42b5c471bf756814053e847c10f3eb003417bc523d30",
         "test_good_source_data/0",
-        {
-            "hca-dss-content-type": "text/plain",
-        }
+        "text/plain",
     )
     uploader.checksum_and_upload_file(
         "9cdc9050cecf59381fed55a2433140b69596fc861bee55abeafd1f9150f3e2da",
         "test_good_source_data/1",
-        {
-            "hca-dss-content-type": "text/plain",
-        }
+        "text/plain",
     )
     uploader.upload_file(
         "9cdc9050cecf59381fed55a2433140b69596fc861bee55abeafd1f9150f3e2da",
         "test_good_source_data/incorrect_case_checksum",
+        "text/plain",
         {
-            "hca-dss-content-type": "text/plain",
             "hca-dss-crc32c": "114DEE2C",
             "hca-dss-s3_etag": "7F54939B30AE7B6D45D473A4C82A41B0",
             "hca-dss-sha1": "15684690E8132044F378B4D4AF8A7331C8DA17B1",
@@ -38,12 +34,12 @@ def upload(uploader: Uploader):
 
     if isinstance(uploader, S3Uploader):
         # s3 has an extra test for merging tags and metadata...
-        uploader.upload_file(
+        typing.cast(S3Uploader, uploader).upload_file(
             "9cdc9050cecf59381fed55a2433140b69596fc861bee55abeafd1f9150f3e2da",
             "test_good_source_data/metadata_in_tags",
+            "text/plain",
             {},
             {
-                "hca-dss-content-type": "text/plain",
                 "hca-dss-crc32c": "114dee2c",
                 "hca-dss-s3_etag": "7f54939b30ae7b6d45d473a4c82a41b0",
                 "hca-dss-sha1": "15684690e8132044f378b4d4af8a7331c8da17b1",
@@ -55,8 +51,8 @@ def upload(uploader: Uploader):
     uploader.upload_file(
         "cfc7749b96f63bd31c3c42b5c471bf756814053e847c10f3eb003417bc523d30",
         "test_bad_source_data/incorrect_checksum",
+        "text/plain",
         {
-            "hca-dss-content-type": "text/plain",
             "hca-dss-crc32c": "07b9e16e",
             "hca-dss-s3_etag": "55fc854ddc3c6bd573b83ef96387f146",
             "hca-dss-sha1": "fb4ba0588b8b6c4918902b8b815229aa8a61e483",
@@ -109,9 +105,7 @@ def upload(uploader: Uploader):
         uploader.checksum_and_upload_file(
             f"test_api/{fname}",
             f"fixtures/test_api/bundle/{fname}",
-            {
-                "hca-dss-content-type": "application/javascript",
-            },
+            "application/json",
         )
 
     # Create a bundle based on data-bundle-examples/smartseq2/paired_ends.
@@ -126,9 +120,7 @@ def upload(uploader: Uploader):
             uploader.checksum_and_upload_file(
                 f"{source_path}/{fname}",
                 f"{target_path}/{fname}",
-                {
-                    "hca-dss-content-type": "application/json",
-                },
+                "application/json",
             )
 
     # Create a bundle based on data-bundle-examples/smartseq2/paired_ends.
@@ -139,9 +131,7 @@ def upload(uploader: Uploader):
         uploader.checksum_and_upload_file(
             f"indexing/{fname}",
             f"{target_path}/{fname}",
-            {
-                "hca-dss-content-type": "text/plain",
-            },
+            "text/plain",
         )
 
     # Create an index test bundle that includes a file of with content-type
@@ -156,9 +146,7 @@ def upload(uploader: Uploader):
     uploader.checksum_and_upload_file(
         f"indexing/{fname}",
         f"{target_path}/{fname}",
-        {
-            "hca-dss-content-type": "application/json",
-        },
+        "application/json",
     )
 
 

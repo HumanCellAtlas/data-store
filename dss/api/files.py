@@ -130,6 +130,7 @@ def put(uuid: str, json_request_body: dict, version: str=None):
 
     metadata = handle.get_user_metadata(src_bucket, src_object_name)
     size = handle.get_size(src_bucket, src_object_name)
+    content_type = handle.get_content_type(src_bucket, src_object_name)
 
     # format all the checksums so they're lower-case.
     for metadata_spec in HCABlobStore.MANDATORY_METADATA.values():
@@ -161,7 +162,7 @@ def put(uuid: str, json_request_body: dict, version: str=None):
         FileMetadata.BUNDLE_UUID: json_request_body['bundle_uuid'],
         FileMetadata.CREATOR_UID: json_request_body['creator_uid'],
         FileMetadata.VERSION: version,
-        FileMetadata.CONTENT_TYPE: metadata['hca-dss-content-type'],
+        FileMetadata.CONTENT_TYPE: content_type,
         FileMetadata.SIZE: size,
         FileMetadata.CRC32C: metadata['hca-dss-crc32c'],
         FileMetadata.S3_ETAG: metadata['hca-dss-s3_etag'],
