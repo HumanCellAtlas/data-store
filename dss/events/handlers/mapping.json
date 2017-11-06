@@ -42,7 +42,7 @@
         }
       ]
     },
-    "queries":{
+    "query":{
       "properties":{
         "query": {
           "type": "percolator"
