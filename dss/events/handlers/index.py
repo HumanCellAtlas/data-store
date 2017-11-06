@@ -137,7 +137,8 @@ def add_index_data_to_elasticsearch(bundle_id: str, index_data: dict, index_name
 
 
 def create_elasticsearch_index(index_name, logger):
-    get_elasticsearch_index(ElasticsearchClient.get(logger), index_name, logger)
+    path = os.path.join(os.path.dirname(__file__), "mapping.json")
+    get_elasticsearch_index(ElasticsearchClient.get(logger), index_name, logger, path=path)
 
 
 def add_data_to_elasticsearch(bundle_id: str, index_data: dict, index_name: str, logger) -> None:

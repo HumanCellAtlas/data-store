@@ -134,17 +134,21 @@ class ElasticsearchClient:
         return client
 
 
-def get_elasticsearch_index(es_client, index_name, logger, index_mapping=None):
+def get_elasticsearch_index(es_client, index_name, logger, index_mapping=None, path=None):
+    '''Retrieve the elastic search index if it exist. Otherwise use the .json mapping pointed to by `path` or the json
+    dictionary passed in by `index_mapping`.
+    '''
     try:
         response = es_client.indices.exists(index_name)
         if response:
             logger.debug(f"Using existing Elasticsearch index: {index_name}")
         else:
             logger.debug(f"Creating new Elasticsearch index: {index_name}")
-            with open(os.path.join(os.path.dirname(__file__), "mapping.json"), "r") as fh:
-                index_mapping = json.load(fh)
-            index_mapping["mappings"][ESDocType.doc.name] = index_mapping["mappings"].pop("doc")
-            index_mapping["mappings"][ESDocType.query.name] = index_mapping["mappings"].pop("queries")
+            if path is not None:
+                with open(path, "r") as fh:
+                    index_mapping = json.load(fh)
+                index_mapping["mappings"][ESDocType.doc.name] = index_mapping["mappings"].pop("doc")
+                index_mapping["mappings"][ESDocType.query.name] = index_mapping["mappings"].pop("queries")
             response = es_client.indices.create(index_name, body=index_mapping)
             logger.debug("Index creation response: %s", json.dumps(response, indent=4))
 
