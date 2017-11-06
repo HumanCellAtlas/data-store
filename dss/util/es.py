@@ -15,7 +15,6 @@ from botocore.vendored import requests
 from elasticsearch import RequestsHttpConnection, Elasticsearch
 from requests_aws4auth import AWS4Auth
 
-from dss import ESDocType
 from . import networking
 
 
