@@ -15,6 +15,7 @@ from botocore.vendored import requests
 from elasticsearch import RequestsHttpConnection, Elasticsearch
 from requests_aws4auth import AWS4Auth
 
+from dss import ESDocType
 from . import networking
 
 
@@ -140,6 +141,10 @@ def get_elasticsearch_index(es_client, index_name, logger, index_mapping=None):
             logger.debug(f"Using existing Elasticsearch index: {index_name}")
         else:
             logger.debug(f"Creating new Elasticsearch index: {index_name}")
+            with open(os.path.join(os.path.dirname(__file__), "mapping.json"), "r") as fh:
+                index_mapping = json.load(fh)
+            index_mapping["mappings"][ESDocType.doc.name] = index_mapping["mappings"].pop("doc")
+            index_mapping["mappings"][ESDocType.query.name] = index_mapping["mappings"].pop("queries")
             response = es_client.indices.create(index_name, body=index_mapping)
             logger.debug("Index creation response: %s", json.dumps(response, indent=4))
 
