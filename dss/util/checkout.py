@@ -1,3 +1,4 @@
+import uuid
 from logging import getLogger
 
 import chainedawslambda
@@ -95,3 +96,6 @@ def validate_dst_bucket(dst_bucket: str, replica: str) -> (bool, str):
 
 def get_bucket_region(bucket: str):
     return blobstore.get_bucket_region(bucket)
+
+def get_execution_id() -> str:
+    return str(uuid.uuid1())
