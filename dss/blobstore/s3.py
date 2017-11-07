@@ -4,6 +4,7 @@ import requests
 import typing
 
 from boto3.s3.transfer import TransferConfig
+from botocore.exceptions import ClientError
 
 from . import (
     BlobNotFoundError,
@@ -25,6 +26,7 @@ class S3BlobStore(BlobStore):
                 raise BlobStoreCredentialError()
 
         self.s3_client = boto3.client("s3")
+        self.s3 = boto3.resource('s3')
 
     def list(
             self,
@@ -259,3 +261,48 @@ class S3BlobStore(BlobStore):
             if error_code == 404:
                 exists = False
         return exists
+
+    public_acl_indicator = 'http://acs.amazonaws.com/groups/global/AllUsers'
+
+    def check_bucket_permissions(self, bucket: str, permissions_to_check:[str]) -> bool:
+        """
+        Checks if bucket with specified name exists.
+        :param bucket: the bucket to be checked.
+        :param permissions_to_check: array of persmissions to check e.g. ['READ', 'WRITE']
+        :return: true if specified permissions are granted to public.
+        """
+        bucket_acl = self.s3_client.get_bucket_acl(Bucket=bucket)
+
+        for grants in bucket_acl['Grants']:
+            for (k, v) in grants.items():
+                if k == 'Permission' and any(permission in v for permission in permissions_to_check):
+                    for (grantee_attrib_k, grantee_attrib_v) in grants['Grantee'].items():
+                        if 'URI' in grantee_attrib_k and grants['Grantee']['URI'] == S3BlobStore.public_acl_indicator:
+                            return True
+        return False
+
+    def get_bucket_region(self, bucket) -> str:
+        """
+        Get region associated with a specified bucket name.
+        :param bucket: the bucket to be checked.
+        :return: region, Note that underying AWS API returns None for default US-East-1, I'm replacing that with us-east-1.
+        """
+        region = self.s3.meta.client.get_bucket_location(Bucket=bucket)["LocationConstraint"]
+        return 'us-east-1' if region is None else region
+
+    test_file = 'touch/testfile.txt'
+    def touch_test_file(self, bucket) -> (bool, str):
+        """
+        Write a test file into the specified bucket.
+        :param bucket: the bucket to be checked.
+        :return: True if able to write, if not also returns error message as a cause
+        """
+        result = False
+        cause = None
+        try:
+            self.s3.Object(bucket, S3BlobStore.test_file).put(Body='Test', Metadata={'foo': 'bar'})
+            result = True
+        except Exception as e:
+            cause = "Error {0}".format(str(e))
+        return result, cause
+
