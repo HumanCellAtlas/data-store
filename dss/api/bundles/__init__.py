@@ -1,8 +1,6 @@
 import datetime
 import io
 import json
-import typing
-
 import iso8601
 import requests
 from cloud_blobstore import BlobNotFoundError

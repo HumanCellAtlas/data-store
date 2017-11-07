@@ -3,12 +3,11 @@ import os
 import domovoi
 
 pkg_root = os.path.abspath(os.path.join(os.path.dirname(__file__), 'domovoilib'))  # noqa
-sys.path.insert(0, pkg_root)
+sys.path.insert(0, pkg_root)  # noqa
 
 import dss
 from dss.util.state_machine.checkout_states import definition
 from dss.util.email import send_checkout_success_email, send_checkout_failure_email
-
 from dss.util.checkout import parallel_copy, get_dst_bundle_prefix, get_manifest_files, \
     validate_file_dst, validate_dst_bucket
 
