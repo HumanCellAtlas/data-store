@@ -28,7 +28,7 @@ class TestFile:
     def __init__(self, file_key, bundle, replica) -> None:
         self.bundle = bundle
         self.metadata = bundle.handle.get_user_metadata(bundle.bucket, file_key)
-        self.indexed = True if self.metadata['hca-dss-content-type'] == "application/json" else False
+        self.indexed = bundle.handle.get_content_type(bundle.bucket, file_key) == "application/json"
         self.name = os.path.basename(file_key)
         self.path = file_key
         self.uuid = str(uuid.uuid4())

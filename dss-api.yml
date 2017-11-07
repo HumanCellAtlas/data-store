@@ -245,11 +245,11 @@ paths:
       summary: Create a new version of a file
       description: |
         Create a new version of a file with a given UUID.  The file content is passed in through a cloud URL.  The file
-        on the cloud provider must have metadata set reflecting the file checksums and the file content type.
+        on the cloud provider must have metadata set reflecting the file checksums and the cloud provider's content-type
+        field must be set.
 
         The metadata fields required are:
 
-        - hca-dss-content-type: content-type of the file
         - hca-dss-sha256: SHA-256 checksum of the file
         - hca-dss-sha1: SHA-1 checksum of the file
         - hca-dss-s3_etag: S3 ETAG checksum of the file.  See

@@ -24,9 +24,6 @@ class HCABlobStore:
         S3_ETAG=dict(
             keyname="hca-dss-s3_etag",
             downcase=True),
-        CONTENT_TYPE=dict(
-            keyname="hca-dss-content-type",
-            downcase=False),
     )
 
     def verify_blob_checksum(self, bucket: str, object_name: str, metadata: typing.Dict[str, str]) -> bool:
