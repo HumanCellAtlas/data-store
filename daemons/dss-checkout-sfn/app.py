@@ -1,6 +1,6 @@
 import sys
-import domovoi
 import os
+import domovoi
 
 pkg_root = os.path.abspath(os.path.join(os.path.dirname(__file__), 'domovoilib'))  # noqa
 sys.path.insert(0, pkg_root)
@@ -17,20 +17,19 @@ dss.Config.set_config(dss.BucketConfig.NORMAL)
 test_bucket = "org-humancellatlas-dss-dev"
 HCA_HOSTED_CHECKOUT_BUCKET = "org-humancellatlas-dss-dev"
 replica = "aws"
+email_sender = "Roman Kisin <rkisin@chanzuckerberg.com>"
 
 log = dss.get_logger()
 
 
 @app.step_function_task(state_name="ScheduleCopy", state_machine_definition=definition)
 def worker(event, context):
-    bundle_id = event["bundle_id"]
+    bundle_id = event["bundle"]
     version = event["version"]
     src_bucket = test_bucket
     dst_bucket = get_bucket(event)
-    #    handle, hca_handle, src_bucket = Config.get_cloud_specific_handles(replica)
 
     scheduled = 0
-
     for src_key, dst_key in get_manifest_files(bundle_id, version, replica):
         log.debug("Copying a file " + dst_key)
         parallel_copy(src_bucket, src_key, dst_bucket, dst_key)
@@ -40,7 +39,7 @@ def worker(event, context):
 
 @app.step_function_task(state_name="GetJobStatus", state_machine_definition=definition)
 def get_job_status(event, context):
-    bundle_id = event["bundle_id"]
+    bundle_id = event["bundle"]
     version = event["version"]
 
     check_count = 0
@@ -71,23 +70,20 @@ def sanity_check(event, context):
 
 @app.step_function_task(state_name="Notify", state_machine_definition=definition)
 def notify_complete(event, context):
-    sender = "Roman Kisin <rkisin@chanzuckerberg.com>"
-    result = send_checkout_success_email(sender, event["requester_email"], get_bucket(event),
+    result = send_checkout_success_email(email_sender, event["email"], get_bucket(event),
                                          event["schedule"]["dst_location"])
     return {"result": result}
 
 
 @app.step_function_task(state_name="NotifyFailure", state_machine_definition=definition)
 def notify_complete_failure(event, context):
-    sender = "Roman Kisin <rkisin@chanzuckerberg.com>"
-
     cause = "Unknown issue"
     if "status" in event:
         cause = "failure to complete work within allowed time interval"
     elif "validation" in event:
         code = event["validation"].get("code", "Unknown error code")
         cause = "{} ({})".format(event["validation"].get("cause", "Unknown error"), code)
-    result = send_checkout_failure_email(sender, event["requester_email"], cause)
+    result = send_checkout_failure_email(email_sender, event["email"], cause)
     return {"result": result}
 
 
