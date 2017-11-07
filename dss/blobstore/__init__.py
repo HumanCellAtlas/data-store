@@ -102,6 +102,30 @@ class BlobStore:
         """
         raise NotImplementedError()
 
+    def check_bucket_permissions(self, bucket: str, permissions_to_check:[str]) -> bool:
+        """
+        Checks if bucket with specified name exists.
+        :param bucket: the bucket to be checked.
+        :param permissions_to_check: array of persmissions to check e.g. ['READ', 'WRITE']
+        :return: true if specified permissions are granted to public.
+        """
+        raise NotImplementedError()
+
+    def get_bucket_region(self, bucket) -> str:
+        """
+        Get region associated with a specified bucket name.
+        :param bucket: the bucket to be checked.
+        :return: region, Note that underying AWS API returns None for default US-East-1, I'm replacing that with us-east-1.
+        """
+        raise NotImplementedError()
+
+    def touch_test_file(self, bucket) -> (bool, str):
+        """
+        Write a test file into the specified bucket.
+        :param bucket: the bucket to be checked.
+        :return: True if able to write, if not also returns error message as a cause
+        """
+
 
 class BlobStoreError(Exception):
     pass

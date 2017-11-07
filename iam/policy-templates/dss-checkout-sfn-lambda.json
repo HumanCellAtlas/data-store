@@ -6,6 +6,8 @@
       "Action": [
         "logs:CreateLogGroup",
         "logs:CreateLogStream",
+        "logs:DescribeLogGroups",
+        "logs:DescribeLogStreams",
         "logs:PutLogEvents"
       ],
       "Resource": "arn:aws:logs:*:*:*"
@@ -22,7 +24,8 @@
       "Effect": "Allow",
       "Action": "sns:Publish",
       "Resource": [
-        "arn:aws:sns:*:$account_id:dss-*-$stage"
+        "arn:aws:sns:*:$account_id:dss-*-$stage",
+        "arn:aws:sns:*:$account_id:*-*-$stage"
       ]
     },
     {
@@ -31,6 +34,13 @@
       "Resource": [
         "arn:aws:lambda:*:$account_id:function:dss-*",
         "arn:aws:lambda:*:$account_id:function:chained-aws-lambda-*"
+      ]
+    },
+    {
+      "Effect": "Allow",
+      "Action": "ses:SendEmail",
+      "Resource": [
+        "arn:aws:ses:*:*:*"
       ]
     }
 
