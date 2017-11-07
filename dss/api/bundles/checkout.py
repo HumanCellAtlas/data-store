@@ -17,4 +17,4 @@ def post(uuid: str, json_request_body: dict, replica: str, version: str = None):
         name="a unique name",
         input=input
     )
-    return jsonify(dict(version=version, url='a')), requests.codes.ok
+    return jsonify(dict(version=version, execution_id=response["executionArn"])), requests.codes.ok

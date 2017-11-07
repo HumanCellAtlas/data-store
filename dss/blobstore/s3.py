@@ -264,7 +264,7 @@ class S3BlobStore(BlobStore):
 
     public_acl_indicator = 'http://acs.amazonaws.com/groups/global/AllUsers'
 
-    def check_bucket_permissions(self, bucket: str, permissions_to_check:[str]) -> bool:
+    def check_bucket_permissions(self, bucket: str, permissions_to_check: [str]) -> bool:
         """
         Checks if bucket with specified name exists.
         :param bucket: the bucket to be checked.
@@ -285,7 +285,8 @@ class S3BlobStore(BlobStore):
         """
         Get region associated with a specified bucket name.
         :param bucket: the bucket to be checked.
-        :return: region, Note that underying AWS API returns None for default US-East-1, I'm replacing that with us-east-1.
+        :return: region, Note that underying AWS API returns None for default US-East-1,
+        I'm replacing that with us-east-1.
         """
         region = self.s3.meta.client.get_bucket_location(Bucket=bucket)["LocationConstraint"]
         return 'us-east-1' if region is None else region
@@ -305,4 +306,3 @@ class S3BlobStore(BlobStore):
         except Exception as e:
             cause = "Error {0}".format(str(e))
         return result, cause
-

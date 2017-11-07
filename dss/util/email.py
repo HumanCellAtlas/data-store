@@ -43,17 +43,20 @@ def send_email(sender: str, to: str, subject: str, html: str, text: str) -> str:
 def send_checkout_success_email(sender: str, to: str, bucket: str, location: str):
     subject = "Bundle checkout complete"
 
-    text = "Hello,Your checkout request has been processed. Your files are available at bucket {} location {}.".format(
-        bucket, location)
+    text = "Hello,Your checkout request has been processed. Your files are available at bucket {} location {}.".\
+        format(bucket, location)
 
     html = """<html>
        <head></head>
        <body>
          <h1>Hello,</h1>
-         <p>Your checkout request has been processed. Your files are available at bucket <strong>{}</strong> location <strong>{}</strong>.</p>
+         <p>
+            Your checkout request has been processed.
+             Your files are available at bucket <strong>{}</strong> location <strong>{}</strong>.
+         </p>
        </body>
        </html>
-                   """.format(bucket, location)
+       """.format(bucket, location)
     return send_email(sender, to, subject, html, text)
 
 

@@ -1,5 +1,6 @@
 definition = {
-    "Comment": "DSS Checkout service state machine that submits a Job to chained copy client and monitors the Job until it completes.",
+    "Comment": "DSS Checkout service state machine that submits a Job to chained copy client"
+               " and monitors the Job until it completes.",
     "StartAt": "SanityCheck",
     "States": {
         "SanityCheck": {
