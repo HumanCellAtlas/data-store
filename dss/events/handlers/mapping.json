@@ -29,12 +29,12 @@
           "short_strings": {
             "match_mapping_type": "string",
             "mapping": {
-              "type": "text",
+              "normalizer": "keyword_lowercase",
+              "type": "keyword",
+              "ignore_above": 256,
               "fields": {
-                "keyword": {
-                  "normalizer": "keyword_lowercase",
-                  "type": "keyword",
-                  "ignore_above": 256
+                "text": {
+                  "type": "text"
                 }
               }
             }
