@@ -30,5 +30,4 @@ def post(uuid: str, json_request_body: dict, replica: str, version: str = None):
         name=get_execution_id(),
         input=input
     )
-    print(">>>>>")
     return jsonify(dict(version=version, url='TBD', execution_id=response["executionArn"])), requests.codes.ok

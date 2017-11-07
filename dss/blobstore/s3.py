@@ -264,7 +264,7 @@ class S3BlobStore(BlobStore):
 
     public_acl_indicator = 'http://acs.amazonaws.com/groups/global/AllUsers'
 
-    def check_bucket_permissions(self, bucket: str, permissions_to_check: [str]) -> bool:
+    def check_bucket_permissions(self, bucket: str, permissions_to_check) -> bool:
         """
         Checks if bucket with specified name exists.
         :param bucket: the bucket to be checked.
@@ -291,8 +291,7 @@ class S3BlobStore(BlobStore):
         region = self.s3.meta.client.get_bucket_location(Bucket=bucket)["LocationConstraint"]
         return 'us-east-1' if region is None else region
 
-    test_file = 'touch/testfile.txt'
-    def touch_test_file(self, bucket) -> (bool, str):
+    def touch_test_file(self, bucket):
         """
         Write a test file into the specified bucket.
         :param bucket: the bucket to be checked.
@@ -301,7 +300,8 @@ class S3BlobStore(BlobStore):
         result = False
         cause = None
         try:
-            self.s3.Object(bucket, S3BlobStore.test_file).put(Body='Test', Metadata={'foo': 'bar'})
+            self.s3.Object(bucket, 'touch.txt').put(Body='Test', Metadata={'foo': 'bar'})
+            self.s3_client.delete_object(Bucket=bucket, Key='touch.txt')
             result = True
         except Exception as e:
             cause = "Error {0}".format(str(e))

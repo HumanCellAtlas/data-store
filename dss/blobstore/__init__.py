@@ -102,7 +102,7 @@ class BlobStore:
         """
         raise NotImplementedError()
 
-    def check_bucket_permissions(self, bucket: str, permissions_to_check: [str]) -> bool:
+    def check_bucket_permissions(self, bucket: str, permissions_to_check) -> bool:
         """
         Checks if bucket with specified name exists.
         :param bucket: the bucket to be checked.
@@ -120,7 +120,7 @@ class BlobStore:
         """
         raise NotImplementedError()
 
-    def touch_test_file(self, bucket) -> (bool, str):
+    def touch_test_file(self, bucket):
         """
         Write a test file into the specified bucket.
         :param bucket: the bucket to be checked.

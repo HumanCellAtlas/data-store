@@ -38,8 +38,6 @@ class ValidationEnum(Enum):
 
 test_bucket = "org-humancellatlas-dss-dev"
 
-
-# region Description
 def parallel_copy(
         source_bucket: str, source_key: str,
         destination_bucket: str, destination_key: str):
@@ -51,8 +49,6 @@ def parallel_copy(
         get_s3_chunk_size,
         3600)
     aws.schedule_task(S3ParallelCopySupervisorTask, initial_state)
-
-# endregion
 
 def get_src_object_name(file_metadata: dict):
     return "blobs/" + ".".join((
@@ -83,7 +79,7 @@ def validate_file_dst(dst_bucket: str, dst_key: str, replica: str):
         valid = False
     return valid
 
-def validate_dst_bucket(dst_bucket: str, replica: str) -> (bool, str):
+def validate_dst_bucket(dst_bucket: str, replica: str):
     if (not blobstore.check_bucket_exists(dst_bucket)):
         return ValidationEnum.WRONG_DST_BUCKET, None
     touchRes, cause = blobstore.touch_test_file(dst_bucket)

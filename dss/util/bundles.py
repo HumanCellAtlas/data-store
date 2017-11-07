@@ -1,5 +1,6 @@
 import json
 import os
+import typing
 
 from dss import Config, DSSException
 from dss.blobstore import BlobNotFoundError
