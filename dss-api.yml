@@ -752,9 +752,13 @@ paths:
               url:
                 description: Location of the checked out bundle.
                 type: string
+              execution_id:
+                description: Handle of the checkout execution request.
+                type: string
             required:
               - version
               - url
+              - execution_id
         201:
           description: Returned when the bundle UUID with optionally specified version exists and checkout has been initiated.
           schema:
