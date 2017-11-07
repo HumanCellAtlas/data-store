@@ -553,8 +553,8 @@ def create_index_data(blobstore, bucket_name, manifest):
         if file_info['indexed'] is True:
             try:
                 file_key = create_blob_key(file_info)
-                obj = blobstore.get_user_metadata(bucket_name, file_key)
-                if obj['hca-dss-content-type'] != "application/json":
+                content_type = file_info[BundleFileMetadata.CONTENT_TYPE]
+                if content_type != "application/json":
                     continue
                 file_string = blobstore.get(bucket_name, file_key).decode("utf-8")
                 file_json = json.loads(file_string)
