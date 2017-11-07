@@ -42,14 +42,14 @@ test_bucket = "org-humancellatlas-dss-dev"
 def parallel_copy(
         source_bucket: str, source_key: str,
         destination_bucket: str, destination_key: str):
-    log.debug(f"Copy file from bucket {source_bucket}"
-                 f" with key {source_key} to bucket {destination_bucket} destination file: {destination_key}")
+    log.debug(f"Copy file from bucket {source_bucket} with key {source_key} to "
+              f"bucket {destination_bucket} destination file: {destination_key}")
     initial_state = S3ParallelCopySupervisorTask.setup_copy_task(
         source_bucket, source_key,
         destination_bucket, destination_key,
         get_s3_chunk_size,
         3600)
-    task_id = aws.schedule_task(S3ParallelCopySupervisorTask, initial_state)
+    aws.schedule_task(S3ParallelCopySupervisorTask, initial_state)
 
 # endregion
 
@@ -64,7 +64,7 @@ def get_src_object_name(file_metadata: dict):
 def get_dst_bundle_prefix(bundle_id: str, bundle_version: str) -> str:
     return "checkedout/{}.{}".format(bundle_id, bundle_version)
 
-def get_manifest_files(bundle_id:str, version: str, replica: str):
+def get_manifest_files(bundle_id: str, version: str, replica: str):
     bundleManifest = get_bundle(bundle_id, replica, version).get('bundle')
     files = bundleManifest.get('files')
     dst_bundle_prefix = get_dst_bundle_prefix(bundle_id, version)
