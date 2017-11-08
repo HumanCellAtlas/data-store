@@ -19,7 +19,7 @@ from ...hcablobstore import BundleMetadata, BundleFileMetadata
 from ...util.es import ElasticsearchClient, get_elasticsearch_index
 
 DSS_BUNDLE_KEY_REGEX = r"^bundles/[0-9A-Fa-f]{8}-[0-9A-Fa-f]{4}-4[0-9A-Fa-f]{3}-[0-9A-Fa-f]{4}-[0-9A-Fa-f]{12}\..+$"
-
+DSS_APP = r"application/json.*"
 
 def process_new_s3_indexable_object(event, logger) -> None:
     try:
@@ -82,7 +82,7 @@ def create_index_data(handle: BlobStore, bucket_name: str, bundle_id: str, manif
     index_files = {}
     for file_info in files_info:
         if file_info[BundleFileMetadata.INDEXED] is True:
-            if file_info[BundleFileMetadata.CONTENT_TYPE] != 'application/json':
+            if  re.fullmatch(DSS_APP, file_info[BundleFileMetadata.CONTENT_TYPE]):
                 logger.warning(f"In bundle {bundle_id} the file \"{file_info[BundleFileMetadata.NAME]}\""
                                " is marked for indexing yet has content type"
                                f" \"{file_info[BundleFileMetadata.CONTENT_TYPE]}\""
