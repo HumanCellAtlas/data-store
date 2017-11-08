@@ -82,13 +82,6 @@ def create_index_data(handle: BlobStore, bucket_name: str, bundle_id: str, manif
     index_files = {}
     for file_info in files_info:
         if file_info[BundleFileMetadata.INDEXED] is True:
-            if file_info[BundleFileMetadata.CONTENT_TYPE] != 'application/json':
-                logger.warning(f"In bundle {bundle_id} the file \"{file_info[BundleFileMetadata.NAME]}\""
-                               " is marked for indexing yet has content type"
-                               f" \"{file_info[BundleFileMetadata.CONTENT_TYPE]}\""
-                               " instead of the required content type \"application/json\"."
-                               " This file will not be indexed.")
-                continue
             try:
                 file_blob_key = create_blob_key(file_info)
                 file_string = handle.get(bucket_name, file_blob_key).decode("utf-8")

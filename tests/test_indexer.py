@@ -126,25 +126,6 @@ class TestIndexerBase(DSSAssertMixin, DSSStorageMixin, DSSUploadMixin):
         self.verify_index_document_structure_and_content(search_results[0], self.bundle_key,
                                                          files=smartseq2_paried_ends_indexed_file_list)
 
-    def test_indexed_file_with_invalid_content_type(self):
-        bundle = TestBundle(self.blobstore, "fixtures/smartseq2/paired_ends", self.test_fixture_bucket, self.replica)
-        # Configure a file to be indexed that is not of context type 'application/json'
-        for file in bundle.files:
-            if file.name == "text_data_file1.txt":
-                file.indexed = True
-        bundle_key = self.load_test_data_bundle(bundle)
-        sample_event = self.create_sample_bundle_created_event(bundle_key)
-        with self.assertLogs(logger, level="WARNING") as log_monitor:
-            self.process_new_indexable_object(sample_event, logger)
-        self.assertRegex(log_monitor.output[0],
-                         "WARNING:.*:In bundle .* the file \"text_data_file1.txt\" is marked for indexing"
-                         " yet has content type \"text/plain\" instead of the required"
-                         " content type \"application/json\". This file will not be indexed.")
-        search_results = self.get_search_results(smartseq2_paired_ends_v3_query, 1)
-        self.assertEqual(1, len(search_results))
-        self.verify_index_document_structure_and_content(search_results[0], bundle_key,
-                                                         files=smartseq2_paried_ends_indexed_file_list)
-
     def test_key_is_not_indexed_when_processing_an_event_with_a_nonbundle_key(self):
         bundle_uuid = "{}.{}".format(str(uuid.uuid4()), get_version())
         bundle_key = "files/" + bundle_uuid
