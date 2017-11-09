@@ -7,6 +7,7 @@ from chainedawslambda.s3copyclient import S3ParallelCopySupervisorTask
 from enum import Enum, auto
 
 from dss import chained_lambda_clients
+from dss.blobstore import BlobNotFoundError, BlobStoreUnknownError
 from dss.blobstore.s3 import S3BlobStore
 from dss.util.aws import get_s3_chunk_size
 from dss.util.bundles import get_bundle
@@ -75,7 +76,7 @@ def validate_file_dst(dst_bucket: str, dst_key: str, replica: str):
     valid = True
     try:
         blobstore.get_all_metadata(dst_bucket, dst_key)
-    except:
+    except (BlobNotFoundError, BlobStoreUnknownError):
         valid = False
     return valid
 
