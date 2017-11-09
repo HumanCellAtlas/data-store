@@ -47,7 +47,7 @@ class TestFileApi(unittest.TestCase, DSSAssertMixin, DSSUploadMixin):
                   .add_query("version", version))
 
         with override_bucket_config(BucketConfig.TEST_FIXTURE):
-            resp_obj = self.assertGetResponse(
+            resp_obj = self.assertPostResponse(
                 url,
                 requests.codes.ok,
                 request_body
