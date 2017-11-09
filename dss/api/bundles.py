@@ -1,17 +1,23 @@
 import datetime
 import io
 import json
+import time
 import typing
 
 import iso8601
+import nestedcontext
 import requests
 from cloud_blobstore import BlobNotFoundError
-from flask import jsonify, make_response
+from flask import jsonify
 
 from .. import DSSException, dss_handler
 from ..config import Config
 from ..hcablobstore import BundleFileMetadata, BundleMetadata, FileMetadata
 from ..util import UrlBuilder
+
+
+PUT_TIME_ALLOWANCE_SECONDS = 10
+"""This is the minimum amount of time remaining on the lambda for us to retry on a PUT /bundles request."""
 
 
 @dss_handler
@@ -108,19 +114,38 @@ def put(uuid: str, replica: str, json_request_body: dict, version: str=None):
     files = [{'user_supplied_metadata': file}
              for file in json_request_body['files']]
 
-    # fetch the corresponding file metadata files.  if any do not exist, immediately fail.
-    for file in files:
-        user_supplied_metadata = file['user_supplied_metadata']
-        metadata_path = 'files/{}.{}'.format(user_supplied_metadata['uuid'], user_supplied_metadata['version'])
-        try:
-            file_metadata = handle.get(bucket, metadata_path)
-        except BlobNotFoundError:
-            raise DSSException(
-                requests.codes.conflict,
-                "file_missing",
-                f"Could not find file {user_supplied_metadata['uuid']}/{user_supplied_metadata['version']}."
-            )
-        file['file_metadata'] = json.loads(file_metadata)
+    time_left = nestedcontext.inject("time_left")
+
+    while True:
+        # each time through the outer while-loop, we try to gather up all the file metadata.
+        for file in files:
+            user_supplied_metadata = file['user_supplied_metadata']
+            metadata_path = 'files/{}.{}'.format(user_supplied_metadata['uuid'], user_supplied_metadata['version'])
+            if 'file_metadata' not in file:
+                try:
+                    file_metadata = handle.get(bucket, metadata_path)
+                except BlobNotFoundError:
+                    continue
+                file['file_metadata'] = json.loads(file_metadata)
+
+        # check to see if any file metadata is still not yet loaded.
+        for file in files:
+            if 'file_metadata' not in file:
+                missing_file_user_metadata = file['user_supplied_metadata']
+                break
+        else:
+            break
+
+        # if we're out of time, give up.
+        if time_left() > PUT_TIME_ALLOWANCE_SECONDS:
+            time.sleep(1)
+            continue
+
+        raise DSSException(
+            requests.codes.conflict,
+            "file_missing",
+            f"Could not find file {missing_file_user_metadata['uuid']}/{missing_file_user_metadata['version']}."
+        )
 
     # TODO: (ttung) should validate the files' bundle UUID points back at us.
 

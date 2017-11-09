@@ -8,6 +8,7 @@ elasticsearch
 elasticsearch_dsl
 google-cloud-storage
 iso8601
+nestedcontext
 requests_aws4auth
 urllib3
 requests-http-signature

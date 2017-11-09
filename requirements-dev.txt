@@ -15,7 +15,7 @@ chalice==1.0.3
 chardet==3.0.4
 click==6.7
 clickclick==1.2.2
-cloud-blobstore==0.0.5
+cloud-blobstore==0.0.6
 colorama==0.3.7
 connexion==1.1.15
 cookies==2.2.1
@@ -48,6 +48,7 @@ mccabe==0.6.1
 mock==2.0.0
 moto==1.1.21
 mypy==0.530
+nestedcontext==0.0.4
 pbr==3.1.1
 protobuf==3.4.0
 pyaml==17.8.0
