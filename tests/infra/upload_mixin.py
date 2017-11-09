@@ -1,9 +1,11 @@
-import typing
-
-import requests
+import datetime
 import time
+import typing
 import uuid
 
+import requests
+
+from dss.util import UrlBuilder
 from .assert_mixin import DSSAssertResponse
 
 
@@ -13,6 +15,7 @@ class DSSUploadMixin:
             source_url: str,
             replica: str,
             file_uuid: str=None,
+            file_version: str=None,
             bundle_uuid: str=None,
             timeout_seconds: int=120,
             expect_async: typing.Optional[bool]=None,
@@ -29,8 +32,15 @@ class DSSUploadMixin:
             expected_codes = requests.codes.created
         else:
             expected_codes = requests.codes.created, requests.codes.accepted
+
+        if file_version is None:
+            timestamp = datetime.datetime.utcnow()
+            file_version = timestamp.strftime("%Y-%m-%dT%H%M%S.%fZ")
+        url = UrlBuilder().set(path=f"/v1/files/{file_uuid}")
+        url.add_query("version", file_version)
+
         resp_obj = self.assertPutResponse(
-            f"/v1/files/{file_uuid}",
+            str(url),
             expected_codes,
             json_request_body=dict(
                 bundle_uuid=bundle_uuid,

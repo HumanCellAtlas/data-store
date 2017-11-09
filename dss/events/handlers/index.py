@@ -82,7 +82,7 @@ def create_index_data(handle: BlobStore, bucket_name: str, bundle_id: str, manif
     index_files = {}
     for file_info in files_info:
         if file_info[BundleFileMetadata.INDEXED] is True:
-            if file_info[BundleFileMetadata.CONTENT_TYPE] != 'application/json':
+            if not file_info[BundleFileMetadata.CONTENT_TYPE].startswith('application/json'):
                 logger.warning(f"In bundle {bundle_id} the file \"{file_info[BundleFileMetadata.NAME]}\""
                                " is marked for indexing yet has content type"
                                f" \"{file_info[BundleFileMetadata.CONTENT_TYPE]}\""
@@ -137,18 +137,14 @@ def add_index_data_to_elasticsearch(bundle_id: str, index_data: dict, index_name
 
 
 def create_elasticsearch_index(index_name, logger):
-    index_mapping = {
-        'mappings': {
-            ESDocType.query.name: {
-                'properties': {
-                    'query': {
-                        'type': "percolator"
-                    }
-                }
-            }
-        }
-    }
-    get_elasticsearch_index(ElasticsearchClient.get(logger), index_name, logger, index_mapping)
+    if not ElasticsearchClient.get(logger).indices.exists(index_name):
+        with open(os.path.join(os.path.dirname(__file__), "mapping.json"), "r") as fh:
+            index_mapping = json.load(fh)
+        index_mapping["mappings"][ESDocType.doc.name] = index_mapping["mappings"].pop("doc")
+        index_mapping["mappings"][ESDocType.query.name] = index_mapping["mappings"].pop("query")
+        get_elasticsearch_index(ElasticsearchClient.get(logger), index_name, logger, index_mapping)
+    else:
+        logger.debug(f"Using existing Elasticsearch index: {index_name}")
 
 
 def add_data_to_elasticsearch(bundle_id: str, index_data: dict, index_name: str, logger) -> None:

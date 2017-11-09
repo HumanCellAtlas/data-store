@@ -13,8 +13,9 @@ import typing
 from concurrent.futures import ThreadPoolExecutor, TimeoutError
 from http.cookies import SimpleCookie
 
-import chalice
 import boto3
+import chalice
+import nestedcontext
 import requests
 from flask import json
 
@@ -148,7 +149,12 @@ def get_chalice_app(flask_app) -> DSSChaliceApp:
                 headers=list(app.current_request.headers.items()),
                 data=req_body,
                 environ_base=app.current_request.stage_vars):
-            flask_res = flask_app.full_dispatch_request()
+            with nestedcontext.bind(
+                    time_left=lambda: (
+                        (app.lambda_context.get_remaining_time_in_millis() / 1000) -
+                        EXECUTION_TERMINATION_THRESHOLD_SECONDS),
+                    skip_on_conflicts=True):
+                flask_res = flask_app.full_dispatch_request()
         res_headers = dict(flask_res.headers)
         # API Gateway/Cloudfront adds a duplicate Content-Length with a different value (not sure why)
         res_headers.pop("Content-Length", None)
