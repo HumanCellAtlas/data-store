@@ -44,3 +44,12 @@ npm-debug.log
 
 # Local environment configuration
 /environment.local
+
+.coverage*
+.Python
+bin/
+include/
+lib/
+pip-selfcheck.json
+share/
+
