@@ -20,6 +20,7 @@ from ...util.es import ElasticsearchClient, get_elasticsearch_index
 
 DSS_BUNDLE_KEY_REGEX = r"^bundles/[0-9A-Fa-f]{8}-[0-9A-Fa-f]{4}-4[0-9A-Fa-f]{3}-[0-9A-Fa-f]{4}-[0-9A-Fa-f]{12}\..+$"
 
+
 def process_new_s3_indexable_object(event, logger) -> None:
     try:
         # This function is only called for S3 creation events
