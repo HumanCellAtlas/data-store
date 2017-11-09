@@ -294,6 +294,29 @@ class TestSearchBase(DSSAssertMixin):
             expected_code=requests.codes.not_found,
             expected_error=ExpectedErrorFields(code="elasticsearch_context_not_found",
                                                status=requests.codes.not_found))
+    def test_verify_dynamic_mapping(self):
+        doc1 = {
+            "manifest": {"data": "hello world!"},
+            "description": "Scooby dooby do, where are you, we got some work to do now.",
+            "time1": "2017-11-02T09:50:20.123123Z",
+            "time2": "2017-11-02 09:55:12",
+            "time3": "2017-11-02",
+        }
+        bundle_uuid = str(uuid.uuid4())
+        version = get_version()
+        bundle_id = f"{bundle_uuid}.{version}"
+        es_client = ElasticsearchClient.get(logger)
+        es_client.index(index=self.dss_index_name,
+                        doc_type=ESDocType.doc.name,
+                        id=bundle_id,
+                        body=doc1)
+        mapping = es_client.indices.get_mapping(self.dss_index_name)[self.dss_index_name]['mappings']
+        self.assertEqual(mapping['query']['properties']['query']['type'], 'percolator')
+        self.assertEqual(mapping['doc']['properties']['description']['type'], 'keyword')
+        self.assertEqual(mapping['doc']['properties']['description']['fields']['text']['type'], 'text')
+        self.assertEqual(mapping['doc']['properties']['time1']['type'], 'date')
+        self.assertEqual(mapping['doc']['properties']['time2']['type'], 'date')
+        self.assertEqual(mapping['doc']['properties']['time3']['type'], 'date')
 
     def populate_search_index(self, index_document: dict, count: int) -> list:
         es_client = ElasticsearchClient.get(logger)
