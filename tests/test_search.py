@@ -297,7 +297,7 @@ class TestSearchBase(DSSAssertMixin):
     def test_verify_dynamic_mapping(self):
         doc1 = {
             "manifest": {"data": "hello world!"},
-            "email": "tsmith12@ucsc.edumbaumann@ucsc.edumbaumann@ucsc.edumbaumann@ucsc.edu",
+            "description": "Scooby dooby do, where are you, we got some work to do now.",
             "time1": "2017-11-02T09:50:20.123123Z",
             "time2": "2017-11-02 09:55:12",
             "time3": "2017-11-02",
@@ -312,8 +312,8 @@ class TestSearchBase(DSSAssertMixin):
                         body=doc1)
         mapping = es_client.indices.get_mapping(self.dss_index_name)[self.dss_index_name]['mappings']
         self.assertEqual(mapping['query']['properties']['query']['type'], 'percolator')
-        self.assertEqual(mapping['doc']['properties']['email']['type'], 'keyword')
-        self.assertEqual(mapping['doc']['properties']['email']['fields']['text']['type'], 'text')
+        self.assertEqual(mapping['doc']['properties']['description']['type'], 'keyword')
+        self.assertEqual(mapping['doc']['properties']['description']['fields']['text']['type'], 'text')
         self.assertEqual(mapping['doc']['properties']['time1']['type'], 'date')
         self.assertEqual(mapping['doc']['properties']['time2']['type'], 'date')
         self.assertEqual(mapping['doc']['properties']['time3']['type'], 'date')
