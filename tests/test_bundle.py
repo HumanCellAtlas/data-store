@@ -164,7 +164,7 @@ class TestDSS(unittest.TestCase, DSSAssertMixin, DSSUploadMixin):
             f"{schema}://{fixtures_bucket}/test_good_source_data/0",
             replica,
             file_uuid,
-            bundle_uuid,
+            bundle_uuid=bundle_uuid,
         )
         file_version = resp_obj.json['version']
 
