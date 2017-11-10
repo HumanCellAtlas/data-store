@@ -3,6 +3,8 @@
 
 import sys
 import unittest
+from pprint import pprint
+
 import requests
 
 
@@ -36,10 +38,11 @@ class TestFileApi(unittest.TestCase, DSSAssertMixin, DSSUploadMixin):
         self.s3_test_bucket = get_env("DSS_S3_BUCKET_TEST")
         self.gs_test_bucket = get_env("DSS_GS_BUCKET_TEST")
 
-    def test_sanity_check(self, replica):
+    def test_sanity_check(self):
+        replica = "aws"
         bundle_uuid = "011c7340-9b3c-4d62-bf49-090d79daf198"
         version = "2017-06-20T214506.766634Z"
-        request_body = {"destination": self.s3_test_bucket, "email": "rkisin@chanzuckerberg.com"}
+        request_body = {"destination": self.s3_test_bucket, "email": "rkisin@chanzuckerberg.com", "replica": "aws"}
 
         url = str(UrlBuilder()
                   .set(path="/v1/bundles/" + bundle_uuid + "/checkout")
@@ -52,4 +55,5 @@ class TestFileApi(unittest.TestCase, DSSAssertMixin, DSSUploadMixin):
                 requests.codes.ok,
                 request_body
             )
-        self.assertIsNotNone(resp_obj["execution_id"])
+
+        self.assertIsNotNone(resp_obj.json["execution_id"])

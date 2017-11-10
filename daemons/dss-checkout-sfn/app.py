@@ -9,7 +9,7 @@ import dss
 from dss.util.state_machine.checkout_states import definition
 from dss.util.email import send_checkout_success_email, send_checkout_failure_email
 from dss.util.checkout import parallel_copy, get_dst_bundle_prefix, get_manifest_files, \
-    validate_file_dst, validate_dst_bucket
+    validate_file_dst, validate_dst_bucket, validate
 
 app = domovoi.Domovoi()
 dss.Config.set_config(dss.BucketConfig.NORMAL)
@@ -60,7 +60,9 @@ def get_job_status(event, context):
 @app.step_function_task(state_name="SanityCheck", state_machine_definition=definition)
 def sanity_check(event, context):
     dst_bucket = get_bucket(event)
-    code, cause = validate_dst_bucket(dst_bucket, replica)
+    bundle = event["bucket"]
+    version = event["version"]
+    code, cause = validate(dst_bucket, replica, bundle, version)
     result = {"code": code.name.upper()}
     if cause:
         result["cause"] = cause
