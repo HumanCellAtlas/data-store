@@ -749,39 +749,15 @@ paths:
               - email
       responses:
         200:
-          description: Returned when a checkout for the bundle UUID with optionally specified version already exists.
-          schema:
-            type: object
-            properties:
-              version:
-                description: Timestamp of file creation in RFC3339.
-                type: string
-                format: date-time
-              url:
-                description: Location of the checked out bundle.
-                type: string
-              execution_id:
-                description: Handle of the checkout execution request.
-                type: string
-            required:
-              - version
-              - url
-              - execution_id
-        201:
           description: Returned when the bundle UUID with optionally specified version exists and checkout has been initiated.
           schema:
             type: object
             properties:
-              version:
-                description: Timestamp of file creation in RFC3339.
-                type: string
-                format: date-time
-              url:
-                description: Location of the checked out bundle.
+              execution_id:
+                description: Handle of the checkout execution request.
                 type: string
             required:
-              - version
-              - url
+              - execution_id
         default:
           description: Unexpected error
           schema:
@@ -793,6 +769,48 @@ paths:
                     type: string
                     description: Machine-readable error code.  The types of return values should not be changed lightly.
                     enum: [unhandled_exception, illegal_arguments, unknown_source_schema, file_already_exists, not_found]
+                required:
+                  - code
+
+  /bundles/checkout/{execution_id}:
+    get:
+      summary: Check status of the checkout request identified by execution id.
+      description: |
+        User makes a request to check the status of the checkout request made earlier. The request is identified
+        by execution ID that was returned to the user in response to the checkout request.
+      operationId: dss.api.bundles.checkout.get
+      parameters:
+        - name: execution_id
+          in: path
+          description: ARN that identifies the checkout request execution.
+          required: true
+          type: string
+      responses:
+        200:
+          description: Returned when a checkout request for the execution ID exists.
+          schema:
+            type: object
+            properties:
+              status:
+                description: Status of the checkout request.
+                type: string
+                enum: [RUNNING, SUCCEEDED, FAILED, TIMED_OUT, ABORTED]
+            required:
+              - status
+        default:
+          description: Unexpected error
+          schema:
+            allOf:
+              - $ref: '#/definitions/Error'
+              - type: object
+                properties:
+                  code:
+                    type: string
+                    description: Machine-readable error code.  The types of return values should not be changed lightly.
+                    enum: [unhandled_exception, illegal_arguments, unknown_source_schema, file_already_exists, not_found]
+                  message:
+                    type: string
+                    description: Detailed error message.
                 required:
                   - code
 

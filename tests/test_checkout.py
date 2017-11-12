@@ -42,7 +42,7 @@ class TestFileApi(unittest.TestCase, DSSAssertMixin, DSSUploadMixin):
         replica = "aws"
         bundle_uuid = "011c7340-9b3c-4d62-bf49-090d79daf198"
         version = "2017-06-20T214506.766634Z"
-        request_body = {"destination": self.s3_test_bucket, "email": "rkisin@chanzuckerberg.com", "replica": "aws"}
+        request_body = {"destination": self.s3_test_bucket, "email": "rkisin@chanzuckerberg.com"}
 
         url = str(UrlBuilder()
                   .set(path="/v1/bundles/" + bundle_uuid + "/checkout")
@@ -56,4 +56,29 @@ class TestFileApi(unittest.TestCase, DSSAssertMixin, DSSUploadMixin):
                 request_body
             )
 
-        self.assertIsNotNone(resp_obj.json["execution_id"])
+        execution_arn = resp_obj.json["execution_id"]
+        self.assertIsNotNone(execution_arn)
+
+        url = str(UrlBuilder().set(path="/v1/bundles/checkout/" + execution_arn))
+        resp_obj = self.assertGetResponse(
+            url,
+            requests.codes.ok
+        )
+        self.assertIsNotNone(resp_obj.json['status'])
+
+    def test_sanity_check_no_replica(self):
+        bundle_uuid = "011c7340-9b3c-4d62-bf49-090d79daf198"
+        version = "2017-06-20T214506.766634Z"
+        request_body = {"destination": self.s3_test_bucket, "email": "rkisin@chanzuckerberg.com"}
+
+        url = str(UrlBuilder()
+                  .set(path="/v1/bundles/" + bundle_uuid + "/checkout")
+                  .add_query("replica", "")
+                  .add_query("version", version))
+
+        with override_bucket_config(BucketConfig.TEST_FIXTURE):
+            self.assertPostResponse(
+                url,
+                requests.codes.bad_request,
+                request_body
+            )
