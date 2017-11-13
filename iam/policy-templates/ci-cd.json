@@ -100,6 +100,18 @@
         "arn:aws:sns:*:$account_id:domovoi-s3-bucket-events-*"
       ],
       "Effect": "Allow"
+    },
+    {
+      "Effect": "Allow",
+      "Action": [
+        "states:StartExecution",
+        "states:DescribeExecution"
+      ],
+      "Resource": [
+        "arn:aws:states:*:{accountid}:stateMachine:dss-checkout-sfn-*"
+      ]
     }
+
+
   ]
 }
