@@ -108,10 +108,8 @@
         "states:DescribeExecution"
       ],
       "Resource": [
-        "arn:aws:states:*:{accountid}:stateMachine:dss-checkout-sfn-*"
+        "arn:aws:states:*:$account_id:stateMachine:dss-checkout-sfn-*"
       ]
     }
-
-
   ]
 }
