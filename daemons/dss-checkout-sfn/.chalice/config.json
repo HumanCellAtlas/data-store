@@ -10,7 +10,9 @@
         "DSS_S3_BUCKET": "org-humancellatlas-dss-dev",
         "DSS_GS_BUCKET": "org-humancellatlas-dss-dev",
         "API_HOST": "dss.dev.data.humancellatlas.org",
-        "DSS_SUBSCRIPTION_AUTHORIZED_DOMAINS": "chanzuckerberg.com ucsc.edu broadinstitute.org ebi.ac.uk human-cell-atlas-travis-test.iam.gserviceaccount.com broad-dsde-mint-dev.iam.gserviceaccount.com broad-dsde-mint-staging.iam.gserviceaccount.com"
+        "DSS_SUBSCRIPTION_AUTHORIZED_DOMAINS": "chanzuckerberg.com ucsc.edu broadinstitute.org ebi.ac.uk human-cell-atlas-travis-test.iam.gserviceaccount.com broad-dsde-mint-dev.iam.gserviceaccount.com broad-dsde-mint-staging.iam.gserviceaccount.com",
+        "DSS_NOTIFICATION_SENDER": "DSS Notifier <rkisin@chanzuckerberg.com>",
+        "DSS_S3_HOSTED_CHECKOUT_BUCKET": "org-humancellatlas-dss-dev"
       }
     }
   }

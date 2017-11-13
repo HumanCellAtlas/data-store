@@ -79,8 +79,11 @@ class IndexSuffix:
 class Config:
     _S3_BUCKET = None  # type: typing.Optional[str]
     _GS_BUCKET = None  # type: typing.Optional[str]
+    _S3_HCA_CHECKOUT_BUCKET = None  # type: typing.Optional[str]
+
     _ALLOWED_EMAILS = None  # type: typing.Optional[str]
     _CURRENT_CONFIG = BucketConfig.ILLEGAL  # type: BucketConfig
+    _NOTIFICATION_SENDER_EMAIL = None  # type: typing.Optional[str]
 
     @staticmethod
     def set_config(config: BucketConfig):
@@ -138,6 +141,16 @@ class Config:
         return Config._S3_BUCKET
 
     @staticmethod
+    def get_s3_hca_checkout_bucket() -> str:
+        envvar = 'DSS_S3_HOSTED_CHECKOUT_BUCKET'
+        if envvar not in os.environ:
+            raise Exception(
+                "Please set the {} environment variable".format(envvar))
+        Config._S3_HCA_CHECKOUT_BUCKET = os.environ[envvar]
+
+        return Config._S3_HCA_CHECKOUT_BUCKET
+
+    @staticmethod
     def get_gs_bucket() -> str:
         if Config._GS_BUCKET is None:
             if Config._CURRENT_CONFIG == BucketConfig.NORMAL:
@@ -188,12 +201,23 @@ class Config:
         # clear out the cached bucket settings.
         Config._S3_BUCKET = None
         Config._GS_BUCKET = None
+        Config._S3_HCA_CHECKOUT_BUCKET = None
 
     @staticmethod
     def _clear_cached_email_config():
         # clear out the cached email settings.
         Config._ALLOWED_EMAILS = None
+        Config._NOTIFICATION_SENDER_EMAIL = None
 
+    @staticmethod
+    def get_notification_email() -> str:
+        envvar = "DSS_NOTIFICATION_SENDER"
+        if envvar not in os.environ:
+            raise Exception(
+                "Please set the {} environment variable".format(envvar))
+        Config._NOTIFICATION_SENDER_EMAIL = os.environ[envvar]
+
+        return Config._NOTIFICATION_SENDER_EMAIL
 
 @contextmanager
 def override_bucket_config(temp_config: BucketConfig):

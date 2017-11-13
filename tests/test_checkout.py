@@ -34,37 +34,29 @@ class TestFileApi(unittest.TestCase, DSSAssertMixin, DSSUploadMixin):
     def setUp(self):
         dss.Config.set_config(dss.BucketConfig.TEST)
         self.s3_test_fixtures_bucket = get_env("DSS_S3_BUCKET_TEST_FIXTURES")
-        self.gs_test_fixtures_bucket = get_env("DSS_GS_BUCKET_TEST_FIXTURES")
         self.s3_test_bucket = get_env("DSS_S3_BUCKET_TEST")
-        self.gs_test_bucket = get_env("DSS_GS_BUCKET_TEST")
 
-    def test_sanity_check(self):
+    def test_sanity_check_valid(self):
+        self.launch_checkout()
+
+    def test_sanity_check_doesnt_exist(self):
         replica = "aws"
-        bundle_uuid = "011c7340-9b3c-4d62-bf49-090d79daf198"
+        non_existent_bundle_uuid = "011c7340-9b3c-4d62-bf49-090d79daf111"
         version = "2017-06-20T214506.766634Z"
         request_body = {"destination": self.s3_test_bucket, "email": "rkisin@chanzuckerberg.com"}
 
         url = str(UrlBuilder()
-                  .set(path="/v1/bundles/" + bundle_uuid + "/checkout")
+                  .set(path="/v1/bundles/" + non_existent_bundle_uuid + "/checkout")
                   .add_query("replica", replica)
                   .add_query("version", version))
 
         with override_bucket_config(BucketConfig.TEST_FIXTURE):
             resp_obj = self.assertPostResponse(
                 url,
-                requests.codes.ok,
+                requests.codes.bad,
                 request_body
             )
-
-        execution_arn = resp_obj.json["execution_id"]
-        self.assertIsNotNone(execution_arn)
-
-        url = str(UrlBuilder().set(path="/v1/bundles/checkout/" + execution_arn))
-        resp_obj = self.assertGetResponse(
-            url,
-            requests.codes.ok
-        )
-        self.assertIsNotNone(resp_obj.json['status'])
+        self.assertEqual(resp_obj.json['code'], 'not_found')
 
     def test_sanity_check_no_replica(self):
         bundle_uuid = "011c7340-9b3c-4d62-bf49-090d79daf198"
@@ -82,3 +74,36 @@ class TestFileApi(unittest.TestCase, DSSAssertMixin, DSSUploadMixin):
                 requests.codes.bad_request,
                 request_body
             )
+
+    def launch_checkout(self) -> str:
+        replica = "aws"
+        bundle_uuid = "011c7340-9b3c-4d62-bf49-090d79daf198"
+        version = "2017-06-20T214506.766634Z"
+        request_body = {"destination": self.s3_test_bucket, "email": "rkisin@chanzuckerberg.com"}
+
+        url = str(UrlBuilder()
+                  .set(path="/v1/bundles/" + bundle_uuid + "/checkout")
+                  .add_query("replica", replica)
+                  .add_query("version", version))
+
+        with override_bucket_config(BucketConfig.TEST_FIXTURE):
+            resp_obj = self.assertPostResponse(
+                url,
+                requests.codes.ok,
+                request_body
+            )
+        execution_arn = resp_obj.json["execution_id"]
+        self.assertIsNotNone(execution_arn)
+
+        return execution_arn
+
+    def test_status(self):
+        exec_arn = self.launch_checkout()
+        url = str(UrlBuilder().set(path="/v1/bundles/checkout/" + exec_arn))
+        resp_obj = self.assertGetResponse(
+            url,
+            requests.codes.ok
+        )
+        status = resp_obj.json.get('status')
+        self.assertIsNotNone(status)
+        self.assertIn(status, ['RUNNING', 'SUCCEEDED'])

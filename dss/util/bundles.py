@@ -35,7 +35,8 @@ def get_bundle(
                 bucket,
                 "bundles/{}.{}".format(uuid, version)
             ).decode("utf-8"))
-    except BlobNotFoundError as ex:
+    # TODO: figure out why BlobNotFoundError is not being caught, catching Exception until then
+    except Exception as ex:
         raise DSSException(404, "not_found", "Cannot find file!")
 
     filesresponse = []  # type: typing.List[dict]
@@ -43,6 +44,7 @@ def get_bundle(
         file_version = {
             'name': file[BundleFileMetadata.NAME],
             'content-type': file[BundleFileMetadata.CONTENT_TYPE],
+            'size': file[BundleFileMetadata.SIZE],
             'uuid': file[BundleFileMetadata.UUID],
             'version': file[BundleFileMetadata.VERSION],
             'crc32c': file[BundleFileMetadata.CRC32C],

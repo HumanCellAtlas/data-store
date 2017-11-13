@@ -1,5 +1,6 @@
-import sys
 import os
+import sys
+
 import domovoi
 
 pkg_root = os.path.abspath(os.path.join(os.path.dirname(__file__), 'domovoilib'))  # noqa
@@ -9,23 +10,23 @@ import dss
 from dss.util.state_machine.checkout_states import definition
 from dss.util.email import send_checkout_success_email, send_checkout_failure_email
 from dss.util.checkout import parallel_copy, get_dst_bundle_prefix, get_manifest_files, \
-    validate_file_dst, validate_dst_bucket, validate
+    validate_file_dst, validate
 
 app = domovoi.Domovoi()
 dss.Config.set_config(dss.BucketConfig.NORMAL)
-test_bucket = "org-humancellatlas-dss-dev"
-HCA_HOSTED_CHECKOUT_BUCKET = "org-humancellatlas-dss-dev"
+
 replica = "aws"
-email_sender = "Roman Kisin <rkisin@chanzuckerberg.com>"
 
 log = dss.get_logger()
-
+dss_bucket = dss.Config.get_s3_bucket()
+email_sender = dss.Config.get_notification_email()
+default_checkout_bucket = dss.Config.get_s3_hca_checkout_bucket()
 
 @app.step_function_task(state_name="ScheduleCopy", state_machine_definition=definition)
 def worker(event, context):
     bundle_id = event["bundle"]
     version = event["version"]
-    src_bucket = test_bucket
+    src_bucket = dss_bucket
     dst_bucket = get_bucket(event)
 
     scheduled = 0
@@ -60,7 +61,7 @@ def get_job_status(event, context):
 @app.step_function_task(state_name="SanityCheck", state_machine_definition=definition)
 def sanity_check(event, context):
     dst_bucket = get_bucket(event)
-    bundle = event["bucket"]
+    bundle = event["bundle"]
     version = event["version"]
     code, cause = validate(dst_bucket, replica, bundle, version)
     result = {"code": code.name.upper()}
@@ -89,4 +90,4 @@ def notify_complete_failure(event, context):
 
 
 def get_bucket(event):
-    return event.get("bucket", HCA_HOSTED_CHECKOUT_BUCKET)
+    return event.get("bucket", default_checkout_bucket)
