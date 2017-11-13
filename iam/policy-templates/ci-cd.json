@@ -88,7 +88,9 @@
       "Action": [
         "lambda:*",
         "es:*",
-        "sns:*"
+        "sns:*",
+        "states:StartExecution",
+        "states:DescribeExecution"
       ],
       "Resource": [
         "arn:aws:lambda:*:$account_id:function:dss-*",
@@ -97,7 +99,8 @@
         "arn:aws:es:*:$account_id:domain/dss-index-dev/*",
         "arn:aws:sns:*:$account_id:dss-*",
         "arn:aws:sns:*:$account_id:chained-aws-lambda-*",
-        "arn:aws:sns:*:$account_id:domovoi-s3-bucket-events-*"
+        "arn:aws:sns:*:$account_id:domovoi-s3-bucket-events-*",
+        "arn:aws:states:*:$account_id:stateMachine:dss-checkout-sfn-*"
       ],
       "Effect": "Allow"
     }
