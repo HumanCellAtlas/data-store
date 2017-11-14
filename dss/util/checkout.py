@@ -37,9 +37,6 @@ class ValidationEnum(Enum):
     WRONG_BUNDLE_KEY = auto(),
     PASSED = auto()
 
-
-test_bucket = "org-humancellatlas-dss-dev"
-
 def parallel_copy(
         source_bucket: str, source_key: str,
         destination_bucket: str, destination_key: str):

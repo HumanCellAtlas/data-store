@@ -12,6 +12,7 @@ import os
 
 from dss.config import override_bucket_config, BucketConfig
 from dss.util import UrlBuilder
+from dss.util.checkout import get_manifest_files
 
 pkg_root = os.path.abspath(os.path.join(os.path.dirname(__file__), '..'))  # noqa
 sys.path.insert(0, pkg_root)  # noqa
@@ -100,10 +101,21 @@ class TestFileApi(unittest.TestCase, DSSAssertMixin, DSSUploadMixin):
     def test_status(self):
         exec_arn = self.launch_checkout()
         url = str(UrlBuilder().set(path="/v1/bundles/checkout/" + exec_arn))
-        resp_obj = self.assertGetResponse(
-            url,
-            requests.codes.ok
-        )
+        with override_bucket_config(BucketConfig.TEST_FIXTURE):
+            resp_obj = self.assertGetResponse(
+                url,
+                requests.codes.ok
+            )
         status = resp_obj.json.get('status')
         self.assertIsNotNone(status)
         self.assertIn(status, ['RUNNING', 'SUCCEEDED'])
+
+    def test_manifest_files(self):
+        bundle_uuid = "011c7340-9b3c-4d62-bf49-090d79daf198"
+        version = "2017-06-20T214506.766634Z"
+        replica = "aws"
+        file_count = 0
+        with override_bucket_config(BucketConfig.TEST_FIXTURE):
+            for file in get_manifest_files(bundle_uuid, version, replica):
+                file_count += 1
+        self.assertEqual(file_count, 1)
