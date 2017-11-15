@@ -140,7 +140,7 @@ def get_elasticsearch_bundle_index(es_client, index_name, index_alias, logger, i
             logger.debug("Index creation response: %s", json.dumps(response, indent=4))
             response = es_client.indices.update_aliases({
                 "actions": [
-                    {"add":    {"index": index_name, "alias": index_alias}}
+                    {"add": {"index": index_name, "alias": index_alias}}
                 ]
             })
             logger.debug("Index put alias response: %s", json.dumps(response, indent=4))
