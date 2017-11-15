@@ -43,7 +43,7 @@ def send_email(sender: str, to: str, subject: str, html: str, text: str) -> str:
 def send_checkout_success_email(sender: str, to: str, bucket: str, location: str):
     subject = "Bundle checkout complete"
 
-    text = "Hello,Your checkout request has been processed. Your files are available at bucket {} location {}.".\
+    text = "Hello, your checkout request has been processed. Your files are available at bucket {} location {}.".\
         format(bucket, location)
 
     html = """<html>
@@ -63,7 +63,7 @@ def send_checkout_success_email(sender: str, to: str, bucket: str, location: str
 def send_checkout_failure_email(sender: str, to: str, cause: str):
     subject = "Bundle checkout failed"
 
-    text = "Hello,Your checkout request has failed due to {}.".format(cause)
+    text = "Hello, your checkout request has failed due to {}.".format(cause)
 
     html = """<html>
        <head></head>

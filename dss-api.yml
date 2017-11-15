@@ -711,8 +711,7 @@ paths:
         If bundle failed to be located, the error is immediately raised to the user.
         Otherwise start copying the data in the background to the hot storage.
         TODO: After some time period, the data will be removed.
-        TODO: After some time period, the data will be removed.
-        TBD: This could be based on initial checkout time or based on last access time.
+        TBD: This could be based on initial checkout time or last access time.
       operationId: dss.api.bundles.checkout.post
       parameters:
         - name: uuid
@@ -805,7 +804,7 @@ paths:
               - $ref: '#/definitions/Error'
               - type: object
                 properties:
-                  checkout_status:
+                  code:
                     type: string
                     description: Machine-readable error code.  The types of return values should not be changed lightly.
                     enum: [unhandled_exception, illegal_arguments, unknown_source_schema, file_already_exists, not_found]
@@ -813,7 +812,7 @@ paths:
                     type: string
                     description: Detailed error message.
                 required:
-                  - checkout_status
+                  - code
 
 definitions:
   File:

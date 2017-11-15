@@ -1,14 +1,11 @@
 #!/usr/bin/env python
 # coding: utf-8
 
+import os
 import sys
 import unittest
-from pprint import pprint
 
 import requests
-
-
-import os
 
 from dss.config import override_bucket_config, BucketConfig
 from dss.util import UrlBuilder
