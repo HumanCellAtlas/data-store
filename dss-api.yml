@@ -710,7 +710,8 @@ paths:
         that the bundle UUID with an optionally provided version exists in a given replica.
         If bundle failed to be located, the error is immediately raised to the user.
         Otherwise start copying the data in the background to the hot storage.
-        After some time period, the data will be removed.
+        TODO: After some time period, the data will be removed.
+        TODO: After some time period, the data will be removed.
         TBD: This could be based on initial checkout time or based on last access time.
       operationId: dss.api.bundles.checkout.post
       parameters:
@@ -753,11 +754,11 @@ paths:
           schema:
             type: object
             properties:
-              execution_id:
-                description: Handle of the checkout execution request.
+              checkout_job_id:
+                description: Unique identifier of the checkout job request.
                 type: string
             required:
-              - execution_id
+              - checkout_job_id
         default:
           description: Unexpected error
           schema:
@@ -772,22 +773,22 @@ paths:
                 required:
                   - code
 
-  /bundles/checkout/{execution_id}:
+  /bundles/checkout/{checkout_job_id}:
     get:
-      summary: Check status of the checkout request identified by execution id.
+      summary: Check status of the checkout request identified by checkout_job_id.
       description: |
         User makes a request to check the status of the checkout request made earlier. The request is identified
-        by execution ID that was returned to the user in response to the checkout request.
+        by checkout_job_id that was returned to the user in response to the checkout request.
       operationId: dss.api.bundles.checkout.get
       parameters:
-        - name: execution_id
+        - name: checkout_job_id
           in: path
-          description: ARN that identifies the checkout request execution.
+          description: unique identifier of the checkout job request .
           required: true
           type: string
       responses:
         200:
-          description: Returned when a checkout request for the execution ID exists.
+          description: Returned when a checkout request for the checkout job id exists.
           schema:
             type: object
             properties:
@@ -804,7 +805,7 @@ paths:
               - $ref: '#/definitions/Error'
               - type: object
                 properties:
-                  code:
+                  checkout_status:
                     type: string
                     description: Machine-readable error code.  The types of return values should not be changed lightly.
                     enum: [unhandled_exception, illegal_arguments, unknown_source_schema, file_already_exists, not_found]
@@ -812,7 +813,7 @@ paths:
                     type: string
                     description: Detailed error message.
                 required:
-                  - code
+                  - checkout_status
 
 definitions:
   File:

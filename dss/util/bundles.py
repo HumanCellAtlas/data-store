@@ -1,20 +1,23 @@
 import json
-import os
 import typing
 
 from dss import Config, DSSException
-from dss.blobstore import BlobNotFoundError
 from dss.hcablobstore import BundleFileMetadata, BundleMetadata
 from dss.util import UrlBuilder
 
-def get_bundle(
+
+def get_bundle_from_bucket(
         uuid: str,
         replica: str,
-        version: str=None,
+        version: str,
+        bucket: str,
         directurls: bool=False):
+
     uuid = uuid.lower()
 
-    handle, hca_handle, bucket = Config.get_cloud_specific_handles(replica)
+    handle, hca_handle, default_bucket = Config.get_cloud_specific_handles(replica)
+
+    bucket = default_bucket if bucket is None else bucket
 
     if version is None:
         # list the files and find the one that is the most recent.
@@ -68,4 +71,17 @@ def get_bundle(
             files=filesresponse,
             creator_uid=bundle_metadata[BundleMetadata.CREATOR_UID],
         )
+    )
+
+def get_bundle(
+        uuid: str,
+        replica: str,
+        version: str=None,
+        directurls: bool=False):
+    return get_bundle_from_bucket(
+        uuid,
+        replica,
+        version,
+        None,
+        directurls
     )

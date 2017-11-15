@@ -34,6 +34,7 @@ npm-debug.log
 
 # Python coverage
 .coverage
+.coverage*
 
 # Credential files
 /gcp-credentials.json
@@ -44,12 +45,3 @@ npm-debug.log
 
 # Local environment configuration
 /environment.local
-
-.coverage*
-.Python
-bin/
-include/
-lib/
-pip-selfcheck.json
-share/
-

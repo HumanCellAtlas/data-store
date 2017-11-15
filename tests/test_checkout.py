@@ -40,7 +40,7 @@ class TestFileApi(unittest.TestCase, DSSAssertMixin, DSSUploadMixin):
     def test_sanity_check_valid(self):
         self.launch_checkout()
 
-    def test_sanity_check_doesnt_exist(self):
+    def test_pre_execution_check_doesnt_exist(self):
         replica = "aws"
         non_existent_bundle_uuid = "011c7340-9b3c-4d62-bf49-090d79daf111"
         version = "2017-06-20T214506.766634Z"
@@ -54,7 +54,7 @@ class TestFileApi(unittest.TestCase, DSSAssertMixin, DSSUploadMixin):
         with override_bucket_config(BucketConfig.TEST_FIXTURE):
             resp_obj = self.assertPostResponse(
                 url,
-                requests.codes.bad,
+                requests.codes.bad_request,
                 request_body
             )
         self.assertEqual(resp_obj.json['code'], 'not_found')
@@ -93,7 +93,7 @@ class TestFileApi(unittest.TestCase, DSSAssertMixin, DSSUploadMixin):
                 requests.codes.ok,
                 request_body
             )
-        execution_arn = resp_obj.json["execution_id"]
+        execution_arn = resp_obj.json["checkout_job_id"]
         self.assertIsNotNone(execution_arn)
 
         return execution_arn

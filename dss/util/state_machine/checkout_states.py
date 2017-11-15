@@ -1,19 +1,19 @@
-definition = {
+state_machine_def = {
     "Comment": "DSS Checkout service state machine that submits a Job to chained copy client"
                " and monitors the Job until it completes.",
-    "StartAt": "SanityCheck",
+    "StartAt": "PreExecutionCheck",
     "States": {
-        "SanityCheck": {
+        "PreExecutionCheck": {
             "Type": "Task",
             "Resource": None,
             "ResultPath": "$.validation",
-            "Next": "SanityCheckPassed"
+            "Next": "PreExecutionCheckPassed"
         },
-        "SanityCheckPassed": {
+        "PreExecutionCheckPassed": {
             "Type": "Choice",
             "Choices": [
                 {
-                    "Variable": "$.validation.code",
+                    "Variable": "$.validation.checkout_status",
                     "StringEquals": "PASSED",
                     "Next": "ScheduleCopy"
                 }
@@ -41,14 +41,14 @@ definition = {
             "Type": "Choice",
             "Choices": [
                 {
-                    "Variable": "$.status.code",
+                    "Variable": "$.status.checkout_status",
                     "StringEquals": "FAILURE",
                     "Next": "NotifyFailure"
                 },
                 {
                     "And": [
                         {
-                            "Variable": "$.status.code",
+                            "Variable": "$.status.checkout_status",
                             "StringEquals": "IN_PROGRESS",
                         },
                         {
@@ -59,12 +59,12 @@ definition = {
                     "Next": "NotifyFailure"
                 },
                 {
-                    "Variable": "$.status.code",
+                    "Variable": "$.status.checkout_status",
                     "StringEquals": "IN_PROGRESS",
                     "Next": "Wait"
                 },
                 {
-                    "Variable": "$.status.code",
+                    "Variable": "$.status.checkout_status",
                     "StringEquals": "SUCCESS",
                     "Next": "Notify"
                 }

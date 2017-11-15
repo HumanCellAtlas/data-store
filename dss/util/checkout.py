@@ -10,7 +10,7 @@ from dss import chained_lambda_clients, DSSException
 from dss.blobstore import BlobStoreUnknownError, BlobNotFoundError
 from dss.blobstore.s3 import S3BlobStore
 from dss.util.aws import get_s3_chunk_size
-from dss.util.bundles import get_bundle
+from dss.util.bundles import get_bundle, get_bundle_from_bucket
 
 for client_name, client_class in chained_lambda_clients():
     chainedawslambda.aws.add_client(client_name, client_class)
@@ -78,10 +78,10 @@ def validate_file_dst(dst_bucket: str, dst_key: str, replica: str):
         valid = False
     return valid
 
-def validate(dst_bucket: str, replica: str, bundle_id: str, version: str):
+def validate(dss_bucket: str, dst_bucket: str, replica: str, bundle_id: str, version: str):
     code, cause = validate_dst_bucket(dst_bucket, replica)
     if code == ValidationEnum.PASSED:
-        code, cause = validate_bundle_exists(replica, bundle_id, version)
+        code, cause = validate_bundle_exists(replica, dss_bucket, bundle_id, version)
     return code, cause
 
 def validate_dst_bucket(dst_bucket: str, replica: str):
@@ -93,10 +93,10 @@ def validate_dst_bucket(dst_bucket: str, replica: str):
 
     return ValidationEnum.PASSED, None
 
-def validate_bundle_exists(replica: str, bundle_id: str, version: str):
+def validate_bundle_exists(replica: str, bucket: str, bundle_id: str, version: str):
     bundle = None
     try:
-        bundle = get_bundle(bundle_id, replica, version)
+        bundle = get_bundle_from_bucket(bundle_id, replica, version, bucket)
     except Exception as e:  # this is bad but for some reason I can't catch BlobNotFoundError
         pass
 
