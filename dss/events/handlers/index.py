@@ -16,7 +16,7 @@ from requests_http_signature import HTTPSignatureAuth
 from dss import Config, DeploymentStage, ESIndexType, ESDocType, Replica
 from ...util import create_blob_key
 from ...hcablobstore import BundleMetadata, BundleFileMetadata
-from ...util.es import ElasticsearchClient, get_elasticsearch_index
+from ...util.es import ElasticsearchClient, get_elasticsearch_bundle_index
 
 DSS_BUNDLE_KEY_REGEX = r"^bundles/[0-9A-Fa-f]{8}-[0-9A-Fa-f]{4}-4[0-9A-Fa-f]{3}-[0-9A-Fa-f]{4}-[0-9A-Fa-f]{12}\..+$"
 
@@ -130,19 +130,24 @@ def get_bundle_id_from_key(bundle_key: str) -> str:
     raise Exception(f"This is not a key for a bundle: {bundle_key}")
 
 
-def add_index_data_to_elasticsearch(bundle_id: str, index_data: dict, index_name: str, logger) -> None:
-    create_elasticsearch_index(index_name, logger)
+def add_index_data_to_elasticsearch(bundle_id: str, index_data: dict, index_alias: str, logger) -> None:
+    #  TODO: get the major version from the index.
+    #  TODO: create the elasticsearch index name.
+    version = index_data['manifest']['format'].split('.')[0]
+    name, doc_type, replica, deployment = index_alias.split('-')
+    index_name = '-'.join([name, doc_type, replica, version, deployment])
+    create_elasticsearch_index(index_name, index_alias, logger)
     logger.debug("Adding index data to Elasticsearch index '%s': %s", index_name, json.dumps(index_data, indent=4))
     add_data_to_elasticsearch(bundle_id, index_data, index_name, logger)
 
 
-def create_elasticsearch_index(index_name, logger):
+def create_elasticsearch_index(index_name, index_alias, logger):
     if not ElasticsearchClient.get(logger).indices.exists(index_name):
         with open(os.path.join(os.path.dirname(__file__), "mapping.json"), "r") as fh:
             index_mapping = json.load(fh)
         index_mapping["mappings"][ESDocType.doc.name] = index_mapping["mappings"].pop("doc")
         index_mapping["mappings"][ESDocType.query.name] = index_mapping["mappings"].pop("query")
-        get_elasticsearch_index(ElasticsearchClient.get(logger), index_name, logger, index_mapping)
+        get_elasticsearch_bundle_index(ElasticsearchClient.get(logger), index_name, index_alias, logger, index_mapping)
     else:
         logger.debug(f"Using existing Elasticsearch index: {index_name}")
 

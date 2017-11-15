@@ -72,7 +72,7 @@ class TestSearchBase(DSSAssertMixin):
     def setUp(self):
         dss.Config.set_config(dss.BucketConfig.TEST)
         elasticsearch_delete_index(f"*{IndexSuffix.name}")
-        create_elasticsearch_index(self.dss_index_name, logger)
+        create_elasticsearch_index("search-unitTest", self.dss_index_name, logger)
 
     def test_es_search_page(self):
         """Confirm that elasaticsearch is returning _source info only when necessary."""

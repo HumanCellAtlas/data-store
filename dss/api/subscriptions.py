@@ -18,7 +18,7 @@ from werkzeug.exceptions import BadRequest
 from .. import Config, Replica, ESIndexType, ESDocType, get_logger
 from ..error import DSSException, dss_handler
 from ..hcablobstore import FileMetadata, HCABlobStore
-from ..util.es import ElasticsearchClient, get_elasticsearch_index
+from ..util.es import ElasticsearchClient, get_elasticsearch_subscription_index
 
 logger = get_logger()
 
@@ -94,7 +94,7 @@ def put(json_request_body: dict, replica: str):
     # john@example.com would show up because elasticsearch matched example w/ example.
     # By including "index": "not_analyzed", Elasticsearch leaves all owner inputs alone.
     index_name = Config.get_es_index_name(ESIndexType.subscriptions, Replica[replica])
-    get_elasticsearch_index(es_client, index_name, logger, index_mapping)
+    get_elasticsearch_subscription_index(es_client, index_name, logger, index_mapping)
 
     try:
         percolate_registration = _register_percolate(es_client, uuid, es_query, replica)
