@@ -131,9 +131,9 @@ def get_bundle_id_from_key(bundle_key: str) -> str:
 
 
 def add_index_data_to_elasticsearch(bundle_id: str, index_data: dict, index_alias: str, logger) -> None:
-    #  TODO: get the major version from the index.
-    #  TODO: create the elasticsearch index name.
+    #  get the major version from index data.
     version = index_data['manifest']['format'].split('.')[0]
+    #  create the elasticsearch index name from alias
     name, doc_type, replica, deployment = index_alias.split('-')
     index_name = '-'.join([name, doc_type, replica, version, deployment])
     create_elasticsearch_index(index_name, index_alias, logger)

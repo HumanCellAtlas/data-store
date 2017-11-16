@@ -268,6 +268,10 @@ class TestIndexerBase(DSSAssertMixin, DSSStorageMixin, DSSUploadMixin):
                          f"WARNING:.*:Failed notification for subscription {subscription_id}"
                          f" for bundle {bundle_id} with transaction id .+ Code: {error_response_code}")
 
+    @unittest.skip("WIP")
+    def test_index_when_multiple_indexes_using_alias(self):
+        pass
+
     def verify_notification(self, subscription_id, es_query, bundle_id):
         posted_payload_string = self.get_notification_payload()
         self.assertIsNotNone(posted_payload_string)
