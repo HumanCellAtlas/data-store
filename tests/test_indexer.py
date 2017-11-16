@@ -47,6 +47,7 @@ logger.setLevel(logging.INFO)
 
 start_verbose_logging()
 
+# TODO: (tsmith) test with multiple doc indexes once indexing by major version is compeleted
 
 #
 # Basic test for DSS indexer:

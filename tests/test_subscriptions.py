@@ -47,6 +47,8 @@ def tearDownModule():
     IndexSuffix.reset()
     os.unsetenv('DSS_ES_PORT')
 
+# TODO: (tsmith) test with multiple doc indexes once indexing by major version is compeleted
+
 class TestSubscriptionsBase(DSSAssertMixin):
     @classmethod
     def subsciption_setup(cls, replica):

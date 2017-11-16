@@ -1,23 +1,14 @@
 import datetime
-import io
-import json
-import re
-import typing
 from uuid import uuid4
 
-import iso8601
 import requests
-
-from cloud_blobstore import BlobNotFoundError
 from elasticsearch import Elasticsearch
 from elasticsearch.exceptions import ElasticsearchException, NotFoundError
 from elasticsearch_dsl import Search
-from flask import jsonify, make_response, redirect, request
-from werkzeug.exceptions import BadRequest
+from flask import jsonify, request
 
 from .. import Config, Replica, ESIndexType, ESDocType, get_logger
 from ..error import DSSException, dss_handler
-from ..hcablobstore import FileMetadata, HCABlobStore
 from ..util.es import ElasticsearchClient, get_elasticsearch_subscription_index
 
 logger = get_logger()
@@ -94,22 +85,32 @@ def put(json_request_body: dict, replica: str):
     # john@example.com would show up because elasticsearch matched example w/ example.
     # By including "index": "not_analyzed", Elasticsearch leaves all owner inputs alone.
     index_name = Config.get_es_index_name(ESIndexType.subscriptions, Replica[replica])
-    #  TODO (tsmith): get all indexes that use current alais
-    #  TODO (tsmith): try to subscribe query to each of the indexes.
-    #  TODO (tsmith): error if no queries are indexed.
     get_elasticsearch_subscription_index(es_client, index_name, logger, index_mapping)
 
-    try:
-        percolate_registration = _register_percolate(es_client, uuid, es_query, replica)
-        logger.debug(f"Percolate query registration succeeded:\n{percolate_registration}")
-    except ElasticsearchException as ex:
+    #  get all indexes that use current alias
+    alias_name = Config.get_es_index_name(ESIndexType.docs, Replica[replica])
+    doc_indexes = [i['i'] for i in es_client.cat.aliases(name=alias_name, h=['a', 'i'], format='json')]
+    #  try to subscribe query to each of the indexes.
+    subscribed_indexes = []
+    for doc_index in doc_indexes:
+        try:
+
+            percolate_registration = _register_percolate(es_client, doc_index, uuid, es_query, replica)
+            logger.debug(f"Percolate query registration succeeded:\n{percolate_registration}")
+            subscribed_indexes.append(doc_index)
+        except ElasticsearchException as ex:
+            last_ex = ex
+
+    # error if no queries are successfully indexed.
+    if len(subscribed_indexes) == 0:
         logger.critical("%s", f"Percolate query registration failed: owner: {owner}, uuid: {uuid}, "
-                              f"replica: {replica}, es_query: {es_query}, Exception: {ex}")
+                              f"replica: {replica}, es_query: {es_query}, Exception: {Exception(last_ex)}")
         raise DSSException(requests.codes.internal_server_error,
                            "elasticsearch_error",
-                           "Unable to register elasticsearch percolate query!")
+                           "Unable to register elasticsearch percolate query!") from Exception(last_ex)
 
     json_request_body['owner'] = owner
+    json_request_body['subscribed_indexes'] = subscribed_indexes
 
     try:
         subscription_registration = _register_subscription(es_client, uuid, json_request_body, replica)
@@ -119,10 +120,8 @@ def put(json_request_body: dict, replica: str):
                               f"replica: {replica}, Exception: {ex}")
 
         # Delete percolate query to make sure queries and subscriptions are in sync.
-        es_client.delete(index=index_name,
-                         doc_type=ESDocType.query.name,
-                         id=uuid,
-                         refresh=True)
+        _unregister_percolate(es_client, subscribed_indexes, uuid)
+
         raise DSSException(requests.codes.internal_server_error,
                            "elasticsearch_error",
                            "Unable to register subscription! Rolling back percolate query.")
@@ -149,10 +148,7 @@ def delete(uuid: str, replica: str):
         # common_error_handler defaults code to capitalized 'Forbidden' for Werkzeug exception. Keeping consistent.
         raise DSSException(requests.codes.forbidden, "Forbidden", "Your credentials can't access this subscription!")
 
-    es_client.delete(index=Config.get_es_index_name(ESIndexType.docs, Replica[replica]),
-                     doc_type=ESDocType.query.name,
-                     id=uuid,
-                     refresh=True)
+    _unregister_percolate(es_client, stored_metadata["subscribed_indexes"], uuid)
 
     es_client.delete(index=Config.get_es_index_name(ESIndexType.subscriptions, Replica[replica]),
                      doc_type=ESDocType.subscription.name,
@@ -164,8 +160,15 @@ def delete(uuid: str, replica: str):
     return jsonify({'timeDeleted': time_deleted}), requests.codes.okay
 
 
-def _register_percolate(es_client: Elasticsearch, uuid: str, es_query: dict, replica: str):
-    index_name = Config.get_es_index_name(ESIndexType.docs, Replica[replica])
+def _unregister_percolate(es_client: Elasticsearch, subscribed_indexes: list, uuid: str):
+    for index in subscribed_indexes:
+        es_client.delete(index=index,
+                         doc_type=ESDocType.query.name,
+                         id=uuid,
+                         refresh=True)
+
+
+def _register_percolate(es_client: Elasticsearch, index_name: str, uuid: str, es_query: dict, replica: str):
     return es_client.index(index=index_name,
                            doc_type=ESDocType.query.name,
                            id=uuid,

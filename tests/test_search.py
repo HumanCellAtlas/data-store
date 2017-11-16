@@ -37,7 +37,7 @@ logger.setLevel(logging.INFO)
 
 start_verbose_logging()
 
-
+# TODO: (tsmith) test with multiple doc indexes once indexing by major version is compeleted
 class ESInfo:
     server = None
 
