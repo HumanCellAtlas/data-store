@@ -11,7 +11,7 @@
         "s3:DeleteObject*",
         "s3:PutObject*",
         "s3:Replicate*",
-        "s3:RestoreObject"
+        "s3:Restore*"
       ],
       "Resource": [
         "arn:aws:s3:::$DSS_S3_BUCKET/*",
@@ -55,8 +55,7 @@
     {
       "Sid": "hcaDssCiCdLambdaReadAccess",
       "Action": [
-        "lambda:ListFunctions",
-        "lambda:ListTags",
+        "lambda:List*",
         "lambda:TagResource",
         "apigateway:*"
       ],
@@ -88,7 +87,9 @@
       "Action": [
         "lambda:*",
         "es:*",
-        "sns:*"
+        "sns:*",
+        "states:StartExecution",
+        "states:DescribeExecution"
       ],
       "Resource": [
         "arn:aws:lambda:*:$account_id:function:dss-*",
@@ -97,19 +98,10 @@
         "arn:aws:es:*:$account_id:domain/dss-index-dev/*",
         "arn:aws:sns:*:$account_id:dss-*",
         "arn:aws:sns:*:$account_id:chained-aws-lambda-*",
-        "arn:aws:sns:*:$account_id:domovoi-s3-bucket-events-*"
+        "arn:aws:sns:*:$account_id:domovoi-s3-bucket-events-*",
+        "arn:aws:states:*:$account_id:*:dss-*"
       ],
       "Effect": "Allow"
-    },
-    {
-      "Effect": "Allow",
-      "Action": [
-        "states:StartExecution",
-        "states:DescribeExecution"
-      ],
-      "Resource": [
-        "arn:aws:states:*:$account_id:stateMachine:dss-checkout-sfn-*"
-      ]
     }
   ]
 }
