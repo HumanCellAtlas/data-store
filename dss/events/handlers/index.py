@@ -16,7 +16,7 @@ from requests_http_signature import HTTPSignatureAuth
 from dss import Config, DeploymentStage, ESIndexType, ESDocType, Replica
 from ...util import create_blob_key
 from ...hcablobstore import BundleMetadata, BundleFileMetadata
-from ...util.es import ElasticsearchClient, get_elasticsearch_bundle_index
+from ...util.es import ElasticsearchClient, get_elasticsearch_doc_index
 
 DSS_BUNDLE_KEY_REGEX = r"^bundles/[0-9A-Fa-f]{8}-[0-9A-Fa-f]{4}-4[0-9A-Fa-f]{3}-[0-9A-Fa-f]{4}-[0-9A-Fa-f]{12}\..+$"
 
@@ -148,7 +148,7 @@ def create_elasticsearch_index(index_name, alias_name, logger):
             index_mapping = json.load(fh)
         index_mapping["mappings"][ESDocType.doc.name] = index_mapping["mappings"].pop("doc")
         index_mapping["mappings"][ESDocType.query.name] = index_mapping["mappings"].pop("query")
-        get_elasticsearch_bundle_index(ElasticsearchClient.get(logger), index_name, alias_name, logger, index_mapping)
+        get_elasticsearch_doc_index(ElasticsearchClient.get(logger), index_name, alias_name, logger, index_mapping)
     else:
         logger.debug(f"Using existing Elasticsearch index: {index_name}")
 
