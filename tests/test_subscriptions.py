@@ -197,6 +197,10 @@ class TestSubscriptionsBase(DSSAssertMixin):
         self.assertEqual(self.callback_url, json_response['subscriptions'][0]['callback_url'])
         self.assertEqual(NUM_ADDITIONS, len(json_response['subscriptions']))
 
+    @unittest.skip("WIP")
+    def test_subscribe_when_multiple_indexes_using_alias(self):
+        pass
+
     def test_delete(self):
         find_uuid = self._put_subscription()
         url = str(UrlBuilder()

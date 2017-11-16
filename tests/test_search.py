@@ -61,7 +61,8 @@ class TestSearchBase(DSSAssertMixin):
         cls.app.start()
         cls.replica_name = replica.name
         dss.Config.set_config(dss.BucketConfig.TEST)
-        cls.dss_index_name = dss.Config.get_es_index_name(dss.ESIndexType.docs, replica)
+        cls.dss_alias_name = dss.Config.get_es_index_name(dss.ESIndexType.docs, replica)
+        cls.dss_index_name = "search-unittest"
         with open(os.path.join(os.path.dirname(__file__), "sample_v3_index_doc.json"), "r") as fh:
             cls.index_document = json.load(fh)
 
@@ -72,7 +73,7 @@ class TestSearchBase(DSSAssertMixin):
     def setUp(self):
         dss.Config.set_config(dss.BucketConfig.TEST)
         elasticsearch_delete_index(f"*{IndexSuffix.name}")
-        create_elasticsearch_index("search-unittest", self.dss_index_name, logger)
+        create_elasticsearch_index(self.dss_index_name, self.dss_alias_name, logger)
 
     def test_es_search_page(self):
         """Confirm that elasaticsearch is returning _source info only when necessary."""
@@ -316,7 +317,7 @@ class TestSearchBase(DSSAssertMixin):
         version = get_version()
         bundle_id = f"{bundle_uuid}.{version}"
         es_client = ElasticsearchClient.get(logger)
-        es_client.index(index=self.dss_index_name,
+        es_client.index(index=self.dss_alias_name,
                         doc_type=ESDocType.doc.name,
                         id=bundle_id,
                         body=doc1)
@@ -328,6 +329,10 @@ class TestSearchBase(DSSAssertMixin):
         self.assertEqual(mapping['doc']['properties']['time2']['type'], 'date')
         self.assertEqual(mapping['doc']['properties']['time3']['type'], 'date')
 
+    @unittest.skip("WIP")
+    def test_search_multiple_indexes_using_alias(self):
+        pass
+
     def populate_search_index(self, index_document: dict, count: int) -> list:
         es_client = ElasticsearchClient.get(logger)
         bundles = []
@@ -338,7 +343,7 @@ class TestSearchBase(DSSAssertMixin):
             bundle_id = f"{bundle_uuid}.{version}"
             bundle_url = (f"https://127.0.0.1:{self.app._port}"
                           f"/v1/bundles/{bundle_uuid}?version={version}&replica={self.replica_name}")
-            es_client.index(index=self.dss_index_name,
+            es_client.index(index=self.dss_alias_name,
                             doc_type=ESDocType.doc.name,
                             id=bundle_id,
                             body=index_document)
@@ -412,7 +417,7 @@ class TestSearchBase(DSSAssertMixin):
         es_client = ElasticsearchClient.get(logger)
         timeout_time = timeout + time.time()
         while time.time() <= timeout_time:
-            count_resp = es_client.count(index=self.dss_index_name,
+            count_resp = es_client.count(index=self.dss_alias_name,
                                          doc_type=ESDocType.doc.name,
                                          body=es_query)
             if count_resp['count'] == expected_count:
