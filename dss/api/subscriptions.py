@@ -94,9 +94,9 @@ def put(json_request_body: dict, replica: str):
     # john@example.com would show up because elasticsearch matched example w/ example.
     # By including "index": "not_analyzed", Elasticsearch leaves all owner inputs alone.
     index_name = Config.get_es_index_name(ESIndexType.subscriptions, Replica[replica])
-    #  TODO: get all indexes that use current alais
-    #  TODO: try to subscribe query to each of the indexes.
-    #  TODO: error if no queries are indexed.
+    #  TODO (tsmith): get all indexes that use current alais
+    #  TODO (tsmith): try to subscribe query to each of the indexes.
+    #  TODO (tsmith): error if no queries are indexed.
     get_elasticsearch_subscription_index(es_client, index_name, logger, index_mapping)
 
     try:

@@ -178,7 +178,7 @@ class Config:
     @staticmethod
     def get_es_index_name(index_type: ESIndexType, replica: Replica) -> str:
         deployment_stage = os.environ["DSS_DEPLOYMENT_STAGE"]
-        index = '-'.join(['dss', index_type.name, replica.name, deployment_stage])
+        index = f"dss-{index_type.name}-{replica.name}-{deployment_stage}"
         if Config._CURRENT_CONFIG == BucketConfig.TEST:
             index = f"{index}.{IndexSuffix.name}"
         return index
