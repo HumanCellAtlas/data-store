@@ -32,7 +32,7 @@ release_prod:
 clean:
 	git clean -Xdf chalice daemons $(MODULES)
 	git clean -df {chalice,daemons/*}/{chalicelib,domovoilib,vendor}
-	git checkout {chalice,daemons/*}/.chalice/config.json
+	git checkout $$(git status --porcelain {chalice,daemons/*}/.chalice/config.json | awk '{print $$2}')
 
 requirements.txt requirements-dev.txt : %.txt : %.txt.in
 	[ ! -e .requirements-env ] || exit 1
