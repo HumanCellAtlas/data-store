@@ -15,13 +15,15 @@ import google.auth
 import google.auth.transport.requests
 import requests
 
+from dss.events.handlers.index import create_elasticsearch_index
+
 pkg_root = os.path.abspath(os.path.join(os.path.dirname(__file__), '..')) # noqa
 sys.path.insert(0, pkg_root) # noqa
 
 import dss
 from dss.config import IndexSuffix
 from dss.util import UrlBuilder
-from dss.util.es import ElasticsearchClient, ElasticsearchServer, get_elasticsearch_subscription_index
+from dss.util.es import ElasticsearchClient, ElasticsearchServer
 from tests.es import elasticsearch_delete_index
 from tests.infra import DSSAssertMixin, ExpectedErrorFields
 from tests.infra.server import ThreadedLocalServer
@@ -64,19 +66,8 @@ class TestSubscriptionsBase(DSSAssertMixin):
         logger.debug("Setting up Elasticsearch")
         es_client = ElasticsearchClient.get(logger)
         elasticsearch_delete_index(f"*{IndexSuffix.name}")
-        index_mapping = {  # Need to make a mapping for the percolator type before we add any.
-            "mappings": {
-                dss.ESDocType.query.name: {
-                    "properties": {
-                        "query": {
-                            "type": "percolator"
-                        }
-                    }
-                }
-            }
-        }
-        index_name = dss.Config.get_es_index_name(dss.ESIndexType.docs, self.replica)
-        get_elasticsearch_subscription_index(es_client, index_name, logger, index_mapping)
+        alias_name = dss.Config.get_es_index_name(dss.ESIndexType.docs, self.replica)
+        create_elasticsearch_index("subscription_test", alias_name, logger)
 
         with open(os.path.join(os.path.dirname(__file__), "sample_v3_index_doc.json"), "r") as fh:
             index_document = json.load(fh)
@@ -84,7 +75,7 @@ class TestSubscriptionsBase(DSSAssertMixin):
         self.callback_url = "https://example.com"
         self.sample_percolate_query = smartseq2_paired_ends_v3_query
 
-        es_client.index(index=index_name,
+        es_client.index(index=alias_name,
                         doc_type=dss.ESDocType.doc.name,
                         id=str(uuid.uuid4()),
                         body=index_document,
