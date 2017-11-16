@@ -50,9 +50,9 @@ def process_new_indexable_object(bucket_name: str, key: str, replica: str, logge
         manifest = read_bundle_manifest(blobstore, bucket_name, key, logger)
         bundle_id = get_bundle_id_from_key(key)
         index_data = create_index_data(blobstore, bucket_name, bundle_id, manifest, logger)
-        index_name = Config.get_es_index_name(ESIndexType.docs, Replica[replica])
-        add_index_data_to_elasticsearch(bundle_id, index_data, index_name, logger)
-        subscriptions = find_matching_subscriptions(index_data, index_name, logger)
+        alias_name = Config.get_es_index_name(ESIndexType.docs, Replica[replica])
+        add_index_data_to_elasticsearch(bundle_id, index_data, alias_name, logger)
+        subscriptions = find_matching_subscriptions(index_data, alias_name, logger)
         process_notifications(bundle_id, subscriptions, replica, logger)
         logger.debug(f"Finished index processing of {replica} creation event for bundle: {key}")
     else:
@@ -130,25 +130,25 @@ def get_bundle_id_from_key(bundle_key: str) -> str:
     raise Exception(f"This is not a key for a bundle: {bundle_key}")
 
 
-def add_index_data_to_elasticsearch(bundle_id: str, index_data: dict, index_alias: str, logger) -> None:
+def add_index_data_to_elasticsearch(bundle_id: str, index_data: dict, alias_name: str, logger) -> None:
     #  TODO (tsmith): get the major version from index data.
     #  version = index_data['manifest']['format'].split('.')[0]
-    version = 1
+    version = '1'
     #  create the elasticsearch index name from alias
-    name, doc_type, replica, deployment = index_alias.split('-')
+    name, doc_type, replica, deployment = alias_name.split('-')
     index_name = '-'.join([name, doc_type, replica, version, deployment])
-    create_elasticsearch_index(index_name, index_alias, logger)
+    create_elasticsearch_index(index_name, alias_name, logger)
     logger.debug("Adding index data to Elasticsearch index '%s': %s", index_name, json.dumps(index_data, indent=4))
     add_data_to_elasticsearch(bundle_id, index_data, index_name, logger)
 
 
-def create_elasticsearch_index(index_name, index_alias, logger):
+def create_elasticsearch_index(index_name, alias_name, logger):
     if not ElasticsearchClient.get(logger).indices.exists(index_name):
         with open(os.path.join(os.path.dirname(__file__), "mapping.json"), "r") as fh:
             index_mapping = json.load(fh)
         index_mapping["mappings"][ESDocType.doc.name] = index_mapping["mappings"].pop("doc")
         index_mapping["mappings"][ESDocType.query.name] = index_mapping["mappings"].pop("query")
-        get_elasticsearch_bundle_index(ElasticsearchClient.get(logger), index_name, index_alias, logger, index_mapping)
+        get_elasticsearch_bundle_index(ElasticsearchClient.get(logger), index_name, alias_name, logger, index_mapping)
     else:
         logger.debug(f"Using existing Elasticsearch index: {index_name}")
 

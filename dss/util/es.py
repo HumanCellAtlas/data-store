@@ -133,14 +133,14 @@ class ElasticsearchClient:
         return client
 
 
-def get_elasticsearch_bundle_index(es_client, index_name, index_alias, logger, index_mapping=None):
+def get_elasticsearch_bundle_index(es_client, index_name, alias_name, logger, index_mapping=None):
     try:
             logger.debug(f"Creating new Elasticsearch index: {index_name}")
             response = es_client.indices.create(index_name, body=index_mapping)
             logger.debug("Index creation response: %s", json.dumps(response, indent=4))
             response = es_client.indices.update_aliases({
                 "actions": [
-                    {"add": {"index": index_name, "alias": index_alias}}
+                    {"add": {"index": index_name, "alias": alias_name}}
                 ]
             })
             logger.debug("Index put alias response: %s", json.dumps(response, indent=4))
@@ -149,16 +149,16 @@ def get_elasticsearch_bundle_index(es_client, index_name, index_alias, logger, i
         raise ex
 
 
-def get_elasticsearch_subscription_index(es_client, index_name, logger, index_mapping=None):
+def get_elasticsearch_subscription_index(es_client, alias_name, logger, index_mapping=None):
     try:
-        response = es_client.indices.exists(index_name)
+        response = es_client.indices.exists(alias_name)
         if response:
-            logger.debug(f"Using existing Elasticsearch index: {index_name}")
+            logger.debug(f"Using existing Elasticsearch index: {alias_name}")
         else:
-            logger.debug(f"Creating new Elasticsearch index: {index_name}")
-            response = es_client.indices.create(index_name, body=index_mapping)
+            logger.debug(f"Creating new Elasticsearch index: {alias_name}")
+            response = es_client.indices.create(alias_name, body=index_mapping)
             logger.debug("Index creation response: %s", json.dumps(response, indent=4))
 
     except Exception as ex:
-        logger.error(f"Unable to create index: {index_name} Exception: {ex}")
+        logger.error(f"Unable to create index: {alias_name} Exception: {ex}")
         raise ex
