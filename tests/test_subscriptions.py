@@ -21,7 +21,7 @@ sys.path.insert(0, pkg_root) # noqa
 import dss
 from dss.config import IndexSuffix
 from dss.util import UrlBuilder
-from dss.util.es import ElasticsearchClient, ElasticsearchServer, get_elasticsearch_index
+from dss.util.es import ElasticsearchClient, ElasticsearchServer, get_elasticsearch_subscription_index
 from tests.es import elasticsearch_delete_index
 from tests.infra import DSSAssertMixin, ExpectedErrorFields
 from tests.infra.server import ThreadedLocalServer
@@ -76,7 +76,7 @@ class TestSubscriptionsBase(DSSAssertMixin):
             }
         }
         index_name = dss.Config.get_es_index_name(dss.ESIndexType.docs, self.replica)
-        get_elasticsearch_index(es_client, index_name, logger, index_mapping)
+        get_elasticsearch_subscription_index(es_client, index_name, logger, index_mapping)
 
         with open(os.path.join(os.path.dirname(__file__), "sample_v3_index_doc.json"), "r") as fh:
             index_document = json.load(fh)
