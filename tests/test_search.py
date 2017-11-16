@@ -193,7 +193,7 @@ class TestSearchBase(DSSAssertMixin):
 
         es_logger.setLevel("ERROR")
         try:
-            os.environ['DSS_ES_ENDPOINT'] = "bogus"
+            os.environ['DSS_ES_ENDPOINT'] = "this-is-really-unlikely-to-exist"
             url = self.build_url()
             self.assertPostResponse(
                 path=url,
