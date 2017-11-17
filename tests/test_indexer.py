@@ -268,6 +268,13 @@ class TestIndexerBase(DSSAssertMixin, DSSStorageMixin, DSSUploadMixin):
                          f"WARNING:.*:Failed notification for subscription {subscription_id}"
                          f" for bundle {bundle_id} with transaction id .+ Code: {error_response_code}")
 
+    def test_alias_exists(self):
+        sample_event = self.create_sample_bundle_created_event(self.bundle_key)
+        self.process_new_indexable_object(sample_event, logger)
+        es_client = ElasticsearchClient.get(logger)
+        index_names = [i['i'] for i in es_client.cat.aliases(name=self.dss_alias_name, h=['a', 'i'], format='json')]
+        self.assertNotEqual(len(index_names), 0)
+
     @unittest.skip("WIP")
     def test_index_when_multiple_indexes_using_alias(self):
         pass
@@ -377,7 +384,7 @@ class TestIndexerBase(DSSAssertMixin, DSSStorageMixin, DSSUploadMixin):
         timeout_time = time.time() + timeout
         while True:
             response = ElasticsearchClient.get(logger).search(
-                index=cls.dss_index_name,
+                index=cls.dss_alias_name,
                 doc_type=dss.ESDocType.doc.name,
                 body=json.dumps(query))
             if (len(response['hits']['hits']) >= expected_hit_count) \
