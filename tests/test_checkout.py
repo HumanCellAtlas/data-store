@@ -37,7 +37,7 @@ class TestFileApi(unittest.TestCase, DSSAssertMixin, DSSUploadMixin):
     def test_sanity_check_valid(self):
         self.launch_checkout(self.s3_test_bucket)
 
-    def _test_pre_execution_check_doesnt_exist(self):
+    def test_pre_execution_check_doesnt_exist(self):
         replica = "aws"
         non_existent_bundle_uuid = "011c7340-9b3c-4d62-bf49-090d79daf111"
         version = "2017-06-20T214506.766634Z"
