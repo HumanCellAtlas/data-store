@@ -19,7 +19,7 @@ replica = "aws"
 
 logger = dss.get_logger()
 email_sender = dss.Config.get_notification_email()
-default_checkout_bucket = dss.Config.get_s3_hca_checkout_bucket()
+default_checkout_bucket = dss.Config.get_s3_checkout_bucket()
 
 @app.step_function_task(state_name="ScheduleCopy", state_machine_definition=state_machine_def)
 def worker(event, context):

@@ -22,7 +22,7 @@ EXPORT_ENV_VARS_TO_LAMBDA_ARRAY=(
     API_HOST
     DSS_SUBSCRIPTION_AUTHORIZED_DOMAINS
     DSS_NOTIFICATION_SENDER
-    DSS_S3_HOSTED_CHECKOUT_BUCKET
+    DSS_S3_CHECKOUT_BUCKET
 )
 
 set -a
@@ -35,13 +35,17 @@ DSS_S3_BUCKET_TEST=org-humancellatlas-dss-test
 DSS_S3_BUCKET_TEST_FIXTURES=org-humancellatlas-dss-test-fixtures
 DSS_S3_BUCKET_STAGING=org-humancellatlas-dss-staging
 DSS_S3_BUCKET_PROD=org-humancellatlas-dss-prod
+DSS_S3_CHECKOUT_BUCKET=org-humancellatlas-dss-checkout-dev
+DSS_S3_CHECKOUT_BUCKET_TEST=org-humancellatlas-dss-checkout-test
+DSS_S3_CHECKOUT_BUCKET_TEST_FIXTURES=org-humancellatlas-dss-checkout-test-fixtures
+DSS_S3_CHECKOUT_BUCKET_STAGING=org-humancellatlas-dss-checkout-staging
+DSS_S3_CHECKOUT_BUCKET_PROD=org-humancellatlas-dss-checkout-prod
 DSS_GS_BUCKET=org-humancellatlas-dss-dev
 DSS_GS_BUCKET_TEST=org-humancellatlas-dss-test
 DSS_GS_BUCKET_TEST_FIXTURES=org-humancellatlas-dss-test-fixtures
 DSS_GS_BUCKET_STAGING=org-humancellatlas-dss-staging
 DSS_GS_BUCKET_PROD=org-humancellatlas-dss-prod
 DSS_NOTIFICATION_SENDER="DSS Notifier <noreply@humancellatlas.org>"
-DSS_S3_HOSTED_CHECKOUT_BUCKET=org-humancellatlas-dss-dev
 GOOGLE_APPLICATION_CREDENTIALS="${DSS_HOME}/gcp-credentials.json"
 GOOGLE_APPLICATION_SECRETS="${DSS_HOME}/application_secrets.json"
 API_HOST=dss.dev.data.humancellatlas.org

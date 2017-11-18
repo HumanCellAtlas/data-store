@@ -1,10 +1,11 @@
 import json
 import typing
 
+import dss
 from dss import Config, DSSException
 from dss.hcablobstore import BundleFileMetadata, BundleMetadata
 from dss.util import UrlBuilder
-
+from cloud_blobstore import BlobNotFoundError
 
 def get_bundle_from_bucket(
         uuid: str,
@@ -17,6 +18,7 @@ def get_bundle_from_bucket(
 
     handle, hca_handle, default_bucket = Config.get_cloud_specific_handles(replica)
 
+    # need the ability to use fixture bucket for testing
     bucket = default_bucket if bucket is None else bucket
 
     if version is None:
@@ -38,8 +40,7 @@ def get_bundle_from_bucket(
                 bucket,
                 "bundles/{}.{}".format(uuid, version)
             ).decode("utf-8"))
-    # TODO: figure out why BlobNotFoundError is not being caught, catching Exception until then
-    except Exception as ex:
+    except BlobNotFoundError:
         raise DSSException(404, "not_found", "Cannot find file!")
 
     filesresponse = []  # type: typing.List[dict]

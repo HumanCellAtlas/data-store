@@ -12,7 +12,7 @@ chained-aws-lambda==0.0.7
 chardet==3.0.4
 click==6.7
 clickclick==1.2.2
-cloud-blobstore==0.0.6
+cloud-blobstore==0.0.7
 connexion==1.1.15
 cryptography==2.0.3
 docutils==0.14

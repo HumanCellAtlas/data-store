@@ -30,7 +30,7 @@ def post(uuid: str, json_request_body: dict, replica: str, version: str = None):
         sfn_input = {"dss_bucket": dss_bucket, "bundle": uuid, "version": version, "email": email, "replica": replica}
         if "destination" in json_request_body:
             sfn_input["bucket"] = json_request_body["destination"]
-        input = json.dumps(sfn_input)
+        execution_input = json.dumps(sfn_input)
 
         region = boto3.Session().region_name
         accountid = sts_client.get_caller_identity()['Account']
@@ -39,7 +39,7 @@ def post(uuid: str, json_request_body: dict, replica: str, version: str = None):
         response = sfn.start_execution(
             stateMachineArn=state_machine_arn,
             name=get_execution_id(),
-            input=input
+            input=execution_input
         )
         return jsonify(dict(checkout_job_id=response["executionArn"])), requests.codes.ok
     except Exception as e:

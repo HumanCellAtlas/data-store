@@ -1,3 +1,4 @@
+import io
 import uuid
 from enum import Enum, auto
 from logging import getLogger
@@ -6,9 +7,9 @@ import chainedawslambda
 from chainedawslambda import aws
 from chainedawslambda.s3copyclient import S3ParallelCopySupervisorTask
 
-from dss import chained_lambda_clients, DSSException
-from dss.blobstore import BlobStoreUnknownError, BlobNotFoundError
-from dss.blobstore.s3 import S3BlobStore
+from cloud_blobstore import BlobNotFoundError, BlobStoreUnknownError
+from cloud_blobstore.s3 import S3BlobStore
+from dss import chained_lambda_clients, DSSException, Config
 from dss.util.aws import get_s3_chunk_size
 from dss.util.bundles import get_bundle, get_bundle_from_bucket
 
@@ -79,33 +80,48 @@ def validate_file_dst(dst_bucket: str, dst_key: str, replica: str):
     return valid
 
 def validate(dss_bucket: str, dst_bucket: str, replica: str, bundle_id: str, version: str):
-    code, cause = validate_dst_bucket(dst_bucket, replica)
-    if code == ValidationEnum.PASSED:
-        code, cause = validate_bundle_exists(replica, dss_bucket, bundle_id, version)
-    return code, cause
+    cause = None
+    validation_code = validate_dst_bucket(dst_bucket, replica)
+    if validation_code == ValidationEnum.PASSED:
+        validation_code, cause = validate_bundle_exists(replica, dss_bucket, bundle_id, version)
+    return validation_code, cause
 
-def validate_dst_bucket(dst_bucket: str, replica: str):
+def validate_dst_bucket(dst_bucket: str, replica: str) -> ValidationEnum:
     if (not blobstore.check_bucket_exists(dst_bucket)):
-        return ValidationEnum.WRONG_DST_BUCKET, None
-    touchRes, cause = blobstore.touch_test_file(dst_bucket)
-    if (not touchRes):
-        return ValidationEnum.WRONG_PERMISSIONS_DST_BUCKET, cause
+        return ValidationEnum.WRONG_DST_BUCKET
+    if (not touch_test_file(dst_bucket, replica)):
+        return ValidationEnum.WRONG_PERMISSIONS_DST_BUCKET
 
-    return ValidationEnum.PASSED, None
+    return ValidationEnum.PASSED
 
 def validate_bundle_exists(replica: str, bucket: str, bundle_id: str, version: str):
-    bundle = None
     try:
-        bundle = get_bundle_from_bucket(bundle_id, replica, version, bucket)
-    except Exception as e:  # this is bad but for some reason I can't catch BlobNotFoundError
-        pass
-
-    if bundle is None:
+        get_bundle_from_bucket(bundle_id, replica, version, bucket)
+        return ValidationEnum.PASSED, None
+    except DSSException:
         return ValidationEnum.WRONG_BUNDLE_KEY, "Bundle with specified key does not exist"
-    return ValidationEnum.PASSED, None
 
 def get_bucket_region(bucket: str):
     return blobstore.get_bucket_region(bucket)
 
 def get_execution_id() -> str:
     return str(uuid.uuid1())
+
+def touch_test_file(dst_bucket, replica) -> bool:
+    """
+    Write a test file into the specified bucket.
+    :param bucket: the bucket to be checked.
+    :return: True if able to write, if not also returns error message as a cause
+    """
+    test_object = "touch.txt"
+    handle, hca_handle, bucket = Config.get_cloud_specific_handles(replica)
+
+    try:
+        handle.upload_file_handle(
+            dst_bucket,
+            test_object,
+            io.BytesIO(b""))
+        blobstore.delete(dst_bucket, test_object)
+        return True
+    except Exception as e:
+        return False
