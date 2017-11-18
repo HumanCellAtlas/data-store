@@ -48,7 +48,7 @@ run("http --check-status https://${API_HOST}/v1/swagger.json > data-store-cli/sw
 workdir = tempfile.TemporaryDirectory(dir=os.getcwd(), prefix="smoketest-", suffix='.tmp')
 try:
     venv = os.path.join(workdir.name, 'venv')
-    run(f"virtualenv {venv}")
+    run(f"virtualenv -p {sys.executable} {venv}")
     venv_bin = os.path.join(venv, 'bin', '')
     run(f"{venv_bin}pip install -r data-store-cli/requirements.txt")
     run(f"{venv_bin}python -c 'import sys, hca.dss.regenerate_api as r; "
