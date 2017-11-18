@@ -25,7 +25,7 @@ class Uploader:
             self,
             local_path: str,
             remote_path: str,
-            content_type: str="binary/octet-stream",
+            content_type: str="application/octet-stream",
             metadata_keys: typing.Dict[str, str]=None,
             *args,
             **kwargs) -> None:
@@ -35,7 +35,7 @@ class Uploader:
             self,
             local_path: str,
             remote_path: str,
-            content_type: str="binary/octet-stream",
+            content_type: str="application/octet-stream",
             metadata: typing.Dict[str, str]=None,
             *args,
             **kwargs
@@ -72,7 +72,7 @@ class S3Uploader(Uploader):
             self,
             local_path: str,
             remote_path: str,
-            content_type: str="binary/octet-stream",
+            content_type: str="application/octet-stream",
             metadata_keys: typing.Dict[str, str]=None,
             tags: typing.Dict[str, str]=None,
             *args,
@@ -130,7 +130,7 @@ class GSUploader(Uploader):
             self,
             local_path: str,
             remote_path: str,
-            content_type: str="binary/octet-stream",
+            content_type: str="application/octet-stream",
             metadata_keys: typing.Dict[str, str]=None,
             *args,
             **kwargs) -> None:
