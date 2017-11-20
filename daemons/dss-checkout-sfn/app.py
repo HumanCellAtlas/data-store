@@ -26,7 +26,7 @@ def worker(event, context):
     bundle_id = event["bundle"]
     version = event["version"]
     dss_bucket = event["dss_bucket"]
-    dst_bucket = get_bucket(event)
+    dst_bucket = get_dst_bucket(event)
 
     scheduled = 0
     for src_key, dst_key in get_manifest_files(bundle_id, version, replica):
@@ -49,7 +49,7 @@ def get_job_status(event, context):
     total_count = 0
     for src_key, dst_key in get_manifest_files(bundle_id, version, replica):
         total_count += 1
-        if validate_file_dst(get_bucket(event), dst_key, replica):
+        if validate_file_dst(get_dst_bucket(event), dst_key, replica):
             complete_count += 1
 
     checkout_status = "SUCCESS" if complete_count == total_count else "IN_PROGRESS"
@@ -60,7 +60,7 @@ def get_job_status(event, context):
 
 @app.step_function_task(state_name="PreExecutionCheck", state_machine_definition=state_machine_def)
 def pre_execution_check(event, context):
-    dst_bucket = get_bucket(event)
+    dst_bucket = get_dst_bucket(event)
     bundle = event["bundle"]
     version = event["version"]
     dss_bucket = event["dss_bucket"]
@@ -73,7 +73,7 @@ def pre_execution_check(event, context):
 
 @app.step_function_task(state_name="Notify", state_machine_definition=state_machine_def)
 def notify_complete(event, context):
-    result = send_checkout_success_email(email_sender, event["email"], get_bucket(event),
+    result = send_checkout_success_email(email_sender, event["email"], get_dst_bucket(event),
                                          event["schedule"]["dst_location"])
     return {"result": result}
 
@@ -90,5 +90,7 @@ def notify_complete_failure(event, context):
     return {"result": result}
 
 
-def get_bucket(event):
-    return event.get("bucket", default_checkout_bucket)
+def get_dst_bucket(event):
+    dst_bucket = event.get("bucket", default_checkout_bucket)
+    print('dst_bucket: ' + dst_bucket)
+    return dst_bucket

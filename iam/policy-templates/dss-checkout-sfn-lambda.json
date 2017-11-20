@@ -14,10 +14,27 @@
     },
     {
       "Effect": "Allow",
-      "Action": "s3:*",
+      "Action": [
+        "s3:GetObject",
+        "s3:ListBucket"
+      ],
       "Resource": [
         "arn:aws:s3:::$DSS_S3_BUCKET",
-        "arn:aws:s3:::$DSS_S3_BUCKET/*"
+        "arn:aws:s3:::$DSS_S3_BUCKET/*",
+        "arn:aws:s3:::$DSS_S3_BUCKET_TEST",
+        "arn:aws:s3:::$DSS_S3_BUCKET_TEST/*"
+      ]
+    },
+    {
+      "Effect": "Allow",
+      "Action": [
+        "s3:List*",
+        "s3:PutObject*",
+        "s3:DeleteObject*"
+      ],
+      "Resource": [
+        "arn:aws:s3:::$DSS_S3_CHECKOUT_BUCKET",
+        "arn:aws:s3:::$DSS_S3_CHECKOUT_BUCKET/*"
       ]
     },
     {
