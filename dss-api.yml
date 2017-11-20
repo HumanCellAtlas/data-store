@@ -704,11 +704,11 @@ paths:
                   - code
   /bundles/{uuid}/checkout:
     post:
-      summary: Check out a bundle to HCA-owned cloud storage
+      summary: Check out a bundle to HCA-owned cloud storage or user provided destination
       description: |
         User makes a request for a bundle version to be extracted. Storage system makes an attempt to validate
         that the bundle UUID with an optionally provided version exists in a given replica.
-        If bundle failed to be located, the error is immediately raised to the user.
+        If the storage service fails to locate the bundle, the error is immediately raised to the user.
         Otherwise start copying the data in the background to the hot storage.
         TODO: After some time period, the data will be removed.
         TBD: This could be based on initial checkout time or last access time.
