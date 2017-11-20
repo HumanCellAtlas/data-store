@@ -5,6 +5,7 @@
 Test that the standalone can start up and answer a request.
 """
 
+import contextlib
 import os
 import socket
 import subprocess
@@ -41,7 +42,8 @@ class TestStandaloneScript(unittest.TestCase):
         delay = 0.05
         while time.time() < end_time:
             try:
-                socket.create_connection(("127.0.0.1", cls.port))
+                with contextlib.closing(socket.create_connection(("127.0.0.1", cls.port))):
+                    pass
                 break
             except ConnectionError:
                 delay = max(1.0, delay * 2)
