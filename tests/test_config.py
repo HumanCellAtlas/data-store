@@ -13,10 +13,18 @@ from contextlib import contextmanager
 pkg_root = os.path.abspath(os.path.join(os.path.dirname(__file__), '..'))  # noqa
 sys.path.insert(0, pkg_root)  # noqa
 
-from dss.config import DeploymentStage
+from dss.config import DeploymentStage, Config, BucketConfig
 
 
 class TestConfig(unittest.TestCase):
+    init_config = None
+
+    def setUpModule(self):
+        self.init_config = Config._CURRENT_CONFIG
+
+    def tearDownModule(self):
+        Config.set_config(self.init_config)
+
     def test_predicates(self):
         @contextmanager
         def override_deployment_stage(stage: DeploymentStage):
@@ -42,6 +50,19 @@ class TestConfig(unittest.TestCase):
             self.assertFalse(DeploymentStage.IS_DEV())
             self.assertFalse(DeploymentStage.IS_STAGING())
             self.assertTrue(DeploymentStage.IS_PROD())
+
+    def test_s3_checkout_bucket(self):
+        Config.set_config(BucketConfig.NORMAL)
+        self.assertEquals(Config.get_s3_checkout_bucket(), os.environ["DSS_S3_CHECKOUT_BUCKET"])
+        Config.set_config(BucketConfig.TEST)
+        self.assertEquals(Config.get_s3_checkout_bucket(), os.environ["DSS_S3_CHECKOUT_BUCKET_TEST"])
+        Config.set_config(BucketConfig.TEST_FIXTURE)
+        self.assertEquals(Config.get_s3_checkout_bucket(), os.environ["DSS_S3_CHECKOUT_BUCKET_TEST_FIXTURES"])
+
+    def test_notification_email(self):
+        for bucket_config in BucketConfig:
+            Config.set_config(bucket_config)
+            self.assertEquals(Config.get_notification_email(), os.environ["DSS_NOTIFICATION_SENDER"])
 
 if __name__ == '__main__':
     unittest.main()
