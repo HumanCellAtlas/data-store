@@ -9,7 +9,7 @@ import requests
 
 from dss.config import override_bucket_config, BucketConfig
 from dss.util import UrlBuilder
-from dss.util.checkout import get_manifest_files
+from dss.util.checkout import get_manifest_files, validate_file_dst, validate, ValidationEnum, validate_bundle_exists
 
 pkg_root = os.path.abspath(os.path.join(os.path.dirname(__file__), '..'))  # noqa
 sys.path.insert(0, pkg_root)  # noqa
@@ -33,6 +33,7 @@ class TestFileApi(unittest.TestCase, DSSAssertMixin, DSSUploadMixin):
         dss.Config.set_config(dss.BucketConfig.TEST)
         self.s3_test_fixtures_bucket = get_env("DSS_S3_BUCKET_TEST_FIXTURES")
         self.s3_test_checkout_bucket = get_env("DSS_S3_CHECKOUT_BUCKET_TEST")
+        self.s3_test_bucket = get_env("DSS_S3_BUCKET_TEST")
 
     def test_sanity_check_valid(self):
         self.launch_checkout(self.s3_test_checkout_bucket)
@@ -128,3 +129,42 @@ class TestFileApi(unittest.TestCase, DSSAssertMixin, DSSUploadMixin):
             for file in get_manifest_files(bundle_uuid, version, replica):
                 file_count += 1
         self.assertEqual(file_count, 1)
+
+    def test_validate_file_dst_fail(self):
+        dst_key = "83b76ac9-2470-46d2-ae5e-a415ce86b020"
+        replica = "aws"
+        self.assertEquals(validate_file_dst(self.s3_test_checkout_bucket, dst_key, replica), False)
+
+    def test_validate_file_dst(self):
+        dst_key = "files/ce55fd51-7833-469b-be0b-5da88ebebfcd.2017-06-18T075702.020366Z"
+        replica = "aws"
+        self.assertEquals(validate_file_dst(self.s3_test_fixtures_bucket, dst_key, replica), True)
+
+    def test_validate_wrong_key(self):
+        bundle_uuid = "WRONG_KEY"
+        version = "WRONG_VERSION"
+        replica = "aws"
+        valid, cause = validate(self.s3_test_bucket, self.s3_test_checkout_bucket, replica, bundle_uuid, version)
+        self.assertIs(valid, ValidationEnum.WRONG_BUNDLE_KEY)
+
+    def test_validate(self):
+        bundle_uuid = "011c7340-9b3c-4d62-bf49-090d79daf198"
+        version = "2017-06-20T214506.766634Z"
+        replica = "aws"
+        valid, cause = validate(self.s3_test_fixtures_bucket, self.s3_test_checkout_bucket, replica, bundle_uuid,
+                                version)
+        self.assertIs(valid, ValidationEnum.PASSED)
+
+    def test_validate_bundle_exists(self):
+        bundle_uuid = "011c7340-9b3c-4d62-bf49-090d79daf198"
+        version = "2017-06-20T214506.766634Z"
+        replica = "aws"
+        valid, cause = validate_bundle_exists(replica, self.s3_test_fixtures_bucket, bundle_uuid, version)
+        self.assertIs(valid, ValidationEnum.PASSED)
+
+    def test_validate_bundle_exists_fail(self):
+        bundle_uuid = "WRONG_KEY"
+        version = "WRONG_VERSION"
+        replica = "aws"
+        valid, cause = validate_bundle_exists(replica, self.s3_test_fixtures_bucket, bundle_uuid, version)
+        self.assertIs(valid, ValidationEnum.WRONG_BUNDLE_KEY)
