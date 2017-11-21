@@ -75,7 +75,7 @@ def validate_file_dst(dst_bucket: str, dst_key: str, replica: str):
     valid = True
     try:
         blobstore.get_all_metadata(dst_bucket, dst_key)
-    except (BlobNotFoundError, BlobStoreUnknownError):
+    except BlobNotFoundError as e:
         valid = False
     return valid
 

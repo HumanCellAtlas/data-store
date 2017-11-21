@@ -29,6 +29,7 @@
       "Effect": "Allow",
       "Action": [
         "s3:List*",
+        "s3:Get*",
         "s3:PutObject*",
         "s3:DeleteObject*"
       ],
