@@ -12,3 +12,4 @@ nestedcontext
 requests_aws4auth
 urllib3
 requests-http-signature
+pytz
