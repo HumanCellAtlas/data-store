@@ -9,7 +9,8 @@ import requests
 
 from dss.config import override_bucket_config, BucketConfig
 from dss.util import UrlBuilder
-from dss.util.checkout import get_manifest_files, validate_file_dst, validate, ValidationEnum, validate_bundle_exists
+from dss.util.checkout import get_manifest_files, validate_file_dst, validate, ValidationEnum, validate_bundle_exists, \
+    touch_test_file
 
 pkg_root = os.path.abspath(os.path.join(os.path.dirname(__file__), '..'))  # noqa
 sys.path.insert(0, pkg_root)  # noqa
@@ -168,3 +169,7 @@ class TestFileApi(unittest.TestCase, DSSAssertMixin, DSSUploadMixin):
         replica = "aws"
         valid, cause = validate_bundle_exists(replica, self.s3_test_fixtures_bucket, bundle_uuid, version)
         self.assertIs(valid, ValidationEnum.WRONG_BUNDLE_KEY)
+
+    def test_touch_file(self):
+        replica = "aws"
+        self.assertEqual(touch_test_file(self.s3_test_checkout_bucket, replica), True)
