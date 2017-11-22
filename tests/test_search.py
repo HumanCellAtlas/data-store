@@ -31,7 +31,6 @@ from tests.infra import DSSAssertMixin, ExpectedErrorFields, start_verbose_loggi
 from tests.infra.server import ThreadedLocalServer
 from tests.sample_search_queries import smartseq2_paired_ends_v3_query
 
-
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 logger.setLevel(logging.INFO)
@@ -108,15 +107,13 @@ class TestSearchBase(DSSAssertMixin):
         self.verify_search_result(search_obj.json, smartseq2_paired_ends_v3_query, 0)
 
     def test_search_returns_no_result_when_query_does_not_match_indexed_documents(self):
-        query = \
-            {
-                "_source": False,
-                "query": {
-                    "match": {
-                        "files.sample_json.donor.species": "xxx"
-                    }
+        query = {
+            "query": {
+                "match": {
+                    "files.sample_json.donor.species": "xxx"
                 }
             }
+        }
         self.populate_search_index(self.index_document, 1)
         url = self.build_url()
         search_obj = self.assertPostResponse(
@@ -239,7 +236,7 @@ class TestSearchBase(DSSAssertMixin):
         self.verify_bundles(found_bundles, bundles)
 
     def test_page_has_N_results_when_per_page_is_N(self):
-                        # per_page, expected
+        # per_page, expected
         per_page_tests = [(10, 10),
                           (100, 100),
                           (500, 500)]  # max is 500
@@ -306,6 +303,7 @@ class TestSearchBase(DSSAssertMixin):
             expected_code=requests.codes.not_found,
             expected_error=ExpectedErrorFields(code="elasticsearch_context_not_found",
                                                status=requests.codes.not_found))
+
     def test_verify_dynamic_mapping(self):
         doc1 = {
             "manifest": {"data": "hello world!"},
