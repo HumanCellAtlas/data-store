@@ -20,6 +20,7 @@ pkg_root = os.path.abspath(os.path.join(os.path.dirname(__file__), ".."))  # noq
 sys.path.insert(0, pkg_root)  # noqa
 
 import dss
+from dss.api.search import _es_search_page
 from copy import deepcopy
 from dss.config import IndexSuffix
 from dss.events.handlers.index import create_elasticsearch_index
@@ -73,6 +74,15 @@ class TestSearchBase(DSSAssertMixin):
         dss.Config.set_config(dss.BucketConfig.TEST)
         elasticsearch_delete_index(f"*{IndexSuffix.name}")
         create_elasticsearch_index(self.dss_index_name, logger)
+
+    def test_es_search_page(self):
+        """Confirm that elasaticsearch is returning _source info only when necessary."""
+        self.populate_search_index(self.index_document, 1)
+        self.check_count(smartseq2_paired_ends_v3_query, 1)
+        page = _es_search_page(smartseq2_paired_ends_v3_query, self.replica_name, 10, None, 'raw')
+        self.assertTrue('_source' in page['hits']['hits'][0])
+        page = _es_search_page(smartseq2_paired_ends_v3_query, self.replica_name, 10, None, 'something')
+        self.assertFalse('_source' in page['hits']['hits'][0])
 
     def test_search_post(self):
         bundles = self.populate_search_index(self.index_document, 1)
