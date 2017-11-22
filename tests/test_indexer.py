@@ -272,8 +272,7 @@ class TestIndexerBase(DSSAssertMixin, DSSStorageMixin, DSSUploadMixin):
         sample_event = self.create_sample_bundle_created_event(self.bundle_key)
         self.process_new_indexable_object(sample_event, logger)
         es_client = ElasticsearchClient.get(logger)
-        index_names = [i['i'] for i in es_client.cat.aliases(name=self.dss_alias_name, h=['a', 'i'], format='json')]
-        self.assertNotEqual(len(index_names), 0)
+        self.assertTrue(es_client.indices.exists_alias(name=[self.dss_alias_name]))
 
     @unittest.skip("WIP")
     def test_index_when_multiple_indexes_using_alias(self):
