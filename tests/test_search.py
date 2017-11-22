@@ -20,6 +20,7 @@ pkg_root = os.path.abspath(os.path.join(os.path.dirname(__file__), ".."))  # noq
 sys.path.insert(0, pkg_root)  # noqa
 
 import dss
+from copy import deepcopy
 from dss.config import IndexSuffix
 from dss.events.handlers.index import create_elasticsearch_index
 from dss.util.es import ElasticsearchServer, ElasticsearchClient
@@ -99,6 +100,7 @@ class TestSearchBase(DSSAssertMixin):
     def test_search_returns_no_result_when_query_does_not_match_indexed_documents(self):
         query = \
             {
+                "_source": False,
                 "query": {
                     "match": {
                         "files.sample_json.donor.species": "xxx"
@@ -343,7 +345,7 @@ class TestSearchBase(DSSAssertMixin):
         return str(url)
 
     def verify_search_result(self, search_json, es_query, total_hits, expected_result_length=0):
-        self.assertDictEqual(search_json['es_query'], es_query)
+        self.assertDictEqual(search_json['es_query']['query'], es_query['query'])
         self.assertEqual(len(search_json['results']), expected_result_length)
         self.assertEqual(search_json['total_hits'], total_hits)
 

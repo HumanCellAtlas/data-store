@@ -28,6 +28,11 @@ def post(json_request_body: dict,
          output_format: str,
          _scroll_id: typing.Optional[str] = None) -> dict:
     es_query = json_request_body['es_query']
+
+    # Do not return the raw indexed data unless it is requested
+    if output_format != 'raw':
+        es_query['_source'] = False
+
     get_logger().debug("Received posted query. Replica: %s Query: %s Per_page: %i Timeout: %s Scroll_id: %s",
                        replica, json.dumps(es_query, indent=4), per_page, _scroll_id)
     if replica is None:
