@@ -8,37 +8,32 @@ CHARSET = "UTF-8"
 client = boto3.client('ses')
 
 def send_email(sender: str, to: str, subject: str, html: str, text: str) -> str:
-    try:
-        # Provide the contents of the email.
-        response = client.send_email(
-            Destination={
-                'ToAddresses': [
-                    to
-                ],
-            },
-            Message={
-                'Body': {
-                    'Html': {
-                        'Charset': CHARSET,
-                        'Data': html,
-                    },
-                    'Text': {
-                        'Charset': CHARSET,
-                        'Data': text,
-                    },
-                },
-                'Subject': {
+    # Provide the contents of the email.
+    response = client.send_email(
+        Destination={
+            'ToAddresses': [
+                to
+            ],
+        },
+        Message={
+            'Body': {
+                'Html': {
                     'Charset': CHARSET,
-                    'Data': subject,
+                    'Data': html,
+                },
+                'Text': {
+                    'Charset': CHARSET,
+                    'Data': text,
                 },
             },
-            Source=sender,
-        )
-    # Display an error if something goes wrong.
-    except ClientError as e:
-        return e.response['Error']['Message']
-    else:
-        return "Email sent! Message ID: {}".format(response['ResponseMetadata']['RequestId'])
+            'Subject': {
+                'Charset': CHARSET,
+                'Data': subject,
+            },
+        },
+        Source=sender,
+    )
+    return "Email sent! Message ID: {}".format(response['ResponseMetadata']['RequestId'])
 
 def send_checkout_success_email(sender: str, to: str, bucket: str, location: str):
     subject = "Bundle checkout complete"

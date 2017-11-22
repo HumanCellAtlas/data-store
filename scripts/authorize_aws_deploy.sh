@@ -17,7 +17,7 @@ fi
 export iam_principal_type=$1 iam_principal_name=$2
 export account_id=$(aws sts get-caller-identity | jq -r .Account)
 policy_json="$(dirname $0)/../iam/policy-templates/ci-cd.json"
-envsubst_vars='$DSS_DEPLOYMENT_STAGE $DSS_S3_BUCKET $DSS_S3_BUCKET_TEST $DSS_S3_BUCKET_TEST_FIXTURES $DSS_S3_BUCKET_STAGING $account_id'
+envsubst_vars='$DSS_DEPLOYMENT_STAGE $DSS_S3_BUCKET $DSS_S3_BUCKET_TEST $DSS_S3_BUCKET_TEST_FIXTURES $DSS_S3_BUCKET_STAGING $DSS_S3_CHECKOUT_BUCKET $DSS_S3_CHECKOUT_BUCKET_TEST $DSS_S3_CHECKOUT_BUCKET_TEST_FIXTURES $DSS_S3_CHECKOUT_BUCKET_STAGING $account_id'
 
 aws iam put-${iam_principal_type}-policy \
     --${iam_principal_type}-name $iam_principal_name \

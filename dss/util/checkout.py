@@ -38,9 +38,7 @@ class ValidationEnum(Enum):
     WRONG_BUNDLE_KEY = auto(),
     PASSED = auto()
 
-def parallel_copy(
-        source_bucket: str, source_key: str,
-        destination_bucket: str, destination_key: str):
+def parallel_copy(source_bucket: str, source_key: str, destination_bucket: str, destination_key: str):
     log.debug(f"Copy file from bucket {source_bucket} with key {source_key} to "
               f"bucket {destination_bucket} destination file: {destination_key}")
     initial_state = S3ParallelCopySupervisorTask.setup_copy_task(
@@ -75,7 +73,7 @@ def validate_file_dst(dst_bucket: str, dst_key: str, replica: str):
     valid = True
     try:
         blobstore.get_all_metadata(dst_bucket, dst_key)
-    except BlobNotFoundError as e:
+    except (BlobNotFoundError, BlobStoreUnknownError):
         valid = False
     return valid
 
