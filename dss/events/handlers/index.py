@@ -16,7 +16,7 @@ from requests_http_signature import HTTPSignatureAuth
 from dss import Config, DeploymentStage, ESIndexType, ESDocType, Replica
 from ...util import create_blob_key
 from ...hcablobstore import BundleMetadata, BundleFileMetadata
-from ...util.es import ElasticsearchClient, get_elasticsearch_doc_index
+from ...util.es import ElasticsearchClient, create_elasticsearch_doc_index
 
 DSS_BUNDLE_KEY_REGEX = r"^bundles/[0-9A-Fa-f]{8}-[0-9A-Fa-f]{4}-4[0-9A-Fa-f]{3}-[0-9A-Fa-f]{4}-[0-9A-Fa-f]{12}\..+$"
 
@@ -136,18 +136,18 @@ def add_index_data_to_elasticsearch(bundle_id: str, index_data: dict, alias_name
     #  create the elasticsearch index name from alias
     name, doc_type, replica, deployment = alias_name.split('-')
     index_name = '-'.join([name, doc_type, replica, version, deployment])
-    create_elasticsearch_index(index_name, alias_name, logger)
+    get_elasticsearch_index(index_name, alias_name, logger)
     logger.debug("Adding index data to Elasticsearch index '%s': %s", index_name, json.dumps(index_data, indent=4))
     add_data_to_elasticsearch(bundle_id, index_data, index_name, logger)
 
 
-def create_elasticsearch_index(index_name, alias_name, logger):
+def get_elasticsearch_index(index_name: str, alias_name: str, logger):
     if not ElasticsearchClient.get(logger).indices.exists(index_name):
         with open(os.path.join(os.path.dirname(__file__), "mapping.json"), "r") as fh:
             index_mapping = json.load(fh)
         index_mapping["mappings"][ESDocType.doc.name] = index_mapping["mappings"].pop("doc")
         index_mapping["mappings"][ESDocType.query.name] = index_mapping["mappings"].pop("query")
-        get_elasticsearch_doc_index(ElasticsearchClient.get(logger), index_name, alias_name, logger, index_mapping)
+        create_elasticsearch_doc_index(ElasticsearchClient.get(logger), index_name, alias_name, logger, index_mapping)
     else:
         logger.debug(f"Using existing Elasticsearch index: {index_name}")
 

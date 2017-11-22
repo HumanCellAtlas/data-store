@@ -133,7 +133,7 @@ class ElasticsearchClient:
         return client
 
 
-def get_elasticsearch_doc_index(es_client, index_name, alias_name, logger, index_mapping=None):
+def create_elasticsearch_doc_index(es_client, index_name, alias_name, logger, index_mapping=None):
     try:
             logger.debug(f"Creating new Elasticsearch index: {index_name}")
             response = es_client.indices.create(index_name, body=index_mapping)

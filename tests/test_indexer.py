@@ -98,8 +98,8 @@ class TestIndexerBase(DSSAssertMixin, DSSStorageMixin, DSSUploadMixin):
         cls.blobstore, _, cls.test_fixture_bucket = Config.get_cloud_specific_handles(cls.replica)
         Config.set_config(BucketConfig.TEST)
         _, _, cls.test_bucket = Config.get_cloud_specific_handles(cls.replica)
-        cls.dss_alias_name = dss.Config.get_es_index_name(dss.ESIndexType.docs, dss.Replica[cls.replica])
-        cls.subscription_index_name = dss.Config.get_es_index_name(dss.ESIndexType.subscriptions,
+        cls.dss_alias_name = dss.Config.get_es_alias_name(dss.ESIndexType.docs, dss.Replica[cls.replica])
+        cls.subscription_index_name = dss.Config.get_es_alias_name(dss.ESIndexType.subscriptions,
                                                                    dss.Replica[cls.replica])
 
     @classmethod

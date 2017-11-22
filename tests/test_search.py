@@ -61,7 +61,7 @@ class TestSearchBase(DSSAssertMixin):
         cls.app.start()
         cls.replica_name = replica.name
         dss.Config.set_config(dss.BucketConfig.TEST)
-        cls.dss_alias_name = dss.Config.get_es_index_name(dss.ESIndexType.docs, replica)
+        cls.dss_alias_name = dss.Config.get_es_alias_name(dss.ESIndexType.docs, replica)
         cls.dss_index_name = "search-unittest"
         with open(os.path.join(os.path.dirname(__file__), "sample_v3_index_doc.json"), "r") as fh:
             cls.index_document = json.load(fh)
