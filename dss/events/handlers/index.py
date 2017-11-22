@@ -50,8 +50,11 @@ def process_new_indexable_object(bucket_name: str, key: str, replica: str, logge
         manifest = read_bundle_manifest(blobstore, bucket_name, key, logger)
         bundle_id = get_bundle_id_from_key(key)
         index_data = create_index_data(blobstore, bucket_name, bundle_id, manifest, logger)
-        alias_name = Config.get_es_index_name(ESIndexType.docs, Replica[replica])
-        add_index_data_to_elasticsearch(bundle_id, index_data, alias_name, logger)
+        alias_name = Config.get_es_alias_name(ESIndexType.docs, Replica[replica])
+        #  TODO (tsmith): get the major version from index data.
+        version = '1'
+        index_name = Config.get_es_index_name(ESIndexType.docs, Replica[replica], version)
+        add_index_data_to_elasticsearch(bundle_id, index_data, index_name, alias_name, logger)
         subscriptions = find_matching_subscriptions(index_data, alias_name, logger)
         process_notifications(bundle_id, subscriptions, replica, logger)
         logger.debug(f"Finished index processing of {replica} creation event for bundle: {key}")
@@ -130,12 +133,7 @@ def get_bundle_id_from_key(bundle_key: str) -> str:
     raise Exception(f"This is not a key for a bundle: {bundle_key}")
 
 
-def add_index_data_to_elasticsearch(bundle_id: str, index_data: dict, alias_name: str, logger) -> None:
-    #  TODO (tsmith): get the major version from index data.
-    version = '1'
-    #  create the elasticsearch index name from alias
-    name, doc_type, replica, deployment = alias_name.split('-')
-    index_name = '-'.join([name, doc_type, replica, version, deployment])
+def add_index_data_to_elasticsearch(bundle_id: str, index_data: dict, index_name: str, alias_name: str, logger) -> None:
     get_elasticsearch_index(index_name, alias_name, logger)
     logger.debug("Adding index data to Elasticsearch index '%s': %s", index_name, json.dumps(index_data, indent=4))
     add_data_to_elasticsearch(bundle_id, index_data, index_name, logger)

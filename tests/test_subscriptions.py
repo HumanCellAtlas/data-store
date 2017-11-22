@@ -15,7 +15,7 @@ import google.auth
 import google.auth.transport.requests
 import requests
 
-from dss.events.handlers.index import create_elasticsearch_index
+from dss.events.handlers.index import get_elasticsearch_index
 
 pkg_root = os.path.abspath(os.path.join(os.path.dirname(__file__), '..')) # noqa
 sys.path.insert(0, pkg_root) # noqa
@@ -67,7 +67,7 @@ class TestSubscriptionsBase(DSSAssertMixin):
         es_client = ElasticsearchClient.get(logger)
         elasticsearch_delete_index(f"*{IndexSuffix.name}")
         alias_name = dss.Config.get_es_index_name(dss.ESIndexType.docs, self.replica)
-        create_elasticsearch_index("subscription_test", alias_name, logger)
+        get_elasticsearch_index("subscription_test", alias_name, logger)
 
         with open(os.path.join(os.path.dirname(__file__), "sample_v3_index_doc.json"), "r") as fh:
             index_document = json.load(fh)
