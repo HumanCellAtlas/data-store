@@ -1,11 +1,28 @@
 
 import json
 import boto3
+import string
 import botocore
 from time import time
 from uuid import uuid4
 from enum import Enum, auto
 from .utils import *
+from dss import BucketConfig, Config
+
+
+Config.set_config(BucketConfig.NORMAL)
+
+
+class DSSVisitationException(Exception):
+    pass
+
+
+class DSSVisitationExceptionSkipItem(DSSVisitationException):
+    pass
+
+
+class DSSVisitationExceptionRetry(DSSVisitationException):
+    pass
 
 
 class StatusCode(Enum):
@@ -14,14 +31,50 @@ class StatusCode(Enum):
     FAILED = auto()
 
 
-class _BaseRep:
-    _props = dict()
+class Visitation:
 
-    def __init__(self, logger=None, **kwargs):
-        self.logger = logger
+    _base_state_spec = dict(
+        visitation_class_name = str,
+        code = str,
+        replica = str,
+        bucket = str,
+        dirname = str,
+    )
 
-        for k, default in self._props.items():
-            v = kwargs.get(k, None)
+
+    sentinel_state_spec = dict(
+        name = str,
+        k_workers = int,
+        waiting = list,
+        wait_time = int,
+    )
+
+
+    walker_state_spec = dict(
+        prefix = str,
+        marker = str,
+        k_processed = int,
+        k_starts = int,
+    )
+
+
+    sentinel_arn = statefunction_arn('dss-visitation-sentinel')
+    walker_arn = statefunction_arn('dss-visitation-walker')
+
+
+    _walker_timeout = 240
+
+
+    def __init__(self, state_spec, state):
+
+        self.state_spec = self._base_state_spec.copy()
+
+        self.state_spec.update(
+            state_spec
+        )
+
+        for k, default in self.state_spec.items():
+            v = state.get(k, None)
 
             if v is None:
                 v = default()
@@ -29,62 +82,52 @@ class _BaseRep:
             setattr(self, k, default(v))
 
 
-    def to_dict(self, ** kwargs):
-        d = {
+    def propagate_state(self):
+
+        return {
             k : getattr(self, k)
-                for k in self._props
+                for k in self.state_spec
         }
 
-        d.update(
-            ** kwargs
+
+    @classmethod
+    def sentinel_state(cls, state):
+
+        return cls(
+            cls.sentinel_state_spec,
+            state
         )
 
-        return d
 
+    @classmethod
+    def walker_state(cls, state):
 
-class Sentinel(_BaseRep):
-    _props = dict(
-        name = str,
-        replica = str,
-        bucket = str,
-        k_workers = int,
-        waiting = list,
-        wait_time = int,
-        code = str,
-    )
+        return cls(
+            cls.walker_state_spec,
+            state
+        )
 
-    ARN = statefunction_arn('dss-visitation-sentinel')
 
     @classmethod
     def get_status(cls, name):
-        execution_arn = statefunction_arn(
-            'dss-visitation-sentinel',
-            name
-        )
 
-        walker_executions, k_api_calls = get_executions(
-            Walker.ARN,
-            get_start_date(
-                execution_arn
-            )
+        walker_executions, k_api_calls = list_executions_for_sentinel(
+            name
         )
 
         running = [
             e['name'].split('--')[0] for e in walker_executions
                 if e['status'] == StatusCode.RUNNING.name
-                and e['name'].endswith(name)
         ]
 
         succeeded = [
             e['name'].split('--')[0] for e in walker_executions
                 if e['status'] == StatusCode.SUCCEEDED.name
-                and e['name'].endswith(name)
         ]
 
         failed = [
             e['name'].split('--')[0] for e in walker_executions
                 if e['status'] == StatusCode.FAILED.name
-                and e['name'].endswith(name)
         ]
 
         return {
@@ -93,6 +136,7 @@ class Sentinel(_BaseRep):
             'failed': failed,
             'k_api_calls': k_api_calls
         }
+
 
     def muster(self):
 
@@ -109,57 +153,167 @@ class Sentinel(_BaseRep):
         self.wait_time = 2 * status['k_api_calls']
 
         if len(running) < self.k_workers:
-
             k_new = min(
                 self.k_workers - len(running),
                 len(self.waiting)
             )
 
             for i in range(k_new):
-
                 pfx = self.waiting[i]
 
                 running.append(pfx)
 
-                walker = Walker(
-                    ** self.to_dict(),
-                    prefix = pfx
-                )
-
-                walker.start(
-                    f'{pfx}--{self.name}'
-                )
+                self.start_walker(pfx)
 
         if running:
             self.code = StatusCode.RUNNING.name
         else:
             self.code = StatusCode.SUCCEEDED.name
 
+        return running
 
-class Walker(_BaseRep):
-    _props = dict(
-        replica = str,
-        bucket = str,
-        prefix = str,
-        marker = str,
-        k_processed = int,
-        k_starts = int,
-        code = str,
-    )
 
-    ARN = statefunction_arn('dss-visitation-walker')
+    def start_walker(self, pfx):
 
-    timeout = 240
+        name = f'{pfx}--{self.name}'
 
-    def start(self, name):
         resp = boto3.client('stepfunctions').start_execution(
-            stateMachineArn = self.ARN,
+            stateMachineArn = type(self).walker_arn,
             name = name,
             input = json.dumps({
+                'visitation_class_name': self.visitation_class_name,
                 'replica': self.replica,
                 'bucket': self.bucket,
-                'prefix': self.prefix,
+                'dirname': self.dirname,
+                'prefix': pfx
             })
         )
 
         return resp
+
+
+    def initialize(self):
+        raise NotImplementedError
+
+
+    def finalize(self):
+        raise NotImplementedError
+
+
+    def finalize_failed(self):
+        raise NotImplementedError
+
+
+    def initialize_walker(self):
+        raise NotImplementedError
+
+
+    def process_item(self, key):
+        raise NotImplementedError
+
+
+    def walk(self):
+        raise NotImplementedError
+
+
+    def finalize_walker(self):
+        raise NotImplementedError
+
+
+    def finalize_failed_walker(self):
+        raise NotImplementedError
+
+
+class IntegrationTest(Visitation):
+
+    walker_state_spec = {
+        ** Visitation.walker_state_spec,
+        ** dict(
+            processed_keys = list
+        )
+    }
+
+    def initialize(self):
+
+        validate_bucket(
+            self.bucket
+        )
+
+        alphanumeric = string.ascii_lowercase[:6] + '0987654321'
+
+        self.waiting = [f'{a}{b}' for a in alphanumeric for b in alphanumeric]
+
+        self.code = StatusCode.RUNNING.name
+
+
+    def finalize(self):
+        pass
+
+
+    def finalize_failed(self):
+        pass
+
+
+    def initialize_walker(self):
+        
+        validate_bucket(
+            self.bucket
+        )
+
+        self.code = StatusCode.RUNNING.name
+
+
+    def process_item(self, key):
+        self.processed_keys.append(
+            key
+        )
+
+
+    def walk(self):
+        
+        self.k_starts += 1
+
+        handle, hca_handle, bucket = Config.get_cloud_specific_handles(
+            self.replica
+        )
+
+        start_time = time()
+        elapsed_time = 0
+
+        # TODO: stop work and return 'IN_PRORGRESS' before max return limit on handle.list is reached
+        for item in boto3.resource("s3").Bucket(self.bucket).objects.filter(
+            Prefix = self.dirname + '/' + self.prefix,
+            Marker = self.marker
+        ):
+            key = item.key
+
+            try:
+                self.process_item(
+                    key
+                )
+
+            except DSSVisitationExceptionSkipItem as e:
+                logger.warning(e)
+
+            self.marker = key
+            self.k_processed += 1
+
+            if time() - start_time >= self._walker_timeout:
+                self.code = StatusCode.RUNNING.name
+                break
+
+        else:
+            self.code = StatusCode.SUCCEEDED.name
+
+
+    def finalize_walker(self):
+        pass
+
+
+    def finalize_failed_walker(self):
+        pass
+
+
+registered_visitations = {
+    'IntegrationTest': IntegrationTest
+}

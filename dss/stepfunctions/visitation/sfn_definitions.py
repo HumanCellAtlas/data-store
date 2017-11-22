@@ -9,7 +9,7 @@ sentinel_sfn = {
             "Catch": [
                 {
                     "ErrorEquals": ["States.ALL"],
-                    "Next": "NotifyFailure"
+                    "Next": "Failed"
                 }
             ]
         },
@@ -29,7 +29,7 @@ sentinel_sfn = {
             "Catch": [
                 {
                     "ErrorEquals": ["States.ALL"],
-                    "Next": "NotifyFailure"
+                    "Next": "Failed"
                 }
             ]
         },
@@ -49,12 +49,12 @@ sentinel_sfn = {
             "SecondsPath": "$.wait_time",
             "Next": "MusterWalkers"
         },
-        "NotifyFailure": {
+        "Failed": {
             "Type": "Task",
             "Resource": None,
-            "Next": "Failed"
+            "Next": "Fail"
         },
-        "Failed": {
+        "Fail": {
             "Type": "Fail",
         },
         "Succeeded": {
@@ -116,10 +116,16 @@ walker_sfn = {
             "Default": "Succeeded"
         },
         "Failed": {
+            "Type": "Task",
+            "Resource": None,
+            "Next": "Fail"
+        },
+        "Fail": {
             "Type": "Fail",
         },
         "Succeeded": {
-            "Type": "Pass",
+            "Type": "Task",
+            "Resource": None,
             "End": True
         }
     }

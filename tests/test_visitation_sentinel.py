@@ -19,6 +19,10 @@ from botocore.client import ClientError
 
 pkg_root = os.path.abspath(os.path.join(os.path.dirname(__file__), '..'))  # noqa
 sys.path.insert(0, pkg_root)  # noqa
+
+import dss
+from dss.stepfunctions import visitation
+
 sys.path.insert(0, os.path.join(
     pkg_root,
     'daemons',
@@ -26,7 +30,6 @@ sys.path.insert(0, os.path.join(
 ))
 
 import app
-import dss
 
 from tests import infra
 from tests.infra import get_env
@@ -54,9 +57,11 @@ class TestVisitationSentinel(unittest.TestCase):
         self.s3_test_bucket = get_env("DSS_S3_BUCKET_TEST")
 
         self.event = {
+            "visitation_class_name": "IntegrationTest",
             "replica": "aws",
             "bucket": "bhannafi-dss-test",
-            "k_workers": 20,
+            "k_workers": 3,
+            "waiting": ['aa', '11', 'bc'],
             "name": uuid4()
         }
 
@@ -72,6 +77,53 @@ class TestVisitationSentinel(unittest.TestCase):
 
         with self.assertRaises(ClientError):
             ret = app.initialize(self.event, context=None)
+
+    def test_muster(self):
+
+        class VisTest(visitation.Visitation):
+            @classmethod
+            def get_status(cls, name):
+                return {
+                    'running': [],
+                    'succeeded': [],
+                    'failed': [],
+                    'k_api_calls': 3
+                }
+
+            def start_walker(self, pfx):
+                pass
+
+        sentinel = VisTest.sentinel_state(
+            self.event
+        )
+
+        running = sentinel.muster()
+
+        self.assertEquals(
+            set(self.event['waiting']),
+            set(running)
+        )
+
+
+    def test_start_walker(self):
+
+        class VisTest(visitation.Visitation):
+            @classmethod
+            def get_status(cls, name):
+                return {
+                    'running': [],
+                    'succeeded': [],
+                    'failed': [],
+                    'k_api_calls': 3
+                }
+
+        sentinel = VisTest.sentinel_state(
+            self.event
+        )
+
+        sentinel.start_walker(
+            'aa'
+        )
 
 
 if __name__ == '__main__':

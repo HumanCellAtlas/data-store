@@ -1,25 +1,25 @@
 import json
 import boto3
 from uuid import uuid4
-from . import Sentinel
+from . import Visitation
 
-def reindex(replica, bucket, k_workers):
+def integration_test(replica, bucket, k_workers):
 
-    name = 'reindex--{}'.format(
+    name = 'integration-test--{}'.format(
         str(uuid4())
     )
 
-    arn = Sentinel.ARN
-
     inp = json.dumps({
+        'visitation_class_name': 'IntegrationTest',
         'name': name,
         'replica': replica,
-        'bucket' : bucket,
+        'bucket': bucket,
+        'dirname': 'files',
         'k_workers': int(k_workers),
     })
 
     resp = boto3.client('stepfunctions').start_execution(
-        stateMachineArn = Sentinel.ARN,
+        stateMachineArn = Visitation.sentinel_arn,
         name = name,
         input = inp
     )

@@ -11,17 +11,27 @@ pkg_root = os.path.abspath(os.path.join(os.path.dirname(__file__), 'domovoilib')
 sys.path.insert(0, pkg_root)  # noqa
 
 import dss
+from dss.stepfunctions import visitation
 from dss.stepfunctions.visitation.sfn_definitions import walker_sfn
-from dss.stepfunctions.visitation import StatusCode, Walker
+from dss.stepfunctions.visitation import StatusCode, DSSVisitationExceptionSkipItem
 from dss.stepfunctions.visitation.utils import *
-from dss import BucketConfig, Config
 
 
 logger = dss.get_logger()
-Config.set_config(BucketConfig.NORMAL)
 
 
 app = domovoi.Domovoi()
+
+
+def vis_obj(event):
+
+    class_name = event['visitation_class_name']
+
+    vis_class = visitation.registered_visitations[class_name]
+
+    return vis_class.walker_state(
+        event
+    )
 
 
 @app.step_function_task(
@@ -30,18 +40,15 @@ app = domovoi.Domovoi()
 )
 def initialize(event, context):
 
-    walker = Walker(
-        ** event,
-        logger = logger
+    walker = vis_obj(
+        event
     )
 
-    validate_bucket(
-        walker.bucket
-    )
+    walker.initialize_walker()
 
     walker.code = StatusCode.RUNNING.name
 
-    return walker.to_dict()
+    return walker.propagate_state()
 
 
 @app.step_function_task(
@@ -49,47 +56,43 @@ def initialize(event, context):
     state_machine_definition = walker_sfn
 )
 def walk(event, context):
+
+    # TODO: use the lambdaexecutor for timed work
     
-    walker = Walker(
-        ** event,
-        logger = logger
+    walker = vis_obj(
+        event
     )
 
-    walker.k_starts += 1
+    walker.walk()
 
-    handle, hca_handle, bucket = Config.get_cloud_specific_handles(
-        walker.replica
+    return walker.propagate_state()
+
+
+@app.step_function_task(
+    state_name = "Succeeded",
+    state_machine_definition = walker_sfn
+)
+def succeeded(event, context):
+
+    walker = vis_obj(
+        event
     )
 
-    start_time = time()
-    elapsed_time = 0
+    walker.finalize_walker()
 
-    # TODO: stop work and return 'IN_PRORGRESS' before max return limit on handle.list is reached
-    for item in boto3.resource("s3").Bucket(walker.bucket).objects.filter(
-        Prefix = walker.prefix,
-        Marker = walker.marker
-    ):
-        key = item.key
+    return walker.propagate_state()
 
-        try:
-            # DO something
-            # poke(handle, walker.bucket, key)
-            print(key)
 
-        except:
-            logger.warning(f'walker_bee failed to process {key}')
+@app.step_function_task(
+    state_name = "Failed",
+    state_machine_definition = walker_sfn
+)
+def failed(event, context):
 
-        walker.marker = key
-        walker.k_processed += 1
+    walker = vis_obj(
+        event
+    )
 
-        if time() - start_time >= walker.timeout:
+    walker.finalize_failed_walker()
 
-            return walker.to_dict(
-                code = StatusCode.RUNNING.name
-            )
-
-    else:
-
-        return walker.to_dict(
-            code = StatusCode.SUCCEEDED.name
-        )
+    return walker.propagate_state()

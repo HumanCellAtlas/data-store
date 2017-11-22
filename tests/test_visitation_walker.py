@@ -19,6 +19,9 @@ from botocore.client import ClientError
 
 pkg_root = os.path.abspath(os.path.join(os.path.dirname(__file__), '..'))  # noqa
 sys.path.insert(0, pkg_root)  # noqa
+
+import dss
+
 sys.path.insert(0, os.path.join(
     pkg_root,
     'daemons',
@@ -26,10 +29,10 @@ sys.path.insert(0, os.path.join(
 ))
 
 import app
-import dss
 
 from tests import infra
 from tests.infra import get_env
+
 
 infra.start_verbose_logging()
 
@@ -57,6 +60,7 @@ class TestVisitationWalker(unittest.TestCase):
         self.s3_test_bucket = get_env("DSS_S3_BUCKET_TEST")
 
         self.event = {
+            "visitation_class_name": "IntegrationTest",
             "replica": "aws",
             "bucket": self.s3_test_bucket,
             "prefix": "11",

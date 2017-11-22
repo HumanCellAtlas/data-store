@@ -1,43 +1,113 @@
 
 import os
+import time
+import json
 import boto3
 import botocore
-import pytz
-from datetime import datetime
+import datetime
 from uuid import uuid4
 from ...util.aws import ARN
 
 
+sf_client = boto3.client('stepfunctions')
 _deployment_stage = os.getenv('DSS_DEPLOYMENT_STAGE', 'dev')
 
 
-def get_executions(arn, start_date = pytz.utc.localize(datetime.min), max_api_calls=20):
+def compile_results(name, api_calls_per_second=2):
 
-    k_api_calls = 1
+    res = list()
 
-    resp = boto3.client('stepfunctions').list_executions(
-        stateMachineArn = arn
+    walker_execs, _ = list_executions_for_sentinel(
+        name
     )
 
-    executions = resp['executions']
+    for w in throttled_iter(walker_execs,
+                            api_calls_per_second):
 
-    while resp.get('nextToken', None) and executions[-1]['startDate'] > start_date:
+        resp = sf_client.describe_execution(
+            executionArn = w['executionArn']
+        )
 
-        k_api_calls += 1
+        res.append({
+            'name': resp['name'],
+            'status': resp['status'],
+            'output': json.loads(
+                resp.get(
+                    'output',
+                    '{}'
+                )
+            )
+        })
 
-        resp = boto3.client('stepfunctions').list_executions(
-            stateMachineArn = arn,
-            nextToken = resp['nextToken']
+    return res
+
+
+def list_executions_for_sentinel(name):
+    
+    execution_arn = statefunction_arn(
+        'dss-visitation-sentinel',
+        name
+    )
+
+    walker_arn = statefunction_arn(
+        'dss-visitation-walker'
+    )
+
+    walker_executions, k_api_calls = list_executions(
+        walker_arn,
+        get_start_date(
+            execution_arn
+        )
+    )
+
+    execs = [
+        e for e in walker_executions
+            if e['name'].endswith(name)
+    ]
+
+    return execs, k_api_calls
+
+
+def min_datetime():
+
+    class dont_care_which_timezone_is_min(datetime.tzinfo):
+        def utcoffset(self, *args, **kwargs):
+            return datetime.timedelta(0)
+
+    return datetime.datetime.min.replace(
+            tzinfo = dont_care_which_timezone_is_min()
+    )
+
+
+def list_executions(arn, start_date=min_datetime(), max_api_calls=50):
+
+    if max_api_calls < 1:
+        raise Exception('Must allow at least 1 api call')
+
+    executions = list()
+    kwargs = {
+        'stateMachineArn': arn,
+        'maxResults': 100
+    }
+
+    for k_api_calls in range(1, max_api_calls + 1):
+
+        resp = sf_client.list_executions(
+            ** kwargs
         )
 
         executions.extend(
             resp['executions']
         )
 
-        if k_api_calls >= max_api_calls:
-            raise Exception(
-                'maximum number of API calls exceeded'
-            )
+        if executions[-1]['startDate'] < start_date:
+            break
+
+        if resp.get('nextToken', None):
+            kwargs['nextToken'] = resp['nextToken']
+            continue
+        else:
+            break
 
     executions = [
         e for e in executions
@@ -49,7 +119,7 @@ def get_executions(arn, start_date = pytz.utc.localize(datetime.min), max_api_ca
 
 def get_start_date(execution_arn):
 
-    resp = boto3.client('stepfunctions').describe_execution(
+    resp = sf_client.describe_execution(
         executionArn = execution_arn
     )
     
@@ -72,7 +142,20 @@ def statefunction_arn(stf_name, execution_name=None):
     return arn
 
 
-def validate_bucket(bucket):
-    boto3.resource('s3').meta.client.head_bucket(
-        Bucket = bucket
-    )
+def throttled_iter(iterable, calls_per_second=2, chunk_size=10):
+    t = time.time()
+    k = 0
+
+    for item in iterable:
+
+        if k >= chunk_size:
+            dt = time.time() - t
+            if k/dt > calls_per_second:
+                wait_time = k / calls_per_second - dt
+                time.sleep(wait_time)
+
+            t = time.time()
+            k = 0
+
+        k += 1
+        yield item
