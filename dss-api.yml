@@ -704,7 +704,7 @@ paths:
                   - code
   /bundles/{uuid}/checkout:
     post:
-      summary: Check out a bundle to HCA-owned cloud storage or user provided destination
+      summary: Check out a bundle to HCA-owned cloud storage or user-provided destination
       description: |
         User makes a request for a bundle version to be extracted. Storage system makes an attempt to validate
         that the bundle UUID with an optionally provided version exists in a given replica.
@@ -754,7 +754,8 @@ paths:
             type: object
             properties:
               checkout_job_id:
-                description: Unique identifier of the checkout job request.
+                description: A RFC4122-compliant ID for the checkout job request.
+                pattern: "[A-Za-z0-9]{8}-[A-Za-z0-9]{4}-[A-Za-z0-9]{4}-[A-Za-z0-9]{4}-[A-Za-z0-9]{12}"
                 type: string
             required:
               - checkout_job_id
@@ -768,7 +769,7 @@ paths:
                   code:
                     type: string
                     description: Machine-readable error code.  The types of return values should not be changed lightly.
-                    enum: [unhandled_exception, illegal_arguments, unknown_source_schema, file_already_exists, not_found]
+                    enum: [unhandled_exception, illegal_arguments, not_found]
                 required:
                   - code
 
@@ -782,7 +783,8 @@ paths:
       parameters:
         - name: checkout_job_id
           in: path
-          description: unique identifier of the checkout job request .
+          description: A RFC4122-compliant ID for the checkout job request.
+          pattern: "[A-Za-z0-9]{8}-[A-Za-z0-9]{4}-[A-Za-z0-9]{4}-[A-Za-z0-9]{4}-[A-Za-z0-9]{12}"
           required: true
           type: string
       responses:
@@ -807,7 +809,7 @@ paths:
                   code:
                     type: string
                     description: Machine-readable error code.  The types of return values should not be changed lightly.
-                    enum: [unhandled_exception, illegal_arguments, unknown_source_schema, file_already_exists, not_found]
+                    enum: [unhandled_exception, illegal_arguments, not_found]
                   message:
                     type: string
                     description: Detailed error message.

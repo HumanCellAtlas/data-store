@@ -28,7 +28,7 @@ state_machine_def = {
         },
         "Wait": {
             "Type": "Wait",
-            "SecondsPath": "$.schedule.wait_time",
+            "SecondsPath": "$.schedule.wait_time_seconds",
             "Next": "GetJobStatus"
         },
         "GetJobStatus": {
@@ -53,7 +53,7 @@ state_machine_def = {
                         },
                         {
                             "Variable": "$.status.check_count",
-                            "NumericGreaterThan": 5,
+                            "NumericGreaterThan": 10,
                         }
                     ],
                     "Next": "NotifyFailure"

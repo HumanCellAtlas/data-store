@@ -13,9 +13,6 @@ from dss import chained_lambda_clients, DSSException, Config
 from dss.util.aws import get_s3_chunk_size
 from dss.util.bundles import get_bundle, get_bundle_from_bucket
 
-for client_name, client_class in chained_lambda_clients():
-    chainedawslambda.aws.add_client(client_name, client_class)
-
 log = getLogger()
 blobstore = S3BlobStore()
 
@@ -70,14 +67,13 @@ def get_manifest_files(bundle_id: str, version: str, replica: str):
         yield src_object_name, dst_object_name
 
 def validate_file_dst(dst_bucket: str, dst_key: str, replica: str):
-    valid = True
     try:
         blobstore.get_all_metadata(dst_bucket, dst_key)
+        return True
     except (BlobNotFoundError, BlobStoreUnknownError):
-        valid = False
-    return valid
+        return False
 
-def validate(dss_bucket: str, dst_bucket: str, replica: str, bundle_id: str, version: str):
+def pre_exec_validate(dss_bucket: str, dst_bucket: str, replica: str, bundle_id: str, version: str):
     cause = None
     validation_code = validate_dst_bucket(dst_bucket, replica)
     if validation_code == ValidationEnum.PASSED:
@@ -103,7 +99,7 @@ def get_bucket_region(bucket: str):
     return blobstore.get_bucket_region(bucket)
 
 def get_execution_id() -> str:
-    return str(uuid.uuid1())
+    return str(uuid.uuid4())
 
 def touch_test_file(dst_bucket, replica) -> bool:
     """
@@ -112,7 +108,7 @@ def touch_test_file(dst_bucket, replica) -> bool:
     :return: True if able to write, if not also returns error message as a cause
     """
     test_object = "touch.txt"
-    handle, hca_handle, bucket = Config.get_cloud_specific_handles(replica)
+    handle, *_ = Config.get_cloud_specific_handles(replica)
 
     try:
         handle.upload_file_handle(

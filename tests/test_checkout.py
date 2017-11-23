@@ -9,8 +9,8 @@ import requests
 
 from dss.config import override_bucket_config, BucketConfig
 from dss.util import UrlBuilder
-from dss.util.checkout import get_manifest_files, validate_file_dst, validate, ValidationEnum, validate_bundle_exists, \
-    touch_test_file
+from dss.util.checkout import get_manifest_files, validate_file_dst, pre_exec_validate, ValidationEnum, \
+    validate_bundle_exists, touch_test_file
 
 pkg_root = os.path.abspath(os.path.join(os.path.dirname(__file__), '..'))  # noqa
 sys.path.insert(0, pkg_root)  # noqa
@@ -53,7 +53,7 @@ class TestFileApi(unittest.TestCase, DSSAssertMixin, DSSUploadMixin):
         with override_bucket_config(BucketConfig.TEST_FIXTURE):
             resp_obj = self.assertPostResponse(
                 url,
-                requests.codes.bad_request,
+                requests.codes.not_found,
                 request_body
             )
         self.assertEqual(resp_obj.json['code'], 'not_found')
@@ -145,15 +145,16 @@ class TestFileApi(unittest.TestCase, DSSAssertMixin, DSSUploadMixin):
         bundle_uuid = "WRONG_KEY"
         version = "WRONG_VERSION"
         replica = "aws"
-        valid, cause = validate(self.s3_test_bucket, self.s3_test_checkout_bucket, replica, bundle_uuid, version)
+        valid, cause = pre_exec_validate(self.s3_test_bucket, self.s3_test_checkout_bucket, replica, bundle_uuid,
+                                         version)
         self.assertIs(valid, ValidationEnum.WRONG_BUNDLE_KEY)
 
     def test_validate(self):
         bundle_uuid = "011c7340-9b3c-4d62-bf49-090d79daf198"
         version = "2017-06-20T214506.766634Z"
         replica = "aws"
-        valid, cause = validate(self.s3_test_fixtures_bucket, self.s3_test_checkout_bucket, replica, bundle_uuid,
-                                version)
+        valid, cause = pre_exec_validate(self.s3_test_fixtures_bucket, self.s3_test_checkout_bucket, replica,
+                                         bundle_uuid, version)
         self.assertIs(valid, ValidationEnum.PASSED)
 
     def test_validate_bundle_exists(self):

@@ -2,7 +2,6 @@ import datetime
 import io
 import json
 import time
-import typing
 
 import iso8601
 import nestedcontext
@@ -10,7 +9,7 @@ import requests
 from cloud_blobstore import BlobNotFoundError
 from flask import jsonify
 
-from dss.util.bundles import get_bundle
+from ...util.bundles import get_bundle
 from ... import DSSException, dss_handler
 from ...config import Config
 from ...hcablobstore import BundleFileMetadata, BundleMetadata, FileMetadata
