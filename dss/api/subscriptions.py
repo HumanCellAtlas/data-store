@@ -88,7 +88,7 @@ def put(json_request_body: dict, replica: str):
     get_elasticsearch_subscription_index(es_client, index_name, logger, index_mapping)
 
     #  get all indexes that use current alias
-    alias_name = Config.get_es_index_name(ESIndexType.docs, Replica[replica])
+    alias_name = Config.get_es_alias_name(ESIndexType.docs, Replica[replica])
     doc_indexes = [i['i'] for i in es_client.cat.aliases(name=alias_name, h=['a', 'i'], format='json')]
     #  try to subscribe query to each of the indexes.
     subscribed_indexes = []
