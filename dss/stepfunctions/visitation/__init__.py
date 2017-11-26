@@ -1,9 +1,9 @@
 
 import json
+import time
 import boto3
 import string
 import botocore
-from time import time
 from uuid import uuid4
 from enum import Enum, auto
 from .utils import *
@@ -53,6 +53,7 @@ class Visitation:
     walker_state_spec = dict(
         prefix = str,
         marker = str,
+        token = str,
         k_processed = int,
         k_starts = int,
     )
@@ -272,21 +273,19 @@ class IntegrationTest(Visitation):
     def walk(self):
         
         self.k_starts += 1
-
-        handle, hca_handle, bucket = Config.get_cloud_specific_handles(
-            self.replica
-        )
-
-        start_time = time()
         elapsed_time = 0
+        start_time = time.time()
 
         # TODO: stop work and return 'IN_PRORGRESS' before max return limit on handle.list is reached
-        for item in boto3.resource("s3").Bucket(self.bucket).objects.filter(
-            Prefix = self.dirname + '/' + self.prefix,
-            Marker = self.marker
-        ):
-            key = item.key
 
+        blobs = BlobListerizer(
+            self.replica,
+            self.bucket,
+            self.dirname + '/' + self.prefix,
+            self.marker
+        )
+
+        for key in blobs:
             try:
                 self.process_item(
                     key
@@ -295,10 +294,11 @@ class IntegrationTest(Visitation):
             except DSSVisitationExceptionSkipItem as e:
                 logger.warning(e)
 
-            self.marker = key
             self.k_processed += 1
+            self.marker = blobs.marker
+            self.token = blobs.token
 
-            if time() - start_time >= self._walker_timeout:
+            if time.time() - start_time >= self._walker_timeout:
                 self.code = StatusCode.RUNNING.name
                 break
 

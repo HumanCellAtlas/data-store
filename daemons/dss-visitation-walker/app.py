@@ -4,7 +4,6 @@ import sys
 import json
 import boto3
 import domovoi
-from time import time
 from uuid import uuid4
 
 pkg_root = os.path.abspath(os.path.join(os.path.dirname(__file__), 'domovoilib'))  # noqa
