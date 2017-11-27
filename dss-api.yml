@@ -702,6 +702,120 @@ paths:
                     enum: [unhandled_exception, illegal_arguments, bundle_already_exists]
                 required:
                   - code
+  /bundles/{uuid}/checkout:
+    post:
+      summary: Check out a bundle to HCA-owned cloud storage or user-provided destination
+      description: |
+        User makes a request for a bundle version to be extracted. Storage system makes an attempt to validate
+        that the bundle UUID with an optionally provided version exists in a given replica.
+        If the storage service fails to locate the bundle, the error is immediately raised to the user.
+        Otherwise start copying the data in the background to the hot storage.
+        TODO: After some time period, the data will be removed.
+        TBD: This could be based on initial checkout time or last access time.
+      operationId: dss.api.bundles.checkout.post
+      parameters:
+        - name: uuid
+          in: path
+          description: A RFC4122-compliant ID for the bundle.
+          required: true
+          type: string
+          pattern: "[A-Za-z0-9]{8}-[A-Za-z0-9]{4}-[A-Za-z0-9]{4}-[A-Za-z0-9]{4}-[A-Za-z0-9]{12}"
+        - name: version
+          in: query
+          description: Timestamp of file creation in RFC3339.  If this is not provided, the latest version is returned.
+          required: false
+          type: string
+          format: date-time
+        - name: replica
+          in: query
+          description: Replica to fetch from.
+          required: true
+          type: string
+          enum: [aws, gcp, azure]
+        - name: json_request_body
+          in: body
+          required: true
+          schema:
+            type: object
+            properties:
+              email:
+                description: An email address to send status updates to.
+                type: string
+                format: email
+              destination:
+                description: User-owned destination storage bucket.
+                type: string
+            required:
+              - email
+      responses:
+        200:
+          description: Returned when the bundle UUID with optionally specified version exists and checkout has been initiated.
+          schema:
+            type: object
+            properties:
+              checkout_job_id:
+                description: A RFC4122-compliant ID for the checkout job request.
+                pattern: "[A-Za-z0-9]{8}-[A-Za-z0-9]{4}-[A-Za-z0-9]{4}-[A-Za-z0-9]{4}-[A-Za-z0-9]{12}"
+                type: string
+            required:
+              - checkout_job_id
+        default:
+          description: Unexpected error
+          schema:
+            allOf:
+              - $ref: '#/definitions/Error'
+              - type: object
+                properties:
+                  code:
+                    type: string
+                    description: Machine-readable error code.  The types of return values should not be changed lightly.
+                    enum: [unhandled_exception, illegal_arguments, not_found]
+                required:
+                  - code
+
+  /bundles/checkout/{checkout_job_id}:
+    get:
+      summary: Check status of the checkout request identified by checkout_job_id.
+      description: |
+        User makes a request to check the status of the checkout request made earlier. The request is identified
+        by checkout_job_id that was returned to the user in response to the checkout request.
+      operationId: dss.api.bundles.checkout.get
+      parameters:
+        - name: checkout_job_id
+          in: path
+          description: A RFC4122-compliant ID for the checkout job request.
+          pattern: "[A-Za-z0-9]{8}-[A-Za-z0-9]{4}-[A-Za-z0-9]{4}-[A-Za-z0-9]{4}-[A-Za-z0-9]{12}"
+          required: true
+          type: string
+      responses:
+        200:
+          description: Returned when a checkout request for the checkout job id exists.
+          schema:
+            type: object
+            properties:
+              status:
+                description: Status of the checkout request.
+                type: string
+                enum: [RUNNING, SUCCEEDED, FAILED, TIMED_OUT, ABORTED]
+            required:
+              - status
+        default:
+          description: Unexpected error
+          schema:
+            allOf:
+              - $ref: '#/definitions/Error'
+              - type: object
+                properties:
+                  code:
+                    type: string
+                    description: Machine-readable error code.  The types of return values should not be changed lightly.
+                    enum: [unhandled_exception, illegal_arguments, not_found]
+                  message:
+                    type: string
+                    description: Detailed error message.
+                required:
+                  - code
+
 definitions:
   File:
     type: object

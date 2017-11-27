@@ -15,7 +15,7 @@ chalice==1.0.3
 chardet==3.0.4
 click==6.7
 clickclick==1.2.2
-cloud-blobstore==0.0.6
+cloud-blobstore==0.0.7
 colorama==0.3.7
 connexion==1.1.15
 cookies==2.2.1
@@ -25,7 +25,7 @@ cryptography==2.0.3
 docker==2.5.1
 docker-pycreds==0.2.1
 docutils==0.14
-domovoi==1.2.6
+domovoi==1.4.2
 elasticsearch==5.4.0
 elasticsearch-dsl==5.3.0
 flake8==3.4.1

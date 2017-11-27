@@ -16,7 +16,10 @@
       "Resource": [
         "arn:aws:s3:::$DSS_S3_BUCKET/*",
         "arn:aws:s3:::$DSS_S3_BUCKET_TEST/*",
-        "arn:aws:s3:::$DSS_S3_BUCKET_STAGING/*"
+        "arn:aws:s3:::$DSS_S3_BUCKET_STAGING/*",
+        "arn:aws:s3:::$DSS_S3_CHECKOUT_BUCKET/*",
+        "arn:aws:s3:::$DSS_S3_CHECKOUT_BUCKET_TEST/*",
+        "arn:aws:s3:::$DSS_S3_CHECKOUT_BUCKET_STAGING/*"
       ]
     },
     {
@@ -31,7 +34,10 @@
       "Resource": [
         "arn:aws:s3:::$DSS_S3_BUCKET",
         "arn:aws:s3:::$DSS_S3_BUCKET_TEST",
-        "arn:aws:s3:::$DSS_S3_BUCKET_STAGING"
+        "arn:aws:s3:::$DSS_S3_BUCKET_STAGING",
+        "arn:aws:s3:::$DSS_S3_CHECKOUT_BUCKET",
+        "arn:aws:s3:::$DSS_S3_CHECKOUT_BUCKET_TEST",
+        "arn:aws:s3:::$DSS_S3_CHECKOUT_BUCKET_STAGING"
       ]
     },
     {
@@ -49,7 +55,15 @@
         "arn:aws:s3:::$DSS_S3_BUCKET_TEST_FIXTURES",
         "arn:aws:s3:::$DSS_S3_BUCKET_TEST_FIXTURES/*",
         "arn:aws:s3:::$DSS_S3_BUCKET_STAGING",
-        "arn:aws:s3:::$DSS_S3_BUCKET_STAGING/*"
+        "arn:aws:s3:::$DSS_S3_BUCKET_STAGING/*",
+        "arn:aws:s3:::$DSS_S3_CHECKOUT_BUCKET",
+        "arn:aws:s3:::$DSS_S3_CHECKOUT_BUCKET/*",
+        "arn:aws:s3:::$DSS_S3_CHECKOUT_BUCKET_TEST",
+        "arn:aws:s3:::$DSS_S3_CHECKOUT_BUCKET_TEST/*",
+        "arn:aws:s3:::$DSS_S3_CHECKOUT_BUCKET_TEST_FIXTURES",
+        "arn:aws:s3:::$DSS_S3_CHECKOUT_BUCKET_TEST_FIXTURES/*",
+        "arn:aws:s3:::$DSS_S3_CHECKOUT_BUCKET_STAGING",
+        "arn:aws:s3:::$DSS_S3_CHECKOUT_BUCKET_STAGING/*"
       ]
     },
     {
@@ -99,7 +113,7 @@
         "arn:aws:sns:*:$account_id:dss-*",
         "arn:aws:sns:*:$account_id:chained-aws-lambda-*",
         "arn:aws:sns:*:$account_id:domovoi-s3-bucket-events-*",
-        "arn:aws:states:*:$account_id:stateMachine:dss-*"
+        "arn:aws:states:*:$account_id:*:dss-*"
       ],
       "Effect": "Allow"
     }
