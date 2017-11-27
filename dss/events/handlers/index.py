@@ -6,10 +6,12 @@ import re
 import uuid
 import ipaddress
 import socket
+import typing
 from urllib.parse import urlparse, unquote
 
 import requests
 from cloud_blobstore import BlobStore, BlobStoreError
+from collections import defaultdict
 from elasticsearch.helpers import scan
 from requests_http_signature import HTTPSignatureAuth
 
@@ -51,10 +53,10 @@ def process_new_indexable_object(bucket_name: str, key: str, replica: str, logge
         bundle_id = get_bundle_id_from_key(key)
         index_data = create_index_data(blobstore, bucket_name, bundle_id, manifest, logger)
         alias_name = Config.get_es_alias_name(ESIndexType.docs, Replica[replica])
-        #  TODO (tsmith): get the major version from index data.
-        version = '1'
-        index_name = Config.get_es_index_name(ESIndexType.docs, Replica[replica], version)
-        add_index_data_to_elasticsearch(bundle_id, index_data, index_name, alias_name, logger)
+        index_shape_identifier = get_index_shape_identifier(index_data, logger)
+        index_name = Config.get_es_index_name(ESIndexType.docs, Replica[replica], index_shape_identifier)
+        get_elasticsearch_index(index_name, alias_name, logger)
+        add_data_to_elasticsearch(bundle_id, index_data, index_name, logger)
         subscriptions = find_matching_subscriptions(index_data, alias_name, logger)
         process_notifications(bundle_id, subscriptions, replica, logger)
         logger.debug(f"Finished index processing of {replica} creation event for bundle: {key}")
@@ -124,6 +126,48 @@ def create_index_data(handle: BlobStore, bucket_name: str, bundle_id: str, manif
             index_files[index_filename] = file_json
     index['files'] = index_files
     return index
+
+
+def get_index_shape_identifier(index_document: dict, logger) -> str:
+    """ Return string identifying the shape/structure/format of the data in the index document,
+    so that it may be indexed appropriately.
+
+    Currently, this returns a string identifying the metadata schema release major number:
+    For example:
+        v3 - Bundle contains metadata in the version 3 format
+        v4 - Bundle contains metadata in the version 4 format
+        ...
+
+    This includes verification that schema major number is the same for all index metadata
+    files in the bundle, as is the working plan for the 2017 Q4 demo.
+    If no metadata version information is contained in the bundle, the empty string is returned.
+    Currently this occurs in the case of the empty bundle used for deployment testing.
+
+    If/when bundle schemas are available, this function should be updated to reflect the
+    bundle schema type and major version number.
+
+    Other projects (non-HCA) may manage their metadata schemas (if any) and schema versions.
+    This should be an extension point that is customizable by other projects according to their metadata.
+    """
+
+    schema_version_map = defaultdict(set)  # type: typing.MutableMapping[str, typing.MutableSet[str]]
+    files = index_document['files']
+    for filename, file_content in files.items():
+        core = file_content.get('core')
+        if core is not None:
+            schema_type = core['type']
+            schema_version = core['schema_version']
+            schema_version_major = schema_version.split(".")[0]
+            schema_version_map[schema_version_major].add(schema_type)
+        else:
+            logger.info("%s", (f"File {filename} does not contain a 'core' section to identify "
+                               "the schema and schema version."))
+    if schema_version_map:
+        assert len(schema_version_map.keys()) == 1, \
+            "The bundle contains mixed schema major version numbers: {}".format(sorted(list(schema_version_map.keys())))
+        return "v" + list(schema_version_map.keys())[0]
+    else:
+        return ""  # No files with schema identifiers were found
 
 
 def get_bundle_id_from_key(bundle_key: str) -> str:
