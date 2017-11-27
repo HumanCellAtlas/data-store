@@ -33,7 +33,7 @@ from tests import get_version
 from tests.es import elasticsearch_delete_index
 from tests.infra import DSSAssertMixin, DSSUploadMixin, DSSStorageMixin, TestBundle, start_verbose_logging
 from tests.infra.server import ThreadedLocalServer
-from tests.sample_search_queries import smartseq2_paired_ends_v3_query
+from tests.sample_search_queries import smartseq2_paired_ends_v2_or_v3_query
 
 # The moto mock has two defects that show up when used by the dss core storage system.
 # Use actual S3 until these defects are fixed in moto.
@@ -100,8 +100,6 @@ class TestIndexerBase(DSSAssertMixin, DSSStorageMixin, DSSUploadMixin):
         Config.set_config(BucketConfig.TEST)
         _, _, cls.test_bucket = Config.get_cloud_specific_handles(cls.replica)
         cls.dss_alias_name = dss.Config.get_es_alias_name(dss.ESIndexType.docs, dss.Replica[cls.replica])
-        cls.subscription_index_name = dss.Config.get_es_alias_name(dss.ESIndexType.subscriptions,
-                                                                   dss.Replica[cls.replica])
 
     @classmethod
     def tearDownClass(cls):
@@ -112,7 +110,7 @@ class TestIndexerBase(DSSAssertMixin, DSSStorageMixin, DSSUploadMixin):
             TestIndexerBase.bundle_key_by_replica[self.replica] = self.load_test_data_bundle_for_path(
                 "fixtures/smartseq2/paired_ends")
         self.bundle_key = TestIndexerBase.bundle_key_by_replica[self.replica]
-
+        self.smartseq2_paired_ends_query = smartseq2_paired_ends_v2_or_v3_query
         elasticsearch_delete_index(f"*{IndexSuffix.name}")
         PostTestHandler.reset()
 
@@ -122,7 +120,7 @@ class TestIndexerBase(DSSAssertMixin, DSSStorageMixin, DSSUploadMixin):
     def test_process_new_indexable_object(self):
         sample_event = self.create_sample_bundle_created_event(self.bundle_key)
         self.process_new_indexable_object(sample_event, logger)
-        search_results = self.get_search_results(smartseq2_paired_ends_v3_query, 1)
+        search_results = self.get_search_results(self.smartseq2_paired_ends_query, 1)
         self.assertEqual(1, len(search_results))
         self.verify_index_document_structure_and_content(search_results[0], self.bundle_key,
                                                          files=smartseq2_paried_ends_indexed_file_list)
@@ -141,7 +139,7 @@ class TestIndexerBase(DSSAssertMixin, DSSStorageMixin, DSSUploadMixin):
                          "WARNING:.*:In bundle .* the file \"text_data_file1.txt\" is marked for indexing"
                          " yet has content type \"text/plain\" instead of the required"
                          " content type \"application/json\". This file will not be indexed.")
-        search_results = self.get_search_results(smartseq2_paired_ends_v3_query, 1)
+        search_results = self.get_search_results(self.smartseq2_paired_ends_query, 1)
         self.assertEqual(1, len(search_results))
         self.verify_index_document_structure_and_content(search_results[0], bundle_key,
                                                          files=smartseq2_paried_ends_indexed_file_list)
@@ -180,7 +178,7 @@ class TestIndexerBase(DSSAssertMixin, DSSStorageMixin, DSSUploadMixin):
         self.assertRegex(log_monitor.output[0],
                          "WARNING:.*:In bundle .* the file \"unparseable_json.json\" is marked for indexing"
                          " yet could not be parsed. This file will not be indexed. Exception:")
-        search_results = self.get_search_results(smartseq2_paired_ends_v3_query, 1)
+        search_results = self.get_search_results(self.smartseq2_paired_ends_query, 1)
         self.assertEqual(1, len(search_results))
         self.verify_index_document_structure_and_content(search_results[0], bundle_key,
                                                          files=smartseq2_paried_ends_indexed_file_list)
@@ -195,7 +193,7 @@ class TestIndexerBase(DSSAssertMixin, DSSStorageMixin, DSSUploadMixin):
         self.assertRegex(log_monitor.output[0],
                          f"WARNING:.*:In bundle .* the file \"{inaccesssible_filename}\" is marked for indexing"
                          " yet could not be accessed. This file will not be indexed. Exception: .*, File blob key:")
-        search_results = self.get_search_results(smartseq2_paired_ends_v3_query, 1)
+        search_results = self.get_search_results(self.smartseq2_paired_ends_query, 1)
         self.assertEqual(1, len(search_results))
         files = list(smartseq2_paried_ends_indexed_file_list)
         files.append(inaccesssible_filename.replace(".", "_"))
@@ -232,18 +230,17 @@ class TestIndexerBase(DSSAssertMixin, DSSStorageMixin, DSSUploadMixin):
     def test_subscription_notification_successful(self):
         sample_event = self.create_sample_bundle_created_event(self.bundle_key)
         self.process_new_indexable_object(sample_event, logger)
-        ElasticsearchClient.get(logger).indices.create(self.subscription_index_name)
         for verify_payloads, subscribe_kwargs in ((True, dict(hmac_secret_key=PostTestHandler.hmac_secret_key)),
                                                   (False, dict())):
             PostTestHandler.verify_payloads = verify_payloads
-            subscription_id = self.subscribe_for_notification(smartseq2_paired_ends_v3_query,
+            subscription_id = self.subscribe_for_notification(self.smartseq2_paired_ends_query,
                                                               f"http://{HTTPInfo.address}:{HTTPInfo.port}",
                                                               **subscribe_kwargs)
 
             sample_event = self.create_sample_bundle_created_event(self.bundle_key)
             self.process_new_indexable_object(sample_event, logger)
             prefix, _, bundle_id = self.bundle_key.partition("/")
-            self.verify_notification(subscription_id, smartseq2_paired_ends_v3_query, bundle_id)
+            self.verify_notification(subscription_id, self.smartseq2_paired_ends_query, bundle_id)
             self.delete_subscription(subscription_id)
             PostTestHandler.reset()
 
@@ -252,8 +249,7 @@ class TestIndexerBase(DSSAssertMixin, DSSStorageMixin, DSSUploadMixin):
         sample_event = self.create_sample_bundle_created_event(self.bundle_key)
         self.process_new_indexable_object(sample_event, logger)
 
-        ElasticsearchClient.get(logger).indices.create(self.subscription_index_name)
-        subscription_id = self.subscribe_for_notification(smartseq2_paired_ends_v3_query,
+        subscription_id = self.subscribe_for_notification(self.smartseq2_paired_ends_query,
                                                           f"http://{HTTPInfo.address}:{HTTPInfo.port}",
                                                           hmac_secret_key=PostTestHandler.hmac_secret_key,
                                                           hmac_key_id="test")
@@ -268,6 +264,16 @@ class TestIndexerBase(DSSAssertMixin, DSSStorageMixin, DSSUploadMixin):
         self.assertRegex(log_monitor.output[0],
                          f"WARNING:.*:Failed notification for subscription {subscription_id}"
                          f" for bundle {bundle_id} with transaction id .+ Code: {error_response_code}")
+
+    def test_subscription_registration_before_indexing(self):
+        subscription_id = self.subscribe_for_notification(self.smartseq2_paired_ends_query,
+                                                          f"http://{HTTPInfo.address}:{HTTPInfo.port}")
+        sample_event = self.create_sample_bundle_created_event(self.bundle_key)
+        PostTestHandler.verify_payloads = False
+        self.process_new_indexable_object(sample_event, logger)
+        prefix, _, bundle_id = self.bundle_key.partition("/")
+        self.verify_notification(subscription_id, self.smartseq2_paired_ends_query, bundle_id)
+        self.delete_subscription(subscription_id)
 
     def test_get_index_shape_identifier(self):
         from dss.events.handlers.index import get_index_shape_identifier

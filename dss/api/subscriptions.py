@@ -76,6 +76,10 @@ def put(json_request_body: dict, replica: str):
                     "owner": {
                         "type": "string",
                         "index": "not_analyzed"
+                    },
+                    "es_query": {
+                        "type": "object",
+                        "enabled": "false"
                     }
                 }
             }
@@ -106,7 +110,7 @@ def put(json_request_body: dict, replica: str):
 
     # Queries are unlikely to fit in all of the indexes, therefore errors will almost always occur. Only return an error
     # if no queries are successfully indexed.
-    if not subscribed_indexes:
+    if len(doc_indexes) > 0 and not subscribed_indexes:
         logger.critical("%s", f"Percolate query registration failed: owner: {owner}, uuid: {uuid}, "
                               f"replica: {replica}, es_query: {es_query}, Exception: {last_ex}")
         raise DSSException(requests.codes.internal_server_error,
@@ -114,7 +118,6 @@ def put(json_request_body: dict, replica: str):
                            "Unable to register elasticsearch percolate query!") from last_ex
 
     json_request_body['owner'] = owner
-    json_request_body['subscribed_indexes'] = subscribed_indexes
 
     try:
         subscription_registration = _register_subscription(es_client, uuid, json_request_body, replica)
@@ -152,7 +155,10 @@ def delete(uuid: str, replica: str):
         # common_error_handler defaults code to capitalized 'Forbidden' for Werkzeug exception. Keeping consistent.
         raise DSSException(requests.codes.forbidden, "Forbidden", "Your credentials can't access this subscription!")
 
-    _unregister_percolate(es_client, stored_metadata["subscribed_indexes"], uuid)
+    #  get all indexes that use current alias
+    alias_name = Config.get_es_alias_name(ESIndexType.docs, Replica[replica])
+    doc_indexes = [i['i'] for i in es_client.cat.aliases(name=alias_name, h=['a', 'i'], format='json')]
+    _unregister_percolate(es_client, doc_indexes, uuid)
 
     es_client.delete(index=Config.get_es_index_name(ESIndexType.subscriptions, Replica[replica]),
                      doc_type=ESDocType.subscription.name,

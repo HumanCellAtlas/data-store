@@ -7,6 +7,11 @@
           "filter": ["lowercase"]
         }
       }
+    },
+    "index": {
+      "percolator": {
+        "map_unmapped_fields_as_string": true
+      }
     }
   },
   "mappings": {
