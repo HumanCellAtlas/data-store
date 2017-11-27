@@ -8,6 +8,7 @@ from uuid import uuid4
 from enum import Enum, auto
 from .utils import *
 from dss import BucketConfig, Config
+from .blobstore import BlobListerizer
 
 
 Config.set_config(BucketConfig.NORMAL)
@@ -275,8 +276,6 @@ class IntegrationTest(Visitation):
         self.k_starts += 1
         elapsed_time = 0
         start_time = time.time()
-
-        # TODO: stop work and return 'IN_PRORGRESS' before max return limit on handle.list is reached
 
         blobs = BlobListerizer(
             self.replica,

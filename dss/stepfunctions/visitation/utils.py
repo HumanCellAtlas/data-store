@@ -117,66 +117,6 @@ def list_executions(arn, start_date=min_datetime(), max_api_calls=50):
     return executions, k_api_calls
 
 
-class BlobListerizer:
-
-    def __init__(self, replica, bucket, prefix, marker=None, token=None):
-
-        self.replica = replica
-        self.bucket = bucket
-        self.prefix = prefix
-        self.marker = marker
-        self.token = token
-
-    def iter_aws(self):
-    
-        kwargs = {
-            'Bucket': self.bucket,
-            'Prefix': self.prefix,
-            'MaxKeys': 2
-        }
-    
-        while True:
-    
-            if self.token:
-                kwargs['ContinuationToken'] = self.token
-
-            resp = boto3.client('s3').list_objects_v2(
-                ** kwargs
-            )
-    
-            if resp['IsTruncated']:
-                self.token = resp['NextContinuationToken']
-            else:
-                self.token = None
-    
-            i = 0
-            if self.marker:
-                try:
-                    i = 1 + next(i for (i,d) in enumerate(resp['Contents']) if d['Key'] == self.marker)
-                except StopIteration:
-                    pass
-
-            if resp.get('Contents', None):
-                contents = resp['Contents']
-            else:
-                contents = list()
-    
-            for d in contents:
-                self.marker = d['Key']
-                yield self.marker
-            else:
-                self.marker = None
-
-            if not self.token:
-                break
-
-    def __iter__(self):
-        if 'aws' == self.replica:
-            return self.iter_aws()
-        else:
-            raise NotImplementedError
-
-
 def get_start_date(execution_arn):
 
     resp = sf_client.describe_execution(
