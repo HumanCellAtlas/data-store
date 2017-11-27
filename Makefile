@@ -19,9 +19,18 @@ $(test_srcs): %.py :
 smoketest:
 	tests/smoketest.py
 
-deploy:
+deploy: deploy-chalice deploy-daemons
+
+deploy-chalice:
 	$(MAKE) -C chalice deploy
-	$(MAKE) -C daemons deploy
+
+deploy-daemons: deploy-daemons-serial deploy-daemons-parallel
+
+deploy-daemons-serial:
+	$(MAKE) -j1 -C daemons deploy-serial
+
+deploy-daemons-parallel:
+	$(MAKE) -C daemons deploy-parallel
 
 release_staging:
 	scripts/release.sh master staging
@@ -46,4 +55,4 @@ requirements.txt requirements-dev.txt : %.txt : %.txt.in
 
 requirements-dev.txt : requirements.txt.in
 
-.PHONY: test lint mypy $(test_srcs)
+.PHONY: test lint mypy $(test_srcs) deploy deploy-chalice deploy-daemons
