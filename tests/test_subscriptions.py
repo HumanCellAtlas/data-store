@@ -24,7 +24,7 @@ import dss
 from dss.config import IndexSuffix
 from dss.util import UrlBuilder
 from dss.util.es import ElasticsearchClient, ElasticsearchServer
-from tests.es import elasticsearch_delete_index
+from tests.es import elasticsearch_delete_index, clear_indexes
 from tests.infra import DSSAssertMixin, ExpectedErrorFields
 from tests.infra.server import ThreadedLocalServer
 from tests.sample_search_queries import smartseq2_paired_ends_v2_or_v3_query
@@ -54,32 +54,37 @@ class TestSubscriptionsBase(DSSAssertMixin):
         cls.replica = replica
         cls.app = ThreadedLocalServer()
         cls.app.start()
-
-    @classmethod
-    def tearDownClass(cls):
-        cls.app.shutdown()
-
-    def setUp(self):
+        dss.Config.set_config(dss.BucketConfig.TEST)
         os.environ['DSS_ES_ENDPOINT'] = os.getenv('DSS_ES_ENDPOINT', "127.0.0.1")
 
-        dss.Config.set_config(dss.BucketConfig.TEST)
-
         with open(os.path.join(os.path.dirname(__file__), "sample_v3_index_doc.json"), "r") as fh:
-            index_document = BundleDocument.from_json(self.replica, 'uuid.version', json.load(fh), logger)
+            index_document = BundleDocument.from_json(cls.replica.name, 'uuid.version', json.load(fh), logger)
 
         logger.debug("Setting up Elasticsearch")
         es_client = ElasticsearchClient.get(logger)
-        elasticsearch_delete_index(f"*{IndexSuffix.name}")
-        self.index_name = index_document.prepare_index()
-
-        self.callback_url = "https://example.com"
-        self.sample_percolate_query = smartseq2_paired_ends_v2_or_v3_query
-
-        es_client.index(index=self.index_name,
+        index_shape_identifier = index_document.get_index_shape_identifier()
+        cls.alias_name = dss.Config.get_es_alias_name(dss.ESIndexType.docs, replica)
+        cls.sub_index_name = dss.Config.get_es_index_name(dss.ESIndexType.subscriptions, replica)
+        cls.doc_index_name = dss.Config.get_es_index_name(dss.ESIndexType.docs, replica, index_shape_identifier)
+        create_elasticsearch_index(cls.doc_index_name, cls.replica.name, logger)
+        es_client.index(index=cls.doc_index_name,
                         doc_type=dss.ESDocType.doc.name,
                         id=str(uuid.uuid4()),
                         body=index_document,
                         refresh=True)
+
+    @classmethod
+    def tearDownClass(cls):
+        elasticsearch_delete_index(f"*{IndexSuffix.name}")
+        cls.app.shutdown()
+
+    def setUp(self):
+        self.callback_url = "https://example.com"
+        self.sample_percolate_query = smartseq2_paired_ends_v2_or_v3_query
+
+    def tearDown(self):
+        clear_indexes([self.alias_name, self.sub_index_name],
+                      [dss.ESDocType.doc.name, dss.ESDocType.query.name, dss.ESDocType.subscription.name])
 
     def test_auth_errors(self):
         url = str(UrlBuilder()
@@ -102,7 +107,7 @@ class TestSubscriptionsBase(DSSAssertMixin):
         uuid_ = self._put_subscription()
 
         es_client = ElasticsearchClient.get(logger)
-        response = es_client.get(index=self.index_name,
+        response = es_client.get(index=self.doc_index_name,
                                  doc_type=dss.ESDocType.query.name,
                                  id=uuid_)
         registered_query = response['_source']

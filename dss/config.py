@@ -61,19 +61,11 @@ class Replica(Enum):
 
 class IndexSuffix:
     '''Creates a test specific index when in test config.'''
-    __suf__ = ''  # index suffix to use
+    name = ''  # type: typing.Optional[str]
 
-    @property
-    def name(self):
-        return self.__suf__
-
-    @name.setter
-    def name(self, value: str):
-        self.__suf__ = value
-
-    @classmethod
-    def reset(cls):
-        cls.name = ''
+    @staticmethod
+    def reset():
+        IndexSuffix.name = ''
 
 
 class Config:
@@ -245,6 +237,7 @@ class Config:
         Config._NOTIFICATION_SENDER_EMAIL = os.environ[envvar]
 
         return Config._NOTIFICATION_SENDER_EMAIL
+
 
 @contextmanager
 def override_bucket_config(temp_config: BucketConfig):

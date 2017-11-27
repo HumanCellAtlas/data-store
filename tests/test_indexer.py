@@ -24,14 +24,14 @@ sys.path.insert(0, pkg_root)  # noqa
 
 import dss
 from dss import Config, BucketConfig, DeploymentStage
-from dss.config import IndexSuffix, Replica
-from dss.events.handlers.index import AWSIndexHandler, GCPIndexHandler, BundleDocument
+from dss.config import IndexSuffix, ESDocType, Replica
+from dss.events.handlers.index import AWSIndexHandler, GCPIndexHandler, BundleDocument, create_elasticsearch_index
 from dss.hcablobstore import BundleMetadata, BundleFileMetadata, FileMetadata
 from dss.util import create_blob_key, networking, UrlBuilder
 from dss.util.es import ElasticsearchClient, ElasticsearchServer
 from dss.util.version import datetime_to_version_format
 from tests import get_version
-from tests.es import elasticsearch_delete_index
+from tests.es import elasticsearch_delete_index, clear_indexes
 from tests.infra import DSSAssertMixin, DSSUploadMixin, DSSStorageMixin, TestBundle, start_verbose_logging
 from tests.infra.server import ThreadedLocalServer
 from tests.sample_search_queries import (smartseq2_paired_ends_v2_query, smartseq2_paired_ends_v3_query,
@@ -102,9 +102,13 @@ class TestIndexerBase(DSSAssertMixin, DSSStorageMixin, DSSUploadMixin):
         Config.set_config(BucketConfig.TEST)
         _, _, cls.test_bucket = Config.get_cloud_specific_handles(cls.replica)
         cls.dss_alias_name = dss.Config.get_es_alias_name(dss.ESIndexType.docs, dss.Replica[cls.replica])
+        create_elasticsearch_index(f"initial_{IndexSuffix.name}", cls.replica, logger)
+        cls.subscription_index_name = dss.Config.get_es_index_name(dss.ESIndexType.subscriptions,
+                                                                   dss.Replica[cls.replica])
 
     @classmethod
     def tearDownClass(cls):
+        elasticsearch_delete_index(f"*{IndexSuffix.name}")
         cls.app.shutdown()
 
     def setUp(self):
@@ -113,10 +117,13 @@ class TestIndexerBase(DSSAssertMixin, DSSStorageMixin, DSSUploadMixin):
                 "fixtures/indexing/bundles/v3/smartseq2/paired_ends")
         self.bundle_key = TestIndexerBase.bundle_key_by_replica[self.replica]
         self.smartseq2_paired_ends_query = smartseq2_paired_ends_v2_or_v3_query
-        elasticsearch_delete_index(f"*{IndexSuffix.name}")
         PostTestHandler.reset()
 
     def tearDown(self):
+        clear_indexes([self.dss_alias_name],
+                      [ESDocType.doc.name, ESDocType.query.name, ESDocType.subscription.name])
+        clear_indexes([self.subscription_index_name],
+                      [ESDocType.doc.name, ESDocType.query.name, ESDocType.subscription.name])
         self.storageHelper = None
 
     def test_process_new_indexable_object(self):
@@ -157,11 +164,14 @@ class TestIndexerBase(DSSAssertMixin, DSSStorageMixin, DSSUploadMixin):
             with self.assertLogs(logger, level="DEBUG") as log_monitor:
                 self.process_new_indexable_object(sample_event, logger)
             self.assertRegex(log_monitor.output[0], "DEBUG:.*Not indexing .* creation event for key: .*")
-            with self.assertRaises(Exception) as ex:
-                ElasticsearchClient.get(logger).get(index=self.dss_alias_name,
-                                                    doc_type=dss.ESIndexType.docs,
-                                                    id=bundle_uuid)
-            self.assertEqual('index_not_found_exception', ex.exception.error)
+            indexes = list(ElasticsearchClient.get(logger).indices.get_alias(self.dss_alias_name).keys())
+            for index in indexes:
+                with self.subTest(f"{index}"):
+                    with self.assertRaises(Exception) as ex:
+                        ElasticsearchClient.get(logger).get(index=index,
+                                                            doc_type=dss.ESIndexType.docs,
+                                                            id=bundle_uuid)
+                    self.assertIn('"found":false', ex.exception.error)
         finally:
             logger.setLevel(log_last)
 
@@ -270,6 +280,7 @@ class TestIndexerBase(DSSAssertMixin, DSSStorageMixin, DSSUploadMixin):
                          f" for bundle {bundle_id} with transaction id .+ Code: {error_response_code}")
 
     def test_subscription_registration_before_indexing(self):
+        elasticsearch_delete_index(f'*{IndexSuffix.name}')
         subscription_id = self.subscribe_for_notification(self.smartseq2_paired_ends_query,
                                                           f"http://{HTTPInfo.address}:{HTTPInfo.port}")
         sample_event = self.create_sample_bundle_created_event(self.bundle_key)
@@ -308,6 +319,7 @@ class TestIndexerBase(DSSAssertMixin, DSSStorageMixin, DSSUploadMixin):
                 }
             }
 
+        elasticsearch_delete_index(f"*{IndexSuffix.name}")
         subscription_id = self.subscribe_for_notification(subscription_query,
                                                           f"http://{HTTPInfo.address}:{HTTPInfo.port}")
         sample_event = self.create_sample_bundle_created_event(self.bundle_key)
@@ -583,7 +595,7 @@ class TestIndexerBase(DSSAssertMixin, DSSStorageMixin, DSSUploadMixin):
                 index=cls.dss_alias_name,
                 doc_type=dss.ESDocType.doc.name,
                 body=json.dumps(query))
-            if (len(response['hits']['hits']) >= expected_hit_count) \
+            if (len(response['hits']['hits']) == expected_hit_count) \
                     or (time.time() >= timeout_time):
                 return [hit['_source'] for hit in response['hits']['hits']]
             else:
