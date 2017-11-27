@@ -1,5 +1,8 @@
 {
   "app_name": "dss-visitation-walker",
+  "environment_variables": {
+    "GOOGLE_APPLICATION_CREDENTIALS": "/var/task/domovoilib/gcp-credentials.json"
+  },
   "stages": {
     "dev": {
       "api_gateway_stage": "dev",

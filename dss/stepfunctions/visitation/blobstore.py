@@ -2,7 +2,6 @@
 import os
 import boto3
 from google.cloud.storage import Client
-from google.cloud.storage.bucket import Bucket
 
 
 class BlobListerizer:

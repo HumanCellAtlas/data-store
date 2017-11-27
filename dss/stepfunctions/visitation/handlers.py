@@ -3,7 +3,7 @@ import boto3
 from uuid import uuid4
 from . import Visitation
 
-def integration_test(replica, bucket, k_workers):
+def integration_test(replica, bucket, dirname, k_workers):
 
     name = 'integration-test--{}'.format(
         str(uuid4())
@@ -14,7 +14,7 @@ def integration_test(replica, bucket, k_workers):
         'name': name,
         'replica': replica,
         'bucket': bucket,
-        'dirname': 'files',
+        'dirname': dirname,
         'k_workers': int(k_workers),
     })
 
