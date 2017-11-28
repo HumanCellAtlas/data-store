@@ -67,7 +67,7 @@ class Visitation:
     _walker_timeout = 240
 
 
-    def __init__(self, state_spec, state):
+    def __init__(self, state_spec, state, logger):
 
         self.state_spec = self._base_state_spec.copy()
 
@@ -83,6 +83,8 @@ class Visitation:
 
             setattr(self, k, default(v))
 
+        self.logger = logger
+
 
     def propagate_state(self):
 
@@ -93,20 +95,22 @@ class Visitation:
 
 
     @classmethod
-    def sentinel_state(cls, state):
+    def with_sentinel_state(cls, state, logger):
 
         return cls(
             cls.sentinel_state_spec,
-            state
+            state,
+            logger
         )
 
 
     @classmethod
-    def walker_state(cls, state):
+    def with_walker_state(cls, state, logger):
 
         return cls(
             cls.walker_state_spec,
-            state
+            state,
+            logger
         )
 
 
@@ -215,6 +219,7 @@ class Visitation:
 
 
     def walk(self):
+        # TODO: use the lambdaexecutor for timed work?
         raise NotImplementedError
 
 

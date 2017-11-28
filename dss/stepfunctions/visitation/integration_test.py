@@ -71,7 +71,7 @@ class IntegrationTest(Visitation):
                 )
 
             except DSSVisitationExceptionSkipItem as e:
-                logger.warning(e)
+                self.logger.warning(e)
 
             self.k_processed += 1
             self.marker = blobs.marker

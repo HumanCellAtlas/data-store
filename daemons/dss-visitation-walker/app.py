@@ -29,8 +29,9 @@ def vis_obj(event):
 
     vis_class = registered_visitations[class_name]
 
-    return vis_class.walker_state(
-        event
+    return vis_class.with_walker_state(
+        event,
+        logger
     )
 
 
@@ -56,8 +57,6 @@ def initialize(event, context):
     state_machine_definition = walker_sfn
 )
 def walk(event, context):
-
-    # TODO: use the lambdaexecutor for timed work?
     
     walker = vis_obj(
         event

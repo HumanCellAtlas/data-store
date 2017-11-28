@@ -27,8 +27,9 @@ def vis_obj(event):
 
     vis_class = registered_visitations[class_name]
 
-    return vis_class.sentinel_state(
-        event
+    return vis_class.with_sentinel_state(
+        event,
+        logger
     )
 
 
