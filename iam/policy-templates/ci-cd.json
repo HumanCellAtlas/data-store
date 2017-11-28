@@ -103,7 +103,8 @@
         "es:*",
         "sns:*",
         "states:StartExecution",
-        "states:DescribeExecution"
+        "states:DescribeExecution",
+        "states:CreateStateMachine"
       ],
       "Resource": [
         "arn:aws:lambda:*:$account_id:function:dss-*",
