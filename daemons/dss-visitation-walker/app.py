@@ -10,10 +10,8 @@ pkg_root = os.path.abspath(os.path.join(os.path.dirname(__file__), 'domovoilib')
 sys.path.insert(0, pkg_root)  # noqa
 
 import dss
-from dss.stepfunctions import visitation
-from dss.stepfunctions.visitation.utils import *
 from dss.stepfunctions.visitation.sfn_definitions import walker_sfn
-from dss.stepfunctions.visitation import StatusCode, DSSVisitationExceptionSkipItem
+from dss.stepfunctions.visitation import StatusCode
 from dss.stepfunctions.visitation.registered_visitations import registered_visitations
 
 
@@ -36,8 +34,8 @@ def vis_obj(event):
 
 
 @app.step_function_task(
-    state_name = 'Initialize',
-    state_machine_definition = walker_sfn
+    state_name='Initialize',
+    state_machine_definition=walker_sfn
 )
 def initialize(event, context):
 
@@ -53,11 +51,11 @@ def initialize(event, context):
 
 
 @app.step_function_task(
-    state_name = 'Walk',
-    state_machine_definition = walker_sfn
+    state_name='Walk',
+    state_machine_definition=walker_sfn
 )
 def walk(event, context):
-    
+
     walker = vis_obj(
         event
     )
@@ -68,8 +66,8 @@ def walk(event, context):
 
 
 @app.step_function_task(
-    state_name = "Succeeded",
-    state_machine_definition = walker_sfn
+    state_name="Succeeded",
+    state_machine_definition=walker_sfn
 )
 def succeeded(event, context):
 
@@ -83,8 +81,8 @@ def succeeded(event, context):
 
 
 @app.step_function_task(
-    state_name = "Failed",
-    state_machine_definition = walker_sfn
+    state_name="Failed",
+    state_machine_definition=walker_sfn
 )
 def failed(event, context):
 

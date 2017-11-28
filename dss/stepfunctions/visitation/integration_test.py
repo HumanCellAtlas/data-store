@@ -2,7 +2,7 @@
 import time
 import string
 from .utils import validate_bucket
-from . import Visitation, StatusCode
+from . import Visitation, StatusCode, DSSVisitationExceptionSkipItem
 from .blobstore import BlobListerizer
 
 
@@ -11,7 +11,7 @@ class IntegrationTest(Visitation):
     walker_state_spec = {
         ** Visitation.walker_state_spec,
         ** dict(
-            processed_keys = list
+            processed_keys=list
         )
     }
 
@@ -27,34 +27,28 @@ class IntegrationTest(Visitation):
 
         self.code = StatusCode.RUNNING.name
 
-
     def finalize(self):
         pass
-
 
     def finalize_failed(self):
         pass
 
-
     def initialize_walker(self):
-        
+
         validate_bucket(
             self.bucket
         )
 
         self.code = StatusCode.RUNNING.name
 
-
     def process_item(self, key):
         self.processed_keys.append(
             key
         )
 
-
     def walk(self):
-        
+
         self.k_starts += 1
-        elapsed_time = 0
         start_time = time.time()
 
         blobs = BlobListerizer(
@@ -84,10 +78,8 @@ class IntegrationTest(Visitation):
         else:
             self.code = StatusCode.SUCCEEDED.name
 
-
     def finalize_walker(self):
         pass
-
 
     def finalize_failed_walker(self):
         pass

@@ -6,9 +6,9 @@ import string
 import botocore
 from uuid import uuid4
 from enum import Enum, auto
-from .utils import *
 from dss import BucketConfig, Config
 from .blobstore import BlobListerizer
+from .utils import statefunction_arn, list_executions_for_sentinel
 
 
 Config.set_config(BucketConfig.NORMAL)
@@ -35,37 +35,32 @@ class StatusCode(Enum):
 class Visitation:
 
     _base_state_spec = dict(
-        visitation_class_name = str,
-        code = str,
-        replica = str,
-        bucket = str,
-        dirname = str,
+        visitation_class_name=str,
+        code=str,
+        replica=str,
+        bucket=str,
+        dirname=str,
     )
-
 
     sentinel_state_spec = dict(
-        name = str,
-        k_workers = int,
-        waiting = list,
-        wait_time = int,
+        name=str,
+        k_workers=int,
+        waiting=list,
+        wait_time=int,
     )
-
 
     walker_state_spec = dict(
-        prefix = str,
-        marker = str,
-        token = str,
-        k_processed = int,
-        k_starts = int,
+        prefix=str,
+        marker=str,
+        token=str,
+        k_processed=int,
+        k_starts=int,
     )
-
 
     sentinel_arn = statefunction_arn('dss-visitation-sentinel')
     walker_arn = statefunction_arn('dss-visitation-walker')
 
-
     _walker_timeout = 240
-
 
     def __init__(self, state_spec, state, logger):
 
@@ -85,14 +80,12 @@ class Visitation:
 
         self.logger = logger
 
-
     def propagate_state(self):
 
         return {
-            k : getattr(self, k)
-                for k in self.state_spec
+            k: getattr(self, k)
+            for k in self.state_spec
         }
-
 
     @classmethod
     def with_sentinel_state(cls, state, logger):
@@ -103,7 +96,6 @@ class Visitation:
             logger
         )
 
-
     @classmethod
     def with_walker_state(cls, state, logger):
 
@@ -112,7 +104,6 @@ class Visitation:
             state,
             logger
         )
-
 
     @classmethod
     def get_status(cls, name):
@@ -123,17 +114,17 @@ class Visitation:
 
         running = [
             e['name'].split('--')[0] for e in walker_executions
-                if e['status'] == StatusCode.RUNNING.name
+            if e['status'] == StatusCode.RUNNING.name
         ]
 
         succeeded = [
             e['name'].split('--')[0] for e in walker_executions
-                if e['status'] == StatusCode.SUCCEEDED.name
+            if e['status'] == StatusCode.SUCCEEDED.name
         ]
 
         failed = [
             e['name'].split('--')[0] for e in walker_executions
-                if e['status'] == StatusCode.FAILED.name
+            if e['status'] == StatusCode.FAILED.name
         ]
 
         return {
@@ -142,7 +133,6 @@ class Visitation:
             'failed': failed,
             'k_api_calls': k_api_calls
         }
-
 
     def muster(self):
 
@@ -178,15 +168,14 @@ class Visitation:
 
         return running
 
-
     def start_walker(self, pfx):
 
         name = f'{pfx}--{self.name}'
 
         resp = boto3.client('stepfunctions').start_execution(
-            stateMachineArn = type(self).walker_arn,
-            name = name,
-            input = json.dumps({
+            stateMachineArn=type(self).walker_arn,
+            name=name,
+            input=json.dumps({
                 'visitation_class_name': self.visitation_class_name,
                 'replica': self.replica,
                 'bucket': self.bucket,
@@ -197,36 +186,27 @@ class Visitation:
 
         return resp
 
-
     def initialize(self):
         raise NotImplementedError
-
 
     def finalize(self):
         raise NotImplementedError
 
-
     def finalize_failed(self):
         raise NotImplementedError
-
 
     def initialize_walker(self):
         raise NotImplementedError
 
-
     def process_item(self, key):
         raise NotImplementedError
-
 
     def walk(self):
         # TODO: use the lambdaexecutor for timed work?
         raise NotImplementedError
 
-
     def finalize_walker(self):
         raise NotImplementedError
 
-
     def finalize_failed_walker(self):
         raise NotImplementedError
-

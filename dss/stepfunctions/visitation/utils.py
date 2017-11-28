@@ -25,7 +25,7 @@ def compile_results(name, api_calls_per_second=2):
                             api_calls_per_second):
 
         resp = sf_client.describe_execution(
-            executionArn = w['executionArn']
+            executionArn=w['executionArn']
         )
 
         res.append({
@@ -43,7 +43,7 @@ def compile_results(name, api_calls_per_second=2):
 
 
 def list_executions_for_sentinel(name):
-    
+
     execution_arn = statefunction_arn(
         'dss-visitation-sentinel',
         name
@@ -62,7 +62,7 @@ def list_executions_for_sentinel(name):
 
     execs = [
         e for e in walker_executions
-            if e['name'].endswith(name)
+        if e['name'].endswith(name)
     ]
 
     return execs, k_api_calls
@@ -75,7 +75,7 @@ def min_datetime():
             return datetime.timedelta(0)
 
     return datetime.datetime.min.replace(
-            tzinfo = dont_care_which_timezone_is_min()
+        tzinfo=dont_care_which_timezone_is_min()
     )
 
 
@@ -111,7 +111,7 @@ def list_executions(arn, start_date=min_datetime(), max_api_calls=50):
 
     executions = [
         e for e in executions
-            if e['startDate'] > start_date
+        if e['startDate'] > start_date
     ]
 
     return executions, k_api_calls
@@ -120,9 +120,9 @@ def list_executions(arn, start_date=min_datetime(), max_api_calls=50):
 def get_start_date(execution_arn):
 
     resp = sf_client.describe_execution(
-        executionArn = execution_arn
+        executionArn=execution_arn
     )
-    
+
     return resp['startDate']
 
 
@@ -150,7 +150,7 @@ def throttled_iter(iterable, calls_per_second=2, chunk_size=10):
 
         if k >= chunk_size:
             dt = time.time() - t
-            if k/dt > calls_per_second:
+            if k / dt > calls_per_second:
                 wait_time = k / calls_per_second - dt
                 time.sleep(wait_time)
 
@@ -163,5 +163,5 @@ def throttled_iter(iterable, calls_per_second=2, chunk_size=10):
 
 def validate_bucket(bucket):
     boto3.resource('s3').meta.client.head_bucket(
-        Bucket = bucket
+        Bucket=bucket
     )

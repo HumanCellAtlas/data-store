@@ -29,10 +29,9 @@ sys.path.insert(0, os.path.join(
     'dss-visitation-sentinel'
 ))
 
-import app
-
-from tests import infra
-from tests.infra import get_env
+import app # noqa
+from tests import infra # noqa
+from tests.infra import get_env # noqa
 
 infra.start_verbose_logging()
 
@@ -65,18 +64,16 @@ class TestVisitationSentinel(unittest.TestCase):
             "name": uuid4()
         }
 
-
     def test_initialize_pass(self):
 
-        ret = app.initialize(self.event, context=None)
-
+        app.initialize(self.event, context=None)
 
     def test_initialize_fail(self):
 
         self.event['bucket'] = str(uuid4())
 
         with self.assertRaises(ClientError):
-            ret = app.initialize(self.event, context=None)
+            app.initialize(self.event, context=None)
 
     def test_muster(self):
 
@@ -103,7 +100,6 @@ class TestVisitationSentinel(unittest.TestCase):
             set(self.event['waiting']),
             set(running)
         )
-
 
     def test_start_walker(self):
 

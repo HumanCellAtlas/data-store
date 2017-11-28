@@ -18,8 +18,8 @@ def aws_listing(bucket, dirname):
     c = boto3.client('s3')
 
     resp = c.list_objects_v2(
-        Bucket = bucket,
-        Prefix = dirname
+        Bucket=bucket,
+        Prefix=dirname
     )
 
     if not resp.get('Contents', None):
@@ -38,12 +38,12 @@ def gcp_listing(bucket, dirname):
     )
 
     resp = c.bucket(bucket).list_blobs(
-        prefix = dirname
+        prefix=dirname
     )
 
     return [
         blob.name
-            for blob in resp
+        for blob in resp
     ]
 
 
@@ -52,6 +52,8 @@ def listing(replica, bucket, dirname):
         return aws_listing(bucket, dirname)
     elif 'gcp' == replica:
         return gcp_listing(bucket, dirname)
+    else:
+        raise Exception(f'replica not supported {replica}')
 
 
 def run_sentinel(replica, bucket, dirname, k_workers):
@@ -67,7 +69,7 @@ def run_sentinel(replica, bucket, dirname, k_workers):
 
     while True:
         desc = boto3.client('stepfunctions').describe_execution(
-            executionArn = arn
+            executionArn=arn
         )
 
         if 'RUNNING' != desc['status']:

@@ -28,10 +28,9 @@ sys.path.insert(0, os.path.join(
     'dss-visitation-walker'
 ))
 
-import app
-
-from tests import infra
-from tests.infra import get_env
+import app # noqa
+from tests import infra # noqa
+from tests.infra import get_env # noqa
 
 
 infra.start_verbose_logging()
@@ -53,9 +52,6 @@ class TestVisitationWalker(unittest.TestCase):
     def setUp(self):
 
         sys.path.insert(0, os.path.join(pkg_root, 'daemons', 'dss-visitation-walker'))  # noqa
-        import app as walker_app
-        app = walker_app
-        del walker_app
 
         self.s3_test_bucket = get_env("DSS_S3_BUCKET_TEST")
 
@@ -66,19 +62,16 @@ class TestVisitationWalker(unittest.TestCase):
             "prefix": "11",
         }
 
-
     def test_initialize_pass(self):
 
-        ret = app.initialize(self.event, context=None)
-
+        app.initialize(self.event, context=None)
 
     def test_initialize_fail(self):
 
         self.event['bucket'] = str(uuid4())
 
         with self.assertRaises(ClientError):
-            ret = app.initialize(self.event, context=None)
-
+            app.initialize(self.event, context=None)
 
     def test_walk(self):
 

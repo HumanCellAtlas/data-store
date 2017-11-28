@@ -8,10 +8,8 @@ pkg_root = os.path.abspath(os.path.join(os.path.dirname(__file__), 'domovoilib')
 sys.path.insert(0, pkg_root)  # noqa
 
 import dss
-from dss.stepfunctions import visitation
 from dss.stepfunctions.visitation.sfn_definitions import sentinel_sfn
 from dss.stepfunctions.visitation import StatusCode
-from dss.stepfunctions.visitation.utils import *
 from dss.stepfunctions.visitation.registered_visitations import registered_visitations
 
 
@@ -34,8 +32,8 @@ def vis_obj(event):
 
 
 @app.step_function_task(
-    state_name = 'Initialize',
-    state_machine_definition = sentinel_sfn
+    state_name='Initialize',
+    state_machine_definition=sentinel_sfn
 )
 def initialize(event, context):
 
@@ -51,8 +49,8 @@ def initialize(event, context):
 
 
 @app.step_function_task(
-    state_name = 'MusterWalkers',
-    state_machine_definition = sentinel_sfn
+    state_name='MusterWalkers',
+    state_machine_definition=sentinel_sfn
 )
 def muster_walkers(event, context):
 
@@ -66,8 +64,8 @@ def muster_walkers(event, context):
 
 
 @app.step_function_task(
-    state_name = 'Succeeded',
-    state_machine_definition = sentinel_sfn
+    state_name='Succeeded',
+    state_machine_definition=sentinel_sfn
 )
 def succeeded(event, context):
 
@@ -81,8 +79,8 @@ def succeeded(event, context):
 
 
 @app.step_function_task(
-    state_name = 'Failed',
-    state_machine_definition = sentinel_sfn
+    state_name='Failed',
+    state_machine_definition=sentinel_sfn
 )
 def failed(event, context):
 

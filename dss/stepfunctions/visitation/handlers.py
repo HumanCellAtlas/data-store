@@ -3,6 +3,7 @@ import boto3
 from uuid import uuid4
 from . import Visitation
 
+
 def integration_test(replica, bucket, dirname, k_workers):
 
     name = 'integration-test--{}'.format(
@@ -19,9 +20,9 @@ def integration_test(replica, bucket, dirname, k_workers):
     })
 
     resp = boto3.client('stepfunctions').start_execution(
-        stateMachineArn = Visitation.sentinel_arn,
-        name = name,
-        input = inp
+        stateMachineArn=Visitation.sentinel_arn,
+        name=name,
+        input=inp
     )
 
     return resp
