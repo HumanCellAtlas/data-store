@@ -11,9 +11,10 @@ sys.path.insert(0, pkg_root)  # noqa
 
 import dss
 from dss.stepfunctions import visitation
+from dss.stepfunctions.visitation.utils import *
 from dss.stepfunctions.visitation.sfn_definitions import walker_sfn
 from dss.stepfunctions.visitation import StatusCode, DSSVisitationExceptionSkipItem
-from dss.stepfunctions.visitation.utils import *
+from dss.stepfunctions.visitation.registered_visitations import registered_visitations
 
 
 logger = dss.get_logger()
@@ -26,7 +27,7 @@ def vis_obj(event):
 
     class_name = event['visitation_class_name']
 
-    vis_class = visitation.registered_visitations[class_name]
+    vis_class = registered_visitations[class_name]
 
     return vis_class.walker_state(
         event
@@ -56,7 +57,7 @@ def initialize(event, context):
 )
 def walk(event, context):
 
-    # TODO: use the lambdaexecutor for timed work
+    # TODO: use the lambdaexecutor for timed work?
     
     walker = vis_obj(
         event
