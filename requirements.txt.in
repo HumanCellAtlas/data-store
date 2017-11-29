@@ -1,14 +1,14 @@
 # Be sure to run "make requirements.txt requirements-dev.txt" after editing this file.
-azure-storage
-boto3
-chained-aws-lambda
-cloud-blobstore
-connexion
-elasticsearch
-elasticsearch_dsl
-google-cloud-storage
-iso8601
-nestedcontext
-requests_aws4auth
-urllib3
-requests-http-signature
+azure-storage >= 0.36.0, < 2
+boto3 >= 1.4.7, < 2
+chained-aws-lambda >= 0.0.7, < 2
+cloud-blobstore >= 0.0.7, < 2
+connexion >= 1.1.15, < 2
+elasticsearch >= 5.4.0, < 6
+elasticsearch-dsl >= 5.3.0, < 6
+google-cloud-storage >= 1.4.0, < 2
+iso8601 >= 0.1.12, < 2
+nestedcontext >= 0.0.4, < 2
+requests-aws4auth >= 0.9, < 2
+urllib3 >= 1.22, < 2
+requests-http-signature >= 0.0.3, < 2
