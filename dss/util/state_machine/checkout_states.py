@@ -34,6 +34,7 @@ state_machine_def = {
     "Comment": "DSS Checkout service state machine that submits a Job to chained copy client"
                " and monitors the Job until it completes.",
     "StartAt": "PreExecutionCheck",
+    "TimeoutSeconds": 3600,             # 60 minutes, in seconds.
     "States": {
         "PreExecutionCheck": {
             "Type": "Task",
