@@ -191,7 +191,7 @@ def compose_gs_blobs(gs_bucket, blob_names, dest_blob_name, logger):
     for blob in blobs:
         try:
             blob.delete()
-        except:
+        except Exception:
             pass
 
 def copy_part(upload_url, source_url, dest_platform, part, context):
