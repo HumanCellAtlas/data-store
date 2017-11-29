@@ -198,11 +198,25 @@ class Config:
         return Config._ALLOWED_EMAILS
 
     @staticmethod
-    def get_es_index_name(index_type: ESIndexType, replica: Replica) -> str:
+    def get_es_index_name(index_type: ESIndexType, replica: Replica,
+                          version: typing.Optional[str] = None
+                          ) -> str:
+        """Returns the index name"""
+        deployment_stage = os.environ["DSS_DEPLOYMENT_STAGE"]
+        index = f"dss-{index_type.name}-{replica.name}-{deployment_stage}"
+        if version:
+            index = f"{index}-{version}"
+        if Config._CURRENT_CONFIG == BucketConfig.TEST:
+            index = f"{index}.{IndexSuffix.name}"
+        return index
+
+    @staticmethod
+    def get_es_alias_name(index_type: ESIndexType, replica: Replica) -> str:
+        """Returns the alias for indexes"""
         deployment_stage = os.environ["DSS_DEPLOYMENT_STAGE"]
         index = f"dss-{index_type.name}-{replica.name}-{deployment_stage}"
         if Config._CURRENT_CONFIG == BucketConfig.TEST:
-            index = f"{index}-{IndexSuffix.name}"
+            index = f"{index}.{IndexSuffix.name}"
         return index
 
     @staticmethod
