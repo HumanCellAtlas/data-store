@@ -80,9 +80,15 @@
       "Sid": "hcaDssCiCdIamListRolesAccess",
       "Effect": "Allow",
       "Action": [
-        "iam:ListRoles"
+        "iam:ListRoles",
+        "iam:GetRole",
+        "iam:DeleteRolePolicy",
+        "iam:PutRolePolicy"
       ],
-      "Resource": "arn:aws:iam::$account_id:role/"
+      "Resource": [
+        "arn:aws:iam::$account_id:role/*",
+        "arn:aws:iam::$account_id:user/*"
+      ]
     },
     {
       "Sid": "hcaDssCiCdTestLogging",
@@ -112,7 +118,8 @@
         "arn:aws:sns:*:$account_id:dss-*",
         "arn:aws:sns:*:$account_id:chained-aws-lambda-*",
         "arn:aws:sns:*:$account_id:domovoi-s3-bucket-events-*",
-        "arn:aws:states:*:$account_id:*:dss-*"
+        "arn:aws:states:*:$account_id:stateMachine:*",
+        "arn:aws:states:*:$account_id:*"
       ],
       "Effect": "Allow"
     },
