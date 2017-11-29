@@ -107,7 +107,7 @@ def _es_search_page(es_query: dict,
     # }
     sort = {"sort": ["_doc"]}
     if _scroll_id is None:
-        page = es_client.search(index=Config.get_es_alias_name(ESIndexType.docs, Replica[replica]),
+        page = es_client.search(index=Config.get_es_index_name(ESIndexType.docs, Replica[replica]),
                                 doc_type=ESDocType.doc.name,
                                 scroll=scroll,
                                 size=per_page,
