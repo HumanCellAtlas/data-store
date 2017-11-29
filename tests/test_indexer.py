@@ -98,8 +98,8 @@ class TestIndexerBase(DSSAssertMixin, DSSStorageMixin, DSSUploadMixin):
         cls.blobstore, _, cls.test_fixture_bucket = Config.get_cloud_specific_handles(cls.replica)
         Config.set_config(BucketConfig.TEST)
         _, _, cls.test_bucket = Config.get_cloud_specific_handles(cls.replica)
-        cls.dss_alias_name = dss.Config.get_es_alias_name(dss.ESIndexType.docs, dss.Replica[cls.replica])
-        cls.subscription_index_name = dss.Config.get_es_alias_name(dss.ESIndexType.subscriptions,
+        cls.dss_index_name = dss.Config.get_es_index_name(dss.ESIndexType.docs, dss.Replica[cls.replica])
+        cls.subscription_index_name = dss.Config.get_es_index_name(dss.ESIndexType.subscriptions,
                                                                    dss.Replica[cls.replica])
 
     @classmethod
@@ -156,7 +156,7 @@ class TestIndexerBase(DSSAssertMixin, DSSStorageMixin, DSSUploadMixin):
                 self.process_new_indexable_object(sample_event, logger)
             self.assertRegex(log_monitor.output[0], "DEBUG:.*Not indexing .* creation event for key: .*")
             with self.assertRaises(Exception) as ex:
-                ElasticsearchClient.get(logger).get(index=self.dss_alias_name,
+                ElasticsearchClient.get(logger).get(index=self.dss_index_name,
                                                     doc_type=dss.ESIndexType.docs,
                                                     id=bundle_uuid)
             self.assertEqual('index_not_found_exception', ex.exception.error)
@@ -268,16 +268,6 @@ class TestIndexerBase(DSSAssertMixin, DSSStorageMixin, DSSUploadMixin):
                          f"WARNING:.*:Failed notification for subscription {subscription_id}"
                          f" for bundle {bundle_id} with transaction id .+ Code: {error_response_code}")
 
-    def test_alias_exists(self):
-        sample_event = self.create_sample_bundle_created_event(self.bundle_key)
-        self.process_new_indexable_object(sample_event, logger)
-        es_client = ElasticsearchClient.get(logger)
-        self.assertTrue(es_client.indices.exists_alias(name=[self.dss_alias_name]))
-
-    @unittest.skip("WIP")
-    def test_index_when_multiple_indexes_using_alias(self):
-        pass
-
     def verify_notification(self, subscription_id, es_query, bundle_id):
         posted_payload_string = self.get_notification_payload()
         self.assertIsNotNone(posted_payload_string)
@@ -383,7 +373,7 @@ class TestIndexerBase(DSSAssertMixin, DSSStorageMixin, DSSUploadMixin):
         timeout_time = time.time() + timeout
         while True:
             response = ElasticsearchClient.get(logger).search(
-                index=cls.dss_alias_name,
+                index=cls.dss_index_name,
                 doc_type=dss.ESDocType.doc.name,
                 body=json.dumps(query))
             if (len(response['hits']['hits']) >= expected_hit_count) \
