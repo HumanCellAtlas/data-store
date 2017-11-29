@@ -83,7 +83,8 @@
         "iam:ListRoles",
         "iam:GetRole",
         "iam:DeleteRolePolicy",
-        "iam:PutRolePolicy"
+        "iam:PutRolePolicy",
+        "iam:PassRole"
       ],
       "Resource": [
         "arn:aws:iam::$account_id:role/*",
