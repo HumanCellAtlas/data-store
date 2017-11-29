@@ -16,7 +16,7 @@ from requests_http_signature import HTTPSignatureAuth
 from dss import Config, DeploymentStage, ESIndexType, ESDocType, Replica
 from ...util import create_blob_key
 from ...hcablobstore import BundleMetadata, BundleFileMetadata
-from ...util.es import ElasticsearchClient, get_elasticsearch_index
+from ...util.es import ElasticsearchClient, create_elasticsearch_doc_index
 
 DSS_BUNDLE_KEY_REGEX = r"^bundles/[0-9A-Fa-f]{8}-[0-9A-Fa-f]{4}-4[0-9A-Fa-f]{3}-[0-9A-Fa-f]{4}-[0-9A-Fa-f]{12}\..+$"
 
@@ -50,9 +50,12 @@ def process_new_indexable_object(bucket_name: str, key: str, replica: str, logge
         manifest = read_bundle_manifest(blobstore, bucket_name, key, logger)
         bundle_id = get_bundle_id_from_key(key)
         index_data = create_index_data(blobstore, bucket_name, bundle_id, manifest, logger)
-        index_name = Config.get_es_index_name(ESIndexType.docs, Replica[replica])
-        add_index_data_to_elasticsearch(bundle_id, index_data, index_name, logger)
-        subscriptions = find_matching_subscriptions(index_data, index_name, logger)
+        alias_name = Config.get_es_alias_name(ESIndexType.docs, Replica[replica])
+        #  TODO (tsmith): get the major version from index data.
+        version = '1'
+        index_name = Config.get_es_index_name(ESIndexType.docs, Replica[replica], version)
+        add_index_data_to_elasticsearch(bundle_id, index_data, index_name, alias_name, logger)
+        subscriptions = find_matching_subscriptions(index_data, alias_name, logger)
         process_notifications(bundle_id, subscriptions, replica, logger)
         logger.debug(f"Finished index processing of {replica} creation event for bundle: {key}")
     else:
@@ -130,19 +133,19 @@ def get_bundle_id_from_key(bundle_key: str) -> str:
     raise Exception(f"This is not a key for a bundle: {bundle_key}")
 
 
-def add_index_data_to_elasticsearch(bundle_id: str, index_data: dict, index_name: str, logger) -> None:
-    create_elasticsearch_index(index_name, logger)
+def add_index_data_to_elasticsearch(bundle_id: str, index_data: dict, index_name: str, alias_name: str, logger) -> None:
+    get_elasticsearch_index(index_name, alias_name, logger)
     logger.debug("Adding index data to Elasticsearch index '%s': %s", index_name, json.dumps(index_data, indent=4))
     add_data_to_elasticsearch(bundle_id, index_data, index_name, logger)
 
 
-def create_elasticsearch_index(index_name, logger):
+def get_elasticsearch_index(index_name: str, alias_name: str, logger):
     if not ElasticsearchClient.get(logger).indices.exists(index_name):
         with open(os.path.join(os.path.dirname(__file__), "mapping.json"), "r") as fh:
             index_mapping = json.load(fh)
         index_mapping["mappings"][ESDocType.doc.name] = index_mapping["mappings"].pop("doc")
         index_mapping["mappings"][ESDocType.query.name] = index_mapping["mappings"].pop("query")
-        get_elasticsearch_index(ElasticsearchClient.get(logger), index_name, logger, index_mapping)
+        create_elasticsearch_doc_index(ElasticsearchClient.get(logger), index_name, alias_name, logger, index_mapping)
     else:
         logger.debug(f"Using existing Elasticsearch index: {index_name}")
 
