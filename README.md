@@ -240,13 +240,14 @@ that goes on the master branch. This behavior is defined in the `deploy` section
 #### Authorizing Travis CI to deploy
 
 Encrypted environment variables give Travis CI the AWS credentials needed to run the tests and deploy the app. Run
-`scripts/authorize_aws_deploy.sh IAM-PRINCIPAL-TYPE IAM-PRINCIPAL-NAME` (e.g. `authorize_aws_deploy.sh group travis-ci`)
-to give that principal the permissions needed to deploy the app. Because a group policy has a higher size limit 
-(5,120 characters) than a user policy (2,048 characters), it is advisable to apply this to a group and add the principal to that group.
-Because this is a limited set of permissions, it does not have write access to IAM. To set up the IAM policies for resources in your account that the app will use, run `make
-deploy` using privileged account credentials once from your workstation. After this is done, Travis CI will be able to
-deploy on its own. You must repeat the `make deploy` step from a privileged account any time you change the IAM policies
-templates in `iam/policy-templates/`.
+`scripts/authorize_aws_deploy.sh IAM-PRINCIPAL-TYPE IAM-PRINCIPAL-NAME` (e.g. `authorize_aws_deploy.sh group
+travis-ci`) to give that principal the permissions needed to deploy the app. Because a group policy has a higher size
+limit (5,120 characters) than a user policy (2,048 characters), it is advisable to apply this to a group and add the
+principal to that group. Because this is a limited set of permissions, it does not have write access to IAM. To set up
+the IAM policies for resources in your account that the app will use, run `make deploy` using privileged account
+credentials once from your workstation. After this is done, Travis CI will be able to deploy on its own. You must
+repeat the `make deploy` step from a privileged account any time you change the IAM policies templates in
+`iam/policy-templates/`.
 
 [![](https://img.shields.io/badge/slack-%23data--store-557EBF.svg)](https://humancellatlas.slack.com/messages/data-store/)
 [![Build Status](https://travis-ci.org/HumanCellAtlas/data-store.svg?branch=master)](https://travis-ci.org/HumanCellAtlas/data-store)
