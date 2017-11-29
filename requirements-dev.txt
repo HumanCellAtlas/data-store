@@ -1,13 +1,13 @@
 # You should not edit this file directly.  Instead, you should edit requirements-dev.txt.in.
 asn1crypto==0.23.0
 aws-xray-sdk==0.94
-awscli==1.12.0
+awscli==1.12.2
 azure-common==1.1.8
 azure-nspkg==2.0.0
 azure-storage==0.36.0
 boto==2.48.0
 boto3==1.4.8
-botocore==1.8.0
+botocore==1.8.1
 cachetools==2.0.1
 certifi==2017.11.5
 cffi==1.11.2
@@ -57,8 +57,8 @@ pbr==3.1.1
 protobuf==3.5.0.post1
 psutil==5.4.1
 pyaml==17.10.0
-pyasn1==0.3.7
-pyasn1-modules==0.1.5
+pyasn1==0.4.1
+pyasn1-modules==0.2.1
 pycodestyle==2.3.1
 pycparser==2.18
 pyflakes==1.6.0
