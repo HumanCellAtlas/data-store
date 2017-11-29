@@ -1,7 +1,7 @@
 # Be sure to run "make requirements-dev.txt" after editing this file.
 flake8  >= 3.4.1, < 4
 mypy  >= 0.530, < 2
-domovoi  >= 1.4.2, < 2
+domovoi  >= 1.4.3, < 2
 chalice  >= 1.0.3, < 2
 coverage  >= 4.4.1, < 5
 awscli  >= 1.11.166, < 2
