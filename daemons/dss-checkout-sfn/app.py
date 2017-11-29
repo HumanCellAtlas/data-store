@@ -2,7 +2,7 @@ import os
 import sys
 
 import domovoi
-import time
+import logging
 
 pkg_root = os.path.abspath(os.path.join(os.path.dirname(__file__), 'domovoilib'))  # noqa
 sys.path.insert(0, pkg_root)  # noqa
@@ -27,8 +27,16 @@ default_checkout_bucket = dss.Config.get_s3_checkout_bucket()
 
 replica = "aws"
 
+DEBUG = False
+
 for client_name, client_class in chained_lambda_clients():
     chainedawslambda.aws.add_client(client_name, client_class)
+
+logger = logging.getLogger()
+if DEBUG:
+    logger.setLevel(logging.DEBUG)
+else:
+    logger.setLevel(logging.INFO)
 
 
 @app.step_function_task(state_name="ScheduleCopy", state_machine_definition=state_machine_def)
@@ -40,7 +48,7 @@ def schedule_copy(event, context):
 
     scheduled = 0
     for src_key, dst_key in get_manifest_files(bundle_id, version, replica):
-        logger.debug("Copying a file " + dst_key)
+        logger.info(f"Copying a file {dst_key} to {dst_bucket}")
         parallel_copy(dss_bucket, src_key, dst_bucket, dst_key)
         scheduled += 1
     return {"files_scheduled": scheduled,
