@@ -259,23 +259,22 @@ repeat the `make deploy` step from a privileged account any time you change the 
 The direct runtime dependencies of this project are defined in `requirements.txt.in`. Direct development dependencies
 are defined in `requirements-dev.txt.in`. All dependencies, direct and transitive, are defined in the corresponding
 `requirements.txt` and `requirements-dev.txt` files. The latter two can be generated using `make requirements.txt` or
-`make requirements-dev.txt` respectively. Modifications to any of these four files need to be committed. This process
-is aimed at making dependency handling more deterministic without accumulating the upgrade debt that would be incurred
-by simply pinning all direct and transitive dependencies.
+`make requirements-dev.txt` respectively. Modifications to any of these four files need to be committed. This process is
+aimed at making dependency handling more deterministic without accumulating the upgrade debt that would be incurred by
+simply pinning all direct and transitive dependencies.  Avoid being overly restrictive when constraining the allowed
+version range of direct dependencies in -`requirements.txt.in` and `requirements-dev.txt.in`
 
 If you need to modify or add a direct runtime dependency declaration, follow the steps below:
 
-1) Make sure there are no pending changes to `requirements.txt` or `requirements.txt.in`
-2) Run `make requirements.txt`. This will update `requirements.txt` to the most recent releases of direct and transitive dependencies.
-3) Examine the changes to `requirements.txt` and commit them with a message like `Bumping dependencies`
-4) Make the desired change to `requirements.txt.in`
-5) Run `make requirement.txt` again. This updates `requirements.txt` with direct and transitive entries related to your change.
-6) Examine the changes to `requirements.txt` and commit them with a message like `Adding dependency on Foobar`
+1) Make sure there are no pending changes to `requirements.txt` or `requirements-dev.txt`.
+2) Make the desired change to `requirements.txt.in` or `requirements-dev.txt.in`
+3) Run `make requirements.txt`.  Run `make requirements-dev.txt` if you have modified `requirements-dev.txt.in`.
+4) Visually check the changes to `requirements.txt` and `requirements-dev.txt`.
+5) Commit them with a message like `Bumping dependencies`.
 
 You now have two commits, one that catches up with updates to transitive dependencies, and one that tracks your explict
 change to a direct dependency. This process applies to development dependencies as well, except for
 `requirements-dev.txt` and `requirements-dev.txt.in` respectively.
 
-Avoid being overly restrictive when constraining the allowed version range of direct dependencies in
-`requirements.txt.in` and `requirements-dev.txt.in`. As a rule of thumb, pin only the major version, e.g. `foo > 1.2.3,
-< 2`. Note that `2`` is a shorthand for `2.0` which is equivalent to `2.0.0` and so on.
+If you wish to re-pin all the dependencies, run `make refresh_all_requirements`.  It is advisable to do a full
+test-deploy-test cycle after this (the test after the deploy is required to test the lambdas).
