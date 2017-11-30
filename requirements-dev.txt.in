@@ -1,12 +1,12 @@
 # Be sure to run "make requirements-dev.txt" after editing this file.
-flake8  >= 3.4.1, < 4
-mypy  >= 0.530, < 2
-domovoi  >= 1.4.3, < 2
-chalice  >= 1.0.3, < 2
-coverage  >= 4.4.1, < 5
-awscli  >= 1.11.166, < 2
-moto  >= 1.1.21, < 2
-crcmod  >= 1.7, < 2
-httpie  >= 0.9.9, < 2
-yq  >= 2.3.3, < 3
+flake8  >= 3.4.1
+mypy  >= 0.530
+domovoi  >= 1.4.3
+chalice  >= 1.0.3
+coverage  >= 4.4.1
+awscli  >= 1.11.166
+moto  >= 1.1.21
+crcmod  >= 1.7
+httpie  >= 0.9.9
+yq  >= 2.3.3
 -r requirements.txt
