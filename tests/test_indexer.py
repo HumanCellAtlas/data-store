@@ -289,29 +289,30 @@ class TestIndexerBase(DSSAssertMixin, DSSStorageMixin, DSSUploadMixin):
                     }
                 }
             }
-        self.assertEqual(get_index_shape_identifier(index_document, logger), "v3")
+        with self.subtest("Same major version."):
+            self.assertEqual(get_index_shape_identifier(index_document, logger), "v3")
 
-        # Test with mixed/inconsistent metadata schema release versions in the same bundle
         index_document['files']['assay_json']['core']['schema_version'] = "4.0.0"
-        with self.assertRaisesRegex(AssertionError,
-                                    "The bundle contains mixed schema major version numbers: \['3', '4'\]"):
-            get_index_shape_identifier(index_document, logger)
+        with self.subtest("Mixed/inconsistent metadata schema release versions in the same bundle"):
+            with self.assertRaisesRegex(AssertionError,
+                                        "The bundle contains mixed schema major version numbers: \['3', '4'\]"):
+                get_index_shape_identifier(index_document, logger)
 
-        # Test with consistent versions, with a different version value
         index_document['files']['sample_json']['core']['schema_version'] = "4.0.0"
-        self.assertEqual(get_index_shape_identifier(index_document, logger), "v4")
+        with self.subtest("Consistent versions, with a different version value"):
+            self.assertEqual(get_index_shape_identifier(index_document, logger), "v4")
 
-        # Test with an version file and unversioned file
         index_document['files']['assay_json'].pop('core')
-        with self.assertLogs(logger, level="INFO") as log_monitor:
-            get_index_shape_identifier(index_document, logger)
-        self.assertRegex(log_monitor.output[0], ("INFO:.*File assay_json does not contain a 'core' section "
-                                                 "to identify the schema and schema version."))
-        self.assertEqual(get_index_shape_identifier(index_document, logger), "v4")
+        with self.subtest("An version file and unversioned file"):
+            with self.assertLogs(logger, level="INFO") as log_monitor:
+                get_index_shape_identifier(index_document, logger)
+            self.assertRegex(log_monitor.output[0], ("INFO:.*File assay_json does not contain a 'core' section "
+                                                     "to identify the schema and schema version."))
+            self.assertEqual(get_index_shape_identifier(index_document, logger), "v4")
 
-        # Test with no versioned file
         index_document['files']['sample_json'].pop('core')
-        self.assertEqual(get_index_shape_identifier(index_document, logger), "")
+        with self.subtest("no versioned file"):
+            self.assertEqual(get_index_shape_identifier(index_document, logger), "")
 
     def test_alias_and_versioned_index_exists(self):
         sample_event = self.create_sample_bundle_created_event(self.bundle_key)
