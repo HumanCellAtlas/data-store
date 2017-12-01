@@ -270,25 +270,24 @@ class TestIndexerBase(DSSAssertMixin, DSSStorageMixin, DSSUploadMixin):
 
     def test_get_index_shape_identifier(self):
         from dss.events.handlers.index import get_index_shape_identifier
-        index_document = \
-            {
-                'files': {
-                    'assay_json': {
-                        'core': {
-                            'schema_url': "http://hgwdev.soe.ucsc.edu/~kent/hca/schema/assay.json",
-                            'schema_version': "3.0.0",
-                            'type': "assay"
-                        }
-                    },
-                    'sample_json': {
-                        'core': {
-                            'schema_url': "http://hgwdev.soe.ucsc.edu/~kent/hca/schema/sample.json",
-                            'schema_version': "3.0.0",
-                            'type': "sample"
-                        }
+        index_document = {
+            'files': {
+                'assay_json': {
+                    'core': {
+                        'schema_url': "http://hgwdev.soe.ucsc.edu/~kent/hca/schema/assay.json",
+                        'schema_version': "3.0.0",
+                        'type': "assay"
+                    }
+                },
+                'sample_json': {
+                    'core': {
+                        'schema_url': "http://hgwdev.soe.ucsc.edu/~kent/hca/schema/sample.json",
+                        'schema_version': "3.0.0",
+                        'type': "sample"
                     }
                 }
             }
+        }
         with self.subtest("Same major version."):
             self.assertEqual(get_index_shape_identifier(index_document, logger), "v3")
 
