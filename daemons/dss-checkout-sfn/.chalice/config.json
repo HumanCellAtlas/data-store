@@ -1,5 +1,4 @@
 {
-  "version": "2.0",
   "app_name": "dss-checkout-sfn",
   "stages": {
     "dev": {
@@ -7,6 +6,7 @@
       "environment_variables": {}
     }
   },
+  "version": "2.0",
   "lambda_timeout": 300,
   "lambda_memory_size": 1536
 }
