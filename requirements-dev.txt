@@ -11,7 +11,7 @@ botocore==1.8.3
 cachetools==2.0.1
 certifi==2017.11.5
 cffi==1.11.2
-chained-aws-lambda==0.0.7
+chained-aws-lambda==0.0.8
 chalice==1.0.4
 chardet==3.0.4
 click==6.7
@@ -27,13 +27,14 @@ docker==2.6.1
 docker-pycreds==0.2.1
 docutils==0.14
 domovoi==1.4.3
-elasticsearch==5.4.0
+elasticsearch==5.5.1
 elasticsearch-dsl==5.3.0
 flake8==3.5.0
 Flask==0.12.2
+google-api-core==0.1.1
 google-auth==1.2.1
-google-cloud-core==0.27.1
-google-cloud-storage==1.4.0
+google-cloud-core==0.28.0
+google-cloud-storage==1.6.0
 google-resumable-media==0.3.1
 googleapis-common-protos==1.5.3
 httpie==0.9.9
