@@ -1,5 +1,7 @@
 import os
 import sys
+import time
+
 
 import domovoi
 import logging
@@ -38,6 +40,17 @@ if DEBUG:
 else:
     logger.setLevel(logging.INFO)
 
+@app.step_function_task(state_name="PreExecutionCheck", state_machine_definition=state_machine_def)
+def pre_execution_check(event, context):
+    dst_bucket = get_dst_bucket(event)
+    bundle = event["bundle"]
+    version = event["version"]
+    dss_bucket = event["dss_bucket"]
+    checkout_status, cause = pre_exec_validate(dss_bucket, dst_bucket, replica, bundle, version)
+    result = {"checkout_status": checkout_status.name.upper()}
+    if cause:
+        result["cause"] = cause
+    return result
 
 @app.step_function_task(state_name="ScheduleCopy", state_machine_definition=state_machine_def)
 def schedule_copy(event, context):
@@ -76,20 +89,6 @@ def get_job_status(event, context):
     check_count += 1
     return {"complete_count": complete_count, "total_count": total_count, "check_count": check_count,
             "checkout_status": checkout_status}
-
-
-@app.step_function_task(state_name="PreExecutionCheck", state_machine_definition=state_machine_def)
-def pre_execution_check(event, context):
-    dst_bucket = get_dst_bucket(event)
-    bundle = event["bundle"]
-    version = event["version"]
-    dss_bucket = event["dss_bucket"]
-    checkout_status, cause = pre_exec_validate(dss_bucket, dst_bucket, replica, bundle, version)
-    result = {"checkout_status": checkout_status.name.upper()}
-    if cause:
-        result["cause"] = cause
-    return result
-
 
 @app.step_function_task(state_name="Notify", state_machine_definition=state_machine_def)
 def notify_complete(event, context):
