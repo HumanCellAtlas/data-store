@@ -108,6 +108,13 @@ def upload(uploader: Uploader):
             "application/json",
         )
 
+    for fname in ["assay.json", "cell.json", "manifest.json", "project.json", "sample.json"]:
+        uploader.checksum_and_upload_file(
+            f"indexing/bundles/unversioned/smartseq2/paired_ends/{fname}",
+            f"fixtures/indexing/bundles/unversioned/smartseq2/paired_ends/{fname}",
+            "application/json",
+        )
+
     # Create a bundle based on data-bundle-examples/smartseq2/paired_ends.
     # The files are accessed from the data-bundle-examples subrepository to avoid
     # duplicating them in our test infrastructure.
@@ -125,7 +132,7 @@ def upload(uploader: Uploader):
 
     # Create a bundle based on data-bundle-examples/smartseq2/paired_ends.
     # Then add some non-indexed files for a more complete and realistic bundle test.
-    target_path = "fixtures/smartseq2/paired_ends"
+    target_path = "fixtures/indexing/bundles/v3/smartseq2/paired_ends"
     load_example_smartseq2_paired_ends(target_path)
     for fname in ["text_data_file1.txt", "text_data_file2.txt"]:
         uploader.checksum_and_upload_file(
@@ -140,7 +147,7 @@ def upload(uploader: Uploader):
     # valid files are still processed.
     # Create a bundle based on data-bundle-examples/smartseq2/paired_ends,
     # for consistency and ease of verifying valid files.
-    target_path = "fixtures/unparseable_indexed_file"
+    target_path = "fixtures/indexing/bundles/unparseable_indexed_file"
     load_example_smartseq2_paired_ends(target_path)
     fname = "unparseable_json.json"
     uploader.checksum_and_upload_file(
