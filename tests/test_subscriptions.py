@@ -15,7 +15,7 @@ import google.auth
 import google.auth.transport.requests
 import requests
 
-from dss.events.handlers.index import get_elasticsearch_index
+from dss.events.handlers.index import get_elasticsearch_index, get_index_shape_identifier
 
 pkg_root = os.path.abspath(os.path.join(os.path.dirname(__file__), '..')) # noqa
 sys.path.insert(0, pkg_root) # noqa
@@ -27,7 +27,7 @@ from dss.util.es import ElasticsearchClient, ElasticsearchServer
 from tests.es import elasticsearch_delete_index
 from tests.infra import DSSAssertMixin, ExpectedErrorFields
 from tests.infra.server import ThreadedLocalServer
-from tests.sample_search_queries import smartseq2_paired_ends_v3_query
+from tests.sample_search_queries import smartseq2_paired_ends_v2_or_v3_query
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
@@ -65,19 +65,21 @@ class TestSubscriptionsBase(DSSAssertMixin):
 
         dss.Config.set_config(dss.BucketConfig.TEST)
 
-        logger.debug("Setting up Elasticsearch")
-        es_client = ElasticsearchClient.get(logger)
-        elasticsearch_delete_index(f"*{IndexSuffix.name}")
-        alias_name = dss.Config.get_es_index_name(dss.ESIndexType.docs, self.replica)
-        get_elasticsearch_index("subscription_test", alias_name, logger)
-
         with open(os.path.join(os.path.dirname(__file__), "sample_v3_index_doc.json"), "r") as fh:
             index_document = json.load(fh)
 
-        self.callback_url = "https://example.com"
-        self.sample_percolate_query = smartseq2_paired_ends_v3_query
+        logger.debug("Setting up Elasticsearch")
+        es_client = ElasticsearchClient.get(logger)
+        elasticsearch_delete_index(f"*{IndexSuffix.name}")
+        alias_name = dss.Config.get_es_alias_name(dss.ESIndexType.docs, self.replica)
+        index_shape_identifier = get_index_shape_identifier(index_document, logger)
+        self.index_name = dss.Config.get_es_index_name(dss.ESIndexType.docs, self.replica, index_shape_identifier)
+        get_elasticsearch_index(self.index_name, alias_name, logger)
 
-        es_client.index(index=alias_name,
+        self.callback_url = "https://example.com"
+        self.sample_percolate_query = smartseq2_paired_ends_v2_or_v3_query
+
+        es_client.index(index=self.index_name,
                         doc_type=dss.ESDocType.doc.name,
                         id=str(uuid.uuid4()),
                         body=index_document,
@@ -104,12 +106,13 @@ class TestSubscriptionsBase(DSSAssertMixin):
         uuid_ = self._put_subscription()
 
         es_client = ElasticsearchClient.get(logger)
-        response = es_client.get(index=dss.Config.get_es_index_name(dss.ESIndexType.docs, self.replica),
+        response = es_client.get(index=self.index_name,
                                  doc_type=dss.ESDocType.query.name,
                                  id=uuid_)
         registered_query = response['_source']
         self.assertEqual(self.sample_percolate_query, registered_query)
 
+    @unittest.skip("WIP - Registration will now succeed in this case with the proposed changes.")
     def test_subscription_registration_fails_when_query_does_not_match_schema(self):
         es_query = {
             "query": {
