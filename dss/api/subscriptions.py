@@ -89,25 +89,28 @@ def put(json_request_body: dict, replica: str):
 
     #  get all indexes that use current alias
     alias_name = Config.get_es_alias_name(ESIndexType.docs, Replica[replica])
-    doc_indexes = [i['i'] for i in es_client.cat.aliases(name=alias_name, h=['a', 'i'], format='json')]
+    doc_indexes = [indexes['i'] for indexes in es_client.cat.aliases(name=alias_name, h=['i'], format='json')]
+
     #  try to subscribe query to each of the indexes.
     subscribed_indexes = []
     for doc_index in doc_indexes:
         try:
-
             percolate_registration = _register_percolate(es_client, doc_index, uuid, es_query, replica)
+        except ElasticsearchException as ex:
+            logger.debug(f"Exception occured when registering a document to an index. Exception: {ex}")
+            last_ex = ex
+        else:
             logger.debug(f"Percolate query registration succeeded:\n{percolate_registration}")
             subscribed_indexes.append(doc_index)
-        except ElasticsearchException as ex:
-            last_ex = ex
 
-    # error if no queries are successfully indexed.
-    if len(subscribed_indexes) == 0:
+    # Queries are unlikely to fit in all of the indexes, therefore errors will almost always occur. Only return an error
+    # if no queries are successfully indexed.
+    if not subscribed_indexes:
         logger.critical("%s", f"Percolate query registration failed: owner: {owner}, uuid: {uuid}, "
-                              f"replica: {replica}, es_query: {es_query}, Exception: {Exception(last_ex)}")
+                              f"replica: {replica}, es_query: {es_query}, Exception: {last_ex}")
         raise DSSException(requests.codes.internal_server_error,
                            "elasticsearch_error",
-                           "Unable to register elasticsearch percolate query!") from Exception(last_ex)
+                           "Unable to register elasticsearch percolate query!") from last_ex
 
     json_request_body['owner'] = owner
     json_request_body['subscribed_indexes'] = subscribed_indexes
