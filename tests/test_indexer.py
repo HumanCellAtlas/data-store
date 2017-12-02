@@ -288,21 +288,21 @@ class TestIndexerBase(DSSAssertMixin, DSSStorageMixin, DSSUploadMixin):
                 }
             }
         }
-        with self.subtest("Same major version."):
+        with self.subTest("Same major version."):
             self.assertEqual(get_index_shape_identifier(index_document, logger), "v3")
 
         index_document['files']['assay_json']['core']['schema_version'] = "4.0.0"
-        with self.subtest("Mixed/inconsistent metadata schema release versions in the same bundle"):
+        with self.subTest("Mixed/inconsistent metadata schema release versions in the same bundle"):
             with self.assertRaisesRegex(AssertionError,
                                         "The bundle contains mixed schema major version numbers: \['3', '4'\]"):
                 get_index_shape_identifier(index_document, logger)
 
         index_document['files']['sample_json']['core']['schema_version'] = "4.0.0"
-        with self.subtest("Consistent versions, with a different version value"):
+        with self.subTest("Consistent versions, with a different version value"):
             self.assertEqual(get_index_shape_identifier(index_document, logger), "v4")
 
         index_document['files']['assay_json'].pop('core')
-        with self.subtest("An version file and unversioned file"):
+        with self.subTest("An version file and unversioned file"):
             with self.assertLogs(logger, level="INFO") as log_monitor:
                 get_index_shape_identifier(index_document, logger)
             self.assertRegex(log_monitor.output[0], ("INFO:.*File assay_json does not contain a 'core' section "
@@ -310,7 +310,7 @@ class TestIndexerBase(DSSAssertMixin, DSSStorageMixin, DSSUploadMixin):
             self.assertEqual(get_index_shape_identifier(index_document, logger), "v4")
 
         index_document['files']['sample_json'].pop('core')
-        with self.subtest("no versioned file"):
+        with self.subTest("no versioned file"):
             self.assertEqual(get_index_shape_identifier(index_document, logger), None)
 
     def test_alias_and_versioned_index_exists(self):
