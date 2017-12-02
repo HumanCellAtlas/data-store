@@ -167,7 +167,7 @@ def get_index_shape_identifier(index_document: dict, logger) -> str:
             "The bundle contains mixed schema major version numbers: {}".format(sorted(list(schema_version_map.keys())))
         return "v" + list(schema_version_map.keys())[0]
     else:
-        return ""  # No files with schema identifiers were found
+        return None  # No files with schema identifiers were found
 
 
 def get_bundle_id_from_key(bundle_key: str) -> str:
