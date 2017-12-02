@@ -157,7 +157,7 @@ def delete(uuid: str, replica: str):
 
     #  get all indexes that use current alias
     alias_name = Config.get_es_alias_name(ESIndexType.docs, Replica[replica])
-    doc_indexes = [i['i'] for i in es_client.cat.aliases(name=alias_name, h=['a', 'i'], format='json')]
+    doc_indexes = [indexes['i'] for indexes in es_client.cat.aliases(name=alias_name, h=['i'], format='json')]
     _unregister_percolate(es_client, doc_indexes, uuid)
 
     es_client.delete(index=Config.get_es_index_name(ESIndexType.subscriptions, Replica[replica]),
@@ -170,11 +170,12 @@ def delete(uuid: str, replica: str):
     return jsonify({'timeDeleted': time_deleted}), requests.codes.okay
 
 
-def _unregister_percolate(es_client: Elasticsearch, subscribed_indexes: List[str], uuid: str):
-    es_client.delete(index=subscribed_indexes,
-                     doc_type=ESDocType.query.name,
-                     id=uuid,
-                     refresh=True)
+def _unregister_percolate(es_client: Elasticsearch, subscribed_indexes: list, uuid: str):
+    for index in subscribed_indexes:
+        es_client.delete(index=index,
+                         doc_type=ESDocType.query.name,
+                         id=uuid,
+                         refresh=True)
 
 
 def _register_percolate(es_client: Elasticsearch, index_name: str, uuid: str, es_query: dict, replica: str):
