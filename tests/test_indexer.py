@@ -268,11 +268,60 @@ class TestIndexerBase(DSSAssertMixin, DSSStorageMixin, DSSUploadMixin):
                          f"WARNING:.*:Failed notification for subscription {subscription_id}"
                          f" for bundle {bundle_id} with transaction id .+ Code: {error_response_code}")
 
-    def test_alias_exists(self):
+    def test_get_index_shape_identifier(self):
+        from dss.events.handlers.index import get_index_shape_identifier
+        index_document = {
+            'files': {
+                'assay_json': {
+                    'core': {
+                        'schema_url': "http://hgwdev.soe.ucsc.edu/~kent/hca/schema/assay.json",
+                        'schema_version': "3.0.0",
+                        'type': "assay"
+                    }
+                },
+                'sample_json': {
+                    'core': {
+                        'schema_url': "http://hgwdev.soe.ucsc.edu/~kent/hca/schema/sample.json",
+                        'schema_version': "3.0.0",
+                        'type': "sample"
+                    }
+                }
+            }
+        }
+        with self.subTest("Same major version."):
+            self.assertEqual(get_index_shape_identifier(index_document, logger), "v3")
+
+        index_document['files']['assay_json']['core']['schema_version'] = "4.0.0"
+        with self.subTest("Mixed/inconsistent metadata schema release versions in the same bundle"):
+            with self.assertRaisesRegex(AssertionError,
+                                        "The bundle contains mixed schema major version numbers: \['3', '4'\]"):
+                get_index_shape_identifier(index_document, logger)
+
+        index_document['files']['sample_json']['core']['schema_version'] = "4.0.0"
+        with self.subTest("Consistent versions, with a different version value"):
+            self.assertEqual(get_index_shape_identifier(index_document, logger), "v4")
+
+        index_document['files']['assay_json'].pop('core')
+        with self.subTest("An version file and unversioned file"):
+            with self.assertLogs(logger, level="INFO") as log_monitor:
+                get_index_shape_identifier(index_document, logger)
+            self.assertRegex(log_monitor.output[0], ("INFO:.*File assay_json does not contain a 'core' section "
+                                                     "to identify the schema and schema version."))
+            self.assertEqual(get_index_shape_identifier(index_document, logger), "v4")
+
+        index_document['files']['sample_json'].pop('core')
+        with self.subTest("no versioned file"):
+            self.assertEqual(get_index_shape_identifier(index_document, logger), None)
+
+    def test_alias_and_versioned_index_exists(self):
         sample_event = self.create_sample_bundle_created_event(self.bundle_key)
         self.process_new_indexable_object(sample_event, logger)
         es_client = ElasticsearchClient.get(logger)
         self.assertTrue(es_client.indices.exists_alias(name=[self.dss_alias_name]))
+        alias = es_client.indices.get_alias(name=[self.dss_alias_name])
+        doc_index_name = dss.Config.get_es_index_name(dss.ESIndexType.docs, dss.Replica[self.replica], "v3")
+        self.assertTrue(doc_index_name in alias)
+        self.assertTrue(es_client.indices.exists(index=doc_index_name))
 
     @unittest.skip("WIP")
     def test_index_when_multiple_indexes_using_alias(self):
