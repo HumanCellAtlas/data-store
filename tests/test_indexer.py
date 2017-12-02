@@ -311,7 +311,7 @@ class TestIndexerBase(DSSAssertMixin, DSSStorageMixin, DSSUploadMixin):
 
         index_document['files']['sample_json'].pop('core')
         with self.subtest("no versioned file"):
-            self.assertEqual(get_index_shape_identifier(index_document, logger), "")
+            self.assertEqual(get_index_shape_identifier(index_document, logger), None)
 
     def test_alias_and_versioned_index_exists(self):
         sample_event = self.create_sample_bundle_created_event(self.bundle_key)
