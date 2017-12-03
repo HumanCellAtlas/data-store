@@ -206,8 +206,6 @@ class Config:
         index = f"dss-{deployment_stage}-{replica.name}-{index_type.name}"
         if version:
             index = f"{index}-{version}"
-        if version:
-            index = f"{index}-{version}"
         if Config._CURRENT_CONFIG == BucketConfig.TEST:
             index = f"{index}.{IndexSuffix.name}"
         return index
