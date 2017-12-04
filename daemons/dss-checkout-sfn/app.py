@@ -1,10 +1,8 @@
 import os
 import sys
 
-
 import domovoi
 import logging
-
 
 pkg_root = os.path.abspath(os.path.join(os.path.dirname(__file__), 'domovoilib'))  # noqa
 sys.path.insert(0, pkg_root)  # noqa
@@ -26,9 +24,7 @@ logger = dss.get_logger()
 dss.Config.set_config(dss.BucketConfig.NORMAL)
 email_sender = dss.Config.get_notification_email()
 default_checkout_bucket = dss.Config.get_s3_checkout_bucket()
-
 replica = "aws"
-
 DEBUG = False
 
 for client_name, client_class in chained_lambda_clients():
@@ -68,7 +64,6 @@ def schedule_copy(event, context):
             "dst_location": get_dst_bundle_prefix(bundle_id, version),
             "wait_time_seconds": 10}
 
-
 @app.step_function_task(state_name="GetJobStatus", state_machine_definition=state_machine_def)
 def get_job_status(event, context):
     bundle_id = event["bundle"]
@@ -96,7 +91,6 @@ def notify_complete(event, context):
                                          event["schedule"]["dst_location"])
     return {"result": result}
 
-
 @app.step_function_task(state_name="NotifyFailure", state_machine_definition=state_machine_def)
 def notify_complete_failure(event, context):
     cause = "Unknown issue"
@@ -107,7 +101,6 @@ def notify_complete_failure(event, context):
         cause = "{} ({})".format(event["validation"].get("cause", "Unknown error"), checkout_status)
     result = send_checkout_failure_email(email_sender, event["email"], cause)
     return {"result": result}
-
 
 def get_dst_bucket(event):
     dst_bucket = event.get("bucket", default_checkout_bucket)
