@@ -5,6 +5,7 @@ import sys
 import domovoi
 import logging
 
+
 pkg_root = os.path.abspath(os.path.join(os.path.dirname(__file__), 'domovoilib'))  # noqa
 sys.path.insert(0, pkg_root)  # noqa
 
@@ -14,7 +15,7 @@ from chainedawslambda import aws
 from chainedawslambda.s3copyclient import S3ParallelCopySupervisorTask
 from dss import chained_lambda_clients
 
-from dss.util.state_machine.checkout_states import state_machine_def
+from dss.stepfunctions.checkout.checkout_states import state_machine_def
 from dss.util.email import send_checkout_success_email, send_checkout_failure_email
 from dss.util.checkout import (parallel_copy, get_dst_bundle_prefix, get_manifest_files,
                                validate_file_dst, pre_exec_validate)
