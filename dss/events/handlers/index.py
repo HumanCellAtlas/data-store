@@ -229,7 +229,7 @@ def refresh_percolate_queries(index_name: str, replica: str, logger) -> None:
                                             query={'query': {'match_all': {}}})
                             ]
 
-    if len(subscription_queries) > 0:
+    if subscription_queries:
         try:
             bulk(ElasticsearchClient.get(logger), iter(subscription_queries), refresh=True)
         except BulkIndexError as ex:
