@@ -110,7 +110,7 @@ def put(json_request_body: dict, replica: str):
 
     # Queries are unlikely to fit in all of the indexes, therefore errors will almost always occur. Only return an error
     # if no queries are successfully indexed.
-    if len(doc_indexes) > 0 and not subscribed_indexes:
+    if doc_indexes and not subscribed_indexes:
         logger.critical("%s", f"Percolate query registration failed: owner: {owner}, uuid: {uuid}, "
                               f"replica: {replica}, es_query: {es_query}, Exception: {last_ex}")
         raise DSSException(requests.codes.internal_server_error,
@@ -170,7 +170,7 @@ def delete(uuid: str, replica: str):
     return jsonify({'timeDeleted': time_deleted}), requests.codes.okay
 
 
-def _unregister_percolate(es_client: Elasticsearch, subscribed_indexes: list, uuid: str):
+def _unregister_percolate(es_client: Elasticsearch, subscribed_indexes: List[str], uuid: str):
     es_client.delete(index=subscribed_indexes,
                      doc_type=ESDocType.query.name,
                      id=uuid,
@@ -194,4 +194,7 @@ def _register_subscription(es_client: Elasticsearch, uuid: str, json_request_bod
                            refresh=True)
 
 def _get_indexes_by_alias(es_client: Elasticsearch, alias_name: str):
-    return [indexes['i'] for indexes in es_client.cat.aliases(name=alias_name, h=['i'], format='json')]
+    try:
+        return list(es_client.indices.get_alias(alias_name).keys())
+    except NotFoundError:
+        return []

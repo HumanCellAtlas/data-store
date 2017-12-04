@@ -12,7 +12,7 @@ from urllib.parse import urlparse, unquote
 import requests
 from cloud_blobstore import BlobStore, BlobStoreError
 from collections import defaultdict
-from elasticsearch.helpers import scan, bulk, streaming_bulk, BulkIndexError
+from elasticsearch.helpers import scan, bulk, BulkIndexError
 from requests_http_signature import HTTPSignatureAuth
 
 from dss import Config, DeploymentStage, ESIndexType, ESDocType, Replica
