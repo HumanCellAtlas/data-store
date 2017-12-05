@@ -111,8 +111,9 @@ class TestSubscriptionsBase(DSSAssertMixin):
         registered_query = response['_source']
         self.assertEqual(self.sample_percolate_query, registered_query)
 
-    @unittest.skip("WIP - Registration will now succeed in this case with the proposed changes.")
-    def test_subscription_registration_fails_when_query_does_not_match_schema(self):
+    def test_subscription_registration_succeeds_when_query_does_not_match_mappings(self):
+        # It is now possible to register a subscription query before the mapping
+        # of the field exists in the mappings (and may never exist in the mapppings)
         es_query = {
             "query": {
                 "bool": {
@@ -124,26 +125,19 @@ class TestSubscriptionsBase(DSSAssertMixin):
                 }
             }
         }
-        self._put_subscription()
 
         url = str(UrlBuilder()
                   .set(path="/v1/subscriptions")
                   .add_query("replica", self.replica.name))
         resp_obj = self.assertPutResponse(
             url,
-            requests.codes.internal_server_error,
+            requests.codes.created,
             json_request_body=dict(
                 es_query=es_query,
                 callback_url=self.callback_url),
-            headers=self._get_auth_header(),
-            expected_error=ExpectedErrorFields(
-                code="elasticsearch_error",
-                status=requests.codes.internal_server_error,
-                expect_stacktrace=True)
+            headers=self._get_auth_header()
         )
-        self.assertIn("No field mapping can be found for the field with name [assay.fake_field]",
-                      resp_obj.json['stacktrace'])
-        self.assertEqual(resp_obj.json['title'], 'Unable to register elasticsearch percolate query!')
+        self.assertIn('uuid', resp_obj.json)
 
     def test_get(self):
         find_uuid = self._put_subscription()
