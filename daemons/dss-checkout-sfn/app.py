@@ -9,7 +9,6 @@ sys.path.insert(0, pkg_root)  # noqa
 import dss
 import chainedawslambda
 from chainedawslambda import aws
-from chainedawslambda.s3copyclient import S3ParallelCopySupervisorTask
 from dss import chained_lambda_clients
 
 from dss.util.state_machine.checkout_states import state_machine_def
