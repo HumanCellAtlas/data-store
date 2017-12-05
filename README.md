@@ -249,11 +249,6 @@ credentials once from your workstation. After this is done, Travis CI will be ab
 repeat the `make deploy` step from a privileged account any time you change the IAM policies templates in
 `iam/policy-templates/`.
 
-[![](https://img.shields.io/badge/slack-%23data--store-557EBF.svg)](https://humancellatlas.slack.com/messages/data-store/)
-[![Build Status](https://travis-ci.org/HumanCellAtlas/data-store.svg?branch=master)](https://travis-ci.org/HumanCellAtlas/data-store)
-[![codecov](https://codecov.io/gh/HumanCellAtlas/data-store/branch/master/graph/badge.svg)](https://codecov.io/gh/HumanCellAtlas/data-store)
-[![Waffle.io - Issues in progress](https://badge.waffle.io/HumanCellAtlas/data-store.svg?label=in%20progress&title=In%20Progress)](http://waffle.io/HumanCellAtlas/data-store)
-
 #### Managing dependencies
 
 The direct runtime dependencies of this project are defined in `requirements.txt.in`. Direct development dependencies
@@ -278,3 +273,8 @@ change to a direct dependency. This process applies to development dependencies 
 
 If you wish to re-pin all the dependencies, run `make refresh_all_requirements`.  It is advisable to do a full
 test-deploy-test cycle after this (the test after the deploy is required to test the lambdas).
+
+[![](https://img.shields.io/badge/slack-%23data--store-557EBF.svg)](https://humancellatlas.slack.com/messages/data-store/)
+[![Build Status](https://travis-ci.org/HumanCellAtlas/data-store.svg?branch=master)](https://travis-ci.org/HumanCellAtlas/data-store)
+[![codecov](https://codecov.io/gh/HumanCellAtlas/data-store/branch/master/graph/badge.svg)](https://codecov.io/gh/HumanCellAtlas/data-store)
+[![Waffle.io - Issues in progress](https://badge.waffle.io/HumanCellAtlas/data-store.svg?label=in%20progress&title=In%20Progress)](http://waffle.io/HumanCellAtlas/data-store)
