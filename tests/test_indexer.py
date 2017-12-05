@@ -277,6 +277,58 @@ class TestIndexerBase(DSSAssertMixin, DSSStorageMixin, DSSUploadMixin):
         self.verify_notification(subscription_id, self.smartseq2_paired_ends_query, bundle_id)
         self.delete_subscription(subscription_id)
 
+    def test_subscription_query_with_multiple_data_types_indexing_and_notification(self):
+        # Verify that a subscription query using numeric, date and string types
+        # that is registered before indexing (via the ES setting
+        # index.percolator.map_unmapped_fields_as_string=True) works correctly
+        # when a document is subsequently indexed.
+        subscription_query = \
+            {
+                'query': {
+                    'bool': {
+                        'must': [{
+                            'match': {
+                                "files.sample_json.donor.age": 12
+                            }
+                        }, {
+                            'range': {
+                                "files.sample_json.submit_date" : {
+                                    "gte" : "2015-11-30",
+                                    "lte" : "2015-11-30"
+                                }
+                            }
+                        }, {
+                            'match': {
+                                "files.sample_json.ncbi_biosample": "SAMN04303778"
+                            }
+                        }]
+                    }
+                }
+            }
+
+        subscription_id = self.subscribe_for_notification(subscription_query,
+                                                          f"http://{HTTPInfo.address}:{HTTPInfo.port}")
+        sample_event = self.create_sample_bundle_created_event(self.bundle_key)
+        PostTestHandler.verify_payloads = False
+        self.process_new_indexable_object(sample_event, logger)
+
+        # Verify the mapping types are as expected for a valid test
+        doc_index_name = dss.Config.get_es_index_name(dss.ESIndexType.docs, dss.Replica[self.replica], "v3")
+        mappings = ElasticsearchClient.get(logger).indices.get_mapping(doc_index_name)[doc_index_name]['mappings']
+        sample_json_mappings = mappings['doc']['properties']['files']['properties']['sample_json']
+        self.assertEquals(sample_json_mappings['properties']['donor']['properties']['age']['type'], "long")
+        self.assertEquals(sample_json_mappings['properties']['submit_date']['type'], "date")
+        self.assertEquals(sample_json_mappings['properties']['ncbi_biosample']['type'], "keyword")
+
+        # Verify the query works correctly as a search
+        search_results = self.get_search_results(subscription_query, 1)
+        self.assertEqual(1, len(search_results))
+
+        # Verify the query works correctly as a subscription, resulting in notification
+        prefix, _, bundle_id = self.bundle_key.partition("/")
+        self.verify_notification(subscription_id, subscription_query, bundle_id)
+        self.delete_subscription(subscription_id)
+
     def test_get_index_shape_identifier(self):
         from dss.events.handlers.index import get_index_shape_identifier
         index_document = {
@@ -384,6 +436,8 @@ class TestIndexerBase(DSSAssertMixin, DSSStorageMixin, DSSUploadMixin):
         # Search using a query that works for v2 or v3 - should match both v2 and v3 bundles
         search_results = self.get_search_results(smartseq2_paired_ends_v2_or_v3_query, 2)
         self.assertEqual(2, len(search_results))
+
+
 
     def verify_notification(self, subscription_id, es_query, bundle_id):
         posted_payload_string = self.get_notification_payload()
