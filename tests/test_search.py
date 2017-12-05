@@ -329,10 +329,6 @@ class TestSearchBase(DSSAssertMixin):
         self.assertEqual(mapping['doc']['properties']['time2']['type'], 'date')
         self.assertEqual(mapping['doc']['properties']['time3']['type'], 'date')
 
-    @unittest.skip("WIP")
-    def test_search_multiple_indexes_using_alias(self):
-        pass
-
     def populate_search_index(self, index_document: dict, count: int) -> list:
         es_client = ElasticsearchClient.get(logger)
         bundles = []
