@@ -41,6 +41,7 @@
         "es:ESHttpGet",
         "es:ESHttpHead",
         "es:ESHttpPut",
+        "es:ESHttpPost",
         "es:ESHttpDelete"
       ],
       "Resource": "arn:aws:es:*:$account_id:domain/$dss_es_domain/*"
