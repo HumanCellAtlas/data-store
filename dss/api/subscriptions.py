@@ -172,12 +172,13 @@ def delete(uuid: str, replica: str):
 
 
 def _unregister_percolate(es_client: Elasticsearch, subscribed_indexes: List[str], uuid: str):
-    # TODO Check return value and log errors
-    es_client.delete_by_query(index=subscribed_indexes,
-                              doc_type=ESDocType.query.name,
-                              body={"query": {"ids": {"type": ESDocType.query.name, "values": [uuid]}}},
-                              conflicts="proceed",
-                              refresh=True)
+    response = es_client.delete_by_query(index=subscribed_indexes,
+                                         doc_type=ESDocType.query.name,
+                                         body={"query": {"ids": {"type": ESDocType.query.name, "values": [uuid]}}},
+                                         conflicts="proceed",
+                                         refresh=True)
+    if response['failures']:
+        logger.error("Failed to unregister percolate query for subscription %s: %s", uuid, response)
 
 
 def _register_percolate(es_client: Elasticsearch, index_name: str, uuid: str, es_query: dict, replica: str):
