@@ -5,7 +5,7 @@ deploy-serial: dss-sync dss-index
 deploy-parallel: dss-gs-event-relay chained-aws-lambda dss-checkout-sfn
 
 dss-sync dss-index dss-checkout-sfn:
-	#git clean -df $@/domovoilib $@/vendor
+	git clean -df $@/domovoilib $@/vendor
 	shopt -s nullglob; for wheel in $@/vendor.in/*/*.whl; do unzip -q -o -d $@/vendor $$wheel; done
 	cp -R ../dss ../dss-api.yml $@/domovoilib
 	cp "$(GOOGLE_APPLICATION_CREDENTIALS)" $@/domovoilib/gcp-credentials.json
