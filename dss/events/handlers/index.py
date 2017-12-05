@@ -233,7 +233,7 @@ def refresh_percolate_queries(index_name: str, replica: str, logger) -> None:
         try:
             bulk(ElasticsearchClient.get(logger), iter(subscription_queries), refresh=True)
         except BulkIndexError as ex:
-            logger.error("Error occurred when adding subscription queries to index {} Errors: {}",
+            logger.error("Error occurred when adding subscription queries to index %s Errors: %s",
                          index_name, ex.errors)
 
 
