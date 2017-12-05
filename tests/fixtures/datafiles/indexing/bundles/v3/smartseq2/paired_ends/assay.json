@@ -1,13 +1,13 @@
 {
     "core": {
-        "schema_url": "http://hgwdev.soe.ucsc.edu/~kent/hca/schema/assay.json", 
-        "schema_version": "3.0.0", 
+        "schema_url": "http://hgwdev.soe.ucsc.edu/~kent/hca/schema/assay.json",
+        "schema_version": "3.0.0",
         "type": "assay"
-    }, 
-    "id": "d269a950-ca90-4cab-8e85-c0ecbb6b8fb6", 
+    },
+    "id": "d269a950-ca90-4cab-8e85-c0ecbb6b8fb6",
     "rna": {
         "core": {
-            "schema_url": "http://hgwdev.soe.ucsc.edu/~kent/hca/schema/rna.json", 
+            "schema_url": "http://hgwdev.soe.ucsc.edu/~kent/hca/schema/rna.json",
             "schema_version": "3.0.0", 
             "type": "rna"
         }, 
@@ -19,7 +19,7 @@
     "sample_id": "55676358-b2dc-4e86-8356-bbde73699eb2", 
     "seq": {
         "core": {
-            "schema_url": "http://hgwdev.soe.ucsc.edu/~kent/hca/schema/seq.json", 
+            "schema_url": "http://hgwdev.soe.ucsc.edu/~kent/hca/schema/seq.json",
             "schema_version": "3.0.0", 
             "type": "seq"
         }, 
@@ -42,12 +42,9 @@
     "single_cell": {
         "cell_handling": "Fluidigm C1", 
         "core": {
-            "schema_url": "http://hgwdev.soe.ucsc.edu/~kent/hca/schema/single_cell.json", 
+            "schema_url": "http://hgwdev.soe.ucsc.edu/~kent/hca/schema/single_cell.json",
             "schema_version": "3.0.0", 
-            "type": "single_cell",
-            "extra": "stuff"
+            "type": "single_cell"
         }
-    },
-    "extra": "stuff",
-    "more_extra": "stuff"
+    }
 }
