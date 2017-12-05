@@ -3,11 +3,11 @@
 import os
 import boto3
 
-checkout_buket = os.environ["DSS_S3_CHECKOUT_BUCKET"]
+checkout_bucket = os.environ["DSS_S3_CHECKOUT_BUCKET"]
 s3_client = boto3.client('s3')
 
 s3_client.put_bucket_lifecycle_configuration(
-    Bucket=checkout_buket,
+    Bucket=checkout_bucket,
     LifecycleConfiguration={
         "Rules": [
             {
