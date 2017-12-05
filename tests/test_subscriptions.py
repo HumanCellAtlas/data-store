@@ -47,7 +47,6 @@ def tearDownModule():
     IndexSuffix.reset()
     os.unsetenv('DSS_ES_PORT')
 
-# TODO: (tsmith) test with multiple doc indexes once indexing by major version is compeleted
 
 class TestSubscriptionsBase(DSSAssertMixin):
     @classmethod
@@ -192,10 +191,6 @@ class TestSubscriptionsBase(DSSAssertMixin):
         self.assertEqual(self.sample_percolate_query, json_response['subscriptions'][0]['es_query'])
         self.assertEqual(self.callback_url, json_response['subscriptions'][0]['callback_url'])
         self.assertEqual(NUM_ADDITIONS, len(json_response['subscriptions']))
-
-    @unittest.skip("WIP")
-    def test_subscribe_when_multiple_indexes_using_alias(self):
-        pass
 
     def test_delete(self):
         find_uuid = self._put_subscription()

@@ -292,9 +292,9 @@ class TestIndexerBase(DSSAssertMixin, DSSStorageMixin, DSSUploadMixin):
                             }
                         }, {
                             'range': {
-                                "files.sample_json.submit_date" : {
-                                    "gte" : "2015-11-30",
-                                    "lte" : "2015-11-30"
+                                "files.sample_json.submit_date": {
+                                    "gte": "2015-11-30",
+                                    "lte": "2015-11-30"
                                 }
                             }
                         }, {
@@ -437,7 +437,42 @@ class TestIndexerBase(DSSAssertMixin, DSSStorageMixin, DSSUploadMixin):
         search_results = self.get_search_results(smartseq2_paired_ends_v2_or_v3_query, 2)
         self.assertEqual(2, len(search_results))
 
+    def test_multiple_schema_version_subscription_indexing_and_notification(self):
+        PostTestHandler.verify_payloads = False
 
+        # Load a schema version 2 (unversioned) bundle
+        bundle_key = self.load_test_data_bundle_for_path(
+            "fixtures/indexing/bundles/unversioned/smartseq2/paired_ends")
+        sample_event = self.create_sample_bundle_created_event(bundle_key)
+        self.process_new_indexable_object(sample_event, logger)
+
+        # Load a v3 bundle
+        sample_event = self.create_sample_bundle_created_event(self.bundle_key)
+        self.process_new_indexable_object(sample_event, logger)
+
+        subscription_id = self.subscribe_for_notification(smartseq2_paired_ends_v2_or_v3_query,
+                                                          f"http://{HTTPInfo.address}:{HTTPInfo.port}")
+
+        # Load another schema version 2 (unversioned) bundle and verify notification
+        bundle_key = self.load_test_data_bundle_for_path(
+            "fixtures/indexing/bundles/unversioned/smartseq2/paired_ends")
+        sample_event = self.create_sample_bundle_created_event(bundle_key)
+        self.process_new_indexable_object(sample_event, logger)
+        prefix, _, bundle_id = bundle_key.partition("/")
+        self.verify_notification(subscription_id, smartseq2_paired_ends_v2_or_v3_query, bundle_id)
+
+        PostTestHandler.reset()
+        PostTestHandler.verify_payloads = False
+
+        # Load another schema version 3 bundle and verify notification
+        bundle_key = self.load_test_data_bundle_for_path(
+            "fixtures/indexing/bundles/v3/smartseq2/paired_ends")
+        sample_event = self.create_sample_bundle_created_event(bundle_key)
+        self.process_new_indexable_object(sample_event, logger)
+        prefix, _, bundle_id = bundle_key.partition("/")
+        self.verify_notification(subscription_id, smartseq2_paired_ends_v2_or_v3_query, bundle_id)
+
+        self.delete_subscription(subscription_id)
 
     def verify_notification(self, subscription_id, es_query, bundle_id):
         posted_payload_string = self.get_notification_payload()
