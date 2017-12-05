@@ -3,15 +3,15 @@ import uuid
 from enum import Enum, auto
 from logging import getLogger
 
-import chainedawslambda
 from chainedawslambda import aws
 from chainedawslambda.s3copyclient import S3ParallelCopySupervisorTask
-
 from cloud_blobstore import BlobNotFoundError, BlobStoreUnknownError
 from cloud_blobstore.s3 import S3BlobStore
-from dss import chained_lambda_clients, DSSException, Config
-from dss.util.aws import get_s3_chunk_size
-from dss.util.bundles import get_bundle, get_bundle_from_bucket
+
+from .aws import get_s3_chunk_size
+from .bundles import get_bundle, get_bundle_from_bucket
+from .. import DSSException, Config
+
 
 log = getLogger()
 blobstore = S3BlobStore()

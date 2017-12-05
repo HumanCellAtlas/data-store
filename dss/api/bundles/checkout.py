@@ -5,11 +5,9 @@ import requests
 import boto3
 from flask import jsonify
 
-from cloud_blobstore import BlobNotFoundError
-from dss import Config, DSSException
-from dss.util.bundles import get_bundle
-from dss.util.checkout import get_execution_id
-from ... import dss_handler, get_logger
+from ..bundles import get_bundle
+from ... import Config, dss_handler
+from ...util.checkout import get_execution_id
 
 @dss_handler
 def post(uuid: str, json_request_body: dict, replica: str, version: str = None):
