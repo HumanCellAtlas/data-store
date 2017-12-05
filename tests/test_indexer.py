@@ -33,7 +33,8 @@ from tests import get_version
 from tests.es import elasticsearch_delete_index
 from tests.infra import DSSAssertMixin, DSSUploadMixin, DSSStorageMixin, TestBundle, start_verbose_logging
 from tests.infra.server import ThreadedLocalServer
-from tests.sample_search_queries import smartseq2_paired_ends_v3_query
+from tests.sample_search_queries import (smartseq2_paired_ends_v2_query, smartseq2_paired_ends_v3_query,
+                                         smartseq2_paired_ends_v2_or_v3_query)
 
 # The moto mock has two defects that show up when used by the dss core storage system.
 # Use actual S3 until these defects are fixed in moto.
@@ -47,6 +48,7 @@ logger.setLevel(logging.INFO)
 
 start_verbose_logging()
 
+# TODO: (tsmith) test with multiple doc indexes once indexing by major version is compeleted
 
 #
 # Basic test for DSS indexer:
@@ -99,8 +101,6 @@ class TestIndexerBase(DSSAssertMixin, DSSStorageMixin, DSSUploadMixin):
         Config.set_config(BucketConfig.TEST)
         _, _, cls.test_bucket = Config.get_cloud_specific_handles(cls.replica)
         cls.dss_alias_name = dss.Config.get_es_alias_name(dss.ESIndexType.docs, dss.Replica[cls.replica])
-        cls.subscription_index_name = dss.Config.get_es_alias_name(dss.ESIndexType.subscriptions,
-                                                                   dss.Replica[cls.replica])
 
     @classmethod
     def tearDownClass(cls):
@@ -109,9 +109,9 @@ class TestIndexerBase(DSSAssertMixin, DSSStorageMixin, DSSUploadMixin):
     def setUp(self):
         if self.replica not in TestIndexerBase.bundle_key_by_replica:
             TestIndexerBase.bundle_key_by_replica[self.replica] = self.load_test_data_bundle_for_path(
-                "fixtures/smartseq2/paired_ends")
+                "fixtures/indexing/bundles/v3/smartseq2/paired_ends")
         self.bundle_key = TestIndexerBase.bundle_key_by_replica[self.replica]
-
+        self.smartseq2_paired_ends_query = smartseq2_paired_ends_v2_or_v3_query
         elasticsearch_delete_index(f"*{IndexSuffix.name}")
         PostTestHandler.reset()
 
@@ -121,13 +121,14 @@ class TestIndexerBase(DSSAssertMixin, DSSStorageMixin, DSSUploadMixin):
     def test_process_new_indexable_object(self):
         sample_event = self.create_sample_bundle_created_event(self.bundle_key)
         self.process_new_indexable_object(sample_event, logger)
-        search_results = self.get_search_results(smartseq2_paired_ends_v3_query, 1)
+        search_results = self.get_search_results(self.smartseq2_paired_ends_query, 1)
         self.assertEqual(1, len(search_results))
         self.verify_index_document_structure_and_content(search_results[0], self.bundle_key,
                                                          files=smartseq2_paried_ends_indexed_file_list)
 
     def test_indexed_file_with_invalid_content_type(self):
-        bundle = TestBundle(self.blobstore, "fixtures/smartseq2/paired_ends", self.test_fixture_bucket, self.replica)
+        bundle = TestBundle(self.blobstore, "fixtures/indexing/bundles/v3/smartseq2/paired_ends",
+                            self.test_fixture_bucket, self.replica)
         # Configure a file to be indexed that is not of context type 'application/json'
         for file in bundle.files:
             if file.name == "text_data_file1.txt":
@@ -140,7 +141,7 @@ class TestIndexerBase(DSSAssertMixin, DSSStorageMixin, DSSUploadMixin):
                          "WARNING:.*:In bundle .* the file \"text_data_file1.txt\" is marked for indexing"
                          " yet has content type \"text/plain\" instead of the required"
                          " content type \"application/json\". This file will not be indexed.")
-        search_results = self.get_search_results(smartseq2_paired_ends_v3_query, 1)
+        search_results = self.get_search_results(self.smartseq2_paired_ends_query, 1)
         self.assertEqual(1, len(search_results))
         self.verify_index_document_structure_and_content(search_results[0], bundle_key,
                                                          files=smartseq2_paried_ends_indexed_file_list)
@@ -172,14 +173,14 @@ class TestIndexerBase(DSSAssertMixin, DSSStorageMixin, DSSUploadMixin):
         self.assertRegex(log_monitor.output[0], "ERROR:.*Exception occurred while processing .* event:.*")
 
     def test_indexed_file_unparsable(self):
-        bundle_key = self.load_test_data_bundle_for_path("fixtures/unparseable_indexed_file")
+        bundle_key = self.load_test_data_bundle_for_path("fixtures/indexing/bundles/unparseable_indexed_file")
         sample_event = self.create_sample_bundle_created_event(bundle_key)
         with self.assertLogs(logger, level="WARNING") as log_monitor:
             self.process_new_indexable_object(sample_event, logger)
         self.assertRegex(log_monitor.output[0],
                          "WARNING:.*:In bundle .* the file \"unparseable_json.json\" is marked for indexing"
                          " yet could not be parsed. This file will not be indexed. Exception:")
-        search_results = self.get_search_results(smartseq2_paired_ends_v3_query, 1)
+        search_results = self.get_search_results(self.smartseq2_paired_ends_query, 1)
         self.assertEqual(1, len(search_results))
         self.verify_index_document_structure_and_content(search_results[0], bundle_key,
                                                          files=smartseq2_paried_ends_indexed_file_list)
@@ -187,14 +188,14 @@ class TestIndexerBase(DSSAssertMixin, DSSStorageMixin, DSSUploadMixin):
     def test_indexed_file_access_error(self):
         inaccesssible_filename = "inaccessible_file.json"
         bundle_key = self.load_test_data_bundle_with_inaccessible_file(
-            "fixtures/smartseq2/paired_ends", inaccesssible_filename, "application/json", True)
+            "fixtures/indexing/bundles/v3/smartseq2/paired_ends", inaccesssible_filename, "application/json", True)
         sample_event = self.create_sample_bundle_created_event(bundle_key)
         with self.assertLogs(logger, level="WARNING") as log_monitor:
             self.process_new_indexable_object(sample_event, logger)
         self.assertRegex(log_monitor.output[0],
                          f"WARNING:.*:In bundle .* the file \"{inaccesssible_filename}\" is marked for indexing"
                          " yet could not be accessed. This file will not be indexed. Exception: .*, File blob key:")
-        search_results = self.get_search_results(smartseq2_paired_ends_v3_query, 1)
+        search_results = self.get_search_results(self.smartseq2_paired_ends_query, 1)
         self.assertEqual(1, len(search_results))
         files = list(smartseq2_paried_ends_indexed_file_list)
         files.append(inaccesssible_filename.replace(".", "_"))
@@ -231,18 +232,17 @@ class TestIndexerBase(DSSAssertMixin, DSSStorageMixin, DSSUploadMixin):
     def test_subscription_notification_successful(self):
         sample_event = self.create_sample_bundle_created_event(self.bundle_key)
         self.process_new_indexable_object(sample_event, logger)
-        ElasticsearchClient.get(logger).indices.create(self.subscription_index_name)
         for verify_payloads, subscribe_kwargs in ((True, dict(hmac_secret_key=PostTestHandler.hmac_secret_key)),
                                                   (False, dict())):
             PostTestHandler.verify_payloads = verify_payloads
-            subscription_id = self.subscribe_for_notification(smartseq2_paired_ends_v3_query,
+            subscription_id = self.subscribe_for_notification(self.smartseq2_paired_ends_query,
                                                               f"http://{HTTPInfo.address}:{HTTPInfo.port}",
                                                               **subscribe_kwargs)
 
             sample_event = self.create_sample_bundle_created_event(self.bundle_key)
             self.process_new_indexable_object(sample_event, logger)
             prefix, _, bundle_id = self.bundle_key.partition("/")
-            self.verify_notification(subscription_id, smartseq2_paired_ends_v3_query, bundle_id)
+            self.verify_notification(subscription_id, self.smartseq2_paired_ends_query, bundle_id)
             self.delete_subscription(subscription_id)
             PostTestHandler.reset()
 
@@ -251,13 +251,12 @@ class TestIndexerBase(DSSAssertMixin, DSSStorageMixin, DSSUploadMixin):
         sample_event = self.create_sample_bundle_created_event(self.bundle_key)
         self.process_new_indexable_object(sample_event, logger)
 
-        ElasticsearchClient.get(logger).indices.create(self.subscription_index_name)
-        subscription_id = self.subscribe_for_notification(smartseq2_paired_ends_v3_query,
+        subscription_id = self.subscribe_for_notification(self.smartseq2_paired_ends_query,
                                                           f"http://{HTTPInfo.address}:{HTTPInfo.port}",
                                                           hmac_secret_key=PostTestHandler.hmac_secret_key,
                                                           hmac_key_id="test")
 
-        bundle_key = self.load_test_data_bundle_for_path("fixtures/smartseq2/paired_ends")
+        bundle_key = self.load_test_data_bundle_for_path("fixtures/indexing/bundles/v3/smartseq2/paired_ends")
         sample_event = self.create_sample_bundle_created_event(bundle_key)
         error_response_code = 500
         PostTestHandler.set_response_code(error_response_code)
@@ -267,6 +266,68 @@ class TestIndexerBase(DSSAssertMixin, DSSStorageMixin, DSSUploadMixin):
         self.assertRegex(log_monitor.output[0],
                          f"WARNING:.*:Failed notification for subscription {subscription_id}"
                          f" for bundle {bundle_id} with transaction id .+ Code: {error_response_code}")
+
+    def test_subscription_registration_before_indexing(self):
+        subscription_id = self.subscribe_for_notification(self.smartseq2_paired_ends_query,
+                                                          f"http://{HTTPInfo.address}:{HTTPInfo.port}")
+        sample_event = self.create_sample_bundle_created_event(self.bundle_key)
+        PostTestHandler.verify_payloads = False
+        self.process_new_indexable_object(sample_event, logger)
+        prefix, _, bundle_id = self.bundle_key.partition("/")
+        self.verify_notification(subscription_id, self.smartseq2_paired_ends_query, bundle_id)
+        self.delete_subscription(subscription_id)
+
+    def test_subscription_query_with_multiple_data_types_indexing_and_notification(self):
+        # Verify that a subscription query using numeric, date and string types
+        # that is registered before indexing (via the ES setting
+        # index.percolator.map_unmapped_fields_as_string=True) works correctly
+        # when a document is subsequently indexed.
+        subscription_query = \
+            {
+                'query': {
+                    'bool': {
+                        'must': [{
+                            'match': {
+                                "files.sample_json.donor.age": 12
+                            }
+                        }, {
+                            'range': {
+                                "files.sample_json.submit_date": {
+                                    "gte": "2015-11-30",
+                                    "lte": "2015-11-30"
+                                }
+                            }
+                        }, {
+                            'match': {
+                                "files.sample_json.ncbi_biosample": "SAMN04303778"
+                            }
+                        }]
+                    }
+                }
+            }
+
+        subscription_id = self.subscribe_for_notification(subscription_query,
+                                                          f"http://{HTTPInfo.address}:{HTTPInfo.port}")
+        sample_event = self.create_sample_bundle_created_event(self.bundle_key)
+        PostTestHandler.verify_payloads = False
+        self.process_new_indexable_object(sample_event, logger)
+
+        # Verify the mapping types are as expected for a valid test
+        doc_index_name = dss.Config.get_es_index_name(dss.ESIndexType.docs, dss.Replica[self.replica], "v3")
+        mappings = ElasticsearchClient.get(logger).indices.get_mapping(doc_index_name)[doc_index_name]['mappings']
+        sample_json_mappings = mappings['doc']['properties']['files']['properties']['sample_json']
+        self.assertEquals(sample_json_mappings['properties']['donor']['properties']['age']['type'], "long")
+        self.assertEquals(sample_json_mappings['properties']['submit_date']['type'], "date")
+        self.assertEquals(sample_json_mappings['properties']['ncbi_biosample']['type'], "keyword")
+
+        # Verify the query works correctly as a search
+        search_results = self.get_search_results(subscription_query, 1)
+        self.assertEqual(1, len(search_results))
+
+        # Verify the query works correctly as a subscription, resulting in notification
+        prefix, _, bundle_id = self.bundle_key.partition("/")
+        self.verify_notification(subscription_id, subscription_query, bundle_id)
+        self.delete_subscription(subscription_id)
 
     def test_get_index_shape_identifier(self):
         from dss.events.handlers.index import get_index_shape_identifier
@@ -320,12 +381,98 @@ class TestIndexerBase(DSSAssertMixin, DSSStorageMixin, DSSUploadMixin):
         self.assertTrue(es_client.indices.exists_alias(name=[self.dss_alias_name]))
         alias = es_client.indices.get_alias(name=[self.dss_alias_name])
         doc_index_name = dss.Config.get_es_index_name(dss.ESIndexType.docs, dss.Replica[self.replica], "v3")
-        self.assertTrue(doc_index_name in alias)
+        self.assertIn(doc_index_name, alias)
         self.assertTrue(es_client.indices.exists(index=doc_index_name))
 
-    @unittest.skip("WIP")
-    def test_index_when_multiple_indexes_using_alias(self):
-        pass
+    def test_alias_and_multiple_schema_version_index_exists(self):
+        # Load and test an unversioned bundle
+        bundle_key = self.load_test_data_bundle_for_path("fixtures/indexing/bundles/unversioned/smartseq2/paired_ends")
+        sample_event = self.create_sample_bundle_created_event(bundle_key)
+        self.process_new_indexable_object(sample_event, logger)
+        es_client = ElasticsearchClient.get(logger)
+        alias = es_client.indices.get_alias(name=[self.dss_alias_name])
+        unversioned_doc_index_name = dss.Config.get_es_index_name(dss.ESIndexType.docs, dss.Replica[self.replica], None)
+        self.assertIn(unversioned_doc_index_name, alias)
+        self.assertTrue(es_client.indices.exists(index=unversioned_doc_index_name))
+
+        # Load and test a v3 bundle
+        sample_event = self.create_sample_bundle_created_event(self.bundle_key)
+        self.process_new_indexable_object(sample_event, logger)
+        self.assertTrue(es_client.indices.exists_alias(name=[self.dss_alias_name]))
+        alias = es_client.indices.get_alias(name=[self.dss_alias_name])
+        doc_index_name = dss.Config.get_es_index_name(dss.ESIndexType.docs, dss.Replica[self.replica], "v3")
+        # Ensure the alias references both indices
+        self.assertIn(unversioned_doc_index_name, alias)
+        self.assertIn(doc_index_name, alias)
+        self.assertTrue(es_client.indices.exists(index=doc_index_name))
+
+    def test_multiple_schema_version_indexing_and_search(self):
+        # Load a schema version 2 (unversioned) bundle
+        bundle_key = self.load_test_data_bundle_for_path("fixtures/indexing/bundles/unversioned/smartseq2/paired_ends")
+        sample_event = self.create_sample_bundle_created_event(bundle_key)
+        self.process_new_indexable_object(sample_event, logger)
+
+        # Search using a v2-specific query - should match
+        search_results = self.get_search_results(smartseq2_paired_ends_v2_query, 1)
+        self.assertEqual(1, len(search_results))
+        self.verify_index_document_structure_and_content(search_results[0], bundle_key,
+                                                         files=smartseq2_paried_ends_indexed_file_list)
+        # Search using a query that works for v2 or v3 - should match
+        search_results = self.get_search_results(smartseq2_paired_ends_v2_or_v3_query, 1)
+        self.assertEqual(1, len(search_results))
+
+        # Search using a v3-specific query - should not match
+        search_results = self.get_search_results(smartseq2_paired_ends_v3_query, 0)
+        self.assertEqual(0, len(search_results))
+
+        # Load a v3 bundle
+        sample_event = self.create_sample_bundle_created_event(self.bundle_key)
+        self.process_new_indexable_object(sample_event, logger)
+
+        # Search using a v3-specific query - should match
+        search_results = self.get_search_results(smartseq2_paired_ends_v3_query, 1)
+        self.assertEqual(1, len(search_results))
+
+        # Search using a query that works for v2 or v3 - should match both v2 and v3 bundles
+        search_results = self.get_search_results(smartseq2_paired_ends_v2_or_v3_query, 2)
+        self.assertEqual(2, len(search_results))
+
+    def test_multiple_schema_version_subscription_indexing_and_notification(self):
+        PostTestHandler.verify_payloads = False
+
+        # Load a schema version 2 (unversioned) bundle
+        bundle_key = self.load_test_data_bundle_for_path(
+            "fixtures/indexing/bundles/unversioned/smartseq2/paired_ends")
+        sample_event = self.create_sample_bundle_created_event(bundle_key)
+        self.process_new_indexable_object(sample_event, logger)
+
+        # Load a v3 bundle
+        sample_event = self.create_sample_bundle_created_event(self.bundle_key)
+        self.process_new_indexable_object(sample_event, logger)
+
+        subscription_id = self.subscribe_for_notification(smartseq2_paired_ends_v2_or_v3_query,
+                                                          f"http://{HTTPInfo.address}:{HTTPInfo.port}")
+
+        # Load another schema version 2 (unversioned) bundle and verify notification
+        bundle_key = self.load_test_data_bundle_for_path(
+            "fixtures/indexing/bundles/unversioned/smartseq2/paired_ends")
+        sample_event = self.create_sample_bundle_created_event(bundle_key)
+        self.process_new_indexable_object(sample_event, logger)
+        prefix, _, bundle_id = bundle_key.partition("/")
+        self.verify_notification(subscription_id, smartseq2_paired_ends_v2_or_v3_query, bundle_id)
+
+        PostTestHandler.reset()
+        PostTestHandler.verify_payloads = False
+
+        # Load another schema version 3 bundle and verify notification
+        bundle_key = self.load_test_data_bundle_for_path(
+            "fixtures/indexing/bundles/v3/smartseq2/paired_ends")
+        sample_event = self.create_sample_bundle_created_event(bundle_key)
+        self.process_new_indexable_object(sample_event, logger)
+        prefix, _, bundle_id = bundle_key.partition("/")
+        self.verify_notification(subscription_id, smartseq2_paired_ends_v2_or_v3_query, bundle_id)
+
+        self.delete_subscription(subscription_id)
 
     def verify_notification(self, subscription_id, es_query, bundle_id):
         posted_payload_string = self.get_notification_payload()

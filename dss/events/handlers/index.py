@@ -12,7 +12,7 @@ from urllib.parse import urlparse, unquote
 import requests
 from cloud_blobstore import BlobStore, BlobStoreError
 from collections import defaultdict
-from elasticsearch.helpers import scan
+from elasticsearch.helpers import scan, bulk, BulkIndexError
 from requests_http_signature import HTTPSignatureAuth
 
 from dss import Config, DeploymentStage, ESIndexType, ESDocType, Replica
@@ -56,8 +56,8 @@ def process_new_indexable_object(bucket_name: str, key: str, replica: str, logge
         index_shape_identifier = get_index_shape_identifier(index_data, logger)
         index_name = Config.get_es_index_name(ESIndexType.docs, Replica[replica], index_shape_identifier)
         get_elasticsearch_index(index_name, alias_name, logger)
-        add_data_to_elasticsearch(bundle_id, index_data, index_name, logger)
-        subscriptions = find_matching_subscriptions(index_data, alias_name, logger)
+        add_data_to_elasticsearch(bundle_id, index_data, index_name, replica, logger)
+        subscriptions = find_matching_subscriptions(index_data, index_name, logger)
         process_notifications(bundle_id, subscriptions, replica, logger)
         logger.debug(f"Finished index processing of {replica} creation event for bundle: {key}")
     else:
@@ -177,12 +177,6 @@ def get_bundle_id_from_key(bundle_key: str) -> str:
     raise Exception(f"This is not a key for a bundle: {bundle_key}")
 
 
-def add_index_data_to_elasticsearch(bundle_id: str, index_data: dict, index_name: str, alias_name: str, logger) -> None:
-    get_elasticsearch_index(index_name, alias_name, logger)
-    logger.debug("Adding index data to Elasticsearch index '%s': %s", index_name, json.dumps(index_data, indent=4))
-    add_data_to_elasticsearch(bundle_id, index_data, index_name, logger)
-
-
 def get_elasticsearch_index(index_name: str, alias_name: str, logger):
     if not ElasticsearchClient.get(logger).indices.exists(index_name):
         with open(os.path.join(os.path.dirname(__file__), "mapping.json"), "r") as fh:
@@ -194,8 +188,10 @@ def get_elasticsearch_index(index_name: str, alias_name: str, logger):
         logger.debug(f"Using existing Elasticsearch index: {index_name}")
 
 
-def add_data_to_elasticsearch(bundle_id: str, index_data: dict, index_name: str, logger) -> None:
+def add_data_to_elasticsearch(bundle_id: str, index_data: dict, index_name: str, replica: str, logger) -> None:
     try:
+        logger.debug("Adding index data to Elasticsearch index '%s': %s", index_name, json.dumps(index_data, indent=4))
+        initial_mappings = ElasticsearchClient.get(logger).indices.get_mapping(index_name)[index_name]['mappings']
         ElasticsearchClient.get(logger).index(index=index_name,
                                               doc_type=ESDocType.doc.name,
                                               id=bundle_id,
@@ -204,6 +200,41 @@ def add_data_to_elasticsearch(bundle_id: str, index_data: dict, index_name: str,
         logger.error("Document not indexed. Exception: %s, Index name: %s,  Index data: %s", ex, index_name,
                      json.dumps(index_data, indent=4))
         raise
+
+    try:
+        current_mappings = ElasticsearchClient.get(logger).indices.get_mapping(index_name)[index_name]['mappings']
+        if initial_mappings != current_mappings:
+            refresh_percolate_queries(index_name, replica, logger)
+    except Exception as ex:
+        logger.error("Error refreshing subscription queries for index. Exception: %s, Index name: %s", ex, index_name)
+        raise
+
+
+def refresh_percolate_queries(index_name: str, replica: str, logger) -> None:
+    # When dynamic templates are used and queries for percolation have been added
+    # to an index before the index contains mappings of fields referenced by those queries,
+    # the queries must be reloaded when the mappings are present for the queries to match.
+    # See: https://github.com/elastic/elasticsearch/issues/5750
+    subscription_index_name = Config.get_es_index_name(ESIndexType.subscriptions, Replica[replica])
+    if not ElasticsearchClient.get(logger).indices.exists(subscription_index_name):
+        return
+    subscription_queries = [{'_index': index_name,
+                             '_type': ESDocType.query.name,
+                             '_id': hit['_id'],
+                             '_source': hit['_source']['es_query']
+                             }
+                            for hit in scan(ElasticsearchClient.get(logger),
+                                            index=subscription_index_name,
+                                            doc_type=ESDocType.subscription.name,
+                                            query={'query': {'match_all': {}}})
+                            ]
+
+    if subscription_queries:
+        try:
+            bulk(ElasticsearchClient.get(logger), iter(subscription_queries), refresh=True)
+        except BulkIndexError as ex:
+            logger.error("Error occurred when adding subscription queries to index %s Errors: %s",
+                         index_name, ex.errors)
 
 
 def find_matching_subscriptions(index_data: dict, index_name: str, logger) -> set:

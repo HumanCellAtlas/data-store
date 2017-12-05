@@ -203,9 +203,7 @@ class Config:
                           ) -> str:
         """Returns the index name"""
         deployment_stage = os.environ["DSS_DEPLOYMENT_STAGE"]
-        index = f"dss-{index_type.name}-{deployment_stage}-{replica.name}"
-        if version:
-            index = f"{index}-{version}"
+        index = f"dss-{deployment_stage}-{replica.name}-{index_type.name}"
         if version:
             index = f"{index}-{version}"
         if Config._CURRENT_CONFIG == BucketConfig.TEST:
@@ -216,7 +214,7 @@ class Config:
     def get_es_alias_name(index_type: ESIndexType, replica: Replica) -> str:
         """Returns the alias for indexes"""
         deployment_stage = os.environ["DSS_DEPLOYMENT_STAGE"]
-        index = f"dss-{index_type.name}-{deployment_stage}-{replica.name}"
+        index = f"dss-{deployment_stage}-{replica.name}-{index_type.name}-alias"
         if Config._CURRENT_CONFIG == BucketConfig.TEST:
             index = f"{index}.{IndexSuffix.name}"
         return index

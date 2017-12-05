@@ -108,6 +108,13 @@ def upload(uploader: Uploader):
             "application/json",
         )
 
+    for fname in ["assay.json", "cell.json", "manifest.json", "project.json", "sample.json"]:
+        uploader.checksum_and_upload_file(
+            f"indexing/bundles/unversioned/smartseq2/paired_ends/{fname}",
+            f"fixtures/indexing/bundles/unversioned/smartseq2/paired_ends/{fname}",
+            "application/json",
+        )
+
     # Create a bundle based on data-bundle-examples/smartseq2/paired_ends.
     # The files are accessed from the data-bundle-examples subrepository to avoid
     # duplicating them in our test infrastructure.
@@ -123,6 +130,10 @@ def upload(uploader: Uploader):
                 "application/json",
             )
 
+    # TODO (mbaumann) this block was moved to the new path "fixtures/indexing/bundles/v3/smartseq2/paired_ends"
+    # for better organization of multiple schema version test data. Remove this block when
+    # other work in progress has moved to the new code using the new location.
+    #
     # Create a bundle based on data-bundle-examples/smartseq2/paired_ends.
     # Then add some non-indexed files for a more complete and realistic bundle test.
     target_path = "fixtures/smartseq2/paired_ends"
@@ -134,6 +145,21 @@ def upload(uploader: Uploader):
             "text/plain",
         )
 
+    # Create a bundle based on data-bundle-examples/smartseq2/paired_ends.
+    # Then add some non-indexed files for a more complete and realistic bundle test.
+    target_path = "fixtures/indexing/bundles/v3/smartseq2/paired_ends"
+    load_example_smartseq2_paired_ends(target_path)
+    for fname in ["text_data_file1.txt", "text_data_file2.txt"]:
+        uploader.checksum_and_upload_file(
+            f"indexing/{fname}",
+            f"{target_path}/{fname}",
+            "text/plain",
+        )
+
+    # TODO (mbaumann) this block was moved to the new path "fixtures/indexing/bundles/unparseable_indexed_file"
+    # for better organization of the indexing test data. Remove this block when
+    # other work in progress has moved to the new code using the new location.
+
     # Create an index test bundle that includes a file of with content-type
     # 'application/json' yet cannot be parsed with json.
     # Include that file along with other valid files to ensure the
@@ -141,6 +167,21 @@ def upload(uploader: Uploader):
     # Create a bundle based on data-bundle-examples/smartseq2/paired_ends,
     # for consistency and ease of verifying valid files.
     target_path = "fixtures/unparseable_indexed_file"
+    load_example_smartseq2_paired_ends(target_path)
+    fname = "unparseable_json.json"
+    uploader.checksum_and_upload_file(
+        f"indexing/{fname}",
+        f"{target_path}/{fname}",
+        "application/json",
+    )
+
+    # Create an index test bundle that includes a file of with content-type
+    # 'application/json' yet cannot be parsed with json.
+    # Include that file along with other valid files to ensure the
+    # valid files are still processed.
+    # Create a bundle based on data-bundle-examples/smartseq2/paired_ends,
+    # for consistency and ease of verifying valid files.
+    target_path = "fixtures/indexing/bundles/unparseable_indexed_file"
     load_example_smartseq2_paired_ends(target_path)
     fname = "unparseable_json.json"
     uploader.checksum_and_upload_file(

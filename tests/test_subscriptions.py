@@ -15,7 +15,7 @@ import google.auth
 import google.auth.transport.requests
 import requests
 
-from dss.events.handlers.index import get_elasticsearch_index
+from dss.events.handlers.index import get_elasticsearch_index, get_index_shape_identifier
 
 pkg_root = os.path.abspath(os.path.join(os.path.dirname(__file__), '..')) # noqa
 sys.path.insert(0, pkg_root) # noqa
@@ -27,7 +27,7 @@ from dss.util.es import ElasticsearchClient, ElasticsearchServer
 from tests.es import elasticsearch_delete_index
 from tests.infra import DSSAssertMixin, ExpectedErrorFields
 from tests.infra.server import ThreadedLocalServer
-from tests.sample_search_queries import smartseq2_paired_ends_v3_query
+from tests.sample_search_queries import smartseq2_paired_ends_v2_or_v3_query
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
@@ -47,6 +47,7 @@ def tearDownModule():
     IndexSuffix.reset()
     os.unsetenv('DSS_ES_PORT')
 
+
 class TestSubscriptionsBase(DSSAssertMixin):
     @classmethod
     def subsciption_setup(cls, replica):
@@ -63,19 +64,21 @@ class TestSubscriptionsBase(DSSAssertMixin):
 
         dss.Config.set_config(dss.BucketConfig.TEST)
 
-        logger.debug("Setting up Elasticsearch")
-        es_client = ElasticsearchClient.get(logger)
-        elasticsearch_delete_index(f"*{IndexSuffix.name}")
-        alias_name = dss.Config.get_es_index_name(dss.ESIndexType.docs, self.replica)
-        get_elasticsearch_index("subscription_test", alias_name, logger)
-
         with open(os.path.join(os.path.dirname(__file__), "sample_v3_index_doc.json"), "r") as fh:
             index_document = json.load(fh)
 
-        self.callback_url = "https://example.com"
-        self.sample_percolate_query = smartseq2_paired_ends_v3_query
+        logger.debug("Setting up Elasticsearch")
+        es_client = ElasticsearchClient.get(logger)
+        elasticsearch_delete_index(f"*{IndexSuffix.name}")
+        alias_name = dss.Config.get_es_alias_name(dss.ESIndexType.docs, self.replica)
+        index_shape_identifier = get_index_shape_identifier(index_document, logger)
+        self.index_name = dss.Config.get_es_index_name(dss.ESIndexType.docs, self.replica, index_shape_identifier)
+        get_elasticsearch_index(self.index_name, alias_name, logger)
 
-        es_client.index(index=alias_name,
+        self.callback_url = "https://example.com"
+        self.sample_percolate_query = smartseq2_paired_ends_v2_or_v3_query
+
+        es_client.index(index=self.index_name,
                         doc_type=dss.ESDocType.doc.name,
                         id=str(uuid.uuid4()),
                         body=index_document,
@@ -102,13 +105,15 @@ class TestSubscriptionsBase(DSSAssertMixin):
         uuid_ = self._put_subscription()
 
         es_client = ElasticsearchClient.get(logger)
-        response = es_client.get(index=dss.Config.get_es_index_name(dss.ESIndexType.docs, self.replica),
+        response = es_client.get(index=self.index_name,
                                  doc_type=dss.ESDocType.query.name,
                                  id=uuid_)
         registered_query = response['_source']
         self.assertEqual(self.sample_percolate_query, registered_query)
 
-    def test_subscription_registration_fails_when_query_does_not_match_schema(self):
+    def test_subscription_registration_succeeds_when_query_does_not_match_mappings(self):
+        # It is now possible to register a subscription query before the mapping
+        # of the field exists in the mappings (and may never exist in the mapppings)
         es_query = {
             "query": {
                 "bool": {
@@ -120,26 +125,19 @@ class TestSubscriptionsBase(DSSAssertMixin):
                 }
             }
         }
-        self._put_subscription()
 
         url = str(UrlBuilder()
                   .set(path="/v1/subscriptions")
                   .add_query("replica", self.replica.name))
         resp_obj = self.assertPutResponse(
             url,
-            requests.codes.internal_server_error,
+            requests.codes.created,
             json_request_body=dict(
                 es_query=es_query,
                 callback_url=self.callback_url),
-            headers=self._get_auth_header(),
-            expected_error=ExpectedErrorFields(
-                code="elasticsearch_error",
-                status=requests.codes.internal_server_error,
-                expect_stacktrace=True)
+            headers=self._get_auth_header()
         )
-        self.assertIn("No field mapping can be found for the field with name [assay.fake_field]",
-                      resp_obj.json['stacktrace'])
-        self.assertEqual(resp_obj.json['title'], 'Unable to register elasticsearch percolate query!')
+        self.assertIn('uuid', resp_obj.json)
 
     def test_get(self):
         find_uuid = self._put_subscription()
@@ -187,10 +185,6 @@ class TestSubscriptionsBase(DSSAssertMixin):
         self.assertEqual(self.sample_percolate_query, json_response['subscriptions'][0]['es_query'])
         self.assertEqual(self.callback_url, json_response['subscriptions'][0]['callback_url'])
         self.assertEqual(NUM_ADDITIONS, len(json_response['subscriptions']))
-
-    @unittest.skip("WIP")
-    def test_subscribe_when_multiple_indexes_using_alias(self):
-        pass
 
     def test_delete(self):
         find_uuid = self._put_subscription()
