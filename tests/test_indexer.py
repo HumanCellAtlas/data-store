@@ -28,14 +28,18 @@ from dss.config import IndexSuffix, ESDocType, Replica
 from dss.events.handlers.index import AWSIndexHandler, GCPIndexHandler, BundleDocument, create_elasticsearch_index
 from dss.hcablobstore import BundleMetadata, BundleFileMetadata, FileMetadata
 from dss.util import create_blob_key, networking, UrlBuilder
+from dss.util.bundles import bundle_key_to_bundle_fqid
 from dss.util.es import ElasticsearchClient, ElasticsearchServer
 from dss.util.version import datetime_to_version_format
+from dss.events.handlers.index import DSS_OBJECT_NAME_REGEX, DSS_BUNDLE_KEY_REGEX
 from tests import get_version
 from tests.es import elasticsearch_delete_index, clear_indexes
 from tests.infra import DSSAssertMixin, DSSUploadMixin, DSSStorageMixin, TestBundle, start_verbose_logging
 from tests.infra.server import ThreadedLocalServer
 from tests.sample_search_queries import (smartseq2_paired_ends_v2_query, smartseq2_paired_ends_v3_query,
                                          smartseq2_paired_ends_v2_or_v3_query)
+
+from tests import eventually
 
 # The moto mock has two defects that show up when used by the dss core storage system.
 # Use actual S3 until these defects are fixed in moto.
@@ -46,8 +50,8 @@ logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 logger.setLevel(logging.INFO)
 
-
 start_verbose_logging()
+
 
 # TODO: (tsmith) test with multiple doc indexes once indexing by major version is compeleted
 
@@ -69,8 +73,10 @@ class HTTPInfo:
     server = None
     thread = None
 
+
 class ESInfo:
     server = None
+
 
 def setUpModule():
     IndexSuffix.name = __name__.rsplit('.', 1)[-1]
@@ -81,6 +87,7 @@ def setUpModule():
 
     ESInfo.server = ElasticsearchServer()
     os.environ['DSS_ES_PORT'] = str(ESInfo.server.port)
+
 
 def tearDownModule():
     ESInfo.server.shutdown()
@@ -125,13 +132,59 @@ class TestIndexerBase(DSSAssertMixin, DSSStorageMixin, DSSUploadMixin):
                       [ESDocType.doc.name, ESDocType.query.name, ESDocType.subscription.name])
         self.storageHelper = None
 
-    def test_process_new_indexable_object(self):
+    def test_process_new_indexable_object_create(self):
         sample_event = self.create_sample_bundle_created_event(self.bundle_key)
         self.process_new_indexable_object(sample_event, logger)
         search_results = self.get_search_results(self.smartseq2_paired_ends_query, 1)
         self.assertEqual(1, len(search_results))
-        self.verify_index_document_structure_and_content(search_results[0], self.bundle_key,
-                                                         files=smartseq2_paried_ends_indexed_file_list)
+        self.verify_index_document_structure_and_content(
+            search_results[0],
+            self.bundle_key,
+            files=smartseq2_paried_ends_indexed_file_list,
+        )
+
+    def test_process_new_indexable_object_delete(self):
+        bundle_uuid, _ = DSS_OBJECT_NAME_REGEX.match(self.bundle_key).groups()
+        # delete the whole bundle
+        self._test_process_new_indexable_object_delete(self.bundle_key + ".dead")
+        # delete a specific bundle version
+        self._test_process_new_indexable_object_delete(f"bundles/{bundle_uuid}.dead")
+
+    def _test_process_new_indexable_object_delete(self, deletion_object_name):
+        bundle_uuid, version = DSS_OBJECT_NAME_REGEX.search(deletion_object_name).groups()
+        # set the tombstone
+        blobstore, _, bucket = Config.get_cloud_specific_handles(self.replica)
+        blobstore.upload_file_handle(bucket, deletion_object_name, io.BytesIO(b"{}"))
+
+        # send the
+        sample_event = self.create_sample_bundle_created_event(self.bundle_key)
+        self.process_new_indexable_object(sample_event, logger)
+        self.get_search_results(self.smartseq2_paired_ends_query, 1)
+
+        sample_event = self.create_sample_bundle_deleted_event(deletion_object_name)
+        self.process_new_indexable_object(sample_event, logger)
+
+        @eventually(5.0, 0.5)
+        def _deletion_results_test():
+            search_results = self.get_search_results(self.smartseq2_paired_ends_query, 0)
+            self.assertEqual(0, len(search_results))
+            bundle_fqids = [
+                bundle_key_to_bundle_fqid(k) for k in blobstore.list(bucket, f"bundles/{bundle_uuid}.")
+                if DSS_BUNDLE_KEY_REGEX.match(k)
+            ]
+            for bundle_fqid in bundle_fqids:
+                exact_query = {
+                    "query": {
+                        "terms": {
+                            "_id": [bundle_fqid]
+                        }
+                    }
+                }
+                search_results = self.get_search_results(exact_query, 1)
+                self.assertEqual(1, len(search_results))
+                self.assertEqual(search_results[0], {})
+
+        _deletion_results_test()
 
     def test_indexed_file_with_invalid_content_type(self):
         bundle = TestBundle(self.blobstore, "fixtures/indexing/bundles/v3/smartseq2/paired_ends",
@@ -209,7 +262,7 @@ class TestIndexerBase(DSSAssertMixin, DSSStorageMixin, DSSUploadMixin):
                                                          excluded_files=[inaccesssible_filename.replace(".", "_")])
 
     def test_notify(self):
-        def _notify(subscription, bundle_id="i.v"):
+        def _notify(subscription, bundle_id=get_bundle_fqid()):
             document = BundleDocument.from_json(Replica[self.replica], bundle_id, {}, logger)
             document.notify_subscriber(subscription=subscription)
         with self.assertRaisesRegex(requests.exceptions.InvalidURL, "Invalid URL 'http://': No host supplied"):
@@ -393,7 +446,8 @@ class TestIndexerBase(DSSAssertMixin, DSSStorageMixin, DSSUploadMixin):
 
     def test_alias_and_multiple_schema_version_index_exists(self):
         # Load and test an unversioned bundle
-        bundle_key = self.load_test_data_bundle_for_path("fixtures/indexing/bundles/unversioned/smartseq2/paired_ends")
+        bundle_key = self.load_test_data_bundle_for_path(
+            "fixtures/indexing/bundles/unversioned/smartseq2/paired_ends")
         sample_event = self.create_sample_bundle_created_event(bundle_key)
         self.process_new_indexable_object(sample_event, logger)
         es_client = ElasticsearchClient.get(logger)
@@ -415,7 +469,8 @@ class TestIndexerBase(DSSAssertMixin, DSSStorageMixin, DSSUploadMixin):
 
     def test_multiple_schema_version_indexing_and_search(self):
         # Load a schema version 2 (unversioned) bundle
-        bundle_key = self.load_test_data_bundle_for_path("fixtures/indexing/bundles/unversioned/smartseq2/paired_ends")
+        bundle_key = self.load_test_data_bundle_for_path(
+            "fixtures/indexing/bundles/unversioned/smartseq2/paired_ends")
         sample_event = self.create_sample_bundle_created_event(bundle_key)
         self.process_new_indexable_object(sample_event, logger)
 
@@ -589,14 +644,16 @@ class TestIndexerBase(DSSAssertMixin, DSSStorageMixin, DSSUploadMixin):
                 index=cls.dss_alias_name,
                 doc_type=dss.ESDocType.doc.name,
                 body=json.dumps(query))
-            if (len(response['hits']['hits']) == expected_hit_count) \
-                    or (time.time() >= timeout_time):
+            if (len(response['hits']['hits']) >= expected_hit_count) or (time.time() >= timeout_time):
                 return [hit['_source'] for hit in response['hits']['hits']]
             else:
                 time.sleep(0.5)
 
     def create_sample_bundle_created_event(self, bundle_key):
         return self.create_bundle_created_event(bundle_key, self.test_bucket)
+
+    def create_sample_bundle_deleted_event(self, bundle_key):
+        return self.create_bundle_deleted_event(bundle_key, self.test_bucket)
 
     def create_bundle_created_event(self, bundle_key, bucket_name):
         raise NotImplemented()
@@ -618,6 +675,13 @@ class TestAWSIndexer(AWSIndexHandler, TestIndexerBase, unittest.TestCase):
         sample_event['Records'][0]["s3"]['object']['key'] = bundle_key
         return sample_event
 
+    def create_bundle_deleted_event(self, bundle_key, bucket_name) -> typing.Dict:
+        with open(os.path.join(os.path.dirname(__file__), "sample_s3_bundle_deleted_event.json")) as fh:
+            sample_event = json.load(fh)
+        sample_event['Records'][0]["s3"]['bucket']['name'] = bucket_name
+        sample_event['Records'][0]["s3"]['object']['key'] = bundle_key
+        return sample_event
+
 
 class TestGCPIndexer(GCPIndexHandler, TestIndexerBase, unittest.TestCase):
 
@@ -630,6 +694,13 @@ class TestGCPIndexer(GCPIndexHandler, TestIndexerBase, unittest.TestCase):
             sample_event = json.load(fh)
         sample_event["bucket"] = bucket_name
         sample_event["name"] = bundle_key
+        return sample_event
+
+    def create_bundle_deleted_event(self, key, bucket_name) -> typing.Dict:
+        with open(os.path.join(os.path.dirname(__file__), "sample_s3_bundle_deleted_event.json")) as fh:
+            sample_event = json.load(fh)
+        sample_event['bucket'] = bucket_name
+        sample_event['name'] = key
         return sample_event
 
 
@@ -725,6 +796,7 @@ class PostTestHandler(BaseHTTPRequestHandler):
     @classmethod
     def get_payload(cls):
         return cls._payload
+
 
 smartseq2_paried_ends_indexed_file_list = ["assay_json", "cell_json", "manifest_json", "project_json", "sample_json"]
 

@@ -19,6 +19,7 @@ sys.path.insert(0, pkg_root)  # noqa
 import dss
 from dss import ESDocType
 from dss.util import UrlBuilder
+
 from dss.api.search import _es_search_page
 from dss.config import IndexSuffix
 from dss.events.handlers.index import create_elasticsearch_index
@@ -34,6 +35,7 @@ logger = logging.getLogger(__name__)
 logger.setLevel(logging.INFO)
 
 start_verbose_logging()
+
 
 # TODO: (tsmith) test with multiple doc indexes once indexing by major version is compeleted
 class ESInfo:

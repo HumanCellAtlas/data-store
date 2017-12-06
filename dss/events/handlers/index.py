@@ -18,12 +18,13 @@ from requests_http_signature import HTTPSignatureAuth
 
 from dss import Config, DeploymentStage, ESIndexType, ESDocType, Replica
 from ...util import create_blob_key
+from ...util.bundles import DSS_BUNDLE_TOMBSTONE_REGEX, DSS_OBJECT_NAME_REGEX, DSS_BUNDLE_KEY_REGEX
+from ...util.bundles import format_bundle_fqid, bundle_key_to_bundle_fqid
 from ...hcablobstore import BundleMetadata, BundleFileMetadata
 from ...util.es import ElasticsearchClient, create_elasticsearch_doc_index
 
-DSS_BUNDLE_KEY_REGEX = r"^bundles/[0-9A-Fa-f]{8}-[0-9A-Fa-f]{4}-4[0-9A-Fa-f]{3}-[0-9A-Fa-f]{4}-[0-9A-Fa-f]{12}\..+$"
 
-
+# index handler
 class IndexHandler:
 
     @classmethod
@@ -31,25 +32,46 @@ class IndexHandler:
         raise NotImplementedError("'process_new_indexable_object' is not implemented!")
 
     @classmethod
-    def _process_new_indexable_object(cls, replica: Replica, bucket_name: str, key: str, logger) -> None:
-        if cls.is_bundle_to_index(key):
-            logger.info(f"Received {replica.name} creation event for bundle which will be indexed: {key}")
-            document = BundleDocument.from_bucket(replica, bucket_name, key, logger)
-            index_name = document.prepare_index()
-            document.add_to_index(index_name)
-            document.notify_matching_subscribers(index_name)
-            logger.debug(f"Finished index processing of {replica.name} creation event for bundle: {key}")
+    def _process_new_indexable_object(cls, replica: Replica, bucket_name: str, key: str, logger):
+        if cls._is_bundle_to_index(key):
+            cls._index_and_notify(replica, bucket_name, key, logger)
+        elif cls._is_deletion(key):
+            cls._delete_from_index(replica, bucket_name, key, logger)
         else:
-            logger.debug(f"Not indexing {replica.name} creation event for key: {key}")
+            logger.debug(f"Not processing {replica.name} event for key: {key}")
 
+    # add to index and notify
     @staticmethod
-    def is_bundle_to_index(key: str) -> bool:
+    def _is_bundle_to_index(key: str) -> bool:
         # Check for pattern /bundles/<bundle_uuid>.<timestamp>
         # Don't process notifications explicitly for the latest bundle, of the format /bundles/<bundle_uuid>
         # The versioned/timestamped name for this same bundle will get processed, and the fully qualified
         # name will be needed to remove index data later if the bundle is deleted.
         result = re.search(DSS_BUNDLE_KEY_REGEX, key)
         return result is not None
+
+    @staticmethod
+    def _index_and_notify(replica: Replica, bucket_name: str, key: str, logger):
+        logger.info(f"Received {replica.name} creation event for bundle which will be indexed: {key}")
+        document = BundleDocument.from_bucket(replica, bucket_name, key, logger)
+        index_name = document.prepare_index()
+        document.add_to_index(index_name)
+        document.notify_matching_subscribers(index_name)
+        logger.debug(f"Finished index processing of {replica.name} creation event for bundle: {key}")
+
+    # deletion
+    @staticmethod
+    def _is_deletion(key: str) -> bool:
+        # Check for pattern /bundles/<bundle_uuid>(.<timestamp>)?.dead
+        result = re.match(DSS_BUNDLE_TOMBSTONE_REGEX, key)
+        return result is not None
+
+    @staticmethod
+    def _delete_from_index(replica: Replica, bucket_name: str, key: str, logger):
+        documents = BundleDocument.from_tombstone(replica, bucket_name, key, logger)
+        for document in documents:
+            index_name = document.prepare_index()
+            document.delete_from_index(index_name)
 
 
 class AWSIndexHandler(IndexHandler):
@@ -90,15 +112,41 @@ class BundleDocument(dict):
         self.logger = logger
         self.replica = replica
         self.bundle_id = bundle_id
+        self.bundle_uuid, self.bundle_version = DSS_BUNDLE_KEY_REGEX.match(bundle_id).groups()
 
     @classmethod
     def from_bucket(cls, replica: Replica, bucket_name: str, key: str, logger):  # TODO: return type hint
-        self = cls(replica, cls._get_bundle_id_from_key(key), logger)
+        self = cls(replica, bundle_key_to_bundle_fqid(key), logger)
         handle = Config.get_cloud_specific_handles(replica.name)[0]
         self['manifest'] = self._read_bundle_manifest(handle, bucket_name, key)
         self['files'] = self._read_file_infos(handle, bucket_name)
         self['state'] = 'new'
         return self
+
+    @classmethod
+    def from_tombstone(cls, replica: Replica, bucket_name: str, key: str, logger):  # TODO: return type hint
+        blobstore = Config.get_cloud_specific_handles(replica.name)[0]
+        bundle_uuid, version = DSS_OBJECT_NAME_REGEX.search(key).groups()
+
+        if version:
+            # if a version is specified, delete just that version
+            bundle_keys = [format_bundle_fqid(uuid, version)]
+        else:
+            # if no version is specified, delete all bundle versions from the index
+            prefix = f"bundles/{bundle_uuid}."
+            bundle_keys = list(set([
+                k for k in blobstore.list(bucket_name, prefix)
+                if DSS_BUNDLE_KEY_REGEX.match(k)
+            ]))
+
+        tombstone_data = json.loads(blobstore.get(bucket_name, key))
+
+        docs = [BundleDocument.from_bucket(replica, bucket_name, k, logger) for k in bundle_keys]
+
+        for doc in docs:
+            doc.update(tombstone_data)
+
+        return docs
 
     @classmethod
     def from_json(cls, replica: Replica, bundle_id: str, bundle_json: dict, logger):  # TODO: return type hint
@@ -108,11 +156,11 @@ class BundleDocument(dict):
 
     @property
     def files(self):
-        return self['files']
+        return self.get('files')
 
     @property
     def manifest(self):
-        return self['manifest']
+        return self.get('manifest')
 
     def _read_bundle_manifest(self, handle: BlobStore, bucket_name: str, bundle_key: str) -> dict:
         manifest_string = handle.get(bucket_name, bundle_key).decode("utf-8")
@@ -213,13 +261,6 @@ class BundleDocument(dict):
         else:
             return None  # No files with schema identifiers were found
 
-    @staticmethod
-    def _get_bundle_id_from_key(bundle_key: str) -> str:
-        bundle_prefix = "bundles/"
-        if bundle_key.startswith(bundle_prefix):
-            return bundle_key[len(bundle_prefix):]
-        raise Exception(f"This is not a key for a bundle: {bundle_key}")
-
     def add_to_index(self, index_name: str) -> None:
         es_client = ElasticsearchClient.get(self.logger)
         try:
@@ -232,7 +273,7 @@ class BundleDocument(dict):
                             # FIXME: (hannes) Can this be json.dumps(self, indent=4) ?
                             body=json.dumps(self))  # Don't use refresh here.
         except Exception as ex:
-            self.logger.error("Document not indexed. Exception: %s, Index name: %s,  Index data: %s",
+            self.logger.error("Document not indexed. Exception: %s, Index name: %s, Index data: %s",
                               ex, index_name, json.dumps(self, indent=4))
             raise
 

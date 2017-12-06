@@ -31,5 +31,4 @@ def eventually(timeout: float, interval: float, errors: set={AssertionError}):
                     time.sleep(interval)
 
         return call
-
     return decorate
