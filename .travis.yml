@@ -32,21 +32,21 @@ install:
 script:
 - set -eo pipefail
 - make -j4 -O test
-- if [[ $TRAVIS_BRANCH == staging ]]; then source environment.staging; fi
-- if [[ $TRAVIS_EVENT_TYPE == cron ]]; then make smoketest; fi
 after_success:
 - bash <(curl -s https://codecov.io/bash)
+before_deploy:
+- make lock-stage
+- if [[ $TRAVIS_BRANCH == staging ]]; then source environment.staging; fi
 deploy:
   - provider: script
-    script: make -j4 -O deploy
+    script:
+      - make -j4 -O deploy
+      - set -eo pipefail
+      - make -j4 -O test
+      - make smoketest
     skip_cleanup: true
-    on:
-      branch: master
-  - provider: script
-    script: make -j4 -O deploy
-    skip_cleanup: true
-    on:
-      branch: staging
+after_deploy:
+- make lock-stage
 env:
   global:
   - ES_VERSION=5.4.2

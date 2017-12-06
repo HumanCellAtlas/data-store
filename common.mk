@@ -19,3 +19,7 @@ endif
 ifeq ($(findstring Python 3.6, $(shell python --version)),)
 $(error Please run make commands from a Python 3.6 virtualenv)
 endif
+
+ifneq ($(shell python -c 'import dyndbmutex' && echo yes), yes)
+$(error The dyndbmutex package is missing. Installing build requirements from requirements-dev.txt should fix that)
+endif
