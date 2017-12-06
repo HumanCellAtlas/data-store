@@ -26,9 +26,9 @@ DSS_BUNDLE_KEY_REGEX = r"^bundles/[0-9A-Fa-f]{8}-[0-9A-Fa-f]{4}-4[0-9A-Fa-f]{3}-
 def process_new_s3_indexable_object(event, logger) -> None:
     try:
         # This function is only called for S3 creation events
-        key = unquote(event['Records'][0]["s3"]["object"]["key"])
+        object_name = unquote(event['Records'][0]["s3"]["object"]["key"])
         bucket_name = event['Records'][0]["s3"]["bucket"]["name"]
-        process_new_indexable_object(bucket_name, key, "aws", logger)
+        process_new_indexable_object(bucket_name, object_name, "aws", logger)
     except Exception as ex:
         logger.error("Exception occurred while processing S3 event: %s Event: %s", ex, json.dumps(event, indent=4))
         raise
@@ -38,30 +38,33 @@ def process_new_gs_indexable_object(event, logger) -> None:
     try:
         # This function is only called for GS creation events
         bucket_name = event["bucket"]
-        key = event["name"]
-        process_new_indexable_object(bucket_name, key, "gcp", logger)
+        object_name = event["name"]
+        process_new_indexable_object(bucket_name, object_name, "gcp", logger)
     except Exception as ex:
         logger.error("Exception occurred while processing GS event: %s Event: %s", ex, json.dumps(event, indent=4))
         raise
 
 
-def process_new_indexable_object(bucket_name: str, key: str, replica: str, logger) -> None:
-    if is_bundle_to_index(key):
-        logger.info(f"Received {replica} creation event for bundle which will be indexed: {key}")
+def process_new_indexable_object(bucket_name: str, object_name: str, replica: str, logger) -> None:
+    if is_bundle_to_index(object_name):
+        logger.info(f"Received {replica} creation event for bundle which will be indexed: {object_name}")
         blobstore = Config.get_cloud_specific_handles(replica)[0]
-        manifest = read_bundle_manifest(blobstore, bucket_name, key, logger)
-        bundle_id = get_bundle_id_from_key(key)
-        index_data = create_index_data(blobstore, bucket_name, bundle_id, manifest, logger)
+        bundle_uuid_version = bundle_object_name_to_bundle_uuid_version(object_name)
+
+        manifest = read_bundle_manifest(blobstore, bucket_name, object_name, logger)
+
+        index_shape_identifier = get_index_shape_identifier(manifest, bundle_uuid_version, logger)
         alias_name = Config.get_es_alias_name(ESIndexType.docs, Replica[replica])
-        index_shape_identifier = get_index_shape_identifier(index_data, logger)
         index_name = Config.get_es_index_name(ESIndexType.docs, Replica[replica], index_shape_identifier)
         get_elasticsearch_index(index_name, alias_name, logger)
-        add_data_to_elasticsearch(bundle_id, index_data, index_name, replica, logger)
+
+        index_data = create_index_data(blobstore, bucket_name, bundle_uuid_version, manifest, logger)
+        add_data_to_elasticsearch(bundle_uuid_version, index_data, index_name, replica, logger)
         subscriptions = find_matching_subscriptions(index_data, index_name, logger)
-        process_notifications(bundle_id, subscriptions, replica, logger)
-        logger.debug(f"Finished index processing of {replica} creation event for bundle: {key}")
+        process_notifications(bundle_uuid_version, subscriptions, replica, logger)
+        logger.debug(f"Finished index processing of {replica} creation event for bundle: {object_name}")
     else:
-        logger.debug(f"Not indexing {replica} creation event for key: {key}")
+        logger.debug(f"Not indexing {replica} creation event for object_name: {object_name}")
 
 
 def is_bundle_to_index(key: str) -> bool:
@@ -73,10 +76,10 @@ def is_bundle_to_index(key: str) -> bool:
     return result is not None
 
 
-def read_bundle_manifest(handle: BlobStore, bucket_name: str, bundle_key: str, logger) -> dict:
-    manifest_string = handle.get(bucket_name, bundle_key).decode("utf-8")
+def read_bundle_manifest(handle: BlobStore, bucket_name: str, bundle_object_name: str, logger) -> dict:
+    manifest_string = handle.get(bucket_name, bundle_object_name).decode("utf-8")
     logger.debug(f"Read bundle manifest from bucket {bucket_name}"
-                 f" with bundle key {bundle_key}: {manifest_string}")
+                 f" with bundle key {bundle_object_name}: {manifest_string}")
     manifest = json.loads(manifest_string, encoding="utf-8")
     return manifest
 
@@ -128,7 +131,7 @@ def create_index_data(handle: BlobStore, bucket_name: str, bundle_id: str, manif
     return index
 
 
-def get_index_shape_identifier(index_document: dict, logger) -> str:
+def get_index_shape_identifier(manifest: dict, bundle_id: str, logger) -> str:
     """ Return string identifying the shape/structure/format of the data in the index document,
     so that it may be indexed appropriately.
 
@@ -149,19 +152,18 @@ def get_index_shape_identifier(index_document: dict, logger) -> str:
     Other projects (non-HCA) may manage their metadata schemas (if any) and schema versions.
     This should be an extension point that is customizable by other projects according to their metadata.
     """
-
     schema_version_map = defaultdict(set)  # type: typing.MutableMapping[str, typing.MutableSet[str]]
-    files = index_document['files']
-    for filename, file_content in files.items():
-        core = file_content.get('core')
+    files = manifest['files']
+    for file in files:
+        core = file.get('core')
         if core is not None:
             schema_type = core['type']
             schema_version = core['schema_version']
             schema_version_major = schema_version.split(".")[0]
             schema_version_map[schema_version_major].add(schema_type)
         else:
-            logger.info("%s", (f"File {filename} does not contain a 'core' section to identify "
-                               "the schema and schema version."))
+            logger.info("%s", (f"File {file.get('name')} in bundle {bundle_id} does not contain a 'core' section to "
+                               "identify the schema and schema version."))
     if schema_version_map:
         assert len(schema_version_map.keys()) == 1, \
             "The bundle contains mixed schema major version numbers: {}".format(sorted(list(schema_version_map.keys())))
@@ -170,11 +172,11 @@ def get_index_shape_identifier(index_document: dict, logger) -> str:
         return None  # No files with schema identifiers were found
 
 
-def get_bundle_id_from_key(bundle_key: str) -> str:
+def bundle_object_name_to_bundle_uuid_version(bundle_object_name: str) -> str:
     bundle_prefix = "bundles/"
-    if bundle_key.startswith(bundle_prefix):
-        return bundle_key[len(bundle_prefix):]
-    raise Exception(f"This is not a key for a bundle: {bundle_key}")
+    if bundle_object_name.startswith(bundle_prefix):
+        return bundle_object_name[len(bundle_prefix):]
+    raise Exception(f"This is not a key for a bundle: {bundle_object_name}")
 
 
 def get_elasticsearch_index(index_name: str, alias_name: str, logger):
