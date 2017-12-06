@@ -55,10 +55,11 @@ def process_new_indexable_object(bucket_name: str, object_name: str, replica: st
 
         index_shape_identifier = get_index_shape_identifier(manifest, bundle_uuid_version, logger)
         alias_name = Config.get_es_alias_name(ESIndexType.docs, Replica[replica])
-        index_shape_identifier = get_index_shape_identifier(index_data, logger)
         index_name = Config.get_es_index_name(ESIndexType.docs, Replica[replica], index_shape_identifier)
         get_elasticsearch_index(index_name, alias_name, logger)
-        add_data_to_elasticsearch(bundle_id, index_data, index_name, replica, logger)
+
+        index_data = create_index_data(blobstore, bucket_name, bundle_uuid_version, manifest, logger)
+        add_data_to_elasticsearch(bundle_uuid_version, index_data, index_name, replica, logger)
         subscriptions = find_matching_subscriptions(index_data, index_name, logger)
         process_notifications(bundle_uuid_version, subscriptions, replica, logger)
         logger.debug(f"Finished index processing of {replica} creation event for bundle: {object_name}")
@@ -130,7 +131,7 @@ def create_index_data(handle: BlobStore, bucket_name: str, bundle_id: str, manif
     return index
 
 
-def get_index_shape_identifier(index_document: dict, logger) -> str:
+def get_index_shape_identifier(manifest: dict, bundle_id: str, logger) -> str:
     """ Return string identifying the shape/structure/format of the data in the index document,
     so that it may be indexed appropriately.
 
@@ -151,19 +152,18 @@ def get_index_shape_identifier(index_document: dict, logger) -> str:
     Other projects (non-HCA) may manage their metadata schemas (if any) and schema versions.
     This should be an extension point that is customizable by other projects according to their metadata.
     """
-
     schema_version_map = defaultdict(set)  # type: typing.MutableMapping[str, typing.MutableSet[str]]
-    files = index_document['files']
-    for filename, file_content in files.items():
-        core = file_content.get('core')
+    files = manifest['files']
+    for file in files:
+        core = file.get('core')
         if core is not None:
             schema_type = core['type']
             schema_version = core['schema_version']
             schema_version_major = schema_version.split(".")[0]
             schema_version_map[schema_version_major].add(schema_type)
         else:
-            logger.info("%s", (f"File {filename} does not contain a 'core' section to identify "
-                               "the schema and schema version."))
+            logger.info("%s", (f"File {file.get('name')} in bundle {bundle_id} does not contain a 'core' section to "
+                               "identify the schema and schema version."))
     if schema_version_map:
         assert len(schema_version_map.keys()) == 1, \
             "The bundle contains mixed schema major version numbers: {}".format(sorted(list(schema_version_map.keys())))
