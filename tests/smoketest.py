@@ -61,6 +61,12 @@ try:
 
     os.chdir(workdir.name)
 
+    cli_config = {"DSSClient": {"swagger_url": os.environ["SWAGGER_URL"]}}
+    cli_config_filename = f"{workdir.name}/cli_config.json"
+    with open(cli_config_filename, "w") as fh:
+        fh.write(json.dumps(cli_config))
+    os.environ["HCA_CONFIG_FILE"] = f"{workdir.name}/cli_config.json"
+
     run(f"cat {bundle_dir}/sample.json | jq .uuid=env.sample_id | sponge {bundle_dir}/sample.json",
         env=dict(os.environ, sample_id=sample_id))
     run(f"{venv_bin}hca dss upload "
