@@ -62,4 +62,11 @@ requirements.txt requirements-dev.txt : %.txt : %.txt.in
 
 requirements-dev.txt : requirements.txt.in
 
-.PHONY: test lint mypy $(test_srcs) deploy deploy-chalice deploy-daemons
+lock-stage:
+	# The lock on the mutex expires after 30 min
+	python -m dyndbmutex.cli $$DSS_DEPLOYMENT_STAGE lock --blocking --expiration 1800
+
+unlock-stage:
+	python -m dyndbmutex.cli $$DSS_DEPLOYMENT_STAGE release
+
+.PHONY: test lint mypy $(test_srcs) deploy deploy-chalice deploy-daemons lock-stage
