@@ -26,7 +26,7 @@ def step_functions_arn(state_machine_name_template: str) -> str:
 
 def step_functions_execution_arn(state_machine_name_template: str, execution_name: str) -> str:
     """
-    The ARN of a state machine executiuon, with name derived from `state_machine_name_template`, with string formatting
+    The ARN of a state machine execution, with name derived from `state_machine_name_template`, with string formatting
     to replace {stage} with the dss deployment stage.
     :param state_machine_name_template:
     :param execution_name:
@@ -85,47 +85,31 @@ def step_functions_describe_execution(state_machine_name_template: str, executio
     return resp
 
 
-def step_functions_list_executions(state_machine_name_template: str,
-                                   start_date: typing.Type(datetime.datetime)=None,
-                                   k_results_per_page: int=100,
-                                   k_max_pages: int=50):
+def step_functions_list_executions(state_machine_name_template: str, k_results_per_page: int=100) -> typing.Iterable:
     """
-    List executions of a step function earlier than start_date, performing paged api calls in background.
+    List step function executions, peforming paging in the background.
     Maximum 100 results per page.
     :param state_machine_name_template:
     :param k_results_per_page:
-    :param start_date:
-    :param k_max_pages:
     :return:
     """
-
-    if start_date is None:
-        start_date = datetime.datetime(1970, 1, 1).astimezone()
 
     sfn = boto3.client('stepfunctions')
 
     state_machine_arn = step_functions_arn(state_machine_name_template)
-
-    if k_max_pages < 1:
-        raise Exception('Need at least 1 AWS api call')
-
-    executions = list()
 
     kwargs = {
         'stateMachineArn': state_machine_arn,
         'maxResults': k_results_per_page
     }
 
-    for k_api_calls in range(1, k_max_pages + 1):
+    while True:
         resp = sfn.list_executions(**kwargs)
 
-        execs = resp['executions']
-        executions.extend(execs)
+        for e in resp['executions']:
+            yield e
 
         if resp.get('nextToken', False):
             kwargs['nextToken'] = resp['nextToken']
         else:
             break
-
-    return [e for e in executions
-            if e['startDate'] >= start_date]
