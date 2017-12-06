@@ -27,6 +27,7 @@ docker==2.6.1
 docker-pycreds==0.2.1
 docutils==0.14
 domovoi==1.4.5
+-e git://github.com/hannes-ucsc/lambda-mutex@f8f4d694546075d839edd216af89eccd6d3e3b81#egg=dyndbmutex
 elasticsearch==5.5.1
 elasticsearch-dsl==5.3.0
 flake8==3.5.0
