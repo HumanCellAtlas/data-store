@@ -120,18 +120,12 @@ def step_functions_list_executions(state_machine_name_template: str,
         resp = sfn.list_executions(**kwargs)
 
         execs = resp['executions']
+        executions.extend(execs)
 
-        if execs:
-            if execs[-1]['startDate'] < start_date:
-                executions.extend([e for e in execs
-                                   if e['startDate'] > start_date])
-                break
-            else:
-                executions.extend(execs)
-
-        if not resp.get('nextToken', False):
+        if resp.get('nextToken', False):
+            kwargs['nextToken'] = resp['nextToken']
+        else:
             break
 
-        kwargs['nextToken'] = resp['nextToken']
-
-    return executions
+    return [e for e in executions
+            if e['startDate'] >= start_date]
