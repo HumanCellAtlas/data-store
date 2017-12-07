@@ -189,9 +189,10 @@ class BundleDocument(dict):
                 self.logger.info("%s", (f"File {filename} does not contain a 'core' section to identify "
                                         "the schema and schema version."))
         if schema_version_map:
-            assert len(schema_version_map.keys()) == 1, \
-                "The bundle contains mixed schema major version numbers: {}".format(sorted(list(schema_version_map.keys())))  # noqa
-            return "v" + list(schema_version_map.keys())[0]
+            schema_versions = schema_version_map.keys()
+            assert len(schema_versions) == 1, \
+                "The bundle contains mixed schema major version numbers: {}".format(sorted(list(schema_versions)))
+            return "v" + list(schema_versions)[0]
         else:
             return None  # No files with schema identifiers were found
 
@@ -206,36 +207,40 @@ class BundleDocument(dict):
     # FIXME (hannes) this doesn't return anything so the `get_` prefix is misleading. Rename.
     def get_elasticsearch_index(self, index_name: str):
         logger = self.logger
-        if not ElasticsearchClient.get(logger).indices.exists(index_name):
+        es_client = ElasticsearchClient.get(logger)
+        if not es_client.indices.exists(index_name):
             with open(os.path.join(os.path.dirname(__file__), "mapping.json"), "r") as fh:
                 index_mapping = json.load(fh)
             index_mapping["mappings"][ESDocType.doc.name] = index_mapping["mappings"].pop("doc")
             index_mapping["mappings"][ESDocType.query.name] = index_mapping["mappings"].pop("query")
             alias_name = Config.get_es_alias_name(ESIndexType.docs, Replica[self.replica])
-            create_elasticsearch_doc_index(ElasticsearchClient.get(logger), index_name, alias_name, logger, index_mapping)  # noqa
+            create_elasticsearch_doc_index(es_client, index_name, alias_name, logger, index_mapping)
         else:
             logger.debug(f"Using existing Elasticsearch index: {index_name}")
 
     def add_data_to_elasticsearch(self, index_name: str) -> None:
+        es_client = ElasticsearchClient.get(self.logger)
         try:
-            self.logger.debug("Adding index data to Elasticsearch index '%s': %s", index_name, json.dumps(self, indent=4))  # noqa
-            initial_mappings = ElasticsearchClient.get(self.logger).indices.get_mapping(index_name)[index_name]['mappings']  # noqa
-            ElasticsearchClient.get(self.logger).index(index=index_name,
-                                                       doc_type=ESDocType.doc.name,
-                                                       id=self.bundle_id,
-                                                       # FIXME: (hannes) Can this be json.dumps(self, indent=4) ?
-                                                       body=json.dumps(self))  # Do not use refresh here - too expensive.   # noqa
+            self.logger.debug("Adding index data to Elasticsearch index '%s': %s", index_name,
+                              json.dumps(self, indent=4))  # noqa
+            initial_mappings = es_client.indices.get_mapping(index_name)[index_name]['mappings']
+            es_client.index(index=index_name,
+                      doc_type=ESDocType.doc.name,
+                      id=self.bundle_id,
+                      # FIXME: (hannes) Can this be json.dumps(self, indent=4) ?
+                                                       body=json.dumps(self))  # Don't use refresh here.
         except Exception as ex:
-            self.logger.error("Document not indexed. Exception: %s, Index name: %s,  Index data: %s", ex, index_name,
-                              json.dumps(self, indent=4))
+            self.logger.error("Document not indexed. Exception: %s, Index name: %s,  Index data: %s",
+                              ex, index_name, json.dumps(self, indent=4))
             raise
 
         try:
-            current_mappings = ElasticsearchClient.get(self.logger).indices.get_mapping(index_name)[index_name]['mappings']  # noqa
+            current_mappings = es_client.indices.get_mapping(index_name)[index_name]['mappings']
             if initial_mappings != current_mappings:
                 self.refresh_percolate_queries(index_name)
         except Exception as ex:
-            self.logger.error("Error refreshing subscription queries for index. Exception: %s, Index name: %s", ex, index_name)  # noqa
+            self.logger.error("Error refreshing subscription queries for index. Exception: %s, Index name: %s",
+                              ex, index_name)
             raise
 
     def refresh_percolate_queries(self, index_name: str) -> None:
@@ -244,14 +249,15 @@ class BundleDocument(dict):
         # the queries must be reloaded when the mappings are present for the queries to match.
         # See: https://github.com/elastic/elasticsearch/issues/5750
         subscription_index_name = Config.get_es_index_name(ESIndexType.subscriptions, Replica[self.replica])
-        if not ElasticsearchClient.get(self.logger).indices.exists(subscription_index_name):
+        es_client = ElasticsearchClient.get(self.logger)
+        if not es_client.indices.exists(subscription_index_name):
             return
         subscription_queries = [{'_index': index_name,
                                  '_type': ESDocType.query.name,
                                  '_id': hit['_id'],
                                  '_source': hit['_source']['es_query']
                                  }
-                                for hit in scan(ElasticsearchClient.get(self.logger),
+                                for hit in scan(es_client,
                                                 index=subscription_index_name,
                                                 doc_type=ESDocType.subscription.name,
                                                 query={'query': {'match_all': {}}})
@@ -259,7 +265,7 @@ class BundleDocument(dict):
 
         if subscription_queries:
             try:
-                bulk(ElasticsearchClient.get(self.logger), iter(subscription_queries), refresh=True)
+                bulk(es_client, iter(subscription_queries), refresh=True)
             except BulkIndexError as ex:
                 self.logger.error("Error occurred when adding subscription queries to index %s Errors: %s",
                                   index_name, ex.errors)
@@ -345,7 +351,9 @@ class BundleDocument(dict):
         # TODO (mbaumann) Add webhook retry logic
         if 200 <= response.status_code < 300:
             self.logger.info(f"Successfully notified for subscription {subscription_id}"
-                             f" for bundle {self.bundle_id} with transaction id {transaction_id} Code: {response.status_code}")  # noqa
+                             f" for bundle {self.bundle_id} with transaction id {transaction_id} "
+                             f"Code: {response.status_code}")
         else:
             self.logger.warning(f"Failed notification for subscription {subscription_id}"
-                                f" for bundle {self.bundle_id} with transaction id {transaction_id} Code: {response.status_code}")  # noqa
+                                f" for bundle {self.bundle_id} with transaction id {transaction_id} "
+                                f"Code: {response.status_code}")
