@@ -116,11 +116,9 @@ def create_index_data(handle: BlobStore, bucket_name: str, bundle_id: str, manif
             # 1. Ambiguity regarding interpretation/processing of dots in field names,
             #    which could potentially change between Elasticsearch versions. For example, see:
             #       https://github.com/elastic/elasticsearch/issues/15951
-            # 2. The ES DSL queries are easier to read when there is no abiguity regarding
-            #    dot as a field separator, as may be seen in the Boston demo query.
-            # The Boston demo query spec uses underscore instead of dot in the filename portion
-            # of the query spec, so go with that, at least for now. Do so by substituting
-            # dot for underscore in the key filename portion of the index.
+            # 2. The ES DSL queries are easier to read when there is no ambiguity regarding
+            #    dot as a field separator.
+            # Therefore, substitute dot for underscore in the key filename portion of the index.
             # As due diligence, additional investigation should be performed.
             index_filename = file_info[BundleFileMetadata.NAME].replace(".", "_")
             index_files[index_filename] = file_json
@@ -139,7 +137,7 @@ def get_index_shape_identifier(index_document: dict, logger) -> str:
         ...
 
     This includes verification that schema major number is the same for all index metadata
-    files in the bundle, as is the working plan for the 2017 Q4 demo.
+    files in the bundle, consistent with the current HCA ingest service behavior.
     If no metadata version information is contained in the bundle, the empty string is returned.
     Currently this occurs in the case of the empty bundle used for deployment testing.
 
