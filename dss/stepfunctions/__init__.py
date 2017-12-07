@@ -1,7 +1,6 @@
 import json
 import os
 import typing
-import datetime
 
 import boto3
 
@@ -98,10 +97,10 @@ def step_functions_list_executions(state_machine_name_template: str, k_results_p
 
     state_machine_arn = step_functions_arn(state_machine_name_template)
 
-    kwargs = {
-        'stateMachineArn': state_machine_arn,
-        'maxResults': k_results_per_page
-    }
+    kwargs = dict(
+        stateMachineArn=state_machine_arn,
+        maxResults=k_results_per_page
+    )
 
     while True:
         resp = sfn.list_executions(**kwargs)
