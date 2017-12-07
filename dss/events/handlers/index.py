@@ -52,7 +52,7 @@ def process_new_indexable_object(bucket_name: str, key: str, replica: str, logge
         document = BundleDocument.from_bucket(replica, bucket_name, key, logger)
         index_shape_identifier = document.get_index_shape_identifier()
         index_name = Config.get_es_index_name(ESIndexType.docs, Replica[replica], index_shape_identifier)
-        document.get_elasticsearch_index(index_name)
+        create_elasticsearch_index(index_name, replica, logger)
         document.add_data_to_elasticsearch(index_name)
         subscriptions = document.find_matching_subscriptions(index_name)
         document.process_notifications(subscriptions)
@@ -74,15 +74,6 @@ class BundleDocument(dict):
     """
     An instance of this class represents the Elasticsearch document for a given bundle.
     """
-
-    # TODO: move down (left here for now to keep diff small)
-
-    def _read_bundle_manifest(self, handle: BlobStore, bucket_name: str, bundle_key: str) -> dict:
-        manifest_string = handle.get(bucket_name, bundle_key).decode("utf-8")
-        self.logger.debug(f"Read bundle manifest from bucket {bucket_name}"
-                          f" with bundle key {bundle_key}: {manifest_string}")
-        manifest = json.loads(manifest_string, encoding="utf-8")
-        return manifest
 
     def __init__(self, replica: str, bundle_id: str, logger: logging.Logger) -> None:
         super().__init__()
@@ -112,6 +103,13 @@ class BundleDocument(dict):
     @property
     def manifest(self):
         return self['manifest']
+
+    def _read_bundle_manifest(self, handle: BlobStore, bucket_name: str, bundle_key: str) -> dict:
+        manifest_string = handle.get(bucket_name, bundle_key).decode("utf-8")
+        self.logger.debug(f"Read bundle manifest from bucket {bucket_name}"
+                          f" with bundle key {bundle_key}: {manifest_string}")
+        manifest = json.loads(manifest_string, encoding="utf-8")
+        return manifest
 
     def _read_file_infos(self, handle: BlobStore, bucket_name: str) -> dict:
         files_info = self.manifest[BundleMetadata.FILES]
@@ -202,21 +200,6 @@ class BundleDocument(dict):
         if bundle_key.startswith(bundle_prefix):
             return bundle_key[len(bundle_prefix):]
         raise Exception(f"This is not a key for a bundle: {bundle_key}")
-
-    # TODO (hannes) move this out, I just left it here to keep the diff small
-    # FIXME (hannes) this doesn't return anything so the `get_` prefix is misleading. Rename.
-    def get_elasticsearch_index(self, index_name: str):
-        logger = self.logger
-        es_client = ElasticsearchClient.get(logger)
-        if not es_client.indices.exists(index_name):
-            with open(os.path.join(os.path.dirname(__file__), "mapping.json"), "r") as fh:
-                index_mapping = json.load(fh)
-            index_mapping["mappings"][ESDocType.doc.name] = index_mapping["mappings"].pop("doc")
-            index_mapping["mappings"][ESDocType.query.name] = index_mapping["mappings"].pop("query")
-            alias_name = Config.get_es_alias_name(ESIndexType.docs, Replica[self.replica])
-            create_elasticsearch_doc_index(es_client, index_name, alias_name, logger, index_mapping)
-        else:
-            logger.debug(f"Using existing Elasticsearch index: {index_name}")
 
     def add_data_to_elasticsearch(self, index_name: str) -> None:
         es_client = ElasticsearchClient.get(self.logger)
@@ -357,3 +340,16 @@ class BundleDocument(dict):
             self.logger.warning(f"Failed notification for subscription {subscription_id}"
                                 f" for bundle {self.bundle_id} with transaction id {transaction_id} "
                                 f"Code: {response.status_code}")
+
+
+def create_elasticsearch_index(index_name: str, replica, logger: logging.Logger):
+    es_client = ElasticsearchClient.get(logger)
+    if not es_client.indices.exists(index_name):
+        with open(os.path.join(os.path.dirname(__file__), "mapping.json"), "r") as fh:
+            index_mapping = json.load(fh)
+        index_mapping["mappings"][ESDocType.doc.name] = index_mapping["mappings"].pop("doc")
+        index_mapping["mappings"][ESDocType.query.name] = index_mapping["mappings"].pop("query")
+        alias_name = Config.get_es_alias_name(ESIndexType.docs, Replica[replica])
+        create_elasticsearch_doc_index(es_client, index_name, alias_name, logger, index_mapping)
+    else:
+        logger.debug(f"Using existing Elasticsearch index: {index_name}")
