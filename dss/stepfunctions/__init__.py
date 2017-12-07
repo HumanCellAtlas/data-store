@@ -54,7 +54,7 @@ def step_functions_invoke(state_machine_name_template: str, execution_name: str,
 
 def step_functions_describe_execution(state_machine_name_template: str, execution_name: str) -> typing.Any:
     """
-    Return description of a step function exectuion, possible in-progress, completed, errored, etc.
+    Return description of a step function execution, possible in-progress, completed, errored, etc.
     """
 
     execution_arn = step_functions_execution_arn(state_machine_name_template, execution_name)
@@ -68,7 +68,7 @@ def step_functions_describe_execution(state_machine_name_template: str, executio
 
 def step_functions_list_executions(state_machine_name_template: str, k_results_per_page: int=None) -> typing.Iterable:
     """
-    List step function executions, peforming paging in the background.
+    List step function executions, performing paging in the background.
     Maximum 100 results per page.
     """
 
