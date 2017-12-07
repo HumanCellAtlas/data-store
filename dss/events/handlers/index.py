@@ -155,7 +155,7 @@ class BundleDocument(dict):
                 index_files[index_filename] = file_json
         return index_files
 
-    def get_index_shape_identifier(self) -> str:
+    def get_index_shape_identifier(self) -> typing.Optional[str]:
         """ Return string identifying the shape/structure/format of the data in the index document,
         so that it may be indexed appropriately.
 
