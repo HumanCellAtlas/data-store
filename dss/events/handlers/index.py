@@ -119,24 +119,24 @@ class BundleDocument(dict):
         for file_info in files_info:
             if file_info[BundleFileMetadata.INDEXED] is True:
                 if not file_info[BundleFileMetadata.CONTENT_TYPE].startswith('application/json'):
-                    self.logger.warning(f"In bundle {self.bundle_id} the file \"{file_info[BundleFileMetadata.NAME]}\""
+                    self.logger.warning(f"In bundle {self.bundle_id} the file '{file_info[BundleFileMetadata.NAME]}'"
                                         " is marked for indexing yet has content type"
-                                        f" \"{file_info[BundleFileMetadata.CONTENT_TYPE]}\""
-                                        " instead of the required content type \"application/json\"."
+                                        f" '{file_info[BundleFileMetadata.CONTENT_TYPE]}'"
+                                        " instead of the required content type 'application/json'."
                                         " This file will not be indexed.")
                     continue
+                file_blob_key = create_blob_key(file_info)
                 try:
-                    file_blob_key = create_blob_key(file_info)
                     file_string = handle.get(bucket_name, file_blob_key).decode("utf-8")
                     file_json = json.loads(file_string)
                 # TODO (mbaumann) Are there other JSON-related exceptions that should be checked below?
                 except json.decoder.JSONDecodeError as ex:
-                    self.logger.warning(f"In bundle {self.bundle_id} the file \"{file_info[BundleFileMetadata.NAME]}\""
+                    self.logger.warning(f"In bundle {self.bundle_id} the file '{file_info[BundleFileMetadata.NAME]}'"
                                         " is marked for indexing yet could not be parsed."
                                         " This file will not be indexed. Exception: %s", ex)
                     continue
                 except BlobStoreError as ex:
-                    self.logger.warning(f"In bundle {self.bundle_id} the file \"{file_info[BundleFileMetadata.NAME]}\""
+                    self.logger.warning(f"In bundle {self.bundle_id} the file '{file_info[BundleFileMetadata.NAME]}'"
                                         " is marked for indexing yet could not be accessed."
                                         " This file will not be indexed. Exception: %s, File blob key: %s",
                                         type(ex).__name__, file_blob_key)

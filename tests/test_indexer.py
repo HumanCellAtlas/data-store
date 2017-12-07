@@ -138,9 +138,9 @@ class TestIndexerBase(DSSAssertMixin, DSSStorageMixin, DSSUploadMixin):
         with self.assertLogs(logger, level="WARNING") as log_monitor:
             self.process_new_indexable_object(sample_event, logger)
         self.assertRegex(log_monitor.output[0],
-                         "WARNING:.*:In bundle .* the file \"text_data_file1.txt\" is marked for indexing"
-                         " yet has content type \"text/plain\" instead of the required"
-                         " content type \"application/json\". This file will not be indexed.")
+                         "WARNING:.*:In bundle .* the file 'text_data_file1.txt' is marked for indexing"
+                         " yet has content type 'text/plain' instead of the required"
+                         " content type 'application/json'. This file will not be indexed.")
         search_results = self.get_search_results(self.smartseq2_paired_ends_query, 1)
         self.assertEqual(1, len(search_results))
         self.verify_index_document_structure_and_content(search_results[0], bundle_key,
@@ -178,7 +178,7 @@ class TestIndexerBase(DSSAssertMixin, DSSStorageMixin, DSSUploadMixin):
         with self.assertLogs(logger, level="WARNING") as log_monitor:
             self.process_new_indexable_object(sample_event, logger)
         self.assertRegex(log_monitor.output[0],
-                         "WARNING:.*:In bundle .* the file \"unparseable_json.json\" is marked for indexing"
+                         "WARNING:.*:In bundle .* the file 'unparseable_json.json' is marked for indexing"
                          " yet could not be parsed. This file will not be indexed. Exception:")
         search_results = self.get_search_results(self.smartseq2_paired_ends_query, 1)
         self.assertEqual(1, len(search_results))
@@ -193,7 +193,7 @@ class TestIndexerBase(DSSAssertMixin, DSSStorageMixin, DSSUploadMixin):
         with self.assertLogs(logger, level="WARNING") as log_monitor:
             self.process_new_indexable_object(sample_event, logger)
         self.assertRegex(log_monitor.output[0],
-                         f"WARNING:.*:In bundle .* the file \"{inaccesssible_filename}\" is marked for indexing"
+                         f"WARNING:.*:In bundle .* the file '{inaccesssible_filename}' is marked for indexing"
                          " yet could not be accessed. This file will not be indexed. Exception: .*, File blob key:")
         search_results = self.get_search_results(self.smartseq2_paired_ends_query, 1)
         self.assertEqual(1, len(search_results))
