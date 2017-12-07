@@ -23,7 +23,7 @@ import dss
 from dss.api.search import _es_search_page
 from copy import deepcopy
 from dss.config import IndexSuffix
-from dss.events.handlers.index import get_elasticsearch_index
+from dss.events.handlers.index import BundleDocument
 from dss.util.es import ElasticsearchServer, ElasticsearchClient
 from tests import get_version
 from tests.es import elasticsearch_delete_index
@@ -73,7 +73,9 @@ class TestSearchBase(DSSAssertMixin):
     def setUp(self):
         dss.Config.set_config(dss.BucketConfig.TEST)
         elasticsearch_delete_index(f"*{IndexSuffix.name}")
-        get_elasticsearch_index(self.dss_index_name, self.dss_alias_name, logger)
+        # TODO: (hannes) This will go away once get_elasticsearch_index is a top-level function again
+        document = BundleDocument.from_json(self.replica_name, 'uuid.version', {}, logger)
+        document.get_elasticsearch_index(self.dss_index_name)
 
     def test_es_search_page(self):
         """Confirm that elasaticsearch is returning _source info only when necessary."""

@@ -1,6 +1,7 @@
 """Lambda function for DSS indexing"""
 
 import json
+import logging
 import os
 import re
 import uuid
@@ -48,17 +49,13 @@ def process_new_gs_indexable_object(event, logger) -> None:
 def process_new_indexable_object(bucket_name: str, key: str, replica: str, logger) -> None:
     if is_bundle_to_index(key):
         logger.info(f"Received {replica} creation event for bundle which will be indexed: {key}")
-        blobstore = Config.get_cloud_specific_handles(replica)[0]
-        manifest = read_bundle_manifest(blobstore, bucket_name, key, logger)
-        bundle_id = get_bundle_id_from_key(key)
-        index_data = create_index_data(blobstore, bucket_name, bundle_id, manifest, logger)
-        alias_name = Config.get_es_alias_name(ESIndexType.docs, Replica[replica])
-        index_shape_identifier = get_index_shape_identifier(index_data, logger)
+        document = BundleDocument.from_bucket(replica, bucket_name, key, logger)
+        index_shape_identifier = document.get_index_shape_identifier()
         index_name = Config.get_es_index_name(ESIndexType.docs, Replica[replica], index_shape_identifier)
-        get_elasticsearch_index(index_name, alias_name, logger)
-        add_data_to_elasticsearch(bundle_id, index_data, index_name, replica, logger)
-        subscriptions = find_matching_subscriptions(index_data, index_name, logger)
-        process_notifications(bundle_id, subscriptions, replica, logger)
+        document.get_elasticsearch_index(index_name)
+        document.add_data_to_elasticsearch(index_name)
+        subscriptions = document.find_matching_subscriptions(index_name)
+        document.process_notifications(subscriptions)
         logger.debug(f"Finished index processing of {replica} creation event for bundle: {key}")
     else:
         logger.debug(f"Not indexing {replica} creation event for key: {key}")
@@ -73,252 +70,282 @@ def is_bundle_to_index(key: str) -> bool:
     return result is not None
 
 
-def read_bundle_manifest(handle: BlobStore, bucket_name: str, bundle_key: str, logger) -> dict:
-    manifest_string = handle.get(bucket_name, bundle_key).decode("utf-8")
-    logger.debug(f"Read bundle manifest from bucket {bucket_name}"
-                 f" with bundle key {bundle_key}: {manifest_string}")
-    manifest = json.loads(manifest_string, encoding="utf-8")
-    return manifest
-
-
-def create_index_data(handle: BlobStore, bucket_name: str, bundle_id: str, manifest: dict, logger) -> dict:
-    index = dict(state="new", manifest=manifest)
-    files_info = manifest[BundleMetadata.FILES]
-    index_files = {}
-    for file_info in files_info:
-        if file_info[BundleFileMetadata.INDEXED] is True:
-            if not file_info[BundleFileMetadata.CONTENT_TYPE].startswith('application/json'):
-                logger.warning(f"In bundle {bundle_id} the file \"{file_info[BundleFileMetadata.NAME]}\""
-                               " is marked for indexing yet has content type"
-                               f" \"{file_info[BundleFileMetadata.CONTENT_TYPE]}\""
-                               " instead of the required content type \"application/json\"."
-                               " This file will not be indexed.")
-                continue
-            try:
-                file_blob_key = create_blob_key(file_info)
-                file_string = handle.get(bucket_name, file_blob_key).decode("utf-8")
-                file_json = json.loads(file_string)
-            # TODO (mbaumann) Are there other JSON-related exceptions that should be checked below?
-            except json.decoder.JSONDecodeError as ex:
-                logger.warning(f"In bundle {bundle_id} the file \"{file_info[BundleFileMetadata.NAME]}\""
-                               " is marked for indexing yet could not be parsed."
-                               " This file will not be indexed. Exception: %s", ex)
-                continue
-            except BlobStoreError as ex:
-                logger.warning(f"In bundle {bundle_id} the file \"{file_info[BundleFileMetadata.NAME]}\""
-                               " is marked for indexing yet could not be accessed."
-                               " This file will not be indexed. Exception: %s, File blob key: %s",
-                               type(ex).__name__, file_blob_key)
-                continue
-            logger.debug(f"Indexing file: {file_info[BundleFileMetadata.NAME]}")
-            # There are two reasons in favor of not using dot in the name of the individual
-            # files in the index document, and instead replacing it with an underscore.
-            # 1. Ambiguity regarding interpretation/processing of dots in field names,
-            #    which could potentially change between Elasticsearch versions. For example, see:
-            #       https://github.com/elastic/elasticsearch/issues/15951
-            # 2. The ES DSL queries are easier to read when there is no ambiguity regarding
-            #    dot as a field separator.
-            # Therefore, substitute dot for underscore in the key filename portion of the index.
-            # As due diligence, additional investigation should be performed.
-            index_filename = file_info[BundleFileMetadata.NAME].replace(".", "_")
-            index_files[index_filename] = file_json
-    index['files'] = index_files
-    return index
-
-
-def get_index_shape_identifier(index_document: dict, logger) -> str:
-    """ Return string identifying the shape/structure/format of the data in the index document,
-    so that it may be indexed appropriately.
-
-    Currently, this returns a string identifying the metadata schema release major number:
-    For example:
-        v3 - Bundle contains metadata in the version 3 format
-        v4 - Bundle contains metadata in the version 4 format
-        ...
-
-    This includes verification that schema major number is the same for all index metadata
-    files in the bundle, consistent with the current HCA ingest service behavior.
-    If no metadata version information is contained in the bundle, the empty string is returned.
-    Currently this occurs in the case of the empty bundle used for deployment testing.
-
-    If/when bundle schemas are available, this function should be updated to reflect the
-    bundle schema type and major version number.
-
-    Other projects (non-HCA) may manage their metadata schemas (if any) and schema versions.
-    This should be an extension point that is customizable by other projects according to their metadata.
+class BundleDocument(dict):
+    """
+    An instance of this class represents the Elasticsearch document for a given bundle.
     """
 
-    schema_version_map = defaultdict(set)  # type: typing.MutableMapping[str, typing.MutableSet[str]]
-    files = index_document['files']
-    for filename, file_content in files.items():
-        core = file_content.get('core')
-        if core is not None:
-            schema_type = core['type']
-            schema_version = core['schema_version']
-            schema_version_major = schema_version.split(".")[0]
-            schema_version_map[schema_version_major].add(schema_type)
+    # TODO: move down (left here for now to keep diff small)
+
+    def _read_bundle_manifest(self, handle: BlobStore, bucket_name: str, bundle_key: str) -> dict:
+        manifest_string = handle.get(bucket_name, bundle_key).decode("utf-8")
+        self.logger.debug(f"Read bundle manifest from bucket {bucket_name}"
+                          f" with bundle key {bundle_key}: {manifest_string}")
+        manifest = json.loads(manifest_string, encoding="utf-8")
+        return manifest
+
+    def __init__(self, replica: str, bundle_id: str, logger: logging.Logger) -> None:
+        super().__init__()
+        self.logger = logger
+        self.replica = replica
+        self.bundle_id = bundle_id
+
+    @classmethod
+    def from_bucket(cls, replica: str, bucket_name: str, key: str, logger):  # TODO: return type hint
+        self = cls(replica, cls.get_bundle_id_from_key(key), logger)
+        handle = Config.get_cloud_specific_handles(replica)[0]
+        self['manifest'] = self._read_bundle_manifest(handle, bucket_name, key)
+        self['files'] = self._read_file_infos(handle, bucket_name)
+        self['state'] = 'new'
+        return self
+
+    @classmethod
+    def from_json(cls, replica: str, bundle_id: str, bundle_json: dict, logger):  # TODO: return type hint
+        self = cls(replica, bundle_id, logger)
+        self.update(bundle_json)
+        return self
+
+    @property
+    def files(self):
+        return self['files']
+
+    @property
+    def manifest(self):
+        return self['manifest']
+
+    def _read_file_infos(self, handle: BlobStore, bucket_name: str) -> dict:
+        files_info = self.manifest[BundleMetadata.FILES]
+        index_files = {}
+        for file_info in files_info:
+            if file_info[BundleFileMetadata.INDEXED] is True:
+                if not file_info[BundleFileMetadata.CONTENT_TYPE].startswith('application/json'):
+                    self.logger.warning(f"In bundle {self.bundle_id} the file \"{file_info[BundleFileMetadata.NAME]}\""
+                                        " is marked for indexing yet has content type"
+                                        f" \"{file_info[BundleFileMetadata.CONTENT_TYPE]}\""
+                                        " instead of the required content type \"application/json\"."
+                                        " This file will not be indexed.")
+                    continue
+                try:
+                    file_blob_key = create_blob_key(file_info)
+                    file_string = handle.get(bucket_name, file_blob_key).decode("utf-8")
+                    file_json = json.loads(file_string)
+                # TODO (mbaumann) Are there other JSON-related exceptions that should be checked below?
+                except json.decoder.JSONDecodeError as ex:
+                    self.logger.warning(f"In bundle {self.bundle_id} the file \"{file_info[BundleFileMetadata.NAME]}\""
+                                        " is marked for indexing yet could not be parsed."
+                                        " This file will not be indexed. Exception: %s", ex)
+                    continue
+                except BlobStoreError as ex:
+                    self.logger.warning(f"In bundle {self.bundle_id} the file \"{file_info[BundleFileMetadata.NAME]}\""
+                                        " is marked for indexing yet could not be accessed."
+                                        " This file will not be indexed. Exception: %s, File blob key: %s",
+                                        type(ex).__name__, file_blob_key)
+                    continue
+                self.logger.debug(f"Indexing file: {file_info[BundleFileMetadata.NAME]}")
+                # There are two reasons in favor of not using dot in the name of the individual
+                # files in the index document, and instead replacing it with an underscore.
+                # 1. Ambiguity regarding interpretation/processing of dots in field names,
+                #    which could potentially change between Elasticsearch versions. For example, see:
+                #       https://github.com/elastic/elasticsearch/issues/15951
+                # 2. The ES DSL queries are easier to read when there is no ambiguity regarding
+                #    dot as a field separator.
+                # Therefore, substitute dot for underscore in the key filename portion of the index.
+                # As due diligence, additional investigation should be performed.
+                index_filename = file_info[BundleFileMetadata.NAME].replace(".", "_")
+                index_files[index_filename] = file_json
+        return index_files
+
+    def get_index_shape_identifier(self) -> str:
+        """ Return string identifying the shape/structure/format of the data in the index document,
+        so that it may be indexed appropriately.
+
+        Currently, this returns a string identifying the metadata schema release major number:
+        For example:
+            v3 - Bundle contains metadata in the version 3 format
+            v4 - Bundle contains metadata in the version 4 format
+            ...
+
+        This includes verification that schema major number is the same for all index metadata
+        files in the bundle, consistent with the current HCA ingest service behavior.
+        If no metadata version information is contained in the bundle, the empty string is returned.
+        Currently this occurs in the case of the empty bundle used for deployment testing.
+
+        If/when bundle schemas are available, this function should be updated to reflect the
+        bundle schema type and major version number.
+
+        Other projects (non-HCA) may manage their metadata schemas (if any) and schema versions.
+        This should be an extension point that is customizable by other projects according to their metadata.
+        """
+
+        schema_version_map = defaultdict(set)  # type: typing.MutableMapping[str, typing.MutableSet[str]]
+        for filename, file_content in self.files.items():
+            core = file_content.get('core')
+            if core is not None:
+                schema_type = core['type']
+                schema_version = core['schema_version']
+                schema_version_major = schema_version.split(".")[0]
+                schema_version_map[schema_version_major].add(schema_type)
+            else:
+                self.logger.info("%s", (f"File {filename} does not contain a 'core' section to identify "
+                                        "the schema and schema version."))
+        if schema_version_map:
+            assert len(schema_version_map.keys()) == 1, \
+                "The bundle contains mixed schema major version numbers: {}".format(sorted(list(schema_version_map.keys())))  # noqa
+            return "v" + list(schema_version_map.keys())[0]
         else:
-            logger.info("%s", (f"File {filename} does not contain a 'core' section to identify "
-                               "the schema and schema version."))
-    if schema_version_map:
-        assert len(schema_version_map.keys()) == 1, \
-            "The bundle contains mixed schema major version numbers: {}".format(sorted(list(schema_version_map.keys())))
-        return "v" + list(schema_version_map.keys())[0]
-    else:
-        return None  # No files with schema identifiers were found
+            return None  # No files with schema identifiers were found
 
+    @staticmethod
+    def get_bundle_id_from_key(bundle_key: str) -> str:
+        bundle_prefix = "bundles/"
+        if bundle_key.startswith(bundle_prefix):
+            return bundle_key[len(bundle_prefix):]
+        raise Exception(f"This is not a key for a bundle: {bundle_key}")
 
-def get_bundle_id_from_key(bundle_key: str) -> str:
-    bundle_prefix = "bundles/"
-    if bundle_key.startswith(bundle_prefix):
-        return bundle_key[len(bundle_prefix):]
-    raise Exception(f"This is not a key for a bundle: {bundle_key}")
+    # TODO (hannes) move this out, I just left it here to keep the diff small
+    # FIXME (hannes) this doesn't return anything so the `get_` prefix is misleading. Rename.
+    def get_elasticsearch_index(self, index_name: str):
+        logger = self.logger
+        if not ElasticsearchClient.get(logger).indices.exists(index_name):
+            with open(os.path.join(os.path.dirname(__file__), "mapping.json"), "r") as fh:
+                index_mapping = json.load(fh)
+            index_mapping["mappings"][ESDocType.doc.name] = index_mapping["mappings"].pop("doc")
+            index_mapping["mappings"][ESDocType.query.name] = index_mapping["mappings"].pop("query")
+            alias_name = Config.get_es_alias_name(ESIndexType.docs, Replica[self.replica])
+            create_elasticsearch_doc_index(ElasticsearchClient.get(logger), index_name, alias_name, logger, index_mapping)  # noqa
+        else:
+            logger.debug(f"Using existing Elasticsearch index: {index_name}")
 
-
-def get_elasticsearch_index(index_name: str, alias_name: str, logger):
-    if not ElasticsearchClient.get(logger).indices.exists(index_name):
-        with open(os.path.join(os.path.dirname(__file__), "mapping.json"), "r") as fh:
-            index_mapping = json.load(fh)
-        index_mapping["mappings"][ESDocType.doc.name] = index_mapping["mappings"].pop("doc")
-        index_mapping["mappings"][ESDocType.query.name] = index_mapping["mappings"].pop("query")
-        create_elasticsearch_doc_index(ElasticsearchClient.get(logger), index_name, alias_name, logger, index_mapping)
-    else:
-        logger.debug(f"Using existing Elasticsearch index: {index_name}")
-
-
-def add_data_to_elasticsearch(bundle_id: str, index_data: dict, index_name: str, replica: str, logger) -> None:
-    try:
-        logger.debug("Adding index data to Elasticsearch index '%s': %s", index_name, json.dumps(index_data, indent=4))
-        initial_mappings = ElasticsearchClient.get(logger).indices.get_mapping(index_name)[index_name]['mappings']
-        ElasticsearchClient.get(logger).index(index=index_name,
-                                              doc_type=ESDocType.doc.name,
-                                              id=bundle_id,
-                                              body=json.dumps(index_data))  # Do not use refresh here - too expensive.
-    except Exception as ex:
-        logger.error("Document not indexed. Exception: %s, Index name: %s,  Index data: %s", ex, index_name,
-                     json.dumps(index_data, indent=4))
-        raise
-
-    try:
-        current_mappings = ElasticsearchClient.get(logger).indices.get_mapping(index_name)[index_name]['mappings']
-        if initial_mappings != current_mappings:
-            refresh_percolate_queries(index_name, replica, logger)
-    except Exception as ex:
-        logger.error("Error refreshing subscription queries for index. Exception: %s, Index name: %s", ex, index_name)
-        raise
-
-
-def refresh_percolate_queries(index_name: str, replica: str, logger) -> None:
-    # When dynamic templates are used and queries for percolation have been added
-    # to an index before the index contains mappings of fields referenced by those queries,
-    # the queries must be reloaded when the mappings are present for the queries to match.
-    # See: https://github.com/elastic/elasticsearch/issues/5750
-    subscription_index_name = Config.get_es_index_name(ESIndexType.subscriptions, Replica[replica])
-    if not ElasticsearchClient.get(logger).indices.exists(subscription_index_name):
-        return
-    subscription_queries = [{'_index': index_name,
-                             '_type': ESDocType.query.name,
-                             '_id': hit['_id'],
-                             '_source': hit['_source']['es_query']
-                             }
-                            for hit in scan(ElasticsearchClient.get(logger),
-                                            index=subscription_index_name,
-                                            doc_type=ESDocType.subscription.name,
-                                            query={'query': {'match_all': {}}})
-                            ]
-
-    if subscription_queries:
+    def add_data_to_elasticsearch(self, index_name: str) -> None:
         try:
-            bulk(ElasticsearchClient.get(logger), iter(subscription_queries), refresh=True)
-        except BulkIndexError as ex:
-            logger.error("Error occurred when adding subscription queries to index %s Errors: %s",
-                         index_name, ex.errors)
-
-
-def find_matching_subscriptions(index_data: dict, index_name: str, logger) -> set:
-    percolate_document = {
-        'query': {
-            'percolate': {
-                'field': "query",
-                'document_type': ESDocType.doc.name,
-                'document': index_data
-            }
-        }
-    }
-    subscription_ids = set()
-    for hit in scan(ElasticsearchClient.get(logger),
-                    index=index_name,
-                    query=percolate_document):
-        subscription_ids.add(hit["_id"])
-    logger.debug("Found matching subscription count: %i", len(subscription_ids))
-    return subscription_ids
-
-
-def process_notifications(bundle_id: str, subscription_ids: set, replica, logger) -> None:
-    for subscription_id in subscription_ids:
-        try:
-            # TODO Batch this request
-            subscription = get_subscription(subscription_id, replica, logger)
-            notify(subscription_id, subscription, bundle_id, logger)
+            self.logger.debug("Adding index data to Elasticsearch index '%s': %s", index_name, json.dumps(self, indent=4))  # noqa
+            initial_mappings = ElasticsearchClient.get(self.logger).indices.get_mapping(index_name)[index_name]['mappings']  # noqa
+            ElasticsearchClient.get(self.logger).index(index=index_name,
+                                                       doc_type=ESDocType.doc.name,
+                                                       id=self.bundle_id,
+                                                       # FIXME: (hannes) Can this be json.dumps(self, indent=4) ?
+                                                       body=json.dumps(self))  # Do not use refresh here - too expensive.   # noqa
         except Exception as ex:
-            logger.error("Error occurred while processing subscription %s for bundle %s. %s",
-                         subscription_id, bundle_id, ex)
+            self.logger.error("Document not indexed. Exception: %s, Index name: %s,  Index data: %s", ex, index_name,
+                              json.dumps(self, indent=4))
+            raise
 
+        try:
+            current_mappings = ElasticsearchClient.get(self.logger).indices.get_mapping(index_name)[index_name]['mappings']  # noqa
+            if initial_mappings != current_mappings:
+                self.refresh_percolate_queries(index_name)
+        except Exception as ex:
+            self.logger.error("Error refreshing subscription queries for index. Exception: %s, Index name: %s", ex, index_name)  # noqa
+            raise
 
-def get_subscription(subscription_id: str, replica: str, logger):
-    subscription_query = {
-        'query': {
-            'ids': {
-                'type': ESDocType.subscription.name,
-                'values': [subscription_id]
+    def refresh_percolate_queries(self, index_name: str) -> None:
+        # When dynamic templates are used and queries for percolation have been added
+        # to an index before the index contains mappings of fields referenced by those queries,
+        # the queries must be reloaded when the mappings are present for the queries to match.
+        # See: https://github.com/elastic/elasticsearch/issues/5750
+        subscription_index_name = Config.get_es_index_name(ESIndexType.subscriptions, Replica[self.replica])
+        if not ElasticsearchClient.get(self.logger).indices.exists(subscription_index_name):
+            return
+        subscription_queries = [{'_index': index_name,
+                                 '_type': ESDocType.query.name,
+                                 '_id': hit['_id'],
+                                 '_source': hit['_source']['es_query']
+                                 }
+                                for hit in scan(ElasticsearchClient.get(self.logger),
+                                                index=subscription_index_name,
+                                                doc_type=ESDocType.subscription.name,
+                                                query={'query': {'match_all': {}}})
+                                ]
+
+        if subscription_queries:
+            try:
+                bulk(ElasticsearchClient.get(self.logger), iter(subscription_queries), refresh=True)
+            except BulkIndexError as ex:
+                self.logger.error("Error occurred when adding subscription queries to index %s Errors: %s",
+                                  index_name, ex.errors)
+
+    def find_matching_subscriptions(self, index_name: str) -> set:
+        percolate_document = {
+            'query': {
+                'percolate': {
+                    'field': "query",
+                    'document_type': ESDocType.doc.name,
+                    'document': self
+                }
             }
         }
-    }
-    response = ElasticsearchClient.get(logger).search(
-        index=Config.get_es_index_name(ESIndexType.subscriptions, Replica[replica]),
-        body=subscription_query)
-    if len(response['hits']['hits']) == 1:
-        return response['hits']['hits'][0]['_source']
+        subscription_ids = set()
+        for hit in scan(ElasticsearchClient.get(self.logger),
+                        index=index_name,
+                        query=percolate_document):
+            subscription_ids.add(hit["_id"])
+        self.logger.debug("Found matching subscription count: %i", len(subscription_ids))
+        return subscription_ids
 
+    def process_notifications(self, subscription_ids: set) -> None:
+        for subscription_id in subscription_ids:
+            try:
+                # TODO Batch this request
+                subscription = self.get_subscription(subscription_id)
+                self.notify(subscription_id, subscription)
+            except Exception as ex:
+                self.logger.error("Error occurred while processing subscription %s for bundle %s. %s",
+                                  subscription_id, self.bundle_id, ex)
 
-def notify(subscription_id: str, subscription: dict, bundle_id: str, logger):
-    bundle_uuid, _, bundle_version = bundle_id.partition(".")
-    transaction_id = str(uuid.uuid4())
-    payload = {
-        "transaction_id": transaction_id,
-        "subscription_id": subscription_id,
-        "es_query": subscription['es_query'],
-        "match": {
-            "bundle_uuid": bundle_uuid,
-            "bundle_version": bundle_version
+    def get_subscription(self, subscription_id: str):
+        subscription_query = {
+            'query': {
+                'ids': {
+                    'type': ESDocType.subscription.name,
+                    'values': [subscription_id]
+                }
+            }
         }
-    }
-    callback_url = subscription['callback_url']
+        response = ElasticsearchClient.get(self.logger).search(
+            index=Config.get_es_index_name(ESIndexType.subscriptions, Replica[self.replica]),
+            body=subscription_query)
+        if len(response['hits']['hits']) == 1:
+            return response['hits']['hits'][0]['_source']
 
-    # FIXME wrap all errors in this block with an exception handler
-    if DeploymentStage.IS_PROD():
-        allowed_schemes = {'https'}
-    else:
-        allowed_schemes = {'https', 'http'}
+    def notify(self, subscription_id: str, subscription: dict):
+        # FIXME: (hannes) brittle coupling with regex in is_bundle_to_index
+        bundle_uuid, _, bundle_version = self.bundle_id.partition(".")
+        transaction_id = str(uuid.uuid4())
+        payload = {
+            "transaction_id": transaction_id,
+            "subscription_id": subscription_id,
+            "es_query": subscription['es_query'],
+            "match": {
+                "bundle_uuid": bundle_uuid,
+                "bundle_version": bundle_version
+            }
+        }
+        callback_url = subscription['callback_url']
 
-    assert urlparse(callback_url).scheme in allowed_schemes, "Unexpected scheme for callback URL"
+        # FIXME wrap all errors in this block with an exception handler
+        if DeploymentStage.IS_PROD():
+            allowed_schemes = {'https'}
+        else:
+            allowed_schemes = {'https', 'http'}
 
-    if DeploymentStage.IS_PROD():
-        hostname = urlparse(callback_url).hostname
-        for family, socktype, proto, canonname, sockaddr in socket.getaddrinfo(hostname, port=None):
-            msg = "Callback hostname resolves to forbidden network"
-            assert ipaddress.ip_address(sockaddr[0]).is_global, msg  # type: ignore
+        assert urlparse(callback_url).scheme in allowed_schemes, "Unexpected scheme for callback URL"
 
-    auth = None
-    if "hmac_secret_key" in subscription:
-        auth = HTTPSignatureAuth(key=subscription['hmac_secret_key'].encode(),
-                                 key_id=subscription.get("hmac_key_id", "hca-dss:" + subscription_id))
-    response = requests.post(callback_url, json=payload, auth=auth)
+        if DeploymentStage.IS_PROD():
+            hostname = urlparse(callback_url).hostname
+            for family, socktype, proto, canonname, sockaddr in socket.getaddrinfo(hostname, port=None):
+                msg = "Callback hostname resolves to forbidden network"
+                assert ipaddress.ip_address(sockaddr[0]).is_global, msg  # type: ignore
 
-    # TODO (mbaumann) Add webhook retry logic
-    if 200 <= response.status_code < 300:
-        logger.info(f"Successfully notified for subscription {subscription_id}"
-                    f" for bundle {bundle_id} with transaction id {transaction_id} Code: {response.status_code}")
-    else:
-        logger.warning(f"Failed notification for subscription {subscription_id}"
-                       f" for bundle {bundle_id} with transaction id {transaction_id} Code: {response.status_code}")
+        auth = None
+        if "hmac_secret_key" in subscription:
+            auth = HTTPSignatureAuth(key=subscription['hmac_secret_key'].encode(),
+                                     key_id=subscription.get("hmac_key_id", "hca-dss:" + subscription_id))
+        response = requests.post(callback_url, json=payload, auth=auth)
+
+        # TODO (mbaumann) Add webhook retry logic
+        if 200 <= response.status_code < 300:
+            self.logger.info(f"Successfully notified for subscription {subscription_id}"
+                             f" for bundle {self.bundle_id} with transaction id {transaction_id} Code: {response.status_code}")  # noqa
+        else:
+            self.logger.warning(f"Failed notification for subscription {subscription_id}"
+                                f" for bundle {self.bundle_id} with transaction id {transaction_id} Code: {response.status_code}")  # noqa
