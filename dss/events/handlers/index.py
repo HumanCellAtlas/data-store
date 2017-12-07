@@ -225,10 +225,10 @@ class BundleDocument(dict):
                               json.dumps(self, indent=4))  # noqa
             initial_mappings = es_client.indices.get_mapping(index_name)[index_name]['mappings']
             es_client.index(index=index_name,
-                      doc_type=ESDocType.doc.name,
-                      id=self.bundle_id,
-                      # FIXME: (hannes) Can this be json.dumps(self, indent=4) ?
-                                                       body=json.dumps(self))  # Don't use refresh here.
+                            doc_type=ESDocType.doc.name,
+                            id=self.bundle_id,
+                            # FIXME: (hannes) Can this be json.dumps(self, indent=4) ?
+                            body=json.dumps(self))  # Don't use refresh here.
         except Exception as ex:
             self.logger.error("Document not indexed. Exception: %s, Index name: %s,  Index data: %s",
                               ex, index_name, json.dumps(self, indent=4))
