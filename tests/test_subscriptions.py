@@ -15,7 +15,7 @@ import google.auth
 import google.auth.transport.requests
 import requests
 
-from dss.events.handlers.index import BundleDocument
+from dss.events.handlers.index import BundleDocument, create_elasticsearch_index
 
 pkg_root = os.path.abspath(os.path.join(os.path.dirname(__file__), '..')) # noqa
 sys.path.insert(0, pkg_root) # noqa
@@ -72,7 +72,7 @@ class TestSubscriptionsBase(DSSAssertMixin):
         elasticsearch_delete_index(f"*{IndexSuffix.name}")
         index_shape_identifier = index_document.get_index_shape_identifier()
         self.index_name = dss.Config.get_es_index_name(dss.ESIndexType.docs, self.replica, index_shape_identifier)
-        index_document.get_elasticsearch_index(self.index_name)
+        create_elasticsearch_index(self.index_name, self.replica.name, logger)
 
         self.callback_url = "https://example.com"
         self.sample_percolate_query = smartseq2_paired_ends_v2_or_v3_query
