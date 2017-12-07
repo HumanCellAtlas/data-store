@@ -63,8 +63,8 @@ try:
 
     cli_config = {"DSSClient": {"swagger_url": os.environ["SWAGGER_URL"]}}
     cli_config_filename = f"{workdir.name}/cli_config.json"
-    with open(cli_config_filename, "w") as fh:
-        fh.write(json.dumps(cli_config))
+    with open(cli_config_filename, "w") as fh2:
+        fh2.write(json.dumps(cli_config))
     os.environ["HCA_CONFIG_FILE"] = f"{workdir.name}/cli_config.json"
 
     run(f"cat {bundle_dir}/sample.json | jq .uuid=env.sample_id | sponge {bundle_dir}/sample.json",
@@ -109,4 +109,5 @@ finally:
         workdir.cleanup()
     else:
         print(f"Leaving temporary working directory at {workdir}.", file=sys.stderr)
-        workdir._finalizer.detach()  # Disable workdir destructor
+        # Disable workdir destructor
+        workdir._finalizer.detach()  # type: ignore
