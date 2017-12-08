@@ -64,18 +64,18 @@ def step_functions_describe_execution(state_machine_name_template: str, executio
 def step_functions_list_executions(
     state_machine_name_template: str,
     status_filter: str=None,
-    k_results_per_page: int=None
+    max_results_per_page: int=None
 ) -> typing.Iterable:
     """
-    List step function executions, peforming paging in the background.
+    List step function executions, performing paging in the background.
     """
 
     state_machine_arn = step_functions_arn(state_machine_name_template)
 
     kwargs = dict(stateMachineArn=state_machine_arn)
 
-    if k_results_per_page is not None:
-        kwargs['maxResults'] = k_results_per_page
+    if max_results_per_page is not None:
+        kwargs['maxResults'] = max_results_per_page
 
     if status_filter is not None:
         kwargs['statusFilter'] = status_filter
