@@ -151,31 +151,34 @@ class BundleDocument(dict):
         return index_files
 
     def prepare_index(self):
-        index_shape_identifier = self.get_index_shape_identifier()
-        index_name = Config.get_es_index_name(ESIndexType.docs, self.replica, index_shape_identifier)
+        shape_descriptor = self.get_shape_descriptor()
+        index_name = Config.get_es_index_name(ESIndexType.docs, self.replica, shape_descriptor)
         create_elasticsearch_index(index_name, self.replica, self.logger)
         return index_name
 
-    def get_index_shape_identifier(self) -> typing.Optional[str]:
-        """ Return string identifying the shape/structure/format of the data in the index document,
-        so that it may be indexed appropriately.
+    def get_shape_descriptor(self) -> typing.Optional[str]:
+        """
+        Return a string identifying the shape/structure/format of the data in this bundle
+        document, so that it may be indexed appropriately.
 
-        Currently, this returns a string identifying the metadata schema release major number:
+        Currently, this returns a string identifying the metadata schema release major number.
         For example:
+
             v3 - Bundle contains metadata in the version 3 format
             v4 - Bundle contains metadata in the version 4 format
             ...
 
         This includes verification that schema major number is the same for all index metadata
-        files in the bundle, consistent with the current HCA ingest service behavior.
-        If no metadata version information is contained in the bundle, the empty string is returned.
+        files in the bundle, consistent with the current HCA ingest service behavior. If no
+        metadata version information is contained in the bundle, the empty string is returned.
         Currently this occurs in the case of the empty bundle used for deployment testing.
 
         If/when bundle schemas are available, this function should be updated to reflect the
         bundle schema type and major version number.
 
         Other projects (non-HCA) may manage their metadata schemas (if any) and schema versions.
-        This should be an extension point that is customizable by other projects according to their metadata.
+        This should be an extension point that is customizable by other projects according to
+        their metadata.
         """
 
         schema_version_map = defaultdict(set)  # type: typing.MutableMapping[str, typing.MutableSet[str]]

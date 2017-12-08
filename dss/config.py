@@ -198,14 +198,18 @@ class Config:
         return Config._ALLOWED_EMAILS
 
     @staticmethod
-    def get_es_index_name(index_type: ESIndexType, replica: Replica,
-                          version: typing.Optional[str] = None
+    def get_es_index_name(index_type: ESIndexType,
+                          replica: Replica,
+                          shape_descriptor: typing.Optional[str] = None
                           ) -> str:
-        """Returns the index name"""
+        """
+        Returns the fully qualified name of an Elasticsearch index of documents for a given
+        replica of a given type and shape.
+        """
         deployment_stage = os.environ["DSS_DEPLOYMENT_STAGE"]
         index = f"dss-{deployment_stage}-{replica.name}-{index_type.name}"
-        if version:
-            index = f"{index}-{version}"
+        if shape_descriptor:
+            index = f"{index}-{shape_descriptor}"
         if Config._CURRENT_CONFIG == BucketConfig.TEST:
             index = f"{index}.{IndexSuffix.name}"
         return index

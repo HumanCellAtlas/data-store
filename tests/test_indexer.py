@@ -330,7 +330,7 @@ class TestIndexerBase(DSSAssertMixin, DSSStorageMixin, DSSUploadMixin):
         self.verify_notification(subscription_id, subscription_query, bundle_id)
         self.delete_subscription(subscription_id)
 
-    def test_get_index_shape_identifier(self):
+    def test_get_shape_descriptor(self):
         index_document = BundleDocument.from_json(self.replica, 'uuid.version', {
             'files': {
                 'assay_json': {
@@ -350,29 +350,29 @@ class TestIndexerBase(DSSAssertMixin, DSSStorageMixin, DSSUploadMixin):
             }
         }, logger)
         with self.subTest("Same major version."):
-            self.assertEqual(index_document.get_index_shape_identifier(), "v3")
+            self.assertEqual(index_document.get_shape_descriptor(), "v3")
 
         index_document['files']['assay_json']['core']['schema_version'] = "4.0.0"
         with self.subTest("Mixed/inconsistent metadata schema release versions in the same bundle"):
             with self.assertRaisesRegex(AssertionError,
                                         "The bundle contains mixed schema major version numbers: \['3', '4'\]"):
-                index_document.get_index_shape_identifier()
+                index_document.get_shape_descriptor()
 
         index_document['files']['sample_json']['core']['schema_version'] = "4.0.0"
         with self.subTest("Consistent versions, with a different version value"):
-            self.assertEqual(index_document.get_index_shape_identifier(), "v4")
+            self.assertEqual(index_document.get_shape_descriptor(), "v4")
 
         index_document['files']['assay_json'].pop('core')
         with self.subTest("An version file and unversioned file"):
             with self.assertLogs(logger, level="INFO") as log_monitor:
-                index_document.get_index_shape_identifier()
+                index_document.get_shape_descriptor()
             self.assertRegex(log_monitor.output[0], ("INFO:.*File assay_json does not contain a 'core' section "
                                                      "to identify the schema and schema version."))
-            self.assertEqual(index_document.get_index_shape_identifier(), "v4")
+            self.assertEqual(index_document.get_shape_descriptor(), "v4")
 
         index_document['files']['sample_json'].pop('core')
         with self.subTest("no versioned file"):
-            self.assertEqual(index_document.get_index_shape_identifier(), None)
+            self.assertEqual(index_document.get_shape_descriptor(), None)
 
     def test_alias_and_versioned_index_exists(self):
         sample_event = self.create_sample_bundle_created_event(self.bundle_key)
