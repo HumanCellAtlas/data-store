@@ -50,12 +50,9 @@ def process_new_indexable_object(bucket_name: str, key: str, replica: str, logge
     if is_bundle_to_index(key):
         logger.info(f"Received {replica} creation event for bundle which will be indexed: {key}")
         document = BundleDocument.from_bucket(replica, bucket_name, key, logger)
-        index_shape_identifier = document.get_index_shape_identifier()
-        index_name = Config.get_es_index_name(ESIndexType.docs, Replica[replica], index_shape_identifier)
-        create_elasticsearch_index(index_name, replica, logger)
+        index_name = document.prepare_index()
         document.add_data_to_elasticsearch(index_name)
-        subscriptions = document.find_matching_subscriptions(index_name)
-        document.process_notifications(subscriptions)
+        document.notify_subscriptions(index_name)
         logger.debug(f"Finished index processing of {replica} creation event for bundle: {key}")
     else:
         logger.debug(f"Not indexing {replica} creation event for key: {key}")
@@ -152,6 +149,12 @@ class BundleDocument(dict):
                 index_filename = file_info[BundleFileMetadata.NAME].replace(".", "_")
                 index_files[index_filename] = file_json
         return index_files
+
+    def prepare_index(self):
+        index_shape_identifier = self.get_index_shape_identifier()
+        index_name = Config.get_es_index_name(ESIndexType.docs, Replica[self.replica], index_shape_identifier)
+        create_elasticsearch_index(index_name, self.replica, self.logger)
+        return index_name
 
     def get_index_shape_identifier(self) -> typing.Optional[str]:
         """ Return string identifying the shape/structure/format of the data in the index document,
@@ -252,6 +255,10 @@ class BundleDocument(dict):
             except BulkIndexError as ex:
                 self.logger.error("Error occurred when adding subscription queries to index %s Errors: %s",
                                   index_name, ex.errors)
+
+    def notify_subscriptions(self, index_name):
+        subscriptions = self.find_matching_subscriptions(index_name)
+        self.process_notifications(subscriptions)
 
     def find_matching_subscriptions(self, index_name: str) -> set:
         percolate_document = {

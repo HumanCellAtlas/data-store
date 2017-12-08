@@ -70,9 +70,7 @@ class TestSubscriptionsBase(DSSAssertMixin):
         logger.debug("Setting up Elasticsearch")
         es_client = ElasticsearchClient.get(logger)
         elasticsearch_delete_index(f"*{IndexSuffix.name}")
-        index_shape_identifier = index_document.get_index_shape_identifier()
-        self.index_name = dss.Config.get_es_index_name(dss.ESIndexType.docs, self.replica, index_shape_identifier)
-        create_elasticsearch_index(self.index_name, self.replica.name, logger)
+        self.index_name = index_document.prepare_index()
 
         self.callback_url = "https://example.com"
         self.sample_percolate_query = smartseq2_paired_ends_v2_or_v3_query
