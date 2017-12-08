@@ -22,7 +22,7 @@ sys.path.insert(0, pkg_root)  # noqa
 import dss
 from dss.api.search import _es_search_page
 from copy import deepcopy
-from dss.config import IndexSuffix
+from dss.config import IndexSuffix, Replica
 from dss.events.handlers.index import create_elasticsearch_index
 from dss.util.es import ElasticsearchServer, ElasticsearchClient
 from tests import get_version
@@ -59,7 +59,7 @@ class TestSearchBase(DSSAssertMixin):
     def search_setup(cls, replica):
         cls.app = ThreadedLocalServer()
         cls.app.start()
-        cls.replica_name = replica.name
+        cls.replica = replica
         dss.Config.set_config(dss.BucketConfig.TEST)
         cls.dss_alias_name = dss.Config.get_es_alias_name(dss.ESIndexType.docs, replica)
         cls.dss_index_name = "search-unittest"
@@ -73,15 +73,15 @@ class TestSearchBase(DSSAssertMixin):
     def setUp(self):
         dss.Config.set_config(dss.BucketConfig.TEST)
         elasticsearch_delete_index(f"*{IndexSuffix.name}")
-        create_elasticsearch_index(self.dss_index_name, self.replica_name, logger)
+        create_elasticsearch_index(self.dss_index_name, self.replica, logger)
 
     def test_es_search_page(self):
         """Confirm that elasaticsearch is returning _source info only when necessary."""
         self.populate_search_index(self.index_document, 1)
         self.check_count(smartseq2_paired_ends_v3_query, 1)
-        page = _es_search_page(smartseq2_paired_ends_v3_query, self.replica_name, 10, None, 'raw')
+        page = _es_search_page(smartseq2_paired_ends_v3_query, self.replica.name, 10, None, 'raw')
         self.assertTrue('_source' in page['hits']['hits'][0])
-        page = _es_search_page(smartseq2_paired_ends_v3_query, self.replica_name, 10, None, 'something')
+        page = _es_search_page(smartseq2_paired_ends_v3_query, self.replica.name, 10, None, 'something')
         self.assertFalse('_source' in page['hits']['hits'][0])
 
     def test_search_post(self):
@@ -338,7 +338,7 @@ class TestSearchBase(DSSAssertMixin):
             index_document['manifest']['version'] = version
             bundle_id = f"{bundle_uuid}.{version}"
             bundle_url = (f"https://127.0.0.1:{self.app._port}"
-                          f"/v1/bundles/{bundle_uuid}?version={version}&replica={self.replica_name}")
+                          f"/v1/bundles/{bundle_uuid}?version={version}&replica={self.replica.name}")
             es_client.index(index=self.dss_alias_name,
                             doc_type=ESDocType.doc.name,
                             id=bundle_id,
@@ -347,7 +347,7 @@ class TestSearchBase(DSSAssertMixin):
         return bundles
 
     def build_url(self, url_params=None):
-        url = UrlBuilder().set(path="/v1/search").add_query("replica", self.replica_name)
+        url = UrlBuilder().set(path="/v1/search").add_query("replica", self.replica.name)
         if url_params:
             for param in url_params:
                 url = url.add_query(param, url_params[param])
@@ -368,7 +368,7 @@ class TestSearchBase(DSSAssertMixin):
         parsed_url = urlparse(next_url)
         self.assertEqual(parsed_url.path, "/v1/search")
         parsed_q = parse_qs(parsed_url.query)
-        self.assertEqual(parsed_q['replica'], [self.replica_name])
+        self.assertEqual(parsed_q['replica'], [self.replica.name])
         self.assertIn('_scroll_id', parsed_q.keys())
         self.assertEqual(parsed_q['per_page'], [str(per_page)])
         self.assertEqual(parsed_q['output_format'], ['summary'])
