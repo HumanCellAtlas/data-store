@@ -80,7 +80,7 @@ class BundleDocument(dict):
 
     @classmethod
     def from_bucket(cls, replica: Replica, bucket_name: str, key: str, logger):  # TODO: return type hint
-        self = cls(replica, cls.get_bundle_id_from_key(key), logger)
+        self = cls(replica, cls._get_bundle_id_from_key(key), logger)
         handle = Config.get_cloud_specific_handles(replica.name)[0]
         self['manifest'] = self._read_bundle_manifest(handle, bucket_name, key)
         self['files'] = self._read_file_infos(handle, bucket_name)
@@ -201,7 +201,7 @@ class BundleDocument(dict):
             return None  # No files with schema identifiers were found
 
     @staticmethod
-    def get_bundle_id_from_key(bundle_key: str) -> str:
+    def _get_bundle_id_from_key(bundle_key: str) -> str:
         bundle_prefix = "bundles/"
         if bundle_key.startswith(bundle_prefix):
             return bundle_key[len(bundle_prefix):]
@@ -226,13 +226,13 @@ class BundleDocument(dict):
         try:
             current_mappings = es_client.indices.get_mapping(index_name)[index_name]['mappings']
             if initial_mappings != current_mappings:
-                self.refresh_percolate_queries(index_name)
+                self._refresh_percolate_queries(index_name)
         except Exception as ex:
             self.logger.error("Error refreshing subscription queries for index. Exception: %s, Index name: %s",
                               ex, index_name)
             raise
 
-    def refresh_percolate_queries(self, index_name: str) -> None:
+    def _refresh_percolate_queries(self, index_name: str) -> None:
         # When dynamic templates are used and queries for percolation have been added
         # to an index before the index contains mappings of fields referenced by those queries,
         # the queries must be reloaded when the mappings are present for the queries to match.
