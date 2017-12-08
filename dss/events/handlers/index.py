@@ -51,7 +51,7 @@ def process_new_indexable_object(bucket_name: str, key: str, replica: Replica, l
         logger.info(f"Received {replica} creation event for bundle which will be indexed: {key}")
         document = BundleDocument.from_bucket(replica, bucket_name, key, logger)
         index_name = document.prepare_index()
-        document.add_data_to_elasticsearch(index_name)
+        document.add_to_index(index_name)
         document.notify_subscriptions(index_name)
         logger.debug(f"Finished index processing of {replica} creation event for bundle: {key}")
     else:
@@ -207,11 +207,11 @@ class BundleDocument(dict):
             return bundle_key[len(bundle_prefix):]
         raise Exception(f"This is not a key for a bundle: {bundle_key}")
 
-    def add_data_to_elasticsearch(self, index_name: str) -> None:
+    def add_to_index(self, index_name: str) -> None:
         es_client = ElasticsearchClient.get(self.logger)
         try:
             self.logger.debug("Adding index data to Elasticsearch index '%s': %s", index_name,
-                              json.dumps(self, indent=4))  # noqa
+                              json.dumps(self, indent=4))
             initial_mappings = es_client.indices.get_mapping(index_name)[index_name]['mappings']
             es_client.index(index=index_name,
                             doc_type=ESDocType.doc.name,
