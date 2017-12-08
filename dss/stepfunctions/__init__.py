@@ -56,13 +56,8 @@ def step_functions_describe_execution(state_machine_name_template: str, executio
     """
     Return description of a step function execution, possible in-progress, completed, errored, etc.
     """
-
     execution_arn = step_functions_execution_arn(state_machine_name_template, execution_name)
-
-    resp = stepfunctions.describe_execution(
-        executionArn=execution_arn
-    )
-
+    resp = stepfunctions.describe_execution(executionArn=execution_arn)
     return resp
 
 
@@ -73,14 +68,11 @@ def step_functions_list_executions(
 ) -> typing.Iterable:
     """
     List step function executions, peforming paging in the background.
-    Maximum 100 results per page.
     """
 
     state_machine_arn = step_functions_arn(state_machine_name_template)
 
-    kwargs = dict(
-        stateMachineArn=state_machine_arn,
-    )
+    kwargs = dict(stateMachineArn=state_machine_arn)
 
     if k_results_per_page is not None:
         kwargs['maxResults'] = k_results_per_page
