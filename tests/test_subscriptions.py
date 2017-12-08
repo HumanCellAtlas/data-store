@@ -65,7 +65,7 @@ class TestSubscriptionsBase(DSSAssertMixin):
         dss.Config.set_config(dss.BucketConfig.TEST)
 
         with open(os.path.join(os.path.dirname(__file__), "sample_v3_index_doc.json"), "r") as fh:
-            index_document = BundleDocument.from_json(self.replica.name, 'uuid.version', json.load(fh), logger)
+            index_document = BundleDocument.from_json(self.replica, 'uuid.version', json.load(fh), logger)
 
         logger.debug("Setting up Elasticsearch")
         es_client = ElasticsearchClient.get(logger)

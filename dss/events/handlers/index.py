@@ -29,7 +29,7 @@ def process_new_s3_indexable_object(event, logger) -> None:
         # This function is only called for S3 creation events
         key = unquote(event['Records'][0]["s3"]["object"]["key"])
         bucket_name = event['Records'][0]["s3"]["bucket"]["name"]
-        process_new_indexable_object(bucket_name, key, "aws", logger)
+        process_new_indexable_object(bucket_name, key, Replica.aws, logger)
     except Exception as ex:
         logger.error("Exception occurred while processing S3 event: %s Event: %s", ex, json.dumps(event, indent=4))
         raise
@@ -40,13 +40,13 @@ def process_new_gs_indexable_object(event, logger) -> None:
         # This function is only called for GS creation events
         bucket_name = event["bucket"]
         key = event["name"]
-        process_new_indexable_object(bucket_name, key, "gcp", logger)
+        process_new_indexable_object(bucket_name, key, Replica.gcp, logger)
     except Exception as ex:
         logger.error("Exception occurred while processing GS event: %s Event: %s", ex, json.dumps(event, indent=4))
         raise
 
 
-def process_new_indexable_object(bucket_name: str, key: str, replica: str, logger) -> None:
+def process_new_indexable_object(bucket_name: str, key: str, replica: Replica, logger) -> None:
     if is_bundle_to_index(key):
         logger.info(f"Received {replica} creation event for bundle which will be indexed: {key}")
         document = BundleDocument.from_bucket(replica, bucket_name, key, logger)
@@ -72,23 +72,23 @@ class BundleDocument(dict):
     An instance of this class represents the Elasticsearch document for a given bundle.
     """
 
-    def __init__(self, replica: str, bundle_id: str, logger: logging.Logger) -> None:
+    def __init__(self, replica: Replica, bundle_id: str, logger: logging.Logger) -> None:
         super().__init__()
         self.logger = logger
         self.replica = replica
         self.bundle_id = bundle_id
 
     @classmethod
-    def from_bucket(cls, replica: str, bucket_name: str, key: str, logger):  # TODO: return type hint
+    def from_bucket(cls, replica: Replica, bucket_name: str, key: str, logger):  # TODO: return type hint
         self = cls(replica, cls.get_bundle_id_from_key(key), logger)
-        handle = Config.get_cloud_specific_handles(replica)[0]
+        handle = Config.get_cloud_specific_handles(replica.name)[0]
         self['manifest'] = self._read_bundle_manifest(handle, bucket_name, key)
         self['files'] = self._read_file_infos(handle, bucket_name)
         self['state'] = 'new'
         return self
 
     @classmethod
-    def from_json(cls, replica: str, bundle_id: str, bundle_json: dict, logger):  # TODO: return type hint
+    def from_json(cls, replica: Replica, bundle_id: str, bundle_json: dict, logger):  # TODO: return type hint
         self = cls(replica, bundle_id, logger)
         self.update(bundle_json)
         return self
@@ -152,7 +152,7 @@ class BundleDocument(dict):
 
     def prepare_index(self):
         index_shape_identifier = self.get_index_shape_identifier()
-        index_name = Config.get_es_index_name(ESIndexType.docs, Replica[self.replica], index_shape_identifier)
+        index_name = Config.get_es_index_name(ESIndexType.docs, self.replica, index_shape_identifier)
         create_elasticsearch_index(index_name, self.replica, self.logger)
         return index_name
 
@@ -234,7 +234,7 @@ class BundleDocument(dict):
         # to an index before the index contains mappings of fields referenced by those queries,
         # the queries must be reloaded when the mappings are present for the queries to match.
         # See: https://github.com/elastic/elasticsearch/issues/5750
-        subscription_index_name = Config.get_es_index_name(ESIndexType.subscriptions, Replica[self.replica])
+        subscription_index_name = Config.get_es_index_name(ESIndexType.subscriptions, self.replica)
         es_client = ElasticsearchClient.get(self.logger)
         if not es_client.indices.exists(subscription_index_name):
             return
@@ -298,7 +298,7 @@ class BundleDocument(dict):
             }
         }
         response = ElasticsearchClient.get(self.logger).search(
-            index=Config.get_es_index_name(ESIndexType.subscriptions, Replica[self.replica]),
+            index=Config.get_es_index_name(ESIndexType.subscriptions, self.replica),
             body=subscription_query)
         if len(response['hits']['hits']) == 1:
             return response['hits']['hits'][0]['_source']
@@ -349,14 +349,14 @@ class BundleDocument(dict):
                                 f"Code: {response.status_code}")
 
 
-def create_elasticsearch_index(index_name: str, replica, logger: logging.Logger):
+def create_elasticsearch_index(index_name: str, replica: Replica, logger: logging.Logger):
     es_client = ElasticsearchClient.get(logger)
     if not es_client.indices.exists(index_name):
         with open(os.path.join(os.path.dirname(__file__), "mapping.json"), "r") as fh:
             index_mapping = json.load(fh)
         index_mapping["mappings"][ESDocType.doc.name] = index_mapping["mappings"].pop("doc")
         index_mapping["mappings"][ESDocType.query.name] = index_mapping["mappings"].pop("query")
-        alias_name = Config.get_es_alias_name(ESIndexType.docs, Replica[replica])
+        alias_name = Config.get_es_alias_name(ESIndexType.docs, replica)
         create_elasticsearch_doc_index(es_client, index_name, alias_name, logger, index_mapping)
     else:
         logger.debug(f"Using existing Elasticsearch index: {index_name}")

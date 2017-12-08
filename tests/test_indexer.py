@@ -24,7 +24,7 @@ sys.path.insert(0, pkg_root)  # noqa
 
 import dss
 from dss import Config, BucketConfig, DeploymentStage
-from dss.config import IndexSuffix
+from dss.config import IndexSuffix, Replica
 from dss.events.handlers.index import process_new_s3_indexable_object, process_new_gs_indexable_object, BundleDocument
 from dss.hcablobstore import BundleMetadata, BundleFileMetadata, FileMetadata
 from dss.util import create_blob_key, networking, UrlBuilder
@@ -205,7 +205,7 @@ class TestIndexerBase(DSSAssertMixin, DSSStorageMixin, DSSUploadMixin):
 
     def test_notify(self):
         def _notify(subscription, bundle_id="i.v"):
-            document = BundleDocument.from_json(self.replica, bundle_id, {}, logger)
+            document = BundleDocument.from_json(Replica[self.replica], bundle_id, {}, logger)
             document.notify(subscription_id=subscription["id"], subscription=subscription)
         with self.assertRaisesRegex(requests.exceptions.InvalidURL, "Invalid URL 'http://': No host supplied"):
             _notify(subscription=dict(id="", es_query={}, callback_url="http://"))
