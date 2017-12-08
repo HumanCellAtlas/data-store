@@ -33,6 +33,8 @@ def step_functions_execution_arn(state_machine_name_template: str, execution_nam
     state_machine_execution_arn = f"arn:aws:states:{region}:{accountid}:execution:{sfn_name}:{execution_name}"
     return state_machine_execution_arn
 
+from ..util import aws
+
 
 def step_functions_invoke(state_machine_name_template: str, execution_name: str, input) -> typing.Any:
     """

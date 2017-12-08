@@ -25,7 +25,7 @@ sys.path.insert(0, pkg_root)  # noqa
 import dss
 from dss import Config, BucketConfig, DeploymentStage
 from dss.config import IndexSuffix
-from dss.events.handlers.index import process_new_s3_indexable_object, process_new_gs_indexable_object, notify
+from dss.events.handlers.index import process_new_s3_indexable_object, process_new_gs_indexable_object, BundleDocument
 from dss.hcablobstore import BundleMetadata, BundleFileMetadata, FileMetadata
 from dss.util import create_blob_key, networking, UrlBuilder
 from dss.util.es import ElasticsearchClient, ElasticsearchServer
@@ -138,9 +138,9 @@ class TestIndexerBase(DSSAssertMixin, DSSStorageMixin, DSSUploadMixin):
         with self.assertLogs(logger, level="WARNING") as log_monitor:
             self.process_new_indexable_object(sample_event, logger)
         self.assertRegex(log_monitor.output[0],
-                         "WARNING:.*:In bundle .* the file \"text_data_file1.txt\" is marked for indexing"
-                         " yet has content type \"text/plain\" instead of the required"
-                         " content type \"application/json\". This file will not be indexed.")
+                         "WARNING:.*:In bundle .* the file 'text_data_file1.txt' is marked for indexing"
+                         " yet has content type 'text/plain' instead of the required"
+                         " content type 'application/json'. This file will not be indexed.")
         search_results = self.get_search_results(self.smartseq2_paired_ends_query, 1)
         self.assertEqual(1, len(search_results))
         self.verify_index_document_structure_and_content(search_results[0], bundle_key,
@@ -178,7 +178,7 @@ class TestIndexerBase(DSSAssertMixin, DSSStorageMixin, DSSUploadMixin):
         with self.assertLogs(logger, level="WARNING") as log_monitor:
             self.process_new_indexable_object(sample_event, logger)
         self.assertRegex(log_monitor.output[0],
-                         "WARNING:.*:In bundle .* the file \"unparseable_json.json\" is marked for indexing"
+                         "WARNING:.*:In bundle .* the file 'unparseable_json.json' is marked for indexing"
                          " yet could not be parsed. This file will not be indexed. Exception:")
         search_results = self.get_search_results(self.smartseq2_paired_ends_query, 1)
         self.assertEqual(1, len(search_results))
@@ -193,7 +193,7 @@ class TestIndexerBase(DSSAssertMixin, DSSStorageMixin, DSSUploadMixin):
         with self.assertLogs(logger, level="WARNING") as log_monitor:
             self.process_new_indexable_object(sample_event, logger)
         self.assertRegex(log_monitor.output[0],
-                         f"WARNING:.*:In bundle .* the file \"{inaccesssible_filename}\" is marked for indexing"
+                         f"WARNING:.*:In bundle .* the file '{inaccesssible_filename}' is marked for indexing"
                          " yet could not be accessed. This file will not be indexed. Exception: .*, File blob key:")
         search_results = self.get_search_results(self.smartseq2_paired_ends_query, 1)
         self.assertEqual(1, len(search_results))
@@ -205,7 +205,8 @@ class TestIndexerBase(DSSAssertMixin, DSSStorageMixin, DSSUploadMixin):
 
     def test_notify(self):
         def _notify(subscription, bundle_id="i.v"):
-            notify(subscription_id=subscription["id"], subscription=subscription, bundle_id=bundle_id, logger=logger)
+            document = BundleDocument.from_json(self.replica, bundle_id, {}, logger)
+            document.notify(subscription_id=subscription["id"], subscription=subscription)
         with self.assertRaisesRegex(requests.exceptions.InvalidURL, "Invalid URL 'http://': No host supplied"):
             _notify(subscription=dict(id="", es_query={}, callback_url="http://"))
         with self.assertRaisesRegex(AssertionError, "Unexpected scheme for callback URL"):
@@ -330,8 +331,7 @@ class TestIndexerBase(DSSAssertMixin, DSSStorageMixin, DSSUploadMixin):
         self.delete_subscription(subscription_id)
 
     def test_get_index_shape_identifier(self):
-        from dss.events.handlers.index import get_index_shape_identifier
-        index_document = {
+        index_document = BundleDocument.from_json(self.replica, 'uuid.version', {
             'files': {
                 'assay_json': {
                     'core': {
@@ -348,31 +348,31 @@ class TestIndexerBase(DSSAssertMixin, DSSStorageMixin, DSSUploadMixin):
                     }
                 }
             }
-        }
+        }, logger)
         with self.subTest("Same major version."):
-            self.assertEqual(get_index_shape_identifier(index_document, logger), "v3")
+            self.assertEqual(index_document.get_index_shape_identifier(), "v3")
 
         index_document['files']['assay_json']['core']['schema_version'] = "4.0.0"
         with self.subTest("Mixed/inconsistent metadata schema release versions in the same bundle"):
             with self.assertRaisesRegex(AssertionError,
                                         "The bundle contains mixed schema major version numbers: \['3', '4'\]"):
-                get_index_shape_identifier(index_document, logger)
+                index_document.get_index_shape_identifier()
 
         index_document['files']['sample_json']['core']['schema_version'] = "4.0.0"
         with self.subTest("Consistent versions, with a different version value"):
-            self.assertEqual(get_index_shape_identifier(index_document, logger), "v4")
+            self.assertEqual(index_document.get_index_shape_identifier(), "v4")
 
         index_document['files']['assay_json'].pop('core')
         with self.subTest("An version file and unversioned file"):
             with self.assertLogs(logger, level="INFO") as log_monitor:
-                get_index_shape_identifier(index_document, logger)
+                index_document.get_index_shape_identifier()
             self.assertRegex(log_monitor.output[0], ("INFO:.*File assay_json does not contain a 'core' section "
                                                      "to identify the schema and schema version."))
-            self.assertEqual(get_index_shape_identifier(index_document, logger), "v4")
+            self.assertEqual(index_document.get_index_shape_identifier(), "v4")
 
         index_document['files']['sample_json'].pop('core')
         with self.subTest("no versioned file"):
-            self.assertEqual(get_index_shape_identifier(index_document, logger), None)
+            self.assertEqual(index_document.get_index_shape_identifier(), None)
 
     def test_alias_and_versioned_index_exists(self):
         sample_event = self.create_sample_bundle_created_event(self.bundle_key)

@@ -52,6 +52,7 @@ GOOGLE_APPLICATION_SECRETS="${DSS_HOME}/application_secrets.json"
 API_HOST=dss.dev.data.humancellatlas.org
 TOKENINFO_URL=https://${API_HOST}/internal/tokeninfo
 NOTIFY_URL=https://${API_HOST}/internal/notify
+SWAGGER_URL=https://${API_HOST}/v1/swagger.json
 DSS_SUBSCRIPTION_AUTHORIZED_DOMAINS_ARRAY=(
     chanzuckerberg.com
     ucsc.edu

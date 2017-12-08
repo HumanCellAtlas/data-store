@@ -42,6 +42,7 @@ clean:
 	git clean -Xdf chalice daemons $(MODULES)
 	git clean -df {chalice,daemons/*}/{chalicelib,domovoilib,vendor}
 	git checkout $$(git status --porcelain {chalice,daemons/*}/.chalice/config.json | awk '{print $$2}')
+	-rm -rf .requirements-env
 
 refresh_all_requirements:
 	@echo -n '' >| requirements.txt
