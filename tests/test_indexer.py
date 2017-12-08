@@ -206,7 +206,7 @@ class TestIndexerBase(DSSAssertMixin, DSSStorageMixin, DSSUploadMixin):
     def test_notify(self):
         def _notify(subscription, bundle_id="i.v"):
             document = BundleDocument.from_json(Replica[self.replica], bundle_id, {}, logger)
-            document.notify(subscription_id=subscription["id"], subscription=subscription)
+            document.notify_subscriber(subscription=subscription)
         with self.assertRaisesRegex(requests.exceptions.InvalidURL, "Invalid URL 'http://': No host supplied"):
             _notify(subscription=dict(id="", es_query={}, callback_url="http://"))
         with self.assertRaisesRegex(AssertionError, "Unexpected scheme for callback URL"):
