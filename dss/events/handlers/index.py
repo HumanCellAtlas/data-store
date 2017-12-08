@@ -52,7 +52,7 @@ def process_new_indexable_object(bucket_name: str, key: str, replica: Replica, l
         document = BundleDocument.from_bucket(replica, bucket_name, key, logger)
         index_name = document.prepare_index()
         document.add_to_index(index_name)
-        document.notify_subscriptions(index_name)
+        document.notify_matching_subscribers(index_name)
         logger.debug(f"Finished index processing of {replica} creation event for bundle: {key}")
     else:
         logger.debug(f"Not indexing {replica} creation event for key: {key}")
@@ -259,9 +259,9 @@ class BundleDocument(dict):
                 self.logger.error("Error occurred when adding subscription queries to index %s Errors: %s",
                                   index_name, ex.errors)
 
-    def notify_subscriptions(self, index_name):
+    def notify_matching_subscribers(self, index_name):
         subscriptions = self.find_matching_subscriptions(index_name)
-        self.process_notifications(subscriptions)
+        self.notify_subscribers(subscriptions)
 
     def find_matching_subscriptions(self, index_name: str) -> set:
         percolate_document = {
@@ -281,17 +281,17 @@ class BundleDocument(dict):
         self.logger.debug("Found matching subscription count: %i", len(subscription_ids))
         return subscription_ids
 
-    def process_notifications(self, subscription_ids: set) -> None:
+    def notify_subscribers(self, subscription_ids: set) -> None:
         for subscription_id in subscription_ids:
             try:
                 # TODO Batch this request
-                subscription = self.get_subscription(subscription_id)
-                self.notify(subscription_id, subscription)
-            except Exception as ex:
-                self.logger.error("Error occurred while processing subscription %s for bundle %s. %s",
-                                  subscription_id, self.bundle_id, ex)
+                subscription = self._get_subscription(subscription_id)
+                self.notify_subscriber(subscription)
+            except Exception:
+                self.logger.error("Error occurred while processing subscription %s for bundle %s.",
+                                  subscription_id, self.bundle_id, exc_info=True)
 
-    def get_subscription(self, subscription_id: str):
+    def _get_subscription(self, subscription_id: str) -> dict:
         subscription_query = {
             'query': {
                 'ids': {
@@ -303,10 +303,17 @@ class BundleDocument(dict):
         response = ElasticsearchClient.get(self.logger).search(
             index=Config.get_es_index_name(ESIndexType.subscriptions, self.replica),
             body=subscription_query)
-        if len(response['hits']['hits']) == 1:
-            return response['hits']['hits'][0]['_source']
+        hits = response['hits']['hits']
+        assert len(hits) == 1
+        hit = hits[0]
+        assert hit['_id'] == subscription_id
+        subscription = hit['_source']
+        assert 'id' not in subscription
+        subscription['id'] = subscription_id
+        return subscription
 
-    def notify(self, subscription_id: str, subscription: dict):
+    def notify_subscriber(self, subscription: dict):
+        subscription_id = subscription['id']
         # FIXME: (hannes) brittle coupling with regex in is_bundle_to_index
         bundle_uuid, _, bundle_version = self.bundle_id.partition(".")
         transaction_id = str(uuid.uuid4())
