@@ -66,9 +66,13 @@ def step_functions_describe_execution(state_machine_name_template: str, executio
     return resp
 
 
-def step_functions_list_executions(state_machine_name_template: str, k_results_per_page: int=None) -> typing.Iterable:
+def step_functions_list_executions(
+    state_machine_name_template: str,
+    status_filter: str=None,
+    k_results_per_page: int=None
+) -> typing.Iterable:
     """
-    List step function executions, performing paging in the background.
+    List step function executions, peforming paging in the background.
     Maximum 100 results per page.
     """
 
@@ -80,6 +84,9 @@ def step_functions_list_executions(state_machine_name_template: str, k_results_p
 
     if k_results_per_page is not None:
         kwargs['maxResults'] = k_results_per_page
+
+    if status_filter is not None:
+        kwargs['statusFilter'] = status_filter
 
     paginator = stepfunctions.get_paginator('list_executions')
     page_iterator = paginator.paginate(**kwargs)
