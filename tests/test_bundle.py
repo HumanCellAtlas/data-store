@@ -28,6 +28,7 @@ from dss.util.version import datetime_to_version_format
 from dss.util.bundles import get_bundle_from_bucket
 from tests.infra import DSSAssertMixin, DSSUploadMixin, get_env, ExpectedErrorFields
 from tests.infra.server import ThreadedLocalServer
+from tests import get_auth_header
 
 
 class TestDSS(unittest.TestCase, DSSAssertMixin, DSSUploadMixin):
@@ -243,10 +244,12 @@ class TestDSS(unittest.TestCase, DSSAssertMixin, DSSUploadMixin):
             )
 
     def test_bundle_delete(self):
-        self._test_bundle_delete("aws", self.s3_test_fixtures_bucket)
-        self._test_bundle_delete("gcp", self.gs_test_fixtures_bucket)
+        self._test_bundle_delete("aws", self.s3_test_fixtures_bucket, True)
+        self._test_bundle_delete("gcp", self.gs_test_fixtures_bucket, True)
+        self._test_bundle_delete("aws", self.s3_test_fixtures_bucket, False)
+        self._test_bundle_delete("gcp", self.gs_test_fixtures_bucket, False)
 
-    def _test_bundle_delete(self, replica: str, fixtures_bucket: str):
+    def _test_bundle_delete(self, replica: str, fixtures_bucket: str, authorized: bool):
         schema = self._get_schema(replica)
 
         # prep existing bundle
@@ -269,10 +272,14 @@ class TestDSS(unittest.TestCase, DSSAssertMixin, DSSUploadMixin):
         )
 
         handle, _, bucket = Config.get_cloud_specific_handles(replica)
-        self.delete_bundle(replica, bundle_uuid)
-        self.assertTrue(test_object_exists(handle, bucket, f"bundles/{bundle_uuid}.dead"))
-        self.delete_bundle(replica, bundle_uuid, bundle_version)
-        self.assertTrue(test_object_exists(handle, bucket, f"bundles/{bundle_uuid}.{bundle_version}.dead"))
+
+        self.delete_bundle(replica, bundle_uuid, authorized=authorized)
+        tombstone_exists = test_object_exists(handle, bucket, f"bundles/{bundle_uuid}.dead")
+        self.assertEquals(tombstone_exists, authorized)
+
+        self.delete_bundle(replica, bundle_uuid, bundle_version, authorized=authorized)
+        tombstone_exists = test_object_exists(handle, bucket, f"bundles/{bundle_uuid}.{bundle_version}.dead")
+        self.assertEquals(tombstone_exists, authorized)
 
     def test_no_replica(self):
         """
@@ -364,10 +371,8 @@ class TestDSS(unittest.TestCase, DSSAssertMixin, DSSUploadMixin):
             files: typing.Iterable[typing.Tuple[str, str, str]],
             bundle_version: typing.Optional[str] = None,
             expected_code: int = requests.codes.created):
-        builder = (UrlBuilder()
-                   .set(path="/v1/bundles/" + bundle_uuid)
-                   .add_query("replica", replica))
-        if bundle_version is not None:
+        builder = UrlBuilder().set(path="/v1/bundles/" + bundle_uuid).add_query("replica", replica)
+        if bundle_version:
             builder.add_query("version", bundle_version)
         url = str(builder)
 
@@ -403,25 +408,28 @@ class TestDSS(unittest.TestCase, DSSAssertMixin, DSSUploadMixin):
             replica: str,
             bundle_uuid: str,
             bundle_version: typing.Optional[str] = None,
-            reason: typing.Optional[str] = None,
-            expected_code: int = requests.codes.created):
+            authorized: bool = True):
         # make delete request
         url_builder = UrlBuilder().set(path="/v1/bundles/" + bundle_uuid).add_query('replica', replica)
         if bundle_version:
             url_builder = url_builder.add_query('version', bundle_version)
         url = str(url_builder)
 
-        json_request_body = dict(creator_uid=12345)  # type: dict
+        json_request_body = dict(reason="reason")
         if bundle_version:
             json_request_body['version'] = bundle_version
-        if reason:
-            json_request_body['reason'] = reason
+
+        dir_path = os.path.dirname(os.path.realpath(__file__))
+
+        auth_header = get_auth_header(filepath=None if authorized else f"{dir_path}/../gcp-credentials-bogus.json")
+        expected_code = requests.codes.ok if authorized else requests.codes.forbidden
 
         # delete and check results
         return self.assertDeleteResponse(
             url,
             expected_code,
             json_request_body=json_request_body,
+            headers=auth_header,
         )
 
     @staticmethod

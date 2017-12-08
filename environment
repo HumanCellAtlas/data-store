@@ -49,6 +49,7 @@ DSS_GS_BUCKET_PROD=org-humancellatlas-dss-prod
 DSS_NOTIFICATION_SENDER="DSS Notifier <noreply@humancellatlas.org>"
 GOOGLE_APPLICATION_CREDENTIALS="${DSS_HOME}/gcp-credentials.json"
 GOOGLE_APPLICATION_SECRETS="${DSS_HOME}/application_secrets.json"
+ADMIN_USER_EMAILS=`jq ".client_email" ${GOOGLE_APPLICATION_CREDENTIALS} | sed 's/"//g'`
 API_HOST=dss.dev.data.humancellatlas.org
 TOKENINFO_URL=https://${API_HOST}/internal/tokeninfo
 NOTIFY_URL=https://${API_HOST}/internal/notify

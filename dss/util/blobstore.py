@@ -1,23 +1,35 @@
 from cloud_blobstore import BlobStore
 from cloud_blobstore import BlobNotFoundError
+from enum import Enum, auto
 
 
-def test_object_exists(handle: BlobStore, bucket: str, criteria: str, test_type: str = 'exact') -> bool:
+class ObjectTest(Enum):
+    EXACT = auto()
+    PREFIX = auto()
+
+
+def test_object_exists(blobstore: BlobStore, bucket: str, match: str, test_type: ObjectTest = ObjectTest.EXACT) -> bool:
     """
-    Returns true if objects exist for the given prefix or name in the given bucket
+    Test if an object exists in the BlobStore
+    :param blobstore: the blobstore to check
+    :param bucket: the bucket to check in the blobstore
+    :param match: the string to match against; this is _not_ a regex pattern, strings must match exactly
+    :param test_type: the type of test to conduct, prefix matches test if the object name starts with the match string,
+        exact matches must match the full string
+    :return: test bool
     """
-    if test_type == 'prefix':
+    if test_type == ObjectTest.PREFIX:
         try:
-            handle.list(bucket, prefix=criteria).__iter__().__next__()
+            blobstore.list(bucket, prefix=match).__iter__().__next__()
         except StopIteration:
             return False
         else:
             return True
-    elif test_type == 'exact':
+    elif test_type == ObjectTest.EXACT:
         try:
-            handle.get_user_metadata(bucket, criteria)
+            blobstore.get_user_metadata(bucket, match)
             return True
         except BlobNotFoundError:
             return False
     else:
-        raise Exception(f"Not a valid storage object test type: " + test_type)
+        raise ValueError(f"Not a valid storage object test type: " + test_type.name)

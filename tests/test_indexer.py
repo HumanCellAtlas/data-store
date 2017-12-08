@@ -28,7 +28,7 @@ from dss.config import IndexSuffix, ESDocType, Replica
 from dss.events.handlers.index import AWSIndexHandler, GCPIndexHandler, BundleDocument, create_elasticsearch_index
 from dss.hcablobstore import BundleMetadata, BundleFileMetadata, FileMetadata
 from dss.util import create_blob_key, networking, UrlBuilder
-from dss.util.bundles import bundle_key_to_bundle_fqid
+from dss.storage.bundles import bundle_key_to_bundle_fqid
 from dss.util.es import ElasticsearchClient, ElasticsearchServer
 from dss.util.version import datetime_to_version_format
 from dss.events.handlers.index import DSS_OBJECT_NAME_REGEX, DSS_BUNDLE_KEY_REGEX
@@ -39,7 +39,7 @@ from tests.infra.server import ThreadedLocalServer
 from tests.sample_search_queries import (smartseq2_paired_ends_v2_query, smartseq2_paired_ends_v3_query,
                                          smartseq2_paired_ends_v2_or_v3_query)
 
-from tests import eventually
+from tests import eventually, get_bundle_fqid
 
 # The moto mock has two defects that show up when used by the dss core storage system.
 # Use actual S3 until these defects are fixed in moto.
@@ -154,7 +154,9 @@ class TestIndexerBase(DSSAssertMixin, DSSStorageMixin, DSSUploadMixin):
         bundle_uuid, version = DSS_OBJECT_NAME_REGEX.search(deletion_object_name).groups()
         # set the tombstone
         blobstore, _, bucket = Config.get_cloud_specific_handles(self.replica)
-        blobstore.upload_file_handle(bucket, deletion_object_name, io.BytesIO(b"{}"))
+        tombstone_data = {"status": "disappeared"}
+        tombstone_data_bytes = io.BytesIO(bytes(json.dumps(tombstone_data), encoding="utf-8"))
+        blobstore.upload_file_handle(bucket, deletion_object_name, tombstone_data_bytes)
 
         # send the
         sample_event = self.create_sample_bundle_created_event(self.bundle_key)
@@ -182,7 +184,7 @@ class TestIndexerBase(DSSAssertMixin, DSSStorageMixin, DSSUploadMixin):
                 }
                 search_results = self.get_search_results(exact_query, 1)
                 self.assertEqual(1, len(search_results))
-                self.assertEqual(search_results[0], {})
+                self.assertEqual(search_results[0], tombstone_data)
 
         _deletion_results_test()
 
@@ -391,7 +393,7 @@ class TestIndexerBase(DSSAssertMixin, DSSStorageMixin, DSSUploadMixin):
         self.delete_subscription(subscription_id)
 
     def test_get_shape_descriptor(self):
-        index_document = BundleDocument.from_json(self.replica, 'uuid.version', {
+        index_document = BundleDocument.from_json(self.replica, get_bundle_fqid(), {
             'files': {
                 'assay_json': {
                     'core': {

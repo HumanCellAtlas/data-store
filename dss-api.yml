@@ -706,6 +706,9 @@ paths:
       summary: Delete a bundle or a specific bundle version
       description: |
         Delete the bundle with the given UUID. This deletion is applied across replicas.
+      security:
+        - googAuth:
+            - https://www.googleapis.com/auth/userinfo.email
       parameters:
         - name: uuid
           in: path
@@ -731,21 +734,17 @@ paths:
           schema:
             type: object
             properties:
-              creator_uid:
-                description: UID of the user issuing the deletion.
-                type: integer
-                pattern: "[A-Za-z0-9]{,50}"
               reason:
                 description: User-friendly reason for the bundle or timestamp-specfic bundle deletion.
                 type: string
             required:
-              - creator_uid
+              - reason
       responses:
         200:
           description: OK
           schema:
             type: object
-        409:
+        default:
           description: Unexpected error
           schema:
             allOf:
@@ -754,18 +753,10 @@ paths:
                 properties:
                   code:
                     type: string
-                    description: |
-                      Machine-readable error code.  The types of return values should not be changed lightly.
-
-                      The code `bundle_tombstone_already_exists` indicates that a tombstone for the bundle or
-                      bundle+version already exists, and has different contents than this request would generate.
-                    enum: [bundle_tombstone_already_exists]
+                    description: Machine-readable error code.  The types of return values should not be changed lightly.
+                    enum: [bundle_tombstone_already_exists, Forbidden]
                 required:
                   - code
-        default:
-          description: Unexpected error
-          schema:
-            $ref: '#/definitions/Error'
   /bundles/{uuid}/checkout:
     post:
       summary: Check out a bundle to HCA-owned cloud storage or user-provided destination
