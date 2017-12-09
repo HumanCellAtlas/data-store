@@ -419,9 +419,6 @@ class TestDSS(unittest.TestCase, DSSAssertMixin, DSSUploadMixin):
         if bundle_version:
             json_request_body['version'] = bundle_version
 
-        dir_path = os.path.dirname(os.path.realpath(__file__))
-
-        auth_header = get_auth_header(filepath=None if authorized else f"{dir_path}/../gcp-credentials-bogus.json")
         expected_code = requests.codes.ok if authorized else requests.codes.forbidden
 
         # delete and check results
@@ -429,7 +426,7 @@ class TestDSS(unittest.TestCase, DSSAssertMixin, DSSUploadMixin):
             url,
             expected_code,
             json_request_body=json_request_body,
-            headers=auth_header,
+            headers=get_auth_header(authorized=authorized),
         )
 
     @staticmethod
