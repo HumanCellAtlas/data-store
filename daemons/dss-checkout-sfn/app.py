@@ -2,7 +2,6 @@ import os
 import sys
 
 import domovoi
-import logging
 
 pkg_root = os.path.abspath(os.path.join(os.path.dirname(__file__), 'domovoilib'))  # noqa
 sys.path.insert(0, pkg_root)  # noqa
@@ -19,22 +18,16 @@ from dss.util.checkout import (parallel_copy, get_dst_bundle_prefix, get_manifes
                                validate_file_dst, pre_exec_validate)
 
 app = domovoi.Domovoi()
-logger = dss.get_logger()
 
 dss.Config.set_config(dss.BucketConfig.NORMAL)
 email_sender = dss.Config.get_notification_email()
 default_checkout_bucket = dss.Config.get_s3_checkout_bucket()
 replica = "aws"
-DEBUG = False
 
 for client_name, client_class in chained_lambda_clients():
     chainedawslambda.aws.add_client(client_name, client_class)
 
-logger = logging.getLogger()
-if DEBUG:
-    logger.setLevel(logging.DEBUG)
-else:
-    logger.setLevel(logging.INFO)
+logger = dss.get_logger()
 
 @app.step_function_task(state_name="PreExecutionCheck", state_machine_definition=state_machine_def)
 def pre_execution_check(event, context):

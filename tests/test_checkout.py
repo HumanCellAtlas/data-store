@@ -33,8 +33,8 @@ class TestFileApi(unittest.TestCase, DSSAssertMixin, DSSUploadMixin):
     def setUp(self):
         dss.Config.set_config(dss.BucketConfig.TEST)
         self.s3_test_fixtures_bucket = get_env("DSS_S3_BUCKET_TEST_FIXTURES")
-        self.s3_test_checkout_bucket = get_env("DSS_S3_CHECKOUT_BUCKET_TEST")
-        self.s3_test_bucket = get_env("DSS_S3_BUCKET_TEST")
+        self.s3_test_checkout_bucket = get_env("DSS_S3_CHECKOUT_BUCKET")
+        self.s3_test_bucket = get_env("DSS_S3_BUCKET")
 
     def test_sanity_check_valid(self):
         self.launch_checkout(self.s3_test_checkout_bucket)
