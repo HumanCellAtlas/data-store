@@ -2,9 +2,11 @@ import datetime
 import functools
 import time
 
+from dss.util.version import datetime_to_version_format
+
 
 def get_version():
-    return datetime.datetime.utcnow().strftime("%Y-%m-%dT%H%M%S.%fZ")
+    return datetime_to_version_format(datetime.datetime.utcnow())
 
 
 def eventually(timeout: float, interval: float, errors: set={AssertionError}):

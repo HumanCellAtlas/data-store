@@ -10,10 +10,10 @@ from cloud_blobstore import BlobNotFoundError
 from flask import jsonify
 
 from ...util.bundles import get_bundle
+from ...util.version import datetime_to_version_format
 from ... import DSSException, dss_handler
 from ...config import Config
 from ...hcablobstore import BundleFileMetadata, BundleMetadata, FileMetadata
-from ...util import UrlBuilder
 
 
 PUT_TIME_ALLOWANCE_SECONDS = 10
@@ -42,12 +42,8 @@ def post():
 @dss_handler
 def put(uuid: str, replica: str, json_request_body: dict, version: str=None):
     uuid = uuid.lower()
-    if version is not None:
-        # convert it to date-time so we can format exactly as the system requires (with microsecond precision)
-        timestamp = iso8601.parse_date(version)
-    else:
-        timestamp = datetime.datetime.utcnow()
-    version = timestamp.strftime("%Y-%m-%dT%H%M%S.%fZ")
+    version_datetime = datetime.datetime.utcnow() if version is None else iso8601.parse_date(version)
+    version = datetime_to_version_format(version_datetime)
 
     handle, hca_handle, bucket = Config.get_cloud_specific_handles(replica)
 

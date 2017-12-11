@@ -11,6 +11,7 @@ import unittest
 import uuid
 
 import requests
+from dss.util.version import datetime_to_version_format
 
 pkg_root = os.path.abspath(os.path.join(os.path.dirname(__file__), '..'))  # noqa
 sys.path.insert(0, pkg_root)  # noqa
@@ -59,7 +60,7 @@ class TestFileApi(unittest.TestCase, DSSAssertMixin, DSSUploadMixin):
 
         file_uuid = str(uuid.uuid4())
         bundle_uuid = str(uuid.uuid4())
-        version = datetime.datetime.utcnow().strftime("%Y-%m-%dT%H%M%S.%fZ")
+        version = datetime_to_version_format(datetime.datetime.utcnow())
 
         # should be able to do this twice (i.e., same payload, different UUIDs)
         self.upload_file(source_url, file_uuid, bundle_uuid=bundle_uuid, version=version)

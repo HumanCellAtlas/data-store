@@ -6,6 +6,7 @@ import uuid
 import requests
 
 from dss.util import UrlBuilder
+from dss.util.version import datetime_to_version_format
 from .assert_mixin import DSSAssertResponse
 
 
@@ -35,7 +36,7 @@ class DSSUploadMixin:
 
         if file_version is None:
             timestamp = datetime.datetime.utcnow()
-            file_version = timestamp.strftime("%Y-%m-%dT%H%M%S.%fZ")
+            file_version = datetime_to_version_format(timestamp)
         url = UrlBuilder().set(path=f"/v1/files/{file_uuid}")
         url.add_query("version", file_version)
 
