@@ -25,7 +25,7 @@ sys.path.insert(0, pkg_root)  # noqa
 import dss
 from dss import Config, BucketConfig, DeploymentStage
 from dss.config import IndexSuffix, Replica
-from dss.events.handlers.index import process_new_s3_indexable_object, process_new_gs_indexable_object, BundleDocument
+from dss.events.handlers.index import AWSIndexHandler, GCPIndexHandler, BundleDocument
 from dss.hcablobstore import BundleMetadata, BundleFileMetadata, FileMetadata
 from dss.util import create_blob_key, networking, UrlBuilder
 from dss.util.es import ElasticsearchClient, ElasticsearchServer
@@ -599,14 +599,11 @@ class TestIndexerBase(DSSAssertMixin, DSSStorageMixin, DSSUploadMixin):
         raise NotImplemented()
 
 
-class TestAWSIndexer(TestIndexerBase, unittest.TestCase):
+class TestAWSIndexer(AWSIndexHandler, TestIndexerBase, unittest.TestCase):
 
     @classmethod
     def setUpClass(cls):
         super().indexer_setup("aws")
-
-    def process_new_indexable_object(self, event, logger):
-        process_new_s3_indexable_object(event, logger)
 
     def create_bundle_created_event(self, bundle_key, bucket_name) -> typing.Dict:
         with open(os.path.join(os.path.dirname(__file__), "sample_s3_bundle_created_event.json")) as fh:
@@ -616,14 +613,11 @@ class TestAWSIndexer(TestIndexerBase, unittest.TestCase):
         return sample_event
 
 
-class TestGCPIndexer(TestIndexerBase, unittest.TestCase):
+class TestGCPIndexer(GCPIndexHandler, TestIndexerBase, unittest.TestCase):
 
     @classmethod
     def setUpClass(cls):
         super().indexer_setup("gcp")
-
-    def process_new_indexable_object(self, event, logger):
-        process_new_gs_indexable_object(event, logger)
 
     def create_bundle_created_event(self, bundle_key, bucket_name) -> typing.Dict:
         with open(os.path.join(os.path.dirname(__file__), "sample_gs_bundle_created_event.json")) as fh:

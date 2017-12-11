@@ -24,47 +24,60 @@ from ...util.es import ElasticsearchClient, create_elasticsearch_doc_index
 DSS_BUNDLE_KEY_REGEX = r"^bundles/[0-9A-Fa-f]{8}-[0-9A-Fa-f]{4}-4[0-9A-Fa-f]{3}-[0-9A-Fa-f]{4}-[0-9A-Fa-f]{12}\..+$"
 
 
-def process_new_s3_indexable_object(event, logger) -> None:
-    try:
-        # This function is only called for S3 creation events
-        key = unquote(event['Records'][0]["s3"]["object"]["key"])
-        bucket_name = event['Records'][0]["s3"]["bucket"]["name"]
-        process_new_indexable_object(bucket_name, key, Replica.aws, logger)
-    except Exception as ex:
-        logger.error("Exception occurred while processing S3 event: %s Event: %s", ex, json.dumps(event, indent=4))
-        raise
+class IndexHandler:
+
+    @classmethod
+    def process_new_indexable_object(cls, event, logger) -> None:
+        raise NotImplementedError("'process_new_indexable_object' is not implemented!")
+
+    @classmethod
+    def _process_new_indexable_object(cls, replica: Replica, bucket_name: str, key: str, logger) -> None:
+        if cls.is_bundle_to_index(key):
+            logger.info(f"Received {replica.name} creation event for bundle which will be indexed: {key}")
+            document = BundleDocument.from_bucket(replica, bucket_name, key, logger)
+            index_name = document.prepare_index()
+            document.add_to_index(index_name)
+            document.notify_matching_subscribers(index_name)
+            logger.debug(f"Finished index processing of {replica.name} creation event for bundle: {key}")
+        else:
+            logger.debug(f"Not indexing {replica.name} creation event for key: {key}")
+
+    @staticmethod
+    def is_bundle_to_index(key: str) -> bool:
+        # Check for pattern /bundles/<bundle_uuid>.<timestamp>
+        # Don't process notifications explicitly for the latest bundle, of the format /bundles/<bundle_uuid>
+        # The versioned/timestamped name for this same bundle will get processed, and the fully qualified
+        # name will be needed to remove index data later if the bundle is deleted.
+        result = re.search(DSS_BUNDLE_KEY_REGEX, key)
+        return result is not None
 
 
-def process_new_gs_indexable_object(event, logger) -> None:
-    try:
-        # This function is only called for GS creation events
-        bucket_name = event["bucket"]
-        key = event["name"]
-        process_new_indexable_object(bucket_name, key, Replica.gcp, logger)
-    except Exception as ex:
-        logger.error("Exception occurred while processing GS event: %s Event: %s", ex, json.dumps(event, indent=4))
-        raise
+class AWSIndexHandler(IndexHandler):
+
+    @classmethod
+    def process_new_indexable_object(cls, event, logger) -> None:
+        try:
+            # This function is only called for S3 creation events
+            key = unquote(event['Records'][0]['s3']['object']['key'])
+            bucket_name = event['Records'][0]['s3']['bucket']['name']
+            cls._process_new_indexable_object(Replica.aws, bucket_name, key, logger)
+        except Exception as ex:
+            logger.error("Exception occurred while processing S3 event: %s Event: %s", ex, json.dumps(event, indent=4))
+            raise
 
 
-def process_new_indexable_object(bucket_name: str, key: str, replica: Replica, logger) -> None:
-    if is_bundle_to_index(key):
-        logger.info(f"Received {replica} creation event for bundle which will be indexed: {key}")
-        document = BundleDocument.from_bucket(replica, bucket_name, key, logger)
-        index_name = document.prepare_index()
-        document.add_to_index(index_name)
-        document.notify_matching_subscribers(index_name)
-        logger.debug(f"Finished index processing of {replica} creation event for bundle: {key}")
-    else:
-        logger.debug(f"Not indexing {replica} creation event for key: {key}")
+class GCPIndexHandler(IndexHandler):
 
-
-def is_bundle_to_index(key: str) -> bool:
-    # Check for pattern /bundles/<bundle_uuid>.<timestamp>
-    # Don't process notifications explicitly for the latest bundle, of the format /bundles/<bundle_uuid>
-    # The versioned/timestamped name for this same bundle will get processed, and the fully qualified
-    # name will be needed to remove index data later if the bundle is deleted.
-    result = re.search(DSS_BUNDLE_KEY_REGEX, key)
-    return result is not None
+    @classmethod
+    def process_new_indexable_object(cls, event, logger) -> None:
+        try:
+            # This function is only called for GS creation events
+            bucket_name = event['bucket']
+            key = event['name']
+            cls._process_new_indexable_object(Replica.gcp, bucket_name, key, logger)
+        except Exception as ex:
+            logger.error("Exception occurred while processing GS event: %s Event: %s", ex, json.dumps(event, indent=4))
+            raise
 
 
 class BundleDocument(dict):
