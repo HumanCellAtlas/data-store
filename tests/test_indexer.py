@@ -198,6 +198,7 @@ class TestIndexerBase(DSSAssertMixin, DSSStorageMixin, DSSUploadMixin):
 
     def test_indexed_file_access_error(self):
         inaccesssible_filename = "inaccessible_file.json"
+        elasticsearch_delete_index(f'*{IndexSuffix.name}')
         bundle_key = self.load_test_data_bundle_with_inaccessible_file(
             "fixtures/indexing/bundles/v3/smartseq2/paired_ends", inaccesssible_filename, "application/json", True)
         sample_event = self.create_sample_bundle_created_event(bundle_key)
