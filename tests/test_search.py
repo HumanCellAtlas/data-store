@@ -13,16 +13,14 @@ from requests.utils import parse_header_links
 
 import requests
 
-from dss import ESDocType
-from dss.util import UrlBuilder
-
 pkg_root = os.path.abspath(os.path.join(os.path.dirname(__file__), ".."))  # noqa
 sys.path.insert(0, pkg_root)  # noqa
 
 import dss
+from dss import ESDocType
+from dss.util import UrlBuilder
 from dss.api.search import _es_search_page
-from copy import deepcopy
-from dss.config import IndexSuffix, Replica
+from dss.config import IndexSuffix
 from dss.events.handlers.index import create_elasticsearch_index
 from dss.util.es import ElasticsearchServer, ElasticsearchClient
 from tests import get_version
