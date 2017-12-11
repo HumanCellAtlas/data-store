@@ -62,11 +62,11 @@ class TestSubscriptionsBase(DSSAssertMixin):
 
         logger.debug("Setting up Elasticsearch")
         es_client = ElasticsearchClient.get(logger)
-        index_shape_identifier = index_document.get_index_shape_identifier()
+        index_shape_identifier = index_document.get_shape_descriptor()
         cls.alias_name = dss.Config.get_es_alias_name(dss.ESIndexType.docs, replica)
         cls.sub_index_name = dss.Config.get_es_index_name(dss.ESIndexType.subscriptions, replica)
         cls.doc_index_name = dss.Config.get_es_index_name(dss.ESIndexType.docs, replica, index_shape_identifier)
-        create_elasticsearch_index(cls.doc_index_name, cls.replica.name, logger)
+        create_elasticsearch_index(cls.doc_index_name, cls.replica, logger)
         es_client.index(index=cls.doc_index_name,
                         doc_type=dss.ESDocType.doc.name,
                         id=str(uuid.uuid4()),

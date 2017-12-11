@@ -63,7 +63,7 @@ class TestSearchBase(DSSAssertMixin):
         cls.dss_index_name = "search-unittest"
         with open(os.path.join(os.path.dirname(__file__), "sample_v3_index_doc.json"), "r") as fh:
             cls.index_document = json.load(fh)
-        create_elasticsearch_index(cls.dss_index_name, cls.replica_name, logger)
+        create_elasticsearch_index(cls.dss_index_name, cls.replica, logger)
 
     @classmethod
     def tearDownClass(cls):
