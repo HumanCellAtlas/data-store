@@ -51,25 +51,21 @@ class ThreadedLocalServer(threading.Thread):
         self._server_ready.set()
         self._server.server.serve_forever()
 
-    def _make_call(self, method, path, **kwargs):
-        return method(
-            f"http://127.0.0.1:{self._port}{path}",
-            allow_redirects=False,
-            timeout=(1.0, 30.0),
-            **kwargs)
+    # requests.api is a module consisting of all the HTTP request types, defined as methods.  If we're being called
+    # with one of these types, then execute the call against the running server.
 
-    def __getattr__(self, name):
-        """
-        requests.api is a module consisting of all the HTTP request types, defined as methods.  If we're being called
-        with one of these types, then execute the call against the running server.
-        """
-        func = getattr(requests.api, name, None)
-        if func is not None and isinstance(func, types.FunctionType):
-            def result(path, **kwargs):
-                return self._make_call(func, path, **kwargs)
-            return result
-
-        raise AttributeError(f"'{self.__class__.__name__}' object has no attribute '{name}'")
+    for name in dir(requests.api):
+        if not name.startswith('_'):
+            func = getattr(requests.api, name)
+            if isinstance(func, types.FunctionType) and func.__module__ == requests.api.__name__:
+                locals()[name] = (lambda meth: lambda self, path, **kwargs: meth(
+                    f"http://127.0.0.1:{self._port}{path}",
+                    allow_redirects=False,
+                    timeout=(1.0, 30.0),
+                    **kwargs)
+                )(func)
+            del func
+        del name
 
     def shutdown(self):
         if self._server is not None:
