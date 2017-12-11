@@ -61,7 +61,7 @@ class ThreadedLocalServer(threading.Thread):
             **kwargs)
 
     @classmethod
-    def inject_api_requests_methods(cls):
+    def _inject_api_requests_methods(cls):
         """
         requests.api is a module consisting of all the HTTP request types, defined as methods.  If we're being called
         with one of these types, then execute the call against the running server.
@@ -77,4 +77,5 @@ class ThreadedLocalServer(threading.Thread):
             self._server.server.shutdown()
 
 
-ThreadedLocalServer.inject_api_requests_methods()
+# noinspection PyProtectedMember
+ThreadedLocalServer._inject_api_requests_methods()
