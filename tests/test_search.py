@@ -193,27 +193,6 @@ class TestSearchBase(DSSAssertMixin):
                 self.verify_search_result(search_obj.json, smartseq2_paired_ends_v3_query, docs, expected_results)
                 self.verify_bundles(found_bundles, bundles)
 
-    def test_elasticsearch_bogus_endpoint_exception(self):
-        # Test Elasticsearch exception handling by setting an invalid endpoint
-        es_logger = logging.getLogger("elasticsearch")
-        original_es_level = es_logger.getEffectiveLevel()
-        original_es_endpoint = os.getenv("DSS_ES_ENDPOINT", "127.0.0.1")
-
-        es_logger.setLevel("ERROR")
-        try:
-            os.environ['DSS_ES_ENDPOINT'] = "this-is-really-unlikely-to-exist"
-            url = self.build_url()
-            self.assertPostResponse(
-                path=url,
-                json_request_body=dict(es_query=smartseq2_paired_ends_v3_query),
-                expected_code=requests.codes.service_unavailable,
-                expected_error=ExpectedErrorFields(code="service_unavailable",
-                                                   status=requests.codes.service_unavailable,
-                                                   expect_stacktrace=True))
-        finally:
-            os.environ['DSS_ES_ENDPOINT'] = original_es_endpoint
-            es_logger.setLevel(original_es_level)
-
     def test_next_page_is_delivered_when_next_is_in_query(self):
         bundles = self.populate_search_index(self.index_document, 150)
         self.check_count(smartseq2_paired_ends_v3_query, 150)
