@@ -1,5 +1,7 @@
 import chalice.config
 import logging
+
+import functools
 import os
 import threading
 import types
@@ -58,19 +60,21 @@ class ThreadedLocalServer(threading.Thread):
             timeout=(1.0, 30.0),
             **kwargs)
 
-    def __getattr__(self, name):
+    @classmethod
+    def inject_api_requests_methods(cls):
         """
         requests.api is a module consisting of all the HTTP request types, defined as methods.  If we're being called
         with one of these types, then execute the call against the running server.
         """
-        func = getattr(requests.api, name, None)
-        if func is not None and isinstance(func, types.FunctionType):
-            def result(path, **kwargs):
-                return self._make_call(func, path, **kwargs)
-            return result
-
-        raise AttributeError(f"'{self.__class__.__name__}' object has no attribute '{name}'")
+        for name in dir(requests.api):
+            if not name.startswith('_'):
+                func = getattr(requests.api, name)
+                if isinstance(func, types.FunctionType) and func.__module__ == requests.api.__name__:
+                    setattr(cls, name, functools.partialmethod(cls._make_call, func))
 
     def shutdown(self):
         if self._server is not None:
             self._server.server.shutdown()
+
+
+ThreadedLocalServer.inject_api_requests_methods()
