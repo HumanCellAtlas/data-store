@@ -57,6 +57,7 @@ class ElasticsearchServer:
                     "-E", f"http.port={port}",
                     "-E", f"transport.tcp.port={transport_port}",
                     "-E", f"path.data={self.tempdir.name}",
+                    "-E", "logger.org.elasticsearch=warn"
                 ],
             )
 
