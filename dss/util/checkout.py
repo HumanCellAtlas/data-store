@@ -1,7 +1,7 @@
-import io
 import uuid
 from logging import getLogger
 
+import io
 from chainedawslambda import aws
 from chainedawslambda.s3copyclient import S3ParallelCopySupervisorTask
 from cloud_blobstore import BlobNotFoundError, BlobStoreUnknownError

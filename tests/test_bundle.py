@@ -4,17 +4,16 @@
 import datetime
 import hashlib
 import io
+import nestedcontext
 import os
+import requests
 import sys
-import time
 import threading
+import time
 import typing
 import unittest
 import urllib.parse
 import uuid
-
-import nestedcontext
-import requests
 
 pkg_root = os.path.abspath(os.path.join(os.path.dirname(__file__), '..'))  # noqa
 sys.path.insert(0, pkg_root)  # noqa
