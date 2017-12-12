@@ -48,7 +48,7 @@ def parallel_copy(source_bucket: str, source_key: str, destination_bucket: str, 
     aws.schedule_task(S3ParallelCopySupervisorTask, initial_state)
 
 
-def get_src_object_name(file_metadata: dict):
+def get_src_key(file_metadata: dict):
     return "blobs/" + ".".join((
         file_metadata[BundleFileMeta.SHA256],
         file_metadata[BundleFileMeta.SHA1],
@@ -67,9 +67,9 @@ def get_manifest_files(bundle_id: str, version: str, replica: str):
     dst_bundle_prefix = get_dst_bundle_prefix(bundle_id, version)
 
     for file in files:
-        dst_object_name = "{}/{}".format(dst_bundle_prefix, file.get('name'))
-        src_object_name = get_src_object_name(file)
-        yield src_object_name, dst_object_name
+        dst_key = "{}/{}".format(dst_bundle_prefix, file.get('name'))
+        src_key = get_src_key(file)
+        yield src_key, dst_key
 
 
 def validate_file_dst(dst_bucket: str, dst_key: str, replica: str):

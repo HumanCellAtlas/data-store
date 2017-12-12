@@ -252,7 +252,7 @@ class TestIndexerBase(DSSAssertMixin, DSSStorageMixin, DSSUploadMixin):
         self.assertRegex(
             log_monitor.output[0],
             f"WARNING:.*:In bundle .* the file '{inaccesssible_filename}' is marked for indexing"
-            " yet could not be accessed. This file will not be indexed. Exception: .*, File blob object name:",
+            " yet could not be accessed. This file will not be indexed. Exception: .*, File blob key:",
         )
 
         search_results = self.get_search_results(self.smartseq2_paired_ends_query, 1)
@@ -661,16 +661,16 @@ class TestAWSIndexer(AWSIndexHandler, TestIndexerBase, unittest.TestCase):
     def setUpClass(cls):
         super().indexer_setup("aws")
 
-    def create_bundle_created_event(self, bundle_key, bucket_name) -> typing.Dict:
+    def create_bundle_created_event(self, key) -> typing.Dict:
         with open(os.path.join(os.path.dirname(__file__), "sample_s3_bundle_created_event.json")) as fh:
             sample_event = json.load(fh)
-        sample_event['Records'][0]["s3"]['object']['key'] = bundle_key
+        sample_event['Records'][0]["s3"]['object']['key'] = key
         return sample_event
 
-    def create_bundle_deleted_event(self, bundle_key, bucket_name) -> typing.Dict:
+    def create_bundle_deleted_event(self, key) -> typing.Dict:
         with open(os.path.join(os.path.dirname(__file__), "sample_s3_bundle_deleted_event.json")) as fh:
             sample_event = json.load(fh)
-        sample_event['Records'][0]["s3"]['object']['key'] = bundle_key
+        sample_event['Records'][0]["s3"]['object']['key'] = key
         return sample_event
 
 
@@ -680,13 +680,13 @@ class TestGCPIndexer(GCPIndexHandler, TestIndexerBase, unittest.TestCase):
     def setUpClass(cls):
         super().indexer_setup("gcp")
 
-    def create_bundle_created_event(self, bundle_key, bucket_name) -> typing.Dict:
+    def create_bundle_created_event(self, key) -> typing.Dict:
         with open(os.path.join(os.path.dirname(__file__), "sample_gs_bundle_created_event.json")) as fh:
             sample_event = json.load(fh)
-        sample_event["name"] = bundle_key
+        sample_event["name"] = key
         return sample_event
 
-    def create_bundle_deleted_event(self, key, bucket_name) -> typing.Dict:
+    def create_bundle_deleted_event(self, key) -> typing.Dict:
         with open(os.path.join(os.path.dirname(__file__), "sample_s3_bundle_deleted_event.json")) as fh:
             sample_event = json.load(fh)
         sample_event['name'] = key

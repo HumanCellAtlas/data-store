@@ -9,19 +9,19 @@ class HCABlobStoreTests:
 
     def test_verify_blob_checksum(self):
         bucket = self.test_fixtures_bucket
-        object_name = "test_good_source_data/0"
+        key = "test_good_source_data/0"
         self.assertTrue(
             self.hcahandle.verify_blob_checksum(
-                bucket, object_name,
-                self.blobhandle.get_user_metadata(bucket, object_name)))
+                bucket, key,
+                self.blobhandle.get_user_metadata(bucket, key)))
 
-        object_name = "test_bad_source_data/incorrect_checksum"
+        key = "test_bad_source_data/incorrect_checksum"
         self.assertFalse(
             self.hcahandle.verify_blob_checksum(
-                bucket, object_name,
-                self.blobhandle.get_user_metadata(bucket, object_name)))
+                bucket, key,
+                self.blobhandle.get_user_metadata(bucket, key)))
 
-        object_name = "DOES_NOT_EXIST"
+        key = "DOES_NOT_EXIST"
         with self.assertRaises(BlobNotFoundError):
             self.hcahandle.verify_blob_checksum(
-                bucket, object_name, {})
+                bucket, key, {})

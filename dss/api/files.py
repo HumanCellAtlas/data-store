@@ -108,7 +108,7 @@ def put(uuid: str, json_request_body: dict, version: str=None):
         "://"
         "(?P<bucket>[^/]+)"
         "/"
-        "(?P<object_name>.+)"
+        "(?P<key>.+)"
         "$")
     mobj = cre.match(source_url)
     if mobj and mobj.group('schema') == "s3":
@@ -125,11 +125,11 @@ def put(uuid: str, json_request_body: dict, version: str=None):
     handle, hca_handle, dst_bucket = Config.get_cloud_specific_handles(replica)
 
     src_bucket = mobj.group('bucket')
-    src_object_name = mobj.group('object_name')
+    src_key = mobj.group('key')
 
-    metadata = handle.get_user_metadata(src_bucket, src_object_name)
-    size = handle.get_size(src_bucket, src_object_name)
-    content_type = handle.get_content_type(src_bucket, src_object_name)
+    metadata = handle.get_user_metadata(src_bucket, src_key)
+    size = handle.get_size(src_bucket, src_key)
+    content_type = handle.get_content_type(src_bucket, src_key)
 
     # format all the checksums so they're lower-case.
     for metadata_spec in HCABlobStore.MANDATORY_METADATA.values():
@@ -138,7 +138,7 @@ def put(uuid: str, json_request_body: dict, version: str=None):
             metadata[keyname] = metadata[keyname].lower()
 
     # what's the target object name for the actual data?
-    dst_object_name = ("blobs/" + ".".join(
+    dst_key = ("blobs/" + ".".join(
         (
             metadata['hca-dss-sha256'],
             metadata['hca-dss-sha1'],
@@ -150,7 +150,7 @@ def put(uuid: str, json_request_body: dict, version: str=None):
     # does it exist? if so, we can skip the copy part.
     copy_mode = CopyMode.COPY_INLINE
     try:
-        if hca_handle.verify_blob_checksum(dst_bucket, dst_object_name, metadata):
+        if hca_handle.verify_blob_checksum(dst_bucket, dst_key, metadata):
             copy_mode = CopyMode.NO_COPY
     except BlobNotFoundError:
         pass
@@ -179,8 +179,8 @@ def put(uuid: str, json_request_body: dict, version: str=None):
             file_metadata_json,
             uuid,
             version,
-            src_bucket, src_object_name,
-            dst_bucket, dst_object_name,
+            src_bucket, src_key,
+            dst_bucket, dst_key,
             get_s3_chunk_size,
             use_parallel=True,
             timeout_seconds=3600,
@@ -191,10 +191,10 @@ def put(uuid: str, json_request_body: dict, version: str=None):
 
         return jsonify(dict(task_id=task_id, version=version)), requests.codes.accepted
     elif copy_mode == CopyMode.COPY_INLINE:
-        handle.copy(src_bucket, src_object_name, dst_bucket, dst_object_name)
+        handle.copy(src_bucket, src_key, dst_bucket, dst_key)
 
         # verify the copy was done correctly.
-        assert hca_handle.verify_blob_checksum(dst_bucket, dst_object_name, metadata)
+        assert hca_handle.verify_blob_checksum(dst_bucket, dst_key, metadata)
 
     try:
         write_file_metadata(handle, dst_bucket, uuid, version, file_metadata_json)
@@ -224,11 +224,11 @@ def write_file_metadata(
         file_version: str,
         document: str):
     # what's the target object name for the file metadata?
-    metadata_object_name = f"files/{file_uuid}.{file_version}"
+    metadata_key = f"files/{file_uuid}.{file_version}"
 
     # if it already exists, then it's a failure.
     try:
-        handle.get_user_metadata(dst_bucket, metadata_object_name)
+        handle.get_user_metadata(dst_bucket, metadata_key)
     except BlobNotFoundError:
         pass
     else:
@@ -236,5 +236,5 @@ def write_file_metadata(
 
     handle.upload_file_handle(
         dst_bucket,
-        metadata_object_name,
+        metadata_key,
         io.BytesIO(document.encode("utf-8")))
