@@ -1,20 +1,21 @@
 import json
 import typing
 
-from dss import Config, DSSException
+from cloud_blobstore import BlobNotFoundError
+
+from dss import Config, DSSException, Replica
 from dss.hcablobstore import BundleFileMetadata, BundleMetadata
+from dss.storage.bundles import DSS_BUNDLE_KEY_REGEX, DSS_BUNDLE_TOMBSTONE_REGEX, bundle_key, tombstone_key
 from dss.util import UrlBuilder
 from dss.util.blobstore import test_object_exists
-from cloud_blobstore import BlobNotFoundError
-from dss.storage.bundles import DSS_BUNDLE_KEY_REGEX, DSS_BUNDLE_TOMBSTONE_REGEX, tombstone_key, bundle_key
 
 
 def get_bundle_from_bucket(
         uuid: str,
-        replica: str,
+        replica: Replica,
         version: typing.Optional[str],
         bucket: typing.Optional[str],
-        directurls: bool = False):
+        directurls: bool=False):
     uuid = uuid.lower()
 
     handle, hca_handle, default_bucket = Config.get_cloud_specific_handles(replica)
@@ -117,7 +118,7 @@ def _latest_version_from_object_names(object_names: typing.Iterator[str]) -> str
 
 def get_bundle(
         uuid: str,
-        replica: str,
+        replica: Replica,
         version: str=None,
         directurls: bool=False):
     return get_bundle_from_bucket(

@@ -66,7 +66,7 @@ class BundleDocument(IndexDocument):
     @classmethod
     def from_replica(cls, replica: Replica, key: str, logger):  # TODO: return type hint
         self = cls(replica, bundle_key_to_bundle_fqid(key), logger)
-        blobstore, _, bucket_name = Config.get_cloud_specific_handles(replica.name)
+        blobstore, _, bucket_name = Config.get_cloud_specific_handles(replica)
         self['manifest'] = self._read_bundle_manifest(blobstore, bucket_name, key)
         self['files'] = self._read_file_infos(blobstore, bucket_name)
         self['state'] = 'new'
@@ -322,7 +322,7 @@ class BundleTombstoneDocument(IndexDocument):
 
     @classmethod
     def from_replica(cls, replica: Replica, key: str, logger):
-        blobstore, _, bucket_name = Config.get_cloud_specific_handles(replica.name)
+        blobstore, _, bucket_name = Config.get_cloud_specific_handles(replica)
         bundle_uuid, bundle_version = DSS_OBJECT_NAME_REGEX.search(key).groups()
 
         tombstone_data = json.loads(blobstore.get(bucket_name, key))
@@ -332,7 +332,7 @@ class BundleTombstoneDocument(IndexDocument):
         return doc
 
     def list_dead_bundles(self):
-        blobstore, _, bucket_name = Config.get_cloud_specific_handles(self.replica.name)
+        blobstore, _, bucket_name = Config.get_cloud_specific_handles(self.replica)
 
         if self.bundle_version:
             # if a version is specified, delete just that version

@@ -5,11 +5,14 @@
 Functional Test of the API
 """
 
-import os, sys, unittest
+import os
+import sys
+import unittest
 
 pkg_root = os.path.abspath(os.path.join(os.path.dirname(__file__), '..'))  # noqa
 sys.path.insert(0, pkg_root)  # noqa
 
+from dss.config import Replica
 import dss
 from tests.infra import DSSAssertMixin, DSSUploadMixin, DSSStorageMixin, TestBundle
 from tests.infra.server import ThreadedLocalServer
@@ -26,7 +29,7 @@ class TestApi(unittest.TestCase, DSSAssertMixin, DSSUploadMixin, DSSStorageMixin
         cls.app.shutdown()
 
     def setUp(self):
-        self.replica = "aws"
+        self.replica = Replica.aws
         dss.Config.set_config(dss.BucketConfig.TEST)
         self.blobstore, _, self.bucket = dss.Config.get_cloud_specific_handles(self.replica)
 

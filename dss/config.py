@@ -84,18 +84,17 @@ class Config:
         Config._CURRENT_CONFIG = config
 
     @staticmethod
-    def get_cloud_specific_handles(replica: str) -> typing.Tuple[
-            BlobStore, HCABlobStore, str]:
+    def get_cloud_specific_handles(replica: Replica) -> typing.Tuple[BlobStore, HCABlobStore, str]:
 
         handle: BlobStore
-        if replica == 'aws':
+        if replica == Replica.aws:
             handle = S3BlobStore()
             return (
                 handle,
                 S3HCABlobStore(handle),
                 Config.get_s3_bucket()
             )
-        elif replica == 'gcp':
+        elif replica == Replica.gcp:
             credentials = os.environ["GOOGLE_APPLICATION_CREDENTIALS"]
             handle = GSBlobStore(credentials)
             return (
@@ -103,15 +102,16 @@ class Config:
                 GSHCABlobStore(handle),
                 Config.get_gs_bucket()
             )
-        raise ValueError("I don't understand this replica!")
+        raise NotImplementedError(f"Replica `{replica.name}` is not implemented!")
 
     @staticmethod
-    def get_storage_schema(replica: str) -> str:
-        if replica == 'aws':
+    def get_storage_schema(replica: Replica) -> str:
+
+        if replica == Replica.aws:
             return "s3"
-        elif replica == 'gcp':
+        elif replica == Replica.gcp:
             return "gs"
-        raise ValueError("I don't understand this replica!")
+        raise NotImplementedError(f"Replica `{replica.name}` is not implemented!")
 
     @staticmethod
     def get_s3_bucket() -> str:

@@ -13,7 +13,7 @@ from flask import jsonify, make_response, redirect, request
 from ..util.version import datetime_to_version_format
 
 from .. import DSSException, dss_handler
-from ..config import Config
+from ..config import Config, Replica
 from ..events.chunkedtask import s3copyclient
 from ..hcablobstore import FileMetadata, HCABlobStore
 from ..util.aws import get_s3_chunk_size, AWS_MIN_CHUNK_SIZE
@@ -25,15 +25,15 @@ ASYNC_COPY_THRESHOLD = AWS_MIN_CHUNK_SIZE
 
 @dss_handler
 def head(uuid: str, replica: str, version: str=None):
-    return get_helper(uuid, replica, version)
+    return get_helper(uuid, Replica[replica], version)
 
 
 @dss_handler
 def get(uuid: str, replica: str, version: str=None):
-    return get_helper(uuid, replica, version)
+    return get_helper(uuid, Replica[replica], version)
 
 
-def get_helper(uuid: str, replica: str, version: str=None):
+def get_helper(uuid: str, replica: Replica, version: str=None):
     handle, hca_handle, bucket = Config.get_cloud_specific_handles(replica)
 
     if version is None:
@@ -112,9 +112,9 @@ def put(uuid: str, json_request_body: dict, version: str=None):
         "$")
     mobj = cre.match(source_url)
     if mobj and mobj.group('schema') == "s3":
-        replica = "aws"
+        replica = Replica.aws
     elif mobj and mobj.group('schema') == "gs":
-        replica = "gcp"
+        replica = Replica.gcp
     else:
         schema = mobj.group('schema')
         raise DSSException(
@@ -170,7 +170,7 @@ def put(uuid: str, json_request_body: dict, version: str=None):
     }
     file_metadata_json = json.dumps(file_metadata)
 
-    if copy_mode != CopyMode.NO_COPY and replica == "aws":
+    if copy_mode != CopyMode.NO_COPY and replica == Replica.aws:
         if size > ASYNC_COPY_THRESHOLD:
             copy_mode = CopyMode.COPY_ASYNC
 
