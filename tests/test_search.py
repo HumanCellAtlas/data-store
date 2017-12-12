@@ -294,11 +294,11 @@ class TestSearchBase(DSSAssertMixin):
         }
         bundle_uuid = str(uuid.uuid4())
         version = get_version()
-        bundle_id = f"{bundle_uuid}.{version}"
+        bundle_fqid = f"{bundle_uuid}.{version}"
         es_client = ElasticsearchClient.get(logger)
         es_client.index(index=self.dss_alias_name,
                         doc_type=ESDocType.doc.name,
-                        id=bundle_id,
+                        id=bundle_fqid,
                         body=doc1)
         mapping = es_client.indices.get_mapping(self.dss_index_name)[self.dss_index_name]['mappings']
         self.assertEqual(mapping['query']['properties']['query']['type'], 'percolator')
@@ -315,16 +315,16 @@ class TestSearchBase(DSSAssertMixin):
             bundle_uuid = str(uuid.uuid4())
             version = get_version()
             index_document['manifest']['version'] = version
-            bundle_id = f"{bundle_uuid}.{version}"
+            bundle_fqid = f"{bundle_uuid}.{version}"
             bundle_url = (f"https://127.0.0.1:{self.app._port}"
                           f"/v1/bundles/{bundle_uuid}?version={version}&replica={self.replica.name}")
             es_client.index(index=self.dss_alias_name,
                             doc_type=ESDocType.doc.name,
-                            id=bundle_id,
+                            id=bundle_fqid,
                             body=index_document,
                             refresh=(i == count - 1)
                             )
-            bundles.append((bundle_id, bundle_url))
+            bundles.append((bundle_fqid, bundle_url))
         return bundles
 
     def build_url(self, url_params=None):
@@ -340,8 +340,7 @@ class TestSearchBase(DSSAssertMixin):
         self.assertEqual(search_json['total_hits'], total_hits)
 
     def verify_bundles(self, found_bundles, expected_bundles):
-        result_bundles = [(hit['bundle_id'], hit['bundle_url'])
-                          for hit in found_bundles]
+        result_bundles = [(hit['bundle_fqid'], hit['bundle_url']) for hit in found_bundles]
         for bundle in expected_bundles:
             self.assertIn(bundle, result_bundles)
 

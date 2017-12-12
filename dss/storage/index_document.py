@@ -33,7 +33,7 @@ class IndexDocument(dict):
         self.bundle_version = bundle_version
 
     @property
-    def bundle_id(self):
+    def bundle_fqid(self):
         return format_bundle_fqid(self.bundle_uuid, self.bundle_version)
 
     def add_to_index(self, index_name: str):
@@ -105,7 +105,7 @@ class BundleDocument(IndexDocument):
         for file_info in files_info:
             if file_info[BundleFileMetadata.INDEXED] is True:
                 if not file_info[BundleFileMetadata.CONTENT_TYPE].startswith('application/json'):
-                    self.logger.warning(f"In bundle {self.bundle_id} the file '{file_info[BundleFileMetadata.NAME]}'"
+                    self.logger.warning(f"In bundle {self.bundle_fqid} the file '{file_info[BundleFileMetadata.NAME]}'"
                                         " is marked for indexing yet has content type"
                                         f" '{file_info[BundleFileMetadata.CONTENT_TYPE]}'"
                                         " instead of the required content type 'application/json'."
@@ -117,12 +117,12 @@ class BundleDocument(IndexDocument):
                     file_json = json.loads(file_string)
                 # TODO (mbaumann) Are there other JSON-related exceptions that should be checked below?
                 except json.decoder.JSONDecodeError as ex:
-                    self.logger.warning(f"In bundle {self.bundle_id} the file '{file_info[BundleFileMetadata.NAME]}'"
+                    self.logger.warning(f"In bundle {self.bundle_fqid} the file '{file_info[BundleFileMetadata.NAME]}'"
                                         " is marked for indexing yet could not be parsed."
                                         " This file will not be indexed. Exception: %s", ex)
                     continue
                 except BlobStoreError as ex:
-                    self.logger.warning(f"In bundle {self.bundle_id} the file '{file_info[BundleFileMetadata.NAME]}'"
+                    self.logger.warning(f"In bundle {self.bundle_fqid} the file '{file_info[BundleFileMetadata.NAME]}'"
                                         " is marked for indexing yet could not be accessed."
                                         " This file will not be indexed. Exception: %s, File blob key: %s",
                                         type(ex).__name__, file_blob_key)
@@ -248,7 +248,7 @@ class BundleDocument(IndexDocument):
                 self.notify_subscriber(subscription)
             except Exception:
                 self.logger.error("Error occurred while processing subscription %s for bundle %s.",
-                                  subscription_id, self.bundle_id, exc_info=True)
+                                  subscription_id, self.bundle_fqid, exc_info=True)
 
     def _get_subscription(self, subscription_id: str) -> dict:
         subscription_query = {
@@ -274,7 +274,7 @@ class BundleDocument(IndexDocument):
     def notify_subscriber(self, subscription: dict):
         subscription_id = subscription['id']
         # FIXME: (hannes) brittle coupling with regex in is_bundle_to_index
-        bundle_uuid, _, bundle_version = self.bundle_id.partition(".")
+        bundle_uuid, _, bundle_version = self.bundle_fqid.partition(".")
         transaction_id = str(uuid.uuid4())
         payload = {
             "transaction_id": transaction_id,
@@ -310,11 +310,11 @@ class BundleDocument(IndexDocument):
         # TODO (mbaumann) Add webhook retry logic
         if 200 <= response.status_code < 300:
             self.logger.info(f"Successfully notified for subscription {subscription_id}"
-                             f" for bundle {self.bundle_id} with transaction id {transaction_id} "
+                             f" for bundle {self.bundle_fqid} with transaction id {transaction_id} "
                              f"Code: {response.status_code}")
         else:
             self.logger.warning(f"Failed notification for subscription {subscription_id}"
-                                f" for bundle {self.bundle_id} with transaction id {transaction_id} "
+                                f" for bundle {self.bundle_fqid} with transaction id {transaction_id} "
                                 f"Code: {response.status_code}")
 
 

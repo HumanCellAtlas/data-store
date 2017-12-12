@@ -31,24 +31,24 @@ for client_name, client_class in chained_lambda_clients():
 
 @app.step_function_task(state_name="ScheduleCopy", state_machine_definition=state_machine_def)
 def schedule_copy(event, context):
-    bundle_id = event["bundle"]
+    bundle_fqid = event["bundle"]
     version = event["version"]
     dss_bucket = event["dss_bucket"]
     dst_bucket = get_dst_bucket(event)
 
     scheduled = 0
-    for src_key, dst_key in get_manifest_files(bundle_id, version, replica):
+    for src_key, dst_key in get_manifest_files(bundle_fqid, version, replica):
         logger.debug("Copying a file " + dst_key)
         parallel_copy(dss_bucket, src_key, dst_bucket, dst_key)
         scheduled += 1
     return {"files_scheduled": scheduled,
-            "dst_location": get_dst_bundle_prefix(bundle_id, version),
+            "dst_location": get_dst_bundle_prefix(bundle_fqid, version),
             "wait_time_seconds": 10}
 
 
 @app.step_function_task(state_name="GetJobStatus", state_machine_definition=state_machine_def)
 def get_job_status(event, context):
-    bundle_id = event["bundle"]
+    bundle_fqid = event["bundle"]
     version = event["version"]
 
     check_count = 0
@@ -57,7 +57,7 @@ def get_job_status(event, context):
 
     complete_count = 0
     total_count = 0
-    for src_key, dst_key in get_manifest_files(bundle_id, version, replica):
+    for src_key, dst_key in get_manifest_files(bundle_fqid, version, replica):
         total_count += 1
         if validate_file_dst(get_dst_bucket(event), dst_key, replica):
             complete_count += 1
