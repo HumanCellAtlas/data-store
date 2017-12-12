@@ -5,6 +5,7 @@ import uuid
 
 import requests
 
+from dss.config import Replica
 from dss.util import UrlBuilder
 from dss.util.version import datetime_to_version_format
 from .assert_mixin import DSSAssertResponse
@@ -14,7 +15,7 @@ class DSSUploadMixin:
     def upload_file_wait(
             self: typing.Any,
             source_url: str,
-            replica: str,
+            replica: Replica,
             file_uuid: str=None,
             file_version: str=None,
             bundle_uuid: str=None,
@@ -58,7 +59,7 @@ class DSSUploadMixin:
             while time.time() < timeout_time:
                 try:
                     self.assertHeadResponse(
-                        f"/v1/files/{file_uuid}?replica={replica}",
+                        f"/v1/files/{file_uuid}?replica={replica.name}",
                         requests.codes.ok)
                     break
                 except AssertionError:

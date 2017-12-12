@@ -6,12 +6,12 @@ import uuid
 import requests
 from cloud_blobstore import BlobStore
 
-from dss import Config
+from dss import Config, Replica
 from dss.util import UrlBuilder
 
 
 class TestBundle:
-    def __init__(self, handle: BlobStore, path: str, bucket: str, replica: str = "aws") -> None:
+    def __init__(self, handle: BlobStore, path: str, bucket: str, replica: Replica = Replica.aws) -> None:
         self.path = path
         self.uuid = str(uuid.uuid4())
         self.version = None
@@ -19,13 +19,13 @@ class TestBundle:
         self.bucket = bucket
         self.files = self.enumerate_bundle_files(replica)
 
-    def enumerate_bundle_files(self, replica) -> list:
+    def enumerate_bundle_files(self, replica: Replica) -> list:
         file_keys = self.handle.list(self.bucket, prefix=f"{self.path}/")
         return [TestFile(file_key, self, replica) for file_key in file_keys]
 
 
 class TestFile:
-    def __init__(self, file_key, bundle, replica) -> None:
+    def __init__(self, file_key, bundle, replica: Replica) -> None:
         self.bundle = bundle
         self.metadata = bundle.handle.get_user_metadata(bundle.bucket, file_key)
         self.indexed = bundle.handle.get_content_type(bundle.bucket, file_key) == "application/json"
@@ -45,13 +45,13 @@ class DSSStorageMixin:
     'self.app'
     """
 
-    def upload_files_and_create_bundle(self, bundle: TestBundle, replica: str):
+    def upload_files_and_create_bundle(self, bundle: TestBundle, replica: Replica):
         for file in bundle.files:
             version = self.upload_file(file, replica)
             file.version = version
         self.create_bundle(bundle, replica)
 
-    def upload_file(self: typing.Any, bundle_file: TestFile, replica: str) -> str:
+    def upload_file(self: typing.Any, bundle_file: TestFile, replica: Replica) -> str:
         response = self.upload_file_wait(
             bundle_file.url,
             replica,
@@ -63,10 +63,10 @@ class DSSStorageMixin:
         self.assertIn('version', response_data)
         return response_data['version']
 
-    def create_bundle(self: typing.Any, bundle: TestBundle, replica: str):
+    def create_bundle(self: typing.Any, bundle: TestBundle, replica: Replica):
         response = self.assertPutResponse(
             str(UrlBuilder().set(path='/v1/bundles/' + bundle.uuid)
-                .add_query('replica', replica)),
+                .add_query('replica', replica.name)),
             requests.codes.created,
             json_request_body=self.put_bundle_payload(bundle)
         )
@@ -93,10 +93,10 @@ class DSSStorageMixin:
         }
         return payload
 
-    def get_bundle_and_check_files(self: typing.Any, bundle: TestBundle, replica: str):
+    def get_bundle_and_check_files(self: typing.Any, bundle: TestBundle, replica: Replica):
         response = self.assertGetResponse(
             str(UrlBuilder().set(path='/v1/bundles/' + bundle.uuid)
-                .add_query('replica', replica)),
+                .add_query('replica', replica.name)),
             requests.codes.ok
         )
         response_data = json.loads(response[1])
@@ -114,11 +114,11 @@ class DSSStorageMixin:
             self.assertEqual(filedata['name'], bundle_file.name)
             self.assertEqual(filedata['version'], bundle_file.version)
 
-    def check_files_are_associated_with_bundle(self: typing.Any, bundle: TestBundle, replica: str):
+    def check_files_are_associated_with_bundle(self: typing.Any, bundle: TestBundle, replica: Replica):
         for bundle_file in bundle.files:
             response = self.assertGetResponse(
                 str(UrlBuilder().set(path='/v1/files/' + bundle_file.uuid)
-                    .add_query('replica', replica)),
+                    .add_query('replica', replica.name)),
                 requests.codes.found,
             )
             self.assertEqual(bundle_file.bundle.uuid, response[0].headers['X-DSS-BUNDLE-UUID'])

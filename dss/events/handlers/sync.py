@@ -13,7 +13,7 @@ from google.cloud._http import JSONConnection
 from google.cloud.client import ClientWithProject
 from google.resumable_media._upload import get_content_range
 
-from dss import Config
+from dss import Config, Replica
 from dss.util.aws import resources, clients, send_sns_msg, ARN
 from dss.util.streaming import get_pool_manager, S3SigningChunker
 
@@ -143,7 +143,7 @@ def dispatch_multipart_sync(source, dest, logger, context):
 
 
 def sync_blob(source_platform, source_key, dest_platform, logger, context):
-    gs = Config.get_cloud_specific_handles("gcp")[0].gcp_client
+    gs = Config.get_cloud_specific_handles(Replica.gcp)[0].gcp_client
     logger.info(f"Begin transfer of {source_key} from {source_platform} to {dest_platform}")
     gs_bucket, s3_bucket = gs.bucket(Config.get_gs_bucket()), resources.s3.Bucket(Config.get_s3_bucket())
     if source_platform == "s3" and dest_platform == "gs":
@@ -196,7 +196,7 @@ def compose_gs_blobs(gs_bucket, blob_names, dest_blob_name, logger):
 
 
 def copy_part(upload_url, source_url, dest_platform, part, context):
-    gs = Config.get_cloud_specific_handles("gcp")[0].gcp_client
+    gs = Config.get_cloud_specific_handles(Replica.gcp)[0].gcp_client
     boto3_session = boto3.session.Session()
     with closing(range_request(source_url, part["start"], part["end"])) as fh:
         if dest_platform == "s3":

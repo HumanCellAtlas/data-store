@@ -1,16 +1,17 @@
 import io
 import uuid
-from enum import Enum, auto
 from logging import getLogger
 
 from chainedawslambda import aws
 from chainedawslambda.s3copyclient import S3ParallelCopySupervisorTask
 from cloud_blobstore import BlobNotFoundError, BlobStoreUnknownError
 from cloud_blobstore.s3 import S3BlobStore
+from enum import Enum, auto
 
 from .aws import get_s3_chunk_size
 from .bundles import get_bundle, get_bundle_from_bucket
-from .. import DSSException, Config
+from .. import DSSException
+from ..config import Config, Replica
 
 log = getLogger()
 blobstore = S3BlobStore()
@@ -60,7 +61,7 @@ def get_dst_bundle_prefix(bundle_id: str, bundle_version: str) -> str:
     return "checkedout/{}.{}".format(bundle_id, bundle_version)
 
 
-def get_manifest_files(bundle_id: str, version: str, replica: str):
+def get_manifest_files(bundle_id: str, version: str, replica: Replica):
     bundleManifest = get_bundle(bundle_id, replica, version).get('bundle')
     files = bundleManifest.get('files')
     dst_bundle_prefix = get_dst_bundle_prefix(bundle_id, version)
@@ -71,7 +72,7 @@ def get_manifest_files(bundle_id: str, version: str, replica: str):
         yield src_key, dst_key
 
 
-def validate_file_dst(dst_bucket: str, dst_key: str, replica: str):
+def validate_file_dst(dst_bucket: str, dst_key: str, replica: Replica):
     try:
         blobstore.get_all_metadata(dst_bucket, dst_key)
         return True
@@ -79,7 +80,7 @@ def validate_file_dst(dst_bucket: str, dst_key: str, replica: str):
         return False
 
 
-def pre_exec_validate(dss_bucket: str, dst_bucket: str, replica: str, bundle_id: str, version: str):
+def pre_exec_validate(dss_bucket: str, dst_bucket: str, replica: Replica, bundle_id: str, version: str):
     cause = None
     validation_code = validate_dst_bucket(dst_bucket, replica)
     if validation_code == ValidationEnum.PASSED:
@@ -87,7 +88,7 @@ def pre_exec_validate(dss_bucket: str, dst_bucket: str, replica: str, bundle_id:
     return validation_code, cause
 
 
-def validate_dst_bucket(dst_bucket: str, replica: str) -> ValidationEnum:
+def validate_dst_bucket(dst_bucket: str, replica: Replica) -> ValidationEnum:
     if not blobstore.check_bucket_exists(dst_bucket):
         return ValidationEnum.WRONG_DST_BUCKET
     if not touch_test_file(dst_bucket, replica):
@@ -96,7 +97,7 @@ def validate_dst_bucket(dst_bucket: str, replica: str) -> ValidationEnum:
     return ValidationEnum.PASSED
 
 
-def validate_bundle_exists(replica: str, bucket: str, bundle_id: str, version: str):
+def validate_bundle_exists(replica: Replica, bucket: str, bundle_id: str, version: str):
     try:
         get_bundle_from_bucket(bundle_id, replica, version, bucket)
         return ValidationEnum.PASSED, None
@@ -112,7 +113,7 @@ def get_execution_id() -> str:
     return str(uuid.uuid4())
 
 
-def touch_test_file(dst_bucket, replica) -> bool:
+def touch_test_file(dst_bucket: str, replica: Replica) -> bool:
     """
     Write a test file into the specified bucket.
     :param bucket: the bucket to be checked.

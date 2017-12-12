@@ -106,9 +106,8 @@ class TestIndexerBase(DSSAssertMixin, DSSStorageMixin, DSSUploadMixin):
         cls.blobstore, _, cls.test_fixture_bucket = Config.get_cloud_specific_handles(cls.replica)
         Config.set_config(BucketConfig.TEST)
         _, _, cls.test_bucket = Config.get_cloud_specific_handles(cls.replica)
-        cls.dss_alias_name = dss.Config.get_es_alias_name(dss.ESIndexType.docs, dss.Replica[cls.replica])
-        cls.subscription_index_name = dss.Config.get_es_index_name(dss.ESIndexType.subscriptions,
-                                                                   dss.Replica[cls.replica])
+        cls.dss_alias_name = dss.Config.get_es_alias_name(dss.ESIndexType.docs, cls.replica)
+        cls.subscription_index_name = dss.Config.get_es_index_name(dss.ESIndexType.subscriptions, cls.replica)
 
     @classmethod
     def tearDownClass(cls):
@@ -265,7 +264,7 @@ class TestIndexerBase(DSSAssertMixin, DSSStorageMixin, DSSUploadMixin):
 
     def test_notify(self):
         def _notify(subscription, bundle_id=get_bundle_fqid()):
-            document = BundleDocument(Replica[self.replica], bundle_id, logger)
+            document = BundleDocument(self.replica, bundle_id, logger)
             document.notify_subscriber(subscription=subscription)
 
         with self.assertRaisesRegex(requests.exceptions.InvalidURL, "Invalid URL 'http://': No host supplied"):
@@ -274,8 +273,8 @@ class TestIndexerBase(DSSAssertMixin, DSSStorageMixin, DSSUploadMixin):
             _notify(subscription=dict(id="", es_query={}, callback_url=""))
         with self.assertRaisesRegex(AssertionError, "Unexpected scheme for callback URL"):
             _notify(subscription=dict(id="", es_query={}, callback_url="wss://127.0.0.1"))
+        environ_backup = os.environ
         try:
-            environ_backup = os.environ
             os.environ = dict(DSS_DEPLOYMENT_STAGE=DeploymentStage.PROD.value)
             with self.assertRaisesRegex(AssertionError, "Unexpected scheme for callback URL"):
                 _notify(subscription=dict(id="", es_query={}, callback_url="http://example.com"))
@@ -286,7 +285,7 @@ class TestIndexerBase(DSSAssertMixin, DSSStorageMixin, DSSUploadMixin):
 
     def delete_subscription(self, subscription_id):
         self.assertDeleteResponse(
-            str(UrlBuilder().set(path=f"/v1/subscriptions/{subscription_id}").add_query("replica", self.replica)),
+            str(UrlBuilder().set(path=f"/v1/subscriptions/{subscription_id}").add_query("replica", self.replica.name)),
             requests.codes.ok,
             headers=get_auth_header()
         )
@@ -377,7 +376,7 @@ class TestIndexerBase(DSSAssertMixin, DSSStorageMixin, DSSUploadMixin):
         self.process_new_indexable_object(sample_event, logger)
 
         # Verify the mapping types are as expected for a valid test
-        doc_index_name = dss.Config.get_es_index_name(dss.ESIndexType.docs, dss.Replica[self.replica], "v3")
+        doc_index_name = dss.Config.get_es_index_name(dss.ESIndexType.docs, self.replica, "v3")
         mappings = ElasticsearchClient.get(logger).indices.get_mapping(doc_index_name)[doc_index_name]['mappings']
         sample_json_mappings = mappings['doc']['properties']['files']['properties']['sample_json']
         self.assertEquals(sample_json_mappings['properties']['donor']['properties']['age']['type'], "long")
@@ -444,7 +443,7 @@ class TestIndexerBase(DSSAssertMixin, DSSStorageMixin, DSSUploadMixin):
         es_client = ElasticsearchClient.get(logger)
         self.assertTrue(es_client.indices.exists_alias(name=[self.dss_alias_name]))
         alias = es_client.indices.get_alias(name=[self.dss_alias_name])
-        doc_index_name = dss.Config.get_es_index_name(dss.ESIndexType.docs, dss.Replica[self.replica], "v3")
+        doc_index_name = dss.Config.get_es_index_name(dss.ESIndexType.docs, self.replica, "v3")
         self.assertIn(doc_index_name, alias)
         self.assertTrue(es_client.indices.exists(index=doc_index_name))
 
@@ -456,7 +455,7 @@ class TestIndexerBase(DSSAssertMixin, DSSStorageMixin, DSSUploadMixin):
         self.process_new_indexable_object(sample_event, logger)
         es_client = ElasticsearchClient.get(logger)
         alias = es_client.indices.get_alias(name=[self.dss_alias_name])
-        unversioned_doc_index_name = dss.Config.get_es_index_name(dss.ESIndexType.docs, dss.Replica[self.replica], None)
+        unversioned_doc_index_name = dss.Config.get_es_index_name(dss.ESIndexType.docs, self.replica, None)
         self.assertIn(unversioned_doc_index_name, alias)
         self.assertTrue(es_client.indices.exists(index=unversioned_doc_index_name))
 
@@ -465,7 +464,7 @@ class TestIndexerBase(DSSAssertMixin, DSSStorageMixin, DSSUploadMixin):
         self.process_new_indexable_object(sample_event, logger)
         self.assertTrue(es_client.indices.exists_alias(name=[self.dss_alias_name]))
         alias = es_client.indices.get_alias(name=[self.dss_alias_name])
-        doc_index_name = dss.Config.get_es_index_name(dss.ESIndexType.docs, dss.Replica[self.replica], "v3")
+        doc_index_name = dss.Config.get_es_index_name(dss.ESIndexType.docs, self.replica, "v3")
         # Ensure the alias references both indices
         self.assertIn(unversioned_doc_index_name, alias)
         self.assertIn(doc_index_name, alias)
@@ -594,7 +593,7 @@ class TestIndexerBase(DSSAssertMixin, DSSStorageMixin, DSSUploadMixin):
     def subscribe_for_notification(self, es_query, callback_url, **kwargs):
         url = str(UrlBuilder()
                   .set(path="/v1/subscriptions")
-                  .add_query("replica", self.replica))
+                  .add_query("replica", self.replica.name))
         resp_obj = self.assertPutResponse(
             url,
             requests.codes.created,
@@ -662,7 +661,7 @@ class TestAWSIndexer(AWSIndexHandler, TestIndexerBase, unittest.TestCase):
 
     @classmethod
     def setUpClass(cls):
-        super().indexer_setup("aws")
+        super().indexer_setup(Replica.aws)
 
     def create_bundle_created_event(self, key) -> typing.Dict:
         with open(os.path.join(os.path.dirname(__file__), "sample_s3_bundle_created_event.json")) as fh:
@@ -681,7 +680,7 @@ class TestGCPIndexer(GCPIndexHandler, TestIndexerBase, unittest.TestCase):
 
     @classmethod
     def setUpClass(cls):
-        super().indexer_setup("gcp")
+        super().indexer_setup(Replica.gcp)
 
     def create_bundle_created_event(self, key) -> typing.Dict:
         with open(os.path.join(os.path.dirname(__file__), "sample_gs_bundle_created_event.json")) as fh:

@@ -21,7 +21,7 @@ sys.path.insert(0, pkg_root)  # noqa
 
 import dss
 from dss import DSSException
-from dss.config import BucketConfig, Config, override_bucket_config
+from dss.config import BucketConfig, Config, override_bucket_config, Replica
 from dss.util import UrlBuilder
 from dss.util.blobstore import test_object_exists
 from dss.util.version import datetime_to_version_format
@@ -47,16 +47,16 @@ class TestDSS(unittest.TestCase, DSSAssertMixin, DSSUploadMixin):
         self.gs_test_fixtures_bucket = get_env("DSS_GS_BUCKET_TEST_FIXTURES")
 
     def test_bundle_get(self):
-        self._test_bundle_get("aws")
-        self._test_bundle_get("gcp")
+        self._test_bundle_get(Replica.aws)
+        self._test_bundle_get(Replica.gcp)
 
-    def _test_bundle_get(self, replica):
+    def _test_bundle_get(self, replica: Replica):
         bundle_uuid = "011c7340-9b3c-4d62-bf49-090d79daf198"
         version = "2017-06-20T214506.766634Z"
 
         url = str(UrlBuilder()
                   .set(path="/v1/bundles/" + bundle_uuid)
-                  .add_query("replica", replica)
+                  .add_query("replica", replica.name)
                   .add_query("version", version))
 
         with override_bucket_config(BucketConfig.TEST_FIXTURE):
@@ -79,18 +79,18 @@ class TestDSS(unittest.TestCase, DSSAssertMixin, DSSUploadMixin):
         self.assertEqual(resp_obj.json['bundle']['files'][0]['version'], "2017-06-16T193604.240704Z")
 
     def test_bundle_get_directaccess(self):
-        self._test_bundle_get_directaccess("aws")
-        self._test_bundle_get_directaccess("gcp")
+        self._test_bundle_get_directaccess(Replica.aws)
+        self._test_bundle_get_directaccess(Replica.gcp)
 
-    def _test_bundle_get_directaccess(self, replica):
-        schema = self._get_schema(replica)
+    def _test_bundle_get_directaccess(self, replica: Replica):
+        schema = Config.get_storage_schema(replica)
 
         bundle_uuid = "011c7340-9b3c-4d62-bf49-090d79daf198"
         version = "2017-06-20T214506.766634Z"
 
         url = str(UrlBuilder()
                   .set(path="/v1/bundles/" + bundle_uuid)
-                  .add_query("replica", replica)
+                  .add_query("replica", replica.name)
                   .add_query("version", version)
                   .add_query("directurls", "true"))
 
@@ -105,7 +105,7 @@ class TestDSS(unittest.TestCase, DSSAssertMixin, DSSUploadMixin):
         bucket = splitted.netloc
         key = splitted.path[1:]  # ignore the / part of the path.
 
-        handle, _, _ = Config.get_cloud_specific_handles(replica)
+        handle = Config.get_cloud_specific_handles(replica)[0]
         contents = handle.get(bucket, key)
 
         hasher = hashlib.sha1()
@@ -117,20 +117,20 @@ class TestDSS(unittest.TestCase, DSSAssertMixin, DSSUploadMixin):
         uuid = "deadbeef-0000-4a6b-8f0d-a7d2105c23be"
         version = "2017-12-05T235850.950361Z"
         # whole bundle delete
-        self._test_bundle_get_deleted("aws", uuid, version, None)
-        self._test_bundle_get_deleted("gcp", uuid, version, None)
+        self._test_bundle_get_deleted(Replica.aws, uuid, version, None)
+        self._test_bundle_get_deleted(Replica.gcp, uuid, version, None)
         # get latest undeleted version
         uuid = "deadbeef-0001-4a6b-8f0d-a7d2105c23be"
         expected_version = "2017-12-05T235728.441373Z"
-        self._test_bundle_get_deleted("aws", uuid, None, expected_version)
-        self._test_bundle_get_deleted("gcp", uuid, None, expected_version)
+        self._test_bundle_get_deleted(Replica.aws, uuid, None, expected_version)
+        self._test_bundle_get_deleted(Replica.gcp, uuid, None, expected_version)
         # specific version delete
         version = "2017-12-05T235850.950361Z"
-        self._test_bundle_get_deleted("aws", uuid, version, None)
-        self._test_bundle_get_deleted("gcp", uuid, version, None)
+        self._test_bundle_get_deleted(Replica.aws, uuid, version, None)
+        self._test_bundle_get_deleted(Replica.gcp, uuid, version, None)
 
     def _test_bundle_get_deleted(self,
-                                 replica: str,
+                                 replica: Replica,
                                  bundle_uuid: str,
                                  version: typing.Optional[str],
                                  expected_version: typing.Optional[str]):
@@ -150,11 +150,11 @@ class TestDSS(unittest.TestCase, DSSAssertMixin, DSSUploadMixin):
         )
 
     def test_bundle_put(self):
-        self._test_bundle_put("aws", self.s3_test_fixtures_bucket)
-        self._test_bundle_put("gcp", self.gs_test_fixtures_bucket)
+        self._test_bundle_put(Replica.aws, self.s3_test_fixtures_bucket)
+        self._test_bundle_put(Replica.gcp, self.gs_test_fixtures_bucket)
 
-    def _test_bundle_put(self, replica, fixtures_bucket):
-        schema = self._get_schema(replica)
+    def _test_bundle_put(self, replica: Replica, fixtures_bucket: str):
+        schema = Config.get_storage_schema(replica)
 
         bundle_uuid = str(uuid.uuid4())
         file_uuid = str(uuid.uuid4())
@@ -244,13 +244,13 @@ class TestDSS(unittest.TestCase, DSSAssertMixin, DSSUploadMixin):
             )
 
     def test_bundle_delete(self):
-        self._test_bundle_delete("aws", self.s3_test_fixtures_bucket, True)
-        self._test_bundle_delete("gcp", self.gs_test_fixtures_bucket, True)
-        self._test_bundle_delete("aws", self.s3_test_fixtures_bucket, False)
-        self._test_bundle_delete("gcp", self.gs_test_fixtures_bucket, False)
+        self._test_bundle_delete(Replica.aws, self.s3_test_fixtures_bucket, True)
+        self._test_bundle_delete(Replica.gcp, self.gs_test_fixtures_bucket, True)
+        self._test_bundle_delete(Replica.aws, self.s3_test_fixtures_bucket, False)
+        self._test_bundle_delete(Replica.gcp, self.gs_test_fixtures_bucket, False)
 
-    def _test_bundle_delete(self, replica: str, fixtures_bucket: str, authorized: bool):
-        schema = self._get_schema(replica)
+    def _test_bundle_delete(self, replica: Replica, fixtures_bucket: str, authorized: bool):
+        schema = Config.get_storage_schema(replica)
 
         # prep existing bundle
         bundle_uuid = str(uuid.uuid4())
@@ -330,15 +330,15 @@ class TestDSS(unittest.TestCase, DSSAssertMixin, DSSUploadMixin):
         """
         Verify that we return the correct error message when the bundle cannot be found.
         """
-        self._test_bundle_get_not_found("aws")
-        self._test_bundle_get_not_found("gcp")
+        self._test_bundle_get_not_found(Replica.aws)
+        self._test_bundle_get_not_found(Replica.gcp)
 
-    def _test_bundle_get_not_found(self, replica):
+    def _test_bundle_get_not_found(self, replica: Replica):
         bundle_uuid = str(uuid.uuid4())
 
         url = str(UrlBuilder()
                   .set(path="/v1/bundles/" + bundle_uuid)
-                  .add_query("replica", replica))
+                  .add_query("replica", replica.name))
 
         with override_bucket_config(BucketConfig.TEST_FIXTURE):
             self.assertGetResponse(
@@ -352,7 +352,7 @@ class TestDSS(unittest.TestCase, DSSAssertMixin, DSSUploadMixin):
         version = "2017-06-16T193604.240704Z"
         url = str(UrlBuilder()
                   .set(path="/v1/bundles/" + bundle_uuid)
-                  .add_query("replica", replica)
+                  .add_query("replica", replica.name)
                   .add_query("version", version))
 
         with override_bucket_config(BucketConfig.TEST_FIXTURE):
@@ -366,12 +366,12 @@ class TestDSS(unittest.TestCase, DSSAssertMixin, DSSUploadMixin):
 
     def put_bundle(
             self,
-            replica: str,
+            replica: Replica,
             bundle_uuid: str,
             files: typing.Iterable[typing.Tuple[str, str, str]],
             bundle_version: typing.Optional[str] = None,
             expected_code: int = requests.codes.created):
-        builder = UrlBuilder().set(path="/v1/bundles/" + bundle_uuid).add_query("replica", replica)
+        builder = UrlBuilder().set(path="/v1/bundles/" + bundle_uuid).add_query("replica", replica.name)
         if bundle_version:
             builder.add_query("version", bundle_version)
         url = str(builder)
@@ -405,12 +405,12 @@ class TestDSS(unittest.TestCase, DSSAssertMixin, DSSUploadMixin):
 
     def delete_bundle(
             self,
-            replica: str,
+            replica: Replica,
             bundle_uuid: str,
             bundle_version: typing.Optional[str]=None,
             authorized: bool=True):
         # make delete request
-        url_builder = UrlBuilder().set(path="/v1/bundles/" + bundle_uuid).add_query('replica', replica)
+        url_builder = UrlBuilder().set(path="/v1/bundles/" + bundle_uuid).add_query('replica', replica.name)
         if bundle_version:
             url_builder = url_builder.add_query('version', bundle_version)
         url = str(url_builder)
@@ -428,13 +428,6 @@ class TestDSS(unittest.TestCase, DSSAssertMixin, DSSUploadMixin):
             json_request_body=json_request_body,
             headers=get_auth_header(authorized=authorized),
         )
-
-    @staticmethod
-    def _get_schema(replica: str):
-        if replica == "aws":
-            return "s3"
-        elif replica == "gcp":
-            return "gs"
 
 
 if __name__ == '__main__':

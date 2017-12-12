@@ -18,6 +18,7 @@ sys.path.insert(0, pkg_root)  # noqa
 
 import dss
 from dss.config import BucketConfig, override_bucket_config
+from dss.config import BucketConfig, override_bucket_config, Replica
 from dss.util import UrlBuilder
 from dss.util.aws import AWS_MIN_CHUNK_SIZE
 from tests.fixtures.cloud_uploader import GSUploader, S3Uploader, Uploader
@@ -45,10 +46,10 @@ class TestFileApi(unittest.TestCase, DSSAssertMixin, DSSUploadMixin):
     @testmode.standalone
     def test_file_put(self):
         tempdir = tempfile.gettempdir()
-        self._test_file_put("aws", "s3", self.s3_test_bucket, S3Uploader(tempdir, self.s3_test_bucket))
-        self._test_file_put("gcp", "gs", self.gs_test_bucket, GSUploader(tempdir, self.gs_test_bucket))
+        self._test_file_put(Replica.aws, "s3", self.s3_test_bucket, S3Uploader(tempdir, self.s3_test_bucket))
+        self._test_file_put(Replica.gcp, "gs", self.gs_test_bucket, GSUploader(tempdir, self.gs_test_bucket))
 
-    def _test_file_put(self, replica: str, scheme: str, test_bucket: str, uploader: Uploader):
+    def _test_file_put(self, replica: Replica, scheme: str, test_bucket: str, uploader: Uploader):
         src_key = generate_test_key()
         src_data = os.urandom(1024)
         with tempfile.NamedTemporaryFile(delete=True) as fh:
@@ -77,10 +78,10 @@ class TestFileApi(unittest.TestCase, DSSAssertMixin, DSSUploadMixin):
     @testmode.integration
     def test_file_put_large(self):
         tempdir = tempfile.gettempdir()
-        self._test_file_put_large("aws", "s3", self.s3_test_bucket, S3Uploader(tempdir, self.s3_test_bucket))
+        self._test_file_put_large(Replica.aws, "s3", self.s3_test_bucket, S3Uploader(tempdir, self.s3_test_bucket))
         # There's no equivalent for GCP ... yet. :)
 
-    def _test_file_put_large(self, replica: str, scheme: str, test_bucket: str, uploader: Uploader):
+    def _test_file_put_large(self, replica: Replica, scheme: str, test_bucket: str, uploader: Uploader):
         src_key = generate_test_key()
         src_data = os.urandom(AWS_MIN_CHUNK_SIZE + 1)
         with tempfile.NamedTemporaryFile(delete=True) as fh:
@@ -91,7 +92,7 @@ class TestFileApi(unittest.TestCase, DSSAssertMixin, DSSUploadMixin):
 
         # should be able to do this twice (i.e., same payload, different UUIDs).  first time should be asynchronous
         # since it's new data.  second time should be synchronous since the data is present.
-        for expect_async in (True, False):
+        for expect_async in [True, False]:
             resp_obj = self.upload_file_wait(f"{scheme}://{test_bucket}/{src_key}", replica, expect_async=expect_async)
             self.assertHeaders(
                 resp_obj.response,
@@ -106,7 +107,7 @@ class TestFileApi(unittest.TestCase, DSSAssertMixin, DSSUploadMixin):
     def test_file_put_metadata_from_tags(self):
         resp_obj = self.upload_file_wait(
             f"s3://{self.s3_test_fixtures_bucket}/test_good_source_data/metadata_in_tags",
-            "aws",
+            Replica.aws,
         )
         self.assertHeaders(
             resp_obj.response,
@@ -124,7 +125,7 @@ class TestFileApi(unittest.TestCase, DSSAssertMixin, DSSUploadMixin):
     def _test_file_put_upper_case_checksums(self, scheme, fixtures_bucket):
         resp_obj = self.upload_file_wait(
             f"{scheme}://{fixtures_bucket}/test_good_source_data/incorrect_case_checksum",
-            "aws",
+            Replica.aws,
         )
         self.assertHeaders(
             resp_obj.response,
@@ -136,16 +137,16 @@ class TestFileApi(unittest.TestCase, DSSAssertMixin, DSSUploadMixin):
 
     @testmode.standalone
     def test_file_head(self):
-        self._test_file_head("aws")
-        self._test_file_head("gcp")
+        self._test_file_head(Replica.aws)
+        self._test_file_head(Replica.gcp)
 
-    def _test_file_head(self, replica):
+    def _test_file_head(self, replica: Replica):
         file_uuid = "ce55fd51-7833-469b-be0b-5da88ebebfcd"
         version = "2017-06-16T193604.240704Z"
 
         url = str(UrlBuilder()
                   .set(path="/v1/files/" + file_uuid)
-                  .add_query("replica", replica)
+                  .add_query("replica", replica.name)
                   .add_query("version", version))
 
         with override_bucket_config(BucketConfig.TEST_FIXTURE):
@@ -158,10 +159,10 @@ class TestFileApi(unittest.TestCase, DSSAssertMixin, DSSUploadMixin):
 
     @testmode.standalone
     def test_file_get_specific(self):
-        self._test_file_get_specific("aws")
-        self._test_file_get_specific("gcp")
+        self._test_file_get_specific(Replica.aws)
+        self._test_file_get_specific(Replica.gcp)
 
-    def _test_file_get_specific(self, replica):
+    def _test_file_get_specific(self, replica: Replica):
         """
         Verify we can successfully fetch a specific file UUID+version.
         """
@@ -170,7 +171,7 @@ class TestFileApi(unittest.TestCase, DSSAssertMixin, DSSUploadMixin):
 
         url = str(UrlBuilder()
                   .set(path="/v1/files/" + file_uuid)
-                  .add_query("replica", replica)
+                  .add_query("replica", replica.name)
                   .add_query("version", version))
 
         with override_bucket_config(BucketConfig.TEST_FIXTURE):
@@ -194,10 +195,10 @@ class TestFileApi(unittest.TestCase, DSSAssertMixin, DSSUploadMixin):
 
     @testmode.standalone
     def test_file_get_latest(self):
-        self._test_file_get_latest("aws")
-        self._test_file_get_latest("gcp")
+        self._test_file_get_latest(Replica.aws)
+        self._test_file_get_latest(Replica.gcp)
 
-    def _test_file_get_latest(self, replica):
+    def _test_file_get_latest(self, replica: Replica):
         """
         Verify we can successfully fetch the latest version of a file UUID.
         """
@@ -205,7 +206,7 @@ class TestFileApi(unittest.TestCase, DSSAssertMixin, DSSUploadMixin):
 
         url = str(UrlBuilder()
                   .set(path="/v1/files/" + file_uuid)
-                  .add_query("replica", replica))
+                  .add_query("replica", replica.name))
 
         with override_bucket_config(BucketConfig.TEST_FIXTURE):
             resp_obj = self.assertGetResponse(
@@ -231,15 +232,15 @@ class TestFileApi(unittest.TestCase, DSSAssertMixin, DSSUploadMixin):
         """
         Verify that we return the correct error message when the file cannot be found.
         """
-        self._test_file_get_not_found("aws")
-        self._test_file_get_not_found("gcp")
+        self._test_file_get_not_found(Replica.aws)
+        self._test_file_get_not_found(Replica.gcp)
 
-    def _test_file_get_not_found(self, replica):
+    def _test_file_get_not_found(self, replica: Replica):
         file_uuid = "ce55fd51-7833-469b-be0b-5da88ec0ffee"
 
         url = str(UrlBuilder()
                   .set(path="/v1/files/" + file_uuid)
-                  .add_query("replica", replica))
+                  .add_query("replica", replica.name))
 
         with override_bucket_config(BucketConfig.TEST_FIXTURE):
             self.assertGetResponse(
@@ -254,7 +255,7 @@ class TestFileApi(unittest.TestCase, DSSAssertMixin, DSSUploadMixin):
         version = "2017-06-16T193604.240704Z"
         url = str(UrlBuilder()
                   .set(path="/v1/files/" + file_uuid)
-                  .add_query("replica", replica)
+                  .add_query("replica", replica.name)
                   .add_query("version", version))
 
         with override_bucket_config(BucketConfig.TEST_FIXTURE):
@@ -293,10 +294,10 @@ class TestFileApi(unittest.TestCase, DSSAssertMixin, DSSUploadMixin):
         Verify size is correct after dss put and get
         """
         tempdir = tempfile.gettempdir()
-        self._test_file_size("aws", "s3", self.s3_test_bucket, S3Uploader(tempdir, self.s3_test_bucket))
-        self._test_file_size("gcp", "gs", self.gs_test_bucket, GSUploader(tempdir, self.gs_test_bucket))
+        self._test_file_size(Replica.aws, "s3", self.s3_test_bucket, S3Uploader(tempdir, self.s3_test_bucket))
+        self._test_file_size(Replica.gcp, "gs", self.gs_test_bucket, GSUploader(tempdir, self.gs_test_bucket))
 
-    def _test_file_size(self, replica: str, scheme: str, test_bucket: str, uploader: Uploader):
+    def _test_file_size(self, replica: Replica, scheme: str, test_bucket: str, uploader: Uploader):
         src_key = generate_test_key()
         src_size = 1024 + int.from_bytes(os.urandom(1), byteorder='little')
         src_data = os.urandom(src_size)
@@ -316,7 +317,7 @@ class TestFileApi(unittest.TestCase, DSSAssertMixin, DSSUploadMixin):
 
         url = str(UrlBuilder()
                   .set(path="/v1/files/" + file_uuid)
-                  .add_query("replica", replica))
+                  .add_query("replica", replica.name))
 
         with override_bucket_config(BucketConfig.TEST):
             resp_obj = self.assertGetResponse(

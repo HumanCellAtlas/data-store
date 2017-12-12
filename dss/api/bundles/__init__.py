@@ -16,7 +16,7 @@ from ...util.blobstore import test_object_exists, ObjectTest
 from ...util.bundles import get_bundle
 from ...util.version import datetime_to_version_format
 from ... import DSSException, dss_handler
-from ...config import Config
+from ...config import Config, Replica
 from ...hcablobstore import BundleFileMetadata, BundleMetadata, FileMetadata
 
 PUT_TIME_ALLOWANCE_SECONDS = 10
@@ -31,7 +31,7 @@ def get(uuid: str,
         version: str=None,
         # TODO: (ttung) once we can run the endpoints from each cloud, we should default to the local cloud.
         directurls: bool=False):
-    return get_bundle(uuid, replica, version, directurls)
+    return get_bundle(uuid, Replica[replica], version, directurls)
 
 
 @dss_handler
@@ -54,7 +54,7 @@ def put(uuid: str, replica: str, json_request_body: dict, version: str = None):
         timestamp = datetime.datetime.utcnow()
     version = datetime_to_version_format(timestamp)
 
-    handle, hca_handle, bucket = Config.get_cloud_specific_handles(replica)
+    handle, hca_handle, bucket = Config.get_cloud_specific_handles(Replica[replica])
 
     # what's the target object name for the bundle manifest?
     bundle_manifest_key = bundle_key(uuid, version)
@@ -158,7 +158,7 @@ def delete(uuid: str, replica: str, json_request_body: dict, version: str=None):
         version=version,
     )
 
-    handle, hca_handle, bucket = Config.get_cloud_specific_handles(replica)
+    handle, hca_handle, bucket = Config.get_cloud_specific_handles(Replica[replica])
 
     if test_object_exists(handle, bucket, bundle_prefix, test_type=ObjectTest.PREFIX):
         created, idempotent = _idempotent_save(
