@@ -125,7 +125,7 @@ def _format_request_body(page: dict, es_query: dict, replica: str, output_format
     result_list = []  # type: typing.List[dict]
     for hit in page['hits']['hits']:
         result = {
-            'bundle_id': hit['_id'],
+            'bundle_fqid': hit['_id'],
             'bundle_url': _build_bundle_url(hit, replica),
             'search_score': hit['_score']
         }

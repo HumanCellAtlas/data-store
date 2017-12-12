@@ -148,20 +148,20 @@ class TestIndexerBase(DSSAssertMixin, DSSStorageMixin, DSSUploadMixin):
         # delete a specific bundle version
         self._test_process_new_indexable_object_delete(f"bundles/{bundle_uuid}.dead")
 
-    def _test_process_new_indexable_object_delete(self, deletion_object_name):
-        bundle_uuid, version = DSS_OBJECT_NAME_REGEX.search(deletion_object_name).groups()
+    def _test_process_new_indexable_object_delete(self, tombstone_key):
+        bundle_uuid, version = DSS_OBJECT_NAME_REGEX.search(tombstone_key).groups()
         # set the tombstone
         blobstore, _, bucket = Config.get_cloud_specific_handles(self.replica)
         tombstone_data = {"status": "disappeared"}
         tombstone_data_bytes = io.BytesIO(bytes(json.dumps(tombstone_data), encoding="utf-8"))
-        blobstore.upload_file_handle(bucket, deletion_object_name, tombstone_data_bytes)
+        blobstore.upload_file_handle(bucket, tombstone_key, tombstone_data_bytes)
 
         # send the
         sample_event = self.create_sample_bundle_created_event(self.bundle_key)
         self.process_new_indexable_object(sample_event, logger)
         self.get_search_results(self.smartseq2_paired_ends_query, 1)
 
-        sample_event = self.create_sample_bundle_deleted_event(deletion_object_name)
+        sample_event = self.create_sample_bundle_deleted_event(tombstone_key)
         self.process_new_indexable_object(sample_event, logger)
 
         @eventually(5.0, 0.5)
@@ -249,9 +249,12 @@ class TestIndexerBase(DSSAssertMixin, DSSStorageMixin, DSSUploadMixin):
         sample_event = self.create_sample_bundle_created_event(bundle_key)
         with self.assertLogs(logger, level="WARNING") as log_monitor:
             self.process_new_indexable_object(sample_event, logger)
-        self.assertRegex(log_monitor.output[0],
-                         f"WARNING:.*:In bundle .* the file '{inaccesssible_filename}' is marked for indexing"
-                         " yet could not be accessed. This file will not be indexed. Exception: .*, File blob key:")
+        self.assertRegex(
+            log_monitor.output[0],
+            f"WARNING:.*:In bundle .* the file '{inaccesssible_filename}' is marked for indexing"
+            " yet could not be accessed. This file will not be indexed. Exception: .*, File blob object name:",
+        )
+
         search_results = self.get_search_results(self.smartseq2_paired_ends_query, 1)
         self.assertEqual(1, len(search_results))
         files = list(smartseq2_paried_ends_indexed_file_list)
@@ -264,6 +267,7 @@ class TestIndexerBase(DSSAssertMixin, DSSStorageMixin, DSSUploadMixin):
         def _notify(subscription, bundle_id=get_bundle_fqid()):
             document = BundleDocument(Replica[self.replica], bundle_id, logger)
             document.notify_subscriber(subscription=subscription)
+
         with self.assertRaisesRegex(requests.exceptions.InvalidURL, "Invalid URL 'http://': No host supplied"):
             _notify(subscription=dict(id="", es_query={}, callback_url="http://"))
         with self.assertRaisesRegex(AssertionError, "Unexpected scheme for callback URL"):
@@ -299,8 +303,8 @@ class TestIndexerBase(DSSAssertMixin, DSSStorageMixin, DSSUploadMixin):
 
             sample_event = self.create_sample_bundle_created_event(self.bundle_key)
             self.process_new_indexable_object(sample_event, logger)
-            prefix, _, bundle_id = self.bundle_key.partition("/")
-            self.verify_notification(subscription_id, self.smartseq2_paired_ends_query, bundle_id)
+            prefix, _, bundle_fqid = self.bundle_key.partition("/")
+            self.verify_notification(subscription_id, self.smartseq2_paired_ends_query, bundle_fqid)
             self.delete_subscription(subscription_id)
             PostTestHandler.reset()
 
@@ -320,10 +324,10 @@ class TestIndexerBase(DSSAssertMixin, DSSStorageMixin, DSSUploadMixin):
         PostTestHandler.set_response_code(error_response_code)
         with self.assertLogs(logger, level="WARNING") as log_monitor:
             self.process_new_indexable_object(sample_event, logger)
-        prefix, _, bundle_id = bundle_key.partition("/")
+        prefix, _, bundle_fqid = bundle_key.partition("/")
         self.assertRegex(log_monitor.output[0],
                          f"WARNING:.*:Failed notification for subscription {subscription_id}"
-                         f" for bundle {bundle_id} with transaction id .+ Code: {error_response_code}")
+                         f" for bundle {bundle_fqid} with transaction id .+ Code: {error_response_code}")
 
     def test_subscription_registration_before_indexing(self):
         elasticsearch_delete_index(f'*{IndexSuffix.name}')
@@ -332,8 +336,8 @@ class TestIndexerBase(DSSAssertMixin, DSSStorageMixin, DSSUploadMixin):
         sample_event = self.create_sample_bundle_created_event(self.bundle_key)
         PostTestHandler.verify_payloads = False
         self.process_new_indexable_object(sample_event, logger)
-        prefix, _, bundle_id = self.bundle_key.partition("/")
-        self.verify_notification(subscription_id, self.smartseq2_paired_ends_query, bundle_id)
+        prefix, _, bundle_fqid = self.bundle_key.partition("/")
+        self.verify_notification(subscription_id, self.smartseq2_paired_ends_query, bundle_fqid)
         self.delete_subscription(subscription_id)
 
     def test_subscription_query_with_multiple_data_types_indexing_and_notification(self):
@@ -385,8 +389,8 @@ class TestIndexerBase(DSSAssertMixin, DSSStorageMixin, DSSUploadMixin):
         self.assertEqual(1, len(search_results))
 
         # Verify the query works correctly as a subscription, resulting in notification
-        prefix, _, bundle_id = self.bundle_key.partition("/")
-        self.verify_notification(subscription_id, subscription_query, bundle_id)
+        prefix, _, bundle_fqid = self.bundle_key.partition("/")
+        self.verify_notification(subscription_id, subscription_query, bundle_fqid)
         self.delete_subscription(subscription_id)
 
     def test_get_shape_descriptor(self):
@@ -520,8 +524,8 @@ class TestIndexerBase(DSSAssertMixin, DSSStorageMixin, DSSUploadMixin):
             "fixtures/indexing/bundles/unversioned/smartseq2/paired_ends")
         sample_event = self.create_sample_bundle_created_event(bundle_key)
         self.process_new_indexable_object(sample_event, logger)
-        prefix, _, bundle_id = bundle_key.partition("/")
-        self.verify_notification(subscription_id, smartseq2_paired_ends_v2_or_v3_query, bundle_id)
+        prefix, _, bundle_fqid = bundle_key.partition("/")
+        self.verify_notification(subscription_id, smartseq2_paired_ends_v2_or_v3_query, bundle_fqid)
 
         PostTestHandler.reset()
         PostTestHandler.verify_payloads = False
@@ -531,12 +535,12 @@ class TestIndexerBase(DSSAssertMixin, DSSStorageMixin, DSSUploadMixin):
             "fixtures/indexing/bundles/v3/smartseq2/paired_ends")
         sample_event = self.create_sample_bundle_created_event(bundle_key)
         self.process_new_indexable_object(sample_event, logger)
-        prefix, _, bundle_id = bundle_key.partition("/")
-        self.verify_notification(subscription_id, smartseq2_paired_ends_v2_or_v3_query, bundle_id)
+        prefix, _, bundle_fqid = bundle_key.partition("/")
+        self.verify_notification(subscription_id, smartseq2_paired_ends_v2_or_v3_query, bundle_fqid)
 
         self.delete_subscription(subscription_id)
 
-    def verify_notification(self, subscription_id, es_query, bundle_id):
+    def verify_notification(self, subscription_id, es_query, bundle_fqid):
         posted_payload_string = self.get_notification_payload()
         self.assertIsNotNone(posted_payload_string)
         posted_json = json.loads(posted_payload_string)
@@ -546,7 +550,7 @@ class TestIndexerBase(DSSAssertMixin, DSSStorageMixin, DSSUploadMixin):
         self.assertIn('es_query', posted_json)
         self.assertEqual(es_query, posted_json['es_query'])
         self.assertIn('match', posted_json)
-        bundle_uuid, _, bundle_version = bundle_id.partition(".")
+        bundle_uuid, _, bundle_version = bundle_fqid.partition(".")
         self.assertEqual(bundle_uuid, posted_json['match']['bundle_uuid'])
         self.assertEqual(bundle_version, posted_json['match']['bundle_version'])
 
@@ -581,7 +585,7 @@ class TestIndexerBase(DSSAssertMixin, DSSStorageMixin, DSSUploadMixin):
                                         inaccessible_file_content_type,
                                         inaccessible_file_indexed)
         bundle_builder.store(self.test_bucket)
-        return 'bundles/' + bundle_builder.get_bundle_id()
+        return 'bundles/' + bundle_builder.get_bundle_fqid()
 
     def load_test_data_bundle(self, bundle: TestBundle):
         self.upload_files_and_create_bundle(bundle, self.replica)
@@ -690,9 +694,9 @@ class TestGCPIndexer(GCPIndexHandler, TestIndexerBase, unittest.TestCase):
 
 
 class BundleBuilder:
-    def __init__(self, replica, bundle_id=None, bundle_version=None):
+    def __init__(self, replica, bundle_fqid=None, bundle_version=None):
         self.blobstore, _, _ = Config.get_cloud_specific_handles(replica)
-        self.bundle_id = bundle_id if bundle_id else str(uuid.uuid4())
+        self.bundle_fqid = bundle_fqid if bundle_fqid else str(uuid.uuid4())
         self.bundle_version = bundle_version if bundle_version else self._get_version()
         self.bundle_manifest = {
             BundleMetadata.FORMAT: BundleMetadata.FILE_FORMAT_VERSION,
@@ -701,8 +705,8 @@ class BundleBuilder:
             BundleMetadata.CREATOR_UID: "0"
         }
 
-    def get_bundle_id(self):
-        return f'{self.bundle_id}.{self.bundle_version}'
+    def get_bundle_fqid(self):
+        return f'{self.bundle_fqid}.{self.bundle_version}'
 
     def add_file(self, bucket_name, name, indexed, file_id):
         # Add the existing file to the bundle manifest
@@ -738,7 +742,7 @@ class BundleBuilder:
 
     def store(self, bucket_name):
         self.blobstore.upload_file_handle(bucket_name,
-                                          'bundles/' + self.get_bundle_id(),
+                                          'bundles/' + self.get_bundle_fqid(),
                                           io.BytesIO(json.dumps(self.bundle_manifest).encode("utf-8")))
 
     def _get_version(self):
