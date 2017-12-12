@@ -172,3 +172,7 @@ class TestFileApi(unittest.TestCase, DSSAssertMixin, DSSUploadMixin):
     def test_touch_file(self):
         replica = Replica.aws
         self.assertEqual(touch_test_file(self.s3_test_checkout_bucket, replica), True)
+
+
+if __name__ == "__main__":
+    unittest.main()
