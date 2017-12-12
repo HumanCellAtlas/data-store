@@ -21,7 +21,7 @@ from dss.config import BucketConfig, override_bucket_config
 from dss.util import UrlBuilder
 from dss.util.aws import AWS_MIN_CHUNK_SIZE
 from tests.fixtures.cloud_uploader import GSUploader, S3Uploader, Uploader
-from tests.infra import DSSAssertMixin, DSSUploadMixin, ExpectedErrorFields, get_env, generate_test_key
+from tests.infra import DSSAssertMixin, DSSUploadMixin, ExpectedErrorFields, get_env, generate_test_key, testmode
 from tests.infra.server import ThreadedLocalServer
 
 
@@ -42,6 +42,7 @@ class TestFileApi(unittest.TestCase, DSSAssertMixin, DSSUploadMixin):
         self.s3_test_bucket = get_env("DSS_S3_BUCKET_TEST")
         self.gs_test_bucket = get_env("DSS_GS_BUCKET_TEST")
 
+    @testmode.standalone
     def test_file_put(self):
         tempdir = tempfile.gettempdir()
         self._test_file_put("aws", "s3", self.s3_test_bucket, S3Uploader(tempdir, self.s3_test_bucket))
@@ -73,6 +74,7 @@ class TestFileApi(unittest.TestCase, DSSAssertMixin, DSSUploadMixin):
         # should *NOT* be able to do this twice (i.e., different payload, same UUIDs)
         self.upload_file(source_url, file_uuid, version=version, expected_code=requests.codes.conflict)
 
+    @testmode.integration
     def test_file_put_large(self):
         tempdir = tempfile.gettempdir()
         self._test_file_put_large("aws", "s3", self.s3_test_bucket, S3Uploader(tempdir, self.s3_test_bucket))
@@ -100,6 +102,7 @@ class TestFileApi(unittest.TestCase, DSSAssertMixin, DSSUploadMixin):
             self.assertIn('version', resp_obj.json)
 
     # This is a test specific to AWS since it has separate notion of metadata and tags.
+    @testmode.standalone
     def test_file_put_metadata_from_tags(self):
         resp_obj = self.upload_file_wait(
             f"s3://{self.s3_test_fixtures_bucket}/test_good_source_data/metadata_in_tags",
@@ -113,6 +116,7 @@ class TestFileApi(unittest.TestCase, DSSAssertMixin, DSSUploadMixin):
         )
         self.assertIn('version', resp_obj.json)
 
+    @testmode.standalone
     def test_file_put_upper_case_checksums(self):
         self._test_file_put_upper_case_checksums("s3", self.s3_test_fixtures_bucket)
         self._test_file_put_upper_case_checksums("gs", self.gs_test_fixtures_bucket)
@@ -130,6 +134,7 @@ class TestFileApi(unittest.TestCase, DSSAssertMixin, DSSUploadMixin):
         )
         self.assertIn('version', resp_obj.json)
 
+    @testmode.standalone
     def test_file_head(self):
         self._test_file_head("aws")
         self._test_file_head("gcp")
@@ -151,6 +156,7 @@ class TestFileApi(unittest.TestCase, DSSAssertMixin, DSSUploadMixin):
 
             # TODO: (ttung) verify headers
 
+    @testmode.standalone
     def test_file_get_specific(self):
         self._test_file_get_specific("aws")
         self._test_file_get_specific("gcp")
@@ -186,6 +192,7 @@ class TestFileApi(unittest.TestCase, DSSAssertMixin, DSSUploadMixin):
 
             # TODO: (ttung) verify more of the headers
 
+    @testmode.standalone
     def test_file_get_latest(self):
         self._test_file_get_latest("aws")
         self._test_file_get_latest("gcp")
@@ -219,6 +226,7 @@ class TestFileApi(unittest.TestCase, DSSAssertMixin, DSSUploadMixin):
 
             # TODO: (ttung) verify more of the headers
 
+    @testmode.standalone
     def test_file_get_not_found(self):
         """
         Verify that we return the correct error message when the file cannot be found.
@@ -259,6 +267,7 @@ class TestFileApi(unittest.TestCase, DSSAssertMixin, DSSUploadMixin):
                     expect_stacktrace=True)
             )
 
+    @testmode.standalone
     def test_file_get_no_replica(self):
         """
         Verify we raise the correct error code when we provide no replica.
@@ -278,6 +287,7 @@ class TestFileApi(unittest.TestCase, DSSAssertMixin, DSSUploadMixin):
                     expect_stacktrace=True)
             )
 
+    @testmode.standalone
     def test_file_size(self):
         """
         Verify size is correct after dss put and get

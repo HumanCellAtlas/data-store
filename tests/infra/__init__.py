@@ -5,6 +5,7 @@ import uuid
 from .assert_mixin import DSSAssertResponse, DSSAssertMixin, ExpectedErrorFields
 from .logging import start_verbose_logging
 from .storage_mixin import DSSStorageMixin, TestBundle
+from .testmode import integration, standalone
 from .upload_mixin import DSSUploadMixin
 
 
