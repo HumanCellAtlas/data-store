@@ -1,27 +1,29 @@
 """Lambda function for DSS indexing"""
-
+import ipaddress
 import json
 import logging
-import os
-import re
-import uuid
-import ipaddress
 import socket
 import typing
-from urllib.parse import urlparse, unquote
+import uuid
+from urllib.parse import unquote
+from urllib.parse import urlparse
 
+import re
 import requests
 from cloud_blobstore import BlobStore, BlobStoreError
 from collections import defaultdict
 from elasticsearch.helpers import scan, bulk, BulkIndexError
 from requests_http_signature import HTTPSignatureAuth
 
-from dss import Config, DeploymentStage, ESIndexType, ESDocType, Replica
-from ...util import create_blob_key
-from ...storage.bundles import BUNDLE_PREFIX, DSS_BUNDLE_TOMBSTONE_REGEX, DSS_OBJECT_NAME_REGEX, DSS_BUNDLE_KEY_REGEX
-from ...storage.bundles import bundle_key, bundle_key_to_bundle_fqid, bundle_fqid_to_uuid_version
-from ...hcablobstore import BundleMetadata, BundleFileMetadata
-from ...util.es import ElasticsearchClient, create_elasticsearch_doc_index
+from dss import Config, DeploymentStage, ESIndexType, ESDocType
+from dss import Replica
+from dss.hcablobstore import BundleMetadata, BundleFileMetadata
+from dss.storage.bundles import BUNDLE_PREFIX, DSS_OBJECT_NAME_REGEX
+from dss.storage.bundles import bundle_key, bundle_key_to_bundle_fqid, bundle_fqid_to_uuid_version, format_bundle_fqid
+from dss.storage.index import Index
+from dss.util import create_blob_key
+from dss.util.es import ElasticsearchClient
+from ...storage.bundles import DSS_BUNDLE_TOMBSTONE_REGEX, DSS_BUNDLE_KEY_REGEX
 
 
 # index handler
@@ -68,10 +70,13 @@ class IndexHandler:
 
     @staticmethod
     def _delete_from_index(replica: Replica, bucket_name: str, key: str, logger):
-        documents = BundleDocument.from_tombstone(replica, bucket_name, key, logger)
-        for document in documents:
+        tombstone_document = BundleTombstoneDocument.from_bucket(replica, bucket_name, key, logger)
+        dead_documents = tombstone_document.list_dead_bundles(bucket_name)
+        for document in dead_documents:
             index_name = document.prepare_index()
-            document.delete_from_index(index_name)
+            document.clear()
+            document.update(tombstone_document)
+            document.add_to_index(index_name)
 
 
 class AWSIndexHandler(IndexHandler):
@@ -102,18 +107,46 @@ class GCPIndexHandler(IndexHandler):
             raise
 
 
-class BundleDocument(dict):
-    """
-    An instance of this class represents the Elasticsearch document for a given bundle.
-    """
+class IndexDocument(dict):
 
-    def __init__(self, replica: Replica, bundle_id: str, logger: logging.Logger) -> None:
+    def __init__(self, replica: Replica, bundle_uuid: str, bundle_version: typing.Optional[str],
+                 logger: logging.Logger) -> None:
         super().__init__()
         self.logger = logger
         self.replica = replica
-        self.bundle_id = bundle_id
-        self.bundle_uuid, self.bundle_version = bundle_fqid_to_uuid_version(bundle_id)
-        self.tombstone = None  # type: typing.Optional[dict]
+        self.bundle_uuid = bundle_uuid
+        self.bundle_version = bundle_version
+
+    @property
+    def bundle_id(self):
+        return format_bundle_fqid(self.bundle_uuid, self.bundle_version)
+
+    def add_to_index(self, index_name: str):
+        es_client = ElasticsearchClient.get(self.logger)
+        try:
+            self.logger.debug("Adding index data to Elasticsearch index '%s': %s", index_name,
+                              json.dumps(self, indent=4))
+            initial_mappings = es_client.indices.get_mapping(index_name)[index_name]['mappings']
+            es_client.index(index=index_name,
+                            doc_type=ESDocType.doc.name,
+                            id=format_bundle_fqid(self.bundle_uuid, self.bundle_version),
+                            # FIXME: (hannes) Can this be json.dumps(self, indent=4) ?
+                            body=json.dumps(self))  # Don't use refresh here.
+        except Exception as ex:
+            self.logger.error("Document not indexed. Exception: %s, Index name: %s, Index data: %s",
+                              ex, index_name, json.dumps(self, indent=4))
+            raise
+        return initial_mappings
+
+
+class BundleDocument(IndexDocument):
+    """
+    An instance of this class represents the ElasticSearch document for a given bundle.
+    """
+
+    def __init__(self, replica: Replica, bundle_fqid: str, logger: logging.Logger) -> None:
+        bundle_uuid, bundle_version = bundle_fqid_to_uuid_version(bundle_fqid)
+        super().__init__(replica, bundle_uuid, bundle_version, logger)
 
     @classmethod
     def from_bucket(cls, replica: Replica, bucket_name: str, key: str, logger):  # TODO: return type hint
@@ -124,37 +157,6 @@ class BundleDocument(dict):
         self['state'] = 'new'
         return self
 
-    @classmethod
-    def from_tombstone(cls, replica: Replica, bucket_name: str, key: str, logger):  # TODO: return type hint
-        blobstore = Config.get_cloud_specific_handles(replica.name)[0]
-        bundle_uuid, version = DSS_OBJECT_NAME_REGEX.search(key).groups()
-
-        if version:
-            # if a version is specified, delete just that version
-            bundle_keys = [bundle_key(bundle_uuid, version)]
-        else:
-            # if no version is specified, delete all bundle versions from the index
-            prefix = f"{BUNDLE_PREFIX}/{bundle_uuid}."
-            bundle_keys = list(set([
-                k for k in blobstore.list(bucket_name, prefix)
-                if DSS_BUNDLE_KEY_REGEX.match(k)
-            ]))
-
-        tombstone_data = json.loads(blobstore.get(bucket_name, key))
-
-        docs = [BundleDocument.from_bucket(bucket_name, k, replica, logger) for k in bundle_keys]
-
-        for doc in docs:
-            doc.tombstone = tombstone_data
-
-        return docs
-
-    @classmethod
-    def from_json(cls, replica: Replica, bundle_id: str, bundle_json: dict, logger):  # TODO: return type hint
-        self = cls(replica, bundle_id, logger)
-        self.update(bundle_json)
-        return self
-
     @property
     def files(self):
         return self['files']
@@ -163,9 +165,17 @@ class BundleDocument(dict):
     def manifest(self):
         return self['manifest']
 
-    @property
-    def is_deleted(self):
-        return self.tombstone is not None
+    def add_to_index(self, index_name: str) -> None:
+        initial_mappings = super().add_to_index(index_name)
+        es_client = ElasticsearchClient.get(self.logger)
+        try:
+            current_mappings = es_client.indices.get_mapping(index_name)[index_name]['mappings']
+            if initial_mappings != current_mappings:
+                self._refresh_percolate_queries(index_name)
+        except Exception as ex:
+            self.logger.error("Error refreshing subscription queries for index. Exception: %s, Index name: %s",
+                              ex, index_name)
+            raise
 
     def _read_bundle_manifest(self, handle: BlobStore, bucket_name: str, bundle_key: str) -> dict:
         manifest_string = handle.get(bucket_name, bundle_key).decode("utf-8")
@@ -219,7 +229,7 @@ class BundleDocument(dict):
     def prepare_index(self):
         shape_descriptor = self.get_shape_descriptor()
         index_name = Config.get_es_index_name(ESIndexType.docs, self.replica, shape_descriptor)
-        create_elasticsearch_index(index_name, self.replica, self.logger)
+        Index.create_elasticsearch_index(index_name, self.replica, self.logger)
         return index_name
 
     def get_shape_descriptor(self) -> typing.Optional[str]:
@@ -265,37 +275,6 @@ class BundleDocument(dict):
             return "v" + list(schema_versions)[0]
         else:
             return None  # No files with schema identifiers were found
-
-    def add_to_index(self, index_name: str) -> None:
-        self._add_to_index(index_name, self)
-
-    def delete_from_index(self, index_name: str) -> None:
-        self._add_to_index(index_name, self.tombstone)
-
-    def _add_to_index(self, index_name: str, data: dict) -> None:
-        es_client = ElasticsearchClient.get(self.logger)
-        try:
-            self.logger.debug("Adding index data to Elasticsearch index '%s': %s", index_name,
-                              json.dumps(self, indent=4))
-            initial_mappings = es_client.indices.get_mapping(index_name)[index_name]['mappings']
-            es_client.index(index=index_name,
-                            doc_type=ESDocType.doc.name,
-                            id=self.bundle_id,
-                            # FIXME: (hannes) Can this be json.dumps(self, indent=4) ?
-                            body=json.dumps(data))  # Don't use refresh here.
-        except Exception as ex:
-            self.logger.error("Document not indexed. Exception: %s, Index name: %s, Index data: %s",
-                              ex, index_name, json.dumps(data, indent=4))
-            raise
-
-        try:
-            current_mappings = es_client.indices.get_mapping(index_name)[index_name]['mappings']
-            if initial_mappings != current_mappings:
-                self._refresh_percolate_queries(index_name)
-        except Exception as ex:
-            self.logger.error("Error refreshing subscription queries for index. Exception: %s, Index name: %s",
-                              ex, index_name)
-            raise
 
     def _refresh_percolate_queries(self, index_name: str) -> None:
         # When dynamic templates are used and queries for percolation have been added
@@ -424,14 +403,37 @@ class BundleDocument(dict):
                                 f"Code: {response.status_code}")
 
 
-def create_elasticsearch_index(index_name: str, replica: Replica, logger: logging.Logger):
-    es_client = ElasticsearchClient.get(logger)
-    if not es_client.indices.exists(index_name):
-        with open(os.path.join(os.path.dirname(__file__), "mapping.json"), "r") as fh:
-            index_mapping = json.load(fh)
-        index_mapping["mappings"][ESDocType.doc.name] = index_mapping["mappings"].pop("doc")
-        index_mapping["mappings"][ESDocType.query.name] = index_mapping["mappings"].pop("query")
-        alias_name = Config.get_es_alias_name(ESIndexType.docs, replica)
-        create_elasticsearch_doc_index(es_client, index_name, alias_name, logger, index_mapping)
-    else:
-        logger.debug(f"Using existing Elasticsearch index: {index_name}")
+class BundleTombstoneDocument(IndexDocument):
+
+    def __init__(self, replica: Replica, bundle_uuid: str, bundle_version: typing.Optional[str],
+                 logger: logging.Logger) -> None:
+        super().__init__(replica, bundle_uuid, bundle_version, logger)
+
+    @classmethod
+    def from_bucket(cls, replica: Replica, bucket_name: str, key: str, logger):
+        blobstore = Config.get_cloud_specific_handles(replica.name)[0]
+        bundle_uuid, bundle_version = DSS_OBJECT_NAME_REGEX.search(key).groups()
+
+        tombstone_data = json.loads(blobstore.get(bucket_name, key))
+
+        doc = cls(replica, bundle_uuid, bundle_version, logger)
+        doc.update(tombstone_data)
+        return doc
+
+    def list_dead_bundles(self, bucket_name: str):
+        blobstore = Config.get_cloud_specific_handles(self.replica.name)[0]
+
+        if self.bundle_version:
+            # if a version is specified, delete just that version
+            bundle_keys = [bundle_key(self.bundle_uuid, self.bundle_version)]
+        else:
+            # if no version is specified, delete all bundle versions from the index
+            prefix = f"{BUNDLE_PREFIX}/{self.bundle_uuid}."
+            bundle_keys = list(set([
+                k for k in blobstore.list(bucket_name, prefix)
+                if DSS_BUNDLE_KEY_REGEX.match(k)
+            ]))
+
+        docs = [BundleDocument.from_bucket(self.replica, bucket_name, k, self.logger) for k in bundle_keys]
+
+        return docs

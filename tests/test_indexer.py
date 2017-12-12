@@ -2,10 +2,8 @@
 # coding: utf-8
 
 import datetime
-import io
 import json
 import logging
-import os
 import sys
 import threading
 import time
@@ -16,6 +14,8 @@ from http.server import BaseHTTPRequestHandler, HTTPServer
 
 import google.auth
 import google.auth.transport.requests
+import io
+import os
 import requests
 from requests_http_signature import HTTPSignatureAuth
 
@@ -31,7 +31,7 @@ from dss.util import create_blob_key, networking, UrlBuilder
 from dss.storage.bundles import bundle_key_to_bundle_fqid
 from dss.util.es import ElasticsearchClient, ElasticsearchServer
 from dss.util.version import datetime_to_version_format
-from dss.events.handlers.index import DSS_OBJECT_NAME_REGEX, DSS_BUNDLE_KEY_REGEX
+from dss.storage.bundles import DSS_OBJECT_NAME_REGEX, DSS_BUNDLE_KEY_REGEX
 from tests import get_version
 from tests.es import elasticsearch_delete_index, clear_indexes
 from tests.infra import DSSAssertMixin, DSSUploadMixin, DSSStorageMixin, TestBundle, start_verbose_logging
@@ -265,7 +265,7 @@ class TestIndexerBase(DSSAssertMixin, DSSStorageMixin, DSSUploadMixin):
 
     def test_notify(self):
         def _notify(subscription, bundle_id=get_bundle_fqid()):
-            document = BundleDocument.from_json(Replica[self.replica], bundle_id, {}, logger)
+            document = BundleDocument(Replica[self.replica], bundle_id, logger)
             document.notify_subscriber(subscription=subscription)
         with self.assertRaisesRegex(requests.exceptions.InvalidURL, "Invalid URL 'http://': No host supplied"):
             _notify(subscription=dict(id="", es_query={}, callback_url="http://"))
@@ -393,7 +393,8 @@ class TestIndexerBase(DSSAssertMixin, DSSStorageMixin, DSSUploadMixin):
         self.delete_subscription(subscription_id)
 
     def test_get_shape_descriptor(self):
-        index_document = BundleDocument.from_json(self.replica, get_bundle_fqid(), {
+        index_document = BundleDocument(self.replica, get_bundle_fqid(), logger)
+        index_document.update({
             'files': {
                 'assay_json': {
                     'core': {
@@ -410,7 +411,7 @@ class TestIndexerBase(DSSAssertMixin, DSSStorageMixin, DSSUploadMixin):
                     }
                 }
             }
-        }, logger)
+        })
         with self.subTest("Same major version."):
             self.assertEqual(index_document.get_shape_descriptor(), "v3")
 

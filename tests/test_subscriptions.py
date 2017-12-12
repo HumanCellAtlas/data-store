@@ -3,22 +3,21 @@
 
 import json
 import logging
-import os
 import sys
 import unittest
 import uuid
 from contextlib import contextmanager
-from io import open
 
 import connexion.apis.abstract
+import os
 import requests
-
-from dss.events.handlers.index import BundleDocument, create_elasticsearch_index
+from io import open
 
 pkg_root = os.path.abspath(os.path.join(os.path.dirname(__file__), '..')) # noqa
 sys.path.insert(0, pkg_root) # noqa
 
 import dss
+from dss.events.handlers.index import BundleDocument
 from dss.config import IndexSuffix
 from dss.util import UrlBuilder
 from dss.util.es import ElasticsearchClient, ElasticsearchServer
@@ -59,12 +58,17 @@ class TestSubscriptionsBase(DSSAssertMixin):
         os.environ['DSS_ES_ENDPOINT'] = os.getenv('DSS_ES_ENDPOINT', "127.0.0.1")
 
         with open(os.path.join(os.path.dirname(__file__), "sample_v3_index_doc.json"), "r") as fh:
+<<<<<<< HEAD
             index_document = BundleDocument.from_json(
                 cls.replica,
+=======
+            index_document = BundleDocument(
+                self.replica,
+>>>>>>> Split BundleDocument into BundleDocument and BundleTombstoneDocument
                 get_bundle_fqid(),
-                json.load(fh),
                 logger,
             )
+            index_document.update(json.load(fh))
 
         logger.debug("Setting up Elasticsearch")
         es_client = ElasticsearchClient.get(logger)

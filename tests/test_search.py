@@ -3,15 +3,15 @@
 
 import json
 import logging
-import os
 import sys
 import time
 import unittest
 import uuid
 from urllib.parse import parse_qs, parse_qsl, urlparse, urlsplit
-from requests.utils import parse_header_links
 
+import os
 import requests
+from requests.utils import parse_header_links
 
 pkg_root = os.path.abspath(os.path.join(os.path.dirname(__file__), ".."))  # noqa
 sys.path.insert(0, pkg_root)  # noqa
@@ -22,7 +22,7 @@ from dss.util import UrlBuilder
 
 from dss.api.search import _es_search_page
 from dss.config import IndexSuffix
-from dss.events.handlers.index import create_elasticsearch_index
+from dss.storage.index import Index
 from dss.util.es import ElasticsearchServer, ElasticsearchClient
 from tests import get_version
 from tests.es import elasticsearch_delete_index, clear_indexes
@@ -65,7 +65,7 @@ class TestSearchBase(DSSAssertMixin):
         cls.dss_index_name = "search-unittest"
         with open(os.path.join(os.path.dirname(__file__), "sample_v3_index_doc.json"), "r") as fh:
             cls.index_document = json.load(fh)
-        create_elasticsearch_index(cls.dss_index_name, cls.replica, logger)
+        Index.create_elasticsearch_index(cls.dss_index_name, cls.replica, logger)
 
     @classmethod
     def tearDownClass(cls):
@@ -73,8 +73,7 @@ class TestSearchBase(DSSAssertMixin):
         cls.app.shutdown()
 
     def tearDown(self):
-        clear_indexes([self.dss_alias_name],
-                      [ESDocType.doc.name, ESDocType.query.name])
+        clear_indexes([self.dss_alias_name], [ESDocType.doc.name, ESDocType.query.name])
 
     def test_es_search_page(self):
         """Confirm that elasaticsearch is returning _source info only when necessary."""
