@@ -8,13 +8,29 @@ mypy:
 	mypy --ignore-missing-imports $(MODULES)
 
 test_srcs := $(wildcard tests/test_*.py)
+standalone_test_srcs := $(addprefix standalone__, $(test_srcs))
+integration_test_srcs := $(addprefix integration__, $(test_srcs))
+
+standalone_test: lint mypy $(standalone_test_srcs)
+	coverage combine
+	rm -f .coverage.*
+
+$(standalone_test_srcs): standalone__%.py :
+	DSS_TEST_MODE=standalone coverage run -p --source=dss -m unittest $*.py
+
+integration_test: lint mypy $(integration_test_srcs)
+	coverage combine
+	rm -f .coverage.*
+
+$(integration_test_srcs): integration__%.py :
+	DSS_TEST_MODE=integration coverage run -p --source=dss -m unittest $*.py
 
 test: lint mypy $(test_srcs)
 	coverage combine
 	rm -f .coverage.*
 
 $(test_srcs): %.py :
-	coverage run -p --source=dss -m unittest $@
+	DSS_TEST_MODE="integration standalone" coverage run -p --source=dss -m unittest $@
 
 smoketest:
 	tests/smoketest.py
@@ -63,4 +79,6 @@ requirements.txt requirements-dev.txt : %.txt : %.txt.in
 
 requirements-dev.txt : requirements.txt.in
 
-.PHONY: test lint mypy $(test_srcs) deploy deploy-chalice deploy-daemons
+.PHONY: lint mypy
+.PHONY: test all_test integration_test standalone_test $(test_srcs) $(integration_test_srcs) $(standalone_test_srcs)
+.PHONY: deploy deploy-chalice deploy-daemons
