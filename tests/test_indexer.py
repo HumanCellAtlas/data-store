@@ -29,6 +29,7 @@ from dss.events.handlers.index import process_new_s3_indexable_object, process_n
 from dss.hcablobstore import BundleMetadata, BundleFileMetadata, FileMetadata
 from dss.util import create_blob_key, networking, UrlBuilder
 from dss.util.es import ElasticsearchClient, ElasticsearchServer
+from dss.util.version import datetime_to_version_format
 from tests import get_version
 from tests.es import elasticsearch_delete_index
 from tests.infra import DSSAssertMixin, DSSUploadMixin, DSSStorageMixin, TestBundle, start_verbose_logging
@@ -685,7 +686,7 @@ class BundleBuilder:
                                           io.BytesIO(json.dumps(self.bundle_manifest).encode("utf-8")))
 
     def _get_version(self):
-        return datetime.datetime.utcnow().strftime("%Y-%m-%dT%H%M%S.%fZ")
+        return datetime_to_version_format(datetime.datetime.utcnow())
 
 
 class PostTestHandler(BaseHTTPRequestHandler):

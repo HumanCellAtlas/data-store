@@ -9,9 +9,8 @@ import iso8601
 import requests
 import chainedawslambda.aws
 from cloud_blobstore import BlobAlreadyExistsError, BlobNotFoundError, BlobStore
-from cloud_blobstore.s3 import S3BlobStore
 from flask import jsonify, make_response, redirect, request
-from werkzeug.exceptions import BadRequest
+from ..util.version import datetime_to_version_format
 
 from .. import DSSException, dss_handler
 from ..config import Config
@@ -100,7 +99,7 @@ def put(uuid: str, json_request_body: dict, version: str=None):
         timestamp = iso8601.parse_date(version)
     else:
         timestamp = datetime.datetime.utcnow()
-    version = timestamp.strftime("%Y-%m-%dT%H%M%S.%fZ")
+    version = datetime_to_version_format(timestamp)
 
     source_url = json_request_body['source_url']
     cre = re.compile(

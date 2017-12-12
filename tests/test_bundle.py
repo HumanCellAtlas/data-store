@@ -23,6 +23,7 @@ import dss
 from dss.config import BucketConfig, Config, override_bucket_config
 from dss.util import UrlBuilder
 from tests.infra import DSSAssertMixin, DSSUploadMixin, ExpectedErrorFields, get_env
+from dss.util.version import datetime_to_version_format
 from tests.infra.server import ThreadedLocalServer
 
 
@@ -173,7 +174,7 @@ class TestDSS(unittest.TestCase, DSSAssertMixin, DSSUploadMixin):
         file_version = resp_obj.json['version']
 
         # first bundle.
-        bundle_version = datetime.datetime.utcnow().strftime("%Y-%m-%dT%H%M%S.%fZ")
+        bundle_version = datetime_to_version_format(datetime.datetime.utcnow())
         upload_bundle(
             bundle_uuid,
             [(file_uuid, file_version, "LICENSE")],
