@@ -142,6 +142,7 @@ def dispatch_multipart_sync(source, dest, logger, context):
     for future in futures:
         future.result()
 
+
 def sync_blob(source_platform, source_key, dest_platform, logger, context):
     gs = Config.get_cloud_specific_handles("gcp")[0].gcp_client
     logger.info(f"Begin transfer of {source_key} from {source_platform} to {dest_platform}")
