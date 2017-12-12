@@ -6,6 +6,7 @@ from ..bundles import get_bundle
 from ... import Config, dss_handler, stepfunctions, Replica
 from ...util.checkout import get_execution_id
 
+
 @dss_handler
 def post(uuid: str, json_request_body: dict, replica: str, version: str = None):
     email = json_request_body['email']
@@ -21,6 +22,7 @@ def post(uuid: str, json_request_body: dict, replica: str, version: str = None):
     response = stepfunctions.step_functions_invoke("dss-checkout-sfn-{stage}", get_execution_id(), sfn_input)
 
     return jsonify(dict(checkout_job_id=response["executionArn"])), requests.codes.ok
+
 
 @dss_handler
 def get(checkout_job_id: str):
