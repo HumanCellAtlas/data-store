@@ -1,21 +1,17 @@
-import os
-import sys
 import datetime
-import json
 import time
-import hashlib
-from contextlib import closing
 from concurrent.futures import ThreadPoolExecutor
-from collections import namedtuple
+from contextlib import closing
 
 import boto3
 import botocore.session
-import urllib3
 import google.cloud.storage
-from cloud_blobstore.gs import GSBlobStore
-from google.resumable_media._upload import get_content_range
-from google.cloud.client import ClientWithProject
+import hashlib
+import os
+from collections import namedtuple
 from google.cloud._http import JSONConnection
+from google.cloud.client import ClientWithProject
+from google.resumable_media._upload import get_content_range
 
 from dss import Config
 from dss.util.aws import resources, clients, send_sns_msg, ARN
