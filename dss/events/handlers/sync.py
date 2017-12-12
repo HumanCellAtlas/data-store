@@ -31,13 +31,16 @@ sns_topics = dict(copy_parts="dss-copy-parts-" + os.environ["DSS_DEPLOYMENT_STAG
 
 BlobLocation = namedtuple("BlobLocation", "platform bucket blob")
 
+
 class GStorageTransferClient(ClientWithProject):
     SCOPE = ["https://www.googleapis.com/auth/cloud-platform"]
+
 
 class GStorageTransferConnection(JSONConnection):
     API_BASE_URL = "https://storagetransfer.googleapis.com"
     API_VERSION = "v1"
     API_URL_TEMPLATE = "{api_base_url}/{api_version}{path}"
+
 
 # TODO akislyuk: access keys used here should be separate role credentials with need-based access
 # TODO akislyuk: schedule a lambda to check the status of the job, get it permissions to execute:
@@ -179,6 +182,7 @@ def sync_blob(source_platform, source_key, dest_platform, logger, context):
         else:
             dispatch_multipart_sync(source, dest, logger, context)
     logger.info(f"Completed transfer of {source_key} from {source.bucket} to {dest.bucket}")
+
 
 def compose_gs_blobs(gs_bucket, blob_names, dest_blob_name, logger):
     blobs = [gs_bucket.get_blob(b) for b in blob_names]

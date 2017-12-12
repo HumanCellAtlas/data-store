@@ -363,5 +363,6 @@ class TestFileApi(unittest.TestCase, DSSAssertMixin, DSSUploadMixin):
             )
             self.assertIn('version', resp_obj.json)
 
+
 if __name__ == '__main__':
     unittest.main()
