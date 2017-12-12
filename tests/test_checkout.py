@@ -2,20 +2,18 @@
 # coding: utf-8
 
 import os
+import requests
 import sys
 import unittest
-
-import requests
-
-from dss.config import override_bucket_config, BucketConfig, Replica
-from dss.util import UrlBuilder
-from dss.util.checkout import get_manifest_files, validate_file_dst, pre_exec_validate, ValidationEnum, \
-    validate_bundle_exists, touch_test_file
 
 pkg_root = os.path.abspath(os.path.join(os.path.dirname(__file__), '..'))  # noqa
 sys.path.insert(0, pkg_root)  # noqa
 
 import dss
+from dss.config import override_bucket_config, BucketConfig, Replica
+from dss.util import UrlBuilder
+from dss.util.checkout import get_manifest_files, validate_file_dst, pre_exec_validate, ValidationEnum, \
+    validate_bundle_exists, touch_test_file
 from tests.infra import DSSAssertMixin, DSSUploadMixin, get_env
 from tests.infra.server import ThreadedLocalServer
 

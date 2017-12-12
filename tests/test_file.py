@@ -1,26 +1,24 @@
 #!/usr/bin/env python
 # coding: utf-8
 
-import typing
 import datetime
 import hashlib
 import os
+import requests
 import sys
 import tempfile
+import typing
 import unittest
 import uuid
-
-import requests
-from dss.util.version import datetime_to_version_format
 
 pkg_root = os.path.abspath(os.path.join(os.path.dirname(__file__), '..'))  # noqa
 sys.path.insert(0, pkg_root)  # noqa
 
 import dss
-from dss.config import BucketConfig, override_bucket_config
 from dss.config import BucketConfig, override_bucket_config, Replica
 from dss.util import UrlBuilder
 from dss.util.aws import AWS_MIN_CHUNK_SIZE
+from dss.util.version import datetime_to_version_format
 from tests.fixtures.cloud_uploader import GSUploader, S3Uploader, Uploader
 from tests.infra import DSSAssertMixin, DSSUploadMixin, ExpectedErrorFields, get_env, generate_test_key, testmode
 from tests.infra.server import ThreadedLocalServer
