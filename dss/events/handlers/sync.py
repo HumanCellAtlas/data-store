@@ -91,6 +91,7 @@ def sync_s3_to_gcsts(project_id, s3_bucket_name, gs_bucket_name, source_key, log
     # doesn't tell me either.
     # gsts_job = gsts_conn.api_request("GET", "/" + gsts_job["name"])
 
+
 def sync_s3_to_gs_oneshot(source, dest, logger):
     s3_blob_url = clients.s3.generate_presigned_url(
         ClientMethod='get_object',
@@ -102,11 +103,13 @@ def sync_s3_to_gs_oneshot(source, dest, logger):
         gs_blob.metadata = source.blob.metadata
         gs_blob.upload_from_file(fh)
 
+
 def sync_gs_to_s3_oneshot(source, dest, logger):
     expires_timestamp = int(time.time() + presigned_url_lifetime_seconds)
     gs_blob_url = source.blob.generate_signed_url(expiration=expires_timestamp)
     with closing(http.request("GET", gs_blob_url, preload_content=False)) as fh:
         dest.blob.upload_fileobj(fh, ExtraArgs=dict(Metadata=source.blob.metadata or {}))
+
 
 def dispatch_multipart_sync(source, dest, logger, context):
     parts_for_worker = []
@@ -191,6 +194,7 @@ def compose_gs_blobs(gs_bucket, blob_names, dest_blob_name, logger):
         except Exception:
             pass
 
+
 def copy_part(upload_url, source_url, dest_platform, part, context):
     gs = Config.get_cloud_specific_handles("gcp")[0].gcp_client
     boto3_session = boto3.session.Session()
@@ -219,6 +223,7 @@ def copy_part(upload_url, source_url, dest_platform, part, context):
                 assert 200 <= res.status_code < 400
             assert res.status_code == 200
     return res
+
 
 def range_request(url, start, end):
     return http.request("GET", url, preload_content=False, headers=dict(Range=f"bytes={start}-{end}"))

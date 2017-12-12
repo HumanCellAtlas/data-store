@@ -27,6 +27,7 @@ dss.Config.set_config(dss.BucketConfig.NORMAL)
 
 s3_bucket = dss.Config.get_s3_bucket()
 
+
 @app.s3_event_handler(bucket=s3_bucket, events=["s3:ObjectCreated:*"])
 def process_new_s3_syncable_object(event, context):
     app.log.setLevel(logging.DEBUG)
@@ -45,6 +46,7 @@ def process_new_gs_syncable_object(event, context):
     gs_event = json.loads(event["Records"][0]["Sns"]["Message"])
     gs_key_name = gs_event["data"]["name"]
     sync_blob(source_platform="gs", source_key=gs_key_name, dest_platform="s3", logger=app.log, context=context)
+
 
 @app.sns_topic_subscriber(sns_topics["closer"]["gs"])
 def compose_upload(event, context):

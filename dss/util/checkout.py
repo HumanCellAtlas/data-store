@@ -12,7 +12,6 @@ from .aws import get_s3_chunk_size
 from .bundles import get_bundle, get_bundle_from_bucket
 from .. import DSSException, Config
 
-
 log = getLogger()
 blobstore = S3BlobStore()
 
