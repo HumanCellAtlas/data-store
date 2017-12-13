@@ -407,8 +407,8 @@ class TestDSS(unittest.TestCase, DSSAssertMixin, DSSUploadMixin):
             self,
             replica: str,
             bundle_uuid: str,
-            bundle_version: typing.Optional[str] = None,
-            authorized: bool = True):
+            bundle_version: typing.Optional[str]=None,
+            authorized: bool=True):
         # make delete request
         url_builder = UrlBuilder().set(path="/v1/bundles/" + bundle_uuid).add_query('replica', replica)
         if bundle_version:
