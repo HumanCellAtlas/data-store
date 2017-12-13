@@ -102,7 +102,6 @@ class TestIndexerBase(DSSAssertMixin, DSSStorageMixin, DSSUploadMixin):
         Config.set_config(BucketConfig.TEST)
         _, _, cls.test_bucket = Config.get_cloud_specific_handles(cls.replica)
         cls.dss_alias_name = dss.Config.get_es_alias_name(dss.ESIndexType.docs, dss.Replica[cls.replica])
-        create_elasticsearch_index(f"initial_{IndexSuffix.name}", dss.Replica[cls.replica], logger)
         cls.subscription_index_name = dss.Config.get_es_index_name(dss.ESIndexType.subscriptions,
                                                                    dss.Replica[cls.replica])
 
@@ -155,6 +154,7 @@ class TestIndexerBase(DSSAssertMixin, DSSStorageMixin, DSSUploadMixin):
                                                          files=smartseq2_paried_ends_indexed_file_list)
 
     def test_key_is_not_indexed_when_processing_an_event_with_a_nonbundle_key(self):
+        elasticsearch_delete_index(f'*{IndexSuffix.name}')
         bundle_uuid = "{}.{}".format(str(uuid.uuid4()), get_version())
         bundle_key = "files/" + bundle_uuid
         sample_event = self.create_sample_bundle_created_event(bundle_key)
@@ -164,14 +164,7 @@ class TestIndexerBase(DSSAssertMixin, DSSStorageMixin, DSSUploadMixin):
             with self.assertLogs(logger, level="DEBUG") as log_monitor:
                 self.process_new_indexable_object(sample_event, logger)
             self.assertRegex(log_monitor.output[0], "DEBUG:.*Not indexing .* creation event for key: .*")
-            indexes = list(ElasticsearchClient.get(logger).indices.get_alias(self.dss_alias_name).keys())
-            for index in indexes:
-                with self.subTest(f"{index}"):
-                    with self.assertRaises(Exception) as ex:
-                        ElasticsearchClient.get(logger).get(index=index,
-                                                            doc_type=dss.ESIndexType.docs,
-                                                            id=bundle_uuid)
-                    self.assertIn('"found":false', ex.exception.error)
+            self.assertFalse(ElasticsearchClient.get(logger).indices.exists_alias(self.dss_alias_name))
         finally:
             logger.setLevel(log_last)
 
