@@ -2,8 +2,10 @@
 # coding: utf-8
 
 import datetime
+import io
 import json
 import logging
+import os
 import sys
 import threading
 import time
@@ -12,10 +14,6 @@ import unittest
 import uuid
 from http.server import BaseHTTPRequestHandler, HTTPServer
 
-import google.auth
-import google.auth.transport.requests
-import io
-import os
 import requests
 from requests_http_signature import HTTPSignatureAuth
 
