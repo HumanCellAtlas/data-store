@@ -84,4 +84,3 @@ class GCPIndexHandler(IndexHandler):
         except Exception as ex:
             logger.error("Exception occurred while processing GS event: %s Event: %s", ex, json.dumps(event, indent=4))
             raise
-
