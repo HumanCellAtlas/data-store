@@ -115,6 +115,23 @@ def upload(uploader: Uploader):
             "application/json",
         )
 
+    # Create sample stored bundles with tombstones to test the filtering of deleted bundles
+    source_path = "tombstones"
+    for fname in [
+        "deadbeef-0000-4a6b-8f0d-a7d2105c23be.2017-12-05T235728.441373Z",
+        "deadbeef-0000-4a6b-8f0d-a7d2105c23be.2017-12-05T235850.950361Z",
+        "deadbeef-0000-4a6b-8f0d-a7d2105c23be.dead",
+        "deadbeef-0001-4a6b-8f0d-a7d2105c23be.2017-12-05T235528.321679Z",
+        "deadbeef-0001-4a6b-8f0d-a7d2105c23be.2017-12-05T235728.441373Z",
+        "deadbeef-0001-4a6b-8f0d-a7d2105c23be.2017-12-05T235850.950361Z",
+        "deadbeef-0001-4a6b-8f0d-a7d2105c23be.2017-12-05T235850.950361Z.dead",
+    ]:
+        uploader.upload_file(
+            f"{source_path}/{fname}",
+            f"bundles/{fname}",
+            "application/json",
+        )
+
     # Create a bundle based on data-bundle-examples/smartseq2/paired_ends.
     # The files are accessed from the data-bundle-examples subrepository to avoid
     # duplicating them in our test infrastructure.

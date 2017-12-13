@@ -7,25 +7,24 @@ import os
 import sys
 import unittest
 import uuid
-from contextlib import contextmanager
 from io import open
+from contextlib import contextmanager
 
 import connexion.apis.abstract
-import google.auth
-import google.auth.transport.requests
 import requests
-
-from dss.events.handlers.index import BundleDocument, create_elasticsearch_index
 
 pkg_root = os.path.abspath(os.path.join(os.path.dirname(__file__), '..')) # noqa
 sys.path.insert(0, pkg_root) # noqa
 
 import dss
 from dss.config import IndexSuffix
+from dss.events.handlers.index import BundleDocument
+from dss.storage.index import Index
 from dss.util import UrlBuilder
 from dss.util.es import ElasticsearchClient, ElasticsearchServer
+from tests import get_auth_header, get_bundle_fqid
 from tests.es import elasticsearch_delete_index, clear_indexes
-from tests.infra import DSSAssertMixin, ExpectedErrorFields
+from tests.infra import DSSAssertMixin
 from tests.infra.server import ThreadedLocalServer
 from tests.sample_search_queries import smartseq2_paired_ends_v2_or_v3_query
 
@@ -37,10 +36,12 @@ logger.setLevel(logging.INFO)
 class ESInfo:
     server = None
 
+
 def setUpModule():
     IndexSuffix.name = __name__.rsplit('.', 1)[-1]
     ESInfo.server = ElasticsearchServer()
     os.environ['DSS_ES_PORT'] = str(ESInfo.server.port)
+
 
 def tearDownModule():
     ESInfo.server.shutdown()
@@ -58,7 +59,12 @@ class TestSubscriptionsBase(DSSAssertMixin):
         os.environ['DSS_ES_ENDPOINT'] = os.getenv('DSS_ES_ENDPOINT', "127.0.0.1")
 
         with open(os.path.join(os.path.dirname(__file__), "sample_v3_index_doc.json"), "r") as fh:
-            index_document = BundleDocument.from_json(cls.replica.name, 'uuid.version', json.load(fh), logger)
+            index_document = BundleDocument(
+                cls.replica,
+                get_bundle_fqid(),
+                logger,
+            )
+            index_document.update(json.load(fh))
 
         logger.debug("Setting up Elasticsearch")
         es_client = ElasticsearchClient.get(logger)
@@ -66,7 +72,7 @@ class TestSubscriptionsBase(DSSAssertMixin):
         cls.alias_name = dss.Config.get_es_alias_name(dss.ESIndexType.docs, replica)
         cls.sub_index_name = dss.Config.get_es_index_name(dss.ESIndexType.subscriptions, replica)
         cls.doc_index_name = dss.Config.get_es_index_name(dss.ESIndexType.docs, replica, index_shape_identifier)
-        create_elasticsearch_index(cls.doc_index_name, cls.replica, logger)
+        Index.create_elasticsearch_index(cls.doc_index_name, cls.replica, logger)
         es_client.index(index=cls.doc_index_name,
                         doc_type=dss.ESDocType.doc.name,
                         id=str(uuid.uuid4()),
@@ -93,11 +99,11 @@ class TestSubscriptionsBase(DSSAssertMixin):
 
         # Unauthorized email
         with self.throw_403():
-            resp_obj = self.assertGetResponse(url, requests.codes.forbidden, headers=self._get_auth_header())
+            resp_obj = self.assertGetResponse(url, requests.codes.forbidden, headers=get_auth_header())
         self.assertEqual(resp_obj.response.headers['Content-Type'], "application/problem+json")
 
         # Gibberish auth header
-        resp_obj = self.assertGetResponse(url, requests.codes.unauthorized, headers=self._get_auth_header(False))
+        resp_obj = self.assertGetResponse(url, requests.codes.unauthorized, headers=get_auth_header(False))
         self.assertEqual(resp_obj.response.headers['Content-Type'], "application/problem+json")
 
         # No auth header
@@ -137,7 +143,7 @@ class TestSubscriptionsBase(DSSAssertMixin):
             json_request_body=dict(
                 es_query=es_query,
                 callback_url=self.callback_url),
-            headers=self._get_auth_header()
+            headers=get_auth_header()
         )
         self.assertIn('uuid', resp_obj.json)
 
@@ -151,7 +157,7 @@ class TestSubscriptionsBase(DSSAssertMixin):
         resp_obj = self.assertGetResponse(
             url,
             requests.codes.okay,
-            headers=self._get_auth_header())
+            headers=get_auth_header())
         json_response = resp_obj.json
         self.assertEqual(self.sample_percolate_query, json_response['es_query'])
         self.assertEqual(self.callback_url, json_response['callback_url'])
@@ -161,7 +167,7 @@ class TestSubscriptionsBase(DSSAssertMixin):
             self.assertGetResponse(
                 url,
                 requests.codes.forbidden,
-                headers=self._get_auth_header())
+                headers=get_auth_header())
 
         # File not found request
         url = str(UrlBuilder()
@@ -170,7 +176,7 @@ class TestSubscriptionsBase(DSSAssertMixin):
         self.assertGetResponse(
             url,
             requests.codes.not_found,
-            headers=self._get_auth_header())
+            headers=get_auth_header())
 
     def test_find(self):
         NUM_ADDITIONS = 25
@@ -182,7 +188,7 @@ class TestSubscriptionsBase(DSSAssertMixin):
         resp_obj = self.assertGetResponse(
             url,
             requests.codes.okay,
-            headers=self._get_auth_header())
+            headers=get_auth_header())
         json_response = resp_obj.json
         self.assertEqual(self.sample_percolate_query, json_response['subscriptions'][0]['es_query'])
         self.assertEqual(self.callback_url, json_response['subscriptions'][0]['callback_url'])
@@ -196,14 +202,14 @@ class TestSubscriptionsBase(DSSAssertMixin):
 
         # Forbidden delete request
         with self.throw_403():
-            self.assertDeleteResponse(url, requests.codes.forbidden, headers=self._get_auth_header())
+            self.assertDeleteResponse(url, requests.codes.forbidden, headers=get_auth_header())
 
         # Authorized delete
-        self.assertDeleteResponse(url, requests.codes.okay, headers=self._get_auth_header())
+        self.assertDeleteResponse(url, requests.codes.okay, headers=get_auth_header())
 
         # 1. Check that previous delete worked
         # 2. Check that we can't delete files that don't exist
-        self.assertDeleteResponse(url, requests.codes.not_found, headers=self._get_auth_header())
+        self.assertDeleteResponse(url, requests.codes.not_found, headers=get_auth_header())
 
     def _put_subscription(self):
         url = str(UrlBuilder()
@@ -215,21 +221,10 @@ class TestSubscriptionsBase(DSSAssertMixin):
             json_request_body=dict(
                 es_query=self.sample_percolate_query,
                 callback_url=self.callback_url),
-            headers=self._get_auth_header()
+            headers=get_auth_header()
         )
         uuid_ = resp_obj.json['uuid']
         return uuid_
-
-    def _get_auth_header(self, real_header=True):
-        credentials, project_id = google.auth.default(scopes=["https://www.googleapis.com/auth/userinfo.email"])
-
-        r = google.auth.transport.requests.Request()
-        credentials.refresh(r)
-        r.session.close()
-
-        token = credentials.token if real_header else str(uuid.uuid4())
-
-        return {"Authorization": f"Bearer {token}"}
 
     @contextmanager
     def throw_403(self):
