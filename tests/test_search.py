@@ -24,7 +24,7 @@ from dss.config import IndexSuffix
 from dss.events.handlers.index import create_elasticsearch_index
 from dss.util.es import ElasticsearchServer, ElasticsearchClient
 from tests import get_version
-from tests.es import elasticsearch_delete_index
+from tests.es import elasticsearch_delete_index, clear_indexes
 from tests.infra import DSSAssertMixin, ExpectedErrorFields, start_verbose_logging
 from tests.infra.server import ThreadedLocalServer
 from tests.sample_search_queries import smartseq2_paired_ends_v3_query
@@ -63,15 +63,16 @@ class TestSearchBase(DSSAssertMixin):
         cls.dss_index_name = "search-unittest"
         with open(os.path.join(os.path.dirname(__file__), "sample_v3_index_doc.json"), "r") as fh:
             cls.index_document = json.load(fh)
+        create_elasticsearch_index(cls.dss_index_name, cls.replica, logger)
 
     @classmethod
     def tearDownClass(cls):
+        elasticsearch_delete_index(f"*{IndexSuffix.name}")
         cls.app.shutdown()
 
-    def setUp(self):
-        dss.Config.set_config(dss.BucketConfig.TEST)
-        elasticsearch_delete_index(f"*{IndexSuffix.name}")
-        create_elasticsearch_index(self.dss_index_name, self.replica, logger)
+    def tearDown(self):
+        clear_indexes([self.dss_alias_name],
+                      [ESDocType.doc.name, ESDocType.query.name])
 
     def test_es_search_page(self):
         """Confirm that elasaticsearch is returning _source info only when necessary."""
@@ -319,7 +320,9 @@ class TestSearchBase(DSSAssertMixin):
             es_client.index(index=self.dss_alias_name,
                             doc_type=ESDocType.doc.name,
                             id=bundle_id,
-                            body=index_document)
+                            body=index_document,
+                            refresh=(i == count - 1)
+                            )
             bundles.append((bundle_id, bundle_url))
         return bundles
 
