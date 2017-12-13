@@ -118,8 +118,8 @@ def _latest_version_from_object_names(object_names: typing.Iterator[str]) -> str
 def get_bundle(
         uuid: str,
         replica: str,
-        version: str = None,
-        directurls: bool = False):
+        version: str=None,
+        directurls: bool=False):
     return get_bundle_from_bucket(
         uuid,
         replica,
