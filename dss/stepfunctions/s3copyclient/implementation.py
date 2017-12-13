@@ -10,6 +10,7 @@ import typing
 import boto3
 from cloud_blobstore.s3 import S3BlobStore
 
+from ...api import files
 from ...stepfunctions import generator
 from ...stepfunctions.lambdaexecutor import TimedThread
 from ...util.aws import get_s3_chunk_size
@@ -254,4 +255,36 @@ sfn = {
             "End": True,
         },
     }
+}
+
+
+# Public input/output keys for the copy + write-metadata state function.
+class CopyWriteMetadataKey:
+    FILE_UUID = "fileuuid"
+    FILE_VERSION = "fileversion"
+    METADATA = "metadata"
+
+
+def write_metadata(event, lambda_context):
+    handle = S3BlobStore()
+
+    destination_bucket = event[Key.DESTINATION_BUCKET]
+    files.write_file_metadata(
+        handle,
+        destination_bucket,
+        event[CopyWriteMetadataKey.FILE_UUID],
+        event[CopyWriteMetadataKey.FILE_VERSION],
+        event[CopyWriteMetadataKey.METADATA],
+    )
+
+
+copy_write_metadata_sfn = typing.cast(dict, copy.deepcopy(sfn))
+
+# tweak to add one more state.
+del copy_write_metadata_sfn['States']['Finalizer']['End']
+copy_write_metadata_sfn['States']['Finalizer']['Next'] = "WriteMetadata"
+copy_write_metadata_sfn['States']['WriteMetadata'] = {
+    "Type": "Task",
+    "Resource": write_metadata,
+    "End": True,
 }
