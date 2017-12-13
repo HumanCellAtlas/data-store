@@ -1,0 +1,11 @@
+{
+  "app_name": "integration-test",
+  "environment_variables": {
+    "TRAVIS_TOKEN": REPLACE_WITH_YOUR_TRAVIS_TOKEN
+  },
+  "stages": {
+  },
+  "version": "2.0",
+  "lambda_timeout": 300,
+  "lambda_memory_size": 1536
+}
