@@ -1,6 +1,5 @@
 import json
 import os
-import random
 import socket
 import subprocess
 import tempfile
@@ -16,6 +15,7 @@ from elasticsearch import RequestsHttpConnection, Elasticsearch
 from requests_aws4auth import AWS4Auth
 
 from . import networking
+
 
 class AWSV4Sign(requests.auth.AuthBase):
     """
@@ -131,45 +131,3 @@ class ElasticsearchClient:
                 raise ex
 
         return client
-
-
-def create_elasticsearch_doc_index(es_client, index_name, alias_name, logger, index_mapping=None):
-    try:
-        logger.debug(f"Creating new Elasticsearch index: {index_name}")
-        response = es_client.indices.create(index_name, body=index_mapping)
-        logger.debug("Index creation response: %s", json.dumps(response, indent=4))
-    except Exception as ex:
-        logger.error(f"Unable to create index: {index_name} Exception: {ex}")
-        raise ex
-    try:
-        logger.debug(f"Aliasing {index_name} as {alias_name}")
-        response = es_client.indices.update_aliases({
-            "actions": [
-                {"add": {"index": index_name, "alias": alias_name}}
-            ]
-        })
-        logger.debug("Index add alias response: %s", json.dumps(response, indent=4))
-    except Exception as ex:
-        logger.error(f"Unable to alias index: {index_name} as {alias_name} Exception: {ex}")
-        response = es_client.indices.update_aliases({
-            "actions": [
-                {"remove": {"index": index_name, "alias": alias_name}}
-            ]
-        })
-        es_client.indices.delete(index_name)
-        raise ex
-
-
-def get_elasticsearch_subscription_index(es_client, index_name, logger, index_mapping=None):
-    try:
-        response = es_client.indices.exists(index_name)
-        if response:
-            logger.debug(f"Using existing Elasticsearch index: {index_name}")
-        else:
-            logger.debug(f"Creating new Elasticsearch index: {index_name}")
-            response = es_client.indices.create(index_name, body=index_mapping)
-            logger.debug("Index creation response: %s", json.dumps(response, indent=4))
-
-    except Exception as ex:
-        logger.error(f"Unable to create index: {index_name} Exception: {ex}")
-        raise ex

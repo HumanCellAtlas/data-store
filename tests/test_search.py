@@ -22,7 +22,7 @@ from dss.util import UrlBuilder
 
 from dss.api.search import _es_search_page
 from dss.config import IndexSuffix
-from dss.storage.index import Index
+from dss.storage.index import IndexManager
 from dss.util.es import ElasticsearchServer, ElasticsearchClient
 from tests import get_version
 from tests.es import elasticsearch_delete_index, clear_indexes
@@ -65,7 +65,8 @@ class TestSearchBase(DSSAssertMixin):
         cls.dss_index_name = "search-unittest"
         with open(os.path.join(os.path.dirname(__file__), "sample_v3_index_doc.json"), "r") as fh:
             cls.index_document = json.load(fh)
-        Index.create_elasticsearch_index(cls.dss_index_name, cls.replica, logger)
+        es_client = ElasticsearchClient.get(logger)
+        IndexManager.create_index(es_client, cls.replica, cls.dss_index_name)
 
     @classmethod
     def tearDownClass(cls):

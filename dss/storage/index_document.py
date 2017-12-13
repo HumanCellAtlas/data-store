@@ -4,11 +4,11 @@ import logging
 import socket
 import typing
 import uuid
+from collections import defaultdict
 from urllib.parse import urlparse
 
 import requests
 from cloud_blobstore import BlobStore, BlobStoreError
-from collections import defaultdict
 from elasticsearch.helpers import scan, bulk, BulkIndexError
 from requests_http_signature import HTTPSignatureAuth
 
@@ -16,7 +16,7 @@ from dss import Config, DeploymentStage, ESIndexType, ESDocType
 from dss import Replica
 from dss.hcablobstore import BundleMetadata, BundleFileMetadata
 from dss.storage.bundles import ObjectIdentifier, BundleFQID, TombstoneID
-from dss.storage.index import Index
+from dss.storage.index import IndexManager
 from dss.util import create_blob_key
 from dss.util.es import ElasticsearchClient
 
@@ -134,7 +134,8 @@ class BundleDocument(IndexDocument):
     def prepare_index(self):
         shape_descriptor = self.get_shape_descriptor()
         index_name = Config.get_es_index_name(ESIndexType.docs, self.replica, shape_descriptor)
-        Index.create_elasticsearch_index(index_name, self.replica, self.logger)
+        es_client = ElasticsearchClient.get(self.logger)
+        IndexManager.create_index(es_client, self.replica, index_name)
         return index_name
 
     def get_shape_descriptor(self) -> typing.Optional[str]:
