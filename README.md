@@ -52,7 +52,13 @@ Run `source environment`  now and whenever these environment files are modified.
    to the name of that bucket. Make sure the bucket region is consistent with `AWS_DEFAULT_REGION` in
    `environment.local`.
 
-3. If you wish to run the unit tests, you must create two more S3 buckets, one for test data and another for test
+3. Repeat the previous step for
+
+   * DSS_S3_CHECKOUT_BUCKET
+   * DSS_S3_CHECKOUT_BUCKET_TEST
+   * DSS_S3_CHECKOUT_BUCKET_TEST_FIXTURES
+
+4. If you wish to run the unit tests, you must create two more S3 buckets, one for test data and another for test
    fixtures, and set the environment variables `DSS_S3_BUCKET_TEST` and `DSS_S3_BUCKET_TEST_FIXTURES` to the names of
    those buckets.
 
