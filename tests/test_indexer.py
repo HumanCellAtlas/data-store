@@ -210,15 +210,14 @@ class TestIndexerBase(DSSAssertMixin, DSSStorageMixin, DSSUploadMixin):
 
     def test_key_is_not_indexed_when_processing_an_event_with_a_nonbundle_key(self):
         elasticsearch_delete_index(f'*{IndexSuffix.name}')
-        bundle_uuid = "{}.{}".format(str(uuid.uuid4()), get_version())
-        bundle_key = "files/" + bundle_uuid
+        bundle_key = "files/" + get_bundle_fqid()
         sample_event = self.create_sample_bundle_created_event(bundle_key)
         log_last = logger.getEffectiveLevel()
         logger.setLevel(logging.DEBUG)
         try:
             with self.assertLogs(logger, level="DEBUG") as log_monitor:
                 self.process_new_indexable_object(sample_event, logger)
-            self.assertRegex(log_monitor.output[0], "DEBUG:.*Not indexing .* creation event for key: .*")
+            self.assertRegex(log_monitor.output[0], "DEBUG:.*Not processing .* event for key: .*")
             self.assertFalse(ElasticsearchClient.get(logger).indices.exists_alias(self.dss_alias_name))
         finally:
             logger.setLevel(log_last)
@@ -663,14 +662,12 @@ class TestAWSIndexer(AWSIndexHandler, TestIndexerBase, unittest.TestCase):
     def create_bundle_created_event(self, bundle_key, bucket_name) -> typing.Dict:
         with open(os.path.join(os.path.dirname(__file__), "sample_s3_bundle_created_event.json")) as fh:
             sample_event = json.load(fh)
-        sample_event['Records'][0]["s3"]['bucket']['name'] = bucket_name
         sample_event['Records'][0]["s3"]['object']['key'] = bundle_key
         return sample_event
 
     def create_bundle_deleted_event(self, bundle_key, bucket_name) -> typing.Dict:
         with open(os.path.join(os.path.dirname(__file__), "sample_s3_bundle_deleted_event.json")) as fh:
             sample_event = json.load(fh)
-        sample_event['Records'][0]["s3"]['bucket']['name'] = bucket_name
         sample_event['Records'][0]["s3"]['object']['key'] = bundle_key
         return sample_event
 
@@ -684,14 +681,12 @@ class TestGCPIndexer(GCPIndexHandler, TestIndexerBase, unittest.TestCase):
     def create_bundle_created_event(self, bundle_key, bucket_name) -> typing.Dict:
         with open(os.path.join(os.path.dirname(__file__), "sample_gs_bundle_created_event.json")) as fh:
             sample_event = json.load(fh)
-        sample_event["bucket"] = bucket_name
         sample_event["name"] = bundle_key
         return sample_event
 
     def create_bundle_deleted_event(self, key, bucket_name) -> typing.Dict:
         with open(os.path.join(os.path.dirname(__file__), "sample_s3_bundle_deleted_event.json")) as fh:
             sample_event = json.load(fh)
-        sample_event['bucket'] = bucket_name
         sample_event['name'] = key
         return sample_event
 
