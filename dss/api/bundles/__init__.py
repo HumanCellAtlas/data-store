@@ -182,14 +182,25 @@ def delete(uuid: str, replica: str, json_request_body: dict, version: str=None):
     return jsonify(response_body), status_code
 
 
-def _idempotent_save(handle: BlobStore, bucket: str, object_name: str, data: dict) -> typing.Tuple[bool, bool]:
-    if test_object_exists(handle, bucket, object_name):
+def _idempotent_save(blobstore: BlobStore, bucket: str, object_name: str, data: dict) -> typing.Tuple[bool, bool]:
+    """
+    _idempotent_save attempts to save an object to the BlobStore. Its return values indicate whether the save was made
+    successfully and whether the operation could be completed idempotently. If the data in the blobstore does not match
+    the data parameter, the data in the blobstore is _not_ overwritten.
+
+    :param blobstore: the blobstore to save the data to
+    :param bucket: the bucket in the blobstore to save the data to
+    :param object_name: the key of the object to save
+    :param data: the data to save
+    :return: a tuple of booleans (was the data saved?, was the save idempotent?)
+    """
+    if test_object_exists(blobstore, bucket, object_name):
         # fetch the file metadata, compare it to what we have.
-        existing_data = json.loads(handle.get(bucket, object_name).decode("utf-8"))
+        existing_data = json.loads(blobstore.get(bucket, object_name).decode("utf-8"))
         return False, existing_data == data
     else:
         # write manifest to persistent store
-        handle.upload_file_handle(
+        blobstore.upload_file_handle(
             bucket,
             object_name,
             io.BytesIO(json.dumps(data).encode("utf-8")),
