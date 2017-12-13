@@ -52,7 +52,7 @@ class IndexHandler:
         return result is not None
 
     @staticmethod
-    def _index_and_notify(replica: Replica, bucket_name: str, key: str, logger):
+    def _index_and_notify(replica: Replica, key: str, logger):
         logger.info(f"Received {replica.name} creation event for bundle which will be indexed: {key}")
         document = BundleDocument.from_replica(replica, key, logger)
         index_name = document.prepare_index()

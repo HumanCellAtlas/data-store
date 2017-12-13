@@ -17,15 +17,16 @@ pkg_root = os.path.abspath(os.path.join(os.path.dirname(__file__), '..')) # noqa
 sys.path.insert(0, pkg_root) # noqa
 
 import dss
-from dss.events.handlers.index import BundleDocument
 from dss.config import IndexSuffix
+from dss.events.handlers.index import BundleDocument
+from dss.storage.index import Index
 from dss.util import UrlBuilder
 from dss.util.es import ElasticsearchClient, ElasticsearchServer
+from tests import get_auth_header, get_bundle_fqid
 from tests.es import elasticsearch_delete_index, clear_indexes
 from tests.infra import DSSAssertMixin, ExpectedErrorFields
 from tests.infra.server import ThreadedLocalServer
 from tests.sample_search_queries import smartseq2_paired_ends_v2_or_v3_query
-from tests import get_auth_header, get_bundle_fqid
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
@@ -58,13 +59,8 @@ class TestSubscriptionsBase(DSSAssertMixin):
         os.environ['DSS_ES_ENDPOINT'] = os.getenv('DSS_ES_ENDPOINT', "127.0.0.1")
 
         with open(os.path.join(os.path.dirname(__file__), "sample_v3_index_doc.json"), "r") as fh:
-<<<<<<< HEAD
-            index_document = BundleDocument.from_json(
-                cls.replica,
-=======
             index_document = BundleDocument(
-                self.replica,
->>>>>>> Split BundleDocument into BundleDocument and BundleTombstoneDocument
+                cls.replica,
                 get_bundle_fqid(),
                 logger,
             )
@@ -76,7 +72,7 @@ class TestSubscriptionsBase(DSSAssertMixin):
         cls.alias_name = dss.Config.get_es_alias_name(dss.ESIndexType.docs, replica)
         cls.sub_index_name = dss.Config.get_es_index_name(dss.ESIndexType.subscriptions, replica)
         cls.doc_index_name = dss.Config.get_es_index_name(dss.ESIndexType.docs, replica, index_shape_identifier)
-        create_elasticsearch_index(cls.doc_index_name, cls.replica, logger)
+        Index.create_elasticsearch_index(cls.doc_index_name, cls.replica, logger)
         es_client.index(index=cls.doc_index_name,
                         doc_type=dss.ESDocType.doc.name,
                         id=str(uuid.uuid4()),
