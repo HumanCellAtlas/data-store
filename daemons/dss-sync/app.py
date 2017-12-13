@@ -105,7 +105,7 @@ def copy_parts(event, context):
     topic_arn = event["Records"][0]["Sns"]["TopicArn"]
     msg = json.loads(event["Records"][0]["Sns"]["Message"])
     blobstore_handle = dss.Config.get_cloud_specific_handles(platform_to_replica[msg["source_platform"]])[0]
-    source_url = blobstore_handle.generate_presigned_GET_url(bucket=msg["source_bucket"], object_name=msg["source_key"])
+    source_url = blobstore_handle.generate_presigned_GET_url(bucket=msg["source_bucket"], key=msg["source_key"])
     futures = []
     gs = dss.Config.get_cloud_specific_handles("gcp")[0].gcp_client
     with ThreadPoolExecutor(max_workers=4) as executor:
