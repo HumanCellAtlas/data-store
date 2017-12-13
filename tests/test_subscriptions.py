@@ -3,15 +3,15 @@
 
 import json
 import logging
+import os
 import sys
 import unittest
 import uuid
+from io import open
 from contextlib import contextmanager
 
 import connexion.apis.abstract
-import os
 import requests
-from io import open
 
 pkg_root = os.path.abspath(os.path.join(os.path.dirname(__file__), '..')) # noqa
 sys.path.insert(0, pkg_root) # noqa
@@ -24,7 +24,7 @@ from dss.util import UrlBuilder
 from dss.util.es import ElasticsearchClient, ElasticsearchServer
 from tests import get_auth_header, get_bundle_fqid
 from tests.es import elasticsearch_delete_index, clear_indexes
-from tests.infra import DSSAssertMixin, ExpectedErrorFields
+from tests.infra import DSSAssertMixin
 from tests.infra.server import ThreadedLocalServer
 from tests.sample_search_queries import smartseq2_paired_ends_v2_or_v3_query
 
