@@ -25,14 +25,14 @@ sys.path.insert(0, pkg_root)  # noqa
 import dss
 from dss import Config, BucketConfig, DeploymentStage
 from dss.config import IndexSuffix, ESDocType, Replica
-from dss.events.handlers.index import AWSIndexHandler, GCPIndexHandler, BundleDocument, create_elasticsearch_index
+from dss.events.handlers.index import AWSIndexHandler, GCPIndexHandler, BundleDocument
 from dss.hcablobstore import BundleMetadata, BundleFileMetadata, FileMetadata
 from dss.util import create_blob_key, networking, UrlBuilder
 from dss.storage.bundles import bundle_key_to_bundle_fqid
 from dss.util.es import ElasticsearchClient, ElasticsearchServer
 from dss.util.version import datetime_to_version_format
 from dss.storage.bundles import DSS_OBJECT_NAME_REGEX, DSS_BUNDLE_KEY_REGEX
-from tests import get_version
+from tests import get_version, get_auth_header
 from tests.es import elasticsearch_delete_index, clear_indexes
 from tests.infra import DSSAssertMixin, DSSUploadMixin, DSSStorageMixin, TestBundle, start_verbose_logging
 from tests.infra.server import ThreadedLocalServer
@@ -287,7 +287,7 @@ class TestIndexerBase(DSSAssertMixin, DSSStorageMixin, DSSUploadMixin):
         self.assertDeleteResponse(
             str(UrlBuilder().set(path=f"/v1/subscriptions/{subscription_id}").add_query("replica", self.replica)),
             requests.codes.ok,
-            headers=self.get_auth_header()
+            headers=get_auth_header()
         )
 
     def test_subscription_notification_successful(self):
@@ -598,21 +598,10 @@ class TestIndexerBase(DSSAssertMixin, DSSStorageMixin, DSSUploadMixin):
             url,
             requests.codes.created,
             json_request_body=dict(es_query=es_query, callback_url=callback_url, **kwargs),
-            headers=self.get_auth_header()
+            headers=get_auth_header()
         )
         uuid_ = resp_obj.json['uuid']
         return uuid_
-
-    def get_auth_header(self, token=None):
-        credentials, project_id = google.auth.default(scopes=["https://www.googleapis.com/auth/userinfo.email"])
-
-        if not token:
-            r = google.auth.transport.requests.Request()
-            credentials.refresh(r)
-            r.session.close()
-            token = credentials.token
-
-        return {'Authorization': f"Bearer {token}"}
 
     def verify_index_document_structure_and_content(self, actual_index_document,
                                                     bundle_key, files, excluded_files=[]):
