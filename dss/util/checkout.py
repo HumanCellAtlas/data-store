@@ -28,12 +28,14 @@ class BundleFileMeta:
     SHA1 = "sha1"
     SHA256 = "sha256"
 
+
 class ValidationEnum(Enum):
     NO_SRC_BUNDLE_FOUND = auto(),
     WRONG_DST_BUCKET = auto(),
     WRONG_PERMISSIONS_DST_BUCKET = auto(),
     WRONG_BUNDLE_KEY = auto(),
     PASSED = auto()
+
 
 def parallel_copy(source_bucket: str, source_key: str, destination_bucket: str, destination_key: str):
     log.debug(f"Copy file from bucket {source_bucket} with key {source_key} to "
@@ -45,6 +47,7 @@ def parallel_copy(source_bucket: str, source_key: str, destination_bucket: str, 
         3600)
     aws.schedule_task(S3ParallelCopySupervisorTask, initial_state)
 
+
 def get_src_object_name(file_metadata: dict):
     return "blobs/" + ".".join((
         file_metadata[BundleFileMeta.SHA256],
@@ -53,8 +56,10 @@ def get_src_object_name(file_metadata: dict):
         file_metadata[BundleFileMeta.CRC32C],
     ))
 
+
 def get_dst_bundle_prefix(bundle_id: str, bundle_version: str) -> str:
     return "checkedout/{}.{}".format(bundle_id, bundle_version)
+
 
 def get_manifest_files(bundle_id: str, version: str, replica: str):
     bundleManifest = get_bundle(bundle_id, replica, version).get('bundle')
@@ -66,12 +71,14 @@ def get_manifest_files(bundle_id: str, version: str, replica: str):
         src_object_name = get_src_object_name(file)
         yield src_object_name, dst_object_name
 
+
 def validate_file_dst(dst_bucket: str, dst_key: str, replica: str):
     try:
         blobstore.get_all_metadata(dst_bucket, dst_key)
         return True
     except (BlobNotFoundError, BlobStoreUnknownError):
         return False
+
 
 def pre_exec_validate(dss_bucket: str, dst_bucket: str, replica: str, bundle_id: str, version: str):
     cause = None
@@ -80,26 +87,31 @@ def pre_exec_validate(dss_bucket: str, dst_bucket: str, replica: str, bundle_id:
         validation_code, cause = validate_bundle_exists(replica, dss_bucket, bundle_id, version)
     return validation_code, cause
 
+
 def validate_dst_bucket(dst_bucket: str, replica: str) -> ValidationEnum:
-    if (not blobstore.check_bucket_exists(dst_bucket)):
+    if not blobstore.check_bucket_exists(dst_bucket):
         return ValidationEnum.WRONG_DST_BUCKET
-    if (not touch_test_file(dst_bucket, replica)):
+    if not touch_test_file(dst_bucket, replica):
         return ValidationEnum.WRONG_PERMISSIONS_DST_BUCKET
 
     return ValidationEnum.PASSED
+
 
 def validate_bundle_exists(replica: str, bucket: str, bundle_id: str, version: str):
     try:
         get_bundle_from_bucket(bundle_id, replica, version, bucket)
         return ValidationEnum.PASSED, None
-    except DSSException:
+    except (DSSException, ValueError):
         return ValidationEnum.WRONG_BUNDLE_KEY, "Bundle with specified key does not exist"
+
 
 def get_bucket_region(bucket: str):
     return blobstore.get_bucket_region(bucket)
 
+
 def get_execution_id() -> str:
     return str(uuid.uuid4())
+
 
 def touch_test_file(dst_bucket, replica) -> bool:
     """

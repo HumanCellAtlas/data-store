@@ -702,6 +702,87 @@ paths:
                     enum: [unhandled_exception, illegal_arguments, bundle_already_exists]
                 required:
                   - code
+    delete:
+      summary: Delete a bundle or a specific bundle version
+      description: |
+        Delete the bundle with the given UUID. This deletion is applied across replicas.
+      security:
+        - googAuth:
+            - https://www.googleapis.com/auth/userinfo.email
+      parameters:
+        - name: uuid
+          in: path
+          description: A RFC4122-compliant ID for the bundle.
+          required: true
+          type: string
+          pattern: "[A-Za-z0-9]{8}-[A-Za-z0-9]{4}-[A-Za-z0-9]{4}-[A-Za-z0-9]{4}-[A-Za-z0-9]{12}"
+        - name: replica
+          in: query
+          description: Replica to write to.
+          required: true
+          type: string
+          enum: [aws, gcp, azure]
+        - name: version
+          in: query
+          description: Timestamp of bundle creation in RFC3339.
+          required: false
+          type: string
+          format: date-time
+        - name: json_request_body
+          in: body
+          required: true
+          schema:
+            type: object
+            properties:
+              reason:
+                description: User-friendly reason for the bundle or timestamp-specfic bundle deletion.
+                type: string
+            required:
+              - reason
+      responses:
+        200:
+          description: OK
+          schema:
+            type: object
+        403:
+          description: Unexpected error
+          schema:
+            allOf:
+              - $ref: '#/definitions/Error'
+              - type: object
+                properties:
+                  code:
+                    type: string
+                    description: Machine-readable error code.  The types of return values should not be changed lightly.
+                    enum: [forbidden]
+                required:
+                  - code
+        409:
+          description: Unexpected error
+          schema:
+            allOf:
+              - $ref: '#/definitions/Error'
+              - type: object
+                properties:
+                  code:
+                    type: string
+                    description: Machine-readable error code.  The types of return values should not be changed lightly.
+                    enum: [bundle_tombstone_already_exists]
+                required:
+                  - code
+        default:
+          description: Unexpected error
+          schema:
+            allOf:
+              - $ref: '#/definitions/Error'
+              - type: object
+                properties:
+                  code:
+                    type: string
+                    description: Machine-readable error code.  The types of return values should not be changed lightly.
+                    enum: [unhandled_exception, illegal_arguments]
+                required:
+                  - code
   /bundles/{uuid}/checkout:
     post:
       summary: Check out a bundle to HCA-owned cloud storage or user-provided destination
