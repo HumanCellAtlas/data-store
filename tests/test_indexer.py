@@ -222,7 +222,7 @@ class TestIndexerBase(DSSAssertMixin, DSSStorageMixin, DSSUploadMixin):
 
     def test_error_message_logged_when_invalid_bucket_in_event(self):
         bundle_key = "bundles/{}.{}".format(str(uuid.uuid4()), get_version())
-        sample_event = self.create_bundle_created_event(bundle_key, "fake")
+        sample_event = self.create_bundle_created_event(bundle_key)
         with self.assertLogs(logger, level="ERROR") as log_monitor:
             with self.assertRaises(Exception):
                 self.process_new_indexable_object(sample_event, logger)
@@ -643,12 +643,15 @@ class TestIndexerBase(DSSAssertMixin, DSSStorageMixin, DSSUploadMixin):
                 time.sleep(0.5)
 
     def create_sample_bundle_created_event(self, bundle_key):
-        return self.create_bundle_created_event(bundle_key, self.test_bucket)
+        return self.create_bundle_created_event(bundle_key)
 
     def create_sample_bundle_deleted_event(self, bundle_key):
-        return self.create_bundle_deleted_event(bundle_key, self.test_bucket)
+        return self.create_bundle_deleted_event(bundle_key)
 
-    def create_bundle_created_event(self, bundle_key, bucket_name):
+    def create_bundle_created_event(self, bundle_key):
+        raise NotImplemented()
+
+    def create_bundle_deleted_event(self, bundle_key):
         raise NotImplemented()
 
     def process_new_indexable_object(self, event, logger):
