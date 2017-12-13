@@ -2,13 +2,13 @@
 import ipaddress
 import json
 import logging
+import re
 import socket
 import typing
 import uuid
 from urllib.parse import unquote
 from urllib.parse import urlparse
 
-import re
 import requests
 from cloud_blobstore import BlobStore, BlobStoreError
 from collections import defaultdict
@@ -26,7 +26,6 @@ from dss.util.es import ElasticsearchClient
 from ...storage.bundles import DSS_BUNDLE_TOMBSTONE_REGEX, DSS_BUNDLE_KEY_REGEX
 
 
-# index handler
 class IndexHandler:
 
     @classmethod
@@ -34,11 +33,11 @@ class IndexHandler:
         raise NotImplementedError("'process_new_indexable_object' is not implemented!")
 
     @classmethod
-    def _process_new_indexable_object(cls, replica: Replica, bucket_name: str, key: str, logger):
+    def _process_new_indexable_object(cls, replica: Replica, key: str, logger):
         if cls._is_bundle_to_index(key):
-            cls._index_and_notify(replica, bucket_name, key, logger)
+            cls._index_and_notify(replica, key, logger)
         elif cls._is_deletion(key):
-            cls._delete_from_index(replica, bucket_name, key, logger)
+            cls._delete_from_index(replica, key, logger)
         else:
             logger.debug(f"Not processing {replica.name} event for key: {key}")
 
@@ -55,7 +54,7 @@ class IndexHandler:
     @staticmethod
     def _index_and_notify(replica: Replica, bucket_name: str, key: str, logger):
         logger.info(f"Received {replica.name} creation event for bundle which will be indexed: {key}")
-        document = BundleDocument.from_bucket(replica, bucket_name, key, logger)
+        document = BundleDocument.from_replica(replica, key, logger)
         index_name = document.prepare_index()
         document.add_to_index(index_name)
         document.notify_matching_subscribers(index_name)
@@ -69,9 +68,9 @@ class IndexHandler:
         return result is not None
 
     @staticmethod
-    def _delete_from_index(replica: Replica, bucket_name: str, key: str, logger):
-        tombstone_document = BundleTombstoneDocument.from_bucket(replica, bucket_name, key, logger)
-        dead_documents = tombstone_document.list_dead_bundles(bucket_name)
+    def _delete_from_index(replica: Replica, key: str, logger):
+        tombstone_document = BundleTombstoneDocument.from_replica(replica, key, logger)
+        dead_documents = tombstone_document.list_dead_bundles()
         for document in dead_documents:
             index_name = document.prepare_index()
             document.clear()
@@ -86,8 +85,7 @@ class AWSIndexHandler(IndexHandler):
         try:
             # This function is only called for S3 creation events
             key = unquote(event['Records'][0]['s3']['object']['key'])
-            bucket_name = event['Records'][0]['s3']['bucket']['name']
-            cls._process_new_indexable_object(Replica.aws, bucket_name, key, logger)
+            cls._process_new_indexable_object(Replica.aws, key, logger)
         except Exception as ex:
             logger.error("Exception occurred while processing S3 event: %s Event: %s", ex, json.dumps(event, indent=4))
             raise
@@ -99,9 +97,8 @@ class GCPIndexHandler(IndexHandler):
     def process_new_indexable_object(cls, event, logger) -> None:
         try:
             # This function is only called for GS creation events
-            bucket_name = event['bucket']
             key = event['name']
-            cls._process_new_indexable_object(Replica.gcp, bucket_name, key, logger)
+            cls._process_new_indexable_object(Replica.gcp, key, logger)
         except Exception as ex:
             logger.error("Exception occurred while processing GS event: %s Event: %s", ex, json.dumps(event, indent=4))
             raise
@@ -124,7 +121,7 @@ class IndexDocument(dict):
     def add_to_index(self, index_name: str):
         es_client = ElasticsearchClient.get(self.logger)
         try:
-            self.logger.debug("Adding index data to Elasticsearch index '%s': %s", index_name,
+            self.logger.debug("Adding index data to ElasticSearch index '%s': %s", index_name,
                               json.dumps(self, indent=4))
             initial_mappings = es_client.indices.get_mapping(index_name)[index_name]['mappings']
             es_client.index(index=index_name,
@@ -149,11 +146,11 @@ class BundleDocument(IndexDocument):
         super().__init__(replica, bundle_uuid, bundle_version, logger)
 
     @classmethod
-    def from_bucket(cls, replica: Replica, bucket_name: str, key: str, logger):  # TODO: return type hint
+    def from_replica(cls, replica: Replica, key: str, logger):  # TODO: return type hint
         self = cls(replica, bundle_key_to_bundle_fqid(key), logger)
-        handle = Config.get_cloud_specific_handles(replica.name)[0]
-        self['manifest'] = self._read_bundle_manifest(handle, bucket_name, key)
-        self['files'] = self._read_file_infos(handle, bucket_name)
+        blobstore, _, bucket_name = Config.get_cloud_specific_handles(replica.name)
+        self['manifest'] = self._read_bundle_manifest(blobstore, bucket_name, key)
+        self['files'] = self._read_file_infos(blobstore, bucket_name)
         self['state'] = 'new'
         return self
 
@@ -405,13 +402,9 @@ class BundleDocument(IndexDocument):
 
 class BundleTombstoneDocument(IndexDocument):
 
-    def __init__(self, replica: Replica, bundle_uuid: str, bundle_version: typing.Optional[str],
-                 logger: logging.Logger) -> None:
-        super().__init__(replica, bundle_uuid, bundle_version, logger)
-
     @classmethod
-    def from_bucket(cls, replica: Replica, bucket_name: str, key: str, logger):
-        blobstore = Config.get_cloud_specific_handles(replica.name)[0]
+    def from_replica(cls, replica: Replica, key: str, logger):
+        blobstore, _, bucket_name = Config.get_cloud_specific_handles(replica.name)
         bundle_uuid, bundle_version = DSS_OBJECT_NAME_REGEX.search(key).groups()
 
         tombstone_data = json.loads(blobstore.get(bucket_name, key))
@@ -420,8 +413,8 @@ class BundleTombstoneDocument(IndexDocument):
         doc.update(tombstone_data)
         return doc
 
-    def list_dead_bundles(self, bucket_name: str):
-        blobstore = Config.get_cloud_specific_handles(self.replica.name)[0]
+    def list_dead_bundles(self):
+        blobstore, _, bucket_name = Config.get_cloud_specific_handles(self.replica.name)
 
         if self.bundle_version:
             # if a version is specified, delete just that version
@@ -434,6 +427,6 @@ class BundleTombstoneDocument(IndexDocument):
                 if DSS_BUNDLE_KEY_REGEX.match(k)
             ]))
 
-        docs = [BundleDocument.from_bucket(self.replica, bucket_name, k, self.logger) for k in bundle_keys]
+        docs = [BundleDocument.from_replica(self.replica, k, self.logger) for k in bundle_keys]
 
         return docs
