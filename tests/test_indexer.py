@@ -291,15 +291,11 @@ class TestIndexerBase(DSSAssertMixin, DSSStorageMixin, DSSUploadMixin):
             _notify(subscription=dict(id="", es_query={}, callback_url=""))
         with self.assertRaisesRegex(AssertionError, "Unexpected scheme for callback URL"):
             _notify(subscription=dict(id="", es_query={}, callback_url="wss://127.0.0.1"))
-        environ_backup = os.environ
-        try:
-            os.environ = dict(DSS_DEPLOYMENT_STAGE=DeploymentStage.PROD.value)
+        with unittest.mock.patch.dict(os.environ, DSS_DEPLOYMENT_STAGE=DeploymentStage.PROD.value):
             with self.assertRaisesRegex(AssertionError, "Unexpected scheme for callback URL"):
                 _notify(subscription=dict(id="", es_query={}, callback_url="http://example.com"))
             with self.assertRaisesRegex(AssertionError, "Callback hostname resolves to forbidden network"):
                 _notify(subscription=dict(id="", es_query={}, callback_url="https://127.0.0.1"))
-        finally:
-            os.environ = environ_backup
 
     def delete_subscription(self, subscription_id):
         self.assertDeleteResponse(
