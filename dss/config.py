@@ -86,6 +86,9 @@ class Config:
     @staticmethod
     def get_cloud_specific_handles(replica: Replica) -> typing.Tuple[BlobStore, HCABlobStore, str]:
 
+        if type(replica) != Replica:
+            raise ValueError(f"{replica} is not a Replica!")
+
         handle: BlobStore
         if replica == Replica.aws:
             handle = S3BlobStore()
@@ -106,6 +109,9 @@ class Config:
 
     @staticmethod
     def get_storage_schema(replica: Replica) -> str:
+
+        if type(replica) != Replica:
+            raise ValueError(f"{replica} is not a Replica!")
 
         if replica == Replica.aws:
             return "s3"
