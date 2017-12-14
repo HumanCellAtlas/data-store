@@ -143,7 +143,7 @@ def delete(uuid: str, replica: str, json_request_body: dict, version: str=None):
     if email not in ADMIN_USER_EMAILS:
         raise DSSException(
             requests.codes.forbidden,
-            "Forbidden",
+            "forbidden",
             f"You can't delete bundles with these credentials!",
         )
 
