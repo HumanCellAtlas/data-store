@@ -29,6 +29,7 @@ from tests import infra
 infra.start_verbose_logging()
 
 
+@infra.testmode.standalone
 class TestSyncUtils(unittest.TestCase):
     def setUp(self):
         dss.Config.set_config(dss.BucketConfig.TEST)
