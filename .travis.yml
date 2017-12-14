@@ -43,7 +43,7 @@ deploy:
     skip_cleanup: true
     on:
       branch: master
-      condition: ! $TRAVIS_DSS_INTEGRATION_MODE
+      condition: "! $TRAVIS_DSS_INTEGRATION_MODE"
   - provider: script
     script: make -j4 -O deploy
     skip_cleanup: true
