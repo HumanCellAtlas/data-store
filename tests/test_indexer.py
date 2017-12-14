@@ -130,7 +130,7 @@ class TestIndexerBase(DSSAssertMixin, DSSStorageMixin, DSSUploadMixin):
         self.storageHelper = None
 
     def test_process_new_indexable_object_create(self):
-        sample_event = self.create_sample_bundle_created_event(self.bundle_key)
+        sample_event = self.create_bundle_created_event(self.bundle_key)
         self.process_new_indexable_object(sample_event, logger)
         search_results = self.get_search_results(self.smartseq2_paired_ends_query, 1)
         self.assertEqual(1, len(search_results))
@@ -156,11 +156,11 @@ class TestIndexerBase(DSSAssertMixin, DSSStorageMixin, DSSUploadMixin):
         blobstore.upload_file_handle(bucket, tombstone_key, tombstone_data_bytes)
 
         # send the
-        sample_event = self.create_sample_bundle_created_event(self.bundle_key)
+        sample_event = self.create_bundle_created_event(self.bundle_key)
         self.process_new_indexable_object(sample_event, logger)
         self.get_search_results(self.smartseq2_paired_ends_query, 1)
 
-        sample_event = self.create_sample_bundle_deleted_event(tombstone_key)
+        sample_event = self.create_bundle_deleted_event(tombstone_key)
         self.process_new_indexable_object(sample_event, logger)
 
         @eventually(5.0, 0.5)
@@ -193,7 +193,7 @@ class TestIndexerBase(DSSAssertMixin, DSSStorageMixin, DSSUploadMixin):
             if file.name == "text_data_file1.txt":
                 file.indexed = True
         bundle_key = self.load_test_data_bundle(bundle)
-        sample_event = self.create_sample_bundle_created_event(bundle_key)
+        sample_event = self.create_bundle_created_event(bundle_key)
         with self.assertLogs(logger, level="WARNING") as log_monitor:
             self.process_new_indexable_object(sample_event, logger)
         self.assertRegex(log_monitor.output[0],
@@ -208,7 +208,7 @@ class TestIndexerBase(DSSAssertMixin, DSSStorageMixin, DSSUploadMixin):
     def test_key_is_not_indexed_when_processing_an_event_with_a_nonbundle_key(self):
         elasticsearch_delete_index(f'*{IndexSuffix.name}')
         bundle_key = "files/" + get_bundle_fqid()
-        sample_event = self.create_sample_bundle_created_event(bundle_key)
+        sample_event = self.create_bundle_created_event(bundle_key)
         log_last = logger.getEffectiveLevel()
         logger.setLevel(logging.DEBUG)
         try:
@@ -229,7 +229,7 @@ class TestIndexerBase(DSSAssertMixin, DSSStorageMixin, DSSUploadMixin):
 
     def test_indexed_file_unparsable(self):
         bundle_key = self.load_test_data_bundle_for_path("fixtures/indexing/bundles/unparseable_indexed_file")
-        sample_event = self.create_sample_bundle_created_event(bundle_key)
+        sample_event = self.create_bundle_created_event(bundle_key)
         with self.assertLogs(logger, level="WARNING") as log_monitor:
             self.process_new_indexable_object(sample_event, logger)
         self.assertRegex(log_monitor.output[0],
@@ -245,7 +245,7 @@ class TestIndexerBase(DSSAssertMixin, DSSStorageMixin, DSSUploadMixin):
         elasticsearch_delete_index(f'*{IndexSuffix.name}')
         bundle_key = self.load_test_data_bundle_with_inaccessible_file(
             "fixtures/indexing/bundles/v3/smartseq2/paired_ends", inaccesssible_filename, "application/json", True)
-        sample_event = self.create_sample_bundle_created_event(bundle_key)
+        sample_event = self.create_bundle_created_event(bundle_key)
         with self.assertLogs(logger, level="WARNING") as log_monitor:
             self.process_new_indexable_object(sample_event, logger)
         self.assertRegex(
@@ -291,7 +291,7 @@ class TestIndexerBase(DSSAssertMixin, DSSStorageMixin, DSSUploadMixin):
         )
 
     def test_subscription_notification_successful(self):
-        sample_event = self.create_sample_bundle_created_event(self.bundle_key)
+        sample_event = self.create_bundle_created_event(self.bundle_key)
         self.process_new_indexable_object(sample_event, logger)
         for verify_payloads, subscribe_kwargs in ((True, dict(hmac_secret_key=PostTestHandler.hmac_secret_key)),
                                                   (False, dict())):
@@ -300,7 +300,7 @@ class TestIndexerBase(DSSAssertMixin, DSSStorageMixin, DSSUploadMixin):
                                                               f"http://{HTTPInfo.address}:{HTTPInfo.port}",
                                                               **subscribe_kwargs)
 
-            sample_event = self.create_sample_bundle_created_event(self.bundle_key)
+            sample_event = self.create_bundle_created_event(self.bundle_key)
             self.process_new_indexable_object(sample_event, logger)
             prefix, _, bundle_fqid = self.bundle_key.partition("/")
             self.verify_notification(subscription_id, self.smartseq2_paired_ends_query, bundle_fqid)
@@ -309,7 +309,7 @@ class TestIndexerBase(DSSAssertMixin, DSSStorageMixin, DSSUploadMixin):
 
     def test_subscription_notification_unsuccessful(self):
         PostTestHandler.verify_payloads = True
-        sample_event = self.create_sample_bundle_created_event(self.bundle_key)
+        sample_event = self.create_bundle_created_event(self.bundle_key)
         self.process_new_indexable_object(sample_event, logger)
 
         subscription_id = self.subscribe_for_notification(self.smartseq2_paired_ends_query,
@@ -318,7 +318,7 @@ class TestIndexerBase(DSSAssertMixin, DSSStorageMixin, DSSUploadMixin):
                                                           hmac_key_id="test")
 
         bundle_key = self.load_test_data_bundle_for_path("fixtures/indexing/bundles/v3/smartseq2/paired_ends")
-        sample_event = self.create_sample_bundle_created_event(bundle_key)
+        sample_event = self.create_bundle_created_event(bundle_key)
         error_response_code = 500
         PostTestHandler.set_response_code(error_response_code)
         with self.assertLogs(logger, level="WARNING") as log_monitor:
@@ -332,7 +332,7 @@ class TestIndexerBase(DSSAssertMixin, DSSStorageMixin, DSSUploadMixin):
         elasticsearch_delete_index(f'*{IndexSuffix.name}')
         subscription_id = self.subscribe_for_notification(self.smartseq2_paired_ends_query,
                                                           f"http://{HTTPInfo.address}:{HTTPInfo.port}")
-        sample_event = self.create_sample_bundle_created_event(self.bundle_key)
+        sample_event = self.create_bundle_created_event(self.bundle_key)
         PostTestHandler.verify_payloads = False
         self.process_new_indexable_object(sample_event, logger)
         prefix, _, bundle_fqid = self.bundle_key.partition("/")
@@ -371,7 +371,7 @@ class TestIndexerBase(DSSAssertMixin, DSSStorageMixin, DSSUploadMixin):
         elasticsearch_delete_index(f"*{IndexSuffix.name}")
         subscription_id = self.subscribe_for_notification(subscription_query,
                                                           f"http://{HTTPInfo.address}:{HTTPInfo.port}")
-        sample_event = self.create_sample_bundle_created_event(self.bundle_key)
+        sample_event = self.create_bundle_created_event(self.bundle_key)
         PostTestHandler.verify_payloads = False
         self.process_new_indexable_object(sample_event, logger)
 
@@ -438,7 +438,7 @@ class TestIndexerBase(DSSAssertMixin, DSSStorageMixin, DSSUploadMixin):
             self.assertEqual(index_document.get_shape_descriptor(), None)
 
     def test_alias_and_versioned_index_exists(self):
-        sample_event = self.create_sample_bundle_created_event(self.bundle_key)
+        sample_event = self.create_bundle_created_event(self.bundle_key)
         self.process_new_indexable_object(sample_event, logger)
         es_client = ElasticsearchClient.get(logger)
         self.assertTrue(es_client.indices.exists_alias(name=[self.dss_alias_name]))
@@ -451,7 +451,7 @@ class TestIndexerBase(DSSAssertMixin, DSSStorageMixin, DSSUploadMixin):
         # Load and test an unversioned bundle
         bundle_key = self.load_test_data_bundle_for_path(
             "fixtures/indexing/bundles/unversioned/smartseq2/paired_ends")
-        sample_event = self.create_sample_bundle_created_event(bundle_key)
+        sample_event = self.create_bundle_created_event(bundle_key)
         self.process_new_indexable_object(sample_event, logger)
         es_client = ElasticsearchClient.get(logger)
         alias = es_client.indices.get_alias(name=[self.dss_alias_name])
@@ -460,7 +460,7 @@ class TestIndexerBase(DSSAssertMixin, DSSStorageMixin, DSSUploadMixin):
         self.assertTrue(es_client.indices.exists(index=unversioned_doc_index_name))
 
         # Load and test a v3 bundle
-        sample_event = self.create_sample_bundle_created_event(self.bundle_key)
+        sample_event = self.create_bundle_created_event(self.bundle_key)
         self.process_new_indexable_object(sample_event, logger)
         self.assertTrue(es_client.indices.exists_alias(name=[self.dss_alias_name]))
         alias = es_client.indices.get_alias(name=[self.dss_alias_name])
@@ -474,7 +474,7 @@ class TestIndexerBase(DSSAssertMixin, DSSStorageMixin, DSSUploadMixin):
         # Load a schema version 2 (unversioned) bundle
         bundle_key = self.load_test_data_bundle_for_path(
             "fixtures/indexing/bundles/unversioned/smartseq2/paired_ends")
-        sample_event = self.create_sample_bundle_created_event(bundle_key)
+        sample_event = self.create_bundle_created_event(bundle_key)
         self.process_new_indexable_object(sample_event, logger)
 
         # Search using a v2-specific query - should match
@@ -491,7 +491,7 @@ class TestIndexerBase(DSSAssertMixin, DSSStorageMixin, DSSUploadMixin):
         self.assertEqual(0, len(search_results))
 
         # Load a v3 bundle
-        sample_event = self.create_sample_bundle_created_event(self.bundle_key)
+        sample_event = self.create_bundle_created_event(self.bundle_key)
         self.process_new_indexable_object(sample_event, logger)
 
         # Search using a v3-specific query - should match
@@ -508,11 +508,11 @@ class TestIndexerBase(DSSAssertMixin, DSSStorageMixin, DSSUploadMixin):
         # Load a schema version 2 (unversioned) bundle
         bundle_key = self.load_test_data_bundle_for_path(
             "fixtures/indexing/bundles/unversioned/smartseq2/paired_ends")
-        sample_event = self.create_sample_bundle_created_event(bundle_key)
+        sample_event = self.create_bundle_created_event(bundle_key)
         self.process_new_indexable_object(sample_event, logger)
 
         # Load a v3 bundle
-        sample_event = self.create_sample_bundle_created_event(self.bundle_key)
+        sample_event = self.create_bundle_created_event(self.bundle_key)
         self.process_new_indexable_object(sample_event, logger)
 
         subscription_id = self.subscribe_for_notification(smartseq2_paired_ends_v2_or_v3_query,
@@ -521,7 +521,7 @@ class TestIndexerBase(DSSAssertMixin, DSSStorageMixin, DSSUploadMixin):
         # Load another schema version 2 (unversioned) bundle and verify notification
         bundle_key = self.load_test_data_bundle_for_path(
             "fixtures/indexing/bundles/unversioned/smartseq2/paired_ends")
-        sample_event = self.create_sample_bundle_created_event(bundle_key)
+        sample_event = self.create_bundle_created_event(bundle_key)
         self.process_new_indexable_object(sample_event, logger)
         prefix, _, bundle_fqid = bundle_key.partition("/")
         self.verify_notification(subscription_id, smartseq2_paired_ends_v2_or_v3_query, bundle_fqid)
@@ -532,7 +532,7 @@ class TestIndexerBase(DSSAssertMixin, DSSStorageMixin, DSSUploadMixin):
         # Load another schema version 3 bundle and verify notification
         bundle_key = self.load_test_data_bundle_for_path(
             "fixtures/indexing/bundles/v3/smartseq2/paired_ends")
-        sample_event = self.create_sample_bundle_created_event(bundle_key)
+        sample_event = self.create_bundle_created_event(bundle_key)
         self.process_new_indexable_object(sample_event, logger)
         prefix, _, bundle_fqid = bundle_key.partition("/")
         self.verify_notification(subscription_id, smartseq2_paired_ends_v2_or_v3_query, bundle_fqid)
@@ -641,12 +641,6 @@ class TestIndexerBase(DSSAssertMixin, DSSStorageMixin, DSSUploadMixin):
             else:
                 time.sleep(0.5)
 
-    def create_sample_bundle_created_event(self, bundle_key):
-        return self.create_bundle_created_event(bundle_key)
-
-    def create_sample_bundle_deleted_event(self, bundle_key):
-        return self.create_bundle_deleted_event(bundle_key)
-
     def create_bundle_created_event(self, bundle_key):
         raise NotImplemented()
 
@@ -664,14 +658,15 @@ class TestAWSIndexer(AWSIndexHandler, TestIndexerBase, unittest.TestCase):
         super().indexer_setup(Replica.aws)
 
     def create_bundle_created_event(self, key) -> typing.Dict:
-        with open(os.path.join(os.path.dirname(__file__), "sample_s3_bundle_created_event.json")) as fh:
-            sample_event = json.load(fh)
-        sample_event['Records'][0]["s3"]['object']['key'] = key
-        return sample_event
+        return self._create_event("sample_s3_bundle_created_event.json", key)
 
     def create_bundle_deleted_event(self, key) -> typing.Dict:
-        with open(os.path.join(os.path.dirname(__file__), "sample_s3_bundle_deleted_event.json")) as fh:
+        return self._create_event("sample_s3_bundle_deleted_event.json", key)
+
+    def _create_event(self, event_template_path, key) -> typing.Dict:
+        with open(os.path.join(os.path.dirname(__file__), event_template_path)) as fh:
             sample_event = json.load(fh)
+        sample_event['Records'][0]["s3"]['bucket']['name'] = self.test_bucket
         sample_event['Records'][0]["s3"]['object']['key'] = key
         return sample_event
 
@@ -683,14 +678,15 @@ class TestGCPIndexer(GCPIndexHandler, TestIndexerBase, unittest.TestCase):
         super().indexer_setup(Replica.gcp)
 
     def create_bundle_created_event(self, key) -> typing.Dict:
-        with open(os.path.join(os.path.dirname(__file__), "sample_gs_bundle_created_event.json")) as fh:
-            sample_event = json.load(fh)
-        sample_event["name"] = key
-        return sample_event
+        return self._create_event("sample_gs_bundle_created_event.json", key)
 
     def create_bundle_deleted_event(self, key) -> typing.Dict:
-        with open(os.path.join(os.path.dirname(__file__), "sample_s3_bundle_deleted_event.json")) as fh:
+        return self._create_event("sample_s3_bundle_deleted_event.json", key)
+
+    def _create_event(self, event_template_path, key):
+        with open(os.path.join(os.path.dirname(__file__), event_template_path)) as fh:
             sample_event = json.load(fh)
+        sample_event["bucket"] = self.test_bucket
         sample_event['name'] = key
         return sample_event
 

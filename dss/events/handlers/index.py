@@ -3,7 +3,7 @@ import json
 import re
 from urllib.parse import unquote
 
-from dss import Replica
+from dss import Replica, Config
 from dss.storage.index_document import BundleDocument, BundleTombstoneDocument
 from ...storage.bundles import DSS_BUNDLE_TOMBSTONE_REGEX, DSS_BUNDLE_KEY_REGEX
 
@@ -67,6 +67,7 @@ class AWSIndexHandler(IndexHandler):
         try:
             # This function is only called for S3 creation events
             key = unquote(event['Records'][0]['s3']['object']['key'])
+            assert event['Records'][0]['s3']['bucket']['name'] == Config.get_s3_bucket()
             cls._process_new_indexable_object(Replica.aws, key, logger)
         except Exception as ex:
             logger.error("Exception occurred while processing S3 event: %s Event: %s", ex, json.dumps(event, indent=4))
@@ -80,6 +81,7 @@ class GCPIndexHandler(IndexHandler):
         try:
             # This function is only called for GS creation events
             key = event['name']
+            assert event['bucket'] == Config.get_gs_bucket()
             cls._process_new_indexable_object(Replica.gcp, key, logger)
         except Exception as ex:
             logger.error("Exception occurred while processing GS event: %s Event: %s", ex, json.dumps(event, indent=4))
