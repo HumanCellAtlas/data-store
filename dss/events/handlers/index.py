@@ -1,11 +1,10 @@
 """Lambda function for DSS indexing"""
 import json
-import re
 from urllib.parse import unquote
 
 from dss import Replica, Config
 from dss.storage.index_document import BundleDocument, BundleTombstoneDocument
-from ...storage.bundles import DSS_BUNDLE_TOMBSTONE_REGEX, DSS_BUNDLE_KEY_REGEX
+from ...storage.bundles import ObjectIdentifier, BundleFQID, TombstoneID
 
 
 class IndexHandler:
@@ -16,48 +15,34 @@ class IndexHandler:
 
     @classmethod
     def _process_new_indexable_object(cls, replica: Replica, key: str, logger):
-        if cls._is_bundle_to_index(key):
-            cls._index_and_notify(replica, key, logger)
-        elif cls._is_deletion(key):
-            cls._delete_from_index(replica, key, logger)
+        identifier = ObjectIdentifier.from_key(key)
+        if isinstance(identifier, BundleFQID):
+            cls._index_and_notify(replica, identifier, logger)
+        elif isinstance(identifier, TombstoneID):
+            cls._delete_from_index(replica, identifier, logger)
         else:
             logger.debug(f"Not processing {replica.name} event for key: {key}")
 
-    # add to index and notify
     @staticmethod
-    def _is_bundle_to_index(key: str) -> bool:
-        # Check for pattern /bundles/<bundle_uuid>.<timestamp>
-        # Don't process notifications explicitly for the latest bundle, of the format /bundles/<bundle_uuid>
-        # The versioned/timestamped name for this same bundle will get processed, and the fully qualified
-        # name will be needed to remove index data later if the bundle is deleted.
-        result = re.search(DSS_BUNDLE_KEY_REGEX, key)
-        return result is not None
-
-    @staticmethod
-    def _index_and_notify(replica: Replica, key: str, logger):
-        logger.info(f"Received {replica.name} creation event for bundle which will be indexed: {key}")
-        document = BundleDocument.from_replica(replica, key, logger)
+    def _index_and_notify(replica: Replica, bundle_fqid: BundleFQID, logger):
+        logger.info(f"Received {replica.name} creation event for bundle which will be indexed: {bundle_fqid}")
+        document = BundleDocument.from_replica(replica, bundle_fqid, logger)
         index_name = document.prepare_index()
         document.add_to_index(index_name)
         document.notify_matching_subscribers(index_name)
-        logger.debug(f"Finished index processing of {replica.name} creation event for bundle: {key}")
-
-    # deletion
-    @staticmethod
-    def _is_deletion(key: str) -> bool:
-        # Check for pattern /bundles/<bundle_uuid>(.<timestamp>)?.dead
-        result = re.match(DSS_BUNDLE_TOMBSTONE_REGEX, key)
-        return result is not None
+        logger.debug(f"Finished index processing of {replica.name} creation event for bundle: {bundle_fqid}")
 
     @staticmethod
-    def _delete_from_index(replica: Replica, key: str, logger):
-        tombstone_document = BundleTombstoneDocument.from_replica(replica, key, logger)
+    def _delete_from_index(replica: Replica, tombstone_id: TombstoneID, logger):
+        logger.info(f"Received {replica.name} deletion event with tombstone identifier: {tombstone_id}")
+        tombstone_document = BundleTombstoneDocument.from_replica(replica, tombstone_id, logger)
         dead_documents = tombstone_document.list_dead_bundles()
         for document in dead_documents:
             index_name = document.prepare_index()
             document.clear()
             document.update(tombstone_document)
             document.add_to_index(index_name)
+            logger.info(f"Deleted from {replica.name} bundle: {document.fqid}")
 
 
 class AWSIndexHandler(IndexHandler):
