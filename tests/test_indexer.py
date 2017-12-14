@@ -618,7 +618,9 @@ class TestIndexerBase(DSSAssertMixin, DSSStorageMixin, DSSUploadMixin):
         return uuid_
 
     def verify_index_document_structure_and_content(self, actual_index_document,
-                                                    bundle_key, files, excluded_files=[]):
+                                                    bundle_key, files, excluded_files=None):
+        if excluded_files is None:
+            excluded_files = []
         self.verify_index_document_structure(actual_index_document, files, excluded_files)
         expected_index_document = generate_expected_index_document(self.blobstore, self.test_bucket, bundle_key)
         if expected_index_document != actual_index_document:
