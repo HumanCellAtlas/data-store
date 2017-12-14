@@ -19,7 +19,7 @@ sys.path.insert(0, pkg_root) # noqa
 import dss
 from dss.config import IndexSuffix
 from dss.events.handlers.index import BundleDocument
-from dss.storage.index import Index
+from dss.storage.index import IndexManager
 from dss.util import UrlBuilder
 from dss.util.es import ElasticsearchClient, ElasticsearchServer
 from tests import get_auth_header, get_bundle_fqid
@@ -72,7 +72,7 @@ class TestSubscriptionsBase(DSSAssertMixin):
         cls.alias_name = dss.Config.get_es_alias_name(dss.ESIndexType.docs, replica)
         cls.sub_index_name = dss.Config.get_es_index_name(dss.ESIndexType.subscriptions, replica)
         cls.doc_index_name = dss.Config.get_es_index_name(dss.ESIndexType.docs, replica, index_shape_identifier)
-        Index.create_elasticsearch_index(cls.doc_index_name, cls.replica, logger)
+        IndexManager.create_index(es_client, cls.replica, cls.doc_index_name)
         es_client.index(index=cls.doc_index_name,
                         doc_type=dss.ESDocType.doc.name,
                         id=str(uuid.uuid4()),

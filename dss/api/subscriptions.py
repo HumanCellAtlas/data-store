@@ -10,7 +10,8 @@ from flask import jsonify, request
 
 from .. import Config, Replica, ESIndexType, ESDocType, get_logger
 from ..error import DSSException, dss_handler
-from ..util.es import ElasticsearchClient, get_elasticsearch_subscription_index
+from ..util.es import ElasticsearchClient
+from ..storage.index import IndexManager
 
 logger = get_logger()
 
@@ -90,7 +91,7 @@ def put(json_request_body: dict, replica: str):
     # john@example.com would show up because elasticsearch matched example w/ example.
     # By including "index": "not_analyzed", Elasticsearch leaves all owner inputs alone.
     index_name = Config.get_es_index_name(ESIndexType.subscriptions, Replica[replica])
-    get_elasticsearch_subscription_index(es_client, index_name, logger, index_mapping)
+    IndexManager.get_subscription_index(es_client, index_name, index_mapping)
 
     #  get all indexes that use current alias
     alias_name = Config.get_es_alias_name(ESIndexType.docs, Replica[replica])
@@ -196,6 +197,7 @@ def _register_subscription(es_client: Elasticsearch, uuid: str, json_request_bod
                            id=uuid,
                            body=json_request_body,
                            refresh=True)
+
 
 def _get_indexes_by_alias(es_client: Elasticsearch, alias_name: str):
     try:
