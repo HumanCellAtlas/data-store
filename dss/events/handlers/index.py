@@ -28,6 +28,13 @@ class IndexHandler:
         logger.info(f"Received {replica.name} creation event for bundle which will be indexed: {bundle_fqid}")
         document = BundleDocument.from_replica(replica, bundle_fqid, logger)
         index_name = document.prepare_index()
+        versions = document.get_indexed_versions()
+        # No need to remove the document from the index it belongs into
+        versions.pop(index_name, None)
+        if versions:
+            logger.warning(f"Removing stale copies of the bundle document for {bundle_fqid} from the following "
+                           f"index(es): {json.dumps(versions)}.")
+            document.remove_versions(versions)
         document.add_to_index(index_name)
         document.notify_matching_subscribers(index_name)
         logger.debug(f"Finished index processing of {replica.name} creation event for bundle: {bundle_fqid}")

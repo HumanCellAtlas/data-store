@@ -12,6 +12,7 @@ import threading
 import time
 import typing
 import unittest
+import unittest.mock
 import uuid
 from http.server import BaseHTTPRequestHandler, HTTPServer
 from requests_http_signature import HTTPSignatureAuth
@@ -179,6 +180,29 @@ class TestIndexerBase(DSSAssertMixin, DSSStorageMixin, DSSUploadMixin):
                 self.assertEqual(search_results[0], tombstone_data)
 
         _deletion_results_test()
+
+    def test_reindexing_with_changed_shape(self):
+        bundle_key = self.load_test_data_bundle_for_path("fixtures/indexing/bundles/unversioned/smartseq2/paired_ends")
+        sample_event = self.create_bundle_created_event(bundle_key)
+        shape_descriptor = 'v99'
+
+        @eventually(timeout=5.0, interval=0.5)
+        def _assert_reindexing_results(expect_shape_descriptor):
+            hits = self.get_raw_search_results(self.smartseq2_paired_ends_query, 1)['hits']['hits']
+            self.assertEqual(1, len(hits))
+            self.assertEqual(expect_shape_descriptor, shape_descriptor in hits[0]['_index'])
+
+        # Index documenty into the "wrong" index by patching the shape descriptor
+        with unittest.mock.patch.object(BundleDocument, 'get_shape_descriptor', return_value=shape_descriptor):
+            self.process_new_indexable_object(sample_event, logger)
+        # There should only be one hit and it should be from the "wrong" index
+        _assert_reindexing_results(expect_shape_descriptor=True)
+        # Index again, this time into the correct index
+        with self.assertLogs(logger, level="WARNING") as log:
+            self.process_new_indexable_object(sample_event, logger)
+        self.assertTrue(any('Removing stale copies' in e for e in log.output))
+        # There should only be one hit and it should be from a different index, the "right" one
+        _assert_reindexing_results(expect_shape_descriptor=False)
 
     def test_indexed_file_with_invalid_content_type(self):
         bundle = TestBundle(self.blobstore, "fixtures/indexing/bundles/v3/smartseq2/paired_ends",
@@ -618,7 +642,12 @@ class TestIndexerBase(DSSAssertMixin, DSSStorageMixin, DSSUploadMixin):
                 self.assertIsNotNone(index_document['files'][filename])
 
     @classmethod
-    def get_search_results(cls, query, expected_hit_count):
+    def get_search_results(cls, query, min_expected_hit_count):
+        response = cls.get_raw_search_results(query, min_expected_hit_count)
+        return [hit['_source'] for hit in response['hits']['hits']]
+
+    @classmethod
+    def get_raw_search_results(cls, query, min_expected_hit_count):
         # Elasticsearch periodically refreshes the searchable data with newly added data.
         # By default, the refresh interval is one second.
         # https://www.elastic.co/guide/en/elasticsearch/reference/5.5/_modifying_your_data.html
@@ -630,8 +659,8 @@ class TestIndexerBase(DSSAssertMixin, DSSStorageMixin, DSSUploadMixin):
                 index=cls.dss_alias_name,
                 doc_type=dss.ESDocType.doc.name,
                 body=json.dumps(query))
-            if (len(response['hits']['hits']) >= expected_hit_count) or (time.time() >= timeout_time):
-                return [hit['_source'] for hit in response['hits']['hits']]
+            if (len(response['hits']['hits']) >= min_expected_hit_count) or (time.time() >= timeout_time):
+                return response
             else:
                 time.sleep(0.5)
 
