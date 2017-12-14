@@ -182,6 +182,47 @@ class BundleDocument(IndexDocument):
         else:
             return None  # No files with schema identifiers were found
 
+    def get_indexed_versions(self) -> typing.MutableMapping[str, str]:
+        """
+        Returns a dictionary mapping the name of each index containing this document to the
+        version of this document in that index. Note that `version` denotes document version, not
+        bundle version.
+        """
+        page_size = 64
+        es_client = ElasticsearchClient.get(self.logger)
+        alias_name = Config.get_es_alias_name(ESIndexType.docs, self.replica)
+        response = es_client.search(index=alias_name, body={
+            '_source': False,
+            'stored_fields': [],
+            'version': True,
+            'from': 0,
+            'size': page_size,
+            'query': {
+                'terms': {
+                    '_id': [str(self.fqid)]
+                }
+            }
+        })
+        hits = response['hits']
+        assert hits['total'] <= page_size, 'Document is in too many indices'
+        indices = {hit['_index']: hit['_version'] for hit in hits['hits']}
+        return indices
+
+    def remove_versions(self, versions: typing.MutableMapping[str, str]):
+        """
+        Remove this document from each given index provided that it contains the given version of this document.
+        """
+        es_client = ElasticsearchClient.get(self.logger)
+        num_ok, errors = bulk(es_client, raise_on_error=False, actions=[{
+            '_op_type': 'delete',
+            '_index': index_name,
+            '_type': ESDocType.doc.name,
+            '_version': version,
+            '_id': str(self.fqid),
+        } for index_name, version in versions.items()])
+        for item in errors:
+            self.logger.warning(f"Document deletion failed: {json.dumps(item)}")
+
     def _refresh_percolate_queries(self, index_name: str) -> None:
         # When dynamic templates are used and queries for percolation have been added
         # to an index before the index contains mappings of fields referenced by those queries,
