@@ -11,7 +11,7 @@ import requests
 from cloud_blobstore import BlobNotFoundError, BlobStore
 from flask import jsonify, request
 
-from ...storage.bundles import BUNDLE_PREFIX, bundle_key, tombstone_key, file_key
+from ...storage.bundles import TombstoneID, BundleFQID, FileFQID
 from ...util.blobstore import test_object_exists, ObjectTest
 from ...util.bundles import get_bundle
 from ...util.version import datetime_to_version_format
@@ -57,7 +57,7 @@ def put(uuid: str, replica: str, json_request_body: dict, version: str = None):
     handle, hca_handle, bucket = Config.get_cloud_specific_handles(Replica[replica])
 
     # what's the target object name for the bundle manifest?
-    bundle_manifest_key = bundle_key(uuid, version)
+    bundle_manifest_key = BundleFQID(uuid=uuid, version=version).to_key()
 
     # decode the list of files.
     files = [{'user_supplied_metadata': file} for file in json_request_body['files']]
@@ -67,10 +67,13 @@ def put(uuid: str, replica: str, json_request_body: dict, version: str = None):
     while True:  # each time through the outer while-loop, we try to gather up all the file metadata.
         for file in files:
             user_supplied_metadata = file['user_supplied_metadata']
-            metadata_path = file_key(user_supplied_metadata['uuid'], user_supplied_metadata['version'])
+            metadata_key = FileFQID(
+                uuid=user_supplied_metadata['uuid'],
+                version=user_supplied_metadata['version'],
+            ).to_key()
             if 'file_metadata' not in file:
                 try:
-                    file_metadata = handle.get(bucket, metadata_path)
+                    file_metadata = handle.get(bucket, metadata_key)
                 except BlobNotFoundError:
                     continue
                 file['file_metadata'] = json.loads(file_metadata)
@@ -150,8 +153,8 @@ def delete(uuid: str, replica: str, json_request_body: dict, version: str=None):
     uuid = uuid.lower()
     version = datetime_to_version_format(iso8601.parse_date(version)) if version else None
 
-    bundle_prefix = bundle_key(uuid, version) if version else f"{BUNDLE_PREFIX}/{uuid}."
-    bundle_tombstone_key = tombstone_key(uuid, version)
+    tombstone_id = TombstoneID(uuid=uuid, version=version)
+    bundle_prefix = tombstone_id.to_key_prefix()
     tombstone_object_data = _create_tombstone_data(
         email=email,
         reason=json_request_body.get('reason'),
@@ -164,7 +167,7 @@ def delete(uuid: str, replica: str, json_request_body: dict, version: str=None):
         created, idempotent = _idempotent_save(
             handle,
             bucket,
-            bundle_tombstone_key,
+            tombstone_id.to_key(),
             tombstone_object_data
         )
         if not idempotent:

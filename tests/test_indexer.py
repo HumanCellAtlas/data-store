@@ -26,7 +26,7 @@ from dss.config import IndexSuffix, ESDocType, Replica
 from dss.events.handlers.index import AWSIndexHandler, GCPIndexHandler, BundleDocument
 from dss.hcablobstore import BundleMetadata, BundleFileMetadata, FileMetadata
 from dss.util import create_blob_key, networking, UrlBuilder
-from dss.storage.bundles import bundle_key_to_bundle_fqid
+from dss.storage.bundles import ObjectIdentifier, BundleFQID, TombstoneID
 from dss.util.es import ElasticsearchClient, ElasticsearchServer
 from dss.util.version import datetime_to_version_format
 from dss.storage.bundles import DSS_OBJECT_NAME_REGEX, DSS_BUNDLE_KEY_REGEX
@@ -37,7 +37,7 @@ from tests.infra.server import ThreadedLocalServer
 from tests.sample_search_queries import (smartseq2_paired_ends_v2_query, smartseq2_paired_ends_v3_query,
                                          smartseq2_paired_ends_v2_or_v3_query)
 
-from tests import eventually, get_bundle_fqid
+from tests import eventually, get_bundle_fqid, get_file_fqid
 
 # The moto mock has two defects that show up when used by the dss core storage system.
 # Use actual S3 until these defects are fixed in moto.
@@ -141,41 +141,38 @@ class TestIndexerBase(DSSAssertMixin, DSSStorageMixin, DSSUploadMixin):
         )
 
     def test_process_new_indexable_object_delete(self):
-        bundle_uuid, _ = DSS_OBJECT_NAME_REGEX.match(self.bundle_key).groups()
+        bundle_fqid = BundleFQID.from_key(self.bundle_key)
         # delete the whole bundle
-        self._test_process_new_indexable_object_delete(self.bundle_key + ".dead")
+        self._test_process_new_indexable_object_delete(TombstoneID.from_key(self.bundle_key + ".dead"))
         # delete a specific bundle version
-        self._test_process_new_indexable_object_delete(f"bundles/{bundle_uuid}.dead")
+        self._test_process_new_indexable_object_delete(TombstoneID.from_key(f"bundles/{bundle_fqid}.dead"))
 
-    def _test_process_new_indexable_object_delete(self, tombstone_key):
-        bundle_uuid, version = DSS_OBJECT_NAME_REGEX.search(tombstone_key).groups()
+    def _test_process_new_indexable_object_delete(self, tombstone_id: TombstoneID):
         # set the tombstone
         blobstore, _, bucket = Config.get_cloud_specific_handles(self.replica)
         tombstone_data = {"status": "disappeared"}
         tombstone_data_bytes = io.BytesIO(bytes(json.dumps(tombstone_data), encoding="utf-8"))
-        blobstore.upload_file_handle(bucket, tombstone_key, tombstone_data_bytes)
+        blobstore.upload_file_handle(bucket, tombstone_id.to_key(), tombstone_data_bytes)
 
         # send the
         sample_event = self.create_bundle_created_event(self.bundle_key)
         self.process_new_indexable_object(sample_event, logger)
         self.get_search_results(self.smartseq2_paired_ends_query, 1)
 
-        sample_event = self.create_bundle_deleted_event(tombstone_key)
+        sample_event = self.create_bundle_deleted_event(tombstone_id.to_key())
         self.process_new_indexable_object(sample_event, logger)
 
         @eventually(5.0, 0.5)
         def _deletion_results_test():
             search_results = self.get_search_results(self.smartseq2_paired_ends_query, 0)
             self.assertEqual(0, len(search_results))
-            bundle_fqids = [
-                bundle_key_to_bundle_fqid(k) for k in blobstore.list(bucket, f"bundles/{bundle_uuid}.")
-                if DSS_BUNDLE_KEY_REGEX.match(k)
-            ]
+            bundle_fqids = [ObjectIdentifier.from_key(k) for k in blobstore.list(bucket, tombstone_id.to_key_prefix())]
+            bundle_fqids = filter(lambda bundle_id: type(bundle_id) == BundleFQID, bundle_fqids)
             for bundle_fqid in bundle_fqids:
                 exact_query = {
                     "query": {
                         "terms": {
-                            "_id": [bundle_fqid]
+                            "_id": [str(bundle_fqid)]
                         }
                     }
                 }
@@ -207,8 +204,7 @@ class TestIndexerBase(DSSAssertMixin, DSSStorageMixin, DSSUploadMixin):
 
     def test_key_is_not_indexed_when_processing_an_event_with_a_nonbundle_key(self):
         elasticsearch_delete_index(f'*{IndexSuffix.name}')
-        bundle_key = "files/" + get_bundle_fqid()
-        sample_event = self.create_bundle_created_event(bundle_key)
+        sample_event = self.create_bundle_created_event(get_file_fqid().to_key())
         log_last = logger.getEffectiveLevel()
         logger.setLevel(logging.DEBUG)
         try:

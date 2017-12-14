@@ -5,7 +5,7 @@ from cloud_blobstore import BlobNotFoundError
 
 from dss import Config, DSSException, Replica
 from dss.hcablobstore import BundleFileMetadata, BundleMetadata
-from dss.storage.bundles import DSS_BUNDLE_KEY_REGEX, DSS_BUNDLE_TOMBSTONE_REGEX, bundle_key, tombstone_key
+from dss.storage.bundles import DSS_BUNDLE_KEY_REGEX, DSS_BUNDLE_TOMBSTONE_REGEX, TombstoneID, BundleFQID
 from dss.util import UrlBuilder
 from dss.util.blobstore import test_object_exists
 
@@ -23,13 +23,13 @@ def get_bundle_from_bucket(
     # need the ability to use fixture bucket for testing
     bucket = default_bucket if bucket is None else bucket
 
-    def exists(name):
-        return test_object_exists(handle, bucket, name)
+    def tombstone_exists(uuid: str, version: typing.Optional[str]):
+        return test_object_exists(handle, bucket, TombstoneID(uuid=uuid, version=version).to_key())
 
     # handle the following deletion cases
     # 1. the whole bundle is deleted
     # 2. the specific version of the bundle is deleted
-    if exists(tombstone_key(uuid, None)) or (version and exists(tombstone_key(uuid, version))):
+    if tombstone_exists(uuid, None) or (version and tombstone_exists(uuid, version)):
         raise DSSException(404, "not_found", "EMPTY Cannot find file!")
 
     # handle the following deletion case
@@ -44,12 +44,14 @@ def get_bundle_from_bucket(
         # no matches!
         raise DSSException(404, "not_found", "Cannot find file!")
 
+    bundle_fqid = BundleFQID(uuid=uuid, version=version)
+
     # retrieve the bundle metadata.
     try:
         bundle_metadata = json.loads(
             handle.get(
                 bucket,
-                bundle_key(uuid, version),
+                bundle_fqid.to_key(),
             ).decode("utf-8"))
     except BlobNotFoundError:
         raise DSSException(404, "not_found", "Cannot find file!")

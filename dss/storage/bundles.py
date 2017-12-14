@@ -1,5 +1,6 @@
 import re
-import typing
+from abc import abstractmethod
+from collections import namedtuple
 
 BUNDLE_PREFIX = "bundles"
 FILE_PREFIX = "files"
@@ -22,44 +23,67 @@ DSS_BUNDLE_TOMBSTONE_REGEX = re.compile(
     f"^{BUNDLE_PREFIX}/({UUID_PATTERN})(?:\.(" + VERSION_PATTERN + "))?\." + TOMBSTONE_SUFFIX + "$")
 # matches all bundle objects
 DSS_OBJECT_NAME_REGEX = re.compile(
-    f"^{BUNDLE_PREFIX}/({UUID_PATTERN})(?:\.({VERSION_PATTERN}))?(?:\.{TOMBSTONE_SUFFIX})?$")
+    f"^({BUNDLE_PREFIX}|{FILE_PREFIX})/({UUID_PATTERN})(?:\.({VERSION_PATTERN}))?(\.{TOMBSTONE_SUFFIX})?$")
 
 
-def bundle_key_to_bundle_fqid(bundle_key: str) -> str:
-    match = DSS_OBJECT_NAME_REGEX.match(bundle_key)
-    uuid, version = match.groups() if match else (None, None)
-    if uuid and version:
-        return format_bundle_fqid(uuid, version)
-    else:
-        raise ValueError(f"Object name does not contain a valid bundle identifier: {bundle_key}")
+class ObjectIdentifier(namedtuple('ObjectIdentifier', 'uuid version')):
+
+    @classmethod
+    def from_key(cls, key: str):
+        match = DSS_OBJECT_NAME_REGEX.match(key)
+        object_type, uuid, version, tombstone_suffix = match.groups() if match else (None, None, None, None)
+        if object_type == FILE_PREFIX:
+            return FileFQID(uuid=uuid, version=version)
+        elif object_type == BUNDLE_PREFIX:
+            if not tombstone_suffix and uuid and version:
+                return BundleFQID(uuid=uuid, version=version)
+            elif tombstone_suffix and uuid:
+                return TombstoneID(uuid=uuid, version=version)
+            else:
+                raise ValueError(f"Object name does not contain a valid bundle identifier: {key}")
+        else:
+            raise ValueError(f"Object name does not contain a valid bundle identifier: {key}")
+
+    def is_fully_qualified(self):
+        return self.uuid is not None and self.version is not None
+
+    def to_key(self):
+        return f"{self.prefix}/{self}"
+
+    @property
+    @abstractmethod
+    def prefix(self):
+        return NotImplementedError("'prefix' not implemented!")
+
+    def to_key_prefix(self):
+        return f"{self.prefix}/{self.uuid}.{self.version or ''}"
+
+    def __str__(self):
+        return f"{self.uuid}.{self.version}"
 
 
-def bundle_fqid_to_uuid_version(bundle_key: str) -> (str, str):
-    match = DSS_BUNDLE_FQID_REGEX.match(bundle_key)
-    uuid, version = match.groups() if match else (None, None)
-    if uuid and version:
-        return uuid, version
-    else:
-        raise ValueError(f"Object name does not contain a valid bundle identifier: {bundle_key}")
+class BundleFQID(ObjectIdentifier):
+
+    prefix = BUNDLE_PREFIX
 
 
-def format_bundle_fqid(uuid: str, version: str) -> str:
-    if UUID_REGEX.match(uuid) and VERSION_REGEX.match(version):
-        return f"{uuid}.{version}"
-    else:
-        raise ValueError(f"Not a valid version regex-version pair: {uuid}, {version}")
+class FileFQID(ObjectIdentifier):
+
+    prefix = FILE_PREFIX
 
 
-def bundle_key(uuid: str, version: str) -> str:
-    return f"{BUNDLE_PREFIX}/{format_bundle_fqid(uuid, version)}"
+class TombstoneID(ObjectIdentifier):
 
+    prefix = BUNDLE_PREFIX
 
-def file_key(uuid: str, version: str) -> str:
-    return f"{FILE_PREFIX}/{format_bundle_fqid(uuid, version)}"
+    def __str__(self):
+        if self.version:
+            return f"{self.uuid}.{self.version}.{TOMBSTONE_SUFFIX}"
+        else:
+            return f"{self.uuid}.{TOMBSTONE_SUFFIX}"
 
-
-def tombstone_key(uuid: str, version: typing.Optional[str]) -> str:
-    if version:
-        return f"{BUNDLE_PREFIX}/{uuid}.{version}.{TOMBSTONE_SUFFIX}"
-    else:
-        return f"{BUNDLE_PREFIX}/{uuid}.{TOMBSTONE_SUFFIX}"
+    def to_bundle_fqid(self):
+        if self.is_fully_qualified():
+            return BundleFQID(uuid=self.uuid, version=self.version)
+        else:
+            raise ValueError(f"{self} does not define a version, therefore it can't be a Bundle FQID.")
