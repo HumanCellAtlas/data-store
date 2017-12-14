@@ -3,7 +3,7 @@ import json
 import typing
 import botocore
 from uuid import uuid4
-from dss import Config
+from dss import Config, Replica
 from enum import Enum, auto
 from .. import step_functions_invoke
 from cloud_blobstore import BlobPagingError
@@ -242,7 +242,7 @@ class Visitation(metaclass=VisitationStateMeta):
 
         self.k_starts += 1
 
-        handle = Config.get_cloud_specific_handles(self.replica)[0]
+        handle = Config.get_cloud_specific_handles(Replica[self.replica])[0]
 
         blobs = handle.list_v2(
             self.bucket,
