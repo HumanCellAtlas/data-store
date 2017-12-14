@@ -6,6 +6,7 @@ import io
 import json
 import logging
 import os
+import requests
 import sys
 import threading
 import time
@@ -13,8 +14,6 @@ import typing
 import unittest
 import uuid
 from http.server import BaseHTTPRequestHandler, HTTPServer
-
-import requests
 from requests_http_signature import HTTPSignatureAuth
 
 pkg_root = os.path.abspath(os.path.join(os.path.dirname(__file__), '..'))  # noqa
@@ -29,7 +28,6 @@ from dss.util import create_blob_key, networking, UrlBuilder
 from dss.storage.bundles import ObjectIdentifier, BundleFQID, TombstoneID
 from dss.util.es import ElasticsearchClient, ElasticsearchServer
 from dss.util.version import datetime_to_version_format
-from dss.storage.bundles import DSS_OBJECT_NAME_REGEX, DSS_BUNDLE_KEY_REGEX
 from tests import get_version, get_auth_header
 from tests.es import elasticsearch_delete_index, clear_indexes
 from tests.infra import DSSAssertMixin, DSSUploadMixin, DSSStorageMixin, TestBundle, start_verbose_logging
