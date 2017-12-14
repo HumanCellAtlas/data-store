@@ -11,7 +11,6 @@ from urllib.parse import unquote
 from string import ascii_letters
 from concurrent.futures import ThreadPoolExecutor
 
-import boto3
 import domovoi
 
 pkg_root = os.path.abspath(os.path.join(os.path.dirname(__file__), 'domovoilib'))  # noqa
@@ -56,7 +55,7 @@ def compose_upload(event, context):
     """
     gs_max_compose_parts = 32
     msg = json.loads(event["Records"][0]["Sns"]["Message"])
-    gs = dss.Config.get_cloud_specific_handles("gcp")[0].gcp_client
+    gs = dss.Config.get_cloud_specific_handles(Replica.gcp)[0].gcp_client
     gs_bucket = gs.get_bucket(msg["dest_bucket"])
     while True:
         try:
@@ -110,7 +109,7 @@ def copy_parts(event, context):
     blobstore_handle = dss.Config.get_cloud_specific_handles(platform_to_replica[msg["source_platform"]])[0]
     source_url = blobstore_handle.generate_presigned_GET_url(bucket=msg["source_bucket"], key=msg["source_key"])
     futures = []
-    gs = dss.Config.get_cloud_specific_handles("gcp")[0].gcp_client
+    gs = dss.Config.get_cloud_specific_handles(Replica.gcp)[0].gcp_client
     with ThreadPoolExecutor(max_workers=4) as executor:
         for part in msg["parts"]:
             context.log(log_msg.format(part=part, **msg))
