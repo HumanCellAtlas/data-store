@@ -2,6 +2,8 @@ import unittest
 from unittest import mock
 
 import dss.util.email
+from tests.infra import testmode
+
 
 class TestFileApi(unittest.TestCase):
 
@@ -13,12 +15,14 @@ class TestFileApi(unittest.TestCase):
     def setUp(self):
         pass
 
+    @testmode.standalone
     @mock.patch('dss.util.email.send_email')
     def test_send_email(self, send_email_func):
         send_email_func.return_value = 'Success'
         dss.util.email.send_email('sender', 'receiver', 'subject', 'html', 'txt')
         self.assertEquals(send_email_func('sender', 'receiver', 'subject', 'html', 'txt'), 'Success')
 
+    @testmode.standalone
     @mock.patch('dss.util.email.send_email')
     def test_send_checkout_success_email(self, send_email_func):
         send_email_func.return_value = 'Success'
@@ -31,6 +35,7 @@ class TestFileApi(unittest.TestCase):
         self.assertIn('<html>', args[3])
         self.assertNotIn('<html>', args[4])
 
+    @testmode.standalone
     @mock.patch('dss.util.email.send_email')
     def test_send_checkout_failure_email(self, send_email_func):
         send_email_func.return_value = 'Success'
