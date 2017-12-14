@@ -10,6 +10,7 @@ import dss
 import chainedawslambda
 from chainedawslambda import aws
 from dss import chained_lambda_clients
+from dss.config import Replica
 
 from dss.util.state_machine.checkout_states import state_machine_def
 from dss.util.email import send_checkout_success_email, send_checkout_failure_email
@@ -23,7 +24,7 @@ dss.Config.set_config(dss.BucketConfig.NORMAL)
 email_sender = dss.Config.get_notification_email()
 default_checkout_bucket = dss.Config.get_s3_checkout_bucket()
 
-replica = "aws"
+replica = Replica.aws
 
 for client_name, client_class in chained_lambda_clients():
     chainedawslambda.aws.add_client(client_name, client_class)

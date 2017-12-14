@@ -20,6 +20,7 @@ sys.path.insert(0, pkg_root)  # noqa
 import dss
 from dss.events.handlers.sync import sync_blob, compose_gs_blobs, copy_part, parts_per_worker, sns_topics
 from dss.util.aws import ARN, send_sns_msg, clients, resources
+from dss.config import Replica
 
 app = domovoi.Domovoi()
 
@@ -101,7 +102,7 @@ def complete_multipart_upload(event, context):
         time.sleep(5)
 
 log_msg = "Copying {source_key}:{part} from {source_platform}://{source_bucket} to {dest_platform}://{dest_bucket}"
-platform_to_replica = dict(s3="aws", gs="gcp")
+platform_to_replica = dict(s3=Replica.aws, gs=Replica.gcp)
 @app.sns_topic_subscriber(sns_topics["copy_parts"])
 def copy_parts(event, context):
     topic_arn = event["Records"][0]["Sns"]["TopicArn"]
