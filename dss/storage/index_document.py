@@ -162,7 +162,6 @@ class BundleDocument(IndexDocument):
         This should be an extension point that is customizable by other projects according to
         their metadata.
         """
-
         schema_version_map = defaultdict(set)  # type: typing.MutableMapping[str, typing.MutableSet[str]]
         for filename, file_content in self.files.items():
             core = file_content.get('core')
