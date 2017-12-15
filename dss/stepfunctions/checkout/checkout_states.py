@@ -1,13 +1,48 @@
+retry_config = [
+    {
+        "ErrorEquals": ["States.TaskFailed"],
+        "IntervalSeconds": 5,
+        "MaxAttempts": 5,
+        "BackoffRate": 1.5
+    },
+    {
+        "ErrorEquals": ["States.Timeout"],
+        "IntervalSeconds": 30,
+        "MaxAttempts": 3,
+        "BackoffRate": 1.5
+    },
+    {
+        "ErrorEquals": ["States.Permissions"],
+        "MaxAttempts": 0
+    },
+    {
+        "ErrorEquals": ["States.ALL"],
+        "IntervalSeconds": 5,
+        "MaxAttempts": 5,
+        "BackoffRate": 2.0
+    }
+]
+
+catch_config = [
+    {
+        "ErrorEquals": ["States.ALL"],
+        "Next": "NotifyFailure"
+    }
+]
+
 state_machine_def = {
     "Comment": "DSS Checkout service state machine that submits a Job to chained copy client"
                " and monitors the Job until it completes.",
     "StartAt": "PreExecutionCheck",
+    "TimeoutSeconds": 3600,             # 60 minutes, in seconds.
     "States": {
         "PreExecutionCheck": {
             "Type": "Task",
             "Resource": None,
             "ResultPath": "$.validation",
-            "Next": "PreExecutionCheckPassed"
+            "Next": "PreExecutionCheckPassed",
+            "Retry": retry_config,
+            "Catch": catch_config
         },
         "PreExecutionCheckPassed": {
             "Type": "Choice",
@@ -24,7 +59,9 @@ state_machine_def = {
             "Type": "Task",
             "Resource": None,
             "ResultPath": "$.schedule",
-            "Next": "Wait"
+            "Next": "Wait",
+            "Retry": retry_config,
+            "Catch": catch_config
         },
         "Wait": {
             "Type": "Wait",
@@ -35,7 +72,9 @@ state_machine_def = {
             "Type": "Task",
             "Resource": None,
             "ResultPath": "$.status",
-            "Next": "JobDone"
+            "Next": "JobDone",
+            "Retry": retry_config,
+            "Catch": catch_config
         },
         "JobDone": {
             "Type": "Choice",

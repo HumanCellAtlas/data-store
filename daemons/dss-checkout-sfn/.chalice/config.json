@@ -7,5 +7,7 @@
       "environment_variables": {
       }
     }
-  }
+  },
+  "lambda_timeout": 300,
+  "lambda_memory_size": 1536
 }
