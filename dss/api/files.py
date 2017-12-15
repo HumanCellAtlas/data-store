@@ -4,19 +4,19 @@ import json
 import re
 import typing
 from enum import Enum, auto
+from uuid import uuid4
 
 import iso8601
 import requests
-import chainedawslambda.aws
 from cloud_blobstore import BlobAlreadyExistsError, BlobNotFoundError, BlobStore
 from flask import jsonify, make_response, redirect, request
 from ..util.version import datetime_to_version_format
 
-from .. import DSSException, dss_handler
+from .. import DSSException, dss_handler, stepfunctions
 from ..config import Config, Replica
-from ..events.chunkedtask import s3copyclient
 from ..hcablobstore import FileMetadata, HCABlobStore
-from ..util.aws import get_s3_chunk_size, AWS_MIN_CHUNK_SIZE
+from ..stepfunctions import s3copyclient
+from ..util.aws import AWS_MIN_CHUNK_SIZE
 
 
 ASYNC_COPY_THRESHOLD = AWS_MIN_CHUNK_SIZE
@@ -175,21 +175,16 @@ def put(uuid: str, json_request_body: dict, version: str=None):
             copy_mode = CopyMode.COPY_ASYNC
 
     if copy_mode == CopyMode.COPY_ASYNC:
-        state = s3copyclient.S3CopyWriteBundleTask.setup_copy_task(
-            file_metadata_json,
-            uuid,
-            version,
+        state = s3copyclient.copy_write_metadata_sfn_event(
             src_bucket, src_key,
             dst_bucket, dst_key,
-            get_s3_chunk_size,
-            use_parallel=True,
-            timeout_seconds=3600,
+            uuid, version,
+            file_metadata_json,
         )
+        execution_id = str(uuid4())
+        stepfunctions.step_functions_invoke("dss-s3-copy-write-metadata-sfn-{stage}", execution_id, state)
 
-        # start a lambda to do the copy.
-        task_id = chainedawslambda.aws.schedule_task(s3copyclient.S3CopyWriteBundleTask, state)
-
-        return jsonify(dict(task_id=task_id, version=version)), requests.codes.accepted
+        return jsonify(dict(task_id=execution_id, version=version)), requests.codes.accepted
     elif copy_mode == CopyMode.COPY_INLINE:
         handle.copy(src_bucket, src_key, dst_bucket, dst_key)
 
