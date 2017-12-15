@@ -4,6 +4,9 @@ from . import StatusCode, DSSVisitationException
 from .registered_visitations import registered_visitations
 
 
+WORK_TIMEOUT = 250
+
+
 logger = get_logger()
 
 
@@ -45,7 +48,7 @@ def work(event, context):
         inst.sentinel_muster()
     else:
         inst = vis_obj(event, 'walker')
-        inst.walker_walk()
+        inst.walker_walk(WORK_TIMEOUT)
         inst.wait_time = 0.1
 
     return inst.get_state()

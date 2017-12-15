@@ -2,12 +2,13 @@
 import json
 import typing
 import botocore
+from time import time
 from uuid import uuid4
-from dss import Config, Replica
 from enum import Enum, auto
+from dss import Config, Replica
 from .. import step_functions_invoke
 from cloud_blobstore import BlobPagingError
-from .utils import current_walker_executions, walker_execution_name, walker_prefix, Timeout
+from .utils import current_walker_executions, walker_execution_name, walker_prefix
 
 
 class DSSVisitationException(Exception):
@@ -236,13 +237,14 @@ class Visitation(metaclass=VisitationStateMeta):
         """
         raise NotImplementedError
 
-    def _walk(self) -> None:
+    def _walk(self, timeout) -> None:
         """
         Subclasses should not typically impliment this method, which includes logic specific to calling
         self.process_item(*args) on each blob visited.
         """
 
         self.k_starts += 1
+        start_time = time()
 
         handle = Config.get_cloud_specific_handles(Replica[self.replica])[0]
 
@@ -256,6 +258,8 @@ class Visitation(metaclass=VisitationStateMeta):
         self.code = StatusCode.RUNNING.name
 
         for key in blobs:
+            if timeout < time() - start_time:
+                break
             self.process_item(key)
             self.k_processed += 1
             self.marker = blobs.start_after_key
@@ -263,13 +267,12 @@ class Visitation(metaclass=VisitationStateMeta):
         else:
             self.code = StatusCode.SUCCEEDED.name
 
-    @Timeout(seconds=250)
-    def walker_walk(self) -> None:
+    def walker_walk(self, timeout) -> None:
         try:
-            self._walk()
+            self._walk(timeout)
         except BlobPagingError:
             self.marker = None
-            self._walk()
+            self._walk(timeout)
 
     def walker_finalize(self) -> None:
         """
