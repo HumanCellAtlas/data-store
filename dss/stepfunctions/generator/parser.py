@@ -1,8 +1,6 @@
 import copy
 import typing
 
-import domovoi
-
 from . import types
 
 
