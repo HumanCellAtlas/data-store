@@ -14,7 +14,7 @@ from dss.config import override_bucket_config, BucketConfig, Replica
 from dss.util import UrlBuilder
 from dss.util.checkout import get_manifest_files, validate_file_dst, pre_exec_validate, ValidationEnum, \
     validate_bundle_exists, touch_test_file
-from tests.infra import DSSAssertMixin, DSSUploadMixin, get_env
+from tests.infra import DSSAssertMixin, DSSUploadMixin, get_env, testmode
 from tests.infra.server import ThreadedLocalServer
 
 
@@ -37,6 +37,7 @@ class TestFileApi(unittest.TestCase, DSSAssertMixin, DSSUploadMixin):
     def test_sanity_check_valid(self):
         self.launch_checkout(self.s3_test_checkout_bucket)
 
+    @testmode.integration
     def test_pre_execution_check_doesnt_exist(self):
         replica = Replica.aws
         non_existent_bundle_uuid = "011c7340-9b3c-4d62-bf49-090d79daf111"
@@ -56,6 +57,7 @@ class TestFileApi(unittest.TestCase, DSSAssertMixin, DSSUploadMixin):
             )
         self.assertEqual(resp_obj.json['code'], 'not_found')
 
+    @testmode.integration
     def test_sanity_check_no_replica(self):
         bundle_uuid = "011c7340-9b3c-4d62-bf49-090d79daf198"
         version = "2017-06-20T214506.766634Z"
@@ -95,6 +97,7 @@ class TestFileApi(unittest.TestCase, DSSAssertMixin, DSSUploadMixin):
 
         return execution_arn
 
+    @testmode.integration
     def test_status_success(self):
         exec_arn = self.launch_checkout(self.s3_test_checkout_bucket)
         url = str(UrlBuilder().set(path="/v1/bundles/checkout/" + exec_arn))
@@ -107,6 +110,7 @@ class TestFileApi(unittest.TestCase, DSSAssertMixin, DSSUploadMixin):
         self.assertIsNotNone(status)
         self.assertIn(status, ['RUNNING', 'SUCCEEDED'])
 
+    @testmode.integration
     def test_status_fail(self):
         exec_arn = self.launch_checkout('e47114c9-bb96-480f-b6f5-c3e07aae399f')
         url = str(UrlBuilder().set(path="/v1/bundles/checkout/" + exec_arn))
@@ -119,6 +123,7 @@ class TestFileApi(unittest.TestCase, DSSAssertMixin, DSSUploadMixin):
         self.assertIsNotNone(status)
         self.assertIn(status, ['RUNNING', 'FAILED'])
 
+    @testmode.standalone
     def test_manifest_files(self):
         bundle_uuid = "011c7340-9b3c-4d62-bf49-090d79daf198"
         version = "2017-06-20T214506.766634Z"
@@ -129,16 +134,19 @@ class TestFileApi(unittest.TestCase, DSSAssertMixin, DSSUploadMixin):
                 file_count += 1
         self.assertEqual(file_count, 1)
 
+    @testmode.standalone
     def test_validate_file_dst_fail(self):
         dst_key = "83b76ac9-2470-46d2-ae5e-a415ce86b020"
         replica = Replica.aws
         self.assertEquals(validate_file_dst(self.s3_test_checkout_bucket, dst_key, replica), False)
 
+    @testmode.standalone
     def test_validate_file_dst(self):
         dst_key = "files/ce55fd51-7833-469b-be0b-5da88ebebfcd.2017-06-18T075702.020366Z"
         replica = Replica.aws
         self.assertEquals(validate_file_dst(self.s3_test_fixtures_bucket, dst_key, replica), True)
 
+    @testmode.standalone
     def test_validate_wrong_key(self):
         bundle_uuid = "WRONG_KEY"
         version = "WRONG_VERSION"
@@ -147,6 +155,7 @@ class TestFileApi(unittest.TestCase, DSSAssertMixin, DSSUploadMixin):
                                          version)
         self.assertIs(valid, ValidationEnum.WRONG_BUNDLE_KEY)
 
+    @testmode.standalone
     def test_validate(self):
         bundle_uuid = "011c7340-9b3c-4d62-bf49-090d79daf198"
         version = "2017-06-20T214506.766634Z"
@@ -155,6 +164,7 @@ class TestFileApi(unittest.TestCase, DSSAssertMixin, DSSUploadMixin):
                                          bundle_uuid, version)
         self.assertIs(valid, ValidationEnum.PASSED)
 
+    @testmode.standalone
     def test_validate_bundle_exists(self):
         bundle_uuid = "011c7340-9b3c-4d62-bf49-090d79daf198"
         version = "2017-06-20T214506.766634Z"
@@ -162,6 +172,7 @@ class TestFileApi(unittest.TestCase, DSSAssertMixin, DSSUploadMixin):
         valid, cause = validate_bundle_exists(replica, self.s3_test_fixtures_bucket, bundle_uuid, version)
         self.assertIs(valid, ValidationEnum.PASSED)
 
+    @testmode.standalone
     def test_validate_bundle_exists_fail(self):
         bundle_uuid = "WRONG_KEY"
         version = "WRONG_VERSION"
@@ -169,6 +180,7 @@ class TestFileApi(unittest.TestCase, DSSAssertMixin, DSSUploadMixin):
         valid, cause = validate_bundle_exists(replica, self.s3_test_fixtures_bucket, bundle_uuid, version)
         self.assertIs(valid, ValidationEnum.WRONG_BUNDLE_KEY)
 
+    @testmode.standalone
     def test_touch_file(self):
         replica = Replica.aws
         self.assertEqual(touch_test_file(self.s3_test_checkout_bucket, replica), True)
