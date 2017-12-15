@@ -136,11 +136,11 @@ def upload(uploader: Uploader):
     # The files are accessed from the data-bundle-examples subrepository to avoid
     # duplicating them in our test infrastructure.
     data_bundle_examples_dir = os.path.abspath(os.path.join(os.path.dirname(__file__),
-                                                            "..", "..", "data-bundle-examples"))
+                                                            "datafiles", "indexing", "bundles"))
 
     def load_example_smartseq2_paired_ends(target_path):
         for fname in ["assay.json", "cell.json", "manifest.json", "project.json", "sample.json"]:
-            source_path = os.path.join(data_bundle_examples_dir, "smartseq2", "paired_ends")
+            source_path = os.path.join(data_bundle_examples_dir, "v3", "smartseq2", "paired_ends")
             uploader.checksum_and_upload_file(
                 f"{source_path}/{fname}",
                 f"{target_path}/{fname}",
