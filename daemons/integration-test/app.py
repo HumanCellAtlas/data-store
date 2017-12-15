@@ -8,12 +8,12 @@ app = domovoi.Domovoi()
 
 
 @app.scheduled_function("rate(60 minutes)")
-def integration_test(*args, **kwargs):
+def integration_test(event, context):
     travis_token = os.environ["TRAVIS_TOKEN"]
     body = {
         'request': {
             'branch': "master",
-            'message': "INTEGRATION TESTS",
+            'message': f"Integration test started by {context.function_name} from {event['resources'][0]}",
             'config': {
                 'merge_mode': "deep_merge",
                 'env': {
