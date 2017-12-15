@@ -38,6 +38,7 @@ class VisitationStateMeta(type):
         replica=None,
         bucket=None,
         code=None,
+        wait_time=1,
     )
 
     """Step function state specification specific to the sentinel"""
@@ -46,7 +47,7 @@ class VisitationStateMeta(type):
         k_workers=int,
         prefixes=list,
         waiting=None,
-        wait_time=60,
+        is_sentinel=True,
     )
 
     """Step function state specification specific to the workers"""
@@ -146,9 +147,10 @@ class Visitation(metaclass=VisitationStateMeta):
             'replica': replica,
             'bucket': bucket,
             'k_workers': k_workers,
+            'is_sentinel': True
         }
 
-        step_functions_invoke('dss-visitation-sentinel-{stage}', name, inp)
+        step_functions_invoke('dss-visitation-{stage}', name, inp)
 
         return name
 
@@ -198,7 +200,7 @@ class Visitation(metaclass=VisitationStateMeta):
         }
 
         try:
-            step_functions_invoke("dss-visitation-walker-{stage}", name, inp)
+            step_functions_invoke("dss-visitation-{stage}", name, inp)
         except botocore.exceptions.ClientError as ex:
             raise DSSVisitationException() from ex
 
@@ -258,7 +260,6 @@ class Visitation(metaclass=VisitationStateMeta):
             self.k_processed += 1
             self.marker = blobs.start_after_key
             self.token = blobs.token
-
         else:
             self.code = StatusCode.SUCCEEDED.name
 

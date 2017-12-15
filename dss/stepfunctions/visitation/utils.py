@@ -7,12 +7,12 @@ from .. import step_functions_list_executions, step_functions_describe_execution
 
 def current_walker_executions(sentinel_execution_name: str) -> typing.List[str]:
     all_execs = step_functions_list_executions(
-        'dss-visitation-walker-{stage}',
+        'dss-visitation-{stage}',
         status_filter='RUNNING'
     )
 
     execs = [e for e in all_execs
-             if e['name'].endswith(sentinel_execution_name)]
+             if e['name'].endswith(sentinel_execution_name) and '----' in e['name']]
 
     return execs
 

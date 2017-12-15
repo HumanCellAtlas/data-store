@@ -26,54 +26,51 @@ def vis_obj(event, sfn):
         raise DSSVisitationException('Unknown stepfunction', sfn)
 
 
-def walker_initialize(event, context):
-    walker = vis_obj(event, 'walker')
-    walker.walker_initialize()
-    walker.code = StatusCode.RUNNING.name
-    return walker.get_state()
+def initialize(event, context):
+    if event.get('is_sentinel', False):
+        inst = vis_obj(event, 'sentinel')
+        inst.sentinel_initialize()
+        inst.code = StatusCode.RUNNING.name
+    else:
+        inst = vis_obj(event, 'walker')
+        inst.walker_initialize()
+        inst.code = StatusCode.RUNNING.name
+
+    return inst.get_state()
 
 
-def walker_walk(event, context):
-    walker = vis_obj(event, 'walker')
-    walker.walker_walk()
-    return walker.get_state()
+def work(event, context):
+    if event.get('is_sentinel', False):
+        inst = vis_obj(event, 'sentinel')
+        inst.sentinel_muster()
+    else:
+        inst = vis_obj(event, 'walker')
+        inst.walker_walk()
+        inst.wait_time = 0.1
+
+    return inst.get_state()
 
 
-def walker_finalize(event, context):
-    walker = vis_obj(event, 'walker')
-    walker.walker_finalize()
-    return walker.get_state()
+def finalize(event, context):
+    if event.get('is_sentinel', False):
+        inst = vis_obj(event, 'sentinel')
+        inst.sentinel_finalize()
+    else:
+        inst = vis_obj(event, 'walker')
+        inst.walker_finalize()
+
+    return inst.get_state()
 
 
-def walker_failed(event, context):
-    walker = vis_obj(event, 'walker')
-    walker.walker_finalize_failed()
-    return walker.get_state()
+def finalize_failed(event, context):
+    if event.get('is_sentinel', False):
+        inst = vis_obj(event, 'sentinel')
+        inst.sentinel_finalize_failed()
+    else:
+        inst = vis_obj(event, 'walker')
+        inst.walker_finalize_failed()
 
-
-def sentinel_initialize(event, context):
-    sentinel = vis_obj(event, 'sentinel')
-    sentinel.sentinel_initialize()
-    sentinel.code = StatusCode.RUNNING.name
-    return sentinel.get_state()
-
-
-def sentinel_muster_walkers(event, context):
-    sentinel = vis_obj(event, 'sentinel')
-    sentinel.sentinel_muster()
-    return sentinel.get_state()
-
-
-def sentinel_finalize(event, context):
-    sentinel = vis_obj(event, 'sentinel')
-    sentinel.sentinel_finalize()
-    return sentinel.get_state()
-
-
-def sentinel_failed(event, context):
-    sentinel = vis_obj(event, 'sentinel')
-    sentinel.sentinel_finalize_failed()
-    return sentinel.get_state()
+    return inst.get_state()
 
 
 def _retry(interval_seconds, max_attempts=3, backoff_rate=2):
@@ -102,71 +99,19 @@ def _catch_to_state(next_state):
     }]
 
 
-sentinel_sfn = {
-    "Comment": "DSS Re-index service state machine sentinel",
+sfn = {
+    "Comment": "Visitation State Machine",
     "StartAt": "Initialize",
     "States": {
         "Initialize": {
             "Type": "Task",
-            "Resource": sentinel_initialize,
-            "Catch": _catch_to_state("Failed"),
-            "Next": "MusterWalkers"
-        },
-        "MusterWalkers": {
-            "Type": "Task",
-            "Resource": sentinel_muster_walkers,
-            "Retry": _retry(interval_seconds=60),
-            "Catch": _catch_to_state("Failed"),
-            "TimeoutSeconds": 240,
-            "Next": "CheckStatus"
-        },
-        "CheckStatus": {
-            "Type": "Choice",
-            "Choices": [
-                {
-                    "Variable": "$.code",
-                    "StringEquals": "RUNNING",
-                    "Next": "Wait"
-                },
-            ],
-            "Default": "Finalize"
-        },
-        "Wait": {
-            "Type": "Wait",
-            "SecondsPath": "$.wait_time",
-            "Next": "MusterWalkers"
-        },
-        "Failed": {
-            "Type": "Task",
-            "Resource": sentinel_failed,
-            "Catch": _catch_to_state("Fail"),
-            "Next": "Fail"
-        },
-        "Fail": {
-            "Type": "Fail",
-        },
-        "Finalize": {
-            "Type": "Task",
-            "Resource": sentinel_finalize,
-            "Catch": _catch_to_state("Failed"),
-            "End": True
-        }
-    }
-}
-
-walker_sfn = {
-    "Comment": "prefix walker",
-    "StartAt": "Initialize",
-    "States": {
-        "Initialize": {
-            "Type": "Task",
-            "Resource": walker_initialize,
+            "Resource": initialize,
             "Catch": _catch_to_state("Failed"),
             "Next": "CheckStatus"
         },
         "Walk": {
             "Type": "Task",
-            "Resource": walker_walk,
+            "Resource": work,
             "Retry": _retry(interval_seconds=5),
             "Catch": _catch_to_state("Failed"),
             "TimeoutSeconds": 295,
@@ -178,14 +123,19 @@ walker_sfn = {
                 {
                     "Variable": "$.code",
                     "StringEquals": "RUNNING",
-                    "Next": "Walk"
+                    "Next": "Wait"
                 }
             ],
             "Default": "Finalize"
         },
+        "Wait": {
+            "Type": "Wait",
+            "SecondsPath": "$.wait_time",
+            "Next": "Walk"
+        },
         "Failed": {
             "Type": "Task",
-            "Resource": walker_failed,
+            "Resource": finalize_failed,
             "Catch": _catch_to_state("Fail"),
             "Next": "Fail"
         },
@@ -194,7 +144,7 @@ walker_sfn = {
         },
         "Finalize": {
             "Type": "Task",
-            "Resource": walker_finalize,
+            "Resource": finalize,
             "Catch": _catch_to_state("Failed"),
             "End": True
         }
