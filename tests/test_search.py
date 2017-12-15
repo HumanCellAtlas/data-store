@@ -81,9 +81,9 @@ class TestSearchBase(DSSAssertMixin):
         """Confirm that elasaticsearch is returning _source info only when necessary."""
         self.populate_search_index(self.index_document, 1)
         self.check_count(smartseq2_paired_ends_v3_query, 1)
-        page = _es_search_page(smartseq2_paired_ends_v3_query, self.replica.name, 10, None, 'raw')
+        page = _es_search_page(smartseq2_paired_ends_v3_query, self.replica, 10, None, 'raw')
         self.assertTrue('_source' in page['hits']['hits'][0])
-        page = _es_search_page(smartseq2_paired_ends_v3_query, self.replica.name, 10, None, 'something')
+        page = _es_search_page(smartseq2_paired_ends_v3_query, self.replica, 10, None, 'something')
         self.assertFalse('_source' in page['hits']['hits'][0])
 
     @testmode.standalone

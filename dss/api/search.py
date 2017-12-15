@@ -31,24 +31,23 @@ def post(json_request_body: dict,
     es_query = json_request_body['es_query']
     per_page = PerPageBounds.check(per_page)
 
-    if replica is None:
-        replica = "aws"
+    replica_enum = Replica[replica] if replica is not None else Replica.aws
 
     get_logger().debug("Received posted query. Replica: %s Query: %s Per_page: %i Timeout: %s Scroll_id: %s",
-                       replica, json.dumps(es_query, indent=4), per_page, _scroll_id)
+                       replica_enum.name, json.dumps(es_query, indent=4), per_page, _scroll_id)
     # TODO: (tsmith12) determine if a search operation timeout limit is needed
     # TODO: (tsmith12) allow users to retrieve previous search results
     # TODO: (tsmith12) if page returns 0 hits, then all results have been found. delete search id
     try:
-        page = _es_search_page(es_query, replica, per_page, _scroll_id, output_format)
-        request_dict = _format_request_body(page, es_query, replica, output_format)
+        page = _es_search_page(es_query, replica_enum, per_page, _scroll_id, output_format)
+        request_dict = _format_request_body(page, es_query, replica_enum, output_format)
         request_body = jsonify(request_dict)
 
         if len(request_dict['results']) < per_page:
             response = make_response(request_body, requests.codes.ok)
         else:
             response = make_response(request_body, requests.codes.partial)
-            next_url = _build_scroll_url(page['_scroll_id'], per_page, replica, output_format)
+            next_url = _build_scroll_url(page['_scroll_id'], per_page, replica_enum, output_format)
             response.headers['Link'] = _build_link_header({next_url: {"rel": "next"}})
         return response
     except TransportError as ex:
@@ -81,7 +80,7 @@ def post(json_request_body: dict,
 
 
 def _es_search_page(es_query: dict,
-                    replica: str,
+                    replica: Replica,
                     per_page: int,
                     _scroll_id: typing.Optional[str],
                     output_format: str) -> dict:
@@ -107,7 +106,7 @@ def _es_search_page(es_query: dict,
     # }
     sort = {"sort": ["_doc"]}
     if _scroll_id is None:
-        page = es_client.search(index=Config.get_es_alias_name(ESIndexType.docs, Replica[replica]),
+        page = es_client.search(index=Config.get_es_alias_name(ESIndexType.docs, replica),
                                 doc_type=ESDocType.doc.name,
                                 scroll=scroll,
                                 size=per_page,
@@ -121,7 +120,7 @@ def _es_search_page(es_query: dict,
     return page
 
 
-def _format_request_body(page: dict, es_query: dict, replica: str, output_format: str) -> dict:
+def _format_request_body(page: dict, es_query: dict, replica: Replica, output_format: str) -> dict:
     result_list = []  # type: typing.List[dict]
     for hit in page['hits']['hits']:
         result = {
@@ -140,20 +139,20 @@ def _format_request_body(page: dict, es_query: dict, replica: str, output_format
     }
 
 
-def _build_bundle_url(hit: dict, replica: str) -> str:
+def _build_bundle_url(hit: dict, replica: Replica) -> str:
     uuid, version = hit['_id'].split('.', 1)
     return request.host_url + str(UrlBuilder()
                                   .set(path='v1/bundles/' + uuid)
                                   .add_query("version", version)
-                                  .add_query("replica", replica)
+                                  .add_query("replica", replica.name)
                                   )
 
 
-def _build_scroll_url(_scroll_id: str, per_page: int, replica: str, output_format: str) -> str:
+def _build_scroll_url(_scroll_id: str, per_page: int, replica: Replica, output_format: str) -> str:
     return request.host_url + str(UrlBuilder()
                                   .set(path="v1/search")
                                   .add_query('per_page', str(per_page))
-                                  .add_query("replica", replica)
+                                  .add_query("replica", replica.name)
                                   .add_query("_scroll_id", _scroll_id)
                                   .add_query("output_format", output_format)
                                   )
