@@ -363,8 +363,8 @@ class BundleTombstoneDocument(IndexDocument):
         else:
             # if no version is specified, delete all bundle versions from the index
             prefix = self.fqid.to_key_prefix()
-            bundle_fqids = [ObjectIdentifier.from_key(k) for k in set(blobstore.list(bucket_name, prefix))]
-            bundle_fqids = filter(lambda fqid: type(fqid) == BundleFQID, bundle_fqids)
+            fqids = [ObjectIdentifier.from_key(k) for k in set(blobstore.list(bucket_name, prefix))]
+            bundle_fqids = filter(lambda fqid: type(fqid) == BundleFQID, fqids)
 
         docs = [BundleDocument.from_replica(self.replica, bundle_fqid, self.logger) for bundle_fqid in bundle_fqids]
 
