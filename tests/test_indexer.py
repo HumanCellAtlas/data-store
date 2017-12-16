@@ -182,6 +182,45 @@ class TestIndexerBase(DSSAssertMixin, DSSStorageMixin, DSSUploadMixin):
 
         _deletion_results_test()
 
+    def test_reindexing_with_changed_content(self):
+        bundle_key = self.load_test_data_bundle_for_path("fixtures/indexing/bundles/unversioned/smartseq2/paired_ends")
+        sample_event = self.create_bundle_created_event(bundle_key)
+
+        @eventually(timeout=5.0, interval=0.5)
+        def _assert_reindexing_results(expect_extra_field, expected_version):
+            query = {**self.smartseq2_paired_ends_query, 'version': True}
+            hits = self.get_raw_search_results(query, 1)['hits']['hits']
+            self.assertEqual(1, len(hits))
+            self.assertEquals(expected_version, hits[0]['_version'])
+            doc = hits[0]['_source']
+            if expect_extra_field:
+                self.assertEqual(42, doc['potato'])
+            else:
+                self.assertFalse('potato' in doc)
+
+        to_json = BundleDocument.to_json
+
+        def mock_to_json(doc: BundleDocument):
+            # BundleDocument is a dict
+            with unittest.mock.patch.dict(doc, potato=42):  # type: ignore
+                return to_json(doc)
+
+        # Index bundle, patching in an extra field just before document is written to index
+        with unittest.mock.patch.object(BundleDocument, 'to_json', mock_to_json):
+            self.process_new_indexable_object(sample_event, logger)
+        _assert_reindexing_results(expect_extra_field=True, expected_version=1)
+
+        # Index again without the patch …
+        with self.assertLogs(logger, level="WARNING") as log:
+            self.process_new_indexable_object(sample_event, logger)
+        self.assertTrue(any('Updating an older copy' in e for e in log.output))
+        _assert_reindexing_results(expect_extra_field=False, expected_version=2)
+
+        # … and again which should not write the document
+        with self.assertLogs(logger, level="INFO") as log:
+            self.process_new_indexable_object(sample_event, logger)
+        self.assertTrue(any('is already up-to-date' in e for e in log.output))
+
     def test_reindexing_with_changed_shape(self):
         bundle_key = self.load_test_data_bundle_for_path("fixtures/indexing/bundles/unversioned/smartseq2/paired_ends")
         sample_event = self.create_bundle_created_event(bundle_key)

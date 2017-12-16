@@ -30,6 +30,12 @@ class IndexDocument(dict):
         self.replica = replica
         self.fqid = fqid
 
+    @classmethod
+    def from_index(cls, replica: Replica, bundle_fqid: BundleFQID, index_name, logger, version=None):
+        es_client = ElasticsearchClient.get(logger)
+        source = es_client.get(index_name, str(bundle_fqid), ESDocType.doc.name, version=version)['_source']
+        return cls(replica, bundle_fqid, logger, source)
+
     def add_to_index(self, index_name: str):
         es_client = ElasticsearchClient.get(self.logger)
         try:
@@ -40,12 +46,21 @@ class IndexDocument(dict):
                             doc_type=ESDocType.doc.name,
                             id=str(self.fqid),
                             # FIXME: (hannes) Can this be json.dumps(self, indent=4) ?
-                            body=json.dumps(self))  # Don't use refresh here.
+                            body=self.to_json())  # Don't use refresh here.
         except Exception as ex:
             self.logger.error("Document not indexed. Exception: %s, Index name: %s, Index data: %s",
                               ex, index_name, json.dumps(self, indent=4))
             raise
         return initial_mappings
+
+    def to_json(self):
+        return json.dumps(self)
+
+    def __eq__(self, other: object) -> bool:
+        return self is other or (super().__eq__(other) and
+                                 type(self) == type(other) and
+                                 self.replica == other.replica and
+                                 self.fqid == other.fqid)
 
 
 class BundleDocument(IndexDocument):

@@ -25,19 +25,30 @@ class IndexHandler:
 
     @staticmethod
     def _index_and_notify(replica: Replica, bundle_fqid: BundleFQID, logger):
-        logger.info(f"Received {replica.name} creation event for bundle which will be indexed: {bundle_fqid}")
-        document = BundleDocument.from_replica(replica, bundle_fqid, logger)
-        index_name = document.prepare_index()
-        versions = document.get_indexed_versions()
-        # No need to remove the document from the index it belongs into
-        versions.pop(index_name, None)
+        logger.info(f"Indexing bundle {bundle_fqid} from replica '{replica.name}'.")
+        doc = BundleDocument.from_replica(replica, bundle_fqid, logger)
+        index_name = doc.prepare_index()
+        versions = doc.get_indexed_versions()
+        old_version = versions.pop(index_name, None)
         if versions:
             logger.warning(f"Removing stale copies of the bundle document for {bundle_fqid} from the following "
                            f"index(es): {json.dumps(versions)}.")
-            document.remove_versions(versions)
-        document.add_to_index(index_name)
-        document.notify_matching_subscribers(index_name)
-        logger.debug(f"Finished index processing of {replica.name} creation event for bundle: {bundle_fqid}")
+            doc.remove_versions(versions)
+        if old_version:
+            old_doc = doc.from_index(replica, bundle_fqid, index_name, logger, version=old_version)
+            if doc == old_doc:
+                logger.info(f"Document for bundle {bundle_fqid} is already up-to-date in index {index_name} at "
+                            f"version {old_version}.")
+            else:
+                logger.warning(f"Updating an older copy of the document for bundle {bundle_fqid} in index "
+                               f"{index_name} at version {old_version}.")
+                doc.add_to_index(index_name)
+        else:
+            logger.info(f"Writing the document for bundle {bundle_fqid} in index "
+                        f"{index_name} for the first time.")
+            doc.add_to_index(index_name)
+        doc.notify_matching_subscribers(index_name)
+        logger.debug(f"Finished indexing bundle {bundle_fqid} from replica '{replica.name}'.")
 
     @staticmethod
     def _delete_from_index(replica: Replica, tombstone_id: TombstoneID, logger):
