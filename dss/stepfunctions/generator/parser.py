@@ -84,6 +84,9 @@ class StateMachineAnnotationProcessor:
 
     def _process_str(self, string: str):
         for template_string, index in self.template_map:
-            string = string.replace(template_string, str(index))
+            if f'int({template_string})' == string:
+                string = index
+            else:
+                string = string.replace(template_string, str(index))
 
         return string
