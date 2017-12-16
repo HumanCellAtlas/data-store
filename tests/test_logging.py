@@ -13,11 +13,14 @@ sys.path.insert(0, pkg_root)  # noqa
 
 from dss.util.aws import logging
 from tests import infra
+from tests.infra import testmode
+
 
 infra.start_verbose_logging()
 
 
 class TestAwsLogging(unittest.TestCase):
+    @testmode.standalone
     def test_aws_logging_new_stream(self):
         stream_name = str(uuid.uuid4())
         logging.log_message("dss-test-logging", stream_name, "hello world")
@@ -37,6 +40,7 @@ class TestAwsLogging(unittest.TestCase):
         else:
             self.fail("Did not find message in logs")
 
+    @testmode.standalone
     def test_aws_logging_fixed_stream(self):
         stream_name = "test_stream"
         message1, message2 = str(uuid.uuid4()), str(uuid.uuid4())

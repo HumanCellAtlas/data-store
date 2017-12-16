@@ -11,9 +11,11 @@ pkg_root = os.path.abspath(os.path.join(os.path.dirname(__file__), '..'))  # noq
 sys.path.insert(0, pkg_root)  # noqa
 
 import dss.stepfunctions.lambdaexecutor as lambdaexecutor
+from tests.infra import testmode
 
 
 class TestLambdaExecutor(unittest.TestCase):
+    @testmode.standalone
     def test_state_freezing(self):
         """Test that we freeze the state at the time when the timeout expires."""
         class UUT(lambdaexecutor.TimedThread[dict]):
@@ -35,6 +37,7 @@ class TestLambdaExecutor(unittest.TestCase):
         self.assertGreaterEqual(result[UUT.KEY], 4)
         self.assertLessEqual(result[UUT.KEY], 6)
 
+    @testmode.standalone
     def test_exit(self):
         """Test that we save the final state that `run()` returns."""
         class UUT(lambdaexecutor.TimedThread[dict]):
@@ -53,6 +56,7 @@ class TestLambdaExecutor(unittest.TestCase):
         result = uut.start()
         self.assertEqual(result[UUT.KEY], 15)
 
+    @testmode.standalone
     def test_immutable_constructor_state(self):
         """Test that we make a copy of the state when we construct a TimedThread."""
         class UUT(lambdaexecutor.TimedThread[dict]):
@@ -76,6 +80,7 @@ class TestLambdaExecutor(unittest.TestCase):
         event.set()
         uut._join()
 
+    @testmode.standalone
     def test_immutable_get_state(self):
         """Test that we make a copy of the state when we get it."""
         class UUT(lambdaexecutor.TimedThread[dict]):
@@ -94,6 +99,7 @@ class TestLambdaExecutor(unittest.TestCase):
         result = uut.start()
         self.assertEqual(result[UUT.KEY], 1)
 
+    @testmode.standalone
     def test_immutable_set_state(self):
         """Test that we make a copy of the state when we set it."""
         class UUT(lambdaexecutor.TimedThread[dict]):

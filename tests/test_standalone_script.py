@@ -20,6 +20,7 @@ pkg_root = os.path.abspath(os.path.join(os.path.dirname(__file__), '..'))  # noq
 sys.path.insert(0, pkg_root)  # noqa
 
 from dss.util import networking
+from tests.infra import testmode
 
 
 class TestStandaloneScript(unittest.TestCase):
@@ -55,6 +56,7 @@ class TestStandaloneScript(unittest.TestCase):
         cls.subprocess.terminate()
         cls.subprocess.wait()
 
+    @testmode.standalone
     def test_simple_request(self):
         file_uuid = str(uuid.uuid4())
         response = requests.api.get(f"http://127.0.0.1:{self.port}/v1/files/{file_uuid}?replica=aws")
