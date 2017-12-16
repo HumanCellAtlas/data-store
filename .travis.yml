@@ -34,7 +34,6 @@ script:
 - if [[ ! $TRAVIS_DSS_INTEGRATION_MODE ]]; then make -j4 -O standalone_test; fi
 - if [[ $TRAVIS_DSS_INTEGRATION_MODE ]]; then make -j4 -O test; fi
 - if [[ $TRAVIS_BRANCH == staging ]]; then source environment.staging; fi
-- if [[ $TRAVIS_EVENT_TYPE == cron ]]; then make smoketest; fi
 after_success:
 - bash <(curl -s https://codecov.io/bash)
 deploy:
