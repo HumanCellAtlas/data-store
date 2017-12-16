@@ -1,5 +1,7 @@
 from cloud_blobstore import BlobNotFoundError
 
+from tests.infra import testmode
+
 
 class HCABlobStoreTests:
     """
@@ -7,6 +9,7 @@ class HCABlobStoreTests:
     built the abstractions correctly, common operations can all be tested here.
     """
 
+    @testmode.standalone
     def test_verify_blob_checksum(self):
         bucket = self.test_fixtures_bucket
         key = "test_good_source_data/0"

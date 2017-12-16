@@ -25,7 +25,7 @@ from dss.util import UrlBuilder
 from dss.util.blobstore import test_object_exists
 from dss.util.version import datetime_to_version_format
 from dss.util.bundles import get_bundle_from_bucket
-from tests.infra import DSSAssertMixin, DSSUploadMixin, get_env, ExpectedErrorFields
+from tests.infra import DSSAssertMixin, DSSUploadMixin, ExpectedErrorFields, get_env, testmode
 from tests.infra.server import ThreadedLocalServer
 from tests import get_auth_header
 
@@ -45,6 +45,7 @@ class TestDSS(unittest.TestCase, DSSAssertMixin, DSSUploadMixin):
         self.s3_test_fixtures_bucket = get_env("DSS_S3_BUCKET_TEST_FIXTURES")
         self.gs_test_fixtures_bucket = get_env("DSS_GS_BUCKET_TEST_FIXTURES")
 
+    @testmode.standalone
     def test_bundle_get(self):
         self._test_bundle_get(Replica.aws)
         self._test_bundle_get(Replica.gcp)
@@ -77,6 +78,7 @@ class TestDSS(unittest.TestCase, DSSAssertMixin, DSSUploadMixin):
         self.assertEqual(resp_obj.json['bundle']['files'][0]['uuid'], "ce55fd51-7833-469b-be0b-5da88ebebfcd")
         self.assertEqual(resp_obj.json['bundle']['files'][0]['version'], "2017-06-16T193604.240704Z")
 
+    @testmode.standalone
     def test_bundle_get_directaccess(self):
         self._test_bundle_get_directaccess(Replica.aws)
         self._test_bundle_get_directaccess(Replica.gcp)
@@ -112,6 +114,7 @@ class TestDSS(unittest.TestCase, DSSAssertMixin, DSSUploadMixin):
         sha1 = hasher.hexdigest()
         self.assertEqual(sha1, "2b8b815229aa8a61e483fb4ba0588b8b6c491890")
 
+    @testmode.standalone
     def test_bundle_get_deleted(self):
         uuid = "deadbeef-0000-4a6b-8f0d-a7d2105c23be"
         version = "2017-12-05T235850.950361Z"
@@ -148,6 +151,7 @@ class TestDSS(unittest.TestCase, DSSAssertMixin, DSSUploadMixin):
             expected_version
         )
 
+    @testmode.standalone
     def test_bundle_put(self):
         self._test_bundle_put(Replica.aws, self.s3_test_fixtures_bucket)
         self._test_bundle_put(Replica.gcp, self.gs_test_fixtures_bucket)
@@ -242,6 +246,7 @@ class TestDSS(unittest.TestCase, DSSAssertMixin, DSSUploadMixin):
                 expected_code=requests.codes.created,
             )
 
+    @testmode.standalone
     def test_bundle_delete(self):
         self._test_bundle_delete(Replica.aws, self.s3_test_fixtures_bucket, True)
         self._test_bundle_delete(Replica.gcp, self.gs_test_fixtures_bucket, True)
@@ -280,6 +285,7 @@ class TestDSS(unittest.TestCase, DSSAssertMixin, DSSUploadMixin):
         tombstone_exists = test_object_exists(handle, bucket, f"bundles/{bundle_uuid}.{bundle_version}.dead")
         self.assertEquals(tombstone_exists, authorized)
 
+    @testmode.standalone
     def test_no_replica(self):
         """
         Verify we raise the correct error code when we provide no replica.
@@ -302,6 +308,7 @@ class TestDSS(unittest.TestCase, DSSAssertMixin, DSSUploadMixin):
                     expect_stacktrace=True)
             )
 
+    @testmode.standalone
     def test_no_files(self):
         """
         Verify we raise the correct error code when we do not provide the list of files.
@@ -325,6 +332,7 @@ class TestDSS(unittest.TestCase, DSSAssertMixin, DSSUploadMixin):
                     expect_stacktrace=True)
             )
 
+    @testmode.standalone
     def test_bundle_get_not_found(self):
         """
         Verify that we return the correct error message when the bundle cannot be found.

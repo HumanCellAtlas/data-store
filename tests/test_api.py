@@ -14,7 +14,7 @@ sys.path.insert(0, pkg_root)  # noqa
 
 from dss.config import Replica
 import dss
-from tests.infra import DSSAssertMixin, DSSUploadMixin, DSSStorageMixin, TestBundle
+from tests.infra import DSSAssertMixin, DSSUploadMixin, DSSStorageMixin, TestBundle, testmode
 from tests.infra.server import ThreadedLocalServer
 
 
@@ -35,6 +35,7 @@ class TestApi(unittest.TestCase, DSSAssertMixin, DSSUploadMixin, DSSStorageMixin
 
     BUNDLE_FIXTURE = 'fixtures/test_api/bundle'
 
+    @testmode.standalone
     def test_creation_and_retrieval_of_files_and_bundle(self):
         """
         Test file and bundle lifecycle.
