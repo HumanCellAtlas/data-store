@@ -23,9 +23,9 @@ from dss.util.es import ElasticsearchClient
 
 class IndexDocument(dict):
 
-    def __init__(self, replica: Replica, fqid: typing.Union[BundleFQID, TombstoneID],
-                 logger: logging.Logger) -> None:
-        super().__init__()
+    def __init__(self, replica: Replica, fqid: typing.Union[BundleFQID, TombstoneID], logger: logging.Logger,
+                 *args, **kwargs) -> None:
+        super().__init__(*args, **kwargs)
         self.logger = logger
         self.replica = replica
         self.fqid = fqid
@@ -352,9 +352,7 @@ class BundleTombstoneDocument(IndexDocument):
     def from_replica(cls, replica: Replica, tombstone_id: TombstoneID, logger):
         blobstore, _, bucket_name = Config.get_cloud_specific_handles(replica)
         tombstone_data = json.loads(blobstore.get(bucket_name, tombstone_id.to_key()))
-        doc = cls(replica, tombstone_id, logger)
-        doc.update(tombstone_data)
-        return doc
+        return cls(replica, tombstone_id, logger, tombstone_data)
 
     def list_dead_bundles(self):
         blobstore, _, bucket_name = Config.get_cloud_specific_handles(self.replica)
