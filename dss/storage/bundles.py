@@ -61,6 +61,15 @@ class ObjectIdentifier(namedtuple('ObjectIdentifier', 'uuid version')):
     def __str__(self):
         return f"{self.uuid}.{self.version}"
 
+    def __iter__(self):
+        """
+        When composing a request URL, the Elasticseach client interpolates lists and tuples into the URL path by
+        joining their elements with a comma. ObjectIdentifier instances are tuples, so when such an instance is passed
+        to a client method, a result looks almost indistinguishable to the actual string representation of an
+        ObjectIdentifier instance, which uses a period between the elements.
+        """
+        raise NotImplementedError(f"{type(self).__name__} instances should not be iterated over.")
+
 
 class BundleFQID(ObjectIdentifier):
 
