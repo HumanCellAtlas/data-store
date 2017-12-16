@@ -52,9 +52,8 @@ class BundleDocument(IndexDocument):
     """
     An instance of this class represents the ElasticSearch document for a given bundle.
     """
-
     @classmethod
-    def from_replica(cls, replica: Replica, bundle_fqid: BundleFQID, logger):  # TODO: return type hint
+    def from_replica(cls, replica: Replica, bundle_fqid: BundleFQID, logger):
         self = cls(replica, bundle_fqid, logger)
         blobstore, _, bucket_name = Config.get_cloud_specific_handles(replica)
         self['manifest'] = self._read_bundle_manifest(blobstore, bucket_name, bundle_fqid)
