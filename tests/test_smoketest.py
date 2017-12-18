@@ -81,7 +81,8 @@ class Smoketest(unittest.TestCase):
         run(f"{venv_bin}hca dss download --replica aws --bundle-uuid $(jq -r .bundle_uuid upload.json)")
         for i in range(10):
             try:
-                run("http -v --check-status https://${API_HOST}/v1/bundles/$(jq -r .bundle_uuid upload.json)?replica=gcp")
+                cmd = "http -v --check-status"
+                run(f"{cmd} https://${{API_HOST}}/v1/bundles/$(jq -r .bundle_uuid upload.json)?replica=gcp")
                 break
             except SystemExit:
                 time.sleep(1)
@@ -115,7 +116,7 @@ class Smoketest(unittest.TestCase):
         if args.clean:
             cls.workdir.cleanup()
         else:
-            print(f"Leaving temporary working directory at {workdir}.", file=sys.stderr)
+            print(f"Leaving temporary working directory at {cls.workdir}.", file=sys.stderr)
             # Disable workdir destructor
             cls.workdir._finalizer.detach()  # type: ignore
 
