@@ -86,8 +86,7 @@ class Config:
     @staticmethod
     def get_cloud_specific_handles(replica: Replica) -> typing.Tuple[BlobStore, HCABlobStore, str]:
 
-        if type(replica) != Replica:
-            raise ValueError(f"{replica} is not a Replica!")
+        assert isinstance(replica, Replica)
 
         handle: BlobStore
         if replica == Replica.aws:
@@ -110,8 +109,7 @@ class Config:
     @staticmethod
     def get_storage_schema(replica: Replica) -> str:
 
-        if type(replica) != Replica:
-            raise ValueError(f"{replica} is not a Replica!")
+        assert isinstance(replica, Replica)
 
         if replica == Replica.aws:
             return "s3"
@@ -204,6 +202,8 @@ class Config:
         Returns the fully qualified name of an Elasticsearch index of documents for a given
         replica of a given type and shape.
         """
+        assert isinstance(replica, Replica)
+
         deployment_stage = os.environ["DSS_DEPLOYMENT_STAGE"]
         index = f"dss-{deployment_stage}-{replica.name}-{index_type.name}"
         if shape_descriptor:
