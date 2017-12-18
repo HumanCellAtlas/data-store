@@ -79,7 +79,7 @@ class TestVisitationWalker(unittest.TestCase):
     @testmode.standalone
     def test_implimentation_sentinel_initialize(self):
         s = copy.deepcopy(self.sentinel_state)
-        state = implimentation.sentinel_initialize(s, None)
+        implimentation.sentinel_initialize(s, None)
 
     @testmode.standalone
     def test_imlimentation_muster(self):
@@ -159,7 +159,8 @@ class TestVisitationWalker(unittest.TestCase):
         number_of_workers = 10
         name = IntegrationTest.start(replica, bucket, number_of_workers)
         print()
-        print(f'Running visitation integration test for replica={replica}, bucket={bucket}, number_of_workers={number_of_workers}')
+        print(f'Running visitation integration test for replica={replica}, bucket={bucket}, '
+              f'number_of_workers={number_of_workers}')
 
         while True:
             resp = step_functions_describe_execution('dss-visitation-{stage}', name)

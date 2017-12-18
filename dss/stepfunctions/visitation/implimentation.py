@@ -134,7 +134,7 @@ _retry = [
         "ErrorEquals": ["States.Timeout"],
         "IntervalSeconds": 5,
         "MaxAttempts": 3,
-        "BackoffRate": 1.5 
+        "BackoffRate": 1.5
     }
 ]
 
