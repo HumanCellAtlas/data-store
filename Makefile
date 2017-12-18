@@ -33,7 +33,7 @@ $(test_srcs): %.py :
 	DSS_TEST_MODE="integration standalone" coverage run -p --source=dss -m unittest $@
 
 smoketest:
-	tests/smoketest.py
+	tests/test_smoketest.py
 
 deploy: deploy-chalice deploy-daemons
 
