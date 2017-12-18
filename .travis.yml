@@ -31,8 +31,8 @@ install:
 - export PATH=$(pwd)/make4/usr/bin:$PATH
 script:
 - set -eo pipefail
-- if [[ ! $TRAVIS_DSS_INTEGRATION_MODE ]]; then make -j4 -O standalone_test; fi
-- if [[ $TRAVIS_DSS_INTEGRATION_MODE ]]; then make -j4 -O test; fi
+- if [[ ! $TRAVIS_DSS_INTEGRATION_MODE ]]; then make -j4 -O test; fi
+- if [[ $TRAVIS_DSS_INTEGRATION_MODE ]]; then make -j4 -O integration_test; fi
 - if [[ $TRAVIS_BRANCH == staging ]]; then source environment.staging; fi
 - if [[ $TRAVIS_EVENT_TYPE == cron ]]; then make smoketest; fi
 after_success:
