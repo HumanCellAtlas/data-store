@@ -115,6 +115,13 @@ def upload(uploader: Uploader):
             "application/json",
         )
 
+    for fname in ["assay.json", "project.json", "sample.json"]:
+        uploader.checksum_and_upload_file(
+            f"indexing/bundles/v4/smartseq2/paired_ends/{fname}",
+            f"fixtures/indexing/bundles/v4/smartseq2/paired_ends/{fname}",
+            "application/json",
+        )
+
     # Create sample stored bundles with tombstones to test the filtering of deleted bundles
     source_path = "tombstones"
     for fname in [
@@ -139,7 +146,7 @@ def upload(uploader: Uploader):
                                                             "datafiles", "indexing", "bundles"))
 
     def load_example_smartseq2_paired_ends(target_path):
-        for fname in ["assay.json", "cell.json", "manifest.json", "project.json", "sample.json"]:
+        for fname in ["assay.json", "project.json", "sample.json"]:
             source_path = os.path.join(data_bundle_examples_dir, "v3", "smartseq2", "paired_ends")
             uploader.checksum_and_upload_file(
                 f"{source_path}/{fname}",
@@ -171,6 +178,18 @@ def upload(uploader: Uploader):
             f"indexing/{fname}",
             f"{target_path}/{fname}",
             "text/plain",
+        )
+
+    # Create a bundle based on data-bundle-examples/smartseq2/paired_ends.
+    # Then add some indexed files that are removed before indexing.
+    target_path = "fixtures/indexing/bundles/v3/smartseq2/paired_ends_extras"
+    load_example_smartseq2_paired_ends(target_path)
+    for fname in ["manifest.json", "cell.json"]:
+        source_path = os.path.join(data_bundle_examples_dir, "smartseq2", "paired_ends")
+        uploader.checksum_and_upload_file(
+            f"{source_path}/{fname}",
+            f"{target_path}/{fname}",
+            "application/json",
         )
 
     # TODO (mbaumann) this block was moved to the new path "fixtures/indexing/bundles/unparseable_indexed_file"

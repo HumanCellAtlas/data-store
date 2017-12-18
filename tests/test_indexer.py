@@ -34,7 +34,8 @@ from tests.es import elasticsearch_delete_index, clear_indexes
 from tests.infra import DSSAssertMixin, DSSUploadMixin, DSSStorageMixin, TestBundle, start_verbose_logging
 from tests.infra.server import ThreadedLocalServer
 from tests.sample_search_queries import (smartseq2_paired_ends_v2_query, smartseq2_paired_ends_v3_query,
-                                         smartseq2_paired_ends_v2_or_v3_query)
+                                         smartseq2_paired_ends_v2_or_v3_query, smartseq2_paired_ends_v4_query,
+                                         smartseq2_paired_ends_v3_or_v4_query)
 
 from tests import eventually, get_bundle_fqid, get_file_fqid
 
@@ -233,7 +234,7 @@ class TestIndexerBase(DSSAssertMixin, DSSStorageMixin, DSSUploadMixin):
             with self.assertLogs(logger, level="DEBUG") as log_monitor:
                 self.process_new_indexable_object(sample_event, logger)
             self.assertRegex(log_monitor.output[0], "DEBUG:.*Not processing .* event for key: .*")
-            self.assertFalse(ElasticsearchClient.get(logger).indices.exists_alias(self.dss_alias_name))
+            self.assertFalse(ElasticsearchClient.get(logger).indices.exists_alias(name=self.dss_alias_name))
         finally:
             logger.setLevel(log_last)
 
@@ -485,14 +486,14 @@ class TestIndexerBase(DSSAssertMixin, DSSStorageMixin, DSSUploadMixin):
         self.assertTrue(es_client.indices.exists(index=doc_index_name))
 
     def test_multiple_schema_version_indexing_and_search(self):
-        # Load a schema version 2 (unversioned) bundle
+        # Load a schema version 4 bundle
         bundle_key = self.load_test_data_bundle_for_path(
-            "fixtures/indexing/bundles/unversioned/smartseq2/paired_ends")
-        sample_event = self.create_bundle_created_event(bundle_key)
+            "fixtures/indexing/bundles/v4/smartseq2/paired_ends")
+        sample_event = self.create_sample_bundle_created_event(bundle_key)
         self.process_new_indexable_object(sample_event, logger)
 
-        # Search using a v2-specific query - should match
-        search_results = self.get_search_results(smartseq2_paired_ends_v2_query, 1)
+        # Search using a v4-specific query - should match
+        search_results = self.get_search_results(smartseq2_paired_ends_v4_query, 1)
         self.assertEqual(1, len(search_results))
         self.verify_index_document_structure_and_content(search_results[0], bundle_key,
                                                          files=smartseq2_paried_ends_indexed_file_list)
@@ -512,33 +513,33 @@ class TestIndexerBase(DSSAssertMixin, DSSStorageMixin, DSSUploadMixin):
         search_results = self.get_search_results(smartseq2_paired_ends_v3_query, 1)
         self.assertEqual(1, len(search_results))
 
-        # Search using a query that works for v2 or v3 - should match both v2 and v3 bundles
-        search_results = self.get_search_results(smartseq2_paired_ends_v2_or_v3_query, 2)
+        # Search using a query that works for v3 or v4 - should match both v3 and v4 bundles
+        search_results = self.get_search_results(smartseq2_paired_ends_v3_or_v4_query, 2)
         self.assertEqual(2, len(search_results))
 
     def test_multiple_schema_version_subscription_indexing_and_notification(self):
         PostTestHandler.verify_payloads = False
 
-        # Load a schema version 2 (unversioned) bundle
+        # Load a schema version 4 bundle
         bundle_key = self.load_test_data_bundle_for_path(
-            "fixtures/indexing/bundles/unversioned/smartseq2/paired_ends")
-        sample_event = self.create_bundle_created_event(bundle_key)
+            "fixtures/indexing/bundles/v4/smartseq2/paired_ends")
+        sample_event = self.create_sample_bundle_created_event(bundle_key)
         self.process_new_indexable_object(sample_event, logger)
 
         # Load a v3 bundle
         sample_event = self.create_bundle_created_event(self.bundle_key)
         self.process_new_indexable_object(sample_event, logger)
 
-        subscription_id = self.subscribe_for_notification(smartseq2_paired_ends_v2_or_v3_query,
+        subscription_id = self.subscribe_for_notification(smartseq2_paired_ends_v3_or_v4_query,
                                                           f"http://{HTTPInfo.address}:{HTTPInfo.port}")
 
-        # Load another schema version 2 (unversioned) bundle and verify notification
+        # Load another schema version 4 bundle and verify notification
         bundle_key = self.load_test_data_bundle_for_path(
-            "fixtures/indexing/bundles/unversioned/smartseq2/paired_ends")
-        sample_event = self.create_bundle_created_event(bundle_key)
+            "fixtures/indexing/bundles/v4/smartseq2/paired_ends")
+        sample_event = self.create_sample_bundle_created_event(bundle_key)
         self.process_new_indexable_object(sample_event, logger)
         prefix, _, bundle_fqid = bundle_key.partition("/")
-        self.verify_notification(subscription_id, smartseq2_paired_ends_v2_or_v3_query, bundle_fqid)
+        self.verify_notification(subscription_id, smartseq2_paired_ends_v3_or_v4_query, bundle_id)
 
         PostTestHandler.reset()
         PostTestHandler.verify_payloads = False
@@ -549,7 +550,7 @@ class TestIndexerBase(DSSAssertMixin, DSSStorageMixin, DSSUploadMixin):
         sample_event = self.create_bundle_created_event(bundle_key)
         self.process_new_indexable_object(sample_event, logger)
         prefix, _, bundle_fqid = bundle_key.partition("/")
-        self.verify_notification(subscription_id, smartseq2_paired_ends_v2_or_v3_query, bundle_fqid)
+        self.verify_notification(subscription_id, smartseq2_paired_ends_v3_or_v4_query, bundle_id)
 
         self.delete_subscription(subscription_id)
 
@@ -622,7 +623,8 @@ class TestIndexerBase(DSSAssertMixin, DSSStorageMixin, DSSUploadMixin):
         if excluded_files is None:
             excluded_files = []
         self.verify_index_document_structure(actual_index_document, files, excluded_files)
-        expected_index_document = generate_expected_index_document(self.blobstore, self.test_bucket, bundle_key)
+        expected_index_document = generate_expected_index_document(self.blobstore, self.test_bucket, bundle_key,
+                                                                   excluded_files=excluded_files)
         if expected_index_document != actual_index_document:
             logger.error(f"Expected index document: {json.dumps(expected_index_document, indent=4)}")
             logger.error(f"Actual index document: {json.dumps(actual_index_document, indent=4)}")
@@ -806,8 +808,8 @@ class PostTestHandler(BaseHTTPRequestHandler):
         return cls._payload
 
 
-smartseq2_paried_ends_indexed_file_list = ["assay_json", "cell_json", "manifest_json", "project_json", "sample_json"]
-
+smartseq2_paried_ends_indexed_file_list = ["assay_json", "project_json", "sample_json"]
+smartseq2_paried_ends_indexed_excluded_list = ["manifest_json", "cell_json"]
 
 def create_s3_bucket(bucket_name) -> None:
     import boto3
@@ -820,9 +822,9 @@ def create_s3_bucket(bucket_name) -> None:
             logger.error(f"An unexpected error occured when creating test bucket: {bucket_name}")
 
 
-def generate_expected_index_document(blobstore, bucket_name, bundle_key):
+def generate_expected_index_document(blobstore, bucket_name, bundle_key, excluded_files=[]):
     manifest = read_bundle_manifest(blobstore, bucket_name, bundle_key)
-    index_data = create_index_data(blobstore, bucket_name, manifest)
+    index_data = create_index_data(blobstore, bucket_name, manifest, excluded_files)
     return index_data
 
 
@@ -832,12 +834,13 @@ def read_bundle_manifest(blobstore, bucket_name, bundle_key):
     return manifest
 
 
-def create_index_data(blobstore, bucket_name, manifest):
+def create_index_data(blobstore, bucket_name, manifest, excluded_files=[]):
     index = dict(state="new", manifest=manifest)
     files_info = manifest['files']
+    excluded_file = [file.replace('_', '.') for file in excluded_files]
     index_files = {}
     for file_info in files_info:
-        if file_info['indexed'] is True:
+        if file_info['indexed'] is True and file_info["name"] not in excluded_file:
             try:
                 file_key = create_blob_key(file_info)
                 content_type = file_info[BundleFileMetadata.CONTENT_TYPE]
