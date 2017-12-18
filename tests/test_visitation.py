@@ -16,7 +16,7 @@ import dss
 from dss import BucketConfig, Config
 from dss.stepfunctions.visitation import Visitation
 from dss.stepfunctions import step_functions_describe_execution
-from dss.stepfunctions.visitation import implimentation
+from dss.stepfunctions.visitation import implementation
 from dss.stepfunctions.visitation.integration_test import IntegrationTest
 from dss.stepfunctions.visitation import registered_visitations
 
@@ -55,36 +55,36 @@ class TestVisitationWalker(unittest.TestCase):
         }
 
     @testmode.standalone
-    def test_implimentation_walker_initialize(self):
+    def test_implementation_walker_initialize(self):
         state = copy.deepcopy(self.walker_state)
-        state = implimentation.walker_initialize(state, None, (1,))
+        state = implementation.walker_initialize(state, None, (1,))
         self.assertEquals('2', state['work_id'])
 
         state = copy.deepcopy(self.walker_state)
-        state = implimentation.walker_initialize(state, None, (0,))
+        state = implementation.walker_initialize(state, None, (0,))
         self.assertIsNotNone(state['_sentinel_state_copy'])
 
     @testmode.standalone
-    def test_implimentation_walker_walk(self):
-        implimentation.walker_walk(self.walker_state, None, (1,))
+    def test_implementation_walker_walk(self):
+        implementation.walker_walk(self.walker_state, None, (1,))
 
     @testmode.standalone
-    def test_implimentation_walker_finalize(self):
-        implimentation.walker_finalize(self.walker_state, None, (1,))
+    def test_implementation_walker_finalize(self):
+        implementation.walker_finalize(self.walker_state, None, (1,))
 
     @testmode.standalone
-    def test_implimentation_walker_failed(self):
-        implimentation.walker_failed(self.walker_state, None, (1,))
+    def test_implementation_walker_failed(self):
+        implementation.walker_failed(self.walker_state, None, (1,))
 
     @testmode.standalone
-    def test_implimentation_sentinel_initialize(self):
+    def test_implementation_sentinel_initialize(self):
         s = copy.deepcopy(self.sentinel_state)
-        implimentation.sentinel_initialize(s, None)
+        implementation.sentinel_initialize(s, None)
 
     @testmode.standalone
     def test_imlimentation_muster(self):
-        state = implimentation.sentinel_initialize(self.sentinel_state, None)
-        state = implimentation.muster(state, None)
+        state = implementation.sentinel_initialize(self.sentinel_state, None)
+        state = implementation.muster(state, None)
         self.assertEquals(len(state['_processing_work_ids']), state['_number_of_workers'])
 
     @testmode.standalone
@@ -94,9 +94,9 @@ class TestVisitationWalker(unittest.TestCase):
         sent_state['_processing_work_ids'] = sent_state['work_ids'][:sent_state['_number_of_workers']]
         sent_state['work_ids'] = sent_state['work_ids'][sent_state['_number_of_workers']:]
         for i in range(sent_state['_number_of_workers']):
-            s = implimentation.walker_initialize(sent_state, None, (i,))
+            s = implementation.walker_initialize(sent_state, None, (i,))
             states.append(s)
-        state = implimentation.sentinel_join(states, None)
+        state = implementation.sentinel_join(states, None)
         self.assertFalse(state['is_finished'])
 
         states = list()
@@ -104,18 +104,18 @@ class TestVisitationWalker(unittest.TestCase):
         sent_state['_processing_work_ids'] = sent_state['work_ids'][:sent_state['_number_of_workers']]
         sent_state['work_ids'] = list()
         for i in range(3):
-            s = implimentation.walker_initialize(sent_state, None, (i,))
+            s = implementation.walker_initialize(sent_state, None, (i,))
             states.append(s)
-        state = implimentation.sentinel_join(states, None)
+        state = implementation.sentinel_join(states, None)
         self.assertTrue(state['is_finished'])
 
     @testmode.standalone
-    def test_implimentation_sentinel_finalize(self):
-        implimentation.sentinel_finalize(self.sentinel_state, None)
+    def test_implementation_sentinel_finalize(self):
+        implementation.sentinel_finalize(self.sentinel_state, None)
 
     @testmode.standalone
-    def test_implimentation_sentinel_failed(self):
-        implimentation.sentinel_failed(self.sentinel_state, None)
+    def test_implementation_sentinel_failed(self):
+        implementation.sentinel_failed(self.sentinel_state, None)
 
     @testmode.standalone
     def test_integration_walk(self):
