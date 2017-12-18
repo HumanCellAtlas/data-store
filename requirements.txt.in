@@ -4,7 +4,7 @@ boto3 >= 1.4.7
 chained-aws-lambda >= 0.0.7
 cloud-blobstore >= 1.0.0
 connexion == 1.1.15 # pinned by akislyuk due to upstream breaking changes in auth middleware in connexion 1.2
-elasticsearch >= 5.4.0
+elasticsearch >= 5.4.0, < 6.0.0
 elasticsearch-dsl >= 5.3.0
 google-cloud-storage >= 1.4.0
 iso8601 >= 0.1.12
