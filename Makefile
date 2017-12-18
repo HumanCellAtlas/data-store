@@ -80,5 +80,5 @@ requirements.txt requirements-dev.txt : %.txt : %.txt.in
 requirements-dev.txt : requirements.txt.in
 
 .PHONY: lint mypy
-.PHONY: test all_test integration_test standalone_test $(test_srcs) $(integration_test_srcs) $(standalone_test_srcs)
+.PHONY: test all_test integration_test $(test_srcs) $(integration_test_srcs) $(standalone_test_srcs)
 .PHONY: deploy deploy-chalice deploy-daemons
