@@ -489,7 +489,7 @@ class TestIndexerBase(DSSAssertMixin, DSSStorageMixin, DSSUploadMixin):
         # Load a schema version 4 bundle
         bundle_key = self.load_test_data_bundle_for_path(
             "fixtures/indexing/bundles/v4/smartseq2/paired_ends")
-        sample_event = self.create_sample_bundle_created_event(bundle_key)
+        sample_event = self.create_bundle_created_event(bundle_key)
         self.process_new_indexable_object(sample_event, logger)
 
         # Search using a v4-specific query - should match
@@ -498,7 +498,7 @@ class TestIndexerBase(DSSAssertMixin, DSSStorageMixin, DSSUploadMixin):
         self.verify_index_document_structure_and_content(search_results[0], bundle_key,
                                                          files=smartseq2_paried_ends_indexed_file_list)
         # Search using a query that works for v2 or v3 - should match
-        search_results = self.get_search_results(smartseq2_paired_ends_v2_or_v3_query, 1)
+        search_results = self.get_search_results(smartseq2_paired_ends_v3_or_v4_query, 1)
         self.assertEqual(1, len(search_results))
 
         # Search using a v3-specific query - should not match
@@ -523,7 +523,7 @@ class TestIndexerBase(DSSAssertMixin, DSSStorageMixin, DSSUploadMixin):
         # Load a schema version 4 bundle
         bundle_key = self.load_test_data_bundle_for_path(
             "fixtures/indexing/bundles/v4/smartseq2/paired_ends")
-        sample_event = self.create_sample_bundle_created_event(bundle_key)
+        sample_event = self.create_bundle_created_event(bundle_key)
         self.process_new_indexable_object(sample_event, logger)
 
         # Load a v3 bundle
@@ -536,7 +536,7 @@ class TestIndexerBase(DSSAssertMixin, DSSStorageMixin, DSSUploadMixin):
         # Load another schema version 4 bundle and verify notification
         bundle_key = self.load_test_data_bundle_for_path(
             "fixtures/indexing/bundles/v4/smartseq2/paired_ends")
-        sample_event = self.create_sample_bundle_created_event(bundle_key)
+        sample_event = self.create_bundle_created_event(bundle_key)
         self.process_new_indexable_object(sample_event, logger)
         prefix, _, bundle_fqid = bundle_key.partition("/")
         self.verify_notification(subscription_id, smartseq2_paired_ends_v3_or_v4_query, bundle_fqid)
