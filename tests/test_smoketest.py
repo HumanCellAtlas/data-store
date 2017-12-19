@@ -81,7 +81,7 @@ class Smoketest(unittest.TestCase):
         run(f"{venv_bin}hca dss download --replica aws --bundle-uuid $(jq -r .bundle_uuid upload.json)")
         for i in range(10):
             try:
-                cmd = "http -v --check-status"
+                cmd = "http -v --check-status GET"
                 run(f"{cmd} https://${{API_HOST}}/v1/bundles/$(jq -r .bundle_uuid upload.json)?replica=gcp")
                 break
             except SystemExit:
