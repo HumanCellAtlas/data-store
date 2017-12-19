@@ -31,4 +31,4 @@ def integration_test(event, context):
         "https://api.travis-ci.org/repo/HumanCellAtlas%2Fdata-store/requests",
         headers=headers,
         json=body,
-    )
+    ).json()
