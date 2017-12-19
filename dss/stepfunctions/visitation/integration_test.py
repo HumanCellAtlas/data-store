@@ -1,22 +1,20 @@
 
 import string
 from time import time
-from . import Visitation
 from ...config import Config, Replica
+from . import Visitation, WalkerStatus
 from cloud_blobstore import BlobPagingError
 
 
 class IntegrationTest(Visitation):
     """
-    Test of the vistation batch processing architecture.
+    Test of the visitation batch processing architecture.
     """
 
-    common_state_spec = {
+    state_spec = {
         'replica': None,
         'bucket': None,
     }
-
-    sentinel_state_spec = {}
 
     walker_state_spec = {
         'marker': None,
@@ -24,7 +22,7 @@ class IntegrationTest(Visitation):
         'number_of_keys_processed': int,
     }
 
-    def sentinel_initialize(self):
+    def job_initialize(self):
         alphanumeric = string.ascii_lowercase[:6] + '0987654321'
         self.work_ids = [f'files/{a}' for a in alphanumeric]
 
@@ -41,7 +39,7 @@ class IntegrationTest(Visitation):
 
     def _walk(self) -> None:
         """
-        Subclasses should not typically impliment this method, which includes logic specific to calling
+        Subclasses should not typically implement this method, which includes logic specific to calling
         self.process_item(*args) on each blob visited.
         """
 
@@ -56,8 +54,6 @@ class IntegrationTest(Visitation):
             token=self.token  # type: ignore  # Cannot determine type of 'token'
         )
 
-        self.is_finished = False
-
         for key in blobs:
             if 250 < time() - start_time:
                 break
@@ -65,7 +61,7 @@ class IntegrationTest(Visitation):
             self.marker = blobs.start_after_key
             self.token = blobs.token
         else:
-            self.is_finished = True
+            self._status = WalkerStatus.finished.name
 
     def walker_walk(self) -> None:
         try:

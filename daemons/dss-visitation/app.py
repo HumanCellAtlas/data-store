@@ -9,7 +9,7 @@ sys.path.insert(0, pkg_root)  # noqa
 import dss
 from dss import BucketConfig, Config
 import dss.stepfunctions.generator as generator
-from dss.stepfunctions.visitation.implimentation import sfn
+from dss.stepfunctions.visitation.implementation import sfn
 
 
 app = domovoi.Domovoi()

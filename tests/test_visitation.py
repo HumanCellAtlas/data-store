@@ -16,7 +16,7 @@ import dss
 from dss import BucketConfig, Config
 from dss.stepfunctions.visitation import Visitation
 from dss.stepfunctions import step_functions_describe_execution
-from dss.stepfunctions.visitation import implimentation
+from dss.stepfunctions.visitation import implementation
 from dss.stepfunctions.visitation.integration_test import IntegrationTest
 from dss.stepfunctions.visitation import registered_visitations
 
@@ -42,7 +42,7 @@ class TestVisitationWalker(unittest.TestCase):
 
         registered_visitations.registered_visitations['VT'] = VT
 
-        self.sentinel_state = {
+        self.job_state = {
             '_visitation_class_name': 'VT',
             'work_ids': ['1', '2', '3', '4'],
             '_number_of_workers': 3,
@@ -50,72 +50,41 @@ class TestVisitationWalker(unittest.TestCase):
 
         self.walker_state = {
             '_visitation_class_name': 'VT',
-            '_processing_work_ids': ['1', '2', '3', '4'],
+            'work_ids': [['1', '2'], ['3', '4']],
             'is_finished': False,
         }
 
     @testmode.standalone
-    def test_implimentation_walker_initialize(self):
+    def test_implementation_walker_initialize(self):
         state = copy.deepcopy(self.walker_state)
-        state = implimentation.walker_initialize(state, None, (1,))
-        self.assertEquals('2', state['work_id'])
-
-        state = copy.deepcopy(self.walker_state)
-        state = implimentation.walker_initialize(state, None, (0,))
-        self.assertIsNotNone(state['_sentinel_state_copy'])
+        state = implementation.walker_initialize(state, None, (0,))
+        self.assertEquals('1', state['work_id'])
 
     @testmode.standalone
-    def test_implimentation_walker_walk(self):
-        implimentation.walker_walk(self.walker_state, None, (1,))
+    def test_implementation_walker_walk(self):
+        implementation.walker_walk(self.walker_state, None, (1,))
 
     @testmode.standalone
-    def test_implimentation_walker_finalize(self):
-        implimentation.walker_finalize(self.walker_state, None, (1,))
+    def test_implementation_walker_finalize(self):
+        implementation.walker_finalize(self.walker_state, None, (1,))
 
     @testmode.standalone
-    def test_implimentation_walker_failed(self):
-        implimentation.walker_failed(self.walker_state, None, (1,))
+    def test_implementation_walker_failed(self):
+        implementation.walker_failed(self.walker_state, None, (1,))
 
     @testmode.standalone
-    def test_implimentation_sentinel_initialize(self):
-        s = copy.deepcopy(self.sentinel_state)
-        state = implimentation.sentinel_initialize(s, None)
+    def test_implementation_job_initialize(self):
+        s = copy.deepcopy(self.job_state)
+        implementation.job_initialize(s, None)
 
     @testmode.standalone
-    def test_imlimentation_muster(self):
-        state = implimentation.sentinel_initialize(self.sentinel_state, None)
-        state = implimentation.muster(state, None)
-        self.assertEquals(len(state['_processing_work_ids']), state['_number_of_workers'])
+    def test_implementation_job_finalize(self):
+        states = [copy.deepcopy(self.walker_state) for _ in range(3)]
+        implementation.job_finalize(states, None)
 
     @testmode.standalone
-    def test_imlimentation_sentinel_join(self):
-        states = list()
-        sent_state = copy.deepcopy(self.sentinel_state)
-        sent_state['_processing_work_ids'] = sent_state['work_ids'][:sent_state['_number_of_workers']]
-        sent_state['work_ids'] = sent_state['work_ids'][sent_state['_number_of_workers']:]
-        for i in range(sent_state['_number_of_workers']):
-            s = implimentation.walker_initialize(sent_state, None, (i,))
-            states.append(s)
-        state = implimentation.sentinel_join(states, None)
-        self.assertFalse(state['is_finished'])
-
-        states = list()
-        sent_state = copy.deepcopy(self.sentinel_state)
-        sent_state['_processing_work_ids'] = sent_state['work_ids'][:sent_state['_number_of_workers']]
-        sent_state['work_ids'] = list()
-        for i in range(3):
-            s = implimentation.walker_initialize(sent_state, None, (i,))
-            states.append(s)
-        state = implimentation.sentinel_join(states, None)
-        self.assertTrue(state['is_finished'])
-
-    @testmode.standalone
-    def test_implimentation_sentinel_finalize(self):
-        implimentation.sentinel_finalize(self.sentinel_state, None)
-
-    @testmode.standalone
-    def test_implimentation_sentinel_failed(self):
-        implimentation.sentinel_failed(self.sentinel_state, None)
+    def test_implementation_job_failed(self):
+        implementation.job_failed(self.job_state, None)
 
     @testmode.standalone
     def test_integration_walk(self):
@@ -135,7 +104,7 @@ class TestVisitationWalker(unittest.TestCase):
             def process_item(self, key):
                 items.append(key)
 
-        walker = VT._with_walker_state(state, logger)
+        walker = VT._with_state(state, logger)
         walker.walker_walk()
 
         self.assertEquals(10, len(items))
@@ -146,7 +115,7 @@ class TestVisitationWalker(unittest.TestCase):
             'number_of_workers': 3,
             '_waiting_work_ids': ['1', '2', '3', '4'],
         }
-        v = Visitation._with_sentinel_state(state, logger)
+        v = Visitation._with_state(state, logger)
         st = v.get_state()
         self.assertIn('_visitation_class_name', st)
 
@@ -159,7 +128,7 @@ class TestVisitationWalker(unittest.TestCase):
         number_of_workers = 10
         name = IntegrationTest.start(replica, bucket, number_of_workers)
         print()
-        print(f'Running visitation integration test for replica={replica}, bucket={bucket}, number_of_workers={number_of_workers}')
+        print(f'Visitation integration test replica={replica}, bucket={bucket}, number_of_workers={number_of_workers}')
 
         while True:
             resp = step_functions_describe_execution('dss-visitation-{stage}', name)

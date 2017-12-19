@@ -19,70 +19,36 @@ class AttrGetter:
         raise AttributeError(item)
 
 
-class VisitationStateMeta(type):
+class WalkerStatus(Enum):
+    init = auto()
+    walk = auto()
+    finished = auto()
+    end = auto()
+
+
+class Visitation(AttrGetter):
     """
-    Metaclass to make it simple for Visitation subclasses to mix in additiona custom state with simple syntax.
-    """
-
-    """Step function state specification shared by sentinel and workers"""
-    common_state_spec = dict(
-        _visitation_class_name=None,
-        is_finished=False,
-    )
-
-    """Step function state specification specific to the sentinel"""
-    sentinel_state_spec = dict(
-        _processing_work_ids=list,
-        _number_of_workers=int,
-        work_ids=list,
-        wait_time=1,
-    )
-
-    """Step function state specification specific to the workers"""
-    walker_state_spec = dict(
-        work_id=None,
-        _sentinel_state_copy=None,
-    )
-
-    def __new__(mcs, name, bases, attrs, **kwargs):
-        cls = super().__new__(mcs, name, bases, attrs)
-
-        additional_common_state_spec = getattr(cls, 'common_state_spec', dict())
-        additional_walker_state_spec = getattr(cls, 'walker_state_spec', dict())
-        additional_sentinel_state_spec = getattr(cls, 'sentinel_state_spec', dict())
-
-        common_state_spec = {
-            ** mcs.common_state_spec,
-            ** additional_common_state_spec,
-        }
-
-        setattr(cls, 'walker_state_spec', {
-            ** common_state_spec,
-            ** mcs.walker_state_spec,
-            ** additional_walker_state_spec,
-        })
-
-        setattr(cls, 'sentinel_state_spec', {
-            ** common_state_spec,
-            ** mcs.sentinel_state_spec,
-            ** additional_sentinel_state_spec,
-        })
-
-        return cls
-
-
-class Visitation(AttrGetter, metaclass=VisitationStateMeta):
-    """
-    Base class vor AWS Step Function sentinel-workers datastore batch processing. This is meant to serve as a highly
+    Base class vor AWS Step Function job-workers datastore batch processing. This is meant to serve as a highly
     parallelized, high throughput architecture to visit blobs in the datastore and perform generic processing.
 
     Although Visitation is somewhat specialized for datastore processing, subclasses may largely override the propagated
-    state and behaviour of the sentinel and walker step functions, hijacking the paralell architecture for
+    state and behaviour of the job and walker step functions, hijacking the parallel architecture for
     other purposes.
 
-    subclasses should be registered in registered_visitations to make them available to the sentinel and walker step
+    Subclasses should be registered in registered_visitations to make them available to the job and walker step
     functions.
     """
+
+    """Step function state specification shared by job and workers"""
+    _state_spec = dict(
+        _visitation_class_name=str,
+        _status=WalkerStatus.init.name,
+        _number_of_workers=int,
+        work_ids=list,
+        work_id=str,
+    )
+    state_spec: dict = dict()
+    walker_state_spec: dict = dict()
 
     def __init__(self, state_spec: dict, state: dict, logger) -> None:
         """
@@ -105,24 +71,20 @@ class Visitation(AttrGetter, metaclass=VisitationStateMeta):
         self.logger = logger
 
     @classmethod
-    def _with_sentinel_state(cls, state: dict, logger) -> 'Visitation':
+    def _with_state(cls, state: dict, logger) -> 'Visitation':
         """
-        Pull in state specific to the sentinel.
+        Pull in state specific to the job.
         """
-        state_spec = cls.sentinel_state_spec
-        return cls(state_spec, state, logger)
-
-    @classmethod
-    def _with_walker_state(cls, state: dict, logger) -> 'Visitation':
-        """
-        Pull in state specific to the walkers.
-        """
-        state_spec = cls.walker_state_spec
+        state_spec = {
+            ** Visitation._state_spec,
+            ** cls.state_spec,
+            ** cls.walker_state_spec,
+        }
         return cls(state_spec, state, logger)
 
     def get_state(self) -> dict:
         """
-        Return step function state at the end of each lambda defined in the sentinel and walker step functions.
+        Return step function state at the end of each lambda defined in the job and walker step functions.
         """
         return {
             k: getattr(self, k)
@@ -144,45 +106,45 @@ class Visitation(AttrGetter, metaclass=VisitationStateMeta):
 
         return name
 
-    def sentinel_initialize(self) -> None:
+    def job_initialize(self) -> None:
         """
-        Impliment for initialization or sanity checking for a sentinel.
-        """
-        pass
-
-    def sentinel_finalize(self) -> None:
-        """
-        Impliment for finalization work for a succesful sentinel. Called once each worker has completed.
+        Implement for initialization or sanity checking for a job.
         """
         pass
 
-    def sentinel_finalize_failed(self) -> None:
+    def job_finalize(self) -> None:
         """
-        Impliment for finalization work for a failed sentinel. This is your opportunity to cry, notify, and ruminate.
+        Implement for finalization work for a successful job. Called once each worker has completed.
+        """
+        pass
+
+    def job_finalize_failed(self) -> None:
+        """
+        Implement for finalization work for a failed job. This is your opportunity to cry, notify, and ruminate.
         """
         pass
 
     def walker_initialize(self) -> None:
         """
-        Impliment this method for initialization or sanity checking specifically for a walker.
+        Implement this method for initialization or sanity checking specifically for a walker.
         """
         pass
 
     def walker_walk(self) -> None:
         """
-        Subclasses must impliment this method. Called for walker thread.
+        Subclasses must implement this method. Called for walker thread.
         """
         raise NotImplementedError
 
     def walker_finalize(self) -> None:
         """
-        Impliment this method for finalization work specific to a walker.
+        Implement this method for finalization work specific to a walker.
         """
         pass
 
     def walker_finalize_failed(self) -> None:
         """
-        Imliment this method for finaliation work specific to a failed walker.
+        Aliment this method for finalization work specific to a failed walker.
         """
         pass
 
