@@ -1,8 +1,8 @@
-
 import copy
 import typing
 from uuid import uuid4
 from enum import Enum, auto
+
 from .. import step_functions_invoke
 
 
@@ -14,11 +14,6 @@ class DSSVisitationExceptionRetry(DSSVisitationException):
     pass
 
 
-class AttrGetter:
-    def __getattr__(self, item):
-        raise AttributeError(item)
-
-
 class WalkerStatus(Enum):
     init = auto()
     walk = auto()
@@ -26,7 +21,7 @@ class WalkerStatus(Enum):
     end = auto()
 
 
-class Visitation(AttrGetter):
+class Visitation:
     """
     Base class vor AWS Step Function job-workers datastore batch processing. This is meant to serve as a highly
     parallelized, high throughput architecture to visit blobs in the datastore and perform generic processing.
@@ -150,12 +145,14 @@ class Visitation(AttrGetter):
 
     def __setattr__(self, key, val):  # typing.type: (str, typing.Any) -> None
         """
-        Keep mypy happy with dynamic properties
+        See MyPy recomendations for silencing spurious warnings of missing properties that have been mixed in:
+        https://mypy.readthedocs.io/en/latest/cheat_sheet.html#when-you-re-puzzled-or-when-things-are-complicated
         """
         super().__setattr__(key, val)
 
     def __getattr__(self, key):  # typing.type: (str) -> typing.Any
         """
-        Keep mypy happy with dynamic properties
+        See MyPy recomendations for silencing spurious warnings of missing properties that have been mixed in:
+        https://mypy.readthedocs.io/en/latest/cheat_sheet.html#when-you-re-puzzled-or-when-things-are-complicated
         """
         return super().__getattr__(key)

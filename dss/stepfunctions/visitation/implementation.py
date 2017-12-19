@@ -1,4 +1,3 @@
-
 from ... import get_logger
 from .registered_visitations import registered_visitations
 from . import Visitation, DSSVisitationException, WalkerStatus
