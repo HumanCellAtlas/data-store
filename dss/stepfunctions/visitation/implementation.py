@@ -1,6 +1,5 @@
 
 from ... import get_logger
-from ...stepfunctions import generator
 from .registered_visitations import registered_visitations
 from . import Visitation, DSSVisitationException, WalkerStatus
 
@@ -52,8 +51,7 @@ def job_failed(event, context):
     return job.get_state()
 
 
-def walker_initialize(event, context, branch_id):
-    branch = branch_id[-1]
+def walker_initialize(event, context, branch):
     walker = vis_obj(event)
 
     if isinstance(walker.work_ids[0], list):
@@ -74,13 +72,13 @@ def walker_initialize(event, context, branch_id):
     return walker.get_state()
 
 
-def walker_walk(event, context, branch_id):
+def walker_walk(event, context, branch):
     walker = vis_obj(event)
     walker.walker_walk()
     return walker.get_state()
 
 
-def walker_finalize(event, context, branch_id):
+def walker_finalize(event, context, branch):
     walker = vis_obj(event)
     walker.walker_finalize()
 
@@ -92,7 +90,7 @@ def walker_finalize(event, context, branch_id):
     return walker.get_state()
 
 
-def walker_failed(event, context, branch_id):
+def walker_failed(event, context, branch):
     walker = vis_obj(event)
     walker.walker_finalize_failed()
     return walker.get_state()
@@ -123,84 +121,90 @@ def _catch_to_state(next_state):
     }]
 
 
-walker_sfn = {
-    "StartAt": "IsActive{t}",
-    "States": {
-        "IsActive{t}": {
-            "Type": "Choice",
-            "Choices": [
-                {
-                    "Variable": "$._number_of_workers",
-                    "NumericLessThanEquals": "int({t})",
-                    "Next": "End{t}"
-                }
-            ],
-            "Default": "CheckStatus{t}"
-        },
-        "CheckStatus{t}": {
-            "Type": "Choice",
-            "Choices": [
-                {
-                    "Variable": "$._status",
-                    "StringEquals": WalkerStatus.init.name,
-                    "Next": "Initialize{t}"
-                },
-                {
-                    "Variable": "$._status",
-                    "StringEquals": WalkerStatus.walk.name,
-                    "Next": "Walk{t}"
-                },
-                {
-                    "Variable": "$._status",
-                    "StringEquals": WalkerStatus.finished.name,
-                    "Next": "Finalize{t}"
-                },
-                {
-                    "Variable": "$._status",
-                    "StringEquals": WalkerStatus.end.name,
-                    "Next": "End{t}"
-                }
-            ],
-            "Default": "Finalize{t}"
-        },
-        "Initialize{t}": {
-            "Type": "Task",
-            "Resource": walker_initialize,
-            "Retry": _retry,
-            "Catch": _catch_to_state("Failed{t}"),
-            "Next": "Walk{t}"
-        },
-        "Walk{t}": {
-            "Type": "Task",
-            "Resource": walker_walk,
-            "Retry": _retry,
-            "Catch": _catch_to_state("Failed{t}"),
-            "TimeoutSeconds": 295,
-            "Next": "CheckStatus{t}"
-        },
-        "Finalize{t}": {
-            "Type": "Task",
-            "Resource": walker_finalize,
-            "Retry": _retry,
-            "Catch": _catch_to_state("Failed{t}"),
-            "Next": "CheckStatus{t}"
-        },
-        "Failed{t}": {
-            "Type": "Task",
-            "Resource": walker_failed,
-            "Retry": _retry,
-            "Catch": _catch_to_state("Fail{t}"),
-            "Next": "Fail{t}"
-        },
-        "Fail{t}": {
-            "Type": "Fail",
-        },
-        "End{t}": {
-            "Type": "Pass",
-            "End": True
+def walker_sfn(i):
+    def _branch_call(func):
+        def wrapped(event, context):
+            return func(event, context, i)
+        return wrapped
+
+    return {
+        'StartAt': f'IsActive{i}',
+        'States': {
+            f'IsActive{i}': {
+                'Type': 'Choice',
+                'Choices': [
+                    {
+                        'Variable': '$._number_of_workers',
+                        'NumericLessThanEquals': i,
+                        'Next': f'End{i}'
+                    }
+                ],
+                'Default': f'CheckStatus{i}'
+            },
+            f'CheckStatus{i}': {
+                'Type': 'Choice',
+                'Choices': [
+                    {
+                        'Variable': '$._status',
+                        'StringEquals': WalkerStatus.init.name,
+                        'Next': f'Initialize{i}'
+                    },
+                    {
+                        'Variable': '$._status',
+                        'StringEquals': WalkerStatus.walk.name,
+                        'Next': f'Walk{i}'
+                    },
+                    {
+                        'Variable': '$._status',
+                        'StringEquals': WalkerStatus.finished.name,
+                        'Next': f'Finalize{i}'
+                    },
+                    {
+                        'Variable': '$._status',
+                        'StringEquals': WalkerStatus.end.name,
+                        'Next': f'End{i}'
+                    }
+                ],
+                'Default': f'Finalize{i}'
+            },
+            f'Initialize{i}': {
+                'Type': 'Task',
+                'Resource': _branch_call(walker_initialize),
+                'Retry': _retry,
+                'Catch': _catch_to_state(f'Failed{i}'),
+                'Next': f'Walk{i}'
+            },
+            f'Walk{i}': {
+                'Type': 'Task',
+                'Resource': _branch_call(walker_walk),
+                'Retry': _retry,
+                'Catch': _catch_to_state(f'Failed{i}'),
+                'TimeoutSeconds': 295,
+                'Next': f'CheckStatus{i}'
+            },
+            f'Finalize{i}': {
+                'Type': 'Task',
+                'Resource': _branch_call(walker_finalize),
+                'Retry': _retry,
+                'Catch': _catch_to_state(f'Failed{i}'),
+                'Next': f'CheckStatus{i}'
+            },
+            f'Failed{i}': {
+                'Type': 'Task',
+                'Resource': _branch_call(walker_failed),
+                'Retry': _retry,
+                'Catch': _catch_to_state(f'Fail{i}'),
+                'Next': f'Fail{i}'
+            },
+            f'Fail{i}': {
+                'Type': 'Fail',
+            },
+            f'End{i}': {
+                'Type': 'Pass',
+                'End': True
+            }
         }
     }
-}
 
 
 sfn = {
@@ -216,7 +220,7 @@ sfn = {
         },
         "Threadpool": {
             "Type": "Parallel",
-            "Branches": generator.ThreadPoolAnnotation(walker_sfn, THREADPOOL_PARALLEL_FACTOR, "{t}"),
+            "Branches": [walker_sfn(i) for i in range(THREADPOOL_PARALLEL_FACTOR)],
             "Retry": _retry,
             "Next": "Finalize",
         },

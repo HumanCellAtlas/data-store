@@ -57,20 +57,20 @@ class TestVisitationWalker(unittest.TestCase):
     @testmode.standalone
     def test_implementation_walker_initialize(self):
         state = copy.deepcopy(self.walker_state)
-        state = implementation.walker_initialize(state, None, (0,))
+        state = implementation.walker_initialize(state, None, 0)
         self.assertEquals('1', state['work_id'])
 
     @testmode.standalone
     def test_implementation_walker_walk(self):
-        implementation.walker_walk(self.walker_state, None, (1,))
+        implementation.walker_walk(self.walker_state, None, 1)
 
     @testmode.standalone
     def test_implementation_walker_finalize(self):
-        implementation.walker_finalize(self.walker_state, None, (1,))
+        implementation.walker_finalize(self.walker_state, None, 1)
 
     @testmode.standalone
     def test_implementation_walker_failed(self):
-        implementation.walker_failed(self.walker_state, None, (1,))
+        implementation.walker_failed(self.walker_state, None, 1)
 
     @testmode.standalone
     def test_implementation_job_initialize(self):
