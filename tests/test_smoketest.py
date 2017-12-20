@@ -116,15 +116,15 @@ class Smoketest(unittest.TestCase):
             run(f"{venv_bin}hca dss delete-subscription --replica {replica} --uuid {sub_id}")
 
         run(f"{venv_bin}hca dss post-bundles-checkout "
-            "--uuid 00251ba0-39fc-4afe-9249-891a3de0f5ba "
+            "--uuid $(jq -r .bundle_uuid upload.json) "
             "--replica aws "
-            "--email noreply@humancellatlas.org >res.json")
+            "--email noreply@humancellatlas.org > res.json")
         with open("res.json") as fh:
             res = json.load(fh)
             print(f"Checkout jobId: {res['checkout_job_id']}")
             assert len(res["checkout_job_id"]) > 0
 
-        run(f"{venv_bin}hca dss get-bundles-checkout --checkout-job-id {res['checkout_job_id']} >res.json")
+        run(f"{venv_bin}hca dss get-bundles-checkout --checkout-job-id {res['checkout_job_id']} > res.json")
         with open("res.json") as fh:
             res = json.load(fh)
             print(f"Checkout jobId: {res['status']}")
