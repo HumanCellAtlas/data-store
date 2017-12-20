@@ -121,8 +121,8 @@ class TestVisitationWalker(unittest.TestCase):
 
     @testmode.integration
     def test_z_integration(self):
-        self._test_z_integration('aws', self.s3_test_bucket)
-        self._test_z_integration('gcp', self.gs_test_bucket)
+        self._test_z_integration('aws', self.s3_test_fixtures_bucket)
+        self._test_z_integration('gcp', self.gs_test_fixtures_bucket)
 
     def _test_z_integration(self, replica, bucket):
         number_of_workers = 10

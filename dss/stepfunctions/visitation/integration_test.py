@@ -1,9 +1,9 @@
-
 import string
 from time import time
+from cloud_blobstore import BlobPagingError
+
 from ...config import Config, Replica
 from . import Visitation, WalkerStatus
-from cloud_blobstore import BlobPagingError
 
 
 class IntegrationTest(Visitation):
@@ -36,6 +36,8 @@ class IntegrationTest(Visitation):
 
         if self.number_of_keys_processed != k_listed:
             raise Exception(f'Integration test failed {self.number_of_keys_processed} {k_listed}')
+
+        self.logger.info(f"Integration test passed for {self.replica} {self.work_id} with {k_listed} keys listed")
 
     def _walk(self) -> None:
         """
