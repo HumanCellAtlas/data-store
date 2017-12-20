@@ -128,7 +128,6 @@ class Smoketest(unittest.TestCase):
         with open("res.json") as fh:
             res = json.load(fh)
             print(f"Checkout jobId: {res['status']}")
-            #TODO (rkisin) once email sender has been authorized, change this assert to a waiter for "SUCCESS" status
             assert len(res["status"]) > 0
 
     @classmethod
