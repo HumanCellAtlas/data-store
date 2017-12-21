@@ -17,6 +17,7 @@ from dss import Replica
 from dss.hcablobstore import BundleMetadata, BundleFileMetadata
 from dss.storage.bundles import ObjectIdentifier, BundleFQID, TombstoneID
 from dss.storage.index import IndexManager
+from dss.storage.validator import scrub_index_data
 from dss.util import create_blob_key
 from dss.util.es import ElasticsearchClient
 
@@ -143,6 +144,7 @@ class BundleDocument(IndexDocument):
                 # As due diligence, additional investigation should be performed.
                 index_filename = file_info[BundleFileMetadata.NAME].replace(".", "_")
                 index_files[index_filename] = file_json
+        scrub_index_data(index_files, str(self.fqid), self.logger)
         return index_files
 
     def prepare_index(self):
