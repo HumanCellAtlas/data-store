@@ -169,7 +169,7 @@ paths:
 
         Headers will contain the data store metadata for the file.
 
-        This endpoint will do a HTTP redirect to another HTTP endpoint with the file contents.
+        This endpoint returns a HTTP redirect to another HTTP endpoint with the file contents.
       parameters:
         - name: uuid
           in: path
@@ -244,9 +244,9 @@ paths:
     put:
       summary: Create a new version of a file
       description: |
-        Create a new version of a file with a given UUID.  The file content is passed in through a cloud URL.  The file
-        on the cloud provider must have metadata set reflecting the file checksums and the cloud provider's content-type
-        field must be set.
+        Create a new version of a file with a given UUID. The contents of the file are provided by the client by
+        reference using a cloud object storage URL. The file on the cloud object storage service must have metadata set
+        listing the file checksums and content-type.
 
         The metadata fields required are:
 
@@ -785,12 +785,11 @@ paths:
                   - code
   /bundles/{uuid}/checkout:
     post:
-      summary: Check out a bundle to HCA-owned cloud storage or user-provided destination
+      summary: Check out a bundle to DSS-managed or user-managed cloud object storage destination
       description: |
-        User makes a request for a bundle version to be extracted. Storage system makes an attempt to validate
-        that the bundle UUID with an optionally provided version exists in a given replica.
-        If the storage service fails to locate the bundle, the error is immediately raised to the user.
-        Otherwise start copying the data in the background to the hot storage.
+        Initiate asynchronous checkout of a bundle. The response JSON contains a field, `checkout_job_id`, that can be
+        used to query the status of the checkout via the `GET /bundles/checkout/{checkout_job_id}` API method.
+        FIXME: document the error code returned when the bundle or specified version does not exist.
         TODO: After some time period, the data will be removed.
         TBD: This could be based on initial checkout time or last access time.
       operationId: dss.api.bundles.checkout.post
@@ -856,10 +855,9 @@ paths:
 
   /bundles/checkout/{checkout_job_id}:
     get:
-      summary: Check status of the checkout request identified by checkout_job_id.
+      summary: Check the status of a checkout request.
       description: |
-        User makes a request to check the status of the checkout request made earlier. The request is identified
-        by checkout_job_id that was returned to the user in response to the checkout request.
+        Use this route with the `checkout_job_id` identifier returned by `POST /bundles/{uuid}/checkout`.
       operationId: dss.api.bundles.checkout.get
       parameters:
         - name: checkout_job_id
