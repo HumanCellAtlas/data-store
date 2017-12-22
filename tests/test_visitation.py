@@ -79,8 +79,7 @@ class TestVisitationWalker(unittest.TestCase):
 
     @testmode.standalone
     def test_implementation_job_finalize(self):
-        states = [copy.deepcopy(self.walker_state) for _ in range(3)]
-        implementation.job_finalize(states, None)
+        implementation.job_finalize(self.job_state, None)
 
     @testmode.standalone
     def test_implementation_job_failed(self):

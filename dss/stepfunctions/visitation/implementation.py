@@ -39,7 +39,7 @@ def job_initialize(event, context):
 
 
 def job_finalize(event, context):
-    obj = vis_obj(event[0])
+    obj = vis_obj(event)
     obj.job_finalize()
     return obj.get_state()
 
@@ -116,7 +116,8 @@ def _catch_to_state(next_state):
         "ErrorEquals": [
             "States.ALL"
         ],
-        "Next": next_state
+        "Next": next_state,
+        "ResultPath": None
     }]
 
 
@@ -221,6 +222,7 @@ sfn = {
             "Type": "Parallel",
             "Branches": [walker_sfn(i) for i in range(THREADPOOL_PARALLEL_FACTOR)],
             "Retry": _retry,
+            "ResultPath": None,
             "Next": "Finalize",
         },
         "Finalize": {
