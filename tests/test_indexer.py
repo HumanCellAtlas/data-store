@@ -604,8 +604,12 @@ class TestIndexerBase(DSSAssertMixin, DSSStorageMixin, DSSUploadMixin):
             index_data['files']['assay_json'].update({'extra_top': 123,
                                                       'extra_obj': {"something": "here", "another": 123},
                                                       'extra_lst': ["a", "b"]
-                                                      })
+                                                      }
+                                                     )
             index_data['files']['assay_json']['core']['extra_internal'] = 123
+            index_data['files']['sample_json']['extra'] = "tests patterned properties."
+            index_data['files']['project_json']['extra'] = "Another extra field in a different file."
+            index_data['files']['project_json']['extra_2'] = "Another extra field in a different file."
             bundle_fqid = self.bundle_key.split('/')[1]
             with self.assertLogs(logger, level="INFO") as log_monitor:
                 scrub_index_data(index_data['files'], bundle_fqid, logger)
