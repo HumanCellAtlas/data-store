@@ -63,8 +63,10 @@ def scrub_index_data(index_data: dict, bundle_id: str, logger: logging.Logger) -
                 if error.validator == 'additionalProperties':
                     path = [document, *error.path]
                     #  Example error message: "Additional properties are not allowed ('extra_lst', 'extra_top' were
-                    #  unexpected)"
-                    fields_to_remove = (path, [field for field in re.findall(r"'([^']*)'", error.message)])
+                    #  unexpected)" or "'extra', does not match any of the regexes: '^characteristics_.*$'"
+                    fields_to_remove = (path,
+                                        [field for field in re.findall(r"(?<!regexes: )'([^']+)',?", error.message)]
+                                        )
                     extra_fields.append(fields_to_remove)
         else:
             extra_documents.append(document)

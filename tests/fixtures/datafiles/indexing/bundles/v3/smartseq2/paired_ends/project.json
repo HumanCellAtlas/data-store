@@ -123,5 +123,6 @@
         "ftp://ftp-trace.ncbi.nlm.nih.gov/sra/sra-instant/reads/ByStudy/sra/SRP/SRP066/SRP066834"
     ], 
     "title": "Human cerebral organoids recapitulate gene expression programs of fetal neocortex development.", 
-    "update_date": "2017-06-02"
+    "update_date": "2017-06-02",
+    "characteristics_color": "green"
 }
