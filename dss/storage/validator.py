@@ -44,7 +44,6 @@ DSS_Draft4Validator = validators.create(
 )
 
 resolver = validators.RefResolver(referrer='', base_uri='')
-EXTRA_FIELD_ERROR_REGEX = re.compile(r"(?<!regexes: )'([^']+)',?")
 
 
 def scrub_index_data(index_data: dict, bundle_id: str, logger: logging.Logger) -> list:
@@ -65,7 +64,9 @@ def scrub_index_data(index_data: dict, bundle_id: str, logger: logging.Logger) -
                     path = [document, *error.path]
                     #  Example error message: "Additional properties are not allowed ('extra_lst', 'extra_top' were
                     #  unexpected)" or "'extra', does not match any of the regexes: '^characteristics_.*$'"
-                    fields_to_remove = (path, [field for field in EXTRA_FIELD_ERROR_REGEX.findall(error.message)])
+                    fields_to_remove = (path,
+                                        [field for field in re.findall(r"(?<!regexes: )'([^']+)',?", error.message)]
+                                        )
                     extra_fields.append(fields_to_remove)
         else:
             extra_documents.append(document)
