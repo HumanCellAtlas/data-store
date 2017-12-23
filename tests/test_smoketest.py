@@ -72,7 +72,7 @@ class Smoketest(unittest.TestCase):
             fh2.write(json.dumps(cli_config))
         os.environ["HCA_CONFIG_FILE"] = f"{self.workdir.name}/cli_config.json"
 
-        run(f"cat {bundle_dir}/sample.json | jq .uuid=env.sample_id | sponge {bundle_dir}/sample.json",
+        run(f"cat {bundle_dir}/sample.json | jq .id=env.sample_id | sponge {bundle_dir}/sample.json",
             env=dict(os.environ, sample_id=sample_id))
         run(f"{venv_bin}hca dss upload "
             "--replica aws "
@@ -96,7 +96,7 @@ class Smoketest(unittest.TestCase):
         search_route = "https://${API_HOST}/v1/search"
         for replica in "aws", "gcp":
             run(f"jq -n '.es_query.query.match[env.k]=env.v' | http --check {search_route} replica==aws > res.json",
-                env=dict(os.environ, k="files.sample_json.uuid", v=sample_id))
+                env=dict(os.environ, k="files.sample_json.id", v=sample_id))
             with open("res.json") as fh2:
                 res = json.load(fh2)
                 print(json.dumps(res, indent=4))
@@ -107,7 +107,7 @@ class Smoketest(unittest.TestCase):
                       "--es-query '{}' "
                       f"--replica {replica}",
                       runner=check_output)
-            sub_id = json.loads(res.decode())["uuid"]
+            sub_id = json.loads(res.decode())["id"]
             run(f"{venv_bin}hca dss get-subscriptions --replica {replica}")
             run(f"{venv_bin}hca dss delete-subscription --replica {replica} --uuid {sub_id}")
 
