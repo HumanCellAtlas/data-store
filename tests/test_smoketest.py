@@ -107,7 +107,7 @@ class Smoketest(unittest.TestCase):
                       "--es-query '{}' "
                       f"--replica {replica}",
                       runner=check_output)
-            sub_id = json.loads(res.decode())["id"]
+            sub_id = json.loads(res.decode())["uuid"]
             run(f"{venv_bin}hca dss get-subscriptions --replica {replica}")
             run(f"{venv_bin}hca dss delete-subscription --replica {replica} --uuid {sub_id}")
 
