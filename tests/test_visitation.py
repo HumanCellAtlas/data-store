@@ -19,6 +19,7 @@ from dss.stepfunctions import step_functions_describe_execution
 from dss.stepfunctions.visitation import implementation
 from dss.stepfunctions.visitation.integration_test import IntegrationTest
 from dss.stepfunctions.visitation import registered_visitations
+from dss.stepfunctions.visitation.timeout import Timeout
 
 from tests import infra  # noqa
 from tests.infra import get_env, testmode  # noqa
@@ -51,7 +52,6 @@ class TestVisitationWalker(unittest.TestCase):
         self.walker_state = {
             '_visitation_class_name': 'VT',
             'work_ids': [['1', '2'], ['3', '4']],
-            'is_finished': False,
         }
 
     @testmode.standalone
@@ -138,6 +138,30 @@ class TestVisitationWalker(unittest.TestCase):
             time.sleep(5)
 
         self.assertEquals('SUCCEEDED', resp['status'])
+
+
+class TestTimeout(unittest.TestCase):
+    @testmode.standalone
+    def test_timeout_did(self):
+        with Timeout(1) as timeout:
+            time.sleep(2)
+        self.assertTrue(timeout.did_timeout)
+
+    @testmode.standalone
+    def test_timeout_did_not(self):
+        with Timeout(2) as timeout:
+            pass
+        self.assertFalse(timeout.did_timeout)
+
+    @testmode.standalone
+    def test_timeout_exception(self):
+        class TestException(Exception):
+            pass
+
+        with self.assertRaises(TestException):
+            with Timeout(1) as timeout:
+                raise TestException()
+        self.assertFalse(timeout.did_timeout)
 
 
 if __name__ == '__main__':
