@@ -45,6 +45,17 @@
         "arn:aws:states:*:$account_id:stateMachine:dss-visitation*",
         "arn:aws:states:*:$account_id:execution:dss-visitation*"
 	  ]
+    },
+    {
+      "Effect": "Allow",
+      "Action": [
+        "es:ESHttpDelete",
+        "es:ESHttpGet",
+        "es:ESHttpHead",
+        "es:ESHttpPost",
+        "es:ESHttpPut"
+      ],
+      "Resource": "arn:aws:es:*:$account_id:domain/$dss_es_domain/*"
     }
   ]
 }
