@@ -51,6 +51,9 @@ class Smoketest(unittest.TestCase):
         else:
             run("git clone --depth 1 --recurse-submodules https://github.com/HumanCellAtlas/dcp-cli")
         cls.workdir = tempfile.TemporaryDirectory(dir=os.getcwd(), prefix="smoketest-", suffix=".tmp")
+        if not args.clean:
+            # Disable workdir destructor
+            cls.workdir._finalizer.detach()  # type: ignore
 
     def test_smoketest(self):
         venv = os.path.join(self.workdir.name, "venv")
@@ -117,8 +120,6 @@ class Smoketest(unittest.TestCase):
             cls.workdir.cleanup()
         else:
             print(f"Leaving temporary working directory at {cls.workdir}.", file=sys.stderr)
-            # Disable workdir destructor
-            cls.workdir._finalizer.detach()  # type: ignore
 
 
 if __name__ == "__main__":
