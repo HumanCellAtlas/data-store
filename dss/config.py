@@ -58,6 +58,24 @@ class Replica(Enum):
     aws = auto()
     gcp = auto()
 
+    @property
+    def bucket(self):
+        if self is Replica.aws:
+            return Config.get_s3_bucket()
+        elif self is Replica.gcp:
+            return Config.get_gs_bucket()
+        else:
+            raise NotImplementedError(f"No bucket for {self.name}")
+
+    @property
+    def storage_schema(self):
+        if self == Replica.aws:
+            return "s3"
+        elif self == Replica.gcp:
+            return "gs"
+        else:
+            raise NotImplementedError(f"No storage schema for {self.name}")
+
 
 class IndexSuffix:
     '''Creates a test specific index when in test config.'''
@@ -94,7 +112,7 @@ class Config:
             return (
                 handle,
                 S3HCABlobStore(handle),
-                Config.get_s3_bucket()
+                replica.bucket
             )
         elif replica == Replica.gcp:
             credentials = os.environ["GOOGLE_APPLICATION_CREDENTIALS"]
@@ -102,19 +120,8 @@ class Config:
             return (
                 handle,
                 GSHCABlobStore(handle),
-                Config.get_gs_bucket()
+                replica.bucket
             )
-        raise NotImplementedError(f"Replica `{replica.name}` is not implemented!")
-
-    @staticmethod
-    def get_storage_schema(replica: Replica) -> str:
-
-        assert isinstance(replica, Replica)
-
-        if replica == Replica.aws:
-            return "s3"
-        elif replica == Replica.gcp:
-            return "gs"
         raise NotImplementedError(f"Replica `{replica.name}` is not implemented!")
 
     @staticmethod

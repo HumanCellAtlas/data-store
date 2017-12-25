@@ -72,7 +72,7 @@ def get_bundle_from_bucket(
         }
         if directurls:
             file_version['url'] = str(UrlBuilder().set(
-                scheme=Config.get_storage_schema(replica),
+                scheme=replica.storage_schema,
                 netloc=bucket,
                 path="blobs/{}.{}.{}.{}".format(
                     file[BundleFileMetadata.SHA256],
