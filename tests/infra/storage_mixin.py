@@ -32,7 +32,7 @@ class TestFile:
         self.name = os.path.basename(file_key)
         self.path = file_key
         self.uuid = str(uuid.uuid4())
-        self.url = Config.get_storage_schema(replica) + "://" + bundle.bucket + "/" + self.path
+        self.url = replica.storage_schema + "://" + bundle.bucket + "/" + self.path
         self.version = None
 
 

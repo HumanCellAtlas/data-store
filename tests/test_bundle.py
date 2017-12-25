@@ -82,7 +82,7 @@ class TestDSS(unittest.TestCase, DSSAssertMixin, DSSUploadMixin):
         self._test_bundle_get_directaccess(Replica.gcp)
 
     def _test_bundle_get_directaccess(self, replica: Replica):
-        schema = Config.get_storage_schema(replica)
+        schema = replica.storage_schema
 
         bundle_uuid = "011c7340-9b3c-4d62-bf49-090d79daf198"
         version = "2017-06-20T214506.766634Z"
@@ -153,7 +153,7 @@ class TestDSS(unittest.TestCase, DSSAssertMixin, DSSUploadMixin):
         self._test_bundle_put(Replica.gcp, self.gs_test_fixtures_bucket)
 
     def _test_bundle_put(self, replica: Replica, fixtures_bucket: str):
-        schema = Config.get_storage_schema(replica)
+        schema = replica.storage_schema
 
         bundle_uuid = str(uuid.uuid4())
         file_uuid = str(uuid.uuid4())
@@ -249,7 +249,7 @@ class TestDSS(unittest.TestCase, DSSAssertMixin, DSSUploadMixin):
         self._test_bundle_delete(Replica.gcp, self.gs_test_fixtures_bucket, False)
 
     def _test_bundle_delete(self, replica: Replica, fixtures_bucket: str, authorized: bool):
-        schema = Config.get_storage_schema(replica)
+        schema = replica.storage_schema
 
         # prep existing bundle
         bundle_uuid = str(uuid.uuid4())

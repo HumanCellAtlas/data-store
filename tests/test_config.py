@@ -13,7 +13,7 @@ from contextlib import contextmanager
 pkg_root = os.path.abspath(os.path.join(os.path.dirname(__file__), '..'))  # noqa
 sys.path.insert(0, pkg_root)  # noqa
 
-from dss.config import DeploymentStage, Config, BucketConfig
+from dss.config import DeploymentStage, Config, BucketConfig, Replica
 
 
 class TestConfig(unittest.TestCase):
@@ -63,6 +63,13 @@ class TestConfig(unittest.TestCase):
         for bucket_config in BucketConfig:
             Config.set_config(bucket_config)
             self.assertEquals(Config.get_notification_email(), os.environ["DSS_NOTIFICATION_SENDER"])
+
+    def test_replica(self):
+        # Assert that derived properties are distinct between enum instances
+        for prop in Replica.storage_schema, Replica.bucket:
+            prop_vals = set(prop.getter(r) for r in Replica)
+            self.assertFalse(None in prop_vals)
+            self.assertEqual(len(Replica), len(prop_vals))
 
 if __name__ == '__main__':
     unittest.main()
