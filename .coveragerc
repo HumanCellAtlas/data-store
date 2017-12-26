@@ -1,0 +1,5 @@
+[report]
+# Regexes for lines to exclude from consideration
+exclude_lines =
+    raise AssertionError
+    raise NotImplementedError
