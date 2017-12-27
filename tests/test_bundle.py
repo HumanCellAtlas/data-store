@@ -30,7 +30,7 @@ from tests.infra.server import ThreadedLocalServer
 from tests import get_auth_header
 
 
-class TestDSS(unittest.TestCase, DSSAssertMixin, DSSUploadMixin):
+class TestBundleApi(unittest.TestCase, DSSAssertMixin, DSSUploadMixin):
     @classmethod
     def setUpClass(cls):
         cls.app = ThreadedLocalServer()
