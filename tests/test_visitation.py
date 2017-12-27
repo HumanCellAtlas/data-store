@@ -118,6 +118,13 @@ class TestVisitationWalker(unittest.TestCase):
         st = v.get_state()
         self.assertIn('_visitation_class_name', st)
 
+    @testmode.standalone
+    def test_finalize(self):
+        work_result = [1, 2]
+        v = Visitation._with_state(dict(work_result=work_result), logger)
+        v.job_finalize()
+        self.assertEquals(v.get_state()['work_result'], work_result)
+
     @testmode.integration
     def test_z_integration(self):
         self._test_z_integration('aws', self.s3_test_fixtures_bucket)

@@ -42,6 +42,7 @@ class Visitation:
         _number_of_workers=int,
         work_ids=list,
         work_id=str,
+        work_result=None
     )
     state_spec: dict = dict()
     walker_state_spec: dict = dict()
@@ -52,6 +53,8 @@ class Visitation:
         """
         self.state_spec = state_spec
         state = copy.deepcopy(state)
+
+        self.work_result: Union[Any, Sequence] = None  # mypy needs this
 
         for k, default in state_spec.items():
             v = state.get(k, None)
@@ -110,9 +113,20 @@ class Visitation:
 
     def job_finalize(self) -> None:
         """
-        Implement for finalization work for a successful job. Called once each worker has completed.
+        Implement for finalization work for a successful job. Called once each worker has completed. The default
+        implementation aggregates the work results.
         """
-        pass
+        work_result = self.work_result
+        if isinstance(work_result, Sequence):
+            work_result = self._aggregate(work_result)
+            self.work_result = work_result
+
+    def _aggregate(self, work_result: Sequence) -> Any:
+        """
+        Aggregates the given work results and returns the aggregate. Subclasses may want to override this method in
+        order to customize how work results are aggregated. The default implementation returns the argument.
+        """
+        return work_result
 
     def job_finalize_failed(self) -> None:
         """
@@ -152,4 +166,3 @@ class Visitation:
 
     def __setattr__(self, key: str, val: Any) -> None:
         super().__setattr__(key, val)
-

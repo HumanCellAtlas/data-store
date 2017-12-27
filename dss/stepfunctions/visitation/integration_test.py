@@ -1,43 +1,48 @@
 import string
 from time import time
+from typing import Sequence, Any
+
 from cloud_blobstore import BlobPagingError
 
 from ...config import Config, Replica
 from . import Visitation, WalkerStatus
 
 
-class IntegrationTest(Visitation):
+class IntegrationTest(Visitation):  # no coverage (this code *is* run by tests, just only on Lambda)
     """
     Test of the visitation batch processing architecture.
     """
 
+    prefix = 'bundles/'
+
     state_spec = {
         'replica': None,
         'bucket': None,
+        'work_result': int
     }
 
     walker_state_spec = {
         'marker': None,
-        'token': None,
-        'number_of_keys_processed': int,
+        'token': None
     }
 
     def job_initialize(self):
-        alphanumeric = string.ascii_lowercase[:6] + '0987654321'
-        self.work_ids = [f'files/{a}' for a in alphanumeric]
+        prefix_chars = set(string.hexdigits.lower())
+        self.work_ids = [self.prefix + a for a in prefix_chars]
 
     def process_item(self, key):
-        self.number_of_keys_processed = self.number_of_keys_processed + 1
+        self.work_result += 1
 
-    def walker_finalize(self):
+    def _aggregate(self, work_result: Sequence) -> Any:
+        return sum(work_result)
+
+    def job_finalize(self):
+        super().job_finalize()
         handle, _, _ = Config.get_cloud_specific_handles(Replica[self.replica])
-        listed_keys = handle.list(self.bucket, self.work_id)
-        k_listed = len(list(listed_keys))
-
-        if self.number_of_keys_processed != k_listed:
-            raise Exception(f'Integration test failed {self.number_of_keys_processed} {k_listed}')
-
-        self.logger.info(f"Integration test passed for {self.replica} {self.work_id} with {k_listed} keys listed")
+        listed_keys = handle.list(self.bucket, prefix=self.prefix)
+        k_listed = sum(1 for _ in listed_keys)
+        assert self.work_result == k_listed, f'Integration test failed: {self.work_result} != {k_listed}'
+        self.logger.info(f"Integration test passed for {self.replica} with {k_listed} key(s) listed")
 
     def _walk(self) -> None:
         """
