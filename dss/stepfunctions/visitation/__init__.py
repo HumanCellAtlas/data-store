@@ -1,5 +1,6 @@
+from typing import Sequence, Any, Union
+
 import copy
-import typing
 from uuid import uuid4
 from enum import Enum, auto
 
@@ -143,16 +144,12 @@ class Visitation:
         """
         pass
 
-    def __setattr__(self, key, val):  # typing.type: (str, typing.Any) -> None
-        """
-        See MyPy recomendations for silencing spurious warnings of missing properties that have been mixed in:
-        https://mypy.readthedocs.io/en/latest/cheat_sheet.html#when-you-re-puzzled-or-when-things-are-complicated
-        """
+    # See MyPy recomendations for silencing spurious warnings of missing properties that have been mixed in:
+    # https://mypy.readthedocs.io/en/latest/cheat_sheet.html#when-you-re-puzzled-or-when-things-are-complicated
+
+    def __getattribute__(self, name: str) -> Any:
+        return super().__getattribute__(name)
+
+    def __setattr__(self, key: str, val: Any) -> None:
         super().__setattr__(key, val)
 
-    def __getattr__(self, key):  # typing.type: (str) -> typing.Any
-        """
-        See MyPy recomendations for silencing spurious warnings of missing properties that have been mixed in:
-        https://mypy.readthedocs.io/en/latest/cheat_sheet.html#when-you-re-puzzled-or-when-things-are-complicated
-        """
-        return super().__getattr__(key)
