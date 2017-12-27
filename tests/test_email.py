@@ -5,7 +5,7 @@ import dss.util.email
 from tests.infra import testmode
 
 
-class TestFileApi(unittest.TestCase):
+class TestEmail(unittest.TestCase):
 
     @classmethod
     def tearDownClass(cls):
