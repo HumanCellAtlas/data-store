@@ -1,5 +1,7 @@
 [report]
 # Regexes for lines to exclude from consideration
 exclude_lines =
+    # 23 is ASCII for pound sign
+    \x23 no coverage
     raise AssertionError
     raise NotImplementedError

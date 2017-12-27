@@ -201,7 +201,8 @@ def walker_sfn(i):
             },
             f'End{i}': {
                 'Type': 'Pass',
-                'End': True
+                'End': True,
+                'OutputPath': '$.work_result'
             }
         }
     }
@@ -222,7 +223,7 @@ sfn = {
             "Type": "Parallel",
             "Branches": [walker_sfn(i) for i in range(THREADPOOL_PARALLEL_FACTOR)],
             "Retry": _retry,
-            "ResultPath": None,
+            "ResultPath": "$.work_result",
             "Next": "Finalize",
         },
         "Finalize": {
