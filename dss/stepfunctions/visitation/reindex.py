@@ -1,6 +1,8 @@
 import string
 from time import time
 from cloud_blobstore import BlobPagingError
+from typing import Sequence, MutableMapping, Mapping
+from collections import Counter
 
 from dss.events.handlers.index import Indexer
 from .timeout import Timeout
@@ -17,39 +19,38 @@ class Reindex(Visitation):
         'replica': None,
         'bucket': None,
         'dryrun': None,
-        'notify': None
+        'notify': None,
+        'work_result': {
+            'processed': 0,
+            'indexed': 0,
+            'failed': 0
+        }
     }
 
     walker_state_spec = {
         'marker': None,
-        'token': None,
-        'number_of_keys_processed': int,
-        'number_of_keys_indexed': int,
-        'number_of_keys_failed': int,
+        'token': None
     }
 
     def job_initialize(self):
-        alphanumeric = string.ascii_lowercase[:6] + '0987654321'
-
+        prefix_chars = list(set(string.hexdigits.lower()))
         if self._number_of_workers <= 16:
-            self.work_ids = [f'{a}' for a in alphanumeric]
+            self.work_ids = prefix_chars
         else:
-            self.work_ids = [f'{a}{b}' for a in alphanumeric for b in alphanumeric]
+            self.work_ids = [a + b for a in prefix_chars for b in prefix_chars]
 
     def process_item(self, key):
-        self.number_of_keys_processed += 1
+        self.work_result['processed'] += 1
         try:
             self.indexer.index_object(key, self.logger)
-            self.number_of_keys_indexed += 1
         except Exception:
-            self.logger.warning(f'Reindex operation failed for {key}')
-            self.number_of_keys_failed += 1
+            self.work_result['failed'] += 1
+            self.logger.warning(f'Reindex operation failed for {key}', exc_info=True)
+        else:
+            self.work_result['indexed'] += 1
 
     def walker_finalize(self):
-        k1 = self.number_of_keys_processed
-        k2 = self.number_of_keys_indexed
-        k3 = self.number_of_keys_failed
-        self.logger.info(f'Number of keys: touched={k1} indexed={k2} failed={k3}')
+        self.logger.info(f'Work result: {self.work_result}')
         self.marker = None
         self.token = None
 
@@ -102,3 +103,9 @@ class Reindex(Visitation):
         except BlobPagingError:
             self.marker = None
             self._walk()
+
+    def _aggregate(self, work_results: Sequence[Mapping[str, int]]) -> MutableMapping[str, int]:
+        aggregate: MutableMapping[str, int] = Counter()
+        for work_result in work_results:
+            aggregate.update(work_result)
+        return dict(aggregate)
