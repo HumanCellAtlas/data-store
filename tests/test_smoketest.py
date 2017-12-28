@@ -6,11 +6,12 @@ A basic integration test of the DSS. This can also be invoked via `make smoketes
 import os, sys, argparse, time, uuid, json, shutil, tempfile, unittest
 from subprocess import check_call, check_output, CalledProcessError
 
+from tests.infra import testmode
+
 pkg_root = os.path.abspath(os.path.join(os.path.dirname(__file__), ".."))  # noqa
 sys.path.insert(0, pkg_root)  # noqa
 
 from dss.api.files import ASYNC_COPY_THRESHOLD
-from tests import infra
 
 parser = argparse.ArgumentParser(description=__doc__)
 parser.add_argument("--no-clean", dest="clean", action="store_false",
@@ -42,7 +43,7 @@ def run(command, runner=check_call, **kwargs):
         parser.exit(RED(f'{parser.prog}: Exit status {e.returncode} while running "{command}". Stopping.'))
 
 
-@infra.testmode.integration
+@testmode.integration
 class Smoketest(unittest.TestCase):
     @classmethod
     def setUpClass(cls):

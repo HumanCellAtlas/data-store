@@ -18,6 +18,8 @@ import crcmod
 import google.cloud.storage
 from botocore.vendored import requests
 
+from tests.infra import testmode
+
 pkg_root = os.path.abspath(os.path.join(os.path.dirname(__file__), '..'))  # noqa
 sys.path.insert(0, pkg_root)  # noqa
 
@@ -29,7 +31,7 @@ from tests import infra
 infra.start_verbose_logging()
 
 
-@infra.testmode.standalone
+@testmode.standalone
 class TestSyncUtils(unittest.TestCase):
     def setUp(self):
         dss.Config.set_config(dss.BucketConfig.TEST)
