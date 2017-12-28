@@ -183,10 +183,11 @@ def fake_get_cloud_specific_handles(replica):
                 self.start_after_key = str(i)
                 yield self.start_after_key
 
-    class Foo:
+    class FakeBlobStore:
         def list_v2(self, *args, **kwargs):
             return FakeBlobstoreIterator()
-    return Foo(),
+
+    return FakeBlobStore(), mock.MagicMock(), 'no-bucket'
 
 def fake_process_item(self, key):
     if key == '3':
