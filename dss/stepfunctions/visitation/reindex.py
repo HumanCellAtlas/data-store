@@ -2,10 +2,10 @@ import string
 from time import time
 from cloud_blobstore import BlobPagingError
 
+from dss.events.handlers.index import Indexer
 from .timeout import Timeout
 from ...config import Config, Replica
 from . import Visitation, WalkerStatus
-from ...events.handlers import index
 
 
 class Reindex(Visitation):
@@ -54,12 +54,7 @@ class Reindex(Visitation):
     def _walk(self, seconds_allowed=250) -> None:
         start_time = time()
 
-        if self.replica == Replica.aws.name:
-            index_class = index.AWSIndexer  # type: ignore
-        elif self.replica == Replica.gcp.name:
-            index_class = index.GCPIndexer  # type: ignore
-        else:
-            raise Exception(f'Replica not supported: {self.replica}')
+        indexer_class = Indexer.for_replica[Replica[self.replica]]
 
         self.indexer = index_class(dryrun=True, notify=False)
 

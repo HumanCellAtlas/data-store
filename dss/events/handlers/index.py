@@ -1,5 +1,5 @@
 import json
-from typing import Optional, Mapping, Any
+from typing import Optional, Mapping, Any, MutableMapping
 from urllib.parse import unquote
 
 from abc import ABCMeta, abstractmethod
@@ -49,11 +49,6 @@ class Indexer(metaclass=ABCMeta):
         else:
             logger.debug(f"Not processing {self.replica.name} event for key: {key}")
 
-    @property
-    @abstractmethod
-    def replica(self) -> Replica:
-        raise NotImplementedError()
-
     @abstractmethod
     def _parse_event(self, event: Mapping[str, Any]):
         raise NotImplementedError()
@@ -74,6 +69,15 @@ class Indexer(metaclass=ABCMeta):
 
     def __repr__(self) -> str:
         return f"{type(self).__name__}(dryrun={self.dryrun}, notify={self.notify})"
+
+    replica: Optional[Replica] = None  # required in concrete subclasses
+
+    for_replica: MutableMapping[Replica, type] = {}  # noqa # false 'E701 multiple statements on one line (colon)'
+
+    def __init_subclass__(cls) -> None:
+        super().__init_subclass__()
+        assert isinstance(cls.replica, Replica)
+        cls.for_replica[cls.replica] = cls
 
 
 class AWSIndexer(Indexer):
