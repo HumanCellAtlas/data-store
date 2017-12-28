@@ -9,7 +9,7 @@ pkg_root = os.path.abspath(os.path.join(os.path.dirname(__file__), 'domovoilib')
 sys.path.insert(0, pkg_root)  # noqa
 
 import dss
-from dss.events.handlers.index import AWSIndexHandler, GCPIndexHandler
+from dss.events.handlers.index import AWSIndexer, GCPIndexer
 
 app = domovoi.Domovoi()
 
@@ -24,7 +24,8 @@ def dispatch_s3_indexer_event(event, context) -> None:
     if event.get("Event") == "s3:TestEvent":
         app.log.info("DSS index daemon received S3 test event")
     else:
-        AWSIndexHandler.process_new_indexable_object(event, app.log)
+        indexer = AWSIndexer()
+        indexer.process_new_indexable_object(event, app.log)
 
 
 @app.sns_topic_subscriber("dss-gs-bucket-events-" + os.environ["DSS_GS_BUCKET"])
@@ -33,4 +34,5 @@ def dispatch_gs_indexer_event(event, context):
     This handler receives GS events via the Google Cloud Function deployed from daemons/dss-gs-event-relay.
     """
     gs_event = json.loads(event['Records'][0]['Sns']['Message'])
-    GCPIndexHandler.process_new_indexable_object(gs_event['data'], app.log)
+    indexer = GCPIndexer()
+    indexer.process_new_indexable_object(gs_event['data'], app.log)
