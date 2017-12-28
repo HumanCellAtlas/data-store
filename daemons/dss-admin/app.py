@@ -5,7 +5,7 @@ import os
 import sys
 import json
 import domovoi
-from typing import Callable, Any, Mapping
+from typing import Callable, Any, Mapping, Optional
 
 pkg_root = os.path.abspath(os.path.join(os.path.dirname(__file__), 'domovoilib'))  # noqa
 sys.path.insert(0, pkg_root)  # noqa
@@ -36,14 +36,14 @@ class IndexTarget(Target):
         self.bucket = bucket or self.replica.bucket
 
     def repair(self, workers: int) -> Mapping[str, Any]:
-        raise NotImplementedError()
+        return self._reindex(workers, dryrun=False, notify=None)
 
     def verify(self, workers: int) -> Mapping[str, Any]:
-        return self._reindex(workers)
+        return self._reindex(workers, dryrun=True, notify=False)
 
-    def _reindex(self, workers: int) -> Mapping[str, Any]:
+    def _reindex(self, workers: int, dryrun: bool, notify: Optional[bool]) -> Mapping[str, Any]:
         assert 1 < workers
-        visitation_id = Reindex.start(self.replica.name, self.bucket, workers)
+        visitation_id = Reindex.start(self.replica.name, self.bucket, workers, dryrun=dryrun, notify=notify)
         return {'visitation_id': visitation_id}
 
 
