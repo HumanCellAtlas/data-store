@@ -85,6 +85,29 @@ class BundleDocument(IndexDocument):
     def manifest(self):
         return self['manifest']
 
+    def index_and_notify(self):
+        index_name = self.prepare_index()
+        versions = self.get_indexed_versions()
+        old_version = versions.pop(index_name, None)
+        if versions:
+            self.logger.warning(f"Removing stale copies of the bundle document for {self.fqid} from the following "
+                                f"index(es): {json.dumps(versions)}.")
+            self.remove_versions(versions)
+        if old_version:
+            old_doc = self.from_index(self.replica, self.fqid, index_name, self.logger, version=old_version)
+            if self == old_doc:
+                self.logger.info(f"Document for bundle {self.fqid} is already up-to-date in index {index_name} at "
+                                 f"version {old_version}.")
+            else:
+                self.logger.warning(f"Updating an older copy of the document for bundle {self.fqid} in index "
+                                    f"{index_name} at version {old_version}.")
+                self.add_to_index(index_name)
+        else:
+            self.logger.info(f"Writing the document for bundle {self.fqid} in index "
+                             f"{index_name} for the first time.")
+            self.add_to_index(index_name)
+        self.notify_matching_subscribers(index_name)
+
     def add_to_index(self, index_name: str) -> None:
         initial_mappings = super().add_to_index(index_name)
         es_client = ElasticsearchClient.get(self.logger)
@@ -386,3 +409,13 @@ class BundleTombstoneDocument(IndexDocument):
         docs = [BundleDocument.from_replica(self.replica, bundle_fqid, self.logger) for bundle_fqid in bundle_fqids]
 
         return docs
+
+    def index(self):
+        dead_documents = self.list_dead_bundles()
+        for document in dead_documents:
+            index_name = document.prepare_index()
+            document.clear()
+            document.update(self)
+            document.add_to_index(index_name)
+            self.logger.info(f"Deleted from {document.replica.name} bundle: {document.fqid}")
+
