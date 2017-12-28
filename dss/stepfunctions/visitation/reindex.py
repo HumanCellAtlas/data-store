@@ -58,7 +58,10 @@ class Reindex(Visitation):
 
         self.indexer = index_class(dryrun=True, notify=False)
 
-        handle = Config.get_cloud_specific_handles(Replica[self.replica])[0]
+        handle, _, default_bucket = Config.get_cloud_specific_handles(Replica[self.replica])
+
+        if self.bucket != default_bucket:
+            self.logger.warning(f'Indexing bucket {self.bucket} instead of default {default_bucket}.')
 
         blobs = handle.list_v2(
             self.bucket,
