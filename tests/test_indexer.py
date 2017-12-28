@@ -147,7 +147,7 @@ class TestIndexerBase(DSSAssertMixin, DSSStorageMixin, DSSUploadMixin):
         # delete the whole bundle
         self._test_process_new_indexable_object_delete(TombstoneID.from_key(self.bundle_key + ".dead"))
         # delete a specific bundle version
-        self._test_process_new_indexable_object_delete(TombstoneID.from_key(f"bundles/{bundle_fqid}.dead"))
+        self._test_process_new_indexable_object_delete(TombstoneID.from_key(f"bundles/{bundle_fqid.uuid}.dead"))
 
     def _test_process_new_indexable_object_delete(self, tombstone_id: TombstoneID):
         # set the tombstone
