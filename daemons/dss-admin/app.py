@@ -30,9 +30,9 @@ def kickoff_reindex(event, context):
     })
 
 
-class DSSBackdoor(domovoi.Domovoi):
+class DSSAdmin(domovoi.Domovoi):
     def __call__(self, event, context):
         return kickoff_reindex(event, context)
 
 
-app = DSSBackdoor()
+app = DSSAdmin()

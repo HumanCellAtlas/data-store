@@ -1,5 +1,5 @@
 {
-  "app_name": "dss-backdoor",
+  "app_name": "dss-admin",
   "environment_variables": {
     "GOOGLE_APPLICATION_CREDENTIALS": "/var/task/domovoilib/gcp-credentials.json"
   },
