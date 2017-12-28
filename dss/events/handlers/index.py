@@ -14,7 +14,10 @@ class IndexHandler:
 
     @classmethod
     def _process_new_indexable_object(cls, replica: Replica, key: str, logger):
-        identifier = ObjectIdentifier.from_key(key)
+        try:
+            identifier = ObjectIdentifier.from_key(key)
+        except ValueError:
+            identifier = None
         if isinstance(identifier, BundleFQID):
             cls._handle_bundle(replica, identifier, logger)
         elif isinstance(identifier, TombstoneID):
