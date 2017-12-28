@@ -28,7 +28,7 @@ sys.path.insert(0, pkg_root)  # noqa
 import dss
 from dss import Config, BucketConfig, DeploymentStage
 from dss.config import IndexSuffix, ESDocType, Replica
-from dss.events.handlers.index import AWSIndexer, GCPIndexer, BundleDocument
+from dss.events.handlers.index import AWSIndexer, GCPIndexer, BundleDocument, Indexer
 from dss.hcablobstore import BundleMetadata, BundleFileMetadata, FileMetadata
 from dss.util import create_blob_key, networking, UrlBuilder
 from dss.storage.bundles import ObjectIdentifier, BundleFQID
@@ -725,6 +725,11 @@ class TestIndexerBase(unittest.TestCase, DSSAssertMixin, DSSStorageMixin, DSSUpl
         bundle_uuid, _, bundle_version = bundle_fqid.partition(".")
         self.assertEqual(bundle_uuid, posted_json['match']['bundle_uuid'])
         self.assertEqual(bundle_version, posted_json['match']['bundle_version'])
+
+    @testmode.standalone
+    def test_indexer_lookup(self):
+        for replica, indexer in Indexer.for_replica.items():
+            self.assertIs(replica, indexer.replica)
 
     @staticmethod
     def get_notification_payload():
