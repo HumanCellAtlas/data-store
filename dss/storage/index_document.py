@@ -394,7 +394,7 @@ class BundleTombstoneDocument(IndexDocument):
         tombstone_data = json.loads(blobstore.get(bucket_name, tombstone_id.to_key()))
         return cls(replica, tombstone_id, logger, tombstone_data)
 
-    def list_dead_bundles(self):
+    def _list_dead_bundles(self):
         blobstore, _, bucket_name = Config.get_cloud_specific_handles(self.replica)
 
         if self.fqid.is_fully_qualified():
@@ -411,11 +411,10 @@ class BundleTombstoneDocument(IndexDocument):
         return docs
 
     def index(self):
-        dead_documents = self.list_dead_bundles()
-        for document in dead_documents:
-            index_name = document.prepare_index()
-            document.clear()
-            document.update(self)
-            document.add_to_index(index_name)
-            self.logger.info(f"Deleted from {document.replica.name} bundle: {document.fqid}")
-
+        dead_docs = self._list_dead_bundles()
+        for doc in dead_docs:
+            index_name = doc.prepare_index()
+            doc.clear()
+            doc.update(self)
+            doc.add_to_index(index_name)
+            self.logger.info(f"Deleted from {doc.replica.name} bundle: {doc.fqid}")
