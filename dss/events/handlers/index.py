@@ -7,6 +7,8 @@ from abc import ABCMeta, abstractmethod
 from dss import Replica, Config
 from dss.storage.bundles import ObjectIdentifier, BundleFQID, TombstoneID
 from dss.storage.index_document import BundleDocument, BundleTombstoneDocument
+from dss.util.es import elasticsearch_retry
+
 
 class Indexer(metaclass=ABCMeta):
 
@@ -33,7 +35,9 @@ class Indexer(metaclass=ABCMeta):
                          self.replica, json.dumps(event, indent=4), exc_info=True)
             raise
 
+    @elasticsearch_retry
     def index_object(self, key, logger):
+        elasticsearch_retry.add_context(key=key, indexer=self)
         try:
             identifier = ObjectIdentifier.from_key(key)
         except ValueError:
@@ -67,6 +71,9 @@ class Indexer(metaclass=ABCMeta):
         doc = BundleTombstoneDocument.from_replica(replica, tombstone_id, logger)
         doc.index(dryrun=self.dryrun)
         logger.info(f"Finished indexing tombstone {tombstone_id} from {replica.name}.")
+
+    def __repr__(self) -> str:
+        return f"{type(self).__name__}(dryrun={self.dryrun}, notify={self.notify})"
 
 
 class AWSIndexer(Indexer):

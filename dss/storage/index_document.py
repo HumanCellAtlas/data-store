@@ -21,7 +21,7 @@ from dss.storage.bundles import ObjectIdentifier, BundleFQID, TombstoneID
 from dss.storage.index import IndexManager
 from dss.storage.validator import scrub_index_data
 from dss.util import create_blob_key
-from dss.util.es import ElasticsearchClient
+from dss.util.es import ElasticsearchClient, elasticsearch_retry
 
 
 class IndexDocument(dict, metaclass=ABCMeta):
@@ -75,6 +75,9 @@ class IndexDocument(dict, metaclass=ABCMeta):
                                  self.replica == other.replica and
                                  self.fqid == other.fqid)
 
+    def __repr__(self) -> str:
+        return f"{type(self).__name__}(replica={self.replica}, fqid={self.fqid}, {super().__repr__()})"
+
     @staticmethod
     def _msg(dryrun):
         """
@@ -123,11 +126,14 @@ class BundleDocument(IndexDocument):
     def manifest(self):
         return self['manifest']
 
+    @elasticsearch_retry
     def index(self, dryrun=False) -> (bool, str):
+        elasticsearch_retry.add_context(bundle=self)
         index_name = self._prepare_index(dryrun)
         return self._index_into(index_name, dryrun)
 
     def _index_into(self, index_name: str, dryrun: bool):
+        elasticsearch_retry.add_context(index=index_name)
         msg = self._msg(dryrun)
         versions = self._get_indexed_versions()
         old_version = versions.pop(index_name, None)
@@ -149,9 +155,10 @@ class BundleDocument(IndexDocument):
             self.logger.info(msg(f"Writing the document for bundle {self.fqid} to index "
                                  f"{index_name} for the first time."))
         if not dryrun:
-            self._write_to_index(index_name)
+            self._write_to_index(index_name, version=old_version or 0)
         return True, index_name
 
+    @elasticsearch_retry
     def entomb(self, tombstone: 'BundleTombstoneDocument', dryrun=False):
         """
         Ensure that there is exactly one up-to-date instance of a tombstone for this document in exactly one
@@ -161,6 +168,7 @@ class BundleDocument(IndexDocument):
         :param dryrun: see :py:meth:`~IndexDocument.index`
         :return: see :py:meth:`~IndexDocument.index`
         """
+        elasticsearch_retry.add_context(bundle=self, tombstone=tombstone)
         self.logger.info(f"Writing tombstone for {self.replica.name} bundle: {self.fqid}")
         # Preare the index using the original data such that the tombstone can be placed in the correct index.
         index_name = self._prepare_index(dryrun)
@@ -470,7 +478,9 @@ class BundleTombstoneDocument(IndexDocument):
         docs = [BundleDocument.from_replica(self.replica, bundle_fqid, self.logger) for bundle_fqid in bundle_fqids]
         return docs
 
+    @elasticsearch_retry
     def index(self, dryrun=False) -> (bool, str):
+        elasticsearch_retry.add_context(tombstone=self)
         dead_docs = self._list_dead_bundles()
         for doc in dead_docs:
             doc.entomb(self, dryrun=dryrun)
