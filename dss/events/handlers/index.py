@@ -1,68 +1,89 @@
 import json
+from typing import Optional, Mapping, Any
 from urllib.parse import unquote
 
+from abc import ABCMeta, abstractmethod
+
 from dss import Replica, Config
-from dss.storage.index_document import BundleDocument, BundleTombstoneDocument
 from dss.storage.bundles import ObjectIdentifier, BundleFQID, TombstoneID
+from dss.storage.index_document import BundleDocument, BundleTombstoneDocument
 
+class Indexer(metaclass=ABCMeta):
 
-class IndexHandler:
+    def __init__(self, *args, dryrun: bool=False, notify: Optional[bool]=True, **kwargs) -> None:
+        """
+        :param dryrun: if True, log only, don't make any modifications
+        :param notify: False: never notify
+                       None: notify on updates
+                       True: always notify
+        """
+        # FIXME (hannes): the variadic arguments allow for this to be used as a mix-in for tests.
+        # FIXME (hannes): That's an anti-pattern, so it should be eliminated.
+        # noinspection PyArgumentList
+        super().__init__(*args, **kwargs)  # type: ignore
+        self.dryrun = dryrun
+        self.notify = notify
 
-    @classmethod
-    def process_new_indexable_object(cls, event, logger) -> None:
-        raise NotImplementedError()
+    def process_new_indexable_object(self, event: Mapping[str, Any], logger) -> None:
+        try:
+            key = self._parse_event(event)
+            self.index_object(key, logger)
+        except Exception:
+            logger.error("Exception occurred while processing %s event: %s",
+                         self.replica, json.dumps(event, indent=4), exc_info=True)
+            raise
 
-    @classmethod
-    def _process_new_indexable_object(cls, replica: Replica, key: str, logger):
+    def index_object(self, key, logger):
         try:
             identifier = ObjectIdentifier.from_key(key)
         except ValueError:
             identifier = None
         if isinstance(identifier, BundleFQID):
-            cls._handle_bundle(replica, identifier, logger)
+            self._index_bundle(self.replica, identifier, logger)
         elif isinstance(identifier, TombstoneID):
-            cls._handle_tombstone(replica, identifier, logger)
+            self._index_tombstone(self.replica, identifier, logger)
         else:
-            logger.debug(f"Not processing {replica.name} event for key: {key}")
+            logger.debug(f"Not processing {self.replica.name} event for key: {key}")
 
-    @staticmethod
-    def _handle_bundle(replica: Replica, bundle_fqid: BundleFQID, logger):
+    @property
+    @abstractmethod
+    def replica(self) -> Replica:
+        raise NotImplementedError()
+
+    @abstractmethod
+    def _parse_event(self, event: Mapping[str, Any]):
+        raise NotImplementedError()
+
+    def _index_bundle(self, replica: Replica, bundle_fqid: BundleFQID, logger):
         logger.info(f"Indexing bundle {bundle_fqid} from replica {replica.name}.")
         doc = BundleDocument.from_replica(replica, bundle_fqid, logger)
-        doc.index_and_notify()
+        modified, index_name = doc.index(dryrun=self.dryrun)
+        if self.notify or modified and self.notify is None:
+            doc.notify(index_name)
         logger.debug(f"Finished indexing bundle {bundle_fqid} from replica {replica.name}.")
 
-    @staticmethod
-    def _handle_tombstone(replica: Replica, tombstone_id: TombstoneID, logger):
+    def _index_tombstone(self, replica: Replica, tombstone_id: TombstoneID, logger):
         logger.info(f"Indexing tombstone {tombstone_id} from {replica.name}.")
         doc = BundleTombstoneDocument.from_replica(replica, tombstone_id, logger)
-        doc.index()
+        doc.index(dryrun=self.dryrun)
         logger.info(f"Finished indexing tombstone {tombstone_id} from {replica.name}.")
 
 
-class AWSIndexHandler(IndexHandler):
+class AWSIndexer(Indexer):
 
-    @classmethod
-    def process_new_indexable_object(cls, event, logger) -> None:
-        try:
-            # This function is only called for S3 creation events
-            key = unquote(event['Records'][0]['s3']['object']['key'])
-            assert event['Records'][0]['s3']['bucket']['name'] == Config.get_s3_bucket()
-            cls._process_new_indexable_object(Replica.aws, key, logger)
-        except Exception as ex:
-            logger.error("Exception occurred while processing S3 event: %s Event: %s", ex, json.dumps(event, indent=4))
-            raise
+    replica = Replica.aws
+
+    def _parse_event(self, event):
+        assert event['Records'][0]['s3']['bucket']['name'] == Config.get_s3_bucket()
+        key = unquote(event['Records'][0]['s3']['object']['key'])
+        return key
 
 
-class GCPIndexHandler(IndexHandler):
+class GCPIndexer(Indexer):
 
-    @classmethod
-    def process_new_indexable_object(cls, event, logger) -> None:
-        try:
-            # This function is only called for GS creation events
-            key = event['name']
-            assert event['bucket'] == Config.get_gs_bucket()
-            cls._process_new_indexable_object(Replica.gcp, key, logger)
-        except Exception as ex:
-            logger.error("Exception occurred while processing GS event: %s Event: %s", ex, json.dumps(event, indent=4))
-            raise
+    replica = Replica.gcp
+
+    def _parse_event(self, event):
+        key = event['name']
+        assert event['bucket'] == Config.get_gs_bucket()
+        return key

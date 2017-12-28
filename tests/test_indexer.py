@@ -25,7 +25,7 @@ sys.path.insert(0, pkg_root)  # noqa
 import dss
 from dss import Config, BucketConfig, DeploymentStage
 from dss.config import IndexSuffix, ESDocType, Replica
-from dss.events.handlers.index import AWSIndexHandler, GCPIndexHandler, BundleDocument
+from dss.events.handlers.index import AWSIndexer, GCPIndexer, BundleDocument
 from dss.hcablobstore import BundleMetadata, BundleFileMetadata, FileMetadata
 from dss.util import create_blob_key, networking, UrlBuilder
 from dss.storage.bundles import ObjectIdentifier, BundleFQID, TombstoneID
@@ -244,7 +244,7 @@ class TestIndexerBase(DSSAssertMixin, DSSStorageMixin, DSSUploadMixin):
             self.assertEqual(1, len(hits))
             self.assertEqual(expect_shape_descriptor, shape_descriptor in hits[0]['_index'])
 
-        # Index documenty into the "wrong" index by patching the shape descriptor
+        # Index document into the "wrong" index by patching the shape descriptor
         with unittest.mock.patch.object(BundleDocument, 'get_shape_descriptor', return_value=shape_descriptor):
             self.process_new_indexable_object(sample_event, logger)
         # There should only be one hit and it should be from the "wrong" index
@@ -341,7 +341,7 @@ class TestIndexerBase(DSSAssertMixin, DSSStorageMixin, DSSUploadMixin):
     def test_notify(self):
         def _notify(subscription, bundle_id=get_bundle_fqid()):
             document = BundleDocument(self.replica, bundle_id, logger)
-            document.notify_subscriber(subscription=subscription)
+            document._notify_subscriber(subscription=subscription)
 
         with self.assertRaisesRegex(requests.exceptions.InvalidURL, "Invalid URL 'http://': No host supplied"):
             _notify(subscription=dict(id="", es_query={}, callback_url="http://"))
@@ -811,7 +811,7 @@ class TestIndexerBase(DSSAssertMixin, DSSStorageMixin, DSSUploadMixin):
         raise NotImplemented()
 
 
-class TestAWSIndexer(AWSIndexHandler, TestIndexerBase, unittest.TestCase):
+class TestAWSIndexer(AWSIndexer, TestIndexerBase, unittest.TestCase):
 
     @classmethod
     def setUpClass(cls):
@@ -831,7 +831,7 @@ class TestAWSIndexer(AWSIndexHandler, TestIndexerBase, unittest.TestCase):
         return sample_event
 
 
-class TestGCPIndexer(GCPIndexHandler, TestIndexerBase, unittest.TestCase):
+class TestGCPIndexer(GCPIndexer, TestIndexerBase, unittest.TestCase):
 
     @classmethod
     def setUpClass(cls):
