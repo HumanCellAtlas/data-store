@@ -70,6 +70,7 @@ class IndexDocument(dict, metaclass=ABCMeta):
         return json.dumps(self)
 
     def __eq__(self, other: object) -> bool:
+        # noinspection PyUnresolvedReferences
         return self is other or (super().__eq__(other) and
                                  type(self) == type(other) and
                                  self.replica == other.replica and

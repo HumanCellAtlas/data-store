@@ -35,8 +35,9 @@ from tests import get_version, get_auth_header
 from tests.es import elasticsearch_delete_index, clear_indexes
 from tests.infra import DSSAssertMixin, DSSUploadMixin, DSSStorageMixin, TestBundle, start_verbose_logging, testmode
 from tests.infra.server import ThreadedLocalServer
-from tests.sample_search_queries import (smartseq2_paired_ends_v2_query, smartseq2_paired_ends_v3_query,
-                                         smartseq2_paired_ends_v2_or_v3_query, smartseq2_paired_ends_v4_query,
+from tests.sample_search_queries import (smartseq2_paired_ends_v3_query,
+                                         smartseq2_paired_ends_v2_or_v3_query,
+                                         smartseq2_paired_ends_v4_query,
                                          smartseq2_paired_ends_v3_or_v4_query)
 
 from tests import eventually, get_bundle_fqid, get_file_fqid
@@ -628,9 +629,7 @@ class TestIndexerBase(DSSAssertMixin, DSSStorageMixin, DSSUploadMixin):
             index_data = create_index_data(self.blobstore, self.test_bucket, manifest)
             index_data['files']['assay_json'].update({'extra_top': 123,
                                                       'extra_obj': {"something": "here", "another": 123},
-                                                      'extra_lst': ["a", "b"]
-                                                      }
-                                                     )
+                                                      'extra_lst': ["a", "b"]})
             index_data['files']['assay_json']['core']['extra_internal'] = 123
             index_data['files']['sample_json']['extra_0'] = "tests patterned properties."
             index_data['files']['project_json']['extra_1'] = "Another extra field in a different file."
@@ -959,7 +958,9 @@ def create_s3_bucket(bucket_name) -> None:
             logger.error(f"An unexpected error occured when creating test bucket: {bucket_name}")
 
 
-def generate_expected_index_document(blobstore, bucket_name, bundle_key, excluded_files=[]):
+def generate_expected_index_document(blobstore, bucket_name, bundle_key, excluded_files=None):
+    if excluded_files is None:
+        excluded_files = []
     manifest = read_bundle_manifest(blobstore, bucket_name, bundle_key)
     index_data = create_index_data(blobstore, bucket_name, manifest, excluded_files)
     return index_data
@@ -971,7 +972,9 @@ def read_bundle_manifest(blobstore, bucket_name, bundle_key):
     return manifest
 
 
-def create_index_data(blobstore, bucket_name, manifest, excluded_files=[]):
+def create_index_data(blobstore, bucket_name, manifest, excluded_files=None) -> typing.MutableMapping[str, typing.Any]:
+    if excluded_files is None:
+        excluded_files = []
     index = dict(state="new", manifest=manifest)
     files_info = manifest['files']
     excluded_file = [file.replace('_', '.') for file in excluded_files]
