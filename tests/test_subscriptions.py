@@ -24,7 +24,7 @@ from dss.util import UrlBuilder
 from dss.util.es import ElasticsearchClient, ElasticsearchServer
 from tests import get_auth_header, get_bundle_fqid
 from tests.es import elasticsearch_delete_index, clear_indexes
-from tests.infra import DSSAssertMixin
+from tests.infra import DSSAssertMixin, testmode
 from tests.infra.server import ThreadedLocalServer
 from tests.sample_search_queries import smartseq2_paired_ends_v2_or_v3_query
 
@@ -92,6 +92,7 @@ class TestSubscriptionsBase(DSSAssertMixin):
         clear_indexes([self.alias_name, self.sub_index_name],
                       [dss.ESDocType.doc.name, dss.ESDocType.query.name, dss.ESDocType.subscription.name])
 
+    @testmode.standalone
     def test_auth_errors(self):
         url = str(UrlBuilder()
                   .set(path="/v1/subscriptions/" + str(uuid.uuid4()))
@@ -109,6 +110,7 @@ class TestSubscriptionsBase(DSSAssertMixin):
         # No auth header
         resp_obj = self.assertGetResponse(url, requests.codes.unauthorized)
 
+    @testmode.standalone
     def test_put(self):
         uuid_ = self._put_subscription()
 
@@ -119,6 +121,7 @@ class TestSubscriptionsBase(DSSAssertMixin):
         registered_query = response['_source']
         self.assertEqual(self.sample_percolate_query, registered_query)
 
+    @testmode.standalone
     def test_subscription_registration_succeeds_when_query_does_not_match_mappings(self):
         # It is now possible to register a subscription query before the mapping
         # of the field exists in the mappings (and may never exist in the mapppings)
@@ -147,6 +150,7 @@ class TestSubscriptionsBase(DSSAssertMixin):
         )
         self.assertIn('uuid', resp_obj.json)
 
+    @testmode.standalone
     def test_get(self):
         find_uuid = self._put_subscription()
 
@@ -178,6 +182,7 @@ class TestSubscriptionsBase(DSSAssertMixin):
             requests.codes.not_found,
             headers=get_auth_header())
 
+    @testmode.standalone
     def test_find(self):
         NUM_ADDITIONS = 25
         for _ in range(NUM_ADDITIONS):
@@ -194,6 +199,7 @@ class TestSubscriptionsBase(DSSAssertMixin):
         self.assertEqual(self.callback_url, json_response['subscriptions'][0]['callback_url'])
         self.assertEqual(NUM_ADDITIONS, len(json_response['subscriptions']))
 
+    @testmode.standalone
     def test_delete(self):
         find_uuid = self._put_subscription()
         url = str(UrlBuilder()

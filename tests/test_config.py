@@ -10,12 +10,15 @@ import sys
 import unittest
 from contextlib import contextmanager
 
+from tests.infra import testmode
+
 pkg_root = os.path.abspath(os.path.join(os.path.dirname(__file__), '..'))  # noqa
 sys.path.insert(0, pkg_root)  # noqa
 
 from dss.config import DeploymentStage, Config, BucketConfig, Replica
 
 
+@testmode.standalone
 class TestConfig(unittest.TestCase):
     init_config = None
 

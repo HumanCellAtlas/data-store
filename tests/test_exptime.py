@@ -12,7 +12,7 @@ pkg_root = os.path.abspath(os.path.join(os.path.dirname(__file__), '..'))  # noq
 sys.path.insert(0, pkg_root)  # noqa
 
 from dss.config import DeploymentStage
-from tests.infra import DSSAssertMixin, DSSUploadMixin, ExpectedErrorFields
+from tests.infra import DSSAssertMixin, DSSUploadMixin, ExpectedErrorFields, testmode
 from tests.infra.server import ThreadedLocalServer
 
 
@@ -27,6 +27,7 @@ class TestExptime(unittest.TestCase, DSSAssertMixin, DSSUploadMixin):
     def tearDownClass(cls):
         cls.app.shutdown()
 
+    @testmode.standalone
     def test_exptime(self):
         self.assertGetResponse(
             "/internal/slow_request",
@@ -37,6 +38,7 @@ class TestExptime(unittest.TestCase, DSSAssertMixin, DSSUploadMixin):
             )
         )
 
+    @testmode.standalone
     @unittest.skipIf(DeploymentStage.IS_PROD(), "Skipping synthetic 504 test for PROD.")
     def test_synthetic_504(self):
         file_uuid = str(uuid.uuid4())
