@@ -16,6 +16,8 @@ class Reindex(Visitation):
     state_spec = {
         'replica': None,
         'bucket': None,
+        'dryrun': None,
+        'notify': None
     }
 
     walker_state_spec = {
@@ -56,7 +58,7 @@ class Reindex(Visitation):
 
         indexer_class = Indexer.for_replica[Replica[self.replica]]
 
-        self.indexer = index_class(dryrun=True, notify=False)
+        self.indexer = indexer_class(dryrun=self.dryrun, notify=self.notify)
 
         handle, _, default_bucket = Config.get_cloud_specific_handles(Replica[self.replica])
 

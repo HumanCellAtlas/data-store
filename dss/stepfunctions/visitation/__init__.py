@@ -91,10 +91,11 @@ class Visitation:
         }
 
     @classmethod
-    def start(cls, replica: str, bucket: str, number_of_workers: int) -> str:
+    def start(cls, replica: str, bucket: str, number_of_workers: int, **kwargs) -> str:
         name = '{}--{}'.format(cls.__name__, str(uuid4()))
 
         inp = {
+            **kwargs,
             '_visitation_class_name': cls.__name__,
             'replica': replica,
             'bucket': bucket,
