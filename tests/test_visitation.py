@@ -147,20 +147,19 @@ class TestVisitationWalker(unittest.TestCase):
         self.assertEquals('SUCCEEDED', resp['status'])
 
 
+@testmode.standalone
 class TestTimeout(unittest.TestCase):
-    @testmode.standalone
+
     def test_timeout_did(self):
         with Timeout(1) as timeout:
             time.sleep(2)
         self.assertTrue(timeout.did_timeout)
 
-    @testmode.standalone
     def test_timeout_did_not(self):
         with Timeout(2) as timeout:
             pass
         self.assertFalse(timeout.did_timeout)
 
-    @testmode.standalone
     def test_timeout_exception(self):
         class TestException(Exception):
             pass

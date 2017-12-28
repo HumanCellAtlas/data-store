@@ -34,6 +34,7 @@ class TestFileApi(unittest.TestCase, DSSAssertMixin, DSSUploadMixin):
         self.s3_test_checkout_bucket = get_env("DSS_S3_CHECKOUT_BUCKET_TEST")
         self.s3_test_bucket = get_env("DSS_S3_BUCKET_TEST")
 
+    @testmode.integration
     def test_sanity_check_valid(self):
         self.launch_checkout(self.s3_test_checkout_bucket)
 
