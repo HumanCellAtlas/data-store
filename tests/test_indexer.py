@@ -145,47 +145,53 @@ class TestIndexerBase(DSSAssertMixin, DSSStorageMixin, DSSUploadMixin):
         )
 
     @testmode.standalone
-    def test_process_new_indexable_object_delete(self):
+    def test_delete_specific_version(self):
+        tombstone_id = TombstoneID.from_key(self.bundle_key + ".dead")
+        self._test_delete(tombstone_id)
+
+    @testmode.standalone
+    def test_delete_all_versions(self):
         bundle_fqid = BundleFQID.from_key(self.bundle_key)
-        # delete the whole bundle
-        self._test_process_new_indexable_object_delete(TombstoneID.from_key(self.bundle_key + ".dead"))
-        # delete a specific bundle version
-        self._test_process_new_indexable_object_delete(TombstoneID.from_key(f"bundles/{bundle_fqid.uuid}.dead"))
+        tombstone_id = TombstoneID.from_key(f"bundles/{bundle_fqid.uuid}.dead")
+        self._test_delete(tombstone_id)
 
-    def _test_process_new_indexable_object_delete(self, tombstone_id: TombstoneID):
-        # set the tombstone
-        blobstore, _, bucket = Config.get_cloud_specific_handles(self.replica)
-        tombstone_data = {"status": "disappeared"}
-        tombstone_data_bytes = io.BytesIO(bytes(json.dumps(tombstone_data), encoding="utf-8"))
-        blobstore.upload_file_handle(bucket, tombstone_id.to_key(), tombstone_data_bytes)
+    def _test_delete(self, tombstone_id: TombstoneID):
+        self._create_tombstoned_bundle()
+        tombstone_data = self._create_tombstone(tombstone_id)
+        self._assert_tombstone(tombstone_id, tombstone_data)
 
-        # send the
+    def _create_tombstoned_bundle(self):
         sample_event = self.create_bundle_created_event(self.bundle_key)
         self.process_new_indexable_object(sample_event, logger)
         self.get_search_results(self.smartseq2_paired_ends_query, 1)
 
+    def _create_tombstone(self, tombstone_id):
+        blobstore, _, bucket = Config.get_cloud_specific_handles(self.replica)
+        tombstone_data = {"status": "disappeared"}
+        tombstone_data_bytes = io.BytesIO(json.dumps(tombstone_data).encode('utf-8'))
+        blobstore.upload_file_handle(bucket, tombstone_id.to_key(), tombstone_data_bytes)
         sample_event = self.create_bundle_deleted_event(tombstone_id.to_key())
         self.process_new_indexable_object(sample_event, logger)
+        return tombstone_data
 
-        @eventually(5.0, 0.5)
-        def _deletion_results_test():
-            search_results = self.get_search_results(self.smartseq2_paired_ends_query, 0)
-            self.assertEqual(0, len(search_results))
-            bundle_fqids = [ObjectIdentifier.from_key(k) for k in blobstore.list(bucket, tombstone_id.to_key_prefix())]
-            bundle_fqids = filter(lambda bundle_id: type(bundle_id) == BundleFQID, bundle_fqids)
-            for bundle_fqid in bundle_fqids:
-                exact_query = {
-                    "query": {
-                        "terms": {
-                            "_id": [str(bundle_fqid)]
-                        }
+    @eventually(5.0, 0.5)
+    def _assert_tombstone(self, tombstone_id, tombstone_data):
+        blobstore, _, bucket = Config.get_cloud_specific_handles(self.replica)
+        search_results = self.get_search_results(self.smartseq2_paired_ends_query, 0)
+        self.assertEqual(0, len(search_results))
+        bundle_fqids = [ObjectIdentifier.from_key(k) for k in blobstore.list(bucket, tombstone_id.to_key_prefix())]
+        bundle_fqids = filter(lambda bundle_id: type(bundle_id) == BundleFQID, bundle_fqids)
+        for bundle_fqid in bundle_fqids:
+            exact_query = {
+                "query": {
+                    "terms": {
+                        "_id": [str(bundle_fqid)]
                     }
                 }
-                search_results = self.get_search_results(exact_query, 1)
-                self.assertEqual(1, len(search_results))
-                self.assertEqual(search_results[0], tombstone_data)
-
-        _deletion_results_test()
+            }
+            search_results = self.get_search_results(exact_query, 1)
+            self.assertEqual(1, len(search_results))
+            self.assertEqual(search_results[0], tombstone_data)
 
     @testmode.standalone
     def test_reindexing_with_changed_content(self):
