@@ -8,18 +8,20 @@ import os
 import sys
 import json
 import unittest
+import mock
 
 pkg_root = os.path.abspath(os.path.join(os.path.dirname(__file__), '..'))  # noqa
 sys.path.insert(0, pkg_root)  # noqa
 
 import dss
 from dss import BucketConfig, Config
-from dss.stepfunctions.visitation import Visitation
+from dss.stepfunctions.visitation import Visitation, WalkerStatus
 from dss.stepfunctions import step_functions_describe_execution
 from dss.stepfunctions.visitation import implementation
 from dss.stepfunctions.visitation.integration_test import IntegrationTest
 from dss.stepfunctions.visitation import registered_visitations
 from dss.stepfunctions.visitation.timeout import Timeout
+from dss.stepfunctions.visitation import reindex
 
 from tests import infra  # noqa
 from tests.infra import get_env, testmode  # noqa
@@ -168,6 +170,63 @@ class TestTimeout(unittest.TestCase):
             with Timeout(1) as timeout:
                 raise TestException()
         self.assertFalse(timeout.did_timeout)
+
+
+def fake_get_cloud_specific_handles(replica):
+    class FakeBlobstoreIterator:
+        def __init__(self, *args, **kwargs):
+            self.start_after_key = None
+            self.token = 'frank'
+
+        def __iter__(self):
+            for i in range(10):
+                self.start_after_key = str(i)
+                yield self.start_after_key
+
+    class Foo:
+        def list_v2(self, *args, **kwargs):
+            return FakeBlobstoreIterator()
+    return Foo(),
+
+def fake_process_item(self, key):
+    if key == '3':
+        time.sleep(5)
+
+class TestVisitationReindex(unittest.TestCase):
+    def setUp(self):
+        self.state = {
+            '_visitation_class_name': 'VT',
+            'replica': 'aws',
+            'bucket': 'no-bucket',
+            'work_ids': ['1', '2', '3', '4'],
+            '_number_of_workers': 3,
+            'status': WalkerStatus.walk.name
+        }
+
+    @testmode.standalone
+    @mock.patch('dss.Config.get_cloud_specific_handles', new=fake_get_cloud_specific_handles)
+    @mock.patch('dss.events.handlers.index.GCPIndexer')
+    @mock.patch('dss.events.handlers.index.AWSIndexer')
+    def test_reindex_walk(self, fake_aws_indexer, fake_gcp_indexer):
+        r = reindex.Reindex._with_state(self.state, logger)
+        r._walk()
+
+    @testmode.standalone
+    @mock.patch('dss.Config.get_cloud_specific_handles', new=fake_get_cloud_specific_handles)
+    @mock.patch('dss.stepfunctions.visitation.reindex.Reindex.process_item', new=fake_process_item)
+    def test_reindex_timeout(self):
+        r = reindex.Reindex._with_state(self.state, logger)
+        r._walk(seconds_allowed=2)
+        self.assertEquals('2', r.marker)
+        self.assertEquals('frank', r.token)
+
+    @testmode.standalone
+    @mock.patch('dss.Config.get_cloud_specific_handles', new=fake_get_cloud_specific_handles)
+    def test_reindex_no_time_remaining(self):
+        r = reindex.Reindex._with_state(self.state, logger)
+        r._walk(seconds_allowed=1)
+        self.assertIsNone(r.marker)
+        self.assertIsNone(r.token)
 
 
 if __name__ == '__main__':
