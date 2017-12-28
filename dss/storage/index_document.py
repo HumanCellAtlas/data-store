@@ -48,11 +48,23 @@ class IndexDocument(dict, metaclass=ABCMeta):
         self.replica = replica
         self.fqid = fqid
 
-    def _write_to_index(self, index_name: str):
+    def _write_to_index(self, index_name: str, version: typing.Optional[int]=None):
+        """
+        Place this document into the given index.
+
+        :param version: if 0, write only if this document is currently absent from the given index
+                        if > 0, write only if the specified version of this document is currently present
+                        if None, write regardless
+        """
         es_client = ElasticsearchClient.get(self.logger)
-        json = self.to_json()
-        self.logger.debug("Writing document to index '%s': %s", index_name, json)
-        es_client.index(index=index_name, doc_type=ESDocType.doc.name, id=str(self.fqid), body=json)
+        body = self.to_json()
+        self.logger.debug("Writing document to index '%s': %s", index_name, body)
+        es_client.index(index=index_name,
+                        doc_type=ESDocType.doc.name,
+                        id=str(self.fqid),
+                        body=body,
+                        op_type='create' if version == 0 else 'index',
+                        version=version if version else None)
 
     def to_json(self):
         return json.dumps(self)
@@ -160,10 +172,10 @@ class BundleDocument(IndexDocument):
         self.logger.info(f"Finished writing tombstone for {self.replica.name} bundle: {self.fqid}")
         return modified, index_name
 
-    def _write_to_index(self, index_name: str):
+    def _write_to_index(self, index_name: str, version: typing.Optional[int]=None):
         es_client = ElasticsearchClient.get(self.logger)
         initial_mappings = es_client.indices.get_mapping(index_name)[index_name]['mappings']
-        super()._write_to_index(index_name)
+        super()._write_to_index(index_name, version=version)
         current_mappings = es_client.indices.get_mapping(index_name)[index_name]['mappings']
         if initial_mappings != current_mappings:
             self._refresh_percolate_queries(index_name)
