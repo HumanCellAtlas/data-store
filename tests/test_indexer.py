@@ -136,7 +136,7 @@ class TestIndexerBase(unittest.TestCase, DSSAssertMixin, DSSStorageMixin, DSSUpl
         self.storageHelper = None
 
     @testmode.standalone
-    def test_process_new_indexable_object_create(self):
+    def test_create(self):
         sample_event = self.create_bundle_created_event(self.bundle_key)
         self.process_new_indexable_object(sample_event, logger)
         search_results = self.get_search_results(self.smartseq2_paired_ends_query, 1)
