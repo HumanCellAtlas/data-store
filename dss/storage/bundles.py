@@ -75,6 +75,9 @@ class BundleFQID(ObjectIdentifier):
 
     prefix = BUNDLE_PREFIX
 
+    def to_tombstone_id(self, all_versions=False):
+        return TombstoneID(uuid=self.uuid, version=None if all_versions else self.version)
+
 
 class FileFQID(ObjectIdentifier):
 
