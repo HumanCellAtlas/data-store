@@ -2,6 +2,9 @@
 # coding: utf-8
 
 import datetime
+
+from abc import ABCMeta, abstractmethod
+
 import io
 import json
 import logging
@@ -97,7 +100,7 @@ def tearDownModule():
     os.unsetenv('DSS_ES_PORT')
 
 
-class TestIndexerBase(DSSAssertMixin, DSSStorageMixin, DSSUploadMixin):
+class TestIndexerBase(unittest.TestCase, DSSAssertMixin, DSSStorageMixin, DSSUploadMixin, metaclass=ABCMeta):
     bundle_key_by_replica = dict()  # type: typing.MutableMapping[str, str]
 
     @classmethod
@@ -118,10 +121,10 @@ class TestIndexerBase(DSSAssertMixin, DSSStorageMixin, DSSUploadMixin):
         cls.app.shutdown()
 
     def setUp(self):
-        if self.replica not in TestIndexerBase.bundle_key_by_replica:
-            TestIndexerBase.bundle_key_by_replica[self.replica] = self.load_test_data_bundle_for_path(
+        if self.replica not in self.bundle_key_by_replica:
+            self.bundle_key_by_replica[self.replica] = self.load_test_data_bundle_for_path(
                 "fixtures/indexing/bundles/v3/smartseq2/paired_ends")
-        self.bundle_key = TestIndexerBase.bundle_key_by_replica[self.replica]
+        self.bundle_key = self.bundle_key_by_replica[self.replica]
         self.smartseq2_paired_ends_query = smartseq2_paired_ends_v2_or_v3_query
         PostTestHandler.reset()
 
@@ -815,17 +818,20 @@ class TestIndexerBase(DSSAssertMixin, DSSStorageMixin, DSSUploadMixin):
             else:
                 time.sleep(0.5)
 
+    @abstractmethod
     def create_bundle_created_event(self, bundle_key):
-        raise NotImplemented()
+        raise NotImplementedError()
 
+    @abstractmethod
     def create_bundle_deleted_event(self, bundle_key):
-        raise NotImplemented()
+        raise NotImplementedError()
 
+    @abstractmethod
     def process_new_indexable_object(self, event, logger):
-        raise NotImplemented()
+        raise NotImplementedError()
 
 
-class TestAWSIndexer(AWSIndexer, TestIndexerBase, unittest.TestCase):
+class TestAWSIndexer(AWSIndexer, TestIndexerBase):
 
     @classmethod
     def setUpClass(cls):
@@ -1009,6 +1015,12 @@ def create_index_data(blobstore, bucket_name, manifest, excluded_files=None) -> 
             index_files[index_filename] = file_json
     index['files'] = index_files
     return index
+
+# Prevent unittest's discovery from attempting to discover the base test class. The alterative, not inheriting
+# TestCase in the base class, is too inconvenient because it interferes with auto-complete and generates PEP-8
+# warnings about the camel case methods.
+#
+del TestIndexerBase
 
 
 if __name__ == "__main__":
