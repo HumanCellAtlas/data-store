@@ -145,19 +145,33 @@ class TestIndexerBase(DSSAssertMixin, DSSStorageMixin, DSSUploadMixin):
         )
 
     @testmode.standalone
-    def test_delete_specific_version(self):
-        tombstone_id = TombstoneID.from_key(self.bundle_key + ".dead")
-        self._test_delete(tombstone_id)
+    def test_delete(self):
+        self._test_delete(all_versions=False, zombie=False)
 
     @testmode.standalone
     def test_delete_all_versions(self):
-        bundle_fqid = BundleFQID.from_key(self.bundle_key)
-        tombstone_id = TombstoneID.from_key(f"bundles/{bundle_fqid.uuid}.dead")
-        self._test_delete(tombstone_id)
+        self._test_delete(all_versions=True, zombie=False)
 
-    def _test_delete(self, tombstone_id: TombstoneID):
-        self._create_tombstoned_bundle()
-        tombstone_data = self._create_tombstone(tombstone_id)
+    @testmode.standalone
+    def test_delete_zombie(self):
+        self._test_delete(all_versions=False, zombie=True)
+
+    @testmode.standalone
+    def test_delete_all_versions_zombie(self):
+        self._test_delete(all_versions=True, zombie=True)
+
+    def _test_delete(self, all_versions=False, zombie=False):
+        if all_versions:
+            bundle_fqid = BundleFQID.from_key(self.bundle_key)
+            tombstone_id = TombstoneID.from_key(f"bundles/{bundle_fqid.uuid}.dead")
+        else:
+            tombstone_id = TombstoneID.from_key(self.bundle_key + ".dead")
+        if zombie:
+            tombstone_data = self._create_tombstone(tombstone_id)
+            self._create_tombstoned_bundle()
+        else:
+            self._create_tombstoned_bundle()
+            tombstone_data = self._create_tombstone(tombstone_id)
         self._assert_tombstone(tombstone_id, tombstone_data)
 
     def _create_tombstoned_bundle(self):
