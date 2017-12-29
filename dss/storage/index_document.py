@@ -10,7 +10,7 @@ from collections import defaultdict
 from urllib.parse import urlparse
 
 import requests
-from cloud_blobstore import BlobStore, BlobStoreError
+from cloud_blobstore import BlobStore, BlobStoreError, BlobNotFoundError
 from elasticsearch.helpers import scan, bulk, BulkIndexError
 from requests_http_signature import HTTPSignatureAuth
 
@@ -130,8 +130,22 @@ class BundleDocument(IndexDocument):
     @elasticsearch_retry
     def index(self, dryrun=False) -> (bool, str):
         elasticsearch_retry.add_context(bundle=self)
-        index_name = self._prepare_index(dryrun)
-        return self._index_into(index_name, dryrun)
+        tombstone = self._lookup_tombstone()
+        if tombstone is None:
+            index_name = self._prepare_index(dryrun)
+            return self._index_into(index_name, dryrun)
+        else:
+            self.logger.info(f"Found tombstone for {self.fqid}. Indexing tombstone in place of bundle.")
+            return self.entomb(tombstone)
+
+    def _lookup_tombstone(self):
+        for all_versions in (False, True):
+            tombstone_id = self.fqid.to_tombstone_id(all_versions=all_versions)
+            try:
+                return BundleTombstoneDocument.from_replica(self.replica, tombstone_id, self.logger)
+            except BlobNotFoundError:
+                pass
+        return None
 
     def _index_into(self, index_name: str, dryrun: bool):
         elasticsearch_retry.add_context(index=index_name)

@@ -31,7 +31,7 @@ from dss.config import IndexSuffix, ESDocType, Replica
 from dss.events.handlers.index import AWSIndexer, GCPIndexer, BundleDocument
 from dss.hcablobstore import BundleMetadata, BundleFileMetadata, FileMetadata
 from dss.util import create_blob_key, networking, UrlBuilder
-from dss.storage.bundles import ObjectIdentifier, BundleFQID, TombstoneID
+from dss.storage.bundles import ObjectIdentifier, BundleFQID
 from dss.util.es import ElasticsearchClient, ElasticsearchServer
 from dss.util.version import datetime_to_version_format
 from tests import get_version, get_auth_header
@@ -164,11 +164,8 @@ class TestIndexerBase(unittest.TestCase, DSSAssertMixin, DSSStorageMixin, DSSUpl
         self._test_delete(all_versions=True, zombie=True)
 
     def _test_delete(self, all_versions=False, zombie=False):
-        if all_versions:
-            bundle_fqid = BundleFQID.from_key(self.bundle_key)
-            tombstone_id = TombstoneID.from_key(f"bundles/{bundle_fqid.uuid}.dead")
-        else:
-            tombstone_id = TombstoneID.from_key(self.bundle_key + ".dead")
+        bundle_fqid = BundleFQID.from_key(self.bundle_key)
+        tombstone_id = bundle_fqid.to_tombstone_id(all_versions=all_versions)
         if zombie:
             tombstone_data = self._create_tombstone(tombstone_id)
             self._create_tombstoned_bundle()
@@ -186,10 +183,17 @@ class TestIndexerBase(unittest.TestCase, DSSAssertMixin, DSSStorageMixin, DSSUpl
         blobstore, _, bucket = Config.get_cloud_specific_handles(self.replica)
         tombstone_data = {"status": "disappeared"}
         tombstone_data_bytes = io.BytesIO(json.dumps(tombstone_data).encode('utf-8'))
+        # noinspection PyTypeChecker
         blobstore.upload_file_handle(bucket, tombstone_id.to_key(), tombstone_data_bytes)
+        # Without this, the tombstone would break subsequent tests, due to the caching added in e12a5f7:
+        self.addCleanup(self._delete_tombstone, tombstone_id)
         sample_event = self.create_bundle_deleted_event(tombstone_id.to_key())
         self.process_new_indexable_object(sample_event, logger)
         return tombstone_data
+
+    def _delete_tombstone(self, tombstone_id):
+        blobstore, _, bucket = Config.get_cloud_specific_handles(self.replica)
+        blobstore.delete(bucket, tombstone_id.to_key())
 
     @eventually(5.0, 0.5)
     def _assert_tombstone(self, tombstone_id, tombstone_data):
@@ -850,7 +854,7 @@ class TestAWSIndexer(AWSIndexer, TestIndexerBase):
         return sample_event
 
 
-class TestGCPIndexer(GCPIndexer, TestIndexerBase, unittest.TestCase):
+class TestGCPIndexer(GCPIndexer, TestIndexerBase):
 
     @classmethod
     def setUpClass(cls):
@@ -918,6 +922,7 @@ class BundleBuilder:
         self.bundle_manifest[BundleMetadata.FILES].append(bundle_file_manifest)
 
     def store(self, bucket_name):
+        # noinspection PyTypeChecker
         self.blobstore.upload_file_handle(bucket_name,
                                           'bundles/' + self.get_bundle_fqid(),
                                           io.BytesIO(json.dumps(self.bundle_manifest).encode("utf-8")))
