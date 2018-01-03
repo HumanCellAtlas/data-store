@@ -23,7 +23,7 @@ fi
 export PROMOTE_FROM_BRANCH=$1 PROMOTE_DEST_BRANCH=$2
 
 GH_API=https://api.github.com
-REPO=$(git remote get-url origin | perl -ne '/([^\/\:]+\/.+?)(\.git)?$/; print $1')
+REPO=$(git remote get-url origin | perl -ne '/github\.com.(.+?)(\.git)?$/; print $1')
 STATUS=$(http ${GH_API}/repos/${REPO}/commits/${PROMOTE_FROM_BRANCH}/status Accept:application/vnd.github.full+json)
 STATE=$(echo "$STATUS" | jq -r .state)
 echo "$STATUS" | jq '.statuses[]|select(.state != "success")'
