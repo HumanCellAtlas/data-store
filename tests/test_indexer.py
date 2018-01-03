@@ -300,15 +300,17 @@ class TestIndexerBase(unittest.TestCase, DSSAssertMixin, DSSStorageMixin, DSSUpl
                                                          files=smartseq2_paried_ends_indexed_file_list)
 
     @testmode.standalone
-    def test_key_is_not_indexed_when_processing_an_event_with_a_nonbundle_key(self):
+    def test_key_is_not_indexed_when_processing_an_event_with_a_file_key(self):
         elasticsearch_delete_index(f'*{IndexSuffix.name}')
-        sample_event = self.create_bundle_created_event(get_file_fqid().to_key())
+        file_fqid = get_file_fqid()
+        sample_event = self.create_bundle_created_event(file_fqid.to_key())
         log_last = logger.getEffectiveLevel()
         logger.setLevel(logging.DEBUG)
         try:
             with self.assertLogs(logger, level="DEBUG") as log_monitor:
                 self.process_new_indexable_object(sample_event, logger)
-            self.assertRegex(log_monitor.output[0], "DEBUG:.*Not processing .* event for key: .*")
+            self.assertIn('Indexing of individual files is not supported.', log_monitor.output[0])
+            self.assertIn(str(file_fqid), log_monitor.output[0])
             self.assertFalse(ElasticsearchClient.get(logger).indices.exists_alias(name=self.dss_alias_name))
         finally:
             logger.setLevel(log_last)

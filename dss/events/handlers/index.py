@@ -5,7 +5,7 @@ from urllib.parse import unquote
 from abc import ABCMeta, abstractmethod
 
 from dss import Replica, Config
-from dss.storage.bundles import ObjectIdentifier, BundleFQID, TombstoneID
+from dss.storage.bundles import ObjectIdentifier, BundleFQID, TombstoneID, ObjectIdentifierError, FileFQID
 from dss.storage.index_document import BundleDocument, BundleTombstoneDocument
 from dss.util.es import elasticsearch_retry
 
@@ -29,7 +29,11 @@ class Indexer(metaclass=ABCMeta):
     def process_new_indexable_object(self, event: Mapping[str, Any], logger) -> None:
         try:
             key = self._parse_event(event)
-            self.index_object(key, logger)
+            try:
+                self.index_object(key, logger)
+            except ObjectIdentifierError:
+                # This is expected with events about blobs as they don't have a valid object identifier
+                logger.debug(f"Not processing {self.replica.name} event for key: {key}")
         except Exception:
             logger.error("%s", f"Exception occurred while processing {self.replica} "
                                f"event: {json.dumps(event, indent=4)}", exc_info=True)
@@ -38,16 +42,16 @@ class Indexer(metaclass=ABCMeta):
     @elasticsearch_retry
     def index_object(self, key, logger):
         elasticsearch_retry.add_context(key=key, indexer=self)
-        try:
-            identifier = ObjectIdentifier.from_key(key)
-        except ValueError:
-            identifier = None
+        identifier = ObjectIdentifier.from_key(key)
         if isinstance(identifier, BundleFQID):
             self._index_bundle(self.replica, identifier, logger)
         elif isinstance(identifier, TombstoneID):
             self._index_tombstone(self.replica, identifier, logger)
+        elif isinstance(identifier, FileFQID):
+            logger.debug(f"Indexing of individual files is not supported. "
+                         f"Ignoring file {identifier} in {self.replica.name}.")
         else:
-            logger.debug("%s", f"Not processing {self.replica.name} event for key: {key}")
+            assert False, f"{identifier} is of unknown type"
 
     @abstractmethod
     def _parse_event(self, event: Mapping[str, Any]):
