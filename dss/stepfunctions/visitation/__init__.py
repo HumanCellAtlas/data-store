@@ -27,8 +27,8 @@ class Visitation:
     Base class vor AWS Step Function job-workers datastore batch processing. This is meant to serve as a highly
     parallelized, high throughput architecture to visit blobs in the datastore and perform generic processing.
 
-    Although Visitation is somewhat specialized for datastore processing, subclasses may largely override the propagated
-    state and behaviour of the job and walker step functions, hijacking the parallel architecture for
+    Although Visitation is somewhat specialized for datastore processing, subclasses may largely override the
+    propagated state and behaviour of the job and walker step functions, hijacking the parallel architecture for
     other purposes.
 
     Subclasses should be registered in registered_visitations to make them available to the job and walker step
@@ -91,10 +91,11 @@ class Visitation:
         }
 
     @classmethod
-    def start(cls, replica: str, bucket: str, number_of_workers: int) -> str:
+    def start(cls, replica: str, bucket: str, number_of_workers: int, **kwargs) -> str:
         name = '{}--{}'.format(cls.__name__, str(uuid4()))
 
         inp = {
+            **kwargs,
             '_visitation_class_name': cls.__name__,
             'replica': replica,
             'bucket': bucket,

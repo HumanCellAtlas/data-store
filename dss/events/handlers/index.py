@@ -1,91 +1,100 @@
-"""Lambda function for DSS indexing"""
 import json
+from typing import Optional, Mapping, Any, MutableMapping
 from urllib.parse import unquote
 
+from abc import ABCMeta, abstractmethod
+
 from dss import Replica, Config
+from dss.storage.bundles import ObjectIdentifier, BundleFQID, TombstoneID
 from dss.storage.index_document import BundleDocument, BundleTombstoneDocument
-from ...storage.bundles import ObjectIdentifier, BundleFQID, TombstoneID
+from dss.util.es import elasticsearch_retry
 
 
-class IndexHandler:
+class Indexer(metaclass=ABCMeta):
 
-    @classmethod
-    def process_new_indexable_object(cls, event, logger) -> None:
-        raise NotImplementedError("'process_new_indexable_object' is not implemented!")
+    def __init__(self, *args, dryrun: bool=False, notify: Optional[bool]=True, **kwargs) -> None:
+        """
+        :param dryrun: if True, log only, don't make any modifications
+        :param notify: False: never notify
+                       None: notify on updates
+                       True: always notify
+        """
+        # FIXME (hannes): the variadic arguments allow for this to be used as a mix-in for tests.
+        # FIXME (hannes): That's an anti-pattern, so it should be eliminated.
+        # noinspection PyArgumentList
+        super().__init__(*args, **kwargs)  # type: ignore
+        self.dryrun = dryrun
+        self.notify = notify
 
-    @classmethod
-    def _process_new_indexable_object(cls, replica: Replica, key: str, logger):
-        identifier = ObjectIdentifier.from_key(key)
+    def process_new_indexable_object(self, event: Mapping[str, Any], logger) -> None:
+        try:
+            key = self._parse_event(event)
+            self.index_object(key, logger)
+        except Exception:
+            logger.error("Exception occurred while processing %s event: %s",
+                         self.replica, json.dumps(event, indent=4), exc_info=True)
+            raise
+
+    @elasticsearch_retry
+    def index_object(self, key, logger):
+        elasticsearch_retry.add_context(key=key, indexer=self)
+        try:
+            identifier = ObjectIdentifier.from_key(key)
+        except ValueError:
+            identifier = None
         if isinstance(identifier, BundleFQID):
-            cls._index_and_notify(replica, identifier, logger)
+            self._index_bundle(self.replica, identifier, logger)
         elif isinstance(identifier, TombstoneID):
-            cls._delete_from_index(replica, identifier, logger)
+            self._index_tombstone(self.replica, identifier, logger)
         else:
-            logger.debug(f"Not processing {replica.name} event for key: {key}")
+            logger.debug(f"Not processing {self.replica.name} event for key: {key}")
 
-    @staticmethod
-    def _index_and_notify(replica: Replica, bundle_fqid: BundleFQID, logger):
-        logger.info(f"Indexing bundle {bundle_fqid} from replica '{replica.name}'.")
+    @abstractmethod
+    def _parse_event(self, event: Mapping[str, Any]):
+        raise NotImplementedError()
+
+    def _index_bundle(self, replica: Replica, bundle_fqid: BundleFQID, logger):
+        logger.info(f"Indexing bundle {bundle_fqid} from replica {replica.name}.")
         doc = BundleDocument.from_replica(replica, bundle_fqid, logger)
-        index_name = doc.prepare_index()
-        versions = doc.get_indexed_versions()
-        old_version = versions.pop(index_name, None)
-        if versions:
-            logger.warning(f"Removing stale copies of the bundle document for {bundle_fqid} from the following "
-                           f"index(es): {json.dumps(versions)}.")
-            doc.remove_versions(versions)
-        if old_version:
-            old_doc = doc.from_index(replica, bundle_fqid, index_name, logger, version=old_version)
-            if doc == old_doc:
-                logger.info(f"Document for bundle {bundle_fqid} is already up-to-date in index {index_name} at "
-                            f"version {old_version}.")
-            else:
-                logger.warning(f"Updating an older copy of the document for bundle {bundle_fqid} in index "
-                               f"{index_name} at version {old_version}.")
-                doc.add_to_index(index_name)
-        else:
-            logger.info(f"Writing the document for bundle {bundle_fqid} in index "
-                        f"{index_name} for the first time.")
-            doc.add_to_index(index_name)
-        doc.notify_matching_subscribers(index_name)
-        logger.debug(f"Finished indexing bundle {bundle_fqid} from replica '{replica.name}'.")
+        modified, index_name = doc.index(dryrun=self.dryrun)
+        if self.notify or modified and self.notify is None:
+            doc.notify(index_name)
+        logger.debug(f"Finished indexing bundle {bundle_fqid} from replica {replica.name}.")
 
-    @staticmethod
-    def _delete_from_index(replica: Replica, tombstone_id: TombstoneID, logger):
-        logger.info(f"Received {replica.name} deletion event with tombstone identifier: {tombstone_id}")
-        tombstone_document = BundleTombstoneDocument.from_replica(replica, tombstone_id, logger)
-        dead_documents = tombstone_document.list_dead_bundles()
-        for document in dead_documents:
-            index_name = document.prepare_index()
-            document.clear()
-            document.update(tombstone_document)
-            document.add_to_index(index_name)
-            logger.info(f"Deleted from {replica.name} bundle: {document.fqid}")
+    def _index_tombstone(self, replica: Replica, tombstone_id: TombstoneID, logger):
+        logger.info(f"Indexing tombstone {tombstone_id} from {replica.name}.")
+        doc = BundleTombstoneDocument.from_replica(replica, tombstone_id, logger)
+        doc.index(dryrun=self.dryrun)
+        logger.info(f"Finished indexing tombstone {tombstone_id} from {replica.name}.")
+
+    def __repr__(self) -> str:
+        return f"{type(self).__name__}(dryrun={self.dryrun}, notify={self.notify})"
+
+    replica: Optional[Replica] = None  # required in concrete subclasses
+
+    for_replica: MutableMapping[Replica, type] = {}  # noqa # false 'E701 multiple statements on one line (colon)'
+
+    def __init_subclass__(cls) -> None:
+        super().__init_subclass__()
+        assert isinstance(cls.replica, Replica)
+        cls.for_replica[cls.replica] = cls
 
 
-class AWSIndexHandler(IndexHandler):
+class AWSIndexer(Indexer):
 
-    @classmethod
-    def process_new_indexable_object(cls, event, logger) -> None:
-        try:
-            # This function is only called for S3 creation events
-            key = unquote(event['Records'][0]['s3']['object']['key'])
-            assert event['Records'][0]['s3']['bucket']['name'] == Config.get_s3_bucket()
-            cls._process_new_indexable_object(Replica.aws, key, logger)
-        except Exception as ex:
-            logger.error("Exception occurred while processing S3 event: %s Event: %s", ex, json.dumps(event, indent=4))
-            raise
+    replica = Replica.aws
+
+    def _parse_event(self, event):
+        assert event['Records'][0]['s3']['bucket']['name'] == Config.get_s3_bucket()
+        key = unquote(event['Records'][0]['s3']['object']['key'])
+        return key
 
 
-class GCPIndexHandler(IndexHandler):
+class GCPIndexer(Indexer):
 
-    @classmethod
-    def process_new_indexable_object(cls, event, logger) -> None:
-        try:
-            # This function is only called for GS creation events
-            key = event['name']
-            assert event['bucket'] == Config.get_gs_bucket()
-            cls._process_new_indexable_object(Replica.gcp, key, logger)
-        except Exception as ex:
-            logger.error("Exception occurred while processing GS event: %s Event: %s", ex, json.dumps(event, indent=4))
-            raise
+    replica = Replica.gcp
+
+    def _parse_event(self, event):
+        key = event['name']
+        assert event['bucket'] == Config.get_gs_bucket()
+        return key

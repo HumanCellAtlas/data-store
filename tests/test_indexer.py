@@ -2,6 +2,9 @@
 # coding: utf-8
 
 import datetime
+
+from abc import ABCMeta, abstractmethod
+
 import io
 import json
 import logging
@@ -25,18 +28,19 @@ sys.path.insert(0, pkg_root)  # noqa
 import dss
 from dss import Config, BucketConfig, DeploymentStage
 from dss.config import IndexSuffix, ESDocType, Replica
-from dss.events.handlers.index import AWSIndexHandler, GCPIndexHandler, BundleDocument
+from dss.events.handlers.index import AWSIndexer, GCPIndexer, BundleDocument
 from dss.hcablobstore import BundleMetadata, BundleFileMetadata, FileMetadata
 from dss.util import create_blob_key, networking, UrlBuilder
-from dss.storage.bundles import ObjectIdentifier, BundleFQID, TombstoneID
+from dss.storage.bundles import ObjectIdentifier, BundleFQID
 from dss.util.es import ElasticsearchClient, ElasticsearchServer
 from dss.util.version import datetime_to_version_format
 from tests import get_version, get_auth_header
 from tests.es import elasticsearch_delete_index, clear_indexes
 from tests.infra import DSSAssertMixin, DSSUploadMixin, DSSStorageMixin, TestBundle, start_verbose_logging, testmode
 from tests.infra.server import ThreadedLocalServer
-from tests.sample_search_queries import (smartseq2_paired_ends_v2_query, smartseq2_paired_ends_v3_query,
-                                         smartseq2_paired_ends_v2_or_v3_query, smartseq2_paired_ends_v4_query,
+from tests.sample_search_queries import (smartseq2_paired_ends_v3_query,
+                                         smartseq2_paired_ends_v2_or_v3_query,
+                                         smartseq2_paired_ends_v4_query,
                                          smartseq2_paired_ends_v3_or_v4_query)
 
 from tests import eventually, get_bundle_fqid, get_file_fqid
@@ -96,7 +100,7 @@ def tearDownModule():
     os.unsetenv('DSS_ES_PORT')
 
 
-class TestIndexerBase(DSSAssertMixin, DSSStorageMixin, DSSUploadMixin):
+class TestIndexerBase(unittest.TestCase, DSSAssertMixin, DSSStorageMixin, DSSUploadMixin, metaclass=ABCMeta):
     bundle_key_by_replica = dict()  # type: typing.MutableMapping[str, str]
 
     @classmethod
@@ -117,10 +121,10 @@ class TestIndexerBase(DSSAssertMixin, DSSStorageMixin, DSSUploadMixin):
         cls.app.shutdown()
 
     def setUp(self):
-        if self.replica not in TestIndexerBase.bundle_key_by_replica:
-            TestIndexerBase.bundle_key_by_replica[self.replica] = self.load_test_data_bundle_for_path(
+        if self.replica not in self.bundle_key_by_replica:
+            self.bundle_key_by_replica[self.replica] = self.load_test_data_bundle_for_path(
                 "fixtures/indexing/bundles/v3/smartseq2/paired_ends")
-        self.bundle_key = TestIndexerBase.bundle_key_by_replica[self.replica]
+        self.bundle_key = self.bundle_key_by_replica[self.replica]
         self.smartseq2_paired_ends_query = smartseq2_paired_ends_v2_or_v3_query
         PostTestHandler.reset()
 
@@ -132,7 +136,7 @@ class TestIndexerBase(DSSAssertMixin, DSSStorageMixin, DSSUploadMixin):
         self.storageHelper = None
 
     @testmode.standalone
-    def test_process_new_indexable_object_create(self):
+    def test_create(self):
         sample_event = self.create_bundle_created_event(self.bundle_key)
         self.process_new_indexable_object(sample_event, logger)
         search_results = self.get_search_results(self.smartseq2_paired_ends_query, 1)
@@ -144,47 +148,71 @@ class TestIndexerBase(DSSAssertMixin, DSSStorageMixin, DSSUploadMixin):
         )
 
     @testmode.standalone
-    def test_process_new_indexable_object_delete(self):
+    def test_delete(self):
+        self._test_delete(all_versions=False, zombie=False)
+
+    @testmode.standalone
+    def test_delete_all_versions(self):
+        self._test_delete(all_versions=True, zombie=False)
+
+    @testmode.standalone
+    def test_delete_zombie(self):
+        self._test_delete(all_versions=False, zombie=True)
+
+    @testmode.standalone
+    def test_delete_all_versions_zombie(self):
+        self._test_delete(all_versions=True, zombie=True)
+
+    def _test_delete(self, all_versions=False, zombie=False):
         bundle_fqid = BundleFQID.from_key(self.bundle_key)
-        # delete the whole bundle
-        self._test_process_new_indexable_object_delete(TombstoneID.from_key(self.bundle_key + ".dead"))
-        # delete a specific bundle version
-        self._test_process_new_indexable_object_delete(TombstoneID.from_key(f"bundles/{bundle_fqid.uuid}.dead"))
+        tombstone_id = bundle_fqid.to_tombstone_id(all_versions=all_versions)
+        if zombie:
+            tombstone_data = self._create_tombstone(tombstone_id)
+            self._create_tombstoned_bundle()
+        else:
+            self._create_tombstoned_bundle()
+            tombstone_data = self._create_tombstone(tombstone_id)
+        self._assert_tombstone(tombstone_id, tombstone_data)
 
-    def _test_process_new_indexable_object_delete(self, tombstone_id: TombstoneID):
-        # set the tombstone
-        blobstore, _, bucket = Config.get_cloud_specific_handles(self.replica)
-        tombstone_data = {"status": "disappeared"}
-        tombstone_data_bytes = io.BytesIO(bytes(json.dumps(tombstone_data), encoding="utf-8"))
-        blobstore.upload_file_handle(bucket, tombstone_id.to_key(), tombstone_data_bytes)
-
-        # send the
+    def _create_tombstoned_bundle(self):
         sample_event = self.create_bundle_created_event(self.bundle_key)
         self.process_new_indexable_object(sample_event, logger)
         self.get_search_results(self.smartseq2_paired_ends_query, 1)
 
+    def _create_tombstone(self, tombstone_id):
+        blobstore, _, bucket = Config.get_cloud_specific_handles(self.replica)
+        tombstone_data = {"status": "disappeared"}
+        tombstone_data_bytes = io.BytesIO(json.dumps(tombstone_data).encode('utf-8'))
+        # noinspection PyTypeChecker
+        blobstore.upload_file_handle(bucket, tombstone_id.to_key(), tombstone_data_bytes)
+        # Without this, the tombstone would break subsequent tests, due to the caching added in e12a5f7:
+        self.addCleanup(self._delete_tombstone, tombstone_id)
         sample_event = self.create_bundle_deleted_event(tombstone_id.to_key())
         self.process_new_indexable_object(sample_event, logger)
+        return tombstone_data
 
-        @eventually(5.0, 0.5)
-        def _deletion_results_test():
-            search_results = self.get_search_results(self.smartseq2_paired_ends_query, 0)
-            self.assertEqual(0, len(search_results))
-            bundle_fqids = [ObjectIdentifier.from_key(k) for k in blobstore.list(bucket, tombstone_id.to_key_prefix())]
-            bundle_fqids = filter(lambda bundle_id: type(bundle_id) == BundleFQID, bundle_fqids)
-            for bundle_fqid in bundle_fqids:
-                exact_query = {
-                    "query": {
-                        "terms": {
-                            "_id": [str(bundle_fqid)]
-                        }
+    def _delete_tombstone(self, tombstone_id):
+        blobstore, _, bucket = Config.get_cloud_specific_handles(self.replica)
+        blobstore.delete(bucket, tombstone_id.to_key())
+
+    @eventually(5.0, 0.5)
+    def _assert_tombstone(self, tombstone_id, tombstone_data):
+        blobstore, _, bucket = Config.get_cloud_specific_handles(self.replica)
+        search_results = self.get_search_results(self.smartseq2_paired_ends_query, 0)
+        self.assertEqual(0, len(search_results))
+        bundle_fqids = [ObjectIdentifier.from_key(k) for k in blobstore.list(bucket, tombstone_id.to_key_prefix())]
+        bundle_fqids = filter(lambda bundle_id: type(bundle_id) == BundleFQID, bundle_fqids)
+        for bundle_fqid in bundle_fqids:
+            exact_query = {
+                "query": {
+                    "terms": {
+                        "_id": [str(bundle_fqid)]
                     }
                 }
-                search_results = self.get_search_results(exact_query, 1)
-                self.assertEqual(1, len(search_results))
-                self.assertEqual(search_results[0], tombstone_data)
-
-        _deletion_results_test()
+            }
+            search_results = self.get_search_results(exact_query, 1)
+            self.assertEqual(1, len(search_results))
+            self.assertEqual(search_results[0], tombstone_data)
 
     @testmode.standalone
     def test_reindexing_with_changed_content(self):
@@ -238,7 +266,7 @@ class TestIndexerBase(DSSAssertMixin, DSSStorageMixin, DSSUploadMixin):
             self.assertEqual(1, len(hits))
             self.assertEqual(expect_shape_descriptor, shape_descriptor in hits[0]['_index'])
 
-        # Index documenty into the "wrong" index by patching the shape descriptor
+        # Index document into the "wrong" index by patching the shape descriptor
         with unittest.mock.patch.object(BundleDocument, 'get_shape_descriptor', return_value=shape_descriptor):
             self.process_new_indexable_object(sample_event, logger)
         # There should only be one hit and it should be from the "wrong" index
@@ -335,7 +363,7 @@ class TestIndexerBase(DSSAssertMixin, DSSStorageMixin, DSSUploadMixin):
     def test_notify(self):
         def _notify(subscription, bundle_id=get_bundle_fqid()):
             document = BundleDocument(self.replica, bundle_id, logger)
-            document.notify_subscriber(subscription=subscription)
+            document._notify_subscriber(subscription=subscription)
 
         with self.assertRaisesRegex(requests.exceptions.InvalidURL, "Invalid URL 'http://': No host supplied"):
             _notify(subscription=dict(id="", es_query={}, callback_url="http://"))
@@ -622,9 +650,7 @@ class TestIndexerBase(DSSAssertMixin, DSSStorageMixin, DSSUploadMixin):
             index_data = create_index_data(self.blobstore, self.test_bucket, manifest)
             index_data['files']['assay_json'].update({'extra_top': 123,
                                                       'extra_obj': {"something": "here", "another": 123},
-                                                      'extra_lst': ["a", "b"]
-                                                      }
-                                                     )
+                                                      'extra_lst': ["a", "b"]})
             index_data['files']['assay_json']['core']['extra_internal'] = 123
             index_data['files']['sample_json']['extra_0'] = "tests patterned properties."
             index_data['files']['project_json']['extra_1'] = "Another extra field in a different file."
@@ -795,17 +821,20 @@ class TestIndexerBase(DSSAssertMixin, DSSStorageMixin, DSSUploadMixin):
             else:
                 time.sleep(0.5)
 
+    @abstractmethod
     def create_bundle_created_event(self, bundle_key):
-        raise NotImplemented()
+        raise NotImplementedError()
 
+    @abstractmethod
     def create_bundle_deleted_event(self, bundle_key):
-        raise NotImplemented()
+        raise NotImplementedError()
 
+    @abstractmethod
     def process_new_indexable_object(self, event, logger):
-        raise NotImplemented()
+        raise NotImplementedError()
 
 
-class TestAWSIndexer(AWSIndexHandler, TestIndexerBase, unittest.TestCase):
+class TestAWSIndexer(AWSIndexer, TestIndexerBase):
 
     @classmethod
     def setUpClass(cls):
@@ -825,7 +854,7 @@ class TestAWSIndexer(AWSIndexHandler, TestIndexerBase, unittest.TestCase):
         return sample_event
 
 
-class TestGCPIndexer(GCPIndexHandler, TestIndexerBase, unittest.TestCase):
+class TestGCPIndexer(GCPIndexer, TestIndexerBase):
 
     @classmethod
     def setUpClass(cls):
@@ -893,6 +922,7 @@ class BundleBuilder:
         self.bundle_manifest[BundleMetadata.FILES].append(bundle_file_manifest)
 
     def store(self, bucket_name):
+        # noinspection PyTypeChecker
         self.blobstore.upload_file_handle(bucket_name,
                                           'bundles/' + self.get_bundle_fqid(),
                                           io.BytesIO(json.dumps(self.bundle_manifest).encode("utf-8")))
@@ -953,7 +983,9 @@ def create_s3_bucket(bucket_name) -> None:
             logger.error(f"An unexpected error occured when creating test bucket: {bucket_name}")
 
 
-def generate_expected_index_document(blobstore, bucket_name, bundle_key, excluded_files=[]):
+def generate_expected_index_document(blobstore, bucket_name, bundle_key, excluded_files=None):
+    if excluded_files is None:
+        excluded_files = []
     manifest = read_bundle_manifest(blobstore, bucket_name, bundle_key)
     index_data = create_index_data(blobstore, bucket_name, manifest, excluded_files)
     return index_data
@@ -965,7 +997,9 @@ def read_bundle_manifest(blobstore, bucket_name, bundle_key):
     return manifest
 
 
-def create_index_data(blobstore, bucket_name, manifest, excluded_files=[]):
+def create_index_data(blobstore, bucket_name, manifest, excluded_files=None) -> typing.MutableMapping[str, typing.Any]:
+    if excluded_files is None:
+        excluded_files = []
     index = dict(state="new", manifest=manifest)
     files_info = manifest['files']
     excluded_file = [file.replace('_', '.') for file in excluded_files]
@@ -985,6 +1019,12 @@ def create_index_data(blobstore, bucket_name, manifest, excluded_files=[]):
             index_files[index_filename] = file_json
     index['files'] = index_files
     return index
+
+# Prevent unittest's discovery from attempting to discover the base test class. The alterative, not inheriting
+# TestCase in the base class, is too inconvenient because it interferes with auto-complete and generates PEP-8
+# warnings about the camel case methods.
+#
+del TestIndexerBase
 
 
 if __name__ == "__main__":

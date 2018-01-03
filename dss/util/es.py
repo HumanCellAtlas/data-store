@@ -1,4 +1,6 @@
 import json
+
+import elasticsearch
 import os
 import socket
 import subprocess
@@ -14,6 +16,7 @@ from botocore.vendored import requests
 from elasticsearch import RequestsHttpConnection, Elasticsearch
 from requests_aws4auth import AWS4Auth
 
+from dss.util.retry import retry
 from . import networking
 
 
@@ -131,3 +134,20 @@ class ElasticsearchClient:
                 raise ex
 
         return client
+
+
+def _retryable_exception(e):
+    return isinstance(e, elasticsearch.TransportError) and (
+        e.status_code == 409 or  # version conflicts
+        500 <= e.status_code <= 599)  # server errors
+
+
+def _retry_delay(i, delay):
+    return 10 if delay is None else delay * 1.5
+
+
+elasticsearch_retry = retry(timeout=60,  # seconds
+                            limit=10,  # retries
+                            inherit=True,  # nested retries should obey the outer-most retry's timeout
+                            retryable=_retryable_exception,
+                            delay=_retry_delay)

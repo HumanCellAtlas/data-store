@@ -42,7 +42,7 @@ class ObjectIdentifier(namedtuple('ObjectIdentifier', 'uuid version')):
             else:
                 raise ValueError(f"Object name does not contain a valid bundle identifier: {key}")
         else:
-            raise ValueError(f"Object name does not contain a valid bundle identifier: {key}")
+            raise ValueError(f"Key does not represent a valid identifier: {key}")
 
     def is_fully_qualified(self):
         return self.uuid is not None and self.version is not None
@@ -53,7 +53,7 @@ class ObjectIdentifier(namedtuple('ObjectIdentifier', 'uuid version')):
     @property
     @abstractmethod
     def prefix(self):
-        return NotImplementedError("'prefix' not implemented!")
+        return NotImplementedError()
 
     def to_key_prefix(self):
         return f"{self.prefix}/{self.uuid}.{self.version or ''}"
@@ -74,6 +74,9 @@ class ObjectIdentifier(namedtuple('ObjectIdentifier', 'uuid version')):
 class BundleFQID(ObjectIdentifier):
 
     prefix = BUNDLE_PREFIX
+
+    def to_tombstone_id(self, all_versions=False):
+        return TombstoneID(uuid=self.uuid, version=None if all_versions else self.version)
 
 
 class FileFQID(ObjectIdentifier):

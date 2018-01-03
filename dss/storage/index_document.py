@@ -4,11 +4,13 @@ import logging
 import socket
 import typing
 import uuid
+from abc import abstractmethod, ABCMeta
+
 from collections import defaultdict
 from urllib.parse import urlparse
 
 import requests
-from cloud_blobstore import BlobStore, BlobStoreError
+from cloud_blobstore import BlobStore, BlobStoreError, BlobNotFoundError
 from elasticsearch.helpers import scan, bulk, BulkIndexError
 from requests_http_signature import HTTPSignatureAuth
 
@@ -19,10 +21,25 @@ from dss.storage.bundles import ObjectIdentifier, BundleFQID, TombstoneID
 from dss.storage.index import IndexManager
 from dss.storage.validator import scrub_index_data
 from dss.util import create_blob_key
-from dss.util.es import ElasticsearchClient
+from dss.util.es import ElasticsearchClient, elasticsearch_retry
 
 
-class IndexDocument(dict):
+class IndexDocument(dict, metaclass=ABCMeta):
+    """
+    An instance of this class represents a document in an Elasticsearch index.
+    """
+
+    @abstractmethod
+    def index(self, dryrun=False) -> (bool, str):
+        """
+        Ensure that there is exactly one up-to-date instance of this document in exactly one ES index.
+
+        :param dryrun: if True, only read-only actions will be performed but no ES indices will be modified
+        :return: a tuple (modified, index_name) indicating whether an index needed to be updated and what the name of
+                 that index is. Note that `modified` may be True even if dryrun is False, indicating that a wet run
+                 would have updated the index.
+        """
+        raise NotImplementedError()
 
     def __init__(self, replica: Replica, fqid: typing.Union[BundleFQID, TombstoneID], logger: logging.Logger,
                  *args, **kwargs) -> None:
@@ -31,43 +48,62 @@ class IndexDocument(dict):
         self.replica = replica
         self.fqid = fqid
 
-    @classmethod
-    def from_index(cls, replica: Replica, bundle_fqid: BundleFQID, index_name, logger, version=None):
-        es_client = ElasticsearchClient.get(logger)
-        source = es_client.get(index_name, str(bundle_fqid), ESDocType.doc.name, version=version)['_source']
-        return cls(replica, bundle_fqid, logger, source)
+    def _write_to_index(self, index_name: str, version: typing.Optional[int]=None):
+        """
+        Place this document into the given index.
 
-    def add_to_index(self, index_name: str):
+        :param version: if 0, write only if this document is currently absent from the given index
+                        if > 0, write only if the specified version of this document is currently present
+                        if None, write regardless
+        """
         es_client = ElasticsearchClient.get(self.logger)
-        try:
-            self.logger.debug("Adding index data to ElasticSearch index '%s': %s", index_name,
-                              json.dumps(self, indent=4))
-            initial_mappings = es_client.indices.get_mapping(index_name)[index_name]['mappings']
-            es_client.index(index=index_name,
-                            doc_type=ESDocType.doc.name,
-                            id=str(self.fqid),
-                            # FIXME: (hannes) Can this be json.dumps(self, indent=4) ?
-                            body=self.to_json())  # Don't use refresh here.
-        except Exception as ex:
-            self.logger.error("Document not indexed. Exception: %s, Index name: %s, Index data: %s",
-                              ex, index_name, json.dumps(self, indent=4))
-            raise
-        return initial_mappings
+        body = self.to_json()
+        self.logger.debug("Writing document to index '%s': %s", index_name, body)
+        es_client.index(index=index_name,
+                        doc_type=ESDocType.doc.name,
+                        id=str(self.fqid),
+                        body=body,
+                        op_type='create' if version == 0 else 'index',
+                        version=version if version else None)
 
     def to_json(self):
         return json.dumps(self)
 
     def __eq__(self, other: object) -> bool:
+        # noinspection PyUnresolvedReferences
         return self is other or (super().__eq__(other) and
                                  type(self) == type(other) and
                                  self.replica == other.replica and
                                  self.fqid == other.fqid)
 
+    def __repr__(self) -> str:
+        return f"{type(self).__name__}(replica={self.replica}, fqid={self.fqid}, {super().__repr__()})"
+
+    @staticmethod
+    def _msg(dryrun):
+        """
+        Returns a unary function that conditionally rewrites a given log message so it makes sense in the context of a
+        dry run.
+
+        The message should start with with a verb in -ing form, announcing an action to be taken.
+        """
+        def msg(s):
+            assert s
+            assert s[:1].isupper()
+            assert s.split(maxsplit=1)[0].endswith('ing')
+            return f"Skipped {s[:1].lower() + s[1:]}" if dryrun else s
+        return msg
+
 
 class BundleDocument(IndexDocument):
     """
-    An instance of this class represents the ElasticSearch document for a given bundle.
+    An instance of this class represents the Elasticsearch document for a given bundle.
     """
+
+    # Note to implementors, only public methods should have a `dryrun` keyword argument. If they do, the argument
+    # should have a default value of False. Protected and private methods may also have a dryrun argument but if they
+    # do it must be positional in order to ensure that the argument isn't accidentally dropped along the call chain.
+
     @classmethod
     def from_replica(cls, replica: Replica, bundle_fqid: BundleFQID, logger):
         self = cls(replica, bundle_fqid, logger)
@@ -77,6 +113,12 @@ class BundleDocument(IndexDocument):
         self['state'] = 'new'
         return self
 
+    @classmethod
+    def from_index(cls, replica: Replica, bundle_fqid: BundleFQID, index_name, logger, version=None):
+        es_client = ElasticsearchClient.get(logger)
+        source = es_client.get(index_name, str(bundle_fqid), ESDocType.doc.name, version=version)['_source']
+        return cls(replica, bundle_fqid, logger, source)
+
     @property
     def files(self):
         return self['files']
@@ -85,17 +127,81 @@ class BundleDocument(IndexDocument):
     def manifest(self):
         return self['manifest']
 
-    def add_to_index(self, index_name: str) -> None:
-        initial_mappings = super().add_to_index(index_name)
+    @elasticsearch_retry
+    def index(self, dryrun=False) -> (bool, str):
+        elasticsearch_retry.add_context(bundle=self)
+        tombstone = self._lookup_tombstone()
+        if tombstone is None:
+            index_name = self._prepare_index(dryrun)
+            return self._index_into(index_name, dryrun)
+        else:
+            self.logger.info(f"Found tombstone for {self.fqid}. Indexing tombstone in place of bundle.")
+            return self.entomb(tombstone)
+
+    def _lookup_tombstone(self):
+        for all_versions in (False, True):
+            tombstone_id = self.fqid.to_tombstone_id(all_versions=all_versions)
+            try:
+                return BundleTombstoneDocument.from_replica(self.replica, tombstone_id, self.logger)
+            except BlobNotFoundError:
+                pass
+        return None
+
+    def _index_into(self, index_name: str, dryrun: bool):
+        elasticsearch_retry.add_context(index=index_name)
+        msg = self._msg(dryrun)
+        versions = self._get_indexed_versions()
+        old_version = versions.pop(index_name, None)
+        if versions:
+            self.logger.warning(msg(f"Removing stale copies of the bundle document for {self.fqid} from the following "
+                                    f"index(es): {json.dumps(versions)}."))
+            if not dryrun:
+                self._remove_versions(versions)
+        if old_version:
+            old_doc = self.from_index(self.replica, self.fqid, index_name, self.logger, version=old_version)
+            if self == old_doc:
+                self.logger.info(f"Document for bundle {self.fqid} is already up-to-date in index {index_name} at "
+                                 f"version {old_version}.")
+                return False, index_name
+            else:
+                self.logger.warning(msg(f"Updating an older copy of the document for bundle {self.fqid} in index "
+                                        f"{index_name} at version {old_version}."))
+        else:
+            self.logger.info(msg(f"Writing the document for bundle {self.fqid} to index "
+                                 f"{index_name} for the first time."))
+        if not dryrun:
+            self._write_to_index(index_name, version=old_version or 0)
+        return True, index_name
+
+    @elasticsearch_retry
+    def entomb(self, tombstone: 'BundleTombstoneDocument', dryrun=False):
+        """
+        Ensure that there is exactly one up-to-date instance of a tombstone for this document in exactly one
+        ES index. The tombstone data overrides the document's data in the index.
+
+        :param tombstone: The document with which to replace this document in the index.
+        :param dryrun: see :py:meth:`~IndexDocument.index`
+        :return: see :py:meth:`~IndexDocument.index`
+        """
+        elasticsearch_retry.add_context(bundle=self, tombstone=tombstone)
+        self.logger.info(f"Writing tombstone for {self.replica.name} bundle: {self.fqid}")
+        # Preare the index using the original data such that the tombstone can be placed in the correct index.
+        index_name = self._prepare_index(dryrun)
+        # Override document with tombstone JSON …
+        self.clear()
+        self.update(tombstone)
+        # … and place into proper index.
+        modified, index_name = self._index_into(index_name, dryrun)
+        self.logger.info(f"Finished writing tombstone for {self.replica.name} bundle: {self.fqid}")
+        return modified, index_name
+
+    def _write_to_index(self, index_name: str, version: typing.Optional[int]=None):
         es_client = ElasticsearchClient.get(self.logger)
-        try:
-            current_mappings = es_client.indices.get_mapping(index_name)[index_name]['mappings']
-            if initial_mappings != current_mappings:
-                self._refresh_percolate_queries(index_name)
-        except Exception as ex:
-            self.logger.error("Error refreshing subscription queries for index. Exception: %s, Index name: %s",
-                              ex, index_name)
-            raise
+        initial_mappings = es_client.indices.get_mapping(index_name)[index_name]['mappings']
+        super()._write_to_index(index_name, version=version)
+        current_mappings = es_client.indices.get_mapping(index_name)[index_name]['mappings']
+        if initial_mappings != current_mappings:
+            self._refresh_percolate_queries(index_name)
 
     def _read_bundle_manifest(self, handle: BlobStore, bucket_name: str, bundle_fqid: BundleFQID) -> dict:
         manifest_string = handle.get(bucket_name, bundle_fqid.to_key()).decode("utf-8")
@@ -147,11 +253,12 @@ class BundleDocument(IndexDocument):
         scrub_index_data(index_files, str(self.fqid), self.logger)
         return index_files
 
-    def prepare_index(self):
+    def _prepare_index(self, dryrun):
         shape_descriptor = self.get_shape_descriptor()
         index_name = Config.get_es_index_name(ESIndexType.docs, self.replica, shape_descriptor)
         es_client = ElasticsearchClient.get(self.logger)
-        IndexManager.create_index(es_client, self.replica, index_name)
+        if not dryrun:
+            IndexManager.create_index(es_client, self.replica, index_name)
         return index_name
 
     def get_shape_descriptor(self) -> typing.Optional[str]:
@@ -197,7 +304,7 @@ class BundleDocument(IndexDocument):
         else:
             return None  # No files with schema identifiers were found
 
-    def get_indexed_versions(self) -> typing.MutableMapping[str, str]:
+    def _get_indexed_versions(self) -> typing.MutableMapping[str, str]:
         """
         Returns a dictionary mapping the name of each index containing this document to the
         version of this document in that index. Note that `version` denotes document version, not
@@ -223,7 +330,7 @@ class BundleDocument(IndexDocument):
         indices = {hit['_index']: hit['_version'] for hit in hits['hits']}
         return indices
 
-    def remove_versions(self, versions: typing.MutableMapping[str, str]):
+    def _remove_versions(self, versions: typing.MutableMapping[str, str]):
         """
         Remove this document from each given index provided that it contains the given version of this document.
         """
@@ -238,7 +345,7 @@ class BundleDocument(IndexDocument):
         for item in errors:
             self.logger.warning(f"Document deletion failed: {json.dumps(item)}")
 
-    def _refresh_percolate_queries(self, index_name: str) -> None:
+    def _refresh_percolate_queries(self, index_name: str):
         # When dynamic templates are used and queries for percolation have been added
         # to an index before the index contains mappings of fields referenced by those queries,
         # the queries must be reloaded when the mappings are present for the queries to match.
@@ -265,11 +372,11 @@ class BundleDocument(IndexDocument):
                 self.logger.error("Error occurred when adding subscription queries to index %s Errors: %s",
                                   index_name, ex.errors)
 
-    def notify_matching_subscribers(self, index_name):
-        subscriptions = self.find_matching_subscriptions(index_name)
-        self.notify_subscribers(subscriptions)
+    def notify(self, index_name):
+        subscription_ids = self._find_matching_subscriptions(index_name)
+        self._notify_subscribers(subscription_ids)
 
-    def find_matching_subscriptions(self, index_name: str) -> set:
+    def _find_matching_subscriptions(self, index_name: str) -> typing.MutableSet[str]:
         percolate_document = {
             'query': {
                 'percolate': {
@@ -287,12 +394,12 @@ class BundleDocument(IndexDocument):
         self.logger.debug("Found matching subscription count: %i", len(subscription_ids))
         return subscription_ids
 
-    def notify_subscribers(self, subscription_ids: set) -> None:
+    def _notify_subscribers(self, subscription_ids: typing.MutableSet[str]):
         for subscription_id in subscription_ids:
             try:
                 # TODO Batch this request
                 subscription = self._get_subscription(subscription_id)
-                self.notify_subscriber(subscription)
+                self._notify_subscriber(subscription)
             except Exception:
                 self.logger.error("Error occurred while processing subscription %s for bundle %s.",
                                   subscription_id, self.fqid, exc_info=True)
@@ -318,7 +425,7 @@ class BundleDocument(IndexDocument):
         subscription['id'] = subscription_id
         return subscription
 
-    def notify_subscriber(self, subscription: dict):
+    def _notify_subscriber(self, subscription: dict):
         subscription_id = subscription['id']
         transaction_id = str(uuid.uuid4())
         payload = {
@@ -371,7 +478,7 @@ class BundleTombstoneDocument(IndexDocument):
         tombstone_data = json.loads(blobstore.get(bucket_name, tombstone_id.to_key()))
         return cls(replica, tombstone_id, logger, tombstone_data)
 
-    def list_dead_bundles(self):
+    def _list_dead_bundles(self) -> typing.Sequence[BundleDocument]:
         blobstore, _, bucket_name = Config.get_cloud_specific_handles(self.replica)
 
         if self.fqid.is_fully_qualified():
@@ -384,5 +491,11 @@ class BundleTombstoneDocument(IndexDocument):
             bundle_fqids = filter(lambda fqid: type(fqid) == BundleFQID, fqids)
 
         docs = [BundleDocument.from_replica(self.replica, bundle_fqid, self.logger) for bundle_fqid in bundle_fqids]
-
         return docs
+
+    @elasticsearch_retry
+    def index(self, dryrun=False) -> (bool, str):
+        elasticsearch_retry.add_context(tombstone=self)
+        dead_docs = self._list_dead_bundles()
+        for doc in dead_docs:
+            doc.entomb(self, dryrun=dryrun)
