@@ -26,6 +26,10 @@ DSS_OBJECT_NAME_REGEX = re.compile(
     f"^({BUNDLE_PREFIX}|{FILE_PREFIX})/({UUID_PATTERN})(?:\.({VERSION_PATTERN}))?(\.{TOMBSTONE_SUFFIX})?$")
 
 
+class ObjectIdentifierError(ValueError):
+    pass
+
+
 class ObjectIdentifier(namedtuple('ObjectIdentifier', 'uuid version')):
 
     @classmethod
@@ -40,9 +44,9 @@ class ObjectIdentifier(namedtuple('ObjectIdentifier', 'uuid version')):
             elif tombstone_suffix and uuid:
                 return TombstoneID(uuid=uuid, version=version)
             else:
-                raise ValueError(f"Object name does not contain a valid bundle identifier: {key}")
+                raise ObjectIdentifierError(f"Object name does not contain a valid bundle identifier: {key}")
         else:
-            raise ValueError(f"Key does not represent a valid identifier: {key}")
+            raise ObjectIdentifierError(f"Key does not represent a valid identifier: {key}")
 
     def is_fully_qualified(self):
         return self.uuid is not None and self.version is not None
