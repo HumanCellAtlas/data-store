@@ -8,29 +8,29 @@ mypy:
 	mypy --ignore-missing-imports $(MODULES)
 
 test_srcs := $(wildcard tests/test_*.py)
-standalone_test_srcs := $(addprefix standalone__, $(test_srcs))
+all_test_srcs := $(addprefix all__, $(test_srcs))
 integration_test_srcs := $(addprefix integration__, $(test_srcs))
 
-test: lint mypy $(standalone_test_srcs)
+test: lint mypy $(test_srcs)
 	coverage combine
 	rm -f .coverage.*
 
-$(standalone_test_srcs): standalone__%.py :
-	DSS_TEST_MODE=standalone coverage run -p --source=dss -m unittest $*.py
+$(test_srcs): %.py :
+	DSS_TEST_MODE="standalone" coverage run -p --source=dss -m unittest $@
 
 integration_test: lint mypy $(integration_test_srcs)
 	coverage combine
 	rm -f .coverage.*
 
 $(integration_test_srcs): integration__%.py :
-	DSS_TEST_MODE=integration coverage run -p --source=dss -m unittest $*.py
+	DSS_TEST_MODE="integration" coverage run -p --source=dss -m unittest $*.py
 
-all_test: lint mypy $(test_srcs)
+all_test: lint mypy $(all_test_srcs)
 	coverage combine
 	rm -f .coverage.*
 
-$(test_srcs): %.py :
-	DSS_TEST_MODE="integration standalone" coverage run -p --source=dss -m unittest $@
+$(all_test_srcs): all__%.py :
+	DSS_TEST_MODE="integration standalone" coverage run -p --source=dss -m unittest $*.py
 
 smoketest:
 	tests/test_smoketest.py
