@@ -30,9 +30,10 @@ install:
 - dpkg -x make*.deb make4
 - export PATH=$(pwd)/make4/usr/bin:$PATH
 script:
+- DSS_UNITTEST_OPTS="$DSS_UNITTEST_OPTS -v"
 - set -eo pipefail
-- if [[ ! $TRAVIS_DSS_INTEGRATION_MODE ]]; then make -j4 -O test; fi
-- if [[ $TRAVIS_DSS_INTEGRATION_MODE ]]; then make -j4 -O integration_test; fi
+- if [[ ! $TRAVIS_DSS_INTEGRATION_MODE ]]; then make -j4 test; fi
+- if [[ $TRAVIS_DSS_INTEGRATION_MODE ]]; then make -j4 integration_test; fi
 - if [[ $TRAVIS_BRANCH == staging ]]; then source environment.staging; fi
 after_success:
 - bash <(curl -s https://codecov.io/bash)
