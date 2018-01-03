@@ -193,24 +193,24 @@ def fake_process_item(self, key):
     if key == '3':
         time.sleep(5)
 
+def fake_index_object(_self, key, logger):
+    if int(key) % 2:
+        raise Exception()
+
 class TestVisitationReindex(unittest.TestCase):
     def setUp(self):
         self.state = {
-            '_visitation_class_name': 'VT',
             'replica': 'aws',
-            'bucket': 'no-bucket',
-            'work_ids': ['1', '2', '3', '4'],
-            '_number_of_workers': 3,
-            'status': WalkerStatus.walk.name
         }
 
     @testmode.standalone
     @mock.patch('dss.Config.get_cloud_specific_handles', new=fake_get_cloud_specific_handles)
-    @mock.patch('dss.events.handlers.index.GCPIndexer')
-    @mock.patch('dss.events.handlers.index.AWSIndexer')
-    def test_reindex_walk(self, fake_aws_indexer, fake_gcp_indexer):
+    @mock.patch('dss.events.handlers.index.Indexer.index_object', new=fake_index_object)
+    def test_reindex_walk(self):
         r = reindex.Reindex._with_state(self.state, logger)
         r._walk()
+        r.walker_finalize()
+        self.assertEqual(r.work_result, dict(failed=5, indexed=5, processed=10))
 
     @testmode.standalone
     @mock.patch('dss.Config.get_cloud_specific_handles', new=fake_get_cloud_specific_handles)
@@ -223,12 +223,21 @@ class TestVisitationReindex(unittest.TestCase):
 
     @testmode.standalone
     @mock.patch('dss.Config.get_cloud_specific_handles', new=fake_get_cloud_specific_handles)
+    @mock.patch('dss.events.handlers.index.Indexer.index_object', new=fake_index_object)
     def test_reindex_no_time_remaining(self):
         r = reindex.Reindex._with_state(self.state, logger)
         r._walk(seconds_allowed=1)
         self.assertIsNone(r.marker)
         self.assertIsNone(r.token)
 
+    @testmode.standalone
+    def test_job_initialize(self):
+        for num_workers, num_work_ids in [(1, 16), (15, 16), (16, 16), (17, 256)]:
+            with self.subTest(num_workers=num_workers, num_work_ids=num_work_ids):
+                state = {**self.state, '_number_of_workers': num_workers}
+                r = reindex.Reindex._with_state(state, logger)
+                r.job_initialize()
+                self.assertEquals(num_work_ids, len(set(r.work_ids)))
 
 if __name__ == '__main__':
     unittest.main()
