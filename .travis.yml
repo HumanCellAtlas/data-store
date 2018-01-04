@@ -38,13 +38,13 @@ after_success:
 - bash <(curl -s https://codecov.io/bash)
 deploy:
   - provider: script
-    script: make -j4 -O deploy
+    script: make deploy
     skip_cleanup: true
     on:
       branch: master
       condition: "! $TRAVIS_DSS_INTEGRATION_MODE"
   - provider: script
-    script: make -j4 -O deploy
+    script: make deploy
     skip_cleanup: true
     on:
       branch: staging
