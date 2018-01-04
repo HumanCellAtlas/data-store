@@ -135,7 +135,7 @@ class BundleDocument(IndexDocument):
             index_name = self._prepare_index(dryrun)
             return self._index_into(index_name, dryrun)
         else:
-            self.logger.info(f"Found tombstone for {self.fqid}. Indexing tombstone in place of bundle.")
+            self.logger.info("%s", f"Found tombstone for {self.fqid}. Indexing tombstone in place of bundle.")
             return self.entomb(tombstone)
 
     def _lookup_tombstone(self):
