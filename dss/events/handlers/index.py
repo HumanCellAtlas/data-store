@@ -31,8 +31,8 @@ class Indexer(metaclass=ABCMeta):
             key = self._parse_event(event)
             self.index_object(key, logger)
         except Exception:
-            logger.error("Exception occurred while processing %s event: %s",
-                         self.replica, json.dumps(event, indent=4), exc_info=True)
+            logger.error("%s", f"Exception occurred while processing {self.replica} "
+                               f"event: {json.dumps(event, indent=4)}", exc_info=True)
             raise
 
     @elasticsearch_retry
@@ -47,7 +47,7 @@ class Indexer(metaclass=ABCMeta):
         elif isinstance(identifier, TombstoneID):
             self._index_tombstone(self.replica, identifier, logger)
         else:
-            logger.debug(f"Not processing {self.replica.name} event for key: {key}")
+            logger.debug("%s", f"Not processing {self.replica.name} event for key: {key}")
 
     @property
     @abstractmethod
@@ -59,18 +59,18 @@ class Indexer(metaclass=ABCMeta):
         raise NotImplementedError()
 
     def _index_bundle(self, replica: Replica, bundle_fqid: BundleFQID, logger):
-        logger.info(f"Indexing bundle {bundle_fqid} from replica {replica.name}.")
+        logger.info("%s", f"Indexing bundle {bundle_fqid} from replica {replica.name}.")
         doc = BundleDocument.from_replica(replica, bundle_fqid, logger)
         modified, index_name = doc.index(dryrun=self.dryrun)
         if self.notify or modified and self.notify is None:
             doc.notify(index_name)
-        logger.debug(f"Finished indexing bundle {bundle_fqid} from replica {replica.name}.")
+        logger.debug("%s", f"Finished indexing bundle {bundle_fqid} from replica {replica.name}.")
 
     def _index_tombstone(self, replica: Replica, tombstone_id: TombstoneID, logger):
-        logger.info(f"Indexing tombstone {tombstone_id} from {replica.name}.")
+        logger.info("%s", f"Indexing tombstone {tombstone_id} from {replica.name}.")
         doc = BundleTombstoneDocument.from_replica(replica, tombstone_id, logger)
         doc.index(dryrun=self.dryrun)
-        logger.info(f"Finished indexing tombstone {tombstone_id} from {replica.name}.")
+        logger.info("%s", f"Finished indexing tombstone {tombstone_id} from {replica.name}.")
 
     def __repr__(self) -> str:
         return f"{type(self).__name__}(dryrun={self.dryrun}, notify={self.notify})"
