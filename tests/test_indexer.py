@@ -321,7 +321,7 @@ class TestIndexerBase(DSSAssertMixin, DSSStorageMixin, DSSUploadMixin):
         self.assertRegex(
             log_monitor.output[0],
             f"WARNING:.*:In bundle .* the file '{inaccesssible_filename}' is marked for indexing"
-            " yet could not be accessed. This file will not be indexed. Exception: .*, File blob key:",
+            " yet could not be accessed. This file will not be indexed. Exception: .*, file blob key:",
         )
 
         search_results = self.get_search_results(self.smartseq2_paired_ends_query, 1)
@@ -501,8 +501,9 @@ class TestIndexerBase(DSSAssertMixin, DSSStorageMixin, DSSUploadMixin):
         with self.subTest("An version file and unversioned file"):
             with self.assertLogs(logger, level="INFO") as log_monitor:
                 index_document.get_shape_descriptor()
-            self.assertRegex(log_monitor.output[0], ("INFO:.*File assay_json does not contain a 'core' section "
-                                                     "to identify the schema and schema version."))
+            self.assertIn("INFO:", log_monitor.output[0])
+            self.assertIn("File assay_json does not contain the 'core' section necessary to "
+                          "identify the schema and its version.", log_monitor.output[0])
             self.assertEqual(index_document.get_shape_descriptor(), "v4")
 
         index_document['files']['sample_json'].pop('core')
