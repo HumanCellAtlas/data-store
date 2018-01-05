@@ -16,21 +16,21 @@ test: lint mypy $(test_srcs)
 	rm -f .coverage.*
 
 $(test_srcs): %.py :
-	DSS_TEST_MODE="standalone" coverage run -p --source=dss -m unittest $@
+	DSS_TEST_MODE="standalone" coverage run -p --source=dss -m unittest $(DSS_UNITTEST_OPTS) $@ 2>&1 | sed -e "s/^/$$$$ /"
 
 integration_test: lint mypy $(integration_test_srcs)
 	coverage combine
 	rm -f .coverage.*
 
 $(integration_test_srcs): integration__%.py :
-	DSS_TEST_MODE="integration" coverage run -p --source=dss -m unittest $*.py
+	DSS_TEST_MODE="integration" coverage run -p --source=dss -m unittest $(DSS_UNITTEST_OPTS) $*.py 2>&1 | sed -e "s/^/$$$$ /"
 
 all_test: lint mypy $(all_test_srcs)
 	coverage combine
 	rm -f .coverage.*
 
 $(all_test_srcs): all__%.py :
-	DSS_TEST_MODE="integration standalone" coverage run -p --source=dss -m unittest $*.py
+	DSS_TEST_MODE="integration standalone" coverage run -p --source=dss -m unittest $(DSS_UNITTEST_OPTS) $*.py 2>&1 | sed -e "s/^/$$$$ /"
 
 smoketest: all__tests/test_smoketest.py
 
