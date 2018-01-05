@@ -32,8 +32,7 @@ all_test: lint mypy $(all_test_srcs)
 $(all_test_srcs): all__%.py :
 	DSS_TEST_MODE="integration standalone" coverage run -p --source=dss -m unittest $*.py
 
-smoketest:
-	tests/test_smoketest.py
+smoketest: all__tests/test_smoketest.py
 
 deploy: deploy-chalice deploy-daemons
 
