@@ -212,7 +212,8 @@ class TestIndexerBase(unittest.TestCase, DSSAssertMixin, DSSStorageMixin, DSSUpl
             }
             search_results = self.get_search_results(exact_query, 1)
             self.assertEqual(1, len(search_results))
-            self.assertEqual(search_results[0], tombstone_data)
+            expected_search_result = dict(tombstone_data, uuid=tombstone_id.uuid)
+            self.assertDictEqual(search_results[0], expected_search_result)
 
     @testmode.standalone
     def test_reindexing_with_changed_content(self):
@@ -650,7 +651,7 @@ class TestIndexerBase(unittest.TestCase, DSSAssertMixin, DSSStorageMixin, DSSUpl
         with self.subTest("with schema version"):
             'Extra fields are removed.'
             manifest = read_bundle_manifest(self.blobstore, self.test_bucket, self.bundle_key)
-            index_data = create_index_data(self.blobstore, self.test_bucket, manifest)
+            index_data = create_index_data(self.blobstore, self.test_bucket, self.bundle_key, manifest)
             index_data['files']['assay_json'].update({'extra_top': 123,
                                                       'extra_obj': {"something": "here", "another": 123},
                                                       'extra_lst': ["a", "b"]})
@@ -675,7 +676,7 @@ class TestIndexerBase(unittest.TestCase, DSSAssertMixin, DSSStorageMixin, DSSUpl
 
         with self.subTest("with invalid schema_url"):
             manifest = read_bundle_manifest(self.blobstore, self.test_bucket, self.bundle_key)
-            index_data = create_index_data(self.blobstore, self.test_bucket, manifest)
+            index_data = create_index_data(self.blobstore, self.test_bucket, self.bundle_key, manifest)
             index_data['files']['assay_json']['core']['schema_url'] = "http://invalid_url"
             with self.assertLogs(logger, level="WARNING") as log_monitor:
                 scrub_index_data(index_data['files'], bundle_fqid, logger)
@@ -695,12 +696,12 @@ class TestIndexerBase(unittest.TestCase, DSSAssertMixin, DSSStorageMixin, DSSUpl
                 "fixtures/indexing/bundles/unversioned/smartseq2/paired_ends_extras")
             bundle_fqid = bundle_key.split('/')[1]
             manifest = read_bundle_manifest(self.blobstore, self.test_bucket, bundle_key)
-            index_data = create_index_data(self.blobstore, self.test_bucket, manifest)
+            index_data = create_index_data(self.blobstore, self.test_bucket, bundle_key, manifest)
             for file in index_data['files']:
                 file.pop('core', None)
             scrub_index_data(index_data['files'], bundle_fqid, logger)
 
-            self.assertEqual(3, len(index_data.keys()))
+            self.assertEqual(4, len(index_data.keys()))
             self.assertEqual("new", index_data['state'])
             self.assertIsNotNone(index_data['manifest'])
             self.assertEqual(index_data['files'], {})
@@ -796,8 +797,9 @@ class TestIndexerBase(unittest.TestCase, DSSAssertMixin, DSSStorageMixin, DSSUpl
             self.assertDictEqual(expected_index_document, actual_index_document)
 
     def verify_index_document_structure(self, index_document, files, excluded_files):
-        self.assertEqual(3, len(index_document.keys()))
+        self.assertEqual(4, len(index_document.keys()))
         self.assertEqual("new", index_document['state'])
+        self.assertIsNotNone(index_document['uuid'])
         self.assertIsNotNone(index_document['manifest'])
         self.assertIsNotNone(index_document['files'])
         self.assertEqual((len(files) - len(excluded_files)),
@@ -995,7 +997,7 @@ def generate_expected_index_document(blobstore, bucket_name, bundle_key, exclude
     if excluded_files is None:
         excluded_files = []
     manifest = read_bundle_manifest(blobstore, bucket_name, bundle_key)
-    index_data = create_index_data(blobstore, bucket_name, manifest, excluded_files)
+    index_data = create_index_data(blobstore, bucket_name, bundle_key, manifest, excluded_files)
     return index_data
 
 
@@ -1005,10 +1007,11 @@ def read_bundle_manifest(blobstore, bucket_name, bundle_key):
     return manifest
 
 
-def create_index_data(blobstore, bucket_name, manifest, excluded_files=None) -> typing.MutableMapping[str, typing.Any]:
+def create_index_data(blobstore, bucket_name, bundle_key, manifest,
+                      excluded_files=None) -> typing.MutableMapping[str, typing.Any]:
     if excluded_files is None:
         excluded_files = []
-    index = dict(state="new", manifest=manifest)
+    index = dict(state="new", manifest=manifest, uuid=BundleFQID.from_key(bundle_key).uuid)
     files_info = manifest['files']
     excluded_file = [file.replace('_', '.') for file in excluded_files]
     index_files = {}

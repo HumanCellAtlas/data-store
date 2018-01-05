@@ -111,6 +111,7 @@ class BundleDocument(IndexDocument):
         self['manifest'] = self._read_bundle_manifest(blobstore, bucket_name, bundle_fqid)
         self['files'] = self._read_file_infos(blobstore, bucket_name)
         self['state'] = 'new'
+        self['uuid'] = bundle_fqid.uuid
         return self
 
     @classmethod
@@ -476,7 +477,9 @@ class BundleTombstoneDocument(IndexDocument):
     def from_replica(cls, replica: Replica, tombstone_id: TombstoneID, logger):
         blobstore, _, bucket_name = Config.get_cloud_specific_handles(replica)
         tombstone_data = json.loads(blobstore.get(bucket_name, tombstone_id.to_key()))
-        return cls(replica, tombstone_id, logger, tombstone_data)
+        self = cls(replica, tombstone_id, logger, tombstone_data)
+        self['uuid'] = tombstone_id.uuid
+        return self
 
     def _list_dead_bundles(self) -> typing.Sequence[BundleDocument]:
         blobstore, _, bucket_name = Config.get_cloud_specific_handles(self.replica)
