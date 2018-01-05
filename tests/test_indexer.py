@@ -675,22 +675,39 @@ class TestIndexerBase(unittest.TestCase, DSSAssertMixin, DSSStorageMixin, DSSUpl
             )
 
         with self.subTest("with invalid schema_url"):
+            url = "http://invalid_url"
+            doc = 'assay_json'
             manifest = read_bundle_manifest(self.blobstore, self.test_bucket, self.bundle_key)
             index_data = create_index_data(self.blobstore, self.test_bucket, self.bundle_key, manifest)
-            index_data['files']['assay_json']['core']['schema_url'] = "http://invalid_url"
+            index_data['files'][doc]['core']['schema_url'] = url
             with self.assertLogs(logger, level="WARNING") as log_monitor:
                 scrub_index_data(index_data['files'], bundle_fqid, logger)
-            self.assertRegex(log_monitor.output[0], r"WARNING:[^:]+:Unable to retrieve schema from url "
-                                                    r"http://invalid_url due to exception:.*",
-                             )
+            self.assertRegex(log_monitor.output[0], f"WARNING:[^:]+:Unable to retrieve schema from {doc} in "
+                                                    f"{bundle_fqid} because retrieving {url} caused exception: .*")
             self.verify_index_document_structure_and_content(
                 index_data,
                 self.bundle_key,
                 files=smartseq2_paried_ends_indexed_file_list,
-                excluded_files=['assay_json']
+                excluded_files=[doc]
             )
 
-        with self.subTest("without schema version"):
+        with self.subTest("with missing core.schema_url"):
+            doc = 'assay_json'
+            manifest = read_bundle_manifest(self.blobstore, self.test_bucket, self.bundle_key)
+            index_data = create_index_data(self.blobstore, self.test_bucket, self.bundle_key, manifest)
+            index_data['files'][doc]['core'].pop('schema_url')
+            with self.assertLogs(logger, level="WARNING") as log_monitor:
+                scrub_index_data(index_data['files'], bundle_fqid, logger)
+            self.assertRegex(log_monitor.output[0], f"WARNING:[^:]+:Unable to retrieve schema_url from {doc} in "
+                                                    f"{bundle_fqid} because core.schema_url does not exists.*")
+            self.verify_index_document_structure_and_content(
+                index_data,
+                self.bundle_key,
+                files=smartseq2_paried_ends_indexed_file_list,
+                excluded_files=[doc]
+            )
+
+        with self.subTest("without schema version aka core"):
             'Only the manifest should exist.'
             bundle_key = self.load_test_data_bundle_for_path(
                 "fixtures/indexing/bundles/unversioned/smartseq2/paired_ends_extras")
