@@ -47,12 +47,14 @@
       "Resource": "arn:aws:es:*:$account_id:domain/$dss_es_domain/*"
     },
     {
-      "Effect": "Allow",
       "Action": [
         "states:StartExecution",
         "states:DescribeExecution"
       ],
-      "Resource": "arn:aws:states:*:$account_id:*:dss-*"
+      "Resource": [
+        "arn:aws:states:*:$account_id:*:dss-*"
+      ],
+      "Effect": "Allow"
     }
   ]
 }
