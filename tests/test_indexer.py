@@ -648,9 +648,9 @@ class TestIndexerBase(unittest.TestCase, DSSAssertMixin, DSSStorageMixin, DSSUpl
 
     @testmode.standalone
     def test_scrub_index_data(self):
+        manifest = read_bundle_manifest(self.blobstore, self.test_bucket, self.bundle_key)
         with self.subTest("with schema version"):
             'Extra fields are removed.'
-            manifest = read_bundle_manifest(self.blobstore, self.test_bucket, self.bundle_key)
             index_data = create_index_data(self.blobstore, self.test_bucket, self.bundle_key, manifest)
             index_data['files']['assay_json'].update({'extra_top': 123,
                                                       'extra_obj': {"something": "here", "another": 123},
@@ -661,13 +661,12 @@ class TestIndexerBase(unittest.TestCase, DSSAssertMixin, DSSStorageMixin, DSSUpl
             index_data['files']['project_json']['extra_2'] = "Another extra field in a different file."
             index_data['files']['project_json']['core']['characteristics_3'] = "patternProperties only apply to root."
             bundle_fqid = self.bundle_key.split('/')[1]
+
             with self.assertLogs(logger, level="INFO") as log_monitor:
                 scrub_index_data(index_data['files'], bundle_fqid, logger)
-
             self.assertRegex(log_monitor.output[0], r"INFO:[^:]+:In [\w\-\.]+, unexpected additional fields "
                                                     r"have been removed from the data to be indexed. "
                                                     r"Removed \[[^\]]*].")
-
             self.verify_index_document_structure_and_content(
                 index_data,
                 self.bundle_key,
@@ -675,9 +674,8 @@ class TestIndexerBase(unittest.TestCase, DSSAssertMixin, DSSStorageMixin, DSSUpl
             )
 
         with self.subTest("with invalid schema_url"):
-            url = "http://invalid_url"
+            url = "://invalid_url"
             doc = 'assay_json'
-            manifest = read_bundle_manifest(self.blobstore, self.test_bucket, self.bundle_key)
             index_data = create_index_data(self.blobstore, self.test_bucket, self.bundle_key, manifest)
             index_data['files'][doc]['core']['schema_url'] = url
             with self.assertLogs(logger, level="WARNING") as log_monitor:
@@ -693,13 +691,12 @@ class TestIndexerBase(unittest.TestCase, DSSAssertMixin, DSSStorageMixin, DSSUpl
 
         with self.subTest("with missing core.schema_url"):
             doc = 'assay_json'
-            manifest = read_bundle_manifest(self.blobstore, self.test_bucket, self.bundle_key)
             index_data = create_index_data(self.blobstore, self.test_bucket, self.bundle_key, manifest)
             index_data['files'][doc]['core'].pop('schema_url')
             with self.assertLogs(logger, level="WARNING") as log_monitor:
                 scrub_index_data(index_data['files'], bundle_fqid, logger)
             self.assertRegex(log_monitor.output[0], f"WARNING:[^:]+:Unable to retrieve schema_url from {doc} in "
-                                                    f"{bundle_fqid} because core.schema_url does not exists.*")
+                                                    f"{bundle_fqid} because core.schema_url does not exist.*")
             self.verify_index_document_structure_and_content(
                 index_data,
                 self.bundle_key,
@@ -707,7 +704,7 @@ class TestIndexerBase(unittest.TestCase, DSSAssertMixin, DSSStorageMixin, DSSUpl
                 excluded_files=[doc]
             )
 
-        with self.subTest("without schema version aka core"):
+        with self.subTest("without core"):
             'Only the manifest should exist.'
             bundle_key = self.load_test_data_bundle_for_path(
                 "fixtures/indexing/bundles/unversioned/smartseq2/paired_ends_extras")

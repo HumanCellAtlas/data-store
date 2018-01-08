@@ -55,7 +55,7 @@ def scrub_index_data(index_data: dict, bundle_id: str, logger: logging.Logger) -
         if schema_url is not None:
             try:
                 schema = read_json_url(schema_url)
-            except URLError as ex:
+            except Exception as ex:
                 extra_documents.append(document)
                 logger.warning("%s", f"Unable to retrieve schema from {document} in {bundle_id} "
                                      f"because retrieving {schema_url} caused exception: {ex}.")
@@ -70,7 +70,7 @@ def scrub_index_data(index_data: dict, bundle_id: str, logger: logging.Logger) -
                     extra_fields.append(fields_to_remove)
         else:
             logger.warning("%s", f"Unable to retrieve schema_url from {document} in {bundle_id} because "
-                                 f"core.schema_url does not exists.")
+                                 f"core.schema_url does not exist.")
             extra_documents.append(document)
     if extra_documents:
         extra_fields.append(([], extra_documents))
