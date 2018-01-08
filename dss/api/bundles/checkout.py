@@ -14,8 +14,9 @@ def post(uuid: str, json_request_body: dict, replica: str, version: str = None):
 
     assert replica is not None
 
-    get_bundle(uuid, Replica[replica], version)
-    sfn_input = {"dss_bucket": dss_bucket, "bundle": uuid, "version": version, "email": email, "replica": replica}
+    bundle = get_bundle(uuid, Replica[replica], version)
+    sfn_input = {"dss_bucket": dss_bucket, "bundle": uuid, "version": bundle["bundle"]["version"],
+                 "email": email, "replica": replica}
     if "destination" in json_request_body:
         sfn_input["bucket"] = json_request_body["destination"]
 
