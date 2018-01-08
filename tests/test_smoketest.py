@@ -85,12 +85,11 @@ class Smoketest(unittest.TestCase):
             "--replica aws "
             "--staging-bucket $DSS_S3_BUCKET_TEST "
             f"--src-dir {bundle_dir} > upload.json")
-
         run(f"{venv_bin}hca dss download --replica aws --bundle-uuid $(jq -r .bundle_uuid upload.json)")
         for i in range(10):
             try:
                 cmd = "http -v --check-status GET"
-                run(f"{cmd} http://${{API_HOST}}/v1/bundles/$(jq -r .bundle_uuid upload.json)?replica=gcp")
+                run(f"{cmd} https://${{API_HOST}}/v1/bundles/$(jq -r .bundle_uuid upload.json)?replica=gcp")
                 break
             except SystemExit:
                 time.sleep(1)
@@ -101,7 +100,7 @@ class Smoketest(unittest.TestCase):
         run(f"{venv_bin}hca dss post-bundles-checkout "
             "--uuid $(jq -r .bundle_uuid upload.json) "
             "--replica aws "
-            "--email noreply@humancellatlas.org > res.json")
+            "--email rkisin@chanzuckerberg.com > res.json")
         with open("res.json") as fh:
             res_checkout = json.load(fh)
             print(f"Checkout jobId: {res_checkout['checkout_job_id']}")
@@ -110,7 +109,7 @@ class Smoketest(unittest.TestCase):
         for replica in "aws", "gcp":
             run(f"{venv_bin}hca dss post-search --es-query='{{}}' --replica {replica} > /dev/null")
 
-        search_route = "http://${API_HOST}/v1/search"
+        search_route = "https://${API_HOST}/v1/search"
         for replica in "aws", "gcp":
             run(f"jq -n '.es_query.query.match[env.k]=env.v' | http --check {search_route} replica==aws > res.json",
                 env=dict(os.environ, k="files.sample_json.id", v=sample_id))
@@ -143,6 +142,7 @@ class Smoketest(unittest.TestCase):
                 if status=='RUNNING':
                     time.sleep(6)
                 else:
+                    assert status=='SUCCEEDED'
                     blob_handle = S3BlobStore()
                     object_key = get_dst_bundle_prefix(bundle_id, version)
                     print(f"Checking bucket {checkout_bucket} object key: {object_key}")
