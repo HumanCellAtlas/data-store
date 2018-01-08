@@ -6,12 +6,15 @@ A basic integration test of the DSS. This can also be invoked via `make smoketes
 import os, sys, argparse, time, uuid, json, shutil, tempfile, unittest
 from subprocess import check_call, check_output, CalledProcessError
 
+from dss.util.checkout import get_dst_bundle_prefix
 from tests.infra import testmode
 
 pkg_root = os.path.abspath(os.path.join(os.path.dirname(__file__), ".."))  # noqa
 sys.path.insert(0, pkg_root)  # noqa
 
 from dss.api.files import ASYNC_COPY_THRESHOLD
+from cloud_blobstore.s3 import S3BlobStore
+
 
 parser = argparse.ArgumentParser(description=__doc__)
 parser.add_argument("--no-clean", dest="clean", action="store_false",
@@ -82,11 +85,12 @@ class Smoketest(unittest.TestCase):
             "--replica aws "
             "--staging-bucket $DSS_S3_BUCKET_TEST "
             f"--src-dir {bundle_dir} > upload.json")
+
         run(f"{venv_bin}hca dss download --replica aws --bundle-uuid $(jq -r .bundle_uuid upload.json)")
         for i in range(10):
             try:
                 cmd = "http -v --check-status GET"
-                run(f"{cmd} https://${{API_HOST}}/v1/bundles/$(jq -r .bundle_uuid upload.json)?replica=gcp")
+                run(f"{cmd} http://${{API_HOST}}/v1/bundles/$(jq -r .bundle_uuid upload.json)?replica=gcp")
                 break
             except SystemExit:
                 time.sleep(1)
@@ -94,10 +98,19 @@ class Smoketest(unittest.TestCase):
             parser.exit(RED("Failed to replicate bundle from AWS to GCP"))
         run(f"{venv_bin}hca dss download --replica gcp --bundle-uuid $(jq -r .bundle_uuid upload.json)")
 
+        run(f"{venv_bin}hca dss post-bundles-checkout "
+            "--uuid $(jq -r .bundle_uuid upload.json) "
+            "--replica aws "
+            "--email noreply@humancellatlas.org > res.json")
+        with open("res.json") as fh:
+            res_checkout = json.load(fh)
+            print(f"Checkout jobId: {res_checkout['checkout_job_id']}")
+            assert len(res_checkout["checkout_job_id"]) > 0
+
         for replica in "aws", "gcp":
             run(f"{venv_bin}hca dss post-search --es-query='{{}}' --replica {replica} > /dev/null")
 
-        search_route = "https://${API_HOST}/v1/search"
+        search_route = "http://${API_HOST}/v1/search"
         for replica in "aws", "gcp":
             run(f"jq -n '.es_query.query.match[env.k]=env.v' | http --check {search_route} replica==aws > res.json",
                 env=dict(os.environ, k="files.sample_json.id", v=sample_id))
@@ -115,20 +128,26 @@ class Smoketest(unittest.TestCase):
             run(f"{venv_bin}hca dss get-subscriptions --replica {replica}")
             run(f"{venv_bin}hca dss delete-subscription --replica {replica} --uuid {sub_id}")
 
-        run(f"{venv_bin}hca dss post-bundles-checkout "
-            "--uuid $(jq -r .bundle_uuid upload.json) "
-            "--replica aws "
-            "--email noreply@humancellatlas.org > res.json")
-        with open("res.json") as fh:
-            res = json.load(fh)
-            print(f"Checkout jobId: {res['checkout_job_id']}")
-            assert len(res["checkout_job_id"]) > 0
+        checkout_bucket = os.environ["DSS_S3_CHECKOUT_BUCKET"]
+        def get_upload_val (key): return check_output(["jq", "-r", key, "upload.json"]).decode(sys.stdout.encoding)
+        bundle_id = get_upload_val(".bundle_uuid")
+        version = get_upload_val(".version")
 
-        run(f"{venv_bin}hca dss get-bundles-checkout --checkout-job-id {res['checkout_job_id']} > res.json")
-        with open("res.json") as fh:
-            res = json.load(fh)
-            print(f"Checkout jobId: {res['status']}")
-            assert len(res["status"]) > 0
+        for i in range(10):
+            run(f"{venv_bin}hca dss get-bundles-checkout --checkout-job-id {res_checkout['checkout_job_id']} > res.json")
+            with open("res.json") as fh:
+                res = json.load(fh)
+                status = res['status']
+                assert len(status) > 0
+
+                if status=='RUNNING':
+                    time.sleep(6)
+                else:
+                    blob_handle = S3BlobStore()
+                    object_key = get_dst_bundle_prefix(bundle_id, version)
+                    print(f"Checking bucket {checkout_bucket} object key: {object_key}")
+                    blob_handle.get(checkout_bucket, object_key)
+                    break
 
     @classmethod
     def tearDownClass(cls):
