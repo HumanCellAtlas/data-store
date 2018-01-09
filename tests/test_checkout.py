@@ -2,6 +2,8 @@
 # coding: utf-8
 
 import os
+from uuid import UUID
+
 import requests
 import sys
 import unittest
@@ -13,7 +15,7 @@ import dss
 from dss.config import override_bucket_config, BucketConfig, Replica
 from dss.util import UrlBuilder
 from dss.util.checkout import get_manifest_files, validate_file_dst, pre_exec_validate, ValidationEnum, \
-    validate_bundle_exists, touch_test_file
+    validate_bundle_exists, touch_test_file, get_execution_id
 from tests.infra import DSSAssertMixin, DSSUploadMixin, get_env, testmode
 from tests.infra.server import ThreadedLocalServer
 
@@ -186,6 +188,14 @@ class TestFileApi(unittest.TestCase, DSSAssertMixin, DSSUploadMixin):
         replica = Replica.aws
         self.assertEqual(touch_test_file(self.s3_test_checkout_bucket, replica), True)
 
+    @testmode.standalone
+    def test_execution_id(self):
+        exec_id = get_execution_id()
+        self.assertIsNotNone(exec_id)
+        try:
+            UUID(exec_id, version=4)
+        except ValueError:
+            self.fail("Invalid execution id. Valid UUID v.4 is expected.")
 
 if __name__ == "__main__":
     unittest.main()
