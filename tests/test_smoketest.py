@@ -45,7 +45,7 @@ def run(command, runner=check_call, **kwargs):
         parser.exit(RED(f'{parser.prog}: Exit status {e.returncode} while running "{command}". Stopping.'))
 
 def get_upload_val(key):
-    return check_output(["jq", "-r", key, "upload.json"]).decode(sys.stdout.encoding)
+    return check_output(["jq", "-r", key, "upload.json"]).decode(sys.stdout.encoding).strip()
 
 
 @testmode.integration
@@ -88,6 +88,8 @@ class Smoketest(unittest.TestCase):
             "--staging-bucket $DSS_S3_BUCKET_TEST "
             f"--src-dir {bundle_dir} > upload.json")
         run(f"{venv_bin}hca dss download --replica aws --bundle-uuid $(jq -r .bundle_uuid upload.json)")
+
+        file_count = int(get_upload_val(".files | length"))
 
         run(f"{venv_bin}hca dss post-bundles-checkout "
             "--uuid $(jq -r .bundle_uuid upload.json) "
@@ -148,7 +150,8 @@ class Smoketest(unittest.TestCase):
                     blob_handle = S3BlobStore()
                     object_key = get_dst_bundle_prefix(bundle_id, version)
                     print(f"Checking bucket {checkout_bucket} object key: {object_key}")
-                    blob_handle.get(checkout_bucket, object_key)
+                    files = blob_handle.list(checkout_bucket, object_key)
+                    self.assertEqual(sum(1 for _ in files), file_count)
                     break
 
     @classmethod
