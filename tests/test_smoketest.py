@@ -6,9 +6,6 @@ A basic integration test of the DSS. This can also be invoked via `make smoketes
 import os, sys, argparse, time, uuid, json, shutil, tempfile, unittest
 from subprocess import check_call, check_output, CalledProcessError
 
-from dss.util.checkout import get_dst_bundle_prefix
-from tests.infra import testmode
-
 pkg_root = os.path.abspath(os.path.join(os.path.dirname(__file__), ".."))  # noqa
 sys.path.insert(0, pkg_root)  # noqa
 
@@ -145,12 +142,12 @@ class Smoketest(unittest.TestCase):
             run(f"{venv_bin}hca dss delete-subscription --replica {replica} --uuid {sub_id}")
 
         checkout_bucket = os.environ["DSS_S3_CHECKOUT_BUCKET"]
-        def get_upload_val (key): return check_output(["jq", "-r", key, "upload.json"]).decode(sys.stdout.encoding)
         bundle_id = get_upload_val(".bundle_uuid")
         version = get_upload_val(".version")
 
         for i in range(10):
-            run(f"{venv_bin}hca dss get-bundles-checkout --checkout-job-id {res_checkout['checkout_job_id']} > res.json")
+            run(f"{venv_bin}hca dss get-bundles-checkout "
+                f"--checkout-job-id {res_checkout['checkout_job_id']} > res.json")
             with open("res.json") as fh:
                 res = json.load(fh)
                 status = res['status']
@@ -177,4 +174,3 @@ class Smoketest(unittest.TestCase):
 if __name__ == "__main__":
     args, sys.argv[1:] = parser.parse_known_args()
     unittest.main()
-    

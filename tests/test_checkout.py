@@ -3,7 +3,6 @@
 
 import os
 from uuid import UUID
-
 import requests
 import sys
 import unittest
