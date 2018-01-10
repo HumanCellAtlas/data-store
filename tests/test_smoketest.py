@@ -11,6 +11,8 @@ sys.path.insert(0, pkg_root)  # noqa
 
 from dss.api.files import ASYNC_COPY_THRESHOLD
 from tests.infra import testmode
+from dss.util.checkout import get_dst_bundle_prefix
+from cloud_blobstore.s3 import S3BlobStore
 
 
 parser = argparse.ArgumentParser(description=__doc__)
@@ -41,6 +43,9 @@ def run(command, runner=check_call, **kwargs):
         return runner(command, **kwargs)
     except CalledProcessError as e:
         parser.exit(RED(f'{parser.prog}: Exit status {e.returncode} while running "{command}". Stopping.'))
+
+def get_upload_val(key):
+    return check_output(["jq", "-r", key, "upload.json"]).decode(sys.stdout.encoding).strip()
 
 
 @testmode.integration
@@ -83,6 +88,18 @@ class Smoketest(unittest.TestCase):
             "--staging-bucket $DSS_S3_BUCKET_TEST "
             f"--src-dir {bundle_dir} > upload.json")
         run(f"{venv_bin}hca dss download --replica aws --bundle-uuid $(jq -r .bundle_uuid upload.json)")
+
+        file_count = int(get_upload_val(".files | length"))
+
+        run(f"{venv_bin}hca dss post-bundles-checkout "
+            "--uuid $(jq -r .bundle_uuid upload.json) "
+            "--replica aws "
+            "--email dss.humancellatlas@gmail.com > res.json")
+        with open("res.json") as fh:
+            res_checkout = json.load(fh)
+            print(f"Checkout jobId: {res_checkout['checkout_job_id']}")
+            assert len(res_checkout["checkout_job_id"]) > 0
+
         for i in range(10):
             try:
                 cmd = "http -v --check-status GET"
@@ -114,6 +131,28 @@ class Smoketest(unittest.TestCase):
             sub_id = json.loads(res.decode())["uuid"]
             run(f"{venv_bin}hca dss get-subscriptions --replica {replica}")
             run(f"{venv_bin}hca dss delete-subscription --replica {replica} --uuid {sub_id}")
+
+        checkout_bucket = os.environ["DSS_S3_CHECKOUT_BUCKET"]
+        bundle_id = get_upload_val(".bundle_uuid")
+        version = get_upload_val(".version")
+
+        for i in range(10):
+            run(f"{venv_bin}hca dss get-bundles-checkout "
+                f"--checkout-job-id {res_checkout['checkout_job_id']} > res.json")
+            with open("res.json") as fh:
+                res = json.load(fh)
+                status = res['status']
+                self.assertGreater(len(status), 0)
+                if status == 'RUNNING':
+                    time.sleep(6)
+                else:
+                    self.assertEqual(status, 'SUCCEEDED')
+                    blob_handle = S3BlobStore()
+                    object_key = get_dst_bundle_prefix(bundle_id, version)
+                    print(f"Checking bucket {checkout_bucket} object key: {object_key}")
+                    files = blob_handle.list(checkout_bucket, object_key)
+                    self.assertEqual(len(files), file_count)
+                    break
 
     @classmethod
     def tearDownClass(cls):
