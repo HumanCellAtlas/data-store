@@ -795,6 +795,7 @@ paths:
         TODO: After some time period, the data will be removed.
         TBD: This could be based on initial checkout time or last access time.
       operationId: dss.api.bundles.checkout.post
+      x-dss-idempotent: true
       parameters:
         - name: uuid
           in: path
