@@ -1,5 +1,5 @@
 {
-  "app_name": "integration-test",
+  "app_name": "scheduled-test",
   "environment_variables": {
     "TRAVIS_TOKEN": REPLACE_WITH_YOUR_TRAVIS_TOKEN
   },
