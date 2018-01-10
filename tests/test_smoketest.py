@@ -94,7 +94,7 @@ class Smoketest(unittest.TestCase):
         run(f"{venv_bin}hca dss post-bundles-checkout "
             "--uuid $(jq -r .bundle_uuid upload.json) "
             "--replica aws "
-            "--email rkisin@chanzuckerberg.com > res.json")
+            "--email dss.humancellatlas@gmail.com > res.json")
         with open("res.json") as fh:
             res_checkout = json.load(fh)
             print(f"Checkout jobId: {res_checkout['checkout_job_id']}")
@@ -110,15 +110,6 @@ class Smoketest(unittest.TestCase):
         else:
             parser.exit(RED("Failed to replicate bundle from AWS to GCP"))
         run(f"{venv_bin}hca dss download --replica gcp --bundle-uuid $(jq -r .bundle_uuid upload.json)")
-
-        run(f"{venv_bin}hca dss post-bundles-checkout "
-            "--uuid $(jq -r .bundle_uuid upload.json) "
-            "--replica aws "
-            "--email rkisin@chanzuckerberg.com > res.json")
-        with open("res.json") as fh:
-            res_checkout = json.load(fh)
-            print(f"Checkout jobId: {res_checkout['checkout_job_id']}")
-            assert len(res_checkout["checkout_job_id"]) > 0
 
         for replica in "aws", "gcp":
             run(f"{venv_bin}hca dss post-search --es-query='{{}}' --replica {replica} > /dev/null")
@@ -151,16 +142,16 @@ class Smoketest(unittest.TestCase):
             with open("res.json") as fh:
                 res = json.load(fh)
                 status = res['status']
-                assert len(status) > 0
+                self.assertGreater(len(status), 0)
                 if status == 'RUNNING':
                     time.sleep(6)
                 else:
-                    assert status == 'SUCCEEDED'
+                    self.assertEqual(status, 'SUCCEEDED')
                     blob_handle = S3BlobStore()
                     object_key = get_dst_bundle_prefix(bundle_id, version)
                     print(f"Checking bucket {checkout_bucket} object key: {object_key}")
                     files = blob_handle.list(checkout_bucket, object_key)
-                    self.assertEqual(sum(1 for _ in files), file_count)
+                    self.assertEqual(len(files), file_count)
                     break
 
     @classmethod
