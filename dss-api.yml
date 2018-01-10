@@ -259,6 +259,7 @@ paths:
         640,000MB, we use a chunk size equal to the total file size divided by 10000, rounded up to the nearest MB.
         MB, in this section, refers to 1,048,576 bytes.  Note that 640,000MB is not the same as 640GB!
         - hca-dss-crc32c: CRC-32C checksum of the file
+      x-dss-idempotent: true
       parameters:
         - name: uuid
           in: path
@@ -588,6 +589,7 @@ paths:
       description: |
         Create a new version of a bundle with a given UUID.  The list of file UUID+versions to be included must be
         provided.
+      x-dss-idempotent: true
       parameters:
         - name: uuid
           in: path
