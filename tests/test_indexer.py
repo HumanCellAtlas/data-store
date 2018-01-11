@@ -650,8 +650,7 @@ class TestIndexerBase(unittest.TestCase, DSSAssertMixin, DSSStorageMixin, DSSUpl
     def test_scrub_index_data(self):
         manifest = read_bundle_manifest(self.blobstore, self.test_bucket, self.bundle_key)
         doc = 'assay_json'
-        with self.subTest("with schema version"):
-            'Extra fields are removed.'
+        with self.subTest("removes extra fields when fields not specified in schema."):
             index_data = create_index_data(self.blobstore, self.test_bucket, self.bundle_key, manifest)
             index_data['files']['assay_json'].update({'extra_top': 123,
                                                       'extra_obj': {"something": "here", "another": 123},
@@ -674,7 +673,7 @@ class TestIndexerBase(unittest.TestCase, DSSAssertMixin, DSSStorageMixin, DSSUpl
                 files=smartseq2_paried_ends_indexed_file_list,
             )
 
-        with self.subTest("with invalid schema_url"):
+        with self.subTest("document is removed from meta data when an invalid url is in core.schema_url."):
             invalid_url = "://invalid_url"
             index_data = create_index_data(self.blobstore, self.test_bucket, self.bundle_key, manifest)
             index_data['files'][doc]['core']['schema_url'] = invalid_url
@@ -689,7 +688,7 @@ class TestIndexerBase(unittest.TestCase, DSSAssertMixin, DSSStorageMixin, DSSUpl
                 excluded_files=[doc]
             )
 
-        with self.subTest("with missing core.schema_url"):
+        with self.subTest("document is removed from meta data when document is missing core.schema_url field."):
             index_data = create_index_data(self.blobstore, self.test_bucket, self.bundle_key, manifest)
             index_data['files'][doc]['core'].pop('schema_url')
             with self.assertLogs(logger, level="WARNING") as log_monitor:
@@ -703,7 +702,7 @@ class TestIndexerBase(unittest.TestCase, DSSAssertMixin, DSSStorageMixin, DSSUpl
                 excluded_files=[doc]
             )
 
-        with self.subTest("without core"):
+        with self.subTest("document is removed from meta data when document is missing core field."):
             'Only the manifest should exist.'
             bundle_key = self.load_test_data_bundle_for_path(
                 "fixtures/indexing/bundles/unversioned/smartseq2/paired_ends_extras")
