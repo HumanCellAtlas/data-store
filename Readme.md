@@ -30,9 +30,11 @@ To do this, your application should define an access control model consisting of
       {
         "Effect": "Allow",
         "Action": [
-          "dss:*",
+          "dss:CreateSubscription",
+          "dss:UpdateSubscription",
+          "dss:DeleteSubscription"
         ],
-        "Resource": "arn:hca:dss:*:*:subscriptions/FIXME/*"
+        "Resource": "arn:hca:dss:*:*:subscriptions/${user_id}/*"
       }
     ]
   }
@@ -77,17 +79,17 @@ service configuration.
 
 ## Links
 
-* [Project home page (GitHub)](https://github.com/HumanCellAtlas/fusilllade)
+* [Project home page (GitHub)](https://github.com/HumanCellAtlas/fusillade)
 * [Documentation (Read the Docs)](https://fusillade.readthedocs.io/)
 * [Package distribution (PyPI)](https://pypi.python.org/pypi/fusillade)
 
 ### Bugs
-Please report bugs, issues, feature requests, etc. on [GitHub](https://github.com/github.com/HumanCellAtlas/issues).
+Please report bugs, issues, feature requests, etc. on [GitHub](https://github.com/HumanCellAtlas/fusillade/issues).
 
 ### License
 Licensed under the terms of the [MIT License](https://opensource.org/licenses/MIT).
 
-[![Travis CI](https://travis-ci.org/HumanCellAtlas/fusilllade.svg)](https://travis-ci.org/HumanCellAtlas/fusilllade)
+[![Travis CI](https://travis-ci.org/HumanCellAtlas/fusillade.svg)](https://travis-ci.org/HumanCellAtlas/fusillade)
 [![PyPI version](https://img.shields.io/pypi/v/fusillade.svg)](https://pypi.python.org/pypi/fusillade)
 [![PyPI license](https://img.shields.io/pypi/l/fusillade.svg)](https://pypi.python.org/pypi/fusillade)
 [![Read The Docs](https://readthedocs.org/projects/fusillade/badge/?version=latest)](https://pypi.python.org/pypi/fusillade)
