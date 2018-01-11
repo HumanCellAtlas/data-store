@@ -11,6 +11,7 @@ init_docs:
 	cd docs; sphinx-quickstart
 
 docs:
+	pandoc --from markdown --to rst Readme.md > README.rst
 	$(MAKE) -C docs html
 
 install:
