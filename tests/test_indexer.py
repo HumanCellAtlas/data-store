@@ -649,6 +649,7 @@ class TestIndexerBase(unittest.TestCase, DSSAssertMixin, DSSStorageMixin, DSSUpl
     @testmode.standalone
     def test_scrub_index_data(self):
         manifest = read_bundle_manifest(self.blobstore, self.test_bucket, self.bundle_key)
+        doc = 'assay_json'
         with self.subTest("with schema version"):
             'Extra fields are removed.'
             index_data = create_index_data(self.blobstore, self.test_bucket, self.bundle_key, manifest)
@@ -674,14 +675,13 @@ class TestIndexerBase(unittest.TestCase, DSSAssertMixin, DSSStorageMixin, DSSUpl
             )
 
         with self.subTest("with invalid schema_url"):
-            url = "://invalid_url"
-            doc = 'assay_json'
+            invalid_url = "://invalid_url"
             index_data = create_index_data(self.blobstore, self.test_bucket, self.bundle_key, manifest)
-            index_data['files'][doc]['core']['schema_url'] = url
+            index_data['files'][doc]['core']['schema_url'] = invalid_url
             with self.assertLogs(logger, level="WARNING") as log_monitor:
                 scrub_index_data(index_data['files'], bundle_fqid, logger)
             self.assertRegex(log_monitor.output[0], f"WARNING:[^:]+:Unable to retrieve schema from {doc} in "
-                                                    f"{bundle_fqid} because retrieving {url} caused exception: .*")
+                                                    f"{bundle_fqid} because retrieving {invalid_url} caused exception: .*")
             self.verify_index_document_structure_and_content(
                 index_data,
                 self.bundle_key,
@@ -690,7 +690,6 @@ class TestIndexerBase(unittest.TestCase, DSSAssertMixin, DSSStorageMixin, DSSUpl
             )
 
         with self.subTest("with missing core.schema_url"):
-            doc = 'assay_json'
             index_data = create_index_data(self.blobstore, self.test_bucket, self.bundle_key, manifest)
             index_data['files'][doc]['core'].pop('schema_url')
             with self.assertLogs(logger, level="WARNING") as log_monitor:
