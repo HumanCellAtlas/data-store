@@ -31,7 +31,7 @@ catch_config = [
 ]
 
 state_machine_def = {
-    "Comment": "DSS Checkout service state machine that submits a Job to chained copy client"
+    "Comment": "DSS checkout service state machine that submits a job to S3 copy client"
                " and monitors the Job until it completes.",
     "StartAt": "PreExecutionCheck",
     "TimeoutSeconds": 3600,             # 60 minutes, in seconds.

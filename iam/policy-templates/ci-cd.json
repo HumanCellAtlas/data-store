@@ -92,7 +92,6 @@
       ],
       "Resource": [
         "arn:aws:logs:*:$account_id:log-group:dss-*-$DSS_DEPLOYMENT_STAGE*",
-        "arn:aws:logs:*:$account_id:log-group:chained-aws-lambda-*",
         "arn:aws:logs:*:$account_id:log-group:dss-test-logging*"
       ]
     },
@@ -106,11 +105,9 @@
       ],
       "Resource": [
         "arn:aws:lambda:*:$account_id:function:dss-*",
-        "arn:aws:lambda:*:$account_id:function:chained-aws-lambda-*",
         "arn:aws:es:*:$account_id:domain/dss-index-dev",
         "arn:aws:es:*:$account_id:domain/dss-index-dev/*",
         "arn:aws:sns:*:$account_id:dss-*",
-        "arn:aws:sns:*:$account_id:chained-aws-lambda-*",
         "arn:aws:sns:*:$account_id:domovoi-s3-bucket-events-*",
         "arn:aws:states:*:$account_id:*:dss-*"
       ],
