@@ -7,9 +7,6 @@ pkg_root = os.path.abspath(os.path.join(os.path.dirname(__file__), 'domovoilib')
 sys.path.insert(0, pkg_root)  # noqa
 
 import dss
-import chainedawslambda
-from chainedawslambda import aws
-from dss import chained_lambda_clients
 from dss.config import Replica
 
 from dss.stepfunctions.checkout.checkout_states import state_machine_def
@@ -25,10 +22,6 @@ email_sender = dss.Config.get_notification_email()
 default_checkout_bucket = dss.Config.get_s3_checkout_bucket()
 
 replica = Replica.aws
-
-for client_name, client_class in chained_lambda_clients():
-    chainedawslambda.aws.add_client(client_name, client_class)
-
 
 @app.step_function_task(state_name="ScheduleCopy", state_machine_definition=state_machine_def)
 def schedule_copy(event, context):

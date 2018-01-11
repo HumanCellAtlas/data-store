@@ -11,9 +11,6 @@ import logging
 import os
 import traceback
 
-import chainedawslambda
-import chainedawslambda.aws
-import chainedawslambda.s3copyclient
 import flask
 import requests
 import connexion.apis.abstract
@@ -185,22 +182,7 @@ class DSSRequestBodyValidator(RequestBodyValidator):
         return wrapper
 
 
-def chained_lambda_clients() -> typing.Iterable[typing.Tuple[str, typing.Type[chainedawslambda.Task]]]:
-    from .events.chunkedtask import s3copyclient
-
-    deployment_stage = os.getenv("DSS_DEPLOYMENT_STAGE")
-    return (
-        (s3copyclient.AWS_S3_COPY_CLIENT_PREFIX + deployment_stage,
-         chainedawslambda.s3copyclient.S3ParallelCopySupervisorTask),
-        (s3copyclient.AWS_S3_COPY_AND_WRITE_METADATA_CLIENT_PREFIX + deployment_stage,
-         s3copyclient.S3CopyWriteBundleTask),
-    )
-
-
 def create_app():
-    for client_name, client_class in chained_lambda_clients():
-        chainedawslambda.aws.add_client(client_name, client_class)
-
     app = DSSApp(
         __name__,
         validator_map={
