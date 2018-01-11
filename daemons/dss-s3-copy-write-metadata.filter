@@ -1,8 +1,0 @@
-.Statement |=
-  (map((select(.Sid == "calsns") .Resource) += [
-    "arn:aws:sns:*:$account_id:chained-aws-lambda-s3-parallel-copy-worker-$stage"
-   ]) |
-  map((select(.Sid == "callog") .Resource) += [
-    "arn:aws:logs:*:*:log-group:chained-aws-lambda-s3-parallel-copy-worker-$stage",
-    "arn:aws:logs:*:*:log-group:chained-aws-lambda-s3-parallel-copy-worker-$stage:*"
-   ]))

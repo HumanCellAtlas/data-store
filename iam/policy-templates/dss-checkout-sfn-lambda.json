@@ -52,8 +52,7 @@
       "Effect": "Allow",
       "Action": "lambda:*",
       "Resource": [
-        "arn:aws:lambda:*:$account_id:function:dss-*",
-        "arn:aws:lambda:*:$account_id:function:chained-aws-lambda-*"
+        "arn:aws:lambda:*:$account_id:function:dss-*"
       ]
     },
     {
