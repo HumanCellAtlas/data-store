@@ -1,17 +1,16 @@
+import io
 import uuid
 from logging import getLogger
 
-import io
-from chainedawslambda import aws
-from chainedawslambda.s3copyclient import S3ParallelCopySupervisorTask
 from cloud_blobstore import BlobNotFoundError, BlobStoreUnknownError
 from cloud_blobstore.s3 import S3BlobStore
 from enum import Enum, auto
 
-from .aws import get_s3_chunk_size
 from .bundles import get_bundle, get_bundle_from_bucket
-from .. import DSSException
+from .. import DSSException, stepfunctions
 from ..config import Config, Replica
+from ..stepfunctions import s3copyclient
+
 
 log = getLogger()
 blobstore = S3BlobStore()
@@ -40,12 +39,12 @@ class ValidationEnum(Enum):
 def parallel_copy(source_bucket: str, source_key: str, destination_bucket: str, destination_key: str):
     log.debug(f"Copy file from bucket {source_bucket} with key {source_key} to "
               f"bucket {destination_bucket} destination file: {destination_key}")
-    initial_state = S3ParallelCopySupervisorTask.setup_copy_task(
+    state = s3copyclient.copy_sfn_event(
         source_bucket, source_key,
         destination_bucket, destination_key,
-        get_s3_chunk_size,
-        3600)
-    aws.schedule_task(S3ParallelCopySupervisorTask, initial_state)
+    )
+    execution_name = get_execution_id()
+    stepfunctions.step_functions_invoke("dss-s3-copy-sfn-{stage}", execution_name, state)
 
 
 def get_src_key(file_metadata: dict):
