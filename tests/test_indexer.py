@@ -680,7 +680,8 @@ class TestIndexerBase(unittest.TestCase, DSSAssertMixin, DSSStorageMixin, DSSUpl
             with self.assertLogs(logger, level="WARNING") as log_monitor:
                 scrub_index_data(index_data['files'], bundle_fqid, logger)
             self.assertRegex(log_monitor.output[0], f"WARNING:[^:]+:Unable to retrieve schema from {doc} in "
-                                                    f"{bundle_fqid} because retrieving {invalid_url} caused exception: .*")
+                                                    f"{bundle_fqid} because retrieving {invalid_url} caused exception: "
+                                                    f".*")
             self.verify_index_document_structure_and_content(
                 index_data,
                 self.bundle_key,
