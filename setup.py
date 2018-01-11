@@ -5,7 +5,7 @@ from setuptools import setup, find_packages
 
 setup(
     name="fusillade",
-    version="0.0.0",
+    version="0.0.1",
     url="https://github.com/humancellatlas/fusillade",
     license="MIT License",
     author="Andrey Kislyuk",

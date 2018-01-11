@@ -16,7 +16,7 @@ Together, these two subsystems provide an easy API for your application to answe
 - Who is the user performing this API request?
 - Is this user authorized to perform action A on resource R?
 - How do I delegate to the user an appropriately restricted ability to access cloud (IaaS) resources directly through
-  IaaS (GCE, AWS) APIs?
+  IaaS (GCP, AWS) APIs?
 
 To do this, your application should define an access control model consisting of the following:
 
@@ -74,3 +74,20 @@ sample policy)
 When using Fusillade as a service, your application is itself subject to an IAM policy governing its ability to read and
 write permissions data. The Fusillade service administrator configures the Fusillade policy governing this in the
 service configuration.
+
+## Links
+
+* [Project home page (GitHub)](https://github.com/HumanCellAtlas/fusilllade)
+* [Documentation (Read the Docs)](https://fusillade.readthedocs.io/)
+* [Package distribution (PyPI)](https://pypi.python.org/pypi/fusillade)
+
+### Bugs
+Please report bugs, issues, feature requests, etc. on [GitHub](https://github.com/github.com/HumanCellAtlas/issues).
+
+### License
+Licensed under the terms of the [MIT License](https://opensource.org/licenses/MIT).
+
+[![Travis CI](https://travis-ci.org/HumanCellAtlas/fusilllade.svg)](https://travis-ci.org/HumanCellAtlas/fusilllade)
+[![PyPI version](https://img.shields.io/pypi/v/fusillade.svg)](https://pypi.python.org/pypi/fusillade)
+[![PyPI license](https://img.shields.io/pypi/l/fusillade.svg)](https://pypi.python.org/pypi/fusillade)
+[![Read The Docs](https://readthedocs.org/projects/fusillade/badge/?version=latest)](https://pypi.python.org/pypi/fusillade)
