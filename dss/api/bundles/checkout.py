@@ -6,6 +6,7 @@ from ..bundles import get_bundle
 from ... import Config, dss_handler, stepfunctions, Replica
 from ...util.checkout import get_execution_id
 
+state_machine_name_template = "dss-checkout-sfn-{stage}"
 
 @dss_handler
 def post(uuid: str, json_request_body: dict, replica: str, version: str = None):
@@ -20,15 +21,12 @@ def post(uuid: str, json_request_body: dict, replica: str, version: str = None):
     if "destination" in json_request_body:
         sfn_input["bucket"] = json_request_body["destination"]
 
-    response = stepfunctions.step_functions_invoke("dss-checkout-sfn-{stage}", get_execution_id(), sfn_input)
-
-    return jsonify(dict(checkout_job_id=response["executionArn"])), requests.codes.ok
+    execution_id = get_execution_id()
+    stepfunctions.step_functions_invoke(state_machine_name_template, execution_id, sfn_input)
+    return jsonify(dict(checkout_job_id=execution_id)), requests.codes.ok
 
 
 @dss_handler
 def get(checkout_job_id: str):
-    sfn = boto3.client('stepfunctions')
-    response = sfn.describe_execution(
-        executionArn=checkout_job_id
-    )
+    response = stepfunctions.step_functions_describe_execution(state_machine_name_template, checkout_job_id)
     return jsonify(dict(status=response.get('status'))), requests.codes.ok
