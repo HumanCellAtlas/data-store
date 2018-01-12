@@ -6,7 +6,7 @@ from ..bundles import get_bundle
 from ... import Config, dss_handler, stepfunctions, Replica
 from ...util.checkout import get_execution_id
 
-state_machine_name_template = "dss-checkout-sfn-{stage}"
+STATE_MACHINE_NAME_TEMPLATE = "dss-checkout-sfn-{stage}"
 
 @dss_handler
 def post(uuid: str, json_request_body: dict, replica: str, version: str = None):
@@ -22,11 +22,11 @@ def post(uuid: str, json_request_body: dict, replica: str, version: str = None):
         sfn_input["bucket"] = json_request_body["destination"]
 
     execution_id = get_execution_id()
-    stepfunctions.step_functions_invoke(state_machine_name_template, execution_id, sfn_input)
+    stepfunctions.step_functions_invoke(STATE_MACHINE_NAME_TEMPLATE, execution_id, sfn_input)
     return jsonify(dict(checkout_job_id=execution_id)), requests.codes.ok
 
 
 @dss_handler
 def get(checkout_job_id: str):
-    response = stepfunctions.step_functions_describe_execution(state_machine_name_template, checkout_job_id)
+    response = stepfunctions.step_functions_describe_execution(STATE_MACHINE_NAME_TEMPLATE, checkout_job_id)
     return jsonify(dict(status=response.get('status'))), requests.codes.ok
