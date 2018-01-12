@@ -47,7 +47,7 @@ def send_checkout_success_email(sender: str, to: str, bucket: str, location: str
          <h1>Hello,</h1>
          <p>
             Your checkout request has been processed.
-             Your files are available at bucket <strong>{}</strong> location <strong>{}</strong>.
+             Your files are available at <strong>s3://{}/{}</strong>
          </p>
        </body>
        </html>
