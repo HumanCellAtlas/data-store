@@ -1,1 +1,7 @@
-/dss-s3-copy-write-metadata
+**/.chalice/deployed.json
+**/.chalice/deployments/
+**/.chalice/policy.json
+**/.chalice/policy-*.json
+**/.chalice/venv/
+**/domovoilib
+**/vendor
