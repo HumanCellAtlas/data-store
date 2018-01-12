@@ -61,7 +61,18 @@
       "Resource": [
         "arn:aws:ses:*:*:*"
       ]
+    },
+    {
+      "Effect": "Allow",
+      "Action": [
+        "states:ListExecutions",
+        "states:StartExecution",
+        "states:DescribeExecution"
+      ],
+      "Resource": [
+        "arn:aws:states:*:$account_id:stateMachine:dss-s3-copy-sfn*",
+        "arn:aws:states:*:$account_id:execution:dss-s3-copy-sfn*"
+      ]
     }
-
   ]
 }
