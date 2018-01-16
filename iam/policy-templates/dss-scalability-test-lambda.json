@@ -1,0 +1,50 @@
+{
+  "Version": "2012-10-17",
+  "Statement": [
+    {
+      "Effect": "Allow",
+      "Action": [
+        "logs:CreateLogGroup",
+        "logs:CreateLogStream",
+        "logs:DescribeLogGroups",
+        "logs:DescribeLogStreams",
+        "logs:PutLogEvents"
+      ],
+      "Resource": "arn:aws:logs:*:*:*"
+    },
+    {
+      "Effect": "Allow",
+      "Action": [
+        "s3:List*",
+        "s3:Get*",
+        "s3:PutObject*",
+        "s3:DeleteObject*"
+      ],
+      "Resource": [
+        "arn:aws:s3:::$DSS_S3_BUCKET",
+        "arn:aws:s3:::$DSS_S3_BUCKET/*",
+        "arn:aws:s3:::$DSS_S3_BUCKET_TEST",
+        "arn:aws:s3:::$DSS_S3_BUCKET_TEST/*",
+        "arn:aws:s3:::$DSS_S3_CHECKOUT_BUCKET",
+        "arn:aws:s3:::$DSS_S3_CHECKOUT_BUCKET/*",
+        "arn:aws:s3:::$DSS_S3_CHECKOUT_BUCKET_TEST",
+        "arn:aws:s3:::$DSS_S3_CHECKOUT_BUCKET_TEST/*"
+      ]
+    },
+    {
+      "Effect": "Allow",
+      "Action": "sns:Publish",
+      "Resource": [
+        "arn:aws:sns:*:$account_id:dss-*-$stage",
+        "arn:aws:sns:*:$account_id:*-*-$stage"
+      ]
+    },
+    {
+      "Effect": "Allow",
+      "Action": "lambda:*",
+      "Resource": [
+        "arn:aws:lambda:*:$account_id:function:dss-*"
+      ]
+    }
+  ]
+}
