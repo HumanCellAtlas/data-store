@@ -14,6 +14,7 @@ PARALLEL_AWS_DAEMONS := \
 	dss-s3-copy-sfn \
 	dss-s3-copy-write-metadata-sfn \
 	dss-visitation \
+	dss-scalability-test \
 
 PARALLEL_GCP_DAEMONS := \
 	dss-gs-event-relay
@@ -35,7 +36,7 @@ $(SERIAL_AWS_DAEMONS) $(PARALLEL_AWS_DAEMONS):
 			../tests/daemons/sample_s3_bundle_created_event.json.template \
 			../tests/daemons/a47b90b2-0967-4fbf-87bc-c6c12db3fedf.2017-07-12T055120.037644Z; \
 	fi
-	@if [[ $@ == "dss-s3-copy-sfn" || %@ == "dss-s3-copy-write-metadata-sfn" || $@ == "dss-checkout" ]]; then \
+	@if [[ $@ == "dss-s3-copy-sfn" || %@ == "dss-s3-copy-write-metadata-sfn" || $@ == "dss-checkout" || $@ == "dss-scalability-test" ]]; then \
 	    $(DSS_HOME)/scripts/deploy_checkout_lifecycle.py; \
 	fi
 
