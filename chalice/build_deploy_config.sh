@@ -21,7 +21,6 @@ if [[ $# != 1 ]]; then
 fi
 
 export stage=$1
-stage_ucase=$(echo $stage | awk '{print toupper($0)}')
 deployed_json="$(dirname $0)/.chalice/deployed.json"
 config_json="$(dirname $0)/.chalice/config.json"
 policy_json="$(dirname $0)/.chalice/policy.json"

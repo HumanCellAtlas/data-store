@@ -8,7 +8,6 @@ if [[ $# != 2 ]]; then
 fi
 
 export daemon_name=$1 stage=$2
-stage_ucase=$(echo $stage | awk '{print toupper($0)}')
 export lambda_name="${daemon_name}-${stage}" iam_role_name="${daemon_name}-${stage}"
 deployed_json="$(dirname $0)/${daemon_name}/.chalice/deployed.json"
 config_json="$(dirname $0)/${daemon_name}/.chalice/config.json"
