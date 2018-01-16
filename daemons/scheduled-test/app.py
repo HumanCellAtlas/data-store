@@ -11,10 +11,11 @@ def define_test_type(test_type: str, envvar: str, schedule_expression: str):
     @app.scheduled_function(schedule_expression)
     def integration_test(event, context):
         travis_token = os.environ["TRAVIS_TOKEN"]
+        rule_name = event["resources"][0].split(":")[-1]
         body = {
             'request': {
                 'branch': "master",
-                'message': f"{test_type} test started by {context.function_name} from {event['resources'][0]}",
+                'message': f"{test_type} test started by {context.function_name} from {rule_name}",
                 'config': {
                     'merge_mode': "deep_merge",
                     'env': {
