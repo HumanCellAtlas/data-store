@@ -5,6 +5,8 @@ import uuid
 import datetime
 import requests
 import sys
+import logging
+
 
 from awscli.customizations.s3uploader import S3Uploader
 import domovoi
@@ -15,23 +17,31 @@ sys.path.insert(0, pkg_root)  # noqa
 from dss.util.aws import AWS_MIN_CHUNK_SIZE
 
 app = domovoi.Domovoi()
-
-FILE_COUNT = 2
-LARGE_FILE_COUNT = 2
+app.log.setLevel(logging.DEBUG)
 
 file_keys = []
 # TODO (rkisin): make bucket name configurable
 test_bucket = "org-humancellatlas-dss-test"
 replica = "aws"
 
-@app.sns_topic_subscriber("dss-scalability-init")
+@app.sns_topic_subscriber("dss-scalability-init-" + os.environ["DSS_DEPLOYMENT_STAGE"])
 def init(event, context):
-    tempdir = tempfile.gettempdir()
-    create_test_files(AWS_MIN_CHUNK_SIZE + 1, LARGE_FILE_COUNT, tempdir)
-    create_test_files(1024, FILE_COUNT, tempdir)
+    app.log.info("DSS scalability test  daemon received init event.")
 
-@app.sns_topic_subscriber("dss-scalability-put-file")
+    tempdir = tempfile.gettempdir()
+    test_files = event["test_file_keys"]
+    test_large_files = event["test_large_file_keys"]
+
+    create_test_files(AWS_MIN_CHUNK_SIZE + 1, test_large_files, tempdir)
+    create_test_files(1024, test_files, tempdir)
+
+@app.sns_topic_subscriber("dss-scalability-put-file-" + os.environ["DSS_DEPLOYMENT_STAGE"])
 def put_file(event, context):
+    app.log.info("DSS scalability test  daemon received put file event.")
+
+    test_files = event["test_file_keys"]
+    test_large_files = event["test_large_file_keys"]
+
     scheme = "s3"
 
     file_uuid = str(uuid.uuid4())
@@ -39,8 +49,9 @@ def put_file(event, context):
     timestamp = datetime.datetime.utcnow()
     file_version = timestamp.strftime("%Y-%m-%dT%H%M%S.%fZ")
     headers = {'content-type': 'application/json'}
-    rand_file_key = file_keys[random.randint(0, LARGE_FILE_COUNT + FILE_COUNT - 1)]
-    print(f"File put file key: {rand_file_key}")
+
+    rand_file_key = random.choice(test_files + test_large_files)
+    app.log.info(f"File put file key: {rand_file_key}")
 
     request_body = {"bundle_uuid": bundle_uuid,
                     "creator_uid": 0,
@@ -53,15 +64,12 @@ def put_file(event, context):
         json=request_body,
     ).json()
 
-def create_test_files(self, size: int, count: int, tempdir):
-    print(f"Creating {count} test files size {size}")
-    for i in range(count):
-        test_key = f"dss-scalability-test/{uuid.uuid4()}"
-        self.file_keys.append(test_key)
-        src_data = os.urandom(size + i)
+def create_test_files(self, size: int, file_keys, tempdir):
+    app.log.info(f"Creating {count} test files size {size}")
+    for key in file_keys:
+        src_data = os.urandom(size + 1)
         with tempfile.NamedTemporaryFile(delete=True) as fh:
             fh.write(src_data)
             fh.flush()
-            S3Uploader(tempdir, self.test_bucket).checksum_and_upload_file(fh.name, test_key, "text/plain")
-            print(">>> Uploaded file")
-    print("done")
+            S3Uploader(tempdir, self.test_bucket).checksum_and_upload_file(fh.name, key, "text/plain")
+    app.log.info("Uploaded test files")
