@@ -1,4 +1,5 @@
 import json
+import logging
 from typing import Optional, Mapping, Any, MutableMapping, Type
 from urllib.parse import unquote
 
@@ -9,6 +10,8 @@ from dss.storage.bundles import ObjectIdentifier, BundleFQID, TombstoneID, Objec
 from dss.storage.index_document import BundleDocument, BundleTombstoneDocument
 from dss.util.es import elasticsearch_retry
 
+
+logger = logging.getLogger(__name__)
 
 class Indexer(metaclass=ABCMeta):
 
@@ -26,11 +29,11 @@ class Indexer(metaclass=ABCMeta):
         self.dryrun = dryrun
         self.notify = notify
 
-    def process_new_indexable_object(self, event: Mapping[str, Any], logger) -> None:
+    def process_new_indexable_object(self, event: Mapping[str, Any]) -> None:
         try:
             key = self._parse_event(event)
             try:
-                self.index_object(key, logger)
+                self.index_object(key)
             except ObjectIdentifierError:
                 # This is expected with events about blobs as they don't have a valid object identifier
                 logger.debug(f"Not processing {self.replica.name} event for key: {key}")
@@ -40,13 +43,13 @@ class Indexer(metaclass=ABCMeta):
             raise
 
     @elasticsearch_retry
-    def index_object(self, key, logger):
+    def index_object(self, key):
         elasticsearch_retry.add_context(key=key, indexer=self)
         identifier = ObjectIdentifier.from_key(key)
         if isinstance(identifier, BundleFQID):
-            self._index_bundle(self.replica, identifier, logger)
+            self._index_bundle(self.replica, identifier)
         elif isinstance(identifier, TombstoneID):
-            self._index_tombstone(self.replica, identifier, logger)
+            self._index_tombstone(self.replica, identifier)
         elif isinstance(identifier, FileFQID):
             logger.debug(f"Indexing of individual files is not supported. "
                          f"Ignoring file {identifier} in {self.replica.name}.")
@@ -57,17 +60,17 @@ class Indexer(metaclass=ABCMeta):
     def _parse_event(self, event: Mapping[str, Any]):
         raise NotImplementedError()
 
-    def _index_bundle(self, replica: Replica, bundle_fqid: BundleFQID, logger):
+    def _index_bundle(self, replica: Replica, bundle_fqid: BundleFQID):
         logger.info("%s", f"Indexing bundle {bundle_fqid} from replica {replica.name}.")
-        doc = BundleDocument.from_replica(replica, bundle_fqid, logger)
+        doc = BundleDocument.from_replica(replica, bundle_fqid)
         modified, index_name = doc.index(dryrun=self.dryrun)
         if self.notify or modified and self.notify is None:
             doc.notify(index_name)
         logger.debug("%s", f"Finished indexing bundle {bundle_fqid} from replica {replica.name}.")
 
-    def _index_tombstone(self, replica: Replica, tombstone_id: TombstoneID, logger):
+    def _index_tombstone(self, replica: Replica, tombstone_id: TombstoneID):
         logger.info("%s", f"Indexing tombstone {tombstone_id} from {replica.name}.")
-        doc = BundleTombstoneDocument.from_replica(replica, tombstone_id, logger)
+        doc = BundleTombstoneDocument.from_replica(replica, tombstone_id)
         doc.index(dryrun=self.dryrun)
         logger.info("%s", f"Finished indexing tombstone {tombstone_id} from {replica.name}.")
 

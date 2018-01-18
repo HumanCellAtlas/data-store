@@ -21,6 +21,10 @@ from dss.events.handlers.sync import sync_blob, compose_gs_blobs, copy_part, par
 from dss.util.aws import ARN, send_sns_msg, clients, resources
 from dss.config import Replica
 
+
+logger = logging.getLogger(__name__)
+
+
 app = domovoi.Domovoi()
 
 dss.Config.set_config(dss.BucketConfig.NORMAL)
@@ -36,7 +40,7 @@ def process_new_s3_syncable_object(event, context):
     else:
         bucket = resources.s3.Bucket(event['Records'][0]["s3"]["bucket"]["name"])
         obj = bucket.Object(unquote(event['Records'][0]["s3"]["object"]["key"]))
-        sync_blob(source_platform="s3", source_key=obj.key, dest_platform="gs", logger=app.log, context=context)
+        sync_blob(source_platform="s3", source_key=obj.key, dest_platform="gs", context=context)
 
 @app.sns_topic_subscriber("dss-gs-bucket-events-" + os.environ["DSS_GS_BUCKET"])
 def process_new_gs_syncable_object(event, context):
@@ -45,7 +49,7 @@ def process_new_gs_syncable_object(event, context):
     """
     gs_event = json.loads(event["Records"][0]["Sns"]["Message"])
     gs_key_name = gs_event["data"]["name"]
-    sync_blob(source_platform="gs", source_key=gs_key_name, dest_platform="s3", logger=app.log, context=context)
+    sync_blob(source_platform="gs", source_key=gs_key_name, dest_platform="s3", context=context)
 
 
 @app.sns_topic_subscriber(sns_topics["closer"]["gs"])
@@ -67,13 +71,13 @@ def compose_upload(event, context):
                     source_blob_names = ["{}.part{}".format(msg["dest_key"], p) for p in parts_to_compose]
                     dest_blob_name = "{}.part{}".format(msg["dest_key"], ascii_letters[part_id // gs_max_compose_parts])
                     if gs_bucket.get_blob(dest_blob_name) is None:
-                        compose_gs_blobs(gs_bucket, source_blob_names, dest_blob_name, logger=app.log)
+                        compose_gs_blobs(gs_bucket, source_blob_names, dest_blob_name)
                     compose_stage2_blob_names.append(dest_blob_name)
             else:
                 parts_to_compose = range(1, msg["total_parts"] + 1)
                 compose_stage2_blob_names = ["{}.part{}".format(msg["dest_key"], p) for p in parts_to_compose]
             context.log("Composing, stage 2")
-            compose_gs_blobs(gs_bucket, compose_stage2_blob_names, msg["dest_key"], logger=app.log)
+            compose_gs_blobs(gs_bucket, compose_stage2_blob_names, msg["dest_key"])
             break
         except AssertionError:
             pass

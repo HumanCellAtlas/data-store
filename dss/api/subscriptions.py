@@ -1,4 +1,5 @@
 import datetime
+import logging
 from typing import List
 from uuid import uuid4
 
@@ -8,19 +9,20 @@ from elasticsearch.exceptions import ElasticsearchException, NotFoundError
 from elasticsearch_dsl import Search
 from flask import jsonify, request
 
-from .. import Config, Replica, ESIndexType, ESDocType, get_logger
+from .. import Config, Replica, ESIndexType, ESDocType
 from ..error import DSSException, dss_handler
 from ..util.es import ElasticsearchClient
 from ..storage.index import IndexManager
 
-logger = get_logger()
+
+logger = logging.getLogger(__name__)
 
 
 @dss_handler
 def get(uuid: str, replica: str):
     owner = request.token_info['email']
 
-    es_client = ElasticsearchClient.get(logger)
+    es_client = ElasticsearchClient.get()
 
     try:
         response = es_client.get(index=Config.get_es_index_name(ESIndexType.subscriptions, Replica[replica]),
@@ -43,7 +45,7 @@ def get(uuid: str, replica: str):
 @dss_handler
 def find(replica: str):
     owner = request.token_info['email']
-    es_client = ElasticsearchClient.get(logger)
+    es_client = ElasticsearchClient.get()
 
     search_obj = Search(using=es_client,
                         index=Config.get_es_index_name(ESIndexType.subscriptions, Replica[replica]),
@@ -68,7 +70,7 @@ def put(json_request_body: dict, replica: str):
     es_query = json_request_body['es_query']
     owner = request.token_info['email']
 
-    es_client = ElasticsearchClient.get(logger)
+    es_client = ElasticsearchClient.get()
 
     index_mapping = {
         "mappings": {
@@ -142,7 +144,7 @@ def put(json_request_body: dict, replica: str):
 def delete(uuid: str, replica: str):
     authenticated_user_email = request.token_info['email']
 
-    es_client = ElasticsearchClient.get(logger)
+    es_client = ElasticsearchClient.get()
 
     try:
         response = es_client.get(index=Config.get_es_index_name(ESIndexType.subscriptions, Replica[replica]),

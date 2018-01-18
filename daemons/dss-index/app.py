@@ -25,7 +25,7 @@ def dispatch_s3_indexer_event(event, context) -> None:
         app.log.info("DSS index daemon received S3 test event")
     else:
         indexer = AWSIndexer()
-        indexer.process_new_indexable_object(event, app.log)
+        indexer.process_new_indexable_object(event)
 
 
 @app.sns_topic_subscriber("dss-gs-bucket-events-" + os.environ["DSS_GS_BUCKET"])
@@ -35,4 +35,4 @@ def dispatch_gs_indexer_event(event, context):
     """
     gs_event = json.loads(event['Records'][0]['Sns']['Message'])
     indexer = GCPIndexer()
-    indexer.process_new_indexable_object(gs_event['data'], app.log)
+    indexer.process_new_indexable_object(gs_event['data'])

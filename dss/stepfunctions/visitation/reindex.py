@@ -1,3 +1,4 @@
+import logging
 import string
 from time import time
 from cloud_blobstore import BlobPagingError
@@ -8,6 +9,9 @@ from dss.events.handlers.index import Indexer
 from .timeout import Timeout
 from ...config import Config, Replica
 from . import Visitation, WalkerStatus
+
+
+logger = logging.getLogger(__name__)
 
 
 class Reindex(Visitation):
@@ -42,15 +46,15 @@ class Reindex(Visitation):
     def process_item(self, key):
         self.work_result['processed'] += 1
         try:
-            self.indexer.index_object(key, self.logger)
+            self.indexer.index_object(key)
         except Exception:
             self.work_result['failed'] += 1
-            self.logger.warning(f'Reindex operation failed for {key}', exc_info=True)
+            logger.warning(f'Reindex operation failed for {key}', exc_info=True)
         else:
             self.work_result['indexed'] += 1
 
     def walker_finalize(self):
-        self.logger.info(f'Work result: {self.work_result}')
+        logger.info(f'Work result: {self.work_result}')
         self.marker = None
         self.token = None
 
@@ -65,7 +69,7 @@ class Reindex(Visitation):
         default_bucket = Replica[self.replica].bucket
 
         if self.bucket != default_bucket:
-            self.logger.warning(f'Indexing bucket {self.bucket} instead of default {default_bucket}.')
+            logger.warning(f'Indexing bucket {self.bucket} instead of default {default_bucket}.')
 
         blobs = handle.list_v2(
             self.bucket,
@@ -78,7 +82,7 @@ class Reindex(Visitation):
             seconds_remaining = int(seconds_allowed - (time() - start_time))
 
             if 1 > seconds_remaining:
-                self.logger.info(f'{self.work_id} timed out before reindex')
+                logger.info(f'{self.work_id} timed out before reindex')
                 return
 
             with Timeout(seconds_remaining) as timeout:
@@ -90,7 +94,7 @@ class Reindex(Visitation):
                 self.process_item(key)
 
             if timeout.did_timeout:
-                self.logger.warning(f'{self.work_id} timed out during reindex')
+                logger.warning(f'{self.work_id} timed out during reindex')
                 return
 
             self.marker = blobs.start_after_key

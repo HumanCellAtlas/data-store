@@ -14,6 +14,7 @@ from http.server import BaseHTTPRequestHandler, HTTPServer
 pkg_root = os.path.abspath(os.path.join(os.path.dirname(__file__), '..'))  # noqa
 sys.path.insert(0, pkg_root)  # noqa
 
+import dss
 from dss import Config, BucketConfig
 from dss.config import Replica
 from tests.infra import start_verbose_logging, testmode
@@ -71,7 +72,7 @@ class TestS3UrlCache(unittest.TestCase):
 
     def setUp(self):
         self.urls_to_cleanup = set()
-        self.cache = S3UrlCache(logger)
+        self.cache = S3UrlCache()
 
     def tearDown(self):
         self._delete_cached_urls()
@@ -83,7 +84,7 @@ class TestS3UrlCache(unittest.TestCase):
         url_key = S3UrlCache._url_to_key(url)
 
         self._delete_cached_urls()
-        with self.assertLogs(logger, "INFO") as log_monitor:
+        with self.assertLogs(dss.logger, "INFO") as log_monitor:
             url_content = self.cache.resolve(url)
 
         original_data = randomdata[:KiB]
@@ -96,7 +97,7 @@ class TestS3UrlCache(unittest.TestCase):
         """Stored URL contents is retrieved from S3, when a cached url is requested"""
         url = f"{HTTPInfo.url}/{KiB}"
         self.urls_to_cleanup.add(url)
-        with self.assertLogs(logger, 'INFO') as log_monitor:
+        with self.assertLogs(dss.logger, 'INFO') as log_monitor:
             url_content = self.cache.resolve(url)
             cached_content = self.cache.resolve(url)
         self.assertEqual(len(log_monitor.output), 1)
@@ -156,7 +157,7 @@ class TestS3UrlCache(unittest.TestCase):
         self.urls_to_cleanup.add(url)
         url_key = S3UrlCache._url_to_key(url)
 
-        with self.assertLogs(logger, "INFO") as log_monitor:
+        with self.assertLogs(dss.logger, "INFO") as log_monitor:
             # Verify the URL is cached
             self.cache.resolve(url)
             self.assertTrue(self.cache.contains(url))

@@ -15,7 +15,7 @@ def elasticsearch_delete_index(index_name: str):
     assert index_name.endswith(Config.test_index_suffix.value)
 
     try:
-        es_client = ElasticsearchClient.get(logger)
+        es_client = ElasticsearchClient.get()
         es_client.indices.delete(index=index_name, ignore=[404])
     except Exception as e:
         logger.warning("Error occurred while removing Elasticsearch index:%s Exception: %s", index_name, e)
@@ -37,7 +37,7 @@ def clear_indexes(index_names: List[str], doctypes: List[str]):
     for index_name in index_names:
         assert index_name.endswith(Config.test_index_suffix.value)
 
-    es_client = ElasticsearchClient.get(logger)
+    es_client = ElasticsearchClient.get()
     if es_client.indices.exists(index_names):
         es_client.delete_by_query(index=index_names,
                                   body={'query': {'match_all': {}}},
