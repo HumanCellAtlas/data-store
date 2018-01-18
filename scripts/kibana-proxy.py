@@ -10,7 +10,7 @@ To install Kibana and aws-signing-proxy follow these steps (macOS only):
 
    brew install golang
 
-2) As instructed by brew, set GOPATH and GOROOT, then set PATH to include $GOPATH/bin
+2) As instructed by brew, set GOPATH. Then set PATH to include $GOPATH/bin
 
 3) Run
 
@@ -25,6 +25,9 @@ To install Kibana and aws-signing-proxy follow these steps (macOS only):
 To use this program, set `AWS_PROFILE` and `source environment`. Then run
 
    kibana-proxy.py
+
+and open `http://localhost:5601` in your browser while leaving the script running. Hitting Ctrl-C terminates it and
+its child processes.
 
 If multiple versions of Kibana are installed, you may want to select the one to be run by this program by setting
 DSS_KIBANA_BIN (in environment.local) to point at the Kibana executable. For example, I have
