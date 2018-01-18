@@ -2,9 +2,9 @@ include ../common.mk
 
 deploy: deploy-serial deploy-parallel
 deploy-serial: dss-sync dss-index
-deploy-parallel: dss-gs-event-relay dss-s3-copy-sfn dss-s3-copy-write-metadata-sfn dss-checkout-sfn dss-visitation dss-admin
+deploy-parallel: dss-gs-event-relay dss-s3-copy-sfn dss-s3-copy-write-metadata-sfn dss-gs-copy-sfn dss-checkout-sfn dss-visitation dss-admin
 
-dss-sync dss-index dss-s3-copy-sfn dss-s3-copy-write-metadata-sfn dss-checkout-sfn dss-visitation dss-admin:
+dss-sync dss-index dss-s3-copy-sfn dss-s3-copy-write-metadata-sfn dss-gs-copy-sfn dss-checkout-sfn dss-visitation dss-admin:
 	git clean -df $@/domovoilib $@/vendor
 	shopt -s nullglob; for wheel in $@/vendor.in/*/*.whl; do unzip -q -o -d $@/vendor $$wheel; done
 	cp -R ../dss ../dss-api.yml $@/domovoilib
@@ -23,4 +23,4 @@ dss-sync dss-index dss-s3-copy-sfn dss-s3-copy-write-metadata-sfn dss-checkout-s
 dss-gs-event-relay:
 	$(DSS_HOME)/scripts/deploy_gcf.py $@ --entry-point "dss_gs_bucket_events_$(subst -,_,$(DSS_GS_BUCKET))"
 
-.PHONY: deploy deploy-serial deploy-parallel dss-sync dss-index dss-gs-event-relay dss-s3-copy-sfn dss-s3-copy-write-metadata-sfn dss-checkout-sfn dss-visitation dss-admin
+.PHONY: deploy deploy-serial deploy-parallel dss-sync dss-index dss-gs-event-relay dss-s3-copy-sfn dss-s3-copy-write-metadata-sfn dss-gs-copy-sfn dss-checkout-sfn dss-visitation dss-admin
