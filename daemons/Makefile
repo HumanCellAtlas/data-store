@@ -1,10 +1,27 @@
 include ../common.mk
 
-deploy: deploy-serial deploy-parallel
-deploy-serial: dss-sync dss-index
-deploy-parallel: dss-gs-event-relay dss-s3-copy-sfn dss-s3-copy-write-metadata-sfn dss-gs-copy-sfn dss-checkout-sfn dss-visitation dss-admin
+SERIAL_AWS_DAEMONS := \
+	dss-sync \
+	dss-index \
 
-dss-sync dss-index dss-s3-copy-sfn dss-s3-copy-write-metadata-sfn dss-gs-copy-sfn dss-checkout-sfn dss-visitation dss-admin:
+SERIAL_GCP_DAEMONS :=
+
+PARALLEL_AWS_DAEMONS := \
+	dss-admin \
+	dss-checkout-sfn \
+	dss-gs-copy-sfn \
+	dss-s3-copy-sfn \
+	dss-s3-copy-write-metadata-sfn \
+	dss-visitation \
+
+PARALLEL_GCP_DAEMONS := \
+	dss-gs-event-relay
+
+deploy: deploy-serial deploy-parallel
+deploy-serial: $(SERIAL_AWS_DAEMONS) $(SERIAL_GCP_DAEMONS)
+deploy-parallel: $(PARALLEL_AWS_DAEMONS) $(PARALLEL_GCP_DAEMONS)
+
+$(SERIAL_AWS_DAEMONS) $(PARALLEL_AWS_DAEMONS):
 	git clean -df $@/domovoilib $@/vendor
 	shopt -s nullglob; for wheel in $@/vendor.in/*/*.whl; do unzip -q -o -d $@/vendor $$wheel; done
 	cp -R ../dss ../dss-api.yml $@/domovoilib
@@ -23,4 +40,4 @@ dss-sync dss-index dss-s3-copy-sfn dss-s3-copy-write-metadata-sfn dss-gs-copy-sf
 dss-gs-event-relay:
 	$(DSS_HOME)/scripts/deploy_gcf.py $@ --entry-point "dss_gs_bucket_events_$(subst -,_,$(DSS_GS_BUCKET))"
 
-.PHONY: deploy deploy-serial deploy-parallel dss-sync dss-index dss-gs-event-relay dss-s3-copy-sfn dss-s3-copy-write-metadata-sfn dss-gs-copy-sfn dss-checkout-sfn dss-visitation dss-admin
+.PHONY: deploy deploy-serial deploy-parallel $(SERIAL_AWS_DAEMONS) $(SERIAL_GCP_DAEMONS) $(PARALLEL_AWS_DAEMONS) $(PARALLEL_GCP_DAEMONS)
