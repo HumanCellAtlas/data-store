@@ -59,7 +59,7 @@ class TestSyncUtils(unittest.TestCase):
         src_blob = self.s3_bucket.Object(test_key)
         gs_dest_blob = self.gs_bucket.blob(test_key)
         src_blob.put(Body=payload, Metadata=test_metadata)
-        sync.sync_blob(source_platform="s3", source_key=test_key, dest_platform="gs", logger=self.logger, context=None)
+        sync.sync_blob(source_platform="s3", source_key=test_key, dest_platform="gs", context=None)
         self.assertEqual(gs_dest_blob.download_as_string(), payload)
 
         test_key = "hca-dss-sync-test/gcs-to-s3/{}".format(uuid.uuid4())
@@ -67,7 +67,7 @@ class TestSyncUtils(unittest.TestCase):
         dest_blob = self.s3_bucket.Object(test_key)
         src_blob.metadata = test_metadata
         src_blob.upload_from_string(payload)
-        sync.sync_blob(source_platform="gs", source_key=test_key, dest_platform="s3", logger=self.logger, context=None)
+        sync.sync_blob(source_platform="gs", source_key=test_key, dest_platform="s3", context=None)
         self.assertEqual(dest_blob.get()["Body"].read(), payload)
         self.assertEqual(dest_blob.metadata, test_metadata)
 
@@ -104,7 +104,7 @@ class TestSyncUtils(unittest.TestCase):
             self.gs_bucket.blob(f"{test_key}.part{part}").upload_from_string(payload)
             blob_names.append(f"{test_key}.part{part}")
             total_payload += payload
-        sync.compose_gs_blobs(self.gs_bucket, blob_names, test_key, logger=self.logger)
+        sync.compose_gs_blobs(self.gs_bucket, blob_names, test_key)
         self.assertEqual(self.gs_bucket.blob(test_key).download_as_string(), total_payload)
         for part in range(3):
             self.assertFalse(self.gs_bucket.blob(f"{test_key}.part{part}").exists())
@@ -140,11 +140,11 @@ class TestSyncUtils(unittest.TestCase):
         # FIXME: (akislyuk) finish this test
         source = sync.BlobLocation(platform="s3", bucket=self.s3_bucket, blob=Namespace(content_length=0))
         dest = sync.BlobLocation(platform="gs", bucket=self.gs_bucket, blob=None)
-        sync.dispatch_multipart_sync(source, dest, logger=None, context=Namespace(log=logging.info))
+        sync.dispatch_multipart_sync(source, dest, context=Namespace(log=logging.info))
 
     def test_sync_s3_to_gcsts(self):
         # FIXME: (akislyuk) finish this test
-        sync.sync_s3_to_gcsts(self.gs.project, self.s3_bucket_name, self.gs_bucket_name, "test_key", self.logger)
+        sync.sync_s3_to_gcsts(self.gs.project, self.s3_bucket_name, self.gs_bucket_name, "test_key")
 
 if __name__ == '__main__':
     unittest.main()

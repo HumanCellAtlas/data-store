@@ -1,6 +1,6 @@
 import io
+import logging
 import uuid
-from logging import getLogger
 
 from cloud_blobstore import BlobNotFoundError, BlobStoreUnknownError
 from cloud_blobstore.s3 import S3BlobStore
@@ -12,7 +12,7 @@ from ..config import Config, Replica
 from ..stepfunctions import s3copyclient
 
 
-log = getLogger()
+log = logging.getLogger(__name__)
 blobstore = S3BlobStore.from_environment()
 
 

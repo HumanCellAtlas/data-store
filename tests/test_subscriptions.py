@@ -41,14 +41,8 @@ class TestSubscriptionsBase(ElasticsearchTestCase, DSSAssertMixin):
         dss.Config.set_config(dss.BucketConfig.TEST)
 
         with open(os.path.join(os.path.dirname(__file__), "sample_v3_index_doc.json"), "r") as fh:
-            cls.index_document = BundleDocument(
-                cls.replica,
-                get_bundle_fqid(),
-                logger,
-            )
+            cls.index_document = BundleDocument(cls.replica, get_bundle_fqid())
             cls.index_document.update(json.load(fh))
-
-        logger.debug("Setting up Elasticsearch")
 
     @classmethod
     def tearDownClass(cls):
@@ -61,7 +55,7 @@ class TestSubscriptionsBase(ElasticsearchTestCase, DSSAssertMixin):
         self.sub_index_name = dss.Config.get_es_index_name(dss.ESIndexType.subscriptions, self.replica)
         shape_identifier = self.index_document.get_shape_descriptor()
         self.doc_index_name = dss.Config.get_es_index_name(dss.ESIndexType.docs, self.replica, shape_identifier)
-        es_client = ElasticsearchClient.get(logger)
+        es_client = ElasticsearchClient.get()
         IndexManager.create_index(es_client, self.replica, self.doc_index_name)
         es_client.index(index=self.doc_index_name,
                         doc_type=dss.ESDocType.doc.name,
@@ -93,7 +87,7 @@ class TestSubscriptionsBase(ElasticsearchTestCase, DSSAssertMixin):
     def test_put(self):
         uuid_ = self._put_subscription()
 
-        es_client = ElasticsearchClient.get(logger)
+        es_client = ElasticsearchClient.get()
         response = es_client.get(index=self.doc_index_name,
                                  doc_type=dss.ESDocType.query.name,
                                  id=uuid_)

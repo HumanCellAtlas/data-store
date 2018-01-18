@@ -1,9 +1,10 @@
-from ... import get_logger
+import logging
+
 from .registered_visitations import registered_visitations
 from . import DSSVisitationException, WalkerStatus
 
 
-logger = get_logger()
+logger = logging.getLogger(__name__)
 
 
 THREADPOOL_PARALLEL_FACTOR = 32
@@ -20,7 +21,7 @@ def vis_obj(event):
     if vis_class is None:
         raise DSSVisitationException('Unknown visitation class')
 
-    return vis_class._with_state(event, logger)
+    return vis_class._with_state(event)
 
 
 def job_initialize(event, context):

@@ -25,6 +25,8 @@ from dss.storage.validator import scrub_index_data
 from dss.util import create_blob_key
 from dss.util.es import ElasticsearchClient, elasticsearch_retry
 
+logger = logging.getLogger(__name__)
+
 
 class IndexDocument(dict, metaclass=ABCMeta):
     """
@@ -43,10 +45,8 @@ class IndexDocument(dict, metaclass=ABCMeta):
         """
         raise NotImplementedError()
 
-    def __init__(self, replica: Replica, fqid: typing.Union[BundleFQID, TombstoneID], logger: logging.Logger,
-                 *args, **kwargs) -> None:
+    def __init__(self, replica: Replica, fqid: typing.Union[BundleFQID, TombstoneID], *args, **kwargs) -> None:
         super().__init__(*args, **kwargs)
-        self.logger = logger
         self.replica = replica
         self.fqid = fqid
 
@@ -58,9 +58,9 @@ class IndexDocument(dict, metaclass=ABCMeta):
                         if > 0, write only if the specified version of this document is currently present
                         if None, write regardless
         """
-        es_client = ElasticsearchClient.get(self.logger)
+        es_client = ElasticsearchClient.get()
         body = self.to_json()
-        self.logger.debug("%s", f"Writing document to index {index_name}: {body}")
+        logger.debug("%s", f"Writing document to index {index_name}: {body}")
         es_client.index(index=index_name,
                         doc_type=ESDocType.doc.name,
                         id=str(self.fqid),
@@ -107,8 +107,8 @@ class BundleDocument(IndexDocument):
     # do it must be positional in order to ensure that the argument isn't accidentally dropped along the call chain.
 
     @classmethod
-    def from_replica(cls, replica: Replica, bundle_fqid: BundleFQID, logger):
-        self = cls(replica, bundle_fqid, logger)
+    def from_replica(cls, replica: Replica, bundle_fqid: BundleFQID):
+        self = cls(replica, bundle_fqid)
         blobstore = Config.get_blobstore_handle(replica)
         bucket_name = replica.bucket
         self['manifest'] = self._read_bundle_manifest(blobstore, bucket_name, bundle_fqid)
@@ -118,10 +118,10 @@ class BundleDocument(IndexDocument):
         return self
 
     @classmethod
-    def from_index(cls, replica: Replica, bundle_fqid: BundleFQID, index_name, logger, version=None):
-        es_client = ElasticsearchClient.get(logger)
+    def from_index(cls, replica: Replica, bundle_fqid: BundleFQID, index_name, version=None):
+        es_client = ElasticsearchClient.get()
         source = es_client.get(index_name, str(bundle_fqid), ESDocType.doc.name, version=version)['_source']
-        return cls(replica, bundle_fqid, logger, source)
+        return cls(replica, bundle_fqid, source)
 
     @property
     def files(self):
@@ -139,14 +139,14 @@ class BundleDocument(IndexDocument):
             index_name = self._prepare_index(dryrun)
             return self._index_into(index_name, dryrun)
         else:
-            self.logger.info("%s", f"Found tombstone for {self.fqid}. Indexing tombstone in place of bundle.")
+            logger.info("%s", f"Found tombstone for {self.fqid}. Indexing tombstone in place of bundle.")
             return self.entomb(tombstone)
 
     def _lookup_tombstone(self):
         for all_versions in (False, True):
             tombstone_id = self.fqid.to_tombstone_id(all_versions=all_versions)
             try:
-                return BundleTombstoneDocument.from_replica(self.replica, tombstone_id, self.logger)
+                return BundleTombstoneDocument.from_replica(self.replica, tombstone_id)
             except BlobNotFoundError:
                 pass
         return None
@@ -157,22 +157,22 @@ class BundleDocument(IndexDocument):
         versions = self._get_indexed_versions()
         old_version = versions.pop(index_name, None)
         if versions:
-            self.logger.warning("%s", msg(f"Removing stale copies of the bundle document for {self.fqid} "
-                                          f"from the following index(es): {json.dumps(versions)}."))
+            logger.warning("%s", msg(f"Removing stale copies of the bundle document for {self.fqid} "
+                                     f"from the following index(es): {json.dumps(versions)}."))
             if not dryrun:
                 self._remove_versions(versions)
         if old_version:
-            old_doc = self.from_index(self.replica, self.fqid, index_name, self.logger, version=old_version)
+            old_doc = self.from_index(self.replica, self.fqid, index_name, version=old_version)
             if self == old_doc:
-                self.logger.info("%s", f"Document for bundle {self.fqid} is already up-to-date "
-                                       f"in index {index_name} at version {old_version}.")
+                logger.info("%s", f"Document for bundle {self.fqid} is already up-to-date "
+                                  f"in index {index_name} at version {old_version}.")
                 return False, index_name
             else:
-                self.logger.warning("%s", msg(f"Updating an older copy of the document for bundle {self.fqid} "
-                                              f"in index {index_name} at version {old_version}."))
+                logger.warning("%s", msg(f"Updating an older copy of the document for bundle {self.fqid} "
+                                         f"in index {index_name} at version {old_version}."))
         else:
-            self.logger.info("%s", msg(f"Writing the document for bundle {self.fqid} "
-                                       f"to index {index_name} for the first time."))
+            logger.info("%s", msg(f"Writing the document for bundle {self.fqid} "
+                                  f"to index {index_name} for the first time."))
         if not dryrun:
             self._write_to_index(index_name, version=old_version or 0)
         return True, index_name
@@ -188,7 +188,7 @@ class BundleDocument(IndexDocument):
         :return: see :py:meth:`~IndexDocument.index`
         """
         elasticsearch_retry.add_context(bundle=self, tombstone=tombstone)
-        self.logger.info("%s", f"Writing tombstone for {self.replica.name} bundle: {self.fqid}")
+        logger.info("%s", f"Writing tombstone for {self.replica.name} bundle: {self.fqid}")
         # Preare the index using the original data such that the tombstone can be placed in the correct index.
         index_name = self._prepare_index(dryrun)
         # Override document with tombstone JSON …
@@ -196,11 +196,11 @@ class BundleDocument(IndexDocument):
         self.update(tombstone)
         # … and place into proper index.
         modified, index_name = self._index_into(index_name, dryrun)
-        self.logger.info("%s", f"Finished writing tombstone for {self.replica.name} bundle: {self.fqid}")
+        logger.info("%s", f"Finished writing tombstone for {self.replica.name} bundle: {self.fqid}")
         return modified, index_name
 
     def _write_to_index(self, index_name: str, version: typing.Optional[int]=None):
-        es_client = ElasticsearchClient.get(self.logger)
+        es_client = ElasticsearchClient.get()
         initial_mappings = es_client.indices.get_mapping(index_name)[index_name]['mappings']
         super()._write_to_index(index_name, version=version)
         current_mappings = es_client.indices.get_mapping(index_name)[index_name]['mappings']
@@ -209,8 +209,8 @@ class BundleDocument(IndexDocument):
 
     def _read_bundle_manifest(self, handle: BlobStore, bucket_name: str, bundle_fqid: BundleFQID) -> dict:
         manifest_string = handle.get(bucket_name, bundle_fqid.to_key()).decode("utf-8")
-        self.logger.debug("%s", f"Read bundle manifest from bucket {bucket_name}"
-                                f" with bundle key {bundle_fqid.to_key()}: {manifest_string}")
+        logger.debug("%s", f"Read bundle manifest from bucket {bucket_name}"
+                           f" with bundle key {bundle_fqid.to_key()}: {manifest_string}")
         manifest = json.loads(manifest_string, encoding="utf-8")
         return manifest
 
@@ -220,11 +220,11 @@ class BundleDocument(IndexDocument):
         for file_info in files_info:
             if file_info[BundleFileMetadata.INDEXED] is True:
                 if not file_info[BundleFileMetadata.CONTENT_TYPE].startswith('application/json'):
-                    self.logger.warning("%s", f"In bundle {self.fqid} the file '{file_info[BundleFileMetadata.NAME]}'"
-                                              f" is marked for indexing yet has content type"
-                                              f" '{file_info[BundleFileMetadata.CONTENT_TYPE]}'"
-                                              f" instead of the required content type 'application/json'."
-                                              f" This file will not be indexed.")
+                    logger.warning("%s", f"In bundle {self.fqid} the file '{file_info[BundleFileMetadata.NAME]}'"
+                                         f" is marked for indexing yet has content type"
+                                         f" '{file_info[BundleFileMetadata.CONTENT_TYPE]}'"
+                                         f" instead of the required content type 'application/json'."
+                                         f" This file will not be indexed.")
                     continue
                 file_blob_key = create_blob_key(file_info)
                 try:
@@ -232,17 +232,17 @@ class BundleDocument(IndexDocument):
                     file_json = json.loads(file_string)
                 # TODO (mbaumann) Are there other JSON-related exceptions that should be checked below?
                 except json.decoder.JSONDecodeError as ex:
-                    self.logger.warning("%s", f"In bundle {self.fqid} the file '{file_info[BundleFileMetadata.NAME]}'"
-                                              f" is marked for indexing yet could not be parsed."
-                                              f" This file will not be indexed. Exception: {ex}")
+                    logger.warning("%s", f"In bundle {self.fqid} the file '{file_info[BundleFileMetadata.NAME]}'"
+                                         f" is marked for indexing yet could not be parsed."
+                                         f" This file will not be indexed. Exception: {ex}")
                     continue
                 except BlobStoreError as ex:
-                    self.logger.warning("%s", f"In bundle {self.fqid} the file '{file_info[BundleFileMetadata.NAME]}'"
-                                              f" is marked for indexing yet could not be accessed."
-                                              f" This file will not be indexed."
-                                              f" Exception: {type(ex).__name__}, file blob key: {file_blob_key}")
+                    logger.warning("%s", f"In bundle {self.fqid} the file '{file_info[BundleFileMetadata.NAME]}'"
+                                         f" is marked for indexing yet could not be accessed."
+                                         f" This file will not be indexed."
+                                         f" Exception: {type(ex).__name__}, file blob key: {file_blob_key}")
                     continue
-                self.logger.debug("%s", f"Indexing file: {file_info[BundleFileMetadata.NAME]}")
+                logger.debug("%s", f"Indexing file: {file_info[BundleFileMetadata.NAME]}")
                 # There are two reasons in favor of not using dot in the name of the individual
                 # files in the index document, and instead replacing it with an underscore.
                 # 1. Ambiguity regarding interpretation/processing of dots in field names,
@@ -254,13 +254,13 @@ class BundleDocument(IndexDocument):
                 # As due diligence, additional investigation should be performed.
                 index_filename = file_info[BundleFileMetadata.NAME].replace(".", "_")
                 index_files[index_filename] = file_json
-        scrub_index_data(index_files, str(self.fqid), self.logger)
+        scrub_index_data(index_files, str(self.fqid))
         return index_files
 
     def _prepare_index(self, dryrun):
         shape_descriptor = self.get_shape_descriptor()
         index_name = Config.get_es_index_name(ESIndexType.docs, self.replica, shape_descriptor)
-        es_client = ElasticsearchClient.get(self.logger)
+        es_client = ElasticsearchClient.get()
         if not dryrun:
             IndexManager.create_index(es_client, self.replica, index_name)
         return index_name
@@ -298,8 +298,8 @@ class BundleDocument(IndexDocument):
                 schema_version_major = schema_version.split(".")[0]
                 schema_version_map[schema_version_major].add(schema_type)
             else:
-                self.logger.info("%s", f"File {filename} does not contain the 'core' section necessary to identify "
-                                       f"the schema and its version.")
+                logger.info("%s", f"File {filename} does not contain the 'core' section necessary to identify "
+                                  f"the schema and its version.")
         if schema_version_map:
             schema_versions = schema_version_map.keys()
             assert len(schema_versions) == 1, \
@@ -318,7 +318,7 @@ class BundleDocument(IndexDocument):
         version of this document in that index. Note that `version` denotes document version, not
         bundle version.
         """
-        es_client = ElasticsearchClient.get(self.logger)
+        es_client = ElasticsearchClient.get()
         alias_name = Config.get_es_alias_name(ESIndexType.docs, self.replica)
         # First attempt to get the single instance of the document. The common case is that there is zero or one
         # instance.
@@ -363,7 +363,7 @@ class BundleDocument(IndexDocument):
         """
         Remove this document from each given index provided that it contains the given version of this document.
         """
-        es_client = ElasticsearchClient.get(self.logger)
+        es_client = ElasticsearchClient.get()
         num_ok, errors = bulk(es_client, raise_on_error=False, actions=[{
             '_op_type': 'delete',
             '_index': index_name,
@@ -372,7 +372,7 @@ class BundleDocument(IndexDocument):
             '_id': str(self.fqid),
         } for index_name, version in versions.items()])
         for item in errors:
-            self.logger.warning("%s", f"Document deletion failed: {json.dumps(item)}")
+            logger.warning("%s", f"Document deletion failed: {json.dumps(item)}")
 
     def _refresh_percolate_queries(self, index_name: str):
         # When dynamic templates are used and queries for percolation have been added
@@ -380,7 +380,7 @@ class BundleDocument(IndexDocument):
         # the queries must be reloaded when the mappings are present for the queries to match.
         # See: https://github.com/elastic/elasticsearch/issues/5750
         subscription_index_name = Config.get_es_index_name(ESIndexType.subscriptions, self.replica)
-        es_client = ElasticsearchClient.get(self.logger)
+        es_client = ElasticsearchClient.get()
         if not es_client.indices.exists(subscription_index_name):
             return
         subscription_queries = [{'_index': index_name,
@@ -398,8 +398,8 @@ class BundleDocument(IndexDocument):
             try:
                 bulk(es_client, iter(subscription_queries), refresh=True)
             except BulkIndexError as ex:
-                self.logger.error("%s", f"Error occurred when adding subscription queries "
-                                        f"to index {index_name} Errors: {ex.errors}")
+                logger.error("%s", f"Error occurred when adding subscription queries "
+                                   f"to index {index_name} Errors: {ex.errors}")
 
     def notify(self, index_name):
         subscription_ids = self._find_matching_subscriptions(index_name)
@@ -416,11 +416,11 @@ class BundleDocument(IndexDocument):
             }
         }
         subscription_ids = set()
-        for hit in scan(ElasticsearchClient.get(self.logger),
+        for hit in scan(ElasticsearchClient.get(),
                         index=index_name,
                         query=percolate_document):
             subscription_ids.add(hit["_id"])
-        self.logger.debug("%s", f"Found {len(subscription_ids)} matching subscription(s).")
+        logger.debug("%s", f"Found {len(subscription_ids)} matching subscription(s).")
         return subscription_ids
 
     def _notify_subscribers(self, subscription_ids: typing.MutableSet[str]):
@@ -430,8 +430,8 @@ class BundleDocument(IndexDocument):
                 subscription = self._get_subscription(subscription_id)
                 self._notify_subscriber(subscription)
             except Exception:
-                self.logger.error("%s", f"Error occurred while processing subscription {subscription_id} "
-                                        f"for bundle {self.fqid}.", exc_info=True)
+                logger.error("%s", f"Error occurred while processing subscription {subscription_id} "
+                                   f"for bundle {self.fqid}.", exc_info=True)
 
     def _get_subscription(self, subscription_id: str) -> dict:
         subscription_query = {
@@ -442,7 +442,7 @@ class BundleDocument(IndexDocument):
                 }
             }
         }
-        response = ElasticsearchClient.get(self.logger).search(
+        response = ElasticsearchClient.get().search(
             index=Config.get_es_index_name(ESIndexType.subscriptions, self.replica),
             body=subscription_query)
         hits = response['hits']['hits']
@@ -490,23 +490,23 @@ class BundleDocument(IndexDocument):
 
         # TODO (mbaumann) Add webhook retry logic
         if 200 <= response.status_code < 300:
-            self.logger.info("%s", f"Successfully notified for subscription {subscription_id}"
-                                   f" for bundle {self.fqid} with transaction id {transaction_id} "
-                                   f"Code: {response.status_code}")
+            logger.info("%s", f"Successfully notified for subscription {subscription_id}"
+                              f" for bundle {self.fqid} with transaction id {transaction_id} "
+                              f"Code: {response.status_code}")
         else:
-            self.logger.warning("%s", f"Failed notification for subscription {subscription_id}"
-                                      f" for bundle {self.fqid} with transaction id {transaction_id} "
-                                      f"Code: {response.status_code}")
+            logger.warning("%s", f"Failed notification for subscription {subscription_id}"
+                                 f" for bundle {self.fqid} with transaction id {transaction_id} "
+                                 f"Code: {response.status_code}")
 
 
 class BundleTombstoneDocument(IndexDocument):
 
     @classmethod
-    def from_replica(cls, replica: Replica, tombstone_id: TombstoneID, logger):
+    def from_replica(cls, replica: Replica, tombstone_id: TombstoneID):
         blobstore = Config.get_blobstore_handle(replica)
         bucket_name = replica.bucket
         tombstone_data = json.loads(blobstore.get(bucket_name, tombstone_id.to_key()))
-        self = cls(replica, tombstone_id, logger, tombstone_data)
+        self = cls(replica, tombstone_id, tombstone_data)
         self['uuid'] = tombstone_id.uuid
         return self
 
@@ -523,7 +523,7 @@ class BundleTombstoneDocument(IndexDocument):
             fqids = [ObjectIdentifier.from_key(k) for k in set(blobstore.list(bucket_name, prefix))]
             bundle_fqids = filter(lambda fqid: type(fqid) == BundleFQID, fqids)
 
-        docs = [BundleDocument.from_replica(self.replica, bundle_fqid, self.logger) for bundle_fqid in bundle_fqids]
+        docs = [BundleDocument.from_replica(self.replica, bundle_fqid) for bundle_fqid in bundle_fqids]
         return docs
 
     @elasticsearch_retry

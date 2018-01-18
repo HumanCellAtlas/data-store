@@ -121,7 +121,7 @@ class TestIndexerBase(ElasticsearchTestCase, DSSAssertMixin, DSSStorageMixin, DS
     @testmode.standalone
     def test_create(self):
         sample_event = self.create_bundle_created_event(self.bundle_key)
-        self.process_new_indexable_object(sample_event, logger)
+        self.process_new_indexable_object(sample_event)
         search_results = self.get_search_results(self.smartseq2_paired_ends_query, 1)
         self.assertEqual(1, len(search_results))
         self.verify_index_document_structure_and_content(
@@ -159,7 +159,7 @@ class TestIndexerBase(ElasticsearchTestCase, DSSAssertMixin, DSSStorageMixin, DS
 
     def _create_tombstoned_bundle(self):
         sample_event = self.create_bundle_created_event(self.bundle_key)
-        self.process_new_indexable_object(sample_event, logger)
+        self.process_new_indexable_object(sample_event)
         self.get_search_results(self.smartseq2_paired_ends_query, 1)
 
     def _create_tombstone(self, tombstone_id):
@@ -172,7 +172,7 @@ class TestIndexerBase(ElasticsearchTestCase, DSSAssertMixin, DSSStorageMixin, DS
         # Without this, the tombstone would break subsequent tests, due to the caching added in e12a5f7:
         self.addCleanup(self._delete_tombstone, tombstone_id)
         sample_event = self.create_bundle_deleted_event(tombstone_id.to_key())
-        self.process_new_indexable_object(sample_event, logger)
+        self.process_new_indexable_object(sample_event)
         return tombstone_data
 
     def _delete_tombstone(self, tombstone_id):
@@ -227,18 +227,18 @@ class TestIndexerBase(ElasticsearchTestCase, DSSAssertMixin, DSSStorageMixin, DS
 
         # Index bundle, patching in an extra field just before document is written to index
         with unittest.mock.patch.object(BundleDocument, 'to_json', mock_to_json):
-            self.process_new_indexable_object(sample_event, logger)
+            self.process_new_indexable_object(sample_event)
         _assert_reindexing_results(expect_extra_field=True, expected_version=1)
 
         # Index again without the patch …
-        with self.assertLogs(logger, level="WARNING") as log:
-            self.process_new_indexable_object(sample_event, logger)
+        with self.assertLogs(dss.logger, level="WARNING") as log:
+            self.process_new_indexable_object(sample_event)
         self.assertTrue(any('Updating an older copy' in e for e in log.output))
         _assert_reindexing_results(expect_extra_field=False, expected_version=2)
 
         # … and again which should not write the document
-        with self.assertLogs(logger, level="INFO") as log:
-            self.process_new_indexable_object(sample_event, logger)
+        with self.assertLogs(dss.logger, level="INFO") as log:
+            self.process_new_indexable_object(sample_event)
         self.assertTrue(any('is already up-to-date' in e for e in log.output))
 
     @testmode.standalone
@@ -255,12 +255,12 @@ class TestIndexerBase(ElasticsearchTestCase, DSSAssertMixin, DSSStorageMixin, DS
 
         # Index document into the "wrong" index by patching the shape descriptor
         with unittest.mock.patch.object(BundleDocument, 'get_shape_descriptor', return_value=shape_descriptor):
-            self.process_new_indexable_object(sample_event, logger)
+            self.process_new_indexable_object(sample_event)
         # There should only be one hit and it should be from the "wrong" index
         _assert_reindexing_results(expect_shape_descriptor=True)
         # Index again, this time into the correct index
-        with self.assertLogs(logger, level="WARNING") as log:
-            self.process_new_indexable_object(sample_event, logger)
+        with self.assertLogs(dss.logger, level="WARNING") as log:
+            self.process_new_indexable_object(sample_event)
         self.assertTrue(any('Removing stale copies' in e for e in log.output))
         # There should only be one hit and it should be from a different index, the "right" one
         _assert_reindexing_results(expect_shape_descriptor=False)
@@ -275,8 +275,8 @@ class TestIndexerBase(ElasticsearchTestCase, DSSAssertMixin, DSSStorageMixin, DS
                 file.indexed = True
         bundle_key = self.load_test_data_bundle(bundle)
         sample_event = self.create_bundle_created_event(bundle_key)
-        with self.assertLogs(logger, level="WARNING") as log_monitor:
-            self.process_new_indexable_object(sample_event, logger)
+        with self.assertLogs(dss.logger, level="WARNING") as log_monitor:
+            self.process_new_indexable_object(sample_event)
         self.assertRegex(log_monitor.output[0],
                          "WARNING:.*:In bundle .* the file 'text_data_file1.txt' is marked for indexing"
                          " yet has content type 'text/plain' instead of the required"
@@ -290,32 +290,27 @@ class TestIndexerBase(ElasticsearchTestCase, DSSAssertMixin, DSSStorageMixin, DS
     def test_key_is_not_indexed_when_processing_an_event_with_a_file_key(self):
         file_fqid = get_file_fqid()
         sample_event = self.create_bundle_created_event(file_fqid.to_key())
-        log_last = logger.getEffectiveLevel()
-        logger.setLevel(logging.DEBUG)
-        try:
-            with self.assertLogs(logger, level="DEBUG") as log_monitor:
-                self.process_new_indexable_object(sample_event, logger)
-            self.assertIn('Indexing of individual files is not supported.', log_monitor.output[0])
-            self.assertIn(str(file_fqid), log_monitor.output[0])
-            self.assertFalse(ElasticsearchClient.get(logger).indices.exists_alias(name=self.dss_alias_name))
-        finally:
-            logger.setLevel(log_last)
+        with self.assertLogs(dss.logger, level="DEBUG") as log_monitor:
+            self.process_new_indexable_object(sample_event)
+        self.assertIn('Indexing of individual files is not supported.', log_monitor.output[0])
+        self.assertIn(str(file_fqid), log_monitor.output[0])
+        self.assertFalse(ElasticsearchClient.get().indices.exists_alias(name=self.dss_alias_name))
 
     @testmode.standalone
     def test_error_message_logged_when_invalid_bucket_in_event(self):
         bundle_key = "bundles/{}.{}".format(str(uuid.uuid4()), get_version())
         sample_event = self.create_bundle_created_event(bundle_key)
-        with self.assertLogs(logger, level="ERROR") as log_monitor:
+        with self.assertLogs(dss.logger, level="ERROR") as log_monitor:
             with self.assertRaises(Exception):
-                self.process_new_indexable_object(sample_event, logger)
+                self.process_new_indexable_object(sample_event)
         self.assertRegex(log_monitor.output[0], "ERROR:.*Exception occurred while processing .* event:.*")
 
     @testmode.standalone
     def test_indexed_file_unparsable(self):
         bundle_key = self.load_test_data_bundle_for_path("fixtures/indexing/bundles/unparseable_indexed_file")
         sample_event = self.create_bundle_created_event(bundle_key)
-        with self.assertLogs(logger, level="WARNING") as log_monitor:
-            self.process_new_indexable_object(sample_event, logger)
+        with self.assertLogs(dss.logger, level="WARNING") as log_monitor:
+            self.process_new_indexable_object(sample_event)
         self.assertRegex(log_monitor.output[0],
                          "WARNING:.*:In bundle .* the file 'unparseable_json.json' is marked for indexing"
                          " yet could not be parsed. This file will not be indexed. Exception:")
@@ -330,8 +325,8 @@ class TestIndexerBase(ElasticsearchTestCase, DSSAssertMixin, DSSStorageMixin, DS
         bundle_key = self.load_test_data_bundle_with_inaccessible_file(
             "fixtures/indexing/bundles/v3/smartseq2/paired_ends", inaccesssible_filename, "application/json", True)
         sample_event = self.create_bundle_created_event(bundle_key)
-        with self.assertLogs(logger, level="WARNING") as log_monitor:
-            self.process_new_indexable_object(sample_event, logger)
+        with self.assertLogs(dss.logger, level="WARNING") as log_monitor:
+            self.process_new_indexable_object(sample_event)
         self.assertRegex(
             log_monitor.output[0],
             f"WARNING:.*:In bundle .* the file '{inaccesssible_filename}' is marked for indexing"
@@ -349,7 +344,7 @@ class TestIndexerBase(ElasticsearchTestCase, DSSAssertMixin, DSSStorageMixin, DS
     @testmode.standalone
     def test_notify(self):
         def _notify(subscription, bundle_id=get_bundle_fqid()):
-            document = BundleDocument(self.replica, bundle_id, logger)
+            document = BundleDocument(self.replica, bundle_id)
             document._notify_subscriber(subscription=subscription)
 
         with self.assertRaisesRegex(requests.exceptions.InvalidURL, "Invalid URL 'http://': No host supplied"):
@@ -374,7 +369,7 @@ class TestIndexerBase(ElasticsearchTestCase, DSSAssertMixin, DSSStorageMixin, DS
     @testmode.standalone
     def test_subscription_notification_successful(self):
         sample_event = self.create_bundle_created_event(self.bundle_key)
-        self.process_new_indexable_object(sample_event, logger)
+        self.process_new_indexable_object(sample_event)
         for verify_payloads, subscribe_kwargs in ((True, dict(hmac_secret_key=PostTestHandler.hmac_secret_key)),
                                                   (False, dict())):
             PostTestHandler.verify_payloads = verify_payloads
@@ -383,7 +378,7 @@ class TestIndexerBase(ElasticsearchTestCase, DSSAssertMixin, DSSStorageMixin, DS
                                                               **subscribe_kwargs)
 
             sample_event = self.create_bundle_created_event(self.bundle_key)
-            self.process_new_indexable_object(sample_event, logger)
+            self.process_new_indexable_object(sample_event)
             prefix, _, bundle_fqid = self.bundle_key.partition("/")
             self.verify_notification(subscription_id, self.smartseq2_paired_ends_query, bundle_fqid)
             self.delete_subscription(subscription_id)
@@ -393,7 +388,7 @@ class TestIndexerBase(ElasticsearchTestCase, DSSAssertMixin, DSSStorageMixin, DS
     def test_subscription_notification_unsuccessful(self):
         PostTestHandler.verify_payloads = True
         sample_event = self.create_bundle_created_event(self.bundle_key)
-        self.process_new_indexable_object(sample_event, logger)
+        self.process_new_indexable_object(sample_event)
 
         subscription_id = self.subscribe_for_notification(self.smartseq2_paired_ends_query,
                                                           f"http://{HTTPInfo.address}:{HTTPInfo.port}",
@@ -404,8 +399,8 @@ class TestIndexerBase(ElasticsearchTestCase, DSSAssertMixin, DSSStorageMixin, DS
         sample_event = self.create_bundle_created_event(bundle_key)
         error_response_code = 500
         PostTestHandler.set_response_code(error_response_code)
-        with self.assertLogs(logger, level="WARNING") as log_monitor:
-            self.process_new_indexable_object(sample_event, logger)
+        with self.assertLogs(dss.logger, level="WARNING") as log_monitor:
+            self.process_new_indexable_object(sample_event)
         prefix, _, bundle_fqid = bundle_key.partition("/")
         self.assertRegex(log_monitor.output[0],
                          f"WARNING:.*:Failed notification for subscription {subscription_id}"
@@ -417,7 +412,7 @@ class TestIndexerBase(ElasticsearchTestCase, DSSAssertMixin, DSSStorageMixin, DS
                                                           f"http://{HTTPInfo.address}:{HTTPInfo.port}")
         sample_event = self.create_bundle_created_event(self.bundle_key)
         PostTestHandler.verify_payloads = False
-        self.process_new_indexable_object(sample_event, logger)
+        self.process_new_indexable_object(sample_event)
         prefix, _, bundle_fqid = self.bundle_key.partition("/")
         self.verify_notification(subscription_id, self.smartseq2_paired_ends_query, bundle_fqid)
         self.delete_subscription(subscription_id)
@@ -456,11 +451,11 @@ class TestIndexerBase(ElasticsearchTestCase, DSSAssertMixin, DSSStorageMixin, DS
                                                           f"http://{HTTPInfo.address}:{HTTPInfo.port}")
         sample_event = self.create_bundle_created_event(self.bundle_key)
         PostTestHandler.verify_payloads = False
-        self.process_new_indexable_object(sample_event, logger)
+        self.process_new_indexable_object(sample_event)
 
         # Verify the mapping types are as expected for a valid test
         doc_index_name = dss.Config.get_es_index_name(dss.ESIndexType.docs, self.replica, "v3")
-        mappings = ElasticsearchClient.get(logger).indices.get_mapping(doc_index_name)[doc_index_name]['mappings']
+        mappings = ElasticsearchClient.get().indices.get_mapping(doc_index_name)[doc_index_name]['mappings']
         sample_json_mappings = mappings['doc']['properties']['files']['properties']['sample_json']
         self.assertEquals(sample_json_mappings['properties']['donor']['properties']['age']['type'], "long")
         self.assertEquals(sample_json_mappings['properties']['submit_date']['type'], "date")
@@ -477,7 +472,7 @@ class TestIndexerBase(ElasticsearchTestCase, DSSAssertMixin, DSSStorageMixin, DS
 
     @testmode.standalone
     def test_get_shape_descriptor(self):
-        index_document = BundleDocument(self.replica, get_bundle_fqid(), logger)
+        index_document = BundleDocument(self.replica, get_bundle_fqid())
         index_document.update({
             'files': {
                 'assay_json': {
@@ -510,12 +505,11 @@ class TestIndexerBase(ElasticsearchTestCase, DSSAssertMixin, DSSStorageMixin, DS
             self.assertEqual(index_document.get_shape_descriptor(), "v4")
 
         index_document['files']['assay_json'].pop('core')
-        with self.subTest("An version file and unversioned file"):
-            with self.assertLogs(logger, level="INFO") as log_monitor:
+        with self.subTest("An versioned file and an unversioned file"):
+            with self.assertLogs(dss.logger, level="INFO") as log_monitor:
                 index_document.get_shape_descriptor()
-            self.assertIn("INFO:", log_monitor.output[0])
-            self.assertIn("File assay_json does not contain the 'core' section necessary to "
-                          "identify the schema and its version.", log_monitor.output[0])
+            self.assertRegex(log_monitor.output[0], "^INFO:.*File assay_json does not contain the 'core' section "
+                                                    "necessary to identify the schema and its version.", )
             self.assertEqual(index_document.get_shape_descriptor(), "v4")
 
         index_document['files']['sample_json'].pop('core')
@@ -525,8 +519,8 @@ class TestIndexerBase(ElasticsearchTestCase, DSSAssertMixin, DSSStorageMixin, DS
     @testmode.standalone
     def test_alias_and_versioned_index_exists(self):
         sample_event = self.create_bundle_created_event(self.bundle_key)
-        self.process_new_indexable_object(sample_event, logger)
-        es_client = ElasticsearchClient.get(logger)
+        self.process_new_indexable_object(sample_event)
+        es_client = ElasticsearchClient.get()
         self.assertTrue(es_client.indices.exists_alias(name=[self.dss_alias_name]))
         alias = es_client.indices.get_alias(name=[self.dss_alias_name])
         doc_index_name = dss.Config.get_es_index_name(dss.ESIndexType.docs, self.replica, "v3")
@@ -539,8 +533,8 @@ class TestIndexerBase(ElasticsearchTestCase, DSSAssertMixin, DSSStorageMixin, DS
         bundle_key = self.load_test_data_bundle_for_path(
             "fixtures/indexing/bundles/unversioned/smartseq2/paired_ends")
         sample_event = self.create_bundle_created_event(bundle_key)
-        self.process_new_indexable_object(sample_event, logger)
-        es_client = ElasticsearchClient.get(logger)
+        self.process_new_indexable_object(sample_event)
+        es_client = ElasticsearchClient.get()
         alias = es_client.indices.get_alias(name=[self.dss_alias_name])
         unversioned_doc_index_name = dss.Config.get_es_index_name(dss.ESIndexType.docs, self.replica, None)
         self.assertIn(unversioned_doc_index_name, alias)
@@ -548,7 +542,7 @@ class TestIndexerBase(ElasticsearchTestCase, DSSAssertMixin, DSSStorageMixin, DS
 
         # Load and test a v3 bundle
         sample_event = self.create_bundle_created_event(self.bundle_key)
-        self.process_new_indexable_object(sample_event, logger)
+        self.process_new_indexable_object(sample_event)
         self.assertTrue(es_client.indices.exists_alias(name=[self.dss_alias_name]))
         alias = es_client.indices.get_alias(name=[self.dss_alias_name])
         doc_index_name = dss.Config.get_es_index_name(dss.ESIndexType.docs, self.replica, "v3")
@@ -563,7 +557,7 @@ class TestIndexerBase(ElasticsearchTestCase, DSSAssertMixin, DSSStorageMixin, DS
         bundle_key = self.load_test_data_bundle_for_path(
             "fixtures/indexing/bundles/v4/smartseq2/paired_ends")
         sample_event = self.create_bundle_created_event(bundle_key)
-        self.process_new_indexable_object(sample_event, logger)
+        self.process_new_indexable_object(sample_event)
 
         # Search using a v4-specific query - should match
         search_results = self.get_search_results(smartseq2_paired_ends_v4_query, 1)
@@ -580,7 +574,7 @@ class TestIndexerBase(ElasticsearchTestCase, DSSAssertMixin, DSSStorageMixin, DS
 
         # Load a v3 bundle
         sample_event = self.create_bundle_created_event(self.bundle_key)
-        self.process_new_indexable_object(sample_event, logger)
+        self.process_new_indexable_object(sample_event)
 
         # Search using a v3-specific query - should match
         search_results = self.get_search_results(smartseq2_paired_ends_v3_query, 1)
@@ -598,11 +592,11 @@ class TestIndexerBase(ElasticsearchTestCase, DSSAssertMixin, DSSStorageMixin, DS
         bundle_key = self.load_test_data_bundle_for_path(
             "fixtures/indexing/bundles/v4/smartseq2/paired_ends")
         sample_event = self.create_bundle_created_event(bundle_key)
-        self.process_new_indexable_object(sample_event, logger)
+        self.process_new_indexable_object(sample_event)
 
         # Load a v3 bundle
         sample_event = self.create_bundle_created_event(self.bundle_key)
-        self.process_new_indexable_object(sample_event, logger)
+        self.process_new_indexable_object(sample_event)
 
         subscription_id = self.subscribe_for_notification(smartseq2_paired_ends_v3_or_v4_query,
                                                           f"http://{HTTPInfo.address}:{HTTPInfo.port}")
@@ -611,7 +605,7 @@ class TestIndexerBase(ElasticsearchTestCase, DSSAssertMixin, DSSStorageMixin, DS
         bundle_key = self.load_test_data_bundle_for_path(
             "fixtures/indexing/bundles/v4/smartseq2/paired_ends")
         sample_event = self.create_bundle_created_event(bundle_key)
-        self.process_new_indexable_object(sample_event, logger)
+        self.process_new_indexable_object(sample_event)
         prefix, _, bundle_fqid = bundle_key.partition("/")
         self.verify_notification(subscription_id, smartseq2_paired_ends_v3_or_v4_query, bundle_fqid)
 
@@ -622,7 +616,7 @@ class TestIndexerBase(ElasticsearchTestCase, DSSAssertMixin, DSSStorageMixin, DS
         bundle_key = self.load_test_data_bundle_for_path(
             "fixtures/indexing/bundles/v3/smartseq2/paired_ends")
         sample_event = self.create_bundle_created_event(bundle_key)
-        self.process_new_indexable_object(sample_event, logger)
+        self.process_new_indexable_object(sample_event)
         prefix, _, bundle_fqid = bundle_key.partition("/")
         self.verify_notification(subscription_id, smartseq2_paired_ends_v3_or_v4_query, bundle_fqid)
 
@@ -644,8 +638,8 @@ class TestIndexerBase(ElasticsearchTestCase, DSSAssertMixin, DSSStorageMixin, DS
             index_data['files']['project_json']['core']['characteristics_3'] = "patternProperties only apply to root."
             bundle_fqid = self.bundle_key.split('/')[1]
 
-            with self.assertLogs(logger, level="INFO") as log_monitor:
-                scrub_index_data(index_data['files'], bundle_fqid, logger)
+            with self.assertLogs(dss.logger, level="INFO") as log_monitor:
+                scrub_index_data(index_data['files'], bundle_fqid)
             self.assertRegex(log_monitor.output[0], r"INFO:[^:]+:In [\w\-\.]+, unexpected additional fields "
                                                     r"have been removed from the data to be indexed. "
                                                     r"Removed \[[^\]]*].")
@@ -659,8 +653,8 @@ class TestIndexerBase(ElasticsearchTestCase, DSSAssertMixin, DSSStorageMixin, DS
             invalid_url = "://invalid_url"
             index_data = create_index_data(self.blobstore, self.test_bucket, self.bundle_key, manifest)
             index_data['files'][doc]['core']['schema_url'] = invalid_url
-            with self.assertLogs(logger, level="WARNING") as log_monitor:
-                scrub_index_data(index_data['files'], bundle_fqid, logger)
+            with self.assertLogs(dss.logger, level="WARNING") as log_monitor:
+                scrub_index_data(index_data['files'], bundle_fqid)
             self.assertRegex(log_monitor.output[0], f"WARNING:[^:]+:Unable to retrieve schema from {doc} in "
                                                     f"{bundle_fqid} because retrieving {invalid_url} caused exception: "
                                                     f".*")
@@ -674,8 +668,8 @@ class TestIndexerBase(ElasticsearchTestCase, DSSAssertMixin, DSSStorageMixin, DS
         with self.subTest("document is removed from meta data when document is missing core.schema_url field."):
             index_data = create_index_data(self.blobstore, self.test_bucket, self.bundle_key, manifest)
             index_data['files'][doc]['core'].pop('schema_url')
-            with self.assertLogs(logger, level="WARNING") as log_monitor:
-                scrub_index_data(index_data['files'], bundle_fqid, logger)
+            with self.assertLogs(dss.logger, level="WARNING") as log_monitor:
+                scrub_index_data(index_data['files'], bundle_fqid)
             self.assertRegex(log_monitor.output[0], f"WARNING:[^:]+:Unable to retrieve schema_url from {doc} in "
                                                     f"{bundle_fqid} because core.schema_url does not exist.*")
             self.verify_index_document_structure_and_content(
@@ -694,7 +688,7 @@ class TestIndexerBase(ElasticsearchTestCase, DSSAssertMixin, DSSStorageMixin, DS
             index_data = create_index_data(self.blobstore, self.test_bucket, bundle_key, manifest)
             for file in index_data['files']:
                 file.pop('core', None)
-            scrub_index_data(index_data['files'], bundle_fqid, logger)
+            scrub_index_data(index_data['files'], bundle_fqid)
 
             self.assertEqual(4, len(index_data.keys()))
             self.assertEqual("new", index_data['state'])
@@ -815,7 +809,7 @@ class TestIndexerBase(ElasticsearchTestCase, DSSAssertMixin, DSSStorageMixin, DS
         timeout = 5
         timeout_time = time.time() + timeout
         while True:
-            response = ElasticsearchClient.get(logger).search(
+            response = ElasticsearchClient.get().search(
                 index=self.dss_alias_name,
                 doc_type=dss.ESDocType.doc.name,
                 body=json.dumps(query))
@@ -833,7 +827,7 @@ class TestIndexerBase(ElasticsearchTestCase, DSSAssertMixin, DSSStorageMixin, DS
         raise NotImplementedError()
 
     @abstractmethod
-    def process_new_indexable_object(self, event, logger):
+    def process_new_indexable_object(self, event):
         raise NotImplementedError()
 
 

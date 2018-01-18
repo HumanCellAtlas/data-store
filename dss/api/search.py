@@ -1,4 +1,5 @@
 import json
+import logging
 import typing
 
 import requests
@@ -7,9 +8,12 @@ from elasticsearch.exceptions import ElasticsearchException, TransportError
 from flask import request, jsonify, make_response
 
 from dss import ESDocType
-from .. import Config, Replica, ESIndexType, dss_handler, get_logger, DSSException
+from .. import Config, Replica, ESIndexType, dss_handler, DSSException
 from ..util import UrlBuilder
 from ..util.es import ElasticsearchClient
+
+
+logger = logging.getLogger(__name__)
 
 
 class PerPageBounds:
@@ -33,8 +37,8 @@ def post(json_request_body: dict,
 
     replica_enum = Replica[replica] if replica is not None else Replica.aws
 
-    get_logger().debug("Received posted query. Replica: %s Query: %s Per_page: %i Timeout: %s Scroll_id: %s",
-                       replica_enum.name, json.dumps(es_query, indent=4), per_page, _scroll_id)
+    logger.debug("Received posted query. Replica: %s Query: %s Per_page: %i Timeout: %s Scroll_id: %s",
+                 replica_enum.name, json.dumps(es_query, indent=4), per_page, _scroll_id)
     # TODO: (tsmith12) determine if a search operation timeout limit is needed
     # TODO: (tsmith12) allow users to retrieve previous search results
     # TODO: (tsmith12) if page returns 0 hits, then all results have been found. delete search id
@@ -52,28 +56,28 @@ def post(json_request_body: dict,
         return response
     except TransportError as ex:
         if ex.status_code == requests.codes.bad_request:
-            get_logger().debug("%s", f"Invalid Query Recieved. Exception: {ex}")
+            logger.debug("%s", f"Invalid Query Recieved. Exception: {ex}")
             raise DSSException(requests.codes.bad_request,
                                "elasticsearch_bad_request",
                                f"Invalid Elasticsearch query was received: {str(ex)}")
         elif ex.status_code == requests.codes.not_found:
-            get_logger().debug("%s", f"Search Context Error. Exception: {ex}")
+            logger.debug("%s", f"Search Context Error. Exception: {ex}")
             raise DSSException(requests.codes.not_found,
                                "elasticsearch_context_not_found",
                                "Elasticsearch context has returned all results or timeout has expired.")
         elif ex.status_code == 'N/A':
-            get_logger().error("%s", f"Elasticsearch Invalid Endpoint. Exception: {ex}")
+            logger.error("%s", f"Elasticsearch Invalid Endpoint. Exception: {ex}")
             raise DSSException(requests.codes.service_unavailable,
                                "service_unavailable",
                                "Elasticsearch reached an invalid endpoint. Try again later.")
         else:
-            get_logger().error("%s", f"Elasticsearch Internal Server Error. Exception: {ex}")
+            logger.error("%s", f"Elasticsearch Internal Server Error. Exception: {ex}")
             raise DSSException(requests.codes.internal_server_error,
                                "internal_server_error",
                                "Elasticsearch Internal Server Error")
 
     except ElasticsearchException as ex:
-        get_logger().error("%s", f"Elasticsearch Internal Server Error. Exception: {ex}")
+        logger.error("%s", f"Elasticsearch Internal Server Error. Exception: {ex}")
         raise DSSException(requests.codes.internal_server_error,
                            "internal_server_error",
                            "Elasticsearch Internal Server Error")
@@ -85,7 +89,7 @@ def _es_search_page(es_query: dict,
                     _scroll_id: typing.Optional[str],
                     output_format: str) -> dict:
     es_query = deepcopy(es_query)
-    es_client = ElasticsearchClient.get(get_logger())
+    es_client = ElasticsearchClient.get()
 
     # Do not return the raw indexed data unless it is requested
     if output_format != 'raw':
@@ -113,10 +117,10 @@ def _es_search_page(es_query: dict,
                                 body=es_query,
                                 sort=sort
                                 )
-        get_logger().debug("Created ES scroll instance")
+        logger.debug("Created ES scroll instance")
     else:
         page = es_client.scroll(scroll_id=_scroll_id, scroll=scroll)
-        get_logger().debug(f"Retrieved ES results from scroll instance Scroll_id: {_scroll_id}")
+        logger.debug(f"Retrieved ES results from scroll instance Scroll_id: {_scroll_id}")
     return page
 
 

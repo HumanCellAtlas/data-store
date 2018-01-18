@@ -1,5 +1,6 @@
 
 import elasticsearch
+import logging
 import os
 import socket
 import subprocess
@@ -18,6 +19,7 @@ from requests_aws4auth import AWS4Auth
 from dss.util.retry import retry
 from . import networking
 
+logger = logging.getLogger(__name__)
 
 class AWSV4Sign(requests.auth.AuthBase):
     """
@@ -91,10 +93,10 @@ class ElasticsearchServer:
 
 
 class ElasticsearchClient:
-    _es_client = dict()  # type: typing.Mapping[typing.Tuple[str, int], Elasticsearch]
+    _es_client = dict()  # type: typing.MutableMapping[typing.Tuple[str, int], Elasticsearch]
 
     @staticmethod
-    def get(logger):
+    def get():
         elasticsearch_endpoint = os.getenv("DSS_ES_ENDPOINT", "localhost")
         elasticsearch_port = int(os.getenv("DSS_ES_PORT", "443"))
 

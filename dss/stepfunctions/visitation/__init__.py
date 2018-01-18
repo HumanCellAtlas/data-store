@@ -1,3 +1,4 @@
+import logging
 from typing import Sequence, Any, Union
 
 import copy
@@ -5,6 +6,9 @@ from uuid import uuid4
 from enum import Enum, auto
 
 from .. import step_functions_invoke
+
+
+logger = logging.getLogger(__name__)
 
 
 class DSSVisitationException(Exception):
@@ -47,7 +51,7 @@ class Visitation:
     state_spec: dict = dict()
     walker_state_spec: dict = dict()
 
-    def __init__(self, state_spec: dict, state: dict, logger) -> None:
+    def __init__(self, state_spec: dict, state: dict) -> None:
         """
         Pull in fields defined in state specifications and set as instance properties
         """
@@ -67,10 +71,8 @@ class Visitation:
 
             setattr(self, k, v)
 
-        self.logger = logger
-
     @classmethod
-    def _with_state(cls, state: dict, logger) -> 'Visitation':
+    def _with_state(cls, state: dict) -> 'Visitation':
         """
         Pull in state specific to the job.
         """
@@ -79,7 +81,7 @@ class Visitation:
             ** cls.state_spec,
             ** cls.walker_state_spec,
         }
-        return cls(state_spec, state, logger)
+        return cls(state_spec, state)
 
     def get_state(self) -> dict:
         """

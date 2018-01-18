@@ -1,11 +1,12 @@
 import json
+import logging
 import os
 
-import dss
 from dss import Config, ESDocType, ESIndexType, Replica
 from dss.util.es import ElasticsearchClient
 
-logger = dss.get_logger()
+
+logger = logging.getLogger(__name__)
 
 
 class IndexManager:

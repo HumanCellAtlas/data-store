@@ -57,7 +57,7 @@ class TestSearchBase(ElasticsearchTestCase, DSSAssertMixin):
     def setUp(self):
         super().setUp()
         self.dss_index_name = dss.Config.get_es_index_name(dss.ESIndexType.docs, self.replica)
-        es_client = ElasticsearchClient.get(logger)
+        es_client = ElasticsearchClient.get()
         IndexManager.create_index(es_client, self.replica, self.dss_index_name)
 
     @testmode.standalone
@@ -274,7 +274,7 @@ class TestSearchBase(ElasticsearchTestCase, DSSAssertMixin):
         self.verify_search_result(search_obj.json, smartseq2_paired_ends_v3_query, 20, 10)
         next_url = self.get_next_url(search_obj.response.headers)
         scroll_id = self.verify_next_url(next_url, 10)
-        es_client = ElasticsearchClient.get(logger)
+        es_client = ElasticsearchClient.get()
         es_client.clear_scroll(scroll_id)
         self.assertPostResponse(
             path=self.strip_next_url(next_url),
@@ -295,7 +295,7 @@ class TestSearchBase(ElasticsearchTestCase, DSSAssertMixin):
         bundle_uuid = str(uuid.uuid4())
         version = get_version()
         bundle_fqid = f"{bundle_uuid}.{version}"
-        es_client = ElasticsearchClient.get(logger)
+        es_client = ElasticsearchClient.get()
         es_client.index(index=self.dss_index_name,
                         doc_type=ESDocType.doc.name,
                         id=bundle_fqid,
@@ -309,7 +309,7 @@ class TestSearchBase(ElasticsearchTestCase, DSSAssertMixin):
         self.assertEqual(mapping['doc']['properties']['time3']['type'], 'date')
 
     def populate_search_index(self, index_document: dict, count: int) -> list:
-        es_client = ElasticsearchClient.get(logger)
+        es_client = ElasticsearchClient.get()
         bundles = []
         for i in range(count):
             bundle_uuid = str(uuid.uuid4())
@@ -390,7 +390,7 @@ class TestSearchBase(ElasticsearchTestCase, DSSAssertMixin):
         return search_obj, found_bundles
 
     def check_count(self, es_query, expected_count, timeout=5):
-        es_client = ElasticsearchClient.get(logger)
+        es_client = ElasticsearchClient.get()
         timeout_time = timeout + time.time()
         while time.time() <= timeout_time:
             count_resp = es_client.count(index=self.dss_index_name,

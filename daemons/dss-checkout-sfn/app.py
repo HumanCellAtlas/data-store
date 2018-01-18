@@ -1,3 +1,4 @@
+import logging
 import os
 import sys
 
@@ -15,7 +16,7 @@ from dss.util.checkout import (parallel_copy, get_dst_bundle_prefix, get_manifes
                                validate_file_dst, pre_exec_validate)
 
 app = domovoi.Domovoi()
-logger = dss.get_logger()
+logger = logging.getLogger(__name__)
 
 dss.Config.set_config(dss.BucketConfig.NORMAL)
 email_sender = dss.Config.get_notification_email()

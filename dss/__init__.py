@@ -25,11 +25,8 @@ from werkzeug.exceptions import Forbidden
 from .config import BucketConfig, Config, DeploymentStage, ESIndexType, ESDocType, Replica
 from .error import DSSBindingException, DSSException, dss_handler
 
-def get_logger():
-    try:
-        return flask.current_app.logger
-    except RuntimeError:
-        return logging.getLogger(__name__)
+logger = logging.getLogger(__name__)
+
 
 class DSSApp(connexion.App):
     def __init__(self, *args, **kwargs):

@@ -1,4 +1,5 @@
 import datetime
+import logging
 import time
 from concurrent.futures import ThreadPoolExecutor
 from contextlib import closing
@@ -16,6 +17,9 @@ from google.resumable_media._upload import get_content_range
 from dss import Config, Replica
 from dss.util.aws import resources, clients, send_sns_msg, ARN
 from dss.util.streaming import get_pool_manager, S3SigningChunker
+
+
+logger = logging.getLogger(__name__)
 
 presigned_url_lifetime_seconds = 3600
 use_gsts = False
@@ -45,7 +49,7 @@ class GStorageTransferConnection(JSONConnection):
 # TODO akislyuk: access keys used here should be separate role credentials with need-based access
 # TODO akislyuk: schedule a lambda to check the status of the job, get it permissions to execute:
 #                storagetransfer.transferJobs().get(jobName=gsts_job["name"]).execute()
-def sync_s3_to_gcsts(project_id, s3_bucket_name, gs_bucket_name, source_key, logger):
+def sync_s3_to_gcsts(project_id, s3_bucket_name, gs_bucket_name, source_key):
     gsts_client = GStorageTransferClient()
     gsts_conn = GStorageTransferConnection(client=gsts_client)
     now = datetime.datetime.utcnow()
@@ -95,7 +99,7 @@ def sync_s3_to_gcsts(project_id, s3_bucket_name, gs_bucket_name, source_key, log
     # gsts_job = gsts_conn.api_request("GET", "/" + gsts_job["name"])
 
 
-def sync_s3_to_gs_oneshot(source, dest, logger):
+def sync_s3_to_gs_oneshot(source, dest):
     s3_blob_url = clients.s3.generate_presigned_url(
         ClientMethod='get_object',
         Params=dict(Bucket=source.bucket.name, Key=source.blob.key),
@@ -107,14 +111,14 @@ def sync_s3_to_gs_oneshot(source, dest, logger):
         gs_blob.upload_from_file(fh)
 
 
-def sync_gs_to_s3_oneshot(source, dest, logger):
+def sync_gs_to_s3_oneshot(source, dest):
     expires_timestamp = int(time.time() + presigned_url_lifetime_seconds)
     gs_blob_url = source.blob.generate_signed_url(expiration=expires_timestamp)
     with closing(http.request("GET", gs_blob_url, preload_content=False)) as fh:
         dest.blob.upload_fileobj(fh, ExtraArgs=dict(Metadata=source.blob.metadata or {}))
 
 
-def dispatch_multipart_sync(source, dest, logger, context):
+def dispatch_multipart_sync(source, dest, context):
     parts_for_worker = []
     futures = []
     total_size = source.blob.content_length if source.platform == "s3" else source.blob.size
@@ -145,7 +149,7 @@ def dispatch_multipart_sync(source, dest, logger, context):
         future.result()
 
 
-def sync_blob(source_platform, source_key, dest_platform, logger, context):
+def sync_blob(source_platform, source_key, dest_platform, context):
     gs = Config.get_native_handle(Replica.gcp)
     logger.info(f"Begin transfer of {source_key} from {source_platform} to {dest_platform}")
     gs_bucket, s3_bucket = gs.bucket(Config.get_gs_bucket()), resources.s3.Bucket(Config.get_s3_bucket())
@@ -159,15 +163,15 @@ def sync_blob(source_platform, source_key, dest_platform, logger, context):
         raise NotImplementedError()
 
     if source_platform == "s3" and dest_platform == "gs" and use_gsts:
-        sync_s3_to_gcsts(gs.project, source.bucket.name, dest.bucket.name, source_key, logger)
+        sync_s3_to_gcsts(gs.project, source.bucket.name, dest.bucket.name, source_key)
     elif source_platform == "s3" and dest_platform == "gs":
         if dest.blob.exists():
             logger.info(f"Key {source_key} already exists in GS")
             return
         elif source.blob.content_length < part_size["s3"]:
-            sync_s3_to_gs_oneshot(source, dest, logger)
+            sync_s3_to_gs_oneshot(source, dest)
         else:
-            dispatch_multipart_sync(source, dest, logger, context)
+            dispatch_multipart_sync(source, dest, context)
     elif source_platform == "gs" and dest_platform == "s3":
         try:
             dest.blob.load()
@@ -178,13 +182,13 @@ def sync_blob(source_platform, source_key, dest_platform, logger, context):
                 raise
         source.blob.reload()
         if source.blob.size < part_size["s3"]:
-            sync_gs_to_s3_oneshot(source, dest, logger)
+            sync_gs_to_s3_oneshot(source, dest)
         else:
-            dispatch_multipart_sync(source, dest, logger, context)
+            dispatch_multipart_sync(source, dest, context)
     logger.info(f"Completed transfer of {source_key} from {source.bucket} to {dest.bucket}")
 
 
-def compose_gs_blobs(gs_bucket, blob_names, dest_blob_name, logger):
+def compose_gs_blobs(gs_bucket, blob_names, dest_blob_name):
     blobs = [gs_bucket.get_blob(b) for b in blob_names]
     logger.info("%d of %d blobs found", len([b for b in blobs if b is not None]), len(blob_names))
     assert not any(b is None for b in blobs)

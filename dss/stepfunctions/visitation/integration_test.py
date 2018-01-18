@@ -1,3 +1,4 @@
+import logging
 import string
 from time import time
 from typing import Sequence, Any
@@ -6,6 +7,9 @@ from cloud_blobstore import BlobPagingError
 
 from ...config import Config, Replica
 from . import Visitation, WalkerStatus
+
+
+logger = logging.getLogger(__name__)
 
 
 class IntegrationTest(Visitation):  # no coverage (this code *is* run by tests, just only on Lambda)
@@ -42,7 +46,7 @@ class IntegrationTest(Visitation):  # no coverage (this code *is* run by tests, 
         listed_keys = handle.list(self.bucket, prefix=self.prefix)
         k_listed = sum(1 for _ in listed_keys)
         assert self.work_result == k_listed, f'Integration test failed: {self.work_result} != {k_listed}'
-        self.logger.info(f"Integration test passed for {self.replica} with {k_listed} key(s) listed")
+        logger.info(f"Integration test passed for {self.replica} with {k_listed} key(s) listed")
 
     def _walk(self) -> None:
         """
