@@ -18,17 +18,18 @@ import crcmod
 import google.cloud.storage
 from botocore.vendored import requests
 
-from tests.infra import testmode
-
 pkg_root = os.path.abspath(os.path.join(os.path.dirname(__file__), '..'))  # noqa
 sys.path.insert(0, pkg_root)  # noqa
 
 import dss
 from dss.events.handlers import sync
+from dss.logging import configure_test_logging
 from dss.util.streaming import get_pool_manager, S3SigningChunker
-from tests import infra
+from tests.infra import testmode
 
-infra.start_verbose_logging()
+
+def setUpModule():
+    configure_test_logging()
 
 
 @testmode.standalone

@@ -44,7 +44,6 @@ class ThreadedLocalServer(threading.Thread):
         project_dir = os.path.join(os.path.dirname(__file__), "..", "..", "chalice")
         factory = CLIFactory(project_dir=project_dir)
         self._chalice_app = factory.load_chalice_app()
-        self._chalice_app.log.setLevel(logging.WARNING)
         self._chalice_app._override_exptime_seconds = 86400  # something large.  sys.maxsize causes chalice to flip.
 
         config = chalice.config.Config.create(lambda_timeout=self._chalice_app._override_exptime_seconds)

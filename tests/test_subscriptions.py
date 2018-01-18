@@ -18,6 +18,7 @@ sys.path.insert(0, pkg_root)  # noqa
 
 import dss
 from dss.events.handlers.index import BundleDocument
+from dss.logging import configure_test_logging
 from dss.storage.index import IndexManager
 from dss.util import UrlBuilder
 from dss.util.es import ElasticsearchClient
@@ -27,9 +28,12 @@ from tests.infra.elasticsearch_test_case import ElasticsearchTestCase
 from tests.infra.server import ThreadedLocalServer
 from tests.sample_search_queries import smartseq2_paired_ends_v2_or_v3_query
 
-logging.basicConfig(level=logging.INFO)
+
 logger = logging.getLogger(__name__)
-logger.setLevel(logging.INFO)
+
+
+def setUpModule():
+    configure_test_logging()
 
 
 class TestSubscriptionsBase(ElasticsearchTestCase, DSSAssertMixin):

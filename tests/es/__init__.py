@@ -3,9 +3,8 @@ from typing import List
 from dss.config import Config, BucketConfig
 from dss.util.es import ElasticsearchClient
 
-logging.basicConfig(level=logging.INFO)
+
 logger = logging.getLogger(__name__)
-logger.setLevel(logging.INFO)
 
 
 def elasticsearch_delete_index(index_name: str):

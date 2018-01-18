@@ -1,16 +1,16 @@
-import argparse
 import inspect
-
+import json
 import os
 import sys
-import json
-import domovoi
 from typing import Callable, Any, Mapping, Optional
+
+import domovoi
 
 pkg_root = os.path.abspath(os.path.join(os.path.dirname(__file__), 'domovoilib'))  # noqa
 sys.path.insert(0, pkg_root)  # noqa
 
 from dss import BucketConfig, Config, Replica
+from dss.logging import configure_daemon_logging
 from dss.stepfunctions.visitation.reindex import Reindex
 
 
@@ -67,5 +67,5 @@ class DSSAdmin(domovoi.Domovoi):
         result = _invoke(action, options)
         return json.dumps(result)
 
-
-app = DSSAdmin()
+configure_daemon_logging()
+app = DSSAdmin(configure_logs=False)

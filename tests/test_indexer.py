@@ -1,10 +1,8 @@
 #!/usr/bin/env python
 # coding: utf-8
 
-import datetime
-
 from abc import ABCMeta, abstractmethod
-
+import datetime
 import io
 import json
 import logging
@@ -28,14 +26,15 @@ from dss import Config, BucketConfig, DeploymentStage
 from dss.config import Replica
 from dss.events.handlers.index import AWSIndexer, GCPIndexer, BundleDocument, Indexer
 from dss.hcablobstore import BundleMetadata, BundleFileMetadata, FileMetadata
-from dss.util import create_blob_key, networking, UrlBuilder
+from dss.logging import configure_test_logging
 from dss.storage.bundles import ObjectIdentifier, BundleFQID
 from dss.storage.validator import scrub_index_data
+from dss.util import create_blob_key, networking, UrlBuilder
 from dss.util.es import ElasticsearchClient
 from dss.util.version import datetime_to_version_format
 from tests import get_version, get_auth_header
-from tests.infra import DSSAssertMixin, DSSUploadMixin, DSSStorageMixin, TestBundle, start_verbose_logging, testmode
 from tests.infra.elasticsearch_test_case import ElasticsearchTestCase
+from tests.infra import DSSAssertMixin, DSSUploadMixin, DSSStorageMixin, TestBundle, testmode
 from tests.infra.server import ThreadedLocalServer
 from tests.sample_search_queries import (smartseq2_paired_ends_v3_query,
                                          smartseq2_paired_ends_v2_or_v3_query,
@@ -44,17 +43,12 @@ from tests.sample_search_queries import (smartseq2_paired_ends_v3_query,
 
 from tests import eventually, get_bundle_fqid, get_file_fqid
 
+logger = logging.getLogger(__name__)
+
 # The moto mock has two defects that show up when used by the dss core storage system.
 # Use actual S3 until these defects are fixed in moto.
 # TODO (mbaumann) When the defects in moto have been fixed, remove True from the line below.
 USE_AWS_S3 = bool(os.environ.get("USE_AWS_S3", True))
-
-logging.basicConfig(level=logging.INFO)
-logger = logging.getLogger(__name__)
-logger.setLevel(logging.INFO)
-
-start_verbose_logging()
-
 
 # TODO: (tsmith) test with multiple doc indexes once indexing by major version is compeleted
 
@@ -78,6 +72,7 @@ class HTTPInfo:
 
 
 def setUpModule():
+    configure_test_logging()
     HTTPInfo.port = networking.unused_tcp_port()
     HTTPInfo.server = HTTPServer((HTTPInfo.address, HTTPInfo.port), PostTestHandler)
     HTTPInfo.thread = threading.Thread(target=HTTPInfo.server.serve_forever)
@@ -960,6 +955,10 @@ class PostTestHandler(BaseHTTPRequestHandler):
     @classmethod
     def get_payload(cls):
         return cls._payload
+
+    def log_request(self, code='-', size='-'):
+        if Config.debug_level():
+            super().log_request(code, size)
 
 
 smartseq2_paried_ends_indexed_file_list = ["assay_json", "project_json", "sample_json"]

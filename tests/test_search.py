@@ -21,22 +21,23 @@ from dss import ESDocType
 from dss.util import UrlBuilder
 
 from dss.api.search import _es_search_page
+from dss.logging import configure_test_logging
 from dss.storage.index import IndexManager
 from dss.util.es import ElasticsearchClient
 from tests import get_version
-from tests.infra import DSSAssertMixin, ExpectedErrorFields, start_verbose_logging, testmode
+from tests.infra import DSSAssertMixin, ExpectedErrorFields, testmode
 from tests.infra.elasticsearch_test_case import ElasticsearchTestCase
 from tests.infra.server import ThreadedLocalServer
 from tests.sample_search_queries import smartseq2_paired_ends_v3_query
 
-logging.basicConfig(level=logging.INFO)
-logger = logging.getLogger(__name__)
-logger.setLevel(logging.INFO)
 
-start_verbose_logging()
+logger = logging.getLogger(__name__)
 
 
 # TODO: (tsmith) test with multiple doc indexes once indexing by major version is compeleted
+def setUpModule():
+    configure_test_logging()
+
 
 class TestSearchBase(ElasticsearchTestCase, DSSAssertMixin):
 

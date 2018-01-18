@@ -104,8 +104,7 @@ def time_limited(chalice_app: DSSChaliceApp):
 
 
 def get_chalice_app(flask_app) -> DSSChaliceApp:
-    app = DSSChaliceApp(app_name=flask_app.name)
-    app.log.setLevel(logging.DEBUG)
+    app = DSSChaliceApp(app_name=flask_app.name, configure_logs=False)
 
     @time_limited(app)
     def dispatch(*args, **kwargs):

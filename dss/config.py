@@ -254,6 +254,18 @@ class Config:
 
         return Config._NOTIFICATION_SENDER_EMAIL
 
+    @staticmethod
+    def debug_level() -> int:
+        """
+        Use the value returned by this method to conditionally enable verbose diagnostic output by the application,
+        its daemons or during tests. A return value of
+
+        * 0 should disable any verbose output
+        * 1 should enable verbose output by application code
+        * 2 should enable verbose output by the application and its dependencies
+        """
+        return int(os.environ.get('DSS_DEBUG', '0'))
+
 
 class Replica(Enum):
     aws = (Config.get_s3_bucket, "s3", S3BlobStore, S3HCABlobStore)

@@ -14,6 +14,7 @@ sys.path.insert(0, pkg_root)  # noqa
 
 import dss
 from dss import BucketConfig, Config, Replica
+from dss.logging import configure_test_logging
 from dss.stepfunctions.visitation import Visitation, WalkerStatus
 from dss.stepfunctions import step_functions_describe_execution
 from dss.stepfunctions.visitation import implementation
@@ -22,12 +23,14 @@ from dss.stepfunctions.visitation import registered_visitations
 from dss.stepfunctions.visitation.timeout import Timeout
 from dss.stepfunctions.visitation import reindex
 
-from tests import infra  # noqa
-from tests.infra import get_env, testmode  # noqa
+from tests.infra import get_env, testmode
 
 
-infra.start_verbose_logging()
 logger = logging.getLogger(__name__)
+
+
+def setUpModule():
+    configure_test_logging()
 
 
 class TestVisitationWalker(unittest.TestCase):
