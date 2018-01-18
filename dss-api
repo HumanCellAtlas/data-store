@@ -44,6 +44,8 @@ app_obj = factory.load_chalice_app()
 # running in lambda.  This is configuring the root logger.
 # The app-specific logger (app.log) will still continue
 # to work.
+# FIXME: (hannes) I don't think this works. basicConfig() only does anything if there aren't any handlers, so a second
+# invocation is usually pointless unless something removed all handlers in between.
 logging.basicConfig(stream=sys.stdout)
 server = factory.create_local_server(app_obj, config, args.port)
 server.serve_forever()
