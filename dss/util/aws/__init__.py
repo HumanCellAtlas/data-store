@@ -1,6 +1,6 @@
 import json
 import botocore
-from . import clients, resources, logging
+from . import clients, resources, cloudwatch_logging
 
 
 AWS_MIN_CHUNK_SIZE = 64 * 1024 * 1024
