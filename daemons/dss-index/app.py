@@ -9,9 +9,12 @@ pkg_root = os.path.abspath(os.path.join(os.path.dirname(__file__), 'domovoilib')
 sys.path.insert(0, pkg_root)  # noqa
 
 import dss
+from dss.logging import configure_daemon_logging
 from dss.events.handlers.index import AWSIndexer, GCPIndexer
 
-app = domovoi.Domovoi()
+
+app = domovoi.Domovoi(configure_logs=False)
+configure_daemon_logging()
 
 dss.Config.set_config(dss.BucketConfig.NORMAL)
 
@@ -20,7 +23,6 @@ s3_bucket = dss.Config.get_s3_bucket()
 
 @app.s3_event_handler(bucket=s3_bucket, events=["s3:ObjectCreated:*"])
 def dispatch_s3_indexer_event(event, context) -> None:
-    app.log.setLevel(logging.DEBUG)
     if event.get("Event") == "s3:TestEvent":
         app.log.info("DSS index daemon received S3 test event")
     else:

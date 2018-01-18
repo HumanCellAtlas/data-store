@@ -9,9 +9,8 @@ from google.cloud.storage import Client
 from dss.util.aws import get_s3_chunk_size
 from .checksumming_io.checksumming_io import ChecksummingSink
 
-logging.basicConfig(level=logging.ERROR)
+
 logger = logging.getLogger(__name__)
-logger.setLevel(logging.WARNING)
 
 
 class Uploader:

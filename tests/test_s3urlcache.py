@@ -17,16 +17,13 @@ sys.path.insert(0, pkg_root)  # noqa
 import dss
 from dss import Config, BucketConfig
 from dss.config import Replica
-from tests.infra import start_verbose_logging, testmode
+from dss.logging import configure_test_logging
 from dss.storage.validator import S3UrlCache
 from dss.storage.validator import SizeLimitError
 from dss.util import networking
+from tests.infra import testmode
 
-logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
-logger.setLevel(logging.INFO)
-
-start_verbose_logging()
 
 KiB = 1024
 MB = KiB ** 2
@@ -45,6 +42,7 @@ class HTTPInfo:
 
 
 def setUpModule():
+    configure_test_logging()
     HTTPInfo.port = networking.unused_tcp_port()
     HTTPInfo.server = HTTPServer((HTTPInfo.address, HTTPInfo.port), GetTestHandler)
     HTTPInfo.make_url()
@@ -199,6 +197,11 @@ class GetTestHandler(BaseHTTPRequestHandler):
             shutil.copyfileobj(io.BytesIO(randomdata[:length]), self.wfile)
         else:
             return
+
+    def log_request(self, code='-', size='-'):
+        if Config.debug_level():
+            super().log_request(code, size)
+
 
 if __name__ == "__main__":
     unittest.main()

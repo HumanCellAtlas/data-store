@@ -280,6 +280,53 @@ change to a direct dependency. This process applies to development dependencies 
 If you wish to re-pin all the dependencies, run `make refresh_all_requirements`.  It is advisable to do a full
 test-deploy-test cycle after this (the test after the deploy is required to test the lambdas).
 
+#### Logging conventions
+
+1.  Always use a module-level logger, call it `logger` and initialize it as follows:
+
+    ```python
+    import logging
+    logger = logging.getLogger(__name__)
+    ```
+
+2.  Do not configure logging at module scope. It should be possible to import any module without side-effects on 
+    logging. The `dss.logging` module contains functions that configure logging for this application, its Lambda 
+    functions and unit tests.
+    
+3.  When logging a message, pass either
+ 
+    * an f-string as the first and only positional argument or
+    
+    * a %-string as the first argument and substitution values as subsequent arguments. Do not mix the two string 
+      interpolation methods. If you mix them, any percent sign in a substituted value will raise an exception.
+    
+    ```python
+    # In other words, use
+    logger.info(f"Foo is {foo} and bar is {bar}")
+    # or
+    logger.info("Foo is %s and bar is %s", foo, bar)
+    # but not
+    logger.info(f"Foo is {foo} and bar is %s", bar)
+    # Keyword arguments can be used safely in conjunction with f-strings: 
+    logger.info(f"Foo is {foo}", exc_info=True)
+    ```
+    
+4.  To enable verbose logging by application code, set the environment variable `DSS_DEBUG` to `1`. To enable verbose 
+    logging by dependencies set `DSS_DEBUG` to `2`. To disable verbose logging unset `DSS_DEBUG` or set it to `0`.
+
+5.  To assert in tests that certain messages were logged, use the `dss` logger or one of its children 
+    
+    ```python
+    dss_logger = logging.getLogger('dss')
+    with self.assertLogs(dss_logger) as log_monitor:
+        # do stuff
+    # or
+    import dss
+    with self.assertLogs(dss.logger) as log_monitor:
+        # do stuff     
+    ```
+
+
 [![](https://img.shields.io/badge/slack-%23data--store-557EBF.svg)](https://humancellatlas.slack.com/messages/data-store/)
 [![Build Status](https://travis-ci.org/HumanCellAtlas/data-store.svg?branch=master)](https://travis-ci.org/HumanCellAtlas/data-store)
 [![codecov](https://codecov.io/gh/HumanCellAtlas/data-store/branch/master/graph/badge.svg)](https://codecov.io/gh/HumanCellAtlas/data-store)

@@ -1,10 +1,17 @@
 import os
+import sys
 
 import domovoi
 import requests
 
+pkg_root = os.path.abspath(os.path.join(os.path.dirname(__file__), 'domovoilib'))  # noqa
+sys.path.insert(0, pkg_root)  # noqa
 
-app = domovoi.Domovoi()
+from dss.logging import configure_daemon_logging
+
+
+configure_daemon_logging()
+app = domovoi.Domovoi(configure_logs=False)
 
 
 def define_test_type(test_type: str, envvar: str, schedule_expression: str):

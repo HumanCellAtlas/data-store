@@ -3,15 +3,12 @@
 """
 DSS description FIXME: elaborate
 """
-import typing
-
 import functools
 import json
 import logging
 import os
 import traceback
 
-import flask
 import requests
 import connexion.apis.abstract
 from connexion.apis.flask_api import FlaskApi
@@ -22,8 +19,8 @@ from connexion.resolver import RestyResolver
 from connexion.exceptions import OAuthProblem, OAuthResponseProblem, OAuthScopeProblem
 from werkzeug.exceptions import Forbidden
 
-from .config import BucketConfig, Config, DeploymentStage, ESIndexType, ESDocType, Replica
-from .error import DSSBindingException, DSSException, dss_handler
+from dss.config import BucketConfig, Config, DeploymentStage, ESIndexType, ESDocType, Replica
+from dss.error import DSSBindingException, DSSException, dss_handler
 
 logger = logging.getLogger(__name__)
 
@@ -187,6 +184,10 @@ def create_app():
             'parameter': DSSParameterValidator,
         },
     )
+    app.app.logger_name = 'dss.api'
+    debug = Config.debug_level() > 0
+    app.app.debug = debug
+    app.app.logger.info('Flask debug is %s.', 'enabled' if debug else 'disabled')
     resolver = RestyResolver("dss.api", collection_endpoint_name="list")
     app.add_api('../dss-api.yml', resolver=resolver, validate_responses=True, arguments=os.environ)
     return app

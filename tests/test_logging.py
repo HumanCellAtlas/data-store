@@ -12,12 +12,13 @@ import boto3
 pkg_root = os.path.abspath(os.path.join(os.path.dirname(__file__), '..'))  # noqa
 sys.path.insert(0, pkg_root)  # noqa
 
+from dss.logging import configure_test_logging
 from dss.util.aws import logging
-from tests import infra
 from tests.infra import testmode
 
 
-infra.start_verbose_logging()
+def setUpModule():
+    configure_test_logging()
 
 
 class TestAwsLogging(unittest.TestCase):
