@@ -1,6 +1,6 @@
 from ... import get_logger
 from .registered_visitations import registered_visitations
-from . import Visitation, DSSVisitationException, WalkerStatus
+from . import DSSVisitationException, WalkerStatus
 
 
 logger = get_logger()
