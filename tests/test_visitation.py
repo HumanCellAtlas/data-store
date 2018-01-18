@@ -6,7 +6,6 @@ import time
 import logging
 import os
 import sys
-import json
 import unittest
 import mock
 
