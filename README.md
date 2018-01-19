@@ -34,15 +34,6 @@ The tests require certain node.js packages. They must be installed using `npm`, 
 
 Tests also use data from the data-bundle-examples subrepository. Run: `git submodule update --init`
 
-#### Environment Variables
-
-Environment variables are required for test and deployment. The required environment variables and their default values
-are in the file `environment`. To customize the values of these environment variables:
-
-1. Copy `environment.local.example` to `environment.local`
-2. Edit `environment.local` to add custom entries that override the default values in `environment`
-    
-Run `source environment`  now and whenever these environment files are modified.
 
 #### Configuring cloud-specific access credentials
 
@@ -51,47 +42,34 @@ Run `source environment`  now and whenever these environment files are modified.
 1. Follow the instructions in http://docs.aws.amazon.com/cli/latest/userguide/cli-chap-getting-started.html to get the
    `aws` command line utility.
 
-2. Create an S3 bucket that you want DSS to use and in `environment.local`, set the environment variable `DSS_S3_BUCKET`
-   to the name of that bucket. Make sure the bucket region is consistent with `AWS_DEFAULT_REGION` in
-   `environment.local`.
-
-3. Repeat the previous step for
-
-   * DSS_S3_CHECKOUT_BUCKET
-   * DSS_S3_CHECKOUT_BUCKET_TEST
-   * DSS_S3_CHECKOUT_BUCKET_TEST_FIXTURES
-
-4. If you wish to run the unit tests, you must create two more S3 buckets, one for test data and another for test
-   fixtures, and set the environment variables `DSS_S3_BUCKET_TEST` and `DSS_S3_BUCKET_TEST_FIXTURES` to the names of
-   those buckets.
-
-Hint: To create S3 buckets from the command line, use `aws s3 mb --region REGION s3://BUCKET_NAME/`. 
+2. To configure your account credentials and named profiles for the `aws` cli, see
+   https://docs.aws.amazon.com/cli/latest/userguide/cli-config-files.html and
+   https://docs.aws.amazon.com/cli/latest/userguide/cli-multiple-profiles.html
 
 ##### GCP
 
 1.  Follow the instructions in https://cloud.google.com/sdk/downloads to get the `gcloud` command line utility.
 
-2.  In the [Google Cloud Console](https://console.cloud.google.com/), select the correct Google user account on the top
-    right and the correct GCP project in the drop down in the top center. Go to "IAM & Admin", then "Service accounts",
-    then click "Create service account" and select "Furnish a new private key". Under "Roles" select "Project – Owner",
-    "Service Accounts – Service Account User" and "Cloud Functions – Cloud Function Developer". Create the account and 
-    download the service account key JSON file.
+2.  Run `gcloud auth login` to authorize the gcloud cli.
 
-3.  In `environment.local`, set the environment variable `GOOGLE_APPLICATION_CREDENTIALS` to the path of the service
-    account key JSON file.
+#### Terraform
 
-4.  Choose a region that has support for Cloud Functions and set `GCP_DEFAULT_REGION` to that region. See
-    https://cloud.google.com/about/locations/ for a list of supported regions.
+Some cloud assets are managed by Terraform, inlcuding the storage buckets and Elasticsearch domain.
 
-5.  Run `gcloud auth activate-service-account --key-file=/path/to/service-account.json`.
+1.  Follow the instructions in https://www.terraform.io/intro/getting-started/install.html to get the
+    `terraform` command line utility.
 
-6.  Run `gcloud config set project PROJECT_ID` where PROJECT_ID is the ID, not the name (!) of the GCP project you
-    selected earlier.
+2.  Run `configure.py` to prepare the deployment.
 
-7.  Enable required APIs: `gcloud services enable cloudfunctions.googleapis.com`; `gcloud services
-    enable runtimeconfig.googleapis.com`
+3.  Infrastructure deployment definiations may be further customized by editing the terraform scripts in
+    'deployment/active' subdirectories.
 
-8.  Generate OAuth application secrets to be used for your instance: 
+Now you may deploy the cloud assets with
+    make deploy-infra
+
+##### GCP Application Secrets
+
+3.  Generate OAuth application secrets to be used for your instance: 
 
     1) Go to https://console.developers.google.com/apis/credentials (you may have to select Organization and Project
     again)
@@ -107,22 +85,14 @@ Hint: To create S3 buckets from the command line, use `aws s3 mb --region REGION
     
 	6) Click the edit icon for the new credentials and click *Download JSON*
     
-	7) Place the downloaded JSON file into the project root as `application_secrets.json`
+	7) Place the downloaded JSON file into active stage root as `deployment/active/application_secrets.json`
 
-9.  Create a Google Cloud Storage bucket and in `environment.local`, set the environment variable `DSS_GS_BUCKET` to the
-    name of that bucket. Make sure the bucket region is consistent with `GCP_DEFAULT_REGION` in `environment.local`.
+#### Environment Variables
 
-10. Repeat the previous step for
+Environment variables are required for test and deployment. The required environment variables and their default values
+are in the file `environment`. To customize the values of these environment variables, run `configure.py`.
 
-   * DSS_GS_CHECKOUT_BUCKET
-   * DSS_GS_CHECKOUT_BUCKET_TEST
-   * DSS_GS_CHECKOUT_BUCKET_TEST_FIXTURES
-
-11. If you wish to run the unit tests, you must create two more buckets, one for test data and another for test
-    fixtures, and set the environment variables `DSS_GS_BUCKET_TEST` and `DSS_GS_BUCKET_TEST_FIXTURES` to the names of
-    those buckets.
-
-Hint: To create GCS buckets from the command line, use `gsutil mb -c regional -l REGION gs://BUCKET_NAME/`.
+Run `source environment`  now and whenever `configure.py` is executed.
 
 ##### Azure
 
@@ -158,47 +128,10 @@ Run `make test` in the top-level `data-store` directory.
 Assuming the tests have passed above, the next step is to manually deploy. See the section below for information on
 CI/CD with Travis if continuous deployment is your goal.
 
-The AWS Elasticsearch Service is used for metadata indexing. Currently, the AWS Elasticsearch Service must be configured
-manually. The AWS Elasticsearch Service domain name must either:
-
-* have the value `dss-index-$DSS_DEPLOYMENT_STAGE`
-
-* or, the environment variable `DSS_ES_DOMAIN` must be set to the domain name of the AWS Elasticsearch Service instance
-  to be used.
-
-For typical development deployments the t2.small.elasticsearch instance type is more than sufficient. 
-
 Now deploy using make:
 
     make deploy
 
-Set up AWS API Gateway. The gateway is automatically set up for you and associated with the Lambda. However, to get a
-friendly domain name, you need to follow the
-directions [here](http://docs.aws.amazon.com/apigateway/latest/developerguide/how-to-custom-domains.html). In summary:
-
-1.  Generate a HTTPS certificate via AWS Certificate Manager (ACM). See note below on choosing a region for the
-    certificate.
-
-2.  Set up the custom domain name in the API gateway console. See note below on the DNS record type.
-
-3.  In Amazon Route 53 point the domain to the API gateway
-
-4.  In the API Gateway, fill in the endpoints for the custom domain name e.g. Path=`/`, Destination=`dss` and
-    `dev`. These might be different based on the profile used (dev, stage, etc).
-
-5.  Set the environment variable `API_DOMAIN_NAME` to your domain name in the `environment.local` file.
-
-Note: The certificate should be in the same region as the API gateway or, if that's not possible, in `us-east-1`. If the
-ACM certificate's region is `us-east-1` and the API gateway is in another region, the type of the custom domain name
-must be *Edge Optimized*. Provisioning such a domain name typically takes up to 40 minutes because the certificate needs
-to be replicated to all involved CloudFront edge servers. The corresponding record set in Route 53 needs to be an
-**alias** A record, not a CNAME or a regular A record, and it must point to the CloudFront host name associated with the
-edge-optimized domain name. Starting November 2017, API gateway supports regional certificates i.e., certificates in
-regions other than `us-east-1`. This makes it possible to match the certificate's region with that of the API
-gateway. and cuts the provisioning of the custom domain name down to seconds. Simply create the certificate in the same
-region as that of the API gateway, create a custom domain name of type *Regional* and in Route53 add a CNAME recordset
-that points to the gateway's canonical host name.
- 
 If successful, you should be able to see the Swagger API documentation at:
 
     https://<domain_name>

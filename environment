@@ -28,38 +28,11 @@ EXPORT_ENV_VARS_TO_LAMBDA_ARRAY=(
 
 set -a
 EXPORT_ENV_VARS_TO_LAMBDA=${EXPORT_ENV_VARS_TO_LAMBDA_ARRAY[*]}
-DSS_DEPLOYMENT_STAGE=dev
 AWS_DEFAULT_OUTPUT=json
-AWS_DEFAULT_REGION=us-east-1
-GCP_DEFAULT_REGION=us-central1
-DSS_S3_BUCKET=org-humancellatlas-dss-dev
-DSS_S3_BUCKET_TEST=org-humancellatlas-dss-test
-DSS_S3_BUCKET_TEST_FIXTURES=org-humancellatlas-dss-test-fixtures
-DSS_S3_BUCKET_INTEGRATION=org-humancellatlas-dss-integration
-DSS_S3_BUCKET_STAGING=org-humancellatlas-dss-staging
-DSS_S3_BUCKET_PROD=org-humancellatlas-dss-prod
-DSS_S3_CHECKOUT_BUCKET=org-humancellatlas-dss-checkout-dev
-DSS_S3_CHECKOUT_BUCKET_TEST=org-humancellatlas-dss-checkout-test
-DSS_S3_CHECKOUT_BUCKET_TEST_FIXTURES=org-humancellatlas-dss-checkout-test-fixtures
-DSS_S3_CHECKOUT_BUCKET_INTEGRATION=org-humancellatlas-dss-checkout-integration
-DSS_S3_CHECKOUT_BUCKET_STAGING=org-humancellatlas-dss-checkout-staging
-DSS_S3_CHECKOUT_BUCKET_PROD=org-humancellatlas-dss-checkout-prod
-DSS_GS_BUCKET=org-humancellatlas-dss-dev
-DSS_GS_BUCKET_TEST=org-humancellatlas-dss-test
-DSS_GS_BUCKET_TEST_FIXTURES=org-humancellatlas-dss-test-fixtures
-DSS_GS_BUCKET_INTEGRATION=org-humancellatlas-dss-integration
-DSS_GS_BUCKET_STAGING=org-humancellatlas-dss-staging
-DSS_GS_BUCKET_PROD=org-humancellatlas-dss-prod
-DSS_GS_CHECKOUT_BUCKET=org-humancellatlas-dss-checkout-dev
-DSS_GS_CHECKOUT_BUCKET_TEST=org-humancellatlas-dss-checkout-test
-DSS_GS_CHECKOUT_BUCKET_TEST_FIXTURES=org-humancellatlas-dss-checkout-test-fixtures
-DSS_GS_CHECKOUT_BUCKET_STAGING=org-humancellatlas-dss-checkout-staging
-DSS_GS_CHECKOUT_BUCKET_PROD=org-humancellatlas-dss-checkout-prod
 DSS_NOTIFICATION_SENDER="DSS Notifier <dss.humancellatlas@gmail.com>"
-GOOGLE_APPLICATION_CREDENTIALS="${DSS_HOME}/gcp-credentials.json"
-GOOGLE_APPLICATION_SECRETS="${DSS_HOME}/application_secrets.json"
-ADMIN_USER_EMAILS=`jq ".client_email" ${GOOGLE_APPLICATION_CREDENTIALS} | sed 's/"//g'`
-API_DOMAIN_NAME=dss.dev.data.humancellatlas.org
+GOOGLE_APPLICATION_SECRETS="${DSS_HOME}/deployment/active/application_secrets.json"
+GOOGLE_APPLICATION_CREDENTIALS="${DSS_HOME}/deployment/active/gcp-credentials.json"
+ADMIN_USER_EMAILS=`jq ".client_email" ${GOOGLE_APPLICATION_CREDENTIALS} | sed 's/"//g'`;
 TOKENINFO_URL=https://${API_DOMAIN_NAME}/internal/tokeninfo
 NOTIFY_URL=https://${API_DOMAIN_NAME}/internal/notify
 SWAGGER_URL=https://${API_DOMAIN_NAME}/v1/swagger.json
@@ -78,8 +51,9 @@ DSS_PARAMETER_STORE="/dss/parameters"
 DSS_EVENT_RELAY_AWS_USERNAME="dss-event-relay"
 DSS_EVENT_RELAY_AWS_ACCESS_KEY_ID_PARAMETER_NAME="event_relay_aws_access_key_id"
 DSS_EVENT_RELAY_AWS_SECRET_ACCESS_KEY_PARAMETER_NAME="event_relay_aws_secret_access_key"
+DSS_DEPLOYMENT_STAGE=$(basename $(cd deployment/active; pwd -P))
 set +a
 
-if [[ -f "${DSS_HOME}/environment.local" ]]; then
-    source "${DSS_HOME}/environment.local"
+if [[ -f "${DSS_HOME}/deployment/active/dss_variables.tf" ]]; then
+	$(cat "${DSS_HOME}/deployment/active/dss_variables.tf"| jq -r '.variable | to_entries[] | "export \(.key)=\(.value.default)"')
 fi

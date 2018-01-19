@@ -1,0 +1,11 @@
+*
+!.gitignore
+!Makefile
+!active
+!*/
+!/dev/**
+!/prod/**
+**/gcp-credentials.json
+**/application_secrets.json
+**/.terraform
+**/local_variables.tf
