@@ -50,25 +50,27 @@ def scrub_index_data(index_data: dict, bundle_id: str, logger: logging.Logger) -
     extra_fields = []
     extra_documents = []
     for document in index_data.keys():
-        core = index_data[document].get('core', None)
-        if core is not None:
+        core = index_data[document].get('core')
+        schema_url = None if core is None else core.get('schema_url')
+        if schema_url is not None:
             try:
-                schema = read_json_url(core['schema_url'])
-            except URLError as ex:
+                schema = read_json_url(schema_url)
+            except Exception as ex:
                 extra_documents.append(document)
-                logger.warning("%s", f"Unable to retrieve schema from url {core['schema_url']} due to exception: {ex}.")
-                continue
-
-            for error in DSS_Draft4Validator(schema, resolver=resolver).iter_errors(index_data[document]):
-                if error.validator == 'additionalProperties':
-                    path = [document, *error.path]
-                    #  Example error message: "Additional properties are not allowed ('extra_lst', 'extra_top' were
-                    #  unexpected)" or "'extra', does not match any of the regexes: '^characteristics_.*$'"
-                    fields_to_remove = (path,
-                                        [field for field in _utils.find_additional_properties(error.instance,
-                                                                                              error.schema)])
+                logger.warning("%s", f"Unable to retrieve schema from {document} in {bundle_id} "
+                                     f"because retrieving {schema_url} caused exception: {ex}.")
+            else:
+                for error in DSS_Draft4Validator(schema, resolver=resolver).iter_errors(index_data[document]):
+                    if error.validator == 'additionalProperties':
+                        path = [document, *error.path]
+                        #  Example error message: "Additional properties are not allowed ('extra_lst', 'extra_top' were
+                        #  unexpected)" or "'extra', does not match any of the regexes: '^characteristics_.*$'"
+                        fields_to_remove = (path, [field for field in _utils.find_additional_properties(error.instance,
+                                                                                                        error.schema)])
                     extra_fields.append(fields_to_remove)
         else:
+            logger.warning("%s", f"Unable to retrieve schema_url from {document} in {bundle_id} because "
+                                 f"core.schema_url does not exist.")
             extra_documents.append(document)
     if extra_documents:
         extra_fields.append(([], extra_documents))

@@ -648,9 +648,9 @@ class TestIndexerBase(unittest.TestCase, DSSAssertMixin, DSSStorageMixin, DSSUpl
 
     @testmode.standalone
     def test_scrub_index_data(self):
-        with self.subTest("with schema version"):
-            'Extra fields are removed.'
-            manifest = read_bundle_manifest(self.blobstore, self.test_bucket, self.bundle_key)
+        manifest = read_bundle_manifest(self.blobstore, self.test_bucket, self.bundle_key)
+        doc = 'assay_json'
+        with self.subTest("removes extra fields when fields not specified in schema."):
             index_data = create_index_data(self.blobstore, self.test_bucket, self.bundle_key, manifest)
             index_data['files']['assay_json'].update({'extra_top': 123,
                                                       'extra_obj': {"something": "here", "another": 123},
@@ -661,36 +661,49 @@ class TestIndexerBase(unittest.TestCase, DSSAssertMixin, DSSStorageMixin, DSSUpl
             index_data['files']['project_json']['extra_2'] = "Another extra field in a different file."
             index_data['files']['project_json']['core']['characteristics_3'] = "patternProperties only apply to root."
             bundle_fqid = self.bundle_key.split('/')[1]
+
             with self.assertLogs(logger, level="INFO") as log_monitor:
                 scrub_index_data(index_data['files'], bundle_fqid, logger)
-
             self.assertRegex(log_monitor.output[0], r"INFO:[^:]+:In [\w\-\.]+, unexpected additional fields "
                                                     r"have been removed from the data to be indexed. "
                                                     r"Removed \[[^\]]*].")
-
             self.verify_index_document_structure_and_content(
                 index_data,
                 self.bundle_key,
                 files=smartseq2_paried_ends_indexed_file_list,
             )
 
-        with self.subTest("with invalid schema_url"):
-            manifest = read_bundle_manifest(self.blobstore, self.test_bucket, self.bundle_key)
+        with self.subTest("document is removed from meta data when an invalid url is in core.schema_url."):
+            invalid_url = "://invalid_url"
             index_data = create_index_data(self.blobstore, self.test_bucket, self.bundle_key, manifest)
-            index_data['files']['assay_json']['core']['schema_url'] = "http://invalid_url"
+            index_data['files'][doc]['core']['schema_url'] = invalid_url
             with self.assertLogs(logger, level="WARNING") as log_monitor:
                 scrub_index_data(index_data['files'], bundle_fqid, logger)
-            self.assertRegex(log_monitor.output[0], r"WARNING:[^:]+:Unable to retrieve schema from url "
-                                                    r"http://invalid_url due to exception:.*",
-                             )
+            self.assertRegex(log_monitor.output[0], f"WARNING:[^:]+:Unable to retrieve schema from {doc} in "
+                                                    f"{bundle_fqid} because retrieving {invalid_url} caused exception: "
+                                                    f".*")
             self.verify_index_document_structure_and_content(
                 index_data,
                 self.bundle_key,
                 files=smartseq2_paried_ends_indexed_file_list,
-                excluded_files=['assay_json']
+                excluded_files=[doc]
             )
 
-        with self.subTest("without schema version"):
+        with self.subTest("document is removed from meta data when document is missing core.schema_url field."):
+            index_data = create_index_data(self.blobstore, self.test_bucket, self.bundle_key, manifest)
+            index_data['files'][doc]['core'].pop('schema_url')
+            with self.assertLogs(logger, level="WARNING") as log_monitor:
+                scrub_index_data(index_data['files'], bundle_fqid, logger)
+            self.assertRegex(log_monitor.output[0], f"WARNING:[^:]+:Unable to retrieve schema_url from {doc} in "
+                                                    f"{bundle_fqid} because core.schema_url does not exist.*")
+            self.verify_index_document_structure_and_content(
+                index_data,
+                self.bundle_key,
+                files=smartseq2_paried_ends_indexed_file_list,
+                excluded_files=[doc]
+            )
+
+        with self.subTest("document is removed from meta data when document is missing core field."):
             'Only the manifest should exist.'
             bundle_key = self.load_test_data_bundle_for_path(
                 "fixtures/indexing/bundles/unversioned/smartseq2/paired_ends_extras")
