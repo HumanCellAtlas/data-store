@@ -2,19 +2,6 @@
 
 set -euo pipefail
 
-get_api_id() {
-    for api_id in $(aws apigateway get-rest-apis | jq -r .items[].id); do
-        for resource_id in $(aws apigateway get-resources --rest-api-id $api_id | jq -r .items[].id); do
-            aws apigateway get-integration --rest-api-id $api_id --resource-id $resource_id --http-method GET >/dev/null 2>&1 || continue
-            uri=$(aws apigateway get-integration --rest-api-id $api_id --resource-id $resource_id --http-method GET | jq -r .uri)
-            if [[ $uri == *"$lambda_arn"* ]]; then
-                echo $api_id
-                return
-            fi
-        done
-    done
-}
-
 if [[ $# != 1 ]]; then
     echo "Usage: $(basename $0) stage"
     exit 1
@@ -44,7 +31,8 @@ if [[ -z $lambda_arn ]]; then
     echo "Lambda function $lambda_name not found, resetting Chalice config"
     rm -f "$deployed_json"
 else
-    export api_id=$(get_api_id)
+    api_arn=$(aws lambda get-policy --function-name "$lambda_name" | jq -r .Policy | jq -r '.Statement[0].Condition.ArnLike["AWS:SourceArn"]')
+    export api_id=$(echo "$api_arn" | cut -d ':' -f 6 | cut -d '/' -f 1)
     jq -n ".$stage.api_handler_name = env.lambda_name | \
            .$stage.api_handler_arn = env.lambda_arn | \
            .$stage.rest_api_id = env.api_id | \
