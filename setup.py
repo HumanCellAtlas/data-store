@@ -1,7 +1,10 @@
 #!/usr/bin/env python
 
-import glob
+import os, glob
 from setuptools import setup, find_packages
+
+with open(os.path.join(os.path.dirname(__file__), "requirements.txt")) as req_fh:
+    install_requires = req_fh.read().splitlines()
 
 setup(
     name="fusillade",
@@ -12,10 +15,7 @@ setup(
     author_email="kislyuk@gmail.com",
     description="Federated User Identity Login & Access Decision Engine",
     long_description=open("README.rst").read(),
-    install_requires=[
-        "boto3 >= 1.5.12, < 2",
-        "chalice >= 1.1.0, < 2"
-    ],
+    install_requires=install_requires,
     extras_require={
         ':python_version == "2.7"': ["enum34 >= 1.1.6, < 2"]
     },

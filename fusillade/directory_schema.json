@@ -1,0 +1,48 @@
+{
+  "sourceSchemaArn": "",
+  "facets": {
+    "User": {
+      "facetAttributes": {
+        "email": {
+          "attributeDefinition": {
+            "attributeType": "STRING",
+            "isImmutable": false,
+            "attributeRules": {
+              "nameLength": {
+                "parameters": {
+                  "min": "1",
+                  "max": "1024"
+                },
+                "ruleType": "STRING_LENGTH"
+              }
+            }
+          },
+          "requiredBehavior": "REQUIRED_ALWAYS"
+        },
+        "username": {
+          "attributeDefinition": {
+            "attributeType": "STRING",
+            "isImmutable": false,
+            "attributeRules": {
+              "nameLength": {
+                "parameters": {
+                  "min": "1",
+                  "max": "1024"
+                },
+                "ruleType": "STRING_LENGTH"
+              }
+            }
+          },
+          "requiredBehavior": "REQUIRED_ALWAYS"
+        }
+      },
+      "objectType": "LEAF_NODE"
+    },
+    "IAMPolicy": {
+      "facetAttributes": {
+      },
+      "objectType": "POLICY"
+    }
+  },
+  "typedLinkFacets": {}
+}

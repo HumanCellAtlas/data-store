@@ -5,10 +5,13 @@ Fusillade (Federated User Identity Login & Access Decision Engine) is a service 
 authentication and authorization in federated services. Fusillade is built to be simple and to leverage well-known auth
 protocols and standards together with existing global, scalable and supported IaaS APIs.
 
-- The AuthN functionality in Fusillade consists of a login endpoint that delegates user authentication to any configured
-  [OpenID Connect](http://openid.net/connect/) compatible identity providers.
-- The AuthZ part of Fusillade is an [ABAC](https://en.wikipedia.org/wiki/Attribute-based_access_control) system
-  leveraging the familiar syntax and reliable infrastructure of [AWS IAM](https://aws.amazon.com/iam/).
+- The AuthN functionality in Fusillade consists of a login HTTPS endpoint that delegates user authentication to any
+  configured [OpenID Connect](http://openid.net/connect/) compatible identity providers.
+- The AuthZ part of Fusillade is
+  an [ABAC](https://en.wikipedia.org/wiki/Attribute-based_access_control) [PDP](https://tools.ietf.org/html/rfc2904)
+  (Policy Decision Point) API leveraging
+  the [familiar syntax](https://docs.aws.amazon.com/IAM/latest/UserGuide/reference_policies.html) and reliable
+  infrastructure of [AWS IAM](https://aws.amazon.com/iam/).
 
 Together, these two subsystems provide an easy API for your application to answer the following questions:
 
@@ -21,7 +24,7 @@ Together, these two subsystems provide an easy API for your application to answe
 To do this, your application should define an access control model consisting of the following:
 
 - A list of trusted OIDC-compatible identity providers
-- A naming schema for actions (for example, `GetWidget`, `CreateFolder`, `DeleteAppointment`, `UpdateDocument`)
+- A naming schema for service actions (for example, `GetWidget`, `CreateFolder`, `DeleteAppointment`, `UpdateDocument`)
 - A naming schema for resources in the following format: `arn:org-name:service-name:*:*:path/to/resource`
 - A default policy assigned to new users, for example:
   ```json

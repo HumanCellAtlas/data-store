@@ -1,4 +1,5 @@
 SHELL=/bin/bash
+STAGE=dev
 
 lint:
 	./setup.py flake8
@@ -14,10 +15,14 @@ docs:
 	pandoc --from markdown --to rst Readme.md > README.rst
 	$(MAKE) -C docs html
 
-install:
+install: docs
 	-rm -rf dist
 	python setup.py bdist_wheel
 	pip install --upgrade dist/*.whl
+
+deploy:
+	./build_chalice_config.sh $(STAGE)
+	chalice deploy --no-autogen-policy --stage $(STAGE) --api-gateway-stage $(STAGE)
 
 .PHONY: test release docs
 

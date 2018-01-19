@@ -1,0 +1,160 @@
+openapi: 3.0.0
+info:
+  title: Fusillade app demo
+  description: |
+    Human Cell Atlas Data Coordination Platform Fusillade app demo
+
+    Log in: [Auth0](/login?state=ABC&redirect_uri=https://auth.dev.data.humancellatlas.org/echo)
+  version: "0.0.1"
+host: auth.czi.technology
+schemes:
+  - https
+produces:
+  - application/json
+components:
+  securitySchemes:
+    Authorization:
+      type: http
+      scheme: bearer
+      in: header
+      bearerFormat: JWT
+#      type: apiKey
+#      name: Authorization
+#      in: header
+#    openId:
+#      type: openIdConnect
+#      openIdConnectUrl: https://accounts.google.com/.well-known/openid-configuration
+#    oauth2:
+#      type: oauth2
+#      flow:
+#        authorizationCode:
+#          authorizationUrl: https://accounts.google.com/o/oauth2/v2/auth
+#          scopes:
+#            https://www.googleapis.com/auth/userinfo.email: read user email
+# FIXME: https://github.com/swagger-api/swagger-ui/issues/3641
+paths:
+  /login:
+    get:
+      summary: Send the user agent to an identity provider selector.
+      parameters:
+        - name: openid_provider
+          in: query
+        - name: nav_src
+          in: query
+  /policies/evaluate:
+    post:
+      summary: Given a set of principals, actions, and resources, return a set of access control decisions.
+      parameters:
+        - name: json_request_body
+          in: body
+          required: true
+          schema:
+            type: object
+            properties:
+              principal:
+                description: Attested user identifier
+                type: string
+              action:
+                description: Actions
+                type: string
+              resource:
+                description: Actions
+                type: string
+  /users:
+    put:
+      summary: Create or update a user and attached policy.
+      security:
+        - openId:
+            - https://www.googleapis.com/auth/userinfo.email
+      parameters:
+        - name: json_request_body
+          in: body
+          required: true
+          schema:
+            type: object
+            properties:
+              policy:
+                description: IAM policy to attach to the user, if any
+                type: object
+      responses:
+        201:
+          description: OK
+          schema:
+            type: object
+        default:
+          description: Unexpected error
+  /users/{user_id}:
+    get:
+      summary: "Retrieve information about a user."
+      security:
+        - Authorization:
+            - null
+        - openId:
+            - https://www.googleapis.com/auth/userinfo.email
+      parameters:
+        - name: user_id
+          in: path
+          description: User ID (email)
+          required: true
+          type: string
+      responses:
+        200:
+          description: OK
+        default:
+          description: Unexpected error
+  /groups:
+    put:
+      summary: Create or update a group and attached policy.
+      security:
+        - openId:
+            - https://www.googleapis.com/auth/userinfo.email
+      parameters:
+        - name: json_request_body
+          in: body
+          required: true
+          schema:
+            type: object
+            properties:
+              policy:
+                description: IAM policy to attach, if any
+                type: object
+      responses:
+        201:
+          description: OK
+          schema:
+            type: object
+        default:
+          description: Unexpected error
+  /groups/{group_id}:
+    get:
+      summary: Retrieve a group.
+      security:
+        - openId:
+            - https://www.googleapis.com/auth/userinfo.email
+      parameters:
+        - name: group_id
+          in: path
+          required: true
+          type: string
+      responses:
+        200:
+          description: OK
+          schema:
+            type: object
+        default:
+          description: Unexpected error
+    delete:
+      summary: Delete a group.
+      security:
+        - openId:
+            - https://www.googleapis.com/auth/userinfo.email
+      parameters:
+        - name: group_id
+          in: path
+          required: true
+          type: string
+      responses:
+        200:
+          description: OK
+        default:
+          description: Unexpected error
