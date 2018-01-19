@@ -30,7 +30,7 @@ install:
 - dpkg -x make*.deb make4
 - export PATH=$(pwd)/make4/usr/bin:$PATH
 script:
-- DSS_UNITTEST_OPTS="$DSS_UNITTEST_OPTS -v"
+- export DSS_UNITTEST_OPTS="$DSS_UNITTEST_OPTS -v"
 - set -eo pipefail
 - if [[ ! $TRAVIS_DSS_INTEGRATION_MODE ]]; then make -j4 test; fi
 - if [[ $TRAVIS_DSS_INTEGRATION_MODE ]]; then make -j4 integration_test; fi
