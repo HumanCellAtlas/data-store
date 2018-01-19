@@ -1,5 +1,6 @@
 #!/usr/bin/env python
 
+from datetime import datetime
 import os
 import sys
 import time
@@ -45,12 +46,14 @@ class TestAwsLogging(unittest.TestCase):
         stream_name = "test_stream"
         message1, message2 = str(uuid.uuid4()), str(uuid.uuid4())
         logging.log_message("dss-test-logging", stream_name, message1)
+        ten_min_ago_in_ms_since_1970_utc = int((time.time() - 600) * 1000)
 
         logs_client = boto3.client("logs")
         starttime = time.time()
         while time.time() < starttime + 30:
-            response = logs_client.filter_log_events(
-                logGroupName="dss-test-logging", logStreamNames=[stream_name])
+            response = logs_client.filter_log_events(logGroupName="dss-test-logging",
+                                                     logStreamNames=[stream_name],
+                                                     startTime=ten_min_ago_in_ms_since_1970_utc)
 
             for event in response['events']:
                 if event['message'] == message1:
@@ -65,8 +68,9 @@ class TestAwsLogging(unittest.TestCase):
 
         starttime = time.time()
         while time.time() < starttime + 30:
-            response = logs_client.filter_log_events(
-                logGroupName="dss-test-logging", logStreamNames=[stream_name])
+            response = logs_client.filter_log_events(logGroupName="dss-test-logging",
+                                                     logStreamNames=[stream_name],
+                                                     startTime=ten_min_ago_in_ms_since_1970_utc)
 
             for event in response['events']:
                 if event['message'] == message2:
