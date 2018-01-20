@@ -1,9 +1,8 @@
 import copy
-import typing
+import os
 
-from cloud_blobstore.gs import GSBlobStore
+from google.cloud.storage import Client
 
-from ... import Config, Replica
 from ...stepfunctions.lambdaexecutor import TimedThread
 
 
@@ -23,12 +22,18 @@ class _Key:
     TOKEN = "token"
 
 
+def get_gcp_client():
+    # TODO: (ttung) remove this once Config.get_cloud_specific_handles is refactored.
+    credentials = os.environ["GOOGLE_APPLICATION_CREDENTIALS"]
+    return Client.from_service_account_json(credentials)
+
+
 def setup_copy_task(event, lambda_context):
     source_bucket = event[Key.SOURCE_BUCKET]
     source_key = event[Key.SOURCE_KEY]
 
-    gs_blobstore = typing.cast(GSBlobStore, Config.get_cloud_specific_handles(Replica.gcp)[0])
-    blob = gs_blobstore.gcp_client.bucket(source_bucket).get_blob(source_key)
+    gcp_client = get_gcp_client()
+    blob = gcp_client.bucket(source_bucket).get_blob(source_key)
     source_crc32c = blob.crc32c
     source_size = blob.size
 
@@ -43,7 +48,7 @@ def copy_worker(event, lambda_context):
     class CopyWorkerTimedThread(TimedThread[dict]):
         def __init__(self, timeout_seconds: float, state: dict) -> None:
             super().__init__(timeout_seconds, state)
-            self.gs_blobstore = typing.cast(GSBlobStore, Config.get_cloud_specific_handles(Replica.gcp)[0])
+            self.gcp_client = get_gcp_client()
 
             self.source_bucket = state[Key.SOURCE_BUCKET]
             self.source_key = state[Key.SOURCE_KEY]
@@ -54,8 +59,8 @@ def copy_worker(event, lambda_context):
 
         def run(self) -> dict:
             state = self.get_state_copy()
-            src_blob = self.gs_blobstore.gcp_client.bucket(self.source_bucket).get_blob(self.source_key)
-            dst_blob = self.gs_blobstore.gcp_client.bucket(self.destination_bucket).blob(self.destination_key)
+            src_blob = self.gcp_client.bucket(self.source_bucket).get_blob(self.source_key)
+            dst_blob = self.gcp_client.bucket(self.destination_bucket).blob(self.destination_key)
 
             while True:
                 response = dst_blob.rewrite(src_blob, token=state.get(_Key.TOKEN, None))
