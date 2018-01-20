@@ -75,23 +75,34 @@ class TestFileApi(unittest.TestCase, DSSAssertMixin, DSSUploadMixin):
 
     @testmode.integration
     def test_file_put_large(self):
-        tempdir = tempfile.gettempdir()
-        self._test_file_put_large(Replica.aws, "s3", self.s3_test_bucket, S3Uploader(tempdir, self.s3_test_bucket))
+
+        def upload_callable_creator(uploader_class: type):
+            def upload_callable(bucket: str, key: str):
+                tempdir = tempfile.gettempdir()
+                uploader = uploader_class(tempdir, bucket)
+
+                src_data = os.urandom(AWS_MIN_CHUNK_SIZE + 1)
+                with tempfile.NamedTemporaryFile(delete=True) as fh:
+                    fh.write(src_data)
+                    fh.flush()
+
+                    uploader.checksum_and_upload_file(fh.name, key, "text/plain")
+            return upload_callable
+
+        self._test_file_put_large(Replica.aws, self.s3_test_bucket, upload_callable_creator(S3Uploader))
         # There's no equivalent for GCP ... yet. :)
 
-    def _test_file_put_large(self, replica: Replica, scheme: str, test_bucket: str, uploader: Uploader):
+    def _test_file_put_large(self, replica: Replica, test_bucket: str, upload_func: typing.Callable[[str, str], None]):
         src_key = generate_test_key()
-        src_data = os.urandom(AWS_MIN_CHUNK_SIZE + 1)
-        with tempfile.NamedTemporaryFile(delete=True) as fh:
-            fh.write(src_data)
-            fh.flush()
-
-            uploader.checksum_and_upload_file(fh.name, src_key, "text/plain")
+        upload_func(test_bucket, src_key)
 
         # should be able to do this twice (i.e., same payload, different UUIDs).  first time should be asynchronous
         # since it's new data.  second time should be synchronous since the data is present.
         for expect_async in [True, False]:
-            resp_obj = self.upload_file_wait(f"{scheme}://{test_bucket}/{src_key}", replica, expect_async=expect_async)
+            resp_obj = self.upload_file_wait(
+                f"{replica.storage_schema}://{test_bucket}/{src_key}",
+                replica,
+                expect_async=expect_async)
             self.assertHeaders(
                 resp_obj.response,
                 {
