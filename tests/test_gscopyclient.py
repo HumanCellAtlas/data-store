@@ -80,6 +80,8 @@ class TestGSCopy(unittest.TestCase):
             dst_checksum = self.gs_blobstore.get_cloud_checksum(self.test_bucket, dest_key)
             self.assertEqual(src_checksum, dst_checksum)
 
+        test_output()
+
 
 if __name__ == '__main__':
     unittest.main()
