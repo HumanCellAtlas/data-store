@@ -1,8 +1,11 @@
 import copy
 import os
+import typing
 
+from cloud_blobstore.gs import GSBlobStore
 from google.cloud.storage import Client
 
+from ...api import files
 from ...stepfunctions.lambdaexecutor import TimedThread
 
 
@@ -100,4 +103,38 @@ sfn = {
             "End": True,
         },
     }
+}
+
+
+# Public input/output keys for the copy + write-metadata state function.
+class CopyWriteMetadataKey:
+    FILE_UUID = "fileuuid"
+    FILE_VERSION = "fileversion"
+    METADATA = "metadata"
+
+
+def write_metadata(event, lambda_context):
+    # TODO: (ttung) remove this once Config.get_cloud_specific_handles is refactored.
+    credentials = os.environ["GOOGLE_APPLICATION_CREDENTIALS"]
+    handle = GSBlobStore(credentials)
+
+    destination_bucket = event[Key.DESTINATION_BUCKET]
+    files.write_file_metadata(
+        handle,
+        destination_bucket,
+        event[CopyWriteMetadataKey.FILE_UUID],
+        event[CopyWriteMetadataKey.FILE_VERSION],
+        event[CopyWriteMetadataKey.METADATA],
+    )
+
+
+copy_write_metadata_sfn = typing.cast(dict, copy.deepcopy(sfn))
+
+# tweak to add one more state.
+del copy_write_metadata_sfn['States']['Copy']['End']
+copy_write_metadata_sfn['States']['Copy']['Next'] = "WriteMetadata"
+copy_write_metadata_sfn['States']['WriteMetadata'] = {
+    "Type": "Task",
+    "Resource": write_metadata,
+    "End": True,
 }
