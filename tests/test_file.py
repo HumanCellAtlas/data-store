@@ -90,7 +90,7 @@ class TestFileApi(unittest.TestCase, DSSAssertMixin, DSSUploadMixin):
             return upload_callable
 
         self._test_file_put_large(Replica.aws, self.s3_test_bucket, upload_callable_creator(S3Uploader))
-        # There's no equivalent for GCP ... yet. :)
+        self._test_file_put_large(Replica.gcp, self.gs_test_bucket, upload_callable_creator(GSUploader))
 
     def _test_file_put_large(self, replica: Replica, test_bucket: str, upload_func: typing.Callable[[str, str], None]):
         src_key = generate_test_key()
