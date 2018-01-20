@@ -76,8 +76,8 @@ class TestFileApi(unittest.TestCase, DSSAssertMixin, DSSUploadMixin):
     @testmode.integration
     def test_file_put_large(self):
 
-        def upload_callable_creator(uploader_class: type):
-            def upload_callable(bucket: str, key: str):
+        def upload_callable_creator(uploader_class: type) -> typing.Callable[[str, str], None]:
+            def upload_callable(bucket: str, key: str) -> None:
                 tempdir = tempfile.gettempdir()
                 uploader = uploader_class(tempdir, bucket)
 
