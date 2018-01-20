@@ -47,7 +47,7 @@ def setup_copy_task(event, lambda_context):
     destination_bucket = event[Key.DESTINATION_BUCKET]
     destination_key = event[Key.DESTINATION_KEY]
 
-    s3_blobstore = S3BlobStore()
+    s3_blobstore = S3BlobStore.from_environment()
     blobinfo = s3_blobstore.get_all_metadata(source_bucket, source_key)
     source_etag = blobinfo['ETag'].strip("\"")  # the ETag is returned with an extra set of quotes.
     source_size = blobinfo['ContentLength']  # type: int
@@ -88,7 +88,7 @@ def copy_worker(event, lambda_context, branch_id):
             self.part_count = state[_Key.PART_COUNT]
 
         def run(self) -> dict:
-            s3_blobstore = S3BlobStore()
+            s3_blobstore = S3BlobStore.from_environment()
             state = self.get_state_copy()
 
             if _Key.NEXT_PART not in state or _Key.LAST_PART not in state:
@@ -266,7 +266,7 @@ class CopyWriteMetadataKey:
 
 
 def write_metadata(event, lambda_context):
-    handle = S3BlobStore()
+    handle = S3BlobStore.from_environment()
 
     destination_bucket = event[Key.DESTINATION_BUCKET]
     files.write_file_metadata(

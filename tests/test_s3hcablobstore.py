@@ -19,7 +19,7 @@ class TestS3HCABlobStore(unittest.TestCase, HCABlobStoreTests):
     def setUp(self):
         self.test_bucket = infra.get_env("DSS_S3_BUCKET_TEST")
         self.test_fixtures_bucket = infra.get_env("DSS_S3_BUCKET_TEST_FIXTURES")
-        self.blobhandle = S3BlobStore()
+        self.blobhandle = S3BlobStore.from_environment()
         self.hcahandle = S3HCABlobStore(self.blobhandle)
 
     def tearDown(self):

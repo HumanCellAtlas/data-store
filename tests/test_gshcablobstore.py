@@ -20,7 +20,7 @@ class TestGSHCABlobStore(unittest.TestCase, HCABlobStoreTests):
         self.credentials = infra.get_env("GOOGLE_APPLICATION_CREDENTIALS")
         self.test_bucket = infra.get_env("DSS_GS_BUCKET_TEST")
         self.test_fixtures_bucket = infra.get_env("DSS_GS_BUCKET_TEST_FIXTURES")
-        self.blobhandle = GSBlobStore(self.credentials)
+        self.blobhandle = GSBlobStore.from_auth_credentials(self.credentials)
         self.hcahandle = GSHCABlobStore(self.blobhandle)
 
     def tearDown(self):

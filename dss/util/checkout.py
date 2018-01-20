@@ -13,7 +13,7 @@ from ..stepfunctions import s3copyclient
 
 
 log = getLogger()
-blobstore = S3BlobStore()
+blobstore = S3BlobStore.from_environment()
 
 
 class BundleFileMeta:

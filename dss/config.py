@@ -108,7 +108,7 @@ class Config:
 
         handle: BlobStore
         if replica == Replica.aws:
-            handle = S3BlobStore()
+            handle = S3BlobStore.from_environment()
             return (
                 handle,
                 S3HCABlobStore(handle),
@@ -116,7 +116,7 @@ class Config:
             )
         elif replica == Replica.gcp:
             credentials = os.environ["GOOGLE_APPLICATION_CREDENTIALS"]
-            handle = GSBlobStore(credentials)
+            handle = GSBlobStore.from_auth_credentials(credentials)
             return (
                 handle,
                 GSHCABlobStore(handle),

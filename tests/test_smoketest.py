@@ -147,7 +147,7 @@ class Smoketest(unittest.TestCase):
                     time.sleep(6)
                 else:
                     self.assertEqual(status, 'SUCCEEDED')
-                    blob_handle = S3BlobStore()
+                    blob_handle = S3BlobStore.from_environment()
                     object_key = get_dst_bundle_prefix(bundle_id, version)
                     print(f"Checking bucket {checkout_bucket} object key: {object_key}")
                     files = blob_handle.list(checkout_bucket, object_key)
