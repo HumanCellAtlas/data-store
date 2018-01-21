@@ -37,7 +37,7 @@ def schedule_copy(event, context):
 
     scheduled = 0
     for src_key, dst_key in get_manifest_files(bundle_fqid, version, replica):
-        logger.debug("Copying a file " + dst_key)
+        logger.debug("Copying a file %s", dst_key)
         parallel_copy(dss_bucket, src_key, dst_bucket, dst_key)
         scheduled += 1
     return {"files_scheduled": scheduled,
