@@ -50,7 +50,7 @@ class TestExptime(unittest.TestCase, DSSAssertMixin, DSSUploadMixin):
                 status=requests.codes.gateway_timeout,
             ),
             headers={
-                'Cookie': "DSS_FAKE_504_PROBABILITY=1.0",
+                "DSS_FAKE_504_PROBABILITY": "1.0",
             }
         )
 

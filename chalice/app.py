@@ -11,7 +11,6 @@ import time
 import traceback
 import typing
 from concurrent.futures import ThreadPoolExecutor, TimeoutError
-from http.cookies import SimpleCookie
 
 import boto3
 import chalice
@@ -121,17 +120,14 @@ def get_chalice_app(flask_app) -> DSSChaliceApp:
         )
 
         def maybe_fake_504() -> typing.Optional[chalice.Response]:
-            cookies = SimpleCookie(app.current_request.headers.get("Cookie", ""))
-            fake_504_probabliity_morsel = cookies.get("DSS_FAKE_504_PROBABILITY")
-            if fake_504_probabliity_morsel is None:
-                return None
+            fake_504_probability_str = app.current_request.headers.get("DSS_FAKE_504_PROBABILITY", "0.0")
 
             try:
-                fake_504_probabliity = float(fake_504_probabliity_morsel.value)
+                fake_504_probability = float(fake_504_probability_str)
             except ValueError:
                 return None
 
-            if random.random() > fake_504_probabliity:
+            if random.random() > fake_504_probability:
                 return None
 
             return timeout_response()
