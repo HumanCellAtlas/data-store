@@ -35,8 +35,10 @@ class SizeLimitError(IOError):
 
 
 class S3UrlCache:
-    """Caches content of arbitrary URLs the first time they are requested. Currently only supports content lengths of up
-     to a few megabytes."""
+    """
+    Caches content of arbitrary URLs the first time they are requested. Currently only supports content lengths of up
+    to a few megabytes.
+    """
     _max_size_default = 64 * 1024 * 1024  # The default max_size per URL = 64 MB
     _chunk_size_default = 1024 * 1024  # The default chunk_size = 1 MB
 
@@ -80,9 +82,10 @@ class S3UrlCache:
         return content
 
     def evict(self, url: str) -> bool:
-        '''
+        """
         Removes the cached URL content from S3.
-        :param url: the url for the content to removed from S3'''
+        :param url: the URL for the content to removed from S3
+        """
         if self.contains(url):
             logger.info(f"{url} removed from cache in {self.bucket}.")
             self.blobstore.delete(self.bucket, self._url_to_key(url))
