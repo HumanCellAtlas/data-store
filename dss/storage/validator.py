@@ -68,7 +68,7 @@ class S3UrlCache:
         try:
             content = bytearray(self.blobstore.get(self.bucket, key))
         except BlobNotFoundError:
-            logger.info("%s", f"{url} not found in cache. Adding it to {self.bucket} with key {key}.")
+            logger.info(f"{url} not found in cache. Adding it to {self.bucket} with key {key}.")
             with requests.get(url, stream=True) as resp_obj:
                 content = bytearray()
                 for chunk in resp_obj.iter_content(chunk_size=self.chunk_size):
@@ -154,8 +154,8 @@ def scrub_index_data(index_data: dict, bundle_id: str) -> list:
                 schema = request_json(schema_url)
             except Exception as ex:
                 extra_documents.append(document)
-                logger.warning("%s", f"Unable to retrieve schema from {document} in {bundle_id} "
-                                     f"because retrieving {schema_url} caused exception: {ex}.")
+                logger.warning(f"Unable to retrieve schema from {document} in {bundle_id} "
+                               f"because retrieving {schema_url} caused exception: {ex}.")
             else:
                 for error in DSS_Draft4Validator(schema, resolver=resolver).iter_errors(index_data[document]):
                     if error.validator == 'additionalProperties':
@@ -166,8 +166,8 @@ def scrub_index_data(index_data: dict, bundle_id: str) -> list:
                                                                                                         error.schema)])
                     extra_fields.append(fields_to_remove)
         else:
-            logger.warning("%s", f"Unable to retrieve schema_url from {document} in {bundle_id} because "
-                                 f"core.schema_url does not exist.")
+            logger.warning(f"Unable to retrieve schema_url from {document} in {bundle_id} because "
+                           f"core.schema_url does not exist.")
             extra_documents.append(document)
     if extra_documents:
         extra_fields.append(([], extra_documents))
