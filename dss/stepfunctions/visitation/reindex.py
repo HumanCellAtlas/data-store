@@ -61,12 +61,12 @@ class Reindex(Visitation):
 
         self.indexer = indexer_class(dryrun=self.dryrun, notify=self.notify)
 
-        handle, _, default_bucket = Config.get_cloud_specific_handles_DEPRECATED(Replica[self.replica])
+        cloud_handles = Config.get_cloud_specific_handles(Replica[self.replica])
 
-        if self.bucket != default_bucket:
-            self.logger.warning(f'Indexing bucket {self.bucket} instead of default {default_bucket}.')
+        if self.bucket != cloud_handles.bucket_name:
+            self.logger.warning(f'Indexing bucket {self.bucket} instead of default {cloud_handles.bucket_name}.')
 
-        blobs = handle.list_v2(
+        blobs = cloud_handles.blobstore_handle.list_v2(
             self.bucket,
             prefix=f'bundles/{self.work_id}',
             start_after_key=self.marker,  # type: ignore  # Cannot determine type of 'marker'

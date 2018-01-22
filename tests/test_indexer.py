@@ -109,7 +109,8 @@ class TestIndexerBase(unittest.TestCase, DSSAssertMixin, DSSStorageMixin, DSSUpl
         cls.app.start()
         cls.replica = replica
         Config.set_config(BucketConfig.TEST_FIXTURE)
-        cls.blobstore, _, cls.test_fixture_bucket = Config.get_cloud_specific_handles_DEPRECATED(cls.replica)
+        cls.cloud_handles = Config.get_cloud_specific_handles(cls.replica)
+        cls.test_fixture_bucket = cls.replica.bucket
         Config.set_config(BucketConfig.TEST)
         cls.test_bucket = cls.replica.bucket
         cls.dss_alias_name = dss.Config.get_es_alias_name(dss.ESIndexType.docs, cls.replica)
@@ -180,11 +181,12 @@ class TestIndexerBase(unittest.TestCase, DSSAssertMixin, DSSStorageMixin, DSSUpl
         self.get_search_results(self.smartseq2_paired_ends_query, 1)
 
     def _create_tombstone(self, tombstone_id):
-        blobstore, _, bucket = Config.get_cloud_specific_handles_DEPRECATED(self.replica)
+        cloud_handles = Config.get_cloud_specific_handles(self.replica)
         tombstone_data = {"status": "disappeared"}
         tombstone_data_bytes = io.BytesIO(json.dumps(tombstone_data).encode('utf-8'))
         # noinspection PyTypeChecker
-        blobstore.upload_file_handle(bucket, tombstone_id.to_key(), tombstone_data_bytes)
+        cloud_handles.blobstore_handle.upload_file_handle(
+            cloud_handles.bucket_name, tombstone_id.to_key(), tombstone_data_bytes)
         # Without this, the tombstone would break subsequent tests, due to the caching added in e12a5f7:
         self.addCleanup(self._delete_tombstone, tombstone_id)
         sample_event = self.create_bundle_deleted_event(tombstone_id.to_key())
@@ -192,15 +194,17 @@ class TestIndexerBase(unittest.TestCase, DSSAssertMixin, DSSStorageMixin, DSSUpl
         return tombstone_data
 
     def _delete_tombstone(self, tombstone_id):
-        blobstore, _, bucket = Config.get_cloud_specific_handles_DEPRECATED(self.replica)
-        blobstore.delete(bucket, tombstone_id.to_key())
+        cloud_handles = Config.get_cloud_specific_handles(self.replica)
+        cloud_handles.blobstore_handle.delete(cloud_handles.bucket_name, tombstone_id.to_key())
 
     @eventually(5.0, 0.5)
     def _assert_tombstone(self, tombstone_id, tombstone_data):
-        blobstore, _, bucket = Config.get_cloud_specific_handles_DEPRECATED(self.replica)
+        cloud_handles = Config.get_cloud_specific_handles(self.replica)
         search_results = self.get_search_results(self.smartseq2_paired_ends_query, 0)
         self.assertEqual(0, len(search_results))
-        bundle_fqids = [ObjectIdentifier.from_key(k) for k in blobstore.list(bucket, tombstone_id.to_key_prefix())]
+        bundle_fqids = [ObjectIdentifier.from_key(k)
+                        for k in cloud_handles.blobstore_handle.list(
+                            cloud_handles.bucket_name, tombstone_id.to_key_prefix())]
         bundle_fqids = filter(lambda bundle_id: type(bundle_id) == BundleFQID, bundle_fqids)
         for bundle_fqid in bundle_fqids:
             exact_query = {
@@ -281,8 +285,10 @@ class TestIndexerBase(unittest.TestCase, DSSAssertMixin, DSSStorageMixin, DSSUpl
 
     @testmode.standalone
     def test_indexed_file_with_invalid_content_type(self):
-        bundle = TestBundle(self.blobstore, "fixtures/indexing/bundles/v3/smartseq2/paired_ends",
-                            self.test_fixture_bucket, self.replica)
+        bundle = TestBundle(
+            self.cloud_handles.blobstore_handle,
+            "fixtures/indexing/bundles/v3/smartseq2/paired_ends",
+            self.test_fixture_bucket, self.replica)
         # Configure a file to be indexed that is not of context type 'application/json'
         for file in bundle.files:
             if file.name == "text_data_file1.txt":
@@ -648,10 +654,11 @@ class TestIndexerBase(unittest.TestCase, DSSAssertMixin, DSSStorageMixin, DSSUpl
 
     @testmode.standalone
     def test_scrub_index_data(self):
-        manifest = read_bundle_manifest(self.blobstore, self.test_bucket, self.bundle_key)
+        manifest = read_bundle_manifest(self.cloud_handles.blobstore_handle, self.test_bucket, self.bundle_key)
         doc = 'assay_json'
         with self.subTest("removes extra fields when fields not specified in schema."):
-            index_data = create_index_data(self.blobstore, self.test_bucket, self.bundle_key, manifest)
+            index_data = create_index_data(
+                self.cloud_handles.blobstore_handle, self.test_bucket, self.bundle_key, manifest)
             index_data['files']['assay_json'].update({'extra_top': 123,
                                                       'extra_obj': {"something": "here", "another": 123},
                                                       'extra_lst': ["a", "b"]})
@@ -675,7 +682,8 @@ class TestIndexerBase(unittest.TestCase, DSSAssertMixin, DSSStorageMixin, DSSUpl
 
         with self.subTest("document is removed from meta data when an invalid url is in core.schema_url."):
             invalid_url = "://invalid_url"
-            index_data = create_index_data(self.blobstore, self.test_bucket, self.bundle_key, manifest)
+            index_data = create_index_data(
+                self.cloud_handles.blobstore_handle, self.test_bucket, self.bundle_key, manifest)
             index_data['files'][doc]['core']['schema_url'] = invalid_url
             with self.assertLogs(logger, level="WARNING") as log_monitor:
                 scrub_index_data(index_data['files'], bundle_fqid, logger)
@@ -690,7 +698,8 @@ class TestIndexerBase(unittest.TestCase, DSSAssertMixin, DSSStorageMixin, DSSUpl
             )
 
         with self.subTest("document is removed from meta data when document is missing core.schema_url field."):
-            index_data = create_index_data(self.blobstore, self.test_bucket, self.bundle_key, manifest)
+            index_data = create_index_data(
+                self.cloud_handles.blobstore_handle, self.test_bucket, self.bundle_key, manifest)
             index_data['files'][doc]['core'].pop('schema_url')
             with self.assertLogs(logger, level="WARNING") as log_monitor:
                 scrub_index_data(index_data['files'], bundle_fqid, logger)
@@ -708,8 +717,8 @@ class TestIndexerBase(unittest.TestCase, DSSAssertMixin, DSSStorageMixin, DSSUpl
             bundle_key = self.load_test_data_bundle_for_path(
                 "fixtures/indexing/bundles/unversioned/smartseq2/paired_ends_extras")
             bundle_fqid = bundle_key.split('/')[1]
-            manifest = read_bundle_manifest(self.blobstore, self.test_bucket, bundle_key)
-            index_data = create_index_data(self.blobstore, self.test_bucket, bundle_key, manifest)
+            manifest = read_bundle_manifest(self.cloud_handles.blobstore_handle, self.test_bucket, bundle_key)
+            index_data = create_index_data(self.cloud_handles.blobstore_handle, self.test_bucket, bundle_key, manifest)
             for file in index_data['files']:
                 file.pop('core', None)
             scrub_index_data(index_data['files'], bundle_fqid, logger)
@@ -719,7 +728,7 @@ class TestIndexerBase(unittest.TestCase, DSSAssertMixin, DSSStorageMixin, DSSUpl
             self.assertIsNotNone(index_data['manifest'])
             self.assertEqual(index_data['files'], {})
 
-            expected_index_data = generate_expected_index_document(self.blobstore,
+            expected_index_data = generate_expected_index_document(self.cloud_handles.blobstore_handle,
                                                                    self.test_bucket,
                                                                    bundle_key,
                                                                    smartseq2_paried_ends_indexed_file_list)
@@ -762,14 +771,14 @@ class TestIndexerBase(unittest.TestCase, DSSAssertMixin, DSSStorageMixin, DSSUpl
 
     def load_test_data_bundle_for_path(self, fixture_path: str):
         """Loads files into test bucket and returns bundle id"""
-        bundle = TestBundle(self.blobstore, fixture_path, self.test_fixture_bucket, self.replica)
+        bundle = TestBundle(self.cloud_handles.blobstore_handle, fixture_path, self.test_fixture_bucket, self.replica)
         return self.load_test_data_bundle(bundle)
 
     def load_test_data_bundle_with_inaccessible_file(self, fixture_path: str,
                                                      inaccessible_filename: str,
                                                      inaccessible_file_content_type: str,
                                                      inaccessible_file_indexed: bool):
-        bundle = TestBundle(self.blobstore, fixture_path, self.test_fixture_bucket, self.replica)
+        bundle = TestBundle(self.cloud_handles.blobstore_handle, fixture_path, self.test_fixture_bucket, self.replica)
         self.load_test_data_bundle(bundle)
         bundle_builder = BundleBuilder(self.replica)
         for file in bundle.files:
@@ -802,8 +811,8 @@ class TestIndexerBase(unittest.TestCase, DSSAssertMixin, DSSStorageMixin, DSSUpl
         if excluded_files is None:
             excluded_files = []
         self.verify_index_document_structure(actual_index_document, files, excluded_files)
-        expected_index_document = generate_expected_index_document(self.blobstore, self.test_bucket, bundle_key,
-                                                                   excluded_files=excluded_files)
+        expected_index_document = generate_expected_index_document(
+            self.cloud_handles.blobstore_handle, self.test_bucket, bundle_key, excluded_files=excluded_files)
         if expected_index_document != actual_index_document:
             logger.error(f"Expected index document: {json.dumps(expected_index_document, indent=4)}")
             logger.error(f"Actual index document: {json.dumps(actual_index_document, indent=4)}")
@@ -899,7 +908,7 @@ class TestGCPIndexer(GCPIndexer, TestIndexerBase):
 
 class BundleBuilder:
     def __init__(self, replica, bundle_fqid=None, bundle_version=None):
-        self.blobstore, _, _ = Config.get_cloud_specific_handles_DEPRECATED(replica)
+        self.cloud_handles = Config.get_cloud_specific_handles(replica)
         self.bundle_fqid = bundle_fqid if bundle_fqid else str(uuid.uuid4())
         self.bundle_version = bundle_version if bundle_version else self._get_version()
         self.bundle_manifest = {
@@ -914,7 +923,7 @@ class BundleBuilder:
 
     def add_file(self, bucket_name, name, indexed, file_id):
         # Add the existing file to the bundle manifest
-        file_manifest_string = self.blobstore.get(bucket_name, f"files/{file_id}").decode("utf-8")
+        file_manifest_string = self.cloud_handles.blobstore_handle.get(bucket_name, f"files/{file_id}").decode("utf-8")
         file_manifest = json.loads(file_manifest_string, encoding="utf-8")
         file_uuid, file_version = file_id.split(".", 1)
         bundle_file_manifest = {
@@ -946,9 +955,10 @@ class BundleBuilder:
 
     def store(self, bucket_name):
         # noinspection PyTypeChecker
-        self.blobstore.upload_file_handle(bucket_name,
-                                          'bundles/' + self.get_bundle_fqid(),
-                                          io.BytesIO(json.dumps(self.bundle_manifest).encode("utf-8")))
+        self.cloud_handles.blobstore_handle.upload_file_handle(
+            bucket_name,
+            'bundles/' + self.get_bundle_fqid(),
+            io.BytesIO(json.dumps(self.bundle_manifest).encode("utf-8")))
 
     def _get_version(self):
         return datetime_to_version_format(datetime.datetime.utcnow())

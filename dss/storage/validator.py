@@ -49,7 +49,7 @@ class S3UrlCache:
         self.s3_client = boto3.client('s3')
 
         # A URL's contents are only stored in S3 to keep the data closer to the aws lambas which use them.
-        self.blobstore, _, self.bucket = Config.get_cloud_specific_handles_DEPRECATED(Replica.aws)
+        self.cloud_handles = Config.get_cloud_specific_handles(Replica.aws)
         self.logger = logger
 
     def resolve(self, url: str) -> bytearray:
@@ -63,9 +63,10 @@ class S3UrlCache:
 
         # if key in S3 bucket return value from there.
         try:
-            content = bytearray(self.blobstore.get(self.bucket, key))
+            content = bytearray(self.cloud_handles.blobstore_handle.get(self.cloud_handles.bucket_name, key))
         except BlobNotFoundError:
-            self.logger.info("%s", f"{url} not found in cache. Adding it to {self.bucket} with key {key}.")
+            self.logger.info(
+                "%s", f"{url} not found in cache. Adding it to {self.cloud_handles.bucket_name} with key {key}.")
             with requests.get(url, stream=True) as resp_obj:
                 content = bytearray()
                 for chunk in resp_obj.iter_content(chunk_size=self.chunk_size):
@@ -81,22 +82,23 @@ class S3UrlCache:
         Removes the cached URL content from S3.
         :param url: the url for the content to removed from S3'''
         if self.contains(url):
-            self.logger.info(f"{url} removed from cache in {self.bucket}.")
-            self.blobstore.delete(self.bucket, self._url_to_key(url))
+            self.logger.info(f"{url} removed from cache in {self.cloud_handles.bucket_name}.")
+            self.cloud_handles.blobstore_handle.delete(self.cloud_handles.bucket_name, self._url_to_key(url))
         else:
             self.logger.info(f"{url} not found and not removed from cache.")
 
     def contains(self, url: str) -> bool:
         key = self._url_to_key(url)
         try:
-            self.blobstore.get_user_metadata(self.bucket, key)['dss_cached_url']
+            self.cloud_handles.blobstore_handle.get_user_metadata(self.cloud_handles.bucket_name, key)['dss_cached_url']
         except BlobNotFoundError:
             return False
         else:
             return True
 
     def _reverse_key_lookup(self, key: str) -> str:
-        return self.blobstore.get_user_metadata(self.bucket, key)['dss_cached_url']
+        return self.cloud_handles.blobstore_handle.get_user_metadata(
+            self.cloud_handles.bucket_name, key)['dss_cached_url']
 
     @staticmethod
     def _url_to_key(url: str) -> str:
@@ -109,7 +111,7 @@ class S3UrlCache:
         }
         self.s3_client.upload_fileobj(
             Fileobj=io.BytesIO(content),
-            Bucket=self.bucket,
+            Bucket=self.cloud_handles.bucket_name,
             Key=key,
             ExtraArgs=meta_data,
         )

@@ -27,13 +27,13 @@ class TestGSCopy(unittest.TestCase):
         Config.set_config(BucketConfig.TEST)
 
         self.test_bucket = infra.get_env("DSS_GS_BUCKET_TEST")
-        self.gs_blobstore = typing.cast(GSBlobStore, Config.get_cloud_specific_handles_DEPRECATED(Replica.gcp)[0])
+        self.cloud_handles = Config.get_cloud_specific_handles(Replica.gcp)
         test_src_keys = [infra.generate_test_key() for _ in range(rounds)]
         final_key = infra.generate_test_key()
 
-        bucket_obj = self.gs_blobstore.gcp_client.bucket(self.test_bucket)
+        bucket_obj = self.cloud_handles.native_cloud_handle.bucket(self.test_bucket)
 
-        self.gs_blobstore.upload_file_handle(
+        self.cloud_handles.blobstore_handle.upload_file_handle(
             self.test_bucket,
             test_src_keys[0],
             io.BytesIO(os.urandom(1024 * 1024))

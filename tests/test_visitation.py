@@ -14,8 +14,9 @@ pkg_root = os.path.abspath(os.path.join(os.path.dirname(__file__), '..'))  # noq
 sys.path.insert(0, pkg_root)  # noqa
 
 import dss
-from dss import BucketConfig, Config
-from dss.stepfunctions.visitation import Visitation, WalkerStatus
+from dss.config import CloudStorageHandles
+from dss.hcablobstore import HCABlobStore
+from dss.stepfunctions.visitation import Visitation
 from dss.stepfunctions import step_functions_describe_execution
 from dss.stepfunctions.visitation import implementation
 from dss.stepfunctions.visitation.integration_test import IntegrationTest
@@ -187,7 +188,17 @@ def fake_get_cloud_specific_handles(replica):
         def list_v2(self, *args, **kwargs):
             return FakeBlobstoreIterator()
 
-    return FakeBlobStore(), mock.MagicMock(), 'no-bucket'
+    class FakeCloudStorageHandles(CloudStorageHandles):
+        @property
+        def bucket_name(self):
+            return 'no-bucket'
+
+    return FakeCloudStorageHandles(
+        replica,
+        lambda: None,
+        lambda native_cloud_handle: FakeBlobStore(),
+        lambda blobstore_handle: HCABlobStore()
+    )
 
 def fake_process_item(self, key):
     if key == '3':
@@ -204,7 +215,7 @@ class TestVisitationReindex(unittest.TestCase):
         }
 
     @testmode.standalone
-    @mock.patch('dss.Config.get_cloud_specific_handles_DEPRECATED', new=fake_get_cloud_specific_handles)
+    @mock.patch('dss.Config.get_cloud_specific_handles', new=fake_get_cloud_specific_handles)
     @mock.patch('dss.events.handlers.index.Indexer.index_object', new=fake_index_object)
     def test_reindex_walk(self):
         r = reindex.Reindex._with_state(self.state, logger)
@@ -213,7 +224,7 @@ class TestVisitationReindex(unittest.TestCase):
         self.assertEqual(r.work_result, dict(failed=5, indexed=5, processed=10))
 
     @testmode.standalone
-    @mock.patch('dss.Config.get_cloud_specific_handles_DEPRECATED', new=fake_get_cloud_specific_handles)
+    @mock.patch('dss.Config.get_cloud_specific_handles', new=fake_get_cloud_specific_handles)
     @mock.patch('dss.stepfunctions.visitation.reindex.Reindex.process_item', new=fake_process_item)
     def test_reindex_timeout(self):
         r = reindex.Reindex._with_state(self.state, logger)
@@ -222,7 +233,7 @@ class TestVisitationReindex(unittest.TestCase):
         self.assertEquals('frank', r.token)
 
     @testmode.standalone
-    @mock.patch('dss.Config.get_cloud_specific_handles_DEPRECATED', new=fake_get_cloud_specific_handles)
+    @mock.patch('dss.Config.get_cloud_specific_handles', new=fake_get_cloud_specific_handles)
     @mock.patch('dss.events.handlers.index.Indexer.index_object', new=fake_index_object)
     def test_reindex_no_time_remaining(self):
         r = reindex.Reindex._with_state(self.state, logger)

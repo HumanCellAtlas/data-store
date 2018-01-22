@@ -54,8 +54,7 @@ def put(uuid: str, replica: str, json_request_body: dict, version: str = None):
         timestamp = datetime.datetime.utcnow()
     version = datetime_to_version_format(timestamp)
 
-    handle, hca_handle, bucket = Config.get_cloud_specific_handles_DEPRECATED(Replica[replica])
-
+    cloud_handles = Config.get_cloud_specific_handles(Replica[replica])
     # what's the target object name for the bundle manifest?
     bundle_manifest_key = BundleFQID(uuid=uuid, version=version).to_key()
 
@@ -73,7 +72,7 @@ def put(uuid: str, replica: str, json_request_body: dict, version: str = None):
             ).to_key()
             if 'file_metadata' not in file:
                 try:
-                    file_metadata = handle.get(bucket, metadata_key)
+                    file_metadata = cloud_handles.blobstore_handle.get(cloud_handles.bucket_name, metadata_key)
                 except BlobNotFoundError:
                     continue
                 file['file_metadata'] = json.loads(file_metadata)
@@ -122,8 +121,8 @@ def put(uuid: str, replica: str, json_request_body: dict, version: str = None):
     }
 
     created, idempotent = _idempotent_save(
-        handle,
-        bucket,
+        cloud_handles.blobstore_handle,
+        cloud_handles.bucket_name,
         bundle_manifest_key,
         bundle_metadata,
     )
@@ -161,12 +160,13 @@ def delete(uuid: str, replica: str, json_request_body: dict, version: str=None):
         version=version,
     )
 
-    handle, hca_handle, bucket = Config.get_cloud_specific_handles_DEPRECATED(Replica[replica])
+    cloud_handles = Config.get_cloud_specific_handles(Replica[replica])
 
-    if test_object_exists(handle, bucket, bundle_prefix, test_type=ObjectTest.PREFIX):
+    if test_object_exists(
+            cloud_handles.blobstore_handle, cloud_handles.bucket_name, bundle_prefix, test_type=ObjectTest.PREFIX):
         created, idempotent = _idempotent_save(
-            handle,
-            bucket,
+            cloud_handles.blobstore_handle,
+            cloud_handles.bucket_name,
             tombstone_id.to_key(),
             tombstone_object_data
         )

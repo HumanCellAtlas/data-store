@@ -64,7 +64,7 @@ class TestS3UrlCache(unittest.TestCase):
     def setUpClass(cls):
         replica = Replica.aws
         Config.set_config(BucketConfig.TEST_FIXTURE)
-        cls.blobstore, _, cls.test_fixture_bucket = Config.get_cloud_specific_handles_DEPRECATED(replica)
+        cls.cloud_handles = Config.get_cloud_specific_handles(replica)
         Config.set_config(BucketConfig.TEST)
         cls.test_bucket = replica.bucket
 
@@ -147,7 +147,7 @@ class TestS3UrlCache(unittest.TestCase):
             self.assertEqual(cached_url, url)
 
         with self.subTest("check content_type"):
-            contentType = self.blobstore.get_content_type(self.test_bucket, url_key)
+            contentType = self.cloud_handles.blobstore_handle.get_content_type(self.test_bucket, url_key)
             self.assertEqual(contentType, "application/octet-stream")
 
     def test_evict(self):
