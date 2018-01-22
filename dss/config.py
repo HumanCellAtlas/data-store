@@ -54,29 +54,6 @@ class ESDocType(Enum):
     subscription = auto()  # Event subscriptions in the ds-subscriptions index
 
 
-class Replica(Enum):
-    aws = auto()
-    gcp = auto()
-
-    @property
-    def bucket(self):
-        if self is Replica.aws:
-            return Config.get_s3_bucket()
-        elif self is Replica.gcp:
-            return Config.get_gs_bucket()
-        else:
-            raise NotImplementedError(f"No bucket for {self.name}")
-
-    @property
-    def storage_schema(self):
-        if self == Replica.aws:
-            return "s3"
-        elif self == Replica.gcp:
-            return "gs"
-        else:
-            raise NotImplementedError(f"No storage schema for {self.name}")
-
-
 class IndexSuffix:
     '''Creates a test specific index when in test config.'''
     name = ''  # type: typing.Optional[str]
@@ -102,7 +79,7 @@ class Config:
         Config._CURRENT_CONFIG = config
 
     @staticmethod
-    def get_cloud_specific_handles(replica: Replica) -> typing.Tuple[BlobStore, HCABlobStore, str]:
+    def get_cloud_specific_handles(replica: "Replica") -> typing.Tuple[BlobStore, HCABlobStore, str]:
 
         assert isinstance(replica, Replica)
 
@@ -202,7 +179,7 @@ class Config:
 
     @staticmethod
     def get_es_index_name(index_type: ESIndexType,
-                          replica: Replica,
+                          replica: "Replica",
                           shape_descriptor: typing.Optional[str] = None
                           ) -> str:
         """
@@ -220,7 +197,7 @@ class Config:
         return index
 
     @staticmethod
-    def get_es_alias_name(index_type: ESIndexType, replica: Replica) -> str:
+    def get_es_alias_name(index_type: ESIndexType, replica: "Replica") -> str:
         """Returns the alias for indexes"""
         deployment_stage = os.environ["DSS_DEPLOYMENT_STAGE"]
         index = f"dss-{deployment_stage}-{replica.name}-{index_type.name}-alias"
@@ -250,6 +227,29 @@ class Config:
         Config._NOTIFICATION_SENDER_EMAIL = os.environ[envvar]
 
         return Config._NOTIFICATION_SENDER_EMAIL
+
+
+class Replica(Enum):
+    aws = auto()
+    gcp = auto()
+
+    @property
+    def bucket(self):
+        if self is Replica.aws:
+            return Config.get_s3_bucket()
+        elif self is Replica.gcp:
+            return Config.get_gs_bucket()
+        else:
+            raise NotImplementedError(f"No bucket for {self.name}")
+
+    @property
+    def storage_schema(self):
+        if self == Replica.aws:
+            return "s3"
+        elif self == Replica.gcp:
+            return "gs"
+        else:
+            raise NotImplementedError(f"No storage schema for {self.name}")
 
 
 @contextmanager
