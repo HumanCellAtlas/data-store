@@ -109,7 +109,7 @@ class TestIndexerBase(unittest.TestCase, DSSAssertMixin, DSSStorageMixin, DSSUpl
         cls.app.start()
         cls.replica = replica
         Config.set_config(BucketConfig.TEST_FIXTURE)
-        cls.blobstore, _, cls.test_fixture_bucket = Config.get_cloud_specific_handles(cls.replica)
+        cls.blobstore, _, cls.test_fixture_bucket = Config.get_cloud_specific_handles_DEPRECATED(cls.replica)
         Config.set_config(BucketConfig.TEST)
         cls.test_bucket = cls.replica.bucket
         cls.dss_alias_name = dss.Config.get_es_alias_name(dss.ESIndexType.docs, cls.replica)
@@ -180,7 +180,7 @@ class TestIndexerBase(unittest.TestCase, DSSAssertMixin, DSSStorageMixin, DSSUpl
         self.get_search_results(self.smartseq2_paired_ends_query, 1)
 
     def _create_tombstone(self, tombstone_id):
-        blobstore, _, bucket = Config.get_cloud_specific_handles(self.replica)
+        blobstore, _, bucket = Config.get_cloud_specific_handles_DEPRECATED(self.replica)
         tombstone_data = {"status": "disappeared"}
         tombstone_data_bytes = io.BytesIO(json.dumps(tombstone_data).encode('utf-8'))
         # noinspection PyTypeChecker
@@ -192,12 +192,12 @@ class TestIndexerBase(unittest.TestCase, DSSAssertMixin, DSSStorageMixin, DSSUpl
         return tombstone_data
 
     def _delete_tombstone(self, tombstone_id):
-        blobstore, _, bucket = Config.get_cloud_specific_handles(self.replica)
+        blobstore, _, bucket = Config.get_cloud_specific_handles_DEPRECATED(self.replica)
         blobstore.delete(bucket, tombstone_id.to_key())
 
     @eventually(5.0, 0.5)
     def _assert_tombstone(self, tombstone_id, tombstone_data):
-        blobstore, _, bucket = Config.get_cloud_specific_handles(self.replica)
+        blobstore, _, bucket = Config.get_cloud_specific_handles_DEPRECATED(self.replica)
         search_results = self.get_search_results(self.smartseq2_paired_ends_query, 0)
         self.assertEqual(0, len(search_results))
         bundle_fqids = [ObjectIdentifier.from_key(k) for k in blobstore.list(bucket, tombstone_id.to_key_prefix())]
@@ -899,7 +899,7 @@ class TestGCPIndexer(GCPIndexer, TestIndexerBase):
 
 class BundleBuilder:
     def __init__(self, replica, bundle_fqid=None, bundle_version=None):
-        self.blobstore, _, _ = Config.get_cloud_specific_handles(replica)
+        self.blobstore, _, _ = Config.get_cloud_specific_handles_DEPRECATED(replica)
         self.bundle_fqid = bundle_fqid if bundle_fqid else str(uuid.uuid4())
         self.bundle_version = bundle_version if bundle_version else self._get_version()
         self.bundle_manifest = {

@@ -79,7 +79,7 @@ class Config:
         Config._CURRENT_CONFIG = config
 
     @staticmethod
-    def get_cloud_specific_handles(replica: "Replica") -> typing.Tuple[BlobStore, HCABlobStore, str]:
+    def get_cloud_specific_handles_DEPRECATED(replica: "Replica") -> typing.Tuple[BlobStore, HCABlobStore, str]:
 
         assert isinstance(replica, Replica)
 

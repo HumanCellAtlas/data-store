@@ -54,7 +54,7 @@ def put(uuid: str, replica: str, json_request_body: dict, version: str = None):
         timestamp = datetime.datetime.utcnow()
     version = datetime_to_version_format(timestamp)
 
-    handle, hca_handle, bucket = Config.get_cloud_specific_handles(Replica[replica])
+    handle, hca_handle, bucket = Config.get_cloud_specific_handles_DEPRECATED(Replica[replica])
 
     # what's the target object name for the bundle manifest?
     bundle_manifest_key = BundleFQID(uuid=uuid, version=version).to_key()
@@ -161,7 +161,7 @@ def delete(uuid: str, replica: str, json_request_body: dict, version: str=None):
         version=version,
     )
 
-    handle, hca_handle, bucket = Config.get_cloud_specific_handles(Replica[replica])
+    handle, hca_handle, bucket = Config.get_cloud_specific_handles_DEPRECATED(Replica[replica])
 
     if test_object_exists(handle, bucket, bundle_prefix, test_type=ObjectTest.PREFIX):
         created, idempotent = _idempotent_save(

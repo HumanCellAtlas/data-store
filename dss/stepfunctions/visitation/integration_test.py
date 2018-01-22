@@ -38,7 +38,7 @@ class IntegrationTest(Visitation):  # no coverage (this code *is* run by tests, 
 
     def job_finalize(self):
         super().job_finalize()
-        handle, _, _ = Config.get_cloud_specific_handles(Replica[self.replica])
+        handle, _, _ = Config.get_cloud_specific_handles_DEPRECATED(Replica[self.replica])
         listed_keys = handle.list(self.bucket, prefix=self.prefix)
         k_listed = sum(1 for _ in listed_keys)
         assert self.work_result == k_listed, f'Integration test failed: {self.work_result} != {k_listed}'
@@ -52,7 +52,7 @@ class IntegrationTest(Visitation):  # no coverage (this code *is* run by tests, 
 
         start_time = time()
 
-        handle = Config.get_cloud_specific_handles(Replica[self.replica])[0]
+        handle = Config.get_cloud_specific_handles_DEPRECATED(Replica[self.replica])[0]
 
         blobs = handle.list_v2(
             self.bucket,

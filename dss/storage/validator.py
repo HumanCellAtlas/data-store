@@ -49,7 +49,7 @@ class S3UrlCache:
         self.s3_client = boto3.client('s3')
 
         # A URL's contents are only stored in S3 to keep the data closer to the aws lambas which use them.
-        self.blobstore, _, self.bucket = Config.get_cloud_specific_handles(Replica.aws)
+        self.blobstore, _, self.bucket = Config.get_cloud_specific_handles_DEPRECATED(Replica.aws)
         self.logger = logger
 
     def resolve(self, url: str) -> bytearray:
