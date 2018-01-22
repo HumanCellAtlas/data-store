@@ -230,26 +230,20 @@ class Config:
 
 
 class Replica(Enum):
-    aws = auto()
-    gcp = auto()
+    aws = (Config.get_s3_bucket, "s3")
+    gcp = (Config.get_gs_bucket, "gs")
+
+    def __init__(self, bucket_getter: typing.Callable[[], str], storage_schema: str) -> None:
+        self._bucket_getter = bucket_getter
+        self._storage_schema = storage_schema
 
     @property
     def bucket(self):
-        if self is Replica.aws:
-            return Config.get_s3_bucket()
-        elif self is Replica.gcp:
-            return Config.get_gs_bucket()
-        else:
-            raise NotImplementedError(f"No bucket for {self.name}")
+        return self._bucket_getter()
 
     @property
     def storage_schema(self):
-        if self == Replica.aws:
-            return "s3"
-        elif self == Replica.gcp:
-            return "gs"
-        else:
-            raise NotImplementedError(f"No storage schema for {self.name}")
+        return self._storage_schema
 
 
 @contextmanager
