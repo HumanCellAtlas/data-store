@@ -3,9 +3,11 @@ import typing
 from contextlib import contextmanager
 from enum import Enum, EnumMeta, auto
 
+import boto3
 from cloud_blobstore import BlobStore
 from cloud_blobstore.s3 import S3BlobStore
 from cloud_blobstore.gs import GSBlobStore
+from google.cloud.storage import Client
 
 from .hcablobstore import HCABlobStore
 from .hcablobstore.s3 import S3HCABlobStore
@@ -63,6 +65,50 @@ class IndexSuffix:
         IndexSuffix.name = ''
 
 
+class CloudStorageHandles:
+    """
+    This class constructs the various types of handles needed to interface with the cloud storage APIs.  It lazily
+    constructs the handles to avoid constructing more than necessary.
+    """
+    def __init__(
+            self,
+            replica: "Replica",
+            native_handle_factory: typing.Callable[[], typing.Any],
+            blobstore_factory: typing.Callable[[typing.Any], BlobStore],
+            hcablobstore_factory: typing.Callable[[BlobStore], HCABlobStore],
+    ) -> None:
+        self._replica = replica
+        self._native_handle_factory = native_handle_factory
+        self._blobstore_factory = blobstore_factory
+        self._hcablobstore_factory = hcablobstore_factory
+
+        self._native_handle = None  # type: typing.Any
+        self._blobstore = None  # type: typing.Optional[BlobStore]
+        self._hcablobstore = None  # type: typing.Optional[HCABlobStore]
+
+    @property
+    def bucket_name(self) -> str:
+        return self._replica.bucket
+
+    @property
+    def native_cloud_handle(self) -> typing.Any:
+        if self._native_handle is None:
+            self._native_handle = self._native_handle_factory()
+        return self._native_handle
+
+    @property
+    def blobstore_handle(self) -> BlobStore:
+        if self._blobstore is None:
+            self._blobstore = self._blobstore_factory(self.native_cloud_handle)
+        return self._blobstore
+
+    @property
+    def hcablobstore_handle(self) -> HCABlobStore:
+        if self._hcablobstore is None:
+            self._hcablobstore = self._hcablobstore_factory(self.blobstore_handle)
+        return self._hcablobstore
+
+
 class Config:
     _S3_BUCKET = None  # type: typing.Optional[str]
     _GS_BUCKET = None  # type: typing.Optional[str]
@@ -80,24 +126,25 @@ class Config:
 
     @staticmethod
     def get_cloud_specific_handles_DEPRECATED(replica: "Replica") -> typing.Tuple[BlobStore, HCABlobStore, str]:
+        cloudstoragehandles = Config.get_cloud_specific_handles(replica)
+        return cloudstoragehandles.blobstore_handle, cloudstoragehandles.hcablobstore_handle, replica.bucket
 
-        assert isinstance(replica, Replica)
-
-        handle: BlobStore
+    @staticmethod
+    def get_cloud_specific_handles(replica: "Replica") -> CloudStorageHandles:
         if replica == Replica.aws:
-            handle = S3BlobStore.from_environment()
-            return (
-                handle,
-                S3HCABlobStore(handle),
-                replica.bucket
+            return CloudStorageHandles(
+                replica,
+                lambda: boto3.client("s3"),
+                lambda s3_client: S3BlobStore(s3_client),
+                lambda s3blobstore: S3HCABlobStore(s3blobstore)
             )
         elif replica == Replica.gcp:
             credentials = os.environ["GOOGLE_APPLICATION_CREDENTIALS"]
-            handle = GSBlobStore.from_auth_credentials(credentials)
-            return (
-                handle,
-                GSHCABlobStore(handle),
-                replica.bucket
+            return CloudStorageHandles(
+                replica,
+                lambda: Client.from_service_account_json(credentials),
+                lambda gcp_client: GSBlobStore(gcp_client),
+                lambda gsblobstore: GSHCABlobStore(gsblobstore)
             )
         raise NotImplementedError(f"Replica `{replica.name}` is not implemented!")
 
