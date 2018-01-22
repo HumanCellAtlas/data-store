@@ -18,7 +18,7 @@ def get_bundle_from_bucket(
         directurls: bool=False):
     uuid = uuid.lower()
 
-    handle, hca_handle, default_bucket = Config.get_cloud_specific_handles(replica)
+    handle, hca_handle, default_bucket = Config.get_cloud_specific_handles_DEPRECATED(replica)
 
     # need the ability to use fixture bucket for testing
     bucket = default_bucket if bucket is None else bucket

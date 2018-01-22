@@ -204,7 +204,7 @@ class TestVisitationReindex(unittest.TestCase):
         }
 
     @testmode.standalone
-    @mock.patch('dss.Config.get_cloud_specific_handles', new=fake_get_cloud_specific_handles)
+    @mock.patch('dss.Config.get_cloud_specific_handles_DEPRECATED', new=fake_get_cloud_specific_handles)
     @mock.patch('dss.events.handlers.index.Indexer.index_object', new=fake_index_object)
     def test_reindex_walk(self):
         r = reindex.Reindex._with_state(self.state, logger)
@@ -213,7 +213,7 @@ class TestVisitationReindex(unittest.TestCase):
         self.assertEqual(r.work_result, dict(failed=5, indexed=5, processed=10))
 
     @testmode.standalone
-    @mock.patch('dss.Config.get_cloud_specific_handles', new=fake_get_cloud_specific_handles)
+    @mock.patch('dss.Config.get_cloud_specific_handles_DEPRECATED', new=fake_get_cloud_specific_handles)
     @mock.patch('dss.stepfunctions.visitation.reindex.Reindex.process_item', new=fake_process_item)
     def test_reindex_timeout(self):
         r = reindex.Reindex._with_state(self.state, logger)
@@ -222,7 +222,7 @@ class TestVisitationReindex(unittest.TestCase):
         self.assertEquals('frank', r.token)
 
     @testmode.standalone
-    @mock.patch('dss.Config.get_cloud_specific_handles', new=fake_get_cloud_specific_handles)
+    @mock.patch('dss.Config.get_cloud_specific_handles_DEPRECATED', new=fake_get_cloud_specific_handles)
     @mock.patch('dss.events.handlers.index.Indexer.index_object', new=fake_index_object)
     def test_reindex_no_time_remaining(self):
         r = reindex.Reindex._with_state(self.state, logger)

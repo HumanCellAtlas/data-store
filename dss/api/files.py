@@ -34,7 +34,7 @@ def get(uuid: str, replica: str, version: str=None):
 
 
 def get_helper(uuid: str, replica: Replica, version: str=None):
-    handle, hca_handle, bucket = Config.get_cloud_specific_handles(replica)
+    handle, hca_handle, bucket = Config.get_cloud_specific_handles_DEPRECATED(replica)
 
     if version is None:
         # list the files and find the one that is the most recent.
@@ -122,7 +122,7 @@ def put(uuid: str, json_request_body: dict, version: str=None):
             "unknown_source_schema",
             f"source_url schema {schema} not supported")
 
-    handle, hca_handle, dst_bucket = Config.get_cloud_specific_handles(replica)
+    handle, hca_handle, dst_bucket = Config.get_cloud_specific_handles_DEPRECATED(replica)
 
     src_bucket = mobj.group('bucket')
     src_key = mobj.group('key')
