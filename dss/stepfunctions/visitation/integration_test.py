@@ -38,8 +38,8 @@ class IntegrationTest(Visitation):  # no coverage (this code *is* run by tests, 
 
     def job_finalize(self):
         super().job_finalize()
-        handle, _, _ = Config.get_cloud_specific_handles_DEPRECATED(Replica[self.replica])
-        listed_keys = handle.list(self.bucket, prefix=self.prefix)
+        cloud_handles = Config.get_cloud_specific_handles(Replica[self.replica])
+        listed_keys = cloud_handles.blobstore_handle.list(self.bucket, prefix=self.prefix)
         k_listed = sum(1 for _ in listed_keys)
         assert self.work_result == k_listed, f'Integration test failed: {self.work_result} != {k_listed}'
         self.logger.info(f"Integration test passed for {self.replica} with {k_listed} key(s) listed")
@@ -52,9 +52,9 @@ class IntegrationTest(Visitation):  # no coverage (this code *is* run by tests, 
 
         start_time = time()
 
-        handle = Config.get_cloud_specific_handles_DEPRECATED(Replica[self.replica])[0]
+        cloud_handles = Config.get_cloud_specific_handles(Replica[self.replica])
 
-        blobs = handle.list_v2(
+        blobs = cloud_handles.blobstore_handle.list_v2(
             self.bucket,
             prefix=self.work_id,
             start_after_key=self.marker,  # type: ignore  # Cannot determine type of 'marker'

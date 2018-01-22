@@ -31,7 +31,7 @@ class TestApi(unittest.TestCase, DSSAssertMixin, DSSUploadMixin, DSSStorageMixin
     def setUp(self):
         self.replica = Replica.aws
         dss.Config.set_config(dss.BucketConfig.TEST)
-        self.blobstore, _, self.bucket = dss.Config.get_cloud_specific_handles_DEPRECATED(self.replica)
+        self.cloud_handles = dss.Config.get_cloud_specific_handles(self.replica)
 
     BUNDLE_FIXTURE = 'fixtures/test_api/bundle'
 
@@ -46,7 +46,8 @@ class TestApi(unittest.TestCase, DSSAssertMixin, DSSUploadMixin, DSSStorageMixin
           - GET /files/<uuid>
         and checks that data corresponds where appropriate.
         """
-        bundle = TestBundle(self.blobstore, self.BUNDLE_FIXTURE, self.bucket, self.replica)
+        bundle = TestBundle(
+            self.cloud_handles.blobstore_handle, self.BUNDLE_FIXTURE, self.cloud_handles.bucket_name, self.replica)
         self.upload_files_and_create_bundle(bundle, self.replica)
         self.get_bundle_and_check_files(bundle, self.replica)
 

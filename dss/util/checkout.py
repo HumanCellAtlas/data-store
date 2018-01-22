@@ -119,7 +119,7 @@ def touch_test_file(dst_bucket: str, replica: Replica) -> bool:
     :return: True if able to write, if not also returns error message as a cause
     """
     test_object = "touch.txt"
-    handle, *_ = Config.get_cloud_specific_handles_DEPRECATED(replica)
+    handle = Config.get_cloud_specific_handles(replica).blobstore_handle
 
     try:
         handle.upload_file_handle(

@@ -18,13 +18,13 @@ def get_bundle_from_bucket(
         directurls: bool=False):
     uuid = uuid.lower()
 
-    handle, hca_handle, default_bucket = Config.get_cloud_specific_handles_DEPRECATED(replica)
-
+    cloud_handles = Config.get_cloud_specific_handles(replica)
     # need the ability to use fixture bucket for testing
-    bucket = default_bucket if bucket is None else bucket
+    bucket = cloud_handles.bucket_name if bucket is None else bucket
 
     def tombstone_exists(uuid: str, version: typing.Optional[str]):
-        return test_object_exists(handle, bucket, TombstoneID(uuid=uuid, version=version).to_key())
+        return test_object_exists(
+            cloud_handles.blobstore_handle, bucket, TombstoneID(uuid=uuid, version=version).to_key())
 
     # handle the following deletion cases
     # 1. the whole bundle is deleted
@@ -37,7 +37,7 @@ def get_bundle_from_bucket(
     if version is None:
         # list the files and find the one that is the most recent.
         prefix = f"bundles/{uuid}."
-        object_names = handle.list(bucket, prefix)
+        object_names = cloud_handles.blobstore_handle.list(bucket, prefix)
         version = _latest_version_from_object_names(object_names)
 
     if version is None:
@@ -49,7 +49,7 @@ def get_bundle_from_bucket(
     # retrieve the bundle metadata.
     try:
         bundle_metadata = json.loads(
-            handle.get(
+            cloud_handles.blobstore_handle.get(
                 bucket,
                 bundle_fqid.to_key(),
             ).decode("utf-8"))

@@ -34,12 +34,12 @@ def get(uuid: str, replica: str, version: str=None):
 
 
 def get_helper(uuid: str, replica: Replica, version: str=None):
-    handle, hca_handle, bucket = Config.get_cloud_specific_handles_DEPRECATED(replica)
+    cloud_handles = Config.get_cloud_specific_handles(replica)
 
     if version is None:
         # list the files and find the one that is the most recent.
         prefix = "files/{}.".format(uuid)
-        for matching_file in handle.list(bucket, prefix):
+        for matching_file in cloud_handles.blobstore_handle.list(cloud_handles.bucket_name, prefix):
             matching_file = matching_file[len(prefix):]
             if version is None or matching_file > version:
                 version = matching_file
@@ -51,8 +51,8 @@ def get_helper(uuid: str, replica: Replica, version: str=None):
     # retrieve the file metadata.
     try:
         file_metadata = json.loads(
-            handle.get(
-                bucket,
+            cloud_handles.blobstore_handle.get(
+                cloud_handles.bucket_name,
                 "files/{}.{}".format(uuid, version)
             ).decode("utf-8"))
     except BlobNotFoundError as ex:
@@ -66,8 +66,8 @@ def get_helper(uuid: str, replica: Replica, version: str=None):
     ))
 
     if request.method == "GET":
-        response = redirect(handle.generate_presigned_GET_url(
-            bucket,
+        response = redirect(cloud_handles.blobstore_handle.generate_presigned_GET_url(
+            cloud_handles.bucket_name,
             blob_path))
     else:
         response = make_response('', 200)
@@ -122,14 +122,14 @@ def put(uuid: str, json_request_body: dict, version: str=None):
             "unknown_source_schema",
             f"source_url schema {schema} not supported")
 
-    handle, hca_handle, dst_bucket = Config.get_cloud_specific_handles_DEPRECATED(replica)
+    cloud_handles = Config.get_cloud_specific_handles(replica)
 
     src_bucket = mobj.group('bucket')
     src_key = mobj.group('key')
 
-    metadata = handle.get_user_metadata(src_bucket, src_key)
-    size = handle.get_size(src_bucket, src_key)
-    content_type = handle.get_content_type(src_bucket, src_key)
+    metadata = cloud_handles.blobstore_handle.get_user_metadata(src_bucket, src_key)
+    size = cloud_handles.blobstore_handle.get_size(src_bucket, src_key)
+    content_type = cloud_handles.blobstore_handle.get_content_type(src_bucket, src_key)
 
     # format all the checksums so they're lower-case.
     for metadata_spec in HCABlobStore.MANDATORY_METADATA.values():
@@ -150,7 +150,7 @@ def put(uuid: str, json_request_body: dict, version: str=None):
     # does it exist? if so, we can skip the copy part.
     copy_mode = CopyMode.COPY_INLINE
     try:
-        if hca_handle.verify_blob_checksum(dst_bucket, dst_key, metadata):
+        if cloud_handles.hcablobstore_handle.verify_blob_checksum(cloud_handles.bucket_name, dst_key, metadata):
             copy_mode = CopyMode.NO_COPY
     except BlobNotFoundError:
         pass
@@ -177,7 +177,7 @@ def put(uuid: str, json_request_body: dict, version: str=None):
     if copy_mode == CopyMode.COPY_ASYNC:
         state = s3copyclient.copy_write_metadata_sfn_event(
             src_bucket, src_key,
-            dst_bucket, dst_key,
+            cloud_handles.bucket_name, dst_key,
             uuid, version,
             file_metadata_json,
         )
@@ -186,19 +186,20 @@ def put(uuid: str, json_request_body: dict, version: str=None):
 
         return jsonify(dict(task_id=execution_id, version=version)), requests.codes.accepted
     elif copy_mode == CopyMode.COPY_INLINE:
-        handle.copy(src_bucket, src_key, dst_bucket, dst_key)
+        cloud_handles.blobstore_handle.copy(src_bucket, src_key, cloud_handles.bucket_name, dst_key)
 
         # verify the copy was done correctly.
-        assert hca_handle.verify_blob_checksum(dst_bucket, dst_key, metadata)
+        assert cloud_handles.hcablobstore_handle.verify_blob_checksum(cloud_handles.bucket_name, dst_key, metadata)
 
     try:
-        write_file_metadata(handle, dst_bucket, uuid, version, file_metadata_json)
+        write_file_metadata(
+            cloud_handles.blobstore_handle, cloud_handles.bucket_name, uuid, version, file_metadata_json)
         status_code = requests.codes.created
     except BlobAlreadyExistsError:
         # fetch the file metadata, compare it to what we have.
         existing_file_metadata = json.loads(
-            handle.get(
-                dst_bucket,
+            cloud_handles.blobstore_handle.get(
+                cloud_handles.bucket_name,
                 "files/{}.{}".format(uuid, version)
             ).decode("utf-8"))
         if existing_file_metadata != file_metadata:

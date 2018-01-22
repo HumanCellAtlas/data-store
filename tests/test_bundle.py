@@ -106,7 +106,7 @@ class TestBundleApi(unittest.TestCase, DSSAssertMixin, DSSUploadMixin):
         bucket = splitted.netloc
         key = splitted.path[1:]  # ignore the / part of the path.
 
-        handle = Config.get_cloud_specific_handles_DEPRECATED(replica)[0]
+        handle = Config.get_cloud_specific_handles(replica).blobstore_handle
         contents = handle.get(bucket, key)
 
         hasher = hashlib.sha1()
@@ -218,15 +218,17 @@ class TestBundleApi(unittest.TestCase, DSSAssertMixin, DSSUploadMixin):
             file_version,
             bundle_uuid=bundle_uuid
         )
-        handle, _, bucket = Config.get_cloud_specific_handles_DEPRECATED(replica)
-        file_metadata = handle.get(bucket, f"files/{missing_file_uuid}.{file_version}")
-        handle.delete(bucket, f"files/{missing_file_uuid}.{file_version}")
+        cloud_handles = Config.get_cloud_specific_handles(replica)
+        file_metadata = cloud_handles.blobstore_handle.get(
+            cloud_handles.bucket_name, f"files/{missing_file_uuid}.{file_version}")
+        cloud_handles.blobstore_handle.delete(cloud_handles.bucket_name, f"files/{missing_file_uuid}.{file_version}")
 
         class UploadThread(threading.Thread):
             def run(innerself):
                 time.sleep(5)
                 data_fh = io.BytesIO(file_metadata)
-                handle.upload_file_handle(bucket, f"files/{missing_file_uuid}.{file_version}", data_fh)
+                cloud_handles.blobstore_handle.upload_file_handle(
+                    cloud_handles.bucket_name, f"files/{missing_file_uuid}.{file_version}", data_fh)
 
         # start the upload (on a delay...)
         upload_thread = UploadThread()
@@ -275,14 +277,15 @@ class TestBundleApi(unittest.TestCase, DSSAssertMixin, DSSUploadMixin):
             bundle_version,
         )
 
-        handle, _, bucket = Config.get_cloud_specific_handles_DEPRECATED(replica)
-
+        cloud_handles = Config.get_cloud_specific_handles(replica)
         self.delete_bundle(replica, bundle_uuid, authorized=authorized)
-        tombstone_exists = test_object_exists(handle, bucket, f"bundles/{bundle_uuid}.dead")
+        tombstone_exists = test_object_exists(
+            cloud_handles.blobstore_handle, cloud_handles.bucket_name, f"bundles/{bundle_uuid}.dead")
         self.assertEquals(tombstone_exists, authorized)
 
         self.delete_bundle(replica, bundle_uuid, bundle_version, authorized=authorized)
-        tombstone_exists = test_object_exists(handle, bucket, f"bundles/{bundle_uuid}.{bundle_version}.dead")
+        tombstone_exists = test_object_exists(
+            cloud_handles.blobstore_handle, cloud_handles.bucket_name, f"bundles/{bundle_uuid}.{bundle_version}.dead")
         self.assertEquals(tombstone_exists, authorized)
 
     @testmode.standalone

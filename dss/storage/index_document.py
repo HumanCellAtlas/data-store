@@ -107,9 +107,11 @@ class BundleDocument(IndexDocument):
     @classmethod
     def from_replica(cls, replica: Replica, bundle_fqid: BundleFQID, logger):
         self = cls(replica, bundle_fqid, logger)
-        blobstore, _, bucket_name = Config.get_cloud_specific_handles_DEPRECATED(replica)
-        self['manifest'] = self._read_bundle_manifest(blobstore, bucket_name, bundle_fqid)
-        self['files'] = self._read_file_infos(blobstore, bucket_name)
+        cloud_handles = Config.get_cloud_specific_handles(replica)
+
+        self['manifest'] = self._read_bundle_manifest(
+            cloud_handles.blobstore_handle, cloud_handles.bucket_name, bundle_fqid)
+        self['files'] = self._read_file_infos(cloud_handles.blobstore_handle, cloud_handles.bucket_name)
         self['state'] = 'new'
         self['uuid'] = bundle_fqid.uuid
         return self
@@ -475,14 +477,15 @@ class BundleTombstoneDocument(IndexDocument):
 
     @classmethod
     def from_replica(cls, replica: Replica, tombstone_id: TombstoneID, logger):
-        blobstore, _, bucket_name = Config.get_cloud_specific_handles_DEPRECATED(replica)
-        tombstone_data = json.loads(blobstore.get(bucket_name, tombstone_id.to_key()))
+        cloud_handles = Config.get_cloud_specific_handles(replica)
+        tombstone_data = json.loads(
+            cloud_handles.blobstore_handle.get(cloud_handles.bucket_name, tombstone_id.to_key()))
         self = cls(replica, tombstone_id, logger, tombstone_data)
         self['uuid'] = tombstone_id.uuid
         return self
 
     def _list_dead_bundles(self) -> typing.Sequence[BundleDocument]:
-        blobstore, _, bucket_name = Config.get_cloud_specific_handles_DEPRECATED(self.replica)
+        cloud_handles = Config.get_cloud_specific_handles(self.replica)
 
         if self.fqid.is_fully_qualified():
             # if a version is specified, delete just that version
@@ -490,7 +493,8 @@ class BundleTombstoneDocument(IndexDocument):
         else:
             # if no version is specified, delete all bundle versions from the index
             prefix = self.fqid.to_key_prefix()
-            fqids = [ObjectIdentifier.from_key(k) for k in set(blobstore.list(bucket_name, prefix))]
+            fqids = [ObjectIdentifier.from_key(k) for k in set(
+                cloud_handles.blobstore_handle.list(cloud_handles.bucket_name, prefix))]
             bundle_fqids = filter(lambda fqid: type(fqid) == BundleFQID, fqids)
 
         docs = [BundleDocument.from_replica(self.replica, bundle_fqid, self.logger) for bundle_fqid in bundle_fqids]
