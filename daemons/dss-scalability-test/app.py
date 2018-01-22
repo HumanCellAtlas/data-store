@@ -1,88 +1,94 @@
 import json
-import random
-import tempfile
-import os
-import uuid
-import datetime
-
-import boto3
-import requests
-import sys
 import logging
-import io
+import os
+import tempfile
 
 import domovoi
+from hca.dss import DSSClient
 
-pkg_root = os.path.abspath(os.path.join(os.path.dirname(__file__), 'domovoilib'))  # noqa
-sys.path.insert(0, pkg_root)  # noqa
-
-from dss.util.aws import AWS_MIN_CHUNK_SIZE
-from dss import Replica, Config
+AWS_MIN_CHUNK_SIZE = 64 * 1024 * 1024
 
 app = domovoi.Domovoi()
+
+state_machine_def = {
+    "Comment": "DSS scalability test state machine.",
+    "StartAt": "UploadBundle",
+    "TimeoutSeconds": 600,  # 10 minutes, in seconds.
+    "States": {
+        "UploadBundle": {
+            "Type": "Task",
+            "Resource": None,
+            "Next": "DownloadBundle"
+        },
+        "DownloadBundle": {
+            "Type": "Task",
+            "Resource": None,
+            "Next": "CheckoutBundle"
+        },
+        "CheckoutBundle": {
+            "Type": "Task",
+            "Resource": None,
+            "Next": "Wait_Checkout",
+            "ResultPath": "$.checkout"
+        },
+        "Wait_Checkout": {
+            "Type": "Wait",
+            "Seconds": 3,
+            "Next": "CheckoutDownloadStatus"
+        },
+        "CheckoutDownloadStatus": {
+            "Type": "Task",
+            "Resource": None,
+            "InputPath": "$.checkout",
+            "ResultPath": "$.checkout.status",
+            "End": True,
+        },
+    }
+}
+
 app.log.setLevel(logging.DEBUG)
 
-file_keys = []
 test_bucket = os.environ["DSS_S3_CHECKOUT_BUCKET"]
-replica = Replica.aws
-s3_client = boto3.client('s3')
 
-@app.sns_topic_subscriber("dss-scalability-init-" + os.environ["DSS_DEPLOYMENT_STAGE"])
-def init_test(event, context):
-    app.log.info("DSS scalability test  daemon received init event.")
+os.environ["HOME"] = "/tmp"
 
-    print(f"event: {str(event)}")
-    msg = json.loads(event["Records"][0]["Sns"]["Message"])
+os.environ["HCA_CONFIG_FILE"] = "/tmp/config.json"
+with open(os.environ["HCA_CONFIG_FILE"], "w") as fh:
+    fh.write(json.dumps({"DSSClient": {"swagger_url": "https://dss.dev.data.humancellatlas.org/v1/swagger.json"}}))
 
-    test_files = msg["test_file_keys"]
-    test_large_files = msg["test_large_file_keys"]
+client = DSSClient()
 
-    create_test_files(AWS_MIN_CHUNK_SIZE + 1, test_large_files)
-    create_test_files(1024, test_files)
 
-@app.sns_topic_subscriber("dss-scalability-put-file-" + os.environ["DSS_DEPLOYMENT_STAGE"])
-def put_file(event, context):
-    #app.log.info("DSS scalability test  daemon received put file event.")
-    msg = json.loads(event["Records"][0]["Sns"]["Message"])
-
-    test_files = msg["test_file_keys"]
-    test_large_files = msg["test_large_file_keys"]
-
-    scheme = "s3"
-
-    file_uuid = str(uuid.uuid4())
-    bundle_uuid = str(uuid.uuid4())
-    timestamp = datetime.datetime.utcnow()
-    file_version = timestamp.strftime("%Y-%m-%dT%H%M%S.%fZ")
-    headers = {'content-type': 'application/json'}
-
-    rand_file_key = random.choice(test_files + test_large_files)
-    #app.log.info(f"File put file key: {rand_file_key}")
-
-    request_body = {"bundle_uuid": bundle_uuid,
-                    "creator_uid": 0,
-                    "source_url": f"{scheme}://{test_bucket}/{rand_file_key}"
-                    }
-
-    return requests.post(
-        f"https://{os.getenv('API_HOST')}/v1/files/{file_uuid}?version={file_version}",
-        headers=headers,
-        json=request_body,
-    ).json()
-
-def create_test_files(size: int, file_keys):
-    app.log.info(f"Creating {len(file_keys)} test files size {size} in {test_bucket}")
-    for key in file_keys:
-        src_data = os.urandom(size + 1)
-        with tempfile.NamedTemporaryFile(delete=False) as fh:
-            fh.write(src_data)
+@app.step_function_task(state_name="UploadBundle", state_machine_definition=state_machine_def)
+def upload_bundle(event, context):
+    app.log.info("Upload bundle")
+    with tempfile.TemporaryDirectory() as src_dir:
+        with tempfile.NamedTemporaryFile(dir=src_dir, suffix=".bin") as fh:
+            fh.write(os.urandom(AWS_MIN_CHUNK_SIZE + 1))
             fh.flush()
-            upload(fh.name, test_bucket, key)
-        app.log.info(f"Uploaded test file: s3://{test_bucket}/{key}")
+            bundle_output = client.upload(src_dir=src_dir, replica="aws", staging_bucket=test_bucket)
+            return {"bundle_id": bundle_output['bundle_uuid']}
 
-def upload(local_path: str, bucket: str, key: str):
-    app.log.info("%s", f"Uploading {local_path} to s3://{bucket}/{key}")
-    try:
-        s3_client.upload_file(local_path, bucket, key)
-    except Exception as e:
-        app.log.error(f"Unable to upload file: {str(e)}")
+
+@app.step_function_task(state_name="DownloadBundle", state_machine_definition=state_machine_def)
+def download_bundle(event, context):
+    app.log.info("Download bundle")
+    bundle_id = event['bundle_id']
+    with tempfile.TemporaryDirectory() as dest_dir:
+        client.download(bundle_id, replica="aws", dest_name=dest_dir)
+    return {"bundle_id": bundle_id}
+
+
+@app.step_function_task(state_name="CheckoutBundle", state_machine_definition=state_machine_def)
+def checkout_bundle(event, context):
+    bundle_id = event['bundle_id']
+    app.log.info(f"Checkout bundle: {bundle_id}")
+    checkout_output = client.post_bundles_checkout(uuid=bundle_id, replica='aws', email='rkisin@chanzuckerberg.com')
+    return {"job_id": checkout_output['checkout_job_id']}
+
+@app.step_function_task(state_name="CheckoutDownloadStatus", state_machine_definition=state_machine_def)
+def checkout_bundle(event, context):
+    job_id = event['job_id']
+    app.log.info(f"Checkout status job_id: {job_id}")
+    #checkout_output = client.get_bundles_checkout(job_id)
+    #return checkout_output['status']
