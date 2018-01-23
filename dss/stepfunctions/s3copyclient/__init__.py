@@ -1,7 +1,12 @@
+import typing
+
 from .implementation import CopyWriteMetadataKey, Key, sfn, copy_write_metadata_sfn
 
 
-def copy_sfn_event(source_bucket: str, source_key: str, destination_bucket: str, destination_key: str) -> dict:
+def copy_sfn_event(
+        source_bucket: str, source_key: str,
+        destination_bucket: str, destination_key: str
+) -> typing.MutableMapping[str, str]:
     """Returns the initial event object to start the s3-s3 copy stepfunction."""
     return {
         Key.SOURCE_BUCKET: source_bucket,
@@ -16,7 +21,7 @@ def copy_write_metadata_sfn_event(
         destination_bucket: str, destination_key: str,
         file_uuid: str, file_version: str,
         metadata: str,
-) -> dict:
+) -> typing.MutableMapping[str, str]:
     """
     Returns the initial event object to start the stepfunction that performs a s3-s3 copy and writes the HCA /files
     metadata file.
