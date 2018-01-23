@@ -1,5 +1,7 @@
 import typing
 
+from cloud_blobstore import BlobStore
+
 
 class HCABlobStore:
     """Abstract base class for all HCA-specific logic for dealing with individual clouds."""
@@ -25,6 +27,9 @@ class HCABlobStore:
             keyname="hca-dss-s3_etag",
             downcase=True),
     )
+
+    def __init__(self, handle: BlobStore) -> None:
+        pass
 
     def verify_blob_checksum(self, bucket: str, key: str, metadata: typing.Dict[str, str]) -> bool:
         """
