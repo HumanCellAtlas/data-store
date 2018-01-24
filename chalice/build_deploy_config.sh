@@ -43,6 +43,9 @@ else
            .$stage.lambda_functions = {}" > "$deployed_json"
 fi
 
+export DEPLOY_ORIGIN="$(whoami)-$(hostname)-$(git describe --tags --always)-$(date -u +'%Y-%m-%d-%H-%M-%S')"
+cat "$config_json" | jq .stages.$stage.tags.DSS_DEPLOY_ORIGIN=env.DEPLOY_ORIGIN | sponge "$config_json"
+
 for var in $EXPORT_ENV_VARS_TO_LAMBDA; do
     cat "$config_json" | jq .stages.$stage.environment_variables.$var=env.$var | sponge "$config_json"
 done
