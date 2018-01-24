@@ -15,7 +15,7 @@ from ..util.version import datetime_to_version_format
 from .. import DSSException, dss_handler, stepfunctions
 from ..config import Config, Replica
 from ..hcablobstore import FileMetadata, HCABlobStore
-from ..stepfunctions import s3copyclient
+from ..stepfunctions import gscopyclient, s3copyclient
 from ..util.aws import AWS_MIN_CHUNK_SIZE
 
 
@@ -173,20 +173,31 @@ def put(uuid: str, json_request_body: dict, version: str=None):
     }
     file_metadata_json = json.dumps(file_metadata)
 
-    if copy_mode != CopyMode.NO_COPY and replica == Replica.aws:
-        if size > ASYNC_COPY_THRESHOLD:
+    if copy_mode != CopyMode.NO_COPY and size > ASYNC_COPY_THRESHOLD:
             copy_mode = CopyMode.COPY_ASYNC
 
     if copy_mode == CopyMode.COPY_ASYNC:
-        state = s3copyclient.copy_write_metadata_sfn_event(
-            src_bucket, src_key,
-            dst_bucket, dst_key,
-            uuid, version,
-            file_metadata_json,
-        )
-        execution_id = str(uuid4())
-        stepfunctions.step_functions_invoke("dss-s3-copy-write-metadata-sfn-{stage}", execution_id, state)
+        if replica == Replica.aws:
+            state = s3copyclient.copy_write_metadata_sfn_event(
+                src_bucket, src_key,
+                dst_bucket, dst_key,
+                uuid, version,
+                file_metadata_json,
+            )
+            state_machine_name_template = "dss-s3-copy-write-metadata-sfn-{stage}"
+        elif replica == Replica.gcp:
+            state = gscopyclient.copy_write_metadata_sfn_event(
+                src_bucket, src_key,
+                dst_bucket, dst_key,
+                uuid, version,
+                file_metadata_json,
+            )
+            state_machine_name_template = "dss-gs-copy-write-metadata-sfn-{stage}"
+        else:
+            raise ValueError("Unhandled replica")
 
+        execution_id = str(uuid4())
+        stepfunctions.step_functions_invoke(state_machine_name_template, execution_id, state)
         return jsonify(dict(task_id=execution_id, version=version)), requests.codes.accepted
     elif copy_mode == CopyMode.COPY_INLINE:
         handle.copy(src_bucket, src_key, dst_bucket, dst_key)
