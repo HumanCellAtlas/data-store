@@ -115,8 +115,8 @@ class CopyWriteMetadataKey:
 
 def write_metadata(event, lambda_context):
     # TODO: (ttung) remove this once Config.get_cloud_specific_handles is refactored.
-    credentials = os.environ["GOOGLE_APPLICATION_CREDENTIALS"]
-    handle = GSBlobStore(credentials)
+    gcp_client = get_gcp_client()
+    handle = GSBlobStore(gcp_client)
 
     destination_bucket = event[Key.DESTINATION_BUCKET]
     files.write_file_metadata(
