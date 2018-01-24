@@ -1,23 +1,26 @@
 import copy
 import os
+import typing
 
+from cloud_blobstore.gs import GSBlobStore
 from google.cloud.storage import Client
 
+from ...api import files
 from ...stepfunctions.lambdaexecutor import TimedThread
 
 
 # Public input/output keys for the state object.
 class Key:
-    SOURCE_BUCKET = "srcbucket"
-    SOURCE_KEY = "srckey"
-    DESTINATION_BUCKET = "dstbucket"
-    DESTINATION_KEY = "dstkey"
+    SOURCE_BUCKET = "src_bucket"
+    SOURCE_KEY = "src_key"
+    DESTINATION_BUCKET = "dst_bucket"
+    DESTINATION_KEY = "dst_key"
     FINISHED = "finished"
 
 
 # Internal key for the state object.
 class _Key:
-    SOURCE_CRC32C = "srccrc32c"
+    SOURCE_CRC32C = "src_crc32c"
     SIZE = "size"
     TOKEN = "token"
 
@@ -100,4 +103,38 @@ sfn = {
             "End": True,
         },
     }
+}
+
+
+# Public input/output keys for the copy + write-metadata state function.
+class CopyWriteMetadataKey:
+    FILE_UUID = "file_uuid"
+    FILE_VERSION = "file_version"
+    METADATA = "metadata"
+
+
+def write_metadata(event, lambda_context):
+    # TODO: (ttung) remove this once Config.get_cloud_specific_handles is refactored.
+    credentials = os.environ["GOOGLE_APPLICATION_CREDENTIALS"]
+    handle = GSBlobStore(credentials)
+
+    destination_bucket = event[Key.DESTINATION_BUCKET]
+    files.write_file_metadata(
+        handle,
+        destination_bucket,
+        event[CopyWriteMetadataKey.FILE_UUID],
+        event[CopyWriteMetadataKey.FILE_VERSION],
+        event[CopyWriteMetadataKey.METADATA],
+    )
+
+
+copy_write_metadata_sfn = typing.cast(dict, copy.deepcopy(sfn))
+
+# tweak to add one more state.
+del copy_write_metadata_sfn['States']['Copy']['End']
+copy_write_metadata_sfn['States']['Copy']['Next'] = "WriteMetadata"
+copy_write_metadata_sfn['States']['WriteMetadata'] = {
+    "Type": "Task",
+    "Resource": write_metadata,
+    "End": True,
 }

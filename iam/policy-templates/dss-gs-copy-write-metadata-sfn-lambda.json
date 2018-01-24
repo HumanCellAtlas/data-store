@@ -1,0 +1,24 @@
+{
+  "Version": "2012-10-17",
+  "Statement": [
+    {
+      "Effect": "Allow",
+      "Action": [
+        "logs:CreateLogGroup",
+        "logs:CreateLogStream",
+        "logs:PutLogEvents"
+      ],
+      "Resource": "arn:aws:logs:*:*:*"
+    },
+    {
+      "Action": [
+        "lambda:*"
+      ],
+      "Resource": [
+        "arn:aws:lambda:*:$account_id:function:dss-gs-copy-write-metadata-sfn-$stage",
+        "arn:aws:lambda:*:$account_id:function:dss-gs-copy-write-metadata-sfn-$stage:*"
+      ],
+      "Effect": "Allow"
+    }
+  ]
+}
