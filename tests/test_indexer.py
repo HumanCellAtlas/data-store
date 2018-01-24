@@ -149,22 +149,18 @@ class TestIndexerBase(unittest.TestCase, DSSAssertMixin, DSSStorageMixin, DSSUpl
         )
 
     @testmode.standalone
-    @unittest.skip("Test is flaky.")
     def test_delete(self):
         self._test_delete(all_versions=False, zombie=False)
 
     @testmode.standalone
-    @unittest.skip("Test is flaky.")
     def test_delete_all_versions(self):
         self._test_delete(all_versions=True, zombie=False)
 
     @testmode.standalone
-    @unittest.skip("Test is flaky.")
     def test_delete_zombie(self):
         self._test_delete(all_versions=False, zombie=True)
 
     @testmode.standalone
-    @unittest.skip("Test is flaky.")
     def test_delete_all_versions_zombie(self):
         self._test_delete(all_versions=True, zombie=True)
 
