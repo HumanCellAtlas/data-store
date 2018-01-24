@@ -1,11 +1,14 @@
+import functools
 import os
 import typing
 from contextlib import contextmanager
 from enum import Enum, EnumMeta, auto
 
+import boto3
 from cloud_blobstore import BlobStore
 from cloud_blobstore.s3 import S3BlobStore
 from cloud_blobstore.gs import GSBlobStore
+from google.cloud.storage import Client
 
 from .hcablobstore import HCABlobStore
 from .hcablobstore.s3 import S3HCABlobStore
@@ -100,6 +103,26 @@ class Config:
                 replica.bucket
             )
         raise NotImplementedError(f"Replica `{replica.name}` is not implemented!")
+
+    @staticmethod
+    @functools.lru_cache()
+    def get_native_handle(replica: "Replica") -> object:
+        if replica == Replica.aws:
+            return boto3.client("s3")
+        elif replica == Replica.gcp:
+            credentials = os.environ["GOOGLE_APPLICATION_CREDENTIALS"]
+            return Client.from_service_account_json(credentials)
+        raise NotImplementedError(f"Replica `{replica.name}` is not implemented!")
+
+    @staticmethod
+    @functools.lru_cache()
+    def get_blobstore_handle(replica: "Replica") -> BlobStore:
+        return replica.blobstore_class(Config.get_native_handle(replica))
+
+    @staticmethod
+    @functools.lru_cache()
+    def get_hcablobstore_handle(replica: "Replica") -> HCABlobStore:
+        return replica.hcablobstore_class(Config.get_blobstore_handle(replica))
 
     @staticmethod
     def get_s3_bucket() -> str:
@@ -230,20 +253,36 @@ class Config:
 
 
 class Replica(Enum):
-    aws = (Config.get_s3_bucket, "s3")
-    gcp = (Config.get_gs_bucket, "gs")
+    aws = (Config.get_s3_bucket, "s3", S3BlobStore, S3HCABlobStore)
+    gcp = (Config.get_gs_bucket, "gs", GSBlobStore, GSHCABlobStore)
 
-    def __init__(self, bucket_getter: typing.Callable[[], str], storage_schema: str) -> None:
+    def __init__(
+            self,
+            bucket_getter: typing.Callable[[], str],
+            storage_schema: str,
+            blobstore_class: typing.Type[BlobStore],
+            hcablobstore_class: typing.Type[HCABlobStore],
+    ) -> None:
         self._bucket_getter = bucket_getter
         self._storage_schema = storage_schema
+        self._blobstore_class = blobstore_class
+        self._hcablobstore_class = hcablobstore_class
 
     @property
-    def bucket(self):
+    def bucket(self) -> str:
         return self._bucket_getter()
 
     @property
-    def storage_schema(self):
+    def storage_schema(self) -> str:
         return self._storage_schema
+
+    @property
+    def blobstore_class(self) -> typing.Type[BlobStore]:
+        return self._blobstore_class
+
+    @property
+    def hcablobstore_class(self) -> typing.Type[HCABlobStore]:
+        return self._hcablobstore_class
 
 
 @contextmanager
