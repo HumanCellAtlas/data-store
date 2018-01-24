@@ -64,7 +64,8 @@ class TestS3UrlCache(unittest.TestCase):
     def setUpClass(cls):
         replica = Replica.aws
         Config.set_config(BucketConfig.TEST_FIXTURE)
-        cls.blobstore, _, cls.test_fixture_bucket = Config.get_cloud_specific_handles(replica)
+        cls.blobstore = Config.get_blobstore_handle(replica)
+        cls.test_fixture_bucket = replica.bucket
         Config.set_config(BucketConfig.TEST)
         cls.test_bucket = replica.bucket
 

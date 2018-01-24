@@ -14,7 +14,7 @@ pkg_root = os.path.abspath(os.path.join(os.path.dirname(__file__), '..'))  # noq
 sys.path.insert(0, pkg_root)  # noqa
 
 import dss
-from dss import BucketConfig, Config
+from dss import BucketConfig, Config, Replica
 from dss.stepfunctions.visitation import Visitation, WalkerStatus
 from dss.stepfunctions import step_functions_describe_execution
 from dss.stepfunctions.visitation import implementation
@@ -172,7 +172,7 @@ class TestTimeout(unittest.TestCase):
         self.assertFalse(timeout.did_timeout)
 
 
-def fake_get_cloud_specific_handles(replica):
+def fake_get_blobstore_handle(replica):
     class FakeBlobstoreIterator:
         def __init__(self, *args, **kwargs):
             self.start_after_key = None
@@ -187,7 +187,12 @@ def fake_get_cloud_specific_handles(replica):
         def list_v2(self, *args, **kwargs):
             return FakeBlobstoreIterator()
 
-    return FakeBlobStore(), mock.MagicMock(), 'no-bucket'
+    return FakeBlobStore()
+
+
+def fake_bucket(self):
+    return "no-bucket"
+
 
 def fake_process_item(self, key):
     if key == '3':
@@ -204,7 +209,8 @@ class TestVisitationReindex(unittest.TestCase):
         }
 
     @testmode.standalone
-    @mock.patch('dss.Config.get_cloud_specific_handles', new=fake_get_cloud_specific_handles)
+    @mock.patch('dss.Config.get_blobstore_handle', new=fake_get_blobstore_handle)
+    @mock.patch('dss.Replica.bucket', new=fake_bucket)
     @mock.patch('dss.events.handlers.index.Indexer.index_object', new=fake_index_object)
     def test_reindex_walk(self):
         r = reindex.Reindex._with_state(self.state, logger)
@@ -213,7 +219,8 @@ class TestVisitationReindex(unittest.TestCase):
         self.assertEqual(r.work_result, dict(failed=5, indexed=5, processed=10))
 
     @testmode.standalone
-    @mock.patch('dss.Config.get_cloud_specific_handles', new=fake_get_cloud_specific_handles)
+    @mock.patch('dss.Config.get_blobstore_handle', new=fake_get_blobstore_handle)
+    @mock.patch('dss.Replica.bucket', new=fake_bucket)
     @mock.patch('dss.stepfunctions.visitation.reindex.Reindex.process_item', new=fake_process_item)
     def test_reindex_timeout(self):
         r = reindex.Reindex._with_state(self.state, logger)
@@ -222,7 +229,8 @@ class TestVisitationReindex(unittest.TestCase):
         self.assertEquals('frank', r.token)
 
     @testmode.standalone
-    @mock.patch('dss.Config.get_cloud_specific_handles', new=fake_get_cloud_specific_handles)
+    @mock.patch('dss.Config.get_blobstore_handle', new=fake_get_blobstore_handle)
+    @mock.patch('dss.Replica.bucket', new=fake_bucket)
     @mock.patch('dss.events.handlers.index.Indexer.index_object', new=fake_index_object)
     def test_reindex_no_time_remaining(self):
         r = reindex.Reindex._with_state(self.state, logger)

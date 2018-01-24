@@ -82,29 +82,6 @@ class Config:
         Config._CURRENT_CONFIG = config
 
     @staticmethod
-    def get_cloud_specific_handles(replica: "Replica") -> typing.Tuple[BlobStore, HCABlobStore, str]:
-
-        assert isinstance(replica, Replica)
-
-        handle: BlobStore
-        if replica == Replica.aws:
-            handle = S3BlobStore.from_environment()
-            return (
-                handle,
-                S3HCABlobStore(handle),
-                replica.bucket
-            )
-        elif replica == Replica.gcp:
-            credentials = os.environ["GOOGLE_APPLICATION_CREDENTIALS"]
-            handle = GSBlobStore.from_auth_credentials(credentials)
-            return (
-                handle,
-                GSHCABlobStore(handle),
-                replica.bucket
-            )
-        raise NotImplementedError(f"Replica `{replica.name}` is not implemented!")
-
-    @staticmethod
     @functools.lru_cache()
     def get_native_handle(replica: "Replica") -> object:
         if replica == Replica.aws:

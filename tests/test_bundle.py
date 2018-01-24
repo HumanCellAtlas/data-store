@@ -106,7 +106,7 @@ class TestBundleApi(unittest.TestCase, DSSAssertMixin, DSSUploadMixin):
         bucket = splitted.netloc
         key = splitted.path[1:]  # ignore the / part of the path.
 
-        handle = Config.get_cloud_specific_handles(replica)[0]
+        handle = Config.get_blobstore_handle(replica)
         contents = handle.get(bucket, key)
 
         hasher = hashlib.sha1()
@@ -218,7 +218,8 @@ class TestBundleApi(unittest.TestCase, DSSAssertMixin, DSSUploadMixin):
             file_version,
             bundle_uuid=bundle_uuid
         )
-        handle, _, bucket = Config.get_cloud_specific_handles(replica)
+        handle = Config.get_blobstore_handle(replica)
+        bucket = replica.bucket
         file_metadata = handle.get(bucket, f"files/{missing_file_uuid}.{file_version}")
         handle.delete(bucket, f"files/{missing_file_uuid}.{file_version}")
 
@@ -275,7 +276,8 @@ class TestBundleApi(unittest.TestCase, DSSAssertMixin, DSSUploadMixin):
             bundle_version,
         )
 
-        handle, _, bucket = Config.get_cloud_specific_handles(replica)
+        handle = Config.get_blobstore_handle(replica)
+        bucket = replica.bucket
 
         self.delete_bundle(replica, bundle_uuid, authorized=authorized)
         tombstone_exists = test_object_exists(handle, bucket, f"bundles/{bundle_uuid}.dead")
