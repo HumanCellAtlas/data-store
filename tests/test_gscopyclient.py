@@ -27,7 +27,7 @@ class TestGSCopy(unittest.TestCase):
         Config.set_config(BucketConfig.TEST)
 
         self.test_bucket = infra.get_env("DSS_GS_BUCKET_TEST")
-        self.gs_blobstore = typing.cast(GSBlobStore, Config.get_cloud_specific_handles(Replica.gcp)[0])
+        self.gs_blobstore = Config.get_blobstore_handle(Replica.gcp)
         test_src_keys = [infra.generate_test_key() for _ in range(rounds)]
         final_key = infra.generate_test_key()
 

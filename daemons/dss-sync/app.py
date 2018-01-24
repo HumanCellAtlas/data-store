@@ -55,7 +55,7 @@ def compose_upload(event, context):
     """
     gs_max_compose_parts = 32
     msg = json.loads(event["Records"][0]["Sns"]["Message"])
-    gs = dss.Config.get_cloud_specific_handles(Replica.gcp)[0].gcp_client
+    gs = dss.Config.get_native_handle(Replica.gcp)
     gs_bucket = gs.get_bucket(msg["dest_bucket"])
     while True:
         try:
@@ -106,10 +106,10 @@ platform_to_replica = dict(s3=Replica.aws, gs=Replica.gcp)
 def copy_parts(event, context):
     topic_arn = event["Records"][0]["Sns"]["TopicArn"]
     msg = json.loads(event["Records"][0]["Sns"]["Message"])
-    blobstore_handle = dss.Config.get_cloud_specific_handles(platform_to_replica[msg["source_platform"]])[0]
+    blobstore_handle = dss.Config.get_blobstore_handle(platform_to_replica[msg["source_platform"]])
     source_url = blobstore_handle.generate_presigned_GET_url(bucket=msg["source_bucket"], key=msg["source_key"])
     futures = []
-    gs = dss.Config.get_cloud_specific_handles(Replica.gcp)[0].gcp_client
+    gs = dss.Config.get_native_handle(Replica.gcp)
     with ThreadPoolExecutor(max_workers=4) as executor:
         for part in msg["parts"]:
             context.log(log_msg.format(part=part, **msg))
