@@ -60,7 +60,7 @@ DSS_SUBSCRIPTION_AUTHORIZED_DOMAINS_ARRAY=(
     ucsc.edu
     broadinstitute.org
     ebi.ac.uk
-    {human-cell-atlas-travis-test,broad-dsde-mint-{dev,staging}}.iam.gserviceaccount.com
+    {human-cell-atlas-travis-test,broad-dsde-mint-{dev,test,staging}}.iam.gserviceaccount.com
 )
 DSS_SUBSCRIPTION_AUTHORIZED_DOMAINS=${DSS_SUBSCRIPTION_AUTHORIZED_DOMAINS_ARRAY[*]}
 DSS_SUBSCRIPTION_AUTHORIZED_DOMAINS_TEST="human-cell-atlas-travis-test.iam.gserviceaccount.com"
