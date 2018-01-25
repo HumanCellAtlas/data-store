@@ -104,10 +104,9 @@ class TestIndexerBase(unittest.TestCase, DSSAssertMixin, DSSStorageMixin, DSSUpl
     bundle_key_by_replica = dict()  # type: typing.MutableMapping[str, str]
 
     @classmethod
-    def indexer_setup(cls, replica):
+    def setUpClass(cls):
         cls.app = ThreadedLocalServer()
         cls.app.start()
-        cls.replica = replica
         Config.set_config(BucketConfig.TEST_FIXTURE)
         cls.blobstore = Config.get_blobstore_handle(cls.replica)
         cls.test_fixture_bucket = cls.replica.bucket
@@ -863,9 +862,7 @@ class TestIndexerBase(unittest.TestCase, DSSAssertMixin, DSSStorageMixin, DSSUpl
 
 class TestAWSIndexer(AWSIndexer, TestIndexerBase):
 
-    @classmethod
-    def setUpClass(cls):
-        super().indexer_setup(Replica.aws)
+    replica = Replica.aws
 
     def create_bundle_created_event(self, key) -> typing.Dict:
         return self._create_event("sample_s3_bundle_created_event.json", key)
@@ -883,9 +880,7 @@ class TestAWSIndexer(AWSIndexer, TestIndexerBase):
 
 class TestGCPIndexer(GCPIndexer, TestIndexerBase):
 
-    @classmethod
-    def setUpClass(cls):
-        super().indexer_setup(Replica.gcp)
+    replica = Replica.gcp
 
     def create_bundle_created_event(self, key) -> typing.Dict:
         return self._create_event("sample_gs_bundle_created_event.json", key)

@@ -54,14 +54,14 @@ def tearDownModule():
     os.unsetenv('DSS_ES_PORT')
 
 
-class TestSearchBase(DSSAssertMixin):
+class TestSearchBase(unittest.TestCase, DSSAssertMixin):
+
     @classmethod
-    def search_setup(cls, replica):
+    def setUpClass(cls):
         cls.app = ThreadedLocalServer()
         cls.app.start()
-        cls.replica = replica
         dss.Config.set_config(dss.BucketConfig.TEST)
-        cls.dss_alias_name = dss.Config.get_es_alias_name(dss.ESIndexType.docs, replica)
+        cls.dss_alias_name = dss.Config.get_es_alias_name(dss.ESIndexType.docs, cls.replica)
         cls.dss_index_name = "search-unittest"
         with open(os.path.join(os.path.dirname(__file__), "sample_v3_index_doc.json"), "r") as fh:
             cls.index_document = json.load(fh)
@@ -418,17 +418,19 @@ class TestSearchBase(DSSAssertMixin):
             self.fail("elasticsearch failed to return all results.")
 
 
-class TestGCPSearch(TestSearchBase, unittest.TestCase):
-    @classmethod
-    def setUpClass(cls):
-        super().search_setup(dss.Replica.gcp)
+class TestGCPSearch(TestSearchBase):
+    replica = dss.Replica.gcp
 
 
-class TestAWSSearch(TestSearchBase, unittest.TestCase):
-    @classmethod
-    def setUpClass(cls):
-        super().search_setup(dss.Replica.aws)
+class TestAWSSearch(TestSearchBase):
+    replica = dss.Replica.aws
 
+
+# Prevent unittest's discovery from attempting to discover the base test class. The alterative, not inheriting
+# TestCase in the base class, is too inconvenient because it interferes with auto-complete and generates PEP-8
+# warnings about the camel case methods.
+#
+del TestSearchBase
 
 if __name__ == "__main__":
     unittest.main()
