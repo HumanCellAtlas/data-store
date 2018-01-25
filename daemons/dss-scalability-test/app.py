@@ -3,10 +3,13 @@ import logging
 import os
 import tempfile
 
+import boto3
+import time
 import domovoi
 from hca.dss import DSSClient
 
 AWS_MIN_CHUNK_SIZE = 64 * 1024 * 1024
+WAIT_CHECKOUT = 3
 
 app = domovoi.Domovoi()
 
@@ -18,29 +21,43 @@ state_machine_def = {
         "UploadBundle": {
             "Type": "Task",
             "Resource": None,
+            "InputPath": "$",
+            "ResultPath": "$.bundle",
+            "OutputPath": "$",
             "Next": "DownloadBundle"
         },
         "DownloadBundle": {
             "Type": "Task",
             "Resource": None,
-            "Next": "CheckoutBundle"
+            "InputPath": "$",
+            "OutputPath": "$",
+            "ResultPath": "$.download",
+            "Next": "CheckoutBundle",
         },
         "CheckoutBundle": {
             "Type": "Task",
             "Resource": None,
-            "Next": "Wait_Checkout",
-            "ResultPath": "$.checkout"
+            "InputPath": "$",
+            "ResultPath": "$.checkout",
+            "OutputPath": "$",
+            "Next": "Wait_Checkout"
         },
         "Wait_Checkout": {
             "Type": "Wait",
-            "Seconds": 3,
+            "Seconds": WAIT_CHECKOUT,
             "Next": "CheckoutDownloadStatus"
         },
         "CheckoutDownloadStatus": {
             "Type": "Task",
             "Resource": None,
-            "InputPath": "$.checkout",
+            "InputPath": "$",
             "ResultPath": "$.checkout.status",
+            "OutputPath": "$",
+            "Next": "CompleteTest"
+        },
+        "CompleteTest": {
+            "Type": "Task",
+            "Resource": None,
             "End": True,
         },
     }
@@ -58,6 +75,10 @@ with open(os.environ["HCA_CONFIG_FILE"], "w") as fh:
 
 client = DSSClient()
 
+dynamodb = boto3.resource('dynamodb')
+
+current_time = lambda: int(round(time.time() * 1000))
+
 
 @app.step_function_task(state_name="UploadBundle", state_machine_definition=state_machine_def)
 def upload_bundle(event, context):
@@ -66,29 +87,42 @@ def upload_bundle(event, context):
         with tempfile.NamedTemporaryFile(dir=src_dir, suffix=".bin") as fh:
             fh.write(os.urandom(AWS_MIN_CHUNK_SIZE + 1))
             fh.flush()
+            start_time = current_time()
             bundle_output = client.upload(src_dir=src_dir, replica="aws", staging_bucket=test_bucket)
-            return {"bundle_id": bundle_output['bundle_uuid']}
-
+            return {"bundle_id": bundle_output['bundle_uuid'], "start_time": start_time}
 
 @app.step_function_task(state_name="DownloadBundle", state_machine_definition=state_machine_def)
 def download_bundle(event, context):
     app.log.info("Download bundle")
-    bundle_id = event['bundle_id']
+    bundle_id = event['bundle']['bundle_id']
     with tempfile.TemporaryDirectory() as dest_dir:
         client.download(bundle_id, replica="aws", dest_name=dest_dir)
-    return {"bundle_id": bundle_id}
+    return {}
 
 
 @app.step_function_task(state_name="CheckoutBundle", state_machine_definition=state_machine_def)
 def checkout_bundle(event, context):
-    bundle_id = event['bundle_id']
+    bundle_id = event['bundle']['bundle_id']
     app.log.info(f"Checkout bundle: {bundle_id}")
     checkout_output = client.post_bundles_checkout(uuid=bundle_id, replica='aws', email='rkisin@chanzuckerberg.com')
     return {"job_id": checkout_output['checkout_job_id']}
 
 @app.step_function_task(state_name="CheckoutDownloadStatus", state_machine_definition=state_machine_def)
-def checkout_bundle(event, context):
-    job_id = event['job_id']
+def checkout_status(event, context):
+    job_id = event['checkout']['job_id']
     app.log.info(f"Checkout status job_id: {job_id}")
     #checkout_output = client.get_bundles_checkout(job_id)
     #return checkout_output['status']
+
+@app.step_function_task(state_name="CompleteTest", state_machine_definition=state_machine_def)
+def complete_test(event, context):
+    table = dynamodb.Table('scalability_test')
+    start_time = event['bundle']['start_time']
+    table.put_item(
+        Item={
+            'execution_id': event["execution_id"],
+            'test_run_id': event["test_run_id"],
+            'duration': current_time() - start_time - WAIT_CHECKOUT * 1000,
+            'status': 'SUCCEEDED'
+        }
+    )
