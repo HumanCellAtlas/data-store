@@ -1,3 +1,4 @@
+from collections import deque
 import functools
 import os
 import typing
@@ -58,12 +59,32 @@ class ESDocType(Enum):
 
 
 class IndexSuffix:
-    '''Creates a test specific index when in test config.'''
-    name = ''  # type: typing.Optional[str]
+    """
+    Manage growing and shrinking suffixes to Elasticsearch index names
+    """
+    def __init__(self) -> None:
+        super().__init__()
+        self._stack: typing.Deque[str] = deque()
 
-    @staticmethod
-    def reset():
-        IndexSuffix.name = ''
+    @property
+    def value(self):
+        """
+        Return the current suffix
+        """
+        return self._stack[-1] if self._stack else ''
+
+    def prepend(self, prefix: str):
+        """
+        Save the current suffix for later restore() and extend it by prepending the given prefix
+        """
+        assert prefix.islower(), 'Suffix prefixes must be lower case.'
+        self._stack.append('.' + prefix + self.value)
+
+    def restore(self):
+        """
+        Restore the previous suffix
+        """
+        self._stack.pop()
 
 
 class Config:
@@ -74,6 +95,8 @@ class Config:
     _ALLOWED_EMAILS = None  # type: typing.Optional[str]
     _CURRENT_CONFIG = BucketConfig.ILLEGAL  # type: BucketConfig
     _NOTIFICATION_SENDER_EMAIL = None  # type: typing.Optional[str]
+
+    test_index_suffix = IndexSuffix()
 
     @staticmethod
     def set_config(config: BucketConfig):
@@ -183,26 +206,29 @@ class Config:
                           shape_descriptor: typing.Optional[str] = None
                           ) -> str:
         """
-        Returns the fully qualified name of an Elasticsearch index of documents for a given
-        replica of a given type and shape.
+        Returns the fully qualified name of an Elasticsearch index containing documents of the given type in the given
+        replica.
         """
-        assert isinstance(replica, Replica)
-
-        deployment_stage = os.environ["DSS_DEPLOYMENT_STAGE"]
-        index = f"dss-{deployment_stage}-{replica.name}-{index_type.name}"
-        if shape_descriptor:
-            index = f"{index}-{shape_descriptor}"
-        if Config._CURRENT_CONFIG == BucketConfig.TEST:
-            index = f"{index}.{IndexSuffix.name}"
-        return index
+        return Config._get_es_index_name(index_type, replica, shape_descriptor)
 
     @staticmethod
     def get_es_alias_name(index_type: ESIndexType, replica: "Replica") -> str:
-        """Returns the alias for indexes"""
+        """
+        Returns the alias for the set of Elasticsearch indexes containing documents of the given type in the given
+        replica.
+        """
+        return Config._get_es_index_name(index_type, replica, 'alias')
+
+    @classmethod
+    def _get_es_index_name(cls,
+                           index_type: ESIndexType,
+                           replica: 'Replica',
+                           suffix: typing.Optional[str] = None) -> str:
         deployment_stage = os.environ["DSS_DEPLOYMENT_STAGE"]
-        index = f"dss-{deployment_stage}-{replica.name}-{index_type.name}-alias"
-        if Config._CURRENT_CONFIG == BucketConfig.TEST:
-            index = f"{index}.{IndexSuffix.name}"
+        index = f"dss-{deployment_stage}-{replica.name}-{index_type.name}"
+        if suffix:
+            index = f"{index}-{suffix}"
+        index += cls.test_index_suffix.value
         return index
 
     @staticmethod

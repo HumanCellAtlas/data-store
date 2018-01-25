@@ -1,6 +1,6 @@
 import logging
 from typing import List
-from dss.config import IndexSuffix, Config, BucketConfig
+from dss.config import Config, BucketConfig
 from dss.util.es import ElasticsearchClient
 
 logging.basicConfig(level=logging.INFO)
@@ -11,8 +11,8 @@ logger.setLevel(logging.INFO)
 def elasticsearch_delete_index(index_name: str):
     # ensure the indexes are test index.
     assert Config._CURRENT_CONFIG == BucketConfig.TEST
-    assert IndexSuffix.name
-    assert index_name.endswith(IndexSuffix.name)
+    assert Config.test_index_suffix.value
+    assert index_name.endswith(Config.test_index_suffix.value)
 
     try:
         es_client = ElasticsearchClient.get(logger)
@@ -33,9 +33,9 @@ def clear_indexes(index_names: List[str], doctypes: List[str]):
 
     # ensure the indexes are test index.
     assert Config._CURRENT_CONFIG == BucketConfig.TEST
-    assert IndexSuffix.name
+    assert Config.test_index_suffix.value
     for index_name in index_names:
-        assert index_name.endswith(IndexSuffix.name)
+        assert index_name.endswith(Config.test_index_suffix.value)
 
     es_client = ElasticsearchClient.get(logger)
     if es_client.indices.exists(index_names):

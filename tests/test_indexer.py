@@ -25,17 +25,17 @@ sys.path.insert(0, pkg_root)  # noqa
 
 import dss
 from dss import Config, BucketConfig, DeploymentStage
-from dss.config import IndexSuffix, ESDocType, Replica
+from dss.config import Replica
 from dss.events.handlers.index import AWSIndexer, GCPIndexer, BundleDocument, Indexer
 from dss.hcablobstore import BundleMetadata, BundleFileMetadata, FileMetadata
 from dss.util import create_blob_key, networking, UrlBuilder
 from dss.storage.bundles import ObjectIdentifier, BundleFQID
-from dss.util.es import ElasticsearchClient, ElasticsearchServer
 from dss.storage.validator import scrub_index_data
+from dss.util.es import ElasticsearchClient
 from dss.util.version import datetime_to_version_format
 from tests import get_version, get_auth_header
-from tests.es import elasticsearch_delete_index, clear_indexes
 from tests.infra import DSSAssertMixin, DSSUploadMixin, DSSStorageMixin, TestBundle, start_verbose_logging, testmode
+from tests.infra.elasticsearch_test_case import ElasticsearchTestCase
 from tests.infra.server import ThreadedLocalServer
 from tests.sample_search_queries import (smartseq2_paired_ends_v3_query,
                                          smartseq2_paired_ends_v2_or_v3_query,
@@ -77,33 +77,23 @@ class HTTPInfo:
     thread = None
 
 
-class ESInfo:
-    server = None
-
-
 def setUpModule():
-    IndexSuffix.name = __name__.rsplit('.', 1)[-1]
     HTTPInfo.port = networking.unused_tcp_port()
     HTTPInfo.server = HTTPServer((HTTPInfo.address, HTTPInfo.port), PostTestHandler)
     HTTPInfo.thread = threading.Thread(target=HTTPInfo.server.serve_forever)
     HTTPInfo.thread.start()
 
-    ESInfo.server = ElasticsearchServer()
-    os.environ['DSS_ES_PORT'] = str(ESInfo.server.port)
-
 
 def tearDownModule():
-    ESInfo.server.shutdown()
     HTTPInfo.server.shutdown()
-    IndexSuffix.reset()
-    os.unsetenv('DSS_ES_PORT')
 
 
-class TestIndexerBase(unittest.TestCase, DSSAssertMixin, DSSStorageMixin, DSSUploadMixin, metaclass=ABCMeta):
+class TestIndexerBase(ElasticsearchTestCase, DSSAssertMixin, DSSStorageMixin, DSSUploadMixin, metaclass=ABCMeta):
     bundle_key_by_replica = dict()  # type: typing.MutableMapping[str, str]
 
     @classmethod
     def setUpClass(cls):
+        super().setUpClass()
         cls.app = ThreadedLocalServer()
         cls.app.start()
         Config.set_config(BucketConfig.TEST_FIXTURE)
@@ -111,28 +101,22 @@ class TestIndexerBase(unittest.TestCase, DSSAssertMixin, DSSStorageMixin, DSSUpl
         cls.test_fixture_bucket = cls.replica.bucket
         Config.set_config(BucketConfig.TEST)
         cls.test_bucket = cls.replica.bucket
-        cls.dss_alias_name = dss.Config.get_es_alias_name(dss.ESIndexType.docs, cls.replica)
-        cls.subscription_index_name = dss.Config.get_es_index_name(dss.ESIndexType.subscriptions, cls.replica)
 
     @classmethod
     def tearDownClass(cls):
-        elasticsearch_delete_index(f"*{IndexSuffix.name}")
         cls.app.shutdown()
+        super().tearDownClass()
 
     def setUp(self):
+        super().setUp()
+        self.dss_alias_name = dss.Config.get_es_alias_name(dss.ESIndexType.docs, self.replica)
+        self.subscription_index_name = dss.Config.get_es_index_name(dss.ESIndexType.subscriptions, self.replica)
         if self.replica not in self.bundle_key_by_replica:
             self.bundle_key_by_replica[self.replica] = self.load_test_data_bundle_for_path(
                 "fixtures/indexing/bundles/v3/smartseq2/paired_ends")
         self.bundle_key = self.bundle_key_by_replica[self.replica]
         self.smartseq2_paired_ends_query = smartseq2_paired_ends_v2_or_v3_query
         PostTestHandler.reset()
-
-    def tearDown(self):
-        clear_indexes([self.dss_alias_name],
-                      [ESDocType.doc.name, ESDocType.query.name, ESDocType.subscription.name])
-        clear_indexes([self.subscription_index_name],
-                      [ESDocType.doc.name, ESDocType.query.name, ESDocType.subscription.name])
-        self.storageHelper = None
 
     @testmode.standalone
     def test_create(self):
@@ -304,7 +288,6 @@ class TestIndexerBase(unittest.TestCase, DSSAssertMixin, DSSStorageMixin, DSSUpl
 
     @testmode.standalone
     def test_key_is_not_indexed_when_processing_an_event_with_a_file_key(self):
-        elasticsearch_delete_index(f'*{IndexSuffix.name}')
         file_fqid = get_file_fqid()
         sample_event = self.create_bundle_created_event(file_fqid.to_key())
         log_last = logger.getEffectiveLevel()
@@ -344,7 +327,6 @@ class TestIndexerBase(unittest.TestCase, DSSAssertMixin, DSSStorageMixin, DSSUpl
     @testmode.standalone
     def test_indexed_file_access_error(self):
         inaccesssible_filename = "inaccessible_file.json"
-        elasticsearch_delete_index(f'*{IndexSuffix.name}')
         bundle_key = self.load_test_data_bundle_with_inaccessible_file(
             "fixtures/indexing/bundles/v3/smartseq2/paired_ends", inaccesssible_filename, "application/json", True)
         sample_event = self.create_bundle_created_event(bundle_key)
@@ -431,7 +413,6 @@ class TestIndexerBase(unittest.TestCase, DSSAssertMixin, DSSStorageMixin, DSSUpl
 
     @testmode.standalone
     def test_subscription_registration_before_indexing(self):
-        elasticsearch_delete_index(f'*{IndexSuffix.name}')
         subscription_id = self.subscribe_for_notification(self.smartseq2_paired_ends_query,
                                                           f"http://{HTTPInfo.address}:{HTTPInfo.port}")
         sample_event = self.create_bundle_created_event(self.bundle_key)
@@ -471,7 +452,6 @@ class TestIndexerBase(unittest.TestCase, DSSAssertMixin, DSSStorageMixin, DSSUpl
                 }
             }
 
-        elasticsearch_delete_index(f"*{IndexSuffix.name}")
         subscription_id = self.subscribe_for_notification(subscription_query,
                                                           f"http://{HTTPInfo.address}:{HTTPInfo.port}")
         sample_event = self.create_bundle_created_event(self.bundle_key)
@@ -823,13 +803,11 @@ class TestIndexerBase(unittest.TestCase, DSSAssertMixin, DSSStorageMixin, DSSUpl
             if filename not in excluded_files:
                 self.assertIsNotNone(index_document['files'][filename])
 
-    @classmethod
-    def get_search_results(cls, query, min_expected_hit_count):
-        response = cls.get_raw_search_results(query, min_expected_hit_count)
+    def get_search_results(self, query, min_expected_hit_count):
+        response = self.get_raw_search_results(query, min_expected_hit_count)
         return [hit['_source'] for hit in response['hits']['hits']]
 
-    @classmethod
-    def get_raw_search_results(cls, query, min_expected_hit_count):
+    def get_raw_search_results(self, query, min_expected_hit_count):
         # Elasticsearch periodically refreshes the searchable data with newly added data.
         # By default, the refresh interval is one second.
         # https://www.elastic.co/guide/en/elasticsearch/reference/5.5/_modifying_your_data.html
@@ -838,7 +816,7 @@ class TestIndexerBase(unittest.TestCase, DSSAssertMixin, DSSStorageMixin, DSSUpl
         timeout_time = time.time() + timeout
         while True:
             response = ElasticsearchClient.get(logger).search(
-                index=cls.dss_alias_name,
+                index=self.dss_alias_name,
                 doc_type=dss.ESDocType.doc.name,
                 body=json.dumps(query))
             if (len(response['hits']['hits']) >= min_expected_hit_count) or (time.time() >= timeout_time):
