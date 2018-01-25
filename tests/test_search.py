@@ -21,12 +21,11 @@ from dss import ESDocType
 from dss.util import UrlBuilder
 
 from dss.api.search import _es_search_page
-from dss.config import IndexSuffix
 from dss.storage.index import IndexManager
-from dss.util.es import ElasticsearchServer, ElasticsearchClient
+from dss.util.es import ElasticsearchClient
 from tests import get_version
-from tests.es import elasticsearch_delete_index, clear_indexes
 from tests.infra import DSSAssertMixin, ExpectedErrorFields, start_verbose_logging, testmode
+from tests.infra.elasticsearch_test_case import ElasticsearchTestCase
 from tests.infra.server import ThreadedLocalServer
 from tests.sample_search_queries import smartseq2_paired_ends_v3_query
 
@@ -38,47 +37,34 @@ start_verbose_logging()
 
 
 # TODO: (tsmith) test with multiple doc indexes once indexing by major version is compeleted
-class ESInfo:
-    server = None
 
-
-def setUpModule():
-    IndexSuffix.name = __name__.rsplit('.', 1)[-1]
-    ESInfo.server = ElasticsearchServer()
-    os.environ['DSS_ES_PORT'] = str(ESInfo.server.port)
-
-
-def tearDownModule():
-    ESInfo.server.shutdown()
-    IndexSuffix.reset()
-    os.unsetenv('DSS_ES_PORT')
-
-
-class TestSearchBase(unittest.TestCase, DSSAssertMixin):
+class TestSearchBase(ElasticsearchTestCase, DSSAssertMixin):
 
     @classmethod
     def setUpClass(cls):
+        super().setUpClass()
         cls.app = ThreadedLocalServer()
         cls.app.start()
         dss.Config.set_config(dss.BucketConfig.TEST)
-        cls.dss_alias_name = dss.Config.get_es_alias_name(dss.ESIndexType.docs, cls.replica)
-        cls.dss_index_name = "search-unittest"
         with open(os.path.join(os.path.dirname(__file__), "sample_v3_index_doc.json"), "r") as fh:
             cls.index_document = json.load(fh)
-        es_client = ElasticsearchClient.get(logger)
-        IndexManager.create_index(es_client, cls.replica, cls.dss_index_name)
 
     @classmethod
     def tearDownClass(cls):
-        elasticsearch_delete_index(f"*{IndexSuffix.name}")
         cls.app.shutdown()
+        super().tearDownClass()
 
-    def tearDown(self):
-        clear_indexes([self.dss_alias_name], [ESDocType.doc.name, ESDocType.query.name])
+    def setUp(self):
+        super().setUp()
+        self.dss_index_name = dss.Config.get_es_index_name(dss.ESIndexType.docs, self.replica)
+        es_client = ElasticsearchClient.get(logger)
+        IndexManager.create_index(es_client, self.replica, self.dss_index_name)
 
     @testmode.standalone
     def test_es_search_page(self):
-        """Confirm that elasaticsearch is returning _source info only when necessary."""
+        """
+        Confirm that Elasticsearch is returning _source info only when necessary.
+        """
         self.populate_search_index(self.index_document, 1)
         self.check_count(smartseq2_paired_ends_v3_query, 1)
         page = _es_search_page(smartseq2_paired_ends_v3_query, self.replica, 10, None, 'raw')
@@ -310,7 +296,7 @@ class TestSearchBase(unittest.TestCase, DSSAssertMixin):
         version = get_version()
         bundle_fqid = f"{bundle_uuid}.{version}"
         es_client = ElasticsearchClient.get(logger)
-        es_client.index(index=self.dss_alias_name,
+        es_client.index(index=self.dss_index_name,
                         doc_type=ESDocType.doc.name,
                         id=bundle_fqid,
                         body=doc1)
@@ -332,7 +318,7 @@ class TestSearchBase(unittest.TestCase, DSSAssertMixin):
             bundle_fqid = f"{bundle_uuid}.{version}"
             bundle_url = (f"https://127.0.0.1:{self.app._port}"
                           f"/v1/bundles/{bundle_uuid}?version={version}&replica={self.replica.name}")
-            es_client.index(index=self.dss_alias_name,
+            es_client.index(index=self.dss_index_name,
                             doc_type=ESDocType.doc.name,
                             id=bundle_fqid,
                             body=index_document,
@@ -358,7 +344,7 @@ class TestSearchBase(unittest.TestCase, DSSAssertMixin):
         for bundle in expected_bundles:
             self.assertIn(bundle, result_bundles)
 
-    def verify_next_url(self, next_url, per_page=100, output_format='summary'):
+    def verify_next_url(self, next_url, per_page=100):
         parsed_url = urlparse(next_url)
         self.assertEqual(parsed_url.path, "/v1/search")
         parsed_q = parse_qs(parsed_url.query)
@@ -407,7 +393,7 @@ class TestSearchBase(unittest.TestCase, DSSAssertMixin):
         es_client = ElasticsearchClient.get(logger)
         timeout_time = timeout + time.time()
         while time.time() <= timeout_time:
-            count_resp = es_client.count(index=self.dss_alias_name,
+            count_resp = es_client.count(index=self.dss_index_name,
                                          doc_type=ESDocType.doc.name,
                                          body=es_query)
             if count_resp['count'] == expected_count:

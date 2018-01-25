@@ -17,14 +17,13 @@ pkg_root = os.path.abspath(os.path.join(os.path.dirname(__file__), '..'))  # noq
 sys.path.insert(0, pkg_root)  # noqa
 
 import dss
-from dss.config import IndexSuffix
 from dss.events.handlers.index import BundleDocument
 from dss.storage.index import IndexManager
 from dss.util import UrlBuilder
-from dss.util.es import ElasticsearchClient, ElasticsearchServer
+from dss.util.es import ElasticsearchClient
 from tests import get_auth_header, get_bundle_fqid
-from tests.es import elasticsearch_delete_index, clear_indexes
 from tests.infra import DSSAssertMixin, testmode
+from tests.infra.elasticsearch_test_case import ElasticsearchTestCase
 from tests.infra.server import ThreadedLocalServer
 from tests.sample_search_queries import smartseq2_paired_ends_v2_or_v3_query
 
@@ -33,63 +32,44 @@ logger = logging.getLogger(__name__)
 logger.setLevel(logging.INFO)
 
 
-class ESInfo:
-    server = None
-
-
-def setUpModule():
-    IndexSuffix.name = __name__.rsplit('.', 1)[-1]
-    ESInfo.server = ElasticsearchServer()
-    os.environ['DSS_ES_PORT'] = str(ESInfo.server.port)
-
-
-def tearDownModule():
-    ESInfo.server.shutdown()
-    IndexSuffix.reset()
-    os.unsetenv('DSS_ES_PORT')
-
-
-class TestSubscriptionsBase(unittest.TestCase, DSSAssertMixin):
+class TestSubscriptionsBase(ElasticsearchTestCase, DSSAssertMixin):
     @classmethod
     def setUpClass(cls):
+        super().setUpClass()
         cls.app = ThreadedLocalServer()
         cls.app.start()
         dss.Config.set_config(dss.BucketConfig.TEST)
-        os.environ['DSS_ES_ENDPOINT'] = os.getenv('DSS_ES_ENDPOINT', "127.0.0.1")
 
         with open(os.path.join(os.path.dirname(__file__), "sample_v3_index_doc.json"), "r") as fh:
-            index_document = BundleDocument(
+            cls.index_document = BundleDocument(
                 cls.replica,
                 get_bundle_fqid(),
                 logger,
             )
-            index_document.update(json.load(fh))
+            cls.index_document.update(json.load(fh))
 
         logger.debug("Setting up Elasticsearch")
-        es_client = ElasticsearchClient.get(logger)
-        index_shape_identifier = index_document.get_shape_descriptor()
-        cls.alias_name = dss.Config.get_es_alias_name(dss.ESIndexType.docs, cls.replica)
-        cls.sub_index_name = dss.Config.get_es_index_name(dss.ESIndexType.subscriptions, cls.replica)
-        cls.doc_index_name = dss.Config.get_es_index_name(dss.ESIndexType.docs, cls.replica, index_shape_identifier)
-        IndexManager.create_index(es_client, cls.replica, cls.doc_index_name)
-        es_client.index(index=cls.doc_index_name,
-                        doc_type=dss.ESDocType.doc.name,
-                        id=str(uuid.uuid4()),
-                        body=index_document,
-                        refresh=True)
 
     @classmethod
     def tearDownClass(cls):
-        elasticsearch_delete_index(f"*{IndexSuffix.name}")
         cls.app.shutdown()
+        super().tearDownClass()
 
     def setUp(self):
+        super().setUp()
+        self.alias_name = dss.Config.get_es_alias_name(dss.ESIndexType.docs, self.replica)
+        self.sub_index_name = dss.Config.get_es_index_name(dss.ESIndexType.subscriptions, self.replica)
+        shape_identifier = self.index_document.get_shape_descriptor()
+        self.doc_index_name = dss.Config.get_es_index_name(dss.ESIndexType.docs, self.replica, shape_identifier)
+        es_client = ElasticsearchClient.get(logger)
+        IndexManager.create_index(es_client, self.replica, self.doc_index_name)
+        es_client.index(index=self.doc_index_name,
+                        doc_type=dss.ESDocType.doc.name,
+                        id=str(uuid.uuid4()),
+                        body=self.index_document,
+                        refresh=True)
         self.callback_url = "https://example.com"
         self.sample_percolate_query = smartseq2_paired_ends_v2_or_v3_query
-
-    def tearDown(self):
-        clear_indexes([self.alias_name, self.sub_index_name],
-                      [dss.ESDocType.doc.name, dss.ESDocType.query.name, dss.ESDocType.subscription.name])
 
     @testmode.standalone
     def test_auth_errors(self):
@@ -248,6 +228,11 @@ class TestGCPSubscription(TestSubscriptionsBase, unittest.TestCase):
 class TestAWSSubscription(TestSubscriptionsBase, unittest.TestCase):
     replica = dss.Replica.aws
 
+# Prevent unittest's discovery from attempting to discover the base test class. The alterative, not inheriting
+# TestCase in the base class, is too inconvenient because it interferes with auto-complete and generates PEP-8
+# warnings about the camel case methods.
+#
+del TestSubscriptionsBase
 
 if __name__ == '__main__':
     unittest.main()
