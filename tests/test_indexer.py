@@ -20,8 +20,6 @@ import uuid
 from http.server import BaseHTTPRequestHandler, HTTPServer
 from requests_http_signature import HTTPSignatureAuth
 
-from dss.storage.validator import scrub_index_data
-
 pkg_root = os.path.abspath(os.path.join(os.path.dirname(__file__), '..'))  # noqa
 sys.path.insert(0, pkg_root)  # noqa
 
@@ -33,6 +31,7 @@ from dss.hcablobstore import BundleMetadata, BundleFileMetadata, FileMetadata
 from dss.util import create_blob_key, networking, UrlBuilder
 from dss.storage.bundles import ObjectIdentifier, BundleFQID
 from dss.util.es import ElasticsearchClient, ElasticsearchServer
+from dss.storage.validator import scrub_index_data
 from dss.util.version import datetime_to_version_format
 from tests import get_version, get_auth_header
 from tests.es import elasticsearch_delete_index, clear_indexes

@@ -13,8 +13,8 @@ from contextlib import contextmanager
 import connexion.apis.abstract
 import requests
 
-pkg_root = os.path.abspath(os.path.join(os.path.dirname(__file__), '..')) # noqa
-sys.path.insert(0, pkg_root) # noqa
+pkg_root = os.path.abspath(os.path.join(os.path.dirname(__file__), '..'))  # noqa
+sys.path.insert(0, pkg_root)  # noqa
 
 import dss
 from dss.config import IndexSuffix
@@ -107,7 +107,7 @@ class TestSubscriptionsBase(unittest.TestCase, DSSAssertMixin):
         self.assertEqual(resp_obj.response.headers['Content-Type'], "application/problem+json")
 
         # No auth header
-        resp_obj = self.assertGetResponse(url, requests.codes.unauthorized)
+        self.assertGetResponse(url, requests.codes.unauthorized)
 
     @testmode.standalone
     def test_put(self):
@@ -183,8 +183,8 @@ class TestSubscriptionsBase(unittest.TestCase, DSSAssertMixin):
 
     @testmode.standalone
     def test_find(self):
-        NUM_ADDITIONS = 25
-        for _ in range(NUM_ADDITIONS):
+        num_additions = 25
+        for _ in range(num_additions):
             self._put_subscription()
         url = str(UrlBuilder()
                   .set(path="/v1/subscriptions")
@@ -196,7 +196,7 @@ class TestSubscriptionsBase(unittest.TestCase, DSSAssertMixin):
         json_response = resp_obj.json
         self.assertEqual(self.sample_percolate_query, json_response['subscriptions'][0]['es_query'])
         self.assertEqual(self.callback_url, json_response['subscriptions'][0]['callback_url'])
-        self.assertEqual(NUM_ADDITIONS, len(json_response['subscriptions']))
+        self.assertEqual(num_additions, len(json_response['subscriptions']))
 
     @testmode.standalone
     def test_delete(self):
