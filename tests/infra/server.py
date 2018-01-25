@@ -27,17 +27,17 @@ class ThreadedLocalServer(threading.Thread):
     This runs a server on another thread.  It also provides an easy interface to make calls to the server.
     """
     def __init__(self):
-        super().__init__()
+        super().__init__(daemon=True)
         self._port = networking.unused_tcp_port()
         self._server = None
         self._server_ready = threading.Event()
         self._chalice_app = None
 
-    def start(self, *args, **kwargs):
+    def start(self):
         """
         Start the server and wait for the server to finish loading.
         """
-        super().start(*args, **kwargs)
+        super().start()
         self._server_ready.wait()
 
     def run(self):
@@ -75,6 +75,8 @@ class ThreadedLocalServer(threading.Thread):
     def shutdown(self):
         if self._server is not None:
             self._server.server.shutdown()
+        self.join(timeout=30)
+        assert not self.is_alive(), 'Failed to join thread'
 
 
 # noinspection PyProtectedMember
