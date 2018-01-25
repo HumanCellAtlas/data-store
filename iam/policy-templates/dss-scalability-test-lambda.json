@@ -47,6 +47,11 @@
       "Resource": [
         "arn:aws:lambda:*:$account_id:function:dss-*"
       ]
+    },
+    {
+      "Effect": "Allow",
+      "Action": "dynamodb:*",
+      "Resource": "arn:aws:dynamodb:*:$account_id:table/scalability_test"
     }
   ]
 }
