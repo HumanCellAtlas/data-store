@@ -49,10 +49,9 @@ def tearDownModule():
     os.unsetenv('DSS_ES_PORT')
 
 
-class TestSubscriptionsBase(DSSAssertMixin):
+class TestSubscriptionsBase(unittest.TestCase, DSSAssertMixin):
     @classmethod
-    def subsciption_setup(cls, replica):
-        cls.replica = replica
+    def setUpClass(cls):
         cls.app = ThreadedLocalServer()
         cls.app.start()
         dss.Config.set_config(dss.BucketConfig.TEST)
@@ -69,9 +68,9 @@ class TestSubscriptionsBase(DSSAssertMixin):
         logger.debug("Setting up Elasticsearch")
         es_client = ElasticsearchClient.get(logger)
         index_shape_identifier = index_document.get_shape_descriptor()
-        cls.alias_name = dss.Config.get_es_alias_name(dss.ESIndexType.docs, replica)
-        cls.sub_index_name = dss.Config.get_es_index_name(dss.ESIndexType.subscriptions, replica)
-        cls.doc_index_name = dss.Config.get_es_index_name(dss.ESIndexType.docs, replica, index_shape_identifier)
+        cls.alias_name = dss.Config.get_es_alias_name(dss.ESIndexType.docs, cls.replica)
+        cls.sub_index_name = dss.Config.get_es_index_name(dss.ESIndexType.subscriptions, cls.replica)
+        cls.doc_index_name = dss.Config.get_es_index_name(dss.ESIndexType.docs, cls.replica, index_shape_identifier)
         IndexManager.create_index(es_client, cls.replica, cls.doc_index_name)
         es_client.index(index=cls.doc_index_name,
                         doc_type=dss.ESDocType.doc.name,
@@ -243,15 +242,11 @@ class TestSubscriptionsBase(DSSAssertMixin):
 
 
 class TestGCPSubscription(TestSubscriptionsBase, unittest.TestCase):
-    @classmethod
-    def setUpClass(cls):
-        super().subsciption_setup(dss.Replica.gcp)
+    replica = dss.Replica.gcp
 
 
 class TestAWSSubscription(TestSubscriptionsBase, unittest.TestCase):
-    @classmethod
-    def setUpClass(cls):
-        super().subsciption_setup(dss.Replica.aws)
+    replica = dss.Replica.aws
 
 
 if __name__ == '__main__':
