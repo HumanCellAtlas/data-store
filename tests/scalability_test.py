@@ -1,12 +1,13 @@
 import os
 import sys
 import uuid
+import time
 
 from locust import TaskSet, task
 
 sys.path.append(os.getcwd())
 
-from tests.scalability.SnsClient import SnsLocust
+from tests.scalability.SnsClient import SnsLocust  # noqa
 
 class MyTaskSet(TaskSet):
     def on_start(self):
@@ -16,6 +17,7 @@ class MyTaskSet(TaskSet):
     @task
     def check_execution(self):
         self.client.start_test_execution(self.test_run_id, self.test_execution_id)
+        time.sleep(30)
         self.client.check_execution()
 
 class MyLocust(SnsLocust):
