@@ -4,6 +4,7 @@ import logging
 import socket
 import typing
 import uuid
+import re
 from abc import abstractmethod, ABCMeta
 
 from collections import defaultdict
@@ -11,6 +12,7 @@ from urllib.parse import urlparse
 
 import requests
 from cloud_blobstore import BlobStore, BlobStoreError, BlobNotFoundError
+from elasticsearch import TransportError
 from elasticsearch.helpers import scan, bulk, BulkIndexError
 from requests_http_signature import HTTPSignatureAuth
 
@@ -306,31 +308,56 @@ class BundleDocument(IndexDocument):
         else:
             return None  # No files with schema identifiers were found
 
+    # Alias [foo] has more than one indices associated with it [[bar1, bar2]], can't execute a single index op
+    multi_index_error = re.compile(r"Alias \[([^\]]+)\] has more than one indices associated with it "
+                                   r"\[\[([^\]]+)\]\], can't execute a single index op")
+
     def _get_indexed_versions(self) -> typing.MutableMapping[str, str]:
         """
         Returns a dictionary mapping the name of each index containing this document to the
         version of this document in that index. Note that `version` denotes document version, not
         bundle version.
         """
-        page_size = 64
         es_client = ElasticsearchClient.get(self.logger)
         alias_name = Config.get_es_alias_name(ESIndexType.docs, self.replica)
-        response = es_client.search(index=alias_name, body={
-            '_source': False,
-            'stored_fields': [],
-            'version': True,
-            'from': 0,
-            'size': page_size,
-            'query': {
-                'terms': {
-                    '_id': [str(self.fqid)]
-                }
-            }
-        })
-        hits = response['hits']
-        assert hits['total'] <= page_size, 'Document is in too many indices'
-        indices = {hit['_index']: hit['_version'] for hit in hits['hits']}
-        return indices
+        # First attempt to get the single instance of the document. The common case is that there is zero or one
+        # instance.
+        try:
+            doc = es_client.get(id=str(self.fqid),
+                                index=alias_name,
+                                _source=False,
+                                stored_fields=[])
+            # One instance found
+            return {doc['_index']: doc['_version']}
+        except TransportError as e:
+            if e.status_code == 404:
+                # No instance found
+                return {}
+            elif e.status_code == 400:
+                # This could be a general error or an one complaining that we attempted a single-index operation
+                # against a multi-index alias. If the latter, we can actually avoid a round trip by parsing the index
+                # names out of the error message generated at https://github.com/elastic/elasticsearch/blob/5.5
+                # /core/src/main/java/org/elasticsearch/cluster/metadata/IndexNameExpressionResolver.java#L194
+                error = e.info.get('error')
+                if error:
+                    reason = error.get('reason')
+                    if reason:
+                        match = self.multi_index_error.fullmatch(reason)
+                        if match:
+                            indices = map(str.strip, match.group(2).split(','))
+                            # Now get the document version from all indices in the alias
+                            doc = es_client.mget(_source=False,
+                                                 stored_fields=[],
+                                                 body={
+                                                     'docs': [
+                                                         {
+                                                             '_id': str(self.fqid),
+                                                             '_index': index
+                                                         } for index in indices
+                                                     ]
+                                                 })
+                            return {doc['_index']: doc['_version'] for doc in doc['docs'] if doc.get('found')}
+            raise
 
     def _remove_versions(self, versions: typing.MutableMapping[str, str]):
         """
