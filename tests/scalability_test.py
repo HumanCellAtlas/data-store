@@ -4,25 +4,21 @@ import uuid
 
 from locust import TaskSet, task
 
-
 sys.path.append(os.getcwd())
 
-from tests.scalability.SfnClient import SfnLocust
-
-test_run_id = str(uuid.uuid4())
+from tests.scalability.SnsClient import SnsLocust
 
 class MyTaskSet(TaskSet):
     def on_start(self):
-        pass
-
+        self.test_run_id = str(uuid.uuid4())
+        self.test_execution_id = str(uuid.uuid4())
 
     @task
     def check_execution(self):
-        self.client.start_test_execution(test_run_id)
+        self.client.start_test_execution(self.test_run_id, self.test_execution_id)
         self.client.check_execution()
 
-
-class MyLocust(SfnLocust):
+class MyLocust(SnsLocust):
     task_set = MyTaskSet
     min_wait = 500
     max_wait = 3000
