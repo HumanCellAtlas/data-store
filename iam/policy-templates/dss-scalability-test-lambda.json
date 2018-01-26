@@ -52,6 +52,19 @@
       "Effect": "Allow",
       "Action": "dynamodb:*",
       "Resource": "arn:aws:dynamodb:*:$account_id:table/scalability_test"
+    },
+       {
+      "Effect": "Allow",
+      "Action": [
+		"states:ListExecutions",
+		"states:StartExecution",
+		"states:DescribeExecution"
+	  ],
+      "Resource": [
+        "arn:aws:states:*:$account_id:stateMachine:dss-scalability*",
+        "arn:aws:states:*:$account_id:execution:dss-scalability*"
+	  ]
     }
+
   ]
 }
