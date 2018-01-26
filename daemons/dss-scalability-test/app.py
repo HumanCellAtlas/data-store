@@ -2,11 +2,19 @@ import json
 import logging
 import os
 import tempfile
+import uuid
 
 import boto3
 import time
 import domovoi
+import sys
+
 from hca.dss import DSSClient
+
+pkg_root = os.path.abspath(os.path.join(os.path.dirname(__file__), 'domovoilib'))  # noqa
+sys.path.insert(0, pkg_root)  # noqa
+
+from dss import stepfunctions, Config
 
 AWS_MIN_CHUNK_SIZE = 64 * 1024 * 1024
 WAIT_CHECKOUT = 3
@@ -126,3 +134,10 @@ def complete_test(event, context):
             'status': 'SUCCEEDED'
         }
     )
+@app.sns_topic_subscriber("dss-scalability-test-launch-" + os.environ["DSS_DEPLOYMENT_STAGE"])
+def launch_test(event, context):
+    msg = json.loads(event["Records"][0]["Sns"]["Message"])
+    run_id = msg["run_id"]
+    execution_id = msg["execution_id"]
+    test_input = {"execution_id": execution_id, "test_run_id": run_id}
+    stepfunctions.step_functions_invoke("dss-scalability-test-{stage}", execution_id, test_input)
