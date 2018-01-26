@@ -85,8 +85,8 @@ client = DSSClient()
 
 dynamodb = boto3.resource('dynamodb')
 
-current_time = lambda: int(round(time.time() * 1000))
-
+def current_time():
+    return int(round(time.time() * 1000))
 
 @app.step_function_task(state_name="UploadBundle", state_machine_definition=state_machine_def)
 def upload_bundle(event, context):
@@ -119,8 +119,8 @@ def checkout_bundle(event, context):
 def checkout_status(event, context):
     job_id = event['checkout']['job_id']
     app.log.info(f"Checkout status job_id: {job_id}")
-    #checkout_output = client.get_bundles_checkout(job_id)
-    #return checkout_output['status']
+    # checkout_output = client.get_bundles_checkout(job_id)
+    # return checkout_output['status']
 
 @app.step_function_task(state_name="CompleteTest", state_machine_definition=state_machine_def)
 def complete_test(event, context):
