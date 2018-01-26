@@ -51,6 +51,9 @@ integration_test:
 smoketest:
 	$(MAKE) DSS_TEST_MODE="integration" tests/test_smoketest.py
 
+scaletest:
+	locust -f tests/scalability_test.py --no-web -c 1000  -r 100
+
 deploy: deploy-chalice deploy-daemons
 
 deploy-chalice:
