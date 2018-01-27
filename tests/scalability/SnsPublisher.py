@@ -1,18 +1,16 @@
 import json
+import os
 import queue
 import threading
 from queue import Queue
 
 import boto3
-import os
-
-import time
 
 from dss.util.aws import ARN
 
 SENDING_THREADS = 3
 sns = boto3.client('sns')
-# sns.meta.config.max_pool_connections = 100
+sns.meta.config.max_pool_connections = 100
 sns_topic = "dss-scalability-test-launch"
 sending_queue = Queue()
 stage = os.environ["DSS_DEPLOYMENT_STAGE"]
