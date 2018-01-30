@@ -88,8 +88,8 @@ class retry:
     Traceback (most recent call last):
       ...
     Exception
-    >>> logger.method_calls[0]
-    call.warning("An exception occurred in '%s' of %r", 'foo', {}, exc_info=True)
+    >>> logger.method_calls[1]
+    call.warning('An exception occurred in %r.', retry.TX(name='foo', {}), exc_info=True, stack_info=True)
 
     If one decorated function calls another decorated function, the inner function will be retried independently and
     each inner TX will commence with an empty context and its own timeout and logger. While this seems desirable it
@@ -120,11 +120,16 @@ class retry:
       ...
     Exception
 
-    >>> logger.method_calls
-    [call.warning("An exception occurred in '%s' of %r", 'f7', {'x': 42, 'y': 84}, exc_info=True),
-     call.debug("Timed out retrying '%s' of %r", 'f7', {'x': 42, 'y': 84}),
-     call.warning("An exception occurred in '%s' of %r", 'f6', {'x': 42}, exc_info=True),
-     call.debug("Timed out retrying '%s' of %r", 'f6', {'x': 42})]
+    >>> logger.method_calls # doctest: +NORMALIZE_WHITESPACE
+    [call.isEnabledFor(30),
+     call.warning('An exception occurred in %r.',
+                  retry.TX(name='f7', {'x': 42, 'y': 84}), exc_info=True, stack_info=True),
+     call.warning('Timed out retrying %r.',
+                  retry.TX(name='f7', {'x': 42, 'y': 84})),
+     call.isEnabledFor(30),
+     call.warning("Exception '%s' occurred in %r. The back trace was logged earlier.",
+                  Exception(), retry.TX(name='f6', {'x': 42})),
+     call.warning('Timed out retrying %r.', retry.TX(name='f6', {'x': 42}))]
 
     Note that any retry `limit` constraints are applied independently, regardless of `inherit`. Barring timeouts,
     the lowest upper bound on the number of times an inner function is retried is the product of the inner and outer
@@ -162,7 +167,6 @@ class retry:
     5
     >>> time.time() - t >= 1.5
     True
-
     """
 
     thread_local = threading.local()
@@ -191,9 +195,9 @@ class retry:
         def wrapper(*args, **kwargs):
             outer_tx = self._get_tx()
             if not self.inherit or outer_tx is None:
-                inner_tx = self._new_tx()
+                inner_tx = self._new_tx(name)
             else:
-                inner_tx = outer_tx.copy()
+                inner_tx = outer_tx.copy(name)
             delay = None
             attempts = itertools.count() if self.limit is None else iter(range(self.limit))
             while True:
@@ -202,18 +206,20 @@ class retry:
                 try:
                     return f(*args, **kwargs)
                 except BaseException as e:
-                    tx.logger.warning("An exception occurred in '%s' of %r", name, tx, exc_info=True)
+                    tx.log_exception(e)
                     if self.retryable(e):
                         attempt = next(attempts, None)
                         if attempt is None:
-                            tx.logger.debug("Exceeded retry limit for '%s' of %r", name, tx)
+                            tx.logger.warning("Exceeded retry limit for %r.", tx)
                             raise
                         delay = self.delay(attempt, delay)
                         if tx.would_expire_after(delay):
-                            tx.logger.debug("Timed out retrying '%s' of %r", name, tx)
+                            tx.logger.warning("Timed out retrying %r.", tx)
                             raise
                         else:
+                            tx.logger.debug("Sleeping %f seconds before retrying %r.", delay, tx)
                             time.sleep(delay)
+                            tx.logger.info("Retrying %r.", tx)
                     else:
                         raise
                 finally:
@@ -221,10 +227,10 @@ class retry:
 
         return wrapper
 
-    def _new_tx(self):
+    def _new_tx(self, name: str) -> 'TX':
         timeout = self.timeout
         expiration = None if timeout is None else time.time() + timeout
-        return self.TX(expiration=expiration, logger=self.logger)
+        return self.TX(name=name, expiration=expiration, logger=self.logger)
 
     @classmethod
     def _get_tx(cls) -> Optional['TX']:
@@ -252,18 +258,35 @@ class retry:
 
     class TX(dict):
 
-        def __init__(self, expiration: float, logger: logging.Logger) -> None:
+        def __init__(self, name: str, expiration: float, logger: logging.Logger) -> None:
             super().__init__()
+            self.name = name
             self.logger = logger
             self.expiration = expiration
 
         def would_expire_after(self, delay: float):
             return self.expiration is not None and self.expiration < time.time() + delay
 
-        def copy(self):
-            other = type(self)(self.expiration, self.logger)
+        def copy(self, name: str=None):
+            other = type(self)(name=name or self.name, expiration=self.expiration, logger=self.logger)
             other.update(self)
             return other
+
+        def log_exception(self, e: BaseException) -> None:
+            if self.logger.isEnabledFor(logging.WARNING):
+                logged_attr_name = f"_{__name__}_already_logged"
+                already_logged = getattr(e, logged_attr_name, False)
+                if already_logged:
+                    self.logger.warning("Exception '%s' occurred in %r. The back trace was logged earlier.", e, self)
+                else:
+                    self.logger.warning("An exception occurred in %r.", self, exc_info=True, stack_info=True)
+                    try:
+                        setattr(e, logged_attr_name, True)
+                    except AttributeError:
+                        self.logger.warning('Failed to mark exception as logged. The back trace may be logged again.')
+
+        def __repr__(self):
+            return f"retry.TX(name='{self.name}', {super().__repr__()})"
 
     # Overide __new__ to make @retry equivalent to @retry()
 
