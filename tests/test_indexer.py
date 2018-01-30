@@ -4,6 +4,7 @@
 from abc import ABCMeta, abstractmethod
 import datetime
 import io
+import itertools
 import json
 import logging
 import os
@@ -154,7 +155,7 @@ class TestIndexerBase(ElasticsearchTestCase, DSSAssertMixin, DSSStorageMixin, DS
 
     def _create_tombstoned_bundle(self):
         sample_event = self.create_bundle_created_event(self.bundle_key)
-        self.process_new_indexable_object(sample_event)
+        self._process_new_indexable_object_with_retry(sample_event)
         self.get_search_results(self.smartseq2_paired_ends_query, 1)
 
     def _create_tombstone(self, tombstone_id):
@@ -167,8 +168,29 @@ class TestIndexerBase(ElasticsearchTestCase, DSSAssertMixin, DSSStorageMixin, DS
         # Without this, the tombstone would break subsequent tests, due to the caching added in e12a5f7:
         self.addCleanup(self._delete_tombstone, tombstone_id)
         sample_event = self.create_bundle_deleted_event(tombstone_id.to_key())
-        self.process_new_indexable_object(sample_event)
+        self._process_new_indexable_object_with_retry(sample_event)
         return tombstone_data
+
+    def _process_new_indexable_object_with_retry(self, sample_event):
+        # Remove cached ES client instances (patching the class wouldn't affect them)
+        ElasticsearchClient._es_client = dict()
+        # Patch client's index() method to raise exception once
+        from elasticsearch.client import Elasticsearch
+        real_index = Elasticsearch.index
+        from elasticsearch.exceptions import ConflictError
+        i = iter([ConflictError(409)])
+
+        def mock_index(*args, **kwargs):
+            try:
+                e = next(i)
+            except StopIteration:
+                return real_index(*args, **kwargs)
+            else:
+                raise e
+
+        with unittest.mock.patch.object(Elasticsearch, 'index', mock_index):
+            # call method under test with patch in place
+            self.process_new_indexable_object(sample_event)
 
     def _delete_tombstone(self, tombstone_id):
         blobstore = Config.get_blobstore_handle(self.replica)
