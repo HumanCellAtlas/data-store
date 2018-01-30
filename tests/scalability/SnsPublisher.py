@@ -8,18 +8,32 @@ import boto3
 
 from dss.util.aws import ARN
 
-SENDING_THREADS = 3
+SENDING_THREADS = 4
 sns = boto3.client('sns')
 sns.meta.config.max_pool_connections = 100
-sns_topic = "dss-scalability-test-launch"
+sns_topic_run = "dss-scalability-test-run"
+sns_topic_exec = "dss-scalability-test"
 sending_queue = Queue()
 stage = os.environ["DSS_DEPLOYMENT_STAGE"]
-region = ARN.get_region()
-account_id = ARN.get_account_id()
-sns_topic_arn = f"arn:aws:sns:{region}:{account_id}:{sns_topic}-{stage}"
+
+def get_sns_topic_arn(sns_topic):
+    return f"arn:aws:sns:{ARN.get_region()}:{ARN.get_account_id()}:{sns_topic}-{stage}"
+
 
 def enqueue_message(msg: dict):
     sending_queue.put(msg)
+
+def send_start_run(run_id: str):
+    msg = {'run_id': run_id}
+    _send(sns_topic_run, msg)
+
+def _send(sns_topic, msg):
+    publish_args = {
+        'Message': json.dumps(msg),
+        'TopicArn': get_sns_topic_arn(sns_topic)
+    }
+    sns.publish(**publish_args)
+
 
 def _publish_messages():
     while True:
@@ -28,11 +42,7 @@ def _publish_messages():
         except queue.Empty:
             pass
         else:
-            publish_args = {
-                'Message': json.dumps(msg),
-                'TopicArn': sns_topic_arn
-            }
-            sns.publish(**publish_args)
+            _send(sns_topic_exec, msg)
             sending_queue.task_done()
 
 threads = []
