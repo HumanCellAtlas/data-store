@@ -1,4 +1,3 @@
-"""Utilities in this file are used to removed extra fields from index data before adding to the index."""
 import io
 import boto3
 from cloud_blobstore import BlobNotFoundError
