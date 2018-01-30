@@ -14,8 +14,8 @@ table = dynamodb.Table('scalability_test')
 
 client_type = 'sns'
 
-class SnsClient():
 
+class SnsClient():
     def start_test_run(self, run_id: str):
         send_start_run(run_id)
 
@@ -50,9 +50,10 @@ class SnsClient():
                                                 exception=None)
                     break
         except Exception as e:
-            print(f"Failed to get execution results  {sns_topic}: {str(e)}")
+            print(f"Failed to get execution results  {sns_topic_exec}: {str(e)}")
             total_time = int((time.time() - self.start_time) * 1000)
-            events.request_failure.fire(request_type=client_type, name=sns_topic_exec, response_time=total_time, exception=e)
+            events.request_failure.fire(request_type=client_type, name=sns_topic_exec, response_time=total_time,
+                                        exception=e)
 
 
 class SnsLocust(Locust):
