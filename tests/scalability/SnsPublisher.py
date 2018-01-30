@@ -38,7 +38,7 @@ def _send(sns_topic, msg):
 def _publish_messages():
     while True:
         try:
-            msg = sending_queue.get(block = True, timeout = 0.25)
+            msg = sending_queue.get(block=True, timeout=0.25)
         except queue.Empty:
             pass
         else:
