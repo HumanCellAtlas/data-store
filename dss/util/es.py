@@ -62,8 +62,9 @@ class ElasticsearchServer:
                     "-E", f"path.data={self.tempdir.name}",
                     "-E", "logger.org.elasticsearch=warn"
                 ],
-            )
-
+                # Set ES heap to 512 MiB so we can safely run up to four instances in parallel on a Travis container
+                # with 4 GiB of RAM. https://www.elastic.co/guide/en/elasticsearch/reference/current/heap-size.html
+                env=dict(os.environ, ES_JAVA_OPTS="-Xms512m -Xmx512m"))
             for ix in range(startup_timeout_seconds):
                 try:
                     sock = socket.create_connection(("127.0.0.1", port), 1)
