@@ -45,8 +45,8 @@ class IndexDocument(dict, metaclass=ABCMeta):
         """
         raise NotImplementedError()
 
-    def __init__(self, replica: Replica, fqid: typing.Union[BundleFQID, TombstoneID], *args, **kwargs) -> None:
-        super().__init__(*args, **kwargs)
+    def __init__(self, replica: Replica, fqid: typing.Union[BundleFQID, TombstoneID], seq=(), **kwargs) -> None:
+        super().__init__(seq, **kwargs)
         self.replica = replica
         self.fqid = fqid
 
@@ -192,10 +192,9 @@ class BundleDocument(IndexDocument):
         # Preare the index using the original data such that the tombstone can be placed in the correct index.
         index_name = self._prepare_index(dryrun)
         # Override document with tombstone JSON …
-        self.clear()
-        self.update(tombstone)
+        other = BundleDocument(replica=self.replica, fqid=self.fqid, seq=tombstone)
         # … and place into proper index.
-        modified, index_name = self._index_into(index_name, dryrun)
+        modified, index_name = other._index_into(index_name, dryrun)
         logger.info(f"Finished writing tombstone for {self.replica.name} bundle: {self.fqid}")
         return modified, index_name
 
