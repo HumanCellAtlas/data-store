@@ -15,6 +15,7 @@ sys.path.insert(0, pkg_root)  # noqa
 
 from dss import stepfunctions
 from hca.dss import DSSClient
+from json_generator import generate_sample
 
 AWS_MIN_CHUNK_SIZE = 64 * 1024 * 1024
 WAIT_CHECKOUT = 3
@@ -116,9 +117,9 @@ def upload_bundle(event, context):
     app.log.info("Upload bundle")
     with tempfile.TemporaryDirectory() as src_dir:
         # TODO: insert json generator here
-        # with tempfile.NamedTemporaryFile(dir=src_dir, suffix=".json", delete=False) as jfh:
-        #     jfh.write(bytes(generate_sample(), 'UTF-8'))
-        #     jfh.flush()
+        with tempfile.NamedTemporaryFile(dir=src_dir, suffix=".json", delete=False) as jfh:
+            jfh.write(bytes(generate_sample(), 'UTF-8'))
+            jfh.flush()
         with tempfile.NamedTemporaryFile(dir=src_dir, suffix=".bin") as fh:
             fh.write(os.urandom(AWS_MIN_CHUNK_SIZE + 1))
             fh.flush()
