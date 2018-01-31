@@ -1,3 +1,4 @@
+"""Utilities in this file are used to store and retrieve urls cached in an s3 bucket."""
 import io
 import boto3
 from cloud_blobstore import BlobNotFoundError
@@ -8,18 +9,23 @@ from hashlib import sha1
 import requests
 
 
+logger = logging.getLogger(__name__)
+
+
 class SizeLimitError(IOError):
-    def __init__(self, url: str, limit: int) -> None:
+    def __init__(self, url, limit):
         super().__init__(f"{url} not cached. The URL's contents have exceeded {limit} bytes.")
 
 
 class S3UrlCache:
-    """Caches content of arbitrary URLs the first time they are requested. Currently only supports content lengths of up
-     to a few megabytes."""
+    """
+    Caches content of arbitrary URLs the first time they are requested. Currently only supports content lengths of up
+    to a few megabytes.
+    """
     _max_size_default = 64 * 1024 * 1024  # The default max_size per URL = 64 MB
     _chunk_size_default = 1024 * 1024  # The default chunk_size = 1 MB
 
-    def __init__(self, logger: logging.Logger,
+    def __init__(self,
                  max_size: int = _max_size_default,
                  chunk_size: int = _chunk_size_default):
         """
@@ -33,7 +39,6 @@ class S3UrlCache:
         # A URL's contents are only stored in S3 to keep the data closer to the aws lambas which use them.
         self.blobstore = Config.get_blobstore_handle(Replica.aws)
         self.bucket = Replica.aws.bucket
-        self.logger = logger
 
     def resolve(self, url: str) -> bytearray:
         """
@@ -48,7 +53,7 @@ class S3UrlCache:
         try:
             content = bytearray(self.blobstore.get(self.bucket, key))
         except BlobNotFoundError:
-            self.logger.info("%s", f"{url} not found in cache. Adding it to {self.bucket} with key {key}.")
+            logger.info(f"{url} not found in cache. Adding it to {self.bucket} with key {key}.")
             with requests.get(url, stream=True) as resp_obj:
                 content = bytearray()
                 for chunk in resp_obj.iter_content(chunk_size=self.chunk_size):
@@ -59,15 +64,16 @@ class S3UrlCache:
             self._upload_content(key, url, content)
         return content
 
-    def evict(self, url: str) -> bool:
-        '''
+    def evict(self, url: str):
+        """
         Removes the cached URL content from S3.
-        :param url: the url for the content to removed from S3'''
+        :param url: the URL for the content to removed from S3
+        """
         if self.contains(url):
-            self.logger.info(f"{url} removed from cache in {self.bucket}.")
+            logger.info(f"{url} removed from cache in {self.bucket}.")
             self.blobstore.delete(self.bucket, self._url_to_key(url))
         else:
-            self.logger.info(f"{url} not found and not removed from cache.")
+            logger.info(f"{url} not found and not removed from cache.")
 
     def contains(self, url: str) -> bool:
         key = self._url_to_key(url)
