@@ -3,7 +3,7 @@
 This repository contains design specs and prototypes for the replicated data storage system (aka the "blue box") of
 the [Human Cell Atlas](https://www.humancellatlas.org/). We
 use [this Google Drive folder](https://drive.google.com/open?id=0B-_4IWxXwazQbWE5YmtqUWx3RVE) for design docs and
-meeting notes, and [this zenhub board](https://app.zenhub.com/workspace/o/humancellatlas/data-store) to track our GitHub work.
+meeting notes, and [this Zenhub board](https://app.zenhub.com/workspace/o/humancellatlas/data-store) to track our GitHub work.
 
 #### About this prototype
 
