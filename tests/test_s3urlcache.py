@@ -18,9 +18,8 @@ import dss
 from dss import Config, BucketConfig
 from dss.config import Replica
 from dss.logging import configure_test_logging
-from dss.storage.validator import S3UrlCache
-from dss.storage.validator import SizeLimitError
 from dss.util import networking
+from dss.util.s3urlcache import S3UrlCache, SizeLimitError
 from tests.infra import testmode
 
 logger = logging.getLogger(__name__)
