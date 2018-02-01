@@ -16,8 +16,9 @@ def resolve_references(schema: dict, resolver: RefResolver) -> dict:
     """
     ref = schema.pop('$ref', None)
     if ref:
-        ref = resolver.resolve(ref)[1]
+        identifier, ref = resolver.resolve(ref)
         schema.update(ref)
+        schema.update({'id': identifier})
 
     keys = [key for key in schema.keys() if isinstance(schema[key], (list, dict))]
     for key in keys:
@@ -78,12 +79,11 @@ def json_generator(schema: dict, resolver: RefResolver = None) -> dict:
 
 class JsonFaker(object):
     """Used to generate random json from a from a folder containing json schemas."""
-    def __init__(self, path):
+    def __init__(self, schema_urls):
         """
-        :param path: the file path to a folder containing *.json schemas.
+        :param schema_URLs: a list of JSON schema URLs.
         """
-        self.schema_files = [schema for schema in os.listdir(path) if schema.endswith('.json')]
-        self.path = path
+        self.schema_urls = schema_urls
         self.resolver = self.resolver = s3resolver_factory()
 
     def generate(self) -> str:
@@ -91,8 +91,8 @@ class JsonFaker(object):
         Chooses a random json schema from self.path and generates json data.
         :return: Json date in string form.
         """
-        schema_file = random.choice(self.schema_files)
-        with open(f"{self.path}/{schema_file}", 'r') as json_file:
-            schema = json.load(json_file)
+        schema_url = random.choice(self.schema_urls)
+        identifier, schema = self.resolver.resolve(schema_url)
         generated_json = json_generator(schema, resolver=self.resolver)
+        generated_json.update({'id': identifier})
         return json.dumps(generated_json)

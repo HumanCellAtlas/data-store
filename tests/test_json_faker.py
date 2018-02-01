@@ -5,6 +5,13 @@ from tests.scalability.json_faker import JsonFaker
 from tests.infra import testmode
 import json
 
+schema_url = [
+    "https://raw.githubusercontent.com/HumanCellAtlas/metadata-schema/4.6.0/json_schema/assay.json",
+    "https://raw.githubusercontent.com/HumanCellAtlas/metadata-schema/4.6.0/json_schema/project.json",
+    "https://raw.githubusercontent.com/HumanCellAtlas/metadata-schema/4.6.0/json_schema/sample.json",
+    "https://raw.githubusercontent.com/HumanCellAtlas/metadata-schema/4.6.0/json_schema/analysis.json"
+]
+
 @testmode.standalone
 class TestJsonFaker(unittest.TestCase):
     @classmethod
@@ -12,12 +19,10 @@ class TestJsonFaker(unittest.TestCase):
         Config.set_config(BucketConfig.TEST)
 
     def setUp(self):
-        self.path = "tests/fixtures/json_schemas"
-        self.faker = JsonFaker(self.path)
+        self.faker = JsonFaker(schema_url)
 
     def test_locals(self):
-        self.assertListEqual(self.faker.schema_files, ['analysis.json', 'assay.json', 'project.json', 'sample.json'])
-        self.assertEqual(self.faker.path, self.path)
+        self.assertListEqual(self.faker.schema_urls, schema_url)
 
     def test_generation(self):
         fake_json = self.faker.generate()
