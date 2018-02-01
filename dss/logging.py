@@ -61,14 +61,20 @@ def configure_test_logging():
 
 
 def _configure_logging(test=False, **kwargs):
-    assert len(logging.getLogger().handlers) == 0, "Logging was already configured"
-    logging.basicConfig(**kwargs)
-    debug = Config.debug_level()
-    log_levels = main_log_levels
-    if test:
-        log_levels = {**log_levels, **test_log_levels}
-    for logger, levels in log_levels.items():
-        if isinstance(logger, (str, type(None))):
-            logger = logging.getLogger(logger)
-        level = levels[min(debug, len(levels) - 1)]
-        logger.setLevel(level)
+    root_logger = logging.getLogger()
+    if len(root_logger.handlers) == 0:
+        logging.basicConfig(**kwargs)
+        debug = Config.debug_level()
+        log_levels = main_log_levels
+        if test:
+            log_levels = {**log_levels, **test_log_levels}
+        for logger, levels in log_levels.items():
+            if isinstance(logger, (str, type(None))):
+                logger = logging.getLogger(logger)
+            level = levels[min(debug, len(levels) - 1)]
+            logger.setLevel(level)
+    else:
+        # FIXME: Identify underlying cause, handle this case and eliminate this warning
+        root_logger.warning("It appears that logging was already configured in this interpreter process. "
+                            "See https://github.com/HumanCellAtlas/data-store/issues/942 for details.",
+                            stack_info=True)
