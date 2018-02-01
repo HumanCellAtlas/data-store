@@ -3,7 +3,7 @@
 This repository contains design specs and prototypes for the replicated data storage system (aka the "blue box") of
 the [Human Cell Atlas](https://www.humancellatlas.org/). We
 use [this Google Drive folder](https://drive.google.com/open?id=0B-_4IWxXwazQbWE5YmtqUWx3RVE) for design docs and
-meeting notes, and [this Waffle board](https://waffle.io/HumanCellAtlas/data-store) to track our GitHub work.
+meeting notes, and [this Zenhub board](https://app.zenhub.com/workspace/o/humancellatlas/data-store) to track our GitHub work.
 
 #### About this prototype
 
@@ -330,4 +330,3 @@ test-deploy-test cycle after this (the test after the deploy is required to test
 [![](https://img.shields.io/badge/slack-%23data--store-557EBF.svg)](https://humancellatlas.slack.com/messages/data-store/)
 [![Build Status](https://travis-ci.org/HumanCellAtlas/data-store.svg?branch=master)](https://travis-ci.org/HumanCellAtlas/data-store)
 [![codecov](https://codecov.io/gh/HumanCellAtlas/data-store/branch/master/graph/badge.svg)](https://codecov.io/gh/HumanCellAtlas/data-store)
-[![Waffle.io - Issues in progress](https://badge.waffle.io/HumanCellAtlas/data-store.svg?label=in%20progress&title=In%20Progress)](http://waffle.io/HumanCellAtlas/data-store)
