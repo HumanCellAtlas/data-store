@@ -16,7 +16,7 @@ class TestJsonFaker(unittest.TestCase):
         self.faker = JsonFaker(self.path)
 
     def test_locals(self):
-        self.assertListEqual(self.faker.schema_files, ['assay.json', 'project.json'])
+        self.assertListEqual(self.faker.schema_files, ['analysis.json', 'assay.json', 'project.json', 'sample.json'])
         self.assertEqual(self.faker.path, self.path)
 
     def test_generation(self):
