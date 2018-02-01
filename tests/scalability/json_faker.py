@@ -4,10 +4,7 @@ import tempfile
 from jsonschema import RefResolver
 import json
 import subprocess
-import logging
 from dss.storage.validator import S3UrlCache
-
-logger = logging.getLogger(__name__)
 
 
 def resolve_references(schema: dict, resolver: RefResolver) -> dict:
@@ -51,7 +48,7 @@ def s3resolver_factory(schema: dict=None):
     :param schema: the referrer schema used by RefResolver
     :return: RefResolver
     """
-    cache = S3UrlCache(logger)
+    cache = S3UrlCache()
 
     def request_json(url):
         return json.loads(cache.resolve(url).decode("utf-8"))
@@ -87,6 +84,7 @@ class JsonFaker(object):
         """
         self.schema_files = [schema for schema in os.listdir(path) if schema.endswith('.json')]
         self.path = path
+        self.resolver = self.resolver = s3resolver_factory()
 
     def generate(self) -> str:
         """
@@ -96,5 +94,5 @@ class JsonFaker(object):
         schema_file = random.choice(self.schema_files)
         with open(f"{self.path}/{schema_file}", 'r') as json_file:
             schema = json.load(json_file)
-        generated_json = json_generator(schema)
+        generated_json = json_generator(schema, resolver=self.resolver)
         return json.dumps(generated_json)

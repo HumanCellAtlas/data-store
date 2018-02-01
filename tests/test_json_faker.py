@@ -3,6 +3,7 @@ import unittest
 from dss import Config, BucketConfig
 from tests.scalability.json_faker import JsonFaker
 from tests.infra import testmode
+import json
 
 @testmode.standalone
 class TestJsonFaker(unittest.TestCase):
@@ -11,7 +12,7 @@ class TestJsonFaker(unittest.TestCase):
         Config.set_config(BucketConfig.TEST)
 
     def setUp(self):
-        self.path = "fixtures/json_schemas"
+        self.path = "tests/fixtures/json_schemas"
         self.faker = JsonFaker(self.path)
 
     def test_locals(self):
@@ -21,6 +22,7 @@ class TestJsonFaker(unittest.TestCase):
     def test_generation(self):
         fake_json = self.faker.generate()
         self.assertIsInstance(fake_json, str)
+        self.assertIsInstance(json.loads(fake_json), dict)
 
 if __name__ == "__main__":
     unittest.main()
