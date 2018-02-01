@@ -13,7 +13,7 @@ logger = logging.getLogger(__name__)
 
 
 class SizeLimitError(IOError):
-    def __init__(self, url, limit):
+    def __init__(self, url, limit) -> None:
         super().__init__(f"{url} not cached. The URL's contents have exceeded {limit} bytes.")
 
 
@@ -27,7 +27,7 @@ class S3UrlCache:
 
     def __init__(self,
                  max_size: int = _max_size_default,
-                 chunk_size: int = _chunk_size_default):
+                 chunk_size: int = _chunk_size_default) -> None:
         """
         :param max_size: The maximum number of bytes of content that can be cached. An error is returned if the content
         is greater than max_size, and the URL is not cached.
