@@ -252,4 +252,3 @@ def handle_dynamodb_stream(event, context):
         print('No INSERT records to process')
 
     return 'Successfully processed {} records.'.format(len(event['Records']))
-
