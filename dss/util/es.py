@@ -55,17 +55,21 @@ class ElasticsearchServer:
             port = networking.unused_tcp_port()
             transport_port = networking.unused_tcp_port()
 
-            proc = subprocess.Popen(
-                [
-                    elasticsearch_binary,
+            # Set Elasticsearch's initial and max heap to 1.6 GiB, 40% of what's available on Travis, according to
+            # guidance from https://www.elastic.co/guide/en/elasticsearch/reference/current/heap-size.html
+            env = dict(os.environ, ES_JAVA_OPTIONS="-Xms1638m -Xmx1638m")
+
+            # Work around https://github.com/travis-ci/travis-ci/issues/8408
+            if '_JAVA_OPTIONS' in env:  # no coverage
+                logger.warning("_JAVA_OPTIONS is set. This may override the options just set via ES_JAVA_OPTIONS.")
+
+            args = [elasticsearch_binary,
                     "-E", f"http.port={port}",
                     "-E", f"transport.tcp.port={transport_port}",
                     "-E", f"path.data={self.tempdir.name}",
-                    "-E", "logger.org.elasticsearch=warn"
-                ],
-                # Set ES heap to 512 MiB so we can safely run up to four instances in parallel on a Travis container
-                # with 4 GiB of RAM. https://www.elastic.co/guide/en/elasticsearch/reference/current/heap-size.html
-                env=dict(os.environ, ES_JAVA_OPTS="-Xms512m -Xmx512m"))
+                    "-E", "logger.org.elasticsearch=warn"]
+            logger.debug("Running %r with environment %r", args, env)
+            proc = subprocess.Popen(args, env=env)
             for ix in range(startup_timeout_seconds):
                 try:
                     sock = socket.create_connection(("127.0.0.1", port), 1)
