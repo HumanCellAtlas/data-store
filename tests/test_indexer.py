@@ -147,15 +147,15 @@ class TestIndexerBase(ElasticsearchTestCase, DSSAssertMixin, DSSStorageMixin, DS
         tombstone_id = bundle_fqid.to_tombstone_id(all_versions=all_versions)
         if zombie:
             tombstone_data = self._create_tombstone(tombstone_id)
-            self._create_tombstoned_bundle()
+            self._create_tombstoned_bundle(retry_method='get')
         else:
             self._create_tombstoned_bundle()
             tombstone_data = self._create_tombstone(tombstone_id)
         self._assert_tombstone(tombstone_id, tombstone_data)
 
-    def _create_tombstoned_bundle(self):
+    def _create_tombstoned_bundle(self, retry_method='index'):
         sample_event = self.create_bundle_created_event(self.bundle_key)
-        self._process_new_indexable_object_with_retry(sample_event)
+        self._process_new_indexable_object_with_retry(sample_event, retry_method=retry_method)
         self.get_search_results(self.smartseq2_paired_ends_query, 1)
 
     def _create_tombstone(self, tombstone_id):
@@ -171,27 +171,28 @@ class TestIndexerBase(ElasticsearchTestCase, DSSAssertMixin, DSSStorageMixin, DS
         self._process_new_indexable_object_with_retry(sample_event)
         return tombstone_data
 
-    def _process_new_indexable_object_with_retry(self, sample_event):
+    def _process_new_indexable_object_with_retry(self, sample_event, retry_method='index'):
         # Remove cached ES client instances (patching the class wouldn't affect them)
         ElasticsearchClient._es_client = dict()
         # Patch client's index() method to raise exception once
         from elasticsearch.client import Elasticsearch
-        real_index = Elasticsearch.index
+        real_method = getattr(Elasticsearch, retry_method)
         from elasticsearch.exceptions import ConflictError
         i = iter([ConflictError(409)])
 
-        def mock_index(*args, **kwargs):
+        def mock_method(*args, **kwargs):
             try:
                 e = next(i)
             except StopIteration:
-                return real_index(*args, **kwargs)
+                return real_method(*args, **kwargs)
             else:
                 raise e
 
-        with unittest.mock.patch.object(Elasticsearch, 'index', mock_index):
+        with unittest.mock.patch.object(Elasticsearch, retry_method, mock_method):
             with unittest.mock.patch.object(dss.events.handlers.index.logger, 'warning') as mock_warning:
                 # call method under test with patches in place
                 self.process_new_indexable_object(sample_event)
+
         mock_warning.assert_called_with('An exception occurred in %r.',
                                         unittest.mock.ANY, exc_info=True, stack_info=True)
 
