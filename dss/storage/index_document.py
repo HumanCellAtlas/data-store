@@ -131,7 +131,7 @@ class BundleDocument(IndexDocument):
     def manifest(self):
         return self['manifest']
 
-    @elasticsearch_retry
+    @elasticsearch_retry(logger)
     def index(self, dryrun=False) -> (bool, str):
         elasticsearch_retry.add_context(bundle=self)
         tombstone = self._lookup_tombstone()
@@ -177,7 +177,7 @@ class BundleDocument(IndexDocument):
             self._write_to_index(index_name, version=old_version or 0)
         return True, index_name
 
-    @elasticsearch_retry
+    @elasticsearch_retry(logger)
     def entomb(self, tombstone: 'BundleTombstoneDocument', dryrun=False):
         """
         Ensure that there is exactly one up-to-date instance of a tombstone for this document in exactly one
@@ -525,7 +525,7 @@ class BundleTombstoneDocument(IndexDocument):
         docs = [BundleDocument.from_replica(self.replica, bundle_fqid) for bundle_fqid in bundle_fqids]
         return docs
 
-    @elasticsearch_retry
+    @elasticsearch_retry(logger)
     def index(self, dryrun=False) -> (bool, str):
         elasticsearch_retry.add_context(tombstone=self)
         dead_docs = self._list_dead_bundles()

@@ -153,8 +153,13 @@ def _retry_delay(i, delay):
     return 10 if delay is None else delay * 1.5
 
 
-elasticsearch_retry = retry(timeout=60,  # seconds
-                            limit=10,  # retries
-                            inherit=True,  # nested retries should obey the outer-most retry's timeout
-                            retryable=_retryable_exception,
-                            delay=_retry_delay)
+# noinspection PyPep8Naming
+class elasticsearch_retry(retry):
+    # noinspection PyShadowingNames
+    def __init__(self, logger) -> None:
+        super().__init__(timeout=60,  # seconds
+                         limit=10,  # retries
+                         inherit=True,  # nested retries should obey the outer-most retry's timeout
+                         retryable=_retryable_exception,
+                         delay=_retry_delay,
+                         logger=logger)
