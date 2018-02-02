@@ -189,8 +189,11 @@ class TestIndexerBase(ElasticsearchTestCase, DSSAssertMixin, DSSStorageMixin, DS
                 raise e
 
         with unittest.mock.patch.object(Elasticsearch, 'index', mock_index):
-            # call method under test with patch in place
-            self.process_new_indexable_object(sample_event)
+            with unittest.mock.patch.object(dss.events.handlers.index.logger, 'warning') as mock_warning:
+                # call method under test with patches in place
+                self.process_new_indexable_object(sample_event)
+        mock_warning.assert_called_with('An exception occurred in %r.',
+                                        unittest.mock.ANY, exc_info=True, stack_info=True)
 
     def _delete_tombstone(self, tombstone_id):
         blobstore = Config.get_blobstore_handle(self.replica)
