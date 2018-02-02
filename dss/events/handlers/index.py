@@ -42,7 +42,7 @@ class Indexer(metaclass=ABCMeta):
                          f"event: {json.dumps(event, indent=4)}", exc_info=True)
             raise
 
-    @elasticsearch_retry
+    @elasticsearch_retry(logger)
     def index_object(self, key):
         elasticsearch_retry.add_context(key=key, indexer=self)
         identifier = ObjectIdentifier.from_key(key)
