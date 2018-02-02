@@ -55,7 +55,6 @@ jsondiff==1.1.1
 jsonpickle==0.9.5
 jsonpointer==1.14
 jsonschema==2.6.0
-locustio==0.8.1
 MarkupSafe==1.0
 mccabe==0.6.1
 mock==2.0.0
