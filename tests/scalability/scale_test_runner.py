@@ -1,12 +1,18 @@
+#!/usr/bin/env python
+
 import datetime
 import os
 import sys
 import time
 import uuid
 
-sys.path.append(os.getcwd())    # noqa
+import argparse
 
-from .sns import SnsClient
+sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), 'sns')))
+sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), '../..')))
+
+
+from sns import SnsClient
 
 UNIT_OF_TIME = 1 * 1000 * 1000  # 1 sec in microseconds
 
@@ -39,5 +45,19 @@ class ScaleTestRunner:
 
 
 if __name__ == "__main__":
-    runner = ScaleTestRunner(1, 20)
+    parser = argparse.ArgumentParser(description='DSS scalability test runner')
+    parser.add_argument('-r', '--rps',
+                        help='requests generated per second',
+                        default='10')
+    parser.add_argument('-d', '--duration',
+                        help='duration of the test',
+                        default='20')
+    results = parser.parse_args(sys.argv[1:])
+
+    rps = int(results.rps)
+    duration = int(results.duration)
+
+    print(f"Test configuration rps: {rps} duration: {duration}")
+
+    runner = ScaleTestRunner(rps, duration)
     runner.run()
