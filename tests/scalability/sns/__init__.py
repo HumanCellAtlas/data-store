@@ -1,6 +1,6 @@
 import time
 
-from .sns_publisher import SnsPublisher
+from sns_publisher import SnsPublisher
 
 
 class SnsClient():
