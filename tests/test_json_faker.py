@@ -1,16 +1,18 @@
 import unittest
-
+from jsonschema.validators import Draft4Validator
+from jsonschema.exceptions import ValidationError
 from dss import Config, BucketConfig
 from tests.scalability.json_faker import JsonFaker
 from tests.infra import testmode
 import json
 
 schema_url = [
-    "https://raw.githubusercontent.com/HumanCellAtlas/metadata-schema/4.6.0/json_schema/assay.json",
-    "https://raw.githubusercontent.com/HumanCellAtlas/metadata-schema/4.6.0/json_schema/project.json",
-    "https://raw.githubusercontent.com/HumanCellAtlas/metadata-schema/4.6.0/json_schema/sample.json",
-    "https://raw.githubusercontent.com/HumanCellAtlas/metadata-schema/4.6.0/json_schema/analysis.json"
+    "https://raw.githubusercontent.com/HumanCellAtlas/metadata-schema/4.6.0/json_schema/analysis_bundle.json",
+    "https://raw.githubusercontent.com/HumanCellAtlas/metadata-schema/4.6.0/json_schema/assay_bundle.json",
+    "https://raw.githubusercontent.com/HumanCellAtlas/metadata-schema/4.6.0/json_schema/project_bundle.json",
+    "https://raw.githubusercontent.com/HumanCellAtlas/metadata-schema/4.6.0/json_schema/sample_bundle.json",
 ]
+
 
 @testmode.standalone
 class TestJsonFaker(unittest.TestCase):
@@ -22,12 +24,21 @@ class TestJsonFaker(unittest.TestCase):
         self.faker = JsonFaker(schema_url)
 
     def test_locals(self):
-        self.assertListEqual(self.faker.schema_urls, schema_url)
+        for url in schema_url:
+            name = url.split('/')[-1]
+            self.assertEqual(self.faker.schemas[name], {'$ref': url, 'id': url})
 
     def test_generation(self):
-        fake_json = self.faker.generate()
-        self.assertIsInstance(fake_json, str)
-        self.assertIsInstance(json.loads(fake_json), dict)
+        for name in self.faker.schemas.keys():
+            with self.subTest(name):
+                validator = Draft4Validator(self.faker.schemas[name])
+                fake_json = self.faker.generate(name)
+                fake_json = json.loads(fake_json)
+                try:
+                    validator.validate(fake_json[name])
+                except ValidationError as ex:
+                    self.fail(ex)
+
 
 if __name__ == "__main__":
     unittest.main()
