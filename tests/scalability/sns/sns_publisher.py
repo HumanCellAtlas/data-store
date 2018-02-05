@@ -13,7 +13,7 @@ sns = boto3.client('sns')
 sns.meta.config.max_pool_connections = 100
 sns_topic_run = "dss-scalability-test-run"
 sns_topic_exec = "dss-scalability-test"
-sending_queue = Queue()
+sending_queue = Queue()  # type: Queue
 stage = os.environ["DSS_DEPLOYMENT_STAGE"]
 
 def get_sns_topic_arn(sns_topic):
