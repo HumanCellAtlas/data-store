@@ -9,30 +9,37 @@ from dss.storage.validator import S3UrlCache
 
 def resolve_references(schema: dict, resolver: RefResolver) -> dict:
     """
-    Inlines all `$ref`s in the json-schema. The schema is directly modified.
-    :param schema: the json schema to use.
+    Inlines all `$ref`s in the JSON-schema. The schema is directly modified.
+    Example:
+        contents of http://test.com/this.json = {'id': 'test file'}
+
+        schema = {'$ref': 'http://test.com/this.json'}
+        resolve_reference(schema, resolver) == {'id': 'test file'}
+
+    :param schema: the JSON schema to use.
     :param resolver: used for resolving the remote and local references
     :return: the schema with `$ref`'s inline.
     """
-    ref = schema.pop('$ref', None)
-    if ref:
-        identifier, ref = resolver.resolve(ref)
+    ref_url = schema.pop('$ref', '')
+    if ref_url:
+        identifier, ref = resolver.resolve(ref_url)
         schema.update(ref)
-        schema.update({'id': identifier})
+        schema['id'] = identifier
 
-    keys = [key for key in schema.keys() if isinstance(schema[key], (list, dict))]
-    for key in keys:
-        if isinstance(schema[key], dict):
-            resolve_references(schema[key], resolver)
-        else:
-            for i in schema[key]:
+    for value in schema.values():
+        if isinstance(value, dict):
+            resolve_references(value, resolver)
+        elif isinstance(value, list):
+            for i in value:
                 if isinstance(i, dict):
                     resolve_references(i, resolver)
     return schema
 
 
-def faker_json(schema: dict) -> dict:
-    """Generates fake json from a dictionary of json"""
+def fake_json(schema: dict) -> dict:
+    """
+    Generates fake JSON from a given schema.
+    """
     with tempfile.TemporaryDirectory() as src_dir:
         schema_file_name = f"{src_dir}/schema.json"
         with open(schema_file_name, 'w') as temp_jsf:
@@ -43,10 +50,10 @@ def faker_json(schema: dict) -> dict:
             return json.load(temp_json)
 
 
-def s3resolver_factory(schema: dict=None):
+def resolver_factory(schema: dict=None) -> RefResolver:
     """
-    Creates a refResolver with an S3UrlCache
-    :param schema: the referrer schema used by RefResolver
+    Creates a refResolver with a persistent cache
+    :param schema: the root schema used by RefResolver. If not supplied, no root schema is used.
     :return: RefResolver
     """
     cache = S3UrlCache()
@@ -63,36 +70,38 @@ def s3resolver_factory(schema: dict=None):
 
 def json_generator(schema: dict, resolver: RefResolver = None) -> dict:
     """
-    Generate fake json file using a valid json schema. This function requires both
+    Generate fake JSON file using a valid JSON schema. This function requires both
     https://github.com/json-schema-faker/json-schema-faker and https://github.com/oprogramador/json-schema-faker-cli
     to be installed.
 
-    :param schema: a dictionary representing the json schema to produce fake data from.
-    :param resolver: the resolver to use to dereference json references.
-    :return: fake json data based on the schema.
+    :param schema: a dictionary representing the JSON schema to produce fake data from.
+    :param resolver: the resolver to use to dereference JSON references.
+    :return: fake JSON data based on the schema.
     """
     if not resolver:
-        resolver = s3resolver_factory(schema)
+        resolver = resolver_factory(schema)
     temp_schema = resolve_references(schema, resolver)
-    return faker_json(temp_schema)
+    return fake_json(temp_schema)
 
 
 class JsonFaker(object):
-    """Used to generate random json from a from a folder containing json schemas."""
+    """
+    Used to generate random JSON from a from a list of URLs containing JSON schemas.
+    """
     def __init__(self, schema_urls):
         """
         :param schema_URLs: a list of JSON schema URLs.
         """
         self.schema_urls = schema_urls
-        self.resolver = self.resolver = s3resolver_factory()
+        self.resolver = resolver_factory()
 
     def generate(self) -> str:
         """
-        Chooses a random json schema from self.path and generates json data.
-        :return: Json date in string form.
+        Chooses a random JSON schema from self.path and generates JSON data.
+        :return: serialized JSON.
         """
         schema_url = random.choice(self.schema_urls)
         identifier, schema = self.resolver.resolve(schema_url)
         generated_json = json_generator(schema, resolver=self.resolver)
-        generated_json.update({'id': identifier})
+        generated_json.update['id'] = identifier
         return json.dumps(generated_json)
