@@ -1,4 +1,5 @@
 #!/usr/bin/env python
+# coding: utf-8
 
 import datetime
 import os
@@ -8,16 +9,15 @@ import uuid
 
 import argparse
 
-sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), 'sns')))
-sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), '../..')))
-
+sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), 'sns')))  # noqa
+sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), '../..')))  # noqa
 
 from sns import SnsClient
 
 UNIT_OF_TIME = 1 * 1000 * 1000  # 1 sec in microseconds
 
 class ScaleTestRunner:
-    def __init__(self, rps: int, duration_seconds: int):
+    def __init__(self, rps: int, duration_seconds: int) -> None:
         self.rps = rps
         self.duration_seconds = duration_seconds
         self.run_id = str(uuid.uuid4())
