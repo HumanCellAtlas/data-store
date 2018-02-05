@@ -825,8 +825,6 @@ paths:
               destination:
                 description: User-owned destination storage bucket.
                 type: string
-            required:
-              - email
       responses:
         200:
           description: Returned when the bundle UUID with optionally specified version exists and checkout has been initiated.
@@ -876,6 +874,9 @@ paths:
                 description: Status of the checkout request.
                 type: string
                 enum: [RUNNING, SUCCEEDED, FAILED, TIMED_OUT, ABORTED]
+              location:
+                description: Destination location of the bundle
+                type: string
             required:
               - status
         default:

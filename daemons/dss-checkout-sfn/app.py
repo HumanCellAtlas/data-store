@@ -13,8 +13,8 @@ from dss.logging import configure_daemon_logging
 
 from dss.stepfunctions.checkout.checkout_states import state_machine_def
 from dss.util.email import send_checkout_success_email, send_checkout_failure_email
-from dss.storage.checkout import (parallel_copy, get_dst_bundle_prefix, get_manifest_files,
-                                  validate_file_dst, pre_exec_validate)
+from dss.util.checkout import (parallel_copy, get_dst_bundle_prefix, get_manifest_files,
+                               validate_file_dst, pre_exec_validate)
 
 
 logger = logging.getLogger(__name__)
@@ -32,14 +32,14 @@ def schedule_copy(event, context):
     version = event["version"]
     dss_bucket = event["dss_bucket"]
     dst_bucket = get_dst_bucket(event)
-    replica = Replica[event["replica"]]
 
     scheduled = 0
     for src_key, dst_key in get_manifest_files(bundle_fqid, version, replica):
         logger.debug("Copying a file %s", dst_key)
-        parallel_copy(dss_bucket, src_key, dst_bucket, dst_key, replica)
+        parallel_copy(dss_bucket, src_key, dst_bucket, dst_key)
         scheduled += 1
     return {"files_scheduled": scheduled,
+            "dst_bucket": dst_bucket,
             "dst_location": get_dst_bundle_prefix(bundle_fqid, version),
             "wait_time_seconds": 30}
 
@@ -48,7 +48,6 @@ def schedule_copy(event, context):
 def get_job_status(event, context):
     bundle_fqid = event["bundle"]
     version = event["version"]
-    replica = Replica[event["replica"]]
 
     check_count = 0
     if "status" in event:
@@ -84,10 +83,11 @@ def pre_execution_check(event, context):
 
 @app.step_function_task(state_name="Notify", state_machine_definition=state_machine_def)
 def notify_complete(event, context):
-    replica = Replica[event["replica"]]
-    result = send_checkout_success_email(email_sender, event["email"], get_dst_bucket(event),
-                                         event["schedule"]["dst_location"], replica)
-    return {"result": result}
+    if "email" in event:
+        replica = Replica[event["replica"]]
+        result = send_checkout_success_email(email_sender, event["email"], get_dst_bucket(event),
+                                             event["schedule"]["dst_location"], replica)
+        return {"result": result}
 
 
 @app.step_function_task(state_name="NotifyFailure", state_machine_definition=state_machine_def)
@@ -98,8 +98,9 @@ def notify_complete_failure(event, context):
     elif "validation" in event:
         checkout_status = event["validation"].get("checkout_status", "Unknown error code")
         cause = "{} ({})".format(event["validation"].get("cause", "Unknown error"), checkout_status)
-    result = send_checkout_failure_email(email_sender, event["email"], cause)
-    return {"result": result}
+    if "email" in event:
+        result = send_checkout_failure_email(email_sender, event["email"], cause)
+        return {"result": result}
 
 
 def get_dst_bucket(event):
