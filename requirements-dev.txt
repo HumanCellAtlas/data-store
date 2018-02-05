@@ -31,7 +31,6 @@ elasticsearch==5.5.1
 elasticsearch-dsl==5.3.0
 flake8==3.5.0
 Flask==0.12.2
-gevent==1.2.2
 google-api-core==0.1.1
 google-auth==1.2.1
 google-auth-oauthlib==0.2.0
@@ -49,7 +48,6 @@ Jinja2==2.10
 jmespath==0.9.3
 jsondiff==1.1.1
 jsonpickle==0.9.5
-jsonpointer==1.14
 jsonschema==2.6.0
 MarkupSafe==1.0
 mccabe==0.6.1
@@ -60,7 +58,6 @@ nestedcontext==0.0.4
 pbr==3.1.1
 protobuf==3.5.0.post1
 psutil==5.4.1
-puremagic==1.3
 pyaml==17.10.0
 pyasn1==0.4.2
 pyasn1-modules==0.2.1
