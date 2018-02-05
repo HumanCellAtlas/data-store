@@ -41,7 +41,7 @@ $(all_test_srcs): all__%.py :
 smoketest: all__tests/test_smoketest.py
 
 scaletest:
-	locust -f tests/scalability_test.py --no-web -c 1000  -r 100
+	./tests/scalability/scale_test_runner.py -r 10 -d 30
 
 deploy: deploy-chalice deploy-daemons
 
