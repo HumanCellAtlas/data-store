@@ -6,7 +6,7 @@ from tests.scalability.json_faker import JsonFaker
 from tests.infra import testmode
 import json
 
-schema_url = [
+schema_urls = [
     "https://raw.githubusercontent.com/HumanCellAtlas/metadata-schema/4.6.0/json_schema/analysis_bundle.json",
     "https://raw.githubusercontent.com/HumanCellAtlas/metadata-schema/4.6.0/json_schema/assay_bundle.json",
     "https://raw.githubusercontent.com/HumanCellAtlas/metadata-schema/4.6.0/json_schema/project_bundle.json",
@@ -21,10 +21,10 @@ class TestJsonFaker(unittest.TestCase):
         Config.set_config(BucketConfig.TEST)
 
     def setUp(self):
-        self.faker = JsonFaker(schema_url)
+        self.faker = JsonFaker(schema_urls)
 
     def test_locals(self):
-        for url in schema_url:
+        for url in schema_urls:
             name = url.split('/')[-1]
             self.assertEqual(self.faker.schemas[name], {'$ref': url, 'id': url})
 
