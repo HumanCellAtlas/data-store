@@ -11,7 +11,6 @@ STATE_MACHINE_NAME_TEMPLATE = "dss-checkout-sfn-{stage}"
 
 @dss_handler
 def post(uuid: str, json_request_body: dict, replica: str, version: str = None):
-    email = json_request_body['email']
     dss_bucket = Config.get_s3_bucket()
 
     assert replica is not None
@@ -28,7 +27,6 @@ def post(uuid: str, json_request_body: dict, replica: str, version: str = None):
     execution_id = get_execution_id()
     stepfunctions.step_functions_invoke(STATE_MACHINE_NAME_TEMPLATE, execution_id, sfn_input)
     return jsonify(dict(checkout_job_id=execution_id)), requests.codes.ok
-
 
 @dss_handler
 def get(checkout_job_id: str):
