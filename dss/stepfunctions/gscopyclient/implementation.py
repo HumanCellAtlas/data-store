@@ -1,10 +1,7 @@
 import copy
-import os
 import typing
 
-from cloud_blobstore.gs import GSBlobStore
-from google.cloud.storage import Client
-
+from ... import Config, Replica
 from ...api import files
 from ...stepfunctions.lambdaexecutor import TimedThread
 
@@ -25,17 +22,11 @@ class _Key:
     TOKEN = "token"
 
 
-def get_gcp_client():
-    # TODO: (ttung) remove this once Config.get_cloud_specific_handles is refactored.
-    credentials = os.environ["GOOGLE_APPLICATION_CREDENTIALS"]
-    return Client.from_service_account_json(credentials)
-
-
 def setup_copy_task(event, lambda_context):
     source_bucket = event[Key.SOURCE_BUCKET]
     source_key = event[Key.SOURCE_KEY]
 
-    gcp_client = get_gcp_client()
+    gcp_client = Config.get_native_handle(Replica.gcp)
     blob = gcp_client.bucket(source_bucket).get_blob(source_key)
     source_crc32c = blob.crc32c
     source_size = blob.size
@@ -51,7 +42,7 @@ def copy_worker(event, lambda_context):
     class CopyWorkerTimedThread(TimedThread[dict]):
         def __init__(self, timeout_seconds: float, state: dict) -> None:
             super().__init__(timeout_seconds, state)
-            self.gcp_client = get_gcp_client()
+            self.gcp_client = Config.get_native_handle(Replica.gcp)
 
             self.source_bucket = state[Key.SOURCE_BUCKET]
             self.source_key = state[Key.SOURCE_KEY]
@@ -114,9 +105,7 @@ class CopyWriteMetadataKey:
 
 
 def write_metadata(event, lambda_context):
-    # TODO: (ttung) remove this once Config.get_cloud_specific_handles is refactored.
-    gcp_client = get_gcp_client()
-    handle = GSBlobStore(gcp_client)
+    handle = Config.get_blobstore_handle(Replica.gcp)
 
     destination_bucket = event[Key.DESTINATION_BUCKET]
     files.write_file_metadata(

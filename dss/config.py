@@ -106,7 +106,7 @@ class Config:
 
     @staticmethod
     @functools.lru_cache()
-    def get_native_handle(replica: "Replica") -> object:
+    def get_native_handle(replica: "Replica") -> typing.Any:
         if replica == Replica.aws:
             return boto3.client("s3")
         elif replica == Replica.gcp:
