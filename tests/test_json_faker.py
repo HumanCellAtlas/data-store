@@ -1,6 +1,4 @@
 import unittest
-from jsonschema.validators import Draft4Validator
-from jsonschema.exceptions import ValidationError
 from dss import Config, BucketConfig
 from tests.scalability.json_faker import JsonFaker
 from tests.infra import testmode
