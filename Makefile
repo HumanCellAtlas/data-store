@@ -7,36 +7,44 @@ lint:
 mypy:
 	mypy --ignore-missing-imports $(MODULES)
 
-test_srcs := $(wildcard tests/test_*.py)
-all_test_srcs := $(addprefix all__, $(test_srcs))
-integration_test_srcs := $(addprefix integration__, $(test_srcs))
-
-test: lint mypy $(test_srcs)
+tests:=$(wildcard tests/test_*.py)
+serial_tests:=tests/test_search.py \
+	          tests/test_indexer.py \
+			  tests/test_subscriptions.py
+parallel_tests:=$(filter-out $(serial_tests),$(tests))
+	
+# Run all standalone tests in parallel
+#
+test: $(tests)
 	coverage combine
 	rm -f .coverage.*
 
-$(test_srcs): %.py :
-	set -o pipefail \
-	&& DSS_TEST_MODE="standalone" coverage run -p --source=dss -m unittest $(DSS_UNITTEST_OPTS) $@  2>&1 \
-	| sed -e "s/^/$$$$ /"
-
-integration_test: lint mypy $(integration_test_srcs)
+# Serialize the standalone tests that start a local Elasticsearch instance in
+# order to prevent more than one such instance at a time.
+#
+safe_test: _serial_test $(parallel_tests)
 	coverage combine
 	rm -f .coverage.*
 
-$(integration_test_srcs): integration__%.py :
-	set -o pipefail \
-	&& DSS_TEST_MODE="integration" coverage run -p --source=dss -m unittest $(DSS_UNITTEST_OPTS) $*.py 2>&1 \
-	| sed -e "s/^/$$$$ /"
+_serial_test:
+	$(MAKE) -j1 $(serial_tests)
 
-all_test: lint mypy $(all_test_srcs)
-	coverage combine
-	rm -f .coverage.*
+# A pattern rule that runs a single test script
+#	
+$(tests): %.py :
+	export DSS_TEST_MODE=$${DSS_TEST_MODE:-standalone} \
+	&& set -o pipefail \
+	&& coverage run -p --source=dss -m unittest $(DSS_UNITTEST_OPTS) $*.py 2>&1 | sed -e "s/^/$$$$ /"
 
-$(all_test_srcs): all__%.py :
-	set -o pipefail \
-	&& DSS_TEST_MODE="integration standalone" coverage run -p --source=dss -m unittest $(DSS_UNITTEST_OPTS) $*.py 2>&1 \
-	| sed -e "s/^/$$$$ /"
+# Run standalone and integration tests
+#	
+all_test:
+	DSS_TEST_MODE="standalone integration" $(MAKE) test
+
+# Run integration tests only
+#
+integration_test:
+	DSS_TEST_MODE="integration" $(MAKE) test
 
 smoketest: all__tests/test_smoketest.py
 
@@ -84,6 +92,5 @@ requirements.txt requirements-dev.txt : %.txt : %.txt.in
 
 requirements-dev.txt : requirements.txt.in
 
-.PHONY: lint mypy
-.PHONY: test all_test integration_test $(test_srcs) $(integration_test_srcs) $(standalone_test_srcs)
+.PHONY: lint mypy test safe_test _serial_test all_test integration_test $(tests)
 .PHONY: deploy deploy-chalice deploy-daemons
