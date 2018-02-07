@@ -9,4 +9,5 @@ moto  >= 1.1.21
 crcmod  >= 1.7
 httpie  >= 0.9.9
 yq  >= 2.3.3
+-e git+git://github.com/hannes-ucsc/lambda-mutex@master#egg=dyndbmutex
 -r requirements.txt
