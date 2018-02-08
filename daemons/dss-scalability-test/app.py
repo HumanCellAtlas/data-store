@@ -86,7 +86,7 @@ def complete_test(event, context):
 
 
 def fallback(event, context, branch_id):
-    return {"failed", branch_id}
+    return {"failed": "failed"}
 
 
 def save_results(event, result: str):
@@ -95,12 +95,26 @@ def save_results(event, result: str):
 
     expiration_ttl = int(time.time()) + 14 * 24 * 60 * 60  # 14 days
 
+    fail_count = 0
+    success_count = 0
+    run_id = ''
+    execution_id = ''
+    for branch_event in event:
+        if branch_event.get('failed'):
+            fail_count += 1
+        else:
+            success_count += 1
+            run_id = branch_event["test_run_id"]
+            execution_id = branch_event["execution_id"]
+
+
     table.put_item(
         Item={
-            'run_id': event[0]["test_run_id"],
-            'execution_id': event[0]["execution_id"],
+            'run_id': run_id,
+            'execution_id': execution_id,
             'duration': current_time() - start_time - WAIT_CHECKOUT * 1000,
-            'status': result,
+            'success_count': success_count,
+            'fail_count': fail_count,
             'created_on': datetime.datetime.now().isoformat(),
             'expiration_ttl': expiration_ttl
         }
@@ -111,11 +125,10 @@ def save_results(event, result: str):
 def launch_test_run(event, context):
     print('Log test run')
     msg = json.loads(event["Records"][0]["Sns"]["Message"])
-    run_id = msg["run_id"]
     table = dynamodb.Table('scalability_test_run')
     table.put_item(
         Item={
-            'run_id': run_id,
+            'run_id': msg["run_id"],
             'executions': 0,
             'succeeded_count': 0,
             'failed_count': 0,
@@ -139,7 +152,7 @@ def launch_exec(event, context):
     stepfunctions.step_functions_invoke("dss-scalability-test-{stage}", execution_id, test_input)
 
 
-@app.dynamodb_stream_handler(table_name="scalability_test", batch_size=50)
+@app.dynamodb_stream_handler(table_name="scalability_test", batch_size=5)
 def handle_dynamodb_stream(event, context):
     success_count = 0
     failure_count = 0
@@ -149,14 +162,15 @@ def handle_dynamodb_stream(event, context):
     for record in event['Records']:
         if record['eventName'] == 'INSERT':
             run_id = record['dynamodb']['NewImage']['run_id']['S']
-            status = record['dynamodb']['NewImage']['status']['S']
+            success_count_rec = int(record['dynamodb']['NewImage']['success_count']['N'])
+            fail_count_rec = int(record['dynamodb']['NewImage']['fail_count']['N'])
+
             duration = record['dynamodb']['NewImage']['duration']['N']
             duration_sum += Decimal(duration)
             records += 1
-            if status == 'SUCCEEDED':
-                success_count += 1
-            else:
-                failure_count += 1
+            success_count += success_count_rec
+            failure_count += fail_count_rec
+    print(f"success_count_rec: {success_count}")
     if records > 0:
         table = dynamodb.Table('scalability_test_run')
         run_entry_pk = {'run_id': run_id}
@@ -170,10 +184,12 @@ def handle_dynamodb_stream(event, context):
                 UpdateExpression='SET '
                                  'succeeded_count = succeeded_count + :success_count, '
                                  'failed_count = failed_count + :failure_count, '
+                                 'executions = executions + :records, '
                                  'average_duration = :new_average',
                 ExpressionAttributeValues={
                     ':success_count': success_count,
                     ':failure_count': failure_count,
+                    ':records': records,
                     ':new_average': old_avg_duration + (duration_sum / records - old_avg_duration) /
                                                        (old_count + records)
                 }
@@ -254,6 +270,9 @@ exec_branch_def = {
         "fallback{t}": {
             "Type": "Task",
             "Resource": fallback,
+            "InputPath": "$",
+            "ResultPath": "$.status",
+            "OutputPath": "$",
             "End": True,
         }
     }

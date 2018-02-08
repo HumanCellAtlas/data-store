@@ -25,6 +25,7 @@ class ScaleTestRunner:
         self.loading = '.' * duration_seconds
 
     def run(self):
+        print(f"Starting runId: {self.run_id}")
         self.end_time = datetime.datetime.now() + datetime.timedelta(seconds=self.duration_seconds)
         self.sns_client.start_test_run(self.run_id)
         for cnt in range(self.duration_seconds):
