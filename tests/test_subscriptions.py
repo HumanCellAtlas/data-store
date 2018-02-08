@@ -36,6 +36,7 @@ def setUpModule():
     configure_test_logging()
 
 
+@testmode.standalone
 class TestSubscriptionsBase(ElasticsearchTestCase, DSSAssertMixin):
     @classmethod
     def setUpClass(cls):
@@ -69,7 +70,6 @@ class TestSubscriptionsBase(ElasticsearchTestCase, DSSAssertMixin):
         self.callback_url = "https://example.com"
         self.sample_percolate_query = smartseq2_paired_ends_v2_or_v3_query
 
-    @testmode.standalone
     def test_auth_errors(self):
         url = str(UrlBuilder()
                   .set(path="/v1/subscriptions/" + str(uuid.uuid4()))
@@ -87,7 +87,6 @@ class TestSubscriptionsBase(ElasticsearchTestCase, DSSAssertMixin):
         # No auth header
         self.assertGetResponse(url, requests.codes.unauthorized)
 
-    @testmode.standalone
     def test_put(self):
         uuid_ = self._put_subscription()
 
@@ -98,7 +97,6 @@ class TestSubscriptionsBase(ElasticsearchTestCase, DSSAssertMixin):
         registered_query = response['_source']
         self.assertEqual(self.sample_percolate_query, registered_query)
 
-    @testmode.standalone
     def test_subscription_registration_succeeds_when_query_does_not_match_mappings(self):
         # It is now possible to register a subscription query before the mapping
         # of the field exists in the mappings (and may never exist in the mapppings)
@@ -127,7 +125,6 @@ class TestSubscriptionsBase(ElasticsearchTestCase, DSSAssertMixin):
         )
         self.assertIn('uuid', resp_obj.json)
 
-    @testmode.standalone
     def test_get(self):
         find_uuid = self._put_subscription()
 
@@ -159,7 +156,6 @@ class TestSubscriptionsBase(ElasticsearchTestCase, DSSAssertMixin):
             requests.codes.not_found,
             headers=get_auth_header())
 
-    @testmode.standalone
     def test_find(self):
         num_additions = 25
         for _ in range(num_additions):
@@ -176,7 +172,6 @@ class TestSubscriptionsBase(ElasticsearchTestCase, DSSAssertMixin):
         self.assertEqual(self.callback_url, json_response['subscriptions'][0]['callback_url'])
         self.assertEqual(num_additions, len(json_response['subscriptions']))
 
-    @testmode.standalone
     def test_delete(self):
         find_uuid = self._put_subscription()
         url = str(UrlBuilder()
