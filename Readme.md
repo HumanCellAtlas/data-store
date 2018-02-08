@@ -3,7 +3,7 @@ Fusillade
 
 Fusillade (Federated User Identity Login & Access Decision Engine) is a service and library for managing user
 authentication and authorization in federated services. Fusillade is built to be simple and to leverage well-known auth
-protocols and standards toegther with existing global, scalable and supported IaaS APIs.
+protocols and standards together with existing global, scalable and supported IaaS APIs.
 
 - The AuthN functionality in Fusillade consists of a login endpoint that delegates user authentication to any configured
   [OpenID Connect](http://openid.net/connect/) compatible identity providers.
