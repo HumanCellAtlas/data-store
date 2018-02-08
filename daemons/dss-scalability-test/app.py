@@ -91,22 +91,23 @@ def fallback(event, context, branch_id):
 
 def save_results(event, result: str):
     table = dynamodb.Table('scalability_test')
-    start_time = event[0]['bundle']['start_time']
+    start_time = None
 
     expiration_ttl = int(time.time()) + 14 * 24 * 60 * 60  # 14 days
 
     fail_count = 0
     success_count = 0
-    run_id = ''
+    run_id = None
     execution_id = ''
     for branch_event in event:
         if branch_event.get('failed'):
             fail_count += 1
         else:
             success_count += 1
-            run_id = branch_event["test_run_id"]
-            execution_id = branch_event["execution_id"]
-
+            if run_id is None:
+                run_id = branch_event["test_run_id"]
+                execution_id = branch_event["execution_id"]
+                start_time = branch_event['bundle']['start_time']
 
     table.put_item(
         Item={
