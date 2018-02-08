@@ -1,4 +1,3 @@
-hca
 # You should not edit this file directly.  Instead, you should edit requirements.txt.in.
 asn1crypto==0.23.0
 azure-common==1.1.8
