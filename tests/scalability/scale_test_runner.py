@@ -32,6 +32,7 @@ class ScaleTestRunner:
             self.generate_load_rps()
             self.loading = self.loading[:cnt] + '#' + self.loading[cnt + 1:]
             print('\r%s Sending at %3d percent!' % (self.loading, (cnt + 1) * 100 / self.duration_seconds), end='')
+        print("\nDone")
         self.sns_client.stop()
 
     def generate_load_rps(self):
