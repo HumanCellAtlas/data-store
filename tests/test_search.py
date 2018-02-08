@@ -39,6 +39,7 @@ def setUpModule():
     configure_test_logging()
 
 
+@testmode.standalone
 class TestSearchBase(ElasticsearchTestCase, DSSAssertMixin):
 
     @classmethod
@@ -61,7 +62,6 @@ class TestSearchBase(ElasticsearchTestCase, DSSAssertMixin):
         es_client = ElasticsearchClient.get()
         IndexManager.create_index(es_client, self.replica, self.dss_index_name)
 
-    @testmode.standalone
     def test_es_search_page(self):
         """
         Confirm that Elasticsearch is returning _source info only when necessary.
@@ -73,7 +73,6 @@ class TestSearchBase(ElasticsearchTestCase, DSSAssertMixin):
         page = _es_search_page(smartseq2_paired_ends_v3_query, self.replica, 10, None, 'something')
         self.assertFalse('_source' in page['hits']['hits'][0])
 
-    @testmode.standalone
     def test_search_post(self):
         bundles = self.populate_search_index(self.index_document, 1)
         self.check_count(smartseq2_paired_ends_v3_query, 1)
@@ -87,7 +86,6 @@ class TestSearchBase(ElasticsearchTestCase, DSSAssertMixin):
         self.verify_search_result(search_obj.json, smartseq2_paired_ends_v3_query, 1, 1)
         self.verify_bundles(search_obj.json['results'], bundles)
 
-    @testmode.standalone
     def test_search_returns_no_results_when_no_documents_indexed(self):
         url = self.build_url()
         search_obj = self.assertPostResponse(
@@ -98,7 +96,6 @@ class TestSearchBase(ElasticsearchTestCase, DSSAssertMixin):
         self.assertIsNone(next_url)
         self.verify_search_result(search_obj.json, smartseq2_paired_ends_v3_query, 0)
 
-    @testmode.standalone
     def test_search_returns_no_result_when_query_does_not_match_indexed_documents(self):
         query = {
             "query": {
@@ -117,7 +114,6 @@ class TestSearchBase(ElasticsearchTestCase, DSSAssertMixin):
         self.assertIsNone(next_url)
         self.verify_search_result(search_obj.json, query, 0)
 
-    @testmode.standalone
     def test_next_url_is_empty_when_all_results_returned(self):
         self.populate_search_index(self.index_document, 1)
         self.check_count(smartseq2_paired_ends_v3_query, 1)
@@ -129,7 +125,6 @@ class TestSearchBase(ElasticsearchTestCase, DSSAssertMixin):
         next_url = self.get_next_url(search_obj.response.headers)
         self.assertIsNone(next_url)
 
-    @testmode.standalone
     def test_search_returns_error_when_invalid_query_used(self):
         invalid_query_data = [
             (
@@ -166,7 +161,6 @@ class TestSearchBase(ElasticsearchTestCase, DSSAssertMixin):
                                                        status=error)
                 )
 
-    @testmode.standalone
     def test_search_returns_N_results_when_N_documents_match_query(self):
         """Create N identical documents. A search query is executed to match the document. All documents created must be
         present in the query results. N is varied across a variety of values.
@@ -190,7 +184,6 @@ class TestSearchBase(ElasticsearchTestCase, DSSAssertMixin):
                 self.verify_search_result(search_obj.json, smartseq2_paired_ends_v3_query, docs, expected_results)
                 self.verify_bundles(found_bundles, bundles)
 
-    @testmode.standalone
     def test_next_page_is_delivered_when_next_is_in_query(self):
         bundles = self.populate_search_index(self.index_document, 150)
         self.check_count(smartseq2_paired_ends_v3_query, 150)
@@ -211,7 +204,6 @@ class TestSearchBase(ElasticsearchTestCase, DSSAssertMixin):
         self.verify_search_result(search_obj.json, smartseq2_paired_ends_v3_query, len(bundles), 50)
         self.verify_bundles(found_bundles, bundles)
 
-    @testmode.standalone
     def test_page_has_N_results_when_per_page_is_N(self):
         # per_page, expected
         per_page_tests = [(10, 10),
@@ -231,7 +223,6 @@ class TestSearchBase(ElasticsearchTestCase, DSSAssertMixin):
                 next_url = self.get_next_url(search_obj.response.headers)
                 self.verify_next_url(next_url, per_page)
 
-    @testmode.standalone
     def test_output_format_is_raw(self):
         bundles = self.populate_search_index(self.index_document, 1)
         self.check_count(smartseq2_paired_ends_v3_query, 1)
@@ -246,7 +237,6 @@ class TestSearchBase(ElasticsearchTestCase, DSSAssertMixin):
         self.verify_bundles(search_obj.json['results'], bundles)
         self.assertEqual(search_obj.json['results'][0]['metadata'], self.index_document)
 
-    @testmode.standalone
     def test_error_returned_when_per_page_is_out_of_range(self):
         expected_error = ExpectedErrorFields(code="illegal_arguments",
                                              status=requests.codes.bad_request,
@@ -263,7 +253,6 @@ class TestSearchBase(ElasticsearchTestCase, DSSAssertMixin):
                     json_request_body=dict(es_query=smartseq2_paired_ends_v3_query),
                     **expected)
 
-    @testmode.standalone
     def test_search_session_expired_when_session_deleted(self):
         self.populate_search_index(self.index_document, 20)
         self.check_count(smartseq2_paired_ends_v3_query, 20)
@@ -284,7 +273,6 @@ class TestSearchBase(ElasticsearchTestCase, DSSAssertMixin):
             expected_error=ExpectedErrorFields(code="elasticsearch_context_not_found",
                                                status=requests.codes.not_found))
 
-    @testmode.standalone
     def test_verify_dynamic_mapping(self):
         doc1 = {
             "manifest": {"data": "hello world!"},
