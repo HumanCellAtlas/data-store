@@ -4,10 +4,6 @@
   "stages": {
     "dev": {
       "api_gateway_stage": "api",
-      "environment_variables": {}
-    },
-    "roman": {
-      "api_gateway_stage": "roman",
       "environment_variables": {
         "HOME": "/tmp"
       }
