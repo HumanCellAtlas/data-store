@@ -114,7 +114,7 @@ def copy_worker(event, lambda_context, branch_id):
             state_lock = threading.Lock()
 
             def make_on_complete_callback(part_id: int):
-                def callback():
+                def callback(_):
                     with state_lock:
                         if part_id >= state[_Key.NEXT_PART]:
                             state[_Key.NEXT_PART] = part_id + 1
