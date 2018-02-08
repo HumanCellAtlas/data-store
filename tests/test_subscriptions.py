@@ -214,11 +214,11 @@ class TestSubscriptionsBase(ElasticsearchTestCase, DSSAssertMixin):
             connexion.apis.abstract.Operation.testing_403 = orig_testing_403
 
 
-class TestGCPSubscription(TestSubscriptionsBase, unittest.TestCase):
+class TestGCPSubscription(TestSubscriptionsBase):
     replica = dss.Replica.gcp
 
 
-class TestAWSSubscription(TestSubscriptionsBase, unittest.TestCase):
+class TestAWSSubscription(TestSubscriptionsBase):
     replica = dss.Replica.aws
 
 # Prevent unittest's discovery from attempting to discover the base test class. The alterative, not inheriting
