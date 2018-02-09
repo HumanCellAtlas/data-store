@@ -59,6 +59,7 @@ def setup_copy_task(event, lambda_context):
         mpu = s3_blobstore.s3_client.create_multipart_upload(Bucket=destination_bucket, Key=destination_key)
         upload_id = mpu['UploadId']
     else:
+        s3_blobstore.copy(source_bucket, source_key, destination_bucket, destination_key)
         upload_id = None
 
     event[_Key.SOURCE_ETAG] = source_etag
@@ -170,8 +171,11 @@ def join(event, lambda_context):
     # which parts are present?
     s3_resource = boto3.resource("s3")
 
-    # only the 0th worker propagates the full state.
-    state = event[0]
+    if isinstance(event, list):
+        # only the 0th worker propagates the full state.
+        state = event[0]
+    else:
+        state = event
 
     mpu = s3_resource.MultipartUpload(
         state[Key.DESTINATION_BUCKET], state[Key.DESTINATION_KEY], state[_Key.UPLOAD_ID])
@@ -237,8 +241,19 @@ sfn = {
         "SetupCopyTask": {
             "Type": "Task",
             "Resource": setup_copy_task,
-            "Next": "Threadpool",
+            "Next": "ParallelChoice",
             "Retry": copy.deepcopy(retry_default),
+        },
+        "ParallelChoice": {
+            "Type": "Choice",
+            "Choices": [
+                {
+                    "Variable": f"$.{_Key.PART_COUNT}",
+                    "NumericLessThanEquals": 1,
+                    "Next": "Finalizer",
+                },
+            ],
+            "Default": "Threadpool",
         },
         "Threadpool": {
             "Type": "Parallel",
