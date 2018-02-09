@@ -779,8 +779,8 @@ class TestIndexerBase(ElasticsearchTestCase, DSSAssertMixin, DSSStorageMixin, DS
         expected_index_document = generate_expected_index_document(self.blobstore, self.test_bucket, bundle_key,
                                                                    excluded_files=excluded_files)
         if expected_index_document != actual_index_document:
-            logger.error(f"Expected index document: {json.dumps(expected_index_document, indent=4)}")
-            logger.error(f"Actual index document: {json.dumps(actual_index_document, indent=4)}")
+            logger.error("Expected index document: %s", json.dumps(expected_index_document, indent=4))
+            logger.error("Actual index document: %s", json.dumps(actual_index_document, indent=4))
             self.assertDictEqual(expected_index_document, actual_index_document)
 
     def verify_index_document_structure(self, index_document, files, excluded_files):
