@@ -157,8 +157,8 @@ class BundleDocument(IndexDocument):
         versions = self._get_indexed_versions()
         old_version = versions.pop(index_name, None)
         if versions:
-            logger.warning(msg(f"Removing stale copies of the bundle document for {self.fqid} "
-                               f"from the following index(es): {json.dumps(versions)}."))
+            logger.warning(msg("Removing stale copies of the bundle document for %s from these index(es): %s."),
+                           self.fqid, json.dumps(versions))
             if not dryrun:
                 self._remove_versions(versions)
         if old_version:
@@ -208,8 +208,8 @@ class BundleDocument(IndexDocument):
 
     def _read_bundle_manifest(self, handle: BlobStore, bucket_name: str, bundle_fqid: BundleFQID) -> dict:
         manifest_string = handle.get(bucket_name, bundle_fqid.to_key()).decode("utf-8")
-        logger.debug(f"Read bundle manifest from bucket {bucket_name}"
-                     f" with bundle key {bundle_fqid.to_key()}: {manifest_string}")
+        logger.debug("Read bundle manifest from bucket %s with bundle key %s: %s",
+                     bucket_name, bundle_fqid.to_key(), manifest_string)
         manifest = json.loads(manifest_string, encoding="utf-8")
         return manifest
 
@@ -218,12 +218,12 @@ class BundleDocument(IndexDocument):
         index_files = {}
         for file_info in files_info:
             if file_info[BundleFileMetadata.INDEXED] is True:
-                if not file_info[BundleFileMetadata.CONTENT_TYPE].startswith('application/json'):
-                    logger.warning(f"In bundle {self.fqid} the file '{file_info[BundleFileMetadata.NAME]}'"
-                                   f" is marked for indexing yet has content type"
-                                   f" '{file_info[BundleFileMetadata.CONTENT_TYPE]}'"
-                                   f" instead of the required content type 'application/json'."
-                                   f" This file will not be indexed.")
+                content_type = file_info[BundleFileMetadata.CONTENT_TYPE]
+                file_name = file_info[BundleFileMetadata.NAME]
+                if not content_type.startswith('application/json'):
+                    logger.warning(f"In bundle {self.fqid} the file '{file_name}' is marked for indexing yet has "
+                                   f"content type '{content_type}' instead of the required content type "
+                                   f"'application/json'. This file will not be indexed.")
                     continue
                 file_blob_key = create_blob_key(file_info)
                 try:
@@ -231,17 +231,16 @@ class BundleDocument(IndexDocument):
                     file_json = json.loads(file_string)
                 # TODO (mbaumann) Are there other JSON-related exceptions that should be checked below?
                 except json.decoder.JSONDecodeError as ex:
-                    logger.warning(f"In bundle {self.fqid} the file '{file_info[BundleFileMetadata.NAME]}'"
-                                   f" is marked for indexing yet could not be parsed."
-                                   f" This file will not be indexed. Exception: {ex}")
+                    logger.warning(f"In bundle {self.fqid} the file '{file_name}' is marked for indexing yet could "
+                                   f"not be parsed. This file will not be indexed. Exception: {ex}")
                     continue
                 except BlobStoreError as ex:
-                    logger.warning(f"In bundle {self.fqid} the file '{file_info[BundleFileMetadata.NAME]}'"
-                                   f" is marked for indexing yet could not be accessed."
-                                   f" This file will not be indexed."
-                                   f" Exception: {type(ex).__name__}, file blob key: {file_blob_key}")
+                    exception_type = type(ex).__name__
+                    logger.warning(f"In bundle {self.fqid} the file '{file_name}' is marked for indexing yet could not "
+                                   f"be accessed. This file will not be indexed. Exception: {exception_type}, "
+                                   f"file blob key: {file_blob_key}")
                     continue
-                logger.debug(f"Indexing file: {file_info[BundleFileMetadata.NAME]}")
+                logger.debug(f"Indexing file: {file_name}")
                 # There are two reasons in favor of not using dot in the name of the individual
                 # files in the index document, and instead replacing it with an underscore.
                 # 1. Ambiguity regarding interpretation/processing of dots in field names,
@@ -251,8 +250,8 @@ class BundleDocument(IndexDocument):
                 #    dot as a field separator.
                 # Therefore, substitute dot for underscore in the key filename portion of the index.
                 # As due diligence, additional investigation should be performed.
-                index_filename = file_info[BundleFileMetadata.NAME].replace(".", "_")
-                index_files[index_filename] = file_json
+                index_file_name = file_name.replace(".", "_")
+                index_files[index_file_name] = file_json
         scrub_index_data(index_files, str(self.fqid))
         return index_files
 
@@ -289,7 +288,7 @@ class BundleDocument(IndexDocument):
         their metadata.
         """
         schema_version_map = defaultdict(set)  # type: typing.MutableMapping[str, typing.MutableSet[str]]
-        for filename, file_content in self.files.items():
+        for file_name, file_content in self.files.items():
             core = file_content.get('core')
             if core is not None:
                 schema_type = core['type']
@@ -297,7 +296,7 @@ class BundleDocument(IndexDocument):
                 schema_version_major = schema_version.split(".")[0]
                 schema_version_map[schema_version_major].add(schema_type)
             else:
-                logger.info(f"File {filename} does not contain the 'core' section necessary to identify "
+                logger.info(f"File {file_name} does not contain the 'core' section necessary to identify "
                             f"the schema and its version.")
         if schema_version_map:
             schema_versions = schema_version_map.keys()

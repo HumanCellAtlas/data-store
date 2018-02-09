@@ -38,8 +38,8 @@ class Indexer(metaclass=ABCMeta):
                 # This is expected with events about blobs as they don't have a valid object identifier
                 logger.debug(f"Not processing {self.replica.name} event for key: {key}")
         except Exception:
-            logger.error(f"Exception occurred while processing {self.replica} "
-                         f"event: {json.dumps(event, indent=4)}", exc_info=True)
+            logger.error("Exception occurred while processing %s event: %s",
+                         self.replica, json.dumps(event, indent=4), exc_info=True)
             raise
 
     @elasticsearch_retry(logger)
