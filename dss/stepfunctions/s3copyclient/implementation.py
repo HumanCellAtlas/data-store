@@ -113,19 +113,16 @@ def copy_worker(event, lambda_context, branch_id):
 
             state_lock = threading.Lock()
 
-            def make_on_complete_callback(part_id: int):
-                def callback(_):
+            with futures.ThreadPoolExecutor(max_workers=CONCURRENT_REQUESTS) as executor:
+                def copy_one_part(part_id):
+                    self.copy_one_part(part_id)
                     with state_lock:
                         if part_id >= state[_Key.NEXT_PART]:
                             state[_Key.NEXT_PART] = part_id + 1
                             self.save_state(state)
+                    return True
 
-                return callback
-
-            with futures.ThreadPoolExecutor(max_workers=CONCURRENT_REQUESTS) as executor:
-                for part_id in queue:
-                    future = executor.submit(self.copy_one_part, part_id)
-                    future.add_done_callback(make_on_complete_callback(part_id))
+                assert all(executor.map(copy_one_part, queue))
 
             state[Key.FINISHED] = True
             return state
