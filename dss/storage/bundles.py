@@ -6,7 +6,7 @@ BUNDLE_PREFIX = "bundles"
 FILE_PREFIX = "files"
 TOMBSTONE_SUFFIX = "dead"
 
-UUID_PATTERN = "[0-9A-Fa-f]{8}-[0-9A-Fa-f]{4}-4[0-9A-Fa-f]{3}-[0-9A-Fa-f]{4}-[0-9A-Fa-f]{12}"
+UUID_PATTERN = "[0-9A-Fa-f]{8}-[0-9A-Fa-f]{4}-[0-9A-Fa-f]{4}-[0-9A-Fa-f]{4}-[0-9A-Fa-f]{12}"
 UUID_REGEX = re.compile(UUID_PATTERN)
 
 VERSION_PATTERN = "\d{4}-\d{2}-\d{2}T\d{2}\d{2}\d{2}[.]\d{6}Z"
