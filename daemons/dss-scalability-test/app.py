@@ -77,8 +77,9 @@ def checkout_bundle(event, context, branch_id):
 def checkout_status(event, context, branch_id):
     job_id = event['checkout']['job_id']
     app.log.info(f"Checkout status job_id: {job_id}")
-    # checkout_output = client.get_bundles_checkout(job_id)
-    # return checkout_output['status']
+    checkout_output = client.get_bundles_checkout(checkout_job_id=job_id)
+    print(str(checkout_output))
+    return {"status": checkout_output['status']}
 
 
 def complete_test(event, context):
@@ -104,10 +105,11 @@ def save_results(event, result: str):
             fail_count += 1
         else:
             success_count += 1
-            if run_id is None:
-                run_id = branch_event["test_run_id"]
-                execution_id = branch_event["execution_id"]
-                start_time = branch_event['bundle']['start_time']
+
+        if run_id is None and "test_run_id" in branch_event:
+            run_id = branch_event["test_run_id"]
+            execution_id = branch_event["execution_id"]
+            start_time = branch_event['bundle']['start_time']
 
     table.put_item(
         Item={
@@ -124,7 +126,6 @@ def save_results(event, result: str):
 
 @app.sns_topic_subscriber("dss-scalability-test-run-" + os.environ["DSS_DEPLOYMENT_STAGE"])
 def launch_test_run(event, context):
-    print('Log test run')
     msg = json.loads(event["Records"][0]["Sns"]["Message"])
     table = dynamodb.Table('scalability_test_run')
     table.put_item(
@@ -262,17 +263,37 @@ exec_branch_def = {
             "InputPath": "$",
             "ResultPath": "$.checkout.status",
             "OutputPath": "$",
-            "End": True,
+            "Next": "CheckStatus{t}",
             "Catch": [{
                 "ErrorEquals": ["States.TaskFailed"],
                 "Next": "fallback{t}"
             }]
         },
+        "CheckStatus{t}": {
+            "Type": "Choice",
+            "Choices": [
+                {
+                    "Variable": "$.checkout.status.status",
+                    "StringEquals": "SUCCEEDED",
+                    "Next": "Done{t}"
+                },
+                {
+                    "Variable": "$.checkout.status.status",
+                    "StringEquals": "RUNNING",
+                    "Next": "Wait_Checkout{t}"
+                },
+            ],
+            "Default": "fallback{t}"
+        },
+        "Done{t}": {
+            "Type": "Pass",
+            "End": True
+        },
         "fallback{t}": {
             "Type": "Task",
             "Resource": fallback,
             "InputPath": "$",
-            "ResultPath": "$.status",
+            "ResultPath": "$.failed",
             "OutputPath": "$",
             "End": True,
         }
