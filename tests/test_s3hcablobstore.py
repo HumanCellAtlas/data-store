@@ -10,7 +10,7 @@ from cloud_blobstore.s3 import S3BlobStore
 pkg_root = os.path.abspath(os.path.join(os.path.dirname(__file__), '..'))  # noqa
 sys.path.insert(0, pkg_root)  # noqa
 
-from dss.hcablobstore.s3 import S3HCABlobStore
+from dss.storage.hcablobstore import S3HCABlobStore
 from tests import infra
 from tests.hcablobstore_base import HCABlobStoreTests
 

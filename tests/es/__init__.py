@@ -1,7 +1,7 @@
 import logging
 from typing import List
 from dss.config import Config, BucketConfig
-from dss.util.es import ElasticsearchClient
+from dss.index.backends.es.__init__ import ElasticsearchClient
 
 
 logger = logging.getLogger(__name__)

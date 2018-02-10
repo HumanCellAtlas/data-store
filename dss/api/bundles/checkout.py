@@ -1,10 +1,9 @@
 import requests
-import boto3
 from flask import jsonify
 
 from ..bundles import get_bundle
 from ... import Config, dss_handler, stepfunctions, Replica
-from ...util.checkout import get_execution_id
+from dss.storage.checkout import get_execution_id
 
 STATE_MACHINE_NAME_TEMPLATE = "dss-checkout-sfn-{stage}"
 

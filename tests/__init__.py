@@ -12,7 +12,7 @@ from google.auth.credentials import with_scopes_if_required
 from google.oauth2 import service_account
 
 from dss.util.version import datetime_to_version_format
-from dss.storage.bundles import BundleFQID, FileFQID
+from dss.identifiers import BundleFQID, FileFQID
 
 # These GCP credentials point to a valid service account that is not associated with HCA. They can be used to test code
 # paths that require Google authentication, but then require further permissions validation once they reach data-store.
