@@ -11,9 +11,9 @@ from cloud_blobstore.s3 import S3BlobStore
 from cloud_blobstore.gs import GSBlobStore
 from google.cloud.storage import Client
 
-from .hcablobstore import HCABlobStore
-from .hcablobstore.s3 import S3HCABlobStore
-from .hcablobstore.gs import GSHCABlobStore
+from dss.storage.hcablobstore import HCABlobStore
+from dss.storage.hcablobstore import S3HCABlobStore
+from dss.storage.hcablobstore import GSHCABlobStore
 
 
 class DeploymentStageMeta(EnumMeta):

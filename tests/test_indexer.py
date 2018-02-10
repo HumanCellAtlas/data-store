@@ -4,7 +4,6 @@
 from abc import ABCMeta, abstractmethod
 import datetime
 import io
-import itertools
 import json
 import logging
 import os
@@ -26,12 +25,12 @@ import dss
 from dss import Config, BucketConfig, DeploymentStage
 from dss.config import Replica
 from dss.events.handlers.index import AWSIndexer, GCPIndexer, BundleDocument, Indexer
-from dss.hcablobstore import BundleMetadata, BundleFileMetadata, FileMetadata
+from dss.storage.hcablobstore import BundleMetadata, BundleFileMetadata, FileMetadata
 from dss.logging import configure_test_logging
-from dss.storage.bundles import ObjectIdentifier, BundleFQID
-from dss.storage.validator import scrub_index_data
+from dss.identifiers import ObjectIdentifier, BundleFQID
+from dss.index.metadata.validator import scrub_index_data
 from dss.util import create_blob_key, networking, UrlBuilder
-from dss.util.es import ElasticsearchClient
+from dss.index.backends.es.__init__ import ElasticsearchClient
 from dss.util.version import datetime_to_version_format
 from tests import get_version, get_auth_header
 from tests.infra.elasticsearch_test_case import ElasticsearchTestCase

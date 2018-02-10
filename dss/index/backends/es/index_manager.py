@@ -3,7 +3,7 @@ import logging
 import os
 
 from dss import Config, ESDocType, ESIndexType, Replica
-from dss.util.es import ElasticsearchClient
+from dss.index.backends.es.__init__ import ElasticsearchClient
 
 
 logger = logging.getLogger(__name__)

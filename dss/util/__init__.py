@@ -2,7 +2,7 @@ from urllib.parse import SplitResult, urlencode, urlunsplit
 
 import typing
 
-from ..hcablobstore import BundleFileMetadata
+from dss.storage.hcablobstore import BundleFileMetadata
 
 
 def create_blob_key(file_info: typing.Dict[str, str]) -> str:

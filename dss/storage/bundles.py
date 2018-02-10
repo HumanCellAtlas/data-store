@@ -1,105 +1,133 @@
-import re
-from abc import abstractmethod
-from collections import namedtuple
+import json
+import typing
 
-BUNDLE_PREFIX = "bundles"
-FILE_PREFIX = "files"
-TOMBSTONE_SUFFIX = "dead"
+from cloud_blobstore import BlobNotFoundError
 
-UUID_PATTERN = "[0-9A-Fa-f]{8}-[0-9A-Fa-f]{4}-[0-9A-Fa-f]{4}-[0-9A-Fa-f]{4}-[0-9A-Fa-f]{12}"
-UUID_REGEX = re.compile(UUID_PATTERN)
-
-VERSION_PATTERN = "\d{4}-\d{2}-\d{2}T\d{2}\d{2}\d{2}[.]\d{6}Z"
-VERSION_REGEX = re.compile(VERSION_PATTERN)
-
-# matches just fully qualified bundle identifiers
-DSS_BUNDLE_FQID_PATTERN = f"({UUID_PATTERN})\.({VERSION_PATTERN})"
-DSS_BUNDLE_FQID_REGEX = re.compile(DSS_BUNDLE_FQID_PATTERN)
-
-# matches just bundle keys
-DSS_BUNDLE_KEY_REGEX = re.compile(f"^{BUNDLE_PREFIX}/{DSS_BUNDLE_FQID_PATTERN}$")
-# matches just bundle tombstones
-DSS_BUNDLE_TOMBSTONE_REGEX = re.compile(
-    f"^{BUNDLE_PREFIX}/({UUID_PATTERN})(?:\.(" + VERSION_PATTERN + "))?\." + TOMBSTONE_SUFFIX + "$")
-# matches all bundle objects
-DSS_OBJECT_NAME_REGEX = re.compile(
-    f"^({BUNDLE_PREFIX}|{FILE_PREFIX})/({UUID_PATTERN})(?:\.({VERSION_PATTERN}))?(\.{TOMBSTONE_SUFFIX})?$")
+from dss import Config, DSSException, Replica
+from dss.storage.hcablobstore import BundleFileMetadata, BundleMetadata
+from dss.identifiers import DSS_BUNDLE_KEY_REGEX, DSS_BUNDLE_TOMBSTONE_REGEX, TombstoneID, BundleFQID
+from dss.util import UrlBuilder
+from dss.storage.blobstore import test_object_exists
 
 
-class ObjectIdentifierError(ValueError):
-    pass
+def get_bundle_from_bucket(
+        uuid: str,
+        replica: Replica,
+        version: typing.Optional[str],
+        bucket: typing.Optional[str],
+        directurls: bool=False):
+    uuid = uuid.lower()
+
+    handle = Config.get_blobstore_handle(replica)
+    default_bucket = replica.bucket
+
+    # need the ability to use fixture bucket for testing
+    bucket = default_bucket if bucket is None else bucket
+
+    def tombstone_exists(uuid: str, version: typing.Optional[str]):
+        return test_object_exists(handle, bucket, TombstoneID(uuid=uuid, version=version).to_key())
+
+    # handle the following deletion cases
+    # 1. the whole bundle is deleted
+    # 2. the specific version of the bundle is deleted
+    if tombstone_exists(uuid, None) or (version and tombstone_exists(uuid, version)):
+        raise DSSException(404, "not_found", "EMPTY Cannot find file!")
+
+    # handle the following deletion case
+    # 3. no version is specified, we want the latest _non-deleted_ version
+    if version is None:
+        # list the files and find the one that is the most recent.
+        prefix = f"bundles/{uuid}."
+        object_names = handle.list(bucket, prefix)
+        version = _latest_version_from_object_names(object_names)
+
+    if version is None:
+        # no matches!
+        raise DSSException(404, "not_found", "Cannot find file!")
+
+    bundle_fqid = BundleFQID(uuid=uuid, version=version)
+
+    # retrieve the bundle metadata.
+    try:
+        bundle_metadata = json.loads(
+            handle.get(
+                bucket,
+                bundle_fqid.to_key(),
+            ).decode("utf-8"))
+    except BlobNotFoundError:
+        raise DSSException(404, "not_found", "Cannot find file!")
+
+    filesresponse = []  # type: typing.List[dict]
+    for file in bundle_metadata[BundleMetadata.FILES]:
+        file_version = {
+            'name': file[BundleFileMetadata.NAME],
+            'content-type': file[BundleFileMetadata.CONTENT_TYPE],
+            'size': file[BundleFileMetadata.SIZE],
+            'uuid': file[BundleFileMetadata.UUID],
+            'version': file[BundleFileMetadata.VERSION],
+            'crc32c': file[BundleFileMetadata.CRC32C],
+            's3_etag': file[BundleFileMetadata.S3_ETAG],
+            'sha1': file[BundleFileMetadata.SHA1],
+            'sha256': file[BundleFileMetadata.SHA256],
+            'indexed': file[BundleFileMetadata.INDEXED],
+        }
+        if directurls:
+            file_version['url'] = str(UrlBuilder().set(
+                scheme=replica.storage_schema,
+                netloc=bucket,
+                path="blobs/{}.{}.{}.{}".format(
+                    file[BundleFileMetadata.SHA256],
+                    file[BundleFileMetadata.SHA1],
+                    file[BundleFileMetadata.S3_ETAG],
+                    file[BundleFileMetadata.CRC32C],
+                ),
+            ))
+        filesresponse.append(file_version)
+
+    return dict(
+        bundle=dict(
+            uuid=uuid,
+            version=version,
+            files=filesresponse,
+            creator_uid=bundle_metadata[BundleMetadata.CREATOR_UID],
+        )
+    )
 
 
-class ObjectIdentifier(namedtuple('ObjectIdentifier', 'uuid version')):
+def _latest_version_from_object_names(object_names: typing.Iterator[str]) -> str:
+    dead_versions = set()  # type: typing.Set[str]
+    all_versions = set()  # type: typing.Set[str]
+    set_checks = [
+        (DSS_BUNDLE_TOMBSTONE_REGEX, dead_versions),
+        (DSS_BUNDLE_KEY_REGEX, all_versions),
+    ]
 
-    @classmethod
-    def from_key(cls, key: str):
-        match = DSS_OBJECT_NAME_REGEX.match(key)
-        object_type, uuid, version, tombstone_suffix = match.groups() if match else (None, None, None, None)
-        if object_type == FILE_PREFIX:
-            return FileFQID(uuid=uuid, version=version)
-        elif object_type == BUNDLE_PREFIX:
-            if not tombstone_suffix and uuid and version:
-                return BundleFQID(uuid=uuid, version=version)
-            elif tombstone_suffix and uuid:
-                return TombstoneID(uuid=uuid, version=version)
-            else:
-                raise ObjectIdentifierError(f"Object name does not contain a valid bundle identifier: {key}")
-        else:
-            raise ObjectIdentifierError(f"Key does not represent a valid identifier: {key}")
+    for object_name in object_names:
+        for regex, version_set in set_checks:
+            match = regex.match(object_name)
+            if match:
+                _, version = match.groups()
+                version_set.add(version)
+                break
 
-    def is_fully_qualified(self):
-        return self.uuid is not None and self.version is not None
+    version = None
 
-    def to_key(self):
-        return f"{self.prefix}/{self}"
+    for current_version in (all_versions - dead_versions):
+        if version is None or current_version > version:
+            version = current_version
 
-    @property
-    @abstractmethod
-    def prefix(self):
-        return NotImplementedError()
-
-    def to_key_prefix(self):
-        return f"{self.prefix}/{self.uuid}.{self.version or ''}"
-
-    def __str__(self):
-        return f"{self.uuid}.{self.version}"
-
-    def __iter__(self):
-        """
-        When composing a request URL, the Elasticseach client interpolates lists and tuples into the URL path by
-        joining their elements with a comma. ObjectIdentifier instances are tuples, so when such an instance is passed
-        to a client method, a result looks almost indistinguishable to the actual string representation of an
-        ObjectIdentifier instance, which uses a period between the elements.
-        """
-        raise NotImplementedError(f"{type(self).__name__} instances should not be iterated over.")
+    return version
 
 
-class BundleFQID(ObjectIdentifier):
-
-    prefix = BUNDLE_PREFIX
-
-    def to_tombstone_id(self, all_versions=False):
-        return TombstoneID(uuid=self.uuid, version=None if all_versions else self.version)
-
-
-class FileFQID(ObjectIdentifier):
-
-    prefix = FILE_PREFIX
-
-
-class TombstoneID(ObjectIdentifier):
-
-    prefix = BUNDLE_PREFIX
-
-    def __str__(self):
-        if self.version:
-            return f"{self.uuid}.{self.version}.{TOMBSTONE_SUFFIX}"
-        else:
-            return f"{self.uuid}.{TOMBSTONE_SUFFIX}"
-
-    def to_bundle_fqid(self):
-        if self.is_fully_qualified():
-            return BundleFQID(uuid=self.uuid, version=self.version)
-        else:
-            raise ValueError(f"{self} does not define a version, therefore it can't be a Bundle FQID.")
+def get_bundle(
+        uuid: str,
+        replica: Replica,
+        version: str=None,
+        directurls: bool=False):
+    return get_bundle_from_bucket(
+        uuid,
+        replica,
+        version,
+        None,
+        directurls
+    )

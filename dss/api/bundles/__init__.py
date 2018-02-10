@@ -11,13 +11,13 @@ import requests
 from cloud_blobstore import BlobNotFoundError, BlobStore
 from flask import jsonify, request
 
-from ...storage.bundles import TombstoneID, BundleFQID, FileFQID
-from ...util.blobstore import test_object_exists, ObjectTest
-from ...util.bundles import get_bundle
+from dss.identifiers import TombstoneID, BundleFQID, FileFQID
+from dss.storage.blobstore import test_object_exists, ObjectTest
+from dss.storage.bundles import get_bundle
 from ...util.version import datetime_to_version_format
 from ... import DSSException, dss_handler
 from ...config import Config, Replica
-from ...hcablobstore import BundleFileMetadata, BundleMetadata, FileMetadata
+from dss.storage.hcablobstore import BundleFileMetadata, BundleMetadata, FileMetadata
 
 PUT_TIME_ALLOWANCE_SECONDS = 10
 """This is the minimum amount of time remaining on the lambda for us to retry on a PUT /bundles request."""
