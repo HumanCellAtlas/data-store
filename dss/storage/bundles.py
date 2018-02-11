@@ -35,18 +35,18 @@ class ObjectIdentifier(namedtuple('ObjectIdentifier', 'uuid version')):
     @classmethod
     def from_key(cls, key: str):
         match = DSS_OBJECT_NAME_REGEX.match(key)
-        object_type, uuid, version, tombstone_suffix = match.groups() if match else (None, None, None, None)
-        if object_type == FILE_PREFIX:
-            return FileFQID(uuid=uuid, version=version)
-        elif object_type == BUNDLE_PREFIX:
-            if not tombstone_suffix and uuid and version:
-                return BundleFQID(uuid=uuid, version=version)
-            elif tombstone_suffix and uuid:
-                return TombstoneID(uuid=uuid, version=version)
-            else:
-                raise ObjectIdentifierError(f"Object name does not contain a valid bundle identifier: {key}")
-        else:
-            raise ObjectIdentifierError(f"Key does not represent a valid identifier: {key}")
+        if match:
+            object_type, uuid, version, tombstone_suffix = match.groups()
+            if object_type == FILE_PREFIX:
+                return FileFQID(uuid=uuid, version=version)
+            elif object_type == BUNDLE_PREFIX:
+                if not tombstone_suffix and uuid and version:
+                    return BundleFQID(uuid=uuid, version=version)
+                elif tombstone_suffix and uuid:
+                    return TombstoneID(uuid=uuid, version=version)
+                else:
+                    raise ObjectIdentifierError(f"Key does not contain a valid bundle identifier: {key}")
+        raise ObjectIdentifierError(f"Key does not represent a valid identifier: {key}")
 
     def is_fully_qualified(self):
         return self.uuid is not None and self.version is not None

@@ -2,8 +2,9 @@ import json
 import logging
 import os
 
+from elasticsearch import Elasticsearch
+
 from dss import Config, ESDocType, ESIndexType, Replica
-from dss.util.es import ElasticsearchClient
 
 
 logger = logging.getLogger(__name__)
@@ -12,7 +13,7 @@ logger = logging.getLogger(__name__)
 class IndexManager:
 
     @classmethod
-    def create_index(cls, es_client: ElasticsearchClient, replica: Replica, index_name: str):
+    def create_index(cls, es_client: Elasticsearch, replica: Replica, index_name: str):
         if not es_client.indices.exists(index_name):
             with open(os.path.join(os.path.dirname(__file__), "mapping.json"), "r") as fh:
                 index_mapping = json.load(fh)
@@ -24,7 +25,7 @@ class IndexManager:
             logger.debug(f"Using existing Elasticsearch index: {index_name}")
 
     @staticmethod
-    def create_doc_index(es_client: ElasticsearchClient, index_name: str, alias_name: str, index_mapping=None):
+    def create_doc_index(es_client: Elasticsearch, index_name: str, alias_name: str, index_mapping=None):
         try:
             logger.debug(f"Creating new Elasticsearch index: {index_name}")
             response = es_client.indices.create(index_name, body=index_mapping)
@@ -51,7 +52,7 @@ class IndexManager:
             raise ex
 
     @staticmethod
-    def get_subscription_index(es_client: ElasticsearchClient, index_name: str, index_mapping=None):
+    def get_subscription_index(es_client: Elasticsearch, index_name: str, index_mapping=None):
         try:
             response = es_client.indices.exists(index_name)
             if response:

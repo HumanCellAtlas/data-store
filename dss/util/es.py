@@ -100,7 +100,7 @@ class ElasticsearchClient:
     _es_client = dict()  # type: typing.MutableMapping[typing.Tuple[str, int], Elasticsearch]
 
     @staticmethod
-    def get():
+    def get() -> Elasticsearch:
         elasticsearch_endpoint = os.getenv("DSS_ES_ENDPOINT", "localhost")
         elasticsearch_port = int(os.getenv("DSS_ES_PORT", "443"))
 
