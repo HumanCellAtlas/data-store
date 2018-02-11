@@ -34,7 +34,7 @@ class IndexDocument(dict, metaclass=ABCMeta):
     """
 
     @abstractmethod
-    def index(self, dryrun=False) -> (bool, str):
+    def index(self, dryrun=False) -> typing.Tuple[bool, str]:
         """
         Ensure that there is exactly one up-to-date instance of this document in exactly one ES index.
 
@@ -50,7 +50,7 @@ class IndexDocument(dict, metaclass=ABCMeta):
         self.replica = replica
         self.fqid = fqid
 
-    def _write_to_index(self, index_name: str, version: typing.Optional[int]=None):
+    def _write_to_index(self, index_name: str, version: typing.Optional[int] = None):
         """
         Place this document into the given index.
 
@@ -72,8 +72,8 @@ class IndexDocument(dict, metaclass=ABCMeta):
         return json.dumps(self)
 
     def __eq__(self, other: object) -> bool:
-        # noinspection PyUnresolvedReferences
         return self is other or (super().__eq__(other) and
+                                 isinstance(other, IndexDocument) and  # redundant, but mypy insists
                                  type(self) == type(other) and
                                  self.replica == other.replica and
                                  self.fqid == other.fqid)
@@ -89,11 +89,13 @@ class IndexDocument(dict, metaclass=ABCMeta):
 
         The message should start with with a verb in -ing form, announcing an action to be taken.
         """
+
         def msg(s):
             assert s
             assert s[:1].isupper()
             assert s.split(maxsplit=1)[0].endswith('ing')
             return f"Skipped {s[:1].lower() + s[1:]}" if dryrun else s
+
         return msg
 
 
@@ -132,7 +134,7 @@ class BundleDocument(IndexDocument):
         return self['manifest']
 
     @elasticsearch_retry(logger)
-    def index(self, dryrun=False) -> (bool, str):
+    def index(self, dryrun=False) -> typing.Tuple[bool, str]:
         elasticsearch_retry.add_context(bundle=self)
         tombstone = self._lookup_tombstone()
         if tombstone is None:
@@ -162,6 +164,7 @@ class BundleDocument(IndexDocument):
             if not dryrun:
                 self._remove_versions(versions)
         if old_version:
+            assert isinstance(self.fqid, BundleFQID)
             old_doc = self.from_index(self.replica, self.fqid, index_name, version=old_version)
             if self == old_doc:
                 logger.info(f"Document for bundle {self.fqid} is already up-to-date "
@@ -178,7 +181,7 @@ class BundleDocument(IndexDocument):
         return True, index_name
 
     @elasticsearch_retry(logger)
-    def entomb(self, tombstone: 'BundleTombstoneDocument', dryrun=False):
+    def entomb(self, tombstone: 'BundleTombstoneDocument', dryrun=False) -> typing.Tuple[bool, str]:
         """
         Ensure that there is exactly one up-to-date instance of a tombstone for this document in exactly one
         ES index. The tombstone data overrides the document's data in the index.
@@ -198,7 +201,7 @@ class BundleDocument(IndexDocument):
         logger.info(f"Finished writing tombstone for {self.replica.name} bundle: {self.fqid}")
         return modified, index_name
 
-    def _write_to_index(self, index_name: str, version: typing.Optional[int]=None):
+    def _write_to_index(self, index_name: str, version: typing.Optional[int] = None):
         es_client = ElasticsearchClient.get()
         initial_mappings = es_client.indices.get_mapping(index_name)[index_name]['mappings']
         super()._write_to_index(index_name, version=version)
@@ -310,7 +313,7 @@ class BundleDocument(IndexDocument):
     multi_index_error = re.compile(r"Alias \[([^\]]+)\] has more than one indices associated with it "
                                    r"\[\[([^\]]+)\]\], can't execute a single index op")
 
-    def _get_indexed_versions(self) -> typing.MutableMapping[str, str]:
+    def _get_indexed_versions(self) -> typing.MutableMapping[str, int]:
         """
         Returns a dictionary mapping the name of each index containing this document to the
         version of this document in that index. Note that `version` denotes document version, not
@@ -357,7 +360,7 @@ class BundleDocument(IndexDocument):
                             return {doc['_index']: doc['_version'] for doc in doc['docs'] if doc.get('found')}
             raise
 
-    def _remove_versions(self, versions: typing.MutableMapping[str, str]):
+    def _remove_versions(self, versions: typing.MutableMapping[str, int]):
         """
         Remove this document from each given index provided that it contains the given version of this document.
         """
@@ -511,10 +514,10 @@ class BundleTombstoneDocument(IndexDocument):
     def _list_dead_bundles(self) -> typing.Sequence[BundleDocument]:
         blobstore = Config.get_blobstore_handle(self.replica)
         bucket_name = self.replica.bucket
-
+        assert isinstance(self.fqid, TombstoneID)
         if self.fqid.is_fully_qualified():
             # if a version is specified, delete just that version
-            bundle_fqids = [self.fqid.to_bundle_fqid()]
+            bundle_fqids: typing.Iterable[BundleFQID] = [self.fqid.to_bundle_fqid()]
         else:
             # if no version is specified, delete all bundle versions from the index
             prefix = self.fqid.to_key_prefix()
@@ -525,8 +528,11 @@ class BundleTombstoneDocument(IndexDocument):
         return docs
 
     @elasticsearch_retry(logger)
-    def index(self, dryrun=False) -> (bool, str):
+    def index(self, dryrun=False) -> typing.Tuple[bool, str]:
         elasticsearch_retry.add_context(tombstone=self)
         dead_docs = self._list_dead_bundles()
         for doc in dead_docs:
             doc.entomb(self, dryrun=dryrun)
+        # FIXME: We need to notify subscriptions for every entombed document, index() and entomb() should probably do
+        # the notification rather than returning the tuple and letting the caller do it
+        return False, ''
