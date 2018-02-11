@@ -10,7 +10,7 @@ from flask import request, jsonify, make_response
 from dss import ESDocType
 from dss import Config, Replica, ESIndexType, dss_handler, DSSException
 from dss.util import UrlBuilder
-from dss.util.es import ElasticsearchClient
+from dss.index.es import ElasticsearchClient
 
 
 logger = logging.getLogger(__name__)

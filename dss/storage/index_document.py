@@ -23,7 +23,7 @@ from dss.storage.identifiers import ObjectIdentifier, BundleFQID, TombstoneID
 from dss.storage.index import IndexManager
 from dss.storage.validator import scrub_index_data
 from dss.util import create_blob_key
-from dss.util.es import ElasticsearchClient, elasticsearch_retry
+from dss.index.es import ElasticsearchClient, elasticsearch_retry
 
 logger = logging.getLogger(__name__)
 

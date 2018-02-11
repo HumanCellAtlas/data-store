@@ -31,7 +31,7 @@ from dss.logging import configure_test_logging
 from dss.storage.identifiers import ObjectIdentifier, BundleFQID
 from dss.storage.validator import scrub_index_data
 from dss.util import create_blob_key, networking, UrlBuilder
-from dss.util.es import ElasticsearchClient
+from dss.index.es import ElasticsearchClient
 from dss.util.version import datetime_to_version_format
 from tests import get_version, get_auth_header
 from tests.infra.elasticsearch_test_case import ElasticsearchTestCase
