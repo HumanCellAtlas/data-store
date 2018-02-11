@@ -23,7 +23,7 @@ from dss.util import UrlBuilder
 from dss.api.search import _es_search_page
 from dss.logging import configure_test_logging
 from dss.storage.index import IndexManager
-from dss.util.es import ElasticsearchClient
+from dss.index.es import ElasticsearchClient
 from tests import get_version
 from tests.infra import DSSAssertMixin, ExpectedErrorFields, testmode
 from tests.infra.elasticsearch_test_case import ElasticsearchTestCase

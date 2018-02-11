@@ -11,7 +11,7 @@ from flask import jsonify, request
 
 from dss import Config, Replica, ESIndexType, ESDocType
 from dss.error import DSSException, dss_handler
-from dss.util.es import ElasticsearchClient
+from dss.index.es import ElasticsearchClient
 from dss.storage.index import IndexManager
 
 

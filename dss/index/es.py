@@ -17,7 +17,7 @@ from elasticsearch import RequestsHttpConnection, Elasticsearch
 from requests_aws4auth import AWS4Auth
 
 from dss.util.retry import retry
-from . import networking
+from dss.util import networking
 
 logger = logging.getLogger(__name__)
 
