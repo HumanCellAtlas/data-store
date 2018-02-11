@@ -7,7 +7,7 @@ from abc import ABCMeta, abstractmethod
 
 from dss import Replica, Config
 from dss.storage.identifiers import ObjectIdentifier, BundleFQID, TombstoneID, ObjectIdentifierError, FileFQID
-from dss.storage.index_document import BundleDocument, BundleTombstoneDocument
+from dss.index.es.document import BundleDocument, BundleTombstoneDocument
 from dss.index.es import elasticsearch_retry
 
 
