@@ -15,14 +15,14 @@ parallel_tests:=$(filter-out $(serial_tests),$(tests))
 
 # Run all standalone tests in parallel
 #
-test: $(tests)
+test: mypy lint $(tests)
 	coverage combine
 	rm -f .coverage.*
 
 # Serialize the standalone tests that start a local Elasticsearch instance in
 # order to prevent more than one such instance at a time.
 #
-safe_test: _serial_test $(parallel_tests)
+safe_test: mypy lint _serial_test $(parallel_tests)
 	coverage combine
 	rm -f .coverage.*
 
