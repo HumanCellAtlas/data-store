@@ -14,7 +14,7 @@ from dss.util.version import datetime_to_version_format
 
 from dss import DSSException, dss_handler, stepfunctions
 from dss.config import Config, Replica
-from dss.hcablobstore import FileMetadata, HCABlobStore
+from dss.storage.hcablobstore import FileMetadata, HCABlobStore
 from dss.stepfunctions import gscopyclient, s3copyclient
 from dss.util.aws import AWS_MIN_CHUNK_SIZE
 
