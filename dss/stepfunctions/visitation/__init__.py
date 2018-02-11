@@ -5,7 +5,7 @@ import copy
 from uuid import uuid4
 from enum import Enum, auto
 
-from .. import step_functions_invoke
+from dss.stepfunctions import step_functions_invoke
 
 
 logger = logging.getLogger(__name__)

@@ -2,8 +2,8 @@ import json
 import os
 import typing
 
-from ..util.aws import ARN
-from ..util.aws.clients import stepfunctions  # type: ignore
+from dss.util.aws import ARN
+from dss.util.aws.clients import stepfunctions  # type: ignore
 
 
 def step_functions_arn(state_machine_name_template: str) -> str:

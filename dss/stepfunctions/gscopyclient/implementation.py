@@ -1,9 +1,9 @@
 import copy
 import typing
 
-from ... import Config, Replica
-from ...api import files
-from ...stepfunctions.lambdaexecutor import TimedThread
+from dss import Config, Replica
+from dss.api import files
+from dss.stepfunctions.lambdaexecutor import TimedThread
 
 
 # Public input/output keys for the state object.

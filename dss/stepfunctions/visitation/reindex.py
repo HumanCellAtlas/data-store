@@ -7,7 +7,7 @@ from collections import Counter
 
 from dss.events.handlers.index import Indexer
 from .timeout import Timeout
-from ...config import Config, Replica
+from dss.config import Config, Replica
 from . import Visitation, WalkerStatus
 
 

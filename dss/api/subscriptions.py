@@ -9,10 +9,10 @@ from elasticsearch.exceptions import ElasticsearchException, NotFoundError
 from elasticsearch_dsl import Search
 from flask import jsonify, request
 
-from .. import Config, Replica, ESIndexType, ESDocType
-from ..error import DSSException, dss_handler
-from ..util.es import ElasticsearchClient
-from ..storage.index import IndexManager
+from dss import Config, Replica, ESIndexType, ESDocType
+from dss.error import DSSException, dss_handler
+from dss.util.es import ElasticsearchClient
+from dss.storage.index import IndexManager
 
 
 logger = logging.getLogger(__name__)

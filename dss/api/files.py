@@ -10,13 +10,13 @@ import iso8601
 import requests
 from cloud_blobstore import BlobAlreadyExistsError, BlobNotFoundError, BlobStore
 from flask import jsonify, make_response, redirect, request
-from ..util.version import datetime_to_version_format
+from dss.util.version import datetime_to_version_format
 
-from .. import DSSException, dss_handler, stepfunctions
-from ..config import Config, Replica
-from ..hcablobstore import FileMetadata, HCABlobStore
-from ..stepfunctions import gscopyclient, s3copyclient
-from ..util.aws import AWS_MIN_CHUNK_SIZE
+from dss import DSSException, dss_handler, stepfunctions
+from dss.config import Config, Replica
+from dss.hcablobstore import FileMetadata, HCABlobStore
+from dss.stepfunctions import gscopyclient, s3copyclient
+from dss.util.aws import AWS_MIN_CHUNK_SIZE
 
 
 ASYNC_COPY_THRESHOLD = AWS_MIN_CHUNK_SIZE
