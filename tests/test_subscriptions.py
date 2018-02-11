@@ -19,7 +19,7 @@ sys.path.insert(0, pkg_root)  # noqa
 import dss
 from dss.events.handlers.index import BundleDocument
 from dss.logging import configure_test_logging
-from dss.storage.index import IndexManager
+from dss.index.es.manager import IndexManager
 from dss.util import UrlBuilder
 from dss.index.es import ElasticsearchClient
 from tests import get_auth_header, get_bundle_fqid

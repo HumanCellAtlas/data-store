@@ -12,7 +12,7 @@ from flask import jsonify, request
 from dss import Config, Replica, ESIndexType, ESDocType
 from dss.error import DSSException, dss_handler
 from dss.index.es import ElasticsearchClient
-from dss.storage.index import IndexManager
+from dss.index.es.manager import IndexManager
 
 
 logger = logging.getLogger(__name__)
