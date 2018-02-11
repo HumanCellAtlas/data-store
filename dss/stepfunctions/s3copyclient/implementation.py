@@ -10,10 +10,10 @@ import typing
 import boto3
 from cloud_blobstore.s3 import S3BlobStore
 
-from ...api import files
-from ...stepfunctions import generator
-from ...stepfunctions.lambdaexecutor import TimedThread
-from ...util.aws import get_s3_chunk_size
+from dss.api import files
+from dss.stepfunctions import generator
+from dss.stepfunctions.lambdaexecutor import TimedThread
+from dss.util.aws import get_s3_chunk_size
 
 
 # CONSTANTS

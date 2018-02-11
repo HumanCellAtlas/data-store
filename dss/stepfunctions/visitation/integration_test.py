@@ -5,7 +5,7 @@ from typing import Sequence, Any
 
 from cloud_blobstore import BlobPagingError
 
-from ...config import Config, Replica
+from dss.config import Config, Replica
 from . import Visitation, WalkerStatus
 
 
