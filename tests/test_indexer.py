@@ -26,7 +26,7 @@ import dss
 from dss import Config, BucketConfig, DeploymentStage
 from dss.config import Replica
 from dss.events.handlers.index import AWSIndexer, GCPIndexer, BundleDocument, Indexer
-from dss.hcablobstore import BundleMetadata, BundleFileMetadata, FileMetadata
+from dss.storage.hcablobstore import BundleMetadata, BundleFileMetadata, FileMetadata
 from dss.logging import configure_test_logging
 from dss.storage.bundles import ObjectIdentifier, BundleFQID
 from dss.storage.validator import scrub_index_data

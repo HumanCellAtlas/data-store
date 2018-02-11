@@ -17,7 +17,7 @@ from dss.util.bundles import get_bundle
 from dss.util.version import datetime_to_version_format
 from dss import DSSException, dss_handler
 from dss.config import Config, Replica
-from dss.hcablobstore import BundleFileMetadata, BundleMetadata, FileMetadata
+from dss.storage.hcablobstore import BundleFileMetadata, BundleMetadata, FileMetadata
 
 PUT_TIME_ALLOWANCE_SECONDS = 10
 """This is the minimum amount of time remaining on the lambda for us to retry on a PUT /bundles request."""
