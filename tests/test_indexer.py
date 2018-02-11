@@ -28,7 +28,7 @@ from dss.events.handlers.index import AWSIndexer, GCPIndexer, BundleDocument, In
 from dss.storage.hcablobstore import BundleMetadata, BundleFileMetadata, FileMetadata
 from dss.logging import configure_test_logging
 from dss.storage.identifiers import ObjectIdentifier, BundleFQID
-from dss.storage.validator import scrub_index_data
+from dss.index.es.validator import scrub_index_data
 from dss.util import create_blob_key, networking, UrlBuilder
 from dss.index.es import ElasticsearchClient
 from dss.util.version import datetime_to_version_format

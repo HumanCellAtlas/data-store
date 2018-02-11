@@ -21,7 +21,7 @@ from dss import Replica
 from dss.storage.hcablobstore import BundleMetadata, BundleFileMetadata
 from dss.storage.identifiers import ObjectIdentifier, BundleFQID, TombstoneID
 from dss.index.es.manager import IndexManager
-from dss.storage.validator import scrub_index_data
+from dss.index.es.validator import scrub_index_data
 from dss.util import create_blob_key
 from dss.index.es import ElasticsearchClient, elasticsearch_retry
 
