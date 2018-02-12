@@ -11,7 +11,7 @@ sys.path.insert(0, pkg_root)  # noqa
 
 from dss.api.files import ASYNC_COPY_THRESHOLD
 from tests.infra import testmode
-from dss.util.checkout import get_dst_bundle_prefix
+from dss.storage.checkout import get_dst_bundle_prefix
 from cloud_blobstore.s3 import S3BlobStore
 
 
