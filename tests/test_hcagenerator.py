@@ -34,7 +34,6 @@ class TestHCAGenerator(unittest.TestCase):
             self.assertEqual(self.faker.schemas[name], {'$ref': url, 'id': url})
 
     def test_generation(self):
-        for i in range(100):
             for name in self.faker.schemas.keys():
                 with self.subTest(name):
                     fake_json = self.faker.generate(name)
