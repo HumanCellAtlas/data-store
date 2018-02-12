@@ -24,7 +24,7 @@ from dss.config import BucketConfig, Config, override_bucket_config, Replica
 from dss.util import UrlBuilder
 from dss.util.blobstore import test_object_exists
 from dss.util.version import datetime_to_version_format
-from dss.util.bundles import get_bundle_from_bucket
+from dss.storage.bundles import get_bundle_from_bucket
 from tests.infra import DSSAssertMixin, DSSUploadMixin, ExpectedErrorFields, get_env, testmode
 from tests.infra.server import ThreadedLocalServer
 from tests import get_auth_header

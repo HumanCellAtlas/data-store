@@ -6,7 +6,7 @@ from cloud_blobstore import BlobNotFoundError, BlobStoreUnknownError
 from cloud_blobstore.s3 import S3BlobStore
 from enum import Enum, auto
 
-from dss.util.bundles import get_bundle, get_bundle_from_bucket
+from dss.storage.bundles import get_bundle, get_bundle_from_bucket
 from dss import DSSException, stepfunctions
 from dss.config import Config, Replica
 from dss.stepfunctions import s3copyclient
