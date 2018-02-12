@@ -13,7 +13,7 @@ sys.path.insert(0, pkg_root)  # noqa
 import dss
 from dss.config import override_bucket_config, BucketConfig, Replica
 from dss.util import UrlBuilder
-from dss.util.checkout import get_manifest_files, validate_file_dst, pre_exec_validate, ValidationEnum, \
+from dss.storage.checkout import get_manifest_files, validate_file_dst, pre_exec_validate, ValidationEnum, \
     validate_bundle_exists, touch_test_file, get_execution_id
 from tests.infra import DSSAssertMixin, DSSUploadMixin, get_env, testmode
 from tests.infra.server import ThreadedLocalServer
