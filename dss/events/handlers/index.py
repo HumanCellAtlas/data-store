@@ -6,7 +6,7 @@ from urllib.parse import unquote
 from abc import ABCMeta, abstractmethod
 
 from dss import Replica, Config
-from dss.storage.bundles import ObjectIdentifier, BundleFQID, TombstoneID, ObjectIdentifierError, FileFQID
+from dss.storage.identifiers import ObjectIdentifier, BundleFQID, TombstoneID, ObjectIdentifierError, FileFQID
 from dss.storage.index_document import BundleDocument, BundleTombstoneDocument
 from dss.util.es import elasticsearch_retry
 
