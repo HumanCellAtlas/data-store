@@ -19,7 +19,7 @@ from requests_http_signature import HTTPSignatureAuth
 from dss import Config, DeploymentStage, ESIndexType, ESDocType
 from dss import Replica
 from dss.storage.hcablobstore import BundleMetadata, BundleFileMetadata
-from dss.storage.bundles import ObjectIdentifier, BundleFQID, TombstoneID
+from dss.storage.identifiers import ObjectIdentifier, BundleFQID, TombstoneID
 from dss.storage.index import IndexManager
 from dss.storage.validator import scrub_index_data
 from dss.util import create_blob_key
