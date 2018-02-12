@@ -12,7 +12,7 @@ from cloud_blobstore import BlobNotFoundError, BlobStore
 from flask import jsonify, request
 
 from dss.storage.identifiers import TombstoneID, BundleFQID, FileFQID
-from dss.util.blobstore import test_object_exists, ObjectTest
+from dss.storage.blobstore import test_object_exists, ObjectTest
 from dss.storage.bundles import get_bundle
 from dss.util.version import datetime_to_version_format
 from dss import DSSException, dss_handler

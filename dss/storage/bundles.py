@@ -7,7 +7,7 @@ from dss import Config, DSSException, Replica
 from dss.storage.hcablobstore import BundleFileMetadata, BundleMetadata
 from dss.storage.identifiers import DSS_BUNDLE_KEY_REGEX, DSS_BUNDLE_TOMBSTONE_REGEX, TombstoneID, BundleFQID
 from dss.util import UrlBuilder
-from dss.util.blobstore import test_object_exists
+from dss.storage.blobstore import test_object_exists
 
 
 def get_bundle_from_bucket(
