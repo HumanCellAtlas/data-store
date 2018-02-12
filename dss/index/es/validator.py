@@ -5,8 +5,8 @@ import json
 from typing import List
 import logging
 
+from dss.index.es.schemainfo import SchemaInfo
 from dss.util.s3urlcache import S3UrlCache
-
 logger = logging.getLogger(__name__)
 
 
@@ -34,7 +34,6 @@ def remove_json_fields(json_data: dict, path: List[str], fields: List[str]) -> N
     for field in fields:
         current.pop(field)
 
-
 def scrub_index_data(index_data: dict, bundle_id: str) -> list:
     cache = S3UrlCache()
 
@@ -49,15 +48,14 @@ def scrub_index_data(index_data: dict, bundle_id: str) -> list:
     extra_fields = []
     extra_documents = []
     for document in index_data.keys():
-        core = index_data[document].get('core')
-        schema_url = None if core is None else core.get('schema_url')
-        if schema_url is not None:
+        schema_info = SchemaInfo.from_json(index_data[document])
+        if schema_info is not None:
             try:
-                schema = request_json(schema_url)
+                schema = request_json(schema_info.url)
             except Exception as ex:
                 extra_documents.append(document)
-                logger.warning(f"Unable to retrieve schema from {document} in {bundle_id} "
-                               f"because retrieving {schema_url} caused exception: {ex}.")
+                logger.warning(f"Unable to retrieve JSON schema information from {document} in bundle {bundle_id} "
+                               f"because retrieving {schema_info.url} caused exception: {ex}.")
             else:
                 for error in DSS_Draft4Validator(schema, resolver=resolver).iter_errors(index_data[document]):
                     if error.validator == 'additionalProperties':
@@ -68,9 +66,9 @@ def scrub_index_data(index_data: dict, bundle_id: str) -> list:
                                                                                                         error.schema)])
                     extra_fields.append(fields_to_remove)
         else:
-            logger.warning(f"Unable to retrieve schema_url from {document} in {bundle_id} because "
-                           f"core.schema_url does not exist.")
+            logger.warning(f"Unable to retrieve JSON schema information from {document} in bundle {bundle_id}.")
             extra_documents.append(document)
+
     if extra_documents:
         extra_fields.append(([], extra_documents))
     removed_fields = []

@@ -18,6 +18,7 @@ from dss.index.bundle import Bundle, Tombstone
 from dss.index.es import ElasticsearchClient, elasticsearch_retry
 from dss.index.es.manager import IndexManager
 from dss.index.es.validator import scrub_index_data
+from dss.index.es.schemainfo import SchemaInfo
 from dss.storage.identifiers import BundleFQID, ObjectIdentifier
 
 logger = logging.getLogger(__name__)
@@ -232,15 +233,14 @@ class BundleDocument(IndexDocument):
         """
         schema_version_map = defaultdict(set)  # type: typing.MutableMapping[str, typing.MutableSet[str]]
         for file_name, file_content in self.files.items():
-            core = file_content.get('core')
-            if core is not None:
-                schema_type = core['type']
-                schema_version = core['schema_version']
-                schema_version_major = schema_version.split(".")[0]
-                schema_version_map[schema_version_major].add(schema_type)
+            schema_info = SchemaInfo.from_json(file_content)
+            if schema_info is not None:
+                schema_version_map[schema_info.version].add(schema_info.type)
             else:
-                logger.info(f"File {file_name} does not contain the 'core' section necessary to identify "
-                            f"the schema and its version.")
+                logger.warning(f"Unable to obtain JSON schema info from file '{file_name}'. The file will be indexed "
+                               f"as is, without sanitization. This may prevent subsequent, valid files from being "
+                               f"indexed correctly.")
+
         if schema_version_map:
             schema_versions = schema_version_map.keys()
             assert len(schema_versions) == 1, \
