@@ -12,17 +12,17 @@ serial_tests:=tests/test_search.py \
 	          tests/test_indexer.py \
 			  tests/test_subscriptions.py
 parallel_tests:=$(filter-out $(serial_tests),$(tests))
-	
+
 # Run all standalone tests in parallel
 #
-test: $(tests)
+test: mypy lint $(tests)
 	coverage combine
 	rm -f .coverage.*
 
 # Serialize the standalone tests that start a local Elasticsearch instance in
 # order to prevent more than one such instance at a time.
 #
-safe_test: _serial_test $(parallel_tests)
+safe_test: mypy lint _serial_test $(parallel_tests)
 	coverage combine
 	rm -f .coverage.*
 
@@ -30,14 +30,14 @@ _serial_test:
 	$(MAKE) -j1 $(serial_tests)
 
 # A pattern rule that runs a single test script
-#	
+#
 $(tests): %.py :
 	export DSS_TEST_MODE=$${DSS_TEST_MODE:-standalone} \
 	&& set -o pipefail \
 	&& coverage run -p --source=dss -m unittest $(DSS_UNITTEST_OPTS) $*.py 2>&1 | sed -e "s/^/$$$$ /"
 
 # Run standalone and integration tests
-#	
+#
 all_test:
 	DSS_TEST_MODE="standalone integration" $(MAKE) test
 
