@@ -14,7 +14,7 @@ sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), '../.
 
 from sns import SnsClient
 
-UNIT_OF_TIME = 1 * 1000 * 1000  # 1 sec in microseconds
+ONE_SECOND_IN_MS = 1 * 1000 * 1000  # 1 sec in microseconds
 
 class ScaleTestRunner:
     def __init__(self, rps: int, duration_seconds: int) -> None:
@@ -40,7 +40,7 @@ class ScaleTestRunner:
         for cnt in range(self.rps):
             self.sns_client.start_test_execution(self.run_id, str(uuid.uuid4()))
         duration = datetime.datetime.now() - start
-        elapsed_time = duration.microseconds / UNIT_OF_TIME
+        elapsed_time = duration.microseconds / ONE_SECOND_IN_MS
 
         if elapsed_time < 1.0:
             time.sleep(1.0 - elapsed_time)

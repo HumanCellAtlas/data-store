@@ -18,9 +18,12 @@ from dss.stepfunctions import generator
 
 from hca.dss import DSSClient
 from json_generator import generate_sample
+from dss.api.files import ASYNC_COPY_THRESHOLD
 
-AWS_MIN_CHUNK_SIZE = 64 * 1024 * 1024
-WAIT_CHECKOUT = 3
+#: Wait in seconds begore performing another checkout readiness check
+WAIT_CHECKOUT = 10
+
+#: Number of parallel execution branches within the scale test step function
 PARALLELIZATION_FACTOR = 10
 
 app = domovoi.Domovoi()
@@ -47,12 +50,13 @@ def current_time():
 def upload_bundle(event, context, branch_id):
     app.log.info("Upload bundle")
     with tempfile.TemporaryDirectory() as src_dir:
-        # TODO: insert json generator here
-        with tempfile.NamedTemporaryFile(dir=src_dir, suffix=".json", delete=False) as jfh:
-            jfh.write(bytes(generate_sample(), 'UTF-8'))
-            jfh.flush()
+        # TODO (@Bento007): replace generate_sample call with an invokation of your json generator. Remove existing
+        # simple json_generator under ./domovoilib/json_generator/ and place your code there.
+        # with tempfile.NamedTemporaryFile(dir=src_dir, suffix=".json", delete=False) as jfh:
+        #     jfh.write(bytes(generate_sample(), 'UTF-8'))
+        #     jfh.flush()
         with tempfile.NamedTemporaryFile(dir=src_dir, suffix=".bin") as fh:
-            fh.write(os.urandom(AWS_MIN_CHUNK_SIZE + 1))
+            fh.write(os.urandom(ASYNC_COPY_THRESHOLD + 1))
             fh.flush()
             start_time = current_time()
             bundle_output = client.upload(src_dir=src_dir, replica="aws", staging_bucket=test_bucket)
@@ -100,7 +104,7 @@ def save_results(event, result: str):
     success_count = 0
     run_id = None
     execution_id = ''
-    for branch_event in event:
+    for branch_event in event['tests']:
         if branch_event.get('failed'):
             fail_count += 1
         else:
@@ -314,6 +318,9 @@ state_machine_def = {
         "Executors": {
             "Type": "Parallel",
             "Branches": generator.ThreadPoolAnnotation(exec_branch_def, PARALLELIZATION_FACTOR, "{t}"),
+            "InputPath": "$",
+            "ResultPath": "$.tests",
+            "OutputPath": "$",
             "Next": "CompleteTest",
         },
 
