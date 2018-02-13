@@ -1,10 +1,9 @@
-import os
 import random
 import tempfile
 from jsonschema import RefResolver
 import json
 import subprocess
-from dss.storage.validator import S3UrlCache
+from dss.util.s3urlcache import S3UrlCache
 
 
 class JsonFaker(object):
