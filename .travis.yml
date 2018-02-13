@@ -23,8 +23,7 @@ before_install:
 install:
 - pip install -r requirements.txt
 - pip install -r requirements-dev.txt
-- npm install json-schema-faker --save
-- npm install -g json-schema-faker-cli
+- npm install
 - wget -q ${ES_DOWNLOAD_URL}
 - tar -xzf elasticsearch-${ES_VERSION}.tar.gz
 - wget -q http://us-east-1.ec2.archive.ubuntu.com/ubuntu/pool/main/m/make-dfsg/make_4.1-6_amd64.deb
