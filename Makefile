@@ -22,11 +22,13 @@ test: mypy lint $(tests)
 # Serialize the standalone tests that start a local Elasticsearch instance in
 # order to prevent more than one such instance at a time.
 #
-safe_test: mypy lint _serial_test $(parallel_tests)
+safe_test: mypy lint serial_test parallel_test
 	coverage combine
 	rm -f .coverage.*
 
-_serial_test:
+parallel_test: $(parallel_tests)
+
+serial_test:
 	$(MAKE) -j1 $(serial_tests)
 
 # A pattern rule that runs a single test script

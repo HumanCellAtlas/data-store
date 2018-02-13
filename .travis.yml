@@ -1,25 +1,30 @@
 language: python
+
 cache:
   pip: true
   directories:
   - chalice/.chalice/venv
   - daemons/dss-sync/.chalice/venv
   - daemons/dss-index/.chalice/venv
-python:
-- 3.6
+
+python: 3.6
+
 dist: trusty
+
 addons:
   apt:
     packages:
     - jq
     - moreutils
     - gettext
+
 before_install:
 - openssl aes-256-cbc -K $encrypted_ead445d7a1e2_key -iv $encrypted_ead445d7a1e2_iv
   -in gcp-credentials.json.enc -out gcp-credentials.json -d
 - openssl aes-256-cbc -K $encrypted_ead445d7a1e2_key -iv $encrypted_ead445d7a1e2_iv
   -in application_secrets.json.enc -out application_secrets.json -d
 - source environment
+
 install:
 - pip install -r requirements-dev.txt
 - wget -q ${ES_DOWNLOAD_URL}
@@ -28,32 +33,61 @@ install:
 - mkdir make4
 - dpkg -x make*.deb make4
 - export PATH=$(pwd)/make4/usr/bin:$PATH
+
 before_script:
 - export -n _JAVA_OPTIONS # https://github.com/travis-ci/travis-ci/issues/8408
+
 script:
-- export DSS_UNITTEST_OPTS="$DSS_UNITTEST_OPTS -v"
-- set -eo pipefail
-- if [[ ! $TRAVIS_DSS_INTEGRATION_MODE ]]; then make -j4 safe_test; fi
-- if [[ $TRAVIS_DSS_INTEGRATION_MODE ]]; then make -j4 integration_test; fi
-- if [[ $TRAVIS_BRANCH == staging ]]; then source environment.staging; fi
+- make $MAKE_ARGS
+
 after_success:
 - bash <(curl -s https://codecov.io/bash)
-deploy:
-  - provider: script
-    script: make deploy
-    skip_cleanup: true
-    on:
-      branch: master
-      condition: "! $TRAVIS_DSS_INTEGRATION_MODE"
-  - provider: script
-    script: make deploy
-    skip_cleanup: true
-    on:
-      branch: staging
+
+stages:
+- name: test
+  if: env(TRAVIS_DSS_INTEGRATION_MODE) != 1
+- name: integration_test
+  if: env(TRAVIS_DSS_INTEGRATION_MODE) = 1
+- name: deploy
+  if: env(TRAVIS_DSS_INTEGRATION_MODE) != 1 AND branch IN (master, staging) AND type != pull_request
+
+jobs:
+  include:
+  - stage: test
+    env:
+    - MAKE_ARGS="-j4 parallel_test"
+  - stage: test
+    env:
+    - MAKE_ARGS="-j1 tests/test_search.py"
+  - stage: test
+    env:
+    - MAKE_ARGS="-j1 tests/test_indexer.py"
+    - DSS_UNITTEST_OPTS="-v TestAWSIndexer"
+  - stage: test
+    env:
+    - MAKE_ARGS="-j1 tests/test_indexer.py"
+    - DSS_UNITTEST_OPTS="-v TestGCPIndexer"
+  - stage: test
+    env:
+    - MAKE_ARGS="-j1 tests/test_subscriptions.py"
+  - stage: integration_test
+    env:
+    - MAKE_ARGS="-j4 integration_test"
+  - stage: deploy
+    script:
+    - if [[ $TRAVIS_BRANCH == staging ]]; then source environment.staging; fi
+    deploy:
+      provider: script
+      script: make deploy
+      skip_cleanup: true
+      on:
+        all_branches: true  # but see the `if:` conditional on the deploy stage above
+
 env:
   global:
   - ES_VERSION=5.4.2
   - ES_DOWNLOAD_URL=https://artifacts.elastic.co/downloads/elasticsearch/elasticsearch-${ES_VERSION}.tar.gz
   - DSS_TEST_ES_PATH=./elasticsearch-${ES_VERSION}/bin/elasticsearch
+  - DSS_UNITTEST_OPTS="-v"
   - secure: xibprEOcRoaijcM0E1q9Mbol+J0hqOdJQyx+5dsKQd2JQFFubRJ6I63aMLKrz7CzY9XJLioegn2Tpi6qFMHZteEPOzGe/HPh75f2bDgkZ53YNTbJHjNXDEVVwWaYaJ2A3QFGHelgNBSw+64PtlGUjcMTs23HWMAFi0ZK8ZY8zjdEuEzBedYLyIGVrlJJuZLrZOha9RQipPqMxZP6tQzmRgVGoxDRvodIQzvWjXu79i6T+4Vrknba5X2QHJu/bP/djhl8nb37/3tXnxUDaaE4PoahOkffntJ+ZqSLPBxkVMYQpn3/lfhxuBd/SaVPCbL365f5eHsiY0bN+0gn/0pNHhkftgU65jo5iWA0SMbiX2lhn6DR9NA2b3mgCbRyMIkcoruAswU6zySQ0BwwWwEVCcpm3qQmcA7hW3XO9HPSm0ddysxzo/bAfEYVL/j77M1WTbm+OgeVQe9ugKvsGzaXP9vfHoDKe00BlOv2zIvuC2XW3zi2W2/ZfeyYO9BQhM1vEOwb4R3RDGKdWMskp5FZjCltNT0InBOjC2VbALzvOoT7uqNtT9xiGY6n5PnrAI30zThgn6becwe/x4cMVEcdYmHZDwUWkZGmFJC/oIBcV/Gh6ReDyCSla+C87Dwl6jW/BQWGAr8qs/FM9KjlSKcancOh6yB8qwf3wqWdHHJ/2fo=
   - secure: RU6oLlCR9YWtQVTbi+VGrdwBgNoJuZHhXioKr8dPRrIimLNtGbNha/6iRliNOB8aq3qiANSptFxSoMDk63cGuNlzJlJenPoLBCWb0n7XiSIjZv0sOSRJSDxKGN5YGX8mUeBzF7VYBUBJ8cS7gql00fSvVmlKZvIwCd2qJ8bz/Y5RUXnS9mlIv3sqja5kA2StacCH7WmMP1WLUKiXQH0I5ONCgVxzCtdiyDwyee33eR94hKmieuwT95R9lGRy/ZcE58ek3rOp3lYmhzWbf7/i0qapmQIizBelN/Dqt/8h1MSw61MizPizcffZ/5d3MXsKoGNVt/Md8+os6ksBiimTy4KGouRE8UQj9YtpfiraXN+s9JBpbZJR26pMbpeUuhjSiFz3QNKcGLHXkJXRkNNz3cBg4lusDVHbCvEOfNnzik3jpvJN3GJJ2VqbPoxWKSAUYfAg1QQNSkEWE6vJfOQxMoLglcy8bV5CyKCVPdKPyXZSL/Hd6c16e0rHzXAub81jB1aneljNVL8+Vkd4Df/UfWuPKYacIt32wEIoo2IHZLpy60CJwFx2fZOnYL4Myk+Bqti4IB5AyLIrBZwt3XgXHiJeJL5+EcT8EpEohFYbfY18EwO+D94MOPlSEjPNIX+GchQEP12CavkjBMReM+Gu1yJ3Qsmk4pKiqMVqARxkzBI=
