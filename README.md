@@ -27,6 +27,9 @@ this directory.
 
 The HCA DSS prototype requires Python 3.6+ to run. Run `pip install -r requirements.txt` in this directory.
 
+The tests require certain node.js packages. They must be installed using `npm`, the node.js package manager. Install 
+[npm](https://www.npmjs.com/get-npm) (on macOS `brew install npm`) and run `npm install` from the project root.
+
 #### Pull sample data bundles
 
 Tests also use data from the data-bundle-examples subrepository. Run: `git submodule update --init`

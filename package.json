@@ -1,0 +1,12 @@
+{
+  "name": "data-store",
+  "version": "1.0.0",
+  "dependencies": {
+    "json-schema-faker-cli": "2.0.0",
+    "//": [
+      "json-schema-faker@0.3.7 (depended on by json-schema-faker-cli) does not work with randexp@0.4.7 so we'll pin",
+      "it to 0.4.6.  After upgrading json-schema-faker-cli here you should consider removing this pin."
+    ],
+    "randexp": "0.4.6"
+  }
+}

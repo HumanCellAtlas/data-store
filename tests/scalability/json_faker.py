@@ -1,8 +1,12 @@
+import os
 import random
+import sys
 import tempfile
 from jsonschema import RefResolver
 import json
 import subprocess
+
+import dss
 from dss.util.s3urlcache import S3UrlCache
 
 
@@ -78,7 +82,9 @@ class JsonFaker(object):
             with open(schema_file_name, 'w') as temp_jsf:
                 json.dump(schema, temp_jsf)
             data_file_name = f"{src_dir}/temp.json"
-            subprocess.call(["generate-json", schema_file_name, data_file_name])
+            project_root = os.path.dirname(os.path.dirname(sys.modules[dss.__name__].__file__))
+            generate_json = os.path.join(project_root, "node_modules", ".bin", "generate-json")
+            subprocess.call([generate_json, schema_file_name, data_file_name])
             with open(data_file_name, 'r') as temp_json:
                 return json.load(temp_json)
 
