@@ -21,7 +21,6 @@ before_install:
   -in application_secrets.json.enc -out application_secrets.json -d
 - source environment
 install:
-- pip install -r requirements.txt
 - pip install -r requirements-dev.txt
 - npm install
 - wget -q ${ES_DOWNLOAD_URL}
