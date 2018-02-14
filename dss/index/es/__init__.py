@@ -16,6 +16,7 @@ from botocore.vendored import requests
 from elasticsearch import RequestsHttpConnection, Elasticsearch
 from requests_aws4auth import AWS4Auth
 
+from dss import Config
 from dss.util.retry import retry
 from dss.util import networking
 
@@ -67,7 +68,7 @@ class ElasticsearchServer:
                 "-E", f"http.port={port}",
                 "-E", f"transport.tcp.port={transport_port}",
                 "-E", f"path.data={tempdir.name}",
-                "-E", "logger.org.elasticsearch=warn"]
+                "-E", "logger.org.elasticsearch=" + ("info" if Config.debug_level() > 0 else "warn")]
         logger.debug("Running %r with environment %r", args, env)
         proc = subprocess.Popen(args, env=env)
 
