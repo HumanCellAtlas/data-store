@@ -249,5 +249,6 @@ class TestVisitationReindex(unittest.TestCase):
                 r.job_initialize()
                 self.assertEquals(num_work_ids, len(set(r.work_ids)))
 
+
 if __name__ == '__main__':
     unittest.main()

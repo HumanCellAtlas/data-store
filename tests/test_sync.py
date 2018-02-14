@@ -147,5 +147,6 @@ class TestSyncUtils(unittest.TestCase):
         # FIXME: (akislyuk) finish this test
         sync.sync_s3_to_gcsts(self.gs.project, self.s3_bucket_name, self.gs_bucket_name, "test_key")
 
+
 if __name__ == '__main__':
     unittest.main()
