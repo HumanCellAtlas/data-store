@@ -162,26 +162,29 @@ class TestSearchBase(ElasticsearchTestCase, DSSAssertMixin):
                 )
 
     def test_search_returns_N_results_when_N_documents_match_query(self):
-        """Create N identical documents. A search query is executed to match the document. All documents created must be
+        """
+        Create N identical documents. A search query is executed to match the document. All documents created must be
         present in the query results. N is varied across a variety of values.
         """
-        #              (total docs, expected len(results) in last search)
-        test_matches = [(1, 1),
-                        (11, 11),
-                        (10000, 0),
-                        (10001, 1)]
         bundles = []
         indexed_docs = 0
-        url_params = {"per_page": 500}
-        for docs, expected_results in test_matches:
-            create = docs - indexed_docs
-            indexed_docs = docs
-            with self.subTest(msg="Find Indexed Documents:", indexed_docs=indexed_docs):
-                bundles.extend(self.populate_search_index(self.index_document, create))
+        # Create a number of test cases based on varying page size, page count and length of last page. Sort the
+        # resulting list of cases by total number of documents required (N) so we can create the documents on demand
+        # without having to delete any documents between cases.
+        cases = sorted([(full_pages * page_size + len_last_page, page_size, full_pages, len_last_page)
+                        for page_size in (10, 11)
+                        for full_pages in (0, 1, 7)
+                        for len_last_page in (0, 1, page_size - 1)])
+        for docs, page_size, full_pages, len_last_page in cases:
+            with self.subTest(page_size=page_size, num_full_pages=full_pages, len_last_page=len_last_page):
+                assert (docs >= indexed_docs)
+                docs_to_index = docs - indexed_docs
+                bundles.extend(self.populate_search_index(self.index_document, docs_to_index))
+                indexed_docs = docs
                 self.check_count(smartseq2_paired_ends_v3_query, indexed_docs)
                 search_obj, found_bundles = self.get_search_results(smartseq2_paired_ends_v3_query,
-                                                                    url_params=url_params)
-                self.verify_search_result(search_obj.json, smartseq2_paired_ends_v3_query, docs, expected_results)
+                                                                    url_params={"per_page": page_size})
+                self.verify_search_result(search_obj.json, smartseq2_paired_ends_v3_query, docs, len_last_page)
                 self.verify_bundles(found_bundles, bundles)
 
     def test_next_page_is_delivered_when_next_is_in_query(self):
