@@ -1,13 +1,9 @@
-import os
 import random
-import sys
-import tempfile
 from jsonschema import RefResolver
 import json
-import subprocess
 
-import dss
 from dss.util.s3urlcache import S3UrlCache
+from tests.scalability.json_generator import JsonDataGenerator
 
 
 class JsonFaker(object):
@@ -26,6 +22,7 @@ class JsonFaker(object):
             self.schemas[name] = {'$ref': url, 'id': url}
         self.cache = S3UrlCache()
         self.resolver = self.resolver_factory()  # The resolver used to dereference JSON '$ref'.
+        self._json_gen = JsonDataGenerator(resolver=self.resolver)
 
     def generate(self, name: str=None) -> str:
         """
@@ -41,7 +38,7 @@ class JsonFaker(object):
             assert name in self.schemas.keys()
             schema = self.schemas[name]
         self.resolve_references(schema)
-        generated_json = {name: self.fake_json(schema)}
+        generated_json = {name: self._json_gen.generate_json(schema)}
         return json.dumps(generated_json)
 
     def resolve_references(self, schema: dict) -> dict:
@@ -70,23 +67,6 @@ class JsonFaker(object):
                     if isinstance(i, dict):
                         self.resolve_references(i)
         return schema
-
-    @staticmethod
-    def fake_json(schema: dict) -> dict:
-        """
-        Generates fake JSON from a given schema.
-        :param schema: a JSON schema.
-        """
-        with tempfile.TemporaryDirectory() as src_dir:
-            schema_file_name = f"{src_dir}/schema.json"
-            with open(schema_file_name, 'w') as temp_jsf:
-                json.dump(schema, temp_jsf)
-            data_file_name = f"{src_dir}/temp.json"
-            project_root = os.path.dirname(os.path.dirname(sys.modules[dss.__name__].__file__))
-            generate_json = os.path.join(project_root, "node_modules", ".bin", "generate-json")
-            subprocess.call([generate_json, schema_file_name, data_file_name])
-            with open(data_file_name, 'r') as temp_json:
-                return json.load(temp_json)
 
     def resolver_factory(self) -> RefResolver:
         """
