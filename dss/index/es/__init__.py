@@ -21,6 +21,7 @@ from dss.util import networking
 
 logger = logging.getLogger(__name__)
 
+
 class AWSV4Sign(requests.auth.AuthBase):
     """
     AWS V4 Request Signer for Requests.
@@ -47,51 +48,58 @@ class AWSV4Sign(requests.auth.AuthBase):
 
 
 class ElasticsearchServer:
-    def __init__(self, startup_timeout_seconds: int=60) -> None:
+    def __init__(self, timeout: float=60, delay: float=10) -> None:
         elasticsearch_binary = os.getenv("DSS_TEST_ES_PATH", "elasticsearch")
-        self.tempdir = tempfile.TemporaryDirectory()
+        tempdir = tempfile.TemporaryDirectory()
 
+        # Set Elasticsearch's initial and max heap to 1.6 GiB, 40% of what's available on Travis, according to
+        # guidance from https://www.elastic.co/guide/en/elasticsearch/reference/current/heap-size.html
+        env = dict(os.environ, ES_JAVA_OPTIONS="-Xms1638m -Xmx1638m")
+
+        # Work around https://github.com/travis-ci/travis-ci/issues/8408
+        if '_JAVA_OPTIONS' in env:  # no coverage
+            logger.warning("_JAVA_OPTIONS is set. This may override the options just set via ES_JAVA_OPTIONS.")
+
+        port = networking.unused_tcp_port()
+        transport_port = networking.unused_tcp_port()
+
+        args = [elasticsearch_binary,
+                "-E", f"http.port={port}",
+                "-E", f"transport.tcp.port={transport_port}",
+                "-E", f"path.data={tempdir.name}",
+                "-E", "logger.org.elasticsearch=warn"]
+        logger.debug("Running %r with environment %r", args, env)
+        proc = subprocess.Popen(args, env=env)
+
+        def check():
+            status = proc.poll()
+            if status is not None:
+                tempdir.cleanup()
+                raise ChildProcessError('ES process died with status {status}')
+
+        deadline = time.time() + timeout
         while True:
-            port = networking.unused_tcp_port()
-            transport_port = networking.unused_tcp_port()
-
-            # Set Elasticsearch's initial and max heap to 1.6 GiB, 40% of what's available on Travis, according to
-            # guidance from https://www.elastic.co/guide/en/elasticsearch/reference/current/heap-size.html
-            env = dict(os.environ, ES_JAVA_OPTIONS="-Xms1638m -Xmx1638m")
-
-            # Work around https://github.com/travis-ci/travis-ci/issues/8408
-            if '_JAVA_OPTIONS' in env:  # no coverage
-                logger.warning("_JAVA_OPTIONS is set. This may override the options just set via ES_JAVA_OPTIONS.")
-
-            args = [elasticsearch_binary,
-                    "-E", f"http.port={port}",
-                    "-E", f"transport.tcp.port={transport_port}",
-                    "-E", f"path.data={self.tempdir.name}",
-                    "-E", "logger.org.elasticsearch=warn"]
-            logger.debug("Running %r with environment %r", args, env)
-            proc = subprocess.Popen(args, env=env)
-            for ix in range(startup_timeout_seconds):
-                try:
-                    sock = socket.create_connection(("127.0.0.1", port), 1)
-                    sock.close()
-                    break
-                except (ConnectionRefusedError, socket.timeout):
-                    # failed :(
-                    pass
-                time.sleep(1)
+            check()
+            time.sleep(delay)
+            check()
+            logger.info('Attempting to connect to ES instance at 127.0.0.1:%i', port)
+            try:
+                sock = socket.create_connection(("127.0.0.1", port), 1)
+            except (ConnectionRefusedError, socket.timeout):
+                if time.time() + delay > deadline:
+                    proc.kill()
+                    tempdir.cleanup()
+                    raise
             else:
-                # still not running.  try a different port.
-                continue
-
-            # is the process still running?  if not, we're probably talking to someone else.
-            if proc.poll() is None:
+                sock.close()
+                check()
                 self.port = port
                 self.proc = proc
+                self.tempdir = tempdir
                 break
 
     def shutdown(self) -> None:
         self.proc.kill()
-        self.proc.communicate()
         self.proc.wait()
         self.tempdir.cleanup()
 
