@@ -966,6 +966,7 @@ class PostTestHandler(BaseHTTPRequestHandler):
 smartseq2_paried_ends_indexed_file_list = ["assay_json", "project_json", "sample_json"]
 smartseq2_paried_ends_indexed_excluded_list = ["manifest_json", "cell_json"]
 
+
 def create_s3_bucket(bucket_name) -> None:
     import boto3
     from botocore.exceptions import ClientError
@@ -1014,6 +1015,7 @@ def create_index_data(blobstore, bucket_name, bundle_key, manifest,
             index_files[index_filename] = file_json
     index['files'] = index_files
     return index
+
 
 # Prevent unittest's discovery from attempting to discover the base test class. The alterative, not inheriting
 # TestCase in the base class, is too inconvenient because it interferes with auto-complete and generates PEP-8

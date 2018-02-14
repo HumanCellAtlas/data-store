@@ -227,5 +227,6 @@ class TestAWSSubscription(TestSubscriptionsBase):
 #
 del TestSubscriptionsBase
 
+
 if __name__ == '__main__':
     unittest.main()

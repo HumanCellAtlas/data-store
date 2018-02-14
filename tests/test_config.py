@@ -10,11 +10,10 @@ import sys
 import unittest
 from contextlib import contextmanager
 
-from tests.infra import testmode
-
 pkg_root = os.path.abspath(os.path.join(os.path.dirname(__file__), '..'))  # noqa
 sys.path.insert(0, pkg_root)  # noqa
 
+from tests.infra import testmode
 from dss.config import DeploymentStage, Config, BucketConfig, Replica
 
 
@@ -73,6 +72,7 @@ class TestConfig(unittest.TestCase):
             prop_vals = set(prop.getter(r) for r in Replica)
             self.assertFalse(None in prop_vals)
             self.assertEqual(len(Replica), len(prop_vals))
+
 
 if __name__ == '__main__':
     unittest.main()

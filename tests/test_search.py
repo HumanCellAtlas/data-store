@@ -407,5 +407,6 @@ class TestAWSSearch(TestSearchBase):
 #
 del TestSearchBase
 
+
 if __name__ == "__main__":
     unittest.main()

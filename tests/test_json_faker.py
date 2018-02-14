@@ -1,8 +1,14 @@
+import json
+import os
+import sys
 import unittest
+
+pkg_root = os.path.abspath(os.path.join(os.path.dirname(__file__), '..'))  # noqa
+sys.path.insert(0, pkg_root)  # noqa
+
 from dss import Config, BucketConfig
 from tests.scalability.json_faker import JsonFaker
 from tests.infra import testmode
-import json
 
 schema_urls = [
     "https://raw.githubusercontent.com/HumanCellAtlas/metadata-schema/4.6.0/json_schema/analysis_bundle.json",

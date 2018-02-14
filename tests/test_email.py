@@ -1,5 +1,11 @@
+import sys
 import unittest
 from unittest import mock
+
+import os
+
+pkg_root = os.path.abspath(os.path.join(os.path.dirname(__file__), '..'))  # noqa
+sys.path.insert(0, pkg_root)  # noqa
 
 import dss.util.email
 from tests.infra import testmode
@@ -47,3 +53,7 @@ class TestEmail(unittest.TestCase):
         self.assertEqual(args[2], dss.util.email.FAILURE_SUBJECT)
         self.assertIn('<html>', args[3])
         self.assertNotIn('<html>', args[4])
+
+
+if __name__ == '__main__':
+    unittest.main()

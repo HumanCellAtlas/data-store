@@ -196,5 +196,6 @@ class TestFileApi(unittest.TestCase, DSSAssertMixin, DSSUploadMixin):
         except ValueError:
             self.fail("Invalid execution id. Valid UUID v.4 is expected.")
 
+
 if __name__ == "__main__":
     unittest.main()
