@@ -46,7 +46,8 @@ all_test:
 integration_test:
 	DSS_TEST_MODE="integration" $(MAKE) test
 
-smoketest: all__tests/test_smoketest.py
+smoketest:
+	DSS_TEST_MODE="integration" $(MAKE) tests/test_smoketest.py
 
 deploy: deploy-chalice deploy-daemons
 
@@ -93,5 +94,5 @@ requirements.txt requirements-dev.txt : %.txt : %.txt.in
 
 requirements-dev.txt : requirements.txt.in
 
-.PHONY: lint mypy test safe_test _serial_test all_test integration_test $(tests)
+.PHONY: lint mypy test safe_test _serial_test all_test integration_test smoketest $(tests)
 .PHONY: deploy deploy-chalice deploy-daemons
