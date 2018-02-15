@@ -9,6 +9,7 @@ from subprocess import check_call, check_output, CalledProcessError
 pkg_root = os.path.abspath(os.path.join(os.path.dirname(__file__), ".."))  # noqa
 sys.path.insert(0, pkg_root)  # noqa
 
+from dss import Config
 from dss.api.files import ASYNC_COPY_THRESHOLD
 from tests.infra import testmode
 from dss.storage.checkout import get_dst_bundle_prefix
@@ -94,7 +95,7 @@ class Smoketest(unittest.TestCase):
         run(f"{venv_bin}hca dss post-bundles-checkout "
             "--uuid $(jq -r .bundle_uuid upload.json) "
             "--replica aws "
-            "--email dss.humancellatlas@gmail.com > res.json")
+            f"--email {Config.get_notification_email()} > res.json")
         with open("res.json") as fh:
             res_checkout = json.load(fh)
             print(f"Checkout jobId: {res_checkout['checkout_job_id']}")
