@@ -75,9 +75,9 @@ class OperationWithAuthorizer(Operation):
                 if not int(token_info["expires_in"]) > 0:
                     raise OAuthProblem(description="Authorization token has expired")
                 if json.loads(token_info["email_verified"]) is not True:
-                    raise OAuthProblem(description="User email is unverified")
-                if self.testing_403 or not any(token_info["email"].endswith(f"@{ad}") for ad in authorized_domains):
-                    raise Forbidden(description="User email is not authorized to access this resource")
+                    raise OAuthProblem(description="User's email is not verified")
+                if self.testing_403 or not any(token_info["email"].endswith("@" + ad) for ad in authorized_domains):
+                    raise Forbidden(description="User is not authorized to access this resource")
             return function(request)
         return wrapper
 
