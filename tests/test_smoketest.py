@@ -142,18 +142,20 @@ class Smoketest(unittest.TestCase):
                 f"--checkout-job-id {res_checkout['checkout_job_id']} > res.json")
             with open("res.json") as fh:
                 res = json.load(fh)
-                status = res['status']
-                self.assertGreater(len(status), 0)
-                if status == 'RUNNING':
-                    time.sleep(6)
-                else:
-                    self.assertEqual(status, 'SUCCEEDED')
-                    blob_handle = S3BlobStore.from_environment()
-                    object_key = get_dst_bundle_prefix(bundle_id, version)
-                    print(f"Checking bucket {checkout_bucket} object key: {object_key}")
-                    files = list(blob_handle.list(checkout_bucket, object_key))
-                    self.assertEqual(len(files), file_count)
-                    break
+            status = res['status']
+            self.assertGreater(len(status), 0)
+            if status == 'RUNNING':
+                time.sleep(6)
+            else:
+                self.assertEqual(status, 'SUCCEEDED')
+                blob_handle = S3BlobStore.from_environment()
+                object_key = get_dst_bundle_prefix(bundle_id, version)
+                print(f"Checking bucket {checkout_bucket} object key: {object_key}")
+                files = list(blob_handle.list(checkout_bucket, object_key))
+                self.assertEqual(len(files), file_count)
+                break
+        else:
+            self.fail("Timed out waiting for checkout job to succeed")
 
     @classmethod
     def tearDownClass(cls):
