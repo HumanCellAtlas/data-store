@@ -201,6 +201,10 @@ And you should be able to list bundles like this:
 
     curl -X GET "https://<domain_name>/v1/bundles" -H  "accept: application/json"
 
+#### Configure email notifications
+
+Some daemons (dss-checkout-sfn for example) use Amazon SES to send emails. You must set `DSS_NOTIFICATION_SENDER` to 
+your email address and then verify that address using the SES Console enabling SES to send notification emails from it. 
 
 #### Using the HCA Data Store CLI Client
 
