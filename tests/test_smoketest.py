@@ -150,7 +150,7 @@ class Smoketest(unittest.TestCase):
                     blob_handle = S3BlobStore.from_environment()
                     object_key = get_dst_bundle_prefix(bundle_id, version)
                     print(f"Checking bucket {checkout_bucket} object key: {object_key}")
-                    files = blob_handle.list(checkout_bucket, object_key)
+                    files = list(blob_handle.list(checkout_bucket, object_key))
                     self.assertEqual(len(files), file_count)
                     break
 
