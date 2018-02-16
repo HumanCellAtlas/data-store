@@ -3,8 +3,7 @@ import unittest
 import os
 
 from dss.config import Config
-from dss.index.es import ElasticsearchServer
-from tests.es import elasticsearch_delete_index
+from tests.es import elasticsearch_delete_index, ElasticsearchServer
 
 
 class ElasticsearchTestCase(unittest.TestCase):
