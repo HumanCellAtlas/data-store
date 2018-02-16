@@ -2,10 +2,6 @@
 import elasticsearch
 import logging
 import os
-import socket
-import subprocess
-import tempfile
-import time
 import typing
 from urllib.parse import parse_qs, urlencode, urlparse
 
@@ -16,9 +12,7 @@ from botocore.vendored import requests
 from elasticsearch import RequestsHttpConnection, Elasticsearch
 from requests_aws4auth import AWS4Auth
 
-from dss import Config
 from dss.util.retry import retry
-from dss.util import networking
 
 logger = logging.getLogger(__name__)
 
@@ -46,63 +40,6 @@ class AWSV4Sign(requests.auth.AuthBase):
         SigV4Auth(self.credentials, self.service, self.region).add_auth(request)
         r.headers.update(dict(request.headers.items()))
         return r
-
-
-class ElasticsearchServer:
-    def __init__(self, timeout: float=60, delay: float=10) -> None:
-        elasticsearch_binary = os.getenv("DSS_TEST_ES_PATH", "elasticsearch")
-        tempdir = tempfile.TemporaryDirectory()
-
-        # Set Elasticsearch's initial and max heap to 1.6 GiB, 40% of what's available on Travis, according to
-        # guidance from https://www.elastic.co/guide/en/elasticsearch/reference/current/heap-size.html
-        env = dict(os.environ, ES_JAVA_OPTIONS="-Xms1638m -Xmx1638m")
-
-        # Work around https://github.com/travis-ci/travis-ci/issues/8408
-        if '_JAVA_OPTIONS' in env:  # no coverage
-            logger.warning("_JAVA_OPTIONS is set. This may override the options just set via ES_JAVA_OPTIONS.")
-
-        port = networking.unused_tcp_port()
-        transport_port = networking.unused_tcp_port()
-
-        args = [elasticsearch_binary,
-                "-E", f"http.port={port}",
-                "-E", f"transport.tcp.port={transport_port}",
-                "-E", f"path.data={tempdir.name}",
-                "-E", "logger.org.elasticsearch=" + ("info" if Config.debug_level() > 0 else "warn")]
-        logger.debug("Running %r with environment %r", args, env)
-        proc = subprocess.Popen(args, env=env)
-
-        def check():
-            status = proc.poll()
-            if status is not None:
-                tempdir.cleanup()
-                raise ChildProcessError('ES process died with status {status}')
-
-        deadline = time.time() + timeout
-        while True:
-            check()
-            time.sleep(delay)
-            check()
-            logger.info('Attempting to connect to ES instance at 127.0.0.1:%i', port)
-            try:
-                sock = socket.create_connection(("127.0.0.1", port), 1)
-            except (ConnectionRefusedError, socket.timeout):
-                if time.time() + delay > deadline:
-                    proc.kill()
-                    tempdir.cleanup()
-                    raise
-            else:
-                sock.close()
-                check()
-                self.port = port
-                self.proc = proc
-                self.tempdir = tempdir
-                break
-
-    def shutdown(self) -> None:
-        self.proc.kill()
-        self.proc.wait()
-        self.tempdir.cleanup()
 
 
 class ElasticsearchClient:
