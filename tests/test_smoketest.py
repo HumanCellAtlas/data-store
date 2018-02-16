@@ -2,8 +2,7 @@
 """
 A basic integration test of the DSS. This can also be invoked via `make smoketest`.
 """
-
-import os, sys, argparse, time, uuid, json, shutil, tempfile, unittest
+import os, sys, argparse, time, uuid, json, shutil, tempfile, unittest, shlex
 from subprocess import check_call, check_output, CalledProcessError
 
 pkg_root = os.path.abspath(os.path.join(os.path.dirname(__file__), ".."))  # noqa
@@ -91,11 +90,10 @@ class Smoketest(unittest.TestCase):
         run(f"{venv_bin}hca dss download --replica aws --bundle-uuid $(jq -r .bundle_uuid upload.json)")
 
         file_count = int(get_upload_val(".files | length"))
-
         run(f"{venv_bin}hca dss post-bundles-checkout "
             "--uuid $(jq -r .bundle_uuid upload.json) "
             "--replica aws "
-            f"--email {Config.get_notification_email()} > res.json")
+            f"--email {shlex.quote(Config.get_notification_email())} > res.json")
         with open("res.json") as fh:
             res_checkout = json.load(fh)
             print(f"Checkout jobId: {res_checkout['checkout_job_id']}")
