@@ -34,7 +34,7 @@ _serial_test:
 $(tests): %.py :
 	export DSS_TEST_MODE=$${DSS_TEST_MODE:-standalone} \
 	&& set -o pipefail \
-	&& coverage run -p --source=dss -m unittest $(DSS_UNITTEST_OPTS) $*.py 2>&1 | sed -e "s/^/$$$$ /"
+	&& coverage run -p --source=dss $*.py $(DSS_UNITTEST_OPTS) 2>&1 | sed -e "s/^/$$$$ /"
 
 # Run standalone and integration tests
 #
