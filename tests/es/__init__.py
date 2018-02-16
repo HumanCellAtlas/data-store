@@ -74,7 +74,7 @@ class ElasticsearchServer:
                 "-E", f"transport.tcp.port={transport_port}",
                 "-E", f"path.data={tempdir.name}",
                 "-E", "logger.org.elasticsearch=" + ("info" if Config.debug_level() > 0 else "warn")]
-        logger.debug("Running %r with environment %r", args, env)
+        logger.info("Running %r with environment %r", args, env)
         proc = subprocess.Popen(args, env=env)
 
         def check():
@@ -92,6 +92,7 @@ class ElasticsearchServer:
             try:
                 sock = socket.create_connection(("127.0.0.1", port), 1)
             except (ConnectionRefusedError, socket.timeout):
+                logger.debug('Failed connecting to ES instance at 127.0.0.1:%i', port, exc_info=True)
                 if time.time() + delay > deadline:
                     proc.kill()
                     tempdir.cleanup()
@@ -108,5 +109,3 @@ class ElasticsearchServer:
         self.proc.kill()
         self.proc.wait()
         self.tempdir.cleanup()
-
-
