@@ -31,6 +31,7 @@ The values in this map are tuples of log levels. The first (second or third) tup
 
 test_log_levels: log_level_t = {
     dss.logger: (WARNING, DEBUG),
+    'test.es': (INFO, DEBUG)
 }
 """
 The log levels for running tests. The entries in this map override or extend the entries in the main map.
