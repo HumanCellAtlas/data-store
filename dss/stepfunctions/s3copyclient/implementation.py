@@ -171,11 +171,12 @@ def join(event, lambda_context):
     # which parts are present?
     s3_resource = boto3.resource("s3")
 
-    if isinstance(event, list):
-        # only the 0th worker propagates the full state.
-        state = event[0]
-    else:
-        state = event
+    if not isinstance(event, list):
+        # this is a single-part copy.
+        return event
+
+    # only the 0th worker propagates the full state.
+    state = event[0]
 
     mpu = s3_resource.MultipartUpload(
         state[Key.DESTINATION_BUCKET], state[Key.DESTINATION_KEY], state[_Key.UPLOAD_ID])
