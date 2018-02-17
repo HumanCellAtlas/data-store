@@ -27,7 +27,7 @@ $(SERIAL_AWS_DAEMONS) $(PARALLEL_AWS_DAEMONS):
 	shopt -s nullglob; for wheel in $@/vendor.in/*/*.whl; do unzip -q -o -d $@/vendor $$wheel; done
 	cp -R ../dss ../dss-api.yml $@/domovoilib
 	cp "$(GOOGLE_APPLICATION_CREDENTIALS)" $@/domovoilib/gcp-credentials.json
-	chmod -R ugo+r $@/domovoilib
+	chmod -R ugo+rX $@/domovoilib
 	./build_deploy_config.sh $@ $(DSS_DEPLOYMENT_STAGE)
 	cd $@; domovoi deploy --stage $(DSS_DEPLOYMENT_STAGE)
 	@if [[ $@ == "dss-sync" || $@ == "dss-index" ]]; then \
