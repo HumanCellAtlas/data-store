@@ -7,11 +7,10 @@ from abc import ABCMeta, abstractmethod
 
 from dss import Replica, Config
 from dss.index.bundle import Tombstone
+from dss.index.es.backend import ElasticsearchIndexBackend
 from dss.storage.identifiers import ObjectIdentifier, BundleFQID, TombstoneID, ObjectIdentifierError, FileFQID
 
 from .bundle import Bundle
-from .es.document import BundleDocument, BundleTombstoneDocument
-from .es import elasticsearch_retry
 
 logger = logging.getLogger(__name__)
 
@@ -22,12 +21,11 @@ class Indexer(metaclass=ABCMeta):
         """
         :param dryrun: if True, log only, don't make any modifications
         :param notify: False: never notify
-                       None: notify on updates
+                       None: notify on changes
                        True: always notify
         """
         super().__init__()
-        self.dryrun = dryrun
-        self.notify = notify
+        self.backend = ElasticsearchIndexBackend(dryrun=dryrun, notify=notify)
 
     def process_new_indexable_object(self, event: Mapping[str, Any]) -> None:
         try:
@@ -42,9 +40,7 @@ class Indexer(metaclass=ABCMeta):
                          self.replica, json.dumps(event, indent=4), exc_info=True)
             raise
 
-    @elasticsearch_retry(logger)
     def index_object(self, key):
-        elasticsearch_retry.add_context(key=key, indexer=self)
         identifier = ObjectIdentifier.from_key(key)
         if isinstance(identifier, BundleFQID):
             self._index_bundle(self.replica, identifier)
@@ -63,33 +59,22 @@ class Indexer(metaclass=ABCMeta):
     def _index_bundle(self, replica: Replica, bundle_fqid: BundleFQID):
         logger.info(f"Indexing bundle {bundle_fqid} from replica {replica.name}.")
         bundle = Bundle.from_replica(replica, bundle_fqid)
-        doc = BundleDocument.from_bundle(bundle)
         tombstone = bundle.lookup_tombstone()
         if tombstone is None:
-            modified, index_name = doc.index(dryrun=self.dryrun)
+            self.backend.index_bundle(bundle)
         else:
-            logger.info(f"Found tombstone for {bundle_fqid}. Indexing tombstone in place of bundle.")
-            tombstone_doc = BundleTombstoneDocument.from_tombstone(tombstone)
-            modified, index_name = doc.entomb(tombstone_doc)
-        if self.notify or modified and self.notify is None:
-            doc.notify(index_name)
+            logger.info(f"Found tombstone for {bundle_fqid} in replica {replica.name}. "
+                        f"Indexing tombstone in place of bundle.")
+            self.backend.remove_bundle(bundle, tombstone)
         logger.debug(f"Finished indexing bundle {bundle_fqid} from replica {replica.name}.")
 
     def _index_tombstone(self, replica: Replica, tombstone_id: TombstoneID):
         logger.info(f"Indexing tombstone {tombstone_id} from {replica.name}.")
         tombstone = Tombstone.from_replica(replica, tombstone_id)
-        tombstone_doc = BundleTombstoneDocument.from_tombstone(tombstone)
-        elasticsearch_retry.add_context(tombstone=self)
         bundles = tombstone.list_dead_bundles()
         for bundle in bundles:
-            doc = BundleDocument.from_bundle(bundle)
-            modified, index_name = doc.entomb(tombstone_doc, dryrun=self.dryrun)
-            if self.notify or modified and self.notify is None:
-                doc.notify(index_name)
+            self.backend.remove_bundle(bundle, tombstone)
         logger.info(f"Finished indexing tombstone {tombstone_id} from {replica.name}.")
-
-    def __repr__(self) -> str:
-        return f"{type(self).__name__}(dryrun={self.dryrun}, notify={self.notify})"
 
     replica: Optional[Replica] = None  # required in concrete subclasses
 
