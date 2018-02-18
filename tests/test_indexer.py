@@ -24,7 +24,7 @@ sys.path.insert(0, pkg_root)  # noqa
 import dss
 from dss import Config, BucketConfig, DeploymentStage
 from dss.config import Replica
-from dss.index.indexer import AWSIndexer, GCPIndexer, BundleDocument, Indexer
+from dss.index.indexer import BundleDocument, Indexer
 from dss.storage.hcablobstore import BundleMetadata, BundleFileMetadata, FileMetadata
 from dss.logging import configure_test_logging
 from dss.storage.identifiers import ObjectIdentifier, BundleFQID
@@ -64,6 +64,7 @@ USE_AWS_S3 = bool(os.environ.get("USE_AWS_S3", True))
 #   5. Verify the structure and content of the index document
 #
 
+
 class HTTPInfo:
     address = "127.0.0.1"
     port = None
@@ -97,6 +98,7 @@ class TestIndexerBase(ElasticsearchTestCase, DSSAssertMixin, DSSStorageMixin, DS
         cls.test_fixture_bucket = cls.replica.bucket
         Config.set_config(BucketConfig.TEST)
         cls.test_bucket = cls.replica.bucket
+        cls.indexer_cls = Indexer.for_replica[cls.replica]
 
     @classmethod
     def tearDownClass(cls):
@@ -105,6 +107,7 @@ class TestIndexerBase(ElasticsearchTestCase, DSSAssertMixin, DSSStorageMixin, DS
 
     def setUp(self):
         super().setUp()
+        self.indexer = self.indexer_cls()
         self.dss_alias_name = dss.Config.get_es_alias_name(dss.ESIndexType.docs, self.replica)
         self.subscription_index_name = dss.Config.get_es_index_name(dss.ESIndexType.subscriptions, self.replica)
         if self.replica not in self.bundle_key_by_replica:
@@ -113,6 +116,9 @@ class TestIndexerBase(ElasticsearchTestCase, DSSAssertMixin, DSSStorageMixin, DS
         self.bundle_key = self.bundle_key_by_replica[self.replica]
         self.smartseq2_paired_ends_query = smartseq2_paired_ends_v2_or_v3_query
         PostTestHandler.reset()
+
+    def process_new_indexable_object(self, event):
+        self.indexer.process_new_indexable_object(event)
 
     def test_create(self):
         sample_event = self.create_bundle_created_event(self.bundle_key)
@@ -823,12 +829,8 @@ class TestIndexerBase(ElasticsearchTestCase, DSSAssertMixin, DSSStorageMixin, DS
     def create_bundle_deleted_event(self, bundle_key):
         raise NotImplementedError()
 
-    @abstractmethod
-    def process_new_indexable_object(self, event):
-        raise NotImplementedError()
 
-
-class TestAWSIndexer(AWSIndexer, TestIndexerBase):
+class TestAWSIndexer(TestIndexerBase):
 
     replica = Replica.aws
 
@@ -846,7 +848,7 @@ class TestAWSIndexer(AWSIndexer, TestIndexerBase):
         return sample_event
 
 
-class TestGCPIndexer(GCPIndexer, TestIndexerBase):
+class TestGCPIndexer(TestIndexerBase):
 
     replica = Replica.gcp
 
