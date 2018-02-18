@@ -1,51 +1,34 @@
+from collections import defaultdict
 import ipaddress
 import json
 import logging
 import socket
 import typing
-import uuid
 import re
-from abc import abstractmethod, ABCMeta
-
-from collections import defaultdict
 from urllib.parse import urlparse
+import uuid
 
-import requests
-from cloud_blobstore import BlobStore, BlobStoreError, BlobNotFoundError
 from elasticsearch import TransportError
-from elasticsearch.helpers import scan, bulk, BulkIndexError
+from elasticsearch.helpers import BulkIndexError, bulk, scan
+import requests
 from requests_http_signature import HTTPSignatureAuth
 
-from dss import Config, DeploymentStage, ESIndexType, ESDocType
-from dss import Replica
-from dss.storage.hcablobstore import BundleMetadata, BundleFileMetadata
-from dss.storage.identifiers import ObjectIdentifier, BundleFQID, TombstoneID
+from dss import Config, DeploymentStage, ESDocType, ESIndexType, Replica
+from dss.index.bundle import Bundle, Tombstone
+from dss.index.es import ElasticsearchClient, elasticsearch_retry
 from dss.index.es.manager import IndexManager
 from dss.index.es.validator import scrub_index_data
-from dss.util import create_blob_key
-from dss.index.es import ElasticsearchClient, elasticsearch_retry
+from dss.storage.identifiers import BundleFQID, ObjectIdentifier
 
 logger = logging.getLogger(__name__)
 
 
-class IndexDocument(dict, metaclass=ABCMeta):
+class IndexDocument(dict):
     """
     An instance of this class represents a document in an Elasticsearch index.
     """
 
-    @abstractmethod
-    def index(self, dryrun=False) -> typing.Tuple[bool, str]:
-        """
-        Ensure that there is exactly one up-to-date instance of this document in exactly one ES index.
-
-        :param dryrun: if True, only read-only actions will be performed but no ES indices will be modified
-        :return: a tuple (modified, index_name) indicating whether an index needed to be updated and what the name of
-                 that index is. Note that `modified` may be True even if dryrun is False, indicating that a wet run
-                 would have updated the index.
-        """
-        raise NotImplementedError()
-
-    def __init__(self, replica: Replica, fqid: typing.Union[BundleFQID, TombstoneID], seq=(), **kwargs) -> None:
+    def __init__(self, replica: Replica, fqid: ObjectIdentifier, seq=(), **kwargs) -> None:
         super().__init__(seq, **kwargs)
         self.replica = replica
         self.fqid = fqid
@@ -109,14 +92,25 @@ class BundleDocument(IndexDocument):
     # do it must be positional in order to ensure that the argument isn't accidentally dropped along the call chain.
 
     @classmethod
-    def from_replica(cls, replica: Replica, bundle_fqid: BundleFQID):
-        self = cls(replica, bundle_fqid)
-        blobstore = Config.get_blobstore_handle(replica)
-        bucket_name = replica.bucket
-        self['manifest'] = self._read_bundle_manifest(blobstore, bucket_name, bundle_fqid)
-        self['files'] = self._read_file_infos(blobstore, bucket_name)
+    def from_bundle(cls, bundle: Bundle):
+        self = cls(bundle.replica, bundle.fqid)
+        self['manifest'] = bundle.manifest
         self['state'] = 'new'
-        self['uuid'] = bundle_fqid.uuid
+
+        # There are two reasons in favor of not using dot in the name of the individual files in the index document,
+        # and instead replacing it with an underscore:
+        #
+        # 1. Ambiguity regarding interpretation/processing of dots in field names, which could potentially change
+        #    between Elasticsearch versions. For example, see: https://github.com/elastic/elasticsearch/issues/15951
+        #
+        # 2. The ES DSL queries are easier to read when there is no ambiguity regarding dot as a field separator.
+        #    Therefore, substitute dot for underscore in the key filename portion of the index. As due diligence,
+        #    additional investigation should be performed.
+        #
+        files = {name.replace('.', '_'): content for name, content in bundle.files.items()}
+        scrub_index_data(files, str(self.fqid))
+        self['files'] = files
+        self['uuid'] = self.fqid.uuid
         return self
 
     @classmethod
@@ -135,23 +129,18 @@ class BundleDocument(IndexDocument):
 
     @elasticsearch_retry(logger)
     def index(self, dryrun=False) -> typing.Tuple[bool, str]:
-        elasticsearch_retry.add_context(bundle=self)
-        tombstone = self._lookup_tombstone()
-        if tombstone is None:
-            index_name = self._prepare_index(dryrun)
-            return self._index_into(index_name, dryrun)
-        else:
-            logger.info(f"Found tombstone for {self.fqid}. Indexing tombstone in place of bundle.")
-            return self.entomb(tombstone)
+        """
+        Ensure that there is exactly one up-to-date instance of this document in exactly one ES index.
 
-    def _lookup_tombstone(self):
-        for all_versions in (False, True):
-            tombstone_id = self.fqid.to_tombstone_id(all_versions=all_versions)
-            try:
-                return BundleTombstoneDocument.from_replica(self.replica, tombstone_id)
-            except BlobNotFoundError:
-                pass
-        return None
+        :param dryrun: if True, only read-only actions will be performed but no ES indices will be modified
+
+        :return: a tuple (modified, index_name) indicating whether an index needed to be updated and what the name of
+                 that index is. Note that `modified` may be True even if dryrun is False, indicating that a wet run
+                 would have updated the index.
+        """
+        elasticsearch_retry.add_context(bundle=self)
+        index_name = self._prepare_index(dryrun)
+        return self._index_into(index_name, dryrun)
 
     def _index_into(self, index_name: str, dryrun: bool):
         elasticsearch_retry.add_context(index=index_name)
@@ -208,55 +197,6 @@ class BundleDocument(IndexDocument):
         current_mappings = es_client.indices.get_mapping(index_name)[index_name]['mappings']
         if initial_mappings != current_mappings:
             self._refresh_percolate_queries(index_name)
-
-    def _read_bundle_manifest(self, handle: BlobStore, bucket_name: str, bundle_fqid: BundleFQID) -> dict:
-        manifest_string = handle.get(bucket_name, bundle_fqid.to_key()).decode("utf-8")
-        logger.debug("Read bundle manifest from bucket %s with bundle key %s: %s",
-                     bucket_name, bundle_fqid.to_key(), manifest_string)
-        manifest = json.loads(manifest_string, encoding="utf-8")
-        return manifest
-
-    def _read_file_infos(self, handle: BlobStore, bucket_name: str) -> dict:
-        files_info = self.manifest[BundleMetadata.FILES]
-        index_files = {}
-        for file_info in files_info:
-            if file_info[BundleFileMetadata.INDEXED] is True:
-                content_type = file_info[BundleFileMetadata.CONTENT_TYPE]
-                file_name = file_info[BundleFileMetadata.NAME]
-                if not content_type.startswith('application/json'):
-                    logger.warning(f"In bundle {self.fqid} the file '{file_name}' is marked for indexing yet has "
-                                   f"content type '{content_type}' instead of the required content type "
-                                   f"'application/json'. This file will not be indexed.")
-                    continue
-                file_blob_key = create_blob_key(file_info)
-                try:
-                    file_string = handle.get(bucket_name, file_blob_key).decode("utf-8")
-                    file_json = json.loads(file_string)
-                # TODO (mbaumann) Are there other JSON-related exceptions that should be checked below?
-                except json.decoder.JSONDecodeError as ex:
-                    logger.warning(f"In bundle {self.fqid} the file '{file_name}' is marked for indexing yet could "
-                                   f"not be parsed. This file will not be indexed. Exception: {ex}")
-                    continue
-                except BlobStoreError as ex:
-                    exception_type = type(ex).__name__
-                    logger.warning(f"In bundle {self.fqid} the file '{file_name}' is marked for indexing yet could not "
-                                   f"be accessed. This file will not be indexed. Exception: {exception_type}, "
-                                   f"file blob key: {file_blob_key}")
-                    continue
-                logger.debug(f"Indexing file: {file_name}")
-                # There are two reasons in favor of not using dot in the name of the individual
-                # files in the index document, and instead replacing it with an underscore.
-                # 1. Ambiguity regarding interpretation/processing of dots in field names,
-                #    which could potentially change between Elasticsearch versions. For example, see:
-                #       https://github.com/elastic/elasticsearch/issues/15951
-                # 2. The ES DSL queries are easier to read when there is no ambiguity regarding
-                #    dot as a field separator.
-                # Therefore, substitute dot for underscore in the key filename portion of the index.
-                # As due diligence, additional investigation should be performed.
-                index_file_name = file_name.replace(".", "_")
-                index_files[index_file_name] = file_json
-        scrub_index_data(index_files, str(self.fqid))
-        return index_files
 
     def _prepare_index(self, dryrun):
         shape_descriptor = self.get_shape_descriptor()
@@ -501,38 +441,12 @@ class BundleDocument(IndexDocument):
 
 
 class BundleTombstoneDocument(IndexDocument):
+    """
+    The index document representing a bundle tombstone.
+    """
 
     @classmethod
-    def from_replica(cls, replica: Replica, tombstone_id: TombstoneID):
-        blobstore = Config.get_blobstore_handle(replica)
-        bucket_name = replica.bucket
-        tombstone_data = json.loads(blobstore.get(bucket_name, tombstone_id.to_key()))
-        self = cls(replica, tombstone_id, tombstone_data)
-        self['uuid'] = tombstone_id.uuid
+    def from_tombstone(cls, tombstone: Tombstone) -> 'BundleTombstoneDocument':
+        self = cls(tombstone.replica, tombstone.fqid, tombstone.body)
+        self['uuid'] = self.fqid.uuid
         return self
-
-    def _list_dead_bundles(self) -> typing.Sequence[BundleDocument]:
-        blobstore = Config.get_blobstore_handle(self.replica)
-        bucket_name = self.replica.bucket
-        assert isinstance(self.fqid, TombstoneID)
-        if self.fqid.is_fully_qualified():
-            # if a version is specified, delete just that version
-            bundle_fqids: typing.Iterable[BundleFQID] = [self.fqid.to_bundle_fqid()]
-        else:
-            # if no version is specified, delete all bundle versions from the index
-            prefix = self.fqid.to_key_prefix()
-            fqids = [ObjectIdentifier.from_key(k) for k in set(blobstore.list(bucket_name, prefix))]
-            bundle_fqids = filter(lambda fqid: type(fqid) == BundleFQID, fqids)
-
-        docs = [BundleDocument.from_replica(self.replica, bundle_fqid) for bundle_fqid in bundle_fqids]
-        return docs
-
-    @elasticsearch_retry(logger)
-    def index(self, dryrun=False) -> typing.Tuple[bool, str]:
-        elasticsearch_retry.add_context(tombstone=self)
-        dead_docs = self._list_dead_bundles()
-        for doc in dead_docs:
-            doc.entomb(self, dryrun=dryrun)
-        # FIXME: We need to notify subscriptions for every entombed document, index() and entomb() should probably do
-        # the notification rather than returning the tuple and letting the caller do it
-        return False, ''
