@@ -1,5 +1,4 @@
 import json
-import logging
 import os
 import sys
 
@@ -10,7 +9,7 @@ sys.path.insert(0, pkg_root)  # noqa
 
 import dss
 from dss.logging import configure_daemon_logging
-from dss.events.handlers.index import AWSIndexer, GCPIndexer
+from dss.index.indexer import AWSIndexer, GCPIndexer
 
 
 app = domovoi.Domovoi(configure_logs=False)

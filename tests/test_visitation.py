@@ -213,7 +213,7 @@ class TestVisitationReindex(unittest.TestCase):
     @testmode.standalone
     @mock.patch('dss.Config.get_blobstore_handle', new=fake_get_blobstore_handle)
     @mock.patch('dss.Replica.bucket', new=fake_bucket)
-    @mock.patch('dss.events.handlers.index.Indexer.index_object', new=fake_index_object)
+    @mock.patch('dss.index.indexer.Indexer.index_object', new=fake_index_object)
     def test_reindex_walk(self):
         r = reindex.Reindex._with_state(self.state)
         r._walk()
@@ -233,7 +233,7 @@ class TestVisitationReindex(unittest.TestCase):
     @testmode.standalone
     @mock.patch('dss.Config.get_blobstore_handle', new=fake_get_blobstore_handle)
     @mock.patch('dss.Replica.bucket', new=fake_bucket)
-    @mock.patch('dss.events.handlers.index.Indexer.index_object', new=fake_index_object)
+    @mock.patch('dss.index.indexer.Indexer.index_object', new=fake_index_object)
     def test_reindex_no_time_remaining(self):
         r = reindex.Reindex._with_state(self.state)
         r._walk(seconds_allowed=1)
