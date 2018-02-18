@@ -1,32 +1,31 @@
 import json
 import logging
-from typing import Any, Mapping, MutableMapping, Optional, Type
+from typing import Optional, Mapping, Any, MutableMapping, Type
 from urllib.parse import unquote
 
 from abc import ABCMeta, abstractmethod
 
-from dss import Config, Replica
-from dss.storage.identifiers import BundleFQID, FileFQID, ObjectIdentifier, ObjectIdentifierError, TombstoneID
-from .bundle import Bundle, Tombstone
-from .es import elasticsearch_retry
+from dss import Replica, Config
+from dss.index.bundle import Tombstone
+from dss.storage.identifiers import ObjectIdentifier, BundleFQID, TombstoneID, ObjectIdentifierError, FileFQID
+
+from .bundle import Bundle
 from .es.document import BundleDocument, BundleTombstoneDocument
+from .es import elasticsearch_retry
 
 logger = logging.getLogger(__name__)
 
 
 class Indexer(metaclass=ABCMeta):
 
-    def __init__(self, *args, dryrun: bool=False, notify: Optional[bool]=True, **kwargs) -> None:
+    def __init__(self, dryrun: bool=False, notify: Optional[bool]=True) -> None:
         """
         :param dryrun: if True, log only, don't make any modifications
         :param notify: False: never notify
                        None: notify on updates
                        True: always notify
         """
-        # FIXME (hannes): the variadic arguments allow for this to be used as a mix-in for tests.
-        # FIXME (hannes): That's an anti-pattern, so it should be eliminated.
-        # noinspection PyArgumentList
-        super().__init__(*args, **kwargs)  # type: ignore
+        super().__init__()
         self.dryrun = dryrun
         self.notify = notify
 
