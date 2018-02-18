@@ -3,11 +3,13 @@
 
 from abc import ABCMeta, abstractmethod
 import datetime
+from http.server import BaseHTTPRequestHandler, HTTPServer
 import io
 import json
 import logging
 import os
 import requests
+from requests_http_signature import HTTPSignatureAuth
 import sys
 import threading
 import time
@@ -15,33 +17,29 @@ import typing
 import unittest
 import unittest.mock
 import uuid
-from http.server import BaseHTTPRequestHandler, HTTPServer
-from requests_http_signature import HTTPSignatureAuth
 
 pkg_root = os.path.abspath(os.path.join(os.path.dirname(__file__), '..'))  # noqa
 sys.path.insert(0, pkg_root)  # noqa
 
 import dss
-from dss import Config, BucketConfig, DeploymentStage
+from dss import BucketConfig, Config, DeploymentStage
 from dss.config import Replica
-from dss.index.indexer import BundleDocument, Indexer
-from dss.storage.hcablobstore import BundleMetadata, BundleFileMetadata, FileMetadata
-from dss.logging import configure_test_logging
-from dss.storage.identifiers import ObjectIdentifier, BundleFQID
-from dss.index.es.validator import scrub_index_data
-from dss.util import create_blob_key, networking, UrlBuilder
 from dss.index.es import ElasticsearchClient
+import dss.index.es.backend
+from dss.index.es.document import BundleDocument
+from dss.index.es.validator import scrub_index_data
+from dss.index.indexer import Indexer
+from dss.logging import configure_test_logging
+from dss.storage.hcablobstore import BundleFileMetadata, BundleMetadata, FileMetadata
+from dss.storage.identifiers import BundleFQID, ObjectIdentifier
+from dss.util import UrlBuilder, create_blob_key, networking
 from dss.util.version import datetime_to_version_format
-from tests import get_version, get_auth_header
+from tests import eventually, get_auth_header, get_bundle_fqid, get_file_fqid, get_version
+from tests.infra import DSSAssertMixin, DSSStorageMixin, DSSUploadMixin, TestBundle, testmode
 from tests.infra.elasticsearch_test_case import ElasticsearchTestCase
-from tests.infra import DSSAssertMixin, DSSUploadMixin, DSSStorageMixin, TestBundle, testmode
 from tests.infra.server import ThreadedLocalServer
-from tests.sample_search_queries import (smartseq2_paired_ends_v3_query,
-                                         smartseq2_paired_ends_v2_or_v3_query,
-                                         smartseq2_paired_ends_v4_query,
-                                         smartseq2_paired_ends_v3_or_v4_query)
-
-from tests import eventually, get_bundle_fqid, get_file_fqid
+from tests.sample_search_queries import (smartseq2_paired_ends_v2_or_v3_query, smartseq2_paired_ends_v3_or_v4_query,
+                                         smartseq2_paired_ends_v3_query, smartseq2_paired_ends_v4_query)
 
 logger = logging.getLogger(__name__)
 
@@ -190,7 +188,7 @@ class TestIndexerBase(ElasticsearchTestCase, DSSAssertMixin, DSSStorageMixin, DS
                 raise e
 
         with unittest.mock.patch.object(Elasticsearch, retry_method, mock_method):
-            with unittest.mock.patch.object(dss.index.indexer.logger, 'warning') as mock_warning:
+            with unittest.mock.patch.object(dss.index.es.backend.logger, 'warning') as mock_warning:
                 # call method under test with patches in place
                 self.process_new_indexable_object(sample_event)
 
