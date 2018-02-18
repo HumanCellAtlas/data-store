@@ -24,7 +24,7 @@ sys.path.insert(0, pkg_root)  # noqa
 import dss
 from dss import Config, BucketConfig, DeploymentStage
 from dss.config import Replica
-from dss.events.handlers.index import AWSIndexer, GCPIndexer, BundleDocument, Indexer
+from dss.index.indexer import AWSIndexer, GCPIndexer, BundleDocument, Indexer
 from dss.storage.hcablobstore import BundleMetadata, BundleFileMetadata, FileMetadata
 from dss.logging import configure_test_logging
 from dss.storage.identifiers import ObjectIdentifier, BundleFQID
@@ -184,7 +184,7 @@ class TestIndexerBase(ElasticsearchTestCase, DSSAssertMixin, DSSStorageMixin, DS
                 raise e
 
         with unittest.mock.patch.object(Elasticsearch, retry_method, mock_method):
-            with unittest.mock.patch.object(dss.events.handlers.index.logger, 'warning') as mock_warning:
+            with unittest.mock.patch.object(dss.index.indexer.logger, 'warning') as mock_warning:
                 # call method under test with patches in place
                 self.process_new_indexable_object(sample_event)
 

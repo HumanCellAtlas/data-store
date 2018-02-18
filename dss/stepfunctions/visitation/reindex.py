@@ -5,7 +5,7 @@ from cloud_blobstore import BlobPagingError
 from typing import Sequence, MutableMapping, Mapping
 from collections import Counter
 
-from dss.events.handlers.index import Indexer
+from dss.index.indexer import Indexer
 from .timeout import Timeout
 from dss.config import Config, Replica
 from . import Visitation, WalkerStatus
