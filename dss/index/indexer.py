@@ -1,31 +1,23 @@
 import json
 import logging
-from typing import Optional, Mapping, Any, MutableMapping, Type
+from typing import Any, Mapping, MutableMapping, Optional, Type
 from urllib.parse import unquote
 
 from abc import ABCMeta, abstractmethod
 
-from dss import Replica, Config
-from dss.index.bundle import Tombstone
-from dss.index.es.backend import ElasticsearchIndexBackend
-from dss.storage.identifiers import ObjectIdentifier, BundleFQID, TombstoneID, ObjectIdentifierError, FileFQID
-
-from .bundle import Bundle
+from dss import Config, Replica
+from dss.storage.identifiers import BundleFQID, FileFQID, ObjectIdentifier, ObjectIdentifierError, TombstoneID
+from .backend import IndexBackend
+from .bundle import Bundle, Tombstone
 
 logger = logging.getLogger(__name__)
 
 
 class Indexer(metaclass=ABCMeta):
 
-    def __init__(self, dryrun: bool=False, notify: Optional[bool]=True) -> None:
-        """
-        :param dryrun: if True, log only, don't make any modifications
-        :param notify: False: never notify
-                       None: notify on changes
-                       True: always notify
-        """
+    def __init__(self, backend: IndexBackend) -> None:
         super().__init__()
-        self.backend = ElasticsearchIndexBackend(dryrun=dryrun, notify=notify)
+        self.backend = backend
 
     def process_new_indexable_object(self, event: Mapping[str, Any]) -> None:
         try:
@@ -78,12 +70,16 @@ class Indexer(metaclass=ABCMeta):
 
     replica: Optional[Replica] = None  # required in concrete subclasses
 
-    for_replica = {}  # type: MutableMapping[Replica, Type['Indexer']]
+    @classmethod
+    def for_replica(cls, replica: Replica):
+        return cls._for_replica[replica]
+
+    _for_replica = {}  # type: MutableMapping[Replica, Type['Indexer']]
 
     def __init_subclass__(cls: Type['Indexer']) -> None:
         super().__init_subclass__()
         assert isinstance(cls.replica, Replica)
-        cls.for_replica[cls.replica] = cls
+        cls._for_replica[cls.replica] = cls
 
 
 class AWSIndexer(Indexer):

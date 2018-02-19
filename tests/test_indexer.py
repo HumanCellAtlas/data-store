@@ -24,7 +24,7 @@ sys.path.insert(0, pkg_root)  # noqa
 import dss
 from dss import BucketConfig, Config, DeploymentStage
 from dss.config import Replica
-from dss.index.es import ElasticsearchClient
+from dss.index.es import ElasticsearchClient, backend
 import dss.index.es.backend
 from dss.index.es.document import BundleDocument
 from dss.index.es.validator import scrub_index_data
@@ -96,7 +96,7 @@ class TestIndexerBase(ElasticsearchTestCase, DSSAssertMixin, DSSStorageMixin, DS
         cls.test_fixture_bucket = cls.replica.bucket
         Config.set_config(BucketConfig.TEST)
         cls.test_bucket = cls.replica.bucket
-        cls.indexer_cls = Indexer.for_replica[cls.replica]
+        cls.indexer_cls = Indexer.for_replica(cls.replica)
 
     @classmethod
     def tearDownClass(cls):
@@ -105,7 +105,7 @@ class TestIndexerBase(ElasticsearchTestCase, DSSAssertMixin, DSSStorageMixin, DS
 
     def setUp(self):
         super().setUp()
-        self.indexer = self.indexer_cls()
+        self.indexer = self.indexer_cls(backend.ElasticsearchIndexBackend())
         self.dss_alias_name = dss.Config.get_es_alias_name(dss.ESIndexType.docs, self.replica)
         self.subscription_index_name = dss.Config.get_es_index_name(dss.ESIndexType.subscriptions, self.replica)
         if self.replica not in self.bundle_key_by_replica:
@@ -188,7 +188,7 @@ class TestIndexerBase(ElasticsearchTestCase, DSSAssertMixin, DSSStorageMixin, DS
                 raise e
 
         with unittest.mock.patch.object(Elasticsearch, retry_method, mock_method):
-            with unittest.mock.patch.object(dss.index.es.backend.logger, 'warning') as mock_warning:
+            with unittest.mock.patch.object(backend.logger, 'warning') as mock_warning:
                 # call method under test with patches in place
                 self.process_new_indexable_object(sample_event)
 
@@ -721,7 +721,8 @@ class TestIndexerBase(ElasticsearchTestCase, DSSAssertMixin, DSSStorageMixin, DS
         self.assertEqual(bundle_version, posted_json['match']['bundle_version'])
 
     def test_indexer_lookup(self):
-        for replica, indexer in Indexer.for_replica.items():
+        for replica in Replica:
+            indexer = Indexer.for_replica(replica)
             self.assertIs(replica, indexer.replica)
 
     @staticmethod
