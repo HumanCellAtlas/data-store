@@ -5,6 +5,7 @@ from cloud_blobstore import BlobPagingError
 from typing import Sequence, MutableMapping, Mapping
 from collections import Counter
 
+from dss.index.es.backend import ElasticsearchIndexBackend
 from dss.index.indexer import Indexer
 from .timeout import Timeout
 from dss.config import Config, Replica
@@ -61,9 +62,9 @@ class Reindex(Visitation):
     def _walk(self, seconds_allowed=250) -> None:
         start_time = time()
 
-        indexer_class = Indexer.for_replica[Replica[self.replica]]
-
-        self.indexer = indexer_class(dryrun=self.dryrun, notify=self.notify)
+        indexer_class = Indexer.for_replica(Replica[self.replica])
+        backend = ElasticsearchIndexBackend(dryrun=self.dryrun, notify=self.notify)
+        self.indexer = indexer_class(backend)
 
         handle = Config.get_blobstore_handle(Replica[self.replica])
         default_bucket = Replica[self.replica].bucket
