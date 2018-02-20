@@ -225,11 +225,8 @@ class Base(unittest.TestCase):
 
     def _test_common(self, func: Callable[[dict], Any], jtype: str, enums: list=None, const: Any=None):
         with self.subTest(f"with only 'type: {jtype}' in schema"):
-            # mypy does not like that type_mapping has both types and and tuple(types, ...). It causes this error:
-            # tests/test_jsongenerator.py:218: error: Argument 2 to "assertIsInstance" of "TestCase" has
-            # incompatible type "object"; expected "Union[type, Tuple[type, ...]]"
-            # make: *** [mypy] Error 1
-            self.assertIsInstance(func({'type': jtype}), type_mapping.get(jtype))  # type: ignore
+            self.assertTrue(isinstance(func({'type': jtype}), type_mapping[jtype]),
+                            msg=f"{func.__name__} did not return type {type_mapping[jtype]}.")
 
         if const and enums:
             with self.subTest("test constant take precedence over enum"):
