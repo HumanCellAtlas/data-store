@@ -16,9 +16,9 @@ sys.path.insert(0, pkg_root)  # noqa
 
 from dss import stepfunctions, Config, BucketConfig
 from dss.stepfunctions import generator
-from tests.scalability.json_faker import JsonFaker
 from hca.dss import DSSClient
 from dss.api.files import ASYNC_COPY_THRESHOLD
+from json_generator import generate_sample
 
 #: Wait in seconds begore performing another checkout readiness check
 WAIT_CHECKOUT = 10
@@ -47,25 +47,11 @@ Config.set_config(BucketConfig.NORMAL)
 def current_time():
     return int(round(time.time() * 1000))
 
-def generate_json():
-    schema_urls = [
-        "https://raw.githubusercontent.com/HumanCellAtlas/metadata-schema/4.6.0/json_schema/analysis_bundle.json",
-        "https://raw.githubusercontent.com/HumanCellAtlas/metadata-schema/4.6.0/json_schema/assay_bundle.json",
-        "https://raw.githubusercontent.com/HumanCellAtlas/metadata-schema/4.6.0/json_schema/project_bundle.json",
-        "https://raw.githubusercontent.com/HumanCellAtlas/metadata-schema/4.6.0/json_schema/sample_bundle.json",
-    ]
-
-    faker = JsonFaker(schema_urls)
-    return faker.generate()  # output is a string.
-
-
 def upload_bundle(event, context, branch_id):
     app.log.info("Upload bundle")
-    test_json = generate_json()
-    app.log.info(f"test json {test_json}")
     with tempfile.TemporaryDirectory() as src_dir:
         with tempfile.NamedTemporaryFile(dir=src_dir, suffix=".json", delete=False) as jfh:
-            jfh.write(bytes(generate_json(), 'UTF-8'))
+            jfh.write(bytes(generate_sample(), 'UTF-8'))
             jfh.flush()
         with tempfile.NamedTemporaryFile(dir=src_dir, suffix=".bin") as fh:
             fh.write(os.urandom(ASYNC_COPY_THRESHOLD + 1))
