@@ -67,7 +67,7 @@ class JsonGenerator(object):
         if scope:
             self.resolver.push_scope(scope)
         try:
-            # should be inside an object now other wise there should be a ref.
+            # should be inside an object now otherwise there should be a ref.
             ref = schema.get(u"$ref")
             json_type = schema.get(u"type", "object")
             if ref is not None:
@@ -246,14 +246,14 @@ class JsonGenerator(object):
             if unique:
                 item_count = len(items)
                 i = 0
-                retry = 3  # To prevent infinite loops
-                while i < item_count and retry:
-                    retry -= 1
+                retry = 0  # To prevent infinite loops
+                while i < item_count and retry < 3:
                     item = self._gen_json(items[i])
+                    retry += 1
                     if item not in impostor:
                         impostor.append(item)
                         i += 1
-                        retry = 3
+                        retry = 0
                 if additional_items:
                     unique_gen(additional_items)
             else:
