@@ -7,6 +7,8 @@ lint:
 mypy:
 	mypy --ignore-missing-imports $(MODULES)
 
+export DSS_TEST_MODE?=standalone
+
 tests:=$(wildcard tests/test_*.py)
 serial_tests:=tests/test_search.py \
 	          tests/test_indexer.py \
@@ -34,21 +36,20 @@ serial_test:
 # A pattern rule that runs a single test script
 #
 $(tests): %.py :
-	export DSS_TEST_MODE=$${DSS_TEST_MODE:-standalone} \
-	&& coverage run -p --source=dss $*.py $(DSS_UNITTEST_OPTS)
+	coverage run -p --source=dss $*.py $(DSS_UNITTEST_OPTS)
 
 # Run standalone and integration tests
 #
 all_test:
-	DSS_TEST_MODE="standalone integration" $(MAKE) test
+	$(MAKE) DSS_TEST_MODE="standalone integration" test
 
 # Run integration tests only
 #
 integration_test:
-	DSS_TEST_MODE="integration" $(MAKE) test
+	$(MAKE) DSS_TEST_MODE="integration" test
 
 smoketest:
-	DSS_TEST_MODE="integration" $(MAKE) tests/test_smoketest.py
+	$(MAKE) DSS_TEST_MODE="integration" tests/test_smoketest.py
 
 deploy: deploy-chalice deploy-daemons
 
