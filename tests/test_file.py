@@ -96,9 +96,11 @@ class TestFileApi(unittest.TestCase, DSSAssertMixin, DSSUploadMixin):
         src_key = generate_test_key()
         upload_func(test_bucket, src_key)
 
-        # should be able to do this twice (i.e., same payload, different UUIDs).  first time should be asynchronous
-        # since it's new data.  second time should be synchronous since the data is present.
-        for expect_async in [True, False]:
+        # We should be able to do this twice (i.e., same payload, different UUIDs).  First time should be asynchronous
+        # since it's new data.  Second time should be synchronous since the data is present, but because S3 does not
+        # make consistency guarantees, a second client might not see that the data is already there.  Therefore, we do
+        # not mandate that it is done synchronously.
+        for expect_async in [True, None]:
             resp_obj = self.upload_file_wait(
                 f"{replica.storage_schema}://{test_bucket}/{src_key}",
                 replica,
