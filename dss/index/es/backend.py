@@ -1,6 +1,6 @@
 import logging
 
-from dss.index.backend import IndexBackend
+from dss.index.backend import IndexBackend, CompositeIndexBackend
 from dss.index.bundle import Bundle, Tombstone
 from . import elasticsearch_retry
 from .document import BundleDocument, BundleTombstoneDocument

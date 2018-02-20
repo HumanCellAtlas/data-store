@@ -196,9 +196,9 @@ def fake_bucket(self):
     return "no-bucket"
 
 
-def fake_process_item(self, key):
-    if key == '3':
-        time.sleep(5)
+def fake_process_item(self, indexer, key):
+    if key == '2':
+        time.sleep(2)
 
 
 def fake_index_object(_self, key):
@@ -228,8 +228,10 @@ class TestVisitationReindex(unittest.TestCase):
     @mock.patch('dss.Replica.bucket', new=fake_bucket)
     @mock.patch('dss.stepfunctions.visitation.reindex.Reindex.process_item', new=fake_process_item)
     def test_reindex_timeout(self):
+        self.context = MockLambdaContext(timeout=21)
         r = reindex.Reindex._with_state(self.state, self.context)
-        r._walk(seconds_allowed=2)
+        # The second item will take one second which will push the time remaining to below the 20s safety
+        r._walk()
         self.assertEquals('2', r.marker)
         self.assertEquals('frank', r.token)
 
@@ -238,8 +240,9 @@ class TestVisitationReindex(unittest.TestCase):
     @mock.patch('dss.Replica.bucket', new=fake_bucket)
     @mock.patch('dss.index.indexer.Indexer.index_object', new=fake_index_object)
     def test_reindex_no_time_remaining(self):
+        self.context = MockLambdaContext(timeout=19.9)
         r = reindex.Reindex._with_state(self.state, self.context)
-        r._walk(seconds_allowed=1)
+        r._walk()
         self.assertIsNone(r.marker)
         self.assertIsNone(r.token)
 
@@ -255,8 +258,8 @@ class TestVisitationReindex(unittest.TestCase):
 
 class MockLambdaContext:
 
-    def __init__(self) -> None:
-        self.deadline = time.time() + 250
+    def __init__(self, timeout: float=250.0) -> None:
+        self.deadline = time.time() + timeout
 
     def get_remaining_time_in_millis(self):
         return int(max(0, self.deadline - time.time()) * 1000)

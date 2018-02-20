@@ -1,16 +1,16 @@
+from collections import Counter
+from concurrent.futures import ThreadPoolExecutor
 import logging
 import string
-from time import time
-from cloud_blobstore import BlobPagingError
-from typing import Sequence, MutableMapping, Mapping
-from collections import Counter
+from typing import Mapping, MutableMapping, Sequence
 
+from cloud_blobstore import BlobPagingError
+
+from dss.config import Config, Replica
+from dss.index.backend import CompositeIndexBackend
 from dss.index.es.backend import ElasticsearchIndexBackend
 from dss.index.indexer import Indexer
-from .timeout import Timeout
-from dss.config import Config, Replica
 from . import Visitation, WalkerStatus
-
 
 logger = logging.getLogger(__name__)
 
@@ -44,10 +44,10 @@ class Reindex(Visitation):
         else:
             self.work_ids = [a + b for a in prefix_chars for b in prefix_chars]
 
-    def process_item(self, key):
+    def process_item(self, indexer, key):
         self.work_result['processed'] += 1
         try:
-            self.indexer.index_object(key)
+            indexer.index_object(key)
         except Exception:
             self.work_result['failed'] += 1
             logger.warning(f'Reindex operation failed for {key}', exc_info=True)
@@ -59,49 +59,44 @@ class Reindex(Visitation):
         self.marker = None
         self.token = None
 
-    def _walk(self, seconds_allowed=250) -> None:
-        start_time = time()
+    def _walk(self) -> None:
+        backends = [ElasticsearchIndexBackend]
+        executor = ThreadPoolExecutor(len(backends))
+        # We can't use ecxecutor as context manager because we don't want the shutdown to block
+        try:
+            backend = CompositeIndexBackend(executor, backends, dryrun=self.dryrun, notify=self.notify)
+            indexer_cls = Indexer.for_replica(Replica[self.replica])
+            indexer = indexer_cls(backend)
 
-        indexer_class = Indexer.for_replica(Replica[self.replica])
-        backend = ElasticsearchIndexBackend(dryrun=self.dryrun, notify=self.notify)
-        self.indexer = indexer_class(backend)
+            handle = Config.get_blobstore_handle(Replica[self.replica])
+            default_bucket = Replica[self.replica].bucket
 
-        handle = Config.get_blobstore_handle(Replica[self.replica])
-        default_bucket = Replica[self.replica].bucket
+            if self.bucket != default_bucket:
+                logger.warning(f'Indexing bucket {self.bucket} instead of default {default_bucket}.')
 
-        if self.bucket != default_bucket:
-            logger.warning(f'Indexing bucket {self.bucket} instead of default {default_bucket}.')
+            blobs = handle.list_v2(
+                self.bucket,
+                prefix=f'bundles/{self.work_id}',
+                start_after_key=self.marker,  # type: ignore  # Cannot determine type of 'marker'
+                token=self.token  # type: ignore  # Cannot determine type of 'token'
+            )
 
-        blobs = handle.list_v2(
-            self.bucket,
-            prefix=f'bundles/{self.work_id}',
-            start_after_key=self.marker,  # type: ignore  # Cannot determine type of 'marker'
-            token=self.token  # type: ignore  # Cannot determine type of 'token'
-        )
-
-        for key in blobs:
-            seconds_remaining = int(seconds_allowed - (time() - start_time))
-
-            if 1 > seconds_remaining:
-                logger.info(f'{self.work_id} timed out before reindex')
-                return
-
-            with Timeout(seconds_remaining) as timeout:
-                """
-                Timing out while recording paging info could cause an inconsistent paging state, leading
-                to repeats of large amounts of work. This can be avoided by checking for timeouts only
-                during actual re-indexing.
-                """
-                self.process_item(key)
-
-            if timeout.did_timeout:
-                logger.warning(f'{self.work_id} timed out during reindex')
-                return
-
-            self.marker = blobs.start_after_key
-            self.token = blobs.token
-        else:
-            self._status = WalkerStatus.finished.name
+            for key in blobs:
+                # Timing out while recording paging info could cause an inconsistent paging state, leading to repeats
+                # of large amounts of work. This can be avoided by checking for timeouts only during actual
+                # re-indexing.
+                timeout = self.remaining_runtime() - 10  # ten seconds of safety for letting lambda shut down
+                if timeout < 10:  # don't even try to index an item with less then 10 seconds left
+                    logger.warning(f'{self.work_id} timed out during reindex')
+                    return
+                backend._timeout = timeout
+                self.process_item(indexer, key)
+                self.marker = blobs.start_after_key
+                self.token = blobs.token
+            else:
+                self._status = WalkerStatus.finished.name
+        finally:
+            executor.shutdown(False)
 
     def walker_walk(self) -> None:
         try:
