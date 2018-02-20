@@ -1,7 +1,7 @@
 import os
 import sys
 import unittest
-from typing import Callable, Any
+from typing import Callable, Any, Dict, Union, Tuple
 
 from jsonschema import Draft4Validator
 
@@ -11,7 +11,11 @@ sys.path.insert(0, pkg_root)  # noqa
 from tests.infra import testmode
 from tests.json.generator import JsonGenerator
 
-type_mapping = {'string': str, 'object': dict, 'array': list, 'integer': int, 'number': (int, float)}
+type_mapping = {'string': str,
+                'object': dict,
+                'array': list,
+                'integer': int,
+                'number': (int, float)}  # type: Dict[str, Union[Any, Tuple[Any, ...]]]
 schema_analysis = {
     "title": "analysis",
     "required": [

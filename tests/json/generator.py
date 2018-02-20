@@ -2,7 +2,7 @@ import random
 import rstr
 from faker import Faker
 from jsonschema import RefResolver
-from typing import Union
+from typing import Union, List
 
 
 class JsonGenerator(object):
@@ -36,7 +36,7 @@ class JsonGenerator(object):
         'email': 'email'
     }
 
-    def __init__(self, resolver: RefResolver=None, formats: dict=None, faker: Faker=None):
+    def __init__(self, resolver: RefResolver=None, formats: dict=None, faker: Faker=None) -> None:
         """
         :param resolver: used to resolved '$ref' within the schema.
         :param formats: replaces _default_format_generators for determining the type of strings to generate. Must be a
@@ -52,7 +52,7 @@ class JsonGenerator(object):
             if not getattr(self.faker, value):
                 raise KeyError(f"'{value}' provider not an attribute of Faker.")
         self.resolver = resolver if resolver else RefResolver('', '')
-        self.path = []
+        self.path = []  # type: List[str]
 
     def generate_json(self, schema: dict) -> dict:
         """
