@@ -51,11 +51,12 @@ class Visitation:
     state_spec: dict = dict()
     walker_state_spec: dict = dict()
 
-    def __init__(self, state_spec: dict, state: dict) -> None:
+    def __init__(self, state_spec: dict, state: dict, context) -> None:
         """
         Pull in fields defined in state specifications and set as instance properties
         """
         self.state_spec = state_spec
+        self._context = context
         state = copy.deepcopy(state)
 
         self.work_result: Union[Any, Sequence] = None  # mypy needs this
@@ -72,16 +73,20 @@ class Visitation:
             setattr(self, k, v)
 
     @classmethod
-    def _with_state(cls, state: dict) -> 'Visitation':
+    def _with_state(cls, state: dict, context) -> 'Visitation':
         """
         Pull in state specific to the job.
+
+        For documentation on the context object refer to
+
+        https://docs.aws.amazon.com/lambda/latest/dg/python-context-object.html
         """
         state_spec = {
             ** Visitation._state_spec,
             ** cls.state_spec,
             ** cls.walker_state_spec,
         }
-        return cls(state_spec, state)
+        return cls(state_spec, state, context)
 
     def get_state(self) -> dict:
         """
@@ -160,6 +165,9 @@ class Visitation:
         Aliment this method for finalization work specific to a failed walker.
         """
         pass
+
+    def remaining_runtime(self) -> float:
+        return self._context.get_remaining_time_in_millis() / 1000
 
     # See MyPy recomendations for silencing spurious warnings of missing properties that have been mixed in:
     # https://mypy.readthedocs.io/en/latest/cheat_sheet.html#when-you-re-puzzled-or-when-things-are-complicated
