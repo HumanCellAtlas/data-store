@@ -131,7 +131,7 @@ for t in range(600):
         break
     sys.stderr.write(".")
     sys.stderr.flush()
-    time.sleep(1)
+    time.sleep(5)
 else:
     sys.exit("Timeout while waiting for GCF deployment to complete")
 sys.stderr.write("done\n")
