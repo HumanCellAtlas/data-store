@@ -1,16 +1,20 @@
+from concurrent.futures import ThreadPoolExecutor
 import json
 import os
 import sys
 
 import domovoi
 
+from dss.index.es.backend import ElasticsearchIndexBackend
+
 pkg_root = os.path.abspath(os.path.join(os.path.dirname(__file__), 'domovoilib'))  # noqa
 sys.path.insert(0, pkg_root)  # noqa
 
 import dss
+from dss import Replica
+from dss.index.backend import CompositeIndexBackend
+from dss.index.indexer import Indexer
 from dss.logging import configure_daemon_logging
-from dss.index.indexer import AWSIndexer, GCPIndexer
-
 
 app = domovoi.Domovoi(configure_logs=False)
 configure_daemon_logging()
@@ -25,8 +29,7 @@ def dispatch_s3_indexer_event(event, context) -> None:
     if event.get("Event") == "s3:TestEvent":
         app.log.info("DSS index daemon received S3 test event")
     else:
-        indexer = AWSIndexer()
-        indexer.process_new_indexable_object(event)
+        _handle_event(Replica.aws, event, context)
 
 
 @app.sns_topic_subscriber("dss-gs-bucket-events-" + os.environ["DSS_GS_BUCKET"])
@@ -35,5 +38,20 @@ def dispatch_gs_indexer_event(event, context):
     This handler receives GS events via the Google Cloud Function deployed from daemons/dss-gs-event-relay.
     """
     gs_event = json.loads(event['Records'][0]['Sns']['Message'])
-    indexer = GCPIndexer()
-    indexer.process_new_indexable_object(gs_event['data'])
+    event = gs_event['data']
+    _handle_event(Replica.gcp, event, context)
+
+
+def _handle_event(replica, event, context):
+    timeout = context.get_remaining_time_in_millis() / 1000 - 10  # ten seconds of safety for lambda shut down
+    assert timeout >= 10, 'Not enough time left for this lambda to process event'
+    backends = [ElasticsearchIndexBackend]
+    executor = ThreadPoolExecutor(len(backends))
+    # We can't use ecxecutor as context manager because we don't want the shutdown to block
+    try:
+        backend = CompositeIndexBackend(executor, backends, timeout=timeout)
+        indexer_cls = Indexer.for_replica(replica)
+        indexer = indexer_cls(backend)
+        indexer.process_new_indexable_object(event)
+    finally:
+        executor.shutdown(False)
