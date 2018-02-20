@@ -13,9 +13,8 @@ pkg_root = os.path.abspath(os.path.join(os.path.dirname(__file__), '..'))  # noq
 sys.path.insert(0, pkg_root)  # noqa
 
 import dss
-from dss import BucketConfig, Config, Replica
 from dss.logging import configure_test_logging
-from dss.stepfunctions.visitation import Visitation, WalkerStatus
+from dss.stepfunctions.visitation import Visitation
 from dss.stepfunctions import step_functions_describe_execution
 from dss.stepfunctions.visitation import implementation
 from dss.stepfunctions.visitation.integration_test import IntegrationTest
