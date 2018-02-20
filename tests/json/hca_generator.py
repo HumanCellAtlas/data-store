@@ -9,9 +9,7 @@ from tests.json.generator import JsonGenerator
 
 class JsonFaker(object):
     """
-    Used to generate random JSON from a from a list of URLs containing JSON schemas. This class requires both
-    https://github.com/json-schema-faker/json-schema-faker and https://github.com/oprogramador/json-schema-faker-cli
-    to be installed.
+    Used to generate random JSON from a from a list of URLs containing JSON schemas.
     """
     def __init__(self, schema_urls):
         """

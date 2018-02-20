@@ -6,7 +6,7 @@ from typing import Union
 
 
 class JsonGenerator(object):
-    """Generate a random json document based on the provided schema."""
+    """Generate a random JSON document based on the provided schema."""
 
     UNBOUND_MIN_ITEMS = 1
     UNBOUND_MAX_ITEMS = 16
@@ -40,7 +40,7 @@ class JsonGenerator(object):
         """
         :param resolver: used to resolved '$ref' within the schema.
         :param formats: replaces _default_format_generators for determining the type of strings to generate. Must be a
-        dict with keys associated with json string formats, and items as strings matching a Faker providers.
+        dict with keys associated with JSON string formats, and items as strings matching a Faker providers.
         Attributes of the Faker library used to generate data in a specific format.
         :param faker: a hca_generator.py object for producing fake data.
         """
@@ -63,7 +63,7 @@ class JsonGenerator(object):
         return impostor
 
     def _gen_json(self, schema: dict):
-        scope = schema.get(u"id")
+        scope = schema.get("id")
         if scope:
             self.resolver.push_scope(scope)
         try:
@@ -73,7 +73,7 @@ class JsonGenerator(object):
             if ref is not None:
                 impostor = self._ref(ref)
             else:
-                impostor = self.generators.get(json_type)(self, schema)
+                impostor = getattr(self, f"_{json_type}")(schema)
         finally:
             if scope:
                 self.resolver.pop_scope()
@@ -262,12 +262,3 @@ class JsonGenerator(object):
                 if additional_items:
                     simple_gen(additional_items)
         return impostor
-
-    generators = {
-        'number': _number,
-        'integer': _integer,
-        'string': _string,
-        'object': _object,
-        'array': _array,
-        'boolean': _boolean
-    }
