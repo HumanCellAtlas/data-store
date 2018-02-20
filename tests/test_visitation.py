@@ -35,6 +35,7 @@ def setUpModule():
 
 class TestVisitationWalker(unittest.TestCase):
     def setUp(self):
+        self.context = MockLambdaContext()
         dss.Config.set_config(dss.BucketConfig.TEST)
         self.s3_test_fixtures_bucket = get_env("DSS_S3_BUCKET_TEST_FIXTURES")
         self.gs_test_fixtures_bucket = get_env("DSS_GS_BUCKET_TEST_FIXTURES")
@@ -107,7 +108,7 @@ class TestVisitationWalker(unittest.TestCase):
             def process_item(self, key):
                 items.append(key)
 
-        walker = VT._with_state(state)
+        walker = VT._with_state(state, self.context)
         walker.walker_walk()
 
         self.assertEquals(10, len(items))
@@ -118,14 +119,14 @@ class TestVisitationWalker(unittest.TestCase):
             'number_of_workers': 3,
             '_waiting_work_ids': ['1', '2', '3', '4'],
         }
-        v = Visitation._with_state(state)
+        v = Visitation._with_state(state, self.context)
         st = v.get_state()
         self.assertIn('_visitation_class_name', st)
 
     @testmode.standalone
     def test_finalize(self):
         work_result = [1, 2]
-        v = Visitation._with_state(dict(work_result=work_result))
+        v = Visitation._with_state(dict(work_result=work_result), self.context)
         v.job_finalize()
         self.assertEquals(v.get_state()['work_result'], work_result)
 
@@ -200,12 +201,15 @@ def fake_process_item(self, key):
     if key == '3':
         time.sleep(5)
 
+
 def fake_index_object(_self, key):
     if int(key) % 2:
         raise Exception()
 
+
 class TestVisitationReindex(unittest.TestCase):
     def setUp(self):
+        self.context = MockLambdaContext()
         self.state = {
             'replica': 'aws',
         }
@@ -215,7 +219,7 @@ class TestVisitationReindex(unittest.TestCase):
     @mock.patch('dss.Replica.bucket', new=fake_bucket)
     @mock.patch('dss.index.indexer.Indexer.index_object', new=fake_index_object)
     def test_reindex_walk(self):
-        r = reindex.Reindex._with_state(self.state)
+        r = reindex.Reindex._with_state(self.state, self.context)
         r._walk()
         r.walker_finalize()
         self.assertEqual(r.work_result, dict(failed=5, indexed=5, processed=10))
@@ -225,7 +229,7 @@ class TestVisitationReindex(unittest.TestCase):
     @mock.patch('dss.Replica.bucket', new=fake_bucket)
     @mock.patch('dss.stepfunctions.visitation.reindex.Reindex.process_item', new=fake_process_item)
     def test_reindex_timeout(self):
-        r = reindex.Reindex._with_state(self.state)
+        r = reindex.Reindex._with_state(self.state, self.context)
         r._walk(seconds_allowed=2)
         self.assertEquals('2', r.marker)
         self.assertEquals('frank', r.token)
@@ -235,7 +239,7 @@ class TestVisitationReindex(unittest.TestCase):
     @mock.patch('dss.Replica.bucket', new=fake_bucket)
     @mock.patch('dss.index.indexer.Indexer.index_object', new=fake_index_object)
     def test_reindex_no_time_remaining(self):
-        r = reindex.Reindex._with_state(self.state)
+        r = reindex.Reindex._with_state(self.state, self.context)
         r._walk(seconds_allowed=1)
         self.assertIsNone(r.marker)
         self.assertIsNone(r.token)
@@ -245,9 +249,18 @@ class TestVisitationReindex(unittest.TestCase):
         for num_workers, num_work_ids in [(1, 16), (15, 16), (16, 16), (17, 256)]:
             with self.subTest(num_workers=num_workers, num_work_ids=num_work_ids):
                 state = {**self.state, '_number_of_workers': num_workers}
-                r = reindex.Reindex._with_state(state)
+                r = reindex.Reindex._with_state(state, self.context)
                 r.job_initialize()
                 self.assertEquals(num_work_ids, len(set(r.work_ids)))
+
+
+class MockLambdaContext:
+
+    def __init__(self) -> None:
+        self.deadline = time.time() + 250
+
+    def get_remaining_time_in_millis(self):
+        return int(max(0, self.deadline - time.time()) * 1000)
 
 
 if __name__ == '__main__':

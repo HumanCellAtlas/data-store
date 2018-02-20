@@ -10,7 +10,7 @@ logger = logging.getLogger(__name__)
 THREADPOOL_PARALLEL_FACTOR = 32
 
 
-def vis_obj(event):
+def vis_obj(event, context):
     class_name = event.get('_visitation_class_name', None)
 
     if class_name is None:
@@ -21,11 +21,11 @@ def vis_obj(event):
     if vis_class is None:
         raise DSSVisitationException('Unknown visitation class')
 
-    return vis_class._with_state(event)
+    return vis_class._with_state(event, context)
 
 
 def job_initialize(event, context):
-    obj = vis_obj(event)
+    obj = vis_obj(event, context)
     obj.job_initialize()
 
     if obj._number_of_workers > len(obj.work_ids):
@@ -40,19 +40,19 @@ def job_initialize(event, context):
 
 
 def job_finalize(event, context):
-    obj = vis_obj(event)
+    obj = vis_obj(event, context)
     obj.job_finalize()
     return obj.get_state()
 
 
 def job_failed(event, context):
-    job = vis_obj(event)
+    job = vis_obj(event, context)
     job.job_finalize_failed()
     return job.get_state()
 
 
 def walker_initialize(event, context, branch):
-    walker = vis_obj(event)
+    walker = vis_obj(event, context)
 
     if isinstance(walker.work_ids[0], list):
         walker.work_ids = walker.work_ids[branch]
@@ -73,13 +73,13 @@ def walker_initialize(event, context, branch):
 
 
 def walker_walk(event, context, branch):
-    walker = vis_obj(event)
+    walker = vis_obj(event, context)
     walker.walker_walk()
     return walker.get_state()
 
 
 def walker_finalize(event, context, branch):
-    walker = vis_obj(event)
+    walker = vis_obj(event, context)
     walker.walker_finalize()
 
     if len(walker.work_ids):
@@ -91,7 +91,7 @@ def walker_finalize(event, context, branch):
 
 
 def walker_failed(event, context, branch):
-    walker = vis_obj(event)
+    walker = vis_obj(event, context)
     walker.walker_finalize_failed()
     return walker.get_state()
 
