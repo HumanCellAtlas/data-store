@@ -1,9 +1,10 @@
-import random
-from jsonschema import RefResolver
 import json
+import random
+
+from jsonschema import RefResolver
 
 from dss.util.s3urlcache import S3UrlCache
-from tests.scalability.json_generator import JsonDataGenerator
+from tests.json.generator import JsonGenerator
 
 
 class JsonFaker(object):
@@ -22,7 +23,7 @@ class JsonFaker(object):
             self.schemas[name] = {'$ref': url, 'id': url}
         self.cache = S3UrlCache()
         self.resolver = self.resolver_factory()  # The resolver used to dereference JSON '$ref'.
-        self._json_gen = JsonDataGenerator(resolver=self.resolver)
+        self._json_gen = JsonGenerator(resolver=self.resolver)
 
     def generate(self, name: str=None) -> str:
         """

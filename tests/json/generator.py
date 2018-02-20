@@ -5,7 +5,7 @@ from jsonschema import RefResolver
 from typing import Union
 
 
-class JsonDataGenerator(object):
+class JsonGenerator(object):
     """Generate a random json document based on the provided schema."""
 
     UNBOUND_MIN_ITEMS = 1
@@ -42,7 +42,7 @@ class JsonDataGenerator(object):
         :param formats: replaces _default_format_generators for determining the type of strings to generate. Must be a
         dict with keys associated with json string formats, and items as strings matching a Faker providers.
         Attributes of the Faker library used to generate data in a specific format.
-        :param faker: a json_faker.py object for producing fake data.
+        :param faker: a hca_generator.py object for producing fake data.
         """
         self.faker = faker if faker else Faker()
         self._fake_pytypes = [self.faker.pydict, self.faker.pybool, self.faker.pystr, self.faker.pyint,

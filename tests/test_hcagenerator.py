@@ -7,7 +7,7 @@ pkg_root = os.path.abspath(os.path.join(os.path.dirname(__file__), '..'))  # noq
 sys.path.insert(0, pkg_root)  # noqa
 
 from dss import Config, BucketConfig
-from tests.scalability.json_faker import JsonFaker
+from tests.json.hca_generator import JsonFaker
 from tests.infra import testmode
 
 schema_urls = [
@@ -19,7 +19,7 @@ schema_urls = [
 
 
 @testmode.standalone
-class TestJsonFaker(unittest.TestCase):
+class TestHCAGenerator(unittest.TestCase):
     @classmethod
     def setUpClass(cls):
         Config.set_config(BucketConfig.TEST)

@@ -2,13 +2,14 @@ import os
 import sys
 import unittest
 from typing import Callable, Any
+
 from jsonschema import Draft4Validator
 
 pkg_root = os.path.abspath(os.path.join(os.path.dirname(__file__), '..'))  # noqa
 sys.path.insert(0, pkg_root)  # noqa
 
 from tests.infra import testmode
-from tests.scalability.json_generator import JsonDataGenerator
+from tests.json.generator import JsonGenerator
 
 type_mapping = {'string': str, 'object': dict, 'array': list, 'integer': int, 'number': (int, float)}
 schema_analysis = {
@@ -216,12 +217,12 @@ simple_object = {'type': 'object', 'properties': {'thing_1': simple_integer, 'th
 
 class Base(unittest.TestCase):
     def setUp(self):
-        self.json_gen = JsonDataGenerator()
+        self.json_gen = JsonGenerator()
 
     def _test_common(self, func: Callable[[dict], Any], jtype: str, enums: list=None, const: Any=None):
         with self.subTest(f"with only 'type: {jtype}' in schema"):
             # mypy does not like that type_mapping has both types and and tuple(types, ...). It causes this error:
-            # tests/test_jsondatagenerator.py:218: error: Argument 2 to "assertIsInstance" of "TestCase" has
+            # tests/test_jsongenerator.py:218: error: Argument 2 to "assertIsInstance" of "TestCase" has
             # incompatible type "object"; expected "Union[type, Tuple[type, ...]]"
             # make: *** [mypy] Error 1
             self.assertIsInstance(func({'type': jtype}), type_mapping.get(jtype))  # type: ignore
@@ -631,7 +632,7 @@ class TestObject(Base):
 
 
 @testmode.standalone
-class TestJsonDataGenerator(Base):
+class TestJsonGenerator(Base):
     def test_generate(self):
         generate_json = self.json_gen.generate_json
         schema_validator = Draft4Validator(schema_analysis)
