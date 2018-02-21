@@ -37,9 +37,8 @@ def post(json_request_body: dict,
 
     replica_enum = Replica[replica] if replica is not None else Replica.aws
 
-    if logger.isEnabledFor(logging.DEBUG):
-        logger.debug("Received POST for replica=%s, es_query=%s, per_page=%i, _scroll_id: %s",
-                     replica_enum.name, json.dumps(es_query, indent=4), per_page, _scroll_id)
+    logger.debug("Received POST for replica=%s, es_query=%s, per_page=%i, _scroll_id: %s",
+                 replica_enum.name, json.dumps(es_query, indent=4), per_page, _scroll_id)
 
     # TODO: (tsmith12) determine if a search operation timeout limit is needed
     # TODO: (tsmith12) allow users to retrieve previous search results
