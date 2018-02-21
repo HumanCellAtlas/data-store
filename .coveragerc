@@ -5,4 +5,3 @@ exclude_lines =
     \x23 no coverage
     raise AssertionError
     raise NotImplementedError
-    ^ *if logger\.isEnabledFor\([^)]+\):$
