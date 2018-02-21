@@ -28,6 +28,7 @@ docutils==0.14
 domovoi==1.4.5
 elasticsearch==5.5.1
 elasticsearch-dsl==5.3.0
+Faker==0.8.11
 flake8==3.5.0
 Flask==0.12.2
 google-api-core==0.1.1
@@ -69,9 +70,11 @@ requests==2.18.4
 requests-aws4auth==0.9
 requests-http-signature==0.0.3
 rsa==3.4.2
+rstr==2.2.6
 s3transfer==0.1.11
 six==1.11.0
 swagger-spec-validator==2.1.0
+text-unidecode==1.1
 typed-ast==1.1.0
 typing==3.5.3.0
 urllib3==1.22

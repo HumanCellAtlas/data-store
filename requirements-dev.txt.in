@@ -9,4 +9,6 @@ moto  >= 1.1.21
 crcmod  >= 1.7
 httpie  >= 0.9.9
 yq  >= 2.3.3
+Faker >= 0.8.11
+rstr >=2.2.6
 -r requirements.txt
