@@ -6,8 +6,11 @@ This script manages the deployment of Google Cloud Functions.
 import os, sys, time, io, zipfile, random, string, binascii, datetime, argparse, base64
 
 import boto3
+import socket
+import httplib2
 import google.cloud.storage
 import google.cloud.exceptions
+from apitools.base.py import http_wrapper
 from google.cloud.client import ClientWithProject
 from google.cloud._http import JSONConnection
 from urllib3.util.retry import Retry
@@ -33,8 +36,6 @@ args = parser.parse_args()
 args.gcf_name = "-".join([args.src_dir, os.environ["DSS_DEPLOYMENT_STAGE"]])
 
 gcp_region = os.environ["GCP_DEFAULT_REGION"]
-gcp_key_file = os.environ["GOOGLE_APPLICATION_CREDENTIALS"]
-gs = google.cloud.storage.Client.from_service_account_json(gcp_key_file)
 gcp_client = GCPClient()
 gcp_client._http.adapters["https://"].max_retries = Retry(status_forcelist={503, 504})
 grtc_conn = GoogleRuntimeConfigConnection(client=gcp_client)
@@ -66,54 +67,75 @@ for k, v in config_vars.items():
     except google.cloud.exceptions.Conflict:
         grtc_conn.api_request("PUT", f"/{var_ns}/{k}", data=dict(name=f"{var_ns}/{k}", value=b64v))
 
-try:
-    now = datetime.datetime.now().strftime("%Y-%m-%d-%H-%M-%S")
-    deploy_filename = "{}-deploy-{}-{}.zip".format(args.gcf_name, now, binascii.hexlify(os.urandom(4)).decode())
-    deploy_blob = gs.bucket(os.environ["DSS_GS_BUCKET_TEST_FIXTURES"]).blob(deploy_filename)
-    with io.BytesIO() as buf:
-        with zipfile.ZipFile(buf, 'w', compression=zipfile.ZIP_DEFLATED) as zbuf:
-            for root, dirs, files in os.walk(args.src_dir):
-                for f in files:
-                    archive_path = os.path.relpath(os.path.join(root, f), args.src_dir)
-                    if archive_path.startswith("node_modules"):
-                        continue
-                    print("Adding", archive_path)
-                    zbuf.write(os.path.join(root, f), archive_path)
-            zbuf.close()
-        deploy_blob.upload_from_string(buf.getvalue())
-        print("Uploaded", deploy_blob)
+resp = gcf_conn.api_request('POST', f'/{gcf_ns}:generateUploadUrl', content_type='application/zip')
+upload_url = resp['uploadUrl']
 
-    gcf_config = {
-        "name": f"{gcf_ns}/{args.gcf_name}",
-        "entryPoint": args.entry_point,
-        "timeout": "60s",
-        "availableMemoryMb": 256,
-        "sourceArchiveUrl": f"gs://{deploy_blob.bucket.name}/{deploy_blob.name}",
-        "eventTrigger": {
-            "eventType": "providers/cloud.storage/eventTypes/object.change",
-            "resource": "projects/_/buckets/" + os.environ['DSS_GS_BUCKET']
+now = datetime.datetime.now().strftime("%Y-%m-%d-%H-%M-%S")
+deploy_filename = "{}-deploy-{}-{}.zip".format(args.gcf_name, now, binascii.hexlify(os.urandom(4)).decode())
+with io.BytesIO() as buf:
+    with zipfile.ZipFile(buf, 'w', compression=zipfile.ZIP_DEFLATED) as zbuf:
+        for root, dirs, files in os.walk(args.src_dir):
+            for f in files:
+                archive_path = os.path.relpath(os.path.join(root, f), args.src_dir)
+                if archive_path.startswith("node_modules"):
+                    continue
+                print("Adding", archive_path)
+                zbuf.write(os.path.join(root, f), archive_path)
+        zbuf.close()
+
+    upload_data = buf.getvalue()
+
+    # BEGIN: xbrianh - Code reproduced-ish from Google gcloud utility
+    upload_request = http_wrapper.Request(
+        upload_url, http_method='PUT',
+        headers={
+            'content-type': 'application/zip',
+            # Magic header, request will fail without it.
+            # Not documented at the moment this comment was being written.
+            'x-goog-content-length-range': '0,104857600',
+            'Content-Length': '{0:d}'.format(len(upload_data))
         }
-    }
-
-    try:
-        print(gcf_conn.api_request("POST", f"/{gcf_ns}", data=gcf_config))
-    except google.cloud.exceptions.Conflict:
-        print(gcf_conn.api_request("PUT", f"/{gcf_ns}/{args.gcf_name}", data=gcf_config))
-
-    sys.stderr.write("Waiting for deployment...")
-    sys.stderr.flush()
-    for t in range(90):
-        if gcf_conn.api_request("GET", f"/{gcf_ns}/{args.gcf_name}")["status"] != "DEPLOYING":
-            break
-        sys.stderr.write(".")
-        sys.stderr.flush()
-        time.sleep(1)
+    )
+    upload_request.body = upload_data
+    if socket.getdefaulttimeout() is not None:
+        http_timeout = socket.getdefaulttimeout()
     else:
-        sys.exit("Timeout while waiting for GCF deployment to complete")
-    sys.stderr.write("done\n")
+        http_timeout = 60
+    response = http_wrapper.MakeRequest(
+        httplib2.Http(timeout=http_timeout),
+        upload_request,
+    )
+    # END
 
-    res = gcf_conn.api_request("GET", f"/{gcf_ns}/{args.gcf_name}")
-    print(res)
-    assert res["status"] == "READY"
-finally:
-    deploy_blob.delete()
+gcf_config = {
+    "name": f"{gcf_ns}/{args.gcf_name}",
+    "entryPoint": args.entry_point,
+    "timeout": "60s",
+    "availableMemoryMb": 256,
+    "sourceUploadUrl": upload_url,
+    "eventTrigger": {
+        "eventType": "providers/cloud.storage/eventTypes/object.change",
+        "resource": "projects/_/buckets/" + os.environ['DSS_GS_BUCKET']
+    }
+}
+
+try:
+    print(gcf_conn.api_request("POST", f"/{gcf_ns}", data=gcf_config))
+except google.cloud.exceptions.Conflict:
+    print(gcf_conn.api_request("PUT", f"/{gcf_ns}/{args.gcf_name}", data=gcf_config))
+
+sys.stderr.write("Waiting for deployment...")
+sys.stderr.flush()
+for t in range(600):
+    if gcf_conn.api_request("GET", f"/{gcf_ns}/{args.gcf_name}")["status"] != "DEPLOYING":
+        break
+    sys.stderr.write(".")
+    sys.stderr.flush()
+    time.sleep(5)
+else:
+    sys.exit("Timeout while waiting for GCF deployment to complete")
+sys.stderr.write("done\n")
+
+res = gcf_conn.api_request("GET", f"/{gcf_ns}/{args.gcf_name}")
+print(res)
+assert res["status"] == "READY"
