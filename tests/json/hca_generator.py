@@ -7,7 +7,7 @@ from dss.util.s3urlcache import S3UrlCache
 from tests.json.generator import JsonGenerator
 
 
-class JsonFaker(object):
+class HCAJsonGenerator(object):
     """
     Used to generate random JSON from a from a list of URLs containing JSON schemas.
     """
