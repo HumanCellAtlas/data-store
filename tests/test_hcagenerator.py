@@ -32,6 +32,7 @@ class TestHCAGenerator(unittest.TestCase):
             name = url.split('/')[-1]
             self.assertEqual(self.faker.schemas[name], {'$ref': url, 'id': url})
 
+    @unittest.skip("Test is inconsistant")  # TODO (tsmith) remove once tests run consistently
     def test_generation(self):
         for name in self.faker.schemas.keys():
             with self.subTest(name):
