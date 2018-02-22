@@ -1,8 +1,32 @@
 import random
 import rstr
 from faker import Faker
-from jsonschema import RefResolver
-from typing import Union, List
+from faker.providers.python import Provider as PythonProvider
+from jsonschema import RefResolver, Draft4Validator
+from typing import Union, List, Optional
+
+
+class JsonProvider(PythonProvider):
+
+    _SUPPORTED_JSON_TYPES = {'str', 'float', 'int', 'iso8601', 'uri', 'email', 'bool'}
+    # The more times a value appears in the tuple the greater the probability of it being generated.
+    _DEFAULT_VALUE_TYPES = ('str', 'str', 'str', 'str', 'float', 'float', 'int', 'int', 'iso8601', 'uri', 'email',
+                            'bool')
+
+    def jsondict(self, nb_elements=10, variable_nb_elements=True, *value_types):
+        value_types = self._check_value_types(value_types)
+        return self.pydict(nb_elements, variable_nb_elements, *value_types)
+
+    def jsonlist(self, nb_elements=10, variable_nb_elements=True, *value_types):
+        value_types = self._check_value_types(value_types)
+        return self.pylist(nb_elements, variable_nb_elements, *value_types)
+
+    def _check_value_types(self, value_types) -> tuple:
+        if not value_types:
+            value_types = self._DEFAULT_VALUE_TYPES
+        else:
+            assert self._SUPPORTED_JSON_TYPES.issuperset(set(value_types)), "Unsupported types in value_types"
+        return value_types
 
 
 class JsonGenerator(object):
@@ -36,17 +60,17 @@ class JsonGenerator(object):
         'email': 'email'
     }
 
-    def __init__(self, resolver: RefResolver=None, formats: dict=None, faker: Faker=None) -> None:
+    def __init__(self, resolver: RefResolver=None, formats: dict=None) -> None:
         """
         :param resolver: used to resolved '$ref' within the schema.
         :param formats: replaces _default_format_generators for determining the type of strings to generate. Must be a
         dict with keys associated with JSON string formats, and items as strings matching a Faker providers.
         Attributes of the Faker library used to generate data in a specific format.
-        :param faker: a hca_generator.py object for producing fake data.
         """
-        self.faker = faker if faker else Faker()
-        self._fake_pytypes = [self.faker.pydict, self.faker.pybool, self.faker.pystr, self.faker.pyint,
-                              self.faker.pyfloat, self.faker.pylist]
+        self.faker = Faker()
+        self.faker.add_provider(JsonProvider)
+        self._fake_pytypes = [self.faker.jsondict, self.faker.pybool, self.faker.pystr, self.faker.pyint,
+                              self.faker.pyfloat, self.faker.jsonlist]
         self.formats = formats if formats else self._default_format_generators
         for value in self.formats.values():
             if not getattr(self.faker, value):
@@ -57,9 +81,12 @@ class JsonGenerator(object):
     def generate_json(self, schema: dict) -> dict:
         """
         :param schema: the JSON schema to generate data from.
-        :return: generated JSON date
+        :return: generated JSON data
         """
+        validator = Draft4Validator(schema, resolver=self.resolver)
+        validator.check_schema(schema)
         impostor = self._gen_json(schema)
+        validator.validate(impostor)
         return impostor
 
     def _gen_json(self, schema: dict):
