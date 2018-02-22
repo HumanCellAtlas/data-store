@@ -238,7 +238,6 @@ class Base(unittest.TestCase):
                     self.assertIn(func({'type': jtype, 'enum': enums}), enums)
 
 
-@unittest.skip("Test is inconsistant")  # TODO (tsmith) remove once tests run consistently
 @testmode.standalone
 class TestNumber(Base):
     repeat = 5
@@ -316,7 +315,6 @@ class TestNumber(Base):
                     self.assertEqual(value, 1.0)
 
 
-@unittest.skip("Test is inconsistant")  # TODO (tsmith) remove once tests run consistently
 @testmode.standalone
 class TestInteger(Base):
     repeat = 10
@@ -382,7 +380,6 @@ class TestInteger(Base):
             self.assertEqual(value, 2)
 
 
-@unittest.skip("Test is inconsistant")  # TODO (tsmith) remove once tests run consistently
 @testmode.standalone
 class TestString(Base):
     minimum = 10
@@ -448,7 +445,6 @@ class TestString(Base):
                 self.assertGreaterEqual(len(value), minimum)
 
 
-@unittest.skip("Test is inconsistant")  # TODO (tsmith) remove once tests run consistently
 @testmode.standalone
 class TestArray(Base):
     repeat = 25
@@ -542,7 +538,6 @@ class TestArray(Base):
             pass
 
 
-@unittest.skip("Test is inconsistant")  # TODO (tsmith) remove once tests run consistently
 @testmode.standalone
 class TestObject(Base):
     repeat = 25
@@ -609,10 +604,9 @@ class TestObject(Base):
         with self.subTest("True"):
             maximum = 4
             minimum = 4
-            schema = {'type': 'object', 'properties': {'thing1': simple_string}, 'additionalProperties': True,
+            schema = {'type': 'object', 'additionalProperties': True,
                       'minProperties': minimum, 'maxProperties': maximum}
             value = self.json_gen._object(schema)
-            self.assertTrue(value.get('thing1'))
             self.assertEqual(len(value), 4)
 
         with self.subTest("False"):
@@ -637,11 +631,8 @@ class TestObject(Base):
         pass
 
 
-@unittest.skip("Test is inconsistant")  # TODO (tsmith) remove once tests run consistently
 @testmode.standalone
 class TestJsonGenerator(Base):
-
-    @unittest.skip("Test is inconsistant")  # TODO (tsmith) remove once tests run consistently
     def test_generate(self):
         generate_json = self.json_gen.generate_json
         schema_validator = Draft4Validator(schema_analysis)

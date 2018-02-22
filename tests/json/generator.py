@@ -1,8 +1,25 @@
 import random
 import rstr
 from faker import Faker
+from faker.providers.python import Provider as PythonProvider
 from jsonschema import RefResolver
 from typing import Union, List
+
+
+class JsonProvider(PythonProvider):
+
+    SUPPORTED_JSON_TYPES = ['str', 'str', 'str', 'str', 'float', 'float',
+                            'int', 'int', 'iso8601', 'uri', 'email']
+
+    def jsondict(self, nb_elements=10, variable_nb_elements=True, *value_types):
+        if not value_types:
+            value_types = self.SUPPORTED_JSON_TYPES
+        return self.pydict(nb_elements, variable_nb_elements, *value_types)
+
+    def jsonlist(self, nb_elements=10, variable_nb_elements=True, *value_types):
+        if not value_types:
+            value_types = self.SUPPORTED_JSON_TYPES
+        return self.pylist(nb_elements, variable_nb_elements, *value_types)
 
 
 class JsonGenerator(object):
@@ -36,17 +53,17 @@ class JsonGenerator(object):
         'email': 'email'
     }
 
-    def __init__(self, resolver: RefResolver=None, formats: dict=None, faker: Faker=None) -> None:
+    def __init__(self, resolver: RefResolver=None, formats: dict=None) -> None:
         """
         :param resolver: used to resolved '$ref' within the schema.
         :param formats: replaces _default_format_generators for determining the type of strings to generate. Must be a
         dict with keys associated with JSON string formats, and items as strings matching a Faker providers.
         Attributes of the Faker library used to generate data in a specific format.
-        :param faker: a hca_generator.py object for producing fake data.
         """
-        self.faker = faker if faker else Faker()
-        self._fake_pytypes = [self.faker.pydict, self.faker.pybool, self.faker.pystr, self.faker.pyint,
-                              self.faker.pyfloat, self.faker.pylist]
+        self.faker = Faker()
+        self.faker.add_provider(JsonProvider)
+        self._fake_pytypes = [self.faker.jsondict, self.faker.pybool, self.faker.pystr, self.faker.pyint,
+                              self.faker.pyfloat, self.faker.jsonlist]
         self.formats = formats if formats else self._default_format_generators
         for value in self.formats.values():
             if not getattr(self.faker, value):
