@@ -5,13 +5,12 @@ import sys
 
 import domovoi
 
-from dss.index.es.backend import ElasticsearchIndexBackend
-
 pkg_root = os.path.abspath(os.path.join(os.path.dirname(__file__), 'domovoilib'))  # noqa
 sys.path.insert(0, pkg_root)  # noqa
 
 import dss
 from dss import Replica
+from dss.index import DEFAULT_BACKENDS
 from dss.index.backend import CompositeIndexBackend
 from dss.index.indexer import Indexer
 from dss.logging import configure_daemon_logging
@@ -45,11 +44,10 @@ def dispatch_gs_indexer_event(event, context):
 def _handle_event(replica, event, context):
     timeout = context.get_remaining_time_in_millis() / 1000 - 10  # ten seconds of safety for lambda shut down
     assert timeout >= 10, 'Not enough time left for this lambda to process event'
-    backends = [ElasticsearchIndexBackend]
-    executor = ThreadPoolExecutor(len(backends))
+    executor = ThreadPoolExecutor(len(DEFAULT_BACKENDS))
     # We can't use ecxecutor as context manager because we don't want the shutdown to block
     try:
-        backend = CompositeIndexBackend(executor, backends, timeout=timeout)
+        backend = CompositeIndexBackend(executor, DEFAULT_BACKENDS, timeout=timeout)
         indexer_cls = Indexer.for_replica(replica)
         indexer = indexer_cls(backend)
         indexer.process_new_indexable_object(event)

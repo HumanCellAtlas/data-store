@@ -25,8 +25,8 @@ sys.path.insert(0, pkg_root)  # noqa
 import dss
 from dss import BucketConfig, Config, DeploymentStage
 from dss.config import Replica
+from dss.index import DEFAULT_BACKENDS
 from dss.index.backend import CompositeIndexBackend
-from dss.index.es.backend import ElasticsearchIndexBackend
 from dss.index.es import ElasticsearchClient
 from dss.index.es.document import BundleDocument
 from dss.index.es.validator import scrub_index_data
@@ -88,8 +88,6 @@ def tearDownModule():
 class TestIndexerBase(ElasticsearchTestCase, DSSAssertMixin, DSSStorageMixin, DSSUploadMixin, metaclass=ABCMeta):
     bundle_key_by_replica = dict()  # type: typing.MutableMapping[str, str]
 
-    backends = [ElasticsearchIndexBackend]
-
     @classmethod
     def setUpClass(cls):
         super().setUpClass()
@@ -101,7 +99,7 @@ class TestIndexerBase(ElasticsearchTestCase, DSSAssertMixin, DSSStorageMixin, DS
         Config.set_config(BucketConfig.TEST)
         cls.test_bucket = cls.replica.bucket
         cls.indexer_cls = Indexer.for_replica(cls.replica)
-        cls.executor = ThreadPoolExecutor(len(cls.backends))
+        cls.executor = ThreadPoolExecutor(len(DEFAULT_BACKENDS))
 
     @classmethod
     def tearDownClass(cls):
@@ -111,7 +109,7 @@ class TestIndexerBase(ElasticsearchTestCase, DSSAssertMixin, DSSStorageMixin, DS
 
     def setUp(self):
         super().setUp()
-        backend = CompositeIndexBackend(self.executor, self.backends)
+        backend = CompositeIndexBackend(self.executor, DEFAULT_BACKENDS)
         self.indexer = self.indexer_cls(backend)
         self.dss_alias_name = dss.Config.get_es_alias_name(dss.ESIndexType.docs, self.replica)
         self.subscription_index_name = dss.Config.get_es_index_name(dss.ESIndexType.subscriptions, self.replica)

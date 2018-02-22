@@ -7,8 +7,8 @@ from typing import Mapping, MutableMapping, Sequence
 from cloud_blobstore import BlobPagingError
 
 from dss.config import Config, Replica
+from dss.index import DEFAULT_BACKENDS
 from dss.index.backend import CompositeIndexBackend
-from dss.index.es.backend import ElasticsearchIndexBackend
 from dss.index.indexer import Indexer
 from . import Visitation, WalkerStatus
 
@@ -60,11 +60,10 @@ class Reindex(Visitation):
         self.token = None
 
     def _walk(self) -> None:
-        backends = [ElasticsearchIndexBackend]
-        executor = ThreadPoolExecutor(len(backends))
-        # We can't use ecxecutor as context manager because we don't want the shutdown to block
+        executor = ThreadPoolExecutor(len(DEFAULT_BACKENDS))
+        # We can't use executor as context manager because we don't want shutting it down to block
         try:
-            backend = CompositeIndexBackend(executor, backends, dryrun=self.dryrun, notify=self.notify)
+            backend = CompositeIndexBackend(executor, DEFAULT_BACKENDS, dryrun=self.dryrun, notify=self.notify)
             indexer_cls = Indexer.for_replica(Replica[self.replica])
             indexer = indexer_cls(backend)
 
