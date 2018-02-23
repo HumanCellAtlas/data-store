@@ -2,8 +2,8 @@ import random
 import rstr
 from faker import Faker
 from faker.providers.python import Provider as PythonProvider
-from jsonschema import RefResolver
-from typing import Union, List
+from jsonschema import RefResolver, Draft4Validator
+from typing import Union, List, Optional
 
 
 class JsonProvider(PythonProvider):
@@ -53,12 +53,14 @@ class JsonGenerator(object):
         'email': 'email'
     }
 
-    def __init__(self, resolver: RefResolver=None, formats: dict=None) -> None:
+    def __init__(self, resolver: RefResolver=None, formats: dict=None, validate: bool=False) -> None:
         """
         :param resolver: used to resolved '$ref' within the schema.
         :param formats: replaces _default_format_generators for determining the type of strings to generate. Must be a
         dict with keys associated with JSON string formats, and items as strings matching a Faker providers.
         Attributes of the Faker library used to generate data in a specific format.
+        :param validate: sets the default option whether to validate the generate json against the provided schema. The
+        default value is False.
         """
         self.faker = Faker()
         self.faker.add_provider(JsonProvider)
@@ -70,13 +72,17 @@ class JsonGenerator(object):
                 raise KeyError(f"'{value}' provider not an attribute of Faker.")
         self.resolver = resolver if resolver else RefResolver('', '')
         self.path = []  # type: List[str]
+        self.validate = validate
 
-    def generate_json(self, schema: dict) -> dict:
+    def generate_json(self, schema: dict, validate: Optional[bool]=None) -> dict:
         """
         :param schema: the JSON schema to generate data from.
-        :return: generated JSON date
+        :param validate: validate against provided schema or not. If None then self.validate is used.
+        :return: generated JSON data
         """
         impostor = self._gen_json(schema)
+        if validate if validate is not None else self.validate:
+            Draft4Validator(schema, resolver=self.resolver).validate(impostor)
         return impostor
 
     def _gen_json(self, schema: dict):
