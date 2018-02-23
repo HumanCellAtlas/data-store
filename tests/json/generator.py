@@ -80,9 +80,13 @@ class JsonGenerator(object):
         :param validate: validate against provided schema or not. If None then self.validate is used.
         :return: generated JSON data
         """
+        validate = validate if validate is not None else self.validate
+        if validate:
+            validator = Draft4Validator(schema, resolver=self.resolver)
+            validator.check_schema(schema)
         impostor = self._gen_json(schema)
-        if validate if validate is not None else self.validate:
-            Draft4Validator(schema, resolver=self.resolver).validate(impostor)
+        if validate:
+            validator.validate(impostor)
         return impostor
 
     def _gen_json(self, schema: dict):

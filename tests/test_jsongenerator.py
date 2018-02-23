@@ -1,3 +1,4 @@
+import json
 import os
 import sys
 import unittest
@@ -635,13 +636,16 @@ class TestObject(Base):
 class TestJsonGenerator(Base):
     def test_generate(self):
         generate_json = self.json_gen.generate_json
-        schema_validator = Draft4Validator(schema_analysis)
-        schema_validator.check_schema(schema_analysis)
         for i in range(20):
             with self.subTest(i):
-                gen_data = generate_json(schema_analysis)
-                schema_validator.validate(gen_data)
+                json.dumps(generate_json(schema_analysis))
 
+    def test_validate(self):
+        def test_generate(self):
+            generate_json = self.json_gen.generate_json
+            for i in range(20):
+                with self.subTest(i):
+                    generate_json(schema_analysis, validate=True)
 
 if __name__ == "__main__":
     unittest.main()
