@@ -1,3 +1,4 @@
+import json
 import os
 import sys
 import unittest
@@ -240,7 +241,7 @@ class Base(unittest.TestCase):
 
 @testmode.standalone
 class TestNumber(Base):
-    repeat = 5
+    repeat = 100
     numbers = [10.0, 0.1, 0.0, -0.1, -10.0]
     multiple_ofs = [1.5, 2]  # TODO support multipleOf [0.1, -0.2] for floats
 
@@ -317,7 +318,7 @@ class TestNumber(Base):
 
 @testmode.standalone
 class TestInteger(Base):
-    repeat = 10
+    repeat = 100
 
     def test_common(self):
         self._test_common(self.json_gen._integer, 'integer', [1, 2], 999)
@@ -384,7 +385,7 @@ class TestInteger(Base):
 class TestString(Base):
     minimum = 10
     maximum = 50
-    repeat = 25
+    repeat = 100
     regexs = {'version': "^[0-9]{2}\.[A-Za-z]{4}\.[0-9a-z]{3}$",
               'phone#': "^(\\([0-9]{3}\\))?[0-9]{3}-[0-9]{4}$",
               'email': "[A-Za-z][0-9A-Za-z.]*@[A-Za-z][0-9A-Za-z]{,4}\.[A-Za-z][0-9A-Za-z]{,4}"
@@ -447,7 +448,7 @@ class TestString(Base):
 
 @testmode.standalone
 class TestArray(Base):
-    repeat = 25
+    repeat = 100
 
     def test_common(self):
         self._test_common(self.json_gen._array, 'array')
@@ -540,7 +541,7 @@ class TestArray(Base):
 
 @testmode.standalone
 class TestObject(Base):
-    repeat = 25
+    repeat = 100
     properties = {
         'thing1': simple_string,
         'thing2': simple_integer,
@@ -633,15 +634,20 @@ class TestObject(Base):
 
 @testmode.standalone
 class TestJsonGenerator(Base):
+    repeat = 100
+
     def test_generate(self):
         generate_json = self.json_gen.generate_json
-        schema_validator = Draft4Validator(schema_analysis)
-        schema_validator.check_schema(schema_analysis)
-        for i in range(20):
+        for i in range(self.repeat):
             with self.subTest(i):
-                gen_data = generate_json(schema_analysis)
-                schema_validator.validate(gen_data)
+                json.dumps(generate_json(schema_analysis))
 
+    def test_validate(self):
+        def test_generate(self):
+            generate_json = self.json_gen.generate_json
+            for i in range(self.repeat):
+                with self.subTest(i):
+                    generate_json(schema_analysis, validate=True)
 
 if __name__ == "__main__":
     unittest.main()
