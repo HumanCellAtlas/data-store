@@ -7,7 +7,7 @@ pkg_root = os.path.abspath(os.path.join(os.path.dirname(__file__), '..'))  # noq
 sys.path.insert(0, pkg_root)  # noqa
 
 from dss import Config, BucketConfig
-from tests.json.hca_generator import HCAJsonGenerator
+from tests.json_gen.hca_generator import HCAJsonGenerator
 from tests.infra import testmode
 
 schema_urls = [
