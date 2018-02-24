@@ -9,7 +9,7 @@ pkg_root = os.path.abspath(os.path.join(os.path.dirname(__file__), '..'))  # noq
 sys.path.insert(0, pkg_root)  # noqa
 
 from tests.infra import testmode
-from tests.json.generator import JsonGenerator
+from tests.json_gen.generator import JsonGenerator
 
 type_mapping = {'string': str,
                 'object': dict,
