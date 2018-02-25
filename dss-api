@@ -14,6 +14,7 @@ from chalice.cli import CLIFactory, run_local_server
 import dss
 
 parser = argparse.ArgumentParser(description=__doc__)
+parser.add_argument("--host", default="")
 parser.add_argument("--port", type=int, default=5000)
 parser.add_argument("--no-debug", dest="debug", action="store_false",
                     help="Disable Chalice/Connexion/Flask debug mode")
@@ -36,8 +37,6 @@ factory = CLIFactory(project_dir=args.project_dir, debug=args.debug)
 config = factory.create_config_obj(
     chalice_stage_name=os.environ["DSS_DEPLOYMENT_STAGE"]
 )
-# TODO: Remove this hack when https://github.com/aws/chalice/pull/579 is pulled into our repo.
-config._user_provided_params['lambda_timeout'] = 30000
 app_obj = factory.load_chalice_app()
 # When running `chalice local`, a stdout logger is configured
 # so you'll see the same stdout logging as you would when
@@ -47,5 +46,5 @@ app_obj = factory.load_chalice_app()
 # FIXME: (hannes) I don't think this works. basicConfig() only does anything if there aren't any handlers, so a second
 # invocation is usually pointless unless something removed all handlers in between.
 logging.basicConfig(stream=sys.stdout)
-server = factory.create_local_server(app_obj, config, args.port)
+server = factory.create_local_server(app_obj=app_obj, config=config, host=args.host, port=args.port)
 server.serve_forever()
