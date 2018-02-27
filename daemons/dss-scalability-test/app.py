@@ -129,7 +129,7 @@ def save_results(event, result: str):
 @app.sns_topic_subscriber("dss-scalability-test-run-" + os.environ["DSS_DEPLOYMENT_STAGE"])
 def launch_test_run(event, context):
     msg = json.loads(event["Records"][0]["Sns"]["Message"])
-    table = dynamodb.Table('scalability_test_run')
+    table = dynamodb.Table('scalability_test_result')
     table.put_item(
         Item={
             'run_id': msg["run_id"],
@@ -176,7 +176,7 @@ def handle_dynamodb_stream(event, context):
             failure_count += fail_count_rec
     print(f"success_count_rec: {success_count}")
     if records > 0:
-        table = dynamodb.Table('scalability_test_run')
+        table = dynamodb.Table('scalability_test_result')
         run_entry_pk = {'run_id': run_id}
         run_entry = table.get_item(Key=run_entry_pk)
         if run_entry.get('Item'):
