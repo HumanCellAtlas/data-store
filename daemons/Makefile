@@ -31,6 +31,7 @@ $(SERIAL_AWS_DAEMONS) $(PARALLEL_AWS_DAEMONS):
 	    mkdir -p $@/domovoilib/tests; \
         cp -R ../tests/scalability/ $@/domovoilib/tests/scalability; \
         $(DSS_HOME)/scripts/deploy_scale_dashboard.py; \
+        $(DSS_HOME)/scripts/deploy_scale_tables.py; \
 	fi
 	cp "$(GOOGLE_APPLICATION_CREDENTIALS)" $@/domovoilib/gcp-credentials.json
 	./build_deploy_config.sh $@ $(DSS_DEPLOYMENT_STAGE)
