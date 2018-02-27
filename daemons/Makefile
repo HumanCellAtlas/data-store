@@ -30,6 +30,7 @@ $(SERIAL_AWS_DAEMONS) $(PARALLEL_AWS_DAEMONS):
 	@if [[ $@ == "dss-scalability-test" ]]; then \
 	    mkdir -p $@/domovoilib/tests; \
         cp -R ../tests/scalability/ $@/domovoilib/tests/scalability; \
+        $(DSS_HOME)/scripts/deploy_scale_dashboard.py; \
 	fi
 	cp "$(GOOGLE_APPLICATION_CREDENTIALS)" $@/domovoilib/gcp-credentials.json
 	./build_deploy_config.sh $@ $(DSS_DEPLOYMENT_STAGE)
