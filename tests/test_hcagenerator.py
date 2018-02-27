@@ -14,7 +14,8 @@ schema_urls = [
     "https://raw.githubusercontent.com/HumanCellAtlas/metadata-schema/4.6.0/json_schema/analysis_bundle.json",
     "https://raw.githubusercontent.com/HumanCellAtlas/metadata-schema/4.6.0/json_schema/assay_bundle.json",
     "https://raw.githubusercontent.com/HumanCellAtlas/metadata-schema/4.6.0/json_schema/project_bundle.json",
-    "https://raw.githubusercontent.com/HumanCellAtlas/metadata-schema/4.6.0/json_schema/sample_bundle.json",
+    # TODO (tsmith) uncomment once boolean logic is supported in jsongenerator.py git issue #1012
+    # "https://raw.githubusercontent.com/HumanCellAtlas/metadata-schema/4.6.0/json_schema/sample_bundle.json",
 ]
 
 
@@ -32,12 +33,12 @@ class TestHCAGenerator(unittest.TestCase):
             name = url.split('/')[-1]
             self.assertEqual(self.faker.schemas[name], {'$ref': url, 'id': url})
 
-    @unittest.skip("Test is inconsistant")  # TODO (tsmith) remove once tests run consistently
     def test_generation(self):
-        for name in self.faker.schemas.keys():
-            with self.subTest(name):
-                fake_json = self.faker.generate(name)
-                self.assertIsInstance(json.loads(fake_json), dict)
+        for i in range(100):
+            for name in self.faker.schemas.keys():
+                with self.subTest(name):
+                    fake_json = self.faker.generate(name)
+                    self.assertIsInstance(json.loads(fake_json), dict)
 
 
 if __name__ == "__main__":
