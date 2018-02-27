@@ -19,6 +19,7 @@ schema_urls = [
     "https://schema.humancellatlas.org/bundle/5.1.0/project",
     "https://schema.humancellatlas.org/bundle/5.1.0/submission",
     "https://schema.humancellatlas.org/bundle/5.1.0/ingest_audit",
+    "https://schema.humancellatlas.org/bundle/5.0.1/biomaterial"
 ]
 
 
