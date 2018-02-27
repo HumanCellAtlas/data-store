@@ -5,15 +5,15 @@ the [Human Cell Atlas](https://www.humancellatlas.org/).
 
 #### About the scalability testing framework
 
-1. The scalability test frameworks is based on AWS Step Function. Workflow definition resembles smoke test for DSS.
-2. The execution is triggered by sending SNS messages to dss-scalability-test-run-[STAGE} topic
+1. The scalability test framework is based on AWS Step Functions. Workflow definition resembles smoke test for DSS.
+2. The execution is triggered by sending SNS messages to dss-scalability-test-run-{STAGE} topic
 3. The scalability test writes results of execution of individual executions and aggregated run metrics into the 
 following DynamoDB tables: scalability_test_run, scalability_test
 4. The SFN execution is initiatied and starts by entering WAIT step. Wait is configured to end at the 5 minute intervals 
 to accomodate the AWS limit on starting SFN executions and enable generation of bursts of load
 5.  Once all parallel branches of execution are done, it writes summary of the run in DynamoDB
 6. DynamoDB is configured to stream new records into Lambda which aggregates the results and writes incremental metrics
-back into SynamoDB
+back into DynamoDB
 7. CloudWatch dashboard has been configured to display relevant execution metrics 
 
 #### Running the scale test locally
