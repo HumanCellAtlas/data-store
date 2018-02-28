@@ -16,9 +16,9 @@ dev_stage = 'dev'
 region = ARN.get_region()
 accountid = ARN.get_account_id()
 
-checkout_bundle_arn_prefix = f"arn:aws:lambda:{region}:{accountid}:function:dss-scalability-test-roman:domovoi-stepfunctions-task-CheckoutBundle"
-upload_bundle_arn_prefix = f"arn:aws:lambda:{region}:{accountid}:function:dss-scalability-test-roman:domovoi-stepfunctions-task-UploadBundle"
-download_bundle_arn_prefix = f"arn:aws:lambda:{region}:{accountid}:function:dss-scalability-test-roman:domovoi-stepfunctions-task-DownloadBundle"
+checkout_bundle_arn_prefix = f"arn:aws:lambda:{region}:{accountid}:function:dss-scalability-test-{stage}:domovoi-stepfunctions-task-CheckoutBundle"
+upload_bundle_arn_prefix = f"arn:aws:lambda:{region}:{accountid}:function:dss-scalability-test-{stage}:domovoi-stepfunctions-task-UploadBundle"
+download_bundle_arn_prefix = f"arn:aws:lambda:{region}:{accountid}:function:dss-scalability-test-{stage}:domovoi-stepfunctions-task-DownloadBundle"
 dss_s3_copy_arn = f"arn:aws:states:{region}:{accountid}:stateMachine:dss-s3-copy-sfn-{dev_stage}"
 
 
@@ -66,7 +66,7 @@ dashboard_def = {
                 "view": "singleValue",
                 "metrics": [
                     ["AWS/States", "ExecutionsStarted", "StateMachineArn",
-                     step_functions_arn(f"stateMachine:dss-scalability-test-{stage}"),
+                     step_functions_arn(f"dss-scalability-test-{stage}"),
                      {"stat": "Sum", "period": 3600}],
                     [".", "ExecutionsSucceeded", ".", ".", {"stat": "Sum", "period": 3600}],
                     [".", "ExecutionsFailed", ".", ".", {"stat": "Sum", "period": 3600}],
@@ -89,7 +89,7 @@ dashboard_def = {
                 "stacked": False,
                 "metrics": [
                     ["AWS/States", "ExecutionsStarted", "StateMachineArn",
-                     step_functions_arn(f"stateMachine:dss-scalability-test-{stage}"), {"stat": "Sum"}],
+                     step_functions_arn(f"dss-scalability-test-{stage}"), {"stat": "Sum"}],
                     [".", "ExecutionsFailed", ".", ".", {"stat": "Sum"}],
                     [".", "ExecutionsTimedOut", ".", ".", {"stat": "Sum"}],
                     [".", "ExecutionThrottled", ".", ".", {"stat": "Sum"}],
