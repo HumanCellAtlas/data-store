@@ -14,13 +14,15 @@ to accomodate the AWS limit on starting SFN executions and enable generation of 
 5.  Once all parallel branches of execution are done, it writes summary of the run in DynamoDB
 6. DynamoDB is configured to stream new records into Lambda which aggregates the results and writes incremental metrics
 back into DynamoDB
-7. CloudWatch dashboard has been configured to display relevant execution metrics 
+7. CloudWatch dashboard has been configured to display relevant execution metrics and deployed automatically. The 
+dashboard is named as "Scalability{stage}" 
 
 #### Running the scale test locally
 
 * Run with default configuration `make scaletest` in the top-level `data-store` directory.
 * Run with custom configuration './tests/scalability/scale_test_runner.py -r <rps> -d <seconds>' in the 
-top-level `data-store` directory.
+top-level `data-store` directory. Where "rps" is a number of requests generated per second and "d" is a duration of the
+test in seconds
 
 #### Adding new tests
 
