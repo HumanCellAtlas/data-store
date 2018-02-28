@@ -54,12 +54,6 @@ smoketest:
 scaletest:
 	./tests/scalability/scale_test_runner.py -r 10 -d 30
 
-scaletest:
-	./tests/scalability/scale_test_runner.py -r 10 -d 30
-
-scaletest:
-	./tests/scalability/scale_test_runner.py -r 10 -d 30
-
 deploy: deploy-chalice deploy-daemons
 
 deploy-chalice:
