@@ -74,7 +74,7 @@ Hint: To create S3 buckets from the command line, use `aws s3 mb --region REGION
 2.  In the [Google Cloud Console](https://console.cloud.google.com/), select the correct Google user account on the top
     right and the correct GCP project in the drop down in the top center. Go to "IAM & Admin", then "Service accounts",
     then click "Create service account" and select "Furnish a new private key". Under "Roles" select "Project – Owner",
-    "Service Accounts – Service Account Actor" and "Cloud Functions – Cloud Function Developer". Create the account and 
+    "Service Accounts – Service Account User" and "Cloud Functions – Cloud Function Developer". Create the account and 
     download the service account key JSON file.
 
 3.  In `environment.local`, set the environment variable `GOOGLE_APPLICATION_CREDENTIALS` to the path of the service
