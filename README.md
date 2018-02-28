@@ -180,7 +180,7 @@ directions [here](http://docs.aws.amazon.com/apigateway/latest/developerguide/ho
 4.  In the API Gateway, fill in the endpoints for the custom domain name e.g. Path=`/`, Destination=`dss` and
     `dev`. These might be different based on the profile used (dev, stage, etc).
 
-5.  Set the environment variable `API_HOST` to your domain name in the `environment.local` file.
+5.  Set the environment variable `API_DOMAIN_NAME` to your domain name in the `environment.local` file.
 
 Note: The certificate should be in the same region as the API gateway or, if that's not possible, in `us-east-1`. If the
 ACM certificate's region is `us-east-1` and the API gateway is in another region, the type of the custom domain name

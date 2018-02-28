@@ -102,7 +102,7 @@ class Smoketest(unittest.TestCase):
         for i in range(10):
             try:
                 cmd = "http -v --check-status GET"
-                run(f"{cmd} https://${{API_HOST}}/v1/bundles/$(jq -r .bundle_uuid upload.json)?replica=gcp")
+                run(f"{cmd} https://${{API_DOMAIN_NAME}}/v1/bundles/$(jq -r .bundle_uuid upload.json)?replica=gcp")
                 break
             except SystemExit:
                 time.sleep(1)
@@ -113,7 +113,7 @@ class Smoketest(unittest.TestCase):
         for replica in "aws", "gcp":
             run(f"{venv_bin}hca dss post-search --es-query='{{}}' --replica {replica} > /dev/null")
 
-        search_route = "https://${API_HOST}/v1/search"
+        search_route = "https://${API_DOMAIN_NAME}/v1/search"
         for replica in "aws", "gcp":
             run(f"jq -n '.es_query.query.match[env.k]=env.v' | http --check {search_route} replica==aws > res.json",
                 env=dict(os.environ, k="files.sample_json.id", v=sample_id))
