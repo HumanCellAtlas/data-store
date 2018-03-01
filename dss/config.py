@@ -33,10 +33,11 @@ class DeploymentStage(Enum, metaclass=DeploymentStageMeta):
     Represents the current deployment stage.  Through the `DeploymentStageMeta` metaclass, we provide the magic methods
     IS_{STAGE}, which return True if the current deployment stage matches `STAGE`.
 
-    e.g., IS_PROD() will return True iff the current deployment is a production deployment.
+    e.g., IS_PROD() will return True if the current deployment is a production deployment.
     """
     PROD = "prod"
     STAGING = "staging"
+    INTEGRATION = "integration"
     DEV = "dev"
 
 

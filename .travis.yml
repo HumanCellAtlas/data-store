@@ -49,7 +49,7 @@ stages:
 - name: integration_test
   if: env(TRAVIS_DSS_INTEGRATION_MODE) = 1
 - name: deploy
-  if: env(TRAVIS_DSS_INTEGRATION_MODE) != 1 AND branch IN (master, staging) AND type != pull_request
+  if: env(TRAVIS_DSS_INTEGRATION_MODE) != 1 AND branch IN (master, integration, staging, prod) AND type != pull_request
 
 jobs:
   include:
@@ -75,6 +75,7 @@ jobs:
     - MAKE_ARGS="-j4 integration_test"
   - stage: deploy
     script:
+    - if [[ $TRAVIS_BRANCH == integration ]]; then source environment.integration; fi
     - if [[ $TRAVIS_BRANCH == staging ]]; then source environment.staging; fi
     deploy:
       provider: script

@@ -64,8 +64,11 @@ deploy-daemons-serial:
 deploy-daemons-parallel:
 	$(MAKE) -C daemons deploy-parallel
 
+release_integration:
+	scripts/release.sh master integration
+
 release_staging:
-	scripts/release.sh master staging
+	scripts/release.sh integration staging
 
 release_prod:
 	scripts/release.sh staging prod
