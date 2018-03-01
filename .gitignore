@@ -45,5 +45,6 @@ npm-debug.log
 
 # Local environment configuration
 /environment.local
+/environment.*.local
 
 /smoketest-*.tmp

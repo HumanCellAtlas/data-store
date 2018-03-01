@@ -8,3 +8,7 @@ DSS_S3_CHECKOUT_BUCKET=$DSS_S3_CHECKOUT_BUCKET_STAGING
 DSS_ES_DOMAIN=dss-index-dev
 API_DOMAIN_NAME=dss.staging.data.humancellatlas.org
 set +a
+
+if [[ -f "${DSS_HOME}/environment.staging.local" ]]; then
+    source "${DSS_HOME}/environment.staging.local"
+fi
