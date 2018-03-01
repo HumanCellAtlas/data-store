@@ -16,7 +16,7 @@ review and edit the prototype API specification. When the prototype app is runni
 at `/v1/swagger.json`.
 
 The prototype is deployed continuously from the `master` branch, with the resulting producer and consumer API available
-at https://dss.staging.data.humancellatlas.org/.
+at https://dss.integration.data.humancellatlas.org/.
 
 #### Installing dependencies for development on the prototype
 
