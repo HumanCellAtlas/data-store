@@ -8,3 +8,7 @@ DSS_GS_BUCKET=$DSS_GS_BUCKET_PROD
 DSS_ES_DOMAIN=dss-index-prod
 API_DOMAIN_NAME=dss.data.humancellatlas.org
 set +a
+
+if [[ -f "${DSS_HOME}/environment.prod.local" ]]; then
+    source "${DSS_HOME}/environment.prod.local"
+fi
