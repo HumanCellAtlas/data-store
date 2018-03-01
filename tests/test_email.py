@@ -4,11 +4,13 @@ from unittest import mock
 
 import os
 
+
 pkg_root = os.path.abspath(os.path.join(os.path.dirname(__file__), '..'))  # noqa
 sys.path.insert(0, pkg_root)  # noqa
 
 import dss.util.email
 from tests.infra import testmode
+from dss import Replica
 
 
 class TestEmail(unittest.TestCase):
@@ -32,7 +34,7 @@ class TestEmail(unittest.TestCase):
     @mock.patch('dss.util.email.send_email')
     def test_send_checkout_success_email(self, send_email_func):
         send_email_func.return_value = 'Success'
-        dss.util.email.send_checkout_success_email('sender', 'to', 'bucket', 'location')
+        dss.util.email.send_checkout_success_email('sender', 'to', 'bucket', 'location', Replica.aws)
 
         args, kwargs = send_email_func.call_args
         self.assertEqual(args[0], 'sender')

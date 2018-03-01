@@ -37,7 +37,8 @@ class TestFileApi(unittest.TestCase, DSSAssertMixin, DSSUploadMixin):
 
     @testmode.integration
     def test_sanity_check_valid(self):
-        self.launch_checkout(self.s3_test_checkout_bucket)
+        for replica in Replica:
+            self.launch_checkout(replica.checkout_bucket, replica)
 
     @testmode.integration
     def test_pre_execution_check_doesnt_exist(self):
@@ -77,8 +78,7 @@ class TestFileApi(unittest.TestCase, DSSAssertMixin, DSSUploadMixin):
                 request_body
             )
 
-    def launch_checkout(self, dst_bucket: str) -> str:
-        replica = Replica.aws
+    def launch_checkout(self, dst_bucket: str, replica: Replica) -> str:
         bundle_uuid = "011c7340-9b3c-4d62-bf49-090d79daf198"
         version = "2017-06-20T214506.766634Z"
         request_body = {"destination": dst_bucket, "email": "rkisin@chanzuckerberg.com"}
@@ -101,29 +101,31 @@ class TestFileApi(unittest.TestCase, DSSAssertMixin, DSSUploadMixin):
 
     @testmode.integration
     def test_status_success(self):
-        exec_arn = self.launch_checkout(self.s3_test_checkout_bucket)
-        url = str(UrlBuilder().set(path="/v1/bundles/checkout/" + exec_arn))
-        with override_bucket_config(BucketConfig.TEST_FIXTURE):
-            resp_obj = self.assertGetResponse(
-                url,
-                requests.codes.ok
-            )
-        status = resp_obj.json.get('status')
-        self.assertIsNotNone(status)
-        self.assertIn(status, ['RUNNING', 'SUCCEEDED'])
+        for replica in Replica:
+            exec_arn = self.launch_checkout(replica.checkout_bucket, replica)
+            url = str(UrlBuilder().set(path="/v1/bundles/checkout/" + exec_arn))
+            with override_bucket_config(BucketConfig.TEST_FIXTURE):
+                resp_obj = self.assertGetResponse(
+                    url,
+                    requests.codes.ok
+                )
+            status = resp_obj.json.get('status')
+            self.assertIsNotNone(status)
+            self.assertIn(status, ['RUNNING', 'SUCCEEDED'])
 
     @testmode.integration
     def test_status_fail(self):
-        exec_arn = self.launch_checkout('e47114c9-bb96-480f-b6f5-c3e07aae399f')
-        url = str(UrlBuilder().set(path="/v1/bundles/checkout/" + exec_arn))
-        with override_bucket_config(BucketConfig.TEST_FIXTURE):
-            resp_obj = self.assertGetResponse(
-                url,
-                requests.codes.ok
-            )
-        status = resp_obj.json.get('status')
-        self.assertIsNotNone(status)
-        self.assertIn(status, ['RUNNING', 'FAILED'])
+        for replica in Replica:
+            exec_arn = self.launch_checkout('e47114c9-bb96-480f-b6f5-c3e07aae399f', replica)
+            url = str(UrlBuilder().set(path="/v1/bundles/checkout/" + exec_arn))
+            with override_bucket_config(BucketConfig.TEST_FIXTURE):
+                resp_obj = self.assertGetResponse(
+                    url,
+                    requests.codes.ok
+                )
+            status = resp_obj.json.get('status')
+            self.assertIsNotNone(status)
+            self.assertIn(status, ['RUNNING', 'FAILED'])
 
     @testmode.standalone
     def test_manifest_files(self):

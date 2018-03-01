@@ -71,7 +71,9 @@
       ],
       "Resource": [
         "arn:aws:states:*:$account_id:stateMachine:dss-s3-copy-sfn*",
-        "arn:aws:states:*:$account_id:execution:dss-s3-copy-sfn*"
+        "arn:aws:states:*:$account_id:execution:dss-s3-copy-sfn*",
+        "arn:aws:states:*:$account_id:stateMachine:dss-gs-copy-sfn*",
+        "arn:aws:states:*:$account_id:execution:dss-gs-copy-sfn*"
       ]
     }
   ]
