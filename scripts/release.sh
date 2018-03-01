@@ -63,7 +63,14 @@ git tag $RELEASE_TAG
 git push --force origin $PROMOTE_DEST_BRANCH
 git push --tags
 
-if yq -e '.deploy[] | select(.true.branch == env.PROMOTE_DEST_BRANCH)' .travis.yml; then
+if yq -e '.stages[]
+          | select(.name == "deploy")
+          | .if
+          | splits("\\s+AND\\s+")
+          | match("branch\\s+IN\\s+\\(([^)]+)\\)").captures[]
+          | .string
+          | splits("\\s*,\\s*")
+          | select(. == env.PROMOTE_DEST_BRANCH)' .travis.yml; then
     echo "Found deployment config for $PROMOTE_DEST_BRANCH in Travis CI. Skipping deployment."
 elif [[ -e "${DSS_HOME}/environment.${PROMOTE_DEST_BRANCH}" ]]; then
     source "${DSS_HOME}/environment.${PROMOTE_DEST_BRANCH}"
