@@ -75,8 +75,7 @@ jobs:
     - MAKE_ARGS="-j4 integration_test"
   - stage: deploy
     script:
-    - if [[ $TRAVIS_BRANCH == integration ]]; then source environment.integration; fi
-    - if [[ $TRAVIS_BRANCH == staging ]]; then source environment.staging; fi
+    - if [[ -f "environment.$TRAVIS_BRANCH" ]]; then source "environment.$TRAVIS_BRANCH"; fi
     deploy:
       provider: script
       script: make deploy
