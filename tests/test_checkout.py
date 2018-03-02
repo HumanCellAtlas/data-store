@@ -32,8 +32,14 @@ class TestFileApi(unittest.TestCase, DSSAssertMixin, DSSUploadMixin):
     def setUp(self):
         dss.Config.set_config(dss.BucketConfig.TEST)
         self.s3_test_fixtures_bucket = get_env("DSS_S3_BUCKET_TEST_FIXTURES")
-        self.s3_test_checkout_bucket = get_env("DSS_S3_CHECKOUT_BUCKET_TEST")
-        self.s3_test_bucket = get_env("DSS_S3_BUCKET_TEST")
+        self.gs_test_fixtures_bucket = get_env("DSS_GS_BUCKET_TEST_FIXTURES")
+
+    def get_test_fixture_bucket(self, replica: Replica) -> str:
+        if replica == Replica.aws:
+            bucket = self.s3_test_fixtures_bucket
+        elif replica == Replica.gcp:
+            bucket = self.gs_test_fixtures_bucket
+        return bucket
 
     @testmode.integration
     def test_sanity_check_valid(self):
@@ -134,60 +140,60 @@ class TestFileApi(unittest.TestCase, DSSAssertMixin, DSSUploadMixin):
         replica = Replica.aws
         file_count = 0
         with override_bucket_config(BucketConfig.TEST_FIXTURE):
-            for file in get_manifest_files(bundle_uuid, version, replica):
+            for _ in get_manifest_files(bundle_uuid, version, replica):
                 file_count += 1
         self.assertEqual(file_count, 1)
 
     @testmode.standalone
     def test_validate_file_dst_fail(self):
         dst_key = "83b76ac9-2470-46d2-ae5e-a415ce86b020"
-        replica = Replica.aws
-        self.assertEquals(validate_file_dst(self.s3_test_checkout_bucket, dst_key, replica), False)
+        for replica in Replica:
+            self.assertEquals(validate_file_dst(replica.checkout_bucket, dst_key, replica), False)
 
     @testmode.standalone
     def test_validate_file_dst(self):
         dst_key = "files/ce55fd51-7833-469b-be0b-5da88ebebfcd.2017-06-18T075702.020366Z"
-        replica = Replica.aws
-        self.assertEquals(validate_file_dst(self.s3_test_fixtures_bucket, dst_key, replica), True)
+        for replica in Replica:
+            bucket = self.get_test_fixture_bucket(replica)
+            self.assertEquals(validate_file_dst(bucket, dst_key, replica), True)
 
     @testmode.standalone
     def test_validate_wrong_key(self):
         bundle_uuid = "WRONG_KEY"
         version = "WRONG_VERSION"
-        replica = Replica.aws
-        valid, cause = pre_exec_validate(self.s3_test_bucket, self.s3_test_checkout_bucket, replica, bundle_uuid,
-                                         version)
-        self.assertIs(valid, ValidationEnum.WRONG_BUNDLE_KEY)
+        for replica in Replica:
+            valid, cause = pre_exec_validate(replica.bucket, replica.checkout_bucket, replica, bundle_uuid, version)
+            self.assertIs(valid, ValidationEnum.WRONG_BUNDLE_KEY)
 
     @testmode.standalone
     def test_validate(self):
         bundle_uuid = "011c7340-9b3c-4d62-bf49-090d79daf198"
         version = "2017-06-20T214506.766634Z"
-        replica = Replica.aws
-        valid, cause = pre_exec_validate(self.s3_test_fixtures_bucket, self.s3_test_checkout_bucket, replica,
-                                         bundle_uuid, version)
-        self.assertIs(valid, ValidationEnum.PASSED)
+        for replica in Replica:
+            valid, cause = pre_exec_validate(self.get_test_fixture_bucket(replica), replica.checkout_bucket, replica,
+                                             bundle_uuid, version)
+            self.assertIs(valid, ValidationEnum.PASSED)
 
     @testmode.standalone
     def test_validate_bundle_exists(self):
         bundle_uuid = "011c7340-9b3c-4d62-bf49-090d79daf198"
         version = "2017-06-20T214506.766634Z"
-        replica = Replica.aws
-        valid, cause = validate_bundle_exists(replica, self.s3_test_fixtures_bucket, bundle_uuid, version)
-        self.assertIs(valid, ValidationEnum.PASSED)
+        for replica in Replica:
+            valid, cause = validate_bundle_exists(replica, self.get_test_fixture_bucket(replica), bundle_uuid, version)
+            self.assertIs(valid, ValidationEnum.PASSED)
 
     @testmode.standalone
     def test_validate_bundle_exists_fail(self):
         bundle_uuid = "WRONG_KEY"
         version = "WRONG_VERSION"
-        replica = Replica.aws
-        valid, cause = validate_bundle_exists(replica, self.s3_test_fixtures_bucket, bundle_uuid, version)
-        self.assertIs(valid, ValidationEnum.WRONG_BUNDLE_KEY)
+        for replica in Replica:
+            valid, cause = validate_bundle_exists(replica, self.get_test_fixture_bucket(replica), bundle_uuid, version)
+            self.assertIs(valid, ValidationEnum.WRONG_BUNDLE_KEY)
 
     @testmode.standalone
     def test_touch_file(self):
-        replica = Replica.aws
-        self.assertEqual(touch_test_file(self.s3_test_checkout_bucket, replica), True)
+        for replica in Replica:
+            self.assertEqual(touch_test_file(replica.checkout_bucket, replica), True)
 
     @testmode.standalone
     def test_execution_id(self):
@@ -197,7 +203,6 @@ class TestFileApi(unittest.TestCase, DSSAssertMixin, DSSUploadMixin):
             UUID(exec_id, version=4)
         except ValueError:
             self.fail("Invalid execution id. Valid UUID v.4 is expected.")
-
 
 if __name__ == "__main__":
     unittest.main()
