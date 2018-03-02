@@ -22,7 +22,7 @@ stage_policy_json="$(dirname $0)/${daemon_name}/.chalice/policy-${stage}.json"
 iam_policy_template=${iam_policy_template:-"$(dirname $0)/../iam/policy-templates/${daemon_name}-lambda.json"}
 export account_id=$(aws sts get-caller-identity | jq -r .Account)
 
-export dss_es_domain=${DSS_ES_DOMAIN:-dss-index-$stage}
+export dss_es_domain=${DSS_ES_DOMAIN}
 if ! aws es describe-elasticsearch-domain --domain-name $dss_es_domain; then
     echo "Please create AWS elasticsearch domain $dss_es_domain or set DSS_ES_DOMAIN to an existing domain and try again"
     exit 1
