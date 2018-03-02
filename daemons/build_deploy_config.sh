@@ -2,12 +2,18 @@
 
 set -euo pipefail
 
-if [[ $# != 2 ]]; then
-    echo "Usage: $(basename $0) daemon-name stage"
+if [[ $# != 1 ]]; then
+    echo "Usage: $(basename $0) daemon-name"
     exit 1
 fi
 
-export daemon_name=$1 stage=$2
+if [[ -z $DSS_DEPLOYMENT_STAGE ]]; then
+    echo 'Please run "source environment" in the data-store repo root directory before running this command'
+    exit 1
+fi
+
+export daemon_name=$1
+export stage=$DSS_DEPLOYMENT_STAGE
 export lambda_name="${daemon_name}-${stage}" iam_role_name="${daemon_name}-${stage}"
 deployed_json="$(dirname $0)/${daemon_name}/.chalice/deployed.json"
 config_json="$(dirname $0)/${daemon_name}/.chalice/config.json"
@@ -54,5 +60,4 @@ if [[ ${CI:-} == true ]]; then
 fi
 
 cat "$iam_policy_template" | envsubst '$DSS_S3_BUCKET $DSS_S3_BUCKET_TEST $DSS_S3_BUCKET_TEST_FIXTURES $DSS_S3_CHECKOUT_BUCKET $DSS_S3_CHECKOUT_BUCKET_TEST $dss_es_domain $account_id $stage' > "$policy_json"
-
 cp "$policy_json" "$stage_policy_json"
