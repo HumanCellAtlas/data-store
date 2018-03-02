@@ -42,11 +42,6 @@ class TestFileApi(unittest.TestCase, DSSAssertMixin, DSSUploadMixin):
         return bucket
 
     @testmode.integration
-    def test_sanity_check_valid(self):
-        for replica in Replica:
-            self.launch_checkout(replica.checkout_bucket, replica)
-
-    @testmode.integration
     def test_pre_execution_check_doesnt_exist(self):
         replica = Replica.aws
         non_existent_bundle_uuid = "011c7340-9b3c-4d62-bf49-090d79daf111"

@@ -297,7 +297,7 @@ class Replica(Enum):
             checkout_bucket_getter: typing.Callable[[], str],
             storage_schema: str,
             blobstore_class: typing.Type[BlobStore],
-            hcablobstore_class: typing.Type[HCABlobStore]
+            hcablobstore_class: typing.Type[HCABlobStore],
     ) -> None:
         self._bucket_getter = bucket_getter
         self._checkout_bucket_getter = checkout_bucket_getter

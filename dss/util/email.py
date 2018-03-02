@@ -1,9 +1,8 @@
 import boto3
-from botocore.exceptions import ClientError
 
-# The character encoding for the email.
 from dss import Replica
 
+# The character encoding for the email.
 CHARSET = "UTF-8"
 SUCCESS_SUBJECT = "Bundle checkout complete"
 FAILURE_SUBJECT = "Bundle checkout failed"

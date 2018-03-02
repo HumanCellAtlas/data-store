@@ -1,5 +1,6 @@
 import io
 import logging
+import typing
 import uuid
 from enum import Enum, auto
 
@@ -92,7 +93,7 @@ def pre_exec_validate(dss_bucket: str, dst_bucket: str, replica: Replica, bundle
     return validation_code, cause
 
 
-def validate_dst_bucket(dst_bucket: str, replica: Replica):
+def validate_dst_bucket(dst_bucket: str, replica: Replica) -> typing.Tuple[ValidationEnum, str]:
     if not Config.get_blobstore_handle(replica).check_bucket_exists(dst_bucket):
         return ValidationEnum.WRONG_DST_BUCKET, f"Bucket {dst_bucket} doesn't exist"
     if not touch_test_file(dst_bucket, replica):
