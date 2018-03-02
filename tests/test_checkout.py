@@ -31,53 +31,52 @@ class TestFileApi(unittest.TestCase, DSSAssertMixin, DSSUploadMixin):
 
     def setUp(self):
         dss.Config.set_config(dss.BucketConfig.TEST)
-        self.s3_test_fixtures_bucket = get_env("DSS_S3_BUCKET_TEST_FIXTURES")
-        self.gs_test_fixtures_bucket = get_env("DSS_GS_BUCKET_TEST_FIXTURES")
 
     def get_test_fixture_bucket(self, replica: Replica) -> str:
         if replica == Replica.aws:
-            bucket = self.s3_test_fixtures_bucket
+            bucket = get_env("DSS_S3_BUCKET_TEST_FIXTURES")
         elif replica == Replica.gcp:
-            bucket = self.gs_test_fixtures_bucket
+            bucket = get_env("DSS_GS_BUCKET_TEST_FIXTURES")
         return bucket
 
     @testmode.integration
     def test_pre_execution_check_doesnt_exist(self):
-        replica = Replica.aws
-        non_existent_bundle_uuid = "011c7340-9b3c-4d62-bf49-090d79daf111"
-        version = "2017-06-20T214506.766634Z"
-        request_body = {"destination": self.s3_test_checkout_bucket, "email": "rkisin@chanzuckerberg.com"}
+        for replica in Replica:
+            non_existent_bundle_uuid = "011c7340-9b3c-4d62-bf49-090d79daf111"
+            version = "2017-06-20T214506.766634Z"
+            request_body = {"destination": replica.checkout_bucket, "email": "rkisin@chanzuckerberg.com"}
 
-        url = str(UrlBuilder()
-                  .set(path="/v1/bundles/" + non_existent_bundle_uuid + "/checkout")
-                  .add_query("replica", replica.name)
-                  .add_query("version", version))
+            url = str(UrlBuilder()
+                      .set(path="/v1/bundles/" + non_existent_bundle_uuid + "/checkout")
+                      .add_query("replica", replica.name)
+                      .add_query("version", version))
 
-        with override_bucket_config(BucketConfig.TEST_FIXTURE):
-            resp_obj = self.assertPostResponse(
-                url,
-                requests.codes.not_found,
-                request_body
-            )
-        self.assertEqual(resp_obj.json['code'], 'not_found')
+            with override_bucket_config(BucketConfig.TEST_FIXTURE):
+                resp_obj = self.assertPostResponse(
+                    url,
+                    requests.codes.not_found,
+                    request_body
+                )
+            self.assertEqual(resp_obj.json['code'], 'not_found')
 
     @testmode.integration
     def test_sanity_check_no_replica(self):
         bundle_uuid = "011c7340-9b3c-4d62-bf49-090d79daf198"
         version = "2017-06-20T214506.766634Z"
-        request_body = {"destination": self.s3_test_checkout_bucket, "email": "rkisin@chanzuckerberg.com"}
+        for replica in Replica:
+            request_body = {"destination": replica.checkout_bucket, "email": "rkisin@chanzuckerberg.com"}
 
-        url = str(UrlBuilder()
-                  .set(path="/v1/bundles/" + bundle_uuid + "/checkout")
-                  .add_query("replica", "")
-                  .add_query("version", version))
+            url = str(UrlBuilder()
+                      .set(path="/v1/bundles/" + bundle_uuid + "/checkout")
+                      .add_query("replica", "")
+                      .add_query("version", version))
 
-        with override_bucket_config(BucketConfig.TEST_FIXTURE):
-            self.assertPostResponse(
-                url,
-                requests.codes.bad_request,
-                request_body
-            )
+            with override_bucket_config(BucketConfig.TEST_FIXTURE):
+                self.assertPostResponse(
+                    url,
+                    requests.codes.bad_request,
+                    request_body
+                )
 
     def launch_checkout(self, dst_bucket: str, replica: Replica) -> str:
         bundle_uuid = "011c7340-9b3c-4d62-bf49-090d79daf198"
