@@ -28,7 +28,7 @@ $(SERIAL_AWS_DAEMONS) $(PARALLEL_AWS_DAEMONS):
 	cp -R ../dss ../dss-api.yml $@/domovoilib
 	cp "$(GOOGLE_APPLICATION_CREDENTIALS)" $@/domovoilib/gcp-credentials.json
 	chmod -R ugo+rX $@/domovoilib
-	./build_deploy_config.sh $@ $(DSS_DEPLOYMENT_STAGE)
+	./build_deploy_config.sh $@
 	cd $@; domovoi deploy --stage $(DSS_DEPLOYMENT_STAGE)
 	@if [[ $@ == "dss-sync" || $@ == "dss-index" ]]; then \
 		./invoke_lambda.sh $@ $(DSS_DEPLOYMENT_STAGE) \

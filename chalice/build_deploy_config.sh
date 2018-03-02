@@ -2,12 +2,12 @@
 
 set -euo pipefail
 
-if [[ $# != 1 ]]; then
-    echo "Usage: $(basename $0) stage"
+if [[ -z $DSS_DEPLOYMENT_STAGE ]]; then
+    echo 'Please run "source environment" in the data-store repo root directory before running this command'
     exit 1
 fi
 
-export stage=$1
+export stage=$DSS_DEPLOYMENT_STAGE
 deployed_json="$(dirname $0)/.chalice/deployed.json"
 config_json="$(dirname $0)/.chalice/config.json"
 policy_json="$(dirname $0)/.chalice/policy.json"
