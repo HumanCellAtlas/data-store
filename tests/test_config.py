@@ -4,11 +4,10 @@
 """
 Tests for dss.Config
 """
-
 import os
 import sys
 import unittest
-from contextlib import contextmanager
+import unittest.mock
 
 pkg_root = os.path.abspath(os.path.join(os.path.dirname(__file__), '..'))  # noqa
 sys.path.insert(0, pkg_root)  # noqa
@@ -28,30 +27,11 @@ class TestConfig(unittest.TestCase):
         Config.set_config(self.init_config)
 
     def test_predicates(self):
-        @contextmanager
-        def override_deployment_stage(stage: DeploymentStage):
-            original_stage = os.environ["DSS_DEPLOYMENT_STAGE"]
-            os.environ["DSS_DEPLOYMENT_STAGE"] = stage.value
-
-            try:
-                yield
-            finally:
-                os.environ["DSS_DEPLOYMENT_STAGE"] = original_stage
-
-        with override_deployment_stage(DeploymentStage.DEV):
-            self.assertTrue(DeploymentStage.IS_DEV())
-            self.assertFalse(DeploymentStage.IS_STAGING())
-            self.assertFalse(DeploymentStage.IS_PROD())
-
-        with override_deployment_stage(DeploymentStage.STAGING):
-            self.assertFalse(DeploymentStage.IS_DEV())
-            self.assertTrue(DeploymentStage.IS_STAGING())
-            self.assertFalse(DeploymentStage.IS_PROD())
-
-        with override_deployment_stage(DeploymentStage.PROD):
-            self.assertFalse(DeploymentStage.IS_DEV())
-            self.assertFalse(DeploymentStage.IS_STAGING())
-            self.assertTrue(DeploymentStage.IS_PROD())
+        for x in DeploymentStage:
+            with unittest.mock.patch.dict(os.environ, DSS_DEPLOYMENT_STAGE=x.value):
+                for y in DeploymentStage:
+                    with self.subTest(x=x, y=y):
+                        self.assertEqual(getattr(DeploymentStage, 'IS_' + y.name)(), x is y)
 
     def test_s3_checkout_bucket(self):
         Config.set_config(BucketConfig.NORMAL)
