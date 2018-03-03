@@ -1,5 +1,5 @@
 {
-  "app_name": "scheduled-test",
+  "app_name": "scheduled-ci-build",
   "environment_variables": {
     "TRAVIS_TOKEN": REPLACE_WITH_YOUR_TRAVIS_TOKEN
   },
