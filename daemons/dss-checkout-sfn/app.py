@@ -32,6 +32,7 @@ def schedule_copy(event, context):
     version = event["version"]
     dss_bucket = event["dss_bucket"]
     dst_bucket = get_dst_bucket(event)
+    replica = Replica[event["replica"]]
 
     scheduled = 0
     for src_key, dst_key in get_manifest_files(bundle_fqid, version, replica):
@@ -48,6 +49,7 @@ def schedule_copy(event, context):
 def get_job_status(event, context):
     bundle_fqid = event["bundle"]
     version = event["version"]
+    replica = Replica[event["replica"]]
 
     check_count = 0
     if "status" in event:
