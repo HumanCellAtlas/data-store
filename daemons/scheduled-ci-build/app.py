@@ -43,4 +43,5 @@ def define_build(branch_name: str, build_type: str, schedule_expression: str, **
         ).json()
 
 
-define_build("master", "Integration test", "rate(60 minutes)", TRAVIS_DSS_INTEGRATION_MODE=1)
+# Run integration tests against the `dev` deployment stage at the top of each hour
+define_build("master", "Integration test", "cron(0 * * * ? *)", TRAVIS_DSS_INTEGRATION_MODE=1)
