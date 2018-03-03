@@ -117,6 +117,15 @@
       "Action": "states:ListStateMachines",
       "Resource": "arn:aws:states:*:$account_id:*",
       "Effect": "Allow"
+    },
+    {
+      "Effect": "Allow",
+      "Action": "dynamodb:*",
+      "Resource": [
+        "arn:aws:dynamodb:*:$account_id:table/scalability_test",
+        "arn:aws:dynamodb:*:$account_id:table/scalability_test_result",
+        "arn:aws:dynamodb:*:$account_id:table/scalability_test/stream/*"
+      ]
     }
   ]
 }
