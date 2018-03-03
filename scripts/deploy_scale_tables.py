@@ -39,7 +39,6 @@ if SCALABILITY_TEST_TABLE not in existing_tables:
             'WriteCapacityUnits': 5,
         },
         TableName=SCALABILITY_TEST_TABLE,
-
     )
 
     waiter = dynamodb_client.get_waiter('table_exists')
@@ -72,7 +71,6 @@ if SCALABILITY_TEST_RUN_TABLE not in existing_tables:
             'WriteCapacityUnits': 5,
         },
         TableName=SCALABILITY_TEST_RUN_TABLE,
-
     )
 
     waiter = dynamodb_client.get_waiter('table_exists')

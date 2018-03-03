@@ -72,7 +72,7 @@ def download_bundle(event, context, branch_id):
 def checkout_bundle(event, context, branch_id):
     bundle_id = event['bundle']['bundle_id']
     app.log.info(f"Checkout bundle: {bundle_id}")
-    checkout_output = client.post_bundles_checkout(uuid=bundle_id, replica='aws', email='rkisin@chanzuckerberg.com')
+    checkout_output = client.post_bundles_checkout(uuid=bundle_id, replica='aws', email='foo@example.com')
     return {"job_id": checkout_output['checkout_job_id']}
 
 

@@ -54,8 +54,7 @@ dashboard_def = {
                 "period": 300,
                 "title": "Elastic search"
             }
-        }
-        ,
+        },
         {
             "type": "metric",
             "x": 0,
@@ -76,8 +75,7 @@ dashboard_def = {
                 "title": "Active tests",
                 "period": 300
             }
-        }
-        ,
+        },
         {
             "type": "metric",
             "x": 0,
@@ -99,8 +97,7 @@ dashboard_def = {
                 "title": "Tests",
                 "period": 300
             }
-        }
-        ,
+        },
         {
             "type": "metric",
             "x": 12,
@@ -154,8 +151,7 @@ dashboard_def = {
                 "title": "Upload bundle",
                 "period": 300
             }
-        }
-        ,
+        },
         {
             "type": "metric",
             "x": 6,
@@ -239,8 +235,8 @@ dashboard_def = {
 client = boto3.client('cloudwatch')
 
 response = client.put_dashboard(
-    DashboardName=f"Scaalbility-{stage}",
+    DashboardName=f"Scalability-{stage}",
     DashboardBody=json.dumps(dashboard_def)
 )
 
-print(str(response))
+print(f"Dashboard deployment status: {response['ResponseMetadata']['HTTPStatusCode']} ")
