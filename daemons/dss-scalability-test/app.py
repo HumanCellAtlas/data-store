@@ -16,7 +16,6 @@ sys.path.insert(0, pkg_root)  # noqa
 
 from dss import stepfunctions, Config, BucketConfig
 from dss.stepfunctions import generator
-from hca.dss import DSSClient
 from dss.api.files import ASYNC_COPY_THRESHOLD
 from json_generator import generate_sample
 
@@ -38,7 +37,13 @@ os.environ["HCA_CONFIG_FILE"] = "/tmp/config.json"
 with open(os.environ["HCA_CONFIG_FILE"], "w") as fh:
     fh.write(json.dumps({"DSSClient": {"swagger_url": "https://dss.dev.data.humancellatlas.org/v1/swagger.json"}}))
 
-client = DSSClient()
+client = None
+def get_client():
+    global client
+    if client is None:
+        from hca.dss import DSSClient
+        client = DSSClient()
+    return client
 
 dynamodb = boto3.resource('dynamodb')
 Config.set_config(BucketConfig.NORMAL)
@@ -57,7 +62,7 @@ def upload_bundle(event, context, branch_id):
             fh.write(os.urandom(ASYNC_COPY_THRESHOLD + 1))
             fh.flush()
             start_time = current_time()
-            bundle_output = client.upload(src_dir=src_dir, replica="aws", staging_bucket=test_bucket)
+            bundle_output = get_client().upload(src_dir=src_dir, replica="aws", staging_bucket=test_bucket)
             return {"bundle_id": bundle_output['bundle_uuid'], "start_time": start_time}
 
 
@@ -65,21 +70,21 @@ def download_bundle(event, context, branch_id):
     app.log.info("Download bundle")
     bundle_id = event['bundle']['bundle_id']
     with tempfile.TemporaryDirectory() as dest_dir:
-        client.download(bundle_id, replica="aws", dest_name=dest_dir)
+        get_client().download(bundle_id, replica="aws", dest_name=dest_dir)
     return {}
 
 
 def checkout_bundle(event, context, branch_id):
     bundle_id = event['bundle']['bundle_id']
     app.log.info(f"Checkout bundle: {bundle_id}")
-    checkout_output = client.post_bundles_checkout(uuid=bundle_id, replica='aws', email='foo@example.com')
+    checkout_output = get_client().post_bundles_checkout(uuid=bundle_id, replica='aws', email='foo@example.com')
     return {"job_id": checkout_output['checkout_job_id']}
 
 
 def checkout_status(event, context, branch_id):
     job_id = event['checkout']['job_id']
     app.log.info(f"Checkout status job_id: {job_id}")
-    checkout_output = client.get_bundles_checkout(checkout_job_id=job_id)
+    checkout_output = get_client().get_bundles_checkout(checkout_job_id=job_id)
     print(str(checkout_output))
     return {"status": checkout_output['status']}
 
