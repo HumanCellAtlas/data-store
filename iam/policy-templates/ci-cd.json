@@ -126,6 +126,19 @@
         "arn:aws:dynamodb:*:$account_id:table/scalability_test_result",
         "arn:aws:dynamodb:*:$account_id:table/scalability_test/stream/*"
       ]
+    },
+    {
+      "Effect": "Allow",
+      "Action": "dynamodb:ListTables",
+      "Resource": "*"
+    },
+    {
+      "Effect": "Allow",
+      "Action": "cloudwatch:PutDashboard",
+      "Resource": [
+        "arn:aws:cloudwatch::$account_id:dashboard/Scalability-*"
+      ]
     }
+
   ]
 }
