@@ -5,6 +5,7 @@ DSS_DEPLOYMENT_STAGE=staging
 DSS_S3_BUCKET=$DSS_S3_BUCKET_STAGING
 DSS_GS_BUCKET=$DSS_GS_BUCKET_STAGING
 DSS_S3_CHECKOUT_BUCKET=$DSS_S3_CHECKOUT_BUCKET_STAGING
+# `staging` currently shares the ES domain with `dev`
 DSS_ES_DOMAIN=dss-index-dev
 API_DOMAIN_NAME=dss.staging.data.humancellatlas.org
 set +a
