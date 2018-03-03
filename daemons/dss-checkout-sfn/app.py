@@ -41,7 +41,7 @@ def schedule_copy(event, context):
         scheduled += 1
     return {"files_scheduled": scheduled,
             "dst_location": get_dst_bundle_prefix(bundle_fqid, version),
-            "wait_time_seconds": 10}
+            "wait_time_seconds": 30}
 
 
 @app.step_function_task(state_name="GetJobStatus", state_machine_definition=state_machine_def)
