@@ -23,7 +23,7 @@ deploy: deploy-serial deploy-parallel
 deploy-serial: $(SERIAL_AWS_DAEMONS) $(SERIAL_GCP_DAEMONS)
 deploy-parallel: $(PARALLEL_AWS_DAEMONS) $(PARALLEL_GCP_DAEMONS)
 
-$(SERIAL_AWS_DAEMONS) $(PARALLEL_AWS_DAEMONS):
+$(SERIAL_AWS_DAEMONS) $(PARALLEL_AWS_DAEMONS) scheduled-ci-build:
 	git clean -df $@/domovoilib $@/vendor
 	shopt -s nullglob; for wheel in $@/vendor.in/*/*.whl; do unzip -q -o -d $@/vendor $$wheel; done
 	cp -R ../dss ../dss-api.yml $@/domovoilib
@@ -49,4 +49,4 @@ $(SERIAL_AWS_DAEMONS) $(PARALLEL_AWS_DAEMONS):
 dss-gs-event-relay:
 	$(DSS_HOME)/scripts/deploy_gcf.py $@ --entry-point "dss_gs_bucket_events_$(subst -,_,$(DSS_GS_BUCKET))"
 
-.PHONY: deploy deploy-serial deploy-parallel $(SERIAL_AWS_DAEMONS) $(SERIAL_GCP_DAEMONS) $(PARALLEL_AWS_DAEMONS) $(PARALLEL_GCP_DAEMONS)
+.PHONY: deploy deploy-serial deploy-parallel scheduled-ci-build $(SERIAL_AWS_DAEMONS) $(SERIAL_GCP_DAEMONS) $(PARALLEL_AWS_DAEMONS) $(PARALLEL_GCP_DAEMONS)
