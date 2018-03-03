@@ -1,5 +1,6 @@
 import boto3
-from botocore.exceptions import ClientError
+
+from dss import Replica
 
 # The character encoding for the email.
 CHARSET = "UTF-8"
@@ -37,7 +38,7 @@ def send_email(sender: str, to: str, subject: str, html: str, text: str) -> str:
     )
     return "Email sent! Message ID: {}".format(response['ResponseMetadata']['RequestId'])
 
-def send_checkout_success_email(sender: str, to: str, bucket: str, location: str):
+def send_checkout_success_email(sender: str, to: str, bucket: str, location: str, replica: Replica):
     text = "Hello, your checkout request has been processed. Your files are available at bucket {} location {}.".\
         format(bucket, location)
 
@@ -47,11 +48,11 @@ def send_checkout_success_email(sender: str, to: str, bucket: str, location: str
          <h1>Hello,</h1>
          <p>
             Your checkout request has been processed.
-             Your files are available at <strong>s3://{}/{}</strong>
+             Your files are available at <strong>{}://{}/{}</strong>
          </p>
        </body>
        </html>
-       """.format(bucket, location)
+       """.format(replica.storage_schema, bucket, location)
     return send_email(sender, to, SUCCESS_SUBJECT, html, text)
 
 

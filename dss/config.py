@@ -92,6 +92,7 @@ class Config:
     _S3_BUCKET = None  # type: typing.Optional[str]
     _GS_BUCKET = None  # type: typing.Optional[str]
     _S3_CHECKOUT_BUCKET = None  # type: typing.Optional[str]
+    _GS_CHECKOUT_BUCKET = None  # type: typing.Optional[str]
 
     _ALLOWED_EMAILS = None  # type: typing.Optional[str]
     _CURRENT_CONFIG = BucketConfig.ILLEGAL  # type: BucketConfig
@@ -183,6 +184,25 @@ class Config:
         return Config._GS_BUCKET
 
     @staticmethod
+    def get_gs_checkout_bucket() -> str:
+        if Config._GS_CHECKOUT_BUCKET is None:
+            if Config._CURRENT_CONFIG == BucketConfig.NORMAL:
+                envvar = "DSS_GS_CHECKOUT_BUCKET"
+            elif Config._CURRENT_CONFIG == BucketConfig.TEST:
+                envvar = "DSS_GS_CHECKOUT_BUCKET_TEST"
+            elif Config._CURRENT_CONFIG == BucketConfig.TEST_FIXTURE:
+                envvar = "DSS_GS_CHECKOUT_BUCKET_TEST_FIXTURES"
+            elif Config._CURRENT_CONFIG == BucketConfig.ILLEGAL:
+                raise Exception("bucket config not set")
+
+            if envvar not in os.environ:
+                raise Exception(
+                    "Please set the {} environment variable".format(envvar))
+            Config._GS_CHECKOUT_BUCKET = os.environ[envvar]
+
+        return Config._GS_CHECKOUT_BUCKET
+
+    @staticmethod
     def get_allowed_email_domains() -> str:
         if Config._ALLOWED_EMAILS is None:
             if Config._CURRENT_CONFIG == BucketConfig.NORMAL:
@@ -269,17 +289,19 @@ class Config:
 
 
 class Replica(Enum):
-    aws = (Config.get_s3_bucket, "s3", S3BlobStore, S3HCABlobStore)
-    gcp = (Config.get_gs_bucket, "gs", GSBlobStore, GSHCABlobStore)
+    aws = (Config.get_s3_bucket, Config.get_s3_checkout_bucket, "s3", S3BlobStore, S3HCABlobStore)
+    gcp = (Config.get_gs_bucket, Config.get_gs_checkout_bucket, "gs", GSBlobStore, GSHCABlobStore)
 
     def __init__(
             self,
             bucket_getter: typing.Callable[[], str],
+            checkout_bucket_getter: typing.Callable[[], str],
             storage_schema: str,
             blobstore_class: typing.Type[BlobStore],
             hcablobstore_class: typing.Type[HCABlobStore],
     ) -> None:
         self._bucket_getter = bucket_getter
+        self._checkout_bucket_getter = checkout_bucket_getter
         self._storage_schema = storage_schema
         self._blobstore_class = blobstore_class
         self._hcablobstore_class = hcablobstore_class
@@ -300,6 +322,9 @@ class Replica(Enum):
     def hcablobstore_class(self) -> typing.Type[HCABlobStore]:
         return self._hcablobstore_class
 
+    @property
+    def checkout_bucket(self) -> str:
+        return self._checkout_bucket_getter()
 
 @contextmanager
 def override_bucket_config(temp_config: BucketConfig):

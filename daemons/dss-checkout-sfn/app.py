@@ -26,19 +26,18 @@ dss.Config.set_config(dss.BucketConfig.NORMAL)
 email_sender = dss.Config.get_notification_email()
 default_checkout_bucket = dss.Config.get_s3_checkout_bucket()
 
-replica = Replica.aws
-
 @app.step_function_task(state_name="ScheduleCopy", state_machine_definition=state_machine_def)
 def schedule_copy(event, context):
     bundle_fqid = event["bundle"]
     version = event["version"]
     dss_bucket = event["dss_bucket"]
     dst_bucket = get_dst_bucket(event)
+    replica = Replica[event["replica"]]
 
     scheduled = 0
     for src_key, dst_key in get_manifest_files(bundle_fqid, version, replica):
         logger.debug("Copying a file %s", dst_key)
-        parallel_copy(dss_bucket, src_key, dst_bucket, dst_key)
+        parallel_copy(dss_bucket, src_key, dst_bucket, dst_key, replica)
         scheduled += 1
     return {"files_scheduled": scheduled,
             "dst_location": get_dst_bundle_prefix(bundle_fqid, version),
@@ -49,6 +48,7 @@ def schedule_copy(event, context):
 def get_job_status(event, context):
     bundle_fqid = event["bundle"]
     version = event["version"]
+    replica = Replica[event["replica"]]
 
     check_count = 0
     if "status" in event:
@@ -73,6 +73,8 @@ def pre_execution_check(event, context):
     bundle = event["bundle"]
     version = event["version"]
     dss_bucket = event["dss_bucket"]
+    replica = Replica[event["replica"]]
+
     checkout_status, cause = pre_exec_validate(dss_bucket, dst_bucket, replica, bundle, version)
     result = {"checkout_status": checkout_status.name.upper()}
     if cause:
@@ -82,8 +84,9 @@ def pre_execution_check(event, context):
 
 @app.step_function_task(state_name="Notify", state_machine_definition=state_machine_def)
 def notify_complete(event, context):
+    replica = Replica[event["replica"]]
     result = send_checkout_success_email(email_sender, event["email"], get_dst_bucket(event),
-                                         event["schedule"]["dst_location"])
+                                         event["schedule"]["dst_location"], replica)
     return {"result": result}
 
 

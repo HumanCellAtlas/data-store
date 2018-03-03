@@ -1,20 +1,16 @@
 import io
 import logging
+import typing
 import uuid
-
-from cloud_blobstore import BlobNotFoundError, BlobStoreUnknownError
-from cloud_blobstore.s3 import S3BlobStore
 from enum import Enum, auto
 
-from dss.storage.bundles import get_bundle, get_bundle_from_bucket
+from cloud_blobstore import BlobNotFoundError, BlobStoreUnknownError
 from dss import DSSException, stepfunctions
 from dss.config import Config, Replica
-from dss.stepfunctions import s3copyclient
-
+from dss.stepfunctions import s3copyclient, gscopyclient
+from dss.storage.bundles import get_bundle, get_bundle_from_bucket
 
 log = logging.getLogger(__name__)
-blobstore = S3BlobStore.from_environment()
-
 
 class BundleFileMeta:
     NAME = "name"
@@ -35,16 +31,27 @@ class ValidationEnum(Enum):
     WRONG_BUNDLE_KEY = auto(),
     PASSED = auto()
 
-
-def parallel_copy(source_bucket: str, source_key: str, destination_bucket: str, destination_key: str):
+def parallel_copy(source_bucket: str, source_key: str, destination_bucket: str, destination_key: str, replica: Replica):
     log.debug(f"Copy file from bucket {source_bucket} with key {source_key} to "
               f"bucket {destination_bucket} destination file: {destination_key}")
-    state = s3copyclient.copy_sfn_event(
-        source_bucket, source_key,
-        destination_bucket, destination_key,
-    )
+
+    if replica == Replica.aws:
+        state = s3copyclient.copy_sfn_event(
+            source_bucket, source_key,
+            destination_bucket, destination_key,
+        )
+        state_machine_name_template = "dss-s3-copy-sfn-{stage}"
+    elif replica == Replica.gcp:
+        state = gscopyclient.copy_sfn_event(
+            source_bucket, source_key,
+            destination_bucket, destination_key
+        )
+        state_machine_name_template = "dss-gs-copy-sfn-{stage}"
+    else:
+        raise ValueError("Unsupported replica")
+
     execution_name = get_execution_id()
-    stepfunctions.step_functions_invoke("dss-s3-copy-sfn-{stage}", execution_name, state)
+    stepfunctions.step_functions_invoke(state_machine_name_template, execution_name, state)
 
 
 def get_src_key(file_metadata: dict):
@@ -73,27 +80,26 @@ def get_manifest_files(bundle_id: str, version: str, replica: Replica):
 
 def validate_file_dst(dst_bucket: str, dst_key: str, replica: Replica):
     try:
-        blobstore.get_all_metadata(dst_bucket, dst_key)
+        Config.get_blobstore_handle(replica).get_user_metadata(dst_bucket, dst_key)
         return True
     except (BlobNotFoundError, BlobStoreUnknownError):
         return False
 
 
 def pre_exec_validate(dss_bucket: str, dst_bucket: str, replica: Replica, bundle_id: str, version: str):
-    cause = None
-    validation_code = validate_dst_bucket(dst_bucket, replica)
+    validation_code, cause = validate_dst_bucket(dst_bucket, replica)
     if validation_code == ValidationEnum.PASSED:
         validation_code, cause = validate_bundle_exists(replica, dss_bucket, bundle_id, version)
     return validation_code, cause
 
 
-def validate_dst_bucket(dst_bucket: str, replica: Replica) -> ValidationEnum:
-    if not blobstore.check_bucket_exists(dst_bucket):
-        return ValidationEnum.WRONG_DST_BUCKET
+def validate_dst_bucket(dst_bucket: str, replica: Replica) -> typing.Tuple[ValidationEnum, str]:
+    if not Config.get_blobstore_handle(replica).check_bucket_exists(dst_bucket):
+        return ValidationEnum.WRONG_DST_BUCKET, f"Bucket {dst_bucket} doesn't exist"
     if not touch_test_file(dst_bucket, replica):
-        return ValidationEnum.WRONG_PERMISSIONS_DST_BUCKET
+        return ValidationEnum.WRONG_PERMISSIONS_DST_BUCKET, f"Insufficient permissions on bucket {dst_bucket}"
 
-    return ValidationEnum.PASSED
+    return ValidationEnum.PASSED, None
 
 
 def validate_bundle_exists(replica: Replica, bucket: str, bundle_id: str, version: str):
@@ -102,11 +108,6 @@ def validate_bundle_exists(replica: Replica, bucket: str, bundle_id: str, versio
         return ValidationEnum.PASSED, None
     except (DSSException, ValueError):
         return ValidationEnum.WRONG_BUNDLE_KEY, "Bundle with specified key does not exist"
-
-
-def get_bucket_region(bucket: str):
-    return blobstore.get_bucket_region(bucket)
-
 
 def get_execution_id() -> str:
     return str(uuid.uuid4())
@@ -126,7 +127,7 @@ def touch_test_file(dst_bucket: str, replica: Replica) -> bool:
             dst_bucket,
             test_object,
             io.BytesIO(b""))
-        blobstore.delete(dst_bucket, test_object)
+        Config.get_blobstore_handle(replica).delete(dst_bucket, test_object)
         return True
     except Exception as e:
         return False
