@@ -21,9 +21,13 @@ upload_bundle_arn_prefix = f"arn:aws:lambda:{region}:{accountid}:function:dss-sc
 download_bundle_arn_prefix = f"arn:aws:lambda:{region}:{accountid}:function:dss-scalability-test-{stage}:domovoi-stepfunctions-task-DownloadBundle"
 dss_s3_copy_arn = f"arn:aws:states:{region}:{accountid}:stateMachine:dss-s3-copy-sfn-{dev_stage}"
 
+LAMBDA_METRIC_RUNTIME = "LambdaFunctionRunTime"
+LAMBDA_METRIC_FAILED = "LambdaFunctionsFailed"
 
-def get_metrics_array(arn_template, cnt):
-    metrics_array = [["AWS/States", "LambdaFunctionRunTime", "LambdaFunctionArn", arn_template + '{}'.format(0),
+
+
+def get_metrics_array(arn_template, metric, cnt):
+    metrics_array = [["AWS/States", metric, "LambdaFunctionArn", arn_template + '{}'.format(0),
                       {"yAxis": "left", "period": 10}]]
     for idx in range(1, cnt):
         metrics_array.append(
@@ -124,7 +128,7 @@ dashboard_def = {
             "properties": {
                 "view": "timeSeries",
                 "stacked": False,
-                "metrics": get_metrics_array(checkout_bundle_arn_prefix, 10),
+                "metrics": get_metrics_array(checkout_bundle_arn_prefix, LAMBDA_METRIC_RUNTIME, 10),
                 "region": region,
                 "title": "Checkout bundle runtime",
                 "period": 300
@@ -138,17 +142,10 @@ dashboard_def = {
             "height": 6,
             "properties": {
                 "view": "timeSeries",
-                "metrics": [
-                    ["AWS/States", "LambdaFunctionsStarted", "LambdaFunctionArn",
-                     upload_bundle_arn_prefix,
-                     {"stat": "Sum"}],
-                    [".", "LambdaFunctionsFailed", ".", ".", {"stat": "Sum"}],
-                    [".", "LambdaFunctionsSucceeded", ".", ".", {"stat": "Sum"}],
-                    [".", "LambdaFunctionsHeartbeatTimedOut", ".", ".", {"stat": "Sum"}]
-                ],
-                "region": region,
-                "stacked": False,
-                "title": "Upload bundle",
+                "metrics": get_metrics_array(upload_bundle_arn_prefix, LAMBDA_METRIC_FAILED, 10),
+                "region": "us-east-1",
+                "stacked": True,
+                "title": "Upload bundle failures",
                 "period": 300
             }
         },
@@ -160,17 +157,10 @@ dashboard_def = {
             "height": 6,
             "properties": {
                 "view": "timeSeries",
-                "metrics": [
-                    ["AWS/States", "LambdaFunctionsStarted", "LambdaFunctionArn",
-                     download_bundle_arn_prefix,
-                     {"stat": "Sum"}],
-                    [".", "LambdaFunctionsFailed", ".", ".", {"stat": "Sum"}],
-                    [".", "LambdaFunctionsSucceeded", ".", ".", {"stat": "Sum"}],
-                    [".", "LambdaFunctionsHeartbeatTimedOut", ".", ".", {"stat": "Sum"}]
-                ],
+                "metrics": get_metrics_array(download_bundle_arn_prefix, LAMBDA_METRIC_FAILED, 10),
                 "region": region,
-                "stacked": False,
-                "title": "Download bundle",
+                "stacked": True,
+                "title": "Download bundle failures",
                 "period": 300
             }
         },
@@ -182,17 +172,10 @@ dashboard_def = {
             "height": 6,
             "properties": {
                 "view": "timeSeries",
-                "metrics": [
-                    ["AWS/States", "LambdaFunctionsStarted", "LambdaFunctionArn",
-                     checkout_bundle_arn_prefix,
-                     {"stat": "Sum"}],
-                    [".", "LambdaFunctionsFailed", ".", ".", {"stat": "Sum"}],
-                    [".", "LambdaFunctionsSucceeded", ".", ".", {"stat": "Sum"}],
-                    [".", "LambdaFunctionsHeartbeatTimedOut", ".", ".", {"stat": "Sum"}]
-                ],
+                "metrics": get_metrics_array(checkout_bundle_arn_prefix, LAMBDA_METRIC_FAILED, 10),
                 "region": region,
-                "stacked": False,
-                "title": "Checkout bundle",
+                "stacked": True,
+                "title": "Checkout bundle failures",
                 "period": 300
             }
         },
@@ -205,7 +188,7 @@ dashboard_def = {
             "properties": {
                 "view": "timeSeries",
                 "stacked": False,
-                "metrics": get_metrics_array(upload_bundle_arn_prefix, 10),
+                "metrics": get_metrics_array(upload_bundle_arn_prefix, LAMBDA_METRIC_RUNTIME, 10),
                 "region": region,
                 "title": "Bundle upload runtime",
                 "period": 300
@@ -222,7 +205,7 @@ dashboard_def = {
                 "stacked": False,
                 "metrics": [
                     ["AWS/States", "ExecutionTime", "StateMachineArn",
-                     "arn:aws:states:us-east-1:861229788715:stateMachine:dss-s3-copy-sfn-dev", {"period": 10}]
+                     dss_s3_copy_arn, {"period": 10}]
                 ],
                 "region": region,
                 "title": "Copy Execution Time",
