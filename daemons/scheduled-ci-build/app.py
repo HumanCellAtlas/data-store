@@ -47,3 +47,11 @@ def integration_test_on_master(event, context):
     Run integration tests against the `dev` deployment stage at the top of each hour
     """
     trigger_ci_build(event, context, "master", "Integration test", TRAVIS_DSS_INTEGRATION_MODE=1)
+
+
+@app.scheduled_function("cron(30 0/8 * * ? *)")
+def integration_test_on_integration(event, context):
+    """
+    Run integration tests against the `integration` deployment stage three times a day
+    """
+    trigger_ci_build(event, context, "integration", "Integration test", TRAVIS_DSS_INTEGRATION_MODE=1)
