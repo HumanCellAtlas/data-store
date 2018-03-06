@@ -7,7 +7,7 @@ logger = logging.getLogger(__name__)
 
 # https://somewhere.anything/1.2.3/anything/type123.json
 # "https://raw.githubusercontent.com/HumanCellAtlas/metadata-schema/4.6.0/json_schema/project_bundle.json"
-schema_url_regex = re.compile(r'/(?P<major_version>[0-9]+)\.[0-9]+\.[0-9]+[\w\d/]*/(?P<type>[\w]+)(.json)?$')
+schema_url_regex = re.compile(r'/(?P<major_version>[0-9]+)\.[0-9]+\.[0-9]+[\w/]*/(?P<type>[\w]+)(\.json)?$')
 
 
 class SchemaInfo(namedtuple('SchemaInfo', ['url', 'version', 'type'])):
