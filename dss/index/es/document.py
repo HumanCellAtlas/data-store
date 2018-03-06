@@ -1,4 +1,3 @@
-from collections import defaultdict
 import ipaddress
 import json
 import logging
@@ -231,21 +230,24 @@ class BundleDocument(IndexDocument):
         This should be an extension point that is customizable by other projects according to
         their metadata.
         """
-        schema_version_map = defaultdict(set)  # type: typing.MutableMapping[str, typing.MutableSet[str]]
+        schema_version_list = list()  # type: typing.MutableSequence[typing.Tuple[str, str]]
         for file_name, file_content in self.files.items():
+            assert file_name.endswith('_json')
             schema_info = SchemaInfo.from_json(file_content)
             if schema_info is not None:
-                schema_version_map[schema_info.version].add(schema_info.type)
+                key_name = file_name.split('_')[0]
+                schema_version_list.append((key_name, schema_info.version))
             else:
                 logger.warning(f"Unable to obtain JSON schema info from file '{file_name}'. The file will be indexed "
                                f"as is, without sanitization. This may prevent subsequent, valid files from being "
                                f"indexed correctly.")
 
-        if schema_version_map:
-            schema_versions = schema_version_map.keys()
-            assert len(schema_versions) == 1, \
-                "The bundle contains mixed schema major version numbers: {}".format(sorted(list(schema_versions)))
-            return "v" + list(schema_versions)[0]
+        if schema_version_list:
+            schema_version_list = sorted(schema_version_list, key=lambda e: e[0])
+            if 1 == len(set(e[1] for e in schema_version_list)):
+                return 'v' + schema_version_list[0][1]
+            else:
+                return 'v-' + '-'.join([e[0]+e[1] for e in schema_version_list])
         else:
             return None  # No files with schema identifiers were found
 

@@ -508,10 +508,11 @@ class TestIndexerBase(ElasticsearchTestCase, DSSAssertMixin, DSSStorageMixin, DS
             self.assertEqual(index_document.get_shape_descriptor(), "v3")
 
         index_document['files']['assay_json']['core']['schema_version'] = "4.0.0"
-        with self.subTest("Mixed/inconsistent metadata schema release versions in the same bundle"):
-            with self.assertRaisesRegex(AssertionError,
-                                        "The bundle contains mixed schema major version numbers: \['3', '4'\]"):
-                index_document.get_shape_descriptor()
+#        xbrianh hack: Allow mixed schema version for HCA "integration day" breakout 6-March, 2018
+#        with self.subTest("Mixed/inconsistent metadata schema release versions in the same bundle"):
+#            with self.assertRaisesRegex(AssertionError,
+#                                        "The bundle contains mixed schema major version numbers: \['3', '4'\]"):
+#                index_document.get_shape_descriptor()
 
         index_document['files']['sample_json']['core']['schema_version'] = "4.0.0"
         with self.subTest("Consistent versions, with a different version value"):
@@ -548,10 +549,11 @@ class TestIndexerBase(ElasticsearchTestCase, DSSAssertMixin, DSSStorageMixin, DS
 
         v4_assay_url = "http://schema.humancellatlas.org/module/4.0.0/assay.json"
         index_document['files']['assay_json']['describedBy'] = v4_assay_url
-        with self.subTest("Mixed/inconsistent metadata schema release versions in the same bundle"):
-            with self.assertRaisesRegex(AssertionError,
-                                        "The bundle contains mixed schema major version numbers: \['4', '5'\]"):
-                index_document.get_shape_descriptor()
+#        xbrianh hack: Allow mixed schema version for HCA "integration day" breakout 6-March, 2018
+#        with self.subTest("Mixed/inconsistent metadata schema release versions in the same bundle"):
+#            with self.assertRaisesRegex(AssertionError,
+#                                        "The bundle contains mixed schema major version numbers: \['4', '5'\]"):
+#                index_document.get_shape_descriptor()
 
         v4_sample_url = "http://schema.humancellatlas.org/module/4.0.0/sample.json"
         index_document['files']['sample_json']['describedBy'] = v4_sample_url
