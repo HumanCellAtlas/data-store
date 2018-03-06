@@ -236,8 +236,7 @@ class BundleDocument(IndexDocument):
             schema_info = SchemaInfo.from_json(file_content)
             if schema_info is not None:
                 key_name = file_name.split('_')[0]
-                v_major, _, _ = schema_info.version.split('.')
-                schema_version_list.append((key_name, v_major))
+                schema_version_list.append((key_name, schema_info.version))
             else:
                 logger.warning(f"Unable to obtain JSON schema info from file '{file_name}'. The file will be indexed "
                                f"as is, without sanitization. This may prevent subsequent, valid files from being "
