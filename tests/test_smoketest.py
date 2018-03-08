@@ -114,10 +114,9 @@ class Smoketest(unittest.TestCase):
             run(f"{venv_bin}hca dss post-search --es-query='{{}}' --replica {replica} > /dev/null")
 
         search_route = "https://${API_DOMAIN_NAME}/v1/search"
-        
         Config.set_config(BucketConfig.TEST)
 
-        for  replica in Replica:
+        for replica in Replica:
             run(f"jq -n '.es_query.query.match[env.k]=env.v' | http --check {search_route} replica==aws > res.json",
                 env=dict(os.environ, k="files.sample_json.id", v=sample_id))
             with open("res.json") as fh2:
@@ -150,10 +149,9 @@ class Smoketest(unittest.TestCase):
                 else:
                     self.assertEqual(status, 'SUCCEEDED')
                     location = res["location"]
+                    object_key = get_dst_bundle_prefix(bundle_id, version)
                     self.assertEqual(location, f"{replica.storage_schema}//{checkout_bucket}/{object_key}")
                     blob_handle = S3BlobStore.from_environment()
-                    object_key = get_dst_bundle_prefix(bundle_id, version)
-                    print(f"Checking bucket {checkout_bucket} object key: {object_key}")
                     files = list(blob_handle.list(checkout_bucket, object_key))
                     self.assertEqual(len(files), file_count)
                     break
