@@ -163,7 +163,7 @@ class TestFileApi(unittest.TestCase, DSSAssertMixin, DSSUploadMixin):
         with override_bucket_config(BucketConfig.TEST_FIXTURE):
             self.assertHeadResponse(
                 url,
-                requests.codes.ok
+                [requests.codes.ok, requests.codes.moved]
             )
 
             # TODO: (ttung) verify headers
