@@ -247,7 +247,7 @@ class BundleDocument(IndexDocument):
             if 1 == len(set(e[1] for e in schema_version_list)):
                 return 'v' + schema_version_list[0][1]
             else:
-                return 'v-' + '-'.join([e[0]+e[1] for e in schema_version_list])
+                return 'v-' + '-'.join([e[0] + e[1] for e in schema_version_list])
         else:
             return None  # No files with schema identifiers were found
 
