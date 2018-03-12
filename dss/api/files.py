@@ -1,6 +1,7 @@
 import datetime
 import io
 import json
+import random
 import re
 import typing
 from enum import Enum, auto
@@ -36,6 +37,17 @@ def get(uuid: str, replica: str, version: str=None):
 def get_helper(uuid: str, replica: Replica, version: str=None):
     handle = Config.get_blobstore_handle(replica)
     bucket = replica.bucket
+
+    '''
+    Probabilistically return "Retry-after" header
+    The retry-after interval can be relatively short now, but it sets up downstream libraries / users for success when
+    we start integrating this with the checkout service.
+    '''
+    if random.randint(0, 100) < 5:
+        response = make_response('', 301)
+        headers = response.headers
+        headers['Retry-After'] = 5
+        return response
 
     if version is None:
         # list the files and find the one that is the most recent.
