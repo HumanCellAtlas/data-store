@@ -11,8 +11,8 @@ export DSS_TEST_MODE?=standalone
 
 tests:=$(wildcard tests/test_*.py)
 serial_tests:=tests/test_search.py \
-	          tests/test_indexer.py \
-			  tests/test_subscriptions.py
+              tests/test_indexer.py \
+              tests/test_subscriptions.py
 parallel_tests:=$(filter-out $(serial_tests),$(tests))
 
 # Run all standalone tests in parallel
@@ -28,7 +28,7 @@ safe_test: mypy lint serial_test parallel_test
 	coverage combine
 	rm -f .coverage.*
 
-parallel_test: $(parallel_tests)
+parallel_test: mypy lint $(parallel_tests)
 
 serial_test:
 	$(MAKE) -j1 $(serial_tests)
