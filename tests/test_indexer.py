@@ -851,12 +851,13 @@ class TestIndexerBase(ElasticsearchTestCase, DSSAssertMixin, DSSStorageMixin, DS
         bundle_fqid = self.bundle_key.split('/')[1]
         index_data_expected = copy.deepcopy(index_data_master)
         index_data_expected['files'].pop(doc)
-        with self.subTest("Exception is raised when an invalid url is in describedBy."):
+        with self.subTest("Exception is raised when describedBy contains an invalid URL"):
             invalid_url = "://invalid_url"
             index_data = copy.deepcopy(index_data_master)
             index_data['files'][doc]['describedBy'] = invalid_url
-            with self.assertRaises(AttributeError):
+            with self.assertRaises(RuntimeError) as context:
                 scrub_index_data(index_data['files'], bundle_fqid)
+            self.assertRegex(context.exception.args[0], "^No version designator in schema URL")
 
         with self.subTest("document is removed from meta data when document is missing describedBy field."):
             index_data = copy.deepcopy(index_data_master)
