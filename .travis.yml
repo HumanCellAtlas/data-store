@@ -55,7 +55,7 @@ jobs:
   include:
   - stage: test
     env:
-    - MAKE_ARGS="-j4 parallel_test"
+    - MAKE_ARGS="-j4 mypy lint parallel_test"
   - stage: test
     env:
     - MAKE_ARGS="-j1 tests/test_search.py"

@@ -1,7 +1,7 @@
 include common.mk
 MODULES=dss tests
 
-all: test
+all: mypy lint test
 
 lint:
 	flake8 $(MODULES) chalice/*.py daemons/*/*.py
@@ -19,18 +19,18 @@ parallel_tests:=$(filter-out $(serial_tests),$(tests))
 
 # Run all standalone tests in parallel
 #
-test: mypy lint $(tests)
+test: $(tests)
 	coverage combine
 	rm -f .coverage.*
 
 # Serialize the standalone tests that start a local Elasticsearch instance in
 # order to prevent more than one such instance at a time.
 #
-safe_test: mypy lint serial_test parallel_test
+safe_test: serial_test parallel_test
 	coverage combine
 	rm -f .coverage.*
 
-parallel_test: mypy lint $(parallel_tests)
+parallel_test: $(parallel_tests)
 
 serial_test:
 	$(MAKE) -j1 $(serial_tests)
