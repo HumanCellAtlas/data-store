@@ -161,13 +161,6 @@ paths:
               description: SHA-256 (in hex format) of the file contents in hex.
               type: string
               pattern: "^[a-z0-9]{64}$"
-        301:
-          description: Handle asynchronously, downstream users are expected to retry later.
-          headers:
-            Retry-After:
-              description: Delay in seconds, downstream users are expected to retry after the delay.
-              type: integer
-              format: int64
     get:
       summary: Retrieve a file given a UUID and optionally a version.
       description: |

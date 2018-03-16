@@ -25,11 +25,11 @@ ASYNC_COPY_THRESHOLD = AWS_MIN_CHUNK_SIZE
 
 """The retry-after interval in seconds. Sets up downstream libraries / users to
 retry request after the specified interval."""
-RETRY_AFTER_INTERVAL = 3
+RETRY_AFTER_INTERVAL = 10
 
 """Probability of the 301 redirect with Retry-After header. This is a temporary measure, sets up downstream
 libraries / users for success when we start integrating this with the checkout service. """
-REDIRECT_PROBABILITY = 5
+REDIRECT_PROBABILITY_PERCENTS = 5
 
 @dss_handler
 def head(uuid: str, replica: str, version: str=None):
@@ -67,17 +67,6 @@ def get_helper(uuid: str, replica: Replica, version: str=None):
     except BlobNotFoundError as ex:
         raise DSSException(404, "not_found", "Cannot find file!")
 
-    '''
-    Probabilistically return "Retry-after" header
-    The retry-after interval can be relatively short now, but it sets up downstream libraries / users for success when
-    we start integrating this with the checkout service.
-    '''
-    if random.randint(0, 100) < REDIRECT_PROBABILITY:
-        response = redirect(request.url, code=301)
-        headers = response.headers
-        headers['Retry-After'] = RETRY_AFTER_INTERVAL
-        return response
-
     blob_path = "blobs/" + ".".join((
         file_metadata[FileMetadata.SHA256],
         file_metadata[FileMetadata.SHA1],
@@ -86,6 +75,17 @@ def get_helper(uuid: str, replica: Replica, version: str=None):
     ))
 
     if request.method == "GET":
+        '''
+        Probabilistically return "Retry-After" header
+        The retry-after interval can be relatively short now, but it sets up downstream
+        libraries / users for success when we start integrating this with the checkout service.
+        '''
+        if random.randint(0, 100) < REDIRECT_PROBABILITY_PERCENTS:
+            response = redirect(request.url, code=301)
+            headers = response.headers
+            headers['Retry-After'] = RETRY_AFTER_INTERVAL
+            return response
+
         response = redirect(handle.generate_presigned_GET_url(
             bucket,
             blob_path))
