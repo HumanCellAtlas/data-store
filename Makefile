@@ -1,6 +1,8 @@
 include common.mk
 MODULES=dss tests
 
+all: test
+
 lint:
 	flake8 $(MODULES) chalice/*.py daemons/*/*.py
 
@@ -102,5 +104,5 @@ requirements.txt requirements-dev.txt : %.txt : %.txt.in
 
 requirements-dev.txt : requirements.txt.in
 
-.PHONY: lint mypy test safe_test _serial_test all_test integration_test smoketest $(tests)
+.PHONY: all lint mypy test safe_test _serial_test all_test integration_test smoketest $(tests)
 .PHONY: deploy deploy-chalice deploy-daemons
