@@ -34,55 +34,72 @@ class JsonProvider(PythonProvider):
         return value_types
 
 
-def update(d, u):
-    for k, v in u.items():
+def _update(target: dict, updates: dict) -> dict:
+    """
+    Updates an existing JSON schema. If the item is a list it is appended with the new values. If the item is a dict it
+    is updated with new keys. All other values are replaced with updated values. A special case for keys with min and
+    max in the name exists, where only the min or max respectively, is retained between the new and updated value.
+
+    :param target: The schema to apply the updates on.
+    :param updates: The schema to be applied.
+    """
+    for k, v in updates.items():
         if isinstance(v, dict):
-            d[k] = update(d.get(k, {}), v)
+            target[k] = _update(target.get(k, {}), v)
         elif isinstance(v, list):
-            d[k] = list(set(d.get(k, []) + v))
+            target[k] = list(set(target.get(k, []) + v))
         else:
             if 'min' in k:
-                d[k] = max(v, d.get(k, v))
+                target[k] = max(v, target.get(k, v))
             elif 'max' in k:
-                d[k] = min(v, d.get(k, v))
+                target[k] = min(v, target.get(k, v))
             else:
-                d[k] = v
-    return d
+                target[k] = v
+    return target
 
 
-def difference(schema, chosen):
+def _difference(provided: dict, chosen: dict) -> dict:
+    """
+    Returns the fields that are not in common between provided and chosen JSON schema.
+
+    :param provided: the JSON schema to removed the chosen schema from.
+    :param chosen: the JSON schema to remove from the provided schema.
+    :return: a JSON schema with the chosen JSON schema removed.
+    """
     remove_keys = []
-    for key, schema_value in schema.items():
+    for key, schema_value in provided.items():
         chosen_value = chosen.get(key)
         if chosen_value is not None:
             if isinstance(schema_value, dict):
-                schema[key] = difference(schema_value, chosen_value)
+                provided[key] = _difference(schema_value, chosen_value)
             elif isinstance(schema_value, list):
-                schema[key] = [i for i in schema_value if i not in chosen_value]
+                provided[key] = [i for i in schema_value if i not in chosen_value]
             else:
                 remove_keys.append(key)
     for key in remove_keys:
-        schema.pop(key)
-    return schema
+        provided.pop(key)
+    return provided
 
 
-def remove(d, u):
-    for k, v in u.items():
-        dv = d.get(k)
+def _remove(target, delete):
+    """
+    Removes fields from the target.
+    :param target: the JSON schema to remove fields from.
+    :param delete: the JSON schema fields to remove
+    :return: the target minus the delete fields.
+    """
+    for k, v in delete.items():
+        dv = target.get(k)
         if dv is not None:
             if k == 'required':
                 for req in v:
-                    d['properties'].pop(req, None)
-                d[k] = [i for i in d[k] if i not in v]
+                    target['properties'].pop(req, None)
+                target[k] = [i for i in target[k] if i not in v]
             elif isinstance(v, dict):
-                d[k] = remove(dv, v)
+                target[k] = _remove(dv, v)
             elif isinstance(v, list):
-                d[k] = [i for i in dv if i not in v]
-    return d
-
-
-def sanitize(regex: str) -> str:
-    return re.sub(r'\.', '\.', regex)
+                target[k] = [i for i in dv if i not in v]
+    return target
 
 
 class JsonGenerator(object):
@@ -159,20 +176,20 @@ class JsonGenerator(object):
                 all_of = temp_schema.get('allOf')
                 if all_of is not None:
                     for subschema in all_of:
-                        update(temp_schema, subschema)
+                        _update(temp_schema, subschema)
                 any_of = temp_schema.get('anyOf')
                 if any_of is not None:
                     for subschema in random.sample(any_of, random.randint(1, len(any_of) - 1)):
-                        update(temp_schema, subschema)
+                        _update(temp_schema, subschema)
                 one_of = temp_schema.get('oneOf')
                 if one_of is not None:
                     subschema_choice = random.choice(one_of)
-                    update(temp_schema, subschema_choice)
+                    _update(temp_schema, subschema_choice)
                     remove_subschema = {}  # type: Dict[str, Any]
                     for subschema in one_of:
                         if subschema is not subschema_choice:
-                            update(remove_subschema, difference(subschema, subschema_choice))
-                    remove(temp_schema, remove_subschema)
+                            _update(remove_subschema, _difference(subschema, subschema_choice))
+                    _remove(temp_schema, remove_subschema)
 
                 json_type = temp_schema.get(u"type", "object")
                 impostor = getattr(self, f"_{json_type}")(temp_schema)
@@ -229,7 +246,8 @@ class JsonGenerator(object):
                 pattern_properties = schema.get('patternProperties')
                 if pattern_properties:
                     options.append('pa')
-                    patterns = [pattern for pattern in pattern_properties.keys()]
+                    # The '.' needs to be escaped because JSON schema regexs don't treat '.' as a special character.
+                    patterns = [(pattern, re.sub(r'\.', '\.', pattern)) for pattern in pattern_properties.keys()]
                 additional_properties = schema.get('additionalProperties')
                 if additional_properties:
                     options.append('ad')
@@ -247,8 +265,8 @@ class JsonGenerator(object):
                         if not properties:
                             options.remove('pr')
                     elif choice == 'pa':  # make a patternProperty
-                        pattern = str(random.choice(patterns))
-                        j_object = rstr.xeger(sanitize(pattern))[:self.KEY_LEN]
+                        pattern, pyregex = random.choice(patterns)
+                        j_object = rstr.xeger(pyregex)[:self.KEY_LEN]
                         impostor[j_object] = self._gen_json(pattern_properties[pattern])
                     elif choice == 'ad':  # make an additionalProperty
                         j_object = self.faker.uuid4()
