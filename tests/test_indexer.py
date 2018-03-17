@@ -35,7 +35,7 @@ from dss.index.indexer import Indexer
 from dss.logging import configure_test_logging
 from dss.storage.hcablobstore import BundleFileMetadata, BundleMetadata, FileMetadata
 from dss.storage.identifiers import BundleFQID, ObjectIdentifier
-from dss.util import UrlBuilder, create_blob_key, networking
+from dss.util import UrlBuilder, create_blob_key, networking, RequirementError
 from dss.util.version import datetime_to_version_format
 from tests import eventually, get_auth_header, get_bundle_fqid, get_file_fqid, get_version
 from tests.infra import DSSAssertMixin, DSSStorageMixin, DSSUploadMixin, TestBundle, testmode
@@ -483,95 +483,91 @@ class TestIndexerBase(ElasticsearchTestCase, DSSAssertMixin, DSSStorageMixin, DS
         self.verify_notification(subscription_id, subscription_query, bundle_fqid)
         self.delete_subscription(subscription_id)
 
-    # TODO: Remove this test once we stop supporting the `core` property (see issue #1015).
-    def test_get_shape_descriptor_core(self):
-        index_document = BundleDocument(self.replica, get_bundle_fqid())
-        index_document.update({
-            'files': {
-                'assay_json': {
-                    'core': {
-                        'schema_url': "http://hgwdev.soe.ucsc.edu/~kent/hca/schema/assay.json",
-                        'schema_version': "3.0.0",
-                        'type': "assay"
-                    }
-                },
-                'sample_json': {
-                    'core': {
-                        'schema_url': "http://hgwdev.soe.ucsc.edu/~kent/hca/schema/sample.json",
-                        'schema_version': "3.0.0",
-                        'type': "sample"
-                    }
+    def test_get_shape_descriptor(self):
+
+        def describedBy(schema_type, schema_version):
+            return {
+                'describedBy': f"http://schema.humancellatlas.org/module/{schema_version}.0.0/{schema_type}.json"
+            }
+
+        def core(schema_type, schema_version):
+            return {
+                'core': {
+                    'schema_url': f"http://hgwdev.soe.ucsc.edu/~kent/hca/schema/{schema_type}.json",
+                    'schema_version': schema_version + ".0.0",
+                    'type': schema_type
                 }
             }
-        })
-        with self.subTest("Same major version."):
-            self.assertEqual(index_document.get_shape_descriptor(), "v3")
 
-        index_document['files']['assay_json']['core']['schema_version'] = "4.0.0"
-#        xbrianh hack: Allow mixed schema version for HCA "integration day" breakout 6-March, 2018
-#        with self.subTest("Mixed/inconsistent metadata schema release versions in the same bundle"):
-#            with self.assertRaisesRegex(AssertionError,
-#                                        "The bundle contains mixed schema major version numbers: \['3', '4'\]"):
-#                index_document.get_shape_descriptor()
+        for (version, other_version, content) in (('5', '4', describedBy), ('4', '3', core)):
+            with self.subTest(version=version, previous_version=other_version, content=content.__name__):
+                index_document = BundleDocument(self.replica, get_bundle_fqid())
 
-        index_document['files']['sample_json']['core']['schema_version'] = "4.0.0"
-        with self.subTest("Consistent versions, with a different version value"):
-            self.assertEqual(index_document.get_shape_descriptor(), "v4")
+                with self.subTest(f"Consistent schema version {version}"):
+                    index_document['files'] = {
+                        'assay_json': content('assay', version),
+                        'sample_json': content('sample', version)
+                    }
+                    self.assertEqual(index_document.get_shape_descriptor(), "v" + version)
 
-        index_document['files']['assay_json'].pop('core')
-        with self.subTest("An versioned file and an unversioned file"):
-            with self.assertLogs(dss.logger, level="WARNING") as log_monitor:
-                index_document.get_shape_descriptor()
-            self.assertRegexIn(r"WARNING:.*Unable to obtain JSON schema info from file 'assay_json'. The file will be "
-                               r"indexed as is, without sanitization. This may prevent subsequent, valid files from "
-                               r"being indexed correctly.", log_monitor.output)
-            self.assertEqual(index_document.get_shape_descriptor(), "v4")
+                with self.subTest("Mixed metadata schema versions"):
+                    index_document['files'] = {
+                        'assay_json': content('assay', other_version),
+                        'sample_json': content('sample', version)
+                    }
+                    self.assertEqual(index_document.get_shape_descriptor(), f"v.assay.{other_version}.sample.{version}")
 
-        index_document['files']['sample_json'].pop('core')
-        with self.subTest("no versioned file"):
-            self.assertEqual(index_document.get_shape_descriptor(), None)
+                with self.subTest(f"Consistent schema version {other_version}"):
+                    index_document['files'] = {
+                        'assay_json': content('assay', other_version),
+                        'sample_json': content('sample', other_version)
+                    }
+                    self.assertEqual(index_document.get_shape_descriptor(), "v" + other_version)
 
-    def test_get_shape_descriptor_describedBy(self):
-        index_document = BundleDocument(self.replica, get_bundle_fqid())
-        index_document.update({
-            'files': {
-                'assay_json': {
-                    "describedBy": "http://schema.humancellatlas.org/module/5.0.0/assay.json"
+                with self.subTest("One version present, one absent"):
+                    index_document['files'] = {
+                        'assay_json': {},
+                        'sample_json': content('sample', other_version)
+                    }
+                    with self.assertLogs(dss.logger, level="WARNING") as log_monitor:
+                        index_document.get_shape_descriptor()
+                    self.assertRegexIn(r"WARNING:.*Unable to obtain JSON schema info from file 'assay_json'. The file "
+                                       r"will be indexed as is, without sanitization. This may prevent subsequent, "
+                                       r"valid files from being indexed correctly.", log_monitor.output)
+                    self.assertEqual(index_document.get_shape_descriptor(), "v" + other_version)
 
-                },
-                'sample_json': {
-                    "describedBy": "http://schema.humancellatlas.org/module/5.0.0/sample.json"
-                }
-            }
-        })
-        with self.subTest("Same major version."):
-            self.assertEqual(index_document.get_shape_descriptor(), "v5")
+                with self.subTest("No versions"):
+                    index_document['files'] = {
+                        'assay_json': {},
+                        'sample_json': {}
+                    }
+                    self.assertEqual(index_document.get_shape_descriptor(), None)
 
-        v4_assay_url = "http://schema.humancellatlas.org/module/4.0.0/assay.json"
-        index_document['files']['assay_json']['describedBy'] = v4_assay_url
-#        xbrianh hack: Allow mixed schema version for HCA "integration day" breakout 6-March, 2018
-#        with self.subTest("Mixed/inconsistent metadata schema release versions in the same bundle"):
-#            with self.assertRaisesRegex(AssertionError,
-#                                        "The bundle contains mixed schema major version numbers: \['4', '5'\]"):
-#                index_document.get_shape_descriptor()
+                with self.subTest("Mixed versions for one type"):
+                    index_document['files'] = {
+                        'sample1_json': content('sample', version),
+                        'sample2_json': content('sample', other_version)
+                    }
+                    self.assertEqual(index_document.get_shape_descriptor(),
+                                     f"v.sample1.sample.{version}.sample2.sample.{other_version}")
 
-        v4_sample_url = "http://schema.humancellatlas.org/module/4.0.0/sample.json"
-        index_document['files']['sample_json']['describedBy'] = v4_sample_url
-        with self.subTest("Consistent versions, with a different version value"):
-            self.assertEqual(index_document.get_shape_descriptor(), "v4")
+                def test_requirements(msg, file_name, schema, expected_error):
+                    with self.subTest(msg):
+                        index_document['files'] = {
+                            file_name: content(schema, version)
+                        }
+                        with self.assertRaises(RequirementError) as context:
+                            index_document.get_shape_descriptor()
+                        self.assertEqual(context.exception.args[0], expected_error)
 
-        index_document['files']['assay_json'].pop('describedBy')
-        with self.subTest("A versioned file and an unversioned file"):
-            with self.assertLogs(dss.logger, level="WARNING") as log_monitor:
-                index_document.get_shape_descriptor()
-            self.assertRegexIn(r"WARNING:.*Unable to obtain JSON schema info from file 'assay_json'. The file will be "
-                               r"indexed as is, without sanitization. This may prevent subsequent, valid files from "
-                               r"being indexed correctly.", log_monitor.output)
-            self.assertEqual(index_document.get_shape_descriptor(), "v4")
-
-        index_document['files']['sample_json'].pop('describedBy')
-        with self.subTest("no versioned file"):
-            self.assertEqual(index_document.get_shape_descriptor(), None)
+                test_requirements('Dot in file name', 'sample.json', 'sample',
+                                  "A metadata file name must not contain '.' characters: sample.json")
+                test_requirements('Dot in type', 'sample_json', 'sam.ple',
+                                  "A schema name must not contain '.' characters: sam.ple")
+                test_requirements('Type is number', 'sample_json', '123',
+                                  "A schema name must contain at least one non-digit: 123")
+                test_requirements('File name is number', '7_json', 'sample',
+                                  "A metadata file name must contain at least one non-digit: 7")
 
     def test_alias_and_versioned_index_exists(self):
         sample_event = self.create_bundle_created_event(self.bundle_key)
