@@ -3,6 +3,7 @@ import json
 import logging
 import socket
 import typing
+
 import re
 from urllib.parse import urlparse
 import uuid
@@ -19,6 +20,7 @@ from dss.index.es.manager import IndexManager
 from dss.index.es.validator import scrub_index_data
 from dss.index.es.schemainfo import SchemaInfo
 from dss.storage.identifiers import BundleFQID, ObjectIdentifier
+from dss.util import reject
 
 logger = logging.getLogger(__name__)
 
@@ -208,48 +210,70 @@ class BundleDocument(IndexDocument):
 
     def get_shape_descriptor(self) -> typing.Optional[str]:
         """
-        Return a string identifying the shape/structure/format of the data in this bundle
-        document, so that it may be indexed appropriately.
+        Return a string identifying the shape/structure/format of the data in this bundle document, so that it may be
+        indexed appropriately, or None if the shape cannot be determined, for example for lack of consistent schema
+        version information. If all files in the bundle carry the same schema version and their name is the same as
+        the name of their schema (ignoring the potential absence or presence of a `.json` on either the file or the
+        schema name), a single version is returned:
 
-        Currently, this returns a string identifying the metadata schema release major number.
-        For example:
+            "v4" for a bundle containing metadata conforming to schema version 4
 
-            v3 - Bundle contains metadata in the version 3 format
-            v4 - Bundle contains metadata in the version 4 format
-            ...
+        If the major schema version is different between files in the bundle, each version is mentioned specifically:
 
-        This includes verification that schema major number is the same for all index metadata
-        files in the bundle, consistent with the current HCA ingest service behavior. If no
-        metadata version information is contained in the bundle, the empty string is returned.
-        Currently this occurs in the case of the empty bundle used for deployment testing.
+            "v.biomaterial.5.file.1.links.1.process.5.project.5.protocol.5"
 
-        If/when bundle schemas are available, this function should be updated to reflect the
-        bundle schema type and major version number.
+        If a file's name differs from that of its schema, that file's entry in the version string mentions both. In
+        the example below, the file `foo1` uses to version 5 of the schema `bar`, and so does file `foo2`. But since
+        the name of either file is different from the schema name, each file's entry lists both the file name and the
+        schema name.
 
-        Other projects (non-HCA) may manage their metadata schemas (if any) and schema versions.
-        This should be an extension point that is customizable by other projects according to
-        their metadata.
+            "v.foo1.bar.5.foo2.bar.5"
+
+        If/when new metadata schemas are available, this function should be updated to reflect the bundle schema type
+        and major version number.
+
+        Other projects (non-HCA) may manage their own metadata schemas (if any) and schema versions. This should be
+        an extension point that is customizable by other projects according to their metadata.
         """
-        schema_version_list = list()  # type: typing.MutableSequence[typing.Tuple[str, str]]
+        schemas_by_file: typing.MutableMapping[str, SchemaInfo] = {}
         for file_name, file_content in self.files.items():
-            assert file_name.endswith('_json')
-            schema_info = SchemaInfo.from_json(file_content)
-            if schema_info is not None:
-                key_name = file_name.split('_')[0]
-                schema_version_list.append((key_name, schema_info.version))
+            schema = SchemaInfo.from_json(file_content)
+            if schema is not None:
+                if file_name.endswith('_json'):
+                    file_name = file_name[:-5]
+                # Enforce the prerequisites that make the mapping to shape descriptors bijective. This will enable us
+                # to parse shape descriptors should we need to in the future. Dots have to be avoided because they
+                # are used as separators. A number (the schema version) is used to terminate each file's entry in the
+                # shape descriptor, allowing us to distinguish between the normal form of an entry and the compressed
+                # form that is used when schema and file name are the same.
+                reject('.' in file_name, f"A metadata file name must not contain '.' characters: {file_name}")
+                reject(file_name.isdecimal(), f"A metadata file name must contain at least one non-digit: {file_name}")
+                reject('.' in schema.type, f"A schema name must not contain '.' characters: {schema.type}")
+                reject(schema.type.isdecimal(), f"A schema name must contain at least one non-digit: {schema.type}")
+                assert '.' not in schema.version, f"A schema version must not contain '.' characters: {schema.version}"
+                assert schema.version.isdecimal(), f"A schema version must consist of digits only: {schema.version}"
+                schemas_by_file[file_name] = schema
             else:
                 logger.warning(f"Unable to obtain JSON schema info from file '{file_name}'. The file will be indexed "
                                f"as is, without sanitization. This may prevent subsequent, valid files from being "
                                f"indexed correctly.")
-
-        if schema_version_list:
-            schema_version_list = sorted(schema_version_list, key=lambda e: e[0])
-            if 1 == len(set(e[1] for e in schema_version_list)):
-                return 'v' + schema_version_list[0][1]
+        if schemas_by_file:
+            same_version = 1 == len(set(schema.version for schema in schemas_by_file.values()))
+            same_schema_and_file_name = all(file_name == schema.type for file_name, schema in schemas_by_file.items())
+            if same_version and same_schema_and_file_name:
+                return 'v' + next(iter(schemas_by_file.values())).version
             else:
-                return 'v-' + '-'.join([e[0] + e[1] for e in schema_version_list])
+                schemas = sorted(schemas_by_file.items())
+
+                def entry(file_name, schema):
+                    if schema.type == file_name:
+                        return file_name + '.' + schema.version
+                    else:
+                        return file_name + '.' + schema.type + '.' + schema.version
+
+                return 'v.' + '.'.join(entry(*schema) for schema in schemas)
         else:
-            return None  # No files with schema identifiers were found
+            return None  # No files with schema references were found
 
     # Alias [foo] has more than one indices associated with it [[bar1, bar2]], can't execute a single index op
     multi_index_error = re.compile(r"Alias \[([^\]]+)\] has more than one indices associated with it "
