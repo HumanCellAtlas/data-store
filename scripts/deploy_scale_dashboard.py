@@ -20,10 +20,17 @@ checkout_bundle_arn_prefix = f"arn:aws:lambda:{region}:{accountid}:function:dss-
 upload_bundle_arn_prefix = f"arn:aws:lambda:{region}:{accountid}:function:dss-scalability-test-{stage}:domovoi-stepfunctions-task-UploadBundle"
 download_bundle_arn_prefix = f"arn:aws:lambda:{region}:{accountid}:function:dss-scalability-test-{stage}:domovoi-stepfunctions-task-DownloadBundle"
 dss_s3_copy_arn = f"arn:aws:states:{region}:{accountid}:stateMachine:dss-s3-copy-sfn-{dev_stage}"
+gs_copy_sfn_arn = f"arn:aws:states:{region}:{accountid}:stateMachine:dss-gs-copy-sfn-{dev_stage}"
+gs_copy_write_metadata_sfn_arn = f"arn:aws:states:{region}:{accountid}:stateMachine:dss-gs-copy-write-metadata-sfn-{dev_stage}"
+dss_s3_copy_write_metadata_arn = f"arn:aws:states:{region}:{accountid}:stateMachine:dss-s3-copy-write-metadata-sfn-{dev_stage}"
+dss_scalability_test_arn = f"arn:aws:states:{region}:{accountid}:stateMachine:dss-scalability-test-{stage}"
+dss_visitation_arn = f"arn:aws:states:{region}:{accountid}:stateMachine:dss-visitation-{dev_stage}"
+
+sfn_arns = [checkout_bundle_arn_prefix, gs_copy_sfn_arn, gs_copy_write_metadata_sfn_arn, dss_s3_copy_arn,
+            dss_s3_copy_write_metadata_arn, dss_scalability_test_arn, dss_visitation_arn]
 
 LAMBDA_METRIC_RUNTIME = "LambdaFunctionRunTime"
 LAMBDA_METRIC_FAILED = "LambdaFunctionsFailed"
-
 
 
 def get_metrics_array(arn_template, metric, cnt):
@@ -37,28 +44,19 @@ def get_metrics_array(arn_template, metric, cnt):
     return metrics_array
 
 
+def get_metrics_array_sfn(arn_templates, metric):
+    metrics_array = [["AWS/States", metric, "StateMachineArn", arn_templates[0],
+                      {"stat": "Sum"}]]
+    for arn in arn_templates[1:]:
+        metrics_array.append(
+            ["...",
+             arn,
+             {"stat": "Sum"}])
+    return metrics_array
+
+
 dashboard_def = {
     "widgets": [
-        {
-            "type": "metric",
-            "x": 0,
-            "y": 24,
-            "width": 12,
-            "height": 6,
-            "properties": {
-                "view": "timeSeries",
-                "stacked": True,
-                "metrics": [
-                    ["AWS/ES", "CPUUtilization", "DomainName", f"dss-index-{stage}", "ClientId", "861229788715",
-                     {"period": 10}],
-                    [".", "WriteThroughput", ".", ".", ".", ".", {"period": 10}],
-                    [".", "WriteIOPS", ".", ".", ".", ".", {"period": 10}]
-                ],
-                "region": region,
-                "period": 300,
-                "title": "Elastic search"
-            }
-        },
         {
             "type": "metric",
             "x": 0,
@@ -80,6 +78,37 @@ dashboard_def = {
                 "period": 300
             }
         },
+        {
+            "type": "metric",
+            "x": 0,
+            "y": 1,
+            "width": 15,
+            "height": 6,
+            "properties": {
+                "view": "timeSeries",
+                "metrics": get_metrics_array_sfn(sfn_arns, 'ExecutionThrottled'),
+                "region": "us-east-1",
+                "title": "SFN throttled",
+                "period": 300,
+                "stacked": True
+            }
+        },
+        {
+            "type": "metric",
+            "x": 0,
+            "y": 2,
+            "width": 15,
+            "height": 6,
+            "properties": {
+                "view": "timeSeries",
+                "metrics": get_metrics_array_sfn(sfn_arns, 'ExecutionsStarted'),
+                "region": "us-east-1",
+                "title": "SFN started",
+                "period": 300,
+                "stacked": True
+            }
+        },
+
         {
             "type": "metric",
             "x": 0,
@@ -210,6 +239,26 @@ dashboard_def = {
                 "region": region,
                 "title": "Copy Execution Time",
                 "period": 300
+            }
+        },
+        {
+            "type": "metric",
+            "x": 0,
+            "y": 24,
+            "width": 12,
+            "height": 6,
+            "properties": {
+                "view": "timeSeries",
+                "stacked": True,
+                "metrics": [
+                    ["AWS/ES", "CPUUtilization", "DomainName", f"dss-index-{stage}", "ClientId", "861229788715",
+                     {"period": 10}],
+                    [".", "WriteThroughput", ".", ".", ".", ".", {"period": 10}],
+                    [".", "WriteIOPS", ".", ".", ".", ".", {"period": 10}]
+                ],
+                "region": region,
+                "period": 300,
+                "title": "Elastic search"
             }
         }
     ]
