@@ -87,7 +87,7 @@ dashboard_def = {
             "properties": {
                 "view": "timeSeries",
                 "metrics": get_metrics_array_sfn(sfn_arns, 'ExecutionThrottled'),
-                "region": "us-east-1",
+                "region": region,
                 "title": "SFN throttled",
                 "period": 300,
                 "stacked": True
@@ -102,7 +102,7 @@ dashboard_def = {
             "properties": {
                 "view": "timeSeries",
                 "metrics": get_metrics_array_sfn(sfn_arns, 'ExecutionsStarted'),
-                "region": "us-east-1",
+                "region": region,
                 "title": "SFN started",
                 "period": 300,
                 "stacked": True
