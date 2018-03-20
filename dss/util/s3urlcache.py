@@ -55,6 +55,7 @@ class S3UrlCache:
         except BlobNotFoundError:
             logger.info(f"{url} not found in cache. Adding it to {self.bucket} with key {key}.")
             with requests.get(url, stream=True) as resp_obj:
+                resp_obj.raise_for_status()
                 content = bytearray()
                 for chunk in resp_obj.iter_content(chunk_size=self.chunk_size):
                     #  check if max_size exceeded before storing content to avoid storing large chunks
