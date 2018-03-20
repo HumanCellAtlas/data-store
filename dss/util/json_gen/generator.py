@@ -34,6 +34,18 @@ class JsonProvider(PythonProvider):
         return value_types
 
 
+type_not_matching_str = "key value types do not match"
+
+
+def _get_value_check_type(d, k, v, t):
+    if t in (list, dict):
+        vt = d.get(k, t())
+    else:
+        vt = d.get(k, v)
+    assert isinstance(vt, type(v)), type_not_matching_str
+    return vt
+
+
 def _update(target: dict, updates: dict) -> dict:
     """
     Updates an existing JSON schema. If the item is a list it is appended with the new values. If the item is a dict it
@@ -45,20 +57,27 @@ def _update(target: dict, updates: dict) -> dict:
     """
     for k, v in updates.items():
         if isinstance(v, dict):
-            target[k] = _update(target.get(k, {}), v)
+            vt = target.get(k, {})
+            assert isinstance(vt, dict), type_not_matching_str
+            target[k] = _update(vt, v)
         elif isinstance(v, list):
-            target[k] = list(set(target.get(k, []) + v))
+            vt = target.get(k, [])
+            assert isinstance(vt, list), type_not_matching_str
+            target[k] = list(set(vt + v))
         else:
+            vt = target.get(k, v)
             if 'min' in k:
-                target[k] = max(v, target.get(k, v))
+                assert isinstance(vt, (int, float)), type_not_matching_str
+                target[k] = max(v, vt)
             elif 'max' in k:
-                target[k] = min(v, target.get(k, v))
+                assert isinstance(vt, (int, float)), type_not_matching_str
+                target[k] = min(v, vt)
             else:
-                target[k] = v
+                target[k] = vt
     return target
 
 
-def _difference(provided: dict, chosen: dict) -> dict:
+def _symmetric_difference(provided: dict, chosen: dict) -> dict:
     """
     Returns the fields that are not in common between provided and chosen JSON schema.
 
@@ -67,17 +86,21 @@ def _difference(provided: dict, chosen: dict) -> dict:
     :return: a JSON schema with the chosen JSON schema removed.
     """
     remove_keys = []
-    for key, schema_value in provided.items():
-        chosen_value = chosen.get(key)
-        if chosen_value is not None:
-            if isinstance(schema_value, dict):
-                provided[key] = _difference(schema_value, chosen_value)
-            elif isinstance(schema_value, list):
-                provided[key] = [i for i in schema_value if i not in chosen_value]
+    for k, vp in provided.items():
+        vc = chosen.get(k)
+        if vc is not None:
+            if isinstance(vp, dict):
+                vc = chosen.get(k, {})
+                assert isinstance(vc, dict), type_not_matching_str
+                provided[k] = _symmetric_difference(vp, vc)
+            elif isinstance(vp, list):
+                vc = chosen.get(k, [])
+                assert isinstance(vc, list), type_not_matching_str
+                provided[k] = [i for i in vp if i not in vc]  # quadratic performance, optimize
             else:
-                remove_keys.append(key)
-    for key in remove_keys:
-        provided.pop(key)
+                remove_keys.append(k)
+    for k in remove_keys:
+        provided.pop(k)
     return provided
 
 
@@ -94,11 +117,11 @@ def _remove(target, delete):
             if k == 'required':
                 for req in v:
                     target['properties'].pop(req, None)
-                target[k] = [i for i in target[k] if i not in v]
+                target[k] = [i for i in target[k] if i not in v]  # quadratic performance, optimize
             elif isinstance(v, dict):
                 target[k] = _remove(dv, v)
             elif isinstance(v, list):
-                target[k] = [i for i in dv if i not in v]
+                target[k] = [i for i in dv if i not in v]  # quadratic performance, optimize
     return target
 
 
@@ -188,7 +211,7 @@ class JsonGenerator(object):
                     remove_subschema = {}  # type: Dict[str, Any]
                     for subschema in one_of:
                         if subschema is not subschema_choice:
-                            _update(remove_subschema, _difference(subschema, subschema_choice))
+                            _update(remove_subschema, _symmetric_difference(subschema, subschema_choice))
                     _remove(temp_schema, remove_subschema)
 
                 json_type = temp_schema.get(u"type", "object")
