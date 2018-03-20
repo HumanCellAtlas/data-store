@@ -11,6 +11,8 @@ import threading
 import requests
 from http.server import BaseHTTPRequestHandler, HTTPServer
 
+from requests import HTTPError
+
 pkg_root = os.path.abspath(os.path.join(os.path.dirname(__file__), '..'))  # noqa
 sys.path.insert(0, pkg_root)  # noqa
 
@@ -177,25 +179,38 @@ class TestS3UrlCache(unittest.TestCase):
         self.cache.resolve(url)
         self.assertTrue(self.cache.contains(url))
 
+    def test_request_fail(self):
+        """URL is not cached when url does not return status code 200"""
+        url = f"{HTTPInfo.url}/abcd"
+        self.urls_to_cleanup.add(url)
+        with self.assertRaises(HTTPError) as ex:
+            self.cache.resolve(url)
+        self.assertEqual(ex.exception.args[0], f"404 Client Error: Not Found for url: {url}")
+
     def _delete_cached_urls(self):
         for url in self.urls_to_cleanup:
             self.cache.evict(url)
 
 
 class GetTestHandler(BaseHTTPRequestHandler):
-    _response_code = 200
-
     def do_GET(self):
-        length = int(self.path.split('/')[1])
+        path = self.path.split('/')[1]
+        if path.isdigit():
+            self.generate_random(int(path))
+        else:
+            self.generate_error()
 
-        self.send_response(self._response_code)
+    def generate_random(self, length):
+        self.send_response(200)
         self.send_header("content-length", length)
         self.end_headers()
 
         if length:
             shutil.copyfileobj(io.BytesIO(randomdata[:length]), self.wfile)
-        else:
-            return
+
+    def generate_error(self):
+        self.send_response(404)
+        self.end_headers()
 
     def log_request(self, code='-', size='-'):
         if Config.debug_level():
