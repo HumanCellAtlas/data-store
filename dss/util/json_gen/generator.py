@@ -1,14 +1,13 @@
 import random
 import re
-from typing import Union, List, Optional
-
 import rstr
+from typing import Union, List, Optional, Dict, Any
+
 from copy import deepcopy
 from faker import Faker
 from faker.providers.python import Provider as PythonProvider
 from jsonschema import RefResolver, Draft4Validator
 from math import ceil, floor
-from typing import Union, List, Optional, Dict, Any
 
 
 class JsonProvider(PythonProvider):
@@ -35,15 +34,6 @@ class JsonProvider(PythonProvider):
 
 
 type_not_matching_str = "key value types do not match"
-
-
-def _get_value_check_type(d, k, v, t):
-    if t in (list, dict):
-        vt = d.get(k, t())
-    else:
-        vt = d.get(k, v)
-    assert isinstance(vt, type(v)), type_not_matching_str
-    return vt
 
 
 def _update(target: dict, updates: dict) -> dict:
@@ -195,6 +185,8 @@ class JsonGenerator(object):
             if ref is not None:
                 impostor = self._ref(ref)
             else:
+                # Using a combination of allOf, anyOf, and oneOf can produce an invalid JSON schema if a combination
+                # of the sub-schemas can contradict one another.
                 temp_schema = deepcopy(schema)
                 all_of = temp_schema.get('allOf')
                 if all_of is not None:
@@ -202,8 +194,8 @@ class JsonGenerator(object):
                         _update(temp_schema, subschema)
                 any_of = temp_schema.get('anyOf')
                 if any_of is not None:
-                    for subschema in random.sample(any_of, random.randint(1, len(any_of) - 1)):
-                        _update(temp_schema, subschema)
+                    subschema = random.choice(any_of)
+                    _update(temp_schema, subschema)
                 one_of = temp_schema.get('oneOf')
                 if one_of is not None:
                     subschema_choice = random.choice(one_of)
