@@ -2,7 +2,7 @@ include ../common.mk
 
 SERIAL_AWS_DAEMONS := \
 	dss-sync \
-	dss-index
+	dss-index \
 
 SERIAL_GCP_DAEMONS :=
 
@@ -14,7 +14,7 @@ PARALLEL_AWS_DAEMONS := \
 	dss-s3-copy-sfn \
 	dss-s3-copy-write-metadata-sfn \
 	dss-visitation \
-	dss-scalability-test
+	dss-scalability-test \
 
 PARALLEL_GCP_DAEMONS := \
 	dss-gs-event-relay
@@ -39,11 +39,4 @@ $(SERIAL_AWS_DAEMONS) $(PARALLEL_AWS_DAEMONS) scheduled-ci-build:
 dss-gs-event-relay:
 	$(DSS_HOME)/scripts/deploy_gcf.py $@ --entry-point "dss_gs_bucket_events_$(subst -,_,$(DSS_GS_BUCKET))"
 
-import-test:
-	set -e; \
-        for daemon in $(SERIAL_AWS_DAEMONS) $(PARALLEL_AWS_DAEMONS); do \
-            ./package_daemon.sh $$daemon; \
-            python $$daemon/app.py; \
-        done
-
-.PHONY: deploy deploy-serial deploy-parallel scheduled-ci-build import-test $(SERIAL_AWS_DAEMONS) $(SERIAL_GCP_DAEMONS) $(PARALLEL_AWS_DAEMONS) $(PARALLEL_GCP_DAEMONS)
+.PHONY: deploy deploy-serial deploy-parallel scheduled-ci-build $(SERIAL_AWS_DAEMONS) $(SERIAL_GCP_DAEMONS) $(PARALLEL_AWS_DAEMONS) $(PARALLEL_GCP_DAEMONS)
