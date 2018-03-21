@@ -16,8 +16,10 @@ schema_urls = [
     "https://schema.humancellatlas.org/bundle/5.1.0/protocol"
 ]
 
-json_faker = HCAJsonGenerator(schema_urls)
-
+json_faker = None
 
 def generate_sample() -> str:
+    global json_faker
+    if json_faker is None:
+        json_faker = HCAJsonGenerator(schema_urls)
     return json_faker.generate()
