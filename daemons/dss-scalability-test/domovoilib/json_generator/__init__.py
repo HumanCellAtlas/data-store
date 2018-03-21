@@ -2,7 +2,7 @@ import json
 import random
 import string
 
-from tests.json_gen.hca_generator import HCAJsonGenerator
+from dss.util.json_gen.hca_generator import HCAJsonGenerator
 
 
 def id_generator(size=30, chars=string.ascii_uppercase + string.digits):

@@ -22,6 +22,7 @@ parallel_tests:=$(filter-out $(serial_tests),$(tests))
 test: $(tests)
 	coverage combine
 	rm -f .coverage.*
+	$(MAKE) -C daemons import-test
 
 # Serialize the standalone tests that start a local Elasticsearch instance in
 # order to prevent more than one such instance at a time.

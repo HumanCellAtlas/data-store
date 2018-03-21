@@ -1,3 +1,5 @@
+#!/usr/bin/env python
+
 import json
 import os
 import sys
@@ -11,7 +13,7 @@ pkg_root = os.path.abspath(os.path.join(os.path.dirname(__file__), '..'))  # noq
 sys.path.insert(0, pkg_root)  # noqa
 
 from tests.infra import testmode
-from tests.json_gen.generator import JsonGenerator, JsonProvider
+from dss.util.json_gen.generator import JsonGenerator, JsonProvider
 
 type_mapping = {'string': str,
                 'object': dict,
