@@ -92,6 +92,9 @@ class Bundle:
                 pass
         return None
 
+    def __str__(self):
+        return f"{self.__class__.__name__}(replica={self.replica}, fqid='{self.fqid}')"
+
 
 class Tombstone:
     """
@@ -125,3 +128,6 @@ class Tombstone:
             bundle_fqids = filter(lambda fqid: type(fqid) == BundleFQID, fqids)
         bundles = [Bundle.from_replica(self.replica, bundle_fqid) for bundle_fqid in bundle_fqids]
         return bundles
+
+    def __str__(self):
+        return f"{self.__class__.__name__}(replica={self.replica}, fqid='{self.fqid}')"
