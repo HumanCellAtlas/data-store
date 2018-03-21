@@ -8,8 +8,7 @@ IAM = boto3.client('iam')
 STS = boto3.client('sts')
 
 region = os.environ['AWS_DEFAULT_REGION']
-stage = os.environ['DSS_DEPLOYMENT_STAGE']
-username = f'dss-gs-event-relay-{stage}'
+username = f'dss-gs-event-relay'
 account_id = STS.get_caller_identity().get('Account')
 resource_arn = f'arn:aws:sns:{region}:{account_id}:*'
 
