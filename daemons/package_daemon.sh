@@ -25,11 +25,5 @@ done
 
 cp -R ../dss ../dss-api.yml $daemon/domovoilib
 
-if [[ $daemon == "dss-scalability-test" ]]; then
-    mkdir -p $daemon/domovoilib/tests
-    $DSS_HOME/scripts/deploy_scale_dashboard.py
-    $DSS_HOME/scripts/deploy_scale_tables.py
-fi
-
 cp "$GOOGLE_APPLICATION_CREDENTIALS" $daemon/domovoilib/gcp-credentials.json
 chmod -R ugo+rX $daemon/domovoilib

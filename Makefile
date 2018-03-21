@@ -19,9 +19,11 @@ parallel_tests:=$(filter-out $(serial_tests),$(tests))
 
 # Run all standalone tests in parallel
 #
-test: $(tests)
+test: $(tests) daemon-import-test
 	coverage combine
 	rm -f .coverage.*
+
+daemon-import-test:
 	$(MAKE) -C daemons import-test
 
 # Serialize the standalone tests that start a local Elasticsearch instance in
@@ -31,7 +33,7 @@ safe_test: serial_test parallel_test
 	coverage combine
 	rm -f .coverage.*
 
-parallel_test: $(parallel_tests)
+parallel_test: $(parallel_tests) daemon-import-test
 
 serial_test:
 	$(MAKE) -j1 $(serial_tests)
@@ -105,5 +107,5 @@ requirements.txt requirements-dev.txt : %.txt : %.txt.in
 
 requirements-dev.txt : requirements.txt.in
 
-.PHONY: all lint mypy test safe_test _serial_test all_test integration_test smoketest $(tests)
+.PHONY: all lint mypy test safe_test _serial_test all_test integration_test smoketest daemon-import-test $(tests)
 .PHONY: deploy deploy-chalice deploy-daemons

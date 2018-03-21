@@ -62,3 +62,8 @@ if [[ -f $iam_policy_template ]]; then
     cat "$iam_policy_template" | envsubst '$DSS_S3_BUCKET $DSS_S3_BUCKET_TEST $DSS_S3_BUCKET_TEST_FIXTURES $DSS_S3_CHECKOUT_BUCKET $DSS_S3_CHECKOUT_BUCKET_TEST $dss_es_domain $account_id $stage' > "$policy_json"
     cp "$policy_json" "$stage_policy_json"
 fi
+
+if [[ $daemon_name == "dss-scalability-test" ]]; then
+    $DSS_HOME/scripts/deploy_scale_dashboard.py
+    $DSS_HOME/scripts/deploy_scale_tables.py
+fi
