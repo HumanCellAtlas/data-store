@@ -28,7 +28,7 @@ $(SERIAL_AWS_DAEMONS) $(PARALLEL_AWS_DAEMONS) scheduled-ci-build:
 	cp -R ../dss ../dss-api.yml $@/domovoilib
 	@if [[ $@ == "dss-scalability-test" ]]; then \
 	    mkdir -p $@/domovoilib/tests; \
-        cp -R ../tests/scalability/ $@/domovoilib/tests/scalability; \
+        cp -R ../tests $@/domovoilib/tests/scalability; \
         $(DSS_HOME)/scripts/deploy_scale_dashboard.py; \
         $(DSS_HOME)/scripts/deploy_scale_tables.py; \
 	fi
