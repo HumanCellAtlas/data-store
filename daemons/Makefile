@@ -24,7 +24,7 @@ deploy-serial: $(SERIAL_AWS_DAEMONS) $(SERIAL_GCP_DAEMONS)
 deploy-parallel: $(PARALLEL_AWS_DAEMONS) $(PARALLEL_GCP_DAEMONS)
 
 $(SERIAL_AWS_DAEMONS) $(PARALLEL_AWS_DAEMONS) scheduled-ci-build:
-	./build_daemon.sh $@
+	./package_daemon.sh $@
 	./build_deploy_config.sh $@
 	cd $@; domovoi deploy --stage $(DSS_DEPLOYMENT_STAGE)
 	@if [[ $@ == "dss-sync" || $@ == "dss-index" ]]; then \
