@@ -4,7 +4,7 @@ import random
 from jsonschema import RefResolver
 
 from dss.util.s3urlcache import S3UrlCache
-from tests.json_gen.generator import JsonGenerator
+from dss.util.json_gen.generator import JsonGenerator
 
 
 class HCAJsonGenerator(object):

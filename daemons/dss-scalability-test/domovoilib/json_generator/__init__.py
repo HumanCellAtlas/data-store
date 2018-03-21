@@ -2,7 +2,7 @@ import json
 import random
 import string
 
-from tests.json_gen.hca_generator import HCAJsonGenerator
+from dss.util.json_gen.hca_generator import HCAJsonGenerator
 
 
 def id_generator(size=30, chars=string.ascii_uppercase + string.digits):
@@ -16,8 +16,10 @@ schema_urls = [
     "https://schema.humancellatlas.org/bundle/5.1.0/protocol"
 ]
 
-json_faker = HCAJsonGenerator(schema_urls)
-
+json_faker = None
 
 def generate_sample() -> str:
+    global json_faker
+    if json_faker is None:
+        json_faker = HCAJsonGenerator(schema_urls)
     return json_faker.generate()
