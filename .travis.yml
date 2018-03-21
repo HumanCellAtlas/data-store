@@ -43,6 +43,8 @@ script:
 after_success:
 - bash <(curl -s https://codecov.io/bash)
 
+if: tag IS blank # don't build tags
+
 stages:
 - name: test
   if: env(TRAVIS_DSS_INTEGRATION_MODE) != 1
