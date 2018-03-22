@@ -119,7 +119,7 @@ class TestSyncUtils(unittest.TestCase):
                                                                 Params=dict(Bucket=self.s3_bucket.name, Key=test_key))
         part = dict(start=0, end=len(payload) - 1)
         upload_url = self.gs_bucket.blob(test_key).create_resumable_upload_session(size=len(payload))
-        res = sync.copy_part(upload_url, source_url, dest_platform="gs", part=part, context=Namespace(log=logging.info))
+        res = sync.copy_part(upload_url, source_url, dest_platform="gs", part=part)
         crc = crcmod.predefined.Crc('crc-32c')
         crc.update(payload)
         self.assertEqual(base64.b64decode(json.loads(res.content)["crc32c"]), crc.digest())
@@ -134,7 +134,7 @@ class TestSyncUtils(unittest.TestCase):
         upload_url = "{host}/{bucket}/{key}".format(host=self.s3.meta.client.meta.endpoint_url,
                                                     bucket=self.s3_bucket.name,
                                                     key=test_key)
-        res = sync.copy_part(upload_url, source_url, dest_platform="s3", part=part, context=Namespace(log=logging.info))
+        res = sync.copy_part(upload_url, source_url, dest_platform="s3", part=part)
         self.assertEqual(json.loads(res.headers["ETag"]), hashlib.md5(payload).hexdigest())
 
     def test_dispatch_multipart_sync(self):
