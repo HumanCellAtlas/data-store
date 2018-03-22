@@ -203,7 +203,7 @@ def compose_gs_blobs(gs_bucket, blob_names, dest_blob_name):
             pass
 
 
-def copy_part(upload_url, source_url, dest_platform, part, context):
+def copy_part(upload_url, source_url, dest_platform, part):
     gs = Config.get_native_handle(Replica.gcp)
     boto3_session = boto3.session.Session()
     with closing(range_request(source_url, part["start"], part["end"])) as fh:
@@ -218,11 +218,11 @@ def copy_part(upload_url, source_url, dest_platform, part, context):
                                body=chunker,
                                chunked=True,
                                retries=False)
-            context.log(f"Part upload result: {res.status}")
+            logger.info(f"Part upload result: {res.status}")
             assert 200 <= res.status < 300
-            context.log("Part etag: {}".format(res.headers["ETag"]))
+            logger.info("Part etag: {}".format(res.headers["ETag"]))
         elif dest_platform == "gs":
-            context.log(f"Uploading part {part} to gs")
+            logger.info(f"Uploading part {part} to gs")
             gs_transport = google.auth.transport.requests.AuthorizedSession(gs._credentials)
             for start in range(0, part["end"] - part["start"] + 1, gs_upload_chunk_size):
                 chunk = fh.read(gs_upload_chunk_size)

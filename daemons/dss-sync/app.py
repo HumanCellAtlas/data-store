@@ -63,7 +63,7 @@ def compose_upload(event, context):
     gs_bucket = gs.get_bucket(msg["dest_bucket"])
     while True:
         try:
-            context.log("Composing, stage 1")
+            logger.info("Composing, stage 1")
             compose_stage2_blob_names = []
             if msg["total_parts"] > gs_max_compose_parts:
                 for part_id in range(1, msg["total_parts"] + 1, gs_max_compose_parts):
@@ -76,7 +76,7 @@ def compose_upload(event, context):
             else:
                 parts_to_compose = range(1, msg["total_parts"] + 1)
                 compose_stage2_blob_names = ["{}.part{}".format(msg["dest_key"], p) for p in parts_to_compose]
-            context.log("Composing, stage 2")
+            logger.info("Composing, stage 2")
             compose_gs_blobs(gs_bucket, compose_stage2_blob_names, msg["dest_key"])
             break
         except AssertionError:
@@ -94,13 +94,13 @@ def complete_multipart_upload(event, context):
     msg = json.loads(event["Records"][0]["Sns"]["Message"])
     mpu = resources.s3.Bucket(msg["dest_bucket"]).Object(msg["dest_key"]).MultipartUpload(msg["mpu"])
     while True:
-        context.log("Examining parts")
+        logger.info("Examining parts")
         parts = list(mpu.parts.all())
         if len(parts) == msg["total_parts"]:
-            context.log("Closing MPU")
+            logger.info("Closing MPU")
             mpu_parts = [dict(PartNumber=part.part_number, ETag=part.e_tag) for part in parts]
             mpu.complete(MultipartUpload={'Parts': mpu_parts})
-            context.log("Closed MPU")
+            logger.info("Closed MPU")
             break
         time.sleep(5)
 
@@ -116,7 +116,7 @@ def copy_parts(event, context):
     gs = dss.Config.get_native_handle(Replica.gcp)
     with ThreadPoolExecutor(max_workers=4) as executor:
         for part in msg["parts"]:
-            context.log(log_msg.format(part=part, **msg))
+            logger.info(log_msg.format(part=part, **msg))
             if msg["dest_platform"] == "s3":
                 upload_url = "{host}/{bucket}/{key}?partNumber={part_num}&uploadId={mpu_id}".format(
                     host=clients.s3.meta.endpoint_url,
@@ -130,7 +130,7 @@ def copy_parts(event, context):
                 dest_blob_name = "{}.part{}".format(msg["dest_key"], part["id"])
                 dest_blob = gs.get_bucket(msg["dest_bucket"]).blob(dest_blob_name)
                 upload_url = dest_blob.create_resumable_upload_session(size=part["end"] - part["start"] + 1)
-            futures.append(executor.submit(copy_part, upload_url, source_url, msg["dest_platform"], part, context))
+            futures.append(executor.submit(copy_part, upload_url, source_url, msg["dest_platform"], part))
     for future in futures:
         future.result()
 
@@ -141,9 +141,9 @@ def copy_parts(event, context):
         part_names = ["{}.part{}".format(msg["dest_key"], p + 1) for p in range(msg["total_parts"])]
         parts = [gs.get_bucket(msg["dest_bucket"]).get_blob(p) for p in part_names]
         parts = [p for p in parts if p is not None]
-    context.log("Parts complete: {}".format(len(parts)))
-    context.log("Parts outstanding: {}".format(msg["total_parts"] - len(parts)))
+    logger.info("Parts complete: {}".format(len(parts)))
+    logger.info("Parts outstanding: {}".format(msg["total_parts"] - len(parts)))
     if msg["total_parts"] - len(parts) < parts_per_worker[msg["dest_platform"]] * 2:
-        context.log("Calling closer")
+        logger.info("Calling closer")
         send_sns_msg(ARN(topic_arn, resource=sns_topics["closer"][msg["dest_platform"]]), msg)
-        context.log("Called closer")
+        logger.info("Called closer")
