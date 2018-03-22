@@ -1,11 +1,11 @@
 # Be sure to run "make requirements.txt requirements-dev.txt" after editing this file.
 azure-storage >= 0.36.0
 boto3 >= 1.6.0
-cloud-blobstore >= 2.0.0
+cloud-blobstore >= 2.1.0
 connexion == 1.1.15 # pinned by akislyuk due to upstream breaking changes in auth middleware in connexion 1.2
 elasticsearch >= 5.4.0, < 6.0.0
 elasticsearch-dsl >= 5.3.0
-google-cloud-storage >= 1.4.0
+google-cloud-storage >= 1.7.0
 google-apitools >= 0.5.0
 iso8601 >= 0.1.12
 jsonschema >= 2.6.0
