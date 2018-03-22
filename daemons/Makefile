@@ -15,6 +15,7 @@ PARALLEL_AWS_DAEMONS := \
 	dss-s3-copy-write-metadata-sfn \
 	dss-visitation \
 	dss-scalability-test \
+	dss-sfn \
 
 PARALLEL_GCP_DAEMONS := \
 	dss-gs-event-relay
@@ -24,6 +25,9 @@ deploy-serial: $(SERIAL_AWS_DAEMONS) $(SERIAL_GCP_DAEMONS)
 deploy-parallel: $(PARALLEL_AWS_DAEMONS) $(PARALLEL_GCP_DAEMONS)
 
 $(SERIAL_AWS_DAEMONS) $(PARALLEL_AWS_DAEMONS) scheduled-ci-build:
+	@if [[ $@ == "dss-sfn" ]]; then \
+   	        $(DSS_HOME)/scripts/deploy_dss_sfn_queue.py; \
+        fi
 	./package_daemon.sh $@
 	./build_deploy_config.sh $@
 	cd $@; domovoi deploy --stage $(DSS_DEPLOYMENT_STAGE)
@@ -39,4 +43,11 @@ $(SERIAL_AWS_DAEMONS) $(PARALLEL_AWS_DAEMONS) scheduled-ci-build:
 dss-gs-event-relay:
 	$(DSS_HOME)/scripts/deploy_gcf.py $@ --entry-point "dss_gs_bucket_events_$(subst -,_,$(DSS_GS_BUCKET))"
 
-.PHONY: deploy deploy-serial deploy-parallel scheduled-ci-build $(SERIAL_AWS_DAEMONS) $(SERIAL_GCP_DAEMONS) $(PARALLEL_AWS_DAEMONS) $(PARALLEL_GCP_DAEMONS)
+import-test:
+	set -e; \
+        for daemon in $(SERIAL_AWS_DAEMONS) $(PARALLEL_AWS_DAEMONS); do \
+            ./package_daemon.sh $$daemon; \
+            python $$daemon/app.py; \
+        done
+
+.PHONY: deploy deploy-serial deploy-parallel scheduled-ci-build import-test $(SERIAL_AWS_DAEMONS) $(SERIAL_GCP_DAEMONS) $(PARALLEL_AWS_DAEMONS) $(PARALLEL_GCP_DAEMONS)

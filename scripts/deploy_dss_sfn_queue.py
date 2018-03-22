@@ -9,5 +9,4 @@ sqs = boto3.resource('sqs')
 queue = sqs.create_queue(QueueName='dss-dlq-sfn-' + os.environ["DSS_DEPLOYMENT_STAGE"], Attributes={'DelaySeconds': '5'})
 
 # You can now access identifiers and attributes
-print(queue.url)
-print(queue.attributes.get('DelaySeconds'))
+print(f"Queue: {queue.url}")

@@ -14,10 +14,20 @@
       "Effect": "Allow",
       "Action": [
         "sqs:Publish",
-        "sqs:SendMessage"
+        "sqs:ReceiveMessage",
+        "sqs:SendMessage",
+        "sqs:GetQueueUrl",
+        "sqs:DeleteMessage"
       ],
       "Resource": [
-        "arn:aws:sqs:*:$account_id:dss-*-$stage"
+        "arn:aws:sqs:*:$account_id:dss-dlq-sfn-$stage"
+      ]
+    },
+    {
+      "Effect": "Allow",
+      "Action": "sns:Publish",
+      "Resource": [
+        "arn:aws:sns:*:$account_id:dss-sfn-$stage"
       ]
     },
     {
