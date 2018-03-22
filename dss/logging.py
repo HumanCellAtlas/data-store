@@ -1,7 +1,7 @@
 import logging
 from logging import DEBUG, INFO, WARNING
+import os
 import sys
-
 from typing import Mapping, Union, Tuple
 
 import dss
@@ -49,9 +49,7 @@ def configure_daemon_logging():
     """
     Prepare logging for use within a AWS Lambda function.
     """
-    _configure_logging(stream=sys.stdout,
-                       # Timestamp is handled by AWS Lambda
-                       format='%(name)s %(levelname)s %(message)s')
+    _configure_logging(stream=sys.stdout)
 
 
 def configure_test_logging():
@@ -63,19 +61,20 @@ def configure_test_logging():
 
 def _configure_logging(test=False, **kwargs):
     root_logger = logging.getLogger()
-    if len(root_logger.handlers) == 0:
+    root_logger.setLevel(logging.WARNING)
+    if 'AWS_LAMBDA_LOG_GROUP_NAME' in os.environ:
+        pass  # On AWS Lambda, we assume that its runtime already configured logging as appropriate
+    elif len(root_logger.handlers) == 0:
         logging.basicConfig(**kwargs)
-        debug = Config.debug_level()
-        log_levels = main_log_levels
-        if test:
-            log_levels = {**log_levels, **test_log_levels}
-        for logger, levels in log_levels.items():
-            if isinstance(logger, (str, type(None))):
-                logger = logging.getLogger(logger)
-            level = levels[min(debug, len(levels) - 1)]
-            logger.setLevel(level)
     else:
-        # FIXME: Identify underlying cause, handle this case and eliminate this warning
-        root_logger.warning("It appears that logging was already configured in this interpreter process. "
-                            "See https://github.com/HumanCellAtlas/data-store/issues/942 for details.",
-                            stack_info=True)
+        root_logger.warning("It appears that logging was already configured in this interpreter process. The currently "
+                            "registered handlers, formatters and filters will be left as is.", stack_info=True)
+    debug = Config.debug_level()
+    log_levels = main_log_levels
+    if test:
+        log_levels = {**log_levels, **test_log_levels}
+    for logger, levels in log_levels.items():
+        if isinstance(logger, (str, type(None))):
+            logger = logging.getLogger(logger)
+        level = levels[min(debug, len(levels) - 1)]
+        logger.setLevel(level)
