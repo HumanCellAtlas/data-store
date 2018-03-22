@@ -25,6 +25,16 @@ class S3UrlCache:
     _max_size_default = 64 * 1024 * 1024  # The default max_size per URL = 64 MB
     _chunk_size_default = 1024 * 1024  # The default chunk_size = 1 MB
 
+    # The prefix of the keys used to store the cached URL contents.
+    #
+    _prefix = 'cache'
+
+    # The version of the cache layout. Increment it whenever this code changes in a way that breaks compatibility
+    # with existing cached URLs. This version will be appended to _prefix. Instruct operators to remove cached URL
+    # keys from the caching bucket for all but the most recent version at some point after deploying this code.
+    #
+    _version = 1
+
     def __init__(self,
                  max_size: int = _max_size_default,
                  chunk_size: int = _chunk_size_default) -> None:
@@ -88,9 +98,10 @@ class S3UrlCache:
     def _reverse_key_lookup(self, key: str) -> str:
         return self.blobstore.get_user_metadata(self.bucket, key)['dss_cached_url']
 
-    @staticmethod
-    def _url_to_key(url: str) -> str:
-        return 'cache/' + sha1(url.encode("utf-8")).hexdigest()
+    @classmethod
+    def _url_to_key(cls, url: str) -> str:
+        hash = sha1(url.encode("utf-8")).hexdigest()
+        return f'{cls._prefix}.{cls._version}/{hash}' + hash
 
     def _upload_content(self, key: str, url: str, content: bytearray) -> None:
         meta_data = {
