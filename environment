@@ -74,11 +74,8 @@ DSS_SUBSCRIPTION_AUTHORIZED_DOMAINS=${DSS_SUBSCRIPTION_AUTHORIZED_DOMAINS_ARRAY[
 DSS_SUBSCRIPTION_AUTHORIZED_DOMAINS_TEST="human-cell-atlas-travis-test.iam.gserviceaccount.com"
 DSS_ES_DOMAIN="dss-index-$DSS_DEPLOYMENT_STAGE"
 PYTHONWARNINGS=ignore:ResourceWarning,ignore::UserWarning:zipfile:
-
-# DSS_GS_EVENT_RELAY_AWS_ACCESS_KEY_ID and DSS_GS_EVENT_RELAY_AWS_SECRET_ACCESS_KEY need to
-# be populated before deployment.
-# DSS_GS_EVENT_RELAY_AWS_ACCESS_KEY_ID=
-# DSS_GS_EVENT_RELAY_AWS_SECRET_ACCESS_KEY=
+DSS_EVENT_RELAY_AWS_ACCESS_KEY_ID_PARAMETER_NAME="/dss/parameters/event_relay_aws_access_key_id"
+DSS_EVENT_RELAY_AWS_SECRET_ACCESS_KEY_PARAMETER_NAME="/dss/parameters/event_relay_aws_secret_access_key"
 set +a
 
 if [[ -f "${DSS_HOME}/environment.local" ]]; then

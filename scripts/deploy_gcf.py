@@ -42,12 +42,21 @@ grtc_conn = GoogleRuntimeConfigConnection(client=gcp_client)
 gcf_conn = GoogleCloudFunctionsConnection(client=gcp_client)
 gcf_ns = f"projects/{gcp_client.project}/locations/{gcp_region}/functions"
 
+SSM = boto3.client('ssm')
+aws_access_key_id = SSM.get_parameter(
+    Name=os.environ['DSS_EVENT_RELAY_AWS_ACCESS_KEY_ID_PARAMETER_NAME'],
+    WithDecryption=True,
+)['Parameter']['Value']
+aws_secret_access_key = SSM.get_parameter(
+    Name=os.environ['DSS_EVENT_RELAY_AWS_SECRET_ACCESS_KEY_PARAMETER_NAME'],
+    WithDecryption=True,
+)['Parameter']['Value']
 boto3_session = boto3.session.Session()
 aws_account_id = boto3.client("sts").get_caller_identity()["Account"]
 relay_sns_topic = "dss-gs-bucket-events-" + os.environ["DSS_GS_BUCKET"]
 config_vars = {
-    "AWS_ACCESS_KEY_ID": os.environ['DSS_GS_EVENT_RELAY_AWS_ACCESS_KEY_ID'],
-    "AWS_SECRET_ACCESS_KEY": os.environ['DSS_GS_EVENT_RELAY_AWS_SECRET_ACCESS_KEY'],
+    "AWS_ACCESS_KEY_ID": aws_access_key_id,
+    "AWS_SECRET_ACCESS_KEY": aws_secret_access_key,
     "AWS_REGION": os.environ['AWS_DEFAULT_REGION'],
     "sns_topic_arn": f"arn:aws:sns:{boto3_session.region_name}:{aws_account_id}:{relay_sns_topic}"
 }
