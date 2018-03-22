@@ -44,11 +44,11 @@ gcf_ns = f"projects/{gcp_client.project}/locations/{gcp_region}/functions"
 
 SSM = boto3.client('ssm')
 aws_access_key_id = SSM.get_parameter(
-    Name=os.environ['DSS_EVENT_RELAY_AWS_ACCESS_KEY_ID_PARAMETER_NAME'],
+    Name='{}/{}'.format(os.environ['DSS_PARAMETER_STORE'], os.environ['DSS_EVENT_RELAY_AWS_ACCESS_KEY_ID_PARAMETER_NAME']),
     WithDecryption=True,
 )['Parameter']['Value']
 aws_secret_access_key = SSM.get_parameter(
-    Name=os.environ['DSS_EVENT_RELAY_AWS_SECRET_ACCESS_KEY_PARAMETER_NAME'],
+    Name='{}/{}'.format(os.environ['DSS_PARAMETER_STORE'], os.environ['DSS_EVENT_RELAY_AWS_SECRET_ACCESS_KEY_PARAMETER_NAME']),
     WithDecryption=True,
 )['Parameter']['Value']
 boto3_session = boto3.session.Session()

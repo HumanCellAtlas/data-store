@@ -120,6 +120,12 @@
       "Effect": "Allow"
     },
     {
+      "Sid": "hcaDssCiCdAllowSSMGetParameterAccess",
+      "Effect": "Allow",
+      "Action": "ssm:GetParameter",
+      "Resource": "arn:aws:ssm:*:$account_id:parameter/$DSS_PARAMETER_STORE/*"
+    },
+    {
       "Effect": "Allow",
       "Action": "dynamodb:*",
       "Resource": [
