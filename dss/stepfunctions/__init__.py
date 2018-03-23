@@ -1,6 +1,7 @@
 import json
 import os
 import typing
+import logging
 
 from dss.util.aws import ARN
 from dss.util.aws.clients import stepfunctions  # type: ignore
@@ -20,6 +21,10 @@ accountid = ARN.get_account_id()
 
 sfn_sns_topic = f"dss-sfn-{stage}"
 sfn_sns_topic_arn = f"arn:aws:sns:{region}:{accountid}:{sfn_sns_topic}"
+
+logger = logging.getLogger(__name__)
+logger.setLevel(logging.DEBUG)
+
 
 def step_functions_arn(state_machine_name_template: str) -> str:
     """
@@ -43,7 +48,7 @@ def step_functions_execution_arn(state_machine_name_template: str, execution_nam
     return state_machine_execution_arn
 
 
-def step_functions_invoke(state_machine_name_template: str, execution_name: str, input) -> typing.Any:
+def step_functions_invoke(state_machine_name_template: str, execution_name: str, input, attributes = None) -> typing.Any:
     """
     Invoke a step functions state machine.  The name of the state machine to be invoked will be derived from
     `state_machine_name_template`, with string formatting to replace {stage} with the dss deployment stage.
@@ -54,9 +59,9 @@ def step_functions_invoke(state_machine_name_template: str, execution_name: str,
         SFN_EXECUTION_KEY: execution_name,
         SFN_INPUT_KEY: json.dumps(input)
     }
-    print('Sending message: ' + str(message))
+    logger.debug('Sending message: ' + str(message))
 
-    response = send_sns_msg(sfn_sns_topic_arn, message)
+    response = send_sns_msg(sfn_sns_topic_arn, message, attributes)
 
     return response
 

@@ -1,12 +1,10 @@
 import json
 import logging
 import os
-import random
 import sys
 
 import boto3
 import domovoi
-from botocore.exceptions import ClientError
 
 pkg_root = os.path.abspath(os.path.join(os.path.dirname(__file__), 'domovoilib'))  # noqa
 sys.path.insert(0, pkg_root)  # noqa
@@ -16,7 +14,15 @@ from dss.stepfunctions import SFN_TEMPLATE_KEY, SFN_EXECUTION_KEY, SFN_INPUT_KEY
 from dss.logging import configure_daemon_logging
 
 logger = logging.getLogger(__name__)
+logger.setLevel(logging.DEBUG)
+ch = logging.StreamHandler(sys.stdout)
+ch.setLevel(logging.DEBUG)
+formatter = logging.Formatter('%(levelname)s - %(message)s')
+ch.setFormatter(formatter)
+logger.addHandler(ch)
 
+DSS_REAPER_RETRY_KEY = 'DSS-REAPER-RETRY-COUNT'
+DSS_MAX_RETRY_COUNT = 10
 configure_daemon_logging()
 app = domovoi.Domovoi(configure_logs=False)
 sqs = boto3.resource('sqs')
@@ -28,39 +34,44 @@ def launch_test_run(event, context):
     sfn_name_template = msg[SFN_TEMPLATE_KEY]
     sfn_execution = msg[SFN_EXECUTION_KEY]
     sfn_input = msg[SFN_INPUT_KEY]
-    logger.info(f"Launching Step Function {sfn_name_template} execution: {sfn_execution}")
-    #    if random.randint(0, 100) < 20:
-    #        print(f"Raised exception execution id {sfn_execution}")
-    print('About to throw an expection')
-    raise Exception()
-    # print(f"Starting execution {sfn_execution}")
-    # stepfunctions._step_functions_start_execution(sfn_name_template, sfn_execution, sfn_input)
+    logger.info(f"Launching Step Function {sfn_name_template} execution: {sfn_execution} input: {str(sfn_input)}")
+    stepfunctions._step_functions_start_execution(sfn_name_template, sfn_execution, sfn_input)
 
 
 @app.scheduled_function("rate(1 minute)")
 def reaper(event, context):
     queue_name = "dss-dlq-sfn-" + os.environ["DSS_DEPLOYMENT_STAGE"]
-    print(f"Queue name: {queue_name}")
 
     # Get the queue
     queue = sqs.get_queue_by_name(QueueName=queue_name)
-    print('Got a queue')
 
     try:
         for message in queue.receive_messages():
-            print("Got a message: ")
-            print(str(message.body))
             # re-process messages by sending them back to the SNS topic
-            msg = json.loads(message.body)["Records"][0]["Sns"]["Message"]
-            print("Message: " + str(msg))
+            sns_message = json.loads(message.body)["Records"][0]["Sns"]
+            msg = sns_message["Message"]
+            logger.debug(f"Received a message: {str(msg)}")
+
             msg_dict = json.loads(msg)
             sfn_name_template = msg_dict[SFN_TEMPLATE_KEY]
             sfn_execution = msg_dict[SFN_EXECUTION_KEY]
-            sfn_input = msg_dict[SFN_INPUT_KEY]
-            logger.info(f"Schedule {sfn_name_template} reprocessing execution: {sfn_execution}")
-            # TODO(rkisin): increment retry count
-            stepfunctions.step_functions_invoke(sfn_name_template, sfn_execution, sfn_input)
+            sfn_input = json.loads(msg_dict[SFN_INPUT_KEY])
+            logger.debug(f"sfn_input: {str(sfn_input)}")
+
+            attrs = sns_message["MessageAttributes"]
+            retry_count = int(attrs[DSS_REAPER_RETRY_KEY]['Value']) if DSS_REAPER_RETRY_KEY in attrs else 0
+            retry_count += 1
+            if retry_count < DSS_MAX_RETRY_COUNT:
+                attrs = {DSS_REAPER_RETRY_KEY: {"DataType": "Number", "StringValue": str(retry_count)}}
+                logger.debug(f"Incremented retry count: {retry_count}")
+
+                logger.debug(f"Schedule {sfn_name_template} reprocessing execution: {sfn_execution}")
+                stepfunctions.step_functions_invoke(sfn_name_template, sfn_execution, sfn_input, attrs)
+            else:
+                logger.warning(f"Giving up on executionid: {sfn_execution} after {retry_count - 1} attempts")
+                break
+
             # Let the queue know that the message is processed
             message.delete()
     except Exception as e:
-        print("Error: %s" % str(e))
+        logger.error(str(e))
