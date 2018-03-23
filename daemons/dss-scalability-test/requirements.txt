@@ -1,2 +1,4 @@
 hca >= 3.2.0
+Faker >= 0.8.11
+rstr >=2.2.6
 -r ../../requirements.txt
