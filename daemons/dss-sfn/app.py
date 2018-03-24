@@ -68,7 +68,7 @@ def reaper(event, context):
                 logger.debug(f"Schedule {sfn_name_template} reprocessing execution: {sfn_execution}")
                 stepfunctions.step_functions_invoke(sfn_name_template, sfn_execution, sfn_input, attrs)
             else:
-                logger.warning(f"Giving up on executionid: {sfn_execution} after {retry_count - 1} attempts")
+                logger.warning(f"Giving up on executionid: {sfn_execution} after {retry_count} attempts")
                 break
 
             # Let the queue know that the message is processed

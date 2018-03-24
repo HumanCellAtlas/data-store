@@ -21,6 +21,7 @@ policy_json="$(dirname $0)/${daemon_name}/.chalice/policy.json"
 stage_policy_json="$(dirname $0)/${daemon_name}/.chalice/policy-${stage}.json"
 iam_policy_template=${iam_policy_template:-"$(dirname $0)/../iam/policy-templates/${daemon_name}-lambda.json"}
 export account_id=$(aws sts get-caller-identity | jq -r .Account)
+export region=$AWS_DEFAULT_REGION
 
 export dss_es_domain=${DSS_ES_DOMAIN}
 if ! aws es describe-elasticsearch-domain --domain-name $dss_es_domain; then
@@ -65,4 +66,8 @@ cp "$policy_json" "$stage_policy_json"
 if [[ $daemon_name == "dss-scalability-test" ]]; then
     $DSS_HOME/scripts/deploy_scale_dashboard.py
     $DSS_HOME/scripts/deploy_scale_tables.py
+fi
+if [[ $daemon_name == "dss-sfn" ]]; then
+    export reaper_sqs_arn="arn:aws:sqs:${region}:${account_id}:dss-dlq-sfn-${stage}"
+    cat "$config_json" | jq ".dead_letter_queue_target_arn=env.reaper_sqs_arn" | sponge "$config_json"
 fi

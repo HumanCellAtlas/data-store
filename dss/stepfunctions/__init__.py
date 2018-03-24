@@ -48,7 +48,7 @@ def step_functions_execution_arn(state_machine_name_template: str, execution_nam
     return state_machine_execution_arn
 
 
-def step_functions_invoke(state_machine_name_template: str, execution_name: str, input, attributes = None) -> typing.Any:
+def step_functions_invoke(state_machine_name_template: str, execution_name: str, input, attributes=None) -> typing.Any:
     """
     Invoke a step functions state machine.  The name of the state machine to be invoked will be derived from
     `state_machine_name_template`, with string formatting to replace {stage} with the dss deployment stage.
@@ -65,7 +65,9 @@ def step_functions_invoke(state_machine_name_template: str, execution_name: str,
 
     return response
 
-def _step_functions_start_execution(state_machine_name_template: str, execution_name: str, execution_input) -> typing.Any:
+
+def _step_functions_start_execution(state_machine_name_template: str, execution_name: str,
+                                    execution_input) -> typing.Any:
     """
     Invoke a step functions state machine.  The name of the state machine to be invoked will be derived from
     `state_machine_name_template`, with string formatting to replace {stage} with the dss deployment stage.
@@ -92,9 +94,9 @@ def step_functions_describe_execution(state_machine_name_template: str, executio
 
 
 def step_functions_list_executions(
-    state_machine_name_template: str,
-    status_filter: str=None,
-    max_results_per_page: int=None
+        state_machine_name_template: str,
+        status_filter: str = None,
+        max_results_per_page: int = None
 ) -> typing.Iterable:
     """
     List step function executions, performing paging in the background.
