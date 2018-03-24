@@ -112,7 +112,13 @@ Hint: To create S3 buckets from the command line, use `aws s3 mb --region REGION
 9.  Create a Google Cloud Storage bucket and in `environment.local`, set the environment variable `DSS_GS_BUCKET` to the
     name of that bucket. Make sure the bucket region is consistent with `GCP_DEFAULT_REGION` in `environment.local`.
 
-10. If you wish to run the unit tests, you must create two more buckets, one for test data and another for test
+10. Repeat the previous step for
+
+   * DSS_GS_CHECKOUT_BUCKET
+   * DSS_GS_CHECKOUT_BUCKET_TEST
+   * DSS_GS_CHECKOUT_BUCKET_TEST_FIXTURES
+
+11. If you wish to run the unit tests, you must create two more buckets, one for test data and another for test
     fixtures, and set the environment variables `DSS_GS_BUCKET_TEST` and `DSS_GS_BUCKET_TEST_FIXTURES` to the names of
     those buckets.
 
