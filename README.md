@@ -88,7 +88,7 @@ Hint: To create S3 buckets from the command line, use `aws s3 mb --region REGION
 6.  Run `gcloud config set project PROJECT_ID` where PROJECT_ID is the ID, not the name (!) of the GCP project you
     selected earlier.
 
-7.  Enable required APIs: `gcloud service-management enable cloudfunctions.googleapis.com`; `gcloud service-management
+7.  Enable required APIs: `gcloud services enable cloudfunctions.googleapis.com`; `gcloud services
     enable runtimeconfig.googleapis.com`
 
 8.  Generate OAuth application secrets to be used for your instance: 
