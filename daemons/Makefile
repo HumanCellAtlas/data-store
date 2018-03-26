@@ -2,7 +2,7 @@ include ../common.mk
 
 SERIAL_AWS_DAEMONS := \
 	dss-sync \
-	dss-index \
+	dss-index
 
 SERIAL_GCP_DAEMONS :=
 
