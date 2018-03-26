@@ -14,8 +14,7 @@ from dss.logging import configure_lambda_logging
 from dss.stepfunctions.checkout.checkout_states import state_machine_def
 from dss.util.email import send_checkout_success_email, send_checkout_failure_email
 from dss.storage.checkout import (parallel_copy, get_dst_bundle_prefix, get_manifest_files,
-                                  validate_file_dst, pre_exec_validate)
-
+                                  validate_file_dst, pre_exec_validate, put_status)
 
 logger = logging.getLogger(__name__)
 
@@ -25,6 +24,7 @@ app = domovoi.Domovoi(configure_logs=False)
 dss.Config.set_config(dss.BucketConfig.NORMAL)
 email_sender = dss.Config.get_notification_email()
 default_checkout_bucket = dss.Config.get_s3_checkout_bucket()
+
 
 @app.step_function_task(state_name="ScheduleCopy", state_machine_definition=state_machine_def)
 def schedule_copy(event, context):
@@ -87,6 +87,9 @@ def notify_complete(event, context):
     replica = Replica[event["replica"]]
     result = send_checkout_success_email(email_sender, event["email"], get_dst_bucket(event),
                                          event["schedule"]["dst_location"], replica)
+    # record results of execution into S3
+    put_status('SUCCEEDED', event['execution_name'], default_checkout_bucket, replica, get_dst_bucket(event),
+               event["schedule"]["dst_location"])
     return {"result": result}
 
 

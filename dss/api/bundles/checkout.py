@@ -3,14 +3,14 @@ from flask import jsonify
 
 from dss.api.bundles import get_bundle
 from dss import Config, dss_handler, stepfunctions, Replica
-from dss.storage.checkout import get_execution_id
+from dss.storage.checkout import get_execution_id, get_status
 
 STATE_MACHINE_NAME_TEMPLATE = "dss-checkout-sfn-{stage}"
+dss_bucket = Config.get_s3_bucket()
 
 @dss_handler
 def post(uuid: str, json_request_body: dict, replica: str, version: str = None):
     email = json_request_body['email']
-    dss_bucket = Config.get_s3_bucket()
 
     assert replica is not None
 
@@ -27,5 +27,5 @@ def post(uuid: str, json_request_body: dict, replica: str, version: str = None):
 
 @dss_handler
 def get(checkout_job_id: str):
-    response = stepfunctions.step_functions_describe_execution(STATE_MACHINE_NAME_TEMPLATE, checkout_job_id)
-    return jsonify(dict(status=response.get('status'))), requests.codes.ok
+    response = get_status(dss_bucket, checkout_job_id)
+    return jsonify(dict(status=response['status'])), requests.codes.ok

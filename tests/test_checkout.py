@@ -1,7 +1,8 @@
 #!/usr/bin/env python
 # coding: utf-8
-
+import json
 import os
+import uuid
 from uuid import UUID
 import requests
 import sys
@@ -14,7 +15,7 @@ import dss
 from dss.config import override_bucket_config, BucketConfig, Replica
 from dss.util import UrlBuilder
 from dss.storage.checkout import get_manifest_files, validate_file_dst, pre_exec_validate, ValidationEnum, \
-    validate_bundle_exists, touch_test_file, get_execution_id
+    validate_bundle_exists, touch_test_file, get_execution_id, put_status, get_status
 from tests.infra import DSSAssertMixin, DSSUploadMixin, get_env, testmode
 from tests.infra.server import ThreadedLocalServer
 
@@ -197,6 +198,29 @@ class TestFileApi(unittest.TestCase, DSSAssertMixin, DSSUploadMixin):
             UUID(exec_id, version=4)
         except ValueError:
             self.fail("Invalid execution id. Valid UUID v.4 is expected.")
+
+    @testmode.standalone
+    def test_status(self):
+        fake_bucket_name = 'fake_bucket_name'
+        fake_location = 'fake/location'
+        exec_id = get_execution_id()
+        self.assertIsNotNone(exec_id)
+        test_status = "SUCCEEDED"
+        for replica in Replica:
+            put_status(test_status, exec_id, Replica.aws.checkout_bucket, replica, fake_bucket_name, fake_location)
+            status = get_status(Replica.aws.checkout_bucket, exec_id)
+            self.assertEquals(status['status'], test_status)
+            self.assertEquals(status['location'], f"{replica.storage_schema}://{fake_bucket_name}/{fake_location}")
+
+    @testmode.standalone
+    def test_status_running(self):
+        fake_bucket_name = 'fake_bucket_name'
+        fake_location = 'fake/location'
+        # non-existent execution uuid
+        exec_id = str(uuid.uuid4())
+        self.assertIsNotNone(exec_id)
+        status = get_status(Replica.aws.checkout_bucket, exec_id)
+        self.assertEquals(status['status'], 'RUNNING')
 
 if __name__ == "__main__":
     unittest.main()

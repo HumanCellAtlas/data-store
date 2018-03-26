@@ -1,4 +1,5 @@
 import io
+import json
 import logging
 import typing
 import uuid
@@ -131,3 +132,22 @@ def touch_test_file(dst_bucket: str, replica: Replica) -> bool:
         return True
     except Exception as e:
         return False
+
+def status_file_name(execution_id: str) -> str:
+    return f"checkout/status/{execution_id}.json"
+
+def put_status(status: str, execution_id: str, default_checkout_bucket: str,
+               dst_replica: Replica, dst_bucket: str, dst_location: str):
+    handle = Config.get_blobstore_handle(Replica.aws)
+    data = {"status": status, "location": f"{dst_replica.storage_schema}://{dst_bucket}/{dst_location}"}
+    handle.upload_file_handle(
+        default_checkout_bucket,
+        status_file_name(execution_id),
+        io.BytesIO(json.dumps(data).encode("utf-8")))
+
+def get_status(default_checkout_bucket: str, execution_id: str):
+    handle = Config.get_blobstore_handle(Replica.aws)
+    try:
+        return json.loads(handle.get(default_checkout_bucket, status_file_name(execution_id)))
+    except BlobNotFoundError:
+        return {'status': 'RUNNING'}

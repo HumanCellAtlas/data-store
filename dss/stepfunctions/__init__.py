@@ -59,7 +59,7 @@ def step_functions_invoke(state_machine_name_template: str, execution_name: str,
         SFN_EXECUTION_KEY: execution_name,
         SFN_INPUT_KEY: json.dumps(input)
     }
-    logger.debug('Sending message: ' + str(message))
+    logger.debug('Sending message: %s', str(message))
 
     response = send_sns_msg(sfn_sns_topic_arn, message, attributes)
 
@@ -72,7 +72,8 @@ def _step_functions_start_execution(state_machine_name_template: str, execution_
     Invoke a step functions state machine.  The name of the state machine to be invoked will be derived from
     `state_machine_name_template`, with string formatting to replace {stage} with the dss deployment stage.
     """
-
+    input['execution_name'] = execution_name
+    execution_input = json.dumps(input)
     state_machine_arn = step_functions_arn(state_machine_name_template)
 
     response = stepfunctions.start_execution(
