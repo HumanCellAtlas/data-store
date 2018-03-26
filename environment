@@ -74,6 +74,10 @@ DSS_SUBSCRIPTION_AUTHORIZED_DOMAINS=${DSS_SUBSCRIPTION_AUTHORIZED_DOMAINS_ARRAY[
 DSS_SUBSCRIPTION_AUTHORIZED_DOMAINS_TEST="human-cell-atlas-travis-test.iam.gserviceaccount.com"
 DSS_ES_DOMAIN="dss-index-$DSS_DEPLOYMENT_STAGE"
 PYTHONWARNINGS=ignore:ResourceWarning,ignore::UserWarning:zipfile:
+DSS_PARAMETER_STORE="/dss/parameters"
+DSS_EVENT_RELAY_AWS_USERNAME="dss-event-relay"
+DSS_EVENT_RELAY_AWS_ACCESS_KEY_ID_PARAMETER_NAME="event_relay_aws_access_key_id"
+DSS_EVENT_RELAY_AWS_SECRET_ACCESS_KEY_PARAMETER_NAME="event_relay_aws_secret_access_key"
 set +a
 
 if [[ -f "${DSS_HOME}/environment.local" ]]; then
