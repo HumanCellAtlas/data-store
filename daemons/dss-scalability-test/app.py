@@ -27,7 +27,13 @@ PARALLELIZATION_FACTOR = 10
 
 app = domovoi.Domovoi()
 
-app.log.setLevel(logging.DEBUG)
+logger = logging.getLogger(__name__)
+logger.setLevel(logging.DEBUG)
+ch = logging.StreamHandler(sys.stdout)
+ch.setLevel(logging.DEBUG)
+formatter = logging.Formatter('%(levelname)s - %(message)s')
+ch.setFormatter(formatter)
+logger.addHandler(ch)
 
 test_bucket = os.environ["DSS_S3_CHECKOUT_BUCKET"]
 
@@ -54,7 +60,7 @@ def current_time():
     return int(round(time.time() * 1000))
 
 def upload_bundle(event, context, branch_id):
-    app.log.info("Upload bundle")
+    logger.info("Start uploading bundle")
     with tempfile.TemporaryDirectory() as src_dir:
         with tempfile.NamedTemporaryFile(dir=src_dir, suffix=".json", delete=False) as jfh:
             jfh.write(bytes(generate_sample(), 'UTF-8'))
@@ -68,7 +74,7 @@ def upload_bundle(event, context, branch_id):
 
 
 def download_bundle(event, context, branch_id):
-    app.log.info("Download bundle")
+    logger.debug("Download bundle")
     bundle_id = event['bundle']['bundle_id']
     with tempfile.TemporaryDirectory() as dest_dir:
         get_client().download(bundle_id, replica="aws", dest_name=dest_dir)
@@ -77,16 +83,16 @@ def download_bundle(event, context, branch_id):
 
 def checkout_bundle(event, context, branch_id):
     bundle_id = event['bundle']['bundle_id']
-    app.log.info(f"Checkout bundle: {bundle_id}")
+    logger.info(f"Checkout bundle: {bundle_id}")
     checkout_output = get_client().post_bundles_checkout(uuid=bundle_id, replica='aws', email='foo@example.com')
     return {"job_id": checkout_output['checkout_job_id']}
 
 
 def checkout_status(event, context, branch_id):
     job_id = event['checkout']['job_id']
-    app.log.info(f"Checkout status job_id: {job_id}")
+    logger.info(f"Checkout status job_id: {job_id}")
     checkout_output = get_client().get_bundles_checkout(checkout_job_id=job_id)
-    print(str(checkout_output))
+    logger.debug(f"Checkout status : {str(checkout_output)}")
     return {"status": checkout_output['status']}
 
 
@@ -159,6 +165,7 @@ def launch_exec(event, context):
         "test_run_id": run_id,
         "batch": nextBatch.isoformat() + 'Z'
     }
+    logger.debug(f"Starting execution {execution_id}")
     stepfunctions.step_functions_invoke("dss-scalability-test-{stage}", execution_id, test_input)
 
 
@@ -180,7 +187,7 @@ def handle_dynamodb_stream(event, context):
             records += 1
             success_count += success_count_rec
             failure_count += fail_count_rec
-    print(f"success_count_rec: {success_count}")
+    logger.debug(f"success_count_rec: {success_count}")
     if records > 0:
         table = dynamodb.Table('scalability_test_result')
         run_entry_pk = {'run_id': run_id}
@@ -205,9 +212,9 @@ def handle_dynamodb_stream(event, context):
                 }
             )
         else:
-            print('No run entries found')
+            logger.debug('No run entries found')
     else:
-        print('No INSERT records to process')
+        logger.debug('No INSERT records to process')
 
     return 'Successfully processed {} records.'.format(len(event['Records']))
 
