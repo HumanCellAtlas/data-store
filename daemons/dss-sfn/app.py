@@ -45,33 +45,30 @@ def reaper(event, context):
     # Get the queue
     queue = sqs.get_queue_by_name(QueueName=queue_name)
 
-    try:
-        for message in queue.receive_messages():
-            # re-process messages by sending them back to the SNS topic
-            sns_message = json.loads(message.body)["Records"][0]["Sns"]
-            msg = sns_message["Message"]
-            logger.debug(f"Received a message: {str(msg)}")
+    for message in queue.receive_messages():
+        # re-process messages by sending them back to the SNS topic
+        sns_message = json.loads(message.body)["Records"][0]["Sns"]
+        msg = sns_message["Message"]
+        logger.debug(f"Received a message: {str(msg)}")
 
-            msg_dict = json.loads(msg)
-            sfn_name_template = msg_dict[SFN_TEMPLATE_KEY]
-            sfn_execution = msg_dict[SFN_EXECUTION_KEY]
-            sfn_input = json.loads(msg_dict[SFN_INPUT_KEY])
-            logger.debug(f"sfn_input: {str(sfn_input)}")
+        msg_dict = json.loads(msg)
+        sfn_name_template = msg_dict[SFN_TEMPLATE_KEY]
+        sfn_execution = msg_dict[SFN_EXECUTION_KEY]
+        sfn_input = json.loads(msg_dict[SFN_INPUT_KEY])
+        logger.debug(f"sfn_input: {str(sfn_input)}")
 
-            attrs = sns_message["MessageAttributes"]
-            retry_count = int(attrs[DSS_REAPER_RETRY_KEY]['Value']) if DSS_REAPER_RETRY_KEY in attrs else 0
-            retry_count += 1
-            if retry_count < DSS_MAX_RETRY_COUNT:
-                attrs = {DSS_REAPER_RETRY_KEY: {"DataType": "Number", "StringValue": str(retry_count)}}
-                logger.debug(f"Incremented retry count: {retry_count}")
+        attrs = sns_message["MessageAttributes"]
+        retry_count = int(attrs[DSS_REAPER_RETRY_KEY]['Value']) if DSS_REAPER_RETRY_KEY in attrs else 0
+        retry_count += 1
+        if retry_count < DSS_MAX_RETRY_COUNT:
+            attrs = {DSS_REAPER_RETRY_KEY: {"DataType": "Number", "StringValue": str(retry_count)}}
+            logger.debug(f"Incremented retry count: {retry_count}")
 
-                logger.debug(f"Schedule {sfn_name_template} reprocessing execution: {sfn_execution}")
-                stepfunctions.step_functions_invoke(sfn_name_template, sfn_execution, sfn_input, attrs)
-            else:
-                logger.warning(f"Giving up on executionid: {sfn_execution} after {retry_count} attempts")
-                break
+            logger.debug(f"Schedule {sfn_name_template} reprocessing execution: {sfn_execution}")
+            stepfunctions.step_functions_invoke(sfn_name_template, sfn_execution, sfn_input, attrs)
+        else:
+            logger.warning(f"Giving up on executionid: {sfn_execution} after {retry_count} attempts")
+            break
 
-            # Let the queue know that the message is processed
-            message.delete()
-    except Exception as e:
-        logger.error(str(e))
+        # Let the queue know that the message is processed
+        message.delete()
