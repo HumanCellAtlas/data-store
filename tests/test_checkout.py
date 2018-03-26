@@ -214,8 +214,6 @@ class TestFileApi(unittest.TestCase, DSSAssertMixin, DSSUploadMixin):
 
     @testmode.standalone
     def test_status_running(self):
-        fake_bucket_name = 'fake_bucket_name'
-        fake_location = 'fake/location'
         # non-existent execution uuid
         exec_id = str(uuid.uuid4())
         self.assertIsNotNone(exec_id)
