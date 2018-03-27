@@ -1,6 +1,7 @@
 import requests
 from flask import jsonify
 
+import dss
 from dss.api.bundles import get_bundle
 from dss import Config, dss_handler, stepfunctions, Replica
 from dss.storage.checkout import get_execution_id, get_status
@@ -27,5 +28,5 @@ def post(uuid: str, json_request_body: dict, replica: str, version: str = None):
 
 @dss_handler
 def get(checkout_job_id: str):
-    response = get_status(dss_bucket, checkout_job_id)
+    response = get_status(dss.Config.get_s3_checkout_bucket(), checkout_job_id)
     return jsonify(dict(status=response['status'])), requests.codes.ok

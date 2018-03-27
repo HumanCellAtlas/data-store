@@ -136,10 +136,13 @@ def touch_test_file(dst_bucket: str, replica: Replica) -> bool:
 def status_file_name(execution_id: str) -> str:
     return f"checkout/status/{execution_id}.json"
 
-def put_status(status: str, execution_id: str, default_checkout_bucket: str,
-               dst_replica: Replica, dst_bucket: str, dst_location: str):
+def put_status(status: str, execution_id: str, default_checkout_bucket: str=None,
+               dst_replica: Replica=None, dst_bucket: str=None, dst_location: str=None):
     handle = Config.get_blobstore_handle(Replica.aws)
-    data = {"status": status, "location": f"{dst_replica.storage_schema}://{dst_bucket}/{dst_location}"}
+    data = {"status": status}
+    if status == 'SUCCEEDED':
+        data["location"] = f"{dst_replica.storage_schema}://{dst_bucket}/{dst_location}"
+
     handle.upload_file_handle(
         default_checkout_bucket,
         status_file_name(execution_id),
