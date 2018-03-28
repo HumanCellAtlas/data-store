@@ -1,6 +1,8 @@
 
 import elasticsearch
 import logging
+
+from elasticsearch.helpers import scan, bulk, BulkIndexError
 import os
 import typing
 from urllib.parse import parse_qs, urlencode, urlparse
@@ -12,6 +14,7 @@ from botocore.vendored import requests
 from elasticsearch import RequestsHttpConnection, Elasticsearch
 from requests_aws4auth import AWS4Auth
 
+from dss import Config, ESIndexType, ESDocType, Replica
 from dss.util.retry import retry
 
 logger = logging.getLogger(__name__)
@@ -109,3 +112,31 @@ class elasticsearch_retry(retry):
                          retryable=_retryable_exception,
                          delay=_retry_delay,
                          logger=logger)
+
+
+def refresh_percolate_queries(replica: Replica, index_name: str):
+    # When dynamic templates are used and queries for percolation have been added
+    # to an index before the index contains mappings of fields referenced by those queries,
+    # the queries must be reloaded when the mappings are present for the queries to match.
+    # See: https://github.com/elastic/elasticsearch/issues/5750
+    subscription_index_name = Config.get_es_index_name(ESIndexType.subscriptions, replica)
+    es_client = ElasticsearchClient.get()
+    if not es_client.indices.exists(subscription_index_name):
+        return
+    subscription_queries = [{'_index': index_name,
+                             '_type': ESDocType.query.name,
+                             '_id': hit['_id'],
+                             '_source': hit['_source']['es_query']
+                             }
+                            for hit in scan(es_client,
+                                            index=subscription_index_name,
+                                            doc_type=ESDocType.subscription.name,
+                                            query={'query': {'match_all': {}}})
+                            ]
+
+    if subscription_queries:
+        try:
+            bulk(es_client, iter(subscription_queries), refresh=True)
+        except BulkIndexError as ex:
+            logger.error(f"Error occurred when adding subscription queries "
+                         f"to index {index_name} Errors: {ex.errors}")
