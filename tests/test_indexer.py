@@ -362,9 +362,12 @@ class TestIndexerBase(ElasticsearchTestCase, DSSAssertMixin, DSSStorageMixin, DS
             self.process_new_indexable_object(sample_event)
 
     def test_notify(self):
+        from dss.index import ElasticsearchIndexBackend
+        backend = ElasticsearchIndexBackend(context=MockLambdaContext())
+
         def _notify(subscription, bundle_id=get_bundle_fqid()):
             document = BundleDocument(self.replica, bundle_id)
-            document._notify_subscriber(subscription=subscription)
+            backend._notify_subscriber(document, subscription=subscription)
 
         with self.assertRaisesRegex(requests.exceptions.InvalidURL, "Invalid URL 'http://': No host supplied"):
             _notify(subscription=dict(id="", es_query={}, callback_url="http://"))
@@ -382,8 +385,7 @@ class TestIndexerBase(ElasticsearchTestCase, DSSAssertMixin, DSSStorageMixin, DS
         self.assertDeleteResponse(
             str(UrlBuilder().set(path=f"/v1/subscriptions/{subscription_id}").add_query("replica", self.replica.name)),
             requests.codes.ok,
-            headers=get_auth_header()
-        )
+            headers=get_auth_header())
 
     def test_subscription_notification_successful(self):
         sample_event = self.create_bundle_created_event(self.bundle_key)
