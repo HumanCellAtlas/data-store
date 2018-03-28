@@ -4,6 +4,7 @@ import uuid
 
 import time
 
+from dss.util.types import LambdaContext
 from .assert_mixin import DSSAssertResponse, DSSAssertMixin, ExpectedErrorFields
 from .storage_mixin import DSSStorageMixin, TestBundle
 from .testmode import integration, standalone
@@ -27,10 +28,14 @@ def generate_test_key() -> str:
     return f"{filename}/{info.function}/{unique_key}"
 
 
-class MockLambdaContext:
+# noinspection PyAbstractClass
+class MockLambdaContext(LambdaContext):
+    """
+    A mock of the class an instance of which the AWS Lambda Python runtime injects into each invocation.
+    """
 
     def __init__(self, timeout: float=250.0) -> None:
         self.deadline = time.time() + timeout
 
     def get_remaining_time_in_millis(self):
-        return int(max(0, self.deadline - time.time()) * 1000)
+        return int(max(0.0, self.deadline - time.time()) * 1000)
