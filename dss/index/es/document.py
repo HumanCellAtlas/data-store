@@ -5,11 +5,11 @@ import typing
 import re
 
 from elasticsearch import TransportError
-from elasticsearch.helpers import BulkIndexError, bulk, scan
+from elasticsearch.helpers import bulk
 
 from dss import Config, ESDocType, ESIndexType, Replica
 from dss.index.bundle import Bundle, Tombstone
-from dss.index.es import ElasticsearchClient, elasticsearch_retry
+from dss.index.es import ElasticsearchClient, elasticsearch_retry, refresh_percolate_queries
 from dss.index.es.manager import IndexManager
 from dss.index.es.validator import scrub_index_data
 from dss.index.es.schemainfo import SchemaInfo
@@ -192,7 +192,7 @@ class BundleDocument(IndexDocument):
         super()._write_to_index(index_name, version=version)
         current_mappings = es_client.indices.get_mapping(index_name)[index_name]['mappings']
         if initial_mappings != current_mappings:
-            self._refresh_percolate_queries(index_name)
+            refresh_percolate_queries(self.replica, index_name)
 
     def _prepare_index(self, dryrun):
         shape_descriptor = self.get_shape_descriptor()
@@ -334,33 +334,6 @@ class BundleDocument(IndexDocument):
         } for index_name, version in versions.items()])
         for item in errors:
             logger.warning(f"Document deletion failed: {json.dumps(item)}")
-
-    def _refresh_percolate_queries(self, index_name: str):
-        # When dynamic templates are used and queries for percolation have been added
-        # to an index before the index contains mappings of fields referenced by those queries,
-        # the queries must be reloaded when the mappings are present for the queries to match.
-        # See: https://github.com/elastic/elasticsearch/issues/5750
-        subscription_index_name = Config.get_es_index_name(ESIndexType.subscriptions, self.replica)
-        es_client = ElasticsearchClient.get()
-        if not es_client.indices.exists(subscription_index_name):
-            return
-        subscription_queries = [{'_index': index_name,
-                                 '_type': ESDocType.query.name,
-                                 '_id': hit['_id'],
-                                 '_source': hit['_source']['es_query']
-                                 }
-                                for hit in scan(es_client,
-                                                index=subscription_index_name,
-                                                doc_type=ESDocType.subscription.name,
-                                                query={'query': {'match_all': {}}})
-                                ]
-
-        if subscription_queries:
-            try:
-                bulk(es_client, iter(subscription_queries), refresh=True)
-            except BulkIndexError as ex:
-                logger.error(f"Error occurred when adding subscription queries "
-                             f"to index {index_name} Errors: {ex.errors}")
 
 
 class BundleTombstoneDocument(IndexDocument):
