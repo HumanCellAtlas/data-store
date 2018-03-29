@@ -14,12 +14,7 @@ from dss.stepfunctions import SFN_TEMPLATE_KEY, SFN_EXECUTION_KEY, SFN_INPUT_KEY
 from dss.logging import configure_daemon_logging
 
 logger = logging.getLogger(__name__)
-logger.setLevel(logging.DEBUG)
-ch = logging.StreamHandler(sys.stdout)
-ch.setLevel(logging.DEBUG)
-formatter = logging.Formatter('%(levelname)s - %(message)s')
-ch.setFormatter(formatter)
-logger.addHandler(ch)
+configure_daemon_logging()
 
 DSS_REAPER_RETRY_KEY = 'DSS-REAPER-RETRY-COUNT'
 DSS_MAX_RETRY_COUNT = 10
@@ -29,14 +24,18 @@ sqs = boto3.resource('sqs')
 
 
 @app.sns_topic_subscriber(sfn_sns_topic)
-def launch_test_run(event, context):
+def launch_sfn_run(event, context):
     msg = json.loads(event["Records"][0]["Sns"]["Message"])
     sfn_name_template = msg[SFN_TEMPLATE_KEY]
     sfn_execution = msg[SFN_EXECUTION_KEY]
     sfn_input = msg[SFN_INPUT_KEY]
     logger.info(f"Launching Step Function {sfn_name_template} execution: {sfn_execution} input: {str(sfn_input)}")
-    stepfunctions._step_functions_start_execution(sfn_name_template, sfn_execution, sfn_input)
-
+    try:
+        response = stepfunctions._step_functions_start_execution(sfn_name_template, sfn_execution, sfn_input)
+        logger.info(f"Started step function execution: {str(response)}")
+    except Exception as e:
+        logger.warning(f"Failed to start step function execution: {str(e)}")
+        raise e
 
 @app.scheduled_function("rate(1 minute)")
 def reaper(event, context):
@@ -45,30 +44,39 @@ def reaper(event, context):
     # Get the queue
     queue = sqs.get_queue_by_name(QueueName=queue_name)
 
-    for message in queue.receive_messages():
-        # re-process messages by sending them back to the SNS topic
-        sns_message = json.loads(message.body)["Records"][0]["Sns"]
-        msg = sns_message["Message"]
-        logger.debug(f"Received a message: {str(msg)}")
+    message_count = 0
 
-        msg_dict = json.loads(msg)
-        sfn_name_template = msg_dict[SFN_TEMPLATE_KEY]
-        sfn_execution = msg_dict[SFN_EXECUTION_KEY]
-        sfn_input = json.loads(msg_dict[SFN_INPUT_KEY])
-        logger.debug(f"sfn_input: {str(sfn_input)}")
+    for message in queue.receive_messages(MaxNumberOfMessages=10, AttributeNames=['All'], MessageAttributeNames=['All']):
+        try:
+            logger.debug(f"Received a message for reprocessing: {str(message)}")
+            # re-process messages by sending them back to the SNS topic
+            sns_message = json.loads(message.body)["Records"][0]["Sns"]
+            msg = sns_message["Message"]
+            logger.debug(f"Received a message for reprocessing: {str(msg)}")
 
-        attrs = sns_message["MessageAttributes"]
-        retry_count = int(attrs[DSS_REAPER_RETRY_KEY]['Value']) if DSS_REAPER_RETRY_KEY in attrs else 0
-        retry_count += 1
-        if retry_count < DSS_MAX_RETRY_COUNT:
-            attrs = {DSS_REAPER_RETRY_KEY: {"DataType": "Number", "StringValue": str(retry_count)}}
-            logger.debug(f"Incremented retry count: {retry_count}")
+            msg_dict = json.loads(msg)
+            sfn_name_template = msg_dict[SFN_TEMPLATE_KEY]
+            sfn_execution = msg_dict[SFN_EXECUTION_KEY]
+            sfn_input = json.loads(msg_dict[SFN_INPUT_KEY])
+            logger.debug(f"sfn_input: {str(sfn_input)}")
 
-            logger.debug(f"Schedule {sfn_name_template} reprocessing execution: {sfn_execution}")
-            stepfunctions.step_functions_invoke(sfn_name_template, sfn_execution, sfn_input, attrs)
-        else:
-            logger.warning(f"Giving up on executionid: {sfn_execution} after {retry_count} attempts")
-            break
+            attrs = sns_message["MessageAttributes"]
+            retry_count = int(attrs[DSS_REAPER_RETRY_KEY]['Value']) if DSS_REAPER_RETRY_KEY in attrs else 0
+            retry_count += 1
+            if retry_count < DSS_MAX_RETRY_COUNT:
+                attrs = {DSS_REAPER_RETRY_KEY: {"DataType": "Number", "StringValue": str(retry_count)}}
+                logger.debug(f"Incremented retry count: {retry_count}")
+
+                logger.debug(f"Schedule {sfn_name_template} reprocessing execution: {sfn_execution}")
+                stepfunctions.step_functions_invoke(sfn_name_template, sfn_execution, sfn_input, attrs)
+            else:
+                logger.warning(f"Giving up on executionid: {sfn_execution} after {retry_count} attempts")
+                break
+        except Exception as e:
+            logger.error(f"Unable to process message: {str(message)} due to {str(e)}" )
 
         # Let the queue know that the message is processed
         message.delete()
+        message_count += 1
+
+    logger.info(f"Processed {str(message_count)} messages")

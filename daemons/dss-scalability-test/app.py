@@ -14,6 +14,7 @@ import domovoi
 pkg_root = os.path.abspath(os.path.join(os.path.dirname(__file__), 'domovoilib'))  # noqa
 sys.path.insert(0, pkg_root)  # noqa
 
+from dss.logging import configure_daemon_logging
 from dss import stepfunctions, Config, BucketConfig
 from dss.stepfunctions import generator
 from dss.api.files import ASYNC_COPY_THRESHOLD
@@ -25,15 +26,10 @@ WAIT_CHECKOUT = 10
 #: Number of parallel execution branches within the scale test step function
 PARALLELIZATION_FACTOR = 10
 
-app = domovoi.Domovoi()
+app = domovoi.Domovoi(configure_logs=False)
 
 logger = logging.getLogger(__name__)
-logger.setLevel(logging.DEBUG)
-ch = logging.StreamHandler(sys.stdout)
-ch.setLevel(logging.DEBUG)
-formatter = logging.Formatter('%(levelname)s - %(message)s')
-ch.setFormatter(formatter)
-logger.addHandler(ch)
+configure_daemon_logging()
 
 test_bucket = os.environ["DSS_S3_CHECKOUT_BUCKET"]
 

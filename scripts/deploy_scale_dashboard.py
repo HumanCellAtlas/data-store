@@ -12,19 +12,18 @@ from dss.util.aws import ARN
 from dss.stepfunctions import step_functions_arn
 
 stage = os.environ.get('DSS_DEPLOYMENT_STAGE')
-dev_stage = 'dev'
 region = ARN.get_region()
 accountid = ARN.get_account_id()
 
 checkout_bundle_arn_prefix = f"arn:aws:lambda:{region}:{accountid}:function:dss-scalability-test-{stage}:domovoi-stepfunctions-task-CheckoutBundle"
 upload_bundle_arn_prefix = f"arn:aws:lambda:{region}:{accountid}:function:dss-scalability-test-{stage}:domovoi-stepfunctions-task-UploadBundle"
 download_bundle_arn_prefix = f"arn:aws:lambda:{region}:{accountid}:function:dss-scalability-test-{stage}:domovoi-stepfunctions-task-DownloadBundle"
-dss_s3_copy_arn = f"arn:aws:states:{region}:{accountid}:stateMachine:dss-s3-copy-sfn-{dev_stage}"
-gs_copy_sfn_arn = f"arn:aws:states:{region}:{accountid}:stateMachine:dss-gs-copy-sfn-{dev_stage}"
-gs_copy_write_metadata_sfn_arn = f"arn:aws:states:{region}:{accountid}:stateMachine:dss-gs-copy-write-metadata-sfn-{dev_stage}"
-dss_s3_copy_write_metadata_arn = f"arn:aws:states:{region}:{accountid}:stateMachine:dss-s3-copy-write-metadata-sfn-{dev_stage}"
+dss_s3_copy_arn = f"arn:aws:states:{region}:{accountid}:stateMachine:dss-s3-copy-sfn-{stage}"
+gs_copy_sfn_arn = f"arn:aws:states:{region}:{accountid}:stateMachine:dss-gs-copy-sfn-{stage}"
+gs_copy_write_metadata_sfn_arn = f"arn:aws:states:{region}:{accountid}:stateMachine:dss-gs-copy-write-metadata-sfn-{stage}"
+dss_s3_copy_write_metadata_arn = f"arn:aws:states:{region}:{accountid}:stateMachine:dss-s3-copy-write-metadata-sfn-{stage}"
 dss_scalability_test_arn = f"arn:aws:states:{region}:{accountid}:stateMachine:dss-scalability-test-{stage}"
-dss_visitation_arn = f"arn:aws:states:{region}:{accountid}:stateMachine:dss-visitation-{dev_stage}"
+dss_visitation_arn = f"arn:aws:states:{region}:{accountid}:stateMachine:dss-visitation-{stage}"
 
 sfn_arns = [checkout_bundle_arn_prefix, gs_copy_sfn_arn, gs_copy_write_metadata_sfn_arn, dss_s3_copy_arn,
             dss_s3_copy_write_metadata_arn, dss_scalability_test_arn, dss_visitation_arn]
