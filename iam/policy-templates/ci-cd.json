@@ -160,7 +160,34 @@
       "Resource": [
         "arn:aws:sqs:*:$account_id:dss-dlq-*"
       ]
+    },
+    {
+      "Sid": "hcaDssCiCdSqsReadWriteTestQueues",
+      "Effect": "Allow",
+      "Action": [
+        "sqs:CreateQueue",
+        "sqs:DeleteQueue",
+        "sqs:ChangeMessageVisibility*",
+        "sqs:DeleteMessage*",
+        "sqs:GetQueueAttributes",
+        "sqs:GetQueueUrl",
+        "sqs:ReceiveMessage",
+        "sqs:SendMessage",
+        "sqs:SetQueueAttributes"
+      ],
+      "Resource": [
+        "arn:aws:sqs:*:$account_id:dss-notify-test-*"
+      ]
+    },
+    {
+      "Sid": "hcaDssCiCdSqsReadListAllQueues",
+      "Effect": "Allow",
+      "Action": [
+        "sqs:ListQueues"
+      ],
+      "Resource": [
+        "arn:aws:sqs:*:$account_id:*"
+      ]
     }
-
   ]
 }
