@@ -75,11 +75,11 @@ def get_helper(uuid: str, replica: Replica, version: str=None):
     ))
 
     if request.method == "GET":
-        '''
+        """
         Probabilistically return "Retry-After" header
         The retry-after interval can be relatively short now, but it sets up downstream
         libraries / users for success when we start integrating this with the checkout service.
-        '''
+        """
         if random.randint(0, 100) < REDIRECT_PROBABILITY_PERCENTS:
             response = redirect(request.url, code=301)
             headers = response.headers
