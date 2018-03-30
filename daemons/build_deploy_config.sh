@@ -67,7 +67,7 @@ if [[ $daemon_name == "dss-scalability-test" ]]; then
     $DSS_HOME/scripts/deploy_scale_dashboard.py
     $DSS_HOME/scripts/deploy_scale_tables.py
 fi
-if [[ $daemon_name == "dss-sfn" ]]; then
-    export reaper_sqs_arn="arn:aws:sqs:${region}:${account_id}:dss-dlq-sfn-${stage}"
+if [[ $daemon_name == "dss-sfn-launcher" ]]; then
+    export reaper_sqs_arn="arn:aws:sqs:${region}:${account_id}:dss-dlq-${stage}"
     cat "$config_json" | jq ".dead_letter_queue_target_arn=env.reaper_sqs_arn" | sponge "$config_json"
 fi

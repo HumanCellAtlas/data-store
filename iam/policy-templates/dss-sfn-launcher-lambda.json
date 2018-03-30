@@ -20,7 +20,7 @@
         "sqs:DeleteMessage"
       ],
       "Resource": [
-        "arn:aws:sqs:*:$account_id:dss-dlq-sfn-$stage"
+        "arn:aws:sqs:*:$account_id:dss-dlq-$stage"
       ]
     },
     {

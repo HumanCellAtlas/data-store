@@ -1,9 +1,0 @@
-{
-  "version": "2.0",
-  "app_name": "dss-sfn",
-  "dead_letter_queue_target_arn": "",
-  "stages": {
-    "dev": {
-    }
-  }
-}

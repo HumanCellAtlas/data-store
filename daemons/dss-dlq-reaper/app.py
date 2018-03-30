@@ -18,28 +18,13 @@ configure_daemon_logging()
 
 DSS_REAPER_RETRY_KEY = 'DSS-REAPER-RETRY-COUNT'
 DSS_MAX_RETRY_COUNT = 10
-configure_daemon_logging()
+
 app = domovoi.Domovoi(configure_logs=False)
 sqs = boto3.resource('sqs')
 
-
-@app.sns_topic_subscriber(sfn_sns_topic)
-def launch_sfn_run(event, context):
-    msg = json.loads(event["Records"][0]["Sns"]["Message"])
-    sfn_name_template = msg[SFN_TEMPLATE_KEY]
-    sfn_execution = msg[SFN_EXECUTION_KEY]
-    sfn_input = msg[SFN_INPUT_KEY]
-    logger.info(f"Launching Step Function {sfn_name_template} execution: {sfn_execution} input: {str(sfn_input)}")
-    try:
-        response = stepfunctions._step_functions_start_execution(sfn_name_template, sfn_execution, sfn_input)
-        logger.info(f"Started step function execution: {str(response)}")
-    except Exception as e:
-        logger.warning(f"Failed to start step function execution: {str(e)}")
-        raise e
-
 @app.scheduled_function("rate(1 minute)")
 def reaper(event, context):
-    queue_name = "dss-dlq-sfn-" + os.environ["DSS_DEPLOYMENT_STAGE"]
+    queue_name = "dss-dlq-" + os.environ["DSS_DEPLOYMENT_STAGE"]
 
     # Get the queue
     queue = sqs.get_queue_by_name(QueueName=queue_name)

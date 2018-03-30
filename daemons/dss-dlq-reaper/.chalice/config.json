@@ -1,0 +1,8 @@
+{
+  "version": "2.0",
+  "app_name": "dss-dlq-reaper",
+  "dead_letter_queue_target_arn": "arn:aws:sqs:us-east-1:861229788715:dss-dlq-roman",
+  "stages": {
+    "dev": {}
+  }
+}
