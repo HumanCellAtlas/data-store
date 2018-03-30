@@ -11,6 +11,7 @@ import typing
 import unittest
 import uuid
 
+
 pkg_root = os.path.abspath(os.path.join(os.path.dirname(__file__), '..'))  # noqa
 sys.path.insert(0, pkg_root)  # noqa
 
@@ -22,6 +23,11 @@ from dss.util.version import datetime_to_version_format
 from tests.fixtures.cloud_uploader import GSUploader, S3Uploader, Uploader
 from tests.infra import DSSAssertMixin, DSSUploadMixin, ExpectedErrorFields, get_env, generate_test_key, testmode
 from tests.infra.server import ThreadedLocalServer
+from dss.api.files import RETRY_AFTER_INTERVAL
+
+
+# Max number of retries
+FILE_GET_RETRY_COUNT = 10
 
 
 class TestFileApi(unittest.TestCase, DSSAssertMixin, DSSUploadMixin):
@@ -163,7 +169,7 @@ class TestFileApi(unittest.TestCase, DSSAssertMixin, DSSUploadMixin):
         with override_bucket_config(BucketConfig.TEST_FIXTURE):
             self.assertHeadResponse(
                 url,
-                requests.codes.ok
+                [requests.codes.ok, requests.codes.moved]
             )
 
             # TODO: (ttung) verify headers
@@ -185,24 +191,31 @@ class TestFileApi(unittest.TestCase, DSSAssertMixin, DSSUploadMixin):
                   .add_query("replica", replica.name)
                   .add_query("version", version))
 
-        with override_bucket_config(BucketConfig.TEST_FIXTURE):
-            resp_obj = self.assertGetResponse(
-                url,
-                requests.codes.found
-            )
+        for i in range(FILE_GET_RETRY_COUNT):
+            with override_bucket_config(BucketConfig.TEST_FIXTURE):
+                resp_obj = self.assertGetResponse(
+                    url,
+                    [requests.codes.found, requests.codes.moved]
+                )
+                if resp_obj.response.status_code == requests.codes.found:
+                    url = resp_obj.response.headers['Location']
+                    sha1 = resp_obj.response.headers['X-DSS-SHA1']
+                    data = requests.get(url)
+                    self.assertEqual(len(data.content), 11358)
+                    self.assertEqual(resp_obj.response.headers['X-DSS-SIZE'], '11358')
 
-            url = resp_obj.response.headers['Location']
-            sha1 = resp_obj.response.headers['X-DSS-SHA1']
-            data = requests.get(url)
-            self.assertEqual(len(data.content), 11358)
-            self.assertEqual(resp_obj.response.headers['X-DSS-SIZE'], '11358')
+                    # verify that the downloaded data matches the stated checksum
+                    hasher = hashlib.sha1()
+                    hasher.update(data.content)
+                    self.assertEqual(hasher.hexdigest(), sha1)
 
-            # verify that the downloaded data matches the stated checksum
-            hasher = hashlib.sha1()
-            hasher.update(data.content)
-            self.assertEqual(hasher.hexdigest(), sha1)
-
-            # TODO: (ttung) verify more of the headers
+                    # TODO: (ttung) verify more of the headers
+                    return
+                elif resp_obj.response.status_code == requests.codes.moved:
+                    retryAfter = int(resp_obj.response.headers['Retry-After'])
+                    self.assertEqual(retryAfter, RETRY_AFTER_INTERVAL)
+                    self.assertIn(url, resp_obj.response.headers['Location'])
+        self.fail(f"Failed after {FILE_GET_RETRY_COUNT} retries.")
 
     @testmode.standalone
     def test_file_get_latest(self):
@@ -219,24 +232,31 @@ class TestFileApi(unittest.TestCase, DSSAssertMixin, DSSUploadMixin):
                   .set(path="/v1/files/" + file_uuid)
                   .add_query("replica", replica.name))
 
-        with override_bucket_config(BucketConfig.TEST_FIXTURE):
-            resp_obj = self.assertGetResponse(
-                url,
-                requests.codes.found
-            )
+        for i in range(FILE_GET_RETRY_COUNT):
+            with override_bucket_config(BucketConfig.TEST_FIXTURE):
+                resp_obj = self.assertGetResponse(
+                    url,
+                    [requests.codes.found, requests.codes.moved]
+                )
+                if resp_obj.response.status_code == requests.codes.found:
+                    url = resp_obj.response.headers['Location']
+                    sha1 = resp_obj.response.headers['X-DSS-SHA1']
+                    data = requests.get(url)
+                    self.assertEqual(len(data.content), 8685)
+                    self.assertEqual(resp_obj.response.headers['X-DSS-SIZE'], '8685')
 
-            url = resp_obj.response.headers['Location']
-            sha1 = resp_obj.response.headers['X-DSS-SHA1']
-            data = requests.get(url)
-            self.assertEqual(len(data.content), 8685)
-            self.assertEqual(resp_obj.response.headers['X-DSS-SIZE'], '8685')
+                    # verify that the downloaded data matches the stated checksum
+                    hasher = hashlib.sha1()
+                    hasher.update(data.content)
+                    self.assertEqual(hasher.hexdigest(), sha1)
 
-            # verify that the downloaded data matches the stated checksum
-            hasher = hashlib.sha1()
-            hasher.update(data.content)
-            self.assertEqual(hasher.hexdigest(), sha1)
-
-            # TODO: (ttung) verify more of the headers
+                    # TODO: (ttung) verify more of the headers
+                    return
+                elif resp_obj.response.status_code == requests.codes.moved:
+                    retryAfter = int(resp_obj.response.headers['Retry-After'])
+                    self.assertEqual(retryAfter, RETRY_AFTER_INTERVAL)
+                    self.assertIn(url, resp_obj.response.headers['Location'])
+        self.fail(f"Failed after {FILE_GET_RETRY_COUNT} retries.")
 
     @testmode.standalone
     def test_file_get_not_found(self):
@@ -330,16 +350,23 @@ class TestFileApi(unittest.TestCase, DSSAssertMixin, DSSUploadMixin):
                   .set(path="/v1/files/" + file_uuid)
                   .add_query("replica", replica.name))
 
-        with override_bucket_config(BucketConfig.TEST):
-            resp_obj = self.assertGetResponse(
-                url,
-                requests.codes.found
-            )
-
-            url = resp_obj.response.headers['Location']
-            data = requests.get(url)
-            self.assertEqual(len(data.content), src_size)
-            self.assertEqual(resp_obj.response.headers['X-DSS-SIZE'], str(src_size))
+        for i in range(FILE_GET_RETRY_COUNT):
+            with override_bucket_config(BucketConfig.TEST):
+                resp_obj = self.assertGetResponse(
+                    url,
+                    [requests.codes.found, requests.codes.moved]
+                )
+                if resp_obj.response.status_code == requests.codes.found:
+                    url = resp_obj.response.headers['Location']
+                    data = requests.get(url)
+                    self.assertEqual(len(data.content), src_size)
+                    self.assertEqual(resp_obj.response.headers['X-DSS-SIZE'], str(src_size))
+                    return
+                elif resp_obj.response.status_code == requests.codes.moved:
+                    retryAfter = int(resp_obj.response.headers['Retry-After'])
+                    self.assertEqual(retryAfter, RETRY_AFTER_INTERVAL)
+                    self.assertIn(url, resp_obj.response.headers['Location'])
+        self.fail(f"Failed after {FILE_GET_RETRY_COUNT} retries.")
 
     def upload_file(
             self: typing.Any,

@@ -190,6 +190,13 @@ paths:
           type: string
           format: date-time
       responses:
+        301:
+          description: Handle asynchronously, downstream users are expected to retry later.
+          headers:
+            Retry-After:
+              description: Delay in seconds, downstream users are expected to retry after the delay.
+              type: integer
+              format: int64
         302:
           description: Redirects to a signed URL with the data.
           headers:
