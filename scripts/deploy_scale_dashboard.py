@@ -30,6 +30,9 @@ sfn_arns = [checkout_bundle_arn_prefix, gs_copy_sfn_arn, gs_copy_write_metadata_
 
 LAMBDA_METRIC_RUNTIME = "LambdaFunctionRunTime"
 LAMBDA_METRIC_FAILED = "LambdaFunctionsFailed"
+full_width = 18
+
+
 
 
 def get_metrics_array(arn_template, metric, cnt):
@@ -60,7 +63,7 @@ dashboard_def = {
             "type": "metric",
             "x": 0,
             "y": 0,
-            "width": 15,
+            "width": full_width,
             "height": 3,
             "properties": {
                 "view": "singleValue",
@@ -81,7 +84,22 @@ dashboard_def = {
             "type": "metric",
             "x": 0,
             "y": 1,
-            "width": 15,
+            "width": full_width,
+            "height": 6,
+            "properties": {
+                "view": "timeSeries",
+                "metrics": get_metrics_array_sfn(sfn_arns, 'ExecutionsStarted'),
+                "region": region,
+                "title": "SFN started",
+                "period": 300,
+                "stacked": True
+            }
+        },
+        {
+            "type": "metric",
+            "x": 0,
+            "y": 2,
+            "width": full_width,
             "height": 6,
             "properties": {
                 "view": "timeSeries",
@@ -95,24 +113,29 @@ dashboard_def = {
         {
             "type": "metric",
             "x": 0,
-            "y": 2,
-            "width": 15,
+            "y": 3,
+            "width": full_width,
             "height": 6,
+            "styles": "undefined",
             "properties": {
                 "view": "timeSeries",
-                "metrics": get_metrics_array_sfn(sfn_arns, 'ExecutionsStarted'),
+                "stacked": False,
+                "metrics": [
+                    ["AWS/SQS", "ApproximateNumberOfMessagesNotVisible", "QueueName", f"dss-dlq-{stage}"],
+                    [".", "ApproximateNumberOfMessagesVisible", ".", "."],
+                    [".", "NumberOfMessagesReceived", ".", "."],
+                    [".", "NumberOfMessagesDeleted", ".", "."],
+                    [".", "NumberOfMessagesSent", ".", "."]
+                ],
                 "region": region,
-                "title": "SFN started",
-                "period": 300,
-                "stacked": True
+                "title": "DLQ"
             }
         },
-
         {
             "type": "metric",
             "x": 0,
             "y": 12,
-            "width": 18,
+            "width": full_width,
             "height": 6,
             "properties": {
                 "view": "timeSeries",
@@ -151,7 +174,7 @@ dashboard_def = {
             "type": "metric",
             "x": 0,
             "y": 9,
-            "width": 24,
+            "width": full_width,
             "height": 3,
             "properties": {
                 "view": "timeSeries",
@@ -211,7 +234,7 @@ dashboard_def = {
             "type": "metric",
             "x": 0,
             "y": 3,
-            "width": 24,
+            "width": full_width,
             "height": 3,
             "properties": {
                 "view": "timeSeries",
@@ -226,7 +249,7 @@ dashboard_def = {
             "type": "metric",
             "x": 0,
             "y": 6,
-            "width": 24,
+            "width": full_width,
             "height": 3,
             "properties": {
                 "view": "timeSeries",

@@ -1,6 +1,7 @@
 import json
 import logging
 import os
+import random
 import sys
 
 import boto3
@@ -21,14 +22,27 @@ sqs = boto3.resource('sqs')
 
 @app.sns_topic_subscriber(sfn_sns_topic)
 def launch_sfn_run(event, context):
-    msg = json.loads(event["Records"][0]["Sns"]["Message"])
+    sns_msg = event["Records"][0]["Sns"]
+    logger.debug(f'sns_message: {str(sns_msg)}')
+    msg = json.loads(sns_msg["Message"])
+    attrs = sns_msg["MessageAttributes"]
+
+    if 'DSS-REAPER-RETRY-COUNT' in attrs:
+        logger.info(f"Reprocessing attempts so far {attrs['DSS-REAPER-RETRY-COUNT']['Value']}")
+
     sfn_name_template = msg[SFN_TEMPLATE_KEY]
     sfn_execution = msg[SFN_EXECUTION_KEY]
     sfn_input = msg[SFN_INPUT_KEY]
-    logger.info(f"Launching Step Function {sfn_name_template} execution: {sfn_execution} input: {str(sfn_input)}")
+    logger.debug(f"Launching Step Function {sfn_name_template} execution: {sfn_execution} input: {str(sfn_input)}")
     try:
+        if random.randint(0, 100) < 5:
+            raise Exception("Test error")
         response = stepfunctions._step_functions_start_execution(sfn_name_template, sfn_execution, sfn_input)
-        logger.info(f"Started step function execution: {str(response)}")
+        logger.debug(f"Started step function execution: {str(response)}")
     except Exception as e:
-        logger.warning(f"Failed to start step function execution: {str(e)}")
-        raise e
+        if e.response.get('Error'):
+            if e.response['Error'].get('Code') == 'ExecutionAlreadyExists':
+                logger.warning(f"Execution id {sfn_execution} already exists for {sfn_name_template}")
+            else:
+                logger.warning(f"Failed to start step function execution id {sfn_execution}: {str(e)}")
+                raise(e)

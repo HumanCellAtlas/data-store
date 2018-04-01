@@ -20,9 +20,9 @@ sns = boto3.client('sns')
 
 
 if __name__ == "__main__":
-    for i in range(1100):
+    for i in range(1500):
         message = {
-            SFN_TEMPLATE_KEY: 'dss-TestWait-{stage}',
+            SFN_TEMPLATE_KEY: 'dss-TestWait1-{stage}',
             SFN_EXECUTION_KEY: str(uuid.uuid4()),
             SFN_INPUT_KEY: json.dumps({})
         }
