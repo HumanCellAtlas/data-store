@@ -26,9 +26,6 @@ deploy-serial: $(SERIAL_AWS_DAEMONS) $(SERIAL_GCP_DAEMONS)
 deploy-parallel: $(PARALLEL_AWS_DAEMONS) $(PARALLEL_GCP_DAEMONS)
 
 $(SERIAL_AWS_DAEMONS) $(PARALLEL_AWS_DAEMONS) scheduled-ci-build:
-	@if [[ $@ == "dss-dlq-reaper" || $@ == "dss-sfn-launcher" ]]; then \
-   	        $(DSS_HOME)/scripts/deploy_dss_sfn_queue.py; \
-        fi
 	./package_daemon.sh $@
 	./build_deploy_config.sh $@
 	cd $@; domovoi deploy --stage $(DSS_DEPLOYMENT_STAGE)
