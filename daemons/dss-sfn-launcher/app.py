@@ -35,14 +35,13 @@ def launch_sfn_run(event, context):
     sfn_input = msg[SFN_INPUT_KEY]
     logger.debug(f"Launching Step Function {sfn_name_template} execution: {sfn_execution} input: {str(sfn_input)}")
     try:
-        if random.randint(0, 100) < 5:
-            raise Exception("Test error")
         response = stepfunctions._step_functions_start_execution(sfn_name_template, sfn_execution, sfn_input)
         logger.debug(f"Started step function execution: {str(response)}")
     except Exception as e:
-        if e.response.get('Error'):
-            if e.response['Error'].get('Code') == 'ExecutionAlreadyExists':
-                logger.warning(f"Execution id {sfn_execution} already exists for {sfn_name_template}")
-            else:
-                logger.warning(f"Failed to start step function execution id {sfn_execution}: {str(e)}")
-                raise(e)
+        response = getattr(e, "response", None)
+
+        if response and response.get('Error') and response['Error'].get('Code') == 'ExecutionAlreadyExists':
+            logger.warning(f"Execution id {sfn_execution} already exists for {sfn_name_template}. Not retrying.")
+        else:
+            logger.warning(f"Failed to start step function execution id {sfn_execution}: {str(e)}")
+            raise(e)
