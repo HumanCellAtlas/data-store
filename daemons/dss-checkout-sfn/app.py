@@ -103,7 +103,7 @@ def notify_complete_failure(event, context):
         cause = "{} ({})".format(event["validation"].get("cause", "Unknown error"), checkout_status)
     result = send_checkout_failure_email(email_sender, event["email"], cause)
     # record results of execution into S3
-    put_status('FAILED', event['execution_name'])
+    put_status('FAILED', event['execution_name'], default_checkout_bucket)
     return {"result": result}
 
 

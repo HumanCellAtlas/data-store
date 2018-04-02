@@ -136,7 +136,7 @@ def touch_test_file(dst_bucket: str, replica: Replica) -> bool:
 def status_file_name(execution_id: str) -> str:
     return f"checkout/status/{execution_id}.json"
 
-def put_status(status: str, execution_id: str, default_checkout_bucket: str=None,
+def put_status(status: str, execution_id: str, default_checkout_bucket: str,
                dst_replica: Replica=None, dst_bucket: str=None, dst_location: str=None):
     handle = Config.get_blobstore_handle(Replica.aws)
     data = {"status": status}

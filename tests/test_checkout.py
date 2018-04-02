@@ -200,17 +200,19 @@ class TestFileApi(unittest.TestCase, DSSAssertMixin, DSSUploadMixin):
             self.fail("Invalid execution id. Valid UUID v.4 is expected.")
 
     @testmode.standalone
-    def test_status(self):
+    def test_status_succeeded(self):
         fake_bucket_name = 'fake_bucket_name'
         fake_location = 'fake/location'
         exec_id = get_execution_id()
         self.assertIsNotNone(exec_id)
-        test_status = "SUCCEEDED"
-        for replica in Replica:
-            put_status(test_status, exec_id, Replica.aws.checkout_bucket, replica, fake_bucket_name, fake_location)
-            status = get_status(Replica.aws.checkout_bucket, exec_id)
-            self.assertEquals(status['status'], test_status)
-            self.assertEquals(status['location'], f"{replica.storage_schema}://{fake_bucket_name}/{fake_location}")
+        for test_status in ["SUCCEEDED", "FAILED"]:
+            for replica in Replica:
+                put_status(test_status, exec_id, Replica.aws.checkout_bucket, replica, fake_bucket_name, fake_location)
+                status = get_status(Replica.aws.checkout_bucket, exec_id)
+                self.assertEquals(status['status'], test_status)
+                if test_status == "SUCCEEDED":
+                    self.assertEquals(status['location'],
+                                      f"{replica.storage_schema}://{fake_bucket_name}/{fake_location}")
 
     @testmode.standalone
     def test_status_running(self):
