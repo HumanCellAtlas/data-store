@@ -28,5 +28,5 @@ def post(uuid: str, json_request_body: dict, replica: str, version: str = None):
 
 @dss_handler
 def get(checkout_job_id: str):
-    response = get_status(dss.Config.get_s3_checkout_bucket(), checkout_job_id)
-    return jsonify(dict(status=response['status'])), requests.codes.ok
+    response = get_status(checkout_job_id)
+    return response, requests.codes.ok

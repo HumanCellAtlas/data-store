@@ -136,21 +136,30 @@ def touch_test_file(dst_bucket: str, replica: Replica) -> bool:
 def status_file_name(execution_id: str) -> str:
     return f"checkout/status/{execution_id}.json"
 
-def put_status(status: str, execution_id: str, default_checkout_bucket: str,
-               dst_replica: Replica=None, dst_bucket: str=None, dst_location: str=None):
+def put_status_succeeded(execution_id: str, dst_replica: Replica, dst_bucket: str, dst_location: str):
     handle = Config.get_blobstore_handle(Replica.aws)
-    data = {"status": status}
-    if status == 'SUCCEEDED':
-        data["location"] = f"{dst_replica.storage_schema}://{dst_bucket}/{dst_location}"
-
+    data = {"status": 'SUCCEEDED', "location": f"{dst_replica.storage_schema}://{dst_bucket}/{dst_location}"}
     handle.upload_file_handle(
-        default_checkout_bucket,
+        Replica.aws.checkout_bucket,
         status_file_name(execution_id),
         io.BytesIO(json.dumps(data).encode("utf-8")))
 
-def get_status(default_checkout_bucket: str, execution_id: str):
+def put_status_failed(execution_id: str, cause: str):
     handle = Config.get_blobstore_handle(Replica.aws)
-    try:
-        return json.loads(handle.get(default_checkout_bucket, status_file_name(execution_id)))
-    except BlobNotFoundError:
-        return {'status': 'RUNNING'}
+    data = {"status": "FAILED", "cause": cause}
+    handle.upload_file_handle(
+        Replica.aws.checkout_bucket,
+        status_file_name(execution_id),
+        io.BytesIO(json.dumps(data).encode("utf-8")))
+
+def put_status_started(execution_id: str):
+    handle = Config.get_blobstore_handle(Replica.aws)
+    data = {"status": "RUNNING"}
+    handle.upload_file_handle(
+        Replica.aws.checkout_bucket,
+        status_file_name(execution_id),
+        io.BytesIO(json.dumps(data).encode("utf-8")))
+
+def get_status(execution_id: str):
+    handle = Config.get_blobstore_handle(Replica.aws)
+    return json.loads(handle.get(Replica.aws.checkout_bucket, status_file_name(execution_id)))
