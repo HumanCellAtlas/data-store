@@ -62,7 +62,7 @@ def configure_test_logging():
 
 def _configure_logging(test=False, **kwargs):
     root_logger = logging.getLogger()
-    root_logger.setLevel(logging.INFO)
+    root_logger.setLevel(logging.WARNING)
     if 'AWS_LAMBDA_LOG_GROUP_NAME' in os.environ:
         pass  # On AWS Lambda, we assume that its runtime already configured logging as appropriate
     elif len(root_logger.handlers) == 0:
