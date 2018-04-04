@@ -13,6 +13,7 @@ log_level_t = Mapping[Union[None, str, logging.Logger], Tuple[int, ...]]
 main_log_levels: log_level_t = {
     None: (WARNING, INFO, DEBUG),
     dss.logger: (INFO, DEBUG),
+    'app': (INFO, DEBUG),
     'botocore.vendored.requests.packages.urllib3.connectionpool': (WARNING, WARNING, DEBUG)
 }
 """
