@@ -8,7 +8,7 @@ from dss.util.aws.clients import stepfunctions  # type: ignore
 from dss.util.aws import send_sns_msg
 
 """
-The keys used to transfer step function invokation data over SNS to the dss-sfn-* Lambda. dss-sfn starts step function
+The keys used to transfer step function invocation data over SNS to the dss-sfn-* Lambda. dss-sfn starts step function
 execution and configured with DLQ for resiliency
 """
 SFN_TEMPLATE_KEY = 'sfn_template'
@@ -94,9 +94,9 @@ def step_functions_describe_execution(state_machine_name_template: str, executio
 
 
 def step_functions_list_executions(
-        state_machine_name_template: str,
-        status_filter: str = None,
-        max_results_per_page: int = None
+    state_machine_name_template: str,
+    status_filter: str=None,
+    max_results_per_page: int=None
 ) -> typing.Iterable:
     """
     List step function executions, performing paging in the background.

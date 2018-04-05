@@ -34,11 +34,10 @@ configure_daemon_logging()
 test_bucket = os.environ["DSS_S3_CHECKOUT_BUCKET"]
 
 os.environ["HOME"] = "/tmp"
-api_domain_name = os.environ["API_DOMAIN_NAME"]
-
 os.environ["HCA_CONFIG_FILE"] = "/tmp/config.json"
+
 with open(os.environ["HCA_CONFIG_FILE"], "w") as fh:
-    fh.write(json.dumps({"DSSClient": {"swagger_url": f"https://{api_domain_name}/v1/swagger.json"}}))
+    fh.write(json.dumps({"DSSClient": {"swagger_url": os.environ["SWAGGER_URL"]}}))
 
 client = None
 def get_client():

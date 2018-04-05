@@ -35,7 +35,7 @@ def reaper(event, context):
 
     message_count = 0
 
-    for i in range(RECEIVE_BATCH_COUNT):
+    while context.get_remaining_time_in_millis() > 10000:
         for message in queue.receive_messages(MaxNumberOfMessages=10, AttributeNames=['All'],
                                               MessageAttributeNames=['All']):
             try:
@@ -44,9 +44,7 @@ def reaper(event, context):
                 sns_message = json.loads(message.body)["Records"][0]["Sns"]
                 topic_arn = sns_message["TopicArn"]
                 msg = json.loads(sns_message["Message"])
-                logger.info(
-                    f"Received a message for reprocessing: {str(msg)} type {type(msg).__name__} "
-                    f"sns topic ARN: {topic_arn}")
+                logger.info(f"Received a message for reprocessing: {str(msg)} SNS topic ARN: {topic_arn}")
 
                 attrs = sns_message["MessageAttributes"]
                 retry_count = int(attrs[DSS_REAPER_RETRY_KEY]['Value']) if DSS_REAPER_RETRY_KEY in attrs else 0
@@ -56,7 +54,7 @@ def reaper(event, context):
                     logger.info(f"Incremented retry count: {retry_count} and resend SNS message")
                     send_sns_msg(topic_arn, msg, attrs)
                 else:
-                    logger.warning(f"Giving up on message: {msg} after {retry_count} attempts")
+                    logger.critical(f"Giving up on message: {msg} after {retry_count} attempts")
             except Exception as e:
                 logger.error(f"Unable to process message: {str(message)} due to {str(e)}")
 
