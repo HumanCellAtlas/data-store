@@ -68,6 +68,7 @@
       "Sid": "hcaDssCiCdLambdaReadAccess",
       "Action": [
         "lambda:List*",
+        "lambda:CreateEventSourceMapping",
         "lambda:GetEventSourceMapping",
         "lambda:TagResource",
         "apigateway:*"
