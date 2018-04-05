@@ -13,9 +13,6 @@ This daemon is a part of the DLQ-based framework for reprocessing failed Lambda 
 #### Enabling DLQ-based retries for DSS daemons Lambdas
 
 In order to enable DLQ-based reprocessing for DSS daemons each daemon needs to be configured individually. 
-Note that currently only 1 daemon dss-sfn-launcher has been configured to enable reprocessing of failed calls in order
-to address the issues with Step functions throttling (StartExecution API call).
-
 - Locate config.json file in the daemon's .chalice directory
 - Add the following entry to the `config.json` file `"dead_letter_queue_target_arn": "",`. 
 - The entry needs to be created at the top level of the json attribute hierarchy. During deployment the value would be replaced with approriate SQS queue name. 
