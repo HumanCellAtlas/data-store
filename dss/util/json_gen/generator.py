@@ -5,6 +5,7 @@ import rstr
 from faker import Faker
 from faker.providers.python import Provider as PythonProvider
 from jsonschema import RefResolver, Draft4Validator
+from math import ceil, floor
 
 
 class JsonProvider(PythonProvider):
@@ -184,17 +185,19 @@ class JsonGenerator(object):
     def _number(self, schema: dict) -> Union[int, float]:
         impostor = self._common(schema)
         if impostor is None:
-            maximum = schema.get('maximum', schema.get('exclusiveMaximum', self.UNBOUND_MAX_INT) - 1)
-            minimum = schema.get('minimum', schema.get('exclusiveMinimum', self.UNBOUND_MIN_INT) + 1)
+            maximum = schema.get('maximum', schema.get('exclusiveMaximum', self.UNBOUND_MAX_INT) - 1e-12)
+            minimum = schema.get('minimum', schema.get('exclusiveMinimum', self.UNBOUND_MIN_INT) + 1e-12)
             if minimum == maximum:
                 impostor = minimum
             else:
-                multiple_of = schema.get('multipleOf', 1)
-                if isinstance(maximum, float) or isinstance(minimum, float) or isinstance(minimum, float):
-                    impostor = self.faker.random.uniform(minimum, maximum)
+                multiple_of = schema.get('multipleOf')
+                if multiple_of is not None:
+                    if multiple_of <= 0:
+                        raise ValueError("multipleOf must be > 0")
+                    v = self.faker.random_int(ceil(minimum / multiple_of), floor(maximum / multiple_of))
+                    impostor = round(v * multiple_of, 12)
                 else:
-                    impostor = self.faker.random_int(minimum, maximum)
-                impostor = impostor // multiple_of * multiple_of
+                    impostor = self.faker.random.uniform(minimum, maximum)
         return impostor
 
     def _integer(self, schema: dict) -> int:
@@ -205,9 +208,14 @@ class JsonGenerator(object):
             if minimum == maximum:
                 impostor = minimum
             else:
-                impostor = self.faker.random_int(minimum, maximum)
-                multiple_of = schema.get('multipleOf', 1)
-                impostor = max(minimum, impostor // multiple_of * multiple_of)
+                multiple_of = schema.get('multipleOf')
+                if multiple_of is not None:
+                    if multiple_of <= 0:
+                        raise ValueError("multipleOf must be > 0")
+                    v = self.faker.random_int(ceil(minimum / multiple_of), floor(maximum / multiple_of))
+                    impostor = v * multiple_of
+                else:
+                    impostor = self.faker.random_int(minimum, maximum)
         return impostor
 
     def _string(self, schema: dict) -> str:
