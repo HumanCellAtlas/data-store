@@ -13,8 +13,7 @@ PARALLEL_AWS_DAEMONS := \
 	dss-gs-copy-write-metadata-sfn \
 	dss-s3-copy-sfn \
 	dss-s3-copy-write-metadata-sfn \
-	dss-visitation \
-	dss-scalability-test
+	dss-visitation
 
 PARALLEL_GCP_DAEMONS := \
 	dss-gs-event-relay
