@@ -1,7 +1,6 @@
 import collections
 import datetime
 import functools
-import logging
 import os
 import random
 import re
@@ -18,12 +17,15 @@ import nestedcontext
 import requests
 from flask import json
 
+import dss.logging
+
 pkg_root = os.path.abspath(os.path.join(os.path.dirname(__file__), 'chalicelib'))  # noqa
 sys.path.insert(0, pkg_root)  # noqa
 
 from dss import BucketConfig, Config, DeploymentStage, create_app
 from dss.util import paginate
 
+dss.logging.configure_lambda_logging()
 
 Config.set_config(BucketConfig.NORMAL)
 
