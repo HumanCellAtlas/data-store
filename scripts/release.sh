@@ -20,6 +20,41 @@ if [[ $# != 2 ]] && [[ $# != 3 ]]; then
     exit 1
 fi
 
+echo "Please review and confirm your active AWS account configuration:"
+aws configure list
+aws sts get-caller-identity
+aws iam list-account-aliases
+echo "Is this correct?"
+select result in Yes No; do
+    if [[ $result != Yes ]]; then exit 1; else break; fi
+done
+
+if ! git diff-index --quiet HEAD --; then
+    if [[ $# == 3 ]] && [[ $3 == "--force" ]]; then
+        echo "You have uncommitted files in your Git repository. Forcing deployment anyway."
+    else
+        echo "You have uncommitted files in your Git repository. Please commit or stash them, or run $0 with --force."
+#        exit 1
+    fi
+fi
+
+if ! [[ -e application_secrets.json ]]; then
+    http --check-status "https://$API_DOMAIN_NAME/internal/application_secrets" > application_secrets.json || (
+        echo "Failed to fetch application_secrets.json. Please create this file and try again."
+        exit 1
+    )
+fi
+
+if ! diff <(pip freeze) <(tail -n +2 requirements-dev.txt); then
+    if [[ $# == 3 ]] && [[ $3 == "--force" ]]; then
+        echo "Your installed Python packages differ from requirements-dev.txt. Forcing deployment anyway."
+    else
+        echo "Your installed Python packages differ from requirements-dev.txt. Please update your virtualenv."
+        echo "Run $0 with --force to deploy anyway."
+        exit 1
+    fi
+fi
+
 export PROMOTE_FROM_BRANCH=$1 PROMOTE_DEST_BRANCH=$2
 
 GH_API=https://api.github.com
@@ -28,6 +63,7 @@ STATUS=$(http ${GH_API}/repos/${REPO}/commits/${PROMOTE_FROM_BRANCH}/status Acce
 STATE=$(echo "$STATUS" | jq -r .state)
 echo "$STATUS" | jq '.statuses[]|select(.state != "success")'
 
+# TODO: (akislyuk) some CI builds no longer deploy or run a subset of tests. Find the last build that ran a deployment.
 if [[ "$STATE" != success ]]; then
     if [[ $# == 3 ]] && [[ $3 == "--force" ]]; then
         echo "Status checks failed on branch $PROMOTE_FROM_BRANCH. Forcing promotion and deployment anyway."
