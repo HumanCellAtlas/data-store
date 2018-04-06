@@ -22,3 +22,20 @@ class ThreadPoolAnnotation(StateMachineAnnotation):
         pool_size_copy = copy.deepcopy(self.pool_size, memodict)
         template_string_copy = copy.deepcopy(self.template_string, memodict)
         return self.__class__(state_machine_copy, pool_size_copy, template_string_copy)
+
+
+class BranchIdTransformationAnnotation(StateMachineAnnotation):
+    """
+    This annotation references a template string that is replaced with the branch number.  Rather than having it
+    transformed to a string with the branch number, it is transformed based on a callback and recorded in the final
+    state machine definition.
+    """
+    def __init__(self, template_string: str, callable: typing.Callable[[int], typing.Any]) -> None:
+        self.template_string = template_string
+        self.callable = callable
+
+    def __deepcopy__(self, memodict) -> "BranchIdTransformationAnnotation":
+        return self.__class__(
+            copy.deepcopy(self.template_string),
+            copy.deepcopy(self.callable),
+        )
