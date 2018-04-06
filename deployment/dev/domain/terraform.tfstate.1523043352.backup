@@ -1,0 +1,68 @@
+{
+    "version": 3,
+    "terraform_version": "0.11.3",
+    "serial": 12,
+    "lineage": "50429ca6-ad06-436c-8fa9-80c30e4b6c24",
+    "modules": [
+        {
+            "path": [
+                "root"
+            ],
+            "outputs": {},
+            "resources": {
+                "aws_api_gateway_domain_name.dss_domain": {
+                    "type": "aws_api_gateway_domain_name",
+                    "depends_on": [
+                        "data.aws_acm_certificate.dss_domain_cert"
+                    ],
+                    "primary": {
+                        "id": "dss.dev.data.humancellatlas.org",
+                        "attributes": {
+                            "certificate_arn": "arn:aws:acm:us-east-1:861229788715:certificate/826dbdb8-2b23-4cc9-8fd6-73aa6fc658d7",
+                            "certificate_name": "",
+                            "certificate_upload_date": "2018-03-15T17:04:10Z",
+                            "cloudfront_domain_name": "d3qdc1hvjhmh7r.cloudfront.net",
+                            "cloudfront_zone_id": "Z2FDTNDATAQYW2",
+                            "domain_name": "dss.dev.data.humancellatlas.org",
+                            "id": "dss.dev.data.humancellatlas.org"
+                        },
+                        "meta": {},
+                        "tainted": false
+                    },
+                    "deposed": [],
+                    "provider": "provider.aws.us-east-1"
+                },
+                "aws_route53_record.dss_route53_record": {
+                    "type": "aws_route53_record",
+                    "depends_on": [],
+                    "primary": {
+                        "id": "Z2JSMO9SCB6NOU_dss.dev.data.humancellatlas.org._A",
+                        "attributes": {
+                            "alias.#": "1",
+                            "alias.1043362041.evaluate_target_health": "false",
+                            "alias.1043362041.name": "d3qdc1hvjhmh7r.cloudfront.net",
+                            "alias.1043362041.zone_id": "Z2FDTNDATAQYW2",
+                            "allow_overwrite": "true",
+                            "fqdn": "dss.dev.data.humancellatlas.org",
+                            "health_check_id": "",
+                            "id": "Z2JSMO9SCB6NOU_dss.dev.data.humancellatlas.org._A",
+                            "name": "dss.dev.data.humancellatlas.org",
+                            "records.#": "0",
+                            "set_identifier": "",
+                            "ttl": "0",
+                            "type": "A",
+                            "zone_id": "Z2JSMO9SCB6NOU"
+                        },
+                        "meta": {
+                            "schema_version": "2"
+                        },
+                        "tainted": false
+                    },
+                    "deposed": [],
+                    "provider": "provider.aws"
+                }
+            },
+            "depends_on": []
+        }
+    ]
+}
