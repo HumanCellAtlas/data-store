@@ -60,22 +60,35 @@ def configure_test_logging():
     _configure_logging(stream=sys.stderr, test=True)
 
 
+_logging_configured = False
+
+
 def _configure_logging(test=False, **kwargs):
     root_logger = logging.getLogger()
-    root_logger.setLevel(logging.WARNING)
-    if 'AWS_LAMBDA_LOG_GROUP_NAME' in os.environ:
-        pass  # On AWS Lambda, we assume that its runtime already configured logging as appropriate
-    elif len(root_logger.handlers) == 0:
-        logging.basicConfig(**kwargs)
+    global _logging_configured
+    if _logging_configured:
+        root_logger.info("Logging was already configured in this interpreter process. The currently "
+                         "registered handlers, formatters, filters and log levels will be left as is.")
     else:
-        root_logger.warning("It appears that logging was already configured in this interpreter process. The currently "
-                            "registered handlers, formatters and filters will be left as is.", stack_info=True)
-    debug = Config.debug_level()
-    log_levels = main_log_levels
-    if test:
-        log_levels = {**log_levels, **test_log_levels}
-    for logger, levels in log_levels.items():
-        if isinstance(logger, (str, type(None))):
-            logger = logging.getLogger(logger)
-        level = levels[min(debug, len(levels) - 1)]
-        logger.setLevel(level)
+        root_logger.setLevel(logging.WARNING)
+        if 'AWS_LAMBDA_LOG_GROUP_NAME' in os.environ:
+            pass  # On AWS Lambda, we assume that its runtime already configured logging appropriately
+        elif len(root_logger.handlers) == 0:
+            logging.basicConfig(**kwargs)
+        else:
+            # If this happens, the process can likely proceed but the underlying issue needs to be investigated. Some
+            # module isn't playing nicely and configured logging before we had a chance to do so. The backtrace
+            # included in the log message may look scary but it should aid in finding the culprit.
+            root_logger.warning("It appears that logging was already configured in this interpreter process. "
+                                "Currently registered handlers, formatters and filters will be left as is.",
+                                stack_info=True)
+        debug = Config.debug_level()
+        log_levels = main_log_levels
+        if test:
+            log_levels = {**log_levels, **test_log_levels}
+        for logger, levels in log_levels.items():
+            if isinstance(logger, (str, type(None))):
+                logger = logging.getLogger(logger)
+            level = levels[min(debug, len(levels) - 1)]
+            logger.setLevel(level)
+        _logging_configured = True
