@@ -4,11 +4,17 @@ import sys
 import json
 import boto3
 
+pkg_root = os.path.abspath(os.path.join(os.path.dirname(__file__), '..'))  # noqa
+sys.path.append(pkg_root)
+
+import dss_deployment
+active = dss_deployment.active()
+
 IAM = boto3.client('iam')
 STS = boto3.client('sts')
 
-region = os.environ['AWS_DEFAULT_REGION']
-username = os.environ['DSS_EVENT_RELAY_AWS_USERNAME']
+region = active.value('AWS_DEFAULT_REGION')
+username = active.value('DSS_EVENT_RELAY_AWS_USERNAME')
 account_id = STS.get_caller_identity().get('Account')
 resource_arn = f'arn:aws:sns:{region}:{account_id}:*'
 

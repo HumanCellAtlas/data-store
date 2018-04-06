@@ -19,10 +19,12 @@ addons:
     - gettext
 
 before_install:
-- openssl aes-256-cbc -K $encrypted_ead445d7a1e2_key -iv $encrypted_ead445d7a1e2_iv
-  -in gcp-credentials.json.enc -out gcp-credentials.json -d
-- openssl aes-256-cbc -K $encrypted_ead445d7a1e2_key -iv $encrypted_ead445d7a1e2_iv
-  -in application_secrets.json.enc -out application_secrets.json -d
+- (cd deployment/dev ; openssl aes-256-cbc -K $encrypted_ead445d7a1e2_key -iv $encrypted_ead445d7a1e2_iv
+  -in gcp-credentials.json.enc -out gcp-credentials.json -d)
+- (cd deployment/dev ; openssl aes-256-cbc -K $encrypted_ead445d7a1e2_key -iv $encrypted_ead445d7a1e2_iv
+  -in application_secrets.json.enc -out application_secrets.json -d)
+- rm deployment/active
+- (cd deployment ; ln -s dev active)
 - source environment
 
 install:
