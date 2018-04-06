@@ -17,14 +17,15 @@ import nestedcontext
 import requests
 from flask import json
 
+
 pkg_root = os.path.abspath(os.path.join(os.path.dirname(__file__), 'chalicelib'))  # noqa
 sys.path.insert(0, pkg_root)  # noqa
 
-import dss.logging
 from dss import BucketConfig, Config, DeploymentStage, create_app
+from dss.logging import configure_lambda_logging
 from dss.util import paginate
 
-dss.logging.configure_lambda_logging()
+configure_lambda_logging()
 
 Config.set_config(BucketConfig.NORMAL)
 
