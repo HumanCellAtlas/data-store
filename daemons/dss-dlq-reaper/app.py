@@ -36,8 +36,9 @@ def reaper(event, context):
     message_count = 0
 
     while context.get_remaining_time_in_millis() > 10000:
+        # Long poll for messages
         for message in queue.receive_messages(MaxNumberOfMessages=10, AttributeNames=['All'],
-                                              MessageAttributeNames=['All']):
+                                              MessageAttributeNames=['All'], WaitTimeSeconds=10):
             try:
                 logger.debug(f"Received a message for reprocessing: {str(message.body)}")
                 # re-process messages by sending them back to the SNS topic

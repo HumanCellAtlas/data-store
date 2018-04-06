@@ -33,8 +33,6 @@ LAMBDA_METRIC_FAILED = "LambdaFunctionsFailed"
 full_width = 18
 
 
-
-
 def get_metrics_array(arn_template, metric, cnt):
     metrics_array = [["AWS/States", metric, "LambdaFunctionArn", arn_template + '{}'.format(0),
                       {"yAxis": "left", "period": 10}]]
@@ -129,6 +127,35 @@ dashboard_def = {
                 ],
                 "region": region,
                 "title": "DLQ"
+            }
+        },
+        {
+            "type": "metric",
+            "x": 0,
+            "y": 4,
+            "width": full_width,
+            "height": 6,
+            "styles": "undefined",
+            "properties": {
+                "view": "timeSeries",
+                "stacked": False,
+                "metrics": [
+                    ["AWS/Lambda", "Invocations", "FunctionName", "cwl_firehose_subscriber",
+                     {"stat": "Sum", "period": 1}],
+                    ["...", f"dss-checkout-sfn-{stage}", {"stat": "Sum", "period": 1}],
+                    ["...", f"dss-dlq-reaper-{stage}", {"stat": "Sum", "period": 1}],
+                    ["...", f"dss-index-{stage}", {"stat": "Sum", "period": 1}],
+                    ["...", f"dss-{stage}", {"stat": "Sum", "period": 1}],
+                    ["...", f"dss-s3-copy-sfn-{stage}", {"stat": "Sum", "period": 1}],
+                    ["...", f"dss-s3-copy-write-metadata-sfn-{stage}", {"stat": "Sum", "period": 1}],
+                    ["...", f"dss-scalability-test-{stage}", {"stat": "Sum", "period": 1}],
+                    ["...", f"dss-sfn-launcher-{stage}", {"stat": "Sum", "period": 1}],
+                    ["...", f"dss-sfn-{stage}", {"stat": "Sum", "period": 1}],
+                    ["...", f"dss-sync-{stage}", {"stat": "Sum", "period": 1}],
+                    ["...", "Firehose-CWL-Processor", {"stat": "Sum", "period": 1}]
+                ],
+                "region": region,
+                "period": 300
             }
         },
         {
