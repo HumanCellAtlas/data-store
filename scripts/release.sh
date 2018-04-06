@@ -34,7 +34,7 @@ if ! git diff-index --quiet HEAD --; then
         echo "You have uncommitted files in your Git repository. Forcing deployment anyway."
     else
         echo "You have uncommitted files in your Git repository. Please commit or stash them, or run $0 with --force."
-#        exit 1
+        exit 1
     fi
 fi
 
