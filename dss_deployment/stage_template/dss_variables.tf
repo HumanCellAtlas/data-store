@@ -68,19 +68,19 @@
       "description": "Domain name of your deployment (e.g. dss.dev.data.humancellatlas.org).",
       "default": null
     },
-        "DSS_PARAMETER_STORE": {
+    "DSS_PARAMETER_STORE": {
       "description": "Name of AWS SSM parameter store used to keep event relay credentials.",
       "default": "/dss/parameters"
     },
-        "DSS_EVENT_RELAY_AWS_USERNAME": {
+    "DSS_EVENT_RELAY_AWS_USERNAME": {
       "description": "AWS IAM user providing identity to the event relay",
       "default": "dss-event-relay"
     },
-        "DSS_EVENT_RELAY_AWS_ACCESS_KEY_ID_PARAMETER_NAME": {
+    "DSS_EVENT_RELAY_AWS_ACCESS_KEY_ID_PARAMETER_NAME": {
       "description": "Event relay IAM user access key id parameter name",
       "default": "event_relay_aws_access_key_id"
     },
-        "DSS_EVENT_RELAY_AWS_SECRET_ACCESS_KEY_PARAMETER_NAME": {
+    "DSS_EVENT_RELAY_AWS_SECRET_ACCESS_KEY_PARAMETER_NAME": {
       "description": "Event relay IAM user secret access key parameter name",
       "default": "event_relay_aws_secret_access_key"
     }
