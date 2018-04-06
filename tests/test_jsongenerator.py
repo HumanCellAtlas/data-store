@@ -224,7 +224,7 @@ simple_object = {'type': 'object', 'properties': {'thing_1': simple_integer, 'th
 
 
 class Base(unittest.TestCase):
-    repeat = 25
+    repeat = 1000
     def setUp(self):
         self.json_gen = JsonGenerator()
 
@@ -245,8 +245,9 @@ class Base(unittest.TestCase):
 
 @testmode.standalone
 class TestNumber(Base):
-    numbers = [10.0, 0.1, 0.0, -0.1, -10.0]
-    multiple_ofs = [1.5, 2]  # TODO support multipleOf [0.1, -0.2] for floats
+    numbers = [10.0, 0.3, 0.0, -0.1, -10.0, 1e-09]
+    multiple_ofs = [0.1, 1.01, 1.5, 1.99, 2, 3]
+    invalid_multiple_ofs = [0, -2]
 
     def test_common(self):
         self._test_common(self.json_gen._number, 'number', self.numbers, 0.999)
@@ -286,19 +287,28 @@ class TestNumber(Base):
             with self.subTest(f"is a multiple of {multiple_of}"):
                 schema = {'type': 'number', 'multipleOf': multiple_of}
                 for i in range(self.repeat):
-                    self.assertFalse(self.json_gen._number(schema) % multiple_of)
+                    value = self.json_gen._number(schema)
+                    self.assertTrue(round(value / multiple_of, 3).is_integer(), msg=f"value:{value} is not a "
+                                                                                    f"multipleOf:{multiple_of}.")
+        for multiple_of in self.invalid_multiple_ofs:
+            with self.subTest(f"is a multiple of {multiple_of}"):
+                schema = {'type': 'number', 'multipleOf': multiple_of}
+                with self.assertRaises(ValueError):
+                    self.json_gen._number(schema)
 
     def test_multiple_of_in_inclusive_range(self):
-        maximum = 5.0
+        maximum = 10.0
         minimum = 0.0
         for multiple_of in self.multiple_ofs:
             with self.subTest(f"is a multiple of {multiple_of} and within boundaries"):
                 schema = {'type': 'number', 'minimum': minimum, 'maximum': maximum, 'multipleOf': multiple_of}
                 for i in range(self.repeat):
                     value = self.json_gen._number(schema)
+                    v = round(value / multiple_of, 3)
                     self.assertLessEqual(value, maximum)
                     self.assertGreaterEqual(value, minimum)
-                    self.assertFalse(value % multiple_of)
+                    self.assertTrue(v.is_integer(), msg=f"value:{value} is not a "
+                                                        f"multipleOf:{multiple_of}.")
 
     def test_exclusive_range(self):
         with self.subTest("does not exceed exclusive range"):
@@ -307,7 +317,8 @@ class TestNumber(Base):
             schema = {'type': 'number', 'exclusiveMinimum': minimum, 'exclusiveMaximum': maximum}
             for i in range(self.repeat):
                 value = self.json_gen._number(schema)
-                self.assertEqual(value, 2)
+                self.assertLess(value, maximum)
+                self.assertGreater(value, minimum)
 
         with self.subTest("WIP minimum == maximum"):
             if False:
@@ -354,12 +365,19 @@ class TestInteger(Base):
                 self.assertEqual(value, 1)
 
     def test_multiple_of(self):
-        multiple_ofs = [5, -5]
+        multiple_ofs = [2, 3, 5, 7]
         for multiple_of in multiple_ofs:
             with self.subTest(f"is a multiple of {multiple_of}"):
                 schema = {'type': 'integer', 'multipleOf': multiple_of}
                 for i in range(self.repeat):
                     self.assertFalse(self.json_gen._integer(schema) % multiple_of)
+
+        invalid_multiple_ofs = [0, -2]
+        for multiple_of in invalid_multiple_ofs:
+            with self.subTest(f"is a multiple of {multiple_of}"):
+                schema = {'type': 'number', 'multipleOf': multiple_of}
+                with self.assertRaises(ValueError):
+                    self.json_gen._integer(schema)
 
     def test_multiple_of_in_range(self):
         """is a multiple of and within boundaries"""

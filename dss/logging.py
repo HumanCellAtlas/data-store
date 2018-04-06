@@ -46,7 +46,7 @@ def configure_cli_logging():
     _configure_logging(stream=sys.stderr)
 
 
-def configure_daemon_logging():
+def configure_lambda_logging():
     """
     Prepare logging for use within a AWS Lambda function.
     """
