@@ -63,6 +63,14 @@ class StateMachineAnnotationProcessor:
                 results.append(transformer.process_annotations(state_machine_element.state_machine))
 
             return results
+        elif isinstance(state_machine_element, types.BranchIdTransformationAnnotation):
+            for template_string, index in self.template_map:
+                if template_string == state_machine_element.template_string:
+                    return state_machine_element.callable(index)
+            else:
+                raise ValueError(
+                    f"{types.BranchIdTransformationAnnotation.__name__} has unexpected template_string "
+                    f"{state_machine_element.template_string}")
         elif isinstance(state_machine_element, types.StateMachineAnnotation):
             raise TypeError("Unhandled state machine annotation")
         elif isinstance(state_machine_element, str):
