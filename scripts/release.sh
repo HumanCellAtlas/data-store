@@ -38,14 +38,14 @@ if ! git diff-index --quiet HEAD --; then
     fi
 fi
 
-if ! [[ -e application_secrets.json ]]; then
-    http --check-status "https://$API_DOMAIN_NAME/internal/application_secrets" > application_secrets.json || (
+if ! [[ -e "$DSS_HOME/application_secrets.json" ]]; then
+    http --check-status "https://$API_DOMAIN_NAME/internal/application_secrets" > "$DSS_HOME/application_secrets.json" || (
         echo "Failed to fetch application_secrets.json. Please create this file and try again."
         exit 1
     )
 fi
 
-if ! diff <(pip freeze) <(tail -n +2 requirements-dev.txt); then
+if ! diff <(pip freeze) <(tail -n +2 "$DSS_HOME/requirements-dev.txt"); then
     if [[ $# == 3 ]] && [[ $3 == "--force" ]]; then
         echo "Your installed Python packages differ from requirements-dev.txt. Forcing deployment anyway."
     else
