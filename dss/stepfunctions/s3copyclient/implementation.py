@@ -211,8 +211,17 @@ def _retry_default():
 
 def _threadpool_sfn(tid):
     return {
-        "StartAt": f"Worker{tid}",
+        "StartAt": f"TestNeeded{tid}",
         "States": {
+            f"TestNeeded{tid}": {
+                "Type": "Choice",
+                "Choices": [{
+                    "Variable": f"$.{_Key.PART_COUNT}",
+                    "NumericGreaterThan": tid,
+                    "Next": f"Worker{tid}"
+                }],
+                "Default": f"StripState{tid}",
+            },
             f"Worker{tid}": {
                 "Type": "Task",
                 "Resource": lambda event, lambda_context: copy_worker(event, lambda_context, tid),
@@ -227,6 +236,11 @@ def _threadpool_sfn(tid):
                     "Next": f"EndThread{tid}"
                 }],
                 "Default": f"Worker{tid}",
+            },
+            f"StripState{tid}": {
+                "Type": "Pass",
+                "Result": {Key.FINISHED: True},
+                "Next": f"EndThread{tid}",
             },
             f"EndThread{tid}": {
                 "Type": "Pass",
