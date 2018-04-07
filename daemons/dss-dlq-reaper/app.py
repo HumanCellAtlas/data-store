@@ -41,28 +41,28 @@ def reaper(event, context):
         for message in queue.receive_messages(MaxNumberOfMessages=10, AttributeNames=['All'],
                                               MessageAttributeNames=['All'], WaitTimeSeconds=10):
             try:
-                logger.debug(f"Received a message for reprocessing: {str(message.body)}")
+                logger.debug("Received a message for reprocessing: %s", str(message.body))
                 # re-process messages by sending them back to the SNS topic
                 sns_message = json.loads(message.body)["Records"][0]["Sns"]
                 topic_arn = sns_message["TopicArn"]
                 msg = json.loads(sns_message["Message"])
-                logger.info(f"Received a message for reprocessing: {str(msg)} SNS topic ARN: {topic_arn}")
+                logger.info(f"Received a message for reprocessing: %s SNS topic ARN: %s", str(msg), topic_arn)
 
                 attrs = sns_message["MessageAttributes"]
                 retry_count = int(attrs[DSS_REAPER_RETRY_KEY]['Value']) if DSS_REAPER_RETRY_KEY in attrs else 0
                 retry_count += 1
                 if retry_count < DSS_MAX_RETRY_COUNT:
                     attrs = {DSS_REAPER_RETRY_KEY: {"DataType": "Number", "StringValue": str(retry_count)}}
-                    logger.info(f"Incremented retry count: {retry_count} and resend SNS message")
+                    logger.info("Incremented retry count: %d and resend SNS message", retry_count)
                     send_sns_msg(topic_arn, msg, attrs)
                 else:
-                    logger.critical(f"Giving up on message: {msg} after {retry_count} attempts")
+                    logger.critical("Giving up on message: %s after %d attempts", msg, retry_count)
             except Exception as e:
-                logger.error(f"Unable to process message: {str(message)} due to {str(e)}")
+                logger.error("Unable to process message: %s due to %s", str(message), str(e))
 
             # Let the queue know that the message is processed
             logger.info('Deleting message from the queue')
             message.delete()
             message_count += 1
 
-    logger.info(f"Processed {message_count} messages")
+    logger.info("Processed %d messages", message_count)

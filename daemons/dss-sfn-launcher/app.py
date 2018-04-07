@@ -28,19 +28,19 @@ def launch_sfn_run(event, context):
     attrs = sns_msg["MessageAttributes"]
 
     if 'DSS-REAPER-RETRY-COUNT' in attrs:
-        logger.info(f"Reprocessing attempts so far {attrs['DSS-REAPER-RETRY-COUNT']['Value']}")
+        logger.info("Reprocessing attempts so far %s", attrs['DSS-REAPER-RETRY-COUNT']['Value'])
 
     sfn_name_template = msg[SFN_TEMPLATE_KEY]
     sfn_execution = msg[SFN_EXECUTION_KEY]
     sfn_input = msg[SFN_INPUT_KEY]
-    logger.debug(f"Launching Step Function {sfn_name_template} execution: {sfn_execution} input: {str(sfn_input)}")
+    logger.debug("Launching Step Function %s execution: %s input: %s}", sfn_name_template, sfn_execution, sfn_input)
     try:
         response = stepfunctions._step_functions_start_execution(sfn_name_template, sfn_execution, sfn_input)
-        logger.debug(f"Started step function execution: {str(response)}")
+        logger.debug(f"Started step function execution: %s", str(response))
     except ClientError as e:
         if e.response.get('Error'):
             if e.response['Error'].get('Code') == 'ExecutionAlreadyExists':
-                logger.warning(f"Execution id {sfn_execution} already exists for {sfn_name_template}. Not retrying.")
+                logger.warning("Execution id %s already exists for %s. Not retrying.", sfn_execution, sfn_name_template)
             else:
-                logger.warning(f"Failed to start step function execution id {sfn_execution}: {str(e)}")
+                logger.warning("Failed to start step function execution id %s: due to %s", sfn_execution, str(e))
                 raise e

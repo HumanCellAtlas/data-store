@@ -65,6 +65,7 @@ def upload_bundle(event, context, branch_id):
             fh.flush()
             start_time = current_time()
             bundle_output = get_client().upload(src_dir=src_dir, replica="aws", staging_bucket=test_bucket)
+            logger.debug("Bundle: %s", bundle_output['bundle_uuid'])
             return {"bundle_id": bundle_output['bundle_uuid'], "start_time": start_time}
 
 
@@ -78,14 +79,14 @@ def download_bundle(event, context, branch_id):
 
 def checkout_bundle(event, context, branch_id):
     bundle_id = event['bundle']['bundle_id']
-    logger.info(f"Checkout bundle: {bundle_id}")
+    logger.info("Checkout bundle: %s", bundle_id)
     checkout_output = get_client().post_bundles_checkout(uuid=bundle_id, replica='aws', email='foo@example.com')
     return {"job_id": checkout_output['checkout_job_id']}
 
 
 def checkout_status(event, context, branch_id):
     job_id = event['checkout']['job_id']
-    logger.info(f"Checkout status job_id: {job_id}")
+    logger.info("Checkout status job_id: %s", job_id)
     # TODO(rkisin) temporarly disabled the checkout status check until S3 based status checker is implemented
     #checkout_output = get_client().get_bundles_checkout(checkout_job_id=job_id)
     #logger.debug(f"Checkout status : {str(checkout_output)}")
@@ -161,7 +162,7 @@ def launch_exec(event, context):
         "test_run_id": run_id,
         "batch": nextBatch.isoformat() + 'Z'
     }
-    logger.debug(f"Starting execution {execution_id}")
+    logger.debug("Starting execution %s", execution_id)
     stepfunctions.step_functions_invoke("dss-scalability-test-{stage}", execution_id, test_input)
 
 
@@ -183,7 +184,7 @@ def handle_dynamodb_stream(event, context):
             records += 1
             success_count += success_count_rec
             failure_count += fail_count_rec
-    logger.debug(f"success_count_rec: {success_count}")
+    logger.debug("Success_count_rec: %d", success_count)
     if records > 0:
         table = dynamodb.Table('scalability_test_result')
         run_entry_pk = {'run_id': run_id}
