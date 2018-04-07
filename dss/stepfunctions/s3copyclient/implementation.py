@@ -1,7 +1,6 @@
 import binascii
 import collections
 import concurrent.futures as futures
-import copy
 
 import hashlib
 import threading
@@ -11,7 +10,6 @@ import boto3
 from cloud_blobstore.s3 import S3BlobStore
 
 from dss.api import files
-from dss.stepfunctions import generator
 from dss.stepfunctions.lambdaexecutor import TimedThread
 from dss.util.aws import get_s3_chunk_size
 
@@ -72,7 +70,7 @@ def setup_copy_task(event, lambda_context):
     return event
 
 
-def copy_worker(event, lambda_context, branch_id):
+def copy_worker(event, lambda_context, slice_num):
     class CopyWorkerTimedThread(TimedThread[dict]):
         def __init__(self, timeout_seconds: float, state: dict, slice_num: int) -> None:
             super().__init__(timeout_seconds, state)
@@ -154,7 +152,6 @@ def copy_worker(event, lambda_context, branch_id):
 
             return start, end
 
-    slice_num = branch_id[-1]
     result = CopyWorkerTimedThread(lambda_context.get_remaining_time_in_millis() / 1000, event, slice_num).start()
 
     # because it would be comically large to have the full state for every worker, we strip the state if:
@@ -201,74 +198,81 @@ def join(event, lambda_context):
     return state
 
 
-retry_default = [
-    {
-        "ErrorEquals": ["States.Timeout", "States.TaskFailed"],
-        "IntervalSeconds": 30,
-        "MaxAttempts": 10,
-        "BackoffRate": 1.618,
-    },
-]
+def _retry_default():
+    return [
+        {
+            "ErrorEquals": ["States.Timeout", "States.TaskFailed"],
+            "IntervalSeconds": 30,
+            "MaxAttempts": 10,
+            "BackoffRate": 1.618,
+        },
+    ]
 
 
-threadpool_sfn = {
-    "StartAt": "Worker{t}",
-    "States": {
-        "Worker{t}": {
-            "Type": "Task",
-            "Resource": copy_worker,
-            "Next": "Branch{t}",
-            "Retry": copy.deepcopy(retry_default),
-        },
-        "Branch{t}": {
-            "Type": "Choice",
-            "Choices": [{
-                "Variable": "$.finished",
-                "BooleanEquals": True,
-                "Next": "EndThread{t}"
-            }],
-            "Default": "Worker{t}",
-        },
-        "EndThread{t}": {
-            "Type": "Pass",
-            "End": True,
-        },
+def _threadpool_sfn(tid):
+    return {
+        "StartAt": f"Worker{tid}",
+        "States": {
+            f"Worker{tid}": {
+                "Type": "Task",
+                "Resource": lambda event, lambda_context: copy_worker(event, lambda_context, tid),
+                "Next": f"TestFinished{tid}",
+                "Retry": _retry_default(),
+            },
+            f"TestFinished{tid}": {
+                "Type": "Choice",
+                "Choices": [{
+                    "Variable": "$.finished",
+                    "BooleanEquals": True,
+                    "Next": f"EndThread{tid}"
+                }],
+                "Default": f"Worker{tid}",
+            },
+            f"EndThread{tid}": {
+                "Type": "Pass",
+                "End": True,
+            },
+        }
     }
-}
 
-sfn = {
-    "StartAt": "SetupCopyTask",
-    "States": {
-        "SetupCopyTask": {
-            "Type": "Task",
-            "Resource": setup_copy_task,
-            "Next": "ParallelChoice",
-            "Retry": copy.deepcopy(retry_default),
-        },
-        "ParallelChoice": {
-            "Type": "Choice",
-            "Choices": [
-                {
-                    "Variable": f"$.{_Key.PART_COUNT}",
-                    "NumericLessThanEquals": 1,
-                    "Next": "Finalizer",
-                },
-            ],
-            "Default": "Threadpool",
-        },
-        "Threadpool": {
-            "Type": "Parallel",
-            "Branches": generator.ThreadPoolAnnotation(threadpool_sfn, LAMBDA_PARALLELIZATION_FACTOR, "{t}"),
-            "Next": "Finalizer",
-            "Retry": copy.deepcopy(retry_default),
-        },
-        "Finalizer": {
-            "Type": "Task",
-            "Resource": join,
-            "End": True,
-        },
+
+def _sfn(parallelization_factor):
+    return {
+        "StartAt": "SetupCopyTask",
+        "States": {
+            "SetupCopyTask": {
+                "Type": "Task",
+                "Resource": setup_copy_task,
+                "Next": "ParallelChoice",
+                "Retry": _retry_default(),
+            },
+            "ParallelChoice": {
+                "Type": "Choice",
+                "Choices": [
+                    {
+                        "Variable": f"$.{_Key.PART_COUNT}",
+                        "NumericLessThanEquals": 1,
+                        "Next": "Finalizer",
+                    },
+                ],
+                "Default": "Threadpool",
+            },
+            "Threadpool": {
+                "Type": "Parallel",
+                "Branches": [_threadpool_sfn(tid) for tid in range(parallelization_factor)],
+                "Next": "Finalizer",
+                "Retry": _retry_default(),
+            },
+            "Finalizer": {
+                "Type": "Task",
+                "Resource": join,
+                "End": True,
+            },
+        }
     }
-}
+
+
+sfn = _sfn(LAMBDA_PARALLELIZATION_FACTOR)
 
 
 # Public input/output keys for the copy + write-metadata state function.
@@ -291,7 +295,7 @@ def write_metadata(event, lambda_context):
     )
 
 
-copy_write_metadata_sfn = typing.cast(dict, copy.deepcopy(sfn))
+copy_write_metadata_sfn = _sfn(LAMBDA_PARALLELIZATION_FACTOR)
 
 # tweak to add one more state.
 del copy_write_metadata_sfn['States']['Finalizer']['End']
