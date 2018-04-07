@@ -1,29 +1,29 @@
 import json
 import logging
 import os
-import random
 import sys
 
 import boto3
-from botocore.exceptions import ClientError
 import domovoi
+from botocore.exceptions import ClientError
+
 
 pkg_root = os.path.abspath(os.path.join(os.path.dirname(__file__), 'domovoilib'))  # noqa
 sys.path.insert(0, pkg_root)  # noqa
 
 from dss import stepfunctions
 from dss.stepfunctions import SFN_TEMPLATE_KEY, SFN_EXECUTION_KEY, SFN_INPUT_KEY, sfn_sns_topic
-from dss.logging import configure_daemon_logging
+from dss.logging import configure_lambda_logging
 
 logger = logging.getLogger(__name__)
-configure_daemon_logging()
+configure_lambda_logging()
 app = domovoi.Domovoi(configure_logs=False)
 sqs = boto3.resource('sqs')
 
 @app.sns_topic_subscriber(sfn_sns_topic)
 def launch_sfn_run(event, context):
     sns_msg = event["Records"][0]["Sns"]
-    logger.debug(f'sns_message: {str(sns_msg)}')
+    logger.debug(f'sns_message: {sns_msg}')
     msg = json.loads(sns_msg["Message"])
     attrs = sns_msg["MessageAttributes"]
 

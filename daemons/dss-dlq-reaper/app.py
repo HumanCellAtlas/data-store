@@ -6,14 +6,15 @@ import sys
 import boto3
 import domovoi
 
+
 pkg_root = os.path.abspath(os.path.join(os.path.dirname(__file__), 'domovoilib'))  # noqa
 sys.path.insert(0, pkg_root)  # noqa
 
-from dss.logging import configure_daemon_logging
+from dss.logging import configure_lambda_logging
 from dss.util.aws import send_sns_msg
 
 logger = logging.getLogger(__name__)
-configure_daemon_logging()
+configure_lambda_logging()
 
 DSS_REAPER_RETRY_KEY = 'DSS-REAPER-RETRY-COUNT'
 # Max number of retries per message before we give up
