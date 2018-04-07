@@ -70,13 +70,14 @@ class StateMachineAnnotationProcessor:
         elif callable(state_machine_element):
             branch_id = typing.cast(typing.Tuple[int], tuple([index for _, index in self.template_map]))
 
-            # This is a workaround for python's static but lexical scope.  If we don't do this, we'll bind to the *last*
-            # dynamic value of branch_id in this method.  That is, if _process_singleton is called multiple times, the
-            # scoping rules will cause the lambda to pick up the value of the last call to _process_singleton, and not
-            # the value at the time the lambda was created.
+            # Passing state_machine_element and branch_id as default parameters to the lambda is a workaround for
+            # python's static but lexical scope.  If we don't do this, we'll bind to the *last* dynamic value of
+            # branch_id in this method.  That is, if _process_singleton is called multiple times, the scoping rules will
+            # cause the lambda to pick up the value of the last call to _process_singleton, and not the value at the
+            # time the lambda was created.
             if len(branch_id) > 0:
-                return (lambda method, branch_id: lambda event, context, *args, **kwargs: method(
-                    event, context, branch_id, *args, **kwargs))(state_machine_element, branch_id)
+                return lambda event, context, _method=state_machine_element, _branch_id=branch_id, *args, **kwargs: (
+                    _method(event, context, _branch_id, *args, **kwargs))
             else:
                 return state_machine_element
         else:
