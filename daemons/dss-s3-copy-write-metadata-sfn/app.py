@@ -8,12 +8,9 @@ sys.path.insert(0, pkg_root)  # noqa
 
 from dss.logging import configure_lambda_logging
 import dss.stepfunctions.s3copyclient as s3copyclient
-import dss.stepfunctions.generator as generator
 
 
 configure_lambda_logging()
 app = domovoi.Domovoi(configure_logs=False)
 
-annotation_processor = generator.StateMachineAnnotationProcessor()
-sfn = annotation_processor.process_annotations(s3copyclient.copy_write_metadata_sfn)
-app.register_state_machine(sfn)
+app.register_state_machine(s3copyclient.copy_write_metadata_sfn)
