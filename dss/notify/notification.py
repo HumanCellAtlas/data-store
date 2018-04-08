@@ -12,6 +12,7 @@ import time
 
 import requests
 from requests_http_signature import HTTPSignatureAuth
+import urllib3
 
 from dss import DeploymentStage
 from dss.util import require
@@ -20,14 +21,17 @@ from dss.util.types import JSON
 logger = logging.getLogger(__name__)
 
 
-class Notification(namedtuple("Notification", ("notification_id", "subscription_id", "url", "payload",
+class Notification(namedtuple("Notification", ("notification_id", "subscription_id",
+                                               "url", "method", "encoding", "body",
                                                "hmac_key", "hmac_key_id"))):
     @classmethod
     def from_scratch(cls,
                      notification_id: str,
                      subscription_id: str,
                      url: str,
-                     payload: JSON,
+                     method: str,
+                     encoding: str,
+                     body: JSON,
                      hmac_key: Optional[bytes] = None,
                      hmac_key_id: Optional[str] = None) -> 'Notification':
 
@@ -45,19 +49,21 @@ class Notification(namedtuple("Notification", ("notification_id", "subscription_
         return cls(notification_id=notification_id,
                    subscription_id=subscription_id,
                    url=url,
-                   payload=payload,
+                   method=method,
+                   encoding=encoding,
+                   body=body,
                    hmac_key=hmac_key,
                    hmac_key_id=hmac_key_id)
 
     def deliver_or_raise(self, timeout: Optional[float] = None, attempt: Optional[int] = None):
-        request = self._prepare_post(timeout, attempt)
-        response = requests.post(**request)
+        request = self._prepare_request(timeout, attempt)
+        response = requests.request(**request)
         response.raise_for_status()
 
     def deliver(self, timeout: Optional[float] = None, attempt: Optional[int] = None) -> bool:
-        request = self._prepare_post(timeout, attempt)
+        request = self._prepare_request(timeout, attempt)
         try:
-            response = requests.post(**request)
+            response = requests.request(**request)
         except BaseException as e:
             logger.warning("Exception raised during notification delivery:", exc_info=e)
             return False
@@ -71,7 +77,7 @@ class Notification(namedtuple("Notification", ("notification_id", "subscription_
 
     attempt_header_name = 'X-dss-notify-attempt'
 
-    def _prepare_post(self, timeout, attempt) -> Mapping[str, Any]:
+    def _prepare_request(self, timeout, attempt) -> Mapping[str, Any]:
         if self.hmac_key:
             auth = HTTPSignatureAuth(key=self.hmac_key, key_id=self.hmac_key_id)
         else:
@@ -79,17 +85,31 @@ class Notification(namedtuple("Notification", ("notification_id", "subscription_
         headers = {}
         if attempt is not None:
             headers[self.attempt_header_name] = str(attempt)
-        return dict(url=self.url,
-                    json=self.payload,
-                    auth=auth,
-                    allow_redirects=False,
-                    headers=headers,
-                    timeout=timeout)
+        request = dict(method=self.method,
+                       url=self.url,
+                       auth=auth,
+                       allow_redirects=False,
+                       headers=headers,
+                       timeout=timeout)
+        body = self.body
+        if self.encoding == 'application/json':
+            request['json'] = body
+        elif self.encoding == 'multipart/form-data':
+            # The requests.request() method can encode this content type for us (using the files= keyword argument)
+            # but it is awkward to use if the field values are strings or bytes and not streams.
+            data, content_type = urllib3.encode_multipart_formdata(body)
+            request['data'] = data
+            request['headers']['Content-Type'] = content_type
+        else:
+            raise ValueError(f'Encoding {self.encoding} is not supported')
+        return request
 
     def __str__(self) -> str:
-        # Don't log payload or HMAC key
+        # Don't log body because it may be too big or the HMAC key because it is secret
         return (f"{self.__class__.__name__}("
                 f"notification_id='{self.notification_id}', "
                 f"subscription_id='{self.subscription_id}', "
                 f"url='{self.url}', "
+                f"method='{self.method}', "
+                f"encoding='{self.encoding}', "
                 f"hmac_key_id='{self.hmac_key_id}')")
