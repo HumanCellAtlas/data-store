@@ -12,6 +12,7 @@ import time
 
 import requests
 from requests_http_signature import HTTPSignatureAuth
+import urllib3
 
 from dss import DeploymentStage, Config
 from dss.util import require
@@ -20,14 +21,17 @@ from dss.util.types import JSON
 logger = logging.getLogger(__name__)
 
 
-class Notification(namedtuple("Notification", ("notification_id", "subscription_id", "url", "payload",
+class Notification(namedtuple("Notification", ("notification_id", "subscription_id",
+                                               "url", "method", "encoding", "body",
                                                "attempts", "hmac_key", "hmac_key_id", "queued_at"))):
     @classmethod
     def from_scratch(cls,
                      notification_id: str,
                      subscription_id: str,
                      url: str,
-                     payload: JSON,
+                     method: str,
+                     encoding: str,
+                     body: JSON,
                      attempts: Optional[int] = None,
                      hmac_key: Optional[bytes] = None,
                      hmac_key_id: Optional[str] = None) -> 'Notification':
@@ -49,7 +53,9 @@ class Notification(namedtuple("Notification", ("notification_id", "subscription_
         return cls(notification_id=notification_id,
                    subscription_id=subscription_id,
                    url=url,
-                   payload=cls._bin2sqs(json.dumps(payload).encode()),
+                   method=method,
+                   encoding=encoding,
+                   body=cls._bin2sqs(json.dumps(body).encode()),
                    attempts=attempts,
                    hmac_key=None if hmac_key is None else cls._bin2sqs(hmac_key),
                    hmac_key_id=hmac_key_id,
@@ -65,7 +71,9 @@ class Notification(namedtuple("Notification", ("notification_id", "subscription_
         return cls(notification_id=attributes['MessageDeduplicationId'],
                    subscription_id=attributes['MessageGroupId'],
                    url=v(message_attributes.get('url')),
-                   payload=message.body,
+                   method=v(message_attributes.get('method')),
+                   encoding=v(message_attributes.get('encoding')),
+                   body=message.body,
                    attempts=int(v(message_attributes.get('attempts'))),
                    hmac_key=v(message_attributes.get('hmac_key')),
                    hmac_key_id=v(message_attributes.get('hmac_key_id')),
@@ -82,24 +90,26 @@ class Notification(namedtuple("Notification", ("notification_id", "subscription_
         def f(d):
             return {k: v for k, v in d.items() if v is not None}
 
-        return dict(MessageBody=self.payload,
+        return dict(MessageBody=self.body,
                     MessageDeduplicationId=self.notification_id,
                     MessageGroupId=self.subscription_id,
                     MessageAttributes=f(dict(url=v(self.url),
+                                             method=v(self.method),
+                                             encoding=v(self.encoding),
                                              attempts=v(str(self.attempts)),
                                              hmac_key=v(self.hmac_key),
                                              hmac_key_id=v(self.hmac_key_id),
                                              queued_at=v(str(time.time())))))
 
     def deliver_or_raise(self, timeout: Optional[float] = None, attempt: Optional[int] = None):
-        request = self._prepare_post(timeout, attempt)
-        response = requests.post(**request)
+        request = self._prepare_request(timeout, attempt)
+        response = requests.request(**request)
         response.raise_for_status()
 
     def deliver(self, timeout: Optional[float] = None, attempt: Optional[int] = None) -> bool:
-        request = self._prepare_post(timeout, attempt)
+        request = self._prepare_request(timeout, attempt)
         try:
-            response = requests.post(**request)
+            response = requests.request(**request)
         except BaseException as e:
             logger.warning("Exception raised during notification delivery attempt:", exc_info=e)
             return False
@@ -113,7 +123,7 @@ class Notification(namedtuple("Notification", ("notification_id", "subscription_
 
     attempt_header_name = 'X-dss-notify-attempt'
 
-    def _prepare_post(self, timeout, attempt) -> Mapping[str, Any]:
+    def _prepare_request(self, timeout, attempt) -> Mapping[str, Any]:
         if self.hmac_key:
             auth = HTTPSignatureAuth(key=self._sqs2bin(self.hmac_key), key_id=self.hmac_key_id)
         else:
@@ -121,32 +131,46 @@ class Notification(namedtuple("Notification", ("notification_id", "subscription_
         headers = {}
         if attempt is not None:
             headers[self.attempt_header_name] = str(attempt)
-        return dict(url=self.url,
-                    json=json.loads(self._sqs2bin(self.payload)),
-                    auth=auth,
-                    allow_redirects=False,
-                    headers=headers,
-                    timeout=timeout)
+        request = dict(method=self.method,
+                       url=self.url,
+                       auth=auth,
+                       allow_redirects=False,
+                       headers=headers,
+                       timeout=timeout)
+        body = json.loads(self._sqs2bin(self.body))
+        if self.encoding == 'application/json':
+            request['json'] = body
+        elif self.encoding == 'multipart/form-data':
+            # The requests.request() method can encode this content type for us (using the files= keyword argument)
+            # but it is awkward to use if the field values are strings or bytes and not streams.
+            data, content_type = urllib3.encode_multipart_formdata(body)
+            request['data'] = data
+            request['headers']['Content-Type'] = content_type
+        else:
+            raise ValueError(f'Encoding {self.encoding} is not supported')
+        return request
 
     def spend_attempt(self):
         assert self.attempts > 0
         return self._replace(attempts=self.attempts - 1)
 
     @classmethod
-    def _bin2sqs(cls, payload: bytes):
+    def _bin2sqs(cls, s: bytes):
         # SQS supports #x9 | #xA | #xD | #x20 to #xD7FF | #xE000 to #xFFFD | #x10000 to #x10FFFF in message bodies.
         # The base85 alphabet is a subset of that and of ASCII. It is more space efficient than base64.
-        return base64.b85encode(gzip.compress(payload)).decode('ascii')
+        return base64.b85encode(gzip.compress(s)).decode('ascii')
 
     @classmethod
-    def _sqs2bin(cls, payload: str):
-        return gzip.decompress(base64.b85decode(payload.encode('ascii')))
+    def _sqs2bin(cls, s: str):
+        return gzip.decompress(base64.b85decode(s.encode('ascii')))
 
     def __str__(self) -> str:
-        # Don't log payload or HMAC key
+        # Don't log body because it may be too big or the HMAC key because it is secret
         return (f"{self.__class__.__name__}("
                 f"notification_id='{self.notification_id}', "
                 f"subscription_id='{self.subscription_id}', "
                 f"url='{self.url}', "
+                f"method='{self.method}', "
+                f"encoding='{self.encoding}', "
                 f"attempts={self.attempts}, "
                 f"hmac_key_id='{self.hmac_key_id}')")

@@ -132,13 +132,15 @@ class _TestNotifier(ThreadedHttpServerTestCase):
                 responses = [(0.0, 200)]
             verify = random.random() > .5
             notification_id = str(next(self.notification_id))
-            payload = dict(notification_id=notification_id,
-                           responses=responses,
-                           verify=verify)
+            body = dict(notification_id=notification_id,
+                        responses=responses,
+                        verify=verify)
             notification = Notification.from_scratch(notification_id=notification_id,
                                                      subscription_id=str(random.choice(self.subscription_ids)),
                                                      url=f"http://{self.address}:{self.port}/{notification_id}",
-                                                     payload=payload,
+                                                     method='POST',
+                                                     encoding='application/json',
+                                                     body=body,
                                                      attempts=max_attempts,
                                                      hmac_key=PostTestHandler.hmac_secret_key if verify else None,
                                                      hmac_key_id='1234' if verify else None)

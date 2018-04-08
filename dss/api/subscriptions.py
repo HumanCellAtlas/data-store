@@ -56,7 +56,7 @@ def find(replica: str):
         'uuid': hit.meta.id,
         'replica': replica,
         'owner': owner,
-        'callback_url': hit.callback_url,
+        'endpoint': hit.endpoint.to_dict(),
         'es_query': hit.es_query.to_dict()}
         for hit in search.scan()]
 

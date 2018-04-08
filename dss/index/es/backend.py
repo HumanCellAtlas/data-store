@@ -1,3 +1,4 @@
+import json
 import logging
 import os
 from typing import MutableSet
@@ -103,13 +104,29 @@ class ElasticsearchIndexBackend(IndexBackend):
     def _notify_subscriber(self, doc: BundleDocument, subscription: dict):
         transaction_id = str(uuid.uuid4())
         subscription_id = subscription['id']
-        callback_url = subscription['callback_url']
-        payload = {'transaction_id': transaction_id,
-                   'subscription_id': subscription_id,
-                   'es_query': subscription['es_query'],
-                   'match': {
-                       'bundle_uuid': doc.fqid.uuid,
-                       'bundle_version': doc.fqid.version}}
+        endpoint = subscription.get('endpoint')
+        if endpoint is None:
+            # Backwards compatibiity with legacy subscriptions
+            callback_url = subscription.get('callback_url')
+            if callback_url is None:
+                raise KeyError("Subscription is missing 'endpoint' or 'callback_url'")
+            endpoint = dict(url=callback_url, method='POST', encoding='application/json')
+
+        payload = dict(transaction_id=transaction_id,
+                       subscription_id=subscription_id,
+                       es_query=subscription['es_query'],
+                       match=dict(bundle_uuid=doc.fqid.uuid,
+                                  bundle_version=doc.fqid.version))
+
+        encoding = endpoint['encoding']
+        if encoding == 'application/json':
+            body = payload
+        elif encoding == 'multipart/form-data':
+            body = endpoint.get('form_fields', {})
+            body[endpoint.get('payload_form_field', 'payload')] = json.dumps(payload)
+        else:
+            raise ValueError(f"Encoding {encoding} is not supported")
+
         try:
             hmac_key = subscription['hmac_secret_key']
         except KeyError:
@@ -121,7 +138,10 @@ class ElasticsearchIndexBackend(IndexBackend):
 
         notification = Notification.from_scratch(notification_id=transaction_id,
                                                  subscription_id=subscription_id,
-                                                 url=callback_url, payload=payload,
+                                                 url=endpoint['url'],
+                                                 method=endpoint['method'],
+                                                 encoding=encoding,
+                                                 body=body,
                                                  hmac_key=hmac_key,
                                                  hmac_key_id=hmac_key_id)
         if self.notifier:
