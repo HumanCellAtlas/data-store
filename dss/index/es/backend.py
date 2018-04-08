@@ -1,3 +1,4 @@
+import json
 import logging
 from typing import MutableSet
 import uuid
@@ -7,7 +8,7 @@ from elasticsearch.helpers import scan
 from dss import ESDocType, ESIndexType, Config
 from dss.index.backend import IndexBackend
 from dss.index.bundle import Bundle, Tombstone
-from dss.notify.notification import Notification
+from dss.notify.notification import Notification, Endpoint
 
 from . import elasticsearch_retry, ElasticsearchClient, TIME_NEEDED
 from .document import BundleDocument, BundleTombstoneDocument
@@ -92,13 +93,22 @@ class ElasticsearchIndexBackend(IndexBackend):
     def _notify_subscriber(self, doc: BundleDocument, subscription: dict):
         transaction_id = str(uuid.uuid4())
         subscription_id = subscription['id']
-        callback_url = subscription['callback_url']
-        payload = {'transaction_id': transaction_id,
-                   'subscription_id': subscription_id,
-                   'es_query': subscription['es_query'],
-                   'match': {
-                       'bundle_uuid': doc.fqid.uuid,
-                       'bundle_version': doc.fqid.version}}
+        endpoint = Endpoint.from_subscription(subscription)
+
+        payload = dict(transaction_id=transaction_id,
+                       subscription_id=subscription_id,
+                       es_query=subscription['es_query'],
+                       match=dict(bundle_uuid=doc.fqid.uuid,
+                                  bundle_version=doc.fqid.version))
+
+        if endpoint.encoding == 'application/json':
+            body = payload
+        elif endpoint.encoding == 'multipart/form-data':
+            body = endpoint.form_fields.copy()
+            body[endpoint.payload_form_field] = json.dumps(payload)
+        else:
+            raise ValueError(f"Encoding {endpoint.encoding} is not supported")
+
         try:
             hmac_key = subscription['hmac_secret_key']
         except KeyError:
@@ -108,11 +118,14 @@ class ElasticsearchIndexBackend(IndexBackend):
             hmac_key = hmac_key.encode()
             hmac_key_id = subscription.get('hmac_key_id', "hca-dss:" + subscription_id)
 
-        notification = Notification.from_scratch(notification_id=transaction_id,
-                                                 subscription_id=subscription_id,
-                                                 url=callback_url, payload=payload,
-                                                 hmac_key=hmac_key,
-                                                 hmac_key_id=hmac_key_id)
+        notification = Notification.create(notification_id=transaction_id,
+                                           subscription_id=subscription_id,
+                                           url=endpoint.callback_url,
+                                           method=endpoint.method,
+                                           encoding=endpoint.encoding,
+                                           body=body,
+                                           hmac_key=hmac_key,
+                                           hmac_key_id=hmac_key_id)
         logger.info(f"Sending notification {notification} about bundle {doc.fqid}")
         notification.deliver_or_raise()
 

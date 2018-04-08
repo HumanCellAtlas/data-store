@@ -20,6 +20,7 @@ import dss
 from dss.index.es import ElasticsearchClient
 from dss.index.es.document import BundleDocument
 from dss.index.es.manager import IndexManager
+from dss.notify.notification import Endpoint
 from dss.logging import configure_test_logging
 from dss.util import UrlBuilder
 from tests import get_auth_header, get_bundle_fqid
@@ -67,7 +68,11 @@ class TestSubscriptionsBase(ElasticsearchTestCase, DSSAssertMixin):
                         id=str(uuid.uuid4()),
                         body=self.index_document,
                         refresh=True)
-        self.callback_url = "https://example.com"
+        self.endpoint = Endpoint(callback_url="https://example.com",
+                                 method="POST",
+                                 encoding="application/json",
+                                 form_fields={'foo': 'bar'},
+                                 payload_form_field='baz')
         self.sample_percolate_query = smartseq2_paired_ends_v2_or_v3_query
 
     def test_auth_errors(self):
@@ -97,6 +102,23 @@ class TestSubscriptionsBase(ElasticsearchTestCase, DSSAssertMixin):
         registered_query = response['_source']
         self.assertEqual(self.sample_percolate_query, registered_query)
 
+    def test_validation(self):
+        with self.subTest("Missing URL"):
+            self._put_subscription(expect_code=400,
+                                   endpoint={})
+        with self.subTest("Invalid form field value"):
+            self._put_subscription(expect_code=400,
+                                   endpoint=Endpoint(callback_url=self.endpoint.callback_url,
+                                                     form_fields={'foo': 1}))
+        with self.subTest("Invalid encoding"):
+            self._put_subscription(expect_code=400,
+                                   endpoint=Endpoint(callback_url=self.endpoint.callback_url,
+                                                     encoding='foo'))
+        with self.subTest("Invalid method"):
+            self._put_subscription(expect_code=400,
+                                   endpoint=Endpoint(callback_url=self.endpoint.callback_url,
+                                                     method='foo'))
+
     def test_subscription_registration_succeeds_when_query_does_not_match_mappings(self):
         # It is now possible to register a subscription query before the mapping
         # of the field exists in the mappings (and may never exist in the mapppings)
@@ -120,7 +142,7 @@ class TestSubscriptionsBase(ElasticsearchTestCase, DSSAssertMixin):
             requests.codes.created,
             json_request_body=dict(
                 es_query=es_query,
-                callback_url=self.callback_url),
+                **self.endpoint.to_dict()),
             headers=get_auth_header()
         )
         self.assertIn('uuid', resp_obj.json)
@@ -138,7 +160,7 @@ class TestSubscriptionsBase(ElasticsearchTestCase, DSSAssertMixin):
             headers=get_auth_header())
         json_response = resp_obj.json
         self.assertEqual(self.sample_percolate_query, json_response['es_query'])
-        self.assertEqual(self.callback_url, json_response['callback_url'])
+        self.assertEqual(self.endpoint, Endpoint.from_subscription(json_response))
 
         # Forbidden request w/ previous url
         with self.throw_403():
@@ -169,7 +191,7 @@ class TestSubscriptionsBase(ElasticsearchTestCase, DSSAssertMixin):
             headers=get_auth_header())
         json_response = resp_obj.json
         self.assertEqual(self.sample_percolate_query, json_response['subscriptions'][0]['es_query'])
-        self.assertEqual(self.callback_url, json_response['subscriptions'][0]['callback_url'])
+        self.assertEqual(self.endpoint, Endpoint.from_subscription(json_response['subscriptions'][0]))
         self.assertEqual(num_additions, len(json_response['subscriptions']))
 
     def test_delete(self):
@@ -189,20 +211,21 @@ class TestSubscriptionsBase(ElasticsearchTestCase, DSSAssertMixin):
         # 2. Check that we can't delete files that don't exist
         self.assertDeleteResponse(url, requests.codes.not_found, headers=get_auth_header())
 
-    def _put_subscription(self):
+    def _put_subscription(self, endpoint=None, expect_code=None):
         url = str(UrlBuilder()
                   .set(path="/v1/subscriptions")
                   .add_query("replica", self.replica.name))
+        if endpoint is None:
+            endpoint = self.endpoint
+        if isinstance(endpoint, Endpoint):
+            endpoint = endpoint.to_dict()
         resp_obj = self.assertPutResponse(
             url,
-            requests.codes.created,
-            json_request_body=dict(
-                es_query=self.sample_percolate_query,
-                callback_url=self.callback_url),
+            expect_code or requests.codes.created,
+            json_request_body=dict(endpoint, es_query=self.sample_percolate_query),
             headers=get_auth_header()
         )
-        uuid_ = resp_obj.json['uuid']
-        return uuid_
+        return resp_obj.json.get('uuid')
 
     @contextmanager
     def throw_403(self):
