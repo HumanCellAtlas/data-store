@@ -13,7 +13,7 @@ from dss import Config, Replica, ESIndexType, ESDocType
 from dss.error import DSSException, dss_handler
 from dss.index.es import ElasticsearchClient
 from dss.index.es.manager import IndexManager
-
+from dss.notify.notification import Endpoint
 
 logger = logging.getLogger(__name__)
 
@@ -56,8 +56,7 @@ def find(replica: str):
         'uuid': hit.meta.id,
         'replica': replica,
         'owner': owner,
-        'callback_url': hit.callback_url,
-        'es_query': hit.es_query.to_dict()}
+        **{k: v for k, v in hit.to_dict().items() if not k.startswith('hmac_')}}
         for hit in search.scan()]
 
     full_response = {'subscriptions': responses}
