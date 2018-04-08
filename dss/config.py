@@ -79,7 +79,7 @@ class IndexSuffix:
         Save the current suffix for later restore() and extend it by prepending the given prefix
         """
         assert prefix.islower(), 'Suffix prefixes must be lower case.'
-        self._stack.append('.' + prefix + self.value)
+        self._stack.append('-' + prefix + self.value)
 
     def restore(self):
         """
