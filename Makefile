@@ -61,8 +61,15 @@ scaletest:
 
 deploy: deploy-chalice deploy-daemons
 
+components := $(shell basename $(shell ls -d deployment/active/*/))
+deploy-infra:
+	scripts/enable_gs_services.sh
+	$(MAKE) -C deployment apply
+	scripts/set_event_relay_parameters.py
+
 deploy-chalice:
 	$(MAKE) -C chalice deploy
+	scripts/set_apigateway_base_path_mapping.py
 
 deploy-daemons: deploy-daemons-serial deploy-daemons-parallel
 
