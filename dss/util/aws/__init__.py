@@ -36,9 +36,12 @@ class ARN:
         return ":".join(getattr(self, field) for field in self.fields)
 
 
-def send_sns_msg(topic_arn, message):
+def send_sns_msg(topic_arn, message, attributes=None):
     sns_topic = resources.sns.Topic(str(topic_arn))
-    sns_topic.publish(Message=json.dumps(message))
+    args = {'Message': json.dumps(message)}
+    if attributes is not None:
+        args['MessageAttributes'] = attributes
+    sns_topic.publish(**args)
 
 
 def get_s3_chunk_size(filesize: int) -> int:
