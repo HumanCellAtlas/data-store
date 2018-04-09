@@ -36,7 +36,7 @@ def reaper(event, context):
 
     message_count = 0
 
-    while context.get_remaining_time_in_millis() > 10000:
+    while context.get_remaining_time_in_millis() > 20000:
         # Long poll for messages
         for message in queue.receive_messages(MaxNumberOfMessages=10, AttributeNames=['All'],
                                               MessageAttributeNames=['All'], WaitTimeSeconds=10):

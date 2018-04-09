@@ -69,7 +69,7 @@ if [[ $daemon_name == "dss-scalability-test" ]]; then
 fi
 
 if jq -e .dead_letter_queue_target_arn "$config_json"; then
-    $DSS_HOME/scripts/deploy_dss_sfn_queue.py
+    aws sqs create-queue --queue-name dss-dlq-${stage} --attributes DelaySeconds=5
     export reaper_sqs_arn="arn:aws:sqs:${region}:${account_id}:dss-dlq-${stage}"
     cat "$config_json" | jq ".dead_letter_queue_target_arn=env.reaper_sqs_arn" | sponge "$config_json"
 fi
