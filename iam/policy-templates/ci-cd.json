@@ -146,6 +146,15 @@
       "Resource": [
         "arn:aws:cloudwatch::$account_id:dashboard/Scalability-*"
       ]
+    },
+    {
+      "Effect": "Allow",
+      "Action": [
+        "sqs:*"
+      ],
+      "Resource": [
+        "arn:aws:sqs:*:$account_id:dss-dlq-*"
+      ]
     }
 
   ]
