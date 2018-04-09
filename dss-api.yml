@@ -882,7 +882,10 @@ paths:
               status:
                 description: Status of the checkout request.
                 type: string
-                enum: [RUNNING, SUCCEEDED, FAILED, TIMED_OUT, ABORTED]
+                enum: [RUNNING, SUCCEEDED, FAILED, UNKNOWN_JOB_ID]
+              cause:
+                description: Human readable description of the error, returned for FAILED status only.
+                type: string
             required:
               - status
         default:

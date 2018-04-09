@@ -87,10 +87,9 @@ def checkout_bundle(event, context, branch_id):
 def checkout_status(event, context, branch_id):
     job_id = event['checkout']['job_id']
     logger.info("Checkout status job_id: %s", job_id)
-    # TODO(rkisin) temporarly disabled the checkout status check until S3 based status checker is implemented
-    # checkout_output = get_client().get_bundles_checkout(checkout_job_id=job_id)
-    # logger.debug(f"Checkout status : {str(checkout_output)}")
-    return {"status": 'SUCCEEDED'}
+    checkout_output = get_client().get_bundles_checkout(checkout_job_id=job_id)
+    logger.debug("Checkout status %s", str(checkout_output))
+    return {"status": checkout_output['status']}
 
 
 def complete_test(event, context):

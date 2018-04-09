@@ -1,20 +1,22 @@
 #!/usr/bin/env python
 # coding: utf-8
-
 import os
-from uuid import UUID
-import requests
 import sys
 import unittest
+from uuid import UUID
+
+import requests
 
 pkg_root = os.path.abspath(os.path.join(os.path.dirname(__file__), '..'))  # noqa
 sys.path.insert(0, pkg_root)  # noqa
 
+from cloud_blobstore import BlobNotFoundError
 import dss
 from dss.config import override_bucket_config, BucketConfig, Replica
 from dss.util import UrlBuilder
 from dss.storage.checkout import get_manifest_files, validate_file_dst, pre_exec_validate, ValidationEnum, \
-    validate_bundle_exists, touch_test_file, get_execution_id
+    validate_bundle_exists, touch_test_file, get_execution_id, get_status, put_status_succeeded, \
+    put_status_failed, put_status_started
 from tests.infra import DSSAssertMixin, DSSUploadMixin, get_env, testmode
 from tests.infra.server import ThreadedLocalServer
 
@@ -197,6 +199,43 @@ class TestFileApi(unittest.TestCase, DSSAssertMixin, DSSUploadMixin):
             UUID(exec_id, version=4)
         except ValueError:
             self.fail("Invalid execution id. Valid UUID v.4 is expected.")
+
+    @testmode.standalone
+    def test_status_succeeded(self):
+        fake_bucket_name = 'fake_bucket_name'
+        fake_location = 'fake/location'
+        exec_id = get_execution_id()
+        self.assertIsNotNone(exec_id)
+        for replica in Replica:
+            put_status_succeeded(exec_id, replica, fake_bucket_name, fake_location)
+            status = get_status(exec_id)
+            self.assertEquals(status['status'], "SUCCEEDED")
+            self.assertEquals(status['location'], f"{replica.storage_schema}://{fake_bucket_name}/{fake_location}")
+
+    @testmode.standalone
+    def test_status_failed(self):
+        exec_id = get_execution_id()
+        self.assertIsNotNone(exec_id)
+        cause = 'Fake cause'
+        put_status_failed(exec_id, cause)
+        status = get_status(exec_id)
+        self.assertEquals(status['status'], "FAILED")
+        self.assertEquals(status['cause'], cause)
+
+    @testmode.standalone
+    def test_status_started(self):
+        exec_id = get_execution_id()
+        self.assertIsNotNone(exec_id)
+        put_status_started(exec_id)
+        status = get_status(exec_id)
+        self.assertEquals(status['status'], "RUNNING")
+
+    @testmode.standalone
+    def test_status_wrong_jobid(self):
+        exec_id = get_execution_id()
+        self.assertIsNotNone(exec_id)
+        with self.assertRaises(BlobNotFoundError):
+            get_status(exec_id)
 
 if __name__ == "__main__":
     unittest.main()
