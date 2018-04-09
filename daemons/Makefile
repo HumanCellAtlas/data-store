@@ -15,6 +15,7 @@ PARALLEL_AWS_DAEMONS := \
 	dss-s3-copy-write-metadata-sfn \
 	dss-visitation \
 	dss-scalability-test \
+	dss-dlq-reaper \
 	dss-sfn-launcher \
 
 PARALLEL_GCP_DAEMONS := \
