@@ -14,7 +14,8 @@ from dss.logging import configure_lambda_logging
 from dss.stepfunctions.checkout.checkout_states import state_machine_def
 from dss.util.email import send_checkout_success_email, send_checkout_failure_email
 from dss.storage.checkout import (parallel_copy, get_dst_bundle_prefix, get_manifest_files,
-                                  validate_file_dst, pre_exec_validate, put_status_succeeded, put_status_failed)
+                                  validate_file_dst, pre_exec_validate, put_status_succeeded, put_status_failed,
+                                  put_status_started)
 
 logger = logging.getLogger(__name__)
 
@@ -69,6 +70,7 @@ def get_job_status(event, context):
 
 @app.step_function_task(state_name="PreExecutionCheck", state_machine_definition=state_machine_def)
 def pre_execution_check(event, context):
+    put_status_started(event["execution_name"])
     dst_bucket = get_dst_bucket(event)
     bundle = event["bundle"]
     version = event["version"]

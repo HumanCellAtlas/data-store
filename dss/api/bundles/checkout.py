@@ -16,12 +16,14 @@ def post(uuid: str, json_request_body: dict, replica: str, version: str = None):
     assert replica is not None
 
     bundle = get_bundle(uuid, Replica[replica], version)
+
+    execution_id = get_execution_id()
+
     sfn_input = {"dss_bucket": dss_bucket, "bundle": uuid, "version": bundle["bundle"]["version"],
-                 "email": email, "replica": replica}
+                 "email": email, "replica": replica, "execution_name": execution_id}
     if "destination" in json_request_body:
         sfn_input["bucket"] = json_request_body["destination"]
 
-    execution_id = get_execution_id()
     stepfunctions.step_functions_invoke(STATE_MACHINE_NAME_TEMPLATE, execution_id, sfn_input)
     return jsonify(dict(checkout_job_id=execution_id)), requests.codes.ok
 
