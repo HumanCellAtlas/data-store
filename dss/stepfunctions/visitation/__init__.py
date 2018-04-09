@@ -5,8 +5,7 @@ import copy
 from uuid import uuid4
 from enum import Enum, auto
 
-from dss.stepfunctions import step_functions_invoke
-
+from dss.stepfunctions import _step_functions_start_execution
 
 logger = logging.getLogger(__name__)
 
@@ -108,8 +107,8 @@ class Visitation:
             'bucket': bucket,
             '_number_of_workers': number_of_workers,
         }
-
-        step_functions_invoke('dss-visitation-{stage}', name, inp)
+        # Invoke directly without reaper/retry
+        _step_functions_start_execution('dss-visitation-{stage}', name, inp)
 
         return name
 
