@@ -72,8 +72,7 @@ def _step_functions_start_execution(state_machine_name_template: str, execution_
     Invoke a step functions state machine.  The name of the state machine to be invoked will be derived from
     `state_machine_name_template`, with string formatting to replace {stage} with the dss deployment stage.
     """
-    input['execution_name'] = execution_name
-    execution_input = json.dumps(input)
+
     state_machine_arn = step_functions_arn(state_machine_name_template)
 
     response = stepfunctions.start_execution(
