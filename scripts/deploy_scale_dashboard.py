@@ -12,25 +12,25 @@ from dss.util.aws import ARN
 from dss.stepfunctions import step_functions_arn
 
 stage = os.environ.get('DSS_DEPLOYMENT_STAGE')
-dev_stage = 'dev'
 region = ARN.get_region()
 accountid = ARN.get_account_id()
 
 checkout_bundle_arn_prefix = f"arn:aws:lambda:{region}:{accountid}:function:dss-scalability-test-{stage}:domovoi-stepfunctions-task-CheckoutBundle"
 upload_bundle_arn_prefix = f"arn:aws:lambda:{region}:{accountid}:function:dss-scalability-test-{stage}:domovoi-stepfunctions-task-UploadBundle"
 download_bundle_arn_prefix = f"arn:aws:lambda:{region}:{accountid}:function:dss-scalability-test-{stage}:domovoi-stepfunctions-task-DownloadBundle"
-dss_s3_copy_arn = f"arn:aws:states:{region}:{accountid}:stateMachine:dss-s3-copy-sfn-{dev_stage}"
-gs_copy_sfn_arn = f"arn:aws:states:{region}:{accountid}:stateMachine:dss-gs-copy-sfn-{dev_stage}"
-gs_copy_write_metadata_sfn_arn = f"arn:aws:states:{region}:{accountid}:stateMachine:dss-gs-copy-write-metadata-sfn-{dev_stage}"
-dss_s3_copy_write_metadata_arn = f"arn:aws:states:{region}:{accountid}:stateMachine:dss-s3-copy-write-metadata-sfn-{dev_stage}"
+dss_s3_copy_arn = f"arn:aws:states:{region}:{accountid}:stateMachine:dss-s3-copy-sfn-{stage}"
+gs_copy_sfn_arn = f"arn:aws:states:{region}:{accountid}:stateMachine:dss-gs-copy-sfn-{stage}"
+gs_copy_write_metadata_sfn_arn = f"arn:aws:states:{region}:{accountid}:stateMachine:dss-gs-copy-write-metadata-sfn-{stage}"
+dss_s3_copy_write_metadata_arn = f"arn:aws:states:{region}:{accountid}:stateMachine:dss-s3-copy-write-metadata-sfn-{stage}"
 dss_scalability_test_arn = f"arn:aws:states:{region}:{accountid}:stateMachine:dss-scalability-test-{stage}"
-dss_visitation_arn = f"arn:aws:states:{region}:{accountid}:stateMachine:dss-visitation-{dev_stage}"
+dss_visitation_arn = f"arn:aws:states:{region}:{accountid}:stateMachine:dss-visitation-{stage}"
 
 sfn_arns = [checkout_bundle_arn_prefix, gs_copy_sfn_arn, gs_copy_write_metadata_sfn_arn, dss_s3_copy_arn,
             dss_s3_copy_write_metadata_arn, dss_scalability_test_arn, dss_visitation_arn]
 
 LAMBDA_METRIC_RUNTIME = "LambdaFunctionRunTime"
 LAMBDA_METRIC_FAILED = "LambdaFunctionsFailed"
+full_width = 18
 
 
 def get_metrics_array(arn_template, metric, cnt):
@@ -61,7 +61,7 @@ dashboard_def = {
             "type": "metric",
             "x": 0,
             "y": 0,
-            "width": 15,
+            "width": full_width,
             "height": 3,
             "properties": {
                 "view": "singleValue",
@@ -82,7 +82,22 @@ dashboard_def = {
             "type": "metric",
             "x": 0,
             "y": 1,
-            "width": 15,
+            "width": full_width,
+            "height": 6,
+            "properties": {
+                "view": "timeSeries",
+                "metrics": get_metrics_array_sfn(sfn_arns, 'ExecutionsStarted'),
+                "region": region,
+                "title": "SFN started",
+                "period": 300,
+                "stacked": True
+            }
+        },
+        {
+            "type": "metric",
+            "x": 0,
+            "y": 2,
+            "width": full_width,
             "height": 6,
             "properties": {
                 "view": "timeSeries",
@@ -96,24 +111,58 @@ dashboard_def = {
         {
             "type": "metric",
             "x": 0,
-            "y": 2,
-            "width": 15,
+            "y": 3,
+            "width": full_width,
             "height": 6,
+            "styles": "undefined",
             "properties": {
                 "view": "timeSeries",
-                "metrics": get_metrics_array_sfn(sfn_arns, 'ExecutionsStarted'),
+                "stacked": False,
+                "metrics": [
+                    ["AWS/SQS", "ApproximateNumberOfMessagesNotVisible", "QueueName", f"dss-dlq-{stage}"],
+                    [".", "ApproximateNumberOfMessagesVisible", ".", "."],
+                    [".", "NumberOfMessagesReceived", ".", "."],
+                    [".", "NumberOfMessagesDeleted", ".", "."],
+                    [".", "NumberOfMessagesSent", ".", "."]
+                ],
                 "region": region,
-                "title": "SFN started",
-                "period": 300,
-                "stacked": True
+                "title": "DLQ"
             }
         },
-
+        {
+            "type": "metric",
+            "x": 0,
+            "y": 4,
+            "width": full_width,
+            "height": 6,
+            "styles": "undefined",
+            "properties": {
+                "view": "timeSeries",
+                "stacked": False,
+                "metrics": [
+                    ["AWS/Lambda", "Invocations", "FunctionName", "cwl_firehose_subscriber",
+                     {"stat": "Sum", "period": 1}],
+                    ["...", f"dss-checkout-sfn-{stage}", {"stat": "Sum", "period": 1}],
+                    ["...", f"dss-dlq-reaper-{stage}", {"stat": "Sum", "period": 1}],
+                    ["...", f"dss-index-{stage}", {"stat": "Sum", "period": 1}],
+                    ["...", f"dss-{stage}", {"stat": "Sum", "period": 1}],
+                    ["...", f"dss-s3-copy-sfn-{stage}", {"stat": "Sum", "period": 1}],
+                    ["...", f"dss-s3-copy-write-metadata-sfn-{stage}", {"stat": "Sum", "period": 1}],
+                    ["...", f"dss-scalability-test-{stage}", {"stat": "Sum", "period": 1}],
+                    ["...", f"dss-sfn-launcher-{stage}", {"stat": "Sum", "period": 1}],
+                    ["...", f"dss-sfn-{stage}", {"stat": "Sum", "period": 1}],
+                    ["...", f"dss-sync-{stage}", {"stat": "Sum", "period": 1}],
+                    ["...", "Firehose-CWL-Processor", {"stat": "Sum", "period": 1}]
+                ],
+                "region": region,
+                "period": 300
+            }
+        },
         {
             "type": "metric",
             "x": 0,
             "y": 12,
-            "width": 18,
+            "width": full_width,
             "height": 6,
             "properties": {
                 "view": "timeSeries",
@@ -152,7 +201,7 @@ dashboard_def = {
             "type": "metric",
             "x": 0,
             "y": 9,
-            "width": 24,
+            "width": full_width,
             "height": 3,
             "properties": {
                 "view": "timeSeries",
@@ -212,7 +261,7 @@ dashboard_def = {
             "type": "metric",
             "x": 0,
             "y": 3,
-            "width": 24,
+            "width": full_width,
             "height": 3,
             "properties": {
                 "view": "timeSeries",
@@ -227,7 +276,7 @@ dashboard_def = {
             "type": "metric",
             "x": 0,
             "y": 6,
-            "width": 24,
+            "width": full_width,
             "height": 3,
             "properties": {
                 "view": "timeSeries",

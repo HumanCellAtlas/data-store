@@ -18,6 +18,7 @@ from dss import stepfunctions, Config, BucketConfig
 from dss.stepfunctions import generator
 from dss.api.files import ASYNC_COPY_THRESHOLD
 from json_generator import generate_sample
+from dss.logging import configure_lambda_logging
 
 #: Wait in seconds begore performing another checkout readiness check
 WAIT_CHECKOUT = 10
@@ -25,17 +26,18 @@ WAIT_CHECKOUT = 10
 #: Number of parallel execution branches within the scale test step function
 PARALLELIZATION_FACTOR = 10
 
-app = domovoi.Domovoi()
+app = domovoi.Domovoi(configure_logs=False)
 
-app.log.setLevel(logging.DEBUG)
+logger = logging.getLogger(__name__)
+configure_lambda_logging()
 
 test_bucket = os.environ["DSS_S3_CHECKOUT_BUCKET"]
 
 os.environ["HOME"] = "/tmp"
-
 os.environ["HCA_CONFIG_FILE"] = "/tmp/config.json"
+
 with open(os.environ["HCA_CONFIG_FILE"], "w") as fh:
-    fh.write(json.dumps({"DSSClient": {"swagger_url": "https://dss.dev.data.humancellatlas.org/v1/swagger.json"}}))
+    fh.write(json.dumps({"DSSClient": {"swagger_url": os.environ["SWAGGER_URL"]}}))
 
 client = None
 def get_client():
@@ -53,7 +55,7 @@ def current_time():
     return int(round(time.time() * 1000))
 
 def upload_bundle(event, context, branch_id):
-    app.log.info("Upload bundle")
+    logger.info("Start uploading bundle")
     with tempfile.TemporaryDirectory() as src_dir:
         with tempfile.NamedTemporaryFile(dir=src_dir, suffix=".json", delete=False) as jfh:
             jfh.write(bytes(generate_sample(), 'UTF-8'))
@@ -63,11 +65,12 @@ def upload_bundle(event, context, branch_id):
             fh.flush()
             start_time = current_time()
             bundle_output = get_client().upload(src_dir=src_dir, replica="aws", staging_bucket=test_bucket)
+            logger.debug("Bundle: %s", bundle_output['bundle_uuid'])
             return {"bundle_id": bundle_output['bundle_uuid'], "start_time": start_time}
 
 
 def download_bundle(event, context, branch_id):
-    app.log.info("Download bundle")
+    logger.debug("Download bundle")
     bundle_id = event['bundle']['bundle_id']
     with tempfile.TemporaryDirectory() as dest_dir:
         get_client().download(bundle_id, replica="aws", dest_name=dest_dir)
@@ -76,17 +79,18 @@ def download_bundle(event, context, branch_id):
 
 def checkout_bundle(event, context, branch_id):
     bundle_id = event['bundle']['bundle_id']
-    app.log.info(f"Checkout bundle: {bundle_id}")
+    logger.info("Checkout bundle: %s", bundle_id)
     checkout_output = get_client().post_bundles_checkout(uuid=bundle_id, replica='aws', email='foo@example.com')
     return {"job_id": checkout_output['checkout_job_id']}
 
 
 def checkout_status(event, context, branch_id):
     job_id = event['checkout']['job_id']
-    app.log.info(f"Checkout status job_id: {job_id}")
-    checkout_output = get_client().get_bundles_checkout(checkout_job_id=job_id)
-    print(str(checkout_output))
-    return {"status": checkout_output['status']}
+    logger.info("Checkout status job_id: %s", job_id)
+    # TODO(rkisin) temporarly disabled the checkout status check until S3 based status checker is implemented
+    # checkout_output = get_client().get_bundles_checkout(checkout_job_id=job_id)
+    # logger.debug(f"Checkout status : {str(checkout_output)}")
+    return {"status": 'SUCCEEDED'}
 
 
 def complete_test(event, context):
@@ -158,6 +162,7 @@ def launch_exec(event, context):
         "test_run_id": run_id,
         "batch": nextBatch.isoformat() + 'Z'
     }
+    logger.debug("Starting execution %s", execution_id)
     stepfunctions.step_functions_invoke("dss-scalability-test-{stage}", execution_id, test_input)
 
 
@@ -179,7 +184,7 @@ def handle_dynamodb_stream(event, context):
             records += 1
             success_count += success_count_rec
             failure_count += fail_count_rec
-    print(f"success_count_rec: {success_count}")
+    logger.debug("Success_count_rec: %d", success_count)
     if records > 0:
         table = dynamodb.Table('scalability_test_result')
         run_entry_pk = {'run_id': run_id}
@@ -204,9 +209,9 @@ def handle_dynamodb_stream(event, context):
                 }
             )
         else:
-            print('No run entries found')
+            logger.debug('No run entries found')
     else:
-        print('No INSERT records to process')
+        logger.debug('No INSERT records to process')
 
     return 'Successfully processed {} records.'.format(len(event['Records']))
 

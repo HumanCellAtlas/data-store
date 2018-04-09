@@ -1,0 +1,41 @@
+{
+  "Version": "2012-10-17",
+  "Statement": [
+    {
+      "Effect": "Allow",
+      "Action": [
+        "logs:CreateLogGroup",
+        "logs:CreateLogStream",
+        "logs:PutLogEvents"
+      ],
+      "Resource": "arn:aws:logs:*:*:*"
+    },
+    {
+      "Effect": "Allow",
+      "Action": [
+        "sqs:Publish",
+        "sqs:ReceiveMessage",
+        "sqs:SendMessage",
+        "sqs:GetQueueUrl",
+        "sqs:DeleteMessage"
+      ],
+      "Resource": [
+        "arn:aws:sqs:*:$account_id:dss-dlq-$stage"
+      ]
+    },
+    {
+      "Effect": "Allow",
+      "Action": "sns:Publish",
+      "Resource": [
+        "arn:aws:sns:*:$account_id:dss-sfn-$stage"
+      ]
+    },
+    {
+      "Effect": "Allow",
+      "Action": [
+        "states:StartExecution"
+      ],
+      "Resource": "arn:aws:states:*:$account_id:*:dss-*"
+    }
+  ]
+}

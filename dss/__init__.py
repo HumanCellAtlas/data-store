@@ -184,10 +184,15 @@ def create_app():
             'parameter': DSSParameterValidator,
         },
     )
+    # The Flask/Connection app's logger has its own multi-line formatter and configuration. Rather than suppressing
+    # it we let it do its thing, give it a special name and only enable it if DSS_DEBUG > 1. Most of the DSS web
+    # app's logging is done through the DSSChaliceApp.app logger not the Flask app's logger.
+    #
     app.app.logger_name = 'dss.api'
     debug = Config.debug_level() > 0
     app.app.debug = debug
     app.app.logger.info('Flask debug is %s.', 'enabled' if debug else 'disabled')
+
     resolver = RestyResolver("dss.api", collection_endpoint_name="list")
     app.add_api('../dss-api.yml', resolver=resolver, validate_responses=True, arguments=os.environ)
     return app

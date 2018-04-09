@@ -1,6 +1,3 @@
-import copy
-import typing
-
 from dss import Config, Replica
 from dss.api import files
 from dss.stepfunctions.lambdaexecutor import TimedThread
@@ -68,33 +65,38 @@ def copy_worker(event, lambda_context):
     return CopyWorkerTimedThread(lambda_context.get_remaining_time_in_millis() / 1000, event).start()
 
 
-retry_default = [
-    {
-        "ErrorEquals": ["States.Timeout", "States.TaskFailed"],
-        "IntervalSeconds": 30,
-        "MaxAttempts": 10,
-        "BackoffRate": 1.618,
-    },
-]
+def _retry_default():
+    return [
+        {
+            "ErrorEquals": ["States.Timeout", "States.TaskFailed"],
+            "IntervalSeconds": 30,
+            "MaxAttempts": 10,
+            "BackoffRate": 1.618,
+        },
+    ]
 
 
-sfn = {
-    "StartAt": "SetupCopyTask",
-    "States": {
-        "SetupCopyTask": {
-            "Type": "Task",
-            "Resource": setup_copy_task,
-            "Next": "Copy",
-            "Retry": copy.deepcopy(retry_default),
-        },
-        "Copy": {
-            "Type": "Task",
-            "Resource": copy_worker,
-            "Retry": copy.deepcopy(retry_default),
-            "End": True,
-        },
+def _sfn():
+    return {
+        "StartAt": "SetupCopyTask",
+        "States": {
+            "SetupCopyTask": {
+                "Type": "Task",
+                "Resource": setup_copy_task,
+                "Next": "Copy",
+                "Retry": _retry_default(),
+            },
+            "Copy": {
+                "Type": "Task",
+                "Resource": copy_worker,
+                "Retry": _retry_default(),
+                "End": True,
+            },
+        }
     }
-}
+
+
+sfn = _sfn()
 
 
 # Public input/output keys for the copy + write-metadata state function.
@@ -117,7 +119,7 @@ def write_metadata(event, lambda_context):
     )
 
 
-copy_write_metadata_sfn = typing.cast(dict, copy.deepcopy(sfn))
+copy_write_metadata_sfn = _sfn()
 
 # tweak to add one more state.
 del copy_write_metadata_sfn['States']['Copy']['End']
