@@ -12,6 +12,8 @@ import mock
 pkg_root = os.path.abspath(os.path.join(os.path.dirname(__file__), '..'))  # noqa
 sys.path.insert(0, pkg_root)  # noqa
 
+from botocore.exceptions import ClientError
+
 import dss
 from dss.logging import configure_test_logging
 from dss.stepfunctions.visitation import Visitation
@@ -141,10 +143,13 @@ class TestVisitationWalker(unittest.TestCase):
         print(f'Visitation integration test replica={replica}, bucket={bucket}, number_of_workers={number_of_workers}')
 
         while True:
-            resp = step_functions_describe_execution('dss-visitation-{stage}', name)
-
-            if 'RUNNING' != resp['status']:
-                break
+            try:
+                resp = step_functions_describe_execution('dss-visitation-{stage}', name)
+                if 'RUNNING' != resp['status']:
+                    break
+            except ClientError as e:
+                if e.response['Error']['Code'] == 'ExecutionDoesNotExist':
+                    print("Execution has not started yet. Retrying soon...")
 
             time.sleep(5)
 
