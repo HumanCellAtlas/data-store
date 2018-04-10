@@ -67,7 +67,7 @@ def step_functions_invoke(state_machine_name_template: str, execution_name: str,
 
 
 def _step_functions_start_execution(state_machine_name_template: str, execution_name: str,
-                                    execution_input) -> typing.Any:
+                                    execution_input: str) -> typing.Any:
     """
     Invoke a step functions state machine.  The name of the state machine to be invoked will be derived from
     `state_machine_name_template`, with string formatting to replace {stage} with the dss deployment stage.
