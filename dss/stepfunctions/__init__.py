@@ -59,7 +59,7 @@ def step_functions_invoke(state_machine_name_template: str, execution_name: str,
         SFN_EXECUTION_KEY: execution_name,
         SFN_INPUT_KEY: json.dumps(input)
     }
-    logger.debug('Sending message: ' + str(message))
+    logger.debug('Sending message: %s', str(message))
 
     response = send_sns_msg(sfn_sns_topic_arn, message, attributes)
 
