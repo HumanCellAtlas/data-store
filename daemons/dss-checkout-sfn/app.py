@@ -70,7 +70,6 @@ def get_job_status(event, context):
 
 @app.step_function_task(state_name="PreExecutionCheck", state_machine_definition=state_machine_def)
 def pre_execution_check(event, context):
-    put_status_started(event["execution_name"])
     dst_bucket = get_dst_bucket(event)
     bundle = event["bundle"]
     version = event["version"]
