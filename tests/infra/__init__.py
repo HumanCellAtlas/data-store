@@ -2,6 +2,8 @@ import inspect
 import os
 import uuid
 
+import time
+
 from .assert_mixin import DSSAssertResponse, DSSAssertMixin, ExpectedErrorFields
 from .storage_mixin import DSSStorageMixin, TestBundle
 from .testmode import integration, standalone
@@ -23,3 +25,12 @@ def generate_test_key() -> str:
     unique_key = str(uuid.uuid4())
 
     return f"{filename}/{info.function}/{unique_key}"
+
+
+class MockLambdaContext:
+
+    def __init__(self, timeout: float=250.0) -> None:
+        self.deadline = time.time() + timeout
+
+    def get_remaining_time_in_millis(self):
+        return int(max(0, self.deadline - time.time()) * 1000)
