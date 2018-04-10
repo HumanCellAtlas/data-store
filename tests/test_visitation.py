@@ -24,8 +24,7 @@ from dss.stepfunctions.visitation import registered_visitations
 from dss.stepfunctions.visitation.timeout import Timeout
 from dss.stepfunctions.visitation import reindex
 
-from tests.infra import get_env, testmode
-
+from tests.infra import get_env, testmode, MockLambdaContext
 
 logger = logging.getLogger(__name__)
 
@@ -259,15 +258,6 @@ class TestVisitationReindex(unittest.TestCase):
                 r = reindex.Reindex._with_state(state, self.context)
                 r.job_initialize()
                 self.assertEquals(num_work_ids, len(set(r.work_ids)))
-
-
-class MockLambdaContext:
-
-    def __init__(self, timeout: float=250.0) -> None:
-        self.deadline = time.time() + timeout
-
-    def get_remaining_time_in_millis(self):
-        return int(max(0, self.deadline - time.time()) * 1000)
 
 
 if __name__ == '__main__':
