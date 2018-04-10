@@ -2,6 +2,7 @@ import logging
 from typing import Sequence, Any, Union
 
 import copy
+import json
 from uuid import uuid4
 from enum import Enum, auto
 
@@ -108,7 +109,7 @@ class Visitation:
             '_number_of_workers': number_of_workers,
         }
         # Invoke directly without reaper/retry
-        _step_functions_start_execution('dss-visitation-{stage}', name, inp)
+        _step_functions_start_execution('dss-visitation-{stage}', name, json.dumps(inp))
 
         return name
 
