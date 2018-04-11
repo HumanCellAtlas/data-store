@@ -19,7 +19,3 @@ endif
 ifeq ($(findstring Python 3.6, $(shell python --version 2>&1)),)
 $(error Please run make commands from a Python 3.6 virtualenv)
 endif
-
-ifeq ($(shell which npm),)
-$(error Please install npm using "brew install node" or as described at https://www.npmjs.com/get-npm)
-endif
