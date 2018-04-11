@@ -39,7 +39,7 @@ class TestConfig(unittest.TestCase):
         Config.set_config(BucketConfig.TEST)
         self.assertEquals(Config.get_s3_checkout_bucket(), os.environ["DSS_S3_CHECKOUT_BUCKET_TEST"])
         Config.set_config(BucketConfig.TEST_FIXTURE)
-        self.assertEquals(Config.get_s3_checkout_bucket(), os.environ["DSS_S3_CHECKOUT_BUCKET_TEST_FIXTURES"])
+        self.assertEquals(Config.get_s3_checkout_bucket(), os.environ["DSS_S3_CHECKOUT_BUCKET_TEST"])
 
     def test_notification_email(self):
         for bucket_config in BucketConfig:
