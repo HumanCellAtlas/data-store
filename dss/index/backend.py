@@ -13,7 +13,7 @@ class IndexBackend(metaclass=ABCMeta):
     An abstract class defining the interface between the data store and a particular document database for the
     purpose of indexing and querying metadata associated with bundles and the files contained in them.
     """
-    def __init__(self, context: LambdaContext, dryrun: bool = False, notify: Optional[bool] = True) -> None:
+    def __init__(self, context: LambdaContext, dryrun: bool = False, notify: Optional[bool] = True, **kwargs) -> None:
         """
         Create a new index backend.
 

@@ -1,17 +1,15 @@
-import ipaddress
 import logging
-import socket
+import os
 from typing import MutableSet
-from urllib.parse import urlparse
 import uuid
 
 from elasticsearch.helpers import scan
-import requests
-from requests_http_signature import HTTPSignatureAuth
 
-from dss import ESDocType, ESIndexType, Config, DeploymentStage
+from dss import ESDocType, ESIndexType, Config
 from dss.index.backend import IndexBackend
 from dss.index.bundle import Bundle, Tombstone
+from dss.notify.notification import Notification
+from dss.notify.notifier import Notifier
 
 from . import elasticsearch_retry, ElasticsearchClient, TIME_NEEDED
 from .document import BundleDocument, BundleTombstoneDocument
@@ -20,6 +18,16 @@ logger = logging.getLogger(__name__)
 
 
 class ElasticsearchIndexBackend(IndexBackend):
+
+    def __init__(self, notify_async: bool = None, *args, **kwargs) -> None:
+        """
+        :param notify_async: If True, enable ansynchronous (and reliable) notifications. If False, disable them.
+                             If None, use external configuration to determine whether to enable them.
+        """
+        super().__init__(*args, **kwargs)
+        if notify_async is None:
+            notify_async = Config.notification_is_async()
+        self.notifier = Notifier.from_config() if notify_async else None
 
     @elasticsearch_retry(logger)
     def index_bundle(self, bundle: Bundle):
@@ -65,7 +73,6 @@ class ElasticsearchIndexBackend(IndexBackend):
     def _notify_subscribers(self, bundle: BundleDocument, subscription_ids: MutableSet[str]):
         for subscription_id in subscription_ids:
             try:
-                # TODO Batch this request
                 subscription = self._get_subscription(bundle, subscription_id)
                 self._notify_subscriber(bundle, subscription)
             except Exception:
@@ -94,48 +101,35 @@ class ElasticsearchIndexBackend(IndexBackend):
         return subscription
 
     def _notify_subscriber(self, doc: BundleDocument, subscription: dict):
-        subscription_id = subscription['id']
         transaction_id = str(uuid.uuid4())
-        payload = {
-            "transaction_id": transaction_id,
-            "subscription_id": subscription_id,
-            "es_query": subscription['es_query'],
-            "match": {
-                "bundle_uuid": doc.fqid.uuid,
-                "bundle_version": doc.fqid.version,
-            }
-        }
+        subscription_id = subscription['id']
         callback_url = subscription['callback_url']
-
-        # FIXME wrap all errors in this block with an exception handler
-        if DeploymentStage.IS_PROD():
-            allowed_schemes = {'https'}
+        payload = {'transaction_id': transaction_id,
+                   'subscription_id': subscription_id,
+                   'es_query': subscription['es_query'],
+                   'match': {
+                       'bundle_uuid': doc.fqid.uuid,
+                       'bundle_version': doc.fqid.version}}
+        try:
+            hmac_key = subscription['hmac_secret_key']
+        except KeyError:
+            hmac_key = None
+            hmac_key_id = None
         else:
-            allowed_schemes = {'https', 'http'}
+            hmac_key = hmac_key.encode()
+            hmac_key_id = subscription.get('hmac_key_id', "hca-dss:" + subscription_id)
 
-        assert urlparse(callback_url).scheme in allowed_schemes, "Unexpected scheme for callback URL"
-
-        if DeploymentStage.IS_PROD():
-            hostname = urlparse(callback_url).hostname
-            for family, socktype, proto, canonname, sockaddr in socket.getaddrinfo(hostname, port=None):
-                msg = "Callback hostname resolves to forbidden network"
-                assert ipaddress.ip_address(sockaddr[0]).is_global, msg  # type: ignore
-
-        auth = None
-        if "hmac_secret_key" in subscription:
-            auth = HTTPSignatureAuth(key=subscription['hmac_secret_key'].encode(),
-                                     key_id=subscription.get("hmac_key_id", "hca-dss:" + subscription_id))
-        response = requests.post(callback_url, json=payload, auth=auth)
-
-        # TODO (mbaumann) Add webhook retry logic
-        if 200 <= response.status_code < 300:
-            logger.info(f"Successfully notified for subscription {subscription_id}"
-                        f" for bundle {doc.fqid} with transaction id {transaction_id} "
-                        f"Code: {response.status_code}")
+        notification = Notification.from_scratch(notification_id=transaction_id,
+                                                 subscription_id=subscription_id,
+                                                 url=callback_url, payload=payload,
+                                                 hmac_key=hmac_key,
+                                                 hmac_key_id=hmac_key_id)
+        if self.notifier:
+            logger.info(f"Queing asynchronous notification {notification} for bundle {doc.fqid}")
+            self.notifier.enqueue(notification)
         else:
-            logger.warning(f"Failed notification for subscription {subscription_id}"
-                           f" for bundle {doc.fqid} with transaction id {transaction_id} "
-                           f"Code: {response.status_code}")
+            logger.info(f"Synchronously sending notification {notification} about bundle {doc.fqid}")
+            notification.deliver_or_raise()
 
     def _is_enough_time(self):
         if self.context.get_remaining_time_in_millis() / 1000 <= TIME_NEEDED:

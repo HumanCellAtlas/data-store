@@ -24,7 +24,7 @@ class DeploymentStageMeta(EnumMeta):
             trailer = item[len(DeploymentStageMeta._MAGIC_PREFIX):]
             attr = getattr(DeploymentStage, trailer, None)
             if isinstance(attr, DeploymentStage):
-                return lambda: os.environ["DSS_DEPLOYMENT_STAGE"] == attr.value
+                return lambda: Config.deployment_stage() == attr.value
         raise AttributeError(item)
 
 
@@ -245,12 +245,15 @@ class Config:
                            index_type: ESIndexType,
                            replica: 'Replica',
                            suffix: typing.Optional[str] = None) -> str:
-        deployment_stage = os.environ["DSS_DEPLOYMENT_STAGE"]
-        index = f"dss-{deployment_stage}-{replica.name}-{index_type.name}"
+        index = f"dss-{cls.deployment_stage()}-{replica.name}-{index_type.name}"
         if suffix:
             index = f"{index}-{suffix}"
         index += cls.test_index_suffix.value
         return index
+
+    @classmethod
+    def deployment_stage(cls):
+        return os.environ['DSS_DEPLOYMENT_STAGE']
 
     @staticmethod
     def _clear_cached_bucket_config():
@@ -286,6 +289,40 @@ class Config:
         * 2 should enable verbose output by the application and its dependencies
         """
         return int(os.environ.get('DSS_DEBUG', '0'))
+
+    @classmethod
+    def notification_is_async(cls) -> bool:
+        """
+        True, if notifications should be performed asynchronously and reliably (with retries on failures).
+
+        False, if notifications should be performed synchronously and without any retries.
+        """
+        return cls.notification_attempts() > 0
+
+    @classmethod
+    def notification_attempts(cls) -> int:
+        """
+        The maximum number of asynchronous notification attempts or 0 if notifications should be performed
+        synchronously.
+        """
+        attempts = os.environ.get('DSS_NOTIFY_ATTEMPTS')
+        return int(attempts) if attempts else len(cls.notification_delays())
+
+    @classmethod
+    def notification_delays(cls) -> typing.List[float]:
+        """
+        A list of delays between asynchronous notification attempts. See :py:meth:`dss.notify.Notifier.__init__`.
+        """
+        return list(map(float, os.environ.get('DSS_NOTIFY_DELAYS', "").split()))
+
+    @classmethod
+    def notification_workers(cls) -> typing.Optional[int]:
+        """
+        The number of worker threads used by the asynchronous notifier or None if the number of workers should be
+        determined automatically. See :py:meth:`dss.notify.Notifier.__init__`
+        """
+        value = os.environ.get('DSS_NOTIFY_WORKERS')
+        return int(value) if value else None
 
 
 class Replica(Enum):

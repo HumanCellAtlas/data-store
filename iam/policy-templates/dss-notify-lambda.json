@@ -1,0 +1,42 @@
+{
+  "Version": "2012-10-17",
+  "Statement": [
+    {
+      "Effect": "Allow",
+      "Action": [
+        "logs:CreateLogGroup",
+        "logs:CreateLogStream",
+        "logs:DescribeLogGroups",
+        "logs:DescribeLogStreams",
+        "logs:PutLogEvents"
+      ],
+      "Resource": "arn:aws:logs:*:*:*"
+    },
+    {
+      "Effect": "Allow",
+      "Action": [
+        "sqs:CreateQueue",
+        "sqs:DeleteQueue",
+        "sqs:ChangeMessageVisibility*",
+        "sqs:DeleteMessage*",
+        "sqs:GetQueueAttributes",
+        "sqs:GetQueueUrl",
+        "sqs:ReceiveMessage",
+        "sqs:SendMessage",
+        "sqs:SetQueueAttributes"
+      ],
+      "Resource": [
+        "arn:aws:sqs:*:$account_id:dss-notify-$stage-*"
+      ]
+    },
+    {
+      "Effect": "Allow",
+      "Action": [
+        "sqs:ListQueues"
+      ],
+      "Resource": [
+        "arn:aws:sqs:*:$account_id:*"
+      ]
+    }
+  ]
+}
