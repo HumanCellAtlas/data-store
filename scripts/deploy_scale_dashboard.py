@@ -133,6 +133,27 @@ dashboard_def = {
             "type": "metric",
             "x": 0,
             "y": 4,
+            "width": 18,
+            "height": 6,
+            "properties": {
+                "view": "timeSeries",
+                "stacked": False,
+                "metrics": [
+                    ["AWS/Lambda", "ConcurrentExecutions", {"period": 300, "stat": "Average"}],
+                    [".", "Errors", {"period": 300, "stat": "Average"}],
+                    [".", "Invocations", {"period": 300, "stat": "Average"}],
+                    [".", "Throttles", {"period": 300, "stat": "Average"}],
+                    [".", "UnreservedConcurrentExecutions", {"period": 300, "stat": "Average"}]
+                ],
+                "region": region,
+                "period": 300,
+                "title": "All Lambdas"
+            }
+        },
+        {
+            "type": "metric",
+            "x": 0,
+            "y": 5,
             "width": full_width,
             "height": 6,
             "styles": "undefined",
@@ -161,7 +182,86 @@ dashboard_def = {
         {
             "type": "metric",
             "x": 0,
-            "y": 12,
+            "y": 6,
+            "width": full_width,
+            "height": 6,
+            "styles": "undefined",
+            "properties": {
+                "view": "timeSeries",
+                "stacked": False,
+                "metrics": [
+                    ["AWS/Lambda", "Duration", "FunctionName", "dss-checkout-sfn-roman"],
+                    ["...", f"dss-dlq-reaper-{stage}"],
+                    ["...", f"dss-gs-copy-sfn-{stage}"],
+                    ["...", f"dss-gs-copy-write-metadata-sfn-{stage}"],
+                    ["...", f"dss-index-{stage}"],
+                    ["...", f"dss-{stage}"],
+                    ["...", f"dss-s3-copy-sfn-{stage}"],
+                    ["...", f"dss-s3-copy-write-metadata-sfn-{stage}"],
+                    ["...", f"dss-scalability-test-{stage}"],
+                    ["...", f"dss-sfn-launcher-{stage}"],
+                    ["...", f"dss-sfn-{stage}"],
+                    ["...", f"dss-sync-{stage}"]
+                ],
+                "region": region,
+                "title": "Lambda duration"
+            }
+        },
+        {
+            "type": "metric",
+            "x": 0,
+            "y": 7,
+            "width": full_width,
+            "height": 6,
+            "properties": {
+                "view": "timeSeries",
+                "stacked": True,
+                "metrics": [
+                    ["AWS/ApiGateway", "Count", "ApiName", "dss", "Resource", "/v1/bundles/{uuid}/checkout", "Stage",
+                     stage, "Method", "POST", {"stat": "Sum", "period": 60}],
+                    ["...", "/v1/bundles/checkout/{checkout_job_id}", ".", ".", ".", "GET",
+                     {"stat": "Sum", "period": 60}],
+                    ["...", "/v1/bundles/{uuid}", ".", ".", ".", "PUT", {"stat": "Sum", "period": 60}],
+                    ["...", "/v1/files/{uuid}", ".", ".", ".", "HEAD", {"stat": "Sum", "period": 60}],
+                    ["...", "/v1/bundles/{uuid}", ".", ".", ".", "GET", {"stat": "Sum", "period": 60}],
+                    ["...", "/v1/files/{uuid}", ".", ".", ".", "PUT", {"stat": "Sum", "period": 60}],
+                    ["...", "GET", {"stat": "Sum", "period": 60}],
+                    ["...", "/v1/swagger.json", ".", ".", ".", ".", {"stat": "Sum", "period": 60}]
+                ],
+                "region": region,
+                "title": "API Gateway",
+                "period": 300
+            }
+        },
+        {
+            "type": "metric",
+            "x": 0,
+            "y": 8,
+            "width": full_width,
+            "height": 6,
+            "properties": {
+                "view": "timeSeries",
+                "stacked": True,
+                "metrics": [
+                    ["AWS/ApiGateway", "Latency", "ApiName", "dss", "Resource",
+                     "/v1/bundles/checkout/{checkout_job_id}", "Stage", stage, "Method", "GET"],
+                    ["...", "/v1/bundles/{uuid}/checkout", ".", ".", ".", "POST"],
+                    ["...", "/v1/files/{uuid}", ".", ".", ".", "PUT"],
+                    ["...", "GET"],
+                    ["...", "HEAD"],
+                    ["...", "/v1/bundles/{uuid}", ".", ".", ".", "PUT"],
+                    ["...", "/v1/swagger.json", ".", ".", ".", "GET"],
+                    ["...", "/v1/bundles/{uuid}", ".", ".", ".", "."]
+                ],
+                "region": region,
+                "title": "API Gateway (Latency)",
+                "period": 300
+            }
+        },
+        {
+            "type": "metric",
+            "x": 0,
+            "y": 9,
             "width": full_width,
             "height": 6,
             "properties": {
@@ -182,25 +282,41 @@ dashboard_def = {
         },
         {
             "type": "metric",
-            "x": 12,
-            "y": 24,
-            "width": 6,
-            "height": 6,
+            "x": 0,
+            "y": 10,
+            "width": full_width,
+            "height": 3,
             "properties": {
                 "view": "timeSeries",
                 "stacked": False,
-                "metrics": [
-                    ["AWS/DynamoDB", "ConsumedWriteCapacityUnits", "TableName", "scalability_test"],
-                    [".", "ConsumedReadCapacityUnits", ".", "."]
-                ],
+                "metrics": get_metrics_array(upload_bundle_arn_prefix, LAMBDA_METRIC_RUNTIME, 10),
                 "region": region,
-                "title": "Dynamo DB"
+                "title": "Bundle upload runtime",
+                "period": 300
             }
         },
         {
             "type": "metric",
             "x": 0,
-            "y": 9,
+            "y": 11,
+            "width": full_width,
+            "height": 3,
+            "properties": {
+                "view": "timeSeries",
+                "stacked": False,
+                "metrics": [
+                    ["AWS/States", "ExecutionTime", "StateMachineArn",
+                     dss_s3_copy_arn, {"period": 10}]
+                ],
+                "region": region,
+                "title": "Copy Execution Time",
+                "period": 300
+            }
+        },
+        {
+            "type": "metric",
+            "x": 0,
+            "y": 12,
             "width": full_width,
             "height": 3,
             "properties": {
@@ -260,39 +376,6 @@ dashboard_def = {
         {
             "type": "metric",
             "x": 0,
-            "y": 3,
-            "width": full_width,
-            "height": 3,
-            "properties": {
-                "view": "timeSeries",
-                "stacked": False,
-                "metrics": get_metrics_array(upload_bundle_arn_prefix, LAMBDA_METRIC_RUNTIME, 10),
-                "region": region,
-                "title": "Bundle upload runtime",
-                "period": 300
-            }
-        },
-        {
-            "type": "metric",
-            "x": 0,
-            "y": 6,
-            "width": full_width,
-            "height": 3,
-            "properties": {
-                "view": "timeSeries",
-                "stacked": False,
-                "metrics": [
-                    ["AWS/States", "ExecutionTime", "StateMachineArn",
-                     dss_s3_copy_arn, {"period": 10}]
-                ],
-                "region": region,
-                "title": "Copy Execution Time",
-                "period": 300
-            }
-        },
-        {
-            "type": "metric",
-            "x": 0,
             "y": 24,
             "width": 12,
             "height": 6,
@@ -309,7 +392,25 @@ dashboard_def = {
                 "period": 300,
                 "title": "Elastic search"
             }
+        },
+        {
+            "type": "metric",
+            "x": 12,
+            "y": 24,
+            "width": 6,
+            "height": 6,
+            "properties": {
+                "view": "timeSeries",
+                "stacked": False,
+                "metrics": [
+                    ["AWS/DynamoDB", "ConsumedWriteCapacityUnits", "TableName", "scalability_test"],
+                    [".", "ConsumedReadCapacityUnits", ".", "."]
+                ],
+                "region": region,
+                "title": "Dynamo DB"
+            }
         }
+
     ]
 }
 
