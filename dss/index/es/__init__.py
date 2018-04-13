@@ -16,6 +16,8 @@ from dss.util.retry import retry
 
 logger = logging.getLogger(__name__)
 
+TIME_NEEDED = 15
+TIMEOUT = 60
 
 class AWSV4Sign(requests.auth.AuthBase):
     """
@@ -101,7 +103,7 @@ def _retry_delay(i, delay):
 class elasticsearch_retry(retry):
     # noinspection PyShadowingNames
     def __init__(self, logger) -> None:
-        super().__init__(timeout=60,  # seconds
+        super().__init__(timeout=TIMEOUT,  # seconds
                          limit=10,  # retries
                          inherit=True,  # nested retries should obey the outer-most retry's timeout
                          retryable=_retryable_exception,

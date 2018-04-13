@@ -38,7 +38,7 @@ from dss.storage.identifiers import BundleFQID, ObjectIdentifier
 from dss.util import UrlBuilder, create_blob_key, networking, RequirementError
 from dss.util.version import datetime_to_version_format
 from tests import eventually, get_auth_header, get_bundle_fqid, get_file_fqid, get_version
-from tests.infra import DSSAssertMixin, DSSStorageMixin, DSSUploadMixin, TestBundle, testmode
+from tests.infra import DSSAssertMixin, DSSStorageMixin, DSSUploadMixin, TestBundle, testmode, MockLambdaContext
 from tests.infra.elasticsearch_test_case import ElasticsearchTestCase
 from tests.infra.server import ThreadedLocalServer
 from tests.sample_search_queries import (smartseq2_paired_ends_v2_or_v3_query, smartseq2_paired_ends_v3_or_v4_query,
@@ -109,7 +109,7 @@ class TestIndexerBase(ElasticsearchTestCase, DSSAssertMixin, DSSStorageMixin, DS
 
     def setUp(self):
         super().setUp()
-        backend = CompositeIndexBackend(self.executor, DEFAULT_BACKENDS)
+        backend = CompositeIndexBackend(self.executor, DEFAULT_BACKENDS, context=MockLambdaContext())
         self.indexer = self.indexer_cls(backend)
         self.dss_alias_name = dss.Config.get_es_alias_name(dss.ESIndexType.docs, self.replica)
         self.subscription_index_name = dss.Config.get_es_index_name(dss.ESIndexType.subscriptions, self.replica)
@@ -353,6 +353,13 @@ class TestIndexerBase(ElasticsearchTestCase, DSSAssertMixin, DSSStorageMixin, DS
         self.assertRegex(
             log_monitor.output[-1],
             f".* This bundle will not be indexed. Bundle: .*, File Blob Key: .*, File Name: '{inaccesssible_filename}'")
+
+    def test_not_enough_time_to_index(self):
+        backend = CompositeIndexBackend(self.executor, DEFAULT_BACKENDS, context=MockLambdaContext(0))
+        self.indexer = self.indexer_cls(backend)
+        sample_event = self.create_bundle_created_event(self.bundle_key)
+        with self.assertRaises(RuntimeError):
+            self.process_new_indexable_object(sample_event)
 
     def test_notify(self):
         def _notify(subscription, bundle_id=get_bundle_fqid()):

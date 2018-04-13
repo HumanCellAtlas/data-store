@@ -47,7 +47,7 @@ def _handle_event(replica, event, context):
     executor = ThreadPoolExecutor(len(DEFAULT_BACKENDS))
     # We can't use ecxecutor as context manager because we don't want the shutdown to block
     try:
-        backend = CompositeIndexBackend(executor, DEFAULT_BACKENDS, timeout=timeout)
+        backend = CompositeIndexBackend(executor, DEFAULT_BACKENDS, timeout=timeout, context=context)
         indexer_cls = Indexer.for_replica(replica)
         indexer = indexer_cls(backend)
         indexer.process_new_indexable_object(event)
