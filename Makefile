@@ -72,6 +72,12 @@ deploy-daemons-serial:
 deploy-daemons-parallel:
 	$(MAKE) -C daemons deploy-parallel
 
+create-github-deployment:
+	$(eval REMOTE=$(shell git remote get-url origin | perl -ne '/([^\/\:]+\/.+?)(\.git)?$$/; print $$1'))
+	$(eval BRANCH=$(shell git rev-parse --abbrev-ref HEAD))
+	$(eval DEPLOY_API=https://api.github.com/repos/$(REMOTE)/deployments)
+	http POST $(DEPLOY_API) Authorization:"Bearer $(GH_TOKEN)" ref=$(BRANCH) environment=dev auto_merge:=false
+
 release_integration:
 	scripts/release.sh master integration
 
