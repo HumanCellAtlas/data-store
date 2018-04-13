@@ -77,6 +77,13 @@ def put(uuid: str, replica: str, json_request_body: dict, version: str = None):
                     file_metadata = handle.get(bucket, metadata_key)
                 except BlobNotFoundError:
                     continue
+                file_metadata_dict = json.loads(file_metadata)
+                if uuid != file_metadata_dict['bundle_uuid']:
+                    raise DSSException(
+                        requests.codes.conflict,
+                        "incorrect_file_bundle_uuid",
+                        f"File bundle_uuid {file_metadata_dict['bundle_uuid']} does not equal bundle uuid {uuid}"
+                    )
                 file['file_metadata'] = json.loads(file_metadata)
 
         # check to see if any file metadata is still not yet loaded.
@@ -97,8 +104,6 @@ def put(uuid: str, replica: str, json_request_body: dict, version: str = None):
             "file_missing",
             f"Could not find file {missing_file_user_metadata['uuid']}/{missing_file_user_metadata['version']}."
         )
-
-    # TODO: (ttung) should validate the files' bundle UUID points back at us.
 
     # build a manifest consisting of all the files.
     bundle_metadata = {
