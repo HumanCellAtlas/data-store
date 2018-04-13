@@ -46,7 +46,7 @@ class TestFileApi(unittest.TestCase, DSSAssertMixin, DSSUploadMixin):
         for replica in Replica:
             non_existent_bundle_uuid = "011c7340-9b3c-4d62-bf49-090d79daf111"
             version = "2017-06-20T214506.766634Z"
-            request_body = {"destination": replica.checkout_bucket}
+            request_body = {"destination": replica.checkout_bucket, "email": "rkisin@chanzuckerberg.com"}
 
             url = str(UrlBuilder()
                       .set(path="/v1/bundles/" + non_existent_bundle_uuid + "/checkout")
@@ -66,7 +66,7 @@ class TestFileApi(unittest.TestCase, DSSAssertMixin, DSSUploadMixin):
         bundle_uuid = "011c7340-9b3c-4d62-bf49-090d79daf198"
         version = "2017-06-20T214506.766634Z"
         for replica in Replica:
-            request_body = {"destination": replica.checkout_bucket}
+            request_body = {"destination": replica.checkout_bucket, "email": "rkisin@chanzuckerberg.com"}
 
             url = str(UrlBuilder()
                       .set(path="/v1/bundles/" + bundle_uuid + "/checkout")
@@ -83,7 +83,7 @@ class TestFileApi(unittest.TestCase, DSSAssertMixin, DSSUploadMixin):
     def launch_checkout(self, dst_bucket: str, replica: Replica) -> str:
         bundle_uuid = "011c7340-9b3c-4d62-bf49-090d79daf198"
         version = "2017-06-20T214506.766634Z"
-        request_body = {"destination": dst_bucket}
+        request_body = {"destination": dst_bucket, "email": "rkisin@chanzuckerberg.com"}
 
         url = str(UrlBuilder()
                   .set(path="/v1/bundles/" + bundle_uuid + "/checkout")

@@ -86,13 +86,12 @@ def pre_execution_check(event, context):
 @app.step_function_task(state_name="Notify", state_machine_definition=state_machine_def)
 def notify_complete(event, context):
     replica = Replica[event["replica"]]
-    if event["email"]:
-        result = send_checkout_success_email(email_sender, event["email"], get_dst_bucket(event),
-                                             event["schedule"]["dst_location"], replica)
+    result = send_checkout_success_email(email_sender, event["email"], get_dst_bucket(event),
+                                         event["schedule"]["dst_location"], replica)
     # record results of execution into S3
     put_status_succeeded(event['execution_name'], replica, get_dst_bucket(event),
                          event["schedule"]["dst_location"])
-    return {"result": result} if result else {}
+    return {"result": result}
 
 
 @app.step_function_task(state_name="NotifyFailure", state_machine_definition=state_machine_def)
@@ -103,11 +102,10 @@ def notify_complete_failure(event, context):
     elif "validation" in event:
         checkout_status = event["validation"].get("checkout_status", "Unknown error code")
         cause = "{} ({})".format(event["validation"].get("cause", "Unknown error"), checkout_status)
-    if event["email"]:
-        result = send_checkout_failure_email(email_sender, event["email"], cause)
+    result = send_checkout_failure_email(email_sender, event["email"], cause)
     # record results of execution into S3
     put_status_failed(event['execution_name'], cause)
-    return {"result": result} if result else {}
+    return {"result": result}
 
 
 def get_dst_bucket(event):
