@@ -92,8 +92,7 @@ class Smoketest(unittest.TestCase):
         file_count = int(get_upload_val(".files | length"))
         run(f"{venv_bin}hca dss post-bundles-checkout "
             "--uuid $(jq -r .bundle_uuid upload.json) "
-            "--replica aws "
-            f"--email {shlex.quote(Config.get_notification_email())} > res.json")
+            "--replica aws > res.json")
         with open("res.json") as fh:
             res_checkout = json.load(fh)
             print(f"Checkout jobId: {res_checkout['checkout_job_id']}")
