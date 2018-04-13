@@ -63,7 +63,8 @@ class Reindex(Visitation):
         executor = ThreadPoolExecutor(len(DEFAULT_BACKENDS))
         # We can't use executor as context manager because we don't want shutting it down to block
         try:
-            backend = CompositeIndexBackend(executor, DEFAULT_BACKENDS, dryrun=self.dryrun, notify=self.notify)
+            backend = CompositeIndexBackend(executor, DEFAULT_BACKENDS, dryrun=self.dryrun, notify=self.notify,
+                                            context=self._context)
             indexer_cls = Indexer.for_replica(Replica[self.replica])
             indexer = indexer_cls(backend)
 

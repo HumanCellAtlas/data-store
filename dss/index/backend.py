@@ -5,6 +5,7 @@ from abc import ABCMeta, abstractmethod
 from operator import methodcaller
 
 from dss.index.bundle import Bundle, Tombstone
+from dss.util.types import LambdaContext
 
 
 class IndexBackend(metaclass=ABCMeta):
@@ -12,7 +13,7 @@ class IndexBackend(metaclass=ABCMeta):
     An abstract class defining the interface between the data store and a particular document database for the
     purpose of indexing and querying metadata associated with bundles and the files contained in them.
     """
-    def __init__(self, dryrun: bool = False, notify: Optional[bool] = True) -> None:
+    def __init__(self, context: LambdaContext, dryrun: bool = False, notify: Optional[bool] = True) -> None:
         """
         Create a new index backend.
 
@@ -24,6 +25,7 @@ class IndexBackend(metaclass=ABCMeta):
         """
         self.dryrun = dryrun
         self.notify = notify
+        self.context = context
 
     @abstractmethod
     def index_bundle(self, bundle: Bundle):
@@ -83,7 +85,7 @@ class CompositeIndexBackend(IndexBackend):
     def timeout(self):
         """
         The time in which concurrently executed operations have to be completed by all underlying backends. If a
-        backend operation does not complete within the specified timeout, an exceptions will be raised. A value of
+        backend operation does not complete within the specified timeout, an exception will be raised. A value of
         None disables the timeout, potentially causing the calling thread to block forever.
         """
         return self._timeout
