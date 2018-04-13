@@ -11,18 +11,19 @@ dss_bucket = Config.get_s3_bucket()
 
 @dss_handler
 def post(uuid: str, json_request_body: dict, replica: str, version: str = None):
-    email = json_request_body['email']
 
     assert replica is not None
 
     bundle = get_bundle(uuid, Replica[replica], version)
-
     execution_id = get_execution_id()
 
     sfn_input = {"dss_bucket": dss_bucket, "bundle": uuid, "version": bundle["bundle"]["version"],
-                 "email": email, "replica": replica, "execution_name": execution_id}
+                 "replica": replica, "execution_name": execution_id}
     if "destination" in json_request_body:
         sfn_input["bucket"] = json_request_body["destination"]
+
+    if "email" in json_request_body:
+        sfn_input["email"] = json_request_body["email"]
 
     put_status_started(execution_id)
 
