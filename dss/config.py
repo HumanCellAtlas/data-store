@@ -191,7 +191,7 @@ class Config:
             elif Config._CURRENT_CONFIG == BucketConfig.TEST:
                 envvar = "DSS_GS_CHECKOUT_BUCKET_TEST"
             elif Config._CURRENT_CONFIG == BucketConfig.TEST_FIXTURE:
-                envvar = "DSS_GS_CHECKOUT_BUCKET_TEST_FIXTURES"
+                envvar = "DSS_GS_CHECKOUT_BUCKET_TEST"
             elif Config._CURRENT_CONFIG == BucketConfig.ILLEGAL:
                 raise Exception("bucket config not set")
 
