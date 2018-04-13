@@ -56,7 +56,6 @@ Run `source environment`  now and whenever these environment files are modified.
 
    * DSS_S3_CHECKOUT_BUCKET
    * DSS_S3_CHECKOUT_BUCKET_TEST
-   * DSS_S3_CHECKOUT_BUCKET_TEST_FIXTURES
 
 4. If you wish to run the unit tests, you must create two more S3 buckets, one for test data and another for test
    fixtures, and set the environment variables `DSS_S3_BUCKET_TEST` and `DSS_S3_BUCKET_TEST_FIXTURES` to the names of
@@ -113,7 +112,6 @@ Hint: To create S3 buckets from the command line, use `aws s3 mb --region REGION
 
    * DSS_GS_CHECKOUT_BUCKET
    * DSS_GS_CHECKOUT_BUCKET_TEST
-   * DSS_GS_CHECKOUT_BUCKET_TEST_FIXTURES
 
 11. If you wish to run the unit tests, you must create two more buckets, one for test data and another for test
     fixtures, and set the environment variables `DSS_GS_BUCKET_TEST` and `DSS_GS_BUCKET_TEST_FIXTURES` to the names of
