@@ -83,7 +83,7 @@ class CompositeIndexBackend(IndexBackend):
     def timeout(self):
         """
         The time in which concurrently executed operations have to be completed by all underlying backends. If a
-        backend operation does not complete within the specified timeout, and exceptions will be raised. A value of
+        backend operation does not complete within the specified timeout, an exceptions will be raised. A value of
         None disables the timeout, potentially causing the calling thread to block forever.
         """
         return self._timeout

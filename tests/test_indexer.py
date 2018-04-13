@@ -344,20 +344,15 @@ class TestIndexerBase(ElasticsearchTestCase, DSSAssertMixin, DSSStorageMixin, DS
             "fixtures/indexing/bundles/v3/smartseq2/paired_ends", inaccesssible_filename, "application/json", True)
         sample_event = self.create_bundle_created_event(bundle_key)
         with self.assertLogs(dss.logger, level="WARNING") as log_monitor:
-            self.process_new_indexable_object(sample_event)
+            with self.assertRaises(RuntimeError):
+                self.process_new_indexable_object(sample_event)
         self.assertRegex(
             log_monitor.output[0],
-            f"WARNING:.*:In bundle .* the file '{inaccesssible_filename}' is marked for indexing"
-            " yet could not be accessed. This file will not be indexed. Exception: .*, file blob key:",
-        )
-
-        search_results = self.get_search_results(self.smartseq2_paired_ends_query, 1)
-        self.assertEqual(1, len(search_results))
-        files = list(smartseq2_paried_ends_indexed_file_list)
-        files.append(inaccesssible_filename.replace(".", "_"))
-        self.verify_index_document_structure_and_content(search_results[0], bundle_key,
-                                                         files=files,
-                                                         excluded_files=[inaccesssible_filename.replace(".", "_")])
+            f"WARNING:.*:In bundle .* the file '{inaccesssible_filename}' is marked for indexing yet could not be "
+            f"accessed. Retrying.")
+        self.assertRegex(
+            log_monitor.output[-1],
+            f".* This bundle will not be indexed. Bundle: .*, File Blob Key: .*, File Name: '{inaccesssible_filename}'")
 
     def test_notify(self):
         def _notify(subscription, bundle_id=get_bundle_fqid()):
