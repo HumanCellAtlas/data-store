@@ -693,7 +693,10 @@ paths:
                       The code `file_missing` indicates that one of the files does not exist on the cloud provider.
                       Because the storage backend only guarantees eventual consistency, it may be desirable to retry
                       requests that return this error code.
-                    enum: [bundle_already_exists, file_missing]
+
+                      The code `incorrect_file_bundle_uuid` indicates that the value of the file metadata field
+                      bundle_uuid does not match the uuid of the bundle.
+                    enum: [bundle_already_exists, file_missing, incorrect_file_bundle_uuid]
                 required:
                   - code
         default:
