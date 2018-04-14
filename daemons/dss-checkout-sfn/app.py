@@ -37,7 +37,7 @@ def schedule_copy(event, context):
 
     scheduled = 0
     for src_key, dst_key in get_manifest_files(bundle_fqid, version, replica):
-        logger.debug("Copying a file %s", dst_key)
+        logger.info("Schedule copying a file %s to bucket %s", dst_key, dss_bucket)
         parallel_copy(dss_bucket, src_key, dst_bucket, dst_key, replica)
         scheduled += 1
     return {"files_scheduled": scheduled,
@@ -64,6 +64,8 @@ def get_job_status(event, context):
 
     checkout_status = "SUCCESS" if complete_count == total_count else "IN_PROGRESS"
     check_count += 1
+    logger.info("Check copy status for checkout jobId %s , check  count %d , status %s", event['execution_name'],
+                check_count, checkout_status)
     return {"complete_count": complete_count, "total_count": total_count, "check_count": check_count,
             "checkout_status": checkout_status}
 
@@ -75,6 +77,9 @@ def pre_execution_check(event, context):
     version = event["version"]
     dss_bucket = event["dss_bucket"]
     replica = Replica[event["replica"]]
+
+    logger.info("Pre-execution check job_id %s for bundle %s version %s replica %s", event['execution_name'],
+                bundle, version, replica)
 
     checkout_status, cause = pre_exec_validate(dss_bucket, dst_bucket, replica, bundle, version)
     result = {"checkout_status": checkout_status.name.upper()}
@@ -93,6 +98,7 @@ def notify_complete(event, context):
     # record results of execution into S3
     put_status_succeeded(event['execution_name'], replica, get_dst_bucket(event),
                          event["schedule"]["dst_location"])
+    logger.info("Checkout completed successfully jobId %s", event['execution_name'])
     return {"result": result}
 
 
@@ -109,6 +115,7 @@ def notify_complete_failure(event, context):
         result = send_checkout_failure_email(email_sender, event["email"], cause)
     # record results of execution into S3
     put_status_failed(event['execution_name'], cause)
+    logger.info("Checkout failed jobId %s", event['execution_name'])
     return {"result": result}
 
 
