@@ -160,7 +160,6 @@ class TestBundleApi(unittest.TestCase, DSSAssertMixin, DSSUploadMixin):
         schema = replica.storage_schema
 
         bundle_uuid = str(uuid.uuid4())
-        incorrect_bundle_uuid = str(uuid.uuid4())
         file_uuid = str(uuid.uuid4())
         missing_file_uuid = str(uuid.uuid4())
         resp_obj = self.upload_file_wait(
@@ -213,18 +212,11 @@ class TestBundleApi(unittest.TestCase, DSSAssertMixin, DSSUploadMixin):
 
         # should *NOT* be able to upload a bundle containing a file with an incorrect bundle_uuid
         # but we should get requests.codes.conflict
-        resp_obj = self.upload_file_wait(
-            f"{schema}://{fixtures_bucket}/test_good_source_data/0",
-            replica,
-            file_uuid,
-            bundle_uuid=incorrect_bundle_uuid,
-        )
-        inc_file_version = resp_obj.json['version']
         with nestedcontext.bind(time_left=lambda: 0):
             resp_obj = self.put_bundle(
                 replica,
-                bundle_uuid,
-                [(file_uuid, inc_file_version, "LICENSE")],
+                str(uuid.uuid4()),  # uploading new bundle with old file
+                [(file_uuid, file_version, "LICENSE")],
                 datetime_to_version_format(datetime.datetime.utcnow()),
                 expected_code=requests.codes.conflict,
             )
