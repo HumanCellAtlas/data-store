@@ -54,49 +54,41 @@ class Bundle:
         files_info_original = manifest[BundleMetadata.FILES]
         assert isinstance(files_info_original, list)
         files_info = deque((file, 0) for file in files_info_original if file[BundleFileMetadata.INDEXED] is True)
-        time_wait = 10  # time in sec
-        max_attempts = 5
         index_files = {}
         while len(files_info) != 0:
             file_info, attempts = files_info.popleft()
             content_type = file_info[BundleFileMetadata.CONTENT_TYPE]
             file_name = file_info[BundleFileMetadata.NAME]
-            if not content_type.startswith('application/json'):
+            if content_type.startswith('application/json'):
+                file_blob_key = create_blob_key(file_info)
+                try:
+                    file_string = handle.get(bucket_name, file_blob_key).decode("utf-8")
+                except BlobStoreError as ex:
+                    if attempts < 5:
+                        logger.warning(f"In bundle {fqid} the file '{file_name}' is marked for indexing yet could "
+                                       f"not be accessed. Retrying.")
+                        # Only wait before retries, not first attempts to load a file.
+                        if attempts:
+                            time.sleep(5)
+                        # Requeue at the end, yielding to other files we may not have tried yet
+                        files_info.append((file_info, attempts + 1))
+                    else:
+                        raise RuntimeError(f"{ex} This bundle will not be indexed. Bundle: {fqid}, File Blob Key: "
+                                           f"{file_blob_key}, File Name: '{file_name}'") from ex
+                else:
+                    try:
+                        file_json = json.loads(file_string)
+                        # TODO (mbaumann) Are there other JSON-related exceptions that should be checked below?
+                    except json.decoder.JSONDecodeError as ex:
+                        logger.warning(f"In bundle {fqid} the file '{file_name}' is marked for indexing yet could "
+                                       f"not be parsed. This file will not be indexed. Exception: {ex}")
+                    else:
+                        logger.debug(f"Loaded file: {file_name}")
+                        index_files[file_name] = file_json
+            else:
                 logger.warning(f"In bundle {fqid} the file '{file_name}' is marked for indexing yet has "
                                f"content type '{content_type}' instead of the required content type "
                                f"'application/json'. This file will not be indexed.")
-                continue
-            file_blob_key = create_blob_key(file_info)
-            try:
-                file_string = handle.get(bucket_name, file_blob_key).decode("utf-8")
-            except BlobStoreError as ex:
-                if attempts < max_attempts:
-                    logger.warning(f"In bundle {fqid} the file '{file_name}' is marked for indexing yet could "
-                                   f"not be accessed. Retrying.")
-                    # if on the last file when it failed wait before retrying, else try the other files first.
-                    # Shorter
-                    # if len(files_info) == 0:
-                    #     time.sleep(time_wait)
-
-                    # If this is not the first attempt then wait before trying again.
-                    # more delays, more time for the file to arrive
-                    if attempts != 0:
-                        time.sleep(time_wait)
-                    # If the file info cannot be retrieved, the file is added to the end of the list so it can be
-                    # retried after all other files have been attempted.
-                    files_info.append((file_info, attempts + 1))
-                    continue
-                raise RuntimeError(f"{ex} This bundle will not be indexed. Bundle: {fqid}, File Blob Key: "
-                                   f"{file_blob_key}, File Name: '{file_name}'") from ex
-            try:
-                file_json = json.loads(file_string)
-                # TODO (mbaumann) Are there other JSON-related exceptions that should be checked below?
-            except json.decoder.JSONDecodeError as ex:
-                logger.warning(f"In bundle {fqid} the file '{file_name}' is marked for indexing yet could "
-                               f"not be parsed. This file will not be indexed. Exception: {ex}")
-                continue
-            logger.debug(f"Loaded file: {file_name}")
-            index_files[file_name] = file_json
         return index_files
 
     def lookup_tombstone(self) -> Optional['Tombstone']:
