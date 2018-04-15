@@ -13,11 +13,9 @@ sys.path.insert(0, pkg_root)  # noqa
 
 from dss import stepfunctions
 from dss.stepfunctions import SFN_TEMPLATE_KEY, SFN_EXECUTION_KEY, SFN_INPUT_KEY, sfn_sns_topic
-from dss.logging import configure_lambda_logging
 
 logger = logging.getLogger(__name__)
-configure_lambda_logging()
-app = domovoi.Domovoi(configure_logs=False)
+app = domovoi.Domovoi()
 sqs = boto3.resource('sqs')
 
 @app.sns_topic_subscriber(sfn_sns_topic)

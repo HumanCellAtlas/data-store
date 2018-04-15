@@ -9,7 +9,6 @@ sys.path.insert(0, pkg_root)  # noqa
 
 import dss
 from dss.config import Replica
-from dss.logging import configure_lambda_logging
 
 from dss.stepfunctions.checkout.checkout_states import state_machine_def
 from dss.util.email import send_checkout_success_email, send_checkout_failure_email
@@ -19,8 +18,7 @@ from dss.storage.checkout import (parallel_copy, get_dst_bundle_prefix, get_mani
 
 logger = logging.getLogger(__name__)
 
-configure_lambda_logging()
-app = domovoi.Domovoi(configure_logs=False)
+app = domovoi.Domovoi()
 
 dss.Config.set_config(dss.BucketConfig.NORMAL)
 email_sender = dss.Config.get_notification_email()

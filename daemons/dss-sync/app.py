@@ -17,7 +17,6 @@ pkg_root = os.path.abspath(os.path.join(os.path.dirname(__file__), 'domovoilib')
 sys.path.insert(0, pkg_root)  # noqa
 
 import dss
-from dss.logging import configure_lambda_logging
 from dss.events.handlers.sync import sync_blob, compose_gs_blobs, copy_part, parts_per_worker, sns_topics
 from dss.util.aws import ARN, send_sns_msg, clients, resources
 from dss.config import Replica
@@ -25,8 +24,7 @@ from dss.config import Replica
 
 logger = logging.getLogger(__name__)
 
-configure_lambda_logging()
-app = domovoi.Domovoi(configure_logs=False)
+app = domovoi.Domovoi()
 
 dss.Config.set_config(dss.BucketConfig.NORMAL)
 

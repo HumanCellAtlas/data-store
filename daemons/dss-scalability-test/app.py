@@ -18,7 +18,6 @@ from dss import stepfunctions, Config, BucketConfig
 from dss.stepfunctions import generator
 from dss.api.files import ASYNC_COPY_THRESHOLD
 from json_generator import generate_sample
-from dss.logging import configure_lambda_logging
 
 #: Wait in seconds begore performing another checkout readiness check
 WAIT_CHECKOUT = 10
@@ -26,10 +25,9 @@ WAIT_CHECKOUT = 10
 #: Number of parallel execution branches within the scale test step function
 PARALLELIZATION_FACTOR = 10
 
-app = domovoi.Domovoi(configure_logs=False)
+app = domovoi.Domovoi()
 
 logger = logging.getLogger(__name__)
-configure_lambda_logging()
 
 test_bucket = os.environ["DSS_S3_CHECKOUT_BUCKET"]
 

@@ -13,10 +13,8 @@ from dss import Replica
 from dss.index import DEFAULT_BACKENDS
 from dss.index.backend import CompositeIndexBackend
 from dss.index.indexer import Indexer
-from dss.logging import configure_lambda_logging
 
-app = domovoi.Domovoi(configure_logs=False)
-configure_lambda_logging()
+app = domovoi.Domovoi()
 
 dss.Config.set_config(dss.BucketConfig.NORMAL)
 

@@ -7,12 +7,7 @@ import requests
 pkg_root = os.path.abspath(os.path.join(os.path.dirname(__file__), 'domovoilib'))  # noqa
 sys.path.insert(0, pkg_root)  # noqa
 
-from dss.logging import configure_lambda_logging
-
-
-configure_lambda_logging()
-app = domovoi.Domovoi(configure_logs=False)
-
+app = domovoi.Domovoi()
 
 def trigger_ci_build(event, context, branch_name: str, build_type: str, **env):
     travis_token = os.environ["TRAVIS_TOKEN"]

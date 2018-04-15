@@ -24,6 +24,16 @@ from dss.error import DSSBindingException, DSSException, dss_handler
 
 logger = logging.getLogger(__name__)
 
+if Config.debug_level() == 0:
+    logging.root.setLevel(logging.WARNING)
+elif Config.debug_level() == 1:
+    logging.root.setLevel(logging.WARNING)
+    logging.getLogger("dss").setLevel(logging.DEBUG)
+    logging.getLogger("app").setLevel(logging.DEBUG)
+elif Config.debug_level() == 2:
+    logging.root.setLevel(logging.DEBUG)
+    logging.getLogger("connexion").setLevel(logging.INFO)
+    logging.getLogger("botocore").setLevel(logging.INFO)
 
 class DSSApp(connexion.App):
     def __init__(self, *args, **kwargs):

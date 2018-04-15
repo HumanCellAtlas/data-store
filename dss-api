@@ -20,16 +20,12 @@ parser.add_argument("--no-debug", dest="debug", action="store_false",
                     help="Disable Chalice/Connexion/Flask debug mode")
 parser.add_argument("--project-dir", help=argparse.SUPPRESS,
                     default=os.path.join(os.path.dirname(__file__), "chalice"))
-parser.add_argument("--log-level",
-                    help=str([logging.getLevelName(i) for i in range(0, 60, 10)]),
-                    choices={logging.getLevelName(i) for i in range(0, 60, 10)},
-                    default=logging.DEBUG)
 args = parser.parse_args()
 
 if "DSS_HOME" not in os.environ:
     parser.exit('Please run "source environment" in the data-store repo root directory')
 
-logging.basicConfig(level=args.log_level, stream=sys.stderr)
+logging.basicConfig()
 
 factory = CLIFactory(project_dir=args.project_dir, debug=args.debug)
 
@@ -38,13 +34,5 @@ config = factory.create_config_obj(
     chalice_stage_name=os.environ["DSS_DEPLOYMENT_STAGE"]
 )
 app_obj = factory.load_chalice_app()
-# When running `chalice local`, a stdout logger is configured
-# so you'll see the same stdout logging as you would when
-# running in lambda.  This is configuring the root logger.
-# The app-specific logger (app.log) will still continue
-# to work.
-# FIXME: (hannes) I don't think this works. basicConfig() only does anything if there aren't any handlers, so a second
-# invocation is usually pointless unless something removed all handlers in between.
-logging.basicConfig(stream=sys.stdout)
 server = factory.create_local_server(app_obj=app_obj, config=config, host=args.host, port=args.port)
 server.serve_forever()
