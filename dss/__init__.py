@@ -32,7 +32,8 @@ elif Config.debug_level() == 1:
     logging.getLogger("app").setLevel(logging.DEBUG)
 elif Config.debug_level() == 2:
     logging.root.setLevel(logging.DEBUG)
-    [logging.getLogger(logger).setLevel(level) for logger, level in Config.MAX_LOG_LEVELS.items()]
+    for _logger, _level in Config.MAX_LOG_LEVELS.items():
+        logging.getLogger(_logger).setLevel(_level)
 
 class DSSApp(connexion.App):
     def __init__(self, *args, **kwargs):
