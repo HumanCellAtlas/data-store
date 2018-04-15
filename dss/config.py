@@ -281,12 +281,15 @@ class Config:
         Use the value returned by this method to conditionally enable verbose diagnostic output by the application,
         its daemons or during tests. A return value of
 
-        * 0 should disable any verbose output
-        * 1 should enable verbose output by application code
-        * 2 should enable verbose output by the application and its dependencies
+        * 0 should disable any verbose output (log level INFO)
+        * 1 should enable verbose output by application code (log level INFO, app log level DEBUG)
+        * 2 should enable verbose output by the application and its dependency libraries,
+          except for those listed specifically in MAX_LOG_LEVEL_INFO_DEPS
+          (log level DEBUG, log level INFO for select libraries)
         """
         return int(os.environ.get('DSS_DEBUG', '0'))
 
+    MAX_LOG_LEVEL_INFO_DEPS = ["connexion", "botocore"]
 
 class Replica(Enum):
     aws = (Config.get_s3_bucket, Config.get_s3_checkout_bucket, "s3", S3BlobStore, S3HCABlobStore)
