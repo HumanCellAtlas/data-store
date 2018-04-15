@@ -19,7 +19,6 @@ sys.path.insert(0, pkg_root)  # noqa
 import dss
 from dss import Config, BucketConfig
 from dss.config import Replica
-from dss.logging import configure_test_logging
 from dss.util import networking
 from dss.util.s3urlcache import S3UrlCache, SizeLimitError
 from tests.infra import testmode
@@ -43,7 +42,6 @@ class HTTPInfo:
 
 
 def setUpModule():
-    configure_test_logging()
     HTTPInfo.port = networking.unused_tcp_port()
     HTTPInfo.server = HTTPServer((HTTPInfo.address, HTTPInfo.port), GetTestHandler)
     HTTPInfo.make_url()
