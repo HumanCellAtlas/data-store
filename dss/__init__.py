@@ -5,7 +5,6 @@ DSS description FIXME: elaborate
 """
 import functools
 import json
-import logging
 import os
 import traceback
 
