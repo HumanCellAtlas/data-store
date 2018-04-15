@@ -290,6 +290,19 @@ class Config:
         return int(os.environ.get('DSS_DEBUG', '0'))
 
     MAX_LOG_LEVELS = {"connexion": "INFO", "botocore": "INFO"}
+    
+    @staticmethod
+    def configure_logging():
+        if Config.debug_level() == 0:
+            logging.root.setLevel(logging.INFO)
+        elif Config.debug_level() == 1:
+            logging.root.setLevel(logging.INFO)
+            logging.getLogger("dss").setLevel(logging.DEBUG)
+            logging.getLogger("app").setLevel(logging.DEBUG)
+        elif Config.debug_level() == 2:
+            logging.root.setLevel(logging.DEBUG)
+            for _logger, _level in Config.MAX_LOG_LEVELS.items():
+                logging.getLogger(_logger).setLevel(_level)
 
 class Replica(Enum):
     aws = (Config.get_s3_bucket, Config.get_s3_checkout_bucket, "s3", S3BlobStore, S3HCABlobStore)
