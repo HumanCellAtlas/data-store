@@ -23,14 +23,8 @@ sys.path.insert(0, pkg_root)  # noqa
 
 import dss
 from dss.events.handlers import sync
-from dss.logging import configure_test_logging
 from dss.util.streaming import get_pool_manager, S3SigningChunker
 from tests.infra import testmode
-
-
-def setUpModule():
-    configure_test_logging()
-
 
 @testmode.standalone
 class TestSyncUtils(unittest.TestCase):
