@@ -15,7 +15,6 @@ sys.path.insert(0, pkg_root)  # noqa
 from botocore.exceptions import ClientError
 
 import dss
-from dss.logging import configure_test_logging
 from dss.stepfunctions.visitation import Visitation
 from dss.stepfunctions import step_functions_describe_execution
 from dss.stepfunctions.visitation import implementation
@@ -26,13 +25,7 @@ from dss.stepfunctions.visitation import reindex
 
 from tests.infra import get_env, testmode
 
-
 logger = logging.getLogger(__name__)
-
-
-def setUpModule():
-    configure_test_logging()
-
 
 class TestVisitationWalker(unittest.TestCase):
     def setUp(self):
