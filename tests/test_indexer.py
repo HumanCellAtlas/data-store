@@ -363,7 +363,7 @@ class TestIndexerBase(ElasticsearchTestCase, DSSAssertMixin, DSSStorageMixin, DS
 
     def test_notify(self):
         from dss.index import ElasticsearchIndexBackend
-        backend = ElasticsearchIndexBackend()
+        backend = ElasticsearchIndexBackend(context=MockLambdaContext())
 
         def _notify(subscription, bundle_id=get_bundle_fqid()):
             document = BundleDocument(self.replica, bundle_id)
