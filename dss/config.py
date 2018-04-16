@@ -291,7 +291,7 @@ class Config:
         return int(os.environ.get('DSS_DEBUG', '0'))
 
     MAX_LOG_LEVELS = {"connexion": "INFO", "botocore": "INFO"}
-    
+
     @staticmethod
     def configure_logging():
         if Config.debug_level() == 0:
