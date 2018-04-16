@@ -32,7 +32,6 @@ from dss.index.es import ElasticsearchClient
 from dss.index.es.document import BundleDocument
 from dss.index.es.validator import scrub_index_data
 from dss.index.indexer import Indexer
-from dss.logging import configure_test_logging
 from dss.storage.hcablobstore import BundleFileMetadata, BundleMetadata, FileMetadata
 from dss.storage.identifiers import BundleFQID, ObjectIdentifier
 from dss.util import UrlBuilder, create_blob_key, networking, RequirementError
@@ -73,7 +72,6 @@ class HTTPInfo:
 
 
 def setUpModule():
-    configure_test_logging()
     HTTPInfo.port = networking.unused_tcp_port()
     HTTPInfo.server = HTTPServer((HTTPInfo.address, HTTPInfo.port), PostTestHandler)
     HTTPInfo.thread = threading.Thread(target=HTTPInfo.server.serve_forever)

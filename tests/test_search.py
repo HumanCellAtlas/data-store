@@ -21,7 +21,6 @@ from dss import ESDocType
 from dss.util import UrlBuilder
 
 from dss.api.search import _es_search_page
-from dss.logging import configure_test_logging
 from dss.index.es.manager import IndexManager
 from dss.index.es import ElasticsearchClient
 from tests import get_version
@@ -35,9 +34,6 @@ logger = logging.getLogger(__name__)
 
 
 # TODO: (tsmith) test with multiple doc indexes once indexing by major version is compeleted
-def setUpModule():
-    configure_test_logging()
-
 
 @testmode.standalone
 class TestSearchBase(ElasticsearchTestCase, DSSAssertMixin):
