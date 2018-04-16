@@ -33,8 +33,6 @@ class TestStandaloneScript(unittest.TestCase):
                 os.path.join(dss_root_path, "dss-api"),
                 "--port",
                 str(cls.port),
-                "--log-level",
-                "CRITICAL",
             ],
             cwd=dss_root_path
         )
