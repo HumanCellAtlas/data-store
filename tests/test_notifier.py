@@ -2,7 +2,7 @@
 # coding: utf-8
 from collections import Counter
 from http.server import HTTPServer, BaseHTTPRequestHandler
-from itertools import count, permutations
+from itertools import count
 import json
 import logging
 from math import sqrt
@@ -159,7 +159,7 @@ class _TestNotifier(ThreadedHttpServerTestCase):
                 # … n attempts is missed even if it would otherwise succeed the n+1-th time.
                 notify(responses=[(0, 500)] * n + [(0, 200)], max_attempts=n, expect=False)
             # A notification whose endpoint …
-            # … consistently that takes too long to respond, will be missed.
+            # … consistently takes too long to respond, will be missed.
             notify(responses=[(self.timeout * 2, 200)], expect=False)
             # … takes too long to deliver only once will make it the second time
             notify(responses=[(self.timeout * 2, 200), (0, 200)], expect=True, attempts=2)
@@ -259,8 +259,12 @@ class TestWorkerQueueAssignment(unittest.TestCase):
         self.assertEquals(sum(queue_coverage.values()), repeats * num_workers)
         first_queue_coverage = queue_coverage.pop(0)
         avg = sum(c for c in queue_coverage.values()) / (num_queues - 1)
+        # Since the first queue was longer by 1/imbalance compared to the other queues, it should get propoertionally
+        # more coverage than the average short queue (within 10% of a margin)
         self.assertAlmostEqual(avg / first_queue_coverage, imbalance, delta=.1)
+        # Compute standard deviation
         sigma = sqrt(sum((c - avg) ** 2 for c in queue_coverage.values()) / (num_queues - 2))
+        # The short queues' covereage should be within one standard deviation
         self.assertTrue(all(abs(c - avg) <= sigma) for c in queue_coverage.values())
 
 
