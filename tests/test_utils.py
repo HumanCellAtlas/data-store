@@ -7,14 +7,9 @@ import unittest
 pkg_root = os.path.abspath(os.path.join(os.path.dirname(__file__), '..'))  # noqa
 sys.path.insert(0, pkg_root)  # noqa
 
-from dss.logging import configure_test_logging
 from dss.util import UrlBuilder
 from dss.util.aws import ARN, get_s3_chunk_size
 from tests.infra import testmode
-
-
-def setUpModule():
-    configure_test_logging()
 
 
 class TestAwsUtils(unittest.TestCase):
