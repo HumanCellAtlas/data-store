@@ -34,7 +34,7 @@ class MockLambdaContext(LambdaContext):
     A mock of the class an instance of which the AWS Lambda Python runtime injects into each invocation.
     """
 
-    def __init__(self, timeout: float=250.0) -> None:
+    def __init__(self, timeout: float=300.0) -> None:
         self.deadline = time.time() + timeout
 
     def get_remaining_time_in_millis(self):
