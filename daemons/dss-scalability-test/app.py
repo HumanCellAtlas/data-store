@@ -15,7 +15,6 @@ pkg_root = os.path.abspath(os.path.join(os.path.dirname(__file__), 'domovoilib')
 sys.path.insert(0, pkg_root)  # noqa
 
 from dss import stepfunctions, Config, BucketConfig
-from dss.stepfunctions import generator
 from dss.api.files import ASYNC_COPY_THRESHOLD
 from json_generator import generate_sample
 from dss.logging import configure_lambda_logging
@@ -54,7 +53,7 @@ Config.set_config(BucketConfig.NORMAL)
 def current_time():
     return int(round(time.time() * 1000))
 
-def upload_bundle(event, context, branch_id):
+def upload_bundle(event, context):
     logger.info("Start uploading bundle")
     with tempfile.TemporaryDirectory() as src_dir:
         with tempfile.NamedTemporaryFile(dir=src_dir, suffix=".json", delete=False) as jfh:
@@ -69,7 +68,7 @@ def upload_bundle(event, context, branch_id):
             return {"bundle_id": bundle_output['bundle_uuid'], "start_time": start_time}
 
 
-def download_bundle(event, context, branch_id):
+def download_bundle(event, context):
     logger.debug("Download bundle")
     bundle_id = event['bundle']['bundle_id']
     with tempfile.TemporaryDirectory() as dest_dir:
@@ -77,14 +76,14 @@ def download_bundle(event, context, branch_id):
     return {}
 
 
-def checkout_bundle(event, context, branch_id):
+def checkout_bundle(event, context):
     bundle_id = event['bundle']['bundle_id']
     logger.info("Checkout bundle: %s", bundle_id)
     checkout_output = get_client().post_bundles_checkout(uuid=bundle_id, replica='aws', email='foo@example.com')
     return {"job_id": checkout_output['checkout_job_id']}
 
 
-def checkout_status(event, context, branch_id):
+def checkout_status(event, context):
     job_id = event['checkout']['job_id']
     logger.info("Checkout status job_id: %s", job_id)
     checkout_output = get_client().get_bundles_checkout(checkout_job_id=job_id)
@@ -96,7 +95,7 @@ def complete_test(event, context):
     save_results(event, 'SUCCEEDED')
 
 
-def fallback(event, context, branch_id):
+def fallback(event, context):
     return {"failed": "failed"}
 
 
@@ -223,122 +222,124 @@ def roundTime(to=datetime.timedelta(minutes=5)):
     return now + datetime.timedelta(0, rounding - seconds, -now.microsecond)
 
 
-exec_branch_def = {
-    "StartAt": "UploadBundle{t}",
-    "States": {
+def exec_branch_def(tid):
+    return {
+        "StartAt": f"UploadBundle{tid}",
+        "States": {
 
-        "UploadBundle{t}": {
-            "Type": "Task",
-            "Resource": upload_bundle,
-            "InputPath": "$",
-            "ResultPath": "$.bundle",
-            "OutputPath": "$",
-            "Next": "DownloadBundle{t}",
-            "Catch": [{
-                "ErrorEquals": ["States.TaskFailed"],
-                "Next": "fallback{t}"
-            }]
-        },
-        "DownloadBundle{t}": {
-            "Type": "Task",
-            "Resource": download_bundle,
-            "InputPath": "$",
-            "OutputPath": "$",
-            "ResultPath": "$.download",
-            "Next": "CheckoutBundle{t}",
-            "Catch": [{
-                "ErrorEquals": ["States.TaskFailed"],
-                "Next": "fallback{t}"
-            }]
-        },
-        "CheckoutBundle{t}": {
-            "Type": "Task",
-            "Resource": checkout_bundle,
-            "InputPath": "$",
-            "ResultPath": "$.checkout",
-            "OutputPath": "$",
-            "Next": "Wait_Checkout{t}",
-            "Catch": [{
-                "ErrorEquals": ["States.TaskFailed"],
-                "Next": "fallback{t}"
-            }]
-        },
-        "Wait_Checkout{t}": {
-            "Type": "Wait",
-            "Seconds": WAIT_CHECKOUT,
-            "Next": "CheckoutDownloadStatus{t}"
-        },
-        "CheckoutDownloadStatus{t}": {
-            "Type": "Task",
-            "Resource": checkout_status,
-            "InputPath": "$",
-            "ResultPath": "$.checkout.status",
-            "OutputPath": "$",
-            "Next": "CheckStatus{t}",
-            "Catch": [{
-                "ErrorEquals": ["States.TaskFailed"],
-                "Next": "fallback{t}"
-            }]
-        },
-        "CheckStatus{t}": {
-            "Type": "Choice",
-            "Choices": [
-                {
-                    "Variable": "$.checkout.status.status",
-                    "StringEquals": "SUCCEEDED",
-                    "Next": "Done{t}"
-                },
-                {
-                    "Variable": "$.checkout.status.status",
-                    "StringEquals": "RUNNING",
-                    "Next": "Wait_Checkout{t}"
-                },
-            ],
-            "Default": "fallback{t}"
-        },
-        "Done{t}": {
-            "Type": "Pass",
-            "End": True
-        },
-        "fallback{t}": {
-            "Type": "Task",
-            "Resource": fallback,
-            "InputPath": "$",
-            "ResultPath": "$.failed",
-            "OutputPath": "$",
-            "End": True,
+            f"UploadBundle{tid}": {
+                "Type": "Task",
+                "Resource": upload_bundle,
+                "InputPath": "$",
+                "ResultPath": "$.bundle",
+                "OutputPath": "$",
+                "Next": f"DownloadBundle{tid}",
+                "Catch": [{
+                    "ErrorEquals": ["States.TaskFailed"],
+                    "Next": f"fallback{tid}"
+                }]
+            },
+            f"DownloadBundle{tid}": {
+                "Type": "Task",
+                "Resource": download_bundle,
+                "InputPath": "$",
+                "OutputPath": "$",
+                "ResultPath": "$.download",
+                "Next": f"CheckoutBundle{tid}",
+                "Catch": [{
+                    "ErrorEquals": ["States.TaskFailed"],
+                    "Next": f"fallback{tid}"
+                }]
+            },
+            f"CheckoutBundle{tid}": {
+                "Type": "Task",
+                "Resource": checkout_bundle,
+                "InputPath": "$",
+                "ResultPath": "$.checkout",
+                "OutputPath": "$",
+                "Next": f"Wait_Checkout{tid}",
+                "Catch": [{
+                    "ErrorEquals": ["States.TaskFailed"],
+                    "Next": f"fallback{tid}"
+                }]
+            },
+            f"Wait_Checkout{tid}": {
+                "Type": "Wait",
+                "Seconds": WAIT_CHECKOUT,
+                "Next": f"CheckoutDownloadStatus{tid}"
+            },
+            f"CheckoutDownloadStatus{tid}": {
+                "Type": "Task",
+                "Resource": checkout_status,
+                "InputPath": "$",
+                "ResultPath": "$.checkout.status",
+                "OutputPath": "$",
+                "Next": f"CheckStatus{tid}",
+                "Catch": [{
+                    "ErrorEquals": ["States.TaskFailed"],
+                    "Next": f"fallback{tid}"
+                }]
+            },
+            f"CheckStatus{tid}": {
+                "Type": "Choice",
+                "Choices": [
+                    {
+                        "Variable": "$.checkout.status.status",
+                        "StringEquals": "SUCCEEDED",
+                        "Next": f"Done{tid}"
+                    },
+                    {
+                        "Variable": "$.checkout.status.status",
+                        "StringEquals": "RUNNING",
+                        "Next": f"Wait_Checkout{tid}"
+                    },
+                ],
+                "Default": f"fallback{tid}"
+            },
+            f"Done{tid}": {
+                "Type": "Pass",
+                "End": True
+            },
+            f"fallback{tid}": {
+                "Type": "Task",
+                "Resource": fallback,
+                "InputPath": "$",
+                "ResultPath": "$.failed",
+                "OutputPath": "$",
+                "End": True,
+            }
         }
     }
-}
 
-state_machine_def = {
-    "Comment": "DSS scalability test state machine.",
-    "StartAt": "WaitUntil",
-    "TimeoutSeconds": 3600,
-    "States": {
-        "WaitUntil": {
-            "Type": "Wait",
-            "TimestampPath": "$.batch",
-            "Next": "Executors"
-        },
 
-        "Executors": {
-            "Type": "Parallel",
-            "Branches": generator.ThreadPoolAnnotation(exec_branch_def, PARALLELIZATION_FACTOR, "{t}"),
-            "InputPath": "$",
-            "ResultPath": "$.tests",
-            "OutputPath": "$",
-            "Next": "CompleteTest",
-        },
+def state_machine_def():
+    return {
+        "Comment": "DSS scalability test state machine.",
+        "StartAt": "WaitUntil",
+        "TimeoutSeconds": 3600,
+        "States": {
+            "WaitUntil": {
+                "Type": "Wait",
+                "TimestampPath": "$.batch",
+                "Next": "Executors"
+            },
 
-        "CompleteTest": {
-            "Type": "Task",
-            "Resource": complete_test,
-            "End": True,
+            "Executors": {
+                "Type": "Parallel",
+                "Branches": [exec_branch_def(tid) for tid in range(PARALLELIZATION_FACTOR)],
+                "InputPath": "$",
+                "ResultPath": "$.tests",
+                "OutputPath": "$",
+                "Next": "CompleteTest",
+            },
+
+            "CompleteTest": {
+                "Type": "Task",
+                "Resource": complete_test,
+                "End": True,
+            }
         }
     }
-}
 
-annotation_processor = generator.StateMachineAnnotationProcessor()
-sfn = annotation_processor.process_annotations(state_machine_def)
-app.register_state_machine(sfn)
+
+app.register_state_machine(state_machine_def())
