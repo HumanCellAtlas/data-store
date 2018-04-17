@@ -42,14 +42,12 @@ def dispatch_gs_indexer_event(event, context):
 
 
 def _handle_event(replica, event, context):
-    timeout = context.get_remaining_time_in_millis() / 1000 - 10  # ten seconds of safety for lambda shut down
-    assert timeout >= 10, 'Not enough time left for this lambda to process event'
     executor = ThreadPoolExecutor(len(DEFAULT_BACKENDS))
     # We can't use ecxecutor as context manager because we don't want the shutdown to block
     try:
-        backend = CompositeIndexBackend(executor, DEFAULT_BACKENDS, timeout=timeout, context=context)
+        backend = CompositeIndexBackend(executor, DEFAULT_BACKENDS)
         indexer_cls = Indexer.for_replica(replica)
-        indexer = indexer_cls(backend)
+        indexer = indexer_cls(backend, context)
         indexer.process_new_indexable_object(event)
     finally:
         executor.shutdown(False)

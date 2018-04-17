@@ -118,9 +118,8 @@ class TestIndexerBase(ElasticsearchTestCase, DSSAssertMixin, DSSStorageMixin, DS
         super().setUp()
         backend = CompositeIndexBackend(self.executor,
                                         DEFAULT_BACKENDS,
-                                        context=MockLambdaContext(),
                                         notify_async=testmode.is_integration())
-        self.indexer = self.indexer_cls(backend)
+        self.indexer = self.indexer_cls(backend, MockLambdaContext())
         self.dss_alias_name = dss.Config.get_es_alias_name(dss.ESIndexType.docs, self.replica)
         self.subscription_index_name = dss.Config.get_es_index_name(dss.ESIndexType.subscriptions, self.replica)
         if self.replica not in self.bundle_key_by_replica:
@@ -367,17 +366,13 @@ class TestIndexerBase(ElasticsearchTestCase, DSSAssertMixin, DSSStorageMixin, DS
             with self.assertRaises(RuntimeError):
                 self.process_new_indexable_object(sample_event)
         self.assertRegex(
-            log_monitor.output[0],
-            f"WARNING:.*:In bundle .* the file '{inaccesssible_filename}' is marked for indexing yet could not be "
-            f"accessed. Retrying.")
-        self.assertRegex(
             log_monitor.output[-1],
             f".* This bundle will not be indexed. Bundle: .*, File Blob Key: .*, File Name: '{inaccesssible_filename}'")
 
     @testmode.standalone
     def test_not_enough_time_to_index(self):
-        backend = CompositeIndexBackend(self.executor, DEFAULT_BACKENDS, context=MockLambdaContext(0))
-        self.indexer = self.indexer_cls(backend)
+        backend = CompositeIndexBackend(self.executor, DEFAULT_BACKENDS)
+        self.indexer = self.indexer_cls(backend, MockLambdaContext(0))
         sample_event = self.create_bundle_created_event(self.bundle_key)
         with self.assertRaises(RuntimeError):
             self.process_new_indexable_object(sample_event)

@@ -18,8 +18,6 @@ from dss.util.retry import retry
 
 logger = logging.getLogger(__name__)
 
-TIME_NEEDED = 15
-TIMEOUT = 60
 
 class AWSV4Sign(requests.auth.AuthBase):
     """
@@ -58,10 +56,9 @@ class ElasticsearchClient:
     """
     @staticmethod
     def get() -> Elasticsearch:
-        host = os.getenv('DSS_ES_ENDPOINT', "localhost")  # FIXME: endpoint is the wrong term
-        port = int(os.getenv('DSS_ES_PORT', "443"))
-        timeout: Union[str, None, int] = os.getenv('DSS_ES_TIMEOUT')
-        timeout = int(timeout) if timeout else None
+        host = Config.get_elasticsearch_host()
+        port = Config.get_elasticsearch_port()
+        timeout = Config.get_elasticsearch_timeout()
         return ElasticsearchClient._get(host, port, timeout)
 
     @staticmethod
@@ -100,14 +97,14 @@ def _retryable_exception(e):
 
 
 def _retry_delay(i, delay):
-    return 10 if delay is None else delay * 1.5
+    return .25 if delay is None else delay * 1.5
 
 
 # noinspection PyPep8Naming
 class elasticsearch_retry(retry):
     # noinspection PyShadowingNames
-    def __init__(self, logger) -> None:
-        super().__init__(timeout=TIMEOUT,  # seconds
+    def __init__(self, logger, timeout=None) -> None:
+        super().__init__(timeout=timeout,  # seconds
                          limit=10,  # retries
                          inherit=True,  # nested retries should obey the outer-most retry's timeout
                          retryable=_retryable_exception,

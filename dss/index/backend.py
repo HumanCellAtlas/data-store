@@ -1,11 +1,10 @@
 import concurrent.futures
-from typing import Optional, Type, MutableSet, Union, Iterable, Set
+from typing import Optional, Type, Union, Iterable
 
 from abc import ABCMeta, abstractmethod
 from operator import methodcaller
 
 from dss.index.bundle import Bundle, Tombstone
-from dss.util.types import LambdaContext
 
 
 class IndexBackend(metaclass=ABCMeta):
@@ -13,7 +12,8 @@ class IndexBackend(metaclass=ABCMeta):
     An abstract class defining the interface between the data store and a particular document database for the
     purpose of indexing and querying metadata associated with bundles and the files contained in them.
     """
-    def __init__(self, context: LambdaContext, dryrun: bool = False, notify: Optional[bool] = True, **kwargs) -> None:
+
+    def __init__(self, dryrun: bool = False, notify: Optional[bool] = True, **kwargs) -> None:
         """
         Create a new index backend.
 
@@ -25,7 +25,13 @@ class IndexBackend(metaclass=ABCMeta):
         """
         self.dryrun = dryrun
         self.notify = notify
-        self.context = context
+
+    @abstractmethod
+    def estimate_indexing_time(self) -> float:
+        """
+        Return an upper bound on the time needed for a call to one of the indexing methods.
+        """
+        raise NotImplementedError()
 
     @abstractmethod
     def index_bundle(self, bundle: Bundle):
@@ -52,7 +58,6 @@ class CompositeIndexBackend(IndexBackend):
     def __init__(self,
                  executor: concurrent.futures.ThreadPoolExecutor,
                  backends: Iterable[Union[IndexBackend, Type[IndexBackend]]],
-                 timeout=None,
                  *args, **kwargs) -> None:
         """
         :param executor: the executor to be used for delegating operations to all underlying backends in parallel
@@ -60,15 +65,12 @@ class CompositeIndexBackend(IndexBackend):
         :param backends: the backends to delegate to. Can be a mix of backend classes and instances. Any class will be
                          instantiated with args and kwargs, an instance will be used as is.
 
-        :param timeout: see :py:meth:`.timeout`
-
         :param args: arguments for the constructor of the super class and any backend classes in `backends` (or all
                      registered backend classes if `backends` is None).
 
         :param kwargs: keyword arguments for the same purpose as `args`
         """
         super().__init__(*args, **kwargs)
-        self._timeout = timeout
         self._executor = executor
 
         def make_backend(backend: Union[IndexBackend, Type[IndexBackend]]) -> IndexBackend:
@@ -81,22 +83,8 @@ class CompositeIndexBackend(IndexBackend):
 
         self._backends = set(map(make_backend, backends))
 
-    @property
-    def timeout(self):
-        """
-        The time in which concurrently executed operations have to be completed by all underlying backends. If a
-        backend operation does not complete within the specified timeout, an exception will be raised. A value of
-        None disables the timeout, potentially causing the calling thread to block forever.
-        """
-        return self._timeout
-
-    @timeout.setter
-    def timeout(self, timeout):
-        """
-        Modify the timeout for the next backend operation.
-        """
-        assert timeout is None or timeout > 0
-        self._timeout = timeout
+    def estimate_indexing_time(self) -> float:
+        return max(backend.estimate_indexing_time() for backend in self._backends)
 
     def index_bundle(self, *args, **kwargs):
         self._delegate(self.index_bundle, args, kwargs)
@@ -105,11 +93,10 @@ class CompositeIndexBackend(IndexBackend):
         self._delegate(self.remove_bundle, args, kwargs)
 
     def _delegate(self, method, args, kwargs):
-        timeout = self._timeout  # defensive copy
         fn = methodcaller(method.__name__, *args, **kwargs)
         future_to_backend = {self._executor.submit(fn, backend): backend
                              for backend in self._backends}
-        done, not_done = concurrent.futures.wait(future_to_backend.keys(), timeout=timeout)
+        done, not_done = concurrent.futures.wait(future_to_backend.keys(), timeout=self.estimate_indexing_time())
         results = {}
         problems = []
         for future in not_done:

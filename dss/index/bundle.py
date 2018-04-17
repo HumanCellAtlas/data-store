@@ -1,9 +1,7 @@
 import json
 import logging
-from collections import deque
-from typing import Iterable, Mapping, Optional, Sequence
+from typing import Mapping, Optional, Set
 
-import time
 from cloud_blobstore import BlobNotFoundError, BlobStoreError
 
 from dss import Config, Replica
@@ -31,7 +29,7 @@ class Bundle:
         self.files = files
 
     @classmethod
-    def from_replica(cls, replica: Replica, fqid: BundleFQID):
+    def load(cls, replica: Replica, fqid: BundleFQID):
         manifest = cls._read_bundle_manifest(replica, fqid)
         files = cls._read_file_infos(replica, fqid, manifest)
         self = cls(replica, fqid, manifest=manifest, files=files)
@@ -50,32 +48,20 @@ class Bundle:
     @classmethod
     def _read_file_infos(cls, replica: Replica, fqid: BundleFQID, manifest: JSON) -> Mapping[str, JSON]:
         handle = Config.get_blobstore_handle(replica)
-        bucket_name = replica.bucket
-        files_info_original = manifest[BundleMetadata.FILES]
-        assert isinstance(files_info_original, list)
-        files_info = deque((file, 0) for file in files_info_original if file[BundleFileMetadata.INDEXED] is True)
         index_files = {}
-        while len(files_info) != 0:
-            file_info, attempts = files_info.popleft()
-            content_type = file_info[BundleFileMetadata.CONTENT_TYPE]
-            file_name = file_info[BundleFileMetadata.NAME]
-            if content_type.startswith('application/json'):
-                file_blob_key = create_blob_key(file_info)
-                try:
-                    file_string = handle.get(bucket_name, file_blob_key).decode("utf-8")
-                except BlobStoreError as ex:
-                    if attempts < 5:
-                        logger.warning(f"In bundle {fqid} the file '{file_name}' is marked for indexing yet could "
-                                       f"not be accessed. Retrying.")
-                        # Only wait before retries, not first attempts to load a file.
-                        if attempts:
-                            time.sleep(5)
-                        # Requeue at the end, yielding to other files we may not have tried yet
-                        files_info.append((file_info, attempts + 1))
-                    else:
+        file_infos = manifest[BundleMetadata.FILES]
+        assert isinstance(file_infos, list)
+        for file_info in file_infos:
+            if file_info[BundleFileMetadata.INDEXED]:
+                file_name = file_info[BundleFileMetadata.NAME]
+                content_type = file_info[BundleFileMetadata.CONTENT_TYPE]
+                if content_type.startswith('application/json'):
+                    file_blob_key = create_blob_key(file_info)
+                    try:
+                        file_string = handle.get(replica.bucket, file_blob_key).decode("utf-8")
+                    except BlobStoreError as ex:
                         raise RuntimeError(f"{ex} This bundle will not be indexed. Bundle: {fqid}, File Blob Key: "
                                            f"{file_blob_key}, File Name: '{file_name}'") from ex
-                else:
                     try:
                         file_json = json.loads(file_string)
                         # TODO (mbaumann) Are there other JSON-related exceptions that should be checked below?
@@ -85,10 +71,10 @@ class Bundle:
                     else:
                         logger.debug(f"Loaded file: {file_name}")
                         index_files[file_name] = file_json
-            else:
-                logger.warning(f"In bundle {fqid} the file '{file_name}' is marked for indexing yet has "
-                               f"content type '{content_type}' instead of the required content type "
-                               f"'application/json'. This file will not be indexed.")
+                else:
+                    logger.warning(f"In bundle {fqid} the file '{file_name}' is marked for indexing yet has "
+                                   f"content type '{content_type}' instead of the required content type "
+                                   f"'application/json'. This file will not be indexed.")
         return index_files
 
     def lookup_tombstone(self) -> Optional['Tombstone']:
@@ -98,7 +84,7 @@ class Bundle:
         for all_versions in (False, True):
             tombstone_id = self.fqid.to_tombstone_id(all_versions=all_versions)
             try:
-                return Tombstone.from_replica(self.replica, tombstone_id)
+                return Tombstone.load(self.replica, tombstone_id)
             except BlobNotFoundError:
                 pass
         return None
@@ -118,27 +104,25 @@ class Tombstone:
         self.body = body
 
     @classmethod
-    def from_replica(cls, replica: Replica, tombstone_id: TombstoneID):
+    def load(cls, replica: Replica, tombstone_id: TombstoneID):
         blobstore = Config.get_blobstore_handle(replica)
         bucket_name = replica.bucket
         body = json.loads(blobstore.get(bucket_name, tombstone_id.to_key()))
         self = cls(replica, tombstone_id, body)
         return self
 
-    def list_dead_bundles(self) -> Sequence[Bundle]:
+    def list_dead_bundles(self) -> Set[BundleFQID]:
         blobstore = Config.get_blobstore_handle(self.replica)
         bucket_name = self.replica.bucket
         assert isinstance(self.fqid, TombstoneID)
         if self.fqid.is_fully_qualified():
-            # If a version is specified, delete just that bundle …
-            bundle_fqids: Iterable[BundleFQID] = [self.fqid.to_bundle_fqid()]
+            # If a version is specified, return just that bundle …
+            return {self.fqid.to_bundle_fqid()}
         else:
-            # … otherwise, delete all bundles with the same UUID from the index.
+            # … otherwise, return all bundles with the same UUID from the index.
             prefix = self.fqid.to_key_prefix()
-            fqids = [ObjectIdentifier.from_key(k) for k in set(blobstore.list(bucket_name, prefix))]
-            bundle_fqids = filter(lambda fqid: type(fqid) == BundleFQID, fqids)
-        bundles = [Bundle.from_replica(self.replica, bundle_fqid) for bundle_fqid in bundle_fqids]
-        return bundles
+            fqids = map(ObjectIdentifier.from_key, blobstore.list(bucket_name, prefix))
+            return set(fqid for fqid in fqids if type(fqid) == BundleFQID)
 
     def __str__(self):
         return f"{self.__class__.__name__}(replica={self.replica}, fqid='{self.fqid}')"

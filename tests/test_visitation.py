@@ -2,11 +2,14 @@
 # coding: utf-8
 
 import copy
+import datetime
 import time
 import logging
 import os
 import sys
 import unittest
+from unittest.mock import MagicMock
+import uuid
 import mock
 
 pkg_root = os.path.abspath(os.path.join(os.path.dirname(__file__), '..'))  # noqa
@@ -16,6 +19,9 @@ from botocore.exceptions import ClientError
 
 import dss
 from dss.logging import configure_test_logging
+from dss.index.es.backend import ElasticsearchIndexBackend
+from dss.storage.identifiers import BundleFQID
+from dss.util.version import datetime_to_version_format
 from dss.stepfunctions.visitation import Visitation
 from dss.stepfunctions import step_functions_describe_execution
 from dss.stepfunctions.visitation import implementation
@@ -178,21 +184,26 @@ class TestTimeout(unittest.TestCase):
         self.assertFalse(timeout.did_timeout)
 
 
-def fake_get_blobstore_handle(replica):
-    class FakeBlobstoreIterator:
+class FakeBlobStore:
+    class Iterator:
+        keys = [BundleFQID(uuid=uuid.uuid4(),
+                           version=datetime_to_version_format(datetime.datetime.utcnow())).to_key()
+                for i in range(10)]
+
         def __init__(self, *args, **kwargs):
             self.start_after_key = None
             self.token = 'frank'
 
         def __iter__(self):
-            for i in range(10):
-                self.start_after_key = str(i)
+            for key in self.keys:
+                self.start_after_key = key
                 yield self.start_after_key
 
-    class FakeBlobStore:
-        def list_v2(self, *args, **kwargs):
-            return FakeBlobstoreIterator()
+    def list_v2(self, *args, **kwargs):
+        return self.Iterator()
 
+
+def fake_get_blobstore_handle(replica):
     return FakeBlobStore()
 
 
@@ -200,29 +211,26 @@ def fake_bucket(self):
     return "no-bucket"
 
 
-def fake_process_item(self, indexer, key):
-    if key == '2':
+def fake_bundle_load(cls, bundle_fqid):
+    if bundle_fqid.to_key() == FakeBlobStore.Iterator.keys[2]:
         time.sleep(2)
+    return MagicMock(lookup_tombstone=MagicMock(return_value=None))
 
 
 def fake_index_object(_self, key):
-    if int(key) % 2:
+    if FakeBlobStore.Iterator.keys.index(key) % 2:
         raise Exception()
 
 
 class TestVisitationReindex(unittest.TestCase):
-    def setUp(self):
-        self.context = MockLambdaContext()
-        self.state = {
-            'replica': 'aws',
-        }
 
     @testmode.standalone
     @mock.patch('dss.Config.get_blobstore_handle', new=fake_get_blobstore_handle)
     @mock.patch('dss.Replica.bucket', new=fake_bucket)
     @mock.patch('dss.index.indexer.Indexer.index_object', new=fake_index_object)
     def test_reindex_walk(self):
-        r = reindex.Reindex._with_state(self.state, self.context)
+        r = reindex.Reindex._with_state(state={'replica': 'aws'},
+                                        context=MockLambdaContext())
         r._walk()
         r.walker_finalize()
         self.assertEqual(r.work_result, dict(failed=5, indexed=5, processed=10))
@@ -230,23 +238,28 @@ class TestVisitationReindex(unittest.TestCase):
     @testmode.standalone
     @mock.patch('dss.Config.get_blobstore_handle', new=fake_get_blobstore_handle)
     @mock.patch('dss.Replica.bucket', new=fake_bucket)
-    @mock.patch('dss.stepfunctions.visitation.reindex.Reindex.process_item', new=fake_process_item)
-    def test_reindex_timeout(self):
-        self.context = MockLambdaContext(timeout=21)
-        r = reindex.Reindex._with_state(self.state, self.context)
-        # The second item will take one second which will push the time remaining to below the 20s safety
+    @mock.patch('dss.index.bundle.Bundle.load', new=fake_bundle_load)
+    @mock.patch('dss.index.es.backend.ElasticsearchIndexBackend.index_bundle')
+    def test_reindex_timeout(self, index_bundle):
+        r = reindex.Reindex._with_state(state={'replica': 'aws'},
+                                        context=MockLambdaContext(timeout=ElasticsearchIndexBackend.timeout + 1))
+        # The third item will sleep for two seconds and that will push the time remaining to below the timeout
         r._walk()
-        self.assertEquals('2', r.marker)
+        self.assertEquals(2, index_bundle.call_count)
+        print(FakeBlobStore.Iterator.keys, r.marker)
+        self.assertEquals(1, FakeBlobStore.Iterator.keys.index(r.marker))
         self.assertEquals('frank', r.token)
 
     @testmode.standalone
     @mock.patch('dss.Config.get_blobstore_handle', new=fake_get_blobstore_handle)
     @mock.patch('dss.Replica.bucket', new=fake_bucket)
-    @mock.patch('dss.index.indexer.Indexer.index_object', new=fake_index_object)
-    def test_reindex_no_time_remaining(self):
-        self.context = MockLambdaContext(timeout=19.9)
-        r = reindex.Reindex._with_state(self.state, self.context)
+    @mock.patch('dss.index.bundle.Bundle.load', new=fake_bundle_load)
+    @mock.patch('dss.index.es.backend.ElasticsearchIndexBackend.index_bundle')
+    def test_reindex_no_time_remaining(self, index_bundle):
+        r = reindex.Reindex._with_state(state={'replica': 'aws'},
+                                        context=MockLambdaContext(timeout=ElasticsearchIndexBackend.timeout - 1))
         r._walk()
+        self.assertEquals(0, index_bundle.call_count)
         self.assertIsNone(r.marker)
         self.assertIsNone(r.token)
 
@@ -254,8 +267,8 @@ class TestVisitationReindex(unittest.TestCase):
     def test_job_initialize(self):
         for num_workers, num_work_ids in [(1, 16), (15, 16), (16, 16), (17, 256)]:
             with self.subTest(num_workers=num_workers, num_work_ids=num_work_ids):
-                state = {**self.state, '_number_of_workers': num_workers}
-                r = reindex.Reindex._with_state(state, self.context)
+                r = reindex.Reindex._with_state(state={'replica': 'aws', '_number_of_workers': num_workers},
+                                                context=MockLambdaContext())
                 r.job_initialize()
                 self.assertEquals(num_work_ids, len(set(r.work_ids)))
 

@@ -1,5 +1,5 @@
 import logging
-from typing import Sequence, Any, Union
+from typing import Sequence, Any, Mapping, MutableMapping
 
 import copy
 import json
@@ -7,6 +7,7 @@ from uuid import uuid4
 from enum import Enum, auto
 
 from dss.stepfunctions import _step_functions_start_execution
+from dss.util.types import LambdaContext
 
 logger = logging.getLogger(__name__)
 
@@ -24,6 +25,9 @@ class WalkerStatus(Enum):
     walk = auto()
     finished = auto()
     end = auto()
+
+
+Spec = Mapping[str, Any]
 
 
 class Visitation:
@@ -48,10 +52,10 @@ class Visitation:
         work_id=str,
         work_result=None
     )
-    state_spec: dict = dict()
-    walker_state_spec: dict = dict()
+    state_spec: Spec = dict()
+    walker_state_spec: Spec = dict()
 
-    def __init__(self, state_spec: dict, state: dict, context) -> None:
+    def __init__(self, state_spec: Spec, state: Spec, context: LambdaContext) -> None:
         """
         Pull in fields defined in state specifications and set as instance properties
         """
@@ -59,7 +63,7 @@ class Visitation:
         self._context = context
         state = copy.deepcopy(state)
 
-        self.work_result: Union[Any, Sequence] = None  # mypy needs this
+        self.work_result: MutableMapping[str, Any] = None
 
         for k, default in state_spec.items():
             v = state.get(k, None)
