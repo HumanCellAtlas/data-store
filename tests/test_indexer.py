@@ -195,7 +195,7 @@ class TestIndexerBase(ElasticsearchTestCase, DSSAssertMixin, DSSStorageMixin, DS
         from elasticsearch.client import Elasticsearch
         real_method = getattr(Elasticsearch, retry_method)
         from elasticsearch.exceptions import ConflictError
-        i = iter([ConflictError(409)])
+        i = iter([ConflictError(409, "mock exception", None)])
 
         def mock_method(*args, **kwargs):
             try:
