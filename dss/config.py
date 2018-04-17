@@ -324,6 +324,18 @@ class Config:
         value = os.environ.get('DSS_NOTIFY_WORKERS')
         return int(value) if value else None
 
+    @classmethod
+    def get_elasticsearch_host(cls):
+        return os.environ.get('DSS_ES_ENDPOINT', "localhost")
+
+    @classmethod
+    def get_elasticsearch_port(cls):
+        return int(os.environ.get('DSS_ES_PORT', "443"))
+
+    @classmethod
+    def get_elasticsearch_timeout(cls):
+        return int(os.environ.get('DSS_ES_TIMEOUT', "10"))
+
 
 class Replica(Enum):
     aws = (Config.get_s3_bucket, Config.get_s3_checkout_bucket, "s3", S3BlobStore, S3HCABlobStore)

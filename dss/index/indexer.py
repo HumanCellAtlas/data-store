@@ -7,17 +7,23 @@ from abc import ABCMeta, abstractmethod
 
 from dss import Config, Replica
 from dss.storage.identifiers import BundleFQID, FileFQID, ObjectIdentifier, ObjectIdentifierError, TombstoneID
+from dss.util.types import LambdaContext
 from .backend import IndexBackend
 from .bundle import Bundle, Tombstone
 
 logger = logging.getLogger(__name__)
 
 
+class IndexerTimeout(RuntimeError):
+    pass
+
+
 class Indexer(metaclass=ABCMeta):
 
-    def __init__(self, backend: IndexBackend) -> None:
+    def __init__(self, backend: IndexBackend, context: LambdaContext) -> None:
         super().__init__()
         self.backend = backend
+        self.context = context
 
     def process_new_indexable_object(self, event: Mapping[str, Any]) -> None:
         try:
@@ -35,9 +41,9 @@ class Indexer(metaclass=ABCMeta):
     def index_object(self, key):
         identifier = ObjectIdentifier.from_key(key)
         if isinstance(identifier, BundleFQID):
-            self._index_bundle(self.replica, identifier)
+            self._index_bundle(identifier)
         elif isinstance(identifier, TombstoneID):
-            self._index_tombstone(self.replica, identifier)
+            self._index_tombstone(identifier)
         elif isinstance(identifier, FileFQID):
             logger.debug(f"Indexing of individual files is not supported. "
                          f"Ignoring file {identifier} in {self.replica.name}.")
@@ -48,25 +54,43 @@ class Indexer(metaclass=ABCMeta):
     def _parse_event(self, event: Mapping[str, Any]):
         raise NotImplementedError()
 
-    def _index_bundle(self, replica: Replica, bundle_fqid: BundleFQID):
-        logger.info(f"Indexing bundle {bundle_fqid} from replica {replica.name}.")
-        bundle = Bundle.from_replica(replica, bundle_fqid)
+    def _index_bundle(self, bundle_fqid: BundleFQID):
+        logger.info(f"Indexing bundle {bundle_fqid} from replica {self.replica.name}.")
+        bundle = Bundle.load(self.replica, bundle_fqid)
         tombstone = bundle.lookup_tombstone()
+        self._assert_enough_time(1)
         if tombstone is None:
             self.backend.index_bundle(bundle)
         else:
-            logger.info(f"Found tombstone for {bundle_fqid} in replica {replica.name}. "
+            logger.info(f"Found tombstone for {bundle_fqid} in replica {self.replica.name}. "
                         f"Indexing tombstone in place of bundle.")
             self.backend.remove_bundle(bundle, tombstone)
-        logger.debug(f"Finished indexing bundle {bundle_fqid} from replica {replica.name}.")
+        logger.debug(f"Finished indexing bundle {bundle_fqid} from replica {self.replica.name}.")
 
-    def _index_tombstone(self, replica: Replica, tombstone_id: TombstoneID):
-        logger.info(f"Indexing tombstone {tombstone_id} from {replica.name}.")
-        tombstone = Tombstone.from_replica(replica, tombstone_id)
-        bundles = tombstone.list_dead_bundles()
+    def _index_tombstone(self, tombstone_id: TombstoneID):
+        logger.info(f"Indexing tombstone {tombstone_id} from {self.replica.name}.")
+        tombstone = Tombstone.load(self.replica, tombstone_id)
+        bundle_fqids = tombstone.list_dead_bundles()
+        bundles = [Bundle.load(self.replica, bundle_fqid) for bundle_fqid in bundle_fqids]
+        self._assert_enough_time(len(bundles))
         for bundle in bundles:
             self.backend.remove_bundle(bundle, tombstone)
-        logger.info(f"Finished indexing tombstone {tombstone_id} from {replica.name}.")
+        logger.info(f"Finished indexing tombstone {tombstone_id} from {self.replica.name}.")
+
+    @property
+    def remaining_time(self) -> float:
+        """
+        Return the remaining runtime of this Lambda invocation in seconds.
+        """
+        remaining_time = self.context.get_remaining_time_in_millis() / 1000
+        logger.debug("Remaining indexing time is %fs", remaining_time)
+        return remaining_time
+
+    def _assert_enough_time(self, num_operations):
+        remaining_time = self.remaining_time
+        time_needed = num_operations * self.backend.estimate_indexing_time()
+        if remaining_time < time_needed:
+            raise IndexerTimeout(f"Not enough time to complete indexing ({remaining_time} < {time_needed}).")
 
     replica: Optional[Replica] = None  # required in concrete subclasses
 
