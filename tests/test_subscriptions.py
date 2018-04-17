@@ -67,7 +67,9 @@ class TestSubscriptionsBase(ElasticsearchTestCase, DSSAssertMixin):
                         id=str(uuid.uuid4()),
                         body=self.index_document,
                         refresh=True)
-        self.callback_url = "https://example.com"
+        self.endpoint = dict(url="https://example.com",
+                             method="POST",
+                             encoding="application/json")
         self.sample_percolate_query = smartseq2_paired_ends_v2_or_v3_query
 
     def test_auth_errors(self):
@@ -120,7 +122,7 @@ class TestSubscriptionsBase(ElasticsearchTestCase, DSSAssertMixin):
             requests.codes.created,
             json_request_body=dict(
                 es_query=es_query,
-                callback_url=self.callback_url),
+                endpoint=self.endpoint),
             headers=get_auth_header()
         )
         self.assertIn('uuid', resp_obj.json)
@@ -138,7 +140,7 @@ class TestSubscriptionsBase(ElasticsearchTestCase, DSSAssertMixin):
             headers=get_auth_header())
         json_response = resp_obj.json
         self.assertEqual(self.sample_percolate_query, json_response['es_query'])
-        self.assertEqual(self.callback_url, json_response['callback_url'])
+        self.assertEqual(self.endpoint, json_response['endpoint'])
 
         # Forbidden request w/ previous url
         with self.throw_403():
@@ -169,7 +171,7 @@ class TestSubscriptionsBase(ElasticsearchTestCase, DSSAssertMixin):
             headers=get_auth_header())
         json_response = resp_obj.json
         self.assertEqual(self.sample_percolate_query, json_response['subscriptions'][0]['es_query'])
-        self.assertEqual(self.callback_url, json_response['subscriptions'][0]['callback_url'])
+        self.assertEqual(self.endpoint, json_response['subscriptions'][0]['endpoint'])
         self.assertEqual(num_additions, len(json_response['subscriptions']))
 
     def test_delete(self):
@@ -198,7 +200,7 @@ class TestSubscriptionsBase(ElasticsearchTestCase, DSSAssertMixin):
             requests.codes.created,
             json_request_body=dict(
                 es_query=self.sample_percolate_query,
-                callback_url=self.callback_url),
+                endpoint=self.endpoint),
             headers=get_auth_header()
         )
         uuid_ = resp_obj.json['uuid']

@@ -2,7 +2,7 @@ import logging
 from logging import DEBUG, INFO, WARNING
 import os
 import sys
-from typing import Mapping, Union, Tuple
+from typing import Mapping, Union, Tuple, Optional
 
 import dss
 from dss.config import Config
@@ -53,17 +53,17 @@ def configure_lambda_logging():
     _configure_logging(stream=sys.stdout)
 
 
-def configure_test_logging():
+def configure_test_logging(log_levels: Optional[log_level_t] = None, **kwargs):
     """
     Configure logging for use during unit tests.
     """
-    _configure_logging(stream=sys.stderr, test=True)
+    _configure_logging(stream=sys.stderr, test=True, log_levels=log_levels, **kwargs)
 
 
 _logging_configured = False
 
 
-def _configure_logging(test=False, **kwargs):
+def _configure_logging(test=False, log_levels: Optional[log_level_t] = None, **kwargs):
     root_logger = logging.getLogger()
     global _logging_configured
     if _logging_configured:
@@ -83,10 +83,12 @@ def _configure_logging(test=False, **kwargs):
                                 "Currently registered handlers, formatters and filters will be left as is.",
                                 stack_info=True)
         debug = Config.debug_level()
-        log_levels = main_log_levels
+        _log_levels = main_log_levels
         if test:
-            log_levels = {**log_levels, **test_log_levels}
-        for logger, levels in log_levels.items():
+            _log_levels = {**_log_levels, **test_log_levels}
+        if log_levels:
+            _log_levels = {**_log_levels, **log_levels}
+        for logger, levels in _log_levels.items():
             if isinstance(logger, (str, type(None))):
                 logger = logging.getLogger(logger)
             level = levels[min(debug, len(levels) - 1)]

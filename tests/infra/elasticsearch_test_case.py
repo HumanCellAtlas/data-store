@@ -12,6 +12,7 @@ class ElasticsearchTestCase(unittest.TestCase):
 
     @classmethod
     def setUpClass(cls):
+        super().setUpClass()
         Config.test_index_suffix.prepend(cls.__name__.lower())
         cls.server = ElasticsearchServer()
         os.environ['DSS_ES_PORT'] = str(cls.server.port)
@@ -22,9 +23,12 @@ class ElasticsearchTestCase(unittest.TestCase):
         Config.test_index_suffix.restore()
         cls.server.shutdown()
         os.unsetenv('DSS_ES_PORT')
+        super().tearDownClass()
 
     def setUp(self):
+        super().setUp()
         Config.test_index_suffix.prepend(self._testMethodName.lower())
 
     def tearDown(self):
         Config.test_index_suffix.restore()
+        super().tearDown()

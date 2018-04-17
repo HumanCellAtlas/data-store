@@ -1,21 +1,15 @@
-import ipaddress
 import json
 import logging
-import socket
 import typing
 
 import re
-from urllib.parse import urlparse
-import uuid
 
 from elasticsearch import TransportError
-from elasticsearch.helpers import BulkIndexError, bulk, scan
-import requests
-from requests_http_signature import HTTPSignatureAuth
+from elasticsearch.helpers import bulk
 
-from dss import Config, DeploymentStage, ESDocType, ESIndexType, Replica
+from dss import Config, ESDocType, ESIndexType, Replica
 from dss.index.bundle import Bundle, Tombstone
-from dss.index.es import ElasticsearchClient, elasticsearch_retry
+from dss.index.es import ElasticsearchClient, elasticsearch_retry, refresh_percolate_queries
 from dss.index.es.manager import IndexManager
 from dss.index.es.validator import scrub_index_data
 from dss.index.es.schemainfo import SchemaInfo
@@ -198,7 +192,7 @@ class BundleDocument(IndexDocument):
         super()._write_to_index(index_name, version=version)
         current_mappings = es_client.indices.get_mapping(index_name)[index_name]['mappings']
         if initial_mappings != current_mappings:
-            self._refresh_percolate_queries(index_name)
+            refresh_percolate_queries(self.replica, index_name)
 
     def _prepare_index(self, dryrun):
         shape_descriptor = self.get_shape_descriptor()
@@ -340,130 +334,6 @@ class BundleDocument(IndexDocument):
         } for index_name, version in versions.items()])
         for item in errors:
             logger.warning(f"Document deletion failed: {json.dumps(item)}")
-
-    def _refresh_percolate_queries(self, index_name: str):
-        # When dynamic templates are used and queries for percolation have been added
-        # to an index before the index contains mappings of fields referenced by those queries,
-        # the queries must be reloaded when the mappings are present for the queries to match.
-        # See: https://github.com/elastic/elasticsearch/issues/5750
-        subscription_index_name = Config.get_es_index_name(ESIndexType.subscriptions, self.replica)
-        es_client = ElasticsearchClient.get()
-        if not es_client.indices.exists(subscription_index_name):
-            return
-        subscription_queries = [{'_index': index_name,
-                                 '_type': ESDocType.query.name,
-                                 '_id': hit['_id'],
-                                 '_source': hit['_source']['es_query']
-                                 }
-                                for hit in scan(es_client,
-                                                index=subscription_index_name,
-                                                doc_type=ESDocType.subscription.name,
-                                                query={'query': {'match_all': {}}})
-                                ]
-
-        if subscription_queries:
-            try:
-                bulk(es_client, iter(subscription_queries), refresh=True)
-            except BulkIndexError as ex:
-                logger.error(f"Error occurred when adding subscription queries "
-                             f"to index {index_name} Errors: {ex.errors}")
-
-    def notify(self, index_name):
-        subscription_ids = self._find_matching_subscriptions(index_name)
-        self._notify_subscribers(subscription_ids)
-
-    def _find_matching_subscriptions(self, index_name: str) -> typing.MutableSet[str]:
-        percolate_document = {
-            'query': {
-                'percolate': {
-                    'field': "query",
-                    'document_type': ESDocType.doc.name,
-                    'document': self
-                }
-            }
-        }
-        subscription_ids = set()
-        for hit in scan(ElasticsearchClient.get(),
-                        index=index_name,
-                        query=percolate_document):
-            subscription_ids.add(hit["_id"])
-        logger.debug(f"Found {len(subscription_ids)} matching subscription(s).")
-        return subscription_ids
-
-    def _notify_subscribers(self, subscription_ids: typing.MutableSet[str]):
-        for subscription_id in subscription_ids:
-            try:
-                # TODO Batch this request
-                subscription = self._get_subscription(subscription_id)
-                self._notify_subscriber(subscription)
-            except Exception:
-                logger.error(f"Error occurred while processing subscription {subscription_id} "
-                             f"for bundle {self.fqid}.", exc_info=True)
-
-    def _get_subscription(self, subscription_id: str) -> dict:
-        subscription_query = {
-            'query': {
-                'ids': {
-                    'type': ESDocType.subscription.name,
-                    'values': [subscription_id]
-                }
-            }
-        }
-        response = ElasticsearchClient.get().search(
-            index=Config.get_es_index_name(ESIndexType.subscriptions, self.replica),
-            body=subscription_query)
-        hits = response['hits']['hits']
-        assert len(hits) == 1
-        hit = hits[0]
-        assert hit['_id'] == subscription_id
-        subscription = hit['_source']
-        assert 'id' not in subscription
-        subscription['id'] = subscription_id
-        return subscription
-
-    def _notify_subscriber(self, subscription: dict):
-        subscription_id = subscription['id']
-        transaction_id = str(uuid.uuid4())
-        payload = {
-            "transaction_id": transaction_id,
-            "subscription_id": subscription_id,
-            "es_query": subscription['es_query'],
-            "match": {
-                "bundle_uuid": self.fqid.uuid,
-                "bundle_version": self.fqid.version,
-            }
-        }
-        callback_url = subscription['callback_url']
-
-        # FIXME wrap all errors in this block with an exception handler
-        if DeploymentStage.IS_PROD():
-            allowed_schemes = {'https'}
-        else:
-            allowed_schemes = {'https', 'http'}
-
-        assert urlparse(callback_url).scheme in allowed_schemes, "Unexpected scheme for callback URL"
-
-        if DeploymentStage.IS_PROD():
-            hostname = urlparse(callback_url).hostname
-            for family, socktype, proto, canonname, sockaddr in socket.getaddrinfo(hostname, port=None):
-                msg = "Callback hostname resolves to forbidden network"
-                assert ipaddress.ip_address(sockaddr[0]).is_global, msg  # type: ignore
-
-        auth = None
-        if "hmac_secret_key" in subscription:
-            auth = HTTPSignatureAuth(key=subscription['hmac_secret_key'].encode(),
-                                     key_id=subscription.get("hmac_key_id", "hca-dss:" + subscription_id))
-        response = requests.post(callback_url, json=payload, auth=auth)
-
-        # TODO (mbaumann) Add webhook retry logic
-        if 200 <= response.status_code < 300:
-            logger.info(f"Successfully notified for subscription {subscription_id}"
-                        f" for bundle {self.fqid} with transaction id {transaction_id} "
-                        f"Code: {response.status_code}")
-        else:
-            logger.warning(f"Failed notification for subscription {subscription_id}"
-                           f" for bundle {self.fqid} with transaction id {transaction_id} "
-                           f"Code: {response.status_code}")
 
 
 class BundleTombstoneDocument(IndexDocument):

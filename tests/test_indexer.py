@@ -2,14 +2,18 @@
 # coding: utf-8
 
 from abc import ABCMeta, abstractmethod
+import cgi
 from concurrent.futures import ThreadPoolExecutor
 import copy
 import datetime
 from http.server import BaseHTTPRequestHandler, HTTPServer
+from io import BytesIO
 import io
 import json
 import logging
 import os
+
+import botocore.client
 import requests
 from requests_http_signature import HTTPSignatureAuth
 import sys
@@ -20,6 +24,8 @@ import unittest
 import unittest.mock
 import uuid
 
+import boto3
+
 pkg_root = os.path.abspath(os.path.join(os.path.dirname(__file__), '..'))  # noqa
 sys.path.insert(0, pkg_root)  # noqa
 
@@ -27,7 +33,9 @@ import dss
 from dss import BucketConfig, Config, DeploymentStage
 from dss.config import Replica
 from dss.index import DEFAULT_BACKENDS
+import dss.index.es.backend
 from dss.index.backend import CompositeIndexBackend
+from dss.index.es.backend import ElasticsearchIndexBackend
 from dss.index.es import ElasticsearchClient
 from dss.index.es.document import BundleDocument
 from dss.index.es.validator import scrub_index_data
@@ -65,26 +73,23 @@ USE_AWS_S3 = bool(os.environ.get("USE_AWS_S3", True))
 #
 
 
-class HTTPInfo:
-    address = "127.0.0.1"
-    port = None
-    server = None
-    thread = None
+NotificationRequestHandler = None
 
 
 def setUpModule():
     configure_test_logging()
-    HTTPInfo.port = networking.unused_tcp_port()
-    HTTPInfo.server = HTTPServer((HTTPInfo.address, HTTPInfo.port), PostTestHandler)
-    HTTPInfo.thread = threading.Thread(target=HTTPInfo.server.serve_forever)
-    HTTPInfo.thread.start()
+    global NotificationRequestHandler
+    if testmode.is_integration():
+        NotificationRequestHandler = S3NotificationRequestHandler
+    else:
+        NotificationRequestHandler = LocalNotificationRequestHandler
+    NotificationRequestHandler.startServing()
 
 
 def tearDownModule():
-    HTTPInfo.server.shutdown()
+    NotificationRequestHandler.stopServing()
 
 
-@testmode.standalone
 class TestIndexerBase(ElasticsearchTestCase, DSSAssertMixin, DSSStorageMixin, DSSUploadMixin, metaclass=ABCMeta):
     bundle_key_by_replica = dict()  # type: typing.MutableMapping[str, str]
 
@@ -109,7 +114,10 @@ class TestIndexerBase(ElasticsearchTestCase, DSSAssertMixin, DSSStorageMixin, DS
 
     def setUp(self):
         super().setUp()
-        backend = CompositeIndexBackend(self.executor, DEFAULT_BACKENDS, context=MockLambdaContext())
+        backend = CompositeIndexBackend(self.executor,
+                                        DEFAULT_BACKENDS,
+                                        context=MockLambdaContext(),
+                                        notify_async=testmode.is_integration())
         self.indexer = self.indexer_cls(backend)
         self.dss_alias_name = dss.Config.get_es_alias_name(dss.ESIndexType.docs, self.replica)
         self.subscription_index_name = dss.Config.get_es_index_name(dss.ESIndexType.subscriptions, self.replica)
@@ -118,11 +126,11 @@ class TestIndexerBase(ElasticsearchTestCase, DSSAssertMixin, DSSStorageMixin, DS
                 "fixtures/indexing/bundles/v3/smartseq2/paired_ends")
         self.bundle_key = self.bundle_key_by_replica[self.replica]
         self.smartseq2_paired_ends_query = smartseq2_paired_ends_v2_or_v3_query
-        PostTestHandler.reset()
 
     def process_new_indexable_object(self, event):
         self.indexer.process_new_indexable_object(event)
 
+    @testmode.standalone
     def test_create(self):
         sample_event = self.create_bundle_created_event(self.bundle_key)
         self.process_new_indexable_object(sample_event)
@@ -131,18 +139,21 @@ class TestIndexerBase(ElasticsearchTestCase, DSSAssertMixin, DSSStorageMixin, DS
         self.verify_index_document_structure_and_content(
             search_results[0],
             self.bundle_key,
-            files=smartseq2_paried_ends_indexed_file_list,
-        )
+            files=smartseq2_paried_ends_indexed_file_list)
 
+    @testmode.standalone
     def test_delete(self):
         self._test_delete(all_versions=False, zombie=False)
 
+    @testmode.standalone
     def test_delete_all_versions(self):
         self._test_delete(all_versions=True, zombie=False)
 
+    @testmode.standalone
     def test_delete_zombie(self):
         self._test_delete(all_versions=False, zombie=True)
 
+    @testmode.standalone
     def test_delete_all_versions_zombie(self):
         self._test_delete(all_versions=True, zombie=True)
 
@@ -226,6 +237,7 @@ class TestIndexerBase(ElasticsearchTestCase, DSSAssertMixin, DSSStorageMixin, DS
             expected_search_result = dict(tombstone_data, uuid=tombstone_id.uuid)
             self.assertDictEqual(search_results[0], expected_search_result)
 
+    @testmode.standalone
     def test_reindexing_with_changed_content(self):
         bundle_key = self.load_test_data_bundle_for_path("fixtures/indexing/bundles/v3/smartseq2/paired_ends")
         sample_event = self.create_bundle_created_event(bundle_key)
@@ -265,6 +277,7 @@ class TestIndexerBase(ElasticsearchTestCase, DSSAssertMixin, DSSStorageMixin, DS
             self.process_new_indexable_object(sample_event)
         self.assertTrue(any('is already up-to-date' in e for e in log.output))
 
+    @testmode.standalone
     def test_reindexing_with_changed_shape(self):
         bundle_key = self.load_test_data_bundle_for_path("fixtures/indexing/bundles/v3/smartseq2/paired_ends")
         sample_event = self.create_bundle_created_event(bundle_key)
@@ -288,6 +301,7 @@ class TestIndexerBase(ElasticsearchTestCase, DSSAssertMixin, DSSStorageMixin, DS
         # There should only be one hit and it should be from a different index, the "right" one
         _assert_reindexing_results(expect_shape_descriptor=False)
 
+    @testmode.standalone
     def test_indexed_file_with_invalid_content_type(self):
         bundle = TestBundle(self.blobstore, "fixtures/indexing/bundles/v3/smartseq2/paired_ends",
                             self.test_fixture_bucket, self.replica)
@@ -308,6 +322,7 @@ class TestIndexerBase(ElasticsearchTestCase, DSSAssertMixin, DSSStorageMixin, DS
         self.verify_index_document_structure_and_content(search_results[0], bundle_key,
                                                          files=smartseq2_paried_ends_indexed_file_list)
 
+    @testmode.standalone
     def test_key_is_not_indexed_when_processing_an_event_with_a_file_key(self):
         file_fqid = get_file_fqid()
         sample_event = self.create_bundle_created_event(file_fqid.to_key())
@@ -317,6 +332,7 @@ class TestIndexerBase(ElasticsearchTestCase, DSSAssertMixin, DSSStorageMixin, DS
         self.assertIn(str(file_fqid), log_monitor.output[0])
         self.assertFalse(ElasticsearchClient.get().indices.exists_alias(name=self.dss_alias_name))
 
+    @testmode.standalone
     def test_error_message_logged_when_invalid_bucket_in_event(self):
         bundle_key = "bundles/{}.{}".format(str(uuid.uuid4()), get_version())
         sample_event = self.create_bundle_created_event(bundle_key)
@@ -325,6 +341,7 @@ class TestIndexerBase(ElasticsearchTestCase, DSSAssertMixin, DSSStorageMixin, DS
                 self.process_new_indexable_object(sample_event)
         self.assertRegex(log_monitor.output[0], "ERROR:.*Exception occurred while processing .* event:.*")
 
+    @testmode.standalone
     def test_indexed_file_unparsable(self):
         bundle_key = self.load_test_data_bundle_for_path("fixtures/indexing/bundles/unparseable_indexed_file")
         sample_event = self.create_bundle_created_event(bundle_key)
@@ -338,6 +355,7 @@ class TestIndexerBase(ElasticsearchTestCase, DSSAssertMixin, DSSStorageMixin, DS
         self.verify_index_document_structure_and_content(search_results[0], bundle_key,
                                                          files=smartseq2_paried_ends_indexed_file_list)
 
+    @testmode.standalone
     def test_indexed_file_access_error(self):
         inaccesssible_filename = "inaccessible_file.json"
         bundle_key = self.load_test_data_bundle_with_inaccessible_file(
@@ -361,78 +379,123 @@ class TestIndexerBase(ElasticsearchTestCase, DSSAssertMixin, DSSStorageMixin, DS
         with self.assertRaises(RuntimeError):
             self.process_new_indexable_object(sample_event)
 
+    def _default_endpoint(self, **kwargs):
+        return {
+            'encoding': MIME.formdata if testmode.is_integration() else MIME.json,
+            'method': 'POST',
+            **kwargs}
+
+    @testmode.standalone
     def test_notify(self):
-        def _notify(subscription, bundle_id=get_bundle_fqid()):
-            document = BundleDocument(self.replica, bundle_id)
-            document._notify_subscriber(subscription=subscription)
+        backend = ElasticsearchIndexBackend(context=MockLambdaContext(), notify_async=False)
+
+        def _notify(url):
+            document = BundleDocument(self.replica, get_bundle_fqid())
+            backend._notify_subscriber(doc=document,
+                                       subscription=dict(id="",
+                                                         es_query={},
+                                                         endpoint=self._default_endpoint(url=url)))
 
         with self.assertRaisesRegex(requests.exceptions.InvalidURL, "Invalid URL 'http://': No host supplied"):
-            _notify(subscription=dict(id="", es_query={}, callback_url="http://"))
-        with self.assertRaisesRegex(AssertionError, "Unexpected scheme for callback URL"):
-            _notify(subscription=dict(id="", es_query={}, callback_url=""))
-        with self.assertRaisesRegex(AssertionError, "Unexpected scheme for callback URL"):
-            _notify(subscription=dict(id="", es_query={}, callback_url="wss://127.0.0.1"))
+            _notify("http://")
+        with self.assertRaisesRegex(RequirementError, "The scheme '' of URL '' is prohibited"):
+            _notify("")
+        with self.assertRaisesRegex(RequirementError, "The scheme 'wss' of URL 'wss://127.0.0.1' is prohibited"):
+            _notify("wss://127.0.0.1")
         with unittest.mock.patch.dict(os.environ, DSS_DEPLOYMENT_STAGE=DeploymentStage.PROD.value):
-            with self.assertRaisesRegex(AssertionError, "Unexpected scheme for callback URL"):
-                _notify(subscription=dict(id="", es_query={}, callback_url="http://example.com"))
-            with self.assertRaisesRegex(AssertionError, "Callback hostname resolves to forbidden network"):
-                _notify(subscription=dict(id="", es_query={}, callback_url="https://127.0.0.1"))
+            with self.assertRaisesRegex(RequirementError,
+                                        "The scheme 'http' of URL 'http://example.com' is prohibited"):
+                _notify("http://example.com")
+            with self.assertRaisesRegex(RequirementError,
+                                        "The hostname in URL 'https://127.0.0.1' resolves to a private IP"):
+                _notify("https://127.0.0.1")
 
     def delete_subscription(self, subscription_id):
         self.assertDeleteResponse(
             str(UrlBuilder().set(path=f"/v1/subscriptions/{subscription_id}").add_query("replica", self.replica.name)),
             requests.codes.ok,
-            headers=get_auth_header()
-        )
+            headers=get_auth_header())
 
+    @testmode.always
     def test_subscription_notification_successful(self):
         sample_event = self.create_bundle_created_event(self.bundle_key)
         self.process_new_indexable_object(sample_event)
-        for verify_payloads, subscribe_kwargs in ((True, dict(hmac_secret_key=PostTestHandler.hmac_secret_key)),
-                                                  (False, dict())):
-            PostTestHandler.verify_payloads = verify_payloads
-            subscription_id = self.subscribe_for_notification(self.smartseq2_paired_ends_query,
-                                                              f"http://{HTTPInfo.address}:{HTTPInfo.port}",
-                                                              **subscribe_kwargs)
+        test_cases = []
 
-            sample_event = self.create_bundle_created_event(self.bundle_key)
-            self.process_new_indexable_object(sample_event)
-            prefix, _, bundle_fqid = self.bundle_key.partition("/")
-            self.verify_notification(subscription_id, self.smartseq2_paired_ends_query, bundle_fqid)
-            self.delete_subscription(subscription_id)
-            PostTestHandler.reset()
+        def test_case(verify_payloads, **endpoint):
+            endpoint = {k: v for k, v in endpoint.items() if v is not None}
+            test_cases.append((endpoint, verify_payloads))
 
+        if testmode.is_integration():
+            test_case(verify_payloads=False, method='POST', encoding=MIME.formdata)
+            test_case(verify_payloads=False, method='PUT', encoding=MIME.json)
+        else:
+            for method in 'POST', 'PUT':
+                for encoding in MIME.formdata, MIME.json:
+                    for form_fields in None, {'x': 'y'}:
+                        for payload_form_field in None, 'z':
+                            # form_fields and payload_form_field are only relevant with form-data encoding
+                            if encoding != MIME.json or form_fields is None and payload_form_field is None:
+                                for verify_payloads in False, True:
+                                    test_case(verify_payloads=verify_payloads,
+                                              method=method,
+                                              encoding=encoding,
+                                              form_fields=form_fields,
+                                              payload_form_field=payload_form_field)
+
+        for endpoint, verify_payloads in test_cases:
+            with self.subTest(**endpoint, verify_payloads=verify_payloads):
+                endpoint = endpoint.copy()
+                NotificationRequestHandler.configure(endpoint, verify_payloads=verify_payloads)
+                subscription = dict(es_query=self.smartseq2_paired_ends_query, endpoint=endpoint)
+                if verify_payloads:
+                    subscription['hmac_secret_key'] = NotificationRequestHandler.hmac_secret_key
+                subscription_id = self.subscribe_for_notification(**subscription)
+                sample_event = self.create_bundle_created_event(self.bundle_key)
+                self.process_new_indexable_object(sample_event)
+                prefix, _, bundle_fqid = self.bundle_key.partition("/")
+                self.verify_notification(subscription_id, self.smartseq2_paired_ends_query, bundle_fqid, endpoint)
+                self.delete_subscription(subscription_id)
+
+    # TODO: This should be @testmode.always once we find a way to emulate HTTP status errors with signed-PUT/POST to S3
+
+    @testmode.standalone
     def test_subscription_notification_unsuccessful(self):
-        PostTestHandler.verify_payloads = True
         sample_event = self.create_bundle_created_event(self.bundle_key)
         self.process_new_indexable_object(sample_event)
 
-        subscription_id = self.subscribe_for_notification(self.smartseq2_paired_ends_query,
-                                                          f"http://{HTTPInfo.address}:{HTTPInfo.port}",
-                                                          hmac_secret_key=PostTestHandler.hmac_secret_key,
+        endpoint = self._default_endpoint()
+        NotificationRequestHandler.configure(endpoint, verify_payloads=True)
+        subscription_id = self.subscribe_for_notification(es_query=self.smartseq2_paired_ends_query,
+                                                          endpoint=endpoint,
+                                                          hmac_secret_key=NotificationRequestHandler.hmac_secret_key,
                                                           hmac_key_id="test")
-
         bundle_key = self.load_test_data_bundle_for_path("fixtures/indexing/bundles/v3/smartseq2/paired_ends")
         sample_event = self.create_bundle_created_event(bundle_key)
-        error_response_code = 500
-        PostTestHandler.set_response_code(error_response_code)
+        NotificationRequestHandler.configure(endpoint, verify_payloads=True, response_code=500)
         with self.assertLogs(dss.logger, level="WARNING") as log_monitor:
             self.process_new_indexable_object(sample_event)
         prefix, _, bundle_fqid = bundle_key.partition("/")
+        url = endpoint['url']
         self.assertRegex(log_monitor.output[0],
-                         f"WARNING:.*:Failed notification for subscription {subscription_id}"
-                         f" for bundle {bundle_fqid} with transaction id .+ Code: {error_response_code}")
+                         f"(?s)"  # dot matches newline
+                         f"ERROR:.*:"
+                         f"Error occurred while processing subscription {subscription_id} for bundle {bundle_fqid}.*"
+                         f"requests.exceptions.HTTPError: 500 Server Error: Internal Server Error for url: {url}")
 
+    @testmode.always
     def test_subscription_registration_before_indexing(self):
-        subscription_id = self.subscribe_for_notification(self.smartseq2_paired_ends_query,
-                                                          f"http://{HTTPInfo.address}:{HTTPInfo.port}")
+        endpoint = self._default_endpoint()
+        NotificationRequestHandler.configure(endpoint, verify_payloads=False)
+        subscription_id = self.subscribe_for_notification(es_query=self.smartseq2_paired_ends_query,
+                                                          endpoint=endpoint)
         sample_event = self.create_bundle_created_event(self.bundle_key)
-        PostTestHandler.verify_payloads = False
         self.process_new_indexable_object(sample_event)
         prefix, _, bundle_fqid = self.bundle_key.partition("/")
-        self.verify_notification(subscription_id, self.smartseq2_paired_ends_query, bundle_fqid)
+        self.verify_notification(subscription_id, self.smartseq2_paired_ends_query, bundle_fqid, endpoint)
         self.delete_subscription(subscription_id)
 
+    @testmode.always
     def test_subscription_query_with_multiple_data_types_indexing_and_notification(self):
         # Verify that a subscription query using numeric, date and string types
         # that is registered before indexing (via the ES setting
@@ -462,10 +525,10 @@ class TestIndexerBase(ElasticsearchTestCase, DSSAssertMixin, DSSStorageMixin, DS
                 }
             }
 
-        subscription_id = self.subscribe_for_notification(subscription_query,
-                                                          f"http://{HTTPInfo.address}:{HTTPInfo.port}")
+        endpoint = self._default_endpoint()
+        NotificationRequestHandler.configure(endpoint, verify_payloads=False)
+        subscription_id = self.subscribe_for_notification(es_query=subscription_query, endpoint=endpoint)
         sample_event = self.create_bundle_created_event(self.bundle_key)
-        PostTestHandler.verify_payloads = False
         self.process_new_indexable_object(sample_event)
 
         # Verify the mapping types are as expected for a valid test
@@ -482,9 +545,10 @@ class TestIndexerBase(ElasticsearchTestCase, DSSAssertMixin, DSSStorageMixin, DS
 
         # Verify the query works correctly as a subscription, resulting in notification
         prefix, _, bundle_fqid = self.bundle_key.partition("/")
-        self.verify_notification(subscription_id, subscription_query, bundle_fqid)
+        self.verify_notification(subscription_id, subscription_query, bundle_fqid, endpoint)
         self.delete_subscription(subscription_id)
 
+    @testmode.standalone
     def test_get_shape_descriptor(self):
 
         def describedBy(schema_type, schema_version):
@@ -571,6 +635,7 @@ class TestIndexerBase(ElasticsearchTestCase, DSSAssertMixin, DSSStorageMixin, DS
                 test_requirements('File name is number', '7_json', 'sample',
                                   "A metadata file name must contain at least one non-digit: 7")
 
+    @testmode.standalone
     def test_alias_and_versioned_index_exists(self):
         sample_event = self.create_bundle_created_event(self.bundle_key)
         self.process_new_indexable_object(sample_event)
@@ -581,6 +646,7 @@ class TestIndexerBase(ElasticsearchTestCase, DSSAssertMixin, DSSStorageMixin, DS
         self.assertIn(doc_index_name, alias)
         self.assertTrue(es_client.indices.exists(index=doc_index_name))
 
+    @testmode.standalone
     def test_alias_and_multiple_schema_version_index_exists(self):
         # Load and test an unversioned bundle
         bundle_key = self.load_test_data_bundle_for_path(
@@ -604,6 +670,7 @@ class TestIndexerBase(ElasticsearchTestCase, DSSAssertMixin, DSSStorageMixin, DS
         self.assertIn(doc_index_name, alias)
         self.assertTrue(es_client.indices.exists(index=doc_index_name))
 
+    @testmode.standalone
     def test_multiple_schema_version_indexing_and_search(self):
         # Load a schema version 4 bundle
         bundle_key = self.load_test_data_bundle_for_path(
@@ -636,8 +703,11 @@ class TestIndexerBase(ElasticsearchTestCase, DSSAssertMixin, DSSStorageMixin, DS
         search_results = self.get_search_results(smartseq2_paired_ends_v3_or_v4_query, 2)
         self.assertEqual(2, len(search_results))
 
+    # This is not testmode.always because S3NotificationRequestHandler only supports one delivery per subscription :-(
+    @testmode.standalone
     def test_multiple_schema_version_subscription_indexing_and_notification(self):
-        PostTestHandler.verify_payloads = False
+        endpoint = self._default_endpoint()
+        NotificationRequestHandler.configure(endpoint, verify_payloads=False)
 
         # Load a schema version 4 bundle
         bundle_key = self.load_test_data_bundle_for_path(
@@ -649,31 +719,29 @@ class TestIndexerBase(ElasticsearchTestCase, DSSAssertMixin, DSSStorageMixin, DS
         sample_event = self.create_bundle_created_event(self.bundle_key)
         self.process_new_indexable_object(sample_event)
 
-        subscription_id = self.subscribe_for_notification(smartseq2_paired_ends_v3_or_v4_query,
-                                                          f"http://{HTTPInfo.address}:{HTTPInfo.port}")
+        subscription_id = self.subscribe_for_notification(es_query=smartseq2_paired_ends_v3_or_v4_query,
+                                                          endpoint=endpoint)
 
         # Load another schema version 4 bundle and verify notification
-        bundle_key = self.load_test_data_bundle_for_path(
-            "fixtures/indexing/bundles/v4/smartseq2/paired_ends")
+        bundle_key = self.load_test_data_bundle_for_path("fixtures/indexing/bundles/v4/smartseq2/paired_ends")
         sample_event = self.create_bundle_created_event(bundle_key)
         self.process_new_indexable_object(sample_event)
         prefix, _, bundle_fqid = bundle_key.partition("/")
-        self.verify_notification(subscription_id, smartseq2_paired_ends_v3_or_v4_query, bundle_fqid)
+        self.verify_notification(subscription_id, smartseq2_paired_ends_v3_or_v4_query, bundle_fqid, endpoint)
 
-        PostTestHandler.reset()
-        PostTestHandler.verify_payloads = False
+        NotificationRequestHandler.configure(endpoint, verify_payloads=False)
 
         # Load another schema version 3 bundle and verify notification
-        bundle_key = self.load_test_data_bundle_for_path(
-            "fixtures/indexing/bundles/v3/smartseq2/paired_ends")
+        bundle_key = self.load_test_data_bundle_for_path("fixtures/indexing/bundles/v3/smartseq2/paired_ends")
         sample_event = self.create_bundle_created_event(bundle_key)
         self.process_new_indexable_object(sample_event)
         prefix, _, bundle_fqid = bundle_key.partition("/")
-        self.verify_notification(subscription_id, smartseq2_paired_ends_v3_or_v4_query, bundle_fqid)
+        self.verify_notification(subscription_id, smartseq2_paired_ends_v3_or_v4_query, bundle_fqid, endpoint)
 
         self.delete_subscription(subscription_id)
 
     # TODO: Remove this test once we stop supporting the `core` property (see issue #1015).
+    @testmode.standalone
     def test_scrub_index_data_with_core(self):
         manifest = read_bundle_manifest(self.blobstore, self.test_bucket, self.bundle_key)
         doc = 'assay_json'
@@ -746,6 +814,7 @@ class TestIndexerBase(ElasticsearchTestCase, DSSAssertMixin, DSSStorageMixin, DS
                                                                       f"Actual index document: "
                                                                       f"{json.dumps(index_data, indent=4)}")
 
+    @testmode.standalone
     def test_scrub_index_data_with_describedBy(self):
         index_data_master = {
             "files": {
@@ -879,10 +948,35 @@ class TestIndexerBase(ElasticsearchTestCase, DSSAssertMixin, DSSStorageMixin, DS
         self.assertRegexIn(r"INFO:[^:]+:In [\w\-\.]+, unexpected additional fields have been removed from the "
                            r"data to be indexed. Removed \[[^\]]*].", log_monitor.output)
 
-    def verify_notification(self, subscription_id, es_query, bundle_fqid):
-        posted_payload_string = self.get_notification_payload()
-        self.assertIsNotNone(posted_payload_string)
-        posted_json = json.loads(posted_payload_string)
+    def verify_notification(self, subscription_id, es_query, bundle_fqid, endpoint):
+        received_request = self._get_received_notification_request()
+        self.assertIsNotNone(received_request)
+        self.assertEqual(endpoint['method'], received_request['method'])
+        if testmode.is_integration():
+            # During integration tests, the content of the object *is* the payload. The payload is always JSON. The
+            # raw, form encoded envelope in the raw POST body is discarded, only the wrapped JSON payload survives.
+            self.assertEqual(MIME.json, received_request['content_type'])
+            posted_json = json.loads(received_request['body'].decode('utf-8'))
+        elif endpoint['encoding'] == MIME.json:
+            self.assertEqual(endpoint['encoding'], received_request['content_type'])
+            posted_json = json.loads(received_request['body'].decode('utf-8'))
+        elif endpoint['encoding'] == MIME.formdata:
+            content_type = received_request['content_type']
+            ctype, pdict = cgi.parse_header(content_type)
+            self.assertEqual(endpoint['encoding'], ctype)
+            # Bug: boundary comes out of parse_header as a string, but parse_multipart expects it to be bytes
+            pdict['boundary'] = pdict['boundary'].encode('ascii')
+            body = cgi.parse_multipart(BytesIO(received_request['body']), pdict)
+            self.assertTrue(all(len(v) == 1 for v in body.values()))
+            body = {k: v[0].decode() for k, v in body.items()}
+            payload_form_field = endpoint.get('payload_form_field', 'payload')
+            posted_json = json.loads(body[payload_form_field])
+            form_fields = endpoint.get('form_fields', {})
+            self.assertTrue(form_fields.items() <= body.items())
+            self.assertEqual(body.keys() - form_fields.keys(), {payload_form_field})
+        else:
+            self.fail(endpoint['encoding'])
+
         self.assertIn('transaction_id', posted_json)
         self.assertIn('subscription_id', posted_json)
         self.assertEqual(subscription_id, posted_json['subscription_id'])
@@ -893,19 +987,20 @@ class TestIndexerBase(ElasticsearchTestCase, DSSAssertMixin, DSSStorageMixin, DS
         self.assertEqual(bundle_uuid, posted_json['match']['bundle_uuid'])
         self.assertEqual(bundle_version, posted_json['match']['bundle_version'])
 
+    @testmode.standalone
     def test_indexer_lookup(self):
         for replica in Replica:
             indexer = Indexer.for_replica(replica)
             self.assertIs(replica, indexer.replica)
 
     @staticmethod
-    def get_notification_payload():
+    def _get_received_notification_request():
         timeout = 5
         timeout_time = time.time() + timeout
         while True:
-            posted_payload_string = PostTestHandler.get_payload()
-            if posted_payload_string:
-                return posted_payload_string
+            received_request = NotificationRequestHandler.get_request()
+            if received_request:
+                return received_request
             if time.time() >= timeout_time:
                 return None
             else:
@@ -935,16 +1030,14 @@ class TestIndexerBase(ElasticsearchTestCase, DSSAssertMixin, DSSStorageMixin, DS
         self.upload_files_and_create_bundle(bundle, self.replica)
         return f"bundles/{bundle.uuid}.{bundle.version}"
 
-    def subscribe_for_notification(self, es_query, callback_url, **kwargs):
+    def subscribe_for_notification(self, **body):
         url = str(UrlBuilder()
                   .set(path="/v1/subscriptions")
                   .add_query("replica", self.replica.name))
-        resp_obj = self.assertPutResponse(
-            url,
-            requests.codes.created,
-            json_request_body=dict(es_query=es_query, callback_url=callback_url, **kwargs),
-            headers=get_auth_header()
-        )
+        resp_obj = self.assertPutResponse(url,
+                                          requests.codes.created,
+                                          json_request_body=body,
+                                          headers=get_auth_header())
         uuid_ = resp_obj.json['uuid']
         return uuid_
 
@@ -1095,46 +1188,133 @@ class BundleBuilder:
         return datetime_to_version_format(datetime.datetime.utcnow())
 
 
-class PostTestHandler(BaseHTTPRequestHandler):
-    _response_code = 200
-    _payload = None
+class LocalNotificationRequestHandler(BaseHTTPRequestHandler):
     hmac_secret_key = "ribos0me"
-    verify_payloads = True
+    _response_code = None
+    _verify_payloads = True
+    _request = None
+    _address = "127.0.0.1"
+    _port = None
+    _server = None
+    _thread = None
+
+    @classmethod
+    def startServing(cls):
+        cls._port = networking.unused_tcp_port()
+        cls._server = HTTPServer((cls._address, cls._port), cls)
+        cls._thread = threading.Thread(target=cls._server.serve_forever)
+        cls._thread.start()
+
+    @classmethod
+    def stopServing(cls):
+        cls._server.shutdown()
+        cls._thread.join()
+
+    @classmethod
+    def configure(cls, endpoint, response_code=200, verify_payloads=False):
+        assert endpoint['method'] in ('PUT', 'POST')
+        cls._response_code = response_code
+        cls._verify_payloads = verify_payloads
+        cls._request = None
+        url = f"http://{cls._address}:{cls._port}"
+        assert url == endpoint.setdefault('url', url)  # Don't clobber an existing URL
+
+    def do_PUT(self):
+        self._do("PUT")
 
     def do_POST(self):
-        if self.verify_payloads:
-            HTTPSignatureAuth.verify(requests.Request("POST", self.path, self.headers),
+        self._do("POST")
+
+    def _do(self, method):
+        if self._verify_payloads:
+            HTTPSignatureAuth.verify(requests.Request(method, self.path, self.headers),
                                      key_resolver=lambda key_id, algorithm: self.hmac_secret_key.encode())
             try:
-                HTTPSignatureAuth.verify(requests.Request("POST", self.path, self.headers),
+                HTTPSignatureAuth.verify(requests.Request(method, self.path, self.headers),
                                          key_resolver=lambda key_id, algorithm: self.hmac_secret_key[::-1].encode())
-                raise Exception("Expected AssertionError")
             except AssertionError:
                 pass
+            else:
+                raise Exception("Expected AssertionError")
+
         self.send_response(self._response_code)
         self.send_header("Content-length", "0")
         self.end_headers()
         length = int(self.headers['content-length'])
         if length:
-            PostTestHandler._payload = self.rfile.read(length).decode("utf-8")
+            self.__class__._request = dict(method=method,
+                                           content_type=self.headers['Content-Type'],
+                                           body=self.rfile.read(length))
 
     @classmethod
-    def reset(cls):
-        cls._response_code = 200
-        cls._payload = None
-        cls.verify_payloads = True
-
-    @classmethod
-    def set_response_code(cls, code: int):
-        cls._response_code = code
-
-    @classmethod
-    def get_payload(cls):
-        return cls._payload
+    def get_request(cls):
+        return cls._request
 
     def log_request(self, code='-', size='-'):
         if Config.debug_level():
             super().log_request(code, size)
+
+
+class S3NotificationRequestHandler:
+    _bucket_name = os.environ['DSS_S3_BUCKET_TEST']
+    _key = None
+    _endpoint = None
+
+    @classmethod
+    def startServing(cls):
+        pass
+
+    @classmethod
+    def stopServing(cls):
+        pass
+
+    @classmethod
+    def configure(cls, endpoint, response_code=200, verify_payloads=False):
+        assert response_code == 200
+        assert not verify_payloads
+        method = endpoint['method']
+        key = f'notifications/{uuid.uuid4()}'
+        s3 = boto3.client('s3', config=botocore.client.Config(signature_version='s3v4'))
+        if method == 'POST':
+            # S3 requires the object content to be submitted in a form field called `file`
+            assert 'file' == endpoint.setdefault('payload_form_field', 'file')
+            post = s3.generate_presigned_post(Bucket=cls._bucket_name,
+                                              Key=key,
+                                              ExpiresIn=60,
+                                              Fields={'Content-Type': MIME.json},
+                                              Conditions=[{'Content-Type': MIME.json}])
+            form_fields = post['fields']
+            assert form_fields == endpoint.setdefault('form_fields', form_fields)
+            url = post['url']
+            assert url == endpoint.setdefault('url', url)
+            cls._endpoint = endpoint
+            cls._key = key
+        elif method == 'PUT':
+            url = s3.generate_presigned_url(ClientMethod='put_object',
+                                            Params=dict(Bucket=cls._bucket_name,
+                                                        Key=key,
+                                                        ContentType=endpoint['encoding']))
+            assert url == endpoint.setdefault('url', url)
+            cls._endpoint = endpoint
+            cls._key = key
+        else:
+            assert False, f"HTTP method '{method}' is not supported."
+
+    @classmethod
+    def get_request(cls):
+        s3 = boto3.client('s3')
+        try:
+            obj = s3.get_object(Bucket=cls._bucket_name, Key=cls._key)
+        except s3.exceptions.NoSuchKey:
+            return None
+        else:
+            s3.delete_object(Bucket=cls._bucket_name, Key=cls._key)
+            # We have no evidence that the object was indeed created via the signed URL we handed out above and that
+            # the expected method and content type were used. However, it is unlikely that someone or something
+            # guesses the key, creates the object and coaxes the assertions into false positives.
+            return dict(method=cls._endpoint['method'],
+                        content_type=obj['ContentType'],
+                        body=obj['Body'].read())
 
 
 smartseq2_paried_ends_indexed_file_list = ["assay_json", "project_json", "sample_json"]
@@ -1189,6 +1369,11 @@ def create_index_data(blobstore, bucket_name, bundle_key, manifest,
             index_files[index_filename] = file_json
     index['files'] = index_files
     return index
+
+
+class MIME:
+    formdata = 'multipart/form-data'
+    json = 'application/json'
 
 
 # Prevent unittest's discovery from attempting to discover the base test class. The alterative, not inheriting

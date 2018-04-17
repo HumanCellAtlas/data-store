@@ -355,8 +355,7 @@ paths:
     get:
       summary: Retrieve a user\'s event subscriptions.
       description: |
-        Return a list of associated subscriptions, which contains the uuid,
-        replica, query, creator_uid, and callback_url.
+        Return a list of associated subscriptions.
       operationId: dss.api.subscriptions.find
       security:
         - googAuth:
@@ -396,8 +395,7 @@ paths:
     put:
       summary: Create a event subscription.
       description: |
-        Create a new event subscription. Every time a new bundle version matches this query,
-        a request is sent to callback_url.
+        Register an HTTP endpoint that is to be notified when a given event occurs.
       security:
         - googAuth:
             - https://www.googleapis.com/auth/userinfo.email
@@ -415,25 +413,26 @@ paths:
             type: object
             properties:
               es_query:
-                description: Elasticsearch query that will trigger the callback.
+                description: |
+                  An Elasticsearch query for restricting the set of bundles for which this subscription's endpoint is notified.
+                  A notification request will only be made for newly indexed bundles that match the given query.
                 type: object
-              callback_url:
-                description: Url to send request to when a bundle comes in that matches this query.
-                type: string
-                format: url # Seems that this is possible now because of https://github.com/swagger-api/swagger-core/issues/1045
+              endpoint:
+                $ref: "#/definitions/NotificationEndpoint"
               hmac_secret_key:
                 description: |
-                  A key used to sign notifications sent to `callback_url`. The signature will be constructed according
-                  to https://tools.ietf.org/html/draft-cavage-http-signatures and transmitted in the Authorization
+                  The key for signing requests to the endpoint's URL. The signature will be constructed according to
+                  https://tools.ietf.org/html/draft-cavage-http-signatures and transmitted in the HTTP `Authorization`
                   header.
                 type: string
               hmac_key_id:
                 description: |
-                  A key ID to use for `hmac_secret_key`.
+                  An optional key ID to use with `hmac_secret_key`.
                 type: string
             required:
               - es_query
-              - callback_url
+              - endpoint
+            additionalProperties: false
       responses:
         201:
           description: OK
@@ -463,8 +462,7 @@ paths:
     get:
       summary: Retrieve an event subscription given a UUID.
       description: |
-        Given a subscription UUID, return the associated subscription, which contains the uuid,
-        replica, query, creator_uid, and callback_url.
+        Given a subscription UUID, return the associated subscription.
       security:
         - googAuth:
             - https://www.googleapis.com/auth/userinfo.email
@@ -1027,32 +1025,91 @@ definitions:
     required:
       - uuid
       - versions
+  NotificationEndpoint:
+    type: object
+    properties:
+      url:
+        description: The URL which an HTTP request is sent to when DSS delivers a notification to this endpoint.
+        type: string
+        pattern: 'https?://'
+      method:
+        description: The HTTP request method to use when DSS delivers a notification to this endpoint.
+        enum: [POST, PUT]
+      encoding:
+        enum:
+          - application/json
+          - multipart/form-data
+        description: >
+          The MIME type describing the encoding of the request body
+          * `application/json` - the HTTP request body is the notification payload as JSON
+          * `multipart/form-data` - the HTTP request body is a list of form fields, each consisting of a name and a
+            corresponding value. See https://tools.ietf.org/html/rfc7578 for details on this encoding. The actual
+            notification payload will be placed as JSON into a field of the name specified via `payload_form_field`.
+      form_fields:
+        description: |
+          A collection of static form fields to be supplied in the notification request body, alongside the actual
+          notification payload. The value of each field must be a string. For example, if, at subscription time, this
+          property is set to `{"foo" : "bar"}` then the HTTP request body at notification time would contain
+
+          ```
+          --2769baffc4f24cbc83ced26aa0c2f712
+          Content-Disposition: form-data; name="foo"
+
+          bar
+          Content-Disposition: form-data; name="payload"
+
+          {"transaction_id": "301c9079-3b20-4311-a131-bcda9b7f08ba", "subscription_id": ...
+          --2769baffc4f24cbc83ced26aa0c2f712--
+          ```
+
+          Since the type of this property is `object`, multi-valued fields are not supported. This property is ignored
+          unless `encoding` is `multipart/form-data`.
+        type: object
+        additionalProperties:
+          type: string
+      payload_form_field:
+        description: |
+          The name of the form field that will hold the notification payload when the request is made. If the default
+          name of the payload field collides with that of a field in `form_fields`, this porperty can be used to rename
+          the payload and avoid the collision. This property is ignored unless `encoding` is `multipart/form-data`.
+        type: string
+        default: payload
+    required:
+      - url
+      - method
+      - encoding
   Subscription:
     type: object
     properties:
       uuid:
         type: string
-        description: Subscription unique ID
+        description: Uniquely identifies this susbscription.
         pattern: "[a-z0-9]{8}-[a-z0-9]{4}-[a-z0-9]{4}-[a-z0-9]{4}-[a-z0-9]{12}"
       replica:
-        description: Replica this query is monitoring. One of aws, gcp, or azure.
+        description: |
+          The DSS replica to subscribe to. When a new bundle is indexed in a particular replica, only subscriptions for
+          that same replica are notified.
         type: string
         enum: [aws, gcp, azure]
       owner:
         type: string
         format: email
-        description: User who created this subscription.
-      callback_url:
-        description: Url to send request to when a bundle comes in that matches this query.
-        type: string
+        description: The email of the user who created this subscription.
+      endpoint:
+        description: |
+          Describes the specifics of the HTTP request that is made in order to deliver a notification for this
+          subscription.
+        $ref: "#/definitions/NotificationEndpoint"
       es_query:
-        description: Elasticsearch query that will trigger the callback.
+        description: |
+          An Elasticsearch query for restricting the set of bundles for which this subscription's endpoint is notified.
+          A notification request will only be made for newly indexed bundles that match the given query.
         type: object
     required:
       - uuid
       - replica
       - owner
-      - callback_url
+      - endpoint
       - es_query
   bundle_version:
     type: object

@@ -25,6 +25,7 @@ EXPORT_ENV_VARS_TO_LAMBDA_ARRAY=(
     DSS_S3_CHECKOUT_BUCKET
     DSS_GS_CHECKOUT_BUCKET
     SWAGGER_URL
+    DSS_NOTIFY_DELAYS
 )
 
 set -a
@@ -77,6 +78,14 @@ DSS_PARAMETER_STORE="/dss/parameters"
 DSS_EVENT_RELAY_AWS_USERNAME="dss-event-relay"
 DSS_EVENT_RELAY_AWS_ACCESS_KEY_ID_PARAMETER_NAME="event_relay_aws_access_key_id"
 DSS_EVENT_RELAY_AWS_SECRET_ACCESS_KEY_PARAMETER_NAME="event_relay_aws_secret_access_key"
+
+# Configure the delays between notification attempts. The first attempt is immediate. The second attempt is one
+# minute later. Then ten minutes, one hour, and six hours in between. Then 24 hours minus all previous delays and
+# lastly every 24 hours for six days. This is exponential initially and then levels off where exponential would be
+# too infrequent. The last attempt is made seven days after the first one, which is easy to remember.
+#
+DSS_NOTIFY_DELAYS="0 60 600 3600 21600 60540 86400 86400 86400 86400 86400 86400"
+
 set +a
 
 if [[ -f "${DSS_HOME}/environment.local" ]]; then
