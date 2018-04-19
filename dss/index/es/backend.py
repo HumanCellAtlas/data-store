@@ -9,6 +9,7 @@ from dss import ESDocType, ESIndexType, Config
 from dss.index.backend import IndexBackend
 from dss.index.bundle import Bundle, Tombstone
 from dss.notify.notification import Notification, Endpoint
+from dss.notify.notifier import Notifier
 
 from . import elasticsearch_retry, ElasticsearchClient, TIME_NEEDED
 from .document import BundleDocument, BundleTombstoneDocument
@@ -17,6 +18,16 @@ logger = logging.getLogger(__name__)
 
 
 class ElasticsearchIndexBackend(IndexBackend):
+
+    def __init__(self, notify_async: bool = None, *args, **kwargs) -> None:
+        """
+        :param notify_async: If True, enable ansynchronous (and reliable) notifications. If False, disable them.
+                             If None, use external configuration to determine whether to enable them.
+        """
+        super().__init__(*args, **kwargs)
+        if notify_async is None:
+            notify_async = Config.notification_is_async()
+        self.notifier = Notifier.from_config() if notify_async else None
 
     @elasticsearch_retry(logger)
     def index_bundle(self, bundle: Bundle):
@@ -126,8 +137,12 @@ class ElasticsearchIndexBackend(IndexBackend):
                                            body=body,
                                            hmac_key=hmac_key,
                                            hmac_key_id=hmac_key_id)
-        logger.info(f"Sending notification {notification} about bundle {doc.fqid}")
-        notification.deliver_or_raise()
+        if self.notifier:
+            logger.info(f"Queing asynchronous notification {notification} for bundle {doc.fqid}")
+            self.notifier.enqueue(notification)
+        else:
+            logger.info(f"Synchronously sending notification {notification} about bundle {doc.fqid}")
+            notification.deliver_or_raise()
 
     def _is_enough_time(self):
         if self.context.get_remaining_time_in_millis() / 1000 <= TIME_NEEDED:

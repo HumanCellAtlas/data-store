@@ -115,7 +115,10 @@ class TestIndexerBase(ElasticsearchTestCase, DSSAssertMixin, DSSStorageMixin, DS
 
     def setUp(self):
         super().setUp()
-        backend = CompositeIndexBackend(self.executor, DEFAULT_BACKENDS, context=MockLambdaContext())
+        backend = CompositeIndexBackend(self.executor,
+                                        DEFAULT_BACKENDS,
+                                        context=MockLambdaContext(),
+                                        notify_async=testmode.is_integration())
         self.indexer = self.indexer_cls(backend)
         self.dss_alias_name = dss.Config.get_es_alias_name(dss.ESIndexType.docs, self.replica)
         self.subscription_index_name = dss.Config.get_es_index_name(dss.ESIndexType.subscriptions, self.replica)
@@ -386,7 +389,7 @@ class TestIndexerBase(ElasticsearchTestCase, DSSAssertMixin, DSSStorageMixin, DS
 
     @testmode.standalone
     def test_notify(self):
-        backend = ElasticsearchIndexBackend(context=MockLambdaContext())
+        backend = ElasticsearchIndexBackend(context=MockLambdaContext(), notify_async=False)
 
         def _notify(url):
             document = BundleDocument(self.replica, get_bundle_fqid())

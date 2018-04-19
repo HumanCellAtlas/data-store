@@ -290,6 +290,40 @@ class Config:
         """
         return int(os.environ.get('DSS_DEBUG', '0'))
 
+    @classmethod
+    def notification_is_async(cls) -> bool:
+        """
+        True, if notifications should be performed asynchronously and reliably (with retries on failures).
+
+        False, if notifications should be performed synchronously and without any retries.
+        """
+        return cls.notification_attempts() > 0
+
+    @classmethod
+    def notification_attempts(cls) -> int:
+        """
+        The maximum number of asynchronous notification attempts or 0 if notifications should be performed
+        synchronously.
+        """
+        attempts = os.environ.get('DSS_NOTIFY_ATTEMPTS')
+        return int(attempts) if attempts else len(cls.notification_delays())
+
+    @classmethod
+    def notification_delays(cls) -> typing.List[float]:
+        """
+        A list of delays between asynchronous notification attempts. See :py:meth:`dss.notify.Notifier.__init__`.
+        """
+        return list(map(float, os.environ.get('DSS_NOTIFY_DELAYS', "").split()))
+
+    @classmethod
+    def notification_workers(cls) -> typing.Optional[int]:
+        """
+        The number of worker threads used by the asynchronous notifier or None if the number of workers should be
+        determined automatically. See :py:meth:`dss.notify.Notifier.__init__`
+        """
+        value = os.environ.get('DSS_NOTIFY_WORKERS')
+        return int(value) if value else None
+
 
 class Replica(Enum):
     aws = (Config.get_s3_bucket, Config.get_s3_checkout_bucket, "s3", S3BlobStore, S3HCABlobStore)
