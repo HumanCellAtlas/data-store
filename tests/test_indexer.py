@@ -371,14 +371,16 @@ class TestIndexerBase(ElasticsearchTestCase, DSSAssertMixin, DSSStorageMixin, DS
 
         with self.assertRaisesRegex(requests.exceptions.InvalidURL, "Invalid URL 'http://': No host supplied"):
             _notify(subscription=dict(id="", es_query={}, callback_url="http://"))
-        with self.assertRaisesRegex(AssertionError, "Unexpected scheme for callback URL"):
+        with self.assertRaisesRegex(RequirementError, "The scheme '' of URL '' is prohibited"):
             _notify(subscription=dict(id="", es_query={}, callback_url=""))
-        with self.assertRaisesRegex(AssertionError, "Unexpected scheme for callback URL"):
+        with self.assertRaisesRegex(RequirementError, "The scheme 'wss' of URL 'wss://127.0.0.1' is prohibited"):
             _notify(subscription=dict(id="", es_query={}, callback_url="wss://127.0.0.1"))
         with unittest.mock.patch.dict(os.environ, DSS_DEPLOYMENT_STAGE=DeploymentStage.PROD.value):
-            with self.assertRaisesRegex(AssertionError, "Unexpected scheme for callback URL"):
+            with self.assertRaisesRegex(RequirementError,
+                                        "The scheme 'http' of URL 'http://example.com' is prohibited"):
                 _notify(subscription=dict(id="", es_query={}, callback_url="http://example.com"))
-            with self.assertRaisesRegex(AssertionError, "Callback hostname resolves to forbidden network"):
+            with self.assertRaisesRegex(RequirementError,
+                                        "The hostname in URL 'https://127.0.0.1' resolves to a private IP"):
                 _notify(subscription=dict(id="", es_query={}, callback_url="https://127.0.0.1"))
 
     def delete_subscription(self, subscription_id):
@@ -409,21 +411,23 @@ class TestIndexerBase(ElasticsearchTestCase, DSSAssertMixin, DSSStorageMixin, DS
         sample_event = self.create_bundle_created_event(self.bundle_key)
         self.process_new_indexable_object(sample_event)
 
+        url = f"http://{HTTPInfo.address}:{HTTPInfo.port}/"
         subscription_id = self.subscribe_for_notification(self.smartseq2_paired_ends_query,
-                                                          f"http://{HTTPInfo.address}:{HTTPInfo.port}",
+                                                          callback_url=url,
                                                           hmac_secret_key=PostTestHandler.hmac_secret_key,
                                                           hmac_key_id="test")
 
         bundle_key = self.load_test_data_bundle_for_path("fixtures/indexing/bundles/v3/smartseq2/paired_ends")
         sample_event = self.create_bundle_created_event(bundle_key)
-        error_response_code = 500
-        PostTestHandler.set_response_code(error_response_code)
+        PostTestHandler.set_response_code(500)
         with self.assertLogs(dss.logger, level="WARNING") as log_monitor:
             self.process_new_indexable_object(sample_event)
         prefix, _, bundle_fqid = bundle_key.partition("/")
         self.assertRegex(log_monitor.output[0],
-                         f"WARNING:.*:Failed notification for subscription {subscription_id}"
-                         f" for bundle {bundle_fqid} with transaction id .+ Code: {error_response_code}")
+                         f"(?s)"  # dot matches newline
+                         f"ERROR:.*:"
+                         f"Error occurred while processing subscription {subscription_id} for bundle {bundle_fqid}.*"
+                         f"requests.exceptions.HTTPError: 500 Server Error: Internal Server Error for url: {url}")
 
     def test_subscription_registration_before_indexing(self):
         subscription_id = self.subscribe_for_notification(self.smartseq2_paired_ends_query,

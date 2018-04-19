@@ -1,17 +1,13 @@
-import ipaddress
 import logging
-import socket
 from typing import MutableSet
-from urllib.parse import urlparse
 import uuid
 
 from elasticsearch.helpers import scan
-import requests
-from requests_http_signature import HTTPSignatureAuth
 
-from dss import ESDocType, ESIndexType, Config, DeploymentStage
+from dss import ESDocType, ESIndexType, Config
 from dss.index.backend import IndexBackend
 from dss.index.bundle import Bundle, Tombstone
+from dss.notify.notification import Notification
 
 from . import elasticsearch_retry, ElasticsearchClient, TIME_NEEDED
 from .document import BundleDocument, BundleTombstoneDocument
@@ -94,48 +90,31 @@ class ElasticsearchIndexBackend(IndexBackend):
         return subscription
 
     def _notify_subscriber(self, doc: BundleDocument, subscription: dict):
-        subscription_id = subscription['id']
         transaction_id = str(uuid.uuid4())
-        payload = {
-            "transaction_id": transaction_id,
-            "subscription_id": subscription_id,
-            "es_query": subscription['es_query'],
-            "match": {
-                "bundle_uuid": doc.fqid.uuid,
-                "bundle_version": doc.fqid.version,
-            }
-        }
+        subscription_id = subscription['id']
         callback_url = subscription['callback_url']
-
-        # FIXME wrap all errors in this block with an exception handler
-        if DeploymentStage.IS_PROD():
-            allowed_schemes = {'https'}
+        payload = {'transaction_id': transaction_id,
+                   'subscription_id': subscription_id,
+                   'es_query': subscription['es_query'],
+                   'match': {
+                       'bundle_uuid': doc.fqid.uuid,
+                       'bundle_version': doc.fqid.version}}
+        try:
+            hmac_key = subscription['hmac_secret_key']
+        except KeyError:
+            hmac_key = None
+            hmac_key_id = None
         else:
-            allowed_schemes = {'https', 'http'}
+            hmac_key = hmac_key.encode()
+            hmac_key_id = subscription.get('hmac_key_id', "hca-dss:" + subscription_id)
 
-        assert urlparse(callback_url).scheme in allowed_schemes, "Unexpected scheme for callback URL"
-
-        if DeploymentStage.IS_PROD():
-            hostname = urlparse(callback_url).hostname
-            for family, socktype, proto, canonname, sockaddr in socket.getaddrinfo(hostname, port=None):
-                msg = "Callback hostname resolves to forbidden network"
-                assert ipaddress.ip_address(sockaddr[0]).is_global, msg  # type: ignore
-
-        auth = None
-        if "hmac_secret_key" in subscription:
-            auth = HTTPSignatureAuth(key=subscription['hmac_secret_key'].encode(),
-                                     key_id=subscription.get("hmac_key_id", "hca-dss:" + subscription_id))
-        response = requests.post(callback_url, json=payload, auth=auth)
-
-        # TODO (mbaumann) Add webhook retry logic
-        if 200 <= response.status_code < 300:
-            logger.info(f"Successfully notified for subscription {subscription_id}"
-                        f" for bundle {doc.fqid} with transaction id {transaction_id} "
-                        f"Code: {response.status_code}")
-        else:
-            logger.warning(f"Failed notification for subscription {subscription_id}"
-                           f" for bundle {doc.fqid} with transaction id {transaction_id} "
-                           f"Code: {response.status_code}")
+        notification = Notification.from_scratch(notification_id=transaction_id,
+                                                 subscription_id=subscription_id,
+                                                 url=callback_url, payload=payload,
+                                                 hmac_key=hmac_key,
+                                                 hmac_key_id=hmac_key_id)
+        logger.info(f"Sending notification {notification} about bundle {doc.fqid}")
+        notification.deliver_or_raise()
 
     def _is_enough_time(self):
         if self.context.get_remaining_time_in_millis() / 1000 <= TIME_NEEDED:
