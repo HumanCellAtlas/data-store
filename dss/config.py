@@ -24,7 +24,7 @@ class DeploymentStageMeta(EnumMeta):
             trailer = item[len(DeploymentStageMeta._MAGIC_PREFIX):]
             attr = getattr(DeploymentStage, trailer, None)
             if isinstance(attr, DeploymentStage):
-                return lambda: os.environ["DSS_DEPLOYMENT_STAGE"] == attr.value
+                return lambda: Config.deployment_stage() == attr.value
         raise AttributeError(item)
 
 
@@ -245,12 +245,15 @@ class Config:
                            index_type: ESIndexType,
                            replica: 'Replica',
                            suffix: typing.Optional[str] = None) -> str:
-        deployment_stage = os.environ["DSS_DEPLOYMENT_STAGE"]
-        index = f"dss-{deployment_stage}-{replica.name}-{index_type.name}"
+        index = f"dss-{cls.deployment_stage()}-{replica.name}-{index_type.name}"
         if suffix:
             index = f"{index}-{suffix}"
         index += cls.test_index_suffix.value
         return index
+
+    @classmethod
+    def deployment_stage(cls):
+        return os.environ['DSS_DEPLOYMENT_STAGE']
 
     @staticmethod
     def _clear_cached_bucket_config():
