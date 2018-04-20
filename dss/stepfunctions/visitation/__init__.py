@@ -68,7 +68,7 @@ class Visitation:
                 if callable(default):
                     v = default()
                 else:
-                    v = default
+                    v = copy.deepcopy(default)
 
             setattr(self, k, v)
 
