@@ -660,6 +660,235 @@ paths:
                     enum: [unhandled_exception, Forbidden, OAuthResponseProblem, not_found]
                 required:
                   - code
+  /collections:
+    get:
+      summary: Retrieve a user\'s collections.
+      description: |
+        Return a list of collections associated with the current user.
+      operationId: dss.api.collections.find
+      security:
+        - googAuth:
+            - https://www.googleapis.com/auth/userinfo.email
+      parameters:
+        - name: replica
+          in: query
+          description: Replica to fetch from. Can be one of aws, gcp, or azure.
+          required: true
+          type: string
+          enum: [aws, gcp, azure]
+      responses:
+        200:
+          description: OK
+          schema:
+            type: object
+            properties:
+              collections:
+                type: array
+                items:
+                  $ref: "#/definitions/Collection"
+            required:
+              - collections
+        default:
+          description: Unexpected error
+          schema:
+            allOf:
+              - $ref: '#/definitions/Error'
+              - type: object
+                properties:
+                  code:
+                    type: string
+                    description: Machine-readable error code.  The types of return values should not be changed lightly.
+                    enum: [unhandled_exception, Forbidden, OAuthResponseProblem]
+                required:
+                  - code
+    put:
+      summary: Create a collection.
+      description: |
+        Create a new collection.
+      security:
+        - googAuth:
+            - https://www.googleapis.com/auth/userinfo.email
+      parameters:
+        - name: replica
+          in: query
+          description: Replica to write to. Can be one of aws, gcp, or azure.
+          required: true
+          type: string
+          enum: [aws, gcp, azure]
+        - name: uuid
+          in: query
+          description: A RFC4122-compliant ID for the collection.
+          required: true
+          type: string
+          pattern: "[A-Za-z0-9]{8}-[A-Za-z0-9]{4}-[A-Za-z0-9]{4}-[A-Za-z0-9]{4}-[A-Za-z0-9]{12}"
+        - name: version
+          description: TODO
+          in: query
+          required: true
+          type: string
+          format: date-time
+        - name: json_request_body
+          in: body
+          required: true
+          schema:
+            type: object
+            properties:
+              name:
+                description: A short name identifying the collection.
+                type: string
+              description:
+                description: A long description of the collection, formatted in Markdown.
+                type: string
+              details:
+                description: Supplementary JSON metadata for the collection.
+                type: object
+              contents:
+                description: A short name identifying the collection.
+                type: array
+            required:
+              - name
+              - description
+              - details
+              - contents
+      responses:
+        201:
+          description: OK
+          schema:
+            type: object
+            properties:
+              uuid:
+                description: A RFC4122-compliant ID for the collection.
+                type: string
+                pattern: "[A-Za-z0-9]{8}-[A-Za-z0-9]{4}-[A-Za-z0-9]{4}-[A-Za-z0-9]{4}-[A-Za-z0-9]{12}"
+            required:
+              - uuid
+        default:
+          description: Unexpected error
+          schema:
+            allOf:
+              - $ref: '#/definitions/Error'
+              - type: object
+                properties:
+                  code:
+                    type: string
+                    description: Machine-readable error code.  The types of return values should not be changed lightly.
+                    enum: [unhandled_exception, Forbidden, OAuthResponseProblem, not_found, invalid_link]
+                required:
+                  - code
+  /collections/{uuid}:
+    get:
+      summary: Retrieve a collection given a UUID.
+      description: |
+        Given a collection UUID, return the associated collection object.
+      security:
+        - googAuth:
+            - https://www.googleapis.com/auth/userinfo.email
+      parameters:
+        - name: uuid
+          in: path
+          description: A RFC4122-compliant ID for the collection.
+          required: true
+          type: string
+          pattern: "[A-Za-z0-9]{8}-[A-Za-z0-9]{4}-[A-Za-z0-9]{4}-[A-Za-z0-9]{4}-[A-Za-z0-9]{12}"
+        - name: replica
+          in: query
+          description: Replica to fetch from. Can be one of aws, gcp, or azure.
+          required: true
+          type: string
+          enum: [aws, gcp, azure]
+      responses:
+        200:
+          description: OK
+          schema:
+            type: object
+            properties:
+              subscription:
+                $ref: "#/definitions/Collection"
+        default:
+          description: Unexpected error
+          schema:
+            allOf:
+              - $ref: '#/definitions/Error'
+              - type: object
+                properties:
+                  code:
+                    type: string
+                    description: Machine-readable error code.  The types of return values should not be changed lightly.
+                    enum: [unhandled_exception, Forbidden, OAuthResponseProblem, not_found]
+                required:
+                  - code
+    patch:
+      summary: Update a collection.
+      description: |
+        Update a collection.
+      security:
+        - googAuth:
+            - https://www.googleapis.com/auth/userinfo.email
+      parameters:
+        - name: uuid
+          in: path
+          description: A RFC4122-compliant ID for the collection.
+          required: true
+          type: string
+          pattern: "[A-Za-z0-9]{8}-[A-Za-z0-9]{4}-[A-Za-z0-9]{4}-[A-Za-z0-9]{4}-[A-Za-z0-9]{12}"
+        - name: replica
+          in: query
+          description: Replica to delete from. Can be one of aws, gcp, or azure.
+          required: true
+          type: string
+          enum: [aws, gcp, azure]
+      responses:
+        200:
+          description: OK
+        default:
+          description: Unexpected error
+          schema:
+            allOf:
+              - $ref: '#/definitions/Error'
+              - type: object
+                properties:
+                  code:
+                    type: string
+                    description: Machine-readable error code.  The types of return values should not be changed lightly.
+                    enum: [unhandled_exception, Forbidden, OAuthResponseProblem, not_found]
+                required:
+                  - code
+    delete:
+      summary: Delete a collection.
+      description: |
+        Delete a collection.
+      security:
+        - googAuth:
+            - https://www.googleapis.com/auth/userinfo.email
+      parameters:
+        - name: uuid
+          in: path
+          description: A RFC4122-compliant ID for the collection.
+          required: true
+          type: string
+          pattern: "[A-Za-z0-9]{8}-[A-Za-z0-9]{4}-[A-Za-z0-9]{4}-[A-Za-z0-9]{4}-[A-Za-z0-9]{12}"
+        - name: replica
+          in: query
+          description: Replica to delete from. Can be one of aws, gcp, or azure.
+          required: true
+          type: string
+          enum: [aws, gcp, azure]
+      responses:
+        200:
+          description: OK
+        default:
+          description: Unexpected error
+          schema:
+            allOf:
+              - $ref: '#/definitions/Error'
+              - type: object
+                properties:
+                  code:
+                    type: string
+                    description: Machine-readable error code.  The types of return values should not be changed lightly.
+                    enum: [unhandled_exception, Forbidden, OAuthResponseProblem, not_found]
+                required:
+                  - code
   /bundles/{uuid}:
     get:
       summary: Retrieve a bundle given a UUID and optionally a version.
@@ -1285,6 +1514,21 @@ definitions:
       total_hits:
         description: The total number of matching results found.
         type: integer
+  Collection:
+    type: object
+    properties:
+      name:
+        description: A short name identifying the collection.
+        type: string
+      description:
+        description: A long description of the collection, formatted in Markdown.
+        type: string
+      details:
+        description: Supplementary JSON metadata for the collection.
+        type: object
+      contents:
+        description: A short name identifying the collection.
+        type: array
   Error:
     type: object
     properties:
@@ -1312,4 +1556,3 @@ definitions:
     properties:
       files:
         type: string
-
