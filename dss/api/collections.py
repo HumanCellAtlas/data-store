@@ -16,12 +16,17 @@ logger = logging.getLogger(__name__)
 dss_bucket = Config.get_s3_bucket()
 
 @dss_handler
-def get(uuid: str, version: str, replica: str):
+def get(uuid: str, replica: str, version: str = None):
     authenticated_user_email = request.token_info['email']
     replica = Replica[replica]
     handle = Config.get_blobstore_handle(replica)
     if version is None:
-        query prefix
+        # list the collections and find the one that is the most recent.
+        prefix = "collections/{}.".format(uuid)
+        for matching_key in handle.list(replica.bucket, prefix):
+            matching_key = matching_key[len(prefix):]
+            if version is None or matching_key > version:
+                version = matching_key
     return json.loads(handle.get(replica.bucket, "collections/{}.{}".format(uuid, version)))
 
 @dss_handler

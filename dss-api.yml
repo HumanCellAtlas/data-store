@@ -676,6 +676,12 @@ paths:
           required: true
           type: string
           enum: [aws, gcp, azure]
+        - name: version
+          description: TODO
+          in: query
+          required: false
+          type: string
+          format: date-time
       responses:
         200:
           description: OK
