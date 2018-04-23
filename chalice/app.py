@@ -175,6 +175,13 @@ def get_chalice_app(flask_app) -> DSSChaliceApp:
                                 headers={"Content-Type": "text/html"},
                                 body=swagger_ui_html)
 
+    @app.route("/internal/health")
+    @time_limited(app)
+    def health():
+        return chalice.Response(status_code=200,
+                                headers={"Content-Type": "text/html"},
+                                body="OK")
+
     @app.route("/internal/slow_request", methods=["GET"])
     @time_limited(app)
     def slow_request():
