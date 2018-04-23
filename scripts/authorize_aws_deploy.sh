@@ -27,7 +27,7 @@ envsubst_vars='$DSS_DEPLOYMENT_STAGE
                $DSS_S3_CHECKOUT_BUCKET_TEST
                $DSS_S3_CHECKOUT_BUCKET_INTEGRATION
                $DSS_S3_CHECKOUT_BUCKET_STAGING
-               $DSS_PARAMETER_STORE
+               $DSS_SECRETS_STORE
                $account_id'
 
 aws iam put-${iam_principal_type}-policy \
