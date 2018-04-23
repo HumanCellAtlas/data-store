@@ -2,13 +2,12 @@
 """
 A basic integration test of the DSS. This can also be invoked via `make smoketest`.
 """
-import os, sys, argparse, time, uuid, json, shutil, tempfile, unittest, shlex
-from subprocess import check_call, check_output, CalledProcessError
+import os, sys, argparse, time, uuid, json, shutil, tempfile, unittest
+import subprocess
 
 pkg_root = os.path.abspath(os.path.join(os.path.dirname(__file__), ".."))  # noqa
 sys.path.insert(0, pkg_root)  # noqa
 
-from dss import Config
 from dss.api.files import ASYNC_COPY_THRESHOLD
 from tests.infra import testmode
 from dss.storage.checkout import get_dst_bundle_prefix
@@ -35,17 +34,17 @@ def RED(message=None):
 def ENDC():
     return "\033[0m" if sys.stdout.isatty() else ""
 
-def run(command, runner=check_call, **kwargs):
-    if isinstance(command, str):
-        kwargs["shell"] = True
+
+def run(command, **kwargs):
     print(GREEN(command))
     try:
-        return runner(command, **kwargs)
-    except CalledProcessError as e:
+        return subprocess.run(command, check=True, shell=isinstance(command, str), **kwargs)
+    except subprocess.CalledProcessError as e:
         parser.exit(RED(f'{parser.prog}: Exit status {e.returncode} while running "{command}". Stopping.'))
 
-def get_upload_val(key):
-    return check_output(["jq", "-r", key, "upload.json"]).decode(sys.stdout.encoding).strip()
+
+def run_for_json(command, **kwargs):
+    return json.loads(run(command, stdout=subprocess.PIPE, **kwargs).stdout.decode(sys.stdout.encoding))
 
 
 @testmode.integration
@@ -83,62 +82,55 @@ class Smoketest(unittest.TestCase):
 
         run(f"cat {bundle_dir}/sample.json | jq .id=env.sample_id | sponge {bundle_dir}/sample.json",
             env=dict(os.environ, sample_id=sample_id))
-        run(f"{venv_bin}hca dss upload "
-            "--replica aws "
-            "--staging-bucket $DSS_S3_BUCKET_TEST "
-            f"--src-dir {bundle_dir} > upload.json")
-        run(f"{venv_bin}hca dss download --replica aws --bundle-uuid $(jq -r .bundle_uuid upload.json)")
 
-        file_count = int(get_upload_val(".files | length"))
-        run(f"{venv_bin}hca dss post-bundles-checkout "
-            "--uuid $(jq -r .bundle_uuid upload.json) "
-            "--replica aws > res.json")
-        with open("res.json") as fh:
-            res_checkout = json.load(fh)
-            print(f"Checkout jobId: {res_checkout['checkout_job_id']}")
-            assert len(res_checkout["checkout_job_id"]) > 0
+        res = run_for_json(f"{venv_bin}hca dss upload "
+                           "--replica aws "
+                           "--staging-bucket $DSS_S3_BUCKET_TEST "
+                           f"--src-dir {bundle_dir}")
+        bundle_uuid = res['bundle_uuid']
+        bundle_version = res['version']
+        file_count = len(res['files'])
+
+        run(f"{venv_bin}hca dss download --replica aws --bundle-uuid {bundle_uuid}")
+
+        res = run_for_json(f"{venv_bin}hca dss post-bundles-checkout --uuid {bundle_uuid} --replica aws")
+        checkout_job_id = res['checkout_job_id']
+        print(f"Checkout jobId: {checkout_job_id}")
+        assert checkout_job_id
 
         for i in range(10):
             try:
-                cmd = "http -v --check-status GET"
-                run(f"{cmd} https://${{API_DOMAIN_NAME}}/v1/bundles/$(jq -r .bundle_uuid upload.json)?replica=gcp")
-                break
+                run(f"http -v --check-status GET https://${{API_DOMAIN_NAME}}/v1/bundles/{bundle_uuid}?replica=gcp")
             except SystemExit:
                 time.sleep(1)
+            else:
+                break
         else:
             parser.exit(RED("Failed to replicate bundle from AWS to GCP"))
-        run(f"{venv_bin}hca dss download --replica gcp --bundle-uuid $(jq -r .bundle_uuid upload.json)")
+
+        run(f"{venv_bin}hca dss download --replica gcp --bundle-uuid {bundle_uuid}")
 
         for replica in "aws", "gcp":
             run(f"{venv_bin}hca dss post-search --es-query='{{}}' --replica {replica} > /dev/null")
 
         search_route = "https://${API_DOMAIN_NAME}/v1/search"
         for replica in "aws", "gcp":
-            run(f"jq -n '.es_query.query.match[env.k]=env.v' | http --check {search_route} replica==aws > res.json",
-                env=dict(os.environ, k="files.sample_json.id", v=sample_id))
-            with open("res.json") as fh2:
-                res = json.load(fh2)
-                print(json.dumps(res, indent=4))
-                assert len(res["results"]) == 1
+            query = {'es_query': {'query': {'match': {'files.sample_json.id': sample_id}}}}
+            res = run_for_json(f'http --check {search_route} replica==aws', input=json.dumps(query).encode())
+            print(json.dumps(res, indent=4))
+            assert len(res['results']) == 1
 
-            res = run(f"{venv_bin}hca dss put-subscription "
-                      "--callback-url https://example.com/ "
-                      "--es-query '{}' "
-                      f"--replica {replica}",
-                      runner=check_output)
-            sub_id = json.loads(res.decode())["uuid"]
+            res = run_for_json(f"{venv_bin}hca dss put-subscription "
+                               "--callback-url https://example.com/ "
+                               "--es-query '{}' "
+                               f"--replica {replica}")
+            subscription_id = res["uuid"]
             run(f"{venv_bin}hca dss get-subscriptions --replica {replica}")
-            run(f"{venv_bin}hca dss delete-subscription --replica {replica} --uuid {sub_id}")
+            run(f"{venv_bin}hca dss delete-subscription --replica {replica} --uuid {subscription_id}")
 
         checkout_bucket = os.environ["DSS_S3_CHECKOUT_BUCKET"]
-        bundle_id = get_upload_val(".bundle_uuid")
-        version = get_upload_val(".version")
-
         for i in range(10):
-            run(f"{venv_bin}hca dss get-bundles-checkout "
-                f"--checkout-job-id {res_checkout['checkout_job_id']} > res.json")
-            with open("res.json") as fh:
-                res = json.load(fh)
+            res = run_for_json(f"{venv_bin}hca dss get-bundles-checkout --checkout-job-id {checkout_job_id}")
             status = res['status']
             self.assertGreater(len(status), 0)
             if status == 'RUNNING':
@@ -146,7 +138,7 @@ class Smoketest(unittest.TestCase):
             else:
                 self.assertEqual(status, 'SUCCEEDED')
                 blob_handle = S3BlobStore.from_environment()
-                object_key = get_dst_bundle_prefix(bundle_id, version)
+                object_key = get_dst_bundle_prefix(bundle_uuid, bundle_version)
                 print(f"Checking bucket {checkout_bucket} object key: {object_key}")
                 files = list(blob_handle.list(checkout_bucket, object_key))
                 self.assertEqual(len(files), file_count)
