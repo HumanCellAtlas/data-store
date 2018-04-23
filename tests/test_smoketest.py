@@ -61,19 +61,27 @@ class Smoketest(unittest.TestCase):
             cls.workdir._finalizer.detach()  # type: ignore
 
     def test_smoketest(self):
+
+        # Create a virtualenv and install the CLI
+        #
         venv = os.path.join(self.workdir.name, "venv")
         run(f"virtualenv -p {sys.executable} {venv}")
         venv_bin = os.path.join(venv, "bin", "")
         run(f"{venv_bin}pip install --upgrade .", cwd="dcp-cli")
 
+        # Prepare the bundle using existing metadata and random data
+        #
         bundle_dir = os.path.join(self.workdir.name, "bundle")
         shutil.copytree("data-bundle-examples/10X_v2/pbmc8k", bundle_dir)
         sample_id = str(uuid.uuid4())
         with open(os.path.join(bundle_dir, "async_copied_file"), "wb") as fh:
-            fh.write(os.urandom(ASYNC_COPY_THRESHOLD + 1))
+            file_size = ASYNC_COPY_THRESHOLD + 1  # Ensure that files need to be copied asynchronously
+            fh.write(os.urandom(file_size))
 
         os.chdir(self.workdir.name)
 
+        # Configure the CLI
+        #
         cli_config = {"DSSClient": {"swagger_url": os.environ["SWAGGER_URL"]}}
         cli_config_filename = f"{self.workdir.name}/cli_config.json"
         with open(cli_config_filename, "w") as fh2:
@@ -83,6 +91,8 @@ class Smoketest(unittest.TestCase):
         run(f"cat {bundle_dir}/sample.json | jq .id=env.sample_id | sponge {bundle_dir}/sample.json",
             env=dict(os.environ, sample_id=sample_id))
 
+        # Create the bundle
+        #
         res = run_for_json(f"{venv_bin}hca dss upload "
                            "--replica aws "
                            "--staging-bucket $DSS_S3_BUCKET_TEST "
@@ -91,13 +101,19 @@ class Smoketest(unittest.TestCase):
         bundle_version = res['version']
         file_count = len(res['files'])
 
+        # Download that bundle
+        #
         run(f"{venv_bin}hca dss download --replica aws --bundle-uuid {bundle_uuid}")
 
+        # Initiate a bundle checkout
+        #
         res = run_for_json(f"{venv_bin}hca dss post-bundles-checkout --uuid {bundle_uuid} --replica aws")
         checkout_job_id = res['checkout_job_id']
         print(f"Checkout jobId: {checkout_job_id}")
         assert checkout_job_id
 
+        # Wait for the bundle to appear in the other replica
+        #
         for i in range(10):
             try:
                 run(f"http -v --check-status GET https://${{API_DOMAIN_NAME}}/v1/bundles/{bundle_uuid}?replica=gcp")
@@ -108,11 +124,17 @@ class Smoketest(unittest.TestCase):
         else:
             parser.exit(RED("Failed to replicate bundle from AWS to GCP"))
 
+        # Download bundle from other replica
+        #
         run(f"{venv_bin}hca dss download --replica gcp --bundle-uuid {bundle_uuid}")
 
+        # Run a CLI search against the two replicas
+        #
         for replica in "aws", "gcp":
             run(f"{venv_bin}hca dss post-search --es-query='{{}}' --replica {replica} > /dev/null")
 
+        # Hit search route directly and test a subscription, both against each replica
+        #
         search_route = "https://${API_DOMAIN_NAME}/v1/search"
         for replica in "aws", "gcp":
             query = {'es_query': {'query': {'match': {'files.sample_json.id': sample_id}}}}
@@ -128,6 +150,8 @@ class Smoketest(unittest.TestCase):
             run(f"{venv_bin}hca dss get-subscriptions --replica {replica}")
             run(f"{venv_bin}hca dss delete-subscription --replica {replica} --uuid {subscription_id}")
 
+        # Wait for the checkout to complete and assert its success
+        #
         checkout_bucket = os.environ["DSS_S3_CHECKOUT_BUCKET"]
         for i in range(10):
             res = run_for_json(f"{venv_bin}hca dss get-bundles-checkout --checkout-job-id {checkout_job_id}")
