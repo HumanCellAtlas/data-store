@@ -37,7 +37,7 @@ def disable_lambda(name):
         FunctionName=name,
         ReservedConcurrentExecutions=0
     )
-    print(f"stopped {name}")
+    print(f"halted {name}")
     
 def enable_lambda(name):
     LAMBDA.delete_function_concurrency(
@@ -60,7 +60,7 @@ for f in functions:
             FunctionName=f,
         )
     except LAMBDA.exceptions.ResourceNotFoundException:
-        print(f"{f} not deployed")
+        # Either this daemon does not deploy a lambda, or this daemon is not deployed
         continue
 
     if args.start:
