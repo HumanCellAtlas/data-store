@@ -42,15 +42,13 @@ grtc_conn = GoogleRuntimeConfigConnection(client=gcp_client)
 gcf_conn = GoogleCloudFunctionsConnection(client=gcp_client)
 gcf_ns = f"projects/{gcp_client.project}/locations/{gcp_region}/functions"
 
-SSM = boto3.client('ssm')
-aws_access_key_id = SSM.get_parameter(
-    Name='{}/{}'.format(os.environ['DSS_PARAMETER_STORE'], os.environ['DSS_EVENT_RELAY_AWS_ACCESS_KEY_ID_PARAMETER_NAME']),
-    WithDecryption=True,
-)['Parameter']['Value']
-aws_secret_access_key = SSM.get_parameter(
-    Name='{}/{}'.format(os.environ['DSS_PARAMETER_STORE'], os.environ['DSS_EVENT_RELAY_AWS_SECRET_ACCESS_KEY_PARAMETER_NAME']),
-    WithDecryption=True,
-)['Parameter']['Value']
+SM = boto3.client('secretsmanager')
+aws_access_key_id = SM.get_secret_value(
+    SecretId='{}/{}'.format(os.environ['DSS_SECRETS_STORE'], os.environ['DSS_EVENT_RELAY_AWS_ACCESS_KEY_ID_SECRETS_NAME'])
+)['SecretString']
+aws_secret_access_key = SM.get_secret_value(
+    SecretId='{}/{}'.format(os.environ['DSS_SECRETS_STORE'], os.environ['DSS_EVENT_RELAY_AWS_SECRET_ACCESS_KEY_SECRETS_NAME'])
+)['SecretString']
 boto3_session = boto3.session.Session()
 aws_account_id = boto3.client("sts").get_caller_identity()["Account"]
 relay_sns_topic = "dss-gs-bucket-events-" + os.environ["DSS_GS_BUCKET"]
