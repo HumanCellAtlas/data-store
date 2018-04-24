@@ -187,6 +187,15 @@
       "Resource": [
         "arn:aws:sqs:*:$account_id:*"
       ]
+    },
+    {
+      "Effect": "Allow",
+      "Action": [
+        "secretsmanager:Get*"
+      ],
+      "Resource": [
+        "arn:aws:secretsmanager:us-east-1:861229788715:secret:/dss/secrets/event_relay_aws_*"
+      ]
     }
   ]
 }
