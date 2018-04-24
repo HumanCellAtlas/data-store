@@ -5,6 +5,9 @@ A basic integration test of the DSS. This can also be invoked via `make smoketes
 import os, sys, argparse, time, uuid, json, shutil, tempfile, unittest
 import subprocess
 
+import boto3
+import botocore
+
 pkg_root = os.path.abspath(os.path.join(os.path.dirname(__file__), ".."))  # noqa
 sys.path.insert(0, pkg_root)  # noqa
 
@@ -23,13 +26,13 @@ def GREEN(message=None):
     if message is None:
         return "\033[32m" if sys.stdout.isatty() else ""
     else:
-        return GREEN() + message + ENDC()
+        return GREEN() + str(message) + ENDC()
 
 def RED(message=None):
     if message is None:
         return "\033[31m" if sys.stdout.isatty() else ""
     else:
-        return RED() + message + ENDC()
+        return RED() + str(message) + ENDC()
 
 def ENDC():
     return "\033[0m" if sys.stdout.isatty() else ""
@@ -49,6 +52,11 @@ def run_for_json(command, **kwargs):
 
 @testmode.integration
 class Smoketest(unittest.TestCase):
+    replicas = "aws", "gcp"
+    notification_bucket = os.environ['DSS_S3_BUCKET_TEST']
+    checkout_bucket = os.environ['DSS_S3_CHECKOUT_BUCKET']
+    test_bucket = os.environ['DSS_S3_BUCKET_TEST']
+
     @classmethod
     def setUpClass(cls):
         if os.path.exists("dcp-cli"):
@@ -69,14 +77,18 @@ class Smoketest(unittest.TestCase):
         venv_bin = os.path.join(venv, "bin", "")
         run(f"{venv_bin}pip install --upgrade .", cwd="dcp-cli")
 
-        # Prepare the bundle using existing metadata and random data
+        # Prepare the bundle using stock metadata and random data
         #
         bundle_dir = os.path.join(self.workdir.name, "bundle")
         shutil.copytree("data-bundle-examples/10X_v2/pbmc8k", bundle_dir)
-        sample_id = str(uuid.uuid4())
         with open(os.path.join(bundle_dir, "async_copied_file"), "wb") as fh:
             file_size = ASYNC_COPY_THRESHOLD + 1  # Ensure that files need to be copied asynchronously
             fh.write(os.urandom(file_size))
+        # Tweak the metadata to a specific sample UUID
+        sample_id = str(uuid.uuid4())
+        run(f"cat {bundle_dir}/sample.json | jq .id=env.sample_id | sponge {bundle_dir}/sample.json",
+            env=dict(os.environ, sample_id=sample_id))
+        query = {'query': {'match': {'files.sample_json.id': sample_id}}}
 
         os.chdir(self.workdir.name)
 
@@ -88,14 +100,38 @@ class Smoketest(unittest.TestCase):
             fh2.write(json.dumps(cli_config))
         os.environ["HCA_CONFIG_FILE"] = f"{self.workdir.name}/cli_config.json"
 
-        run(f"cat {bundle_dir}/sample.json | jq .id=env.sample_id | sponge {bundle_dir}/sample.json",
-            env=dict(os.environ, sample_id=sample_id))
+        # Create a subscription for each replica using the query
+        #
+        s3 = boto3.client('s3', config=botocore.client.Config(signature_version='s3v4'))
+        notifications_proofs = {}
+        for replica in self.replicas:
+            notification_key = f'notifications/{uuid.uuid4()}'
+            url = s3.generate_presigned_url(ClientMethod='put_object',
+                                            Params=dict(Bucket=self.notification_bucket,
+                                                        Key=notification_key,
+                                                        ContentType='application/json'))
+            put_response = run_for_json([f'{venv_bin}hca', 'dss', 'put-subscription',
+                                         '--callback-url', url,
+                                         '--method', 'PUT',
+                                         '--es-query', json.dumps(query),
+                                         '--replica', replica])
+            subscription_id = put_response['uuid']
+            self.addCleanup(run, f"{venv_bin}hca dss delete-subscription --replica {replica} --uuid {subscription_id}")
+            self.addCleanup(s3.delete_object, Bucket=self.notification_bucket, Key=notification_key)
+            notifications_proofs[replica] = (subscription_id, notification_key)
+            get_response = run_for_json(f"{venv_bin}hca dss get-subscription "
+                                        f"--replica {replica} "
+                                        f"--uuid {subscription_id}")
+            self.assertEquals(subscription_id, get_response['uuid'])
+            self.assertEquals(url, get_response['callback_url'])
+            list_response = run_for_json(f"{venv_bin}hca dss get-subscriptions --replica {replica}")
+            self.assertIn(get_response, list_response['subscriptions'])
 
         # Create the bundle
         #
         res = run_for_json(f"{venv_bin}hca dss upload "
                            "--replica aws "
-                           "--staging-bucket $DSS_S3_BUCKET_TEST "
+                           f"--staging-bucket {self.test_bucket} "
                            f"--src-dir {bundle_dir}")
         bundle_uuid = res['bundle_uuid']
         bundle_version = res['version']
@@ -116,7 +152,7 @@ class Smoketest(unittest.TestCase):
         #
         for i in range(10):
             try:
-                run(f"http -v --check-status GET https://${{API_DOMAIN_NAME}}/v1/bundles/{bundle_uuid}?replica=gcp")
+                run(f"http -Iv --check-status GET https://${{API_DOMAIN_NAME}}/v1/bundles/{bundle_uuid}?replica=gcp")
             except SystemExit:
                 time.sleep(1)
             else:
@@ -130,29 +166,20 @@ class Smoketest(unittest.TestCase):
 
         # Run a CLI search against the two replicas
         #
-        for replica in "aws", "gcp":
+        for replica in self.replicas:
             run(f"{venv_bin}hca dss post-search --es-query='{{}}' --replica {replica} > /dev/null")
 
-        # Hit search route directly and test a subscription, both against each replica
+        # Hit search route directly against each replica
         #
         search_route = "https://${API_DOMAIN_NAME}/v1/search"
-        for replica in "aws", "gcp":
-            query = {'es_query': {'query': {'match': {'files.sample_json.id': sample_id}}}}
-            res = run_for_json(f'http --check {search_route} replica==aws', input=json.dumps(query).encode())
+        for replica in self.replicas:
+            res = run_for_json(f'http --check {search_route} replica=={replica}',
+                               input=json.dumps({'es_query': query}).encode())
             print(json.dumps(res, indent=4))
             assert len(res['results']) == 1
 
-            res = run_for_json(f"{venv_bin}hca dss put-subscription "
-                               "--callback-url https://example.com/ "
-                               "--es-query '{}' "
-                               f"--replica {replica}")
-            subscription_id = res["uuid"]
-            run(f"{venv_bin}hca dss get-subscriptions --replica {replica}")
-            run(f"{venv_bin}hca dss delete-subscription --replica {replica} --uuid {subscription_id}")
-
         # Wait for the checkout to complete and assert its success
         #
-        checkout_bucket = os.environ["DSS_S3_CHECKOUT_BUCKET"]
         for i in range(10):
             res = run_for_json(f"{venv_bin}hca dss get-bundles-checkout --checkout-job-id {checkout_job_id}")
             status = res['status']
@@ -163,12 +190,21 @@ class Smoketest(unittest.TestCase):
                 self.assertEqual(status, 'SUCCEEDED')
                 blob_handle = S3BlobStore.from_environment()
                 object_key = get_dst_bundle_prefix(bundle_uuid, bundle_version)
-                print(f"Checking bucket {checkout_bucket} object key: {object_key}")
-                files = list(blob_handle.list(checkout_bucket, object_key))
+                print(f"Checking bucket {self.checkout_bucket} object key: {object_key}")
+                files = list(blob_handle.list(self.checkout_bucket, object_key))
                 self.assertEqual(len(files), file_count)
                 break
         else:
             self.fail("Timed out waiting for checkout job to succeed")
+
+        # Check the notifications
+        #
+        for replica, (subscription_id, notification_key) in notifications_proofs.items():
+            obj = s3.get_object(Bucket=self.notification_bucket, Key=notification_key)
+            notification = json.load(obj['Body'])
+            self.assertEquals(subscription_id, notification['subscription_id'])
+            self.assertEquals(bundle_uuid, notification['match']['bundle_uuid'])
+            self.assertEquals(bundle_version, notification['match']['bundle_version'])
 
     @classmethod
     def tearDownClass(cls):
