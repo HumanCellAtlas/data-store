@@ -161,7 +161,7 @@
       ]
     },
     {
-      "Sid": "hcaDssCiCdSqsReadWriteTestQueues",
+      "Sid": "hcaDssCiCdSqsReadWriteQueues",
       "Effect": "Allow",
       "Action": [
         "sqs:CreateQueue",
@@ -175,7 +175,10 @@
         "sqs:SetQueueAttributes"
       ],
       "Resource": [
-        "arn:aws:sqs:*:$account_id:dss-notify-test-*"
+        "arn:aws:sqs:*:$account_id:dss-notify-test-*",
+        "arn:aws:sqs:*:$account_id:dss-notify-dev-*",
+        "arn:aws:sqs:*:$account_id:dss-notify-integration-*",
+        "arn:aws:sqs:*:$account_id:dss-notify-staging-*"
       ]
     },
     {
