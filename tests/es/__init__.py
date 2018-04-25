@@ -81,7 +81,7 @@ class ElasticsearchServer:
             status = proc.poll()
             if status is not None:
                 tempdir.cleanup()
-                raise ChildProcessError('ES process died with status {status}')
+                raise ChildProcessError(f"ES process died with status {status}")
 
         deadline = time.time() + timeout
         while True:
