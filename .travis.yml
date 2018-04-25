@@ -74,7 +74,7 @@ jobs:
     - MAKE_ARGS="-j1 tests/test_subscriptions.py"
   - stage: integration_test
     env:
-    - MAKE_ARGS="-j4 integration_test"
+    - MAKE_ARGS="-j1 integration_test"
   - stage: deploy
     script:
     - if [[ -f "environment.$TRAVIS_BRANCH" ]]; then source "environment.$TRAVIS_BRANCH"; fi
