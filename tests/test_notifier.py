@@ -33,6 +33,7 @@ from dss.notify.notification import Notification, attempt_header_name
 from dss.notify.notifier import Notifier
 from dss.util import networking
 from dss.util.types import LambdaContext
+from infra import testmode
 
 logger = logging.getLogger(__name__)
 
@@ -78,6 +79,7 @@ class ThreadedHttpServerTestCase(unittest.TestCase):
             raise cls.server_exception
 
 
+@testmode.standalone
 class _TestNotifier(ThreadedHttpServerTestCase):
     repeats = 1
     timeout = 1.0
@@ -187,6 +189,7 @@ class TestNotifierTwo(_TestNotifier):
 del _TestNotifier
 
 
+@testmode.standalone
 class TestNotifierConfig(unittest.TestCase):
 
     def test_notifier_from_config(self):
@@ -215,6 +218,7 @@ class TestNotifierConfig(unittest.TestCase):
             self.assertEqual(Config.notification_attempts(), 4)
 
 
+@testmode.standalone
 class TestWorkerQueueAssignment(unittest.TestCase):
     def _test(self, num_workers, queue_lengths):
         notifier = Notifier(deployment_stage='foo', delays=[0] * len(queue_lengths), num_workers=num_workers)
