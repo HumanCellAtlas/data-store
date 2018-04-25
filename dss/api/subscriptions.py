@@ -50,7 +50,7 @@ def find(replica: str):
     search_obj = Search(using=es_client,
                         index=Config.get_es_index_name(ESIndexType.subscriptions, Replica[replica]),
                         doc_type=ESDocType.subscription.name)
-    search = search_obj.query({'match': {'owner': owner}})
+    search = search_obj.query({'bool': {'must': [{'term': {'owner': owner}}]}})
 
     responses = [{
         'uuid': hit.meta.id,
