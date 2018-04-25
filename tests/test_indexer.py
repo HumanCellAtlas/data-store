@@ -1110,6 +1110,7 @@ class TestAWSIndexer(TestIndexerBase):
         return sample_event
 
 
+@testmode.standalone  # It's sufficient to run the integration tests in TestIndexerBase for one replica only
 class TestGCPIndexer(TestIndexerBase):
 
     replica = Replica.gcp
