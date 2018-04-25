@@ -1,20 +1,19 @@
-
-import elasticsearch
+from functools import lru_cache
 import logging
-
-from elasticsearch.helpers import scan, bulk, BulkIndexError
 import os
-import typing
+from typing import Union
 from urllib.parse import parse_qs, urlencode, urlparse
 
 import boto3
 from botocore.auth import SigV4Auth
 from botocore.awsrequest import AWSRequest
 from botocore.vendored import requests
-from elasticsearch import RequestsHttpConnection, Elasticsearch
+import elasticsearch
+from elasticsearch import Elasticsearch, RequestsHttpConnection
+from elasticsearch.helpers import BulkIndexError, bulk, scan
 from requests_aws4auth import AWS4Auth
 
-from dss import Config, ESIndexType, ESDocType, Replica
+from dss import Config, ESDocType, ESIndexType, Replica
 from dss.util.retry import retry
 
 logger = logging.getLogger(__name__)
@@ -48,46 +47,48 @@ class AWSV4Sign(requests.auth.AuthBase):
 
 
 class ElasticsearchClient:
-    _es_client = dict()  # type: typing.MutableMapping[typing.Tuple[str, int], Elasticsearch]
-
+    """
+    >>> EC = ElasticsearchClient
+    >>> EC.get() is EC.get()
+    True
+    >>> EC._get("alskdjasfdiw", 443, 1) is EC._get("alskdjasfdiw", 443, 2)
+    False
+    >>> EC._get("daskdjlsadjl.amazonaws.com", 443, 1) is EC._get("daskdjlsadjl.amazonaws.com", 443, 1)
+    True
+    """
     @staticmethod
     def get() -> Elasticsearch:
-        elasticsearch_endpoint = os.getenv("DSS_ES_ENDPOINT", "localhost")
-        elasticsearch_port = int(os.getenv("DSS_ES_PORT", "443"))
+        host = os.getenv('DSS_ES_ENDPOINT', "localhost")  # FIXME: endpoint is the wrong term
+        port = int(os.getenv('DSS_ES_PORT', "443"))
+        timeout: Union[str, None, int] = os.getenv('DSS_ES_TIMEOUT')
+        timeout = int(timeout) if timeout else None
+        return ElasticsearchClient._get(host, port, timeout)
 
-        client = ElasticsearchClient._es_client.get((elasticsearch_endpoint, elasticsearch_port), None)
-
-        if client is None:
-            try:
-                logger.debug("Connecting to Elasticsearch at host: {}".format(elasticsearch_endpoint))
-                if elasticsearch_endpoint.endswith(".amazonaws.com"):
-                    session = boto3.session.Session()
-                    # TODO (akislyuk) Identify/resolve why use of AWSV4Sign results in an AWS auth error
-                    # when Elasticsearch scroll is used. Work around this by using the
-                    # requests_aws4auth package as described here:
-                    # https://elasticsearch-py.readthedocs.io/en/master/#running-on-aws-with-iam
-                    # es_auth = AWSV4Sign(session.get_credentials(), session.region_name, service="es")
-                    # Begin workaround
-                    current_credentials = session.get_credentials().get_frozen_credentials()
-                    es_auth = AWS4Auth(current_credentials.access_key, current_credentials.secret_key,
-                                       session.region_name, "es", session_token=current_credentials.token)
-                    # End workaround
-                    client = Elasticsearch(
-                        hosts=[{'host': elasticsearch_endpoint, 'port': elasticsearch_port}],
-                        use_ssl=True,
-                        verify_certs=True,
-                        connection_class=RequestsHttpConnection,
-                        http_auth=es_auth)
-                else:
-                    client = Elasticsearch(
-                        [{'host': elasticsearch_endpoint, 'port': elasticsearch_port}],
-                        use_ssl=False
-                    )
-                ElasticsearchClient._es_client[(elasticsearch_endpoint, elasticsearch_port)] = client
-            except Exception as ex:
-                logger.error(f"Unable to connect to Elasticsearch endpoint {elasticsearch_endpoint}. Exception: {ex}")
-                raise ex
-
+    @staticmethod
+    @lru_cache(maxsize=32)
+    def _get(host, port, timeout):
+        logger.debug("Connecting to Elasticsearch at host: {}".format(host))
+        if host.endswith(".amazonaws.com"):
+            session = boto3.session.Session()
+            # TODO (akislyuk) Identify/resolve why use of AWSV4Sign results in an AWS auth error
+            # when Elasticsearch scroll is used. Work around this by using the
+            # requests_aws4auth package as described here:
+            # https://elasticsearch-py.readthedocs.io/en/master/#running-on-aws-with-iam
+            # es_auth = AWSV4Sign(session.get_credentials(), session.region_name, service="es")
+            # Begin workaround
+            current_credentials = session.get_credentials().get_frozen_credentials()
+            es_auth = AWS4Auth(current_credentials.access_key, current_credentials.secret_key,
+                               session.region_name, "es", session_token=current_credentials.token)
+            # End workaround
+            client = Elasticsearch(hosts=[dict(host=host, port=port)],
+                                   timeout=timeout,
+                                   use_ssl=True,
+                                   verify_certs=True,
+                                   connection_class=RequestsHttpConnection,
+                                   http_auth=es_auth)
+        else:
+            client = Elasticsearch(hosts=[dict(host=host, port=port)],
+                                   use_ssl=False)
         return client
 
 
