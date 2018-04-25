@@ -121,12 +121,6 @@
       "Effect": "Allow"
     },
     {
-      "Sid": "hcaDssCiCdAllowSSMGetParameterAccess",
-      "Effect": "Allow",
-      "Action": "ssm:GetParameter",
-      "Resource": "arn:aws:ssm:*:$account_id:parameter$DSS_PARAMETER_STORE/*"
-    },
-    {
       "Effect": "Allow",
       "Action": "dynamodb:*",
       "Resource": [
@@ -194,7 +188,8 @@
         "secretsmanager:Get*"
       ],
       "Resource": [
-        "arn:aws:secretsmanager:*:$account_id:secret:/dss/secrets/event_relay_aws_*"
+        "arn:aws:secretsmanager:*:$account_id:secret:$DSS_SECRETS_STORE/$DSS_EVENT_RELAY_AWS_ACCESS_KEY_ID_SECRETS_NAME*",
+        "arn:aws:secretsmanager:*:$account_id:secret:$DSS_SECRETS_STORE/$DSS_EVENT_RELAY_AWS_SECRET_ACCESS_KEY_SECRETS_NAME*"
       ]
     }
   ]
