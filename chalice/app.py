@@ -111,14 +111,11 @@ def get_chalice_app(flask_app) -> DSSChaliceApp:
     @time_limited(app)
     def dispatch(*args, **kwargs):
         uri_params = app.current_request.uri_params or {}
-        path = app.current_request.context["resourcePath"].format(**uri_params)
+        path_pattern = app.current_request.context["resourcePath"]
+        path = path_pattern.format(**uri_params)
+        method = app.current_request.method
+        query_params = app.current_request.query_params
         req_body = app.current_request.raw_body if app.current_request._body is not None else None
-        app.log.info(
-            "[dispatch] path: %s query_string: %s method: %s",
-            path,
-            app.current_request.query_params,
-            app.current_request.method,
-        )
 
         def maybe_fake_504() -> typing.Optional[chalice.Response]:
             fake_504_probability_str = app.current_request.headers.get("DSS_FAKE_504_PROBABILITY", "0.0")
@@ -138,24 +135,37 @@ def get_chalice_app(flask_app) -> DSSChaliceApp:
             if maybe_fake_504_result is not None:
                 return maybe_fake_504_result
 
-        with flask_app.test_request_context(
-                path=path,
-                base_url="https://{}".format(app.current_request.headers["host"]),
-                query_string=app.current_request.query_params,
-                method=app.current_request.method,
-                headers=list(app.current_request.headers.items()),
-                data=req_body,
-                environ_base=app.current_request.stage_vars):
-            with nestedcontext.bind(
-                    time_left=lambda: (
-                        (app.lambda_context.get_remaining_time_in_millis() / 1000) -
-                        EXECUTION_TERMINATION_THRESHOLD_SECONDS),
-                    skip_on_conflicts=True):
-                flask_res = flask_app.full_dispatch_request()
-        res_headers = dict(flask_res.headers)
+        status_code = None
+        try:
+            with flask_app.test_request_context(
+                    path=path,
+                    base_url="https://{}".format(app.current_request.headers["host"]),
+                    query_string=app.current_request.query_params,
+                    method=app.current_request.method,
+                    headers=list(app.current_request.headers.items()),
+                    data=req_body,
+                    environ_base=app.current_request.stage_vars):
+                with nestedcontext.bind(
+                        time_left=lambda: (
+                            (app.lambda_context.get_remaining_time_in_millis() / 1000) -
+                            EXECUTION_TERMINATION_THRESHOLD_SECONDS),
+                        skip_on_conflicts=True):
+                    flask_res = flask_app.full_dispatch_request()
+                    status_code = flask_res._status_code
+        finally:
+            app.log.info(
+                "[dispatch] \"%s %s\" %s%s",
+                method,
+                path,
+                str(status_code),
+                ' ' + str(query_params) if query_params is not None else '',
+            )
+
         # API Gateway/Cloudfront adds a duplicate Content-Length with a different value (not sure why)
+        res_headers = dict(flask_res.headers)
         res_headers.pop("Content-Length", None)
-        return chalice.Response(status_code=flask_res._status_code,
+
+        return chalice.Response(status_code=status_code,
                                 headers=res_headers,
                                 body="".join([c.decode() if isinstance(c, bytes) else c for c in flask_res.response]))
 
