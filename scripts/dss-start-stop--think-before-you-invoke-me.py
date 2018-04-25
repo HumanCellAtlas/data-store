@@ -42,16 +42,11 @@ lambda_client = boto3.client('lambda')
 
 
 def disable_lambda(name):
-    lambda_client.put_function_concurrency(
-        FunctionName=name,
-        ReservedConcurrentExecutions=0
-    )
+    lambda_client.put_function_concurrency(FunctionName=name, ReservedConcurrentExecutions=0)
     print(f"halted {name}")
     
 def enable_lambda(name):
-    lambda_client.delete_function_concurrency(
-        FunctionName=name,
-    )
+    lambda_client.delete_function_concurrency(FunctionName=name)
     print(f"started {name}")
 
 
