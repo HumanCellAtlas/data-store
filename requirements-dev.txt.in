@@ -11,4 +11,4 @@ httpie  >= 0.9.9
 yq  >= 2.3.3
 Faker >= 0.8.11
 rstr >=2.2.6
--r requirements.txt
+-r requirements.txt.in
