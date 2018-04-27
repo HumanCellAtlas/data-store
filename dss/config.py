@@ -143,7 +143,10 @@ class Config:
 
             # _http is a "private" parameter, and we may need to re-visit GCP timeout retry
             # strategies in the future.
-            return Client(_http=SessionWithTimeouts(credentials))
+            return Client(
+                _http=SessionWithTimeouts(credentials),
+                credentials=credentials
+            )
         raise NotImplementedError(f"Replica `{replica.name}` is not implemented!")
 
     @staticmethod
