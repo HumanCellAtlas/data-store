@@ -5,6 +5,7 @@ This script manages the deployment of Google Cloud Functions.
 
 import os, sys, time, io, zipfile, random, string, binascii, datetime, argparse, base64
 
+import json
 import boto3
 import socket
 import httplib2
@@ -42,19 +43,18 @@ grtc_conn = GoogleRuntimeConfigConnection(client=gcp_client)
 gcf_conn = GoogleCloudFunctionsConnection(client=gcp_client)
 gcf_ns = f"projects/{gcp_client.project}/locations/{gcp_region}/functions"
 
-SM = boto3.client('secretsmanager')
-aws_access_key_id = SM.get_secret_value(
-    SecretId='{}/{}'.format(os.environ['DSS_SECRETS_STORE'], os.environ['DSS_EVENT_RELAY_AWS_ACCESS_KEY_ID_SECRETS_NAME'])
-)['SecretString']
-aws_secret_access_key = SM.get_secret_value(
-    SecretId='{}/{}'.format(os.environ['DSS_SECRETS_STORE'], os.environ['DSS_EVENT_RELAY_AWS_SECRET_ACCESS_KEY_SECRETS_NAME'])
-)['SecretString']
+aws_access_key_info = json.loads(
+    boto3.client('secretsmanager').get_secret_value(
+        SecretId='{}/{}'.format(os.environ['DSS_SECRETS_STORE'], os.environ['EVENT_RELAY_AWS_ACCESS_KEY_SECRETS_NAME'])
+    )['SecretString']
+)
+
 boto3_session = boto3.session.Session()
 aws_account_id = boto3.client("sts").get_caller_identity()["Account"]
 relay_sns_topic = "dss-gs-bucket-events-" + os.environ["DSS_GS_BUCKET"]
 config_vars = {
-    "AWS_ACCESS_KEY_ID": aws_access_key_id,
-    "AWS_SECRET_ACCESS_KEY": aws_secret_access_key,
+    "AWS_ACCESS_KEY_ID": aws_access_key_info['AccessKey']['AccessKeyId'],
+    "AWS_SECRET_ACCESS_KEY": aws_access_key_info['AccessKey']['SecretAccessKey'],
     "AWS_REGION": os.environ['AWS_DEFAULT_REGION'],
     "sns_topic_arn": f"arn:aws:sns:{boto3_session.region_name}:{aws_account_id}:{relay_sns_topic}"
 }
