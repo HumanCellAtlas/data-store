@@ -39,6 +39,11 @@
     },
     {
       "Effect": "Allow",
+      "Action": "cloudwatch:PutMetricData",
+      "Resource": "*"
+    },
+    {
+      "Effect": "Allow",
       "Action": [
         "es:ESHttpGet",
         "es:ESHttpHead",
