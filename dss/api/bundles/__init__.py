@@ -8,7 +8,7 @@ import typing
 import iso8601
 import nestedcontext
 import requests
-from cloud_blobstore import BlobNotFoundError, BlobStore
+from cloud_blobstore import BlobNotFoundError, BlobStore, BlobStoreTimeoutError
 from flask import jsonify, request
 
 from dss.storage.identifiers import TombstoneID, BundleFQID, FileFQID
@@ -126,12 +126,19 @@ def put(uuid: str, replica: str, json_request_body: dict, version: str = None):
         BundleMetadata.CREATOR_UID: json_request_body['creator_uid'],
     }
 
-    created, idempotent = _idempotent_save(
-        handle,
-        bucket,
-        bundle_manifest_key,
-        bundle_metadata,
-    )
+    try:
+        created, idempotent = _idempotent_save(
+            handle,
+            bucket,
+            bundle_manifest_key,
+            bundle_metadata,
+        )
+    except BlobStoreTimeoutError:
+        raise DSSException(
+            requests.codes.unavailable,
+            "service_unavailable",
+            f"Service unavailable due to unusually high load/latency"
+        )
 
     if not idempotent:
         raise DSSException(
