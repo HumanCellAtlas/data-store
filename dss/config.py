@@ -6,10 +6,13 @@ from contextlib import contextmanager
 from enum import Enum, EnumMeta, auto
 
 import boto3
+import botocore.config
 from cloud_blobstore import BlobStore
 from cloud_blobstore.s3 import S3BlobStore
 from cloud_blobstore.gs import GSBlobStore
 from google.cloud.storage import Client
+from google.oauth2 import service_account
+import google.resumable_media.common
 
 from dss.storage.hcablobstore import HCABlobStore
 from dss.storage.hcablobstore.s3 import S3HCABlobStore
@@ -94,6 +97,11 @@ class Config:
     _S3_CHECKOUT_BUCKET = None  # type: typing.Optional[str]
     _GS_CHECKOUT_BUCKET = None  # type: typing.Optional[str]
 
+    BLOBSTORE_CONNECT_TIMEOUT = 5  # type: float
+    BLOBSTORE_READ_TIMEOUT = 5  # type: float
+    BLOBSTORE_BOTO_RETRIES = 2  # type: int
+    BLOBSTORE_GS_MAX_CUMULATIVE_RETRY = 15  # type: float  ## seconds
+
     _ALLOWED_EMAILS = None  # type: typing.Optional[str]
     _CURRENT_CONFIG = BucketConfig.ILLEGAL  # type: BucketConfig
     _NOTIFICATION_SENDER_EMAIL = None  # type: typing.Optional[str]
@@ -110,10 +118,32 @@ class Config:
     @functools.lru_cache()
     def get_native_handle(replica: "Replica") -> typing.Any:
         if replica == Replica.aws:
-            return boto3.client("s3")
+            return boto3.client(
+                "s3",
+                config=botocore.config.Config(
+                    connect_timeout=Config.BLOBSTORE_CONNECT_TIMEOUT,
+                    read_timeout=Config.BLOBSTORE_READ_TIMEOUT,
+                    retries={'max_attempts': Config.BLOBSTORE_BOTO_RETRIES}
+                )
+            )
         elif replica == Replica.gcp:
-            credentials = os.environ["GOOGLE_APPLICATION_CREDENTIALS"]
-            return Client.from_service_account_json(credentials)
+            google.resumable_media.common.MAX_CUMULATIVE_RETRY = Config.BLOBSTORE_GS_MAX_CUMULATIVE_RETRY
+
+            # GCP has no direct interface to configure retries and timeouts. However, it makes use of Python's
+            # stdlib `requests` package, which has straightforward timeout usage.
+            class SessionWithTimeouts(google.auth.transport.requests.AuthorizedSession):
+                def request(self, *args, **kwargs):
+                    kwargs['timeout'] = (Config.BLOBSTORE_CONNECT_TIMEOUT, Config.BLOBSTORE_READ_TIMEOUT)
+                    return super().request(*args, **kwargs)
+
+            credentials = service_account.Credentials.from_service_account_file(
+                os.environ["GOOGLE_APPLICATION_CREDENTIALS"],
+                scopes=Client.SCOPE
+            )
+
+            # _http is a "private" parameter, and we may need to re-visit GCP timeout retry
+            # strategies in the future.
+            return Client(_http=SessionWithTimeouts(credentials))
         raise NotImplementedError(f"Replica `{replica.name}` is not implemented!")
 
     @staticmethod
