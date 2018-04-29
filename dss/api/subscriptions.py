@@ -13,7 +13,7 @@ from dss import Config, Replica, ESIndexType, ESDocType
 from dss.error import DSSException, dss_handler
 from dss.index.es import ElasticsearchClient
 from dss.index.es.manager import IndexManager
-from dss.notify.notification import Endpoint
+from dss.notify import attachment
 
 logger = logging.getLogger(__name__)
 
@@ -68,6 +68,8 @@ def put(json_request_body: dict, replica: str):
     uuid = str(uuid4())
     es_query = json_request_body['es_query']
     owner = request.token_info['email']
+
+    attachment.validate(json_request_body.get('attachments', {}))
 
     es_client = ElasticsearchClient.get()
 

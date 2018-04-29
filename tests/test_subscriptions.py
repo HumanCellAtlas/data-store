@@ -118,6 +118,12 @@ class TestSubscriptionsBase(ElasticsearchTestCase, DSSAssertMixin):
             self._put_subscription(expect_code=400,
                                    endpoint=Endpoint(callback_url=self.endpoint.callback_url,
                                                      method='foo'))
+        with self.subTest("Invalid attachment type"):
+            self._put_subscription(expect_code=400,
+                                   attachments={'foo': dict(type='foo', expression='bar')})
+        with self.subTest("Invalid attachment expression"):
+            self._put_subscription(expect_code=400,
+                                   attachments={'foo': dict(type='jmespath', expression='')})
 
     def test_subscription_registration_succeeds_when_query_does_not_match_mappings(self):
         # It is now possible to register a subscription query before the mapping
@@ -211,7 +217,7 @@ class TestSubscriptionsBase(ElasticsearchTestCase, DSSAssertMixin):
         # 2. Check that we can't delete files that don't exist
         self.assertDeleteResponse(url, requests.codes.not_found, headers=get_auth_header())
 
-    def _put_subscription(self, endpoint=None, expect_code=None):
+    def _put_subscription(self, endpoint=None, expect_code=None, attachments=None):
         url = str(UrlBuilder()
                   .set(path="/v1/subscriptions")
                   .add_query("replica", self.replica.name))
@@ -219,10 +225,13 @@ class TestSubscriptionsBase(ElasticsearchTestCase, DSSAssertMixin):
             endpoint = self.endpoint
         if isinstance(endpoint, Endpoint):
             endpoint = endpoint.to_dict()
+        json_request_body = dict(endpoint, es_query=self.sample_percolate_query)
+        if attachments is not None:
+            json_request_body['attachments'] = attachments
         resp_obj = self.assertPutResponse(
             url,
             expect_code or requests.codes.created,
-            json_request_body=dict(endpoint, es_query=self.sample_percolate_query),
+            json_request_body=json_request_body,
             headers=get_auth_header()
         )
         return resp_obj.json.get('uuid')

@@ -41,6 +41,7 @@ from dss.index.es.document import BundleDocument
 from dss.index.es.validator import scrub_index_data
 from dss.index.indexer import Indexer
 from dss.logging import configure_test_logging
+from dss.notify import attachment
 from dss.notify.notification import Endpoint
 from dss.storage.hcablobstore import BundleFileMetadata, BundleMetadata, FileMetadata
 from dss.storage.identifiers import BundleFQID, ObjectIdentifier
@@ -457,6 +458,41 @@ class TestIndexerBase(ElasticsearchTestCase, DSSAssertMixin, DSSStorageMixin, DS
                 self.process_new_indexable_object(sample_event)
                 prefix, _, bundle_fqid = self.bundle_key.partition("/")
                 self.verify_notification(subscription_id, self.smartseq2_paired_ends_query, bundle_fqid, endpoint)
+                self.delete_subscription(subscription_id)
+
+    @testmode.standalone
+    def test_subscription_with_attachments(self):
+        endpoint = self._default_endpoint()
+        endpoint = NotificationRequestHandler.configure(endpoint)
+
+        def define(**definitions):
+            return dict({k: dict(type='jmespath', expression=v) for k, v in definitions.items()})
+
+        test_cases = [
+            (define(foo='`"bar"`'),  # A string literal …
+             dict(foo='bar')),  # is returned as is.
+            (define(foo='doesnotexist'),  # A non-existant field …
+             dict(foo=None)),  # yields None.
+            (define(primer='files.assay_json.rna.primer'),  # An existing fields
+             dict(primer='random')),  # yields that field's value
+            (define(protocols='files.project_json.protocols[0:2].type.text'),  # A more complicated expression
+             dict(protocols=['growth protocol', 'treatment protocol'])),  # (a projection and a slice).
+            (define(foo='`"bar"`', bar='abs(`"foo"`)'),  # An specific error in one field doesn't affect another.
+             dict(foo='bar', _errors=dict(bar='In function abs(), invalid type for value: foo, '
+                                              'expected one of: [\'number\'], received: "string"'))),
+            (define(foo=f'`"{"x" * attachment.size_limit}"`'),  # A general error …
+             dict(_errors='Attachments too large (131083 > 131072)'))]  # displaces all attachments.
+
+        for definitions, attachments in test_cases:
+            query = self.smartseq2_paired_ends_query
+            with self.subTest(definitions=definitions, attachments=attachments):
+                subscription_id = self.subscribe_for_notification(es_query=query,
+                                                                  attachments=definitions,
+                                                                  **endpoint.to_dict())
+                sample_event = self.create_bundle_created_event(self.bundle_key)
+                self.process_new_indexable_object(sample_event)
+                prefix, _, bundle_fqid = self.bundle_key.partition("/")
+                self.verify_notification(subscription_id, query, bundle_fqid, endpoint, attachments)
                 self.delete_subscription(subscription_id)
 
     # TODO: This should be @testmode.always once we find a way to emulate HTTP status errors with signed-PUT/POST to S3
@@ -950,7 +986,7 @@ class TestIndexerBase(ElasticsearchTestCase, DSSAssertMixin, DSSStorageMixin, DS
         self.assertRegexIn(r"INFO:[^:]+:In [\w\-\.]+, unexpected additional fields have been removed from the "
                            r"data to be indexed. Removed \[[^\]]*].", log_monitor.output)
 
-    def verify_notification(self, subscription_id, es_query, bundle_fqid, endpoint):
+    def verify_notification(self, subscription_id, es_query, bundle_fqid, endpoint, attachments=None):
         received_request = self._get_received_notification_request()
         self.assertIsNotNone(received_request)
         self.assertEqual(endpoint.method, received_request['method'])
@@ -986,6 +1022,7 @@ class TestIndexerBase(ElasticsearchTestCase, DSSAssertMixin, DSSStorageMixin, DS
         bundle_uuid, _, bundle_version = bundle_fqid.partition(".")
         self.assertEqual(bundle_uuid, posted_json['match']['bundle_uuid'])
         self.assertEqual(bundle_version, posted_json['match']['bundle_version'])
+        self.assertEquals(posted_json.get('attachments'), attachments)
 
     @testmode.standalone
     def test_indexer_lookup(self):
