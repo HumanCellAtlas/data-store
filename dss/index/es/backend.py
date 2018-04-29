@@ -8,6 +8,7 @@ from elasticsearch.helpers import scan
 from dss import ESDocType, ESIndexType, Config
 from dss.index.backend import IndexBackend
 from dss.index.bundle import Bundle, Tombstone
+from dss.notify import attachment
 from dss.notify.notification import Notification, Endpoint
 from dss.notify.notifier import Notifier
 
@@ -111,6 +112,11 @@ class ElasticsearchIndexBackend(IndexBackend):
                        es_query=subscription['es_query'],
                        match=dict(bundle_uuid=doc.fqid.uuid,
                                   bundle_version=doc.fqid.version))
+
+        definitions = subscription.get('attachments')
+        # Only mention attachments in the notification if the subscription does, too.
+        if definitions is not None:
+            payload['attachments'] = attachment.select(definitions, doc)
 
         if endpoint.encoding == 'application/json':
             body = payload

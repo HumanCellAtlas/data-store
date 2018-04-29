@@ -483,6 +483,70 @@ paths:
                 description: |
                   An optional key ID to use with `hmac_secret_key`.
                 type: string
+              attachments:
+                description: |
+                  The set of bundle metadata items to be included in the payload of a notification request to a
+                  subscription endpoint. Each property in this object represents an attachment to the notification
+                  payload. Each attachment will be a child property of the `attachments` property of the payload. The
+                  name of such a child property can be chosen freely provided it does not start with an underscore.
+
+                  For example, if the subscription is
+
+                  ```
+                  {
+                    "attachments": {
+                      "taxon": {
+                        "type": "jmespath",
+                        "expression": "files.biomaterial_json.biomaterials[].content.biomaterial_core.ncbi_taxon_id[]"
+                      }
+                    }
+                  }
+                  ```
+
+                  the corresponding notification payload will contain the following entry
+
+                  ```
+                  "attachements": {
+                    "taxon": [9606, 9606]
+                  }
+                  ```
+
+                  If a general error occurs during the processing of attachments, the notification will be sent with
+                  `attachments` containing only the reserved `_errors` attachment containing a string describing the
+                  error. If an error occurs during the processing of a specific attachement, the notification will be
+                  sent with all successfully processed attachments and additionally the `_errors` attachment containing
+                  an object with one property for each failed attachment. For example,
+
+                  ```
+                  "attachements": {
+                    "taxon": [9606, 9606]
+                    "_errors" {
+                      "biomaterial": "Some error occurred"
+                    }
+                  }
+                  ```
+
+                  The value of the `attachments` property must be less than or equal to 128 KiB in size when serialized
+                  to JSON and encoded as UTF-8. If it is not, the notification will be sent with
+
+                  "attachements": {
+                    "_errors": "Attachments too large (131073 bytes)"
+                  }
+                type: object
+                additionalProperties:
+                  type: object
+                  properties:
+                    type:
+                      description: The type of the attachment. Currently only the `jmespath` type is supported.
+                      enum: [jmespath]
+                    expression:
+                      description: |
+                        The JMESpath expression to evaluate against the bundle metadata JSON document. That document is
+                        of the same structure as those returned by `POST /search` with `output_format: raw`.
+                      type: string
+                  required:
+                    - type
+                    - expression
             required:
               - es_query
               - callback_url
@@ -509,7 +573,13 @@ paths:
                   code:
                     type: string
                     description: Machine-readable error code.  The types of return values should not be changed lightly.
-                    enum: [unhandled_exception, Forbidden, OAuthResponseProblem, elasticsearch_error]
+                    enum:
+                      - unhandled_exception
+                      - Forbidden
+                      - OAuthResponseProblem
+                      - elasticsearch_error
+                      - invalid_attachment_expression
+                      - invalid_attachment_name
                 required:
                   - code
   /subscriptions/{uuid}:
@@ -1157,6 +1227,70 @@ definitions:
           `multipart/form-data`.
         type: string
         default: payload
+      attachments:
+        description: |
+          The set of bundle metadata items to be included in the payload of a notification request to a
+          subscription endpoint. Each property in this object represents an attachment to the notification
+          payload. Each attachment will be a child property of the `attachments` property of the payload. The
+          name of such a child property can be chosen freely provided it does not start with an underscore.
+
+          For example, if the subscription is
+
+          ```
+          {
+            "attachments": {
+              "taxon": {
+                "type": "jmespath",
+                "expression": "files.biomaterial_json.biomaterials[].content.biomaterial_core.ncbi_taxon_id[]"
+              }
+            }
+          }
+          ```
+
+          the corresponding notification payload will contain the following entry
+
+          ```
+          "attachements": {
+            "taxon": [9606, 9606]
+          }
+          ```
+
+          If a general error occurs during the processing of attachments, the notification will be sent with
+          `attachments` containing only the reserved `_errors` attachment containing a string describing the
+          error. If an error occurs during the processing of a specific attachement, the notification will be
+          sent with all successfully processed attachments and additionally the `_errors` attachment containing
+          an object with one property for each failed attachment. For example,
+
+          ```
+          "attachements": {
+            "taxon": [9606, 9606]
+            "_errors" {
+              "biomaterial": "Some error occurred"
+            }
+          }
+          ```
+
+          The value of the `attachments` property must be less than or equal to 128 KiB in size when serialized
+          to JSON and encoded as UTF-8. If it is not, the notification will be sent with
+
+          "attachements": {
+            "_errors": "Attachments too large (131073 bytes)"
+          }
+        type: object
+        additionalProperties:
+          type: object
+          properties:
+            type:
+              description: The type of the attachment. Currently only the `jmespath` type is supported.
+              enum: [jmespath]
+            expression:
+              description: |
+                The JMESpath expression to evaluate against the bundle metadata JSON document. That document is
+                of the same structure as those returned by `POST /search` with `output_format: raw`.
+              type: string
+          required:
+            - type
+            - expression
     required:
       - uuid
       - replica
