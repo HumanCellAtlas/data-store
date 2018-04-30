@@ -58,13 +58,10 @@ def parse_args():
     parser.add_argument("--deploy-env", default=os.environ.get("GITHUB_DEPLOY_ENV"))
     parser.add_argument("--poll-interval-seconds", default=int(os.environ.get("GITHUB_POLL_INTERVAL_SECONDS", 30)))
     parser.add_argument("--build-location", default="/opt")
-    parser.add_argument("--deploy-key-name")
     args = parser.parse_args()
 
     args.github_url = "git@github.com:{}/{}".format(args.gh_owner_name, args.gh_repo_name)
     args.build_location = os.path.abspath(os.path.join(args.build_location, args.gh_owner_name, args.gh_repo_name))
-    if not args.deploy_key_name:
-        args.deploy_key_name = "deploy.{}.{}".format(args.gh_owner_name, args.gh_repo_name)
     return args
 
 args = parse_args()
