@@ -31,6 +31,9 @@ def run_git_command(*cmd, **kwargs):
     return subprocess.check_call(["git"] + list(cmd), **kwargs)
 
 def clone_and_build(branch, destination):
+    with open(os.path.join(os.environ["HOME"], ".config", "git", "credentials"), "w") as fh:
+        fh.write("https://{}:{}@github.com".format(args.gh_username, github_auth_token))
+    subprocess.check_call(["git", "config", "--global", "credential.helper", "store"])
     if not os.path.exists(os.path.dirname(destination)):
         os.makedirs(os.path.dirname(destination))
     deploy_dir = "{}-{}-{}".format(args.gh_repo_name, branch, datetime.now().strftime("%Y-%m-%d-%H-%M-%S"))
@@ -54,13 +57,14 @@ def parse_args():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--gh-owner-name", default=os.environ.get("GITHUB_OWNER"))
     parser.add_argument("--gh-repo-name", default=os.environ.get("GITHUB_REPO"))
+    parser.add_argument("--gh-username", default=os.environ.get("GITHUB_USER"))
     parser.add_argument("--branch", default=os.environ.get("GITHUB_BRANCH"))
     parser.add_argument("--deploy-env", default=os.environ.get("GITHUB_DEPLOY_ENV"))
     parser.add_argument("--poll-interval-seconds", default=int(os.environ.get("GITHUB_POLL_INTERVAL_SECONDS", 30)))
     parser.add_argument("--build-location", default="/opt")
     args = parser.parse_args()
 
-    args.github_url = "git@github.com:{}/{}".format(args.gh_owner_name, args.gh_repo_name)
+    args.github_url = "https://github.com/{}/{}".format(args.gh_owner_name, args.gh_repo_name)
     args.build_location = os.path.abspath(os.path.join(args.build_location, args.gh_owner_name, args.gh_repo_name))
     return args
 
