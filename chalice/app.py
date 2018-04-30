@@ -29,8 +29,6 @@ configure_lambda_logging()
 
 Config.set_config(BucketConfig.NORMAL)
 
-cloudwatch = boto3.client('cloudwatch')
-
 
 EXECUTION_TERMINATION_THRESHOLD_SECONDS = 5.0
 """We will terminate execution if we have this many seconds left to process the request."""
@@ -109,7 +107,6 @@ def time_limited(chalice_app: DSSChaliceApp):
 
 def get_chalice_app(flask_app) -> DSSChaliceApp:
     app = DSSChaliceApp(app_name=flask_app.name, configure_logs=False)
-    ex = ThreadPoolExecutor(max_workers=2)
 
     @time_limited(app)
     def dispatch(*args, **kwargs):
@@ -137,33 +134,6 @@ def get_chalice_app(flask_app) -> DSSChaliceApp:
             maybe_fake_504_result = maybe_fake_504()
             if maybe_fake_504_result is not None:
                 return maybe_fake_504_result
-
-        def request_metrics(path_pattern, method, status_code):
-            status_class = str(status_code)[0] + 'xx'
-            try:
-                cloudwatch.put_metric_data(
-                    Namespace='DSS',
-                    MetricData=[
-                        dict(MetricName='HttpRequests by StatusClass',
-                             Dimensions=[
-                                 dict(Name='StatusClass', Value=status_class),
-                             ],
-                             Value=1.0,
-                             Unit='Count',
-                             StorageResolution=60),
-                        dict(MetricName='HttpRequests by Path, Method, StatusCode',
-                             Dimensions=[
-                                 dict(Name='Path', Value=path_pattern),
-                                 dict(Name='Method', Value=method),
-                                 dict(Name='StatusCode', Value=str(status_code))
-                             ],
-                             Value=1.0,
-                             Unit='Count',
-                             StorageResolution=60),
-                    ]
-                )
-            except Exception as e:
-                app.log.exception('Metrics post failed!', e)
 
         status_code = None
         try:
@@ -194,9 +164,6 @@ def get_chalice_app(flask_app) -> DSSChaliceApp:
         # API Gateway/Cloudfront adds a duplicate Content-Length with a different value (not sure why)
         res_headers = dict(flask_res.headers)
         res_headers.pop("Content-Length", None)
-
-        # observability logic is deferred to a different thread so as not to delay response
-        ex.submit(request_metrics, path_pattern, method, status_code)
 
         return chalice.Response(status_code=status_code,
                                 headers=res_headers,
