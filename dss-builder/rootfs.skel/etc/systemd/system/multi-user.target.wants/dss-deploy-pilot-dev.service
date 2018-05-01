@@ -1,0 +1,19 @@
+[Unit]
+Description=DSS deploy pilot for dev
+
+[Service]
+Environment=GITHUB_OWNER=HumanCellAtlas
+Environment=GITHUB_REPO=data-store
+Environment=GITHUB_BRANCH=master
+Environment=GITHUB_DEPLOY_ENV=dev
+Environment=GITHUB_POLL_INTERVAL_SECONDS=30
+Environment=BUILD_COMMAND=/usr/bin/deploy-from-dss-builder
+Environment=AWS_CONFIG_FILE=/etc/aws.conf
+ExecStart=/usr/bin/dss-deploy-pilot
+ExecReload=/bin/kill -USR1 $MAINPID
+StandardOutput=syslog
+Restart=on-failure
+RestartSec=5
+
+[Install]
+WantedBy=multi-user.target

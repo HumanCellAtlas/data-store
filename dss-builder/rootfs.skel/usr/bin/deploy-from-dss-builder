@@ -1,0 +1,31 @@
+#!/bin/bash
+
+source "$(dirname $0)/../environment"
+
+set -euo pipefail
+
+if [[ -z $GITHUB_DEPLOY_ENV ]]; then
+    echo "$(basename $0): Perform a deployment from the builder instance launched by launch_dss_builder.sh."
+    echo "This script is invoked from the deployment service script located in"
+    echo "dss-builder/rootfs.skel/usr/bin/dss-deploy-pilot"
+    echo "(/usr/bin/dss-deploy-pilot on the builder instance)."
+    exit 1
+fi
+
+virtualenv --python=python3.6 v
+source v/bin/activate
+pip install -r requirements-dev.txt
+
+aws secretsmanager get-secret-value --secret-id dss-gcp-credentials.json > gcp-credentials.json
+aws secretsmanager get-secret-value --secret-id dss-application_secrets.json > application_secrets.json
+
+if [[ "$GITHUB_BRANCH" == master ]] && [[ "$GITHUB_DEPLOY_ENV" == dev ]]; then
+    yes 1 | scripts/release.sh master integration
+    make deploy
+elif [[ "$GITHUB_BRANCH" == integration ]] && [[ "$GITHUB_DEPLOY_ENV" == integration ]]; then
+    yes 1 | scripts/release.sh integration staging
+    make deploy
+elif [[ "$GITHUB_BRANCH" == staging ]] && [[ "$GITHUB_DEPLOY_ENV" == staging ]]; then
+    echo Will run "yes 1 | scripts/release.sh staging prod"
+    echo Will run make deploy
+fi

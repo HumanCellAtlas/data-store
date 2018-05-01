@@ -1,0 +1,110 @@
+#!/usr/bin/env python3
+"""
+Service deploy agent.
+
+This agent is installed on the builder instance, which is configured and launched by scripts/launch_dss_builder.sh.
+
+When the instance starts, the agent is launched by the systemd service configured by
+dss-builder/rootfs.skel/etc/systemd/system/multi-user.target.wants/dss-deploy-pilot-dev.service
+(/etc/systemd/system/multi-user.target.wants/dss-deploy-pilot-dev.service on the instance).
+
+The agent polls GitHub for new deployment objects, which are created by running "make .
+"""
+
+import os, sys, subprocess, json, logging, argparse, shutil, signal, socket, time
+from datetime import datetime
+from urllib.parse import urlparse
+import boto3, requests
+
+def get_metadata(path):
+    return requests.get("http://169.254.169.254/latest/meta-data/{}".format(path)).content.decode()
+
+def clean_old_builds(build_root, prefix, min_old_builds=2):
+    build_dirs = [os.path.join(build_root, d) for d in os.listdir(build_root) if d.startswith(prefix)]
+    build_dirs = [d for d in build_dirs if os.path.isdir(d) and not os.path.islink(d)]
+    build_dirs = sorted(build_dirs, key=lambda d: os.stat(d).st_mtime)
+    for d in build_dirs[:-min_old_builds]:
+        logging.warn("Deleting old build %s", d)
+        shutil.rmtree(d, ignore_errors=True)
+
+def run_git_command(*cmd, **kwargs):
+    kwargs["env"] = dict(kwargs.get("env", os.environ), GIT_SSH_COMMAND="aegea-git-ssh-helper")
+    return subprocess.check_call(["git"] + list(cmd), **kwargs)
+
+def clone_and_build(branch, destination):
+    with open(os.path.join(os.environ["HOME"], ".config", "git", "credentials"), "w") as fh:
+        fh.write(github_credentials)
+    subprocess.check_call(["git", "config", "--global", "credential.helper", "store"])
+    if not os.path.exists(os.path.dirname(destination)):
+        os.makedirs(os.path.dirname(destination))
+    deploy_dir = "{}-{}-{}".format(args.gh_repo_name, branch, datetime.now().strftime("%Y-%m-%d-%H-%M-%S"))
+    deploy_dir = os.path.join(os.path.dirname(destination), deploy_dir)
+    # TODO: sanity check: is event timestamp within X of now?
+    logging.info("Deploying %s to %s", branch, deploy_dir)
+    if os.path.lexists(destination):
+        run_git_command("clone", "--recurse-submodules", "--branch", branch, destination, deploy_dir)
+        run_git_command("remote", "set-url", "origin", args.github_url, cwd=deploy_dir)
+        run_git_command("fetch", "origin", branch, cwd=deploy_dir)
+        run_git_command("checkout", "-B", branch, "--track", "origin/" + branch, cwd=deploy_dir)
+    else:
+        run_git_command("clone", "--recurse-submodules", "--branch", branch, "--depth=1", args.github_url, deploy_dir)
+    if "BUILD_COMMAND" in os.environ:
+        subprocess.check_call(os.environ["BUILD_COMMAND"], shell=True, cwd=deploy_dir, executable="/bin/bash")
+    else:
+        subprocess.check_call(["make", "-C", deploy_dir])
+
+def parse_args():
+    logging.basicConfig(level=logging.INFO)
+    parser = argparse.ArgumentParser(description=__doc__)
+    parser.add_argument("--gh-owner-name", default=os.environ.get("GITHUB_OWNER"))
+    parser.add_argument("--gh-repo-name", default=os.environ.get("GITHUB_REPO"))
+    parser.add_argument("--branch", default=os.environ.get("GITHUB_BRANCH"))
+    parser.add_argument("--deploy-env", default=os.environ.get("GITHUB_DEPLOY_ENV"))
+    parser.add_argument("--poll-interval-seconds", default=int(os.environ.get("GITHUB_POLL_INTERVAL_SECONDS", 30)))
+    parser.add_argument("--build-location", default="/opt")
+    args = parser.parse_args()
+
+    args.github_url = "https://github.com/{}/{}".format(args.gh_owner_name, args.gh_repo_name)
+    args.build_location = os.path.abspath(os.path.join(args.build_location, args.gh_owner_name, args.gh_repo_name))
+    return args
+
+args = parse_args()
+az = get_metadata("placement/availability-zone")
+instance_id = get_metadata("instance-id")
+session = boto3.Session(region_name=az[:-1])
+
+secretsmanager = session.client("secretsmanager")
+github_credentials = secretsmanager.get_secret_value(SecretId="dss-deploy-github-credentials")["SecretString"]
+github_username = urlparse(github_credentials).username
+github_auth_token = urlparse(github_credentials).password
+github = requests.Session()
+github.headers.update(Authorization="Bearer " + github_auth_token)
+github.hooks = dict(response=lambda r, *args, **kwargs: r.raise_for_status())
+deployments_url = "https://api.github.com/repos/{}/{}/deployments".format(args.gh_owner_name, args.gh_repo_name)
+
+logging.info("Scanning for deployments")
+while True:
+    for deployment in github.get(deployments_url).json():
+        if deployment["ref"] != args.branch:
+            logging.debug("Skipping deployment %s because it is on branch %s, not %s",
+                          deployment["id"], deployment["ref"], args.branch)
+            continue
+        if deployment["environment"] != args.deploy_env:
+            logging.debug("Skipping deployment %s because it is in environment %s, not %s",
+                          deployment["id"], deployment["env"], args.deploy_env)
+            continue
+        if len(github.get(deployment["statuses_url"]).json()) == 0:
+            github.post(deployment["statuses_url"],
+                        json=dict(state="pending", description="In deployment by {}".format(socket.gethostname())))
+            logging.info("Deploying %s", deployment["url"])
+            try:
+                clone_and_build(args.branch, args.build_location)
+                clean_old_builds(os.path.dirname(args.build_location), prefix=args.gh_repo_name + "-")
+                github.post(deployment["statuses_url"], json=dict(state="success"))
+            except Exception as e:
+                logging.error(e)
+                github.post(deployment["statuses_url"], json=dict(state="failure", description=str(e)))
+            break
+    else:
+        logging.info("No new deployments, waiting %d s", args.poll_interval_seconds)
+        time.sleep(args.poll_interval_seconds)

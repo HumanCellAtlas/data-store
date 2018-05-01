@@ -12,4 +12,5 @@ yq  >= 2.3.3
 Faker >= 0.8.11
 rstr >=2.2.6
 click
+aegea >= 2.1.9
 -r requirements.txt.in
