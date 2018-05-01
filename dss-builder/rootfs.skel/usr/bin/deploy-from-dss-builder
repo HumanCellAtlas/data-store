@@ -9,13 +9,8 @@ if [[ -z $GITHUB_DEPLOY_ENV ]]; then
     echo "This script is invoked from the deployment service script located in"
     echo "dss-builder/rootfs.skel/usr/bin/dss-deploy-pilot"
     echo "(/usr/bin/dss-deploy-pilot on the builder instance)."
-    echo
-    echo "Usage: $(basename $0) --yes"
     exit 1
 fi
-
-builder_instance_name=$1
-
 
 virtualenv --python=python3.6 v
 source v/bin/activate
