@@ -45,7 +45,11 @@ gcf_ns = f"projects/{gcp_client.project}/locations/{gcp_region}/functions"
 
 aws_access_key_info = json.loads(
     boto3.client('secretsmanager').get_secret_value(
-        SecretId='{}/{}'.format(os.environ['DSS_SECRETS_STORE'], os.environ['EVENT_RELAY_AWS_ACCESS_KEY_SECRETS_NAME'])
+        SecretId='{}/{}/{}'.format(
+            os.environ['DSS_SECRETS_STORE'],
+            os.environ['DSS_DEPLOYMENT_STAGE'],
+            os.environ['EVENT_RELAY_AWS_ACCESS_KEY_SECRETS_NAME']
+        )
     )['SecretString']
 )
 
