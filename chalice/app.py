@@ -29,14 +29,6 @@ configure_lambda_logging()
 
 Config.set_config(BucketConfig.NORMAL)
 
-cloudwatch = boto3.client('cloudwatch')
-
-# This executor handles requests and metrics submission tasks
-# Lambda gives you only one main thread, so this executor essentially defers work to be done sequentially
-MAX_EXECUTOR_WORKERS = 8
-metrics_executor = ThreadPoolExecutor(max_workers=MAX_EXECUTOR_WORKERS, thread_name_prefix='MetricsExecutor')
-requests_executor = ThreadPoolExecutor(max_workers=MAX_EXECUTOR_WORKERS, thread_name_prefix='RequestsExecutor')
-
 
 EXECUTION_TERMINATION_THRESHOLD_SECONDS = 5.0
 """We will terminate execution if we have this many seconds left to process the request."""
@@ -84,16 +76,6 @@ def timeout_response() -> chalice.Response:
     )
 
 
-def log_loaded_executors(logger, executor):
-    queue_size = executor._work_queue.qsize()
-    if queue_size >= MAX_EXECUTOR_WORKERS / 2:
-        logger.info("Chalice executor {} worker utilization is {}/{}".format(
-            executor._thread_name_prefix,
-            queue_size,
-            executor._max_workers
-        ))
-
-
 def time_limited(chalice_app: DSSChaliceApp):
     """
     When this decorator is applied to a route handler, we will process the request in a secondary thread.  If the
@@ -102,20 +84,23 @@ def time_limited(chalice_app: DSSChaliceApp):
     def real_decorator(method: callable):
         @functools.wraps(method)
         def wrapper(*args, **kwargs):
-            log_loaded_executors(chalice_app.log, requests_executor)
-            future = requests_executor.submit(method, *args, **kwargs)
-            time_remaining_s = chalice_app._override_exptime_seconds  # type: typing.Optional[float]
-            if time_remaining_s is None:
-                time_remaining_s = min(
-                    API_GATEWAY_TIMEOUT_SECONDS,
-                    chalice_app.lambda_context.get_remaining_time_in_millis() / 1000)
-                time_remaining_s = max(0.0, time_remaining_s - EXECUTION_TERMINATION_THRESHOLD_SECONDS)
-
+            executor = ThreadPoolExecutor()
             try:
-                chalice_response = future.result(timeout=time_remaining_s)
-                return chalice_response
-            except TimeoutError:
-                return timeout_response()
+                future = executor.submit(method, *args, **kwargs)
+                time_remaining_s = chalice_app._override_exptime_seconds  # type: typing.Optional[float]
+                if time_remaining_s is None:
+                    time_remaining_s = min(
+                        API_GATEWAY_TIMEOUT_SECONDS,
+                        chalice_app.lambda_context.get_remaining_time_in_millis() / 1000)
+                    time_remaining_s = max(0.0, time_remaining_s - EXECUTION_TERMINATION_THRESHOLD_SECONDS)
+
+                try:
+                    chalice_response = future.result(timeout=time_remaining_s)
+                    return chalice_response
+                except TimeoutError:
+                    return timeout_response()
+            finally:
+                executor.shutdown(wait=False)
         return wrapper
     return real_decorator
 
@@ -150,33 +135,6 @@ def get_chalice_app(flask_app) -> DSSChaliceApp:
             if maybe_fake_504_result is not None:
                 return maybe_fake_504_result
 
-        def request_metrics(path_pattern, method, status_code):
-            status_class = str(status_code)[0] + 'xx'
-            try:
-                cloudwatch.put_metric_data(
-                    Namespace='DSS',
-                    MetricData=[
-                        dict(MetricName='HttpRequests by StatusClass',
-                             Dimensions=[
-                                 dict(Name='StatusClass', Value=status_class),
-                             ],
-                             Value=1.0,
-                             Unit='Count',
-                             StorageResolution=60),
-                        dict(MetricName='HttpRequests by Path, Method, StatusCode',
-                             Dimensions=[
-                                 dict(Name='Path', Value=path_pattern),
-                                 dict(Name='Method', Value=method),
-                                 dict(Name='StatusCode', Value=str(status_code))
-                             ],
-                             Value=1.0,
-                             Unit='Count',
-                             StorageResolution=60),
-                    ]
-                )
-            except Exception as e:
-                app.log.exception('Metrics post failed!', e)
-
         status_code = None
         try:
             with flask_app.test_request_context(
@@ -206,10 +164,6 @@ def get_chalice_app(flask_app) -> DSSChaliceApp:
         # API Gateway/Cloudfront adds a duplicate Content-Length with a different value (not sure why)
         res_headers = dict(flask_res.headers)
         res_headers.pop("Content-Length", None)
-
-        # observability logic is deferred to a different thread so as not to delay response
-        log_loaded_executors(app.log, metrics_executor)
-        metrics_executor.submit(request_metrics, path_pattern, method, status_code)
 
         return chalice.Response(status_code=status_code,
                                 headers=res_headers,
