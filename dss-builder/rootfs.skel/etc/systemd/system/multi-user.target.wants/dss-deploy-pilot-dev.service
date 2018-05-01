@@ -8,7 +8,7 @@ Environment=GITHUB_BRANCH=master
 Environment=GITHUB_USER=dss-deploy
 Environment=GITHUB_DEPLOY_ENV=dev
 Environment=GITHUB_POLL_INTERVAL_SECONDS=30
-Environment=BUILD_COMMAND=scripts/deploy_from_dss_builder.sh
+Environment=BUILD_COMMAND=/usr/bin/deploy-from-dss-builder
 Environment=AWS_CONFIG_FILE=/etc/aws.conf
 ExecStart=/usr/bin/dss-deploy-pilot
 ExecReload=/bin/kill -USR1 $MAINPID
