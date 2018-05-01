@@ -191,8 +191,7 @@
         "secretsmanager:Get*"
       ],
       "Resource": [
-        "arn:aws:secretsmanager:*:$account_id:secret:$DSS_SECRETS_STORE/$DSS_EVENT_RELAY_AWS_ACCESS_KEY_ID_SECRETS_NAME*",
-        "arn:aws:secretsmanager:*:$account_id:secret:$DSS_SECRETS_STORE/$DSS_EVENT_RELAY_AWS_SECRET_ACCESS_KEY_SECRETS_NAME*"
+        "arn:aws:secretsmanager:*:$account_id:secret:$DSS_SECRETS_STORE/*"
       ]
     }
   ]
