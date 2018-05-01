@@ -266,9 +266,9 @@ repeat the `make deploy` step from a privileged account any time you change the 
 #### Authorizing the event relay
 
 Environment variables provide the AWS credentials needed to relay events originating from supported cloud platforms
-outside of AWS. Run `scripts/create_aws_event_relay_user.py` to create an AWS IAM user with the appropriate
-restricted access policy. The access key id and secret access key are created and populated into
-AWS Secrets Manager by running the script `scripts/set_event_relay_secrets.py`.
+outside of AWS. Run `scripts/create_config_aws_event_relay_user.py` to create an AWS IAM user with the appropriate
+restricted access policy. This script also creates the user access key and stores it in an AWS Secrets Manager
+store.
 
 #### Managing dependencies
 
