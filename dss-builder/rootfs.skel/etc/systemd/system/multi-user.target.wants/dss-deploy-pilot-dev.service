@@ -5,7 +5,6 @@ Description=DSS deploy pilot for dev
 Environment=GITHUB_OWNER=HumanCellAtlas
 Environment=GITHUB_REPO=data-store
 Environment=GITHUB_BRANCH=master
-Environment=GITHUB_USER=dss-deploy
 Environment=GITHUB_DEPLOY_ENV=dev
 Environment=GITHUB_POLL_INTERVAL_SECONDS=30
 Environment=BUILD_COMMAND=/usr/bin/deploy-from-dss-builder

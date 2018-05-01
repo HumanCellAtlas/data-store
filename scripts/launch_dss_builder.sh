@@ -16,9 +16,12 @@ fi
 
 builder_instance_name=$1
 
+read -e -p 'GitHub username: ' gh_username
+read -e -p 'GitHub token: ' gh_token
+
 python -c 'import aegea.util.aws as aws; aws.ensure_instance_profile("dss-builder")'
-aegea deploy grant git@github.com:HumanCellAtlas/data-store.git dss-builder
-echo -n $GH_AUTH | aegea secrets put dss-deploy-github-token --iam-role dss-builder
+
+echo -n "https://$gh_username:$gh_token@github.com" | aegea secrets put dss-deploy-github-credentials --iam-role dss-builder
 cat gcp-credentials.json | aegea secrets put dss-gcp-credentials.json --iam-role dss-builder
 cat application_secrets.json | aegea secrets put dss-application_secrets.json --iam-role dss-builder
 

@@ -12,8 +12,9 @@ The agent polls GitHub for new deployment objects, which are created by running 
 """
 
 import os, sys, subprocess, json, logging, argparse, shutil, signal, socket, time
-import boto3, requests
 from datetime import datetime
+from urllib.parse import urlparse
+import boto3, requests
 
 def get_metadata(path):
     return requests.get("http://169.254.169.254/latest/meta-data/{}".format(path)).content.decode()
@@ -32,7 +33,7 @@ def run_git_command(*cmd, **kwargs):
 
 def clone_and_build(branch, destination):
     with open(os.path.join(os.environ["HOME"], ".config", "git", "credentials"), "w") as fh:
-        fh.write("https://{}:{}@github.com".format(args.gh_username, github_auth_token))
+        fh.write(github_credentials)
     subprocess.check_call(["git", "config", "--global", "credential.helper", "store"])
     if not os.path.exists(os.path.dirname(destination)):
         os.makedirs(os.path.dirname(destination))
@@ -57,7 +58,6 @@ def parse_args():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--gh-owner-name", default=os.environ.get("GITHUB_OWNER"))
     parser.add_argument("--gh-repo-name", default=os.environ.get("GITHUB_REPO"))
-    parser.add_argument("--gh-username", default=os.environ.get("GITHUB_USER"))
     parser.add_argument("--branch", default=os.environ.get("GITHUB_BRANCH"))
     parser.add_argument("--deploy-env", default=os.environ.get("GITHUB_DEPLOY_ENV"))
     parser.add_argument("--poll-interval-seconds", default=int(os.environ.get("GITHUB_POLL_INTERVAL_SECONDS", 30)))
@@ -74,7 +74,9 @@ instance_id = get_metadata("instance-id")
 session = boto3.Session(region_name=az[:-1])
 
 secretsmanager = session.client("secretsmanager")
-github_auth_token = secretsmanager.get_secret_value(SecretId="dss-deploy-github-token")["SecretString"]
+github_credentials = secretsmanager.get_secret_value(SecretId="dss-deploy-github-credentials")["SecretString"]
+github_username = urlparse(github_credentials).username
+github_auth_token = urlparse(github_credentials).password
 github = requests.Session()
 github.headers.update(Authorization="Bearer " + github_auth_token)
 github.hooks = dict(response=lambda r, *args, **kwargs: r.raise_for_status())
