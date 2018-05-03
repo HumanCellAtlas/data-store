@@ -32,7 +32,6 @@ install:
 
 before_script:
 - export -n _JAVA_OPTIONS # https://github.com/travis-ci/travis-ci/issues/8408
-- scripts/get_gcp_credentials.py
 - source environment
 
 script:
