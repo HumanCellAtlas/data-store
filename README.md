@@ -247,7 +247,7 @@ indexed metadata.
 
 #### CI/CD with Travis CI
 
-We use [Travis CI](https://travis-ci.org/HumanCellAtlas/data-store) for continuous integration testing and
+We use [Travis CI](https://travis-ci.com/HumanCellAtlas/data-store) for continuous integration testing and
 deployment. When `make test` succeeds, Travis CI deploys the application into the `dev` stage on AWS for every commit
 that goes on the master branch. This behavior is defined in the `deploy` section of `.travis.yml`.
 
@@ -343,5 +343,5 @@ test-deploy-test cycle after this (the test after the deploy is required to test
 
 
 [![](https://img.shields.io/badge/slack-%23data--store-557EBF.svg)](https://humancellatlas.slack.com/messages/data-store/)
-[![Build Status](https://travis-ci.org/HumanCellAtlas/data-store.svg?branch=master)](https://travis-ci.org/HumanCellAtlas/data-store)
+[![Build Status](https://travis-ci.com/HumanCellAtlas/data-store.svg?branch=master)](https://travis-ci.com/HumanCellAtlas/data-store)
 [![codecov](https://codecov.io/gh/HumanCellAtlas/data-store/branch/master/graph/badge.svg)](https://codecov.io/gh/HumanCellAtlas/data-store)
