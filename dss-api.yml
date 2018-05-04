@@ -1111,28 +1111,6 @@ definitions:
           - name
           - content-type
           - indexed
-  file_metadata:
-    type: object
-    description: Object describing a single file in the files list of a bundle.
-    allOf:
-      - $ref: '#/definitions/blob_common_metadata'
-      - type: object
-        properties:
-          version:
-            type: string
-            description: Version of the file metadata object.
-          bundle_uuid:
-            type: string
-            description: A RFC4122-compliant ID for the bundle that contains this file.
-            pattern: "[a-z0-9]{8}-[a-z0-9]{4}-[a-z0-9]{4}-[a-z0-9]{4}-[a-z0-9]{12}"
-          creator_uid:
-            type: integer
-            format: int64
-            description: User ID who created this file.
-        required:
-          - version
-          - bundle_uuid
-          - creator_uid
   Bundle:
     type: object
     properties:
