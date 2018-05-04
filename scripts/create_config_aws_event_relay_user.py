@@ -39,8 +39,8 @@ IAM.put_user_policy(
     })
 )
 
-aws_relay_user_key_info = IAM.create_access_key(UserName=username)['AccessKey']
-aws_relay_user_key_info['CreateDate'] = aws_relay_user_key_info['CreateDate'].isoformat()
+aws_relay_user_key_info = IAM.create_access_key(UserName=username)
+aws_relay_user_key_info['AccessKey']['CreateDate'] = aws_relay_user_key_info['AccessKey']['CreateDate'].isoformat()
 subprocess.run(
     [
         os.path.join(os.path.dirname(__file__), "set_secret.py"),
