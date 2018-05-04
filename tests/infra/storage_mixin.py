@@ -26,7 +26,6 @@ class TestBundle:
 
 class TestFile:
     def __init__(self, file_key, bundle, replica: Replica) -> None:
-        self.bundle = bundle
         self.metadata = bundle.handle.get_user_metadata(bundle.bucket, file_key)
         self.indexed = bundle.handle.get_content_type(bundle.bucket, file_key) == "application/json"
         self.name = os.path.basename(file_key)
@@ -55,8 +54,7 @@ class DSSStorageMixin:
         response = self.upload_file_wait(
             bundle_file.url,
             replica,
-            file_uuid=bundle_file.uuid,
-            bundle_uuid=bundle_file.bundle.uuid,
+            file_uuid=bundle_file.uuid
         )
         response_data = json.loads(response[1])
         self.assertIs(type(response_data), dict)
@@ -121,5 +119,4 @@ class DSSStorageMixin:
                     .add_query('replica', replica.name)),
                 requests.codes.found,
             )
-            self.assertEqual(bundle_file.bundle.uuid, response[0].headers['X-DSS-BUNDLE-UUID'])
             self.assertEqual(bundle_file.version, response[0].headers['X-DSS-VERSION'])

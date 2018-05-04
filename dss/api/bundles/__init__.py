@@ -78,12 +78,6 @@ def put(uuid: str, replica: str, json_request_body: dict, version: str = None):
                 except BlobNotFoundError:
                     continue
                 file['file_metadata'] = json.loads(file_metadata)
-                if uuid != file['file_metadata']['bundle_uuid']:
-                    raise DSSException(
-                        requests.codes.conflict,
-                        "incorrect_file_bundle_uuid",
-                        f"File bundle_uuid {file['file_metadata']['bundle_uuid']} does not equal bundle uuid {uuid}"
-                    )
 
         # check to see if any file metadata is still not yet loaded.
         for file in files:
