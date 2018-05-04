@@ -38,6 +38,10 @@ class TestApi(unittest.TestCase, DSSAssertMixin, DSSUploadMixin, DSSStorageMixin
 
     @testmode.standalone
     def test_creation_and_retrieval_of_files_and_bundle(self):
+
+        # FIXME: This test doesn't do much because it uses the test bucket which lacks the fixtures for the test bundle.
+        # FIMXE: In particular it does not test any of the /files routes. (hannes)
+
         """
         Test file and bundle lifecycle.
         Exercises:
