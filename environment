@@ -93,4 +93,4 @@ if [[ -f "${DSS_HOME}/environment.local" ]]; then
 fi
 
 scripts/get_gcp_credentials.py || echo "Unable to recover gcp credentials from Secrets Manager. Your configuratoin is incorrect/incomplete."
-export ADMIN_USER_EMAILS=`jq ".client_email" ${GOOGLE_APPLICATION_CREDENTIALS} | sed 's/"//g'` || ADMIN_USER_EMAILS=""
+export ADMIN_USER_EMAILS=`jq -r ".client_email" ${GOOGLE_APPLICATION_CREDENTIALS}` || ADMIN_USER_EMAILS=""
