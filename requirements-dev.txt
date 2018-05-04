@@ -1,10 +1,14 @@
 # You should not edit this file directly.  Instead, you should edit requirements-dev.txt.in.
+aegea==2.2.0
+argcomplete==1.9.4
 asn1crypto==0.23.0
 aws-xray-sdk==0.94
 awscli==1.12.2
 azure-common==1.1.8
 azure-nspkg==2.0.0
 azure-storage==0.36.0
+Babel==2.5.3
+bcrypt==3.1.4
 boto==2.48.0
 boto3==1.6.0
 botocore==1.10.8
@@ -14,6 +18,7 @@ cffi==1.11.2
 chalice==1.1.0
 chardet==3.0.4
 click==6.7
+clickclick==1.2.2
 cloud-blobstore==2.1.1
 colorama==0.3.7
 connexion==1.1.15
@@ -21,6 +26,7 @@ cookies==2.2.1
 coverage==4.4.2
 crcmod==1.7
 cryptography==2.1.4
+dnspython==1.15.0
 docker==2.6.1
 docker-pycreds==0.2.1
 docutils==0.14
@@ -42,6 +48,7 @@ httpie==0.9.9
 httplib2==0.11.0
 idna==2.6
 inflection==0.3.1
+ipwhois==1.0.0
 iso8601==0.1.12
 itsdangerous==0.24
 Jinja2==2.10
@@ -49,6 +56,7 @@ jmespath==0.9.3
 jsondiff==1.1.1
 jsonpickle==0.9.5
 jsonschema==2.6.0
+keymaker==1.0.3
 MarkupSafe==1.0
 mccabe==0.6.1
 mock==2.0.0
@@ -57,6 +65,7 @@ moto==1.1.25
 mypy==0.550
 nestedcontext==0.0.4
 oauth2client==4.1.2
+paramiko==2.4.1
 pbr==3.1.1
 protobuf==3.5.0.post1
 psutil==5.4.1
@@ -67,6 +76,7 @@ pycodestyle==2.3.1
 pycparser==2.18
 pyflakes==1.6.0
 Pygments==2.2.0
+PyNaCl==1.2.1
 python-dateutil==2.6.1
 pytz==2017.3
 PyYAML==3.12
@@ -79,8 +89,10 @@ s3transfer==0.1.11
 six==1.11.0
 swagger-spec-validator==2.1.0
 text-unidecode==1.1
+tweak==0.6.7
 typed-ast==1.1.0
 typing==3.5.3.0
+uritemplate==3.0.0
 urllib3==1.22
 websocket-client==0.44.0
 Werkzeug==0.12.2
