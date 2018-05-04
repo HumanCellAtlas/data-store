@@ -210,18 +210,6 @@ class TestBundleApi(unittest.TestCase, DSSAssertMixin, DSSUploadMixin):
             )
             self.assertEqual(resp_obj.json['code'], "file_missing")
 
-        # should *NOT* be able to upload a bundle containing a file with an incorrect bundle_uuid
-        # but we should get requests.codes.conflict
-        with nestedcontext.bind(time_left=lambda: 0):
-            resp_obj = self.put_bundle(
-                replica,
-                str(uuid.uuid4()),  # uploading new bundle with old file
-                [(file_uuid, file_version, "LICENSE")],
-                datetime_to_version_format(datetime.datetime.utcnow()),
-                expected_code=requests.codes.conflict,
-            )
-            self.assertEqual(resp_obj.json['code'], "incorrect_file_bundle_uuid")
-
         # uploads a file, but delete the file metadata. put it back after a delay.
         self.upload_file_wait(
             f"{schema}://{fixtures_bucket}/test_good_source_data/0",

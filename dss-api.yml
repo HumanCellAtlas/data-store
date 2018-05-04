@@ -127,9 +127,6 @@ paths:
           description: Returns metadata
           headers:
             # edits to here should probably be reflected in the 302 section immediately below.
-            X-DSS-BUNDLE-UUID:
-              description: A RFC4122-compliant ID for the bundle that contains this file.
-              type: string
             X-DSS-CREATOR-UID:
               description: User ID who created this file.
               type: integer
@@ -201,9 +198,6 @@ paths:
           description: Redirects to a signed URL with the data.
           headers:
             # edits to here should probably be reflected in the 200 section above.
-            X-DSS-BUNDLE-UUID:
-              description: A RFC4122-compliant ID for the bundle that contains this file.
-              type: string
             X-DSS-CREATOR-UID:
               description: User ID who created this file.
               type: integer
@@ -289,16 +283,12 @@ paths:
                 description: Cloud URL for source data.
                 type: string
                 pattern: "^(gs|s3|wasb)://"
-              bundle_uuid:
-                description: A RFC4122-compliant ID for the bundle that contains this file.
-                type: string
               creator_uid:
                 description: User ID who is creating this file.
                 type: integer
                 format: int64
             required:
               - source_url
-              - bundle_uuid
               - creator_uid
       responses:
         200:
@@ -815,10 +805,7 @@ paths:
                       The code `file_missing` indicates that one of the files does not exist on the cloud provider.
                       Because the storage backend only guarantees eventual consistency, it may be desirable to retry
                       requests that return this error code.
-
-                      The code `incorrect_file_bundle_uuid` indicates that the value of the file metadata field
-                      bundle_uuid does not match the uuid of the bundle.
-                    enum: [bundle_already_exists, file_missing, incorrect_file_bundle_uuid]
+                    enum: [bundle_already_exists, file_missing]
                 required:
                   - code
         default:

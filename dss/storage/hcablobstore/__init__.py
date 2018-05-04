@@ -48,7 +48,6 @@ class FileMetadata:
     FILE_FORMAT_VERSION = "0.0.3"
 
     FORMAT = "format"
-    BUNDLE_UUID = "bundle_uuid"
     CREATOR_UID = "creator_uid"
     VERSION = "version"
     CONTENT_TYPE = "content-type"

@@ -76,8 +76,8 @@ class TestFileApi(unittest.TestCase, DSSAssertMixin, DSSUploadMixin):
         self.upload_file(source_url, file_uuid, bundle_uuid=bundle_uuid,
                          version=version, expected_code=requests.codes.ok)
 
-        # should *NOT* be able to do this twice (i.e., different payload, same UUIDs)
-        self.upload_file(source_url, file_uuid, version=version, expected_code=requests.codes.conflict)
+        # should be able to do this twice (i.e., different payload, same UUIDs)
+        self.upload_file(source_url, file_uuid, version=version, expected_code=requests.codes.ok)
 
     @testmode.integration
     def test_file_put_large(self):

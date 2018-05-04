@@ -93,7 +93,6 @@ def get_helper(uuid: str, replica: Replica, version: str=None):
         response = make_response('', 200)
 
     headers = response.headers
-    headers['X-DSS-BUNDLE-UUID'] = file_metadata[FileMetadata.BUNDLE_UUID]
     headers['X-DSS-CREATOR-UID'] = file_metadata[FileMetadata.CREATOR_UID]
     headers['X-DSS-VERSION'] = version
     headers['X-DSS-CONTENT-TYPE'] = file_metadata[FileMetadata.CONTENT_TYPE]
@@ -180,7 +179,6 @@ def put(uuid: str, json_request_body: dict, version: str=None):
     # build the json document for the file metadata.
     file_metadata = {
         FileMetadata.FORMAT: FileMetadata.FILE_FORMAT_VERSION,
-        FileMetadata.BUNDLE_UUID: json_request_body['bundle_uuid'],
         FileMetadata.CREATOR_UID: json_request_body['creator_uid'],
         FileMetadata.VERSION: version,
         FileMetadata.CONTENT_TYPE: content_type,
