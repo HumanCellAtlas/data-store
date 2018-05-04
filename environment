@@ -58,7 +58,6 @@ DSS_GS_CHECKOUT_BUCKET_PROD=org-humancellatlas-dss-checkout-prod
 DSS_NOTIFICATION_SENDER="DSS Notifier <dss.humancellatlas@gmail.com>"
 GOOGLE_APPLICATION_CREDENTIALS="${DSS_HOME}/gcp-credentials.json"
 GOOGLE_APPLICATION_SECRETS="${DSS_HOME}/application_secrets.json"
-ADMIN_USER_EMAILS=`jq ".client_email" ${GOOGLE_APPLICATION_CREDENTIALS} | sed 's/"//g'`
 API_DOMAIN_NAME=dss.dev.data.humancellatlas.org
 TOKENINFO_URL=https://${API_DOMAIN_NAME}/internal/tokeninfo
 NOTIFY_URL=https://${API_DOMAIN_NAME}/internal/notify
@@ -77,6 +76,8 @@ PYTHONWARNINGS=ignore:ResourceWarning,ignore::UserWarning:zipfile:
 DSS_SECRETS_STORE="dcp/dss"
 EVENT_RELAY_AWS_USERNAME="dss-event-relay"
 EVENT_RELAY_AWS_ACCESS_KEY_SECRETS_NAME="event-relay-user-aws-access-key"
+GOOGLE_APPLICATION_CREDENTIALS_SECRETS_NAME="gcp-credentials.json"
+GOOGLE_APPLICATION_SECRETS_SECRETS_NAME="application_secrets.json"
 
 # Configure the delays between notification attempts. The first attempt is immediate. The second attempt is one
 # minute later. Then ten minutes, one hour, and six hours in between. Then 24 hours minus all previous delays and
@@ -90,3 +91,6 @@ set +a
 if [[ -f "${DSS_HOME}/environment.local" ]]; then
     source "${DSS_HOME}/environment.local"
 fi
+
+scripts/get_gcp_credentials.py || echo "Unable to recover gcp credentials from Secrets Manager. Your configuratoin is incorrect/incomplete."
+export ADMIN_USER_EMAILS=`jq -r ".client_email" ${GOOGLE_APPLICATION_CREDENTIALS}` || ADMIN_USER_EMAILS=""

@@ -76,10 +76,10 @@ Hint: To create S3 buckets from the command line, use `aws s3 mb --region REGION
 3.  In `environment.local`, set the environment variable `GOOGLE_APPLICATION_CREDENTIALS` to the path of the service
     account key JSON file.
 
-4.  Choose a region that has support for Cloud Functions and set `GCP_DEFAULT_REGION` to that region. See
-    https://cloud.google.com/about/locations/ for a list of supported regions.
+4.  Run the command `cat $GOOGLE_APPLICATION_CREDENTIALS | scripts/set_secret --secret-name $GOOGLE_APPLICATION_CREDENTIALS_SECRETS_NAME`
 
-5.  Run `gcloud auth activate-service-account --key-file=/path/to/service-account.json`.
+5.  Choose a region that has support for Cloud Functions and set `GCP_DEFAULT_REGION` to that region. See
+    https://cloud.google.com/about/locations/ for a list of supported regions.
 
 6.  Run `gcloud config set project PROJECT_ID` where PROJECT_ID is the ID, not the name (!) of the GCP project you
     selected earlier.
@@ -102,8 +102,10 @@ Hint: To create S3 buckets from the command line, use `aws s3 mb --region REGION
 	5) Click *Create*, don't worry about noting the client ID and secret, click *OK*
     
 	6) Click the edit icon for the new credentials and click *Download JSON*
-    
+
 	7) Place the downloaded JSON file into the project root as `application_secrets.json`
+    
+	8) Run the command `cat /path/to/application_secrets.json | --secret-name scripts/set_secret $GOOGLE_APPLICATION_SECRETS_SECRETS_NAME`
 
 9.  Create a Google Cloud Storage bucket and in `environment.local`, set the environment variable `DSS_GS_BUCKET` to the
     name of that bucket. Make sure the bucket region is consistent with `GCP_DEFAULT_REGION` in `environment.local`.
