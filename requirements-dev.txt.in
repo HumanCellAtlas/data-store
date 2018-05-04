@@ -11,6 +11,6 @@ httpie  >= 0.9.9
 yq  >= 2.3.3
 Faker >= 0.8.11
 rstr >=2.2.6
-click
+click >= 5.7
 aegea >= 2.1.9
 -r requirements.txt.in
