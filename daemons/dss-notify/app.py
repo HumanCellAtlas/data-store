@@ -21,11 +21,7 @@ def deploy_notifier():
 app = domovoi.Domovoi(configure_logs=False)
 
 
+@app.scheduled_function("rate(1 minute)", rule_name='run_notifier_' + Config.deployment_stage())
 def run_notifier(event, context):
     notifier = Notifier.from_config()
     notifier.run(context)
-
-
-# FIXME: https://github.com/HumanCellAtlas/data-store/issues/1211
-run_notifier.__name__ += "_" + Config.deployment_stage()
-run_notifier = app.scheduled_function("rate(1 minute)")(run_notifier)
