@@ -737,25 +737,7 @@ paths:
           in: body
           required: true
           schema:
-            type: object
-            properties:
-              name:
-                description: A short name identifying the collection.
-                type: string
-              description:
-                description: A long description of the collection, formatted in Markdown.
-                type: string
-              details:
-                description: Supplementary JSON metadata for the collection.
-                type: object
-              contents:
-                description: A short name identifying the collection.
-                type: array
-            required:
-              - name
-              - description
-              - details
-              - contents
+            $ref: "#/definitions/Collection"
       responses:
         201:
           description: OK
@@ -1533,8 +1515,37 @@ definitions:
         description: Supplementary JSON metadata for the collection.
         type: object
       contents:
-        description: A short name identifying the collection.
+        description: |
+          A list of objects describing links to files, bundles, other collections, and metadata fragments that are
+          part of the collection.
         type: array
+        items:
+          type: object
+          properties:
+            type:
+              type: string
+              description: Type of link (file, bundle, collection, or a custom type for a metadata fragment).
+            uuid:
+              type: string
+              description: Unique ID of the file, bundle, collection, or file containing a metadata fragment.
+              pattern: "[a-z0-9]{8}-[a-z0-9]{4}-[a-z0-9]{4}-[a-z0-9]{4}-[a-z0-9]{12}"
+            version:
+              type: string
+              format: date-time
+              description: RFC3339 timestamp of the file, bundle, collection, or file containing a metadata fragment.
+            path:
+              type: string
+              description: |
+                JSON Pointer indexing into the JSON conents of the file containing a metadata fragment.
+                Required for links of type other than file, bundle, or collection. Ignored otherwise.
+          required:
+            - type
+            - uuid
+    required:
+      - name
+      - description
+      - details
+      - contents
   Error:
     type: object
     properties:

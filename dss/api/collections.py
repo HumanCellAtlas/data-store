@@ -1,4 +1,4 @@
-import os, sys, json, logging, datetime, io
+import os, sys, json, logging, datetime, io, functools
 from typing import List
 from uuid import uuid4
 
@@ -59,7 +59,9 @@ def delete(uuid: str, replica: str):
     #
     return jsonify({}), requests.codes.okay
 
+@functools.lru_cache(maxsize=64)
 def get_json_metadata(entity_type: str, uuid: str, version: str, replica: Replica, blobstore_handle: HCABlobStore):
+    print("getting", entity_type, uuid, version)
     try:
         return json.loads(blobstore_handle.get(
             replica.bucket,
@@ -67,33 +69,40 @@ def get_json_metadata(entity_type: str, uuid: str, version: str, replica: Replic
     except BlobNotFoundError as ex:
         raise DSSException(404, "not_found", "Cannot find {}".format(entity_type))
 
+def resolve_content_item(replica: Replica, blobstore_handle: HCABlobStore, item: dict):
+    try:
+        if item["type"] in {"file", "bundle", "collection"}:
+            item_metadata = get_json_metadata(item["type"], item["uuid"], item["version"], replica, blobstore_handle)
+        else:
+            item_metadata = get_json_metadata("file", item["uuid"], item["version"], replica, blobstore_handle)
+            if "fragment" not in item:
+                raise Exception(
+                    'The "fragment" field is required in collection elements other than files, bundles, and collections')
+            blob_path = "blobs/" + ".".join((
+                item_metadata[FileMetadata.SHA256],
+                item_metadata[FileMetadata.SHA1],
+                item_metadata[FileMetadata.S3_ETAG],
+                item_metadata[FileMetadata.CRC32C],
+            ))
+            # check that item is marked as metadata, is json, and is less than max size
+            item_doc = json.loads(blobstore_handle.get(replica.bucket, blob_path))
+            item_content = jsonpointer.resolve_pointer(item_doc, item["fragment"])
+    except Exception as e:
+        raise DSSException(
+            422,
+            "invalid_link",
+            'Error while parsing the link "{}": {}: {}'.format(item, type(e).__name__, e)
+        )
+
+from concurrent.futures import ThreadPoolExecutor
+from functools import partial
+
 def verify_collection(contents: List[dict], replica: Replica, blobstore_handle: HCABlobStore):
     """
     Given user-supplied collection contents that pass schema validation, resolve all entities in the collection and
     verify they exist.
     """
-    for item in contents:
-        # Item type could be bundle (default), file, collection, or other. If other, fragment must be set.
-        # Retrieve the file metadata.
-        try:
-            if item["type"] in {"file", "bundle", "collection"}:
-                item_metadata = get_json_metadata(item["type"], item["uuid"], item["version"], replica, blobstore_handle)
-            else:
-                item_metadata = get_json_metadata("file", item["uuid"], item["version"], replica, blobstore_handle)
-                if "fragment" not in item:
-                    raise Exception('The "fragment" field is required in collection elements other than files, bundles, and collections')
-                blob_path = "blobs/" + ".".join((
-                    item_metadata[FileMetadata.SHA256],
-                    item_metadata[FileMetadata.SHA1],
-                    item_metadata[FileMetadata.S3_ETAG],
-                    item_metadata[FileMetadata.CRC32C],
-                ))
-                # check that item is marked as metadata, is json, and is less than max size
-                item_doc = json.loads(blobstore_handle.get(replica.bucket, blob_path))
-                item_content = jsonpointer.resolve_pointer(item_doc, item["fragment"])
-        except Exception as e:
-            raise DSSException(
-                422,
-                "invalid_link",
-                'Error while parsing the link "{}": {}: {}'.format(item, type(e).__name__, e)
-            )
+    # FIXME: is it safe to reuse executor after an exception? Flush the executor at minimum!
+    executor = ThreadPoolExecutor(max_workers=16)
+    for result in executor.map(partial(resolve_content_item, replica, blobstore_handle), contents):
+        pass
