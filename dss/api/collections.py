@@ -51,6 +51,7 @@ def put(json_request_body: dict, replica: str, uuid: str, version: str):
 
 @dss_handler
 def patch(json_request_body: dict, replica: str):
+    # patch one collection with another
     return jsonify({}), requests.codes.created
 
 @dss_handler
@@ -102,7 +103,6 @@ def verify_collection(contents: List[dict], replica: Replica, blobstore_handle: 
     Given user-supplied collection contents that pass schema validation, resolve all entities in the collection and
     verify they exist.
     """
-    # FIXME: is it safe to reuse executor after an exception? Flush the executor at minimum!
     executor = ThreadPoolExecutor(max_workers=16)
     for result in executor.map(partial(resolve_content_item, replica, blobstore_handle), contents):
         pass
