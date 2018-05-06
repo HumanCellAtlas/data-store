@@ -24,6 +24,15 @@ for wheel in $daemon/vendor.in/*/*.whl; do
 done
 
 cp -R ../dss ../dss-api.yml $daemon/domovoilib
+../scripts/get_dss_secret.py gcp-credentials.json $daemon/domovoilib/gcp-credentials.json
 
-cp "$GOOGLE_APPLICATION_CREDENTIALS" $daemon/domovoilib/gcp-credentials.json
+# Add service account email to list of authorized emails for ci-cd testing.
+service_account_email=`jq -r ".client_email" $daemon/domovoilib/gcp-credentials.json`
+admin_user_emails_length=${#ADMIN_USER_EMAILS}
+if $admin_user_emails_length>0; then
+	export ADMIN_USER_EMAILS="${ADMIN_USER_EMAILS},${service_account_email}"
+else
+	export ADMIN_USER_EMAILS="${service_account_email}"
+fi
+
 chmod -R ugo+rX $daemon/domovoilib
