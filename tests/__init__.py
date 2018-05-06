@@ -2,6 +2,8 @@ import datetime
 import json
 import time
 import uuid
+import tempfile
+import boto3
 
 import functools
 import google.auth
@@ -29,6 +31,25 @@ UNAUTHORIZED_GCP_CREDENTIALS = {
     'client_x509_cert_url': 'https://www.googleapis.com/robot/v1/metadata/x509/project-viewer%40cool-project-188401.iam.gserviceaccount.com',  # noqa
 }
 
+authorized_gcp_credentials_json_inf = boto3.client("secretsmanager").get_secret_value(
+    SecretId='{}/{}/{}'.format(
+        os.environ['DSS_SECRETS_STORE'],
+        os.environ['DSS_DEPLOYMENT_STAGE'],
+        "gcp-credentials.json"
+    )
+)['SecretString']
+authorized_gcp_credentials = json.loads(authorized_gcp_credentials_json_inf)
+
+# tempfile with dangling reference should be deleted on program exit
+tf = tempfile.NamedTemporaryFile("w")
+tf.write(authorized_gcp_credentials_json_inf)
+tf.flush()
+
+os.environ['GOOGLE_APPLICATION_CREDENTIALS'] = tf.name
+if "," in os.environ['ADMIN_USER_EMAILS']:
+    os.environ['ADMIN_USER_EMAILS'] += "," + authorized_gcp_credentials['client_email']
+else:
+    os.environ['ADMIN_USER_EMAILS'] = authorized_gcp_credentials['client_email']
 
 def get_bundle_fqid() -> BundleFQID:
     return BundleFQID(uuid=str(uuid.uuid4()), version=get_version())
