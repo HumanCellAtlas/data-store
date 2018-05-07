@@ -45,7 +45,7 @@ class HCABlobStore:
 
 
 class FileMetadata:
-    FILE_FORMAT_VERSION = "0.0.3"
+    FILE_FORMAT_VERSION = "0.0.4"
 
     FORMAT = "format"
     CREATOR_UID = "creator_uid"
