@@ -1035,10 +1035,22 @@ definitions:
       - uuid
       - name
       - versions
-  blob_common_metadata:
+  file_version:
     type: object
-    description: Common fields between the files list of a bundle and the metadata tracking an unique file.
+    description: Object describing a single file in the files list of a bundle.
     properties:
+      name:
+        type: string
+        description: Filename (unique within a bundle)
+      content-type:
+        type: string
+        description: Content-type of the file.
+      indexed:
+        type: boolean
+        description: True if this file is to be indexed.
+      url:
+        description: Direct access URL, if requested.
+        type: string
       uuid:
         type: string
         description: A RFC4122-compliant ID for the file.
@@ -1068,6 +1080,9 @@ definitions:
         description: SHA-256 (in hex format) of the file contents in hex.
         pattern: "^[a-z0-9]{64}$"
     required:
+      - name
+      - content-type
+      - indexed
       - uuid
       - version
       - size
@@ -1075,29 +1090,6 @@ definitions:
       - s3_etag
       - sha1
       - sha256
-  file_version:
-    type: object
-    description: Object describing a single file in the files list of a bundle.
-    allOf:
-      - $ref: '#/definitions/blob_common_metadata'
-      - type: object
-        properties:
-          name:
-            type: string
-            description: Filename (unique within a bundle)
-          content-type:
-            type: string
-            description: Content-type of the file.
-          indexed:
-            type: boolean
-            description: True if this file is to be indexed.
-          url:
-            description: Direct access URL, if requested.
-            type: string
-        required:
-          - name
-          - content-type
-          - indexed
   Bundle:
     type: object
     properties:
