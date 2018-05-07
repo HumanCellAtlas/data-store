@@ -72,6 +72,9 @@ deploy-daemons-serial:
 deploy-daemons-parallel:
 	$(MAKE) -C daemons deploy-parallel
 
+deploy-infra:
+	$(MAKE) -C infra apply-all
+
 create-github-deployment:
 	$(eval REMOTE=$(shell git remote get-url origin | perl -ne '/([^\/\:]+\/.+?)(\.git)?$$/; print $$1'))
 	$(eval BRANCH=$(shell git rev-parse --abbrev-ref HEAD))

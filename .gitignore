@@ -47,4 +47,10 @@ npm-debug.log
 /environment.local
 /environment.*.local
 
+# Terraform files
+.terraform
+backend.tf
+providers.tf
+variables.tf
+
 /smoketest-*.tmp
