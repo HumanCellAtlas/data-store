@@ -35,7 +35,7 @@ def trigger_ci_build(event, context, branch_name: str, build_type: str, **env):
         'Authorization': f"token {travis_token}",
     }
     return requests.post(
-        "https://api.travis-ci.org/repo/HumanCellAtlas%2Fdata-store/requests",
+        "https://api.travis-ci.com/repo/HumanCellAtlas%2Fdata-store/requests",
         headers=headers,
         json=body,
     ).json()
