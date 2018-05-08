@@ -1,6 +1,7 @@
 #!/usr/bin/env python
 
 import os
+import glob
 import json
 from google.cloud.storage import Client
 GCP_PROJECT_ID = Client()._credentials.project_id
@@ -65,8 +66,11 @@ for key in env_vars_to_infra:
         'default': os.environ[key]
     }
 
-_, dirs , _ = next(os.walk(infra_root))
-for comp in dirs:
+for comp in glob.glob(os.path.join(infra_root, "*/")):
+    if 0 == len(glob.glob(os.path.join(infra_root, comp, "*.tf"))):
+        # No terraform content in this directory
+        continue
+
     with open(os.path.join(infra_root, comp, "backend.tf"), "w") as fp:
         fp.write(terraform_backend_template.format(
             bucket=os.environ['DSS_TERRAFORM_BACKEND_BUCKET'],
@@ -74,8 +78,10 @@ for comp in dirs:
             stage=os.environ['DSS_DEPLOYMENT_STAGE'],
             region=os.environ['AWS_DEFAULT_REGION'],
         ))
+
     with open(os.path.join(infra_root, comp, "variables.tf"), "w") as fp:
         fp.write(json.dumps(terraform_variable_info, indent=2))
+
     with open(os.path.join(infra_root, comp, "providers.tf"), "w") as fp:
         fp.write(terraform_providers_template.format(
             aws_region=os.environ['AWS_DEFAULT_REGION'],
