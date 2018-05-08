@@ -24,7 +24,7 @@ for wheel in $daemon/vendor.in/*/*.whl; do
 done
 
 cp -R ../dss ../dss-api.yml $daemon/domovoilib
-../scripts/get_dss_secret.py gcp-credentials.json $daemon/domovoilib/gcp-credentials.json
+aws secretsmanager get-secret-value --secret-id ${DSS_SECRETS_STORE}/${DSS_DEPLOYMENT_STAGE}/gcp-credentials.json | jq -r .SecretString > $daemon/domovoilib/gcp-credentials.json
 
 # Add service account email to list of authorized emails for ci-cd testing.
 service_account_email=`jq -r ".client_email" $daemon/domovoilib/gcp-credentials.json`
