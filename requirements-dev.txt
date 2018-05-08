@@ -11,7 +11,7 @@ Babel==2.5.3
 bcrypt==3.1.4
 boto==2.48.0
 boto3==1.6.0
-botocore==1.10.8
+botocore==1.10.16
 cachetools==2.0.1
 certifi==2018.1.18
 cffi==1.11.2
