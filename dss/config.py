@@ -116,13 +116,21 @@ class Config:
 
     @staticmethod
     @functools.lru_cache()
-    def get_native_handle(replica: "Replica") -> typing.Any:
+    def get_native_handle(replica: "Replica",
+                          connect_timeout: float=None,
+                          read_timeout: float=None) -> typing.Any:
+
+        if connect_timeout is None:
+            connect_timeout = Config.BLOBSTORE_CONNECT_TIMEOUT
+        if read_timeout is None:
+            read_timeout = Config.BLOBSTORE_READ_TIMEOUT
+
         if replica == Replica.aws:
             return boto3.client(
                 "s3",
                 config=botocore.config.Config(
-                    connect_timeout=Config.BLOBSTORE_CONNECT_TIMEOUT,
-                    read_timeout=Config.BLOBSTORE_READ_TIMEOUT,
+                    connect_timeout=connect_timeout,
+                    read_timeout=read_timeout,
                     retries={'max_attempts': Config.BLOBSTORE_BOTO_RETRIES}
                 )
             )
@@ -133,7 +141,7 @@ class Config:
             # stdlib `requests` package, which has straightforward timeout usage.
             class SessionWithTimeouts(google.auth.transport.requests.AuthorizedSession):
                 def request(self, *args, **kwargs):
-                    kwargs['timeout'] = (Config.BLOBSTORE_CONNECT_TIMEOUT, Config.BLOBSTORE_READ_TIMEOUT)
+                    kwargs['timeout'] = (connect_timeout, read_timeout)
                     return super().request(*args, **kwargs)
 
             credentials = service_account.Credentials.from_service_account_file(
