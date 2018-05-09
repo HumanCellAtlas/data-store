@@ -97,10 +97,10 @@ class Config:
     _S3_CHECKOUT_BUCKET = None  # type: typing.Optional[str]
     _GS_CHECKOUT_BUCKET = None  # type: typing.Optional[str]
 
-    BLOBSTORE_CONNECT_TIMEOUT = 5  # type: float
-    BLOBSTORE_READ_TIMEOUT = 5  # type: float
-    BLOBSTORE_BOTO_RETRIES = 2  # type: int
-    BLOBSTORE_GS_MAX_CUMULATIVE_RETRY = 15  # type: float  ## seconds
+    BLOBSTORE_CONNECT_TIMEOUT = None  # type: float
+    BLOBSTORE_READ_TIMEOUT = None  # type: float
+    BLOBSTORE_BOTO_RETRIES = None  # type: int
+    BLOBSTORE_GS_MAX_CUMULATIVE_RETRY = None  # type: float  ## seconds
 
     _ALLOWED_EMAILS = None  # type: typing.Optional[str]
     _CURRENT_CONFIG = BucketConfig.ILLEGAL  # type: BucketConfig
@@ -118,6 +118,16 @@ class Config:
     @functools.lru_cache()
     def get_native_handle(replica: "Replica") -> typing.Any:
         if replica == Replica.aws:
+            return Config._get_native_aws_handle()
+        elif replica == Replica.gcp:
+            return Config._get_native_gcp_handle()
+        raise NotImplementedError(f"Replica `{replica.name}` is not implemented!")
+
+    @staticmethod
+    def _get_native_aws_handle() -> typing.Any:
+        if (Config.BLOBSTORE_CONNECT_TIMEOUT, Config.BLOBSTORE_READ_TIMEOUT) == (None, None):
+            return boto3.client("s3")
+        else:
             return boto3.client(
                 "s3",
                 config=botocore.config.Config(
@@ -126,9 +136,17 @@ class Config:
                     retries={'max_attempts': Config.BLOBSTORE_BOTO_RETRIES}
                 )
             )
-        elif replica == Replica.gcp:
+
+    @staticmethod
+    def _get_native_gcp_handle() -> typing.Any:
+        if Config.BLOBSTORE_GS_MAX_CUMULATIVE_RETRY is not None:
             google.resumable_media.common.MAX_CUMULATIVE_RETRY = Config.BLOBSTORE_GS_MAX_CUMULATIVE_RETRY
 
+        if (Config.BLOBSTORE_CONNECT_TIMEOUT, Config.BLOBSTORE_READ_TIMEOUT) == (None, None):
+            return Client.from_service_account_json(
+                os.environ["GOOGLE_APPLICATION_CREDENTIALS"],
+            )
+        else:
             # GCP has no direct interface to configure retries and timeouts. However, it makes use of Python's
             # stdlib `requests` package, which has straightforward timeout usage.
             class SessionWithTimeouts(google.auth.transport.requests.AuthorizedSession):
@@ -147,7 +165,6 @@ class Config:
                 _http=SessionWithTimeouts(credentials),
                 credentials=credentials
             )
-        raise NotImplementedError(f"Replica `{replica.name}` is not implemented!")
 
     @staticmethod
     @functools.lru_cache()
