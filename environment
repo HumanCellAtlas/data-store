@@ -77,6 +77,9 @@ EVENT_RELAY_AWS_USERNAME="dss-event-relay-${DSS_DEPLOYMENT_STAGE}"
 EVENT_RELAY_AWS_ACCESS_KEY_SECRETS_NAME="event-relay-user-aws-access-key"
 GOOGLE_APPLICATION_CREDENTIALS_SECRETS_NAME="gcp-credentials.json"
 GOOGLE_APPLICATION_SECRETS_SECRETS_NAME="application_secrets.json"
+
+# `{account_id}`, if present, will be replaced with the account ID associated with the AWS credentials used for
+# deployment. It can be safely omitted.
 DSS_TERRAFORM_BACKEND_BUCKET_TEMPLATE="org-humancellatlas-dss-config-{account_id}"
 
 # Configure the delays between notification attempts. The first attempt is immediate. The second attempt is one
