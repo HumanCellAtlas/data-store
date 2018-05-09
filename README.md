@@ -74,9 +74,13 @@ Hint: To create S3 buckets from the command line, use `aws s3 mb --region REGION
     download the service account key JSON file.
 
 3.  In `environment.local`, set the environment variable `GOOGLE_APPLICATION_CREDENTIALS` to the path of the service
-    account key JSON file.
+    account key JSON file. Alternatively, keep the default for the environment variable and rename the file accordingly.
 
-4.  Run the command `cat $GOOGLE_APPLICATION_CREDENTIALS | scripts/set_secret --secret-name $GOOGLE_APPLICATION_CREDENTIALS_SECRETS_NAME`
+4.  Run the command 
+
+    ```
+    cat $GOOGLE_APPLICATION_CREDENTIALS | scripts/set_secret.py --secret-name $GOOGLE_APPLICATION_CREDENTIALS_SECRETS_NAME
+    ```
 
 5.  Choose a region that has support for Cloud Functions and set `GCP_DEFAULT_REGION` to that region. See
     https://cloud.google.com/about/locations/ for a list of supported regions.
@@ -84,8 +88,11 @@ Hint: To create S3 buckets from the command line, use `aws s3 mb --region REGION
 6.  Run `gcloud config set project PROJECT_ID` where PROJECT_ID is the ID, not the name (!) of the GCP project you
     selected earlier.
 
-7.  Enable required APIs: `gcloud services enable cloudfunctions.googleapis.com`; `gcloud services
-    enable runtimeconfig.googleapis.com`
+7.  Enable required APIs: 
+
+    ```
+    gcloud services enable cloudfunctions.googleapis.com`; `gcloud services enable runtimeconfig.googleapis.com
+    ```
 
 8.  Generate OAuth application secrets to be used for your instance: 
 
@@ -105,7 +112,14 @@ Hint: To create S3 buckets from the command line, use `aws s3 mb --region REGION
 
 	7) Place the downloaded JSON file into the project root as `application_secrets.json`
     
-	8) Run the command `cat /path/to/application_secrets.json | --secret-name scripts/set_secret $GOOGLE_APPLICATION_SECRETS_SECRETS_NAME`
+    8) In `environment.local`, set the environment variable `GOOGLE_APPLICATION_SECRETS` to the path of the downloaded 
+       file. Alternatively, keep the default for the environment variable and rename the file accordingly.
+
+	8) Run the command 
+
+	```
+	cat $GOOGLE_APPLICATION_SECRETS | scripts/set_secret.py --secret-name $GOOGLE_APPLICATION_SECRETS_SECRETS_NAME
+	```
 
 9.  Create a Google Cloud Storage bucket and in `environment.local`, set the environment variable `DSS_GS_BUCKET` to the
     name of that bucket. Make sure the bucket region is consistent with `GCP_DEFAULT_REGION` in `environment.local`.
