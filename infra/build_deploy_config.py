@@ -3,6 +3,7 @@
 import os
 import glob
 import json
+import boto3
 from google.cloud.storage import Client
 GCP_PROJECT_ID = Client()._credentials.project_id
 
@@ -72,8 +73,9 @@ for comp in glob.glob(os.path.join(infra_root, "*/")):
         continue
 
     with open(os.path.join(infra_root, comp, "backend.tf"), "w") as fp:
+        info = boto3.client("sts").get_caller_identity()
         fp.write(terraform_backend_template.format(
-            bucket=os.environ['DSS_TERRAFORM_BACKEND_BUCKET'],
+            bucket=os.environ['DSS_TERRAFORM_BACKEND_BUCKET_TEMPLATE'].format(account_id=info['Account']),
             comp=comp,
             stage=os.environ['DSS_DEPLOYMENT_STAGE'],
             region=os.environ['AWS_DEFAULT_REGION'],

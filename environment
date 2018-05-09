@@ -77,7 +77,7 @@ EVENT_RELAY_AWS_USERNAME="dss-event-relay-${DSS_DEPLOYMENT_STAGE}"
 EVENT_RELAY_AWS_ACCESS_KEY_SECRETS_NAME="event-relay-user-aws-access-key"
 GOOGLE_APPLICATION_CREDENTIALS_SECRETS_NAME="gcp-credentials.json"
 GOOGLE_APPLICATION_SECRETS_SECRETS_NAME="application_secrets.json"
-DSS_TERRAFORM_BACKEND_BUCKET="org-humancellatlas-dss-config"
+DSS_TERRAFORM_BACKEND_BUCKET_TEMPLATE="org-humancellatlas-dss-config-{account_id}"
 
 # Configure the delays between notification attempts. The first attempt is immediate. The second attempt is one
 # minute later. Then ten minutes, one hour, and six hours in between. Then 24 hours minus all previous delays and
