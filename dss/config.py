@@ -125,7 +125,7 @@ class Config:
 
     @staticmethod
     def _get_native_aws_handle() -> typing.Any:
-        if (Config.BLOBSTORE_CONNECT_TIMEOUT, Config.BLOBSTORE_READ_TIMEOUT) == (None, None):
+        if Config.BLOBSTORE_CONNECT_TIMEOUT is None or Config.BLOBSTORE_READ_TIMEOUT is None:
             return boto3.client("s3")
         else:
             return boto3.client(
@@ -142,7 +142,7 @@ class Config:
         if Config.BLOBSTORE_GS_MAX_CUMULATIVE_RETRY is not None:
             google.resumable_media.common.MAX_CUMULATIVE_RETRY = Config.BLOBSTORE_GS_MAX_CUMULATIVE_RETRY
 
-        if (Config.BLOBSTORE_CONNECT_TIMEOUT, Config.BLOBSTORE_READ_TIMEOUT) == (None, None):
+        if Config.BLOBSTORE_CONNECT_TIMEOUT is None or Config.BLOBSTORE_READ_TIMEOUT is None:
             return Client.from_service_account_json(
                 os.environ["GOOGLE_APPLICATION_CREDENTIALS"],
             )
