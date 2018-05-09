@@ -8,6 +8,7 @@ import os, sys, time, io, zipfile, random, string, binascii, datetime, argparse,
 import json
 import boto3
 import socket
+import tempfile
 import httplib2
 import google.cloud.storage
 import google.cloud.exceptions
@@ -37,7 +38,17 @@ args = parser.parse_args()
 args.gcf_name = "-".join([args.src_dir, os.environ["DSS_DEPLOYMENT_STAGE"]])
 
 gcp_region = os.environ["GCP_DEFAULT_REGION"]
-gcp_client = GCPClient()
+with tempfile.NamedTemporaryFile() as fp:
+    creds = boto3.client("secretsmanager").get_secret_value(
+        SecretId='{}/{}/{}'.format(
+            os.environ['DSS_SECRETS_STORE'],
+            os.environ['DSS_DEPLOYMENT_STAGE'],
+            "gcp-credentials.json"
+        )
+    )['SecretString']
+    fp.write(creds.encode("utf-8"))
+    fp.flush()
+    gcp_client = GCPClient.from_service_account_json(fp.name)
 gcp_client._http.adapters["https://"].max_retries = Retry(status_forcelist={503, 504})
 grtc_conn = GoogleRuntimeConfigConnection(client=gcp_client)
 gcf_conn = GoogleCloudFunctionsConnection(client=gcp_client)
