@@ -41,11 +41,17 @@ IAM.put_user_policy(
 
 aws_relay_user_key_info = IAM.create_access_key(UserName=username)
 aws_relay_user_key_info['AccessKey']['CreateDate'] = aws_relay_user_key_info['AccessKey']['CreateDate'].isoformat()
+secret_info = {
+    'AccessKey': {
+        'AccessKeyId': aws_relay_user_key_info['AccessKey']['AccessKeyId'],
+        'SecretAccessKey': aws_relay_user_key_info['AccessKey']['SecretAccessKey'],
+    }
+}
 subprocess.run(
     [
         os.path.join(os.path.dirname(__file__), "set_secret.py"),
         "--secret-name",
         f"{secret_name}"
     ],
-    input=json.dumps(aws_relay_user_key_info).encode("utf-8")
+    input=json.dumps(secret_info).encode("utf-8")
 )
