@@ -1,5 +1,5 @@
 from itertools import tee
-from typing import Iterator, TypeVar, Optional, Tuple, Iterable, NamedTuple
+from typing import Iterator, TypeVar, Optional, Tuple, Iterable, NamedTuple, Union
 
 T = TypeVar('T')
 OT = Optional[T]
@@ -80,23 +80,23 @@ class zipalign(Iterator['zipalign.Row']):
 
     Resumption also works with a plain iterable instead of a Row instance …
 
-    >>> next(zipalign(columns, row=[1, 2, 2]))
+    >>> next(zipalign(columns, row=(1, 2, 2)))
     Row(min=2, values=(2, 2, 2))
 
     … provided that its length is equal to the number of columns.
 
-    >>> next(zipalign(columns, row=[1, 2, 2, 3]))
+    >>> next(zipalign(columns, row=(1, 2, 2, 3)))
     Traceback (most recent call last):
-    ValueError: Row length (4) does not match # of columns (3)
+    ValueError: Row length (4) does not match number of columns (3)
 
     We can resume at any stage …
 
-    >>> next(zipalign(columns, row=[2, 2, 2]))
+    >>> next(zipalign(columns, row=(2, 2, 2)))
     Row(min=3, values=(None, None, 3))
 
     … even at the last row.
 
-    >>> next(zipalign(columns, row=[None, None, 3]))
+    >>> next(zipalign(columns, row=(None, None, 3)))
     Traceback (most recent call last):
     ...
     StopIteration
@@ -109,18 +109,10 @@ class zipalign(Iterator['zipalign.Row']):
         >>> Row = zipalign.Row
         >>> row = Row(min=1, values=(1, 2, 3))
 
-        While a Row is a typing.NamedTuple consisting of the `min` and `values` elements, its length and iterator are
-        those of the `values` element:
-
-        >>> len(row)
-        3
-        >>> list(row)
-        [1, 2, 3]
-
-        This comes in handy when converting Row instances to JSON and back:
+        To (de)serialize to (from) JSON use `.values` and `.fromValues` respectively.
 
         >>> import json
-        >>> row == Row.from_values(json.loads(json.dumps(row)))
+        >>> row == Row.from_values(json.loads(json.dumps(row.values)))
         True
         """
         min: OT
@@ -149,20 +141,15 @@ class zipalign(Iterator['zipalign.Row']):
         def norm(self) -> Tuple[OT, ...]:
             return tuple(val if val == self.min else None for val in self.values)
 
-        def __iter__(self):
-            return iter(self.values)
-
-        def __len__(self) -> int:
-            return len(self.values)
-
-    def __init__(self, columns: Iterable[Column], row: Optional[Iterable[OT]] = None) -> None:
+    def __init__(self, columns: Iterable[Column], row: Union[None, Row, Iterable[OT]] = None) -> None:
         self.columns = tuple(map(iter, columns))
         if row is None:
             self.row = self.Row.from_values((None,) * len(self.columns))
         else:
-            self.row = self.Row.from_values(row)
-            if len(self.row) != len(self.columns):
-                raise ValueError(f"Row length ({len(self.row)}) does not match # of columns ({len(self.columns)})")
+            self.row = row if isinstance(row, self.Row) else self.Row.from_values(row)
+            if len(self.row.values) != len(self.columns):
+                raise ValueError(f"Row length ({len(self.row.values)}) "
+                                 f"does not match number of columns ({len(self.columns)})")
 
     def __next__(self) -> Row:
         if self.row is None:
