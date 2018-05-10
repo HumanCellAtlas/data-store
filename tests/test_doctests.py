@@ -16,6 +16,7 @@ sys.path.insert(0, pkg_root)  # noqa
 
 def load_tests(loader, tests, ignore):
     tests.addTests(doctest.DocTestSuite('dss.util.retry'))
+    tests.addTests(doctest.DocTestSuite('dss.util.iterators'))
     tests.addTests(doctest.DocTestSuite('dss.index.es'))
     return tests
 
