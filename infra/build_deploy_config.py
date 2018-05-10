@@ -59,6 +59,10 @@ env_vars_to_infra = [
     "DSS_GS_CHECKOUT_BUCKET_TEST",
     "DSS_GS_CHECKOUT_BUCKET_STAGING",
     "DSS_GS_CHECKOUT_BUCKET_PROD",
+    "DSS_ES_DOMAIN",
+    "DSS_ES_VOLUME_SIZE",
+    "DSS_ES_INSTANCE_TYPE",
+    "DSS_ES_INSTANCE_COUNT",
 ]
 
 terraform_variable_info = {'variable': dict()}
@@ -66,6 +70,16 @@ for key in env_vars_to_infra:
     terraform_variable_info['variable'][key] = {
         'default': os.environ[key]
     }
+ip_list = boto3.client("secretsmanager").get_secret_value(
+    SecretId="{}/{}/{}".format(
+        os.environ['DSS_SECRETS_STORE'],
+        os.environ['DSS_DEPLOYMENT_STAGE'],
+        os.environ['ES_ALLOWED_SOURCE_IP_SECRETS_NAME'],
+    )
+)['SecretString'].strip()
+terraform_variable_info['variable']['es_source_ip'] = {
+    'default': json.loads(ip_list)
+}
 
 for comp in glob.glob(os.path.join(infra_root, "*/")):
     if 0 == len(glob.glob(os.path.join(infra_root, comp, "*.tf"))):
