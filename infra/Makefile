@@ -1,5 +1,4 @@
-DIRS=${shell find ${shell pwd -P}/* -not -path "*/\.*" -type d}
-COMPONENTS=${shell basename $(DIRS)}
+COMPONENTS=${shell find * -not -path "*/\.*" -type d}
 
 all: init-all
 
@@ -24,13 +23,16 @@ clean-all:
 	done
 
 apply: init
-	cd $(COMPONENT); AWS_PROFILE=$(AWS_PROFILE) terraform apply
+	@echo $(DIRS)
+	@echo $(COMPONENTS)
+	cd $(COMPONENT); terraform apply
 
 destroy: init
-	cd $(COMPONENT); AWS_PROFILE=$(AWS_PROFILE) terraform destroy
+	cd $(COMPONENT); terraform destroy
 
 init:
-	./build_deploy_config.py
+	rm -rf $(COMPONENT)/.terraform
+	./build_deploy_config.py $(COMPONENT)
 	cd $(COMPONENT); terraform init;
 
 clean:
