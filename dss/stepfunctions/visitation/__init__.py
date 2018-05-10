@@ -102,14 +102,12 @@ class Visitation:
         }
 
     @classmethod
-    def start(cls, replica: str, bucket: str, number_of_workers: int, **kwargs) -> str:
+    def start(cls, number_of_workers: int, **kwargs) -> str:
         name = '{}--{}'.format(cls.__name__, str(uuid4()))
 
         inp = {
             **kwargs,
             '_visitation_class_name': cls.__name__,
-            'replica': replica,
-            'bucket': bucket,
             '_number_of_workers': number_of_workers,
         }
         # Invoke directly without reaper/retry
