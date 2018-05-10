@@ -54,14 +54,13 @@ class Reindex(Visitation):
         # We can't use executor as context manager because we don't want shutting it down to block
         try:
             backend = CompositeIndexBackend(executor, DEFAULT_BACKENDS, dryrun=self.dryrun, notify=self.notify)
-            indexer_cls = Indexer.for_replica(Replica[self.replica])
+            replica = Replica[self.replica]
+            indexer_cls = Indexer.for_replica(replica)
             indexer = indexer_cls(backend, self._context)
 
-            handle = Config.get_blobstore_handle(Replica[self.replica])
-            default_bucket = Replica[self.replica].bucket
-
-            if self.bucket != default_bucket:
-                logger.warning(f'Indexing bucket {self.bucket} instead of default {default_bucket}.')
+            handle = Config.get_blobstore_handle(replica)
+            if self.bucket != replica.bucket:
+                logger.warning(f'Indexing bucket {self.bucket} instead of default {self.bucket}.')
 
             blobs = handle.list_v2(
                 self.bucket,
