@@ -44,7 +44,12 @@ class IndexTarget(Target):
 
     def _reindex(self, workers: int, dryrun: bool, notify: Optional[bool]) -> Mapping[str, Any]:
         assert 1 < workers
-        visitation_id = Reindex.start(self.replica.name, self.bucket, workers, dryrun=dryrun, notify=notify)
+        visitation_id = Reindex.start(workers,
+                                      replica=self.replica.name,
+                                      bucket=self.bucket,
+                                      dryrun=dryrun,
+                                      notify=notify)
+        return {'visitation_id': visitation_id}
         return {'visitation_id': visitation_id}
 
 
