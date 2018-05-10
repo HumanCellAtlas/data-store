@@ -12,6 +12,7 @@ sys.path.insert(0, pkg_root)  # noqa
 from dss import BucketConfig, Config, Replica
 from dss.logging import configure_lambda_logging
 from dss.stepfunctions.visitation.reindex import Reindex
+from dss.util.types import JSON
 
 
 Config.set_config(BucketConfig.NORMAL)
@@ -35,10 +36,10 @@ class IndexTarget(Target):
         self.replica = Replica[replica]
         self.bucket = bucket or self.replica.bucket
 
-    def repair(self, workers: int) -> Mapping[str, Any]:
+    def repair(self, workers: int) -> JSON:
         return self._reindex(workers, dryrun=False, notify=None)
 
-    def verify(self, workers: int) -> Mapping[str, Any]:
+    def verify(self, workers: int) -> JSON:
         return self._reindex(workers, dryrun=True, notify=False)
 
     def _reindex(self, workers: int, dryrun: bool, notify: Optional[bool]) -> Mapping[str, Any]:
@@ -66,6 +67,7 @@ class DSSAdmin(domovoi.Domovoi):
         action = getattr(target, action_name)
         result = _invoke(action, options)
         return json.dumps(result)
+
 
 configure_lambda_logging()
 app = DSSAdmin(configure_logs=False)
