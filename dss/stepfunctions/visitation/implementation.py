@@ -1,3 +1,4 @@
+import copy
 import logging
 
 from .registered_visitations import registered_visitations
@@ -65,7 +66,7 @@ def walker_initialize(event, context, branch):
         """
         Re-initialize user space walker state.
         """
-        setattr(walker, k, v() if callable(v) else v)
+        setattr(walker, k, v() if callable(v) else copy.deepcopy(v))
 
     walker.walker_initialize()
 
