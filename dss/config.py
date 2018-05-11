@@ -125,26 +125,23 @@ class Config:
 
     @staticmethod
     def _get_native_aws_handle() -> typing.Any:
-        if Config.BLOBSTORE_CONNECT_TIMEOUT is None or Config.BLOBSTORE_READ_TIMEOUT is None:
-            return boto3.client("s3")
-        else:
-            return boto3.client(
-                "s3",
-                config=botocore.config.Config(
-                    connect_timeout=Config.BLOBSTORE_CONNECT_TIMEOUT,
-                    read_timeout=Config.BLOBSTORE_READ_TIMEOUT,
-                    retries={'max_attempts': Config.BLOBSTORE_BOTO_RETRIES}
-                )
-            )
+        boto_config = botocore.config.Config()
+        if Config.BLOBSTORE_CONNECT_TIMEOUT is not None:
+            boto_config.connect_timeout = Config.BLOBSTORE_CONNECT_TIMEOUT
+        if Config.BLOBSTORE_READ_TIMEOUT is not None:
+            boto_config.read_timeout = Config.BLOBSTORE_READ_TIMEOUT
+        if Config.BLOBSTORE_BOTO_RETRIES is not None:
+            boto_config.retries = {'max_attempts': Config.BLOBSTORE_BOTO_RETRIES}
+        return boto3.client("s3", config=boto_config)
 
     @staticmethod
     def _get_native_gcp_handle() -> typing.Any:
         if Config.BLOBSTORE_GS_MAX_CUMULATIVE_RETRY is not None:
             google.resumable_media.common.MAX_CUMULATIVE_RETRY = Config.BLOBSTORE_GS_MAX_CUMULATIVE_RETRY
 
-        if Config.BLOBSTORE_CONNECT_TIMEOUT is None or Config.BLOBSTORE_READ_TIMEOUT is None:
+        if Config.BLOBSTORE_CONNECT_TIMEOUT is None and Config.BLOBSTORE_READ_TIMEOUT is None:
             return Client.from_service_account_json(
-                os.environ["GOOGLE_APPLICATION_CREDENTIALS"],
+                os.environ['GOOGLE_APPLICATION_CREDENTIALS'],
             )
         else:
             # GCP has no direct interface to configure retries and timeouts. However, it makes use of Python's
@@ -155,7 +152,7 @@ class Config:
                     return super().request(*args, **kwargs)
 
             credentials = service_account.Credentials.from_service_account_file(
-                os.environ["GOOGLE_APPLICATION_CREDENTIALS"],
+                os.environ['GOOGLE_APPLICATION_CREDENTIALS'],
                 scopes=Client.SCOPE
             )
 
