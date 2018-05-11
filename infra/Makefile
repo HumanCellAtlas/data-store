@@ -1,4 +1,4 @@
-COMPONENTS=${shell find * -not -path "*/\.*" -type d}
+COMPONENTS=${shell find * -not -path "*/.*" -type d}
 
 all: init-all
 
@@ -23,7 +23,6 @@ clean-all:
 	done
 
 apply: init
-	@echo $(DIRS)
 	@echo $(COMPONENTS)
 	cd $(COMPONENT); terraform apply
 
