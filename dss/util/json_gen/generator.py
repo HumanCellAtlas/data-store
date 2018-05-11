@@ -1,7 +1,9 @@
 import random
-from typing import Union, List, Optional
-
+import re
 import rstr
+from typing import Union, List, Optional, Dict, Any
+
+from copy import deepcopy
 from faker import Faker
 from faker.providers.python import Provider as PythonProvider
 from jsonschema import RefResolver, Draft4Validator
@@ -29,6 +31,88 @@ class JsonProvider(PythonProvider):
         else:
             assert self._SUPPORTED_JSON_TYPES.issuperset(set(value_types)), "Unsupported types in value_types"
         return value_types
+
+
+type_not_matching_str = "key value types do not match"
+
+
+def _update(target: dict, updates: dict) -> dict:
+    """
+    Updates an existing JSON schema. If the item is a list it is appended with the new values. If the item is a dict it
+    is updated with new keys. All other values are replaced with updated values. A special case for keys with min and
+    max in the name exists, where only the min or max respectively, is retained between the new and updated value.
+
+    :param target: The schema to apply the updates on.
+    :param updates: The schema to be applied.
+    """
+    for k, v in updates.items():
+        if isinstance(v, dict):
+            vt = target.get(k, {})
+            assert isinstance(vt, dict), type_not_matching_str
+            target[k] = _update(vt, v)
+        elif isinstance(v, list):
+            vt = target.get(k, [])
+            assert isinstance(vt, list), type_not_matching_str
+            target[k] = list(set(vt + v))
+        else:
+            vt = target.get(k, v)
+            if 'min' in k:
+                assert isinstance(vt, (int, float)), type_not_matching_str
+                target[k] = max(v, vt)
+            elif 'max' in k:
+                assert isinstance(vt, (int, float)), type_not_matching_str
+                target[k] = min(v, vt)
+            else:
+                target[k] = vt
+    return target
+
+
+def _symmetric_difference(provided: dict, chosen: dict) -> dict:
+    """
+    Returns the fields that are not in common between provided and chosen JSON schema.
+
+    :param provided: the JSON schema to removed the chosen schema from.
+    :param chosen: the JSON schema to remove from the provided schema.
+    :return: a JSON schema with the chosen JSON schema removed.
+    """
+    remove_keys = []
+    for k, vp in provided.items():
+        vc = chosen.get(k)
+        if vc is not None:
+            if isinstance(vp, dict):
+                vc = chosen.get(k, {})
+                assert isinstance(vc, dict), type_not_matching_str
+                provided[k] = _symmetric_difference(vp, vc)
+            elif isinstance(vp, list):
+                vc = chosen.get(k, [])
+                assert isinstance(vc, list), type_not_matching_str
+                provided[k] = [i for i in vp if i not in vc]  # quadratic performance, optimize
+            else:
+                remove_keys.append(k)
+    for k in remove_keys:
+        provided.pop(k)
+    return provided
+
+
+def _remove(target, delete):
+    """
+    Removes fields from the target.
+    :param target: the JSON schema to remove fields from.
+    :param delete: the JSON schema fields to remove
+    :return: the target minus the delete fields.
+    """
+    for k, v in delete.items():
+        dv = target.get(k)
+        if dv is not None:
+            if k == 'required':
+                for req in v:
+                    target['properties'].pop(req, None)
+                target[k] = [i for i in target[k] if i not in v]  # quadratic performance, optimize
+            elif isinstance(v, dict):
+                target[k] = _remove(dv, v)
+            elif isinstance(v, list):
+                target[k] = [i for i in dv if i not in v]  # quadratic performance, optimize
+    return target
 
 
 class JsonGenerator(object):
@@ -98,11 +182,32 @@ class JsonGenerator(object):
         try:
             # should be inside an object now otherwise there should be a ref.
             ref = schema.get(u"$ref")
-            json_type = schema.get(u"type", "object")
             if ref is not None:
                 impostor = self._ref(ref)
             else:
-                impostor = getattr(self, f"_{json_type}")(schema)
+                # Using a combination of allOf, anyOf, and oneOf can produce an invalid JSON schema if a combination
+                # of the sub-schemas can contradict one another.
+                temp_schema = deepcopy(schema)
+                all_of = temp_schema.get('allOf')
+                if all_of is not None:
+                    for subschema in all_of:
+                        _update(temp_schema, subschema)
+                any_of = temp_schema.get('anyOf')
+                if any_of is not None:
+                    subschema = random.choice(any_of)
+                    _update(temp_schema, subschema)
+                one_of = temp_schema.get('oneOf')
+                if one_of is not None:
+                    subschema_choice = random.choice(one_of)
+                    _update(temp_schema, subschema_choice)
+                    remove_subschema = {}  # type: Dict[str, Any]
+                    for subschema in one_of:
+                        if subschema is not subschema_choice:
+                            _update(remove_subschema, _symmetric_difference(subschema, subschema_choice))
+                    _remove(temp_schema, remove_subschema)
+
+                json_type = temp_schema.get(u"type", "object")
+                impostor = getattr(self, f"_{json_type}")(temp_schema)
         finally:
             if scope:
                 self.resolver.pop_scope()
@@ -156,7 +261,8 @@ class JsonGenerator(object):
                 pattern_properties = schema.get('patternProperties')
                 if pattern_properties:
                     options.append('pa')
-                    patterns = [pattern for pattern in pattern_properties.keys()]
+                    # The '.' needs to be escaped because JSON schema regexs don't treat '.' as a special character.
+                    patterns = [(pattern, re.sub(r'\.', '\.', pattern)) for pattern in pattern_properties.keys()]
                 additional_properties = schema.get('additionalProperties')
                 if additional_properties:
                     options.append('ad')
@@ -174,8 +280,8 @@ class JsonGenerator(object):
                         if not properties:
                             options.remove('pr')
                     elif choice == 'pa':  # make a patternProperty
-                        pattern = str(random.choice(patterns))
-                        j_object = rstr.xeger(pattern)[:self.KEY_LEN]
+                        pattern, pyregex = random.choice(patterns)
+                        j_object = rstr.xeger(pyregex)[:self.KEY_LEN]
                         impostor[j_object] = self._gen_json(pattern_properties[pattern])
                     elif choice == 'ad':  # make an additionalProperty
                         j_object = self.faker.uuid4()

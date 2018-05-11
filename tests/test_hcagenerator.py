@@ -16,9 +16,11 @@ schema_urls = [
     "https://raw.githubusercontent.com/HumanCellAtlas/metadata-schema/4.6.0/json_schema/analysis_bundle.json",
     "https://raw.githubusercontent.com/HumanCellAtlas/metadata-schema/4.6.0/json_schema/assay_bundle.json",
     "https://raw.githubusercontent.com/HumanCellAtlas/metadata-schema/4.6.0/json_schema/project_bundle.json",
+    "https://schema.humancellatlas.org/bundle/5.0.1/biomaterial",
     "https://schema.humancellatlas.org/bundle/5.1.0/project",
     "https://schema.humancellatlas.org/bundle/5.1.0/submission",
     "https://schema.humancellatlas.org/bundle/5.1.0/ingest_audit",
+    "https://schema.humancellatlas.org/bundle/5.1.0/protocol"
 ]
 
 

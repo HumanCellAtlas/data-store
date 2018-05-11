@@ -635,11 +635,21 @@ class TestObject(Base):
 
     def test_patternProperties(self):
         with self.subTest("with patternProperties"):
-            regex = '[^.]+'
+            regex = r'[^.]+'
+            expected_regex = r'[^.]+'
             schema = {'type': 'object', 'patternProperties': {regex: simple_integer}}
             value = self.json_gen._object(schema)
             for key, item in value.items():
-                self.assertRegex(key, regex)
+                self.assertRegex(key, expected_regex)
+                self.assertEqual(item, 123)
+
+        with self.subTest("period is escaped"):
+            regex = '12...[^.]'
+            expected_regex = '12\.\.\.[^.]'
+            schema = {'type': 'object', 'patternProperties': {regex: simple_integer}}
+            value = self.json_gen._object(schema)
+            for key, item in value.items():
+                self.assertRegex(key, expected_regex)
                 self.assertEqual(item, 123)
 
     def test_dependencies(self):
@@ -657,6 +667,72 @@ class TestJsonGenerator(Base):
         for i in range(self.repeat):
             with self.subTest(i):
                 generate_json(schema_analysis)
+
+    def test_allOf(self):
+        schema = {'type': 'object',
+                  'allOf': [{'properties': {'thing1': simple_string}},
+                            {'properties': {'thing2': simple_integer}},
+                            {'properties': {'thing3': simple_float}}]}
+        value = self.json_gen.generate_json(schema)
+        self.assertIsInstance(value.get('thing1'), str)
+        self.assertIsInstance(value.get('thing2'), int)
+        self.assertIsInstance(value.get('thing3'), float)
+
+    def test_oneOf(self):
+        generate_json = self.json_gen.generate_json
+        for i in range(self.repeat):
+            schema = {
+                "description": "schema validating people and vehicles",
+                "type": "object",
+                "oneOf": [{
+                    "properties": {
+                        "firstName": {
+                            "type": "string"
+                        },
+                        "lastName": {
+                            "type": "string"
+                        },
+                        "sport": {
+                            "type": "string"
+                        }
+                    },
+                    "required": ["firstName"]
+                }, {
+                    "properties": {
+                        "vehicle": {
+                            "type": "string"
+                        },
+                        "price": {
+                            "type": "integer"
+                        }
+                    },
+                    "additionalProperties": False
+                }
+                ]
+            }
+            gen_json = generate_json(schema)
+            # [{"firstName", "lastName","sport"}, {"vehicle","price"}]
+            keys = set(gen_json.keys())
+            self.assertTrue(len(keys.difference({"firstName", "lastName", "sport"})) != len(
+                keys.difference({"vehicle", "price"})))
+
+    def test_anyOf(self):
+        schema = {'type': 'object',
+                  'anyOf': [{'properties': {'thing1': simple_string}},
+                            {'properties': {'thing2': simple_integer}},
+                            {'properties': {'thing3': simple_float}}]}
+        value = self.json_gen.generate_json(schema)
+
+        def assertItemType(key, exp_type):
+            item = value.get(key)
+            if item:
+                self.assertIsInstance(item, exp_type)
+
+        for i in range(self.repeat):
+            value = self.json_gen.generate_json(schema)
+            assertItemType('thing1', str)
+            assertItemType('thing2', int)
+            assertItemType('thing3', float)
 
 
 if __name__ == "__main__":
