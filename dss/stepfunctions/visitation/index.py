@@ -16,7 +16,7 @@ logger = logging.getLogger(__name__)
 
 
 # noinspection PyAttributeOutsideInit
-class Reindex(Visitation):
+class IndexVisitation(Visitation):
 
     state_spec = {
         'replica': None,
@@ -75,11 +75,11 @@ class Reindex(Visitation):
                     indexer.index_object(key)
                 except IndexerTimeout as e:
                     self.work_result['failed'] += 1
-                    logger.warning(f'{self.work_id} timed out during reindex: {e}')
+                    logger.warning(f'{self.work_id} timed out during index visitation: {e}')
                     break
                 except Exception:
                     self.work_result['failed'] += 1
-                    logger.warning(f'Reindex operation failed for {key}', exc_info=True)
+                    logger.warning(f'Index visitation failed for {key}', exc_info=True)
                 else:
                     self.work_result['indexed'] += 1
                     self.marker = blobs.start_after_key

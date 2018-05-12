@@ -11,7 +11,7 @@ sys.path.insert(0, pkg_root)  # noqa
 
 from dss import BucketConfig, Config, Replica
 from dss.logging import configure_lambda_logging
-from dss.stepfunctions.visitation.index import Reindex
+from dss.stepfunctions.visitation.index import IndexVisitation
 from dss.stepfunctions.visitation.storage import StorageVisitation
 from dss.util.types import JSON
 
@@ -39,19 +39,19 @@ class IndexTarget(Target):
         self.prefix = prefix or ''
 
     def repair(self, workers: int) -> JSON:
-        return self._reindex(workers, dryrun=False, notify=None)
+        return self._start(workers, dryrun=False, notify=None)
 
     def verify(self, workers: int) -> JSON:
-        return self._reindex(workers, dryrun=True, notify=False)
+        return self._start(workers, dryrun=True, notify=False)
 
-    def _reindex(self, workers: int, dryrun: bool, notify: Optional[bool]) -> Mapping[str, Any]:
+    def _start(self, workers: int, dryrun: bool, notify: Optional[bool]) -> Mapping[str, Any]:
         assert 1 < workers
-        return Reindex.start(workers,
-                             replica=self.replica.name,
-                             bucket=self.bucket,
-                             prefix=self.prefix,
-                             dryrun=dryrun,
-                             notify=notify)
+        return IndexVisitation.start(workers,
+                                     replica=self.replica.name,
+                                     bucket=self.bucket,
+                                     prefix=self.prefix,
+                                     dryrun=dryrun,
+                                     notify=notify)
 
 
 class StorageTarget(Target):
