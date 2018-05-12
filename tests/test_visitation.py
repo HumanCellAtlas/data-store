@@ -35,7 +35,7 @@ from dss.stepfunctions.visitation import implementation
 from dss.stepfunctions.visitation.integration_test import IntegrationTest
 from dss.stepfunctions.visitation import registered_visitations
 from dss.stepfunctions.visitation.timeout import Timeout
-from dss.stepfunctions.visitation import reindex
+from dss.stepfunctions.visitation import index
 from dss.stepfunctions.visitation.storage import StorageVisitation
 
 from tests import eventually
@@ -238,8 +238,8 @@ class TestVisitationReindex(unittest.TestCase):
     @mock.patch('dss.Replica.bucket', new=fake_bucket)
     @mock.patch('dss.index.indexer.Indexer.index_object', new=fake_index_object)
     def test_reindex_walk(self):
-        r = reindex.Reindex._with_state(state={'replica': 'aws'},
-                                        context=MockLambdaContext())
+        r = index.Reindex._with_state(state={'replica': 'aws'},
+                                      context=MockLambdaContext())
         r._walk()
         r.walker_finalize()
         self.assertEqual(r.work_result, dict(failed=5, indexed=5, processed=10))
@@ -249,8 +249,8 @@ class TestVisitationReindex(unittest.TestCase):
     @mock.patch('dss.index.bundle.Bundle.load', new=fake_bundle_load)
     @mock.patch('dss.index.es.backend.ElasticsearchIndexBackend.index_bundle')
     def test_reindex_timeout(self, index_bundle):
-        r = reindex.Reindex._with_state(state={'replica': 'aws'},
-                                        context=MockLambdaContext(timeout=ElasticsearchIndexBackend.timeout + 1))
+        r = index.Reindex._with_state(state={'replica': 'aws'},
+                                      context=MockLambdaContext(timeout=ElasticsearchIndexBackend.timeout + 1))
         # The third item will sleep for two seconds and that will push the time remaining to below the timeout
         r._walk()
         self.assertEquals(2, index_bundle.call_count)
@@ -263,8 +263,8 @@ class TestVisitationReindex(unittest.TestCase):
     @mock.patch('dss.index.bundle.Bundle.load', new=fake_bundle_load)
     @mock.patch('dss.index.es.backend.ElasticsearchIndexBackend.index_bundle')
     def test_reindex_no_time_remaining(self, index_bundle):
-        r = reindex.Reindex._with_state(state={'replica': 'aws'},
-                                        context=MockLambdaContext(timeout=ElasticsearchIndexBackend.timeout - 1))
+        r = index.Reindex._with_state(state={'replica': 'aws'},
+                                      context=MockLambdaContext(timeout=ElasticsearchIndexBackend.timeout - 1))
         r._walk()
         self.assertEquals(0, index_bundle.call_count)
         self.assertIsNone(r.marker)
@@ -273,8 +273,8 @@ class TestVisitationReindex(unittest.TestCase):
     def test_job_initialize(self):
         for num_workers, num_work_ids in [(1, 16), (15, 16), (16, 16), (17, 256)]:
             with self.subTest(num_workers=num_workers, num_work_ids=num_work_ids):
-                r = reindex.Reindex._with_state(state={'replica': 'aws', '_number_of_workers': num_workers},
-                                                context=MockLambdaContext())
+                r = index.Reindex._with_state(state={'replica': 'aws', '_number_of_workers': num_workers},
+                                              context=MockLambdaContext())
                 r.job_initialize()
                 self.assertEquals(num_work_ids, len(set(r.work_ids)))
 
