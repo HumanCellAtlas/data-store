@@ -36,6 +36,7 @@ def parse_args(args):
     index = targets.add_parser('index')
     index.add_argument('--replica', required=True, choices=replicas)
     index.add_argument('--bucket')
+    index.add_argument('--prefix')
     index_actions = index.add_subparsers(dest='action')
     index_actions.required = True
     index_actions.add_parser('verify')

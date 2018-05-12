@@ -4,7 +4,7 @@ import logging
 import string
 from typing import Mapping, MutableMapping, Sequence
 
-from cloud_blobstore import BlobPagingError
+from cloud_blobstore import BlobPagingError, PagedIter
 
 from dss.config import Config, Replica
 from dss.index import DEFAULT_BACKENDS
@@ -15,16 +15,15 @@ from . import Visitation, WalkerStatus
 logger = logging.getLogger(__name__)
 
 
+# noinspection PyAttributeOutsideInit
 class Reindex(Visitation):
-    """
-    Reindex batch job.
-    """
 
     state_spec = {
         'replica': None,
         'bucket': None,
         'dryrun': None,
         'notify': None,
+        'prefix': '',
         'work_result': {
             'processed': 0,
             'indexed': 0,
@@ -40,9 +39,9 @@ class Reindex(Visitation):
     def job_initialize(self):
         prefix_chars = list(set(string.hexdigits.lower()))
         if self._number_of_workers <= 16:
-            self.work_ids = prefix_chars
+            self.work_ids = [self.prefix + a for a in prefix_chars]
         else:
-            self.work_ids = [a + b for a in prefix_chars for b in prefix_chars]
+            self.work_ids = [self.prefix + b + a for a in prefix_chars for b in prefix_chars]
 
     def walker_finalize(self):
         logger.info(f'Work result: {self.work_result}')
@@ -62,12 +61,10 @@ class Reindex(Visitation):
             if self.bucket != replica.bucket:
                 logger.warning(f'Indexing bucket {self.bucket} instead of default {self.bucket}.')
 
-            blobs = handle.list_v2(
-                self.bucket,
-                prefix=f'bundles/{self.work_id}',
-                start_after_key=self.marker,  # type: ignore  # Cannot determine type of 'marker'
-                token=self.token  # type: ignore  # Cannot determine type of 'token'
-            )
+            blobs: PagedIter = handle.list_v2(self.bucket,
+                                              prefix=f'bundles/{self.work_id}',
+                                              start_after_key=self.marker,
+                                              token=self.token)
 
             for key in blobs:
                 # Timing out while recording paging info could cause an inconsistent paging state, leading to repeats

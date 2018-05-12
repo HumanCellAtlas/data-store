@@ -32,10 +32,11 @@ class IndexTarget(Target):
     """
     Admin operations on the Elasticsearch index.
     """
-    def __init__(self, replica: str, bucket: str = None) -> None:
+    def __init__(self, replica: str, bucket: str = None, prefix: str = None) -> None:
         super().__init__()
         self.replica = Replica[replica]
         self.bucket = bucket or self.replica.bucket
+        self.prefix = prefix or ''
 
     def repair(self, workers: int) -> JSON:
         return self._reindex(workers, dryrun=False, notify=None)
@@ -45,12 +46,12 @@ class IndexTarget(Target):
 
     def _reindex(self, workers: int, dryrun: bool, notify: Optional[bool]) -> Mapping[str, Any]:
         assert 1 < workers
-        visitation_id = Reindex.start(workers,
-                                      replica=self.replica.name,
-                                      bucket=self.bucket,
-                                      dryrun=dryrun,
-                                      notify=notify)
-        return {'visitation_id': visitation_id}
+        return Reindex.start(workers,
+                             replica=self.replica.name,
+                             bucket=self.bucket,
+                             prefix=self.prefix,
+                             dryrun=dryrun,
+                             notify=notify)
 
 
 class StorageTarget(Target):
@@ -65,8 +66,7 @@ class StorageTarget(Target):
     def verify(self, workers: int) -> JSON:
         assert 1 < workers
         replicas, buckets = zip(*self.replicas.items())
-        visitation_id = StorageVisitation.start(workers, replicas=replicas, buckets=buckets)
-        return {'visitation_id': visitation_id}
+        return StorageVisitation.start(workers, replicas=replicas, buckets=buckets)
 
 
 def _invoke(f: Callable, kwargs: Mapping[str, Any]) -> Any:
