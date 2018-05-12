@@ -7,7 +7,7 @@ from uuid import uuid4
 from enum import Enum, auto
 
 from dss.stepfunctions import _step_functions_start_execution
-from dss.util.types import LambdaContext
+from dss.util.types import LambdaContext, JSON
 
 logger = logging.getLogger(__name__)
 
@@ -102,18 +102,16 @@ class Visitation:
         }
 
     @classmethod
-    def start(cls, number_of_workers: int, **kwargs) -> str:
+    def start(cls, number_of_workers: int, **kwargs) -> JSON:
         name = '{}--{}'.format(cls.__name__, str(uuid4()))
-
-        inp = {
+        execution_input = {
             **kwargs,
             '_visitation_class_name': cls.__name__,
             '_number_of_workers': number_of_workers,
         }
         # Invoke directly without reaper/retry
-        _step_functions_start_execution('dss-visitation-{stage}', name, json.dumps(inp))
-
-        return name
+        execution = _step_functions_start_execution('dss-visitation-{stage}', name, json.dumps(execution_input))
+        return dict(arn=execution['executionArn'], name=name, input=execution_input)
 
     def job_initialize(self) -> None:
         """

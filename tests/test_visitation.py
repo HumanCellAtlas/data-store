@@ -3,6 +3,8 @@
 
 import copy
 import datetime
+import json
+import subprocess
 import time
 import logging
 import os
@@ -10,6 +12,8 @@ import sys
 import unittest
 from unittest.mock import MagicMock
 import uuid
+
+import boto3
 import mock
 
 pkg_root = os.path.abspath(os.path.join(os.path.dirname(__file__), '..'))  # noqa
@@ -21,6 +25,7 @@ import dss
 from dss.logging import configure_test_logging
 from dss.index.es.backend import ElasticsearchIndexBackend
 from dss.storage.identifiers import BundleFQID
+from dss.util import require
 from dss.util.version import datetime_to_version_format
 from dss.stepfunctions.visitation import Visitation
 from dss.stepfunctions import step_functions_describe_execution
@@ -30,6 +35,7 @@ from dss.stepfunctions.visitation import registered_visitations
 from dss.stepfunctions.visitation.timeout import Timeout
 from dss.stepfunctions.visitation import reindex
 
+from tests import eventually
 from tests.infra import get_env, testmode, MockLambdaContext
 
 logger = logging.getLogger(__name__)
@@ -143,13 +149,13 @@ class TestVisitationWalker(unittest.TestCase):
 
     def _test_z_integration(self, replica, bucket):
         number_of_workers = 10
-        name = IntegrationTest.start(replica, bucket, number_of_workers)
+        visitation = IntegrationTest.start(number_of_workers, replica=replica, bucket=bucket)
         print()
         print(f'Visitation integration test replica={replica}, bucket={bucket}, number_of_workers={number_of_workers}')
 
         while True:
             try:
-                resp = step_functions_describe_execution('dss-visitation-{stage}', name)
+                resp = step_functions_describe_execution('dss-visitation-{stage}', visitation['name'])
                 if 'RUNNING' != resp['status']:
                     break
             except ClientError as e:
@@ -222,9 +228,9 @@ def fake_index_object(_self, key):
         raise Exception()
 
 
+@testmode.standalone
 class TestVisitationReindex(unittest.TestCase):
 
-    @testmode.standalone
     @mock.patch('dss.Config.get_blobstore_handle', new=fake_get_blobstore_handle)
     @mock.patch('dss.Replica.bucket', new=fake_bucket)
     @mock.patch('dss.index.indexer.Indexer.index_object', new=fake_index_object)
@@ -235,7 +241,6 @@ class TestVisitationReindex(unittest.TestCase):
         r.walker_finalize()
         self.assertEqual(r.work_result, dict(failed=5, indexed=5, processed=10))
 
-    @testmode.standalone
     @mock.patch('dss.Config.get_blobstore_handle', new=fake_get_blobstore_handle)
     @mock.patch('dss.Replica.bucket', new=fake_bucket)
     @mock.patch('dss.index.bundle.Bundle.load', new=fake_bundle_load)
@@ -250,7 +255,6 @@ class TestVisitationReindex(unittest.TestCase):
         self.assertEquals(1, FakeBlobStore.Iterator.keys.index(r.marker))
         self.assertEquals('frank', r.token)
 
-    @testmode.standalone
     @mock.patch('dss.Config.get_blobstore_handle', new=fake_get_blobstore_handle)
     @mock.patch('dss.Replica.bucket', new=fake_bucket)
     @mock.patch('dss.index.bundle.Bundle.load', new=fake_bundle_load)
@@ -263,7 +267,6 @@ class TestVisitationReindex(unittest.TestCase):
         self.assertIsNone(r.marker)
         self.assertIsNone(r.token)
 
-    @testmode.standalone
     def test_job_initialize(self):
         for num_workers, num_work_ids in [(1, 16), (15, 16), (16, 16), (17, 256)]:
             with self.subTest(num_workers=num_workers, num_work_ids=num_work_ids):
@@ -271,6 +274,36 @@ class TestVisitationReindex(unittest.TestCase):
                                                 context=MockLambdaContext())
                 r.job_initialize()
                 self.assertEquals(num_work_ids, len(set(r.work_ids)))
+
+
+@testmode.integration
+class TestIntegration(unittest.TestCase):
+
+    def test_storage_verification(self):
+        self._test('storage', '--replica=aws', '--replica=gcp', 'verify')
+
+    def test_index_verification(self):
+        self._test('index', '--replica=aws', '--prefix=42', 'verify')
+
+    def _test(self, *args):
+        command = (f'{pkg_root}/scripts/admin-cli.py',) + args
+        logger.info('Running %r', command)
+        input = subprocess.check_output(command)
+        logger.info('Step function input: %s', input)
+        input = json.loads(input.decode())
+        arn = input['arn']
+        output = self._get_execution_output(arn)
+        logger.info('Step function output: %r', output)
+        self.assertIn('work_result', output)
+
+    @eventually(timeout=300, interval=10)
+    def _get_execution_output(self, arn):
+        sfns = boto3.client('stepfunctions')
+        execution = sfns.describe_execution(executionArn=arn)
+        status = execution['status']
+        require(status in ('SUCCEEDED', 'RUNNING'), 'Unexpected execution status: {status}')
+        self.assertIn('output', execution)
+        return execution['output']
 
 
 if __name__ == '__main__':
