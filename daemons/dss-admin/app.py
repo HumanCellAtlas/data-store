@@ -11,7 +11,7 @@ sys.path.insert(0, pkg_root)  # noqa
 
 from dss import BucketConfig, Config, Replica
 from dss.logging import configure_lambda_logging
-from dss.stepfunctions.visitation.reindex import Reindex
+from dss.stepfunctions.visitation.index import Reindex
 from dss.stepfunctions.visitation.storage import StorageVisitation
 from dss.util.types import JSON
 
