@@ -5,10 +5,12 @@ from uuid import uuid4
 import requests
 from flask import jsonify, request
 import jsonpointer
+import iso8601
 
 from dss import Config, Replica
 from dss.error import DSSException, dss_handler
 from dss.storage.hcablobstore import FileMetadata, HCABlobStore
+from dss.util.version import datetime_to_version_format
 
 from cloud_blobstore import BlobNotFoundError, BlobStoreUnknownError
 
@@ -27,7 +29,11 @@ def get(uuid: str, replica: str, version: str = None):
             matching_key = matching_key[len(prefix):]
             if version is None or matching_key > version:
                 version = matching_key
-    return json.loads(handle.get(replica.bucket, "collections/{}.{}".format(uuid, version)))
+    try:
+        collection_blob = handle.get(replica.bucket, "collections/{}.{}".format(uuid, version))
+    except BlobNotFoundError:
+        raise DSSException(404, "not_found", "Could not find collection for UUID {}".format(uuid))
+    return json.loads(collection_blob)
 
 @dss_handler
 def find(replica: str):
@@ -37,38 +43,70 @@ def find(replica: str):
 
 @dss_handler
 def put(json_request_body: dict, replica: str, uuid: str, version: str):
-    print("Will put:")
-    print(json.dumps(json_request_body))
+    authenticated_user_email = request.token_info['email']
     replica = Replica[replica]
     handle = Config.get_blobstore_handle(replica)
     verify_collection(json_request_body["contents"], replica, handle)
     collection_uuid = uuid if uuid else str(uuid4())
-    collection_version = version if version else "0"
+    if version is not None:
+        # convert it to date-time so we can format exactly as the system requires (with microsecond precision)
+        timestamp = iso8601.parse_date(version)
+    else:
+        timestamp = datetime.datetime.utcnow()
+    collection_version = datetime_to_version_format(timestamp)
     handle.upload_file_handle(replica.bucket,
                               "collections/{}.{}".format(collection_uuid, collection_version),
                               io.BytesIO(json.dumps(json_request_body).encode("utf-8")))
     return jsonify(dict(uuid=collection_uuid, version=collection_version)), requests.codes.created
 
+class hashabledict(dict):
+    def __hash__(self):
+        return hash(tuple(sorted(self.items())))
+
 @dss_handler
-def patch(json_request_body: dict, replica: str):
+def patch(uuid: str, json_request_body: dict, replica: str, version: str):
     # patch one collection with another
-    return jsonify({}), requests.codes.created
+    replica = Replica[replica]
+    handle = Config.get_blobstore_handle(replica)
+    try:
+        cur_collection_blob = handle.get(replica.bucket, "collections/{}.{}".format(uuid, version))
+    except BlobNotFoundError:
+        raise DSSException(404, "not_found", "Could not find collection for UUID {}".format(uuid))
+    collection = json.loads(cur_collection_blob)
+    for field in "name", "description", "details":
+        if field in json_request_body:
+            collection[field] = json_request_body[field]
+    remove_contents_set = set(map(hashabledict, json_request_body.get("removeContents", [])))
+    collection["contents"] = [i for i in collection["contents"] if hashabledict(i) not in remove_contents_set]
+    verify_collection(json_request_body.get("addContents", []), replica, handle)
+    collection["contents"].extend(json_request_body.get("addContents", []))
+    timestamp = datetime.datetime.utcnow()
+    new_collection_version = datetime_to_version_format(timestamp)
+    handle.upload_file_handle(replica.bucket,
+                              "collections/{}.{}".format(uuid, new_collection_version),
+                              io.BytesIO(json.dumps(collection).encode("utf-8")))
+    return jsonify(dict(uuid=uuid, version=new_collection_version)), requests.codes.ok
 
 @dss_handler
 def delete(uuid: str, replica: str):
-    authenticated_user_email = request.token_info['email']
-    #
-    return jsonify({}), requests.codes.okay
+    raise NotImplementedError()
 
+MAX_METADATA_SIZE = 1024 * 1024
 @functools.lru_cache(maxsize=64)
 def get_json_metadata(entity_type: str, uuid: str, version: str, replica: Replica, blobstore_handle: HCABlobStore):
     print("getting", entity_type, uuid, version)
     try:
+        key = "{}s/{}.{}".format(entity_type, uuid, version)
+        # TODO: verify that file is a metadata file
+        size = blobstore_handle.get_size(replica.bucket, key)
+        if size > MAX_METADATA_SIZE:
+            raise DSSException(422, "invalid_link",
+                               "The file UUID {} refers to a file that is too large to process".format(uuid))
         return json.loads(blobstore_handle.get(
             replica.bucket,
             "{}s/{}.{}".format(entity_type, uuid, version)))
     except BlobNotFoundError as ex:
-        raise DSSException(404, "not_found", "Cannot find {}".format(entity_type))
+        raise DSSException(404, "invalid_link", "Could not find file for UUID {}".format(uuid))
 
 def resolve_content_item(replica: Replica, blobstore_handle: HCABlobStore, item: dict):
     try:
@@ -89,11 +127,14 @@ def resolve_content_item(replica: Replica, blobstore_handle: HCABlobStore, item:
             item_doc = json.loads(blobstore_handle.get(replica.bucket, blob_path))
             item_content = jsonpointer.resolve_pointer(item_doc, item["fragment"])
     except Exception as e:
+        if isinstance(e, DSSException):
+            raise
         raise DSSException(
             422,
             "invalid_link",
             'Error while parsing the link "{}": {}: {}'.format(item, type(e).__name__, e)
         )
+    print(get_json_metadata.cache_info())
 
 from concurrent.futures import ThreadPoolExecutor
 from functools import partial
@@ -103,6 +144,6 @@ def verify_collection(contents: List[dict], replica: Replica, blobstore_handle: 
     Given user-supplied collection contents that pass schema validation, resolve all entities in the collection and
     verify they exist.
     """
-    executor = ThreadPoolExecutor(max_workers=16)
+    executor = ThreadPoolExecutor(max_workers=8)
     for result in executor.map(partial(resolve_content_item, replica, blobstore_handle), contents):
         pass

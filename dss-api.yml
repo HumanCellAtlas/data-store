@@ -676,12 +676,6 @@ paths:
           required: true
           type: string
           enum: [aws, gcp, azure]
-        - name: version
-          description: TODO
-          in: query
-          required: false
-          type: string
-          format: date-time
       responses:
         200:
           description: OK
@@ -784,13 +778,19 @@ paths:
           required: true
           type: string
           enum: [aws, gcp, azure]
+        - name: version
+          in: query
+          description: Timestamp of collection creation in RFC3339.  If this is not provided, the latest version is returned.
+          required: false
+          type: string
+          format: date-time
       responses:
         200:
           description: OK
           schema:
             type: object
             properties:
-              subscription:
+              collection:
                 $ref: "#/definitions/Collection"
         default:
           description: Unexpected error
@@ -808,7 +808,8 @@ paths:
     patch:
       summary: Update a collection.
       description: |
-        Update a collection.
+        Add or remove items from a collection. A specific version of the collection to update must be provided, and a
+        new version will be written.
       security:
         - googAuth:
             - https://www.googleapis.com/auth/userinfo.email
@@ -825,6 +826,32 @@ paths:
           required: true
           type: string
           enum: [aws, gcp, azure]
+        - name: version
+          in: query
+          description: Timestamp of file creation in RFC3339.  If this is not provided, the latest version is returned.
+          required: true
+          type: string
+          format: date-time
+        - name: json_request_body
+          in: body
+          required: true
+          schema:
+            type: object
+            properties:
+              addContents:
+                type: array
+                items:
+                  $ref: '#/definitions/CollectionItem'
+              removeContents:
+                type: array
+                items:
+                  $ref: '#/definitions/CollectionItem'
+              name:
+                type: string
+              description:
+                type: string
+              details:
+                type: object
       responses:
         200:
           description: OK
@@ -1520,32 +1547,34 @@ definitions:
           part of the collection.
         type: array
         items:
-          type: object
-          properties:
-            type:
-              type: string
-              description: Type of link (file, bundle, collection, or a custom type for a metadata fragment).
-            uuid:
-              type: string
-              description: Unique ID of the file, bundle, collection, or file containing a metadata fragment.
-              pattern: "[a-z0-9]{8}-[a-z0-9]{4}-[a-z0-9]{4}-[a-z0-9]{4}-[a-z0-9]{12}"
-            version:
-              type: string
-              format: date-time
-              description: RFC3339 timestamp of the file, bundle, collection, or file containing a metadata fragment.
-            path:
-              type: string
-              description: |
-                JSON Pointer indexing into the JSON conents of the file containing a metadata fragment.
-                Required for links of type other than file, bundle, or collection. Ignored otherwise.
-          required:
-            - type
-            - uuid
+          $ref: '#/definitions/CollectionItem'
     required:
       - name
       - description
       - details
       - contents
+  CollectionItem:
+    type: object
+    properties:
+      type:
+        type: string
+        description: Type of link (file, bundle, collection, or a custom type for a metadata fragment).
+      uuid:
+        type: string
+        description: Unique ID of the file, bundle, collection, or file containing a metadata fragment.
+        pattern: "[a-z0-9]{8}-[a-z0-9]{4}-[a-z0-9]{4}-[a-z0-9]{4}-[a-z0-9]{12}"
+      version:
+        type: string
+        format: date-time
+        description: RFC3339 timestamp of the file, bundle, collection, or file containing a metadata fragment.
+      path:
+        type: string
+        description: |
+          JSON Pointer indexing into the JSON conents of the file containing a metadata fragment.
+          Required for links of type other than file, bundle, or collection. Ignored otherwise.
+    required:
+      - type
+      - uuid
   Error:
     type: object
     properties:
