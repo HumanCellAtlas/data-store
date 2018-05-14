@@ -8,6 +8,7 @@ DSS_S3_CHECKOUT_BUCKET=$DSS_S3_CHECKOUT_BUCKET_STAGING
 # `staging` currently shares the ES domain with `dev`
 DSS_ES_DOMAIN=dss-index-dev
 API_DOMAIN_NAME=dss.staging.data.humancellatlas.org
+XRAY_TRACE=true
 set +a
 
 if [[ -f "${DSS_HOME}/environment.staging.local" ]]; then
