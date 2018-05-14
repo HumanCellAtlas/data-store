@@ -71,12 +71,16 @@ DSS_SUBSCRIPTION_AUTHORIZED_DOMAINS_ARRAY=(
 DSS_SUBSCRIPTION_AUTHORIZED_DOMAINS=${DSS_SUBSCRIPTION_AUTHORIZED_DOMAINS_ARRAY[*]}
 DSS_SUBSCRIPTION_AUTHORIZED_DOMAINS_TEST="human-cell-atlas-travis-test.iam.gserviceaccount.com"
 DSS_ES_DOMAIN="dss-index-$DSS_DEPLOYMENT_STAGE"
+DSS_ES_INSTANCE_TYPE="t2.small.elasticsearch"
+DSS_ES_VOLUME_SIZE="10"
+DSS_ES_INSTANCE_COUNT="1"
 PYTHONWARNINGS=ignore:ResourceWarning,ignore::UserWarning:zipfile:
 DSS_SECRETS_STORE="dcp/dss"
 EVENT_RELAY_AWS_USERNAME="dss-event-relay-${DSS_DEPLOYMENT_STAGE}"
 EVENT_RELAY_AWS_ACCESS_KEY_SECRETS_NAME="event-relay-user-aws-access-key"
 GOOGLE_APPLICATION_CREDENTIALS_SECRETS_NAME="gcp-credentials.json"
 GOOGLE_APPLICATION_SECRETS_SECRETS_NAME="application_secrets.json"
+ES_ALLOWED_SOURCE_IP_SECRETS_NAME="es_source_ip"
 
 # `{account_id}`, if present, will be replaced with the account ID associated with the AWS credentials used for
 # deployment. It can be safely omitted.
