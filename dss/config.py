@@ -97,10 +97,10 @@ class Config:
     _S3_CHECKOUT_BUCKET = None  # type: typing.Optional[str]
     _GS_CHECKOUT_BUCKET = None  # type: typing.Optional[str]
 
-    BLOBSTORE_CONNECT_TIMEOUT = 5  # type: float
-    BLOBSTORE_READ_TIMEOUT = 5  # type: float
-    BLOBSTORE_BOTO_RETRIES = 2  # type: int
-    BLOBSTORE_GS_MAX_CUMULATIVE_RETRY = 15  # type: float  ## seconds
+    BLOBSTORE_CONNECT_TIMEOUT = None  # type: float
+    BLOBSTORE_READ_TIMEOUT = None  # type: float
+    BLOBSTORE_BOTO_RETRIES = None  # type: int
+    BLOBSTORE_GS_MAX_CUMULATIVE_RETRY = None  # type: float  ## seconds
 
     _ALLOWED_EMAILS = None  # type: typing.Optional[str]
     _CURRENT_CONFIG = BucketConfig.ILLEGAL  # type: BucketConfig
@@ -116,36 +116,43 @@ class Config:
 
     @staticmethod
     @functools.lru_cache()
-    def get_native_handle(replica: "Replica",
-                          connect_timeout: float=None,
-                          read_timeout: float=None) -> typing.Any:
-
-        if connect_timeout is None:
-            connect_timeout = Config.BLOBSTORE_CONNECT_TIMEOUT
-        if read_timeout is None:
-            read_timeout = Config.BLOBSTORE_READ_TIMEOUT
-
+    def get_native_handle(replica: "Replica") -> typing.Any:
         if replica == Replica.aws:
-            return boto3.client(
-                "s3",
-                config=botocore.config.Config(
-                    connect_timeout=connect_timeout,
-                    read_timeout=read_timeout,
-                    retries={'max_attempts': Config.BLOBSTORE_BOTO_RETRIES}
-                )
-            )
+            return Config._get_native_aws_handle()
         elif replica == Replica.gcp:
+            return Config._get_native_gcp_handle()
+        raise NotImplementedError(f"Replica `{replica.name}` is not implemented!")
+
+    @staticmethod
+    def _get_native_aws_handle() -> typing.Any:
+        boto_config = botocore.config.Config()
+        if Config.BLOBSTORE_CONNECT_TIMEOUT is not None:
+            boto_config.connect_timeout = Config.BLOBSTORE_CONNECT_TIMEOUT
+        if Config.BLOBSTORE_READ_TIMEOUT is not None:
+            boto_config.read_timeout = Config.BLOBSTORE_READ_TIMEOUT
+        if Config.BLOBSTORE_BOTO_RETRIES is not None:
+            boto_config.retries = {'max_attempts': Config.BLOBSTORE_BOTO_RETRIES}
+        return boto3.client("s3", config=boto_config)
+
+    @staticmethod
+    def _get_native_gcp_handle() -> typing.Any:
+        if Config.BLOBSTORE_GS_MAX_CUMULATIVE_RETRY is not None:
             google.resumable_media.common.MAX_CUMULATIVE_RETRY = Config.BLOBSTORE_GS_MAX_CUMULATIVE_RETRY
 
+        if Config.BLOBSTORE_CONNECT_TIMEOUT is None and Config.BLOBSTORE_READ_TIMEOUT is None:
+            return Client.from_service_account_json(
+                os.environ['GOOGLE_APPLICATION_CREDENTIALS'],
+            )
+        else:
             # GCP has no direct interface to configure retries and timeouts. However, it makes use of Python's
             # stdlib `requests` package, which has straightforward timeout usage.
             class SessionWithTimeouts(google.auth.transport.requests.AuthorizedSession):
                 def request(self, *args, **kwargs):
-                    kwargs['timeout'] = (connect_timeout, read_timeout)
+                    kwargs['timeout'] = (Config.BLOBSTORE_CONNECT_TIMEOUT, Config.BLOBSTORE_READ_TIMEOUT)
                     return super().request(*args, **kwargs)
 
             credentials = service_account.Credentials.from_service_account_file(
-                os.environ["GOOGLE_APPLICATION_CREDENTIALS"],
+                os.environ['GOOGLE_APPLICATION_CREDENTIALS'],
                 scopes=Client.SCOPE
             )
 
@@ -155,7 +162,6 @@ class Config:
                 _http=SessionWithTimeouts(credentials),
                 credentials=credentials
             )
-        raise NotImplementedError(f"Replica `{replica.name}` is not implemented!")
 
     @staticmethod
     @functools.lru_cache()

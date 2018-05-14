@@ -51,12 +51,7 @@ class TestGSCopy(unittest.TestCase):
         # NOTE: compose(…) does not seem to support setting a storage class.  The canonical way of changing storage
         # class is to call update_storage_class(…), but Google's libraries does not seem to handle
         # update_storage_class(…) calls for large objects.
-        # Second NOTE: nearline storage upload is not as snappy as normal storage, and requires longer timeouts.
-        final_blob_obj = Config.get_native_handle(
-            Replica.gcp,
-            connect_timeout=60,
-            read_timeout=60,
-        ).bucket(self.test_bucket).blob(final_key)
+        final_blob_obj = bucket_obj.blob(final_key)
         final_blob_obj.storage_class = "NEARLINE"
         final_blob_src = bucket_obj.get_blob(test_src_keys[-1])
         token = None

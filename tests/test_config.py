@@ -9,6 +9,8 @@ import sys
 import unittest
 import unittest.mock
 
+import google.resumable_media.common
+
 pkg_root = os.path.abspath(os.path.join(os.path.dirname(__file__), '..'))  # noqa
 sys.path.insert(0, pkg_root)  # noqa
 
@@ -54,10 +56,22 @@ class TestConfig(unittest.TestCase):
             self.assertEqual(len(Replica), len(prop_vals))
 
     def test_boto_timeout(self):
-        client_config = Config.get_blobstore_handle(Replica.aws).s3_client._client_config
+        Config.get_native_handle.cache_clear()
+        Config.BLOBSTORE_CONNECT_TIMEOUT = 1
+        Config.BLOBSTORE_READ_TIMEOUT = 2
+        Config.BLOBSTORE_BOTO_RETRIES = 3
+
+        client_config = Config.get_native_handle(Replica.aws)._client_config
         self.assertEqual(Config.BLOBSTORE_CONNECT_TIMEOUT, client_config.connect_timeout)
         self.assertEqual(Config.BLOBSTORE_READ_TIMEOUT, client_config.read_timeout)
         self.assertEqual(Config.BLOBSTORE_BOTO_RETRIES, client_config.retries['max_attempts'])
+
+    def test_gcloud_timeout(self):
+        Config.get_native_handle.cache_clear()
+        Config.BLOBSTORE_GS_MAX_CUMULATIVE_RETRY = 1
+
+        Config.get_native_handle(Replica.gcp)
+        self.assertEqual(Config.BLOBSTORE_GS_MAX_CUMULATIVE_RETRY, google.resumable_media.common.MAX_CUMULATIVE_RETRY)
 
 
 if __name__ == '__main__':
