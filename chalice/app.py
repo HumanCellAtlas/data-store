@@ -17,9 +17,24 @@ import nestedcontext
 import requests
 from flask import json
 
-
 pkg_root = os.path.abspath(os.path.join(os.path.dirname(__file__), 'chalicelib'))  # noqa
 sys.path.insert(0, pkg_root)  # noqa
+
+XRAY_TRACE = os.environ.get('XRAY_TRACE', 'false') == 'true'  # noqa
+
+if XRAY_TRACE:  # noqa
+    from aws_xray_sdk.core import xray_recorder, patch
+    from aws_xray_sdk.core.context import Context
+    from aws_xray_sdk.ext.flask.middleware import XRayMiddleware
+    patch(('boto3', 'requests'))
+    xray_recorder.configure(
+        service='DSS',
+        dynamic_naming='*dss.{}data.humancellatlas.org*'.format(
+            '' if os.environ.get('DEPLOYMENT_STAGE') == 'prod' else os.environ.get('DEPLOYMENT_STAGE', 'test') + '.'
+        ),
+        context=Context(),
+        context_missing='LOG_ERROR'
+    )
 
 from dss import BucketConfig, Config, DeploymentStage, create_app
 from dss.logging import configure_lambda_logging
@@ -245,4 +260,20 @@ def get_chalice_app(flask_app) -> DSSChaliceApp:
 
     return app
 
-app = get_chalice_app(create_app().app)
+
+if XRAY_TRACE:
+    xray_recorder.begin_segment('initialization')
+    xray_recorder.begin_subsegment('create-flask-app')
+
+dss_app = create_app()
+
+if XRAY_TRACE:
+    XRayMiddleware(dss_app.app, xray_recorder)
+    xray_recorder.end_subsegment('create-flask-app')
+    xray_recorder.begin_subsegment('create-chalice-app')
+
+app = get_chalice_app(dss_app.app)
+
+if XRAY_TRACE:
+    xray_recorder.end_subsegment('create-chalice-app')
+    xray_recorder.end_segment('initialization')
