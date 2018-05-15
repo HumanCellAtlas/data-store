@@ -24,9 +24,11 @@ class Notifier:
         """
         Create a Notifier instance with global configuration, typically environment variables.
         """
-        return cls(deployment_stage=Config.deployment_stage(),
-                   delays=Config.notification_delays(),
-                   num_workers=Config.notification_workers())
+        kwargs = dict(deployment_stage=Config.deployment_stage(),
+                      delays=Config.notification_delays(),
+                      num_workers=Config.notification_workers(),
+                      timeout=Config.notification_timeout())
+        return cls(**{k: v for k, v in kwargs.items() if v is not None})
 
     def __init__(self,
                  deployment_stage: str,
