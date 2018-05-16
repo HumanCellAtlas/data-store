@@ -70,6 +70,9 @@ env_vars_to_infra = [
     "DSS_ES_VOLUME_SIZE",
     "DSS_ES_INSTANCE_TYPE",
     "DSS_ES_INSTANCE_COUNT",
+    "DSS_GS_BUCKET_REGION",
+    "DSS_GS_BUCKET_TEST_REGION",
+    "DSS_GS_BUCKET_TEST_FIXTURES_REGION",
 ]
 
 terraform_variable_info = {'variable': dict()}
