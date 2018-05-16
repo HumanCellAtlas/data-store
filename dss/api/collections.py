@@ -1,6 +1,8 @@
 import os, sys, json, logging, datetime, io, functools
 from typing import List
 from uuid import uuid4
+from concurrent.futures import ThreadPoolExecutor
+from functools import partial
 
 import requests
 from flask import jsonify, request
@@ -13,9 +15,11 @@ from dss.storage.blobstore import test_object_exists
 from dss.storage.hcablobstore import FileMetadata, HCABlobStore
 from dss.storage.identifiers import COLLECTION_PREFIX, TOMBSTONE_SUFFIX
 from dss.util.version import datetime_to_version_format
+from dss.api.bundles import _idempotent_save
 
-from cloud_blobstore import BlobNotFoundError, BlobStoreUnknownError
+from cloud_blobstore import BlobNotFoundError
 
+MAX_METADATA_SIZE = 1024 * 1024
 
 logger = logging.getLogger(__name__)
 dss_bucket = Config.get_s3_bucket()
@@ -43,17 +47,17 @@ def get_impl(uuid: str, replica: str, version: str = None):
         raise DSSException(404, "not_found", "Could not find collection for UUID {}".format(uuid))
     return json.loads(collection_blob)
 
-
 @dss_handler
 def get(uuid: str, replica: str, version: str = None):
     authenticated_user_email = request.token_info['email']
-    return get_impl(uuid=uuid, replica=replica, version=version)
+    collection_body = get_impl(uuid=uuid, replica=replica, version=version)
+    if collection_body["owner"] != authenticated_user_email:
+        raise DSSException(requests.codes.forbidden, "forbidden", f"Collection access denied")
+    return collection_body
 
 @dss_handler
 def find(replica: str):
-    owner = request.token_info['email']
-
-    return jsonify({}), requests.codes.okay
+    raise NotImplementedError()
 
 @dss_handler
 def put(json_request_body: dict, replica: str, uuid: str, version: str):
@@ -104,7 +108,6 @@ def patch(uuid: str, json_request_body: dict, replica: str, version: str):
                               io.BytesIO(json.dumps(collection).encode("utf-8")))
     return jsonify(dict(uuid=uuid, version=new_collection_version)), requests.codes.ok
 
-from dss.api.bundles import _idempotent_save
 @dss_handler
 def delete(uuid: str, replica: str):
     authenticated_user_email = request.token_info['email']
@@ -117,11 +120,7 @@ def delete(uuid: str, replica: str):
 
     owner = get_impl(uuid=uuid, replica=replica)["owner"]
     if owner != authenticated_user_email:
-        raise DSSException(
-            requests.codes.forbidden,
-            "forbidden",
-            f"Collection access denied",
-        )
+        raise DSSException(requests.codes.forbidden, "forbidden", f"Collection access denied")
 
     blobstore = Config.get_blobstore_handle(Replica[replica])
     bucket = Replica[replica].bucket
@@ -129,13 +128,12 @@ def delete(uuid: str, replica: str):
     if not idempotent:
         raise DSSException(requests.codes.conflict,
                            f"collection_tombstone_already_exists",
-                           f"collection tombstone with UUID {uuid} and version {version} already exists")
+                           f"collection tombstone with UUID {uuid} already exists")
     status_code = requests.codes.ok
     response_body = dict()  # type: dict
 
     return jsonify(response_body), status_code
 
-MAX_METADATA_SIZE = 1024 * 1024
 @functools.lru_cache(maxsize=64)
 def get_json_metadata(entity_type: str, uuid: str, version: str, replica: Replica, blobstore_handle: HCABlobStore):
     try:
@@ -158,8 +156,8 @@ def resolve_content_item(replica: Replica, blobstore_handle: HCABlobStore, item:
         else:
             item_metadata = get_json_metadata("file", item["uuid"], item["version"], replica, blobstore_handle)
             if "fragment" not in item:
-                raise Exception(
-                    'The "fragment" field is required in collection elements other than files, bundles, and collections')
+                raise Exception('The "fragment" field is required in collection elements '
+                                'other than files, bundles, and collections')
             blob_path = "blobs/" + ".".join((
                 item_metadata[FileMetadata.SHA256],
                 item_metadata[FileMetadata.SHA1],
@@ -178,9 +176,6 @@ def resolve_content_item(replica: Replica, blobstore_handle: HCABlobStore, item:
             "invalid_link",
             'Error while parsing the link "{}": {}: {}'.format(item, type(e).__name__, e)
         )
-
-from concurrent.futures import ThreadPoolExecutor
-from functools import partial
 
 def verify_collection(contents: List[dict], replica: Replica, blobstore_handle: HCABlobStore):
     """
