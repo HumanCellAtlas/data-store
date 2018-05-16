@@ -100,7 +100,8 @@ class Notifier:
             raise RuntimeError('Deletion of queues outside the test deployment stage is prohibited.')
 
     def enqueue(self, notification: Notification, queue_index: int = 0) -> None:
-        require(notification.attempts is not None, "Cannot enqueue a notification whose `attempts` attribute is None.")
+        require(notification.attempts is not None,
+                "Cannot enqueue a notification whose `attempts` attribute is None", notification)
         if queue_index is None:
             # Enqueueing a notification into the failure queue does not consume an attempt.
             logger.info(f"Adding notification to '{self._queue_name(None)}' queue as requested: {notification}")
