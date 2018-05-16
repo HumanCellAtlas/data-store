@@ -148,7 +148,8 @@ class ElasticsearchIndexBackend(IndexBackend):
                                            encoding=endpoint.encoding,
                                            body=body,
                                            hmac_key=hmac_key,
-                                           hmac_key_id=hmac_key_id)
+                                           hmac_key_id=hmac_key_id,
+                                           correlation_id=str(doc.fqid))
         if self.notifier:
             logger.info(f"Queing asynchronous notification {notification} for bundle {doc.fqid}")
             self.notifier.enqueue(notification)
