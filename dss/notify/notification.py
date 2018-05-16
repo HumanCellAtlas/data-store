@@ -121,7 +121,7 @@ class Notification(NamedTuple):
         try:
             response = requests.request(**request)
         except BaseException as e:
-            logger.warning("Exception raised during notification delivery attempt:", exc_info=e)
+            logger.warning("Exception raised while delivering %s:", self, exc_info=e)
             return False
         else:
             if 200 <= response.status_code < 300:
