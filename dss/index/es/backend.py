@@ -151,7 +151,7 @@ class ElasticsearchIndexBackend(IndexBackend):
                                            hmac_key_id=hmac_key_id,
                                            correlation_id=str(doc.fqid))
         if self.notifier:
-            logger.info(f"Queing asynchronous notification {notification} for bundle {doc.fqid}")
+            logger.info(f"Queueing asynchronous notification {notification} for bundle {doc.fqid}")
             self.notifier.enqueue(notification)
         else:
             logger.info(f"Synchronously sending notification {notification} about bundle {doc.fqid}")
