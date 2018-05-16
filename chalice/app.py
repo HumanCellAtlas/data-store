@@ -168,6 +168,7 @@ def get_chalice_app(flask_app) -> DSSChaliceApp:
         # API Gateway/Cloudfront adds a duplicate Content-Length with a different value (not sure why)
         res_headers = dict(flask_res.headers)
         res_headers.pop("Content-Length", None)
+        res_headers["Strict-Transport-Security"] = "max-age=31536000; includeSubDomains; preload"
 
         return chalice.Response(status_code=status_code,
                                 headers=res_headers,
