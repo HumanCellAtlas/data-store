@@ -16,6 +16,7 @@ from dss.util.types import LambdaContext
 
 logger = logging.getLogger(__name__)
 
+SQS_MAX_VISIBILITY_TIMEOUT = 43200
 
 class Notifier:
 
@@ -207,22 +208,25 @@ class Notifier:
                 logger.info(f'Worker {worker_index} received message from queue {queue_index} for {notification}')
                 seconds_to_maturity = notification.queued_at + self._delays[queue_index] - time.time()
                 if seconds_to_maturity > 0:
-                    logger.info(f'Worker {worker_index} returning message to queue {queue_index}. '
-                                f'It will be {seconds_to_maturity} to maturity of {notification}.')
-                    message.change_visibility(VisibilityTimeout=0)
-                    if seconds_to_maturity < _seconds_remaining():
-                        # This sleep prevents the message from continuously bouncing between the worker and the
-                        # queue. It is the essential measure to prevent unnecessary churn on the queue. Consider that
-                        # other messages further up in the queue invariantly mature after the current message,
-                        # ensuring that this wait does not exessively throttle the worker.
-                        #
-                        # TODO: determine how this interacts with FIFO queues and message groups as those yield
-                        # messages in an ordering that, while being strict wrt to a group, is only partial
-                        # wrt to the entire queue. The above invariant may not hold globally for that reason.
-                        time.sleep(seconds_to_maturity)
-                    else:
-                        logger.info(f"Exiting worker {worker_index}. Its time is up before the next message is due.")
-                        break
+                    # Hide the message and sleep until it matures. These two measures prevent immature messages from
+                    # continuously bouncing between the queue and the workers consuming it, thereby preventing
+                    # unnecessary churn on the queue. Consider that other messages further up in the queue
+                    # invariantly mature after the current message, ensuring that this wait does not limit throughput
+                    # or increase latency.
+                    #
+                    # TODO: determine how this interacts with FIFO queues and message groups as those yield
+                    # messages in an ordering that, while being strict wrt to a group, is only partial
+                    # wrt to the entire queue. The above invariant may not hold globally for that reason.
+                    #
+                    # SQS ignores a request to change the VTO of a message if the total VTO would exceed the max.
+                    # allowed value of 12 hours. To be safe, we subtract the initial VTO from the max VTO.
+                    max_visibility_timeout = SQS_MAX_VISIBILITY_TIMEOUT - visibility_timeout
+                    visibility_timeout = min(seconds_to_maturity, max_visibility_timeout)
+                    logger.info(f'Worker {worker_index} hiding message from queue {queue_index} '
+                                f'for another {visibility_timeout:.3f}s. '
+                                f'It will be {seconds_to_maturity:.3f}s to maturity of {notification}.')
+                    message.change_visibility(VisibilityTimeout=int(visibility_timeout))
+                    time.sleep(min(seconds_to_maturity, _seconds_remaining()))
                 elif _seconds_remaining() < visibility_timeout:
                     logger.info(f'Worker {worker_index} returning message to queue {queue_index}. '
                                 f'There is not enough time left to deliver {notification}.')
@@ -231,6 +235,8 @@ class Notifier:
                     if not notification.deliver(timeout=self._timeout, attempt=queue_index):
                         self.enqueue(notification, self._next_queue_index(queue_index))
                     message.delete()
+        else:
+            logger.info(f"Exiting worker {worker_index} due to insufficient time left.")
 
     @property
     def _queue_name_prefix(self):
