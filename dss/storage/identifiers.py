@@ -4,6 +4,7 @@ from collections import namedtuple
 
 BUNDLE_PREFIX = "bundles"
 FILE_PREFIX = "files"
+COLLECTION_PREFIX = "collections"
 TOMBSTONE_SUFFIX = "dead"
 
 UUID_PATTERN = "[0-9A-Fa-f]{8}-[0-9A-Fa-f]{4}-[0-9A-Fa-f]{4}-[0-9A-Fa-f]{4}-[0-9A-Fa-f]{12}"
@@ -23,7 +24,7 @@ DSS_BUNDLE_TOMBSTONE_REGEX = re.compile(
     f"^{BUNDLE_PREFIX}/({UUID_PATTERN})(?:\.(" + VERSION_PATTERN + "))?\." + TOMBSTONE_SUFFIX + "$")
 # matches all bundle objects
 DSS_OBJECT_NAME_REGEX = re.compile(
-    f"^({BUNDLE_PREFIX}|{FILE_PREFIX})/({UUID_PATTERN})(?:\.({VERSION_PATTERN}))?(\.{TOMBSTONE_SUFFIX})?$")
+    f"^({BUNDLE_PREFIX}|{FILE_PREFIX}|{COLLECTION_PREFIX})/({UUID_PATTERN})(?:\.({VERSION_PATTERN}))?(\.{TOMBSTONE_SUFFIX})?$")  # noqa
 
 
 class ObjectIdentifierError(ValueError):

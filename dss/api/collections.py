@@ -9,19 +9,27 @@ import iso8601
 
 from dss import Config, Replica
 from dss.error import DSSException, dss_handler
+from dss.storage.blobstore import test_object_exists
 from dss.storage.hcablobstore import FileMetadata, HCABlobStore
+from dss.storage.identifiers import COLLECTION_PREFIX, TOMBSTONE_SUFFIX
 from dss.util.version import datetime_to_version_format
 
 from cloud_blobstore import BlobNotFoundError, BlobStoreUnknownError
 
+
 logger = logging.getLogger(__name__)
 dss_bucket = Config.get_s3_bucket()
 
-@dss_handler
-def get(uuid: str, replica: str, version: str = None):
-    authenticated_user_email = request.token_info['email']
+def get_impl(uuid: str, replica: str, version: str = None):
+    uuid = uuid.lower()
     replica = Replica[replica]
     handle = Config.get_blobstore_handle(replica)
+
+    my_collection_prefix = "{}/{}".format(COLLECTION_PREFIX, uuid)
+    tombstone_key = "{}.{}".format(my_collection_prefix, TOMBSTONE_SUFFIX)
+    if test_object_exists(handle, replica.bucket, tombstone_key):
+        raise DSSException(404, "not_found", "Could not find collection for UUID {}".format(uuid))
+
     if version is None:
         # list the collections and find the one that is the most recent.
         prefix = "collections/{}.".format(uuid)
@@ -30,10 +38,16 @@ def get(uuid: str, replica: str, version: str = None):
             if version is None or matching_key > version:
                 version = matching_key
     try:
-        collection_blob = handle.get(replica.bucket, "collections/{}.{}".format(uuid, version))
+        collection_blob = handle.get(replica.bucket, "{}/{}.{}".format(COLLECTION_PREFIX, uuid, version))
     except BlobNotFoundError:
         raise DSSException(404, "not_found", "Could not find collection for UUID {}".format(uuid))
     return json.loads(collection_blob)
+
+
+@dss_handler
+def get(uuid: str, replica: str, version: str = None):
+    authenticated_user_email = request.token_info['email']
+    return get_impl(uuid=uuid, replica=replica, version=version)
 
 @dss_handler
 def find(replica: str):
@@ -43,10 +57,12 @@ def find(replica: str):
 
 @dss_handler
 def put(json_request_body: dict, replica: str, uuid: str, version: str):
-    authenticated_user_email = request.token_info['email']
+    authenticated_user_email = request.token_info["email"]
+    collection_body = dict(json_request_body, owner=authenticated_user_email)
+    uuid = uuid.lower()
     replica = Replica[replica]
     handle = Config.get_blobstore_handle(replica)
-    verify_collection(json_request_body["contents"], replica, handle)
+    verify_collection(collection_body["contents"], replica, handle)
     collection_uuid = uuid if uuid else str(uuid4())
     if version is not None:
         # convert it to date-time so we can format exactly as the system requires (with microsecond precision)
@@ -55,8 +71,8 @@ def put(json_request_body: dict, replica: str, uuid: str, version: str):
         timestamp = datetime.datetime.utcnow()
     collection_version = datetime_to_version_format(timestamp)
     handle.upload_file_handle(replica.bucket,
-                              "collections/{}.{}".format(collection_uuid, collection_version),
-                              io.BytesIO(json.dumps(json_request_body).encode("utf-8")))
+                              "{}/{}.{}".format(COLLECTION_PREFIX, collection_uuid, collection_version),
+                              io.BytesIO(json.dumps(collection_body).encode("utf-8")))
     return jsonify(dict(uuid=collection_uuid, version=collection_version)), requests.codes.created
 
 class hashabledict(dict):
@@ -66,10 +82,11 @@ class hashabledict(dict):
 @dss_handler
 def patch(uuid: str, json_request_body: dict, replica: str, version: str):
     # patch one collection with another
+    uuid = uuid.lower()
     replica = Replica[replica]
     handle = Config.get_blobstore_handle(replica)
     try:
-        cur_collection_blob = handle.get(replica.bucket, "collections/{}.{}".format(uuid, version))
+        cur_collection_blob = handle.get(replica.bucket, "{}/{}.{}".format(COLLECTION_PREFIX, uuid, version))
     except BlobNotFoundError:
         raise DSSException(404, "not_found", "Could not find collection for UUID {}".format(uuid))
     collection = json.loads(cur_collection_blob)
@@ -83,18 +100,44 @@ def patch(uuid: str, json_request_body: dict, replica: str, version: str):
     timestamp = datetime.datetime.utcnow()
     new_collection_version = datetime_to_version_format(timestamp)
     handle.upload_file_handle(replica.bucket,
-                              "collections/{}.{}".format(uuid, new_collection_version),
+                              "{}/{}.{}".format(COLLECTION_PREFIX, uuid, new_collection_version),
                               io.BytesIO(json.dumps(collection).encode("utf-8")))
     return jsonify(dict(uuid=uuid, version=new_collection_version)), requests.codes.ok
 
+from dss.api.bundles import _idempotent_save
 @dss_handler
 def delete(uuid: str, replica: str):
-    raise NotImplementedError()
+    authenticated_user_email = request.token_info['email']
+
+    uuid = uuid.lower()
+    my_collection_prefix = "{}/{}".format(COLLECTION_PREFIX, uuid)
+    tombstone_key = "{}.{}".format(my_collection_prefix, TOMBSTONE_SUFFIX)
+
+    tombstone_object_data = dict(email=authenticated_user_email)
+
+    owner = get_impl(uuid=uuid, replica=replica)["owner"]
+    if owner != authenticated_user_email:
+        raise DSSException(
+            requests.codes.forbidden,
+            "forbidden",
+            f"Collection access denied",
+        )
+
+    blobstore = Config.get_blobstore_handle(Replica[replica])
+    bucket = Replica[replica].bucket
+    created, idempotent = _idempotent_save(blobstore, bucket, tombstone_key, tombstone_object_data)
+    if not idempotent:
+        raise DSSException(requests.codes.conflict,
+                           f"collection_tombstone_already_exists",
+                           f"collection tombstone with UUID {uuid} and version {version} already exists")
+    status_code = requests.codes.ok
+    response_body = dict()  # type: dict
+
+    return jsonify(response_body), status_code
 
 MAX_METADATA_SIZE = 1024 * 1024
 @functools.lru_cache(maxsize=64)
 def get_json_metadata(entity_type: str, uuid: str, version: str, replica: Replica, blobstore_handle: HCABlobStore):
-    print("getting", entity_type, uuid, version)
     try:
         key = "{}s/{}.{}".format(entity_type, uuid, version)
         # TODO: verify that file is a metadata file
@@ -126,6 +169,7 @@ def resolve_content_item(replica: Replica, blobstore_handle: HCABlobStore, item:
             # check that item is marked as metadata, is json, and is less than max size
             item_doc = json.loads(blobstore_handle.get(replica.bucket, blob_path))
             item_content = jsonpointer.resolve_pointer(item_doc, item["fragment"])
+            return item_content
     except Exception as e:
         if isinstance(e, DSSException):
             raise
@@ -134,7 +178,6 @@ def resolve_content_item(replica: Replica, blobstore_handle: HCABlobStore, item:
             "invalid_link",
             'Error while parsing the link "{}": {}: {}'.format(item, type(e).__name__, e)
         )
-    print(get_json_metadata.cache_info())
 
 from concurrent.futures import ThreadPoolExecutor
 from functools import partial
