@@ -125,10 +125,12 @@ class Notification(NamedTuple):
             return False
         else:
             if 200 <= response.status_code < 300:
-                logger.info("Successfully delivered %s: HTTP status %i", self, response.status_code)
+                logger.info("Successfully delivered %s: HTTP status %i, response time %.3f",
+                            self, response.status_code, response.elapsed.total_seconds())
                 return True
             else:
-                logger.warning("Failed delivering %s: HTTP status %i", self, response.status_code)
+                logger.warning("Failed delivering %s: HTTP status %i, response time %.3f",
+                               self, response.status_code, response.elapsed.total_seconds())
                 return False
 
     def _prepare_request(self, timeout, attempt) -> Mapping[str, Any]:
