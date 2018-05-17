@@ -75,6 +75,16 @@
         "arn:aws:states:*:$account_id:stateMachine:dss-gs-copy-sfn*",
         "arn:aws:states:*:$account_id:execution:dss-gs-copy-sfn*"
       ]
+    },
+    {
+      "Effect": "Allow",
+      "Action": [
+          "xray:PutTelemetryRecords",
+          "s3:Get*",
+          "s3:List*",
+          "xray:PutTraceSegments"
+      ],
+      "Resource": "*"
     }
   ]
 }

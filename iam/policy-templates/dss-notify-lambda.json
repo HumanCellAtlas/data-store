@@ -37,6 +37,16 @@
       "Resource": [
         "arn:aws:sqs:*:$account_id:*"
       ]
+    },
+    {
+      "Effect": "Allow",
+      "Action": [
+          "xray:PutTelemetryRecords",
+          "s3:Get*",
+          "s3:List*",
+          "xray:PutTraceSegments"
+      ],
+      "Resource": "*"
     }
   ]
 }
