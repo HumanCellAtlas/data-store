@@ -12,7 +12,7 @@ import iso8601
 from dss import Config, Replica
 from dss.error import DSSException, dss_handler
 from dss.storage.blobstore import test_object_exists
-from dss.storage.hcablobstore import FileMetadata, HCABlobStore
+from dss.storage.hcablobstore import FileMetadata, BlobStore
 from dss.storage.identifiers import COLLECTION_PREFIX, TOMBSTONE_SUFFIX
 from dss.util.version import datetime_to_version_format
 from dss.api.bundles import _idempotent_save
@@ -26,23 +26,23 @@ dss_bucket = Config.get_s3_bucket()
 
 def get_impl(uuid: str, replica: str, version: str = None):
     uuid = uuid.lower()
-    replica = Replica[replica]
-    handle = Config.get_blobstore_handle(replica)
+    bucket = Replica[replica].bucket
+    handle = Config.get_blobstore_handle(Replica[replica])
 
     my_collection_prefix = "{}/{}".format(COLLECTION_PREFIX, uuid)
     tombstone_key = "{}.{}".format(my_collection_prefix, TOMBSTONE_SUFFIX)
-    if test_object_exists(handle, replica.bucket, tombstone_key):
+    if test_object_exists(handle, bucket, tombstone_key):
         raise DSSException(404, "not_found", "Could not find collection for UUID {}".format(uuid))
 
     if version is None:
         # list the collections and find the one that is the most recent.
         prefix = "collections/{}.".format(uuid)
-        for matching_key in handle.list(replica.bucket, prefix):
+        for matching_key in handle.list(bucket, prefix):
             matching_key = matching_key[len(prefix):]
             if version is None or matching_key > version:
                 version = matching_key
     try:
-        collection_blob = handle.get(replica.bucket, "{}/{}.{}".format(COLLECTION_PREFIX, uuid, version))
+        collection_blob = handle.get(bucket, "{}/{}.{}".format(COLLECTION_PREFIX, uuid, version))
     except BlobNotFoundError:
         raise DSSException(404, "not_found", "Could not find collection for UUID {}".format(uuid))
     return json.loads(collection_blob)
@@ -64,9 +64,8 @@ def put(json_request_body: dict, replica: str, uuid: str, version: str):
     authenticated_user_email = request.token_info["email"]
     collection_body = dict(json_request_body, owner=authenticated_user_email)
     uuid = uuid.lower()
-    replica = Replica[replica]
-    handle = Config.get_blobstore_handle(replica)
-    verify_collection(collection_body["contents"], replica, handle)
+    handle = Config.get_blobstore_handle(Replica[replica])
+    verify_collection(collection_body["contents"], Replica[replica], handle)
     collection_uuid = uuid if uuid else str(uuid4())
     if version is not None:
         # convert it to date-time so we can format exactly as the system requires (with microsecond precision)
@@ -74,7 +73,7 @@ def put(json_request_body: dict, replica: str, uuid: str, version: str):
     else:
         timestamp = datetime.datetime.utcnow()
     collection_version = datetime_to_version_format(timestamp)
-    handle.upload_file_handle(replica.bucket,
+    handle.upload_file_handle(Replica[replica].bucket,
                               "{}/{}.{}".format(COLLECTION_PREFIX, collection_uuid, collection_version),
                               io.BytesIO(json.dumps(collection_body).encode("utf-8")))
     return jsonify(dict(uuid=collection_uuid, version=collection_version)), requests.codes.created
@@ -87,10 +86,9 @@ class hashabledict(dict):
 def patch(uuid: str, json_request_body: dict, replica: str, version: str):
     # patch one collection with another
     uuid = uuid.lower()
-    replica = Replica[replica]
-    handle = Config.get_blobstore_handle(replica)
+    handle = Config.get_blobstore_handle(Replica[replica])
     try:
-        cur_collection_blob = handle.get(replica.bucket, "{}/{}.{}".format(COLLECTION_PREFIX, uuid, version))
+        cur_collection_blob = handle.get(Replica[replica].bucket, "{}/{}.{}".format(COLLECTION_PREFIX, uuid, version))
     except BlobNotFoundError:
         raise DSSException(404, "not_found", "Could not find collection for UUID {}".format(uuid))
     collection = json.loads(cur_collection_blob)
@@ -99,11 +97,11 @@ def patch(uuid: str, json_request_body: dict, replica: str, version: str):
             collection[field] = json_request_body[field]
     remove_contents_set = set(map(hashabledict, json_request_body.get("removeContents", [])))
     collection["contents"] = [i for i in collection["contents"] if hashabledict(i) not in remove_contents_set]
-    verify_collection(json_request_body.get("addContents", []), replica, handle)
+    verify_collection(json_request_body.get("addContents", []), Replica[replica], handle)
     collection["contents"].extend(json_request_body.get("addContents", []))
     timestamp = datetime.datetime.utcnow()
     new_collection_version = datetime_to_version_format(timestamp)
-    handle.upload_file_handle(replica.bucket,
+    handle.upload_file_handle(Replica[replica].bucket,
                               "{}/{}.{}".format(COLLECTION_PREFIX, uuid, new_collection_version),
                               io.BytesIO(json.dumps(collection).encode("utf-8")))
     return jsonify(dict(uuid=uuid, version=new_collection_version)), requests.codes.ok
@@ -135,7 +133,7 @@ def delete(uuid: str, replica: str):
     return jsonify(response_body), status_code
 
 @functools.lru_cache(maxsize=64)
-def get_json_metadata(entity_type: str, uuid: str, version: str, replica: Replica, blobstore_handle: HCABlobStore):
+def get_json_metadata(entity_type: str, uuid: str, version: str, replica: Replica, blobstore_handle: BlobStore):
     try:
         key = "{}s/{}.{}".format(entity_type, uuid, version)
         # TODO: verify that file is a metadata file
@@ -149,7 +147,7 @@ def get_json_metadata(entity_type: str, uuid: str, version: str, replica: Replic
     except BlobNotFoundError as ex:
         raise DSSException(404, "invalid_link", "Could not find file for UUID {}".format(uuid))
 
-def resolve_content_item(replica: Replica, blobstore_handle: HCABlobStore, item: dict):
+def resolve_content_item(replica: Replica, blobstore_handle: BlobStore, item: dict):
     try:
         if item["type"] in {"file", "bundle", "collection"}:
             item_metadata = get_json_metadata(item["type"], item["uuid"], item["version"], replica, blobstore_handle)
@@ -177,7 +175,7 @@ def resolve_content_item(replica: Replica, blobstore_handle: HCABlobStore, item:
             'Error while parsing the link "{}": {}: {}'.format(item, type(e).__name__, e)
         )
 
-def verify_collection(contents: List[dict], replica: Replica, blobstore_handle: HCABlobStore):
+def verify_collection(contents: List[dict], replica: Replica, blobstore_handle: BlobStore):
     """
     Given user-supplied collection contents that pass schema validation, resolve all entities in the collection and
     verify they exist.
