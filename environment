@@ -93,6 +93,11 @@ DSS_TERRAFORM_BACKEND_BUCKET_TEMPLATE="org-humancellatlas-dss-config-{account_id
 #
 DSS_NOTIFY_DELAYS="0 60 600 3600 21600 60540 86400 86400 86400 86400 86400 86400"
 
+# Workaround for GS buckets with non-uniform regions
+DSS_GS_BUCKET_REGION=""
+DSS_GS_BUCKET_TEST_REGION="US-EAST1"
+DSS_GS_BUCKET_TEST_FIXTURES_REGION="US-EAST1"
+
 set +a
 
 if [[ -f "${DSS_HOME}/environment.local" ]]; then
