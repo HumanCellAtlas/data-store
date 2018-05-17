@@ -1,4 +1,5 @@
-COMPONENTS=${shell find * -not -path "*/.*" -type d}
+DIRS=${shell find . -name *.tf -exec dirname {} \; | sort --unique}
+COMPONENTS=${shell for d in $(DIRS); do basename $$d; done}
 
 all: init-all
 
