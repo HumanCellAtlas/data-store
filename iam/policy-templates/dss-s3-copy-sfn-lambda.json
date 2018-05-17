@@ -42,6 +42,16 @@
         "arn:aws:lambda:*:$account_id:function:dss-s3-copy-sfn-$stage:*"
       ],
       "Effect": "Allow"
+    },
+    {
+      "Effect": "Allow",
+      "Action": [
+          "xray:PutTelemetryRecords",
+          "s3:Get*",
+          "s3:List*",
+          "xray:PutTraceSegments"
+      ],
+      "Resource": "*"
     }
   ]
 }

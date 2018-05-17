@@ -67,6 +67,16 @@
         "arn:aws:states:*:$account_id:stateMachine:dss-scalability*",
         "arn:aws:states:*:$account_id:execution:dss-scalability*"
       ]
+    },
+    {
+      "Effect": "Allow",
+      "Action": [
+          "xray:PutTelemetryRecords",
+          "s3:Get*",
+          "s3:List*",
+          "xray:PutTraceSegments"
+      ],
+      "Resource": "*"
     }
   ]
 }
