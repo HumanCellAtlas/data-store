@@ -1,11 +1,14 @@
 #!/usr/bin/env python3
 
-import os, unittest, io, json
+import os, sys, unittest, io, json
 from uuid import uuid4
 from datetime import datetime
 
 import boto3
 from botocore.vendored import requests
+
+pkg_root = os.path.abspath(os.path.join(os.path.dirname(__file__), '..'))  # noqa
+sys.path.insert(0, pkg_root)  # noqa
 
 from tests import get_auth_header
 from tests.infra import generate_test_key, get_env, DSSAssertMixin, DSSUploadMixin
