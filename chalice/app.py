@@ -29,9 +29,7 @@ if XRAY_TRACE:  # noqa
     patch(('boto3', 'requests'))
     xray_recorder.configure(
         service='DSS',
-        dynamic_naming='*dss.{}data.humancellatlas.org*'.format(
-            '' if os.environ.get('DEPLOYMENT_STAGE') == 'prod' else os.environ.get('DEPLOYMENT_STAGE', 'test') + '.'
-        ),
+        dynamic_naming=f"*{os.environ['API_DOMAIN_NAME']}*",
         context=Context(),
         context_missing='LOG_ERROR'
     )
