@@ -28,6 +28,7 @@ from dss.logging import configure_test_logging
 from dss.index.es.backend import ElasticsearchIndexBackend
 from dss.storage.identifiers import BundleFQID
 from dss.util import require
+from dss.util.time import SpecificRemainingTime
 from dss.util.version import datetime_to_version_format
 from dss.stepfunctions.visitation import Visitation
 from dss.stepfunctions import step_functions_describe_execution
@@ -50,7 +51,7 @@ def setUpModule():
 
 class TestVisitationWalker(unittest.TestCase):
     def setUp(self):
-        self.context = MockLambdaContext()
+        self.remaining_time = SpecificRemainingTime(10)
         Config.set_config(BucketConfig.TEST)
         self.s3_test_fixtures_bucket = get_env("DSS_S3_BUCKET_TEST_FIXTURES")
         self.gs_test_fixtures_bucket = get_env("DSS_GS_BUCKET_TEST_FIXTURES")
@@ -123,7 +124,7 @@ class TestVisitationWalker(unittest.TestCase):
             def process_item(self, key):
                 items.append(key)
 
-        walker = VT._with_state(state, self.context)
+        walker = VT._with_state(state, self.remaining_time)
         walker.walker_walk()
 
         self.assertEquals(10, len(items))
@@ -134,14 +135,14 @@ class TestVisitationWalker(unittest.TestCase):
             'number_of_workers': 3,
             '_waiting_work_ids': ['1', '2', '3', '4'],
         }
-        v = Visitation._with_state(state, self.context)
+        v = Visitation._with_state(state, self.remaining_time)
         st = v.get_state()
         self.assertIn('_visitation_class_name', st)
 
     @testmode.standalone
     def test_finalize(self):
         work_result = [1, 2]
-        v = Visitation._with_state(dict(work_result=work_result), self.context)
+        v = Visitation._with_state(dict(work_result=work_result), self.remaining_time)
         v.job_finalize()
         self.assertEquals(v.get_state()['work_result'], work_result)
 
@@ -239,7 +240,7 @@ class TestIndexVisitation(unittest.TestCase):
     @mock.patch('dss.index.indexer.Indexer.index_object', new=fake_index_object)
     def test_walk(self):
         r = index.IndexVisitation._with_state(state={'replica': 'aws'},
-                                              context=MockLambdaContext())
+                                              remaining_time=SpecificRemainingTime(300))
         r._walk()
         r.walker_finalize()
         self.assertEqual(r.work_result, dict(failed=5, indexed=5, processed=10))
@@ -250,7 +251,7 @@ class TestIndexVisitation(unittest.TestCase):
     @mock.patch('dss.index.es.backend.ElasticsearchIndexBackend.index_bundle')
     def test_timeout(self, index_bundle):
         r = index.IndexVisitation._with_state(state={'replica': 'aws'},
-                                              context=MockLambdaContext(timeout=ElasticsearchIndexBackend.timeout + 1))
+                                              remaining_time=SpecificRemainingTime(ElasticsearchIndexBackend.timeout + 1))
         # The third item will sleep for two seconds and that will push the time remaining to below the timeout
         r._walk()
         self.assertEquals(2, index_bundle.call_count)
@@ -264,7 +265,7 @@ class TestIndexVisitation(unittest.TestCase):
     @mock.patch('dss.index.es.backend.ElasticsearchIndexBackend.index_bundle')
     def test_no_time_remaining(self, index_bundle):
         r = index.IndexVisitation._with_state(state={'replica': 'aws'},
-                                              context=MockLambdaContext(timeout=ElasticsearchIndexBackend.timeout - 1))
+                                              remaining_time=SpecificRemainingTime(ElasticsearchIndexBackend.timeout - 1))
         r._walk()
         self.assertEquals(0, index_bundle.call_count)
         self.assertIsNone(r.marker)
@@ -274,7 +275,7 @@ class TestIndexVisitation(unittest.TestCase):
         for num_workers, num_work_ids in [(1, 16), (15, 16), (16, 16), (17, 256)]:
             with self.subTest(num_workers=num_workers, num_work_ids=num_work_ids):
                 r = index.IndexVisitation._with_state(state={'replica': 'aws', '_number_of_workers': num_workers},
-                                                      context=MockLambdaContext())
+                                                      remaining_time=SpecificRemainingTime(300))
                 r.job_initialize()
                 self.assertEquals(num_work_ids, len(set(r.work_ids)))
 

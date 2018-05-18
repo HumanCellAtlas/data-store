@@ -12,7 +12,7 @@ import random
 from dss import Config
 from dss.notify.notification import Notification
 from dss.util import require
-from dss.util.types import LambdaContext
+from dss.util.time import RemainingTime
 
 logger = logging.getLogger(__name__)
 
@@ -121,13 +121,14 @@ class Notifier:
         queue = self._queue(queue_index)
         queue.send_message(**notification.to_sqs_message())
 
-    def run(self, context: LambdaContext) -> None:
+    def run(self, remaining_time: RemainingTime) -> None:
         queue_lengths = self._sample_queue_lengths()
         queue_indices = self._work_queue_indices(queue_lengths)
         with concurrent.futures.ThreadPoolExecutor(self._num_workers) as pool:
             future_to_worker = {}
             for worker_index, queue_index in enumerate(queue_indices):
-                worker = functools.partial(self._worker, worker_index, queue_index, context)
+                remaining_worker_time = RemainingWorkerTime(remaining_time, worker_index)
+                worker = functools.partial(self._worker, worker_index, queue_index, remaining_worker_time)
                 future = pool.submit(worker)
                 future_to_worker[future] = worker_index
             exceptions = {}
@@ -186,15 +187,10 @@ class Notifier:
                 raise RuntimeError(f"Missing queue with index {queue_index}")
         return queue_lengths
 
-    def _worker(self, worker_index: int, queue_index: int, context: LambdaContext) -> None:
-
-        def _seconds_remaining() -> float:
-            millis = context.get_remaining_time_in_millis()
-            logger.debug(f"Remaining runtime for worker {worker_index}: {millis}ms")
-            return millis / 1000
+    def _worker(self, worker_index: int, queue_index: int, remaining_time: RemainingTime) -> None:
 
         queue = self._queue(queue_index)
-        while self._timeout + self._sqs_polling_timeout < _seconds_remaining():
+        while self._timeout + self._sqs_polling_timeout < remaining_time.get():
             visibility_timeout = self._timeout + self._overhead
             messages = queue.receive_messages(MaxNumberOfMessages=1,
                                               WaitTimeSeconds=self._sqs_polling_timeout,
@@ -226,8 +222,8 @@ class Notifier:
                                 f'for another {visibility_timeout:.3f}s. '
                                 f'It will be {seconds_to_maturity:.3f}s to maturity of {notification}.')
                     message.change_visibility(VisibilityTimeout=int(visibility_timeout))
-                    time.sleep(min(seconds_to_maturity, _seconds_remaining()))
-                elif _seconds_remaining() < visibility_timeout:
+                    time.sleep(min(seconds_to_maturity, remaining_time.get()))
+                elif remaining_time.get() < visibility_timeout:
                     logger.info(f'Worker {worker_index} returning message to queue {queue_index}. '
                                 f'There is not enough time left to deliver {notification}.')
                     message.change_visibility(VisibilityTimeout=0)
@@ -270,3 +266,16 @@ class Notifier:
         assert queue_name.startswith(prefix) and queue_name.endswith(suffix)
         queue_index = queue_name[len(prefix):-len(suffix)]
         return None if queue_index == self._failure_queue_name_suffix else int(queue_index)
+
+
+class RemainingWorkerTime(RemainingTime):
+
+    def __init__(self, actual: RemainingTime, worker_index: int) -> None:
+        super().__init__()
+        self._worker_index = worker_index
+        self._actual = actual
+
+    def get(self) -> float:
+        value = self._actual.get()
+        logger.debug(f"Remaining runtime for worker {self._worker_index}: {value:.3f}s")
+        return value
