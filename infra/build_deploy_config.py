@@ -73,6 +73,9 @@ env_vars_to_infra = [
     "DSS_SECRETS_STORE",
     "DSS_DEPLOYMENT_STAGE",
     "ES_ALLOWED_SOURCE_IP_SECRETS_NAME",
+    "API_DOMAIN_NAME",
+    "DSS_CERTIFICATE_DOMAIN",
+    "DSS_ZONE_NAME",
 ]
 
 terraform_variable_info = {'variable': dict()}
