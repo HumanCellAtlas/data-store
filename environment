@@ -93,7 +93,7 @@ DSS_TERRAFORM_BACKEND_BUCKET_TEMPLATE="org-humancellatlas-dss-config-{account_id
 # too infrequent. The last attempt is made seven days after the first one, which is easy to remember.
 #
 DSS_NOTIFY_DELAYS="0 60 600 3600 21600 60540 86400 86400 86400 86400 86400 86400"
-XRAY_TRACE=false
+XRAY_TRACE=true
 
 set +a
 
