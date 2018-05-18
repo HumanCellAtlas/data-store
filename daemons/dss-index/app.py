@@ -14,7 +14,7 @@ from dss.index import DEFAULT_BACKENDS
 from dss.index.backend import CompositeIndexBackend
 from dss.index.indexer import Indexer
 from dss.logging import configure_lambda_logging
-from dss.util.time import RemainingLambdaContextTime
+from dss.util.time import RemainingLambdaContextTime, AdjustedRemainingTime
 
 app = domovoi.Domovoi(configure_logs=False)
 configure_lambda_logging()
@@ -46,8 +46,9 @@ def _handle_event(replica, event, context):
     executor = ThreadPoolExecutor(len(DEFAULT_BACKENDS))
     # We can't use ecxecutor as context manager because we don't want the shutdown to block
     try:
-        remaining_time = RemainingLambdaContextTime(context)
-        backend = CompositeIndexBackend(executor, DEFAULT_BACKENDS)
+        remaining_time = AdjustedRemainingTime(actual=RemainingLambdaContextTime(context),
+                                               offset=-10)  # leave 10s for shutdown
+        backend = CompositeIndexBackend(executor, remaining_time, DEFAULT_BACKENDS)
         indexer_cls = Indexer.for_replica(replica)
         indexer = indexer_cls(backend, remaining_time)
         indexer.process_new_indexable_object(event)

@@ -117,10 +117,12 @@ class TestIndexerBase(ElasticsearchTestCase, DSSAssertMixin, DSSStorageMixin, DS
 
     def setUp(self):
         super().setUp()
-        backend = CompositeIndexBackend(self.executor,
-                                        DEFAULT_BACKENDS,
+        remaining_time = SpecificRemainingTime(300)
+        backend = CompositeIndexBackend(executor=self.executor,
+                                        backends=DEFAULT_BACKENDS,
+                                        remaining_time=remaining_time,
                                         notify_async=testmode.is_integration())
-        self.indexer = self.indexer_cls(backend, SpecificRemainingTime(300))
+        self.indexer = self.indexer_cls(backend, remaining_time)
         self.dss_alias_name = dss.Config.get_es_alias_name(dss.ESIndexType.docs, self.replica)
         self.subscription_index_name = dss.Config.get_es_index_name(dss.ESIndexType.subscriptions, self.replica)
         if self.replica not in self.bundle_key_by_replica:
@@ -372,8 +374,9 @@ class TestIndexerBase(ElasticsearchTestCase, DSSAssertMixin, DSSStorageMixin, DS
 
     @testmode.standalone
     def test_not_enough_time_to_index(self):
-        backend = CompositeIndexBackend(self.executor, DEFAULT_BACKENDS)
-        self.indexer = self.indexer_cls(backend, SpecificRemainingTime(0))
+        remaining_time = SpecificRemainingTime(0)
+        backend = CompositeIndexBackend(self.executor, remaining_time, DEFAULT_BACKENDS)
+        self.indexer = self.indexer_cls(backend, remaining_time)
         sample_event = self.create_bundle_created_event(self.bundle_key)
         with self.assertRaises(RuntimeError):
             self.process_new_indexable_object(sample_event)

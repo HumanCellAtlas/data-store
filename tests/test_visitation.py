@@ -250,8 +250,9 @@ class TestIndexVisitation(unittest.TestCase):
     @mock.patch('dss.index.bundle.Bundle.load', new=fake_bundle_load)
     @mock.patch('dss.index.es.backend.ElasticsearchIndexBackend.index_bundle')
     def test_timeout(self, index_bundle):
+        timeout = ElasticsearchIndexBackend.timeout + index.IndexVisitation.shutdown_time
         r = index.IndexVisitation._with_state(state={'replica': 'aws'},
-                                              remaining_time=SpecificRemainingTime(ElasticsearchIndexBackend.timeout + 1))
+                                              remaining_time=SpecificRemainingTime(timeout + 1))
         # The third item will sleep for two seconds and that will push the time remaining to below the timeout
         r._walk()
         self.assertEquals(2, index_bundle.call_count)
@@ -264,8 +265,9 @@ class TestIndexVisitation(unittest.TestCase):
     @mock.patch('dss.index.bundle.Bundle.load', new=fake_bundle_load)
     @mock.patch('dss.index.es.backend.ElasticsearchIndexBackend.index_bundle')
     def test_no_time_remaining(self, index_bundle):
+        timeout = ElasticsearchIndexBackend.timeout + index.IndexVisitation.shutdown_time
         r = index.IndexVisitation._with_state(state={'replica': 'aws'},
-                                              remaining_time=SpecificRemainingTime(ElasticsearchIndexBackend.timeout - 1))
+                                              remaining_time=SpecificRemainingTime(timeout - 1))
         r._walk()
         self.assertEquals(0, index_bundle.call_count)
         self.assertIsNone(r.marker)
