@@ -10,6 +10,7 @@ from dss.config import Config, Replica
 from dss.index import DEFAULT_BACKENDS
 from dss.index.backend import CompositeIndexBackend
 from dss.index.indexer import Indexer, IndexerTimeout
+from dss.util.time import AdjustedRemainingTime
 from . import Visitation, WalkerStatus
 
 logger = logging.getLogger(__name__)
@@ -48,14 +49,22 @@ class IndexVisitation(Visitation):
         self.marker = None
         self.token = None
 
+    shutdown_time = 10
+
     def _walk(self) -> None:
         executor = ThreadPoolExecutor(len(DEFAULT_BACKENDS))
         # We can't use executor as context manager because we don't want shutting it down to block
         try:
-            backend = CompositeIndexBackend(executor, DEFAULT_BACKENDS, dryrun=self.dryrun, notify=self.notify)
+            remaining_backend_time = AdjustedRemainingTime(actual=self._remaining_time,
+                                                           offset=-self.shutdown_time)
+            backend = CompositeIndexBackend(executor=executor,
+                                            backends=DEFAULT_BACKENDS,
+                                            remaining_time=remaining_backend_time,
+                                            dryrun=self.dryrun,
+                                            notify=self.notify)
             replica = Replica[self.replica]
             indexer_cls = Indexer.for_replica(replica)
-            indexer = indexer_cls(backend, self._remaining_time)
+            indexer = indexer_cls(backend, remaining_backend_time)
 
             handle = Config.get_blobstore_handle(replica)
             if self.bucket != replica.bucket:
