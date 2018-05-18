@@ -1,16 +1,21 @@
 data aws_caller_identity current {}
 data aws_region current {}
-
-
-resource "aws_cloudwatch_log_group" "dss-index-log" {
-  name = "${var.DSS_ES_DOMAIN}-index-logs"
+locals {
+  region = "${data.aws_region.current.name}"
+  account_id = "${data.aws_caller_identity.current.account_id}"
 }
 
 
-resource "aws_cloudwatch_log_group" "dss-search-log" {
-  name = "${var.DSS_ES_DOMAIN}-search-logs"
+resource "aws_cloudwatch_log_group" "dss_index_log" {
+  name = "/aws/aes/domains/${var.DSS_ES_DOMAIN}/index-logs"
+  retention_in_days = 90
 }
 
+
+resource "aws_cloudwatch_log_group" "dss_search_log" {
+  name = "/aws/aes/domains/${var.DSS_ES_DOMAIN}/search-logs"
+  retention_in_days = 90
+}
 
 data "aws_iam_policy_document" "dss_es_cloudwatch_policy_document" {
   statement {
@@ -23,15 +28,14 @@ data "aws_iam_policy_document" "dss_es_cloudwatch_policy_document" {
       "logs:CreateLogStream"
     ]
     resources = [
-      "${aws_cloudwatch_log_group.dss-index-log.arn}",
-      "${aws_cloudwatch_log_group.dss-search-log.arn}"
+      "${aws_cloudwatch_log_group.dss_index_log.arn}",
+      "${aws_cloudwatch_log_group.dss_search_log.arn}"
     ]
   }
 }
 
-
-resource "aws_cloudwatch_log_resource_policy" "dss-es-cloudwatch-policy" {
-  policy_name = "dss-es-cloudwatch-log-policy"
+resource "aws_cloudwatch_log_resource_policy" "dss_es_cloudwatch_policy" {
+  policy_name = "${var.DSS_ES_DOMAIN}"
   policy_document = "${data.aws_iam_policy_document.dss_es_cloudwatch_policy_document.json}"
 }
 
@@ -40,10 +44,10 @@ data "aws_iam_policy_document" "dss_es_access_policy_documennt" {
   statement {
     principals {
       type = "AWS"
-      identifiers = ["arn:aws:iam::${data.aws_caller_identity.current.account_id}:root"]
+      identifiers = ["arn:aws:iam::${local.account_id}:root"]
     }
     actions = ["es:*"]
-    resources = ["arn:aws:es:${data.aws_region.current.name}:${data.aws_caller_identity.current.account_id}:domain/${var.DSS_ES_DOMAIN}/*"]
+    resources = ["arn:aws:es:${local.region}:${local.account_id}:domain/${var.DSS_ES_DOMAIN}/*"]
   }
 
   statement {
@@ -52,15 +56,14 @@ data "aws_iam_policy_document" "dss_es_access_policy_documennt" {
       identifiers = ["*"]
     }
     actions = ["es:*"]
-    resources = ["arn:aws:es:${data.aws_region.current.name}:${data.aws_caller_identity.current.account_id}:domain/${var.DSS_ES_DOMAIN}/*"]
+    resources = ["arn:aws:es:${local.region}:${local.account_id}:domain/${var.DSS_ES_DOMAIN}/*"]
     condition {
       test = "IpAddress"
       variable = "aws:SourceIp"
-      values = "${var.es_source_ip}"
+      values = ["${local.access_ips}"]
     }
   }
 }
-
 
 resource aws_elasticsearch_domain elasticsearch {
   count = "${length(var.DSS_ES_DOMAIN) > 0 ? 1 : 0}"
@@ -83,13 +86,13 @@ resource aws_elasticsearch_domain elasticsearch {
   }
 
   log_publishing_options = {
-    cloudwatch_log_group_arn = "${aws_cloudwatch_log_group.dss-index-log.arn}"
+    cloudwatch_log_group_arn = "${aws_cloudwatch_log_group.dss_index_log.arn}"
     log_type = "INDEX_SLOW_LOGS"
     enabled = "true"
   }
 
   log_publishing_options = {
-    cloudwatch_log_group_arn = "${aws_cloudwatch_log_group.dss-search-log.arn}"
+    cloudwatch_log_group_arn = "${aws_cloudwatch_log_group.dss_search_log.arn}"
     log_type = "SEARCH_SLOW_LOGS"
     enabled = "true"
   }

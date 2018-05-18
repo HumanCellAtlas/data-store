@@ -8,6 +8,7 @@ DSS_S3_CHECKOUT_BUCKET=$DSS_S3_CHECKOUT_BUCKET_STAGING
 # `staging` currently shares the ES domain with `dev`
 DSS_ES_DOMAIN=dss-index-dev
 API_DOMAIN_NAME=dss.staging.data.humancellatlas.org
+DSS_GS_BUCKET_REGION=US
 XRAY_TRACE=false
 set +a
 

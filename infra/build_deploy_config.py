@@ -70,6 +70,12 @@ env_vars_to_infra = [
     "DSS_ES_VOLUME_SIZE",
     "DSS_ES_INSTANCE_TYPE",
     "DSS_ES_INSTANCE_COUNT",
+    "DSS_SECRETS_STORE",
+    "DSS_DEPLOYMENT_STAGE",
+    "ES_ALLOWED_SOURCE_IP_SECRETS_NAME",
+    "DSS_GS_BUCKET_REGION",
+    "DSS_GS_BUCKET_TEST_REGION",
+    "DSS_GS_BUCKET_TEST_FIXTURES_REGION",
 ]
 
 terraform_variable_info = {'variable': dict()}
@@ -77,16 +83,6 @@ for key in env_vars_to_infra:
     terraform_variable_info['variable'][key] = {
         'default': os.environ[key]
     }
-ip_list = boto3.client("secretsmanager").get_secret_value(
-    SecretId="{}/{}/{}".format(
-        os.environ['DSS_SECRETS_STORE'],
-        os.environ['DSS_DEPLOYMENT_STAGE'],
-        os.environ['ES_ALLOWED_SOURCE_IP_SECRETS_NAME'],
-    )
-)['SecretString'].strip()
-terraform_variable_info['variable']['es_source_ip'] = {
-    'default': json.loads(ip_list)
-}
 
 with open(os.path.join(infra_root, args.component, "backend.tf"), "w") as fp:
     info = boto3.client("sts").get_caller_identity()
