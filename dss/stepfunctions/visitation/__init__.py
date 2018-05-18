@@ -7,7 +7,8 @@ from uuid import uuid4
 from enum import Enum, auto
 
 from dss.stepfunctions import _step_functions_start_execution
-from dss.util.types import LambdaContext, JSON
+from dss.util.time import RemainingTime
+from dss.util.types import JSON
 
 logger = logging.getLogger(__name__)
 
@@ -55,12 +56,12 @@ class Visitation:
     state_spec: Spec = dict()
     walker_state_spec: Spec = dict()
 
-    def __init__(self, state_spec: Spec, state: Spec, context: LambdaContext) -> None:
+    def __init__(self, state_spec: Spec, state: Spec, remaining_time: RemainingTime) -> None:
         """
         Pull in fields defined in state specifications and set as instance properties
         """
         self.state_spec = state_spec
-        self._context = context
+        self._remaining_time = remaining_time
         state = copy.deepcopy(state)
 
         self.work_result: MutableMapping[str, Any] = None
@@ -77,20 +78,16 @@ class Visitation:
             setattr(self, k, v)
 
     @classmethod
-    def _with_state(cls, state: dict, context) -> 'Visitation':
+    def _with_state(cls, state: dict, remaining_time: RemainingTime) -> 'Visitation':
         """
         Pull in state specific to the job.
-
-        For documentation on the context object refer to
-
-        https://docs.aws.amazon.com/lambda/latest/dg/python-context-object.html
         """
         state_spec = {
             ** Visitation._state_spec,
             ** cls.state_spec,
             ** cls.walker_state_spec,
         }
-        return cls(state_spec, state, context)
+        return cls(state_spec, state, remaining_time)
 
     def get_state(self) -> dict:
         """
@@ -167,7 +164,7 @@ class Visitation:
         pass
 
     def remaining_runtime(self) -> float:
-        return self._context.get_remaining_time_in_millis() / 1000
+        return self._remaining_time.get()
 
     # See MyPy recomendations for silencing spurious warnings of missing properties that have been mixed in:
     # https://mypy.readthedocs.io/en/latest/cheat_sheet.html#when-you-re-puzzled-or-when-things-are-complicated

@@ -1,6 +1,7 @@
 import copy
 import logging
 
+from dss.util.time import RemainingLambdaContextTime
 from .registered_visitations import registered_visitations
 from . import DSSVisitationException, WalkerStatus
 
@@ -22,7 +23,8 @@ def vis_obj(event, context):
     if vis_class is None:
         raise DSSVisitationException('Unknown visitation class')
 
-    return vis_class._with_state(event, context)
+    remaining_time = RemainingLambdaContextTime(context)
+    return vis_class._with_state(event, remaining_time)
 
 
 def job_initialize(event, context):

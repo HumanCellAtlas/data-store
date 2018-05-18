@@ -55,7 +55,7 @@ class IndexVisitation(Visitation):
             backend = CompositeIndexBackend(executor, DEFAULT_BACKENDS, dryrun=self.dryrun, notify=self.notify)
             replica = Replica[self.replica]
             indexer_cls = Indexer.for_replica(replica)
-            indexer = indexer_cls(backend, self._context)
+            indexer = indexer_cls(backend, self._remaining_time)
 
             handle = Config.get_blobstore_handle(replica)
             if self.bucket != replica.bucket:
