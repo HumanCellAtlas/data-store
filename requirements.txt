@@ -36,6 +36,7 @@ itsdangerous==0.24
 Jinja2==2.10
 jmespath==0.9.3
 jsonpickle==0.9.6
+jsonpointer==2.0
 jsonschema==2.6.0
 MarkupSafe==1.0
 monotonic==1.4
