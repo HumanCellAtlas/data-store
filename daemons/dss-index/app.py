@@ -44,7 +44,7 @@ def dispatch_gs_indexer_event(event, context):
 
 def _handle_event(replica, event, context):
     executor = ThreadPoolExecutor(len(DEFAULT_BACKENDS))
-    # We can't use ecxecutor as context manager because we don't want the shutdown to block
+    # We can't use executor as context manager because we don't want the shutdown to block
     try:
         remaining_time = AdjustedRemainingTime(actual=RemainingLambdaContextTime(context),
                                                offset=-10)  # leave 10s for shutdown
