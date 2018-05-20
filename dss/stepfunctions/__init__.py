@@ -23,7 +23,6 @@ sfn_sns_topic = f"dss-sfn-{stage}"
 sfn_sns_topic_arn = f"arn:aws:sns:{region}:{accountid}:{sfn_sns_topic}"
 
 logger = logging.getLogger(__name__)
-logger.setLevel(logging.DEBUG)
 
 
 def step_functions_arn(state_machine_name_template: str) -> str:
