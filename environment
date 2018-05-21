@@ -26,7 +26,7 @@ EXPORT_ENV_VARS_TO_LAMBDA_ARRAY=(
     DSS_GS_CHECKOUT_BUCKET
     SWAGGER_URL
     DSS_NOTIFY_DELAYS
-    XRAY_TRACE
+    DSS_XRAY_TRACE
 )
 
 set -a
@@ -93,7 +93,9 @@ DSS_TERRAFORM_BACKEND_BUCKET_TEMPLATE="org-humancellatlas-dss-config-{account_id
 # too infrequent. The last attempt is made seven days after the first one, which is easy to remember.
 #
 DSS_NOTIFY_DELAYS="0 60 600 3600 21600 60540 86400 86400 86400 86400 86400 86400"
-XRAY_TRACE=false
+
+# Enables X-Ray profiling of daemons running in AWS Lambdas
+DSS_XRAY_TRACE=false
 
 # Workaround for GS buckets with non-uniform regions
 DSS_GS_BUCKET_REGION=""

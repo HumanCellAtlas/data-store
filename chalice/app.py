@@ -20,16 +20,16 @@ from flask import json
 pkg_root = os.path.abspath(os.path.join(os.path.dirname(__file__), 'chalicelib'))  # noqa
 sys.path.insert(0, pkg_root)  # noqa
 
-XRAY_TRACE = os.environ.get('XRAY_TRACE', 'false') == 'true'  # noqa
+DSS_XRAY_TRACE = int(os.environ.get('XRAY_TRACE', '0')) > 0  # noqa
 
-if XRAY_TRACE:  # noqa
+if DSS_XRAY_TRACE:  # noqa
     from aws_xray_sdk.core import xray_recorder, patch
     from aws_xray_sdk.core.context import Context
     from aws_xray_sdk.ext.flask.middleware import XRayMiddleware
     patch(('boto3', 'requests'))
     xray_recorder.configure(
         service='DSS',
-        dynamic_naming=f"{os.environ['API_DOMAIN_NAME']}*",
+        dynamic_naming=f"*{os.environ['API_DOMAIN_NAME']}*",
         context=Context(),
         context_missing='LOG_ERROR'
     )
@@ -169,6 +169,8 @@ def get_chalice_app(flask_app) -> DSSChaliceApp:
                         skip_on_conflicts=True):
                     flask_res = flask_app.full_dispatch_request()
                     status_code = flask_res._status_code
+        except Exception as e:
+            app.log.exception('The request failed!')
         finally:
             app.log.info(
                 "[dispatch] \"%s %s\" %s%s",
@@ -259,19 +261,9 @@ def get_chalice_app(flask_app) -> DSSChaliceApp:
     return app
 
 
-if XRAY_TRACE:
-    xray_recorder.begin_segment('initialization')
-    xray_recorder.begin_subsegment('create-flask-app')
-
 dss_app = create_app()
 
-if XRAY_TRACE:
+if DSS_XRAY_TRACE:
     XRayMiddleware(dss_app.app, xray_recorder)
-    xray_recorder.end_subsegment('create-flask-app')
-    xray_recorder.begin_subsegment('create-chalice-app')
 
 app = get_chalice_app(dss_app.app)
-
-if XRAY_TRACE:
-    xray_recorder.end_subsegment('create-chalice-app')
-    xray_recorder.end_segment('initialization')
