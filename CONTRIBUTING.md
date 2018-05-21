@@ -27,12 +27,14 @@ expected to abide by the following guidelines.
 1. All Pull Request relating to an issue must include "connected to 
   #123", where #123 is the issue number.
   
+1. Complicated suggestions to code should be expressed in a counter PR.
+  
   
 # Rejection Criteria
-As a developer and reviewer these are some of the reasons a PR can me immediately reject:
+As a developer and reviewer these are some reasons a PR can me immediately reject:
 
-1. There is a lack of unittests or code coverage.
+1. There is a lack of unit tests or code coverage.
 
-1. The PR does not mee the the functional requirements of the original issue.
+1. The PR does not me the functional requirements of the original issue.
 
-1. There is innsufficient documention.
+1. There is insufficient documention.
