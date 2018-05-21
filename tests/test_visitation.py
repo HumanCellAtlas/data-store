@@ -10,11 +10,10 @@ import logging
 import os
 import sys
 import unittest
-from unittest.mock import MagicMock
 import uuid
 
 import boto3
-import mock
+from unittest import mock
 
 pkg_root = os.path.abspath(os.path.join(os.path.dirname(__file__), '..'))  # noqa
 sys.path.insert(0, pkg_root)  # noqa
@@ -220,7 +219,7 @@ def fake_bucket(self):
 def fake_bundle_load(cls, bundle_fqid):
     if bundle_fqid.to_key() == FakeBlobStore.Iterator.keys[2]:
         time.sleep(2)
-    return MagicMock(lookup_tombstone=MagicMock(return_value=None))
+    return mock.MagicMock(lookup_tombstone=mock.MagicMock(return_value=None))
 
 
 def fake_index_object(_self, key):
