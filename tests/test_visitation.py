@@ -1,9 +1,11 @@
 #!/usr/bin/env python
 # coding: utf-8
-
+from bisect import bisect
 import copy
 import datetime
+from itertools import chain
 import json
+import random
 import subprocess
 import time
 import logging
@@ -13,14 +15,15 @@ import unittest
 import uuid
 
 import boto3
+from cloud_blobstore import PagedIter
 from unittest import mock
+
+from botocore.exceptions import ClientError
 
 pkg_root = os.path.abspath(os.path.join(os.path.dirname(__file__), '..'))  # noqa
 sys.path.insert(0, pkg_root)  # noqa
 
-from botocore.exceptions import ClientError
-
-import dss
+from dss.config import Config, BucketConfig, Replica
 from dss.logging import configure_test_logging
 from dss.index.es.backend import ElasticsearchIndexBackend
 from dss.storage.identifiers import BundleFQID
@@ -33,6 +36,7 @@ from dss.stepfunctions.visitation.integration_test import IntegrationTest
 from dss.stepfunctions.visitation import registered_visitations
 from dss.stepfunctions.visitation.timeout import Timeout
 from dss.stepfunctions.visitation import reindex
+from dss.stepfunctions.visitation.storage import StorageVisitation
 
 from tests import eventually
 from tests.infra import get_env, testmode, MockLambdaContext
@@ -47,7 +51,7 @@ def setUpModule():
 class TestVisitationWalker(unittest.TestCase):
     def setUp(self):
         self.context = MockLambdaContext()
-        dss.Config.set_config(dss.BucketConfig.TEST)
+        Config.set_config(BucketConfig.TEST)
         self.s3_test_fixtures_bucket = get_env("DSS_S3_BUCKET_TEST_FIXTURES")
         self.gs_test_fixtures_bucket = get_env("DSS_GS_BUCKET_TEST_FIXTURES")
         self.s3_test_bucket = get_env("DSS_S3_BUCKET_TEST")
@@ -303,6 +307,104 @@ class TestIntegration(unittest.TestCase):
         require(status in ('SUCCEEDED', 'RUNNING'), 'Unexpected execution status: {status}')
         self.assertIn('output', execution)
         return execution['output']
+
+
+@testmode.standalone
+class TestConsistencyVisitation(unittest.TestCase):
+    # Number of keys returned per round-trip by the mock blobstore's list_v2 iterator
+    page_size = 100
+    # Number of bundles in each mock replica
+    num_keys = 9 * page_size + random.randint(-page_size, page_size)
+    replicas = [r for r in Replica]
+    # Distance (in # of keys) between missing keys in each replica
+    key_drop_period = random.randint(10, 19)
+    # How much time to give the walker for actually processing the bucket listings
+    timeout = .1
+    # Minimum number of walk() invocations per replica (assuming one worker)
+    num_key_partitions = len(StorageVisitation.prefix_chars)
+
+    def setUp(self):
+        keys = sorted(f'bundles/{uuid.uuid4()}' for _ in range(self.num_keys))
+        # Drop every n-th key from either replica, but don't drop a key from all replicas
+        self.assertTrue(len(self.replicas) < self.key_drop_period)
+        self.keys = {replica: [key for key in keys if hash(key) % self.key_drop_period != i]
+                     for i, replica in enumerate(self.replicas)}
+        self.blobstore_mocks = []
+
+    @mock.patch('dss.util.aws.clients.stepfunctions.start_execution')
+    @mock.patch('dss.config.Config.get_blobstore_handle')
+    def test(self, get_blobstore_handle, start_execution):
+        start_execution.side_effect = self._start_execution
+        get_blobstore_handle.side_effect = self._get_blobstore_handle
+        visitation = StorageVisitation.start(number_of_workers=1,
+                                             replicas=[replica.name for replica in self.replicas],
+                                             buckets=[None] * len(self.replicas))
+        # Assert the magic value returned from _start_execution to prove that it was invoked
+        num_missing_keys = int(visitation['arn'])
+        self.assertEquals(len(self.replicas) * self.num_keys - sum(map(len, self.keys.values())), num_missing_keys)
+        # Assert that there was more than one walk() invocation per key partition and replica
+        self.assertTrue(len(self.blobstore_mocks) > 2 * self.num_key_partitions * len(self.replicas))
+        # Assert that at least one key iteration had to be resumed from a token and a key
+        calls = chain.from_iterable(mock.mock_calls for mock in self.blobstore_mocks)
+        self.assertTrue(any(kwargs['start_after_key'] and kwargs['token'] for name, args, kwargs in calls))
+
+    def _get_blobstore_handle(self, replica):
+        keys = self.keys[replica]
+        test = self
+
+        class MockPagedIter(PagedIter):
+
+            def __init__(self, *args, prefix=None, start_after_key=None, token=None):
+                super().__init__()
+                self.prefix = prefix
+                self.token = token or prefix
+                self.start_after_key = start_after_key
+
+            def get_api_response(self, next_token):
+                start = 0 if next_token is None else bisect(keys, next_token)
+                stop = min(start + test.page_size, len(keys))
+                return [key for key in keys[start:stop] if key.startswith(self.prefix)]
+
+            def get_listing_from_response(self, resp):
+                for key in resp:
+                    # Once per listing (on average), wait a little to trigger the walker timeout
+                    if random.random() > 1 - 1 / test.page_size:
+                        time.sleep(test.timeout)
+                    yield key
+
+            def get_next_token_from_response(self, resp):
+                return resp[-1] if resp else None
+
+        mock_blob_store = mock.MagicMock()
+        self.blobstore_mocks.append(mock_blob_store)
+        mock_blob_store.list_v2.side_effect = MockPagedIter
+        return mock_blob_store
+
+    def _start_execution(self, stateMachineArn, name, input):
+        def context():
+            return MockLambdaContext(StorageVisitation.shutdown_time + self.timeout)
+
+        Config.set_config(BucketConfig.NORMAL)
+        input = json.loads(input)
+        state = implementation.job_initialize(input, context())
+        walker_state = copy.deepcopy(state)
+        state['work_result'] = []
+        while walker_state['_status'] == 'init':
+            walker_state = implementation.walker_initialize(walker_state, context(), 0)
+            while walker_state['_status'] == 'walk':
+                walker_state = implementation.walker_walk(walker_state, context(), 0)
+            walker_state = implementation.walker_finalize(walker_state, context(), 0)
+        self.assertEquals(walker_state['_status'], 'end')
+        state['work_result'].append(walker_state['work_result'])
+        state = implementation.job_finalize(state, context())
+        work_result = state['work_result']
+        for replica, missing, present in zip(state['replicas'], work_result['missing'], work_result['present']):
+            keys = self.keys[Replica[replica]]
+            self.assertEquals(self.num_keys, missing + present)
+            self.assertEquals(len(keys), present)
+        # Return the total number of missing keys (which is different between each test run because the overall number
+        # of keys is random). The test can assert this value, proving that this was code actually run.
+        return {'executionArn': str(sum(work_result['missing']))}
 
 
 if __name__ == '__main__':
