@@ -1,5 +1,5 @@
 import logging
-from logging import DEBUG, INFO, WARNING
+from logging import DEBUG, INFO, WARNING, ERROR
 import os
 import sys
 from typing import Mapping, Union, Tuple, Optional
@@ -32,6 +32,7 @@ The values in this map are tuples of log levels. The first (second or third) tup
 
 test_log_levels: log_level_t = {
     dss.logger: (WARNING, DEBUG),
+    'dss.stepfunctions.visitation.storage': (ERROR, DEBUG),
     'test.es': (INFO, DEBUG)
 }
 """
