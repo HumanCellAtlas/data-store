@@ -1,5 +1,6 @@
 # You should not edit this file directly.  Instead, you should edit requirements.txt.in.
 asn1crypto==0.23.0
+aws-xray-sdk==1.0
 azure-common==1.1.8
 azure-nspkg==2.0.0
 azure-storage==0.36.0
@@ -19,6 +20,7 @@ elasticsearch==5.5.1
 elasticsearch-dsl==5.3.0
 fasteners==0.14.1
 Flask==0.12.2
+future==0.16.0
 google-api-core==0.1.1
 google-apitools==0.5.21
 google-auth==1.2.1
@@ -33,6 +35,7 @@ iso8601==0.1.12
 itsdangerous==0.24
 Jinja2==2.10
 jmespath==0.9.3
+jsonpickle==0.9.6
 jsonschema==2.6.0
 MarkupSafe==1.0
 monotonic==1.4
@@ -53,3 +56,4 @@ six==1.11.0
 swagger-spec-validator==2.1.0
 urllib3==1.22
 Werkzeug==0.12.2
+wrapt==1.10.11

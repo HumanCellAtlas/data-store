@@ -15,3 +15,4 @@ nestedcontext >= 0.0.4
 requests-aws4auth >= 0.9
 urllib3 >= 1.22
 requests-http-signature >= 0.0.3
+aws-xray-sdk >= 1.0

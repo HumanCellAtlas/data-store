@@ -19,6 +19,16 @@
         "arn:aws:lambda:*:$account_id:function:dss-gs-copy-write-metadata-sfn-$stage:*"
       ],
       "Effect": "Allow"
+    },
+    {
+      "Effect": "Allow",
+      "Action": [
+          "xray:PutTelemetryRecords",
+          "s3:Get*",
+          "s3:List*",
+          "xray:PutTraceSegments"
+      ],
+      "Resource": "*"
     }
   ]
 }
