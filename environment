@@ -94,8 +94,9 @@ DSS_TERRAFORM_BACKEND_BUCKET_TEMPLATE="org-humancellatlas-dss-config-{account_id
 #
 DSS_NOTIFY_DELAYS="0 60 600 3600 21600 60540 86400 86400 86400 86400 86400 86400"
 
-# Enables X-Ray profiling of daemons running in AWS Lambdas
-DSS_XRAY_TRACE=false
+# Enables X-Ray profiling of daemons running in AWS Lambdas. A value of 0 disables profiling. A value >1 will enable
+# profiling.
+DSS_XRAY_TRACE=0
 
 # Workaround for GS buckets with non-uniform regions
 DSS_GS_BUCKET_REGION=""
