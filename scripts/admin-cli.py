@@ -14,11 +14,13 @@ replicas = ['aws', 'gcp']
 # This script should ultimately be moved into its own distribution such that it can be installed independently of the
 # main data-store project. Specifically it should not have a code dependency on the data-store project itself.
 #
-# The CLI is structred as follows: There is one sub-command per Target subclass in daemons/dss-admin/app.py (the
-# target) and one sub-sub-command per public method in that subclass (the action). The command line options
-# correspond to arguments of either the constructor of the Target subclass or one of its methods. A command line
-# option of a target becomes an argument to the constructor, while options of an action become method arguments. The
-# type, optionality and default value of these options should reflect the signatures of the respective methods.
+# The CLI is structred as follows: There are targets (nouns like index or storage) and actions (verbs like verify or
+# repair). This is easy to understand and consistent. There is one sub-command per Target subclass in
+# daemons/dss-admin/app.py (the target) and one sub-sub-command per public method in that subclass (the action). The
+# command line options correspond to arguments of either the constructor of the Target subclass or one of its
+# methods. A command line option of a target becomes an argument to the constructor, while options of an action
+# become method arguments. The type, optionality and default value of these options should reflect the signatures of
+# the respective methods.
 
 
 def main(args):
