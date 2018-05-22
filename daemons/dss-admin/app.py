@@ -21,9 +21,10 @@ Config.set_config(BucketConfig.NORMAL)
 
 class Target:
     """
-    The target of an admin operation. After adding a subclass here, a corresponding subcommand (aka target) should be
-    added to the admin CLI (admin-cli.py). Every method in the target subclass should correspond to an subsubcommand
-    (aka action) of the target subcommand.
+    The target of an admin operation. Targets are nouns (like index, storage) and actions are verbs (like verify,
+    repair). After adding a subclass here, a corresponding subcommand (aka target) should be added to the admin CLI (
+    admin-cli.py). Every method in the target subclass should correspond to an subsubcommand (aka action) of the
+    target subcommand.
     """
     pass
 
