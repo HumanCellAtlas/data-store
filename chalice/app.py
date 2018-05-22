@@ -20,7 +20,7 @@ from flask import json
 pkg_root = os.path.abspath(os.path.join(os.path.dirname(__file__), 'chalicelib'))  # noqa
 sys.path.insert(0, pkg_root)  # noqa
 
-DSS_XRAY_TRACE = int(os.environ.get('XRAY_TRACE', '0')) > 0  # noqa
+DSS_XRAY_TRACE = int(os.environ.get('DSS_XRAY_TRACE', '0')) > 0  # noqa
 
 if DSS_XRAY_TRACE:  # noqa
     from aws_xray_sdk.core import xray_recorder, patch
