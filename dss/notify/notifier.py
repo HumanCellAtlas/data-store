@@ -215,8 +215,8 @@ class Notifier:
                     # or increase latency.
                     #
                     # TODO: determine how this interacts with FIFO queues and message groups as those yield
-                    # messages in an ordering that, while being strict wrt to a group, is only partial
-                    # wrt to the entire queue. The above invariant may not hold globally for that reason.
+                    # messages in an ordering that, while being strict with respect to a group, is only partial
+                    # with respect to the entire queue. The above invariant may not hold globally for that reason.
                     #
                     # SQS ignores a request to change the VTO of a message if the total VTO would exceed the max.
                     # allowed value of 12 hours. To be safe, we subtract the initial VTO from the max VTO.
