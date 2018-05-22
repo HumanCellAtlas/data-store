@@ -345,11 +345,15 @@ class TestConsistencyVisitation(unittest.TestCase):
         # Assert the magic value returned from _start_execution to prove that it was invoked
         num_missing_keys = int(visitation['arn'])
         self.assertEquals(len(self.replicas) * self.num_keys - sum(map(len, self.keys.values())), num_missing_keys)
-        # Assert that there was more than one walk() invocation per key partition and replica
-        self.assertTrue(len(self.blobstore_mocks) > 2 * self.num_key_partitions * len(self.replicas))
-        # Assert that at least one key iteration had to be resumed from a token and a key
+        # The mock blob listing is slowed down artificially once per initial walk() invocation. This should trigger
+        # one extra walk invocation per key partition and replica. Because other factors could also trigger a
+        # timeout, we can only assert a lower bound.
+        num_partitions = self.num_key_partitions * len(self.replicas)
+        self.assertGreaterEqual(len(self.blobstore_mocks), 2 * num_partitions)
+        # Each extra walk invocation should incur a resumption of the key iteration from a token and a key.
         calls = chain.from_iterable(mock.mock_calls for mock in self.blobstore_mocks)
-        self.assertTrue(any(kwargs['start_after_key'] and kwargs['token'] for name, args, kwargs in calls))
+        resumptions = sum(1 for name, args, kwargs in calls if kwargs['start_after_key'] and kwargs['token'])
+        self.assertEquals(resumptions, len(self.blobstore_mocks) - num_partitions)
 
     def _get_blobstore_handle(self, replica):
         keys = self.keys[replica]
@@ -359,6 +363,7 @@ class TestConsistencyVisitation(unittest.TestCase):
 
             def __init__(self, *args, prefix=None, start_after_key=None, token=None):
                 super().__init__()
+                self.resumed = start_after_key is not None
                 self.prefix = prefix
                 self.token = token or prefix
                 self.start_after_key = start_after_key
@@ -369,10 +374,10 @@ class TestConsistencyVisitation(unittest.TestCase):
                 return [key for key in keys[start:stop] if key.startswith(self.prefix)]
 
             def get_listing_from_response(self, resp):
-                for key in resp:
-                    # Once per listing (on average), wait a little to trigger the walker timeout
-                    if random.random() > 1 - 1 / test.page_size:
-                        time.sleep(test.timeout)
+                for i, key in enumerate(resp):
+                    # Once per listing, wait a little to trigger the walker timeout
+                    if not self.resumed and i == len(resp) // 2:
+                        time.sleep(test.timeout * 1.25)
                     yield key
 
             def get_next_token_from_response(self, resp):
