@@ -287,7 +287,11 @@ class PostTestHandler(BaseHTTPRequestHandler):
         # Since we're messing with the connection timing, we make sure connections aren't reused on the client-side.
         self.close_connection = True
 
-    response_body = os.urandom(1024 * 1024)
+    # Generate a response large enough to detect a hung-up connection. On macOS 1 MiB was sufficient, not so in Docker
+    # containers. In case you're wondering why we're repeating a small amount of random data instead of just generating
+    # the equivalent amount: the former is two orders of magnitude faster.
+    #
+    response_body = b''.join([os.urandom(1024)] * 1024 * 10)
 
     def do_POST(self):
         length = int(self.headers['content-length'])
