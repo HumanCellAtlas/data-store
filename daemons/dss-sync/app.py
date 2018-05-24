@@ -19,6 +19,7 @@ sys.path.insert(0, pkg_root)  # noqa
 import dss
 from dss.logging import configure_lambda_logging
 from dss.events.handlers.sync import sync_blob, compose_gs_blobs, copy_part, parts_per_worker, sns_topics
+from dss.util import tracing
 from dss.util.aws import ARN, send_sns_msg, clients, resources
 from dss.config import Replica
 

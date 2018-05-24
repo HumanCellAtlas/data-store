@@ -10,6 +10,7 @@ from dss import Config
 from dss.logging import configure_lambda_logging
 from dss.notify.notifier import Notifier
 from dss.util.time import RemainingLambdaContextTime
+from dss.util import tracing
 from dss.util.types import LambdaContext
 
 configure_lambda_logging()

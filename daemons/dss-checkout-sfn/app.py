@@ -12,6 +12,7 @@ from dss.config import Replica
 from dss.logging import configure_lambda_logging
 
 from dss.stepfunctions.checkout.checkout_states import state_machine_def
+from dss.util import tracing
 from dss.util.email import send_checkout_success_email, send_checkout_failure_email
 from dss.storage.checkout import (parallel_copy, get_dst_bundle_prefix, get_manifest_files,
                                   validate_file_dst, pre_exec_validate, put_status_succeeded, put_status_failed,
