@@ -307,7 +307,7 @@ class TestIntegration(unittest.TestCase):
         sfns = boto3.client('stepfunctions')
         execution = sfns.describe_execution(executionArn=arn)
         status = execution['status']
-        require(status in ('SUCCEEDED', 'RUNNING'), 'Unexpected execution status: {status}')
+        require(status in ('SUCCEEDED', 'RUNNING'), f'Unexpected execution status: {status}')
         self.assertIn('output', execution)
         return execution['output']
 
