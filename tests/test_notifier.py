@@ -83,7 +83,7 @@ class ThreadedHttpServerTestCase(unittest.TestCase):
 class _TestNotifier(ThreadedHttpServerTestCase):
     repeats = 1
     timeout = 1.0
-    overhead = 5.0
+    overhead = 30.0
     delays = [0.0, 1.0, 2.0]
     workers_per_queue: Optional[int] = None
 
@@ -112,7 +112,7 @@ class _TestNotifier(ThreadedHttpServerTestCase):
 
     def _estimate_running_time(self, total_attempts) -> float:
         latency = sum(delay for delay in self.delays)
-        average_overhead = self.overhead / 3  # FIXME: this is a guess
+        average_overhead = self.overhead / 5  # FIXME: this is a guess
         average_timeout = self.timeout / 2  # FIXME: this is a guess
         parallelism = self.num_queues + (self.num_workers - self.num_queues) / 5  # FIXME: this is a guess
         total_time = latency + (average_timeout + average_overhead) * total_attempts / parallelism
