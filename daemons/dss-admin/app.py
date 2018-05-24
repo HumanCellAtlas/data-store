@@ -13,6 +13,7 @@ from dss import BucketConfig, Config, Replica
 from dss.logging import configure_lambda_logging
 from dss.stepfunctions.visitation.index import IndexVisitation
 from dss.stepfunctions.visitation.storage import StorageVisitation
+from dss.util import tracing
 from dss.util.types import JSON
 
 
