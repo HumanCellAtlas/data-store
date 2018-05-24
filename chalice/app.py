@@ -20,23 +20,21 @@ from flask import json
 pkg_root = os.path.abspath(os.path.join(os.path.dirname(__file__), 'chalicelib'))  # noqa
 sys.path.insert(0, pkg_root)  # noqa
 
-DSS_XRAY_TRACE = int(os.environ.get('DSS_XRAY_TRACE', '0')) > 0  # noqa
+from dss import BucketConfig, Config, DeploymentStage, create_app
+from dss.logging import configure_lambda_logging
+from dss.util import paginate
+from dss.util.tracing import DSS_XRAY_TRACE
 
 if DSS_XRAY_TRACE:  # noqa
-    from aws_xray_sdk.core import xray_recorder, patch
+    from aws_xray_sdk.core import xray_recorder
     from aws_xray_sdk.core.context import Context
     from aws_xray_sdk.ext.flask.middleware import XRayMiddleware
-    patch(('boto3', 'requests'))
     xray_recorder.configure(
         service='DSS',
         dynamic_naming=f"*{os.environ['API_DOMAIN_NAME']}*",
         context=Context(),
         context_missing='LOG_ERROR'
     )
-
-from dss import BucketConfig, Config, DeploymentStage, create_app
-from dss.logging import configure_lambda_logging
-from dss.util import paginate
 
 configure_lambda_logging()
 
