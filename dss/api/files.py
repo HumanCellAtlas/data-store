@@ -1,8 +1,10 @@
 import datetime
 import io
 import json
+import os
 import random
 import re
+import sys
 import typing
 from enum import Enum, auto
 from uuid import uuid4
@@ -17,8 +19,8 @@ from dss import DSSException, dss_handler, stepfunctions
 from dss.config import Config, Replica
 from dss.storage.hcablobstore import FileMetadata, HCABlobStore
 from dss.stepfunctions import gscopyclient, s3copyclient
+from dss.util import tracing
 from dss.util.aws import AWS_MIN_CHUNK_SIZE
-
 
 ASYNC_COPY_THRESHOLD = AWS_MIN_CHUNK_SIZE
 """This is the maximum file size that we will copy synchronously."""
@@ -31,6 +33,7 @@ RETRY_AFTER_INTERVAL = 10
 libraries / users for success when we start integrating this with the checkout service. """
 REDIRECT_PROBABILITY_PERCENTS = 5
 
+
 @dss_handler
 def head(uuid: str, replica: str, version: str=None):
     return get_helper(uuid, Replica[replica], version)
@@ -42,16 +45,20 @@ def get(uuid: str, replica: str, version: str=None):
 
 
 def get_helper(uuid: str, replica: Replica, version: str=None):
+    tracing.begin_segment('parameterization')
     handle = Config.get_blobstore_handle(replica)
     bucket = replica.bucket
+    tracing.end_segment('parameterization')
 
     if version is None:
+        tracing.begin_segment('find_latest_version')
         # list the files and find the one that is the most recent.
         prefix = "files/{}.".format(uuid)
         for matching_file in handle.list(bucket, prefix):
             matching_file = matching_file[len(prefix):]
             if version is None or matching_file > version:
                 version = matching_file
+        tracing.end_segment('find_latest_version')
 
     if version is None:
         # no matches!
@@ -59,6 +66,7 @@ def get_helper(uuid: str, replica: Replica, version: str=None):
 
     # retrieve the file metadata.
     try:
+        tracing.begin_segment('load_file')
         file_metadata = json.loads(
             handle.get(
                 bucket,
@@ -66,13 +74,17 @@ def get_helper(uuid: str, replica: Replica, version: str=None):
             ).decode("utf-8"))
     except BlobNotFoundError as ex:
         raise DSSException(404, "not_found", "Cannot find file!")
+    finally:
+        tracing.end_segment('load_file')
 
+    tracing.begin_segment('make_path')
     blob_path = "blobs/" + ".".join((
         file_metadata[FileMetadata.SHA256],
         file_metadata[FileMetadata.SHA1],
         file_metadata[FileMetadata.S3_ETAG],
         file_metadata[FileMetadata.CRC32C],
     ))
+    tracing.end_segment('make_path')
 
     if request.method == "GET":
         """
@@ -81,9 +93,11 @@ def get_helper(uuid: str, replica: Replica, version: str=None):
         libraries / users for success when we start integrating this with the checkout service.
         """
         if random.randint(0, 100) < REDIRECT_PROBABILITY_PERCENTS:
+            tracing.begin_segment('make_retry')
             response = redirect(request.url, code=301)
             headers = response.headers
             headers['Retry-After'] = RETRY_AFTER_INTERVAL
+            tracing.end_segment('make_retry')
             return response
 
         response = redirect(handle.generate_presigned_GET_url(
@@ -92,6 +106,7 @@ def get_helper(uuid: str, replica: Replica, version: str=None):
     else:
         response = make_response('', 200)
 
+    tracing.begin_segment('set_headers')
     headers = response.headers
     headers['X-DSS-CREATOR-UID'] = file_metadata[FileMetadata.CREATOR_UID]
     headers['X-DSS-VERSION'] = version
@@ -101,6 +116,7 @@ def get_helper(uuid: str, replica: Replica, version: str=None):
     headers['X-DSS-S3-ETAG'] = file_metadata[FileMetadata.S3_ETAG]
     headers['X-DSS-SHA1'] = file_metadata[FileMetadata.SHA1]
     headers['X-DSS-SHA256'] = file_metadata[FileMetadata.SHA256]
+    tracing.end_segment('set_headers')
 
     return response
 
