@@ -1,10 +1,11 @@
 import os
+import time
 from functools import wraps
 import typing
 from aws_xray_sdk.core import xray_recorder, patch
-from aws_xray_sdk.core.context import Context
+import logging
 
-
+logger = logging.getLogger(__name__)
 DSS_XRAY_TRACE = int(os.environ.get('DSS_XRAY_TRACE', '0')) > 0  # noqa
 
 patched = False
@@ -33,11 +34,24 @@ def capture_segment(name: str) -> typing.Callable:
     return decorate
 
 
-def begin_segment(name: str) -> None:
+def begin_segment(name: typing.Optional[str]) -> None:
     if DSS_XRAY_TRACE:
+        logger.debug(f"Begin subsegment {name}")
         xray_recorder.begin_subsegment(name)
 
-
-def end_segment(name: str) -> None:
+def end_segment(name: typing.Optional[str]) -> None:
     if DSS_XRAY_TRACE:
-        xray_recorder.end_subsegment(name)
+        logger.debug(f"End subsegment {name}")
+        end_time = time.time()
+        xray_recorder.end_subsegment(end_time)
+
+
+class Subsegment:
+    def __init__(self, name: typing.Optional[str]) -> None:
+        self.name = name
+
+    def __enter__(self) -> None:
+        begin_segment(self.name)
+
+    def __exit__(self) -> None:
+        end_segment(self.name)
