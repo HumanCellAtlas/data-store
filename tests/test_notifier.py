@@ -129,7 +129,7 @@ class _TestNotifier(ThreadedHttpServerTestCase):
         def notify(expect: bool,  # whether the message should make it
                    max_attempts: Optional[int] = None,  # how many attempts to allow
                    responses: List[Tuple[float, int]] = None,  # a list of (delay, http_status) tuples, one per attempt
-                   attempts=None):  # expected number of attempts, currently only used to estmate the running time
+                   attempts=None):  # expected number of attempts, currently only used to estimate the running time
             if responses is None:
                 responses = [(0.0, 200)]
             verify = random.random() > .5
