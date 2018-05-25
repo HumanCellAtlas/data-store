@@ -461,8 +461,6 @@ class TestIndexerBase(ElasticsearchTestCase, DSSAssertMixin, DSSStorageMixin, DS
 
     @testmode.standalone
     def test_subscription_with_attachments(self):
-        endpoint = self._default_endpoint()
-        endpoint = NotificationRequestHandler.configure(endpoint)
 
         def define(**definitions):
             return dict({k: dict(type='jmespath', expression=v) for k, v in definitions.items()})
@@ -472,7 +470,7 @@ class TestIndexerBase(ElasticsearchTestCase, DSSAssertMixin, DSSStorageMixin, DS
              dict(foo='bar')),  # is returned as is.
             (define(foo='doesnotexist'),  # A non-existant field …
              dict(foo=None)),  # yields None.
-            (define(primer='files.assay_json.rna.primer'),  # An existing fields
+            (define(primer='files.assay_json.rna.primer'),  # An existing field
              dict(primer='random')),  # yields that field's value
             (define(protocols='files.project_json.protocols[0:2].type.text'),  # A more complicated expression
              dict(protocols=['growth protocol', 'treatment protocol'])),  # (a projection and a slice).
@@ -485,6 +483,7 @@ class TestIndexerBase(ElasticsearchTestCase, DSSAssertMixin, DSSStorageMixin, DS
         for definitions, attachments in test_cases:
             query = self.smartseq2_paired_ends_query
             with self.subTest(definitions=definitions, attachments=attachments):
+                endpoint = NotificationRequestHandler.configure(self._default_endpoint())
                 subscription_id = self.subscribe_for_notification(es_query=query,
                                                                   attachments=definitions,
                                                                   **endpoint.to_dict())
