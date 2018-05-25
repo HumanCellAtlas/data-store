@@ -266,7 +266,7 @@ class TestWorkerQueueAssignment(unittest.TestCase):
         avg = sum(c for c in queue_coverage.values()) / (num_queues - 1)
         # Since the first queue was longer by 1/imbalance compared to the other queues, it should get propoertionally
         # more coverage than the average short queue (within 10% of a margin)
-        self.assertAlmostEqual(avg / first_queue_coverage, imbalance, delta=.1)
+        self.assertAlmostEqual(avg / first_queue_coverage, imbalance, delta=.15)
         # Compute standard deviation
         sigma = sqrt(sum((c - avg) ** 2 for c in queue_coverage.values()) / (num_queues - 2))
         # The short queues' covereage should be within one standard deviation
