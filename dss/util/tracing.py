@@ -44,14 +44,3 @@ def end_segment(name: typing.Optional[str]) -> None:
         logger.debug(f"End subsegment {name}")
         end_time = time.time()
         xray_recorder.end_subsegment(end_time)
-
-
-class Subsegment:
-    def __init__(self, name: typing.Optional[str]) -> None:
-        self.name = name
-
-    def __enter__(self) -> None:
-        begin_segment(self.name)
-
-    def __exit__(self) -> None:
-        end_segment(self.name)
