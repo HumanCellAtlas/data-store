@@ -92,7 +92,6 @@ def get_helper(uuid: str, replica: Replica, version: str=None):
                 response = redirect(request.url, code=301)
                 headers = response.headers
                 headers['Retry-After'] = RETRY_AFTER_INTERVAL
-                tracing.end_subsegment('make_retry')
                 return response
 
         response = redirect(handle.generate_presigned_GET_url(
