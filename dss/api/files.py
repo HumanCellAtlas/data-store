@@ -45,20 +45,18 @@ def get(uuid: str, replica: str, version: str=None):
 
 
 def get_helper(uuid: str, replica: Replica, version: str=None):
-    tracing.begin_segment('parameterization')
-    handle = Config.get_blobstore_handle(replica)
-    bucket = replica.bucket
-    tracing.end_segment('parameterization')
+    with tracing.Subsegment('parameterization'):
+        handle = Config.get_blobstore_handle(replica)
+        bucket = replica.bucket
 
     if version is None:
-        tracing.begin_segment('find_latest_version')
-        # list the files and find the one that is the most recent.
-        prefix = "files/{}.".format(uuid)
-        for matching_file in handle.list(bucket, prefix):
-            matching_file = matching_file[len(prefix):]
-            if version is None or matching_file > version:
-                version = matching_file
-        tracing.end_segment('find_latest_version')
+        with tracing.Subsegment('find_latest_version'):
+            # list the files and find the one that is the most recent.
+            prefix = "files/{}.".format(uuid)
+            for matching_file in handle.list(bucket, prefix):
+                matching_file = matching_file[len(prefix):]
+                if version is None or matching_file > version:
+                    version = matching_file
 
     if version is None:
         # no matches!
@@ -66,25 +64,22 @@ def get_helper(uuid: str, replica: Replica, version: str=None):
 
     # retrieve the file metadata.
     try:
-        tracing.begin_segment('load_file')
-        file_metadata = json.loads(
-            handle.get(
-                bucket,
-                "files/{}.{}".format(uuid, version)
-            ).decode("utf-8"))
+        with tracing.Subsegment('load_file'):
+            file_metadata = json.loads(
+                handle.get(
+                    bucket,
+                    "files/{}.{}".format(uuid, version)
+                ).decode("utf-8"))
     except BlobNotFoundError as ex:
         raise DSSException(404, "not_found", "Cannot find file!")
-    finally:
-        tracing.end_segment('load_file')
 
-    tracing.begin_segment('make_path')
-    blob_path = "blobs/" + ".".join((
-        file_metadata[FileMetadata.SHA256],
-        file_metadata[FileMetadata.SHA1],
-        file_metadata[FileMetadata.S3_ETAG],
-        file_metadata[FileMetadata.CRC32C],
-    ))
-    tracing.end_segment('make_path')
+    with tracing.Subsegment('make_path'):
+        blob_path = "blobs/" + ".".join((
+            file_metadata[FileMetadata.SHA256],
+            file_metadata[FileMetadata.SHA1],
+            file_metadata[FileMetadata.S3_ETAG],
+            file_metadata[FileMetadata.CRC32C],
+        ))
 
     if request.method == "GET":
         """
@@ -93,12 +88,12 @@ def get_helper(uuid: str, replica: Replica, version: str=None):
         libraries / users for success when we start integrating this with the checkout service.
         """
         if random.randint(0, 100) < REDIRECT_PROBABILITY_PERCENTS:
-            tracing.begin_segment('make_retry')
-            response = redirect(request.url, code=301)
-            headers = response.headers
-            headers['Retry-After'] = RETRY_AFTER_INTERVAL
-            tracing.end_segment('make_retry')
-            return response
+            with tracing.Subsegment('make_retry'):
+                response = redirect(request.url, code=301)
+                headers = response.headers
+                headers['Retry-After'] = RETRY_AFTER_INTERVAL
+                tracing.end_subsegment('make_retry')
+                return response
 
         response = redirect(handle.generate_presigned_GET_url(
             bucket,
@@ -106,17 +101,16 @@ def get_helper(uuid: str, replica: Replica, version: str=None):
     else:
         response = make_response('', 200)
 
-    tracing.begin_segment('set_headers')
-    headers = response.headers
-    headers['X-DSS-CREATOR-UID'] = file_metadata[FileMetadata.CREATOR_UID]
-    headers['X-DSS-VERSION'] = version
-    headers['X-DSS-CONTENT-TYPE'] = file_metadata[FileMetadata.CONTENT_TYPE]
-    headers['X-DSS-SIZE'] = file_metadata[FileMetadata.SIZE]
-    headers['X-DSS-CRC32C'] = file_metadata[FileMetadata.CRC32C]
-    headers['X-DSS-S3-ETAG'] = file_metadata[FileMetadata.S3_ETAG]
-    headers['X-DSS-SHA1'] = file_metadata[FileMetadata.SHA1]
-    headers['X-DSS-SHA256'] = file_metadata[FileMetadata.SHA256]
-    tracing.end_segment('set_headers')
+    with tracing.Subsegment('set_headers'):
+        headers = response.headers
+        headers['X-DSS-CREATOR-UID'] = file_metadata[FileMetadata.CREATOR_UID]
+        headers['X-DSS-VERSION'] = version
+        headers['X-DSS-CONTENT-TYPE'] = file_metadata[FileMetadata.CONTENT_TYPE]
+        headers['X-DSS-SIZE'] = file_metadata[FileMetadata.SIZE]
+        headers['X-DSS-CRC32C'] = file_metadata[FileMetadata.CRC32C]
+        headers['X-DSS-S3-ETAG'] = file_metadata[FileMetadata.S3_ETAG]
+        headers['X-DSS-SHA1'] = file_metadata[FileMetadata.SHA1]
+        headers['X-DSS-SHA256'] = file_metadata[FileMetadata.SHA256]
 
     return response
 
