@@ -43,10 +43,9 @@ def begin_subsegment(name: typing.Optional[str]) -> typing.Optional[xray_Subsegm
         return xray_recorder.begin_subsegment(name)
     return None
 
-def end_subsegment(name: typing.Optional[str]) -> None:
+def end_subsegment(name: typing.Optional[str], end_time: float) -> None:
     if DSS_XRAY_TRACE:
         logger.debug(f"End subsegment {name}")
-        end_time = time.time()
         xray_recorder.end_subsegment(end_time)
 
 
@@ -60,12 +59,13 @@ class Subsegment:
 
     def __exit__(self, exc_type, exc_val, exc_tb) -> bool:
         rv = True
+        end_time = time.time()
         if DSS_XRAY_TRACE:
             if self._subsegment is not None:
                 if exc_type:
                     self._subsegment.add_exception(exc_val, exc_tb)
                     rv = False
-                end_subsegment(self.name)
+                end_subsegment(self.name, end_time)
             else:
                 rv = False
                 raise SegmentNotFoundException("Subsegment context manager is missing subsegment!")
