@@ -850,18 +850,29 @@ paths:
             properties:
               addContents:
                 type: array
+                description: |
+                  List of new items to add to the collection. Items are de-duplicated (if an identical item is already
+                  present in the collection or given multiple times, it will only be added once).
                 items:
                   $ref: '#/definitions/CollectionItem'
+                maxItems: 1000
               removeContents:
                 type: array
+                description: |
+                  List of items to remove from the collection. Items must match exactly to be removed. Items not found
+                  in the collection are ignored.
                 items:
                   $ref: '#/definitions/CollectionItem'
+                maxItems: 1000
               name:
                 type: string
+                description: New name for the collection.
               description:
                 type: string
+                description: New description for the collection.
               details:
                 type: object
+                description: New details for the collection.
       responses:
         200:
           description: OK
@@ -1384,7 +1395,7 @@ definitions:
         type: object
       callback_url:
         description: |
-          The subscriber's URL. An HTTP request is made to the specified URL for every attempt to deliver
+          The subscriber\'s URL. An HTTP request is made to the specified URL for every attempt to deliver
           a notification to the subscriber. If the HTTP response code is 2XX, the delivery attempt is
           considered successful and no more attemtpts will be made. Otherwise, more attempts will be made with
           an exponentially increasing delay between attempts, until an attempt is successful or the a maximum
