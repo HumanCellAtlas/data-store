@@ -672,7 +672,7 @@ paths:
       parameters:
         - name: replica
           in: query
-          description: Replica to fetch from. Can be one of aws, gcp, or azure.
+          description: Replica to fetch from.
           required: true
           type: string
           enum: [aws, gcp, azure]
@@ -711,7 +711,7 @@ paths:
       parameters:
         - name: replica
           in: query
-          description: Replica to write to. Can be one of aws, gcp, or azure.
+          description: Replica to write to.
           required: true
           type: string
           enum: [aws, gcp, azure]
@@ -782,7 +782,7 @@ paths:
           pattern: "[A-Za-z0-9]{8}-[A-Za-z0-9]{4}-[A-Za-z0-9]{4}-[A-Za-z0-9]{4}-[A-Za-z0-9]{12}"
         - name: replica
           in: query
-          description: Replica to fetch from. Can be one of aws, gcp, or azure.
+          description: Replica to fetch from.
           required: true
           type: string
           enum: [aws, gcp, azure]
@@ -831,9 +831,7 @@ paths:
           pattern: "[A-Za-z0-9]{8}-[A-Za-z0-9]{4}-[A-Za-z0-9]{4}-[A-Za-z0-9]{4}-[A-Za-z0-9]{12}"
         - name: replica
           in: query
-          description: |
-            Replica to update the collection on. Can be one of aws, gcp, or azure. Updates are propagated to other
-            replicas.
+          description: Replica to update the collection on. Updates are propagated to other replicas.
           required: true
           type: string
           enum: [aws, gcp, azure]
@@ -896,7 +894,7 @@ paths:
           pattern: "[A-Za-z0-9]{8}-[A-Za-z0-9]{4}-[A-Za-z0-9]{4}-[A-Za-z0-9]{4}-[A-Za-z0-9]{12}"
         - name: replica
           in: query
-          description: Replica to delete from. Can be one of aws, gcp, or azure.
+          description: Replica to delete from.
           required: true
           type: string
           enum: [aws, gcp, azure]
