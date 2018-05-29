@@ -104,15 +104,19 @@ class TestCollections(unittest.TestCase, DSSAssertMixin, DSSUploadMixin):
             del collection["owner"]
             self.assertEqual(collection,
                              dict(contents=[], description='bar', details={"1": 2}, name='cn'))
+        invalid_ptr = dict(type="foo", uuid=file_uuid, version=file_version, fragment="/xyz")
         with self.subTest("PUT invalid fragment reference"):
-            invalid_ptr = dict(type="foo", uuid=file_uuid, version=file_version, fragment="/xyz")
             res = self.app.put("/v1/collections",
                                headers=get_auth_header(authorized=True),
                                params=dict(uuid=str(uuid4()), version=datetime.now().isoformat(), replica="aws"),
                                json=dict(name="n", description="d", details={}, contents=[invalid_ptr]))
             self.assertEqual(res.status_code, requests.codes.unprocessable_entity)
         with self.subTest("PATCH invalid fragment reference"):
-            pass
+            res = self.app.patch("/v1/collections/{}".format(uuid),
+                                 headers=get_auth_header(authorized=True),
+                                 params=dict(version=version, replica="aws"),
+                                 json=dict(addContents=[invalid_ptr]))
+            self.assertEqual(res.status_code, requests.codes.unprocessable_entity)
         with self.subTest("Dedup semantics"):
             pass
         with self.subTest("GET access control"):

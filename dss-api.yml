@@ -758,7 +758,7 @@ paths:
                     description: |
                       Machine-readable error code.  The types of return values should not be changed lightly.
 
-                      The code `invalid_link` indicates that an item listed in the `contents` field of the collection
+                      The code `invalid_link` indicates that an item listed in the collection contents field of the
                       input could not be resolved (either because the file, bundle, or collection does not exist on the
                       replica specified, or because the JSON Pointer reference could not be resolved within the
                       specified file).
@@ -885,8 +885,14 @@ paths:
                 properties:
                   code:
                     type: string
-                    description: Machine-readable error code.  The types of return values should not be changed lightly.
-                    enum: [unhandled_exception, Forbidden, OAuthResponseProblem, not_found]
+                    description: |
+                      Machine-readable error code.  The types of return values should not be changed lightly.
+
+                      The code `invalid_link` indicates that an item listed in the collection contents field of the
+                      input could not be resolved (either because the file, bundle, or collection does not exist on the
+                      replica specified, or because the JSON Pointer reference could not be resolved within the
+                      specified file).
+                    enum: [unhandled_exception, Forbidden, OAuthResponseProblem, not_found, invalid_link]
                 required:
                   - code
     delete:

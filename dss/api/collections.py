@@ -84,8 +84,13 @@ class hashabledict(dict):
 
 @dss_handler
 def patch(uuid: str, json_request_body: dict, replica: str, version: str):
-    # patch one collection with another
+    authenticated_user_email = request.token_info['email']
+
     uuid = uuid.lower()
+    owner = get_impl(uuid=uuid, replica=replica)["owner"]
+    if owner != authenticated_user_email:
+        raise DSSException(requests.codes.forbidden, "forbidden", f"Collection access denied")
+
     handle = Config.get_blobstore_handle(Replica[replica])
     try:
         cur_collection_blob = handle.get(Replica[replica].bucket, "{}/{}.{}".format(COLLECTION_PREFIX, uuid, version))
