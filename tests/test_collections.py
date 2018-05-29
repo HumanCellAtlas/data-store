@@ -117,6 +117,13 @@ class TestCollections(unittest.TestCase, DSSAssertMixin, DSSUploadMixin):
                                  params=dict(version=version, replica="aws"),
                                  json=dict(addContents=[invalid_ptr]))
             self.assertEqual(res.status_code, requests.codes.unprocessable_entity)
+        with self.subTest("PATCH without version or replica"):
+            for params in dict(replica="aws"), dict(version=version):
+                res = self.app.patch("/v1/collections/{}".format(uuid),
+                                     headers=get_auth_header(authorized=True),
+                                     params=params,
+                                     json={})
+                self.assertEqual(res.status_code, requests.codes.bad_request)
         with self.subTest("Dedup semantics"):
             pass
         with self.subTest("GET access control"):
