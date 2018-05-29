@@ -171,9 +171,9 @@ def resolve_content_item(replica: Replica, blobstore_handle: BlobStore, item: di
             item_doc = json.loads(blobstore_handle.get(replica.bucket, blob_path))
             item_content = jsonpointer.resolve_pointer(item_doc, item["fragment"])
             return item_content
+    except DSSException:
+        raise
     except Exception as e:
-        if isinstance(e, DSSException):
-            raise
         raise DSSException(
             422,
             "invalid_link",
