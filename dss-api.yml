@@ -722,8 +722,10 @@ paths:
           type: string
           pattern: "[A-Za-z0-9]{8}-[A-Za-z0-9]{4}-[A-Za-z0-9]{4}-[A-Za-z0-9]{4}-[A-Za-z0-9]{12}"
         - name: version
-          description: TODO
           in: query
+          description: |
+            Timestamp of collection creation in RFC3339 format. If this is not provided, the version is automatically
+            generated.
           required: true
           type: string
           format: date-time
@@ -753,7 +755,13 @@ paths:
                 properties:
                   code:
                     type: string
-                    description: Machine-readable error code.  The types of return values should not be changed lightly.
+                    description: |
+                      Machine-readable error code.  The types of return values should not be changed lightly.
+
+                      The code `invalid_link` indicates that an item listed in the `contents` field of the collection
+                      input could not be resolved (either because the file, bundle, or collection does not exist on the
+                      replica specified, or because the JSON Pointer reference could not be resolved within the
+                      specified file).
                     enum: [unhandled_exception, Forbidden, OAuthResponseProblem, not_found, invalid_link]
                 required:
                   - code
@@ -780,7 +788,8 @@ paths:
           enum: [aws, gcp, azure]
         - name: version
           in: query
-          description: Timestamp of collection creation in RFC3339.  If this is not provided, the latest version is returned.
+          description: |
+            Timestamp of collection creation in RFC3339.  If this is not provided, the latest version is returned.
           required: false
           type: string
           format: date-time
@@ -822,13 +831,16 @@ paths:
           pattern: "[A-Za-z0-9]{8}-[A-Za-z0-9]{4}-[A-Za-z0-9]{4}-[A-Za-z0-9]{4}-[A-Za-z0-9]{12}"
         - name: replica
           in: query
-          description: Replica to delete from. Can be one of aws, gcp, or azure.
+          description: |
+            Replica to update the collection on. Can be one of aws, gcp, or azure. Updates are propagated to other
+            replicas.
           required: true
           type: string
           enum: [aws, gcp, azure]
         - name: version
           in: query
-          description: Timestamp of file creation in RFC3339.  If this is not provided, the latest version is returned.
+          description: |
+            Timestamp of collection creation in RFC3339 format. Required to identify the collection to update.
           required: true
           type: string
           format: date-time
