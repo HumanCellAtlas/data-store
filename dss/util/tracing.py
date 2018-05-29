@@ -60,13 +60,12 @@ class Subsegment:
     def __exit__(self, exc_type, exc_val, exc_tb) -> bool:
         rv = True
         end_time = time.time()
-        if DSS_XRAY_TRACE:
-            if self._subsegment is not None:
-                if exc_type:
+        if exc_type:
+            rv = False
+            if DSS_XRAY_TRACE:
+                if self._subsegment is not None:
                     self._subsegment.add_exception(exc_val, exc_tb)
-                    rv = False
-                end_subsegment(self.name, end_time)
-            else:
-                rv = False
-                raise SegmentNotFoundException("Subsegment context manager is missing subsegment!")
+                else:
+                    raise SegmentNotFoundException("Subsegment context manager is missing subsegment!")
+        end_subsegment(self.name, end_time)
         return rv
