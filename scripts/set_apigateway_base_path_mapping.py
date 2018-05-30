@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 
 """
-This script idempotently maps the AWS Apigateway custom domain name to the Apigateway
+This script idempotently maps the API Gateway custom domain name to the API Gateway
 stage. It should be executed for a first-time deployment after successfully
 running `make deploy-infra` and `make deploy`.
 """
