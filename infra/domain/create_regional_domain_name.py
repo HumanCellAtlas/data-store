@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 
 """
-This script configures a regional domain name for AWS Apigateway, based on an existing
+This script configures a regional domain name for API Gateway, based on an existing
 certificate, and Route 53 zone. The certificate must be in the same region as the regional
 domain. 
 """

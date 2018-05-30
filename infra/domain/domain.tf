@@ -9,7 +9,7 @@ data aws_acm_certificate dss_domain_cert {
 }
 
 # TODO: Configure regional domain name with Terraform
-#   Terraform does not currently support regional API Endpoints:
+#   Terraform does not currently support regional API Gateway endpoints:
 #   https://github.com/terraform-providers/terraform-provider-aws/issues/2195
 resource null_resource dss_domain {
   provisioner "local-exec" {
