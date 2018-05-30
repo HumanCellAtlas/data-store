@@ -179,11 +179,13 @@ def resolve_content_item(replica: Replica, blobstore_handle: BlobStore, item: di
             'Error while parsing the link "{}": {}: {}'.format(item, type(e).__name__, e)
         )
 
-def verify_collection(contents: List[dict], replica: Replica, blobstore_handle: BlobStore):
+def verify_collection(contents: List[dict], replica: Replica, blobstore_handle: BlobStore, batch_size=64):
     """
     Given user-supplied collection contents that pass schema validation, resolve all entities in the collection and
     verify they exist.
     """
-    executor = ThreadPoolExecutor(max_workers=8)
-    for result in executor.map(partial(resolve_content_item, replica, blobstore_handle), contents):
-        pass
+    verifier = partial(resolve_content_item, replica, blobstore_handle)
+    for i in range(0, len(contents), batch_size):
+        with ThreadPoolExecutor(max_workers=8) as e:
+            for result in e.map(verifier, contents[i:i + batch_size]):
+                pass
