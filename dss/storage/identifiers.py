@@ -31,7 +31,7 @@ class ObjectIdentifierError(ValueError):
 
 
 class ObjectIdentifier(namedtuple('ObjectIdentifier', 'uuid version')):
-    prefix = None
+    prefix = None  # type: str
 
     @classmethod
     def from_key(cls, key: str):

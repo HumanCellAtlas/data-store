@@ -61,7 +61,7 @@ def put(json_request_body: dict, replica: str, uuid: str, version: str):
     collection_body = dict(json_request_body, owner=authenticated_user_email)
     uuid = uuid.lower()
     handle = Config.get_blobstore_handle(Replica[replica])
-    dedup_collection = OrderedDict()
+    dedup_collection: OrderedDict[int, dict] = OrderedDict()
     for item in collection_body["contents"]:
         dedup_collection[hash(tuple(sorted(item.items())))] = item
     collection_body["contents"] = list(dedup_collection.values())
