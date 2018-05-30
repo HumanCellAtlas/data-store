@@ -56,10 +56,6 @@ def get(uuid: str, replica: str, version: str = None):
     return collection_body
 
 @dss_handler
-def find(replica: str):
-    raise NotImplementedError()
-
-@dss_handler
 def put(json_request_body: dict, replica: str, uuid: str, version: str):
     authenticated_user_email = request.token_info["email"]
     collection_body = dict(json_request_body, owner=authenticated_user_email)
