@@ -109,14 +109,20 @@ class TestCollections(unittest.TestCase, DSSAssertMixin, DSSUploadMixin):
             res = self.app.put("/v1/collections",
                                headers=get_auth_header(authorized=True),
                                params=dict(uuid=str(uuid4()), version=datetime.now().isoformat(), replica="aws"),
-                               json=dict(name="n", description="d", details={}, contents=[invalid_ptr]))
+                               json=dict(name="n", description="d", details={}, contents=[invalid_ptr] * 128))
             self.assertEqual(res.status_code, requests.codes.unprocessable_entity)
         with self.subTest("PATCH invalid fragment reference"):
             res = self.app.patch("/v1/collections/{}".format(uuid),
                                  headers=get_auth_header(authorized=True),
                                  params=dict(version=version, replica="aws"),
-                                 json=dict(add_contents=[invalid_ptr]))
+                                 json=dict(add_contents=[invalid_ptr] * 256))
             self.assertEqual(res.status_code, requests.codes.unprocessable_entity)
+        with self.subTest("PATCH excess payload"):
+            res = self.app.patch("/v1/collections/{}".format(uuid),
+                                 headers=get_auth_header(authorized=True),
+                                 params=dict(version=version, replica="aws"),
+                                 json=dict(add_contents=[invalid_ptr] * 1024))
+            self.assertEqual(res.status_code, requests.codes.bad_request)
         with self.subTest("PATCH without version or replica"):
             for params in dict(replica="aws"), dict(version=version):
                 res = self.app.patch("/v1/collections/{}".format(uuid),
