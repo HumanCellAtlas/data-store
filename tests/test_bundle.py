@@ -160,54 +160,35 @@ class TestBundleApi(unittest.TestCase, DSSAssertMixin, DSSUploadMixin):
         schema = replica.storage_schema
 
         bundle_uuid = str(uuid.uuid4())
-        file_uuid = str(uuid.uuid4())
+        file_uuids = [str(uuid.uuid4()), str(uuid.uuid4())]
         missing_file_uuid = str(uuid.uuid4())
-        resp_obj = self.upload_file_wait(
-            f"{schema}://{fixtures_bucket}/test_good_source_data/0",
-            replica,
-            file_uuid,
-            bundle_uuid=bundle_uuid,
-        )
-        file_version = resp_obj.json['version']
+        file_versions = []
+        for file_uuid in file_uuids:
+            resp_obj = self.upload_file_wait(
+                f"{schema}://{fixtures_bucket}/test_good_source_data/0",
+                replica,
+                file_uuid,
+                bundle_uuid=bundle_uuid,
+            )
+            file_versions.append(resp_obj.json['version'])
 
         # first bundle.
         bundle_version = datetime_to_version_format(datetime.datetime.utcnow())
-        self.put_bundle(
-            replica,
-            bundle_uuid,
-            [(file_uuid, file_version, "LICENSE")],
-            bundle_version,
-        )
+        files = [(file_uuid, file_version, "LICENSE") for file_uuid, file_version in zip(file_uuids, file_versions)]
+        self.put_bundle(replica, bundle_uuid, files, bundle_version)
 
         # should be able to do this twice (i.e., same payload, same UUIDs)
-        self.put_bundle(
-            replica,
-            bundle_uuid,
-            [(file_uuid, file_version, "LICENSE")],
-            bundle_version,
-            requests.codes.ok,
-        )
+        self.put_bundle(replica, bundle_uuid, files, bundle_version, requests.codes.ok)
 
         # should *NOT* be able to do this twice with different payload.
-        self.put_bundle(
-            replica,
-            bundle_uuid,
-            [(file_uuid, file_version, "LICENSE1")],
-            bundle_version,
-            requests.codes.conflict,
-        )
+        files = [(file_uuid, file_version, "LICENSE1") for file_uuid, file_version in zip(file_uuids, file_versions)]
+        self.put_bundle(replica, bundle_uuid, files, bundle_version, requests.codes.conflict)
 
         # should *NOT* be able to upload a bundle with a missing file, but we should get requests.codes.conflict.
+        files = [(file_uuid, file_version, "LICENSE0") for file_uuid, file_version in zip(file_uuids, file_versions)]
+        files.append((missing_file_uuid, file_versions[0], "LICENSE1"))
         with nestedcontext.bind(time_left=lambda: 0):
-            resp_obj = self.put_bundle(
-                replica,
-                bundle_uuid,
-                [
-                    (file_uuid, file_version, "LICENSE0"),
-                    (missing_file_uuid, file_version, "LICENSE1"),
-                ],
-                expected_code=requests.codes.conflict,
-            )
+            resp_obj = self.put_bundle(replica, bundle_uuid, files, expected_code=requests.codes.conflict)
             self.assertEqual(resp_obj.json['code'], "file_missing")
 
         # uploads a file, but delete the file metadata. put it back after a delay.
@@ -215,19 +196,19 @@ class TestBundleApi(unittest.TestCase, DSSAssertMixin, DSSUploadMixin):
             f"{schema}://{fixtures_bucket}/test_good_source_data/0",
             replica,
             missing_file_uuid,
-            file_version,
+            file_versions[0],
             bundle_uuid=bundle_uuid
         )
         handle = Config.get_blobstore_handle(replica)
         bucket = replica.bucket
-        file_metadata = handle.get(bucket, f"files/{missing_file_uuid}.{file_version}")
-        handle.delete(bucket, f"files/{missing_file_uuid}.{file_version}")
+        file_metadata = handle.get(bucket, f"files/{missing_file_uuid}.{file_versions[0]}")
+        handle.delete(bucket, f"files/{missing_file_uuid}.{file_versions[0]}")
 
         class UploadThread(threading.Thread):
             def run(innerself):
                 time.sleep(5)
                 data_fh = io.BytesIO(file_metadata)
-                handle.upload_file_handle(bucket, f"files/{missing_file_uuid}.{file_version}", data_fh)
+                handle.upload_file_handle(bucket, f"files/{missing_file_uuid}.{file_versions[0]}", data_fh)
 
         # start the upload (on a delay...)
         upload_thread = UploadThread()
@@ -237,15 +218,7 @@ class TestBundleApi(unittest.TestCase, DSSAssertMixin, DSSUploadMixin):
         # metadata.  since we give the upload bundle process ample time to spin, it should eventually find the file
         # metadata and succeed.
         with nestedcontext.bind(time_left=lambda: sys.maxsize):
-            self.put_bundle(
-                replica,
-                bundle_uuid,
-                [
-                    (file_uuid, file_version, "LICENSE0"),
-                    (missing_file_uuid, file_version, "LICENSE1"),
-                ],
-                expected_code=requests.codes.created,
-            )
+            self.put_bundle(replica, bundle_uuid, files, expected_code=requests.codes.created)
 
     @testmode.standalone
     def test_bundle_delete(self):
