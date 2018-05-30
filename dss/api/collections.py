@@ -95,10 +95,10 @@ def patch(uuid: str, json_request_body: dict, replica: str, version: str):
     for field in "name", "description", "details":
         if field in json_request_body:
             collection[field] = json_request_body[field]
-    remove_contents_set = set(map(hashabledict, json_request_body.get("removeContents", [])))
+    remove_contents_set = set(map(hashabledict, json_request_body.get("remove_contents", [])))
     collection["contents"] = [i for i in collection["contents"] if hashabledict(i) not in remove_contents_set]
-    verify_collection(json_request_body.get("addContents", []), Replica[replica], handle)
-    collection["contents"].extend(json_request_body.get("addContents", []))
+    verify_collection(json_request_body.get("add_contents", []), Replica[replica], handle)
+    collection["contents"].extend(json_request_body.get("add_contents", []))
     timestamp = datetime.datetime.utcnow()
     new_collection_version = datetime_to_version_format(timestamp)
     handle.upload_file_handle(Replica[replica].bucket,

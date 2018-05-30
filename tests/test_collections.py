@@ -86,8 +86,8 @@ class TestCollections(unittest.TestCase, DSSAssertMixin, DSSUploadMixin):
         for patch_payload in [dict(),
                               dict(description="foo", name="cn"),
                               dict(description="bar", details={1: 2}),
-                              dict(addContents=contents),
-                              dict(removeContents=contents)]:
+                              dict(add_contents=contents),
+                              dict(remove_contents=contents)]:
             with self.subTest("PATCH with {}".format(patch_payload)):
                 res = self.app.patch("/v1/collections/{}".format(uuid),
                                      headers=get_auth_header(authorized=True),
@@ -115,7 +115,7 @@ class TestCollections(unittest.TestCase, DSSAssertMixin, DSSUploadMixin):
             res = self.app.patch("/v1/collections/{}".format(uuid),
                                  headers=get_auth_header(authorized=True),
                                  params=dict(version=version, replica="aws"),
-                                 json=dict(addContents=[invalid_ptr]))
+                                 json=dict(add_contents=[invalid_ptr]))
             self.assertEqual(res.status_code, requests.codes.unprocessable_entity)
         with self.subTest("PATCH without version or replica"):
             for params in dict(replica="aws"), dict(version=version):

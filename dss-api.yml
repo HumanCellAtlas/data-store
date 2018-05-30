@@ -815,7 +815,7 @@ paths:
           schema:
             type: object
             properties:
-              addContents:
+              add_contents:
                 type: array
                 description: |
                   List of new items to add to the collection. Items are de-duplicated (if an identical item is already
@@ -823,7 +823,7 @@ paths:
                 items:
                   $ref: '#/definitions/CollectionItem'
                 maxItems: 1000
-              removeContents:
+              remove_contents:
                 type: array
                 description: |
                   List of items to remove from the collection. Items must match exactly to be removed. Items not found
