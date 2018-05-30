@@ -671,6 +671,8 @@ paths:
         referenced). Up to 1000 items can be referenced in a new collection, or added or removed using
         `PATCH /collections`. New collections are private to the authenticated user.
 
+        Collection items are de-duplicated (if an identical item is given multiple times, it will only be added once).
+
         Collections are replicated across storage replicas similarly to files and bundles.
       security:
         - googAuth:

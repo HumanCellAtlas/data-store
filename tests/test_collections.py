@@ -67,13 +67,13 @@ class TestCollections(unittest.TestCase, DSSAssertMixin, DSSUploadMixin):
                                headers=get_auth_header(authorized=True),
                                params=dict(version=version, replica="aws"))
             res.raise_for_status()
-            self.assertEqual(res.json()["contents"], contents)
+            self.assertEqual(res.json()["contents"], [col_file_item, col_ptr_item])
         with self.subTest("GET latest version of collection"):
             res = self.app.get("/v1/collections/{}".format(uuid),
                                headers=get_auth_header(authorized=True),
                                params=dict(replica="aws"))
             res.raise_for_status()
-            self.assertEqual(res.json()["contents"], contents)
+            self.assertEqual(res.json()["contents"], [col_file_item, col_ptr_item])
         res = self.app.get("/v1/collections/{}".format(uuid),
                            headers=get_auth_header(authorized=True),
                            params=dict(replica="aws", version="9000"))
@@ -124,8 +124,6 @@ class TestCollections(unittest.TestCase, DSSAssertMixin, DSSUploadMixin):
                                      params=params,
                                      json={})
                 self.assertEqual(res.status_code, requests.codes.bad_request)
-        with self.subTest("Dedup semantics"):
-            pass
         with self.subTest("GET access control"):
             res = self.app.get("/v1/collections/{}".format(uuid),
                                headers=get_auth_header(authorized=False),

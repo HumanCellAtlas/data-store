@@ -3,6 +3,7 @@ from typing import List
 from uuid import uuid4
 from concurrent.futures import ThreadPoolExecutor
 from functools import partial
+from collections import OrderedDict
 
 import requests
 from flask import jsonify, request
@@ -60,6 +61,10 @@ def put(json_request_body: dict, replica: str, uuid: str, version: str):
     collection_body = dict(json_request_body, owner=authenticated_user_email)
     uuid = uuid.lower()
     handle = Config.get_blobstore_handle(Replica[replica])
+    dedup_collection = OrderedDict()
+    for item in collection_body["contents"]:
+        dedup_collection[hash(tuple(sorted(item.items())))] = item
+    collection_body["contents"] = list(dedup_collection.values())
     verify_collection(collection_body["contents"], Replica[replica], handle)
     collection_uuid = uuid if uuid else str(uuid4())
     if version is not None:
