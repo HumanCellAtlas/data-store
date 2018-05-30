@@ -7,7 +7,7 @@ from abc import ABCMeta, abstractmethod
 
 from dss import Config, Replica
 from dss.storage.identifiers import BundleFQID, FileFQID, ObjectIdentifier, ObjectIdentifierError, TombstoneID
-from dss.util.types import LambdaContext
+from dss.util.time import RemainingTime
 from .backend import IndexBackend
 from .bundle import Bundle, Tombstone
 
@@ -20,10 +20,10 @@ class IndexerTimeout(RuntimeError):
 
 class Indexer(metaclass=ABCMeta):
 
-    def __init__(self, backend: IndexBackend, context: LambdaContext) -> None:
+    def __init__(self, backend: IndexBackend, remaining_time: RemainingTime) -> None:
         super().__init__()
         self.backend = backend
-        self.context = context
+        self.remaining_time = remaining_time
 
     def process_new_indexable_object(self, event: Mapping[str, Any]) -> None:
         try:
@@ -77,20 +77,11 @@ class Indexer(metaclass=ABCMeta):
             self.backend.remove_bundle(bundle, tombstone)
         logger.info(f"Finished indexing tombstone {tombstone_id} from {self.replica.name}.")
 
-    @property
-    def remaining_time(self) -> float:
-        """
-        Return the remaining runtime of this Lambda invocation in seconds.
-        """
-        remaining_time = self.context.get_remaining_time_in_millis() / 1000
-        logger.debug("Remaining indexing time is %fs", remaining_time)
-        return remaining_time
-
     def _assert_enough_time(self, num_operations):
-        remaining_time = self.remaining_time
+        remaining_time = self.remaining_time.get()
         time_needed = num_operations * self.backend.estimate_indexing_time()
         if remaining_time < time_needed:
-            raise IndexerTimeout(f"Not enough time to complete indexing ({remaining_time} < {time_needed}).")
+            raise IndexerTimeout(f"Not enough time to complete indexing ({remaining_time:.3f} < {time_needed:.3f}).")
 
     replica: Optional[Replica] = None  # required in concrete subclasses
 

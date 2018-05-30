@@ -32,7 +32,7 @@ from dss.logging import configure_test_logging
 from dss.notify.notification import Notification, attempt_header_name
 from dss.notify.notifier import Notifier
 from dss.util import networking
-from dss.util.types import LambdaContext
+from dss.util.time import SpecificRemainingTime
 from infra import testmode
 
 logger = logging.getLogger(__name__)
@@ -83,7 +83,7 @@ class ThreadedHttpServerTestCase(unittest.TestCase):
 class _TestNotifier(ThreadedHttpServerTestCase):
     repeats = 1
     timeout = 1.0
-    overhead = 5.0
+    overhead = 30.0
     delays = [0.0, 1.0, 2.0]
     workers_per_queue: Optional[int] = None
 
@@ -110,13 +110,13 @@ class _TestNotifier(ThreadedHttpServerTestCase):
                                  overhead=self.overhead)
         self.notifier.deploy()
 
-    def _mock_context(self, total_attempts):
+    def _estimate_running_time(self, total_attempts) -> float:
         latency = sum(delay for delay in self.delays)
-        average_overhead = self.overhead / 3  # FIXME: this is a guess
+        average_overhead = self.overhead / 5  # FIXME: this is a guess
         average_timeout = self.timeout / 2  # FIXME: this is a guess
         parallelism = self.num_queues + (self.num_workers - self.num_queues) / 5  # FIXME: this is a guess
         total_time = latency + (average_timeout + average_overhead) * total_attempts / parallelism
-        return MockLambdaContext(total_time)
+        return total_time
 
     def tearDown(self):
         self.notifier.destroy()
@@ -170,7 +170,8 @@ class _TestNotifier(ThreadedHttpServerTestCase):
             # … takes a little longer to deliver, but then fails, will be missed
             notify(responses=[(self.timeout / 2, 500)], expect=False)
 
-            self.notifier.run(self._mock_context(total_attempts))
+            remaining_time = SpecificRemainingTime(self._estimate_running_time(total_attempts))
+            self.notifier.run(remaining_time)
 
         actual_receptions = set(PostTestHandler.actual_receptions)
         self.assertEqual(expected_receptions, actual_receptions)
@@ -265,22 +266,11 @@ class TestWorkerQueueAssignment(unittest.TestCase):
         avg = sum(c for c in queue_coverage.values()) / (num_queues - 1)
         # Since the first queue was longer by 1/imbalance compared to the other queues, it should get propoertionally
         # more coverage than the average short queue (within 10% of a margin)
-        self.assertAlmostEqual(avg / first_queue_coverage, imbalance, delta=.1)
+        self.assertAlmostEqual(avg / first_queue_coverage, imbalance, delta=.15)
         # Compute standard deviation
         sigma = sqrt(sum((c - avg) ** 2 for c in queue_coverage.values()) / (num_queues - 2))
         # The short queues' covereage should be within one standard deviation
         self.assertTrue(all(abs(c - avg) <= sigma) for c in queue_coverage.values())
-
-
-# noinspection PyAbstractClass
-class MockLambdaContext(LambdaContext):
-
-    def __init__(self, running_time: float) -> None:
-        super().__init__()
-        self.end_time = time.time() + running_time
-
-    def get_remaining_time_in_millis(self) -> int:
-        return int((self.end_time - time.time()) * 1000)
 
 
 class PostTestHandler(BaseHTTPRequestHandler):
@@ -297,7 +287,11 @@ class PostTestHandler(BaseHTTPRequestHandler):
         # Since we're messing with the connection timing, we make sure connections aren't reused on the client-side.
         self.close_connection = True
 
-    response_body = os.urandom(1024 * 1024)
+    # Generate a response large enough to detect a hung-up connection. On macOS 1 MiB was sufficient, not so in Docker
+    # containers. In case you're wondering why we're repeating a small amount of random data instead of just generating
+    # the equivalent amount: the former is two orders of magnitude faster.
+    #
+    response_body = b''.join([os.urandom(1024)] * 1024 * 10)
 
     def do_POST(self):
         length = int(self.headers['content-length'])

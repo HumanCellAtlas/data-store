@@ -1,8 +1,8 @@
 # You should not edit this file directly.  Instead, you should edit requirements-dev.txt.in.
-aegea==2.2.0
+aegea==2.2.1
 argcomplete==1.9.4
 asn1crypto==0.23.0
-aws-xray-sdk==0.94
+aws-xray-sdk==1.0
 awscli==1.12.2
 azure-common==1.1.8
 azure-nspkg==2.0.0
@@ -37,6 +37,7 @@ Faker==0.8.11
 fasteners==0.14.1
 flake8==3.5.0
 Flask==0.12.2
+future==0.16.0
 google-api-core==0.1.1
 google-apitools==0.5.21
 google-auth==1.2.1

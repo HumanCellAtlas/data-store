@@ -8,6 +8,7 @@ sys.path.insert(0, pkg_root)  # noqa
 
 from dss import BucketConfig, Config
 from dss.logging import configure_lambda_logging
+from dss.util import tracing
 from dss.stepfunctions.visitation.implementation import sfn
 
 

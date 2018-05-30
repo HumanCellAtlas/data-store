@@ -57,6 +57,16 @@
         "es:ESHttpPut"
       ],
       "Resource": "arn:aws:es:*:$account_id:domain/$dss_es_domain/*"
+    },
+    {
+      "Effect": "Allow",
+      "Action": [
+          "xray:PutTelemetryRecords",
+          "s3:Get*",
+          "s3:List*",
+          "xray:PutTraceSegments"
+      ],
+      "Resource": "*"
     }
   ]
 }

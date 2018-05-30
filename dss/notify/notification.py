@@ -33,6 +33,7 @@ class Notification(NamedTuple):
     hmac_key: Optional[str] = None
     hmac_key_id: Optional[str] = None
     queued_at: Optional[float] = None
+    correlation_id: Optional[str] = None
 
     @classmethod
     def create(cls,
@@ -44,7 +45,8 @@ class Notification(NamedTuple):
                body: JSON,
                attempts: Optional[int] = None,
                hmac_key: Optional[bytes] = None,
-               hmac_key_id: Optional[str] = None) -> 'Notification':
+               hmac_key_id: Optional[str] = None,
+               correlation_id: Optional[str] = None) -> 'Notification':
 
         allowed_schemes = {'https'} if DeploymentStage.IS_PROD() else {'https', 'http'}
         scheme = urlparse(url).scheme
@@ -69,7 +71,8 @@ class Notification(NamedTuple):
                    attempts=attempts,
                    hmac_key=None if hmac_key is None else cls._bin2sqs(hmac_key),
                    hmac_key_id=hmac_key_id,
-                   queued_at=None)  # this field will be set when the message comes out of the queue
+                   queued_at=None,  # this field will be set when the message comes out of the queue
+                   correlation_id=correlation_id)
 
     @classmethod
     def from_sqs_message(cls, message) -> 'Notification':
@@ -87,7 +90,8 @@ class Notification(NamedTuple):
                    attempts=int(v(message_attributes.get('attempts'))),
                    hmac_key=v(message_attributes.get('hmac_key')),
                    hmac_key_id=v(message_attributes.get('hmac_key_id')),
-                   queued_at=float(v(message_attributes.get('queued_at'))))
+                   queued_at=float(v(message_attributes.get('queued_at'))),
+                   correlation_id=v(message_attributes.get('correlation_id')))
 
     def to_sqs_message(self):
         assert self.attempts is not None
@@ -109,7 +113,8 @@ class Notification(NamedTuple):
                                              attempts=v(str(self.attempts)),
                                              hmac_key=v(self.hmac_key),
                                              hmac_key_id=v(self.hmac_key_id),
-                                             queued_at=v(str(time.time())))))
+                                             queued_at=v(str(time.time())),
+                                             correlation_id=v(self.correlation_id))))
 
     def deliver_or_raise(self, timeout: Optional[float] = None, attempt: Optional[int] = None):
         request = self._prepare_request(timeout, attempt)
@@ -121,14 +126,16 @@ class Notification(NamedTuple):
         try:
             response = requests.request(**request)
         except BaseException as e:
-            logger.warning("Exception raised during notification delivery attempt:", exc_info=e)
+            logger.warning("Exception raised while delivering %s:", self, exc_info=e)
             return False
         else:
             if 200 <= response.status_code < 300:
-                logger.info("Successfully delivered %s: HTTP status %i", self, response.status_code)
+                logger.info("Successfully delivered %s: HTTP status %i, response time %.3f",
+                            self, response.status_code, response.elapsed.total_seconds())
                 return True
             else:
-                logger.warning("Failed delivering %s: HTTP status %i", self, response.status_code)
+                logger.warning("Failed delivering %s: HTTP status %i, response time %.3f",
+                               self, response.status_code, response.elapsed.total_seconds())
                 return False
 
     def _prepare_request(self, timeout, attempt) -> Mapping[str, Any]:
@@ -181,7 +188,8 @@ class Notification(NamedTuple):
                 f"method='{self.method}', "
                 f"encoding='{self.encoding}', "
                 f"attempts={self.attempts}, "
-                f"hmac_key_id='{self.hmac_key_id}')")
+                f"hmac_key_id='{self.hmac_key_id}', "
+                f"correlation_id='{self.correlation_id}')")
 
 
 class Endpoint(NamedTuple):

@@ -47,8 +47,9 @@ from dss.storage.hcablobstore import BundleFileMetadata, BundleMetadata, FileMet
 from dss.storage.identifiers import BundleFQID, ObjectIdentifier
 from dss.util import UrlBuilder, create_blob_key, networking, RequirementError
 from dss.util.version import datetime_to_version_format
+from dss.util.time import SpecificRemainingTime
 from tests import eventually, get_auth_header, get_bundle_fqid, get_file_fqid, get_version
-from tests.infra import DSSAssertMixin, DSSStorageMixin, DSSUploadMixin, TestBundle, testmode, MockLambdaContext
+from tests.infra import DSSAssertMixin, DSSStorageMixin, DSSUploadMixin, TestBundle, testmode
 from tests.infra.elasticsearch_test_case import ElasticsearchTestCase
 from tests.infra.server import ThreadedLocalServer
 from tests.sample_search_queries import (smartseq2_paired_ends_v2_or_v3_query, smartseq2_paired_ends_v3_or_v4_query,
@@ -116,10 +117,12 @@ class TestIndexerBase(ElasticsearchTestCase, DSSAssertMixin, DSSStorageMixin, DS
 
     def setUp(self):
         super().setUp()
-        backend = CompositeIndexBackend(self.executor,
-                                        DEFAULT_BACKENDS,
+        remaining_time = SpecificRemainingTime(300)
+        backend = CompositeIndexBackend(executor=self.executor,
+                                        backends=DEFAULT_BACKENDS,
+                                        remaining_time=remaining_time,
                                         notify_async=testmode.is_integration())
-        self.indexer = self.indexer_cls(backend, MockLambdaContext())
+        self.indexer = self.indexer_cls(backend, remaining_time)
         self.dss_alias_name = dss.Config.get_es_alias_name(dss.ESIndexType.docs, self.replica)
         self.subscription_index_name = dss.Config.get_es_index_name(dss.ESIndexType.subscriptions, self.replica)
         if self.replica not in self.bundle_key_by_replica:
@@ -371,8 +374,9 @@ class TestIndexerBase(ElasticsearchTestCase, DSSAssertMixin, DSSStorageMixin, DS
 
     @testmode.standalone
     def test_not_enough_time_to_index(self):
-        backend = CompositeIndexBackend(self.executor, DEFAULT_BACKENDS)
-        self.indexer = self.indexer_cls(backend, MockLambdaContext(0))
+        remaining_time = SpecificRemainingTime(0)
+        backend = CompositeIndexBackend(self.executor, remaining_time, DEFAULT_BACKENDS)
+        self.indexer = self.indexer_cls(backend, remaining_time)
         sample_event = self.create_bundle_created_event(self.bundle_key)
         with self.assertRaises(RuntimeError):
             self.process_new_indexable_object(sample_event)
@@ -385,7 +389,7 @@ class TestIndexerBase(ElasticsearchTestCase, DSSAssertMixin, DSSStorageMixin, DS
 
     @testmode.standalone
     def test_notify(self):
-        backend = ElasticsearchIndexBackend(context=MockLambdaContext(), notify_async=False)
+        backend = ElasticsearchIndexBackend(notify_async=False)
 
         def _notify(url):
             document = BundleDocument(self.replica, get_bundle_fqid())
@@ -457,8 +461,6 @@ class TestIndexerBase(ElasticsearchTestCase, DSSAssertMixin, DSSStorageMixin, DS
 
     @testmode.standalone
     def test_subscription_with_attachments(self):
-        endpoint = self._default_endpoint()
-        endpoint = NotificationRequestHandler.configure(endpoint)
 
         def define(**definitions):
             return dict({k: dict(type='jmespath', expression=v) for k, v in definitions.items()})
@@ -468,7 +470,7 @@ class TestIndexerBase(ElasticsearchTestCase, DSSAssertMixin, DSSStorageMixin, DS
              dict(foo='bar')),  # is returned as is.
             (define(foo='doesnotexist'),  # A non-existant field …
              dict(foo=None)),  # yields None.
-            (define(primer='files.assay_json.rna.primer'),  # An existing fields
+            (define(primer='files.assay_json.rna.primer'),  # An existing field
              dict(primer='random')),  # yields that field's value
             (define(protocols='files.project_json.protocols[0:2].type.text'),  # A more complicated expression
              dict(protocols=['growth protocol', 'treatment protocol'])),  # (a projection and a slice).
@@ -481,6 +483,7 @@ class TestIndexerBase(ElasticsearchTestCase, DSSAssertMixin, DSSStorageMixin, DS
         for definitions, attachments in test_cases:
             query = self.smartseq2_paired_ends_query
             with self.subTest(definitions=definitions, attachments=attachments):
+                endpoint = NotificationRequestHandler.configure(self._default_endpoint())
                 subscription_id = self.subscribe_for_notification(es_query=query,
                                                                   attachments=definitions,
                                                                   **endpoint.to_dict())

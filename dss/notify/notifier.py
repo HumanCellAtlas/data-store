@@ -12,10 +12,11 @@ import random
 from dss import Config
 from dss.notify.notification import Notification
 from dss.util import require
-from dss.util.types import LambdaContext
+from dss.util.time import RemainingTime
 
 logger = logging.getLogger(__name__)
 
+SQS_MAX_VISIBILITY_TIMEOUT = 43200
 
 class Notifier:
 
@@ -24,9 +25,11 @@ class Notifier:
         """
         Create a Notifier instance with global configuration, typically environment variables.
         """
-        return cls(deployment_stage=Config.deployment_stage(),
-                   delays=Config.notification_delays(),
-                   num_workers=Config.notification_workers())
+        kwargs = dict(deployment_stage=Config.deployment_stage(),
+                      delays=Config.notification_delays(),
+                      num_workers=Config.notification_workers(),
+                      timeout=Config.notification_timeout())
+        return cls(**{k: v for k, v in kwargs.items() if v is not None})
 
     def __init__(self,
                  deployment_stage: str,
@@ -34,7 +37,7 @@ class Notifier:
                  num_workers: int = None,
                  sqs_polling_timeout: int = 20,
                  timeout: float = 10.0,
-                 overhead: float = 5.0) -> None:
+                 overhead: float = 30.0) -> None:
         """
         Create a new notifier.
 
@@ -98,7 +101,8 @@ class Notifier:
             raise RuntimeError('Deletion of queues outside the test deployment stage is prohibited.')
 
     def enqueue(self, notification: Notification, queue_index: int = 0) -> None:
-        require(notification.attempts is not None, "Cannot enqueue a notification whose `attempts` attribute is None.")
+        require(notification.attempts is not None,
+                "Cannot enqueue a notification whose `attempts` attribute is None", notification)
         if queue_index is None:
             # Enqueueing a notification into the failure queue does not consume an attempt.
             logger.info(f"Adding notification to '{self._queue_name(None)}' queue as requested: {notification}")
@@ -117,13 +121,14 @@ class Notifier:
         queue = self._queue(queue_index)
         queue.send_message(**notification.to_sqs_message())
 
-    def run(self, context: LambdaContext) -> None:
+    def run(self, remaining_time: RemainingTime) -> None:
         queue_lengths = self._sample_queue_lengths()
         queue_indices = self._work_queue_indices(queue_lengths)
         with concurrent.futures.ThreadPoolExecutor(self._num_workers) as pool:
             future_to_worker = {}
             for worker_index, queue_index in enumerate(queue_indices):
-                worker = functools.partial(self._worker, worker_index, queue_index, context)
+                remaining_worker_time = RemainingWorkerTime(remaining_time, worker_index)
+                worker = functools.partial(self._worker, worker_index, queue_index, remaining_worker_time)
                 future = pool.submit(worker)
                 future_to_worker[future] = worker_index
             exceptions = {}
@@ -182,15 +187,10 @@ class Notifier:
                 raise RuntimeError(f"Missing queue with index {queue_index}")
         return queue_lengths
 
-    def _worker(self, worker_index: int, queue_index: int, context: LambdaContext) -> None:
-
-        def _seconds_remaining() -> float:
-            millis = context.get_remaining_time_in_millis()
-            logger.debug(f"Remaining runtime for worker {worker_index}: {millis}ms")
-            return millis / 1000
+    def _worker(self, worker_index: int, queue_index: int, remaining_time: RemainingTime) -> None:
 
         queue = self._queue(queue_index)
-        while self._timeout + self._sqs_polling_timeout < _seconds_remaining():
+        while self._timeout + self._sqs_polling_timeout < remaining_time.get():
             visibility_timeout = self._timeout + self._overhead
             messages = queue.receive_messages(MaxNumberOfMessages=1,
                                               WaitTimeSeconds=self._sqs_polling_timeout,
@@ -204,23 +204,26 @@ class Notifier:
                 logger.info(f'Worker {worker_index} received message from queue {queue_index} for {notification}')
                 seconds_to_maturity = notification.queued_at + self._delays[queue_index] - time.time()
                 if seconds_to_maturity > 0:
-                    logger.info(f'Worker {worker_index} returning message to queue {queue_index}. '
-                                f'It will be {seconds_to_maturity} to maturity of {notification}.')
-                    message.change_visibility(VisibilityTimeout=0)
-                    if seconds_to_maturity < _seconds_remaining():
-                        # This sleep prevents the message from continuously bouncing between the worker and the
-                        # queue. It is the essential measure to prevent unnecessary churn on the queue. Consider that
-                        # other messages further up in the queue invariantly mature after the current message,
-                        # ensuring that this wait does not exessively throttle the worker.
-                        #
-                        # TODO: determine how this interacts with FIFO queues and message groups as those yield
-                        # messages in an ordering that, while being strict wrt to a group, is only partial
-                        # wrt to the entire queue. The above invariant may not hold globally for that reason.
-                        time.sleep(seconds_to_maturity)
-                    else:
-                        logger.info(f"Exiting worker {worker_index}. Its time is up before the next message is due.")
-                        break
-                elif _seconds_remaining() < visibility_timeout:
+                    # Hide the message and sleep until it matures. These two measures prevent immature messages from
+                    # continuously bouncing between the queue and the workers consuming it, thereby preventing
+                    # unnecessary churn on the queue. Consider that other messages further up in the queue
+                    # invariantly mature after the current message, ensuring that this wait does not limit throughput
+                    # or increase latency.
+                    #
+                    # TODO: determine how this interacts with FIFO queues and message groups as those yield
+                    # messages in an ordering that, while being strict with respect to a group, is only partial
+                    # with respect to the entire queue. The above invariant may not hold globally for that reason.
+                    #
+                    # SQS ignores a request to change the VTO of a message if the total VTO would exceed the max.
+                    # allowed value of 12 hours. To be safe, we subtract the initial VTO from the max VTO.
+                    max_visibility_timeout = SQS_MAX_VISIBILITY_TIMEOUT - visibility_timeout
+                    visibility_timeout = min(seconds_to_maturity, max_visibility_timeout)
+                    logger.info(f'Worker {worker_index} hiding message from queue {queue_index} '
+                                f'for another {visibility_timeout:.3f}s. '
+                                f'It will be {seconds_to_maturity:.3f}s to maturity of {notification}.')
+                    message.change_visibility(VisibilityTimeout=int(visibility_timeout))
+                    time.sleep(min(seconds_to_maturity, remaining_time.get()))
+                elif remaining_time.get() < visibility_timeout:
                     logger.info(f'Worker {worker_index} returning message to queue {queue_index}. '
                                 f'There is not enough time left to deliver {notification}.')
                     message.change_visibility(VisibilityTimeout=0)
@@ -228,6 +231,8 @@ class Notifier:
                     if not notification.deliver(timeout=self._timeout, attempt=queue_index):
                         self.enqueue(notification, self._next_queue_index(queue_index))
                     message.delete()
+        else:
+            logger.info(f"Exiting worker {worker_index} due to insufficient time left.")
 
     @property
     def _queue_name_prefix(self):
@@ -261,3 +266,16 @@ class Notifier:
         assert queue_name.startswith(prefix) and queue_name.endswith(suffix)
         queue_index = queue_name[len(prefix):-len(suffix)]
         return None if queue_index == self._failure_queue_name_suffix else int(queue_index)
+
+
+class RemainingWorkerTime(RemainingTime):
+
+    def __init__(self, actual: RemainingTime, worker_index: int) -> None:
+        super().__init__()
+        self._worker_index = worker_index
+        self._actual = actual
+
+    def get(self) -> float:
+        value = self._actual.get()
+        logger.debug(f"Remaining runtime for worker {self._worker_index}: {value:.3f}s")
+        return value

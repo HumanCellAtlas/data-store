@@ -372,6 +372,11 @@ class Config:
         return int(value) if value else None
 
     @classmethod
+    def notification_timeout(cls) -> typing.Optional[float]:
+        value = os.environ.get('DSS_NOTIFY_TIMEOUT')
+        return float(value) if value else None
+
+    @classmethod
     def get_elasticsearch_host(cls):
         return os.environ.get('DSS_ES_ENDPOINT', "localhost")
 

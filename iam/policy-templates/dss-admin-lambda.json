@@ -30,6 +30,16 @@
         "arn:aws:states:*:$account_id:stateMachine:dss-visitation*",
         "arn:aws:states:*:$account_id:execution:dss-visitation*"
 	  ]
+    },
+    {
+      "Effect": "Allow",
+      "Action": [
+          "xray:PutTelemetryRecords",
+          "s3:Get*",
+          "s3:List*",
+          "xray:PutTraceSegments"
+      ],
+      "Resource": "*"
     }
   ]
 }

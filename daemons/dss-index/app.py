@@ -14,8 +14,13 @@ from dss.index import DEFAULT_BACKENDS
 from dss.index.backend import CompositeIndexBackend
 from dss.index.indexer import Indexer
 from dss.logging import configure_lambda_logging
+from dss.util import tracing
+from dss.util.time import RemainingLambdaContextTime, AdjustedRemainingTime
+
 
 app = domovoi.Domovoi(configure_logs=False)
+
+
 configure_lambda_logging()
 
 dss.Config.set_config(dss.BucketConfig.NORMAL)
@@ -43,11 +48,13 @@ def dispatch_gs_indexer_event(event, context):
 
 def _handle_event(replica, event, context):
     executor = ThreadPoolExecutor(len(DEFAULT_BACKENDS))
-    # We can't use ecxecutor as context manager because we don't want the shutdown to block
+    # We can't use executor as context manager because we don't want the shutdown to block
     try:
-        backend = CompositeIndexBackend(executor, DEFAULT_BACKENDS)
+        remaining_time = AdjustedRemainingTime(actual=RemainingLambdaContextTime(context),
+                                               offset=-10)  # leave 10s for shutdown
+        backend = CompositeIndexBackend(executor, remaining_time, DEFAULT_BACKENDS)
         indexer_cls = Indexer.for_replica(replica)
-        indexer = indexer_cls(backend, context)
+        indexer = indexer_cls(backend, remaining_time)
         indexer.process_new_indexable_object(event)
     finally:
         executor.shutdown(False)

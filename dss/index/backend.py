@@ -1,10 +1,11 @@
 import concurrent.futures
-from typing import Optional, Type, Union, Iterable
+from typing import Optional, Type, Union, Iterable, Callable, Any, Tuple, Mapping
 
 from abc import ABCMeta, abstractmethod
 from operator import methodcaller
 
 from dss.index.bundle import Bundle, Tombstone
+from dss.util.time import RemainingTime
 
 
 class IndexBackend(metaclass=ABCMeta):
@@ -57,10 +58,13 @@ class CompositeIndexBackend(IndexBackend):
     """
     def __init__(self,
                  executor: concurrent.futures.ThreadPoolExecutor,
+                 remaining_time: RemainingTime,
                  backends: Iterable[Union[IndexBackend, Type[IndexBackend]]],
                  *args, **kwargs) -> None:
         """
         :param executor: the executor to be used for delegating operations to all underlying backends in parallel
+
+        :param remaining_time: the runtime available for indexing operations
 
         :param backends: the backends to delegate to. Can be a mix of backend classes and instances. Any class will be
                          instantiated with args and kwargs, an instance will be used as is.
@@ -72,6 +76,7 @@ class CompositeIndexBackend(IndexBackend):
         """
         super().__init__(*args, **kwargs)
         self._executor = executor
+        self._remaining_time = remaining_time
 
         def make_backend(backend: Union[IndexBackend, Type[IndexBackend]]) -> IndexBackend:
             if isinstance(backend, IndexBackend):
@@ -92,11 +97,14 @@ class CompositeIndexBackend(IndexBackend):
     def remove_bundle(self, *args, **kwargs):
         self._delegate(self.remove_bundle, args, kwargs)
 
-    def _delegate(self, method, args, kwargs):
+    def _delegate(self, method: Callable, args: Tuple, kwargs: Mapping):
+        estimate = self.estimate_indexing_time()
+        remaining = self._remaining_time.get()
+        if remaining < estimate:
+            raise RuntimeError(f'Insufficient time to perform indexing operation ({remaining:.3f} < {estimate:.3f}).')
         fn = methodcaller(method.__name__, *args, **kwargs)
-        future_to_backend = {self._executor.submit(fn, backend): backend
-                             for backend in self._backends}
-        done, not_done = concurrent.futures.wait(future_to_backend.keys(), timeout=self.estimate_indexing_time())
+        future_to_backend = {self._executor.submit(fn, backend): backend for backend in self._backends}
+        done, not_done = concurrent.futures.wait(future_to_backend.keys(), timeout=remaining)
         results = {}
         problems = []
         for future in not_done:

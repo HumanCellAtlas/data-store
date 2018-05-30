@@ -11,7 +11,10 @@ sys.path.insert(0, pkg_root)  # noqa
 
 from dss import BucketConfig, Config, Replica
 from dss.logging import configure_lambda_logging
-from dss.stepfunctions.visitation.reindex import Reindex
+from dss.stepfunctions.visitation.index import IndexVisitation
+from dss.stepfunctions.visitation.storage import StorageVisitation
+from dss.util import tracing
+from dss.util.types import JSON
 
 
 Config.set_config(BucketConfig.NORMAL)
@@ -19,9 +22,10 @@ Config.set_config(BucketConfig.NORMAL)
 
 class Target:
     """
-    The target of an admin operation. After adding a subclass here, a corresponding subcommand (aka target) should be
-    added to the admin CLI (admin-cli.py). Every method in the target subclass should correspond to an subsubcommand
-    (aka action) of the target subcommand.
+    The target of an admin operation. Targets are nouns (like index, storage) and actions are verbs (like verify,
+    repair). After adding a subclass here, a corresponding subcommand (aka target) should be added to the admin CLI (
+    admin-cli.py). Every method in the target subclass should correspond to an subsubcommand (aka action) of the
+    target subcommand.
     """
     pass
 
@@ -30,21 +34,41 @@ class IndexTarget(Target):
     """
     Admin operations on the Elasticsearch index.
     """
-    def __init__(self, replica: str, bucket: str = None) -> None:
+    def __init__(self, replica: str, bucket: str = None, prefix: str = None) -> None:
         super().__init__()
         self.replica = Replica[replica]
         self.bucket = bucket or self.replica.bucket
+        self.prefix = prefix or ''
 
-    def repair(self, workers: int) -> Mapping[str, Any]:
-        return self._reindex(workers, dryrun=False, notify=None)
+    def repair(self, workers: int) -> JSON:
+        return self._start(workers, dryrun=False, notify=None)
 
-    def verify(self, workers: int) -> Mapping[str, Any]:
-        return self._reindex(workers, dryrun=True, notify=False)
+    def verify(self, workers: int) -> JSON:
+        return self._start(workers, dryrun=True, notify=False)
 
-    def _reindex(self, workers: int, dryrun: bool, notify: Optional[bool]) -> Mapping[str, Any]:
+    def _start(self, workers: int, dryrun: bool, notify: Optional[bool]) -> Mapping[str, Any]:
         assert 1 < workers
-        visitation_id = Reindex.start(self.replica.name, self.bucket, workers, dryrun=dryrun, notify=notify)
-        return {'visitation_id': visitation_id}
+        return IndexVisitation.start(workers,
+                                     replica=self.replica.name,
+                                     bucket=self.bucket,
+                                     prefix=self.prefix,
+                                     dryrun=dryrun,
+                                     notify=notify)
+
+
+class StorageTarget(Target):
+    """
+    Admin operations on the storage buckets and the replication between them.
+    """
+    def __init__(self, replicas: Mapping[str, str]) -> None:
+        replicas = ((Replica[replica], bucket) for replica, bucket in replicas.items())
+        self.replicas = {replica.name: bucket or replica.bucket for replica, bucket in replicas}
+        super().__init__()
+
+    def verify(self, workers: int) -> JSON:
+        assert 1 < workers
+        replicas, buckets = zip(*self.replicas.items())
+        return StorageVisitation.start(workers, replicas=replicas, buckets=buckets)
 
 
 def _invoke(f: Callable, kwargs: Mapping[str, Any]) -> Any:
@@ -66,6 +90,7 @@ class DSSAdmin(domovoi.Domovoi):
         action = getattr(target, action_name)
         result = _invoke(action, options)
         return json.dumps(result)
+
 
 configure_lambda_logging()
 app = DSSAdmin(configure_logs=False)
