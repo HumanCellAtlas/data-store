@@ -13,7 +13,7 @@ from dss import Config, Replica
 from dss.error import DSSException, dss_handler
 from dss.storage.blobstore import test_object_exists
 from dss.storage.hcablobstore import FileMetadata, BlobStore
-from dss.storage.identifiers import COLLECTION_PREFIX, TOMBSTONE_SUFFIX
+from dss.storage.identifiers import CollectionFQID, CollectionTombstoneID
 from dss.util.version import datetime_to_version_format
 from dss.api.bundles import _idempotent_save
 
@@ -29,20 +29,19 @@ def get_impl(uuid: str, replica: str, version: str = None):
     bucket = Replica[replica].bucket
     handle = Config.get_blobstore_handle(Replica[replica])
 
-    my_collection_prefix = "{}/{}".format(COLLECTION_PREFIX, uuid)
-    tombstone_key = "{}.{}".format(my_collection_prefix, TOMBSTONE_SUFFIX)
+    tombstone_key = CollectionTombstoneID(uuid, version=None).to_key()
     if test_object_exists(handle, bucket, tombstone_key):
         raise DSSException(404, "not_found", "Could not find collection for UUID {}".format(uuid))
 
     if version is None:
         # list the collections and find the one that is the most recent.
-        prefix = "collections/{}.".format(uuid)
+        prefix = CollectionFQID(uuid, version=None).to_key_prefix()
         for matching_key in handle.list(bucket, prefix):
             matching_key = matching_key[len(prefix):]
             if version is None or matching_key > version:
                 version = matching_key
     try:
-        collection_blob = handle.get(bucket, "{}/{}.{}".format(COLLECTION_PREFIX, uuid, version))
+        collection_blob = handle.get(bucket, CollectionFQID(uuid, version).to_key())
     except BlobNotFoundError:
         raise DSSException(404, "not_found", "Could not find collection for UUID {}".format(uuid))
     return json.loads(collection_blob)
@@ -70,7 +69,7 @@ def put(json_request_body: dict, replica: str, uuid: str, version: str):
         timestamp = datetime.datetime.utcnow()
     collection_version = datetime_to_version_format(timestamp)
     handle.upload_file_handle(Replica[replica].bucket,
-                              "{}/{}.{}".format(COLLECTION_PREFIX, collection_uuid, collection_version),
+                              CollectionFQID(collection_uuid, collection_version).to_key(),
                               io.BytesIO(json.dumps(collection_body).encode("utf-8")))
     return jsonify(dict(uuid=collection_uuid, version=collection_version)), requests.codes.created
 
@@ -89,7 +88,7 @@ def patch(uuid: str, json_request_body: dict, replica: str, version: str):
 
     handle = Config.get_blobstore_handle(Replica[replica])
     try:
-        cur_collection_blob = handle.get(Replica[replica].bucket, "{}/{}.{}".format(COLLECTION_PREFIX, uuid, version))
+        cur_collection_blob = handle.get(Replica[replica].bucket, CollectionFQID(uuid, version).to_key())
     except BlobNotFoundError:
         raise DSSException(404, "not_found", "Could not find collection for UUID {}".format(uuid))
     collection = json.loads(cur_collection_blob)
@@ -103,7 +102,7 @@ def patch(uuid: str, json_request_body: dict, replica: str, version: str):
     timestamp = datetime.datetime.utcnow()
     new_collection_version = datetime_to_version_format(timestamp)
     handle.upload_file_handle(Replica[replica].bucket,
-                              "{}/{}.{}".format(COLLECTION_PREFIX, uuid, new_collection_version),
+                              CollectionFQID(uuid, new_collection_version).to_key(),
                               io.BytesIO(json.dumps(collection).encode("utf-8")))
     return jsonify(dict(uuid=uuid, version=new_collection_version)), requests.codes.ok
 
@@ -112,8 +111,7 @@ def delete(uuid: str, replica: str):
     authenticated_user_email = request.token_info['email']
 
     uuid = uuid.lower()
-    my_collection_prefix = "{}/{}".format(COLLECTION_PREFIX, uuid)
-    tombstone_key = "{}.{}".format(my_collection_prefix, TOMBSTONE_SUFFIX)
+    tombstone_key = CollectionTombstoneID(uuid, version=None).to_key()
 
     tombstone_object_data = dict(email=authenticated_user_email)
 

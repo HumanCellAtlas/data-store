@@ -1,5 +1,4 @@
 import re
-from abc import abstractmethod
 from collections import namedtuple
 
 BUNDLE_PREFIX = "bundles"
@@ -32,6 +31,7 @@ class ObjectIdentifierError(ValueError):
 
 
 class ObjectIdentifier(namedtuple('ObjectIdentifier', 'uuid version')):
+    prefix = None
 
     @classmethod
     def from_key(cls, key: str):
@@ -54,11 +54,6 @@ class ObjectIdentifier(namedtuple('ObjectIdentifier', 'uuid version')):
 
     def to_key(self):
         return f"{self.prefix}/{self}"
-
-    @property
-    @abstractmethod
-    def prefix(self):
-        return NotImplementedError()
 
     def to_key_prefix(self):
         return f"{self.prefix}/{self.uuid}.{self.version or ''}"
@@ -104,3 +99,9 @@ class TombstoneID(ObjectIdentifier):
             return BundleFQID(uuid=self.uuid, version=self.version)
         else:
             raise ValueError(f"{self} does not define a version, therefore it can't be a Bundle FQID.")
+
+class CollectionFQID(ObjectIdentifier):
+    prefix = COLLECTION_PREFIX
+
+class CollectionTombstoneID(TombstoneID):
+    prefix = COLLECTION_PREFIX
