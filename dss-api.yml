@@ -843,6 +843,18 @@ paths:
       responses:
         200:
           description: OK
+          schema:
+            type: object
+            properties:
+              uuid:
+                type: string
+                description: A RFC4122-compliant ID of this collection.
+              version:
+                type: string
+                description: New version of the updated collection.
+            required:
+              - uuid
+              - version
         default:
           description: Unexpected error
           schema:
