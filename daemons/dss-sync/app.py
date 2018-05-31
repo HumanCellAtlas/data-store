@@ -85,7 +85,7 @@ def compose_upload(event, context):
         time.sleep(5)
     if msg["source_platform"] == "s3":
         source_blob = resources.s3.Bucket(msg["source_bucket"]).Object(msg["source_key"])
-        dest_blob = gs_bucket.get_key(msg["dest_key"])
+        dest_blob = gs_bucket.get_blob(msg["dest_key"])
         dest_blob.metadata = source_blob.metadata
     else:
         raise NotImplementedError()
