@@ -90,7 +90,8 @@ Hint: To create S3 buckets from the command line, use `aws s3 mb --region REGION
 7.  Enable required APIs: 
 
     ```
-    gcloud services enable cloudfunctions.googleapis.com`; `gcloud services enable runtimeconfig.googleapis.com
+    gcloud services enable cloudfunctions.googleapis.com
+    gcloud services enable runtimeconfig.googleapis.com
     ```
 
 8.  Generate OAuth application secrets to be used for your instance: 
@@ -166,14 +167,16 @@ Assuming the tests have passed above, the next step is to manually deploy. See t
 CI/CD with Travis if continuous deployment is your goal.
 
 The AWS Elasticsearch Service is used for metadata indexing. Currently, the AWS Elasticsearch Service must be configured
-manually. The AWS Elasticsearch Service domain name must either:
+manually.
 
-* have the value `dss-index-$DSS_DEPLOYMENT_STAGE`
-
-* or, the environment variable `DSS_ES_DOMAIN` must be set to the domain name of the AWS Elasticsearch Service instance
+* The AWS Elasticsearch Service domain name must either:
+  * have the value `dss-index-$DSS_DEPLOYMENT_STAGE`
+  * or, the environment variable `DSS_ES_DOMAIN` must be set to the domain name of the AWS Elasticsearch Service instance
   to be used.
+* For typical development deployments the t2.small.elasticsearch instance type is more than sufficient.
+* Must be Elasticsearch 5.* instead of 6.* because [more than one document type is created]
+(https://github.com/HumanCellAtlas/data-store/blob/557e60e3672075d532d790bca4422ae74023ea0a/dss/index/es/manager.py#L20).
 
-For typical development deployments the t2.small.elasticsearch instance type is more than sufficient. 
 
 Now deploy using make:
 
