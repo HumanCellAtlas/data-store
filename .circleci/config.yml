@@ -2,7 +2,6 @@ version: 2
 
 defaults:
   environment: &environment
-    DOCKER_REPO: datastoreci/data-store-build
     DSS_ES_TIMEOUT: 30
     DSS_UNITTEST_OPTS: -v
   after_checkout: &after_checkout |
