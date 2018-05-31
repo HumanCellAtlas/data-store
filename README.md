@@ -169,7 +169,7 @@ CI/CD with Travis if continuous deployment is your goal.
 The AWS Elasticsearch Service is used for metadata indexing. Currently, the AWS Elasticsearch Service must be configured
 manually.
 
-* The AWS Elasticsearch Service domain name must either:
+* The domain name must either:
   * have the value `dss-index-$DSS_DEPLOYMENT_STAGE`
   * or, the environment variable `DSS_ES_DOMAIN` must be set to the domain name of the AWS Elasticsearch Service instance
   to be used.
