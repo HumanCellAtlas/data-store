@@ -174,8 +174,8 @@ manually.
   * or, the environment variable `DSS_ES_DOMAIN` must be set to the domain name of the AWS Elasticsearch Service instance
   to be used.
 * For typical development deployments the t2.small.elasticsearch instance type is more than sufficient.
-* Must be Elasticsearch 5.* instead of 6.* because [more than one document type is created]
-(https://github.com/HumanCellAtlas/data-store/blob/557e60e3672075d532d790bca4422ae74023ea0a/dss/index/es/manager.py#L20).
+* Must be Elasticsearch 5.* instead of 6.* because [more than one document type
+is created](https://github.com/HumanCellAtlas/data-store/blob/557e60e3672075d532d790bca4422ae74023ea0a/dss/index/es/manager.py#L20).
 
 
 Now deploy using make:
