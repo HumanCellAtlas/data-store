@@ -27,6 +27,7 @@ jobs:
       - setup_remote_docker
       - checkout
       - run: |
+          echo "DOCKER_PASS is $DOCKER_PASS"
           docker login -u $DOCKER_USER -p $DOCKER_PASS
           image_commit=$(scripts/list_docker_tags.sh $DOCKER_REPO $CIRCLE_BRANCH)
           if [ -z "$image_commit" ]; then
