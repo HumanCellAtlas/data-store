@@ -1,9 +1,9 @@
 import re
-from abc import abstractmethod
 from collections import namedtuple
 
 BUNDLE_PREFIX = "bundles"
 FILE_PREFIX = "files"
+COLLECTION_PREFIX = "collections"
 TOMBSTONE_SUFFIX = "dead"
 
 UUID_PATTERN = "[0-9A-Fa-f]{8}-[0-9A-Fa-f]{4}-[0-9A-Fa-f]{4}-[0-9A-Fa-f]{4}-[0-9A-Fa-f]{12}"
@@ -23,7 +23,7 @@ DSS_BUNDLE_TOMBSTONE_REGEX = re.compile(
     f"^{BUNDLE_PREFIX}/({UUID_PATTERN})(?:\.(" + VERSION_PATTERN + "))?\." + TOMBSTONE_SUFFIX + "$")
 # matches all bundle objects
 DSS_OBJECT_NAME_REGEX = re.compile(
-    f"^({BUNDLE_PREFIX}|{FILE_PREFIX})/({UUID_PATTERN})(?:\.({VERSION_PATTERN}))?(\.{TOMBSTONE_SUFFIX})?$")
+    f"^({BUNDLE_PREFIX}|{FILE_PREFIX}|{COLLECTION_PREFIX})/({UUID_PATTERN})(?:\.({VERSION_PATTERN}))?(\.{TOMBSTONE_SUFFIX})?$")  # noqa
 
 
 class ObjectIdentifierError(ValueError):
@@ -31,6 +31,7 @@ class ObjectIdentifierError(ValueError):
 
 
 class ObjectIdentifier(namedtuple('ObjectIdentifier', 'uuid version')):
+    prefix = None  # type: str
 
     @classmethod
     def from_key(cls, key: str):
@@ -53,11 +54,6 @@ class ObjectIdentifier(namedtuple('ObjectIdentifier', 'uuid version')):
 
     def to_key(self):
         return f"{self.prefix}/{self}"
-
-    @property
-    @abstractmethod
-    def prefix(self):
-        return NotImplementedError()
 
     def to_key_prefix(self):
         return f"{self.prefix}/{self.uuid}.{self.version or ''}"
@@ -103,3 +99,9 @@ class TombstoneID(ObjectIdentifier):
             return BundleFQID(uuid=self.uuid, version=self.version)
         else:
             raise ValueError(f"{self} does not define a version, therefore it can't be a Bundle FQID.")
+
+class CollectionFQID(ObjectIdentifier):
+    prefix = COLLECTION_PREFIX
+
+class CollectionTombstoneID(TombstoneID):
+    prefix = COLLECTION_PREFIX

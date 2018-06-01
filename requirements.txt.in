@@ -10,6 +10,7 @@ google-cloud-storage >= 1.7.0
 google-apitools >= 0.5.0
 iso8601 >= 0.1.12
 jmespath >= 0.9.3
+jsonpointer >= 2.0
 jsonschema >= 2.6.0
 nestedcontext >= 0.0.4
 requests-aws4auth >= 0.9

@@ -660,6 +660,259 @@ paths:
                     enum: [unhandled_exception, Forbidden, OAuthResponseProblem, not_found]
                 required:
                   - code
+  /collections:
+    put:
+      summary: Create a collection.
+      description: |
+        Create a new collection.
+
+        Collections are sets of links to files, bundles, other collections, or fragments of JSON metadata files. Each
+        entry in the input set of links is checked for referential integrity (the link target must exist in the replica
+        referenced). Up to 1000 items can be referenced in a new collection, or added or removed using
+        `PATCH /collections`. New collections are private to the authenticated user.
+
+        Collection items are de-duplicated (if an identical item is given multiple times, it will only be added once).
+
+        Collections are replicated across storage replicas similarly to files and bundles.
+      security:
+        - googAuth:
+            - https://www.googleapis.com/auth/userinfo.email
+      parameters:
+        - name: replica
+          in: query
+          description: Replica to write to.
+          required: true
+          type: string
+          enum: [aws, gcp, azure]
+        - name: uuid
+          in: query
+          description: A RFC4122-compliant ID for the collection.
+          required: true
+          type: string
+          pattern: "[A-Za-z0-9]{8}-[A-Za-z0-9]{4}-[A-Za-z0-9]{4}-[A-Za-z0-9]{4}-[A-Za-z0-9]{12}"
+        - name: version
+          in: query
+          description: |
+            Timestamp of collection creation in RFC3339 format. If this is not provided, the version is automatically
+            generated.
+          required: true
+          type: string
+          format: date-time
+        - name: json_request_body
+          in: body
+          required: true
+          schema:
+            $ref: "#/definitions/Collection"
+      responses:
+        201:
+          description: OK
+          schema:
+            type: object
+            properties:
+              uuid:
+                description: A RFC4122-compliant ID for the collection.
+                type: string
+                pattern: "[A-Za-z0-9]{8}-[A-Za-z0-9]{4}-[A-Za-z0-9]{4}-[A-Za-z0-9]{4}-[A-Za-z0-9]{12}"
+            required:
+              - uuid
+        default:
+          description: Unexpected error
+          schema:
+            allOf:
+              - $ref: '#/definitions/Error'
+              - type: object
+                properties:
+                  code:
+                    type: string
+                    description: |
+                      Machine-readable error code.  The types of return values should not be changed lightly.
+
+                      The code `invalid_link` indicates that an item listed in the collection contents field of the
+                      input could not be resolved (either because the file, bundle, or collection does not exist on the
+                      replica specified, or because the JSON Pointer reference could not be resolved within the
+                      specified file).
+                    enum: [unhandled_exception, Forbidden, OAuthResponseProblem, not_found, invalid_link]
+                required:
+                  - code
+  /collections/{uuid}:
+    get:
+      summary: Retrieve a collection given a UUID.
+      description: |
+        Given a collection UUID, return the associated collection object.
+      security:
+        - googAuth:
+            - https://www.googleapis.com/auth/userinfo.email
+      parameters:
+        - name: uuid
+          in: path
+          description: A RFC4122-compliant ID for the collection.
+          required: true
+          type: string
+          pattern: "[A-Za-z0-9]{8}-[A-Za-z0-9]{4}-[A-Za-z0-9]{4}-[A-Za-z0-9]{4}-[A-Za-z0-9]{12}"
+        - name: replica
+          in: query
+          description: Replica to fetch from.
+          required: true
+          type: string
+          enum: [aws, gcp, azure]
+        - name: version
+          in: query
+          description: |
+            Timestamp of collection creation in RFC3339.  If this is not provided, the latest version is returned.
+          required: false
+          type: string
+          format: date-time
+      responses:
+        200:
+          description: OK
+          schema:
+            type: object
+            properties:
+              collection:
+                $ref: "#/definitions/Collection"
+        default:
+          description: Unexpected error
+          schema:
+            allOf:
+              - $ref: '#/definitions/Error'
+              - type: object
+                properties:
+                  code:
+                    type: string
+                    description: Machine-readable error code.  The types of return values should not be changed lightly.
+                    enum: [unhandled_exception, Forbidden, OAuthResponseProblem, not_found]
+                required:
+                  - code
+    patch:
+      summary: Update a collection.
+      description: |
+        Add or remove items from a collection. A specific version of the collection to update must be provided, and a
+        new version will be written.
+      security:
+        - googAuth:
+            - https://www.googleapis.com/auth/userinfo.email
+      parameters:
+        - name: uuid
+          in: path
+          description: A RFC4122-compliant ID of the collection to update.
+          required: true
+          type: string
+          pattern: "[A-Za-z0-9]{8}-[A-Za-z0-9]{4}-[A-Za-z0-9]{4}-[A-Za-z0-9]{4}-[A-Za-z0-9]{12}"
+        - name: replica
+          in: query
+          description: Replica to update the collection on. Updates are propagated to other replicas.
+          required: true
+          type: string
+          enum: [aws, gcp, azure]
+        - name: version
+          in: query
+          description: |
+            Timestamp of the collection to update in RFC3339 format (required).
+          required: true
+          type: string
+          format: date-time
+        - name: json_request_body
+          in: body
+          required: true
+          schema:
+            type: object
+            properties:
+              add_contents:
+                type: array
+                description: |
+                  List of new items to add to the collection. Items are de-duplicated (if an identical item is already
+                  present in the collection or given multiple times, it will only be added once).
+                items:
+                  $ref: '#/definitions/CollectionItem'
+                maxItems: 1000
+              remove_contents:
+                type: array
+                description: |
+                  List of items to remove from the collection. Items must match exactly to be removed. Items not found
+                  in the collection are ignored.
+                items:
+                  $ref: '#/definitions/CollectionItem'
+                maxItems: 1000
+              name:
+                type: string
+                description: New name for the collection.
+              description:
+                type: string
+                description: New description for the collection.
+              details:
+                type: object
+                description: New details for the collection.
+      responses:
+        200:
+          description: OK
+          schema:
+            type: object
+            properties:
+              uuid:
+                type: string
+                description: A RFC4122-compliant ID of this collection.
+              version:
+                type: string
+                description: New version of the updated collection.
+                format: date-time
+            required:
+              - uuid
+              - version
+        default:
+          description: Unexpected error
+          schema:
+            allOf:
+              - $ref: '#/definitions/Error'
+              - type: object
+                properties:
+                  code:
+                    type: string
+                    description: |
+                      Machine-readable error code.  The types of return values should not be changed lightly.
+
+                      The code `invalid_link` indicates that an item listed in the collection contents field of the
+                      input could not be resolved (either because the file, bundle, or collection does not exist on the
+                      replica specified, or because the JSON Pointer reference could not be resolved within the
+                      specified file).
+                    enum: [unhandled_exception, Forbidden, OAuthResponseProblem, not_found, invalid_link]
+                required:
+                  - code
+    delete:
+      summary: Delete a collection.
+      description: |
+        Delete a collection.
+      security:
+        - googAuth:
+            - https://www.googleapis.com/auth/userinfo.email
+      parameters:
+        - name: uuid
+          in: path
+          description: A RFC4122-compliant ID for the collection.
+          required: true
+          type: string
+          pattern: "[A-Za-z0-9]{8}-[A-Za-z0-9]{4}-[A-Za-z0-9]{4}-[A-Za-z0-9]{4}-[A-Za-z0-9]{12}"
+        - name: replica
+          in: query
+          description: Replica to delete from.
+          required: true
+          type: string
+          enum: [aws, gcp, azure]
+      responses:
+        200:
+          description: OK
+        default:
+          description: Unexpected error
+          schema:
+            allOf:
+              - $ref: '#/definitions/Error'
+              - type: object
+                properties:
+                  code:
+                    type: string
+                    description: Machine-readable error code.  The types of return values should not be changed lightly.
+                    enum: [unhandled_exception, Forbidden, OAuthResponseProblem, not_found]
+                required:
+                  - code
   /bundles/{uuid}:
     get:
       summary: Retrieve a bundle given a UUID and optionally a version.
@@ -1130,7 +1383,7 @@ definitions:
         type: object
       callback_url:
         description: |
-          The subscriber's URL. An HTTP request is made to the specified URL for every attempt to deliver
+          The subscriber\'s URL. An HTTP request is made to the specified URL for every attempt to deliver
           a notification to the subscriber. If the HTTP response code is 2XX, the delivery attempt is
           considered successful and no more attemtpts will be made. Otherwise, more attempts will be made with
           an exponentially increasing delay between attempts, until an attempt is successful or the a maximum
@@ -1285,6 +1538,53 @@ definitions:
       total_hits:
         description: The total number of matching results found.
         type: integer
+  Collection:
+    type: object
+    properties:
+      name:
+        description: A short name identifying the collection.
+        type: string
+      description:
+        description: A long description of the collection, formatted in Markdown.
+        type: string
+      details:
+        description: Supplementary JSON metadata for the collection.
+        type: object
+      contents:
+        description: |
+          A list of objects describing links to files, bundles, other collections, and metadata fragments that are
+          part of the collection.
+        type: array
+        items:
+          $ref: '#/definitions/CollectionItem'
+    required:
+      - name
+      - description
+      - details
+      - contents
+  CollectionItem:
+    type: object
+    properties:
+      type:
+        type: string
+        description: Type of link (file, bundle, collection, or a custom type for a metadata fragment).
+      uuid:
+        type: string
+        description: Unique ID of the file, bundle, collection, or file containing a metadata fragment.
+        pattern: "[a-z0-9]{8}-[a-z0-9]{4}-[a-z0-9]{4}-[a-z0-9]{4}-[a-z0-9]{12}"
+      version:
+        type: string
+        format: date-time
+        description: RFC3339 timestamp of the file, bundle, collection, or file containing a metadata fragment.
+      path:
+        type: string
+        description: |
+          JSON Pointer indexing into the JSON conents of the file containing a metadata fragment.
+          Required for links of type other than file, bundle, or collection. Ignored otherwise.
+    required:
+      - type
+      - uuid
+      - version
   Error:
     type: object
     properties:
@@ -1312,4 +1612,3 @@ definitions:
     properties:
       files:
         type: string
-
