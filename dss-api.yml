@@ -794,7 +794,7 @@ paths:
       parameters:
         - name: uuid
           in: path
-          description: A RFC4122-compliant ID for the collection.
+          description: A RFC4122-compliant ID of the collection to update.
           required: true
           type: string
           pattern: "[A-Za-z0-9]{8}-[A-Za-z0-9]{4}-[A-Za-z0-9]{4}-[A-Za-z0-9]{4}-[A-Za-z0-9]{12}"
@@ -807,7 +807,7 @@ paths:
         - name: version
           in: query
           description: |
-            Timestamp of collection creation in RFC3339 format. Required to identify the collection to update.
+            Timestamp of the collection to update in RFC3339 format (required).
           required: true
           type: string
           format: date-time
@@ -854,6 +854,7 @@ paths:
               version:
                 type: string
                 description: New version of the updated collection.
+                format: date-time
             required:
               - uuid
               - version
