@@ -1,6 +1,8 @@
 version: 2
 
 defaults:
+  # This makes use of YAML's anchors and aliases in order to reduce duplication. For details on the `&`, `*` and `<<`
+  # operators refer to https://circleci.com/blog/circleci-hacks-reuse-yaml-in-your-circleci-config-with-yaml/
   environment: &environment
     DSS_ES_TIMEOUT: 30
     DSS_UNITTEST_OPTS: -v
