@@ -11,6 +11,7 @@ import botocore
 pkg_root = os.path.abspath(os.path.join(os.path.dirname(__file__), ".."))  # noqa
 sys.path.insert(0, pkg_root)  # noqa
 
+from dss.events.handlers import sync
 from dss.api.files import ASYNC_COPY_THRESHOLD
 from tests.infra import testmode
 from dss.storage.checkout import get_dst_bundle_prefix
@@ -89,6 +90,8 @@ class Smoketest(unittest.TestCase):
         shutil.copytree("data-bundle-examples/10X_v2/pbmc8k", cls.bundle_dir)
         with open(os.path.join(cls.bundle_dir, "async_copied_file"), "wb") as fh:
             fh.write(os.urandom(ASYNC_COPY_THRESHOLD + 1))
+        with open(os.path.join(cls.bundle_dir, "large_file"), "wb") as fh:
+            fh.write(os.urandom(sync.part_size['gs'] + 1))
 
     def smoketest(self, starting_replica):
         # Tweak the metadata to a specific sample UUID
