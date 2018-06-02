@@ -67,6 +67,11 @@
           "xray:PutTraceSegments"
       ],
       "Resource": "*"
+    },
+    { 
+      "Effect": "Allow",
+      "Action": "dynamodb:*",
+      "Resource": "arn:aws:dynamodb:*:$account_id:table/dss-visitation*"
     }
   ]
 }
