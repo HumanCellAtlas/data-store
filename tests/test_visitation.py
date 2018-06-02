@@ -63,15 +63,18 @@ class TestVisitationWalker(unittest.TestCase):
                 pass
 
         registered_visitations.registered_visitations['VT'] = VT
+        execution_name = "VT--" + str(uuid.uuid4())
 
         self.job_state = {
             '_visitation_class_name': 'VT',
+            '_execution_name': execution_name,
             'work_ids': ['1', '2', '3', '4'],
             '_number_of_workers': 3,
         }
 
         self.walker_state = {
             '_visitation_class_name': 'VT',
+            '_execution_name': execution_name,
             'work_ids': [['1', '2'], ['3', '4']],
         }
 
@@ -111,6 +114,18 @@ class TestVisitationWalker(unittest.TestCase):
         self._test_integration_walk('aws', self.s3_test_fixtures_bucket)
         self._test_integration_walk('gcp', self.gs_test_fixtures_bucket)
 
+    @testmode.standalone
+    def test_persistent_data_roundtrip(self):
+        VT = registered_visitations.registered_visitations['VT']
+        vis_obj = VT._with_state(self.walker_state, 1000)
+        data_id = str(uuid.uuid4())
+        data = dict(
+            some_key=str(os.urandom(1024))
+        )
+        vis_obj.get_persistent_data(data_id)
+        vis_obj.put_persistent_data(data_id, data)
+        vis_obj.get_persistent_data(data_id)
+
     def _test_integration_walk(self, replica, bucket):
         state = {
             'replica': replica,
@@ -121,7 +136,7 @@ class TestVisitationWalker(unittest.TestCase):
         items = []
 
         class VT(IntegrationTest):
-            def process_item(self, key):
+            def process_item(self, key, walker_data):
                 items.append(key)
 
         walker = VT._with_state(state, self.remaining_time)
