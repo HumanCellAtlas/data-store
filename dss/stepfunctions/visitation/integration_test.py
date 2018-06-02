@@ -34,21 +34,22 @@ class IntegrationTest(Visitation):  # no coverage (this code *is* run by tests, 
         prefix_chars = set(string.hexdigits.lower())
         self.work_ids = [self.prefix + a for a in prefix_chars]
 
-    def process_item(self, key):
-        self.work_result += 1
-
-    def _aggregate(self, work_result: Sequence) -> Any:
-        return sum(work_result)
+    def process_item(self, key, walker_data):
+        walker_data['count'] += 1
 
     def job_finalize(self):
-        super().job_finalize()
         handle = Config.get_blobstore_handle(Replica[self.replica])
-        listed_keys = handle.list(self.bucket, prefix=self.prefix)
-        k_listed = sum(1 for _ in listed_keys)
-        assert self.work_result == k_listed, f'Integration test failed: {self.work_result} != {k_listed}'
-        logger.info(f"Integration test passed for {self.replica} with {k_listed} key(s) listed")
 
-    def _walk(self) -> None:
+        work_ids = [work_id for work_id_group in self.work_ids for work_id in work_id_group]
+
+        for work_id in work_ids:
+            count = self.get_persistent_data(work_id)['count']
+            listed_keys = handle.list(self.bucket, prefix=work_id)
+            k_listed = sum(1 for _ in listed_keys)
+            assert count == k_listed, f'Integration test failed: {self.work_result} != {k_listed}'
+            logger.info(f"Integration test passed for {self.replica} with {k_listed} key(s) listed")
+
+    def _walk(self, walker_data) -> None:
         """
         Subclasses should not typically implement this method, which includes logic specific to calling
         self.process_item(*args) on each blob visited.
@@ -68,15 +69,21 @@ class IntegrationTest(Visitation):  # no coverage (this code *is* run by tests, 
         for key in blobs:
             if 250 < time() - start_time:
                 break
-            self.process_item(key)
+            self.process_item(key, walker_data)
             self.marker = blobs.start_after_key
             self.token = blobs.token
         else:
             self._status = WalkerStatus.finished.name
 
     def walker_walk(self) -> None:
+        walker_data = self.get_persistent_data(self.work_id)
+        if not walker_data.get('count', None):
+            walker_data['count'] = 0
+
         try:
-            self._walk()
+            self._walk(walker_data)
         except BlobPagingError:
             self.marker = None
-            self._walk()
+            self._walk(walker_data)
+
+        self.put_persistent_data(self.work_id, walker_data)

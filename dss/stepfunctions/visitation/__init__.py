@@ -1,7 +1,9 @@
 import logging
 from typing import Sequence, Any, Mapping, MutableMapping
 
+import os
 import copy
+import time
 import json
 from uuid import uuid4
 from enum import Enum, auto
@@ -9,8 +11,13 @@ from enum import Enum, auto
 from dss.stepfunctions import _step_functions_start_execution
 from dss.util.time import RemainingTime
 from dss.util.types import JSON
+from dss.util.aws.clients import dynamodb  # type: ignore
+
 
 logger = logging.getLogger(__name__)
+
+
+PERSISTENT_DATA_TTL = 3600 * 24 * 7  # one week
 
 
 class DSSVisitationException(Exception):
@@ -47,6 +54,7 @@ class Visitation:
     """Step function state specification shared by job and workers"""
     _state_spec = dict(
         _visitation_class_name=str,
+        _execution_name=str,
         _status=WalkerStatus.init.name,
         _number_of_workers=int,
         work_ids=list,
@@ -104,11 +112,38 @@ class Visitation:
         execution_input = {
             **kwargs,
             '_visitation_class_name': cls.__name__,
+            '_execution_name': name,
             '_number_of_workers': number_of_workers,
         }
         # Invoke directly without reaper/retry
         execution = _step_functions_start_execution('dss-visitation-{stage}', name, json.dumps(execution_input))
         return dict(arn=execution['executionArn'], name=name, input=execution_input)
+
+    def put_persistent_data(self, data_id: str, data: MutableMapping[str, Any]) -> None:
+        key = f"{self._execution_name}/{data_id}"
+        table = f"dss-visitation-{os.environ['DSS_DEPLOYMENT_STAGE']}"
+        ttl = str(int(time.time()) + PERSISTENT_DATA_TTL)
+        dynamodb.put_item(
+            TableName=table,
+            Item={
+                'key': {'S': key},
+                'value': {'B': json.dumps(data).encode('utf-8')},
+                'expiration-time': {'N': ttl},
+            },
+        )
+
+    def get_persistent_data(self, data_id: str) -> MutableMapping[str, Any]:
+        key = f"{self._execution_name}/{data_id}"
+        table = f"dss-visitation-{os.environ['DSS_DEPLOYMENT_STAGE']}"
+        resp = dynamodb.get_item(
+            TableName=table,
+            Key={'key': {'S': key}},
+        )
+        item = resp.get('Item', None)
+        if item is None:
+            return dict()
+        res = json.loads(item['value']['B'])
+        return res
 
     def job_initialize(self) -> None:
         """
