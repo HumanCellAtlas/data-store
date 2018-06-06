@@ -51,7 +51,7 @@ def run_for_json(command, **kwargs):
     return json.loads(run(command, stdout=subprocess.PIPE, **kwargs).stdout.decode(sys.stdout.encoding))
 
 
-@testmode.integration
+# @testmode.integration
 class Smoketest(unittest.TestCase):
     replicas = "aws", "gcp"
     notification_bucket = os.environ['DSS_S3_BUCKET_TEST']
@@ -90,8 +90,8 @@ class Smoketest(unittest.TestCase):
         shutil.copytree("data-bundle-examples/10X_v2/pbmc8k", cls.bundle_dir)
         with open(os.path.join(cls.bundle_dir, "async_copied_file"), "wb") as fh:
             fh.write(os.urandom(ASYNC_COPY_THRESHOLD + 1))
-        with open(os.path.join(cls.bundle_dir, "large_file"), "wb") as fh:
-            fh.write(os.urandom(sync.part_size['gs'] + 1))
+        # with open(os.path.join(cls.bundle_dir, "large_file"), "wb") as fh:
+        #     fh.write(os.urandom(sync.part_size['gs'] + 1))
 
     def smoketest(self, starting_replica):
         # Tweak the metadata to a specific sample UUID
