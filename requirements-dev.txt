@@ -37,6 +37,7 @@ Faker==0.8.11
 fasteners==0.14.1
 flake8==3.5.0
 Flask==0.12.2
+frozendict==1.2
 future==0.16.0
 google-api-core==0.1.1
 google-apitools==0.5.21
