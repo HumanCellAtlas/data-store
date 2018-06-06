@@ -21,6 +21,7 @@ elasticsearch-dsl==5.3.0
 fasteners==0.14.1
 Flask==0.12.2
 future==0.16.0
+frozendict==1.2
 google-api-core==0.1.1
 google-apitools==0.5.21
 google-auth==1.2.1
