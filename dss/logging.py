@@ -8,6 +8,8 @@ import dss
 from dss.config import Config
 
 # A type alias for log level maps
+from dss.util.tracing import configure_xray_logging
+
 log_level_t = Mapping[Union[None, str, logging.Logger], Tuple[int, ...]]
 
 main_log_levels: log_level_t = {
@@ -73,7 +75,7 @@ def _configure_logging(test=False, log_levels: Optional[log_level_t] = None, **k
     else:
         root_logger.setLevel(logging.WARNING)
         if 'AWS_LAMBDA_LOG_GROUP_NAME' in os.environ:
-            pass  # On AWS Lambda, we assume that its runtime already configured logging appropriately
+            configure_xray_logging(root_logger)  # Unless xray is enabled
         elif len(root_logger.handlers) == 0:
             logging.basicConfig(**kwargs)
         else:
