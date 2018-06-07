@@ -106,18 +106,20 @@ def put(json_request_body: dict, replica: str):
         try:
             percolate_registration = _register_percolate(es_client, doc_index, uuid, es_query, replica)
         except ElasticsearchException as ex:
-            logger.debug({'message': "Exception occured when registering a document to an index"}, exc_info=ex, stack_info=True)
+            logger.debug("Exception occured when registering a document to an index", exc_info=ex, stack_info=True)
             last_ex = ex
         else:
-            logger.debug({'message': "Percolate query registration succeeded.",
-                          'percolate_registration': percolate_registration})
+            logger.debug("Percolate query registration succeeded.",
+                          extra={'percolate_registration': percolate_registration})
             subscribed_indexes.append(doc_index)
 
     # Queries are unlikely to fit in all of the indexes, therefore errors will almost always occur. Only return an error
     # if no queries are successfully indexed.
     if doc_indexes and not subscribed_indexes:
-        logger.critical({'message': "Percolate query registration failed.", 'owner': owner, 'uuid': uuid,
-                         'replica': replica, 'es_query': es_query}, exc_info=last_ex, stack_info=True)
+        logger.critical("Percolate query registration failed.",
+                        extra={'owner': owner, 'uuid': uuid,
+                               'replica': replica, 'es_query': es_query},
+                        exc_info=last_ex, stack_info=True)
         raise DSSException(requests.codes.internal_server_error,
                            "elasticsearch_error",
                            "Unable to register elasticsearch percolate query!") from last_ex
@@ -126,10 +128,9 @@ def put(json_request_body: dict, replica: str):
 
     try:
         subscription_registration = _register_subscription(es_client, uuid, json_request_body, replica)
-        logger.debug({'message': "Event Subscription succeeded",
-                      'subscription_registration': subscription_registration})
+        logger.debug("Event Subscription succeeded", extra={'subscription_registration': subscription_registration})
     except ElasticsearchException as ex:
-        logger.critical({'message': 'Event Subscription failed', 'owner': owner, 'uuid': uuid, 'replica': replica},
+        logger.critical("Event Subscription failed", extra={'owner': owner, 'uuid': uuid, 'replica': replica},
                          exc_info=last_ex, stack_info=True)
 
         # Delete percolate query to make sure queries and subscriptions are in sync.
@@ -184,8 +185,8 @@ def _unregister_percolate(es_client: Elasticsearch, subscribed_indexes: List[str
                                          conflicts="proceed",
                                          refresh=True)
     if response['failures']:
-        logger.error({'message': "Failed to unregister percolate query for subscription.", 'uuid': uuid,
-                      'response': response})
+        logger.error("Failed to unregister percolate query for subscription.",
+                     extra={'uuid': uuid, 'response': response})
 
 
 def _register_percolate(es_client: Elasticsearch, index_name: str, uuid: str, es_query: dict, replica: str):
