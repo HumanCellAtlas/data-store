@@ -110,7 +110,7 @@ def put(json_request_body: dict, replica: str):
             last_ex = ex
         else:
             logger.debug("Percolate query registration succeeded.",
-                          extra={'percolate_registration': percolate_registration})
+                         extra={'percolate_registration': percolate_registration})
             subscribed_indexes.append(doc_index)
 
     # Queries are unlikely to fit in all of the indexes, therefore errors will almost always occur. Only return an error
@@ -131,7 +131,7 @@ def put(json_request_body: dict, replica: str):
         logger.debug("Event Subscription succeeded", extra={'subscription_registration': subscription_registration})
     except ElasticsearchException as ex:
         logger.critical("Event Subscription failed", extra={'owner': owner, 'uuid': uuid, 'replica': replica},
-                         exc_info=last_ex, stack_info=True)
+                        exc_info=last_ex, stack_info=True)
 
         # Delete percolate query to make sure queries and subscriptions are in sync.
         doc_indexes = _get_indexes_by_alias(es_client, alias_name)
