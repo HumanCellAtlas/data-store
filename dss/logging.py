@@ -1,3 +1,4 @@
+from pythonjsonlogger import jsonlogger
 import logging
 from logging import DEBUG, INFO, WARNING, ERROR
 import os
@@ -46,7 +47,10 @@ def configure_cli_logging():
     """
     Prepare logging for use in a command line application.
     """
-    _configure_logging(stream=sys.stderr)
+    logHandler = logging.StreamHandler()
+    formatter = jsonlogger.JsonFormatter()
+    logHandler.setFormatter(formatter)
+    _configure_logging(stream=sys.stderr, handler=logHandler)
 
 
 def configure_lambda_logging():
@@ -75,6 +79,12 @@ def _configure_logging(test=False, log_levels: Optional[log_level_t] = None, **k
     else:
         root_logger.setLevel(logging.WARNING)
         if 'AWS_LAMBDA_LOG_GROUP_NAME' in os.environ:
+            for handler in root_logger.handlers:
+                formatter = jsonlogger.JsonFormatter('(levelname) (asctime) (msecs) (aws_request_id) (thread) '
+                                                     '(message)',
+                                                     '%Y-%m-%dT%H:%M:%S'
+                                                     )
+                handler.setFormatter(formatter)
             configure_xray_logging(root_logger)  # Unless xray is enabled
         elif len(root_logger.handlers) == 0:
             logging.basicConfig(**kwargs)
