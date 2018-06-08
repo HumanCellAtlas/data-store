@@ -3,7 +3,9 @@ import logging
 from logging import DEBUG, INFO, WARNING, ERROR
 import os
 import sys
-from typing import Mapping, Union, Tuple, Optional
+from typing import Mapping, Union, Tuple, Optional, List
+
+from pythonjsonlogger.jsonlogger import RESERVED_ATTR_HASH
 
 import dss
 from dss.config import Config
@@ -42,13 +44,24 @@ test_log_levels: log_level_t = {
 The log levels for running tests. The entries in this map override or extend the entries in the main map.
 """
 
+LOGGED_FIELDS = ['levelname', 'asctime', 'msecs', 'aws_request_id', 'thread', 'message']
+LOG_FORMAT = '('+')('.join(LOGGED_FIELDS)+')'  # format required for DSSJsonFormatter
+
+class DSSJsonFormatter(jsonlogger.JsonFormatter):
+    def add_required_fields(self, fields: List[str]):
+        self._required_fields = set(self._required_fields + fields)
+        self._skip_fields = dict(zip(self._required_fields,
+                                     self._required_fields))
+        self._skip_fields.update(RESERVED_ATTR_HASH)
+
+
 
 def configure_cli_logging():
     """
     Prepare logging for use in a command line application.
     """
     logHandler = logging.StreamHandler()
-    formatter = jsonlogger.JsonFormatter()
+    formatter = DSSJsonFormatter()
     logHandler.setFormatter(formatter)
     _configure_logging(stream=sys.stderr, handler=logHandler)
 
@@ -64,7 +77,10 @@ def configure_test_logging(log_levels: Optional[log_level_t] = None, **kwargs):
     """
     Configure logging for use during unit tests.
     """
-    _configure_logging(stream=sys.stderr, test=True, log_levels=log_levels, **kwargs)
+    logHandler = logging.StreamHandler()
+    formatter = DSSJsonFormatter()
+    logHandler.setFormatter(formatter)
+    _configure_logging(stream=sys.stderr, test=True, handler=logHandler, log_levels=log_levels, **kwargs)
 
 
 _logging_configured = False
@@ -80,10 +96,7 @@ def _configure_logging(test=False, log_levels: Optional[log_level_t] = None, **k
         root_logger.setLevel(logging.WARNING)
         if 'AWS_LAMBDA_LOG_GROUP_NAME' in os.environ:
             for handler in root_logger.handlers:
-                formatter = jsonlogger.JsonFormatter('(levelname) (asctime) (msecs) (aws_request_id) (thread) '
-                                                     '(message)',
-                                                     '%Y-%m-%dT%H:%M:%S'
-                                                     )
+                formatter = DSSJsonFormatter(LOGGED_FIELDS, '%Y-%m-%dT%H:%M:%S')
                 handler.setFormatter(formatter)
             configure_xray_logging(root_logger)  # Unless xray is enabled
         elif len(root_logger.handlers) == 0:
