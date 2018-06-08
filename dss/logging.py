@@ -95,7 +95,7 @@ def _configure_logging(test=False, log_levels: Optional[log_level_t] = None, **k
         root_logger.setLevel(logging.WARNING)
         if 'AWS_LAMBDA_LOG_GROUP_NAME' in os.environ:
             for handler in root_logger.handlers:
-                formatter = DSSJsonFormatter(LOGGED_FIELDS, '%Y-%m-%dT%H:%M:%S')
+                formatter = DSSJsonFormatter(LOG_FORMAT, '%Y-%m-%dT%H:%M:%S')
                 handler.setFormatter(formatter)
                 configure_xray_logging(handler)  # Unless xray is enabled
         elif len(root_logger.handlers) == 0:
