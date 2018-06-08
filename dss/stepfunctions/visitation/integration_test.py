@@ -46,7 +46,8 @@ class IntegrationTest(Visitation):  # no coverage (this code *is* run by tests, 
         listed_keys = handle.list(self.bucket, prefix=self.prefix)
         k_listed = sum(1 for _ in listed_keys)
         assert self.work_result == k_listed, f'Integration test failed: {self.work_result} != {k_listed}'
-        logger.info(f"Integration test passed for {self.replica} with {k_listed} key(s) listed")
+        logger.info(f"Integration test execution {self.execution_name}"
+                    f"passed for {self.replica} with {k_listed} key(s) listed")
 
     def _walk(self) -> None:
         """

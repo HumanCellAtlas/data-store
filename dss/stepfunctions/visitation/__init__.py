@@ -49,6 +49,7 @@ class Visitation:
         _visitation_class_name=str,
         _status=WalkerStatus.init.name,
         _number_of_workers=int,
+        execution_name=str,
         work_ids=list,
         work_id=str,
         work_result=None
@@ -105,6 +106,7 @@ class Visitation:
             **kwargs,
             '_visitation_class_name': cls.__name__,
             '_number_of_workers': number_of_workers,
+            'execution_name': name
         }
         # Invoke directly without reaper/retry
         execution = _step_functions_start_execution('dss-visitation-{stage}', name, json.dumps(execution_input))
