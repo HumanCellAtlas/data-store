@@ -5,7 +5,7 @@ import os
 import sys
 from typing import Mapping, Union, Tuple, Optional, List
 
-from pythonjsonlogger.jsonlogger import RESERVED_ATTR_HASH
+from pythonjsonlogger.jsonlogger import RESERVED_ATTR_HASH, merge_record_extra
 
 import dss
 from dss.config import Config
@@ -49,10 +49,28 @@ LOG_FORMAT = '(' + ')('.join(LOGGED_FIELDS) + ')'  # format required for DSSJson
 
 class DSSJsonFormatter(jsonlogger.JsonFormatter):
     def add_required_fields(self, fields: List[str]):
-        self._required_fields = set(self._required_fields + fields)
+        self._required_fields += [field for field in fields if field not in self._required_fields]
         self._skip_fields = dict(zip(self._required_fields,
                                      self._required_fields))
         self._skip_fields.update(RESERVED_ATTR_HASH)
+
+    def set_required_fields(self, fields: List[str]):
+        self._required_fields = fields
+        self._skip_fields = dict(zip(self._required_fields,
+                                     self._required_fields))
+        self._skip_fields.update(RESERVED_ATTR_HASH)
+
+    def add_fields(self, log_record, record, message_dict):
+        """
+        Override this method to implement custom logic for adding fields.
+        """
+        for field in self._required_fields:
+            value = record.__dict__.get(field)
+            if value:
+                log_record[field] = value
+        log_record.update(message_dict)
+        merge_record_extra(record, log_record, reserved=self._skip_fields)
+
 
 
 def configure_cli_logging():
