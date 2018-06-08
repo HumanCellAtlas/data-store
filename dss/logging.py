@@ -45,7 +45,7 @@ The log levels for running tests. The entries in this map override or extend the
 """
 
 LOGGED_FIELDS = ['levelname', 'asctime', 'msecs', 'aws_request_id', 'thread', 'message']
-LOG_FORMAT = '('+')('.join(LOGGED_FIELDS)+')'  # format required for DSSJsonFormatter
+LOG_FORMAT = '(' + ')('.join(LOGGED_FIELDS) + ')'  # format required for DSSJsonFormatter
 
 class DSSJsonFormatter(jsonlogger.JsonFormatter):
     def add_required_fields(self, fields: List[str]):
@@ -53,7 +53,6 @@ class DSSJsonFormatter(jsonlogger.JsonFormatter):
         self._skip_fields = dict(zip(self._required_fields,
                                      self._required_fields))
         self._skip_fields.update(RESERVED_ATTR_HASH)
-
 
 
 def configure_cli_logging():
@@ -98,7 +97,7 @@ def _configure_logging(test=False, log_levels: Optional[log_level_t] = None, **k
             for handler in root_logger.handlers:
                 formatter = DSSJsonFormatter(LOGGED_FIELDS, '%Y-%m-%dT%H:%M:%S')
                 handler.setFormatter(formatter)
-            configure_xray_logging(root_logger)  # Unless xray is enabled
+                configure_xray_logging(handler)  # Unless xray is enabled
         elif len(root_logger.handlers) == 0:
             logging.basicConfig(**kwargs)
         else:
