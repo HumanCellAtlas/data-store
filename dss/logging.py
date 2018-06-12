@@ -61,15 +61,16 @@ class DSSJsonFormatter(jsonlogger.JsonFormatter):
         self._skip_fields.update(RESERVED_ATTR_HASH)
 
     def add_fields(self, log_record, record, message_dict):
-        """
-        Override this method to implement custom logic for adding fields.
-        """
         for field in self._required_fields:
             value = record.__dict__.get(field)
             if value:
                 log_record[field] = value
         log_record.update(message_dict)
         merge_record_extra(record, log_record, reserved=self._skip_fields)
+
+class DsipatchFilter(logging.Filter):
+    def filter(self, record):
+        return False if '[dispatch]' in record.msg else True
 
 
 
