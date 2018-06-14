@@ -29,8 +29,6 @@ configure_lambda_logging()
 app = domovoi.Domovoi(configure_logs=False)
 
 dss.Config.set_config(dss.BucketConfig.NORMAL)
-email_sender = dss.Config.get_notification_email()
-default_checkout_bucket = dss.Config.get_s3_checkout_bucket()
 
 
 @app.step_function_task(state_name="ScheduleCopy", state_machine_definition=state_machine_def)
@@ -99,8 +97,12 @@ def notify_complete(event, context):
     replica = Replica[event["replica"]]
     result = {}
     if "email" in event:
-        result = send_checkout_success_email(email_sender, event["email"], get_dst_bucket(event),
-                                             event["schedule"]["dst_location"], replica)
+        result = send_checkout_success_email(
+            dss.Config.get_notification_email(),
+            event["email"],
+            get_dst_bucket(event),
+            event["schedule"]["dst_location"],
+            replica)
     # record results of execution into S3
     put_status_succeeded(event['execution_name'], replica, get_dst_bucket(event),
                          event["schedule"]["dst_location"])
@@ -118,7 +120,7 @@ def notify_complete_failure(event, context):
         checkout_status = event["validation"].get("checkout_status", "Unknown error code")
         cause = "{} ({})".format(event["validation"].get("cause", "Unknown error"), checkout_status)
     if "email" in event:
-        result = send_checkout_failure_email(email_sender, event["email"], cause)
+        result = send_checkout_failure_email(dss.Config.get_notification_email(), event["email"], cause)
     # record results of execution into S3
     put_status_failed(event['execution_name'], cause)
     logger.info("Checkout failed jobId %s", event['execution_name'])
@@ -126,5 +128,5 @@ def notify_complete_failure(event, context):
 
 
 def get_dst_bucket(event):
-    dst_bucket = event.get("bucket", default_checkout_bucket)
+    dst_bucket = event.get("bucket", dss.Config.get_s3_checkout_bucket())
     return dst_bucket
