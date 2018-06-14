@@ -1,13 +1,13 @@
 import requests
 from flask import jsonify
 
-import dss
 from dss.api.bundles import get_bundle
 from dss import Config, dss_handler, stepfunctions, Replica
 from dss.storage.checkout import get_execution_id, get_status, put_status_started
 
 STATE_MACHINE_NAME_TEMPLATE = "dss-checkout-sfn-{stage}"
 dss_bucket = Config.get_s3_bucket()
+
 
 @dss_handler
 def post(uuid: str, json_request_body: dict, replica: str, version: str = None):

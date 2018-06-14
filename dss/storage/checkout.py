@@ -13,6 +13,7 @@ from dss.storage.bundles import get_bundle, get_bundle_from_bucket
 
 log = logging.getLogger(__name__)
 
+
 class BundleFileMeta:
     NAME = "name"
     UUID = "uuid"
@@ -31,6 +32,7 @@ class ValidationEnum(Enum):
     WRONG_PERMISSIONS_DST_BUCKET = auto(),
     WRONG_BUNDLE_KEY = auto(),
     PASSED = auto()
+
 
 def parallel_copy(source_bucket: str, source_key: str, destination_bucket: str, destination_key: str, replica: Replica):
     log.debug(f"Copy file from bucket {source_bucket} with key {source_key} to "
@@ -110,6 +112,7 @@ def validate_bundle_exists(replica: Replica, bucket: str, bundle_id: str, versio
     except (DSSException, ValueError):
         return ValidationEnum.WRONG_BUNDLE_KEY, "Bundle with specified key does not exist"
 
+
 def get_execution_id() -> str:
     return str(uuid.uuid4())
 
@@ -133,8 +136,10 @@ def touch_test_file(dst_bucket: str, replica: Replica) -> bool:
     except Exception as e:
         return False
 
+
 def status_file_name(execution_id: str) -> str:
     return f"checkout/status/{execution_id}.json"
+
 
 def put_status_succeeded(execution_id: str, dst_replica: Replica, dst_bucket: str, dst_location: str):
     handle = Config.get_blobstore_handle(Replica.aws)
@@ -144,6 +149,7 @@ def put_status_succeeded(execution_id: str, dst_replica: Replica, dst_bucket: st
         status_file_name(execution_id),
         io.BytesIO(json.dumps(data).encode("utf-8")))
 
+
 def put_status_failed(execution_id: str, cause: str):
     handle = Config.get_blobstore_handle(Replica.aws)
     data = {"status": "FAILED", "cause": cause}
@@ -152,6 +158,7 @@ def put_status_failed(execution_id: str, cause: str):
         status_file_name(execution_id),
         io.BytesIO(json.dumps(data).encode("utf-8")))
 
+
 def put_status_started(execution_id: str):
     handle = Config.get_blobstore_handle(Replica.aws)
     data = {"status": "RUNNING"}
@@ -159,6 +166,7 @@ def put_status_started(execution_id: str):
         Replica.aws.checkout_bucket,
         status_file_name(execution_id),
         io.BytesIO(json.dumps(data).encode("utf-8")))
+
 
 def get_status(execution_id: str):
     handle = Config.get_blobstore_handle(Replica.aws)
