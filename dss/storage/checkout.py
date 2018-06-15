@@ -57,15 +57,6 @@ def parallel_copy(source_bucket: str, source_key: str, destination_bucket: str, 
     stepfunctions.step_functions_invoke(state_machine_name_template, execution_name, state)
 
 
-def get_src_key(file_metadata: dict):
-    return "blobs/" + ".".join((
-        file_metadata[BundleFileMeta.SHA256],
-        file_metadata[BundleFileMeta.SHA1],
-        file_metadata[BundleFileMeta.S3_ETAG],
-        file_metadata[BundleFileMeta.CRC32C],
-    ))
-
-
 def get_dst_bundle_prefix(bundle_id: str, bundle_version: str) -> str:
     return "checkedout/{}.{}".format(bundle_id, bundle_version)
 
@@ -75,9 +66,14 @@ def get_manifest_files(bundle_id: str, version: str, replica: Replica):
     files = bundleManifest.get('files')
     dst_bundle_prefix = get_dst_bundle_prefix(bundle_id, version)
 
-    for file in files:
-        dst_key = "{}/{}".format(dst_bundle_prefix, file.get('name'))
-        src_key = get_src_key(file)
+    for file_metadata in files:
+        dst_key = "{}/{}".format(dst_bundle_prefix, file_metadata.get('name'))
+        src_key = "blobs/" + ".".join((
+            file_metadata[BundleFileMeta.SHA256],
+            file_metadata[BundleFileMeta.SHA1],
+            file_metadata[BundleFileMeta.S3_ETAG],
+            file_metadata[BundleFileMeta.CRC32C],
+        ))
         yield src_key, dst_key
 
 
@@ -120,7 +116,8 @@ def get_execution_id() -> str:
 def touch_test_file(dst_bucket: str, replica: Replica) -> bool:
     """
     Write a test file into the specified bucket.
-    :param bucket: the bucket to be checked.
+    :param dst_bucket: the bucket to be checked.
+    :param replica: the replica to execute the checkout in.
     :return: True if able to write, if not also returns error message as a cause
     """
     test_object = "touch.txt"
@@ -133,7 +130,7 @@ def touch_test_file(dst_bucket: str, replica: Replica) -> bool:
             io.BytesIO(b""))
         Config.get_blobstore_handle(replica).delete(dst_bucket, test_object)
         return True
-    except Exception as e:
+    except Exception:
         return False
 
 
