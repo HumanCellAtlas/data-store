@@ -25,7 +25,7 @@ def schedule_copy(event, context):
     replica = Replica[event["replica"]]
 
     scheduled = 0
-    for src_key, dst_key in get_manifest_files(bundle_fqid, version, replica):
+    for src_key, dst_key in get_manifest_files(dss_bucket, bundle_fqid, version, replica):
         logger.info("Schedule copying a file %s to bucket %s", dst_key, dss_bucket)
         parallel_copy(dss_bucket, src_key, dst_bucket, dst_key, replica)
         scheduled += 1
@@ -37,6 +37,7 @@ def schedule_copy(event, context):
 def get_job_status(event, context):
     bundle_fqid = event["bundle"]
     version = event["version"]
+    dss_bucket = event["dss_bucket"]
     replica = Replica[event["replica"]]
 
     check_count = 0
@@ -45,7 +46,7 @@ def get_job_status(event, context):
 
     complete_count = 0
     total_count = 0
-    for src_key, dst_key in get_manifest_files(bundle_fqid, version, replica):
+    for src_key, dst_key in get_manifest_files(dss_bucket, bundle_fqid, version, replica):
         total_count += 1
         if validate_file_dst(get_dst_bucket(event), dst_key, replica):
             complete_count += 1

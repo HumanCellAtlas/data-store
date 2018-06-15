@@ -61,8 +61,8 @@ def get_dst_bundle_prefix(bundle_id: str, bundle_version: str) -> str:
     return "checkedout/{}.{}".format(bundle_id, bundle_version)
 
 
-def get_manifest_files(bundle_id: str, version: str, replica: Replica):
-    bundleManifest = get_bundle(bundle_id, replica, version).get('bundle')
+def get_manifest_files(src_bucket: str, bundle_id: str, version: str, replica: Replica):
+    bundleManifest = get_bundle_from_bucket(bundle_id, replica, version, src_bucket).get('bundle')
     files = bundleManifest.get('files')
     dst_bundle_prefix = get_dst_bundle_prefix(bundle_id, version)
 
