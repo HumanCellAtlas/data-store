@@ -30,11 +30,6 @@ provider aws {{
   region = "{aws_region}"
 }}
 
-provider aws {{
-  region = "us-east-1"
-  alias = "us-east-1"
-}}
-
 provider google {{
   project = "{gcp_project_id}"
 }}
