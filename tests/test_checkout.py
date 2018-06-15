@@ -136,7 +136,7 @@ class TestFileApi(unittest.TestCase, DSSAssertMixin, DSSUploadMixin):
         replica = Replica.aws
         file_count = 0
         with override_bucket_config(BucketConfig.TEST_FIXTURE):
-            for _ in get_manifest_files(bundle_uuid, version, replica):
+            for _ in get_manifest_files(replica.bucket, bundle_uuid, version, replica):
                 file_count += 1
         self.assertEqual(file_count, 1)
 
