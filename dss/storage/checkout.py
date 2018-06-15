@@ -134,37 +134,45 @@ def touch_test_file(dst_bucket: str, replica: Replica) -> bool:
         return False
 
 
-def status_file_name(execution_id: str) -> str:
-    return f"checkout/status/{execution_id}.json"
+class CheckoutStatus:
+    @classmethod
+    def _bundle_checkout_status_key(cls, execution_id: str) -> str:
+        return f"checkout/status/{execution_id}.json"
 
+    @classmethod
+    def mark_bundle_checkout_successful(
+            cls,
+            execution_id: str,
+            dst_replica: Replica,
+            dst_bucket: str,
+            dst_location: str
+    ):
+        handle = Config.get_blobstore_handle(Replica.aws)
+        data = {"status": 'SUCCEEDED', "location": f"{dst_replica.storage_schema}://{dst_bucket}/{dst_location}"}
+        handle.upload_file_handle(
+            Replica.aws.checkout_bucket,
+            cls._bundle_checkout_status_key(execution_id),
+            io.BytesIO(json.dumps(data).encode("utf-8")))
 
-def put_status_succeeded(execution_id: str, dst_replica: Replica, dst_bucket: str, dst_location: str):
-    handle = Config.get_blobstore_handle(Replica.aws)
-    data = {"status": 'SUCCEEDED', "location": f"{dst_replica.storage_schema}://{dst_bucket}/{dst_location}"}
-    handle.upload_file_handle(
-        Replica.aws.checkout_bucket,
-        status_file_name(execution_id),
-        io.BytesIO(json.dumps(data).encode("utf-8")))
+    @classmethod
+    def mark_bundle_checkout_failed(cls, execution_id: str, cause: str):
+        handle = Config.get_blobstore_handle(Replica.aws)
+        data = {"status": "FAILED", "cause": cause}
+        handle.upload_file_handle(
+            Replica.aws.checkout_bucket,
+            cls._bundle_checkout_status_key(execution_id),
+            io.BytesIO(json.dumps(data).encode("utf-8")))
 
+    @classmethod
+    def mark_bundle_checkout_started(cls, execution_id: str):
+        handle = Config.get_blobstore_handle(Replica.aws)
+        data = {"status": "RUNNING"}
+        handle.upload_file_handle(
+            Replica.aws.checkout_bucket,
+            cls._bundle_checkout_status_key(execution_id),
+            io.BytesIO(json.dumps(data).encode("utf-8")))
 
-def put_status_failed(execution_id: str, cause: str):
-    handle = Config.get_blobstore_handle(Replica.aws)
-    data = {"status": "FAILED", "cause": cause}
-    handle.upload_file_handle(
-        Replica.aws.checkout_bucket,
-        status_file_name(execution_id),
-        io.BytesIO(json.dumps(data).encode("utf-8")))
-
-
-def put_status_started(execution_id: str):
-    handle = Config.get_blobstore_handle(Replica.aws)
-    data = {"status": "RUNNING"}
-    handle.upload_file_handle(
-        Replica.aws.checkout_bucket,
-        status_file_name(execution_id),
-        io.BytesIO(json.dumps(data).encode("utf-8")))
-
-
-def get_status(execution_id: str):
-    handle = Config.get_blobstore_handle(Replica.aws)
-    return json.loads(handle.get(Replica.aws.checkout_bucket, status_file_name(execution_id)))
+    @classmethod
+    def get_bundle_checkout_status(cls, execution_id: str):
+        handle = Config.get_blobstore_handle(Replica.aws)
+        return json.loads(handle.get(Replica.aws.checkout_bucket, cls._bundle_checkout_status_key(execution_id)))

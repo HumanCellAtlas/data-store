@@ -14,9 +14,16 @@ from cloud_blobstore import BlobNotFoundError
 import dss
 from dss.config import override_bucket_config, BucketConfig, Replica
 from dss.util import UrlBuilder
-from dss.storage.checkout import get_manifest_files, validate_file_dst, pre_exec_validate, ValidationEnum, \
-    validate_bundle_exists, touch_test_file, get_execution_id, get_status, put_status_succeeded, \
-    put_status_failed, put_status_started
+from dss.storage.checkout import (
+    CheckoutStatus,
+    ValidationEnum,
+    get_execution_id,
+    get_manifest_files,
+    pre_exec_validate,
+    validate_bundle_exists,
+    validate_file_dst,
+    touch_test_file,
+)
 from tests.infra import DSSAssertMixin, DSSUploadMixin, get_env, testmode
 from tests.infra.server import ThreadedLocalServer
 
@@ -207,8 +214,8 @@ class TestFileApi(unittest.TestCase, DSSAssertMixin, DSSUploadMixin):
         exec_id = get_execution_id()
         self.assertIsNotNone(exec_id)
         for replica in Replica:
-            put_status_succeeded(exec_id, replica, fake_bucket_name, fake_location)
-            status = get_status(exec_id)
+            CheckoutStatus.mark_bundle_checkout_successful(exec_id, replica, fake_bucket_name, fake_location)
+            status = CheckoutStatus.get_bundle_checkout_status(exec_id)
             self.assertEquals(status['status'], "SUCCEEDED")
             self.assertEquals(status['location'], f"{replica.storage_schema}://{fake_bucket_name}/{fake_location}")
 
@@ -217,8 +224,8 @@ class TestFileApi(unittest.TestCase, DSSAssertMixin, DSSUploadMixin):
         exec_id = get_execution_id()
         self.assertIsNotNone(exec_id)
         cause = 'Fake cause'
-        put_status_failed(exec_id, cause)
-        status = get_status(exec_id)
+        CheckoutStatus.mark_bundle_checkout_failed(exec_id, cause)
+        status = CheckoutStatus.get_bundle_checkout_status(exec_id)
         self.assertEquals(status['status'], "FAILED")
         self.assertEquals(status['cause'], cause)
 
@@ -226,8 +233,8 @@ class TestFileApi(unittest.TestCase, DSSAssertMixin, DSSUploadMixin):
     def test_status_started(self):
         exec_id = get_execution_id()
         self.assertIsNotNone(exec_id)
-        put_status_started(exec_id)
-        status = get_status(exec_id)
+        CheckoutStatus.mark_bundle_checkout_started(exec_id)
+        status = CheckoutStatus.get_bundle_checkout_status(exec_id)
         self.assertEquals(status['status'], "RUNNING")
 
     @testmode.standalone
@@ -235,7 +242,7 @@ class TestFileApi(unittest.TestCase, DSSAssertMixin, DSSUploadMixin):
         exec_id = get_execution_id()
         self.assertIsNotNone(exec_id)
         with self.assertRaises(BlobNotFoundError):
-            get_status(exec_id)
+            CheckoutStatus.get_bundle_checkout_status(exec_id)
 
 if __name__ == "__main__":
     unittest.main()

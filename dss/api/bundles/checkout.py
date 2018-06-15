@@ -1,9 +1,9 @@
 import requests
 from flask import jsonify
 
-from dss.api.bundles import get_bundle
 from dss import dss_handler, stepfunctions, Replica
-from dss.storage.checkout import get_execution_id, get_status, put_status_started
+from dss.api.bundles import get_bundle
+from dss.storage.checkout import CheckoutStatus, get_execution_id
 
 STATE_MACHINE_NAME_TEMPLATE = "dss-checkout-sfn-{stage}"
 
@@ -25,7 +25,7 @@ def post(uuid: str, json_request_body: dict, replica: str, version: str = None):
     if "email" in json_request_body:
         sfn_input["email"] = json_request_body["email"]
 
-    put_status_started(execution_id)
+    CheckoutStatus.mark_bundle_checkout_started(execution_id)
 
     stepfunctions.step_functions_invoke(STATE_MACHINE_NAME_TEMPLATE, execution_id, sfn_input)
     return jsonify(dict(checkout_job_id=execution_id)), requests.codes.ok
@@ -33,5 +33,5 @@ def post(uuid: str, json_request_body: dict, replica: str, version: str = None):
 
 @dss_handler
 def get(checkout_job_id: str):
-    response = get_status(checkout_job_id)
+    response = CheckoutStatus.get_bundle_checkout_status(checkout_job_id)
     return response, requests.codes.ok
