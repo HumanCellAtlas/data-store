@@ -55,17 +55,17 @@ def setup_copy_task(event, lambda_context):
         part_count += 1
     if part_count > 1:
         mpu = s3_blobstore.s3_client.create_multipart_upload(Bucket=destination_bucket, Key=destination_key)
-        upload_id = mpu['UploadId']
+        event[_Key.UPLOAD_ID] = mpu['UploadId']
+        event[Key.FINISHED] = False
     else:
         s3_blobstore.copy(source_bucket, source_key, destination_bucket, destination_key)
-        upload_id = None
+        event[_Key.UPLOAD_ID] = None
+        event[Key.FINISHED] = True
 
     event[_Key.SOURCE_ETAG] = source_etag
-    event[_Key.UPLOAD_ID] = upload_id
     event[_Key.SIZE] = source_size
     event[_Key.PART_SIZE] = part_size
     event[_Key.PART_COUNT] = part_count
-    event[Key.FINISHED] = False
 
     return event
 
