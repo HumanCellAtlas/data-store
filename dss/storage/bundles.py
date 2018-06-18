@@ -4,7 +4,7 @@ import typing
 from cloud_blobstore import BlobNotFoundError
 
 from dss import Config, DSSException, Replica
-from dss.storage.hcablobstore import BundleFileMetadata, BundleMetadata
+from dss.storage.hcablobstore import BundleFileMetadata, BundleMetadata, compose_blob_key
 from dss.storage.identifiers import DSS_BUNDLE_KEY_REGEX, DSS_BUNDLE_TOMBSTONE_REGEX, TombstoneID, BundleFQID
 from dss.util import UrlBuilder
 from dss.storage.blobstore import test_object_exists
@@ -75,12 +75,7 @@ def get_bundle_from_bucket(
             file_version['url'] = str(UrlBuilder().set(
                 scheme=replica.storage_schema,
                 netloc=bucket,
-                path="blobs/{}.{}.{}.{}".format(
-                    file[BundleFileMetadata.SHA256],
-                    file[BundleFileMetadata.SHA1],
-                    file[BundleFileMetadata.S3_ETAG],
-                    file[BundleFileMetadata.CRC32C],
-                ),
+                path=compose_blob_key(file),
             ))
         filesresponse.append(file_version)
 

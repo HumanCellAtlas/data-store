@@ -1,4 +1,4 @@
-import os, sys, json, logging, datetime, io, functools
+import json, logging, datetime, io, functools
 from typing import List
 from uuid import uuid4
 from concurrent.futures import ThreadPoolExecutor
@@ -13,7 +13,7 @@ import iso8601
 from dss import Config, Replica
 from dss.error import DSSException, dss_handler
 from dss.storage.blobstore import test_object_exists
-from dss.storage.hcablobstore import FileMetadata, BlobStore
+from dss.storage.hcablobstore import BlobStore, compose_blob_key
 from dss.storage.identifiers import CollectionFQID, CollectionTombstoneID
 from dss.util.version import datetime_to_version_format
 from dss.api.bundles import _idempotent_save
@@ -160,12 +160,7 @@ def resolve_content_item(replica: Replica, blobstore_handle: BlobStore, item: di
             if "fragment" not in item:
                 raise Exception('The "fragment" field is required in collection elements '
                                 'other than files, bundles, and collections')
-            blob_path = "blobs/" + ".".join((
-                item_metadata[FileMetadata.SHA256],
-                item_metadata[FileMetadata.SHA1],
-                item_metadata[FileMetadata.S3_ETAG],
-                item_metadata[FileMetadata.CRC32C],
-            ))
+            blob_path = compose_blob_key(item_metadata)
             # check that item is marked as metadata, is json, and is less than max size
             item_doc = json.loads(blobstore_handle.get(replica.bucket, blob_path))
             item_content = jsonpointer.resolve_pointer(item_doc, item["fragment"])

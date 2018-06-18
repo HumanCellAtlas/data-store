@@ -43,9 +43,9 @@ from dss.index.indexer import Indexer
 from dss.logging import configure_test_logging
 from dss.notify import attachment
 from dss.notify.notification import Endpoint
-from dss.storage.hcablobstore import BundleFileMetadata, BundleMetadata, FileMetadata
+from dss.storage.hcablobstore import BundleFileMetadata, BundleMetadata, FileMetadata, compose_blob_key
 from dss.storage.identifiers import BundleFQID, ObjectIdentifier
-from dss.util import UrlBuilder, create_blob_key, networking, RequirementError
+from dss.util import UrlBuilder, networking, RequirementError
 from dss.util.version import datetime_to_version_format
 from dss.util.time import SpecificRemainingTime
 from tests import eventually, get_auth_header, get_bundle_fqid, get_file_fqid, get_version
@@ -1389,7 +1389,7 @@ def create_index_data(blobstore, bucket_name, bundle_key, manifest,
     for file_info in files_info:
         if file_info['indexed'] is True and file_info["name"] not in excluded_file:
             try:
-                file_key = create_blob_key(file_info)
+                file_key = compose_blob_key(file_info)
                 content_type = file_info[BundleFileMetadata.CONTENT_TYPE]
                 if content_type != "application/json":
                     continue

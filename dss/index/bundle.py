@@ -5,9 +5,8 @@ from typing import Mapping, Optional, Set
 from cloud_blobstore import BlobNotFoundError, BlobStoreError
 
 from dss import Config, Replica
-from dss.storage.hcablobstore import BundleFileMetadata, BundleMetadata
+from dss.storage.hcablobstore import BundleFileMetadata, BundleMetadata, compose_blob_key
 from dss.storage.identifiers import BundleFQID, ObjectIdentifier, TombstoneID
-from dss.util import create_blob_key
 from dss.util.types import JSON
 
 logger = logging.getLogger(__name__)
@@ -56,7 +55,7 @@ class Bundle:
                 file_name = file_info[BundleFileMetadata.NAME]
                 content_type = file_info[BundleFileMetadata.CONTENT_TYPE]
                 if content_type.startswith('application/json'):
-                    file_blob_key = create_blob_key(file_info)
+                    file_blob_key = compose_blob_key(file_info)
                     try:
                         file_string = handle.get(replica.bucket, file_blob_key).decode("utf-8")
                     except BlobStoreError as ex:

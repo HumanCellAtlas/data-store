@@ -9,21 +9,18 @@ from cloud_blobstore import BlobNotFoundError, BlobStoreUnknownError
 from dss import DSSException, stepfunctions
 from dss.config import Config, Replica
 from dss.stepfunctions import s3copyclient, gscopyclient
-from dss.storage.bundles import get_bundle, get_bundle_from_bucket
+from dss.storage.bundles import get_bundle_from_bucket
+from dss.storage.hcablobstore import BundleFileMetadata, compose_blob_key
 
 log = logging.getLogger(__name__)
 
 
-class BundleFileMeta:
-    NAME = "name"
-    UUID = "uuid"
-    VERSION = "version"
-    CONTENT_TYPE = "content-type"
-    INDEXED = "indexed"
-    CRC32C = "crc32c"
+class ExternalBundleFileMetadata(BundleFileMetadata):
+    """
+    This is a silly hack to circumvent the problem described in `compose_blob_key`'s docblock.  Because we read the
+    bundle through a translation layer (get_bundle_from_bucket), we need to use the public name of s3_etag.
+    """
     S3_ETAG = "s3_etag"
-    SHA1 = "sha1"
-    SHA256 = "sha256"
 
 
 class ValidationEnum(Enum):
@@ -68,12 +65,7 @@ def get_manifest_files(src_bucket: str, bundle_id: str, version: str, replica: R
 
     for file_metadata in files:
         dst_key = "{}/{}".format(dst_bundle_prefix, file_metadata.get('name'))
-        src_key = "blobs/" + ".".join((
-            file_metadata[BundleFileMeta.SHA256],
-            file_metadata[BundleFileMeta.SHA1],
-            file_metadata[BundleFileMeta.S3_ETAG],
-            file_metadata[BundleFileMeta.CRC32C],
-        ))
+        src_key = compose_blob_key(file_metadata, ExternalBundleFileMetadata)
         yield src_key, dst_key
 
 
