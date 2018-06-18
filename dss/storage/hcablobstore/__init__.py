@@ -44,6 +44,19 @@ class HCABlobStore:
         """
         raise NotImplementedError()
 
+    def verify_blob_checksum_from_dss_metadata(
+            self, bucket: str, key: str, dss_metadata: typing.Dict[str, str]) -> bool:
+        """
+        Given a blob, verify that the checksum on the cloud store matches the checksum in the metadata stored in the
+        DSS.  Each cloud-specific implementation of ``HCABlobStore`` should extract the correct field and check it
+        against the cloud-provided checksum.
+        :param bucket:
+        :param key:
+        :param dss_metadata:
+        :return: True iff the checksum is correct.
+        """
+        raise NotImplementedError()
+
 
 class FileMetadata:
     FILE_FORMAT_VERSION = "0.0.4"
