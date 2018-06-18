@@ -1,3 +1,4 @@
+import time
 from pythonjsonlogger import jsonlogger
 import logging
 from logging import DEBUG, INFO, WARNING, ERROR
@@ -45,7 +46,7 @@ The log levels for running tests. The entries in this map override or extend the
 """
 
 
-LOGGED_FIELDS = ['levelname', 'asctime', 'msecs', 'aws_request_id', 'thread', 'message']
+LOGGED_FIELDS = ['levelname', 'asctime', 'aws_request_id', 'thread', 'message']
 LOG_FORMAT = '(' + ')('.join(LOGGED_FIELDS) + ')'  # format required for DSSJsonFormatter
 """
 The fields to log using the json logger.
@@ -53,6 +54,11 @@ The fields to log using the json logger.
 
 
 class DSSJsonFormatter(jsonlogger.JsonFormatter):
+    default_time_format = '%Y-%m-%dT%H:%M:%S'
+    default_msec_format = '%s.%03dZ'
+
+    converter = time.gmtime
+
     def add_required_fields(self, fields: List[str]):
         self._required_fields += [field for field in fields if field not in self._required_fields]
         self._skip_fields = dict(zip(self._required_fields,
@@ -119,7 +125,7 @@ def _configure_logging(test=False, log_levels: Optional[log_level_t] = None, **k
         root_logger.setLevel(logging.WARNING)
         if 'AWS_LAMBDA_LOG_GROUP_NAME' in os.environ:
             for handler in root_logger.handlers:
-                formatter = DSSJsonFormatter(LOG_FORMAT, '%Y-%m-%dT%H:%M:%S')
+                formatter = DSSJsonFormatter(LOG_FORMAT)
                 handler.setFormatter(formatter)
                 configure_xray_logging(handler)  # Unless xray is enabled
         elif len(root_logger.handlers) == 0:
