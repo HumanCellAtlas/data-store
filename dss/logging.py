@@ -92,14 +92,17 @@ def configure_cli_logging():
     logHandler = logging.StreamHandler(stream=sys.stderr)
     formatter = DSSJsonFormatter()
     logHandler.setFormatter(formatter)
-    _configure_logging(handlers=logHandler)
+    _configure_logging(handlers=[logHandler])
 
 
 def configure_lambda_logging():
     """
     Prepare logging for use within a AWS Lambda function.
     """
-    _configure_logging(stream=sys.stdout)
+    logHandler = logging.StreamHandler(stream=sys.stderr)
+    formatter = DSSJsonFormatter()
+    logHandler.setFormatter(formatter)
+    _configure_logging(handlers=[logHandler])
 
 
 def configure_test_logging(log_levels: Optional[log_level_t] = None, **kwargs):
@@ -109,7 +112,7 @@ def configure_test_logging(log_levels: Optional[log_level_t] = None, **kwargs):
     logHandler = logging.StreamHandler(stream=sys.stderr)
     formatter = DSSJsonFormatter()
     logHandler.setFormatter(formatter)
-    _configure_logging(test=True, handlers=logHandler, log_levels=log_levels, **kwargs)
+    _configure_logging(test=True, handlers=[logHandler], log_levels=log_levels, **kwargs)
 
 
 _logging_configured = False
