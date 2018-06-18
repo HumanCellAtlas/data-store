@@ -14,17 +14,17 @@ class HCABlobStoreTests:
         bucket = self.test_fixtures_bucket
         key = "test_good_source_data/0"
         self.assertTrue(
-            self.hcahandle.verify_blob_checksum(
+            self.hcahandle.verify_blob_checksum_from_staging_metadata(
                 bucket, key,
                 self.blobhandle.get_user_metadata(bucket, key)))
 
         key = "test_bad_source_data/incorrect_checksum"
         self.assertFalse(
-            self.hcahandle.verify_blob_checksum(
+            self.hcahandle.verify_blob_checksum_from_staging_metadata(
                 bucket, key,
                 self.blobhandle.get_user_metadata(bucket, key)))
 
         key = "DOES_NOT_EXIST"
         with self.assertRaises(BlobNotFoundError):
-            self.hcahandle.verify_blob_checksum(
+            self.hcahandle.verify_blob_checksum_from_staging_metadata(
                 bucket, key, {})

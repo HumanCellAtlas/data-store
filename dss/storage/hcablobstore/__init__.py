@@ -13,7 +13,7 @@ class HCABlobStore:
     keyname: the actual keyname that references the data on the object in the staging area.
     downcase: True iff we are required to downcase the field.
     """
-    MANDATORY_METADATA = dict(
+    MANDATORY_STAGING_METADATA = dict(
         SHA1=dict(
             keyname="hca-dss-sha1",
             downcase=True),
@@ -29,9 +29,10 @@ class HCABlobStore:
     )
 
     def __init__(self, handle: BlobStore) -> None:
-        pass
+        self.handle = handle
 
-    def verify_blob_checksum(self, bucket: str, key: str, metadata: typing.Dict[str, str]) -> bool:
+    def verify_blob_checksum_from_staging_metadata(
+            self, bucket: str, key: str, metadata: typing.Dict[str, str]) -> bool:
         """
         Given a blob, verify that the checksum on the cloud store matches the checksum in the metadata dictionary.  The
         keys to the metadata dictionary will be the items in ``MANDATORY_METADATA``.  Each cloud-specific implementation

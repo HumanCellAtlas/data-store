@@ -155,7 +155,7 @@ def put(uuid: str, json_request_body: dict, version: str=None):
     content_type = handle.get_content_type(src_bucket, src_key)
 
     # format all the checksums so they're lower-case.
-    for metadata_spec in HCABlobStore.MANDATORY_METADATA.values():
+    for metadata_spec in HCABlobStore.MANDATORY_STAGING_METADATA.values():
         if metadata_spec['downcase']:
             keyname = typing.cast(str, metadata_spec['keyname'])
             metadata[keyname] = metadata[keyname].lower()
@@ -173,7 +173,7 @@ def put(uuid: str, json_request_body: dict, version: str=None):
     # does it exist? if so, we can skip the copy part.
     copy_mode = CopyMode.COPY_INLINE
     try:
-        if hca_handle.verify_blob_checksum(dst_bucket, dst_key, metadata):
+        if hca_handle.verify_blob_checksum_from_staging_metadata(dst_bucket, dst_key, metadata):
             copy_mode = CopyMode.NO_COPY
     except BlobNotFoundError:
         pass
@@ -222,7 +222,7 @@ def put(uuid: str, json_request_body: dict, version: str=None):
         handle.copy(src_bucket, src_key, dst_bucket, dst_key)
 
         # verify the copy was done correctly.
-        assert hca_handle.verify_blob_checksum(dst_bucket, dst_key, metadata)
+        assert hca_handle.verify_blob_checksum_from_staging_metadata(dst_bucket, dst_key, metadata)
 
     try:
         write_file_metadata(handle, dst_bucket, uuid, version, file_metadata_json)
