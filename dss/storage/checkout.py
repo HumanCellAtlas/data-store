@@ -58,7 +58,7 @@ def parallel_copy(source_bucket: str, source_key: str, destination_bucket: str, 
 
 
 def get_dst_bundle_prefix(bundle_id: str, bundle_version: str) -> str:
-    return "checkedout/{}.{}".format(bundle_id, bundle_version)
+    return "bundles/{}.{}".format(bundle_id, bundle_version)
 
 
 def get_manifest_files(src_bucket: str, bundle_id: str, version: str, replica: Replica):
