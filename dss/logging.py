@@ -44,8 +44,13 @@ test_log_levels: log_level_t = {
 The log levels for running tests. The entries in this map override or extend the entries in the main map.
 """
 
+
 LOGGED_FIELDS = ['levelname', 'asctime', 'msecs', 'aws_request_id', 'thread', 'message']
 LOG_FORMAT = '(' + ')('.join(LOGGED_FIELDS) + ')'  # format required for DSSJsonFormatter
+"""
+The fields to log using the json logger.
+"""
+
 
 class DSSJsonFormatter(jsonlogger.JsonFormatter):
     def add_required_fields(self, fields: List[str]):
@@ -68,10 +73,10 @@ class DSSJsonFormatter(jsonlogger.JsonFormatter):
         log_record.update(message_dict)
         merge_record_extra(record, log_record, reserved=self._skip_fields)
 
-class DsipatchFilter(logging.Filter):
+
+class DispatchFilter(logging.Filter):
     def filter(self, record):
         return False if '[dispatch]' in record.msg else True
-
 
 
 def configure_cli_logging():
@@ -98,6 +103,7 @@ def configure_test_logging(log_levels: Optional[log_level_t] = None, **kwargs):
     logHandler = logging.StreamHandler()
     formatter = DSSJsonFormatter()
     logHandler.setFormatter(formatter)
+    logHandler.addFilter(DispatchFilter)
     _configure_logging(stream=sys.stderr, test=True, handler=logHandler, log_levels=log_levels, **kwargs)
 
 
