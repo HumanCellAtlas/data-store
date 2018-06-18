@@ -92,7 +92,7 @@ def configure_cli_logging():
     logHandler = logging.StreamHandler()
     formatter = DSSJsonFormatter()
     logHandler.setFormatter(formatter)
-    _configure_logging(stream=sys.stderr, handler=logHandler)
+    _configure_logging(stream=sys.stderr, handlers=logHandler)
 
 
 def configure_lambda_logging():
@@ -109,7 +109,7 @@ def configure_test_logging(log_levels: Optional[log_level_t] = None, **kwargs):
     logHandler = logging.StreamHandler()
     formatter = DSSJsonFormatter()
     logHandler.setFormatter(formatter)
-    _configure_logging(stream=sys.stderr, test=True, handler=logHandler, log_levels=log_levels, **kwargs)
+    _configure_logging(stream=sys.stderr, test=True, handlers=logHandler, log_levels=log_levels, **kwargs)
 
 
 _logging_configured = False
