@@ -90,7 +90,8 @@ Hint: To create S3 buckets from the command line, use `aws s3 mb --region REGION
 7.  Enable required APIs: 
 
     ```
-    gcloud services enable cloudfunctions.googleapis.com`; `gcloud services enable runtimeconfig.googleapis.com
+    gcloud services enable cloudfunctions.googleapis.com
+    gcloud services enable runtimeconfig.googleapis.com
     ```
 
 8.  Generate OAuth application secrets to be used for your instance: 
@@ -166,14 +167,15 @@ Assuming the tests have passed above, the next step is to manually deploy. See t
 CI/CD with Travis if continuous deployment is your goal.
 
 The AWS Elasticsearch Service is used for metadata indexing. Currently, the AWS Elasticsearch Service must be configured
-manually. The AWS Elasticsearch Service domain name must either:
+manually.
 
-* have the value `dss-index-$DSS_DEPLOYMENT_STAGE`
-
-* or, the environment variable `DSS_ES_DOMAIN` must be set to the domain name of the AWS Elasticsearch Service instance
+* The domain name must either:
+  * have the value `dss-index-$DSS_DEPLOYMENT_STAGE`
+  * or, the environment variable `DSS_ES_DOMAIN` must be set to the domain name of the AWS Elasticsearch Service instance
   to be used.
+* For typical development deployments the t2.small.elasticsearch instance type is more than sufficient.
+* Must be Elasticsearch 5.* instead of 6.*.
 
-For typical development deployments the t2.small.elasticsearch instance type is more than sufficient. 
 
 Now deploy using make:
 
@@ -227,9 +229,9 @@ client requires you change `hca/api_spec.json` to point to the correct host, sch
 of CLI use:
 
     # list bundles
-    hca get-bundles
+    hca dss post-search --es-query "{}" --replica=aws | less
     # upload full bundle
-    hca upload --replica aws --staging-bucket staging_bucket_name data-bundle-examples/smartseq2/paired_ends
+    hca dss upload --replica aws --staging-bucket staging_bucket_name --src-dir data-bundle-examples/smartseq2/paired_ends
 
 #### Checking Indexing
 
