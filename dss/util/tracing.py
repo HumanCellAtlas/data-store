@@ -33,7 +33,7 @@ class XrayLoggerFilter(logging.Filter):
         record.xray_trace_header = header
         return True
 
-def configure_xray_logging(handler: logging.Handler):
+def configure_xray_logging(handler) -> None:
     if DSS_XRAY_TRACE:
         handler.addFilter(XrayLoggerFilter())
         handler.formatter.add_required_fields(['xray_trace_header'])

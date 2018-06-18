@@ -103,7 +103,6 @@ def configure_test_logging(log_levels: Optional[log_level_t] = None, **kwargs):
     logHandler = logging.StreamHandler()
     formatter = DSSJsonFormatter()
     logHandler.setFormatter(formatter)
-    logHandler.addFilter(DispatchFilter)
     _configure_logging(stream=sys.stderr, test=True, handler=logHandler, log_levels=log_levels, **kwargs)
 
 
