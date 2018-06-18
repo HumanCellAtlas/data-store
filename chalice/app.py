@@ -1,5 +1,4 @@
 import collections
-import datetime
 import functools
 import os
 import random
@@ -11,7 +10,6 @@ import traceback
 import typing
 from concurrent.futures import ThreadPoolExecutor, TimeoutError
 
-import boto3
 import chalice
 import nestedcontext
 import requests
@@ -22,7 +20,6 @@ sys.path.insert(0, pkg_root)  # noqa
 
 from dss import BucketConfig, Config, DeploymentStage, create_app
 from dss.logging import configure_lambda_logging
-from dss.util import paginate
 from dss.util.tracing import DSS_XRAY_TRACE
 
 if DSS_XRAY_TRACE:  # noqa
@@ -232,21 +229,6 @@ def get_chalice_app(flask_app) -> DSSChaliceApp:
             app.log.info("Ignoring Google Object Change Notification")
         else:
             raise NotImplementedError()
-
-    @app.route("/internal/logs/{group}", methods=["GET"])
-    @time_limited(app)
-    def get_logs(group):
-        assert group in {"dss-dev", "dss-index-dev", "dss-sync-dev"}
-        logs = []
-        start_time = datetime.datetime.now() - datetime.timedelta(minutes=10)
-        filter_args = dict(logGroupName="/aws/lambda/{}".format(group), startTime=int(start_time.timestamp()))
-        if app.current_request.query_params and "pattern" in app.current_request.query_params:
-            filter_args.update(filterPattern=app.current_request.query_params["pattern"])
-        for event in paginate(boto3.client("logs").get_paginator("filter_log_events"), **filter_args):
-            if "timestamp" not in event or "message" not in event:
-                continue
-            logs.append(event)
-        return dict(logs=logs)
 
     @app.route("/internal/application_secrets", methods=["GET"])
     @time_limited(app)
