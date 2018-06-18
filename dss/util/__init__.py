@@ -2,17 +2,6 @@ from urllib.parse import SplitResult, urlencode, urlunsplit
 
 import typing
 
-from dss.storage.hcablobstore import BundleFileMetadata
-
-
-def create_blob_key(file_info: typing.Dict[str, str]) -> str:
-    return "blobs/" + ".".join((
-        file_info[BundleFileMetadata.SHA256],
-        file_info[BundleFileMetadata.SHA1],
-        file_info[BundleFileMetadata.S3_ETAG],
-        file_info[BundleFileMetadata.CRC32C]
-    ))
-
 
 def paginate(boto3_paginator, *args, **kwargs):
     for page in boto3_paginator.paginate(*args, **kwargs):

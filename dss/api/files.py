@@ -1,10 +1,8 @@
 import datetime
 import io
 import json
-import os
 import random
 import re
-import sys
 import typing
 from enum import Enum, auto
 from uuid import uuid4
@@ -17,7 +15,7 @@ from dss.util.version import datetime_to_version_format
 
 from dss import DSSException, dss_handler, stepfunctions
 from dss.config import Config, Replica
-from dss.storage.hcablobstore import FileMetadata, HCABlobStore
+from dss.storage.hcablobstore import FileMetadata, HCABlobStore, compose_blob_key
 from dss.stepfunctions import gscopyclient, s3copyclient
 from dss.util import tracing
 from dss.util.aws import AWS_MIN_CHUNK_SIZE
@@ -74,12 +72,7 @@ def get_helper(uuid: str, replica: Replica, version: str=None):
         raise DSSException(404, "not_found", "Cannot find file!")
 
     with tracing.Subsegment('make_path'):
-        blob_path = "blobs/" + ".".join((
-            file_metadata[FileMetadata.SHA256],
-            file_metadata[FileMetadata.SHA1],
-            file_metadata[FileMetadata.S3_ETAG],
-            file_metadata[FileMetadata.CRC32C],
-        ))
+        blob_path = compose_blob_key(file_metadata)
 
     if request.method == "GET":
         """
