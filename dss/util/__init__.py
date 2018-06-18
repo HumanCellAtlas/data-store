@@ -1,5 +1,4 @@
-from urllib.parse import SplitResult, urlencode, urlunsplit
-
+from urllib.parse import SplitResult, parse_qsl, urlencode, urlsplit, urlunsplit
 import typing
 
 
@@ -11,16 +10,19 @@ def paginate(boto3_paginator, *args, **kwargs):
 
 
 class UrlBuilder:
-    def __init__(self):
-        self.splitted = SplitResult("", "", "", "", "")
-        self.query = list()
+    def __init__(self, url: typing.Optional[str]=None) -> None:
+        if url is None:
+            self.splitted = SplitResult("", "", "", "", "")
+        else:
+            self.splitted = urlsplit(url)
+        self.query = parse_qsl(self.splitted.query)
 
     def set(
             self,
             scheme: str=None,
             netloc: str=None,
             path: str=None,
-            query: typing.Sequence[typing.Tuple[str, str]]=None,
+            query: typing.List[typing.Tuple[str, str]]=None,
             fragment: str=None) -> "UrlBuilder":
         kwargs = dict()
         if scheme is not None:
@@ -45,6 +47,20 @@ class UrlBuilder:
         return False
 
     def add_query(self, query_name: str, query_value: str) -> "UrlBuilder":
+        self.query.append((query_name, query_value))
+
+        return self
+
+    def replace_query(self, query_name: str, query_value: str) -> "UrlBuilder":
+        """
+        Given a query name, remove all instances of that query name in this UrlBuilder.  Then append an instance with
+        the name set to `query_name` and the value set to `query_value`.
+        """
+        self.query = [
+            (q_name, q_value)
+            for q_name, q_value in self.query
+            if q_name != query_name
+        ]
         self.query.append((query_name, query_value))
 
         return self
