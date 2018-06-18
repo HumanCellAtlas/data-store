@@ -89,10 +89,10 @@ def configure_cli_logging():
     """
     Prepare logging for use in a command line application.
     """
-    logHandler = logging.StreamHandler()
+    logHandler = logging.StreamHandler(stream=sys.stderr)
     formatter = DSSJsonFormatter()
     logHandler.setFormatter(formatter)
-    _configure_logging(stream=sys.stderr, handlers=logHandler)
+    _configure_logging(handlers=logHandler)
 
 
 def configure_lambda_logging():
@@ -106,10 +106,10 @@ def configure_test_logging(log_levels: Optional[log_level_t] = None, **kwargs):
     """
     Configure logging for use during unit tests.
     """
-    logHandler = logging.StreamHandler()
+    logHandler = logging.StreamHandler(stream=sys.stderr)
     formatter = DSSJsonFormatter()
     logHandler.setFormatter(formatter)
-    _configure_logging(stream=sys.stderr, test=True, handlers=logHandler, log_levels=log_levels, **kwargs)
+    _configure_logging(test=True, handlers=logHandler, log_levels=log_levels, **kwargs)
 
 
 _logging_configured = False
