@@ -496,19 +496,19 @@ paths:
                   the corresponding notification payload will contain the following entry
 
                   ```
-                  "attachements": {
+                  "attachments": {
                     "taxon": [9606, 9606]
                   }
                   ```
 
                   If a general error occurs during the processing of attachments, the notification will be sent with
                   `attachments` containing only the reserved `_errors` attachment containing a string describing the
-                  error. If an error occurs during the processing of a specific attachement, the notification will be
+                  error. If an error occurs during the processing of a specific attachment, the notification will be
                   sent with all successfully processed attachments and additionally the `_errors` attachment containing
                   an object with one property for each failed attachment. For example,
 
                   ```
-                  "attachements": {
+                  "attachments": {
                     "taxon": [9606, 9606]
                     "_errors" {
                       "biomaterial": "Some error occurred"
@@ -519,7 +519,7 @@ paths:
                   The value of the `attachments` property must be less than or equal to 128 KiB in size when serialized
                   to JSON and encoded as UTF-8. If it is not, the notification will be sent with
 
-                  "attachements": {
+                  "attachments": {
                     "_errors": "Attachments too large (131073 bytes)"
                   }
                 type: object
@@ -1460,19 +1460,19 @@ definitions:
           the corresponding notification payload will contain the following entry
 
           ```
-          "attachements": {
+          "attachments": {
             "taxon": [9606, 9606]
           }
           ```
 
           If a general error occurs during the processing of attachments, the notification will be sent with
           `attachments` containing only the reserved `_errors` attachment containing a string describing the
-          error. If an error occurs during the processing of a specific attachement, the notification will be
+          error. If an error occurs during the processing of a specific attachment, the notification will be
           sent with all successfully processed attachments and additionally the `_errors` attachment containing
           an object with one property for each failed attachment. For example,
 
           ```
-          "attachements": {
+          "attachments": {
             "taxon": [9606, 9606]
             "_errors" {
               "biomaterial": "Some error occurred"
@@ -1483,7 +1483,7 @@ definitions:
           The value of the `attachments` property must be less than or equal to 128 KiB in size when serialized
           to JSON and encoded as UTF-8. If it is not, the notification will be sent with
 
-          "attachements": {
+          "attachments": {
             "_errors": "Attachments too large (131073 bytes)"
           }
         type: object
