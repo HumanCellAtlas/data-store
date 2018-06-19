@@ -52,7 +52,7 @@ def post(json_request_body: dict,
             response = make_response(request_body, requests.codes.ok)
         else:
             response = make_response(request_body, requests.codes.partial)
-            next_url = _build_scroll_url(page['_scroll_id'], per_page, replica_enum, output_format)
+            next_url = _build_scroll_url(page, per_page, replica_enum, output_format)
             response.headers['Link'] = _build_link_header({next_url: {"rel": "next"}})
         return response
     except TransportError as ex:
@@ -96,31 +96,27 @@ def _es_search_page(es_query: dict,
     if output_format != 'raw':
         es_query['_source'] = False
 
-    # The time for a scroll search context to stay open per page. A page of results must be retreived before this
-    # timeout expires. Subsequent calls to search will refresh the scroll timeout. For more details on time format see:
-    # https://www.elastic.co/guide/en/elasticsearch/reference/current/common-options.html#time-units
-    scroll = '2m'  # set a timeout of 2min to keep the search context alive. This is reset
+    # https://www.elastic.co/guide/en/elasticsearch/reference/5.5/search-request-search-after.html
+    sort = [
+        # "manifest.version:desc",
+        "_uid:desc"]
 
-    # From: https://www.elastic.co/guide/en/elasticsearch/reference/current/search-request-scroll.html
-    # Scroll requests have optimizations that make them faster when the sort order is _doc. If you want to iterate over
-    # all documents regardless of the order, this is the most efficient option:
-    # {
-    #   "sort": [
-    #     "_doc"
-    #   ]
-    # }
-    sort = {"sort": ["_doc"]}
     if _scroll_id is None:
         page = es_client.search(index=Config.get_es_alias_name(ESIndexType.docs, replica),
                                 doc_type=ESDocType.doc.name,
-                                scroll=scroll,
                                 size=per_page,
                                 body=es_query,
                                 sort=sort
                                 )
         logger.debug("Created ES scroll instance")
     else:
-        page = es_client.scroll(scroll_id=_scroll_id, scroll=scroll)
+        es_query['search_after'] = [_scroll_id]
+        page = es_client.search(index=Config.get_es_alias_name(ESIndexType.docs, replica),
+                                doc_type=ESDocType.doc.name,
+                                size=per_page,
+                                body=es_query,
+                                sort=sort,
+                                )
         logger.debug(f"Retrieved ES results from scroll instance Scroll_id: {_scroll_id}")
     return page
 
@@ -153,7 +149,8 @@ def _build_bundle_url(hit: dict, replica: Replica) -> str:
                                   )
 
 
-def _build_scroll_url(_scroll_id: str, per_page: int, replica: Replica, output_format: str) -> str:
+def _build_scroll_url(page: dict, per_page: int, replica: Replica, output_format: str) -> str:
+    _scroll_id = page['hits']['hits'][-1]['sort']
     return request.host_url + str(UrlBuilder()
                                   .set(path="v1/search")
                                   .add_query('per_page', str(per_page))

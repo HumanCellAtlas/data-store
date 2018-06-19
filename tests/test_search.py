@@ -256,26 +256,6 @@ class TestSearchBase(ElasticsearchTestCase, DSSAssertMixin):
                     json_request_body=dict(es_query=smartseq2_paired_ends_v3_query),
                     **expected)
 
-    def test_search_session_expired_when_session_deleted(self):
-        self.populate_search_index(self.index_document, 20)
-        self.check_count(smartseq2_paired_ends_v3_query, 20)
-        url = self.build_url({"per_page": 10})
-        search_obj = self.assertPostResponse(
-            path=url,
-            json_request_body=dict(es_query=smartseq2_paired_ends_v3_query),
-            expected_code=requests.codes.partial)
-        self.verify_search_result(search_obj.json, smartseq2_paired_ends_v3_query, 20, 10)
-        next_url = self.get_next_url(search_obj.response.headers)
-        scroll_id = self.verify_next_url(next_url, 10)
-        es_client = ElasticsearchClient.get()
-        es_client.clear_scroll(scroll_id)
-        self.assertPostResponse(
-            path=self.strip_next_url(next_url),
-            json_request_body=dict(es_query=smartseq2_paired_ends_v3_query),
-            expected_code=requests.codes.not_found,
-            expected_error=ExpectedErrorFields(code="elasticsearch_context_not_found",
-                                               status=requests.codes.not_found))
-
     def test_verify_dynamic_mapping(self):
         doc1 = {
             "manifest": {"data": "hello world!"},
