@@ -9,8 +9,8 @@ import typing
 import boto3
 from cloud_blobstore.s3 import S3BlobStore
 
-from dss.api import files
 from dss.stepfunctions.lambdaexecutor import TimedThread
+from dss.storage.files import write_file_metadata
 from dss.util.aws import get_s3_chunk_size
 
 
@@ -300,7 +300,7 @@ def write_metadata(event, lambda_context):
     handle = S3BlobStore.from_environment()
 
     destination_bucket = event[Key.DESTINATION_BUCKET]
-    files.write_file_metadata(
+    write_file_metadata(
         handle,
         destination_bucket,
         event[CopyWriteMetadataKey.FILE_UUID],

@@ -1,5 +1,4 @@
 import datetime
-import io
 import json
 import random
 import re
@@ -9,16 +8,18 @@ from uuid import uuid4
 
 import iso8601
 import requests
-from cloud_blobstore import BlobAlreadyExistsError, BlobNotFoundError, BlobStore
+from cloud_blobstore import BlobAlreadyExistsError, BlobNotFoundError
 from flask import jsonify, make_response, redirect, request
-from dss.util.version import datetime_to_version_format
 
 from dss import DSSException, dss_handler, stepfunctions
 from dss.config import Config, Replica
+from dss.storage.files import write_file_metadata
 from dss.storage.hcablobstore import FileMetadata, HCABlobStore, compose_blob_key
 from dss.stepfunctions import gscopyclient, s3copyclient
 from dss.util import tracing
 from dss.util.aws import AWS_MIN_CHUNK_SIZE
+from dss.util.version import datetime_to_version_format
+
 
 ASYNC_COPY_THRESHOLD = AWS_MIN_CHUNK_SIZE
 """This is the maximum file size that we will copy synchronously."""
@@ -243,26 +244,3 @@ def put(uuid: str, json_request_body: dict, version: str=None):
 
     return jsonify(
         dict(version=version)), status_code
-
-
-def write_file_metadata(
-        handle: BlobStore,
-        dst_bucket: str,
-        file_uuid: str,
-        file_version: str,
-        document: str):
-    # what's the target object name for the file metadata?
-    metadata_key = f"files/{file_uuid}.{file_version}"
-
-    # if it already exists, then it's a failure.
-    try:
-        handle.get_user_metadata(dst_bucket, metadata_key)
-    except BlobNotFoundError:
-        pass
-    else:
-        raise BlobAlreadyExistsError()
-
-    handle.upload_file_handle(
-        dst_bucket,
-        metadata_key,
-        io.BytesIO(document.encode("utf-8")))
