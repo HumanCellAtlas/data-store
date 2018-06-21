@@ -67,6 +67,26 @@ def start_bundle_checkout(
     return execution_id
 
 
+def start_file_checkout(
+        blob_key,
+        replica: Replica,
+        dst_bucket: typing.Optional[str]=None,
+) -> str:
+    """
+    Starts a file checkout.
+
+    :param blob_key: The key of the blob that contains the file.
+    :param replica: The replica to execute the checkout in.
+    :param dst_bucket: If provided, check out to this bucket.  If not provided, check out to the default checkout bucket
+                       for the replica.
+    :return: The execution ID of the request.
+    """
+    if dst_bucket is None:
+        dst_bucket = replica.checkout_bucket
+    source_bucket = replica.bucket
+    return parallel_copy(source_bucket, blob_key, dst_bucket, get_dst_key(blob_key), replica)
+
+
 def parallel_copy(source_bucket: str, source_key: str, destination_bucket: str, destination_key: str, replica: Replica):
     log.debug(f"Copy file from bucket {source_bucket} with key {source_key} to "
               f"bucket {destination_bucket} destination file: {destination_key}")
@@ -87,11 +107,20 @@ def parallel_copy(source_bucket: str, source_key: str, destination_bucket: str, 
         raise ValueError("Unsupported replica")
 
     execution_name = get_execution_id()
-    stepfunctions.step_functions_invoke(state_machine_name_template, execution_name, state)
+    return stepfunctions.step_functions_invoke(state_machine_name_template, execution_name, state)
 
 
 def get_dst_bundle_prefix(bundle_id: str, bundle_version: str) -> str:
     return "bundles/{}.{}".format(bundle_id, bundle_version)
+
+
+def get_dst_key(blob_key: str):
+    """
+    Returns the destination key where a file checkout will be saved to.
+    :param blob_key: The key for the file's data in the DSS bucket.
+    :return: The key for the file's data in the checkout bucket.
+    """
+    return f"files/{blob_key}"
 
 
 def get_manifest_files(src_bucket: str, bundle_id: str, version: str, replica: Replica):
