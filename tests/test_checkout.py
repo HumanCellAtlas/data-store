@@ -32,6 +32,12 @@ from tests.infra.server import ThreadedLocalServer
 
 
 class TestCheckoutApi(unittest.TestCase, DSSAssertMixin, DSSUploadMixin):
+    test_bundle_uploaded: bool = False
+    bundle_uuid: str
+    bundle_version: str
+    file_uuid: str
+    file_version: str
+
     @classmethod
     def setUpClass(cls):
         cls.app = ThreadedLocalServer()
@@ -43,6 +49,47 @@ class TestCheckoutApi(unittest.TestCase, DSSAssertMixin, DSSUploadMixin):
 
     def setUp(self):
         dss.Config.set_config(dss.BucketConfig.TEST)
+
+        # this should really belong in setUpClass, but this code depends on DSSAssertMixin, which only works on class
+        # instances, not classes.
+        if not TestCheckoutApi.test_bundle_uploaded:
+            TestCheckoutApi.test_bundle_uploaded = True
+
+            TestCheckoutApi.bundle_uuid = str(uuid.uuid4())
+            TestCheckoutApi.bundle_version = datetime_to_version_format(datetime.datetime.utcnow())
+            TestCheckoutApi.file_uuid = str(uuid.uuid4())
+            TestCheckoutApi.file_version = datetime_to_version_format(datetime.datetime.utcnow())
+            for replica in Replica:
+                fixtures_bucket = self.get_test_fixture_bucket(replica)
+
+                self.upload_file_wait(
+                    f"{replica.storage_schema}://{fixtures_bucket}/test_good_source_data/0",
+                    replica,
+                    TestCheckoutApi.file_uuid,
+                    file_version=TestCheckoutApi.file_version,
+                    bundle_uuid=TestCheckoutApi.bundle_uuid,
+                )
+
+                builder = UrlBuilder().set(path="/v1/bundles/" + TestCheckoutApi.bundle_uuid)
+                builder.add_query("replica", replica.name)
+                builder.add_query("version", TestCheckoutApi.bundle_version)
+                url = str(builder)
+
+                self.assertPutResponse(
+                    url,
+                    [requests.codes.ok, requests.codes.created],
+                    json_request_body=dict(
+                        files=[
+                            dict(
+                                uuid=TestCheckoutApi.file_uuid,
+                                version=TestCheckoutApi.file_version,
+                                name="blah blah",
+                                indexed=False,
+                            )
+                        ],
+                        creator_uid=12345,
+                    ),
+                )
 
     def get_test_fixture_bucket(self, replica: Replica) -> str:
         if replica == Replica.aws:
