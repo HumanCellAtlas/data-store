@@ -57,7 +57,7 @@ def post(json_request_body: dict,
         return response
     except TransportError as ex:
         if ex.status_code == requests.codes.bad_request:
-            logger.debug("Invalid Query Recieved.", exc_info=ex, stack_info=True)
+            logger.debug("Invalid Query Received.", exc_info=ex, stack_info=True)
             raise DSSException(requests.codes.bad_request,
                                "elasticsearch_bad_request",
                                f"Invalid Elasticsearch query was received: {str(ex)}")
