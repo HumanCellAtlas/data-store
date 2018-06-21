@@ -1,8 +1,10 @@
 #!/usr/bin/env python
 # coding: utf-8
+import datetime
 import os
 import sys
 import unittest
+import uuid
 from uuid import UUID
 
 import requests
@@ -14,6 +16,7 @@ from cloud_blobstore import BlobNotFoundError
 import dss
 from dss.config import override_bucket_config, BucketConfig, Replica
 from dss.util import UrlBuilder
+from dss.util.version import datetime_to_version_format
 from dss.storage.checkout import (
     CheckoutStatus,
     ValidationEnum,
@@ -51,14 +54,14 @@ class TestCheckoutApi(unittest.TestCase, DSSAssertMixin, DSSUploadMixin):
     @testmode.integration
     def test_pre_execution_check_doesnt_exist(self):
         for replica in Replica:
-            non_existent_bundle_uuid = "011c7340-9b3c-4d62-bf49-090d79daf111"
-            version = "2017-06-20T214506.766634Z"
+            non_existent_bundle_uuid = str(uuid.uuid4())
+            non_existent_bundle_version = datetime_to_version_format(datetime.datetime.utcnow())
             request_body = {"destination": replica.checkout_bucket}
 
             url = str(UrlBuilder()
                       .set(path="/v1/bundles/" + non_existent_bundle_uuid + "/checkout")
                       .add_query("replica", replica.name)
-                      .add_query("version", version))
+                      .add_query("version", non_existent_bundle_version))
 
             with override_bucket_config(BucketConfig.TEST_FIXTURE):
                 resp_obj = self.assertPostResponse(
@@ -124,8 +127,9 @@ class TestCheckoutApi(unittest.TestCase, DSSAssertMixin, DSSUploadMixin):
 
     @testmode.integration
     def test_status_fail(self):
+        nonexistent_bucket_name = str(uuid.uuid4())
         for replica in Replica:
-            exec_arn = self.launch_checkout('e47114c9-bb96-480f-b6f5-c3e07aae399f', replica)
+            exec_arn = self.launch_checkout(nonexistent_bucket_name, replica)
             url = str(UrlBuilder().set(path="/v1/bundles/checkout/" + exec_arn))
             with override_bucket_config(BucketConfig.TEST_FIXTURE):
                 resp_obj = self.assertGetResponse(
@@ -149,9 +153,9 @@ class TestCheckoutApi(unittest.TestCase, DSSAssertMixin, DSSUploadMixin):
 
     @testmode.standalone
     def test_validate_file_dst_fail(self):
-        dst_key = "83b76ac9-2470-46d2-ae5e-a415ce86b020"
+        nonexistent_dst_key = str(uuid.uuid4())
         for replica in Replica:
-            self.assertEquals(validate_file_dst(replica.checkout_bucket, dst_key, replica), False)
+            self.assertEquals(validate_file_dst(replica.checkout_bucket, nonexistent_dst_key, replica), False)
 
     @testmode.standalone
     def test_validate_file_dst(self):
@@ -162,10 +166,11 @@ class TestCheckoutApi(unittest.TestCase, DSSAssertMixin, DSSUploadMixin):
 
     @testmode.standalone
     def test_validate_wrong_key(self):
-        bundle_uuid = "WRONG_KEY"
-        version = "WRONG_VERSION"
+        nonexistent_bundle_uuid = str(uuid.uuid4())
+        nonexistent_bundle_version = datetime_to_version_format(datetime.datetime.utcnow())
         for replica in Replica:
-            valid, cause = pre_exec_validate(replica.bucket, replica.checkout_bucket, replica, bundle_uuid, version)
+            valid, cause = pre_exec_validate(
+                replica.bucket, replica.checkout_bucket, replica, nonexistent_bundle_uuid, nonexistent_bundle_version)
             self.assertIs(valid, ValidationEnum.WRONG_BUNDLE_KEY)
 
     @testmode.standalone
@@ -187,10 +192,11 @@ class TestCheckoutApi(unittest.TestCase, DSSAssertMixin, DSSUploadMixin):
 
     @testmode.standalone
     def test_validate_bundle_exists_fail(self):
-        bundle_uuid = "WRONG_KEY"
-        version = "WRONG_VERSION"
+        nonexistent_bundle_uuid = str(uuid.uuid4())
+        nonexistent_bundle_version = datetime_to_version_format(datetime.datetime.utcnow())
         for replica in Replica:
-            valid, cause = validate_bundle_exists(replica, self.get_test_fixture_bucket(replica), bundle_uuid, version)
+            valid, cause = validate_bundle_exists(
+                replica, self.get_test_fixture_bucket(replica), nonexistent_bundle_uuid, nonexistent_bundle_version)
             self.assertIs(valid, ValidationEnum.WRONG_BUNDLE_KEY)
 
     @testmode.standalone
@@ -209,8 +215,8 @@ class TestCheckoutApi(unittest.TestCase, DSSAssertMixin, DSSUploadMixin):
 
     @testmode.standalone
     def test_status_succeeded(self):
-        fake_bucket_name = 'fake_bucket_name'
-        fake_location = 'fake/location'
+        fake_bucket_name = str(uuid.uuid4())
+        fake_location = str(uuid.uuid4())
         exec_id = get_execution_id()
         self.assertIsNotNone(exec_id)
         for replica in Replica:
@@ -243,6 +249,7 @@ class TestCheckoutApi(unittest.TestCase, DSSAssertMixin, DSSUploadMixin):
         self.assertIsNotNone(exec_id)
         with self.assertRaises(BlobNotFoundError):
             CheckoutStatus.get_bundle_checkout_status(exec_id)
+
 
 if __name__ == "__main__":
     unittest.main()
