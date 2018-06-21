@@ -1,37 +1,23 @@
 import requests
 from flask import jsonify
 
-from dss import dss_handler, stepfunctions, Replica
-from dss.error import DSSException
-from dss.api.bundles import get_bundle_manifest
-from dss.storage.checkout import CheckoutStatus, get_execution_id
-
-STATE_MACHINE_NAME_TEMPLATE = "dss-checkout-sfn-{stage}"
+from dss import dss_handler, Replica
+from dss.storage.checkout import CheckoutStatus, start_bundle_checkout
 
 
 @dss_handler
-def post(uuid: str, json_request_body: dict, replica: str, version: str = None):
+def post(uuid: str, json_request_body: dict, replica: str, version: str=None):
 
     assert replica is not None
 
-    _replica = Replica[replica]
-    bundle_metadata = get_bundle_manifest(uuid, _replica, version)
-    if bundle_metadata is None:
-        raise DSSException(404, "not_found", "Cannot find bundle!")
+    execution_id = start_bundle_checkout(
+        uuid,
+        version,
+        Replica[replica],
+        dst_bucket=json_request_body.get('destination', None),
+        email_address=json_request_body.get('email', None),
+    )
 
-    execution_id = get_execution_id()
-
-    sfn_input = {"dss_bucket": _replica.bucket, "bundle": uuid, "version": bundle_metadata['version'],
-                 "replica": replica, "execution_name": execution_id}
-    if "destination" in json_request_body:
-        sfn_input["bucket"] = json_request_body["destination"]
-
-    if "email" in json_request_body:
-        sfn_input["email"] = json_request_body["email"]
-
-    CheckoutStatus.mark_bundle_checkout_started(execution_id)
-
-    stepfunctions.step_functions_invoke(STATE_MACHINE_NAME_TEMPLATE, execution_id, sfn_input)
     return jsonify(dict(checkout_job_id=execution_id)), requests.codes.ok
 
 

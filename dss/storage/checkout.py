@@ -15,12 +15,56 @@ from dss.storage.hcablobstore import compose_blob_key
 log = logging.getLogger(__name__)
 
 
+STATE_MACHINE_NAME_TEMPLATE = "dss-checkout-sfn-{stage}"
+
+
 class ValidationEnum(Enum):
     NO_SRC_BUNDLE_FOUND = auto(),
     WRONG_DST_BUCKET = auto(),
     WRONG_PERMISSIONS_DST_BUCKET = auto(),
     WRONG_BUNDLE_KEY = auto(),
     PASSED = auto()
+
+
+def start_bundle_checkout(
+        bundle_uuid: str,
+        bundle_version: typing.Optional[str],
+        replica: Replica,
+        dst_bucket: typing.Optional[str]=None,
+        email_address: typing.Optional[str]=None,
+) -> str:
+    """
+    Starts a bundle checkout.
+
+    :param bundle_uuid: The UUID of the bundle to check out.
+    :param bundle_version: The version of the bundle to check out.
+    :param replica: The replica to execute the checkout in.
+    :param dst_bucket: If provided, check out to this bucket.  If not provided, check out to the default checkout bucket
+                       for the replica.
+    :param email_address: If provided, send a message to this email address with the status of the checkout.
+    :return: The execution ID of the request.
+    """
+
+    bundle = get_bundle_manifest(bundle_uuid, replica, bundle_version)
+    execution_id = get_execution_id()
+
+    sfn_input = {
+        'dss_bucket': replica.bucket,
+        'bundle': bundle_uuid,
+        'version': bundle['bundle']['version'],
+        'replica': replica.name,
+        'execution_name': execution_id
+    }
+    if dst_bucket is not None:
+        sfn_input['bucket'] = dst_bucket
+
+    if email_address is not None:
+        sfn_input['email'] = email_address
+
+    CheckoutStatus.mark_bundle_checkout_started(execution_id)
+
+    stepfunctions.step_functions_invoke(STATE_MACHINE_NAME_TEMPLATE, execution_id, sfn_input)
+    return execution_id
 
 
 def parallel_copy(source_bucket: str, source_key: str, destination_bucket: str, destination_key: str, replica: Replica):
