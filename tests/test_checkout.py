@@ -27,6 +27,7 @@ from dss.storage.checkout import (
     validate_file_dst,
     touch_test_file,
 )
+from tests import eventually
 from tests.infra import DSSAssertMixin, DSSUploadMixin, get_env, testmode
 from tests.infra.server import ThreadedLocalServer
 
@@ -155,28 +156,52 @@ class TestCheckoutApi(unittest.TestCase, DSSAssertMixin, DSSUploadMixin):
     def test_status_success(self):
         for replica in Replica:
             exec_arn = self.launch_checkout(replica.checkout_bucket, replica)
+            # mark it started to suppress a bunch of spurious messages.  when running in test mode, we are pointing at
+            # the test buckets, but the status is hard-coded to write to the normal buckets.
+            with override_bucket_config(BucketConfig.NORMAL):
+                CheckoutStatus.mark_bundle_checkout_started(exec_arn)
+
             url = str(UrlBuilder().set(path="/v1/bundles/checkout/" + exec_arn))
-            resp_obj = self.assertGetResponse(
-                url,
-                requests.codes.ok
-            )
-            status = resp_obj.json.get('status')
-            self.assertIsNotNone(status)
-            self.assertIn(status, ['RUNNING', 'SUCCEEDED'])
+
+            @eventually(timeout=120, interval=1)
+            def check_status():
+                with override_bucket_config(BucketConfig.NORMAL):
+                    resp_obj = self.assertGetResponse(
+                        url,
+                        requests.codes.ok
+                    )
+                status = resp_obj.json.get('status')
+                if status not in ("RUNNING", "SUCCEEDED"):
+                    raise Exception(f"Unexpected status {status}")
+                self.assertEqual(status, "SUCCEEDED")
+
+            check_status()
 
     @testmode.integration
     def test_status_fail(self):
         nonexistent_bucket_name = str(uuid.uuid4())
         for replica in Replica:
             exec_arn = self.launch_checkout(nonexistent_bucket_name, replica)
+            # mark it started to suppress a bunch of spurious messages.  when running in test mode, we are pointing at
+            # the test buckets, but the status is hard-coded to write to the normal buckets.
+            with override_bucket_config(BucketConfig.NORMAL):
+                CheckoutStatus.mark_bundle_checkout_started(exec_arn)
+
             url = str(UrlBuilder().set(path="/v1/bundles/checkout/" + exec_arn))
-            resp_obj = self.assertGetResponse(
-                url,
-                requests.codes.ok
-            )
-            status = resp_obj.json.get('status')
-            self.assertIsNotNone(status)
-            self.assertIn(status, ['RUNNING', 'FAILED'])
+
+            @eventually(timeout=120, interval=1)
+            def check_status():
+                with override_bucket_config(BucketConfig.NORMAL):
+                    resp_obj = self.assertGetResponse(
+                        url,
+                        requests.codes.ok
+                    )
+                status = resp_obj.json.get('status')
+                if status not in ("RUNNING", "FAILED"):
+                    raise Exception(f"Unexpected status {status}")
+                self.assertEqual(status, "FAILED")
+
+            check_status()
 
     @testmode.standalone
     def test_manifest_files(self):
