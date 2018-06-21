@@ -115,6 +115,57 @@ class TestBundleApi(unittest.TestCase, DSSAssertMixin, DSSUploadMixin):
         self.assertEqual(sha1, "2b8b815229aa8a61e483fb4ba0588b8b6c491890")
 
     @testmode.standalone
+    def test_bundle_get_presigned(self):
+        self._test_bundle_get_presigned(Replica.aws)
+        self._test_bundle_get_presigned(Replica.gcp)
+
+    def _test_bundle_get_presigned(self, replica: Replica):
+        bundle_uuid = "011c7340-9b3c-4d62-bf49-090d79daf198"
+        version = "2017-06-20T214506.766634Z"
+
+        url = str(UrlBuilder()
+                  .set(path="/v1/bundles/" + bundle_uuid)
+                  .add_query("replica", replica.name)
+                  .add_query("version", version)
+                  .add_query("presignedurls", "true"))
+
+        with override_bucket_config(BucketConfig.TEST_FIXTURE):
+            resp_obj = self.assertGetResponse(
+                url,
+                requests.codes.ok)
+
+        url = resp_obj.json['bundle']['files'][0]['url']
+        resp = requests.get(url)
+        contents = resp.content
+
+        hasher = hashlib.sha1()
+        hasher.update(contents)
+        sha1 = hasher.hexdigest()
+        self.assertEqual(sha1, "2b8b815229aa8a61e483fb4ba0588b8b6c491890")
+
+    @testmode.standalone
+    def test_bundle_get_directurl_and_presigned(self):
+        self._test_bundle_get_directurl_and_presigned(Replica.aws)
+        self._test_bundle_get_directurl_and_presigned(Replica.gcp)
+
+    def _test_bundle_get_directurl_and_presigned(self, replica: Replica):
+        bundle_uuid = "011c7340-9b3c-4d62-bf49-090d79daf198"
+        version = "2017-06-20T214506.766634Z"
+
+        url = str(UrlBuilder()
+                  .set(path="/v1/bundles/" + bundle_uuid)
+                  .add_query("replica", replica.name)
+                  .add_query("version", version)
+                  .add_query("directurls", "true")
+                  .add_query("presignedurls", "true"))
+
+        with override_bucket_config(BucketConfig.TEST_FIXTURE):
+            resp_obj = self.assertGetResponse(
+                url,
+                requests.codes.bad_request)
+            self.assertEqual(resp_obj.json['code'], "only_one_urltype")
+
+    @testmode.standalone
     def test_bundle_get_deleted(self):
         uuid = "deadbeef-0000-4a6b-8f0d-a7d2105c23be"
         version = "2017-12-05T235850.950361Z"
