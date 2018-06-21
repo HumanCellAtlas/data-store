@@ -940,7 +940,14 @@ paths:
           enum: [aws, gcp, azure]
         - name: directurls
           in: query
-          description: Include direct-access URLs in the response.
+          description: |
+            Include direct-access URLs in the response.  This is mutually exclusive with the presignedurls parameter.
+          required: false
+          type: boolean
+        - name: presignedurls
+          in: query
+          description: |
+            Include presigned URLs in the response.  This is mutually exclusive with the directurls parameter.
           required: false
           type: boolean
       responses:
@@ -951,6 +958,23 @@ paths:
             properties:
               bundle:
                 $ref: "#/definitions/bundle_version"
+        400:
+          description: Bad request
+          schema:
+            allOf:
+              - $ref: '#/definitions/Error'
+              - type: object
+                properties:
+                  code:
+                    type: string
+                    description: |
+                      Machine-readable error code.  The types of return values should not be changed lightly.
+
+                      The code `only_one_urltype` is returned when more than one url type (`directurls` and
+                      `presignedurls`) is requested.
+                    enum: [only_one_urltype]
+                required:
+                  - code
         default:
           description: Unexpected error
           schema:
@@ -1302,7 +1326,7 @@ definitions:
         type: boolean
         description: True if this file is to be indexed.
       url:
-        description: Direct access URL, if requested.
+        description: Direct access or presigned URL, if requested.
         type: string
       uuid:
         type: string

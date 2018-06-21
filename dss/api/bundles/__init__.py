@@ -27,10 +27,16 @@ ADMIN_USER_EMAILS = set(os.environ['ADMIN_USER_EMAILS'].split(','))
 
 
 @dss_handler
-def get(uuid: str,
+def get(
+        uuid: str,
         replica: str,
         version: str=None,
-        directurls: bool=False):
+        directurls: bool=False,
+        presignedurls: bool=False):
+    if directurls and presignedurls:
+        raise DSSException(
+            requests.codes.bad_request, "only_one_urltype", "only enable one of `directurls` or `presignedurls`")
+
     _replica = Replica[replica]
     bundle_metadata = get_bundle_manifest(uuid, _replica, version)
     if bundle_metadata is None:
@@ -56,6 +62,10 @@ def get(uuid: str,
                 netloc=_replica.bucket,
                 path=compose_blob_key(file),
             ))
+        elif presignedurls:
+            handle = Config.get_blobstore_handle(_replica)
+            file_version['url'] = handle.generate_presigned_GET_url(
+                _replica.bucket, compose_blob_key(file))
         filesresponse.append(file_version)
 
     return dict(
