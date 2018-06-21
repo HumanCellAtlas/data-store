@@ -110,49 +110,42 @@ class TestCheckoutApi(unittest.TestCase, DSSAssertMixin, DSSUploadMixin):
                       .add_query("replica", replica.name)
                       .add_query("version", non_existent_bundle_version))
 
-            with override_bucket_config(BucketConfig.TEST_FIXTURE):
-                resp_obj = self.assertPostResponse(
-                    url,
-                    requests.codes.not_found,
-                    request_body
-                )
+            resp_obj = self.assertPostResponse(
+                url,
+                requests.codes.not_found,
+                request_body
+            )
             self.assertEqual(resp_obj.json['code'], 'not_found')
 
     @testmode.integration
     def test_sanity_check_no_replica(self):
-        bundle_uuid = "011c7340-9b3c-4d62-bf49-090d79daf198"
-        version = "2017-06-20T214506.766634Z"
         for replica in Replica:
             request_body = {"destination": replica.checkout_bucket}
 
             url = str(UrlBuilder()
-                      .set(path="/v1/bundles/" + bundle_uuid + "/checkout")
+                      .set(path="/v1/bundles/" + self.bundle_uuid + "/checkout")
                       .add_query("replica", "")
-                      .add_query("version", version))
+                      .add_query("version", self.bundle_version))
 
-            with override_bucket_config(BucketConfig.TEST_FIXTURE):
-                self.assertPostResponse(
-                    url,
-                    requests.codes.bad_request,
-                    request_body
-                )
+            self.assertPostResponse(
+                url,
+                requests.codes.bad_request,
+                request_body
+            )
 
     def launch_checkout(self, dst_bucket: str, replica: Replica) -> str:
-        bundle_uuid = "011c7340-9b3c-4d62-bf49-090d79daf198"
-        version = "2017-06-20T214506.766634Z"
         request_body = {"destination": dst_bucket}
 
         url = str(UrlBuilder()
-                  .set(path="/v1/bundles/" + bundle_uuid + "/checkout")
+                  .set(path="/v1/bundles/" + self.bundle_uuid + "/checkout")
                   .add_query("replica", replica.name)
-                  .add_query("version", version))
+                  .add_query("version", self.bundle_version))
 
-        with override_bucket_config(BucketConfig.TEST_FIXTURE):
-            resp_obj = self.assertPostResponse(
-                url,
-                requests.codes.ok,
-                request_body
-            )
+        resp_obj = self.assertPostResponse(
+            url,
+            requests.codes.ok,
+            request_body
+        )
         execution_arn = resp_obj.json["checkout_job_id"]
         self.assertIsNotNone(execution_arn)
 
@@ -163,11 +156,10 @@ class TestCheckoutApi(unittest.TestCase, DSSAssertMixin, DSSUploadMixin):
         for replica in Replica:
             exec_arn = self.launch_checkout(replica.checkout_bucket, replica)
             url = str(UrlBuilder().set(path="/v1/bundles/checkout/" + exec_arn))
-            with override_bucket_config(BucketConfig.TEST_FIXTURE):
-                resp_obj = self.assertGetResponse(
-                    url,
-                    requests.codes.ok
-                )
+            resp_obj = self.assertGetResponse(
+                url,
+                requests.codes.ok
+            )
             status = resp_obj.json.get('status')
             self.assertIsNotNone(status)
             self.assertIn(status, ['RUNNING', 'SUCCEEDED'])
@@ -178,11 +170,10 @@ class TestCheckoutApi(unittest.TestCase, DSSAssertMixin, DSSUploadMixin):
         for replica in Replica:
             exec_arn = self.launch_checkout(nonexistent_bucket_name, replica)
             url = str(UrlBuilder().set(path="/v1/bundles/checkout/" + exec_arn))
-            with override_bucket_config(BucketConfig.TEST_FIXTURE):
-                resp_obj = self.assertGetResponse(
-                    url,
-                    requests.codes.ok
-                )
+            resp_obj = self.assertGetResponse(
+                url,
+                requests.codes.ok
+            )
             status = resp_obj.json.get('status')
             self.assertIsNotNone(status)
             self.assertIn(status, ['RUNNING', 'FAILED'])
@@ -222,19 +213,15 @@ class TestCheckoutApi(unittest.TestCase, DSSAssertMixin, DSSUploadMixin):
 
     @testmode.standalone
     def test_validate(self):
-        bundle_uuid = "011c7340-9b3c-4d62-bf49-090d79daf198"
-        version = "2017-06-20T214506.766634Z"
         for replica in Replica:
-            valid, cause = pre_exec_validate(self.get_test_fixture_bucket(replica), replica.checkout_bucket, replica,
-                                             bundle_uuid, version)
+            valid, cause = pre_exec_validate(
+                replica.bucket, replica.checkout_bucket, replica, self.bundle_uuid, self.bundle_version)
             self.assertIs(valid, ValidationEnum.PASSED)
 
     @testmode.standalone
     def test_validate_bundle_exists(self):
-        bundle_uuid = "011c7340-9b3c-4d62-bf49-090d79daf198"
-        version = "2017-06-20T214506.766634Z"
         for replica in Replica:
-            valid, cause = validate_bundle_exists(replica, self.get_test_fixture_bucket(replica), bundle_uuid, version)
+            valid, cause = validate_bundle_exists(replica, replica.bucket, self.bundle_uuid, self.bundle_version)
             self.assertIs(valid, ValidationEnum.PASSED)
 
     @testmode.standalone
