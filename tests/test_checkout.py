@@ -1,6 +1,7 @@
 #!/usr/bin/env python
 # coding: utf-8
 import datetime
+import json
 import os
 import sys
 import unittest
@@ -14,19 +15,23 @@ sys.path.insert(0, pkg_root)  # noqa
 
 from cloud_blobstore import BlobNotFoundError
 import dss
-from dss.config import override_bucket_config, BucketConfig, Replica
+from dss.config import override_bucket_config, BucketConfig, Replica, Config
 from dss.util import UrlBuilder
 from dss.util.version import datetime_to_version_format
 from dss.storage.checkout import (
     CheckoutStatus,
     ValidationEnum,
+    get_dst_key,
     get_execution_id,
     get_manifest_files,
     pre_exec_validate,
     validate_bundle_exists,
     validate_file_dst,
     touch_test_file,
+    start_file_checkout,
 )
+from dss.storage.hcablobstore import BundleMetadata, compose_blob_key
+from dss.storage.identifiers import BundleFQID
 from tests import eventually
 from tests.infra import DSSAssertMixin, DSSUploadMixin, get_env, testmode
 from tests.infra.server import ThreadedLocalServer
@@ -200,6 +205,27 @@ class TestCheckoutApi(unittest.TestCase, DSSAssertMixin, DSSUploadMixin):
                 if status not in ("RUNNING", "FAILED"):
                     raise Exception(f"Unexpected status {status}")
                 self.assertEqual(status, "FAILED")
+
+            check_status()
+
+    @testmode.integration
+    def test_checkout_file_success(self):
+        for replica in Replica:
+            bundle_fqid = BundleFQID(uuid=self.bundle_uuid, version=self.bundle_version)
+
+            handle = Config.get_blobstore_handle(replica)
+            # retrieve the bundle metadata.
+            bundle_metadata = json.loads(
+                handle.get(
+                    replica.bucket,
+                    bundle_fqid.to_key(),
+                ).decode("utf-8"))
+            blob_key = compose_blob_key(bundle_metadata[BundleMetadata.FILES][0])
+            start_file_checkout(blob_key, replica)
+
+            @eventually(timeout=120, interval=1)
+            def check_status():
+                self.assertTrue(validate_file_dst(replica.checkout_bucket, get_dst_key(blob_key), replica))
 
             check_status()
 
