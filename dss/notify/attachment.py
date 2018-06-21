@@ -21,7 +21,7 @@ Attachments = Mapping[str, JSON]
 
 def validate(definitions: Definitions) -> None:
     """
-    Validate the given attachement definitions. This should be called in a request handling context as it raises
+    Validate the given attachment definitions. This should be called in a request handling context as it raises
     DSSException referring to HTTP status code, as well as error code and description.
     """
     for name, definition in definitions.items():
