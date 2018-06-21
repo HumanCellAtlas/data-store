@@ -2,7 +2,8 @@ import requests
 from flask import jsonify
 
 from dss import dss_handler, stepfunctions, Replica
-from dss.api.bundles import get_bundle
+from dss.error import DSSException
+from dss.api.bundles import get_bundle_manifest
 from dss.storage.checkout import CheckoutStatus, get_execution_id
 
 STATE_MACHINE_NAME_TEMPLATE = "dss-checkout-sfn-{stage}"
@@ -14,10 +15,13 @@ def post(uuid: str, json_request_body: dict, replica: str, version: str = None):
     assert replica is not None
 
     _replica = Replica[replica]
-    bundle = get_bundle(uuid, _replica, version)
+    bundle_metadata = get_bundle_manifest(uuid, _replica, version)
+    if bundle_metadata is None:
+        raise DSSException(404, "not_found", "Cannot find bundle!")
+
     execution_id = get_execution_id()
 
-    sfn_input = {"dss_bucket": _replica.bucket, "bundle": uuid, "version": bundle["bundle"]["version"],
+    sfn_input = {"dss_bucket": _replica.bucket, "bundle": uuid, "version": bundle_metadata['version'],
                  "replica": replica, "execution_name": execution_id}
     if "destination" in json_request_body:
         sfn_input["bucket"] = json_request_body["destination"]

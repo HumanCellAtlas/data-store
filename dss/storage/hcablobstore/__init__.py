@@ -94,20 +94,16 @@ class BundleFileMetadata:
     SHA256 = "sha256"
 
 
-def compose_blob_key(file_info: typing.Dict[str, str], key_class=FileMetadata) -> str:
+def compose_blob_key(file_info: typing.Dict[str, str]) -> str:
     """
     Create the key for a blob, given the file metadata.
 
     :param file_info: This can either be an object that contains the four keys (SHA256, SHA1, S3_ETAG, and CRC32C) in
                       the key_class.
-    :param key_class: Due to a mistake early on in implementation, s3_etag is internally represented as s3-etag, and
-                      publicly represented as s3_etag.  If we are reading the bundle file metadata or file metadata
-                      directly from cloud storage, we want s3-etag.  If we are reading from /bundles, then we want
-                      s3_etag.  Fortunately, the classes that hold the string constants allow us to parameterize this.
     """
     return "blobs/" + ".".join((
-        file_info[key_class.SHA256],
-        file_info[key_class.SHA1],
-        file_info[key_class.S3_ETAG],
-        file_info[key_class.CRC32C]
+        file_info[FileMetadata.SHA256],
+        file_info[FileMetadata.SHA1],
+        file_info[FileMetadata.S3_ETAG],
+        file_info[FileMetadata.CRC32C]
     ))

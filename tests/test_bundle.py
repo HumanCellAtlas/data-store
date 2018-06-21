@@ -24,7 +24,7 @@ from dss.config import BucketConfig, Config, override_bucket_config, Replica
 from dss.util import UrlBuilder
 from dss.storage.blobstore import test_object_exists
 from dss.util.version import datetime_to_version_format
-from dss.storage.bundles import get_bundle_from_bucket
+from dss.storage.bundles import get_bundle_manifest
 from tests.infra import DSSAssertMixin, DSSUploadMixin, ExpectedErrorFields, get_env, testmode
 from tests.infra.server import ThreadedLocalServer
 from tests import get_auth_header
@@ -137,17 +137,15 @@ class TestBundleApi(unittest.TestCase, DSSAssertMixin, DSSUploadMixin):
                                  version: typing.Optional[str],
                                  expected_version: typing.Optional[str]):
         with override_bucket_config(BucketConfig.TEST_FIXTURE):
-            try:
-                response = get_bundle_from_bucket(
-                    uuid=bundle_uuid,
-                    replica=replica,
-                    version=version,
-                    bucket=None,
-                )
-            except DSSException:
-                response = dict()
+            bundle_metadata = get_bundle_manifest(
+                uuid=bundle_uuid,
+                replica=replica,
+                version=version,
+                bucket=None,
+            )
+            bundle_version = None if bundle_metadata is None else bundle_metadata['version']
         self.assertEquals(
-            response['bundle']['version'] if 'bundle' in response else None,
+            bundle_version,
             expected_version
         )
 

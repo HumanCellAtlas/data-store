@@ -28,7 +28,7 @@ from tests.infra import DSSAssertMixin, DSSUploadMixin, get_env, testmode
 from tests.infra.server import ThreadedLocalServer
 
 
-class TestFileApi(unittest.TestCase, DSSAssertMixin, DSSUploadMixin):
+class TestCheckoutApi(unittest.TestCase, DSSAssertMixin, DSSUploadMixin):
     @classmethod
     def setUpClass(cls):
         cls.app = ThreadedLocalServer()
