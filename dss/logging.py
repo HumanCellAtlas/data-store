@@ -1,7 +1,7 @@
 import time
 from pythonjsonlogger import jsonlogger
 import logging
-from logging import DEBUG, INFO, WARNING, ERROR
+from logging import DEBUG, INFO, WARNING, ERROR, LogRecord
 import os
 import sys
 from typing import Mapping, Union, Tuple, Optional, List
@@ -59,19 +59,43 @@ class DSSJsonFormatter(jsonlogger.JsonFormatter):
 
     converter = time.gmtime
 
-    def add_required_fields(self, fields: List[str]):
+    def add_required_fields(self, fields: List[str]) -> None:
+        """
+        Add additional required fields to to be written in log messages. New fields will be added to the end of the
+        `required_fields` list in the order specified by `fields`.
+
+        :param fields: an ordered list of required fields to write to logs.
+        :return:
+        """
+
         self._required_fields += [field for field in fields if field not in self._required_fields]
         self._skip_fields = dict(zip(self._required_fields,
                                      self._required_fields))
         self._skip_fields.update(RESERVED_ATTR_HASH)
 
-    def set_required_fields(self, fields: List[str]):
+    def set_required_fields(self, fields: List[str]) -> None:
+        """
+        Sets the required fields in the order specified in `fields`. Required fields appears in the logs in the order
+        listed in `required_fields`.
+
+        :param fields: an ordered list of fields to set `required_fields`
+        :return:
+        """
         self._required_fields = fields
         self._skip_fields = dict(zip(self._required_fields,
                                      self._required_fields))
         self._skip_fields.update(RESERVED_ATTR_HASH)
 
-    def add_fields(self, log_record, record, message_dict):
+    def add_fields(self, log_record: dict, record: LogRecord, message_dict: dict) -> None:
+        """
+        Adds additional log information from `log_record` to `records. If a required field does not exist in the
+        `log_record` then it is not included in the `record`.
+
+        :param log_record: additional fields to add to the `record`.
+        :param record: the logRecord to add additional fields too.
+        :param message_dict: the log message and extra fields to add to `records`.
+        :return:
+        """
         for field in self._required_fields:
             value = record.__dict__.get(field)
             if value:
@@ -85,34 +109,34 @@ class DispatchFilter(logging.Filter):
         return False if '[dispatch]' in record.msg else True
 
 
+def get_json_log_handler():
+    log_handler = logging.StreamHandler(stream=sys.stderr)
+    log_handler.setFormatter(DSSJsonFormatter())
+    return log_handler
+
+
 def configure_cli_logging():
     """
     Prepare logging for use in a command line application.
     """
-    logHandler = logging.StreamHandler(stream=sys.stderr)
-    formatter = DSSJsonFormatter()
-    logHandler.setFormatter(formatter)
-    _configure_logging(handlers=[logHandler])
+    log_handler = get_json_log_handler()
+    _configure_logging(handlers=[log_handler])
 
 
 def configure_lambda_logging():
     """
     Prepare logging for use within a AWS Lambda function.
     """
-    logHandler = logging.StreamHandler(stream=sys.stderr)
-    formatter = DSSJsonFormatter()
-    logHandler.setFormatter(formatter)
-    _configure_logging(handlers=[logHandler])
+    log_handler = get_json_log_handler()
+    _configure_logging(handlers=[log_handler])
 
 
 def configure_test_logging(log_levels: Optional[log_level_t] = None, **kwargs):
     """
     Configure logging for use during unit tests.
     """
-    logHandler = logging.StreamHandler(stream=sys.stderr)
-    formatter = DSSJsonFormatter()
-    logHandler.setFormatter(formatter)
-    _configure_logging(test=True, handlers=[logHandler], log_levels=log_levels, **kwargs)
+    log_handler = get_json_log_handler()
+    _configure_logging(test=True, handlers=[log_handler], log_levels=log_levels, **kwargs)
 
 
 _logging_configured = False
