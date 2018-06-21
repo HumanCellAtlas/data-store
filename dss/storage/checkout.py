@@ -6,21 +6,13 @@ import uuid
 from enum import Enum, auto
 
 from cloud_blobstore import BlobNotFoundError, BlobStoreUnknownError
-from dss import DSSException, stepfunctions
+from dss import stepfunctions
 from dss.config import Config, Replica
 from dss.stepfunctions import s3copyclient, gscopyclient
-from dss.storage.bundles import get_bundle_from_bucket
-from dss.storage.hcablobstore import BundleFileMetadata, compose_blob_key
+from dss.storage.bundles import get_bundle_manifest
+from dss.storage.hcablobstore import compose_blob_key
 
 log = logging.getLogger(__name__)
-
-
-class ExternalBundleFileMetadata(BundleFileMetadata):
-    """
-    This is a silly hack to circumvent the problem described in `compose_blob_key`'s docblock.  Because we read the
-    bundle through a translation layer (get_bundle_from_bucket), we need to use the public name of s3_etag.
-    """
-    S3_ETAG = "s3_etag"
 
 
 class ValidationEnum(Enum):
@@ -59,13 +51,13 @@ def get_dst_bundle_prefix(bundle_id: str, bundle_version: str) -> str:
 
 
 def get_manifest_files(src_bucket: str, bundle_id: str, version: str, replica: Replica):
-    bundleManifest = get_bundle_from_bucket(bundle_id, replica, version, src_bucket).get('bundle')
-    files = bundleManifest.get('files')
-    dst_bundle_prefix = get_dst_bundle_prefix(bundle_id, version)
+    bundle_manifest = get_bundle_manifest(bundle_id, replica, version, bucket=src_bucket)
+    files = bundle_manifest['files']
+    dst_bundle_prefix = get_dst_bundle_prefix(bundle_id, bundle_manifest['version'])
 
     for file_metadata in files:
         dst_key = "{}/{}".format(dst_bundle_prefix, file_metadata.get('name'))
-        src_key = compose_blob_key(file_metadata, ExternalBundleFileMetadata)
+        src_key = compose_blob_key(file_metadata)
         yield src_key, dst_key
 
 
@@ -94,11 +86,11 @@ def validate_dst_bucket(dst_bucket: str, replica: Replica) -> typing.Tuple[Valid
 
 
 def validate_bundle_exists(replica: Replica, bucket: str, bundle_id: str, version: str):
-    try:
-        get_bundle_from_bucket(bundle_id, replica, version, bucket)
-        return ValidationEnum.PASSED, None
-    except (DSSException, ValueError):
+    bundle_manifest = get_bundle_manifest(bundle_id, replica, version, bucket=bucket)
+    if bundle_manifest is None:
         return ValidationEnum.WRONG_BUNDLE_KEY, "Bundle with specified key does not exist"
+    else:
+        return ValidationEnum.PASSED, None
 
 
 def get_execution_id() -> str:
