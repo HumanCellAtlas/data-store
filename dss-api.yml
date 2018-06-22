@@ -17,6 +17,9 @@ securityDefinitions:
     x-tokenInfoUrl: https://www.googleapis.com/oauth2/v3/tokeninfo
     scopes:
       https://www.googleapis.com/auth/userinfo.email: read user email
+security:
+  - googAuth:
+      - https://www.googleapis.com/auth/userinfo.email
 paths:
   /search:
     post:
