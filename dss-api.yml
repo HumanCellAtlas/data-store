@@ -975,6 +975,23 @@ paths:
                     enum: [only_one_urltype]
                 required:
                   - code
+        503:
+          description: Service unavailable
+          schema:
+            allOf:
+              - $ref: '#/definitions/Error'
+              - type: object
+                properties:
+                  code:
+                    type: string
+                    description: |
+                      Machine-readable error code.  The types of return values should not be changed lightly.
+
+                      The code `service_unavailable` is returned when service is unavailable because of unusually high
+                      load/latency
+                    enum: [service_unavailable]
+                required:
+                  - code
         default:
           description: Unexpected error
           schema:
