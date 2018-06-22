@@ -186,6 +186,11 @@ paths:
           required: false
           type: string
           format: date-time
+        - name: token
+          in: query
+          description: Token to manage retries.  End users constructing queries should not set this parameter.
+          required: false
+          type: string
       responses:
         301:
           description: Handle asynchronously, downstream users are expected to retry later.
@@ -229,6 +234,22 @@ paths:
               description: SHA-256 (in hex format) of the file contents in hex.
               type: string
               pattern: "^[a-z0-9]{64}$"
+        400:
+          description: Bad request
+          schema:
+            allOf:
+              - $ref: '#/definitions/Error'
+              - type: object
+                properties:
+                  code:
+                    type: string
+                    description: |
+                      Machine-readable error code.  The types of return values should not be changed lightly.
+
+                      The code `illegal_token` is returned when the token parameter cannot be understood.
+                    enum: [illegal_token]
+                required:
+                  - code
         default:
           description: Unexpected error
           schema:

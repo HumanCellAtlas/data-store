@@ -11,19 +11,19 @@ import typing
 import unittest
 import uuid
 
-
 pkg_root = os.path.abspath(os.path.join(os.path.dirname(__file__), '..'))  # noqa
 sys.path.insert(0, pkg_root)  # noqa
 
 import dss
+from dss.api.files import RETRY_AFTER_INTERVAL
 from dss.config import BucketConfig, override_bucket_config, Replica
 from dss.util import UrlBuilder
 from dss.util.aws import AWS_MIN_CHUNK_SIZE
 from dss.util.version import datetime_to_version_format
+from tests import eventually
 from tests.fixtures.cloud_uploader import GSUploader, S3Uploader, Uploader
 from tests.infra import DSSAssertMixin, DSSUploadMixin, ExpectedErrorFields, get_env, generate_test_key, testmode
 from tests.infra.server import ThreadedLocalServer
-from dss.api.files import RETRY_AFTER_INTERVAL
 
 
 # Max number of retries
@@ -312,6 +312,45 @@ class TestFileApi(unittest.TestCase, DSSAssertMixin, DSSUploadMixin):
                     status=requests.codes.bad_request,
                     expect_stacktrace=True)
             )
+
+    @testmode.standalone
+    def test_file_checkout(self):
+        """
+        Verifies that a checkout request with a malformed token returns a 400.
+        :return:
+        """
+        tempdir = tempfile.gettempdir()
+        self._test_file_checkout(Replica.aws, "s3", self.s3_test_bucket, S3Uploader(tempdir, self.s3_test_bucket))
+        self._test_file_checkout(Replica.gcp, "gs", self.gs_test_bucket, GSUploader(tempdir, self.gs_test_bucket))
+
+    def _test_file_checkout(self, replica: Replica, scheme: str, test_bucket: str, uploader: Uploader):
+        src_key = generate_test_key()
+        src_data = os.urandom(1024)
+        with tempfile.NamedTemporaryFile(delete=True) as fh:
+            fh.write(src_data)
+            fh.flush()
+
+            uploader.checksum_and_upload_file(fh.name, src_key, "text/plain")
+
+        source_url = f"{scheme}://{test_bucket}/{src_key}"
+
+        file_uuid = str(uuid.uuid4())
+        bundle_uuid = str(uuid.uuid4())
+        version = datetime_to_version_format(datetime.datetime.utcnow())
+
+        # should be able to do this twice (i.e., same payload, different UUIDs)
+        self.upload_file(source_url, file_uuid, bundle_uuid=bundle_uuid, version=version)
+        url = str(UrlBuilder()
+                  .set(path="/v1/files/" + file_uuid)
+                  .add_query("replica", replica.name)
+                  .add_query("version", version)
+                  .add_query("token", "{}"))
+
+        @eventually(30, 0.1)
+        def try_get():
+            self.assertGetResponse(
+                url, requests.codes.bad_request)
+        try_get()
 
     @testmode.standalone
     def test_file_size(self):

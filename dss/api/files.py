@@ -1,7 +1,7 @@
 import datetime
 import json
-import random
 import re
+import time
 import typing
 from enum import Enum, auto
 from uuid import uuid4
@@ -13,10 +13,11 @@ from flask import jsonify, make_response, redirect, request
 
 from dss import DSSException, dss_handler, stepfunctions
 from dss.config import Config, Replica
+from dss.storage.checkout import CheckoutTokenKeys, get_dst_key, start_file_checkout
 from dss.storage.files import write_file_metadata
 from dss.storage.hcablobstore import FileMetadata, HCABlobStore, compose_blob_key
 from dss.stepfunctions import gscopyclient, s3copyclient
-from dss.util import tracing
+from dss.util import tracing, UrlBuilder
 from dss.util.aws import AWS_MIN_CHUNK_SIZE
 from dss.util.version import datetime_to_version_format
 
@@ -34,16 +35,16 @@ REDIRECT_PROBABILITY_PERCENTS = 5
 
 
 @dss_handler
-def head(uuid: str, replica: str, version: str=None):
-    return get_helper(uuid, Replica[replica], version)
+def head(uuid: str, replica: str, version: str=None, token: str=None):
+    return get_helper(uuid, Replica[replica], version, token)
 
 
 @dss_handler
-def get(uuid: str, replica: str, version: str=None):
-    return get_helper(uuid, Replica[replica], version)
+def get(uuid: str, replica: str, version: str=None, token: str=None):
+    return get_helper(uuid, Replica[replica], version, token)
 
 
-def get_helper(uuid: str, replica: Replica, version: str=None):
+def get_helper(uuid: str, replica: Replica, version: str=None, token: str=None):
     with tracing.Subsegment('parameterization'):
         handle = Config.get_blobstore_handle(replica)
         bucket = replica.bucket
@@ -76,21 +77,21 @@ def get_helper(uuid: str, replica: Replica, version: str=None):
         blob_path = compose_blob_key(file_metadata)
 
     if request.method == "GET":
-        """
-        Probabilistically return "Retry-After" header
-        The retry-after interval can be relatively short now, but it sets up downstream
-        libraries / users for success when we start integrating this with the checkout service.
-        """
-        if random.randint(0, 100) < REDIRECT_PROBABILITY_PERCENTS:
+        token, ready = _verify_checkout(replica, token, file_metadata, blob_path)
+
+        if ready:
+            response = redirect(handle.generate_presigned_GET_url(
+                replica.checkout_bucket,
+                get_dst_key(blob_path)))
+        else:
             with tracing.Subsegment('make_retry'):
-                response = redirect(request.url, code=301)
+                builder = UrlBuilder(request.url)
+                builder.replace_query("token", token)
+                response = redirect(str(builder), code=301)
                 headers = response.headers
                 headers['Retry-After'] = RETRY_AFTER_INTERVAL
                 return response
 
-        response = redirect(handle.generate_presigned_GET_url(
-            bucket,
-            blob_path))
     else:
         response = make_response('', 200)
 
@@ -106,6 +107,39 @@ def get_helper(uuid: str, replica: Replica, version: str=None):
         headers['X-DSS-SHA256'] = file_metadata[FileMetadata.SHA256]
 
     return response
+
+
+def _verify_checkout(
+        replica: Replica, token: typing.Optional[str], file_metadata: dict, blob_path: str,
+) -> typing.Tuple[str, bool]:
+    decoded_token: dict
+    if token is None:
+        execution_id = start_file_checkout(blob_path, replica)
+        start_time = time.time()
+        attempts = 0
+
+        decoded_token = {
+            CheckoutTokenKeys.EXECUTION_ID: execution_id,
+            CheckoutTokenKeys.START_TIME: start_time,
+            CheckoutTokenKeys.ATTEMPTS: attempts
+        }
+    else:
+        try:
+            decoded_token = json.loads(token)
+            decoded_token[CheckoutTokenKeys.ATTEMPTS] += 1
+        except (KeyError, ValueError) as ex:
+            raise DSSException(requests.codes.bad_request, "illegal_token", "Could not understand token", ex)
+
+    hcablobstore = Config.get_hcablobstore_handle(replica)
+    encoded_token = json.dumps(decoded_token)
+    try:
+        if hcablobstore.verify_blob_checksum_from_dss_metadata(
+                replica.checkout_bucket, get_dst_key(blob_path), file_metadata):
+            return encoded_token, True
+    except BlobNotFoundError:
+        pass
+
+    return encoded_token, False
 
 
 @dss_handler
