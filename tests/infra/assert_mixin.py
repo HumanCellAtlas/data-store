@@ -1,12 +1,14 @@
-import json
-import pprint
-import typing
-
 import collections.abc
 import functools
+import json
+import pprint
 import re
+import typing
 
+import requests
 from flask import wrappers
+
+from dss.util import UrlBuilder
 
 
 class ExpectedErrorFields(typing.NamedTuple):
@@ -40,6 +42,9 @@ class DSSAssertMixin:
             expected_code: typing.Union[int, typing.Container[int]],
             json_request_body: typing.Optional[dict]=None,
             expected_error: typing.Optional[ExpectedErrorFields]=None,
+            *,
+            redirect_follow_retry: int=0,
+            min_retry_interval_header: int=0,
             **kwargs) -> DSSAssertResponse:
         """
         Make a request given a HTTP method and a path.  The HTTP status code is checked against `expected_code`.
@@ -62,7 +67,16 @@ class DSSAssertMixin:
                 kwargs['headers'] = {}
             kwargs['headers']['Content-Type'] = "application/json"
 
-        response = getattr(self.app, method)(path, **kwargs)
+        for ix in range(redirect_follow_retry + 1):
+            response = getattr(self.app, method)(path, **kwargs)
+            if ix == redirect_follow_retry or response.status_code != requests.codes.moved:
+                break
+            retry_after = int(response.headers['Retry-After'])
+            self.assertGreaterEqual(retry_after, min_retry_interval_header)
+            url = response.headers['Location']
+            builder = UrlBuilder(url).set(scheme="", netloc="")
+            path = str(builder)
+
         try:
             actual_json = response.json()
         except json.decoder.JSONDecodeError:
