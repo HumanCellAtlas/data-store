@@ -31,6 +31,22 @@ class BundleNotFoundError(Exception):
     pass
 
 
+class CheckoutTokenKeys:
+    """
+    When we are executing a request that involves a checkout, the client will periodically check back in to see if the
+    checkout is complete.  To avoid duplicating checkout requests, the client will check back using a token.  These are
+    keys that make up the token.
+    """
+    EXECUTION_ID = "execution_id"
+    """Execution ID of the step function managing the checkout."""
+
+    START_TIME = "start_time"
+    """Start time of the request."""
+
+    ATTEMPTS = "attempts"
+    """Number of times the client has attempted to check on the state of a checkout."""
+
+
 def start_bundle_checkout(
         bundle_uuid: str,
         bundle_version: typing.Optional[str],
