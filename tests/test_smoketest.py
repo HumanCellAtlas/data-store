@@ -112,6 +112,7 @@ class Smoketest(unittest.TestCase):
                                                         ContentType='application/json'))
             put_response = run_for_json([f'{venv_bin}hca', 'dss', 'put-subscription',
                                          '--callback-url', url,
+                                         '--method', 'PUT',
                                          '--es-query', json.dumps(query),
                                          '--replica', replica])
             subscription_id = put_response['uuid']
