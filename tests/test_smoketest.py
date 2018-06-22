@@ -68,36 +68,37 @@ class Smoketest(unittest.TestCase):
             # Disable workdir destructor
             cls.workdir._finalizer.detach()  # type: ignore
 
+    def test_smoketest(self):
+
         # Create a virtualenv and install the CLI
         #
-        venv = os.path.join(cls.workdir.name, "venv")
+        venv = os.path.join(self.workdir.name, "venv")
         run(f"virtualenv -p {sys.executable} {venv}")
-        cls.venv_bin = os.path.join(venv, "bin", "")
-        run(f"{cls.venv_bin}pip install --upgrade .", cwd="dcp-cli")
-
-        # Configure the CLI
-        #
-        cli_config = {"DSSClient": {"swagger_url": os.environ["SWAGGER_URL"]}}
-        cli_config_filename = f"{cls.workdir.name}/cli_config.json"
-        with open(cli_config_filename, "w") as fh2:
-            fh2.write(json.dumps(cli_config))
-        os.environ["HCA_CONFIG_FILE"] = f"{cls.workdir.name}/cli_config.json"
+        venv_bin = os.path.join(venv, "bin", "")
+        run(f"{venv_bin}pip install --upgrade .", cwd="dcp-cli")
 
         # Prepare the bundle using stock metadata and random data
         #
-        cls.bundle_dir = os.path.join(cls.workdir.name, "bundle")
-        shutil.copytree("data-bundle-examples/10X_v2/pbmc8k", cls.bundle_dir)
-        with open(os.path.join(cls.bundle_dir, "async_copied_file"), "wb") as fh:
-            fh.write(os.urandom(ASYNC_COPY_THRESHOLD + 1))
-
-    def smoketest(self, starting_replica):
+        bundle_dir = os.path.join(self.workdir.name, "bundle")
+        shutil.copytree("data-bundle-examples/10X_v2/pbmc8k", bundle_dir)
+        with open(os.path.join(bundle_dir, "async_copied_file"), "wb") as fh:
+            file_size = ASYNC_COPY_THRESHOLD + 1  # Ensure that files need to be copied asynchronously
+            fh.write(os.urandom(file_size))
         # Tweak the metadata to a specific sample UUID
         sample_id = str(uuid.uuid4())
-        run(f"cat {self.bundle_dir}/sample.json | jq .id=env.sample_id | sponge {self.bundle_dir}/sample.json",
+        run(f"cat {bundle_dir}/sample.json | jq .id=env.sample_id | sponge {bundle_dir}/sample.json",
             env=dict(os.environ, sample_id=sample_id))
         query = {'query': {'match': {'files.sample_json.id': sample_id}}}
 
         os.chdir(self.workdir.name)
+
+        # Configure the CLI
+        #
+        cli_config = {"DSSClient": {"swagger_url": os.environ["SWAGGER_URL"]}}
+        cli_config_filename = f"{self.workdir.name}/cli_config.json"
+        with open(cli_config_filename, "w") as fh2:
+            fh2.write(json.dumps(cli_config))
+        os.environ["HCA_CONFIG_FILE"] = f"{self.workdir.name}/cli_config.json"
 
         # Create a subscription for each replica using the query
         #
@@ -109,81 +110,77 @@ class Smoketest(unittest.TestCase):
                                             Params=dict(Bucket=self.notification_bucket,
                                                         Key=notification_key,
                                                         ContentType='application/json'))
-            put_response = run_for_json([f'{self.venv_bin}hca', 'dss', 'put-subscription',
+            put_response = run_for_json([f'{venv_bin}hca', 'dss', 'put-subscription',
                                          '--callback-url', url,
                                          '--es-query', json.dumps(query),
                                          '--replica', replica])
             subscription_id = put_response['uuid']
-            self.addCleanup(run, f"{self.venv_bin}hca dss delete-subscription --replica {replica} "
-                                 f"--uuid {subscription_id}")
+            self.addCleanup(run, f"{venv_bin}hca dss delete-subscription --replica {replica} --uuid {subscription_id}")
             self.addCleanup(s3.delete_object, Bucket=self.notification_bucket, Key=notification_key)
             notifications_proofs[replica] = (subscription_id, notification_key)
-            get_response = run_for_json(f"{self.venv_bin}hca dss get-subscription "
+            get_response = run_for_json(f"{venv_bin}hca dss get-subscription "
                                         f"--replica {replica} "
                                         f"--uuid {subscription_id}")
             self.assertEquals(subscription_id, get_response['uuid'])
             self.assertEquals(url, get_response['callback_url'])
-            list_response = run_for_json(f"{self.venv_bin}hca dss get-subscriptions --replica {replica}")
+            list_response = run_for_json(f"{venv_bin}hca dss get-subscriptions --replica {replica}")
             self.assertIn(get_response, list_response['subscriptions'])
 
         # Create the bundle
         #
-        res = run_for_json(f"{self.venv_bin}hca dss upload "
-                           f"--replica {starting_replica} "
+        res = run_for_json(f"{venv_bin}hca dss upload "
+                           "--replica aws "
                            f"--staging-bucket {self.test_bucket} "
-                           f"--src-dir {self.bundle_dir}")
+                           f"--src-dir {bundle_dir}")
         bundle_uuid = res['bundle_uuid']
         bundle_version = res['version']
         file_count = len(res['files'])
 
         # Download that bundle
         #
-        run(f"{self.venv_bin}hca dss download --replica {starting_replica} --bundle-uuid {bundle_uuid}")
+        run(f"{venv_bin}hca dss download --replica aws --bundle-uuid {bundle_uuid}")
 
         # Initiate a bundle checkout
         #
-        res = run_for_json(f"{self.venv_bin}hca dss post-bundles-checkout --uuid {bundle_uuid} "
-                           f"--replica {starting_replica}")
+        res = run_for_json(f"{venv_bin}hca dss post-bundles-checkout --uuid {bundle_uuid} --replica aws")
         checkout_job_id = res['checkout_job_id']
         print(f"Checkout jobId: {checkout_job_id}")
-        self.assertTrue(checkout_job_id)
+        assert checkout_job_id
 
         # Wait for the bundle to appear in the other replica
         #
+        for i in range(10):
+            try:
+                run(f"http -Iv --check-status GET https://${{API_DOMAIN_NAME}}/v1/bundles/{bundle_uuid}?replica=gcp")
+            except SystemExit:
+                time.sleep(1)
+            else:
+                break
+        else:
+            parser.exit(RED("Failed to replicate bundle from AWS to GCP"))
+
+        # Download bundle from other replica
+        #
+        run(f"{venv_bin}hca dss download --replica gcp --bundle-uuid {bundle_uuid}")
+
+        # Run a CLI search against the two replicas
+        #
         for replica in self.replicas:
-            if replica != starting_replica:
-                for i in range(10):
-                    try:
-                        run(f"http -Iv --check-status "
-                            f"GET https://${{API_DOMAIN_NAME}}/v1/bundles/{bundle_uuid}?replica={replica}")
-                    except SystemExit:
-                        time.sleep(1)
-                    else:
-                        break
-                else:
-                    parser.exit(RED("Failed to replicate bundle from AWS to GCP"))
+            run(f"{venv_bin}hca dss post-search --es-query='{{}}' --replica {replica} > /dev/null")
 
-                # Download bundle from other replica
-                #
-                run(f"{self.venv_bin}hca dss download --replica {replica} --bundle-uuid {bundle_uuid}")
-
+        # Hit search route directly against each replica
+        #
+        search_route = "https://${API_DOMAIN_NAME}/v1/search"
         for replica in self.replicas:
-            # Run a CLI search against the replicas
-            #
-            run(f"{self.venv_bin}hca dss post-search --es-query='{{}}' --replica {replica} > /dev/null")
-
-            # Hit search route directly against each replica
-            #
-            search_route = "https://${API_DOMAIN_NAME}/v1/search"
             res = run_for_json(f'http --check {search_route} replica=={replica}',
                                input=json.dumps({'es_query': query}).encode())
             print(json.dumps(res, indent=4))
-            self.assertEqual(len(res['results']), 1)
+            assert len(res['results']) == 1
 
         # Wait for the checkout to complete and assert its success
         #
         for i in range(10):
-            res = run_for_json(f"{self.venv_bin}hca dss get-bundles-checkout --checkout-job-id {checkout_job_id}")
+            res = run_for_json(f"{venv_bin}hca dss get-bundles-checkout --checkout-job-id {checkout_job_id}")
             status = res['status']
             self.assertGreater(len(status), 0)
             if status == 'RUNNING':
@@ -207,11 +204,6 @@ class Smoketest(unittest.TestCase):
             self.assertEquals(subscription_id, notification['subscription_id'])
             self.assertEquals(bundle_uuid, notification['match']['bundle_uuid'])
             self.assertEquals(bundle_version, notification['match']['bundle_version'])
-
-    def test_smoketest(self):
-        for replica in self.replicas:
-            with self.subTest(replica):
-                self.smoketest(replica)
 
     @classmethod
     def tearDownClass(cls):
