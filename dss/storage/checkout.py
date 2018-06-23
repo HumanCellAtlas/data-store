@@ -9,8 +9,9 @@ from cloud_blobstore import BlobNotFoundError, BlobStoreUnknownError
 from dss import stepfunctions
 from dss.config import Config, Replica
 from dss.stepfunctions import s3copyclient, gscopyclient
+from dss.stepfunctions.checkout.constants import EventConstants
 from dss.storage.bundles import get_bundle_manifest
-from dss.storage.hcablobstore import compose_blob_key
+from dss.storage.hcablobstore import BundleFileMetadata, BundleMetadata, compose_blob_key
 
 log = logging.getLogger(__name__)
 
@@ -56,17 +57,17 @@ def start_bundle_checkout(
     execution_id = get_execution_id()
 
     sfn_input = {
-        'dss_bucket': replica.bucket,
-        'bundle': bundle_uuid,
-        'version': bundle['version'],
-        'replica': replica.name,
-        'execution_name': execution_id
+        EventConstants.DSS_BUCKET: replica.bucket,
+        EventConstants.BUNDLE_UUID: bundle_uuid,
+        EventConstants.BUNDLE_VERSION: bundle[BundleMetadata.VERSION],
+        EventConstants.REPLICA: replica.name,
+        EventConstants.EXECUTION_NAME: execution_id
     }
     if dst_bucket is not None:
-        sfn_input['bucket'] = dst_bucket
+        sfn_input[EventConstants.DST_BUCKET] = dst_bucket
 
     if email_address is not None:
-        sfn_input['email'] = email_address
+        sfn_input[EventConstants.EMAIL] = email_address
 
     CheckoutStatus.mark_bundle_checkout_started(execution_id)
 
@@ -132,11 +133,11 @@ def get_dst_key(blob_key: str):
 
 def get_manifest_files(src_bucket: str, bundle_id: str, version: str, replica: Replica):
     bundle_manifest = get_bundle_manifest(bundle_id, replica, version, bucket=src_bucket)
-    files = bundle_manifest['files']
-    dst_bundle_prefix = get_dst_bundle_prefix(bundle_id, bundle_manifest['version'])
+    files = bundle_manifest[BundleMetadata.FILES]
+    dst_bundle_prefix = get_dst_bundle_prefix(bundle_id, bundle_manifest[BundleMetadata.VERSION])
 
     for file_metadata in files:
-        dst_key = "{}/{}".format(dst_bundle_prefix, file_metadata.get('name'))
+        dst_key = "{}/{}".format(dst_bundle_prefix, file_metadata.get(BundleFileMetadata.NAME))
         src_key = compose_blob_key(file_metadata)
         yield src_key, dst_key
 
@@ -199,6 +200,10 @@ def touch_test_file(dst_bucket: str, replica: Replica) -> bool:
 
 
 class CheckoutStatus:
+    STATUS_KEY = "status"
+    LOCATION_KEY = "location"
+    CAUSE_KEY = "cause"
+
     @classmethod
     def _bundle_checkout_status_key(cls, execution_id: str) -> str:
         return f"checkout/status/{execution_id}.json"
@@ -212,7 +217,10 @@ class CheckoutStatus:
             dst_location: str
     ):
         handle = Config.get_blobstore_handle(Replica.aws)
-        data = {"status": 'SUCCEEDED', "location": f"{dst_replica.storage_schema}://{dst_bucket}/{dst_location}"}
+        data = {
+            CheckoutStatus.STATUS_KEY: 'SUCCEEDED',
+            CheckoutStatus.LOCATION_KEY: f"{dst_replica.storage_schema}://{dst_bucket}/{dst_location}"
+        }
         handle.upload_file_handle(
             Replica.aws.checkout_bucket,
             cls._bundle_checkout_status_key(execution_id),
@@ -221,7 +229,7 @@ class CheckoutStatus:
     @classmethod
     def mark_bundle_checkout_failed(cls, execution_id: str, cause: str):
         handle = Config.get_blobstore_handle(Replica.aws)
-        data = {"status": "FAILED", "cause": cause}
+        data = {CheckoutStatus.STATUS_KEY: "FAILED", CheckoutStatus.CAUSE_KEY: cause}
         handle.upload_file_handle(
             Replica.aws.checkout_bucket,
             cls._bundle_checkout_status_key(execution_id),
@@ -230,7 +238,7 @@ class CheckoutStatus:
     @classmethod
     def mark_bundle_checkout_started(cls, execution_id: str):
         handle = Config.get_blobstore_handle(Replica.aws)
-        data = {"status": "RUNNING"}
+        data = {CheckoutStatus.STATUS_KEY: "RUNNING"}
         handle.upload_file_handle(
             Replica.aws.checkout_bucket,
             cls._bundle_checkout_status_key(execution_id),
