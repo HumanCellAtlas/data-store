@@ -161,20 +161,16 @@ class TestCheckoutApi(unittest.TestCase, DSSAssertMixin, DSSUploadMixin):
     def test_status_success(self):
         for replica in Replica:
             exec_arn = self.launch_checkout(replica.checkout_bucket, replica)
-            # mark it started to suppress a bunch of spurious messages.  when running in test mode, we are pointing at
-            # the test buckets, but the status is hard-coded to write to the normal buckets.
-            with override_bucket_config(BucketConfig.NORMAL):
-                CheckoutStatus.mark_bundle_checkout_started(exec_arn)
+            CheckoutStatus.mark_bundle_checkout_started(replica.checkout_bucket, exec_arn, replica)
 
-            url = str(UrlBuilder().set(path="/v1/bundles/checkout/" + exec_arn))
+            url = str(UrlBuilder().set(path="/v1/bundles/checkout/" + exec_arn).add_query("replica", replica.name))
 
             @eventually(timeout=120, interval=1)
             def check_status():
-                with override_bucket_config(BucketConfig.NORMAL):
-                    resp_obj = self.assertGetResponse(
-                        url,
-                        requests.codes.ok
-                    )
+                resp_obj = self.assertGetResponse(
+                    url,
+                    requests.codes.ok
+                )
                 status = resp_obj.json.get('status')
                 if status not in ("RUNNING", "SUCCEEDED"):
                     raise Exception(f"Unexpected status {status}")
@@ -187,20 +183,16 @@ class TestCheckoutApi(unittest.TestCase, DSSAssertMixin, DSSUploadMixin):
         nonexistent_bucket_name = str(uuid.uuid4())
         for replica in Replica:
             exec_arn = self.launch_checkout(nonexistent_bucket_name, replica)
-            # mark it started to suppress a bunch of spurious messages.  when running in test mode, we are pointing at
-            # the test buckets, but the status is hard-coded to write to the normal buckets.
-            with override_bucket_config(BucketConfig.NORMAL):
-                CheckoutStatus.mark_bundle_checkout_started(exec_arn)
+            CheckoutStatus.mark_bundle_checkout_started(replica.checkout_bucket, exec_arn, replica)
 
-            url = str(UrlBuilder().set(path="/v1/bundles/checkout/" + exec_arn))
+            url = str(UrlBuilder().set(path="/v1/bundles/checkout/" + exec_arn).add_query("replica", replica.name))
 
             @eventually(timeout=120, interval=1)
             def check_status():
-                with override_bucket_config(BucketConfig.NORMAL):
-                    resp_obj = self.assertGetResponse(
-                        url,
-                        requests.codes.ok
-                    )
+                resp_obj = self.assertGetResponse(
+                    url,
+                    requests.codes.ok
+                )
                 status = resp_obj.json.get('status')
                 if status not in ("RUNNING", "FAILED"):
                     raise Exception(f"Unexpected status {status}")
@@ -305,8 +297,9 @@ class TestCheckoutApi(unittest.TestCase, DSSAssertMixin, DSSUploadMixin):
         exec_id = get_execution_id()
         self.assertIsNotNone(exec_id)
         for replica in Replica:
-            CheckoutStatus.mark_bundle_checkout_successful(exec_id, replica, fake_bucket_name, fake_location)
-            status = CheckoutStatus.get_bundle_checkout_status(exec_id)
+            CheckoutStatus.mark_bundle_checkout_successful(
+                replica.checkout_bucket, exec_id, replica, fake_bucket_name, fake_location)
+            status = CheckoutStatus.get_bundle_checkout_status(replica.checkout_bucket, exec_id, replica)
             self.assertEquals(status['status'], "SUCCEEDED")
             self.assertEquals(status['location'], f"{replica.storage_schema}://{fake_bucket_name}/{fake_location}")
 
@@ -315,25 +308,28 @@ class TestCheckoutApi(unittest.TestCase, DSSAssertMixin, DSSUploadMixin):
         exec_id = get_execution_id()
         self.assertIsNotNone(exec_id)
         cause = 'Fake cause'
-        CheckoutStatus.mark_bundle_checkout_failed(exec_id, cause)
-        status = CheckoutStatus.get_bundle_checkout_status(exec_id)
-        self.assertEquals(status['status'], "FAILED")
-        self.assertEquals(status['cause'], cause)
+        for replica in Replica:
+            CheckoutStatus.mark_bundle_checkout_failed(replica.checkout_bucket, exec_id, replica, cause)
+            status = CheckoutStatus.get_bundle_checkout_status(replica.checkout_bucket, exec_id, replica)
+            self.assertEquals(status['status'], "FAILED")
+            self.assertEquals(status['cause'], cause)
 
     @testmode.standalone
     def test_status_started(self):
         exec_id = get_execution_id()
         self.assertIsNotNone(exec_id)
-        CheckoutStatus.mark_bundle_checkout_started(exec_id)
-        status = CheckoutStatus.get_bundle_checkout_status(exec_id)
-        self.assertEquals(status['status'], "RUNNING")
+        for replica in Replica:
+            CheckoutStatus.mark_bundle_checkout_started(replica.checkout_bucket, exec_id, replica)
+            status = CheckoutStatus.get_bundle_checkout_status(replica.checkout_bucket, exec_id, replica)
+            self.assertEquals(status['status'], "RUNNING")
 
     @testmode.standalone
     def test_status_wrong_jobid(self):
         exec_id = get_execution_id()
         self.assertIsNotNone(exec_id)
-        with self.assertRaises(BlobNotFoundError):
-            CheckoutStatus.get_bundle_checkout_status(exec_id)
+        for replica in Replica:
+            with self.assertRaises(BlobNotFoundError):
+                CheckoutStatus.get_bundle_checkout_status(replica.checkout_bucket, exec_id, replica)
 
 
 if __name__ == "__main__":
