@@ -1292,6 +1292,12 @@ paths:
         Use this route with the `checkout_job_id` identifier returned by `POST /bundles/{uuid}/checkout`.
       operationId: dss.api.bundles.checkout.get
       parameters:
+        - name: replica
+          in: query
+          description: Replica to fetch from.
+          required: true
+          type: string
+          enum: [aws, gcp, azure]
         - name: checkout_job_id
           in: path
           description: A RFC4122-compliant ID for the checkout job request.
