@@ -51,7 +51,7 @@ if "," in os.environ['ADMIN_USER_EMAILS']:
     os.environ['ADMIN_USER_EMAILS'] += "," + authorized_gcp_credentials['client_email']
 else:
     os.environ['ADMIN_USER_EMAILS'] = authorized_gcp_credentials['client_email']
-bundles.ADMIN_USER_EMAILS = os.environ['ADMIN_USER_EMAILS'].split(",")
+bundles.ADMIN_USER_EMAILS = set(os.environ['ADMIN_USER_EMAILS'].split(","))
 
 def get_bundle_fqid() -> BundleFQID:
     return BundleFQID(uuid=str(uuid.uuid4()), version=get_version())
