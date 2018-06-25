@@ -30,7 +30,7 @@ class _InternalEventConstants:
     VALIDATION_CHECKOUT_STATUS = "checkout_status"
     VALIDATION_CAUSE = "cause"
 
-    EMAIL_RESULT = "result"
+    RESULT = "result"
 
 
 def schedule_copy(event, context):
