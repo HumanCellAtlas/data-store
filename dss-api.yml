@@ -971,6 +971,11 @@ paths:
             Include presigned URLs in the response.  This is mutually exclusive with the directurls parameter.
           required: false
           type: boolean
+        - name: token
+          in: query
+          description: Token to manage retries.  End users constructing queries should not set this parameter.
+          required: false
+          type: string
       responses:
         200:
           description: OK
@@ -991,9 +996,32 @@ paths:
                     description: |
                       Machine-readable error code.  The types of return values should not be changed lightly.
 
+                      The code `illegal_arguments` is returned when required parameters are missing or parameters do not
+                      match the requirements in the specification.
+
+                      The code `illegal_token` is returned when the token parameter cannot be understood.
+
                       The code `only_one_urltype` is returned when more than one url type (`directurls` and
                       `presignedurls`) is requested.
-                    enum: [only_one_urltype]
+                    enum: [illegal_arguments, illegal_token, only_one_urltype]
+                required:
+                  - code
+        500:
+          description: Server error
+          schema:
+            allOf:
+              - $ref: '#/definitions/Error'
+              - type: object
+                properties:
+                  code:
+                    type: string
+                    description: |
+                      Machine-readable error code.  The types of return values should not be changed lightly.
+
+                      The code `unhandled_exception` is returned when an unexpected exception is encountered.
+
+                      The code `checkout_error` is returned when the checkout fails.
+                    enum: [unhandled_exception, checkout_error]
                 required:
                   - code
         503:
@@ -1013,10 +1041,6 @@ paths:
                     enum: [service_unavailable]
                 required:
                   - code
-        default:
-          description: Unexpected error
-          schema:
-            $ref: '#/definitions/Error'
     put:
       summary: Create a bundle
       description: |

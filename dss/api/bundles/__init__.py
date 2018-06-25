@@ -9,16 +9,22 @@ import iso8601
 import nestedcontext
 import requests
 from cloud_blobstore import BlobNotFoundError, BlobStore, BlobStoreTimeoutError
-from flask import jsonify, request
+from flask import jsonify, redirect, request
 
 from dss import DSSException, dss_handler
 from dss.config import Config, Replica
 from dss.storage.blobstore import test_object_exists, ObjectTest
 from dss.storage.bundles import get_bundle_manifest
+from dss.storage.checkout import CheckoutError, TokenError, verify_checkout
 from dss.storage.identifiers import TombstoneID, BundleFQID, FileFQID
 from dss.storage.hcablobstore import BundleFileMetadata, BundleMetadata, FileMetadata, compose_blob_key
 from dss.util import UrlBuilder
 from dss.util.version import datetime_to_version_format
+
+"""The retry-after interval in seconds. Sets up downstream libraries / users to
+retry request after the specified interval."""
+RETRY_AFTER_INTERVAL = 10
+
 
 PUT_TIME_ALLOWANCE_SECONDS = 10
 """This is the minimum amount of time remaining on the lambda for us to retry on a PUT /bundles request."""
@@ -32,7 +38,9 @@ def get(
         replica: str,
         version: str=None,
         directurls: bool=False,
-        presignedurls: bool=False):
+        presignedurls: bool=False,
+        token: str=None,
+):
     if directurls and presignedurls:
         raise DSSException(
             requests.codes.bad_request, "only_one_urltype", "only enable one of `directurls` or `presignedurls`")
@@ -41,6 +49,21 @@ def get(
     bundle_metadata = get_bundle_manifest(uuid, _replica, version)
     if bundle_metadata is None:
         raise DSSException(404, "not_found", "Cannot find bundle!")
+
+    if directurls or presignedurls:
+        try:
+            token, ready = verify_checkout(_replica, uuid, version, token)
+        except TokenError as ex:
+            raise DSSException(requests.codes.bad_request, "illegal_token", "Could not understand token", ex)
+        except CheckoutError as ex:
+            raise DSSException(requests.codes.server_error, "checkout_error", "Could not complete checkout", ex)
+        if not ready:
+            builder = UrlBuilder(request.url)
+            builder.replace_query("token", token)
+            response = redirect(str(builder), code=requests.codes.moved)
+            headers = response.headers
+            headers['Retry-After'] = RETRY_AFTER_INTERVAL
+            return response
 
     filesresponse = []  # type: typing.List[dict]
     for file in bundle_metadata[BundleMetadata.FILES]:

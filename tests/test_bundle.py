@@ -19,7 +19,7 @@ pkg_root = os.path.abspath(os.path.join(os.path.dirname(__file__), '..'))  # noq
 sys.path.insert(0, pkg_root)  # noqa
 
 import dss
-from dss import DSSException
+from dss.api.bundles import RETRY_AFTER_INTERVAL
 from dss.config import BucketConfig, Config, override_bucket_config, Replica
 from dss.util import UrlBuilder
 from dss.storage.blobstore import test_object_exists
@@ -28,6 +28,10 @@ from dss.storage.bundles import get_bundle_manifest
 from tests.infra import DSSAssertMixin, DSSUploadMixin, ExpectedErrorFields, get_env, testmode
 from tests.infra.server import ThreadedLocalServer
 from tests import get_auth_header
+
+
+BUNDLE_GET_RETRY_COUNT = 60
+"""For GET /bundles requests that require a retry, this is the maximum number of attempts we make."""
 
 
 class TestBundleApi(unittest.TestCase, DSSAssertMixin, DSSUploadMixin):
@@ -98,7 +102,10 @@ class TestBundleApi(unittest.TestCase, DSSAssertMixin, DSSUploadMixin):
         with override_bucket_config(BucketConfig.TEST_FIXTURE):
             resp_obj = self.assertGetResponse(
                 url,
-                requests.codes.ok)
+                requests.codes.ok,
+                redirect_follow_retry=BUNDLE_GET_RETRY_COUNT,
+                min_retry_interval_header=RETRY_AFTER_INTERVAL,
+            )
 
         url = resp_obj.json['bundle']['files'][0]['url']
         splitted = urllib.parse.urlparse(url)
@@ -114,7 +121,7 @@ class TestBundleApi(unittest.TestCase, DSSAssertMixin, DSSUploadMixin):
         sha1 = hasher.hexdigest()
         self.assertEqual(sha1, "2b8b815229aa8a61e483fb4ba0588b8b6c491890")
 
-    @testmode.standalone
+    @testmode.integration
     def test_bundle_get_presigned(self):
         self._test_bundle_get_presigned(Replica.aws)
         self._test_bundle_get_presigned(Replica.gcp)
@@ -132,7 +139,10 @@ class TestBundleApi(unittest.TestCase, DSSAssertMixin, DSSUploadMixin):
         with override_bucket_config(BucketConfig.TEST_FIXTURE):
             resp_obj = self.assertGetResponse(
                 url,
-                requests.codes.ok)
+                requests.codes.ok,
+                redirect_follow_retry=BUNDLE_GET_RETRY_COUNT,
+                min_retry_interval_header=RETRY_AFTER_INTERVAL,
+            )
 
         url = resp_obj.json['bundle']['files'][0]['url']
         resp = requests.get(url)
