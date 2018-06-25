@@ -13,9 +13,9 @@ def post(uuid: str, json_request_body: dict, replica: str, version: str=None):
 
     try:
         execution_id = start_bundle_checkout(
+            Replica[replica],
             uuid,
             version,
-            Replica[replica],
             dst_bucket=json_request_body.get('destination', None),
             email_address=json_request_body.get('email', None),
         )
@@ -29,5 +29,5 @@ def post(uuid: str, json_request_body: dict, replica: str, version: str=None):
 def get(replica: str, checkout_job_id: str):
     assert replica is not None
     _replica = Replica[replica]
-    response = CheckoutStatus.get_bundle_checkout_status(_replica.checkout_bucket, checkout_job_id, _replica)
+    response = CheckoutStatus.get_bundle_checkout_status(checkout_job_id, _replica, _replica.checkout_bucket)
     return response, requests.codes.ok
