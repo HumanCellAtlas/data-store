@@ -49,13 +49,13 @@ class CheckoutTokenKeys:
 
 
 def start_bundle_checkout(
+        replica: Replica,
         bundle_uuid: str,
         bundle_version: typing.Optional[str],
-        replica: Replica,
-        dst_bucket: typing.Optional[str]=None,
-        email_address: typing.Optional[str]=None,
+        dst_bucket: typing.Optional[str] = None,
+        email_address: typing.Optional[str] = None,
         *,
-        sts_bucket: typing.Optional[str]=None,
+        sts_bucket: typing.Optional[str] = None,
 ) -> str:
     """
     Starts a bundle checkout.
@@ -92,17 +92,13 @@ def start_bundle_checkout(
     if email_address is not None:
         sfn_input[EventConstants.EMAIL] = email_address
 
-    CheckoutStatus.mark_bundle_checkout_started(sts_bucket, execution_id, replica)
+    CheckoutStatus.mark_bundle_checkout_started(execution_id, replica, sts_bucket)
 
     stepfunctions.step_functions_invoke(STATE_MACHINE_NAME_TEMPLATE, execution_id, sfn_input)
     return execution_id
 
 
-def start_file_checkout(
-        blob_key,
-        replica: Replica,
-        dst_bucket: typing.Optional[str]=None,
-) -> str:
+def start_file_checkout(replica: Replica, blob_key, dst_bucket: typing.Optional[str] = None) -> str:
     """
     Starts a file checkout.
 
@@ -115,10 +111,10 @@ def start_file_checkout(
     if dst_bucket is None:
         dst_bucket = replica.checkout_bucket
     source_bucket = replica.bucket
-    return parallel_copy(source_bucket, blob_key, dst_bucket, get_dst_key(blob_key), replica)
+    return parallel_copy(replica, source_bucket, blob_key, dst_bucket, get_dst_key(blob_key))
 
 
-def parallel_copy(source_bucket: str, source_key: str, destination_bucket: str, destination_key: str, replica: Replica):
+def parallel_copy(replica: Replica, source_bucket: str, source_key: str, destination_bucket: str, destination_key: str):
     log.debug(f"Copy file from bucket {source_bucket} with key {source_key} to "
               f"bucket {destination_bucket} destination file: {destination_key}")
 
@@ -154,10 +150,10 @@ def get_dst_key(blob_key: str):
     return f"files/{blob_key}"
 
 
-def get_manifest_files(src_bucket: str, bundle_id: str, version: str, replica: Replica):
-    bundle_manifest = get_bundle_manifest(bundle_id, replica, version, bucket=src_bucket)
+def get_manifest_files(replica: Replica, src_bucket: str, bundle_uuid: str, bundle_version: str):
+    bundle_manifest = get_bundle_manifest(bundle_uuid, replica, bundle_version, bucket=src_bucket)
     files = bundle_manifest[BundleMetadata.FILES]
-    dst_bundle_prefix = get_dst_bundle_prefix(bundle_id, bundle_manifest[BundleMetadata.VERSION])
+    dst_bundle_prefix = get_dst_bundle_prefix(bundle_uuid, bundle_manifest[BundleMetadata.VERSION])
 
     for file_metadata in files:
         dst_key = "{}/{}".format(dst_bundle_prefix, file_metadata.get(BundleFileMetadata.NAME))
@@ -165,7 +161,7 @@ def get_manifest_files(src_bucket: str, bundle_id: str, version: str, replica: R
         yield src_key, dst_key
 
 
-def validate_file_dst(dst_bucket: str, dst_key: str, replica: Replica):
+def validate_file_dst(replica: Replica, dst_bucket: str, dst_key: str):
     try:
         Config.get_blobstore_handle(replica).get_user_metadata(dst_bucket, dst_key)
         return True
@@ -173,24 +169,24 @@ def validate_file_dst(dst_bucket: str, dst_key: str, replica: Replica):
         return False
 
 
-def pre_exec_validate(dss_bucket: str, dst_bucket: str, replica: Replica, bundle_id: str, version: str):
-    validation_code, cause = validate_dst_bucket(dst_bucket, replica)
+def pre_exec_validate(replica: Replica, dss_bucket: str, dst_bucket: str, bundle_uuid: str, bundle_version: str):
+    validation_code, cause = validate_dst_bucket(replica, dst_bucket)
     if validation_code == ValidationEnum.PASSED:
-        validation_code, cause = validate_bundle_exists(replica, dss_bucket, bundle_id, version)
+        validation_code, cause = validate_bundle_exists(replica, dss_bucket, bundle_uuid, bundle_version)
     return validation_code, cause
 
 
-def validate_dst_bucket(dst_bucket: str, replica: Replica) -> typing.Tuple[ValidationEnum, str]:
+def validate_dst_bucket(replica: Replica, dst_bucket: str) -> typing.Tuple[ValidationEnum, str]:
     if not Config.get_blobstore_handle(replica).check_bucket_exists(dst_bucket):
         return ValidationEnum.WRONG_DST_BUCKET, f"Bucket {dst_bucket} doesn't exist"
-    if not touch_test_file(dst_bucket, replica):
+    if not touch_test_file(replica, dst_bucket):
         return ValidationEnum.WRONG_PERMISSIONS_DST_BUCKET, f"Insufficient permissions on bucket {dst_bucket}"
 
     return ValidationEnum.PASSED, None
 
 
-def validate_bundle_exists(replica: Replica, bucket: str, bundle_id: str, version: str):
-    bundle_manifest = get_bundle_manifest(bundle_id, replica, version, bucket=bucket)
+def validate_bundle_exists(replica: Replica, dss_bucket: str, bundle_uuid: str, bundle_version: str):
+    bundle_manifest = get_bundle_manifest(bundle_uuid, replica, bundle_version, bucket=dss_bucket)
     if bundle_manifest is None:
         return ValidationEnum.WRONG_BUNDLE_KEY, "Bundle with specified key does not exist"
     else:
@@ -201,7 +197,7 @@ def get_execution_id() -> str:
     return str(uuid.uuid4())
 
 
-def touch_test_file(dst_bucket: str, replica: Replica) -> bool:
+def touch_test_file(replica: Replica, dst_bucket: str) -> bool:
     """
     Write a test file into the specified bucket.
     :param dst_bucket: the bucket to be checked.
@@ -234,16 +230,16 @@ class CheckoutStatus:
     @classmethod
     def mark_bundle_checkout_successful(
             cls,
-            sts_bucket: str,
             execution_id: str,
-            dst_replica: Replica,
+            replica: Replica,
+            sts_bucket: str,
             dst_bucket: str,
             dst_location: str,
     ):
-        handle = Config.get_blobstore_handle(dst_replica)
+        handle = Config.get_blobstore_handle(replica)
         data = {
             CheckoutStatus.STATUS_KEY: 'SUCCEEDED',
-            CheckoutStatus.LOCATION_KEY: f"{dst_replica.storage_schema}://{dst_bucket}/{dst_location}"
+            CheckoutStatus.LOCATION_KEY: f"{replica.storage_schema}://{dst_bucket}/{dst_location}"
         }
         handle.upload_file_handle(
             sts_bucket,
@@ -251,8 +247,8 @@ class CheckoutStatus:
             io.BytesIO(json.dumps(data).encode("utf-8")))
 
     @classmethod
-    def mark_bundle_checkout_failed(cls, sts_bucket: str, execution_id: str, dst_replica: Replica, cause: str):
-        handle = Config.get_blobstore_handle(dst_replica)
+    def mark_bundle_checkout_failed(cls, execution_id: str, replica: Replica, sts_bucket: str, cause: str):
+        handle = Config.get_blobstore_handle(replica)
         data = {CheckoutStatus.STATUS_KEY: "FAILED", CheckoutStatus.CAUSE_KEY: cause}
         handle.upload_file_handle(
             sts_bucket,
@@ -260,8 +256,8 @@ class CheckoutStatus:
             io.BytesIO(json.dumps(data).encode("utf-8")))
 
     @classmethod
-    def mark_bundle_checkout_started(cls, sts_bucket: str, execution_id: str, dst_replica: Replica):
-        handle = Config.get_blobstore_handle(dst_replica)
+    def mark_bundle_checkout_started(cls, execution_id: str, replica: Replica, sts_bucket: str):
+        handle = Config.get_blobstore_handle(replica)
         data = {CheckoutStatus.STATUS_KEY: "RUNNING"}
         handle.upload_file_handle(
             sts_bucket,
@@ -269,6 +265,6 @@ class CheckoutStatus:
             io.BytesIO(json.dumps(data).encode("utf-8")))
 
     @classmethod
-    def get_bundle_checkout_status(cls, sts_bucket: str, execution_id: str, dst_replica: Replica):
-        handle = Config.get_blobstore_handle(dst_replica)
+    def get_bundle_checkout_status(cls, execution_id: str, replica: Replica, sts_bucket: str):
+        handle = Config.get_blobstore_handle(replica)
         return json.loads(handle.get(sts_bucket, cls._bundle_checkout_status_key(execution_id)))
