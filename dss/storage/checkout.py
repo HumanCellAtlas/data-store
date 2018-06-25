@@ -54,6 +54,8 @@ def start_bundle_checkout(
         replica: Replica,
         dst_bucket: typing.Optional[str]=None,
         email_address: typing.Optional[str]=None,
+        *,
+        sts_bucket: typing.Optional[str]=None,
 ) -> str:
     """
     Starts a bundle checkout.
@@ -64,6 +66,8 @@ def start_bundle_checkout(
     :param dst_bucket: If provided, check out to this bucket.  If not provided, check out to the default checkout bucket
                        for the replica.
     :param email_address: If provided, send a message to this email address with the status of the checkout.
+    :param sts_bucket: If provided, write the status of the checkout to this bucket.  If not provided, write the status
+                       to the default checkout bucket for the replica.
     :return: The execution ID of the request.
     """
 
@@ -71,9 +75,12 @@ def start_bundle_checkout(
     if bundle is None:
         raise BundleNotFoundError()
     execution_id = get_execution_id()
+    if sts_bucket is None:
+        sts_bucket = replica.checkout_bucket
 
     sfn_input = {
         EventConstants.DSS_BUCKET: replica.bucket,
+        EventConstants.STS_BUCKET: sts_bucket,
         EventConstants.BUNDLE_UUID: bundle_uuid,
         EventConstants.BUNDLE_VERSION: bundle[BundleMetadata.VERSION],
         EventConstants.REPLICA: replica.name,
