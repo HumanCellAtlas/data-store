@@ -158,7 +158,12 @@ def start_file_checkout(replica: Replica, blob_key, dst_bucket: typing.Optional[
     return parallel_copy(replica, source_bucket, blob_key, dst_bucket, get_dst_key(blob_key))
 
 
-def parallel_copy(replica: Replica, source_bucket: str, source_key: str, destination_bucket: str, destination_key: str):
+def parallel_copy(
+        replica: Replica,
+        source_bucket: str,
+        source_key: str,
+        destination_bucket: str,
+        destination_key: str) -> str:
     log.debug(f"Copy file from bucket {source_bucket} with key {source_key} to "
               f"bucket {destination_bucket} destination file: {destination_key}")
 
@@ -178,7 +183,8 @@ def parallel_copy(replica: Replica, source_bucket: str, source_key: str, destina
         raise ValueError("Unsupported replica")
 
     execution_name = get_execution_id()
-    return stepfunctions.step_functions_invoke(state_machine_name_template, execution_name, state)
+    stepfunctions.step_functions_invoke(state_machine_name_template, execution_name, state)
+    return execution_name
 
 
 def get_dst_bundle_prefix(bundle_id: str, bundle_version: str) -> str:
