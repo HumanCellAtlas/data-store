@@ -181,7 +181,8 @@ class Smoketest(unittest.TestCase):
         # Wait for the checkout to complete and assert its success
         #
         for i in range(10):
-            res = run_for_json(f"{venv_bin}hca dss get-bundles-checkout --checkout-job-id {checkout_job_id}")
+            res = run_for_json(
+                f"{venv_bin}hca dss get-bundles-checkout --checkout-job-id {checkout_job_id} --replica aws")
             status = res['status']
             self.assertGreater(len(status), 0)
             if status == 'RUNNING':
