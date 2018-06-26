@@ -321,10 +321,10 @@ class TestSearchBase(ElasticsearchTestCase, DSSAssertMixin):
         self.assertEqual(parsed_url.path, "/v1/search")
         parsed_q = parse_qs(parsed_url.query)
         self.assertEqual(parsed_q['replica'], [self.replica.name])
-        self.assertIn('_scroll_id', parsed_q.keys())
+        self.assertIn('search_after', parsed_q.keys())
         self.assertEqual(parsed_q['per_page'], [str(per_page)])
         self.assertEqual(parsed_q['output_format'], ['summary'])
-        return parsed_q['_scroll_id'][0]
+        return parsed_q['search_after'][0]
 
     @staticmethod
     def strip_next_url(next_url: str) -> str:
