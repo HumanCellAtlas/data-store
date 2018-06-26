@@ -26,6 +26,8 @@ def post(uuid: str, json_request_body: dict, replica: str, version: str=None):
 
 
 @dss_handler
-def get(checkout_job_id: str):
-    response = CheckoutStatus.get_bundle_checkout_status(checkout_job_id)
+def get(replica: str, checkout_job_id: str):
+    assert replica is not None
+    _replica = Replica[replica]
+    response = CheckoutStatus.get_bundle_checkout_status(_replica.checkout_bucket, checkout_job_id, _replica)
     return response, requests.codes.ok

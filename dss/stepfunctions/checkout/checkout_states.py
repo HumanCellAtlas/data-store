@@ -110,6 +110,7 @@ def notify_complete(event, context):
             replica)
     # record results of execution into S3
     CheckoutStatus.mark_bundle_checkout_successful(
+        event[EventConstants.STATUS_BUCKET],
         event[EventConstants.EXECUTION_NAME],
         replica,
         get_dst_bucket(event),
@@ -132,7 +133,12 @@ def notify_complete_failure(event, context):
     if EventConstants.EMAIL in event:
         result = send_checkout_failure_email(dss.Config.get_notification_email(), event[EventConstants.EMAIL], cause)
     # record results of execution into S3
-    CheckoutStatus.mark_bundle_checkout_failed(event[EventConstants.EXECUTION_NAME], cause)
+    CheckoutStatus.mark_bundle_checkout_failed(
+        event[EventConstants.STATUS_BUCKET],
+        event[EventConstants.EXECUTION_NAME],
+        Replica[event[EventConstants.REPLICA]],
+        cause,
+    )
     logger.info("Checkout failed jobId %s", event[EventConstants.EXECUTION_NAME])
     return {_InternalEventConstants.RESULT: result}
 
