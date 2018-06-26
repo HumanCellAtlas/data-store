@@ -5,12 +5,12 @@ import string
 from typing import List, Mapping, MutableMapping, NamedTuple, Optional, Sequence, Tuple, Type, Hashable, Set
 
 from cloud_blobstore import BlobStore, PagedIter
-from frozendict import frozendict
 
 from dss.config import Config, Replica
 from dss.util import require
 from dss.util.iterators import zipalign
 from dss.stepfunctions.visitation import Visitation, WalkerStatus
+from dss.vendored.frozendict import frozendict
 
 logger = logging.getLogger(__name__)
 
