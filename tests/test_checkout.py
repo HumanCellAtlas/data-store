@@ -213,11 +213,11 @@ class TestCheckoutApi(unittest.TestCase, DSSAssertMixin, DSSUploadMixin):
                     bundle_fqid.to_key(),
                 ).decode("utf-8"))
             blob_key = compose_blob_key(bundle_metadata[BundleMetadata.FILES][0])
-            start_file_checkout(blob_key, replica)
+            start_file_checkout(replica, blob_key)
 
             @eventually(timeout=120, interval=1)
             def check_status():
-                self.assertTrue(validate_file_dst(replica.checkout_bucket, get_dst_key(blob_key), replica))
+                self.assertTrue(validate_file_dst(replica, replica.checkout_bucket, get_dst_key(blob_key)))
 
             check_status()
 
@@ -228,7 +228,7 @@ class TestCheckoutApi(unittest.TestCase, DSSAssertMixin, DSSUploadMixin):
         replica = Replica.aws
         file_count = 0
         with override_bucket_config(BucketConfig.TEST_FIXTURE):
-            for _ in get_manifest_files(replica.bucket, bundle_uuid, version, replica):
+            for _ in get_manifest_files(replica, replica.bucket, bundle_uuid, version):
                 file_count += 1
         self.assertEqual(file_count, 1)
 
@@ -236,29 +236,29 @@ class TestCheckoutApi(unittest.TestCase, DSSAssertMixin, DSSUploadMixin):
     def test_validate_file_dst_fail(self):
         nonexistent_dst_key = str(uuid.uuid4())
         for replica in Replica:
-            self.assertEquals(validate_file_dst(replica.checkout_bucket, nonexistent_dst_key, replica), False)
+            self.assertEquals(validate_file_dst(replica, replica.checkout_bucket, nonexistent_dst_key), False)
 
     @testmode.standalone
     def test_validate_file_dst(self):
         dst_key = "files/ce55fd51-7833-469b-be0b-5da88ebebfcd.2017-06-18T075702.020366Z"
         for replica in Replica:
             bucket = self.get_test_fixture_bucket(replica)
-            self.assertEquals(validate_file_dst(bucket, dst_key, replica), True)
+            self.assertEquals(validate_file_dst(replica, bucket, dst_key), True)
 
     @testmode.standalone
     def test_validate_wrong_key(self):
         nonexistent_bundle_uuid = str(uuid.uuid4())
         nonexistent_bundle_version = datetime_to_version_format(datetime.datetime.utcnow())
         for replica in Replica:
-            valid, cause = pre_exec_validate(
-                replica.bucket, replica.checkout_bucket, replica, nonexistent_bundle_uuid, nonexistent_bundle_version)
+            valid, cause = pre_exec_validate(replica, replica.bucket, replica.checkout_bucket, nonexistent_bundle_uuid,
+                                             nonexistent_bundle_version)
             self.assertIs(valid, ValidationEnum.WRONG_BUNDLE_KEY)
 
     @testmode.standalone
     def test_validate(self):
         for replica in Replica:
-            valid, cause = pre_exec_validate(
-                replica.bucket, replica.checkout_bucket, replica, self.bundle_uuid, self.bundle_version)
+            valid, cause = pre_exec_validate(replica, replica.bucket, replica.checkout_bucket, self.bundle_uuid,
+                                             self.bundle_version)
             self.assertIs(valid, ValidationEnum.PASSED)
 
     @testmode.standalone
@@ -272,14 +272,14 @@ class TestCheckoutApi(unittest.TestCase, DSSAssertMixin, DSSUploadMixin):
         nonexistent_bundle_uuid = str(uuid.uuid4())
         nonexistent_bundle_version = datetime_to_version_format(datetime.datetime.utcnow())
         for replica in Replica:
-            valid, cause = validate_bundle_exists(
-                replica, self.get_test_fixture_bucket(replica), nonexistent_bundle_uuid, nonexistent_bundle_version)
+            valid, cause = validate_bundle_exists(replica, self.get_test_fixture_bucket(replica),
+                                                  nonexistent_bundle_uuid, nonexistent_bundle_version)
             self.assertIs(valid, ValidationEnum.WRONG_BUNDLE_KEY)
 
     @testmode.standalone
     def test_touch_file(self):
         for replica in Replica:
-            self.assertEqual(touch_test_file(replica.checkout_bucket, replica), True)
+            self.assertEqual(touch_test_file(replica, replica.checkout_bucket), True)
 
     @testmode.standalone
     def test_execution_id(self):
@@ -298,8 +298,8 @@ class TestCheckoutApi(unittest.TestCase, DSSAssertMixin, DSSUploadMixin):
         self.assertIsNotNone(exec_id)
         for replica in Replica:
             CheckoutStatus.mark_bundle_checkout_successful(
-                replica.checkout_bucket, exec_id, replica, fake_bucket_name, fake_location)
-            status = CheckoutStatus.get_bundle_checkout_status(replica.checkout_bucket, exec_id, replica)
+                exec_id, replica, replica.checkout_bucket, fake_bucket_name, fake_location)
+            status = CheckoutStatus.get_bundle_checkout_status(exec_id, replica, replica.checkout_bucket)
             self.assertEquals(status['status'], "SUCCEEDED")
             self.assertEquals(status['location'], f"{replica.storage_schema}://{fake_bucket_name}/{fake_location}")
 
@@ -309,8 +309,8 @@ class TestCheckoutApi(unittest.TestCase, DSSAssertMixin, DSSUploadMixin):
         self.assertIsNotNone(exec_id)
         cause = 'Fake cause'
         for replica in Replica:
-            CheckoutStatus.mark_bundle_checkout_failed(replica.checkout_bucket, exec_id, replica, cause)
-            status = CheckoutStatus.get_bundle_checkout_status(replica.checkout_bucket, exec_id, replica)
+            CheckoutStatus.mark_bundle_checkout_failed(exec_id, replica, replica.checkout_bucket, cause)
+            status = CheckoutStatus.get_bundle_checkout_status(exec_id, replica, replica.checkout_bucket)
             self.assertEquals(status['status'], "FAILED")
             self.assertEquals(status['cause'], cause)
 
@@ -319,8 +319,8 @@ class TestCheckoutApi(unittest.TestCase, DSSAssertMixin, DSSUploadMixin):
         exec_id = get_execution_id()
         self.assertIsNotNone(exec_id)
         for replica in Replica:
-            CheckoutStatus.mark_bundle_checkout_started(replica.checkout_bucket, exec_id, replica)
-            status = CheckoutStatus.get_bundle_checkout_status(replica.checkout_bucket, exec_id, replica)
+            CheckoutStatus.mark_bundle_checkout_started(exec_id, replica, replica.checkout_bucket)
+            status = CheckoutStatus.get_bundle_checkout_status(exec_id, replica, replica.checkout_bucket)
             self.assertEquals(status['status'], "RUNNING")
 
     @testmode.standalone
@@ -329,7 +329,7 @@ class TestCheckoutApi(unittest.TestCase, DSSAssertMixin, DSSUploadMixin):
         self.assertIsNotNone(exec_id)
         for replica in Replica:
             with self.assertRaises(BlobNotFoundError):
-                CheckoutStatus.get_bundle_checkout_status(replica.checkout_bucket, exec_id, replica)
+                CheckoutStatus.get_bundle_checkout_status(exec_id, replica, replica.checkout_bucket)
 
 
 if __name__ == "__main__":
