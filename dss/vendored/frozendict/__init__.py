@@ -1,19 +1,7 @@
-import collections
-import operator
-import functools
-import sys
+from collections import OrderedDict, Mapping
 
 
-try:
-    from collections import OrderedDict
-except ImportError:  # python < 2.7
-    OrderedDict = NotImplemented
-
-
-iteritems = getattr(dict, 'iteritems', dict.items) # py2-3 compatibility
-
-
-class frozendict(collections.Mapping):
+class frozendict(Mapping):
     """
     An immutable wrapper around dictionaries that implements the complete :py:class:`collections.Mapping`
     interface. It can be used as a drop-in replacement for dictionaries where immutability is desired.
@@ -46,7 +34,7 @@ class frozendict(collections.Mapping):
     def __hash__(self):
         if self._hash is None:
             h = 0
-            for key, value in iteritems(self._dict):
+            for key, value in self._dict.items():
                 h ^= hash((key, value))
             self._hash = h
         return self._hash
@@ -58,7 +46,3 @@ class FrozenOrderedDict(frozendict):
     """
 
     dict_cls = OrderedDict
-
-
-if OrderedDict is NotImplemented:
-    del FrozenOrderedDict
