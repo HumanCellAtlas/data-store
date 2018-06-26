@@ -114,7 +114,7 @@ def _verify_checkout(
 ) -> typing.Tuple[str, bool]:
     decoded_token: dict
     if token is None:
-        execution_id = start_file_checkout(blob_path, replica)
+        execution_id = start_file_checkout(replica, blob_path)
         start_time = time.time()
         attempts = 0
 
