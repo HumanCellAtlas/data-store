@@ -5,6 +5,38 @@ class frozendict(Mapping):
     """
     An immutable wrapper around dictionaries that implements the complete :py:class:`collections.Mapping`
     interface. It can be used as a drop-in replacement for dictionaries where immutability is desired.
+
+    >>> fd1 = frozendict(a=1, b=2)
+
+    Frozendicts are hashable and thus can be used in sets and as keys on dictionaries:
+
+    >>> {fd1:1, fd1:2}[fd1]
+    2
+
+    They can be copied and have pass-by-value semantics (as opposed to pass-by-reference sematics):
+
+    >>> fd2=fd1.copy()
+    >>> fd1 == fd2
+    True
+    >>> fd1 is fd2
+    False
+    >>> {fd1:1, fd2:2}[fd1]
+    2
+
+    They are also immutable:
+
+    >>> fd1['a'] = 3
+    Traceback (most recent call last):
+    ...
+    TypeError: 'frozendict' object does not support item assignment
+    >>> del fd1['a']
+    Traceback (most recent call last):
+    ...
+    TypeError: 'frozendict' object does not support item deletion
+    >>> fd1.keys().remove('a')
+    Traceback (most recent call last):
+    ...
+    AttributeError: 'KeysView' object has no attribute 'remove'
     """
 
     dict_cls = dict
