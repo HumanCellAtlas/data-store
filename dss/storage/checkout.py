@@ -1,6 +1,7 @@
 import io
 import json
 import logging
+import time
 import typing
 import uuid
 from enum import Enum, auto
@@ -29,6 +30,16 @@ class ValidationEnum(Enum):
 
 class BundleNotFoundError(Exception):
     """Raised when we attempt to check out a non-existent bundle."""
+    pass
+
+
+class TokenError(Exception):
+    """Raised when we can't parse the token or it is missing fields."""
+    pass
+
+
+class CheckoutError(Exception):
+    """Raised when the checkout fails."""
     pass
 
 
@@ -96,6 +107,39 @@ def start_bundle_checkout(
 
     stepfunctions.step_functions_invoke(STATE_MACHINE_NAME_TEMPLATE, execution_id, sfn_input)
     return execution_id
+
+
+def verify_checkout(
+        replica: Replica,
+        bundle_uuid: str,
+        bundle_version: str,
+        token: typing.Optional[str]
+) -> typing.Tuple[str, bool]:
+    decoded_token: dict
+    if token is None:
+        execution_id = start_bundle_checkout(replica, bundle_uuid, bundle_version)
+
+        decoded_token = {
+            CheckoutTokenKeys.EXECUTION_ID: execution_id,
+            CheckoutTokenKeys.START_TIME: time.time(),
+            CheckoutTokenKeys.ATTEMPTS: 0,
+        }
+    else:
+        try:
+            decoded_token = json.loads(token)
+            execution_id = decoded_token[CheckoutTokenKeys.EXECUTION_ID]
+            decoded_token[CheckoutTokenKeys.ATTEMPTS] += 1
+        except (KeyError, ValueError) as ex:
+            raise TokenError(ex)
+
+    encoded_token = json.dumps(decoded_token)
+    status = CheckoutStatus.get_bundle_checkout_status(execution_id, replica, replica.checkout_bucket)
+    if status['status'] == "SUCCEEDED":
+        return encoded_token, True
+    elif status['status'] == "RUNNING":
+        return encoded_token, False
+
+    raise CheckoutError(f"status: {status}")
 
 
 def start_file_checkout(replica: Replica, blob_key, dst_bucket: typing.Optional[str] = None) -> str:
