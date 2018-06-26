@@ -161,7 +161,7 @@ class TestCheckoutApi(unittest.TestCase, DSSAssertMixin, DSSUploadMixin):
     def test_status_success(self):
         for replica in Replica:
             exec_arn = self.launch_checkout(replica.checkout_bucket, replica)
-            CheckoutStatus.mark_bundle_checkout_started(replica.checkout_bucket, exec_arn, replica)
+            CheckoutStatus.mark_bundle_checkout_started(exec_arn, replica, replica.checkout_bucket)
 
             url = str(UrlBuilder().set(path="/v1/bundles/checkout/" + exec_arn).add_query("replica", replica.name))
 
@@ -183,7 +183,7 @@ class TestCheckoutApi(unittest.TestCase, DSSAssertMixin, DSSUploadMixin):
         nonexistent_bucket_name = str(uuid.uuid4())
         for replica in Replica:
             exec_arn = self.launch_checkout(nonexistent_bucket_name, replica)
-            CheckoutStatus.mark_bundle_checkout_started(replica.checkout_bucket, exec_arn, replica)
+            CheckoutStatus.mark_bundle_checkout_started(exec_arn, replica, replica.checkout_bucket)
 
             url = str(UrlBuilder().set(path="/v1/bundles/checkout/" + exec_arn).add_query("replica", replica.name))
 
