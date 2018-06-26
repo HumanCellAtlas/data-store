@@ -6,6 +6,7 @@ class EventConstants:
     BUNDLE_VERSION = "version"
     DSS_BUCKET = "dss_bucket"
     DST_BUCKET = "bucket"
+    STATUS_BUCKET = "checkout_status_bucket"
     REPLICA = "replica"
     STATUS = "status"
     EMAIL = "email"
