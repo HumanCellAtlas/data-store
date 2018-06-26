@@ -195,8 +195,9 @@ class TestFileApi(unittest.TestCase, DSSAssertMixin, DSSUploadMixin):
             resp_obj = self.assertGetResponse(
                 url,
                 requests.codes.found,
-                redirect_follow_retry=FILE_GET_RETRY_COUNT,
+                redirect_follow_retries=FILE_GET_RETRY_COUNT,
                 min_retry_interval_header=RETRY_AFTER_INTERVAL,
+                override_retry_interval=1,
             )
             if resp_obj.response.status_code == requests.codes.found:
                 url = resp_obj.response.headers['Location']
@@ -233,8 +234,9 @@ class TestFileApi(unittest.TestCase, DSSAssertMixin, DSSUploadMixin):
             resp_obj = self.assertGetResponse(
                 url,
                 requests.codes.found,
-                redirect_follow_retry=FILE_GET_RETRY_COUNT,
+                redirect_follow_retries=FILE_GET_RETRY_COUNT,
                 min_retry_interval_header=RETRY_AFTER_INTERVAL,
+                override_retry_interval=1,
             )
             if resp_obj.response.status_code == requests.codes.found:
                 url = resp_obj.response.headers['Location']
@@ -387,8 +389,9 @@ class TestFileApi(unittest.TestCase, DSSAssertMixin, DSSUploadMixin):
             resp_obj = self.assertGetResponse(
                 url,
                 requests.codes.found,
-                redirect_follow_retry=FILE_GET_RETRY_COUNT,
+                redirect_follow_retries=FILE_GET_RETRY_COUNT,
                 min_retry_interval_header=RETRY_AFTER_INTERVAL,
+                override_retry_interval=1,
             )
             if resp_obj.response.status_code == requests.codes.found:
                 url = resp_obj.response.headers['Location']
