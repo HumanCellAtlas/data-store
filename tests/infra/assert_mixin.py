@@ -3,6 +3,7 @@ import functools
 import json
 import pprint
 import re
+import time
 import typing
 
 import requests
@@ -43,8 +44,9 @@ class DSSAssertMixin:
             json_request_body: typing.Optional[dict]=None,
             expected_error: typing.Optional[ExpectedErrorFields]=None,
             *,
-            redirect_follow_retry: int=0,
+            redirect_follow_retries: int=0,
             min_retry_interval_header: int=0,
+            override_retry_interval: typing.Optional[int]=None,
             **kwargs) -> DSSAssertResponse:
         """
         Make a request given a HTTP method and a path.  The HTTP status code is checked against `expected_code`.
@@ -58,6 +60,11 @@ class DSSAssertMixin:
 
         If expected_error is provided, the content-type is expected to be "application/problem+json" and the response is
         tested in accordance to the documentation of `ExpectedErrorFields`.
+
+        If redirect_follow_retries is non-zero, then 301 response codes are respected for N attempts, where
+        N=redirect_follow_retries.  We also verify that the Retry-After header is at least `min_retry_interval_header`.
+        Finally, if `override_retry_interval` is set, we wait that duration in seconds before retrying again.
+        Otherwise, we use the value in the Retry-After header.
         """
         if json_request_body is not None:
             if 'data' in kwargs:
@@ -67,15 +74,19 @@ class DSSAssertMixin:
                 kwargs['headers'] = {}
             kwargs['headers']['Content-Type'] = "application/json"
 
-        for ix in range(redirect_follow_retry + 1):
+        for ix in range(redirect_follow_retries + 1):
             response = getattr(self.app, method)(path, **kwargs)
-            if ix == redirect_follow_retry or response.status_code != requests.codes.moved:
+            if ix == redirect_follow_retries or response.status_code != requests.codes.moved:
                 break
             retry_after = int(response.headers['Retry-After'])
             self.assertGreaterEqual(retry_after, min_retry_interval_header)
             url = response.headers['Location']
             builder = UrlBuilder(url).set(scheme="", netloc="")
             path = str(builder)
+            if override_retry_interval is not None:
+                time.sleep(override_retry_interval)
+            else:
+                time.sleep(retry_after)
 
         try:
             actual_json = response.json()
