@@ -1,4 +1,5 @@
 import requests
+from cloud_blobstore import BlobNotFoundError
 from flask import jsonify
 
 from dss import dss_handler, Replica
@@ -29,5 +30,8 @@ def post(uuid: str, json_request_body: dict, replica: str, version: str=None):
 def get(replica: str, checkout_job_id: str):
     assert replica is not None
     _replica = Replica[replica]
-    response = CheckoutStatus.get_bundle_checkout_status(checkout_job_id, _replica, _replica.checkout_bucket)
+    try:
+        response = CheckoutStatus.get_bundle_checkout_status(checkout_job_id, _replica, _replica.checkout_bucket)
+    except BlobNotFoundError:
+        raise DSSException(requests.codes.not_found, "not_found", "Cannot find checkout!")
     return response, requests.codes.ok

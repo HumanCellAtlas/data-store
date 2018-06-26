@@ -200,6 +200,20 @@ class TestCheckoutApi(unittest.TestCase, DSSAssertMixin, DSSUploadMixin):
 
             check_status()
 
+    @testmode.standalone
+    def test_get_unknown_checkout(self):
+        nonexistent_checkout_execution_id = str(uuid.uuid4())
+        for replica in Replica:
+            url = str(UrlBuilder()
+                      .set(path="/v1/bundles/checkout/" + nonexistent_checkout_execution_id)
+                      .add_query("replica", replica.name))
+
+            resp_obj = self.assertGetResponse(
+                url,
+                requests.codes.not_found
+            )
+            self.assertEqual(resp_obj.json['code'], "not_found")
+
     @testmode.integration
     def test_checkout_file_success(self):
         for replica in Replica:
