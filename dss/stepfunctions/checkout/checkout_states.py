@@ -71,7 +71,7 @@ def get_job_status(event, context):
     check_count += 1
     logger.info(
         "Check copy status for checkout jobId %s , check  count %d , status %s",
-        event[EventConstants.EXECUTION_NAME], check_count, checkout_status)
+        event[EventConstants.EXECUTION_ID], check_count, checkout_status)
     return {
         EventConstants.STATUS_COMPLETE_COUNT: complete_count,
         EventConstants.STATUS_TOTAL_COUNT: total_count,
@@ -89,7 +89,7 @@ def pre_execution_check(event, context):
 
     logger.info(
         "Pre-execution check job_id %s for bundle %s version %s replica %s",
-        event[EventConstants.EXECUTION_NAME], bundle_uuid, bundle_version, replica)
+        event[EventConstants.EXECUTION_ID], bundle_uuid, bundle_version, replica)
 
     checkout_status, cause = pre_exec_validate(replica, dss_bucket, dst_bucket, bundle_uuid, bundle_version)
     result = {_InternalEventConstants.VALIDATION_CHECKOUT_STATUS: checkout_status.name.upper()}
@@ -110,13 +110,13 @@ def notify_complete(event, context):
             replica)
     # record results of execution into S3
     CheckoutStatus.mark_bundle_checkout_successful(
-        event[EventConstants.EXECUTION_NAME],
+        event[EventConstants.EXECUTION_ID],
         replica,
         event[EventConstants.STATUS_BUCKET],
         get_dst_bucket(event),
         event[_InternalEventConstants.SCHEDULE][_InternalEventConstants.SCHEDULED_DST_LOCATION],
     )
-    logger.info("Checkout completed successfully jobId %s", event[EventConstants.EXECUTION_NAME])
+    logger.info("Checkout completed successfully jobId %s", event[EventConstants.EXECUTION_ID])
     return {_InternalEventConstants.RESULT: result}
 
 
@@ -135,12 +135,12 @@ def notify_complete_failure(event, context):
         result = send_checkout_failure_email(dss.Config.get_notification_email(), event[EventConstants.EMAIL], cause)
     # record results of execution into S3
     CheckoutStatus.mark_bundle_checkout_failed(
-        event[EventConstants.EXECUTION_NAME],
+        event[EventConstants.EXECUTION_ID],
         Replica[event[EventConstants.REPLICA]],
         event[EventConstants.STATUS_BUCKET],
         cause,
     )
-    logger.info("Checkout failed jobId %s", event[EventConstants.EXECUTION_NAME])
+    logger.info("Checkout failed jobId %s", event[EventConstants.EXECUTION_ID])
     return {_InternalEventConstants.RESULT: result}
 
 
