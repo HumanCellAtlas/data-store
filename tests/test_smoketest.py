@@ -7,6 +7,7 @@ import subprocess
 
 import boto3
 import botocore
+from cloud_blobstore import BlobStore
 
 pkg_root = os.path.abspath(os.path.join(os.path.dirname(__file__), ".."))  # noqa
 sys.path.insert(0, pkg_root)  # noqa
@@ -53,16 +54,23 @@ def run_for_json(command, **kwargs):
 
 @testmode.integration
 class Smoketest(unittest.TestCase):
-    replicas = {
-        "aws",
-        "gcp"
-    }
+    params = [
+        {
+            'starting_replica': "aws",
+            'checkout_bucket': os.environ['DSS_S3_CHECKOUT_BUCKET'],
+            'test_bucket': os.environ['DSS_S3_BUCKET_TEST']
+        },
+        {
+            'starting_replica': "gcp",
+            'checkout_bucket': os.environ['DSS_GS_CHECKOUT_BUCKET'],
+            'test_bucket': os.environ['DSS_GS_BUCKET_TEST']
+        }
+    ]
     notification_bucket = os.environ['DSS_S3_BUCKET_TEST']
-    checkout_bucket = {'aws': os.environ['DSS_S3_CHECKOUT_BUCKET'], 'gcp': os.environ['DSS_GS_CHECKOUT_BUCKET']}
-    test_bucket = os.environ['DSS_S3_BUCKET_TEST']
 
     @classmethod
     def setUpClass(cls):
+        cls.replicas = {param['starting_replica'] for param in cls.params}
         if os.path.exists("dcp-cli"):
             run("git pull --recurse-submodules", cwd="dcp-cli")
         else:
@@ -94,7 +102,7 @@ class Smoketest(unittest.TestCase):
         with open(os.path.join(cls.bundle_dir, "async_copied_file"), "wb") as fh:
             fh.write(os.urandom(ASYNC_COPY_THRESHOLD + 1))
 
-    def smoketest(self, starting_replica):
+    def smoketest(self, starting_replica, checkout_bucket, test_bucket):
         # Tweak the metadata to a specific sample UUID
         sample_id = str(uuid.uuid4())
         run(f"cat {self.bundle_dir}/sample.json | jq .id=env.sample_id | sponge {self.bundle_dir}/sample.json",
@@ -135,7 +143,7 @@ class Smoketest(unittest.TestCase):
         #
         res = run_for_json(f"{self.venv_bin}hca dss upload "
                            f"--replica {starting_replica} "
-                           f"--staging-bucket {self.test_bucket} "
+                           f"--staging-bucket {test_bucket} "
                            f"--src-dir {self.bundle_dir}")
         bundle_uuid = res['bundle_uuid']
         bundle_version = res['version']
@@ -198,8 +206,9 @@ class Smoketest(unittest.TestCase):
                 self.assertEqual(status, 'SUCCEEDED')
                 blob_handle = self.get_blobstore(starting_replica)
                 object_key = get_dst_bundle_prefix(bundle_uuid, bundle_version)
-                print(f"Checking bucket {self.checkout_bucket[starting_replica]} object key: {object_key}")
-                files = list(blob_handle.list(self.checkout_bucket[starting_replica], object_key))
+                print(f"Checking bucket {checkout_bucket} "
+                      f"object key: {object_key}")
+                files = list(blob_handle.list(checkout_bucket, object_key))
                 self.assertEqual(len(files), file_count)
                 break
         else:
@@ -215,15 +224,15 @@ class Smoketest(unittest.TestCase):
             self.assertEquals(bundle_version, notification['match']['bundle_version'])
 
     def test_smoketest(self):
-        for replica in self.replicas:
-            with self.subTest(replica):
-                self.smoketest(replica)
+        for param in self.params:
+            with self.subTest(param['starting_replica']):
+                self.smoketest(**param)
 
-    def get_blobstore(self, replica):
+    def get_blobstore(self, replica: str) -> BlobStore:
         if replica is 'aws':
             return S3BlobStore.from_environment()
         elif replica is 'gcp':
-            return GSBlobStore.from_auth_credentials(os.getenv('GOOGLE_APPLICATION_CREDENTIALS'))
+            return GSBlobStore.from_auth_credentials(os.environ['GOOGLE_APPLICATION_CREDENTIALS'])
         else:
             raise NameError("Replica not found")
 
