@@ -1,7 +1,7 @@
 class EventConstants:
     """Externally visible constants used in the SFN messages."""
 
-    EXECUTION_NAME = "execution_name"
+    EXECUTION_ID = "execution_id"
     BUNDLE_UUID = "bundle"
     BUNDLE_VERSION = "version"
     DSS_BUCKET = "dss_bucket"

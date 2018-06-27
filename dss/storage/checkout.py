@@ -95,7 +95,7 @@ def start_bundle_checkout(
         EventConstants.BUNDLE_UUID: bundle_uuid,
         EventConstants.BUNDLE_VERSION: bundle[BundleMetadata.VERSION],
         EventConstants.REPLICA: replica.name,
-        EventConstants.EXECUTION_NAME: execution_id
+        EventConstants.EXECUTION_ID: execution_id
     }
     if dst_bucket is not None:
         sfn_input[EventConstants.DST_BUCKET] = dst_bucket
@@ -182,9 +182,9 @@ def parallel_copy(
     else:
         raise ValueError("Unsupported replica")
 
-    execution_name = get_execution_id()
-    stepfunctions.step_functions_invoke(state_machine_name_template, execution_name, state)
-    return execution_name
+    execution_id = get_execution_id()
+    stepfunctions.step_functions_invoke(state_machine_name_template, execution_id, state)
+    return execution_id
 
 
 def get_dst_bundle_prefix(bundle_id: str, bundle_version: str) -> str:

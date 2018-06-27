@@ -152,18 +152,18 @@ class TestCheckoutApi(unittest.TestCase, DSSAssertMixin, DSSUploadMixin):
             requests.codes.ok,
             request_body
         )
-        execution_arn = resp_obj.json["checkout_job_id"]
-        self.assertIsNotNone(execution_arn)
+        execution_id = resp_obj.json["checkout_job_id"]
+        self.assertIsNotNone(execution_id)
 
-        return execution_arn
+        return execution_id
 
     @testmode.integration
     def test_status_success(self):
         for replica in Replica:
-            exec_arn = self.launch_checkout(replica.checkout_bucket, replica)
-            CheckoutStatus.mark_bundle_checkout_started(exec_arn, replica, replica.checkout_bucket)
+            execution_id = self.launch_checkout(replica.checkout_bucket, replica)
+            CheckoutStatus.mark_bundle_checkout_started(execution_id, replica, replica.checkout_bucket)
 
-            url = str(UrlBuilder().set(path="/v1/bundles/checkout/" + exec_arn).add_query("replica", replica.name))
+            url = str(UrlBuilder().set(path="/v1/bundles/checkout/" + execution_id).add_query("replica", replica.name))
 
             @eventually(timeout=120, interval=1)
             def check_status():
@@ -182,10 +182,10 @@ class TestCheckoutApi(unittest.TestCase, DSSAssertMixin, DSSUploadMixin):
     def test_status_fail(self):
         nonexistent_bucket_name = str(uuid.uuid4())
         for replica in Replica:
-            exec_arn = self.launch_checkout(nonexistent_bucket_name, replica)
-            CheckoutStatus.mark_bundle_checkout_started(exec_arn, replica, replica.checkout_bucket)
+            execution_id = self.launch_checkout(nonexistent_bucket_name, replica)
+            CheckoutStatus.mark_bundle_checkout_started(execution_id, replica, replica.checkout_bucket)
 
-            url = str(UrlBuilder().set(path="/v1/bundles/checkout/" + exec_arn).add_query("replica", replica.name))
+            url = str(UrlBuilder().set(path="/v1/bundles/checkout/" + execution_id).add_query("replica", replica.name))
 
             @eventually(timeout=120, interval=1)
             def check_status():
