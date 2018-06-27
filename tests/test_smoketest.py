@@ -181,10 +181,6 @@ class Smoketest(unittest.TestCase):
             run(f"{self.venv_bin}hca dss download --replica {replica} --bundle-uuid {bundle_uuid}")
 
         for replica in self.replicas:
-            # Run a CLI search against the replicas
-            #
-            run(f"{self.venv_bin}hca dss post-search --es-query='{{}}' --replica {replica} > /dev/null")
-
             # Hit search route directly against each replica
             #
             search_route = "https://${API_DOMAIN_NAME}/v1/search"
@@ -227,6 +223,11 @@ class Smoketest(unittest.TestCase):
         for param in self.params:
             with self.subTest(param['starting_replica']):
                 self.smoketest(**param)
+
+                # Run a CLI search against the replicas
+                #
+                run(f"{self.venv_bin}hca dss post-search --es-query='{{}}' "
+                    f"--replica {param['starting_replica']} > /dev/null")
 
     def get_blobstore(self, replica: str) -> BlobStore:
         if replica is 'aws':
