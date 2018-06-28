@@ -3,7 +3,6 @@ import collections
 import concurrent.futures as futures
 
 import hashlib
-import threading
 import typing
 
 import boto3
@@ -11,6 +10,7 @@ from cloud_blobstore.s3 import S3BlobStore
 
 from dss.stepfunctions.lambdaexecutor import TimedThread
 from dss.storage.files import write_file_metadata
+from dss.util import parallel_worker
 from dss.util.aws import get_s3_chunk_size
 
 
@@ -110,18 +110,22 @@ def copy_worker(event, lambda_context, slice_num):
                 state[_Key.NEXT_PART],
                 state[_Key.LAST_PART] - state[_Key.NEXT_PART] + 1))
 
-            state_lock = threading.Lock()
+            if len(queue) == 0:
+                state[Key.FINISHED] = True
+                return state
 
-            with futures.ThreadPoolExecutor(max_workers=CONCURRENT_REQUESTS) as executor:
-                def copy_one_part(part_id):
-                    self.copy_one_part(part_id)
-                    with state_lock:
-                        if part_id >= state[_Key.NEXT_PART]:
-                            state[_Key.NEXT_PART] = part_id + 1
-                            self.save_state(state)
-                    return True
+            class ProgressReporter(parallel_worker.Reporter):
+                def report_progress(inner_self, first_incomplete: int):
+                    state[_Key.NEXT_PART] = first_incomplete
+                    self.save_state(state)
 
-                assert all(executor.map(copy_one_part, queue))
+            class CopyPartTask(parallel_worker.Task):
+                def run(inner_self, subtask_id: int) -> None:
+                    self.copy_one_part(subtask_id)
+
+            runner = parallel_worker.Runner(CONCURRENT_REQUESTS, CopyPartTask, queue, ProgressReporter())
+            results = runner.run()
+            assert all(results)
 
             state[Key.FINISHED] = True
             return state
