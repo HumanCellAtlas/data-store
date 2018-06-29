@@ -66,12 +66,13 @@ class TestConfig(unittest.TestCase):
         self.assertEqual(Config.BLOBSTORE_READ_TIMEOUT, client_config.read_timeout)
         self.assertEqual(Config.BLOBSTORE_BOTO_RETRIES, client_config.retries['max_attempts'])
 
-    def test_gcloud_timeout(self):
+    def test_gcloud_reties(self):
         Config.get_native_handle.cache_clear()
-        Config.BLOBSTORE_GS_MAX_CUMULATIVE_RETRY = 1
+        Config.BLOBSTORE_GS_RETRIES = 1
 
-        Config.get_native_handle(Replica.gcp)
-        self.assertEqual(Config.BLOBSTORE_GS_MAX_CUMULATIVE_RETRY, google.resumable_media.common.MAX_CUMULATIVE_RETRY)
+        handle = Config.get_native_handle(Replica.gcp)
+        for adapter in handle._http.adapters.values():
+            self.assertEqual(Config.BLOBSTORE_GS_RETRIES, adapter.max_retries.total)
 
 
 if __name__ == '__main__':

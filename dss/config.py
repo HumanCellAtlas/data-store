@@ -92,19 +92,19 @@ class IndexSuffix:
 
 
 class Config:
-    _S3_BUCKET = None  # type: typing.Optional[str]
-    _GS_BUCKET = None  # type: typing.Optional[str]
-    _S3_CHECKOUT_BUCKET = None  # type: typing.Optional[str]
-    _GS_CHECKOUT_BUCKET = None  # type: typing.Optional[str]
+    _S3_BUCKET: typing.Optional[str] = None
+    _GS_BUCKET: typing.Optional[str] = None
+    _S3_CHECKOUT_BUCKET: typing.Optional[str] = None
+    _GS_CHECKOUT_BUCKET: typing.Optional[str] = None
 
-    BLOBSTORE_CONNECT_TIMEOUT = None  # type: float
-    BLOBSTORE_READ_TIMEOUT = None  # type: float
-    BLOBSTORE_BOTO_RETRIES = None  # type: int
-    BLOBSTORE_GS_MAX_CUMULATIVE_RETRY = None  # type: float  ## seconds
+    BLOBSTORE_CONNECT_TIMEOUT: float = None
+    BLOBSTORE_READ_TIMEOUT: float = None
+    BLOBSTORE_BOTO_RETRIES: int = None
+    BLOBSTORE_GS_RETRIES: int = None
 
-    _ALLOWED_EMAILS = None  # type: typing.Optional[str]
-    _CURRENT_CONFIG = BucketConfig.ILLEGAL  # type: BucketConfig
-    _NOTIFICATION_SENDER_EMAIL = None  # type: typing.Optional[str]
+    _ALLOWED_EMAILS: typing.Optional[str] = None
+    _CURRENT_CONFIG: BucketConfig = BucketConfig.ILLEGAL
+    _NOTIFICATION_SENDER_EMAIL: typing.Optional[str] = None
 
     test_index_suffix = IndexSuffix()
 
@@ -136,11 +136,8 @@ class Config:
 
     @staticmethod
     def _get_native_gcp_handle() -> typing.Any:
-        if Config.BLOBSTORE_GS_MAX_CUMULATIVE_RETRY is not None:
-            google.resumable_media.common.MAX_CUMULATIVE_RETRY = Config.BLOBSTORE_GS_MAX_CUMULATIVE_RETRY
-
         if Config.BLOBSTORE_CONNECT_TIMEOUT is None and Config.BLOBSTORE_READ_TIMEOUT is None:
-            return Client.from_service_account_json(
+            client = Client.from_service_account_json(
                 os.environ['GOOGLE_APPLICATION_CREDENTIALS'],
             )
         else:
@@ -158,10 +155,24 @@ class Config:
 
             # _http is a "private" parameter, and we may need to re-visit GCP timeout retry
             # strategies in the future.
-            return Client(
+            client = Client(
                 _http=SessionWithTimeouts(credentials),
                 credentials=credentials
             )
+
+        if Config.BLOBSTORE_GS_RETRIES is not None:
+            from requests.adapters import HTTPAdapter
+            from requests.packages.urllib3.util.retry import Retry
+            retry = Retry(total=Config.BLOBSTORE_GS_RETRIES,
+                          backoff_factor=0.3,
+                          status_forcelist=(500, 502, 504)
+                          )
+            adapter = HTTPAdapter(max_retries=retry)
+            # _http is a "private" parameter, and we may need to re-visit GCP timeout retry
+            # strategies in the future.
+            client._http.mount('https://', adapter)
+            client._http.mount('http://', adapter)
+        return client
 
     @staticmethod
     @functools.lru_cache()
@@ -299,7 +310,7 @@ class Config:
         return index
 
     @classmethod
-    def deployment_stage(cls):
+    def deployment_stage(cls) -> str:
         return os.environ['DSS_DEPLOYMENT_STAGE']
 
     @staticmethod
