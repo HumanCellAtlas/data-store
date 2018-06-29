@@ -310,10 +310,15 @@ class TestBundleApi(unittest.TestCase, DSSAssertMixin, DSSUploadMixin):
 
     @testmode.standalone
     def test_bundle_delete(self):
-        self._test_bundle_delete(Replica.aws, self.s3_test_fixtures_bucket, True)
-        self._test_bundle_delete(Replica.gcp, self.gs_test_fixtures_bucket, True)
-        self._test_bundle_delete(Replica.aws, self.s3_test_fixtures_bucket, False)
-        self._test_bundle_delete(Replica.gcp, self.gs_test_fixtures_bucket, False)
+        tests = [
+            (Replica.aws, self.s3_test_fixtures_bucket, True),
+            (Replica.gcp, self.gs_test_fixtures_bucket, True),
+            (Replica.aws, self.s3_test_fixtures_bucket, False),
+            (Replica.gcp, self.gs_test_fixtures_bucket, False)
+        ]
+        for test in tests:
+            with self.subTest(f"{test[0].name}, {test[2]}"):
+                self._test_bundle_delete(*test)
 
     def _test_bundle_delete(self, replica: Replica, fixtures_bucket: str, authorized: bool):
         schema = replica.storage_schema
