@@ -8,6 +8,7 @@ import requests
 from dss.config import Replica
 from dss.util import UrlBuilder
 from dss.util.version import datetime_to_version_format
+from tests import get_auth_header
 from .assert_mixin import DSSAssertResponse
 
 
@@ -68,5 +69,20 @@ class DSSUploadMixin:
                 time.sleep(1)
             else:
                 self.fail("Could not find the output file")
-
+        self.addCleanup(_cleanup, self, bundle_uuid, replica)
         return resp_obj
+
+
+def _cleanup(test: typing.Any, bundle_uuid: str, replica: Replica):
+    # make delete request
+    url_builder = UrlBuilder().set(path="/v1/bundles/" + bundle_uuid).add_query('replica', replica.name)
+    url = str(url_builder)
+    json_request_body = dict(reason="test cleanup")
+
+    # delete and check results
+    return test.assertDeleteResponse(
+        url,
+        (requests.codes.ok, requests.codes.conflict),
+        json_request_body=json_request_body,
+        headers=get_auth_header(authorized=True),
+    )
