@@ -92,20 +92,19 @@ class IndexSuffix:
 
 
 class Config:
-    _S3_BUCKET = None  # type: typing.Optional[str]
-    _GS_BUCKET = None  # type: typing.Optional[str]
-    _S3_CHECKOUT_BUCKET = None  # type: typing.Optional[str]
-    _GS_CHECKOUT_BUCKET = None  # type: typing.Optional[str]
+    _S3_BUCKET: typing.Optional[str] = None
+    _GS_BUCKET: typing.Optional[str] = None
+    _S3_CHECKOUT_BUCKET: typing.Optional[str] = None
+    _GS_CHECKOUT_BUCKET: typing.Optional[str] = None
 
-    BLOBSTORE_CONNECT_TIMEOUT = None  # type: float
-    BLOBSTORE_READ_TIMEOUT = None  # type: float
-    BLOBSTORE_BOTO_RETRIES = None  # type: int
-    BLOBSTORE_GS_MAX_CUMULATIVE_RETRY = None  # type: float  ## seconds
+    BLOBSTORE_CONNECT_TIMEOUT: float = None
+    BLOBSTORE_READ_TIMEOUT: float = None
+    BLOBSTORE_BOTO_RETRIES: int = None
     BLOBSTORE_GS_RETRIES: int = None
 
-    _ALLOWED_EMAILS = None  # type: typing.Optional[str]
-    _CURRENT_CONFIG = BucketConfig.ILLEGAL  # type: BucketConfig
-    _NOTIFICATION_SENDER_EMAIL = None  # type: typing.Optional[str]
+    _ALLOWED_EMAILS: typing.Optional[str] = None
+    _CURRENT_CONFIG: BucketConfig = BucketConfig.ILLEGAL
+    _NOTIFICATION_SENDER_EMAIL: typing.Optional[str] = None
 
     test_index_suffix = IndexSuffix()
 
@@ -311,7 +310,7 @@ class Config:
         return index
 
     @classmethod
-    def deployment_stage(cls):
+    def deployment_stage(cls) -> str:
         return os.environ['DSS_DEPLOYMENT_STAGE']
 
     @staticmethod
