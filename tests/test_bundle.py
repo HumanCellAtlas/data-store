@@ -214,8 +214,9 @@ class TestBundleApi(unittest.TestCase, DSSAssertMixin, DSSUploadMixin):
 
     @testmode.standalone
     def test_bundle_put(self):
-        self._test_bundle_put(Replica.aws, self.s3_test_fixtures_bucket)
-        self._test_bundle_put(Replica.gcp, self.gs_test_fixtures_bucket)
+        # self._test_bundle_put(Replica.aws, self.s3_test_fixtures_bucket)
+        for i in range(100):
+            self._test_bundle_put(Replica.gcp, self.gs_test_fixtures_bucket)
 
     def _test_bundle_put(self, replica: Replica, fixtures_bucket: str):
         schema = replica.storage_schema
