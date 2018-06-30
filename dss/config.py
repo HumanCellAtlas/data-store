@@ -99,8 +99,7 @@ class Config:
 
     BLOBSTORE_CONNECT_TIMEOUT: float = None
     BLOBSTORE_READ_TIMEOUT: float = None
-    BLOBSTORE_BOTO_RETRIES: int = None
-    BLOBSTORE_GS_RETRIES: int = None
+    BLOBSTORE_RETRIES: int = None
 
     _ALLOWED_EMAILS: typing.Optional[str] = None
     _CURRENT_CONFIG: BucketConfig = BucketConfig.ILLEGAL
@@ -130,8 +129,8 @@ class Config:
             boto_config.connect_timeout = Config.BLOBSTORE_CONNECT_TIMEOUT
         if Config.BLOBSTORE_READ_TIMEOUT is not None:
             boto_config.read_timeout = Config.BLOBSTORE_READ_TIMEOUT
-        if Config.BLOBSTORE_BOTO_RETRIES is not None:
-            boto_config.retries = {'max_attempts': Config.BLOBSTORE_BOTO_RETRIES}
+        if Config.BLOBSTORE_RETRIES is not None:
+            boto_config.retries = {'max_attempts': Config.BLOBSTORE_RETRIES}
         return boto3.client("s3", config=boto_config)
 
     @staticmethod
@@ -160,10 +159,10 @@ class Config:
                 credentials=credentials
             )
 
-        if Config.BLOBSTORE_GS_RETRIES is not None:
+        if Config.BLOBSTORE_RETRIES is not None:
             from requests.adapters import HTTPAdapter
             from requests.packages.urllib3.util.retry import Retry
-            retry = Retry(total=Config.BLOBSTORE_GS_RETRIES,
+            retry = Retry(total=Config.BLOBSTORE_RETRIES,
                           backoff_factor=0.3,
                           status_forcelist=(500, 502, 504)
                           )

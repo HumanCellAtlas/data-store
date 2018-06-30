@@ -59,20 +59,20 @@ class TestConfig(unittest.TestCase):
         Config.get_native_handle.cache_clear()
         Config.BLOBSTORE_CONNECT_TIMEOUT = 1
         Config.BLOBSTORE_READ_TIMEOUT = 2
-        Config.BLOBSTORE_BOTO_RETRIES = 3
+        Config.BLOBSTORE_RETRIES = 3
 
         client_config = Config.get_native_handle(Replica.aws)._client_config
         self.assertEqual(Config.BLOBSTORE_CONNECT_TIMEOUT, client_config.connect_timeout)
         self.assertEqual(Config.BLOBSTORE_READ_TIMEOUT, client_config.read_timeout)
-        self.assertEqual(Config.BLOBSTORE_BOTO_RETRIES, client_config.retries['max_attempts'])
+        self.assertEqual(Config.BLOBSTORE_RETRIES, client_config.retries['max_attempts'])
 
     def test_gcloud_reties(self):
         Config.get_native_handle.cache_clear()
-        Config.BLOBSTORE_GS_RETRIES = 1
+        Config.BLOBSTORE_RETRIES = 1
 
         handle = Config.get_native_handle(Replica.gcp)
         for adapter in handle._http.adapters.values():
-            self.assertEqual(Config.BLOBSTORE_GS_RETRIES, adapter.max_retries.total)
+            self.assertEqual(Config.BLOBSTORE_RETRIES, adapter.max_retries.total)
 
 
 if __name__ == '__main__':
