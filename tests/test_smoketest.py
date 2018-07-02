@@ -110,11 +110,10 @@ class Smoketest(unittest.TestCase):
 
         os.chdir(self.workdir.name)
 
-        # Create a subscription for each replica using the query
-        #
         s3 = boto3.client('s3', config=botocore.client.Config(signature_version='s3v4'))
         notifications_proofs = {}
         for replica in self.replicas:
+            print(f"{starting_replica}: Create a subscription for replica {replica} using the query")
             notification_key = f'notifications/{uuid.uuid4()}'
             url = s3.generate_presigned_url(ClientMethod='put_object',
                                             Params=dict(Bucket=self.notification_bucket,
@@ -138,8 +137,7 @@ class Smoketest(unittest.TestCase):
             list_response = run_for_json(f"{self.venv_bin}hca dss get-subscriptions --replica {replica.name}")
             self.assertIn(get_response, list_response['subscriptions'])
 
-        # Create the bundle
-        #
+        print(f"{starting_replica}: Create the bundle")
         res = run_for_json(f"{self.venv_bin}hca dss upload "
                            f"--replica {starting_replica.name} "
                            f"--staging-bucket {test_bucket} "
@@ -148,20 +146,17 @@ class Smoketest(unittest.TestCase):
         bundle_version = res['version']
         file_count = len(res['files'])
 
-        # Download that bundle
-        #
+        print(f"{starting_replica}: Download that bundle")
         run(f"{self.venv_bin}hca dss download --replica {starting_replica.name} --bundle-uuid {bundle_uuid}")
 
-        # Initiate a bundle checkout
-        #
+        print(f"{starting_replica}: Initiate a bundle checkout")
         res = run_for_json(f"{self.venv_bin}hca dss post-bundles-checkout --uuid {bundle_uuid} "
                            f"--replica {starting_replica.name}")
         checkout_job_id = res['checkout_job_id']
         print(f"Checkout jobId: {checkout_job_id}")
         self.assertTrue(checkout_job_id)
 
-        # Wait for the bundle to appear in the other replicas
-        #
+        print(f"{starting_replica}: Wait for the bundle to appear in the other replicas")
         other_replicas = self.replicas - {starting_replica}
         for replica in other_replicas:
             for i in range(10):
@@ -175,21 +170,18 @@ class Smoketest(unittest.TestCase):
             else:
                 parser.exit(RED(f"Failed to replicate bundle from {starting_replica} to {replica.name}"))
 
-            # Download bundle from other replica
-            #
+            print(f"{starting_replica}: Download bundle from other replica")
             run(f"{self.venv_bin}hca dss download --replica {replica.name} --bundle-uuid {bundle_uuid}")
 
         for replica in self.replicas:
-            # Hit search route directly against each replica
-            #
+            print(f"{starting_replica}: Hit search route directly against each replica {replica}")
             search_route = "https://${API_DOMAIN_NAME}/v1/search"
             res = run_for_json(f'http --check {search_route} replica=={replica.name}',
                                input=json.dumps({'es_query': query}).encode())
             print(json.dumps(res, indent=4))
             self.assertEqual(len(res['results']), 1)
 
-        # Wait for the checkout to complete and assert its success
-        #
+        print(f"{starting_replica}: Wait for the checkout to complete and assert its success")
         for i in range(10):
             res = run_for_json(f"{self.venv_bin}hca dss get-bundles-checkout --checkout-job-id {checkout_job_id} "
                                f"--replica {starting_replica.name}")
@@ -209,8 +201,7 @@ class Smoketest(unittest.TestCase):
         else:
             self.fail("Timed out waiting for checkout job to succeed")
 
-        # Check the notifications
-        #
+        print(f"{starting_replica}: Check the notifications")
         for replica, (subscription_id, notification_key) in notifications_proofs.items():
             obj = s3.get_object(Bucket=self.notification_bucket, Key=notification_key)
             notification = json.load(obj['Body'])
@@ -223,8 +214,7 @@ class Smoketest(unittest.TestCase):
             with self.subTest(param['starting_replica'].name):
                 self.smoketest(**param)
 
-                # Run a CLI search against the replicas
-                #
+                print("{replica}: Run a CLI search.")
                 run(f"{self.venv_bin}hca dss post-search --es-query='{{}}' "
                     f"--replica {param['starting_replica'].name} > /dev/null")
 
