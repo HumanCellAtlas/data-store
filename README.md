@@ -1,3 +1,7 @@
+[![](https://img.shields.io/badge/slack-%23data--store-557EBF.svg)](https://humancellatlas.slack.com/messages/data-store/)
+[![Build Status](https://travis-ci.com/HumanCellAtlas/data-store.svg?branch=master)](https://travis-ci.com/HumanCellAtlas/data-store)
+[![codecov](https://codecov.io/gh/HumanCellAtlas/data-store/branch/master/graph/badge.svg)](https://codecov.io/gh/HumanCellAtlas/data-store)
+
 # HCA DSS: The Human Cell Atlas Data Storage System
 
 This repository contains design specs and prototypes for the replicated data storage system (aka the "blue box") of
@@ -359,7 +363,3 @@ test-deploy-test cycle after this (the test after the deploy is required to test
 AWS Xray tracing is used for profiling the performance of deployed lambdas. This can be enabled for `chalice/app.py` by 
 setting the lambda environment variable `DSS_XRAY_TRACE=1`. For all other daemons you must also check 
 "Enable active tracking" under "Debugging and error handling" in the AWS Lambda console.
-
-[![](https://img.shields.io/badge/slack-%23data--store-557EBF.svg)](https://humancellatlas.slack.com/messages/data-store/)
-[![Build Status](https://travis-ci.com/HumanCellAtlas/data-store.svg?branch=master)](https://travis-ci.com/HumanCellAtlas/data-store)
-[![codecov](https://codecov.io/gh/HumanCellAtlas/data-store/branch/master/graph/badge.svg)](https://codecov.io/gh/HumanCellAtlas/data-store)
