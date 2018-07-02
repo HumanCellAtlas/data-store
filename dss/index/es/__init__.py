@@ -85,6 +85,7 @@ class ElasticsearchClient:
                                    http_auth=es_auth)
         else:
             client = Elasticsearch(hosts=[dict(host=host, port=port)],
+                                   timeout=timeout,
                                    use_ssl=False)
         return client
 
