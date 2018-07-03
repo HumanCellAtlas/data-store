@@ -109,7 +109,7 @@ class DispatchFilter(logging.Filter):
         return False if '[dispatch]' in record.msg else True
 
 
-def get_json_log_handler():
+def _get_json_log_handler():
     log_handler = logging.StreamHandler(stream=sys.stderr)
     log_handler.setFormatter(DSSJsonFormatter())
     return log_handler
@@ -119,24 +119,24 @@ def configure_cli_logging():
     """
     Prepare logging for use in a command line application.
     """
-    log_handler = get_json_log_handler()
-    _configure_logging(handlers=[log_handler])
+    _configure_logging(handlers=[_get_json_log_handler()])
 
 
 def configure_lambda_logging():
     """
     Prepare logging for use within a AWS Lambda function.
     """
-    log_handler = get_json_log_handler()
-    _configure_logging(handlers=[log_handler])
+    _configure_logging(handlers=[_get_json_log_handler()])
 
 
 def configure_test_logging(log_levels: Optional[log_level_t] = None, **kwargs):
     """
     Configure logging for use during unit tests.
     """
-    log_handler = get_json_log_handler()
-    _configure_logging(test=True, handlers=[log_handler], log_levels=log_levels, **kwargs)
+    _configure_logging(test=True,
+                       handlers=[_get_json_log_handler()],
+                       log_levels=log_levels,
+                       **kwargs)
 
 
 _logging_configured = False
