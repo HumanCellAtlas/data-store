@@ -40,9 +40,7 @@ def post(json_request_body: dict,
     logger.debug("Received POST for replica=%s, es_query=%s, per_page=%i, search_after: %s",
                  replica_enum.name, json.dumps(es_query, indent=4), per_page, search_after)
 
-    # TODO: (tsmith12) determine if a search operation timeout limit is needed
     # TODO: (tsmith12) allow users to retrieve previous search results
-    # TODO: (tsmith12) if page returns 0 hits, then all results have been found. delete search id
     try:
         page = _es_search_page(es_query, replica_enum, per_page, search_after, output_format)
         request_dict = _format_request_body(page, es_query, replica_enum, output_format)
