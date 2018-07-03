@@ -57,28 +57,28 @@ def post(json_request_body: dict,
         return response
     except TransportError as ex:
         if ex.status_code == requests.codes.bad_request:
-            logger.debug("Invalid Query Received.", exc_info=ex, stack_info=True)
+            logger.debug("Invalid Query Received.", exc_info=ex)
             raise DSSException(requests.codes.bad_request,
                                "elasticsearch_bad_request",
                                f"Invalid Elasticsearch query was received: {str(ex)}")
         elif ex.status_code == requests.codes.not_found:
-            logger.debug("Search Context Error.", exc_info=ex, stack_info=True)
+            logger.debug("Search Context Error.", exc_info=ex)
             raise DSSException(requests.codes.not_found,
                                "elasticsearch_context_not_found",
                                "Elasticsearch context has returned all results or timeout has expired.")
         elif ex.status_code == 'N/A':
-            logger.error("Elasticsearch Invalid Endpoint.", exc_info=ex, stack_info=True)
+            logger.error("Elasticsearch Invalid Endpoint.", exc_info=ex)
             raise DSSException(requests.codes.service_unavailable,
                                "service_unavailable",
                                "Elasticsearch reached an invalid endpoint. Try again later.")
         else:
-            logger.error("Elasticsearch Internal Server Error.", exc_info=ex, stack_info=True)
+            logger.error("Elasticsearch Internal Server Error.", exc_info=ex)
             raise DSSException(requests.codes.internal_server_error,
                                "internal_server_error",
                                "Elasticsearch Internal Server Error")
 
     except ElasticsearchException as ex:
-        logger.error("Elasticsearch Internal Server Error.", exc_info=ex, stack_info=True)
+        logger.error("Elasticsearch Internal Server Error.", exc_info=ex)
         raise DSSException(requests.codes.internal_server_error,
                            "internal_server_error",
                            "Elasticsearch Internal Server Error")

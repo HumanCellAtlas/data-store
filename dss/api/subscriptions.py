@@ -106,7 +106,7 @@ def put(json_request_body: dict, replica: str):
         try:
             percolate_registration = _register_percolate(es_client, doc_index, uuid, es_query, replica)
         except ElasticsearchException as ex:
-            logger.debug("Exception occured when registering a document to an index", exc_info=ex, stack_info=True)
+            logger.debug("Exception occured when registering a document to an index", exc_info=ex)
             last_ex = ex
         else:
             logger.debug("Percolate query registration succeeded.",
@@ -119,7 +119,7 @@ def put(json_request_body: dict, replica: str):
         logger.critical("Percolate query registration failed.",
                         extra={'owner': owner, 'uuid': uuid,
                                'replica': replica, 'es_query': es_query},
-                        exc_info=last_ex, stack_info=True)
+                        exc_info=last_ex)
         raise DSSException(requests.codes.internal_server_error,
                            "elasticsearch_error",
                            "Unable to register elasticsearch percolate query!") from last_ex
@@ -131,7 +131,7 @@ def put(json_request_body: dict, replica: str):
         logger.debug("Event Subscription succeeded", extra={'subscription_registration': subscription_registration})
     except ElasticsearchException as ex:
         logger.critical("Event Subscription failed", extra={'owner': owner, 'uuid': uuid, 'replica': replica},
-                        exc_info=last_ex, stack_info=True)
+                        exc_info=last_ex)
 
         # Delete percolate query to make sure queries and subscriptions are in sync.
         doc_indexes = _get_indexes_by_alias(es_client, alias_name)
