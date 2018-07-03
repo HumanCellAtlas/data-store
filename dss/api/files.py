@@ -143,18 +143,16 @@ def _verify_checkout(
 
 
 @dss_handler
-def put(uuid: str, json_request_body: dict, version: str=None):
+def put(uuid: str, json_request_body: dict, version: str):
     class CopyMode(Enum):
         NO_COPY = auto()
         COPY_INLINE = auto()
         COPY_ASYNC = auto()
 
     uuid = uuid.lower()
-    if version is not None:
-        # convert it to date-time so we can format exactly as the system requires (with microsecond precision)
-        timestamp = iso8601.parse_date(version)
-    else:
-        timestamp = datetime.datetime.utcnow()
+
+    # convert it to date-time so we can format exactly as the system requires (with microsecond precision)
+    timestamp = iso8601.parse_date(version)
     version = datetime_to_version_format(timestamp)
 
     source_url = json_request_body['source_url']

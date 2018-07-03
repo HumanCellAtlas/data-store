@@ -2,7 +2,7 @@ swagger: '2.0'
 info:
   title: HCA DCP DSS API
   description: Human Cell Atlas Data Coordination Platform Data Storage System API
-  version: "0.0.1"
+  version: "0.0.2"
 host: {{API_DOMAIN_NAME}}
 schemes:
   - https
@@ -291,7 +291,7 @@ paths:
         - name: version
           in: query
           description: Timestamp of file creation in RFC3339.  If this is not provided, the latest version is returned.
-          required: false
+          required: true
           type: string
           format: date-time
         - name: json_request_body
@@ -1056,7 +1056,7 @@ paths:
         - name: version
           in: query
           description: Timestamp of bundle creation in RFC3339.
-          required: false
+          required: true
           type: string
           format: date-time
         - name: replica

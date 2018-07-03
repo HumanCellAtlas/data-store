@@ -219,7 +219,6 @@ class TestBundleApi(unittest.TestCase, DSSAssertMixin, DSSUploadMixin):
 
     def _test_bundle_put(self, replica: Replica, fixtures_bucket: str):
         schema = replica.storage_schema
-
         bundle_uuid = str(uuid.uuid4())
         file_uuid = str(uuid.uuid4())
         missing_file_uuid = str(uuid.uuid4())
@@ -231,7 +230,7 @@ class TestBundleApi(unittest.TestCase, DSSAssertMixin, DSSUploadMixin):
         )
         file_version = resp_obj.json['version']
 
-        # first bundle.
+        print('first bundle.')
         bundle_version = datetime_to_version_format(datetime.datetime.utcnow())
         self.put_bundle(
             replica,
@@ -240,7 +239,7 @@ class TestBundleApi(unittest.TestCase, DSSAssertMixin, DSSUploadMixin):
             bundle_version,
         )
 
-        # should be able to do this twice (i.e., same payload, same UUIDs)
+        print('should be able to do this twice (i.e., same payload, same UUIDs)')
         self.put_bundle(
             replica,
             bundle_uuid,
@@ -249,7 +248,7 @@ class TestBundleApi(unittest.TestCase, DSSAssertMixin, DSSUploadMixin):
             requests.codes.ok,
         )
 
-        # should *NOT* be able to do this twice with different payload.
+        print('should *NOT* be able to do this twice with different payload.')
         self.put_bundle(
             replica,
             bundle_uuid,
@@ -258,8 +257,18 @@ class TestBundleApi(unittest.TestCase, DSSAssertMixin, DSSUploadMixin):
             requests.codes.conflict,
         )
 
-        # should *NOT* be able to upload a bundle with a missing file, but we should get requests.codes.conflict.
+        print('should *NOT* be abke to this without bundle version.')
+        bundle_version = datetime_to_version_format(datetime.datetime.utcnow())
+        self.put_bundle(
+            replica,
+            bundle_uuid,
+            [(file_uuid, file_version, "LICENSE")],
+            expected_code=requests.codes.bad_request
+        )
+
+        print('should *NOT* be able to upload a bundle with a missing file, but we should get requests.codes.conflict.')
         with nestedcontext.bind(time_left=lambda: 0):
+            bundle_version = datetime_to_version_format(datetime.datetime.utcnow())
             resp_obj = self.put_bundle(
                 replica,
                 bundle_uuid,
@@ -267,11 +276,12 @@ class TestBundleApi(unittest.TestCase, DSSAssertMixin, DSSUploadMixin):
                     (file_uuid, file_version, "LICENSE0"),
                     (missing_file_uuid, file_version, "LICENSE1"),
                 ],
-                expected_code=requests.codes.conflict,
+                bundle_version,
+                expected_code=requests.codes.conflict
             )
             self.assertEqual(resp_obj.json['code'], "file_missing")
 
-        # uploads a file, but delete the file metadata. put it back after a delay.
+        print('uploads a file, but delete the file metadata. put it back after a delay.')
         self.upload_file_wait(
             f"{schema}://{fixtures_bucket}/test_good_source_data/0",
             replica,
@@ -290,7 +300,7 @@ class TestBundleApi(unittest.TestCase, DSSAssertMixin, DSSUploadMixin):
                 data_fh = io.BytesIO(file_metadata)
                 handle.upload_file_handle(bucket, f"files/{missing_file_uuid}.{file_version}", data_fh)
 
-        # start the upload (on a delay...)
+        print('start the upload (on a delay...)')
         upload_thread = UploadThread()
         upload_thread.start()
 
@@ -298,6 +308,7 @@ class TestBundleApi(unittest.TestCase, DSSAssertMixin, DSSUploadMixin):
         # metadata.  since we give the upload bundle process ample time to spin, it should eventually find the file
         # metadata and succeed.
         with nestedcontext.bind(time_left=lambda: sys.maxsize):
+            bundle_version = datetime_to_version_format(datetime.datetime.utcnow())
             self.put_bundle(
                 replica,
                 bundle_uuid,
@@ -305,6 +316,7 @@ class TestBundleApi(unittest.TestCase, DSSAssertMixin, DSSUploadMixin):
                     (file_uuid, file_version, "LICENSE0"),
                     (missing_file_uuid, file_version, "LICENSE1"),
                 ],
+                bundle_version,
                 expected_code=requests.codes.created,
             )
 

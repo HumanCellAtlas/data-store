@@ -112,13 +112,10 @@ def post():
 
 
 @dss_handler
-def put(uuid: str, replica: str, json_request_body: dict, version: str = None):
+def put(uuid: str, replica: str, json_request_body: dict, version: str):
     uuid = uuid.lower()
-    if version is not None:
-        # convert it to date-time so we can format exactly as the system requires (with microsecond precision)
-        timestamp = iso8601.parse_date(version)
-    else:
-        timestamp = datetime.datetime.utcnow()
+    # convert it to date-time so we can format exactly as the system requires (with microsecond precision)
+    timestamp = iso8601.parse_date(version)
     version = datetime_to_version_format(timestamp)
 
     handle = Config.get_blobstore_handle(Replica[replica])
