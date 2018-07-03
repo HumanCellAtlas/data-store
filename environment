@@ -113,6 +113,8 @@ DSS_GS_BUCKET_REGION=""
 DSS_GS_BUCKET_TEST_REGION="US-EAST1"
 DSS_GS_BUCKET_TEST_FIXTURES_REGION="US-EAST1"
 
+AWS_SDK_LOAD_CONFIG=1 # Needed for Terraform to correctly use AWS assumed roles
+
 set +a
 
 if [[ -f "${DSS_HOME}/environment.local" ]]; then

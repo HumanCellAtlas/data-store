@@ -21,6 +21,7 @@ terraform_backend_template = """terraform {{
     bucket = "{bucket}"
     key = "dss-{comp}-{stage}.tfstate"
     region = "{region}"
+    {profile_setting}
   }}
 }}
 """
@@ -83,12 +84,18 @@ for key in env_vars_to_infra:
     }
 
 with open(os.path.join(infra_root, args.component, "backend.tf"), "w") as fp:
-    info = boto3.client("sts").get_caller_identity()
+    caller_info = boto3.client("sts").get_caller_identity()
+    if os.environ.get('AWS_PROFILE'):
+        profile = os.environ['AWS_PROFILE']
+        profile_setting = f'profile = "{profile}"'
+    else:
+        profile_setting = ''
     fp.write(terraform_backend_template.format(
-        bucket=os.environ['DSS_TERRAFORM_BACKEND_BUCKET_TEMPLATE'].format(account_id=info['Account']),
+        bucket=os.environ['DSS_TERRAFORM_BACKEND_BUCKET_TEMPLATE'].format(account_id=caller_info['Account']),
         comp=args.component,
         stage=os.environ['DSS_DEPLOYMENT_STAGE'],
         region=os.environ['AWS_DEFAULT_REGION'],
+        profile_setting=profile_setting,
     ))
 
 with open(os.path.join(infra_root, args.component, "variables.tf"), "w") as fp:
