@@ -4,6 +4,7 @@ import json
 import urllib
 import requests
 import argparse
+from functools import wraps
 
 
 """
@@ -60,10 +61,11 @@ def parse_paging_header(headers):
 
 
 def max_items(max_items=50):
-    def decorate(func):
+    def decorate(meth):
+        @wraps(meth)
         def wrapped(*args, **kwargs):
             count = 0
-            for it in func(*args, **kwargs):
+            for it in meth(*args, **kwargs):
                 yield it
                 count += 1
                 if count >= max_items:
