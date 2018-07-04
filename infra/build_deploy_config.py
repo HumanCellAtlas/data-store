@@ -31,6 +31,15 @@ provider aws {{
   region = "{aws_region}"
 }}
 
+# To use an ACM Certificate with Amazon CloudFront, you must request or import the certificate
+# in the US East (N. Virginia) region:
+# https://docs.aws.amazon.com/acm/latest/userguide/acm-regions.html
+# - Brian Hannafious, 07/04/2018
+provider aws {{
+  region = "us-east-1"
+  alias = "us-east-1"
+}}
+
 provider google {{
   project = "{gcp_project_id}"
 }}
