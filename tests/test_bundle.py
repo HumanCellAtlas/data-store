@@ -257,7 +257,7 @@ class TestBundleApi(unittest.TestCase, DSSAssertMixin, DSSUploadMixin):
             requests.codes.conflict,
         )
 
-        print('should *NOT* be abke to this without bundle version.')
+        print('should *NOT* be able to do this without bundle version.')
         bundle_version = datetime_to_version_format(datetime.datetime.utcnow())
         self.put_bundle(
             replica,
