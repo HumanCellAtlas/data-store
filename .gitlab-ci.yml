@@ -18,7 +18,7 @@ stages:
   - deploy_dev
 
 before_script:
-  - apt-get update -q -y
+  - apt-get update --quiet --assume-yes
   - apt-get --assume-yes install jq moreutils gettext zip unzip
   - python -V
   - pip -V

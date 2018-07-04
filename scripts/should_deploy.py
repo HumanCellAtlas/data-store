@@ -208,11 +208,11 @@ def should_deploy_dev():
     repo = "data-store"
     branch = "master"
 
-    GH = GitHub(owner, repo)
-    GL = GitLab(owner, repo)
+    gh_client = GitHub(owner, repo)
+    gl_client = GitLab(owner, repo)
 
-    gitlab_latest = GL.latest_commit(branch)
-    github_latest = GH.latest_commit(branch)
+    gitlab_latest = gl_client.latest_commit(branch)
+    github_latest = gh_client.latest_commit(branch)
 
     info = f"{owner} {repo} {branch}"
 
@@ -221,18 +221,20 @@ def should_deploy_dev():
 
     sha = gitlab_latest
 
-    for b in GL.builds_for_commit(branch, gitlab_latest):
+    for b in gl_client.builds_for_commit(branch, gitlab_latest):
         raise Exception(f"Build already attempted: {info} {sha}")
 
     integration_build_state = None
     unit_tests_build_state = None
     for b in Travis(owner, repo).builds_for_commit(branch, github_latest):
         if b['commit']['message'].startswith("Integration"):
-            integration_build_state = b['state']
+            if integration_build_state is None:
+                integration_build_state = b['state']
         else:
-            unit_tests_build_state = b['state']
+            if unit_tests_build_state is None:
+                unit_tests_build_state = b['state']
 
-        if integration_build_state is None and unit_tests_build_state is None:
+        if integration_build_state and unit_tests_build_state:
             break
 
     if "passed" != unit_tests_build_state:
