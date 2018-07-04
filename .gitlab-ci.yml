@@ -1,0 +1,48 @@
+image: python:3.6
+
+cache:
+  paths:
+  - chalice/.chalice/venv
+  - daemons/dss-sync/.chalice/venv
+  - daemons/dss-index/.chalice/venv
+
+variables:
+  ES_VERSION: 5.4.2
+  ES_DOWNLOAD_URL: https://artifacts.elastic.co/downloads/elasticsearch/elasticsearch-${ES_VERSION}.tar.gz
+  DSS_TEST_ES_PATH: ./elasticsearch-${ES_VERSION}/bin/elasticsearch
+  DSS_ES_TIMEOUT: 30
+  DSS_UNITTEST_OPTS: "-v"
+  TERRAFORM_APPLY_ARGS: "-auto-approve"
+
+stages:
+  - deploy_dev
+
+before_script:
+  - apt-get update --quiet --assume-yes
+  - apt-get --assume-yes install jq moreutils gettext zip unzip
+  - python -V
+  - pip -V
+  - pip install virtualenv
+  - virtualenv venv
+  - source venv/bin/activate
+  - pip install -r requirements-dev.txt
+  - wget -q ${ES_DOWNLOAD_URL}
+  - tar -xzf elasticsearch-${ES_VERSION}.tar.gz
+  - wget -q http://us-east-1.ec2.archive.ubuntu.com/ubuntu/pool/main/m/make-dfsg/make_4.1-6_amd64.deb
+  - mkdir make4
+  - dpkg -x make*.deb make4
+  - wget -q https://releases.hashicorp.com/terraform/0.11.7/terraform_0.11.7_linux_amd64.zip
+  - unzip terraform_0.11.7_linux_amd64.zip -d make4/usr/bin
+  - export PATH=$(pwd)/make4/usr/bin:$PATH
+  - source environment
+  - aws secretsmanager get-secret-value --secret-id ${DSS_SECRETS_STORE}/${DSS_DEPLOYMENT_STAGE}/gcp-credentials.json | jq -r .SecretString > gcp-credentials.json
+  - export GOOGLE_APPLICATION_CREDENTIALS=$(pwd -P)/gcp-credentials.json
+
+deploy_dev:
+  stage: deploy_dev
+  script:
+     - scripts/should_deploy.py --stage dev
+#    - make -C infra apply-all
+#    - make deploy
+  only:
+    - schedules
