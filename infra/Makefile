@@ -5,22 +5,22 @@ all: init-all
 
 init-all:
 	@for c in $(COMPONENTS); do \
-		$(MAKE)	init COMPONENT=$$c; \
+		$(MAKE)	init COMPONENT=$$c || exit 1; \
 	done
 
 apply-all:
 	@for c in $(COMPONENTS); do \
-		$(MAKE)	apply COMPONENT=$$c; \
+		$(MAKE)	apply COMPONENT=$$c || exit 1; \
 	done
 
 destroy-all:
 	@for c in $(COMPONENTS); do \
-		$(MAKE)	destroy COMPONENT=$$c; \
+		$(MAKE)	destroy COMPONENT=$$c || exit 1; \
 	done
 
 clean-all:
 	@for c in $(COMPONENTS); do \
-		$(MAKE)	clean COMPONENT=$$c; \
+		$(MAKE)	clean COMPONENT=$$c || exit 1; \
 	done
 
 apply: init
