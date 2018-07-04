@@ -60,7 +60,7 @@ def parse_paging_header(headers):
     return None
 
 
-def max_items(max_items=50):
+def limited_iter(limited_iter=50):
     def decorate(meth):
         @wraps(meth)
         def wrapped(*args, **kwargs):
@@ -68,25 +68,26 @@ def max_items(max_items=50):
             for it in meth(*args, **kwargs):
                 yield it
                 count += 1
-                if count >= max_items:
+                if count >= limited_iter:
                     break
         return wrapped
     return decorate
 
 
-class GitHub: 
-    url = "https://api.github.com"
-
-    def __init__(self, owner, repo):
+class _CommonClient:
+    def __init__(self, token, owner, repo):
+        self.token = token
         self.owner = owner
         self.repo = repo
 
-    def _request(self, href, params=None):
-        token = os.environ['GITHUB_TOKEN']
 
+class GitHub(_CommonClient): 
+    url = "https://api.github.com"
+
+    def _request(self, href, params=None):
         headers = {
             "Accept": "application/vnd.github.v3+json",
-            "Authorization": f"token {token}",
+            "Authorization": f"token {self.token}",
         }
 
         if params is None:
@@ -98,58 +99,50 @@ class GitHub:
             yield json.loads(page.text)
             req_url = parse_paging_header(page.headers)
 
-    @max_items()
+    @limited_iter()
     def commits(self, branch):
         owner = urllib.parse.quote_plus(self.owner)
         repo = urllib.parse.quote_plus(self.repo)
         for page in self._request(f"/repos/{owner}/{repo}/commits", dict(sha=branch)):
-            for c in page:
-                yield c
+            for p in page:
+                yield p
 
     def latest_commit(self, branch):
         for c in self.commits(branch):
             return c['sha']
 
 
-class Travis:
+class Travis(_CommonClient):
     url = "https://api.travis-ci.com"
 
-    def __init__(self, owner, repo):
-        self.owner = owner
-        self.repo = repo
-
     def _request(self, href, params=None):
-        token = os.environ['TRAVIS_TOKEN']
         headers = {
             "Travis-API-Version": "3",
-            "Authorization": f"token {token}"
+            "Authorization": f"token {self.token}"
         }
 
         if params is None:
             params = dict()
         
-        resp = requests.get(self.url + href, headers=headers, params=params)
-        return json.loads(resp.text)
-
-    @max_items()
-    def builds(self, branch=None):
-        repo_slug = urllib.parse.quote_plus(f"{self.owner}/{self.repo}")
-        href = f"/repo/{repo_slug}/builds"
-
-        params = {}
-        if branch is not None:
-            params["branch.name"] = branch
-    
         while href:
-            resp = self._request(href, params)
-    
-            for b in resp['builds']:
-                yield b
-    
+            resp = requests.get(self.url + href, headers=headers, params=params)
+            resp = json.loads(resp.text)
+            yield resp
             try:
                 href = resp['@pagination']['next']['@href']
             except KeyError:
                 raise StopIteration
+
+    @limited_iter()
+    def builds(self, branch):
+        repo_slug = urllib.parse.quote_plus(f"{self.owner}/{self.repo}")
+        href = f"/repo/{repo_slug}/builds"
+
+        params = {'branch.name': branch}
+
+        for page in self._request(href, params):
+            for p in page['builds']:
+                yield p
 
     def builds_for_branch(self, branch):
         return self.builds(branch)
@@ -160,16 +153,11 @@ class Travis:
                 yield b
 
 
-class GitLab:
+class GitLab(_CommonClient):
     url = "https://allspark.dev.data.humancellatlas.org/api/v4"
 
-    def __init__(self, owner, repo):
-        self.owner = owner
-        self.repo = repo
-
     def _request(self, href, params=None):
-        token = os.environ['GITLAB_TOKEN']
-        headers = {"PRIVATE-TOKEN": token}
+        headers = {"PRIVATE-TOKEN": self.token}
 
         if params is None:
             params = dict()
@@ -180,25 +168,24 @@ class GitLab:
             yield json.loads(page.text)
             req_url = parse_paging_header(page.headers)
 
-    @max_items()
+    @limited_iter()
     def builds(self, branch):
         repo_slug = urllib.parse.quote_plus(f"{self.owner}/{self.repo}")
         for page in self._request(f"/projects/{repo_slug}/jobs", {"ref_name": branch}):
-            for c in page:
-                yield c
+            for p in page:
+                yield p
 
-    @max_items()
     def builds_for_commit(self, branch, sha):
         for b in self.builds(branch):
             if b['commit']['id'] == sha:
                 yield b
 
-    @max_items()
+    @limited_iter()
     def commits(self, branch):
         repo_slug = urllib.parse.quote_plus(f"{self.owner}/{self.repo}")
         for page in self._request(f"/projects/{repo_slug}/repository/commits", {"ref_name": branch}):
-            for c in page:
-                yield c
+            for p in page:
+                yield p
 
     def latest_commit(self, branch):
         for c in self.commits(branch):
@@ -210,8 +197,9 @@ def should_deploy_dev():
     repo = "data-store"
     branch = "master"
 
-    gh_client = GitHub(owner, repo)
-    gl_client = GitLab(owner, repo)
+    gh_client = GitHub(os.environ['GITHUB_TOKEN'], owner, repo)
+    gl_client = GitLab(os.environ['GITLAB_TOKEN'], owner, repo)
+    travis_client = Travis(os.environ['TRAVIS_TOKEN'], owner, repo)
 
     gitlab_latest = gl_client.latest_commit(branch)
     github_latest = gh_client.latest_commit(branch)
@@ -228,7 +216,8 @@ def should_deploy_dev():
 
     integration_build_state = None
     unit_tests_build_state = None
-    for b in Travis(owner, repo).builds_for_commit(branch, github_latest):
+    for b in travis_client.builds_for_commit(branch, github_latest):
+        
         if b['commit']['message'].startswith("Integration"):
             if integration_build_state is None:
                 integration_build_state = b['state']
@@ -245,7 +234,9 @@ def should_deploy_dev():
     if "passed" != integration_build_state:
         raise Exception(f"Integration tests have not passed: {info} {sha}")
 
+    
 if args.stage == "dev":
     should_deploy_dev()
+    print("OK to deploy `dev`")
 else:
     raise Exception(f"Should not deploy stage {args.stage}")
