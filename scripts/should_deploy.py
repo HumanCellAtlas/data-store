@@ -46,34 +46,6 @@ parser.add_argument("--stage", required=True)
 args = parser.parse_args()
 
 
-def parse_paging_header(headers):
-    try:
-        linktext = headers['Link']
-    except KeyError:
-        return None
-
-    for link in linktext.split(","):
-        link_dest = link.split(";")[1]
-        if "next" in link_dest:
-            return link.split("<")[1].split(">")[0] 
-
-    return None
-
-
-def limited_iter(limited_iter=50):
-    def decorate(meth):
-        @wraps(meth)
-        def wrapped(*args, **kwargs):
-            count = 0
-            for it in meth(*args, **kwargs):
-                yield it
-                count += 1
-                if count >= limited_iter:
-                    break
-        return wrapped
-    return decorate
-
-
 class _CommonClient:
     def __init__(self, token, owner, repo):
         self.token = token
@@ -94,22 +66,16 @@ class GitHub(_CommonClient):
             params = dict()
 
         req_url = self.url + href
-        while req_url:
-            page = requests.get(req_url, headers=headers, params=params)
-            yield json.loads(page.text)
-            req_url = parse_paging_header(page.headers)
+        resp = requests.get(req_url, headers=headers, params=params)
+        return json.loads(resp.text)
 
-    @limited_iter()
     def commits(self, branch):
         owner = urllib.parse.quote_plus(self.owner)
         repo = urllib.parse.quote_plus(self.repo)
-        for page in self._request(f"/repos/{owner}/{repo}/commits", dict(sha=branch)):
-            for p in page:
-                yield p
+        return self._request(f"/repos/{owner}/{repo}/commits", dict(sha=branch))
 
     def latest_commit(self, branch):
-        for c in self.commits(branch):
-            return c['sha']
+        return self.commits(branch)[0]['sha']
 
 
 class Travis(_CommonClient):
@@ -124,37 +90,25 @@ class Travis(_CommonClient):
         if params is None:
             params = dict()
         
-        while href:
-            resp = requests.get(self.url + href, headers=headers, params=params)
-            resp = json.loads(resp.text)
-            yield resp
-            try:
-                href = resp['@pagination']['next']['@href']
-            except KeyError:
-                raise StopIteration
+        resp = requests.get(self.url + href, headers=headers, params=params)
+        return json.loads(resp.text)
 
-    @limited_iter()
     def builds(self, branch):
         repo_slug = urllib.parse.quote_plus(f"{self.owner}/{self.repo}")
         href = f"/repo/{repo_slug}/builds"
-
         params = {'branch.name': branch}
-
-        for page in self._request(href, params):
-            for p in page['builds']:
-                yield p
+        return self._request(href, params)['builds']
 
     def builds_for_branch(self, branch):
         return self.builds(branch)
 
     def builds_for_commit(self, branch, sha):
-        for b in self.builds(branch):
-            if b['commit']['sha'] == sha:
-                yield b
+        return [b for b in self.builds(branch)
+                if b['commit']['sha'] == sha]
 
 
 class GitLab(_CommonClient):
-    url = "https://allspark.dev.data.humancellatlas.org/api/v4"
+    url = os.environ['GITLAB_API_URL']
 
     def _request(self, href, params=None):
         headers = {"PRIVATE-TOKEN": self.token}
@@ -163,29 +117,20 @@ class GitLab(_CommonClient):
             params = dict()
         
         req_url = self.url + href
-        while req_url:
-            page = requests.get(req_url, headers=headers, params=params)
-            yield json.loads(page.text)
-            req_url = parse_paging_header(page.headers)
+        resp = requests.get(req_url, headers=headers, params=params)
+        return json.loads(resp.text)
 
-    @limited_iter()
     def builds(self, branch):
         repo_slug = urllib.parse.quote_plus(f"{self.owner}/{self.repo}")
-        for page in self._request(f"/projects/{repo_slug}/jobs", {"ref_name": branch}):
-            for p in page:
-                yield p
+        return self._request(f"/projects/{repo_slug}/jobs", {"ref_name": branch})
 
     def builds_for_commit(self, branch, sha):
-        for b in self.builds(branch):
-            if b['commit']['id'] == sha:
-                yield b
+        return [b for b in self.builds(branch)
+                if b['commit']['id'] == sha]
 
-    @limited_iter()
     def commits(self, branch):
         repo_slug = urllib.parse.quote_plus(f"{self.owner}/{self.repo}")
-        for page in self._request(f"/projects/{repo_slug}/repository/commits", {"ref_name": branch}):
-            for p in page:
-                yield p
+        return self._request(f"/projects/{repo_slug}/repository/commits", {"ref_name": branch})
 
     def latest_commit(self, branch):
         for c in self.commits(branch):
