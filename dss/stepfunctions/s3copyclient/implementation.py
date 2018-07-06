@@ -3,14 +3,14 @@ import collections
 import concurrent.futures as futures
 
 import hashlib
-import threading
 import typing
 
 import boto3
 from cloud_blobstore.s3 import S3BlobStore
 
-from dss.api import files
 from dss.stepfunctions.lambdaexecutor import TimedThread
+from dss.storage.files import write_file_metadata
+from dss.util import parallel_worker
 from dss.util.aws import get_s3_chunk_size
 
 
@@ -55,17 +55,17 @@ def setup_copy_task(event, lambda_context):
         part_count += 1
     if part_count > 1:
         mpu = s3_blobstore.s3_client.create_multipart_upload(Bucket=destination_bucket, Key=destination_key)
-        upload_id = mpu['UploadId']
+        event[_Key.UPLOAD_ID] = mpu['UploadId']
+        event[Key.FINISHED] = False
     else:
         s3_blobstore.copy(source_bucket, source_key, destination_bucket, destination_key)
-        upload_id = None
+        event[_Key.UPLOAD_ID] = None
+        event[Key.FINISHED] = True
 
     event[_Key.SOURCE_ETAG] = source_etag
-    event[_Key.UPLOAD_ID] = upload_id
     event[_Key.SIZE] = source_size
     event[_Key.PART_SIZE] = part_size
     event[_Key.PART_COUNT] = part_count
-    event[Key.FINISHED] = False
 
     return event
 
@@ -110,18 +110,22 @@ def copy_worker(event, lambda_context, slice_num):
                 state[_Key.NEXT_PART],
                 state[_Key.LAST_PART] - state[_Key.NEXT_PART] + 1))
 
-            state_lock = threading.Lock()
+            if len(queue) == 0:
+                state[Key.FINISHED] = True
+                return state
 
-            with futures.ThreadPoolExecutor(max_workers=CONCURRENT_REQUESTS) as executor:
-                def copy_one_part(part_id):
-                    self.copy_one_part(part_id)
-                    with state_lock:
-                        if part_id >= state[_Key.NEXT_PART]:
-                            state[_Key.NEXT_PART] = part_id + 1
-                            self.save_state(state)
-                    return True
+            class ProgressReporter(parallel_worker.Reporter):
+                def report_progress(inner_self, first_incomplete: int):
+                    state[_Key.NEXT_PART] = first_incomplete
+                    self.save_state(state)
 
-                assert all(executor.map(copy_one_part, queue))
+            class CopyPartTask(parallel_worker.Task):
+                def run(inner_self, subtask_id: int) -> None:
+                    self.copy_one_part(subtask_id)
+
+            runner = parallel_worker.Runner(CONCURRENT_REQUESTS, CopyPartTask, queue, ProgressReporter())
+            results = runner.run()
+            assert all(results)
 
             state[Key.FINISHED] = True
             return state
@@ -300,7 +304,7 @@ def write_metadata(event, lambda_context):
     handle = S3BlobStore.from_environment()
 
     destination_bucket = event[Key.DESTINATION_BUCKET]
-    files.write_file_metadata(
+    write_file_metadata(
         handle,
         destination_bucket,
         event[CopyWriteMetadataKey.FILE_UUID],

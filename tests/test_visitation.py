@@ -3,6 +3,7 @@
 from bisect import bisect
 import copy
 import datetime
+from hashlib import sha256
 from itertools import chain
 import json
 import random
@@ -11,6 +12,7 @@ import time
 import logging
 import os
 import sys
+from types import SimpleNamespace
 import unittest
 import uuid
 
@@ -285,8 +287,11 @@ class TestIndexVisitation(unittest.TestCase):
 @testmode.integration
 class TestIntegration(unittest.TestCase):
 
-    def test_storage_verification(self):
-        self._test('storage', '--replica=aws', '--replica=gcp', 'verify')
+    def test_storage_verification_bundles(self):
+        self._test('storage', '--replica=aws', '--replica=gcp', '--prefix=423', 'verify', '--folder=bundles', '--quick')
+
+    def test_storage_verification_blobs(self):
+        self._test('storage', '--replica=aws', '--replica=gcp', '--prefix=423', 'verify', '--folder=blobs')
 
     def test_index_verification(self):
         self._test('index', '--replica=aws', '--prefix=42', 'verify')
@@ -307,7 +312,7 @@ class TestIntegration(unittest.TestCase):
         sfns = boto3.client('stepfunctions')
         execution = sfns.describe_execution(executionArn=arn)
         status = execution['status']
-        require(status in ('SUCCEEDED', 'RUNNING'), 'Unexpected execution status: {status}')
+        require(status in ('SUCCEEDED', 'RUNNING'), f'Unexpected execution status: {status}')
         self.assertIn('output', execution)
         return execution['output']
 
@@ -319,15 +324,24 @@ class TestConsistencyVisitation(unittest.TestCase):
     # Number of bundles in each mock replica
     num_keys = 9 * page_size + random.randint(-page_size, page_size)
     replicas = [r for r in Replica]
-    # Distance (in # of keys) between missing keys in each replica
+    # Distance (in # of keys) between missing keys in each replica. Also inverse of the frequency of keys with
+    # simulated errors in the name, metadata tags or content.
     key_drop_period = random.randint(10, 19)
     # How much time to give the walker for actually processing the bucket listings
     timeout = .1
     # Minimum number of walk() invocations per replica (assuming one worker)
     num_key_partitions = len(StorageVisitation.prefix_chars)
 
-    def setUp(self):
-        keys = sorted(f'bundles/{uuid.uuid4()}' for _ in range(self.num_keys))
+    # For blobs we'll only make the SHA-256 unique per key and assume constant values for the rest of the checksums
+    sha1 = '9d6f8f4cf29695ac34dc3622f0f18799e9813cdd'
+    s3_etag = '735c3985880aff4d54683fb34055a121'
+    crc32c = 'AB12F7BB'
+
+    def _setUp(self, folder):
+        keys = (uuid.uuid4() for _ in range(self.num_keys))
+        if folder == 'blobs':
+            keys = (f"{sha256(key.bytes).hexdigest()}.{self.sha1}.{self.s3_etag}.{self.crc32c.lower()}" for key in keys)
+        keys = sorted(f'{folder}/{key}' for key in keys)
         # Drop every n-th key from either replica, but don't drop a key from all replicas
         self.assertTrue(len(self.replicas) < self.key_drop_period)
         self.keys = {replica: [key for key in keys if hash(key) % self.key_drop_period != i]
@@ -339,17 +353,31 @@ class TestConsistencyVisitation(unittest.TestCase):
     def test(self, get_blobstore_handle, start_execution):
         start_execution.side_effect = self._start_execution
         get_blobstore_handle.side_effect = self._get_blobstore_handle
+        for quick in False, True:
+            for folder in 'blobs', 'files', 'bundles':
+                with self.subTest(quick=quick, folder=folder):
+                    self._setUp(folder)
+                    self._test(folder, quick)
+
+    def _test(self, folder, quick):
         visitation = StorageVisitation.start(number_of_workers=1,
                                              replicas=[replica.name for replica in self.replicas],
-                                             buckets=[None] * len(self.replicas))
+                                             buckets=[None] * len(self.replicas),
+                                             folder=folder,
+                                             quick=quick)
         # Assert the magic value returned from _start_execution to prove that it was invoked
         num_missing_keys = int(visitation['arn'])
         self.assertEquals(len(self.replicas) * self.num_keys - sum(map(len, self.keys.values())), num_missing_keys)
-        # Assert that there was more than one walk() invocation per key partition and replica
-        self.assertTrue(len(self.blobstore_mocks) > 2 * self.num_key_partitions * len(self.replicas))
-        # Assert that at least one key iteration had to be resumed from a token and a key
-        calls = chain.from_iterable(mock.mock_calls for mock in self.blobstore_mocks)
-        self.assertTrue(any(kwargs['start_after_key'] and kwargs['token'] for name, args, kwargs in calls))
+        # The mock blob listing is slowed down artificially once per initial walk() invocation. This should trigger
+        # one extra walk invocation per key partition and replica. Because other factors could also trigger a
+        # timeout, we can only assert a lower bound.
+        num_partitions = self.num_key_partitions * len(self.replicas)
+        self.assertGreaterEqual(len(self.blobstore_mocks), 2 * num_partitions)
+        # Each extra walk invocation should incur a resumption of the key iteration from a token (and usually a key
+        # passed to the `start_after_key` argument unless the resumption occurs on the first key of the listing).
+        calls = list(chain.from_iterable(mock.mock_calls for mock in self.blobstore_mocks))
+        resumptions = sum(1 for name, args, kwargs in calls if name == 'list_v2' and kwargs['token'])
+        self.assertEquals(resumptions, len(self.blobstore_mocks) - num_partitions)
 
     def _get_blobstore_handle(self, replica):
         keys = self.keys[replica]
@@ -359,6 +387,7 @@ class TestConsistencyVisitation(unittest.TestCase):
 
             def __init__(self, *args, prefix=None, start_after_key=None, token=None):
                 super().__init__()
+                self.resumed = start_after_key is not None
                 self.prefix = prefix
                 self.token = token or prefix
                 self.start_after_key = start_after_key
@@ -369,18 +398,46 @@ class TestConsistencyVisitation(unittest.TestCase):
                 return [key for key in keys[start:stop] if key.startswith(self.prefix)]
 
             def get_listing_from_response(self, resp):
-                for key in resp:
-                    # Once per listing (on average), wait a little to trigger the walker timeout
-                    if random.random() > 1 - 1 / test.page_size:
-                        time.sleep(test.timeout)
+                for i, key in enumerate(resp):
+                    # Once per listing, wait a little to trigger the walker timeout
+                    if not self.resumed and i == len(resp) // 2:
+                        time.sleep(test.timeout * 1.25)
                     yield key
 
             def get_next_token_from_response(self, resp):
                 return resp[-1] if resp else None
 
+        def is_bad(key):
+            return (hash(key) + 1) % self.key_drop_period == self.replicas.index(replica)
+
+        def get_user_metadata(bucket, key):
+            return {
+                'hca-dss-content-type': 'application/octet-stream',
+                'hca-dss-sha1': 'bad_sha1' if is_bad(key) else self.sha1,
+                'hca-dss-s3_etag': self.s3_etag,
+                'hca-dss-crc32c': self.crc32c,
+                'hca-dss-sha256': key.split('/')[-1].split('.', 1)[0]
+            } if key.startswith('blobs/') else {}
+
+        def get_size(bucket, key):
+            return 123
+
+        def get_content_type(bucket, key):
+            return 'application/octet-stream'
+
+        def get_cloud_checksum(bucket, key):
+            return 'bad_cloud_checksum' if is_bad(key) else (self.crc32c if replica == 'gcp' else self.s3_etag)
+
+        def get(bucket, key):
+            return 'bad_object' if is_bad(key) else key
+
         mock_blob_store = mock.MagicMock()
         self.blobstore_mocks.append(mock_blob_store)
         mock_blob_store.list_v2.side_effect = MockPagedIter
+        mock_blob_store.get_user_metadata.side_effect = get_user_metadata
+        mock_blob_store.get_size.side_effect = get_size
+        mock_blob_store.get_content_type.side_effect = get_content_type
+        mock_blob_store.get_cloud_checksum.side_effect = get_cloud_checksum
         return mock_blob_store
 
     def _start_execution(self, stateMachineArn, name, input):
@@ -401,13 +458,29 @@ class TestConsistencyVisitation(unittest.TestCase):
         state['work_result'].append(walker_state['work_result'])
         state = implementation.job_finalize(state, context())
         work_result = state['work_result']
-        for replica, missing, present in zip(state['replicas'], work_result['missing'], work_result['present']):
-            keys = self.keys[Replica[replica]]
-            self.assertEquals(self.num_keys, missing + present)
-            self.assertEquals(len(keys), present)
+        # The final work result is one dict that maps the name of a statistic, like `missing`, to a list of integers,
+        # one integer per replica. Transpose this into one dict per replica, disolving the value lists. Also splice
+        #  in a special entry for the name of the replica.
+        stat_names, value_lists = zip(*dict(replica=state['replicas'], **work_result).items())
+        for replica_stats in zip(*value_lists):
+            replica_stats = SimpleNamespace(**dict(zip(stat_names, replica_stats)))
+            keys = self.keys[Replica[replica_stats.replica]]
+            self.assertEquals(self.num_keys, replica_stats.missing + replica_stats.present)
+            self.assertEquals(len(keys), replica_stats.present)
+            if state['folder'] == 'blobs' and not state['quick']:
+                self.assertGreater(replica_stats.bad_checksum, 0)
+                self.assertGreater(replica_stats.bad_native_checksum, 0)
+        work_result = SimpleNamespace(**work_result)
+        if not state['quick']:
+            # Inconsistencies between the replicas are counted for the minority replicas only. With two replicas
+            # there is going to be a tie. One of them will get its count incremented, the other one will not. Even
+            # though such an inconsistency occurs for multiple keys during the test, it might consistently be the
+            # same replica that gets chosen as the minority. IOW, it is possible that all inconsistencies are counted
+            # for one replica only.
+            self.assertGreater(sum(work_result.inconsistent), 0)
         # Return the total number of missing keys (which is different between each test run because the overall number
         # of keys is random). The test can assert this value, proving that this was code actually run.
-        return {'executionArn': str(sum(work_result['missing']))}
+        return {'executionArn': str(sum(work_result.missing))}
 
 
 if __name__ == '__main__':

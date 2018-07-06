@@ -54,7 +54,7 @@ class TestSyncUtils(unittest.TestCase):
 
     def test_sync_blob(self):
         self.cleanup_sync_test_objects()
-        payload = os.urandom(2**20)
+        payload = self.get_payload(2**20)
         test_metadata = {"metadata-sync-test": str(uuid.uuid4())}
         test_key = "hca-dss-sync-test/s3-to-gcs/{}".format(uuid.uuid4())
         src_blob = self.s3_bucket.Object(test_key)
@@ -78,7 +78,7 @@ class TestSyncUtils(unittest.TestCase):
 
     def test_s3_streaming(self):
         boto3_session = boto3.session.Session()
-        payload = io.BytesIO(os.urandom(2**20))
+        payload = io.BytesIO(self.get_payload(2**20))
         test_key = "hca-dss-sync-test/s3-streaming-upload/{}".format(uuid.uuid4())
         chunker = S3SigningChunker(fh=payload,
                                    total_bytes=len(payload.getvalue()),
@@ -101,7 +101,7 @@ class TestSyncUtils(unittest.TestCase):
         blob_names = []
         total_payload = b""
         for part in range(3):
-            payload = os.urandom(2**10)
+            payload = self.get_payload(2**10)
             self.gs_bucket.blob(f"{test_key}.part{part}").upload_from_string(payload)
             blob_names.append(f"{test_key}.part{part}")
             total_payload += payload
@@ -111,7 +111,7 @@ class TestSyncUtils(unittest.TestCase):
             self.assertFalse(self.gs_bucket.blob(f"{test_key}.part{part}").exists())
 
     def test_copy_part_s3_to_gs(self):
-        payload = os.urandom(2**20)
+        payload = self.get_payload(2**20)
         test_key = "hca-dss-sync-test/copy-part/{}".format(uuid.uuid4())
         test_blob = self.s3_bucket.Object(test_key)
         test_blob.put(Body=payload)
@@ -125,7 +125,7 @@ class TestSyncUtils(unittest.TestCase):
         self.assertEqual(base64.b64decode(json.loads(res.content)["crc32c"]), crc.digest())
 
     def test_copy_part_gs_to_s3(self):
-        payload = os.urandom(2**20)
+        payload = self.get_payload(2**20)
         test_key = "hca-dss-sync-test/copy-part/{}".format(uuid.uuid4())
         test_blob = self.gs_bucket.blob(test_key)
         test_blob.upload_from_string(payload)
@@ -147,6 +147,11 @@ class TestSyncUtils(unittest.TestCase):
         # FIXME: (akislyuk) finish this test
         sync.sync_s3_to_gcsts(self.gs.project, self.s3_bucket_name, self.gs_bucket_name, "test_key")
 
+    payload = b''
+    def get_payload(self, size):
+        if len(self.payload) < size:
+            self.payload += os.urandom(size - len(self.payload))
+        return self.payload[:size]
 
 if __name__ == '__main__':
     unittest.main()

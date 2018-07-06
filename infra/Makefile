@@ -1,4 +1,5 @@
-COMPONENTS=${shell find * -not -path "*/.*" -type d}
+DIRS=${shell find . -name "*.tf" -exec dirname {} \; | sort --unique}
+COMPONENTS=${shell for d in $(DIRS); do basename $$d; done}
 
 all: init-all
 
@@ -30,7 +31,7 @@ destroy: init
 	cd $(COMPONENT); terraform destroy
 
 init:
-	rm -rf $(COMPONENT)/.terraform
+	rm -rf $(COMPONENT)/.terraform/*.tfstate
 	./build_deploy_config.py $(COMPONENT)
 	cd $(COMPONENT); terraform init;
 

@@ -37,7 +37,7 @@ class Notifier:
                  num_workers: int = None,
                  sqs_polling_timeout: int = 20,
                  timeout: float = 10.0,
-                 overhead: float = 5.0) -> None:
+                 overhead: float = 30.0) -> None:
         """
         Create a new notifier.
 

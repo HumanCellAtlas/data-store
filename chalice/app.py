@@ -1,5 +1,4 @@
 import collections
-import datetime
 import functools
 import os
 import random
@@ -11,7 +10,6 @@ import traceback
 import typing
 from concurrent.futures import ThreadPoolExecutor, TimeoutError
 
-import boto3
 import chalice
 import nestedcontext
 import requests
@@ -20,13 +18,14 @@ from flask import json
 pkg_root = os.path.abspath(os.path.join(os.path.dirname(__file__), 'chalicelib'))  # noqa
 sys.path.insert(0, pkg_root)  # noqa
 
-DSS_XRAY_TRACE = int(os.environ.get('DSS_XRAY_TRACE', '0')) > 0  # noqa
+from dss import BucketConfig, Config, DeploymentStage, create_app
+from dss.logging import configure_lambda_logging
+from dss.util.tracing import DSS_XRAY_TRACE
 
 if DSS_XRAY_TRACE:  # noqa
-    from aws_xray_sdk.core import xray_recorder, patch
+    from aws_xray_sdk.core import xray_recorder
     from aws_xray_sdk.core.context import Context
     from aws_xray_sdk.ext.flask.middleware import XRayMiddleware
-    patch(('boto3', 'requests'))
     xray_recorder.configure(
         service='DSS',
         dynamic_naming=f"*{os.environ['API_DOMAIN_NAME']}*",
@@ -34,17 +33,12 @@ if DSS_XRAY_TRACE:  # noqa
         context_missing='LOG_ERROR'
     )
 
-from dss import BucketConfig, Config, DeploymentStage, create_app
-from dss.logging import configure_lambda_logging
-from dss.util import paginate
-
 configure_lambda_logging()
 
 Config.set_config(BucketConfig.NORMAL)
 Config.BLOBSTORE_CONNECT_TIMEOUT = 5
 Config.BLOBSTORE_READ_TIMEOUT = 5
-Config.BLOBSTORE_BOTO_RETRIES = 2
-Config.BLOBSTORE_GS_MAX_CUMULATIVE_RETRY = 15
+Config.BLOBSTORE_RETRIES = 2
 
 
 EXECUTION_TERMINATION_THRESHOLD_SECONDS = 5.0
@@ -93,6 +87,17 @@ def timeout_response() -> chalice.Response:
     )
 
 
+def calculate_seconds_left(chalice_app: DSSChaliceApp) -> int:
+    """
+    Given a chalice app, return how much execution time is left, limited further by the API Gateway timeout.
+    """
+    time_remaining_s = min(
+        API_GATEWAY_TIMEOUT_SECONDS,
+        chalice_app.lambda_context.get_remaining_time_in_millis() / 1000)
+    time_remaining_s = max(0.0, time_remaining_s - EXECUTION_TERMINATION_THRESHOLD_SECONDS)
+    return time_remaining_s
+
+
 def time_limited(chalice_app: DSSChaliceApp):
     """
     When this decorator is applied to a route handler, we will process the request in a secondary thread.  If the
@@ -106,10 +111,7 @@ def time_limited(chalice_app: DSSChaliceApp):
                 future = executor.submit(method, *args, **kwargs)
                 time_remaining_s = chalice_app._override_exptime_seconds  # type: typing.Optional[float]
                 if time_remaining_s is None:
-                    time_remaining_s = min(
-                        API_GATEWAY_TIMEOUT_SECONDS,
-                        chalice_app.lambda_context.get_remaining_time_in_millis() / 1000)
-                    time_remaining_s = max(0.0, time_remaining_s - EXECUTION_TERMINATION_THRESHOLD_SECONDS)
+                    time_remaining_s = calculate_seconds_left(chalice_app)
 
                 try:
                     chalice_response = future.result(timeout=time_remaining_s)
@@ -163,9 +165,7 @@ def get_chalice_app(flask_app) -> DSSChaliceApp:
                     data=req_body,
                     environ_base=app.current_request.stage_vars):
                 with nestedcontext.bind(
-                        time_left=lambda: (
-                            (app.lambda_context.get_remaining_time_in_millis() / 1000) -
-                            EXECUTION_TERMINATION_THRESHOLD_SECONDS),
+                        time_left=lambda: calculate_seconds_left(app),
                         skip_on_conflicts=True):
                     flask_res = flask_app.full_dispatch_request()
                     status_code = flask_res._status_code
@@ -228,21 +228,6 @@ def get_chalice_app(flask_app) -> DSSChaliceApp:
             app.log.info("Ignoring Google Object Change Notification")
         else:
             raise NotImplementedError()
-
-    @app.route("/internal/logs/{group}", methods=["GET"])
-    @time_limited(app)
-    def get_logs(group):
-        assert group in {"dss-dev", "dss-index-dev", "dss-sync-dev"}
-        logs = []
-        start_time = datetime.datetime.now() - datetime.timedelta(minutes=10)
-        filter_args = dict(logGroupName="/aws/lambda/{}".format(group), startTime=int(start_time.timestamp()))
-        if app.current_request.query_params and "pattern" in app.current_request.query_params:
-            filter_args.update(filterPattern=app.current_request.query_params["pattern"])
-        for event in paginate(boto3.client("logs").get_paginator("filter_log_events"), **filter_args):
-            if "timestamp" not in event or "message" not in event:
-                continue
-            logs.append(event)
-        return dict(logs=logs)
 
     @app.route("/internal/application_secrets", methods=["GET"])
     @time_limited(app)

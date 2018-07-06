@@ -83,7 +83,7 @@ class ThreadedHttpServerTestCase(unittest.TestCase):
 class _TestNotifier(ThreadedHttpServerTestCase):
     repeats = 1
     timeout = 1.0
-    overhead = 5.0
+    overhead = 30.0
     delays = [0.0, 1.0, 2.0]
     workers_per_queue: Optional[int] = None
 
@@ -112,7 +112,7 @@ class _TestNotifier(ThreadedHttpServerTestCase):
 
     def _estimate_running_time(self, total_attempts) -> float:
         latency = sum(delay for delay in self.delays)
-        average_overhead = self.overhead / 3  # FIXME: this is a guess
+        average_overhead = self.overhead / 5  # FIXME: this is a guess
         average_timeout = self.timeout / 2  # FIXME: this is a guess
         parallelism = self.num_queues + (self.num_workers - self.num_queues) / 5  # FIXME: this is a guess
         total_time = latency + (average_timeout + average_overhead) * total_attempts / parallelism
@@ -129,7 +129,7 @@ class _TestNotifier(ThreadedHttpServerTestCase):
         def notify(expect: bool,  # whether the message should make it
                    max_attempts: Optional[int] = None,  # how many attempts to allow
                    responses: List[Tuple[float, int]] = None,  # a list of (delay, http_status) tuples, one per attempt
-                   attempts=None):  # expected number of attempts, currently only used to estmate the running time
+                   attempts=None):  # expected number of attempts, currently only used to estimate the running time
             if responses is None:
                 responses = [(0.0, 200)]
             verify = random.random() > .5
@@ -266,7 +266,7 @@ class TestWorkerQueueAssignment(unittest.TestCase):
         avg = sum(c for c in queue_coverage.values()) / (num_queues - 1)
         # Since the first queue was longer by 1/imbalance compared to the other queues, it should get propoertionally
         # more coverage than the average short queue (within 10% of a margin)
-        self.assertAlmostEqual(avg / first_queue_coverage, imbalance, delta=.1)
+        self.assertAlmostEqual(avg / first_queue_coverage, imbalance, delta=.15)
         # Compute standard deviation
         sigma = sqrt(sum((c - avg) ** 2 for c in queue_coverage.values()) / (num_queues - 2))
         # The short queues' covereage should be within one standard deviation
@@ -287,7 +287,11 @@ class PostTestHandler(BaseHTTPRequestHandler):
         # Since we're messing with the connection timing, we make sure connections aren't reused on the client-side.
         self.close_connection = True
 
-    response_body = os.urandom(1024 * 1024)
+    # Generate a response large enough to detect a hung-up connection. On macOS 1 MiB was sufficient, not so in Docker
+    # containers. In case you're wondering why we're repeating a small amount of random data instead of just generating
+    # the equivalent amount: the former is two orders of magnitude faster.
+    #
+    response_body = b''.join([os.urandom(1024)] * 1024 * 10)
 
     def do_POST(self):
         length = int(self.headers['content-length'])

@@ -19,7 +19,7 @@ chalice==1.1.0
 chardet==3.0.4
 click==6.7
 clickclick==1.2.2
-cloud-blobstore==2.1.1
+cloud-blobstore==2.1.4
 colorama==0.3.7
 connexion==1.1.15
 cookies==2.2.1
@@ -56,6 +56,7 @@ Jinja2==2.10
 jmespath==0.9.3
 jsondiff==1.1.1
 jsonpickle==0.9.5
+jsonpointer==2.0
 jsonschema==2.6.0
 keymaker==1.0.3
 MarkupSafe==1.0

@@ -45,7 +45,15 @@
             }
           }
         }
-      ]
+      ],
+      "properties": {
+        "uuid": {"type": "keyword"},
+        "manifest": {
+          "properties":{
+            "version": {"type": "keyword"}
+          }
+        }
+      }
     },
     "query":{
       "properties":{

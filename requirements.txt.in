@@ -2,7 +2,7 @@
 azure-storage >= 0.36.0
 boto3 >= 1.6.0
 botocore >= 1.10.16  # 1.9.x does not support AWS secretsmanager support
-cloud-blobstore >= 2.1.1
+cloud-blobstore >= 2.1.4
 connexion == 1.1.15 # pinned by akislyuk due to upstream breaking changes in auth middleware in connexion 1.2
 elasticsearch >= 5.4.0, < 6.0.0
 elasticsearch-dsl >= 5.3.0
@@ -10,6 +10,7 @@ google-cloud-storage >= 1.7.0
 google-apitools >= 0.5.0
 iso8601 >= 0.1.12
 jmespath >= 0.9.3
+jsonpointer >= 2.0
 jsonschema >= 2.6.0
 nestedcontext >= 0.0.4
 requests-aws4auth >= 0.9

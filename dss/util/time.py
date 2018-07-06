@@ -56,7 +56,8 @@ class SpecificRemainingTime(RemainingTimeUntil):
 
 class AdjustedRemainingTime(RemainingTime):
     """
-    Some other estimate of remaining time adjusted by a fixed offset
+    Some other estimate of remaining time, adjusted by a fixed offset. Use a negative offset to reduce the remaining
+    time or a positive offset to increase it.
     """
 
     def __init__(self, offset: float, actual: RemainingTime) -> None:

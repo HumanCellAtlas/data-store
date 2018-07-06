@@ -1,6 +1,6 @@
 from dss import Config, Replica
-from dss.api import files
 from dss.stepfunctions.lambdaexecutor import TimedThread
+from dss.storage.files import write_file_metadata
 
 
 # Public input/output keys for the state object.
@@ -110,7 +110,7 @@ def write_metadata(event, lambda_context):
     handle = Config.get_blobstore_handle(Replica.gcp)
 
     destination_bucket = event[Key.DESTINATION_BUCKET]
-    files.write_file_metadata(
+    write_file_metadata(
         handle,
         destination_bucket,
         event[CopyWriteMetadataKey.FILE_UUID],

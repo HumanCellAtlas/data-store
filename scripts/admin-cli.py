@@ -49,9 +49,13 @@ def parse_args(args):
     for replica in replicas:
         assert '-' not in replica  # a dash would convert to
         storage.add_argument(f'--{replica}-bucket')
+    storage.add_argument('--prefix')
     storage_actions = storage.add_subparsers(dest='action')
     storage_actions.required = True
-    storage_actions.add_parser('verify')
+    storage_verify = storage_actions.add_parser('verify')
+    storage_verify.add_argument('--folder', choices=['bundles', 'files', 'blobs'], required=True)
+    storage_verify.add_argument('--quick', action='store_true',
+                                help='Only verify the existence of objects, not their metadata or contents.')
 
     options = cli.parse_args(args)
 

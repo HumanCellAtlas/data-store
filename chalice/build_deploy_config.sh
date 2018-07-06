@@ -60,7 +60,7 @@ fi
 # Add service account email to list of authorized emails for ci-cd testing.
 service_account_email=`jq -r ".client_email" chalicelib/gcp-credentials.json`
 admin_user_emails_length=${#ADMIN_USER_EMAILS}
-if $admin_user_emails_length>0; then
+if [[ $admin_user_emails_length>0 ]]; then
 	export ADMIN_USER_EMAILS="${ADMIN_USER_EMAILS},${service_account_email}"
 else
 	export ADMIN_USER_EMAILS="${service_account_email}"

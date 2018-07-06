@@ -19,15 +19,19 @@ pkg_root = os.path.abspath(os.path.join(os.path.dirname(__file__), '..'))  # noq
 sys.path.insert(0, pkg_root)  # noqa
 
 import dss
-from dss import DSSException
+from dss.api.bundles import RETRY_AFTER_INTERVAL
 from dss.config import BucketConfig, Config, override_bucket_config, Replica
 from dss.util import UrlBuilder
 from dss.storage.blobstore import test_object_exists
 from dss.util.version import datetime_to_version_format
-from dss.storage.bundles import get_bundle_from_bucket
+from dss.storage.bundles import get_bundle_manifest
 from tests.infra import DSSAssertMixin, DSSUploadMixin, ExpectedErrorFields, get_env, testmode
 from tests.infra.server import ThreadedLocalServer
 from tests import get_auth_header
+
+
+BUNDLE_GET_RETRY_COUNT = 60
+"""For GET /bundles requests that require a retry, this is the maximum number of attempts we make."""
 
 
 class TestBundleApi(unittest.TestCase, DSSAssertMixin, DSSUploadMixin):
@@ -45,7 +49,7 @@ class TestBundleApi(unittest.TestCase, DSSAssertMixin, DSSUploadMixin):
         self.s3_test_fixtures_bucket = get_env("DSS_S3_BUCKET_TEST_FIXTURES")
         self.gs_test_fixtures_bucket = get_env("DSS_GS_BUCKET_TEST_FIXTURES")
 
-    @testmode.standalone
+    @testmode.integration
     def test_bundle_get(self):
         self._test_bundle_get(Replica.aws)
         self._test_bundle_get(Replica.gcp)
@@ -78,7 +82,7 @@ class TestBundleApi(unittest.TestCase, DSSAssertMixin, DSSUploadMixin):
         self.assertEqual(resp_obj.json['bundle']['files'][0]['uuid'], "ce55fd51-7833-469b-be0b-5da88ebebfcd")
         self.assertEqual(resp_obj.json['bundle']['files'][0]['version'], "2017-06-16T193604.240704Z")
 
-    @testmode.standalone
+    @testmode.integration
     def test_bundle_get_directaccess(self):
         self._test_bundle_get_directaccess(Replica.aws)
         self._test_bundle_get_directaccess(Replica.gcp)
@@ -98,7 +102,11 @@ class TestBundleApi(unittest.TestCase, DSSAssertMixin, DSSUploadMixin):
         with override_bucket_config(BucketConfig.TEST_FIXTURE):
             resp_obj = self.assertGetResponse(
                 url,
-                requests.codes.ok)
+                requests.codes.ok,
+                redirect_follow_retries=BUNDLE_GET_RETRY_COUNT,
+                min_retry_interval_header=RETRY_AFTER_INTERVAL,
+                override_retry_interval=1,
+            )
 
         url = resp_obj.json['bundle']['files'][0]['url']
         splitted = urllib.parse.urlparse(url)
@@ -113,6 +121,61 @@ class TestBundleApi(unittest.TestCase, DSSAssertMixin, DSSUploadMixin):
         hasher.update(contents)
         sha1 = hasher.hexdigest()
         self.assertEqual(sha1, "2b8b815229aa8a61e483fb4ba0588b8b6c491890")
+
+    @testmode.integration
+    def test_bundle_get_presigned(self):
+        self._test_bundle_get_presigned(Replica.aws)
+        self._test_bundle_get_presigned(Replica.gcp)
+
+    def _test_bundle_get_presigned(self, replica: Replica):
+        bundle_uuid = "011c7340-9b3c-4d62-bf49-090d79daf198"
+        version = "2017-06-20T214506.766634Z"
+
+        url = str(UrlBuilder()
+                  .set(path="/v1/bundles/" + bundle_uuid)
+                  .add_query("replica", replica.name)
+                  .add_query("version", version)
+                  .add_query("presignedurls", "true"))
+
+        with override_bucket_config(BucketConfig.TEST_FIXTURE):
+            resp_obj = self.assertGetResponse(
+                url,
+                requests.codes.ok,
+                redirect_follow_retries=BUNDLE_GET_RETRY_COUNT,
+                min_retry_interval_header=RETRY_AFTER_INTERVAL,
+                override_retry_interval=1,
+            )
+
+        url = resp_obj.json['bundle']['files'][0]['url']
+        resp = requests.get(url)
+        contents = resp.content
+
+        hasher = hashlib.sha1()
+        hasher.update(contents)
+        sha1 = hasher.hexdigest()
+        self.assertEqual(sha1, "2b8b815229aa8a61e483fb4ba0588b8b6c491890")
+
+    @testmode.standalone
+    def test_bundle_get_directurl_and_presigned(self):
+        self._test_bundle_get_directurl_and_presigned(Replica.aws)
+        self._test_bundle_get_directurl_and_presigned(Replica.gcp)
+
+    def _test_bundle_get_directurl_and_presigned(self, replica: Replica):
+        bundle_uuid = "011c7340-9b3c-4d62-bf49-090d79daf198"
+        version = "2017-06-20T214506.766634Z"
+
+        url = str(UrlBuilder()
+                  .set(path="/v1/bundles/" + bundle_uuid)
+                  .add_query("replica", replica.name)
+                  .add_query("version", version)
+                  .add_query("directurls", "true")
+                  .add_query("presignedurls", "true"))
+
+        with override_bucket_config(BucketConfig.TEST_FIXTURE):
+            resp_obj = self.assertGetResponse(
+                url,
+                requests.codes.bad_request)
+            self.assertEqual(resp_obj.json['code'], "only_one_urltype")
 
     @testmode.standalone
     def test_bundle_get_deleted(self):
@@ -137,17 +200,15 @@ class TestBundleApi(unittest.TestCase, DSSAssertMixin, DSSUploadMixin):
                                  version: typing.Optional[str],
                                  expected_version: typing.Optional[str]):
         with override_bucket_config(BucketConfig.TEST_FIXTURE):
-            try:
-                response = get_bundle_from_bucket(
-                    uuid=bundle_uuid,
-                    replica=replica,
-                    version=version,
-                    bucket=None,
-                )
-            except DSSException:
-                response = dict()
+            bundle_metadata = get_bundle_manifest(
+                uuid=bundle_uuid,
+                replica=replica,
+                version=version,
+                bucket=None,
+            )
+            bundle_version = None if bundle_metadata is None else bundle_metadata['version']
         self.assertEquals(
-            response['bundle']['version'] if 'bundle' in response else None,
+            bundle_version,
             expected_version
         )
 
@@ -158,7 +219,6 @@ class TestBundleApi(unittest.TestCase, DSSAssertMixin, DSSUploadMixin):
 
     def _test_bundle_put(self, replica: Replica, fixtures_bucket: str):
         schema = replica.storage_schema
-
         bundle_uuid = str(uuid.uuid4())
         file_uuid = str(uuid.uuid4())
         missing_file_uuid = str(uuid.uuid4())
@@ -170,89 +230,107 @@ class TestBundleApi(unittest.TestCase, DSSAssertMixin, DSSUploadMixin):
         )
         file_version = resp_obj.json['version']
 
-        # first bundle.
-        bundle_version = datetime_to_version_format(datetime.datetime.utcnow())
-        self.put_bundle(
-            replica,
-            bundle_uuid,
-            [(file_uuid, file_version, "LICENSE")],
-            bundle_version,
-        )
-
-        # should be able to do this twice (i.e., same payload, same UUIDs)
-        self.put_bundle(
-            replica,
-            bundle_uuid,
-            [(file_uuid, file_version, "LICENSE")],
-            bundle_version,
-            requests.codes.ok,
-        )
-
-        # should *NOT* be able to do this twice with different payload.
-        self.put_bundle(
-            replica,
-            bundle_uuid,
-            [(file_uuid, file_version, "LICENSE1")],
-            bundle_version,
-            requests.codes.conflict,
-        )
-
-        # should *NOT* be able to upload a bundle with a missing file, but we should get requests.codes.conflict.
-        with nestedcontext.bind(time_left=lambda: 0):
-            resp_obj = self.put_bundle(
-                replica,
-                bundle_uuid,
-                [
-                    (file_uuid, file_version, "LICENSE0"),
-                    (missing_file_uuid, file_version, "LICENSE1"),
-                ],
-                expected_code=requests.codes.conflict,
-            )
-            self.assertEqual(resp_obj.json['code'], "file_missing")
-
-        # uploads a file, but delete the file metadata. put it back after a delay.
-        self.upload_file_wait(
-            f"{schema}://{fixtures_bucket}/test_good_source_data/0",
-            replica,
-            missing_file_uuid,
-            file_version,
-            bundle_uuid=bundle_uuid
-        )
-        handle = Config.get_blobstore_handle(replica)
-        bucket = replica.bucket
-        file_metadata = handle.get(bucket, f"files/{missing_file_uuid}.{file_version}")
-        handle.delete(bucket, f"files/{missing_file_uuid}.{file_version}")
-
-        class UploadThread(threading.Thread):
-            def run(innerself):
-                time.sleep(5)
-                data_fh = io.BytesIO(file_metadata)
-                handle.upload_file_handle(bucket, f"files/{missing_file_uuid}.{file_version}", data_fh)
-
-        # start the upload (on a delay...)
-        upload_thread = UploadThread()
-        upload_thread.start()
-
-        # this should at first fail to find one of the files, but the UploadThread will eventually upload the file
-        # metadata.  since we give the upload bundle process ample time to spin, it should eventually find the file
-        # metadata and succeed.
-        with nestedcontext.bind(time_left=lambda: sys.maxsize):
+        with self.subTest(f'{replica}: first bundle.'):
+            bundle_version = datetime_to_version_format(datetime.datetime.utcnow())
             self.put_bundle(
                 replica,
                 bundle_uuid,
-                [
-                    (file_uuid, file_version, "LICENSE0"),
-                    (missing_file_uuid, file_version, "LICENSE1"),
-                ],
-                expected_code=requests.codes.created,
+                [(file_uuid, file_version, "LICENSE")],
+                bundle_version,
             )
+
+        with self.subTest(f'{replica}: should be able to do this twice (i.e. same payload, same UUIDs)'):
+            self.put_bundle(
+                replica,
+                bundle_uuid,
+                [(file_uuid, file_version, "LICENSE")],
+                bundle_version,
+                requests.codes.ok,
+            )
+
+        with self.subTest(f'{replica}: should *NOT* be able to do this twice with different payload.'):
+            self.put_bundle(
+                replica,
+                bundle_uuid,
+                [(file_uuid, file_version, "LICENSE1")],
+                bundle_version,
+                requests.codes.conflict,
+            )
+
+        with self.subTest(f'{replica}: should *NOT* be able to do this without bundle version.'):
+            self.put_bundle(
+                replica,
+                bundle_uuid,
+                [(file_uuid, file_version, "LICENSE")],
+                expected_code=requests.codes.bad_request
+            )
+
+        with self.subTest(f'{replica}: should *NOT* be able to upload a bundle with a missing file, but we should get '
+                          'requests.codes.conflict.'):
+            with nestedcontext.bind(time_left=lambda: 0):
+                bundle_version = datetime_to_version_format(datetime.datetime.utcnow())
+                resp_obj = self.put_bundle(
+                    replica,
+                    bundle_uuid,
+                    [
+                        (file_uuid, file_version, "LICENSE0"),
+                        (missing_file_uuid, file_version, "LICENSE1"),
+                    ],
+                    bundle_version,
+                    expected_code=requests.codes.conflict
+                )
+                self.assertEqual(resp_obj.json['code'], "file_missing")
+
+        with self.subTest(f'{replica}: uploads a file, but delete the file metadata. put it back after a delay.'):
+            self.upload_file_wait(
+                f"{schema}://{fixtures_bucket}/test_good_source_data/0",
+                replica,
+                missing_file_uuid,
+                file_version,
+                bundle_uuid=bundle_uuid
+            )
+            handle = Config.get_blobstore_handle(replica)
+            bucket = replica.bucket
+            file_metadata = handle.get(bucket, f"files/{missing_file_uuid}.{file_version}")
+            handle.delete(bucket, f"files/{missing_file_uuid}.{file_version}")
+
+            class UploadThread(threading.Thread):
+                def run(innerself):
+                    time.sleep(5)
+                    data_fh = io.BytesIO(file_metadata)
+                    handle.upload_file_handle(bucket, f"files/{missing_file_uuid}.{file_version}", data_fh)
+
+            # start the upload (on a delay...)
+            upload_thread = UploadThread()
+            upload_thread.start()
+
+            # this should at first fail to find one of the files, but the UploadThread will eventually upload the file
+            # metadata.  since we give the upload bundle process ample time to spin, it should eventually find the file
+            # metadata and succeed.
+            with nestedcontext.bind(time_left=lambda: sys.maxsize):
+                bundle_version = datetime_to_version_format(datetime.datetime.utcnow())
+                self.put_bundle(
+                    replica,
+                    bundle_uuid,
+                    [
+                        (file_uuid, file_version, "LICENSE0"),
+                        (missing_file_uuid, file_version, "LICENSE1"),
+                    ],
+                    bundle_version,
+                    expected_code=requests.codes.created,
+                )
 
     @testmode.standalone
     def test_bundle_delete(self):
-        self._test_bundle_delete(Replica.aws, self.s3_test_fixtures_bucket, True)
-        self._test_bundle_delete(Replica.gcp, self.gs_test_fixtures_bucket, True)
-        self._test_bundle_delete(Replica.aws, self.s3_test_fixtures_bucket, False)
-        self._test_bundle_delete(Replica.gcp, self.gs_test_fixtures_bucket, False)
+        tests = [
+            (Replica.aws, self.s3_test_fixtures_bucket, True),
+            (Replica.gcp, self.gs_test_fixtures_bucket, True),
+            (Replica.aws, self.s3_test_fixtures_bucket, False),
+            (Replica.gcp, self.gs_test_fixtures_bucket, False)
+        ]
+        for test in tests:
+            with self.subTest(f"{test[0].name}, {test[2]}"):
+                self._test_bundle_delete(*test)
 
     def _test_bundle_delete(self, replica: Replica, fixtures_bucket: str, authorized: bool):
         schema = replica.storage_schema

@@ -40,6 +40,15 @@ resource google_storage_bucket dss_gs_checkout_bucket {
   provider = "google"
   location = "${var.GCP_DEFAULT_REGION}"
   storage_class = "REGIONAL"
+  lifecycle_rule {
+    action {
+      type = "Delete"
+    }
+    condition {
+      age = 30
+      is_live = true
+    }
+  }
 }
 
 resource google_storage_bucket dss_gs_checkout_bucket_test {

@@ -1,23 +1,25 @@
 import datetime
-import io
 import json
-import random
 import re
+import time
 import typing
 from enum import Enum, auto
 from uuid import uuid4
 
 import iso8601
 import requests
-from cloud_blobstore import BlobAlreadyExistsError, BlobNotFoundError, BlobStore
+from cloud_blobstore import BlobAlreadyExistsError, BlobNotFoundError
 from flask import jsonify, make_response, redirect, request
-from dss.util.version import datetime_to_version_format
 
 from dss import DSSException, dss_handler, stepfunctions
 from dss.config import Config, Replica
-from dss.storage.hcablobstore import FileMetadata, HCABlobStore
+from dss.storage.checkout import CheckoutTokenKeys, get_dst_key, start_file_checkout
+from dss.storage.files import write_file_metadata
+from dss.storage.hcablobstore import FileMetadata, HCABlobStore, compose_blob_key
 from dss.stepfunctions import gscopyclient, s3copyclient
+from dss.util import tracing, UrlBuilder
 from dss.util.aws import AWS_MIN_CHUNK_SIZE
+from dss.util.version import datetime_to_version_format
 
 
 ASYNC_COPY_THRESHOLD = AWS_MIN_CHUNK_SIZE
@@ -31,27 +33,30 @@ RETRY_AFTER_INTERVAL = 10
 libraries / users for success when we start integrating this with the checkout service. """
 REDIRECT_PROBABILITY_PERCENTS = 5
 
-@dss_handler
-def head(uuid: str, replica: str, version: str=None):
-    return get_helper(uuid, Replica[replica], version)
-
 
 @dss_handler
-def get(uuid: str, replica: str, version: str=None):
-    return get_helper(uuid, Replica[replica], version)
+def head(uuid: str, replica: str, version: str=None, token: str=None):
+    return get_helper(uuid, Replica[replica], version, token)
 
 
-def get_helper(uuid: str, replica: Replica, version: str=None):
-    handle = Config.get_blobstore_handle(replica)
-    bucket = replica.bucket
+@dss_handler
+def get(uuid: str, replica: str, version: str=None, token: str=None):
+    return get_helper(uuid, Replica[replica], version, token)
+
+
+def get_helper(uuid: str, replica: Replica, version: str=None, token: str=None):
+    with tracing.Subsegment('parameterization'):
+        handle = Config.get_blobstore_handle(replica)
+        bucket = replica.bucket
 
     if version is None:
-        # list the files and find the one that is the most recent.
-        prefix = "files/{}.".format(uuid)
-        for matching_file in handle.list(bucket, prefix):
-            matching_file = matching_file[len(prefix):]
-            if version is None or matching_file > version:
-                version = matching_file
+        with tracing.Subsegment('find_latest_version'):
+            # list the files and find the one that is the most recent.
+            prefix = "files/{}.".format(uuid)
+            for matching_file in handle.list(bucket, prefix):
+                matching_file = matching_file[len(prefix):]
+                if version is None or matching_file > version:
+                    version = matching_file
 
     if version is None:
         # no matches!
@@ -59,65 +64,95 @@ def get_helper(uuid: str, replica: Replica, version: str=None):
 
     # retrieve the file metadata.
     try:
-        file_metadata = json.loads(
-            handle.get(
-                bucket,
-                "files/{}.{}".format(uuid, version)
-            ).decode("utf-8"))
+        with tracing.Subsegment('load_file'):
+            file_metadata = json.loads(
+                handle.get(
+                    bucket,
+                    "files/{}.{}".format(uuid, version)
+                ).decode("utf-8"))
     except BlobNotFoundError as ex:
         raise DSSException(404, "not_found", "Cannot find file!")
 
-    blob_path = "blobs/" + ".".join((
-        file_metadata[FileMetadata.SHA256],
-        file_metadata[FileMetadata.SHA1],
-        file_metadata[FileMetadata.S3_ETAG],
-        file_metadata[FileMetadata.CRC32C],
-    ))
+    with tracing.Subsegment('make_path'):
+        blob_path = compose_blob_key(file_metadata)
 
     if request.method == "GET":
-        """
-        Probabilistically return "Retry-After" header
-        The retry-after interval can be relatively short now, but it sets up downstream
-        libraries / users for success when we start integrating this with the checkout service.
-        """
-        if random.randint(0, 100) < REDIRECT_PROBABILITY_PERCENTS:
-            response = redirect(request.url, code=301)
-            headers = response.headers
-            headers['Retry-After'] = RETRY_AFTER_INTERVAL
-            return response
+        token, ready = _verify_checkout(replica, token, file_metadata, blob_path)
 
-        response = redirect(handle.generate_presigned_GET_url(
-            bucket,
-            blob_path))
+        if ready:
+            response = redirect(handle.generate_presigned_GET_url(
+                replica.checkout_bucket,
+                get_dst_key(blob_path)))
+        else:
+            with tracing.Subsegment('make_retry'):
+                builder = UrlBuilder(request.url)
+                builder.replace_query("token", token)
+                response = redirect(str(builder), code=301)
+                headers = response.headers
+                headers['Retry-After'] = RETRY_AFTER_INTERVAL
+                return response
+
     else:
         response = make_response('', 200)
 
-    headers = response.headers
-    headers['X-DSS-CREATOR-UID'] = file_metadata[FileMetadata.CREATOR_UID]
-    headers['X-DSS-VERSION'] = version
-    headers['X-DSS-CONTENT-TYPE'] = file_metadata[FileMetadata.CONTENT_TYPE]
-    headers['X-DSS-SIZE'] = file_metadata[FileMetadata.SIZE]
-    headers['X-DSS-CRC32C'] = file_metadata[FileMetadata.CRC32C]
-    headers['X-DSS-S3-ETAG'] = file_metadata[FileMetadata.S3_ETAG]
-    headers['X-DSS-SHA1'] = file_metadata[FileMetadata.SHA1]
-    headers['X-DSS-SHA256'] = file_metadata[FileMetadata.SHA256]
+    with tracing.Subsegment('set_headers'):
+        headers = response.headers
+        headers['X-DSS-CREATOR-UID'] = file_metadata[FileMetadata.CREATOR_UID]
+        headers['X-DSS-VERSION'] = version
+        headers['X-DSS-CONTENT-TYPE'] = file_metadata[FileMetadata.CONTENT_TYPE]
+        headers['X-DSS-SIZE'] = file_metadata[FileMetadata.SIZE]
+        headers['X-DSS-CRC32C'] = file_metadata[FileMetadata.CRC32C]
+        headers['X-DSS-S3-ETAG'] = file_metadata[FileMetadata.S3_ETAG]
+        headers['X-DSS-SHA1'] = file_metadata[FileMetadata.SHA1]
+        headers['X-DSS-SHA256'] = file_metadata[FileMetadata.SHA256]
 
     return response
 
 
+def _verify_checkout(
+        replica: Replica, token: typing.Optional[str], file_metadata: dict, blob_path: str,
+) -> typing.Tuple[str, bool]:
+    decoded_token: dict
+    if token is None:
+        execution_id = start_file_checkout(replica, blob_path)
+        start_time = time.time()
+        attempts = 0
+
+        decoded_token = {
+            CheckoutTokenKeys.EXECUTION_ID: execution_id,
+            CheckoutTokenKeys.START_TIME: start_time,
+            CheckoutTokenKeys.ATTEMPTS: attempts
+        }
+    else:
+        try:
+            decoded_token = json.loads(token)
+            decoded_token[CheckoutTokenKeys.ATTEMPTS] += 1
+        except (KeyError, ValueError) as ex:
+            raise DSSException(requests.codes.bad_request, "illegal_token", "Could not understand token", ex)
+
+    hcablobstore = Config.get_hcablobstore_handle(replica)
+    encoded_token = json.dumps(decoded_token)
+    try:
+        if hcablobstore.verify_blob_checksum_from_dss_metadata(
+                replica.checkout_bucket, get_dst_key(blob_path), file_metadata):
+            return encoded_token, True
+    except BlobNotFoundError:
+        pass
+
+    return encoded_token, False
+
+
 @dss_handler
-def put(uuid: str, json_request_body: dict, version: str=None):
+def put(uuid: str, json_request_body: dict, version: str):
     class CopyMode(Enum):
         NO_COPY = auto()
         COPY_INLINE = auto()
         COPY_ASYNC = auto()
 
     uuid = uuid.lower()
-    if version is not None:
-        # convert it to date-time so we can format exactly as the system requires (with microsecond precision)
-        timestamp = iso8601.parse_date(version)
-    else:
-        timestamp = datetime.datetime.utcnow()
+
+    # convert it to date-time so we can format exactly as the system requires (with microsecond precision)
+    timestamp = iso8601.parse_date(version)
     version = datetime_to_version_format(timestamp)
 
     source_url = json_request_body['source_url']
@@ -153,7 +188,7 @@ def put(uuid: str, json_request_body: dict, version: str=None):
     content_type = handle.get_content_type(src_bucket, src_key)
 
     # format all the checksums so they're lower-case.
-    for metadata_spec in HCABlobStore.MANDATORY_METADATA.values():
+    for metadata_spec in HCABlobStore.MANDATORY_STAGING_METADATA.values():
         if metadata_spec['downcase']:
             keyname = typing.cast(str, metadata_spec['keyname'])
             metadata[keyname] = metadata[keyname].lower()
@@ -171,7 +206,7 @@ def put(uuid: str, json_request_body: dict, version: str=None):
     # does it exist? if so, we can skip the copy part.
     copy_mode = CopyMode.COPY_INLINE
     try:
-        if hca_handle.verify_blob_checksum(dst_bucket, dst_key, metadata):
+        if hca_handle.verify_blob_checksum_from_staging_metadata(dst_bucket, dst_key, metadata):
             copy_mode = CopyMode.NO_COPY
     except BlobNotFoundError:
         pass
@@ -220,7 +255,7 @@ def put(uuid: str, json_request_body: dict, version: str=None):
         handle.copy(src_bucket, src_key, dst_bucket, dst_key)
 
         # verify the copy was done correctly.
-        assert hca_handle.verify_blob_checksum(dst_bucket, dst_key, metadata)
+        assert hca_handle.verify_blob_checksum_from_staging_metadata(dst_bucket, dst_key, metadata)
 
     try:
         write_file_metadata(handle, dst_bucket, uuid, version, file_metadata_json)
@@ -241,26 +276,3 @@ def put(uuid: str, json_request_body: dict, version: str=None):
 
     return jsonify(
         dict(version=version)), status_code
-
-
-def write_file_metadata(
-        handle: BlobStore,
-        dst_bucket: str,
-        file_uuid: str,
-        file_version: str,
-        document: str):
-    # what's the target object name for the file metadata?
-    metadata_key = f"files/{file_uuid}.{file_version}"
-
-    # if it already exists, then it's a failure.
-    try:
-        handle.get_user_metadata(dst_bucket, metadata_key)
-    except BlobNotFoundError:
-        pass
-    else:
-        raise BlobAlreadyExistsError()
-
-    handle.upload_file_handle(
-        dst_bucket,
-        metadata_key,
-        io.BytesIO(document.encode("utf-8")))

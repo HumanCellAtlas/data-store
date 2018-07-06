@@ -14,9 +14,13 @@ from dss.index import DEFAULT_BACKENDS
 from dss.index.backend import CompositeIndexBackend
 from dss.index.indexer import Indexer
 from dss.logging import configure_lambda_logging
+from dss.util import tracing
 from dss.util.time import RemainingLambdaContextTime, AdjustedRemainingTime
 
+
 app = domovoi.Domovoi(configure_logs=False)
+
+
 configure_lambda_logging()
 
 dss.Config.set_config(dss.BucketConfig.NORMAL)

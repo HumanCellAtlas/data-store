@@ -31,20 +31,18 @@ def post(json_request_body: dict,
          replica: str,
          per_page: int,
          output_format: str,
-         _scroll_id: typing.Optional[str] = None) -> dict:
+         search_after: typing.Optional[str] = None) -> dict:
     es_query = json_request_body['es_query']
     per_page = PerPageBounds.check(per_page)
 
     replica_enum = Replica[replica] if replica is not None else Replica.aws
 
-    logger.debug("Received POST for replica=%s, es_query=%s, per_page=%i, _scroll_id: %s",
-                 replica_enum.name, json.dumps(es_query, indent=4), per_page, _scroll_id)
+    logger.debug("Received POST for replica=%s, es_query=%s, per_page=%i, search_after: %s",
+                 replica_enum.name, json.dumps(es_query, indent=4), per_page, search_after)
 
-    # TODO: (tsmith12) determine if a search operation timeout limit is needed
     # TODO: (tsmith12) allow users to retrieve previous search results
-    # TODO: (tsmith12) if page returns 0 hits, then all results have been found. delete search id
     try:
-        page = _es_search_page(es_query, replica_enum, per_page, _scroll_id, output_format)
+        page = _es_search_page(es_query, replica_enum, per_page, search_after, output_format)
         request_dict = _format_request_body(page, es_query, replica_enum, output_format)
         request_body = jsonify(request_dict)
 
@@ -52,7 +50,7 @@ def post(json_request_body: dict,
             response = make_response(request_body, requests.codes.ok)
         else:
             response = make_response(request_body, requests.codes.partial)
-            next_url = _build_scroll_url(page['_scroll_id'], per_page, replica_enum, output_format)
+            next_url = _build_next_url(page, per_page, replica_enum, output_format)
             response.headers['Link'] = _build_link_header({next_url: {"rel": "next"}})
         return response
     except TransportError as ex:
@@ -87,7 +85,7 @@ def post(json_request_body: dict,
 def _es_search_page(es_query: dict,
                     replica: Replica,
                     per_page: int,
-                    _scroll_id: typing.Optional[str],
+                    search_after: typing.Optional[str],
                     output_format: str) -> dict:
     es_query = deepcopy(es_query)
     es_client = ElasticsearchClient.get()
@@ -96,32 +94,27 @@ def _es_search_page(es_query: dict,
     if output_format != 'raw':
         es_query['_source'] = False
 
-    # The time for a scroll search context to stay open per page. A page of results must be retreived before this
-    # timeout expires. Subsequent calls to search will refresh the scroll timeout. For more details on time format see:
-    # https://www.elastic.co/guide/en/elasticsearch/reference/current/common-options.html#time-units
-    scroll = '2m'  # set a timeout of 2min to keep the search context alive. This is reset
+    # https://www.elastic.co/guide/en/elasticsearch/reference/5.5/search-request-search-after.html
+    sort = [
+        "manifest.version:desc",
+        "uuid:desc"]
 
-    # From: https://www.elastic.co/guide/en/elasticsearch/reference/current/search-request-scroll.html
-    # Scroll requests have optimizations that make them faster when the sort order is _doc. If you want to iterate over
-    # all documents regardless of the order, this is the most efficient option:
-    # {
-    #   "sort": [
-    #     "_doc"
-    #   ]
-    # }
-    sort = {"sort": ["_doc"]}
-    if _scroll_id is None:
+    if search_after is None:
         page = es_client.search(index=Config.get_es_alias_name(ESIndexType.docs, replica),
                                 doc_type=ESDocType.doc.name,
-                                scroll=scroll,
                                 size=per_page,
                                 body=es_query,
                                 sort=sort
                                 )
-        logger.debug("Created ES scroll instance")
     else:
-        page = es_client.scroll(scroll_id=_scroll_id, scroll=scroll)
-        logger.debug(f"Retrieved ES results from scroll instance Scroll_id: {_scroll_id}")
+        es_query['search_after'] = search_after.split(',')
+        page = es_client.search(index=Config.get_es_alias_name(ESIndexType.docs, replica),
+                                doc_type=ESDocType.doc.name,
+                                size=per_page,
+                                body=es_query,
+                                sort=sort,
+                                )
+        logger.debug(f"Retrieved ES results from page after: {search_after}")
     return page
 
 
@@ -153,12 +146,13 @@ def _build_bundle_url(hit: dict, replica: Replica) -> str:
                                   )
 
 
-def _build_scroll_url(_scroll_id: str, per_page: int, replica: Replica, output_format: str) -> str:
+def _build_next_url(page: dict, per_page: int, replica: Replica, output_format: str) -> str:
+    search_after = ','.join(page['hits']['hits'][-1]['sort'])
     return request.host_url + str(UrlBuilder()
                                   .set(path="v1/search")
                                   .add_query('per_page', str(per_page))
                                   .add_query("replica", replica.name)
-                                  .add_query("_scroll_id", _scroll_id)
+                                  .add_query("search_after", search_after)
                                   .add_query("output_format", output_format)
                                   )
 

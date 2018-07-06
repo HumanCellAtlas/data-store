@@ -13,6 +13,7 @@ import os
 from google.auth.credentials import with_scopes_if_required
 from google.oauth2 import service_account
 
+from dss.api import bundles
 from dss.util.version import datetime_to_version_format
 from dss.storage.identifiers import BundleFQID, FileFQID
 
@@ -50,6 +51,7 @@ if "," in os.environ['ADMIN_USER_EMAILS']:
     os.environ['ADMIN_USER_EMAILS'] += "," + authorized_gcp_credentials['client_email']
 else:
     os.environ['ADMIN_USER_EMAILS'] = authorized_gcp_credentials['client_email']
+bundles.ADMIN_USER_EMAILS = set(os.environ['ADMIN_USER_EMAILS'].split(","))
 
 def get_bundle_fqid() -> BundleFQID:
     return BundleFQID(uuid=str(uuid.uuid4()), version=get_version())

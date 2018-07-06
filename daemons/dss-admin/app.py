@@ -59,15 +59,21 @@ class StorageTarget(Target):
     """
     Admin operations on the storage buckets and the replication between them.
     """
-    def __init__(self, replicas: Mapping[str, str]) -> None:
+    def __init__(self, replicas: Mapping[str, str], prefix: str = None) -> None:
+        super().__init__()
         replicas = ((Replica[replica], bucket) for replica, bucket in replicas.items())
         self.replicas = {replica.name: bucket or replica.bucket for replica, bucket in replicas}
-        super().__init__()
+        self.prefix = prefix or ''
 
-    def verify(self, workers: int) -> JSON:
+    def verify(self, workers: int, folder: str, quick: bool = False) -> JSON:
         assert 1 < workers
         replicas, buckets = zip(*self.replicas.items())
-        return StorageVisitation.start(workers, replicas=replicas, buckets=buckets)
+        return StorageVisitation.start(workers,
+                                       replicas=replicas,
+                                       buckets=buckets,
+                                       prefix=self.prefix,
+                                       folder=folder,
+                                       quick=quick)
 
 
 def _invoke(f: Callable, kwargs: Mapping[str, Any]) -> Any:

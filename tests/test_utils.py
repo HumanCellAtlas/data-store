@@ -85,6 +85,23 @@ class TestUrlBuilder(unittest.TestCase):
 
         self.assertEqual("https://humancellatlas.org/abc?ghi=1&ghi=2&abc=3#def", str(builder))
 
+    @testmode.standalone
+    def test_parse(self):
+        builder = UrlBuilder("https://humancellatlas.org/abc?def=2#ghi")
+        self.assertEqual("https://humancellatlas.org/abc?def=2#ghi", str(builder))
+
+    @testmode.standalone
+    def test_replace_query(self):
+        builder = UrlBuilder("https://humancellatlas.org/abc?def=2#ghi")
+        builder.replace_query("def", "4")
+        self.assertEqual("https://humancellatlas.org/abc?def=4#ghi", str(builder))
+
+    @testmode.standalone
+    def test_replace_query_mulitple(self):
+        builder = UrlBuilder("https://humancellatlas.org/abc?def=2&def=boo#ghi")
+        builder.replace_query("def", "4")
+        self.assertEqual("https://humancellatlas.org/abc?def=4#ghi", str(builder))
+
 
 if __name__ == '__main__':
     unittest.main()

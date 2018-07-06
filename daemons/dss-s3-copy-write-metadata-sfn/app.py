@@ -8,6 +8,7 @@ sys.path.insert(0, pkg_root)  # noqa
 
 from dss.logging import configure_lambda_logging
 import dss.stepfunctions.s3copyclient as s3copyclient
+from dss.util import tracing
 
 
 configure_lambda_logging()

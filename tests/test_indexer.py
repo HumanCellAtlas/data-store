@@ -43,9 +43,9 @@ from dss.index.indexer import Indexer
 from dss.logging import configure_test_logging
 from dss.notify import attachment
 from dss.notify.notification import Endpoint
-from dss.storage.hcablobstore import BundleFileMetadata, BundleMetadata, FileMetadata
+from dss.storage.hcablobstore import BundleFileMetadata, BundleMetadata, FileMetadata, compose_blob_key
 from dss.storage.identifiers import BundleFQID, ObjectIdentifier
-from dss.util import UrlBuilder, create_blob_key, networking, RequirementError
+from dss.util import UrlBuilder, networking, RequirementError
 from dss.util.version import datetime_to_version_format
 from dss.util.time import SpecificRemainingTime
 from tests import eventually, get_auth_header, get_bundle_fqid, get_file_fqid, get_version
@@ -461,8 +461,6 @@ class TestIndexerBase(ElasticsearchTestCase, DSSAssertMixin, DSSStorageMixin, DS
 
     @testmode.standalone
     def test_subscription_with_attachments(self):
-        endpoint = self._default_endpoint()
-        endpoint = NotificationRequestHandler.configure(endpoint)
 
         def define(**definitions):
             return dict({k: dict(type='jmespath', expression=v) for k, v in definitions.items()})
@@ -472,7 +470,7 @@ class TestIndexerBase(ElasticsearchTestCase, DSSAssertMixin, DSSStorageMixin, DS
              dict(foo='bar')),  # is returned as is.
             (define(foo='doesnotexist'),  # A non-existant field …
              dict(foo=None)),  # yields None.
-            (define(primer='files.assay_json.rna.primer'),  # An existing fields
+            (define(primer='files.assay_json.rna.primer'),  # An existing field
              dict(primer='random')),  # yields that field's value
             (define(protocols='files.project_json.protocols[0:2].type.text'),  # A more complicated expression
              dict(protocols=['growth protocol', 'treatment protocol'])),  # (a projection and a slice).
@@ -485,6 +483,7 @@ class TestIndexerBase(ElasticsearchTestCase, DSSAssertMixin, DSSStorageMixin, DS
         for definitions, attachments in test_cases:
             query = self.smartseq2_paired_ends_query
             with self.subTest(definitions=definitions, attachments=attachments):
+                endpoint = NotificationRequestHandler.configure(self._default_endpoint())
                 subscription_id = self.subscribe_for_notification(es_query=query,
                                                                   attachments=definitions,
                                                                   **endpoint.to_dict())
@@ -1390,7 +1389,7 @@ def create_index_data(blobstore, bucket_name, bundle_key, manifest,
     for file_info in files_info:
         if file_info['indexed'] is True and file_info["name"] not in excluded_file:
             try:
-                file_key = create_blob_key(file_info)
+                file_key = compose_blob_key(file_info)
                 content_type = file_info[BundleFileMetadata.CONTENT_TYPE]
                 if content_type != "application/json":
                     continue

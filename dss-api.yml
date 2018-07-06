@@ -2,7 +2,7 @@ swagger: '2.0'
 info:
   title: HCA DCP DSS API
   description: Human Cell Atlas Data Coordination Platform Data Storage System API
-  version: "0.0.1"
+  version: "0.0.2"
 host: {{API_DOMAIN_NAME}}
 schemes:
   - https
@@ -32,7 +32,7 @@ paths:
         [GitHub API](https://developer.github.com/v3/guides/traversing-with-pagination/), which is based on
         [RFC 5988](https://tools.ietf.org/html/rfc5988). When the results of an API call exceed the page size
         specified, the HTTP response will contain a `Link` header of the following form:
-        `Link: <https://dss.data.humancellatlas.org/v1/search?replica=aws&per_page=100&_scroll_id=123>; rel="next"`.
+        `Link: <https://dss.data.humancellatlas.org/v1/search?replica=aws&per_page=100&search_after=123>; rel="next"`.
         The URL in the header refers to the next page of the results to be fetched; if no `Link rel="next"` URL is
         included, then all results have been fetched. The client should recognize and parse the `Link` header
         appropriately according to RFC 5988, and retrieve the next page if requested by the user, or if all results
@@ -75,10 +75,10 @@ paths:
           minimum: 10
           maximum: 500
           default: 100
-        - name: _scroll_id
+        - name: search_after
           in: query
           description: |
-            **Scroll-Search-Context**.
+            **Search-After-Context**.
             An internal state pointer parameter for use with pagination. This parameter is referenced by the `Link`
             header as described in the "Pagination" section. The API client should not need to set this parameter
             directly; it should instead directly fetch the URL given in the `Link` header.
@@ -189,6 +189,11 @@ paths:
           required: false
           type: string
           format: date-time
+        - name: token
+          in: query
+          description: Token to manage retries.  End users constructing queries should not set this parameter.
+          required: false
+          type: string
       responses:
         301:
           description: Handle asynchronously, downstream users are expected to retry later.
@@ -232,6 +237,22 @@ paths:
               description: SHA-256 (in hex format) of the file contents in hex.
               type: string
               pattern: "^[a-z0-9]{64}$"
+        400:
+          description: Bad request
+          schema:
+            allOf:
+              - $ref: '#/definitions/Error'
+              - type: object
+                properties:
+                  code:
+                    type: string
+                    description: |
+                      Machine-readable error code.  The types of return values should not be changed lightly.
+
+                      The code `illegal_token` is returned when the token parameter cannot be understood.
+                    enum: [illegal_token]
+                required:
+                  - code
         default:
           description: Unexpected error
           schema:
@@ -273,7 +294,7 @@ paths:
         - name: version
           in: query
           description: Timestamp of file creation in RFC3339.  If this is not provided, the latest version is returned.
-          required: false
+          required: true
           type: string
           format: date-time
         - name: json_request_body
@@ -356,7 +377,7 @@ paths:
       parameters:
         - name: replica
           in: query
-          description: Replica to fetch from. Can be one of aws, gcp, or azure.
+          description: Replica to fetch from.
           required: true
           type: string
           enum: [aws, gcp, azure]
@@ -395,7 +416,7 @@ paths:
       parameters:
         - name: replica
           in: query
-          description: Replica to write to. Can be one of aws, gcp, or azure.
+          description: Replica to write to.
           required: true
           type: string
           enum: [aws, gcp, azure]
@@ -499,19 +520,19 @@ paths:
                   the corresponding notification payload will contain the following entry
 
                   ```
-                  "attachements": {
+                  "attachments": {
                     "taxon": [9606, 9606]
                   }
                   ```
 
                   If a general error occurs during the processing of attachments, the notification will be sent with
                   `attachments` containing only the reserved `_errors` attachment containing a string describing the
-                  error. If an error occurs during the processing of a specific attachement, the notification will be
+                  error. If an error occurs during the processing of a specific attachment, the notification will be
                   sent with all successfully processed attachments and additionally the `_errors` attachment containing
                   an object with one property for each failed attachment. For example,
 
                   ```
-                  "attachements": {
+                  "attachments": {
                     "taxon": [9606, 9606]
                     "_errors" {
                       "biomaterial": "Some error occurred"
@@ -522,7 +543,7 @@ paths:
                   The value of the `attachments` property must be less than or equal to 128 KiB in size when serialized
                   to JSON and encoded as UTF-8. If it is not, the notification will be sent with
 
-                  "attachements": {
+                  "attachments": {
                     "_errors": "Attachments too large (131073 bytes)"
                   }
                 type: object
@@ -592,7 +613,7 @@ paths:
           pattern: "[A-Za-z0-9]{8}-[A-Za-z0-9]{4}-[A-Za-z0-9]{4}-[A-Za-z0-9]{4}-[A-Za-z0-9]{12}"
         - name: replica
           in: query
-          description: Replica to fetch from. Can be one of aws, gcp, or azure.
+          description: Replica to fetch from.
           required: true
           type: string
           enum: [aws, gcp, azure]
@@ -634,7 +655,7 @@ paths:
           pattern: "[A-Za-z0-9]{8}-[A-Za-z0-9]{4}-[A-Za-z0-9]{4}-[A-Za-z0-9]{4}-[A-Za-z0-9]{12}"
         - name: replica
           in: query
-          description: Replica to delete from. Can be one of aws, gcp, or azure.
+          description: Replica to delete from.
           required: true
           type: string
           enum: [aws, gcp, azure]
@@ -650,6 +671,259 @@ paths:
                 format: date-time
             required:
               - timeDeleted
+        default:
+          description: Unexpected error
+          schema:
+            allOf:
+              - $ref: '#/definitions/Error'
+              - type: object
+                properties:
+                  code:
+                    type: string
+                    description: Machine-readable error code.  The types of return values should not be changed lightly.
+                    enum: [unhandled_exception, Forbidden, OAuthResponseProblem, not_found]
+                required:
+                  - code
+  /collections:
+    put:
+      summary: Create a collection.
+      description: |
+        Create a new collection.
+
+        Collections are sets of links to files, bundles, other collections, or fragments of JSON metadata files. Each
+        entry in the input set of links is checked for referential integrity (the link target must exist in the replica
+        referenced). Up to 1000 items can be referenced in a new collection, or added or removed using
+        `PATCH /collections`. New collections are private to the authenticated user.
+
+        Collection items are de-duplicated (if an identical item is given multiple times, it will only be added once).
+
+        Collections are replicated across storage replicas similarly to files and bundles.
+      security:
+        - googAuth:
+            - https://www.googleapis.com/auth/userinfo.email
+      parameters:
+        - name: replica
+          in: query
+          description: Replica to write to.
+          required: true
+          type: string
+          enum: [aws, gcp, azure]
+        - name: uuid
+          in: query
+          description: A RFC4122-compliant ID for the collection.
+          required: true
+          type: string
+          pattern: "[A-Za-z0-9]{8}-[A-Za-z0-9]{4}-[A-Za-z0-9]{4}-[A-Za-z0-9]{4}-[A-Za-z0-9]{12}"
+        - name: version
+          in: query
+          description: |
+            Timestamp of collection creation in RFC3339 format. If this is not provided, the version is automatically
+            generated.
+          required: true
+          type: string
+          format: date-time
+        - name: json_request_body
+          in: body
+          required: true
+          schema:
+            $ref: "#/definitions/Collection"
+      responses:
+        201:
+          description: OK
+          schema:
+            type: object
+            properties:
+              uuid:
+                description: A RFC4122-compliant ID for the collection.
+                type: string
+                pattern: "[A-Za-z0-9]{8}-[A-Za-z0-9]{4}-[A-Za-z0-9]{4}-[A-Za-z0-9]{4}-[A-Za-z0-9]{12}"
+            required:
+              - uuid
+        default:
+          description: Unexpected error
+          schema:
+            allOf:
+              - $ref: '#/definitions/Error'
+              - type: object
+                properties:
+                  code:
+                    type: string
+                    description: |
+                      Machine-readable error code.  The types of return values should not be changed lightly.
+
+                      The code `invalid_link` indicates that an item listed in the collection contents field of the
+                      input could not be resolved (either because the file, bundle, or collection does not exist on the
+                      replica specified, or because the JSON Pointer reference could not be resolved within the
+                      specified file).
+                    enum: [unhandled_exception, Forbidden, OAuthResponseProblem, not_found, invalid_link]
+                required:
+                  - code
+  /collections/{uuid}:
+    get:
+      summary: Retrieve a collection given a UUID.
+      description: |
+        Given a collection UUID, return the associated collection object.
+      security:
+        - googAuth:
+            - https://www.googleapis.com/auth/userinfo.email
+      parameters:
+        - name: uuid
+          in: path
+          description: A RFC4122-compliant ID for the collection.
+          required: true
+          type: string
+          pattern: "[A-Za-z0-9]{8}-[A-Za-z0-9]{4}-[A-Za-z0-9]{4}-[A-Za-z0-9]{4}-[A-Za-z0-9]{12}"
+        - name: replica
+          in: query
+          description: Replica to fetch from.
+          required: true
+          type: string
+          enum: [aws, gcp, azure]
+        - name: version
+          in: query
+          description: |
+            Timestamp of collection creation in RFC3339.  If this is not provided, the latest version is returned.
+          required: false
+          type: string
+          format: date-time
+      responses:
+        200:
+          description: OK
+          schema:
+            type: object
+            properties:
+              collection:
+                $ref: "#/definitions/Collection"
+        default:
+          description: Unexpected error
+          schema:
+            allOf:
+              - $ref: '#/definitions/Error'
+              - type: object
+                properties:
+                  code:
+                    type: string
+                    description: Machine-readable error code.  The types of return values should not be changed lightly.
+                    enum: [unhandled_exception, Forbidden, OAuthResponseProblem, not_found]
+                required:
+                  - code
+    patch:
+      summary: Update a collection.
+      description: |
+        Add or remove items from a collection. A specific version of the collection to update must be provided, and a
+        new version will be written.
+      security:
+        - googAuth:
+            - https://www.googleapis.com/auth/userinfo.email
+      parameters:
+        - name: uuid
+          in: path
+          description: A RFC4122-compliant ID of the collection to update.
+          required: true
+          type: string
+          pattern: "[A-Za-z0-9]{8}-[A-Za-z0-9]{4}-[A-Za-z0-9]{4}-[A-Za-z0-9]{4}-[A-Za-z0-9]{12}"
+        - name: replica
+          in: query
+          description: Replica to update the collection on. Updates are propagated to other replicas.
+          required: true
+          type: string
+          enum: [aws, gcp, azure]
+        - name: version
+          in: query
+          description: |
+            Timestamp of the collection to update in RFC3339 format (required).
+          required: true
+          type: string
+          format: date-time
+        - name: json_request_body
+          in: body
+          required: true
+          schema:
+            type: object
+            properties:
+              add_contents:
+                type: array
+                description: |
+                  List of new items to add to the collection. Items are de-duplicated (if an identical item is already
+                  present in the collection or given multiple times, it will only be added once).
+                items:
+                  $ref: '#/definitions/CollectionItem'
+                maxItems: 1000
+              remove_contents:
+                type: array
+                description: |
+                  List of items to remove from the collection. Items must match exactly to be removed. Items not found
+                  in the collection are ignored.
+                items:
+                  $ref: '#/definitions/CollectionItem'
+                maxItems: 1000
+              name:
+                type: string
+                description: New name for the collection.
+              description:
+                type: string
+                description: New description for the collection.
+              details:
+                type: object
+                description: New details for the collection.
+      responses:
+        200:
+          description: OK
+          schema:
+            type: object
+            properties:
+              uuid:
+                type: string
+                description: A RFC4122-compliant ID of this collection.
+              version:
+                type: string
+                description: New version of the updated collection.
+                format: date-time
+            required:
+              - uuid
+              - version
+        default:
+          description: Unexpected error
+          schema:
+            allOf:
+              - $ref: '#/definitions/Error'
+              - type: object
+                properties:
+                  code:
+                    type: string
+                    description: |
+                      Machine-readable error code.  The types of return values should not be changed lightly.
+
+                      The code `invalid_link` indicates that an item listed in the collection contents field of the
+                      input could not be resolved (either because the file, bundle, or collection does not exist on the
+                      replica specified, or because the JSON Pointer reference could not be resolved within the
+                      specified file).
+                    enum: [unhandled_exception, Forbidden, OAuthResponseProblem, not_found, invalid_link]
+                required:
+                  - code
+    delete:
+      summary: Delete a collection.
+      description: |
+        Delete a collection.
+      security:
+        - googAuth:
+            - https://www.googleapis.com/auth/userinfo.email
+      parameters:
+        - name: uuid
+          in: path
+          description: A RFC4122-compliant ID for the collection.
+          required: true
+          type: string
+          pattern: "[A-Za-z0-9]{8}-[A-Za-z0-9]{4}-[A-Za-z0-9]{4}-[A-Za-z0-9]{4}-[A-Za-z0-9]{12}"
+        - name: replica
+          in: query
+          description: Replica to delete from.
+          required: true
+          type: string
+          enum: [aws, gcp, azure]
+      responses:
+        200:
+          description: OK
         default:
           description: Unexpected error
           schema:
@@ -690,9 +964,21 @@ paths:
           enum: [aws, gcp, azure]
         - name: directurls
           in: query
-          description: Include direct-access URLs in the response.
+          description: |
+            Include direct-access URLs in the response.  This is mutually exclusive with the presignedurls parameter.
           required: false
           type: boolean
+        - name: presignedurls
+          in: query
+          description: |
+            Include presigned URLs in the response.  This is mutually exclusive with the directurls parameter.
+          required: false
+          type: boolean
+        - name: token
+          in: query
+          description: Token to manage retries.  End users constructing queries should not set this parameter.
+          required: false
+          type: string
       responses:
         200:
           description: OK
@@ -701,10 +987,63 @@ paths:
             properties:
               bundle:
                 $ref: "#/definitions/bundle_version"
-        default:
-          description: Unexpected error
+        400:
+          description: Bad request
           schema:
-            $ref: '#/definitions/Error'
+            allOf:
+              - $ref: '#/definitions/Error'
+              - type: object
+                properties:
+                  code:
+                    type: string
+                    description: |
+                      Machine-readable error code.  The types of return values should not be changed lightly.
+
+                      The code `illegal_arguments` is returned when required parameters are missing or parameters do not
+                      match the requirements in the specification.
+
+                      The code `illegal_token` is returned when the token parameter cannot be understood.
+
+                      The code `only_one_urltype` is returned when more than one url type (`directurls` and
+                      `presignedurls`) is requested.
+                    enum: [illegal_arguments, illegal_token, only_one_urltype]
+                required:
+                  - code
+        500:
+          description: Server error
+          schema:
+            allOf:
+              - $ref: '#/definitions/Error'
+              - type: object
+                properties:
+                  code:
+                    type: string
+                    description: |
+                      Machine-readable error code.  The types of return values should not be changed lightly.
+
+                      The code `unhandled_exception` is returned when an unexpected exception is encountered.
+
+                      The code `checkout_error` is returned when the checkout fails.
+                    enum: [unhandled_exception, checkout_error]
+                required:
+                  - code
+        503:
+          description: Service unavailable
+          schema:
+            allOf:
+              - $ref: '#/definitions/Error'
+              - type: object
+                properties:
+                  code:
+                    type: string
+                    description: |
+                      Machine-readable error code.  The types of return values should not be changed lightly.
+
+                      The code `service_unavailable` is returned when service is unavailable because of unusually high
+                      load/latency
+                    enum: [service_unavailable]
+                required:
+                  - code
     put:
       summary: Create a bundle
       description: |
@@ -720,7 +1059,7 @@ paths:
         - name: version
           in: query
           description: Timestamp of bundle creation in RFC3339.
-          required: false
+          required: true
           type: string
           format: date-time
         - name: replica
@@ -980,6 +1319,12 @@ paths:
         Use this route with the `checkout_job_id` identifier returned by `POST /bundles/{uuid}/checkout`.
       operationId: dss.api.bundles.checkout.get
       parameters:
+        - name: replica
+          in: query
+          description: Replica to fetch from.
+          required: true
+          type: string
+          enum: [aws, gcp, azure]
         - name: checkout_job_id
           in: path
           description: A RFC4122-compliant ID for the checkout job request.
@@ -1001,6 +1346,25 @@ paths:
                 type: string
             required:
               - status
+        404:
+          description: Cannot find checkout.
+          schema:
+            allOf:
+              - $ref: '#/definitions/Error'
+              - type: object
+                properties:
+                  code:
+                    type: string
+                    description: |
+                      Machine-readable error code.  The types of return values should not be changed lightly.
+
+                      The code `not_found` is returned when there is no record of the checkout being referenced.
+                    enum: [not_found]
+                  message:
+                    type: string
+                    description: Detailed error message.
+                required:
+                  - code
         default:
           description: Unexpected error
           schema:
@@ -1011,7 +1375,7 @@ paths:
                   code:
                     type: string
                     description: Machine-readable error code.  The types of return values should not be changed lightly.
-                    enum: [unhandled_exception, illegal_arguments, not_found]
+                    enum: [unhandled_exception, illegal_arguments]
                   message:
                     type: string
                     description: Detailed error message.
@@ -1052,7 +1416,7 @@ definitions:
         type: boolean
         description: True if this file is to be indexed.
       url:
-        description: Direct access URL, if requested.
+        description: Direct access or presigned URL, if requested.
         type: string
       uuid:
         type: string
@@ -1133,7 +1497,7 @@ definitions:
         type: object
       callback_url:
         description: |
-          The subscriber's URL. An HTTP request is made to the specified URL for every attempt to deliver
+          The subscriber\'s URL. An HTTP request is made to the specified URL for every attempt to deliver
           a notification to the subscriber. If the HTTP response code is 2XX, the delivery attempt is
           considered successful and no more attemtpts will be made. Otherwise, more attempts will be made with
           an exponentially increasing delay between attempts, until an attempt is successful or the a maximum
@@ -1210,19 +1574,19 @@ definitions:
           the corresponding notification payload will contain the following entry
 
           ```
-          "attachements": {
+          "attachments": {
             "taxon": [9606, 9606]
           }
           ```
 
           If a general error occurs during the processing of attachments, the notification will be sent with
           `attachments` containing only the reserved `_errors` attachment containing a string describing the
-          error. If an error occurs during the processing of a specific attachement, the notification will be
+          error. If an error occurs during the processing of a specific attachment, the notification will be
           sent with all successfully processed attachments and additionally the `_errors` attachment containing
           an object with one property for each failed attachment. For example,
 
           ```
-          "attachements": {
+          "attachments": {
             "taxon": [9606, 9606]
             "_errors" {
               "biomaterial": "Some error occurred"
@@ -1233,7 +1597,7 @@ definitions:
           The value of the `attachments` property must be less than or equal to 128 KiB in size when serialized
           to JSON and encoded as UTF-8. If it is not, the notification will be sent with
 
-          "attachements": {
+          "attachments": {
             "_errors": "Attachments too large (131073 bytes)"
           }
         type: object
@@ -1288,6 +1652,53 @@ definitions:
       total_hits:
         description: The total number of matching results found.
         type: integer
+  Collection:
+    type: object
+    properties:
+      name:
+        description: A short name identifying the collection.
+        type: string
+      description:
+        description: A long description of the collection, formatted in Markdown.
+        type: string
+      details:
+        description: Supplementary JSON metadata for the collection.
+        type: object
+      contents:
+        description: |
+          A list of objects describing links to files, bundles, other collections, and metadata fragments that are
+          part of the collection.
+        type: array
+        items:
+          $ref: '#/definitions/CollectionItem'
+    required:
+      - name
+      - description
+      - details
+      - contents
+  CollectionItem:
+    type: object
+    properties:
+      type:
+        type: string
+        description: Type of link (file, bundle, collection, or a custom type for a metadata fragment).
+      uuid:
+        type: string
+        description: Unique ID of the file, bundle, collection, or file containing a metadata fragment.
+        pattern: "[a-z0-9]{8}-[a-z0-9]{4}-[a-z0-9]{4}-[a-z0-9]{4}-[a-z0-9]{12}"
+      version:
+        type: string
+        format: date-time
+        description: RFC3339 timestamp of the file, bundle, collection, or file containing a metadata fragment.
+      path:
+        type: string
+        description: |
+          JSON Pointer indexing into the JSON conents of the file containing a metadata fragment.
+          Required for links of type other than file, bundle, or collection. Ignored otherwise.
+    required:
+      - type
+      - uuid
+      - version
   Error:
     type: object
     properties:
@@ -1315,4 +1726,3 @@ definitions:
     properties:
       files:
         type: string
-

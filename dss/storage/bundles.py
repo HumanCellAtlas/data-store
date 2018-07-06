@@ -3,19 +3,23 @@ import typing
 
 from cloud_blobstore import BlobNotFoundError
 
-from dss import Config, DSSException, Replica
-from dss.storage.hcablobstore import BundleFileMetadata, BundleMetadata
+from dss import Config, Replica
 from dss.storage.identifiers import DSS_BUNDLE_KEY_REGEX, DSS_BUNDLE_TOMBSTONE_REGEX, TombstoneID, BundleFQID
-from dss.util import UrlBuilder
 from dss.storage.blobstore import test_object_exists
 
 
-def get_bundle_from_bucket(
+def get_bundle_manifest(
         uuid: str,
         replica: Replica,
         version: typing.Optional[str],
-        bucket: typing.Optional[str],
-        directurls: bool=False):
+        *,
+        bucket: typing.Optional[str]=None) -> typing.Optional[dict]:
+    """
+    Return the contents of the bundle manifest file from cloud storage, subject to the rules of tombstoning.  If version
+    is None, return the latest version, once again, subject to the rules of tombstoning.
+
+    If the bundle cannot be found, return None
+    """
     uuid = uuid.lower()
 
     handle = Config.get_blobstore_handle(replica)
@@ -31,7 +35,7 @@ def get_bundle_from_bucket(
     # 1. the whole bundle is deleted
     # 2. the specific version of the bundle is deleted
     if tombstone_exists(uuid, None) or (version and tombstone_exists(uuid, version)):
-        raise DSSException(404, "not_found", "EMPTY Cannot find file!")
+        return None
 
     # handle the following deletion case
     # 3. no version is specified, we want the latest _non-deleted_ version
@@ -43,55 +47,16 @@ def get_bundle_from_bucket(
 
     if version is None:
         # no matches!
-        raise DSSException(404, "not_found", "Cannot find file!")
+        return None
 
     bundle_fqid = BundleFQID(uuid=uuid, version=version)
 
     # retrieve the bundle metadata.
     try:
-        bundle_metadata = json.loads(
-            handle.get(
-                bucket,
-                bundle_fqid.to_key(),
-            ).decode("utf-8"))
+        bundle_manifest_blob = handle.get(bucket, bundle_fqid.to_key()).decode("utf-8")
+        return json.loads(bundle_manifest_blob)
     except BlobNotFoundError:
-        raise DSSException(404, "not_found", "Cannot find file!")
-
-    filesresponse = []  # type: typing.List[dict]
-    for file in bundle_metadata[BundleMetadata.FILES]:
-        file_version = {
-            'name': file[BundleFileMetadata.NAME],
-            'content-type': file[BundleFileMetadata.CONTENT_TYPE],
-            'size': file[BundleFileMetadata.SIZE],
-            'uuid': file[BundleFileMetadata.UUID],
-            'version': file[BundleFileMetadata.VERSION],
-            'crc32c': file[BundleFileMetadata.CRC32C],
-            's3_etag': file[BundleFileMetadata.S3_ETAG],
-            'sha1': file[BundleFileMetadata.SHA1],
-            'sha256': file[BundleFileMetadata.SHA256],
-            'indexed': file[BundleFileMetadata.INDEXED],
-        }
-        if directurls:
-            file_version['url'] = str(UrlBuilder().set(
-                scheme=replica.storage_schema,
-                netloc=bucket,
-                path="blobs/{}.{}.{}.{}".format(
-                    file[BundleFileMetadata.SHA256],
-                    file[BundleFileMetadata.SHA1],
-                    file[BundleFileMetadata.S3_ETAG],
-                    file[BundleFileMetadata.CRC32C],
-                ),
-            ))
-        filesresponse.append(file_version)
-
-    return dict(
-        bundle=dict(
-            uuid=uuid,
-            version=version,
-            files=filesresponse,
-            creator_uid=bundle_metadata[BundleMetadata.CREATOR_UID],
-        )
-    )
+        return None
 
 
 def _latest_version_from_object_names(object_names: typing.Iterator[str]) -> str:
@@ -117,17 +82,3 @@ def _latest_version_from_object_names(object_names: typing.Iterator[str]) -> str
             version = current_version
 
     return version
-
-
-def get_bundle(
-        uuid: str,
-        replica: Replica,
-        version: str=None,
-        directurls: bool=False):
-    return get_bundle_from_bucket(
-        uuid,
-        replica,
-        version,
-        None,
-        directurls
-    )

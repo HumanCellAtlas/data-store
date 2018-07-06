@@ -36,9 +36,6 @@ $(SERIAL_AWS_DAEMONS) $(PARALLEL_AWS_DAEMONS) scheduled-ci-build:
             ../tests/daemons/sample_s3_bundle_created_event.json.template \
             ../tests/daemons/a47b90b2-0967-4fbf-87bc-c6c12db3fedf.2017-07-12T055120.037644Z; \
         fi
-	@if [[ $@ == "dss-s3-copy-sfn" || %@ == "dss-s3-copy-write-metadata-sfn" || $@ == "dss-checkout" ]]; then \
-            $(DSS_HOME)/scripts/deploy_checkout_lifecycle.py; \
-        fi
 	@if [[ $@ == "dss-notify" ]]; then \
 	        cd $@ && python -c 'import app; app.deploy_notifier()' ; \
         fi
