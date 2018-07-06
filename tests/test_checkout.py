@@ -266,7 +266,7 @@ class TestCheckoutApi(unittest.TestCase, DSSAssertMixin, DSSUploadMixin):
         for replica in Replica:
             valid, cause = pre_exec_validate(replica, replica.bucket, replica.checkout_bucket, nonexistent_bundle_uuid,
                                              nonexistent_bundle_version)
-            self.assertIs(valid, ValidationEnum.WRONG_BUNDLE_KEY)
+            self.assertIs(valid, ValidationEnum.WRONG_BUNDLE_KEY, msg=f"cause: {cause}")
 
     @testmode.standalone
     def test_validate(self):

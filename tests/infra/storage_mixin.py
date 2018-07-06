@@ -1,4 +1,6 @@
 import json
+
+import datetime
 import os
 import typing
 import uuid
@@ -8,13 +10,14 @@ from cloud_blobstore import BlobStore
 
 from dss import Config, Replica
 from dss.util import UrlBuilder
+from dss.util.version import datetime_to_version_format
 
 
 class TestBundle:
     def __init__(self, handle: BlobStore, path: str, bucket: str, replica: Replica = Replica.aws) -> None:
         self.path = path
         self.uuid = str(uuid.uuid4())
-        self.version = None
+        self.version = datetime_to_version_format(datetime.datetime.utcnow())
         self.handle = handle
         self.bucket = bucket
         self.files = self.enumerate_bundle_files(replica)
@@ -64,14 +67,13 @@ class DSSStorageMixin:
     def create_bundle(self: typing.Any, bundle: TestBundle, replica: Replica):
         response = self.assertPutResponse(
             str(UrlBuilder().set(path='/v1/bundles/' + bundle.uuid)
-                .add_query('replica', replica.name)),
+                .add_query('replica', replica.name).add_query('version', bundle.version)),
             requests.codes.created,
             json_request_body=self.put_bundle_payload(bundle)
         )
         response_data = json.loads(response[1])
         self.assertIs(type(response_data), dict)
         self.assertIn('version', response_data)
-        bundle.version = response_data['version']
 
     @staticmethod
     def put_bundle_payload(bundle: TestBundle):

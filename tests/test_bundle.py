@@ -219,7 +219,6 @@ class TestBundleApi(unittest.TestCase, DSSAssertMixin, DSSUploadMixin):
 
     def _test_bundle_put(self, replica: Replica, fixtures_bucket: str):
         schema = replica.storage_schema
-
         bundle_uuid = str(uuid.uuid4())
         file_uuid = str(uuid.uuid4())
         missing_file_uuid = str(uuid.uuid4())
@@ -231,82 +230,95 @@ class TestBundleApi(unittest.TestCase, DSSAssertMixin, DSSUploadMixin):
         )
         file_version = resp_obj.json['version']
 
-        # first bundle.
-        bundle_version = datetime_to_version_format(datetime.datetime.utcnow())
-        self.put_bundle(
-            replica,
-            bundle_uuid,
-            [(file_uuid, file_version, "LICENSE")],
-            bundle_version,
-        )
-
-        # should be able to do this twice (i.e., same payload, same UUIDs)
-        self.put_bundle(
-            replica,
-            bundle_uuid,
-            [(file_uuid, file_version, "LICENSE")],
-            bundle_version,
-            requests.codes.ok,
-        )
-
-        # should *NOT* be able to do this twice with different payload.
-        self.put_bundle(
-            replica,
-            bundle_uuid,
-            [(file_uuid, file_version, "LICENSE1")],
-            bundle_version,
-            requests.codes.conflict,
-        )
-
-        # should *NOT* be able to upload a bundle with a missing file, but we should get requests.codes.conflict.
-        with nestedcontext.bind(time_left=lambda: 0):
-            resp_obj = self.put_bundle(
-                replica,
-                bundle_uuid,
-                [
-                    (file_uuid, file_version, "LICENSE0"),
-                    (missing_file_uuid, file_version, "LICENSE1"),
-                ],
-                expected_code=requests.codes.conflict,
-            )
-            self.assertEqual(resp_obj.json['code'], "file_missing")
-
-        # uploads a file, but delete the file metadata. put it back after a delay.
-        self.upload_file_wait(
-            f"{schema}://{fixtures_bucket}/test_good_source_data/0",
-            replica,
-            missing_file_uuid,
-            file_version,
-            bundle_uuid=bundle_uuid
-        )
-        handle = Config.get_blobstore_handle(replica)
-        bucket = replica.bucket
-        file_metadata = handle.get(bucket, f"files/{missing_file_uuid}.{file_version}")
-        handle.delete(bucket, f"files/{missing_file_uuid}.{file_version}")
-
-        class UploadThread(threading.Thread):
-            def run(innerself):
-                time.sleep(5)
-                data_fh = io.BytesIO(file_metadata)
-                handle.upload_file_handle(bucket, f"files/{missing_file_uuid}.{file_version}", data_fh)
-
-        # start the upload (on a delay...)
-        upload_thread = UploadThread()
-        upload_thread.start()
-
-        # this should at first fail to find one of the files, but the UploadThread will eventually upload the file
-        # metadata.  since we give the upload bundle process ample time to spin, it should eventually find the file
-        # metadata and succeed.
-        with nestedcontext.bind(time_left=lambda: sys.maxsize):
+        with self.subTest(f'{replica}: first bundle.'):
+            bundle_version = datetime_to_version_format(datetime.datetime.utcnow())
             self.put_bundle(
                 replica,
                 bundle_uuid,
-                [
-                    (file_uuid, file_version, "LICENSE0"),
-                    (missing_file_uuid, file_version, "LICENSE1"),
-                ],
-                expected_code=requests.codes.created,
+                [(file_uuid, file_version, "LICENSE")],
+                bundle_version,
             )
+
+        with self.subTest(f'{replica}: should be able to do this twice (i.e. same payload, same UUIDs)'):
+            self.put_bundle(
+                replica,
+                bundle_uuid,
+                [(file_uuid, file_version, "LICENSE")],
+                bundle_version,
+                requests.codes.ok,
+            )
+
+        with self.subTest(f'{replica}: should *NOT* be able to do this twice with different payload.'):
+            self.put_bundle(
+                replica,
+                bundle_uuid,
+                [(file_uuid, file_version, "LICENSE1")],
+                bundle_version,
+                requests.codes.conflict,
+            )
+
+        with self.subTest(f'{replica}: should *NOT* be able to do this without bundle version.'):
+            self.put_bundle(
+                replica,
+                bundle_uuid,
+                [(file_uuid, file_version, "LICENSE")],
+                expected_code=requests.codes.bad_request
+            )
+
+        with self.subTest(f'{replica}: should *NOT* be able to upload a bundle with a missing file, but we should get '
+                          'requests.codes.conflict.'):
+            with nestedcontext.bind(time_left=lambda: 0):
+                bundle_version = datetime_to_version_format(datetime.datetime.utcnow())
+                resp_obj = self.put_bundle(
+                    replica,
+                    bundle_uuid,
+                    [
+                        (file_uuid, file_version, "LICENSE0"),
+                        (missing_file_uuid, file_version, "LICENSE1"),
+                    ],
+                    bundle_version,
+                    expected_code=requests.codes.conflict
+                )
+                self.assertEqual(resp_obj.json['code'], "file_missing")
+
+        with self.subTest(f'{replica}: uploads a file, but delete the file metadata. put it back after a delay.'):
+            self.upload_file_wait(
+                f"{schema}://{fixtures_bucket}/test_good_source_data/0",
+                replica,
+                missing_file_uuid,
+                file_version,
+                bundle_uuid=bundle_uuid
+            )
+            handle = Config.get_blobstore_handle(replica)
+            bucket = replica.bucket
+            file_metadata = handle.get(bucket, f"files/{missing_file_uuid}.{file_version}")
+            handle.delete(bucket, f"files/{missing_file_uuid}.{file_version}")
+
+            class UploadThread(threading.Thread):
+                def run(innerself):
+                    time.sleep(5)
+                    data_fh = io.BytesIO(file_metadata)
+                    handle.upload_file_handle(bucket, f"files/{missing_file_uuid}.{file_version}", data_fh)
+
+            # start the upload (on a delay...)
+            upload_thread = UploadThread()
+            upload_thread.start()
+
+            # this should at first fail to find one of the files, but the UploadThread will eventually upload the file
+            # metadata.  since we give the upload bundle process ample time to spin, it should eventually find the file
+            # metadata and succeed.
+            with nestedcontext.bind(time_left=lambda: sys.maxsize):
+                bundle_version = datetime_to_version_format(datetime.datetime.utcnow())
+                self.put_bundle(
+                    replica,
+                    bundle_uuid,
+                    [
+                        (file_uuid, file_version, "LICENSE0"),
+                        (missing_file_uuid, file_version, "LICENSE1"),
+                    ],
+                    bundle_version,
+                    expected_code=requests.codes.created,
+                )
 
     @testmode.standalone
     def test_bundle_delete(self):

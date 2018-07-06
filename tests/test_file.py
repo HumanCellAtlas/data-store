@@ -79,6 +79,12 @@ class TestFileApi(unittest.TestCase, DSSAssertMixin, DSSUploadMixin):
         # should be able to do this twice (i.e., different payload, same UUIDs)
         self.upload_file(source_url, file_uuid, version=version, expected_code=requests.codes.ok)
 
+        # should fail validation when invalid version is provided.
+        self.upload_file(source_url, file_uuid, version='', expected_code=requests.codes.bad)
+
+        # should fail validation when version is not provided
+        self.upload_file(source_url, file_uuid, version='missing', expected_code=requests.codes.bad)
+
     @testmode.integration
     def test_file_put_large(self):
 
@@ -415,7 +421,8 @@ class TestFileApi(unittest.TestCase, DSSAssertMixin, DSSUploadMixin):
             version = timestamp.strftime("%Y-%m-%dT%H%M%S.%fZ")
 
         urlbuilder = UrlBuilder().set(path='/v1/files/' + file_uuid)
-        urlbuilder.add_query("version", version)
+        if version is not 'missing':
+            urlbuilder.add_query("version", version)
 
         resp_obj = self.assertPutResponse(
             str(urlbuilder),
