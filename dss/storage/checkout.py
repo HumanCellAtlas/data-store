@@ -262,10 +262,14 @@ def touch_test_file(replica: Replica, dst_bucket: str) -> bool:
             dst_bucket,
             test_object,
             io.BytesIO(b""))
-        Config.get_blobstore_handle(replica).delete(dst_bucket, test_object)
         return True
     except Exception:
         return False
+    finally:
+        try:
+            Config.get_blobstore_handle(replica).delete(dst_bucket, test_object)
+        except Exception:
+            pass
 
 
 class CheckoutStatus:
