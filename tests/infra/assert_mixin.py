@@ -8,9 +8,8 @@ import typing
 
 import requests
 from flask import wrappers
-
+from tests import get_auth_header
 from dss.util import UrlBuilder
-
 
 class ExpectedErrorFields(typing.NamedTuple):
     code: str
@@ -35,6 +34,7 @@ class DSSAssertResponse(typing.NamedTuple):
 
 class DSSAssertMixin:
     sre = re.compile("^assert(.+)Response")
+    include_auth_header = True
 
     def assertResponse(
             self,
