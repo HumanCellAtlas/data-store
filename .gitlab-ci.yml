@@ -35,14 +35,14 @@ before_script:
   - unzip terraform_0.11.7_linux_amd64.zip -d make4/usr/bin
   - export PATH=$(pwd)/make4/usr/bin:$PATH
   - source environment
-  - aws secretsmanager get-secret-value --secret-id ${DSS_SECRETS_STORE}/${DSS_DEPLOYMENT_STAGE}/gcp-credentials.json | jq -r .SecretString > gcp-credentials.json
-  - export GOOGLE_APPLICATION_CREDENTIALS=$(pwd -P)/gcp-credentials.json
 
 deploy_dev:
   stage: deploy_dev
   script:
-     - scripts/should_deploy.py --stage dev
-#    - make -C infra apply-all
-#    - make deploy
+    - aws secretsmanager get-secret-value --secret-id ${DSS_SECRETS_STORE}/${DSS_DEPLOYMENT_STAGE}/gcp-credentials.json | jq -r .SecretString > gcp-credentials.json
+    - export GOOGLE_APPLICATION_CREDENTIALS=$(pwd -P)/gcp-credentials.json
+    - make deploy-infra
+    - make deploy
   only:
-    - schedules
+    - master
+    - triggers
