@@ -3,7 +3,6 @@
 
 import logging
 import sys
-import typing
 import unittest
 from contextlib import contextmanager
 
@@ -95,9 +94,9 @@ class TestCommonsAuth(unittest.TestCase, DSSAssertMixin, DSSUploadMixin):
         self.run_auth_errors(self.aws_file_url, 'put')
         self.run_auth_errors(self.gcp_file_url, 'put')
 
-    # def test_head_file_auth_errors(self):
-    #     self.run_auth_errors(self.aws_file_url, 'head')
-    #     self.run_auth_errors(self.gcp_file_url, 'head')
+    def test_head_file_auth_errors(self):
+        self.run_auth_errors(self.aws_file_url, 'head')
+        self.run_auth_errors(self.gcp_file_url, 'head')
 
     def test_get_bundle_auth_errors(self):
         self.run_auth_errors(self.aws_bundle_url, 'get')
@@ -114,12 +113,17 @@ class TestCommonsAuth(unittest.TestCase, DSSAssertMixin, DSSUploadMixin):
     def test_post_search_auth_errors(self):
         self.run_auth_errors(self.aws_search_url, 'post',
                              error_key='x-amzn-ErrorType',
-                             error_value='UnauthorizedException')
+                             error_value='UnauthorizedException',
+                             post_search=True)
         self.run_auth_errors(self.gcp_search_url, 'post',
                              error_key='x-amzn-ErrorType',
-                             error_value='UnauthorizedException')
+                             error_value='UnauthorizedException',
+                             post_search=True)
 
-    def run_auth_errors(self, url, calltype, error_key='Content-Type', error_value='application/problem+json'):
+    def run_auth_errors(self, url, calltype,
+                        error_key='Content-Type',
+                        error_value='application/problem+json',
+                        post_search=False):
         if calltype == 'get':
             response = self.assertGetResponse
         elif calltype == 'put':
@@ -137,13 +141,14 @@ class TestCommonsAuth(unittest.TestCase, DSSAssertMixin, DSSUploadMixin):
             self.assertEqual(resp_obj.response.headers[error_key], error_value)
 
         # Gibberish auth header
-        resp_obj = response(url, requests.codes.unauthorized, headers=get_auth_header(False))
+        expected_code = requests.codes.unauthorized if not post_search else requests.codes.forbidden
+        resp_obj = response(url, expected_code, headers=get_auth_header(False))
         self.assertEqual(resp_obj.response.headers[error_key], error_value)
 
         # No auth header
         try:
             DSSAssertMixin.include_auth_header = False
-            response(url, requests.codes.unauthorized)
+            response(url, expected_code)
         finally:
             DSSAssertMixin.include_auth_header = True
 
