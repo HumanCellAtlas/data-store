@@ -41,8 +41,8 @@ before_script:
 deploy_dev:
   stage: deploy_dev
   script:
-     - scripts/should_deploy.py --stage dev
-#    - make -C infra apply-all
-#    - make deploy
+    - scripts/should_deploy.py --stage dev
+    - make deploy-infra
+    - make deploy
   only:
     - schedules
