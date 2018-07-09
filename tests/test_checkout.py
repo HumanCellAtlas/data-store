@@ -174,7 +174,7 @@ class TestCheckoutApi(unittest.TestCase, DSSAssertMixin, DSSUploadMixin):
                 status = resp_obj.json.get('status')
                 if status not in ("RUNNING", "SUCCEEDED"):
                     raise Exception(f"Unexpected status {status}")
-                self.assertEqual(status, "SUCCEEDED")
+                self.assertEqual(status, "SUCCEEDED", f"execution {execution_id} not at expected state")
 
             check_status()
 
@@ -196,7 +196,7 @@ class TestCheckoutApi(unittest.TestCase, DSSAssertMixin, DSSUploadMixin):
                 status = resp_obj.json.get('status')
                 if status not in ("RUNNING", "FAILED"):
                     raise Exception(f"Unexpected status {status}")
-                self.assertEqual(status, "FAILED")
+                self.assertEqual(status, "FAILED", f"execution {execution_id} not at expected state")
 
             check_status()
 
