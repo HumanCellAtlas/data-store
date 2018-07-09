@@ -6,7 +6,6 @@ data aws_route53_zone dss_route53_zone {
 
 data aws_acm_certificate dss_domain_cert {
   domain = "${var.DSS_CERTIFICATE_DOMAIN}"
-  provider = "aws.us-east-1"
 }
 
 # TODO: Configure regional domain name with Terraform
