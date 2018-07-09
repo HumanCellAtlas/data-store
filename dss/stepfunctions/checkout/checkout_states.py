@@ -4,13 +4,12 @@ import dss
 from dss.config import Replica
 
 from dss.util.email import send_checkout_success_email, send_checkout_failure_email
-from dss.storage.checkout import (
-    CheckoutStatus,
+from dss.storage.checkout import parallel_copy, pre_exec_validate, validate_file_dst
+from dss.storage.checkout.bundle import (
     get_dst_bundle_prefix,
     get_manifest_files,
-    parallel_copy,
-    pre_exec_validate,
-    validate_file_dst,
+    mark_bundle_checkout_failed,
+    mark_bundle_checkout_successful,
 )
 from .constants import EventConstants
 
@@ -109,7 +108,7 @@ def notify_complete(event, context):
             event[_InternalEventConstants.SCHEDULE][_InternalEventConstants.SCHEDULED_DST_LOCATION],
             replica)
     # record results of execution into S3
-    CheckoutStatus.mark_bundle_checkout_successful(
+    mark_bundle_checkout_successful(
         event[EventConstants.EXECUTION_ID],
         replica,
         event[EventConstants.STATUS_BUCKET],
@@ -134,7 +133,7 @@ def notify_complete_failure(event, context):
     if EventConstants.EMAIL in event:
         result = send_checkout_failure_email(dss.Config.get_notification_email(), event[EventConstants.EMAIL], cause)
     # record results of execution into S3
-    CheckoutStatus.mark_bundle_checkout_failed(
+    mark_bundle_checkout_failed(
         event[EventConstants.EXECUTION_ID],
         Replica[event[EventConstants.REPLICA]],
         event[EventConstants.STATUS_BUCKET],

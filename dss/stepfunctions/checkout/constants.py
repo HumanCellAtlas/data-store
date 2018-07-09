@@ -1,3 +1,6 @@
+STATE_MACHINE_NAME_TEMPLATE = "dss-checkout-sfn-{stage}"
+
+
 class EventConstants:
     """Externally visible constants used in the SFN messages."""
 

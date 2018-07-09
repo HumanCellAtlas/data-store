@@ -15,7 +15,7 @@ sys.path.insert(0, pkg_root)  # noqa
 from dss import Replica
 from dss.api.files import ASYNC_COPY_THRESHOLD
 from tests.infra import testmode
-from dss.storage.checkout import get_dst_bundle_prefix
+from dss.storage.checkout.bundle import get_dst_bundle_prefix
 
 
 parser = argparse.ArgumentParser(description=__doc__)
