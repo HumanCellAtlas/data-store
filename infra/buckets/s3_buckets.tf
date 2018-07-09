@@ -27,8 +27,9 @@ resource aws_s3_bucket dss_s3_checkout_bucket {
   lifecycle_rule {
     id      = "dss_checkout_expiration"
     enabled = true
+    abort_incomplete_multipart_upload_days = 7
     expiration {
-	  days = 30
+      days = 7
     }
   }
 }
@@ -39,8 +40,9 @@ resource aws_s3_bucket dss_s3_checkout_bucket_test {
   lifecycle_rule {
     id      = "dss_checkout_expiration"
     enabled = true
+    abort_incomplete_multipart_upload_days = 7
     expiration {
-	  days = 7
+      days = 7
     }
   }
 }
