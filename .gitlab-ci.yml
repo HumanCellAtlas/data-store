@@ -35,6 +35,7 @@ before_script:
   - unzip terraform_0.11.7_linux_amd64.zip -d make4/usr/bin
   - export PATH=$(pwd)/make4/usr/bin:$PATH
   - source environment
+  - if [[ -f "environment.$CI_COMMIT_REF_NAME" ]]; then source "environment.$CI_COMMIT_REF_NAME"; fi
 
 deploy_dev:
   stage: deploy_dev
