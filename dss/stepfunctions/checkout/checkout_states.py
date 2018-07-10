@@ -2,6 +2,7 @@ import logging
 
 import dss
 from dss.config import Replica
+from dss.storage.checkout.error import PreExecCheckoutError
 
 from dss.util.email import send_checkout_success_email, send_checkout_failure_email
 from dss.storage.checkout import parallel_copy, pre_exec_validate, validate_file_dst
@@ -28,6 +29,8 @@ class _InternalEventConstants:
     """Key for dictionary that stores the output of pre_execution_check."""
     VALIDATION_CHECKOUT_STATUS = "checkout_status"
     VALIDATION_CAUSE = "cause"
+    VALIDATION_CHECKOUT_STATUS_PASSED = "PASSED"
+    VALIDATION_CHECKOUT_STATUS_FAILED = "FAILED"
 
     RESULT = "result"
 
@@ -90,10 +93,19 @@ def pre_execution_check(event, context):
         "Pre-execution check job_id %s for bundle %s version %s replica %s",
         event[EventConstants.EXECUTION_ID], bundle_uuid, bundle_version, replica)
 
-    checkout_status, cause = pre_exec_validate(replica, dss_bucket, dst_bucket, bundle_uuid, bundle_version)
-    result = {_InternalEventConstants.VALIDATION_CHECKOUT_STATUS: checkout_status.name.upper()}
-    if cause:
-        result[_InternalEventConstants.VALIDATION_CAUSE] = cause
+    try:
+        pre_exec_validate(replica, dss_bucket, dst_bucket, bundle_uuid, bundle_version)
+        result = {
+            _InternalEventConstants.VALIDATION_CHECKOUT_STATUS:
+                _InternalEventConstants.VALIDATION_CHECKOUT_STATUS_PASSED,
+        }
+    except PreExecCheckoutError as ex:
+        result = {
+            _InternalEventConstants.VALIDATION_CHECKOUT_STATUS:
+                _InternalEventConstants.VALIDATION_CHECKOUT_STATUS_FAILED,
+            _InternalEventConstants.VALIDATION_CAUSE:
+                str(ex),
+        }
     return result
 
 
@@ -200,7 +212,7 @@ state_machine_def = {
                 {
                     "Variable":
                         f"$.{_InternalEventConstants.VALIDATION}.{_InternalEventConstants.VALIDATION_CHECKOUT_STATUS}",
-                    "StringEquals": "PASSED",
+                    "StringEquals": f"{_InternalEventConstants.VALIDATION_CHECKOUT_STATUS_PASSED}",
                     "Next": "ScheduleCopy"
                 }
             ],
