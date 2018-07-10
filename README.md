@@ -170,48 +170,16 @@ Run `make test` in the top-level `data-store` directory.
 Assuming the tests have passed above, the next step is to manually deploy. See the section below for information on
 CI/CD with Travis if continuous deployment is your goal.
 
-The AWS Elasticsearch Service is used for metadata indexing. Currently, the AWS Elasticsearch Service must be configured
-manually.
+The AWS Elasticsearch Service is used for metadata indexing. For typical development deployments the
+t2.small.elasticsearch instance type is sufficient.
 
-* The domain name must either:
-  * have the value `dss-index-$DSS_DEPLOYMENT_STAGE`
-  * or, the environment variable `DSS_ES_DOMAIN` must be set to the domain name of the AWS Elasticsearch Service instance
-  to be used.
-* For typical development deployments the t2.small.elasticsearch instance type is more than sufficient.
-* Must be Elasticsearch 5.* instead of 6.*.
-
+An AWS route53 zone must be available for your domain name and configured in `environment`.
 
 Now deploy using make:
 
+    make deploy-infra
     make deploy
 
-Set up AWS API Gateway. The gateway is automatically set up for you and associated with the Lambda. However, to get a
-friendly domain name, you need to follow the
-directions [here](http://docs.aws.amazon.com/apigateway/latest/developerguide/how-to-custom-domains.html). In summary:
-
-1.  Generate a HTTPS certificate via AWS Certificate Manager (ACM). See note below on choosing a region for the
-    certificate.
-
-2.  Set up the custom domain name in the API gateway console. See note below on the DNS record type.
-
-3.  In Amazon Route 53 point the domain to the API gateway
-
-4.  In the API Gateway, fill in the endpoints for the custom domain name e.g. Path=`/`, Destination=`dss` and
-    `dev`. These might be different based on the profile used (dev, stage, etc).
-
-5.  Set the environment variable `API_DOMAIN_NAME` to your domain name in the `environment.local` file.
-
-Note: The certificate should be in the same region as the API gateway or, if that's not possible, in `us-east-1`. If the
-ACM certificate's region is `us-east-1` and the API gateway is in another region, the type of the custom domain name
-must be *Edge Optimized*. Provisioning such a domain name typically takes up to 40 minutes because the certificate needs
-to be replicated to all involved CloudFront edge servers. The corresponding record set in Route 53 needs to be an
-**alias** A record, not a CNAME or a regular A record, and it must point to the CloudFront host name associated with the
-edge-optimized domain name. Starting November 2017, API gateway supports regional certificates i.e., certificates in
-regions other than `us-east-1`. This makes it possible to match the certificate's region with that of the API
-gateway. and cuts the provisioning of the custom domain name down to seconds. Simply create the certificate in the same
-region as that of the API gateway, create a custom domain name of type *Regional* and in Route53 add a CNAME recordset
-that points to the gateway's canonical host name.
- 
 If successful, you should be able to see the Swagger API documentation at:
 
     https://<domain_name>
