@@ -33,6 +33,8 @@ from dss.storage.checkout.bundle import (
 from dss.storage.checkout.common import get_execution_id
 from dss.storage.checkout.error import (
     BundleNotFoundError,
+    DestinationBucketNotFoundError,
+    DestinationBucketNotWritableError,
 )
 from dss.storage.checkout.file import (
     get_dst_key,
@@ -111,6 +113,11 @@ class TestCheckoutApi(unittest.TestCase, DSSAssertMixin, DSSUploadMixin):
         elif replica == Replica.gcp:
             bucket = get_env("DSS_GS_BUCKET_TEST_FIXTURES")
         return bucket
+
+    def get_checkout_unwriteable_bucket(self, replica: Replica) -> str:
+        if replica == Replica.aws:
+            return get_env("DSS_S3_CHECKOUT_BUCKET_UNWRITABLE")
+        raise ValueError(f"No support for unwritable buckets for replica {replica.name}")
 
     @testmode.standalone
     def test_pre_execution_check_doesnt_exist(self):
@@ -280,6 +287,21 @@ class TestCheckoutApi(unittest.TestCase, DSSAssertMixin, DSSUploadMixin):
             with self.assertRaises(BundleNotFoundError):
                 pre_exec_validate(replica, self.get_test_fixture_bucket(replica), replica.checkout_bucket,
                                   nonexistent_bundle_uuid, nonexistent_bundle_version)
+
+    @testmode.standalone
+    def test_validate_bucket_exists_fail(self):
+        nonexistent_bucket = str(uuid.uuid4())
+        for replica in Replica:
+            with self.assertRaises(DestinationBucketNotFoundError):
+                pre_exec_validate(replica, replica.bucket, nonexistent_bucket, self.bundle_uuid, self.bundle_version)
+
+    @testmode.standalone
+    def test_validate_bucket_writable_fail(self):
+        # only AWS supports buckets that can be created by terraform that are inaccessible to self.
+        replica = Replica.aws
+        with self.assertRaises(DestinationBucketNotWritableError):
+            pre_exec_validate(replica, replica.bucket, self.get_checkout_unwriteable_bucket(replica),
+                              self.bundle_uuid, self.bundle_version)
 
     @testmode.standalone
     def test_touch_file(self):
