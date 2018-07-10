@@ -20,7 +20,6 @@ from dss.util import UrlBuilder
 from dss.util.version import datetime_to_version_format
 from dss.storage.checkout import (
     pre_exec_validate,
-    validate_bundle_exists,
     validate_file_dst,
     touch_test_file,
 )
@@ -113,7 +112,7 @@ class TestCheckoutApi(unittest.TestCase, DSSAssertMixin, DSSUploadMixin):
             bucket = get_env("DSS_GS_BUCKET_TEST_FIXTURES")
         return bucket
 
-    @testmode.integration
+    @testmode.standalone
     def test_pre_execution_check_doesnt_exist(self):
         for replica in Replica:
             non_existent_bundle_uuid = str(uuid.uuid4())
@@ -132,7 +131,7 @@ class TestCheckoutApi(unittest.TestCase, DSSAssertMixin, DSSUploadMixin):
             )
             self.assertEqual(resp_obj.json['code'], 'not_found')
 
-    @testmode.integration
+    @testmode.standalone
     def test_sanity_check_no_replica(self):
         for replica in Replica:
             request_body = {"destination": replica.checkout_bucket}
@@ -167,7 +166,7 @@ class TestCheckoutApi(unittest.TestCase, DSSAssertMixin, DSSUploadMixin):
         return execution_id
 
     @testmode.integration
-    def test_status_success(self):
+    def test_checkout_success(self):
         for replica in Replica:
             execution_id = self.launch_checkout(replica.checkout_bucket, replica)
             mark_bundle_checkout_started(execution_id, replica, replica.checkout_bucket)
@@ -188,7 +187,7 @@ class TestCheckoutApi(unittest.TestCase, DSSAssertMixin, DSSUploadMixin):
             check_status()
 
     @testmode.integration
-    def test_status_fail(self):
+    def test_checkout_fail(self):
         nonexistent_bucket_name = str(uuid.uuid4())
         for replica in Replica:
             execution_id = self.launch_checkout(nonexistent_bucket_name, replica)
@@ -269,23 +268,9 @@ class TestCheckoutApi(unittest.TestCase, DSSAssertMixin, DSSUploadMixin):
             self.assertEquals(validate_file_dst(replica, bucket, dst_key), True)
 
     @testmode.standalone
-    def test_validate_wrong_key(self):
-        nonexistent_bundle_uuid = str(uuid.uuid4())
-        nonexistent_bundle_version = datetime_to_version_format(datetime.datetime.utcnow())
-        for replica in Replica:
-            with self.assertRaises(BundleNotFoundError):
-                pre_exec_validate(replica, replica.bucket, replica.checkout_bucket, nonexistent_bundle_uuid,
-                                  nonexistent_bundle_version)
-
-    @testmode.standalone
     def test_validate(self):
         for replica in Replica:
             pre_exec_validate(replica, replica.bucket, replica.checkout_bucket, self.bundle_uuid, self.bundle_version)
-
-    @testmode.standalone
-    def test_validate_bundle_exists(self):
-        for replica in Replica:
-            validate_bundle_exists(replica, replica.bucket, self.bundle_uuid, self.bundle_version)
 
     @testmode.standalone
     def test_validate_bundle_exists_fail(self):
@@ -293,8 +278,8 @@ class TestCheckoutApi(unittest.TestCase, DSSAssertMixin, DSSUploadMixin):
         nonexistent_bundle_version = datetime_to_version_format(datetime.datetime.utcnow())
         for replica in Replica:
             with self.assertRaises(BundleNotFoundError):
-                validate_bundle_exists(replica, self.get_test_fixture_bucket(replica),
-                                       nonexistent_bundle_uuid, nonexistent_bundle_version)
+                pre_exec_validate(replica, self.get_test_fixture_bucket(replica), replica.checkout_bucket,
+                                  nonexistent_bundle_uuid, nonexistent_bundle_version)
 
     @testmode.standalone
     def test_touch_file(self):
