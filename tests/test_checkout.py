@@ -19,7 +19,6 @@ from dss.config import override_bucket_config, BucketConfig, Replica, Config
 from dss.util import UrlBuilder
 from dss.util.version import datetime_to_version_format
 from dss.storage.checkout import (
-    ValidationEnum,
     pre_exec_validate,
     validate_bundle_exists,
     validate_file_dst,
@@ -33,6 +32,9 @@ from dss.storage.checkout.bundle import (
     mark_bundle_checkout_successful,
 )
 from dss.storage.checkout.common import get_execution_id
+from dss.storage.checkout.error import (
+    BundleNotFoundError,
+)
 from dss.storage.checkout.file import (
     get_dst_key,
     start_file_checkout,
@@ -271,31 +273,28 @@ class TestCheckoutApi(unittest.TestCase, DSSAssertMixin, DSSUploadMixin):
         nonexistent_bundle_uuid = str(uuid.uuid4())
         nonexistent_bundle_version = datetime_to_version_format(datetime.datetime.utcnow())
         for replica in Replica:
-            valid, cause = pre_exec_validate(replica, replica.bucket, replica.checkout_bucket, nonexistent_bundle_uuid,
-                                             nonexistent_bundle_version)
-            self.assertIs(valid, ValidationEnum.WRONG_BUNDLE_KEY, msg=f"cause: {cause}")
+            with self.assertRaises(BundleNotFoundError):
+                pre_exec_validate(replica, replica.bucket, replica.checkout_bucket, nonexistent_bundle_uuid,
+                                  nonexistent_bundle_version)
 
     @testmode.standalone
     def test_validate(self):
         for replica in Replica:
-            valid, cause = pre_exec_validate(replica, replica.bucket, replica.checkout_bucket, self.bundle_uuid,
-                                             self.bundle_version)
-            self.assertIs(valid, ValidationEnum.PASSED)
+            pre_exec_validate(replica, replica.bucket, replica.checkout_bucket, self.bundle_uuid, self.bundle_version)
 
     @testmode.standalone
     def test_validate_bundle_exists(self):
         for replica in Replica:
-            valid, cause = validate_bundle_exists(replica, replica.bucket, self.bundle_uuid, self.bundle_version)
-            self.assertIs(valid, ValidationEnum.PASSED)
+            validate_bundle_exists(replica, replica.bucket, self.bundle_uuid, self.bundle_version)
 
     @testmode.standalone
     def test_validate_bundle_exists_fail(self):
         nonexistent_bundle_uuid = str(uuid.uuid4())
         nonexistent_bundle_version = datetime_to_version_format(datetime.datetime.utcnow())
         for replica in Replica:
-            valid, cause = validate_bundle_exists(replica, self.get_test_fixture_bucket(replica),
-                                                  nonexistent_bundle_uuid, nonexistent_bundle_version)
-            self.assertIs(valid, ValidationEnum.WRONG_BUNDLE_KEY)
+            with self.assertRaises(BundleNotFoundError):
+                validate_bundle_exists(replica, self.get_test_fixture_bucket(replica),
+                                       nonexistent_bundle_uuid, nonexistent_bundle_version)
 
     @testmode.standalone
     def test_touch_file(self):
