@@ -1,4 +1,3 @@
-import datetime
 import io
 import os
 import json
@@ -15,7 +14,8 @@ from dss import DSSException, dss_handler
 from dss.config import Config, Replica
 from dss.storage.blobstore import test_object_exists, ObjectTest
 from dss.storage.bundles import get_bundle_manifest
-from dss.storage.checkout import CheckoutError, TokenError, verify_checkout
+from dss.storage.checkout import CheckoutError, TokenError
+from dss.storage.checkout.bundle import verify_checkout
 from dss.storage.identifiers import TombstoneID, BundleFQID, FileFQID
 from dss.storage.hcablobstore import BundleFileMetadata, BundleMetadata, FileMetadata, compose_blob_key
 from dss.util import UrlBuilder
