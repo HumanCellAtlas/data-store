@@ -17,6 +17,7 @@ addons:
     - jq
     - moreutils
     - gettext
+    - httpie
 
 install:
 - pip install -r requirements-dev.txt
@@ -45,7 +46,9 @@ stages:
 - name: integration_test
   if: env(TRAVIS_DSS_INTEGRATION_MODE) = 1
 - name: deploy
-  if: env(TRAVIS_DSS_INTEGRATION_MODE) != 1 AND branch IN (master, integration, staging) AND type != pull_request
+  if: env(TRAVIS_DSS_INTEGRATION_MODE) != 1 AND branch IN (integration, staging) AND type != pull_request
+- name: deploy-dev
+  if: env(TRAVIS_DSS_INTEGRATION_MODE) != 1 AND branch IN (master) AND type != pull_request
 
 jobs:
   include:
@@ -78,6 +81,11 @@ jobs:
       skip_cleanup: true
       on:
         all_branches: true  # but see the `if:` conditional on the deploy stage above
+  - stage: deploy-dev
+    script:
+    - "http POST ${GITLAB_API}/projects/${REPO_SLUG}/mirror/pull Private-Token:${GITLAB_TOKEN}"
+    - sleep 60
+    - "http POST ${GITLAB_API}/projects/${REPO_SLUG}/trigger/pipeline token=${GITLAB_DSS_TRIGGER_TOKEN} ref=${TRAVIS_BRANCH}"
 
 env:
   global:
@@ -86,3 +94,4 @@ env:
   - DSS_TEST_ES_PATH=./elasticsearch-${ES_VERSION}/bin/elasticsearch
   - DSS_ES_TIMEOUT=30
   - DSS_UNITTEST_OPTS="-v"
+  - REPO_SLUG="HumanCellAtlas%2Fdata-store"
