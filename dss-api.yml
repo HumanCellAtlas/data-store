@@ -984,6 +984,13 @@ paths:
             properties:
               bundle:
                 $ref: "#/definitions/bundle_version"
+        301:
+          description: Handle asynchronously, downstream users are expected to retry later.
+          headers:
+            Retry-After:
+              description: Delay in seconds, downstream users are expected to retry after the delay.
+              type: integer
+              format: int64
         400:
           description: Bad request
           schema:
