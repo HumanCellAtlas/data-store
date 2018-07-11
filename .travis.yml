@@ -84,7 +84,7 @@ jobs:
   - stage: deploy-dev
     script:
     - "http POST ${GITLAB_API}/projects/${REPO_SLUG}/mirror/pull Private-Token:${GITLAB_TOKEN}"
-    - sleep 60
+    - sleep 60  # give the build box some breathing room to update repo
     - "http POST ${GITLAB_API}/projects/${REPO_SLUG}/trigger/pipeline token=${GITLAB_DSS_TRIGGER_TOKEN} ref=${TRAVIS_BRANCH}"
 
 env:
