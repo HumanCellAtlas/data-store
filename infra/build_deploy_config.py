@@ -16,7 +16,14 @@ parser.add_argument("component")
 args = parser.parse_args()
 
 
-terraform_backend_template = """terraform {{
+terraform_variable_template = """
+variable "{name}" {{
+  default = "{val}"
+}}
+"""
+
+terraform_backend_template = """# Auto-generated during infra build process
+terraform {{
   backend "s3" {{
     bucket = "{bucket}"
     key = "dss-{comp}-{stage}.tfstate"
@@ -26,7 +33,7 @@ terraform_backend_template = """terraform {{
 }}
 """
 
-terraform_providers_template = """
+terraform_providers_template = """# Auto-generated during infra build process
 provider aws {{
   region = "{aws_region}"
 }}
@@ -79,12 +86,6 @@ env_vars_to_infra = [
     "GCP_DEFAULT_REGION",
 ]
 
-terraform_variable_info = {'variable': dict()}
-for key in env_vars_to_infra:
-    terraform_variable_info['variable'][key] = {
-        'default': os.environ[key]
-    }
-
 with open(os.path.join(infra_root, args.component, "backend.tf"), "w") as fp:
     caller_info = boto3.client("sts").get_caller_identity()
     if os.environ.get('AWS_PROFILE'):
@@ -101,7 +102,10 @@ with open(os.path.join(infra_root, args.component, "backend.tf"), "w") as fp:
     ))
 
 with open(os.path.join(infra_root, args.component, "variables.tf"), "w") as fp:
-    fp.write(json.dumps(terraform_variable_info, indent=2))
+    fp.write("# Auto-generated during infra build process" + os.linesep)
+    for key in env_vars_to_infra:
+        val = os.environ[key]
+        fp.write(terraform_variable_template.format(name=key, val=val))
 
 with open(os.path.join(infra_root, args.component, "providers.tf"), "w") as fp:
     fp.write(terraform_providers_template.format(
