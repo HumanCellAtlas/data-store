@@ -77,6 +77,7 @@ env_vars_to_infra = [
     "DSS_CERTIFICATE_ADDITIONAL_NAMES",
     "DSS_CERTIFICATE_VALIDATION",
     "DSS_ZONE_NAME",
+    "DSS_S3_CHECKOUT_BUCKET_UNWRITABLE",
 ]
 
 terraform_variable_info = {'variable': dict()}
