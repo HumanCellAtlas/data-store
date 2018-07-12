@@ -22,7 +22,8 @@ variable "{name}" {{
 }}
 """
 
-terraform_backend_template = """# Auto-generated during infra build process
+terraform_backend_template = """# Auto-generated during infra build process.
+# Please edit infra/build_deploy_config.py directly.
 terraform {{
   backend "s3" {{
     bucket = "{bucket}"
@@ -33,7 +34,8 @@ terraform {{
 }}
 """
 
-terraform_providers_template = """# Auto-generated during infra build process
+terraform_providers_template = """# Auto-generated during infra build process.
+# Please edit infra/build_deploy_config.py directly.
 provider aws {{
   region = "{aws_region}"
 }}
@@ -102,7 +104,8 @@ with open(os.path.join(infra_root, args.component, "backend.tf"), "w") as fp:
     ))
 
 with open(os.path.join(infra_root, args.component, "variables.tf"), "w") as fp:
-    fp.write("# Auto-generated during infra build process" + os.linesep)
+    fp.write("# Auto-generated during infra build process." + os.linesep)
+    fp.write("# Please edit infra/build_deploy_config.py directly." + os.linesep)
     for key in env_vars_to_infra:
         val = os.environ[key]
         fp.write(terraform_variable_template.format(name=key, val=val))
