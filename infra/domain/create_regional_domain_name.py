@@ -6,9 +6,6 @@ certificate, and Route 53 zone. The certificate must be in the same region as th
 domain. 
 """
 
-import os
-import sys
-import json
 import boto3
 import argparse
 
