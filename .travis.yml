@@ -17,6 +17,7 @@ addons:
     - jq
     - moreutils
     - gettext
+    - httpie
 
 install:
 - pip install -r requirements-dev.txt
@@ -45,7 +46,9 @@ stages:
 - name: integration_test
   if: env(TRAVIS_DSS_INTEGRATION_MODE) = 1
 - name: deploy
-  if: env(TRAVIS_DSS_INTEGRATION_MODE) != 1 AND branch IN (master, integration, staging) AND type != pull_request
+  if: env(TRAVIS_DSS_INTEGRATION_MODE) != 1 AND branch IN (integration, staging) AND type != pull_request
+- name: deploy-dev
+  if: env(TRAVIS_DSS_INTEGRATION_MODE) != 1 AND branch IN (master) AND type != pull_request
 
 jobs:
   include:
@@ -78,6 +81,9 @@ jobs:
       skip_cleanup: true
       on:
         all_branches: true  # but see the `if:` conditional on the deploy stage above
+  - stage: deploy-dev
+    script:
+    - scripts/trigger_gitlab_build.sh HumanCellAtlas data-store $TRAVIS_BRANCH
 
 env:
   global:
