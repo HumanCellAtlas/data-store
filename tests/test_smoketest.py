@@ -113,108 +113,109 @@ class Smoketest(unittest.TestCase):
         s3 = boto3.client('s3', config=botocore.client.Config(signature_version='s3v4'))
         notifications_proofs = {}
         for replica in self.replicas:
-            print(f"{starting_replica}: Create a subscription for replica {replica} using the query")
-            notification_key = f'notifications/{uuid.uuid4()}'
-            url = s3.generate_presigned_url(ClientMethod='put_object',
-                                            Params=dict(Bucket=self.notification_bucket,
-                                                        Key=notification_key,
-                                                        ContentType='application/json'))
-            put_response = run_for_json([f'{self.venv_bin}hca', 'dss', 'put-subscription',
-                                         '--callback-url', url,
-                                         '--method', 'PUT',
-                                         '--es-query', json.dumps(query),
-                                         '--replica', replica.name])
-            subscription_id = put_response['uuid']
-            self.addCleanup(run, f"{self.venv_bin}hca dss delete-subscription --replica {replica.name} "
-                                 f"--uuid {subscription_id}")
-            self.addCleanup(s3.delete_object, Bucket=self.notification_bucket, Key=notification_key)
-            notifications_proofs[replica] = (subscription_id, notification_key)
-            get_response = run_for_json(f"{self.venv_bin}hca dss get-subscription "
-                                        f"--replica {replica.name} "
-                                        f"--uuid {subscription_id}")
-            self.assertEquals(subscription_id, get_response['uuid'])
-            self.assertEquals(url, get_response['callback_url'])
-            list_response = run_for_json(f"{self.venv_bin}hca dss get-subscriptions --replica {replica.name}")
-            self.assertIn(get_response, list_response['subscriptions'])
+            with self.subTest(f"{starting_replica.name}: Create a subscription for replica {replica} using the query"):
+                notification_key = f'notifications/{uuid.uuid4()}'
+                url = s3.generate_presigned_url(ClientMethod='put_object',
+                                                Params=dict(Bucket=self.notification_bucket,
+                                                            Key=notification_key,
+                                                            ContentType='application/json'))
+                put_response = run_for_json([f'{self.venv_bin}hca', 'dss', 'put-subscription',
+                                             '--callback-url', url,
+                                             '--method', 'PUT',
+                                             '--es-query', json.dumps(query),
+                                             '--replica', replica.name])
+                subscription_id = put_response['uuid']
+                self.addCleanup(run, f"{self.venv_bin}hca dss delete-subscription --replica {replica.name} "
+                                     f"--uuid {subscription_id}")
+                self.addCleanup(s3.delete_object, Bucket=self.notification_bucket, Key=notification_key)
+                notifications_proofs[replica] = (subscription_id, notification_key)
+                get_response = run_for_json(f"{self.venv_bin}hca dss get-subscription "
+                                            f"--replica {replica.name} "
+                                            f"--uuid {subscription_id}")
+                self.assertEquals(subscription_id, get_response['uuid'])
+                self.assertEquals(url, get_response['callback_url'])
+                list_response = run_for_json(f"{self.venv_bin}hca dss get-subscriptions --replica {replica.name}")
+                self.assertIn(get_response, list_response['subscriptions'])
 
-        print(f"{starting_replica}: Create the bundle")
-        res = run_for_json(f"{self.venv_bin}hca dss upload "
-                           f"--replica {starting_replica.name} "
-                           f"--staging-bucket {test_bucket} "
-                           f"--src-dir {self.bundle_dir}")
+        with self.subTest(f"{starting_replica.name}: Create the bundle"):
+            res = run_for_json(f"{self.venv_bin}hca dss upload "
+                               f"--replica {starting_replica.name} "
+                               f"--staging-bucket {test_bucket} "
+                               f"--src-dir {self.bundle_dir}")
         bundle_uuid = res['bundle_uuid']
         bundle_version = res['version']
         file_count = len(res['files'])
 
-        print(f"{starting_replica}: Download that bundle")
-        run(f"{self.venv_bin}hca dss download --replica {starting_replica.name} --bundle-uuid {bundle_uuid}")
+        with self.subTest(f"{starting_replica.name}: Download that bundle"):
+            run(f"{self.venv_bin}hca dss download --replica {starting_replica.name} --bundle-uuid {bundle_uuid}")
 
-        print(f"{starting_replica}: Initiate a bundle checkout")
-        res = run_for_json(f"{self.venv_bin}hca dss post-bundles-checkout --uuid {bundle_uuid} "
-                           f"--replica {starting_replica.name}")
-        checkout_job_id = res['checkout_job_id']
-        print(f"Checkout jobId: {checkout_job_id}")
-        self.assertTrue(checkout_job_id)
+        with self.subTest(f"{starting_replica.name}: Initiate a bundle checkout"):
+            res = run_for_json(f"{self.venv_bin}hca dss post-bundles-checkout --uuid {bundle_uuid} "
+                               f"--replica {starting_replica.name}")
+            checkout_job_id = res['checkout_job_id']
+            print(f"Checkout jobId: {checkout_job_id}")
+            self.assertTrue(checkout_job_id)
 
-        print(f"{starting_replica}: Wait for the bundle to appear in the other replicas")
         other_replicas = self.replicas - {starting_replica}
         for replica in other_replicas:
-            for i in range(10):
-                try:
-                    run(f"http -Iv --check-status "
-                        f"GET https://${{API_DOMAIN_NAME}}/v1/bundles/{bundle_uuid}?replica={replica.name}")
-                except SystemExit:
-                    time.sleep(1)
+            with self.subTest(f"{starting_replica.name}: Wait for the bundle to appear in the {replica} replicas"):
+                for i in range(10):
+                    try:
+                        run(f"http -Iv --check-status "
+                            f"GET https://${{API_DOMAIN_NAME}}/v1/bundles/{bundle_uuid}?replica={replica.name}")
+                    except SystemExit:
+                        time.sleep(1)
+                    else:
+                        break
                 else:
-                    break
-            else:
-                parser.exit(RED(f"Failed to replicate bundle from {starting_replica} to {replica.name}"))
+                    parser.exit(RED(f"Failed to replicate bundle from {starting_replica.name} to {replica.name}"))
 
-            print(f"{starting_replica}: Download bundle from other replica")
-            run(f"{self.venv_bin}hca dss download --replica {replica.name} --bundle-uuid {bundle_uuid}")
+                with self.subTest(f"{starting_replica.name}: Download bundle from other replica"):
+                    run(f"{self.venv_bin}hca dss download --replica {replica.name} --bundle-uuid {bundle_uuid}")
 
         for replica in self.replicas:
-            print(f"{starting_replica}: Hit search route directly against each replica {replica}")
-            search_route = "https://${API_DOMAIN_NAME}/v1/search"
-            res = run_for_json(f'http --check {search_route} replica=={replica.name}',
-                               input=json.dumps({'es_query': query}).encode())
-            print(json.dumps(res, indent=4))
-            self.assertEqual(len(res['results']), 1)
+            with self.subTest(f"{starting_replica.name}: Hit search route directly against each replica {replica}"):
+                search_route = "https://${API_DOMAIN_NAME}/v1/search"
+                res = run_for_json(f'http --check {search_route} replica=={replica.name}',
+                                   input=json.dumps({'es_query': query}).encode())
+                print(json.dumps(res, indent=4))
+                self.assertEqual(len(res['results']), 1)
 
-        print(f"{starting_replica}: Wait for the checkout to complete and assert its success")
-        for i in range(10):
-            res = run_for_json(f"{self.venv_bin}hca dss get-bundles-checkout --checkout-job-id {checkout_job_id} "
-                               f"--replica {starting_replica.name}")
-            status = res['status']
-            self.assertGreater(len(status), 0)
-            if status == 'RUNNING':
-                time.sleep(6)
+        with self.subTest(f"{starting_replica.name}: Wait for the checkout to complete and assert its success"):
+            for i in range(10):
+                res = run_for_json(f"{self.venv_bin}hca dss get-bundles-checkout --checkout-job-id {checkout_job_id} "
+                                   f"--replica {starting_replica.name}")
+                status = res['status']
+                self.assertGreater(len(status), 0)
+                if status == 'RUNNING':
+                    time.sleep(6)
+                else:
+                    self.assertEqual(status, 'SUCCEEDED')
+                    blob_handle = self.get_blobstore(starting_replica)
+                    object_key = get_dst_bundle_prefix(bundle_uuid, bundle_version)
+                    print(f"Checking bucket {checkout_bucket} "
+                          f"object key: {object_key}")
+                    files = list(blob_handle.list(checkout_bucket, object_key))
+                    self.assertEqual(len(files), file_count)
+                    break
             else:
-                self.assertEqual(status, 'SUCCEEDED')
-                blob_handle = self.get_blobstore(starting_replica)
-                object_key = get_dst_bundle_prefix(bundle_uuid, bundle_version)
-                print(f"Checking bucket {checkout_bucket} "
-                      f"object key: {object_key}")
-                files = list(blob_handle.list(checkout_bucket, object_key))
-                self.assertEqual(len(files), file_count)
-                break
-        else:
-            self.fail("Timed out waiting for checkout job to succeed")
+                self.fail("Timed out waiting for checkout job to succeed")
 
-        print(f"{starting_replica}: Check the notifications")
         for replica, (subscription_id, notification_key) in notifications_proofs.items():
-            obj = s3.get_object(Bucket=self.notification_bucket, Key=notification_key)
-            notification = json.load(obj['Body'])
-            self.assertEquals(subscription_id, notification['subscription_id'])
-            self.assertEquals(bundle_uuid, notification['match']['bundle_uuid'])
-            self.assertEquals(bundle_version, notification['match']['bundle_version'])
+            with self.subTest(f"{starting_replica.name}: Check the notifications. "
+                              f"{replica.name}, {subscription_id}, {notification_key}"):
+                    obj = s3.get_object(Bucket=self.notification_bucket, Key=notification_key)
+
+                    notification = json.load(obj['Body'])
+                    self.assertEquals(subscription_id, notification['subscription_id'])
+                    self.assertEquals(bundle_uuid, notification['match']['bundle_uuid'])
+                    self.assertEquals(bundle_version, notification['match']['bundle_version'])
 
     def test_smoketest(self):
         for param in self.params:
-            with self.subTest(param['starting_replica'].name):
-                self.smoketest(**param)
+            self.smoketest(**param)
 
-                print("{replica}: Run a CLI search.")
+            with self.subTest(f"{param['starting_replica'].name}: Run a CLI search."):
                 run(f"{self.venv_bin}hca dss post-search --es-query='{{}}' "
                     f"--replica {param['starting_replica'].name} > /dev/null")
 
