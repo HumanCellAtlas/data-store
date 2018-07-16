@@ -40,7 +40,7 @@ class IndexTarget(Target):
         self.prefix = prefix or ''
 
     def repair(self, workers: int) -> JSON:
-        return self._start(workers, dryrun=False, notify=None)
+        return self._start(workers, dryrun=False, notify=False)
 
     def verify(self, workers: int) -> JSON:
         return self._start(workers, dryrun=True, notify=False)
