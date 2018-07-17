@@ -412,6 +412,34 @@ class TestIndexerBase(ElasticsearchTestCase, DSSAssertMixin, DSSStorageMixin, DS
                                         "The hostname in URL 'https://127.0.0.1' resolves to a private IP"):
                 _notify("https://127.0.0.1")
 
+    @testmode.always
+    def test_notifications_recieved(self):
+        endpoint = self._default_endpoint()
+        endpoint = NotificationRequestHandler.configure(endpoint)
+        subscription_id = self.subscribe_for_notification(es_query=self.smartseq2_paired_ends_query,
+                                                          **endpoint.to_dict())
+        sample_event = self.create_bundle_created_event(self.bundle_key)
+        with self.subTest("A notification is recieved when an indexing event for a new bundle version replica matching "
+                          "my subscription is received."):
+            self.process_new_indexable_object(sample_event)
+            prefix, _, bundle_fqid = self.bundle_key.partition("/")
+            self.verify_notification(subscription_id, self.smartseq2_paired_ends_query, bundle_fqid, endpoint)
+        with self.subTest("No notification is received when an indexing event for a duplicate bundle version replica "
+                          "matching my subscription is received."):
+            self.process_new_indexable_object(sample_event)
+            received_request = self._get_received_notification_request()
+            self.assertIsNone(received_request)
+        with self.subTest("A notification is recieved when an indexing event for a modified bundle version replica "
+                          "matching my subscription is received."):
+            bundle_uuid = self.bundle_key.split('/')[1].split('.')[0]
+            bundle_key = self.load_test_data_bundle_for_path(
+                "fixtures/indexing/bundles/v3/smartseq2/paired_ends", bundle_uuid)
+            sample_event = self.create_bundle_created_event(bundle_key)
+            self.process_new_indexable_object(sample_event)
+            prefix, _, bundle_fqid = bundle_key.partition("/")
+            self.verify_notification(subscription_id, self.smartseq2_paired_ends_query, bundle_fqid, endpoint)
+        self.delete_subscription(subscription_id)
+
     def delete_subscription(self, subscription_id):
         self.assertDeleteResponse(
             str(UrlBuilder().set(path=f"/v1/subscriptions/{subscription_id}").add_query("replica", self.replica.name)),
@@ -420,6 +448,14 @@ class TestIndexerBase(ElasticsearchTestCase, DSSAssertMixin, DSSStorageMixin, DS
 
     @testmode.always
     def test_subscription_notification_successful(self):
+        remaining_time = SpecificRemainingTime(300)
+        backend = CompositeIndexBackend(executor=self.executor,
+                                        backends=DEFAULT_BACKENDS,
+                                        remaining_time=remaining_time,
+                                        notify_async=testmode.is_integration(),
+                                        notify=True)
+        self.indexer = self.indexer_cls(backend, remaining_time)
+
         sample_event = self.create_bundle_created_event(self.bundle_key)
         self.process_new_indexable_object(sample_event)
         test_cases = []
@@ -461,6 +497,13 @@ class TestIndexerBase(ElasticsearchTestCase, DSSAssertMixin, DSSStorageMixin, DS
 
     @testmode.standalone
     def test_subscription_with_attachments(self):
+        remaining_time = SpecificRemainingTime(300)
+        backend = CompositeIndexBackend(executor=self.executor,
+                                        backends=DEFAULT_BACKENDS,
+                                        remaining_time=remaining_time,
+                                        notify_async=testmode.is_integration(),
+                                        notify=True)
+        self.indexer = self.indexer_cls(backend, remaining_time)
 
         def define(**definitions):
             return dict({k: dict(type='jmespath', expression=v) for k, v in definitions.items()})
@@ -1041,9 +1084,9 @@ class TestIndexerBase(ElasticsearchTestCase, DSSAssertMixin, DSSStorageMixin, DS
             else:
                 time.sleep(0.5)
 
-    def load_test_data_bundle_for_path(self, fixture_path: str):
+    def load_test_data_bundle_for_path(self, fixture_path: str, uuid=None):
         """Loads files into test bucket and returns bundle id"""
-        bundle = TestBundle(self.blobstore, fixture_path, self.test_fixture_bucket, self.replica)
+        bundle = TestBundle(self.blobstore, fixture_path, self.test_fixture_bucket, self.replica, uuid)
         return self.load_test_data_bundle(bundle)
 
     def load_test_data_bundle_with_inaccessible_file(self, fixture_path: str,
