@@ -1284,7 +1284,9 @@ class LocalNotificationRequestHandler(BaseHTTPRequestHandler):
 
     @classmethod
     def get_request(cls):
-        return cls._request
+        request = cls._request
+        cls._request = None
+        return request
 
     def log_request(self, code='-', size='-'):
         if Config.debug_level():
