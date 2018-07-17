@@ -54,6 +54,11 @@ OVERRIDE_EXECUTION_LIMIT_SECONDS = None
 """
 This is how long we wait for a request, if set.  If the value is None, we try to use the lambda's timeout.
 """
+DSS_VERSION = os.getenv('DSS_VERSION')
+"""
+Tag describing the version of the currently deployed DSS codebase.  Generated during deployment in the form:
+[<latest-release-tag>-<commits-since-tag>-]<SHA>
+"""
 
 
 class DSSChaliceApp(chalice.Chalice):
@@ -204,6 +209,21 @@ def get_chalice_app(flask_app) -> DSSChaliceApp:
         return chalice.Response(status_code=200,
                                 headers={"Content-Type": "text/html"},
                                 body=swagger_ui_html)
+
+    @app.route("/version")
+    @time_limited(app)
+    def version():
+        data = {
+            'version_info': {
+                'version': DSS_VERSION
+            }
+        }
+
+        return chalice.Response(
+            status_code=requests.codes.ok,
+            headers={'Content-Type': "application/json"},
+            body=data
+        )
 
     @app.route("/internal/health")
     @time_limited(app)
