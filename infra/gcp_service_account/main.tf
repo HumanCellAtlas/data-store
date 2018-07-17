@@ -1,6 +1,7 @@
 data "google_project" "project" {}
 
 resource "google_service_account" "dss" {
+  count = "${length(var.DSS_GCP_SERVICE_ACCOUNT_NAME) > 0 ? 1 : 0}"
   display_name = "${var.DSS_GCP_SERVICE_ACCOUNT_NAME}"
   account_id = "${var.DSS_GCP_SERVICE_ACCOUNT_NAME}"
 }
@@ -9,24 +10,28 @@ resource "google_service_account" "dss" {
 # `gcloud iam list-grantable-roles //cloudresourcemanager.googleapis.com/projects/{project-id}`
 
 resource "google_project_iam_member" "serviceaccountactor" {
+  count = "${length(var.DSS_GCP_SERVICE_ACCOUNT_NAME) > 0 ? 1 : 0}"
   project = "${data.google_project.project.project_id}"
   role    = "roles/iam.serviceAccountActor"
   member  = "serviceAccount:${google_service_account.dss.email}"
 }
 
 resource "google_project_iam_member" "cloudruntimeconfiguratoradmin" {
+  count = "${length(var.DSS_GCP_SERVICE_ACCOUNT_NAME) > 0 ? 1 : 0}"
   project = "${data.google_project.project.project_id}"
   role    = "roles/runtimeconfig.admin"
   member  = "serviceAccount:${google_service_account.dss.email}"
 }
 
 resource "google_project_iam_member" "storageadmin" {
+  count = "${length(var.DSS_GCP_SERVICE_ACCOUNT_NAME) > 0 ? 1 : 0}"
   project = "${data.google_project.project.project_id}"
   role    = "roles/storage.admin"
   member  = "serviceAccount:${google_service_account.dss.email}"
 }
 
 resource "google_project_iam_member" "storageobjectadmin" {
+  count = "${length(var.DSS_GCP_SERVICE_ACCOUNT_NAME) > 0 ? 1 : 0}"
   project = "${data.google_project.project.project_id}"
   role    = "roles/storage.objectAdmin"
   member  = "serviceAccount:${google_service_account.dss.email}"

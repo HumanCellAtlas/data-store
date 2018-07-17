@@ -8,6 +8,13 @@ DSS_S3_CHECKOUT_BUCKET=$DSS_S3_CHECKOUT_BUCKET_INTEGRATION
 DSS_GS_CHECKOUT_BUCKET=$DSS_GS_CHECKOUT_BUCKET_INTEGRATION
 DSS_ES_DOMAIN="dss-index-$DSS_DEPLOYMENT_STAGE"
 API_DOMAIN_NAME=dss.integration.data.humancellatlas.org
+
+# `dev`, `integration`, and `staging` share the same GCP service account. This account is
+# deployed and managed from `dev`, and the other stages should not attempt to manage a
+# shared resource from separate Terraform state files.
+# Setting `DSS_GCP_SERVICE_ACCOUNT_NAME` to a blank string will prevent duplicated management.
+DSS_GCP_SERVICE_ACCOUNT_NAME=""
+
 set +a
 
 if [[ -f "${DSS_HOME}/environment.integration.local" ]]; then
