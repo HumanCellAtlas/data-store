@@ -14,9 +14,10 @@ from dss.util.version import datetime_to_version_format
 
 
 class TestBundle:
-    def __init__(self, handle: BlobStore, path: str, bucket: str, replica: Replica = Replica.aws) -> None:
+    def __init__(self, handle: BlobStore, path: str, bucket: str, replica: Replica = Replica.aws,
+                 bundle_uuid: str = None) -> None:
         self.path = path
-        self.uuid = str(uuid.uuid4())
+        self.uuid = bundle_uuid if bundle_uuid else str(uuid.uuid4())
         self.version = datetime_to_version_format(datetime.datetime.utcnow())
         self.handle = handle
         self.bucket = bucket
