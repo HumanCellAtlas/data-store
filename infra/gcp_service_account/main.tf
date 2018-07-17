@@ -5,7 +5,7 @@ resource "google_service_account" "dss" {
   account_id = "${var.DSS_GCP_SERVICE_ACCOUNT_NAME}"
 }
 
-# Useful command to discover roll names (Guessing based on console titles is difficult):
+# Useful command to discover role names (Guessing based on console titles is difficult):
 # `gcloud iam list-grantable-roles //cloudresourcemanager.googleapis.com/projects/{project-id}`
 
 resource "google_project_iam_member" "serviceaccountactor" {
