@@ -14,7 +14,7 @@ class IndexBackend(metaclass=ABCMeta):
     purpose of indexing and querying metadata associated with bundles and the files contained in them.
     """
 
-    def __init__(self, dryrun: bool = False, notify: Optional[bool] = True, **kwargs) -> None:
+    def __init__(self, dryrun: bool = False, notify: Optional[bool] = None, **kwargs) -> None:
         """
         Create a new index backend.
 
