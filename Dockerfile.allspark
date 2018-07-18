@@ -4,7 +4,7 @@ ENV DEBIAN_FRONTEND noninteractive
 
 RUN apt-get update --quiet \
     && apt-get install --assume-yes --no-install-recommends \
-		ca-certificates \
+        ca-certificates \
         build-essential \
         default-jre \
         gettext \
