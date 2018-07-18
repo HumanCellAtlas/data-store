@@ -1,4 +1,4 @@
-image: xbrianh/dss-build-box  # TODO: Move to humancellatlas docker account?
+image: humancellatlas/dss-build-box
 
 cache:
   paths:
