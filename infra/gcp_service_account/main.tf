@@ -31,3 +31,9 @@ resource "google_project_iam_member" "storageobjectadmin" {
   role    = "roles/storage.objectAdmin"
   member  = "serviceAccount:${google_service_account.dss.email}"
 }
+
+resource "google_project_iam_member" "cloudfunctionsdeveloper" {
+  project = "${data.google_project.project.project_id}"
+  role    = "roles/cloudfunctions.developer"
+  member  = "serviceAccount:${google_service_account.dss.email}"
+}
