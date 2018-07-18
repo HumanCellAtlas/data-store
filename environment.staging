@@ -6,11 +6,19 @@ DSS_S3_BUCKET=$DSS_S3_BUCKET_STAGING
 DSS_GS_BUCKET=$DSS_GS_BUCKET_STAGING
 DSS_S3_CHECKOUT_BUCKET=$DSS_S3_CHECKOUT_BUCKET_STAGING
 DSS_GS_CHECKOUT_BUCKET=$DSS_GS_CHECKOUT_BUCKET_STAGING
+API_DOMAIN_NAME=dss.staging.data.humancellatlas.org
+DSS_GS_BUCKET_REGION=US
+
 # `staging` currently shares the ES domain with `dev`
 DSS_ES_DOMAIN=dss-index-dev
-API_DOMAIN_NAME=dss.staging.data.humancellatlas.org
 
-DSS_GS_BUCKET_REGION=US
+
+# `dev`, `integration`, and `staging` share the same GCP service account. This account is
+# deployed and managed from `dev`, and the other stages should not attempt to manage a
+# shared resource from separate Terraform state files.
+# Setting `DSS_GCP_SERVICE_ACCOUNT_NAME` to a blank string will prevent duplicated management.
+DSS_GCP_SERVICE_ACCOUNT_NAME=""
+
 set +a
 
 if [[ -f "${DSS_HOME}/environment.staging.local" ]]; then
