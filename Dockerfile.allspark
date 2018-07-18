@@ -1,3 +1,19 @@
+# This is the build image for the DSS, intended for use with the allspark GitLab server
+# It may be built and uploaded with the commands:
+#   `docker login
+#   `docker build -f Dockerfile.allspark -t {docker_username}/{tag_key}:{tag_value} .`
+#   `docker push {docker_username}/{tag_key}:{tag_value}`
+# Note that `{tag_value}` may be omitted:
+#   `docker login
+#   `docker build -f Dockerfile.allspark -t {docker_username}/{tag_key} .`
+#   `docker push {docker_username}/{tag_key}`
+#
+# Now reference the image in .gitlab-ci.yml with the line:
+#   `image: {docker_username}/{tag_key}:{tag_value}
+#
+# Please see Docker startup guide for additional info:
+#   https://docs.docker.com/get-started/ 
+
 FROM ubuntu:18.04
 
 ENV DEBIAN_FRONTEND noninteractive
