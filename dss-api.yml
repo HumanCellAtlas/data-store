@@ -1,7 +1,47 @@
 swagger: '2.0'
 info:
   title: HCA DCP DSS API
-  description: Human Cell Atlas Data Coordination Platform Data Storage System API
+  description: |
+    Human Cell Atlas Data Coordination Platform Data Storage System API
+
+    **HTTP semantics**
+
+    The DSS API requires clients to follow certain HTTP protocol semantics that may require extra configuration in your
+    HTTP client. The reference CLI and SDK (https://hca.readthedocs.io/) is pre-configured to do this. If writing your own
+    client, please note the following:
+    
+    **301 redirects**: Some DSS API routes may return one or more HTTP 301 redirects, including potentially redirects to
+    themselves (combined with the **Retry-After** delay described below). The client must follow these redirects to obtain
+    the resource requested.
+
+    **Retry-After header**: Some DSS API routes may use the **Retry-After** header in combination with HTTP 301 or 500
+    series response codes. The client must follow the HTTP specification and wait the designated time period before
+    continuing with the next request.
+
+    **General retry logic**: If you are building an application that will issue high numbers of API requests, you should be
+    prepared for the possibility that a small fraction of requests fails due to network or server errors. In these
+    situations, the HTTP client should follow best practice HTTP retry semantics. For example, clients may be configured
+    to retry 5 times while waiting for an exponential number of seconds (1, 2, 4, 8, 16 seconds) upon encountering any 500
+    series response code, connect or read timeout.
+    
+    The following Python code demonstrates an example configuration of the popular Requests library per the above guidance:
+    
+    ```
+    import requests, requests.packages.urllib3.util.retry
+
+    class RetryPolicy(requests.packages.urllib3.util.retry.Retry):
+        def __init__(self, retry_after_status_codes={301}, **kwargs):
+            super(RetryPolicy, self).__init__(**kwargs)
+            self.RETRY_AFTER_STATUS_CODES = frozenset(retry_after_status_codes | retry.Retry.RETRY_AFTER_STATUS_CODES)
+
+    retry_policy = RetryPolicy(read=5, status=5, status_forcelist=frozenset({500, 502, 503, 504}))
+    s = requests.Session()
+    a = requests.adapters.HTTPAdapter(max_retries=retry_policy)
+    s.mount('https://', a)
+
+    print(s.get("https://dss.data.humancellatlas.org").content)
+    ```
+
   version: "0.0.2"
 host: {{API_DOMAIN_NAME}}
 schemes:
