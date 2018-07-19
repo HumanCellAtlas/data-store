@@ -265,6 +265,25 @@ class TestBundleApi(unittest.TestCase, DSSAssertMixin, DSSUploadMixin):
                 expected_code=requests.codes.bad_request
             )
 
+        with self.subTest(f'{replica}: put fails when an invalid bundle_uuid is supplied.'):
+            bundle_version = datetime_to_version_format(datetime.datetime.utcnow())
+            self.put_bundle(
+                replica,
+                "12345",
+                [(file_uuid, file_version, "LICENSE")],
+                bundle_version,
+                expected_code=requests.codes.bad_request
+            )
+
+        with self.subTest(f'{replica}: put bundle fails when an invalid version is supplied'):
+            self.put_bundle(
+                replica,
+                bundle_uuid,
+                [(file_uuid, file_version, "LICENSE")],
+                "ABCD",
+                expected_code=requests.codes.internal_server_error
+            )
+
         with self.subTest(f'{replica}: should *NOT* be able to upload a bundle with a missing file, but we should get '
                           'requests.codes.conflict.'):
             with nestedcontext.bind(time_left=lambda: 0):
