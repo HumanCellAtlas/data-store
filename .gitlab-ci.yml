@@ -1,4 +1,4 @@
-image: python:3.6
+image: humancellatlas/dss-build-box
 
 cache:
   paths:
@@ -7,35 +7,62 @@ cache:
   - daemons/dss-index/.chalice/venv
 
 variables:
-  ES_VERSION: 5.4.2
-  ES_DOWNLOAD_URL: https://artifacts.elastic.co/downloads/elasticsearch/elasticsearch-${ES_VERSION}.tar.gz
-  DSS_TEST_ES_PATH: ./elasticsearch-${ES_VERSION}/bin/elasticsearch
+  GIT_SUBMODULE_STRATEGY: normal
   DSS_ES_TIMEOUT: 30
   DSS_UNITTEST_OPTS: "-v"
   TERRAFORM_APPLY_ARGS: "-auto-approve"
+  GITHUB_API: "https://api.github.com"
 
 stages:
+  - test
+  - integration_test
   - deploy_dev
 
 before_script:
-  - apt-get update --quiet --assume-yes
-  - apt-get --assume-yes install jq moreutils gettext zip unzip
-  - python -V
-  - pip -V
-  - pip install virtualenv
+  - if not [[ CI_COMMIT_SHA == $(http GET ${GITHUB_API}/repos/HumanCellAtlas/data-store/commits sha==$CI_COMMIT_REF_NAME | jq -r '.[0]["sha"]') ]]; then exit 1; fi
+# TODO: figure out how to get the gitlab-runner to not clone the repo as root - Brian H
+  - cp -r /HumanCellAtlas/data-store ~/data-store && cd ~/data-store
   - virtualenv venv
   - source venv/bin/activate
   - pip install -r requirements-dev.txt
-  - wget -q ${ES_DOWNLOAD_URL}
-  - tar -xzf elasticsearch-${ES_VERSION}.tar.gz
-  - wget -q http://us-east-1.ec2.archive.ubuntu.com/ubuntu/pool/main/m/make-dfsg/make_4.1-6_amd64.deb
-  - mkdir make4
-  - dpkg -x make*.deb make4
-  - wget -q https://releases.hashicorp.com/terraform/0.11.7/terraform_0.11.7_linux_amd64.zip
-  - unzip terraform_0.11.7_linux_amd64.zip -d make4/usr/bin
-  - export PATH=$(pwd)/make4/usr/bin:$PATH
   - source environment
   - if [[ -f "environment.$CI_COMMIT_REF_NAME" ]]; then source "environment.$CI_COMMIT_REF_NAME"; fi
+
+unit_tests:
+  stage: test
+  script:
+    - whoami
+    - ls -alh /
+    - make -j4 parallel_test
+
+test_search:
+  stage: test
+  script:
+    - make -j1 tests/test_search.py
+
+test_aws_indexer:
+  stage: test
+  variables:
+    DSS_UNITTEST_OPTS: "-v TestAWSIndexer"
+  script:
+    - make -j1 tests/test_indexer.py
+
+test_gcp_indexer:
+  stage: test
+  variables:
+    DSS_UNITTEST_OPTS: "-v TestGCPIndexer"
+  script:
+    - make -j1 tests/test_indexer.py
+
+test_subscriptions:
+  stage: test
+  script:
+    - make -j1 tests/test_subscriptions.py
+
+integration_test:
+  stage: integration_test
+  script:
+    - make -j1 integration_test
 
 deploy_dev:
   stage: deploy_dev
@@ -46,4 +73,3 @@ deploy_dev:
     - make deploy
   only:
     - master
-    - triggers
