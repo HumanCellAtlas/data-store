@@ -68,22 +68,39 @@ class TestFileApi(unittest.TestCase, DSSAssertMixin, DSSUploadMixin):
         bundle_uuid = str(uuid.uuid4())
         version = datetime_to_version_format(datetime.datetime.utcnow())
 
-        # should be able to do this twice (i.e., same payload, different UUIDs)
-        self.upload_file(source_url, file_uuid, bundle_uuid=bundle_uuid, version=version)
-        self.upload_file(source_url, str(uuid.uuid4()))
+        with self.subTest(f"{replica}: Created returned when uploading a file with a unique payload, and FQID"):
+            self.upload_file(source_url, file_uuid, bundle_uuid=bundle_uuid, version=version)
 
-        # should be able to do this twice (i.e., same payload, same UUIDs)
-        self.upload_file(source_url, file_uuid, bundle_uuid=bundle_uuid,
-                         version=version, expected_code=requests.codes.ok)
+        with self.subTest(f"{replica}: Created returned when uploading a file with same payload, and different FQID"):
+            self.upload_file(source_url, str(uuid.uuid4()))
 
-        # should be able to do this twice (i.e., different payload, same UUIDs)
-        self.upload_file(source_url, file_uuid, version=version, expected_code=requests.codes.ok)
+        with self.subTest(f"{replica}: OK returned when uploading a file with the same payload, UUID,  version"):
+            self.upload_file(source_url, file_uuid, bundle_uuid=bundle_uuid,
+                             version=version, expected_code=requests.codes.ok)
 
-        # should fail validation when invalid version is provided.
-        self.upload_file(source_url, file_uuid, version='', expected_code=requests.codes.bad)
+        with self.subTest(f"{replica}: OK returned when uploading a file with a different payload and same FQID"):
+            self.upload_file(source_url, file_uuid, version=version, expected_code=requests.codes.ok)
 
-        # should fail validation when version is not provided
-        self.upload_file(source_url, file_uuid, version='missing', expected_code=requests.codes.bad)
+        with self.subTest(f"{replica}: Bad returned when uploading a file with an invalid version"):
+            self.upload_file(source_url, file_uuid, version='', expected_code=requests.codes.bad)
+
+        invalid_version = 'ABCD'
+        with self.subTest(f"{replica}: server_error returned "
+                          f"when uploading a file with invalid version {invalid_version}"):
+            self.upload_file(source_url, file_uuid, version=invalid_version, expected_code=requests.codes.server_error)
+
+        with self.subTest(f"{replica}: Bad returned when uploading a file without a version"):
+            self.upload_file(source_url, file_uuid, version='missing', expected_code=requests.codes.bad)
+
+        invalid_uuids = ['ABCD', '1234']
+        for invalid_uuid in invalid_uuids:
+            with self.subTest(f"{replica}: Bad returned "
+                              f"when uploading a file with invalid UUID {invalid_uuid}"):
+                self.upload_file(source_url, invalid_uuid, expected_code=requests.codes.bad)
+
+        with self.subTest(f"{replica}: forbidden returned "
+                          f"when uploading a file with without UUID {invalid_uuid}"):
+            self.upload_file(source_url, '', expected_code=requests.codes.forbidden)
 
     @testmode.integration
     def test_file_put_large(self):
