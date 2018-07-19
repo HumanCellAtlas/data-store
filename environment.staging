@@ -11,6 +11,7 @@ DSS_ES_DOMAIN=dss-index-dev
 API_DOMAIN_NAME=dss.staging.data.humancellatlas.org
 
 DSS_GS_BUCKET_REGION=US
+DSS_GCP_SERVICE_ACCOUNT_NAME="org-humancellatlas-staging"
 set +a
 
 if [[ -f "${DSS_HOME}/environment.staging.local" ]]; then

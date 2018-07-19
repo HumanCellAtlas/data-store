@@ -8,6 +8,7 @@ DSS_S3_CHECKOUT_BUCKET=$DSS_S3_CHECKOUT_BUCKET_PROD
 DSS_GS_CHECKOUT_BUCKET=$DSS_GS_CHECKOUT_BUCKET_PROD
 DSS_ES_DOMAIN="dss-index-$DSS_DEPLOYMENT_STAGE"
 API_DOMAIN_NAME=dss.data.humancellatlas.org
+DSS_GCP_SERVICE_ACCOUNT_NAME="org-humancellatlas-prod"
 set +a
 
 if [[ -f "${DSS_HOME}/environment.prod.local" ]]; then
