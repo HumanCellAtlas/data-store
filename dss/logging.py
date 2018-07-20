@@ -1,8 +1,12 @@
+import time
+from pythonjsonlogger import jsonlogger
 import logging
-from logging import DEBUG, INFO, WARNING, ERROR
+from logging import DEBUG, INFO, WARNING, ERROR, LogRecord
 import os
 import sys
-from typing import Mapping, Union, Tuple, Optional
+from typing import Mapping, Union, Tuple, Optional, List
+
+from pythonjsonlogger.jsonlogger import RESERVED_ATTR_HASH, merge_record_extra
 
 import dss
 from dss.config import Config
@@ -42,25 +46,97 @@ The log levels for running tests. The entries in this map override or extend the
 """
 
 
+LOGGED_FIELDS = ['levelname', 'asctime', 'aws_request_id', 'thread', 'message']
+LOG_FORMAT = '(' + ')('.join(LOGGED_FIELDS) + ')'  # format required for DSSJsonFormatter
+"""
+The fields to log using the json logger.
+"""
+
+
+class DSSJsonFormatter(jsonlogger.JsonFormatter):
+    default_time_format = '%Y-%m-%dT%H:%M:%S'
+    default_msec_format = '%s.%03dZ'
+
+    converter = time.gmtime
+
+    def add_required_fields(self, fields: List[str]) -> None:
+        """
+        Add additional required fields to to be written in log messages. New fields will be added to the end of the
+        `required_fields` list in the order specified by `fields`.
+
+        :param fields: an ordered list of required fields to write to logs.
+        :return:
+        """
+
+        self._required_fields += [field for field in fields if field not in self._required_fields]
+        self._skip_fields = dict(zip(self._required_fields,
+                                     self._required_fields))
+        self._skip_fields.update(RESERVED_ATTR_HASH)
+
+    def set_required_fields(self, fields: List[str]) -> None:
+        """
+        Sets the required fields in the order specified in `fields`. Required fields appears in the logs in the order
+        listed in `required_fields`.
+
+        :param fields: an ordered list of fields to set `required_fields`
+        :return:
+        """
+        self._required_fields = fields
+        self._skip_fields = dict(zip(self._required_fields,
+                                     self._required_fields))
+        self._skip_fields.update(RESERVED_ATTR_HASH)
+
+    def add_fields(self, log_record: dict, record: LogRecord, message_dict: dict) -> None:
+        """
+        Adds additional log information from `log_record` to `records. If a required field does not exist in the
+        `log_record` then it is not included in the `record`.
+
+        :param log_record: additional fields to add to the `record`.
+        :param record: the logRecord to add additional fields too.
+        :param message_dict: the log message and extra fields to add to `records`.
+        :return:
+        """
+        for field in self._required_fields:
+            value = record.__dict__.get(field)
+            if value:
+                log_record[field] = value
+        log_record.update(message_dict)
+        merge_record_extra(record, log_record, reserved=self._skip_fields)
+
+
+class DispatchFilter(logging.Filter):
+    def filter(self, record):
+        return False if '[dispatch]' in record.msg else True
+
+
+def _get_json_log_handler():
+    log_handler = logging.StreamHandler(stream=sys.stderr)
+    log_handler.setFormatter(DSSJsonFormatter())
+    return log_handler
+
+
 def configure_cli_logging():
     """
     Prepare logging for use in a command line application.
     """
-    _configure_logging(stream=sys.stderr)
+    _configure_logging(handlers=[_get_json_log_handler()])
 
 
 def configure_lambda_logging():
     """
     Prepare logging for use within a AWS Lambda function.
     """
-    _configure_logging(stream=sys.stdout)
+    _configure_logging(handlers=[_get_json_log_handler()])
 
 
 def configure_test_logging(log_levels: Optional[log_level_t] = None, **kwargs):
     """
     Configure logging for use during unit tests.
     """
-    _configure_logging(stream=sys.stderr, test=True, log_levels=log_levels, **kwargs)
+    _configure_logging(test=True,
+                       handlers=[_get_json_log_handler()],
+                       log_levels=log_levels,
+                       **kwargs)
 
 
 _logging_configured = False
@@ -75,7 +151,10 @@ def _configure_logging(test=False, log_levels: Optional[log_level_t] = None, **k
     else:
         root_logger.setLevel(logging.WARNING)
         if 'AWS_LAMBDA_LOG_GROUP_NAME' in os.environ:
-            configure_xray_logging(root_logger)  # Unless xray is enabled
+            for handler in root_logger.handlers:
+                formatter = DSSJsonFormatter(LOG_FORMAT)
+                handler.setFormatter(formatter)
+                configure_xray_logging(handler)  # Unless xray is enabled
         elif len(root_logger.handlers) == 0:
             logging.basicConfig(**kwargs)
         else:

@@ -3,12 +3,10 @@ import time
 
 from functools import wraps
 import typing
-from aws_xray_sdk.core.context import MISSING_SEGMENT_MSG
 from aws_xray_sdk.core.exceptions.exceptions import SegmentNotFoundException
 from aws_xray_sdk.core import xray_recorder, patch
 from aws_xray_sdk.core.models.subsegment import Subsegment as xray_Subsegment
 import logging
-from logging import Logger
 
 logger = logging.getLogger(__name__)
 DSS_XRAY_TRACE = int(os.environ.get('DSS_XRAY_TRACE', '0')) > 0  # noqa
@@ -23,22 +21,22 @@ if DSS_XRAY_TRACE and not patched:  # noqa
 
 class XrayLoggerFilter(logging.Filter):
     def filter(self, record):
-        if record.msg == MISSING_SEGMENT_MSG:
-            return False
-        try:
-            entity = xray_recorder.get_trace_entity()
-        except RecursionError:
-            return True
-        else:
-            record.xray_trace_id = entity.trace_id if entity else ""
-            record.msg = f"{record.xray_trace_id}\t{record.msg}"
-            return True
 
+        # get aws generated xray tracing header from env
+        # https://docs.aws.amazon.com/lambda/latest/dg/lambda-x-ray.html
+        header = os.getenv('_X_AMZN_TRACE_ID', '')
 
-def configure_xray_logging(root_logger: Logger):
+        # parse xray-tracing header
+        # https://docs.aws.amazon.com/xray/latest/devguide/xray-concepts.html#xray-concepts-tracingheader
+        if header is not '':
+            header = {key: item for key, item in [i.split('=') for i in header.split(';')]}
+        record.xray_trace_header = header
+        return True
+
+def configure_xray_logging(handler) -> None:
     if DSS_XRAY_TRACE:
-        for handlers in root_logger.handlers:
-            handlers.addFilter(XrayLoggerFilter())
+        handler.addFilter(XrayLoggerFilter())
+        handler.formatter.add_required_fields(['xray_trace_header'])
 
 
 def capture_segment(name: str) -> typing.Callable:
