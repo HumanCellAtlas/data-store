@@ -42,21 +42,21 @@ RUN python3 -m pip install virtualenv==16.0.0
 RUN ln -s /usr/bin/python3.6 /usr/bin/python
 RUN ln -s /usr/bin/pip3 /usr/bin/pip
 
-RUN useradd -d /home/hca -ms /bin/bash -g root -G sudo hca
-RUN mkdir /HumanCellAtlas && chown hca /HumanCellAtlas
-USER hca
-WORKDIR /home/hca
+RUN useradd -d /home/hca_cicd -ms /bin/bash -g root -G sudo hca_cicd
+RUN mkdir /HumanCellAtlas && chown hca_cicd /HumanCellAtlas
+USER hca_cicd_cicd
+WORKDIR /home/hca_cicd
 
-ENV PATH /home/hca/bin:${PATH}
-RUN mkdir -p /home/hca/bin
+ENV PATH /home/hca_cicd/bin:${PATH}
+RUN mkdir -p /home/hca_cicd/bin
 
 ENV ES_VERSION 5.4.2
-ENV DSS_TEST_ES_PATH=/home/hca/elasticsearch-${ES_VERSION}/bin/elasticsearch
+ENV DSS_TEST_ES_PATH=/home/hca_cicd/elasticsearch-${ES_VERSION}/bin/elasticsearch
 RUN wget https://artifacts.elastic.co/downloads/elasticsearch/elasticsearch-${ES_VERSION}.tar.gz \
-    && tar -xzf elasticsearch-${ES_VERSION}.tar.gz -C /home/hca
+    && tar -xzf elasticsearch-${ES_VERSION}.tar.gz -C /home/hca_cicd
 
 RUN wget https://releases.hashicorp.com/terraform/0.11.7/terraform_0.11.7_linux_amd64.zip \
-    && unzip terraform_0.11.7_linux_amd64.zip -d /home/hca/bin
+    && unzip terraform_0.11.7_linux_amd64.zip -d /home/hca_cicd/bin
 
 # Address locale problem, see "Python 3 Surrogate Handling":
 # http://click.pocoo.org/5/python3/
