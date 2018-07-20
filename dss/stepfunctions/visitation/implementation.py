@@ -107,7 +107,9 @@ _retry = [
         "BackoffRate": 1
     },
     {
-        "ErrorEquals": ["States.Timeout"],
+        "ErrorEquals": ["States.Timeout",
+                        "States.TaskFailed",
+                        "Lambda.SdkClientException"],
         "IntervalSeconds": 5,
         "MaxAttempts": 3,
         "BackoffRate": 1.5
