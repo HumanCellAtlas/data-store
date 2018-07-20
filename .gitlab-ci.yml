@@ -17,6 +17,7 @@ stages:
   - test
   - integration_test
   - deploy_dev
+  - release_integration
 
 before_script:
   - if not [[ CI_COMMIT_SHA == $(http GET ${GITHUB_API}/repos/HumanCellAtlas/data-store/commits sha==$CI_COMMIT_REF_NAME | jq -r '.[0]["sha"]') ]]; then exit 1; fi
@@ -71,5 +72,20 @@ deploy_dev:
     - export GOOGLE_APPLICATION_CREDENTIALS=$(pwd -P)/gcp-credentials.json
     - make deploy-infra
     - make deploy
+  only:
+    - master
+
+release_integration:
+  stage: release_integration
+  script:
+    - while [[ "pending" == $(scripts/status.sh HumanCellAtlas dcp integration) ]]; do
+    -   echo "waiting for DCP Integration test to complete";
+    -   sleep 60;
+    - done
+    - if [[ "success" != $(scripts/status.sh HumanCellAtlas dcp integration) ]]; then
+    -   echo "DCP Integration test did not succeed";
+    -   exit 1
+    - fi
+    - scripts/release.sh master integration
   only:
     - master
