@@ -1,4 +1,7 @@
 image: humancellatlas/dss-build-box
+# The Docker image `humancellatlas/dss-build-box` is created through a manual process from
+# `${DSS_HOME}/Dockerfile.allspark`. See the contents of `${DSS_HOME}/Dockerfile.allspark`
+# creation and usage instructions.
 
 cache:
   paths:
