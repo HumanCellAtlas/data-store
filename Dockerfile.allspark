@@ -44,7 +44,7 @@ RUN ln -s /usr/bin/pip3 /usr/bin/pip
 
 RUN useradd -d /home/hca_cicd -ms /bin/bash -g root -G sudo hca_cicd
 RUN mkdir /HumanCellAtlas && chown hca_cicd /HumanCellAtlas
-USER hca_cicd_cicd
+USER hca_cicd
 WORKDIR /home/hca_cicd
 
 ENV PATH /home/hca_cicd/bin:${PATH}

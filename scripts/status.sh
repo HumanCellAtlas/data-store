@@ -16,6 +16,4 @@ REPO=$(python -c "import sys, urllib.parse; print(urllib.parse.quote_plus(sys.ar
 BRANCH=$(python -c "import sys, urllib.parse; print(urllib.parse.quote_plus(sys.argv[1]))" "${3}")
 
 STATUS=$(http GET ${GITHUB_API}/repos/${OWNER}/${REPO}/commits/${BRANCH}/status Accept:application/vnd.github.full+json)
-STATE=$(echo "$STATUS" | jq -r .state)
-
-echo ${STATE}
+echo "$STATUS" | jq -r .state

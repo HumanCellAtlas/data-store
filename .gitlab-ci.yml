@@ -78,14 +78,15 @@ deploy_dev:
 release_integration:
   stage: release_integration
   script:
-    - while [[ "pending" == $(scripts/status.sh HumanCellAtlas dcp integration) ]]; do
+    - for i in $(seq 1 10); do
+    -   if [[ "pending" != $(scripts/status.sh HumanCellAtlas dcp integration) ]]; then break; fi
     -   echo "waiting for DCP Integration test to complete";
-    -   sleep 60;
+    -   sleep 120;  # This loop will check status for 20 minutes and then quit
     - done
     - if [[ "success" != $(scripts/status.sh HumanCellAtlas dcp integration) ]]; then
     -   echo "DCP Integration test did not succeed";
     -   exit 1
     - fi
-    - scripts/release.sh master integration
+    - yes Yes | scripts/release.sh master integration
   only:
     - master
