@@ -39,7 +39,7 @@ if ! git diff-index --quiet HEAD --; then
 fi
 
 if ! [[ -e "$DSS_HOME/application_secrets.json" ]]; then
-    http --check-status "https://$API_DOMAIN_NAME/internal/application_secrets" > "$DSS_HOME/application_secrets.json" || (
+    http --check-status GET "https://$API_DOMAIN_NAME/internal/application_secrets" > "$DSS_HOME/application_secrets.json" || (
         echo "Failed to fetch application_secrets.json. Please create this file and try again."
         exit 1
     )
@@ -57,20 +57,23 @@ fi
 
 export PROMOTE_FROM_BRANCH=$1 PROMOTE_DEST_BRANCH=$2
 
-GH_API=https://api.github.com
-REPO=$(git remote get-url origin | perl -ne '/github\.com.(.+?)(\.git)?$/; print $1')
-STATUS=$(http ${GH_API}/repos/${REPO}/commits/${PROMOTE_FROM_BRANCH}/status Accept:application/vnd.github.full+json)
-STATE=$(echo "$STATUS" | jq -r .state)
-echo "$STATUS" | jq '.statuses[]|select(.state != "success")'
-
-# TODO: (akislyuk) some CI builds no longer deploy or run a subset of tests. Find the last build that ran a deployment.
-if [[ "$STATE" != success ]]; then
-    if [[ $# == 3 ]] && [[ $3 == "--force" ]]; then
-        echo "Status checks failed on branch $PROMOTE_FROM_BRANCH. Forcing promotion and deployment anyway."
-    else
-        echo "Status checks failed on branch $PROMOTE_FROM_BRANCH."
-        echo "Run with --force to promote $PROMOTE_FROM_BRANCH to $PROMOTE_DEST_BRANCH and deploy anyway."
-        exit 1
+if [[ "hca_cicd" != $(whoami) ]]; then
+    # Skip when this script is executed by the GitLab runner
+    GH_API=https://api.github.com
+    REPO=$(git remote get-url origin | perl -ne '/github\.com.(.+?)(\.git)?$/; print $1')
+    STATUS=$(http GET ${GH_API}/repos/${REPO}/commits/${PROMOTE_FROM_BRANCH}/status Accept:application/vnd.github.full+json)
+    STATE=$(echo "$STATUS" | jq -r .state)
+    echo "$STATUS" | jq '.statuses[]|select(.state != "success")'
+    
+    # TODO: (akislyuk) some CI builds no longer deploy or run a subset of tests. Find the last build that ran a deployment.
+    if [[ "$STATE" != success ]]; then
+        if [[ $# == 3 ]] && [[ $3 == "--force" ]]; then
+            echo "Status checks failed on branch $PROMOTE_FROM_BRANCH. Forcing promotion and deployment anyway."
+        else
+            echo "Status checks failed on branch $PROMOTE_FROM_BRANCH."
+            echo "Run with --force to promote $PROMOTE_FROM_BRANCH to $PROMOTE_DEST_BRANCH and deploy anyway."
+            exit 1
+        fi
     fi
 fi
 
@@ -110,6 +113,7 @@ if yq -e '.stages[]
     echo "Found deployment config for $PROMOTE_DEST_BRANCH in Travis CI. Skipping deployment."
 elif [[ -e "${DSS_HOME}/environment.${PROMOTE_DEST_BRANCH}" ]]; then
     source "${DSS_HOME}/environment.${PROMOTE_DEST_BRANCH}"
+    make -C "$DSS_HOME" deploy-infra
     make -C "$DSS_HOME" deploy
 else
     echo "Error: Could not find environment config file ${DSS_HOME}/environment.${PROMOTE_DEST_BRANCH}. Unable to deploy."

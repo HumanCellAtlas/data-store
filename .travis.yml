@@ -45,7 +45,7 @@ stages:
 - name: integration_test
   if: env(TRAVIS_DSS_INTEGRATION_MODE) = 1
 - name: deploy
-  if: env(TRAVIS_DSS_INTEGRATION_MODE) != 1 AND branch IN (integration, staging) AND type != pull_request
+  if: env(TRAVIS_DSS_INTEGRATION_MODE) != 1 AND branch IN (staging) AND type != pull_request
 
 jobs:
   include:
