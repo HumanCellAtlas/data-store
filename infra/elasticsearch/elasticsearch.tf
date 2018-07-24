@@ -101,5 +101,9 @@ resource aws_elasticsearch_domain elasticsearch {
     automated_snapshot_start_hour = 23
   }
 
+  tags {
+    Domain = "${var.DSS_ES_DOMAIN}"
+  }
+
   access_policies = "${data.aws_iam_policy_document.dss_es_access_policy_documennt.json}"
 }
