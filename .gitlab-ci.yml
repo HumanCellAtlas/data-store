@@ -32,7 +32,6 @@ before_script:
   - source environment
   - if [[ -f "environment.$CI_COMMIT_REF_NAME" ]]; then source "environment.$CI_COMMIT_REF_NAME"; fi
 
-
 unit_tests:
   stage: test
   script:
@@ -85,6 +84,8 @@ deploy_dev:
 release_integration:
   stage: release_integration
   script:
+    - git clean -df
+    - git reset --hard
     - for i in $(seq 1 10); do
     -   if [[ "pending" != $(scripts/status.sh HumanCellAtlas dcp integration) ]]; then break; fi
     -   echo "waiting for DCP Integration test to complete";
