@@ -113,7 +113,6 @@ if yq -e '.stages[]
     echo "Found deployment config for $PROMOTE_DEST_BRANCH in Travis CI. Skipping deployment."
 elif [[ -e "${DSS_HOME}/environment.${PROMOTE_DEST_BRANCH}" ]]; then
     source "${DSS_HOME}/environment.${PROMOTE_DEST_BRANCH}"
-    make -C "$DSS_HOME" deploy-infra
     make -C "$DSS_HOME" deploy
 else
     echo "Error: Could not find environment config file ${DSS_HOME}/environment.${PROMOTE_DEST_BRANCH}. Unable to deploy."

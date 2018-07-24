@@ -8,6 +8,11 @@ init-all:
 		$(MAKE)	init COMPONENT=$$c || exit 1; \
 	done
 
+plan-all:
+	@for c in $(COMPONENTS); do \
+		$(MAKE)	plan COMPONENT=$$c || exit 1; \
+	done
+
 apply-all:
 	@for c in $(COMPONENTS); do \
 		$(MAKE)	apply COMPONENT=$$c || exit 1; \
@@ -22,6 +27,10 @@ clean-all:
 	@for c in $(COMPONENTS); do \
 		$(MAKE)	clean COMPONENT=$$c || exit 1; \
 	done
+
+plan: init
+	@echo $(COMPONENTS)
+	cd $(COMPONENT); terraform plan -detailed-exitcode
 
 apply: init
 	@echo $(COMPONENTS)
@@ -38,4 +47,4 @@ init:
 clean:
 	cd $(COMPONENT); -rm -rf .terraform
 
-.PHONY: init-all plan-all apply-all clean-all apply destroy init clean
+.PHONY: init-all plan-all apply-all clean-all plan apply destroy init clean

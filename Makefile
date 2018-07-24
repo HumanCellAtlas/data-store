@@ -72,6 +72,9 @@ deploy-daemons-serial:
 deploy-daemons-parallel:
 	$(MAKE) -C daemons deploy-parallel
 
+plan-infra:
+	$(MAKE) -C infra plan-all
+
 deploy-infra:
 	$(MAKE) -C infra apply-all
 
@@ -117,4 +120,4 @@ requirements.txt requirements-dev.txt : %.txt : %.txt.in
 requirements-dev.txt : requirements.txt.in
 
 .PHONY: all lint mypy test safe_test _serial_test all_test integration_test smoketest daemon-import-test $(tests)
-.PHONY: deploy deploy-chalice deploy-daemons
+.PHONY: deploy deploy-chalice deploy-daemons deploy-infra plan-infra
