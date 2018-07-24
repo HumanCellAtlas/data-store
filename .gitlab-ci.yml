@@ -17,6 +17,7 @@ variables:
   GITHUB_API: "https://api.github.com"
 
 stages:
+  - build_image
   - test
   - integration_test
   - deploy_dev
@@ -31,6 +32,14 @@ before_script:
   - pip install -r requirements-dev.txt
   - source environment
   - if [[ -f "environment.$CI_COMMIT_REF_NAME" ]]; then source "environment.$CI_COMMIT_REF_NAME"; fi
+
+
+build_image:
+  stage: build_image
+  script:
+    - docker login
+    - docker build -f Dockerfile.allspark -t {docker_username}/{tag_key}:{tag_value} .`
+    - docker push {docker_username}/{tag_key}:{tag_value}`
 
 unit_tests:
   stage: test
@@ -75,6 +84,9 @@ deploy_dev:
     - export GOOGLE_APPLICATION_CREDENTIALS=$(pwd -P)/gcp-credentials.json
     - make deploy-infra
     - make deploy
+  environment:
+    name: dev
+    url: https://dss.dev.data.humancellatlas.org
   only:
     - master
 
@@ -91,5 +103,8 @@ release_integration:
     -   exit 1
     - fi
     - yes Yes | scripts/release.sh master integration
+  environment:
+    name: integration
+    url: https://dss.integration.data.humancellatlas.org
   only:
     - master
