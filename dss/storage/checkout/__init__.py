@@ -1,6 +1,7 @@
 import io
+import random
 from enum import Enum, auto
-import uuid
+from string import hexdigits
 
 from cloud_blobstore import BlobNotFoundError, BlobStoreUnknownError
 from dss.config import Config, Replica
@@ -58,7 +59,7 @@ def touch_test_file(replica: Replica, dst_bucket: str) -> bool:
     :param replica: the replica to execute the checkout in.
     :return: True if able to write, if not raise DestinationBucketNotWritableError.
     """
-    test_object = f"touch_{uuid.uuid1()}.txt"
+    test_object = f"touch_{''.join(random.choices(hexdigits, k=4))}.txt"
     handle = Config.get_blobstore_handle(replica)
 
     try:
