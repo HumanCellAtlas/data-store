@@ -6,7 +6,7 @@ from cloud_blobstore import BlobNotFoundError, BlobStoreError
 
 from dss import Config, Replica
 from dss.storage.hcablobstore import BundleFileMetadata, BundleMetadata, compose_blob_key
-from dss.storage.identifiers import BundleFQID, ObjectIdentifier, TombstoneID
+from dss.storage.identifiers import BundleFQID, ObjectIdentifier, BundleTombstoneID
 from dss.util.types import JSON
 
 logger = logging.getLogger(__name__)
@@ -97,13 +97,13 @@ class Tombstone:
     A tombstone is a storage object whose FQID matches that of a given single bundle or all bundles for a given UUID.
     Bundles for which there is a tombstone must be omitted from the index.
     """
-    def __init__(self, replica: Replica, fqid: TombstoneID, body: JSON) -> None:
+    def __init__(self, replica: Replica, fqid: BundleTombstoneID, body: JSON) -> None:
         self.replica = replica
         self.fqid = fqid
         self.body = body
 
     @classmethod
-    def load(cls, replica: Replica, tombstone_id: TombstoneID):
+    def load(cls, replica: Replica, tombstone_id: BundleTombstoneID):
         blobstore = Config.get_blobstore_handle(replica)
         bucket_name = replica.bucket
         body = json.loads(blobstore.get(bucket_name, tombstone_id.to_key()))
@@ -113,10 +113,10 @@ class Tombstone:
     def list_dead_bundles(self) -> Set[BundleFQID]:
         blobstore = Config.get_blobstore_handle(self.replica)
         bucket_name = self.replica.bucket
-        assert isinstance(self.fqid, TombstoneID)
+        assert isinstance(self.fqid, BundleTombstoneID)
         if self.fqid.is_fully_qualified():
             # If a version is specified, return just that bundle …
-            return {self.fqid.to_bundle_fqid()}
+            return {self.fqid.to_fqid()}
         else:
             # … otherwise, return all bundles with the same UUID from the index.
             prefix = self.fqid.to_key_prefix()

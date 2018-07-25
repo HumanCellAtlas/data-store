@@ -16,7 +16,7 @@ from dss.storage.blobstore import test_object_exists, ObjectTest
 from dss.storage.bundles import get_bundle_manifest
 from dss.storage.checkout import CheckoutError, TokenError
 from dss.storage.checkout.bundle import verify_checkout
-from dss.storage.identifiers import TombstoneID, BundleFQID, FileFQID
+from dss.storage.identifiers import BundleTombstoneID, BundleFQID, FileFQID
 from dss.storage.hcablobstore import BundleFileMetadata, BundleMetadata, FileMetadata, compose_blob_key
 from dss.util import UrlBuilder
 from dss.util.version import datetime_to_version_format
@@ -223,7 +223,7 @@ def delete(uuid: str, replica: str, json_request_body: dict, version: str=None):
     uuid = uuid.lower()
     version = datetime_to_version_format(iso8601.parse_date(version)) if version else None
 
-    tombstone_id = TombstoneID(uuid=uuid, version=version)
+    tombstone_id = BundleTombstoneID(uuid=uuid, version=version)
     bundle_prefix = tombstone_id.to_key_prefix()
     tombstone_object_data = _create_tombstone_data(
         email=email,
