@@ -26,8 +26,8 @@ before_script:
   - if not [[ CI_COMMIT_SHA == $(http GET ${GITHUB_API}/repos/HumanCellAtlas/data-store/commits sha==$CI_COMMIT_REF_NAME | jq -r '.[0]["sha"]') ]]; then exit 1; fi
 # TODO: figure out how to get the gitlab-runner to not clone the repo as root - Brian H
   - cp -r /HumanCellAtlas/data-store ~/data-store && cd ~/data-store
-  - virtualenv venv
-  - source venv/bin/activate
+  - virtualenv ~/venv
+  - source ~/venv/bin/activate
   - pip install -r requirements-dev.txt
   - source environment
   - if [[ -f "environment.$CI_COMMIT_REF_NAME" ]]; then source "environment.$CI_COMMIT_REF_NAME"; fi
