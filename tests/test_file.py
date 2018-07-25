@@ -78,8 +78,17 @@ class TestFileApi(unittest.TestCase, DSSAssertMixin, DSSUploadMixin):
             self.upload_file(source_url, file_uuid, bundle_uuid=bundle_uuid,
                              version=version, expected_code=requests.codes.ok)
 
-        with self.subTest(f"{replica}: OK returned when uploading a file with a different payload and same FQID"):
-            self.upload_file(source_url, file_uuid, version=version, expected_code=requests.codes.ok)
+        with self.subTest(f"{replica}: Conflict returned when uploading a file with a different payload and same FQID"):
+            src_key_temp = generate_test_key()
+            src_data_temp = os.urandom(128)
+            with tempfile.NamedTemporaryFile(delete=True) as fh:
+                fh.write(src_data_temp)
+                fh.flush()
+
+                uploader.checksum_and_upload_file(fh.name, src_key_temp, "text/plain")
+
+            source_url_temp = f"{scheme}://{test_bucket}/{src_key_temp}"
+            self.upload_file(source_url_temp, file_uuid, version=version, expected_code=requests.codes.conflict)
 
         with self.subTest(f"{replica}: Bad returned when uploading a file with an invalid version"):
             self.upload_file(source_url, file_uuid, version='', expected_code=requests.codes.bad)
