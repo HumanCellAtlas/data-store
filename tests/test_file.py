@@ -114,12 +114,18 @@ class TestFileApi(unittest.TestCase, DSSAssertMixin, DSSUploadMixin):
     @testmode.integration
     def test_file_put_large(self):
 
+        file_sizes = [AWS_MIN_CHUNK_SIZE - 1,
+                      AWS_MIN_CHUNK_SIZE,
+                      AWS_MIN_CHUNK_SIZE + 1]
+        replicas = [(Replica.aws, S3Uploader, self.s3_test_bucket),
+                    (Replica.gcp, GSUploader, self.gs_test_bucket)]
+
         def upload_callable_creator(uploader_class: type) -> typing.Callable[[str, str], None]:
             def upload_callable(bucket: str, key: str) -> None:
                 tempdir = tempfile.gettempdir()
                 uploader = uploader_class(tempdir, bucket)
 
-                src_data = os.urandom(AWS_MIN_CHUNK_SIZE + 1)
+                src_data = os.urandom(file_size)
                 with tempfile.NamedTemporaryFile(delete=True) as fh:
                     fh.write(src_data)
                     fh.flush()
@@ -127,8 +133,10 @@ class TestFileApi(unittest.TestCase, DSSAssertMixin, DSSUploadMixin):
                     uploader.checksum_and_upload_file(fh.name, key, "text/plain")
             return upload_callable
 
-        self._test_file_put_large(Replica.aws, self.s3_test_bucket, upload_callable_creator(S3Uploader))
-        self._test_file_put_large(Replica.gcp, self.gs_test_bucket, upload_callable_creator(GSUploader))
+        for file_size in file_sizes:
+            for replica, uploader, bucket in replicas:
+                with self.subTest(f"{replica.name} {file_size}"):
+                    self._test_file_put_large(Replica.aws, bucket, upload_callable_creator(uploader))
 
     def _test_file_put_large(self, replica: Replica, test_bucket: str, upload_func: typing.Callable[[str, str], None]):
         src_key = generate_test_key()
