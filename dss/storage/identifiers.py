@@ -94,7 +94,7 @@ class FileFQID(ObjectIdentifier):
 
 class TombstoneID(ObjectIdentifier):
 
-    identity: Type[ObjectIdentifier] = None
+    subject_identity_cls: Type[ObjectIdentifier] = None
 
     def __str__(self):
         if self.version:
@@ -104,18 +104,19 @@ class TombstoneID(ObjectIdentifier):
 
     def to_fqid(self):
         if self.is_fully_qualified():
-            return self.identity(uuid=self.uuid, version=self.version)
+            return self.subject_identity_cls(uuid=self.uuid, version=self.version)
         else:
-            raise ValueError(f"{self} does not define a version, therefore it can't be a {self.identity.__name__}.")
+            raise ValueError(
+                f"{self} does not define a version, therefore it can't be a {self.subject_identity_cls.__name__}.")
 
 
 class BundleTombstoneID(TombstoneID):
     prefix = BUNDLE_PREFIX
-    identity = BundleFQID
+    subject_identity_cls = BundleFQID
 
 class CollectionFQID(ObjectIdentifier):
     prefix = COLLECTION_PREFIX
 
 class CollectionTombstoneID(TombstoneID):
     prefix = COLLECTION_PREFIX
-    identity = CollectionFQID
+    subject_identity_cls = CollectionFQID
