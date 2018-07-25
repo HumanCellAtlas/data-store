@@ -170,8 +170,8 @@ class Smoketest(unittest.TestCase):
                 else:
                     parser.exit(RED(f"Failed to replicate bundle from {starting_replica.name} to {replica.name}"))
 
-                with self.subTest(f"{starting_replica.name}: Download bundle from other replica"):
-                    run(f"{self.venv_bin}hca dss download --replica {replica.name} --bundle-uuid {bundle_uuid}")
+            with self.subTest(f"{starting_replica.name}: Download bundle from {replica}"):
+                run(f"{self.venv_bin}hca dss download --replica {replica.name} --bundle-uuid {bundle_uuid}")
 
         for replica in self.replicas:
             with self.subTest(f"{starting_replica.name}: Hit search route directly against each replica {replica}"):
