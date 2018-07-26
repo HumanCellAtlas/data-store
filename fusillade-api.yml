@@ -43,7 +43,7 @@ paths:
           in: query
   /policies/evaluate:
     post:
-      summary: Given a set of principals, actions, and resources, return a set of access control decisions.
+      summary: Given a set of principals, actions, and resources return a set of access control decisions.
       parameters:
         - name: json_request_body
           in: body
@@ -55,11 +55,18 @@ paths:
                 description: Attested user identifier
                 type: string
               action:
-                description: Actions
+                description: The action the principal is attempting to perform
                 type: string
               resource:
-                description: Actions
+                description: The resource the principal will perform the action against
                 type: string
+      response:
+        200:
+          description: the principal is authorized
+        401:
+          description: the principal is not authorized
+        default:
+          description: Unexpected error
   /users:
     put:
       summary: Create or update a user and attached policy.
