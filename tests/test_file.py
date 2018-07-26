@@ -119,28 +119,31 @@ class TestFileApi(unittest.TestCase, DSSAssertMixin, DSSUploadMixin):
                       AWS_MIN_CHUNK_SIZE + 1]
         replicas = [(Replica.aws, S3Uploader, self.s3_test_bucket),
                     (Replica.gcp, GSUploader, self.gs_test_bucket)]
+        test_data = os.urandom(max(file_sizes))
 
-        def upload_callable_creator(uploader_class: type) -> typing.Callable[[str, str], None]:
-            def upload_callable(bucket: str, key: str) -> None:
+        def upload_callable_creator(uploader_class: type) -> typing.Callable[[str, str, bytes], None]:
+            def upload_callable(bucket: str, key: str, data: bytes) -> None:
                 tempdir = tempfile.gettempdir()
                 uploader = uploader_class(tempdir, bucket)
-
-                src_data = os.urandom(file_size)
                 with tempfile.NamedTemporaryFile(delete=True) as fh:
-                    fh.write(src_data)
+                    fh.write(data)
                     fh.flush()
 
                     uploader.checksum_and_upload_file(fh.name, key, "text/plain")
             return upload_callable
 
         for file_size in file_sizes:
+            src_data = test_data[:file_size]
             for replica, uploader, bucket in replicas:
                 with self.subTest(f"{replica.name} {file_size}"):
-                    self._test_file_put_large(Replica.aws, bucket, upload_callable_creator(uploader))
+                    self._test_file_put_large(Replica.aws, bucket, upload_callable_creator(uploader), src_data)
 
-    def _test_file_put_large(self, replica: Replica, test_bucket: str, upload_func: typing.Callable[[str, str], None]):
+    def _test_file_put_large(self, replica: Replica,
+                             test_bucket: str,
+                             upload_func: typing.Callable[[str, str, bytes], None],
+                             src_data: bytes):
         src_key = generate_test_key()
-        upload_func(test_bucket, src_key)
+        upload_func(test_bucket, src_key, src_data)
 
         # We should be able to do this twice (i.e., same payload, different UUIDs).  First time should be asynchronous
         # since it's new data.  Second time should be synchronous since the data is present, but because S3 does not
