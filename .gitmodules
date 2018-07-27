@@ -1,6 +1,3 @@
 [submodule "data-bundle-examples"]
 	path = data-bundle-examples
 	url = https://github.com/HumanCellAtlas/data-bundle-examples.git
-[submodule "tests/fixtures/checksumming_io"]
-	path = tests/fixtures/checksumming_io
-	url = https://github.com/HumanCellAtlas/checksumming_io
