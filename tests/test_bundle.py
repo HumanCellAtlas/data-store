@@ -14,6 +14,7 @@ import typing
 import unittest
 import urllib.parse
 import uuid
+import json
 
 pkg_root = os.path.abspath(os.path.join(os.path.dirname(__file__), '..'))  # noqa
 sys.path.insert(0, pkg_root)  # noqa
@@ -265,7 +266,7 @@ class TestBundleApi(unittest.TestCase, DSSAssertMixin, DSSUploadMixin):
                 expected_code=requests.codes.bad_request
             )
 
-        with self.subTest(f'{replica}: should *NOT* be able to put a bundle containing a duplicate filename'):
+        with self.subTest(f'{replica}: put fails when the bundle contains a duplicated file name.'):
             with nestedcontext.bind(time_left=lambda: 0):
                 bundle_version = datetime_to_version_format(datetime.datetime.utcnow())
                 bundle_uuid2 = str(uuid.uuid4())
@@ -277,13 +278,14 @@ class TestBundleApi(unittest.TestCase, DSSAssertMixin, DSSUploadMixin):
                     bundle_uuid=bundle_uuid2,
                 )
                 file_version2 = resp_obj2.json['version']
-                self.put_bundle(
+                resp = self.put_bundle(
                     replica,
                     bundle_uuid2,
                     [(file_uuid, file_version, "LICENSE"), (file_uuid2, file_version2, "LICENSE")],
                     bundle_version,
                     expected_code=requests.codes.bad_request
                 )
+                self.assertEqual(json.loads(resp.body)['code'], 'duplicate_filename')
 
         with self.subTest(f'{replica}: put fails when an invalid bundle_uuid is supplied.'):
             bundle_version = datetime_to_version_format(datetime.datetime.utcnow())

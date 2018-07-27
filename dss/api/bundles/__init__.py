@@ -133,7 +133,8 @@ def put(uuid: str, replica: str, json_request_body: dict, version: str):
             raise DSSException(
                 requests.codes.bad_request,
                 "duplicate_filename",
-                "A bundle cannot contain duplicate filenames"
+                f"Duplicate file name detected: {name}. This test fails on the first occurance. Please check bundle "
+                "layout to ensure no duplicated file names are present."
             )
         filenames.add(name)
         files.append({'user_supplied_metadata': file})
