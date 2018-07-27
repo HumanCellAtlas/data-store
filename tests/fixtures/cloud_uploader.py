@@ -7,7 +7,7 @@ from boto3.s3.transfer import TransferConfig
 from google.cloud.storage import Client
 
 from dss.util.aws import AWS_MIN_CHUNK_SIZE, get_s3_chunk_size
-from .checksumming_io.checksumming_io import ChecksummingSink
+from dcplib.checksumming_io import ChecksummingSink
 
 
 logger = logging.getLogger(__name__)
