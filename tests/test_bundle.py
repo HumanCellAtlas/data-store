@@ -265,6 +265,26 @@ class TestBundleApi(unittest.TestCase, DSSAssertMixin, DSSUploadMixin):
                 expected_code=requests.codes.bad_request
             )
 
+        with self.subTest(f'{replica}: should *NOT* be able to put a bundle containing a duplicate filename'):
+            with nestedcontext.bind(time_left=lambda: 0):
+                bundle_version = datetime_to_version_format(datetime.datetime.utcnow())
+                bundle_uuid2 = str(uuid.uuid4())
+                file_uuid2 = str(uuid.uuid4())
+                resp_obj2 = self.upload_file_wait(
+                    f"{schema}://{fixtures_bucket}/test_good_source_data/0",
+                    replica,
+                    file_uuid2,
+                    bundle_uuid=bundle_uuid2,
+                )
+                file_version2 = resp_obj2.json['version']
+                self.put_bundle(
+                    replica,
+                    bundle_uuid2,
+                    [(file_uuid, file_version, "LICENSE"), (file_uuid2, file_version2, "LICENSE")],
+                    bundle_version,
+                    expected_code=requests.codes.bad_request
+                )
+
         with self.subTest(f'{replica}: put fails when an invalid bundle_uuid is supplied.'):
             bundle_version = datetime_to_version_format(datetime.datetime.utcnow())
             self.put_bundle(

@@ -125,7 +125,18 @@ def put(uuid: str, replica: str, json_request_body: dict, version: str):
     bundle_manifest_key = BundleFQID(uuid=uuid, version=version).to_key()
 
     # decode the list of files.
-    files = [{'user_supplied_metadata': file} for file in json_request_body['files']]
+    files = list()
+    filenames: typing.Set[str] = set()
+    for file in json_request_body['files']:
+        name = file['name']
+        if name in filenames:
+            raise DSSException(
+                requests.codes.bad_request,
+                "duplicate_filename",
+                "A bundle cannot contain duplicate filenames"
+            )
+        filenames.add(name)
+        files.append({'user_supplied_metadata': file})
 
     time_left = nestedcontext.inject("time_left")
 

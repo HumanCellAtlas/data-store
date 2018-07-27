@@ -1204,7 +1204,7 @@ paths:
                   code:
                     type: string
                     description: Machine-readable error code.  The types of return values should not be changed lightly.
-                    enum: [unhandled_exception, illegal_arguments, bundle_already_exists]
+                    enum: [unhandled_exception, illegal_arguments, bundle_already_exists, duplicate_filename]
                 required:
                   - code
     delete:
