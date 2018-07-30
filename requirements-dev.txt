@@ -3,7 +3,7 @@ aegea==2.2.1
 argcomplete==1.9.4
 asn1crypto==0.23.0
 aws-xray-sdk==1.0
-awscli==1.12.2
+awscli==1.15.67
 azure-common==1.1.8
 azure-nspkg==2.0.0
 azure-storage==0.36.0
@@ -89,7 +89,7 @@ requests-aws4auth==0.9
 requests-http-signature==0.0.3
 rsa==3.4.2
 rstr==2.2.6
-s3transfer==0.1.11
+s3transfer==0.1.13
 six==1.11.0
 swagger-spec-validator==2.1.0
 text-unidecode==1.1
