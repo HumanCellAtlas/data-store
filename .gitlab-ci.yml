@@ -96,7 +96,7 @@ release_integration:
     -   echo "DCP Integration test did not succeed";
     -   exit 1
     - fi
-    - aws secretsmanager get-secret-value --secret-id ${DSS_SECRETS_STORE}/${DSS_DEPLOYMENT_STAGE}/gcp-credentials.json | jq -r .SecretString > gcp-credentials.json
+    - scripts/fetch_secret.sh gcp-credentials.json > gcp-credentials.json
     - export GOOGLE_APPLICATION_CREDENTIALS=$(pwd -P)/gcp-credentials.json
     - make plan-infra
     - yes 1 | scripts/release.sh master integration
@@ -120,7 +120,7 @@ release_staging:
     -   echo "DCP Integration test did not succeed";
     -   exit 1
     - fi
-    - aws secretsmanager get-secret-value --secret-id ${DSS_SECRETS_STORE}/${DSS_DEPLOYMENT_STAGE}/gcp-credentials.json | jq -r .SecretString > gcp-credentials.json
+    - scripts/fetch_secret.sh gcp-credentials.json > gcp-credentials.json
     - export GOOGLE_APPLICATION_CREDENTIALS=$(pwd -P)/gcp-credentials.json
     - make plan-infra
     - yes 1 | scripts/release.sh integration staging
