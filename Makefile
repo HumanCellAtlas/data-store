@@ -1,5 +1,6 @@
 SHELL=/bin/bash
 STAGE=dev
+export API_HOST=auth.${STAGE}.data.humancellatlas.org
 
 lint:
 	./setup.py flake8
@@ -21,6 +22,7 @@ install: docs
 	pip install --upgrade dist/*.whl
 
 deploy:
+	cat fusillade-api.yml | envsubst '$$API_HOST' > chalicelib/swagger.yml
 	./build_chalice_config.sh $(STAGE)
 	chalice deploy --no-autogen-policy --stage $(STAGE) --api-gateway-stage $(STAGE)
 

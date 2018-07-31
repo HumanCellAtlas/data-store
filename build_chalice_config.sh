@@ -17,10 +17,6 @@ iam_policy_template="$(dirname $0)/../iam/policy-templates/${app_name}-lambda.js
 export lambda_name="${app_name}-${stage}"
 export account_id=$(aws sts get-caller-identity | jq -r .Account)
 
-jq -n ".version = \"2.0\" | \
-       .app_name = \"$(python setup.py --name)\" | \
-       .stages.$stage.api_gateway_stage = \"api\"" > "$config_json"
-
 export lambda_arn=$(aws lambda list-functions | jq -r '.Functions[] | select(.FunctionName==env.lambda_name) | .FunctionArn')
 if [[ -z $lambda_arn ]]; then
     echo "Lambda function $lambda_name not found, resetting Chalice config"

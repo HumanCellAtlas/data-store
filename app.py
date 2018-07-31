@@ -1,10 +1,14 @@
-import os, sys, hashlib, base64, json
+import os, sys, hashlib, base64, json, functools
 from urllib.parse import urlsplit, urlunsplit, urlencode, quote
 
 import boto3
 from botocore.vendored import requests
 from chalice import Chalice, CognitoUserPoolAuthorizer, Response
 import jwt, yaml
+
+from cryptography.hazmat.primitives.asymmetric import rsa
+from cryptography.hazmat.backends import default_backend
+from cryptography.hazmat.primitives import serialization
 
 cognito = boto3.client("cognito-identity")
 ad = boto3.client("clouddirectory")
@@ -33,23 +37,34 @@ def serve_swagger_ui():
 def serve_swagger_definition():
     return swagger_defn
 
-openid_provider = "humancellatlas.auth0.com"
-
 oauth2_config = json.loads(secretsmanager.get_secret_value(SecretId="fusillade.oauth2_config")["SecretString"])
 
-def get_openid_config(domain):
-    res = requests.get(f"https://{domain}/.well-known/openid-configuration")
+@functools.lru_cache(maxsize=32)
+def get_openid_config(openid_provider):
+    res = requests.get(f"https://{openid_provider}/.well-known/openid-configuration")
     res.raise_for_status()
     return res.json()
+
+@functools.lru_cache(maxsize=32)
+def get_public_keys(openid_provider):
+    keys = requests.get(get_openid_config(openid_provider)["jwks_uri"]).json()["keys"]
+    return {
+        key["kid"]: rsa.RSAPublicNumbers(
+            e=int.from_bytes(base64.urlsafe_b64decode(key["e"] + "==="), byteorder="big"),
+            n=int.from_bytes(base64.urlsafe_b64decode(key["n"] + "==="), byteorder="big")
+        ).public_key(backend=default_backend())
+        for key in keys
+    }
 
 @app.route('/login')
 def login():
     if app.current_request.query_params is None:
         app.current_request.query_params = {}
-    app.current_request.query_params["openid_provider"] = openid_provider
+    app.current_request.query_params["openid_provider"] = os.environ["OPENID_PROVIDER"]
     state = base64.b64encode(json.dumps(app.current_request.query_params).encode())
     # TODO: set random state
     # openid_provider = app.current_request.query_params["openid_provider"]
+    openid_provider = os.environ["OPENID_PROVIDER"]
     auth_params = dict(client_id=oauth2_config[openid_provider]["client_id"],
                        response_type="code",
                        scope="openid email",
@@ -71,16 +86,15 @@ def echo():
 
 @app.route('/cb')
 def cb():
-    # TODO: verify state and JWT
+    state = json.loads(base64.b64decode(app.current_request.query_params["state"]))
+    openid_provider = os.environ["OPENID_PROVIDER"]
+    openid_config = get_openid_config(openid_provider)
+    token_endpoint = openid_config["token_endpoint"]
+
     #if "client_id" in app.current_request.query_params:
         # OIDC flow
     #else:
         # Simplified flow
-
-    state = json.loads(base64.b64decode(app.current_request.query_params["state"]))
-    openid_provider = state["openid_provider"]
-    openid_config = get_openid_config(openid_provider)
-    token_endpoint = openid_config["token_endpoint"]
 #    cognito_logins = {openid_provider: res.json()["id_token"]}
 #    cognito_id = cognito.get_id(IdentityPoolId=cognito_id_pool_id, Logins=cognito_logins)["IdentityId"]
 #    cognito_credentials = cognito.get_credentials_for_identity(IdentityId=cognito_id, Logins=cognito_logins)["Credentials"]
@@ -89,7 +103,7 @@ def cb():
 #                                    aws_secret_access_key=cognito_credentials["SecretKey"],
 #                                    aws_session_token=cognito_credentials["SessionToken"])
     if "redirect_uri" in state and "client_id" in state:
-        # OIDC flow
+        # OIDC proxy flow
         resp_params = dict(code=app.current_request.query_params["code"], state=state.get("state"))
         dest = state["redirect_uri"] + "?" + urlencode(resp_params)
         return Response(status_code=302, headers=dict(Location=dest), body="")
@@ -101,7 +115,12 @@ def cb():
                                                  redirect_uri=oauth2_config[openid_provider]["redirect_uri"],
                                                  grant_type="authorization_code"))
         res.raise_for_status()
-        tok = jwt.decode(res.json()["id_token"], verify=False)
+        token_header = jwt.get_unverified_header(res.json()["id_token"])
+        public_keys = get_public_keys(openid_provider)
+        tok = jwt.decode(res.json()["id_token"],
+                         key=public_keys[token_header["kid"]],
+                         audience=oauth2_config[openid_provider]["client_id"])
+        assert tok["email_verified"]
         if "redirect_uri" in state:
             # Simple flow - redirect with QS
             resp_params = dict(res.json(), decoded_token=json.dumps(tok), state=state.get("state"))

@@ -6,7 +6,7 @@ info:
 
     Log in: [Auth0](/login?state=ABC&redirect_uri=https://auth.dev.data.humancellatlas.org/echo)
   version: "0.0.1"
-host: auth.czi.technology
+host: $API_HOST
 schemes:
   - https
 produces:
