@@ -6,7 +6,7 @@ import boto3
 from boto3.s3.transfer import TransferConfig
 from google.cloud.storage import Client
 
-from dss.util.aws import AWS_MIN_CHUNK_SIZE, get_s3_chunk_size
+from dcplib.s3_multipart import MULTIPART_THRESHOLD, get_s3_multipart_chunk_size
 from dcplib.checksumming_io import ChecksummingSink
 
 
@@ -84,9 +84,9 @@ class S3Uploader(Uploader):
         fp = os.path.join(self.local_root, local_path)
         sz = os.stat(fp).st_size
 
-        chunk_sz = get_s3_chunk_size(sz)
+        chunk_sz = get_s3_multipart_chunk_size(sz)
         transfer_config = TransferConfig(
-            multipart_threshold=AWS_MIN_CHUNK_SIZE + 1,
+            multipart_threshold=MULTIPART_THRESHOLD,
             multipart_chunksize=chunk_sz,
         )
 

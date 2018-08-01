@@ -10,6 +10,7 @@ from concurrent.futures import ThreadPoolExecutor
 
 import boto3
 import botocore
+from dcplib.s3_multipart import AWS_MIN_CHUNK_SIZE
 
 pkg_root = os.path.abspath(os.path.join(os.path.dirname(__file__), '..'))  # noqa
 sys.path.insert(0, pkg_root)  # noqa
@@ -17,7 +18,6 @@ sys.path.insert(0, pkg_root)  # noqa
 from dss import Config, Replica, stepfunctions
 from dss.stepfunctions import s3copyclient
 from dss.stepfunctions.s3copyclient.implementation import LAMBDA_PARALLELIZATION_FACTOR
-from dss.util.aws import AWS_MIN_CHUNK_SIZE
 from tests import eventually, infra
 from tests.infra import testmode
 
@@ -32,7 +32,7 @@ class TestS3ParallelCopy(unittest.TestCase):
             UploadId=upload_id,
             PartNumber=part_id,
             ContentLength=AWS_MIN_CHUNK_SIZE,
-            Body=chr(part_id % 256) * (AWS_MIN_CHUNK_SIZE))['ETag']
+            Body=chr(part_id % 256) * AWS_MIN_CHUNK_SIZE)['ETag']
         return part_id, etag
 
     @eventually(30 * 60, 5.0, {AssertionError, botocore.exceptions.ClientError})

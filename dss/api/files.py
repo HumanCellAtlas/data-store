@@ -8,6 +8,7 @@ from uuid import uuid4
 import iso8601
 import requests
 from cloud_blobstore import BlobAlreadyExistsError, BlobNotFoundError
+from dcplib.s3_multipart import AWS_MIN_CHUNK_SIZE
 from flask import jsonify, make_response, redirect, request
 
 from dss import DSSException, dss_handler, stepfunctions
@@ -18,7 +19,6 @@ from dss.storage.files import write_file_metadata
 from dss.storage.hcablobstore import FileMetadata, HCABlobStore, compose_blob_key
 from dss.stepfunctions import gscopyclient, s3copyclient
 from dss.util import tracing, UrlBuilder
-from dss.util.aws import AWS_MIN_CHUNK_SIZE
 from dss.util.version import datetime_to_version_format
 
 
