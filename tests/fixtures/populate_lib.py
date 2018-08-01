@@ -169,6 +169,38 @@ def upload(uploader: Uploader):
             "text/plain",
         )
 
+    # Create a bundle representing a restructured bundle layout
+    files = [
+        "cell_suspension_0.json",
+        "dissociation_protocol_0.json",
+        "donor_organism_0.json",
+        "enrichment_protocol_0.json",
+        "library_preparation_protocol_0.json",
+        "links.json",
+        "process_0.json",
+        "process_1.json",
+        "process_2.json",
+        "project_0.json",
+        "sequence_file_0.json",
+        "sequence_file_1.json",
+        "sequencing_protocol_0.json",
+        "specimen_from_organism_0.json",
+    ]
+    source_path = os.path.join(data_bundle_examples_dir, "vx", "smartseq2", "paired_ends")
+    target_path = "fixtures/indexing/bundles/vx/smartseq2/paired_ends"
+    for fname in files:
+        uploader.checksum_and_upload_file(
+            f"{source_path}/{fname}",
+            f"{target_path}/{fname}",
+            "application/json",
+        )
+    for fname in ["text_data_file1.txt", "text_data_file2.txt"]:
+        uploader.checksum_and_upload_file(
+            f"indexing/{fname}",
+            f"{target_path}/{fname}",
+            "text/plain",
+        )
+
     # Create a bundle based on data-bundle-examples/smartseq2/paired_ends.
     # Then add some non-indexed files for a more complete and realistic bundle test.
     target_path = "fixtures/indexing/bundles/v3/smartseq2/paired_ends"
