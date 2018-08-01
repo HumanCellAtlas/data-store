@@ -13,5 +13,4 @@ Faker >= 0.8.11
 rstr >=2.2.6
 click >= 5.7
 aegea >= 2.1.9
-dcplib
 -r requirements.txt.in
