@@ -1,17 +1,16 @@
 import binascii
 import collections
-import concurrent.futures as futures
 
 import hashlib
 import typing
 
 import boto3
 from cloud_blobstore.s3 import S3BlobStore
+from dcplib.s3_multipart import get_s3_multipart_chunk_size
 
 from dss.stepfunctions.lambdaexecutor import TimedThread
 from dss.storage.files import write_file_metadata
 from dss.util import parallel_worker
-from dss.util.aws import get_s3_chunk_size
 
 
 # CONSTANTS
@@ -49,7 +48,7 @@ def setup_copy_task(event, lambda_context):
     blobinfo = s3_blobstore.get_all_metadata(source_bucket, source_key)
     source_etag = blobinfo['ETag'].strip("\"")  # the ETag is returned with an extra set of quotes.
     source_size = blobinfo['ContentLength']  # type: int
-    part_size = get_s3_chunk_size(source_size)
+    part_size = get_s3_multipart_chunk_size(source_size)
     part_count = source_size // part_size
     if part_count * part_size < source_size:
         part_count += 1

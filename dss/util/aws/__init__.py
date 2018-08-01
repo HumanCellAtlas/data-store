@@ -3,12 +3,6 @@ import botocore
 from . import clients, resources, cloudwatch_logging
 
 
-AWS_MIN_CHUNK_SIZE = 64 * 1024 * 1024
-"""Files must be larger than this before we consider multipart uploads."""
-AWS_MAX_MULTIPART_COUNT = 10000
-"""Maximum number of parts allowed in a multipart upload.  This is a limitation imposed by S3."""
-
-
 class ARN:
     fields = "arn partition service region account_id resource".split()
     _default_region, _default_account_id, _default_iam_username = None, None, None
@@ -42,13 +36,3 @@ def send_sns_msg(topic_arn, message, attributes=None):
     if attributes is not None:
         args['MessageAttributes'] = attributes
     sns_topic.publish(**args)
-
-
-def get_s3_chunk_size(filesize: int) -> int:
-    if filesize <= AWS_MAX_MULTIPART_COUNT * AWS_MIN_CHUNK_SIZE:
-        return AWS_MIN_CHUNK_SIZE
-    else:
-        div = filesize // AWS_MAX_MULTIPART_COUNT
-        if div * AWS_MAX_MULTIPART_COUNT < filesize:
-            div += 1
-        return ((div + 1048575) // 1048576) * 1048576

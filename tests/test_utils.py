@@ -9,7 +9,7 @@ sys.path.insert(0, pkg_root)  # noqa
 
 from dss.logging import configure_test_logging
 from dss.util import UrlBuilder
-from dss.util.aws import ARN, get_s3_chunk_size
+from dss.util.aws import ARN
 from tests.infra import testmode
 
 
@@ -24,15 +24,6 @@ class TestAwsUtils(unittest.TestCase):
         arn.get_region()
         arn.get_account_id()
         str(arn)
-
-    @testmode.standalone
-    def test_s3_chunk_size(self):
-        self.assertEqual(get_s3_chunk_size(10000 * 64 * 1024 * 1024 - 1), 64 * 1024 * 1024)
-        self.assertEqual(get_s3_chunk_size(10000 * 64 * 1024 * 1024 + 0), 64 * 1024 * 1024)
-        self.assertEqual(get_s3_chunk_size(10000 * 64 * 1024 * 1024 + 1), 65 * 1024 * 1024)
-        self.assertEqual(get_s3_chunk_size(10000 * 65 * 1024 * 1024 - 1), 65 * 1024 * 1024)
-        self.assertEqual(get_s3_chunk_size(10000 * 65 * 1024 * 1024 + 0), 65 * 1024 * 1024)
-        self.assertEqual(get_s3_chunk_size(10000 * 65 * 1024 * 1024 + 1), 66 * 1024 * 1024)
 
 
 class TestUrlBuilder(unittest.TestCase):
