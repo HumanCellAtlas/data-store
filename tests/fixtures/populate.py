@@ -18,3 +18,5 @@ if __name__ == '__main__':
     args = parser.parse_args()
 
     populate(args.s3_bucket, args.gs_bucket)
+
+    print("Fixtures populated. Run tests to ensure fixture integrity!")
