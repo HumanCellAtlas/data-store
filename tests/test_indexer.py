@@ -247,7 +247,6 @@ class TestIndexerBase(ElasticsearchTestCase, DSSAssertMixin, DSSStorageMixin, DS
             expected_search_result = dict(tombstone_data, uuid=tombstone_id.uuid)
             self.assertDictEqual(search_results[0], expected_search_result)
 
-    @skipStaleBundleFormatTest
     @testmode.standalone
     def test_reindexing_with_changed_content(self):
         bundle_key = self.load_test_data_bundle_for_path("fixtures/indexing/bundles/v3/smartseq2/paired_ends")
@@ -255,7 +254,7 @@ class TestIndexerBase(ElasticsearchTestCase, DSSAssertMixin, DSSStorageMixin, DS
 
         @eventually(timeout=5.0, interval=0.5)
         def _assert_reindexing_results(expect_extra_field, expected_version):
-            query = {**self.smartseq2_paired_ends_query, 'version': True}
+            query = {**smartseq2_paired_ends_v2_or_v3_query, 'version': True}
             hits = self.get_raw_search_results(query, 1)['hits']['hits']
             self.assertEqual(1, len(hits))
             self.assertEquals(expected_version, hits[0]['_version'])
@@ -297,7 +296,7 @@ class TestIndexerBase(ElasticsearchTestCase, DSSAssertMixin, DSSStorageMixin, DS
 
         @eventually(timeout=5.0, interval=0.5)
         def _assert_reindexing_results(expect_shape_descriptor):
-            hits = self.get_raw_search_results(self.smartseq2_paired_ends_query, 1)['hits']['hits']
+            hits = self.get_raw_search_results(smartseq2_paired_ends_v2_or_v3_query, 1)['hits']['hits']
             self.assertEqual(1, len(hits))
             self.assertEqual(expect_shape_descriptor, shape_descriptor in hits[0]['_index'])
 
@@ -330,7 +329,7 @@ class TestIndexerBase(ElasticsearchTestCase, DSSAssertMixin, DSSStorageMixin, DS
                          "WARNING:.*:In bundle .* the file 'text_data_file1.txt' is marked for indexing"
                          " yet has content type 'text/plain' instead of the required"
                          " content type 'application/json'. This file will not be indexed.")
-        search_results = self.get_search_results(self.smartseq2_paired_ends_query, 1)
+        search_results = self.get_search_results(smartseq2_paired_ends_v2_or_v3_query, 1)
         self.assertEqual(1, len(search_results))
         self.verify_index_document_structure_and_content(search_results[0], bundle_key,
                                                          files=smartseq2_paried_ends_indexed_file_list)
