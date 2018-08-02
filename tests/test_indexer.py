@@ -13,6 +13,7 @@ import json
 import logging
 import os
 import string
+import hashlib
 
 import botocore.client
 import requests
@@ -249,7 +250,7 @@ class TestIndexerBase(ElasticsearchTestCase, DSSAssertMixin, DSSStorageMixin, DS
     @skipStaleBundleFormatTest
     @testmode.standalone
     def test_reindexing_with_changed_content(self):
-        bundle_key = self.load_test_data_bundle_for_path("fixtures/indexing/bundles/vx/smartseq2/paired_ends")
+        bundle_key = self.load_test_data_bundle_for_path("fixtures/indexing/bundles/v3/smartseq2/paired_ends")
         sample_event = self.create_bundle_created_event(bundle_key)
 
         @eventually(timeout=5.0, interval=0.5)
@@ -290,7 +291,7 @@ class TestIndexerBase(ElasticsearchTestCase, DSSAssertMixin, DSSStorageMixin, DS
     @skipStaleBundleFormatTest
     @testmode.standalone
     def test_reindexing_with_changed_shape(self):
-        bundle_key = self.load_test_data_bundle_for_path("fixtures/indexing/bundles/vx/smartseq2/paired_ends")
+        bundle_key = self.load_test_data_bundle_for_path("fixtures/indexing/bundles/v3/smartseq2/paired_ends")
         sample_event = self.create_bundle_created_event(bundle_key)
         shape_descriptor = 'v99'
 
@@ -315,7 +316,7 @@ class TestIndexerBase(ElasticsearchTestCase, DSSAssertMixin, DSSStorageMixin, DS
     @skipStaleBundleFormatTest
     @testmode.standalone
     def test_indexed_file_with_invalid_content_type(self):
-        bundle = TestBundle(self.blobstore, "fixtures/indexing/bundles/vx/smartseq2/paired_ends",
+        bundle = TestBundle(self.blobstore, "fixtures/indexing/bundles/v3/smartseq2/paired_ends",
                             self.test_fixture_bucket, self.replica)
         # Configure a file to be indexed that is not of context type 'application/json'
         for file in bundle.files:
@@ -362,10 +363,6 @@ class TestIndexerBase(ElasticsearchTestCase, DSSAssertMixin, DSSStorageMixin, DS
         self.assertRegex(log_monitor.output[0],
                          "WARNING:.*:In bundle .* the file 'unparseable_json.json' is marked for indexing"
                          " yet could not be parsed. This file will not be indexed. Exception:")
-#        search_results = self.get_search_results(smartseq2_paired_ends_v2_or_v3_query, 1)
-#        self.assertEqual(1, len(search_results))
-#        self.verify_index_document_structure_and_content(search_results[0], bundle_key,
-#                                                         files=smartseq2_paried_ends_indexed_file_list)
 
     @testmode.standalone
     def test_indexed_file_access_error(self):
@@ -711,10 +708,15 @@ class TestIndexerBase(ElasticsearchTestCase, DSSAssertMixin, DSSStorageMixin, DS
         es_client = ElasticsearchClient.get()
         self.assertTrue(es_client.indices.exists_alias(name=[self.dss_alias_name]))
         alias = es_client.indices.get_alias(name=[self.dss_alias_name])
+        expected_shape_descriptor = (
+            "v.cell_suspension.6.dissociation_protocol.2.donor_organism.5.enrichment_protocol.2" +
+            ".library_preparation_protocol.3.links.1.process.2.project.5.sequence_file.6.sequencing_protocol.7" +
+            ".specimen_from_organism.5"
+        )
         doc_index_name = dss.Config.get_es_index_name(
             dss.ESIndexType.docs,
             self.replica,
-            "25cd8fb5321a77973d54ae9f4e74cec5cd23a2bc304fabc6d7de834257eedbd6"
+            hashlib.sha1(expected_shape_descriptor.encode("utf-8")).hexdigest()
         )
         self.assertIn(doc_index_name, alias)
         self.assertTrue(es_client.indices.exists(index=doc_index_name))
@@ -1463,7 +1465,11 @@ def create_index_data(blobstore, bucket_name, bundle_key, manifest,
                 continue
             index_filename = file_info["name"].replace(".", "_")
             if index_filename.endswith('_json'):
-                index_filename = index_filename[:-5].rstrip(string.digits + "_") + '_json'
+                index_filename = index_filename[:-5]
+                parts = index_filename.rpartition("_")
+                if index_filename != parts[2]:
+                    index_filename = parts[0]
+                index_filename += "_json"
             try:
                 file_list = index_files[index_filename]
             except KeyError:

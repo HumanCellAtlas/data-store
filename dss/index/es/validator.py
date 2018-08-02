@@ -2,7 +2,7 @@
 from jsonschema import validators
 from jsonschema import _utils, _validators
 import json
-from typing import List, Any
+from typing import List, Union
 import logging
 
 from dss.index.es.schemainfo import SchemaInfo
@@ -20,7 +20,7 @@ DSS_Draft4Validator = validators.create(meta_schema=_utils.load_schema("draft4")
                                         )
 
 
-def remove_json_fields(json_data: dict, path: List[Any], fields: List[str]) -> None:
+def remove_json_fields(json_data: dict, path: List[Union[str, int]], fields: List[str]) -> None:
     """
     Removes fields from the path in json_data.
 
