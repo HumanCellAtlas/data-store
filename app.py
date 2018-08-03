@@ -1,5 +1,5 @@
 import os, sys, hashlib, base64, json, functools
-from urllib.parse import urlsplit, urlunsplit, urlencode, quote
+from urllib.parse import urlsplit, urlunsplit, urlencode, quote, parse_qs
 
 import boto3
 from botocore.vendored import requests
@@ -58,18 +58,32 @@ def get_public_keys(openid_provider):
 
 @app.route('/login')
 def login():
+    return Response(status_code=301, headers=dict(Location="/authorize"), body="")
+
+@app.route('/authorize')
+def authorize():
     if app.current_request.query_params is None:
         app.current_request.query_params = {}
-    app.current_request.query_params["openid_provider"] = os.environ["OPENID_PROVIDER"]
-    state = base64.b64encode(json.dumps(app.current_request.query_params).encode())
-    # TODO: set random state
-    # openid_provider = app.current_request.query_params["openid_provider"]
     openid_provider = os.environ["OPENID_PROVIDER"]
-    auth_params = dict(client_id=oauth2_config[openid_provider]["client_id"],
-                       response_type="code",
-                       scope="openid email",
-                       redirect_uri=oauth2_config[openid_provider]["redirect_uri"],
-                       state=state)
+    app.current_request.query_params["openid_provider"] = openid_provider
+    if "client_id" in app.current_request.query_params:
+        # TODO: audit this
+        auth_params = dict(client_id=app.current_request.query_params["client_id"],
+                           response_type="code",
+                           scope=app.current_request.query_params["scope"],
+                           redirect_uri=app.current_request.query_params["redirect_uri"],
+                           state=app.current_request.query_params["state"])
+        if "audience" in app.current_request.query_params:
+            auth_params["audience"] = app.current_request.query_params["audience"]
+    else:
+        state = base64.b64encode(json.dumps(app.current_request.query_params).encode())
+        # TODO: set random state
+        # openid_provider = app.current_request.query_params["openid_provider"]
+        auth_params = dict(client_id=oauth2_config[openid_provider]["client_id"],
+                           response_type="code",
+                           scope="openid email",
+                           redirect_uri=oauth2_config[openid_provider]["redirect_uri"],
+                           state=state)
     dest = get_openid_config(openid_provider)["authorization_endpoint"] + "?" + urlencode(auth_params)
     return Response(status_code=302, headers=dict(Location=dest), body="")
 
@@ -78,7 +92,54 @@ cognito_id_pool_id = "us-east-1:56424a42-0f50-4196-9ac2-fd19df4adb12"
 
 @app.route('/.well-known/openid-configuration')
 def serve_openid_config():
-    return get_openid_config(openid_provider)
+    openid_provider = os.environ["OPENID_PROVIDER"]
+    openid_config = get_openid_config(openid_provider)
+    auth_host = app.current_request.headers['host']
+    openid_config.update(authorization_endpoint=f"https://{auth_host}/authorize",
+                         token_endpoint=f"https://{auth_host}/oauth/token",
+                         jwks_uri=f"https://{auth_host}/.well-known/jwks.json",
+                         revocation_endpoint="https://{auth_host}/oauth/revoke",
+                         userinfo_endpoint="https://{auth_host}/userinfo")
+    return openid_config
+
+def proxy_response(dest_url, **extra_query_params):
+    if app.current_request.query_params or extra_query_params:
+        dest_url = dest_url + "?" + urlencode(dict(app.current_request.query_params or {}, **extra_query_params))
+    proxy_res = requests.request(method=app.current_request.method,
+                                 url=dest_url,
+                                 headers=app.current_request.headers,
+                                 data=app.current_request.raw_body)
+    if proxy_res.headers.get("Content-Type", "").startswith("application/json"):
+        body = proxy_res.json()
+    else:
+        body = proxy_res.content.decode()
+    for header in "connection", "content-length", "date":
+        del proxy_res.headers[header]
+    return Response(status_code=proxy_res.status_code,
+                    headers=dict(proxy_res.headers),
+                    body=body)
+
+@app.route('/.well-known/jwks.json')
+def serve_jwks_json():
+    openid_config = get_openid_config(os.environ["OPENID_PROVIDER"])
+    return proxy_response(openid_config["jwks_uri"])
+
+@app.route('/oauth/revoke')
+def revoke():
+    openid_config = get_openid_config(os.environ["OPENID_PROVIDER"])
+    return proxy_response(openid_config["revocation_endpoint"])
+
+@app.route('/userinfo')
+def userinfo():
+    openid_config = get_openid_config(os.environ["OPENID_PROVIDER"])
+    return proxy_response(openid_config["userinfo_endpoint"])
+
+@app.route('/oauth/token', methods=["POST"], content_types=["application/x-www-form-urlencoded", "application/x-www-form-urlencoded;charset=UTF-8"])
+def serve_oauth_token():
+    # TODO: client id/secret mgmt
+    openid_provider = os.environ["OPENID_PROVIDER"]
+    openid_config = get_openid_config(openid_provider)
+    return proxy_response(openid_config["token_endpoint"])
 
 @app.route('/echo')
 def echo():
@@ -91,10 +152,6 @@ def cb():
     openid_config = get_openid_config(openid_provider)
     token_endpoint = openid_config["token_endpoint"]
 
-    #if "client_id" in app.current_request.query_params:
-        # OIDC flow
-    #else:
-        # Simplified flow
 #    cognito_logins = {openid_provider: res.json()["id_token"]}
 #    cognito_id = cognito.get_id(IdentityPoolId=cognito_id_pool_id, Logins=cognito_logins)["IdentityId"]
 #    cognito_credentials = cognito.get_credentials_for_identity(IdentityId=cognito_id, Logins=cognito_logins)["Credentials"]
@@ -137,6 +194,7 @@ def cb():
 #        "cognito_credentials": cognito_credentials,
 #        "cognito_caller_id": cognito_session.client("sts").get_caller_identity()
             }
+
 
 schema_name = "authd4"
 directory_name = "authd4"
