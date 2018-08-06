@@ -97,7 +97,7 @@ clean:
 	git clean -Xdf chalice daemons $(MODULES)
 	git clean -df {chalice,daemons/*}/{chalicelib,domovoilib,vendor}
 	git checkout $$(git status --porcelain {chalice,daemons/*}/.chalice/config.json | awk '{print $$2}')
-	-rm -rf .requirements-env
+	-rm -rf .*-env
 	-rm -rf node_modules
 
 refresh_all_requirements:
@@ -109,12 +109,12 @@ refresh_all_requirements:
 
 requirements.txt requirements-dev.txt : %.txt : %.txt.in
 	[ ! -e .requirements-env ] || exit 1
-	virtualenv .requirements-env
-	.requirements-env/bin/pip install -r $@
-	.requirements-env/bin/pip install -r $<
+	virtualenv .$<-env
+	.$<-env/bin/pip install -r $@
+	.$<-env/bin/pip install -r $<
 	echo "# You should not edit this file directly.  Instead, you should edit $<." >| $@
-	.requirements-env/bin/pip freeze >> $@
-	rm -rf .requirements-env
+	.$<-env/bin/pip freeze >> $@
+	rm -rf .$<-env
 	scripts/find_missing_wheels.py requirements.txt
 
 requirements-dev.txt : requirements.txt.in
