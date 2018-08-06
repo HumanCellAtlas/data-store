@@ -4,7 +4,7 @@ import typing
 from cloud_blobstore import BlobNotFoundError
 
 from dss import Config, Replica
-from dss.storage.identifiers import DSS_BUNDLE_KEY_REGEX, DSS_BUNDLE_TOMBSTONE_REGEX, TombstoneID, BundleFQID
+from dss.storage.identifiers import DSS_BUNDLE_KEY_REGEX, DSS_BUNDLE_TOMBSTONE_REGEX, BundleTombstoneID, BundleFQID
 from dss.storage.blobstore import test_object_exists
 
 
@@ -29,7 +29,7 @@ def get_bundle_manifest(
     bucket = default_bucket if bucket is None else bucket
 
     def tombstone_exists(uuid: str, version: typing.Optional[str]):
-        return test_object_exists(handle, bucket, TombstoneID(uuid=uuid, version=version).to_key())
+        return test_object_exists(handle, bucket, BundleTombstoneID(uuid=uuid, version=version).to_key())
 
     # handle the following deletion cases
     # 1. the whole bundle is deleted

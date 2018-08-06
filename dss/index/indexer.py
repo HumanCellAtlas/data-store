@@ -6,7 +6,7 @@ from urllib.parse import unquote
 from abc import ABCMeta, abstractmethod
 
 from dss import Config, Replica
-from dss.storage.identifiers import BundleFQID, FileFQID, ObjectIdentifier, ObjectIdentifierError, TombstoneID
+from dss.storage.identifiers import BundleFQID, FileFQID, ObjectIdentifier, ObjectIdentifierError, BundleTombstoneID
 from dss.util.time import RemainingTime
 from .backend import IndexBackend
 from .bundle import Bundle, Tombstone
@@ -42,7 +42,7 @@ class Indexer(metaclass=ABCMeta):
         identifier = ObjectIdentifier.from_key(key)
         if isinstance(identifier, BundleFQID):
             self._index_bundle(identifier)
-        elif isinstance(identifier, TombstoneID):
+        elif isinstance(identifier, BundleTombstoneID):
             self._index_tombstone(identifier)
         elif isinstance(identifier, FileFQID):
             logger.debug(f"Indexing of individual files is not supported. "
@@ -67,7 +67,7 @@ class Indexer(metaclass=ABCMeta):
             self.backend.remove_bundle(bundle, tombstone)
         logger.debug(f"Finished indexing bundle {bundle_fqid} from replica {self.replica.name}.")
 
-    def _index_tombstone(self, tombstone_id: TombstoneID):
+    def _index_tombstone(self, tombstone_id: BundleTombstoneID):
         logger.info(f"Indexing tombstone {tombstone_id} from {self.replica.name}.")
         tombstone = Tombstone.load(self.replica, tombstone_id)
         bundle_fqids = tombstone.list_dead_bundles()

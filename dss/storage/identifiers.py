@@ -1,5 +1,6 @@
 import re
 from collections import namedtuple
+from typing import Type
 
 BUNDLE_PREFIX = "bundles"
 FILE_PREFIX = "files"
@@ -44,7 +45,14 @@ class ObjectIdentifier(namedtuple('ObjectIdentifier', 'uuid version')):
                 if not tombstone_suffix and uuid and version:
                     return BundleFQID(uuid=uuid, version=version)
                 elif tombstone_suffix and uuid:
-                    return TombstoneID(uuid=uuid, version=version)
+                    return BundleTombstoneID(uuid=uuid, version=version)
+                else:
+                    raise ObjectIdentifierError(f"Key does not contain a valid bundle identifier: {key}")
+            elif object_type == COLLECTION_PREFIX:
+                if not tombstone_suffix and uuid and version:
+                    return CollectionFQID(uuid=uuid, version=version)
+                elif tombstone_suffix and uuid:
+                    return CollectionTombstoneID(uuid=uuid, version=version)
                 else:
                     raise ObjectIdentifierError(f"Key does not contain a valid bundle identifier: {key}")
         raise ObjectIdentifierError(f"Key does not represent a valid identifier: {key}")
@@ -76,7 +84,7 @@ class BundleFQID(ObjectIdentifier):
     prefix = BUNDLE_PREFIX
 
     def to_tombstone_id(self, all_versions=False):
-        return TombstoneID(uuid=self.uuid, version=None if all_versions else self.version)
+        return BundleTombstoneID(uuid=self.uuid, version=None if all_versions else self.version)
 
 
 class FileFQID(ObjectIdentifier):
@@ -86,7 +94,7 @@ class FileFQID(ObjectIdentifier):
 
 class TombstoneID(ObjectIdentifier):
 
-    prefix = BUNDLE_PREFIX
+    subject_identity_cls: Type[ObjectIdentifier] = None
 
     def __str__(self):
         if self.version:
@@ -94,14 +102,21 @@ class TombstoneID(ObjectIdentifier):
         else:
             return f"{self.uuid}.{TOMBSTONE_SUFFIX}"
 
-    def to_bundle_fqid(self):
+    def to_fqid(self):
         if self.is_fully_qualified():
-            return BundleFQID(uuid=self.uuid, version=self.version)
+            return self.subject_identity_cls(uuid=self.uuid, version=self.version)
         else:
-            raise ValueError(f"{self} does not define a version, therefore it can't be a Bundle FQID.")
+            raise ValueError(
+                f"{self} does not define a version, therefore it can't be a {self.subject_identity_cls.__name__}.")
+
+
+class BundleTombstoneID(TombstoneID):
+    prefix = BUNDLE_PREFIX
+    subject_identity_cls = BundleFQID
 
 class CollectionFQID(ObjectIdentifier):
     prefix = COLLECTION_PREFIX
 
 class CollectionTombstoneID(TombstoneID):
     prefix = COLLECTION_PREFIX
+    subject_identity_cls = CollectionFQID
