@@ -169,7 +169,7 @@ def put(uuid: str, replica: str, json_request_body: dict, version: str):
             continue
 
         raise DSSException(
-            requests.codes.conflict,
+            requests.codes.bad_request,
             "file_missing",
             f"Could not find file {missing_file_user_metadata['uuid']}/{missing_file_user_metadata['version']}."
         )
