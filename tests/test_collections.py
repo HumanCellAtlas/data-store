@@ -8,6 +8,7 @@ from datetime import datetime
 
 import boto3
 from botocore.vendored import requests
+from dcplib.s3_multipart import get_s3_multipart_chunk_size
 
 pkg_root = os.path.abspath(os.path.join(os.path.dirname(__file__), '..'))  # noqa
 sys.path.insert(0, pkg_root)  # noqa
@@ -38,7 +39,9 @@ class TestCollections(unittest.TestCase, DSSAssertMixin, DSSUploadMixin):
         s3_test_bucket = get_env("DSS_S3_BUCKET_TEST")
         src_key = generate_test_key()
         s3 = boto3.resource('s3')
-        with io.BytesIO(json.dumps(contents).encode()) as fh, ChecksummingSink() as sink:
+        encoded = json.dumps(contents).encode()
+        chunk_size = get_s3_multipart_chunk_size(len(encoded))
+        with io.BytesIO(encoded) as fh, ChecksummingSink(write_chunk_size=chunk_size) as sink:
             sink.write(fh.read())
             sums = sink.get_checksums()
             metadata = {'hca-dss-crc32c': sums['crc32c'].lower(),
