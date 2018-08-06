@@ -464,7 +464,7 @@ paths:
             required:
               - version
         400:
-          description: Returned when the source_url of the file has an unsupported schema.
+          description: Returned when the server could not process the request.  Examine the code for more details.
           schema:
             allOf:
               - $ref: '#/definitions/Error'
@@ -472,8 +472,14 @@ paths:
                 properties:
                   code:
                     type: string
-                    description: Machine-readable error code.  The types of return values should not be changed lightly.
-                    enum: [unknown_source_schema]
+                    description: >
+                      Machine-readable error code.  The types of return values should not be changed lightly.
+
+                      The code `unknown_source_schema` is returned when the source_url of the file has an unsupported
+                      schema.
+
+                      The code `illegal_version` is returned when version is not a RFC3339-compliant timestamp.
+                    enum: [unknown_source_schema, illegal_version]
                 required:
                   - code
         409:
@@ -1308,7 +1314,9 @@ paths:
 
                       The code `file_missing` is returned when the server cannot find one of the files requested to be
                       included in the bundle.
-                    enum: [duplicate_filename, file_missing]
+
+                      The code `illegal_version` is returned when version is not a RFC3339-compliant timestamp.
+                    enum: [duplicate_filename, file_missing, illegal_version]
                 required:
                   - code
         409:
