@@ -307,7 +307,7 @@ class TestBundleApi(unittest.TestCase, DSSAssertMixin, DSSUploadMixin):
             )
 
         with self.subTest(f'{replica}: should *NOT* be able to upload a bundle with a missing file, but we should get '
-                          'requests.codes.conflict.'):
+                          'requests.codes.bad.'):
             with nestedcontext.bind(time_left=lambda: 0):
                 bundle_version = datetime_to_version_format(datetime.datetime.utcnow())
                 resp_obj = self.put_bundle(
@@ -318,7 +318,7 @@ class TestBundleApi(unittest.TestCase, DSSAssertMixin, DSSUploadMixin):
                         (missing_file_uuid, file_version, "LICENSE1"),
                     ],
                     bundle_version,
-                    expected_code=requests.codes.conflict
+                    expected_code=requests.codes.bad
                 )
                 self.assertEqual(resp_obj.json['code'], "file_missing")
 

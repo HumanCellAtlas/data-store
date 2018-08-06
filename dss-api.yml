@@ -463,6 +463,32 @@ paths:
                 pattern: "[A-Za-z0-9]{8}-[A-Za-z0-9]{4}-[A-Za-z0-9]{4}-[A-Za-z0-9]{4}-[A-Za-z0-9]{12}"
             required:
               - version
+        400:
+          description: Returned when the source_url of the file has an unsupported schema.
+          schema:
+            allOf:
+              - $ref: '#/definitions/Error'
+              - type: object
+                properties:
+                  code:
+                    type: string
+                    description: Machine-readable error code.  The types of return values should not be changed lightly.
+                    enum: [unknown_source_schema]
+                required:
+                  - code
+        409:
+          description: Returned when a file with the same UUID and version already exists
+          schema:
+            allOf:
+              - $ref: '#/definitions/Error'
+              - type: object
+                properties:
+                  code:
+                    type: string
+                    description: Machine-readable error code.  The types of return values should not be changed lightly.
+                    enum: [file_already_exists]
+                required:
+                  - code
         default:
           description: Unexpected error
           schema:
@@ -473,7 +499,7 @@ paths:
                   code:
                     type: string
                     description: Machine-readable error code.  The types of return values should not be changed lightly.
-                    enum: [unhandled_exception, illegal_arguments, unknown_source_schema, file_already_exists]
+                    enum: [unhandled_exception, illegal_arguments]
                 required:
                   - code
   /subscriptions:
@@ -1266,8 +1292,8 @@ paths:
                 format: date-time
             required:
               - version
-        409:
-          description: Unexpected error
+        400:
+          description: Returned when the server could not process the request.  Examine the code for more details.
           schema:
             allOf:
               - $ref: '#/definitions/Error'
@@ -1278,15 +1304,24 @@ paths:
                     description: >
                       Machine-readable error code.  The types of return values should not be changed lightly.
 
+                      The code `duplicate_filename` is returned when the bundle contains two files of the same name.
 
-                      The code `bundle_already_exists` indicates that the bundle+version already exists, and has
-                      different contents than this request would generate.
-
-
-                      The code `file_missing` indicates that one of the files does not exist on the cloud provider.
-                      Because the storage backend only guarantees eventual consistency, it may be desirable to retry
-                      requests that return this error code.
-                    enum: [bundle_already_exists, file_missing]
+                      The code `file_missing` is returned when the server cannot find one of the files requested to be
+                      included in the bundle.
+                    enum: [duplicate_filename, file_missing]
+                required:
+                  - code
+        409:
+          description: Returned when a bundle with the same UUID and version already exists
+          schema:
+            allOf:
+              - $ref: '#/definitions/Error'
+              - type: object
+                properties:
+                  code:
+                    type: string
+                    description: Machine-readable error code.  The types of return values should not be changed lightly.
+                    enum: [bundle_already_exists]
                 required:
                   - code
         default:
@@ -1299,7 +1334,7 @@ paths:
                   code:
                     type: string
                     description: Machine-readable error code.  The types of return values should not be changed lightly.
-                    enum: [unhandled_exception, illegal_arguments, bundle_already_exists, duplicate_filename]
+                    enum: [unhandled_exception, illegal_arguments]
                 required:
                   - code
     delete:
