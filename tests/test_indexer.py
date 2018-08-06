@@ -82,15 +82,6 @@ USE_AWS_S3 = bool(os.environ.get("USE_AWS_S3", True))
 NotificationRequestHandler = None
 
 
-def skipStaleBundleFormatTest(f):
-    # TODO:
-    # Remove all tests and fixtures involving old bundle layouts
-    # - Brian Hannafious, 2018-07-30
-    msg = f"Skipping test involving stale bundle formats: {f.__name__}"
-    print(msg)
-    return unittest.skip(msg)(f)
-
-
 def setUpModule():
     configure_test_logging()
     global NotificationRequestHandler
@@ -287,18 +278,18 @@ class TestIndexerBase(ElasticsearchTestCase, DSSAssertMixin, DSSStorageMixin, DS
             self.process_new_indexable_object(sample_event)
         self.assertTrue(any('is already up-to-date' in e for e in log.output))
 
-    @skipStaleBundleFormatTest
     @testmode.standalone
     def test_reindexing_with_changed_shape(self):
-        bundle_key = self.load_test_data_bundle_for_path("fixtures/indexing/bundles/v3/smartseq2/paired_ends")
+        bundle_key = self.load_test_data_bundle_for_path("fixtures/indexing/bundles/vx/smartseq2/paired_ends")
         sample_event = self.create_bundle_created_event(bundle_key)
         shape_descriptor = 'v99'
 
         @eventually(timeout=5.0, interval=0.5)
         def _assert_reindexing_results(expect_shape_descriptor):
-            hits = self.get_raw_search_results(smartseq2_paired_ends_v2_or_v3_query, 1)['hits']['hits']
+            hits = self.get_raw_search_results(smartseq2_paired_ends_vx_query, 1)['hits']['hits']
             self.assertEqual(1, len(hits))
-            self.assertEqual(expect_shape_descriptor, shape_descriptor in hits[0]['_index'])
+            hashed_shape_descriptor = hashlib.sha1(shape_descriptor.encode()).hexdigest()
+            self.assertEqual(expect_shape_descriptor, hashed_shape_descriptor in hits[0]['_index'])
 
         # Index document into the "wrong" index by patching the shape descriptor
         with unittest.mock.patch.object(BundleDocument, 'get_shape_descriptor', return_value=shape_descriptor):
@@ -312,7 +303,6 @@ class TestIndexerBase(ElasticsearchTestCase, DSSAssertMixin, DSSStorageMixin, DS
         # There should only be one hit and it should be from a different index, the "right" one
         _assert_reindexing_results(expect_shape_descriptor=False)
 
-    @skipStaleBundleFormatTest
     @testmode.standalone
     def test_indexed_file_with_invalid_content_type(self):
         bundle = TestBundle(self.blobstore, "fixtures/indexing/bundles/v3/smartseq2/paired_ends",
@@ -329,10 +319,10 @@ class TestIndexerBase(ElasticsearchTestCase, DSSAssertMixin, DSSStorageMixin, DS
                          "WARNING:.*:In bundle .* the file 'text_data_file1.txt' is marked for indexing"
                          " yet has content type 'text/plain' instead of the required"
                          " content type 'application/json'. This file will not be indexed.")
-        search_results = self.get_search_results(smartseq2_paired_ends_v2_or_v3_query, 1)
-        self.assertEqual(1, len(search_results))
-        self.verify_index_document_structure_and_content(search_results[0], bundle_key,
-                                                         files=smartseq2_paried_ends_indexed_file_list)
+#        search_results = self.get_search_results(smartseq2_paired_ends_v2_or_v3_query, 1)
+#        self.assertEqual(1, len(search_results))
+#        self.verify_index_document_structure_and_content(search_results[0], bundle_key,
+#                                                         files=smartseq2_paried_ends_indexed_file_list)
 
     @testmode.standalone
     def test_key_is_not_indexed_when_processing_an_event_with_a_file_key(self):
@@ -568,7 +558,6 @@ class TestIndexerBase(ElasticsearchTestCase, DSSAssertMixin, DSSStorageMixin, DS
         self.verify_notification(subscription_id, smartseq2_paired_ends_vx_query, bundle_fqid, endpoint)
         self.delete_subscription(subscription_id)
 
-    @skipStaleBundleFormatTest
     @testmode.always
     def test_subscription_query_with_multiple_data_types_indexing_and_notification(self):
         # Verify that a subscription query using numeric, date and string types
@@ -581,18 +570,18 @@ class TestIndexerBase(ElasticsearchTestCase, DSSAssertMixin, DSSStorageMixin, DS
                     'bool': {
                         'must': [{
                             'match': {
-                                "files.sample_json.donor.age": 12
+                                "files.donor_organism_json.biomaterial_core.ncbi_taxon_id": 9606
                             }
                         }, {
                             'range': {
-                                "files.sample_json.submit_date": {
-                                    "gte": "2015-11-30",
-                                    "lte": "2015-11-30"
+                                "files.specimen_from_organism_json.collection_time": {
+                                    "gte": "2018-07-22",
+                                    "lte": "2018-07-22"
                                 }
                             }
                         }, {
                             'match': {
-                                "files.sample_json.ncbi_biosample": "SAMN04303778"
+                                "files.project_json.contributors.contact_name": "Q4_DEMO-MintTeam"
                             }
                         }]
                     }
@@ -606,12 +595,27 @@ class TestIndexerBase(ElasticsearchTestCase, DSSAssertMixin, DSSStorageMixin, DS
         self.process_new_indexable_object(sample_event)
 
         # Verify the mapping types are as expected for a valid test
-        doc_index_name = dss.Config.get_es_index_name(dss.ESIndexType.docs, self.replica, "v3")
+        expected_shape_descriptor = (
+            "v.cell_suspension.6.dissociation_protocol.2.donor_organism.5.enrichment_protocol.2" +
+            ".library_preparation_protocol.3.links.1.process.2.project.5.sequence_file.6.sequencing_protocol.7" +
+            ".specimen_from_organism.5"
+        )
+        doc_index_name = dss.Config.get_es_index_name(
+            dss.ESIndexType.docs,
+            self.replica,
+            hashlib.sha1(expected_shape_descriptor.encode("utf-8")).hexdigest()
+        )
         mappings = ElasticsearchClient.get().indices.get_mapping(doc_index_name)[doc_index_name]['mappings']
-        sample_json_mappings = mappings['doc']['properties']['files']['properties']['sample_json']
-        self.assertEquals(sample_json_mappings['properties']['donor']['properties']['age']['type'], "long")
-        self.assertEquals(sample_json_mappings['properties']['submit_date']['type'], "date")
-        self.assertEquals(sample_json_mappings['properties']['ncbi_biosample']['type'], "keyword")
+        file_mappings = mappings['doc']['properties']['files']['properties']
+
+        maps = file_mappings['donor_organism_json']['properties']
+        self.assertEquals(maps['biomaterial_core']['properties']['ncbi_taxon_id']['type'], "long")
+
+        maps = file_mappings['specimen_from_organism_json']['properties']
+        self.assertEquals(maps['collection_time']['type'], "date")
+
+        maps = file_mappings['project_json']['properties']
+        self.assertEquals(maps['contributors']['properties']['contact_name']['type'], "keyword")
 
         # Verify the query works correctly as a search
         search_results = self.get_search_results(subscription_query, 1)
@@ -720,184 +724,11 @@ class TestIndexerBase(ElasticsearchTestCase, DSSAssertMixin, DSSStorageMixin, DS
         self.assertIn(doc_index_name, alias)
         self.assertTrue(es_client.indices.exists(index=doc_index_name))
 
-    @skipStaleBundleFormatTest
-    @testmode.standalone
-    def test_alias_and_multiple_schema_version_index_exists(self):
-        # Load and test an unversioned bundle
-        bundle_key = self.load_test_data_bundle_for_path(
-            "fixtures/indexing/bundles/unversioned/smartseq2/paired_ends")
-        sample_event = self.create_bundle_created_event(bundle_key)
-        self.process_new_indexable_object(sample_event)
-        es_client = ElasticsearchClient.get()
-        alias = es_client.indices.get_alias(name=[self.dss_alias_name])
-        unversioned_doc_index_name = dss.Config.get_es_index_name(dss.ESIndexType.docs, self.replica, None)
-        self.assertIn(unversioned_doc_index_name, alias)
-        self.assertTrue(es_client.indices.exists(index=unversioned_doc_index_name))
-
-        # Load and test a v3 bundle
-        sample_event = self.create_bundle_created_event(self.bundle_key)
-        self.process_new_indexable_object(sample_event)
-        self.assertTrue(es_client.indices.exists_alias(name=[self.dss_alias_name]))
-        alias = es_client.indices.get_alias(name=[self.dss_alias_name])
-        doc_index_name = dss.Config.get_es_index_name(dss.ESIndexType.docs, self.replica, "v3")
-        # Ensure the alias references both indices
-        self.assertIn(unversioned_doc_index_name, alias)
-        self.assertIn(doc_index_name, alias)
-        self.assertTrue(es_client.indices.exists(index=doc_index_name))
-
-    @skipStaleBundleFormatTest
-    @testmode.standalone
-    def test_multiple_schema_version_indexing_and_search(self):
-        # Load a schema version 4 bundle
-        bundle_key = self.load_test_data_bundle_for_path(
-            "fixtures/indexing/bundles/v4/smartseq2/paired_ends")
-        sample_event = self.create_bundle_created_event(bundle_key)
-        self.process_new_indexable_object(sample_event)
-
-        # Search using a v4-specific query - should match
-        search_results = self.get_search_results(smartseq2_paired_ends_v4_query, 1)
-        self.assertEqual(1, len(search_results))
-        self.verify_index_document_structure_and_content(search_results[0], bundle_key,
-                                                         files=smartseq2_paried_ends_indexed_file_list)
-        # Search using a query that works for v2 or v3 - should match
-        search_results = self.get_search_results(smartseq2_paired_ends_v3_or_v4_query, 1)
-        self.assertEqual(1, len(search_results))
-
-        # Search using a v3-specific query - should not match
-        search_results = self.get_search_results(smartseq2_paired_ends_v3_query, 0)
-        self.assertEqual(0, len(search_results))
-
-        # Load a v3 bundle
-        sample_event = self.create_bundle_created_event(self.bundle_key)
-        self.process_new_indexable_object(sample_event)
-
-        # Search using a v3-specific query - should match
-        search_results = self.get_search_results(smartseq2_paired_ends_v3_query, 1)
-        self.assertEqual(1, len(search_results))
-
-        # Search using a query that works for v3 or v4 - should match both v3 and v4 bundles
-        search_results = self.get_search_results(smartseq2_paired_ends_v3_or_v4_query, 2)
-        self.assertEqual(2, len(search_results))
-
-    # This is not testmode.always because S3NotificationRequestHandler only supports one delivery per subscription :-(
-    @skipStaleBundleFormatTest
-    @testmode.standalone
-    def test_multiple_schema_version_subscription_indexing_and_notification(self):
-        endpoint = self._default_endpoint()
-        endpoint = NotificationRequestHandler.configure(endpoint)
-
-        # Load a schema version 4 bundle
-        bundle_key = self.load_test_data_bundle_for_path(
-            "fixtures/indexing/bundles/v4/smartseq2/paired_ends")
-        sample_event = self.create_bundle_created_event(bundle_key)
-        self.process_new_indexable_object(sample_event)
-
-        # Load a v3 bundle
-        sample_event = self.create_bundle_created_event(self.bundle_key)
-        self.process_new_indexable_object(sample_event)
-
-        subscription_id = self.subscribe_for_notification(es_query=smartseq2_paired_ends_v3_or_v4_query,
-                                                          **endpoint.to_dict())
-
-        # Load another schema version 4 bundle and verify notification
-        bundle_key = self.load_test_data_bundle_for_path("fixtures/indexing/bundles/v4/smartseq2/paired_ends")
-        sample_event = self.create_bundle_created_event(bundle_key)
-        self.process_new_indexable_object(sample_event)
-        prefix, _, bundle_fqid = bundle_key.partition("/")
-        self.verify_notification(subscription_id, smartseq2_paired_ends_v3_or_v4_query, bundle_fqid, endpoint)
-
-        endpoint = NotificationRequestHandler.configure(endpoint)
-
-        # Load another schema version 3 bundle and verify notification
-        bundle_key = self.load_test_data_bundle_for_path("fixtures/indexing/bundles/v3/smartseq2/paired_ends")
-        sample_event = self.create_bundle_created_event(bundle_key)
-        self.process_new_indexable_object(sample_event)
-        prefix, _, bundle_fqid = bundle_key.partition("/")
-        self.verify_notification(subscription_id, smartseq2_paired_ends_v3_or_v4_query, bundle_fqid, endpoint)
-
-        self.delete_subscription(subscription_id)
-
-    # TODO: Remove this test once we stop supporting the `core` property (see issue #1015).
-    @skipStaleBundleFormatTest
-    @testmode.standalone
-    def test_scrub_index_data_with_core(self):
-        manifest = read_bundle_manifest(self.blobstore, self.test_bucket, self.bundle_key)
-        doc = 'assay_json'
-        with self.subTest("removes extra fields when fields not specified in schema."):
-            index_data = create_index_data(self.blobstore, self.test_bucket, self.bundle_key, manifest)
-            index_data['files']['assay_json'].update({'extra_top': 123,
-                                                      'extra_obj': {"something": "here", "another": 123},
-                                                      'extra_lst': ["a", "b"]})
-            index_data['files']['assay_json']['core']['extra_internal'] = 123
-            index_data['files']['sample_json']['extra_0'] = "tests patterned properties."
-            index_data['files']['project_json']['extra_1'] = "Another extra field in a different file."
-            index_data['files']['project_json']['extra_2'] = "Another extra field in a different file."
-            index_data['files']['project_json']['core']['characteristics_3'] = "patternProperties only apply to root."
-            bundle_fqid = self.bundle_key.split('/')[1]
-
-            with self.assertLogs(dss.logger, level="INFO") as log_monitor:
-                scrub_index_data(index_data['files'], bundle_fqid)
-            self.assertRegexIn(r"INFO:[^:]+:In [\w\-\.]+, unexpected additional fields have been removed from the "
-                               r"data to be indexed. Removed \[[^\]]*].", log_monitor.output)
-            self.verify_index_document_structure_and_content(
-                index_data,
-                self.bundle_key,
-                files=smartseq2_paried_ends_indexed_file_list,
-            )
-
-        with self.subTest("document is removed from meta data when an invalid url is in core.schema_url."):
-            invalid_url = "://invalid_url"
-            index_data = create_index_data(self.blobstore, self.test_bucket, self.bundle_key, manifest)
-            index_data['files'][doc]['core']['schema_url'] = invalid_url
-            with self.assertLogs(dss.logger, level="WARNING") as log_monitor:
-                scrub_index_data(index_data['files'], bundle_fqid)
-            self.assertRegexIn(f"WARNING:[^:]+:Unable to retrieve JSON schema information from {doc} in bundle "
-                               f"{bundle_fqid}.*",
-                               log_monitor.output)
-            self.verify_index_document_structure_and_content(
-                index_data,
-                self.bundle_key,
-                files=smartseq2_paried_ends_indexed_file_list,
-                excluded_files=[doc]
-            )
-
-        with self.subTest("exception is raised when document is missing core.schema_url field."):
-            index_data = create_index_data(self.blobstore, self.test_bucket, self.bundle_key, manifest)
-            index_data['files'][doc]['core'].pop('schema_url')
-            with self.assertRaises(KeyError):
-                scrub_index_data(index_data['files'], bundle_fqid)
-
-        with self.subTest("document is removed from meta data when document is missing core field."):
-            'Only the manifest should exist.'
-            bundle_key = self.load_test_data_bundle_for_path(
-                "fixtures/indexing/bundles/unversioned/smartseq2/paired_ends_extras")
-            bundle_fqid = bundle_key.split('/')[1]
-            manifest = read_bundle_manifest(self.blobstore, self.test_bucket, bundle_key)
-            index_data = create_index_data(self.blobstore, self.test_bucket, bundle_key, manifest)
-            for file in index_data['files']:
-                file.pop('core', None)
-            scrub_index_data(index_data['files'], bundle_fqid)
-
-            self.assertEqual(4, len(index_data.keys()))
-            self.assertEqual("new", index_data['state'])
-            self.assertIsNotNone(index_data['manifest'])
-            self.assertEqual(index_data['files'], {})
-
-            expected_index_data = generate_expected_index_document(self.blobstore,
-                                                                   self.test_bucket,
-                                                                   bundle_key,
-                                                                   smartseq2_paried_ends_indexed_file_list)
-            self.assertDictEqual(expected_index_data, index_data, msg=f"Expected index document: "
-                                                                      f"{json.dumps(expected_index_data, indent=4)}"
-                                                                      f"Actual index document: "
-                                                                      f"{json.dumps(index_data, indent=4)}")
-
-    @skipStaleBundleFormatTest
     @testmode.standalone
     def test_scrub_index_data_with_describedBy(self):
         index_data_master = {
             "files": {
-                "biomaterial_bundle_json": {
+                "biomaterial_bundle_json": [{
                     "describedBy": "https://raw.githubusercontent.com/HumanCellAtlas/metadata-schema/"
                                    "5.0.0/json_schema/bundle/biomaterial.json",
                     "schema_version": "5.0.0",
@@ -984,13 +815,13 @@ class TestIndexerBase(ElasticsearchTestCase, DSSAssertMixin, DSSStorageMixin, DS
                             "derivation_processes": []
                         }
                     ]
-                },
-                "ingest_audit_json": {
+                }],
+                "ingest_audit_json": [{
                     "describedBy": "https://raw.githubusercontent.com/HumanCellAtlas/metadata-schema/"
                                    "5.0.0/json_schema/bundle/ingest_audit.json",
                     "document_id": ".{8}-.{4}-.{4}-.{4}-.{12}",
                     "submissionDate": "08-08-2018"
-                }
+                }]
             }
         }
         doc = 'biomaterial_bundle_json'
@@ -1000,14 +831,14 @@ class TestIndexerBase(ElasticsearchTestCase, DSSAssertMixin, DSSStorageMixin, DS
         with self.subTest("Exception is raised when describedBy contains an invalid URL"):
             invalid_url = "://invalid_url"
             index_data = copy.deepcopy(index_data_master)
-            index_data['files'][doc]['describedBy'] = invalid_url
+            index_data['files'][doc][0]['describedBy'] = invalid_url
             with self.assertRaises(RuntimeError) as context:
                 scrub_index_data(index_data['files'], bundle_fqid)
             self.assertRegex(context.exception.args[0], "^No version designator in schema URL")
 
         with self.subTest("document is removed from meta data when document is missing describedBy field."):
             index_data = copy.deepcopy(index_data_master)
-            index_data['files'][doc].pop('describedBy')
+            index_data['files'][doc][0].pop('describedBy')
             with self.assertLogs(dss.logger, level="WARNING") as log_monitor:
                 scrub_index_data(index_data['files'], bundle_fqid)
             self.assertRegexIn(f"WARNING:[^:]+:Unable to retrieve JSON schema information from {doc} in bundle "
@@ -1016,10 +847,10 @@ class TestIndexerBase(ElasticsearchTestCase, DSSAssertMixin, DSSStorageMixin, DS
 
         with self.subTest("removes extra fields when fields not specified in schema."):
             index_data = copy.deepcopy(index_data_master)
-            index_data['files']['biomaterial_bundle_json'].update({'extra_top': 123,
-                                                                   'extra_obj': {"something": "here", "another": 123},
-                                                                   'extra_lst': ["a", "b"]})
-            index_data['files']['ingest_audit_json']['extra_1'] = "Another extra field in a different file."
+            index_data['files']['biomaterial_bundle_json'][0].update(
+                {'extra_top': 123, 'extra_obj': {"something": "here", "another": 123}, 'extra_lst': ["a", "b"]}
+            )
+            index_data['files']['ingest_audit_json'][0]['extra_1'] = "Another extra field in a different file."
 
         with self.assertLogs(dss.logger, level="INFO") as log_monitor:
             scrub_index_data(index_data['files'], bundle_fqid)
