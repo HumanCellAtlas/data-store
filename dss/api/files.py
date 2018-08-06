@@ -152,7 +152,14 @@ def put(uuid: str, json_request_body: dict, version: str):
     uuid = uuid.lower()
 
     # convert it to date-time so we can format exactly as the system requires (with microsecond precision)
-    timestamp = iso8601.parse_date(version)
+    try:
+        timestamp = iso8601.parse_date(version)
+    except iso8601.ParseError:
+        raise DSSException(
+            requests.codes.bad_request,
+            "illegal_version",
+            f"version should be an rfc3339-compliant timestamp")
+
     version = datetime_to_version_format(timestamp)
 
     source_url = json_request_body['source_url']

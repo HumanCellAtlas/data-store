@@ -303,7 +303,7 @@ class TestBundleApi(unittest.TestCase, DSSAssertMixin, DSSUploadMixin):
                 bundle_uuid,
                 [(file_uuid, file_version, "LICENSE")],
                 "ABCD",
-                expected_code=requests.codes.internal_server_error
+                expected_code=requests.codes.bad_request
             )
 
         with self.subTest(f'{replica}: should *NOT* be able to upload a bundle with a missing file, but we should get '

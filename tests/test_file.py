@@ -90,21 +90,21 @@ class TestFileApi(unittest.TestCase, DSSAssertMixin, DSSUploadMixin):
             self.upload_file(source_url_temp, file_uuid, version=version, expected_code=requests.codes.conflict)
 
         with self.subTest(f"{replica}: Bad returned when uploading a file with an invalid version"):
-            self.upload_file(source_url, file_uuid, version='', expected_code=requests.codes.bad)
+            self.upload_file(source_url, file_uuid, version='', expected_code=requests.codes.bad_request)
 
         invalid_version = 'ABCD'
-        with self.subTest(f"{replica}: server_error returned "
+        with self.subTest(f"{replica}: bad_request returned "
                           f"when uploading a file with invalid version {invalid_version}"):
-            self.upload_file(source_url, file_uuid, version=invalid_version, expected_code=requests.codes.server_error)
+            self.upload_file(source_url, file_uuid, version=invalid_version, expected_code=requests.codes.bad_request)
 
         with self.subTest(f"{replica}: Bad returned when uploading a file without a version"):
-            self.upload_file(source_url, file_uuid, version='missing', expected_code=requests.codes.bad)
+            self.upload_file(source_url, file_uuid, version='missing', expected_code=requests.codes.bad_request)
 
         invalid_uuids = ['ABCD', '1234']
         for invalid_uuid in invalid_uuids:
             with self.subTest(f"{replica}: Bad returned "
                               f"when uploading a file with invalid UUID {invalid_uuid}"):
-                self.upload_file(source_url, invalid_uuid, expected_code=requests.codes.bad)
+                self.upload_file(source_url, invalid_uuid, expected_code=requests.codes.bad_request)
 
         with self.subTest(f"{replica}: forbidden returned "
                           f"when uploading a file with without UUID {invalid_uuid}"):
