@@ -88,12 +88,13 @@ release_integration:
     - git clean -df
     - git reset --hard
     - for i in $(seq 1 40); do
-    -   if [[ "pending" != $(scripts/status.sh HumanCellAtlas dcp integration) ]]; then break; fi
+    -   status=$(scripts/status.sh HumanCellAtlas dcp integration)
+    -   if [[ pending != "${status}" && running != "${status}" ]]; then break; fi
     -   echo "waiting for DCP Integration test to complete";
     -   sleep 30;  # This loop will check status for 20 minutes and then quit
     - done
-    - if [[ "success" != $(scripts/status.sh HumanCellAtlas dcp integration) ]]; then
-    -   echo "DCP Integration test did not succeed";
+    - if [[ success != "${status}" ]]; then
+    -   echo "DCP Integration test returned status ${status}";
     -   exit 1
     - fi
     - scripts/fetch_secret.sh gcp-credentials.json > gcp-credentials.json
@@ -112,12 +113,13 @@ release_staging:
     - git clean -df
     - git reset --hard
     - for i in $(seq 1 40); do
-    -   if [[ "pending" != $(scripts/status.sh HumanCellAtlas dcp staging) ]]; then break; fi
+    -   status=$(scripts/status.sh HumanCellAtlas dcp integration)
+    -   if [[ pending != "${status}" && running != "${status}" ]]; then break; fi
     -   echo "waiting for DCP Integration test to complete";
     -   sleep 30;  # This loop will check status for 20 minutes and then quit
     - done
-    - if [[ "success" != $(scripts/status.sh HumanCellAtlas dcp staging) ]]; then
-    -   echo "DCP Integration test did not succeed";
+    - if [[ success != "${status}" ]]; then
+    -   echo "DCP Integration test returned status ${status}";
     -   exit 1
     - fi
     - scripts/fetch_secret.sh gcp-credentials.json > gcp-credentials.json
