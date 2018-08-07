@@ -3,6 +3,7 @@ import string
 import logging
 import typing
 import hashlib
+from collections import defaultdict
 
 import re
 
@@ -105,7 +106,7 @@ class BundleDocument(IndexDocument):
         #    Therefore, substitute dot for underscore in the key filename portion of the index. As due diligence,
         #    additional investigation should be performed.
         #
-        files: typing.Dict = dict()
+        files: typing.Dict = defaultdict(list)
         for name, content in bundle.files:
             name = name.replace('.', '_')
             if name.endswith('_json'):
@@ -114,12 +115,7 @@ class BundleDocument(IndexDocument):
                 if name != parts[2]:
                     name = parts[0]
                 name += "_json"
-            try:
-                file_list = files[name]
-            except KeyError:
-                file_list = list()
-                files[name] = file_list
-            file_list.append(content)
+            files[name].append(content)
 
         scrub_index_data(files, str(self.fqid))
         self['files'] = files

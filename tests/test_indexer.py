@@ -319,10 +319,6 @@ class TestIndexerBase(ElasticsearchTestCase, DSSAssertMixin, DSSStorageMixin, DS
                          "WARNING:.*:In bundle .* the file 'text_data_file1.txt' is marked for indexing"
                          " yet has content type 'text/plain' instead of the required"
                          " content type 'application/json'. This file will not be indexed.")
-#        search_results = self.get_search_results(smartseq2_paired_ends_v2_or_v3_query, 1)
-#        self.assertEqual(1, len(search_results))
-#        self.verify_index_document_structure_and_content(search_results[0], bundle_key,
-#                                                         files=smartseq2_paried_ends_indexed_file_list)
 
     @testmode.standalone
     def test_key_is_not_indexed_when_processing_an_event_with_a_file_key(self):
