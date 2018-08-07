@@ -6,8 +6,9 @@ all: test
 lint:
 	flake8 $(MODULES) chalice/*.py daemons/*/*.py
 
+# TODO: remove --no-strict-optional when the codebase is ready for it.
 mypy:
-	mypy --ignore-missing-imports $(MODULES)
+	mypy --ignore-missing-imports --no-strict-optional $(MODULES)
 
 export DSS_TEST_MODE?=standalone
 
