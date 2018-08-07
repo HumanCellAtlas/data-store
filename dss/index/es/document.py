@@ -205,6 +205,8 @@ class BundleDocument(IndexDocument):
         shape_descriptor = self.get_shape_descriptor()
         if shape_descriptor is not None:
             hashed_shape_descriptor = hashlib.sha1(str(shape_descriptor).encode("utf-8")).hexdigest()
+        else:
+            hashed_shape_descriptor = ""
         index_name = Config.get_es_index_name(ESIndexType.docs, self.replica, hashed_shape_descriptor)
         es_client = ElasticsearchClient.get()
         if not dryrun:
