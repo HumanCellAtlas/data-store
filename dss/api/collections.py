@@ -84,6 +84,14 @@ class hashabledict(dict):
 
 @dss_handler
 def patch(uuid: str, json_request_body: dict, replica: str, version: str):
+    try:
+        iso8601.parse_date(version)
+    except iso8601.ParseError:
+        raise DSSException(
+            requests.codes.bad_request,
+            "illegal_version",
+            f"version should be an rfc3339-compliant timestamp")
+
     authenticated_user_email = request.token_info['email']
 
     uuid = uuid.lower()

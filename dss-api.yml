@@ -1037,6 +1037,22 @@ paths:
             required:
               - uuid
               - version
+        400:
+          description: >
+            Returned when the server could not process the request due to incorrect inputs.  Examine the code for more
+            details.
+          schema:
+            allOf:
+              - $ref: '#/definitions/Error'
+              - type: object
+                properties:
+                  code:
+                    type: string
+                    description: >
+                      The code `illegal_version` is returned when version is not a RFC3339-compliant timestamp.
+                    enum: [illegal_version]
+                required:
+                  - code
         default:
           description: Unexpected error
           schema:

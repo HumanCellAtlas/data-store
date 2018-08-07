@@ -165,7 +165,8 @@ class TestCollections(unittest.TestCase, DSSAssertMixin, DSSUploadMixin):
                           dict(version=self.version),
                           dict(),
                           dict(replica="", version=self.version),
-                          dict(replica="aws", version='')
+                          dict(replica="aws", version=""),
+                          dict(replica="aws", version="GIBBERISH"),
                           ]
         for params in missing_params:
             with self.subTest(params):
