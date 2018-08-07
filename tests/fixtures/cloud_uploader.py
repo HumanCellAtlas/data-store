@@ -42,7 +42,10 @@ class Uploader:
         if metadata is None:
             metadata = dict()
 
-        with ChecksummingSink() as sink, open(os.path.join(self.local_root, local_path), "rb") as fh:
+        fpath = os.path.join(self.local_root, local_path)
+        size = os.path.getsize(fpath)
+        chunk_size = get_s3_multipart_chunk_size(size)
+        with ChecksummingSink(write_chunk_size=chunk_size) as sink, open(fpath, "rb") as fh:
             data = fh.read()
             sink.write(data)
 
