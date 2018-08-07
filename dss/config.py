@@ -11,6 +11,7 @@ from cloud_blobstore import BlobStore
 from cloud_blobstore.s3 import S3BlobStore
 from cloud_blobstore.gs import GSBlobStore
 from google.cloud.storage import Client
+from google.auth.transport.requests import AuthorizedSession
 from google.oauth2 import service_account
 import google.resumable_media.common
 
@@ -142,7 +143,7 @@ class Config:
         else:
             # GCP has no direct interface to configure retries and timeouts. However, it makes use of Python's
             # stdlib `requests` package, which has straightforward timeout usage.
-            class SessionWithTimeouts(google.auth.transport.requests.AuthorizedSession):
+            class SessionWithTimeouts(AuthorizedSession):
                 def request(self, *args, **kwargs):
                     kwargs['timeout'] = (Config.BLOBSTORE_CONNECT_TIMEOUT, Config.BLOBSTORE_READ_TIMEOUT)
                     return super().request(*args, **kwargs)
