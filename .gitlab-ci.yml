@@ -18,8 +18,8 @@ variables:
 
 stages:
   - test
-  - integration_test
   - deploy_dev
+  - integration_test
   - release_integration
   - release_staging
 
@@ -64,11 +64,6 @@ test_subscriptions:
   script:
     - make -j1 tests/test_subscriptions.py
 
-integration_test:
-  stage: integration_test
-  script:
-    - make -j1 integration_test
-
 deploy_dev:
   stage: deploy_dev
   script:
@@ -81,6 +76,11 @@ deploy_dev:
     url: https://dss.dev.data.humancellatlas.org
   only:
     - master
+
+integration_test:
+  stage: integration_test
+  script:
+    - make -j1 integration_test
 
 release_integration:
   stage: release_integration
