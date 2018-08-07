@@ -1,6 +1,9 @@
 import json
+import string
 import logging
 import typing
+import hashlib
+from collections import defaultdict
 
 import re
 
@@ -103,7 +106,11 @@ class BundleDocument(IndexDocument):
         #    Therefore, substitute dot for underscore in the key filename portion of the index. As due diligence,
         #    additional investigation should be performed.
         #
-        files = {name.replace('.', '_'): content for name, content in bundle.files.items()}
+        files: typing.Dict = defaultdict(list)
+        for name, content in bundle.files:
+            name = prepare_filename(name)
+            files[name].append(content)
+
         scrub_index_data(files, str(self.fqid))
         self['files'] = files
         self['uuid'] = self.fqid.uuid
@@ -196,7 +203,9 @@ class BundleDocument(IndexDocument):
 
     def _prepare_index(self, dryrun):
         shape_descriptor = self.get_shape_descriptor()
-        index_name = Config.get_es_index_name(ESIndexType.docs, self.replica, shape_descriptor)
+        if shape_descriptor is not None:
+            hashed_shape_descriptor = hashlib.sha1(str(shape_descriptor).encode("utf-8")).hexdigest()
+        index_name = Config.get_es_index_name(ESIndexType.docs, self.replica, hashed_shape_descriptor)
         es_client = ElasticsearchClient.get()
         if not dryrun:
             IndexManager.create_index(es_client, self.replica, index_name)
@@ -229,35 +238,40 @@ class BundleDocument(IndexDocument):
         Other projects (non-HCA) may manage their own metadata schemas (if any) and schema versions. This should be
         an extension point that is customizable by other projects according to their metadata.
         """
-        schemas_by_file: typing.MutableMapping[str, SchemaInfo] = {}
-        for file_name, file_content in self.files.items():
-            schema = SchemaInfo.from_json(file_content)
-            if schema is not None:
-                if file_name.endswith('_json'):
-                    file_name = file_name[:-5]
-                # Enforce the prerequisites that make the mapping to shape descriptors bijective. This will enable us
-                # to parse shape descriptors should we need to in the future. Dots have to be avoided because they
-                # are used as separators. A number (the schema version) is used to terminate each file's entry in the
-                # shape descriptor, allowing us to distinguish between the normal form of an entry and the compressed
-                # form that is used when schema and file name are the same.
-                reject('.' in file_name, f"A metadata file name must not contain '.' characters: {file_name}")
-                reject(file_name.isdecimal(), f"A metadata file name must contain at least one non-digit: {file_name}")
-                reject('.' in schema.type, f"A schema name must not contain '.' characters: {schema.type}")
-                reject(schema.type.isdecimal(), f"A schema name must contain at least one non-digit: {schema.type}")
-                assert '.' not in schema.version, f"A schema version must not contain '.' characters: {schema.version}"
-                assert schema.version.isdecimal(), f"A schema version must consist of digits only: {schema.version}"
-                schemas_by_file[file_name] = schema
-            else:
-                logger.warning(f"Unable to obtain JSON schema info from file '{file_name}'. The file will be indexed "
-                               f"as is, without sanitization. This may prevent subsequent, valid files from being "
-                               f"indexed correctly.")
+
+        def shape_rejection(file_name, schema):
+            # Enforce the prerequisites that make the mapping to shape descriptors bijective. This will enable
+            # us to parse shape descriptors should we need to in the future. Dots have to be avoided because
+            # they are used as separators. A number (the schema version) is used to terminate each file's
+            # entry in the shape descriptor, allowing us to distinguish between the normal form of an entry and
+            # the compressed form that is used when schema and file name are the same.
+            reject('.' in file_name, f"A metadata file name must not contain '.' characters: {file_name}")
+            reject(file_name.isdecimal(), f"A metadata file name must contain at least one non-digit: {file_name}")
+            reject('.' in schema.type, f"A schema name must not contain '.' characters: {schema.type}")
+            reject(schema.type.isdecimal(), f"A schema name must contain at least one non-digit: {schema.type}")
+            assert '.' not in schema.version, f"A schema version must not contain '.' characters: {schema.version}"
+            assert schema.version.isdecimal(), f"A schema version must consist of digits only: {schema.version}"
+
+        schemas_by_file: typing.Set[typing.Tuple[str, SchemaInfo]] = set()
+        for file_name, file_list in self.files.items():
+            for file_content in file_list:
+                schema = SchemaInfo.from_json(file_content)
+                if schema is not None:
+                    if file_name.endswith('_json'):
+                        file_name = file_name[:-5]
+                    shape_rejection(file_name, schema)
+                    schemas_by_file.add((file_name, schema))
+                else:
+                    logger.warning(f"Unable to obtain JSON schema info from file '{file_name}'. The file will be "
+                                   f"indexed as is, without sanitization. This may prevent subsequent, valid files "
+                                   f"from being indexed correctly.")
         if schemas_by_file:
-            same_version = 1 == len(set(schema.version for schema in schemas_by_file.values()))
-            same_schema_and_file_name = all(file_name == schema.type for file_name, schema in schemas_by_file.items())
+            same_version = 1 == len(set(schema.version for _, schema in schemas_by_file))
+            same_schema_and_file_name = all(file_name == schema.type for file_name, schema in schemas_by_file)
             if same_version and same_schema_and_file_name:
-                return 'v' + next(iter(schemas_by_file.values())).version
+                return 'v' + schemas_by_file.pop()[1].version
             else:
-                schemas = sorted(schemas_by_file.items())
+                schemas = sorted(schemas_by_file)
 
                 def entry(file_name, schema):
                     if schema.type == file_name:
@@ -346,3 +360,13 @@ class BundleTombstoneDocument(IndexDocument):
         self = cls(tombstone.replica, tombstone.fqid, tombstone.body)
         self['uuid'] = self.fqid.uuid
         return self
+
+def prepare_filename(name: str) -> str:
+    name = name.replace('.', '_')
+    if name.endswith('_json'):
+        name = name[:-5]
+        parts = name.rpartition("_")
+        if name != parts[2]:
+            name = parts[0]
+        name += "_json"
+    return name

@@ -9,6 +9,7 @@ import unittest
 import uuid
 from io import open
 from contextlib import contextmanager
+import hashlib
 
 import connexion.apis.abstract
 import requests
@@ -27,7 +28,7 @@ from tests import get_auth_header, get_bundle_fqid
 from tests.infra import DSSAssertMixin, testmode
 from tests.infra.elasticsearch_test_case import ElasticsearchTestCase
 from tests.infra.server import ThreadedLocalServer
-from tests.sample_search_queries import smartseq2_paired_ends_v2_or_v3_query
+from tests.sample_search_queries import smartseq2_paired_ends_vx_query
 
 
 logger = logging.getLogger(__name__)
@@ -46,7 +47,7 @@ class TestSubscriptionsBase(ElasticsearchTestCase, DSSAssertMixin):
         cls.app.start()
         dss.Config.set_config(dss.BucketConfig.TEST)
 
-        with open(os.path.join(os.path.dirname(__file__), "sample_v3_index_doc.json"), "r") as fh:
+        with open(os.path.join(os.path.dirname(__file__), "sample_vx_index_doc.json"), "r") as fh:
             cls.index_document = BundleDocument(cls.replica, get_bundle_fqid())
             cls.index_document.update(json.load(fh))
 
@@ -60,6 +61,7 @@ class TestSubscriptionsBase(ElasticsearchTestCase, DSSAssertMixin):
         self.alias_name = dss.Config.get_es_alias_name(dss.ESIndexType.docs, self.replica)
         self.sub_index_name = dss.Config.get_es_index_name(dss.ESIndexType.subscriptions, self.replica)
         shape_identifier = self.index_document.get_shape_descriptor()
+        shape_identifier = hashlib.sha1(f"{shape_identifier}".encode("utf-8")).hexdigest()
         self.doc_index_name = dss.Config.get_es_index_name(dss.ESIndexType.docs, self.replica, shape_identifier)
         es_client = ElasticsearchClient.get()
         IndexManager.create_index(es_client, self.replica, self.doc_index_name)
@@ -73,7 +75,7 @@ class TestSubscriptionsBase(ElasticsearchTestCase, DSSAssertMixin):
                                  encoding="application/json",
                                  form_fields={'foo': 'bar'},
                                  payload_form_field='baz')
-        self.sample_percolate_query = smartseq2_paired_ends_v2_or_v3_query
+        self.sample_percolate_query = smartseq2_paired_ends_vx_query
 
     def test_auth_errors(self):
         url = str(UrlBuilder()

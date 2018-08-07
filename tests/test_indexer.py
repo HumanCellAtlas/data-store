@@ -12,6 +12,8 @@ import io
 import json
 import logging
 import os
+import string
+import hashlib
 
 import botocore.client
 import requests
@@ -37,7 +39,7 @@ import dss.index.es.backend
 from dss.index.backend import CompositeIndexBackend
 from dss.index.es.backend import ElasticsearchIndexBackend
 from dss.index.es import ElasticsearchClient
-from dss.index.es.document import BundleDocument
+from dss.index.es.document import BundleDocument, prepare_filename
 from dss.index.es.validator import scrub_index_data
 from dss.index.indexer import Indexer
 from dss.logging import configure_test_logging
@@ -53,7 +55,8 @@ from tests.infra import DSSAssertMixin, DSSStorageMixin, DSSUploadMixin, TestBun
 from tests.infra.elasticsearch_test_case import ElasticsearchTestCase
 from tests.infra.server import ThreadedLocalServer
 from tests.sample_search_queries import (smartseq2_paired_ends_v2_or_v3_query, smartseq2_paired_ends_v3_or_v4_query,
-                                         smartseq2_paired_ends_v3_query, smartseq2_paired_ends_v4_query)
+                                         smartseq2_paired_ends_v3_query, smartseq2_paired_ends_v4_query,
+                                         smartseq2_paired_ends_vx_query)
 
 logger = logging.getLogger(__name__)
 
@@ -122,9 +125,8 @@ class TestIndexerBase(ElasticsearchTestCase, DSSAssertMixin, DSSStorageMixin, DS
         self.subscription_index_name = dss.Config.get_es_index_name(dss.ESIndexType.subscriptions, self.replica)
         if self.replica not in self.bundle_key_by_replica:
             self.bundle_key_by_replica[self.replica] = self.load_test_data_bundle_for_path(
-                "fixtures/indexing/bundles/v3/smartseq2/paired_ends")
+                "fixtures/indexing/bundles/vx/smartseq2/paired_ends")
         self.bundle_key = self.bundle_key_by_replica[self.replica]
-        self.smartseq2_paired_ends_query = smartseq2_paired_ends_v2_or_v3_query
 
     def process_new_indexable_object(self, event):
         self.indexer.process_new_indexable_object(event)
@@ -133,7 +135,7 @@ class TestIndexerBase(ElasticsearchTestCase, DSSAssertMixin, DSSStorageMixin, DS
     def test_create(self):
         sample_event = self.create_bundle_created_event(self.bundle_key)
         self.process_new_indexable_object(sample_event)
-        search_results = self.get_search_results(self.smartseq2_paired_ends_query, 1)
+        search_results = self.get_search_results(smartseq2_paired_ends_vx_query, 1)
         self.assertEqual(1, len(search_results))
         self.verify_index_document_structure_and_content(
             search_results[0],
@@ -170,7 +172,7 @@ class TestIndexerBase(ElasticsearchTestCase, DSSAssertMixin, DSSStorageMixin, DS
     def _create_tombstoned_bundle(self, retry_method='index'):
         sample_event = self.create_bundle_created_event(self.bundle_key)
         self._process_new_indexable_object_with_retry(sample_event, retry_method=retry_method)
-        self.get_search_results(self.smartseq2_paired_ends_query, 1)
+        self.get_search_results(smartseq2_paired_ends_vx_query, 1)
 
     def _create_tombstone(self, tombstone_id):
         blobstore = Config.get_blobstore_handle(self.replica)
@@ -219,7 +221,7 @@ class TestIndexerBase(ElasticsearchTestCase, DSSAssertMixin, DSSStorageMixin, DS
     def _assert_tombstone(self, tombstone_id, tombstone_data):
         blobstore = Config.get_blobstore_handle(self.replica)
         bucket = self.replica.bucket
-        search_results = self.get_search_results(self.smartseq2_paired_ends_query, 0)
+        search_results = self.get_search_results(smartseq2_paired_ends_vx_query, 0)
         self.assertEqual(0, len(search_results))
         bundle_fqids = [ObjectIdentifier.from_key(k) for k in blobstore.list(bucket, tombstone_id.to_key_prefix())]
         bundle_fqids = filter(lambda bundle_id: type(bundle_id) == BundleFQID, bundle_fqids)
@@ -243,7 +245,7 @@ class TestIndexerBase(ElasticsearchTestCase, DSSAssertMixin, DSSStorageMixin, DS
 
         @eventually(timeout=5.0, interval=0.5)
         def _assert_reindexing_results(expect_extra_field, expected_version):
-            query = {**self.smartseq2_paired_ends_query, 'version': True}
+            query = {**smartseq2_paired_ends_v2_or_v3_query, 'version': True}
             hits = self.get_raw_search_results(query, 1)['hits']['hits']
             self.assertEqual(1, len(hits))
             self.assertEquals(expected_version, hits[0]['_version'])
@@ -278,15 +280,16 @@ class TestIndexerBase(ElasticsearchTestCase, DSSAssertMixin, DSSStorageMixin, DS
 
     @testmode.standalone
     def test_reindexing_with_changed_shape(self):
-        bundle_key = self.load_test_data_bundle_for_path("fixtures/indexing/bundles/v3/smartseq2/paired_ends")
+        bundle_key = self.load_test_data_bundle_for_path("fixtures/indexing/bundles/vx/smartseq2/paired_ends")
         sample_event = self.create_bundle_created_event(bundle_key)
         shape_descriptor = 'v99'
 
         @eventually(timeout=5.0, interval=0.5)
         def _assert_reindexing_results(expect_shape_descriptor):
-            hits = self.get_raw_search_results(self.smartseq2_paired_ends_query, 1)['hits']['hits']
+            hits = self.get_raw_search_results(smartseq2_paired_ends_vx_query, 1)['hits']['hits']
             self.assertEqual(1, len(hits))
-            self.assertEqual(expect_shape_descriptor, shape_descriptor in hits[0]['_index'])
+            hashed_shape_descriptor = hashlib.sha1(shape_descriptor.encode()).hexdigest()
+            self.assertEqual(expect_shape_descriptor, hashed_shape_descriptor in hits[0]['_index'])
 
         # Index document into the "wrong" index by patching the shape descriptor
         with unittest.mock.patch.object(BundleDocument, 'get_shape_descriptor', return_value=shape_descriptor):
@@ -316,10 +319,6 @@ class TestIndexerBase(ElasticsearchTestCase, DSSAssertMixin, DSSStorageMixin, DS
                          "WARNING:.*:In bundle .* the file 'text_data_file1.txt' is marked for indexing"
                          " yet has content type 'text/plain' instead of the required"
                          " content type 'application/json'. This file will not be indexed.")
-        search_results = self.get_search_results(self.smartseq2_paired_ends_query, 1)
-        self.assertEqual(1, len(search_results))
-        self.verify_index_document_structure_and_content(search_results[0], bundle_key,
-                                                         files=smartseq2_paried_ends_indexed_file_list)
 
     @testmode.standalone
     def test_key_is_not_indexed_when_processing_an_event_with_a_file_key(self):
@@ -349,16 +348,12 @@ class TestIndexerBase(ElasticsearchTestCase, DSSAssertMixin, DSSStorageMixin, DS
         self.assertRegex(log_monitor.output[0],
                          "WARNING:.*:In bundle .* the file 'unparseable_json.json' is marked for indexing"
                          " yet could not be parsed. This file will not be indexed. Exception:")
-        search_results = self.get_search_results(self.smartseq2_paired_ends_query, 1)
-        self.assertEqual(1, len(search_results))
-        self.verify_index_document_structure_and_content(search_results[0], bundle_key,
-                                                         files=smartseq2_paried_ends_indexed_file_list)
 
     @testmode.standalone
     def test_indexed_file_access_error(self):
         inaccesssible_filename = "inaccessible_file.json"
         bundle_key = self.load_test_data_bundle_with_inaccessible_file(
-            "fixtures/indexing/bundles/v3/smartseq2/paired_ends", inaccesssible_filename, "application/json", True)
+            "fixtures/indexing/bundles/vx/smartseq2/paired_ends", inaccesssible_filename, "application/json", True)
         sample_event = self.create_bundle_created_event(bundle_key)
         with self.assertLogs(dss.logger, level="WARNING") as log_monitor:
             with self.assertRaises(RuntimeError):
@@ -411,14 +406,14 @@ class TestIndexerBase(ElasticsearchTestCase, DSSAssertMixin, DSSStorageMixin, DS
     def test_notifications_recieved(self):
         endpoint = self._default_endpoint()
         endpoint = NotificationRequestHandler.configure(endpoint)
-        subscription_id = self.subscribe_for_notification(es_query=self.smartseq2_paired_ends_query,
+        subscription_id = self.subscribe_for_notification(es_query=smartseq2_paired_ends_vx_query,
                                                           **endpoint.to_dict())
         sample_event = self.create_bundle_created_event(self.bundle_key)
         with self.subTest("A notification is received when an indexing event for a new bundle version replica matching "
                           "my subscription is received."):
             self.process_new_indexable_object(sample_event)
             prefix, _, bundle_fqid = self.bundle_key.partition("/")
-            self.verify_notification(subscription_id, self.smartseq2_paired_ends_query, bundle_fqid, endpoint)
+            self.verify_notification(subscription_id, smartseq2_paired_ends_vx_query, bundle_fqid, endpoint)
         with self.subTest("No notification is received when an indexing event for a duplicate bundle version replica "
                           "matching my subscription is received."):
             self.process_new_indexable_object(sample_event)
@@ -428,11 +423,11 @@ class TestIndexerBase(ElasticsearchTestCase, DSSAssertMixin, DSSStorageMixin, DS
                           "matching my subscription is received."):
             bundle_uuid = self.bundle_key.split('/')[1].split('.')[0]
             bundle_key = self.load_test_data_bundle_for_path(
-                "fixtures/indexing/bundles/v3/smartseq2/paired_ends", bundle_uuid)
+                "fixtures/indexing/bundles/vx/smartseq2/paired_ends", bundle_uuid)
             sample_event = self.create_bundle_created_event(bundle_key)
             self.process_new_indexable_object(sample_event)
             prefix, _, bundle_fqid = bundle_key.partition("/")
-            self.verify_notification(subscription_id, self.smartseq2_paired_ends_query, bundle_fqid, endpoint)
+            self.verify_notification(subscription_id, smartseq2_paired_ends_vx_query, bundle_fqid, endpoint)
         self.delete_subscription(subscription_id)
 
     def delete_subscription(self, subscription_id):
@@ -476,14 +471,14 @@ class TestIndexerBase(ElasticsearchTestCase, DSSAssertMixin, DSSStorageMixin, DS
         for endpoint, verify_payloads in test_cases:
             endpoint = NotificationRequestHandler.configure(endpoint, verify_payloads=verify_payloads)
             with self.subTest(**endpoint.to_dict(), verify_payloads=verify_payloads):
-                subscription = dict(endpoint.to_dict(), es_query=self.smartseq2_paired_ends_query)
+                subscription = dict(endpoint.to_dict(), es_query=smartseq2_paired_ends_vx_query)
                 if verify_payloads:
                     subscription['hmac_secret_key'] = NotificationRequestHandler.hmac_secret_key
                 subscription_id = self.subscribe_for_notification(**subscription)
                 sample_event = self.create_bundle_created_event(self.bundle_key)
                 self.process_new_indexable_object(sample_event)
                 prefix, _, bundle_fqid = self.bundle_key.partition("/")
-                self.verify_notification(subscription_id, self.smartseq2_paired_ends_query, bundle_fqid, endpoint)
+                self.verify_notification(subscription_id, smartseq2_paired_ends_vx_query, bundle_fqid, endpoint)
                 self.delete_subscription(subscription_id)
 
     @testmode.standalone
@@ -500,10 +495,8 @@ class TestIndexerBase(ElasticsearchTestCase, DSSAssertMixin, DSSStorageMixin, DS
              dict(foo='bar')),  # is returned as is.
             (define(foo='doesnotexist'),  # A non-existant field …
              dict(foo=None)),  # yields None.
-            (define(primer='files.assay_json.rna.primer'),  # An existing field
-             dict(primer='random')),  # yields that field's value
-            (define(protocols='files.project_json.protocols[0:2].type.text'),  # A more complicated expression
-             dict(protocols=['growth protocol', 'treatment protocol'])),  # (a projection and a slice).
+            (define(ontology='files.sequencing_protocol_json[].sequencing_approach.ontology'),  # An existing field
+             dict(ontology=['EFO:0008441'])),  # yields that field's value
             (define(foo='`"bar"`', bar='abs(`"foo"`)'),  # An specific error in one field doesn't affect another.
              dict(foo='bar', _errors=dict(bar='In function abs(), invalid type for value: foo, '
                                               'expected one of: [\'number\'], received: "string"'))),
@@ -511,7 +504,7 @@ class TestIndexerBase(ElasticsearchTestCase, DSSAssertMixin, DSSStorageMixin, DS
              dict(_errors='Attachments too large (131083 > 131072)'))]  # displaces all attachments.
 
         for definitions, attachments in test_cases:
-            query = self.smartseq2_paired_ends_query
+            query = smartseq2_paired_ends_vx_query
             with self.subTest(definitions=definitions, attachments=attachments):
                 endpoint = NotificationRequestHandler.configure(self._default_endpoint())
                 subscription_id = self.subscribe_for_notification(es_query=query,
@@ -532,11 +525,11 @@ class TestIndexerBase(ElasticsearchTestCase, DSSAssertMixin, DSSStorageMixin, DS
 
         endpoint = self._default_endpoint()
         endpoint = NotificationRequestHandler.configure(endpoint, verify_payloads=True)
-        subscription_id = self.subscribe_for_notification(es_query=self.smartseq2_paired_ends_query,
+        subscription_id = self.subscribe_for_notification(es_query=smartseq2_paired_ends_vx_query,
                                                           hmac_secret_key=NotificationRequestHandler.hmac_secret_key,
                                                           hmac_key_id="test",
                                                           **endpoint.to_dict())
-        bundle_key = self.load_test_data_bundle_for_path("fixtures/indexing/bundles/v3/smartseq2/paired_ends")
+        bundle_key = self.load_test_data_bundle_for_path("fixtures/indexing/bundles/vx/smartseq2/paired_ends")
         sample_event = self.create_bundle_created_event(bundle_key)
         endpoint = NotificationRequestHandler.configure(endpoint, verify_payloads=True, response_code=500)
         with self.assertLogs(dss.logger, level="WARNING") as log_monitor:
@@ -553,12 +546,12 @@ class TestIndexerBase(ElasticsearchTestCase, DSSAssertMixin, DSSStorageMixin, DS
     def test_subscription_registration_before_indexing(self):
         endpoint = self._default_endpoint()
         endpoint = NotificationRequestHandler.configure(endpoint)
-        subscription_id = self.subscribe_for_notification(es_query=self.smartseq2_paired_ends_query,
+        subscription_id = self.subscribe_for_notification(es_query=smartseq2_paired_ends_vx_query,
                                                           **endpoint.to_dict())
         sample_event = self.create_bundle_created_event(self.bundle_key)
         self.process_new_indexable_object(sample_event)
         prefix, _, bundle_fqid = self.bundle_key.partition("/")
-        self.verify_notification(subscription_id, self.smartseq2_paired_ends_query, bundle_fqid, endpoint)
+        self.verify_notification(subscription_id, smartseq2_paired_ends_vx_query, bundle_fqid, endpoint)
         self.delete_subscription(subscription_id)
 
     @testmode.always
@@ -573,18 +566,18 @@ class TestIndexerBase(ElasticsearchTestCase, DSSAssertMixin, DSSStorageMixin, DS
                     'bool': {
                         'must': [{
                             'match': {
-                                "files.sample_json.donor.age": 12
+                                "files.donor_organism_json.biomaterial_core.ncbi_taxon_id": 9606
                             }
                         }, {
                             'range': {
-                                "files.sample_json.submit_date": {
-                                    "gte": "2015-11-30",
-                                    "lte": "2015-11-30"
+                                "files.specimen_from_organism_json.collection_time": {
+                                    "gte": "2018-07-22",
+                                    "lte": "2018-07-22"
                                 }
                             }
                         }, {
                             'match': {
-                                "files.sample_json.ncbi_biosample": "SAMN04303778"
+                                "files.project_json.contributors.contact_name": "Q4_DEMO-MintTeam"
                             }
                         }]
                     }
@@ -598,12 +591,27 @@ class TestIndexerBase(ElasticsearchTestCase, DSSAssertMixin, DSSStorageMixin, DS
         self.process_new_indexable_object(sample_event)
 
         # Verify the mapping types are as expected for a valid test
-        doc_index_name = dss.Config.get_es_index_name(dss.ESIndexType.docs, self.replica, "v3")
+        expected_shape_descriptor = (
+            "v.cell_suspension.6.dissociation_protocol.2.donor_organism.5.enrichment_protocol.2" +
+            ".library_preparation_protocol.3.links.1.process.2.project.5.sequence_file.6.sequencing_protocol.7" +
+            ".specimen_from_organism.5"
+        )
+        doc_index_name = dss.Config.get_es_index_name(
+            dss.ESIndexType.docs,
+            self.replica,
+            hashlib.sha1(expected_shape_descriptor.encode("utf-8")).hexdigest()
+        )
         mappings = ElasticsearchClient.get().indices.get_mapping(doc_index_name)[doc_index_name]['mappings']
-        sample_json_mappings = mappings['doc']['properties']['files']['properties']['sample_json']
-        self.assertEquals(sample_json_mappings['properties']['donor']['properties']['age']['type'], "long")
-        self.assertEquals(sample_json_mappings['properties']['submit_date']['type'], "date")
-        self.assertEquals(sample_json_mappings['properties']['ncbi_biosample']['type'], "keyword")
+        file_mappings = mappings['doc']['properties']['files']['properties']
+
+        maps = file_mappings['donor_organism_json']['properties']
+        self.assertEquals(maps['biomaterial_core']['properties']['ncbi_taxon_id']['type'], "long")
+
+        maps = file_mappings['specimen_from_organism_json']['properties']
+        self.assertEquals(maps['collection_time']['type'], "date")
+
+        maps = file_mappings['project_json']['properties']
+        self.assertEquals(maps['contributors']['properties']['contact_name']['type'], "keyword")
 
         # Verify the query works correctly as a search
         search_results = self.get_search_results(subscription_query, 1)
@@ -621,85 +629,76 @@ class TestIndexerBase(ElasticsearchTestCase, DSSAssertMixin, DSSStorageMixin, DS
             return {
                 'describedBy': f"http://schema.humancellatlas.org/module/{schema_version}.0.0/{schema_type}.json"
             }
+        version = "5"
+        other_version = "4"
 
-        def core(schema_type, schema_version):
-            return {
-                'core': {
-                    'schema_url': f"http://hgwdev.soe.ucsc.edu/~kent/hca/schema/{schema_type}.json",
-                    'schema_version': schema_version + ".0.0",
-                    'type': schema_type
-                }
+        index_document = BundleDocument(self.replica, get_bundle_fqid())
+
+        with self.subTest(f"Consistent schema version {version}"):
+            index_document['files'] = {
+                'assay_json': [describedBy('assay', version)],
+                'sample_json': [describedBy('sample', version)]
             }
+            self.assertEqual(index_document.get_shape_descriptor(), "v5")
 
-        for (version, other_version, content) in (('5', '4', describedBy), ('4', '3', core)):
-            with self.subTest(version=version, previous_version=other_version, content=content.__name__):
-                index_document = BundleDocument(self.replica, get_bundle_fqid())
+        with self.subTest("Mixed metadata schema versions"):
+            index_document['files'] = {
+                'assay_json': [describedBy('assay', other_version)],
+                'sample_json': [describedBy('sample', version)]
+            }
+            self.assertEqual(index_document.get_shape_descriptor(), f"v.assay.{other_version}.sample.{version}")
 
-                with self.subTest(f"Consistent schema version {version}"):
-                    index_document['files'] = {
-                        'assay_json': content('assay', version),
-                        'sample_json': content('sample', version)
-                    }
-                    self.assertEqual(index_document.get_shape_descriptor(), "v" + version)
+        with self.subTest(f"Consistent schema version {other_version}"):
+            index_document['files'] = {
+                'assay_json': [describedBy('assay', other_version)],
+                'sample_json': [describedBy('sample', other_version)]
+            }
+            self.assertEqual(index_document.get_shape_descriptor(), "v" + other_version)
 
-                with self.subTest("Mixed metadata schema versions"):
-                    index_document['files'] = {
-                        'assay_json': content('assay', other_version),
-                        'sample_json': content('sample', version)
-                    }
-                    self.assertEqual(index_document.get_shape_descriptor(), f"v.assay.{other_version}.sample.{version}")
+        with self.subTest("One version present, one absent"):
+            index_document['files'] = {
+                'assay_json': [{}],
+                'sample_json': [describedBy('sample', other_version)]
+            }
+            with self.assertLogs(dss.logger, level="WARNING") as log_monitor:
+                index_document.get_shape_descriptor()
+            self.assertRegexIn(r"WARNING:.*Unable to obtain JSON schema info from file 'assay_json'. The file "
+                               r"will be indexed as is, without sanitization. This may prevent subsequent, "
+                               r"valid files from being indexed correctly.", log_monitor.output)
+            self.assertEqual(index_document.get_shape_descriptor(), "v" + other_version)
 
-                with self.subTest(f"Consistent schema version {other_version}"):
-                    index_document['files'] = {
-                        'assay_json': content('assay', other_version),
-                        'sample_json': content('sample', other_version)
-                    }
-                    self.assertEqual(index_document.get_shape_descriptor(), "v" + other_version)
+        with self.subTest("No versions"):
+            index_document['files'] = {
+                'assay_json': [{}],
+                'sample_json': [{}]
+            }
+            self.assertEqual(index_document.get_shape_descriptor(), None)
 
-                with self.subTest("One version present, one absent"):
-                    index_document['files'] = {
-                        'assay_json': {},
-                        'sample_json': content('sample', other_version)
-                    }
-                    with self.assertLogs(dss.logger, level="WARNING") as log_monitor:
-                        index_document.get_shape_descriptor()
-                    self.assertRegexIn(r"WARNING:.*Unable to obtain JSON schema info from file 'assay_json'. The file "
-                                       r"will be indexed as is, without sanitization. This may prevent subsequent, "
-                                       r"valid files from being indexed correctly.", log_monitor.output)
-                    self.assertEqual(index_document.get_shape_descriptor(), "v" + other_version)
+        with self.subTest("Mixed versions for one type"):
+            index_document['files'] = {
+                'sample1_json': [describedBy('sample', version)],
+                'sample2_json': [describedBy('sample', other_version)]
+            }
+            self.assertEqual(index_document.get_shape_descriptor(),
+                             f"v.sample1.sample.{version}.sample2.sample.{other_version}")
 
-                with self.subTest("No versions"):
-                    index_document['files'] = {
-                        'assay_json': {},
-                        'sample_json': {}
-                    }
-                    self.assertEqual(index_document.get_shape_descriptor(), None)
+        def test_requirements(msg, file_name, schema, expected_error):
+            with self.subTest(msg):
+                index_document['files'] = {
+                    file_name: [describedBy(schema, version)]
+                }
+                with self.assertRaises(RequirementError) as context:
+                    index_document.get_shape_descriptor()
+                self.assertEqual(context.exception.args[0], expected_error)
 
-                with self.subTest("Mixed versions for one type"):
-                    index_document['files'] = {
-                        'sample1_json': content('sample', version),
-                        'sample2_json': content('sample', other_version)
-                    }
-                    self.assertEqual(index_document.get_shape_descriptor(),
-                                     f"v.sample1.sample.{version}.sample2.sample.{other_version}")
-
-                def test_requirements(msg, file_name, schema, expected_error):
-                    with self.subTest(msg):
-                        index_document['files'] = {
-                            file_name: content(schema, version)
-                        }
-                        with self.assertRaises(RequirementError) as context:
-                            index_document.get_shape_descriptor()
-                        self.assertEqual(context.exception.args[0], expected_error)
-
-                test_requirements('Dot in file name', 'sample.json', 'sample',
-                                  "A metadata file name must not contain '.' characters: sample.json")
-                test_requirements('Dot in type', 'sample_json', 'sam.ple',
-                                  "A schema name must not contain '.' characters: sam.ple")
-                test_requirements('Type is number', 'sample_json', '123',
-                                  "A schema name must contain at least one non-digit: 123")
-                test_requirements('File name is number', '7_json', 'sample',
-                                  "A metadata file name must contain at least one non-digit: 7")
+        test_requirements('Dot in file name', 'sample.json', 'sample',
+                          "A metadata file name must not contain '.' characters: sample.json")
+        test_requirements('Dot in type', 'sample_json', 'sam.ple',
+                          "A schema name must not contain '.' characters: sam.ple")
+        test_requirements('Type is number', 'sample_json', '123',
+                          "A schema name must contain at least one non-digit: 123")
+        test_requirements('File name is number', '7_json', 'sample',
+                          "A metadata file name must contain at least one non-digit: 7")
 
     @testmode.standalone
     def test_alias_and_versioned_index_exists(self):
@@ -708,183 +707,24 @@ class TestIndexerBase(ElasticsearchTestCase, DSSAssertMixin, DSSStorageMixin, DS
         es_client = ElasticsearchClient.get()
         self.assertTrue(es_client.indices.exists_alias(name=[self.dss_alias_name]))
         alias = es_client.indices.get_alias(name=[self.dss_alias_name])
-        doc_index_name = dss.Config.get_es_index_name(dss.ESIndexType.docs, self.replica, "v3")
+        expected_shape_descriptor = (
+            "v.cell_suspension.6.dissociation_protocol.2.donor_organism.5.enrichment_protocol.2" +
+            ".library_preparation_protocol.3.links.1.process.2.project.5.sequence_file.6.sequencing_protocol.7" +
+            ".specimen_from_organism.5"
+        )
+        doc_index_name = dss.Config.get_es_index_name(
+            dss.ESIndexType.docs,
+            self.replica,
+            hashlib.sha1(expected_shape_descriptor.encode("utf-8")).hexdigest()
+        )
         self.assertIn(doc_index_name, alias)
         self.assertTrue(es_client.indices.exists(index=doc_index_name))
-
-    @testmode.standalone
-    def test_alias_and_multiple_schema_version_index_exists(self):
-        # Load and test an unversioned bundle
-        bundle_key = self.load_test_data_bundle_for_path(
-            "fixtures/indexing/bundles/unversioned/smartseq2/paired_ends")
-        sample_event = self.create_bundle_created_event(bundle_key)
-        self.process_new_indexable_object(sample_event)
-        es_client = ElasticsearchClient.get()
-        alias = es_client.indices.get_alias(name=[self.dss_alias_name])
-        unversioned_doc_index_name = dss.Config.get_es_index_name(dss.ESIndexType.docs, self.replica, None)
-        self.assertIn(unversioned_doc_index_name, alias)
-        self.assertTrue(es_client.indices.exists(index=unversioned_doc_index_name))
-
-        # Load and test a v3 bundle
-        sample_event = self.create_bundle_created_event(self.bundle_key)
-        self.process_new_indexable_object(sample_event)
-        self.assertTrue(es_client.indices.exists_alias(name=[self.dss_alias_name]))
-        alias = es_client.indices.get_alias(name=[self.dss_alias_name])
-        doc_index_name = dss.Config.get_es_index_name(dss.ESIndexType.docs, self.replica, "v3")
-        # Ensure the alias references both indices
-        self.assertIn(unversioned_doc_index_name, alias)
-        self.assertIn(doc_index_name, alias)
-        self.assertTrue(es_client.indices.exists(index=doc_index_name))
-
-    @testmode.standalone
-    def test_multiple_schema_version_indexing_and_search(self):
-        # Load a schema version 4 bundle
-        bundle_key = self.load_test_data_bundle_for_path(
-            "fixtures/indexing/bundles/v4/smartseq2/paired_ends")
-        sample_event = self.create_bundle_created_event(bundle_key)
-        self.process_new_indexable_object(sample_event)
-
-        # Search using a v4-specific query - should match
-        search_results = self.get_search_results(smartseq2_paired_ends_v4_query, 1)
-        self.assertEqual(1, len(search_results))
-        self.verify_index_document_structure_and_content(search_results[0], bundle_key,
-                                                         files=smartseq2_paried_ends_indexed_file_list)
-        # Search using a query that works for v2 or v3 - should match
-        search_results = self.get_search_results(smartseq2_paired_ends_v3_or_v4_query, 1)
-        self.assertEqual(1, len(search_results))
-
-        # Search using a v3-specific query - should not match
-        search_results = self.get_search_results(smartseq2_paired_ends_v3_query, 0)
-        self.assertEqual(0, len(search_results))
-
-        # Load a v3 bundle
-        sample_event = self.create_bundle_created_event(self.bundle_key)
-        self.process_new_indexable_object(sample_event)
-
-        # Search using a v3-specific query - should match
-        search_results = self.get_search_results(smartseq2_paired_ends_v3_query, 1)
-        self.assertEqual(1, len(search_results))
-
-        # Search using a query that works for v3 or v4 - should match both v3 and v4 bundles
-        search_results = self.get_search_results(smartseq2_paired_ends_v3_or_v4_query, 2)
-        self.assertEqual(2, len(search_results))
-
-    # This is not testmode.always because S3NotificationRequestHandler only supports one delivery per subscription :-(
-    @testmode.standalone
-    def test_multiple_schema_version_subscription_indexing_and_notification(self):
-        endpoint = self._default_endpoint()
-        endpoint = NotificationRequestHandler.configure(endpoint)
-
-        # Load a schema version 4 bundle
-        bundle_key = self.load_test_data_bundle_for_path(
-            "fixtures/indexing/bundles/v4/smartseq2/paired_ends")
-        sample_event = self.create_bundle_created_event(bundle_key)
-        self.process_new_indexable_object(sample_event)
-
-        # Load a v3 bundle
-        sample_event = self.create_bundle_created_event(self.bundle_key)
-        self.process_new_indexable_object(sample_event)
-
-        subscription_id = self.subscribe_for_notification(es_query=smartseq2_paired_ends_v3_or_v4_query,
-                                                          **endpoint.to_dict())
-
-        # Load another schema version 4 bundle and verify notification
-        bundle_key = self.load_test_data_bundle_for_path("fixtures/indexing/bundles/v4/smartseq2/paired_ends")
-        sample_event = self.create_bundle_created_event(bundle_key)
-        self.process_new_indexable_object(sample_event)
-        prefix, _, bundle_fqid = bundle_key.partition("/")
-        self.verify_notification(subscription_id, smartseq2_paired_ends_v3_or_v4_query, bundle_fqid, endpoint)
-
-        endpoint = NotificationRequestHandler.configure(endpoint)
-
-        # Load another schema version 3 bundle and verify notification
-        bundle_key = self.load_test_data_bundle_for_path("fixtures/indexing/bundles/v3/smartseq2/paired_ends")
-        sample_event = self.create_bundle_created_event(bundle_key)
-        self.process_new_indexable_object(sample_event)
-        prefix, _, bundle_fqid = bundle_key.partition("/")
-        self.verify_notification(subscription_id, smartseq2_paired_ends_v3_or_v4_query, bundle_fqid, endpoint)
-
-        self.delete_subscription(subscription_id)
-
-    # TODO: Remove this test once we stop supporting the `core` property (see issue #1015).
-    @testmode.standalone
-    def test_scrub_index_data_with_core(self):
-        manifest = read_bundle_manifest(self.blobstore, self.test_bucket, self.bundle_key)
-        doc = 'assay_json'
-        with self.subTest("removes extra fields when fields not specified in schema."):
-            index_data = create_index_data(self.blobstore, self.test_bucket, self.bundle_key, manifest)
-            index_data['files']['assay_json'].update({'extra_top': 123,
-                                                      'extra_obj': {"something": "here", "another": 123},
-                                                      'extra_lst': ["a", "b"]})
-            index_data['files']['assay_json']['core']['extra_internal'] = 123
-            index_data['files']['sample_json']['extra_0'] = "tests patterned properties."
-            index_data['files']['project_json']['extra_1'] = "Another extra field in a different file."
-            index_data['files']['project_json']['extra_2'] = "Another extra field in a different file."
-            index_data['files']['project_json']['core']['characteristics_3'] = "patternProperties only apply to root."
-            bundle_fqid = self.bundle_key.split('/')[1]
-
-            with self.assertLogs(dss.logger, level="INFO") as log_monitor:
-                scrub_index_data(index_data['files'], bundle_fqid)
-            self.assertRegexIn(r"INFO:[^:]+:In [\w\-\.]+, unexpected additional fields have been removed from the "
-                               r"data to be indexed. Removed \[[^\]]*].", log_monitor.output)
-            self.verify_index_document_structure_and_content(
-                index_data,
-                self.bundle_key,
-                files=smartseq2_paried_ends_indexed_file_list,
-            )
-
-        with self.subTest("document is removed from meta data when an invalid url is in core.schema_url."):
-            invalid_url = "://invalid_url"
-            index_data = create_index_data(self.blobstore, self.test_bucket, self.bundle_key, manifest)
-            index_data['files'][doc]['core']['schema_url'] = invalid_url
-            with self.assertLogs(dss.logger, level="WARNING") as log_monitor:
-                scrub_index_data(index_data['files'], bundle_fqid)
-            self.assertRegexIn(f"WARNING:[^:]+:Unable to retrieve JSON schema information from {doc} in bundle "
-                               f"{bundle_fqid}.*",
-                               log_monitor.output)
-            self.verify_index_document_structure_and_content(
-                index_data,
-                self.bundle_key,
-                files=smartseq2_paried_ends_indexed_file_list,
-                excluded_files=[doc]
-            )
-
-        with self.subTest("exception is raised when document is missing core.schema_url field."):
-            index_data = create_index_data(self.blobstore, self.test_bucket, self.bundle_key, manifest)
-            index_data['files'][doc]['core'].pop('schema_url')
-            with self.assertRaises(KeyError):
-                scrub_index_data(index_data['files'], bundle_fqid)
-
-        with self.subTest("document is removed from meta data when document is missing core field."):
-            'Only the manifest should exist.'
-            bundle_key = self.load_test_data_bundle_for_path(
-                "fixtures/indexing/bundles/unversioned/smartseq2/paired_ends_extras")
-            bundle_fqid = bundle_key.split('/')[1]
-            manifest = read_bundle_manifest(self.blobstore, self.test_bucket, bundle_key)
-            index_data = create_index_data(self.blobstore, self.test_bucket, bundle_key, manifest)
-            for file in index_data['files']:
-                file.pop('core', None)
-            scrub_index_data(index_data['files'], bundle_fqid)
-
-            self.assertEqual(4, len(index_data.keys()))
-            self.assertEqual("new", index_data['state'])
-            self.assertIsNotNone(index_data['manifest'])
-            self.assertEqual(index_data['files'], {})
-
-            expected_index_data = generate_expected_index_document(self.blobstore,
-                                                                   self.test_bucket,
-                                                                   bundle_key,
-                                                                   smartseq2_paried_ends_indexed_file_list)
-            self.assertDictEqual(expected_index_data, index_data, msg=f"Expected index document: "
-                                                                      f"{json.dumps(expected_index_data, indent=4)}"
-                                                                      f"Actual index document: "
-                                                                      f"{json.dumps(index_data, indent=4)}")
 
     @testmode.standalone
     def test_scrub_index_data_with_describedBy(self):
         index_data_master = {
             "files": {
-                "biomaterial_bundle_json": {
+                "biomaterial_bundle_json": [{
                     "describedBy": "https://raw.githubusercontent.com/HumanCellAtlas/metadata-schema/"
                                    "5.0.0/json_schema/bundle/biomaterial.json",
                     "schema_version": "5.0.0",
@@ -971,13 +811,13 @@ class TestIndexerBase(ElasticsearchTestCase, DSSAssertMixin, DSSStorageMixin, DS
                             "derivation_processes": []
                         }
                     ]
-                },
-                "ingest_audit_json": {
+                }],
+                "ingest_audit_json": [{
                     "describedBy": "https://raw.githubusercontent.com/HumanCellAtlas/metadata-schema/"
                                    "5.0.0/json_schema/bundle/ingest_audit.json",
                     "document_id": ".{8}-.{4}-.{4}-.{4}-.{12}",
                     "submissionDate": "08-08-2018"
-                }
+                }]
             }
         }
         doc = 'biomaterial_bundle_json'
@@ -987,14 +827,14 @@ class TestIndexerBase(ElasticsearchTestCase, DSSAssertMixin, DSSStorageMixin, DS
         with self.subTest("Exception is raised when describedBy contains an invalid URL"):
             invalid_url = "://invalid_url"
             index_data = copy.deepcopy(index_data_master)
-            index_data['files'][doc]['describedBy'] = invalid_url
+            index_data['files'][doc][0]['describedBy'] = invalid_url
             with self.assertRaises(RuntimeError) as context:
                 scrub_index_data(index_data['files'], bundle_fqid)
             self.assertRegex(context.exception.args[0], "^No version designator in schema URL")
 
         with self.subTest("document is removed from meta data when document is missing describedBy field."):
             index_data = copy.deepcopy(index_data_master)
-            index_data['files'][doc].pop('describedBy')
+            index_data['files'][doc][0].pop('describedBy')
             with self.assertLogs(dss.logger, level="WARNING") as log_monitor:
                 scrub_index_data(index_data['files'], bundle_fqid)
             self.assertRegexIn(f"WARNING:[^:]+:Unable to retrieve JSON schema information from {doc} in bundle "
@@ -1003,10 +843,10 @@ class TestIndexerBase(ElasticsearchTestCase, DSSAssertMixin, DSSStorageMixin, DS
 
         with self.subTest("removes extra fields when fields not specified in schema."):
             index_data = copy.deepcopy(index_data_master)
-            index_data['files']['biomaterial_bundle_json'].update({'extra_top': 123,
-                                                                   'extra_obj': {"something": "here", "another": 123},
-                                                                   'extra_lst': ["a", "b"]})
-            index_data['files']['ingest_audit_json']['extra_1'] = "Another extra field in a different file."
+            index_data['files']['biomaterial_bundle_json'][0].update(
+                {'extra_top': 123, 'extra_obj': {"something": "here", "another": 123}, 'extra_lst': ["a", "b"]}
+            )
+            index_data['files']['ingest_audit_json'][0]['extra_1'] = "Another extra field in a different file."
 
         with self.assertLogs(dss.logger, level="INFO") as log_monitor:
             scrub_index_data(index_data['files'], bundle_fqid)
@@ -1390,8 +1230,19 @@ class S3NotificationRequestHandler:
                         body=obj['Body'].read())
 
 
-smartseq2_paried_ends_indexed_file_list = ["assay_json", "project_json", "sample_json"]
-smartseq2_paried_ends_indexed_excluded_list = ["manifest_json", "cell_json"]
+smartseq2_paried_ends_indexed_file_list = [
+    "cell_suspension_json",
+    "dissociation_protocol_json",
+    "donor_organism_json",
+    "enrichment_protocol_json",
+    "library_preparation_protocol_json",
+    "links_json",
+    "process_json",
+    "project_json",
+    "sequence_file_json",
+    "sequencing_protocol_json",
+    "specimen_from_organism_json",
+]
 
 
 def create_s3_bucket(bucket_name) -> None:
@@ -1426,7 +1277,7 @@ def create_index_data(blobstore, bucket_name, bundle_key, manifest,
     index = dict(state="new", manifest=manifest, uuid=BundleFQID.from_key(bundle_key).uuid)
     files_info = manifest['files']
     excluded_file = [file.replace('_', '.') for file in excluded_files]
-    index_files = {}
+    index_files: typing.Dict = {}
     for file_info in files_info:
         if file_info['indexed'] is True and file_info["name"] not in excluded_file:
             try:
@@ -1439,7 +1290,14 @@ def create_index_data(blobstore, bucket_name, bundle_key, manifest,
             except Exception:
                 continue
             index_filename = file_info["name"].replace(".", "_")
-            index_files[index_filename] = file_json
+            index_filename = prepare_filename(index_filename)
+            try:
+                file_list = index_files[index_filename]
+            except KeyError:
+                file_list = list()
+                index_files[index_filename] = file_list
+            file_list.append(file_json)
+    scrub_index_data(index_files, "test")
     index['files'] = index_files
     return index
 

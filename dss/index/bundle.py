@@ -1,6 +1,7 @@
 import json
+import string
 import logging
-from typing import Mapping, Optional, Set
+from typing import Dict, Mapping, Optional, Set, List, Tuple
 
 from cloud_blobstore import BlobNotFoundError, BlobStoreError
 
@@ -21,7 +22,7 @@ class Bundle:
     instance of this class.
     """
 
-    def __init__(self, replica: Replica, fqid: BundleFQID, manifest: JSON, files: Mapping[str, JSON]) -> None:
+    def __init__(self, replica: Replica, fqid: BundleFQID, manifest: JSON, files: List[Tuple[str, JSON]]) -> None:
         self.replica = replica
         self.fqid = fqid
         self.manifest = manifest
@@ -45,9 +46,9 @@ class Bundle:
         return manifest
 
     @classmethod
-    def _read_file_infos(cls, replica: Replica, fqid: BundleFQID, manifest: JSON) -> Mapping[str, JSON]:
+    def _read_file_infos(cls, replica: Replica, fqid: BundleFQID, manifest: JSON) -> List[Tuple[str, JSON]]:
         handle = Config.get_blobstore_handle(replica)
-        index_files = {}
+        index_files: List[Tuple[str, JSON]] = list()
         file_infos = manifest[BundleMetadata.FILES]
         assert isinstance(file_infos, list)
         for file_info in file_infos:
@@ -69,7 +70,7 @@ class Bundle:
                                        f"not be parsed. This file will not be indexed. Exception: {ex}")
                     else:
                         logger.debug(f"Loaded file: {file_name}")
-                        index_files[file_name] = file_json
+                        index_files.append((file_name, file_json))
                 else:
                     logger.warning(f"In bundle {fqid} the file '{file_name}' is marked for indexing yet has "
                                    f"content type '{content_type}' instead of the required content type "
