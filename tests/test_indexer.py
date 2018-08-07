@@ -39,7 +39,7 @@ import dss.index.es.backend
 from dss.index.backend import CompositeIndexBackend
 from dss.index.es.backend import ElasticsearchIndexBackend
 from dss.index.es import ElasticsearchClient
-from dss.index.es.document import BundleDocument
+from dss.index.es.document import BundleDocument, prepare_filename
 from dss.index.es.validator import scrub_index_data
 from dss.index.indexer import Indexer
 from dss.logging import configure_test_logging
@@ -1290,12 +1290,7 @@ def create_index_data(blobstore, bucket_name, bundle_key, manifest,
             except Exception:
                 continue
             index_filename = file_info["name"].replace(".", "_")
-            if index_filename.endswith('_json'):
-                index_filename = index_filename[:-5]
-                parts = index_filename.rpartition("_")
-                if index_filename != parts[2]:
-                    index_filename = parts[0]
-                index_filename += "_json"
+            index_filename = prepare_filename(index_filename)
             try:
                 file_list = index_files[index_filename]
             except KeyError:

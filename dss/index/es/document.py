@@ -108,13 +108,7 @@ class BundleDocument(IndexDocument):
         #
         files: typing.Dict = defaultdict(list)
         for name, content in bundle.files:
-            name = name.replace('.', '_')
-            if name.endswith('_json'):
-                name = name[:-5]
-                parts = name.rpartition("_")
-                if name != parts[2]:
-                    name = parts[0]
-                name += "_json"
+            name = prepare_filename(name)
             files[name].append(content)
 
         scrub_index_data(files, str(self.fqid))
@@ -366,3 +360,13 @@ class BundleTombstoneDocument(IndexDocument):
         self = cls(tombstone.replica, tombstone.fqid, tombstone.body)
         self['uuid'] = self.fqid.uuid
         return self
+
+def prepare_filename(name: str) -> str:
+    name = name.replace('.', '_')
+    if name.endswith('_json'):
+        name = name[:-5]
+        parts = name.rpartition("_")
+        if name != parts[2]:
+            name = parts[0]
+        name += "_json"
+    return name
