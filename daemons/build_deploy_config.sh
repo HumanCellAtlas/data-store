@@ -14,8 +14,7 @@ fi
 
 export daemon_name=$1
 export stage=$DSS_DEPLOYMENT_STAGE
-export lambda_name="${daemon_name}-${stage}" iam_role_name="${daemon_name}-${stage}"
-deployed_json="$(dirname $0)/${daemon_name}/.chalice/deployed.json"
+export iam_role_name="${daemon_name}-${stage}"
 config_json="$(dirname $0)/${daemon_name}/.chalice/config.json"
 policy_json="$(dirname $0)/${daemon_name}/.chalice/policy.json"
 stage_policy_json="$(dirname $0)/${daemon_name}/.chalice/policy-${stage}.json"
@@ -32,21 +31,6 @@ export DSS_ES_ENDPOINT=$(aws es describe-elasticsearch-domain --domain-name "$ds
 export EXPORT_ENV_VARS_TO_LAMBDA="$EXPORT_ENV_VARS_TO_LAMBDA DSS_ES_ENDPOINT"
 
 cat "$config_json" | jq ".stages.$stage.api_gateway_stage=env.stage" | sponge "$config_json"
-
-export lambda_arn=$(aws lambda list-functions | jq -r '.Functions[] | select(.FunctionName==env.lambda_name) | .FunctionArn')
-if [[ -z $lambda_arn ]]; then
-    echo "Lambda function $lambda_name not found, resetting deploy config"
-    rm -f "$deployed_json"
-else
-    jq -n ".$stage.api_handler_name = env.lambda_name | \
-           .$stage.api_handler_arn = env.lambda_arn | \
-           .$stage.rest_api_id = \"\" | \
-           .$stage.region = env.AWS_DEFAULT_REGION | \
-           .$stage.api_gateway_stage = null | \
-           .$stage.backend = \"api\" | \
-           .$stage.chalice_version = \"1.0.1\" | \
-           .$stage.lambda_functions = {}" > "$deployed_json"
-fi
 
 export DEPLOY_ORIGIN="$(whoami)-$(hostname)-$(git describe --tags --always)-$(date -u +'%Y-%m-%d-%H-%M-%S').deploy"
 cat "$config_json" | jq .stages.$stage.tags.DSS_DEPLOY_ORIGIN=env.DEPLOY_ORIGIN | sponge "$config_json"
