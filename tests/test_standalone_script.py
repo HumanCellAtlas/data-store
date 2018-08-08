@@ -13,7 +13,6 @@ import sys
 import time
 import unittest
 import uuid
-
 import requests
 
 pkg_root = os.path.abspath(os.path.join(os.path.dirname(__file__), '..'))  # noqa
@@ -21,6 +20,7 @@ sys.path.insert(0, pkg_root)  # noqa
 
 from dss.util import networking
 from tests.infra import testmode
+from tests import get_auth_header
 
 
 class TestStandaloneScript(unittest.TestCase):
@@ -59,7 +59,8 @@ class TestStandaloneScript(unittest.TestCase):
     @testmode.standalone
     def test_simple_request(self):
         file_uuid = str(uuid.uuid4())
-        response = requests.api.get(f"http://127.0.0.1:{self.port}/v1/files/{file_uuid}?replica=aws")
+        response = requests.api.get(f"http://127.0.0.1:{self.port}/v1/files/{file_uuid}?replica=aws",
+                                    headers=get_auth_header())
         self.assertEqual(response.status_code, requests.codes.not_found)
 
 

@@ -36,6 +36,9 @@ paths:
         are being retrieved.
       summary: |
         Find bundles by searching their metadata with an Elasticsearch query
+      security:
+        - googAuth:
+            - https://www.googleapis.com/auth/userinfo.email
       parameters:
         - name: json_request_body
           in: body
@@ -104,6 +107,9 @@ paths:
       description: |
         Given a file UUID, return the metadata for the latest version of that file.  If the version is provided, that
         version's metadata is returned instead.  The metadata is returned in the headers.
+      security:
+        - googAuth:
+            - https://www.googleapis.com/auth/userinfo.email
       parameters:
         - name: uuid
           in: path
@@ -167,6 +173,9 @@ paths:
         Headers will contain the data store metadata for the file.
 
         This endpoint returns a HTTP redirect to another HTTP endpoint with the file contents.
+      security:
+        - googAuth:
+            - https://www.googleapis.com/auth/userinfo.email
       parameters:
         - name: uuid
           in: path
@@ -281,6 +290,9 @@ paths:
         640,000MB, we use a chunk size equal to the total file size divided by 10000, rounded up to the nearest MB.
         MB, in this section, refers to 1,048,576 bytes.  Note that 640,000MB is not the same as 640GB!
         - hca-dss-crc32c: CRC-32C checksum of the file
+      security:
+        - googAuth:
+            - https://www.googleapis.com/auth/userinfo.email
       parameters:
         - name: uuid
           in: path
@@ -940,6 +952,9 @@ paths:
       description: |
         Given a bundle UUID, return the latest version of that bundle.  If the version is provided, that version of the
         bundle is returned instead.
+      security:
+        - googAuth:
+            - https://www.googleapis.com/auth/userinfo.email
       parameters:
         - name: uuid
           in: path
@@ -1046,6 +1061,9 @@ paths:
       description: |
         Create a new version of a bundle with a given UUID.  The list of file UUID+versions to be included must be
         provided.
+      security:
+        - googAuth:
+            - https://www.googleapis.com/auth/userinfo.email
       parameters:
         - name: uuid
           in: path
@@ -1251,6 +1269,9 @@ paths:
         TODO: After some time period, the data will be removed.
         TBD: This could be based on initial checkout time or last access time.
       operationId: dss.api.bundles.checkout.post
+      security:
+        - googAuth:
+            - https://www.googleapis.com/auth/userinfo.email
       parameters:
         - name: uuid
           in: path
@@ -1315,6 +1336,9 @@ paths:
       description: |
         Use this route with the `checkout_job_id` identifier returned by `POST /bundles/{uuid}/checkout`.
       operationId: dss.api.bundles.checkout.get
+      security:
+        - googAuth:
+            - https://www.googleapis.com/auth/userinfo.email
       parameters:
         - name: replica
           in: query

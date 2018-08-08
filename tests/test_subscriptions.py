@@ -90,7 +90,11 @@ class TestSubscriptionsBase(ElasticsearchTestCase, DSSAssertMixin):
         self.assertEqual(resp_obj.response.headers['Content-Type'], "application/problem+json")
 
         # No auth header
-        self.assertGetResponse(url, requests.codes.unauthorized)
+        try:
+            DSSAssertMixin.include_auth_header = False
+            self.assertGetResponse(url, requests.codes.unauthorized)
+        finally:
+            DSSAssertMixin.include_auth_header = True
 
     def test_put(self):
         uuid_ = self._put_subscription()
