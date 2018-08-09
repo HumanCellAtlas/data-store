@@ -1,11 +1,13 @@
 #!/usr/bin/env python
 # coding: utf-8
-
+import json
 import logging
 import sys
 import unittest
+import uuid
 from contextlib import contextmanager
 
+import boto3
 import connexion.apis.abstract
 import os
 import requests
@@ -42,11 +44,25 @@ that to identify and test that all API methods require valid
 authentication.
 """
 
+client = boto3.client('secretsmanager')
+
 
 @testmode.standalone
 class TestCommonsAuth(unittest.TestCase, DSSAssertMixin, DSSUploadMixin):
     @classmethod
     def setUpClass(cls):
+        # we mask the whitelist with a test whitelist that is empty.
+        cls._saved_whitelist_name = os.environ['EMAIL_WHITELIST_NAME']
+        cls.whitelist_name = f'datastore/whitelist/test/{str(uuid.uuid4())}'
+        os.environ['EMAIL_WHITELIST_NAME'] = cls.whitelist_name
+        client.create_secret(
+            Name=cls.whitelist_name,
+            Description='test secret for data store whitelist. If this has been lying around '
+                        'for any reasonable length of time then test cleanup is '
+                        'probably not working properly',
+            SecretString=json.dumps({'email': ''}),
+        )
+        # The environment var needs to be set before the next line in order to be picked up in time
         cls.app = ThreadedLocalServer()
         cls.app.start()
 
@@ -66,6 +82,8 @@ class TestCommonsAuth(unittest.TestCase, DSSAssertMixin, DSSUploadMixin):
     @classmethod
     def tearDownClass(cls):
         cls.app.shutdown()
+        os.environ['EMAIL_WHITELIST_NAME'] = cls._saved_whitelist_name
+        client.delete_secret(SecretId=cls.whitelist_name)
 
     def construct_url(self, path: str, replica: Replica) -> str:
         version = '2017-06-20T214506.766634Z'
@@ -126,12 +144,12 @@ class TestCommonsAuth(unittest.TestCase, DSSAssertMixin, DSSUploadMixin):
         error_key = 'Content-Type'
         error_value = 'application/problem+json'
 
-        # Unauthorized email
-        with self.throw_403():
-            resp_obj = response(url, requests.codes.forbidden, headers=get_auth_header())
-            self.assertEqual(resp_obj.response.headers[error_key], error_value)
-            if calltype != 'head':
-                self.assertEqual(resp_obj.json['title'], "User is not authorized to access this resource")
+        # the email is not registered in the whitelist since we are masking the environment variable
+        # for the whitelist during this test
+        resp_obj = response(url, requests.codes.forbidden, headers=get_auth_header())
+        self.assertEqual(resp_obj.response.headers[error_key], error_value)
+        if calltype != 'head':
+            self.assertEqual(resp_obj.json['title'], "User is not authorized to access this resource")
 
         # Gibberish auth header
         expected_code = requests.codes.unauthorized

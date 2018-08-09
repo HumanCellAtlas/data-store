@@ -12,6 +12,10 @@ __pycache__/
 /dist/
 /.eggs/
 
+# virtual environments
+/.venv/
+/venv/
+
 # Sphinx documentation
 /docs/_build/
 

@@ -9,6 +9,7 @@ import logging
 import os
 import traceback
 
+import bouncer
 import requests
 import connexion.apis.abstract
 from connexion.apis.flask_api import FlaskApi
@@ -66,9 +67,11 @@ class OperationWithAuthorizer(Operation):
     # set to true in the test environment when needed.
     # TODO: Remove flag trigger
     testing_403 = False
+
     def oauth2_authorize(self, function):
+        bouncer_ = bouncer.Bouncer(Config.get_email_whitelist_name())
+
         def wrapper(request):
-            authorized_domains = Config.get_allowed_email_domains().split()
             if "token_info" in request.context.values:
                 token_info = request.context.values["token_info"]
 
@@ -76,7 +79,7 @@ class OperationWithAuthorizer(Operation):
                     raise OAuthProblem(description="Authorization token has expired")
                 if json.loads(token_info["email_verified"]) is not True:
                     raise OAuthProblem(description="User's email is not verified")
-                if self.testing_403 or not any(token_info["email"].endswith("@" + ad) for ad in authorized_domains):
+                if self.testing_403 or not bouncer_.is_authorized(token_info['email']):
                     raise Forbidden(description="User is not authorized to access this resource")
             return function(request)
         return wrapper

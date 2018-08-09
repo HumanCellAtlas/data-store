@@ -102,6 +102,7 @@ class Config:
     BLOBSTORE_RETRIES: int = None
 
     _ALLOWED_EMAILS: typing.Optional[str] = None
+    _EMAIL_WHITELIST: typing.Optional[str] = None
     _CURRENT_CONFIG: BucketConfig = BucketConfig.ILLEGAL
     _NOTIFICATION_SENDER_EMAIL: typing.Optional[str] = None
 
@@ -277,6 +278,25 @@ class Config:
             Config._ALLOWED_EMAILS = os.environ[envvar]
 
         return Config._ALLOWED_EMAILS
+
+    @staticmethod
+    def get_email_whitelist_name() -> str:
+        if Config._EMAIL_WHITELIST is None:
+            if Config._CURRENT_CONFIG == BucketConfig.NORMAL:
+                envvar = "EMAIL_WHITELIST_NAME"
+            elif Config._CURRENT_CONFIG == BucketConfig.TEST:
+                envvar = "EMAIL_WHITELIST_NAME"
+            elif Config._CURRENT_CONFIG == BucketConfig.TEST_FIXTURE:
+                envvar = "EMAIL_WHITELIST_NAME"
+            elif Config._CURRENT_CONFIG == BucketConfig.ILLEGAL:
+                raise Exception("email whitelist is not set")
+
+            if envvar not in os.environ:
+                raise Exception(
+                    f"Please set the {envvar} environment variable")
+            Config._EMAIL_WHITELIST = os.environ[envvar]
+
+        return Config._EMAIL_WHITELIST
 
     @staticmethod
     def get_es_index_name(index_type: ESIndexType,
