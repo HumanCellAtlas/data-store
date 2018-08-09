@@ -107,6 +107,22 @@ release_integration:
   only:
     - master
 
+force_release_integration:
+  stage: release_integration
+  script:
+    - git clean -df
+    - git reset --hard
+    - scripts/fetch_secret.sh gcp-credentials.json > gcp-credentials.json
+    - export GOOGLE_APPLICATION_CREDENTIALS=$(pwd -P)/gcp-credentials.json
+    - make plan-infra
+    - yes 1 | scripts/release.sh master integration --force
+  environment:
+    name: integration
+    url: https://dss.integration.data.humancellatlas.org
+  only:
+    - master
+  when: manual 
+
 release_staging:
   stage: release_staging
   script:
@@ -126,6 +142,22 @@ release_staging:
     - export GOOGLE_APPLICATION_CREDENTIALS=$(pwd -P)/gcp-credentials.json
     - make plan-infra
     - yes 1 | scripts/release.sh integration staging
+  environment:
+    name: staging
+    url: https://dss.staging.data.humancellatlas.org
+  only:
+    - integration
+  when: manual 
+
+force_release_staging:
+  stage: release_staging
+  script:
+    - git clean -df
+    - git reset --hard
+    - scripts/fetch_secret.sh gcp-credentials.json > gcp-credentials.json
+    - export GOOGLE_APPLICATION_CREDENTIALS=$(pwd -P)/gcp-credentials.json
+    - make plan-infra
+    - yes 1 | scripts/release.sh integration staging --force
   environment:
     name: staging
     url: https://dss.staging.data.humancellatlas.org
