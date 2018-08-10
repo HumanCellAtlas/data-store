@@ -82,8 +82,6 @@ class TestSubscriptionsBase(ElasticsearchTestCase, DSSAssertMixin):
                   .set(path="/v1/subscriptions/" + str(uuid.uuid4()))
                   .add_query("replica", self.replica.name))
 
-        # Unauthorized email
-
         # Gibberish auth header
         resp_obj = self.assertGetResponse(url, requests.codes.unauthorized, headers=get_auth_header(False))
         self.assertEqual(resp_obj.response.headers['Content-Type'], "application/problem+json")
@@ -167,8 +165,6 @@ class TestSubscriptionsBase(ElasticsearchTestCase, DSSAssertMixin):
         self.assertEqual(self.sample_percolate_query, json_response['es_query'])
         self.assertEqual(self.endpoint, Endpoint.from_subscription(json_response))
 
-        # Forbidden request w/ previous url
-
         # File not found request
         url = str(UrlBuilder()
                   .set(path="/v1/subscriptions/" + str(uuid.uuid4()))
@@ -200,8 +196,6 @@ class TestSubscriptionsBase(ElasticsearchTestCase, DSSAssertMixin):
                   .set(path="/v1/subscriptions/" + find_uuid)
                   .add_query("replica", self.replica.name))
 
-        # Forbidden delete request
-
         # Authorized delete
         self.assertDeleteResponse(url, requests.codes.okay, headers=get_auth_header())
 
@@ -227,7 +221,6 @@ class TestSubscriptionsBase(ElasticsearchTestCase, DSSAssertMixin):
             headers=get_auth_header()
         )
         return resp_obj.json.get('uuid')
-
 
 
 class TestGCPSubscription(TestSubscriptionsBase):

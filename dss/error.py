@@ -31,15 +31,15 @@ class DSSForbiddenException(DSSException):
 
 def handler_DSSException(e: DSSException) -> FlaskResponse:
     return FlaskResponse(
-            status=e.status,
-            mimetype="application/problem+json",
-            content_type="application/problem+json",
-            response={
-                    'status': e.status,
-                    'code': e.code,
-                    'title': e.message,
-                    'stacktrace': traceback.format_exc(),
-                })
+        status=e.status,
+        mimetype="application/problem+json",
+        content_type="application/problem+json",
+        response={
+            'status': e.status,
+            'code': e.code,
+            'title': e.message,
+            'stacktrace': traceback.format_exc(),
+        })
 
 
 def dss_handler(func):
