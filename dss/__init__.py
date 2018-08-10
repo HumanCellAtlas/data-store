@@ -4,7 +4,6 @@
 DSS description FIXME: elaborate
 """
 import functools
-import json
 import logging
 import os
 import traceback
@@ -14,7 +13,6 @@ import connexion.apis.abstract
 from connexion.apis.flask_api import FlaskApi
 from connexion.decorators.validation import ParameterValidator, RequestBodyValidator
 from connexion.lifecycle import ConnexionResponse
-from connexion.operation import Operation
 from connexion.resolver import RestyResolver
 from connexion.exceptions import OAuthProblem, OAuthResponseProblem, OAuthScopeProblem
 from werkzeug.exceptions import Forbidden
@@ -57,34 +55,6 @@ class DSSApp(connexion.App):
             content_type="application/problem+json",
             body=problem,
         ))
-
-
-class OperationWithAuthorizer(Operation):
-    # Can't set authorized_domains here b/c config needs to be set before you
-    # call get_allowed_email_domains or else when this file imported from
-    # test_subscriptions, this will throw an error. Instead, testing_403 is
-    # set to true in the test environment when needed.
-    # TODO: Remove flag trigger
-    testing_403 = False
-    def oauth2_authorize(self, function):
-        def wrapper(request):
-            authorized_domains = Config.get_allowed_email_domains().split()
-            if "token_info" in request.context.values:
-                token_info = request.context.values["token_info"]
-
-                if not int(token_info["expires_in"]) > 0:
-                    raise OAuthProblem(description="Authorization token has expired")
-                if json.loads(token_info["email_verified"]) is not True:
-                    raise OAuthProblem(description="User's email is not verified")
-                if self.testing_403 or not any(token_info["email"].endswith("@" + ad) for ad in authorized_domains):
-                    raise Forbidden(description="User is not authorized to access this resource")
-            return function(request)
-        return wrapper
-
-    def security_decorator(self, function):
-        return super().security_decorator(self.oauth2_authorize(function))
-
-connexion.apis.abstract.Operation = OperationWithAuthorizer
 
 
 class DSSParameterValidator(ParameterValidator):

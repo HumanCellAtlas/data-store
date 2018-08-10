@@ -56,13 +56,14 @@ basePath: /v1
 produces:
   - application/json
 securityDefinitions:
-  googAuth:
+  fusilladeAuth:
     type: oauth2
     flow: implicit
-    authorizationUrl: https://accounts.google.com/o/oauth2/v2/auth
-    x-tokenInfoUrl: https://www.googleapis.com/oauth2/v3/tokeninfo
+    authorizationUrl: https://auth.dev.data.humancellatlas.org/authorize
     scopes:
-      https://www.googleapis.com/auth/userinfo.email: read user email
+      email: a string with the email of the user
+      email_verified: a bool indicating if the email has been verified
+      https://auth.data.humancellatlas.org/group: the user group this user belongs
 paths:
   /search:
     post:
@@ -515,8 +516,7 @@ paths:
         Return a list of associated subscriptions.
       operationId: dss.api.subscriptions.find
       security:
-        - googAuth:
-            - https://www.googleapis.com/auth/userinfo.email
+        - fusilladeAuth: []
       parameters:
         - name: replica
           in: query
@@ -554,8 +554,8 @@ paths:
       description: >
         Register an HTTP endpoint that is to be notified when a given event occurs.
       security:
-        - googAuth:
-            - https://www.googleapis.com/auth/userinfo.email
+        - fusilladeAuth: []
+
       parameters:
         - name: replica
           in: query
@@ -753,8 +753,7 @@ paths:
       description: >
         Given a subscription UUID, return the associated subscription.
       security:
-        - googAuth:
-            - https://www.googleapis.com/auth/userinfo.email
+        - fusilladeAuth: []
       parameters:
         - name: uuid
           in: path
@@ -795,8 +794,7 @@ paths:
         Delete a registered event subscription. The associated query will no longer trigger a callback
         if a matching document is added to the system.
       security:
-        - googAuth:
-            - https://www.googleapis.com/auth/userinfo.email
+        - fusilladeAuth: []
       parameters:
         - name: uuid
           in: path
@@ -853,8 +851,7 @@ paths:
 
         Collections are replicated across storage replicas similarly to files and bundles.
       security:
-        - googAuth:
-            - https://www.googleapis.com/auth/userinfo.email
+        - fusilladeAuth: []
       parameters:
         - name: replica
           in: query
@@ -919,8 +916,7 @@ paths:
       description: >
         Given a collection UUID, return the associated collection object.
       security:
-        - googAuth:
-            - https://www.googleapis.com/auth/userinfo.email
+        - fusilladeAuth: []
       parameters:
         - name: uuid
           in: path
@@ -968,8 +964,7 @@ paths:
         Add or remove items from a collection. A specific version of the collection to update must be provided, and a
         new version will be written.
       security:
-        - googAuth:
-            - https://www.googleapis.com/auth/userinfo.email
+        - fusilladeAuth: []
       parameters:
         - name: uuid
           in: path
@@ -1123,8 +1118,7 @@ paths:
       description: >
         Delete a collection.
       security:
-        - googAuth:
-            - https://www.googleapis.com/auth/userinfo.email
+        - fusilladeAuth: []
       parameters:
         - name: uuid
           in: path
@@ -1411,8 +1405,7 @@ paths:
       description: >
         Delete the bundle with the given UUID. This deletion is applied across replicas.
       security:
-        - googAuth:
-            - https://www.googleapis.com/auth/userinfo.email
+        - fusilladeAuth: []
       parameters:
         - name: uuid
           in: path

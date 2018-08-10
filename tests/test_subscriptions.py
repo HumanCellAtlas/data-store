@@ -83,9 +83,6 @@ class TestSubscriptionsBase(ElasticsearchTestCase, DSSAssertMixin):
                   .add_query("replica", self.replica.name))
 
         # Unauthorized email
-        with self.throw_403():
-            resp_obj = self.assertGetResponse(url, requests.codes.forbidden, headers=get_auth_header())
-        self.assertEqual(resp_obj.response.headers['Content-Type'], "application/problem+json")
 
         # Gibberish auth header
         resp_obj = self.assertGetResponse(url, requests.codes.unauthorized, headers=get_auth_header(False))
@@ -171,11 +168,6 @@ class TestSubscriptionsBase(ElasticsearchTestCase, DSSAssertMixin):
         self.assertEqual(self.endpoint, Endpoint.from_subscription(json_response))
 
         # Forbidden request w/ previous url
-        with self.throw_403():
-            self.assertGetResponse(
-                url,
-                requests.codes.forbidden,
-                headers=get_auth_header())
 
         # File not found request
         url = str(UrlBuilder()
@@ -209,8 +201,6 @@ class TestSubscriptionsBase(ElasticsearchTestCase, DSSAssertMixin):
                   .add_query("replica", self.replica.name))
 
         # Forbidden delete request
-        with self.throw_403():
-            self.assertDeleteResponse(url, requests.codes.forbidden, headers=get_auth_header())
 
         # Authorized delete
         self.assertDeleteResponse(url, requests.codes.okay, headers=get_auth_header())
@@ -238,14 +228,6 @@ class TestSubscriptionsBase(ElasticsearchTestCase, DSSAssertMixin):
         )
         return resp_obj.json.get('uuid')
 
-    @contextmanager
-    def throw_403(self):
-        orig_testing_403 = connexion.apis.abstract.Operation.testing_403
-        try:
-            connexion.apis.abstract.Operation.testing_403 = True
-            yield
-        finally:
-            connexion.apis.abstract.Operation.testing_403 = orig_testing_403
 
 
 class TestGCPSubscription(TestSubscriptionsBase):

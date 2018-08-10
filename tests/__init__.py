@@ -2,16 +2,14 @@ import datetime
 import json
 import time
 import uuid
+
+import jwt
 import tempfile
 import boto3
 
 import functools
-import google.auth
-import google.auth.transport.requests
 import io
 import os
-from google.auth.credentials import with_scopes_if_required
-from google.oauth2 import service_account
 
 from dss.api import bundles
 from dss.util.version import datetime_to_version_format
@@ -91,20 +89,28 @@ def eventually(timeout: float, interval: float, errors: set={AssertionError}):
     return decorate
 
 
-def get_auth_header(real_header=True, authorized=True):
+def get_service_jwt(service_credentials):
+    audience = "https://dss.dev.data.humancellatlas.org/"
+    iat = time.time()
+    exp = iat + 3600
+    payload = {'iss': service_credentials["client_email"],
+               'sub': service_credentials["client_email"],
+               'aud': audience,
+               'iat': iat,
+               'exp': exp
+               }
+    additional_headers = {'kid': service_credentials["private_key_id"]}
+    signed_jwt = jwt.encode(payload, service_credentials["private_key"], headers=additional_headers,
+                            algorithm='RS256').decode()
+    return signed_jwt
+
+
+def get_auth_header(authorized=True):
     if authorized:
         credential_file = os.environ['GOOGLE_APPLICATION_CREDENTIALS']
         with io.open(credential_file) as fh:
             info = json.load(fh)
     else:
         info = UNAUTHORIZED_GCP_CREDENTIALS
-
-    credentials = service_account.Credentials.from_service_account_info(info)
-    credentials = with_scopes_if_required(credentials, scopes=["https://www.googleapis.com/auth/userinfo.email"])
-    r = google.auth.transport.requests.Request()
-    credentials.refresh(r)
-    r.session.close()
-
-    token = credentials.token if real_header else str(uuid.uuid4())
-
+    token = get_service_jwt(info)
     return {"Authorization": f"Bearer {token}"}
