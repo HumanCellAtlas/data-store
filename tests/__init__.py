@@ -105,12 +105,12 @@ def get_service_jwt(service_credentials):
     return signed_jwt
 
 
-def get_auth_header(authorized=True):
+def get_auth_header(real_header=True, authorized=True) -> bool:
     if authorized:
         credential_file = os.environ['GOOGLE_APPLICATION_CREDENTIALS']
         with io.open(credential_file) as fh:
             info = json.load(fh)
     else:
         info = UNAUTHORIZED_GCP_CREDENTIALS
-    token = get_service_jwt(info)
+    token = get_service_jwt(info) if real_header else str(uuid.uuid4())
     return {"Authorization": f"Bearer {token}"}

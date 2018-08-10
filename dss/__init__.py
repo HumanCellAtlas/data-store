@@ -18,7 +18,7 @@ from connexion.exceptions import OAuthProblem, OAuthResponseProblem, OAuthScopeP
 from werkzeug.exceptions import Forbidden
 
 from dss.config import BucketConfig, Config, DeploymentStage, ESIndexType, ESDocType, Replica
-from dss.error import DSSBindingException, DSSException, dss_handler
+from dss.error import DSSBindingException, DSSException, DSSForbiddenException, dss_handler, handler_DSSException
 
 logger = logging.getLogger(__name__)
 
@@ -165,4 +165,5 @@ def create_app():
 
     resolver = RestyResolver("dss.api", collection_endpoint_name="list")
     app.add_api('../dss-api.yml', resolver=resolver, validate_responses=True, arguments=os.environ)
+    app.add_error_handler(DSSException, handler_DSSException)
     return app
