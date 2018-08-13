@@ -11,6 +11,7 @@ import functools
 import io
 import os
 
+import dss
 from dss.api import bundles
 from dss.util.version import datetime_to_version_format
 from dss.storage.identifiers import BundleFQID, FileFQID
@@ -90,7 +91,7 @@ def eventually(timeout: float, interval: float, errors: set={AssertionError}):
 
 
 def get_service_jwt(service_credentials):
-    audience = "https://dss.dev.data.humancellatlas.org/"
+    audience = dss.Config.get_audience()
     iat = time.time()
     exp = iat + 3600
     payload = {'iss': service_credentials["client_email"],

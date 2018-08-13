@@ -17,9 +17,6 @@ logger = logging.getLogger(__name__)
 
 allowed_algorithms = ['RS256']
 gserviceaccount = "iam.gserviceaccount.com"
-token_info_url = "https://humancellatlas.auth0.com/userinfo"
-audience = f"https://dss.{os.environ['DSS_DEPLOYMENT_STAGE']}.data.humancellatlas.org/"
-openid_provider = "https://humancellatlas.auth0.com/"
 
 # using a connection pool for token_info, and
 adapter = requests.adapters.HTTPAdapter(pool_connections=100, pool_maxsize=100)
@@ -30,7 +27,7 @@ session.mount('https://', adapter)
 
 @functools.lru_cache(maxsize=32)
 def get_openid_config(openid_provider):
-    res = requests.get(f"https://{openid_provider}/.well-known/openid-configuration")
+    res = requests.get(f"{openid_provider}.well-known/openid-configuration")
     res.raise_for_status()
     return res.json()
 
@@ -55,9 +52,9 @@ def get_public_keys(openid_provider):
 
 
 def get_token_info(token):
-    verified_token = verify_jwt(token, audience)
-    if token_info_url in verified_token['aud']:
-        token_request = session.get(token_info_url,
+    verified_token = verify_jwt(token)
+    if Config.get_token_info_url() in verified_token['aud']:
+        token_request = session.get(Config.get_token_info_url(),
                                     headers={'Authorization': 'Bearer {}'.format(token)},
                                     timeout=5)
         verified_token.update(token_request.json())
@@ -66,27 +63,37 @@ def get_token_info(token):
             raise DSSForbiddenException()
     else:
         # then token is a google service credential from a trusted google project.
+        verified_token['email'] = verified_token['sub']
         if not (verified_token.get('scope') and verified_token.get('scopes')):
             verified_token['scopes'] = []
-        verified_token.update({"email": verified_token['sub']})
     return verified_token
 
 
-def verify_jwt(token: str, audience: str) -> typing.Optional[typing.Mapping]:
+def verify_jwt(token: str) -> typing.Optional[typing.Mapping]:
     try:
         unverified_token = jwt.decode(token, verify=False)
         issuer = unverified_token["iss"]
         is_authorized_issuer(issuer)
         public_keys = get_public_keys(issuer)
         token_header = jwt.get_unverified_header(token)
-        tok = jwt.decode(token,
-                         key=public_keys[token_header["kid"]],
-                         issuer=issuer,
-                         audience=audience,
-                         algorithms=allowed_algorithms)
-    except jwt.PyJWTError:  # type: ignore
+        if Config.deployment_stage() != 'prod':
+            logging.info(f"Token expiration is not checked in non production stages. Token: {token}")
+            tok = jwt.decode(token,
+                             key=public_keys[token_header["kid"]],
+                             issuer=issuer,
+                             audience=Config.get_audience(),
+                             algorithms=allowed_algorithms,
+                             options={'verify_exp': False})
+        else:
+            tok = jwt.decode(token,
+                             key=public_keys[token_header["kid"]],
+                             issuer=issuer,
+                             audience=Config.get_audience(),
+                             algorithms=allowed_algorithms,
+                             )
+    except jwt.PyJWTError as ex:  # type: ignore
         logger.info(f"JWT failed to validate.", exc_info=True)
-        raise DSSException(401, 'Unauthorized', 'Authorization token is invalid')
+        raise DSSException(401, 'Unauthorized', 'Authorization token is invalid') from ex
     return tok
 
 
@@ -95,17 +102,16 @@ def is_authorized_issuer(issuer: str) -> None:
     Must be either "https://humancellatlas.auth0.com/" or service credential from a trusted google project.
     :param issuer: str
     """
-    trusted_google_projects = [x for x in Config.get_allowed_email_domains().split()
-                               if x.endswith(gserviceaccount)]
-    if issuer != openid_provider and not any(issuer.endswith(f"@{p}") for p in trusted_google_projects):
+    if issuer != Config.get_openid_provider() and not any(issuer.endswith(f"@{p}")
+                                                          for p in Config.get_trusted_google_projects()):
         logger.info(f"Token issuer not authorized: {issuer}")
         raise DSSForbiddenException()
 
 
 def is_authorized_group(group: typing.List[str], token_info: dict) -> None:
-    if token_info["email"].endswith(gserviceaccount):
+    if token_info.get("https://auth.data.humancellatlas.org/group") in group:
         return
-    if token_info["https://auth.data.humancellatlas.org/group"] in group:
+    if token_info.get("sub", '').endswith(gserviceaccount):
         return
     logger.info(f"User not in authorized group: {group}, {token_info}")
     raise DSSForbiddenException()

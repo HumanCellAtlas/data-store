@@ -105,6 +105,8 @@ class Config:
     _ALLOWED_EMAILS: typing.Optional[str] = None
     _CURRENT_CONFIG: BucketConfig = BucketConfig.ILLEGAL
     _NOTIFICATION_SENDER_EMAIL: typing.Optional[str] = None
+    _TRUSTED_GOOGLE_PROJECTS: typing.Optional[typing.List[str]] = None
+    _JWT_AUDIENCE: typing.Optional[str] = None
 
     test_index_suffix = IndexSuffix()
 
@@ -347,6 +349,35 @@ class Config:
         * 2 should enable verbose output by the application and its dependencies
         """
         return int(os.environ.get('DSS_DEBUG', '0'))
+
+    @staticmethod
+    def get_token_info_url() -> str:
+        envvar = "TOKEN_INFO_URL"
+        if envvar not in os.environ:
+            raise Exception(
+                "Please set the {} environment variable".format(envvar))
+        return os.environ['TOKEN_INFO_URL']
+
+    @staticmethod
+    def get_openid_provider():
+        envvar = "OPEN_ID_PROVIDER"
+        if envvar not in os.environ:
+            raise Exception(
+                "Please set the {} environment variable".format(envvar))
+        return os.environ["OPEN_ID_PROVIDER"]
+
+    @staticmethod
+    def get_trusted_google_projects():
+        if Config._TRUSTED_GOOGLE_PROJECTS is None:
+            Config._TRUSTED_GOOGLE_PROJECTS = [x for x in Config.get_allowed_email_domains().split()
+                                               if x.endswith("iam.gserviceaccount.com")]
+        return Config._TRUSTED_GOOGLE_PROJECTS
+
+    @staticmethod
+    def get_audience():
+        if Config._JWT_AUDIENCE is None:
+            Config._JWT_AUDIENCE = f"https://{os.environ.get('API_DOMAIN_NAME')}/"
+        return Config._JWT_AUDIENCE
 
     @classmethod
     def notification_is_async(cls) -> bool:
