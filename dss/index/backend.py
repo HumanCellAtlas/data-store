@@ -92,17 +92,17 @@ class CompositeIndexBackend(IndexBackend):
         return max(backend.estimate_indexing_time() for backend in self._backends)
 
     def index_bundle(self, *args, **kwargs):
-        self._delegate(self.index_bundle, args, kwargs)
+        self._delegate(self.index_bundle.__name__, args, kwargs)
 
     def remove_bundle(self, *args, **kwargs):
-        self._delegate(self.remove_bundle, args, kwargs)
+        self._delegate(self.remove_bundle.__name__, args, kwargs)
 
-    def _delegate(self, method: Callable, args: Tuple, kwargs: Mapping):
+    def _delegate(self, method_name: str, args: Tuple, kwargs: Mapping):
         estimate = self.estimate_indexing_time()
         remaining = self._remaining_time.get()
         if remaining < estimate:
             raise RuntimeError(f'Insufficient time to perform indexing operation ({remaining:.3f} < {estimate:.3f}).')
-        fn = methodcaller(method.__name__, *args, **kwargs)
+        fn = methodcaller(method_name, *args, **kwargs)
         future_to_backend = {self._executor.submit(fn, backend): backend for backend in self._backends}
         done, not_done = concurrent.futures.wait(future_to_backend.keys(), timeout=remaining)
         results = {}
