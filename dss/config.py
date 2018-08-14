@@ -351,14 +351,6 @@ class Config:
         return int(os.environ.get('DSS_DEBUG', '0'))
 
     @staticmethod
-    def get_token_info_url() -> str:
-        envvar = "TOKEN_INFO_URL"
-        if envvar not in os.environ:
-            raise Exception(
-                "Please set the {} environment variable".format(envvar))
-        return os.environ['TOKEN_INFO_URL']
-
-    @staticmethod
     def get_openid_provider():
         envvar = "OPEN_ID_PROVIDER"
         if envvar not in os.environ:

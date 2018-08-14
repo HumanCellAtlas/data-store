@@ -126,57 +126,54 @@ class TestSecurity(unittest.TestCase):
 
     @mock.patch('dss.Config._TRUSTED_GOOGLE_PROJECTS', new=['test.iam.gserviceaccount.com'])
     def test_authorized_issuer(self):
-        valid_issuers = [os.environ['OPEN_ID_PROVIDER'],
-                         "travis-test@test.iam.gserviceaccount.com"
+        valid_issuers = [{'iss': os.environ['OPEN_ID_PROVIDER']},
+                         {'iss': "travis-test@test.iam.gserviceaccount.com",
+                          'sub': "travis-test@test.iam.gserviceaccount.com"}
                          ]
         for issuer in valid_issuers:
             with self.subTest(issuer):
-                security.is_authorized_issuer(issuer)
+                security.assert_authorized_issuer(issuer)
+
     def test_not_authorized_issuer(self):
-        invalid_issuers = ["https://project.auth0.com/",
-                           "travis-test@test.iam.gserviceaccount.com"
+        invalid_issuers = [{'iss': "https://project.auth0.com/"},
+                           {'iss': "travis-test@test.iam.gserviceaccount.com",
+                            'sub': "travis-test@test.iam.gserviceaccount.com"}
                            ]
         for issuer in invalid_issuers:
             with self.subTest(issuer):
                 with self.assertRaises(DSSForbiddenException):
-                    security.is_authorized_issuer(issuer)
+                    security.assert_authorized_issuer(issuer)
 
     def test_authorizated_group(self):
-        valid_token_infos = [{'sub': "travis-test@human-cell-atlas-travis-test.iam.gserviceaccount.com"},
-                             {'sub': "travis-test@travis-test.iam.gserviceaccount.com"},
-                             {"https://auth.data.humancellatlas.org/group": 'hca', 'email_verified': True},
-                             {"https://auth.data.humancellatlas.org/group": 'public', 'email_verified': True}
+        valid_token_infos = [{"https://auth.data.humancellatlas.org/group": 'hca'},
+                             {"https://auth.data.humancellatlas.org/group": 'public'}
                              ]
         for token_info in valid_token_infos:
             with self.subTest(token_info):
-                security.is_authorized_group(['hca', 'public'], token_info)
+                security.assert_authorized_group(['hca', 'public'], token_info)
 
     def test_not_authorizated_group(self):
         invalid_token_info = [{'sub': "travis-test@human-cell-atlas-travis-test.gmail.com"},
                               {'sub': "travis-test@travis-test.iam.gserviceaccount.com.gmail.com"},
                               {"https://auth.data.humancellatlas.org/group": ''},
                               {"https://auth.data.humancellatlas.org/group": 'public'},
-                              {"https://auth.data.humancellatlas.org/group": 'hca', 'email_verified': False}
+                              {"https://auth.data.humancellatlas.org/group": 'something_else'}
                               ]
         for token_info in invalid_token_info:
             with self.subTest(token_info):
                 with self.assertRaises(DSSForbiddenException):
-                    security.is_authorized_group(['hca'], token_info)
+                    security.assert_authorized_group(['hca'], token_info)
 
     @mock.patch('dss.Config._JWT_AUDIENCE', new="https://dev.data.humancellatlas.org/")
     @mock.patch('dss.Config._TRUSTED_GOOGLE_PROJECTS', new=['cool-project-188401.iam.gserviceaccount.com'])
     def test_verify_jwt(self):
-        jwts = [hca_user,
-                get_service_jwt(UNAUTHORIZED_GCP_CREDENTIALS)
-                ]
+        jwts = [get_service_jwt(UNAUTHORIZED_GCP_CREDENTIALS)]
         for jwt in jwts:
             with self.subTest(jwt):
                 security.verify_jwt(jwt)
 
     def test_negative_verify_jwt(self):
-        jwts = [public_user,
-                get_service_jwt(UNAUTHORIZED_GCP_CREDENTIALS)
-                ]
+        jwts = [get_service_jwt(UNAUTHORIZED_GCP_CREDENTIALS)]
         for jwt in jwts:
             with self.subTest(jwt):
                 with self.assertRaises(DSSException):

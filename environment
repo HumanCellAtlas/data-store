@@ -66,7 +66,6 @@ ADMIN_USER_EMAILS=""
 API_DOMAIN_NAME=dss.dev.data.humancellatlas.org
 
 # TOKEN_INFO_URLs naming is intentionally different than TOKENINFO_FUNC to prevent connexion from using it.
-TOKEN_INFO_URL=https://humancellatlas.auth0.com/userinfo
 TOKENINFO_FUNC=dss.util.security.get_token_info
 AUDIENCE=https://dev.data.humancellatlas.org/
 OPEN_ID_PROVIDER=https://humancellatlas.auth0.com/

@@ -59,8 +59,11 @@ securityDefinitions:
   fusilladeAuth:
     description: >
       TODO tsmith describe required claims,
-      email_verified: a bool indicating if the email has been verified
-      https://auth.data.humancellatlas.org/group: the user group this user belongs
+      'https://auth.data.humancellatlas.org/group': the user group this user belongs must be hca or public
+      'iss': must be https://humancellatlas.auth0.com/ or a trusted google project
+      'aud': audience must be https://dss.dev.data.humancellatlas.org/
+      'email': the email of the requester,
+      'scope': []
     type: oauth2
     flow: implicit
     authorizationUrl: https://auth.dev.data.humancellatlas.org/authorize

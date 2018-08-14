@@ -90,7 +90,7 @@ def eventually(timeout: float, interval: float, errors: set={AssertionError}):
     return decorate
 
 
-def get_service_jwt(service_credentials):
+def get_service_jwt(service_credentials, group: str=None):
     audience = dss.Config.get_audience()
     iat = time.time()
     exp = iat + 3600
@@ -98,20 +98,24 @@ def get_service_jwt(service_credentials):
                'sub': service_credentials["client_email"],
                'aud': audience,
                'iat': iat,
-               'exp': exp
+               'exp': exp,
+               'email': service_credentials["client_email"],
+               'scope': ['email', 'openid', 'offline_access']
                }
+    if group:
+        payload["https://auth.data.humancellatlas.org/group"] = group
     additional_headers = {'kid': service_credentials["private_key_id"]}
     signed_jwt = jwt.encode(payload, service_credentials["private_key"], headers=additional_headers,
                             algorithm='RS256').decode()
     return signed_jwt
 
 
-def get_auth_header(real_header=True, authorized=True):
+def get_auth_header(real_header=True, authorized=True, group='hca'):
     if authorized:
         credential_file = os.environ['GOOGLE_APPLICATION_CREDENTIALS']
         with io.open(credential_file) as fh:
             info = json.load(fh)
     else:
         info = UNAUTHORIZED_GCP_CREDENTIALS
-    token = get_service_jwt(info) if real_header else str(uuid.uuid4())
+    token = get_service_jwt(info, group) if real_header else str(uuid.uuid4())
     return {"Authorization": f"Bearer {token}"}
