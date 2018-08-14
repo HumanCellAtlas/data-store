@@ -82,12 +82,15 @@ class TestSubscriptionsBase(ElasticsearchTestCase, DSSAssertMixin):
                   .set(path="/v1/subscriptions/" + str(uuid.uuid4()))
                   .add_query("replica", self.replica.name))
 
-        # Gibberish auth header
-        resp_obj = self.assertGetResponse(url, requests.codes.unauthorized, headers=get_auth_header(False))
-        self.assertEqual(resp_obj.response.headers['Content-Type'], "application/problem+json")
+        with self.subTest("Gibberish auth header"):
+            resp_obj = self.assertGetResponse(url, requests.codes.unauthorized, headers=get_auth_header(False))
+            self.assertEqual(resp_obj.response.headers['Content-Type'], "application/problem+json")
 
-        # No auth header
-        self.assertGetResponse(url, requests.codes.unauthorized)
+        with self.subTest("No auth header"):
+            self.assertGetResponse(url, requests.codes.unauthorized)
+
+        with self.subTest("unauthorized group"):
+            self.assertGetResponse(url, requests.codes.forbidden, headers=get_auth_header(group='public'))
 
     def test_put(self):
         uuid_ = self._put_subscription()

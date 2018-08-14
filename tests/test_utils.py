@@ -97,25 +97,6 @@ class TestUrlBuilder(unittest.TestCase):
         builder.replace_query("def", "4")
         self.assertEqual("https://humancellatlas.org/abc?def=4#ghi", str(builder))
 
-public_user = 'eyJ0eXAiOiJKV1QiLCJhbGciOiJSUzI1NiIsImtpZCI6Ik1EYzJPVE0zT0RJNE9EWTJOVVU1UkVWR1JEVkVNME15T0VZd1FUa3pORF' \
-              'pEUkRsRVF6TkJSUSJ9.eyJodHRwczovL2F1dGguZGF0YS5odW1hbmNlbGxhdGxhcy5vcmcvZ3JvdXAiOiJwdWJsaWMiLCJlbWFpbCI' \
-              '6ImhjYXB1YmxpY3VzZXI4NjhAZ21haWwuY29tIiwiZW1haWxfdmVyaWZpZWQiOnRydWUsImlzcyI6Imh0dHBzOi8vaHVtYW5jZWxsY' \
-              'XRsYXMuYXV0aDAuY29tLyIsInN1YiI6Imdvb2dsZS1vYXV0aDJ8MTAyMDQ0NjM5MTEyNDAxMDkwNzYzIiwiYXVkIjoicG9kdy1yZWx' \
-              '2Q3VwemtKY3RxakZPMHk1UlFRb2lVRjYiLCJpYXQiOjE1MzM5MzMzMjksImV4cCI6MTUzMzk2OTMyOX0.XidC2FU4DcQcbvmwV80dy' \
-              'R-HoM6YgDRDZPNZCM6AI7WNABQVyHoJ5QXROkmXSwjQMqgJJPM6hu13MFpVK4jzB8oXmUQCGnqKYvI3XbG1agqCcKB82bD1QbGDw1z' \
-              'MyDyb4dVAWukBGl9cFmdQA82T2eTznGH71xzB8jrp5NkQzTKdIPzOPBsAG6xe89HY_9LupHbMhAdVKDxHtZHyJaXjdzCG5pGvStC6X' \
-              'pQ3pEDLl38Kn6xMqmaOsPCYLhPmt8xU2eMiKsblRw3zCxBzgKJ5lbJ_RML8tQYeDZ6SuNSPeO-6qd_3sT9V9FhMPVTsQpteSs87DkL' \
-              'I0aYIio0mrVWtbw'
-hca_user = "eyJ0eXAiOiJKV1QiLCJhbGciOiJSUzI1NiIsImtpZCI6Ik1EYzJPVE0zT0RJNE9EWTJOVVU1UkVWR1JEVkVNME15T0VZd1FUa3pORFpE" \
-           "UkRsRVF6TkJSUSJ9.eyJpc3MiOiJodHRwczovL2h1bWFuY2VsbGF0bGFzLmF1dGgwLmNvbS8iLCJzdWIiOiJnb29nbGUtb2F1dGgyfDE" \
-           "wNTcwMDY1NTAwNzE1ODM3NjEwMyIsImF1ZCI6WyJodHRwczovL2Rzcy5kZXYuZGF0YS5odW1hbmNlbGxhdGxhcy5vcmcvIiwiaHR0cHM" \
-           "6Ly9odW1hbmNlbGxhdGxhcy5hdXRoMC5jb20vdXNlcmluZm8iXSwiaWF0IjoxNTMzNzY1ODYzLCJleHAiOjE1MzM4NTIyNjMsImF6cCI" \
-           "6InF0TWdOazlmcVZlY2xMdFpsNldrYmRKNTlkUDNXZUF0Iiwic2NvcGUiOiJvcGVuaWQgZW1haWwgb2ZmbGluZV9hY2Nlc3MifQ.SjyB" \
-           "VPYDmBU9nFq8XLRdTYVv4GtQM6yGv2QlXEnkeujiUukkZq1I9s42x0NVk6yKN4tYyRItGvvYOi1cCYdymiIsmsAteFJynKwqs7NN2COq" \
-           "EnD_oZV5d6Qny8CjLDoCoj1F65XICpuKJI4Ej36tGxmkjFvezRKuzmssslmvl4ss_xgCpEYAxRy-Hbkqrm9axUZEebq5jT_z27VRTqGW" \
-           "IdW1C9a8453fVJZOKraEDCIfRGn31U93t2LCplBvuNDP5G71oy9r2ya3iJ61c8cRPPz-CrPj0RC0lt92QUJHgDD6cg3bsnoQaY4-Vh8D" \
-           "i82yF3lECFKyHC-Yc_b18WVPWQ"
-
 
 @testmode.standalone
 class TestSecurity(unittest.TestCase):

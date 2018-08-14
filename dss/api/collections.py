@@ -15,6 +15,7 @@ from dss.error import DSSException, dss_handler
 from dss.storage.blobstore import test_object_exists
 from dss.storage.hcablobstore import BlobStore, compose_blob_key
 from dss.storage.identifiers import CollectionFQID, CollectionTombstoneID
+from dss.util import security
 from dss.util.version import datetime_to_version_format
 from dss.api.bundles import _idempotent_save
 
@@ -48,6 +49,7 @@ def get_impl(uuid: str, replica: str, version: str = None):
     return json.loads(collection_blob)
 
 @dss_handler
+@security.authorized_group_required(['hca'])
 def get(uuid: str, replica: str, version: str = None):
     authenticated_user_email = request.token_info['email']
     collection_body = get_impl(uuid=uuid, replica=replica, version=version)
@@ -56,6 +58,7 @@ def get(uuid: str, replica: str, version: str = None):
     return collection_body
 
 @dss_handler
+@security.authorized_group_required(['hca'])
 def put(json_request_body: dict, replica: str, uuid: str, version: str):
     authenticated_user_email = request.token_info["email"]
     collection_body = dict(json_request_body, owner=authenticated_user_email)
@@ -83,6 +86,7 @@ class hashabledict(dict):
         return hash(tuple(sorted(self.items())))
 
 @dss_handler
+@security.authorized_group_required(['hca'])
 def patch(uuid: str, json_request_body: dict, replica: str, version: str):
     try:
         iso8601.parse_date(version)
@@ -120,6 +124,7 @@ def patch(uuid: str, json_request_body: dict, replica: str, version: str):
     return jsonify(dict(uuid=uuid, version=new_collection_version)), requests.codes.ok
 
 @dss_handler
+@security.authorized_group_required(['hca'])
 def delete(uuid: str, replica: str):
     authenticated_user_email = request.token_info['email']
 
