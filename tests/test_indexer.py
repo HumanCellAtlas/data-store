@@ -54,9 +54,8 @@ from tests import eventually, get_auth_header, get_bundle_fqid, get_file_fqid, g
 from tests.infra import DSSAssertMixin, DSSStorageMixin, DSSUploadMixin, TestBundle, testmode
 from tests.infra.elasticsearch_test_case import ElasticsearchTestCase
 from tests.infra.server import ThreadedLocalServer
-from tests.sample_search_queries import (smartseq2_paired_ends_v2_or_v3_query, smartseq2_paired_ends_v3_or_v4_query,
-                                         smartseq2_paired_ends_v3_query, smartseq2_paired_ends_v4_query,
-                                         smartseq2_paired_ends_vx_query)
+from tests.sample_search_queries import smartseq2_paired_ends_vx_query
+
 
 logger = logging.getLogger(__name__)
 
@@ -240,12 +239,12 @@ class TestIndexerBase(ElasticsearchTestCase, DSSAssertMixin, DSSStorageMixin, DS
 
     @testmode.standalone
     def test_reindexing_with_changed_content(self):
-        bundle_key = self.load_test_data_bundle_for_path("fixtures/indexing/bundles/v3/smartseq2/paired_ends")
+        bundle_key = self.load_test_data_bundle_for_path("fixtures/indexing/bundles/vx/smartseq2/paired_ends")
         sample_event = self.create_bundle_created_event(bundle_key)
 
         @eventually(timeout=5.0, interval=0.5)
         def _assert_reindexing_results(expect_extra_field, expected_version):
-            query = {**smartseq2_paired_ends_v2_or_v3_query, 'version': True}
+            query = {**smartseq2_paired_ends_vx_query, 'version': True}
             hits = self.get_raw_search_results(query, 1)['hits']['hits']
             self.assertEqual(1, len(hits))
             self.assertEquals(expected_version, hits[0]['_version'])
