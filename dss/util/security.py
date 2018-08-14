@@ -109,7 +109,8 @@ def is_authorized_issuer(issuer: str) -> None:
 
 
 def is_authorized_group(group: typing.List[str], token_info: dict) -> None:
-    if token_info.get("https://auth.data.humancellatlas.org/group") in group:
+    if (token_info.get("https://auth.data.humancellatlas.org/group") in group and
+            token_info.get('email_verified', False) is True):
         return
     if token_info.get("sub", '').endswith(gserviceaccount):
         return

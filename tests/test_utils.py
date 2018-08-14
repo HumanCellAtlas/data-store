@@ -144,8 +144,8 @@ class TestSecurity(unittest.TestCase):
     def test_authorizated_group(self):
         valid_token_infos = [{'sub': "travis-test@human-cell-atlas-travis-test.iam.gserviceaccount.com"},
                              {'sub': "travis-test@travis-test.iam.gserviceaccount.com"},
-                             {"https://auth.data.humancellatlas.org/group": 'hca'},
-                             {"https://auth.data.humancellatlas.org/group": 'public'}
+                             {"https://auth.data.humancellatlas.org/group": 'hca', 'email_verified': True},
+                             {"https://auth.data.humancellatlas.org/group": 'public', 'email_verified': True}
                              ]
         for token_info in valid_token_infos:
             with self.subTest(token_info):
@@ -155,7 +155,8 @@ class TestSecurity(unittest.TestCase):
         invalid_token_info = [{'sub': "travis-test@human-cell-atlas-travis-test.gmail.com"},
                               {'sub': "travis-test@travis-test.iam.gserviceaccount.com.gmail.com"},
                               {"https://auth.data.humancellatlas.org/group": ''},
-                              {"https://auth.data.humancellatlas.org/group": 'public'}
+                              {"https://auth.data.humancellatlas.org/group": 'public'},
+                              {"https://auth.data.humancellatlas.org/group": 'hca', 'email_verified': False}
                               ]
         for token_info in invalid_token_info:
             with self.subTest(token_info):
