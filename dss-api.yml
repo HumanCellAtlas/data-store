@@ -57,13 +57,18 @@ produces:
   - application/json
 securityDefinitions:
   fusilladeAuth:
+    description: >
+      TODO tsmith describe required claims,
+      email_verified: a bool indicating if the email has been verified
+      https://auth.data.humancellatlas.org/group: the user group this user belongs
     type: oauth2
     flow: implicit
     authorizationUrl: https://auth.dev.data.humancellatlas.org/authorize
     scopes:
       email: a string with the email of the user
-      email_verified: a bool indicating if the email has been verified
-      https://auth.data.humancellatlas.org/group: the user group this user belongs
+      openid: TODO tsmith describe
+      offline_access: TODO tsmith describe
+
 paths:
   /search:
     post:
