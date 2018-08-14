@@ -163,7 +163,7 @@ class TestSecurity(unittest.TestCase):
                 with self.assertRaises(DSSForbiddenException):
                     security.is_authorized_group(['hca'], token_info)
 
-    @mock.patch('dss.Config._JWT_AUDIENCE', new="https://dss.dev.data.humancellatlas.org/")
+    @mock.patch('dss.Config._JWT_AUDIENCE', new="https://dev.data.humancellatlas.org/")
     @mock.patch('dss.Config._TRUSTED_GOOGLE_PROJECTS', new=['cool-project-188401.iam.gserviceaccount.com'])
     def test_verify_jwt(self):
         jwts = [hca_user,

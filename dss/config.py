@@ -106,7 +106,7 @@ class Config:
     _CURRENT_CONFIG: BucketConfig = BucketConfig.ILLEGAL
     _NOTIFICATION_SENDER_EMAIL: typing.Optional[str] = None
     _TRUSTED_GOOGLE_PROJECTS: typing.Optional[typing.List[str]] = None
-    _JWT_AUDIENCE: typing.Optional[str] = None
+    _JWT_AUDIENCE: typing.Optional[typing.List[str]] = None
 
     test_index_suffix = IndexSuffix()
 
@@ -376,7 +376,11 @@ class Config:
     @staticmethod
     def get_audience():
         if Config._JWT_AUDIENCE is None:
-            Config._JWT_AUDIENCE = f"https://{os.environ.get('API_DOMAIN_NAME')}/"
+            envvar = "AUDIENCE"
+            if envvar not in os.environ:
+                raise Exception(
+                    "Please set the {} environment variable".format(envvar))
+            Config._JWT_AUDIENCE = os.environ[envvar].split(',')
         return Config._JWT_AUDIENCE
 
     @classmethod
