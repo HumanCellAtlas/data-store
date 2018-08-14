@@ -125,15 +125,13 @@ class TestSecurity(unittest.TestCase):
         dss.Config.set_config(dss.BucketConfig.TEST)
 
     @mock.patch('dss.Config._TRUSTED_GOOGLE_PROJECTS', new=['test.iam.gserviceaccount.com'])
-    @mock.patch('dss.Config._OPEN_ID_PROVIDER', new="https://project.auth0.com/")
     def test_authorized_issuer(self):
-        valid_issuers = ["https://project.auth0.com/",
+        valid_issuers = [os.environ['OPEN_ID_PROVIDER'],
                          "travis-test@test.iam.gserviceaccount.com"
                          ]
         for issuer in valid_issuers:
             with self.subTest(issuer):
                 security.is_authorized_issuer(issuer)
-
     def test_not_authorized_issuer(self):
         invalid_issuers = ["https://project.auth0.com/",
                            "travis-test@test.iam.gserviceaccount.com"
@@ -175,8 +173,7 @@ class TestSecurity(unittest.TestCase):
                 security.verify_jwt(jwt)
 
     def test_negative_verify_jwt(self):
-        jwts = [hca_user,
-                public_user,
+        jwts = [public_user,
                 get_service_jwt(UNAUTHORIZED_GCP_CREDENTIALS)
                 ]
         for jwt in jwts:
