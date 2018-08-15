@@ -97,16 +97,18 @@ class Smoketest(unittest.TestCase):
         # Prepare the bundle using stock metadata and random data
         #
         cls.bundle_dir = os.path.join(cls.workdir.name, "bundle")
-        shutil.copytree("data-bundle-examples/10X_v2/pbmc8k", cls.bundle_dir)
+        shutil.copytree("tests/fixtures/datafiles/indexing/bundles/vx/smartseq2/paired_ends", cls.bundle_dir)
         with open(os.path.join(cls.bundle_dir, "async_copied_file"), "wb") as fh:
             fh.write(os.urandom(ASYNC_COPY_THRESHOLD + 1))
 
     def smoketest(self, starting_replica, checkout_bucket, test_bucket):
-        # Tweak the metadata to a specific sample UUID
-        sample_id = str(uuid.uuid4())
-        run(f"cat {self.bundle_dir}/sample.json | jq .id=env.sample_id | sponge {self.bundle_dir}/sample.json",
-            env=dict(os.environ, sample_id=sample_id))
-        query = {'query': {'match': {'files.sample_json.id': sample_id}}}
+        # Tweak the metadata to a specific biomaterial_id UUID
+        biomaterial_id = str(uuid.uuid4())
+        run(f"cat {self.bundle_dir}/cell_suspension_0.json"
+            f" | jq .biomaterial_core.biomaterial_id=env.biomaterial_id"
+            f" | sponge {self.bundle_dir}/cell_suspension_0.json",
+            env=dict(os.environ, biomaterial_id=biomaterial_id))
+        query = {'query': {'match': {'files.cell_suspension_json.biomaterial_core.biomaterial_id': biomaterial_id}}}
 
         os.chdir(self.workdir.name)
 
