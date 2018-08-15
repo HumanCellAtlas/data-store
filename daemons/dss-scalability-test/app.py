@@ -36,7 +36,7 @@ os.environ["HOME"] = "/tmp"
 os.environ["HCA_CONFIG_FILE"] = "/tmp/config.json"
 
 with open(os.environ["HCA_CONFIG_FILE"], "w") as fh:
-    fh.write(json.dumps({"DSSClient": {"swagger_url": os.environ["SWAGGER_URL"]}}))
+    fh.write(json.dumps({"DSSClient": {"swagger_url": f"https://{os.environ['API_DOMAIN_NAME']}/v1/swagger.json"}}))
 
 client = None
 def get_client():
