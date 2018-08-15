@@ -58,20 +58,18 @@ produces:
 securityDefinitions:
   fusilladeAuth:
     description: >
-      TODO tsmith describe required claims,
-      'https://auth.data.humancellatlas.org/group': the user group this user belongs must be hca or public
-      'iss': must be https://humancellatlas.auth0.com/ or a trusted google project
-      'aud': audience must be https://dss.dev.data.humancellatlas.org/
-      'email': the email of the requester,
-      'scope': []
+      The following claims must be present in the JWT:
+      - 'https://auth.data.humancellatlas.org/group': the user group this user belongs must be hca or public
+      - 'iss': must be https://humancellatlas.auth0.com/ or a trusted google project
+      - 'aud': audience must be https://dev.data.humancellatlas.org/ or https://data.humancellatlas.org/
+      - 'email': the email of the requester,
     type: oauth2
     flow: implicit
     authorizationUrl: https://auth.dev.data.humancellatlas.org/authorize
     scopes:
-      email: a string with the email of the user
-      openid: TODO tsmith describe
-      offline_access: TODO tsmith describe
-
+      email: This scope value requests access to the email and email_verified Claims.
+      openid: see http://openid.net/specs/openid-connect-core-1_0.html#ScopeClaims
+      offline_access: see http://openid.net/specs/openid-connect-core-1_0.html#OfflineAccessPrivacy
 paths:
   /search:
     post:

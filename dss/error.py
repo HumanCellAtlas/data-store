@@ -25,7 +25,7 @@ class DSSBindingException(DSSException):
 class DSSForbiddenException(DSSException):
     def __init__(self, *args, **kwargs) -> None:
         super().__init__(requests.codes.forbidden,
-                         "forbidden",
+                         "Forbidden",
                          "User is not authorized to access this resource",
                          *args, **kwargs)
 
