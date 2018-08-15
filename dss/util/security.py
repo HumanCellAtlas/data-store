@@ -48,11 +48,6 @@ def get_public_keys(openid_provider):
     }
 
 
-def get_token_info(token):
-    verified_token = verify_jwt(token)
-    return verified_token
-
-
 def verify_jwt(token: str) -> typing.Optional[typing.Mapping]:
     try:
         unverified_token = jwt.decode(token, verify=False)
