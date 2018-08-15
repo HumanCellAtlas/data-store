@@ -64,8 +64,6 @@ DSS_BLOB_PUBLIC_TTL_DAYS=4
 DSS_NOTIFICATION_SENDER="DSS Notifier <dss.humancellatlas@gmail.com>"
 ADMIN_USER_EMAILS=""
 API_DOMAIN_NAME=dss.dev.data.humancellatlas.org
-
-# TOKEN_INFO_URLs naming is intentionally different than TOKENINFO_FUNC to prevent connexion from using it.
 TOKENINFO_FUNC=dss.util.security.get_token_info
 AUDIENCE=https://dev.data.humancellatlas.org/
 OPEN_ID_PROVIDER=https://humancellatlas.auth0.com/

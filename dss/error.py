@@ -23,10 +23,11 @@ class DSSBindingException(DSSException):
 
 
 class DSSForbiddenException(DSSException):
-    def __init__(self, *args, **kwargs) -> None:
+    def __init__(self, title: str="User is not authorized to access this resource",
+                 *args, **kwargs) -> None:
         super().__init__(requests.codes.forbidden,
                          "Forbidden",
-                         "User is not authorized to access this resource",
+                         title,
                          *args, **kwargs)
 
 def handler_DSSException(e: DSSException) -> FlaskResponse:

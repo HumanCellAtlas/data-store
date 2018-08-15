@@ -10,7 +10,7 @@ import requests
 from cloud_blobstore import BlobNotFoundError, BlobStore, BlobStoreTimeoutError
 from flask import jsonify, redirect, request
 
-from dss import DSSException, dss_handler
+from dss import DSSException, dss_handler, DSSForbiddenException
 from dss.config import Config, Replica
 from dss.storage.blobstore import test_object_exists, ObjectTest
 from dss.storage.bundles import get_bundle_manifest
@@ -233,11 +233,7 @@ def delete(uuid: str, replica: str, json_request_body: dict, version: str=None):
     email = request.token_info['email']
 
     if email not in ADMIN_USER_EMAILS:
-        raise DSSException(
-            requests.codes.forbidden,
-            "Forbidden",
-            f"You can't delete bundles with these credentials!",
-        )
+        raise DSSForbiddenException("You can't delete bundles with these credentials!")
 
     uuid = uuid.lower()
     version = datetime_to_version_format(iso8601.parse_date(version)) if version else None
