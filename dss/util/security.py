@@ -69,7 +69,7 @@ def verify_jwt(token: str) -> typing.Optional[typing.Mapping]:
 
 def assert_authorized_issuer(token: typing.Mapping[str, typing.Any]) -> None:
     """
-    Must be either "https://humancellatlas.auth0.com/" or service credential from a trusted google project.
+    Must be either `Config.get_openid_provider()` or in `Config.get_trusted_google_projects()`
     :param token: dict
     """
     issuer = token['iss']
@@ -83,7 +83,7 @@ def assert_authorized_issuer(token: typing.Mapping[str, typing.Any]) -> None:
 
 
 def assert_authorized_group(group: typing.List[str], token: dict) -> None:
-    if token.get("https://auth.data.humancellatlas.org/group") in group:
+    if token.get(Config.get_group_claim()) in group:
         return
     logger.info(f"User not in authorized group: {group}, {token}")
     raise DSSForbiddenException()

@@ -67,12 +67,9 @@ API_DOMAIN_NAME=dss.dev.data.humancellatlas.org
 TOKENINFO_FUNC=dss.util.security.verify_jwt
 AUDIENCE=https://dev.data.humancellatlas.org/
 OPEN_ID_PROVIDER=https://humancellatlas.auth0.com/
+GROUP_CLAIM=https://auth.data.humancellatlas.org/group
 NOTIFY_URL=https://${API_DOMAIN_NAME}/internal/notify
 DSS_SUBSCRIPTION_AUTHORIZED_DOMAINS_ARRAY=(
-    chanzuckerberg.com
-    ucsc.edu
-    broadinstitute.org
-    ebi.ac.uk
     {human-cell-atlas-travis-test,broad-dsde-mint-{dev,test,staging}}.iam.gserviceaccount.com
 )
 DSS_SUBSCRIPTION_AUTHORIZED_DOMAINS=${DSS_SUBSCRIPTION_AUTHORIZED_DOMAINS_ARRAY[*]}

@@ -352,11 +352,7 @@ class Config:
 
     @staticmethod
     def get_openid_provider():
-        envvar = "OPEN_ID_PROVIDER"
-        if envvar not in os.environ:
-            raise Exception(
-                "Please set the {} environment variable".format(envvar))
-        return os.environ["OPEN_ID_PROVIDER"]
+        return Config._get_required_envvar("OPEN_ID_PROVIDER")
 
     @staticmethod
     def get_trusted_google_projects():
@@ -368,12 +364,20 @@ class Config:
     @staticmethod
     def get_audience():
         if Config._JWT_AUDIENCE is None:
-            envvar = "AUDIENCE"
-            if envvar not in os.environ:
-                raise Exception(
-                    "Please set the {} environment variable".format(envvar))
-            Config._JWT_AUDIENCE = os.environ[envvar].split(',')
+            audience = Config._get_required_envvar("AUDIENCE")
+            Config._JWT_AUDIENCE = audience.split(',')
         return Config._JWT_AUDIENCE
+
+    @staticmethod
+    def get_group_claim():
+        return Config._get_required_envvar("GROUP_CLAIM")
+
+    @staticmethod
+    def _get_required_envvar(envvar: str) -> str:
+        if envvar not in os.environ:
+            raise Exception(
+                "Please set the {} environment variable".format(envvar))
+        return os.environ[envvar]
 
     @classmethod
     def notification_is_async(cls) -> bool:
