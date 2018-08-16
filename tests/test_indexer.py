@@ -304,7 +304,7 @@ class TestIndexerBase(ElasticsearchTestCase, DSSAssertMixin, DSSStorageMixin, DS
 
     @testmode.standalone
     def test_indexed_file_with_invalid_content_type(self):
-        bundle = TestBundle(self.blobstore, "fixtures/indexing/bundles/v3/smartseq2/paired_ends",
+        bundle = TestBundle(self.blobstore, "fixtures/indexing/bundles/vx/smartseq2/paired_ends",
                             self.test_fixture_bucket, self.replica)
         # Configure a file to be indexed that is not of context type 'application/json'
         for file in bundle.files:
