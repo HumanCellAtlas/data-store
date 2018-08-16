@@ -3,12 +3,6 @@ image: humancellatlas/dss-build-box
 # `${DSS_HOME}/Dockerfile.allspark`. See the contents of `${DSS_HOME}/Dockerfile.allspark`
 # creation and usage instructions.
 
-cache:
-  paths:
-  - chalice/.chalice/venv
-  - daemons/dss-sync/.chalice/venv
-  - daemons/dss-index/.chalice/venv
-
 variables:
   GIT_SUBMODULE_STRATEGY: normal
   DSS_ES_TIMEOUT: 30
@@ -18,149 +12,20 @@ variables:
 
 stages:
   - test
-  - deploy_dev
-  - integration_test
-  - release_integration
-  - release_staging
 
 before_script:
-  - if not [[ CI_COMMIT_SHA == $(http GET ${GITHUB_API}/repos/HumanCellAtlas/data-store/commits sha==$CI_COMMIT_REF_NAME | jq -r '.[0]["sha"]') ]]; then exit 1; fi
-# TODO: figure out how to get the gitlab-runner to not clone the repo as root - Brian H
-  - cp -r /HumanCellAtlas/data-store ~/data-store && cd ~/data-store
-  - virtualenv ~/venv
-  - source ~/venv/bin/activate
-  - pip install -r requirements-dev.txt
-  - source environment
-  - if [[ -f "environment.$CI_COMMIT_REF_NAME" ]]; then source "environment.$CI_COMMIT_REF_NAME"; fi
+  - git clone https://$GITHUB_TOKEN@github.com/HumanCellAtlas/data-store.git ~/data-store && cd ~/data-store
+  - git checkout $CI_COMMIT_REF_NAME
 
-unit_tests:
+tag_test:
   stage: test
   script:
-    - whoami
-    - ls -alh /
-    - make -j4 parallel_test
-
-test_search:
-  stage: test
-  script:
-    - make -j1 tests/test_search.py
-
-test_aws_indexer:
-  stage: test
-  variables:
-    DSS_UNITTEST_OPTS: "-v TestAWSIndexer"
-  script:
-    - make -j1 tests/test_indexer.py
-
-test_gcp_indexer:
-  stage: test
-  variables:
-    DSS_UNITTEST_OPTS: "-v TestGCPIndexer"
-  script:
-    - make -j1 tests/test_indexer.py
-
-test_subscriptions:
-  stage: test
-  script:
-    - make -j1 tests/test_subscriptions.py
-
-deploy_dev:
-  stage: deploy_dev
-  script:
-    - aws secretsmanager get-secret-value --secret-id ${DSS_SECRETS_STORE}/${DSS_DEPLOYMENT_STAGE}/gcp-credentials.json | jq -r .SecretString > gcp-credentials.json
-    - export GOOGLE_APPLICATION_CREDENTIALS=$(pwd -P)/gcp-credentials.json
-    - make plan-infra
-    - make deploy
-  environment:
-    name: dev
-    url: https://dss.dev.data.humancellatlas.org
+    - git remote -v
+    - git branch
+    - git checkout $CI_COMMIT_REF_NAME
+    - git branch
+    - git tag "test-tag"
+    - git push --force origin $CI_COMMIT_REF_NAME
+    - git push --tags
   only:
-    - master
-
-integration_test:
-  stage: integration_test
-  script:
-    - make -j1 integration_test
-
-release_integration:
-  stage: release_integration
-  script:
-    - git clean -df
-    - git reset --hard
-    - for i in $(seq 1 40); do
-    -   status=$(scripts/status.sh HumanCellAtlas dcp integration)
-    -   if [[ pending != "${status}" && running != "${status}" ]]; then break; fi
-    -   echo "waiting for DCP Integration test to complete";
-    -   sleep 30;  # This loop will check status for 20 minutes and then quit
-    - done
-    - if [[ success != "${status}" ]]; then
-    -   echo "DCP Integration test returned status ${status}";
-    -   exit 1
-    - fi
-    - scripts/fetch_secret.sh gcp-credentials.json > gcp-credentials.json
-    - export GOOGLE_APPLICATION_CREDENTIALS=$(pwd -P)/gcp-credentials.json
-    - make plan-infra
-    - yes 1 | scripts/release.sh master integration
-  environment:
-    name: integration
-    url: https://dss.integration.data.humancellatlas.org
-  only:
-    - master
-
-force_release_integration:
-  stage: release_integration
-  script:
-    - git clean -df
-    - git reset --hard
-    - scripts/fetch_secret.sh gcp-credentials.json > gcp-credentials.json
-    - export GOOGLE_APPLICATION_CREDENTIALS=$(pwd -P)/gcp-credentials.json
-    - make plan-infra
-    - yes 1 | scripts/release.sh master integration --force
-  environment:
-    name: integration
-    url: https://dss.integration.data.humancellatlas.org
-  only:
-    - master
-  when: manual 
-
-release_staging:
-  stage: release_staging
-  script:
-    - git clean -df
-    - git reset --hard
-    - for i in $(seq 1 40); do
-    -   status=$(scripts/status.sh HumanCellAtlas dcp integration)
-    -   if [[ pending != "${status}" && running != "${status}" ]]; then break; fi
-    -   echo "waiting for DCP Integration test to complete";
-    -   sleep 30;  # This loop will check status for 20 minutes and then quit
-    - done
-    - if [[ success != "${status}" ]]; then
-    -   echo "DCP Integration test returned status ${status}";
-    -   exit 1
-    - fi
-    - scripts/fetch_secret.sh gcp-credentials.json > gcp-credentials.json
-    - export GOOGLE_APPLICATION_CREDENTIALS=$(pwd -P)/gcp-credentials.json
-    - make plan-infra
-    - yes 1 | scripts/release.sh integration staging
-  environment:
-    name: staging
-    url: https://dss.staging.data.humancellatlas.org
-  only:
-    - integration
-  when: manual 
-
-force_release_staging:
-  stage: release_staging
-  script:
-    - git clean -df
-    - git reset --hard
-    - scripts/fetch_secret.sh gcp-credentials.json > gcp-credentials.json
-    - export GOOGLE_APPLICATION_CREDENTIALS=$(pwd -P)/gcp-credentials.json
-    - make plan-infra
-    - yes 1 | scripts/release.sh integration staging --force
-  environment:
-    name: staging
-    url: https://dss.staging.data.humancellatlas.org
-  only:
-    - integration
-  when: manual 
+    - bhannafi-deploy-debug
