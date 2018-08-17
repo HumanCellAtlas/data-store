@@ -101,13 +101,6 @@ def upload(uploader: Uploader):
         "testList/delimiter/test"
     )
 
-    for fname in ["assay.json", "cell.json", "manifest.json", "project.json", "sample.json"]:
-        uploader.checksum_and_upload_file(
-            f"test_api/{fname}",
-            f"fixtures/test_api/bundle/{fname}",
-            "application/json",
-        )
-
     # Create sample stored bundles with tombstones to test the filtering of deleted bundles
     source_path = "tombstones"
     for fname in [
