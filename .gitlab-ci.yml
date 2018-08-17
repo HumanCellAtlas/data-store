@@ -85,8 +85,8 @@ integration_test:
 release_integration:
   stage: release_integration
   script:
-    - git clean -df
-    - git reset --hard
+    - git clone https://$GITHUB_TOKEN@github.com/HumanCellAtlas/data-store.git ~/release && cd ~/release
+    - git checkout integration
     - for i in $(seq 1 40); do
     -   status=$(scripts/status.sh HumanCellAtlas dcp integration)
     -   if [[ pending != "${status}" && running != "${status}" ]]; then break; fi
@@ -111,8 +111,8 @@ release_integration:
 force_release_integration:
   stage: release_integration
   script:
-    - git clean -df
-    - git reset --hard
+    - git clone https://$GITHUB_TOKEN@github.com/HumanCellAtlas/data-store.git ~/release && cd ~/release
+    - git checkout integration
     - scripts/fetch_secret.sh gcp-credentials.json > gcp-credentials.json
     - export GOOGLE_APPLICATION_CREDENTIALS=$(pwd -P)/gcp-credentials.json
     - make plan-infra
@@ -127,8 +127,8 @@ force_release_integration:
 release_staging:
   stage: release_staging
   script:
-    - git clean -df
-    - git reset --hard
+    - git clone https://$GITHUB_TOKEN@github.com/HumanCellAtlas/data-store.git ~/release && cd ~/release
+    - git checkout staging
     - for i in $(seq 1 40); do
     -   status=$(scripts/status.sh HumanCellAtlas dcp integration)
     -   if [[ pending != "${status}" && running != "${status}" ]]; then break; fi
@@ -153,8 +153,8 @@ release_staging:
 force_release_staging:
   stage: release_staging
   script:
-    - git clean -df
-    - git reset --hard
+    - git clone https://$GITHUB_TOKEN@github.com/HumanCellAtlas/data-store.git ~/release && cd ~/release
+    - git checkout staging
     - scripts/fetch_secret.sh gcp-credentials.json > gcp-credentials.json
     - export GOOGLE_APPLICATION_CREDENTIALS=$(pwd -P)/gcp-credentials.json
     - make plan-infra
