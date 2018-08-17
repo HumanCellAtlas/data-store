@@ -39,6 +39,7 @@ import dss.index.es.backend
 from dss.index.backend import CompositeIndexBackend
 from dss.index.es.backend import ElasticsearchIndexBackend
 from dss.index.es import ElasticsearchClient
+from dss.index.bundle import Bundle
 from dss.index.es.document import BundleDocument, prepare_filename
 from dss.index.es.validator import scrub_index_data
 from dss.index.indexer import Indexer
@@ -954,29 +955,23 @@ class TestIndexerBase(ElasticsearchTestCase, DSSAssertMixin, DSSStorageMixin, DS
         uuid_ = resp_obj.json['uuid']
         return uuid_
 
-    def verify_index_document_structure_and_content(self, actual_index_document,
-                                                    bundle_key, files, excluded_files=None):
-        if excluded_files is None:
-            excluded_files = []
-        self.verify_index_document_structure(actual_index_document, files, excluded_files)
-        expected_index_document = generate_expected_index_document(self.blobstore, self.test_bucket, bundle_key,
-                                                                   excluded_files=excluded_files)
+    def verify_index_document_structure_and_content(self, actual_index_document, bundle_key, files):
+        bundle = Bundle.load(self.replica, BundleFQID.from_key(bundle_key))
+        expected_index_document = BundleDocument.from_bundle(bundle)
         if expected_index_document != actual_index_document:
             logger.error("Expected index document: %s", json.dumps(expected_index_document, indent=4))
             logger.error("Actual index document: %s", json.dumps(actual_index_document, indent=4))
             self.assertDictEqual(expected_index_document, actual_index_document)
 
-    def verify_index_document_structure(self, index_document, files, excluded_files):
+    def verify_index_document_structure(self, index_document, files):
         self.assertEqual(4, len(index_document.keys()))
         self.assertEqual("new", index_document['state'])
         self.assertIsNotNone(index_document['uuid'])
         self.assertIsNotNone(index_document['manifest'])
         self.assertIsNotNone(index_document['files'])
-        self.assertEqual((len(files) - len(excluded_files)),
-                         len(index_document['files'].keys()))
+        self.assertEqual(len(files), len(index_document['files'].keys()))
         for filename in files:
-            if filename not in excluded_files:
-                self.assertIsNotNone(index_document['files'][filename])
+            self.assertIsNotNone(index_document['files'][filename])
 
     def get_search_results(self, query, min_expected_hit_count):
         response = self.get_raw_search_results(query, min_expected_hit_count)
@@ -1253,52 +1248,6 @@ def create_s3_bucket(bucket_name) -> None:
     except ClientError as ex:
         if ex.response['Error']['Code'] != "BucketAlreadyOwnedByYou":
             logger.error(f"An unexpected error occured when creating test bucket: {bucket_name}")
-
-
-def generate_expected_index_document(blobstore, bucket_name, bundle_key, excluded_files=None):
-    if excluded_files is None:
-        excluded_files = []
-    manifest = read_bundle_manifest(blobstore, bucket_name, bundle_key)
-    index_data = create_index_data(blobstore, bucket_name, bundle_key, manifest, excluded_files)
-    return index_data
-
-
-def read_bundle_manifest(blobstore, bucket_name, bundle_key):
-    manifest_string = blobstore.get(bucket_name, bundle_key).decode("utf-8")
-    manifest = json.loads(manifest_string, encoding="utf-8")
-    return manifest
-
-
-def create_index_data(blobstore, bucket_name, bundle_key, manifest,
-                      excluded_files=None) -> typing.MutableMapping[str, typing.Any]:
-    if excluded_files is None:
-        excluded_files = []
-    index = dict(state="new", manifest=manifest, uuid=BundleFQID.from_key(bundle_key).uuid)
-    files_info = manifest['files']
-    excluded_file = [file.replace('_', '.') for file in excluded_files]
-    index_files: typing.Dict = {}
-    for file_info in files_info:
-        if file_info['indexed'] is True and file_info["name"] not in excluded_file:
-            try:
-                file_key = compose_blob_key(file_info)
-                content_type = file_info[BundleFileMetadata.CONTENT_TYPE]
-                if content_type != "application/json":
-                    continue
-                file_string = blobstore.get(bucket_name, file_key).decode("utf-8")
-                file_json = json.loads(file_string)
-            except Exception:
-                continue
-            index_filename = file_info["name"].replace(".", "_")
-            index_filename = prepare_filename(index_filename)
-            try:
-                file_list = index_files[index_filename]
-            except KeyError:
-                file_list = list()
-                index_files[index_filename] = file_list
-            file_list.append(file_json)
-    scrub_index_data(index_files, "test")
-    index['files'] = index_files
-    return index
 
 
 class MIME:
