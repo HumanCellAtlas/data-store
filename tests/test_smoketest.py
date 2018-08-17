@@ -88,7 +88,7 @@ class Smoketest(unittest.TestCase):
 
         # Configure the CLI
         #
-        cli_config = {"DSSClient": {"swagger_url": os.environ["SWAGGER_URL"]}}
+        cli_config = {"DSSClient": {"swagger_url": f"https://{os.environ['API_DOMAIN_NAME']}/v1/swagger.json"}}
         cli_config_filename = f"{cls.workdir.name}/cli_config.json"
         with open(cli_config_filename, "w") as fh2:
             fh2.write(json.dumps(cli_config))
