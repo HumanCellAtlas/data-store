@@ -1053,6 +1053,57 @@ paths:
                     enum: [illegal_version]
                 required:
                   - code
+        403:
+          description: >
+            Returned when credentials presented do not grant access to this collection.
+          schema:
+            allOf:
+              - $ref: '#/definitions/Error'
+              - type: object
+                properties:
+                  code:
+                    type: string
+                    description: >
+                      Machine-readable error code.  The types of return values should not be changed lightly.
+
+                      The code `Forbidden` indicates that the user does not have access to this collection.
+
+                      The code `OAuthResponseProblem` indicates that the OAuth credentials presented were not
+                      understood.
+                    enum: [Forbidden, OAuthResponseProblem]
+                required:
+                  - code
+        404:
+          description: >
+            Returned when the server could not find the collection to patch.
+          schema:
+            allOf:
+              - $ref: '#/definitions/Error'
+              - type: object
+                properties:
+                  code:
+                    type: string
+                    description: >
+                      Machine-readable error code.  The types of return values should not be changed lightly.
+                    enum: [not_found]
+                required:
+                  - code
+        422:
+          description: >
+            Returned when the server could not find some of the files necessary to complete the operation or if the JSON
+            Pointer reference could not be resolved within the specified file.
+          schema:
+            allOf:
+              - $ref: '#/definitions/Error'
+              - type: object
+                properties:
+                  code:
+                    type: string
+                    description: >
+                      Machine-readable error code.  The types of return values should not be changed lightly.
+                    enum: [invalid_link]
+                required:
+                  - code
         default:
           description: Unexpected error
           schema:
@@ -1064,13 +1115,7 @@ paths:
                     type: string
                     description: >
                       Machine-readable error code.  The types of return values should not be changed lightly.
-
-
-                      The code `invalid_link` indicates that an item listed in the collection contents field of the
-                      input could not be resolved (either because the file, bundle, or collection does not exist on the
-                      replica specified, or because the JSON Pointer reference could not be resolved within the
-                      specified file).
-                    enum: [unhandled_exception, Forbidden, OAuthResponseProblem, not_found, invalid_link]
+                    enum: [unhandled_exception, illegal_arguments]
                 required:
                   - code
     delete:
