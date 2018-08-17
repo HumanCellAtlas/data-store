@@ -66,12 +66,13 @@ aws_access_key_info = json.loads(
 
 boto3_session = boto3.session.Session()
 aws_account_id = boto3.client("sts").get_caller_identity()["Account"]
-relay_sns_topic = "dss-gs-bucket-events-" + os.environ["DSS_GS_BUCKET"]
+relay_sqs_queue_name = "dss-sync-" + os.environ["DSS_DEPLOYMENT_STAGE"]
+relay_sqs_queue_url = boto3_session.resource("sqs").get_queue_by_name(QueueName=relay_sqs_queue_name).url
 config_vars = {
     "AWS_ACCESS_KEY_ID": aws_access_key_info['AccessKey']['AccessKeyId'],
     "AWS_SECRET_ACCESS_KEY": aws_access_key_info['AccessKey']['SecretAccessKey'],
-    "AWS_REGION": os.environ['AWS_DEFAULT_REGION'],
-    "sns_topic_arn": f"arn:aws:sns:{boto3_session.region_name}:{aws_account_id}:{relay_sns_topic}"
+    "AWS_DEFAULT_REGION": os.environ['AWS_DEFAULT_REGION'],
+    "sqs_queue_url": relay_sqs_queue_url
 }
 
 config_ns = f"projects/{gcp_client.project}/configs"
@@ -99,8 +100,6 @@ with io.BytesIO() as buf:
         for root, dirs, files in os.walk(args.src_dir):
             for f in files:
                 archive_path = os.path.relpath(os.path.join(root, f), args.src_dir)
-                if archive_path.startswith("node_modules"):
-                    continue
                 print("Adding", archive_path)
                 zbuf.write(os.path.join(root, f), archive_path)
         zbuf.close()
@@ -131,10 +130,12 @@ with io.BytesIO() as buf:
 
 gcf_config = {
     "name": f"{gcf_ns}/{args.gcf_name}",
+    "runtime": "python37",
     "entryPoint": args.entry_point,
     "timeout": "60s",
     "availableMemoryMb": 256,
     "sourceUploadUrl": upload_url,
+    "environmentVariables": {},
     "eventTrigger": {
         "eventType": "providers/cloud.storage/eventTypes/object.change",
         "resource": "projects/_/buckets/" + os.environ['DSS_GS_BUCKET']
@@ -142,14 +143,14 @@ gcf_config = {
 }
 
 try:
-    print(gcf_conn.api_request("POST", f"/{gcf_ns}", data=gcf_config))
+    deploy_op = gcf_conn.api_request("POST", f"/{gcf_ns}", data=gcf_config)
 except google.cloud.exceptions.Conflict:
-    print(gcf_conn.api_request("PUT", f"/{gcf_ns}/{args.gcf_name}", data=gcf_config))
+    deploy_op = gcf_conn.api_request("PUT", f"/{gcf_ns}/{args.gcf_name}", data=gcf_config)
 
 sys.stderr.write("Waiting for deployment...")
 sys.stderr.flush()
 for t in range(600):
-    if gcf_conn.api_request("GET", f"/{gcf_ns}/{args.gcf_name}")["status"] != "DEPLOYING":
+    if gcf_conn.api_request("GET", f"/{deploy_op['name']}").get("response", {}).get("status") == "READY":
         break
     sys.stderr.write(".")
     sys.stderr.flush()

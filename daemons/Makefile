@@ -1,7 +1,7 @@
 include ../common.mk
 
 SERIAL_AWS_DAEMONS := \
-	dss-sync \
+	dss-sync-sfn \
 	dss-index
 
 SERIAL_GCP_DAEMONS :=
@@ -41,7 +41,7 @@ $(SERIAL_AWS_DAEMONS) $(PARALLEL_AWS_DAEMONS) scheduled-ci-build:
 	./package_daemon.sh $@
 	./build_deploy_config.sh $@
 	cd $@ && domovoi deploy --stage $(DSS_DEPLOYMENT_STAGE)
-	@if [[ $@ == "dss-sync" || $@ == "dss-index" ]]; then \
+	@if [[ $@ == "dss-sync-sfn" || $@ == "dss-index" ]]; then \
             ./invoke_lambda.sh $@ $(DSS_DEPLOYMENT_STAGE) \
             ../tests/daemons/sample_s3_bundle_created_event.json.template \
             ../tests/daemons/a47b90b2-0967-4fbf-87bc-c6c12db3fedf.2017-07-12T055120.037644Z; \

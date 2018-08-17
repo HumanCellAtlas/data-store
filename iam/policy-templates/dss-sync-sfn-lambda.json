@@ -14,15 +14,36 @@
       "Effect": "Allow",
       "Action": "s3:*",
       "Resource": [
-        "arn:aws:s3:::$DSS_S3_BUCKET",
-        "arn:aws:s3:::$DSS_S3_BUCKET/*"
+        "arn:aws:s3:::*",
+        "arn:aws:s3:::*/*"
       ]
+    },
+    {
+      "Effect": "Allow",
+      "Action": [
+        "states:StartExecution"
+      ],
+      "Resource": "arn:aws:states:*:$account_id:*:dss-*"
     },
     {
       "Effect": "Allow",
       "Action": "sns:Publish",
       "Resource": [
-        "arn:aws:sns:*:$account_id:dss-*-$stage"
+        "arn:aws:sns:*:*:*"
+      ]
+    },
+    {
+      "Effect": "Allow",
+      "Action": "sqs:*",
+      "Resource": [
+        "arn:aws:sqs:*:*:*"
+      ]
+    },
+    {
+      "Effect": "Allow",
+      "Action": "lambda:InvokeFunction",
+      "Resource": [
+        "arn:aws:lambda:*:$account_id:function:dss-*"
       ]
     },
     {

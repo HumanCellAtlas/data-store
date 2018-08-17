@@ -24,7 +24,6 @@ from cloud_blobstore import BlobNotFoundError
 MAX_METADATA_SIZE = 1024 * 1024
 
 logger = logging.getLogger(__name__)
-dss_bucket = Config.get_s3_bucket()
 
 def get_impl(uuid: str, replica: str, version: str = None):
     uuid = uuid.lower()
