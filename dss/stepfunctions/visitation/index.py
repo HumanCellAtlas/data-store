@@ -75,7 +75,7 @@ class IndexVisitation(Visitation):
                                               start_after_key=self.marker,
                                               token=self.token)
 
-            for key in blobs:
+            for key, metadata in blobs:
                 # Timing out while recording paging info could cause an inconsistent paging state, leading to repeats
                 # of large amounts of work. This can be avoided by checking for timeouts only during actual
                 # re-indexing. The indexer performs this check for every item.
