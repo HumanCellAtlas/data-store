@@ -83,7 +83,7 @@ def assert_authorized_issuer(token: typing.Mapping[str, typing.Any]) -> None:
 
 
 def assert_authorized_group(group: typing.List[str], token: dict) -> None:
-    if token.get(Config.get_group_claim()) in group:
+    if token.get(Config.get_OIDC_group_claim()) in group:
         return
     logger.info(f"User not in authorized group: {group}, {token}")
     raise DSSForbiddenException()

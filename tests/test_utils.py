@@ -107,7 +107,7 @@ class TestSecurity(unittest.TestCase):
 
     @mock.patch('dss.Config._TRUSTED_GOOGLE_PROJECTS', new=['test.iam.gserviceaccount.com'])
     def test_authorized_issuer(self):
-        valid_issuers = [{'iss': os.environ['OPEN_ID_PROVIDER']},
+        valid_issuers = [{'iss': os.environ['OPENID_PROVIDER']},
                          {'iss': "travis-test@test.iam.gserviceaccount.com",
                           'sub': "travis-test@test.iam.gserviceaccount.com"}
                          ]
@@ -145,7 +145,7 @@ class TestSecurity(unittest.TestCase):
                 with self.assertRaises(DSSForbiddenException):
                     security.assert_authorized_group(['hca'], token_info)
 
-    @mock.patch('dss.Config._JWT_AUDIENCE', new="https://dev.data.humancellatlas.org/")
+    @mock.patch('dss.Config._OIDC_AUDIENCE', new="https://dev.data.humancellatlas.org/")
     @mock.patch('dss.Config._TRUSTED_GOOGLE_PROJECTS', new=['cool-project-188401.iam.gserviceaccount.com'])
     def test_verify_jwt(self):
         jwts = [get_service_jwt(UNAUTHORIZED_GCP_CREDENTIALS)]

@@ -105,7 +105,7 @@ class Config:
     _CURRENT_CONFIG: BucketConfig = BucketConfig.ILLEGAL
     _NOTIFICATION_SENDER_EMAIL: typing.Optional[str] = None
     _TRUSTED_GOOGLE_PROJECTS: typing.Optional[typing.List[str]] = None
-    _JWT_AUDIENCE: typing.Optional[typing.List[str]] = None
+    _OIDC_AUDIENCE: typing.Optional[typing.List[str]] = None
 
     test_index_suffix = IndexSuffix()
 
@@ -351,7 +351,7 @@ class Config:
 
     @staticmethod
     def get_openid_provider():
-        return Config._get_required_envvar("OPEN_ID_PROVIDER")
+        return Config._get_required_envvar("OPENID_PROVIDER")
 
     @staticmethod
     def get_trusted_google_projects():
@@ -362,14 +362,14 @@ class Config:
 
     @staticmethod
     def get_audience():
-        if Config._JWT_AUDIENCE is None:
+        if Config._OIDC_AUDIENCE is None:
             audience = Config._get_required_envvar("AUDIENCE")
-            Config._JWT_AUDIENCE = audience.split(',')
-        return Config._JWT_AUDIENCE
+            Config._OIDC_AUDIENCE = audience.split(',')
+        return Config._OIDC_AUDIENCE
 
     @staticmethod
-    def get_group_claim():
-        return Config._get_required_envvar("GROUP_CLAIM")
+    def get_OIDC_group_claim():
+        return Config._get_required_envvar("OIDC_GROUP_CLAIM")
 
     @staticmethod
     def _get_required_envvar(envvar: str) -> str:

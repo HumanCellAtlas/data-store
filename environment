@@ -63,11 +63,12 @@ DSS_BLOB_TTL_DAYS=7
 DSS_BLOB_PUBLIC_TTL_DAYS=4
 DSS_NOTIFICATION_SENDER="DSS Notifier <dss.humancellatlas@gmail.com>"
 ADMIN_USER_EMAILS=""
-API_DOMAIN_NAME=dss.dev.data.humancellatlas.org
+DCP_DOMAIN=${DSS_DEPLOYMENT_STAGE}.data.humancellatlas.org
+API_DOMAIN_NAME="dss.${DCP_DOMAIN}"
 TOKENINFO_FUNC=dss.util.security.verify_jwt
-AUDIENCE=https://dev.data.humancellatlas.org/
-OPEN_ID_PROVIDER=https://humancellatlas.auth0.com/
-GROUP_CLAIM=https://auth.data.humancellatlas.org/group
+OIDC_AUDIENCE=https://dev.data.humancellatlas.org/
+OPENID_PROVIDER=https://humancellatlas.auth0.com/
+OIDC_GROUP_CLAIM=https://auth.data.humancellatlas.org/group
 NOTIFY_URL=https://${API_DOMAIN_NAME}/internal/notify
 DSS_SUBSCRIPTION_AUTHORIZED_DOMAINS_ARRAY=(
     {human-cell-atlas-travis-test,broad-dsde-mint-{dev,test,staging}}.iam.gserviceaccount.com

@@ -56,16 +56,16 @@ basePath: /v1
 produces:
   - application/json
 securityDefinitions:
-  fusilladeAuth:
+  dcpAuth:
     description: >
       The following claims must be present in the JWT:
-      - 'https://auth.data.humancellatlas.org/group': the user group this user belongs must be hca or public
-      - 'iss': must be https://humancellatlas.auth0.com/ or a trusted google project
-      - 'aud': audience must be https://dev.data.humancellatlas.org/ or https://data.humancellatlas.org/
-      - 'email': the email of the requester,
-    type: oauth2
+      - '{{OIDC_GROUP_CLAIM}}': the user group this user belongs.
+      - 'iss': must be {{OPENID_PROVIDER}} or a trusted google project.
+      - 'aud': audience must match {{API_DOMAIN_NAME}}.
+      - 'email': the email of the requester
+    type: openIdConnect
     flow: implicit
-    authorizationUrl: https://auth.dev.data.humancellatlas.org/authorize
+    authorizationUrl: https://auth.data.humancellatlas.org/authorize
     scopes:
       email: This scope value requests access to the email and email_verified Claims.
       openid: see http://openid.net/specs/openid-connect-core-1_0.html#ScopeClaims
@@ -522,7 +522,7 @@ paths:
         Return a list of associated subscriptions.
       operationId: dss.api.subscriptions.find
       security:
-        - fusilladeAuth: []
+        - dcpAuth: []
       parameters:
         - name: replica
           in: query
@@ -560,7 +560,7 @@ paths:
       description: >
         Register an HTTP endpoint that is to be notified when a given event occurs.
       security:
-        - fusilladeAuth: []
+        - dcpAuth: []
 
       parameters:
         - name: replica
@@ -759,7 +759,7 @@ paths:
       description: >
         Given a subscription UUID, return the associated subscription.
       security:
-        - fusilladeAuth: []
+        - dcpAuth: []
       parameters:
         - name: uuid
           in: path
@@ -800,7 +800,7 @@ paths:
         Delete a registered event subscription. The associated query will no longer trigger a callback
         if a matching document is added to the system.
       security:
-        - fusilladeAuth: []
+        - dcpAuth: []
       parameters:
         - name: uuid
           in: path
@@ -857,7 +857,7 @@ paths:
 
         Collections are replicated across storage replicas similarly to files and bundles.
       security:
-        - fusilladeAuth: []
+        - dcpAuth: []
       parameters:
         - name: replica
           in: query
@@ -922,7 +922,7 @@ paths:
       description: >
         Given a collection UUID, return the associated collection object.
       security:
-        - fusilladeAuth: []
+        - dcpAuth: []
       parameters:
         - name: uuid
           in: path
@@ -970,7 +970,7 @@ paths:
         Add or remove items from a collection. A specific version of the collection to update must be provided, and a
         new version will be written.
       security:
-        - fusilladeAuth: []
+        - dcpAuth: []
       parameters:
         - name: uuid
           in: path
@@ -1124,7 +1124,7 @@ paths:
       description: >
         Delete a collection.
       security:
-        - fusilladeAuth: []
+        - dcpAuth: []
       parameters:
         - name: uuid
           in: path
@@ -1411,7 +1411,7 @@ paths:
       description: >
         Delete the bundle with the given UUID. This deletion is applied across replicas.
       security:
-        - fusilladeAuth: []
+        - dcpAuth: []
       parameters:
         - name: uuid
           in: path
