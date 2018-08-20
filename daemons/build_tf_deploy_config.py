@@ -1,4 +1,7 @@
 #!/usr/bin/env python
+"""
+This script generates Terraform scripting needed for daemons that deploy infrastructure.
+"""
 
 import os
 import glob
