@@ -13,7 +13,6 @@ from cloud_blobstore.gs import GSBlobStore
 from google.cloud.storage import Client
 from google.auth.transport.requests import AuthorizedSession
 from google.oauth2 import service_account
-import google.resumable_media.common
 
 from dss.storage.hcablobstore import HCABlobStore
 from dss.storage.hcablobstore.s3 import S3HCABlobStore
