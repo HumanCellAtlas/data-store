@@ -522,7 +522,7 @@ paths:
         Return a list of associated subscriptions.
       operationId: dss.api.subscriptions.find
       security:
-        - dcpAuth: []
+        - fusilladeAuth: []
       parameters:
         - name: replica
           in: query
@@ -560,7 +560,7 @@ paths:
       description: >
         Register an HTTP endpoint that is to be notified when a given event occurs.
       security:
-        - dcpAuth: []
+        - fusilladeAuth: []
 
       parameters:
         - name: replica
@@ -759,7 +759,7 @@ paths:
       description: >
         Given a subscription UUID, return the associated subscription.
       security:
-        - dcpAuth: []
+        - fusilladeAuth: []
       parameters:
         - name: uuid
           in: path
@@ -800,7 +800,7 @@ paths:
         Delete a registered event subscription. The associated query will no longer trigger a callback
         if a matching document is added to the system.
       security:
-        - dcpAuth: []
+        - fusilladeAuth: []
       parameters:
         - name: uuid
           in: path
@@ -857,7 +857,7 @@ paths:
 
         Collections are replicated across storage replicas similarly to files and bundles.
       security:
-        - dcpAuth: []
+        - fusilladeAuth: []
       parameters:
         - name: replica
           in: query
@@ -922,7 +922,7 @@ paths:
       description: >
         Given a collection UUID, return the associated collection object.
       security:
-        - dcpAuth: []
+        - fusilladeAuth: []
       parameters:
         - name: uuid
           in: path
@@ -970,7 +970,7 @@ paths:
         Add or remove items from a collection. A specific version of the collection to update must be provided, and a
         new version will be written.
       security:
-        - dcpAuth: []
+        - fusilladeAuth: []
       parameters:
         - name: uuid
           in: path
@@ -1124,7 +1124,7 @@ paths:
       description: >
         Delete a collection.
       security:
-        - dcpAuth: []
+        - fusilladeAuth: []
       parameters:
         - name: uuid
           in: path
@@ -1411,7 +1411,7 @@ paths:
       description: >
         Delete the bundle with the given UUID. This deletion is applied across replicas.
       security:
-        - dcpAuth: []
+        - fusilladeAuth: []
       parameters:
         - name: uuid
           in: path
