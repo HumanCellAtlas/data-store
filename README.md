@@ -256,7 +256,15 @@ outside of AWS. Run `scripts/create_config_aws_event_relay_user.py` to create an
 restricted access policy. This script also creates the user access key and stores it in an AWS Secrets Manager
 store.
 
-#### Managing dependencies
+#### Daemons
+
+Several DSS components are deployed seperately as daemons, found in `$DSS_HOME/daemons`. Daemon deployment may incorperate
+dependent infrastructure, such SQS queues or SNS topics, by placing Terraform files in daemon directory, e.g.
+`$DSS_HOME/daemons/dss-admin/my_queue_defs.tf`. This infrastructure is deployed non-interactively, without the
+usual plan/review Terraform workflow, and should therefore be lightweight in nature. Large infrastructure should be
+added to `$DSS_HOME/infra` instead.
+
+####Managing dependencies
 
 The direct runtime dependencies of this project are defined in `requirements.txt.in`. Direct development dependencies
 are defined in `requirements-dev.txt.in`. All dependencies, direct and transitive, are defined in the corresponding
