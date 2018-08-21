@@ -363,7 +363,7 @@ class Config:
     @staticmethod
     def get_audience():
         if Config._OIDC_AUDIENCE is None:
-            audience = Config._get_required_envvar("AUDIENCE")
+            audience = Config._get_required_envvar("OIDC_AUDIENCE")
             Config._OIDC_AUDIENCE = audience.split(',')
         return Config._OIDC_AUDIENCE
 
