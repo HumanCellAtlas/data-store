@@ -63,7 +63,7 @@ securityDefinitions:
       - 'iss': must be {{OPENID_PROVIDER}} or a trusted google project.
       - 'aud': audience must match {{API_DOMAIN_NAME}}.
       - 'email': the email of the requester
-    type: openIdConnect
+    type: oauth2
     flow: implicit
     authorizationUrl: https://auth.data.humancellatlas.org/authorize
     scopes:
