@@ -28,6 +28,16 @@ deploy-serial: $(SERIAL_AWS_DAEMONS) $(SERIAL_GCP_DAEMONS)
 deploy-parallel: $(PARALLEL_AWS_DAEMONS) $(PARALLEL_GCP_DAEMONS)
 
 $(SERIAL_AWS_DAEMONS) $(PARALLEL_AWS_DAEMONS) scheduled-ci-build:
+	@for f in $@/*.tf; do \
+		echo "Terraforming $@"; \
+		if [ -e $$f ]; then \
+			rm -rf $@/.terraform/*.tfstate;\
+			./build_tf_deploy_config.py $@;\
+			(cd $@ ; terraform init);\
+			(cd $@ ; TF_VAR_daemon=$@ terraform apply -auto-approve);\
+		fi;\
+		break;\
+	done
 	./package_daemon.sh $@
 	./build_deploy_config.sh $@
 	cd $@ && domovoi deploy --stage $(DSS_DEPLOYMENT_STAGE)
