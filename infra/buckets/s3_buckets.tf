@@ -9,9 +9,9 @@ resource aws_s3_bucket dss_s3_bucket_test {
   lifecycle_rule {
     id      = "prune old things"
     enabled = true
-    abort_incomplete_multipart_upload_days = 7
+    abort_incomplete_multipart_upload_days = ${var.DSS_BLOB_TTL_DAYS}
     expiration {
-      days = 7
+      days = ${var.DSS_BLOB_TTL_DAYS}
     }
   }
 }
@@ -27,9 +27,9 @@ resource aws_s3_bucket dss_s3_checkout_bucket {
   lifecycle_rule {
     id      = "dss_checkout_expiration"
     enabled = true
-    abort_incomplete_multipart_upload_days = 7
+    abort_incomplete_multipart_upload_days = ${var.DSS_BLOB_TTL_DAYS}
     expiration {
-      days = 7
+      days = ${var.DSS_BLOB_TTL_DAYS}
     }
   }
 }
@@ -40,9 +40,9 @@ resource aws_s3_bucket dss_s3_checkout_bucket_test {
   lifecycle_rule {
     id      = "dss_checkout_expiration"
     enabled = true
-    abort_incomplete_multipart_upload_days = 7
+    abort_incomplete_multipart_upload_days = ${var.DSS_BLOB_TTL_DAYS}
     expiration {
-      days = 7
+      days = ${var.DSS_BLOB_TTL_DAYS}
     }
   }
 }
