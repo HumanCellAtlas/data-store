@@ -19,7 +19,7 @@ resource google_storage_bucket dss_gs_bucket_test {
       type = "Delete"
     }
     condition {
-      age = 7
+      age = ${var.DSS_BLOB_TTL_DAYS}
       is_live = true
     }
   }
@@ -45,7 +45,7 @@ resource google_storage_bucket dss_gs_checkout_bucket {
       type = "Delete"
     }
     condition {
-      age = 30
+      age = ${var.DSS_BLOB_TTL_DAYS}
       is_live = true
     }
   }
@@ -62,7 +62,7 @@ resource google_storage_bucket dss_gs_checkout_bucket_test {
       type = "Delete"
     }
     condition {
-      age = 7
+      age = ${var.DSS_BLOB_TTL_DAYS}
       is_live = true
     }
   }
