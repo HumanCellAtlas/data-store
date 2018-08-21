@@ -11,7 +11,7 @@ import functools
 import io
 import os
 
-import dss
+from dss import Config
 from dss.api import bundles
 from dss.util.version import datetime_to_version_format
 from dss.storage.identifiers import BundleFQID, FileFQID
@@ -91,7 +91,7 @@ def eventually(timeout: float, interval: float, errors: set={AssertionError}):
 
 
 def get_service_jwt(service_credentials, group: str=None):
-    audience = dss.Config.get_audience()
+    audience = Config.get_audience()
     iat = time.time()
     exp = iat + 3600
     payload = {'iss': service_credentials["client_email"],
@@ -103,7 +103,7 @@ def get_service_jwt(service_credentials, group: str=None):
                'scope': ['email', 'openid', 'offline_access']
                }
     if group:
-        payload["https://auth.data.humancellatlas.org/group"] = group
+        payload[Config.get_OIDC_group_claim()] = group
     additional_headers = {'kid': service_credentials["private_key_id"]}
     signed_jwt = jwt.encode(payload, service_credentials["private_key"], headers=additional_headers,
                             algorithm='RS256').decode()
