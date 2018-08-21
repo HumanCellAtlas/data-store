@@ -37,7 +37,7 @@ class TestApi(unittest.TestCase, DSSAssertMixin, DSSUploadMixin, DSSStorageMixin
         self.blobstore = dss.Config.get_blobstore_handle(self.replica)
         self.bucket = self.replica.bucket
 
-    BUNDLE_FIXTURE = 'fixtures/test_api/bundle'
+    BUNDLE_FIXTURE = "fixtures/indexing/bundles/vx/smartseq2/paired_ends"
 
     @testmode.standalone
     def test_creation_and_retrieval_of_files_and_bundle(self):
