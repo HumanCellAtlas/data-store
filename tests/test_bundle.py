@@ -12,6 +12,7 @@ import threading
 import time
 import typing
 import unittest
+from unittest import mock
 import urllib.parse
 import uuid
 import json
@@ -19,6 +20,7 @@ import json
 pkg_root = os.path.abspath(os.path.join(os.path.dirname(__file__), '..'))  # noqa
 sys.path.insert(0, pkg_root)  # noqa
 
+from cloud_blobstore import BlobMetadataField
 import dss
 from dss.api.bundles import RETRY_AFTER_INTERVAL
 from dss.config import BucketConfig, Config, override_bucket_config, Replica
@@ -221,6 +223,78 @@ class TestBundleApi(unittest.TestCase, DSSAssertMixin, DSSUploadMixin):
                 bundle_version,
                 expected_version
             )
+
+    @testmode.integration
+    def test_bundle_get_checkout(self):
+        self._test_bundle_get_checkout(Replica.aws, self.s3_test_fixtures_bucket)
+        self._test_bundle_get_checkout(Replica.gcp, self.gs_test_fixtures_bucket)
+
+    def _test_bundle_get_checkout(self, replica: Replica, test_fixtures_bucket: str):
+        schema = replica.storage_schema
+
+        # prep test bundle with files from test fixtures bucket
+        bundle_uuid = str(uuid.uuid4())
+        file_uuid_1 = str(uuid.uuid4())
+        file_uuid_2 = str(uuid.uuid4())
+        filenames = ["file_1", "file_2"]
+        resp_obj_1 = self.upload_file_wait(
+            f"{schema}://{test_fixtures_bucket}/test_good_source_data/0",
+            replica,
+            file_uuid_1,
+            bundle_uuid=bundle_uuid,
+        )
+        resp_obj_2 = self.upload_file_wait(
+            f"{schema}://{test_fixtures_bucket}/test_good_source_data/1",
+            replica,
+            file_uuid_2,
+            bundle_uuid=bundle_uuid,
+        )
+        file_version_1 = resp_obj_1.json['version']
+        file_version_2 = resp_obj_2.json['version']
+
+        bundle_version = datetime_to_version_format(datetime.datetime.utcnow())
+        self.put_bundle(
+            replica,
+            bundle_uuid,
+            [(file_uuid_1, file_version_1, filenames[0]), (file_uuid_2, file_version_2, filenames[1])],
+            bundle_version,
+        )
+
+        url = str(UrlBuilder()
+                  .set(path="/v1/bundles/" + bundle_uuid)
+                  .add_query("replica", replica.name)
+                  .add_query("version", bundle_version)
+                  .add_query("presignedurls", "true"))
+
+        with override_bucket_config(BucketConfig.TEST):
+            with self.subTest(f"{replica}: Initiate checkout if bundle has not been checked out"):
+                # assert 301 redirect on first GET
+                self.assertGetResponse(url, requests.codes.moved, redirect_follow_retries=0)
+                # assert 200 on subsequent GET
+                self.assertGetResponse(url, requests.codes.ok, redirect_follow_retries=2, override_retry_interval=3)
+
+            with self.subTest(f"{replica}: Initiate checkout if files in checkout bundle are stale"):
+                now = datetime.datetime.now(datetime.timezone.utc)
+                get_listing_fn = ("cloud_blobstore.s3.S3PagedIter.get_listing_from_response"
+                                  if replica.name == "aws"
+                                  else "cloud_blobstore.gs.GSPagedIter.get_listing_from_response")
+                with mock.patch(get_listing_fn) as mock_get_objects:
+                    # assert 301 redirect on stale file
+                    stale_last_modified = now - datetime.timedelta(days=int(os.environ['DSS_BLOB_PUBLIC_TTL_DAYS']) + 1)
+                    mock_get_objects.return_value = ((filename,
+                                                      {BlobMetadataField.LAST_MODIFIED: stale_last_modified})
+                                                     for filename in filenames)
+                    self.assertGetResponse(url, requests.codes.moved, redirect_follow_retries=0)
+                # assert 200 on subsequent GET
+                self.assertGetResponse(url, requests.codes.ok, redirect_follow_retries=2, override_retry_interval=3)
+
+            with self.subTest(f"{replica}: Initiate checkout if file is missing from checkout bundle"):
+                handle = Config.get_blobstore_handle(replica)
+                handle.delete(replica.checkout_bucket, f"bundles/{bundle_uuid}.{bundle_version}/file_1")
+                # assert 301 redirect on first GET
+                self.assertGetResponse(url, requests.codes.moved, redirect_follow_retries=0)
+                # assert 200 on subsequent GET
+                self.assertGetResponse(url, requests.codes.ok, redirect_follow_retries=2, override_retry_interval=3)
 
     @testmode.standalone
     def test_bundle_put(self):
