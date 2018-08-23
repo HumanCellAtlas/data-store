@@ -20,7 +20,7 @@ logger = logging.getLogger(__name__)
 
 
 @dss_handler
-@security.authorized_group_required(['hca'])
+@security.authorized_group_required(['hca', 'public'])
 def get(uuid: str, replica: str):
     owner = request.token_info['email']
 
@@ -45,7 +45,7 @@ def get(uuid: str, replica: str):
 
 
 @dss_handler
-@security.authorized_group_required(['hca'])
+@security.authorized_group_required(['hca', 'public'])
 def find(replica: str):
     owner = request.token_info['email']
     es_client = ElasticsearchClient.get()
@@ -67,7 +67,7 @@ def find(replica: str):
 
 
 @dss_handler
-@security.authorized_group_required(['hca'])
+@security.authorized_group_required(['hca', 'public'])
 def put(json_request_body: dict, replica: str):
     uuid = str(uuid4())
     es_query = json_request_body['es_query']
@@ -146,7 +146,7 @@ def put(json_request_body: dict, replica: str):
 
 
 @dss_handler
-@security.authorized_group_required(['hca'])
+@security.authorized_group_required(['hca', 'public'])
 def delete(uuid: str, replica: str):
     authenticated_user_email = request.token_info['email']
 

@@ -20,7 +20,7 @@ EXPORT_ENV_VARS_TO_LAMBDA_ARRAY=(
     DSS_S3_BUCKET
     DSS_GS_BUCKET
     API_DOMAIN_NAME
-    DSS_SUBSCRIPTION_AUTHORIZED_DOMAINS
+    DSS_AUTHORIZED_DOMAINS
     DSS_NOTIFICATION_SENDER
     DSS_S3_CHECKOUT_BUCKET
     DSS_GS_CHECKOUT_BUCKET
@@ -74,11 +74,11 @@ OIDC_AUDIENCE=https://dev.data.humancellatlas.org/
 OPENID_PROVIDER=https://humancellatlas.auth0.com/
 OIDC_GROUP_CLAIM=https://auth.data.humancellatlas.org/group
 NOTIFY_URL=https://${API_DOMAIN_NAME}/internal/notify
-DSS_SUBSCRIPTION_AUTHORIZED_DOMAINS_ARRAY=(
+DSS_AUTHORIZED_GOOGLE_PROJECT_DOMAIN_ARRAY=(
     {human-cell-atlas-travis-test,broad-dsde-mint-{dev,test,staging}}.iam.gserviceaccount.com
 )
-DSS_SUBSCRIPTION_AUTHORIZED_DOMAINS=${DSS_SUBSCRIPTION_AUTHORIZED_DOMAINS_ARRAY[*]}
-DSS_SUBSCRIPTION_AUTHORIZED_DOMAINS_TEST="human-cell-atlas-travis-test.iam.gserviceaccount.com"
+DSS_AUTHORIZED_DOMAINS=${DSS_AUTHORIZED_GOOGLE_PROJECT_DOMAIN_ARRAY[*]}
+DSS_AUTHORIZED_DOMAINS_TEST="human-cell-atlas-travis-test.iam.gserviceaccount.com"
 DSS_ES_DOMAIN="dss-index-$DSS_DEPLOYMENT_STAGE"
 DSS_ES_INSTANCE_TYPE="m4.large.elasticsearch"
 DSS_ES_VOLUME_SIZE="35"

@@ -101,7 +101,7 @@ class Config:
     BLOBSTORE_READ_TIMEOUT: float = None
     BLOBSTORE_RETRIES: int = None
 
-    _ALLOWED_EMAILS: typing.Optional[str] = None
+    _ALLOWED_GOOGLE_PROJECTS: typing.Optional[str] = None
     _CURRENT_CONFIG: BucketConfig = BucketConfig.ILLEGAL
     _NOTIFICATION_SENDER_EMAIL: typing.Optional[str] = None
     _TRUSTED_GOOGLE_PROJECTS: typing.Optional[typing.List[str]] = None
@@ -262,23 +262,23 @@ class Config:
         return Config._GS_CHECKOUT_BUCKET
 
     @staticmethod
-    def get_allowed_email_domains() -> str:
-        if Config._ALLOWED_EMAILS is None:
+    def get_allowed_google_project_domains() -> str:
+        if Config._ALLOWED_GOOGLE_PROJECTS is None:
             if Config._CURRENT_CONFIG == BucketConfig.NORMAL:
-                envvar = "DSS_SUBSCRIPTION_AUTHORIZED_DOMAINS"
+                envvar = "DSS_AUTHORIZED_DOMAINS"
             elif Config._CURRENT_CONFIG == BucketConfig.TEST:
-                envvar = "DSS_SUBSCRIPTION_AUTHORIZED_DOMAINS_TEST"
+                envvar = "DSS_AUTHORIZED_DOMAINS_TEST"
             elif Config._CURRENT_CONFIG == BucketConfig.TEST_FIXTURE:
-                envvar = "DSS_SUBSCRIPTION_AUTHORIZED_DOMAINS_TEST"
+                envvar = "DSS_AUTHORIZED_DOMAINS_TEST"
             elif Config._CURRENT_CONFIG == BucketConfig.ILLEGAL:
                 raise Exception("authorized domains config not set")
 
             if envvar not in os.environ:
                 raise Exception(
                     f"Please set the {envvar} environment variable")
-            Config._ALLOWED_EMAILS = os.environ[envvar]
+            Config._ALLOWED_GOOGLE_PROJECTS = os.environ[envvar]
 
-        return Config._ALLOWED_EMAILS
+        return Config._ALLOWED_GOOGLE_PROJECTS
 
     @staticmethod
     def get_es_index_name(index_type: ESIndexType,
@@ -324,7 +324,7 @@ class Config:
     @staticmethod
     def _clear_cached_email_config():
         # clear out the cached email settings.
-        Config._ALLOWED_EMAILS = None
+        Config._ALLOWED_GOOGLE_PROJECTS = None
         Config._NOTIFICATION_SENDER_EMAIL = None
 
     @staticmethod
@@ -356,7 +356,7 @@ class Config:
     @staticmethod
     def get_trusted_google_projects():
         if Config._TRUSTED_GOOGLE_PROJECTS is None:
-            Config._TRUSTED_GOOGLE_PROJECTS = [x for x in Config.get_allowed_email_domains().split()
+            Config._TRUSTED_GOOGLE_PROJECTS = [x for x in Config.get_allowed_google_project_domains().split()
                                                if x.endswith("iam.gserviceaccount.com")]
         return Config._TRUSTED_GOOGLE_PROJECTS
 
