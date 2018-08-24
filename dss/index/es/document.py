@@ -114,6 +114,7 @@ class BundleDocument(IndexDocument):
         scrub_index_data(files, str(self.fqid))
         self['files'] = files
         self['uuid'] = self.fqid.uuid
+        self['shape_descriptor'] = str(self.get_shape_descriptor())
         return self
 
     @classmethod

@@ -956,6 +956,7 @@ class TestIndexerBase(ElasticsearchTestCase, DSSAssertMixin, DSSStorageMixin, DS
         return uuid_
 
     def verify_index_document_structure_and_content(self, actual_index_document, bundle_key, files):
+        self.assertIn('shape_descriptor', actual_index_document)
         bundle = Bundle.load(self.replica, BundleFQID.from_key(bundle_key))
         expected_index_document = BundleDocument.from_bundle(bundle)
         if expected_index_document != actual_index_document:
