@@ -106,6 +106,7 @@ release_integration:
     url: https://dss.integration.data.humancellatlas.org
   only:
     - master
+  when: manual 
   allow_failure: true
 
 force_release_integration:
