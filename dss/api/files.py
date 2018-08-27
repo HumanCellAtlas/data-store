@@ -29,10 +29,6 @@ ASYNC_COPY_THRESHOLD = AWS_MIN_CHUNK_SIZE
 retry request after the specified interval."""
 RETRY_AFTER_INTERVAL = 10
 
-"""Probability of the 301 redirect with Retry-After header. This is a temporary measure, sets up downstream
-libraries / users for success when we start integrating this with the checkout service. """
-REDIRECT_PROBABILITY_PERCENTS = 5
-
 
 @dss_handler
 def head(uuid: str, replica: str, version: str=None, token: str=None):
