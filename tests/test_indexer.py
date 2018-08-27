@@ -428,6 +428,12 @@ class TestIndexerBase(ElasticsearchTestCase, DSSAssertMixin, DSSStorageMixin, DS
             self.process_new_indexable_object(sample_event)
             prefix, _, bundle_fqid = bundle_key.partition("/")
             self.verify_notification(subscription_id, smartseq2_paired_ends_vx_query, bundle_fqid, endpoint)
+        with self.subTest("A notification is received when an indexing event for a deleted bundle version replica "
+                          "matching my subscription is received."):
+            bundle_fqid = BundleFQID.from_key(bundle_key)
+            tombstone_id = bundle_fqid.to_tombstone_id()
+            self._create_tombstone(tombstone_id)
+            self.verify_notification(subscription_id, smartseq2_paired_ends_vx_query, str(bundle_fqid), endpoint)
         self.delete_subscription(subscription_id)
 
     def delete_subscription(self, subscription_id):
