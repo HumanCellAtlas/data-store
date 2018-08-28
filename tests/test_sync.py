@@ -143,10 +143,6 @@ class TestSyncUtils(unittest.TestCase):
         dest = sync.BlobLocation(platform="gs", bucket=self.gs_bucket, blob=None)
         sync.dispatch_multipart_sync(source, dest, context=Namespace(log=logging.info))
 
-    def test_sync_s3_to_gcsts(self):
-        # FIXME: (akislyuk) finish this test
-        sync.sync_s3_to_gcsts(self.gs.project, self.s3_bucket_name, self.gs_bucket_name, "test_key")
-
     payload = b''
     def get_payload(self, size):
         if len(self.payload) < size:
