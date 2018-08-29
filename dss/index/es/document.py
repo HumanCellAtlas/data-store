@@ -114,6 +114,7 @@ class BundleDocument(IndexDocument):
         scrub_index_data(files, str(self.fqid))
         self['files'] = files
         self['uuid'] = self.fqid.uuid
+        self['shape_descriptor'] = str(self._get_shape_descriptor())
         return self
 
     @classmethod
@@ -202,7 +203,7 @@ class BundleDocument(IndexDocument):
             refresh_percolate_queries(self.replica, index_name)
 
     def _prepare_index(self, dryrun):
-        shape_descriptor = self.get_shape_descriptor()
+        shape_descriptor = self['shape_descriptor']
         if shape_descriptor is not None:
             hashed_shape_descriptor = hashlib.sha1(str(shape_descriptor).encode("utf-8")).hexdigest()
         else:
@@ -213,7 +214,7 @@ class BundleDocument(IndexDocument):
             IndexManager.create_index(es_client, self.replica, index_name)
         return index_name
 
-    def get_shape_descriptor(self) -> typing.Optional[str]:
+    def _get_shape_descriptor(self) -> typing.Optional[str]:
         """
         Return a string identifying the shape/structure/format of the data in this bundle document, so that it may be
         indexed appropriately, or None if the shape cannot be determined, for example for lack of consistent schema

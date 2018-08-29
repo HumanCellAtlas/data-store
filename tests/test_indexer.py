@@ -292,7 +292,7 @@ class TestIndexerBase(ElasticsearchTestCase, DSSAssertMixin, DSSStorageMixin, DS
             self.assertEqual(expect_shape_descriptor, hashed_shape_descriptor in hits[0]['_index'])
 
         # Index document into the "wrong" index by patching the shape descriptor
-        with unittest.mock.patch.object(BundleDocument, 'get_shape_descriptor', return_value=shape_descriptor):
+        with unittest.mock.patch.object(BundleDocument, '_get_shape_descriptor', return_value=shape_descriptor):
             self.process_new_indexable_object(sample_event)
         # There should only be one hit and it should be from the "wrong" index
         _assert_reindexing_results(expect_shape_descriptor=True)
@@ -645,21 +645,21 @@ class TestIndexerBase(ElasticsearchTestCase, DSSAssertMixin, DSSStorageMixin, DS
                 'assay_json': [describedBy('assay', version)],
                 'sample_json': [describedBy('sample', version)]
             }
-            self.assertEqual(index_document.get_shape_descriptor(), "v5")
+            self.assertEqual(index_document._get_shape_descriptor(), "v5")
 
         with self.subTest("Mixed metadata schema versions"):
             index_document['files'] = {
                 'assay_json': [describedBy('assay', other_version)],
                 'sample_json': [describedBy('sample', version)]
             }
-            self.assertEqual(index_document.get_shape_descriptor(), f"v.assay.{other_version}.sample.{version}")
+            self.assertEqual(index_document._get_shape_descriptor(), f"v.assay.{other_version}.sample.{version}")
 
         with self.subTest(f"Consistent schema version {other_version}"):
             index_document['files'] = {
                 'assay_json': [describedBy('assay', other_version)],
                 'sample_json': [describedBy('sample', other_version)]
             }
-            self.assertEqual(index_document.get_shape_descriptor(), "v" + other_version)
+            self.assertEqual(index_document._get_shape_descriptor(), "v" + other_version)
 
         with self.subTest("One version present, one absent"):
             index_document['files'] = {
@@ -667,25 +667,25 @@ class TestIndexerBase(ElasticsearchTestCase, DSSAssertMixin, DSSStorageMixin, DS
                 'sample_json': [describedBy('sample', other_version)]
             }
             with self.assertLogs(dss.logger, level="WARNING") as log_monitor:
-                index_document.get_shape_descriptor()
+                index_document._get_shape_descriptor()
             self.assertRegexIn(r"WARNING:.*Unable to obtain JSON schema info from file 'assay_json'. The file "
                                r"will be indexed as is, without sanitization. This may prevent subsequent, "
                                r"valid files from being indexed correctly.", log_monitor.output)
-            self.assertEqual(index_document.get_shape_descriptor(), "v" + other_version)
+            self.assertEqual(index_document._get_shape_descriptor(), "v" + other_version)
 
         with self.subTest("No versions"):
             index_document['files'] = {
                 'assay_json': [{}],
                 'sample_json': [{}]
             }
-            self.assertEqual(index_document.get_shape_descriptor(), None)
+            self.assertEqual(index_document._get_shape_descriptor(), None)
 
         with self.subTest("Mixed versions for one type"):
             index_document['files'] = {
                 'sample1_json': [describedBy('sample', version)],
                 'sample2_json': [describedBy('sample', other_version)]
             }
-            self.assertEqual(index_document.get_shape_descriptor(),
+            self.assertEqual(index_document._get_shape_descriptor(),
                              f"v.sample1.sample.{version}.sample2.sample.{other_version}")
 
         def test_requirements(msg, file_name, schema, expected_error):
@@ -694,7 +694,7 @@ class TestIndexerBase(ElasticsearchTestCase, DSSAssertMixin, DSSStorageMixin, DS
                     file_name: [describedBy(schema, version)]
                 }
                 with self.assertRaises(RequirementError) as context:
-                    index_document.get_shape_descriptor()
+                    index_document._get_shape_descriptor()
                 self.assertEqual(context.exception.args[0], expected_error)
 
         test_requirements('Dot in file name', 'sample.json', 'sample',
@@ -962,6 +962,7 @@ class TestIndexerBase(ElasticsearchTestCase, DSSAssertMixin, DSSStorageMixin, DS
         return uuid_
 
     def verify_index_document_structure_and_content(self, actual_index_document, bundle_key, files):
+        self.assertIn('shape_descriptor', actual_index_document)
         bundle = Bundle.load(self.replica, BundleFQID.from_key(bundle_key))
         expected_index_document = BundleDocument.from_bundle(bundle)
         if expected_index_document != actual_index_document:

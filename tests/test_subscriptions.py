@@ -60,7 +60,7 @@ class TestSubscriptionsBase(ElasticsearchTestCase, DSSAssertMixin):
         super().setUp()
         self.alias_name = dss.Config.get_es_alias_name(dss.ESIndexType.docs, self.replica)
         self.sub_index_name = dss.Config.get_es_index_name(dss.ESIndexType.subscriptions, self.replica)
-        shape_identifier = self.index_document.get_shape_descriptor()
+        shape_identifier = self.index_document._get_shape_descriptor()
         shape_identifier = hashlib.sha1(f"{shape_identifier}".encode("utf-8")).hexdigest()
         self.doc_index_name = dss.Config.get_es_index_name(dss.ESIndexType.docs, self.replica, shape_identifier)
         es_client = ElasticsearchClient.get()
