@@ -1,5 +1,7 @@
 import io
 from enum import Enum, auto
+from random import choices
+from string import hexdigits
 
 from cloud_blobstore import BlobNotFoundError, BlobStoreUnknownError
 from dss.config import Config, Replica
@@ -57,7 +59,9 @@ def touch_test_file(replica: Replica, dst_bucket: str) -> bool:
     :param replica: the replica to execute the checkout in.
     :return: True if able to write, if not raise DestinationBucketNotWritableError.
     """
-    test_object = "touch.txt"
+    randomizer = ''.join(choices(hexdigits, k=2))
+    # Spreading the touch test file across a larger range prevents hitting a modification rate limits.
+    test_object = f"touch/{randomizer}.txt"
     handle = Config.get_blobstore_handle(replica)
 
     try:
