@@ -2,3 +2,5 @@ boto3 >= 1.5.12, < 2
 chalice >= 1.1.0, < 2
 pyjwt >= 1.5.3, < 2
 cryptography >= 2.3, < 3
+furl >= 1.2.1
+pyyaml

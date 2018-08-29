@@ -1,6 +1,6 @@
 import os, sys, hashlib, base64, json, functools
 from urllib.parse import urlsplit, urlunsplit, urlencode, quote, parse_qs
-
+from furl import furl
 import boto3
 from botocore.vendored import requests
 from chalice import Chalice, CognitoUserPoolAuthorizer, Response
@@ -64,7 +64,7 @@ def login():
 def authorize():
     if app.current_request.query_params is None:
         app.current_request.query_params = {}
-    openid_provider = os.environ["OPENID_PROVIDER"]
+    openid_provider = furl(os.environ["OPENID_PROVIDER"]).host
     app.current_request.query_params["openid_provider"] = openid_provider
     if "client_id" in app.current_request.query_params:
         # TODO: audit this
@@ -92,7 +92,7 @@ cognito_id_pool_id = "us-east-1:56424a42-0f50-4196-9ac2-fd19df4adb12"
 
 @app.route('/.well-known/openid-configuration')
 def serve_openid_config():
-    openid_provider = os.environ["OPENID_PROVIDER"]
+    openid_provider = furl(os.environ["OPENID_PROVIDER"]).host
     openid_config = get_openid_config(openid_provider)
     auth_host = app.current_request.headers['host']
     openid_config.update(authorization_endpoint=f"https://{auth_host}/authorize",
