@@ -8,7 +8,8 @@ DSS_S3_CHECKOUT_BUCKET=$DSS_S3_CHECKOUT_BUCKET_STAGING
 DSS_GS_CHECKOUT_BUCKET=$DSS_GS_CHECKOUT_BUCKET_STAGING
 # `staging` currently shares the ES domain with `dev`
 DSS_ES_DOMAIN=dss-index-dev
-API_DOMAIN_NAME=dss.staging.data.humancellatlas.org
+DCP_DOMAIN=${DSS_DEPLOYMENT_STAGE}.data.humancellatlas.org
+API_DOMAIN_NAME="dss.${DCP_DOMAIN}"
 
 DSS_GS_BUCKET_REGION=US
 DSS_GCP_SERVICE_ACCOUNT_NAME="org-humancellatlas-staging"

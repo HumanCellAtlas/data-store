@@ -10,7 +10,7 @@ import requests
 from cloud_blobstore import BlobNotFoundError, BlobStore, BlobStoreTimeoutError
 from flask import jsonify, redirect, request
 
-from dss import DSSException, dss_handler
+from dss import DSSException, dss_handler, DSSForbiddenException
 from dss.config import Config, Replica
 from dss.storage.blobstore import test_object_exists, ObjectTest
 from dss.storage.bundles import get_bundle_manifest
@@ -18,7 +18,7 @@ from dss.storage.checkout import CheckoutError, TokenError
 from dss.storage.checkout.bundle import verify_checkout
 from dss.storage.identifiers import BundleTombstoneID, BundleFQID, FileFQID
 from dss.storage.hcablobstore import BundleFileMetadata, BundleMetadata, FileMetadata, compose_blob_key
-from dss.util import UrlBuilder
+from dss.util import UrlBuilder, security
 from dss.util.version import datetime_to_version_format
 
 """The retry-after interval in seconds. Sets up downstream libraries / users to
@@ -228,15 +228,12 @@ def put(uuid: str, replica: str, json_request_body: dict, version: str):
 
 
 @dss_handler
+@security.authorized_group_required(['hca'])
 def delete(uuid: str, replica: str, json_request_body: dict, version: str=None):
     email = request.token_info['email']
 
     if email not in ADMIN_USER_EMAILS:
-        raise DSSException(
-            requests.codes.forbidden,
-            "forbidden",
-            f"You can't delete bundles with these credentials!",
-        )
+        raise DSSForbiddenException("You can't delete bundles with these credentials!")
 
     uuid = uuid.lower()
     version = datetime_to_version_format(iso8601.parse_date(version)) if version else None

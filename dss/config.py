@@ -13,7 +13,6 @@ from cloud_blobstore.gs import GSBlobStore
 from google.cloud.storage import Client
 from google.auth.transport.requests import AuthorizedSession
 from google.oauth2 import service_account
-import google.resumable_media.common
 
 from dss.storage.hcablobstore import HCABlobStore
 from dss.storage.hcablobstore.s3 import S3HCABlobStore
@@ -105,6 +104,8 @@ class Config:
     _ALLOWED_EMAILS: typing.Optional[str] = None
     _CURRENT_CONFIG: BucketConfig = BucketConfig.ILLEGAL
     _NOTIFICATION_SENDER_EMAIL: typing.Optional[str] = None
+    _TRUSTED_GOOGLE_PROJECTS: typing.Optional[typing.List[str]] = None
+    _OIDC_AUDIENCE: typing.Optional[typing.List[str]] = None
 
     test_index_suffix = IndexSuffix()
 
@@ -347,6 +348,35 @@ class Config:
         * 2 should enable verbose output by the application and its dependencies
         """
         return int(os.environ.get('DSS_DEBUG', '0'))
+
+    @staticmethod
+    def get_openid_provider():
+        return Config._get_required_envvar("OPENID_PROVIDER")
+
+    @staticmethod
+    def get_trusted_google_projects():
+        if Config._TRUSTED_GOOGLE_PROJECTS is None:
+            Config._TRUSTED_GOOGLE_PROJECTS = [x for x in Config.get_allowed_email_domains().split()
+                                               if x.endswith("iam.gserviceaccount.com")]
+        return Config._TRUSTED_GOOGLE_PROJECTS
+
+    @staticmethod
+    def get_audience():
+        if Config._OIDC_AUDIENCE is None:
+            audience = Config._get_required_envvar("OIDC_AUDIENCE")
+            Config._OIDC_AUDIENCE = audience.split(',')
+        return Config._OIDC_AUDIENCE
+
+    @staticmethod
+    def get_OIDC_group_claim():
+        return Config._get_required_envvar("OIDC_GROUP_CLAIM")
+
+    @staticmethod
+    def _get_required_envvar(envvar: str) -> str:
+        if envvar not in os.environ:
+            raise Exception(
+                "Please set the {} environment variable".format(envvar))
+        return os.environ[envvar]
 
     @classmethod
     def notification_is_async(cls) -> bool:
