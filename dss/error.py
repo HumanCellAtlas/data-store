@@ -1,9 +1,12 @@
+import typing
+
 import functools
 import traceback
 
 import requests
 import werkzeug.exceptions
 from connexion.lifecycle import ConnexionResponse
+from flask import Response as FlaskResponse
 
 
 class DSSException(Exception):
@@ -17,6 +20,27 @@ class DSSException(Exception):
 class DSSBindingException(DSSException):
     def __init__(self, title, *args, **kwargs) -> None:
         super().__init__(requests.codes.bad_request, "illegal_arguments", title, *args, **kwargs)
+
+
+class DSSForbiddenException(DSSException):
+    def __init__(self, title: str="User is not authorized to access this resource",
+                 *args, **kwargs) -> None:
+        super().__init__(requests.codes.forbidden,
+                         "Forbidden",
+                         title,
+                         *args, **kwargs)
+
+def dss_exception_handler(e: DSSException) -> FlaskResponse:
+    return FlaskResponse(
+        status=e.status,
+        mimetype="application/problem+json",
+        content_type="application/problem+json",
+        response={
+            'status': e.status,
+            'code': e.code,
+            'title': e.message,
+            'stacktrace': traceback.format_exc(),
+        })
 
 
 def dss_handler(func):
