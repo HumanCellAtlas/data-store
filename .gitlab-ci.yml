@@ -102,6 +102,10 @@ integration_test:
   stage: integration_test
   script:
     - make -j1 integration_test
+  only:
+    - master
+    - integration
+    - staging
 
 release_integration:
   stage: release
