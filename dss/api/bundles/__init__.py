@@ -82,7 +82,7 @@ def get(
         if directurls:
             file_version['url'] = str(UrlBuilder().set(
                 scheme=_replica.storage_schema,
-                netloc=_replica.bucket,
+                netloc=_replica.checkout_bucket,
                 path=compose_blob_key(file),
             ))
         elif presignedurls:

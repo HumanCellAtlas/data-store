@@ -121,6 +121,7 @@ class TestBundleApi(unittest.TestCase, DSSAssertMixin, DSSUploadMixin):
         hasher = hashlib.sha1()
         hasher.update(contents)
         sha1 = hasher.hexdigest()
+        self.assertEqual(bucket, replica.checkout_bucket)
         self.assertEqual(sha1, "2b8b815229aa8a61e483fb4ba0588b8b6c491890")
 
     @testmode.integration
