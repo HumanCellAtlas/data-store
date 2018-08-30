@@ -18,10 +18,9 @@ variables:
 
 stages:
   - test
-  - deploy_dev
+  - deploy
   - integration_test
-  - release_integration
-  - release_staging
+  - release
 
 before_script:
   - if not [[ CI_COMMIT_SHA == $(http GET ${GITHUB_API}/repos/HumanCellAtlas/data-store/commits sha==$CI_COMMIT_REF_NAME | jq -r '.[0]["sha"]') ]]; then exit 1; fi
@@ -32,6 +31,8 @@ before_script:
   - pip install -r requirements-dev.txt
   - source environment
   - if [[ -f "environment.$CI_COMMIT_REF_NAME" ]]; then source "environment.$CI_COMMIT_REF_NAME"; fi
+  - scripts/fetch_secret.sh gcp-credentials.json > gcp-credentials.json
+  - export GOOGLE_APPLICATION_CREDENTIALS=$(pwd -P)/gcp-credentials.json
 
 unit_tests:
   stage: test
@@ -65,10 +66,8 @@ test_subscriptions:
     - make -j1 tests/test_subscriptions.py
 
 deploy_dev:
-  stage: deploy_dev
+  stage: deploy
   script:
-    - aws secretsmanager get-secret-value --secret-id ${DSS_SECRETS_STORE}/${DSS_DEPLOYMENT_STAGE}/gcp-credentials.json | jq -r .SecretString > gcp-credentials.json
-    - export GOOGLE_APPLICATION_CREDENTIALS=$(pwd -P)/gcp-credentials.json
     - make plan-infra
     - make deploy
   environment:
@@ -77,13 +76,35 @@ deploy_dev:
   only:
     - master
 
+deploy_integration:
+  stage: deploy
+  script:
+    - make plan-infra
+    - make deploy
+  environment:
+    name: integration
+    url: https://dss.integration.data.humancellatlas.org
+  only:
+    - integration
+
+deploy_staging:
+  stage: deploy
+  script:
+    - make plan-infra
+    - make deploy
+  environment:
+    name: staging
+    url: https://dss.staging.data.humancellatlas.org
+  only:
+    - staging
+
 integration_test:
   stage: integration_test
   script:
     - make -j1 integration_test
 
 release_integration:
-  stage: release_integration
+  stage: release
   script:
     - git clone https://$GITHUB_TOKEN@github.com/HumanCellAtlas/data-store.git ~/release && cd ~/release
     - git checkout integration
@@ -97,36 +118,24 @@ release_integration:
     -   echo "DCP Integration test returned status ${status}";
     -   exit 1
     - fi
-    - scripts/fetch_secret.sh gcp-credentials.json > gcp-credentials.json
-    - export GOOGLE_APPLICATION_CREDENTIALS=$(pwd -P)/gcp-credentials.json
-    - make plan-infra
-    - yes 1 | scripts/release.sh master integration
-  environment:
-    name: integration
-    url: https://dss.integration.data.humancellatlas.org
+    - yes 1 | scripts/release.sh master integration --no-deploy
   only:
     - master
   when: manual 
   allow_failure: true
 
 force_release_integration:
-  stage: release_integration
+  stage: release
   script:
     - git clone https://$GITHUB_TOKEN@github.com/HumanCellAtlas/data-store.git ~/release && cd ~/release
     - git checkout integration
-    - scripts/fetch_secret.sh gcp-credentials.json > gcp-credentials.json
-    - export GOOGLE_APPLICATION_CREDENTIALS=$(pwd -P)/gcp-credentials.json
-    - make plan-infra
-    - yes 1 | scripts/release.sh master integration --force
-  environment:
-    name: integration
-    url: https://dss.integration.data.humancellatlas.org
+    - yes 1 | scripts/release.sh master integration --force --no-deploy
   only:
     - master
   when: manual 
 
 release_staging:
-  stage: release_staging
+  stage: release
   script:
     - git clone https://$GITHUB_TOKEN@github.com/HumanCellAtlas/data-store.git ~/release && cd ~/release
     - git checkout staging
@@ -140,29 +149,19 @@ release_staging:
     -   echo "DCP Integration test returned status ${status}";
     -   exit 1
     - fi
-    - scripts/fetch_secret.sh gcp-credentials.json > gcp-credentials.json
-    - export GOOGLE_APPLICATION_CREDENTIALS=$(pwd -P)/gcp-credentials.json
-    - make plan-infra
-    - yes 1 | scripts/release.sh integration staging
-  environment:
-    name: staging
-    url: https://dss.staging.data.humancellatlas.org
+    - yes 1 | scripts/release.sh integration staging --no-deploy
   only:
     - integration
   when: manual 
 
 force_release_staging:
-  stage: release_staging
+  stage: release
   script:
     - git clone https://$GITHUB_TOKEN@github.com/HumanCellAtlas/data-store.git ~/release && cd ~/release
     - git checkout staging
     - scripts/fetch_secret.sh gcp-credentials.json > gcp-credentials.json
     - export GOOGLE_APPLICATION_CREDENTIALS=$(pwd -P)/gcp-credentials.json
-    - make plan-infra
-    - yes 1 | scripts/release.sh integration staging --force
-  environment:
-    name: staging
-    url: https://dss.staging.data.humancellatlas.org
+    - yes 1 | scripts/release.sh integration staging --force --no-deploy
   only:
     - integration
   when: manual 
