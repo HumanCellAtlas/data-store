@@ -85,24 +85,26 @@ class TestBundleApi(unittest.TestCase, DSSAssertMixin, DSSUploadMixin):
 
     @testmode.integration
     def test_bundle_get_directaccess(self):
-        self._test_bundle_get_directaccess(Replica.aws)
-        self._test_bundle_get_directaccess(Replica.gcp)
+        self._test_bundle_get_directaccess(Replica.aws, True)
+        self._test_bundle_get_directaccess(Replica.aws, False)
+        self._test_bundle_get_directaccess(Replica.gcp, True)
+        self._test_bundle_get_directaccess(Replica.gcp, False)
 
-    def _test_bundle_get_directaccess(self, replica: Replica):
+    def _test_bundle_get_directaccess(self, replica: Replica, explicit_version: bool):
         schema = replica.storage_schema
 
         bundle_uuid = "011c7340-9b3c-4d62-bf49-090d79daf198"
         version = "2017-06-20T214506.766634Z"
 
-        url = str(UrlBuilder()
-                  .set(path="/v1/bundles/" + bundle_uuid)
-                  .add_query("replica", replica.name)
-                  .add_query("version", version)
-                  .add_query("directurls", "true"))
+        url = UrlBuilder().set(path="/v1/bundles/" + bundle_uuid)
+        url.add_query("replica", replica.name)
+        url.add_query("directurls", "true")
+        if explicit_version:
+            url.add_query("version", version)
 
         with override_bucket_config(BucketConfig.TEST_FIXTURE):
             resp_obj = self.assertGetResponse(
-                url,
+                str(url),
                 requests.codes.ok,
                 redirect_follow_retries=BUNDLE_GET_RETRY_COUNT,
                 min_retry_interval_header=RETRY_AFTER_INTERVAL,
@@ -110,7 +112,7 @@ class TestBundleApi(unittest.TestCase, DSSAssertMixin, DSSUploadMixin):
             )
 
         url = resp_obj.json['bundle']['files'][0]['url']
-        splitted = urllib.parse.urlparse(url)
+        splitted = urllib.parse.urlparse(url)  # type: ignore
         self.assertEqual(splitted.scheme, schema)
         bucket = splitted.netloc
         key = splitted.path[1:]  # ignore the / part of the path.
@@ -126,22 +128,24 @@ class TestBundleApi(unittest.TestCase, DSSAssertMixin, DSSUploadMixin):
 
     @testmode.integration
     def test_bundle_get_presigned(self):
-        self._test_bundle_get_presigned(Replica.aws)
-        self._test_bundle_get_presigned(Replica.gcp)
+        self._test_bundle_get_presigned(Replica.aws, True)
+        self._test_bundle_get_presigned(Replica.aws, False)
+        self._test_bundle_get_presigned(Replica.gcp, True)
+        self._test_bundle_get_presigned(Replica.gcp, False)
 
-    def _test_bundle_get_presigned(self, replica: Replica):
+    def _test_bundle_get_presigned(self, replica: Replica, explicit_version: bool):
         bundle_uuid = "011c7340-9b3c-4d62-bf49-090d79daf198"
         version = "2017-06-20T214506.766634Z"
 
-        url = str(UrlBuilder()
-                  .set(path="/v1/bundles/" + bundle_uuid)
-                  .add_query("replica", replica.name)
-                  .add_query("version", version)
-                  .add_query("presignedurls", "true"))
+        url = UrlBuilder().set(path="/v1/bundles/" + bundle_uuid)
+        url.add_query("replica", replica.name)
+        url.add_query("presignedurls", "true")
+        if explicit_version:
+            url.add_query("version", version)
 
         with override_bucket_config(BucketConfig.TEST_FIXTURE):
             resp_obj = self.assertGetResponse(
-                url,
+                str(url),
                 requests.codes.ok,
                 redirect_follow_retries=BUNDLE_GET_RETRY_COUNT,
                 min_retry_interval_header=RETRY_AFTER_INTERVAL,
@@ -149,7 +153,7 @@ class TestBundleApi(unittest.TestCase, DSSAssertMixin, DSSUploadMixin):
             )
 
         url = resp_obj.json['bundle']['files'][0]['url']
-        resp = requests.get(url)
+        resp = requests.get(str(url))
         contents = resp.content
 
         hasher = hashlib.sha1()

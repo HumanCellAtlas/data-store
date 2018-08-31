@@ -19,19 +19,19 @@ def start_bundle_checkout(
         replica: Replica,
         bundle_uuid: str,
         bundle_version: typing.Optional[str],
-        dst_bucket: typing.Optional[str] = None,
-        email_address: typing.Optional[str] = None,
+        dst_bucket: str,
+        email_address: typing.Optional[str]=None,
         *,
-        sts_bucket: typing.Optional[str] = None,
+        sts_bucket: typing.Optional[str]=None,
 ) -> str:
     """
     Starts a bundle checkout.
 
     :param bundle_uuid: The UUID of the bundle to check out.
-    :param bundle_version: The version of the bundle to check out.
+    :param bundle_version: The version of the bundle to check out.  If this is not provided, the latest version of the
+                           bundle is checked out.
     :param replica: The replica to execute the checkout in.
-    :param dst_bucket: If provided, check out to this bucket.  If not provided, check out to the default checkout bucket
-                       for the replica.
+    :param dst_bucket: Check out to this bucket.
     :param email_address: If provided, send a message to this email address with the status of the checkout.
     :param sts_bucket: If provided, write the status of the checkout to this bucket.  If not provided, write the status
                        to the default checkout bucket for the replica.
@@ -68,12 +68,12 @@ def start_bundle_checkout(
 def verify_checkout(
         replica: Replica,
         bundle_uuid: str,
-        bundle_version: str,
+        bundle_version: typing.Optional[str],
         token: typing.Optional[str]
 ) -> typing.Tuple[str, bool]:
     decoded_token: dict
     if token is None:
-        execution_id = start_bundle_checkout(replica, bundle_uuid, bundle_version)
+        execution_id = start_bundle_checkout(replica, bundle_uuid, bundle_version, dst_bucket=replica.checkout_bucket)
 
         decoded_token = {
             CheckoutTokenKeys.EXECUTION_ID: execution_id,
