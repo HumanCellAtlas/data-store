@@ -6,7 +6,8 @@ from urllib.parse import unquote
 from abc import ABCMeta, abstractmethod
 
 from dss import Config, Replica
-from dss.storage.identifiers import BundleFQID, FileFQID, ObjectIdentifier, ObjectIdentifierError, BundleTombstoneID
+from dss.storage.identifiers import BundleFQID, FileFQID, ObjectIdentifier, ObjectIdentifierError, BundleTombstoneID, \
+    CollectionFQID, CollectionTombstoneID
 from dss.util.time import RemainingTime
 from .backend import IndexBackend
 from .bundle import Bundle, Tombstone
@@ -47,6 +48,9 @@ class Indexer(metaclass=ABCMeta):
         elif isinstance(identifier, FileFQID):
             logger.debug(f"Indexing of individual files is not supported. "
                          f"Ignoring file {identifier} in {self.replica.name}.")
+        elif isinstance(identifier, (CollectionFQID, CollectionTombstoneID)):
+            logger.debug(f"Indexing of collections is not supported. "
+                         f"Ignoring collection {identifier} in {self.replica.name}.")
         else:
             assert False, f"{identifier} is of unknown type"
 
