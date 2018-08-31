@@ -15,9 +15,9 @@ from dss.config import Config, Replica
 from dss.storage.blobstore import test_object_exists, ObjectTest
 from dss.storage.bundles import get_bundle_manifest
 from dss.storage.checkout import CheckoutError, TokenError
-from dss.storage.checkout.bundle import verify_checkout
+from dss.storage.checkout.bundle import get_dst_bundle_prefix, verify_checkout
 from dss.storage.identifiers import BundleTombstoneID, BundleFQID, FileFQID
-from dss.storage.hcablobstore import BundleFileMetadata, BundleMetadata, FileMetadata, compose_blob_key
+from dss.storage.hcablobstore import BundleFileMetadata, BundleMetadata, FileMetadata
 from dss.util import UrlBuilder
 from dss.util.version import datetime_to_version_format
 
@@ -83,12 +83,20 @@ def get(
             file_version['url'] = str(UrlBuilder().set(
                 scheme=_replica.storage_schema,
                 netloc=_replica.checkout_bucket,
-                path=compose_blob_key(file),
+                path="{}/{}".format(
+                    get_dst_bundle_prefix(uuid, bundle_metadata[BundleMetadata.VERSION]),
+                    file[BundleFileMetadata.NAME],
+                ),
             ))
         elif presignedurls:
             handle = Config.get_blobstore_handle(_replica)
             file_version['url'] = handle.generate_presigned_GET_url(
-                _replica.bucket, compose_blob_key(file))
+                _replica.checkout_bucket,
+                "{}/{}".format(
+                    get_dst_bundle_prefix(uuid, bundle_metadata[BundleMetadata.VERSION]),
+                    file[BundleFileMetadata.NAME],
+                ),
+            )
         filesresponse.append(file_version)
 
     return dict(
