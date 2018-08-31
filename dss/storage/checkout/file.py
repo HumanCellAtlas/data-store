@@ -30,4 +30,4 @@ def get_dst_key(blob_key: str):
     :param blob_key: The key for the file's data in the DSS bucket.
     :return: The key for the file's data in the checkout bucket.
     """
-    return f"files/{blob_key}"
+    return f"{blob_key}"
