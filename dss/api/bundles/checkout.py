@@ -12,13 +12,15 @@ from dss.storage.checkout.bundle import get_bundle_checkout_status, start_bundle
 def post(uuid: str, json_request_body: dict, replica: str, version: str=None):
 
     assert replica is not None
+    _replica: Replica = Replica[replica]
+    dst_bucket = json_request_body.get('destination', _replica.checkout_bucket)
 
     try:
         execution_id = start_bundle_checkout(
-            Replica[replica],
+            _replica,
             uuid,
             version,
-            dst_bucket=json_request_body.get('destination', None),
+            dst_bucket=dst_bucket,
             email_address=json_request_body.get('email', None),
         )
     except BundleNotFoundError:
