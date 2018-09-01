@@ -116,7 +116,7 @@ requirements.txt requirements-dev.txt : %.txt : %.txt.in
 	echo "# You should not edit this file directly.  Instead, you should edit $<." >| $@
 	.$<-env/bin/pip freeze >> $@
 	rm -rf .$<-env
-	scripts/find_missing_wheels.py requirements.txt
+#	scripts/find_missing_wheels.py requirements.txt
 
 requirements-dev.txt : requirements.txt.in
 
