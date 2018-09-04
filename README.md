@@ -140,16 +140,6 @@ Hint: To create GCS buckets from the command line, use `gsutil mb -c regional -l
 
 1. Set the environment variables `AZURE_STORAGE_ACCOUNT_NAME` and `AZURE_STORAGE_ACCOUNT_KEY`.
 
-#### Authorization Variables
-The following environment variables must be set to enable user authentication.
-* OIDC_AUDIENCE must be populated with the3 expected JWT (Jave web token) audience.
-* OPENID_PROVIDER is the expected JWT
-* OIDC_GROUP_CLAIM is the JWT claim that specifies the group the users belongs to.
-
-
-`authorizationUrl` in **dss/dss-api.yml** must also be updated to point to an authorization endpoint with will return a 
-valid JWT.
-
 #### Running the DSS API locally
 
 Run `./dss-api` in the top-level `data-store` directory.
@@ -266,6 +256,17 @@ Environment variables provide the AWS credentials needed to relay events origina
 outside of AWS. Run `scripts/create_config_aws_event_relay_user.py` to create an AWS IAM user with the appropriate
 restricted access policy. This script also creates the user access key and stores it in an AWS Secrets Manager
 store.
+
+#### User Authorization Configuration
+The following environment variables must be set to enable user authentication.
+
+* OIDC_AUDIENCE must be populated with the3 expected JWT (Jave web token) audience.
+* OPENID_PROVIDER is the expected JWT
+* OIDC_GROUP_CLAIM is the JWT claim that specifies the group the users belongs to.
+
+
+`authorizationUrl` in **dss/dss-api.yml** must also be updated to point to an authorization endpoint with will return a 
+valid JWT.
 
 #### Daemons
 
