@@ -140,6 +140,16 @@ Hint: To create GCS buckets from the command line, use `gsutil mb -c regional -l
 
 1. Set the environment variables `AZURE_STORAGE_ACCOUNT_NAME` and `AZURE_STORAGE_ACCOUNT_KEY`.
 
+#### Authorization Variables
+The following environment variables must be set to enable user authentication.
+* OIDC_AUDIENCE must be populated with the3 expected JWT (Jave web token) audience.
+* OPENID_PROVIDER is the expected JWT
+* OIDC_GROUP_CLAIM is the JWT claim that specifies the group the users belongs to.
+
+
+`authorizationUrl` in **dss/dss-api.yml** must also be updated to point to an authorization endpoint with will return a 
+valid JWT.
+
 #### Running the DSS API locally
 
 Run `./dss-api` in the top-level `data-store` directory.
@@ -265,7 +275,7 @@ dependent infrastructure, such SQS queues or SNS topics, by placing Terraform fi
 usual plan/review Terraform workflow, and should therefore be lightweight in nature. Large infrastructure should be
 added to `$DSS_HOME/infra` instead.
 
-####Managing dependencies
+#### Managing dependencies
 
 The direct runtime dependencies of this project are defined in `requirements.txt.in`. Direct development dependencies
 are defined in `requirements-dev.txt.in`. All dependencies, direct and transitive, are defined in the corresponding
