@@ -203,33 +203,34 @@ of CLI use:
     # list bundles
     hca dss post-search --es-query "{}" --replica=aws | less
     # upload full bundle
-    hca dss upload --replica aws --staging-bucket staging_bucket_name --src-dir data-bundle-examples/smartseq2/paired_ends
+    hca dss upload --replica aws --staging-bucket staging_bucket_name --src-dir ${DSS_HOME}/tests/fixtures/datafiles/example_bundle
 
 #### Checking Indexing
 
 Now that you've uploaded data, the next step is to confirm the indexing is working properly and you can query the
 indexed metadata.
 
-    hca post-search --query '
+    hca dss post-search --replica aws --es-query '
     {
         "query": {
             "bool": {
                 "must": [{
                     "match": {
-                        "files.sample_json.donor.species": "Homo sapiens"
+                        "files.donor_organism_json.medical_history.smoking_history": "yes"
                     }
                 }, {
                     "match": {
-                        "files.assay_json.single_cell.method": "Fluidigm C1"
+                        "files.specimen_from_organism_json.genus_species.text": "Homo sapiens"
                     }
                 }, {
                     "match": {
-                        "files.sample_json.ncbi_biosample": "SAMN04303778"
+                        "files.specimen_from_organism_json.organ.text": "brain"
                     }
                 }]
             }
         }
-    }'
+    }
+'
 
 #### CI/CD with Travis CI
 

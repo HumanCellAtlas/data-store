@@ -138,13 +138,9 @@ def upload(uploader: Uploader):
     source_path = os.path.join(
         os.path.dirname(__file__),
         "datafiles",
-        "indexing",
-        "bundles",
-        "vx",
-        "smartseq2",
-        "paired_ends"
+        "example_bundle",
     )
-    target_path = "fixtures/indexing/bundles/vx/smartseq2/paired_ends"
+    target_path = "fixtures/example_bundle"
     for fname in files:
         uploader.checksum_and_upload_file(
             f"{source_path}/{fname}",

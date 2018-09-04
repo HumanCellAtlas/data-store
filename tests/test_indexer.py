@@ -125,7 +125,7 @@ class TestIndexerBase(ElasticsearchTestCase, DSSAssertMixin, DSSStorageMixin, DS
         self.subscription_index_name = dss.Config.get_es_index_name(dss.ESIndexType.subscriptions, self.replica)
         if self.replica not in self.bundle_key_by_replica:
             self.bundle_key_by_replica[self.replica] = self.load_test_data_bundle_for_path(
-                "fixtures/indexing/bundles/vx/smartseq2/paired_ends")
+                "fixtures/example_bundle")
         self.bundle_key = self.bundle_key_by_replica[self.replica]
 
     def process_new_indexable_object(self, event):
@@ -240,7 +240,7 @@ class TestIndexerBase(ElasticsearchTestCase, DSSAssertMixin, DSSStorageMixin, DS
 
     @testmode.standalone
     def test_reindexing_with_changed_content(self):
-        bundle_key = self.load_test_data_bundle_for_path("fixtures/indexing/bundles/vx/smartseq2/paired_ends")
+        bundle_key = self.load_test_data_bundle_for_path("fixtures/example_bundle")
         sample_event = self.create_bundle_created_event(bundle_key)
 
         @eventually(timeout=5.0, interval=0.5)
@@ -280,7 +280,7 @@ class TestIndexerBase(ElasticsearchTestCase, DSSAssertMixin, DSSStorageMixin, DS
 
     @testmode.standalone
     def test_reindexing_with_changed_shape(self):
-        bundle_key = self.load_test_data_bundle_for_path("fixtures/indexing/bundles/vx/smartseq2/paired_ends")
+        bundle_key = self.load_test_data_bundle_for_path("fixtures/example_bundle")
         sample_event = self.create_bundle_created_event(bundle_key)
         shape_descriptor = 'v99'
 
@@ -305,7 +305,7 @@ class TestIndexerBase(ElasticsearchTestCase, DSSAssertMixin, DSSStorageMixin, DS
 
     @testmode.standalone
     def test_indexed_file_with_invalid_content_type(self):
-        bundle = TestBundle(self.blobstore, "fixtures/indexing/bundles/vx/smartseq2/paired_ends",
+        bundle = TestBundle(self.blobstore, "fixtures/example_bundle",
                             self.test_fixture_bucket, self.replica)
         # Configure a file to be indexed that is not of context type 'application/json'
         for file in bundle.files:
@@ -353,7 +353,7 @@ class TestIndexerBase(ElasticsearchTestCase, DSSAssertMixin, DSSStorageMixin, DS
     def test_indexed_file_access_error(self):
         inaccesssible_filename = "inaccessible_file.json"
         bundle_key = self.load_test_data_bundle_with_inaccessible_file(
-            "fixtures/indexing/bundles/vx/smartseq2/paired_ends", inaccesssible_filename, "application/json", True)
+            "fixtures/example_bundle", inaccesssible_filename, "application/json", True)
         sample_event = self.create_bundle_created_event(bundle_key)
         with self.assertLogs(dss.logger, level="WARNING") as log_monitor:
             with self.assertRaises(RuntimeError):
@@ -422,8 +422,7 @@ class TestIndexerBase(ElasticsearchTestCase, DSSAssertMixin, DSSStorageMixin, DS
         with self.subTest("A notification is received when an indexing event for a modified bundle version replica "
                           "matching my subscription is received."):
             bundle_uuid = self.bundle_key.split('/')[1].split('.')[0]
-            bundle_key = self.load_test_data_bundle_for_path(
-                "fixtures/indexing/bundles/vx/smartseq2/paired_ends", bundle_uuid)
+            bundle_key = self.load_test_data_bundle_for_path("fixtures/example_bundle", bundle_uuid)
             sample_event = self.create_bundle_created_event(bundle_key)
             self.process_new_indexable_object(sample_event)
             prefix, _, bundle_fqid = bundle_key.partition("/")
@@ -535,7 +534,7 @@ class TestIndexerBase(ElasticsearchTestCase, DSSAssertMixin, DSSStorageMixin, DS
                                                           hmac_secret_key=NotificationRequestHandler.hmac_secret_key,
                                                           hmac_key_id="test",
                                                           **endpoint.to_dict())
-        bundle_key = self.load_test_data_bundle_for_path("fixtures/indexing/bundles/vx/smartseq2/paired_ends")
+        bundle_key = self.load_test_data_bundle_for_path("fixtures/example_bundle")
         sample_event = self.create_bundle_created_event(bundle_key)
         endpoint = NotificationRequestHandler.configure(endpoint, verify_payloads=True, response_code=500)
         with self.assertLogs(dss.logger, level="WARNING") as log_monitor:
