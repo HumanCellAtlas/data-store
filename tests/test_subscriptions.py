@@ -90,7 +90,7 @@ class TestSubscriptionsBase(ElasticsearchTestCase, DSSAssertMixin):
             self.assertGetResponse(url, requests.codes.unauthorized)
 
         with self.subTest("unauthorized group"):
-            self.assertGetResponse(url, requests.codes.forbidden, headers=get_auth_header(group='public'))
+            self.assertGetResponse(url, requests.codes.forbidden, headers=get_auth_header(group='someone'))
 
     def test_put(self):
         uuid_ = self._put_subscription()
