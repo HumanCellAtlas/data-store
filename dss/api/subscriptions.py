@@ -14,11 +14,13 @@ from dss.error import DSSException, dss_handler
 from dss.index.es import ElasticsearchClient
 from dss.index.es.manager import IndexManager
 from dss.notify import attachment
+from dss.util import security
 
 logger = logging.getLogger(__name__)
 
 
 @dss_handler
+@security.authorized_group_required(['hca'])
 def get(uuid: str, replica: str):
     owner = request.token_info['email']
 
@@ -43,6 +45,7 @@ def get(uuid: str, replica: str):
 
 
 @dss_handler
+@security.authorized_group_required(['hca'])
 def find(replica: str):
     owner = request.token_info['email']
     es_client = ElasticsearchClient.get()
@@ -64,6 +67,7 @@ def find(replica: str):
 
 
 @dss_handler
+@security.authorized_group_required(['hca'])
 def put(json_request_body: dict, replica: str):
     uuid = str(uuid4())
     es_query = json_request_body['es_query']
@@ -142,6 +146,7 @@ def put(json_request_body: dict, replica: str):
 
 
 @dss_handler
+@security.authorized_group_required(['hca'])
 def delete(uuid: str, replica: str):
     authenticated_user_email = request.token_info['email']
 

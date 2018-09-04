@@ -2,17 +2,16 @@ import datetime
 import json
 import time
 import uuid
+
+import jwt
 import tempfile
 import boto3
 
 import functools
-import google.auth
-import google.auth.transport.requests
 import io
 import os
-from google.auth.credentials import with_scopes_if_required
-from google.oauth2 import service_account
 
+from dss import Config
 from dss.api import bundles
 from dss.util.version import datetime_to_version_format
 from dss.storage.identifiers import BundleFQID, FileFQID
@@ -91,20 +90,32 @@ def eventually(timeout: float, interval: float, errors: set={AssertionError}):
     return decorate
 
 
-def get_auth_header(real_header=True, authorized=True):
+def get_service_jwt(service_credentials, group: str=None):
+    audience = Config.get_audience()
+    iat = time.time()
+    exp = iat + 3600
+    payload = {'iss': service_credentials["client_email"],
+               'sub': service_credentials["client_email"],
+               'aud': audience,
+               'iat': iat,
+               'exp': exp,
+               'email': service_credentials["client_email"],
+               'scope': ['email', 'openid', 'offline_access']
+               }
+    if group:
+        payload[Config.get_OIDC_group_claim()] = group
+    additional_headers = {'kid': service_credentials["private_key_id"]}
+    signed_jwt = jwt.encode(payload, service_credentials["private_key"], headers=additional_headers,
+                            algorithm='RS256').decode()
+    return signed_jwt
+
+
+def get_auth_header(real_header=True, authorized=True, group='hca'):
     if authorized:
         credential_file = os.environ['GOOGLE_APPLICATION_CREDENTIALS']
         with io.open(credential_file) as fh:
             info = json.load(fh)
     else:
         info = UNAUTHORIZED_GCP_CREDENTIALS
-
-    credentials = service_account.Credentials.from_service_account_info(info)
-    credentials = with_scopes_if_required(credentials, scopes=["https://www.googleapis.com/auth/userinfo.email"])
-    r = google.auth.transport.requests.Request()
-    credentials.refresh(r)
-    r.session.close()
-
-    token = credentials.token if real_header else str(uuid.uuid4())
-
+    token = get_service_jwt(info, group) if real_header else str(uuid.uuid4())
     return {"Authorization": f"Bearer {token}"}

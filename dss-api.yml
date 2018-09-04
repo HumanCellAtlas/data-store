@@ -56,13 +56,20 @@ basePath: /v1
 produces:
   - application/json
 securityDefinitions:
-  googAuth:
+  dcpAuth:
+    description: >
+      The following claims must be present in the JWT:
+      - '{{OIDC_GROUP_CLAIM}}': the user group this user belongs.
+      - 'iss': must be {{OPENID_PROVIDER}} or a trusted google project.
+      - 'aud': audience must match {{API_DOMAIN_NAME}}.
+      - 'email': the email of the requester
     type: oauth2
     flow: implicit
-    authorizationUrl: https://accounts.google.com/o/oauth2/v2/auth
-    x-tokenInfoUrl: https://www.googleapis.com/oauth2/v3/tokeninfo
+    authorizationUrl: https://auth.data.humancellatlas.org/authorize
     scopes:
-      https://www.googleapis.com/auth/userinfo.email: read user email
+      email: This scope value requests access to the email and email_verified Claims.
+      openid: see http://openid.net/specs/openid-connect-core-1_0.html#ScopeClaims
+      offline_access: see http://openid.net/specs/openid-connect-core-1_0.html#OfflineAccessPrivacy
 paths:
   /search:
     post:
@@ -515,8 +522,7 @@ paths:
         Return a list of associated subscriptions.
       operationId: dss.api.subscriptions.find
       security:
-        - googAuth:
-            - https://www.googleapis.com/auth/userinfo.email
+        - dcpAuth: []
       parameters:
         - name: replica
           in: query
@@ -554,8 +560,8 @@ paths:
       description: >
         Register an HTTP endpoint that is to be notified when a given event occurs.
       security:
-        - googAuth:
-            - https://www.googleapis.com/auth/userinfo.email
+        - dcpAuth: []
+
       parameters:
         - name: replica
           in: query
@@ -753,8 +759,7 @@ paths:
       description: >
         Given a subscription UUID, return the associated subscription.
       security:
-        - googAuth:
-            - https://www.googleapis.com/auth/userinfo.email
+        - dcpAuth: []
       parameters:
         - name: uuid
           in: path
@@ -795,8 +800,7 @@ paths:
         Delete a registered event subscription. The associated query will no longer trigger a callback
         if a matching document is added to the system.
       security:
-        - googAuth:
-            - https://www.googleapis.com/auth/userinfo.email
+        - dcpAuth: []
       parameters:
         - name: uuid
           in: path
@@ -853,8 +857,7 @@ paths:
 
         Collections are replicated across storage replicas similarly to files and bundles.
       security:
-        - googAuth:
-            - https://www.googleapis.com/auth/userinfo.email
+        - dcpAuth: []
       parameters:
         - name: replica
           in: query
@@ -919,8 +922,7 @@ paths:
       description: >
         Given a collection UUID, return the associated collection object.
       security:
-        - googAuth:
-            - https://www.googleapis.com/auth/userinfo.email
+        - dcpAuth: []
       parameters:
         - name: uuid
           in: path
@@ -968,8 +970,7 @@ paths:
         Add or remove items from a collection. A specific version of the collection to update must be provided, and a
         new version will be written.
       security:
-        - googAuth:
-            - https://www.googleapis.com/auth/userinfo.email
+        - dcpAuth: []
       parameters:
         - name: uuid
           in: path
@@ -1123,8 +1124,7 @@ paths:
       description: >
         Delete a collection.
       security:
-        - googAuth:
-            - https://www.googleapis.com/auth/userinfo.email
+        - dcpAuth: []
       parameters:
         - name: uuid
           in: path
@@ -1411,8 +1411,7 @@ paths:
       description: >
         Delete the bundle with the given UUID. This deletion is applied across replicas.
       security:
-        - googAuth:
-            - https://www.googleapis.com/auth/userinfo.email
+        - dcpAuth: []
       parameters:
         - name: uuid
           in: path
