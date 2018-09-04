@@ -97,7 +97,7 @@ class Smoketest(unittest.TestCase):
         # Prepare the bundle using stock metadata and random data
         #
         cls.bundle_dir = os.path.join(cls.workdir.name, "bundle")
-        shutil.copytree("tests/fixtures/example_bundle", cls.bundle_dir)
+        shutil.copytree("tests/fixtures/datafiles/example_bundle", cls.bundle_dir)
         with open(os.path.join(cls.bundle_dir, "async_copied_file"), "wb") as fh:
             fh.write(os.urandom(ASYNC_COPY_THRESHOLD + 1))
 
