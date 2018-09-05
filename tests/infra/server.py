@@ -44,7 +44,7 @@ class ThreadedLocalServer(threading.Thread):
         project_dir = os.path.join(os.path.dirname(__file__), "..", "..", "chalice")
         factory = CLIFactory(project_dir=project_dir)
         self._chalice_app = factory.load_chalice_app()
-        self._chalice_app._override_exptime_seconds = 86400  # something large.  sys.maxsize causes chalice to flip.
+        self._chalice_app._override_exptime_seconds = 30  # something large.  sys.maxsize causes chalice to flip.
 
         config = chalice.config.Config.create(lambda_timeout=self._chalice_app._override_exptime_seconds)
 
@@ -56,7 +56,7 @@ class ThreadedLocalServer(threading.Thread):
         return method(
             f"http://127.0.0.1:{self._port}{path}",
             allow_redirects=False,
-            timeout=(1.0, 30.0),
+            timeout=(1.0, 35.0),
             **kwargs)
 
     @classmethod
