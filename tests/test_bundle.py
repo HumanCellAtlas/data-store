@@ -92,7 +92,7 @@ class TestBundleApi(unittest.TestCase, DSSAssertMixin, DSSUploadMixin):
         self._test_bundle_get_directaccess(Replica.gcp, False)
 
     def _test_bundle_get_directaccess(self, replica: Replica, explicit_version: bool):
-        with self.subTest(f"{replica}, {explicit_version}"):
+        with self.subTest(f"{replica} {explicit_version}"):
             schema = replica.storage_schema
 
             bundle_uuid = "011c7340-9b3c-4d62-bf49-090d79daf198"
@@ -136,7 +136,7 @@ class TestBundleApi(unittest.TestCase, DSSAssertMixin, DSSUploadMixin):
         self._test_bundle_get_presigned(Replica.gcp, False)
 
     def _test_bundle_get_presigned(self, replica: Replica, explicit_version: bool):
-        with self.subTest(f"{replica}, {explicit_version}"):
+        with self.subTest(f"{replica} {explicit_version}"):
             bundle_uuid = "011c7340-9b3c-4d62-bf49-090d79daf198"
             version = "2017-06-20T214506.766634Z"
             url = UrlBuilder().set(path="/v1/bundles/" + bundle_uuid)
