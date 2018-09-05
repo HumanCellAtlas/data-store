@@ -111,8 +111,8 @@ class TestBundleApi(unittest.TestCase, DSSAssertMixin, DSSUploadMixin):
                 override_retry_interval=1,
             )
 
-        url = resp_obj.json['bundle']['files'][0]['url']
-        splitted = urllib.parse.urlparse(url)
+        directaccess_url = resp_obj.json['bundle']['files'][0]['url']
+        splitted = urllib.parse.urlparse(directaccess_url)
         self.assertEqual(splitted.scheme, schema)
         bucket = splitted.netloc
         key = splitted.path[1:]  # ignore the / part of the path.
@@ -152,8 +152,8 @@ class TestBundleApi(unittest.TestCase, DSSAssertMixin, DSSUploadMixin):
                 override_retry_interval=1,
             )
 
-        url = resp_obj.json['bundle']['files'][0]['url']
-        resp = requests.get(url)
+        presigned_url = resp_obj.json['bundle']['files'][0]['url']
+        resp = requests.get(presigned_url)
         contents = resp.content
 
         hasher = hashlib.sha1()
@@ -313,19 +313,18 @@ class TestBundleApi(unittest.TestCase, DSSAssertMixin, DSSUploadMixin):
 
         with self.subTest(f'{replica}: should *NOT* be able to upload a bundle with a missing file, but we should get '
                           'requests.codes.bad.'):
-            with nestedcontext.bind(time_left=lambda: 0):
-                bundle_version = datetime_to_version_format(datetime.datetime.utcnow())
-                resp_obj = self.put_bundle(
-                    replica,
-                    bundle_uuid,
-                    [
-                        (file_uuid, file_version, "LICENSE0"),
-                        (missing_file_uuid, file_version, "LICENSE1"),
-                    ],
-                    bundle_version,
-                    expected_code=requests.codes.bad
-                )
-                self.assertEqual(resp_obj.json['code'], "file_missing")
+            bundle_version = datetime_to_version_format(datetime.datetime.utcnow())
+            resp_obj = self.put_bundle(
+                replica,
+                bundle_uuid,
+                [
+                    (file_uuid, file_version, "LICENSE0"),
+                    (missing_file_uuid, file_version, "LICENSE1"),
+                ],
+                bundle_version,
+                expected_code=requests.codes.bad
+            )
+            self.assertEqual(resp_obj.json['code'], "file_missing")
 
         with self.subTest(f'{replica}: uploads a file, but delete the file metadata. put it back after a delay.'):
             self.upload_file_wait(
