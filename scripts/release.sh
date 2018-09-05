@@ -1,7 +1,5 @@
 #!/bin/bash
 
-source "$(dirname $0)/../environment"
-
 set -euo pipefail
 
 # This block discovers the command line flags `--force` and  `--no-deploy`,
@@ -106,7 +104,7 @@ fi
 
 RELEASE_TAG=${PROMOTE_DEST_BRANCH}-$(date -u +"%Y-%m-%d-%H-%M-%S").release
 
-if [[ "$(git --no-pager log --graph --abbrev-commit --pretty=oneline --no-merges $PROMOTE_DEST_BRANCH ^$PROMOTE_FROM_BRANCH)" != "" ]]; then
+if [[ "$(git --no-pager log --graph --abbrev-commit --pretty=oneline --no-merges -- $PROMOTE_DEST_BRANCH ^$PROMOTE_FROM_BRANCH)" != "" ]]; then
     echo "Warning: The following commits are present on $PROMOTE_DEST_BRANCH but not on $PROMOTE_FROM_BRANCH"
     git --no-pager log --graph --abbrev-commit --pretty=oneline --no-merges $PROMOTE_DEST_BRANCH ^$PROMOTE_FROM_BRANCH
     if [[ $# == 3 ]] && [[ $FORCE == "--force" ]]; then

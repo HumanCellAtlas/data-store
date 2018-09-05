@@ -3,17 +3,10 @@ image: humancellatlas/dss-build-box
 # `${DSS_HOME}/Dockerfile.allspark`. See the contents of `${DSS_HOME}/Dockerfile.allspark`
 # creation and usage instructions.
 
-cache:
-  paths:
-  - chalice/.chalice/venv
-  - daemons/dss-sync/.chalice/venv
-  - daemons/dss-index/.chalice/venv
-
 variables:
   GIT_SUBMODULE_STRATEGY: normal
   DSS_ES_TIMEOUT: 30
   DSS_UNITTEST_OPTS: "-v"
-  TERRAFORM_APPLY_ARGS: "-auto-approve"
   GITHUB_API: "https://api.github.com"
 
 stages:
@@ -31,6 +24,7 @@ before_script:
   - pip install -r requirements-dev.txt
   - source environment
   - if [[ -f "environment.$CI_COMMIT_REF_NAME" ]]; then source "environment.$CI_COMMIT_REF_NAME"; fi
+  - scripts/fetch_secret.sh application_secrets.json > application_secrets.json
   - scripts/fetch_secret.sh gcp-credentials.json > gcp-credentials.json
   - export GOOGLE_APPLICATION_CREDENTIALS=$(pwd -P)/gcp-credentials.json
 
@@ -110,8 +104,6 @@ integration_test:
 release_integration:
   stage: release
   script:
-    - git clone https://$GITHUB_TOKEN@github.com/HumanCellAtlas/data-store.git ~/release && cd ~/release
-    - git checkout integration
     - for i in $(seq 1 40); do
     -   status=$(scripts/status.sh HumanCellAtlas dcp integration)
     -   if [[ pending != "${status}" && running != "${status}" ]]; then break; fi
@@ -125,26 +117,22 @@ release_integration:
     - yes 1 | scripts/release.sh master integration --no-deploy
   only:
     - master
-  when: manual 
+  when: manual
   allow_failure: true
 
 force_release_integration:
   stage: release
   script:
-    - git clone https://$GITHUB_TOKEN@github.com/HumanCellAtlas/data-store.git ~/release && cd ~/release
-    - git checkout integration
     - yes 1 | scripts/release.sh master integration --force --no-deploy
   only:
     - master
-  when: manual 
+  when: manual
 
 release_staging:
   stage: release
   script:
-    - git clone https://$GITHUB_TOKEN@github.com/HumanCellAtlas/data-store.git ~/release && cd ~/release
-    - git checkout staging
     - for i in $(seq 1 40); do
-    -   status=$(scripts/status.sh HumanCellAtlas dcp integration)
+    -   status=$(scripts/status.sh HumanCellAtlas dcp staging)
     -   if [[ pending != "${status}" && running != "${status}" ]]; then break; fi
     -   echo "waiting for DCP Integration test to complete";
     -   sleep 30;  # This loop will check status for 20 minutes and then quit
@@ -161,11 +149,7 @@ release_staging:
 force_release_staging:
   stage: release
   script:
-    - git clone https://$GITHUB_TOKEN@github.com/HumanCellAtlas/data-store.git ~/release && cd ~/release
-    - git checkout staging
-    - scripts/fetch_secret.sh gcp-credentials.json > gcp-credentials.json
-    - export GOOGLE_APPLICATION_CREDENTIALS=$(pwd -P)/gcp-credentials.json
     - yes 1 | scripts/release.sh integration staging --force --no-deploy
   only:
     - integration
-  when: manual 
+  when: manual
