@@ -56,32 +56,33 @@ class TestBundleApi(unittest.TestCase, DSSAssertMixin, DSSUploadMixin):
         self._test_bundle_get(Replica.gcp)
 
     def _test_bundle_get(self, replica: Replica):
-        bundle_uuid = "011c7340-9b3c-4d62-bf49-090d79daf198"
-        version = "2017-06-20T214506.766634Z"
+        with self.subTest(replica):
+            bundle_uuid = "011c7340-9b3c-4d62-bf49-090d79daf198"
+            version = "2017-06-20T214506.766634Z"
 
-        url = str(UrlBuilder()
-                  .set(path="/v1/bundles/" + bundle_uuid)
-                  .add_query("replica", replica.name)
-                  .add_query("version", version))
+            url = str(UrlBuilder()
+                      .set(path="/v1/bundles/" + bundle_uuid)
+                      .add_query("replica", replica.name)
+                      .add_query("version", version))
 
-        with override_bucket_config(BucketConfig.TEST_FIXTURE):
-            resp_obj = self.assertGetResponse(
-                url,
-                requests.codes.ok)
+            with override_bucket_config(BucketConfig.TEST_FIXTURE):
+                resp_obj = self.assertGetResponse(
+                    url,
+                    requests.codes.ok)
 
-        self.assertEqual(resp_obj.json['bundle']['uuid'], bundle_uuid)
-        self.assertEqual(resp_obj.json['bundle']['version'], version)
-        self.assertEqual(resp_obj.json['bundle']['creator_uid'], 12345)
-        self.assertEqual(resp_obj.json['bundle']['files'][0]['content-type'], "text/plain")
-        self.assertEqual(resp_obj.json['bundle']['files'][0]['size'], 11358)
-        self.assertEqual(resp_obj.json['bundle']['files'][0]['crc32c'], "e16e07b9")
-        self.assertEqual(resp_obj.json['bundle']['files'][0]['name'], "LICENSE")
-        self.assertEqual(resp_obj.json['bundle']['files'][0]['s3_etag'], "3b83ef96387f14655fc854ddc3c6bd57")
-        self.assertEqual(resp_obj.json['bundle']['files'][0]['sha1'], "2b8b815229aa8a61e483fb4ba0588b8b6c491890")
-        self.assertEqual(resp_obj.json['bundle']['files'][0]['sha256'],
-                         "cfc7749b96f63bd31c3c42b5c471bf756814053e847c10f3eb003417bc523d30")
-        self.assertEqual(resp_obj.json['bundle']['files'][0]['uuid'], "ce55fd51-7833-469b-be0b-5da88ebebfcd")
-        self.assertEqual(resp_obj.json['bundle']['files'][0]['version'], "2017-06-16T193604.240704Z")
+            self.assertEqual(resp_obj.json['bundle']['uuid'], bundle_uuid)
+            self.assertEqual(resp_obj.json['bundle']['version'], version)
+            self.assertEqual(resp_obj.json['bundle']['creator_uid'], 12345)
+            self.assertEqual(resp_obj.json['bundle']['files'][0]['content-type'], "text/plain")
+            self.assertEqual(resp_obj.json['bundle']['files'][0]['size'], 11358)
+            self.assertEqual(resp_obj.json['bundle']['files'][0]['crc32c'], "e16e07b9")
+            self.assertEqual(resp_obj.json['bundle']['files'][0]['name'], "LICENSE")
+            self.assertEqual(resp_obj.json['bundle']['files'][0]['s3_etag'], "3b83ef96387f14655fc854ddc3c6bd57")
+            self.assertEqual(resp_obj.json['bundle']['files'][0]['sha1'], "2b8b815229aa8a61e483fb4ba0588b8b6c491890")
+            self.assertEqual(resp_obj.json['bundle']['files'][0]['sha256'],
+                             "cfc7749b96f63bd31c3c42b5c471bf756814053e847c10f3eb003417bc523d30")
+            self.assertEqual(resp_obj.json['bundle']['files'][0]['uuid'], "ce55fd51-7833-469b-be0b-5da88ebebfcd")
+            self.assertEqual(resp_obj.json['bundle']['files'][0]['version'], "2017-06-16T193604.240704Z")
 
     @testmode.integration
     def test_bundle_get_directaccess(self):
@@ -91,40 +92,41 @@ class TestBundleApi(unittest.TestCase, DSSAssertMixin, DSSUploadMixin):
         self._test_bundle_get_directaccess(Replica.gcp, False)
 
     def _test_bundle_get_directaccess(self, replica: Replica, explicit_version: bool):
-        schema = replica.storage_schema
+        with self.subTest(f"{replica} {explicit_version}"):
+            schema = replica.storage_schema
 
-        bundle_uuid = "011c7340-9b3c-4d62-bf49-090d79daf198"
-        version = "2017-06-20T214506.766634Z"
+            bundle_uuid = "011c7340-9b3c-4d62-bf49-090d79daf198"
+            version = "2017-06-20T214506.766634Z"
 
-        url = UrlBuilder().set(path="/v1/bundles/" + bundle_uuid)
-        url.add_query("replica", replica.name)
-        url.add_query("directurls", "true")
-        if explicit_version:
-            url.add_query("version", version)
+            url = UrlBuilder().set(path="/v1/bundles/" + bundle_uuid)
+            url.add_query("replica", replica.name)
+            url.add_query("directurls", "true")
+            if explicit_version:
+                url.add_query("version", version)
 
-        with override_bucket_config(BucketConfig.TEST_FIXTURE):
-            resp_obj = self.assertGetResponse(
-                str(url),
-                requests.codes.ok,
-                redirect_follow_retries=BUNDLE_GET_RETRY_COUNT,
-                min_retry_interval_header=RETRY_AFTER_INTERVAL,
-                override_retry_interval=1,
-            )
+            with override_bucket_config(BucketConfig.TEST_FIXTURE):
+                resp_obj = self.assertGetResponse(
+                    str(url),
+                    requests.codes.ok,
+                    redirect_follow_retries=BUNDLE_GET_RETRY_COUNT,
+                    min_retry_interval_header=RETRY_AFTER_INTERVAL,
+                    override_retry_interval=1,
+                )
 
-        url = resp_obj.json['bundle']['files'][0]['url']
-        splitted = urllib.parse.urlparse(url)  # type: ignore
-        self.assertEqual(splitted.scheme, schema)
-        bucket = splitted.netloc
-        key = splitted.path[1:]  # ignore the / part of the path.
+            url = resp_obj.json['bundle']['files'][0]['url']
+            splitted = urllib.parse.urlparse(url)  # type: ignore
+            self.assertEqual(splitted.scheme, schema)
+            bucket = splitted.netloc
+            key = splitted.path[1:]  # ignore the / part of the path.
 
-        handle = Config.get_blobstore_handle(replica)
-        contents = handle.get(bucket, key)
+            handle = Config.get_blobstore_handle(replica)
+            contents = handle.get(bucket, key)
 
-        hasher = hashlib.sha1()
-        hasher.update(contents)
-        sha1 = hasher.hexdigest()
-        self.assertEqual(bucket, replica.checkout_bucket)
-        self.assertEqual(sha1, "2b8b815229aa8a61e483fb4ba0588b8b6c491890")
+            hasher = hashlib.sha1()
+            hasher.update(contents)
+            sha1 = hasher.hexdigest()
+            self.assertEqual(bucket, replica.checkout_bucket)
+            self.assertEqual(sha1, "2b8b815229aa8a61e483fb4ba0588b8b6c491890")
 
     @testmode.integration
     def test_bundle_get_presigned(self):
@@ -134,32 +136,32 @@ class TestBundleApi(unittest.TestCase, DSSAssertMixin, DSSUploadMixin):
         self._test_bundle_get_presigned(Replica.gcp, False)
 
     def _test_bundle_get_presigned(self, replica: Replica, explicit_version: bool):
-        bundle_uuid = "011c7340-9b3c-4d62-bf49-090d79daf198"
-        version = "2017-06-20T214506.766634Z"
+        with self.subTest(f"{replica} {explicit_version}"):
+            bundle_uuid = "011c7340-9b3c-4d62-bf49-090d79daf198"
+            version = "2017-06-20T214506.766634Z"
+            url = UrlBuilder().set(path="/v1/bundles/" + bundle_uuid)
+            url.add_query("replica", replica.name)
+            url.add_query("presignedurls", "true")
+            if explicit_version:
+                url.add_query("version", version)
 
-        url = UrlBuilder().set(path="/v1/bundles/" + bundle_uuid)
-        url.add_query("replica", replica.name)
-        url.add_query("presignedurls", "true")
-        if explicit_version:
-            url.add_query("version", version)
+            with override_bucket_config(BucketConfig.TEST_FIXTURE):
+                resp_obj = self.assertGetResponse(
+                    str(url),
+                    requests.codes.ok,
+                    redirect_follow_retries=BUNDLE_GET_RETRY_COUNT,
+                    min_retry_interval_header=RETRY_AFTER_INTERVAL,
+                    override_retry_interval=1,
+                )
 
-        with override_bucket_config(BucketConfig.TEST_FIXTURE):
-            resp_obj = self.assertGetResponse(
-                str(url),
-                requests.codes.ok,
-                redirect_follow_retries=BUNDLE_GET_RETRY_COUNT,
-                min_retry_interval_header=RETRY_AFTER_INTERVAL,
-                override_retry_interval=1,
-            )
+            url = resp_obj.json['bundle']['files'][0]['url']
+            resp = requests.get(str(url))
+            contents = resp.content
 
-        url = resp_obj.json['bundle']['files'][0]['url']
-        resp = requests.get(str(url))
-        contents = resp.content
-
-        hasher = hashlib.sha1()
-        hasher.update(contents)
-        sha1 = hasher.hexdigest()
-        self.assertEqual(sha1, "2b8b815229aa8a61e483fb4ba0588b8b6c491890")
+            hasher = hashlib.sha1()
+            hasher.update(contents)
+            sha1 = hasher.hexdigest()
+            self.assertEqual(sha1, "2b8b815229aa8a61e483fb4ba0588b8b6c491890")
 
     @testmode.standalone
     def test_bundle_get_directurl_and_presigned(self):
@@ -167,21 +169,22 @@ class TestBundleApi(unittest.TestCase, DSSAssertMixin, DSSUploadMixin):
         self._test_bundle_get_directurl_and_presigned(Replica.gcp)
 
     def _test_bundle_get_directurl_and_presigned(self, replica: Replica):
-        bundle_uuid = "011c7340-9b3c-4d62-bf49-090d79daf198"
-        version = "2017-06-20T214506.766634Z"
+        with self.subTest(replica):
+            bundle_uuid = "011c7340-9b3c-4d62-bf49-090d79daf198"
+            version = "2017-06-20T214506.766634Z"
 
-        url = str(UrlBuilder()
-                  .set(path="/v1/bundles/" + bundle_uuid)
-                  .add_query("replica", replica.name)
-                  .add_query("version", version)
-                  .add_query("directurls", "true")
-                  .add_query("presignedurls", "true"))
+            url = str(UrlBuilder()
+                      .set(path="/v1/bundles/" + bundle_uuid)
+                      .add_query("replica", replica.name)
+                      .add_query("version", version)
+                      .add_query("directurls", "true")
+                      .add_query("presignedurls", "true"))
 
-        with override_bucket_config(BucketConfig.TEST_FIXTURE):
-            resp_obj = self.assertGetResponse(
-                url,
-                requests.codes.bad_request)
-            self.assertEqual(resp_obj.json['code'], "only_one_urltype")
+            with override_bucket_config(BucketConfig.TEST_FIXTURE):
+                resp_obj = self.assertGetResponse(
+                    url,
+                    requests.codes.bad_request)
+                self.assertEqual(resp_obj.json['code'], "only_one_urltype")
 
     @testmode.standalone
     def test_bundle_get_deleted(self):
@@ -205,18 +208,19 @@ class TestBundleApi(unittest.TestCase, DSSAssertMixin, DSSUploadMixin):
                                  bundle_uuid: str,
                                  version: typing.Optional[str],
                                  expected_version: typing.Optional[str]):
-        with override_bucket_config(BucketConfig.TEST_FIXTURE):
-            bundle_metadata = get_bundle_manifest(
-                uuid=bundle_uuid,
-                replica=replica,
-                version=version,
-                bucket=None,
+        with self.subTest(f"{replica} {bundle_uuid} {version} {expected_version}"):
+            with override_bucket_config(BucketConfig.TEST_FIXTURE):
+                bundle_metadata = get_bundle_manifest(
+                    uuid=bundle_uuid,
+                    replica=replica,
+                    version=version,
+                    bucket=None,
+                )
+                bundle_version = None if bundle_metadata is None else bundle_metadata['version']
+            self.assertEquals(
+                bundle_version,
+                expected_version
             )
-            bundle_version = None if bundle_metadata is None else bundle_metadata['version']
-        self.assertEquals(
-            bundle_version,
-            expected_version
-        )
 
     @testmode.standalone
     def test_bundle_put(self):
@@ -467,35 +471,36 @@ class TestBundleApi(unittest.TestCase, DSSAssertMixin, DSSUploadMixin):
         self._test_bundle_get_not_found(Replica.gcp)
 
     def _test_bundle_get_not_found(self, replica: Replica):
-        bundle_uuid = str(uuid.uuid4())
+        with self.subTest(replica):
+            bundle_uuid = str(uuid.uuid4())
 
-        url = str(UrlBuilder()
-                  .set(path="/v1/bundles/" + bundle_uuid)
-                  .add_query("replica", replica.name))
+            url = str(UrlBuilder()
+                      .set(path="/v1/bundles/" + bundle_uuid)
+                      .add_query("replica", replica.name))
 
-        with override_bucket_config(BucketConfig.TEST_FIXTURE):
-            self.assertGetResponse(
-                url,
-                requests.codes.not_found,
-                expected_error=ExpectedErrorFields(
-                    code="not_found",
-                    status=requests.codes.not_found)
-            )
+            with override_bucket_config(BucketConfig.TEST_FIXTURE):
+                self.assertGetResponse(
+                    url,
+                    requests.codes.not_found,
+                    expected_error=ExpectedErrorFields(
+                        code="not_found",
+                        status=requests.codes.not_found)
+                )
 
-        version = "2017-06-16T193604.240704Z"
-        url = str(UrlBuilder()
-                  .set(path="/v1/bundles/" + bundle_uuid)
-                  .add_query("replica", replica.name)
-                  .add_query("version", version))
+            version = "2017-06-16T193604.240704Z"
+            url = str(UrlBuilder()
+                      .set(path="/v1/bundles/" + bundle_uuid)
+                      .add_query("replica", replica.name)
+                      .add_query("version", version))
 
-        with override_bucket_config(BucketConfig.TEST_FIXTURE):
-            self.assertGetResponse(
-                url,
-                requests.codes.not_found,
-                expected_error=ExpectedErrorFields(
-                    code="not_found",
-                    status=requests.codes.not_found)
-            )
+            with override_bucket_config(BucketConfig.TEST_FIXTURE):
+                self.assertGetResponse(
+                    url,
+                    requests.codes.not_found,
+                    expected_error=ExpectedErrorFields(
+                        code="not_found",
+                        status=requests.codes.not_found)
+                )
 
     def put_bundle(
             self,
