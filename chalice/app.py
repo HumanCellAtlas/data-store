@@ -97,7 +97,7 @@ def calculate_seconds_left(chalice_app: DSSChaliceApp) -> int:
     Given a chalice app, return how much execution time is left, limited further by the API Gateway timeout.
     """
     time_remaining_s = min(
-        API_GATEWAY_TIMEOUT_SECONDS,
+        chalice_app.api_gateway_expiration - time.time(),
         chalice_app.lambda_context.get_remaining_time_in_millis() / 1000)
     time_remaining_s = max(0.0, time_remaining_s - EXECUTION_TERMINATION_THRESHOLD_SECONDS)
     return time_remaining_s
@@ -113,6 +113,7 @@ def time_limited(chalice_app: DSSChaliceApp):
         def wrapper(*args, **kwargs):
             executor = ThreadPoolExecutor()
             try:
+                app.api_gateway_expiration = time.time() + API_GATEWAY_TIMEOUT_SECONDS
                 future = executor.submit(method, *args, **kwargs)
                 time_remaining_s = chalice_app._override_exptime_seconds  # type: typing.Optional[float]
                 if time_remaining_s is None:
