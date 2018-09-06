@@ -114,7 +114,7 @@ def proxy_response(dest_url, **extra_query_params):
     else:
         body = proxy_res.content.decode()
     for header in "connection", "content-length", "date":
-        del proxy_res.headers[header]
+        proxy_res.headers.pop(header, None)
     return Response(status_code=proxy_res.status_code,
                     headers=dict(proxy_res.headers),
                     body=body)
