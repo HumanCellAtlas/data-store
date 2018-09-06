@@ -70,6 +70,7 @@ class TestSyncUtils(unittest.TestCase, TestSync):
         source = sync.BlobLocation(platform="s3", bucket=self.s3_bucket, blob=src_blob)
         dest = sync.BlobLocation(platform="gs", bucket=self.gs_bucket, blob=gs_dest_blob)
         sync.sync_s3_to_gs_oneshot(source, dest)
+        sync.do_oneshot_copy(Replica.aws, Replica.gcp, test_key)
         self.assertEqual(gs_dest_blob.download_as_string(), payload)
 
         test_key = "{}/gcs-to-s3/{}".format(self.test_blob_prefix, uuid.uuid4())
@@ -80,12 +81,20 @@ class TestSyncUtils(unittest.TestCase, TestSync):
         source = sync.BlobLocation(platform="gs", bucket=self.gs_bucket, blob=src_blob)
         dest = sync.BlobLocation(platform="s3", bucket=self.s3_bucket, blob=dest_blob)
         sync.sync_gs_to_s3_oneshot(source, dest)
+        sync.do_oneshot_copy(Replica.gcp, Replica.aws, test_key)
         self.assertEqual(dest_blob.get()["Body"].read(), payload)
         self.assertEqual(dest_blob.metadata, test_metadata)
 
         # GS metadata seems to take a while to propagate, so we wait until the above test completes to read it back
         gs_dest_blob.reload()
         self.assertEqual(gs_dest_blob.metadata, test_metadata)
+
+        # Hit some code paths with mock data. The full tests for these are in the integration test suite.
+        sync.initiate_multipart_upload(Replica.gcp, Replica.aws, test_key)
+        sync.get_sync_work_state(dict(source_replica="aws",
+                                      dest_replica="gcp",
+                                      source_key=test_key,
+                                      source_obj_metadata=dict(size=0)))
 
     def test_s3_streaming(self):
         boto3_session = boto3.session.Session()
