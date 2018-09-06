@@ -204,6 +204,7 @@ class TestSyncUtils(unittest.TestCase, TestSync):
         blob_key = compose_blob_key(file_data)
         blob_blob = self.s3_bucket.Object(blob_key)
         blob_blob.put(Body=b"sync_test")
+
         @eventually(timeout=8, interval=1, errors={Exception})
         def check_blob_revdeps():
             self.assertTrue(sync.dependencies_exist(Replica.aws, Replica.aws, collection_key))

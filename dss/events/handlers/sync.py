@@ -39,14 +39,14 @@ BlobLocation = namedtuple("BlobLocation", "platform bucket blob")
 def do_oneshot_copy(source_replica: Replica, dest_replica: Replica, source_key: str):
     gs = Config.get_native_handle(Replica.gcp)
     if source_replica == Replica.aws and dest_replica == Replica.gcp:
-        s3_bucket = resources.s3.Bucket(source_replica.bucket)
+        s3_bucket = resources.s3.Bucket(source_replica.bucket)  # type: ignore
         gs_bucket = gs.bucket(dest_replica.bucket)
         source = BlobLocation(platform="s3", bucket=s3_bucket, blob=s3_bucket.Object(source_key))
         dest = BlobLocation(platform="gs", bucket=gs_bucket, blob=gs_bucket.blob(source_key))
         sync_s3_to_gs_oneshot(source, dest)
     elif source_replica == Replica.gcp and dest_replica == Replica.aws:
         gs_bucket = gs.bucket(source_replica.bucket)
-        s3_bucket = resources.s3.Bucket(dest_replica.bucket)
+        s3_bucket = resources.s3.Bucket(dest_replica.bucket)  # type: ignore
         source = BlobLocation(platform="gs", bucket=gs_bucket, blob=gs_bucket.blob(source_key))
         source.blob.reload()
         dest = BlobLocation(platform="s3", bucket=s3_bucket, blob=s3_bucket.Object(source_key))
@@ -55,7 +55,7 @@ def do_oneshot_copy(source_replica: Replica, dest_replica: Replica, source_key: 
         raise NotImplementedError()
 
 def sync_s3_to_gs_oneshot(source: BlobLocation, dest: BlobLocation):
-    s3_blob_url = clients.s3.generate_presigned_url(
+    s3_blob_url = clients.s3.generate_presigned_url(  # type: ignore
         ClientMethod='get_object',
         Params=dict(Bucket=source.bucket.name, Key=source.blob.key),
         ExpiresIn=presigned_url_lifetime_seconds
@@ -116,7 +116,7 @@ def copy_part(upload_url: str, source_url: str, dest_platform: str, part: dict):
 
 def initiate_multipart_upload(source_replica: Replica, dest_replica: Replica, source_key: str):
     assert dest_replica == Replica.aws
-    s3_bucket = resources.s3.Bucket(dest_replica.bucket)
+    s3_bucket = resources.s3.Bucket(dest_replica.bucket)  # type: ignore
     s3_object = s3_bucket.Object(source_key)
     source_blobstore = Config.get_blobstore_handle(source_replica)
     source_metadata = source_blobstore.get_user_metadata(source_replica.bucket, source_key) or {}
@@ -124,7 +124,7 @@ def initiate_multipart_upload(source_replica: Replica, dest_replica: Replica, so
     return mpu.id
 
 def complete_multipart_upload(msg: dict):
-    mpu = resources.s3.Bucket(msg["dest_bucket"]).Object(msg["dest_key"]).MultipartUpload(msg["mpu"])
+    mpu = resources.s3.Bucket(msg["dest_bucket"]).Object(msg["dest_key"]).MultipartUpload(msg["mpu"])  # type: ignore
     while True:
         logger.info("Examining parts")
         parts = list(mpu.parts.all())
@@ -165,7 +165,7 @@ def compose_upload(msg: dict):
             pass
         time.sleep(5)
     if msg["source_platform"] == "s3":
-        source_blob = resources.s3.Bucket(msg["source_bucket"]).Object(msg["source_key"])
+        source_blob = resources.s3.Bucket(msg["source_bucket"]).Object(msg["source_key"])  # type: ignore
         dest_blob = gs_bucket.get_blob(msg["dest_key"])
         dest_blob.metadata = source_blob.metadata
     else:
@@ -198,9 +198,9 @@ def get_sync_work_state(event: dict):
 def exists(replica: Replica, key: str):
     if replica == Replica.aws:
         try:
-            resources.s3.Bucket(replica.bucket).Object(key).load()
+            resources.s3.Bucket(replica.bucket).Object(key).load()  # type: ignore
             return True
-        except clients.s3.exceptions.ClientError:
+        except clients.s3.exceptions.ClientError:  # type: ignore
             return False
     elif replica == Replica.gcp:
         gs = Config.get_native_handle(Replica.gcp)
