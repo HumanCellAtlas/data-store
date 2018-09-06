@@ -40,6 +40,7 @@ oauth2_config = json.loads(secretsmanager.get_secret_value(SecretId="fusillade.o
 
 @functools.lru_cache(maxsize=32)
 def get_openid_config(openid_provider):
+    openid_provider = furl(openid_provider).host
     res = requests.get(f"https://{openid_provider}/.well-known/openid-configuration")
     res.raise_for_status()
     return res.json()
@@ -63,7 +64,7 @@ def login():
 def authorize():
     if app.current_request.query_params is None:
         app.current_request.query_params = {}
-    openid_provider = furl(os.environ["OPENID_PROVIDER"]).host
+    openid_provider = os.environ["OPENID_PROVIDER"]
     app.current_request.query_params["openid_provider"] = openid_provider
     if "client_id" in app.current_request.query_params:
         # TODO: audit this
@@ -89,8 +90,7 @@ def authorize():
 
 @app.route('/.well-known/openid-configuration')
 def serve_openid_config():
-    openid_provider = furl(os.environ["OPENID_PROVIDER"]).host
-    openid_config = get_openid_config(openid_provider)
+    openid_config = get_openid_config(os.environ["OPENID_PROVIDER"])
     auth_host = app.current_request.headers['host']
     openid_config.update(authorization_endpoint=f"https://{auth_host}/authorize",
                          token_endpoint=f"https://{auth_host}/oauth/token",
