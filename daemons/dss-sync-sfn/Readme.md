@@ -34,7 +34,7 @@ event notification and orchestrates the rest of the copying:
       it and exits the state machine.
     - Otherwise, configures the state machine to run the threadpool (copy blob parts) and closer (compose the copy).
 
-The one-shot threshold is FIXME.
+The one-shot threshold is equal to the part size (640MB on GS, 64MB on S3).
 
 All the event handler and SFN state lambdas above are actually the same lambda distribution (dss-sync), called via
 different entry points from different event notifications, orchestrated by the domovoi library.

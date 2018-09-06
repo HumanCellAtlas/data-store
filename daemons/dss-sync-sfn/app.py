@@ -19,7 +19,7 @@ from dss.util.aws import resources, clients
 from dss.logging import configure_lambda_logging
 from dss.events.handlers.sync import (compose_upload, initiate_multipart_upload, complete_multipart_upload, copy_part,
                                       exists, get_part_size, get_sync_work_state, parts_per_worker, dependencies_exist,
-                                      do_oneshot_copy)
+                                      do_oneshot_copy, sync_sfn_dep_wait_sleep_seconds, sync_sfn_num_threads)
 
 configure_lambda_logging()
 logger = logging.getLogger(__name__)
@@ -189,9 +189,7 @@ sfn_thread = {
     }
 }
 
-num_threads = 8
-
-@app.step_function_task(state_name="DispatchSync", state_machine_definition=sfn)
+@app.step_function_task(state_name="DispatchSync", state_machine_definition=sync_sfn_num_threads)
 def dispatch_sync(event, context):
     """
     Processes the storage event notification and orchestrates the rest of the copying:
@@ -202,7 +200,7 @@ def dispatch_sync(event, context):
         - For a file manifest, check that the blob is there.
         - For a bundle manifest, check that file manifests for all files in the bundle are there.
         - For a collection manifest, check that all collection contents are there.
-        If the checks fail, cause the state machine to sleep for FIXME, then try again.
+        If the checks fail, cause the state machine to sleep for 8 seconds, then try again.
         If the checks succeed, do a one-shot copy of the manifest.
     """
     if event["source_key"].startswith("blobs"):
@@ -236,7 +234,7 @@ def copy_parts(event, context):
     gs = dss.Config.get_native_handle(Replica.gcp)
     with ThreadPoolExecutor(max_workers=4) as executor:
         for part_index, part_start in enumerate(range(0, object_size, part_size)):
-            if part_index % num_threads != task_id:
+            if part_index % sync_sfn_num_threads != task_id:
                 continue
             if part_index <= event.get("last_completed_part", -1):
                 continue
@@ -273,7 +271,7 @@ def copy_parts(event, context):
     return event
 
 # Construct the threadpool definition by explicitly mentioning each thread in the state machine definition.
-for t in range(num_threads):
+for t in range(sync_sfn_num_threads):
     thread = json.loads(json.dumps(sfn_thread).replace("{t}", str(t)))
     sfn["States"]["MultipartCopyThreadpool"]["Branches"].append(thread)
     app.step_function_task(state_name="Worker{}".format(t), state_machine_definition=sfn)(copy_parts)
@@ -285,7 +283,7 @@ def check_deps(event, context):
     if dependencies_exist(source_replica, dest_replica, event["source_key"]):
         return dict(event, sleep=False, do_oneshot_copy=True)
     else:
-        return dict(event, sleep=True, sleep_seconds=8)
+        return dict(event, sleep=True, sleep_seconds=sync_sfn_dep_wait_sleep_seconds)
 
 @app.step_function_task(state_name="OneshotCopy", state_machine_definition=sfn)
 def oneshot_copy(event, context):
