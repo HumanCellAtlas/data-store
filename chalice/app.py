@@ -50,10 +50,6 @@ This is how quickly API Gateway gives up on Lambda.  This allows us to terminate
 timeout than API Gateway.
 """
 
-OVERRIDE_EXECUTION_LIMIT_SECONDS = None
-"""
-This is how long we wait for a request, if set.  If the value is None, we try to use the lambda's timeout.
-"""
 DSS_VERSION = os.getenv('DSS_VERSION')
 """
 Tag describing the version of the currently deployed DSS codebase.  Generated during deployment in the form:
@@ -64,7 +60,7 @@ Tag describing the version of the currently deployed DSS codebase.  Generated du
 class DSSChaliceApp(chalice.Chalice):
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
-        self._override_exptime_seconds = OVERRIDE_EXECUTION_LIMIT_SECONDS
+        self._override_exptime_seconds = None
 
 
 def timeout_response() -> chalice.Response:

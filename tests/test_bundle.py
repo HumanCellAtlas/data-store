@@ -115,8 +115,8 @@ class TestBundleApi(unittest.TestCase, DSSAssertMixin, DSSUploadMixin):
                     override_retry_interval=1,
                 )
 
-            url = resp_obj.json['bundle']['files'][0]['url']
-            splitted = urllib.parse.urlparse(url)  # type: ignore
+            directaccess_url = resp_obj.json['bundle']['files'][0]['url']
+            splitted = urllib.parse.urlparse(directaccess_url)
             self.assertEqual(splitted.scheme, schema)
             bucket = splitted.netloc
             key = splitted.path[1:]  # ignore the / part of the path.
@@ -156,8 +156,8 @@ class TestBundleApi(unittest.TestCase, DSSAssertMixin, DSSUploadMixin):
                     override_retry_interval=1,
                 )
 
-            url = resp_obj.json['bundle']['files'][0]['url']
-            resp = requests.get(str(url))
+            presigned_url = resp_obj.json['bundle']['files'][0]['url']
+            resp = requests.get(presigned_url)
             contents = resp.content
 
             hasher = hashlib.sha1()
