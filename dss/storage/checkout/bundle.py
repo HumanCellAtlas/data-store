@@ -1,14 +1,11 @@
 """
 This is the module for bundle checkouts.
 """
-import datetime
 import io
 import json
-import os
 import time
 import typing
 
-from cloud_blobstore import BlobMetadataField
 from dss import stepfunctions
 from dss.config import Replica, Config
 from dss.stepfunctions.checkout.constants import EventConstants, STATE_MACHINE_NAME_TEMPLATE
@@ -74,21 +71,6 @@ def verify_checkout(
         bundle_version: typing.Optional[str],
         token: typing.Optional[str]
 ) -> typing.Tuple[str, bool]:
-
-    handle = Config.get_blobstore_handle(replica)
-    prefix = get_dst_bundle_prefix(bundle_uuid, bundle_version)
-    bundle_metadata = get_bundle_manifest(bundle_uuid, replica, bundle_version)
-
-    expected_files = [prefix + '/' + file['name'] for file in bundle_metadata['files']]
-    blobs_in_checkout = list(handle.list_v2(replica.checkout_bucket, prefix))
-    stale_before_date = (datetime.datetime.now(datetime.timezone.utc) -
-                         datetime.timedelta(days=int(os.environ['DSS_BLOB_PUBLIC_TTL_DAYS'])))
-
-    if (all((key in expected_files) and
-            (blob[BlobMetadataField.LAST_MODIFIED] > stale_before_date) for key, blob in blobs_in_checkout) and
-            len(blobs_in_checkout) == len(expected_files)):
-        return "", True
-
     decoded_token: dict
     if token is None:
         execution_id = start_bundle_checkout(replica, bundle_uuid, bundle_version, dst_bucket=replica.checkout_bucket)

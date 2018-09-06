@@ -1,4 +1,3 @@
-from functools import lru_cache
 import json
 import typing
 
@@ -9,7 +8,6 @@ from dss.storage.identifiers import DSS_BUNDLE_KEY_REGEX, DSS_BUNDLE_TOMBSTONE_R
 from dss.storage.blobstore import test_object_exists
 
 
-@lru_cache(maxsize=32)
 def get_bundle_manifest(
         uuid: str,
         replica: Replica,
