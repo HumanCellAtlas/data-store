@@ -209,7 +209,7 @@ class FakeBlobStore:
         def __iter__(self):
             for key in self.keys:
                 self.start_after_key = key
-                yield (self.start_after_key, {})
+                yield self.start_after_key
 
     def list_v2(self, *args, **kwargs):
         return self.Iterator()
@@ -402,7 +402,7 @@ class TestConsistencyVisitation(unittest.TestCase):
                     # Once per listing, wait a little to trigger the walker timeout
                     if not self.resumed and i == len(resp) // 2:
                         time.sleep(test.timeout * 1.25)
-                    yield (key, {})
+                    yield key
 
             def get_next_token_from_response(self, resp):
                 return resp[-1] if resp else None

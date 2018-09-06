@@ -1,7 +1,4 @@
-import datetime
 import json
-import logging
-import os
 import re
 import time
 import typing
@@ -31,8 +28,6 @@ ASYNC_COPY_THRESHOLD = AWS_MIN_CHUNK_SIZE
 """The retry-after interval in seconds. Sets up downstream libraries / users to
 retry request after the specified interval."""
 RETRY_AFTER_INTERVAL = 10
-
-logger = logging.getLogger(__name__)
 
 
 @dss_handler
@@ -79,6 +74,7 @@ def get_helper(uuid: str, replica: Replica, version: str=None, token: str=None):
 
     if request.method == "GET":
         token, ready = _verify_checkout(replica, token, file_metadata, blob_path)
+
         if ready:
             response = redirect(handle.generate_presigned_GET_url(
                 replica.checkout_bucket,
@@ -112,25 +108,6 @@ def get_helper(uuid: str, replica: Replica, version: str=None, token: str=None):
 def _verify_checkout(
         replica: Replica, token: typing.Optional[str], file_metadata: dict, blob_path: str,
 ) -> typing.Tuple[str, bool]:
-    try:
-        cloud_handle = Config.get_blobstore_handle(replica)
-        hca_handle = Config.get_hcablobstore_handle(replica)
-        file_key = get_dst_key(blob_path)
-        last_modified = cloud_handle.get_last_modified_date(replica.checkout_bucket, file_key)
-        stale_before_date = (datetime.datetime.now(datetime.timezone.utc) -
-                             datetime.timedelta(days=int(os.environ['DSS_BLOB_PUBLIC_TTL_DAYS'])))
-
-        if last_modified > stale_before_date:
-            if hca_handle.verify_blob_checksum_from_dss_metadata(replica.checkout_bucket,
-                                                                 file_key,
-                                                                 file_metadata):
-                return "", True
-            else:
-                logger.error(
-                    f"Checksum verification failed for file {replica.checkout_bucket}/{file_key}")
-    except BlobNotFoundError:
-        pass
-
     decoded_token: dict
     if token is None:
         execution_id = start_file_checkout(replica, blob_path)
@@ -149,7 +126,15 @@ def _verify_checkout(
         except (KeyError, ValueError) as ex:
             raise DSSException(requests.codes.bad_request, "illegal_token", "Could not understand token", ex)
 
+    hcablobstore = Config.get_hcablobstore_handle(replica)
     encoded_token = json.dumps(decoded_token)
+    try:
+        if hcablobstore.verify_blob_checksum_from_dss_metadata(
+                replica.checkout_bucket, get_dst_key(blob_path), file_metadata):
+            return encoded_token, True
+    except BlobNotFoundError:
+        pass
+
     return encoded_token, False
 
 

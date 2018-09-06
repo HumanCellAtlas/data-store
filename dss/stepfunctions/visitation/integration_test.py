@@ -66,7 +66,7 @@ class IntegrationTest(Visitation):  # no coverage (this code *is* run by tests, 
             token=self.token  # type: ignore  # Cannot determine type of 'token'
         )
 
-        for key, metadata in blobs:
+        for key in blobs:
             if 250 < time() - start_time:
                 break
             self.process_item(key)

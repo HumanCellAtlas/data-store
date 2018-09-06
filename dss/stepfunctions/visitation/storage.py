@@ -78,7 +78,7 @@ class StorageVisitation(Visitation):
                                                start_after_key=key)
             columns.append(column)
 
-        diff = zipalign(columns=((key for key, metadata in column) for column in columns), row=self.row)
+        diff = zipalign(columns=map(iter, columns), row=self.row)
         while self.shutdown_time < self.remaining_runtime():
             try:
                 row = next(diff)
