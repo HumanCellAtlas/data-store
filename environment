@@ -124,6 +124,8 @@ DSS_GS_BUCKET_TEST_FIXTURES_REGION="US-EAST1"
 
 DSS_GCP_SERVICE_ACCOUNT_NAME="travis-test"
 
+DSS_CHECKOUT_BUCKET_OBJECT_VIEWERS=""
+
 AWS_SDK_LOAD_CONFIG=1 # Needed for Terraform to correctly use AWS assumed roles
 
 set +a
