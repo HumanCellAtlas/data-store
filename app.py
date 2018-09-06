@@ -1,5 +1,5 @@
 import os, sys, hashlib, base64, json, functools
-from urllib.parse import urlsplit, urlunsplit, urlencode, quote, parse_qs
+from urllib.parse import quote
 from furl import furl
 import boto3
 from botocore.vendored import requests
@@ -84,7 +84,7 @@ def authorize():
                            scope="openid email",
                            redirect_uri=oauth2_config[openid_provider]["redirect_uri"],
                            state=state)
-    dest = get_openid_config(openid_provider)["authorization_endpoint"] + "?" + urlencode(auth_params)
+    dest = furl(get_openid_config(openid_provider)["authorization_endpoint"]).add(query_params=auth_params).url
     return Response(status_code=302, headers=dict(Location=dest), body="")
 
 
@@ -104,7 +104,7 @@ def serve_openid_config():
 
 def proxy_response(dest_url, **extra_query_params):
     if app.current_request.query_params or extra_query_params:
-        dest_url = dest_url + "?" + urlencode(dict(app.current_request.query_params or {}, **extra_query_params))
+        dest_url = furl(dest_url).add(dict(app.current_request.query_params or {}, **extra_query_params)).url
     proxy_res = requests.request(method=app.current_request.method,
                                  url=dest_url,
                                  headers=app.current_request.headers,
@@ -162,7 +162,7 @@ def cb():
     if "redirect_uri" in state and "client_id" in state:
         # OIDC proxy flow
         resp_params = dict(code=app.current_request.query_params["code"], state=state.get("state"))
-        dest = state["redirect_uri"] + "?" + urlencode(resp_params)
+        dest = furl(state["redirect_uri"]).add(resp_params).url
         return Response(status_code=302, headers=dict(Location=dest), body="")
     else:
         # Simple flow
@@ -181,7 +181,7 @@ def cb():
         if "redirect_uri" in state:
             # Simple flow - redirect with QS
             resp_params = dict(res.json(), decoded_token=json.dumps(tok), state=state.get("state"))
-            dest = state["redirect_uri"] + "?" + urlencode(resp_params)
+            dest = furl(state["redirect_uri"]).add(resp_params).url
             return Response(status_code=302, headers=dict(Location=dest), body="")
         else:
             # Simple flow - JSON
