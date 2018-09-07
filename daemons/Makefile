@@ -27,7 +27,7 @@ deploy: deploy-serial deploy-parallel
 deploy-serial: $(SERIAL_AWS_DAEMONS) $(SERIAL_GCP_DAEMONS)
 deploy-parallel: $(PARALLEL_AWS_DAEMONS) $(PARALLEL_GCP_DAEMONS)
 
-$(SERIAL_AWS_DAEMONS) $(PARALLEL_AWS_DAEMONS) scheduled-ci-build:
+$(SERIAL_AWS_DAEMONS) $(PARALLEL_AWS_DAEMONS):
 	@for f in $@/*.tf; do \
 		echo "Terraforming $@"; \
 		if [ -e $$f ]; then \
@@ -60,4 +60,4 @@ import-test:
             python $$daemon/app.py; \
         done
 
-.PHONY: deploy deploy-serial deploy-parallel scheduled-ci-build import-test $(SERIAL_AWS_DAEMONS) $(SERIAL_GCP_DAEMONS) $(PARALLEL_AWS_DAEMONS) $(PARALLEL_GCP_DAEMONS)
+.PHONY: deploy deploy-serial deploy-parallel import-test $(SERIAL_AWS_DAEMONS) $(SERIAL_GCP_DAEMONS) $(PARALLEL_AWS_DAEMONS) $(PARALLEL_GCP_DAEMONS)
