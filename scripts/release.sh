@@ -6,6 +6,8 @@ set -euo pipefail
 # and passes on positional arguments as $1, $2, etc.
 FORCE=
 NO_DEPLOY=
+SKIP_GITHUB_STATUS=
+SKIP_ACCOUNT_VERIFICATION=
 POSITIONAL=()
 while [[ $# -gt 0 ]]
 do
@@ -17,6 +19,14 @@ case $key in
     ;;
     --no-deploy)
     NO_DEPLOY="--no-deploy"
+    shift
+    ;;
+    --skip-github-status)
+    SKIP_GITHUB_STATUS="--skip-github-status"
+    shift
+    ;;
+    --skip-account-verification)
+    SKIP_ACCOUNT_VERIFICATION="--skip-account-verification"
     shift
     ;;
     *)
@@ -40,22 +50,30 @@ if [[ $# != 2 ]]; then
     echo
     echo "If the --no-deploy flag is given, the deployment step will be skipped."
     echo
+    echo "If the --skip-github-status flag is given, the combined github status checks"
+    echo "will be skipped."
+    echo
+    echo "If the --skip-account-verification flag is given, the user will not be asked to"
+    echo "verify cloud account information."
+    echo
     echo "Usage: $(basename $0) source_branch dest_branch [--force] [--no-deploy]"
     echo "Example: $(basename $0) master staging"
     exit 1
 fi
 
-echo "Please review and confirm your active AWS account configuration:"
-aws configure list
-aws sts get-caller-identity
-aws iam list-account-aliases
-echo "Is this correct?"
-select result in Yes No; do
-    if [[ $result != Yes ]]; then exit 1; else break; fi
-done
+if ! [[ $SKIP_ACCOUNT_VERIFICATION == "--skip-account-verification" ]]; then
+    echo "Please review and confirm your active AWS account configuration:"
+    aws configure list
+    aws sts get-caller-identity
+    aws iam list-account-aliases
+    echo "Is this correct?"
+    select result in Yes No; do
+        if [[ $result != Yes ]]; then exit 1; else break; fi
+    done
+fi
 
 if ! git diff-index --quiet HEAD --; then
-    if [[ $# == 3 ]] && [[ $FORCE == "--force" ]]; then
+    if [[ $FORCE == "--force" ]]; then
         echo "You have uncommitted files in your Git repository. Forcing deployment anyway."
     else
         echo "You have uncommitted files in your Git repository. Please commit or stash them, or run $0 with --force."
@@ -71,7 +89,7 @@ if ! [[ -e "$DSS_HOME/application_secrets.json" ]]; then
 fi
 
 if ! diff <(pip freeze) <(tail -n +2 "$DSS_HOME/requirements-dev.txt"); then
-    if [[ $# == 3 ]] && [[ $FORCE == "--force" ]]; then
+    if [[ $FORCE == "--force" ]]; then
         echo "Your installed Python packages differ from requirements-dev.txt. Forcing deployment anyway."
     else
         echo "Your installed Python packages differ from requirements-dev.txt. Please update your virtualenv."
@@ -82,8 +100,7 @@ fi
 
 export PROMOTE_FROM_BRANCH=$1 PROMOTE_DEST_BRANCH=$2
 
-if [[ "hca_cicd" != $(whoami) ]]; then
-    # Skip when this script is executed by the GitLab runner
+if ! [[ $SKIP_GITHUB_STATUS == "--skip-github-status" ]]; then
     GH_API=https://api.github.com
     REPO=$(git remote get-url origin | perl -ne '/github\.com.(.+?)(\.git)?$/; print $1')
     STATUS=$(http GET ${GH_API}/repos/${REPO}/commits/${PROMOTE_FROM_BRANCH}/status Accept:application/vnd.github.full+json)
@@ -92,7 +109,7 @@ if [[ "hca_cicd" != $(whoami) ]]; then
     
     # TODO: (akislyuk) some CI builds no longer deploy or run a subset of tests. Find the last build that ran a deployment.
     if [[ "$STATE" != success ]]; then
-        if [[ $# == 3 ]] && [[ $FORCE == "--force" ]]; then
+        if [[ $FORCE == "--force" ]]; then
             echo "Status checks failed on branch $PROMOTE_FROM_BRANCH. Forcing promotion and deployment anyway."
         else
             echo "Status checks failed on branch $PROMOTE_FROM_BRANCH."
@@ -107,7 +124,7 @@ RELEASE_TAG=${PROMOTE_DEST_BRANCH}-$(date -u +"%Y-%m-%d-%H-%M-%S").release
 if [[ "$(git --no-pager log --graph --abbrev-commit --pretty=oneline --no-merges -- $PROMOTE_DEST_BRANCH ^$PROMOTE_FROM_BRANCH)" != "" ]]; then
     echo "Warning: The following commits are present on $PROMOTE_DEST_BRANCH but not on $PROMOTE_FROM_BRANCH"
     git --no-pager log --graph --abbrev-commit --pretty=oneline --no-merges $PROMOTE_DEST_BRANCH ^$PROMOTE_FROM_BRANCH
-    if [[ $# == 3 ]] && [[ $FORCE == "--force" ]]; then
+    if [[ $FORCE == "--force" ]]; then
         echo -e "\nThey will be overwritten on $PROMOTE_DEST_BRANCH and discarded."
     else
         echo -e "\nRun with --force to overwrite and discard these commits from $PROMOTE_DEST_BRANCH."
