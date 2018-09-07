@@ -260,10 +260,10 @@ store.
 #### User Authorization Configuration
 The following environment variables must be set to enable user authentication.
 
-* OIDC_AUDIENCE must be populated with the3 expected JWT (Jave web token) audience.
-* OPENID_PROVIDER is the expected JWT
+* OIDC_AUDIENCE must be populated with the expected JWT (Jave web token) audience.
+* OPENID_PROVIDER is the generator of the JWT, and is used to determine how the JWT is validated.
 * OIDC_GROUP_CLAIM is the JWT claim that specifies the group the users belongs to.
-
+* OIDC_EMAIL_CLAIM is the JWT claim that specifies the requests email.
 
 `authorizationUrl` in **dss/dss-api.yml** must also be updated to point to an authorization endpoint with will return a 
 valid JWT.
