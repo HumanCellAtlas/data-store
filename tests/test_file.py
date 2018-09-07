@@ -9,6 +9,7 @@ import sys
 import tempfile
 import typing
 import unittest
+from unittest import mock
 import uuid
 
 pkg_root = os.path.abspath(os.path.join(os.path.dirname(__file__), '..'))  # noqa
@@ -376,16 +377,22 @@ class TestFileApi(unittest.TestCase, DSSAssertMixin, DSSUploadMixin):
             )
 
     @testmode.standalone
-    def test_file_checkout(self):
+    def test_file_get_invalid_token(self):
         """
         Verifies that a checkout request with a malformed token returns a 400.
         :return:
         """
         tempdir = tempfile.gettempdir()
-        self._test_file_checkout(Replica.aws, "s3", self.s3_test_bucket, S3Uploader(tempdir, self.s3_test_bucket))
-        self._test_file_checkout(Replica.gcp, "gs", self.gs_test_bucket, GSUploader(tempdir, self.gs_test_bucket))
+        self._test_file_get_invalid_token(Replica.aws,
+                                          "s3",
+                                          self.s3_test_bucket,
+                                          S3Uploader(tempdir, self.s3_test_bucket))
+        self._test_file_get_invalid_token(Replica.gcp,
+                                          "gs",
+                                          self.gs_test_bucket,
+                                          GSUploader(tempdir, self.gs_test_bucket))
 
-    def _test_file_checkout(self, replica: Replica, scheme: str, test_bucket: str, uploader: Uploader):
+    def _test_file_get_invalid_token(self, replica: Replica, scheme: str, test_bucket: str, uploader: Uploader):
         src_key = generate_test_key()
         src_data = os.urandom(1024)
         with tempfile.NamedTemporaryFile(delete=True) as fh:
@@ -413,6 +420,65 @@ class TestFileApi(unittest.TestCase, DSSAssertMixin, DSSUploadMixin):
             self.assertGetResponse(
                 url, requests.codes.bad_request)
         try_get()
+
+    @testmode.integration
+    def test_file_get_checkout(self):
+        """
+        Verifies checkout occurs on first get and not on second.
+        """
+        tempdir = tempfile.gettempdir()
+        self._test_file_get_checkout(Replica.aws, "s3", self.s3_test_bucket,
+                                     S3Uploader(tempdir, self.s3_test_bucket))
+        self._test_file_get_checkout(Replica.gcp, "gs", self.gs_test_bucket,
+                                     GSUploader(tempdir, self.gs_test_bucket))
+
+    def _test_file_get_checkout(self, replica: Replica, scheme: str, test_bucket: str, uploader: Uploader):
+        src_key = generate_test_key()
+        src_data = os.urandom(1024)
+        with tempfile.NamedTemporaryFile(delete=True) as fh:
+            fh.write(src_data)
+            fh.flush()
+
+            uploader.checksum_and_upload_file(fh.name, src_key, "text/plain")
+
+        source_url = f"{scheme}://{test_bucket}/{src_key}"
+
+        file_uuid = str(uuid.uuid4())
+        bundle_uuid = str(uuid.uuid4())
+        version = datetime_to_version_format(datetime.datetime.utcnow())
+
+        self.upload_file(source_url, file_uuid, bundle_uuid=bundle_uuid, version=version)
+        url = str(UrlBuilder()
+                  .set(path="/v1/files/" + file_uuid)
+                  .add_query("replica", replica.name)
+                  .add_query("version", version))
+
+        now = datetime.datetime.now(datetime.timezone.utc)
+
+        @eventually(20, 2)
+        def test_checkout():
+            # assert 302 found and checksum when checkout completes successfully
+            api_get = self.assertGetResponse(
+                url, requests.codes.found, redirect_follow_retries=0)
+            file_get = requests.get(api_get.response.headers['Location'])
+            self.assertTrue(file_get.ok)
+            self.assertEquals(file_get.content, src_data)
+
+        # assert 301 redirect on first GET
+        self.assertGetResponse(url, requests.codes.moved, redirect_follow_retries=0)
+        test_checkout()
+
+        last_modified_fn = ("cloud_blobstore.s3.S3BlobStore.get_last_modified_date"
+                            if replica.name == "aws"
+                            else "cloud_blobstore.gs.GSBlobStore.get_last_modified_date")
+        with mock.patch(last_modified_fn) as mock_last_modified:
+            # assert 301 redirect on stale file
+            blob_ttl_days = int(os.environ['DSS_BLOB_PUBLIC_TTL_DAYS'])
+            mock_last_modified.return_value = now - datetime.timedelta(days=blob_ttl_days + 1)
+            self.assertGetResponse(url, requests.codes.moved, redirect_follow_retries=0)
+            # assert 302 found on subsequent GET
+            mock_last_modified.return_value = now - datetime.timedelta(days=blob_ttl_days - 1)
+            test_checkout()
 
     @testmode.standalone
     def test_file_size(self):
