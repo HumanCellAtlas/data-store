@@ -372,6 +372,10 @@ class Config:
         return Config._get_required_envvar("OIDC_GROUP_CLAIM")
 
     @staticmethod
+    def get_OIDC_email_claim():
+        return Config._get_required_envvar("OIDC_EMAIL_CLAIM")
+
+    @staticmethod
     def _get_required_envvar(envvar: str) -> str:
         if envvar not in os.environ:
             raise Exception(

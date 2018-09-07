@@ -99,7 +99,7 @@ def get_service_jwt(service_credentials, group: str=None):
                'aud': audience,
                'iat': iat,
                'exp': exp,
-               'email': service_credentials["client_email"],
+               Config.get_OIDC_email_claim(): service_credentials["client_email"],
                'scope': ['email', 'openid', 'offline_access']
                }
     if group:
