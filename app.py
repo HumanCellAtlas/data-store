@@ -3,14 +3,13 @@ from urllib.parse import urlsplit, urlunsplit, urlencode, quote, parse_qs
 from furl import furl
 import boto3
 from botocore.vendored import requests
-from chalice import Chalice, CognitoUserPoolAuthorizer, Response
+from chalice import Chalice, Response
 import jwt, yaml
 
 from cryptography.hazmat.primitives.asymmetric import rsa
 from cryptography.hazmat.backends import default_backend
 from cryptography.hazmat.primitives import serialization
 
-cognito = boto3.client("cognito-identity")
 ad = boto3.client("clouddirectory")
 iam = boto3.client("iam")
 secretsmanager = boto3.client("secretsmanager")
@@ -88,8 +87,6 @@ def authorize():
     return Response(status_code=302, headers=dict(Location=dest), body="")
 
 
-cognito_id_pool_id = "us-east-1:56424a42-0f50-4196-9ac2-fd19df4adb12"
-
 @app.route('/.well-known/openid-configuration')
 def serve_openid_config():
     openid_provider = furl(os.environ["OPENID_PROVIDER"]).host
@@ -152,13 +149,6 @@ def cb():
     openid_config = get_openid_config(openid_provider)
     token_endpoint = openid_config["token_endpoint"]
 
-#    cognito_logins = {openid_provider: res.json()["id_token"]}
-#    cognito_id = cognito.get_id(IdentityPoolId=cognito_id_pool_id, Logins=cognito_logins)["IdentityId"]
-#    cognito_credentials = cognito.get_credentials_for_identity(IdentityId=cognito_id, Logins=cognito_logins)["Credentials"]
-#    cognito_credentials["Expiration"] = cognito_credentials["Expiration"].isoformat()
-#    cognito_session = boto3.Session(aws_access_key_id=cognito_credentials["AccessKeyId"],
-#                                    aws_secret_access_key=cognito_credentials["SecretKey"],
-#                                    aws_session_token=cognito_credentials["SessionToken"])
     if "redirect_uri" in state and "client_id" in state:
         # OIDC proxy flow
         resp_params = dict(code=app.current_request.query_params["code"], state=state.get("state"))
@@ -191,8 +181,6 @@ def cb():
                 "token_endpoint": token_endpoint,
                 "res": res.json(),
                 "tok": tok,
-#        "cognito_credentials": cognito_credentials,
-#        "cognito_caller_id": cognito_session.client("sts").get_caller_identity()
             }
 
 
