@@ -41,7 +41,7 @@ Environment variables are required for test and deployment. The required environ
 are in the file `environment`. To customize the values of these environment variables:
 
 1. Copy `environment.local.example` to `environment.local`
-2. Edit `environment.local` to add custom entries that override the default values in `environment`
+1. Edit `environment.local` to add custom entries that override the default values in `environment`
     
 Run `source environment`  now and whenever these environment files are modified.
 
@@ -52,16 +52,16 @@ Run `source environment`  now and whenever these environment files are modified.
 1. Follow the instructions in http://docs.aws.amazon.com/cli/latest/userguide/cli-chap-getting-started.html to get the
    `aws` command line utility.
 
-2. Create an S3 bucket that you want DSS to use and in `environment.local`, set the environment variable `DSS_S3_BUCKET`
+1. Create an S3 bucket that you want DSS to use and in `environment.local`, set the environment variable `DSS_S3_BUCKET`
    to the name of that bucket. Make sure the bucket region is consistent with `AWS_DEFAULT_REGION` in
    `environment.local`.
 
-3. Repeat the previous step for
+1. Repeat the previous step for
 
    * DSS_S3_CHECKOUT_BUCKET
    * DSS_S3_CHECKOUT_BUCKET_TEST
 
-4. If you wish to run the unit tests, you must create two more S3 buckets, one for test data and another for test
+1. If you wish to run the unit tests, you must create two more S3 buckets, one for test data and another for test
    fixtures, and set the environment variables `DSS_S3_BUCKET_TEST` and `DSS_S3_BUCKET_TEST_FIXTURES` to the names of
    those buckets.
 
@@ -71,66 +71,66 @@ Hint: To create S3 buckets from the command line, use `aws s3 mb --region REGION
 
 1.  Follow the instructions in https://cloud.google.com/sdk/downloads to get the `gcloud` command line utility.
 
-2.  In the [Google Cloud Console](https://console.cloud.google.com/), select the correct Google user account on the top
+1.  In the [Google Cloud Console](https://console.cloud.google.com/), select the correct Google user account on the top
     right and the correct GCP project in the drop down in the top center. Go to "IAM & Admin", then "Service accounts",
     then click "Create service account" and select "Furnish a new private key". Under "Roles" select "Project – Owner",
     "Service Accounts – Service Account User" and "Cloud Functions – Cloud Function Developer". Create the account and 
     download the service account key JSON file.
 
-3.  Place the downloaded JSON file into the project root as `gcp-credentials.json`
+1.  Place the downloaded JSON file into the project root as `gcp-credentials.json`
 
-4.  Run the command 
+1.  Run the command 
 
     ```
     cat $DSS_HOME/gcp-credentials.json | scripts/set_secret.py --secret-name $GOOGLE_APPLICATION_CREDENTIALS_SECRETS_NAME
     ```
 
-5.  Choose a region that has support for Cloud Functions and set `GCP_DEFAULT_REGION` to that region. See
+1.  Choose a region that has support for Cloud Functions and set `GCP_DEFAULT_REGION` to that region. See
     https://cloud.google.com/about/locations/ for a list of supported regions.
 
-6.  Run `gcloud config set project PROJECT_ID` where PROJECT_ID is the ID, not the name (!) of the GCP project you
+1.  Run `gcloud config set project PROJECT_ID` where PROJECT_ID is the ID, not the name (!) of the GCP project you
     selected earlier.
 
-7.  Enable required APIs: 
+1.  Enable required APIs: 
 
     ```
     gcloud services enable cloudfunctions.googleapis.com
     gcloud services enable runtimeconfig.googleapis.com
     ```
 
-8.  Generate OAuth application secrets to be used for your instance: 
+1.  Generate OAuth application secrets to be used for your instance: 
 
     1) Go to https://console.developers.google.com/apis/credentials (you may have to select Organization and Project
     again)
     
-	2) Click *Create Credentials* and select *OAuth client*
+	1) Click *Create Credentials* and select *OAuth client*
     
-	3) For *Application type* choose *Other*  
+	1) For *Application type* choose *Other*  
     
-	4) Under application name, use `hca-dss-` followed by the stage name i.e., the value of DSS_DEPLOYMENT_STAGE. This
+	1) Under application name, use `hca-dss-` followed by the stage name i.e., the value of DSS_DEPLOYMENT_STAGE. This
     is a convention only and carries no technical significance.
     
-	5) Click *Create*, don't worry about noting the client ID and secret, click *OK*
+	1) Click *Create*, don't worry about noting the client ID and secret, click *OK*
     
-	6) Click the edit icon for the new credentials and click *Download JSON*
+	1) Click the edit icon for the new credentials and click *Download JSON*
 
-	7) Place the downloaded JSON file into the project root as `application_secrets.json`
+	1) Place the downloaded JSON file into the project root as `application_secrets.json`
     
-	7) Run the command 
+	1) Run the command 
 
 	```
 	cat $DSS_HOME/application_secrets.json | scripts/set_secret.py --secret-name $GOOGLE_APPLICATION_SECRETS_SECRETS_NAME
 	```
 
-9.  Create a Google Cloud Storage bucket and in `environment.local`, set the environment variable `DSS_GS_BUCKET` to the
+1.  Create a Google Cloud Storage bucket and in `environment.local`, set the environment variable `DSS_GS_BUCKET` to the
     name of that bucket. Make sure the bucket region is consistent with `GCP_DEFAULT_REGION` in `environment.local`.
 
-10. Repeat the previous step for
+1. Repeat the previous step for
 
    * DSS_GS_CHECKOUT_BUCKET
    * DSS_GS_CHECKOUT_BUCKET_TEST
 
-11. If you wish to run the unit tests, you must create two more buckets, one for test data and another for test
+1. If you wish to run the unit tests, you must create two more buckets, one for test data and another for test
     fixtures, and set the environment variables `DSS_GS_BUCKET_TEST` and `DSS_GS_BUCKET_TEST_FIXTURES` to the names of
     those buckets.
 
@@ -278,10 +278,10 @@ version range of direct dependencies in -`requirements.txt.in` and `requirements
 If you need to modify or add a direct runtime dependency declaration, follow the steps below:
 
 1) Make sure there are no pending changes to `requirements.txt` or `requirements-dev.txt`.
-2) Make the desired change to `requirements.txt.in` or `requirements-dev.txt.in`
-3) Run `make requirements.txt`.  Run `make requirements-dev.txt` if you have modified `requirements-dev.txt.in`.
-4) Visually check the changes to `requirements.txt` and `requirements-dev.txt`.
-5) Commit them with a message like `Bumping dependencies`.
+1) Make the desired change to `requirements.txt.in` or `requirements-dev.txt.in`
+1) Run `make requirements.txt`.  Run `make requirements-dev.txt` if you have modified `requirements-dev.txt.in`.
+1) Visually check the changes to `requirements.txt` and `requirements-dev.txt`.
+1) Commit them with a message like `Bumping dependencies`.
 
 You now have two commits, one that catches up with updates to transitive dependencies, and one that tracks your explict
 change to a direct dependency. This process applies to development dependencies as well, except for
@@ -299,11 +299,11 @@ test-deploy-test cycle after this (the test after the deploy is required to test
     logger = logging.getLogger(__name__)
     ```
 
-2.  Do not configure logging at module scope. It should be possible to import any module without side-effects on 
+1.  Do not configure logging at module scope. It should be possible to import any module without side-effects on 
     logging. The `dss.logging` module contains functions that configure logging for this application, its Lambda 
     functions and unit tests.
     
-3.  When logging a message, pass either
+1.  When logging a message, pass either
  
     * an f-string as the first and only positional argument or
     
@@ -321,10 +321,10 @@ test-deploy-test cycle after this (the test after the deploy is required to test
     logger.info(f"Foo is {foo}", exc_info=True)
     ```
     
-4.  To enable verbose logging by application code, set the environment variable `DSS_DEBUG` to `1`. To enable verbose 
+1.  To enable verbose logging by application code, set the environment variable `DSS_DEBUG` to `1`. To enable verbose 
     logging by dependencies set `DSS_DEBUG` to `2`. To disable verbose logging unset `DSS_DEBUG` or set it to `0`.
 
-5.  To assert in tests that certain messages were logged, use the `dss` logger or one of its children 
+1.  To assert in tests that certain messages were logged, use the `dss` logger or one of its children 
     
     ```python
     dss_logger = logging.getLogger('dss')
