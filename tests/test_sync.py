@@ -73,6 +73,9 @@ class TestSyncUtils(unittest.TestCase, DSSSyncMixin):
         sync.do_oneshot_copy(Replica.aws, Replica.gcp, test_key)
         self.assertEqual(gs_dest_blob.download_as_string(), payload)
 
+        gs_dest_blob.reload()
+        self.assertEqual(gs_dest_blob.metadata, test_metadata)
+
         test_key = "{}/gs-to-s3/{}".format(self.test_blob_prefix, uuid.uuid4())
         src_blob = self.gs_bucket.blob(test_key)
         dest_blob = self.s3_bucket.Object(test_key)
@@ -84,10 +87,6 @@ class TestSyncUtils(unittest.TestCase, DSSSyncMixin):
         sync.do_oneshot_copy(Replica.gcp, Replica.aws, test_key)
         self.assertEqual(dest_blob.get()["Body"].read(), payload)
         self.assertEqual(dest_blob.metadata, test_metadata)
-
-        # GS metadata seems to take a while to propagate, so we wait until the above test completes to read it back
-        gs_dest_blob.reload()
-        self.assertEqual(gs_dest_blob.metadata, test_metadata)
 
         # Hit some code paths with mock data. The full tests for these are in the integration test suite.
         sync.initiate_multipart_upload(Replica.gcp, Replica.aws, test_key)
@@ -268,6 +267,9 @@ class TestSyncDaemon(unittest.TestCase, DSSSyncMixin):
                 self.assertEqual(gs_dest_blob.download_as_string(), payload)
             check_gs_dest()
 
+            gs_dest_blob.reload()
+            self.assertEqual(gs_dest_blob.metadata, test_metadata)
+
         with self.subTest("gs to s3"):
             test_key = "{}/gs-to-s3/{}".format(self.test_blob_prefix, uuid.uuid4())
             src_blob = self.gs_bucket.blob(test_key)
@@ -280,10 +282,6 @@ class TestSyncDaemon(unittest.TestCase, DSSSyncMixin):
                 self.assertEqual(dest_blob.get()["Body"].read(), payload)
                 self.assertEqual(dest_blob.metadata, test_metadata)
             check_s3_dest(dest_blob)
-
-            # GS metadata seems to take a while to propagate, so we wait until the above test completes to read it back
-            gs_dest_blob.reload()
-            self.assertEqual(gs_dest_blob.metadata, test_metadata)
 
 
 if __name__ == '__main__':
