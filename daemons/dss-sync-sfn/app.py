@@ -28,7 +28,7 @@ dss.Config.set_config(dss.BucketConfig.NORMAL)
 app = domovoi.Domovoi()
 
 # This entry point is for S3 native events forwarded through SQS.
-@app.s3_event_handler(bucket="akislyuk-experiments", events=["s3:ObjectCreated:*"], use_sqs=True)
+@app.s3_event_handler(bucket=Config.get_s3_bucket(), events=["s3:ObjectCreated:*"], use_sqs=True)
 def launch_from_s3_event(event, context):
     source_replica = Replica.aws
     executions = {}
