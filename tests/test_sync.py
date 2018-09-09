@@ -32,7 +32,7 @@ from tests.infra import testmode
 def setUpModule():
     configure_test_logging()
 
-class TestSync:
+class DSSSyncMixin:
     test_blob_prefix = "blobs/hca-dss-sync-test"
     def cleanup_sync_test_objects(self, age=datetime.timedelta(days=1)):
         for key in self.s3_bucket.objects.filter(Prefix=self.test_blob_prefix):
@@ -49,7 +49,7 @@ class TestSync:
         return self.payload[:size]
 
 @testmode.standalone
-class TestSyncUtils(unittest.TestCase, TestSync):
+class TestSyncUtils(unittest.TestCase, DSSSyncMixin):
     def setUp(self):
         dss.Config.set_config(dss.BucketConfig.TEST)
         self.gs_bucket_name, self.s3_bucket_name = dss.Config.get_gs_bucket(), dss.Config.get_s3_bucket()
