@@ -295,8 +295,8 @@ def oneshot_copy(event, context):
 
 @app.step_function_task(state_name="ComposeParts", state_machine_definition=sfn)
 def compose_parts(events, context):
-    # Since this is a SFN task handler that sits downstream of a Parallel task, it receives an array of outputs.
-    # We use just the first output since the relevant SFN state information in all the outputs is identical.
+    # Since this is a SFN task handler that sits downstream of a Parallel task, it receives an array of task outputs.
+    # We use just the first task output since the relevant SFN state information in all the outputs is identical.
     dest_replica = Replica[events[0]["dest_replica"]]
     if dest_replica == Replica.gcp:
         compose_upload(get_sync_work_state(events[0]))
