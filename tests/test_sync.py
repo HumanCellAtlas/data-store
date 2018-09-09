@@ -63,7 +63,7 @@ class TestSyncUtils(unittest.TestCase, DSSSyncMixin):
         self.cleanup_sync_test_objects()
         payload = self.get_payload(2**20)
         test_metadata = {"metadata-sync-test": str(uuid.uuid4())}
-        test_key = "{}/s3-to-gcs/{}".format(self.test_blob_prefix, uuid.uuid4())
+        test_key = "{}/s3-to-gs/{}".format(self.test_blob_prefix, uuid.uuid4())
         src_blob = self.s3_bucket.Object(test_key)
         gs_dest_blob = self.gs_bucket.blob(test_key)
         src_blob.put(Body=payload, Metadata=test_metadata)
@@ -73,7 +73,7 @@ class TestSyncUtils(unittest.TestCase, DSSSyncMixin):
         sync.do_oneshot_copy(Replica.aws, Replica.gcp, test_key)
         self.assertEqual(gs_dest_blob.download_as_string(), payload)
 
-        test_key = "{}/gcs-to-s3/{}".format(self.test_blob_prefix, uuid.uuid4())
+        test_key = "{}/gs-to-s3/{}".format(self.test_blob_prefix, uuid.uuid4())
         src_blob = self.gs_bucket.blob(test_key)
         dest_blob = self.s3_bucket.Object(test_key)
         src_blob.metadata = test_metadata
@@ -158,17 +158,19 @@ class TestSyncUtils(unittest.TestCase, DSSSyncMixin):
         self.assertEqual(json.loads(res.headers["ETag"]), hashlib.md5(payload).hexdigest())
 
     def test_exists(self):
-        test_key = "{}/exists/{}".format(self.test_blob_prefix, uuid.uuid4())
-        test_blob = self.gs_bucket.blob(test_key)
-        self.assertFalse(sync.exists(replica=Replica.gcp, key=test_key))
-        test_blob.upload_from_string(b"1")
-        self.assertTrue(sync.exists(replica=Replica.gcp, key=test_key))
+        with self.subTest("gs"):
+            test_key = "{}/exists/{}".format(self.test_blob_prefix, uuid.uuid4())
+            test_blob = self.gs_bucket.blob(test_key)
+            self.assertFalse(sync.exists(replica=Replica.gcp, key=test_key))
+            test_blob.upload_from_string(b"1")
+            self.assertTrue(sync.exists(replica=Replica.gcp, key=test_key))
 
-        test_key = "{}/exists/{}".format(self.test_blob_prefix, uuid.uuid4())
-        test_blob = self.s3_bucket.Object(test_key)
-        self.assertFalse(sync.exists(replica=Replica.aws, key=test_key))
-        test_blob.put(Body=b"2")
-        self.assertTrue(sync.exists(replica=Replica.aws, key=test_key))
+        with self.subTest("s3"):
+            test_key = "{}/exists/{}".format(self.test_blob_prefix, uuid.uuid4())
+            test_blob = self.s3_bucket.Object(test_key)
+            self.assertFalse(sync.exists(replica=Replica.aws, key=test_key))
+            test_blob.put(Body=b"2")
+            self.assertTrue(sync.exists(replica=Replica.aws, key=test_key))
 
     def test_dependencies_exist(self):
         file_uuid, file_version = str(uuid.uuid4()), get_version()
@@ -187,44 +189,48 @@ class TestSyncUtils(unittest.TestCase, DSSSyncMixin):
             FileMetadata.CRC32C: str(uuid.uuid4())
         }
 
-        collection_key = "{}/{}".format(COLLECTION_PREFIX, get_collection_fqid())
-        collection_blob = self.s3_bucket.Object(collection_key)
-        collection_blob.put(Body=json.dumps(collection_data).encode())
-        self.assertFalse(sync.dependencies_exist(Replica.aws, Replica.aws, collection_key))
+        with self.subTest("collection without deps"):
+            collection_key = "{}/{}".format(COLLECTION_PREFIX, get_collection_fqid())
+            collection_blob = self.s3_bucket.Object(collection_key)
+            collection_blob.put(Body=json.dumps(collection_data).encode())
+            self.assertFalse(sync.dependencies_exist(Replica.aws, Replica.aws, collection_key))
 
-        bundle_key = "{}/{}".format(BUNDLE_PREFIX, BundleFQID(uuid=bundle_uuid, version=bundle_version))
-        bundle_blob = self.s3_bucket.Object(bundle_key)
-        bundle_blob.put(Body=json.dumps(bundle_data).encode())
+        with self.subTest("bundle without deps"):
+            bundle_key = "{}/{}".format(BUNDLE_PREFIX, BundleFQID(uuid=bundle_uuid, version=bundle_version))
+            bundle_blob = self.s3_bucket.Object(bundle_key)
+            bundle_blob.put(Body=json.dumps(bundle_data).encode())
 
-        self.assertFalse(sync.dependencies_exist(Replica.aws, Replica.aws, collection_key))
-        self.assertFalse(sync.dependencies_exist(Replica.aws, Replica.aws, bundle_key))
+            self.assertFalse(sync.dependencies_exist(Replica.aws, Replica.aws, collection_key))
+            self.assertFalse(sync.dependencies_exist(Replica.aws, Replica.aws, bundle_key))
 
-        file_key = "{}/{}".format(FILE_PREFIX, FileFQID(uuid=file_uuid, version=file_version))
-        file_blob = self.s3_bucket.Object(file_key)
-        file_blob.put(Body=json.dumps(file_data).encode())
+        with self.subTest("file without deps"):
+            file_key = "{}/{}".format(FILE_PREFIX, FileFQID(uuid=file_uuid, version=file_version))
+            file_blob = self.s3_bucket.Object(file_key)
+            file_blob.put(Body=json.dumps(file_data).encode())
 
-        @eventually(timeout=8, interval=1, errors={Exception})
-        def check_file_revdeps():
-            self.assertTrue(sync.dependencies_exist(Replica.aws, Replica.aws, collection_key))
-            self.assertTrue(sync.dependencies_exist(Replica.aws, Replica.aws, bundle_key))
-            self.assertFalse(sync.dependencies_exist(Replica.aws, Replica.aws, file_key))
-        check_file_revdeps()
+            @eventually(timeout=8, interval=1, errors={Exception})
+            def check_file_revdeps():
+                self.assertTrue(sync.dependencies_exist(Replica.aws, Replica.aws, collection_key))
+                self.assertTrue(sync.dependencies_exist(Replica.aws, Replica.aws, bundle_key))
+                self.assertFalse(sync.dependencies_exist(Replica.aws, Replica.aws, file_key))
+            check_file_revdeps()
 
-        blob_key = compose_blob_key(file_data)
-        blob_blob = self.s3_bucket.Object(blob_key)
-        blob_blob.put(Body=b"sync_test")
+        with self.subTest("blob presence causes all dependencies to be resolved"):
+            blob_key = compose_blob_key(file_data)
+            blob_blob = self.s3_bucket.Object(blob_key)
+            blob_blob.put(Body=b"sync_test")
 
-        @eventually(timeout=8, interval=1, errors={Exception})
-        def check_blob_revdeps():
-            self.assertTrue(sync.dependencies_exist(Replica.aws, Replica.aws, collection_key))
-            self.assertTrue(sync.dependencies_exist(Replica.aws, Replica.aws, bundle_key))
-            self.assertTrue(sync.dependencies_exist(Replica.aws, Replica.aws, file_key))
-        check_blob_revdeps()
+            @eventually(timeout=8, interval=1, errors={Exception})
+            def check_blob_revdeps():
+                self.assertTrue(sync.dependencies_exist(Replica.aws, Replica.aws, collection_key))
+                self.assertTrue(sync.dependencies_exist(Replica.aws, Replica.aws, bundle_key))
+                self.assertTrue(sync.dependencies_exist(Replica.aws, Replica.aws, file_key))
+            check_blob_revdeps()
 
 # TODO: (akislyuk) integration test of SQS fault injection, SFN fault injection
 
 @testmode.integration
-class TestSyncDaemon(unittest.TestCase, TestSync):
+class TestSyncDaemon(unittest.TestCase, DSSSyncMixin):
     def setUp(self):
         dss.Config.set_config(dss.BucketConfig.TEST)
         self.gs_bucket_name, self.s3_bucket_name = dss.Config.get_gs_bucket(), dss.Config.get_s3_bucket()
@@ -242,37 +248,42 @@ class TestSyncDaemon(unittest.TestCase, TestSync):
                          "Skipping large file sync test. Set DSS_TEST_LARGE_FILE_SYNC=1 to run it")
     def test_sync_large_blob(self):
         "Tests multipart blob syncing."
+        self._sync_blob(payload_size=max(sync.part_size.values()) - 1)
+        self._sync_blob(payload_size=max(sync.part_size.values()))
         self._sync_blob(payload_size=max(sync.part_size.values()) + 1)
 
     def _sync_blob(self, payload_size=8):
         self.cleanup_sync_test_objects()
         payload = self.get_payload(payload_size)
         test_metadata = {"metadata-sync-test": str(uuid.uuid4())}
-        test_key = "{}/s3-to-gcs/{}".format(self.test_blob_prefix, uuid.uuid4())
-        src_blob = self.s3_bucket.Object(test_key)
-        gs_dest_blob = self.gs_bucket.blob(test_key)
-        src_blob.put(Body=payload, Metadata=test_metadata)
 
-        @eventually(timeout=60, interval=1, errors={Exception})
-        def check_gs_dest():
-            self.assertEqual(gs_dest_blob.download_as_string(), payload)
-        check_gs_dest()
+        with self.subTest("s3 to gs"):
+            test_key = "{}/s3-to-gs/{}".format(self.test_blob_prefix, uuid.uuid4())
+            src_blob = self.s3_bucket.Object(test_key)
+            gs_dest_blob = self.gs_bucket.blob(test_key)
+            src_blob.put(Body=payload, Metadata=test_metadata)
 
-        test_key = "{}/gcs-to-s3/{}".format(self.test_blob_prefix, uuid.uuid4())
-        src_blob = self.gs_bucket.blob(test_key)
-        dest_blob = self.s3_bucket.Object(test_key)
-        src_blob.metadata = test_metadata
-        src_blob.upload_from_string(payload)
+            @eventually(timeout=60, interval=1, errors={Exception})
+            def check_gs_dest():
+                self.assertEqual(gs_dest_blob.download_as_string(), payload)
+            check_gs_dest()
 
-        @eventually(timeout=60, interval=1, errors={Exception})
-        def check_s3_dest(dest_blob):
-            self.assertEqual(dest_blob.get()["Body"].read(), payload)
-            self.assertEqual(dest_blob.metadata, test_metadata)
-        check_s3_dest(dest_blob)
+        with self.subTest("gs to s3"):
+            test_key = "{}/gs-to-s3/{}".format(self.test_blob_prefix, uuid.uuid4())
+            src_blob = self.gs_bucket.blob(test_key)
+            dest_blob = self.s3_bucket.Object(test_key)
+            src_blob.metadata = test_metadata
+            src_blob.upload_from_string(payload)
 
-        # GS metadata seems to take a while to propagate, so we wait until the above test completes to read it back
-        gs_dest_blob.reload()
-        self.assertEqual(gs_dest_blob.metadata, test_metadata)
+            @eventually(timeout=60, interval=1, errors={Exception})
+            def check_s3_dest(dest_blob):
+                self.assertEqual(dest_blob.get()["Body"].read(), payload)
+                self.assertEqual(dest_blob.metadata, test_metadata)
+            check_s3_dest(dest_blob)
+
+            # GS metadata seems to take a while to propagate, so we wait until the above test completes to read it back
+            gs_dest_blob.reload()
+            self.assertEqual(gs_dest_blob.metadata, test_metadata)
 
 
 if __name__ == '__main__':
