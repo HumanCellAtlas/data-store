@@ -176,10 +176,9 @@ def range_request(url: str, start: int, end: int):
 
 def get_part_size(object_size, dest_replica):
     if dest_replica.storage_schema == "s3":
-        part_size = get_s3_multipart_chunk_size(object_size)
+        return get_s3_multipart_chunk_size(object_size)
     else:
-        part_size = 640 * 1024 * 1024
-    return part_size
+        return part_size["gs"]
 
 def get_sync_work_state(event: dict):
     source_replica = Replica[event["source_replica"]]
