@@ -38,7 +38,7 @@ resource "google_project_iam_member" "cloudfunctionsdeveloper" {
   member  = "serviceAccount:${google_service_account.dss.email}"
 }
 
-resource "google_project_iam_member" "cloudfunctionsdeveloper" {
+resource "google_project_iam_member" "viewer" {
   project = "${data.google_project.project.project_id}"
   role    = "roles/viewer"
   member  = "serviceAccount:${google_service_account.dss.email}"
