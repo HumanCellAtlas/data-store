@@ -24,7 +24,7 @@ expected to abide by the following guidelines.
 
 1. All code must be reviewed by at least 1 other team member.
 
-1. All Pull Request relating to an issue must include "connected to 
+1. All Pull Requests relating to an issue must include "connected to 
   #123", where #123 is the issue number.
 
-1. Individual commits messages should clearly express its purpose.
+1. Individual commit messages should clearly express the commit's purpose.
