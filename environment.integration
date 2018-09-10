@@ -14,6 +14,7 @@ DSS_CERTIFICATE_DOMAIN="*.integration.data.humancellatlas.org"
 DSS_CERTIFICATE_ADDITIONAL_NAMES=""
 DSS_CERTIFICATE_VALIDATION="DNS"
 DSS_ZONE_NAME="integration.data.humancellatlas.org."
+DSS_CHECKOUT_BUCKET_OBJECT_VIEWERS="serviceAccount:1037839730885-compute@developer.gserviceaccount.com,serviceAccount:caas-account@broad-dsde-mint-test.iam.gserviceaccount.com"
 set +a
 
 if [[ -f "${DSS_HOME}/environment.integration.local" ]]; then

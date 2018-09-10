@@ -51,6 +51,17 @@ resource google_storage_bucket dss_gs_checkout_bucket {
   }
 }
 
+locals {
+  checkout_bucket_viewers = "${compact(split(",", var.DSS_CHECKOUT_BUCKET_OBJECT_VIEWERS))}"
+}
+
+resource "google_storage_bucket_iam_member" "checkout_viewer" {
+  count  = "${length(local.checkout_bucket_viewers)}",
+  bucket = "${google_storage_bucket.dss_gs_checkout_bucket.name}"
+  role        = "roles/storage.objectViewer"
+  member      = "${local.checkout_bucket_viewers[count.index]}"
+}
+
 resource google_storage_bucket dss_gs_checkout_bucket_test {
   count = "${var.DSS_DEPLOYMENT_STAGE == "dev" ? 1 : 0}"
   name = "${var.DSS_GS_CHECKOUT_BUCKET_TEST}"
