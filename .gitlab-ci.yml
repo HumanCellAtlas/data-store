@@ -19,6 +19,7 @@ before_script:
   - if not [[ CI_COMMIT_SHA == $(http GET ${GITHUB_API}/repos/HumanCellAtlas/data-store/commits sha==$CI_COMMIT_REF_NAME | jq -r '.[0]["sha"]') ]]; then exit 1; fi
 # TODO: figure out how to get the gitlab-runner to not clone the repo as root - Brian H
   - cp -r /HumanCellAtlas/data-store ~/data-store && cd ~/data-store
+  - git reset --hard HEAD
   - virtualenv ~/venv
   - source ~/venv/bin/activate
   - pip install -r requirements-dev.txt
@@ -104,6 +105,7 @@ integration_test:
 release_integration:
   stage: release
   script:
+    - git remote set-url origin https://$GITHUB_TOKEN@github.com/HumanCellAtlas/data-store.git
     - for i in $(seq 1 40); do
     -   status=$(scripts/status.sh HumanCellAtlas dcp integration)
     -   if [[ pending != "${status}" && running != "${status}" ]]; then break; fi
@@ -114,7 +116,7 @@ release_integration:
     -   echo "DCP Integration test returned status ${status}";
     -   exit 1
     - fi
-    - yes 1 | scripts/release.sh master integration --no-deploy
+    - scripts/release.sh master integration --no-deploy --skip-github-status --skip-account-verification
   only:
     - master
   when: manual
@@ -123,7 +125,8 @@ release_integration:
 force_release_integration:
   stage: release
   script:
-    - yes 1 | scripts/release.sh master integration --force --no-deploy
+    - git remote set-url origin https://$GITHUB_TOKEN@github.com/HumanCellAtlas/data-store.git
+    - scripts/release.sh master integration --force --no-deploy --skip-github-status --skip-account-verification
   only:
     - master
   when: manual
@@ -131,6 +134,7 @@ force_release_integration:
 release_staging:
   stage: release
   script:
+    - git remote set-url origin https://$GITHUB_TOKEN@github.com/HumanCellAtlas/data-store.git
     - for i in $(seq 1 40); do
     -   status=$(scripts/status.sh HumanCellAtlas dcp staging)
     -   if [[ pending != "${status}" && running != "${status}" ]]; then break; fi
@@ -141,7 +145,7 @@ release_staging:
     -   echo "DCP Integration test returned status ${status}";
     -   exit 1
     - fi
-    - yes 1 | scripts/release.sh integration staging --no-deploy
+    - scripts/release.sh integration staging --no-deploy --skip-github-status --skip-account-verification
   only:
     - integration
   when: manual 
@@ -149,7 +153,8 @@ release_staging:
 force_release_staging:
   stage: release
   script:
-    - yes 1 | scripts/release.sh integration staging --force --no-deploy
+    - git remote set-url origin https://$GITHUB_TOKEN@github.com/HumanCellAtlas/data-store.git
+    - scripts/release.sh integration staging --force --no-deploy --skip-github-status --skip-account-verification
   only:
     - integration
   when: manual
