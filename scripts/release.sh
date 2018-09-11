@@ -56,12 +56,12 @@ if [[ $# != 2 ]]; then
     echo "If the --skip-account-verification flag is given, the user will not be asked to"
     echo "verify cloud account information."
     echo
-    echo "Usage: $(basename $0) source_branch dest_branch [--force] [--no-deploy]"
+    echo "Usage: $(basename $0) source_branch dest_branch [--force] [--no-deploy] [--skip-github-status] [--skip-account-verification]"
     echo "Example: $(basename $0) master staging"
     exit 1
 fi
 
-if ! [[ $SKIP_ACCOUNT_VERIFICATION == "--skip-account-verification" ]]; then
+if [[ $SKIP_ACCOUNT_VERIFICATION != "--skip-account-verification" ]]; then
     echo "Please review and confirm your active AWS account configuration:"
     aws configure list
     aws sts get-caller-identity
@@ -100,7 +100,7 @@ fi
 
 export PROMOTE_FROM_BRANCH=$1 PROMOTE_DEST_BRANCH=$2
 
-if ! [[ $SKIP_GITHUB_STATUS == "--skip-github-status" ]]; then
+if [[ $SKIP_GITHUB_STATUS != "--skip-github-status" ]]; then
     GH_API=https://api.github.com
     REPO=$(git remote get-url origin | perl -ne '/github\.com.(.+?)(\.git)?$/; print $1')
     STATUS=$(http GET ${GH_API}/repos/${REPO}/commits/${PROMOTE_FROM_BRANCH}/status Accept:application/vnd.github.full+json)
