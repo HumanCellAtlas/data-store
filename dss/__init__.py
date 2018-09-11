@@ -18,7 +18,8 @@ from connexion.exceptions import OAuthProblem, OAuthResponseProblem, OAuthScopeP
 from werkzeug.exceptions import Forbidden
 
 from dss.config import BucketConfig, Config, DeploymentStage, ESIndexType, ESDocType, Replica
-from dss.error import DSSBindingException, DSSException, DSSForbiddenException, dss_handler, dss_exception_handler
+from dss.error import (DSSBindingException, DSSException, DSSForbiddenException, dss_handler, dss_read_handler,
+                       dss_write_handler, dss_exception_handler)
 
 logger = logging.getLogger(__name__)
 
@@ -30,8 +31,8 @@ class DSSApp(connexion.App):
     @staticmethod
     def common_error_handler(exception):
         """
-        Generally, each route handler should be decorated with @dss_handler, which manages exceptions.  The two cases
-        that fails are:
+        Generally, each route handler should be decorated with @dss_read_handler or @dss_write_handler, which manage
+        exceptions. The two cases that fail are:
 
         1. handlers that are not decorated.
         2. handlers that return a code that is not in the swagger spec.

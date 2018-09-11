@@ -1,3 +1,4 @@
+import os
 import typing
 
 import functools
@@ -42,27 +43,41 @@ def dss_exception_handler(e: DSSException) -> FlaskResponse:
             'stacktrace': traceback.format_exc(),
         })
 
-
 def dss_handler(func):
+    return _dss_handler(func, mode=None)
+
+def dss_read_handler(func):
+    return _dss_handler(func, mode="READ")
+
+def dss_write_handler(func):
+    return _dss_handler(func, mode="WRITE")
+
+def _dss_handler(func, mode=None):
     @functools.wraps(func)
     def wrapper(*args, **kwargs):
-        try:
-            return func(*args, **kwargs)
-        except werkzeug.exceptions.HTTPException as ex:
-            status = ex.code
-            code = ex.name
-            title = str(ex)
-            stacktrace = traceback.format_exc()
-        except DSSException as ex:
-            status = ex.status
-            code = ex.code
-            title = ex.message
-            stacktrace = traceback.format_exc()
-        except Exception as ex:
-            status = requests.codes.server_error
-            code = "unhandled_exception"
-            title = str(ex)
-            stacktrace = traceback.format_exc()
+        if mode != 'READ' and os.environ.get('DSS_READ_ONLY_MODE') is not None:
+            status = requests.codes.not_allowed
+            code = "read_only"
+            title = "The DSS is currently read-only"
+            stacktrace = ""
+        else:
+            try:
+                return func(*args, **kwargs)
+            except werkzeug.exceptions.HTTPException as ex:
+                status = ex.code
+                code = ex.name
+                title = str(ex)
+                stacktrace = traceback.format_exc()
+            except DSSException as ex:
+                status = ex.status
+                code = ex.code
+                title = ex.message
+                stacktrace = traceback.format_exc()
+            except Exception as ex:
+                status = requests.codes.server_error
+                code = "unhandled_exception"
+                title = str(ex)
+                stacktrace = traceback.format_exc()
 
         return ConnexionResponse(
             status_code=status,

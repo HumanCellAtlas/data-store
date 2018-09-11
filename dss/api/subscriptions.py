@@ -10,7 +10,7 @@ from elasticsearch_dsl import Search
 from flask import jsonify, request
 
 from dss import Config, Replica, ESIndexType, ESDocType
-from dss.error import DSSException, dss_handler
+from dss.error import DSSException, dss_read_handler, dss_write_handler
 from dss.index.es import ElasticsearchClient
 from dss.index.es.manager import IndexManager
 from dss.notify import attachment
@@ -19,7 +19,7 @@ from dss.util import security
 logger = logging.getLogger(__name__)
 
 
-@dss_handler
+@dss_read_handler
 @security.authorized_group_required(['hca'])
 def get(uuid: str, replica: str):
     owner = request.token_info['email']
@@ -44,7 +44,7 @@ def get(uuid: str, replica: str):
     return jsonify(source), requests.codes.okay
 
 
-@dss_handler
+@dss_read_handler
 @security.authorized_group_required(['hca'])
 def find(replica: str):
     owner = request.token_info['email']
@@ -66,7 +66,7 @@ def find(replica: str):
     return jsonify(full_response), requests.codes.okay
 
 
-@dss_handler
+@dss_write_handler
 @security.authorized_group_required(['hca'])
 def put(json_request_body: dict, replica: str):
     uuid = str(uuid4())
@@ -145,7 +145,7 @@ def put(json_request_body: dict, replica: str):
     return jsonify(dict(uuid=uuid)), requests.codes.created
 
 
-@dss_handler
+@dss_write_handler
 @security.authorized_group_required(['hca'])
 def delete(uuid: str, replica: str):
     authenticated_user_email = request.token_info['email']

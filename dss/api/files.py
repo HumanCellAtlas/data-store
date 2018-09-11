@@ -14,7 +14,7 @@ from cloud_blobstore import BlobAlreadyExistsError, BlobNotFoundError
 from dcplib.s3_multipart import AWS_MIN_CHUNK_SIZE
 from flask import jsonify, make_response, redirect, request
 
-from dss import DSSException, dss_handler, stepfunctions
+from dss import DSSException, dss_read_handler, dss_write_handler, stepfunctions
 from dss.config import Config, Replica
 from dss.storage.checkout import CheckoutTokenKeys
 from dss.storage.checkout.file import get_dst_key, start_file_checkout
@@ -35,12 +35,12 @@ RETRY_AFTER_INTERVAL = 10
 logger = logging.getLogger(__name__)
 
 
-@dss_handler
+@dss_read_handler
 def head(uuid: str, replica: str, version: str=None, token: str=None):
     return get_helper(uuid, Replica[replica], version, token)
 
 
-@dss_handler
+@dss_read_handler
 def get(uuid: str, replica: str, version: str=None, token: str=None):
     return get_helper(uuid, Replica[replica], version, token)
 
@@ -153,7 +153,7 @@ def _verify_checkout(
     return encoded_token, False
 
 
-@dss_handler
+@dss_write_handler
 def put(uuid: str, json_request_body: dict, version: str):
     class CopyMode(Enum):
         NO_COPY = auto()

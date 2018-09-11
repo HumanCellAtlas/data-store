@@ -11,7 +11,7 @@ import jsonpointer
 import iso8601
 
 from dss import Config, Replica
-from dss.error import DSSException, dss_handler
+from dss.error import DSSException, dss_read_handler, dss_write_handler
 from dss.storage.blobstore import test_object_exists
 from dss.storage.hcablobstore import BlobStore, compose_blob_key
 from dss.storage.identifiers import CollectionFQID, CollectionTombstoneID
@@ -48,7 +48,7 @@ def get_impl(uuid: str, replica: str, version: str = None):
         raise DSSException(404, "not_found", "Could not find collection for UUID {}".format(uuid))
     return json.loads(collection_blob)
 
-@dss_handler
+@dss_read_handler
 @security.authorized_group_required(['hca'])
 def get(uuid: str, replica: str, version: str = None):
     authenticated_user_email = request.token_info['email']
@@ -57,7 +57,7 @@ def get(uuid: str, replica: str, version: str = None):
         raise DSSException(requests.codes.forbidden, "forbidden", f"Collection access denied")
     return collection_body
 
-@dss_handler
+@dss_write_handler
 @security.authorized_group_required(['hca'])
 def put(json_request_body: dict, replica: str, uuid: str, version: str):
     authenticated_user_email = request.token_info["email"]
@@ -85,7 +85,7 @@ class hashabledict(dict):
     def __hash__(self):
         return hash(tuple(sorted(self.items())))
 
-@dss_handler
+@dss_write_handler
 @security.authorized_group_required(['hca'])
 def patch(uuid: str, json_request_body: dict, replica: str, version: str):
     try:
@@ -123,7 +123,7 @@ def patch(uuid: str, json_request_body: dict, replica: str, version: str):
                               io.BytesIO(json.dumps(collection).encode("utf-8")))
     return jsonify(dict(uuid=uuid, version=new_collection_version)), requests.codes.ok
 
-@dss_handler
+@dss_write_handler
 @security.authorized_group_required(['hca'])
 def delete(uuid: str, replica: str):
     authenticated_user_email = request.token_info['email']
