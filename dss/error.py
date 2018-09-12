@@ -7,6 +7,7 @@ import traceback
 import requests
 import werkzeug.exceptions
 from connexion.lifecycle import ConnexionResponse
+from flask import request
 from flask import Response as FlaskResponse
 
 
@@ -43,21 +44,12 @@ def dss_exception_handler(e: DSSException) -> FlaskResponse:
             'stacktrace': traceback.format_exc(),
         })
 
-def dss_read_handler(func):
-    return _dss_handler(func, mode="READ")
-
-def dss_write_handler(func):
-    return _dss_handler(func, mode="WRITE")
-
-def _dss_handler(func, mode=None):
+def dss_handler(func):
     @functools.wraps(func)
     def wrapper(*args, **kwargs):
-        if mode != 'READ' and os.environ.get('DSS_READ_ONLY_MODE') is not None:
-            status = requests.codes.not_allowed
-            code = "read_only"
-            title = "The DSS is currently read-only"
-            stacktrace = ""
-        else:
+        if (os.environ.get('DSS_READ_ONLY_MODE') is None or
+                "GET" == request.method or
+                ("POST" == request.method and "search" in request.path)):
             try:
                 return func(*args, **kwargs)
             except werkzeug.exceptions.HTTPException as ex:
@@ -75,6 +67,11 @@ def _dss_handler(func, mode=None):
                 code = "unhandled_exception"
                 title = str(ex)
                 stacktrace = traceback.format_exc()
+        else:
+            status = requests.codes.not_allowed
+            code = "read_only"
+            title = "The DSS is currently read-only"
+            stacktrace = ""
 
         return ConnexionResponse(
             status_code=status,

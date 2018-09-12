@@ -10,7 +10,7 @@ import requests
 from cloud_blobstore import BlobNotFoundError, BlobStore, BlobStoreTimeoutError
 from flask import jsonify, redirect, request
 
-from dss import DSSException, dss_read_handler, dss_write_handler, DSSForbiddenException
+from dss import DSSException, dss_handler, DSSForbiddenException
 from dss.config import Config, Replica
 from dss.storage.blobstore import test_object_exists, ObjectTest
 from dss.storage.bundles import get_bundle_manifest
@@ -32,7 +32,7 @@ PUT_TIME_ALLOWANCE_SECONDS = 10
 ADMIN_USER_EMAILS = set(os.environ['ADMIN_USER_EMAILS'].split(','))
 
 
-@dss_read_handler
+@dss_handler
 def get(
         uuid: str,
         replica: str,
@@ -109,17 +109,17 @@ def get(
     )
 
 
-@dss_read_handler
+@dss_handler
 def list_versions(uuid: str):
     return ["2014-10-23T00:35:14.800221Z"]
 
 
-@dss_write_handler
+@dss_handler
 def post():
     pass
 
 
-@dss_write_handler
+@dss_handler
 def put(uuid: str, replica: str, json_request_body: dict, version: str):
     uuid = uuid.lower()
     # convert it to date-time so we can format exactly as the system requires (with microsecond precision)
@@ -235,7 +235,7 @@ def put(uuid: str, replica: str, json_request_body: dict, version: str):
     return jsonify(dict(version=version)), status_code
 
 
-@dss_write_handler
+@dss_handler
 @security.authorized_group_required(['hca'])
 def delete(uuid: str, replica: str, json_request_body: dict, version: str=None):
     email = request.token_info['email']

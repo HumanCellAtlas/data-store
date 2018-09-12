@@ -2,13 +2,13 @@ import requests
 from cloud_blobstore import BlobNotFoundError
 from flask import jsonify
 
-from dss import dss_read_handler, Replica
+from dss import dss_handler, Replica
 from dss.error import DSSException
 from dss.storage.checkout import BundleNotFoundError
 from dss.storage.checkout.bundle import get_bundle_checkout_status, start_bundle_checkout
 
 
-@dss_read_handler
+@dss_handler
 def post(uuid: str, json_request_body: dict, replica: str, version: str=None):
 
     assert replica is not None
@@ -29,7 +29,7 @@ def post(uuid: str, json_request_body: dict, replica: str, version: str=None):
     return jsonify(dict(checkout_job_id=execution_id)), requests.codes.ok
 
 
-@dss_read_handler
+@dss_handler
 def get(replica: str, checkout_job_id: str):
     assert replica is not None
     _replica = Replica[replica]
