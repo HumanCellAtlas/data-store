@@ -43,9 +43,6 @@ def dss_exception_handler(e: DSSException) -> FlaskResponse:
             'stacktrace': traceback.format_exc(),
         })
 
-def dss_handler(func):
-    return _dss_handler(func, mode=None)
-
 def dss_read_handler(func):
     return _dss_handler(func, mode="READ")
 

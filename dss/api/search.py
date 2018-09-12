@@ -8,7 +8,7 @@ from elasticsearch.exceptions import ElasticsearchException, TransportError
 from flask import request, jsonify, make_response
 
 from dss import ESDocType
-from dss import Config, Replica, ESIndexType, dss_handler, DSSException
+from dss import Config, Replica, ESIndexType, dss_read_handler, DSSException
 from dss.util import UrlBuilder
 from dss.index.es import ElasticsearchClient
 
@@ -26,7 +26,7 @@ class PerPageBounds:
         return max(min(cls.per_page_max, n), cls.per_page_min)
 
 
-@dss_handler
+@dss_read_handler
 def post(json_request_body: dict,
          replica: str,
          per_page: int,

@@ -18,7 +18,7 @@ from connexion.exceptions import OAuthProblem, OAuthResponseProblem, OAuthScopeP
 from werkzeug.exceptions import Forbidden
 
 from dss.config import BucketConfig, Config, DeploymentStage, ESIndexType, ESDocType, Replica
-from dss.error import (DSSBindingException, DSSException, DSSForbiddenException, dss_handler, dss_read_handler,
+from dss.error import (DSSBindingException, DSSException, DSSForbiddenException, dss_read_handler,
                        dss_write_handler, dss_exception_handler)
 
 logger = logging.getLogger(__name__)

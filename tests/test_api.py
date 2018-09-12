@@ -70,31 +70,32 @@ class TestApi(unittest.TestCase, DSSAssertMixin, DSSUploadMixin, DSSStorageMixin
 
     @testmode.standalone
     def test_read_only(self):
-        os.environ['DSS_READ_ONLY_MODE'] = "True"
         uuid = "xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx"
+        body = dict(
+            files=[],
+            creator_uid=12345,
+            es_query={},
+            callback_url="https://take.me.to.funkytown",
+            source_url="s3://urlurlurlbaby",
+            description="supercalifragilisticexpialidocious",
+            details={},
+            contents=[]
+        )
 
-        for path in ["bundles", "files", "subscriptions", "collections"]:
-            for replica in ["aws", "gcp"]:
+        tests = [(path, replica)
+                 for path in ("bundles", "files", "subscriptions", "collections")
+                 for replica in ("aws", "gcp")]
+
+        os.environ['DSS_READ_ONLY_MODE'] = "True"
+        try:
+            for path, replica in tests:
                 with self.subTest(path=path, replica=replica):
                     url = str(UrlBuilder().set(path=f"/v1/{path}/" + uuid)
                               .add_query("version", "asdf")
                               .add_query("replica", replica))
-                    self.assertPutResponse(
-                        url,
-                        requests.codes.not_allowed,
-                        json_request_body=dict(
-                            files=[],
-                            creator_uid=12345,
-                            es_query={},
-                            callback_url="https://take.me.to.funkytown",
-                            source_url="s3://urlurlurlbaby",
-                            description="supercalifragilisticexpialidocious",
-                            details={},
-                            contents=[]
-                        )
-                    )
-
-        del os.environ['DSS_READ_ONLY_MODE']
+                    self.assertPutResponse(url, requests.codes.not_allowed, json_request_body=body)
+        finally:
+            del os.environ['DSS_READ_ONLY_MODE']
 
 if __name__ == '__main__':
     unittest.main()
