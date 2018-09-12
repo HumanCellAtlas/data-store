@@ -80,7 +80,8 @@ class TestApi(unittest.TestCase, DSSAssertMixin, DSSUploadMixin, DSSStorageMixin
             description="supercalifragilisticexpialidocious",
             details={},
             reason="none",
-            contents=[]
+            contents=[],
+            name="frank",
         )
 
         tests = [(path, replica)
@@ -91,18 +92,56 @@ class TestApi(unittest.TestCase, DSSAssertMixin, DSSUploadMixin, DSSStorageMixin
         try:
             for path, replica in tests:
                 with self.subTest(path=path, replica=replica):
-                    url = str(UrlBuilder().set(path=f"/v1/{path}/{uuid}")
-                              .add_query("version", "asdf")
-                              .add_query("replica", replica))
-                    self.assertPutResponse(url, requests.codes.not_allowed, json_request_body=body)
-                    if path != 'subscriptions':
-                        with self.subTest(path=path, replica=replica):
-                            self.assertDeleteResponse(
-                                url,
-                                requests.codes.not_allowed,
-                                json_request_body=body,
-                                headers=get_auth_header(),
-                            )
+                    put_url = str(UrlBuilder().set(path=f"/v1/{path}/{uuid}")
+                                  .add_query("version", "asdf")
+                                  .add_query("replica", replica))
+                    delete_url = str(UrlBuilder().set(path=f"/v1/{path}/{uuid}")
+                                     .add_query("version", "asdf")
+                                     .add_query("replica", replica))
+                    json_request_body = body.copy()
+
+                    if path == "subscriptions":
+                        put_url = str(UrlBuilder().set(path=f"/v1/{path}")
+                                      .add_query("version", "asdf")
+                                      .add_query("uuid", uuid)
+                                      .add_query("replica", replica))
+                        delete_url = None
+                        del json_request_body['source_url']
+                        del json_request_body['creator_uid']
+                        del json_request_body['description']
+                        del json_request_body['reason']
+                        del json_request_body['details']
+                        del json_request_body['files']
+                        del json_request_body['contents']
+                        del json_request_body['name']
+                    elif path == "files":
+                        delete_url = None
+                    elif path == "collections":
+                        put_url = str(UrlBuilder().set(path=f"/v1/{path}")
+                                      .add_query("version", "asdf")
+                                      .add_query("uuid", uuid)
+                                      .add_query("replica", replica))
+                        delete_url = str(UrlBuilder().set(path=f"/v1/{path}/{uuid}")
+                                         .add_query("version", "asdf")
+                                         .add_query("replica", replica))
+                        del json_request_body['es_query']
+                        del json_request_body['callback_url']
+
+                    if put_url:
+                        self.assertPutResponse(
+                            put_url,
+                            requests.codes.unavailable,
+                            json_request_body=json_request_body,
+                            headers=get_auth_header(),
+                        )
+
+                    if delete_url:
+                        self.assertDeleteResponse(
+                            delete_url,
+                            requests.codes.unavailable,
+                            json_request_body=json_request_body,
+                            headers=get_auth_header(),
+                        )
         finally:
             del os.environ['DSS_READ_ONLY_MODE']
 

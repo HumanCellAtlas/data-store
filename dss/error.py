@@ -57,26 +57,31 @@ def dss_handler(func):
                 code = ex.name
                 title = str(ex)
                 stacktrace = traceback.format_exc()
+                headers = None
             except DSSException as ex:
                 status = ex.status
                 code = ex.code
                 title = ex.message
                 stacktrace = traceback.format_exc()
+                headers = None
             except Exception as ex:
                 status = requests.codes.server_error
                 code = "unhandled_exception"
                 title = str(ex)
                 stacktrace = traceback.format_exc()
+                headers = None
         else:
-            status = requests.codes.not_allowed
+            status = requests.codes.unavailable
             code = "read_only"
             title = "The DSS is currently read-only"
             stacktrace = ""
+            headers = {'Retry-After': 600}
 
         return ConnexionResponse(
             status_code=status,
             mimetype="application/problem+json",
             content_type="application/problem+json",
+            headers=headers,
             body={
                 'status': status,
                 'code': code,
