@@ -1,31 +1,30 @@
-import datetime
 import logging
 import time
-from concurrent.futures import ThreadPoolExecutor
 from contextlib import closing
 from string import ascii_letters
 
 import boto3
-import botocore.session
 import google.cloud.storage
-import hashlib
 import os
 from collections import namedtuple
-from google.cloud._http import JSONConnection
-from google.cloud.client import ClientWithProject
 from google.resumable_media._upload import get_content_range
+
+from dcplib.s3_multipart import get_s3_multipart_chunk_size
 
 import dss
 from dss import Config, Replica
-from dss.util.aws import resources, clients, send_sns_msg, ARN
+from dss.api.collections import get_json_metadata, verify_collection
+from dss.util.aws import resources, clients
 from dss.util.streaming import get_pool_manager, S3SigningChunker
+from dss.storage.identifiers import FILE_PREFIX, BUNDLE_PREFIX, COLLECTION_PREFIX, FileFQID, BundleFQID, CollectionFQID
+from dss.storage.hcablobstore import BundleFileMetadata, BundleMetadata, compose_blob_key
 
 
 logger = logging.getLogger(__name__)
 
 presigned_url_lifetime_seconds = 3600
-use_gsts = False
-gsts_sched_delay_minutes = 2
+sync_sfn_dep_wait_sleep_seconds = 8
+sync_sfn_num_threads = 8
 part_size = {"s3": 64 * 1024 * 1024, "gs": 640 * 1024 * 1024}
 parts_per_worker = {"s3": 8, "gs": 1}
 gs_upload_chunk_size = 1024 * 1024 * 32
@@ -37,18 +36,26 @@ sns_topics = dict(copy_parts="dss-copy-parts-" + os.environ["DSS_DEPLOYMENT_STAG
 
 BlobLocation = namedtuple("BlobLocation", "platform bucket blob")
 
+def do_oneshot_copy(source_replica: Replica, dest_replica: Replica, source_key: str):
+    gs = Config.get_native_handle(Replica.gcp)
+    if source_replica == Replica.aws and dest_replica == Replica.gcp:
+        s3_bucket = resources.s3.Bucket(source_replica.bucket)  # type: ignore
+        gs_bucket = gs.bucket(dest_replica.bucket)
+        source = BlobLocation(platform="s3", bucket=s3_bucket, blob=s3_bucket.Object(source_key))
+        dest = BlobLocation(platform="gs", bucket=gs_bucket, blob=gs_bucket.blob(source_key))
+        sync_s3_to_gs_oneshot(source, dest)
+    elif source_replica == Replica.gcp and dest_replica == Replica.aws:
+        gs_bucket = gs.bucket(source_replica.bucket)
+        s3_bucket = resources.s3.Bucket(dest_replica.bucket)  # type: ignore
+        source = BlobLocation(platform="gs", bucket=gs_bucket, blob=gs_bucket.blob(source_key))
+        source.blob.reload()
+        dest = BlobLocation(platform="s3", bucket=s3_bucket, blob=s3_bucket.Object(source_key))
+        sync_gs_to_s3_oneshot(source, dest)
+    else:
+        raise NotImplementedError()
 
-class GStorageTransferClient(ClientWithProject):
-    SCOPE = ["https://www.googleapis.com/auth/cloud-platform"]
-
-
-class GStorageTransferConnection(JSONConnection):
-    API_BASE_URL = "https://storagetransfer.googleapis.com"
-    API_VERSION = "v1"
-    API_URL_TEMPLATE = "{api_base_url}/{api_version}{path}"
-
-def sync_s3_to_gs_oneshot(source, dest):
-    s3_blob_url = clients.s3.generate_presigned_url(
+def sync_s3_to_gs_oneshot(source: BlobLocation, dest: BlobLocation):
+    s3_blob_url = clients.s3.generate_presigned_url(  # type: ignore
         ClientMethod='get_object',
         Params=dict(Bucket=source.bucket.name, Key=source.blob.key),
         ExpiresIn=presigned_url_lifetime_seconds
@@ -58,81 +65,11 @@ def sync_s3_to_gs_oneshot(source, dest):
         gs_blob.metadata = source.blob.metadata
         gs_blob.upload_from_file(fh)
 
-
-def sync_gs_to_s3_oneshot(source, dest):
+def sync_gs_to_s3_oneshot(source: BlobLocation, dest: BlobLocation):
     expires_timestamp = int(time.time() + presigned_url_lifetime_seconds)
     gs_blob_url = source.blob.generate_signed_url(expiration=expires_timestamp)
     with closing(http.request("GET", gs_blob_url, preload_content=False)) as fh:
         dest.blob.upload_fileobj(fh, ExtraArgs=dict(Metadata=source.blob.metadata or {}))
-
-
-def dispatch_multipart_sync(source, dest, context):
-    parts_for_worker = []
-    futures = []
-    total_size = source.blob.content_length if source.platform == "s3" else source.blob.size
-    all_parts = list(enumerate(range(0, total_size, part_size[dest.platform])))
-    mpu = dest.blob.initiate_multipart_upload(Metadata=source.blob.metadata or {}) if dest.platform == "s3" else None
-
-    with ThreadPoolExecutor(max_workers=4) as executor:
-        for part_id, part_start in all_parts:
-            parts_for_worker.append(dict(id=part_id + 1,
-                                         start=part_start,
-                                         end=min(total_size - 1, part_start + part_size[dest.platform] - 1),
-                                         total_parts=len(all_parts)))
-            if len(parts_for_worker) >= parts_per_worker[dest.platform] or part_id == all_parts[-1][0]:
-                logger.info("Invoking dss-copy-parts with %s", ", ".join(str(p["id"]) for p in parts_for_worker))
-                sns_msg = dict(source_platform=source.platform,
-                               source_bucket=source.bucket.name,
-                               source_key=source.blob.key if source.platform == "s3" else source.blob.name,
-                               dest_platform=dest.platform,
-                               dest_bucket=dest.bucket.name,
-                               dest_key=dest.blob.key if dest.platform == "s3" else dest.blob.name,
-                               mpu=mpu.id if mpu else None,
-                               parts=parts_for_worker,
-                               total_parts=len(all_parts))
-                sns_arn = ARN(context.invoked_function_arn, service="sns", resource=sns_topics["copy_parts"])
-                futures.append(executor.submit(send_sns_msg, sns_arn, sns_msg))
-                parts_for_worker = []
-    for future in futures:
-        future.result()
-
-
-def sync_blob(source_platform, source_key, dest_platform, context):
-    gs = Config.get_native_handle(Replica.gcp)
-    logger.info(f"Begin transfer of {source_key} from {source_platform} to {dest_platform}")
-    gs_bucket, s3_bucket = gs.bucket(Config.get_gs_bucket()), resources.s3.Bucket(Config.get_s3_bucket())
-    if source_platform == "s3" and dest_platform == "gs":
-        source = BlobLocation(platform=source_platform, bucket=s3_bucket, blob=s3_bucket.Object(source_key))
-        dest = BlobLocation(platform=dest_platform, bucket=gs_bucket, blob=gs_bucket.blob(source_key))
-    elif source_platform == "gs" and dest_platform == "s3":
-        source = BlobLocation(platform=source_platform, bucket=gs_bucket, blob=gs_bucket.blob(source_key))
-        dest = BlobLocation(platform=dest_platform, bucket=s3_bucket, blob=s3_bucket.Object(source_key))
-    else:
-        raise NotImplementedError()
-
-    if source_platform == "s3" and dest_platform == "gs":
-        if dest.blob.exists():
-            logger.info(f"Key {source_key} already exists in GS")
-            return
-        elif source.blob.content_length < part_size["s3"]:
-            sync_s3_to_gs_oneshot(source, dest)
-        else:
-            dispatch_multipart_sync(source, dest, context)
-    elif source_platform == "gs" and dest_platform == "s3":
-        try:
-            dest.blob.load()
-            logger.info(f"Key {source_key} already exists in S3")
-            return
-        except clients.s3.exceptions.ClientError as e:
-            if e.response["Error"].get("Message") != "Not Found":
-                raise
-        source.blob.reload()
-        if source.blob.size < part_size["s3"]:
-            sync_gs_to_s3_oneshot(source, dest)
-        else:
-            dispatch_multipart_sync(source, dest, context)
-    logger.info(f"Completed transfer of {source_key} from {source.bucket} to {dest.bucket}")
-
 
 def compose_gs_blobs(gs_bucket, blob_names, dest_blob_name):
     blobs = [gs_bucket.get_blob(b) for b in blob_names]
@@ -148,8 +85,7 @@ def compose_gs_blobs(gs_bucket, blob_names, dest_blob_name):
         except Exception:
             pass
 
-
-def copy_part(upload_url, source_url, dest_platform, part):
+def copy_part(upload_url: str, source_url: str, dest_platform: str, part: dict):
     gs = Config.get_native_handle(Replica.gcp)
     boto3_session = boto3.session.Session()
     with closing(range_request(source_url, part["start"], part["end"])) as fh:
@@ -178,50 +114,17 @@ def copy_part(upload_url, source_url, dest_platform, part):
             assert res.status_code == 200
     return res
 
+def initiate_multipart_upload(source_replica: Replica, dest_replica: Replica, source_key: str):
+    assert dest_replica == Replica.aws
+    s3_bucket = resources.s3.Bucket(dest_replica.bucket)  # type: ignore
+    s3_object = s3_bucket.Object(source_key)
+    source_blobstore = Config.get_blobstore_handle(source_replica)
+    source_metadata = source_blobstore.get_user_metadata(source_replica.bucket, source_key) or {}
+    mpu = s3_object.initiate_multipart_upload(Metadata=source_metadata)
+    return mpu.id
 
-def copy_parts_handler(topic_arn, msg, platform_to_replica):
-    log_msg = "Copying {source_key}:{part} from {source_platform}://{source_bucket} to {dest_platform}://{dest_bucket}"
-    blobstore_handle = dss.Config.get_blobstore_handle(platform_to_replica[msg["source_platform"]])
-    source_url = blobstore_handle.generate_presigned_GET_url(bucket=msg["source_bucket"], key=msg["source_key"])
-    futures = []
-    gs = dss.Config.get_native_handle(Replica.gcp)
-    with ThreadPoolExecutor(max_workers=4) as executor:
-        for part in msg["parts"]:
-            logger.info(log_msg.format(part=part, **msg))
-            if msg["dest_platform"] == "s3":
-                upload_url = "{host}/{bucket}/{key}?partNumber={part_num}&uploadId={mpu_id}".format(
-                    host=clients.s3.meta.endpoint_url,
-                    bucket=msg["dest_bucket"],
-                    key=msg["dest_key"],
-                    part_num=part["id"],
-                    mpu_id=msg["mpu"]
-                )
-            elif msg["dest_platform"] == "gs":
-                assert len(msg["parts"]) == 1
-                dest_blob_name = "{}.part{}".format(msg["dest_key"], part["id"])
-                dest_blob = gs.get_bucket(msg["dest_bucket"]).blob(dest_blob_name)
-                upload_url = dest_blob.create_resumable_upload_session(size=part["end"] - part["start"] + 1)
-            futures.append(executor.submit(copy_part, upload_url, source_url, msg["dest_platform"], part))
-    for future in futures:
-        future.result()
-
-    if msg["dest_platform"] == "s3":
-        mpu = resources.s3.Bucket(msg["dest_bucket"]).Object(msg["dest_key"]).MultipartUpload(msg["mpu"])
-        parts = list(mpu.parts.all())
-    elif msg["dest_platform"] == "gs":
-        part_names = ["{}.part{}".format(msg["dest_key"], p + 1) for p in range(msg["total_parts"])]
-        parts = [gs.get_bucket(msg["dest_bucket"]).get_blob(p) for p in part_names]
-        parts = [p for p in parts if p is not None]
-    logger.info("Parts complete: {}".format(len(parts)))
-    logger.info("Parts outstanding: {}".format(msg["total_parts"] - len(parts)))
-    if msg["total_parts"] - len(parts) < parts_per_worker[msg["dest_platform"]] * 2:
-        logger.info("Calling closer")
-        send_sns_msg(ARN(topic_arn, resource=sns_topics["closer"][msg["dest_platform"]]), msg)
-        logger.info("Called closer")
-
-
-def complete_multipart_upload(msg):
-    mpu = resources.s3.Bucket(msg["dest_bucket"]).Object(msg["dest_key"]).MultipartUpload(msg["mpu"])
+def complete_multipart_upload(msg: dict):
+    mpu = resources.s3.Bucket(msg["dest_bucket"]).Object(msg["dest_key"]).MultipartUpload(msg["mpu"])  # type: ignore
     while True:
         logger.info("Examining parts")
         parts = list(mpu.parts.all())
@@ -233,8 +136,7 @@ def complete_multipart_upload(msg):
             break
         time.sleep(5)
 
-
-def compose_upload(msg):
+def compose_upload(msg: dict):
     """
     See https://cloud.google.com/storage/docs/composite-objects for details of the Google Storage API used here.
     """
@@ -263,12 +165,104 @@ def compose_upload(msg):
             pass
         time.sleep(5)
     if msg["source_platform"] == "s3":
-        source_blob = resources.s3.Bucket(msg["source_bucket"]).Object(msg["source_key"])
+        source_blob = resources.s3.Bucket(msg["source_bucket"]).Object(msg["source_key"])  # type: ignore
         dest_blob = gs_bucket.get_blob(msg["dest_key"])
         dest_blob.metadata = source_blob.metadata
     else:
         raise NotImplementedError()
 
-
-def range_request(url, start, end):
+def range_request(url: str, start: int, end: int):
     return http.request("GET", url, preload_content=False, headers=dict(Range=f"bytes={start}-{end}"))
+
+def get_part_size(object_size, dest_replica):
+    if dest_replica.storage_schema == "s3":
+        return get_s3_multipart_chunk_size(object_size)
+    else:
+        return part_size["gs"]
+
+def get_sync_work_state(event: dict):
+    source_replica = Replica[event["source_replica"]]
+    dest_replica = Replica[event["dest_replica"]]
+    object_size = int(event["source_obj_metadata"]["size"])
+    part_size = get_part_size(object_size, dest_replica)
+    return dict(source_platform=source_replica.storage_schema,
+                source_bucket=source_replica.bucket,
+                source_key=event["source_key"],
+                dest_platform=dest_replica.storage_schema,
+                dest_bucket=dest_replica.bucket,
+                dest_key=event["source_key"],
+                mpu=event.get("mpu_id"),
+                total_parts=(object_size // part_size) + 1)
+
+def exists(replica: Replica, key: str):
+    if replica == Replica.aws:
+        try:
+            resources.s3.Bucket(replica.bucket).Object(key).load()  # type: ignore
+            return True
+        except clients.s3.exceptions.ClientError:  # type: ignore
+            return False
+    elif replica == Replica.gcp:
+        gs = Config.get_native_handle(Replica.gcp)
+        gs_bucket = gs.bucket(Config.get_gs_bucket())
+        return gs_bucket.blob(key).exists()
+    else:
+        raise NotImplementedError()
+
+def dependencies_exist(source_replica: Replica, dest_replica: Replica, key: str):
+    """
+    Given a source replica and manifest key, checks if all dependencies of the corresponding DSS object are present in
+    dest_replica:
+     - Given a file manifest key, checks if blobs exist in dest_replica.
+     - Given a bundle manifest key, checks if file manifests exist in dest_replica.
+     - Given a collection key, checks if all collection contents exist in dest_replica.
+    Returns true if all dependencies exist in dest_replica, false otherwise.
+    """
+    source_handle = Config.get_blobstore_handle(source_replica)
+    dest_handle = Config.get_blobstore_handle(dest_replica)
+    if key.startswith(FILE_PREFIX):
+        file_id = FileFQID.from_key(key)
+        file_manifest = get_json_metadata(entity_type="file",
+                                          uuid=file_id.uuid,
+                                          version=file_id.version,
+                                          replica=source_replica,
+                                          blobstore_handle=source_handle)
+        blob_path = compose_blob_key(file_manifest)
+        if exists(dest_replica, blob_path):
+            return True
+    elif key.startswith(BUNDLE_PREFIX):
+        # head all file manifests
+        bundle_id = BundleFQID.from_key(key)
+        bundle_manifest = get_json_metadata(entity_type="bundle",
+                                            uuid=bundle_id.uuid,
+                                            version=bundle_id.version,
+                                            replica=source_replica,
+                                            blobstore_handle=source_handle)
+        try:
+            for file in bundle_manifest[BundleMetadata.FILES]:
+                file_uuid = file[BundleFileMetadata.UUID]
+                file_version = file[BundleFileMetadata.VERSION]
+                get_json_metadata(entity_type="file",
+                                  uuid=file_uuid,
+                                  version=file_version,
+                                  replica=dest_replica,
+                                  blobstore_handle=dest_handle)
+            return True
+        except Exception:
+            pass
+    elif key.startswith(COLLECTION_PREFIX):
+        collection_id = CollectionFQID.from_key(key)
+        collection_manifest = get_json_metadata(entity_type="collection",
+                                                uuid=collection_id.uuid,
+                                                version=collection_id.version,
+                                                replica=source_replica,
+                                                blobstore_handle=source_handle)
+        try:
+            verify_collection(contents=collection_manifest["contents"],
+                              replica=dest_replica,
+                              blobstore_handle=dest_handle)
+            return True
+        except Exception:
+            pass
+    else:
+        raise NotImplementedError("Unknown prefix for key {}".format(key))
+    return False

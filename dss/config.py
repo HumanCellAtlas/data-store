@@ -433,6 +433,17 @@ class Config:
     def get_elasticsearch_timeout(cls):
         return int(os.environ.get('DSS_ES_TIMEOUT', "10"))
 
+    @classmethod
+    def get_replication_graph(cls):
+        return {
+            Replica.aws: [Replica.gcp],
+            Replica.gcp: [Replica.aws]
+        }
+
+    @classmethod
+    def get_replication_destinations(cls, source_replica):
+        return cls.get_replication_graph()[source_replica]
+
 
 class Replica(Enum):
     aws = (Config.get_s3_bucket, Config.get_s3_checkout_bucket, "s3", S3BlobStore, S3HCABlobStore)

@@ -12,7 +12,8 @@ region = os.environ['AWS_DEFAULT_REGION']
 username = os.environ['EVENT_RELAY_AWS_USERNAME']
 secret_name = os.environ['EVENT_RELAY_AWS_ACCESS_KEY_SECRETS_NAME']
 account_id = STS.get_caller_identity().get('Account')
-resource_arn = f'arn:aws:sns:{region}:{account_id}:*'
+sns_arn = f'arn:aws:sns:{region}:{account_id}:*'
+sqs_arn = f'arn:aws:sqs:{region}:{account_id}:*'
 
 try:
     resp = IAM.create_user(
@@ -33,7 +34,24 @@ IAM.put_user_policy(
                     'sns:Publish'
                 ],
                 'Effect': 'Allow',
-                'Resource': resource_arn
+                'Resource': sns_arn
+            }
+        ]
+    })
+)
+
+IAM.put_user_policy(
+    UserName=username,
+    PolicyName='sqs_sender',
+    PolicyDocument=json.dumps({
+        'Version': '2012-10-17',
+        'Statement': [
+            {
+                'Action': [
+                    'sqs:SendMessage'
+                ],
+                'Effect': 'Allow',
+                'Resource': sqs_arn
             }
         ]
     })

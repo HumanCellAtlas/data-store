@@ -14,7 +14,7 @@ import os
 from dss import Config
 from dss.api import bundles
 from dss.util.version import datetime_to_version_format
-from dss.storage.identifiers import BundleFQID, FileFQID
+from dss.storage.identifiers import BundleFQID, FileFQID, CollectionFQID
 
 # These GCP credentials point to a valid service account that is not associated with HCA. They can be used to test code
 # paths that require Google authentication, but then require further permissions validation once they reach data-store.
@@ -51,6 +51,9 @@ if "," in os.environ['ADMIN_USER_EMAILS']:
 else:
     os.environ['ADMIN_USER_EMAILS'] = authorized_gcp_credentials['client_email']
 bundles.ADMIN_USER_EMAILS = set(os.environ['ADMIN_USER_EMAILS'].split(","))
+
+def get_collection_fqid() -> CollectionFQID:
+    return CollectionFQID(uuid=str(uuid.uuid4()), version=get_version())
 
 def get_bundle_fqid() -> BundleFQID:
     return BundleFQID(uuid=str(uuid.uuid4()), version=get_version())
