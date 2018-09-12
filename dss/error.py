@@ -1,3 +1,4 @@
+import os
 import typing
 
 import functools
@@ -6,6 +7,7 @@ import traceback
 import requests
 import werkzeug.exceptions
 from connexion.lifecycle import ConnexionResponse
+from flask import request
 from flask import Response as FlaskResponse
 
 
@@ -42,32 +44,44 @@ def dss_exception_handler(e: DSSException) -> FlaskResponse:
             'stacktrace': traceback.format_exc(),
         })
 
-
 def dss_handler(func):
     @functools.wraps(func)
     def wrapper(*args, **kwargs):
-        try:
-            return func(*args, **kwargs)
-        except werkzeug.exceptions.HTTPException as ex:
-            status = ex.code
-            code = ex.name
-            title = str(ex)
-            stacktrace = traceback.format_exc()
-        except DSSException as ex:
-            status = ex.status
-            code = ex.code
-            title = ex.message
-            stacktrace = traceback.format_exc()
-        except Exception as ex:
-            status = requests.codes.server_error
-            code = "unhandled_exception"
-            title = str(ex)
-            stacktrace = traceback.format_exc()
+        if (os.environ.get('DSS_READ_ONLY_MODE') is None or
+                "GET" == request.method or
+                ("POST" == request.method and "search" in request.path)):
+            try:
+                return func(*args, **kwargs)
+            except werkzeug.exceptions.HTTPException as ex:
+                status = ex.code
+                code = ex.name
+                title = str(ex)
+                stacktrace = traceback.format_exc()
+                headers = None
+            except DSSException as ex:
+                status = ex.status
+                code = ex.code
+                title = ex.message
+                stacktrace = traceback.format_exc()
+                headers = None
+            except Exception as ex:
+                status = requests.codes.server_error
+                code = "unhandled_exception"
+                title = str(ex)
+                stacktrace = traceback.format_exc()
+                headers = None
+        else:
+            status = requests.codes.unavailable
+            code = "read_only"
+            title = "The DSS is currently read-only"
+            stacktrace = ""
+            headers = {'Retry-After': 600}
 
         return ConnexionResponse(
             status_code=status,
             mimetype="application/problem+json",
             content_type="application/problem+json",
+            headers=headers,
             body={
                 'status': status,
                 'code': code,

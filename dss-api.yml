@@ -512,7 +512,7 @@ paths:
                   code:
                     type: string
                     description: Machine-readable error code.  The types of return values should not be changed lightly.
-                    enum: [unhandled_exception, illegal_arguments]
+                    enum: [unhandled_exception, illegal_arguments, read_only]
                 required:
                   - code
   /subscriptions:
@@ -751,6 +751,7 @@ paths:
                       - elasticsearch_error
                       - invalid_attachment_expression
                       - invalid_attachment_name
+                      - read_only
                 required:
                   - code
   /subscriptions/{uuid}:
@@ -836,7 +837,7 @@ paths:
                   code:
                     type: string
                     description: Machine-readable error code.  The types of return values should not be changed lightly.
-                    enum: [unhandled_exception, Forbidden, OAuthResponseProblem, not_found]
+                    enum: [unhandled_exception, Forbidden, OAuthResponseProblem, not_found, read_only]
                 required:
                   - code
   /collections:
@@ -913,7 +914,7 @@ paths:
                       input could not be resolved (either because the file, bundle, or collection does not exist on the
                       replica specified, or because the JSON Pointer reference could not be resolved within the
                       specified file).
-                    enum: [unhandled_exception, Forbidden, OAuthResponseProblem, not_found, invalid_link]
+                    enum: [unhandled_exception, Forbidden, OAuthResponseProblem, not_found, invalid_link, read_only]
                 required:
                   - code
   /collections/{uuid}:
@@ -1151,7 +1152,7 @@ paths:
                   code:
                     type: string
                     description: Machine-readable error code.  The types of return values should not be changed lightly.
-                    enum: [unhandled_exception, Forbidden, OAuthResponseProblem, not_found]
+                    enum: [unhandled_exception, Forbidden, OAuthResponseProblem, not_found, read_only]
                 required:
                   - code
   /bundles/{uuid}:
@@ -1403,7 +1404,7 @@ paths:
                   code:
                     type: string
                     description: Machine-readable error code.  The types of return values should not be changed lightly.
-                    enum: [unhandled_exception, illegal_arguments]
+                    enum: [unhandled_exception, illegal_arguments, read_only]
                 required:
                   - code
     delete:
@@ -1483,7 +1484,7 @@ paths:
                   code:
                     type: string
                     description: Machine-readable error code.  The types of return values should not be changed lightly.
-                    enum: [unhandled_exception, illegal_arguments]
+                    enum: [unhandled_exception, illegal_arguments, read_only]
                 required:
                   - code
   /bundles/{uuid}/checkout:

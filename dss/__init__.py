@@ -30,8 +30,8 @@ class DSSApp(connexion.App):
     @staticmethod
     def common_error_handler(exception):
         """
-        Generally, each route handler should be decorated with @dss_handler, which manages exceptions.  The two cases
-        that fails are:
+        Generally, each route handler should be decorated with @dss_handler, which manages exceptions. The two cases
+        that fail are:
 
         1. handlers that are not decorated.
         2. handlers that return a code that is not in the swagger spec.

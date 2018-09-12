@@ -16,8 +16,10 @@ sys.path.insert(0, pkg_root)  # noqa
 
 from dss.config import Replica
 import dss
-from tests.infra import DSSAssertMixin, DSSUploadMixin, DSSStorageMixin, TestBundle, testmode
+from dss.util import UrlBuilder
+from tests.infra import DSSAssertMixin, DSSUploadMixin, DSSStorageMixin, TestBundle, testmode, ExpectedErrorFields
 from tests.infra.server import ThreadedLocalServer
+from tests import get_auth_header
 
 
 class TestApi(unittest.TestCase, DSSAssertMixin, DSSUploadMixin, DSSStorageMixin):
@@ -66,6 +68,82 @@ class TestApi(unittest.TestCase, DSSAssertMixin, DSSUploadMixin, DSSStorageMixin
         res = self.assertGetResponse("/version", requests.codes.ok)
         self.assertEquals(res.json['version_info']['version'], os.environ['DSS_VERSION'])
 
+    @testmode.standalone
+    def test_read_only(self):
+        uuid = "xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx"
+        body = dict(
+            files=[],
+            creator_uid=12345,
+            es_query={},
+            callback_url="https://take.me.to.funkytown",
+            source_url="s3://urlurlurlbaby",
+            description="supercalifragilisticexpialidocious",
+            details={},
+            reason="none",
+            contents=[],
+            name="frank",
+        )
+
+        tests = [(path, replica)
+                 for path in ("bundles", "files", "subscriptions", "collections")
+                 for replica in ("aws", "gcp")]
+
+        os.environ['DSS_READ_ONLY_MODE'] = "True"
+        try:
+            for path, replica in tests:
+                with self.subTest(path=path, replica=replica):
+                    put_url = str(UrlBuilder().set(path=f"/v1/{path}/{uuid}")
+                                  .add_query("version", "asdf")
+                                  .add_query("replica", replica))
+                    delete_url = str(UrlBuilder().set(path=f"/v1/{path}/{uuid}")
+                                     .add_query("version", "asdf")
+                                     .add_query("replica", replica))
+                    json_request_body = body.copy()
+
+                    if path == "subscriptions":
+                        put_url = str(UrlBuilder().set(path=f"/v1/{path}")
+                                      .add_query("version", "asdf")
+                                      .add_query("uuid", uuid)
+                                      .add_query("replica", replica))
+                        delete_url = None
+                        del json_request_body['source_url']
+                        del json_request_body['creator_uid']
+                        del json_request_body['description']
+                        del json_request_body['reason']
+                        del json_request_body['details']
+                        del json_request_body['files']
+                        del json_request_body['contents']
+                        del json_request_body['name']
+                    elif path == "files":
+                        delete_url = None
+                    elif path == "collections":
+                        put_url = str(UrlBuilder().set(path=f"/v1/{path}")
+                                      .add_query("version", "asdf")
+                                      .add_query("uuid", uuid)
+                                      .add_query("replica", replica))
+                        delete_url = str(UrlBuilder().set(path=f"/v1/{path}/{uuid}")
+                                         .add_query("version", "asdf")
+                                         .add_query("replica", replica))
+                        del json_request_body['es_query']
+                        del json_request_body['callback_url']
+
+                    if put_url:
+                        self.assertPutResponse(
+                            put_url,
+                            requests.codes.unavailable,
+                            json_request_body=json_request_body,
+                            headers=get_auth_header(),
+                        )
+
+                    if delete_url:
+                        self.assertDeleteResponse(
+                            delete_url,
+                            requests.codes.unavailable,
+                            json_request_body=json_request_body,
+                            headers=get_auth_header(),
+                        )
+        finally:
+            del os.environ['DSS_READ_ONLY_MODE']
 
 if __name__ == '__main__':
     unittest.main()
