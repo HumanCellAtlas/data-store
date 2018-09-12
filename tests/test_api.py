@@ -79,6 +79,7 @@ class TestApi(unittest.TestCase, DSSAssertMixin, DSSUploadMixin, DSSStorageMixin
             source_url="s3://urlurlurlbaby",
             description="supercalifragilisticexpialidocious",
             details={},
+            reason="none",
             contents=[]
         )
 
@@ -94,6 +95,17 @@ class TestApi(unittest.TestCase, DSSAssertMixin, DSSUploadMixin, DSSStorageMixin
                               .add_query("version", "asdf")
                               .add_query("replica", replica))
                     self.assertPutResponse(url, requests.codes.not_allowed, json_request_body=body)
+                    if path != 'subscriptions':
+                        with self.subTest(path=path, replica=replica):
+                            url = str(UrlBuilder().set(path=f"/v1/{path}/" + uuid)
+                                      .add_query("version", "asdf")
+                                      .add_query("replica", replica))
+                            self.assertDeleteResponse(
+                                url,
+                                requests.codes.not_allowed,
+                                json_request_body=body,
+                                headers=get_auth_header(),
+                            )
         finally:
             del os.environ['DSS_READ_ONLY_MODE']
 
