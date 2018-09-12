@@ -232,11 +232,14 @@ indexed metadata.
     }
 '
 
-#### CI/CD with Travis CI
+#### CI/CD with Travis CI and GitLab
 
-We use [Travis CI](https://travis-ci.com/HumanCellAtlas/data-store) for continuous integration testing and
-deployment. When `make test` succeeds, Travis CI deploys the application into the `dev` stage on AWS for every commit
-that goes on the master branch. This behavior is defined in the `deploy` section of `.travis.yml`.
+We use [Travis CI](https://travis-ci.com/HumanCellAtlas/data-store) for continuous unit testing that does
+not involve deployed components. A private [GitLab](https://about.gitlab.com) instance is used for deployment to
+the `dev` environment if unit tests pass, as well as further testing of deployed components, for every commit
+on the `master` branch. GitLab testing results are announced on the
+`data-store-eng` Slack channel in the [HumanCellAtlas](https://humancellatlas.slack.com) workspace.
+Travis behaviour is defined in `.travis.yml`, and GitLab behaviour is defined in `.gitlab-ci.yml`.
 
 #### Authorizing Travis CI to deploy
 
