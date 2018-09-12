@@ -9,7 +9,7 @@ pkg_root = os.path.abspath(os.path.join(os.path.dirname(__file__), '..'))  # noq
 sys.path.insert(0, pkg_root)  # noqa
 
 import dss
-from dss import DSSException, DSSForbiddenException
+from dss import DSSException, DSSForbiddenException, Config
 from dss.logging import configure_test_logging
 from dss.util import UrlBuilder, security
 from dss.util.aws import ARN
@@ -159,6 +159,33 @@ class TestSecurity(unittest.TestCase):
             with self.subTest(jwt):
                 with self.assertRaises(DSSException):
                     security.verify_jwt(jwt)
+
+    def test_custom_email_claims(self):
+        self.addCleanup(self.restore_email_claims, os.environ.pop('OIDC_EMAIL_CLAIM', 'EMPTY'))
+        email = 'email@email.com'
+        email_claim = 'email@claim.com'
+        tests = [
+            ({'email': email, Config.get_OIDC_email_claim(): email_claim}, email_claim),
+            ({Config.get_OIDC_email_claim(): 'email@claim.com'}, email_claim),
+            ({'email': email}, email)
+        ]
+
+        for param, result in tests:
+            with self.subTest(f"no custom claim {param}"):
+                self.assertEqual(security.get_token_email(param), result)
+
+        os.environ['OIDC_EMAIL_CLAIM'] = 'TEST_CLAIM'
+        for param, result in tests:
+            with self.subTest(f"custom claim {param}"):
+                self.assertEqual(security.get_token_email(param), result)
+
+        with self.subTest("missing claim"):
+            with self.assertRaises(DSSException):
+                security.get_token_email({})
+
+    @staticmethod
+    def restore_email_claims(old):
+        os.environ['OIDC_EMAIL_CLAIM'] = old
 
 
 if __name__ == '__main__':

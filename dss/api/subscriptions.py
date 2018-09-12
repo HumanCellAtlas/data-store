@@ -22,8 +22,7 @@ logger = logging.getLogger(__name__)
 @dss_handler
 @security.authorized_group_required(['hca'])
 def get(uuid: str, replica: str):
-    # TODO remove request.token_info['email'] once HCA-CLI is updated to support custom claim
-    owner = request.token_info.get(Config.get_OIDC_email_claim()) or request.token_info['email']
+    owner = security.get_token_email(request.token_info)
 
     es_client = ElasticsearchClient.get()
 
@@ -48,8 +47,7 @@ def get(uuid: str, replica: str):
 @dss_handler
 @security.authorized_group_required(['hca'])
 def find(replica: str):
-    # TODO remove request.token_info['email'] once HCA-CLI is updated to support custom claim
-    owner = request.token_info.get(Config.get_OIDC_email_claim()) or request.token_info['email']
+    owner = security.get_token_email(request.token_info)
     es_client = ElasticsearchClient.get()
 
     search_obj = Search(using=es_client,
@@ -73,8 +71,8 @@ def find(replica: str):
 def put(json_request_body: dict, replica: str):
     uuid = str(uuid4())
     es_query = json_request_body['es_query']
-    # TODO remove request.token_info['email'] once HCA-CLI is updated to support custom claim
-    owner = request.token_info.get(Config.get_OIDC_email_claim()) or request.token_info['email']
+
+    owner = security.get_token_email(request.token_info)
 
     attachment.validate(json_request_body.get('attachments', {}))
 
@@ -151,8 +149,7 @@ def put(json_request_body: dict, replica: str):
 @dss_handler
 @security.authorized_group_required(['hca'])
 def delete(uuid: str, replica: str):
-    # TODO remove request.token_info['email'] once HCA-CLI is updated to support custom claim
-    owner = request.token_info.get(Config.get_OIDC_email_claim()) or request.token_info['email']
+    owner = security.get_token_email(request.token_info)
 
     es_client = ElasticsearchClient.get()
 
