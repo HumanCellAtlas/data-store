@@ -22,7 +22,8 @@ logger = logging.getLogger(__name__)
 @dss_handler
 @security.authorized_group_required(['hca'])
 def get(uuid: str, replica: str):
-    owner = request.token_info['email']
+    # TODO remove request.token_info['email'] once HCA-CLI is updated to support custom claim
+    owner = request.token_info.get(Config.get_OIDC_email_claim()) or request.token_info['email']
 
     es_client = ElasticsearchClient.get()
 
@@ -47,7 +48,8 @@ def get(uuid: str, replica: str):
 @dss_handler
 @security.authorized_group_required(['hca'])
 def find(replica: str):
-    owner = request.token_info['email']
+    # TODO remove request.token_info['email'] once HCA-CLI is updated to support custom claim
+    owner = request.token_info.get(Config.get_OIDC_email_claim()) or request.token_info['email']
     es_client = ElasticsearchClient.get()
 
     search_obj = Search(using=es_client,
@@ -71,7 +73,8 @@ def find(replica: str):
 def put(json_request_body: dict, replica: str):
     uuid = str(uuid4())
     es_query = json_request_body['es_query']
-    owner = request.token_info['email']
+    # TODO remove request.token_info['email'] once HCA-CLI is updated to support custom claim
+    owner = request.token_info.get(Config.get_OIDC_email_claim()) or request.token_info['email']
 
     attachment.validate(json_request_body.get('attachments', {}))
 
@@ -148,7 +151,8 @@ def put(json_request_body: dict, replica: str):
 @dss_handler
 @security.authorized_group_required(['hca'])
 def delete(uuid: str, replica: str):
-    authenticated_user_email = request.token_info['email']
+    # TODO remove request.token_info['email'] once HCA-CLI is updated to support custom claim
+    owner = request.token_info.get(Config.get_OIDC_email_claim()) or request.token_info['email']
 
     es_client = ElasticsearchClient.get()
 
@@ -161,7 +165,7 @@ def delete(uuid: str, replica: str):
 
     stored_metadata = response['_source']
 
-    if stored_metadata['owner'] != authenticated_user_email:
+    if stored_metadata['owner'] != owner:
         # common_error_handler defaults code to capitalized 'Forbidden' for Werkzeug exception. Keeping consistent.
         raise DSSException(requests.codes.forbidden, "Forbidden", "Your credentials can't access this subscription!")
 

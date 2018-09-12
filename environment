@@ -32,6 +32,7 @@ EXPORT_ENV_VARS_TO_LAMBDA_ARRAY=(
     OIDC_AUDIENCE
     OPENID_PROVIDER
     OIDC_GROUP_CLAIM
+    OIDC_EMAIL_CLAIM
     DSS_BLOB_TTL_DAYS
     DSS_BLOB_PUBLIC_TTL_DAYS
 )
@@ -74,6 +75,7 @@ API_DOMAIN_NAME="dss.${DCP_DOMAIN}"
 TOKENINFO_FUNC=dss.util.security.verify_jwt
 OIDC_AUDIENCE=https://dev.data.humancellatlas.org/
 OPENID_PROVIDER=https://humancellatlas.auth0.com/
+OIDC_EMAIL_CLAIM=https://auth.data.humancellatlas.org/email
 OIDC_GROUP_CLAIM=https://auth.data.humancellatlas.org/group
 NOTIFY_URL=https://${API_DOMAIN_NAME}/internal/notify
 DSS_SUBSCRIPTION_AUTHORIZED_DOMAINS_ARRAY=(

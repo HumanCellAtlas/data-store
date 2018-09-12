@@ -238,7 +238,8 @@ def put(uuid: str, replica: str, json_request_body: dict, version: str):
 @dss_handler
 @security.authorized_group_required(['hca'])
 def delete(uuid: str, replica: str, json_request_body: dict, version: str=None):
-    email = request.token_info['email']
+    # TODO remove request.token_info['email'] once HCA-CLI is updated to support custom claim
+    email = request.token_info.get(Config.get_OIDC_email_claim()) or request.token_info['email']
 
     if email not in ADMIN_USER_EMAILS:
         raise DSSForbiddenException("You can't delete bundles with these credentials!")
