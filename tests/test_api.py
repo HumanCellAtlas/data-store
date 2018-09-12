@@ -91,15 +91,12 @@ class TestApi(unittest.TestCase, DSSAssertMixin, DSSUploadMixin, DSSStorageMixin
         try:
             for path, replica in tests:
                 with self.subTest(path=path, replica=replica):
-                    url = str(UrlBuilder().set(path=f"/v1/{path}/" + uuid)
+                    url = str(UrlBuilder().set(path=f"/v1/{path}/{uuid}")
                               .add_query("version", "asdf")
                               .add_query("replica", replica))
                     self.assertPutResponse(url, requests.codes.not_allowed, json_request_body=body)
                     if path != 'subscriptions':
                         with self.subTest(path=path, replica=replica):
-                            url = str(UrlBuilder().set(path=f"/v1/{path}/" + uuid)
-                                      .add_query("version", "asdf")
-                                      .add_query("replica", replica))
                             self.assertDeleteResponse(
                                 url,
                                 requests.codes.not_allowed,
