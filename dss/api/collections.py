@@ -50,8 +50,7 @@ def get_impl(uuid: str, replica: str, version: str = None):
 @dss_handler
 @security.authorized_group_required(['hca'])
 def get(uuid: str, replica: str, version: str = None):
-    # TODO remove request.token_info['email'] once HCA-CLI is updated to support custom claim
-    authenticated_user_email = request.token_info.get(Config.get_OIDC_email_claim()) or request.token_info['email']
+    authenticated_user_email = security.get_token_email(request.token_info)
     collection_body = get_impl(uuid=uuid, replica=replica, version=version)
     if collection_body["owner"] != authenticated_user_email:
         raise DSSException(requests.codes.forbidden, "forbidden", f"Collection access denied")
@@ -60,8 +59,7 @@ def get(uuid: str, replica: str, version: str = None):
 @dss_handler
 @security.authorized_group_required(['hca'])
 def put(json_request_body: dict, replica: str, uuid: str, version: str):
-    # TODO remove request.token_info['email'] once HCA-CLI is updated to support custom claim
-    authenticated_user_email = request.token_info.get(Config.get_OIDC_email_claim()) or request.token_info['email']
+    authenticated_user_email = security.get_token_email(request.token_info)
     collection_body = dict(json_request_body, owner=authenticated_user_email)
     uuid = uuid.lower()
     handle = Config.get_blobstore_handle(Replica[replica])
@@ -97,8 +95,7 @@ def patch(uuid: str, json_request_body: dict, replica: str, version: str):
             "illegal_version",
             f"version should be an rfc3339-compliant timestamp")
 
-    # TODO remove request.token_info['email'] once HCA-CLI is updated to support custom claim
-    authenticated_user_email = request.token_info.get(Config.get_OIDC_email_claim()) or request.token_info['email']
+    authenticated_user_email = security.get_token_email(request.token_info)
 
     uuid = uuid.lower()
     owner = get_impl(uuid=uuid, replica=replica)["owner"]
@@ -128,8 +125,7 @@ def patch(uuid: str, json_request_body: dict, replica: str, version: str):
 @dss_handler
 @security.authorized_group_required(['hca'])
 def delete(uuid: str, replica: str):
-    # TODO remove request.token_info['email'] once HCA-CLI is updated to support custom claim
-    authenticated_user_email = request.token_info.get(Config.get_OIDC_email_claim()) or request.token_info['email']
+    authenticated_user_email = security.get_token_email(request.token_info)
 
     uuid = uuid.lower()
     tombstone_key = CollectionTombstoneID(uuid, version=None).to_key()

@@ -67,6 +67,14 @@ def verify_jwt(token: str) -> typing.Optional[typing.Mapping]:
     return verified_tok
 
 
+def get_token_email(token_info: typing.Mapping[str, typing.Any]) -> str:
+    try:
+        email_claim = Config.get_OIDC_email_claim()
+        return token_info.get(email_claim) or token_info['email']
+    except KeyError as ex:
+        raise DSSException(401, 'Unauthorized', 'Authorization token is missing email claims.')
+
+
 def assert_authorized_issuer(token: typing.Mapping[str, typing.Any]) -> None:
     """
     Must be either `Config.get_openid_provider()` or in `Config.get_trusted_google_projects()`

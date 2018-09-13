@@ -373,7 +373,7 @@ class Config:
 
     @staticmethod
     def get_OIDC_email_claim():
-        return os.environ.get("OIDC_EMAIL_CLAIM", None)
+        return os.environ.get("OIDC_EMAIL_CLAIM", 'email')
 
     @staticmethod
     def _get_required_envvar(envvar: str) -> str:

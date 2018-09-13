@@ -92,6 +92,11 @@ class TestSubscriptionsBase(ElasticsearchTestCase, DSSAssertMixin):
         with self.subTest("unauthorized group"):
             self.assertGetResponse(url, requests.codes.forbidden, headers=get_auth_header(group='someone'))
 
+        with self.subTest("no email claims"):
+            self.assertGetResponse(url,
+                                   500,
+                                   headers=get_auth_header(email=False, email_claim=False))
+
     def test_put(self):
         uuid_ = self._put_subscription()
 
