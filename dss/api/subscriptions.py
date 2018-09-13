@@ -20,7 +20,7 @@ logger = logging.getLogger(__name__)
 
 
 @dss_handler
-@security.authorized_group_required(['hca'])
+@security.authorized_group_required(['hca', 'public'])
 def get(uuid: str, replica: str):
     # TODO remove request.token_info['email'] once HCA-CLI is updated to support custom claim
     owner = request.token_info.get(Config.get_OIDC_email_claim()) or request.token_info['email']
@@ -46,7 +46,7 @@ def get(uuid: str, replica: str):
 
 
 @dss_handler
-@security.authorized_group_required(['hca'])
+@security.authorized_group_required(['hca', 'public'])
 def find(replica: str):
     # TODO remove request.token_info['email'] once HCA-CLI is updated to support custom claim
     owner = request.token_info.get(Config.get_OIDC_email_claim()) or request.token_info['email']
@@ -69,7 +69,7 @@ def find(replica: str):
 
 
 @dss_handler
-@security.authorized_group_required(['hca'])
+@security.authorized_group_required(['hca', 'public'])
 def put(json_request_body: dict, replica: str):
     uuid = str(uuid4())
     es_query = json_request_body['es_query']
@@ -149,7 +149,7 @@ def put(json_request_body: dict, replica: str):
 
 
 @dss_handler
-@security.authorized_group_required(['hca'])
+@security.authorized_group_required(['hca', 'public'])
 def delete(uuid: str, replica: str):
     # TODO remove request.token_info['email'] once HCA-CLI is updated to support custom claim
     owner = request.token_info.get(Config.get_OIDC_email_claim()) or request.token_info['email']
