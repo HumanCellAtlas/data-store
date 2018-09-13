@@ -189,7 +189,7 @@ sfn_thread = {
     }
 }
 
-@app.step_function_task(state_name="DispatchSync", state_machine_definition=sync_sfn_num_threads)
+@app.step_function_task(state_name="DispatchSync", state_machine_definition=sfn)
 def dispatch_sync(event, context):
     """
     Processes the storage event notification and orchestrates the rest of the copying:
