@@ -180,8 +180,10 @@ class TestSecurity(unittest.TestCase):
                 self.assertEqual(security.get_token_email(param), result)
 
         with self.subTest("missing claim"):
-            with self.assertRaises(DSSException):
+            with self.assertRaises(DSSException) as ex:
                 security.get_token_email({})
+            self.assertEqual(ex.exception.status, 401)
+            self.assertEqual(ex.exception.message, 'Authorization token is missing email claims.')
 
     @staticmethod
     def restore_email_claims(old):
