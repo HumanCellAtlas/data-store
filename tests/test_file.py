@@ -3,6 +3,7 @@
 
 import datetime
 import hashlib
+import json
 import os
 import requests
 import sys
@@ -17,7 +18,8 @@ sys.path.insert(0, pkg_root)  # noqa
 
 import dss
 from dss.api.files import ASYNC_COPY_THRESHOLD, RETRY_AFTER_INTERVAL
-from dss.config import BucketConfig, override_bucket_config, Replica
+from dss.config import BucketConfig, Config, override_bucket_config, Replica
+from dss.storage.hcablobstore import compose_blob_key
 from dss.util import UrlBuilder
 from dss.util.version import datetime_to_version_format
 from tests import eventually
@@ -433,52 +435,80 @@ class TestFileApi(unittest.TestCase, DSSAssertMixin, DSSUploadMixin):
                                      GSUploader(tempdir, self.gs_test_bucket))
 
     def _test_file_get_checkout(self, replica: Replica, scheme: str, test_bucket: str, uploader: Uploader):
+        handle = Config.get_blobstore_handle(replica)
         src_key = generate_test_key()
         src_data = os.urandom(1024)
+        source_url = f"{scheme}://{test_bucket}/{src_key}"
+        file_uuid = str(uuid.uuid4())
+        bundle_uuid = str(uuid.uuid4())
+        version = datetime_to_version_format(datetime.datetime.utcnow())
+
+        # write dummy file and upload to upload area
         with tempfile.NamedTemporaryFile(delete=True) as fh:
             fh.write(src_data)
             fh.flush()
 
             uploader.checksum_and_upload_file(fh.name, src_key, "text/plain")
 
-        source_url = f"{scheme}://{test_bucket}/{src_key}"
-
-        file_uuid = str(uuid.uuid4())
-        bundle_uuid = str(uuid.uuid4())
-        version = datetime_to_version_format(datetime.datetime.utcnow())
-
+        # upload file to DSS
         self.upload_file(source_url, file_uuid, bundle_uuid=bundle_uuid, version=version)
         url = str(UrlBuilder()
                   .set(path="/v1/files/" + file_uuid)
                   .add_query("replica", replica.name)
                   .add_query("version", version))
 
-        now = datetime.datetime.now(datetime.timezone.utc)
+        # get uploaded blob key
+        file_metadata = json.loads(
+            handle.get(
+                test_bucket,
+                f"files/{file_uuid}.{version}"
+            ).decode("utf-8"))
+        file_key = compose_blob_key(file_metadata)
 
-        @eventually(20, 2)
+        @eventually(10, 1)
         def test_checkout():
-            # assert 302 found and checksum when checkout completes successfully
+            # assert 302 and verify checksum on checkout completion
             api_get = self.assertGetResponse(
                 url, requests.codes.found, redirect_follow_retries=0)
             file_get = requests.get(api_get.response.headers['Location'])
             self.assertTrue(file_get.ok)
             self.assertEquals(file_get.content, src_data)
 
-        # assert 301 redirect on first GET
-        self.assertGetResponse(url, requests.codes.moved, redirect_follow_retries=0)
-        test_checkout()
-
-        last_modified_fn = ("cloud_blobstore.s3.S3BlobStore.get_last_modified_date"
-                            if replica.name == "aws"
-                            else "cloud_blobstore.gs.GSBlobStore.get_last_modified_date")
-        with mock.patch(last_modified_fn) as mock_last_modified:
-            # assert 301 redirect on stale file
-            blob_ttl_days = int(os.environ['DSS_BLOB_PUBLIC_TTL_DAYS'])
-            mock_last_modified.return_value = now - datetime.timedelta(days=blob_ttl_days + 1)
+        with self.subTest(f"{replica}: Initiates checkout and returns 301 for GET on 'uncheckedout' file."):
+            # assert 301 redirect on first GET
             self.assertGetResponse(url, requests.codes.moved, redirect_follow_retries=0)
-            # assert 302 found on subsequent GET
-            mock_last_modified.return_value = now - datetime.timedelta(days=blob_ttl_days - 1)
             test_checkout()
+
+        with self.subTest(f"{replica}: Initiates checkout and returns 301 for GET on nearly expired checkout file."):
+            now = datetime.datetime.now(datetime.timezone.utc)
+            creation_date_fn = ("cloud_blobstore.s3.S3BlobStore.get_creation_date"
+                                if replica.name == "aws"
+                                else "cloud_blobstore.gs.GSBlobStore.get_creation_date")
+            with mock.patch(creation_date_fn) as mock_creation_date:
+                blob_ttl_days = int(os.environ['DSS_BLOB_TTL_DAYS'])
+                mock_creation_date.return_value = now - datetime.timedelta(days=blob_ttl_days, hours=1, minutes=5)
+                self.assertGetResponse(url, requests.codes.moved, redirect_follow_retries=0)
+            test_checkout()
+
+        with self.subTest(f"{replica}: Initiates checkout and returns 302 immediately for GET on stale checkout file."):
+            @eventually(10, 1)
+            def test_creation_date_updated(key, prev_creation_date):
+                self.assertTrue(prev_creation_date < handle.get_creation_date(replica.checkout_bucket, key))
+
+            now = datetime.datetime.now(datetime.timezone.utc)
+            old_creation_date = handle.get_creation_date(replica.checkout_bucket, file_key)
+            creation_date_fn = ("cloud_blobstore.s3.S3BlobStore.get_creation_date"
+                                if replica.name == "aws"
+                                else "cloud_blobstore.gs.GSBlobStore.get_creation_date")
+            with mock.patch(creation_date_fn) as mock_creation_date:
+                # assert 302 found on stale file and that last modified refreshes
+                blob_ttl_days = int(os.environ['DSS_BLOB_PUBLIC_TTL_DAYS'])
+                mock_creation_date.return_value = now - datetime.timedelta(days=blob_ttl_days + 1)
+                self.assertGetResponse(url, requests.codes.found, redirect_follow_retries=0)
+            test_creation_date_updated(file_key, old_creation_date)
+
+        handle.delete(test_bucket, f"files/{file_uuid}.{version}")
+        handle.delete(replica.checkout_bucket, file_key)
 
     @testmode.standalone
     def test_file_size(self):

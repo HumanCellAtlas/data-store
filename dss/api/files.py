@@ -112,22 +112,27 @@ def get_helper(uuid: str, replica: Replica, version: str=None, token: str=None):
 def _verify_checkout(
         replica: Replica, token: typing.Optional[str], file_metadata: dict, blob_path: str,
 ) -> typing.Tuple[str, bool]:
-    try:
-        cloud_handle = Config.get_blobstore_handle(replica)
-        hca_handle = Config.get_hcablobstore_handle(replica)
-        file_key = get_dst_key(blob_path)
-        last_modified = cloud_handle.get_last_modified_date(replica.checkout_bucket, file_key)
-        stale_before_date = (datetime.datetime.now(datetime.timezone.utc) -
-                             datetime.timedelta(days=int(os.environ['DSS_BLOB_PUBLIC_TTL_DAYS'])))
+    cloud_handle = Config.get_blobstore_handle(replica)
+    hca_handle = Config.get_hcablobstore_handle(replica)
 
-        if last_modified > stale_before_date:
+    try:
+        now = datetime.datetime.now(datetime.timezone.utc)
+        creation_date = cloud_handle.get_creation_date(replica.checkout_bucket, blob_path)
+        stale_after_date = creation_date + datetime.timedelta(days=int(os.environ['DSS_BLOB_PUBLIC_TTL_DAYS']))
+        expiration_date = (creation_date +
+                           datetime.timedelta(days=int(os.environ['DSS_BLOB_TTL_DAYS'])) -
+                           datetime.timedelta(hours=1))
+
+        if now < expiration_date:
+            if now > stale_after_date:
+                start_file_checkout(replica, blob_path)
             if hca_handle.verify_blob_checksum_from_dss_metadata(replica.checkout_bucket,
-                                                                 file_key,
+                                                                 blob_path,
                                                                  file_metadata):
                 return "", True
             else:
                 logger.error(
-                    f"Checksum verification failed for file {replica.checkout_bucket}/{file_key}")
+                    f"Checksum verification failed for file {replica.checkout_bucket}/{blob_path}")
     except BlobNotFoundError:
         pass
 
