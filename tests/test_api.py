@@ -28,6 +28,12 @@ class JWTClient(WebApplicationClient):
 
 
 def application_secrets(domain):
+    """
+    client_secret is a public secret from the auth0 secret for the HCA DCP CLI.
+    
+    :param domain:
+    :return:
+    """
     return {
         "installed": {
             "auth_uri": f"https://{domain}/authorize",
@@ -61,7 +67,6 @@ class TestApi(unittest.TestCase):
     def test_authorize(self):
         scopes = ["openid", "email", "offline_access"]  # Is offline_access needed for CLI
         CLIENT_ID = "qtMgNk9fqVeclLtZl6WkbdJ59dP3WeAt"
-        CLIENT_SECRET = "JDE9KHBzrvNryDdzr3gNkyCMhXEUdMrzMcBrTXoRCNM0RlODP6NzlOxqF7Yx7O1F"
         REDIRECT_URIS = [
             "urn:ietf:wg:oauth:2.0:oob",
             "http://localhost:8080"
