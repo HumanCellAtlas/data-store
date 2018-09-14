@@ -2,12 +2,16 @@ import os, sys, json, logging, base64, re
 
 import boto3
 from botocore.vendored import requests
+from botocore.vendored.requests.adapters import HTTPAdapter
+from botocore.vendored.requests.packages.urllib3.util import retry, timeout
 
 class GCPAPIClient:
     instance_metadata_url = "http://metadata.google.internal/computeMetadata/v1/"
     svc_acct_token_url = instance_metadata_url + "instance/service-accounts/default/token"
     svc_acct_email_url = instance_metadata_url + "instance/service-accounts/default/email"
     project_id_metadata_url = instance_metadata_url + "project/project-id"
+    retry_policy = retry.Retry(connect=8, read=8, status_forcelist=frozenset({500, 502, 503, 504}))
+    timeout_policy = timeout.Timeout(connect=8, read=8)
 
     def __init__(self, **session_kwargs):
         self._project = None
@@ -18,6 +22,9 @@ class GCPAPIClient:
         if self._session is None:
             self._session = requests.Session(**self._session_kwargs)
             self._session.headers.update(Authorization="Bearer " + self.get_oauth2_token())
+            adapter = HTTPAdapter(max_retries=self.retry_policy)
+            self._session.mount('http://', adapter)
+            self._session.mount('https://', adapter)
         return self._session
 
     def get_oauth2_token(self):
@@ -26,7 +33,8 @@ class GCPAPIClient:
         return res.json()["access_token"]
 
     def request(self, method, resource, **kwargs):
-        res = self.get_session().request(method=method, url=self.base_url + resource, **kwargs)
+        url = self.base_url + resource
+        res = self.get_session().request(method=method, url=url, timeout=self.timeout_policy, **kwargs)
         res.raise_for_status()
         return res if kwargs.get("stream") is True or method == "delete" else res.json()
 
@@ -53,6 +61,16 @@ class GCPAPIClient:
 
 class GRTCClient(GCPAPIClient):
     base_url = "https://runtimeconfig.googleapis.com/v1beta1/"
+    cache = {}
+
+    def get_config_var(self, variable):
+        if variable not in self.cache:
+            config_ns = f"projects/{self.get_project()}/configs"
+            var_ns = f"{config_ns}/{os.environ['ENTRY_POINT']}/variables"
+            self.cache[variable] = base64.b64decode(self.get(f"{var_ns}/{variable}")["value"]).decode()
+        return self.cache[variable]
+
+grtc_client = GRTCClient()
 
 def dss_gs_event_relay(data, context):
     if data["resourceState"] == "not_exists":
@@ -63,13 +81,11 @@ def dss_gs_event_relay(data, context):
     elif re.match(r".+\.part\d+$", data["name"]):
         print("Ignoring multipart object upload event")
     else:
-        grtc_client = GRTCClient()
-        config_ns = f"projects/{grtc_client.get_project()}/configs"
-        var_ns = f"{config_ns}/{os.environ['ENTRY_POINT']}/variables"
+        print("Relaying message:", data)
         for config_var in "AWS_ACCESS_KEY_ID", "AWS_SECRET_ACCESS_KEY", "AWS_DEFAULT_REGION", "sqs_queue_url":
-            os.environ[config_var] = base64.b64decode(grtc_client.get(f"{var_ns}/{config_var}")["value"]).decode()
+            os.environ[config_var] = grtc_client.get_config_var(config_var)
         sqs = boto3.resource("sqs")
         queue = sqs.Queue(os.environ["sqs_queue_url"])
         print(json.dumps(queue.send_message(MessageBody=json.dumps(data))))
 
-globals()[os.environ["ENTRY_POINT"]] = dss_gs_event_relay
+globals()[os.environ.get("ENTRY_POINT")] = dss_gs_event_relay
