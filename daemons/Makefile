@@ -59,5 +59,6 @@ import-test:
             ./package_daemon.sh $$daemon; \
             python $$daemon/app.py; \
         done
+	python dss-gs-event-relay/main.py
 
 .PHONY: deploy deploy-serial deploy-parallel import-test $(SERIAL_AWS_DAEMONS) $(SERIAL_GCP_DAEMONS) $(PARALLEL_AWS_DAEMONS) $(PARALLEL_GCP_DAEMONS)
