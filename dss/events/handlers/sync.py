@@ -16,7 +16,8 @@ from dss import Config, Replica
 from dss.api.collections import get_json_metadata, verify_collection
 from dss.util.aws import resources, clients
 from dss.util.streaming import get_pool_manager, S3SigningChunker
-from dss.storage.identifiers import FILE_PREFIX, BUNDLE_PREFIX, COLLECTION_PREFIX, FileFQID, BundleFQID, CollectionFQID
+from dss.storage.identifiers import (FILE_PREFIX, BUNDLE_PREFIX, COLLECTION_PREFIX, TOMBSTONE_SUFFIX,
+                                     FileFQID, BundleFQID, CollectionFQID)
 from dss.storage.hcablobstore import BundleFileMetadata, BundleMetadata, compose_blob_key
 
 
@@ -219,7 +220,9 @@ def dependencies_exist(source_replica: Replica, dest_replica: Replica, key: str)
     """
     source_handle = Config.get_blobstore_handle(source_replica)
     dest_handle = Config.get_blobstore_handle(dest_replica)
-    if key.startswith(FILE_PREFIX):
+    if key.endswith(TOMBSTONE_SUFFIX):
+        return True
+    elif key.startswith(FILE_PREFIX):
         file_id = FileFQID.from_key(key)
         file_manifest = get_json_metadata(entity_type="file",
                                           uuid=file_id.uuid,
