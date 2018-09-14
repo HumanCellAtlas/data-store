@@ -74,19 +74,23 @@ def verify_checkout(
         bundle_version: typing.Optional[str],
         token: typing.Optional[str]
 ) -> typing.Tuple[str, bool]:
+    """
+    Ensures that for a specified bundle either:
+    a) a checkout exists
+    b) a job processing a bundle checkout exists
 
-    handle = Config.get_blobstore_handle(replica)
-    prefix = get_dst_bundle_prefix(bundle_uuid, bundle_version)
-    bundle_metadata = get_bundle_manifest(bundle_uuid, replica, bundle_version)
+    This function will first check if a valid checkout exists. Else, it will
+    create or use a supplied checkout job token to process a bundle checkout job.
 
-    expected_files = [prefix + '/' + file['name'] for file in bundle_metadata['files']]
-    blobs_in_checkout = list(handle.list_v2(replica.checkout_bucket, prefix))
-    stale_before_date = (datetime.datetime.now(datetime.timezone.utc) -
-                         datetime.timedelta(days=int(os.environ['DSS_BLOB_PUBLIC_TTL_DAYS'])))
-
-    if (all((key in expected_files) and
-            (blob[BlobMetadataField.LAST_MODIFIED] > stale_before_date) for key, blob in blobs_in_checkout) and
-            len(blobs_in_checkout) == len(expected_files)):
+    :param replica: Cloud replica
+    :param bundle_uuid: Bundle UUID
+    :param bundle_version: Bundle version
+    :param token: Token used to track the status of a checkout job.
+    :return: (checkout_job_token, is_checkout_ready)
+    """
+    if _is_checkout_valid(replica, bundle_uuid, bundle_version):
+        if _is_checkout_stale(replica, bundle_uuid, bundle_version):
+            start_bundle_checkout(replica, bundle_uuid, bundle_version, dst_bucket=replica.checkout_bucket)
         return "", True
 
     decoded_token: dict
@@ -114,6 +118,70 @@ def verify_checkout(
         return encoded_token, False
 
     raise CheckoutError(f"status: {status}")
+
+
+def _is_checkout_valid(
+        replica: Replica,
+        bundle_uuid: str,
+        bundle_version: typing.Optional[str],
+) -> bool:
+    """
+    Validates the contents of a checkout bundle against its bundle manifest.
+    Ensures the checkout bundle is not near expiration to avoid serving a missing bundle.
+    :param replica: Cloud replica
+    :param bundle_uuid: Bundle UUID
+    :param bundle_version: Bundle version
+    :return: True if checkout bundle is valid, False otherwise
+    """
+    prefix = get_dst_bundle_prefix(bundle_uuid, bundle_version)
+    bundle_metadata = get_bundle_manifest(bundle_uuid, replica, bundle_version)
+    expected_files = [prefix + "/" + file['name'] for file in bundle_metadata['files']]
+    files_in_checkout = _list_checkout_bundle(replica, bundle_uuid, bundle_version)
+
+    now = datetime.datetime.now(datetime.timezone.utc)
+    blob_ttl = datetime.timedelta(days=int(os.environ['DSS_BLOB_TTL_DAYS']), hours=-1)
+
+    return (len(files_in_checkout) == len(expected_files) and
+            all(key in expected_files and
+                now < blob[BlobMetadataField.CREATED] + blob_ttl for key, blob in files_in_checkout))
+
+
+def _is_checkout_stale(
+        replica: Replica,
+        bundle_uuid: str,
+        bundle_version: typing.Optional[str],
+) -> bool:
+    """
+    Checks if any objects in a checkout bundle are stale and should be refreshed.
+    A bundle is stale if it is past half of its Bucket Lifecycle Policy TTL.
+    :param replica: Cloud replica
+    :param bundle_uuid: Bundle UUID
+    :param bundle_version: Bundle version
+    :return: True if checkout bundle is valid, False otherwise
+    """
+    files_in_checkout = _list_checkout_bundle(replica, bundle_uuid, bundle_version)
+
+    now = datetime.datetime.now(datetime.timezone.utc)
+    blob_public_ttl = datetime.timedelta(days=int(os.environ['DSS_BLOB_PUBLIC_TTL_DAYS']))
+
+    return any(now > blob[BlobMetadataField.CREATED] + blob_public_ttl for key, blob in files_in_checkout)
+
+
+def _list_checkout_bundle(
+        replica: Replica,
+        bundle_uuid: str,
+        bundle_version: typing.Optional[str],
+) -> typing.List[typing.Tuple[str, dict]]:
+    """
+    Lists the contents of a bundle in checkout.
+    :param replica: Cloud replica
+    :param bundle_uuid: Bundle UUID
+    :param bundle_version: Bundle version
+    :return: List of checkout bundle contents
+    """
+    handle = Config.get_blobstore_handle(replica)
+    prefix = get_dst_bundle_prefix(bundle_uuid, bundle_version)
+    return list(handle.list_v2(replica.checkout_bucket, prefix))
 
 
 def get_dst_bundle_prefix(bundle_id: str, bundle_version: str) -> str:

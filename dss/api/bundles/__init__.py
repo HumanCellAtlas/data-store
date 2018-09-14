@@ -49,6 +49,8 @@ def get(
     bundle_metadata = get_bundle_manifest(uuid, _replica, version)
     if bundle_metadata is None:
         raise DSSException(404, "not_found", "Cannot find bundle!")
+    if version is None:
+        version = bundle_metadata[BundleMetadata.VERSION]
 
     if directurls or presignedurls:
         try:

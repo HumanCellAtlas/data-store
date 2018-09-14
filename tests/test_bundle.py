@@ -26,11 +26,12 @@ from dss.api.bundles import RETRY_AFTER_INTERVAL
 from dss.config import BucketConfig, Config, override_bucket_config, Replica
 from dss.util import UrlBuilder
 from dss.storage.blobstore import test_object_exists
+from dss.storage.hcablobstore import compose_blob_key
 from dss.util.version import datetime_to_version_format
 from dss.storage.bundles import get_bundle_manifest
 from tests.infra import DSSAssertMixin, DSSUploadMixin, ExpectedErrorFields, get_env, testmode
 from tests.infra.server import ThreadedLocalServer
-from tests import get_auth_header
+from tests import eventually, get_auth_header
 
 
 BUNDLE_GET_RETRY_COUNT = 60
@@ -49,6 +50,8 @@ class TestBundleApi(unittest.TestCase, DSSAssertMixin, DSSUploadMixin):
 
     def setUp(self):
         dss.Config.set_config(dss.BucketConfig.TEST)
+        self.s3_test_bucket = get_env("DSS_S3_BUCKET_TEST")
+        self.gs_test_bucket = get_env("DSS_GS_BUCKET_TEST")
         self.s3_test_fixtures_bucket = get_env("DSS_S3_BUCKET_TEST_FIXTURES")
         self.gs_test_fixtures_bucket = get_env("DSS_GS_BUCKET_TEST_FIXTURES")
 
@@ -224,15 +227,16 @@ class TestBundleApi(unittest.TestCase, DSSAssertMixin, DSSUploadMixin):
                 expected_version
             )
 
-    @testmode.integration
+    @testmode.standalone
     def test_bundle_get_checkout(self):
-        self._test_bundle_get_checkout(Replica.aws, self.s3_test_fixtures_bucket)
-        self._test_bundle_get_checkout(Replica.gcp, self.gs_test_fixtures_bucket)
+        self._test_bundle_get_checkout(Replica.aws, self.s3_test_fixtures_bucket, self.s3_test_bucket)
+        self._test_bundle_get_checkout(Replica.gcp, self.gs_test_fixtures_bucket, self.gs_test_bucket)
 
-    def _test_bundle_get_checkout(self, replica: Replica, test_fixtures_bucket: str):
+    def _test_bundle_get_checkout(self, replica: Replica, test_fixtures_bucket: str, test_bucket: str):
         schema = replica.storage_schema
+        handle = Config.get_blobstore_handle(replica)
 
-        # prep test bundle with files from test fixtures bucket
+        # upload test bundle from test fixtures bucket
         bundle_uuid = str(uuid.uuid4())
         file_uuid_1 = str(uuid.uuid4())
         file_uuid_2 = str(uuid.uuid4())
@@ -252,6 +256,20 @@ class TestBundleApi(unittest.TestCase, DSSAssertMixin, DSSUploadMixin):
         file_version_1 = resp_obj_1.json['version']
         file_version_2 = resp_obj_2.json['version']
 
+        # generate blob keys
+        file_metadata = json.loads(
+            handle.get(
+                test_bucket,
+                f"files/{file_uuid_1}.{file_version_1}"
+            ).decode("utf-8"))
+        file_key_1 = compose_blob_key(file_metadata)
+        file_metadata = json.loads(
+            handle.get(
+                test_bucket,
+                f"files/{file_uuid_2}.{file_version_2}"
+            ).decode("utf-8"))
+        file_key_2 = compose_blob_key(file_metadata)
+
         bundle_version = datetime_to_version_format(datetime.datetime.utcnow())
         self.put_bundle(
             replica,
@@ -266,35 +284,94 @@ class TestBundleApi(unittest.TestCase, DSSAssertMixin, DSSUploadMixin):
                   .add_query("version", bundle_version)
                   .add_query("presignedurls", "true"))
 
-        with override_bucket_config(BucketConfig.TEST):
-            with self.subTest(f"{replica}: Initiate checkout if bundle has not been checked out"):
+        @eventually(10, 2)
+        def assert_creation_dates_updated(prev_creation_dates):
+            creation_dates = list(blob[1] for blob in handle.list(replica.checkout_bucket, bundle_uuid))
+            self.assertTrue(creation_dates[i] > prev_creation_dates[i] for i in range(len(creation_dates)))
+
+        def force_checkout():
+            handle.copy(test_bucket, file_key_1,
+                        replica.checkout_bucket, f"bundles/{bundle_uuid}.{bundle_version}/file_1")
+            handle.copy(test_bucket, file_key_2,
+                        replica.checkout_bucket, f"bundles/{bundle_uuid}.{bundle_version}/file_2")
+
+        with override_bucket_config(BucketConfig.TEST), \
+                mock.patch("dss.storage.checkout.bundle.start_bundle_checkout") as mock_start_bundle_checkout, \
+                mock.patch("dss.storage.checkout.bundle.get_bundle_checkout_status") as mock_get_bundle_checkout_status:
+            mock_start_bundle_checkout.return_value = 1
+            mock_get_bundle_checkout_status.return_value = {'status': "RUNNING"}
+            with self.subTest(f"{replica}: Initiate checkout and return 301 if bundle has not been checked out"):
                 # assert 301 redirect on first GET
                 self.assertGetResponse(url, requests.codes.moved, redirect_follow_retries=0)
+                mock_start_bundle_checkout.assert_called_once_with(replica,
+                                                                   bundle_uuid,
+                                                                   bundle_version,
+                                                                   dst_bucket=replica.checkout_bucket)
+                force_checkout()
                 # assert 200 on subsequent GET
-                self.assertGetResponse(url, requests.codes.ok, redirect_follow_retries=2, override_retry_interval=3)
+                self.assertGetResponse(url, requests.codes.ok, redirect_follow_retries=5, override_retry_interval=0.5)
+                mock_start_bundle_checkout.reset_mock()
 
-            with self.subTest(f"{replica}: Initiate checkout if files in checkout bundle are stale"):
-                now = datetime.datetime.now(datetime.timezone.utc)
-                get_listing_fn = ("cloud_blobstore.s3.S3PagedIter.get_listing_from_response"
-                                  if replica.name == "aws"
-                                  else "cloud_blobstore.gs.GSPagedIter.get_listing_from_response")
-                with mock.patch(get_listing_fn) as mock_get_objects:
-                    # assert 301 redirect on stale file
-                    stale_last_modified = now - datetime.timedelta(days=int(os.environ['DSS_BLOB_PUBLIC_TTL_DAYS']) + 1)
-                    mock_get_objects.return_value = ((filename,
-                                                      {BlobMetadataField.LAST_MODIFIED: stale_last_modified})
-                                                     for filename in filenames)
-                    self.assertGetResponse(url, requests.codes.moved, redirect_follow_retries=0)
-                # assert 200 on subsequent GET
-                self.assertGetResponse(url, requests.codes.ok, redirect_follow_retries=2, override_retry_interval=3)
-
-            with self.subTest(f"{replica}: Initiate checkout if file is missing from checkout bundle"):
-                handle = Config.get_blobstore_handle(replica)
+            with self.subTest(f"{replica}: Initiate checkout and return 301 if file is missing from checkout bundle"):
                 handle.delete(replica.checkout_bucket, f"bundles/{bundle_uuid}.{bundle_version}/file_1")
                 # assert 301 redirect on first GET
                 self.assertGetResponse(url, requests.codes.moved, redirect_follow_retries=0)
+                mock_start_bundle_checkout.assert_called_once_with(replica,
+                                                                   bundle_uuid,
+                                                                   bundle_version,
+                                                                   dst_bucket=replica.checkout_bucket)
+                force_checkout()
                 # assert 200 on subsequent GET
-                self.assertGetResponse(url, requests.codes.ok, redirect_follow_retries=2, override_retry_interval=3)
+                self.assertGetResponse(url, requests.codes.ok, redirect_follow_retries=5, override_retry_interval=0.5)
+                mock_start_bundle_checkout.reset_mock()
+
+            with self.subTest(f"{replica}: Initiate checkout and return 200 if a file in checkout bundle is stale"):
+                now = datetime.datetime.now(datetime.timezone.utc)
+                previous_creation_dates = list(blob[1] for blob in handle.list(replica.checkout_bucket, bundle_uuid))
+                stale_creation_date = now - datetime.timedelta(days=int(os.environ['DSS_BLOB_PUBLIC_TTL_DAYS']),
+                                                               hours=1,
+                                                               minutes=5)
+                with mock.patch("dss.storage.checkout.bundle._list_checkout_bundle") as mock_list_checkout_bundle:
+                    mock_list_checkout_bundle.return_value = list(
+                        ((f"bundles/{bundle_uuid}.{bundle_version}/{filename}",
+                         {BlobMetadataField.CREATED: stale_creation_date if i == 1 else now})
+                         for i, filename in enumerate(filenames))
+                    )
+                    self.assertGetResponse(url, requests.codes.ok, redirect_follow_retries=0)
+                mock_start_bundle_checkout.assert_called_once_with(replica,
+                                                                   bundle_uuid,
+                                                                   bundle_version,
+                                                                   dst_bucket=replica.checkout_bucket)
+                force_checkout()
+                assert_creation_dates_updated(previous_creation_dates)
+                mock_start_bundle_checkout.reset_mock()
+
+            with self.subTest(
+                    f"{replica}: Initiate checkout and return 301 if a file in checkout bundle is nearly expired"):
+                now = datetime.datetime.now(datetime.timezone.utc)
+                near_expired_creation_date = now - datetime.timedelta(days=int(os.environ['DSS_BLOB_TTL_DAYS']),
+                                                                      minutes=-10)
+
+                get_listing_fn = ("cloud_blobstore.s3.S3PagedIter.get_listing_from_response"
+                                  if replica.name == "aws"
+                                  else "cloud_blobstore.gs.GSPagedIter.get_listing_from_response")
+                with mock.patch(get_listing_fn) as mock_get_listing:
+                    mock_get_listing.return_value = (
+                        (f"bundles/{bundle_uuid}.{bundle_version}/{filename}",
+                         {BlobMetadataField.CREATED: near_expired_creation_date if i == 0 else now})
+                        for i, filename in enumerate(filenames)
+                    )
+                    self.assertGetResponse(url, requests.codes.moved, redirect_follow_retries=0)
+                mock_start_bundle_checkout.assert_called_once_with(replica,
+                                                                   bundle_uuid,
+                                                                   bundle_version,
+                                                                   dst_bucket=replica.checkout_bucket)
+                force_checkout()
+                self.assertGetResponse(url, requests.codes.ok, redirect_follow_retries=5, override_retry_interval=0.5)
+                mock_start_bundle_checkout.reset_mock()
+
+            handle.delete(test_bucket, f"bundles/{bundle_uuid}.{bundle_version}")
+            handle.delete(replica.checkout_bucket, f"bundles/{bundle_uuid}.{bundle_version}")
 
     @testmode.standalone
     def test_bundle_put(self):
