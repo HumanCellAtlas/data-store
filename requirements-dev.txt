@@ -28,7 +28,7 @@ cryptography==2.3.1
 dcplib==1.4.0
 dnspython==1.15.0
 docutils==0.14
-domovoi==1.8.0
+domovoi==1.8.2
 elasticsearch==5.5.3
 elasticsearch-dsl==6.2.1
 enum-compat==0.0.2
