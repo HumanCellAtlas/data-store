@@ -231,7 +231,7 @@ class TestSyncUtils(unittest.TestCase, DSSSyncMixin):
 @testmode.integration
 class TestSyncDaemon(unittest.TestCase, DSSSyncMixin):
     def setUp(self):
-        dss.Config.set_config(dss.BucketConfig.TEST)
+        dss.Config.set_config(dss.BucketConfig.NORMAL)
         self.gs_bucket_name, self.s3_bucket_name = dss.Config.get_gs_bucket(), dss.Config.get_s3_bucket()
         self.logger = logging.getLogger(__name__)
         self.gs = Config.get_native_handle(Replica.gcp)
