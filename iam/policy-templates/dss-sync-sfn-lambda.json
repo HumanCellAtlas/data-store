@@ -39,9 +39,7 @@
         "sqs:DeleteMessage",
         "sqs:GetQueueAttributes"
       ],
-      "Resource": [
-        "arn:aws:sqs:*:$account_id:dss-*"
-      ]
+      "Resource": "*"
     },
     {
       "Effect": "Allow",
