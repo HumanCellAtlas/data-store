@@ -3,15 +3,15 @@ import os, sys, json, logging, base64, re
 import boto3
 from botocore.vendored import requests
 from botocore.vendored.requests.adapters import HTTPAdapter
-from botocore.vendored.requests.packages.urllib3.util import retry, timeout
+from botocore.vendored.requests.packages.urllib3.util.retry import Retry
 
 class GCPAPIClient:
     instance_metadata_url = "http://metadata.google.internal/computeMetadata/v1/"
     svc_acct_token_url = instance_metadata_url + "instance/service-accounts/default/token"
     svc_acct_email_url = instance_metadata_url + "instance/service-accounts/default/email"
     project_id_metadata_url = instance_metadata_url + "project/project-id"
-    retry_policy = retry.Retry(connect=8, read=8, status_forcelist=frozenset({500, 502, 503, 504}))
-    timeout_policy = timeout.Timeout(connect=8, read=8)
+    retry_policy = Retry(connect=8, read=8, status_forcelist=frozenset({500, 502, 503, 504}))
+    timeout = 8
 
     def __init__(self, **session_kwargs):
         self._project = None
@@ -34,7 +34,7 @@ class GCPAPIClient:
 
     def request(self, method, resource, **kwargs):
         url = self.base_url + resource
-        res = self.get_session().request(method=method, url=url, timeout=self.timeout_policy, **kwargs)
+        res = self.get_session().request(method=method, url=url, timeout=self.timeout, **kwargs)
         res.raise_for_status()
         return res if kwargs.get("stream") is True or method == "delete" else res.json()
 
