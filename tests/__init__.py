@@ -2,6 +2,7 @@ import datetime
 import json
 import time
 import uuid
+import logging
 
 import jwt
 import tempfile
@@ -15,6 +16,8 @@ from dss import Config
 from dss.api import bundles
 from dss.util.version import datetime_to_version_format
 from dss.storage.identifiers import BundleFQID, FileFQID, CollectionFQID
+
+logger = logging.getLogger(__name__)
 
 # These GCP credentials point to a valid service account that is not associated with HCA. They can be used to test code
 # paths that require Google authentication, but then require further permissions validation once they reach data-store.
@@ -83,9 +86,10 @@ def eventually(timeout: float, interval: float, errors: set={AssertionError}):
             while True:
                 try:
                     return func(*args, **kwargs)
-                except error_tuple:
+                except error_tuple as e:
                     if time.time() >= timeout_time:
                         raise
+                    logger.debug("Error in %s: %s. Retrying after %s s...", func, e, interval)
                     time.sleep(interval)
 
         return call
