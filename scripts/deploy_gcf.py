@@ -66,13 +66,27 @@ aws_access_key_info = json.loads(
 
 boto3_session = boto3.session.Session()
 aws_account_id = boto3.client("sts").get_caller_identity()["Account"]
-relay_sqs_queue_name = "dss-sync-" + os.environ["DSS_DEPLOYMENT_STAGE"]
-relay_sqs_queue_url = boto3_session.resource("sqs").get_queue_by_name(QueueName=relay_sqs_queue_name).url
+relay_sns_topic_name = "dss-gs-bucket-events-" + os.environ["DSS_GS_BUCKET"]
+relay_sns_topic = boto3_session.resource("sns").create_topic(Name=relay_sns_topic_name)
+
+sync_sqs_queue_name = "dss-sync-" + os.environ["DSS_DEPLOYMENT_STAGE"]
+sync_sqs_queue = boto3_session.resource("sqs").create_queue(QueueName=sync_sqs_queue_name)
+sender_arn = f"arn:aws:sns:*:{aws_account_id}:{relay_sns_topic_name}"
+queue_access_policy = {"Statement": [{"Sid": "dss-deploy-gcf-qap",
+                                      "Action": ["SQS:SendMessage"],
+                                      "Effect": "Allow",
+                                      "Resource": sync_sqs_queue.attributes["QueueArn"],
+                                      "Principal": {"AWS": "*"},
+                                      "Condition": {"ArnLike": {"aws:SourceArn": sender_arn}}}]}
+sync_sqs_queue.set_attributes(Attributes=dict(Policy=json.dumps(queue_access_policy)))
+
+relay_sns_topic.subscribe(Protocol="sqs", Endpoint=sync_sqs_queue.attributes["QueueArn"])
+
 config_vars = {
     "AWS_ACCESS_KEY_ID": aws_access_key_info['AccessKey']['AccessKeyId'],
     "AWS_SECRET_ACCESS_KEY": aws_access_key_info['AccessKey']['SecretAccessKey'],
     "AWS_DEFAULT_REGION": os.environ['AWS_DEFAULT_REGION'],
-    "sqs_queue_url": relay_sqs_queue_url
+    "sns_topic_arn": relay_sns_topic.arn
 }
 
 config_ns = f"projects/{gcp_client.project}/configs"

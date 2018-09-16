@@ -42,8 +42,7 @@ def dispatch_gs_indexer_event(event, context):
     This handler receives GS events via the Google Cloud Function deployed from daemons/dss-gs-event-relay.
     """
     gs_event = json.loads(event['Records'][0]['Sns']['Message'])
-    event = gs_event['data']
-    _handle_event(Replica.gcp, event, context)
+    _handle_event(Replica.gcp, gs_event, context)
 
 
 def _handle_event(replica, event, context):

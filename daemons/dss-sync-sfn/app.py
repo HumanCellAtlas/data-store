@@ -54,12 +54,12 @@ def launch_from_s3_event(event, context):
                 executions[exec_name] = app.state_machine.start_execution(**exec_input)["executionArn"]
     return executions
 
-# This entry point is for external events forwarded by dss-gs-event-relay (or other event sources) through SQS.
+# This entry point is for external events forwarded by dss-gs-event-relay (or other event sources) through SNS-SQS.
 @app.sqs_queue_subscriber("dss-sync-" + os.environ["DSS_DEPLOYMENT_STAGE"])
 def launch_from_forwarded_event(event, context):
     executions = {}
     for event_record in event["Records"]:
-        message = json.loads(event_record["body"])
+        message = json.loads(json.loads(event_record["body"])["Message"])
         if message["selfLink"].startswith("https://www.googleapis.com/storage"):
             source_replica = Replica.gcp
             source_key = message["name"]
