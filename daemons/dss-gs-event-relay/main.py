@@ -82,10 +82,10 @@ def dss_gs_event_relay(data, context):
         print("Ignoring multipart object upload event")
     else:
         print("Relaying message:", data)
-        for config_var in "AWS_ACCESS_KEY_ID", "AWS_SECRET_ACCESS_KEY", "AWS_DEFAULT_REGION", "sqs_queue_url":
+        for config_var in "AWS_ACCESS_KEY_ID", "AWS_SECRET_ACCESS_KEY", "AWS_DEFAULT_REGION", "sns_topic_arn":
             os.environ[config_var] = grtc_client.get_config_var(config_var)
-        sqs = boto3.resource("sqs")
-        queue = sqs.Queue(os.environ["sqs_queue_url"])
-        print(json.dumps(queue.send_message(MessageBody=json.dumps(data))))
+        sns = boto3.resource("sns")
+        topic = sns.Topic(os.environ["sns_topic_arn"])
+        print(json.dumps(topic.publish(Message=json.dumps(data))))
 
 globals()[os.environ.get("ENTRY_POINT")] = dss_gs_event_relay
