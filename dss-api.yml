@@ -506,18 +506,18 @@ paths:
           description: Returned when a request cannot be processed due to invalid values in a supplied entity.
           schema:
             allOf:
-            - $ref: '#/definitions/Error'
-            - type: object
-              properties:
-                code:
-                  type: string
-                  description: Machine-readable error code.  The types of return values should not be changed lightly.
+              - $ref: '#/definitions/Error'
+              - type: object
+                properties:
+                  code:
+                    type: string
+                    description: Machine-readable error code.  The types of return values should not be changed lightly.
 
-                  The code `missing_checksum` is returned when the file uploaded is missing a required checksum.
+                      The code `missing_checksum` is returned when the file uploaded is missing a required checksum.
 
-                  enum: [missing_checksum]
-              required:
-              - code
+                    enum: [missing_checksum]
+                required:
+                - code
         default:
           description: Unexpected error
           schema:
