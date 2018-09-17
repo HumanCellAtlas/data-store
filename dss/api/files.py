@@ -210,11 +210,17 @@ def put(uuid: str, json_request_body: dict, version: str):
     size = handle.get_size(src_bucket, src_key)
     content_type = handle.get_content_type(src_bucket, src_key)
 
-    # format all the checksums so they're lower-case.
-    for metadata_spec in HCABlobStore.MANDATORY_STAGING_METADATA.values():
-        if metadata_spec['downcase']:
-            keyname = typing.cast(str, metadata_spec['keyname'])
-            metadata[keyname] = metadata[keyname].lower()
+    try:
+        # format all the checksums so they're lower-case.
+        for metadata_spec in HCABlobStore.MANDATORY_STAGING_METADATA.values():
+            if metadata_spec['downcase']:
+                keyname = typing.cast(str, metadata_spec['keyname'])
+                metadata[keyname] = metadata[keyname].lower()
+    except KeyError:
+        raise DSSException(
+            requests.codes.unprocessable,
+            "missing_checksum",
+            f"mssing {keyname}")
 
     # what's the target object name for the actual data?
     dst_key = ("blobs/" + ".".join(
