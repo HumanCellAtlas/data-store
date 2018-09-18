@@ -119,7 +119,7 @@ if [[ $SKIP_GITHUB_STATUS != "--skip-github-status" ]]; then
     fi
 fi
 
-RELEASE_TAG=${PROMOTE_DEST_BRANCH}-$(date -u +"%Y-%m-%d-%H-%M-%S").release
+RELEASE_TAG=$(date -u +"%Y-%m-%d-%H-%M-%S")-${PROMOTE_DEST_BRANCH}.release
 
 if [[ "$(git --no-pager log --graph --abbrev-commit --pretty=oneline --no-merges -- $PROMOTE_DEST_BRANCH ^$PROMOTE_FROM_BRANCH)" != "" ]]; then
     echo "Warning: The following commits are present on $PROMOTE_DEST_BRANCH but not on $PROMOTE_FROM_BRANCH"
@@ -146,18 +146,13 @@ git push --tags
 
 if [[ $NO_DEPLOY == "--no-deploy" ]]; then
     echo "The --no-deploy flag is set. Skipping deployment."
-elif yq -e '.stages[]
-          | select(.name == "deploy")
-          | .if
-          | splits("\\s+AND\\s+")
-          | match("branch\\s+IN\\s+\\(([^)]+)\\)").captures[]
-          | .string
-          | splits("\\s*,\\s*")
-          | select(. == env.PROMOTE_DEST_BRANCH)' .travis.yml; then
-    echo "Found deployment config for $PROMOTE_DEST_BRANCH in Travis CI. Skipping deployment."
 elif [[ -e "${DSS_HOME}/environment.${PROMOTE_DEST_BRANCH}" ]]; then
     source "${DSS_HOME}/environment.${PROMOTE_DEST_BRANCH}"
     make -C "$DSS_HOME" deploy
+    version_readback=$(http "https://$API_DOMAIN_NAME/version" | jq -r .version_info.version)
+    if [[ "$version_readback" != $RELEASE_TAG ]]; then
+        echo "Error: Unable to read back release tag from deployment (expected '$RELEASE_TAG', but got '$version_readback')"
+    fi
 else
     echo "Error: Could not find environment config file ${DSS_HOME}/environment.${PROMOTE_DEST_BRANCH}. Unable to deploy."
     exit 1

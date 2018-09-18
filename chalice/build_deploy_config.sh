@@ -22,7 +22,11 @@ if ! aws es describe-elasticsearch-domain --domain-name $dss_es_domain; then
     echo "Please create AWS elasticsearch domain $dss_es_domain or set DSS_ES_DOMAIN to an existing domain and try again"
     exit 1
 fi
-export DSS_VERSION=$(git describe --tags --always)
+if [[ "$(git tag --points-at HEAD)" != "" ]]; then
+    export DSS_VERSION=$(git tag --points-at HEAD | tail -n 1)
+else
+    export DSS_VERSION=$(git describe --tags --always)
+fi
 export DSS_ES_ENDPOINT=$(aws es describe-elasticsearch-domain --domain-name "$dss_es_domain" | jq -r .DomainStatus.Endpoint)
 export EXPORT_ENV_VARS_TO_LAMBDA="$EXPORT_ENV_VARS_TO_LAMBDA DSS_ES_ENDPOINT DSS_VERSION"
 
