@@ -1,15 +1,15 @@
 resource google_storage_bucket dss_gs_bucket {
-  name = "${var.DSS_GS_BUCKET}"
-  provider = "google"
-  location = "US"
+  name          = "${var.DSS_GS_BUCKET}"
+  provider      = "google"
+  location      = "US"
   storage_class = "MULTI_REGIONAL"
 }
 
 resource google_storage_bucket dss_gs_bucket_test {
-  count = "${var.DSS_DEPLOYMENT_STAGE == "dev" ? 1 : 0}"
-  name = "${var.DSS_GS_BUCKET_TEST}"
-  provider = "google"
-  location = "US"
+  count         = "${var.DSS_DEPLOYMENT_STAGE == "dev" ? 1 : 0}"
+  name          = "${var.DSS_GS_BUCKET_TEST}"
+  provider      = "google"
+  location      = "US"
   storage_class = "MULTI_REGIONAL"
   lifecycle_rule {
     action {
@@ -23,17 +23,17 @@ resource google_storage_bucket dss_gs_bucket_test {
 }
 
 resource google_storage_bucket dss_gs_bucket_test_fixtures {
-  count = "${var.DSS_DEPLOYMENT_STAGE == "dev" ? 1 : 0}"
-  name = "${var.DSS_GS_BUCKET_TEST_FIXTURES}"
-  provider = "google"
-  location = "US"
+  count         = "${var.DSS_DEPLOYMENT_STAGE == "dev" ? 1 : 0}"
+  name          = "${var.DSS_GS_BUCKET_TEST_FIXTURES}"
+  provider      = "google"
+  location      = "US"
   storage_class = "MULTI_REGIONAL"
 }
 
 resource google_storage_bucket dss_gs_checkout_bucket {
-  name = "${var.DSS_GS_CHECKOUT_BUCKET}"
-  provider = "google"
-  location = "US"
+  name          = "${var.DSS_GS_CHECKOUT_BUCKET}"
+  provider      = "google"
+  location      = "US"
   storage_class = "MULTI_REGIONAL"
   lifecycle_rule {
     action {
@@ -53,15 +53,15 @@ locals {
 resource "google_storage_bucket_iam_member" "checkout_viewer" {
   count  = "${length(local.checkout_bucket_viewers)}",
   bucket = "${google_storage_bucket.dss_gs_checkout_bucket.name}"
-  role        = "roles/storage.objectViewer"
-  member      = "${local.checkout_bucket_viewers[count.index]}"
+  role   = "roles/storage.objectViewer"
+  member = "${local.checkout_bucket_viewers[count.index]}"
 }
 
 resource google_storage_bucket dss_gs_checkout_bucket_test {
-  count = "${var.DSS_DEPLOYMENT_STAGE == "dev" ? 1 : 0}"
-  name = "${var.DSS_GS_CHECKOUT_BUCKET_TEST}"
-  provider = "google"
-  location = "US"
+  count         = "${var.DSS_DEPLOYMENT_STAGE == "dev" ? 1 : 0}"
+  name          = "${var.DSS_GS_CHECKOUT_BUCKET_TEST}"
+  provider      = "google"
+  location      = "US"
   storage_class = "MULTI_REGIONAL"
   lifecycle_rule {
     action {

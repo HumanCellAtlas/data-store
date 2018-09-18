@@ -1,10 +1,10 @@
 resource aws_s3_bucket dss_s3_bucket {
-  count = "${length(var.DSS_S3_BUCKET) > 0 ? 1 : 0}"
+  count  = "${length(var.DSS_S3_BUCKET) > 0 ? 1 : 0}"
   bucket = "${var.DSS_S3_BUCKET}"
 }
 
 resource aws_s3_bucket dss_s3_bucket_test {
-  count = "${var.DSS_DEPLOYMENT_STAGE == "dev" ? 1 : 0}"
+  count  = "${var.DSS_DEPLOYMENT_STAGE == "dev" ? 1 : 0}"
   bucket = "${var.DSS_S3_BUCKET_TEST}"
   lifecycle_rule {
     id      = "prune old things"
@@ -17,12 +17,12 @@ resource aws_s3_bucket dss_s3_bucket_test {
 }
 
 resource aws_s3_bucket dss_s3_bucket_test_fixtures {
-  count = "${var.DSS_DEPLOYMENT_STAGE == "dev" ? 1 : 0}"
+  count  = "${var.DSS_DEPLOYMENT_STAGE == "dev" ? 1 : 0}"
   bucket = "${var.DSS_S3_BUCKET_TEST_FIXTURES}"
 }
 
 resource aws_s3_bucket dss_s3_checkout_bucket {
-  count = "${length(var.DSS_S3_CHECKOUT_BUCKET) > 0 ? 1 : 0}"
+  count  = "${length(var.DSS_S3_CHECKOUT_BUCKET) > 0 ? 1 : 0}"
   bucket = "${var.DSS_S3_CHECKOUT_BUCKET}"
   lifecycle_rule {
     id      = "dss_checkout_expiration"
@@ -35,7 +35,7 @@ resource aws_s3_bucket dss_s3_checkout_bucket {
 }
 
 resource aws_s3_bucket dss_s3_checkout_bucket_test {
-  count = "${var.DSS_DEPLOYMENT_STAGE == "dev" ? 1 : 0}"
+  count  = "${var.DSS_DEPLOYMENT_STAGE == "dev" ? 1 : 0}"
   bucket = "${var.DSS_S3_CHECKOUT_BUCKET_TEST}"
   lifecycle_rule {
     id      = "dss_checkout_expiration"
@@ -48,7 +48,7 @@ resource aws_s3_bucket dss_s3_checkout_bucket_test {
 }
 
 resource aws_s3_bucket dss_s3_checkout_bucket_unwritable {
-  count = "${var.DSS_DEPLOYMENT_STAGE == "dev" ? 1 : 0}"
+  count  = "${var.DSS_DEPLOYMENT_STAGE == "dev" ? 1 : 0}"
   bucket = "${var.DSS_S3_CHECKOUT_BUCKET_UNWRITABLE}"
   policy = <<POLICY
 {
