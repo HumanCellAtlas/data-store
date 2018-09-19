@@ -43,29 +43,29 @@ DSS_DEPLOYMENT_STAGE=dev
 AWS_DEFAULT_OUTPUT=json
 AWS_DEFAULT_REGION=us-east-1
 GCP_DEFAULT_REGION=us-central1
-DSS_S3_BUCKET=org-humancellatlas-dss-dev
-DSS_S3_BUCKET_TEST=org-humancellatlas-dss-test
-DSS_S3_BUCKET_TEST_FIXTURES=org-humancellatlas-dss-test-fixtures
-DSS_S3_BUCKET_INTEGRATION=org-humancellatlas-dss-integration
-DSS_S3_BUCKET_STAGING=org-humancellatlas-dss-staging
-DSS_S3_BUCKET_PROD=org-humancellatlas-dss-prod
-DSS_S3_CHECKOUT_BUCKET=org-humancellatlas-dss-checkout-dev
-DSS_S3_CHECKOUT_BUCKET_TEST=org-humancellatlas-dss-checkout-test
-DSS_S3_CHECKOUT_BUCKET_UNWRITABLE=org-humancellatlas-dss-checkout-unwritable
-DSS_S3_CHECKOUT_BUCKET_INTEGRATION=org-humancellatlas-dss-checkout-integration
-DSS_S3_CHECKOUT_BUCKET_STAGING=org-humancellatlas-dss-checkout-staging
-DSS_S3_CHECKOUT_BUCKET_PROD=org-humancellatlas-dss-checkout-prod
-DSS_GS_BUCKET=org-humancellatlas-dss-dev
-DSS_GS_BUCKET_TEST=org-humancellatlas-dss-test
-DSS_GS_BUCKET_TEST_FIXTURES=org-humancellatlas-dss-test-fixtures
-DSS_GS_BUCKET_INTEGRATION=org-humancellatlas-dss-integration
-DSS_GS_BUCKET_STAGING=org-humancellatlas-dss-staging
-DSS_GS_BUCKET_PROD=org-humancellatlas-dss-prod
-DSS_GS_CHECKOUT_BUCKET=org-humancellatlas-dss-checkout-dev
-DSS_GS_CHECKOUT_BUCKET_TEST=org-humancellatlas-dss-checkout-test
-DSS_GS_CHECKOUT_BUCKET_INTEGRATION=org-humancellatlas-dss-checkout-integration
-DSS_GS_CHECKOUT_BUCKET_STAGING=org-humancellatlas-dss-checkout-staging
-DSS_GS_CHECKOUT_BUCKET_PROD=org-humancellatlas-dss-checkout-prod
+DSS_S3_BUCKET=org-hca-dss-dev
+DSS_S3_BUCKET_TEST=org-hca-dss-test
+DSS_S3_BUCKET_TEST_FIXTURES=org-hca-dss-test-fixtures
+DSS_S3_BUCKET_INTEGRATION=org-hca-dss-integration
+DSS_S3_BUCKET_STAGING=org-hca-dss-staging
+DSS_S3_BUCKET_PROD=org-hca-dss-prod
+DSS_S3_CHECKOUT_BUCKET=org-hca-dss-checkout-dev
+DSS_S3_CHECKOUT_BUCKET_TEST=org-hca-dss-checkout-test
+DSS_S3_CHECKOUT_BUCKET_UNWRITABLE=org-hca-dss-checkout-unwritable
+DSS_S3_CHECKOUT_BUCKET_INTEGRATION=org-hca-dss-checkout-integration
+DSS_S3_CHECKOUT_BUCKET_STAGING=org-hca-dss-checkout-staging
+DSS_S3_CHECKOUT_BUCKET_PROD=org-hca-dss-checkout-prod
+DSS_GS_BUCKET=org-hca-dss-dev
+DSS_GS_BUCKET_TEST=org-hca-dss-test
+DSS_GS_BUCKET_TEST_FIXTURES=org-hca-dss-test-fixtures
+DSS_GS_BUCKET_INTEGRATION=org-hca-dss-integration
+DSS_GS_BUCKET_STAGING=org-hca-dss-staging
+DSS_GS_BUCKET_PROD=org-hca-dss-prod
+DSS_GS_CHECKOUT_BUCKET=org-hca-dss-checkout-dev
+DSS_GS_CHECKOUT_BUCKET_TEST=org-hca-dss-checkout-test
+DSS_GS_CHECKOUT_BUCKET_INTEGRATION=org-hca-dss-checkout-integration
+DSS_GS_CHECKOUT_BUCKET_STAGING=org-hca-dss-checkout-staging
+DSS_GS_CHECKOUT_BUCKET_PROD=org-hca-dss-checkout-prod
 DSS_BLOB_TTL_DAYS=7
 DSS_BLOB_PUBLIC_TTL_DAYS=4
 DSS_NOTIFICATION_SENDER="DSS Notifier <dss.humancellatlas@gmail.com>"
@@ -118,11 +118,6 @@ DSS_NOTIFY_TIMEOUT=60  # This may seem excessive but the default of 10s is not e
 # Enables X-Ray profiling of daemons running in AWS Lambdas. A value of 0 disables profiling. A value >1 will enable
 # profiling.
 DSS_XRAY_TRACE=0
-
-# Workaround for GS buckets with non-uniform regions
-DSS_GS_BUCKET_REGION=""
-DSS_GS_BUCKET_TEST_REGION="US-EAST1"
-DSS_GS_BUCKET_TEST_FIXTURES_REGION="US-EAST1"
 
 DSS_GCP_SERVICE_ACCOUNT_NAME="travis-test"
 
