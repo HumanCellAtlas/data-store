@@ -24,7 +24,12 @@ before_script:
   - source ~/venv/bin/activate
   - pip install -r requirements-dev.txt
   - source environment
-  - if [[ -f "environment.$CI_COMMIT_REF_NAME" ]]; then source "environment.$CI_COMMIT_REF_NAME"; fi
+  - if [[ master == $CI_COMMIT_REF_NAME ]]; then
+  -   DSS_ENV="dev"
+  - elif [[ -f "environment.$CI_COMMIT_REF_NAME" ]]; then
+  -   DSS_ENV=$CI_COMMIT_REF_NAME
+  -   source environment.$DSS_ENV
+  - fi
   - scripts/fetch_secret.sh application_secrets.json > application_secrets.json
   - scripts/fetch_secret.sh gcp-credentials.json > gcp-credentials.json
   - export GOOGLE_APPLICATION_CREDENTIALS=$(pwd -P)/gcp-credentials.json
@@ -60,37 +65,17 @@ test_subscriptions:
   script:
     - make -j1 tests/test_subscriptions.py
 
-deploy_dev:
+deploy:
   stage: deploy
   script:
     - make plan-infra
     - make deploy
   environment:
-    name: dev
-    url: https://dss.dev.data.humancellatlas.org
+    name: $DSS_ENV
+    url: https://dss.$DSS_ENV.data.humancellatlas.org
   only:
     - master
-
-deploy_integration:
-  stage: deploy
-  script:
-    - make plan-infra
-    - make deploy
-  environment:
-    name: integration
-    url: https://dss.integration.data.humancellatlas.org
-  only:
     - integration
-
-deploy_staging:
-  stage: deploy
-  script:
-    - make plan-infra
-    - make deploy
-  environment:
-    name: staging
-    url: https://dss.staging.data.humancellatlas.org
-  only:
     - staging
 
 integration_test:
