@@ -9,7 +9,6 @@ DSS_GS_CHECKOUT_BUCKET=$DSS_GS_CHECKOUT_BUCKET_PROD
 DSS_ES_DOMAIN="dss-index-$DSS_DEPLOYMENT_STAGE"
 DCP_DOMAIN=data.humancellatlas.org
 API_DOMAIN_NAME="dss.${DCP_DOMAIN}"
-OIDC_AUDIENCE=https://data.humancellatlas.org/
 DSS_GCP_SERVICE_ACCOUNT_NAME="org-humancellatlas-prod"
 DSS_AUTHORIZED_DOMAINS=hca-dcp-production.iam.gserviceaccount.com ${DSS_AUTHORIZED_DOMAINS}
 set +a
