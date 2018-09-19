@@ -152,6 +152,7 @@ elif [[ -e "${DSS_HOME}/environment.${PROMOTE_DEST_BRANCH}" ]]; then
     version_readback=$(http "https://$API_DOMAIN_NAME/version" | jq -r .version_info.version)
     if [[ "$version_readback" != $RELEASE_TAG ]]; then
         echo "Error: Unable to read back release tag from deployment (expected '$RELEASE_TAG', but got '$version_readback')"
+        exit 1
     fi
 else
     echo "Error: Could not find environment config file ${DSS_HOME}/environment.${PROMOTE_DEST_BRANCH}. Unable to deploy."
