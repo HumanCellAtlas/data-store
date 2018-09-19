@@ -18,14 +18,16 @@ def unused_tcp_port():
         sock.bind(('127.0.0.1', 0))
         return sock.getsockname()[1]
 
+logger = logging.getLogger('chalice')
 
 class SilentHandler(ChaliceRequestHandler):
     """
     The default Chalice request handler is very chatty.  We don't want that polluting our unit test output, so we
     replace the `log_message` function with something quieter.
     """
-    def log_message(self, *args, **kwargs):
-        pass
+    def log_message(self, format, *args):
+        logger.debug(format, *args)
+
 
 
 class ThreadedLocalServer(threading.Thread):
