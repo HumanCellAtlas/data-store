@@ -15,6 +15,7 @@ DSS_TERRAFORM_BACKEND_BUCKET_TEMPLATE="org-humancellatlas-109067257620-terraform
 DSS_ZONE_NAME="${DCP_DOMAIN}."
 DSS_ES_INSTANCE_COUNT="3"
 DSS_ES_VOLUME_SIZE="1500"
+DSS_AUTHORIZED_DOMAINS=hca-dcp-production.iam.gserviceaccount.com ${DSS_AUTHORIZED_DOMAINS}
 set +a
 
 if [[ -f "${DSS_HOME}/environment.prod.local" ]]; then
