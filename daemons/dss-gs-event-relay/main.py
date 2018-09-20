@@ -67,7 +67,9 @@ class GRTCClient(GCPAPIClient):
         if variable not in self.cache:
             config_ns = f"projects/{self.get_project()}/configs"
             var_ns = f"{config_ns}/{os.environ['ENTRY_POINT']}/variables"
-            self.cache[variable] = base64.b64decode(self.get(f"{var_ns}/{variable}")["value"]).decode()
+            res = self.get(var_ns, params=dict(returnValues=True))
+            for var in res["variables"]:
+                self.cache[os.path.basename(var["name"])] = base64.b64decode(var["value"]).decode()
         return self.cache[variable]
 
 grtc_client = GRTCClient()
