@@ -4,7 +4,7 @@
 """
 Functional Test of the API
 """
-
+import json
 import os
 import sys
 import unittest
@@ -19,7 +19,8 @@ sys.path.insert(0, pkg_root)  # noqa
 # os.environ['OPENID_PROVIDER'] = "https://auth.dev.data.humancellatlas.org/"
 os.environ['OPENID_PROVIDER'] = "https://humancellatlas.auth0.com/"
 
-from tests.infra.server import ThreadedLocalServer
+# import app
+from tests.infra.server import ChaliceTestHarness
 
 class JWTClient(WebApplicationClient):
     def _add_bearer_token(self, uri, http_method='GET', body=None, headers=None, *args, **kwargs):
@@ -51,14 +52,7 @@ def application_secrets(domain):
 class TestApi(unittest.TestCase):
     @classmethod
     def setUpClass(cls):
-        cls.app = ThreadedLocalServer()
-        cls.app.start()
-        cls.domain = f"localhost:{cls.app._port}"
-        cls.session = requests.Session()
-
-    @classmethod
-    def tearDownClass(cls):
-        cls.app.shutdown()
+        cls.app = ChaliceTestHarness()
 
     def test_login(self):
         resp = self.app.get('/login')
@@ -120,7 +114,16 @@ class TestApi(unittest.TestCase):
         self.assertEqual(resp.status_code, 500)  # TODO fix
 
     def test_evaluate_policy(self):
-        resp = self.app.get('/policies/evaluate')
+        kwargs = dict()
+        json_request_body  = {
+            "Action": "dss:CreateSubscription",
+            "Resource": "arn:hca:dss:*:*:subscriptions/${user_id}/*",
+            "Principle": "test@email.com"
+        }
+        kwargs['data'] = json.dumps(json_request_body)
+        kwargs['headers'] = {}
+        kwargs['headers']['Content-Type'] = "application/json"
+        resp = self.app.get('/policies/evaluate', kwargs)
         self.assertEqual(resp.status_code, 405)  # TODO fix
 
     def test_put_user(self):
@@ -141,6 +144,7 @@ class TestApi(unittest.TestCase):
             with self.subTest(route):
                 resp = self.app.get(route)
                 resp.raise_for_status()
+
 
 if __name__ == '__main__':
     unittest.main()
