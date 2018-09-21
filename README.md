@@ -4,53 +4,58 @@
 
 # HCA DSS: The Human Cell Atlas Data Storage System
 
-This repository contains design specs and prototypes for the replicated data storage system (aka the "blue box") of
-the [Human Cell Atlas](https://www.humancellatlas.org/). We
-use [this Google Drive folder](https://drive.google.com/open?id=0B-_4IWxXwazQbWE5YmtqUWx3RVE) for design docs and
+This repository maintains a prototype for the data storage system of the
+[Human Cell Atlas](https://www.humancellatlas.org/). We use this
+[Google Drive folder](https://drive.google.com/open?id=0B-_4IWxXwazQbWE5YmtqUWx3RVE) for design docs and
 meeting notes, and [this Zenhub board](https://app.zenhub.com/workspace/o/humancellatlas/data-store) to track our GitHub work.
 
-#### About this prototype
+## Overview
 
-The prototype in this repository uses [Swagger](http://swagger.io/) to specify the API in [dss-api.yml](dss-api.yml),
-and [Connexion](https://github.com/zalando/connexion) to map the API specification to its implementation in Python.
+The DSS is a replicated data storage system designed for hosting large sets of scientific experimental data on 
+[Amazon S3](https://aws.amazon.com/s3/) and [Google Storage](https://cloud.google.com/storage/). The DSS exposes an API
+for interacting with the data and is built using [Chalice](https://github.com/aws/chalice),
+[API Gateway](https://aws.amazon.com/api-gateway/) and [AWS Lambda](https://aws.amazon.com/lambda/). The API also
+implements [Step Functions](https://aws.amazon.com/step-functions/) to orchestrate Lambdas for long-running tasks such
+as large file writes. You can find the API documentation and give it a try [here](https://dss.data.humancellatlas.org/).
+
+#### DSS API
+The DSS API uses [Swagger](http://swagger.io/) to define the [API specification](dss-api.yml) according to the
+[OpenAPI 2.0 specification](https://github.com/OAI/OpenAPI-Specification/blob/master/versions/2.0.md).
+[Connexion](https://github.com/zalando/connexion) is used to map the API specification to its implementation in Python.
 
 You can use the
-[Swagger Editor](http://editor.swagger.io/#/?import=https://raw.githubusercontent.com/HumanCellAtlas/data-store/master/dss-api.yml) to
-review and edit the prototype API specification. When the prototype app is running, the Swagger spec is also available
-at `/v1/swagger.json`.
+[Swagger Editor](http://editor.swagger.io/#/?import=https://raw.githubusercontent.com/HumanCellAtlas/data-store/master/dss-api.yml)
+to review and edit the API specification. When the API is live, the spec is also available at `/v1/swagger.json`.
 
-The prototype is deployed continuously from the `master` branch, with the resulting producer and consumer API available
-at https://dss.integration.data.humancellatlas.org/.
+## Getting Started
+In this section, you'll configure and deploy a local API server and your own suite of cloud services to run a
+development version of the DSS.
 
-#### Installing dependencies for development on the prototype
+### Install Dependencies
+The DSS requires Python 3.6 to run.
 
-The HCA DSS prototype development environment requires Python 3.6+ to run. Run `pip install -r requirements-dev.txt` in
-this directory.
+Clone the repo and install dependencies:
+```
+git clone git@github.com:HumanCellAtlas/data-store.git
+cd data-store
+pip install -r requirements-dev.txt
+```
+### Configuration
 
-#### Installing dependencies for the prototype
-
-The HCA DSS prototype requires Python 3.6+ to run. Run `pip install -r requirements.txt` in this directory.
-
-#### Pull sample data bundles
-
-Tests also use data from the data-bundle-examples subrepository. Run: `git submodule update --init`
-
-#### Environment Variables
-
-Environment variables are required for test and deployment. The required environment variables and their default values
-are in the file `environment`. To customize the values of these environment variables:
+The DSS is configured via environment variables. The required environment variables and their default values
+are defined in the file [`environment`](environment). To customize the values of these environment variables:
 
 1. Copy `environment.local.example` to `environment.local`
 1. Edit `environment.local` to add custom entries that override the default values in `environment`
     
 Run `source environment`  now and whenever these environment files are modified.
 
-#### Configuring cloud-specific access credentials
+The full list of configurable environment variables and their descriptions are documented [here](docs/environment/README.md).
 
-##### AWS
+#### Configure AWS
 
-1. Follow the instructions in http://docs.aws.amazon.com/cli/latest/userguide/cli-chap-getting-started.html to get the
-   `aws` command line utility.
+1. Follow this [tutorial](http://docs.aws.amazon.com/cli/latest/userguide/cli-chap-getting-started.html) to install the
+AWS command line utility and configure your AWS access credentials.
 
 1. Create an S3 bucket that you want DSS to use and in `environment.local`, set the environment variable `DSS_S3_BUCKET`
    to the name of that bucket. Make sure the bucket region is consistent with `AWS_DEFAULT_REGION` in
@@ -58,8 +63,8 @@ Run `source environment`  now and whenever these environment files are modified.
 
 1. Repeat the previous step for
 
-   * DSS_S3_CHECKOUT_BUCKET
-   * DSS_S3_CHECKOUT_BUCKET_TEST
+   * `DSS_S3_CHECKOUT_BUCKET`
+   * `DSS_S3_CHECKOUT_BUCKET_TEST`
 
 1. If you wish to run the unit tests, you must create two more S3 buckets, one for test data and another for test
    fixtures, and set the environment variables `DSS_S3_BUCKET_TEST` and `DSS_S3_BUCKET_TEST_FIXTURES` to the names of
@@ -67,7 +72,7 @@ Run `source environment`  now and whenever these environment files are modified.
 
 Hint: To create S3 buckets from the command line, use `aws s3 mb --region REGION s3://BUCKET_NAME/`. 
 
-##### GCP
+#### Configure GCP
 
 1.  Follow the instructions in https://cloud.google.com/sdk/downloads to get the `gcloud` command line utility.
 
@@ -127,48 +132,50 @@ Hint: To create S3 buckets from the command line, use `aws s3 mb --region REGION
 
 1. Repeat the previous step for
 
-   * DSS_GS_CHECKOUT_BUCKET
-   * DSS_GS_CHECKOUT_BUCKET_TEST
+   * `DSS_GS_CHECKOUT_BUCKET`
+   * `DSS_GS_CHECKOUT_BUCKET_TEST`
 
 1. If you wish to run the unit tests, you must create two more buckets, one for test data and another for test
     fixtures, and set the environment variables `DSS_GS_BUCKET_TEST` and `DSS_GS_BUCKET_TEST_FIXTURES` to the names of
     those buckets.
-
+    
 Hint: To create GCS buckets from the command line, use `gsutil mb -c regional -l REGION gs://BUCKET_NAME/`.
 
-##### Azure
+## Running Tests
 
-1. Set the environment variables `AZURE_STORAGE_ACCOUNT_NAME` and `AZURE_STORAGE_ACCOUNT_KEY`.
+1. Load sample data from the data-bundle-examples subrepository:
 
-#### Running the DSS API locally
+    `git submodule update --init`
 
-Run `./dss-api` in the top-level `data-store` directory.
+1. Check that software packages required to test and deploy are available, and install them if necessary:
 
-#### Check and install software required to test and deploy
+    `make --dry-run`
 
-Check that software packages required to test and deploy are available, and install them if necessary.
+1. Populate text fixture buckets with test fixture data _**(This command will completely empty the given buckets** before populating them with test fixture data, please ensure
+the correct bucket names are provided)_:
 
-Run: `make --dry-run`
+    `tests/fixtures/populate.py --s3-bucket $DSS_S3_BUCKET_TEST_FIXTURES --gs-bucket $DSS_GS_BUCKET_TEST_FIXTURES`
 
-#### Populate test data
+1. Set the environment variable `DSS_TEST_ES_PATH` to the path of the `elasticsearch` binary on your machine. 
 
-To run the tests, test fixture data must be set up using the following command. **This command will completely empty the
-given buckets** before populating them with test fixture data, please ensure the correct bucket names are provided.
+1. Run tests with `make test`
 
-    tests/fixtures/populate.py --s3-bucket $DSS_S3_BUCKET_TEST_FIXTURES --gs-bucket $DSS_GS_BUCKET_TEST_FIXTURES
+## Deployment
 
+### Running the DSS API locally
 
-#### Running tests
+Run `./dss-api` in the top-level `data-store` directory to deploy the DSS API on your `localhost`.
 
-Set the environment variable `DSS_TEST_ES_PATH` to the path of the `elasticsearch` binary on your machine. Then to
-perform the data store tests:
-
-Run `make test` in the top-level `data-store` directory.
-
-#### Deployment
+### Deploying the DSS
 
 Assuming the tests have passed above, the next step is to manually deploy. See the section below for information on
 CI/CD with Travis if continuous deployment is your goal.
+
+Several components in the DSS deployed separately as daemons, found in `$DSS_HOME/daemons`. Daemon deployment may
+incorporate dependent infrastructure, such SQS queues or SNS topics, by placing Terraform files in daemon directory, e.g.
+`$DSS_HOME/daemons/dss-admin/my_queue_defs.tf`. This infrastructure is deployed non-interactively, without the
+usual plan/review Terraform workflow, and should therefore be lightweight in nature. Large infrastructure should be
+added to `$DSS_HOME/infra` instead.
 
 The AWS Elasticsearch Service is used for metadata indexing. For typical development deployments the
 t2.small.elasticsearch instance type is sufficient.
@@ -188,12 +195,12 @@ And you should be able to list bundles like this:
 
     curl -X GET "https://<domain_name>/v1/bundles" -H  "accept: application/json"
 
-#### Configure email notifications
+### Configure email notifications
 
 Some daemons (dss-checkout-sfn for example) use Amazon SES to send emails. You must set `DSS_NOTIFICATION_SENDER` to 
 your email address and then verify that address using the SES Console enabling SES to send notification emails from it. 
 
-#### Using the HCA Data Store CLI Client
+### Using the HCA Data Store CLI Client
 
 Now that you have deployed the data store, the next step is to use the HCA Data Store CLI to upload and download data to
 the system. See [data-store-cli](https://github.com/HumanCellAtlas/data-store-cli) for installation instructions. The
@@ -205,7 +212,7 @@ of CLI use:
     # upload full bundle
     hca dss upload --replica aws --staging-bucket staging_bucket_name --src-dir ${DSS_HOME}/tests/fixtures/datafiles/example_bundle
 
-#### Checking Indexing
+### Checking Indexing
 
 Now that you've uploaded data, the next step is to confirm the indexing is working properly and you can query the
 indexed metadata.
@@ -230,9 +237,9 @@ indexed metadata.
             }
         }
     }
-'
+    '
 
-#### CI/CD with Travis CI and GitLab
+### CI/CD with Travis CI and GitLab
 
 We use [Travis CI](https://travis-ci.com/HumanCellAtlas/data-store) for continuous unit testing that does
 not involve deployed components. A private [GitLab](https://about.gitlab.com) instance is used for deployment to
@@ -241,7 +248,7 @@ on the `master` branch. GitLab testing results are announced on the
 `data-store-eng` Slack channel in the [HumanCellAtlas](https://humancellatlas.slack.com) workspace.
 Travis behaviour is defined in `.travis.yml`, and GitLab behaviour is defined in `.gitlab-ci.yml`.
 
-#### Authorizing Travis CI to deploy
+### Authorizing Travis CI to deploy
 
 Encrypted environment variables give Travis CI the AWS credentials needed to run the tests and deploy the app. Run
 `scripts/authorize_aws_deploy.sh IAM-PRINCIPAL-TYPE IAM-PRINCIPAL-NAME` (e.g. `authorize_aws_deploy.sh group
@@ -253,14 +260,14 @@ credentials once from your workstation. After this is done, Travis CI will be ab
 repeat the `make deploy` step from a privileged account any time you change the IAM policies templates in
 `iam/policy-templates/`.
 
-#### Authorizing the event relay
+### Authorizing the event relay
 
 Environment variables provide the AWS credentials needed to relay events originating from supported cloud platforms
 outside of AWS. Run `scripts/create_config_aws_event_relay_user.py` to create an AWS IAM user with the appropriate
 restricted access policy. This script also creates the user access key and stores it in an AWS Secrets Manager
 store.
 
-#### User Authorization Configuration
+### User Authorization Configuration
 The following environment variables must be set to enable user authentication.
 
 * OIDC_AUDIENCE must be populated with the expected JWT (JSON web token) audience.
@@ -271,15 +278,9 @@ The following environment variables must be set to enable user authentication.
 `authorizationUrl` in **dss/dss-api.yml** must also be updated to point to an authorization endpoint which will return a 
 valid JWT.
 
-#### Daemons
+## Development
 
-Several DSS components are deployed seperately as daemons, found in `$DSS_HOME/daemons`. Daemon deployment may incorperate
-dependent infrastructure, such SQS queues or SNS topics, by placing Terraform files in daemon directory, e.g.
-`$DSS_HOME/daemons/dss-admin/my_queue_defs.tf`. This infrastructure is deployed non-interactively, without the
-usual plan/review Terraform workflow, and should therefore be lightweight in nature. Large infrastructure should be
-added to `$DSS_HOME/infra` instead.
-
-#### Managing dependencies
+### Managing dependencies
 
 The direct runtime dependencies of this project are defined in `requirements.txt.in`. Direct development dependencies
 are defined in `requirements-dev.txt.in`. All dependencies, direct and transitive, are defined in the corresponding
@@ -304,7 +305,7 @@ change to a direct dependency. This process applies to development dependencies 
 If you wish to re-pin all the dependencies, run `make refresh_all_requirements`.  It is advisable to do a full
 test-deploy-test cycle after this (the test after the deploy is required to test the lambdas).
 
-#### Logging conventions
+### Logging conventions
 
 1.  Always use a module-level logger, call it `logger` and initialize it as follows:
 
@@ -350,11 +351,10 @@ test-deploy-test cycle after this (the test after the deploy is required to test
         # do stuff     
     ```
 
-#### Enabling Profiling
+### Enabling Profiling
 AWS Xray tracing is used for profiling the performance of deployed lambdas. This can be enabled for `chalice/app.py` by 
 setting the lambda environment variable `DSS_XRAY_TRACE=1`. For all other daemons you must also check 
 "Enable active tracking" under "Debugging and error handling" in the AWS Lambda console.
 
-
-#### Contributing
+## Contributing
 External contributions are welcome. Please review the [Contributing Guidelines](CONTRIBUTING.md)
