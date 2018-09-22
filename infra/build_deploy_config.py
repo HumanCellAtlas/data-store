@@ -27,7 +27,7 @@ terraform_backend_template = """# Auto-generated during infra build process.
 terraform {{
   backend "s3" {{
     bucket = "{bucket}"
-    key = "dss-{comp}-{stage}.tfstate"
+    key = "dss/{comp}-{stage}.tfstate"
     region = "{region}"
     {profile_setting}
   }}
