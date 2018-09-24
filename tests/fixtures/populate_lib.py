@@ -1,4 +1,8 @@
 #!/usr/bin/env python
+"""
+This defines tests fixtures to be uploaded to the cloud during when running $DSS_HOME/fixtures/populate.py
+All local files are referenced from $DSS_HOME/tests/fixtures/datafiles
+"""
 
 import os
 import typing
@@ -135,11 +139,7 @@ def upload(uploader: Uploader):
         "sequencing_protocol_0.json",
         "specimen_from_organism_0.json",
     ]
-    source_path = os.path.join(
-        os.path.dirname(__file__),
-        "datafiles",
-        "example_bundle",
-    )
+    source_path = "example_bundle"
     target_path = "fixtures/example_bundle"
     for fname in files:
         uploader.checksum_and_upload_file(
@@ -176,15 +176,11 @@ def upload(uploader: Uploader):
 
 
 def populate(s3_bucket: typing.Optional[str], gs_bucket: typing.Optional[str]):
-    # find the 'datafiles' subdirectory.
-    root_dir = os.path.dirname(__file__)
-    datafiles_dir = os.path.join(root_dir, "datafiles")
-
     uploaders = []  # type: typing.List[Uploader]
     if s3_bucket is not None:
-        uploaders.append(S3Uploader(datafiles_dir, s3_bucket))
+        uploaders.append(S3Uploader(s3_bucket))
     if gs_bucket is not None:
-        uploaders.append(GSUploader(datafiles_dir, gs_bucket))
+        uploaders.append(GSUploader(gs_bucket))
 
     for uploader in uploaders:
         upload(uploader)
