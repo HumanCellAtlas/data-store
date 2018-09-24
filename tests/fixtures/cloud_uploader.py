@@ -13,10 +13,10 @@ from dcplib.checksumming_io import ChecksummingSink
 logger = logging.getLogger(__name__)
 
 
-class Uploader:
-    def __init__(self, local_root: str, *args, **kwargs) -> None:
-        self.local_root = local_root
+datafile_path=os.path.join(os.path.dirname(__file__), "datafiles")
 
+
+class Uploader:
     def reset(self) -> None:
         raise NotImplementedError()
 
@@ -42,7 +42,7 @@ class Uploader:
         if metadata is None:
             metadata = dict()
 
-        fpath = os.path.join(self.local_root, local_path)
+        fpath = os.path.join(datafile_path, local_path)
         size = os.path.getsize(fpath)
         chunk_size = get_s3_multipart_chunk_size(size)
         with ChecksummingSink(write_chunk_size=chunk_size) as sink, open(fpath, "rb") as fh:
@@ -60,8 +60,7 @@ class Uploader:
 
 
 class S3Uploader(Uploader):
-    def __init__(self, local_root: str, bucket: str) -> None:
-        super(S3Uploader, self).__init__(local_root)
+    def __init__(self, bucket: str) -> None:
         self.bucket = bucket
         self.s3_client = boto3.client('s3')
 
@@ -84,7 +83,7 @@ class S3Uploader(Uploader):
         if tags is None:
             tags = dict()
 
-        fp = os.path.join(self.local_root, local_path)
+        fp = os.path.join(datafile_path, local_path)
         sz = os.stat(fp).st_size
 
         chunk_sz = get_s3_multipart_chunk_size(sz)
@@ -117,8 +116,7 @@ class S3Uploader(Uploader):
 
 
 class GSUploader(Uploader):
-    def __init__(self, local_root: str, bucket_name: str) -> None:
-        super(GSUploader, self).__init__(local_root)
+    def __init__(self, bucket_name: str) -> None:
         credentials = os.getenv("GOOGLE_APPLICATION_CREDENTIALS")
         self.gcp_client = Client.from_service_account_json(credentials)
         self.bucket = self.gcp_client.bucket(bucket_name)
@@ -138,7 +136,8 @@ class GSUploader(Uploader):
             **kwargs) -> None:
         logger.info(f"Uploading {local_path} to gs://{self.bucket.name}/{remote_path}")
         blob = self.bucket.blob(remote_path)
-        blob.upload_from_filename(os.path.join(self.local_root, local_path), content_type=content_type)
+        fp = os.path.join(datafile_path, local_path)
+        blob.upload_from_filename(fp, content_type=content_type)
         if metadata_keys:
             blob.metadata = metadata_keys
             blob.patch()
