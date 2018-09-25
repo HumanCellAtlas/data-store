@@ -1,0 +1,4 @@
+requests_oauthlib
+oauthlib
+google_auth_oauthlib
+-r requirements.txt
