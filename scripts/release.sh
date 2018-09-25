@@ -35,7 +35,6 @@ case $key in
     ;;
 esac
 done
-set -- "${POSITIONAL[@]}" # restore positional parameters
 
 if [[ $# != 2 ]]; then
     echo "Given a source (pre-release) branch and a destination (release) branch,"
@@ -60,6 +59,8 @@ if [[ $# != 2 ]]; then
     echo "Example: $(basename $0) master staging"
     exit 1
 fi
+
+set -- "${POSITIONAL[@]}" # restore positional parameters
 
 if [[ $SKIP_ACCOUNT_VERIFICATION != "--skip-account-verification" ]]; then
     echo "Please review and confirm your active AWS account configuration:"
