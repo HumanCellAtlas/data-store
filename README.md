@@ -1,8 +1,7 @@
+# HCA DSS: The Human Cell Atlas Data Storage System
 [![](https://img.shields.io/badge/slack-%23data--store-557EBF.svg)](https://humancellatlas.slack.com/messages/data-store/)
 [![Build Status](https://travis-ci.com/HumanCellAtlas/data-store.svg?branch=master)](https://travis-ci.com/HumanCellAtlas/data-store)
 [![codecov](https://codecov.io/gh/HumanCellAtlas/data-store/branch/master/graph/badge.svg)](https://codecov.io/gh/HumanCellAtlas/data-store)
-
-# HCA DSS: The Human Cell Atlas Data Storage System
 
 This repository maintains a prototype for the data storage system of the
 [Human Cell Atlas](https://www.humancellatlas.org/). We use this
