@@ -10,16 +10,14 @@ import sys
 import unittest
 from furl import furl
 
-import requests
 from oauthlib.oauth2 import WebApplicationClient
 
 pkg_root = os.path.abspath(os.path.join(os.path.dirname(__file__), '..'))  # noqa
 sys.path.insert(0, pkg_root)  # noqa
 
-# os.environ['OPENID_PROVIDER'] = "https://auth.dev.data.humancellatlas.org/"
 os.environ['OPENID_PROVIDER'] = "https://humancellatlas.auth0.com/"
 
-# import app
+
 from tests.infra.server import ChaliceTestHarness
 
 class JWTClient(WebApplicationClient):
