@@ -40,11 +40,15 @@ unit_tests:
     - whoami
     - ls -alh /
     - make -j4 parallel_test
+  except:
+    - tags
 
 test_search:
   stage: test
   script:
     - make -j1 tests/test_search.py
+  except:
+    - tags
 
 test_aws_indexer:
   stage: test
@@ -52,6 +56,8 @@ test_aws_indexer:
     DSS_UNITTEST_OPTS: "-v TestAWSIndexer"
   script:
     - make -j1 tests/test_indexer.py
+  except:
+    - tags
 
 test_gcp_indexer:
   stage: test
@@ -59,11 +65,15 @@ test_gcp_indexer:
     DSS_UNITTEST_OPTS: "-v TestGCPIndexer"
   script:
     - make -j1 tests/test_indexer.py
+  except:
+    - tags
 
 test_subscriptions:
   stage: test
   script:
     - make -j1 tests/test_subscriptions.py
+  except:
+    - tags
 
 deploy:
   stage: deploy
