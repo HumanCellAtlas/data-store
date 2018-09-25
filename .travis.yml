@@ -44,8 +44,6 @@ stages:
   if: env(TRAVIS_DSS_INTEGRATION_MODE) != 1
 - name: integration_test
   if: env(TRAVIS_DSS_INTEGRATION_MODE) = 1
-- name: deploy
-  if: env(TRAVIS_DSS_INTEGRATION_MODE) != 1 AND branch IN (staging) AND type != pull_request
 
 jobs:
   include:
@@ -69,15 +67,6 @@ jobs:
   - stage: integration_test
     env:
     - MAKE_ARGS="-j1 integration_test"
-  - stage: deploy
-    script:
-    - if [[ -f "environment.$TRAVIS_BRANCH" ]]; then source "environment.$TRAVIS_BRANCH"; fi
-    deploy:
-      provider: script
-      script: make deploy
-      skip_cleanup: true
-      on:
-        all_branches: true  # but see the `if:` conditional on the deploy stage above
 
 env:
   global:
