@@ -1,3 +1,4 @@
+import json
 import os
 import typing
 
@@ -37,12 +38,12 @@ def dss_exception_handler(e: DSSException) -> FlaskResponse:
         status=e.status,
         mimetype="application/problem+json",
         content_type="application/problem+json",
-        response={
+        response=json.dumps({
             'status': e.status,
             'code': e.code,
             'title': e.message,
             'stacktrace': traceback.format_exc(),
-        })
+        }))
 
 def dss_handler(func):
     @functools.wraps(func)

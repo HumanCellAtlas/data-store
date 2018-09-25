@@ -83,19 +83,26 @@ class TestSubscriptionsBase(ElasticsearchTestCase, DSSAssertMixin):
                   .add_query("replica", self.replica.name))
 
         with self.subTest("Gibberish auth header"):
-            resp_obj = self.assertGetResponse(url, requests.codes.unauthorized, headers=get_auth_header(False))
-            self.assertEqual(resp_obj.response.headers['Content-Type'], "application/problem+json")
+            resp = self.assertGetResponse(url, requests.codes.unauthorized, headers=get_auth_header(False))
+            self.assertEqual(resp.response.headers['Content-Type'], "application/problem+json")
+            self.assertEqual(resp.json['title'], 'Failed to decode token.')
 
         with self.subTest("No auth header"):
-            self.assertGetResponse(url, requests.codes.unauthorized)
+            resp = self.assertGetResponse(url, requests.codes.unauthorized)
+            self.assertEqual(resp.response.headers['Content-Type'], "application/problem+json")
+            self.assertEqual(resp.json['title'], 'No authorization token provided')
 
         with self.subTest("unauthorized group"):
-            self.assertGetResponse(url, requests.codes.forbidden, headers=get_auth_header(group='someone'))
+            resp = self.assertGetResponse(url, requests.codes.forbidden, headers=get_auth_header(group='someone'))
+            self.assertEqual(resp.response.headers['Content-Type'], "application/problem+json")
+            self.assertEqual(resp.json['title'], 'User is not authorized to access this resource')
 
         with self.subTest("no email claims"):
-            self.assertGetResponse(url,
-                                   500,
-                                   headers=get_auth_header(email=False, email_claim=False))
+            resp = self.assertGetResponse(url,
+                                          requests.codes.unauthorized,
+                                          headers=get_auth_header(email=False, email_claim=False))
+            self.assertEqual(resp.response.headers['Content-Type'], "application/problem+json")
+            self.assertEqual(resp.json['title'], 'Authorization token is missing email claims.')
 
     def test_put(self):
         uuid_ = self._put_subscription()

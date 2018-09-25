@@ -51,9 +51,15 @@ def get_public_keys(openid_provider):
 def verify_jwt(token: str) -> typing.Optional[typing.Mapping]:
     try:
         unverified_token = jwt.decode(token, verify=False)
-        assert_authorized_issuer(unverified_token)
-        issuer = unverified_token['iss']
-        public_keys = get_public_keys(issuer)
+    except jwt.DecodeError:
+        logger.info(f"Failed to decode JWT: {token}", exc_info=True)
+        raise DSSException(401, 'Unauthorized', 'Failed to decode token.')
+
+    assert_authorized_issuer(unverified_token)
+    issuer = unverified_token['iss']
+    public_keys = get_public_keys(issuer)
+
+    try:
         token_header = jwt.get_unverified_header(token)
         verified_tok = jwt.decode(token,
                                   key=public_keys[token_header["kid"]],
