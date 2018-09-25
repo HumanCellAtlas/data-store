@@ -40,8 +40,11 @@ info:
             self.RETRY_AFTER_STATUS_CODES = frozenset(retry_after_status_codes | retry.Retry.RETRY_AFTER_STATUS_CODES)
 
     retry_policy = RetryPolicy(read=5, status=5, status_forcelist=frozenset({500, 502, 503, 504}))
+
     s = requests.Session()
+
     a = requests.adapters.HTTPAdapter(max_retries=retry_policy)
+
     s.mount('https://', a)
 
     print(s.get("https://dss.data.humancellatlas.org").content)
