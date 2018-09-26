@@ -586,7 +586,8 @@ class TestBundleApi(unittest.TestCase, DSSAssertMixin, DSSUploadMixin):
                 expected_error=ExpectedErrorFields(
                     code="illegal_arguments",
                     status=requests.codes.bad_request,
-                    expect_stacktrace=True)
+                    expect_stacktrace=True),
+                headers=get_auth_header()
             )
 
     @testmode.standalone
@@ -610,7 +611,8 @@ class TestBundleApi(unittest.TestCase, DSSAssertMixin, DSSUploadMixin):
                 expected_error=ExpectedErrorFields(
                     code="illegal_arguments",
                     status=requests.codes.bad_request,
-                    expect_stacktrace=True)
+                    expect_stacktrace=True),
+                headers=get_auth_header()
             )
 
     @testmode.standalone
@@ -680,6 +682,7 @@ class TestBundleApi(unittest.TestCase, DSSAssertMixin, DSSUploadMixin):
                 ],
                 creator_uid=12345,
             ),
+            headers=get_auth_header()
         )
 
         if 200 <= resp_obj.response.status_code < 300:

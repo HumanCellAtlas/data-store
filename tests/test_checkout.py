@@ -42,7 +42,7 @@ from dss.storage.checkout.file import (
 )
 from dss.storage.hcablobstore import BundleMetadata, compose_blob_key
 from dss.storage.identifiers import BundleFQID
-from tests import eventually
+from tests import eventually, get_auth_header
 from tests.infra import DSSAssertMixin, DSSUploadMixin, get_env, testmode
 from tests.infra.server import ThreadedLocalServer
 
@@ -105,6 +105,7 @@ class TestCheckoutApi(unittest.TestCase, DSSAssertMixin, DSSUploadMixin):
                         ],
                         creator_uid=12345,
                     ),
+                    headers=get_auth_header()
                 )
 
     def get_test_fixture_bucket(self, replica: Replica) -> str:
