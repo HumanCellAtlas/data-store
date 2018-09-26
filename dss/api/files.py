@@ -21,7 +21,7 @@ from dss.storage.checkout.file import get_dst_key, start_file_checkout
 from dss.storage.files import write_file_metadata
 from dss.storage.hcablobstore import FileMetadata, HCABlobStore, compose_blob_key
 from dss.stepfunctions import gscopyclient, s3copyclient
-from dss.util import tracing, UrlBuilder
+from dss.util import tracing, UrlBuilder, security
 from dss.util.version import datetime_to_version_format
 
 
@@ -159,6 +159,7 @@ def _verify_checkout(
 
 
 @dss_handler
+@security.authorized_group_required(['hca'])
 def put(uuid: str, json_request_body: dict, version: str):
     class CopyMode(Enum):
         NO_COPY = auto()
