@@ -27,16 +27,16 @@ if ! aws es describe-elasticsearch-domain --domain-name $dss_es_domain; then
     echo "Please create AWS elasticsearch domain $dss_es_domain or set DSS_ES_DOMAIN to an existing domain and try again"
     exit 1
 fi
-export DSS_ES_ENDPOINT=$(aws es describe-elasticsearch-domain --domain-name "$dss_es_domain" | jq -r .DomainStatus.Endpoint)
-export EXPORT_ENV_VARS_TO_LAMBDA="$EXPORT_ENV_VARS_TO_LAMBDA DSS_ES_ENDPOINT"
 
 cat "$config_json" | jq ".stages.$stage.api_gateway_stage=env.stage" | sponge "$config_json"
 
 export DEPLOY_ORIGIN="$(whoami)-$(hostname)-$(git describe --tags --always)-$(date -u +'%Y-%m-%d-%H-%M-%S').deploy"
 cat "$config_json" | jq .stages.$stage.tags.DSS_DEPLOY_ORIGIN=env.DEPLOY_ORIGIN | sponge "$config_json"
 
-for var in $EXPORT_ENV_VARS_TO_LAMBDA; do
-    cat "$config_json" | jq .stages.$stage.environment_variables.$var=env.$var | sponge "$config_json"
+env_json=$(aws ssm get-parameter --name /dcp/dss/${DSS_DEPLOYMENT_STAGE}/environment | jq .Parameter.Value | python -c "import sys, json; print(json.load(sys.stdin))")
+for var in $(echo $env_json | jq -r keys[]); do
+    val=$(echo $env_json | jq .$var)
+    cat "$config_json" | jq .stages.$stage.environment_variables.$var="$val" | sponge "$config_json"
 done
 
 if [[ ${CI:-} == true ]]; then
