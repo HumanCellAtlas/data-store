@@ -25,7 +25,7 @@ def get(uuid: str, replica: str):
     owner = security.get_token_email(request.token_info)
 
     es_client = ElasticsearchClient.get()
-    logger.debug("Get subscription {uuid}, {replica}, {owner}")
+    logger.info("Get subscription {uuid}, {replica}, {owner}")
     try:
         response = es_client.get(index=Config.get_es_index_name(ESIndexType.subscriptions, Replica[replica]),
                                  doc_type=ESDocType.subscription.name,
@@ -50,7 +50,7 @@ def find(replica: str):
     owner = security.get_token_email(request.token_info)
     es_client = ElasticsearchClient.get()
 
-    logging.debug(f"Find subscriptions, {replica}, {owner}")
+    logging.info(f"Find subscriptions, {replica}, {owner}")
     search_obj = Search(using=es_client,
                         index=Config.get_es_index_name(ESIndexType.subscriptions, Replica[replica]),
                         doc_type=ESDocType.subscription.name)
@@ -63,7 +63,7 @@ def find(replica: str):
         **{k: v for k, v in hit.to_dict().items() if not k.startswith('hmac_')}}
         for hit in search.scan()]
 
-    logger.debug(f"{len(responses)} Subscriptions found")
+    logger.info(f"{len(responses)} Subscriptions found")
 
     full_response = {'subscriptions': responses}
     return jsonify(full_response), requests.codes.okay
@@ -133,7 +133,7 @@ def put(json_request_body: dict, replica: str):
 
     try:
         subscription_registration = _register_subscription(es_client, uuid, json_request_body, replica)
-        logger.debug(f"Event Subscription succeeded:\n{subscription_registration}, owner: {owner}, uuid: {uuid}, "
+        logger.info(f"Event Subscription succeeded:\n{subscription_registration}, owner: {owner}, uuid: {uuid}, "
                      f"replica: {replica}")
     except ElasticsearchException as ex:
         logger.critical(f"Event Subscription failed: owner: {owner}, uuid: {uuid}, "
