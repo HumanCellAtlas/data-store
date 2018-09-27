@@ -2,7 +2,7 @@
 """
 This file compiles $EXPORT_ENV_VARS_TO_LAMBDA into a json document and
 uploads it into AWS Systems Manager Parameter Store under the key
-`dcp/dss/{DSS_DEPLOYMENT_STAGE}/environment
+`dcp/dss/{DSS_DEPLOYMENT_STAGE}/environment`
 """
 import os
 import json
