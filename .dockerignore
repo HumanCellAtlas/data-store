@@ -1,9 +1,0 @@
-.env
-.flake8
-.git*
-.idea
-.mypy_cache
-docker-compose.yml
-Dockerfile
-data-bundle-examples
-daemons
