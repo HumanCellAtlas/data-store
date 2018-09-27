@@ -11,7 +11,6 @@ import json
 import boto3
 import argparse
 
-
 parser = argparse.ArgumentParser()
 parser.add_argument("--update-deployed-lambdas",
     default=False,
@@ -20,19 +19,13 @@ parser.add_argument("--update-deployed-lambdas",
 )
 args = parser.parse_args()
 
-
-pkg_root = os.path.abspath(os.path.join(os.path.dirname(__file__), '..'))  # noqa
-
-
 ssm_client = boto3.client("ssm")
 es_client = boto3.client("es")
 lambda_client = boto3.client("lambda")
 
-
 parms = {var: os.environ[var]
          for var in os.environ['EXPORT_ENV_VARS_TO_LAMBDA'].split()}
 parms['DSS_ES_ENDPOINT'] = es_client.describe_elasticsearch_domain(DomainName=os.environ['DSS_ES_DOMAIN'])
-
 
 ssm_client.put_parameter(
     Name=f"/dcp/dss/{os.environ['DSS_DEPLOYMENT_STAGE']}/environment",
@@ -41,9 +34,8 @@ ssm_client.put_parameter(
     Overwrite=True,
 )
 
-
 if args.update_deployed_lambdas:
-    root, dirs, files = next(os.walk(os.path.join(pkg_root, "daemons")))
+    root, dirs, files = next(os.walk(os.path.join(os.environ['DSS_HOME'], "daemons")))
     functions = [f"{name}-{os.environ['DSS_DEPLOYMENT_STAGE']}" for name in dirs]
     functions.append(f"dss-{os.environ['DSS_DEPLOYMENT_STAGE']}") 
     for name in functions:
