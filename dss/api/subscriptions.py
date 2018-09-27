@@ -134,7 +134,7 @@ def put(json_request_body: dict, replica: str):
     try:
         subscription_registration = _register_subscription(es_client, uuid, json_request_body, replica)
         logger.info(f"Event Subscription succeeded:\n{subscription_registration}, owner: {owner}, uuid: {uuid}, "
-                     f"replica: {replica}")
+                    f"replica: {replica}")
     except ElasticsearchException as ex:
         logger.critical(f"Event Subscription failed: owner: {owner}, uuid: {uuid}, "
                         f"replica: {replica}, Exception: {ex}")
