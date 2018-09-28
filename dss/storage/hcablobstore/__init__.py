@@ -101,9 +101,9 @@ def compose_blob_key(file_info: typing.Dict[str, str]) -> str:
     :param file_info: This can either be an object that contains the four keys (SHA256, SHA1, S3_ETAG, and CRC32C) in
                       the key_class.
     """
+    # file_info[FileMetadata.S3_ETAG],
     return "blobs/" + ".".join((
         file_info[FileMetadata.SHA256],
         file_info[FileMetadata.SHA1],
-        file_info[FileMetadata.S3_ETAG],
         file_info[FileMetadata.CRC32C]
     ))
