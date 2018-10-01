@@ -21,6 +21,7 @@ class TestAuthMixin:
             self.assertEqual(resp.response.headers['Content-Type'], "application/problem+json")
             self.assertEqual(resp.json['title'], 'User is not authorized to access this resource')
 
+        # TODO test_bundle and test_file don't need email so remove this test so it can be run separatly
         with self.subTest("no email claims"):
             resp = self.assertResponse(method, url,
                                        requests.codes.unauthorized,

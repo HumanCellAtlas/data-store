@@ -13,6 +13,8 @@ import unittest
 from unittest import mock
 import uuid
 
+from tests.auth_tests import TestAuthMixin
+
 pkg_root = os.path.abspath(os.path.join(os.path.dirname(__file__), '..'))  # noqa
 sys.path.insert(0, pkg_root)  # noqa
 
@@ -32,7 +34,7 @@ from tests.infra.server import ThreadedLocalServer
 FILE_GET_RETRY_COUNT = 10
 
 
-class TestFileApi(unittest.TestCase, DSSAssertMixin, DSSUploadMixin):
+class TestFileApi(unittest.TestCase, DSSAssertMixin, DSSUploadMixin, TestAuthMixin):
     @classmethod
     def setUpClass(cls):
         cls.app = ThreadedLocalServer()
