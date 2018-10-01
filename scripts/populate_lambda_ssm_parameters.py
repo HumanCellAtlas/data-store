@@ -25,7 +25,9 @@ lambda_client = boto3.client("lambda")
 
 parms = {var: os.environ[var]
          for var in os.environ['EXPORT_ENV_VARS_TO_LAMBDA'].split()}
-parms['DSS_ES_ENDPOINT'] = es_client.describe_elasticsearch_domain(DomainName=os.environ['DSS_ES_DOMAIN'])
+parms['DSS_ES_ENDPOINT'] = es_client.describe_elasticsearch_domain(
+    DomainName=os.environ['DSS_ES_DOMAIN']
+)['DomainStatus']['Endpoint']
 
 ssm_client.put_parameter(
     Name=f"/dcp/dss/{os.environ['DSS_DEPLOYMENT_STAGE']}/environment",
@@ -45,4 +47,6 @@ if args.update_deployed_lambdas:
             print(f"{name} not deployed, or does not deploy a Lambda function")
             continue
         print(f"Updating {name}")
-        lambda_client.update_function_configuration(FunctionName=name, Environment={'Variables': parms})
+        lambda_env = lambda_client.get_function_configuration(FunctionName=name)['Environment']
+        lambda_env['Variables'].update(parms)
+        lambda_client.update_function_configuration(FunctionName=name, Environment=lambda_env)
