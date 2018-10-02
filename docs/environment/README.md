@@ -37,7 +37,7 @@ Environment Variable | Description
 `OIDC_AUDIENCE` | A list of allowed audiences in the JWT.
 `OPENID_PROVIDER` | 
 `OIDC_EMAIL_CLAIM` | The OIDC claim that specifies the users email.
-`OIDC_GROUP_CLAIM` | The OIDC claim that specifies the Groups the users belongs.
+`OIDC_GROUP_CLAIM` | The OIDC claim that specifies the Groups the users belongs to.
 `NOTIFY_URL` | 
 `DSS_AUTHORIZED_GOOGLE_PROJECT_DOMAIN_ARRAY` | A list domains with authorization to perform restricted actions on the DSS. This is generally used for Google service account credentials.
 `DSS_AUTHORIZED_DOMAINS` | Populated from `DSS_AUTHORIZED_GOOGLE_PROJECT_DOMAIN_ARRAY`.
