@@ -232,7 +232,7 @@ class Notifier:
                         self.enqueue(notification, self._next_queue_index(queue_index))
                     message.delete()
         else:
-            logger.info(f"Exiting worker {worker_index} due to insufficient time left.")
+            logger.debug(f"Exiting worker {worker_index} due to insufficient time left.")
 
     @property
     def _queue_name_prefix(self):
