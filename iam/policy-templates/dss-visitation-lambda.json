@@ -62,8 +62,6 @@
       "Effect": "Allow",
       "Action": [
           "xray:PutTelemetryRecords",
-          "s3:Get*",
-          "s3:List*",
           "xray:PutTraceSegments"
       ],
       "Resource": "*"
