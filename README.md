@@ -89,6 +89,17 @@ Hint: To create S3 buckets from the command line, use `aws s3 mb --region REGION
     cat $DSS_HOME/gcp-credentials.json | scripts/set_secret.py --secret-name $GOOGLE_APPLICATION_CREDENTIALS_SECRETS_NAME
     ```
 
+1.  Run the command
+
+    ```
+    cat scripts/populate_lambda_ssm_parameters.py
+    ```
+
+	This populates the environment variables defining your stage into an AWS Simple Systems Manager parameter store.
+    These variables will be read from the parameter store and in-lined into the Lambda deployment packages during
+	deployment. This command should be executed whenever the environment variables are updated. The environments
+	of currently deployed Lambdas may optionally by updated in place with the flag `--update-deployed-lambdas`.
+
 1.  Choose a region that has support for Cloud Functions and set `GCP_DEFAULT_REGION` to that region. See
     https://cloud.google.com/about/locations/ for a list of supported regions.
 
