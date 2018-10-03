@@ -4,38 +4,39 @@ set -euo pipefail
 
 # This block discovers the command line flags `--force` and  `--no-deploy`,
 # and passes on positional arguments as $1, $2, etc.
-FORCE=
-NO_DEPLOY=
-SKIP_GITHUB_STATUS=
-SKIP_ACCOUNT_VERIFICATION=
-POSITIONAL=()
-while [[ $# -gt 0 ]]
-do
-key="$1"
-case $key in
-    --force)
-    FORCE="--force"
-    shift
-    ;;
-    --no-deploy)
-    NO_DEPLOY="--no-deploy"
-    shift
-    ;;
-    --skip-github-status)
-    SKIP_GITHUB_STATUS="--skip-github-status"
-    shift
-    ;;
-    --skip-account-verification)
-    SKIP_ACCOUNT_VERIFICATION="--skip-account-verification"
-    shift
-    ;;
-    *)
-    POSITIONAL+=("$1")
-    shift
-    ;;
-esac
-done
-set -- "${POSITIONAL[@]}" # restore positional parameters
+if [[ $# > 0 ]]; then
+    FORCE=
+    NO_DEPLOY=
+    SKIP_GITHUB_STATUS=
+    SKIP_ACCOUNT_VERIFICATION=
+    POSITIONAL=()
+    while [[ $# > 0 ]]; do
+        key="$1"
+        case $key in
+            --force)
+            FORCE="--force"
+            shift
+            ;;
+            --no-deploy)
+            NO_DEPLOY="--no-deploy"
+            shift
+            ;;
+            --skip-github-status)
+            SKIP_GITHUB_STATUS="--skip-github-status"
+            shift
+            ;;
+            --skip-account-verification)
+            SKIP_ACCOUNT_VERIFICATION="--skip-account-verification"
+            shift
+            ;;
+            *)
+            POSITIONAL+=("$1")
+            shift
+            ;;
+        esac
+    done
+    set -- "${POSITIONAL[@]}" # restore positional parameters
+fi
 
 if [[ $# != 2 ]]; then
     echo "Given a source (pre-release) branch and a destination (release) branch,"
