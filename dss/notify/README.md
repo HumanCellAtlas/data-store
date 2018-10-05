@@ -66,7 +66,7 @@ notifications occur. However, the choice of FIFO queues is not baked into the de
 change the system to use standard queues.
 
 Full disclosure: the ordering constraints enforced by FIFO queues are obviously weakened in the likely case that more
-than one worker consumes a queue. Furthermore, the unqiqueness constraint (aka "exactly-once delivery") of FIFO queues
+than one worker consumes a queue. Furthermore, the uniqueness constraint (aka "exactly-once delivery") of FIFO queues
 is weakened by two rare, but unavoidable race conditions. 
 
   1) It is possible for a failed notification to become visible on queue N while it is being enqueued in queue N+1.
