@@ -43,6 +43,7 @@ unit_tests:
     - make -j4 parallel_test
   except:
     - tags
+    - schedules
 
 test_search:
   stage: test
@@ -50,6 +51,7 @@ test_search:
     - make -j1 tests/test_search.py
   except:
     - tags
+    - schedules
 
 test_aws_indexer:
   stage: test
@@ -59,6 +61,7 @@ test_aws_indexer:
     - make -j1 tests/test_indexer.py
   except:
     - tags
+    - schedules
 
 test_gcp_indexer:
   stage: test
@@ -68,6 +71,7 @@ test_gcp_indexer:
     - make -j1 tests/test_indexer.py
   except:
     - tags
+    - schedules
 
 test_subscriptions:
   stage: test
@@ -75,6 +79,18 @@ test_subscriptions:
     - make -j1 tests/test_subscriptions.py
   except:
     - tags
+    - schedules
+
+test_sync_large_blob:
+  stage: test
+  script:
+    - python tests/test_sync.py TestSyncDaemon.test_sync_large_blob
+  only:
+    refs:
+      - schedules
+    variables:
+      - $DSS_TEST_MODE == "integration"
+      - $DSS_TEST_LARGE_FILE_SYNC
 
 deploy:
   stage: deploy
