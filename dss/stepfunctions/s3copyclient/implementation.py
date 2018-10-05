@@ -284,6 +284,7 @@ def _sfn(parallelization_factor):
                 "Type": "Task",
                 "Resource": join,
                 "End": True,
+                "Retry": _retry_default(),
             },
         }
     }
