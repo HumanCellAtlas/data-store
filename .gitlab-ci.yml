@@ -170,3 +170,31 @@ force_release_staging:
   only:
     - integration
   when: manual
+
+release_prod:
+  stage: release
+  script:
+    - git remote set-url origin https://$GITHUB_TOKEN@github.com/HumanCellAtlas/data-store.git
+    - for i in $(seq 1 40); do
+    -   status=$(scripts/status.sh HumanCellAtlas dcp prod)
+    -   if [[ pending != "${status}" && running != "${status}" ]]; then break; fi
+    -   echo "waiting for DCP Integration test to complete";
+    -   sleep 30;  # This loop will check status for 20 minutes and then quit
+    - done
+    - if [[ success != "${status}" ]]; then
+    -   echo "DCP Integration test returned status ${status}";
+    -   exit 1
+    - fi
+    - scripts/release.sh staging prod --no-deploy --skip-github-status --skip-account-verification
+  only:
+    - staging
+  when: manual 
+
+force_release_prod:
+  stage: release
+  script:
+    - git remote set-url origin https://$GITHUB_TOKEN@github.com/HumanCellAtlas/data-store.git
+    - scripts/release.sh staging prod --force --no-deploy --skip-github-status --skip-account-verification
+  only:
+    - staging
+  when: manual
