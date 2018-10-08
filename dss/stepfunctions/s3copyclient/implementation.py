@@ -284,6 +284,14 @@ def _sfn(parallelization_factor):
                 "Type": "Task",
                 "Resource": join,
                 "End": True,
+                "Retry": [{
+                    # Retry Lambda launch failures, but not join() failures
+                    # https://docs.aws.amazon.com/step-functions/latest/dg/bp-lambda-serviceexception.html
+                    "ErrorEquals": ["Lambda.ServiceException", "Lambda.SdkClientException"],
+                    "IntervalSeconds": 2,
+                    "MaxAttempts": 6,
+                    "BackoffRate": 2,
+                }]
             },
         }
     }
