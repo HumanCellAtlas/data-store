@@ -284,7 +284,12 @@ def _sfn(parallelization_factor):
                 "Type": "Task",
                 "Resource": join,
                 "End": True,
-                "Retry": _retry_default(),
+                "Retry": [{
+                    "ErrorEquals": ["Lambda.ServiceException", "Lambda.SdkClientException"],
+                    "IntervalSeconds": 2,
+                    "MaxAttempts": 6,
+                    "BackoffRate": 2,
+                }]
             },
         }
     }
