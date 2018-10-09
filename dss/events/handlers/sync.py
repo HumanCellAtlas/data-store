@@ -62,6 +62,10 @@ def sync_s3_to_gs_oneshot(source: BlobLocation, dest: BlobLocation):
         ExpiresIn=presigned_url_lifetime_seconds
     )
     with closing(http.request("GET", s3_blob_url, preload_content=False)) as fh:
+        if 200 != fh.status:
+            msg = f"failed to resolve s3 presigned url for {source.blob.key}"
+            logger.error(msg)
+            raise Exception(msg)
         gs_blob = dest.bucket.blob(source.blob.key, chunk_size=1024 * 1024)
         gs_blob.metadata = source.blob.metadata
         gs_blob.upload_from_file(fh)
@@ -70,6 +74,10 @@ def sync_gs_to_s3_oneshot(source: BlobLocation, dest: BlobLocation):
     expires_timestamp = int(time.time() + presigned_url_lifetime_seconds)
     gs_blob_url = source.blob.generate_signed_url(expiration=expires_timestamp)
     with closing(http.request("GET", gs_blob_url, preload_content=False)) as fh:
+        if 200 != fh.status:
+            msg = f"failed to resolve gs presigned url for {source.blob.key}"
+            logger.error(msg)
+            raise Exception(msg)
         dest.blob.upload_fileobj(fh, ExtraArgs=dict(Metadata=source.blob.metadata or {}))
 
 def compose_gs_blobs(gs_bucket, blob_names, dest_blob_name):
