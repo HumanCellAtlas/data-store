@@ -83,13 +83,14 @@ test_subscriptions:
 
 test_sync_large_blob:
   stage: test
+  variables:
+    DSS_TEST_MODE: "integration"
   script:
     - python tests/test_sync.py TestSyncDaemon.test_sync_large_blob
   only:
     refs:
       - schedules
     variables:
-      - $DSS_TEST_MODE == "integration"
       - $DSS_TEST_LARGE_FILE_SYNC
 
 deploy:
@@ -104,6 +105,8 @@ deploy:
     - master
     - integration
     - staging
+  except:
+    - schedules
 
 integration_test:
   stage: integration_test
@@ -113,6 +116,8 @@ integration_test:
     - master
     - integration
     - staging
+  except:
+    - schedules
 
 release_integration:
   stage: release
@@ -131,6 +136,8 @@ release_integration:
     - scripts/release.sh master integration --no-deploy --skip-github-status --skip-account-verification
   only:
     - master
+  except:
+    - schedules
   when: manual
   allow_failure: true
 
@@ -141,6 +148,8 @@ force_release_integration:
     - scripts/release.sh master integration --force --no-deploy --skip-github-status --skip-account-verification
   only:
     - master
+  except:
+    - schedules
   when: manual
 
 release_staging:
@@ -160,6 +169,8 @@ release_staging:
     - scripts/release.sh integration staging --no-deploy --skip-github-status --skip-account-verification
   only:
     - integration
+  except:
+    - schedules
   when: manual 
 
 force_release_staging:
@@ -169,6 +180,8 @@ force_release_staging:
     - scripts/release.sh integration staging --force --no-deploy --skip-github-status --skip-account-verification
   only:
     - integration
+  except:
+    - schedules
   when: manual
 
 release_prod:
@@ -188,6 +201,8 @@ release_prod:
     - scripts/release.sh staging prod --no-deploy --skip-github-status --skip-account-verification
   only:
     - staging
+  except:
+    - schedules
   when: manual 
 
 force_release_prod:
@@ -197,4 +212,6 @@ force_release_prod:
     - scripts/release.sh staging prod --force --no-deploy --skip-github-status --skip-account-verification
   only:
     - staging
+  except:
+    - schedules
   when: manual
