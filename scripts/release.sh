@@ -7,7 +7,6 @@ set -euo pipefail
 if [[ $# > 0 ]]; then
     FORCE=
     NO_DEPLOY=
-    SKIP_GITHUB_STATUS=
     SKIP_ACCOUNT_VERIFICATION=
     POSITIONAL=()
     while [[ $# > 0 ]]; do
@@ -19,10 +18,6 @@ if [[ $# > 0 ]]; then
             ;;
             --no-deploy)
             NO_DEPLOY="--no-deploy"
-            shift
-            ;;
-            --skip-github-status)
-            SKIP_GITHUB_STATUS="--skip-github-status"
             shift
             ;;
             --skip-account-verification)
@@ -51,13 +46,10 @@ if [[ $# != 2 ]]; then
     echo
     echo "If the --no-deploy flag is given, the deployment step will be skipped."
     echo
-    echo "If the --skip-github-status flag is given, the combined github status checks"
-    echo "will be skipped."
-    echo
     echo "If the --skip-account-verification flag is given, the user will not be asked to"
     echo "verify cloud account information."
     echo
-    echo "Usage: $(basename $0) source_branch dest_branch [--force] [--no-deploy] [--skip-github-status] [--skip-account-verification]"
+    echo "Usage: $(basename $0) source_branch dest_branch [--force] [--no-deploy] [--skip-account-verification]"
     echo "Example: $(basename $0) master staging"
     exit 1
 fi
@@ -101,22 +93,14 @@ fi
 
 export PROMOTE_FROM_BRANCH=$1 PROMOTE_DEST_BRANCH=$2
 
-if [[ $SKIP_GITHUB_STATUS != "--skip-github-status" ]]; then
-    GH_API=https://api.github.com
-    REPO=$(git remote get-url origin | perl -ne '/github\.com.(.+?)(\.git)?$/; print $1')
-    STATUS=$(http GET ${GH_API}/repos/${REPO}/commits/${PROMOTE_FROM_BRANCH}/status Accept:application/vnd.github.full+json)
-    STATE=$(echo "$STATUS" | jq -r .state)
-    echo "$STATUS" | jq '.statuses[]|select(.state != "success")'
-    
-    # TODO: (akislyuk) some CI builds no longer deploy or run a subset of tests. Find the last build that ran a deployment.
-    if [[ "$STATE" != success ]]; then
-        if [[ $FORCE == "--force" ]]; then
-            echo "Status checks failed on branch $PROMOTE_FROM_BRANCH. Forcing promotion and deployment anyway."
-        else
-            echo "Status checks failed on branch $PROMOTE_FROM_BRANCH."
-            echo "Run with --force to promote $PROMOTE_FROM_BRANCH to $PROMOTE_DEST_BRANCH and deploy anyway."
-            exit 1
-        fi
+STATUS=$(${DSS_HOME}/scripts/status.py HumanCellAtlas data-store $PROMOTE_FROM_BRANCH)
+if [[ "$STATUS" != success ]]; then
+    if [[ $FORCE == "--force" ]]; then
+        echo "Status checks failed on branch $PROMOTE_FROM_BRANCH. Forcing promotion and deployment anyway."
+    else
+        echo "Status checks failed on branch $PROMOTE_FROM_BRANCH."
+        echo "Run with --force to promote $PROMOTE_FROM_BRANCH to $PROMOTE_DEST_BRANCH and deploy anyway."
+        exit 1
     fi
 fi
 
