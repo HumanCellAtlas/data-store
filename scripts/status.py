@@ -1,5 +1,10 @@
 #!/usr/bin/env python
 """
+This script outputs GitLab pipeline status.
+This GitLab API is expected to be stored in AWS secretsmanager with secret id "dss-gitlab-api"
+This GitLab Token is expected to be stored in AWS secretsmanager with secret id "dss-gitlab-token"
+Usage: `scripts/status.py owner repo branch`
+Example: `scripts/status.py HumanCellAtlas data-store master`
 """
 import json
 import boto3
@@ -8,9 +13,9 @@ import argparse
 import urllib.parse
 
 parser = argparse.ArgumentParser()
-parser.add_argument("owner")
-parser.add_argument("repo")
-parser.add_argument("branch")
+parser.add_argument("owner", help="The group or owner of the repository")
+parser.add_argument("repo", help="The repository name")
+parser.add_argument("branch", help="Branch to return most recent CI pipeline status")
 args = parser.parse_args()
 
 sm = boto3.client("secretsmanager")
