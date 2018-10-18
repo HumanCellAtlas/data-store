@@ -19,6 +19,14 @@
       ]
     },
     {
+      "Effect": "Deny",
+      "Action": "s3:Delete*",
+      "Resource": [
+        "arn:aws:s3:::$DSS_S3_BUCKET",
+        "arn:aws:s3:::$DSS_S3_BUCKET/*"
+        ]
+    },
+    {
       "Effect": "Allow",
       "Action": [
         "states:StartExecution"
