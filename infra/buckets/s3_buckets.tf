@@ -1,6 +1,34 @@
+data "aws_iam_role" "dcp-admin" {
+  name = "dcp-admin"
+}
+
 resource aws_s3_bucket dss_s3_bucket {
   count  = "${length(var.DSS_S3_BUCKET) > 0 ? 1 : 0}"
   bucket = "${var.DSS_S3_BUCKET}"
+  policy = <<POLICY
+  {
+    "Version": "2012-10-17",
+    "Statement": [
+        {
+            "Effect": "Deny",
+            "Principal": "*",
+            "Action": "s3:Delete*",
+            "Resource": [
+              "arn:aws:s3:::${var.DSS_S3_BUCKET}/*",
+              "arn:aws:s3:::${var.DSS_S3_BUCKET}"
+            ],
+            "Condition": {
+                "StringNotLike": {
+                    "aws:userId": [
+                        "${data.aws_iam_role.dcp-admin.unique_id}:*",
+                        "${local.account_id}"
+                    ]
+                }
+            }
+        }
+    ]
+  }
+  POLICY
 }
 
 resource aws_s3_bucket dss_s3_bucket_test {
