@@ -86,6 +86,7 @@ env_vars_to_infra = [
     "DSS_ZONE_NAME",
     "ES_ALLOWED_SOURCE_IP_SECRETS_NAME",
     "GCP_DEFAULT_REGION",
+    "DSS_AWS_DELETION_ROLE"
 ]
 
 with open(os.path.join(infra_root, args.component, "backend.tf"), "w") as fp:

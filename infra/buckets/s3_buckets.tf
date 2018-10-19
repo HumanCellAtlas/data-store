@@ -1,5 +1,5 @@
-data "aws_iam_role" "dcp-admin" {
-  name = "dcp-admin"
+data "aws_iam_role" "admin" {
+  name = "${var.DSS_AWS_DELETION_ROLE}"
 }
 
 resource aws_s3_bucket dss_s3_bucket {
@@ -10,6 +10,7 @@ resource aws_s3_bucket dss_s3_bucket {
     "Version": "2012-10-17",
     "Statement": [
         {
+            "Sid": "admin_delete"
             "Effect": "Deny",
             "Principal": "*",
             "Action": "s3:Delete*",
@@ -20,7 +21,7 @@ resource aws_s3_bucket dss_s3_bucket {
             "Condition": {
                 "StringNotLike": {
                     "aws:userId": [
-                        "${data.aws_iam_role.dcp-admin.unique_id}:*",
+                        "${data.aws_iam_role.admin.unique_id}:*",
                         "${local.account_id}"
                     ]
                 }

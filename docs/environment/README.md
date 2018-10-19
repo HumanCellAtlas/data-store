@@ -67,5 +67,6 @@ Environment Variable | Description
 `DSS_GS_BUCKET_TEST_FIXTURES_REGION` | Workaround for GS buckets with non-uniform regions
 `DSS_GCP_SERVICE_ACCOUNT_NAME` | "travis-test"
 `DSS_CHECKOUT_BUCKET_OBJECT_VIEWERS` | This list manages the GCP Users and serviceAccounts able to access direct URLs on the GS checkout bucket. Other GCP entities must use presigned urls, or checkout to an external GS bucket they have access to. 
+`DSS_AWS_DELETION_ROLE` | Defines what AWS Role is give Deletion permissions to the main bucket on S3.
 `AWS_SDK_LOAD_CONFIG` | Needed for Terraform to correctly use AWS assumed roles
 
