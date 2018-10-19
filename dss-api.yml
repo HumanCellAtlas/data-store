@@ -186,7 +186,7 @@ paths:
           description: Replica to search.
           required: true
           type: string
-          enum: [aws, gcp, azure]
+          enum: [aws, gcp]
         - name: per_page
           in: query
           description: Max number of results to return per page.
@@ -239,7 +239,7 @@ paths:
           description: Replica to fetch from.
           required: true
           type: string
-          enum: [aws, gcp, azure]
+          enum: [aws, gcp]
         - name: version
           in: query
           description: Timestamp of file creation in RFC3339.  If this is not provided, the latest version is returned.
@@ -303,7 +303,7 @@ paths:
           description: Replica to fetch from.
           required: true
           type: string
-          enum: [aws, gcp, azure]
+          enum: [aws, gcp]
         - name: version
           in: query
           description: Timestamp of file creation in RFC3339.  If this is not provided, the latest version is returned.
@@ -548,7 +548,7 @@ paths:
           description: Replica to fetch from.
           required: true
           type: string
-          enum: [aws, gcp, azure]
+          enum: [aws, gcp]
       responses:
         200:
           description: OK
@@ -587,7 +587,7 @@ paths:
           description: Replica to write to.
           required: true
           type: string
-          enum: [aws, gcp, azure]
+          enum: [aws, gcp]
         - name: json_request_body
           in: body
           required: true
@@ -795,7 +795,7 @@ paths:
           description: Replica to fetch from.
           required: true
           type: string
-          enum: [aws, gcp, azure]
+          enum: [aws, gcp]
       responses:
         200:
           description: OK
@@ -836,7 +836,7 @@ paths:
           description: Replica to delete from.
           required: true
           type: string
-          enum: [aws, gcp, azure]
+          enum: [aws, gcp]
       responses:
         200:
           description: OK
@@ -887,7 +887,7 @@ paths:
           description: Replica to write to.
           required: true
           type: string
-          enum: [aws, gcp, azure]
+          enum: [aws, gcp]
         - name: uuid
           in: query
           description: A RFC4122-compliant ID for the collection.
@@ -958,7 +958,7 @@ paths:
           description: Replica to fetch from.
           required: true
           type: string
-          enum: [aws, gcp, azure]
+          enum: [aws, gcp]
         - name: version
           in: query
           description: >
@@ -1006,7 +1006,7 @@ paths:
           description: Replica to update the collection on. Updates are propagated to other replicas.
           required: true
           type: string
-          enum: [aws, gcp, azure]
+          enum: [aws, gcp]
         - name: version
           in: query
           description: >
@@ -1160,7 +1160,7 @@ paths:
           description: Replica to delete from.
           required: true
           type: string
-          enum: [aws, gcp, azure]
+          enum: [aws, gcp]
       responses:
         200:
           description: OK
@@ -1201,7 +1201,7 @@ paths:
           description: Replica to fetch from.
           required: true
           type: string
-          enum: [aws, gcp, azure]
+          enum: [aws, gcp]
         - name: directurls
           in: query
           description: >
@@ -1320,7 +1320,7 @@ paths:
           description: Replica to write to.
           required: true
           type: string
-          enum: [aws, gcp, azure]
+          enum: [aws, gcp]
         - name: json_request_body
           in: body
           required: true
@@ -1447,7 +1447,7 @@ paths:
           description: Replica to write to.
           required: true
           type: string
-          enum: [aws, gcp, azure]
+          enum: [aws, gcp]
         - name: version
           in: query
           description: Timestamp of bundle creation in RFC3339.
@@ -1537,7 +1537,7 @@ paths:
           description: Replica to fetch from.
           required: true
           type: string
-          enum: [aws, gcp, azure]
+          enum: [aws, gcp]
         - name: json_request_body
           in: body
           required: false
@@ -1589,7 +1589,7 @@ paths:
           description: Replica to fetch from.
           required: true
           type: string
-          enum: [aws, gcp, azure]
+          enum: [aws, gcp]
         - name: checkout_job_id
           in: path
           description: A RFC4122-compliant ID for the checkout job request.
@@ -1751,7 +1751,7 @@ definitions:
           The DSS replica to subscribe. When a new bundle is indexed in a particular replica, only subscriptions for
           that same replica are notified.
         type: string
-        enum: [aws, gcp, azure]
+        enum: [aws, gcp]
       owner:
         type: string
         format: email
