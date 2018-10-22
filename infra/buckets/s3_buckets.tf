@@ -5,6 +5,9 @@ data "aws_iam_role" "admin" {
 resource aws_s3_bucket dss_s3_bucket {
   count  = "${length(var.DSS_S3_BUCKET) > 0 ? 1 : 0}"
   bucket = "${var.DSS_S3_BUCKET}"
+}
+
+resource "aws_s3_bucket_policy" "admin_delete_policy"{
   policy = <<POLICY
   {
     "Version": "2012-10-17",
@@ -30,6 +33,7 @@ resource aws_s3_bucket dss_s3_bucket {
     ]
   }
   POLICY
+  bucket = "${var.DSS_S3_BUCKET}"
 }
 
 resource aws_s3_bucket dss_s3_bucket_test {
