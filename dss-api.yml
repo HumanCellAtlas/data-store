@@ -177,6 +177,8 @@ paths:
           description: >
             Specifies the output format. The default format, `summary`, is a list of UUIDs for bundles that match
             the query. Set this parameter to `raw` to get the verbatim JSON metadata for bundles that match the query.
+            When using `output_format raw` limit the `per_page` size to no more than 10 to avoid exceeding the response
+            size limit.
           required: false
           type: string
           enum: [summary, raw]
@@ -189,7 +191,9 @@ paths:
           enum: [aws, gcp]
         - name: per_page
           in: query
-          description: Max number of results to return per page.
+          description: Max number of results to return per page. When using `output_format raw` limit the `per_page`
+          size to no more than 10 to avoid exceeding the response size limit.
+            size limit.
           required: false
           type: integer
           format: int32
