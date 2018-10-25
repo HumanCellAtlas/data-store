@@ -1,8 +1,8 @@
 #!/usr/bin/env python
 """
 This script outputs GitLab pipeline status.
-This GitLab API is expected to be stored in AWS secretsmanager with secret id "dss-gitlab-api"
-This GitLab Token is expected to be stored in AWS secretsmanager with secret id "dss-gitlab-token"
+The GitLab API is expected to be stored in AWS secretsmanager with secret id "dcp/dss/gitlab-api"
+The GitLab Token is expected to be stored in AWS secretsmanager with secret id "dcp/dss/gitlab-token"
 Usage: `scripts/status.py owner repo branch`
 Example: `scripts/status.py HumanCellAtlas data-store master`
 """
@@ -20,8 +20,8 @@ args = parser.parse_args()
 
 sm = boto3.client("secretsmanager")
 
-gitlab_api = sm.get_secret_value(SecretId="dss-gitlab-api")['SecretString']
-gitlab_token = sm.get_secret_value(SecretId="dss-gitlab-token")['SecretString']
+gitlab_api = sm.get_secret_value(SecretId="dcp/dss/gitlab-api")['SecretString']
+gitlab_token = sm.get_secret_value(SecretId="dcp/dss/gitlab-token")['SecretString']
 slug = urllib.parse.quote_plus(f"{args.owner}/{args.repo}")
 r = requests.get(
     f"https://{gitlab_api}/projects/{slug}/pipelines",
