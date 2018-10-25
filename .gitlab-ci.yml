@@ -124,7 +124,7 @@ release_integration:
   script:
     - git remote set-url origin https://$GITHUB_TOKEN@github.com/HumanCellAtlas/data-store.git
     - for i in $(seq 1 40); do
-    -   status=$(scripts/status.sh HumanCellAtlas dcp integration)
+    -   status=$(scripts/status.py HumanCellAtlas dcp integration)
     -   if [[ pending != "${status}" && running != "${status}" ]]; then break; fi
     -   echo "waiting for DCP Integration test to complete";
     -   sleep 30;  # This loop will check status for 20 minutes and then quit
@@ -157,7 +157,7 @@ release_staging:
   script:
     - git remote set-url origin https://$GITHUB_TOKEN@github.com/HumanCellAtlas/data-store.git
     - for i in $(seq 1 40); do
-    -   status=$(scripts/status.sh HumanCellAtlas dcp staging)
+    -   status=$(scripts/status.py HumanCellAtlas dcp staging)
     -   if [[ pending != "${status}" && running != "${status}" ]]; then break; fi
     -   echo "waiting for DCP Integration test to complete";
     -   sleep 30;  # This loop will check status for 20 minutes and then quit
@@ -189,7 +189,7 @@ release_prod:
   script:
     - git remote set-url origin https://$GITHUB_TOKEN@github.com/HumanCellAtlas/data-store.git
     - for i in $(seq 1 40); do
-    -   status=$(scripts/status.sh HumanCellAtlas dcp prod)
+    -   status=$(scripts/status.py HumanCellAtlas dcp prod)
     -   if [[ pending != "${status}" && running != "${status}" ]]; then break; fi
     -   echo "waiting for DCP Integration test to complete";
     -   sleep 30;  # This loop will check status for 20 minutes and then quit
