@@ -227,18 +227,28 @@ class TestSearchBase(ElasticsearchTestCase, DSSAssertMixin):
                 self.verify_next_url(next_url, per_page)
 
     def test_output_format_is_raw(self):
-        bundles = self.populate_search_index(self.index_document, 1)
-        self.check_count(smartseq2_paired_ends_vx_query, 1)
-        url = self.build_url(url_params={'output_format': 'raw'})
+        bundles = self.populate_search_index(self.index_document, 11)
+        self.check_count(smartseq2_paired_ends_vx_query, 11)
+        url = self.build_url(url_params={'output_format': 'raw', 'per_page': 11})
         search_obj = self.assertPostResponse(
             path=url,
             json_request_body=dict(es_query=smartseq2_paired_ends_vx_query),
+            expected_code=requests.codes.partial)
+        results = search_obj.json['results']
+        next_url = self.get_next_url(search_obj.response.headers)
+        self.assertIsNotNone(next_url)
+        self.verify_search_result(search_obj.json, smartseq2_paired_ends_vx_query, 11, 10)
+        search_obj = self.assertPostResponse(
+            path=self.strip_next_url(next_url),
+            json_request_body=dict(es_query=smartseq2_paired_ends_vx_query),
             expected_code=requests.codes.ok)
+        results.extend(search_obj.json['results'])
         next_url = self.get_next_url(search_obj.response.headers)
         self.assertIsNone(next_url)
-        self.verify_search_result(search_obj.json, smartseq2_paired_ends_vx_query, 1, 1)
-        self.verify_bundles(search_obj.json['results'], bundles)
-        self.assertEqual(search_obj.json['results'][0]['metadata'], self.index_document)
+        self.verify_search_result(search_obj.json, smartseq2_paired_ends_vx_query, 11, 1)
+        self.verify_bundles(results, bundles)
+        self.assertEqual(sorted([key for key in search_obj.json['results'][0]['metadata']['manifest'].keys()]),
+                         sorted([key for key in self.index_document['manifest'].keys()]))
 
     def test_error_returned_when_per_page_is_out_of_range(self):
         expected_error = ExpectedErrorFields(code="illegal_arguments",

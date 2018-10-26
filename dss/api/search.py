@@ -33,7 +33,7 @@ def post(json_request_body: dict,
          output_format: str,
          search_after: typing.Optional[str] = None) -> dict:
     es_query = json_request_body['es_query']
-    per_page = PerPageBounds.check(per_page)
+    per_page = PerPageBounds.check(per_page) if output_format != 'raw' else PerPageBounds.per_page_min
 
     replica_enum = Replica[replica] if replica is not None else Replica.aws
 
