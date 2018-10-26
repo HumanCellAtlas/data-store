@@ -1,6 +1,10 @@
+import logging
+
 from dss import Config, Replica
 from dss.stepfunctions.lambdaexecutor import TimedThread
 from dss.storage.files import write_file_metadata
+
+logger = logging.getLogger(__name__)
 
 
 # Public input/output keys for the state object.
@@ -65,6 +69,14 @@ def copy_worker(event, lambda_context):
     return CopyWorkerTimedThread(lambda_context.get_remaining_time_in_millis() / 1000, event).start()
 
 
+def fail(event, lambda_context):
+    # Error and cause are available as:
+    # event['Error']
+    # event['Cause']
+    logger.error(f"Error: failed gscopyclient sfn execution on {event}")
+    return event
+
+
 def _retry_default():
     return [
         {
@@ -72,6 +84,14 @@ def _retry_default():
             "IntervalSeconds": 30,
             "MaxAttempts": 10,
             "BackoffRate": 1.618,
+        },
+    ]
+
+def _catch_default():
+    return [
+        {
+            "ErrorEquals": ["States.ALL"],
+            "Next": "FailTask",
         },
     ]
 
@@ -85,12 +105,23 @@ def _sfn():
                 "Resource": setup_copy_task,
                 "Next": "Copy",
                 "Retry": _retry_default(),
+                "Catch": _catch_default(),
             },
             "Copy": {
                 "Type": "Task",
                 "Resource": copy_worker,
                 "Retry": _retry_default(),
+                "Catch": _catch_default(),
                 "End": True,
+            },
+            "FailTask": {
+                "Type": "Task",
+                "Resource": fail,
+                "Retry": _retry_default(),
+                "Next": "Fail",
+            },
+            "Fail": {
+                "Type": "Fail",
             },
         }
     }
