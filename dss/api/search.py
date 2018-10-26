@@ -33,7 +33,7 @@ def post(json_request_body: dict,
          output_format: str,
          search_after: typing.Optional[str] = None) -> dict:
     es_query = json_request_body['es_query']
-    per_page = PerPageBounds.check(per_page)
+    per_page = PerPageBounds.check(per_page) if output_format != 'raw' else PerPageBounds.per_page_min
 
     replica_enum = Replica[replica] if replica is not None else Replica.aws
 
@@ -43,16 +43,6 @@ def post(json_request_body: dict,
     # TODO: (tsmith12) allow users to retrieve previous search results
     try:
         page = _es_search_page(es_query, replica_enum, per_page, search_after, output_format)
-        request_dict = _format_request_body(page, es_query, replica_enum, output_format)
-        request_body = jsonify(request_dict)
-
-        if len(request_dict['results']) < per_page:
-            response = make_response(request_body, requests.codes.ok)
-        else:
-            response = make_response(request_body, requests.codes.partial)
-            next_url = _build_next_url(page, per_page, replica_enum, output_format)
-            response.headers['Link'] = _build_link_header({next_url: {"rel": "next"}})
-        return response
     except TransportError as ex:
         if ex.status_code == requests.codes.bad_request:
             logger.debug(f"Invalid Query Recieved. Exception: {ex}")
@@ -74,12 +64,22 @@ def post(json_request_body: dict,
             raise DSSException(requests.codes.internal_server_error,
                                "internal_server_error",
                                "Elasticsearch Internal Server Error")
-
     except ElasticsearchException as ex:
         logger.error(f"Elasticsearch Internal Server Error. Exception: {ex}")
         raise DSSException(requests.codes.internal_server_error,
                            "internal_server_error",
                            "Elasticsearch Internal Server Error")
+    else:
+        request_dict = _format_request_body(page, es_query, replica_enum, output_format)
+        request_body = jsonify(request_dict)
+
+        if len(request_dict['results']) < per_page:
+            response = make_response(request_body, requests.codes.ok)
+        else:
+            response = make_response(request_body, requests.codes.partial)
+            next_url = _build_next_url(page, per_page, replica_enum, output_format)
+            response.headers['Link'] = _build_link_header({next_url: {"rel": "next"}})
+        return response
 
 
 def _es_search_page(es_query: dict,
