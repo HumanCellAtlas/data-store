@@ -156,7 +156,7 @@ class ElasticsearchIndexBackend(IndexBackend):
             notification.deliver_or_raise()
 
     @staticmethod
-    def _search_after(es_client, body: dict, index_name: str, sort:list, size: int=1000):
+    def _search_after(es_client, body: dict, index_name: str, sort: list, size: int=1000):
         resp = es_client.search(index=index_name,
                                 size=size,
                                 body=body,
