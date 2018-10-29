@@ -1,3 +1,5 @@
+import logging
+
 import binascii
 import collections
 
@@ -11,6 +13,8 @@ from dcplib.s3_multipart import get_s3_multipart_chunk_size
 from dss.stepfunctions.lambdaexecutor import TimedThread
 from dss.storage.files import write_file_metadata
 from dss.util import parallel_worker
+
+logger = logging.getLogger(__name__)
 
 
 # CONSTANTS
@@ -201,16 +205,33 @@ def join(event, lambda_context):
     return state
 
 
-def _retry_default():
+def fail(event, lambda_context):
+    # Error and cause are available as:
+    # event['Error']
+    # event['Cause']
+    logger.error(f"s3copyclient sfn execution failed on {event}")
+    return event
+
+
+def _retry_default(interval=30, attempts=10, backoff_rate=1.618, errors=None):
+    if errors is None:
+        errors = ["States.Timeout", "States.TaskFailed"]
     return [
         {
-            "ErrorEquals": ["States.Timeout", "States.TaskFailed"],
-            "IntervalSeconds": 30,
-            "MaxAttempts": 10,
-            "BackoffRate": 1.618,
+            "ErrorEquals": errors,
+            "IntervalSeconds": interval,
+            "MaxAttempts": attempts,
+            "BackoffRate": backoff_rate,
         },
     ]
 
+def _catch_default():
+    return [
+        {
+            "ErrorEquals": ["States.ALL"],
+            "Next": "FailTask",
+        },
+    ]
 
 def _threadpool_sfn(tid):
     return {
@@ -262,6 +283,7 @@ def _sfn(parallelization_factor):
                 "Resource": setup_copy_task,
                 "Next": "ParallelChoice",
                 "Retry": _retry_default(),
+                "Catch": _catch_default(),
             },
             "ParallelChoice": {
                 "Type": "Choice",
@@ -279,19 +301,25 @@ def _sfn(parallelization_factor):
                 "Branches": [_threadpool_sfn(tid) for tid in range(parallelization_factor)],
                 "Next": "Finalizer",
                 "Retry": _retry_default(),
+                "Catch": _catch_default(),
             },
             "Finalizer": {
                 "Type": "Task",
                 "Resource": join,
                 "End": True,
-                "Retry": [{
-                    # Retry Lambda launch failures, but not join() failures
-                    # https://docs.aws.amazon.com/step-functions/latest/dg/bp-lambda-serviceexception.html
-                    "ErrorEquals": ["Lambda.ServiceException", "Lambda.SdkClientException"],
-                    "IntervalSeconds": 2,
-                    "MaxAttempts": 6,
-                    "BackoffRate": 2,
-                }]
+                # Retry Lambda launch failures, but not join() failures
+                # https://docs.aws.amazon.com/step-functions/latest/dg/bp-lambda-serviceexception.html
+                "Retry": _retry_default(2, 6, 2, ["Lambda.ServiceException", "Lambda.SdkClientException"]),
+                "Catch": _catch_default(),
+            },
+            "FailTask": {
+                "Type": "Task",
+                "Resource": fail,
+                "Retry": _retry_default(2, 6, 2, ["Lambda.ServiceException", "Lambda.SdkClientException"]),
+                "Next": "Fail",
+            },
+            "Fail": {
+                "Type": "Fail",
             },
         }
     }
