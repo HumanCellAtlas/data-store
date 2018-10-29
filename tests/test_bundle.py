@@ -377,7 +377,7 @@ class TestBundleApi(unittest.TestCase, DSSAssertMixin, DSSUploadMixin, TestAuthM
 
     @testmode.standalone
     def test_bundle_put(self):
-        tests = [(Replica.aws, self.s3_test_fixtures_bucket),(Replica.gcp, self.gs_test_fixtures_bucket)]
+        tests = [(Replica.aws, self.s3_test_fixtures_bucket), (Replica.gcp, self.gs_test_fixtures_bucket)]
         for replica, bucket in tests:
             self._test_bundle_put(replica, bucket)
 
@@ -554,14 +554,16 @@ class TestBundleApi(unittest.TestCase, DSSAssertMixin, DSSUploadMixin, TestAuthM
             with self.subTest(f"{test[0].name}, {test[2]}"):
                 self._test_bundle_delete(*test)
 
-        # make delete request
-        bundle_uuid = str(uuid.uuid4())
-        bundle_version = datetime_to_version_format(datetime.datetime.utcnow())
-        url_builder = UrlBuilder().set(path="/v1/bundles/" + bundle_uuid).add_query('replica', replica.name)
-        if bundle_version:
-            url_builder = url_builder.add_query('version', bundle_version)
-        url = str(url_builder)
-        self._test_auth_errors('delete', url)
+    def test_bundle_delete_auth_errors(self):
+        replicas = [Replica.aws, Replica.gcp]
+        for replica in replicas:
+            bundle_uuid = str(uuid.uuid4())
+            bundle_version = datetime_to_version_format(datetime.datetime.utcnow())
+            url_builder = UrlBuilder().set(path="/v1/bundles/" + bundle_uuid).add_query('replica', replica.name)
+            if bundle_version:
+                url_builder = url_builder.add_query('version', bundle_version)
+            url = str(url_builder)
+            self._test_auth_errors('delete', url)
 
     def _test_bundle_delete(self, replica: Replica, fixtures_bucket: str, authorized: bool):
         schema = replica.storage_schema
