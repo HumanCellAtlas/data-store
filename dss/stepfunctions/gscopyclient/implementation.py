@@ -73,7 +73,7 @@ def fail(event, lambda_context):
     # Error and cause are available as:
     # event['Error']
     # event['Cause']
-    logger.error(f"Error: failed gscopyclient sfn execution on {event}")
+    logger.error(f"gscopyclient sfn execution failed on {event}")
     return event
 
 
