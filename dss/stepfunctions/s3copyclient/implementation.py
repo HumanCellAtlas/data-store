@@ -209,7 +209,7 @@ def fail(event, lambda_context):
     # Error and cause are available as:
     # event['Error']
     # event['Cause']
-    logger.error(f"Error: failed s3copyclient sfn execution on {event}")
+    logger.error(f"s3copyclient sfn execution failed on {event}")
     return event
 
 
