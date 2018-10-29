@@ -31,7 +31,7 @@ Environment Variable | Description
 `DSS_BLOB_TTL_DAYS` | The time to live of an object in cloud storage enforced by the cloud provider's bucket lifecycle poilcy.
 `DSS_NOTIFICATION_SENDER` | 
 `ADMIN_USER_EMAILS` | 
-`DCP_DOMAIN` | 
+`DCP_DOMAIN` | The domain name of the DSS.
 `API_DOMAIN_NAME` | The domain of the API host.
 `TOKENINFO_FUNC` | Do Not Modify. Used by connexion to verify the JWT in the authorization header of an authenticated request.
 `OIDC_AUDIENCE` | A list of allowed audiences in the JWT.
@@ -42,21 +42,21 @@ Environment Variable | Description
 `DSS_AUTHORIZED_GOOGLE_PROJECT_DOMAIN_ARRAY` | A list domains with authorization to perform restricted actions on the DSS. This is generally used for Google service account credentials.
 `DSS_AUTHORIZED_DOMAINS` | Populated from `DSS_AUTHORIZED_GOOGLE_PROJECT_DOMAIN_ARRAY`.
 `DSS_AUTHORIZED_DOMAINS_TEST` | A domain to be used during testing.
-`DSS_ES_DOMAIN` | 
-`DSS_ES_INSTANCE_TYPE` | 
-`DSS_ES_VOLUME_SIZE` | 
-`DSS_ES_INSTANCE_COUNT` | 
-`DSS_CERTIFICATE_DOMAIN` | 
-`DSS_CERTIFICATE_ADDITIONAL_NAMES` | 
-`DSS_CERTIFICATE_VALIDATION` | 
-`DSS_ZONE_NAME` | 
+`DSS_ES_DOMAIN` | The name of the AWS Elasticsearch domain.
+`DSS_ES_INSTANCE_TYPE` | The type of AWS Elasticsearch instance>
+`DSS_ES_VOLUME_SIZE` | The total storage size dedicated to the AWS Elasticsearch cluster.
+`DSS_ES_INSTANCE_COUNT` | The number of nodes in the AWS Elasticsearch cluster.
+`DSS_CERTIFICATE_DOMAIN` | The domain of the https certificate.
+`DSS_CERTIFICATE_ADDITIONAL_NAMES` | Alternate names for the https certificate.
+`DSS_CERTIFICATE_VALIDATION` | Validation method for the https certificate.
+`DSS_ZONE_NAME` | Name of the route53 zone containing the domain name.
 `PYTHONWARNINGS` | 
 `DSS_SECRETS_STORE` | The prefix for DSS secrets stored in aws secrets manager.
-`EVENT_RELAY_AWS_USERNAME` | 
+`EVENT_RELAY_AWS_USERNAME` | The name of the AWS IAM user authorized for the GCP->AWS event relay.
 `EVENT_RELAY_AWS_ACCESS_KEY_SECRETS_NAME` | The name of the secret stored in aws secrets manager.
 `GOOGLE_APPLICATION_CREDENTIALS_SECRETS_NAME` | The name of the secret stored in aws secrets manager.
 `GOOGLE_APPLICATION_SECRETS_SECRETS_NAME` | The name of the secret stored in aws secrets manager.
-`ES_ALLOWED_SOURCE_IP_SECRETS_NAME` | 
+`ES_ALLOWED_SOURCE_IP_SECRETS_NAME` | Source IP access list for the AWS Elasticsearch cluster. This should be a comma seperated list of IPs.
 `DSS_DEBUG` | An interger specifying the log level. See [dss.logging](https://github.com/HumanCellAtlas/data-store/blob/c61e2cf000bf64e54a572f5dc29807feb8ee34c6/dss/logging.py#L31).
 `DSS_TERRAFORM_BACKEND_BUCKET_TEMPLATE` | "dss-config-{account_id}" - `{account_id}`, if present, will be replaced with the account ID associated with the AWS credentials used for deployment. It can be safely omitted.
 `DSS_NOTIFY_DELAYS` | Configure the delays between notification attempts. The first attempt is immediate. The second attempt is one minute later. Then ten minutes, one hour, and six hours in between. Then 24 hours minus all previous delays and lastly every 24 hours for six days. This is exponential initially and then levels off where exponential would be too infrequent. The last attempt is made seven days after the first one, which is easy to remember.
