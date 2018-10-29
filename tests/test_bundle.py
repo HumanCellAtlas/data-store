@@ -557,13 +557,16 @@ class TestBundleApi(unittest.TestCase, DSSAssertMixin, DSSUploadMixin, TestAuthM
     def test_bundle_delete_auth_errors(self):
         replicas = [Replica.aws, Replica.gcp]
         for replica in replicas:
+            # make delete request
             bundle_uuid = str(uuid.uuid4())
             bundle_version = datetime_to_version_format(datetime.datetime.utcnow())
             url_builder = UrlBuilder().set(path="/v1/bundles/" + bundle_uuid).add_query('replica', replica.name)
             if bundle_version:
                 url_builder = url_builder.add_query('version', bundle_version)
             url = str(url_builder)
-            self._test_auth_errors('delete', url)
+            json_request_body = dict(reason="reason")
+            json_request_body['version'] = bundle_version
+            self._test_auth_errors('delete', url, json_request_body=json_request_body)
 
     def _test_bundle_delete(self, replica: Replica, fixtures_bucket: str, authorized: bool):
         schema = replica.storage_schema
