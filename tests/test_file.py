@@ -68,10 +68,12 @@ class TestFileApi(unittest.TestCase, DSSAssertMixin, DSSUploadMixin, TestAuthMix
 
         urlbuilder = UrlBuilder().set(path='/v1/files/' + file_uuid)
         urlbuilder.add_query("version", version)
-        self._test_auth_errors('put', str(urlbuilder), json_request_body=dict(
-            bundle_uuid=bundle_uuid,
-            creator_uid=0,
-            source_url=source_url)
+        self._test_auth_errors('put',
+                               str(urlbuilder),
+                               json_request_body=dict(
+                                   bundle_uuid=bundle_uuid,
+                                   creator_uid=0,
+                                   source_url=source_url)
                                )
 
     def _test_file_put(self, replica: Replica, scheme: str, test_bucket: str, uploader: Uploader):
