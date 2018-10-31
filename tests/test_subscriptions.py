@@ -8,13 +8,8 @@ import sys
 import unittest
 import uuid
 from io import open
-from contextlib import contextmanager
 import hashlib
-
-import connexion.apis.abstract
 import requests
-
-from tests.auth_tests import TestAuthMixin
 
 pkg_root = os.path.abspath(os.path.join(os.path.dirname(__file__), '..'))  # noqa
 sys.path.insert(0, pkg_root)  # noqa
@@ -27,6 +22,7 @@ from dss.notify.notification import Endpoint
 from dss.logging import configure_test_logging
 from dss.util import UrlBuilder
 from tests import get_auth_header, get_bundle_fqid
+from tests.auth_tests import TestAuthMixin
 from tests.infra import DSSAssertMixin, testmode
 from tests.infra.elasticsearch_test_case import ElasticsearchTestCase
 from tests.infra.server import ThreadedLocalServer
