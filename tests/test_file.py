@@ -34,7 +34,7 @@ from tests.infra.server import ThreadedLocalServer
 FILE_GET_RETRY_COUNT = 10
 
 
-class TestFileApi(unittest.TestCase, DSSAssertMixin, DSSUploadMixin, TestAuthMixin):
+class TestFileApi(unittest.TestCase, DSSUploadMixin, TestAuthMixin, DSSAssertMixin):
     @classmethod
     def setUpClass(cls):
         cls.app = ThreadedLocalServer()
