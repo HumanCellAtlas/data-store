@@ -23,7 +23,7 @@ class TestAuthMixin(DSSAssertMixin):
             self.assertEqual(resp.json['title'], 'User is not authorized to access this resource')
 
         # TODO test_bundle and test_file don't need email so remove this test so it can be run separatly
-        if not url.split('/')[2] in ('files'):
+        if not url.split('/')[2] in ('files', 'bundles'):
             with self.subTest("no email claims"):  # type: ignore
                 resp = self.assertResponse(method, url,
                                            requests.codes.unauthorized,
