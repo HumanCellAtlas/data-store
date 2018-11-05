@@ -597,9 +597,9 @@ class TestIndexerBase(ElasticsearchTestCase, DSSAssertMixin, DSSStorageMixin, DS
 
         # Verify the mapping types are as expected for a valid test
         expected_shape_descriptor = (
-            "v.cell_suspension.6.dissociation_protocol.2.donor_organism.5.enrichment_protocol.2" +
-            ".library_preparation_protocol.3.links.1.process.2.project.5.sequence_file.6.sequencing_protocol.7" +
-            ".specimen_from_organism.5"
+            "v.cell_suspension.6.dissociation_protocol.2.donor_organism.5.enrichment_protocol.2"
+            + ".library_preparation_protocol.3.links.1.process.2.project.5.sequence_file.6.sequencing_protocol.7"
+            + ".specimen_from_organism.5"
         )
         doc_index_name = dss.Config.get_es_index_name(
             dss.ESIndexType.docs,
@@ -713,9 +713,9 @@ class TestIndexerBase(ElasticsearchTestCase, DSSAssertMixin, DSSStorageMixin, DS
         self.assertTrue(es_client.indices.exists_alias(name=[self.dss_alias_name]))
         alias = es_client.indices.get_alias(name=[self.dss_alias_name])
         expected_shape_descriptor = (
-            "v.cell_suspension.6.dissociation_protocol.2.donor_organism.5.enrichment_protocol.2" +
-            ".library_preparation_protocol.3.links.1.process.2.project.5.sequence_file.6.sequencing_protocol.7" +
-            ".specimen_from_organism.5"
+            "v.cell_suspension.6.dissociation_protocol.2.donor_organism.5.enrichment_protocol.2"
+            + ".library_preparation_protocol.3.links.1.process.2.project.5.sequence_file.6.sequencing_protocol.7"
+            + ".specimen_from_organism.5"
         )
         doc_index_name = dss.Config.get_es_index_name(
             dss.ESIndexType.docs,
@@ -916,13 +916,13 @@ class TestIndexerBase(ElasticsearchTestCase, DSSAssertMixin, DSSStorageMixin, DS
             else:
                 time.sleep(0.5)
 
-    def set_indexer(self, remaining_time: int=300, notify: bool=None):
+    def set_indexer(self, remaining_time: int = 300, notify: bool = None):
         _remaining_time = SpecificRemainingTime(remaining_time)
-        backend = CompositeIndexBackend(executor=self.executor,
-                                        backends=DEFAULT_BACKENDS,
-                                        remaining_time=_remaining_time,
-                                        notify_async=testmode.is_integration(),
-                                        notify=notify)
+        backend = CompositeIndexBackend(executor = self.executor,
+                                        backends = DEFAULT_BACKENDS,
+                                        remaining_time = _remaining_time,
+                                        notify_async = testmode.is_integration(),
+                                        notify = notify)
         self.indexer = self.indexer_cls(backend, _remaining_time)
 
     def load_test_data_bundle_for_path(self, fixture_path: str, uuid=None):

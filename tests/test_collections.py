@@ -261,10 +261,10 @@ class TestCollections(unittest.TestCase, DSSAssertMixin, DSSUploadMixin):
             self.assertEqual(res.status_code, requests.codes.not_found)
 
     def _put(self, contents: typing.List,
-             authorized: bool=True,
-             uuid: typing.Optional[str]=None,
-             version: typing.Optional[str]=None,
-             replica: str='aws') -> typing.Tuple[str, str]:
+             authorized: bool = True,
+             uuid: typing.Optional[str] = None,
+             version: typing.Optional[str] = None,
+             replica: str = 'aws') -> typing.Tuple[str, str]:
         uuid = str(uuid4()) if uuid is None else uuid
         version = datetime.now().isoformat() if version is None else version
 

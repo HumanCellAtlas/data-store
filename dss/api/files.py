@@ -36,16 +36,16 @@ logger = logging.getLogger(__name__)
 
 
 @dss_handler
-def head(uuid: str, replica: str, version: str=None, token: str=None):
+def head(uuid: str, replica: str, version: str = None, token: str = None):
     return get_helper(uuid, Replica[replica], version, token)
 
 
 @dss_handler
-def get(uuid: str, replica: str, version: str=None, token: str=None):
+def get(uuid: str, replica: str, version: str = None, token: str = None):
     return get_helper(uuid, Replica[replica], version, token)
 
 
-def get_helper(uuid: str, replica: Replica, version: str=None, token: str=None):
+def get_helper(uuid: str, replica: Replica, version: str = None, token: str = None):
     with tracing.Subsegment('parameterization'):
         handle = Config.get_blobstore_handle(replica)
         bucket = replica.bucket
@@ -71,7 +71,7 @@ def get_helper(uuid: str, replica: Replica, version: str=None, token: str=None):
                     bucket,
                     "files/{}.{}".format(uuid, version)
                 ).decode("utf-8"))
-    except BlobNotFoundError as ex:
+    except BlobNotFoundError:
         raise DSSException(404, "not_found", "Cannot find file!")
 
     with tracing.Subsegment('make_path'):
@@ -119,9 +119,9 @@ def _verify_checkout(
         now = datetime.datetime.now(datetime.timezone.utc)
         creation_date = cloud_handle.get_creation_date(replica.checkout_bucket, blob_path)
         stale_after_date = creation_date + datetime.timedelta(days=int(os.environ['DSS_BLOB_PUBLIC_TTL_DAYS']))
-        expiration_date = (creation_date +
-                           datetime.timedelta(days=int(os.environ['DSS_BLOB_TTL_DAYS'])) -
-                           datetime.timedelta(hours=1))
+        expiration_date = (creation_date
+                           + datetime.timedelta(days=int(os.environ['DSS_BLOB_TTL_DAYS']))
+                           - datetime.timedelta(hours=1))
 
         if now < expiration_date:
             if now > stale_after_date:

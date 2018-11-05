@@ -228,7 +228,7 @@ class Base(unittest.TestCase):
     def setUp(self):
         self.json_gen = JsonGenerator()
 
-    def _test_common(self, func: Callable[[dict], Any], jtype: str, enums: list=None, const: Any=None):
+    def _test_common(self, func: Callable[[dict], Any], jtype: str, enums: list = None, const: Any = None):
         with self.subTest(f"with only 'type: {jtype}' in schema"):
             self.assertTrue(isinstance(func({'type': jtype}), type_mapping[jtype]),
                             msg=f"{func.__name__} did not return type {type_mapping[jtype]}.")

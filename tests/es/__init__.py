@@ -54,7 +54,7 @@ def clear_indexes(index_names: List[str], doctypes: List[str]):
 
 
 class ElasticsearchServer:
-    def __init__(self, timeout: float=60, delay: float=10) -> None:
+    def __init__(self, timeout: float = 60, delay: float = 10) -> None:
         elasticsearch_binary = os.getenv("DSS_TEST_ES_PATH", "elasticsearch")
         tempdir = tempfile.TemporaryDirectory()
 

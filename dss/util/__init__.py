@@ -10,7 +10,7 @@ def paginate(boto3_paginator, *args, **kwargs):
 
 
 class UrlBuilder:
-    def __init__(self, url: typing.Optional[str]=None) -> None:
+    def __init__(self, url: typing.Optional[str] = None) -> None:
         if url is None:
             self.splitted = SplitResult("", "", "", "", "")
         else:
@@ -19,11 +19,11 @@ class UrlBuilder:
 
     def set(
             self,
-            scheme: str=None,
-            netloc: str=None,
-            path: str=None,
-            query: typing.List[typing.Tuple[str, str]]=None,
-            fragment: str=None) -> "UrlBuilder":
+            scheme: str = None,
+            netloc: str = None,
+            path: str = None,
+            query: typing.List[typing.Tuple[str, str]] = None,
+            fragment: str = None) -> "UrlBuilder":
         kwargs = dict()
         if scheme is not None:
             kwargs['scheme'] = scheme

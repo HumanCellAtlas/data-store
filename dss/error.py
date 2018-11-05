@@ -26,7 +26,7 @@ class DSSBindingException(DSSException):
 
 
 class DSSForbiddenException(DSSException):
-    def __init__(self, title: str="User is not authorized to access this resource",
+    def __init__(self, title: str = "User is not authorized to access this resource",
                  *args, **kwargs) -> None:
         super().__init__(requests.codes.forbidden,
                          "Forbidden",
@@ -48,9 +48,9 @@ def dss_exception_handler(e: DSSException) -> FlaskResponse:
 def dss_handler(func):
     @functools.wraps(func)
     def wrapper(*args, **kwargs):
-        if (os.environ.get('DSS_READ_ONLY_MODE') is None or
-                "GET" == request.method or
-                ("POST" == request.method and "search" in request.path)):
+        if (os.environ.get('DSS_READ_ONLY_MODE') is None
+                or "GET" == request.method
+                or ("POST" == request.method and "search" in request.path)):
             try:
                 return func(*args, **kwargs)
             except werkzeug.exceptions.HTTPException as ex:

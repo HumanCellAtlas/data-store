@@ -732,8 +732,8 @@ class TestBundleApi(unittest.TestCase, TestAuthMixin, DSSAssertMixin, DSSUploadM
             self,
             replica: Replica,
             bundle_uuid: str,
-            bundle_version: typing.Optional[str]=None,
-            authorized: bool=True):
+            bundle_version: typing.Optional[str] = None,
+            authorized: bool = True):
         # make delete request
         url_builder = UrlBuilder().set(path="/v1/bundles/" + bundle_uuid).add_query('replica', replica.name)
         if bundle_version:

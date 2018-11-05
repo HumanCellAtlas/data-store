@@ -15,7 +15,7 @@ def get_bundle_manifest(
         replica: Replica,
         version: typing.Optional[str],
         *,
-        bucket: typing.Optional[str]=None) -> typing.Optional[dict]:
+        bucket: typing.Optional[str] = None) -> typing.Optional[dict]:
     """
     Return the contents of the bundle manifest file from cloud storage, subject to the rules of tombstoning.  If version
     is None, return the latest version, once again, subject to the rules of tombstoning.
@@ -31,7 +31,7 @@ def get_bundle_manifest(
     bucket = default_bucket if bucket is None else bucket
 
     def tombstone_exists(uuid: str, version: typing.Optional[str]):
-        return test_object_exists(handle, bucket, BundleTombstoneID(uuid=uuid, version=version).to_key())
+        return test_object_exists(handle, bucket, BundleTombstoneID(uuid = uuid, version = version).to_key())
 
     # handle the following deletion cases
     # 1. the whole bundle is deleted

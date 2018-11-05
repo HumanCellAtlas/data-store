@@ -23,7 +23,7 @@ class HCAJsonGenerator(object):
         self.resolver = self.resolver_factory()  # The resolver used to dereference JSON '$ref'.
         self._json_gen = JsonGenerator(resolver=self.resolver)
 
-    def generate(self, name: str=None) -> str:
+    def generate(self, name: str = None) -> str:
         """
         Chooses a random JSON schema from self.schemas and generates JSON data.
         :param name: the name of a JSON schema to generate. If None, then a random schema is chosen.

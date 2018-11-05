@@ -9,7 +9,7 @@ from dss.storage.checkout.bundle import get_bundle_checkout_status, start_bundle
 
 
 @dss_handler
-def post(uuid: str, json_request_body: dict, replica: str, version: str=None):
+def post(uuid: str, json_request_body: dict, replica: str, version: str = None):
 
     assert replica is not None
     _replica: Replica = Replica[replica]

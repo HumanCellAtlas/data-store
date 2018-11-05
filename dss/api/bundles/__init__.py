@@ -36,10 +36,10 @@ ADMIN_USER_EMAILS = set(os.environ['ADMIN_USER_EMAILS'].split(','))
 def get(
         uuid: str,
         replica: str,
-        version: str=None,
-        directurls: bool=False,
-        presignedurls: bool=False,
-        token: str=None,
+        version: str = None,
+        directurls: bool = False,
+        presignedurls: bool = False,
+        token: str = None,
 ):
     if directurls and presignedurls:
         raise DSSException(
@@ -240,7 +240,7 @@ def put(uuid: str, replica: str, json_request_body: dict, version: str):
 
 @dss_handler
 @security.authorized_group_required(['hca'])
-def delete(uuid: str, replica: str, json_request_body: dict, version: str=None):
+def delete(uuid: str, replica: str, json_request_body: dict, version: str = None):
     email = security.get_token_email(request.token_info)
 
     if email not in ADMIN_USER_EMAILS:

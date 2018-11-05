@@ -17,11 +17,11 @@ class DSSUploadMixin:
             self: typing.Any,
             source_url: str,
             replica: Replica,
-            file_uuid: str=None,
-            file_version: str=None,
-            bundle_uuid: str=None,
-            timeout_seconds: int=120,
-            expect_async: typing.Optional[bool]=None,
+            file_uuid: str = None,
+            file_version: str = None,
+            bundle_uuid: str = None,
+            timeout_seconds: int = 120,
+            expect_async: typing.Optional[bool] = None,
     ) -> DSSAssertResponse:
         """
         Upload a file.  If the request is being handled asynchronously, wait until the file has landed in the data

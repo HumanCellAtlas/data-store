@@ -171,7 +171,7 @@ def get_chalice_app(flask_app) -> DSSChaliceApp:
                         skip_on_conflicts=True):
                     flask_res = flask_app.full_dispatch_request()
                     status_code = flask_res._status_code
-        except Exception as e:
+        except Exception:
             app.log.exception('The request failed!')
         finally:
             app.log.info(

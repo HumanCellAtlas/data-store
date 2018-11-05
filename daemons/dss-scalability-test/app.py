@@ -202,8 +202,8 @@ def handle_dynamodb_stream(event, context):
                     ':success_count': success_count,
                     ':failure_count': failure_count,
                     ':records': records,
-                    ':new_average': old_avg_duration + (duration_sum / records - old_avg_duration) /
-                                                       (old_count + records)
+                    ':new_average': old_avg_duration + (duration_sum / records - old_avg_duration)
+                                                       / (old_count + records)
                 }
             )
         else:

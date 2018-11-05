@@ -23,9 +23,9 @@ def start_bundle_checkout(
         bundle_uuid: str,
         bundle_version: typing.Optional[str],
         dst_bucket: str,
-        email_address: typing.Optional[str]=None,
+        email_address: typing.Optional[str] = None,
         *,
-        sts_bucket: typing.Optional[str]=None,
+        sts_bucket: typing.Optional[str] = None,
 ) -> str:
     """
     Starts a bundle checkout.
@@ -141,9 +141,9 @@ def _is_checkout_valid(
     now = datetime.datetime.now(datetime.timezone.utc)
     blob_ttl = datetime.timedelta(days=int(os.environ['DSS_BLOB_TTL_DAYS']), hours=-1)
 
-    return (len(files_in_checkout) == len(expected_files) and
-            all(key in expected_files and
-                now < blob[BlobMetadataField.CREATED] + blob_ttl for key, blob in files_in_checkout))
+    return (len(files_in_checkout) == len(expected_files)
+            and all(key in expected_files
+                and now < blob[BlobMetadataField.CREATED] + blob_ttl for key, blob in files_in_checkout))
 
 
 def _is_checkout_stale(
