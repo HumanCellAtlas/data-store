@@ -309,7 +309,7 @@ def _sfn(parallelization_factor):
                 "End": True,
                 # Retry Lambda launch failures, but not join() failures
                 # https://docs.aws.amazon.com/step-functions/latest/dg/bp-lambda-serviceexception.html
-                "Retry": _retry_default(2, 6, 2, ["Lambda.ServiceException", "Lambda.SdkClientException"]),
+                "Retry": _retry_default(2, 6, 2),
                 "Catch": _catch_default(),
             },
             "FailTask": {
