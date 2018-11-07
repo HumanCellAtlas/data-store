@@ -17,6 +17,9 @@ for interacting with the data and is built using [Chalice](https://github.com/aw
 implements [Step Functions](https://aws.amazon.com/step-functions/) to orchestrate Lambdas for long-running tasks such
 as large file writes. You can find the API documentation and give it a try [here](https://dss.data.humancellatlas.org/).
 
+#### Architectural Diagram
+![DSS Sync SFN diagram](docs/dss_architectural_diagram.png)
+
 #### DSS API
 The DSS API uses [Swagger](http://swagger.io/) to define the [API specification](dss-api.yml) according to the
 [OpenAPI 2.0 specification](https://github.com/OAI/OpenAPI-Specification/blob/master/versions/2.0.md).
