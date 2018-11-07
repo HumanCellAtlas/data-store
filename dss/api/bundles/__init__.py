@@ -122,6 +122,7 @@ def post():
 
 
 @dss_handler
+@security.authorized_group_required(['hca'])
 def put(uuid: str, replica: str, json_request_body: dict, version: str):
     uuid = uuid.lower()
     # convert it to date-time so we can format exactly as the system requires (with microsecond precision)

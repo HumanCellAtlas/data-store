@@ -29,7 +29,7 @@ from dss.storage.blobstore import test_object_exists
 from dss.storage.hcablobstore import compose_blob_key
 from dss.util.version import datetime_to_version_format
 from dss.storage.bundles import get_bundle_manifest
-from tests.infra import DSSAssertMixin, DSSUploadMixin, ExpectedErrorFields, get_env, testmode
+from tests.infra import DSSAssertMixin, DSSUploadMixin, ExpectedErrorFields, get_env, testmode, TestAuthMixin
 from tests.infra.server import ThreadedLocalServer
 from tests import eventually, get_auth_header
 
@@ -38,7 +38,7 @@ BUNDLE_GET_RETRY_COUNT = 60
 """For GET /bundles requests that require a retry, this is the maximum number of attempts we make."""
 
 
-class TestBundleApi(unittest.TestCase, DSSAssertMixin, DSSUploadMixin):
+class TestBundleApi(unittest.TestCase, TestAuthMixin, DSSAssertMixin, DSSUploadMixin):
     @classmethod
     def setUpClass(cls):
         cls.app = ThreadedLocalServer()
@@ -375,8 +375,27 @@ class TestBundleApi(unittest.TestCase, DSSAssertMixin, DSSUploadMixin):
 
     @testmode.standalone
     def test_bundle_put(self):
-        self._test_bundle_put(Replica.aws, self.s3_test_fixtures_bucket)
-        self._test_bundle_put(Replica.gcp, self.gs_test_fixtures_bucket)
+        tests = [(Replica.aws, self.s3_test_fixtures_bucket), (Replica.gcp, self.gs_test_fixtures_bucket)]
+        for replica, bucket in tests:
+            self._test_bundle_put(replica, bucket)
+
+            bundle_version = datetime_to_version_format(datetime.datetime.utcnow())
+            bundle_uuid = str(uuid.uuid4())
+            builder = UrlBuilder().set(path="/v1/bundles/" + bundle_uuid).add_query("replica", replica.name)
+            if bundle_version:
+                builder.add_query("version", bundle_version)
+            url = str(builder)
+            self._test_auth_errors('put', url,
+                                   json_request_body=dict(
+                                       files=[
+                                           dict(
+                                               uuid=str(uuid.uuid4()),
+                                               version=datetime_to_version_format(datetime.datetime.utcnow()),
+                                               name="LICENSE",
+                                               indexed=False,
+                                           )],
+                                       creator_uid=12345,
+                                   ))
 
     def _test_bundle_put(self, replica: Replica, fixtures_bucket: str):
         schema = replica.storage_schema
@@ -533,6 +552,20 @@ class TestBundleApi(unittest.TestCase, DSSAssertMixin, DSSUploadMixin):
             with self.subTest(f"{test[0].name}, {test[2]}"):
                 self._test_bundle_delete(*test)
 
+    def test_bundle_delete_auth_errors(self):
+        replicas = [Replica.aws, Replica.gcp]
+        for replica in replicas:
+            # make delete request
+            bundle_uuid = str(uuid.uuid4())
+            bundle_version = datetime_to_version_format(datetime.datetime.utcnow())
+            url_builder = UrlBuilder().set(path="/v1/bundles/" + bundle_uuid).add_query('replica', replica.name)
+            if bundle_version:
+                url_builder = url_builder.add_query('version', bundle_version)
+            url = str(url_builder)
+            json_request_body = dict(reason="reason")
+            json_request_body['version'] = bundle_version
+            self._test_auth_errors('delete', url, json_request_body=json_request_body)
+
     def _test_bundle_delete(self, replica: Replica, fixtures_bucket: str, authorized: bool):
         schema = replica.storage_schema
 
@@ -586,7 +619,8 @@ class TestBundleApi(unittest.TestCase, DSSAssertMixin, DSSUploadMixin):
                 expected_error=ExpectedErrorFields(
                     code="illegal_arguments",
                     status=requests.codes.bad_request,
-                    expect_stacktrace=True)
+                    expect_stacktrace=True),
+                headers=get_auth_header()
             )
 
     @testmode.standalone
@@ -610,7 +644,8 @@ class TestBundleApi(unittest.TestCase, DSSAssertMixin, DSSUploadMixin):
                 expected_error=ExpectedErrorFields(
                     code="illegal_arguments",
                     status=requests.codes.bad_request,
-                    expect_stacktrace=True)
+                    expect_stacktrace=True),
+                headers=get_auth_header()
             )
 
     @testmode.standalone
@@ -680,6 +715,7 @@ class TestBundleApi(unittest.TestCase, DSSAssertMixin, DSSUploadMixin):
                 ],
                 creator_uid=12345,
             ),
+            headers=get_auth_header()
         )
 
         if 200 <= resp_obj.response.status_code < 300:

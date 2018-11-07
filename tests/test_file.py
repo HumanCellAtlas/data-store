@@ -22,9 +22,10 @@ from dss.config import BucketConfig, Config, override_bucket_config, Replica
 from dss.storage.hcablobstore import compose_blob_key
 from dss.util import UrlBuilder
 from dss.util.version import datetime_to_version_format
-from tests import eventually
+from tests import eventually, get_auth_header
 from tests.fixtures.cloud_uploader import GSUploader, S3Uploader, Uploader
-from tests.infra import DSSAssertMixin, DSSUploadMixin, ExpectedErrorFields, get_env, generate_test_key, testmode
+from tests.infra import DSSAssertMixin, DSSUploadMixin, ExpectedErrorFields, get_env, generate_test_key, testmode, \
+    TestAuthMixin
 from tests.infra.server import ThreadedLocalServer
 
 
@@ -32,7 +33,7 @@ from tests.infra.server import ThreadedLocalServer
 FILE_GET_RETRY_COUNT = 10
 
 
-class TestFileApi(unittest.TestCase, DSSAssertMixin, DSSUploadMixin):
+class TestFileApi(unittest.TestCase, TestAuthMixin, DSSUploadMixin, DSSAssertMixin):
     @classmethod
     def setUpClass(cls):
         cls.app = ThreadedLocalServer()
@@ -55,6 +56,25 @@ class TestFileApi(unittest.TestCase, DSSAssertMixin, DSSUploadMixin):
         self._test_file_put(Replica.aws, "s3", self.s3_test_bucket, S3Uploader(tempdir, self.s3_test_bucket))
         self._test_file_put(Replica.gcp, "gs", self.gs_test_bucket, GSUploader(tempdir, self.gs_test_bucket))
 
+    def _test_put_auth_errors(self, scheme, test_bucket):
+        src_key = generate_test_key()
+        source_url = f"{scheme}://{test_bucket}/{src_key}"
+
+        file_uuid = str(uuid.uuid4())
+        bundle_uuid = str(uuid.uuid4())
+        timestamp = datetime.datetime.utcnow()
+        version = timestamp.strftime("%Y-%m-%dT%H%M%S.%fZ")
+
+        urlbuilder = UrlBuilder().set(path='/v1/files/' + file_uuid)
+        urlbuilder.add_query("version", version)
+        self._test_auth_errors('put',
+                               str(urlbuilder),
+                               json_request_body=dict(
+                                   bundle_uuid=bundle_uuid,
+                                   creator_uid=0,
+                                   source_url=source_url)
+                               )
+
     def _test_file_put(self, replica: Replica, scheme: str, test_bucket: str, uploader: Uploader):
         src_key = generate_test_key()
         src_data = os.urandom(1024)
@@ -69,6 +89,8 @@ class TestFileApi(unittest.TestCase, DSSAssertMixin, DSSUploadMixin):
         file_uuid = str(uuid.uuid4())
         bundle_uuid = str(uuid.uuid4())
         version = datetime_to_version_format(datetime.datetime.utcnow())
+
+        self._test_put_auth_errors(scheme, test_bucket)
 
         with self.subTest(f"{replica}: Created returned when uploading a file with a unique payload, and FQID"):
             self.upload_file(source_url, file_uuid, bundle_uuid=bundle_uuid, version=version)
@@ -582,6 +604,7 @@ class TestFileApi(unittest.TestCase, DSSAssertMixin, DSSUploadMixin):
                 creator_uid=0,
                 source_url=source_url,
             ),
+            headers=get_auth_header()
         )
 
         if resp_obj.response.status_code == requests.codes.created:

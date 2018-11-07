@@ -8,6 +8,7 @@ import requests
 from dss.config import Replica
 from dss.util import UrlBuilder
 from dss.util.version import datetime_to_version_format
+from tests import get_auth_header
 from .assert_mixin import DSSAssertResponse
 
 
@@ -49,6 +50,7 @@ class DSSUploadMixin:
                 creator_uid=0,
                 source_url=source_url,
             ),
+            headers=get_auth_header()
         )
 
         if resp_obj.response.status_code == requests.codes.accepted:

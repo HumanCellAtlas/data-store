@@ -11,6 +11,7 @@ from cloud_blobstore import BlobStore
 from dss import Config, Replica
 from dss.util import UrlBuilder
 from dss.util.version import datetime_to_version_format
+from tests import get_auth_header
 
 
 class TestBundle:
@@ -70,7 +71,8 @@ class DSSStorageMixin:
             str(UrlBuilder().set(path='/v1/bundles/' + bundle.uuid)
                 .add_query('replica', replica.name).add_query('version', bundle.version)),
             requests.codes.created,
-            json_request_body=self.put_bundle_payload(bundle)
+            json_request_body=self.put_bundle_payload(bundle),
+            headers=get_auth_header()
         )
         response_data = json.loads(response[1])
         self.assertIs(type(response_data), dict)

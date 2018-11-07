@@ -59,7 +59,8 @@ class TestCollections(unittest.TestCase, DSSAssertMixin, DSSUploadMixin):
 
         resp_obj = app.put(str(urlbuilder),
                            json=dict(creator_uid=0,
-                           source_url=source_url))
+                           source_url=source_url),
+                           headers=get_auth_header())
         resp_obj.raise_for_status()
         return file_uuid, resp_obj.json()["version"]
 

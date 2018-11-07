@@ -9,6 +9,7 @@ from .assert_mixin import DSSAssertResponse, DSSAssertMixin, ExpectedErrorFields
 from .storage_mixin import DSSStorageMixin, TestBundle
 from .testmode import integration, standalone
 from .upload_mixin import DSSUploadMixin
+from .auth_tests_mixin import TestAuthMixin
 
 
 def get_env(varname):
