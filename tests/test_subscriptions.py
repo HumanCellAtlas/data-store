@@ -22,8 +22,7 @@ from dss.notify.notification import Endpoint
 from dss.logging import configure_test_logging
 from dss.util import UrlBuilder
 from tests import get_auth_header, get_bundle_fqid
-from tests.auth_tests import TestAuthMixin
-from tests.infra import DSSAssertMixin, testmode
+from tests.infra import DSSAssertMixin, testmode, TestAuthMixin
 from tests.infra.elasticsearch_test_case import ElasticsearchTestCase
 from tests.infra.server import ThreadedLocalServer
 from tests.sample_search_queries import smartseq2_paired_ends_vx_query

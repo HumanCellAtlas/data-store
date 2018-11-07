@@ -29,8 +29,7 @@ from dss.storage.blobstore import test_object_exists
 from dss.storage.hcablobstore import compose_blob_key
 from dss.util.version import datetime_to_version_format
 from dss.storage.bundles import get_bundle_manifest
-from tests.auth_tests import TestAuthMixin
-from tests.infra import DSSAssertMixin, DSSUploadMixin, ExpectedErrorFields, get_env, testmode
+from tests.infra import DSSAssertMixin, DSSUploadMixin, ExpectedErrorFields, get_env, testmode, TestAuthMixin
 from tests.infra.server import ThreadedLocalServer
 from tests import eventually, get_auth_header
 
