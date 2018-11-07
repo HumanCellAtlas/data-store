@@ -80,6 +80,17 @@ queue_access_policy = {"Statement": [{"Sid": "dss-deploy-gcf-qap",
                                       "Condition": {"ArnLike": {"aws:SourceArn": sender_arn}}}]}
 sync_sqs_queue.set_attributes(Attributes=dict(Policy=json.dumps(queue_access_policy)))
 
+index_sqs_queue_name = "dss-index-" + os.environ["DSS_DEPLOYMENT_STAGE"]
+index_sqs_queue = boto3_session.resource("sqs").create_queue(QueueName=index_sqs_queue_name)
+sender_arn = f"arn:aws:sns:*:{aws_account_id}:{relay_sns_topic_name}"
+queue_access_policy = {"Statement": [{"Sid": "dss-deploy-gcf-qap",
+                                      "Action": ["SQS:SendMessage"],
+                                      "Effect": "Allow",
+                                      "Resource": index_sqs_queue.attributes["QueueArn"],
+                                      "Principal": {"AWS": "*"},
+                                      "Condition": {"ArnLike": {"aws:SourceArn": sender_arn}}}]}
+index_sqs_queue.set_attributes(Attributes=dict(Policy=json.dumps(queue_access_policy)))
+
 relay_sns_topic.subscribe(Protocol="sqs", Endpoint=sync_sqs_queue.attributes["QueueArn"])
 
 config_vars = {
