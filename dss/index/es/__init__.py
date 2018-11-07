@@ -94,7 +94,7 @@ def _retryable_exception(e):
     return (isinstance(e, elasticsearch.TransportError)
             and isinstance(e.status_code, int)  # have spotted 'N/A' in the wild
             and (e.status_code == 409  # version conflicts
-                or 500 <= e.status_code <= 599))  # server errors
+            or 500 <= e.status_code <= 599))  # server errors
 
 
 def _retry_delay(i, delay):

@@ -135,7 +135,10 @@ class DSSAssertMixin:
         else:
             raise AttributeError(item)
 
-    def assertRegexIn(self, expected_pattern: str, iterable: typing.List[str], msg: typing.Optional[str] = None) -> None:
+    def assertRegexIn(
+            self,
+            expected_pattern: str, iterable: typing.List[str],
+            msg: typing.Optional[str] = None) -> None:
         """Fails the test unless the expected_regex matches one of the strings in iterable"""
         if isinstance(expected_pattern, (str, bytes)):
             assert expected_pattern, "expected_regex must not be empty."

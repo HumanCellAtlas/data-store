@@ -268,7 +268,7 @@ class retry:
             return self.expiration is not None and self.expiration < time.time() + delay
 
         def copy(self, name: str = None):
-            other = type(self)(name = name or self.name, expiration = self.expiration, logger = self.logger)
+            other = type(self)(name=name or self.name, expiration=self.expiration, logger=self.logger)
             other.update(self)
             return other
 

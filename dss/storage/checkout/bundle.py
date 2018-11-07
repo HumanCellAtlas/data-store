@@ -143,7 +143,7 @@ def _is_checkout_valid(
 
     return (len(files_in_checkout) == len(expected_files)
             and all(key in expected_files
-                and now < blob[BlobMetadataField.CREATED] + blob_ttl for key, blob in files_in_checkout))
+            and now < blob[BlobMetadataField.CREATED] + blob_ttl for key, blob in files_in_checkout))
 
 
 def _is_checkout_stale(

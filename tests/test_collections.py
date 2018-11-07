@@ -283,7 +283,7 @@ class TestCollections(unittest.TestCase, DSSAssertMixin, DSSUploadMixin):
         res.raise_for_status()
         return res.json()["uuid"], res.json()["version"]
 
-    def _delete_collection(self, uuid: str, replica: str='aws'):
+    def _delete_collection(self, uuid: str, replica: str = 'aws'):
         self.app.delete("/v1/collections/{}".format(uuid),
                         headers=get_auth_header(authorized=True),
                         params=dict(replica=replica))

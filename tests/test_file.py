@@ -592,7 +592,7 @@ class TestFileApi(unittest.TestCase, TestAuthMixin, DSSUploadMixin, DSSAssertMix
             timestamp = datetime.datetime.utcnow()
             version = timestamp.strftime("%Y-%m-%dT%H%M%S.%fZ")
 
-        urlbuilder = UrlBuilder().set(path = '/v1/files/' + file_uuid)
+        urlbuilder = UrlBuilder().set(path='/v1/files/' + file_uuid)
         if version is not 'missing':
             urlbuilder.add_query("version", version)
 

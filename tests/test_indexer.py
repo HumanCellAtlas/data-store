@@ -918,11 +918,11 @@ class TestIndexerBase(ElasticsearchTestCase, DSSAssertMixin, DSSStorageMixin, DS
 
     def set_indexer(self, remaining_time: int = 300, notify: bool = None):
         _remaining_time = SpecificRemainingTime(remaining_time)
-        backend = CompositeIndexBackend(executor = self.executor,
-                                        backends = DEFAULT_BACKENDS,
-                                        remaining_time = _remaining_time,
-                                        notify_async = testmode.is_integration(),
-                                        notify = notify)
+        backend = CompositeIndexBackend(executor=self.executor,
+                                        backends=DEFAULT_BACKENDS,
+                                        remaining_time=_remaining_time,
+                                        notify_async=testmode.is_integration(),
+                                        notify=notify)
         self.indexer = self.indexer_cls(backend, _remaining_time)
 
     def load_test_data_bundle_for_path(self, fixture_path: str, uuid=None):
