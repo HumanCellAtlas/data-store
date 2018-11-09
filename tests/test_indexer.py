@@ -1022,8 +1022,8 @@ class TestAWSIndexer(TestIndexerBase):
     def _create_event(self, event_template_path, key) -> typing.Dict:
         with open(os.path.join(os.path.dirname(__file__), event_template_path)) as fh:
             sample_event = json.load(fh)
-        sample_event['Records'][0]["s3"]['bucket']['name'] = self.test_bucket
-        sample_event['Records'][0]["s3"]['object']['key'] = key
+        sample_event["s3"]['bucket']['name'] = self.test_bucket
+        sample_event["s3"]['object']['key'] = key
         return sample_event
 
 
