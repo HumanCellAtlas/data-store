@@ -151,25 +151,6 @@ Hint: To create S3 buckets from the command line, use `aws s3 mb --region REGION
     
 Hint: To create GCS buckets from the command line, use `gsutil mb -c regional -l REGION gs://BUCKET_NAME/`.
 
-## Running Tests
-
-1. Load sample data from the data-bundle-examples subrepository:
-
-    `git submodule update --init`
-
-1. Check that software packages required to test and deploy are available, and install them if necessary:
-
-    `make --dry-run`
-
-1. Populate text fixture buckets with test fixture data _**(This command will completely empty the given buckets** before populating them with test fixture data, please ensure
-the correct bucket names are provided)_:
-
-    `tests/fixtures/populate.py --s3-bucket $DSS_S3_BUCKET_TEST_FIXTURES --gs-bucket $DSS_GS_BUCKET_TEST_FIXTURES`
-
-1. Set the environment variable `DSS_TEST_ES_PATH` to the path of the `elasticsearch` binary on your machine. 
-
-1. Run tests with `make test`
-
 ## Deployment
 
 ### Running the DSS API locally
@@ -287,6 +268,25 @@ The following environment variables must be set to enable user authentication.
 
 `authorizationUrl` in **dss/dss-api.yml** must also be updated to point to an authorization endpoint which will return a 
 valid JWT.
+
+## Running Tests
+
+1. Load sample data from the data-bundle-examples subrepository:
+
+    `git submodule update --init`
+
+1. Check that software packages required to test and deploy are available, and install them if necessary:
+
+    `make --dry-run`
+
+1. Populate text fixture buckets with test fixture data _**(This command will completely empty the given buckets** before populating them with test fixture data, please ensure
+the correct bucket names are provided)_:
+
+    `tests/fixtures/populate.py --s3-bucket $DSS_S3_BUCKET_TEST_FIXTURES --gs-bucket $DSS_GS_BUCKET_TEST_FIXTURES`
+
+1. Set the environment variable `DSS_TEST_ES_PATH` to the path of the `elasticsearch` binary on your machine. 
+
+1. Run tests with `make test`
 
 ## Development
 
