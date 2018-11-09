@@ -30,7 +30,7 @@ def get(uuid: str, replica: str):
         response = es_client.get(index=Config.get_es_index_name(ESIndexType.subscriptions, Replica[replica]),
                                  doc_type=ESDocType.subscription.name,
                                  id=uuid)
-    except NotFoundError as ex:
+    except NotFoundError:
         raise DSSException(requests.codes.not_found, "not_found", "Cannot find subscription!")
 
     source = response['_source']
@@ -161,7 +161,7 @@ def delete(uuid: str, replica: str):
         response = es_client.get(index=Config.get_es_index_name(ESIndexType.subscriptions, Replica[replica]),
                                  doc_type=ESDocType.subscription.name,
                                  id=uuid)
-    except NotFoundError as ex:
+    except NotFoundError:
         raise DSSException(requests.codes.not_found, "not_found", "Cannot find subscription!")
 
     stored_metadata = response['_source']

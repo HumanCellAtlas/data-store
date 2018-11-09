@@ -583,9 +583,9 @@ class TestFileApi(unittest.TestCase, TestAuthMixin, DSSUploadMixin, DSSAssertMix
             self: typing.Any,
             source_url: str,
             file_uuid: str,
-            bundle_uuid: str=None,
-            version: str=None,
-            expected_code: int=requests.codes.created,
+            bundle_uuid: str = None,
+            version: str = None,
+            expected_code: int = requests.codes.created,
     ):
         bundle_uuid = str(uuid.uuid4()) if bundle_uuid is None else bundle_uuid
         if version is None:

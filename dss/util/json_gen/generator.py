@@ -62,7 +62,7 @@ class JsonGenerator(object):
         'email': 'email'
     }
 
-    def __init__(self, resolver: RefResolver=None, formats: dict=None) -> None:
+    def __init__(self, resolver: RefResolver = None, formats: dict = None) -> None:
         """
         :param resolver: used to resolved '$ref' within the schema.
         :param formats: replaces _default_format_generators for determining the type of strings to generate. Must be a

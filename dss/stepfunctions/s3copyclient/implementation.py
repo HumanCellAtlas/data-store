@@ -95,8 +95,8 @@ def copy_worker(event, lambda_context, slice_num):
 
             if _Key.NEXT_PART not in state or _Key.LAST_PART not in state:
                 # missing the next/last part data.  calculate that from the branch id information.
-                parts_per_branch = ((self.part_count + LAMBDA_PARALLELIZATION_FACTOR - 1) //
-                                    LAMBDA_PARALLELIZATION_FACTOR)
+                parts_per_branch = ((self.part_count + LAMBDA_PARALLELIZATION_FACTOR - 1)
+                                    // LAMBDA_PARALLELIZATION_FACTOR)
                 state[_Key.NEXT_PART] = self.slice_num * parts_per_branch + 1
                 state[_Key.LAST_PART] = min(state[_Key.PART_COUNT], state[_Key.NEXT_PART] + parts_per_branch - 1)
                 self.save_state(state)

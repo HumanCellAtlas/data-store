@@ -41,12 +41,12 @@ class DSSAssertMixin:
             method: str,
             path: str,
             expected_code: typing.Union[int, typing.Container[int]],
-            json_request_body: typing.Optional[dict]=None,
-            expected_error: typing.Optional[ExpectedErrorFields]=None,
+            json_request_body: typing.Optional[dict] = None,
+            expected_error: typing.Optional[ExpectedErrorFields] = None,
             *,
-            redirect_follow_retries: int=0,
-            min_retry_interval_header: int=0,
-            override_retry_interval: typing.Optional[int]=None,
+            redirect_follow_retries: int = 0,
+            min_retry_interval_header: int = 0,
+            override_retry_interval: typing.Optional[int] = None,
             **kwargs) -> DSSAssertResponse:
         """
         Make a request given a HTTP method and a path.  The HTTP status code is checked against `expected_code`.
@@ -135,7 +135,10 @@ class DSSAssertMixin:
         else:
             raise AttributeError(item)
 
-    def assertRegexIn(self, expected_pattern: str, iterable: typing.List[str], msg: typing.Optional[str]=None) -> None:
+    def assertRegexIn(
+            self,
+            expected_pattern: str, iterable: typing.List[str],
+            msg: typing.Optional[str] = None) -> None:
         """Fails the test unless the expected_regex matches one of the strings in iterable"""
         if isinstance(expected_pattern, (str, bytes)):
             assert expected_pattern, "expected_regex must not be empty."

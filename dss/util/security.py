@@ -77,7 +77,7 @@ def get_token_email(token_info: typing.Mapping[str, typing.Any]) -> str:
     try:
         email_claim = Config.get_OIDC_email_claim()
         return token_info.get(email_claim) or token_info['email']
-    except KeyError as ex:
+    except KeyError:
         raise DSSException(401, 'Unauthorized', 'Authorization token is missing email claims.')
 
 

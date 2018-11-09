@@ -94,8 +94,8 @@ def step_functions_describe_execution(state_machine_name_template: str, executio
 
 def step_functions_list_executions(
     state_machine_name_template: str,
-    status_filter: str=None,
-    max_results_per_page: int=None
+    status_filter: str = None,
+    max_results_per_page: int = None
 ) -> typing.Iterable:
     """
     List step function executions, performing paging in the background.

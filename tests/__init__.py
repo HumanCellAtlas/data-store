@@ -70,7 +70,7 @@ def get_version():
     return datetime_to_version_format(datetime.datetime.utcnow())
 
 
-def eventually(timeout: float, interval: float, errors: set={AssertionError}):
+def eventually(timeout: float, interval: float, errors: set = {AssertionError}):
     """
     @eventually runs a test until all assertions are satisfied or a timeout is reached.
     :param timeout: time until the test fails
@@ -97,7 +97,7 @@ def eventually(timeout: float, interval: float, errors: set={AssertionError}):
     return decorate
 
 
-def get_service_jwt(service_credentials, group: str=None, email=True, email_claim=False):
+def get_service_jwt(service_credentials, group: str = None, email=True, email_claim=False):
     audience = Config.get_audience()
     iat = time.time()
     exp = iat + 3600

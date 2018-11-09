@@ -54,11 +54,11 @@ class IndexDocument(dict):
         return json.dumps(self)
 
     def __eq__(self, other: object) -> bool:
-        return self is other or (super().__eq__(other) and
-                                 isinstance(other, IndexDocument) and  # redundant, but mypy insists
-                                 type(self) == type(other) and
-                                 self.replica == other.replica and
-                                 self.fqid == other.fqid)
+        return self is other or (super().__eq__(other)
+                                 and isinstance(other, IndexDocument)  # redundant, but mypy insists
+                                 and type(self) == type(other)
+                                 and self.replica == other.replica
+                                 and self.fqid == other.fqid)
 
     def __repr__(self) -> str:
         return f"{type(self).__name__}(replica={self.replica}, fqid={self.fqid}, {super().__repr__()})"

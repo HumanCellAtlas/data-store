@@ -162,7 +162,7 @@ def get_json_metadata(entity_type: str, uuid: str, version: str, replica: Replic
         return json.loads(blobstore_handle.get(
             replica.bucket,
             "{}s/{}.{}".format(entity_type, uuid, version)))
-    except BlobNotFoundError as ex:
+    except BlobNotFoundError:
         raise DSSException(
             requests.codes.unprocessable_entity,
             "invalid_link",

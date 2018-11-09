@@ -15,7 +15,7 @@ def get_bundle_manifest(
         replica: Replica,
         version: typing.Optional[str],
         *,
-        bucket: typing.Optional[str]=None) -> typing.Optional[dict]:
+        bucket: typing.Optional[str] = None) -> typing.Optional[dict]:
     """
     Return the contents of the bundle manifest file from cloud storage, subject to the rules of tombstoning.  If version
     is None, return the latest version, once again, subject to the rules of tombstoning.

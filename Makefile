@@ -110,7 +110,7 @@ refresh_all_requirements:
 
 requirements.txt requirements-dev.txt : %.txt : %.txt.in
 	[ ! -e .requirements-env ] || exit 1
-	virtualenv .$<-env
+	virtualenv -p $(shell which python3) .$<-env
 	.$<-env/bin/pip install -r $@
 	.$<-env/bin/pip install -r $<
 	echo "# You should not edit this file directly.  Instead, you should edit $<." >| $@

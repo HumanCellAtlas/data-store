@@ -261,10 +261,10 @@ class TestCollections(unittest.TestCase, DSSAssertMixin, DSSUploadMixin):
             self.assertEqual(res.status_code, requests.codes.not_found)
 
     def _put(self, contents: typing.List,
-             authorized: bool=True,
-             uuid: typing.Optional[str]=None,
-             version: typing.Optional[str]=None,
-             replica: str='aws') -> typing.Tuple[str, str]:
+             authorized: bool = True,
+             uuid: typing.Optional[str] = None,
+             version: typing.Optional[str] = None,
+             replica: str = 'aws') -> typing.Tuple[str, str]:
         uuid = str(uuid4()) if uuid is None else uuid
         version = datetime.now().isoformat() if version is None else version
 
@@ -283,7 +283,7 @@ class TestCollections(unittest.TestCase, DSSAssertMixin, DSSUploadMixin):
         res.raise_for_status()
         return res.json()["uuid"], res.json()["version"]
 
-    def _delete_collection(self, uuid: str, replica: str='aws'):
+    def _delete_collection(self, uuid: str, replica: str = 'aws'):
         self.app.delete("/v1/collections/{}".format(uuid),
                         headers=get_auth_header(authorized=True),
                         params=dict(replica=replica))
