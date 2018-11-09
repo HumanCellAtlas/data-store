@@ -151,6 +151,17 @@ Hint: To create S3 buckets from the command line, use `aws s3 mb --region REGION
     
 Hint: To create GCS buckets from the command line, use `gsutil mb -c regional -l REGION gs://BUCKET_NAME/`.
 
+### Configure User Authorization
+The following environment variables must be set to enable user authentication.
+
+* `OIDC_AUDIENCE` must be populated with the expected JWT (JSON web token) audience.
+* `OPENID_PROVIDER` is the generator of the JWT, and is used to determine how the JWT is validated.
+* `OIDC_GROUP_CLAIM` is the JWT claim that specifies the group the users belongs to.
+* `OIDC_EMAIL_CLAIM` is the JWT claim that specifies the requests email.
+
+`authorizationUrl` in **dss/dss-api.yml** must also be updated to point to an authorization endpoint which will return a 
+valid JWT.
+
 ## Deployment
 
 ### Running the DSS API locally
@@ -257,17 +268,6 @@ Environment variables provide the AWS credentials needed to relay events origina
 outside of AWS. Run `scripts/create_config_aws_event_relay_user.py` to create an AWS IAM user with the appropriate
 restricted access policy. This script also creates the user access key and stores it in an AWS Secrets Manager
 store.
-
-### User Authorization Configuration
-The following environment variables must be set to enable user authentication.
-
-* OIDC_AUDIENCE must be populated with the expected JWT (JSON web token) audience.
-* OPENID_PROVIDER is the generator of the JWT, and is used to determine how the JWT is validated.
-* OIDC_GROUP_CLAIM is the JWT claim that specifies the group the users belongs to.
-* OIDC_EMAIL_CLAIM is the JWT claim that specifies the requests email.
-
-`authorizationUrl` in **dss/dss-api.yml** must also be updated to point to an authorization endpoint which will return a 
-valid JWT.
 
 ## Running Tests
 
