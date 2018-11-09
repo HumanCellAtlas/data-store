@@ -151,24 +151,16 @@ Hint: To create S3 buckets from the command line, use `aws s3 mb --region REGION
     
 Hint: To create GCS buckets from the command line, use `gsutil mb -c regional -l REGION gs://BUCKET_NAME/`.
 
-## Running Tests
+### Configure User Authorization
+The following environment variables must be set to enable user authentication.
 
-1. Load sample data from the data-bundle-examples subrepository:
+* `OIDC_AUDIENCE` must be populated with the expected JWT (JSON web token) audience.
+* `OPENID_PROVIDER` is the generator of the JWT, and is used to determine how the JWT is validated.
+* `OIDC_GROUP_CLAIM` is the JWT claim that specifies the group the users belongs to.
+* `OIDC_EMAIL_CLAIM` is the JWT claim that specifies the requests email.
 
-    `git submodule update --init`
-
-1. Check that software packages required to test and deploy are available, and install them if necessary:
-
-    `make --dry-run`
-
-1. Populate text fixture buckets with test fixture data _**(This command will completely empty the given buckets** before populating them with test fixture data, please ensure
-the correct bucket names are provided)_:
-
-    `tests/fixtures/populate.py --s3-bucket $DSS_S3_BUCKET_TEST_FIXTURES --gs-bucket $DSS_GS_BUCKET_TEST_FIXTURES`
-
-1. Set the environment variable `DSS_TEST_ES_PATH` to the path of the `elasticsearch` binary on your machine. 
-
-1. Run tests with `make test`
+Also update `authorizationUrl` in **dss/dss-api.yml** to point to an authorization endpoint which returns a 
+valid JWT.
 
 ## Deployment
 
@@ -277,16 +269,19 @@ outside of AWS. Run `scripts/create_config_aws_event_relay_user.py` to create an
 restricted access policy. This script also creates the user access key and stores it in an AWS Secrets Manager
 store.
 
-### User Authorization Configuration
-The following environment variables must be set to enable user authentication.
+## Running Tests
+1. Check that software packages required to test and deploy are available, and install them if necessary:
 
-* OIDC_AUDIENCE must be populated with the expected JWT (JSON web token) audience.
-* OPENID_PROVIDER is the generator of the JWT, and is used to determine how the JWT is validated.
-* OIDC_GROUP_CLAIM is the JWT claim that specifies the group the users belongs to.
-* OIDC_EMAIL_CLAIM is the JWT claim that specifies the requests email.
+    `make --dry-run`
 
-`authorizationUrl` in **dss/dss-api.yml** must also be updated to point to an authorization endpoint which will return a 
-valid JWT.
+1. Populate text fixture buckets with test fixture data _**(This command will completely empty the given buckets** before populating them with test fixture data, please ensure
+the correct bucket names are provided)_:
+
+    `tests/fixtures/populate.py --s3-bucket $DSS_S3_BUCKET_TEST_FIXTURES --gs-bucket $DSS_GS_BUCKET_TEST_FIXTURES`
+
+1. Set the environment variable `DSS_TEST_ES_PATH` to the path of the `elasticsearch` binary on your machine. 
+
+1. Run tests with `make test`
 
 ## Development
 
