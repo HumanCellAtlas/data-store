@@ -159,7 +159,7 @@ The following environment variables must be set to enable user authentication.
 * `OIDC_GROUP_CLAIM` is the JWT claim that specifies the group the users belongs to.
 * `OIDC_EMAIL_CLAIM` is the JWT claim that specifies the requests email.
 
-`authorizationUrl` in **dss/dss-api.yml** must also be updated to point to an authorization endpoint which will return a 
+Also update `authorizationUrl` in **dss/dss-api.yml** to point to an authorization endpoint which returns a 
 valid JWT.
 
 ## Deployment
@@ -270,11 +270,6 @@ restricted access policy. This script also creates the user access key and store
 store.
 
 ## Running Tests
-
-1. Load sample data from the data-bundle-examples subrepository:
-
-    `git submodule update --init`
-
 1. Check that software packages required to test and deploy are available, and install them if necessary:
 
     `make --dry-run`
