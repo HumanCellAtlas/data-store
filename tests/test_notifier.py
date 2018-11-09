@@ -33,6 +33,7 @@ from dss.notify.notification import Notification, attempt_header_name
 from dss.notify.notifier import Notifier
 from dss.util import networking
 from dss.util.time import SpecificRemainingTime
+from dss.util.types import JSON
 from infra import testmode
 
 logger = logging.getLogger(__name__)
@@ -134,9 +135,9 @@ class _TestNotifier(ThreadedHttpServerTestCase):
                 responses = [(0.0, 200)]
             verify = random.random() > .5
             notification_id = str(next(self.notification_id))
-            body = dict(notification_id=notification_id,
-                        responses=responses,
-                        verify=verify)
+            body: JSON = dict(notification_id=notification_id,
+                              responses=responses,
+                              verify=verify)
             notification = Notification.create(notification_id=notification_id,
                                                subscription_id=str(random.choice(self.subscription_ids)),
                                                url=f"http://{self.address}:{self.port}/{notification_id}",
