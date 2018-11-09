@@ -32,7 +32,6 @@
     {
       "Effect": "Allow",
       "Action": [
-        "sqs:GetQueueAttributes",
         "sqs:GetQueueUrl",
         "sqs:SendMessage"
       ],
@@ -43,11 +42,12 @@
     {
       "Effect": "Allow",
       "Action": [
-        "sqs:ListQueues"
+        "sqs:ListQueues",
+        "sqs:ReceiveMessage",
+        "sqs:DeleteMessage",
+        "sqs:GetQueueAttributes"
       ],
-      "Resource": [
-        "arn:aws:sqs:*:$account_id:*"
-      ]
+      "Resource": "*"
     },
     {
       "Effect": "Allow",

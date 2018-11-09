@@ -1,4 +1,5 @@
 from concurrent.futures import ThreadPoolExecutor
+import logging
 import json
 import os
 import sys
@@ -9,6 +10,7 @@ pkg_root = os.path.abspath(os.path.join(os.path.dirname(__file__), 'domovoilib')
 sys.path.insert(0, pkg_root)  # noqa
 
 import dss
+from dss import Config
 from dss import Replica
 from dss.index import DEFAULT_BACKENDS
 from dss.index.backend import CompositeIndexBackend
@@ -22,21 +24,19 @@ app = domovoi.Domovoi(configure_logs=False)
 
 
 configure_lambda_logging()
-
+logger = logging.getLogger(__name__)
 dss.Config.set_config(dss.BucketConfig.NORMAL)
 
-s3_bucket = dss.Config.get_s3_bucket()
 
-
-@app.s3_event_handler(bucket=s3_bucket, events=["s3:ObjectCreated:*"])
+@app.s3_event_handler(bucket=Config.get_s3_bucket(), events=["s3:ObjectCreated:*"], use_sqs=True)
 def dispatch_s3_indexer_event(event, context) -> None:
     if event.get("Event") == "s3:TestEvent":
-        app.log.info("DSS index daemon received S3 test event")
+        logger.info("DSS index daemon received S3 test event")
     else:
         _handle_event(Replica.aws, event, context)
 
 
-@app.sns_topic_subscriber("dss-gs-bucket-events-" + os.environ["DSS_GS_BUCKET"])
+@app.sqs_queue_subscriber("dss-index-" + os.environ["DSS_DEPLOYMENT_STAGE"])
 def dispatch_gs_indexer_event(event, context):
     """
     This handler receives GS events via the Google Cloud Function deployed from daemons/dss-gs-event-relay.
