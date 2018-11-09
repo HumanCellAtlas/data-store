@@ -142,7 +142,7 @@ class TestIndexerBase(ElasticsearchTestCase, DSSAssertMixin, DSSStorageMixin, DS
                 search_results[0],
                 self.bundle_key,
                 files=smartseq2_paried_ends_indexed_file_list)
-        with self.subTest("Verify idempotent indexer "): # upload the same bundle twice.
+        with self.subTest("Verify idempotent indexer "):  # upload the same bundle twice.
             self.process_new_indexable_object(sample_event)
             search_results = self.get_search_results(smartseq2_paired_ends_vx_query, 1)
             self.assertEqual(1, len(search_results))
