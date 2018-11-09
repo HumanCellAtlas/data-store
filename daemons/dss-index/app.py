@@ -33,7 +33,8 @@ def dispatch_s3_indexer_event(event, context) -> None:
     if event.get("Event") == "s3:TestEvent":
         logger.info("DSS index daemon received S3 test event")
     else:
-        _handle_event(Replica.aws, event, context)
+        for event_record in event["Records"]:
+            _handle_event(Replica.aws, event_record, context)
 
 
 @app.sqs_queue_subscriber("dss-index-" + os.environ["DSS_DEPLOYMENT_STAGE"])
@@ -41,8 +42,9 @@ def dispatch_gs_indexer_event(event, context):
     """
     This handler receives GS events via the Google Cloud Function deployed from daemons/dss-gs-event-relay.
     """
-    gs_event = json.loads(event['Records'][0]['Sns']['Message'])
-    _handle_event(Replica.gcp, gs_event, context)
+    for event_record in event["Records"]:
+        gs_event = json.loads(json.loads(event_record["body"])["Message"])
+        _handle_event(Replica.gcp, gs_event, context)
 
 
 def _handle_event(replica, event, context):
