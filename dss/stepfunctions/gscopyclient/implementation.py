@@ -1,8 +1,10 @@
+import json
 import logging
 
 from dss import Config, Replica
 from dss.stepfunctions.lambdaexecutor import TimedThread
 from dss.storage.files import write_file_metadata
+from dss.util.async_state import AsyncStateError
 
 logger = logging.getLogger(__name__)
 
@@ -70,10 +72,14 @@ def copy_worker(event, lambda_context):
 
 
 def fail(event, lambda_context):
-    # Error and cause are available as:
-    # event['Error']
-    # event['Cause']
     logger.error(f"gscopyclient sfn execution failed on {event}")
+    AsyncStateError(
+        event[Key.DESTINATION_KEY],
+        Replica.gcp,
+        500,
+        "internal_server_error",
+        f"{event['Error']} {event['Cause']}"
+    ).put()
     return event
 
 

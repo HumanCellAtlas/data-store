@@ -1,4 +1,5 @@
 import logging
+import requests
 
 import binascii
 import collections
@@ -10,11 +11,17 @@ import boto3
 from cloud_blobstore.s3 import S3BlobStore
 from dcplib.s3_multipart import get_s3_multipart_chunk_size
 
+from dss.config import Replica
 from dss.stepfunctions.lambdaexecutor import TimedThread
 from dss.storage.files import write_file_metadata
 from dss.util import parallel_worker
+from dss.util.async_state import AsyncStateItem, AsyncStateError
 
 logger = logging.getLogger(__name__)
+
+
+class S3CopyEtagError(AsyncStateError):
+    pass
 
 
 # CONSTANTS
@@ -69,6 +76,9 @@ def setup_copy_task(event, lambda_context):
     event[_Key.SIZE] = source_size
     event[_Key.PART_SIZE] = part_size
     event[_Key.PART_COUNT] = part_count
+
+    # clear out any previous error state
+    AsyncStateItem.delete(_error_key(event))
 
     return event
 
@@ -199,18 +209,30 @@ def join(event, lambda_context):
     bin_md5 = b"".join([binascii.unhexlify(part.e_tag.strip("\""))
                         for part in parts])
     composite_etag = hashlib.md5(bin_md5).hexdigest() + "-" + str(len(parts))
-    assert composite_etag == state[_Key.SOURCE_ETAG]
+    if composite_etag != state[_Key.SOURCE_ETAG]:
+        raise S3CopyEtagError.put(_error_key(state), "s3-etag mismatch")
 
     mpu.complete(MultipartUpload=dict(Parts=parts_list))
     return state
 
 
 def fail(event, lambda_context):
-    # Error and cause are available as:
-    # event['Error']
-    # event['Cause']
     logger.error(f"s3copyclient sfn execution failed on {event}")
-    return event
+    if isinstance(event, list):
+        state = event[0]
+    error_key = _error_key(state)
+    if not AsyncStateError.get(error_key):
+        AsyncStateError.put(error_key, state['error'])
+    return state
+
+
+def _error_key(event):
+    try:
+        file_uuid = event[CopyWriteMetadataKey.FILE_UUID]
+        file_version = event[CopyWriteMetadataKey.FILE_VERSION]
+        return f"files/{file_uuid}.{file_version}"
+    except KeyError:
+        return event[Key.DESTINATION_KEY]
 
 
 def _retry_default(interval=30, attempts=10, backoff_rate=1.618, errors=None):
@@ -225,10 +247,11 @@ def _retry_default(interval=30, attempts=10, backoff_rate=1.618, errors=None):
         },
     ]
 
-def _catch_default():
+def _catch_default(result_path="$.error"):
     return [
         {
             "ErrorEquals": ["States.ALL"],
+            "ResultPath": result_path,
             "Next": "FailTask",
         },
     ]
