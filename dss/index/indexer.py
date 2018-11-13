@@ -106,8 +106,8 @@ class AWSIndexer(Indexer):
     replica = Replica.aws
 
     def _parse_event(self, event):
-        assert event['Records'][0]['s3']['bucket']['name'] == Config.get_s3_bucket()
-        key = unquote(event['Records'][0]['s3']['object']['key'])
+        assert event['s3']['bucket']['name'] == Config.get_s3_bucket()
+        key = unquote(event['s3']['object']['key'])
         return key
 
 
