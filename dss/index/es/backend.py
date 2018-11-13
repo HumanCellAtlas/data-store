@@ -70,9 +70,7 @@ class ElasticsearchIndexBackend(IndexBackend):
             }
         }
         subscription_ids = set()
-        for hit in scan(ElasticsearchClient.get(),
-                        index=index_name,
-                        query=percolate_document):
+        for hit in self._search_after(ElasticsearchClient.get(), percolate_document, index_name, ["_uid:desc"]):
             subscription_ids.add(hit["_id"])
         logger.debug(f"Found {len(subscription_ids)} matching subscription(s).")
         return subscription_ids
@@ -156,3 +154,32 @@ class ElasticsearchIndexBackend(IndexBackend):
         else:
             logger.info(f"Synchronously sending notification {notification} about bundle {doc.fqid}")
             notification.deliver_or_raise()
+
+    @staticmethod
+    def _search_after(es_client, body: dict, index_name: str, sort: list, size: int=1000):
+        resp = es_client.search(index=index_name,
+                                size=size,
+                                body=body,
+                                sort=sort,
+                                )
+        while True:
+            # check if we have any errrors
+            if resp["_shards"]["successful"] < resp["_shards"]["total"]:
+                logger.warning(
+                    'Scroll request has only succeeded on %d shards out of %d.',
+                    resp['_shards']['successful'], resp['_shards']['total']
+                )
+
+            # check if we have results
+            if resp["hits"]["hits"]:
+                # return results
+                for hit in resp["hits"]["hits"]:
+                    yield hit
+            else:
+                break
+            body['search_after'] = resp["hits"]["hits"][-1]["sort"]
+            resp = es_client.search(index=index_name,
+                                    size=size,
+                                    body=body,
+                                    sort=sort
+                                    )
