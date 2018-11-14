@@ -59,7 +59,7 @@ The full list of configurable environment variables and their descriptions are d
 1. Follow this [tutorial](http://docs.aws.amazon.com/cli/latest/userguide/cli-chap-getting-started.html) to install the
 AWS command line utility and configure your AWS access credentials.
 
-1. Create an S3 bucket that you want DSS to use and in `environment.local`, set the environment variable `DSS_S3_BUCKET`
+1. Define an S3 bucket that you want DSS to use and in `environment.local`, set the environment variable `DSS_S3_BUCKET`
    to the name of that bucket. Make sure the bucket region is consistent with `AWS_DEFAULT_REGION` in
    `environment.local`.
 
@@ -68,11 +68,9 @@ AWS command line utility and configure your AWS access credentials.
    * `DSS_S3_CHECKOUT_BUCKET`
    * `DSS_S3_CHECKOUT_BUCKET_TEST`
 
-1. If you wish to run the unit tests, you must create two more S3 buckets, one for test data and another for test
+1. If you wish to run the unit tests, you must define two more S3 buckets, one for test data and another for test
    fixtures, and set the environment variables `DSS_S3_BUCKET_TEST` and `DSS_S3_BUCKET_TEST_FIXTURES` to the names of
    those buckets.
-
-Hint: To create S3 buckets from the command line, use `aws s3 mb --region REGION s3://BUCKET_NAME/`. 
 
 #### Configure GCP
 
@@ -95,7 +93,7 @@ Hint: To create S3 buckets from the command line, use `aws s3 mb --region REGION
 1.  Run the command
 
     ```
-    cat scripts/populate_lambda_ssm_parameters.py
+    ./scripts/populate_lambda_ssm_parameters.py
     ```
 
 	This populates the environment variables defining your stage into an AWS Simple Systems Manager parameter store.
@@ -106,8 +104,7 @@ Hint: To create S3 buckets from the command line, use `aws s3 mb --region REGION
 1.  Choose a region that has support for Cloud Functions and set `GCP_DEFAULT_REGION` to that region. See
     https://cloud.google.com/about/locations/ for a list of supported regions.
 
-1.  Run `gcloud config set project PROJECT_ID` where PROJECT_ID is the ID, not the name (!) of the GCP project you
-    selected earlier.
+1.  Run `gcloud config set project PROJECT_ID` **where PROJECT_ID is the ID, not the name (i.e: hca-store-21555, NOT just hca-store) of the GCP project you selected earlier**.
 
 1.  Enable required APIs: 
 
@@ -140,19 +137,16 @@ Hint: To create S3 buckets from the command line, use `aws s3 mb --region REGION
 	cat $DSS_HOME/application_secrets.json | scripts/set_secret.py --secret-name $GOOGLE_APPLICATION_SECRETS_SECRETS_NAME
 	```
 
-1.  Create a Google Cloud Storage bucket and in `environment.local`, set the environment variable `DSS_GS_BUCKET` to the
-    name of that bucket. Make sure the bucket region is consistent with `GCP_DEFAULT_REGION` in `environment.local`.
+1.  Define a Google Cloud Storage bucket in `environment.local` via the variable `DSS_GS_BUCKET`. Make sure the bucket region is consistent with `GCP_DEFAULT_REGION` in `environment.local`.
 
 1. Repeat the previous step for
 
    * `DSS_GS_CHECKOUT_BUCKET`
    * `DSS_GS_CHECKOUT_BUCKET_TEST`
 
-1. If you wish to run the unit tests, you must create two more buckets, one for test data and another for test
+1. If you wish to run the unit tests, you must define two more buckets, one for test data and another for test
     fixtures, and set the environment variables `DSS_GS_BUCKET_TEST` and `DSS_GS_BUCKET_TEST_FIXTURES` to the names of
     those buckets.
-    
-Hint: To create GCS buckets from the command line, use `gsutil mb -c regional -l REGION gs://BUCKET_NAME/`.
 
 ### Configure User Authorization
 The following environment variables must be set to enable user authentication.
