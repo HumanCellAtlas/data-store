@@ -254,13 +254,10 @@ class TestFileApi(unittest.TestCase, TestAuthMixin, DSSUploadMixin, DSSAssertMix
                    'X-DSS-SHA1': '2b8b815229aa8a61e483fb4ba0588b8b6c491890',
                    'X-DSS-SHA256': 'cfc7749b96f63bd31c3c42b5c471bf756814053e847c10f3eb003417bc523d30',
                    }
-
         url = str(UrlBuilder()
                   .set(path="/v1/files/" + file_uuid)
                   .add_query("replica", replica.name)
                   .add_query("version", version))
-
-
         with override_bucket_config(BucketConfig.TEST_FIXTURE):
             resp_obj = self.assertHeadResponse(
                 url,
