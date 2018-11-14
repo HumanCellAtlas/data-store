@@ -71,6 +71,8 @@ AWS command line utility and configure your AWS access credentials.
 1. If you wish to run the unit tests, you must create two more S3 buckets, one for test data and another for test
    fixtures, and set the environment variables `DSS_S3_BUCKET_TEST` and `DSS_S3_BUCKET_TEST_FIXTURES` to the names of
    those buckets.
+   
+1. Also make sure to create the terraform S3 state bucket defined by `DSS_TERRAFORM_BACKEND_BUCKET_TEMPLATE`, this is crucial for deploying data-store later on.
 
 Hint: To create S3 buckets from the command line, use `aws s3 mb --region REGION s3://BUCKET_NAME/`. 
 
