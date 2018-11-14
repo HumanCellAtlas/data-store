@@ -42,6 +42,9 @@ git clone git@github.com:HumanCellAtlas/data-store.git
 cd data-store
 pip install -r requirements-dev.txt
 ```
+
+Also install [terraform from Hashicorp](https://www.terraform.io/) from your favourite package manager.
+
 ### Configuration
 
 The DSS is configured via environment variables. The required environment variables and their default values
