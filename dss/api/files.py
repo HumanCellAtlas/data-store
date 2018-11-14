@@ -95,16 +95,16 @@ def get_helper(uuid: str, replica: Replica, version: str = None, token: str = No
     else:
         response = make_response('', 200)
 
-        with tracing.Subsegment('set_headers'):
-            headers = response.headers
-            headers['X-DSS-CREATOR-UID'] = file_metadata[FileMetadata.CREATOR_UID]
-            headers['X-DSS-VERSION'] = version
-            headers['X-DSS-CONTENT-TYPE'] = file_metadata[FileMetadata.CONTENT_TYPE]
-            headers['X-DSS-SIZE'] = file_metadata[FileMetadata.SIZE]
-            headers['X-DSS-CRC32C'] = file_metadata[FileMetadata.CRC32C]
-            headers['X-DSS-S3-ETAG'] = file_metadata[FileMetadata.S3_ETAG]
-            headers['X-DSS-SHA1'] = file_metadata[FileMetadata.SHA1]
-            headers['X-DSS-SHA256'] = file_metadata[FileMetadata.SHA256]
+    with tracing.Subsegment('set_headers'):
+        headers = response.headers
+        headers['X-DSS-CREATOR-UID'] = file_metadata[FileMetadata.CREATOR_UID]
+        headers['X-DSS-VERSION'] = version
+        headers['X-DSS-CONTENT-TYPE'] = file_metadata[FileMetadata.CONTENT_TYPE]
+        headers['X-DSS-SIZE'] = file_metadata[FileMetadata.SIZE]
+        headers['X-DSS-CRC32C'] = file_metadata[FileMetadata.CRC32C]
+        headers['X-DSS-S3-ETAG'] = file_metadata[FileMetadata.S3_ETAG]
+        headers['X-DSS-SHA1'] = file_metadata[FileMetadata.SHA1]
+        headers['X-DSS-SHA256'] = file_metadata[FileMetadata.SHA256]
 
     return response
 
