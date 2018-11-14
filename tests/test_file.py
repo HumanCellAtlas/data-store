@@ -245,19 +245,25 @@ class TestFileApi(unittest.TestCase, TestAuthMixin, DSSUploadMixin, DSSAssertMix
     def _test_file_head(self, replica: Replica):
         file_uuid = "ce55fd51-7833-469b-be0b-5da88ebebfcd"
         version = "2017-06-16T193604.240704Z"
-
+        headers = {'X-DSS-CREATOR-UID': '4321',
+                   'X-DSS-VERSION': version,
+                   'X-DSS-CONTENT-TYPE': 'text/plain',
+                   'X-DSS-SIZE': '11358',
+                   'X-DSS-CRC32C': 'e16e07b9',
+                   'X-DSS-S3-ETAG': '3b83ef96387f14655fc854ddc3c6bd57',
+                   'X-DSS-SHA1': '2b8b815229aa8a61e483fb4ba0588b8b6c491890',
+                   'X-DSS-SHA256': 'cfc7749b96f63bd31c3c42b5c471bf756814053e847c10f3eb003417bc523d30',
+                   }
         url = str(UrlBuilder()
                   .set(path="/v1/files/" + file_uuid)
                   .add_query("replica", replica.name)
                   .add_query("version", version))
-
         with override_bucket_config(BucketConfig.TEST_FIXTURE):
-            self.assertHeadResponse(
+            resp_obj = self.assertHeadResponse(
                 url,
-                [requests.codes.ok, requests.codes.moved]
+                [requests.codes.ok]
             )
-
-            # TODO: (ttung) verify headers
+            self.assertHeaders(resp_obj.response, headers)
 
     @testmode.standalone
     def test_file_get_specific(self):
