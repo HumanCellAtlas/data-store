@@ -173,9 +173,6 @@ Run `./dss-api` in the top-level `data-store` directory to deploy the DSS API on
 
 ### Deploying the DSS
 
-Assuming the tests have passed above, the next step is to manually deploy. See the section below for information on
-CI/CD with Travis if continuous deployment is your goal.
-
 Several components in the DSS deployed separately as daemons, found in `$DSS_HOME/daemons`. Daemon deployment may
 incorporate dependent infrastructure, such SQS queues or SNS topics, by placing Terraform files in daemon directory, e.g.
 `$DSS_HOME/daemons/dss-admin/my_queue_defs.tf`. This infrastructure is deployed non-interactively, without the
@@ -185,7 +182,7 @@ added to `$DSS_HOME/infra` instead.
 The AWS Elasticsearch Service is used for metadata indexing. For typical development deployments the
 t2.small.elasticsearch instance type is sufficient.
 
-An AWS route53 zone must be available for your domain name and configured in `environment`.
+An AWS route53 zone must be available for your domain name and configured in `environment.local`.
 
 Now deploy using make:
 
