@@ -32,6 +32,7 @@ deploy:
   script:
     - make plan-infra
     - make deploy
+    - scripts/set_version.sh
   environment:
     name: prod
     url: https://dss.data.humancellatlas.org
