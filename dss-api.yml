@@ -40,11 +40,8 @@ info:
             self.RETRY_AFTER_STATUS_CODES = frozenset(retry_after_status_codes | retry.Retry.RETRY_AFTER_STATUS_CODES)
 
     retry_policy = RetryPolicy(read=5, status=5, status_forcelist=frozenset({500, 502, 503, 504}))
-
     s = requests.Session()
-
     a = requests.adapters.HTTPAdapter(max_retries=retry_policy)
-
     s.mount('https://', a)
 
     print(s.get("https://dss.data.humancellatlas.org").content)
@@ -59,20 +56,13 @@ basePath: /v1
 produces:
   - application/json
 securityDefinitions:
-  dcpAuth:
-    description: >
-      The following claims must be present in the JWT:
-      - '{{OIDC_GROUP_CLAIM}}': the user group this user belongs.
-      - 'iss': must be {{OPENID_PROVIDER}} or a trusted google project.
-      - 'aud': audience must match {{API_DOMAIN_NAME}}.
-      - '{{OIDC_EMAIL_CLAIM}}': the email of the requester
+  googAuth:
     type: oauth2
     flow: implicit
-    authorizationUrl: https://auth.data.humancellatlas.org/authorize
+    authorizationUrl: https://accounts.google.com/o/oauth2/v2/auth
+    x-tokenInfoUrl: https://www.googleapis.com/oauth2/v3/tokeninfo
     scopes:
-      email: This scope value requests access to the email and email_verified Claims.
-      openid: see http://openid.net/specs/openid-connect-core-1_0.html#ScopeClaims
-      offline_access: see http://openid.net/specs/openid-connect-core-1_0.html#OfflineAccessPrivacy
+      https://www.googleapis.com/auth/userinfo.email: read user email
 paths:
   /search:
     post:
@@ -160,6 +150,9 @@ paths:
         * A lot of metadata is duplicated between documents
       summary: >
         Find bundles by searching their metadata with an Elasticsearch query
+      security:
+        - googAuth:
+            - https://www.googleapis.com/auth/userinfo.email
       parameters:
         - name: json_request_body
           in: body
@@ -177,8 +170,6 @@ paths:
           description: >
             Specifies the output format. The default format, `summary`, is a list of UUIDs for bundles that match
             the query. Set this parameter to `raw` to get the verbatim JSON metadata for bundles that match the query.
-            When using `output_format raw` the `per_page` size is limit to no more than 10 to avoid exceeding the
-            to avoid excessively large response sizes.
           required: false
           type: string
           enum: [summary, raw]
@@ -188,11 +179,10 @@ paths:
           description: Replica to search.
           required: true
           type: string
-          enum: [aws, gcp]
+          enum: [aws, gcp, azure]
         - name: per_page
           in: query
-          description: Max number of results to return per page. When using `output_format raw` the `per_page` size is
-            limit to no more than 10 to avoid exceeding the to avoid excessively large response sizes.
+          description: Max number of results to return per page.
           required: false
           type: integer
           format: int32
@@ -231,6 +221,9 @@ paths:
       description: >
         Given a file UUID, return the metadata for the latest version of that file.  If the version is provided, that
         version's metadata is returned instead.  The metadata is returned in the headers.
+      security:
+        - googAuth:
+            - https://www.googleapis.com/auth/userinfo.email
       parameters:
         - name: uuid
           in: path
@@ -242,7 +235,7 @@ paths:
           description: Replica to fetch from.
           required: true
           type: string
-          enum: [aws, gcp]
+          enum: [aws, gcp, azure]
         - name: version
           in: query
           description: Timestamp of file creation in RFC3339.  If this is not provided, the latest version is returned.
@@ -294,6 +287,9 @@ paths:
         Headers will contain the data store metadata for the file.
 
         This endpoint returns a HTTP redirect to another HTTP endpoint with the file contents.
+      security:
+        - googAuth:
+            - https://www.googleapis.com/auth/userinfo.email
       parameters:
         - name: uuid
           in: path
@@ -306,7 +302,7 @@ paths:
           description: Replica to fetch from.
           required: true
           type: string
-          enum: [aws, gcp]
+          enum: [aws, gcp, azure]
         - name: version
           in: query
           description: Timestamp of file creation in RFC3339.  If this is not provided, the latest version is returned.
@@ -409,7 +405,8 @@ paths:
         MB, in this section, refers to 1,048,576 bytes.  Note that 640,000MB is not the same as 640GB!
         - hca-dss-crc32c: CRC-32C checksum of the file
       security:
-            - dcpAuth: []
+        - googAuth:
+            - https://www.googleapis.com/auth/userinfo.email
       parameters:
         - name: uuid
           in: path
@@ -510,22 +507,6 @@ paths:
                     enum: [file_already_exists]
                 required:
                   - code
-        422:
-          description: Returned when a request cannot be processed due to invalid values in a supplied entity.
-          schema:
-            allOf:
-              - $ref: '#/definitions/Error'
-              - type: object
-                properties:
-                  code:
-                    type: string
-                    description: Machine-readable error code.  The types of return values should not be changed lightly.
-
-                      The code `missing_checksum` is returned when the file uploaded is missing a required checksum.
-
-                    enum: [missing_checksum]
-                required:
-                - code
         default:
           description: Unexpected error
           schema:
@@ -536,7 +517,7 @@ paths:
                   code:
                     type: string
                     description: Machine-readable error code.  The types of return values should not be changed lightly.
-                    enum: [unhandled_exception, Forbidden, Unauthorized, illegal_arguments, read_only]
+                    enum: [unhandled_exception, illegal_arguments]
                 required:
                   - code
   /subscriptions:
@@ -546,14 +527,15 @@ paths:
         Return a list of associated subscriptions.
       operationId: dss.api.subscriptions.find
       security:
-        - dcpAuth: []
+        - googAuth:
+            - https://www.googleapis.com/auth/userinfo.email
       parameters:
         - name: replica
           in: query
           description: Replica to fetch from.
           required: true
           type: string
-          enum: [aws, gcp]
+          enum: [aws, gcp, azure]
       responses:
         200:
           description: OK
@@ -576,7 +558,7 @@ paths:
                   code:
                     type: string
                     description: Machine-readable error code.  The types of return values should not be changed lightly.
-                    enum: [unhandled_exception, Forbidden, Unauthorized, OAuthResponseProblem]
+                    enum: [unhandled_exception, Forbidden, OAuthResponseProblem]
                 required:
                   - code
     put:
@@ -584,14 +566,15 @@ paths:
       description: >
         Register an HTTP endpoint that is to be notified when a given event occurs.
       security:
-        - dcpAuth: []
+        - googAuth:
+            - https://www.googleapis.com/auth/userinfo.email
       parameters:
         - name: replica
           in: query
           description: Replica to write to.
           required: true
           type: string
-          enum: [aws, gcp]
+          enum: [aws, gcp, azure]
         - name: json_request_body
           in: body
           required: true
@@ -607,11 +590,9 @@ paths:
                 description: >
                   The subscriber's URL. An HTTP request is made to the specified URL for every attempt to deliver
                   a notification to the subscriber. If the HTTP response code is 2XX, the delivery attempt is
-                  considered successful. Otherwise, more attempts will be made with an exponentially increasing delay
-                  between attempts, until an attempt is successful or the a maximum number of attempts is reached.
-
-                  Occasionally duplicate notifications maybe be sent. It is up to the receiver of the notification to
-                  tolerate duplicate notifications.
+                  considered successful and no more attemtpts will be made. Otherwise, more attempts will be made with
+                  an exponentially increasing delay between attempts, until an attempt is successful or the a maximum
+                  number of attempts is reached.
                 type: string
                 pattern: 'https?://'
               method:
@@ -772,12 +753,10 @@ paths:
                     enum:
                       - unhandled_exception
                       - Forbidden
-                      - Unauthorized
                       - OAuthResponseProblem
                       - elasticsearch_error
                       - invalid_attachment_expression
                       - invalid_attachment_name
-                      - read_only
                 required:
                   - code
   /subscriptions/{uuid}:
@@ -786,7 +765,8 @@ paths:
       description: >
         Given a subscription UUID, return the associated subscription.
       security:
-        - dcpAuth: []
+        - googAuth:
+            - https://www.googleapis.com/auth/userinfo.email
       parameters:
         - name: uuid
           in: path
@@ -799,7 +779,7 @@ paths:
           description: Replica to fetch from.
           required: true
           type: string
-          enum: [aws, gcp]
+          enum: [aws, gcp, azure]
       responses:
         200:
           description: OK
@@ -818,7 +798,7 @@ paths:
                   code:
                     type: string
                     description: Machine-readable error code.  The types of return values should not be changed lightly.
-                    enum: [unhandled_exception, Forbidden, Unauthorized, OAuthResponseProblem, not_found]
+                    enum: [unhandled_exception, Forbidden, OAuthResponseProblem, not_found]
                 required:
                   - code
     delete:
@@ -827,7 +807,8 @@ paths:
         Delete a registered event subscription. The associated query will no longer trigger a callback
         if a matching document is added to the system.
       security:
-        - dcpAuth: []
+        - googAuth:
+            - https://www.googleapis.com/auth/userinfo.email
       parameters:
         - name: uuid
           in: path
@@ -840,7 +821,7 @@ paths:
           description: Replica to delete from.
           required: true
           type: string
-          enum: [aws, gcp]
+          enum: [aws, gcp, azure]
       responses:
         200:
           description: OK
@@ -863,7 +844,7 @@ paths:
                   code:
                     type: string
                     description: Machine-readable error code.  The types of return values should not be changed lightly.
-                    enum: [unhandled_exception, Forbidden, Unauthorized, OAuthResponseProblem, not_found, read_only]
+                    enum: [unhandled_exception, Forbidden, OAuthResponseProblem, not_found]
                 required:
                   - code
   /collections:
@@ -884,14 +865,15 @@ paths:
 
         Collections are replicated across storage replicas similarly to files and bundles.
       security:
-        - dcpAuth: []
+        - googAuth:
+            - https://www.googleapis.com/auth/userinfo.email
       parameters:
         - name: replica
           in: query
           description: Replica to write to.
           required: true
           type: string
-          enum: [aws, gcp]
+          enum: [aws, gcp, azure]
         - name: uuid
           in: query
           description: A RFC4122-compliant ID for the collection.
@@ -940,7 +922,7 @@ paths:
                       input could not be resolved (either because the file, bundle, or collection does not exist on the
                       replica specified, or because the JSON Pointer reference could not be resolved within the
                       specified file).
-                    enum: [unhandled_exception, Forbidden, Unauthorized, OAuthResponseProblem, not_found, invalid_link, read_only]
+                    enum: [unhandled_exception, Forbidden, OAuthResponseProblem, not_found, invalid_link]
                 required:
                   - code
   /collections/{uuid}:
@@ -949,7 +931,8 @@ paths:
       description: >
         Given a collection UUID, return the associated collection object.
       security:
-        - dcpAuth: []
+        - googAuth:
+            - https://www.googleapis.com/auth/userinfo.email
       parameters:
         - name: uuid
           in: path
@@ -962,7 +945,7 @@ paths:
           description: Replica to fetch from.
           required: true
           type: string
-          enum: [aws, gcp]
+          enum: [aws, gcp, azure]
         - name: version
           in: query
           description: >
@@ -988,7 +971,7 @@ paths:
                   code:
                     type: string
                     description: Machine-readable error code.  The types of return values should not be changed lightly.
-                    enum: [unhandled_exception, Forbidden, Unauthorized, OAuthResponseProblem, not_found]
+                    enum: [unhandled_exception, Forbidden, OAuthResponseProblem, not_found]
                 required:
                   - code
     patch:
@@ -997,7 +980,8 @@ paths:
         Add or remove items from a collection. A specific version of the collection to update must be provided, and a
         new version will be written.
       security:
-        - dcpAuth: []
+        - googAuth:
+            - https://www.googleapis.com/auth/userinfo.email
       parameters:
         - name: uuid
           in: path
@@ -1010,7 +994,7 @@ paths:
           description: Replica to update the collection on. Updates are propagated to other replicas.
           required: true
           type: string
-          enum: [aws, gcp]
+          enum: [aws, gcp, azure]
         - name: version
           in: query
           description: >
@@ -1151,7 +1135,8 @@ paths:
       description: >
         Delete a collection.
       security:
-        - dcpAuth: []
+        - googAuth:
+            - https://www.googleapis.com/auth/userinfo.email
       parameters:
         - name: uuid
           in: path
@@ -1164,7 +1149,7 @@ paths:
           description: Replica to delete from.
           required: true
           type: string
-          enum: [aws, gcp]
+          enum: [aws, gcp, azure]
       responses:
         200:
           description: OK
@@ -1178,7 +1163,7 @@ paths:
                   code:
                     type: string
                     description: Machine-readable error code.  The types of return values should not be changed lightly.
-                    enum: [unhandled_exception, Forbidden, Unauthorized, OAuthResponseProblem, not_found, read_only]
+                    enum: [unhandled_exception, Forbidden, OAuthResponseProblem, not_found]
                 required:
                   - code
   /bundles/{uuid}:
@@ -1187,6 +1172,9 @@ paths:
       description: >
         Given a bundle UUID, return the latest version of that bundle.  If the version is provided, that version of the
         bundle is returned instead.
+      security:
+        - googAuth:
+            - https://www.googleapis.com/auth/userinfo.email
       parameters:
         - name: uuid
           in: path
@@ -1205,7 +1193,7 @@ paths:
           description: Replica to fetch from.
           required: true
           type: string
-          enum: [aws, gcp]
+          enum: [aws, gcp, azure]
         - name: directurls
           in: query
           description: >
@@ -1307,7 +1295,8 @@ paths:
         Create a new version of a bundle with a given UUID.  The list of file UUID+versions to be included must be
         provided.
       security:
-            - dcpAuth: []
+        - googAuth:
+            - https://www.googleapis.com/auth/userinfo.email
       parameters:
         - name: uuid
           in: path
@@ -1326,7 +1315,7 @@ paths:
           description: Replica to write to.
           required: true
           type: string
-          enum: [aws, gcp]
+          enum: [aws, gcp, azure]
         - name: json_request_body
           in: body
           required: true
@@ -1432,7 +1421,7 @@ paths:
                   code:
                     type: string
                     description: Machine-readable error code.  The types of return values should not be changed lightly.
-                    enum: [unhandled_exception, Forbidden, Unauthorized, illegal_arguments, read_only]
+                    enum: [unhandled_exception, illegal_arguments]
                 required:
                   - code
     delete:
@@ -1440,7 +1429,8 @@ paths:
       description: >
         Delete the bundle with the given UUID. This deletion is applied across replicas.
       security:
-        - dcpAuth: []
+        - googAuth:
+            - https://www.googleapis.com/auth/userinfo.email
       parameters:
         - name: uuid
           in: path
@@ -1453,7 +1443,7 @@ paths:
           description: Replica to write to.
           required: true
           type: string
-          enum: [aws, gcp]
+          enum: [aws, gcp, azure]
         - name: version
           in: query
           description: Timestamp of bundle creation in RFC3339.
@@ -1476,21 +1466,8 @@ paths:
           description: OK
           schema:
             type: object
-        401:
-          description: Unauthorized user it attempting this action.
-          schema:
-            allOf:
-            - $ref: '#/definitions/Error'
-            - type: object
-              properties:
-                code:
-                  type: string
-                  description: Machine-readable error code.  The types of return values should not be changed lightly.
-                  enum: [Unauthorized]
-              required:
-              - code
         403:
-          description: Unauthorized user it attempting this action.
+          description: Unexpected error
           schema:
             allOf:
               - $ref: '#/definitions/Error'
@@ -1499,7 +1476,7 @@ paths:
                   code:
                     type: string
                     description: Machine-readable error code.  The types of return values should not be changed lightly.
-                    enum: [Forbidden]
+                    enum: [forbidden]
                 required:
                   - code
         409:
@@ -1525,7 +1502,7 @@ paths:
                   code:
                     type: string
                     description: Machine-readable error code.  The types of return values should not be changed lightly.
-                    enum: [unhandled_exception, illegal_arguments, read_only]
+                    enum: [unhandled_exception, illegal_arguments]
                 required:
                   - code
   /bundles/{uuid}/checkout:
@@ -1538,6 +1515,9 @@ paths:
         TODO: After some time period, the data will be removed.
         TBD: This could be based on initial checkout time or last access time.
       operationId: dss.api.bundles.checkout.post
+      security:
+        - googAuth:
+            - https://www.googleapis.com/auth/userinfo.email
       parameters:
         - name: uuid
           in: path
@@ -1556,7 +1536,7 @@ paths:
           description: Replica to fetch from.
           required: true
           type: string
-          enum: [aws, gcp]
+          enum: [aws, gcp, azure]
         - name: json_request_body
           in: body
           required: false
@@ -1602,13 +1582,16 @@ paths:
       description: >
         Use this route with the `checkout_job_id` identifier returned by `POST /bundles/{uuid}/checkout`.
       operationId: dss.api.bundles.checkout.get
+      security:
+        - googAuth:
+            - https://www.googleapis.com/auth/userinfo.email
       parameters:
         - name: replica
           in: query
           description: Replica to fetch from.
           required: true
           type: string
-          enum: [aws, gcp]
+          enum: [aws, gcp, azure]
         - name: checkout_job_id
           in: path
           description: A RFC4122-compliant ID for the checkout job request.
@@ -1770,7 +1753,7 @@ definitions:
           The DSS replica to subscribe. When a new bundle is indexed in a particular replica, only subscriptions for
           that same replica are notified.
         type: string
-        enum: [aws, gcp]
+        enum: [aws, gcp, azure]
       owner:
         type: string
         format: email
