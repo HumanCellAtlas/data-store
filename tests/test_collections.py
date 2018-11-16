@@ -148,7 +148,7 @@ class TestCollections(unittest.TestCase, DSSAssertMixin, DSSUploadMixin):
                 version = res.json()["version"]
                 res = self.app.get("/v1/collections/{}".format(uuid),
                                    headers=get_auth_header(authorized=True),
-                                   params=dict(replica="aws"))
+                                   params=dict(replica="aws", version=version))
                 res.raise_for_status()
                 collection = res.json()
                 if content_changes:
