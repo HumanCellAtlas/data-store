@@ -24,7 +24,7 @@ class AsyncStateItem:
 
     def __init__(self, key: str, body: dict) -> None:
         self.key = key
-        if not body.get('_type', None):
+        if not body.get('_type'):
             body['_type'] = type(self).__name__
         self.body = body
 
