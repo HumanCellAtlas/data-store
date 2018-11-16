@@ -1,5 +1,8 @@
 #!/bin/bash
 
+# This script sets the version variable DSS_VERSION into the SSM parameter contianing
+# the environment variables used when deploying lambdas, and into all deployed lambdas
+
 set -euo pipefail
 
 if [[ -z $DSS_DEPLOYMENT_STAGE ]]; then
