@@ -232,24 +232,16 @@ class TestFileApi(unittest.TestCase, TestAuthMixin, DSSUploadMixin, DSSAssertMix
                 creator_uid=0,
                 source_url=source_url,
             ),
+            headers=get_auth_header()
         )
 
         # should eventually get unprocessable after async copy fails
-        start_time = time.time()
-        timeout = 120
-        while True:
-            time.sleep(1)
-            if time.time() - start_time > timeout:
-                break
-            try:
-                self.assertHeadResponse(
-                    f"/v1/files/{file_uuid}?replica=aws&version={file_version}",
-                    requests.codes.unprocessable)
-                break
-            except AssertionError:
-                pass
-        else:
-            self.fail("Never got expected 'unprocessable' response")
+        @eventually(120, 1)
+        def tryHead():
+            self.assertHeadResponse(
+                f"/v1/files/{file_uuid}?replica=aws&version={file_version}",
+                requests.codes.unprocessable)
+        tryHead()
 
         # should get unprocessable on GCP too
         self.assertHeadResponse(
