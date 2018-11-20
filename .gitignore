@@ -54,3 +54,7 @@ providers.tf
 variables.tf
 
 /smoketest-*.tmp
+
+# Editors
+.vscode
+.idea

@@ -23,7 +23,7 @@ def get_local_lambda_environment():
              for var in os.environ['EXPORT_ENV_VARS_TO_LAMBDA'].split()}
     env['DSS_ES_ENDPOINT'] = es_client.describe_elasticsearch_domain(
         DomainName=os.environ['DSS_ES_DOMAIN']
-    )['DomainStatus']['Endpoint']
+    )['DomainStatus']['Endpoints']
     return env
 
 def get_ssm_lambda_environment():

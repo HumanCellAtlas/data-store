@@ -1,16 +1,16 @@
 resource google_storage_bucket dss_gs_bucket {
   name          = "${var.DSS_GS_BUCKET}"
   provider      = "google"
-  location      = "US"
-  storage_class = "MULTI_REGIONAL"
+  location      = "${var.GCP_DEFAULT_REGION}"
+  storage_class = "REGIONAL"
 }
 
 resource google_storage_bucket dss_gs_bucket_test {
   count         = "${var.DSS_DEPLOYMENT_STAGE == "dev" ? 1 : 0}"
   name          = "${var.DSS_GS_BUCKET_TEST}"
   provider      = "google"
-  location      = "US"
-  storage_class = "MULTI_REGIONAL"
+  location      = "${var.GCP_DEFAULT_REGION}"
+  storage_class = "REGIONAL"
   lifecycle_rule {
     action {
       type = "Delete"
@@ -26,15 +26,15 @@ resource google_storage_bucket dss_gs_bucket_test_fixtures {
   count         = "${var.DSS_DEPLOYMENT_STAGE == "dev" ? 1 : 0}"
   name          = "${var.DSS_GS_BUCKET_TEST_FIXTURES}"
   provider      = "google"
-  location      = "US"
-  storage_class = "MULTI_REGIONAL"
+  location      = "${var.GCP_DEFAULT_REGION}"
+  storage_class = "REGIONAL"
 }
 
 resource google_storage_bucket dss_gs_checkout_bucket {
   name          = "${var.DSS_GS_CHECKOUT_BUCKET}"
   provider      = "google"
-  location      = "US"
-  storage_class = "MULTI_REGIONAL"
+  location      = "${var.GCP_DEFAULT_REGION}"
+  storage_class = "REGIONAL"
   lifecycle_rule {
     action {
       type = "Delete"
@@ -61,8 +61,8 @@ resource google_storage_bucket dss_gs_checkout_bucket_test {
   count         = "${var.DSS_DEPLOYMENT_STAGE == "dev" ? 1 : 0}"
   name          = "${var.DSS_GS_CHECKOUT_BUCKET_TEST}"
   provider      = "google"
-  location      = "US"
-  storage_class = "MULTI_REGIONAL"
+  location      = "${var.GCP_DEFAULT_REGION}"
+  storage_class = "REGIONAL"
   lifecycle_rule {
     action {
       type = "Delete"
