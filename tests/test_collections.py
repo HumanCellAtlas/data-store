@@ -71,8 +71,22 @@ class TestCollections(unittest.TestCase, DSSAssertMixin, DSSUploadMixin):
 
     def test_put(self):
         "PUT new collection"
-        uuid, _ = self._put(self.contents)
-        self.addCleanup(self._delete_collection, uuid)
+        with self.subTest("with unique contents"):
+            contents = [self.col_file_item, self.col_ptr_item]
+            uuid, _ = self._put(contents)
+            self.addCleanup(self._delete_collection, uuid)
+            res = self.app.get("/v1/collections/{}".format(self.uuid),
+                               headers=get_auth_header(authorized=True),
+                               params=dict(replica="aws"))
+            self.assertEqual(res.json()["contents"], [self.col_file_item, self.col_ptr_item])
+
+        with self.subTest("with duplicated contents."):
+            uuid, _ = self._put(self.contents)
+            self.addCleanup(self._delete_collection, uuid)
+            res = self.app.get("/v1/collections/{}".format(self.uuid),
+                               headers=get_auth_header(authorized=True),
+                               params=dict(replica="aws"))
+            self.assertEqual(res.json()["contents"], [self.col_file_item, self.col_ptr_item])
 
     def test_get(self):
         "GET created collection"
@@ -111,11 +125,19 @@ class TestCollections(unittest.TestCase, DSSAssertMixin, DSSUploadMixin):
         contents = [col_file_item] * 8 + [col_ptr_item] * 8
         uuid, version = self._put(contents)
 
-        for patch_payload in [dict(),
-                              dict(description="foo", name="cn"),
-                              dict(description="bar", details={1: 2}),
-                              dict(add_contents=contents),
-                              dict(remove_contents=contents)]:
+        expected_contents = {'contents': [col_file_item,
+                                          col_ptr_item],
+                             'description': 'd',
+                             'details': {},
+                             'name': 'n',
+                             'owner': 'travis-test@human-cell-atlas-travis-test.iam.gserviceaccount.com'
+                             }
+        tests = [(dict(), None),
+                 (dict(description="foo", name="cn"), dict(description="foo", name="cn")),
+                 (dict(description="bar", details={1: 2}), dict(description="bar", details={'1': 2})),
+                 (dict(add_contents=contents), None),  # Duplicates should be removed.
+                 (dict(remove_contents=contents), dict(contents=[]))]
+        for patch_payload, content_changes in tests:
             with self.subTest(patch_payload):
                 res = self.app.patch("/v1/collections/{}".format(uuid),
                                      headers=get_auth_header(authorized=True),
@@ -124,16 +146,14 @@ class TestCollections(unittest.TestCase, DSSAssertMixin, DSSUploadMixin):
                 res.raise_for_status()
                 self.assertNotEqual(version, res.json()["version"])
                 version = res.json()["version"]
-
-        with self.subTest("Get updated version of collection"):
-            res = self.app.get("/v1/collections/{}".format(uuid),
-                               headers=get_auth_header(authorized=True),
-                               params=dict(replica="aws"))
-            res.raise_for_status()
-            collection = res.json()
-            del collection["owner"]
-            self.assertEqual(collection,
-                             dict(contents=[], description='bar', details={"1": 2}, name='cn'))
+                res = self.app.get("/v1/collections/{}".format(uuid),
+                                   headers=get_auth_header(authorized=True),
+                                   params=dict(replica="aws", version=version))
+                res.raise_for_status()
+                collection = res.json()
+                if content_changes:
+                    expected_contents.update(content_changes)
+                self.assertEqual(collection, expected_contents)
 
     def test_put_invalid_fragment(self):
         "PUT invalid fragment reference"

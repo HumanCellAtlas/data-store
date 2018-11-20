@@ -63,10 +63,7 @@ def put(json_request_body: dict, replica: str, uuid: str, version: str):
     collection_body = dict(json_request_body, owner=authenticated_user_email)
     uuid = uuid.lower()
     handle = Config.get_blobstore_handle(Replica[replica])
-    dedup_collection: OrderedDict[int, dict] = OrderedDict()
-    for item in collection_body["contents"]:
-        dedup_collection[hash(tuple(sorted(item.items())))] = item
-    collection_body["contents"] = list(dedup_collection.values())
+    collection_body["contents"] = _dedpuplicate_contents(collection_body["contents"])
     verify_collection(collection_body["contents"], Replica[replica], handle)
     collection_uuid = uuid if uuid else str(uuid4())
     if version is not None:
@@ -115,12 +112,19 @@ def patch(uuid: str, json_request_body: dict, replica: str, version: str):
     collection["contents"] = [i for i in collection["contents"] if hashabledict(i) not in remove_contents_set]
     verify_collection(json_request_body.get("add_contents", []), Replica[replica], handle)
     collection["contents"].extend(json_request_body.get("add_contents", []))
+    collection["contents"] = _dedpuplicate_contents(collection["contents"])
     timestamp = datetime.datetime.utcnow()
     new_collection_version = datetime_to_version_format(timestamp)
     handle.upload_file_handle(Replica[replica].bucket,
                               CollectionFQID(uuid, new_collection_version).to_key(),
                               io.BytesIO(json.dumps(collection).encode("utf-8")))
     return jsonify(dict(uuid=uuid, version=new_collection_version)), requests.codes.ok
+
+def _dedpuplicate_contents(contents: List) -> List:
+    dedup_collection: OrderedDict[int, dict] = OrderedDict()
+    for item in contents:
+        dedup_collection[hash(tuple(sorted(item.items())))] = item
+    return list(dedup_collection.values())
 
 @dss_handler
 @security.authorized_group_required(['hca'])
