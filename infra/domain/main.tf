@@ -27,11 +27,12 @@ resource "aws_route53_record" "cert_validation" {
 }
 
 resource "aws_route53_record" "cert_validation_alt1" {
+  count   = "${"DNS" == var.DSS_CERTIFICATE_VALIDATION ? 1 : 0}"
   name    = "${aws_acm_certificate.cert.domain_validation_options.1.resource_record_name}"
   type    = "${aws_acm_certificate.cert.domain_validation_options.1.resource_record_type}"
   zone_id = "${aws_route53_zone.dss.zone_id}"
   records = ["${aws_acm_certificate.cert.domain_validation_options.1.resource_record_value}"]
-  ttl     = 60
+  ttl     = 300
 }
 
 resource "aws_api_gateway_domain_name" "dss" {
@@ -52,8 +53,8 @@ resource "aws_acm_certificate" "cert" {
 resource "aws_acm_certificate_validation" "cert_dns" {
   count   = "${"DNS" == var.DSS_CERTIFICATE_VALIDATION ? 1 : 0}"
   certificate_arn         = "${aws_acm_certificate.cert.arn}"
-  validation_record_fqdns = ["${aws_route53_record.cert_validation.fqdn}"]
-#			     "${aws_route53_record.cert_validation_alt1.fqdn}"]
+  validation_record_fqdns = ["${aws_route53_record.cert_validation.fqdn}",
+			     "${aws_route53_record.cert_validation_alt1.fqdn}"]
 }
 
 resource "aws_acm_certificate_validation" "cert_email" {
