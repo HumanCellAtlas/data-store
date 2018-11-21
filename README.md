@@ -369,6 +369,17 @@ test-deploy-test cycle after this (the test after the deploy is required to test
         # do stuff     
     ```
 
+### Audit Logs
+The DSS uses AWS Cloudtrail and S3 to manage audit logs. By default audit logs are disable, but can be abled by setting 
+`ENABLE_AUDIT_LOGS` to 0 in the [environment file](environment) and providing a name for `DSS_AUDIT_LOGS_BUCKET`. The 
+Cloudtrail and S3 bucket will then be created by re-running `make deploy-infra`. Do not enable audit logs until after 
+you have sucesfully deployed the DSS at least once otherwise it will fail. This is because not all of the resources 
+monitored by the Cloudtrail are created until after the first `make deploy` is run. Specifically the AWS Lambdas which
+are deployed by chalice during `make deploy` and are not managed by terraform.
+
+The Audit logs monitor any managements changes in the AWS account, object read/write in the S3 replica, and invokation 
+of DSS-API and DSS-ADMIN Lambdas.
+
 ### Enabling Profiling
 AWS Xray tracing is used for profiling the performance of deployed lambdas. This can be enabled for `chalice/app.py` by 
 setting the lambda environment variable `DSS_XRAY_TRACE=1`. For all other daemons you must also check 

@@ -87,6 +87,8 @@ env_vars_to_infra = [
     "DSS_ZONE_NAME",
     "ES_ALLOWED_SOURCE_IP_SECRETS_NAME",
     "GCP_DEFAULT_REGION",
+    "ENABLE_AUDIT_LOGS",
+    "DSS_AUDIT_LOGS_BUCKET"
 ]
 
 with open(os.path.join(infra_root, args.component, "backend.tf"), "w") as fp:
