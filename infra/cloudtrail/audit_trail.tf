@@ -34,7 +34,6 @@ resource "aws_cloudtrail" "dss" {
   count = "${var.ENABLE_AUDIT_LOGS == 1 ? 1 : 0}"
   name = "dss-audit-trail"
   s3_bucket_name = "${aws_s3_bucket.dss_audit_logs.bucket}"
-  s3_key_prefix = "aws"
   enable_log_file_validation = true
   include_global_service_events = true
 
