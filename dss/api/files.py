@@ -23,6 +23,8 @@ from dss.storage.hcablobstore import FileMetadata, HCABlobStore, compose_blob_ke
 from dss.stepfunctions import gscopyclient, s3copyclient
 from dss.util import tracing, UrlBuilder, security
 from dss.util.version import datetime_to_version_format
+from dss.util.async_state import AsyncStateItem, AsyncStateError
+from dss.stepfunctions.s3copyclient.implementation import S3CopyEtagError
 
 
 ASYNC_COPY_THRESHOLD = AWS_MIN_CHUNK_SIZE
@@ -72,7 +74,18 @@ def get_helper(uuid: str, replica: Replica, version: str = None, token: str = No
                     "files/{}.{}".format(uuid, version)
                 ).decode("utf-8"))
     except BlobNotFoundError:
-        raise DSSException(404, "not_found", "Cannot find file!")
+        key = f"files/{uuid}.{version}"
+        item = AsyncStateItem.get(key)
+        if isinstance(item, S3CopyEtagError):
+            raise DSSException(
+                requests.codes.unprocessable,
+                "missing_checksum",
+                "Incorrect s3-etag"
+            )
+        elif isinstance(item, AsyncStateError):
+            raise item
+        else:
+            raise DSSException(404, "not_found", "Cannot find file!")
 
     with tracing.Subsegment('make_path'):
         blob_path = compose_blob_key(file_metadata)
