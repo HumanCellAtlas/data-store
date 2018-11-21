@@ -151,10 +151,10 @@ AWS command line utility and configure your AWS access credentials.
     fixtures, and set the environment variables `DSS_GS_BUCKET_TEST` and `DSS_GS_BUCKET_TEST_FIXTURES` to the names of
     those buckets.
 
-### Configure User Authorization
-The following environment variables must be set to enable user authentication.
+### Configure User Authentication/Authorization
+The following environment variables must be set to enable user authentication and authorization.
 
-* `OIDC_AUDIENCE` must be populated with the expected JWT (JSON web token) audience.
+* `OIDC_AUDIENCE` must be populated with the expected JWT (JSON web token) audience .
 * `OPENID_PROVIDER` is the generator of the JWT, and is used to determine how the JWT is validated.
 * `OIDC_GROUP_CLAIM` is the JWT claim that specifies the group the users belongs to.
 * `OIDC_EMAIL_CLAIM` is the JWT claim that specifies the requests email.
