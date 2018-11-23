@@ -10,26 +10,28 @@ export DSS_HOME="$(cd -P "$(dirname "$SOURCE")" && pwd)"
 
 EXPORT_ENV_VARS_TO_LAMBDA_ARRAY=(
     ADMIN_USER_EMAILS
-    DSS_DEPLOYMENT_STAGE
-    DSS_S3_BUCKET
-    DSS_GS_BUCKET
     API_DOMAIN_NAME
     DSS_AUTHORIZED_DOMAINS
-    DSS_NOTIFICATION_SENDER
-    DSS_S3_CHECKOUT_BUCKET
+    DSS_BLOB_PUBLIC_TTL_DAYS
+    DSS_BLOB_TTL_DAYS
+    DSS_DEBUG
+    DSS_DEPLOYMENT_STAGE
+    DSS_GS_BUCKET
     DSS_GS_CHECKOUT_BUCKET
+    DSS_NOTIFICATION_SENDER
     DSS_NOTIFY_DELAYS
     DSS_NOTIFY_TIMEOUT
+    DSS_S3_BUCKET
+    DSS_S3_CHECKOUT_BUCKET
+    DSS_VERSION
     DSS_XRAY_TRACE
-    DSS_DEBUG
-    TOKENINFO_FUNC
     OIDC_AUDIENCE
-    OPENID_PROVIDER
-    OIDC_GROUP_CLAIM
     OIDC_EMAIL_CLAIM
-    DSS_BLOB_TTL_DAYS
-    DSS_BLOB_PUBLIC_TTL_DAYS
+    OIDC_GROUP_CLAIM
+    OPENID_PROVIDER
+    TOKENINFO_FUNC
 )
+
 
 set -a
 # Environment variable assignments (var=value) in "set -a" mode are
@@ -43,7 +45,11 @@ ORG_TLD_PREFIX=org-example-hca-dss-${DSS_DEPLOYMENT_STAGE}
 AWS_DEFAULT_OUTPUT=json
 AWS_DEFAULT_REGION=ap-southeast-2
 GCP_DEFAULT_REGION=australia-southeast1
+GCP_ACCOUNT_ID=example-1234
 DSS_TEST_ES_PATH=/usr/share/elasticsearch/bin/elasticsearch
+DSS_AUTHORIZED_GOOGLE_PROJECT_DOMAIN_ARRAY=(
+    {${GCP_ACCOUNT_ID}-{dev,test,staging}}.iam.gserviceaccount.com
+)
 
 
 ### OPTIONALLY EDIT THOSE VARS BELOW TOO
@@ -79,14 +85,11 @@ API_DOMAIN_NAME="dss.${DCP_DOMAIN}"
 TOKENINFO_FUNC=dss.util.security.verify_jwt
 OIDC_AUDIENCE=https://dev.data.hca.dss.${ORG_TLD_DOMAIN}/
 OPENID_PROVIDER=https://humancellatlas.auth0.com/
-OIDC_EMAIL_CLAIM=https://auth.data.humancellatlas.org/email
-OIDC_GROUP_CLAIM=https://auth.data.humancellatlas.org/group
+OIDC_EMAIL_CLAIM=https://auth.data.${ORG_TLD_DOMAIN}/email
+OIDC_GROUP_CLAIM=https://auth.data.${ORG_TLD_DOMAIN}/group
 NOTIFY_URL=https://${API_DOMAIN_NAME}/internal/notify
-DSS_AUTHORIZED_GOOGLE_PROJECT_DOMAIN_ARRAY=(
-    {human-cell-atlas-travis-test,broad-dsde-mint-{dev,test,staging}}.iam.gserviceaccount.com
-)
 DSS_AUTHORIZED_DOMAINS=${DSS_AUTHORIZED_GOOGLE_PROJECT_DOMAIN_ARRAY[*]}
-DSS_AUTHORIZED_DOMAINS_TEST="human-cell-atlas-travis-test.iam.gserviceaccount.com"
+DSS_AUTHORIZED_DOMAINS_TEST="${GCP_ACCOUNT_ID}.iam.gserviceaccount.com"
 DSS_ES_DOMAIN="dss-index-${DSS_DEPLOYMENT_STAGE}"
 DSS_ES_INSTANCE_TYPE="t2.medium.elasticsearch"
 DSS_ES_VOLUME_SIZE="35"

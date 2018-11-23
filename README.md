@@ -104,10 +104,11 @@ AWS command line utility and configure your AWS access credentials.
 	deployment. This command should be executed whenever the environment variables are updated. The environments
 	of currently deployed Lambdas may optionally by updated in place with the flag `--update-deployed-lambdas`.
 
-1.  Choose a region that has support for Cloud Functions and set `GCP_DEFAULT_REGION` to that region. See
-    https://cloud.google.com/about/locations/ for a list of supported regions.
+1.  Choose a region that has support for Cloud Functions and set `GCP_DEFAULT_REGION` to that region. See https://cloud.google.com/about/locations/ for a list of supported regions.
 
-1.  Run `gcloud config set project PROJECT_ID` **where PROJECT_ID is the ID, not the name (i.e: hca-store-21555, NOT just hca-store) of the GCP project you selected earlier**.
+1.  Define `$GCP_PROJECT_ID` in environment.local, **where $GCP_PROJECT_ID should have the format **hca-store-21555**, NOT just **hca-store**.
+
+1.  Run `gcloud config set project $GCP_ACCOUNT_ID`
 
 1.  Enable required APIs: 
 
