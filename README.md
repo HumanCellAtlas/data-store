@@ -62,36 +62,13 @@ The full list of configurable environment variables and their descriptions are d
 1. Follow this [tutorial](http://docs.aws.amazon.com/cli/latest/userguide/cli-chap-getting-started.html) to install the
 AWS command line utility and configure your AWS access credentials.
 
-1. Define an S3 bucket that you want DSS to use and in `environment.local`, set the environment variable `DSS_S3_BUCKET`
-   to the name of that bucket. Make sure the bucket region is consistent with `AWS_DEFAULT_REGION` in
-   `environment.local`.
-
-1. Repeat the previous step for
-
-   * `DSS_S3_CHECKOUT_BUCKET`
-   * `DSS_S3_CHECKOUT_BUCKET_TEST`
-
-1. If you wish to run the unit tests, you must define two more S3 buckets, one for test data and another for test
-   fixtures, and set the environment variables `DSS_S3_BUCKET_TEST` and `DSS_S3_BUCKET_TEST_FIXTURES` to the names of
-   those buckets.
+1. Specify the names of S3 buckets in `environment.local`, using the environment variables `DSS_S3_BUCKET_*`, and verify
+   that `AWS_DEFAULT_REGION` points to your prefered region.
+   These buckets will be created with Terraform, and should not exist before deploying for the first time.
 
 #### Configure GCP
 
 1.  Follow the instructions in https://cloud.google.com/sdk/downloads to get the `gcloud` command line utility.
-
-1.  In the [Google Cloud Console](https://console.cloud.google.com/), select the correct Google user account on the top
-    right and the correct GCP project in the drop down in the top center. Go to "IAM & Admin", then "Service accounts",
-    then click "Create service account" and select "Furnish a new private key". Under "Roles" select "Project – Owner",
-    "Service Accounts – Service Account User" and "Cloud Functions – Cloud Function Developer". Create the account and 
-    download the service account key JSON file.
-
-1.  Place the downloaded JSON file into the project root as `gcp-credentials.json`
-
-1.  Run the command 
-
-    ```
-    cat $DSS_HOME/gcp-credentials.json | scripts/set_secret.py --secret-name $GOOGLE_APPLICATION_CREDENTIALS_SECRETS_NAME
-    ```
 
 1.  Run the command
 
@@ -140,16 +117,11 @@ AWS command line utility and configure your AWS access credentials.
 	cat $DSS_HOME/application_secrets.json | scripts/set_secret.py --secret-name $GOOGLE_APPLICATION_SECRETS_SECRETS_NAME
 	```
 
-1.  Define a Google Cloud Storage bucket in `environment.local` via the variable `DSS_GS_BUCKET`. Make sure the bucket region is consistent with `GCP_DEFAULT_REGION` in `environment.local`.
+1.  Specify the name of the Google Cloud Platform service account in `environment.local` using the variable `DSS_GCP_SERVICE_ACCOUNT_NAME`.
 
-1. Repeat the previous step for
-
-   * `DSS_GS_CHECKOUT_BUCKET`
-   * `DSS_GS_CHECKOUT_BUCKET_TEST`
-
-1. If you wish to run the unit tests, you must define two more buckets, one for test data and another for test
-    fixtures, and set the environment variables `DSS_GS_BUCKET_TEST` and `DSS_GS_BUCKET_TEST_FIXTURES` to the names of
-    those buckets.
+1.  Specify the names of Google Cloud Storage buckets in `environment.local`, using the environment variables `DSS_GS_BUCKET_*`,
+    and verify that `GCP_DEFAULT_REGION` points to your prefered region.
+    These buckets will be created with Terraform, and should not exist before deploying for the first time.
 
 ### Configure User Authentication/Authorization
 The following environment variables must be set to enable user authentication and authorization.
@@ -167,6 +139,31 @@ valid JWT.
 ### Running the DSS API locally
 
 Run `./dss-api` in the top-level `data-store` directory to deploy the DSS API on your `localhost`.
+
+### Aquiring GCP credentials
+
+When deploying for the first time, a Google Cloud Platform service account must first be created and credentialed.
+
+1.  Create the Google Cloud Platform service account using the command
+    ```
+    make -C infra COMPONENT=gcp_service_account apply
+    ```
+
+1.  In the [Google Cloud Console](https://console.cloud.google.com/), select the correct Google user account on the top
+    right and the correct GCP project in the drop down in the top center. Go to "IAM & Admin", then "Service accounts",
+    then click "Create service account" and select "Furnish a new private key". Under "Roles" select "Project – Owner",
+    "Service Accounts – Service Account User" and "Cloud Functions – Cloud Function Developer". Create the account and 
+    download the service account key JSON file.
+
+1.  Place the downloaded JSON file into the project root as `gcp-credentials.json`
+
+1.  Run the command 
+
+    ```
+    cat $DSS_HOME/gcp-credentials.json | scripts/set_secret.py --secret-name $GOOGLE_APPLICATION_CREDENTIALS_SECRETS_NAME
+    ```
+
+When rotating credentials, the first step may be skipped.
 
 ### Deploying the DSS
 
