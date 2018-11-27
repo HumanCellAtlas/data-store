@@ -8,7 +8,6 @@ import os, sys, time, io, zipfile, random, string, binascii, datetime, argparse,
 import json
 import boto3
 import socket
-import tempfile
 import httplib2
 import google.cloud.storage
 import google.cloud.exceptions
@@ -16,6 +15,12 @@ from apitools.base.py import http_wrapper
 from google.cloud.client import ClientWithProject
 from google.cloud._http import JSONConnection
 from urllib3.util.retry import Retry
+
+pkg_root = os.path.abspath(os.path.join(os.path.dirname(__file__), '..'))  # noqa
+sys.path.insert(0, pkg_root)  # noqa
+
+import dss
+import dss.util
 
 class GCPClient(ClientWithProject):
     SCOPE = ["https://www.googleapis.com/auth/cloud-platform",
@@ -38,17 +43,7 @@ args = parser.parse_args()
 args.gcf_name = "-".join([args.src_dir, os.environ["DSS_DEPLOYMENT_STAGE"]])
 
 gcp_region = os.environ["GCP_DEFAULT_REGION"]
-with tempfile.NamedTemporaryFile() as fp:
-    creds = boto3.client("secretsmanager").get_secret_value(
-        SecretId='{}/{}/{}'.format(
-            os.environ['DSS_SECRETS_STORE'],
-            os.environ['DSS_DEPLOYMENT_STAGE'],
-            "gcp-credentials.json"
-        )
-    )['SecretString']
-    fp.write(creds.encode("utf-8"))
-    fp.flush()
-    gcp_client = GCPClient.from_service_account_json(fp.name)
+gcp_client = GCPClient.from_service_account_json(dss.util.get_gcp_credentials_file().name)
 gcp_client._http.adapters["https://"].max_retries = Retry(status_forcelist={503, 504})
 grtc_conn = GoogleRuntimeConfigConnection(client=gcp_client)
 gcf_conn = GoogleCloudFunctionsConnection(client=gcp_client)

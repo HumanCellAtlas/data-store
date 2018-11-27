@@ -5,9 +5,6 @@ import uuid
 import logging
 
 import jwt
-import tempfile
-import boto3
-
 import functools
 import io
 import os
@@ -15,6 +12,7 @@ import os
 from dss import Config
 from dss.api import bundles
 from dss.util.version import datetime_to_version_format
+from dss.util import get_gcp_credentials_file
 from dss.storage.identifiers import BundleFQID, FileFQID, CollectionFQID
 
 logger = logging.getLogger(__name__)
@@ -34,25 +32,10 @@ UNAUTHORIZED_GCP_CREDENTIALS = {
     'client_x509_cert_url': 'https://www.googleapis.com/robot/v1/metadata/x509/project-viewer%40cool-project-188401.iam.gserviceaccount.com',  # noqa
 }
 
-authorized_gcp_credentials_json_inf = boto3.client("secretsmanager").get_secret_value(
-    SecretId='{}/{}/{}'.format(
-        os.environ['DSS_SECRETS_STORE'],
-        os.environ['DSS_DEPLOYMENT_STAGE'],
-        "gcp-credentials.json"
-    )
-)['SecretString']
-authorized_gcp_credentials = json.loads(authorized_gcp_credentials_json_inf)
-
-# tempfile with dangling reference should be deleted on program exit
-tf = tempfile.NamedTemporaryFile("w")
-tf.write(authorized_gcp_credentials_json_inf)
-tf.flush()
-
-os.environ['GOOGLE_APPLICATION_CREDENTIALS'] = tf.name
-if "," in os.environ['ADMIN_USER_EMAILS']:
-    os.environ['ADMIN_USER_EMAILS'] += "," + authorized_gcp_credentials['client_email']
-else:
-    os.environ['ADMIN_USER_EMAILS'] = authorized_gcp_credentials['client_email']
+if not os.environ.get('GOOGLE_APPLICATION_CREDENTIALS'):
+    os.environ['GOOGLE_APPLICATION_CREDENTIALS'] = get_gcp_credentials_file().name
+with open(os.environ['GOOGLE_APPLICATION_CREDENTIALS'], "r") as fh:
+    os.environ['ADMIN_USER_EMAILS'] = json.loads(fh.read())['client_email']
 bundles.ADMIN_USER_EMAILS = set(os.environ['ADMIN_USER_EMAILS'].split(","))
 
 def get_collection_fqid() -> CollectionFQID:
