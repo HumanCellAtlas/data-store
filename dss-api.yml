@@ -177,6 +177,8 @@ paths:
           description: >
             Specifies the output format. The default format, `summary`, is a list of UUIDs for bundles that match
             the query. Set this parameter to `raw` to get the verbatim JSON metadata for bundles that match the query.
+            When using `output_format raw` the `per_page` size is limit to no more than 10 to avoid exceeding the
+            to avoid excessively large response sizes.
           required: false
           type: string
           enum: [summary, raw]
@@ -186,10 +188,11 @@ paths:
           description: Replica to search.
           required: true
           type: string
-          enum: [aws, gcp, azure]
+          enum: [aws, gcp]
         - name: per_page
           in: query
-          description: Max number of results to return per page.
+          description: Max number of results to return per page. When using `output_format raw` the `per_page` size is
+            limit to no more than 10 to avoid exceeding the to avoid excessively large response sizes.
           required: false
           type: integer
           format: int32
@@ -239,7 +242,7 @@ paths:
           description: Replica to fetch from.
           required: true
           type: string
-          enum: [aws, gcp, azure]
+          enum: [aws, gcp]
         - name: version
           in: query
           description: Timestamp of file creation in RFC3339.  If this is not provided, the latest version is returned.
@@ -303,7 +306,7 @@ paths:
           description: Replica to fetch from.
           required: true
           type: string
-          enum: [aws, gcp, azure]
+          enum: [aws, gcp]
         - name: version
           in: query
           description: Timestamp of file creation in RFC3339.  If this is not provided, the latest version is returned.
@@ -405,6 +408,8 @@ paths:
         640,000MB, we use a chunk size equal to the total file size divided by 10000, rounded up to the nearest MB.
         MB, in this section, refers to 1,048,576 bytes.  Note that 640,000MB is not the same as 640GB!
         - hca-dss-crc32c: CRC-32C checksum of the file
+      security:
+            - dcpAuth: []
       parameters:
         - name: uuid
           in: path
@@ -531,7 +536,7 @@ paths:
                   code:
                     type: string
                     description: Machine-readable error code.  The types of return values should not be changed lightly.
-                    enum: [unhandled_exception, illegal_arguments, read_only]
+                    enum: [unhandled_exception, Forbidden, Unauthorized, illegal_arguments, read_only]
                 required:
                   - code
   /subscriptions:
@@ -548,7 +553,7 @@ paths:
           description: Replica to fetch from.
           required: true
           type: string
-          enum: [aws, gcp, azure]
+          enum: [aws, gcp]
       responses:
         200:
           description: OK
@@ -580,14 +585,13 @@ paths:
         Register an HTTP endpoint that is to be notified when a given event occurs.
       security:
         - dcpAuth: []
-
       parameters:
         - name: replica
           in: query
           description: Replica to write to.
           required: true
           type: string
-          enum: [aws, gcp, azure]
+          enum: [aws, gcp]
         - name: json_request_body
           in: body
           required: true
@@ -795,7 +799,7 @@ paths:
           description: Replica to fetch from.
           required: true
           type: string
-          enum: [aws, gcp, azure]
+          enum: [aws, gcp]
       responses:
         200:
           description: OK
@@ -836,7 +840,7 @@ paths:
           description: Replica to delete from.
           required: true
           type: string
-          enum: [aws, gcp, azure]
+          enum: [aws, gcp]
       responses:
         200:
           description: OK
@@ -887,7 +891,7 @@ paths:
           description: Replica to write to.
           required: true
           type: string
-          enum: [aws, gcp, azure]
+          enum: [aws, gcp]
         - name: uuid
           in: query
           description: A RFC4122-compliant ID for the collection.
@@ -958,7 +962,7 @@ paths:
           description: Replica to fetch from.
           required: true
           type: string
-          enum: [aws, gcp, azure]
+          enum: [aws, gcp]
         - name: version
           in: query
           description: >
@@ -1006,7 +1010,7 @@ paths:
           description: Replica to update the collection on. Updates are propagated to other replicas.
           required: true
           type: string
-          enum: [aws, gcp, azure]
+          enum: [aws, gcp]
         - name: version
           in: query
           description: >
@@ -1160,7 +1164,7 @@ paths:
           description: Replica to delete from.
           required: true
           type: string
-          enum: [aws, gcp, azure]
+          enum: [aws, gcp]
       responses:
         200:
           description: OK
@@ -1201,7 +1205,7 @@ paths:
           description: Replica to fetch from.
           required: true
           type: string
-          enum: [aws, gcp, azure]
+          enum: [aws, gcp]
         - name: directurls
           in: query
           description: >
@@ -1302,6 +1306,8 @@ paths:
       description: >
         Create a new version of a bundle with a given UUID.  The list of file UUID+versions to be included must be
         provided.
+      security:
+            - dcpAuth: []
       parameters:
         - name: uuid
           in: path
@@ -1320,7 +1326,7 @@ paths:
           description: Replica to write to.
           required: true
           type: string
-          enum: [aws, gcp, azure]
+          enum: [aws, gcp]
         - name: json_request_body
           in: body
           required: true
@@ -1426,7 +1432,7 @@ paths:
                   code:
                     type: string
                     description: Machine-readable error code.  The types of return values should not be changed lightly.
-                    enum: [unhandled_exception, illegal_arguments, read_only]
+                    enum: [unhandled_exception, Forbidden, Unauthorized, illegal_arguments, read_only]
                 required:
                   - code
     delete:
@@ -1447,7 +1453,7 @@ paths:
           description: Replica to write to.
           required: true
           type: string
-          enum: [aws, gcp, azure]
+          enum: [aws, gcp]
         - name: version
           in: query
           description: Timestamp of bundle creation in RFC3339.
@@ -1470,8 +1476,21 @@ paths:
           description: OK
           schema:
             type: object
+        401:
+          description: Unauthorized user it attempting this action.
+          schema:
+            allOf:
+            - $ref: '#/definitions/Error'
+            - type: object
+              properties:
+                code:
+                  type: string
+                  description: Machine-readable error code.  The types of return values should not be changed lightly.
+                  enum: [Unauthorized]
+              required:
+              - code
         403:
-          description: Unexpected error
+          description: Unauthorized user it attempting this action.
           schema:
             allOf:
               - $ref: '#/definitions/Error'
@@ -1480,7 +1499,7 @@ paths:
                   code:
                     type: string
                     description: Machine-readable error code.  The types of return values should not be changed lightly.
-                    enum: [forbidden]
+                    enum: [Forbidden]
                 required:
                   - code
         409:
@@ -1537,7 +1556,7 @@ paths:
           description: Replica to fetch from.
           required: true
           type: string
-          enum: [aws, gcp, azure]
+          enum: [aws, gcp]
         - name: json_request_body
           in: body
           required: false
@@ -1589,7 +1608,7 @@ paths:
           description: Replica to fetch from.
           required: true
           type: string
-          enum: [aws, gcp, azure]
+          enum: [aws, gcp]
         - name: checkout_job_id
           in: path
           description: A RFC4122-compliant ID for the checkout job request.
@@ -1751,7 +1770,7 @@ definitions:
           The DSS replica to subscribe. When a new bundle is indexed in a particular replica, only subscriptions for
           that same replica are notified.
         type: string
-        enum: [aws, gcp, azure]
+        enum: [aws, gcp]
       owner:
         type: string
         format: email
