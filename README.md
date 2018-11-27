@@ -33,6 +33,9 @@ to review and edit the API specification. When the API is live, the spec is also
 In this section, you'll configure and deploy a local API server and your own suite of cloud services to run a
 development version of the DSS.
 
+Note that privileged access to cloud accounts (AWS, GCP, etc.) is required to deploy the data-store. IF your deployment fails
+due to access restrictions, please consult your local systems administrators.
+
 ### Install Dependencies
 The DSS requires Python 3.6 to run.
 
