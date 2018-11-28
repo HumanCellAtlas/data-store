@@ -8,7 +8,7 @@ import unittest
 pkg_root = os.path.abspath(os.path.join(os.path.dirname(__file__), '..'))  # noqa
 sys.path.insert(0, pkg_root)  # noqa
 
-from scripts.generate_swagger import SecureSwagger
+from scripts.modify_swagger_auth import SecureSwagger
 
 
 class TestSecureSwagger(unittest.TestCase):
@@ -25,7 +25,7 @@ class TestSecureSwagger(unittest.TestCase):
         pass
 
     def test_generate_swagger(self):
-        s = SecureSwagger(self.infile, self.outfile, self.config)
+        s = SecureSwagger()
         s.generate_swagger_with_secure_endpoints()
         # Just a stub for a future test atm
 

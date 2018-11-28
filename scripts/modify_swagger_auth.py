@@ -10,36 +10,43 @@ sys.path.insert(0, pkg_root)  # noqa
 class SecureSwagger(object):
     def __init__(self, infile=None, outfile=None, config=None):
         """
-        A class for generating swagger yaml files with auth on endpoints specified in
+        A class for modifying a swagger yml file with auth on endpoints specified in
         a config file.
 
-        :param infile: Swagger template file.  Should not contain any security flags.
-        :param outfile: The name of the generated swagger yaml file.
+        :param infile: Swagger yml file.
+        :param outfile: The name of the generated swagger yml file (defaults to the same file).
         :param config: A json file containing the api endpoints that need auth.
         """
-        self.path_section = False
-        self.call_section = None
-        self.infile = infile if infile else os.path.join(pkg_root, 'swagger_template')
+        self.path_section = False  # used to track which section we're when parsing the yml
+        self.call_section = None  # used to track which section we're when parsing the yml
+        self.infile = infile if infile else os.path.join(pkg_root, 'dss-api.yml')
+        self.intermediate_file = os.path.join(pkg_root, 'tmp.yml')
         self.outfile = outfile if outfile else os.path.join(pkg_root, 'dss-api.yml')
-        self.config = config if config else os.path.join(pkg_root, 'full_security.json')  # swagger_security_config.json
+        self.config = config if config else os.path.join(pkg_root, 'hca_auth_defaults.json')
         self.security_endpoints = self.security_from_config()
 
     def security_from_config(self):
         """
-        Endpoints included in the config file will require security in the generated swagger yaml.
+        Endpoints included in the config json file will require security in the generated swagger yml.
 
         Example config file content:
-        post /search
-        head /files/{uuid}
-        get /files/{uuid}
+        {
+          "/files/{uuid}": [
+            "put"
+          ],
+          "/subscriptions": [
+            "get",
+            "put"
+          ]
+        }
 
-        All endpoints apart from these will be open and callable without auth in the generated swagger yaml.
+        All endpoints apart from these will be open and callable without auth in the generated swagger yml.
         """
         with open(self.config, 'r') as f:
             return json.loads(f.read())
 
     def insert_security_flag(self, line):
-        """Checks the lines of a swagger/yaml file and determines if a security flag should be written in."""
+        """Checks the lines of a swagger/yml file and determines if a security flag should be written in."""
         # If not indented at all, we're in a new section, so reset.
         if not line.startswith(' ') and self.path_section and line.strip() != '':
             self.path_section = False
@@ -63,17 +70,22 @@ class SecureSwagger(object):
         return False
 
     def generate_swagger_with_secure_endpoints(self):
-        with open(self.outfile, 'w') as w:
-            with open(self.infile, 'r') as f:
-                for line in f:
-                    # Should this raise or ignore these lines? Raise seems better here to avoid weird use-cases.
-                    if line.startswith('      security:') or line.startswith('        - dcpAuth: []'):
-                        raise RuntimeError('Invalid swagger template used.  File should not have security flags.')
+        # generate a new swagger as an intermediate file
+        with open(self.intermediate_file, 'w') as w:
+            with open(self.infile, 'r') as r:
+                for line in r:
+                    # ignore security lines already in the swagger yml
+                    if not (line.startswith('      security:') or line.startswith('        - dcpAuth: []')):
 
-                    w.write(line)
-                    if self.insert_security_flag(line):
-                        w.write('      security:\n')
-                        w.write('        - dcpAuth: []\n')
+                        w.write(line)
+                        if self.insert_security_flag(line):
+                            w.write('      security:\n')
+                            w.write('        - dcpAuth: []\n')
+
+        # the contents of the intermediate file become the contents of the output file
+        if os.path.exists(self.outfile):
+            os.remove(self.outfile)
+        os.rename(self.intermediate_file, self.outfile)
 
 
 def main(argv=sys.argv[1:]):
