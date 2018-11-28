@@ -1,6 +1,7 @@
 #!/usr/bin/env python
 # coding: utf-8
 
+import time
 import datetime
 import hashlib
 import json
@@ -140,14 +141,15 @@ class TestFileApi(unittest.TestCase, TestAuthMixin, DSSUploadMixin, DSSAssertMix
             uploader_class: typing.Type[Uploader],
             bucket: str,
             key: str,
-            data: bytes) -> None:
+            data: bytes,
+            s3_part_size: int = None) -> None:
         tempdir = tempfile.gettempdir()
         uploader = uploader_class(tempdir, bucket)
         with tempfile.NamedTemporaryFile(delete=True) as fh:
             fh.write(data)
             fh.flush()
 
-            uploader.checksum_and_upload_file(fh.name, key, "text/plain")
+            uploader.checksum_and_upload_file(fh.name, key, "text/plain", s3_part_size=s3_part_size)
 
     @testmode.standalone
     def test_file_put_large_sync(self):
@@ -203,6 +205,48 @@ class TestFileApi(unittest.TestCase, TestAuthMixin, DSSUploadMixin, DSSAssertMix
                         }
                     )
                     self.assertIn('version', resp_obj.json)
+
+    @testmode.integration
+    def test_file_put_large_incorrect_s3_etag(self) -> None:
+        bucket = self.s3_test_bucket
+        src_key = generate_test_key()
+        src_data = os.urandom(ASYNC_COPY_THRESHOLD + 1)
+
+        # upload file with incompatible s3 part size
+        self._upload_file_to_mock_ingest(S3Uploader, bucket, src_key, src_data, s3_part_size=6 * 1024 * 1024)
+
+        file_uuid = str(uuid.uuid4())
+        timestamp = datetime.datetime.utcnow()
+        file_version = datetime_to_version_format(timestamp)
+        url = UrlBuilder().set(path=f"/v1/files/{file_uuid}")
+        url.add_query("version", file_version)
+        source_url = f"s3://{bucket}/{src_key}"
+
+        # put file into DSS, starting an async copy which will fail
+        expected_codes = requests.codes.accepted,
+        self.assertPutResponse(
+            str(url),
+            expected_codes,
+            json_request_body=dict(
+                file_uuid=file_uuid,
+                creator_uid=0,
+                source_url=source_url,
+            ),
+            headers=get_auth_header()
+        )
+
+        # should eventually get unprocessable after async copy fails
+        @eventually(120, 1)
+        def tryHead():
+            self.assertHeadResponse(
+                f"/v1/files/{file_uuid}?replica=aws&version={file_version}",
+                requests.codes.unprocessable)
+        tryHead()
+
+        # should get unprocessable on GCP too
+        self.assertHeadResponse(
+            f"/v1/files/{file_uuid}?replica=gcp&version={file_version}",
+            requests.codes.unprocessable)
 
     # This is a test specific to AWS since it has separate notion of metadata and tags.
     @testmode.standalone

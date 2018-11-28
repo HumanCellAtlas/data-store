@@ -126,7 +126,10 @@
       "Resource": [
         "arn:aws:dynamodb:*:$account_id:table/scalability_test",
         "arn:aws:dynamodb:*:$account_id:table/scalability_test_result",
-        "arn:aws:dynamodb:*:$account_id:table/scalability_test/stream/*"
+        "arn:aws:dynamodb:*:$account_id:table/scalability_test/stream/*",
+        "arn:aws:dynamodb:*:$account_id:table/dss-async-state-dev",
+        "arn:aws:dynamodb:*:$account_id:table/dss-async-state-integration",
+        "arn:aws:dynamodb:*:$account_id:table/dss-async-state-staging"
       ]
     },
     {

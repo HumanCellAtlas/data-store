@@ -114,7 +114,8 @@ def copy_part(upload_url: str, source_url: str, dest_platform: str, part: dict):
             logger.info("Part etag: {}".format(res.headers["ETag"]))
         elif dest_platform == "gs":
             logger.info(f"Uploading part {part} to gs")
-            gs_transport = google.auth.transport.requests.AuthorizedSession(gs._credentials)
+            # TODO: brianh: is mypy suppression ok?
+            gs_transport = google.auth.transport.requests.AuthorizedSession(gs._credentials)  # type: ignore
             for start in range(0, part["end"] - part["start"] + 1, gs_upload_chunk_size):
                 chunk = fh.read(gs_upload_chunk_size)
                 headers = {"content-range": get_content_range(start, start + len(chunk) - 1, total_bytes=None)}

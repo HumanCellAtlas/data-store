@@ -77,6 +77,7 @@ class S3Uploader(Uploader):
             content_type: str = "application/octet-stream",
             metadata_keys: typing.Dict[str, str] = None,
             tags: typing.Dict[str, str] = None,
+            s3_part_size: int = None,
             *args,
             **kwargs) -> None:
         if metadata_keys is None:
@@ -87,10 +88,12 @@ class S3Uploader(Uploader):
         fp = os.path.join(self.local_root, local_path)
         sz = os.stat(fp).st_size
 
-        chunk_sz = get_s3_multipart_chunk_size(sz)
+        if s3_part_size is None:
+            s3_part_size = get_s3_multipart_chunk_size(sz)
+
         transfer_config = TransferConfig(
             multipart_threshold=MULTIPART_THRESHOLD,
-            multipart_chunksize=chunk_sz,
+            multipart_chunksize=s3_part_size,
         )
 
         logger.info(f"Uploading {local_path} to s3://{self.bucket}/{remote_path}")
