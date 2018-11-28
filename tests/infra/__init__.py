@@ -32,10 +32,6 @@ def generate_test_key() -> str:
 
 
 def determine_auth_configuration_from_swagger():
-    """
-    
-    :return:
-    """
     path_section = False  # bool flag to notify if we're in the section containing the API call definitions
     call_section = None  # an api endpoint, e.g.: /subscription, /file/{uuid}, etc.
     request_section = None  # a request call, e.g.: get, put, delete, etc.
