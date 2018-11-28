@@ -72,7 +72,7 @@ AWS command line utility and configure your AWS access credentials.
    fixtures, and set the environment variables `DSS_S3_BUCKET_TEST` and `DSS_S3_BUCKET_TEST_FIXTURES` to the names of
    those buckets.
    
-1. Also make sure to create the terraform S3 state bucket defined by `DSS_TERRAFORM_BACKEND_BUCKET_TEMPLATE`, this is crucial for deploying data-store later on.
+1. DSS_TERRAFORM_BACKEND_BUCKET_TEMPLATE must point at an S3 bucket before executing make infra. If this bucket does not already exist, it must be created.
 
 Hint: To create S3 buckets from the command line, use `aws s3 mb --region REGION s3://BUCKET_NAME/`. 
 
