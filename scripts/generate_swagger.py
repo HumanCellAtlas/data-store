@@ -21,7 +21,7 @@ class SecureSwagger(object):
         self.call_section = None
         self.infile = infile if infile else os.path.join(pkg_root, 'swagger_template')
         self.outfile = outfile if outfile else os.path.join(pkg_root, 'dss-api.yml')
-        self.config = config if config else os.path.join(pkg_root, 'swagger_security_config.json')
+        self.config = config if config else os.path.join(pkg_root, 'full_security.json')  # swagger_security_config.json
         self.security_endpoints = self.security_from_config()
 
     def security_from_config(self):

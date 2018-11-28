@@ -76,6 +76,8 @@ securityDefinitions:
 paths:
   /search:
     post:
+      security:
+        - dcpAuth: []
       description: >
         Accepts Elasticsearch JSON query and returns matching bundle identifiers
 
@@ -227,6 +229,8 @@ paths:
             $ref: '#/definitions/Error'
   /files/{uuid}:
     head:
+      security:
+        - dcpAuth: []
       summary: Retrieve a file's metadata given an UUID and optionally a version.
       description: >
         Given a file UUID, return the metadata for the latest version of that file.  If the version is provided, that
@@ -286,6 +290,8 @@ paths:
               type: string
               pattern: "^[a-z0-9]{64}$"
     get:
+      security:
+        - dcpAuth: []
       summary: Retrieve a file given a UUID and optionally a version.
       description: >
         Given a file UUID, return the latest version of that file.  If the version is provided, that version of the file
@@ -1183,6 +1189,8 @@ paths:
                   - code
   /bundles/{uuid}:
     get:
+      security:
+        - dcpAuth: []
       summary: Retrieve a bundle given a UUID and optionally a version.
       description: >
         Given a bundle UUID, return the latest version of that bundle.  If the version is provided, that version of the
@@ -1530,6 +1538,8 @@ paths:
                   - code
   /bundles/{uuid}/checkout:
     post:
+      security:
+        - dcpAuth: []
       summary: Check out a bundle to DSS-managed or user-managed cloud object storage destination
       description: >
         Initiate asynchronous checkout of a bundle. The response JSON contains a field, `checkout_job_id`, that can be
@@ -1598,6 +1608,8 @@ paths:
 
   /bundles/checkout/{checkout_job_id}:
     get:
+      security:
+        - dcpAuth: []
       summary: Check the status of a checkout request.
       description: >
         Use this route with the `checkout_job_id` identifier returned by `POST /bundles/{uuid}/checkout`.
