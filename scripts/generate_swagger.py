@@ -1,7 +1,7 @@
-from collections import defaultdict
 import argparse
 import sys
 import os
+import json
 
 pkg_root = os.path.abspath(os.path.join(os.path.dirname(__file__), '..'))  # noqa
 sys.path.insert(0, pkg_root)  # noqa
@@ -10,16 +10,18 @@ sys.path.insert(0, pkg_root)  # noqa
 class SecureSwagger(object):
     def __init__(self, infile=None, outfile=None, config=None):
         """
+        A class for generating swagger yaml files with auth on endpoints specified in
+        a config file.
 
-        :param infile:
-        :param outfile:
-        :param config:
+        :param infile: Swagger template file.  Should not contain any security flags.
+        :param outfile: The name of the generated swagger yaml file.
+        :param config: A json file containing the api endpoints that need auth.
         """
         self.path_section = False
         self.call_section = None
         self.infile = infile if infile else os.path.join(pkg_root, 'swagger_template')
         self.outfile = outfile if outfile else os.path.join(pkg_root, 'dss-api.yml')
-        self.config = config if config else os.path.join(pkg_root, 'security.config')
+        self.config = config if config else os.path.join(pkg_root, 'swagger_security_config.json')
         self.security_endpoints = self.security_from_config()
 
     def security_from_config(self):
@@ -33,12 +35,8 @@ class SecureSwagger(object):
 
         All endpoints apart from these will be open and callable without auth in the generated swagger yaml.
         """
-        security_endpoints = defaultdict(list)
         with open(self.config, 'r') as f:
-            for line in f:
-                request_type, api_path = line.strip().split()
-                security_endpoints[api_path].append(request_type)
-        return security_endpoints
+            return json.loads(f.read())
 
     def insert_security_flag(self, line):
         """Checks the lines of a swagger/yaml file and determines if a security flag should be written in."""
@@ -68,9 +66,8 @@ class SecureSwagger(object):
         with open(self.outfile, 'w') as w:
             with open(self.infile, 'r') as f:
                 for line in f:
-
+                    # Should this raise or ignore these lines? Raise seems better here to avoid weird use-cases.
                     if line.startswith('      security:') or line.startswith('        - dcpAuth: []'):
-                        # Should this raise or ignore these lines? Raise seems better here to avoid weird use-cases.
                         raise RuntimeError('Invalid swagger template used.  File should not have security flags.')
 
                     w.write(line)
