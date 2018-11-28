@@ -5,10 +5,10 @@ import pprint
 import re
 import time
 import typing
-
 import requests
 from flask import wrappers
 
+from tests import get_auth_header
 from dss.util import UrlBuilder
 
 
@@ -35,6 +35,8 @@ class DSSAssertResponse(typing.NamedTuple):
 
 class DSSAssertMixin:
     sre = re.compile("^assert(.+)Response")
+
+    include_auth_header = True  # a valid auth header will be created if this is specified
 
     def assertResponse(
             self,
@@ -73,6 +75,14 @@ class DSSAssertMixin:
             if 'headers' not in kwargs:
                 kwargs['headers'] = {}
             kwargs['headers']['Content-Type'] = "application/json"
+
+        # create a valid auth header
+        if self.include_auth_header:
+            if 'headers' in kwargs:
+                if 'Authorization' not in kwargs['headers']:
+                    kwargs['headers'].update(get_auth_header())
+            else:
+                kwargs['headers'] = get_auth_header()
 
         for ix in range(redirect_follow_retries + 1):
             response = getattr(self.app, method)(path, **kwargs)
