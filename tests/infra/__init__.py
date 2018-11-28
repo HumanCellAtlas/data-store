@@ -32,8 +32,9 @@ def generate_test_key() -> str:
 
 
 def determine_auth_configuration_from_swagger():
-    path_section = False
-    call_section = None
+    path_section = False  # bool flag to notify if we're in the section containing the API call definitions
+    call_section = None  # an api endpoint, e.g.: /subscription, /file/{uuid}, etc.
+    request_section = None  # a request call, e.g.: get, put, delete, etc.
     security_endpoints = defaultdict(list)
     with open(os.path.join(pkg_root, 'dss-api.yml'), 'r') as f:
         for line in f:
@@ -49,8 +50,9 @@ def determine_auth_configuration_from_swagger():
                 call_section = line.strip()[:-1]
             elif line.startswith('      security:'):
                 security_endpoints[call_section].append(request_section)
-            # If properly indented and we're in the correct (2) sections, this will be a call request.
-            elif line.startswith('    ') and not line.startswith('     ') and path_section and line.strip().endswith(':'):
+            # If properly indented and we're in the correct section, this will be a call request.
+            elif line.startswith('    ') and not line.startswith('     ') and \
+                    path_section and line.strip().endswith(':'):
                 request_section = line.strip()[:-1]
     return security_endpoints
 
