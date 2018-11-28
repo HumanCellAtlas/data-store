@@ -21,6 +21,9 @@ __pycache__/
 # vim python-mode plugin
 /.ropeproject
 
+# vsCode IDE files
+/.vscode
+
 # IntelliJ IDEA / PyCharm project files
 /.idea
 /*.iml

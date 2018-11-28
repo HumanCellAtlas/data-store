@@ -223,7 +223,7 @@ def put(uuid: str, replica: str, json_request_body: dict, version: str):
         )
     status_code = requests.codes.created if created else requests.codes.ok
 
-    return jsonify(dict(version=version)), status_code
+    return jsonify(dict(version=version, manifest=bundle_metadata)), status_code
 
 
 @dss_handler
