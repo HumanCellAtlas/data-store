@@ -162,6 +162,13 @@ The following environment variables must be set to enable user authentication an
 Also update `authorizationUrl` in **dss/dss-api.yml** to point to an authorization endpoint which returns a 
 valid JWT.
 
+Finally, to (optionally) configure the auth required for the API endpoints in **dss/dss-api.yml** before deploying, 
+a json file can be specified with the endpoints one wishes to secure (example: **auth.hca_default.json**)
+and modify the current **dss/dss-api.yml** with the command (in this example using **auth.secure_all.json** to 
+secure all current auth endpoints):
+
+    python scripts/modify_swagger_auth.py -s auth.secure_all.json
+
 ## Deployment
 
 ### Running the DSS API locally

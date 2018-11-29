@@ -2,9 +2,40 @@ import argparse
 import sys
 import os
 import json
+from collections import defaultdict
 
 pkg_root = os.path.abspath(os.path.join(os.path.dirname(__file__), '..'))  # noqa
 sys.path.insert(0, pkg_root)  # noqa
+
+
+def determine_auth_configuration_from_swagger(ignore_auth=False):
+    """If ignore_auth is True, instead return all endpoints, regardless of auth."""
+    path_section = False  # bool flag to notify if we're in the section containing the API call definitions
+    call_section = None  # an api endpoint, e.g.: /subscription, /file/{uuid}, etc.
+    request_section = None  # a request call, e.g.: get, put, delete, etc.
+    security_endpoints = defaultdict(list)
+    with open(os.path.join(pkg_root, 'dss-api.yml'), 'r') as f:
+        for line in f:
+            # If not indented at all, we're in a new section, so reset.
+            if not line.startswith(' ') and path_section and line.strip() != '':
+                path_section = False
+
+            # Check if we're in the paths section.
+            if line.startswith('paths:'):
+                path_section = True
+            # Check if we're in an api path section.
+            elif line.startswith('  /') and line.strip().endswith(':'):
+                call_section = line.strip()[:-1]
+            elif line.startswith('      security:'):
+                if not ignore_auth:
+                    security_endpoints[call_section].append(request_section)
+            # If properly indented and we're in the correct section, this will be a call request.
+            elif line.startswith('    ') and not line.startswith('     ') and \
+                    path_section and line.strip().endswith(':'):
+                request_section = line.strip()[:-1]
+                if ignore_auth:
+                    security_endpoints[call_section].append(request_section)
+    return security_endpoints
 
 
 class SecureSwagger(object):
@@ -22,7 +53,7 @@ class SecureSwagger(object):
         self.infile = infile if infile else os.path.join(pkg_root, 'dss-api.yml')
         self.intermediate_file = os.path.join(pkg_root, 'tmp.yml')
         self.outfile = outfile if outfile else os.path.join(pkg_root, 'dss-api.yml')
-        self.config = config if config else os.path.join(pkg_root, 'hca_auth_defaults.json')
+        self.config = config if config else os.path.join(pkg_root, 'auth.hca_default.json')
         self.security_endpoints = self.security_from_config()
 
     def security_from_config(self):
