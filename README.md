@@ -167,7 +167,7 @@ a json file can be specified with the endpoints one wishes to secure (example: *
 and modify the current **dss/dss-api.yml** with the command (in this example using **auth.secure_all.json** to 
 secure all current auth endpoints):
 
-    python scripts/modify_swagger_auth.py -s auth.secure_all.json
+    python scripts/swagger_auth.py -s auth.secure_all.json
 
 ## Deployment
 

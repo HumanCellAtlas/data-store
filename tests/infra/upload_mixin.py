@@ -62,7 +62,8 @@ class DSSUploadMixin:
                 try:
                     self.assertHeadResponse(
                         f"/v1/files/{file_uuid}?replica={replica.name}",
-                        requests.codes.ok)
+                        requests.codes.ok,
+                        headers=get_auth_header())
                     break
                 except AssertionError:
                     pass

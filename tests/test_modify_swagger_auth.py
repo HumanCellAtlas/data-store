@@ -8,13 +8,13 @@ import unittest
 pkg_root = os.path.abspath(os.path.join(os.path.dirname(__file__), '..'))  # noqa
 sys.path.insert(0, pkg_root)  # noqa
 
-from scripts.modify_swagger_auth import SecureSwagger, determine_auth_configuration_from_swagger
+from scripts.swagger_auth import SecureSwagger, determine_auth_configuration_from_swagger
 
 
 class TestSecureSwagger(unittest.TestCase):
     def setUp(self):
         self.secure_auth = os.path.join(pkg_root, 'auth.secure_all.json')
-        self.hca_default_auth = os.path.join(pkg_root, 'auth.hca_default_auth.json')
+        self.hca_default_auth = os.path.join(pkg_root, 'auth.hca_default.json')
 
         # store the current swagger contents since we'll be mutating them in the tests
         with open(os.path.join(pkg_root, 'dss-api.yml'), 'r') as f:

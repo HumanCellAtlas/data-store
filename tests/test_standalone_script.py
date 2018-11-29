@@ -18,7 +18,6 @@ import requests
 pkg_root = os.path.abspath(os.path.join(os.path.dirname(__file__), '..'))  # noqa
 sys.path.insert(0, pkg_root)  # noqa
 
-from tests.infra import determine_auth_configuration_from_swagger
 from tests import get_auth_header
 from dss.util import networking
 from tests.infra import testmode
@@ -60,11 +59,8 @@ class TestStandaloneScript(unittest.TestCase):
     @testmode.standalone
     def test_simple_request(self):
         file_uuid = str(uuid.uuid4())
-        if 'get' in determine_auth_configuration_from_swagger()['/files/{uuid}']:
-            response = requests.api.get(f"http://127.0.0.1:{self.port}/v1/files/{file_uuid}?replica=aws",
-                                        headers=get_auth_header())
-        else:
-            response = requests.api.get(f"http://127.0.0.1:{self.port}/v1/files/{file_uuid}?replica=aws")
+        response = requests.api.get(f"http://127.0.0.1:{self.port}/v1/files/{file_uuid}?replica=aws",
+                                    headers=get_auth_header())
         self.assertEqual(response.status_code, requests.codes.not_found)
 
 

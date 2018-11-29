@@ -305,7 +305,8 @@ class TestFileApi(unittest.TestCase, TestAuthMixin, DSSUploadMixin, DSSAssertMix
         with override_bucket_config(BucketConfig.TEST_FIXTURE):
             resp_obj = self.assertHeadResponse(
                 url,
-                [requests.codes.ok]
+                [requests.codes.ok],
+                headers=get_auth_header()
             )
             self.assertHeaders(resp_obj.response, headers)
 
@@ -330,6 +331,7 @@ class TestFileApi(unittest.TestCase, TestAuthMixin, DSSUploadMixin, DSSAssertMix
             resp_obj = self.assertGetResponse(
                 url,
                 requests.codes.found,
+                headers=get_auth_header(),
                 redirect_follow_retries=FILE_GET_RETRY_COUNT,
                 min_retry_interval_header=RETRY_AFTER_INTERVAL,
                 override_retry_interval=1,
@@ -369,6 +371,7 @@ class TestFileApi(unittest.TestCase, TestAuthMixin, DSSUploadMixin, DSSAssertMix
             resp_obj = self.assertGetResponse(
                 url,
                 requests.codes.found,
+                headers=get_auth_header(),
                 redirect_follow_retries=FILE_GET_RETRY_COUNT,
                 min_retry_interval_header=RETRY_AFTER_INTERVAL,
                 override_retry_interval=1,
@@ -408,6 +411,7 @@ class TestFileApi(unittest.TestCase, TestAuthMixin, DSSUploadMixin, DSSAssertMix
             self.assertGetResponse(
                 url,
                 requests.codes.not_found,
+                headers=get_auth_header(),
                 expected_error=ExpectedErrorFields(
                     code="not_found",
                     status=requests.codes.not_found,
@@ -424,6 +428,7 @@ class TestFileApi(unittest.TestCase, TestAuthMixin, DSSUploadMixin, DSSAssertMix
             self.assertGetResponse(
                 url,
                 requests.codes.not_found,
+                headers=get_auth_header(),
                 expected_error=ExpectedErrorFields(
                     code="not_found",
                     status=requests.codes.not_found,
@@ -444,6 +449,7 @@ class TestFileApi(unittest.TestCase, TestAuthMixin, DSSUploadMixin, DSSAssertMix
             self.assertGetResponse(
                 url,
                 requests.codes.bad_request,
+                headers=get_auth_header(),
                 expected_error=ExpectedErrorFields(
                     code="illegal_arguments",
                     status=requests.codes.bad_request,
@@ -492,7 +498,7 @@ class TestFileApi(unittest.TestCase, TestAuthMixin, DSSUploadMixin, DSSAssertMix
         @eventually(30, 0.1)
         def try_get():
             self.assertGetResponse(
-                url, requests.codes.bad_request)
+                url, requests.codes.bad_request, headers=get_auth_header())
         try_get()
 
     @testmode.integration
@@ -541,14 +547,14 @@ class TestFileApi(unittest.TestCase, TestAuthMixin, DSSUploadMixin, DSSAssertMix
         def test_checkout():
             # assert 302 and verify checksum on checkout completion
             api_get = self.assertGetResponse(
-                url, requests.codes.found, redirect_follow_retries=0)
+                url, requests.codes.found, headers=get_auth_header(), redirect_follow_retries=0)
             file_get = requests.get(api_get.response.headers['Location'])
             self.assertTrue(file_get.ok)
             self.assertEquals(file_get.content, src_data)
 
         with self.subTest(f"{replica}: Initiates checkout and returns 301 for GET on 'uncheckedout' file."):
             # assert 301 redirect on first GET
-            self.assertGetResponse(url, requests.codes.moved, redirect_follow_retries=0)
+            self.assertGetResponse(url, requests.codes.moved, headers=get_auth_header(), redirect_follow_retries=0)
             test_checkout()
 
         with self.subTest(f"{replica}: Initiates checkout and returns 301 for GET on nearly expired checkout file."):
@@ -559,7 +565,7 @@ class TestFileApi(unittest.TestCase, TestAuthMixin, DSSUploadMixin, DSSAssertMix
             with mock.patch(creation_date_fn) as mock_creation_date:
                 blob_ttl_days = int(os.environ['DSS_BLOB_TTL_DAYS'])
                 mock_creation_date.return_value = now - datetime.timedelta(days=blob_ttl_days, hours=1, minutes=5)
-                self.assertGetResponse(url, requests.codes.moved, redirect_follow_retries=0)
+                self.assertGetResponse(url, requests.codes.moved, headers=get_auth_header(), redirect_follow_retries=0)
             test_checkout()
 
         with self.subTest(f"{replica}: Initiates checkout and returns 302 immediately for GET on stale checkout file."):
@@ -576,7 +582,7 @@ class TestFileApi(unittest.TestCase, TestAuthMixin, DSSUploadMixin, DSSAssertMix
                 # assert 302 found on stale file and that last modified refreshes
                 blob_ttl_days = int(os.environ['DSS_BLOB_PUBLIC_TTL_DAYS'])
                 mock_creation_date.return_value = now - datetime.timedelta(days=blob_ttl_days + 1)
-                self.assertGetResponse(url, requests.codes.found, redirect_follow_retries=0)
+                self.assertGetResponse(url, requests.codes.found, headers=get_auth_header(), redirect_follow_retries=0)
             test_creation_date_updated(file_key, old_creation_date)
 
         handle.delete(test_bucket, f"files/{file_uuid}.{version}")
@@ -617,6 +623,7 @@ class TestFileApi(unittest.TestCase, TestAuthMixin, DSSUploadMixin, DSSAssertMix
             resp_obj = self.assertGetResponse(
                 url,
                 requests.codes.found,
+                headers=get_auth_header(),
                 redirect_follow_retries=FILE_GET_RETRY_COUNT,
                 min_retry_interval_header=RETRY_AFTER_INTERVAL,
                 override_retry_interval=1,
@@ -646,7 +653,7 @@ class TestFileApi(unittest.TestCase, TestAuthMixin, DSSUploadMixin, DSSAssertMix
         if version is not 'missing':
             urlbuilder.add_query("version", version)
 
-        resp_obj = self.assertPutResponse(
+        self.assertPutResponse(
             str(urlbuilder),
             expected_code,
             json_request_body=dict(
@@ -656,15 +663,6 @@ class TestFileApi(unittest.TestCase, TestAuthMixin, DSSUploadMixin, DSSAssertMix
             ),
             headers=get_auth_header()
         )
-
-        if resp_obj.response.status_code == requests.codes.created:
-            self.assertHeaders(
-                resp_obj.response,
-                {
-                    'content-type': "application/json",
-                }
-            )
-            self.assertIn('version', resp_obj.json)
 
 
 if __name__ == '__main__':
