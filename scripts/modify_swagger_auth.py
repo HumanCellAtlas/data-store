@@ -53,7 +53,7 @@ class SecureSwagger(object):
         self.infile = infile if infile else os.path.join(pkg_root, 'dss-api.yml')
         self.intermediate_file = os.path.join(pkg_root, 'tmp.yml')
         self.outfile = outfile if outfile else os.path.join(pkg_root, 'dss-api.yml')
-        self.config = config if config else os.path.join(pkg_root, 'auth.hca_default.json')
+        self.config = config if config else os.path.join(pkg_root, 'auth.hca_default_auth.json')
         self.security_endpoints = self.security_from_config()
 
     def security_from_config(self):
@@ -95,7 +95,7 @@ class SecureSwagger(object):
         # If properly indented and we're in the correct (2) sections, this will be a call request.
         elif line.startswith('    ') and not line.startswith('     ') and self.path_section and self.call_section:
             for call in self.call_section:
-                # Verify it's one of the specified calls we need to secure.
+                # Verify it's one of the specified calls we need to secure_auth.
                 if line.startswith(f'    {call}:'):
                     return True
         return False
