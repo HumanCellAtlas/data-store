@@ -8,27 +8,30 @@ import unittest
 pkg_root = os.path.abspath(os.path.join(os.path.dirname(__file__), '..'))  # noqa
 sys.path.insert(0, pkg_root)  # noqa
 
-from scripts.swagger_auth import SecureSwagger, determine_auth_configuration_from_swagger
+from scripts.swagger_auth import SecureSwagger
 
 
 class TestSecureSwagger(unittest.TestCase):
     def setUp(self):
         self.secure_auth = os.path.join(pkg_root, 'auth.secure_all.json')
-        self.hca_default_auth = os.path.join(pkg_root, 'auth.hca_default.json')
+        self.hca_default_auth = os.path.join(pkg_root, 'auth.default.json')
+        self.swagger_path = os.path.join(pkg_root, 'dss-api.yml')
 
         # store the current swagger contents since we'll be mutating them in the tests
-        with open(os.path.join(pkg_root, 'dss-api.yml'), 'r') as f:
+        with open(self.swagger_path, 'r') as f:
             self.original_contents = f.readlines()
 
     def tearDown(self):
         # restore the original swagger contents
-        with open(os.path.join(pkg_root, 'dss-api.yml'), 'w') as f:
+        with open(self.swagger_path, 'w') as f:
             for line in self.original_contents:
                 f.write(line)
 
     def test_auth_can_be_determined_from_swagger(self):
-        # assert that after modifying the swagger file to require auth on all endpoints,
-        # the config returned dynamically matches the one originally used
+        """
+        Assert that after modifying the swagger file to require auth on all endpoints,
+        the config returned dynamically matches the one originally used.
+        """
         secure_config = self.set_and_return_current_config(self.secure_auth)
         with open(self.secure_auth) as f:
             expected_secure_config = json.loads(f.read())
@@ -47,22 +50,22 @@ class TestSecureSwagger(unittest.TestCase):
         """
         # change swagger to having all auth secure_auth
         self.set_and_return_current_config(self.secure_auth)
-        with open(os.path.join(pkg_root, 'dss-api.yml'), 'r') as f:
+        with open(self.swagger_path, 'r') as f:
             secure_swagger_contents = f.readlines()
 
         # change swagger to the hca defaults
         self.set_and_return_current_config(self.hca_default_auth)
-        with open(os.path.join(pkg_root, 'dss-api.yml'), 'r') as f:
+        with open(self.swagger_path, 'r') as f:
             hca_default_swagger_contents = f.readlines()
 
         # change back to having all auth secure_auth and make sure it's the same file
         self.set_and_return_current_config(self.secure_auth)
-        with open(os.path.join(pkg_root, 'dss-api.yml'), 'r') as f:
+        with open(self.swagger_path, 'r') as f:
             assert secure_swagger_contents == f.readlines()
 
         # change back to the hca defaults and make sure it's the same file
         self.set_and_return_current_config(self.hca_default_auth)
-        with open(os.path.join(pkg_root, 'dss-api.yml'), 'r') as f:
+        with open(self.swagger_path, 'r') as f:
             assert hca_default_swagger_contents == f.readlines()
 
         assert hca_default_swagger_contents != secure_swagger_contents
@@ -72,16 +75,15 @@ class TestSecureSwagger(unittest.TestCase):
         Ensures that 'auth.secure_all.json' contains all endpoints
         (and so will add auth to all endpoints if used).
         """
-        endpoints_from_swagger_file = determine_auth_configuration_from_swagger(ignore_auth=True)
+        endpoints_from_swagger_file = SecureSwagger().get_authconfig_from_swagger(all_endpoints=True)
         with open(self.secure_auth) as f:
             endpoints_from_config_file = json.loads(f.read())
         assert endpoints_from_swagger_file == endpoints_from_config_file
 
     @staticmethod
     def set_and_return_current_config(config_file):
-        s = SecureSwagger(config=config_file)
-        s.generate_swagger_with_secure_endpoints()
-        return determine_auth_configuration_from_swagger()
+        SecureSwagger(config=config_file).make_swagger_from_authconfig()
+        return SecureSwagger().get_authconfig_from_swagger()
 
 
 if __name__ == '__main__':
