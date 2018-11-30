@@ -51,6 +51,15 @@ info:
 
     ```
 
+    # Special String Formats
+
+
+    **DSS_VERSION**: a timestamp that generally follows [RFC3339](https://tools.ietf.org/html/rfc3339#section-5.6)
+    format guide. However there are a few differences. DSS_VERSION must always be in UTC time, ':' are removed from
+    the time, and the fractional seconds extends to 6 decimal places. Using the first example found [here](https://tools.ietf.org/html/rfc3339#section-5.8),
+    the RFC3339 version would be `1985-04-12T23:20:50.52Z` while the DSS_VERSION would be `1985-04-12T232050.520000Z`
+
+
   version: "0.0.2"
 host: {{API_DOMAIN_NAME}}
 schemes:
@@ -245,7 +254,7 @@ paths:
           enum: [aws, gcp]
         - name: version
           in: query
-          description: Timestamp of file creation in RFC3339.  If this is not provided, the latest version is returned.
+          description: Timestamp of file creation in DSS_VERSION format.  If this is not provided, the latest version is returned.
           required: false
           type: string
       responses:
@@ -258,7 +267,7 @@ paths:
               type: integer
               format: int64
             X-DSS-VERSION:
-              description: Timestamp of file creation in RFC3339.
+              description: Timestamp of file creation in DSS_VERSION format.
               type: string
             X-DSS-CONTENT-TYPE:
               description: Content-type of the file.
@@ -307,7 +316,7 @@ paths:
           enum: [aws, gcp]
         - name: version
           in: query
-          description: Timestamp of file creation in RFC3339.  If this is not provided, the latest version is returned.
+          description: Timestamp of file creation in DSS_VERSION format.  If this is not provided, the latest version is returned.
           required: false
           type: string
         - name: token
@@ -332,7 +341,7 @@ paths:
               type: integer
               format: int64
             X-DSS-VERSION:
-              description: Timestamp of file creation in RFC3339.
+              description: Timestamp of file creation in DSS_VERSION format.
               type: string
               format: DSS_TIMESTAMP
               pattern: '\d{4}-\d{2}-\d{2}T[0-2]\d[0-5]\d[0-5]\d\.\d{6}Z'
@@ -417,7 +426,7 @@ paths:
           pattern: "[A-Za-z0-9]{8}-[A-Za-z0-9]{4}-[A-Za-z0-9]{4}-[A-Za-z0-9]{4}-[A-Za-z0-9]{12}"
         - name: version
           in: query
-          description: Timestamp of file creation in RFC3339.  If this is not provided, the latest version is returned.
+          description: Timestamp of file creation in DSS_VERSION format.  If this is not provided, the latest version is returned.
           required: true
           type: string
           format: DSS_TIMESTAMP
@@ -446,7 +455,7 @@ paths:
             type: object
             properties:
               version:
-                description: Timestamp of file creation in RFC3339.
+                description: Timestamp of file creation in DSS_VERSION format.
                 type: string
                 format: DSS_TIMESTAMP
             required:
@@ -457,7 +466,7 @@ paths:
             type: object
             properties:
               version:
-                description: Timestamp of file creation in RFC3339.
+                description: Timestamp of file creation in DSS_VERSION format.
                 type: string
                 format: DSS_TIMESTAMP
                 pattern: '\d{4}-\d{2}-\d{2}T[0-2]\d[0-5]\d[0-5]\d\.\d{6}Z'
@@ -469,7 +478,7 @@ paths:
             type: object
             properties:
               version:
-                description: Timestamp of file creation in RFC3339.
+                description: Timestamp of file creation in DSS_VERSION format.
                 type: string
                 format: DSS_TIMESTAMP
                 pattern: '\d{4}-\d{2}-\d{2}T[0-2]\d[0-5]\d[0-5]\d\.\d{6}Z'
@@ -494,7 +503,7 @@ paths:
                       The code `unknown_source_schema` is returned when the source_url of the file has an unsupported
                       schema.
 
-                      The code `illegal_version` is returned when version is not a RFC3339-compliant timestamp.
+                      The code `illegal_version` is returned when version is not a DSS_VERSION format-compliant timestamp.
                     enum: [unknown_source_schema, illegal_version]
                 required:
                   - code
@@ -849,7 +858,7 @@ paths:
             type: object
             properties:
               timeDeleted:
-                description: Timestamp of query subscription deletion in RFC3339.
+                description: Timestamp of query subscription deletion in DSS_VERSION format.
                 type: string
                 format: DSS_TIMESTAMP
                 pattern: '\d{4}-\d{2}-\d{2}T[0-2]\d[0-5]\d[0-5]\d\.\d{6}Z'
@@ -903,7 +912,7 @@ paths:
         - name: version
           in: query
           description: >
-            Timestamp of collection creation in RFC3339 format. If this is not provided, the version is automatically
+            Timestamp of collection creation in DSS_VERSION format format. If this is not provided, the version is automatically
             generated.
           required: true
           type: string
@@ -969,7 +978,7 @@ paths:
         - name: version
           in: query
           description: >
-            Timestamp of collection creation in RFC3339.  If this is not provided, the latest version is returned.
+            Timestamp of collection creation in DSS_VERSION format.  If this is not provided, the latest version is returned.
           required: false
           type: string
       responses:
@@ -1016,7 +1025,7 @@ paths:
         - name: version
           in: query
           description: >
-            Timestamp of the collection to update in RFC3339 format (required).
+            Timestamp of the collection to update in DSS_VERSION format format (required).
           required: true
           type: string
           format: DSS_TIMESTAMP
@@ -1081,7 +1090,7 @@ paths:
                   code:
                     type: string
                     description: >
-                      The code `illegal_version` is returned when version is not a RFC3339-compliant timestamp.
+                      The code `illegal_version` is returned when version is not a DSS_VERSION format-compliant timestamp.
                     enum: [illegal_version]
                 required:
                   - code
@@ -1200,7 +1209,7 @@ paths:
           pattern: "[A-Za-z0-9]{8}-[A-Za-z0-9]{4}-[A-Za-z0-9]{4}-[A-Za-z0-9]{4}-[A-Za-z0-9]{12}"
         - name: version
           in: query
-          description: Timestamp of bundle creation in RFC3339.
+          description: Timestamp of bundle creation in DSS_VERSION format.
           required: false
           type: string
         - name: replica
@@ -1320,7 +1329,7 @@ paths:
           pattern: "[A-Za-z0-9]{8}-[A-Za-z0-9]{4}-[A-Za-z0-9]{4}-[A-Za-z0-9]{4}-[A-Za-z0-9]{12}"
         - name: version
           in: query
-          description: Timestamp of bundle creation in RFC3339.
+          description: Timestamp of bundle creation in DSS_VERSION format.
           required: true
           type: string
           format: DSS_TIMESTAMP
@@ -1347,7 +1356,7 @@ paths:
                       type: string
                       pattern: "[A-Za-z0-9]{8}-[A-Za-z0-9]{4}-[A-Za-z0-9]{4}-[A-Za-z0-9]{4}-[A-Za-z0-9]{12}"
                     version:
-                      description: Timestamp of file creation in RFC3339.
+                      description: Timestamp of file creation in DSS_VERSION format.
                       type: string
                       format: DSS_TIMESTAMP
                       pattern: '\d{4}-\d{2}-\d{2}T[0-2]\d[0-5]\d[0-5]\d\.\d{6}Z'
@@ -1377,7 +1386,7 @@ paths:
             type: object
             properties:
               version:
-                description: Timestamp of bundle creation in RFC3339.
+                description: Timestamp of bundle creation in DSS_VERSION format.
                 type: string
                 format: DSS_TIMESTAMP
                 pattern: '\d{4}-\d{2}-\d{2}T[0-2]\d[0-5]\d[0-5]\d\.\d{6}Z'
@@ -1389,7 +1398,7 @@ paths:
             type: object
             properties:
               version:
-                description: Timestamp of bundle creation in RFC3339.
+                description: Timestamp of bundle creation in DSS_VERSION format.
                 type: string
                 format: DSS_TIMESTAMP
                 pattern: '\d{4}-\d{2}-\d{2}T[0-2]\d[0-5]\d[0-5]\d\.\d{6}Z'
@@ -1412,7 +1421,7 @@ paths:
                       The code `file_missing` is returned when the server cannot find one of the files requested to be
                       included in the bundle.
 
-                      The code `illegal_version` is returned when version is not a RFC3339-compliant timestamp.
+                      The code `illegal_version` is returned when version is not a DSS_VERSION format-compliant timestamp.
                     enum: [duplicate_filename, file_missing, illegal_version]
                 required:
                   - code
@@ -1463,7 +1472,7 @@ paths:
           enum: [aws, gcp]
         - name: version
           in: query
-          description: Timestamp of bundle creation in RFC3339.
+          description: Timestamp of bundle creation in DSS_VERSION format.
           required: false
           type: string
         - name: json_request_body
@@ -1553,7 +1562,7 @@ paths:
           pattern: "[A-Za-z0-9]{8}-[A-Za-z0-9]{4}-[A-Za-z0-9]{4}-[A-Za-z0-9]{4}-[A-Za-z0-9]{12}"
         - name: version
           in: query
-          description: Timestamp of file creation in RFC3339.  If this is not provided, the latest version is returned.
+          description: Timestamp of file creation in DSS_VERSION format.  If this is not provided, the latest version is returned.
           required: false
           type: string
         - name: replica
@@ -1715,7 +1724,7 @@ definitions:
       version:
         type: string
         format: DSS_TIMESTAMP
-        description: Timestamp of bundle creation in RFC3339.
+        description: Timestamp of bundle creation in DSS_VERSION format.
         pattern: '\d{4}-\d{2}-\d{2}T[0-2]\d[0-5]\d[0-5]\d\.\d{6}Z'
       size:
         type: integer
@@ -1760,7 +1769,7 @@ definitions:
         items:
           type: string
           format: DSS_TIMESTAMP
-          description: Timestamp of bundle creation in RFC3339.
+          description: Timestamp of bundle creation in DSS_VERSION format.
           pattern: '\d{4}-\d{2}-\d{2}T[0-2]\d[0-5]\d[0-5]\d\.\d{6}Z'
     required:
       - uuid
@@ -1935,7 +1944,7 @@ definitions:
       version:
         type: string
         format: DSS_TIMESTAMP
-        description: Timestamp of bundle creation in RFC3339.
+        description: Timestamp of bundle creation in DSS_VERSION format.
         pattern: '\d{4}-\d{2}-\d{2}T[0-2]\d[0-5]\d[0-5]\d\.\d{6}Z'
       files:
         type: array
@@ -1997,7 +2006,7 @@ definitions:
       version:
         type: string
         format: DSS_TIMESTAMP
-        description: RFC3339 timestamp of the file, bundle, collection, or file containing a metadata fragment.
+        description: DSS_VERSION format timestamp of the file, bundle, collection, or file containing a metadata fragment.
         pattern: '\d{4}-\d{2}-\d{2}T[0-2]\d[0-5]\d[0-5]\d\.\d{6}Z'
       path:
         type: string
