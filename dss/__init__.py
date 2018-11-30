@@ -59,8 +59,8 @@ class DSSApp(connexion.App):
         ))
 
 
-@draft4_format_checker.checks('DSS_TIMESTAMP')
-def is_DSS_TIMESTAMP(val):
+@draft4_format_checker.checks('DSS_VERSION')
+def is_DSS_VERSION(val):
     """
     Verifies `val` is compliant with expected format. See for more info on connexion custom type formats
     https://connexion.readthedocs.io/en/latest/cookbook.html#custom-type-format.
@@ -81,7 +81,7 @@ def is_DSS_TIMESTAMP(val):
         raise DSSException(
             requests.codes.bad_request,
             "illegal_version",
-            f"version should be a DSS_TIMESTAMP with the format 'YYYY-MM-DDTHHmmSS.zzzzzzZ'")
+            f"version should be a DSS_VERSION with the format 'YYYY-MM-DDTHHmmSS.zzzzzzZ'")
     return val
 
 

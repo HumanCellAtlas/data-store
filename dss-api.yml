@@ -343,8 +343,7 @@ paths:
             X-DSS-VERSION:
               description: Timestamp of file creation in DSS_VERSION format.
               type: string
-              format: DSS_TIMESTAMP
-              pattern: '\d{4}-\d{2}-\d{2}T[0-2]\d[0-5]\d[0-5]\d\.\d{6}Z'
+              format: DSS_VERSION
             X-DSS-CONTENT-TYPE:
               description: Content-type of the file.
               type: string
@@ -429,8 +428,7 @@ paths:
           description: Timestamp of file creation in DSS_VERSION format.  If this is not provided, the latest version is returned.
           required: true
           type: string
-          format: DSS_TIMESTAMP
-          pattern: '\d{4}-\d{2}-\d{2}T[0-2]\d[0-5]\d[0-5]\d\.\d{6}Z'
+          format: DSS_VERSION
         - name: json_request_body
           in: body
           required: true
@@ -457,7 +455,7 @@ paths:
               version:
                 description: Timestamp of file creation in DSS_VERSION format.
                 type: string
-                format: DSS_TIMESTAMP
+                format: DSS_VERSION
             required:
               - version
         201:
@@ -468,8 +466,7 @@ paths:
               version:
                 description: Timestamp of file creation in DSS_VERSION format.
                 type: string
-                format: DSS_TIMESTAMP
-                pattern: '\d{4}-\d{2}-\d{2}T[0-2]\d[0-5]\d[0-5]\d\.\d{6}Z'
+                format: DSS_VERSION
             required:
               - version
         202:
@@ -480,8 +477,7 @@ paths:
               version:
                 description: Timestamp of file creation in DSS_VERSION format.
                 type: string
-                format: DSS_TIMESTAMP
-                pattern: '\d{4}-\d{2}-\d{2}T[0-2]\d[0-5]\d[0-5]\d\.\d{6}Z'
+                format: DSS_VERSION
               task_id:
                 description: ID for the task responsible for managing the copy.
                 type: string
@@ -860,8 +856,7 @@ paths:
               timeDeleted:
                 description: Timestamp of query subscription deletion in DSS_VERSION format.
                 type: string
-                format: DSS_TIMESTAMP
-                pattern: '\d{4}-\d{2}-\d{2}T[0-2]\d[0-5]\d[0-5]\d\.\d{6}Z'
+                format: DSS_VERSION
             required:
               - timeDeleted
         default:
@@ -916,8 +911,7 @@ paths:
             generated.
           required: true
           type: string
-          format: DSS_TIMESTAMP
-          pattern: '\d{4}-\d{2}-\d{2}T[0-2]\d[0-5]\d[0-5]\d\.\d{6}Z'
+          format: DSS_VERSION
         - name: json_request_body
           in: body
           required: true
@@ -1028,8 +1022,7 @@ paths:
             Timestamp of the collection to update in DSS_VERSION format format (required).
           required: true
           type: string
-          format: DSS_TIMESTAMP
-          pattern: '\d{4}-\d{2}-\d{2}T[0-2]\d[0-5]\d[0-5]\d\.\d{6}Z'
+          format: DSS_VERSION
         - name: json_request_body
           in: body
           required: true
@@ -1073,8 +1066,7 @@ paths:
               version:
                 type: string
                 description: New version of the updated collection.
-                format: DSS_TIMESTAMP
-                pattern: '\d{4}-\d{2}-\d{2}T[0-2]\d[0-5]\d[0-5]\d\.\d{6}Z'
+                format: DSS_VERSION
             required:
               - uuid
               - version
@@ -1332,8 +1324,7 @@ paths:
           description: Timestamp of bundle creation in DSS_VERSION format.
           required: true
           type: string
-          format: DSS_TIMESTAMP
-          pattern: '\d{4}-\d{2}-\d{2}T[0-2]\d[0-5]\d[0-5]\d\.\d{6}Z'
+          format: DSS_VERSION
         - name: replica
           in: query
           description: Replica to write to.
@@ -1358,8 +1349,7 @@ paths:
                     version:
                       description: Timestamp of file creation in DSS_VERSION format.
                       type: string
-                      format: DSS_TIMESTAMP
-                      pattern: '\d{4}-\d{2}-\d{2}T[0-2]\d[0-5]\d[0-5]\d\.\d{6}Z'
+                      format: DSS_VERSION
                     name:
                       description: Name of the file.
                       type: string
@@ -1388,8 +1378,7 @@ paths:
               version:
                 description: Timestamp of bundle creation in DSS_VERSION format.
                 type: string
-                format: DSS_TIMESTAMP
-                pattern: '\d{4}-\d{2}-\d{2}T[0-2]\d[0-5]\d[0-5]\d\.\d{6}Z'
+                format: DSS_VERSION
             required:
               - version
         201:
@@ -1400,8 +1389,7 @@ paths:
               version:
                 description: Timestamp of bundle creation in DSS_VERSION format.
                 type: string
-                format: DSS_TIMESTAMP
-                pattern: '\d{4}-\d{2}-\d{2}T[0-2]\d[0-5]\d[0-5]\d\.\d{6}Z'
+                format: DSS_VERSION
             required:
               - version
         400:
@@ -1723,9 +1711,8 @@ definitions:
         pattern: "[a-z0-9]{8}-[a-z0-9]{4}-[a-z0-9]{4}-[a-z0-9]{4}-[a-z0-9]{12}"
       version:
         type: string
-        format: DSS_TIMESTAMP
+        format: DSS_VERSION
         description: Timestamp of bundle creation in DSS_VERSION format.
-        pattern: '\d{4}-\d{2}-\d{2}T[0-2]\d[0-5]\d[0-5]\d\.\d{6}Z'
       size:
         type: integer
         format: int64
@@ -1768,9 +1755,8 @@ definitions:
         type: array
         items:
           type: string
-          format: DSS_TIMESTAMP
+          format: DSS_VERSION
           description: Timestamp of bundle creation in DSS_VERSION format.
-          pattern: '\d{4}-\d{2}-\d{2}T[0-2]\d[0-5]\d[0-5]\d\.\d{6}Z'
     required:
       - uuid
       - versions
@@ -1943,9 +1929,8 @@ definitions:
         pattern: "[a-z0-9]{8}-[a-z0-9]{4}-[a-z0-9]{4}-[a-z0-9]{4}-[a-z0-9]{12}"
       version:
         type: string
-        format: DSS_TIMESTAMP
+        format: DSS_VERSION
         description: Timestamp of bundle creation in DSS_VERSION format.
-        pattern: '\d{4}-\d{2}-\d{2}T[0-2]\d[0-5]\d[0-5]\d\.\d{6}Z'
       files:
         type: array
         items:
@@ -2005,9 +1990,8 @@ definitions:
         pattern: "[a-z0-9]{8}-[a-z0-9]{4}-[a-z0-9]{4}-[a-z0-9]{4}-[a-z0-9]{12}"
       version:
         type: string
-        format: DSS_TIMESTAMP
+        format: DSS_VERSION
         description: DSS_VERSION format timestamp of the file, bundle, collection, or file containing a metadata fragment.
-        pattern: '\d{4}-\d{2}-\d{2}T[0-2]\d[0-5]\d[0-5]\d\.\d{6}Z'
       path:
         type: string
         description: >
