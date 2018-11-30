@@ -26,7 +26,7 @@ class SecureSwagger(object):
         self.infile = infile or os.path.join(pkg_root, 'dss-api.yml')
         self.intermediate_file = os.path.join(pkg_root, 'tmp.yml')
         self.outfile = outfile or os.path.join(pkg_root, 'dss-api.yml')
-        self.config = config or os.getenv('AUTH_CONFIG_FILE') or os.path.join(pkg_root, 'auth.default.json')
+        self.config = config or os.getenv('AUTH_CONFIG_FILE') or os.path.join(pkg_root, 'auth.secure_all.json')
         self.security_endpoints = defaultdict(list)
 
     @staticmethod
