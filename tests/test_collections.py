@@ -161,7 +161,7 @@ class TestCollections(unittest.TestCase, DSSAssertMixin, DSSUploadMixin):
         self.addCleanup(self._delete_collection, uuid)
         res = self.app.put("/v1/collections",
                            headers=get_auth_header(authorized=True),
-                           params=dict(uuid=uuid, version=datetime.now().isoformat(), replica="aws"),
+                           params=dict(uuid=uuid, version=datetime_to_version_format(datetime.now()), replica="aws"),
                            json=dict(name="n", description="d", details={}, contents=[self.invalid_ptr] * 128))
         self.assertEqual(res.status_code, requests.codes.unprocessable_entity)
 
@@ -286,7 +286,7 @@ class TestCollections(unittest.TestCase, DSSAssertMixin, DSSUploadMixin):
              version: typing.Optional[str] = None,
              replica: str = 'aws') -> typing.Tuple[str, str]:
         uuid = str(uuid4()) if uuid is None else uuid
-        version = datetime.now().isoformat() if version is None else version
+        version = datetime_to_version_format(datetime.now()) if version is None else version
 
         params = dict()
         if uuid is not 'missing':
