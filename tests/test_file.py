@@ -653,7 +653,7 @@ class TestFileApi(unittest.TestCase, TestAuthMixin, DSSUploadMixin, DSSAssertMix
         if version is not 'missing':
             urlbuilder.add_query("version", version)
 
-        self.assertPutResponse(
+        resp_obj = self.assertPutResponse(
             str(urlbuilder),
             expected_code,
             json_request_body=dict(
@@ -663,7 +663,14 @@ class TestFileApi(unittest.TestCase, TestAuthMixin, DSSUploadMixin, DSSAssertMix
             ),
             headers=get_auth_header()
         )
-
+        if resp_obj.response.status_code == requests.codes.created:
+            self.assertHeaders(
+                resp_obj.response,
+                {
+                    'content-type': "application/json",
+                }
+            )
+            self.assertIn('version', resp_obj.json)
 
 if __name__ == '__main__':
     unittest.main()
