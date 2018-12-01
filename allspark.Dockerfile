@@ -1,11 +1,11 @@
 # This is the build image for the DSS, intended for use with the allspark GitLab server
 # It may be built and uploaded with the commands:
 #   `docker login
-#   `docker build -f Dockerfile.allspark -t {docker_username}/{tag_key}:{tag_value} .`
+#   `docker build -f allspark.Dockerfile -t {docker_username}/{tag_key}:{tag_value} .`
 #   `docker push {docker_username}/{tag_key}:{tag_value}`
 # For example,
 #   `docker login
-#   `docker build -f Dockerfile.allspark -t humancellatlas/dss-build-box .`
+#   `docker build -f allspark.Dockerfile -t humancellatlas/dss-build-box .`
 #   `docker push humancellatlas/dss-build-box`
 #
 # Now reference the image in .gitlab-ci.yml with the line:
@@ -55,8 +55,8 @@ ENV DSS_TEST_ES_PATH=/home/hca_cicd/elasticsearch-${ES_VERSION}/bin/elasticsearc
 RUN wget https://artifacts.elastic.co/downloads/elasticsearch/elasticsearch-${ES_VERSION}.tar.gz \
     && tar -xzf elasticsearch-${ES_VERSION}.tar.gz -C /home/hca_cicd
 
-RUN wget https://releases.hashicorp.com/terraform/0.11.8/terraform_0.11.8_linux_amd64.zip \
-    && unzip terraform_0.11.8_linux_amd64.zip -d /home/hca_cicd/bin
+RUN wget https://releases.hashicorp.com/terraform/0.11.10/terraform_0.11.10_linux_amd64.zip \
+    && unzip terraform_0.11.10_linux_amd64.zip -d /home/hca_cicd/bin
 
 # Address locale problem, see "Python 3 Surrogate Handling":
 # http://click.pocoo.org/5/python3/

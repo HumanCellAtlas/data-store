@@ -4,7 +4,6 @@ import json
 import time
 import typing
 
-import iso8601
 import nestedcontext
 import requests
 from cloud_blobstore import BlobNotFoundError, BlobStore, BlobStoreTimeoutError
@@ -19,7 +18,6 @@ from dss.storage.checkout.bundle import get_dst_bundle_prefix, verify_checkout
 from dss.storage.identifiers import BundleTombstoneID, BundleFQID, FileFQID
 from dss.storage.hcablobstore import BundleFileMetadata, BundleMetadata, FileMetadata
 from dss.util import UrlBuilder, security
-from dss.util.version import datetime_to_version_format
 
 """The retry-after interval in seconds. Sets up downstream libraries / users to
 retry request after the specified interval."""
@@ -125,16 +123,6 @@ def post():
 @security.authorized_group_required(['hca'])
 def put(uuid: str, replica: str, json_request_body: dict, version: str):
     uuid = uuid.lower()
-    # convert it to date-time so we can format exactly as the system requires (with microsecond precision)
-    try:
-        timestamp = iso8601.parse_date(version)
-    except iso8601.ParseError:
-        raise DSSException(
-            requests.codes.bad_request,
-            "illegal_version",
-            f"version should be an rfc3339-compliant timestamp")
-    version = datetime_to_version_format(timestamp)
-
     handle = Config.get_blobstore_handle(Replica[replica])
     bucket = Replica[replica].bucket
 
@@ -247,8 +235,6 @@ def delete(uuid: str, replica: str, json_request_body: dict, version: str = None
         raise DSSForbiddenException("You can't delete bundles with these credentials!")
 
     uuid = uuid.lower()
-    version = datetime_to_version_format(iso8601.parse_date(version)) if version else None
-
     tombstone_id = BundleTombstoneID(uuid=uuid, version=version)
     bundle_prefix = tombstone_id.to_key_prefix()
     tombstone_object_data = _create_tombstone_data(

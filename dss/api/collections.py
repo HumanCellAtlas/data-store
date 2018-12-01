@@ -8,7 +8,6 @@ from collections import OrderedDict
 import requests
 from flask import jsonify, request
 import jsonpointer
-import iso8601
 
 from dss import Config, Replica
 from dss.error import DSSException, dss_handler
@@ -66,12 +65,10 @@ def put(json_request_body: dict, replica: str, uuid: str, version: str):
     collection_body["contents"] = _dedpuplicate_contents(collection_body["contents"])
     verify_collection(collection_body["contents"], Replica[replica], handle)
     collection_uuid = uuid if uuid else str(uuid4())
-    if version is not None:
-        # convert it to date-time so we can format exactly as the system requires (with microsecond precision)
-        timestamp = iso8601.parse_date(version)
-    else:
+    if version is None:
         timestamp = datetime.datetime.utcnow()
-    collection_version = datetime_to_version_format(timestamp)
+        version = datetime_to_version_format(timestamp)
+    collection_version = version
     handle.upload_file_handle(Replica[replica].bucket,
                               CollectionFQID(collection_uuid, collection_version).to_key(),
                               io.BytesIO(json.dumps(collection_body).encode("utf-8")))
@@ -84,14 +81,6 @@ class hashabledict(dict):
 @dss_handler
 @security.authorized_group_required(['hca'])
 def patch(uuid: str, json_request_body: dict, replica: str, version: str):
-    try:
-        iso8601.parse_date(version)
-    except iso8601.ParseError:
-        raise DSSException(
-            requests.codes.bad_request,
-            "illegal_version",
-            f"version should be an rfc3339-compliant timestamp")
-
     authenticated_user_email = security.get_token_email(request.token_info)
 
     uuid = uuid.lower()

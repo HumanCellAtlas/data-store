@@ -8,7 +8,6 @@ import typing
 from enum import Enum, auto
 from uuid import uuid4
 
-import iso8601
 import requests
 from cloud_blobstore import BlobAlreadyExistsError, BlobNotFoundError
 from dcplib.s3_multipart import AWS_MIN_CHUNK_SIZE
@@ -180,18 +179,6 @@ def put(uuid: str, json_request_body: dict, version: str):
         COPY_ASYNC = auto()
 
     uuid = uuid.lower()
-
-    # convert it to date-time so we can format exactly as the system requires (with microsecond precision)
-    try:
-        timestamp = iso8601.parse_date(version)
-    except iso8601.ParseError:
-        raise DSSException(
-            requests.codes.bad_request,
-            "illegal_version",
-            f"version should be an rfc3339-compliant timestamp")
-
-    version = datetime_to_version_format(timestamp)
-
     source_url = json_request_body['source_url']
     cre = re.compile(
         "^"

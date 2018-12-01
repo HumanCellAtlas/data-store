@@ -15,10 +15,12 @@ from connexion.decorators.validation import ParameterValidator, RequestBodyValid
 from connexion.lifecycle import ConnexionResponse
 from connexion.resolver import RestyResolver
 from connexion.exceptions import OAuthProblem, OAuthResponseProblem, OAuthScopeProblem
+from jsonschema import draft4_format_checker
 from werkzeug.exceptions import Forbidden
 
 from dss.config import BucketConfig, Config, DeploymentStage, ESIndexType, ESDocType, Replica
 from dss.error import DSSBindingException, DSSException, DSSForbiddenException, dss_handler, dss_exception_handler
+from dss.util.version import datetime_to_version_format
 
 logger = logging.getLogger(__name__)
 
@@ -55,6 +57,32 @@ class DSSApp(connexion.App):
             content_type="application/problem+json",
             body=problem,
         ))
+
+
+@draft4_format_checker.checks('DSS_VERSION')
+def is_DSS_VERSION(val):
+    """
+    Verifies `val` is compliant with expected format. See for more info on connexion custom type formats
+    https://connexion.readthedocs.io/en/latest/cookbook.html#custom-type-format.
+    :param val: the value to verify
+    :return: the verified value
+    """
+    from iso8601 import iso8601
+    # convert it to date-time so we can format exactly as the system requires (with microsecond precision)
+    try:
+        timestamp = iso8601.parse_date(val)
+    except iso8601.ParseError:
+        raise DSSException(
+            requests.codes.bad_request,
+            "illegal_version",
+            f"version should be an RFC3339 compliant timestamp")
+    timestamp = datetime_to_version_format(timestamp)
+    if timestamp != val:
+        raise DSSException(
+            requests.codes.bad_request,
+            "illegal_version",
+            f"version should be a DSS_VERSION with the format 'YYYY-MM-DDTHHmmSS.zzzzzzZ'")
+    return val
 
 
 class DSSParameterValidator(ParameterValidator):
