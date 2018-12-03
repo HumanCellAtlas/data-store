@@ -1379,8 +1379,12 @@ paths:
                 description: Timestamp of bundle creation in DSS_VERSION format.
                 type: string
                 format: DSS_VERSION
+              manifest:
+                type: object
+                description: The manifest stored in the DSS. It lists the files in the bundle, and metadata describing those files.
             required:
               - version
+              - manifest
         201:
           description: OK
           schema:
@@ -1390,8 +1394,12 @@ paths:
                 description: Timestamp of bundle creation in DSS_VERSION format.
                 type: string
                 format: DSS_VERSION
+              manifest:
+                type: object
+                description: The manifest stored in the DSS. It lists the files in the bundle, and metadata describing those files.
             required:
               - version
+              - manifest
         400:
           description: Returned when the server could not process the request.  Examine the code for more details.
           schema:

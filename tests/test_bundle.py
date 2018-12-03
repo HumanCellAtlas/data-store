@@ -334,8 +334,8 @@ class TestBundleApi(unittest.TestCase, TestAuthMixin, DSSAssertMixin, DSSUploadM
                 with mock.patch("dss.storage.checkout.bundle._list_checkout_bundle") as mock_list_checkout_bundle:
                     mock_list_checkout_bundle.return_value = list(
                         ((f"bundles/{bundle_uuid}.{bundle_version}/{filename}",
-                         {BlobMetadataField.CREATED: stale_creation_date if i == 1 else now})
-                         for i, filename in enumerate(filenames))
+                          {BlobMetadataField.CREATED: stale_creation_date if i == 1 else now})
+                            for i, filename in enumerate(filenames))
                     )
                     self.assertGetResponse(url, requests.codes.ok, redirect_follow_retries=0)
                 mock_start_bundle_checkout.assert_called_once_with(replica,
@@ -427,6 +427,20 @@ class TestBundleApi(unittest.TestCase, TestAuthMixin, DSSAssertMixin, DSSUploadM
                 bundle_version,
                 requests.codes.ok,
             )
+
+        with self.subTest(f'{replica}:  manifest response testing'):
+            bundle_version = datetime_to_version_format(datetime.datetime.utcnow())
+            resp_obj = self.put_bundle(
+                replica,
+                bundle_uuid,
+                [(file_uuid, file_version, "LICENSE")],
+                bundle_version,
+            )
+            self.assertEqual(resp_obj.json['manifest']['creator_uid'], 12345)
+            self.assertEqual(resp_obj.json['manifest']['version'], bundle_version)
+            self.assertEqual(resp_obj.json['manifest']['files'][0]['name'], 'LICENSE')
+            self.assertEqual(resp_obj.json['manifest']['files'][0]['indexed'], False)
+            self.assertEqual(resp_obj.json['manifest']['files'][0]['version'], file_version)
 
         with self.subTest(f'{replica}: should *NOT* be able to do this twice with different payload.'):
             self.put_bundle(
@@ -726,6 +740,7 @@ class TestBundleApi(unittest.TestCase, TestAuthMixin, DSSAssertMixin, DSSUploadM
                 }
             )
             self.assertIn('version', resp_obj.json)
+            self.assertIn('manifest', resp_obj.json)
         return resp_obj
 
     def delete_bundle(
