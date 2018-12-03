@@ -3,8 +3,135 @@
 # Copy this file to environment.local then set your site-specific or deploy-specific environment variable values there.
 # These settings override the values in the "environment" file in this directory.
 # This file is sourced when you run "source environment".
+# Resolve the location of this file and set DSS_HOME to the root
+SOURCE="${BASH_SOURCE[0]}"
+while [ -h "$SOURCE" ] ; do SOURCE="$(readlink "$SOURCE")"; done
+export DSS_HOME="$(cd -P "$(dirname "$SOURCE")" && pwd)"
+
+EXPORT_ENV_VARS_TO_LAMBDA_ARRAY=(
+    ADMIN_USER_EMAILS
+    API_DOMAIN_NAME
+    DSS_AUTHORIZED_DOMAINS
+    DSS_BLOB_PUBLIC_TTL_DAYS
+    DSS_BLOB_TTL_DAYS
+    DSS_DEBUG
+    DSS_DEPLOYMENT_STAGE
+    DSS_GS_BUCKET
+    DSS_GS_CHECKOUT_BUCKET
+    DSS_NOTIFICATION_SENDER
+    DSS_NOTIFY_DELAYS
+    DSS_NOTIFY_TIMEOUT
+    DSS_S3_BUCKET
+    DSS_S3_CHECKOUT_BUCKET
+    DSS_VERSION
+    DSS_XRAY_TRACE
+    OIDC_AUDIENCE
+    OIDC_EMAIL_CLAIM
+    OIDC_GROUP_CLAIM
+    OPENID_PROVIDER
+    TOKENINFO_FUNC
+)
+
 
 set -a
 # Environment variable assignments (var=value) in "set -a" mode are
 # automatically exported.
+EXPORT_ENV_VARS_TO_LAMBDA=${EXPORT_ENV_VARS_TO_LAMBDA_ARRAY[*]}
+
+### PLEASE EDIT THOSE BELOW
+DSS_DEPLOYMENT_STAGE=dev
+ORG_TLD_DOMAIN=${DSS_DEPLOYMENT_STAGE}.example.com
+ORG_TLD_PREFIX=org-example-hca-dss-${DSS_DEPLOYMENT_STAGE}
+AWS_DEFAULT_OUTPUT=json
+AWS_DEFAULT_REGION=ap-southeast-2
+GCP_DEFAULT_REGION=australia-southeast1
+GCP_ACCOUNT_ID=example-1234
+DSS_TEST_ES_PATH=/usr/share/elasticsearch/bin/elasticsearch
+DSS_AUTHORIZED_GOOGLE_PROJECT_DOMAIN_ARRAY=(
+    {${GCP_ACCOUNT_ID}-{dev,test,staging}}.iam.gserviceaccount.com
+)
+
+
+### OPTIONALLY EDIT THOSE VARS BELOW TOO
+DSS_S3_BUCKET=${ORG_TLD_PREFIX}
+DSS_S3_BUCKET_TEST=${ORG_TLD_PREFIX}-test
+DSS_S3_BUCKET_TEST_FIXTURES=${ORG_TLD_PREFIX}-test-fixtures
+DSS_S3_BUCKET_INTEGRATION=${ORG_TLD_PREFIX}-integration
+DSS_S3_BUCKET_STAGING=${ORG_TLD_PREFIX}-staging
+DSS_S3_BUCKET_PROD=${ORG_TLD_PREFIX}-prod
+DSS_S3_CHECKOUT_BUCKET=${ORG_TLD_PREFIX}-checkout-dev
+DSS_S3_CHECKOUT_BUCKET_TEST=${ORG_TLD_PREFIX}-checkout-test
+DSS_S3_CHECKOUT_BUCKET_UNWRITABLE=${ORG_TLD_PREFIX}-checkout-unwritable
+DSS_S3_CHECKOUT_BUCKET_INTEGRATION=${ORG_TLD_PREFIX}-checkout-integration
+DSS_S3_CHECKOUT_BUCKET_STAGING=${ORG_TLD_PREFIX}-checkout-staging
+DSS_S3_CHECKOUT_BUCKET_PROD=${ORG_TLD_PREFIX}-checkout-prod
+DSS_GS_BUCKET=${ORG_TLD_PREFIX}-dev
+DSS_GS_BUCKET_TEST=${ORG_TLD_PREFIX}-test
+DSS_GS_BUCKET_TEST_FIXTURES=${ORG_TLD_PREFIX}-test-fixtures
+DSS_GS_BUCKET_INTEGRATION=${ORG_TLD_PREFIX}-integration
+DSS_GS_BUCKET_STAGING=${ORG_TLD_PREFIX}-staging
+DSS_GS_BUCKET_PROD=${ORG_TLD_PREFIX}-prod
+DSS_GS_CHECKOUT_BUCKET=${ORG_TLD_PREFIX}-checkout-dev
+DSS_GS_CHECKOUT_BUCKET_TEST=${ORG_TLD_PREFIX}-checkout-test
+DSS_GS_CHECKOUT_BUCKET_INTEGRATION=${ORG_TLD_PREFIX}-checkout-integration
+DSS_GS_CHECKOUT_BUCKET_STAGING=${ORG_TLD_PREFIX}-checkout-staging
+DSS_GS_CHECKOUT_BUCKET_PROD=${ORG_TLD_PREFIX}-checkout-prod
+DSS_BLOB_TTL_DAYS=7
+DSS_BLOB_PUBLIC_TTL_DAYS=4
+DSS_NOTIFICATION_SENDER="DSS Notifier <email@example.com>"
+ADMIN_USER_EMAILS=""
+DCP_DOMAIN=${DSS_DEPLOYMENT_STAGE}.data.hca.dss.${ORG_TLD_DOMAIN}
+API_DOMAIN_NAME="dss.${DCP_DOMAIN}"
+TOKENINFO_FUNC=dss.util.security.verify_jwt
+OIDC_AUDIENCE=https://dev.data.hca.dss.${ORG_TLD_DOMAIN}/
+OPENID_PROVIDER=https://humancellatlas.auth0.com/
+OIDC_EMAIL_CLAIM=https://auth.data.${ORG_TLD_DOMAIN}/email
+OIDC_GROUP_CLAIM=https://auth.data.${ORG_TLD_DOMAIN}/group
+NOTIFY_URL=https://${API_DOMAIN_NAME}/internal/notify
+DSS_AUTHORIZED_DOMAINS=${DSS_AUTHORIZED_GOOGLE_PROJECT_DOMAIN_ARRAY[*]}
+DSS_AUTHORIZED_DOMAINS_TEST="${GCP_ACCOUNT_ID}-test.iam.gserviceaccount.com"
+DSS_ES_DOMAIN="dss-index-${DSS_DEPLOYMENT_STAGE}"
+DSS_ES_DOMAIN_INDEX_LOGS_ENABLED="true"
+DSS_ES_INSTANCE_TYPE="t2.medium.elasticsearch"
+DSS_ES_VOLUME_SIZE="35"
+DSS_ES_INSTANCE_COUNT="2"
+DSS_CERTIFICATE_DOMAIN="${DSS_DEPLOYMENT_STAGE}.data.hca.dss.${ORG_TLD_DOMAIN}"
+DSS_CERTIFICATE_ADDITIONAL_NAMES="api.ingest.${DSS_DEPLOYMENT_STAGE}.data.hca.dss.${ORG_TLD_DOMAIN}"
+DSS_CERTIFICATE_VALIDATION="DNS"
+DSS_ZONE_NAME="${DSS_DEPLOYMENT_STAGE}.data.hca.dss.${ORG_TLD_DOMAIN}."
+PYTHONWARNINGS=ignore:ResourceWarning,ignore::UserWarning:zipfile:
+DSS_SECRETS_STORE="dcp/dss"
+EVENT_RELAY_AWS_USERNAME="dss-event-relay-${DSS_DEPLOYMENT_STAGE}"
+EVENT_RELAY_AWS_ACCESS_KEY_SECRETS_NAME="event-relay-user-aws-access-key"
+GOOGLE_APPLICATION_CREDENTIALS="$HOME/data-store/gcp-credentials.json"
+GOOGLE_APPLICATION_CREDENTIALS_SECRETS_NAME="gcp-credentials.json"
+GOOGLE_APPLICATION_SECRETS_SECRETS_NAME="application_secrets.json"
+ES_ALLOWED_SOURCE_IP_SECRETS_NAME="es_source_ip"
+
+# `{account_id}`, if present, will be replaced with the account ID associated with the AWS credentials used for
+# deployment. It can be safely omitted.
+DSS_TERRAFORM_BACKEND_BUCKET_TEMPLATE="${ORG_TLD_PREFIX}-{account_id}-terraform"
+
+# Configure the delays between notification attempts. The first attempt is immediate. The second attempt is one
+# minute later. Then ten minutes, one hour, and six hours in between. Then 24 hours minus all previous delays and
+# lastly every 24 hours for six days. This is exponential initially and then levels off where exponential would be
+# too infrequent. The last attempt is made seven days after the first one, which is easy to remember.
+#
+DSS_NOTIFY_DELAYS="0 60 600 3600 21600 60540 86400 86400 86400 86400 86400 86400"
+
+DSS_NOTIFY_TIMEOUT=60  # This may seem excessive but the default of 10s is not enough for Green's Lira
+                       # and would cause the notification to be retried, causing Lira to make a duplicate
+                       # submission.
+
+# Enables X-Ray profiling of daemons running in AWS Lambdas. A value of 0 disables profiling. A value >1 will enable
+# profiling.
+DSS_XRAY_TRACE=0
+DSS_DEBUG=0
+
+# This list manages the GCP Users and serviceAccounts able to access direct URLs on the GS checkout bucket.
+# Other GCP entities must use presigned urls, or checkout to an external GS bucket they have access to. 
+DSS_CHECKOUT_BUCKET_OBJECT_VIEWERS=${DSS_AUTHORIZED_GOOGLE_PROJECT_DOMAIN_ARRAY}
+
+AWS_SDK_LOAD_CONFIG=1 # Needed for Terraform to correctly use AWS assumed roles
+
 set +a
