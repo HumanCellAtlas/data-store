@@ -13,7 +13,7 @@ DCP_DOMAIN=${DSS_DEPLOYMENT_STAGE}.data.humancellatlas.org
 API_DOMAIN_NAME="dss.${DCP_DOMAIN}"
 
 DSS_GCP_SERVICE_ACCOUNT_NAME="org-humancellatlas-staging"
-DSS_CHECKOUT_BUCKET_OBJECT_VIEWERS="serviceAccount:154609999906-compute@developer.gserviceaccount.com,serviceAccount:caas-account@broad-dsde-mint-staging.iam.gserviceaccount.com"
+DSS_CHECKOUT_BUCKET_OBJECT_VIEWERS="serviceAccount:154609999906-compute@developer.gserviceaccount.com,serviceAccount:caas-account@broad-dsde-mint-staging.iam.gserviceaccount.com,serviceAccount:caas-prod-account-for-staging@broad-dsde-mint-staging.iam.gserviceaccount.com"
 set +a
 
 if [[ -f "${DSS_HOME}/environment.staging.local" ]]; then
