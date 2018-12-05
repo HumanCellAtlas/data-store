@@ -1,0 +1,34 @@
+{
+  "/files/{uuid}": [
+    "put"
+  ],
+  "/subscriptions": [
+    "get",
+    "put"
+  ],
+  "/subscriptions/{uuid}": [
+    "get",
+    "delete"
+  ],
+  "/collections": [
+    "put"
+  ],
+  "/collections/{uuid}": [
+    "get",
+    "patch",
+    "delete"
+  ],
+  "/bundles/{uuid}": [
+    "put",
+    "delete"
+  ],
+  "/collections/{uuid}": [
+    "get",
+    "patch",
+    "delete"
+  ],
+  "/bundles/{uuid}": [
+    "put",
+    "delete"
+  ]
+}
