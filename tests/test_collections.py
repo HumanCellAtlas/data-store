@@ -125,12 +125,15 @@ class TestCollections(unittest.TestCase, DSSAssertMixin, DSSUploadMixin):
         contents = [col_file_item] * 8 + [col_ptr_item] * 8
         uuid, version = self._put(contents)
 
+        with open(os.environ['GOOGLE_APPLICATION_CREDENTIALS'], "r") as fh:
+            owner_email = json.loads(fh.read())['client_email']
+
         expected_contents = {'contents': [col_file_item,
                                           col_ptr_item],
                              'description': 'd',
                              'details': {},
                              'name': 'n',
-                             'owner': 'travis-test@human-cell-atlas-travis-test.iam.gserviceaccount.com'
+                             'owner': owner_email
                              }
         tests = [(dict(), None),
                  (dict(description="foo", name="cn"), dict(description="foo", name="cn")),
