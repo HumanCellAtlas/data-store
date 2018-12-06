@@ -4,6 +4,7 @@ resource aws_s3_bucket dss_audit_logs
   bucket = "${var.DSS_AUDIT_LOGS_BUCKET}"
   tags {
     managedby = "terraform"
+    application = "DSS"
   }
   server_side_encryption_configuration {
     rule {
@@ -43,9 +44,7 @@ resource "aws_cloudtrail" "dss" {
 
     data_resource {
       type = "AWS::Lambda::Function"
-      values = [
-        "arn:aws:lambda:::function:dss-admin-${var.DSS_DEPLOYMENT_STAGE}",
-        "arn:aws:lambda:::function:dss-${var.DSS_DEPLOYMENT_STAGE}"]
+      values = ["arn:aws:lambda:::function:dss-admin-${var.DSS_DEPLOYMENT_STAGE}"]
     }
     data_resource {
       type   = "AWS::S3::Object"
@@ -54,5 +53,6 @@ resource "aws_cloudtrail" "dss" {
   }
   tags {
     managedby = "terraform"
+    application = "DSS"
   }
 }
