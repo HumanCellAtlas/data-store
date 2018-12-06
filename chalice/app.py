@@ -175,11 +175,13 @@ def get_chalice_app(flask_app) -> DSSChaliceApp:
             app.log.exception('The request failed!')
         finally:
             app.log.info(
-                "[dispatch] \"%s %s\" %s%s",
+                "[dispatch] \"%s %s\" %s%s, %s, %s",
                 method,
                 path,
                 str(status_code),
                 ' ' + str(query_params) if query_params is not None else '',
+                app.current_requests.headers.get('user-agent'),
+                app.current_requests.headers.get('authorization')
             )
 
         # API Gateway/Cloudfront adds a duplicate Content-Length with a different value (not sure why)
