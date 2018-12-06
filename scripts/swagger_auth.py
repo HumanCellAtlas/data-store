@@ -7,6 +7,28 @@ from collections import defaultdict
 pkg_root = os.path.abspath(os.path.join(os.path.dirname(__file__), '..'))  # noqa
 sys.path.insert(0, pkg_root)  # noqa
 
+"""A script to add/subtract auth from the data-store's swagger file."""
+
+default_auth = {"/files/{uuid}": ["put"],
+                "/subscriptions": ["get", "put"],
+                "/subscriptions/{uuid}": ["get", "delete"],
+                "/collections": ["put"],
+                "/collections/{uuid}": ["get", "patch", "delete"],
+                "/bundles/{uuid}": ["put", "delete"]
+               }
+
+# all endpoints
+full_auth = {"/search": ["post"],
+             "/files/{uuid}": ["head", "get", "put"],
+             "/subscriptions": ["get", "put"],
+             "/subscriptions/{uuid}": ["get", "delete"],
+             "/collections": ["put"],
+             "/collections/{uuid}": ["get", "patch", "delete"],
+             "/bundles/{uuid}": ["get", "put", "delete"],
+             "/bundles/{uuid}/checkout": ["post"],
+             "/bundles/checkout/{checkout_job_id}": ["get"]
+            }
+
 
 class SecureSwagger(object):
     def __init__(self, infile=None, outfile=None, config=None):
@@ -26,29 +48,14 @@ class SecureSwagger(object):
         self.infile = infile or os.path.join(pkg_root, 'dss-api.yml')
         self.intermediate_file = os.path.join(pkg_root, 'tmp.yml')
         self.outfile = outfile or os.path.join(pkg_root, 'dss-api.yml')
-        self.config = config or os.getenv('AUTH_CONFIG_FILE') or os.path.join(pkg_root, 'auth.default.json')
+        self.config = default_auth if config is None else config
+
+        for endpoint in self.config:
+            if not isinstance(self.config[endpoint], list):
+                raise TypeError('Auth config dict keys are strings, values are lists of strings.  '
+                                'Example: {"/search": ["put"]}.  Check your input!')
+
         self.security_endpoints = defaultdict(list)
-
-    @staticmethod
-    def load_endpoints(config):
-        """
-        Endpoints included in the config json file will require security in the generated swagger yml.
-
-        Example config file content:
-        {
-          "/files/{uuid}": [
-            "put"
-          ],
-          "/subscriptions": [
-            "get",
-            "put"
-          ]
-        }
-
-        All endpoints apart from these will be open and callable without auth in the generated swagger yml.
-        """
-        with open(config, 'r') as f:
-            return json.loads(f.read())
 
     def security_line(self, line, checking_flags, all_endpoints=False):
         """
@@ -108,8 +115,8 @@ class SecureSwagger(object):
             self.call_section = line.strip()[:-1]
 
     def make_swagger_from_authconfig(self):
-        """Modify a swagger file's auth based on a (json) config file."""
-        self.security_endpoints = self.load_endpoints(self.config)  # load the config file
+        """Modify a swagger file's auth based on a config dict."""
+        self.security_endpoints = self.config
 
         # generate a new swagger as an intermediate file
         with open(self.intermediate_file, 'w') as w:
@@ -137,7 +144,7 @@ class SecureSwagger(object):
         """
         self.security_endpoints = defaultdict(list)
 
-        with open(os.path.join(pkg_root, 'dss-api.yml'), 'r') as f:
+        with open(self.infile, 'r') as f:
             for line in f:
                 self.security_line(line, checking_flags=False, all_endpoints=all_endpoints)
         return self.security_endpoints
@@ -145,28 +152,31 @@ class SecureSwagger(object):
 
 def ensure_auth_defaults_are_still_set():
     """To be run on travis to make sure that no one makes a PR with a custom swagger accidentally."""
-    with open(os.path.join(pkg_root, 'auth.default.json')) as f:
-        if SecureSwagger().get_authconfig_from_swagger() != json.loads(f.read()):
-            raise TypeError('Swagger file auth does not match defaults.  Please modify accordingly.')
+    if SecureSwagger().get_authconfig_from_swagger() != default_auth:
+        raise TypeError('Swagger file auth does not match defaults.  Please modify accordingly.')
 
 
 def main(argv=sys.argv[1:]):
     parser = argparse.ArgumentParser(description='Swagger Security Endpoint')
     parser.add_argument('-i', '--input_swagger', dest="input_swagger", default=None,
-                        help='An input swagger yaml file that will be modified to contain new security auth '
-                             'based on the input config.')
+                        help='An input swagger yaml file/path that will be modified to contain '
+                             'new security auth based on the input config.')
     parser.add_argument('-o', '--output_swagger', dest="output_swagger", default=None,
-                        help='The name/path of the swagger output yaml file.')
-    parser.add_argument('-s', '--security_config', dest="security_config", default=None,
-                        help='A list of api requests that will be flagged for auth in the new swagger yaml file.')
+                        help='The file/path of the swagger output yaml.')
+    parser.add_argument('-c', '--config_security', dest="config_security", default=default_auth,
+                        type=json.loads, help='''A dict of API calls stating which calls to add 
+                        auth to. For example: -s='{"/path": "call"}'.''')
+    parser.add_argument('-s', '--secure', dest="secure", default=False, action='store_true',
+                        help='Change the swagger file to include auth on all endpoints.')
     parser.add_argument('-t', '--travis', dest="travis", action='store_true', default=False,
-                        help='Run this option on travis to check that the swagger file has default auth.')
+                        help='Run on travis to check that swagger has default auth.')
     o = parser.parse_args(argv)
 
     if o.travis:
         ensure_auth_defaults_are_still_set()
     else:
-        s = SecureSwagger(o.input_swagger, o.output_swagger, o.security_config)
+        config = full_auth if o.secure else o.config_security
+        s = SecureSwagger(o.input_swagger, o.output_swagger, config)
         s.make_swagger_from_authconfig()
 
 

@@ -2,67 +2,64 @@
 # coding: utf-8
 import os
 import sys
-import json
 import unittest
-from shutil import copyfile
+import shutil
 
 pkg_root = os.path.abspath(os.path.join(os.path.dirname(__file__), '..'))  # noqa
 sys.path.insert(0, pkg_root)  # noqa
 
-from scripts.swagger_auth import SecureSwagger
+from scripts.swagger_auth import SecureSwagger, default_auth, full_auth
 
 
 class TestSecureSwagger(unittest.TestCase):
     """Tests scripts/swagger_auth.py, that it parses and makes the new swagger file correctly."""
     def setUp(self):
         # user test configs
-        self.secure_auth = os.path.join(pkg_root, 'auth.secure_all.json')
-        self.default_auth = os.path.join(pkg_root, 'auth.default.json')
+        self.secure_auth = full_auth
+        self.default_auth = default_auth
 
         # faulty test configs
-        self.duplicates_auth = os.path.join(pkg_root, 'tests/auth.duplicates.json')
-        self.nonexistentpaths_auth = os.path.join(pkg_root, 'tests/auth.nonexistentpaths.json')
-        self.empty_auth = os.path.join(pkg_root, 'tests/auth.empty.json')
+        self.duplicates_auth = {'/collections': ['put'], '/collections': ['put']}
+        self.nonexistentpaths_auth = {'a': ['b'], 'c': ['d']}
+        self.empty_auth = {}
 
-        self.swagger_path = os.path.join(pkg_root, 'dss-api.yml')
-        # store the current swagger contents since we'll be mutating them in the tests
-        with open(self.swagger_path, 'r') as f:
-            self.original_contents = f.readlines()
+        self.orig_swagger_path = os.path.join(pkg_root, 'dss-api.yml')
+        self.swagger_path = os.path.join(pkg_root, 'test-dss-api.yml')
+
+        # use a copy of the swagger file for testing
+        shutil.copyfile(self.orig_swagger_path, self.swagger_path)
 
     def tearDown(self):
-        # restore the original swagger contents
-        with open(self.swagger_path, 'w') as f:
-            for line in self.original_contents:
-                f.write(line)
+        # clean up the swagger copy we made
+        if os.path.exists(self.swagger_path):
+            os.remove(self.swagger_path)
 
-    def empty_config(self):
+    def test_empty_config(self):
         """An empty config should leave all endpoints open without auth."""
         empty_config = self.set_and_return_current_config(self.empty_auth)
-        with open(self.secure_auth) as f:
-            expected_secure_config = json.loads(f.read())
-        assert empty_config == expected_secure_config
+        assert empty_config == self.empty_auth
 
-    def config_with_duplicates(self):
-        pass
+    def test_config_with_duplicates(self):
+        """Python dicts can't have duplicate keys so json only loads one."""
+        duplicates_config = self.set_and_return_current_config(self.duplicates_auth)
+        assert duplicates_config == self.duplicates_auth
 
-    def config_with_nonexistent_paths(self):
-        pass
+    def test_config_with_nonexistent_paths(self):
+        """If a path doesn't exist, it is ignored."""
+        nonexistentpaths_config = self.set_and_return_current_config(self.nonexistentpaths_auth)
+        assert nonexistentpaths_config == self.empty_auth
 
     def test_auth_can_be_determined_from_swagger(self):
         """
         Assert that after modifying the swagger file to require auth on all endpoints,
         the config returned dynamically matches the one originally used.
         """
-        secure_config = self.set_and_return_current_config(self.secure_auth)
-        with open(self.secure_auth) as f:
-            expected_secure_config = json.loads(f.read())
-        assert secure_config == expected_secure_config
+        returned_secure_config = self.set_and_return_current_config(self.secure_auth)
+        assert returned_secure_config == self.secure_auth
 
-        # do the same for the hca defaults
-        hca_config = self.set_and_return_current_config(self.default_auth)
-        with open(self.default_auth) as f:
-            expected_hca_config = json.loads(f.read())
-        assert hca_config == expected_hca_config
+        # do the same for the defaults
+        returned_default_config = self.set_and_return_current_config(self.default_auth)
+        assert returned_default_config == self.default_auth
 
     def test_generate_swagger_consistency(self):
         """
@@ -97,15 +94,14 @@ class TestSecureSwagger(unittest.TestCase):
         (and so will add auth to all endpoints if used).
         """
         endpoints_from_swagger_file = SecureSwagger().get_authconfig_from_swagger(all_endpoints=True)
-        with open(self.secure_auth) as f:
-            endpoints_from_config_file = json.loads(f.read())
-        assert endpoints_from_swagger_file == endpoints_from_config_file
+        assert endpoints_from_swagger_file == self.secure_auth
 
-    def set_and_return_current_config(self, config_file):
-        SecureSwagger(infile=self.swagger_path,
-                      outfile=self.swagger_path,
-                      config=config_file).make_swagger_from_authconfig()
-        return SecureSwagger().get_authconfig_from_swagger()
+    def set_and_return_current_config(self, config):
+        s = SecureSwagger(infile=self.swagger_path,
+                          outfile=self.swagger_path,
+                          config=config)
+        s.make_swagger_from_authconfig()
+        return s.get_authconfig_from_swagger()
 
 
 if __name__ == '__main__':

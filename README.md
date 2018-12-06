@@ -137,11 +137,14 @@ The following environment variables must be set to enable user authentication an
 Also update `authorizationUrl` in **dss/dss-api.yml** to point to an authorization endpoint which returns a 
 valid JWT.
 
-Optional: To reconfigure the swagger's auth before deployment (example using **auth.secure_all.json** to 
-secure all current auth endpoints) run:
+Optional: To configure a custom swagger auth before deployment run:
 
-    python scripts/swagger_auth.py -s auth.secure_all.json
-    
+    python scripts/swagger_auth.py -c='{"/path": "call"}'
+
+Alternatively, to configure auth for all swagger endpoints, you can run:
+
+    python scripts/swagger_auth.py --secure
+
 Note: Removing auth from endpoints will currently break tests, however adding auth should be fine 
 (`make test` should run successfully).
 

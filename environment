@@ -102,8 +102,6 @@ GOOGLE_APPLICATION_SECRETS_SECRETS_NAME="application_secrets.json"
 ES_ALLOWED_SOURCE_IP_SECRETS_NAME="es_source_ip"
 DSS_DEBUG=0
 
-AUTH_CONFIG_FILE="auth.default.json"
-
 # `{account_id}`, if present, will be replaced with the account ID associated with the AWS credentials used for
 # deployment. It can be safely omitted.
 DSS_TERRAFORM_BACKEND_BUCKET_TEMPLATE="org-humancellatlas-{account_id}-terraform"
