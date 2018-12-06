@@ -96,7 +96,7 @@ class TestSecureSwagger(unittest.TestCase):
         endpoints_from_swagger_file = SecureSwagger().get_authconfig_from_swagger(all_endpoints=True)
         assert endpoints_from_swagger_file == self.secure_auth
 
-    def set_and_return_current_config(self, config):
+    def set_and_return_current_config(self, config: dict) -> dict:
         s = SecureSwagger(infile=self.swagger_path,
                           outfile=self.swagger_path,
                           config=config)

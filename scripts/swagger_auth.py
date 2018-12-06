@@ -31,7 +31,7 @@ full_auth = {"/search": ["post"],
 
 
 class SecureSwagger(object):
-    def __init__(self, infile=None, outfile=None, config=None):
+    def __init__(self, infile: str=None, outfile: str=None, config: dict=None):
         """
         A class for modifying a swagger yml file with auth on endpoints specified in
         a config file.
@@ -57,7 +57,7 @@ class SecureSwagger(object):
 
         self.security_endpoints = defaultdict(list)
 
-    def security_line(self, line, checking_flags, all_endpoints=False):
+    def security_line(self, line: str, checking_flags: bool, all_endpoints=False):
         """
         Checks a line from the swagger/yml file and updates section values appropriately.
 
@@ -101,10 +101,10 @@ class SecureSwagger(object):
                     self.security_endpoints[self.call_section].append(self.request_section)
 
     @staticmethod
-    def call_indent(line):
+    def call_indent(line: str) -> bool:
         return line.startswith('    ') and not line.startswith('     ')
 
-    def parse_api_section(self, line, checking_flags):
+    def parse_api_section(self, line: str, checking_flags: bool) -> None:
         if checking_flags:
             self.call_section = None
             for api_path in self.security_endpoints:
@@ -114,7 +114,7 @@ class SecureSwagger(object):
         else:
             self.call_section = line.strip()[:-1]
 
-    def make_swagger_from_authconfig(self):
+    def make_swagger_from_authconfig(self) -> None:
         """Modify a swagger file's auth based on a config dict."""
         self.security_endpoints = self.config
 
