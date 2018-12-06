@@ -19,7 +19,7 @@ class TestSecureSwagger(unittest.TestCase):
         self.default_auth = default_auth
 
         # faulty test configs
-        self.duplicates_auth = {'/collections': ['put'], '/collections': ['put']}
+        self.duplicates_auth = {'/collections': ['put'], '/collections': ['put']}  # noqa
         self.nonexistentpaths_auth = {'a': ['b'], 'c': ['d']}
         self.empty_auth = {}
 
