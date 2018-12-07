@@ -18,7 +18,7 @@ from dss.config import Replica
 import dss
 from dss.util import UrlBuilder
 from dss.util.version import datetime_to_version_format
-from tests.infra import DSSAssertMixin, DSSUploadMixin, DSSStorageMixin, TestBundle, testmode, ExpectedErrorFields
+from tests.infra import DSSAssertMixin, DSSUploadMixin, DSSStorageMixin, TestBundle, testmode
 from tests.infra.server import ThreadedLocalServer
 from tests import get_auth_header
 
@@ -66,7 +66,7 @@ class TestApi(unittest.TestCase, DSSAssertMixin, DSSUploadMixin, DSSStorageMixin
         """
         Test /version endpoint and configuration
         """
-        res = self.assertGetResponse("/version", requests.codes.ok)
+        res = self.assertGetResponse("/version", requests.codes.ok, headers=get_auth_header())
         self.assertEquals(res.json['version_info']['version'], os.environ['DSS_VERSION'])
 
     @testmode.standalone
@@ -133,7 +133,7 @@ class TestApi(unittest.TestCase, DSSAssertMixin, DSSUploadMixin, DSSStorageMixin
                             put_url,
                             requests.codes.unavailable,
                             json_request_body=json_request_body,
-                            headers=get_auth_header(),
+                            headers=get_auth_header()
                         )
 
                     if delete_url:
@@ -141,7 +141,7 @@ class TestApi(unittest.TestCase, DSSAssertMixin, DSSUploadMixin, DSSStorageMixin
                             delete_url,
                             requests.codes.unavailable,
                             json_request_body=json_request_body,
-                            headers=get_auth_header(),
+                            headers=get_auth_header()
                         )
         finally:
             del os.environ['DSS_READ_ONLY_MODE']

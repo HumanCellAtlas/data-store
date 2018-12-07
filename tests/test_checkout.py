@@ -6,14 +6,13 @@ import os
 import sys
 import unittest
 import uuid
-from uuid import UUID
-
 import requests
+from uuid import UUID
+from cloud_blobstore import BlobNotFoundError
 
 pkg_root = os.path.abspath(os.path.join(os.path.dirname(__file__), '..'))  # noqa
 sys.path.insert(0, pkg_root)  # noqa
 
-from cloud_blobstore import BlobNotFoundError
 import dss
 from dss.config import override_bucket_config, BucketConfig, Replica, Config
 from dss.util import UrlBuilder
@@ -135,7 +134,8 @@ class TestCheckoutApi(unittest.TestCase, DSSAssertMixin, DSSUploadMixin):
             resp_obj = self.assertPostResponse(
                 url,
                 requests.codes.not_found,
-                request_body
+                request_body,
+                headers=get_auth_header()
             )
             self.assertEqual(resp_obj.json['code'], 'not_found')
 
@@ -152,7 +152,8 @@ class TestCheckoutApi(unittest.TestCase, DSSAssertMixin, DSSUploadMixin):
             self.assertPostResponse(
                 url,
                 requests.codes.bad_request,
-                request_body
+                request_body,
+                headers=get_auth_header()
             )
 
     def launch_checkout(self, dst_bucket: str, replica: Replica) -> str:
@@ -166,7 +167,8 @@ class TestCheckoutApi(unittest.TestCase, DSSAssertMixin, DSSUploadMixin):
         resp_obj = self.assertPostResponse(
             url,
             requests.codes.ok,
-            request_body
+            request_body,
+            headers=get_auth_header()
         )
         execution_id = resp_obj.json["checkout_job_id"]
         self.assertIsNotNone(execution_id)
@@ -207,7 +209,8 @@ class TestCheckoutApi(unittest.TestCase, DSSAssertMixin, DSSUploadMixin):
             def check_status():
                 resp_obj = self.assertGetResponse(
                     url,
-                    requests.codes.ok
+                    requests.codes.ok,
+                    headers=get_auth_header()
                 )
                 status = resp_obj.json.get('status')
                 if status not in ("RUNNING", "FAILED"):
@@ -226,7 +229,8 @@ class TestCheckoutApi(unittest.TestCase, DSSAssertMixin, DSSUploadMixin):
 
             resp_obj = self.assertGetResponse(
                 url,
-                requests.codes.not_found
+                requests.codes.not_found,
+                headers=get_auth_header()
             )
             self.assertEqual(resp_obj.json['code'], "not_found")
 

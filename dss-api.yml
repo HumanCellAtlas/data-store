@@ -397,6 +397,8 @@ paths:
                 required:
                   - code
     put:
+      security:
+        - dcpAuth: []
       summary: Create a new version of a file
       description: >
         Create a new version of a file with a given UUID. The contents of the file are provided by the client by
@@ -414,8 +416,6 @@ paths:
         640,000MB, we use a chunk size equal to the total file size divided by 10000, rounded up to the nearest MB.
         MB, in this section, refers to 1,048,576 bytes.  Note that 640,000MB is not the same as 640GB!
         - hca-dss-crc32c: CRC-32C checksum of the file
-      security:
-            - dcpAuth: []
       parameters:
         - name: uuid
           in: path
@@ -547,12 +547,12 @@ paths:
                   - code
   /subscriptions:
     get:
+      security:
+        - dcpAuth: []
       summary: Retrieve a user\'s event subscriptions.
       description: |
         Return a list of associated subscriptions.
       operationId: dss.api.subscriptions.find
-      security:
-        - dcpAuth: []
       parameters:
         - name: replica
           in: query
@@ -586,11 +586,11 @@ paths:
                 required:
                   - code
     put:
+      security:
+        - dcpAuth: []
       summary: Create a event subscription.
       description: >
         Register an HTTP endpoint that is to be notified when a given event occurs.
-      security:
-        - dcpAuth: []
       parameters:
         - name: replica
           in: query
@@ -788,11 +788,11 @@ paths:
                   - code
   /subscriptions/{uuid}:
     get:
+      security:
+        - dcpAuth: []
       summary: Retrieve an event subscription given a UUID.
       description: >
         Given a subscription UUID, return the associated subscription.
-      security:
-        - dcpAuth: []
       parameters:
         - name: uuid
           in: path
@@ -828,12 +828,12 @@ paths:
                 required:
                   - code
     delete:
+      security:
+        - dcpAuth: []
       summary: Delete an event subscription.
       description: >
         Delete a registered event subscription. The associated query will no longer trigger a callback
         if a matching document is added to the system.
-      security:
-        - dcpAuth: []
       parameters:
         - name: uuid
           in: path
@@ -874,6 +874,8 @@ paths:
                   - code
   /collections:
     put:
+      security:
+        - dcpAuth: []
       summary: Create a collection.
       description: >
         Create a new collection.
@@ -889,8 +891,6 @@ paths:
 
 
         Collections are replicated across storage replicas similarly to files and bundles.
-      security:
-        - dcpAuth: []
       parameters:
         - name: replica
           in: query
@@ -951,11 +951,11 @@ paths:
                   - code
   /collections/{uuid}:
     get:
+      security:
+        - dcpAuth: []
       summary: Retrieve a collection given a UUID.
       description: >
         Given a collection UUID, return the associated collection object.
-      security:
-        - dcpAuth: []
       parameters:
         - name: uuid
           in: path
@@ -997,12 +997,12 @@ paths:
                 required:
                   - code
     patch:
+      security:
+        - dcpAuth: []
       summary: Update a collection.
       description: >
         Add or remove items from a collection. A specific version of the collection to update must be provided, and a
         new version will be written.
-      security:
-        - dcpAuth: []
       parameters:
         - name: uuid
           in: path
@@ -1152,11 +1152,11 @@ paths:
                 required:
                   - code
     delete:
+      security:
+        - dcpAuth: []
       summary: Delete a collection.
       description: >
         Delete a collection.
-      security:
-        - dcpAuth: []
       parameters:
         - name: uuid
           in: path
@@ -1306,12 +1306,12 @@ paths:
                 required:
                   - code
     put:
+      security:
+        - dcpAuth: []
       summary: Create a bundle
       description: >
         Create a new version of a bundle with a given UUID.  The list of file UUID+versions to be included must be
         provided.
-      security:
-            - dcpAuth: []
       parameters:
         - name: uuid
           in: path
@@ -1448,11 +1448,11 @@ paths:
                 required:
                   - code
     delete:
+      security:
+        - dcpAuth: []
       summary: Delete a bundle or a specific bundle version
       description: >
         Delete the bundle with the given UUID. This deletion is applied across replicas.
-      security:
-        - dcpAuth: []
       parameters:
         - name: uuid
           in: path

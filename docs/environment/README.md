@@ -68,4 +68,3 @@ Environment Variable | Description
 `DSS_GCP_SERVICE_ACCOUNT_NAME` | "travis-test"
 `DSS_CHECKOUT_BUCKET_OBJECT_VIEWERS` | This list manages the GCP Users and serviceAccounts able to access direct URLs on the GS checkout bucket. Other GCP entities must use presigned urls, or checkout to an external GS bucket they have access to. 
 `AWS_SDK_LOAD_CONFIG` | Needed for Terraform to correctly use AWS assumed roles
-
