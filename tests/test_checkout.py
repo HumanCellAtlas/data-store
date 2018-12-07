@@ -297,6 +297,20 @@ class TestCheckoutApi(unittest.TestCase, DSSAssertMixin, DSSUploadMixin):
                 pre_exec_validate(replica, replica.bucket, nonexistent_bucket, self.bundle_uuid, self.bundle_version)
 
     @testmode.standalone
+    def test_validate_bucket_format_fail(self):
+        nonexistent_bundle_uuid = str(uuid.uuid4())
+        wrong_format = ['gs://{0}/my_path'.format(nonexistent_bundle_uuid),
+                        '/{0}/my_path/'.format(nonexistent_bundle_uuid),
+                        '/{0}/my_path'.format(nonexistent_bundle_uuid), '{0}/my_path'.format(nonexistent_bundle_uuid)]
+        for replica in Replica:
+            for format_dest in wrong_format:
+                json_request_body = dict(destination=format_dest, email='test@example.edu')
+                with self.subTest(format_dest=format_dest):
+                    self.assertResponse(method='post', path=f'/v1/bundles/{self.bundle_uuid}/checkout',
+                                        expected_code=400, json_request_body=json_request_body,
+                                        headers=get_auth_header())
+
+    @testmode.standalone
     def test_validate_bucket_writable_fail(self):
         # only AWS supports buckets that can be created by terraform that are inaccessible to self.
         replica = Replica.aws

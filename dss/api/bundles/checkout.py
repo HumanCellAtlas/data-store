@@ -14,7 +14,8 @@ def post(uuid: str, json_request_body: dict, replica: str, version: str = None):
     assert replica is not None
     _replica: Replica = Replica[replica]
     dst_bucket = json_request_body.get('destination', _replica.checkout_bucket)
-
+    if '/' in dst_bucket:
+        raise DSSException(400, "illegal_arguments", "Destination bucket invalid!")
     try:
         execution_id = start_bundle_checkout(
             _replica,
@@ -25,7 +26,6 @@ def post(uuid: str, json_request_body: dict, replica: str, version: str = None):
         )
     except BundleNotFoundError:
         raise DSSException(404, "not_found", "Cannot find bundle!")
-
     return jsonify(dict(checkout_job_id=execution_id)), requests.codes.ok
 
 
