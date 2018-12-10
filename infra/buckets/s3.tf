@@ -92,7 +92,7 @@ resource aws_s3_bucket dss_s3_checkout_bucket_unwritable {
     },
     {
       "Action": [
-        "s3:Put*"
+        "s3:PutObject*"
       ],
       "Effect": "Deny",
       "Resource": [
