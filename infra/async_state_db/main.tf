@@ -8,4 +8,8 @@ resource "aws_dynamodb_table" "sfn_state" {
     name = "key"
     type = "S"
   }
+  tags {
+    CreatedBy = "Terraform"
+    Application = "DSS"
+  }
 }
