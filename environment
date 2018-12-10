@@ -104,6 +104,7 @@ ES_ALLOWED_SOURCE_IP_SECRETS_NAME="es_source_ip"
 DSS_DEBUG=0
 
 # Enable audit logs by setting ENABLE_AUDIT_LOGS to 1, and specifying the name of the bucket to store logs in.
+# Warning: Do not enable audit logs until after you have succesfully deployed the DSS at least once otherwise it will fail.
 ENABLE_AUDIT_LOGS=1
 DSS_AUDIT_LOGS_BUCKET=dss-audit-logs
 
