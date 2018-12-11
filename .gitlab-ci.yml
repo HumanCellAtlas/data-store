@@ -103,7 +103,7 @@ deploy:
     # issue: https://gitlab.com/gitlab-com/support-forum/issues/2814
     # fix: https://gitlab.com/gitlab-org/gitlab-ce/issues/27921
     # - Brian Hannafiouus
-    # url: https://dss.$DSS_ENV.data.humancellatlas.org
+    # url: https://dss.{dev/integration/master}.data.humancellatlas.org
   only:
     - master
     - integration
