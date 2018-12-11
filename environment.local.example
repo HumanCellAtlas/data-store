@@ -7,4 +7,9 @@
 set -a
 # Environment variable assignments (var=value) in "set -a" mode are
 # automatically exported.
+API_DOMAIN_NAME="localhost"
+DSS_ES_ENDPOINT="localhost"
+DSS_ES_PORT=9200
+DSS_TEST_ES_PATH="/usr/local/opt/elasticsearch@5.6/bin/elasticsearch"
+
 set +a
