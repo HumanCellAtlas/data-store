@@ -48,6 +48,19 @@ resource aws_s3_bucket dss_s3_checkout_bucket {
     CreatedBy = "Terraform"
     Application = "DSS"
   }
+  cors_rule {
+    allowed_methods = [
+      "HEAD",
+      "GET"
+    ]
+    allowed_origins = [
+      "*"
+    ]
+    allowed_headers = [
+      "*"
+    ]
+    max_age_seconds = 3000
+  }
 }
 
 resource aws_s3_bucket dss_s3_checkout_bucket_test {
