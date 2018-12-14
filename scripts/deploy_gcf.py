@@ -88,6 +88,18 @@ queue_access_policy = {"Statement": [{"Sid": "dss-deploy-gcf-qap",
 index_sqs_queue.set_attributes(Attributes=dict(Policy=json.dumps(queue_access_policy)))
 relay_sns_topic.subscribe(Protocol="sqs", Endpoint=index_sqs_queue.attributes["QueueArn"])
 
+notify_v2_sqs_queue_name = "dss-notify-v2-event-relay-" + os.environ["DSS_DEPLOYMENT_STAGE"]
+notify_v2_sqs_queue = boto3_session.resource("sqs").create_queue(QueueName=notify_v2_sqs_queue_name)
+sender_arn = f"arn:aws:sns:*:{aws_account_id}:{relay_sns_topic_name}"
+queue_access_policy = {"Statement": [{"Sid": "dss-deploy-gcf-qap",
+                                      "Action": ["SQS:SendMessage"],
+                                      "Effect": "Allow",
+                                      "Resource": notify_v2_sqs_queue.attributes["QueueArn"],
+                                      "Principal": {"AWS": "*"},
+                                      "Condition": {"ArnLike": {"aws:SourceArn": sender_arn}}}]}
+notify_v2_sqs_queue.set_attributes(Attributes=dict(Policy=json.dumps(queue_access_policy)))
+relay_sns_topic.subscribe(Protocol="sqs", Endpoint=notify_v2_sqs_queue.attributes["QueueArn"])
+
 config_vars = {
     "AWS_ACCESS_KEY_ID": aws_access_key_info['AccessKey']['AccessKeyId'],
     "AWS_SECRET_ACCESS_KEY": aws_access_key_info['AccessKey']['SecretAccessKey'],
