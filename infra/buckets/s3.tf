@@ -1,5 +1,5 @@
 resource aws_s3_bucket dss_s3_bucket {
-  count  = "${length(var.DSS_S3_BUCKET) > 0 ? 1 : 0}"
+  count = "${length(var.DSS_S3_BUCKET) > 0 ? 1 : 0}"
   bucket = "${var.DSS_S3_BUCKET}"
   tags {
     CreatedBy = "Terraform"
@@ -8,10 +8,10 @@ resource aws_s3_bucket dss_s3_bucket {
 }
 
 resource aws_s3_bucket dss_s3_bucket_test {
-  count  = "${var.DSS_DEPLOYMENT_STAGE == "dev" ? 1 : 0}"
+  count = "${var.DSS_DEPLOYMENT_STAGE == "dev" ? 1 : 0}"
   bucket = "${var.DSS_S3_BUCKET_TEST}"
   lifecycle_rule {
-    id      = "prune old things"
+    id = "prune old things"
     enabled = true
     abort_incomplete_multipart_upload_days = "${var.DSS_BLOB_TTL_DAYS}"
     expiration {
@@ -25,7 +25,7 @@ resource aws_s3_bucket dss_s3_bucket_test {
 }
 
 resource aws_s3_bucket dss_s3_bucket_test_fixtures {
-  count  = "${var.DSS_DEPLOYMENT_STAGE == "dev" ? 1 : 0}"
+  count = "${var.DSS_DEPLOYMENT_STAGE == "dev" ? 1 : 0}"
   bucket = "${var.DSS_S3_BUCKET_TEST_FIXTURES}"
   tags {
     CreatedBy = "Terraform"
@@ -34,10 +34,10 @@ resource aws_s3_bucket dss_s3_bucket_test_fixtures {
 }
 
 resource aws_s3_bucket dss_s3_checkout_bucket {
-  count  = "${length(var.DSS_S3_CHECKOUT_BUCKET) > 0 ? 1 : 0}"
+  count = "${length(var.DSS_S3_CHECKOUT_BUCKET) > 0 ? 1 : 0}"
   bucket = "${var.DSS_S3_CHECKOUT_BUCKET}"
   lifecycle_rule {
-    id      = "dss_checkout_expiration"
+    id = "dss_checkout_expiration"
     enabled = true
     abort_incomplete_multipart_upload_days = "${var.DSS_BLOB_TTL_DAYS}"
     expiration {
@@ -48,13 +48,26 @@ resource aws_s3_bucket dss_s3_checkout_bucket {
     CreatedBy = "Terraform"
     Application = "DSS"
   }
+  cors_rule {
+    allowed_methods = [
+      "HEAD",
+      "GET"
+    ]
+    allowed_origins = [
+      "*"
+    ]
+    allowed_headers = [
+      "*"
+    ]
+    max_age_seconds = 3000
+  }
 }
 
 resource aws_s3_bucket dss_s3_checkout_bucket_test {
-  count  = "${var.DSS_DEPLOYMENT_STAGE == "dev" ? 1 : 0}"
+  count = "${var.DSS_DEPLOYMENT_STAGE == "dev" ? 1 : 0}"
   bucket = "${var.DSS_S3_CHECKOUT_BUCKET_TEST}"
   lifecycle_rule {
-    id      = "dss_checkout_expiration"
+    id = "dss_checkout_expiration"
     enabled = true
     abort_incomplete_multipart_upload_days = "${var.DSS_BLOB_TTL_DAYS}"
     expiration {
@@ -68,7 +81,7 @@ resource aws_s3_bucket dss_s3_checkout_bucket_test {
 }
 
 resource aws_s3_bucket dss_s3_checkout_bucket_unwritable {
-  count  = "${var.DSS_DEPLOYMENT_STAGE == "dev" ? 1 : 0}"
+  count = "${var.DSS_DEPLOYMENT_STAGE == "dev" ? 1 : 0}"
   bucket = "${var.DSS_S3_CHECKOUT_BUCKET_UNWRITABLE}"
   tags {
     CreatedBy = "Terraform"
