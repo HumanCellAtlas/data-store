@@ -187,6 +187,7 @@ def cb():
 schema_name = "authd4"
 directory_name = "authd4"
 schema_version = "1"
+directory_arn = None
 
 for directory in ad.list_directories()["Directories"]:
     if directory["Name"] == directory_name:
