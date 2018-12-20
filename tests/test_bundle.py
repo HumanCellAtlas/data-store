@@ -73,7 +73,8 @@ class TestBundleApi(unittest.TestCase, TestAuthMixin, DSSAssertMixin, DSSUploadM
             with override_bucket_config(BucketConfig.TEST_FIXTURE):
                 resp_obj = self.assertGetResponse(
                     url,
-                    requests.codes.ok)
+                    requests.codes.ok,
+                    headers=get_auth_header())
 
             self.assertEqual(resp_obj.json['bundle']['uuid'], bundle_uuid)
             self.assertEqual(resp_obj.json['bundle']['version'], version)
@@ -116,6 +117,7 @@ class TestBundleApi(unittest.TestCase, TestAuthMixin, DSSAssertMixin, DSSUploadM
                     redirect_follow_retries=BUNDLE_GET_RETRY_COUNT,
                     min_retry_interval_header=RETRY_AFTER_INTERVAL,
                     override_retry_interval=1,
+                    headers=get_auth_header()
                 )
 
             directaccess_url = resp_obj.json['bundle']['files'][0]['url']
@@ -157,6 +159,7 @@ class TestBundleApi(unittest.TestCase, TestAuthMixin, DSSAssertMixin, DSSUploadM
                     redirect_follow_retries=BUNDLE_GET_RETRY_COUNT,
                     min_retry_interval_header=RETRY_AFTER_INTERVAL,
                     override_retry_interval=1,
+                    headers=get_auth_header()
                 )
 
             presigned_url = resp_obj.json['bundle']['files'][0]['url']
@@ -188,7 +191,9 @@ class TestBundleApi(unittest.TestCase, TestAuthMixin, DSSAssertMixin, DSSUploadM
             with override_bucket_config(BucketConfig.TEST_FIXTURE):
                 resp_obj = self.assertGetResponse(
                     url,
-                    requests.codes.bad_request)
+                    requests.codes.bad_request,
+                    headers=get_auth_header()
+                )
                 self.assertEqual(resp_obj.json['code'], "only_one_urltype")
 
     @testmode.standalone
@@ -302,27 +307,29 @@ class TestBundleApi(unittest.TestCase, TestAuthMixin, DSSAssertMixin, DSSUploadM
             mock_get_bundle_checkout_status.return_value = {'status': "RUNNING"}
             with self.subTest(f"{replica}: Initiate checkout and return 301 if bundle has not been checked out"):
                 # assert 301 redirect on first GET
-                self.assertGetResponse(url, requests.codes.moved, redirect_follow_retries=0)
+                self.assertGetResponse(url, requests.codes.moved, redirect_follow_retries=0, headers=get_auth_header())
                 mock_start_bundle_checkout.assert_called_once_with(replica,
                                                                    bundle_uuid,
                                                                    bundle_version,
                                                                    dst_bucket=replica.checkout_bucket)
                 force_checkout()
                 # assert 200 on subsequent GET
-                self.assertGetResponse(url, requests.codes.ok, redirect_follow_retries=5, override_retry_interval=0.5)
+                self.assertGetResponse(url, requests.codes.ok, redirect_follow_retries=5, override_retry_interval=0.5,
+                                       headers=get_auth_header())
                 mock_start_bundle_checkout.reset_mock()
 
             with self.subTest(f"{replica}: Initiate checkout and return 301 if file is missing from checkout bundle"):
                 handle.delete(replica.checkout_bucket, f"bundles/{bundle_uuid}.{bundle_version}/file_1")
                 # assert 301 redirect on first GET
-                self.assertGetResponse(url, requests.codes.moved, redirect_follow_retries=0)
+                self.assertGetResponse(url, requests.codes.moved, redirect_follow_retries=0, headers=get_auth_header())
                 mock_start_bundle_checkout.assert_called_once_with(replica,
                                                                    bundle_uuid,
                                                                    bundle_version,
                                                                    dst_bucket=replica.checkout_bucket)
                 force_checkout()
                 # assert 200 on subsequent GET
-                self.assertGetResponse(url, requests.codes.ok, redirect_follow_retries=5, override_retry_interval=0.5)
+                self.assertGetResponse(url, requests.codes.ok, redirect_follow_retries=5, override_retry_interval=0.5,
+                                       headers=get_auth_header())
                 mock_start_bundle_checkout.reset_mock()
 
             with self.subTest(f"{replica}: Initiate checkout and return 200 if a file in checkout bundle is stale"):
@@ -334,10 +341,10 @@ class TestBundleApi(unittest.TestCase, TestAuthMixin, DSSAssertMixin, DSSUploadM
                 with mock.patch("dss.storage.checkout.bundle._list_checkout_bundle") as mock_list_checkout_bundle:
                     mock_list_checkout_bundle.return_value = list(
                         ((f"bundles/{bundle_uuid}.{bundle_version}/{filename}",
-                         {BlobMetadataField.CREATED: stale_creation_date if i == 1 else now})
-                         for i, filename in enumerate(filenames))
+                          {BlobMetadataField.CREATED: stale_creation_date if i == 1 else now})
+                            for i, filename in enumerate(filenames))
                     )
-                    self.assertGetResponse(url, requests.codes.ok, redirect_follow_retries=0)
+                    self.assertGetResponse(url, requests.codes.ok, redirect_follow_retries=0, headers=get_auth_header())
                 mock_start_bundle_checkout.assert_called_once_with(replica,
                                                                    bundle_uuid,
                                                                    bundle_version,
@@ -361,13 +368,15 @@ class TestBundleApi(unittest.TestCase, TestAuthMixin, DSSAssertMixin, DSSUploadM
                          {BlobMetadataField.CREATED: near_expired_creation_date if i == 0 else now})
                         for i, filename in enumerate(filenames)
                     )
-                    self.assertGetResponse(url, requests.codes.moved, redirect_follow_retries=0)
+                    self.assertGetResponse(url, requests.codes.moved, redirect_follow_retries=0,
+                                           headers=get_auth_header())
                 mock_start_bundle_checkout.assert_called_once_with(replica,
                                                                    bundle_uuid,
                                                                    bundle_version,
                                                                    dst_bucket=replica.checkout_bucket)
                 force_checkout()
-                self.assertGetResponse(url, requests.codes.ok, redirect_follow_retries=5, override_retry_interval=0.5)
+                self.assertGetResponse(url, requests.codes.ok, redirect_follow_retries=5, override_retry_interval=0.5,
+                                       headers=get_auth_header())
                 mock_start_bundle_checkout.reset_mock()
 
             handle.delete(test_bucket, f"bundles/{bundle_uuid}.{bundle_version}")
@@ -427,6 +436,20 @@ class TestBundleApi(unittest.TestCase, TestAuthMixin, DSSAssertMixin, DSSUploadM
                 bundle_version,
                 requests.codes.ok,
             )
+
+        with self.subTest(f'{replica}:  manifest response testing'):
+            bundle_version = datetime_to_version_format(datetime.datetime.utcnow())
+            resp_obj = self.put_bundle(
+                replica,
+                bundle_uuid,
+                [(file_uuid, file_version, "LICENSE")],
+                bundle_version,
+            )
+            self.assertEqual(resp_obj.json['manifest']['creator_uid'], 12345)
+            self.assertEqual(resp_obj.json['manifest']['version'], bundle_version)
+            self.assertEqual(resp_obj.json['manifest']['files'][0]['name'], 'LICENSE')
+            self.assertEqual(resp_obj.json['manifest']['files'][0]['indexed'], False)
+            self.assertEqual(resp_obj.json['manifest']['files'][0]['version'], file_version)
 
         with self.subTest(f'{replica}: should *NOT* be able to do this twice with different payload.'):
             self.put_bundle(
@@ -670,8 +693,8 @@ class TestBundleApi(unittest.TestCase, TestAuthMixin, DSSAssertMixin, DSSUploadM
                     requests.codes.not_found,
                     expected_error=ExpectedErrorFields(
                         code="not_found",
-                        status=requests.codes.not_found)
-                )
+                        status=requests.codes.not_found),
+                    headers=get_auth_header())
 
             version = "2017-06-16T193604.240704Z"
             url = str(UrlBuilder()
@@ -685,8 +708,8 @@ class TestBundleApi(unittest.TestCase, TestAuthMixin, DSSAssertMixin, DSSUploadM
                     requests.codes.not_found,
                     expected_error=ExpectedErrorFields(
                         code="not_found",
-                        status=requests.codes.not_found)
-                )
+                        status=requests.codes.not_found),
+                    headers=get_auth_header())
 
     def put_bundle(
             self,
@@ -726,6 +749,7 @@ class TestBundleApi(unittest.TestCase, TestAuthMixin, DSSAssertMixin, DSSUploadM
                 }
             )
             self.assertIn('version', resp_obj.json)
+            self.assertIn('manifest', resp_obj.json)
         return resp_obj
 
     def delete_bundle(

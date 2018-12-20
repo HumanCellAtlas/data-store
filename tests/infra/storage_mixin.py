@@ -100,7 +100,8 @@ class DSSStorageMixin:
         response = self.assertGetResponse(
             str(UrlBuilder().set(path='/v1/bundles/' + bundle.uuid)
                 .add_query('replica', replica.name)),
-            requests.codes.ok
+            requests.codes.ok,
+            headers=get_auth_header()
         )
         response_data = json.loads(response[1])
         self.check_bundle_contains_same_files(bundle, response_data['bundle']['files'])
@@ -123,5 +124,6 @@ class DSSStorageMixin:
                 str(UrlBuilder().set(path='/v1/files/' + bundle_file.uuid)
                     .add_query('replica', replica.name)),
                 requests.codes.found,
+                headers=get_auth_header()
             )
             self.assertEqual(bundle_file.version, response[0].headers['X-DSS-VERSION'])

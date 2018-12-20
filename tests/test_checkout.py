@@ -6,14 +6,13 @@ import os
 import sys
 import unittest
 import uuid
-from uuid import UUID
-
 import requests
+from uuid import UUID
+from cloud_blobstore import BlobNotFoundError
 
 pkg_root = os.path.abspath(os.path.join(os.path.dirname(__file__), '..'))  # noqa
 sys.path.insert(0, pkg_root)  # noqa
 
-from cloud_blobstore import BlobNotFoundError
 import dss
 from dss.config import override_bucket_config, BucketConfig, Replica, Config
 from dss.util import UrlBuilder
@@ -135,7 +134,8 @@ class TestCheckoutApi(unittest.TestCase, DSSAssertMixin, DSSUploadMixin):
             resp_obj = self.assertPostResponse(
                 url,
                 requests.codes.not_found,
-                request_body
+                request_body,
+                headers=get_auth_header()
             )
             self.assertEqual(resp_obj.json['code'], 'not_found')
 
@@ -152,7 +152,8 @@ class TestCheckoutApi(unittest.TestCase, DSSAssertMixin, DSSUploadMixin):
             self.assertPostResponse(
                 url,
                 requests.codes.bad_request,
-                request_body
+                request_body,
+                headers=get_auth_header()
             )
 
     def launch_checkout(self, dst_bucket: str, replica: Replica) -> str:
@@ -166,7 +167,8 @@ class TestCheckoutApi(unittest.TestCase, DSSAssertMixin, DSSUploadMixin):
         resp_obj = self.assertPostResponse(
             url,
             requests.codes.ok,
-            request_body
+            request_body,
+            headers=get_auth_header()
         )
         execution_id = resp_obj.json["checkout_job_id"]
         self.assertIsNotNone(execution_id)
@@ -207,7 +209,8 @@ class TestCheckoutApi(unittest.TestCase, DSSAssertMixin, DSSUploadMixin):
             def check_status():
                 resp_obj = self.assertGetResponse(
                     url,
-                    requests.codes.ok
+                    requests.codes.ok,
+                    headers=get_auth_header()
                 )
                 status = resp_obj.json.get('status')
                 if status not in ("RUNNING", "FAILED"):
@@ -226,7 +229,8 @@ class TestCheckoutApi(unittest.TestCase, DSSAssertMixin, DSSUploadMixin):
 
             resp_obj = self.assertGetResponse(
                 url,
-                requests.codes.not_found
+                requests.codes.not_found,
+                headers=get_auth_header()
             )
             self.assertEqual(resp_obj.json['code'], "not_found")
 
@@ -295,6 +299,20 @@ class TestCheckoutApi(unittest.TestCase, DSSAssertMixin, DSSUploadMixin):
         for replica in Replica:
             with self.assertRaises(DestinationBucketNotFoundError):
                 pre_exec_validate(replica, replica.bucket, nonexistent_bucket, self.bundle_uuid, self.bundle_version)
+
+    @testmode.standalone
+    def test_validate_bucket_format_fail(self):
+        nonexistent_bundle_uuid = str(uuid.uuid4())
+        wrong_format = ['gs://{0}/my_path'.format(nonexistent_bundle_uuid),
+                        '/{0}/my_path/'.format(nonexistent_bundle_uuid),
+                        '/{0}/my_path'.format(nonexistent_bundle_uuid), '{0}/my_path'.format(nonexistent_bundle_uuid)]
+        for replica in Replica:
+            for format_dest in wrong_format:
+                json_request_body = dict(destination=format_dest, email='test@example.edu')
+                with self.subTest(format_dest=format_dest):
+                    self.assertResponse(method='post', path=f'/v1/bundles/{self.bundle_uuid}/checkout',
+                                        expected_code=400, json_request_body=json_request_body,
+                                        headers=get_auth_header())
 
     @testmode.standalone
     def test_validate_bucket_writable_fail(self):

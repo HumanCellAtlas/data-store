@@ -51,6 +51,15 @@ info:
 
     ```
 
+    # Special String Formats
+
+
+    **DSS_VERSION**: a timestamp that generally follows [RFC3339](https://tools.ietf.org/html/rfc3339#section-5.6)
+    format guide. However there are a few differences. DSS_VERSION must always be in UTC time, ':' are removed from
+    the time, and the fractional seconds extends to 6 decimal places. Using the first example found [here](https://tools.ietf.org/html/rfc3339#section-5.8),
+    the RFC3339 version would be `1985-04-12T23:20:50.52Z` while the DSS_VERSION would be `1985-04-12T232050.520000Z`
+
+
   version: "0.0.2"
 host: {{API_DOMAIN_NAME}}
 schemes:
@@ -245,10 +254,9 @@ paths:
           enum: [aws, gcp]
         - name: version
           in: query
-          description: Timestamp of file creation in RFC3339.  If this is not provided, the latest version is returned.
+          description: Timestamp of file creation in DSS_VERSION format.  If this is not provided, the latest version is returned.
           required: false
           type: string
-          format: date-time
       responses:
         200:
           description: Returns metadata
@@ -259,9 +267,8 @@ paths:
               type: integer
               format: int64
             X-DSS-VERSION:
-              description: Timestamp of file creation in RFC3339.
+              description: Timestamp of file creation in DSS_VERSION format.
               type: string
-              format: date-time
             X-DSS-CONTENT-TYPE:
               description: Content-type of the file.
               type: string
@@ -309,10 +316,9 @@ paths:
           enum: [aws, gcp]
         - name: version
           in: query
-          description: Timestamp of file creation in RFC3339.  If this is not provided, the latest version is returned.
+          description: Timestamp of file creation in DSS_VERSION format.  If this is not provided, the latest version is returned.
           required: false
           type: string
-          format: date-time
         - name: token
           in: query
           description: Token to manage retries.  End users constructing queries should not set this parameter.
@@ -335,9 +341,9 @@ paths:
               type: integer
               format: int64
             X-DSS-VERSION:
-              description: Timestamp of file creation in RFC3339.
+              description: Timestamp of file creation in DSS_VERSION format.
               type: string
-              format: date-time
+              format: DSS_VERSION
             X-DSS-CONTENT-TYPE:
               description: Content-type of the file.
               type: string
@@ -391,6 +397,8 @@ paths:
                 required:
                   - code
     put:
+      security:
+        - dcpAuth: []
       summary: Create a new version of a file
       description: >
         Create a new version of a file with a given UUID. The contents of the file are provided by the client by
@@ -408,8 +416,6 @@ paths:
         640,000MB, we use a chunk size equal to the total file size divided by 10000, rounded up to the nearest MB.
         MB, in this section, refers to 1,048,576 bytes.  Note that 640,000MB is not the same as 640GB!
         - hca-dss-crc32c: CRC-32C checksum of the file
-      security:
-            - dcpAuth: []
       parameters:
         - name: uuid
           in: path
@@ -419,10 +425,10 @@ paths:
           pattern: "[A-Za-z0-9]{8}-[A-Za-z0-9]{4}-[A-Za-z0-9]{4}-[A-Za-z0-9]{4}-[A-Za-z0-9]{12}"
         - name: version
           in: query
-          description: Timestamp of file creation in RFC3339.  If this is not provided, the latest version is returned.
+          description: Timestamp of file creation in DSS_VERSION format.  If this is not provided, the latest version is returned.
           required: true
           type: string
-          format: date-time
+          format: DSS_VERSION
         - name: json_request_body
           in: body
           required: true
@@ -447,9 +453,9 @@ paths:
             type: object
             properties:
               version:
-                description: Timestamp of file creation in RFC3339.
+                description: Timestamp of file creation in DSS_VERSION format.
                 type: string
-                format: date-time
+                format: DSS_VERSION
             required:
               - version
         201:
@@ -458,9 +464,9 @@ paths:
             type: object
             properties:
               version:
-                description: Timestamp of file creation in RFC3339.
+                description: Timestamp of file creation in DSS_VERSION format.
                 type: string
-                format: date-time
+                format: DSS_VERSION
             required:
               - version
         202:
@@ -469,9 +475,9 @@ paths:
             type: object
             properties:
               version:
-                description: Timestamp of file creation in RFC3339.
+                description: Timestamp of file creation in DSS_VERSION format.
                 type: string
-                format: date-time
+                format: DSS_VERSION
               task_id:
                 description: ID for the task responsible for managing the copy.
                 type: string
@@ -493,7 +499,7 @@ paths:
                       The code `unknown_source_schema` is returned when the source_url of the file has an unsupported
                       schema.
 
-                      The code `illegal_version` is returned when version is not a RFC3339-compliant timestamp.
+                      The code `illegal_version` is returned when version is not a DSS_VERSION format-compliant timestamp.
                     enum: [unknown_source_schema, illegal_version]
                 required:
                   - code
@@ -541,12 +547,12 @@ paths:
                   - code
   /subscriptions:
     get:
+      security:
+        - dcpAuth: []
       summary: Retrieve a user\'s event subscriptions.
       description: |
         Return a list of associated subscriptions.
       operationId: dss.api.subscriptions.find
-      security:
-        - dcpAuth: []
       parameters:
         - name: replica
           in: query
@@ -580,11 +586,11 @@ paths:
                 required:
                   - code
     put:
+      security:
+        - dcpAuth: []
       summary: Create a event subscription.
       description: >
         Register an HTTP endpoint that is to be notified when a given event occurs.
-      security:
-        - dcpAuth: []
       parameters:
         - name: replica
           in: query
@@ -782,11 +788,11 @@ paths:
                   - code
   /subscriptions/{uuid}:
     get:
+      security:
+        - dcpAuth: []
       summary: Retrieve an event subscription given a UUID.
       description: >
         Given a subscription UUID, return the associated subscription.
-      security:
-        - dcpAuth: []
       parameters:
         - name: uuid
           in: path
@@ -822,12 +828,12 @@ paths:
                 required:
                   - code
     delete:
+      security:
+        - dcpAuth: []
       summary: Delete an event subscription.
       description: >
         Delete a registered event subscription. The associated query will no longer trigger a callback
         if a matching document is added to the system.
-      security:
-        - dcpAuth: []
       parameters:
         - name: uuid
           in: path
@@ -848,9 +854,9 @@ paths:
             type: object
             properties:
               timeDeleted:
-                description: Timestamp of query subscription deletion in RFC3339.
+                description: Timestamp of query subscription deletion in DSS_VERSION format.
                 type: string
-                format: date-time
+                format: DSS_VERSION
             required:
               - timeDeleted
         default:
@@ -868,6 +874,8 @@ paths:
                   - code
   /collections:
     put:
+      security:
+        - dcpAuth: []
       summary: Create a collection.
       description: >
         Create a new collection.
@@ -883,8 +891,6 @@ paths:
 
 
         Collections are replicated across storage replicas similarly to files and bundles.
-      security:
-        - dcpAuth: []
       parameters:
         - name: replica
           in: query
@@ -901,11 +907,11 @@ paths:
         - name: version
           in: query
           description: >
-            Timestamp of collection creation in RFC3339 format. If this is not provided, the version is automatically
+            Timestamp of collection creation in DSS_VERSION format format. If this is not provided, the version is automatically
             generated.
           required: true
           type: string
-          format: date-time
+          format: DSS_VERSION
         - name: json_request_body
           in: body
           required: true
@@ -945,11 +951,11 @@ paths:
                   - code
   /collections/{uuid}:
     get:
+      security:
+        - dcpAuth: []
       summary: Retrieve a collection given a UUID.
       description: >
         Given a collection UUID, return the associated collection object.
-      security:
-        - dcpAuth: []
       parameters:
         - name: uuid
           in: path
@@ -966,10 +972,9 @@ paths:
         - name: version
           in: query
           description: >
-            Timestamp of collection creation in RFC3339.  If this is not provided, the latest version is returned.
+            Timestamp of collection creation in DSS_VERSION format.  If this is not provided, the latest version is returned.
           required: false
           type: string
-          format: date-time
       responses:
         200:
           description: OK
@@ -992,12 +997,12 @@ paths:
                 required:
                   - code
     patch:
+      security:
+        - dcpAuth: []
       summary: Update a collection.
       description: >
         Add or remove items from a collection. A specific version of the collection to update must be provided, and a
         new version will be written.
-      security:
-        - dcpAuth: []
       parameters:
         - name: uuid
           in: path
@@ -1014,10 +1019,10 @@ paths:
         - name: version
           in: query
           description: >
-            Timestamp of the collection to update in RFC3339 format (required).
+            Timestamp of the collection to update in DSS_VERSION format format (required).
           required: true
           type: string
-          format: date-time
+          format: DSS_VERSION
         - name: json_request_body
           in: body
           required: true
@@ -1061,7 +1066,7 @@ paths:
               version:
                 type: string
                 description: New version of the updated collection.
-                format: date-time
+                format: DSS_VERSION
             required:
               - uuid
               - version
@@ -1077,7 +1082,7 @@ paths:
                   code:
                     type: string
                     description: >
-                      The code `illegal_version` is returned when version is not a RFC3339-compliant timestamp.
+                      The code `illegal_version` is returned when version is not a DSS_VERSION format-compliant timestamp.
                     enum: [illegal_version]
                 required:
                   - code
@@ -1147,11 +1152,11 @@ paths:
                 required:
                   - code
     delete:
+      security:
+        - dcpAuth: []
       summary: Delete a collection.
       description: >
         Delete a collection.
-      security:
-        - dcpAuth: []
       parameters:
         - name: uuid
           in: path
@@ -1196,10 +1201,9 @@ paths:
           pattern: "[A-Za-z0-9]{8}-[A-Za-z0-9]{4}-[A-Za-z0-9]{4}-[A-Za-z0-9]{4}-[A-Za-z0-9]{12}"
         - name: version
           in: query
-          description: Timestamp of bundle creation in RFC3339.
+          description: Timestamp of bundle creation in DSS_VERSION format.
           required: false
           type: string
-          format: date-time
         - name: replica
           in: query
           description: Replica to fetch from.
@@ -1302,12 +1306,12 @@ paths:
                 required:
                   - code
     put:
+      security:
+        - dcpAuth: []
       summary: Create a bundle
       description: >
         Create a new version of a bundle with a given UUID.  The list of file UUID+versions to be included must be
         provided.
-      security:
-            - dcpAuth: []
       parameters:
         - name: uuid
           in: path
@@ -1317,10 +1321,10 @@ paths:
           pattern: "[A-Za-z0-9]{8}-[A-Za-z0-9]{4}-[A-Za-z0-9]{4}-[A-Za-z0-9]{4}-[A-Za-z0-9]{12}"
         - name: version
           in: query
-          description: Timestamp of bundle creation in RFC3339.
+          description: Timestamp of bundle creation in DSS_VERSION format.
           required: true
           type: string
-          format: date-time
+          format: DSS_VERSION
         - name: replica
           in: query
           description: Replica to write to.
@@ -1343,9 +1347,9 @@ paths:
                       type: string
                       pattern: "[A-Za-z0-9]{8}-[A-Za-z0-9]{4}-[A-Za-z0-9]{4}-[A-Za-z0-9]{4}-[A-Za-z0-9]{12}"
                     version:
-                      description: Timestamp of file creation in RFC3339.
+                      description: Timestamp of file creation in DSS_VERSION format.
                       type: string
-                      format: date-time
+                      format: DSS_VERSION
                     name:
                       description: Name of the file.
                       type: string
@@ -1372,22 +1376,30 @@ paths:
             type: object
             properties:
               version:
-                description: Timestamp of bundle creation in RFC3339.
+                description: Timestamp of bundle creation in DSS_VERSION format.
                 type: string
-                format: date-time
+                format: DSS_VERSION
+              manifest:
+                type: object
+                description: The manifest stored in the DSS. It lists the files in the bundle, and metadata describing those files.
             required:
               - version
+              - manifest
         201:
           description: OK
           schema:
             type: object
             properties:
               version:
-                description: Timestamp of bundle creation in RFC3339.
+                description: Timestamp of bundle creation in DSS_VERSION format.
                 type: string
-                format: date-time
+                format: DSS_VERSION
+              manifest:
+                type: object
+                description: The manifest stored in the DSS. It lists the files in the bundle, and metadata describing those files.
             required:
               - version
+              - manifest
         400:
           description: Returned when the server could not process the request.  Examine the code for more details.
           schema:
@@ -1405,7 +1417,7 @@ paths:
                       The code `file_missing` is returned when the server cannot find one of the files requested to be
                       included in the bundle.
 
-                      The code `illegal_version` is returned when version is not a RFC3339-compliant timestamp.
+                      The code `illegal_version` is returned when version is not a DSS_VERSION format-compliant timestamp.
                     enum: [duplicate_filename, file_missing, illegal_version]
                 required:
                   - code
@@ -1436,11 +1448,11 @@ paths:
                 required:
                   - code
     delete:
+      security:
+        - dcpAuth: []
       summary: Delete a bundle or a specific bundle version
       description: >
         Delete the bundle with the given UUID. This deletion is applied across replicas.
-      security:
-        - dcpAuth: []
       parameters:
         - name: uuid
           in: path
@@ -1456,10 +1468,9 @@ paths:
           enum: [aws, gcp]
         - name: version
           in: query
-          description: Timestamp of bundle creation in RFC3339.
+          description: Timestamp of bundle creation in DSS_VERSION format.
           required: false
           type: string
-          format: date-time
         - name: json_request_body
           in: body
           required: true
@@ -1547,10 +1558,9 @@ paths:
           pattern: "[A-Za-z0-9]{8}-[A-Za-z0-9]{4}-[A-Za-z0-9]{4}-[A-Za-z0-9]{4}-[A-Za-z0-9]{12}"
         - name: version
           in: query
-          description: Timestamp of file creation in RFC3339.  If this is not provided, the latest version is returned.
+          description: Timestamp of file creation in DSS_VERSION format.  If this is not provided, the latest version is returned.
           required: false
           type: string
-          format: date-time
         - name: replica
           in: query
           description: Replica to fetch from.
@@ -1709,8 +1719,8 @@ definitions:
         pattern: "[a-z0-9]{8}-[a-z0-9]{4}-[a-z0-9]{4}-[a-z0-9]{4}-[a-z0-9]{12}"
       version:
         type: string
-        format: date-time
-        description: Timestamp of bundle creation in RFC3339.
+        format: DSS_VERSION
+        description: Timestamp of bundle creation in DSS_VERSION format.
       size:
         type: integer
         format: int64
@@ -1753,8 +1763,8 @@ definitions:
         type: array
         items:
           type: string
-          format: date-time
-          description: Timestamp of bundle creation in RFC3339.
+          format: DSS_VERSION
+          description: Timestamp of bundle creation in DSS_VERSION format.
     required:
       - uuid
       - versions
@@ -1927,8 +1937,8 @@ definitions:
         pattern: "[a-z0-9]{8}-[a-z0-9]{4}-[a-z0-9]{4}-[a-z0-9]{4}-[a-z0-9]{12}"
       version:
         type: string
-        format: date-time
-        description: Timestamp of bundle creation in RFC3339.
+        format: DSS_VERSION
+        description: Timestamp of bundle creation in DSS_VERSION format.
       files:
         type: array
         items:
@@ -1951,6 +1961,7 @@ definitions:
       total_hits:
         description: The total number of matching results found.
         type: integer
+      #TODO add next page
   Collection:
     type: object
     properties:
@@ -1987,8 +1998,8 @@ definitions:
         pattern: "[a-z0-9]{8}-[a-z0-9]{4}-[a-z0-9]{4}-[a-z0-9]{4}-[a-z0-9]{12}"
       version:
         type: string
-        format: date-time
-        description: RFC3339 timestamp of the file, bundle, collection, or file containing a metadata fragment.
+        format: DSS_VERSION
+        description: DSS_VERSION format timestamp of the file, bundle, collection, or file containing a metadata fragment.
       path:
         type: string
         description: >

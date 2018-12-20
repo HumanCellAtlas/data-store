@@ -8,16 +8,28 @@ locals {
 resource "aws_cloudwatch_log_group" "es_index_log" {
   name = "/aws/aes/domains/${var.DSS_ES_DOMAIN}/es-index-${var.DSS_DEPLOYMENT_STAGE}-logs"
   retention_in_days = 90
+  tags {
+    CreatedBy = "Terraform"
+    Application = "DSS"
+  }
 }
 
 resource "aws_cloudwatch_log_group" "es_search_log" {
   name = "/aws/aes/domains/${var.DSS_ES_DOMAIN}/es-search-${var.DSS_DEPLOYMENT_STAGE}-logs"
   retention_in_days = 90
+  tags {
+    CreatedBy = "Terraform"
+    Application = "DSS"
+  }
 }
 
 resource "aws_cloudwatch_log_group" "es_application_log" {
   name = "/aws/aes/domains/${var.DSS_ES_DOMAIN}/es-application-${var.DSS_DEPLOYMENT_STAGE}-logs"
   retention_in_days = 90
+  tags {
+    CreatedBy = "Terraform"
+    Application = "DSS"
+  }
 }
 
 data "aws_iam_policy_document" "dss_es_cloudwatch_policy_document" {
@@ -39,6 +51,7 @@ data "aws_iam_policy_document" "dss_es_cloudwatch_policy_document" {
 }
 
 resource "aws_cloudwatch_log_resource_policy" "dss_es_cloudwatch_policy" {
+  count = "${var.DSS_ES_DOMAIN_INDEX_LOGS_ENABLED == true ? 1 : 0}"
   policy_name = "${var.DSS_ES_DOMAIN}"
   policy_document = "${data.aws_iam_policy_document.dss_es_cloudwatch_policy_document.json}"
 }
@@ -91,19 +104,19 @@ resource aws_elasticsearch_domain elasticsearch {
   log_publishing_options = {
     cloudwatch_log_group_arn = "${aws_cloudwatch_log_group.es_index_log.arn}"
     log_type = "INDEX_SLOW_LOGS"
-    enabled = "true"
+    enabled = "${var.DSS_ES_DOMAIN_INDEX_LOGS_ENABLED}"
   }
 
   log_publishing_options = {
     cloudwatch_log_group_arn = "${aws_cloudwatch_log_group.es_search_log.arn}"
     log_type = "SEARCH_SLOW_LOGS"
-    enabled = "true"
+    enabled = "${var.DSS_ES_DOMAIN_INDEX_LOGS_ENABLED}"
   }
 
   log_publishing_options = {
     cloudwatch_log_group_arn = "${aws_cloudwatch_log_group.es_application_log.arn}"
     log_type = "ES_APPLICATION_LOGS"
-    enabled = "true"
+    enabled = "${var.DSS_ES_DOMAIN_INDEX_LOGS_ENABLED}"
   }
 
   snapshot_options = {
@@ -112,6 +125,8 @@ resource aws_elasticsearch_domain elasticsearch {
 
   tags {
     Domain = "${var.DSS_ES_DOMAIN}"
+    CreatedBy = "Terraform"
+    Application = "DSS"
   }
 
   access_policies = "${data.aws_iam_policy_document.dss_es_access_policy_documennt.json}"

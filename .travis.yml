@@ -32,6 +32,7 @@ before_script:
 - source environment
 
 script:
+- python3 scripts/swagger_auth.py --travis
 - make $MAKE_ARGS
 
 after_success:

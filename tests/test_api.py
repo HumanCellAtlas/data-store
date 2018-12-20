@@ -4,7 +4,7 @@
 """
 Functional Test of the API
 """
-
+import datetime
 import os
 import sys
 import unittest
@@ -17,7 +17,8 @@ sys.path.insert(0, pkg_root)  # noqa
 from dss.config import Replica
 import dss
 from dss.util import UrlBuilder
-from tests.infra import DSSAssertMixin, DSSUploadMixin, DSSStorageMixin, TestBundle, testmode, ExpectedErrorFields
+from dss.util.version import datetime_to_version_format
+from tests.infra import DSSAssertMixin, DSSUploadMixin, DSSStorageMixin, TestBundle, testmode
 from tests.infra.server import ThreadedLocalServer
 from tests import get_auth_header
 
@@ -65,7 +66,7 @@ class TestApi(unittest.TestCase, DSSAssertMixin, DSSUploadMixin, DSSStorageMixin
         """
         Test /version endpoint and configuration
         """
-        res = self.assertGetResponse("/version", requests.codes.ok)
+        res = self.assertGetResponse("/version", requests.codes.ok, headers=get_auth_header())
         self.assertEquals(res.json['version_info']['version'], os.environ['DSS_VERSION'])
 
     @testmode.standalone
@@ -83,7 +84,7 @@ class TestApi(unittest.TestCase, DSSAssertMixin, DSSUploadMixin, DSSStorageMixin
             contents=[],
             name="frank",
         )
-
+        version = datetime_to_version_format(datetime.datetime.utcnow())
         tests = [(path, replica)
                  for path in ("bundles", "files", "subscriptions", "collections")
                  for replica in ("aws", "gcp")]
@@ -93,7 +94,7 @@ class TestApi(unittest.TestCase, DSSAssertMixin, DSSUploadMixin, DSSStorageMixin
             for path, replica in tests:
                 with self.subTest(path=path, replica=replica):
                     put_url = str(UrlBuilder().set(path=f"/v1/{path}/{uuid}")
-                                  .add_query("version", "asdf")
+                                  .add_query("version", version)
                                   .add_query("replica", replica))
                     delete_url = str(UrlBuilder().set(path=f"/v1/{path}/{uuid}")
                                      .add_query("version", "asdf")
@@ -118,7 +119,7 @@ class TestApi(unittest.TestCase, DSSAssertMixin, DSSUploadMixin, DSSStorageMixin
                         delete_url = None
                     elif path == "collections":
                         put_url = str(UrlBuilder().set(path=f"/v1/{path}")
-                                      .add_query("version", "asdf")
+                                      .add_query("version", version)
                                       .add_query("uuid", uuid)
                                       .add_query("replica", replica))
                         delete_url = str(UrlBuilder().set(path=f"/v1/{path}/{uuid}")
@@ -132,7 +133,7 @@ class TestApi(unittest.TestCase, DSSAssertMixin, DSSUploadMixin, DSSStorageMixin
                             put_url,
                             requests.codes.unavailable,
                             json_request_body=json_request_body,
-                            headers=get_auth_header(),
+                            headers=get_auth_header()
                         )
 
                     if delete_url:
@@ -140,7 +141,7 @@ class TestApi(unittest.TestCase, DSSAssertMixin, DSSUploadMixin, DSSStorageMixin
                             delete_url,
                             requests.codes.unavailable,
                             json_request_body=json_request_body,
-                            headers=get_auth_header(),
+                            headers=get_auth_header()
                         )
         finally:
             del os.environ['DSS_READ_ONLY_MODE']

@@ -133,7 +133,7 @@ release_integration:
     -   echo "DCP Integration test returned status ${status}";
     -   exit 1
     - fi
-    - scripts/release.sh master integration --no-deploy --skip-github-status --skip-account-verification
+    - scripts/release.sh master integration --no-deploy --skip-account-verification
   only:
     - master
   except:
@@ -145,7 +145,7 @@ force_release_integration:
   stage: release
   script:
     - git remote set-url origin https://$GITHUB_TOKEN@github.com/HumanCellAtlas/data-store.git
-    - scripts/release.sh master integration --force --no-deploy --skip-github-status --skip-account-verification
+    - scripts/release.sh master integration --force --no-deploy --skip-account-verification
   only:
     - master
   except:
@@ -166,7 +166,7 @@ release_staging:
     -   echo "DCP Integration test returned status ${status}";
     -   exit 1
     - fi
-    - scripts/release.sh integration staging --no-deploy --skip-github-status --skip-account-verification
+    - scripts/release.sh integration staging --no-deploy --skip-account-verification
   only:
     - integration
   except:
@@ -177,7 +177,7 @@ force_release_staging:
   stage: release
   script:
     - git remote set-url origin https://$GITHUB_TOKEN@github.com/HumanCellAtlas/data-store.git
-    - scripts/release.sh integration staging --force --no-deploy --skip-github-status --skip-account-verification
+    - scripts/release.sh integration staging --force --no-deploy --skip-account-verification
   only:
     - integration
   except:
@@ -198,7 +198,7 @@ release_prod:
     -   echo "DCP Integration test returned status ${status}";
     -   exit 1
     - fi
-    - scripts/release.sh staging prod --no-deploy --skip-github-status --skip-account-verification
+    - scripts/release.sh staging prod --no-deploy --skip-account-verification
   only:
     - staging
   except:
@@ -209,7 +209,7 @@ force_release_prod:
   stage: release
   script:
     - git remote set-url origin https://$GITHUB_TOKEN@github.com/HumanCellAtlas/data-store.git
-    - scripts/release.sh staging prod --force --no-deploy --skip-github-status --skip-account-verification
+    - scripts/release.sh staging prod --force --no-deploy --skip-account-verification
   only:
     - staging
   except:

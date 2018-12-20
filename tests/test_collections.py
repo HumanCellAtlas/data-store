@@ -125,12 +125,15 @@ class TestCollections(unittest.TestCase, DSSAssertMixin, DSSUploadMixin):
         contents = [col_file_item] * 8 + [col_ptr_item] * 8
         uuid, version = self._put(contents)
 
+        with open(os.environ['GOOGLE_APPLICATION_CREDENTIALS'], "r") as fh:
+            owner_email = json.loads(fh.read())['client_email']
+
         expected_contents = {'contents': [col_file_item,
                                           col_ptr_item],
                              'description': 'd',
                              'details': {},
                              'name': 'n',
-                             'owner': 'travis-test@human-cell-atlas-travis-test.iam.gserviceaccount.com'
+                             'owner': owner_email
                              }
         tests = [(dict(), None),
                  (dict(description="foo", name="cn"), dict(description="foo", name="cn")),
@@ -161,7 +164,7 @@ class TestCollections(unittest.TestCase, DSSAssertMixin, DSSUploadMixin):
         self.addCleanup(self._delete_collection, uuid)
         res = self.app.put("/v1/collections",
                            headers=get_auth_header(authorized=True),
-                           params=dict(uuid=uuid, version=datetime.now().isoformat(), replica="aws"),
+                           params=dict(uuid=uuid, version=datetime_to_version_format(datetime.now()), replica="aws"),
                            json=dict(name="n", description="d", details={}, contents=[self.invalid_ptr] * 128))
         self.assertEqual(res.status_code, requests.codes.unprocessable_entity)
 
@@ -286,7 +289,7 @@ class TestCollections(unittest.TestCase, DSSAssertMixin, DSSUploadMixin):
              version: typing.Optional[str] = None,
              replica: str = 'aws') -> typing.Tuple[str, str]:
         uuid = str(uuid4()) if uuid is None else uuid
-        version = datetime.now().isoformat() if version is None else version
+        version = datetime_to_version_format(datetime.now()) if version is None else version
 
         params = dict()
         if uuid is not 'missing':

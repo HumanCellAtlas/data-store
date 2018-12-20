@@ -7,11 +7,10 @@ import sys
 import time
 import unittest
 import uuid
-from urllib.parse import parse_qs, parse_qsl, urlparse, urlsplit
-
 import os
 import requests
 from requests.utils import parse_header_links
+from urllib.parse import parse_qs, parse_qsl, urlparse, urlsplit
 
 pkg_root = os.path.abspath(os.path.join(os.path.dirname(__file__), ".."))  # noqa
 sys.path.insert(0, pkg_root)  # noqa
@@ -19,11 +18,11 @@ sys.path.insert(0, pkg_root)  # noqa
 import dss
 from dss import ESDocType
 from dss.util import UrlBuilder
-
 from dss.api.search import _es_search_page
 from dss.logging import configure_test_logging
 from dss.index.es.manager import IndexManager
 from dss.index.es import ElasticsearchClient
+from tests import get_auth_header
 from tests import get_version
 from tests.infra import DSSAssertMixin, ExpectedErrorFields, testmode
 from tests.infra.elasticsearch_test_case import ElasticsearchTestCase
@@ -80,7 +79,8 @@ class TestSearchBase(ElasticsearchTestCase, DSSAssertMixin):
         search_obj = self.assertPostResponse(
             path=url,
             json_request_body=dict(es_query=smartseq2_paired_ends_vx_query),
-            expected_code=requests.codes.ok)
+            expected_code=requests.codes.ok,
+            headers=get_auth_header())
         next_url = self.get_next_url(search_obj.response.headers)
         self.assertIsNone(next_url)
         self.verify_search_result(search_obj.json, smartseq2_paired_ends_vx_query, 1, 1)
@@ -91,7 +91,8 @@ class TestSearchBase(ElasticsearchTestCase, DSSAssertMixin):
         search_obj = self.assertPostResponse(
             path=url,
             json_request_body=dict(es_query=smartseq2_paired_ends_vx_query),
-            expected_code=requests.codes.ok)
+            expected_code=requests.codes.ok,
+            headers=get_auth_header())
         next_url = self.get_next_url(search_obj.response.headers)
         self.assertIsNone(next_url)
         self.verify_search_result(search_obj.json, smartseq2_paired_ends_vx_query, 0)
@@ -109,7 +110,8 @@ class TestSearchBase(ElasticsearchTestCase, DSSAssertMixin):
         search_obj = self.assertPostResponse(
             path=url,
             json_request_body=dict(es_query=query),
-            expected_code=requests.codes.ok)
+            expected_code=requests.codes.ok,
+            headers=get_auth_header())
         next_url = self.get_next_url(search_obj.response.headers)
         self.assertIsNone(next_url)
         self.verify_search_result(search_obj.json, query, 0)
@@ -121,7 +123,8 @@ class TestSearchBase(ElasticsearchTestCase, DSSAssertMixin):
         search_obj = self.assertPostResponse(
             path=url,
             json_request_body=dict(es_query=smartseq2_paired_ends_vx_query),
-            expected_code=requests.codes.ok)
+            expected_code=requests.codes.ok,
+            headers=get_auth_header())
         next_url = self.get_next_url(search_obj.response.headers)
         self.assertIsNone(next_url)
 
@@ -155,6 +158,7 @@ class TestSearchBase(ElasticsearchTestCase, DSSAssertMixin):
             with self.subTest(msg="Invalid Queries:", bad_query=bad_query, error=error):
                 self.assertPostResponse(
                     path=url,
+                    headers=get_auth_header(),
                     json_request_body=dict(es_query=bad_query),
                     expected_code=error,
                     expected_error=ExpectedErrorFields(code="elasticsearch_bad_request",
@@ -194,7 +198,8 @@ class TestSearchBase(ElasticsearchTestCase, DSSAssertMixin):
         search_obj = self.assertPostResponse(
             path=url,
             json_request_body=dict(es_query=smartseq2_paired_ends_vx_query),
-            expected_code=requests.codes.partial)
+            expected_code=requests.codes.partial,
+            headers=get_auth_header())
         found_bundles = search_obj.json['results']
         next_url = self.get_next_url(search_obj.response.headers)
         self.verify_next_url(next_url)
@@ -202,7 +207,8 @@ class TestSearchBase(ElasticsearchTestCase, DSSAssertMixin):
         search_obj = self.assertPostResponse(
             path=self.strip_next_url(next_url),
             json_request_body=dict(es_query=smartseq2_paired_ends_vx_query),
-            expected_code=requests.codes.ok)
+            expected_code=requests.codes.ok,
+            headers=get_auth_header())
         found_bundles.extend(search_obj.json['results'])
         self.verify_search_result(search_obj.json, smartseq2_paired_ends_vx_query, len(bundles), 50)
         self.verify_bundles(found_bundles, bundles)
@@ -221,7 +227,8 @@ class TestSearchBase(ElasticsearchTestCase, DSSAssertMixin):
                 search_obj = self.assertPostResponse(
                     path=url,
                     json_request_body=dict(es_query=smartseq2_paired_ends_vx_query),
-                    expected_code=requests.codes.partial)
+                    expected_code=requests.codes.partial,
+                    headers=get_auth_header())
                 self.verify_search_result(search_obj.json, smartseq2_paired_ends_vx_query, 500, expected)
                 next_url = self.get_next_url(search_obj.response.headers)
                 self.verify_next_url(next_url, per_page)
@@ -233,7 +240,8 @@ class TestSearchBase(ElasticsearchTestCase, DSSAssertMixin):
         search_obj = self.assertPostResponse(
             path=url,
             json_request_body=dict(es_query=smartseq2_paired_ends_vx_query),
-            expected_code=requests.codes.partial)
+            expected_code=requests.codes.partial,
+            headers=get_auth_header())
         results = search_obj.json['results']
         next_url = self.get_next_url(search_obj.response.headers)
         self.assertIsNotNone(next_url)
@@ -241,7 +249,8 @@ class TestSearchBase(ElasticsearchTestCase, DSSAssertMixin):
         search_obj = self.assertPostResponse(
             path=self.strip_next_url(next_url),
             json_request_body=dict(es_query=smartseq2_paired_ends_vx_query),
-            expected_code=requests.codes.ok)
+            expected_code=requests.codes.ok,
+            headers=get_auth_header())
         results.extend(search_obj.json['results'])
         next_url = self.get_next_url(search_obj.response.headers)
         self.assertIsNone(next_url)
@@ -264,6 +273,7 @@ class TestSearchBase(ElasticsearchTestCase, DSSAssertMixin):
                 self.assertPostResponse(
                     path=url,
                     json_request_body=dict(es_query=smartseq2_paired_ends_vx_query),
+                    headers=get_auth_header(),
                     **expected)
 
     def test_verify_dynamic_mapping(self):
@@ -364,6 +374,7 @@ class TestSearchBase(ElasticsearchTestCase, DSSAssertMixin):
             search_obj = self.assertPostResponse(
                 path=self.strip_next_url(url),
                 json_request_body=dict(es_query=es_query),
+                headers=get_auth_header(),
                 expected_code=(requests.codes.ok, requests.codes.partial))
             found_bundles.extend(search_obj.json['results'])
             if search_obj.response.status_code == 200:
