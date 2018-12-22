@@ -24,11 +24,8 @@ before_script:
   - source ~/venv/bin/activate
   - pip install -r requirements-dev.txt
   - source environment
-  - if [[ master == $CI_COMMIT_REF_NAME ]]; then
-  -   DSS_ENV="dev"
-  - elif [[ -f "environment.$CI_COMMIT_REF_NAME" ]]; then
-  -   DSS_ENV=$CI_COMMIT_REF_NAME
-  -   source environment.$DSS_ENV
+  - if [[ -f "environment.$CI_COMMIT_REF_NAME" ]]; then
+  -   source environment.$CI_COMMIT_REF_NAME
   - fi
   - scripts/fetch_secret.sh application_secrets.json > application_secrets.json
   - scripts/fetch_secret.sh gcp-credentials.json > gcp-credentials.json
@@ -99,8 +96,14 @@ deploy:
     - make deploy
     - scripts/set_version.sh
   environment:
-    name: $DSS_ENV
-    url: https://dss.$DSS_ENV.data.humancellatlas.org
+    name: $CI_COMMIT_REF_NAME
+    # TODO: incluude url when GitLab fixes it's wonky interpolation rules
+    # Variable created in this file (outside of `variables`) are not interpolated,
+    # causing GitLabs environment mechanism to fail silently.
+    # issue: https://gitlab.com/gitlab-com/support-forum/issues/2814
+    # fix: https://gitlab.com/gitlab-org/gitlab-ce/issues/27921
+    # - Brian Hannafiouus
+    # url: https://dss.{dev/integration/master}.data.humancellatlas.org
   only:
     - master
     - integration
