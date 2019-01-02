@@ -70,6 +70,10 @@ def post(json_request_body: dict,
                            "internal_server_error",
                            "Elasticsearch Internal Server Error")
     else:
+        if page['_shards']['failed'] != 0:
+            raise DSSException(requests.codes.internal_server_error, "internal_server_error",
+                               f"Elasticsearch: {page['_shards']['failed']} "
+                               f"of {page['_shards']['total']} shards failed.")
         request_dict = _format_request_body(page, es_query, replica_enum, output_format)
         request_body = jsonify(request_dict)
 
