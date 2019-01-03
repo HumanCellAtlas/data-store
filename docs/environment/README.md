@@ -51,11 +51,12 @@ Environment Variable | Description
 `DSS_CERTIFICATE_VALIDATION` | Validation method for the https certificate.
 `DSS_ZONE_NAME` | Name of the route53 zone containing the domain name.
 `PYTHONWARNINGS` | 
-`DSS_SECRETS_STORE` | The prefix for DSS secrets stored in aws secrets manager.
+`DSS_SECRETS_STORE` | The prefix for DSS secrets stored in AWS Secrets Manager.
+`DSS_PARAMETER_STORE` | The prefix for DSS parameters stored in AWS Systems Manager.
 `EVENT_RELAY_AWS_USERNAME` | The name of the AWS IAM user authorized for the GCP->AWS event relay.
-`EVENT_RELAY_AWS_ACCESS_KEY_SECRETS_NAME` | The name of the secret stored in aws secrets manager.
-`GOOGLE_APPLICATION_CREDENTIALS_SECRETS_NAME` | The name of the secret stored in aws secrets manager.
-`GOOGLE_APPLICATION_SECRETS_SECRETS_NAME` | The name of the secret stored in aws secrets manager.
+`EVENT_RELAY_AWS_ACCESS_KEY_SECRETS_NAME` | The name of the secret stored in AWS Secrets Manager.
+`GOOGLE_APPLICATION_CREDENTIALS_SECRETS_NAME` | The name of the secret stored in AWS Secrets Manager.
+`GOOGLE_APPLICATION_SECRETS_SECRETS_NAME` | The name of the secret stored in AWS Secrets Manager.
 `ES_ALLOWED_SOURCE_IP_SECRETS_NAME` | Source IP access list for the AWS Elasticsearch cluster. This should be a comma seperated list of IPs.
 `DSS_DEBUG` | An interger specifying the log level. See [dss.logging](https://github.com/HumanCellAtlas/data-store/blob/c61e2cf000bf64e54a572f5dc29807feb8ee34c6/dss/logging.py#L31).
 `DSS_TERRAFORM_BACKEND_BUCKET_TEMPLATE` | "dss-config-{account_id}" - `{account_id}`, if present, will be replaced with the account ID associated with the AWS credentials used for deployment. It can be safely omitted.
