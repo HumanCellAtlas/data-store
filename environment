@@ -95,6 +95,7 @@ DSS_CERTIFICATE_VALIDATION="EMAIL"
 DSS_ZONE_NAME="dev.data.humancellatlas.org."
 PYTHONWARNINGS=ignore:ResourceWarning,ignore::UserWarning:zipfile:
 DSS_SECRETS_STORE="dcp/dss"
+DSS_PARAMETER_STORE="dcp/dss"
 EVENT_RELAY_AWS_USERNAME="dss-event-relay-${DSS_DEPLOYMENT_STAGE}"
 EVENT_RELAY_AWS_ACCESS_KEY_SECRETS_NAME="event-relay-user-aws-access-key"
 GOOGLE_APPLICATION_CREDENTIALS_SECRETS_NAME="gcp-credentials.json"
