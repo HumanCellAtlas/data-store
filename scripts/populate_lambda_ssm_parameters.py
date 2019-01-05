@@ -28,7 +28,7 @@ def get_local_lambda_environment():
 
 def get_ssm_lambda_environment():
     parms = ssm_client.get_parameter(
-        Name=f"/dcp/dss/{os.environ['DSS_DEPLOYMENT_STAGE']}/environment"
+        Name=f"/{os.environ['DSS_PARAMETER_STORE']}/{os.environ['DSS_DEPLOYMENT_STAGE']}/environment"
     )['Parameter']['Value']
     return json.loads(parms)
 
