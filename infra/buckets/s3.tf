@@ -10,6 +10,36 @@ resource aws_s3_bucket dss_s3_bucket {
   }
 }
 
+resource aws_s3_bucket_policy dss_s3_bucket {
+  bucket = "${var.DSS_S3_BUCKET}"
+  policy = <<POLICY
+{
+    "Version": "2012-10-17",
+    "Statement": [
+        {
+            "Sid": "deletion",
+            "Effect": "Deny",
+            "Principal": "*",
+            "Action": "s3:Delete*",
+            "Resource": [
+                "arn:aws:s3:::${var.DSS_S3_BUCKET}/*",
+                "arn:aws:s3:::${var.DSS_S3_BUCKET}"
+            ],
+            "Condition": {
+                "StringNotLike": {
+                    "aws:userId": [
+                        "AROAJ23BFIAHUA2LYWH7O:*",
+                        "AROAIMNTAUAUQTOHJIYCK:*",
+                        "AROAJNRWW7RYZ4IDKDFIK:*"
+                    ]
+                }
+            }
+        }
+    ]
+}
+POLICY
+}
+
 resource aws_s3_bucket dss_s3_bucket_test {
   count = "${var.DSS_DEPLOYMENT_STAGE == "dev" ? 1 : 0}"
   bucket = "${var.DSS_S3_BUCKET_TEST}"
