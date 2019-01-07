@@ -19,11 +19,12 @@ es_client = boto3.client("es")
 lambda_client = boto3.client("lambda")
 
 def get_local_lambda_environment():
-    env = {var: os.environ[var]
-             for var in os.environ['EXPORT_ENV_VARS_TO_LAMBDA'].split()}
-    env['DSS_ES_ENDPOINT'] = es_client.describe_elasticsearch_domain(
-        DomainName=os.environ['DSS_ES_DOMAIN']
-    )['DomainStatus']['Endpoint']
+    env = dict()
+    for name in os.environ['EXPORT_ENV_VARS_TO_LAMBDA'].split():
+        try:
+            env[name] = os.environ[name]
+        except KeyError:
+            print(f"Warning: {name} not defined")
     return env
 
 def get_ssm_lambda_environment():
@@ -61,6 +62,11 @@ def get_deployed_lambdas():
             yield name
         except lambda_client.exceptions.ResourceNotFoundException:
             print(f"{name} not deployed, or does not deploy a Lambda function")
+
+def get_elasticsearch_endpoint():
+    domain_name = os.environ['DSS_ES_DOMAIN']
+    domain_info = es_client.describe_elasticsearch_domain(DomainName=domain_name)
+    return domain_info['DomainStatus']['Endpoint']
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
@@ -113,8 +119,9 @@ if __name__ == "__main__":
                 pass
             set_deployed_lambda_environment(lambda_name, lambda_env)
     else:
-        local_lambda_env = get_local_lambda_environment()
-        set_ssm_lambda_environment(local_lambda_env)
+        lambda_env = get_local_lambda_environment()
+        lambda_env['DSS_ES_ENDPOINT'] = get_elasticsearch_endpoint()
+        set_ssm_lambda_environment(lambda_env)
         if args.update_deployed_lambdas:
             for lambda_name in get_deployed_lambdas():
-                set_deployed_lambda_environment(lambda_name, local_lambda_env)
+                set_deployed_lambda_environment(lambda_name, lambda_env)
