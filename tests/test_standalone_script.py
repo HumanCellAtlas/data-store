@@ -59,9 +59,8 @@ class TestStandaloneScript(unittest.TestCase):
     @testmode.standalone
     def test_simple_request(self):
         file_uuid = str(uuid.uuid4())
-        response = requests.api.get(f"http://127.0.0.1:{self.port}/v1/files/{file_uuid}?replica=aws",
-                                    headers=get_auth_header())
-        self.assertEqual(response.status_code, requests.codes.not_found)
+        response = requests.api.get(f"http://127.0.0.1:{self.port}/v1/swagger.json",)
+        self.assertEqual(response.status_code, requests.codes.ok)
 
 
 if __name__ == '__main__':
