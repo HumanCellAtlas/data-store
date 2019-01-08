@@ -34,6 +34,7 @@ resource "aws_acm_certificate_validation" "cert_email" {
 #   Terraform does not currently support regional API Gateway endpoints:
 #   https://github.com/terraform-providers/terraform-provider-aws/issues/2195
 resource null_resource dss_domain {
+  count  = "${length(var.DSS_CERTIFICATE_VALIDATION ) > 0 ? 1 : 0}"
   provisioner "local-exec" {
     command = "./create_regional_domain_name.py --domain-name ${var.API_DOMAIN_NAME} --certificate-arn ${aws_acm_certificate.cert.arn} --zone-id ${data.aws_route53_zone.selected.zone_id}"
   }
