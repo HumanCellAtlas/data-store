@@ -12,13 +12,11 @@ import subprocess
 import sys
 import time
 import unittest
-import uuid
 import requests
 
 pkg_root = os.path.abspath(os.path.join(os.path.dirname(__file__), '..'))  # noqa
 sys.path.insert(0, pkg_root)  # noqa
 
-from tests import get_auth_header
 from dss.util import networking
 from tests.infra import testmode
 
@@ -58,8 +56,7 @@ class TestStandaloneScript(unittest.TestCase):
 
     @testmode.standalone
     def test_simple_request(self):
-        file_uuid = str(uuid.uuid4())
-        response = requests.api.get(f"http://127.0.0.1:{self.port}/v1/swagger.json",)
+        response = requests.api.get(f"http://127.0.0.1:{self.port}/v1/swagger.json")
         self.assertEqual(response.status_code, requests.codes.ok)
 
 
