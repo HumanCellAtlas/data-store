@@ -68,6 +68,19 @@ def get_elasticsearch_endpoint():
     domain_info = es_client.describe_elasticsearch_domain(DomainName=domain_name)
     return domain_info['DomainStatus']['Endpoint']
 
+def get_admin_user_emails():
+    secret_id = "{}/{}/{}".format(
+        os.environ['DSS_SECRETS_STORE'],
+        os.environ['DSS_DEPLOYMENT_STAGE'],
+        os.environ['GOOGLE_APPLICATION_CREDENTIALS_SECRETS_NAME'],
+    )
+    resp = boto3.client("secretsmanager").get_secret_value(SecretId=secret_id)
+    gcp_service_account_email = json.loads(resp['SecretString'])['client_email']
+    admin_user_emails = [email for email in os.environ['ADMIN_USER_EMAILS'].strip().split(",")
+                         if email]
+    admin_user_emails.append(gcp_service_account_email)
+    return ",".join(admin_user_emails)
+
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
     parser.add_argument("--update-deployed-lambdas",
@@ -121,6 +134,7 @@ if __name__ == "__main__":
     else:
         lambda_env = get_local_lambda_environment()
         lambda_env['DSS_ES_ENDPOINT'] = get_elasticsearch_endpoint()
+        lambda_env['ADMIN_USER_EMAILS'] = get_admin_user_emails()
         set_ssm_lambda_environment(lambda_env)
         if args.update_deployed_lambdas:
             for lambda_name in get_deployed_lambdas():

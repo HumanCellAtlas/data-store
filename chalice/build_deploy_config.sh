@@ -57,14 +57,5 @@ if [[ ${CI:-} == true ]]; then
     cat "$config_json" | jq .manage_iam_role=false | jq .iam_role_arn=env.iam_role_arn | sponge "$config_json"
 fi
 
-# Add service account email to list of authorized emails for ci-cd testing.
-service_account_email=`jq -r ".client_email" chalicelib/gcp-credentials.json`
-admin_user_emails_length=${#ADMIN_USER_EMAILS}
-if [[ $admin_user_emails_length>0 ]]; then
-	export ADMIN_USER_EMAILS="${ADMIN_USER_EMAILS},${service_account_email}"
-else
-	export ADMIN_USER_EMAILS="${service_account_email}"
-fi
-
 cat "$iam_policy_template" | envsubst '$DSS_S3_BUCKET $DSS_S3_CHECKOUT_BUCKET $dss_es_domain $account_id $stage' > "$policy_json"
 cp "$policy_json" "$stage_policy_json"
