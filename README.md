@@ -181,6 +181,13 @@ When deploying for the first time, a Google Cloud Platform service account must 
 
 When rotating credentials, the first step may be skipped.
 
+### Setting admin emails 
+
+Set admin account emails within AWS Secret Manager
+``` 
+echo ' ' |  ./scripts/set_secret.py --secret-name $ADMIN_USER_EMAILS_SECRETS_NAME
+ ```
+
 ### Deploying the DSS
 
 Assuming the tests have passed above, the next step is to manually deploy. See the section below for information on
