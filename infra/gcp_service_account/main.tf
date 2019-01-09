@@ -26,9 +26,9 @@ resource "google_project_iam_member" "storageadmin" {
   member  = "serviceAccount:${google_service_account.dss.email}"
 }
 
-resource "google_project_iam_member" "storageobjectadmin" {
+resource "google_project_iam_member" "storageobjectcreator" {
   project = "${data.google_project.project.project_id}"
-  role    = "roles/storage.objectAdmin"
+  role    = "roles/storage.objectCreator"
   member  = "serviceAccount:${google_service_account.dss.email}"
 }
 
