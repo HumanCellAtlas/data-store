@@ -61,7 +61,7 @@ aws_access_key_info = json.loads(
 
 boto3_session = boto3.session.Session()
 aws_account_id = boto3.client("sts").get_caller_identity()["Account"]
-relay_sns_topic_name = "dss-gs-bucket-events-" + os.environ["DSS_GS_BUCKET"]
+relay_sns_topic_name = "dss-gs-events-" + os.environ["DSS_GS_BUCKET"]
 relay_sns_topic = boto3_session.resource("sns").create_topic(Name=relay_sns_topic_name)
 
 sync_sqs_queue_name = "dss-sync-" + os.environ["DSS_DEPLOYMENT_STAGE"]
