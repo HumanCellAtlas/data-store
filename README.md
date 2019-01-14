@@ -195,6 +195,10 @@ added to `$DSS_HOME/infra` instead.
 The AWS Elasticsearch Service is used for metadata indexing. For typical development deployments the
 t2.small.elasticsearch instance type is sufficient.
 
+A certificate matching your domain must be registered with
+[AWS Certificate Manager](https://docs.aws.amazon.com/acm/latest/userguide/acm-overview.html). Set `DSS_CERTIFICATE_DOMAIN`
+to the domain name of the certificate (e.g. `*.dev.data.humancellatlas.org)`.
+
 An AWS route53 zone must be available for your domain name and configured in `environment`.
 
 Now deploy using make:
