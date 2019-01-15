@@ -46,7 +46,7 @@ Environment Variable | Description
 `DSS_ES_INSTANCE_TYPE` | The type of AWS Elasticsearch instance>
 `DSS_ES_VOLUME_SIZE` | The total storage size dedicated to the AWS Elasticsearch cluster.
 `DSS_ES_INSTANCE_COUNT` | The number of nodes in the AWS Elasticsearch cluster.
-`DSS_CERTIFICATE_DOMAIN` | The domain of the https certificate.
+`ACM_CERTIFICATE_IDENTIFIER` | The AWS ACM certificate identifier, which can be found on the AWS console.
 `DSS_ZONE_NAME` | Name of the route53 zone containing the domain name.
 `PYTHONWARNINGS` | 
 `DSS_SECRETS_STORE` | The prefix for DSS secrets stored in AWS Secrets Manager.
