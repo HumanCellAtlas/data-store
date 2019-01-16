@@ -67,8 +67,9 @@ def verify_jwt(token: str) -> typing.Optional[typing.Mapping]:
                                   audience=Config.get_audience(),
                                   algorithms=allowed_algorithms,
                                   )
+        logger.info("[Valid JWT] %s", verified_tok)
     except jwt.PyJWTError as ex:  # type: ignore
-        logger.info(f"JWT failed to validate.", exc_info=True)
+        logger.info(f"[Invalid JWT] %s", unverified_token, exc_info=True)
         raise DSSException(401, 'Unauthorized', 'Authorization token is invalid') from ex
     return verified_tok
 

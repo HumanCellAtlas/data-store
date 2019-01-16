@@ -137,6 +137,18 @@ def get_chalice_app(flask_app) -> DSSChaliceApp:
         method = app.current_request.method
         query_params = app.current_request.query_params
         req_body = app.current_request.raw_body if app.current_request._body is not None else None
+        source_ip = app.current_request.context['identity']['sourceIp']
+        content_length = app.current_request.headers.get('content-length')
+        user_agent = app.current_request.headers.get('user-agent')
+        app.log.info(
+            """[request] "%s %s", \{"source_ip":"%s", "content_length":"%s", "user-agent":"%s"\}, %s""",
+            method,
+            path,
+            source_ip,
+            content_length if content_length else None,
+            user_agent,
+            ' ' + str(query_params) if query_params is not None else '',
+        )
 
         def maybe_fake_504() -> typing.Optional[chalice.Response]:
             fake_504_probability_str = app.current_request.headers.get("DSS_FAKE_504_PROBABILITY", "0.0")
