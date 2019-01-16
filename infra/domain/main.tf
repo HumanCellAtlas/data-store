@@ -1,18 +1,13 @@
 data aws_caller_identity current {}
+locals {account_id = "${data.aws_caller_identity.current.account_id}"}
 
 data aws_route53_zone selected {
   name = "${var.DSS_ZONE_NAME}"
 }
 
-data "aws_acm_certificate" "cert" {
-  domain      = "${var.DSS_CERTIFICATE_DOMAIN}"
-  statuses    = ["ISSUED"]
-  most_recent = true
-}
-
 resource "aws_api_gateway_domain_name" "dss" {
   domain_name               = "${var.API_DOMAIN_NAME}"
-  regional_certificate_arn  = "${data.aws_acm_certificate.cert.arn}"
+  regional_certificate_arn  = "arn:aws:acm:${var.AWS_DEFAULT_REGION}:${local.account_id}:certificate/${var.ACM_CERTIFICATE_IDENTIFIER}"
 
   endpoint_configuration {
     types = ["REGIONAL"]
