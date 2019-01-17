@@ -141,11 +141,11 @@ def get_chalice_app(flask_app) -> DSSChaliceApp:
         content_length = app.current_request.headers.get('content-length')
         user_agent = app.current_request.headers.get('user-agent')
         app.log.info(
-            """[request] "%s %s", \{"source_ip":"%s", "content_length":"%s", "user-agent":"%s"\}, %s""",
+            """[request] "%s %s" %s %s "%s" %s""",
             method,
             path,
             source_ip,
-            content_length if content_length else None,
+            content_length if content_length else '-',
             user_agent,
             ' ' + str(query_params) if query_params is not None else '',
         )
