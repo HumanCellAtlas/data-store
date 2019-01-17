@@ -50,6 +50,9 @@ npm-debug.log
 /environment.local
 /environment.*.local
 
+# virtualenv folder
+venv
+
 # Terraform files
 .terraform
 backend.tf
