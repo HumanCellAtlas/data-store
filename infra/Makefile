@@ -45,6 +45,6 @@ init:
 	cd $(COMPONENT); terraform init;
 
 clean:
-	cd $(COMPONENT); -rm -rf .terraform
+	cd $(COMPONENT); rm -rf .terraform
 
 .PHONY: init-all plan-all apply-all clean-all plan apply destroy init clean
