@@ -1,4 +1,5 @@
 #!/usr/bin/env python3.6
+import json
 import os, functools, base64, typing
 
 import requests
@@ -67,8 +68,9 @@ def verify_jwt(token: str) -> typing.Optional[typing.Mapping]:
                                   audience=Config.get_audience(),
                                   algorithms=allowed_algorithms,
                                   )
+        logger.info("""{"valid": true, "token": %s}""", json.dumps(verified_tok))
     except jwt.PyJWTError as ex:  # type: ignore
-        logger.info(f"JWT failed to validate.", exc_info=True)
+        logger.info("""{"valid": false, "token": %s}""", json.dumps(unverified_token), exc_info=True)
         raise DSSException(401, 'Unauthorized', 'Authorization token is invalid') from ex
     return verified_tok
 
