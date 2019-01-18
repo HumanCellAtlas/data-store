@@ -109,7 +109,7 @@
         "arn:aws:es:*:$account_id:domain/dss-index-integration", "arn:aws:es:*:$account_id:domain/dss-index-integration/*",
         "arn:aws:es:*:$account_id:domain/dss-index-staging", "arn:aws:es:*:$account_id:domain/dss-index-staging/*",
         "arn:aws:sns:*:$account_id:dss-*",
-        "arn:aws:sns:*:$account_id:domovoi-s3-bucket-events-*",
+        "arn:aws:sns:*:$account_id:domovoi-s3-events-*",
         "arn:aws:states:*:$account_id:*:dss-*"
       ],
       "Effect": "Allow"
