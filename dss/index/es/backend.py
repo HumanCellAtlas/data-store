@@ -53,7 +53,7 @@ class ElasticsearchIndexBackend(IndexBackend):
         tombstone_doc = BundleTombstoneDocument.from_tombstone(tombstone)
         modified, index_name = doc.entomb(tombstone_doc, dryrun=self.dryrun)
         if self.notify or modified and self.notify is None:
-            self._notify(doc, index_name)
+            self._notify(tombstone_doc, index_name)
 
     def _notify(self, bundle, index_name):
         subscription_ids = self._find_matching_subscriptions(bundle, index_name)
