@@ -198,7 +198,7 @@ def get_chalice_app(flask_app) -> DSSChaliceApp:
         res_headers = dict(flask_res.headers)
         res_headers.pop("Content-Length", None)
         res_headers["Strict-Transport-Security"] = "max-age=31536000; includeSubDomains; preload"
-
+        res_headers["X-AWS-REQUEST-ID"] = app.lambda_context.aws_request_id
         return chalice.Response(status_code=status_code,
                                 headers=res_headers,
                                 body="".join([c.decode() if isinstance(c, bytes) else c for c in flask_res.response]))
