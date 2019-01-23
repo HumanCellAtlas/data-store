@@ -241,7 +241,8 @@ class TestIndexerBase(ElasticsearchTestCase, DSSAssertMixin, DSSStorageMixin, DS
             }
             search_results = self.get_search_results(exact_query, 1)
             self.assertEqual(1, len(search_results))
-            expected_search_result = dict(tombstone_data, uuid=tombstone_id.uuid)
+            tombstone = dss.index.bundle.Tombstone(self.replica, tombstone_id, tombstone_data)
+            expected_search_result = dss.index.es.document.BundleTombstoneDocument.from_tombstone(tombstone)
             self.assertDictEqual(search_results[0], expected_search_result)
 
     @testmode.standalone

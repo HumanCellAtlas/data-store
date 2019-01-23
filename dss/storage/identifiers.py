@@ -5,6 +5,8 @@ from typing import Type
 BUNDLE_PREFIX = "bundles"
 FILE_PREFIX = "files"
 COLLECTION_PREFIX = "collections"
+# The value of TOMBSTONE_SUFFIX must be lexicographically greater than a VERSION string. This is ensure global and
+# versioned tombstones are indexed after all bundles during a reindex operation.
 TOMBSTONE_SUFFIX = "dead"
 
 UUID_PATTERN = "[0-9A-Fa-f]{8}-[0-9A-Fa-f]{4}-[0-9A-Fa-f]{4}-[0-9A-Fa-f]{4}-[0-9A-Fa-f]{12}"
