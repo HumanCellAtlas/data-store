@@ -20,3 +20,17 @@ smartseq2_paired_ends_vx_query = \
             }
         }
     }
+
+tombstone_query = {
+    "query": {
+        'bool': {
+            'must': [
+                {
+                    'match': {
+                        "admin_deleted": True
+                    }
+                }
+            ]
+        }
+    }
+}
