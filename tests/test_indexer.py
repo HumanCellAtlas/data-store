@@ -440,11 +440,13 @@ class TestIndexerBase(ElasticsearchTestCase, DSSAssertMixin, DSSStorageMixin, DS
             tombstone_id = bundle_fqid.to_tombstone_id()
             self._create_tombstone(tombstone_id)
             self.verify_notification(subscription_id_tombstone, tombstone_query, str(bundle_fqid), endpoint)
+        self.delete_subscription(subscription_id)
+        self.delete_subscription(subscription_id_tombstone)
 
     def delete_subscription(self, subscription_id):
         self.assertDeleteResponse(
             str(UrlBuilder().set(path=f"/v1/subscriptions/{subscription_id}").add_query("replica", self.replica.name)),
-            [requests.codes.ok, requests.codes.not_found],
+            requests.codes.ok,
             headers=get_auth_header())
 
     @testmode.always
@@ -964,7 +966,6 @@ class TestIndexerBase(ElasticsearchTestCase, DSSAssertMixin, DSSStorageMixin, DS
                                           json_request_body=body,
                                           headers=get_auth_header())
         uuid_ = resp_obj.json['uuid']
-        self.addCleanup(self.delete_subscription, uuid_)
         return uuid_
 
     def verify_index_document_structure_and_content(self, actual_index_document, bundle_key, files):

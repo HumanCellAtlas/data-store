@@ -26,7 +26,7 @@ tombstone_query = {
         'bool': {
             'must': [
                 {
-                    'match': {
+                    'term': {
                         "admin_deleted": True
                     }
                 }
