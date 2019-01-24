@@ -408,7 +408,7 @@ class TestIndexerBase(ElasticsearchTestCase, DSSAssertMixin, DSSStorageMixin, DS
                                         "The hostname in URL 'https://127.0.0.1' resolves to a private IP"):
                 _notify("https://127.0.0.1")
 
-    @testmode.always
+    @testmode.standalone
     def test_notifications_recieved(self):
         endpoint = self._default_endpoint()
         endpoint = NotificationRequestHandler.configure(endpoint)
@@ -449,7 +449,7 @@ class TestIndexerBase(ElasticsearchTestCase, DSSAssertMixin, DSSStorageMixin, DS
             requests.codes.ok,
             headers=get_auth_header())
 
-    @testmode.always
+    @testmode.standalone
     def test_subscription_notification_successful(self):
         self.set_indexer(notify=True)
         # setting notify to true allows us create subscriptions and receive notification without uploading a new bundle
@@ -529,8 +529,6 @@ class TestIndexerBase(ElasticsearchTestCase, DSSAssertMixin, DSSStorageMixin, DS
                 self.verify_notification(subscription_id, query, bundle_fqid, endpoint, attachments)
                 self.delete_subscription(subscription_id)
 
-    # TODO: This should be @testmode.always once we find a way to emulate HTTP status errors with signed-PUT/POST to S3
-
     @testmode.standalone
     def test_subscription_notification_unsuccessful(self):
         sample_event = self.create_bundle_created_event(self.bundle_key)
@@ -555,7 +553,7 @@ class TestIndexerBase(ElasticsearchTestCase, DSSAssertMixin, DSSStorageMixin, DS
                          f"Error occurred while processing subscription {subscription_id} for bundle {bundle_fqid}.*"
                          f"requests.exceptions.HTTPError: 500 Server Error: Internal Server Error for url: {url}")
 
-    @testmode.always
+    @testmode.standalone
     def test_subscription_registration_before_indexing(self):
         endpoint = self._default_endpoint()
         endpoint = NotificationRequestHandler.configure(endpoint)
@@ -567,7 +565,7 @@ class TestIndexerBase(ElasticsearchTestCase, DSSAssertMixin, DSSStorageMixin, DS
         self.verify_notification(subscription_id, smartseq2_paired_ends_vx_query, bundle_fqid, endpoint)
         self.delete_subscription(subscription_id)
 
-    @testmode.always
+    @testmode.standalone
     def test_subscription_query_with_multiple_data_types_indexing_and_notification(self):
         # Verify that a subscription query using numeric, date and string types
         # that is registered before indexing (via the ES setting
