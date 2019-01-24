@@ -55,7 +55,7 @@ from tests import eventually, get_auth_header, get_bundle_fqid, get_file_fqid, g
 from tests.infra import DSSAssertMixin, DSSStorageMixin, DSSUploadMixin, TestBundle, testmode
 from tests.infra.elasticsearch_test_case import ElasticsearchTestCase
 from tests.infra.server import ThreadedLocalServer
-from tests.sample_search_queries import smartseq2_paired_ends_vx_query
+from tests.sample_search_queries import smartseq2_paired_ends_vx_query, tombstone_query
 
 
 logger = logging.getLogger(__name__)
@@ -111,6 +111,8 @@ class TestIndexerBase(ElasticsearchTestCase, DSSAssertMixin, DSSStorageMixin, DS
         cls.test_bucket = cls.replica.bucket
         cls.indexer_cls = Indexer.for_replica(cls.replica)
         cls.executor = ThreadPoolExecutor(len(DEFAULT_BACKENDS))
+        with open(os.path.join(os.path.dirname(__file__), "sample_doc_tombstone.json"), 'r') as fp:
+            cls.tombstone_data = json.load(fp)
 
     @classmethod
     def tearDownClass(cls):
@@ -182,15 +184,14 @@ class TestIndexerBase(ElasticsearchTestCase, DSSAssertMixin, DSSStorageMixin, DS
     def _create_tombstone(self, tombstone_id):
         blobstore = Config.get_blobstore_handle(self.replica)
         bucket = self.replica.bucket
-        tombstone_data = {"status": "disappeared"}
-        tombstone_data_bytes = io.BytesIO(json.dumps(tombstone_data).encode('utf-8'))
+        tombstone_data_bytes = io.BytesIO(json.dumps(self.tombstone_data).encode('utf-8'))
         # noinspection PyTypeChecker
         blobstore.upload_file_handle(bucket, tombstone_id.to_key(), tombstone_data_bytes)
         # Without this, the tombstone would break subsequent tests, due to the caching added in e12a5f7:
         self.addCleanup(self._delete_tombstone, tombstone_id)
         sample_event = self.create_bundle_deleted_event(tombstone_id.to_key())
         self._process_new_indexable_object_with_retry(sample_event)
-        return tombstone_data
+        return self.tombstone_data
 
     def _process_new_indexable_object_with_retry(self, sample_event, retry_method='index'):
         # Remove cached ES client instances (patching the class wouldn't affect them)
@@ -432,13 +433,15 @@ class TestIndexerBase(ElasticsearchTestCase, DSSAssertMixin, DSSStorageMixin, DS
             self.process_new_indexable_object(sample_event)
             prefix, _, bundle_fqid = bundle_key.partition("/")
             self.verify_notification(subscription_id, smartseq2_paired_ends_vx_query, bundle_fqid, endpoint)
+        subscription_id_tombstone = self.subscribe_for_notification(es_query=tombstone_query, **endpoint.to_dict())
         with self.subTest("A notification is received when an indexing event for a deleted bundle version replica "
-                          "matching my subscription is received."):
+                          "matching my subscription for tombstones is received."):
             bundle_fqid = BundleFQID.from_key(bundle_key)
             tombstone_id = bundle_fqid.to_tombstone_id()
             self._create_tombstone(tombstone_id)
-            self.verify_notification(subscription_id, smartseq2_paired_ends_vx_query, str(bundle_fqid), endpoint)
+            self.verify_notification(subscription_id_tombstone, tombstone_query, str(bundle_fqid), endpoint)
         self.delete_subscription(subscription_id)
+        self.delete_subscription(subscription_id_tombstone)
 
     def delete_subscription(self, subscription_id):
         self.assertDeleteResponse(
