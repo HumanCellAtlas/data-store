@@ -22,6 +22,8 @@ install: docs
 	pip install --upgrade dist/*.whl
 
 deploy:
+	git clean -df chalicelib vendor
+	shopt -s nullglob; for wheel in vendor.in/*/*.whl; do unzip -q -o -d vendor $$wheel; done
 	cat fusillade-api.yml | envsubst '$$API_HOST' > chalicelib/swagger.yml
 	./build_chalice_config.sh $(STAGE)
 	chalice deploy --no-autogen-policy --stage $(STAGE) --api-gateway-stage $(STAGE)
