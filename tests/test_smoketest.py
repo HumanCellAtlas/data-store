@@ -8,6 +8,7 @@ import subprocess
 import boto3
 import botocore
 from cloud_blobstore import BlobStore
+from itertools import product
 
 pkg_root = os.path.abspath(os.path.join(os.path.dirname(__file__), ".."))  # noqa
 sys.path.insert(0, pkg_root)  # noqa
@@ -108,14 +109,20 @@ class Smoketest(unittest.TestCase):
             f" | jq .biomaterial_core.biomaterial_id=env.biomaterial_id"
             f" | sponge {self.bundle_dir}/cell_suspension_0.json",
             env=dict(os.environ, biomaterial_id=biomaterial_id))
-        query = {'query': {'match': {'files.cell_suspension_json.biomaterial_core.biomaterial_id': biomaterial_id}}}
+        # creating both tombstone subscriptions and a bundle subscriptions
+        bundle_query = {
+            'query': {'match': {'files.cell_suspension_json.biomaterial_core.biomaterial_id': biomaterial_id}}
+        }
+        tombstone_query = {"query": {"bool": {"must": [{"term": {"admin_deleted": "true"}}]}}}
+        queries = [bundle_query, tombstone_query]
 
         os.chdir(self.workdir.name)
 
         s3 = boto3.client('s3', config=botocore.client.Config(signature_version='s3v4'))
         notifications_proofs = {}
-        for replica in self.replicas:
-            with self.subTest(f"{starting_replica.name}: Create a subscription for replica {replica} using the query"):
+        for replica, query in product(self.replicas, queries):
+            with self.subTest(f"{starting_replica.name}: Create a subscription for replica {replica} using the "
+                              f"query: {query}"):
                 notification_key = f'notifications/{uuid.uuid4()}'
                 url = s3.generate_presigned_url(ClientMethod='put_object',
                                                 Params=dict(Bucket=self.notification_bucket,
@@ -179,7 +186,7 @@ class Smoketest(unittest.TestCase):
             with self.subTest(f"{starting_replica.name}: Hit search route directly against each replica {replica}"):
                 search_route = "https://${API_DOMAIN_NAME}/v1/search"
                 res = run_for_json(f'http --check {search_route} replica=={replica.name}',
-                                   input=json.dumps({'es_query': query}).encode())
+                                   input=json.dumps({'es_query': bundle_query}).encode())
                 print(json.dumps(res, indent=4))
                 self.assertEqual(len(res['results']), 1)
 
@@ -203,15 +210,28 @@ class Smoketest(unittest.TestCase):
             else:
                 self.fail("Timed out waiting for checkout job to succeed")
 
+        for replica in self.replicas:
+            with self.subTest(f"{starting_replica.name}: Tombstone the bundle on replica {replica}"):
+                run_for_json(f"{self.venv_bin}hca dss delete-bundle --uuid {bundle_uuid} --version {bundle_version} "
+                             f"--reason 'smoke test' --replica {replica.name}")
+
         for replica, (subscription_id, notification_key) in notifications_proofs.items():
             with self.subTest(f"{starting_replica.name}: Check the notifications. "
                               f"{replica.name}, {subscription_id}, {notification_key}"):
-                    obj = s3.get_object(Bucket=self.notification_bucket, Key=notification_key)
-
-                    notification = json.load(obj['Body'])
-                    self.assertEquals(subscription_id, notification['subscription_id'])
-                    self.assertEquals(bundle_uuid, notification['match']['bundle_uuid'])
-                    self.assertEquals(bundle_version, notification['match']['bundle_version'])
+                for i in range(10):
+                    try:
+                        obj = s3.get_object(Bucket=self.notification_bucket, Key=notification_key)
+                    except s3.exceptions.NoSuchKey:
+                        time.sleep(6)
+                        continue
+                    else:
+                        notification = json.load(obj['Body'])
+                        self.assertEquals(subscription_id, notification['subscription_id'])
+                        self.assertEquals(bundle_uuid, notification['match']['bundle_uuid'])
+                        self.assertEquals(bundle_version, notification['match']['bundle_version'])
+                        break
+                else:
+                    self.fail("Timed out waiting for notification to arrive")
 
     def test_smoketest(self):
         for param in self.params:
