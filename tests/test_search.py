@@ -1,6 +1,6 @@
 #!/usr/bin/env python
 # coding: utf-8
-
+import io
 import json
 import logging
 import sys
@@ -16,7 +16,7 @@ pkg_root = os.path.abspath(os.path.join(os.path.dirname(__file__), ".."))  # noq
 sys.path.insert(0, pkg_root)  # noqa
 
 import dss
-from dss import ESDocType
+from dss import ESDocType, Config
 from dss.util import UrlBuilder
 from dss.api.search import _es_search_page
 from dss.logging import configure_test_logging
@@ -233,6 +233,43 @@ class TestSearchBase(ElasticsearchTestCase, DSSAssertMixin):
                 next_url = self.get_next_url(search_obj.response.headers)
                 self.verify_next_url(next_url, per_page)
 
+    def test_pages_of_tombstones_returned_when_queried(self):
+        with open(os.path.join(os.path.dirname(__file__), "sample_vx_index_doc_tombstone.json"), "r") as fh:
+            tombstone_index_document = json.load(fh)
+        bundles = self.populate_search_index(tombstone_index_document, 11)
+        query = {
+            "query": {
+                'bool': {
+                    'must': [
+                        {
+                            'match': {
+                                "admin_deleted": True
+                            }
+                        }
+                    ]
+                }
+            }
+        }
+        self.check_count(query, 11)
+        url = self.build_url({"per_page": 10})
+        search_obj = self.assertPostResponse(
+            path=url,
+            json_request_body=dict(es_query=query),
+            expected_code=requests.codes.partial,
+            headers=get_auth_header())
+        found_bundles = search_obj.json['results']
+        next_url = self.get_next_url(search_obj.response.headers)
+        self.verify_next_url(next_url, per_page=10, )
+        self.verify_search_result(search_obj.json, query, len(bundles), 10)
+        search_obj = self.assertPostResponse(
+            path=self.strip_next_url(next_url),
+            json_request_body=dict(es_query=query),
+            expected_code=requests.codes.ok,
+            headers=get_auth_header())
+        found_bundles.extend(search_obj.json['results'])
+        self.verify_search_result(search_obj.json, query, len(bundles), 1)
+        self.verify_bundles(found_bundles, bundles)
+
     def test_output_format_is_raw(self):
         bundles = self.populate_search_index(self.index_document, 11)
         self.check_count(smartseq2_paired_ends_vx_query, 11)
@@ -300,13 +337,13 @@ class TestSearchBase(ElasticsearchTestCase, DSSAssertMixin):
         self.assertEqual(mapping['doc']['properties']['time2']['type'], 'date')
         self.assertEqual(mapping['doc']['properties']['time3']['type'], 'date')
 
-    def populate_search_index(self, index_document: dict, count: int) -> list:
+    def populate_search_index(self, index_document: dict, count: int, tombstone=False) -> list:
         es_client = ElasticsearchClient.get()
         bundles = []
         for i in range(count):
             bundle_uuid = str(uuid.uuid4())
             version = get_version()
-            index_document['manifest']['version'] = version
+            index_document['manifest']['version'] = version if not tombstone else f"{version}.tombstone"
             bundle_fqid = f"{bundle_uuid}.{version}"
             bundle_url = (f"https://127.0.0.1:{self.app._port}"
                           f"/v1/bundles/{bundle_uuid}?version={version}&replica={self.replica.name}")

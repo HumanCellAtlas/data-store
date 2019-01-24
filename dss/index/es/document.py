@@ -362,6 +362,7 @@ class BundleTombstoneDocument(IndexDocument):
     def from_tombstone(cls, tombstone: Tombstone) -> 'BundleTombstoneDocument':
         self = cls(tombstone.replica, tombstone.fqid, tombstone.body)
         self['uuid'] = self.fqid.uuid
+        self['manifest'] = {'version': self.fqid.version}
         return self
 
 def prepare_filename(name: str) -> str:

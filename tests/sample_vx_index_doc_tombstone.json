@@ -1,0 +1,9 @@
+{
+  "email": "test@test.com",
+  "reason": "disappeared", 
+  "admin_deleted": true,
+  "uuid": "2712e1e7-d276-4c56-b33f-ead49e50b19e",
+  "manifest": {
+    "version": "2019-01-18T190257.602413Z"
+  }
+}
