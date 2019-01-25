@@ -38,6 +38,9 @@ def launch_from_s3_event(event, context):
         for event_record in event["Records"]:
             bucket = resources.s3.Bucket(event_record["s3"]["bucket"]["name"])
             obj = bucket.Object(unquote(event_record["s3"]["object"]["key"]))
+            if obj.key.startswith("cache"):
+                logger.info("Ignoring cache object")
+                continue
             if bucket.name != source_replica.bucket:
                 logger.error("Received S3 event for bucket %s with no configured replica", bucket.name)
                 continue
