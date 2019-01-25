@@ -40,7 +40,8 @@ oauth2_config = json.loads(secretsmanager.get_secret_value(SecretId="fusillade.o
 
 @functools.lru_cache(maxsize=32)
 def get_openid_config(openid_provider):
-    openid_provider = furl(openid_provider).host
+    if openid_provider.startswith("https://"):
+        openid_provider = furl(openid_provider).host
     res = requests.get(f"https://{openid_provider}/.well-known/openid-configuration")
     res.raise_for_status()
     return res.json()
