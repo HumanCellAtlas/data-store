@@ -238,13 +238,15 @@ def get_chalice_app(flask_app) -> DSSChaliceApp:
     @time_limited(app)
     def health():
         try:
-            es_status = requests.request('GET', 'http://' + os.environ['DSS_ES_ENDPOINT'] + '/_cluster/health')
-            print(es_status)
+            if os.environ['DSS_ES_ENDPOINT']:
+                es_res = requests.request('GET', 'http://' + os.environ['DSS_ES_ENDPOINT'] + '/_cluster/health')
+                es_status = json.loads(es_res.text)
         except Exception:
-            pass
+            return chalice.Response(status_code=503,)
+        health_status = json.dumps({"es",es_status})
         return chalice.Response(status_code=200,
-                                headers={"Content-Type": "text/html"},
-                                body='OK')
+                                headers={"Content-Type": "application/json"},
+                                body=health_status)
 
     @app.route("/internal/slow_request", methods=["GET"])
     @time_limited(app)
