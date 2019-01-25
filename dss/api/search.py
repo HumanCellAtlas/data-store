@@ -99,24 +99,23 @@ def _es_search_page(es_query: dict,
         es_query['_source'] = False
 
     # https://www.elastic.co/guide/en/elasticsearch/reference/5.5/search-request-search-after.html
-    sort = [
-        "manifest.version:desc",
-        "uuid:desc"]
+    es_query['sort'] = [
+        {"uuid": {"order": "desc"}},
+        {"manifest.version": {"missing": "_last", "order": "desc"}}
+    ]
 
     if search_after is None:
         page = es_client.search(index=Config.get_es_alias_name(ESIndexType.docs, replica),
                                 doc_type=ESDocType.doc.name,
                                 size=per_page,
                                 body=es_query,
-                                sort=sort
                                 )
     else:
-        es_query['search_after'] = search_after.split(',')
+        es_query['search_after'] = [None if i == '' else i for i in search_after.split(',')]
         page = es_client.search(index=Config.get_es_alias_name(ESIndexType.docs, replica),
                                 doc_type=ESDocType.doc.name,
                                 size=per_page,
                                 body=es_query,
-                                sort=sort,
                                 )
         logger.debug(f"Retrieved ES results from page after: {search_after}")
     return page
@@ -151,7 +150,7 @@ def _build_bundle_url(hit: dict, replica: Replica) -> str:
 
 
 def _build_next_url(page: dict, per_page: int, replica: Replica, output_format: str) -> str:
-    search_after = ','.join(page['hits']['hits'][-1]['sort'])
+    search_after = ','.join(['' if i is None else i for i in page['hits']['hits'][-1]['sort']])
     return request.host_url + str(UrlBuilder()
                                   .set(path="v1/search")
                                   .add_query('per_page', str(per_page))
