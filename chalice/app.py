@@ -21,6 +21,7 @@ sys.path.insert(0, pkg_root)  # noqa
 from dss import BucketConfig, Config, DeploymentStage, create_app
 from dss.logging import configure_lambda_logging
 from dss.util.tracing import DSS_XRAY_TRACE
+from dss.api import health
 
 if DSS_XRAY_TRACE:  # noqa
     from aws_xray_sdk.core import xray_recorder
@@ -236,14 +237,8 @@ def get_chalice_app(flask_app) -> DSSChaliceApp:
 
     @app.route("/internal/health")
     @time_limited(app)
-    def health():
-        try:
-            if os.environ['DSS_ES_ENDPOINT']:
-                es_res = requests.request('GET', 'http://' + os.environ['DSS_ES_ENDPOINT'] + '/_cluster/health')
-                es_status = json.loads(es_res.text)
-        except Exception:
-            return chalice.Response(status_code=503,)
-        health_status = json.dumps({"es",es_status})
+    def health_check(*args, **kwargs):
+        health_status = health.l2_health_checks(**kwargs)
         return chalice.Response(status_code=200,
                                 headers={"Content-Type": "application/json"},
                                 body=health_status)
