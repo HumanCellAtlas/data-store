@@ -14,7 +14,7 @@ before_install:
   - pip install --quiet coverage flake8 pyyaml
 
 install:
-  - make install
+  - pip install -r requirements-dev.txt
 
 script:
   - make test

@@ -2,12 +2,21 @@ SHELL=/bin/bash
 STAGE=dev
 export API_HOST=auth.${STAGE}.data.humancellatlas.org
 
+tests:=$(wildcard tests/test_*.py)
+
+before-test:
+	cat fusillade-api.yml | envsubst '$$API_HOST' > chalicelib/swagger.yml
+
 lint:
 	./setup.py flake8
-	flake8 scripts/*
+	flake8 app.py fusillade/*.py
 
-test: lint
-	python ./test/test.py -v
+test: before-test lint $(tests)
+	coverage combine
+	rm -f .coverage.*
+
+$(tests): %.py : lint
+	coverage run -p --source=fusillade $*.py -v
 
 init_docs:
 	cd docs; sphinx-quickstart

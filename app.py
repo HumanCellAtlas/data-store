@@ -26,17 +26,21 @@ with open(os.path.join(pkg_root, "swagger.yml")) as fh:
 with open(os.path.join(pkg_root, "service_config.json")) as fh:
     service_config = yaml.load(fh.read())
 
+
 @app.route("/")
 def serve_swagger_ui():
     return Response(status_code=200,
                     headers={"Content-Type": "text/html"},
                     body=swagger_ui_html)
 
+
 @app.route('/swagger.json')
 def serve_swagger_definition():
     return swagger_defn
 
+
 oauth2_config = json.loads(secretsmanager.get_secret_value(SecretId="fusillade.oauth2_config")["SecretString"])
+
 
 @functools.lru_cache(maxsize=32)
 def get_openid_config(openid_provider):
@@ -45,6 +49,7 @@ def get_openid_config(openid_provider):
     res = requests.get(f"https://{openid_provider}/.well-known/openid-configuration")
     res.raise_for_status()
     return res.json()
+
 
 @functools.lru_cache(maxsize=32)
 def get_public_keys(openid_provider):
@@ -57,9 +62,11 @@ def get_public_keys(openid_provider):
         for key in keys
     }
 
+
 @app.route('/login')
 def login():
     return Response(status_code=301, headers=dict(Location="/authorize"), body="")
+
 
 @app.route('/authorize')
 def authorize():
@@ -100,6 +107,7 @@ def serve_openid_config():
                          userinfo_endpoint="https://{auth_host}/userinfo")
     return openid_config
 
+
 def proxy_response(dest_url, **extra_query_params):
     if app.current_request.query_params or extra_query_params:
         dest_url = furl(dest_url).add(dict(app.current_request.query_params or {}, **extra_query_params)).url
@@ -117,31 +125,38 @@ def proxy_response(dest_url, **extra_query_params):
                     headers=dict(proxy_res.headers),
                     body=body)
 
+
 @app.route('/.well-known/jwks.json')
 def serve_jwks_json():
     openid_config = get_openid_config(os.environ["OPENID_PROVIDER"])
     return proxy_response(openid_config["jwks_uri"])
+
 
 @app.route('/oauth/revoke')
 def revoke():
     openid_config = get_openid_config(os.environ["OPENID_PROVIDER"])
     return proxy_response(openid_config["revocation_endpoint"])
 
+
 @app.route('/userinfo')
 def userinfo():
     openid_config = get_openid_config(os.environ["OPENID_PROVIDER"])
     return proxy_response(openid_config["userinfo_endpoint"])
 
-@app.route('/oauth/token', methods=["POST"], content_types=["application/x-www-form-urlencoded", "application/x-www-form-urlencoded;charset=UTF-8"])
+
+@app.route('/oauth/token', methods=["POST"], content_types=["application/x-www-form-urlencoded",
+                                                            "application/x-www-form-urlencoded;charset=UTF-8"])
 def serve_oauth_token():
     # TODO: client id/secret mgmt
     openid_provider = os.environ["OPENID_PROVIDER"]
     openid_config = get_openid_config(openid_provider)
     return proxy_response(openid_config["token_endpoint"])
 
+
 @app.route('/echo')
 def echo():
     return str(app.current_request.__dict__)
+
 
 @app.route('/cb')
 def cb():
@@ -197,9 +212,11 @@ for directory in ad.list_directories()["Directories"]:
 
 schema_arn = "{}/schema/{}/{}".format(directory_arn, schema_name, schema_version)
 
+
 def get_object_attribute_list(facet="User", **kwargs):
     return [dict(Key=dict(SchemaArn=schema_arn, FacetName=facet, Name=k), Value=dict(StringValue=v))
             for k, v in kwargs.items()]
+
 
 def provision_user(email):
     username = quote(email)
@@ -229,13 +246,15 @@ def provision_user(email):
         ]
     )
     policy_id = res["ObjectIdentifier"]
-    for pid in ad.list_object_policies(DirectoryArn=directory_arn, ObjectReference=dict(Selector="/" + username))["AttachedPolicyIds"]:
+    for pid in ad.list_object_policies(DirectoryArn=directory_arn,
+                                       ObjectReference=dict(Selector="/" + username))["AttachedPolicyIds"]:
         ad.detach_policy(DirectoryArn=directory_arn,
                          PolicyReference=dict(Selector="$" + pid),
                          ObjectReference=dict(Selector="/" + username))
     ad.attach_policy(DirectoryArn=directory_arn,
                      PolicyReference=dict(Selector="$" + policy_id),
                      ObjectReference=dict(Selector="/" + username))
+
 
 @app.route('/policies/evaluate', methods=["POST"])
 def evaluate_policy():
@@ -249,34 +268,41 @@ def evaluate_policy():
 
     username = quote(principal)
     policies_to_evaluate = []
-    for ppl in ad.lookup_policy(DirectoryArn=directory_arn, ObjectReference=dict(Selector="/" + username))["PolicyToPathList"]:
+    for ppl in ad.lookup_policy(DirectoryArn=directory_arn,
+                                ObjectReference=dict(Selector="/" + username))["PolicyToPathList"]:
         for policy_info in ppl["Policies"]:
             if "PolicyId" in policy_info:
                 print(policy_info["PolicyId"])
                 for attr in ad.list_object_attributes(DirectoryArn=directory_arn,
-                                                      ObjectReference=dict(Selector="$" + policy_info["PolicyId"]))["Attributes"]:
+                                                      ObjectReference=dict(
+                                                          Selector="$" + policy_info["PolicyId"]))["Attributes"]:
                     if attr["Key"]["Name"] == "policy_document":
                         policies_to_evaluate.append(attr["Value"]["BinaryValue"].decode())
 
     result = iam.simulate_custom_policy(PolicyInputList=policies_to_evaluate,
                                         ActionNames=[action],
-                                        ResourceArns=[resource])  # "arn:hca:dss:*:*:subscriptions/{}/*".format(username)]))
+                                        ResourceArns=[resource])
+    # "arn:hca:dss:*:*:subscriptions/{}/*".format(username)]))
 
     # result["EvaluationResults"][0]["EvalDecision"]]
     del result["ResponseMetadata"]
     return dict(principal=principal, action=action, resource=resource, result=result)
 
+
 @app.route('/users', methods=["PUT"])
 def put_user():
     return {}
+
 
 @app.route('/users/{user_id}', methods=["GET"])
 def get_user(user_id):
     return {}
 
+
 @app.route('/groups', methods=["PUT"])
 def put_group():
     return {}
+
 
 @app.route('/groups/{group_id}', methods=["GET"])
 def get_group(group_id):
