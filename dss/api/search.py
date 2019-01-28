@@ -99,16 +99,16 @@ def _es_search_page(es_query: dict,
         es_query['_source'] = False
 
     # https://www.elastic.co/guide/en/elasticsearch/reference/5.5/search-request-search-after.html
-    sort = [
-        "manifest.version:desc",
-        "uuid:desc"]
+    es_query['sort'] = [
+        {"uuid": {"order": "desc"}},
+        {"manifest.version": {"missing": "last", "order": "desc"}}
+    ]
 
     if search_after is None:
         page = es_client.search(index=Config.get_es_alias_name(ESIndexType.docs, replica),
                                 doc_type=ESDocType.doc.name,
                                 size=per_page,
                                 body=es_query,
-                                sort=sort
                                 )
     else:
         es_query['search_after'] = search_after.split(',')
@@ -116,7 +116,6 @@ def _es_search_page(es_query: dict,
                                 doc_type=ESDocType.doc.name,
                                 size=per_page,
                                 body=es_query,
-                                sort=sort,
                                 )
         logger.debug(f"Retrieved ES results from page after: {search_after}")
     return page

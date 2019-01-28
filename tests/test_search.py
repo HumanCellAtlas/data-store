@@ -27,8 +27,7 @@ from tests import get_version
 from tests.infra import DSSAssertMixin, ExpectedErrorFields, testmode
 from tests.infra.elasticsearch_test_case import ElasticsearchTestCase
 from tests.infra.server import ThreadedLocalServer
-from tests.sample_search_queries import smartseq2_paired_ends_vx_query
-
+from tests.sample_search_queries import smartseq2_paired_ends_vx_query, tombstone_query
 
 logger = logging.getLogger(__name__)
 
@@ -234,40 +233,36 @@ class TestSearchBase(ElasticsearchTestCase, DSSAssertMixin):
                 self.verify_next_url(next_url, per_page)
 
     def test_pages_of_tombstones_returned_when_queried(self):
-        with open(os.path.join(os.path.dirname(__file__), "sample_vx_index_doc_tombstone.json"), "r") as fh:
-            tombstone_index_document = json.load(fh)
-        bundles = self.populate_search_index(tombstone_index_document, 11)
-        query = {
-            "query": {
-                'bool': {
-                    'must': [
-                        {
-                            'match': {
-                                "admin_deleted": True
-                            }
-                        }
-                    ]
-                }
-            }
-        }
-        self.check_count(query, 11)
-        url = self.build_url({"per_page": 10})
+        """Index different shapes of tombstone documents, and search for them across multiple pages."""
+        tombstone_docs = [
+            "sample_vx_index_doc_tombstone.json",
+            "sample_v0_index_doc_tombstone.json"
+        ]
+        num_doc_per_type = 6
+        per_page = 10
+        bundles = []
+        for doc in tombstone_docs:
+            with open(os.path.join(os.path.dirname(__file__), doc), "r") as fh:
+                tombstone_index_document = json.load(fh)
+            bundles += self.populate_search_index(tombstone_index_document, num_doc_per_type)
+        self.check_count(tombstone_query, num_doc_per_type * len(tombstone_docs))
+        url = self.build_url({"per_page": per_page})
         search_obj = self.assertPostResponse(
             path=url,
-            json_request_body=dict(es_query=query),
+            json_request_body=dict(es_query=tombstone_query),
             expected_code=requests.codes.partial,
             headers=get_auth_header())
         found_bundles = search_obj.json['results']
         next_url = self.get_next_url(search_obj.response.headers)
-        self.verify_next_url(next_url, per_page=10, )
-        self.verify_search_result(search_obj.json, query, len(bundles), 10)
+        self.verify_next_url(next_url, per_page=per_page)
+        self.verify_search_result(search_obj.json, tombstone_query, len(bundles), 10)
         search_obj = self.assertPostResponse(
             path=self.strip_next_url(next_url),
-            json_request_body=dict(es_query=query),
+            json_request_body=dict(es_query=tombstone_query),
             expected_code=requests.codes.ok,
             headers=get_auth_header())
         found_bundles.extend(search_obj.json['results'])
-        self.verify_search_result(search_obj.json, query, len(bundles), 1)
+        self.verify_search_result(search_obj.json, tombstone_query, len(bundles), 2)
         self.verify_bundles(found_bundles, bundles)
 
     def test_output_format_is_raw(self):
@@ -337,13 +332,16 @@ class TestSearchBase(ElasticsearchTestCase, DSSAssertMixin):
         self.assertEqual(mapping['doc']['properties']['time2']['type'], 'date')
         self.assertEqual(mapping['doc']['properties']['time3']['type'], 'date')
 
-    def populate_search_index(self, index_document: dict, count: int, tombstone=False) -> list:
+    def populate_search_index(self, index_document: dict, count: int) -> list:
         es_client = ElasticsearchClient.get()
         bundles = []
         for i in range(count):
             bundle_uuid = str(uuid.uuid4())
             version = get_version()
-            index_document['manifest']['version'] = version if not tombstone else f"{version}.tombstone"
+            if index_document.get('manifest'):
+                index_document['manifest']['version'] = version
+            else:
+                index_document['version'] = version
             bundle_fqid = f"{bundle_uuid}.{version}"
             bundle_url = (f"https://127.0.0.1:{self.app._port}"
                           f"/v1/bundles/{bundle_uuid}?version={version}&replica={self.replica.name}")
