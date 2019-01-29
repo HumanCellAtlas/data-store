@@ -26,12 +26,13 @@ class ThreadedLocalServer(threading.Thread):
     """
     This runs a server on another thread.  It also provides an easy interface to make calls to the server.
     """
-    def __init__(self):
+    def __init__(self, handler_cls=SilentHandler):
         super().__init__(daemon=True)
         self._port = networking.unused_tcp_port()
         self._server = None
         self._server_ready = threading.Event()
         self._chalice_app = None
+        self._handler_cls = handler_cls
 
     def start(self):
         """
@@ -48,7 +49,8 @@ class ThreadedLocalServer(threading.Thread):
 
         config = chalice.config.Config.create(lambda_timeout=self._chalice_app._override_exptime_seconds)
 
-        self._server = LocalDevServer(self._chalice_app, config, host="", port=self._port, handler_cls=SilentHandler)
+        self._server = LocalDevServer(self._chalice_app, config, host="", port=self._port,
+                                      handler_cls=self._handler_cls)
         self._server_ready.set()
         self._server.server.serve_forever()
 
