@@ -1,4 +1,5 @@
 requests_oauthlib
 oauthlib
 google_auth_oauthlib
+coverage
 -r requirements.txt

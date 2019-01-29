@@ -2,7 +2,6 @@ language: python
 cache: pip
 
 python:
-  - 2.7
   - 3.6
 
 env:
@@ -14,7 +13,7 @@ before_install:
   - pip install --quiet coverage flake8 pyyaml
 
 install:
-  - make install
+  - pip install -r requirements-dev.txt
 
 script:
   - make test
