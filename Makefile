@@ -8,7 +8,6 @@ before-test:
 	cat fusillade-api.yml | envsubst '$$API_HOST' > chalicelib/swagger.yml
 
 lint:
-	./setup.py flake8
 	flake8 app.py fusillade/*.py
 
 test: before-test lint $(tests)
