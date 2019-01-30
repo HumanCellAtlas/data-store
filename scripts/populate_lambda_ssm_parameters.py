@@ -55,7 +55,7 @@ def set_deployed_lambda_environment(name, env: dict):
 def get_deployed_lambdas():
     root, dirs, files = next(os.walk(os.path.join(os.environ['DSS_HOME'], "daemons")))
     functions = [f"{name}-{os.environ['DSS_DEPLOYMENT_STAGE']}" for name in dirs]
-    functions.append(f"dss-{os.environ['DSS_DEPLOYMENT_STAGE']}") 
+    functions.append(f"dss-{os.environ['DSS_DEPLOYMENT_STAGE']}")
     for name in functions:
         try:
             resp = lambda_client.get_function(FunctionName=name)
@@ -69,15 +69,16 @@ def get_elasticsearch_endpoint():
     return domain_info['DomainStatus']['Endpoint']
 
 def get_admin_user_emails():
-    secret_id = "{}/{}/{}".format(
+    secret_base = "{}/{}/".format(
         os.environ['DSS_SECRETS_STORE'],
-        os.environ['DSS_DEPLOYMENT_STAGE'],
-        os.environ['GOOGLE_APPLICATION_CREDENTIALS_SECRETS_NAME'],
-    )
-    resp = boto3.client("secretsmanager").get_secret_value(SecretId=secret_id)
+        os.environ['DSS_DEPLOYMENT_STAGE'])
+
+    gcp_secret_id = secret_base + os.environ['GOOGLE_APPLICATION_CREDENTIALS_SECRETS_NAME']
+    admin_secret_id = secret_base + os.environ['ADMIN_USER_EMAILS_SECRETS_NAME']
+    resp = boto3.client("secretsmanager").get_secret_value(SecretId=gcp_secret_id)
     gcp_service_account_email = json.loads(resp['SecretString'])['client_email']
-    admin_user_emails = [email for email in os.environ['ADMIN_USER_EMAILS'].strip().split(",")
-                         if email]
+    resp = boto3.client("secretsmanager").get_secret_value(SecretId=admin_secret_id)
+    admin_user_emails = [email for email in resp['SecretString'].split(',') if email.strip()]
     admin_user_emails.append(gcp_service_account_email)
     return ",".join(admin_user_emails)
 

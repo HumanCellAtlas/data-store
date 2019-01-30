@@ -35,8 +35,8 @@ UNAUTHORIZED_GCP_CREDENTIALS = {
 if not os.environ.get('GOOGLE_APPLICATION_CREDENTIALS'):
     os.environ['GOOGLE_APPLICATION_CREDENTIALS'] = get_gcp_credentials_file().name
 with open(os.environ['GOOGLE_APPLICATION_CREDENTIALS'], "r") as fh:
-    os.environ['ADMIN_USER_EMAILS'] = json.loads(fh.read())['client_email']
-bundles.ADMIN_USER_EMAILS = set(os.environ['ADMIN_USER_EMAILS'].split(","))
+    gcp_service_email = json.loads(fh.read())['client_email']
+bundles.ADMIN_USER_EMAILS = set([gcp_service_email])
 
 def get_collection_fqid() -> CollectionFQID:
     return CollectionFQID(uuid=str(uuid.uuid4()), version=get_version())

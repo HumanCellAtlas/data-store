@@ -50,6 +50,7 @@ Environment Variable | Description
 `DSS_ZONE_NAME` | Name of the route53 zone containing the domain name.
 `PYTHONWARNINGS` | 
 `DSS_SECRETS_STORE` | The prefix for DSS secrets stored in AWS Secrets Manager.
+`ADMIN_USER_EMAILS_SECRETS_NAME` | The name of the secret stored in AWS Secrets Manager.
 `DSS_PARAMETER_STORE` | The prefix for DSS parameters stored in AWS Systems Manager.
 `EVENT_RELAY_AWS_USERNAME` | The name of the AWS IAM user authorized for the GCP->AWS event relay.
 `EVENT_RELAY_AWS_ACCESS_KEY_SECRETS_NAME` | The name of the secret stored in AWS Secrets Manager.
