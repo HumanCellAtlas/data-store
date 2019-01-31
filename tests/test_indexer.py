@@ -444,6 +444,42 @@ class TestIndexerBase(ElasticsearchTestCase, DSSAssertMixin, DSSStorageMixin, DS
         self.delete_subscription(subscription_id)
         self.delete_subscription(subscription_id_tombstone)
 
+    @testmode.standalone
+    def test_unversioned_tombstone_notifications(self):
+        """verify that multiple deletion notifications for an unversioned bundle tombstone are received when multiple
+        versions of the bundle exist."""
+        endpoint = self._default_endpoint()
+        endpoint = NotificationRequestHandler.configure(endpoint)
+        subscription_id_tombstone = self.subscribe_for_notification(es_query=tombstone_query, **endpoint.to_dict())
+        bundle_count = 3
+        bundle_uuid = self.bundle_key.split('/')[1].split('.', 1)[0]
+        bundle_versions = []
+
+        # make multiple versions of the same bundle
+        for i in range(bundle_count):
+            bundle_key = self.load_test_data_bundle_for_path("fixtures/example_bundle", bundle_uuid)
+            sample_event = self.create_bundle_created_event(bundle_key)
+            self.process_new_indexable_object(sample_event)
+            bundle_versions.append(bundle_key.split('/')[1].split('.', 1)[1])
+
+        # tombstone all versions of the bundle using the uuid without version
+        bundle_fqid = BundleFQID.from_key(bundle_key)
+        tombstone_id = bundle_fqid.to_tombstone_id(all_versions=True)
+        self._create_tombstone(tombstone_id)
+
+        # verify notifications are sent for each bundle version.
+        received_request = self._get_received_notification_request()
+        while received_request:
+            self.assertIsNotNone(received_request)
+            posted_json = json.loads(received_request['body'].decode('utf-8'))
+            self.assertEqual(subscription_id_tombstone, posted_json['subscription_id'])
+            self.assertEqual(bundle_uuid, posted_json['match']['bundle_uuid'])
+            if posted_json['match']['bundle_version'] in bundle_versions:
+                bundle_versions.remove(posted_json['match']['bundle_version'])
+            received_request = self._get_received_notification_request()
+        self.assertEqual(len(bundle_versions), 0)
+        self.delete_subscription(subscription_id_tombstone)
+
     def delete_subscription(self, subscription_id):
         self.assertDeleteResponse(
             str(UrlBuilder().set(path=f"/v1/subscriptions/{subscription_id}").add_query("replica", self.replica.name)),
@@ -1139,7 +1175,7 @@ class LocalNotificationRequestHandler(BaseHTTPRequestHandler):
         assert endpoint.method in ('PUT', 'POST')
         cls._response_code = response_code
         cls._verify_payloads = verify_payloads
-        cls._request = None
+        cls._request = []
         endpoint = endpoint.extend(callback_url=f"http://{cls._address}:{cls._port}")
         return endpoint
 
@@ -1166,15 +1202,19 @@ class LocalNotificationRequestHandler(BaseHTTPRequestHandler):
         self.end_headers()
         length = int(self.headers['content-length'])
         if length:
-            self.__class__._request = dict(method=method,
-                                           content_type=self.headers['Content-Type'],
-                                           body=self.rfile.read(length))
+            request = dict(method=method,
+                           content_type=self.headers['Content-Type'],
+                           body=self.rfile.read(length))
+            self.__class__._request.append(request)
 
     @classmethod
     def get_request(cls):
-        request = cls._request
-        cls._request = None
-        return request
+        try:
+            request = cls._request.pop()
+        except IndexError:
+            return None
+        else:
+            return request
 
     def log_request(self, code='-', size='-'):
         if Config.debug_level():

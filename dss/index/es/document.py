@@ -174,7 +174,7 @@ class BundleDocument(IndexDocument):
         return True, index_name
 
     @elasticsearch_retry(logger)
-    def entomb(self, tombstone: 'BundleTombstoneDocument', dryrun=False) -> typing.Tuple[bool, str]:
+    def entomb(self, tombstone: 'BundleTombstoneDocument', dryrun=False) -> typing.Tuple[bool, str, 'BundleDocument']:
         """
         Ensure that there is exactly one up-to-date instance of a tombstone for this document in exactly one
         ES index. The tombstone data overrides the document's data in the index.
@@ -192,7 +192,7 @@ class BundleDocument(IndexDocument):
         # … and place into proper index.
         modified, index_name = other._index_into(index_name, dryrun)
         logger.info(f"Finished writing tombstone for {self.replica.name} bundle: {self.fqid}")
-        return modified, index_name
+        return modified, index_name, other
 
     def _write_to_index(self, index_name: str, version: typing.Optional[int] = None):
         es_client = ElasticsearchClient.get()
