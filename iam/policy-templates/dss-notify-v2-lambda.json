@@ -23,6 +23,7 @@
       "Action": [
         "sqs:GetQueueUrl",
         "sqs:ReceiveMessage",
+        "sqs:SendMessage",
         "sqs:DeleteMessage",
         "sqs:GetQueueAttributes"
       ],

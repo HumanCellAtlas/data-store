@@ -80,6 +80,59 @@ class TestNotifyV2(unittest.TestCase, DSSAssertMixin, DSSUploadMixin):
                 subscriptions_v2.delete_subscription(replica, cls.owner, s['uuid'])
 
     @testmode.integration
+    def test_versioned_tombstone_notifications(self, replica=Replica.aws):
+        bucket = get_env('DSS_S3_BUCKET_TEST')
+        notification_object_key = f"notification-v2/{uuid4()}"
+        url = self.s3.generate_presigned_url(
+            ClientMethod='put_object',
+            Params=dict(Bucket=bucket, Key=notification_object_key, ContentType="application/json")
+        )
+        subscription = self._put_subscription(
+            {
+                'callback_url': url,
+                'method': "PUT",
+                'jmespath_query': "admin_deleted==`true`"
+            },
+            replica
+        )
+        bundle_uuid, bundle_version = self._upload_bundle(replica)
+        self._tombstone_bundle(replica, bundle_uuid, bundle_version)
+
+        notification = self._get_notification_from_s3_object(bucket, notification_object_key)
+        self.assertEquals(notification['subscription_id'], subscription['uuid'])
+        self.assertEquals(notification['match']['bundle_uuid'], bundle_uuid)
+        self.assertEquals(notification['match']['bundle_version'], f"{bundle_version}.dead")
+
+    @testmode.integration
+    def test_unversioned_tombstone_notifications(self, replica=Replica.aws):
+        bucket = get_env('DSS_S3_BUCKET_TEST')
+        notification_object_key = f"notification-v2/{uuid4()}"
+        url = self.s3.generate_presigned_url(
+            ClientMethod='put_object',
+            Params=dict(Bucket=bucket, Key=notification_object_key, ContentType="application/json")
+        )
+        subscription = self._put_subscription(
+            {
+                'callback_url': url,
+                'method': "PUT",
+                'jmespath_query': "admin_deleted==`true`"
+            },
+            replica
+        )
+        bundle_uuid, bundle_version = self._upload_bundle(replica)
+        bundle_uuid, bundle_version = self._upload_bundle(replica, bundle_uuid)
+        self._tombstone_bundle(replica, bundle_uuid)
+
+        notification = self._get_notification_from_s3_object(bucket, notification_object_key)
+        self.assertEquals(notification['subscription_id'], subscription['uuid'])
+        self.assertEquals(notification['match']['bundle_uuid'], bundle_uuid)
+        # TODO:
+        # Multiple notifications should be delivered for this test. However, the notification
+        # test infrastructure (presigned s3 url) cannot track multiple deliveries. Need another
+        # mechanism.
+        # Brian Hannafious 2019-01-30
+
+    @testmode.integration
     def test_queue_notification(self):
         replica = Replica.aws
         bucket = get_env('DSS_S3_BUCKET_TEST')
@@ -106,7 +159,7 @@ class TestNotifyV2(unittest.TestCase, DSSAssertMixin, DSSUploadMixin):
             subscription,
             "CREATE",
             "bundles/a47b90b2-0967-4fbf-87bc-c6c12db3fedf.2017-07-12T055120.037644Z",
-            delay_seconds=1
+            delay_seconds=0
         )
         notification = self._get_notification_from_s3_object(bucket, key)
         self.assertEquals(notification['subscription_id'], subscription['uuid'])
@@ -121,7 +174,7 @@ class TestNotifyV2(unittest.TestCase, DSSAssertMixin, DSSUploadMixin):
         bucket = get_env('DSS_S3_BUCKET_TEST')
         key = f"notification-v2/{uuid4()}"
         url = self.s3.generate_presigned_url(
-            lientMethod='put_object',
+            ClientMethod='put_object',
             Params=dict(Bucket=bucket, Key=key, ContentType="application/json")
         )
         subscription = self._put_subscription(
@@ -271,12 +324,12 @@ class TestNotifyV2(unittest.TestCase, DSSAssertMixin, DSSUploadMixin):
         resp = self.assertDeleteResponse(url, codes, headers=get_auth_header())
         return resp
 
-    def _upload_bundle(self, replica):
+    def _upload_bundle(self, replica, uuid=None):
         if replica == Replica.aws:
             test_fixtures_bucket = get_env('DSS_S3_BUCKET_TEST_FIXTURES')
         else:
             test_fixtures_bucket = get_env('DSS_GS_BUCKET_TEST_FIXTURES')
-        bundle_uuid = str(uuid4())
+        bundle_uuid = uuid if uuid else str(uuid4())
         file_uuid_1 = str(uuid4())
         file_uuid_2 = str(uuid4())
         filenames = ["file_1", "file_2"]
@@ -343,6 +396,20 @@ class TestNotifyV2(unittest.TestCase, DSSAssertMixin, DSSUploadMixin):
             self.assertIn('version', resp_obj.json)
             self.assertIn('manifest', resp_obj.json)
         return resp_obj
+
+    def _tombstone_bundle(self, replica: Replica, bundle_uuid: str, bundle_version: str=None):
+        builder = UrlBuilder().set(path="/v1/bundles/" + bundle_uuid).add_query("replica", replica.name)
+        if bundle_version:
+            builder.add_query("version", bundle_version)
+        url = str(builder)
+        self.assertDeleteResponse(
+            url,
+            requests.codes.ok,
+            json_request_body={
+                'reason': "notification test"
+            },
+            headers=get_auth_header()
+        )
 
 if __name__ == '__main__':
     unittest.main()
