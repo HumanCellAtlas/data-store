@@ -78,6 +78,7 @@ def notify(subscription: dict, event_type: str, key: str):
             'bundle_version': bundle_version,
         }
     }
+
     jmespath_query = subscription.get(SubscriptionData.JMESPATH_QUERY)
     if jmespath_query is not None:
         payload[SubscriptionData.JMESPATH_QUERY] = jmespath_query
@@ -93,6 +94,13 @@ def notify(subscription: dict, event_type: str, key: str):
         'allow_redirects': False,
         'timeout': None,
     }
+
+    hmac_key = subscription.get('hmac_secret_key')
+    if hmac_key:
+        hmac_key_id = subscription.get('hmac_key_id', "hca-dss:" + subscription['uuid'])
+        request['auth'] = HTTPSignatureAuth(key=hmac_key.encode(), key_id=hmac_key_id)
+    else:
+        request['auth'] = None
 
     encoding = subscription.get(SubscriptionData.ENCODING, "application/json")
     if encoding == "application/json":

@@ -54,7 +54,6 @@ def put(json_request_body: dict, replica: str):
                 "JMESPath query is invalid"
             )
     # TODO: check that attachment JMESPath filters will parse? - Brian Hnnafious 2019.01.25
-
     put_subscription(subscription_doc)
     return subscription_doc, requests.codes.created
 

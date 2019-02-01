@@ -800,6 +800,7 @@ paths:
                       - invalid_attachment_name
                       - invalid_query_type
                       - invalid_jmespath
+                      - unprocessable
                       - read_only
                 required:
                   - code

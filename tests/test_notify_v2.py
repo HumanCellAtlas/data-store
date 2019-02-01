@@ -11,6 +11,7 @@ import pytz
 import boto3
 import botocore.exceptions
 import requests
+from requests_http_signature import HTTPSignatureAuth
 import unittest
 import datetime
 import typing
@@ -34,7 +35,12 @@ class MyHandlerClass(SilentHandler):
     """
     Modify ThreadedLocalServer to respond to our notification deliveries.
     """
-    def my_handle(self):
+    hmac_secret_key = "ribos0me"
+    def my_handle(self, method):
+        if "notification_test_pass_with_auth" in self.path:
+            code = 200
+            HTTPSignatureAuth.verify(requests.Request(method, self.path, self.headers),
+                                     key_resolver=lambda key_id, algorithm: self.hmac_secret_key.encode())
         if "notification_test_pass" in self.path:
             code = 200
         elif "notification_test_fail" in self.path:
@@ -45,7 +51,11 @@ class MyHandlerClass(SilentHandler):
         self.send_header("Content-Length", 0)
         self.end_headers()
 
-    do_PUT = do_POST = my_handle
+    def do_PUT(self):
+        self.my_handle("PUT")
+
+    def do_POST(self):
+        self.my_handle("POST")
 
 
 class TestNotifyV2(unittest.TestCase, DSSAssertMixin, DSSUploadMixin):
@@ -354,6 +364,12 @@ class TestNotifyV2(unittest.TestCase, DSSAssertMixin, DSSUploadMixin):
     def test_notify(self):
         with self.subTest("success"):
             self.assertTrue(notify_v2.notify(self.subscription, "CREATE", self.bundle_key))
+
+        with self.subTest("test notification delivery with auth"):
+            sub = self.subscription.copy()
+            sub['callback_url'] = sub['callback_url'] + "_with_auth"
+            sub['hmac_secret_key'] = "ribos0me"
+            self.assertTrue(notify_v2.notify(sub, "CREATE", self.bundle_key))
 
         with self.subTest("test multipart/form-data"):
             sub = self.subscription.copy()
