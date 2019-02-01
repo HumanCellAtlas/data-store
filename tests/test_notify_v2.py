@@ -4,7 +4,6 @@
 import os
 import io
 import sys
-import hca
 import json
 from uuid import uuid4
 import time
