@@ -1,5 +1,5 @@
 """
-See Readme.md in this directory for documentation on the dss-notify-basic daemon.
+See Readme.md in this directory for documentation on the dss-notify-v2 daemon.
 
 storage_event -> invoke_notify_daemon -> invoke_sfn -> sfn_dynamodb_loop -> sqs -> invoke_notify_daemon
 """

@@ -197,16 +197,75 @@ class TestNotifyV2(unittest.TestCase, DSSAssertMixin, DSSUploadMixin):
         obj = self.s3.get_object(Bucket=bucket, Key=key)['Body'].read().decode("utf-8")
         return json.loads(obj)
 
-    @testmode.standalone
-    def test_subscription_enumerate(self, replica=Replica.aws):
+    @testmode.integration
+    def test_subscription_update(self, replica=Replica.aws):
+        """
+        Test recover of subscriptions during enumeration
+        """
+        subscription_1 = self._put_subscription(
+            {
+                'callback_url': "https://nonsense.or.whatever",
+                'method': "PUT",
+            },
+            replica
+        )
+        subscription_2 = self._put_subscription(
+            {
+                'callback_url': "https://nonsense.or.whatever",
+                'method': "PUT",
+            },
+            replica
+        )
         url = str(UrlBuilder()
                   .set(path="/v1/subscriptions")
                   .add_query("replica", replica.name)
                   .add_query("subscription_type", "jmespath"))
-        self.assertGetResponse(
+        resp = self.assertGetResponse(
             url,
             requests.codes.ok,
             headers=get_auth_header())
+        subs = {sub['uuid']: sub for sub in json.loads(resp.body)['subscriptions']}
+        self.assertIn(subscription_1['uuid'], subs)
+        self.assertIn(subscription_2['uuid'], subs)
+        for key in subscription_1:
+            self.assertEquals(subscription_1[key], subs[subscription_1['uuid']][key])
+        for key in subscription_2:
+            self.assertEquals(subscription_2[key], subs[subscription_2['uuid']][key])
+
+    @testmode.integration
+    def test_subscription_enumerate(self, replica=Replica.aws):
+        """
+        Test recover of subscriptions during enumeration
+        """
+        subscription_1 = self._put_subscription(
+            {
+                'callback_url': "https://nonsense.or.whatever",
+                'method': "PUT",
+            },
+            replica
+        )
+        subscription_2 = self._put_subscription(
+            {
+                'callback_url': "https://nonsense.or.whatever",
+                'method': "PUT",
+            },
+            replica
+        )
+        url = str(UrlBuilder()
+                  .set(path="/v1/subscriptions")
+                  .add_query("replica", replica.name)
+                  .add_query("subscription_type", "jmespath"))
+        resp = self.assertGetResponse(
+            url,
+            requests.codes.ok,
+            headers=get_auth_header())
+        subs = {sub['uuid']: sub for sub in json.loads(resp.body)['subscriptions']}
+        with self.subTest("Test user should own every returned subscription"):
+            for sub in subs.values():
+                self.assertEquals(self.owner, sub['owner'])
+        with self.subTest("Test subscriptions shuold have been returned"):
+            self.assertIn(subscription_1['uuid'], subs)
+            self.assertIn(subscription_2['uuid'], subs)
 
     @testmode.integration
     def test_get_subscriptions_for_replica(self):
@@ -232,7 +291,7 @@ class TestNotifyV2(unittest.TestCase, DSSAssertMixin, DSSUploadMixin):
             }
             self._put_subscription(doc, replica, codes=requests.codes.unprocessable)
 
-        with self.subTest(f"{replica}, PUT should succceed for valid JMESPath"):
+        with self.subTest(f"{replica}, PUT should succeed for valid JMESPath"):
             sub = {
                 'callback_url': "https://example.com",
                 'method': "POST",
@@ -253,28 +312,40 @@ class TestNotifyV2(unittest.TestCase, DSSAssertMixin, DSSUploadMixin):
             }
             subscription = self._put_subscription(sub, replica)
 
-        with self.subTest(f"{replica}, GET should succceed"):
-            self._get_subscription(subscription['uuid'], replica)
+        with self.subTest(f"{replica}, GET should succeed"):
+            sub = self._get_subscription(subscription['uuid'], replica)
+            self.assertEquals(sub['uuid'], subscription['uuid'])
 
-        with self.subTest(f"{replica}, DELETE should succceed"):
+        with self.subTest(f"{replica}, DELETE should fail for un-owned subscription"):
+            self._delete_subscription(
+                subscription['uuid'],
+                replica,
+                codes=requests.codes.unauthorized,
+                use_auth=False
+            )
+
+        with self.subTest(f"{replica}, DELETE should succeed"):
             self._delete_subscription(subscription['uuid'], replica)
 
-        with self.subTest(f"{replica}, DELETE on non-existent subscription shoudld return not-found"):
+        with self.subTest(f"{replica}, DELETE on non-existent subscription should return not-found"):
             self._delete_subscription(str(uuid4()), replica, codes=404)
 
     @testmode.standalone
     def test_should_notify(self):
+        """
+        Test logic of dss.events.handlers.should_notify()
+        """
         for replica in Replica:
             with self.subTest(replica.name):
                 self._test_should_notify(replica)
 
     def _test_should_notify(self, replica):
-        with self.subTest("notification that does not match document"):
+        with self.subTest("Should not notify when jmespath_query does not match document"):
             sub = self.subscription.copy()
             sub['jmespath_query'] = 'files."assay.json"[?rna.primer==`george`]'
             self.assertFalse(notify_v2.should_notify(replica, sub, "CREATE", self.bundle_key))
 
-        with self.subTest("notification with malformed JMESPath query"):
+        with self.subTest("Should not notify when jmespath_query contains malformed JMESPath"):
             sub = self.subscription.copy()
             sub['jmespath_query'] = 'files."assay.json"[?rna.primer==`george`'
             self.assertFalse(notify_v2.should_notify(replica, sub, "CREATE", self.bundle_key))
@@ -289,7 +360,7 @@ class TestNotifyV2(unittest.TestCase, DSSAssertMixin, DSSUploadMixin):
             sub['encoding'] = "multipart/form-data"
             self.assertTrue(notify_v2.notify(sub, "CREATE", self.bundle_key))
 
-        with self.subTest("failed delivery"):
+        with self.subTest("Test delivery failure"):
             sub = self.subscription.copy()
             sub['callback_url'] = f"http://127.0.0.1:{self.app._port}/notification_test_fail"
             self.assertFalse(notify_v2.notify(sub, "CREATE", self.bundle_key))
@@ -313,15 +384,18 @@ class TestNotifyV2(unittest.TestCase, DSSAssertMixin, DSSUploadMixin):
                   .add_query("replica", replica.name)
                   .add_query("subscription_type", "jmespath"))
         resp = self.assertGetResponse(url, requests.codes.ok, headers=get_auth_header())
-        return resp
+        return json.loads(resp.body)
 
-    def _delete_subscription(self, uuid: str, replica: Replica, codes=requests.codes.ok):
+    def _delete_subscription(self, uuid: str, replica: Replica, codes=requests.codes.ok, use_auth=True):
         url = str(UrlBuilder()
                   .set(path=f"/v1/subscriptions/{uuid}")
                   .add_query("replica", replica.name)
                   .add_query("subscription_type", "jmespath"))
-        resp = self.assertDeleteResponse(url, codes, headers=get_auth_header())
-        return resp
+        if use_auth:
+            resp = self.assertDeleteResponse(url, codes, headers=get_auth_header())
+        else:
+            resp = self.assertDeleteResponse(url, codes)
+        return json.loads(resp.body)
 
     def _upload_bundle(self, replica, uuid=None):
         if replica == Replica.aws:

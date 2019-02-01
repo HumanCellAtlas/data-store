@@ -20,7 +20,6 @@ from dss.subscriptions_v2 import SubscriptionData, get_subscriptions_for_replica
 logger = logging.getLogger(__name__)
 
 notification_queue_name = "dss-notify-v2-" + os.environ['DSS_DEPLOYMENT_STAGE']
-subscription_ddb_table = "bhannafi-test-subscriptions-" + os.environ['DSS_DEPLOYMENT_STAGE']
 
 def should_notify(replica: Replica, subscription: dict, event_type: str, key: str) -> bool:
     """
