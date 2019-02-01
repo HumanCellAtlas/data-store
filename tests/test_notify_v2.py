@@ -15,6 +15,7 @@ from requests_http_signature import HTTPSignatureAuth
 import unittest
 import datetime
 import typing
+from copy import deepcopy
 
 pkg_root = os.path.abspath(os.path.join(os.path.dirname(__file__), '..'))  # noqa
 sys.path.insert(0, pkg_root)  # noqa
@@ -31,12 +32,14 @@ from dss.events.handlers.notify_v2 import queue_notification
 from dss.util.version import datetime_to_version_format
 
 
+recieved_notification = None
 class MyHandlerClass(SilentHandler):
     """
     Modify ThreadedLocalServer to respond to our notification deliveries.
     """
     hmac_secret_key = "ribos0me"
     def my_handle(self, method):
+        global recieved_notification
         if "notification_test_pass_with_auth" in self.path:
             code = 200
             HTTPSignatureAuth.verify(requests.Request(method, self.path, self.headers),
@@ -47,6 +50,12 @@ class MyHandlerClass(SilentHandler):
             code = 400
         else:
             return self._generic_handle()
+        size = int(self.headers.get('Content-Length', 0))
+        body = self.rfile.read(size)
+        try:
+            recieved_notification = json.loads(body)
+        except Exception as e:
+            recieved_notification = str(e)
         self.send_response(code)
         self.send_header("Content-Length", 0)
         self.end_headers()
@@ -65,17 +74,6 @@ class TestNotifyV2(unittest.TestCase, DSSAssertMixin, DSSUploadMixin):
             cls.owner = json.loads(fh.read())['client_email']
         cls.app = ThreadedLocalServer(handler_cls=MyHandlerClass)
         cls.app.start()
-        cls.subscription = {
-            'owner': cls.owner,
-            'uuid': str(uuid4()),
-            'callback_url': f"http://127.0.0.1:{cls.app._port}/notification_test_pass",
-            'method': "POST",
-            'encoding': "application/json",
-            'form_fields': {'foo': "bar"},
-            'payload_form_field': "baz",
-            'replica': "aws",
-            'jmespath_query': 'files."assay.json"[?rna.primer==`random`]',
-        }
         # TODO: Upload an object, not re-use existing
         cls.bundle_key = "bundles/33327857-c214-40f6-874e-1e197af41540.2018-11-12T235854.981860Z"
         cls.s3 = boto3.client('s3')
@@ -285,57 +283,70 @@ class TestNotifyV2(unittest.TestCase, DSSAssertMixin, DSSUploadMixin):
 
     @testmode.integration
     def test_subscription_api(self):
+        """
+        Test PUT, GET, DELETE subscription endpoints
+        This hits the test API server, however it writes changes to the deployed subscriptions dynamodb table
+        """
         for replica in Replica:
             with self.subTest(replica.name):
                 self._test_subscription_api(replica)
 
     def _test_subscription_api(self, replica: Replica):
-        with self.subTest(f"{replica}, Should not be able to PUT with invalid JMESPath"):
-            doc = {
-                'callback_url': "https://example.com",
-                'method': "POST",
-                'encoding': "application/json",
-                'form_fields': {'foo': "bar"},
-                'payload_form_field': "baz",
-                'jmespath_query': "not valid JMESPath",
+        subscription_doc = {
+            'callback_url': "https://example.com",
+            'method': "POST",
+            'encoding': "application/json",
+            'form_fields': {'foo': "bar"},
+            'payload_form_field': "baz",
+            'attachments': {
+                "my_attachment_1": {
+                    'type': "jmespath",
+                    'expression': "this.is.valid.jmespath"
+                },
+                "my_attachment_2": {
+                    'type': "jmespath",
+                    'expression': "this.is.valid.jmespath"
+                }
             }
-            self._put_subscription(doc, replica, codes=requests.codes.unprocessable)
+        }
+        with self.subTest(f"{replica}, PUT should succceed for missing JMESPath"):
+            doc = deepcopy(subscription_doc)
+            subscription = self._put_subscription(doc, replica)
+
+        with self.subTest(f"{replica}, Should not be able to PUT with invalid JMESPath"):
+            doc = deepcopy(subscription_doc)
+            doc['jmespath_query'] = "this is not valid jmespath"
+            resp = self._put_subscription(doc, replica, codes=requests.codes.bad_request)
+            self.assertEquals("invalid_jmespath", resp['code'])
+
+        with self.subTest(f"{replica}, PUT should NOT succeed for attachment name starting with '_'"):
+            doc = deepcopy(subscription_doc)
+            doc['attachments']['_illegal_attachment_name'] = doc['attachments']['my_attachment_1']  # type: ignore
+            resp = self._put_subscription(doc, replica, codes=requests.codes.bad_request)
+            self.assertEquals("invalid_attachment_name", resp['code'])
+
+        with self.subTest(f"{replica}, PUT should NOT succeed for invalid attachment JMESPath"):
+            doc = deepcopy(subscription_doc)
+            doc['attachments']['my_attachment_1']['expression'] = "this is not valid jmespath"  # type: ignore
+            resp = self._put_subscription(doc, replica, codes=requests.codes.bad_request)
+            self.assertEquals("invalid_attachment_expression", resp['code'])
 
         with self.subTest(f"{replica}, PUT should succeed for valid JMESPath"):
-            sub = {
-                'callback_url': "https://example.com",
-                'method': "POST",
-                'encoding': "application/json",
-                'form_fields': {'foo': "bar"},
-                'payload_form_field': "baz",
-                'jmespath_query': "foo",
-            }
-            self._put_subscription(sub, replica)
-
-        with self.subTest(f"{replica}, PUT should succceed for missing JMESPath"):
-            sub = {
-                'callback_url': "https://example.com",
-                'method': "POST",
-                'encoding': "application/json",
-                'form_fields': {'foo': "bar"},
-                'payload_form_field': "baz",
-            }
-            subscription = self._put_subscription(sub, replica)
+            doc = deepcopy(subscription_doc)
+            doc['jmespath_query'] = "foo"
+            self._put_subscription(doc, replica)
 
         with self.subTest(f"{replica}, GET should succeed"):
             sub = self._get_subscription(subscription['uuid'], replica)
             self.assertEquals(sub['uuid'], subscription['uuid'])
 
         with self.subTest(f"{replica}, DELETE should fail for un-owned subscription"):
-            self._delete_subscription(
-                subscription['uuid'],
-                replica,
-                codes=requests.codes.unauthorized,
-                use_auth=False
-            )
+            sub = self._get_subscription(subscription['uuid'], replica)
+            self._delete_subscription(sub['uuid'], replica, codes=requests.codes.unauthorized, use_auth=False)
 
         with self.subTest(f"{replica}, DELETE should succeed"):
-            self._delete_subscription(subscription['uuid'], replica)
+            sub = self._get_subscription(subscription['uuid'], replica)
+            self._delete_subscription(sub['uuid'], replica)
 
         with self.subTest(f"{replica}, DELETE on non-existent subscription should return not-found"):
             self._delete_subscription(str(uuid4()), replica, codes=404)
@@ -350,36 +361,101 @@ class TestNotifyV2(unittest.TestCase, DSSAssertMixin, DSSUploadMixin):
                 self._test_should_notify(replica)
 
     def _test_should_notify(self, replica):
+        subscription = {
+            'owner': self.owner,
+            'uuid': str(uuid4()),
+            'callback_url': f"http://127.0.0.1:{self.app._port}/notification_test_pass",
+            'method': "POST",
+            'encoding': "application/json",
+            'form_fields': {'foo': "bar"},
+            'payload_form_field': "baz",
+            'replica': "aws",
+            'jmespath_query': 'files."assay.json"[?rna.primer==`random`]',
+        }
+
+        metadata_doc = dict()
+
         with self.subTest("Should not notify when jmespath_query does not match document"):
-            sub = self.subscription.copy()
+            sub = deepcopy(subscription)
             sub['jmespath_query'] = 'files."assay.json"[?rna.primer==`george`]'
-            self.assertFalse(notify_v2.should_notify(replica, sub, "CREATE", self.bundle_key))
+            self.assertFalse(notify_v2.should_notify(replica, sub, metadata_doc, "CREATE", self.bundle_key))
 
         with self.subTest("Should not notify when jmespath_query contains malformed JMESPath"):
-            sub = self.subscription.copy()
+            sub = deepcopy(subscription)
             sub['jmespath_query'] = 'files."assay.json"[?rna.primer==`george`'
-            self.assertFalse(notify_v2.should_notify(replica, sub, "CREATE", self.bundle_key))
+            self.assertFalse(notify_v2.should_notify(replica, sub, metadata_doc, "CREATE", self.bundle_key))
 
     @testmode.standalone
     def test_notify(self):
-        with self.subTest("success"):
-            self.assertTrue(notify_v2.notify(self.subscription, "CREATE", self.bundle_key))
+        subscription = {
+            'owner': self.owner,
+            'uuid': str(uuid4()),
+            'callback_url': f"http://127.0.0.1:{self.app._port}/notification_test_pass",
+            'method': "POST",
+            'encoding': "application/json",
+            'form_fields': {'foo': "bar"},
+            'payload_form_field': "baz",
+            'replica': "aws",
+            'jmespath_query': 'files."assay.json"[?rna.primer==`random`]',
+        }
 
-        with self.subTest("test notification delivery with auth"):
-            sub = self.subscription.copy()
+        metadata_doc = dict()
+
+        with self.subTest("success"):
+            sub = deepcopy(subscription)
+            self.assertTrue(notify_v2.notify(sub, metadata_doc, "CREATE", self.bundle_key))
+
+        with self.subTest("Delivery should succeed using hmac_secret_key"):
+            sub = deepcopy(subscription)
             sub['callback_url'] = sub['callback_url'] + "_with_auth"
             sub['hmac_secret_key'] = "ribos0me"
-            self.assertTrue(notify_v2.notify(sub, "CREATE", self.bundle_key))
+            self.assertTrue(notify_v2.notify(sub, metadata_doc, "CREATE", self.bundle_key))
 
-        with self.subTest("test multipart/form-data"):
-            sub = self.subscription.copy()
+        with self.subTest("Delivery should succeed with multipart/form-data"):
+            sub = deepcopy(subscription)
             sub['encoding'] = "multipart/form-data"
-            self.assertTrue(notify_v2.notify(sub, "CREATE", self.bundle_key))
+            self.assertTrue(notify_v2.notify(sub, metadata_doc, "CREATE", self.bundle_key))
 
-        with self.subTest("Test delivery failure"):
-            sub = self.subscription.copy()
+        with self.subTest("Notify should return False when delivery fails"):
+            sub = deepcopy(subscription)
             sub['callback_url'] = f"http://127.0.0.1:{self.app._port}/notification_test_fail"
-            self.assertFalse(notify_v2.notify(sub, "CREATE", self.bundle_key))
+            self.assertFalse(notify_v2.notify(sub, metadata_doc, "CREATE", self.bundle_key))
+
+        with self.subTest("Notify should return False when delivery fails"):
+            sub = deepcopy(subscription)
+            sub['callback_url'] = f"http://127.0.0.1:{self.app._port}/notification_test_fail"
+            self.assertFalse(notify_v2.notify(sub, metadata_doc, "CREATE", self.bundle_key))
+
+        with self.subTest("Test notification with matching attachments"):
+            sub = deepcopy(subscription)
+            metadata_doc = {
+                'foo': "george",
+                'bar': "Frank"
+            }
+            sub['attachments'] = {
+                'my_attachment_1': {
+                    'type': "jmespath",
+                    'expression': "foo"
+                },
+                'my_attachment_2': {
+                    'type': "jmespath",
+                    'expression': "bar"
+                },
+                'my_attachment_3': {
+                    'type': "jmespath",
+                    'expression': "blarg.arg"
+                }
+            }
+            self.assertTrue(notify_v2.notify(sub, metadata_doc, "CREATE", self.bundle_key))
+            self.assertEqual(recieved_notification['attachments']['my_attachment_1'], metadata_doc['foo'])
+            self.assertEqual(recieved_notification['attachments']['my_attachment_2'], metadata_doc['bar'])
+            self.assertEqual(recieved_notification['attachments']['my_attachment_3'], None)
+
+        with self.subTest("Test notification with no attachments"):
+            sub = deepcopy(subscription)
+            metadata_doc = dict()
+            self.assertTrue(notify_v2.notify(sub, metadata_doc, "CREATE", self.bundle_key))
+            self.assertEqual(recieved_notification.get('attachments'), None)
 
     def _put_subscription(self, doc, replica=Replica.aws, codes=requests.codes.created):
         url = str(UrlBuilder()

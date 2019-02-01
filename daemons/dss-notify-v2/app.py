@@ -18,7 +18,7 @@ import dss
 from dss import Config, Replica
 from dss.logging import configure_lambda_logging
 from dss.subscriptions_v2 import get_subscriptions_for_replica, get_subscription
-from dss.events.handlers.notify_v2 import should_notify, notify_or_queue
+from dss.events.handlers.notify_v2 import should_notify, notify_or_queue, build_bundle_metadata_document
 
 configure_lambda_logging()
 logger = logging.getLogger(__name__)
@@ -44,8 +44,9 @@ def launch_from_s3_event(event, context):
             # - xbrianh
             if key.startswith("bundles"):
                 for subscription in get_subscriptions_for_replica(replica):
-                    if should_notify(replica, subscription, "CREATE", key):
-                        notify_or_queue(replica, subscription, "CREATE", key)
+                    metadata_document = build_bundle_metadata_document(replica, key)
+                    if should_notify(replica, subscription, metadata_document, "CREATE", key):
+                        notify_or_queue(replica, subscription, metadata_document, "CREATE", key)
             else:
                 logger.warning(f"Notifications not supported for {key}")
 
@@ -62,8 +63,9 @@ def launch_from_forwarded_event(event, context):
             # - xbrianh
             if key.startswith("bundles"):
                 for subscription in get_subscriptions_for_replica(Replica.gcp):
-                    if should_notify(replica, subscription, "CREATE", key):
-                        notify_or_queue(replica, subscription, "CREATE", key)
+                    metadata_document = build_bundle_metadata_document(replica, key)
+                    if should_notify(replica, subscription, metadata_document, "CREATE", key):
+                        notify_or_queue(replica, subscription, metadata_document, "CREATE", key)
             else:
                 logger.warning(f"Notifications not supported for {key}")
         else:
@@ -80,7 +82,8 @@ def launch_from_notification_queue(event, context):
         key = message['key']
         event_type = message['event_type']
         subscription = get_subscription(replica, owner, uuid)
+        metadata_document = build_bundle_metadata_document(replica, key)
         if subscription is not None:
-            notify_or_queue(replica, subscription, event_type, key)
+            notify_or_queue(replica, subscription, metadata_document, event_type, key)
         else:
             logger.warning(f"Recieved queue message with no matching subscription:{message}")

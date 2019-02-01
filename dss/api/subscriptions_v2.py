@@ -49,11 +49,29 @@ def put(json_request_body: dict, replica: str):
             jmespath.compile(subscription_doc[SubscriptionData.JMESPATH_QUERY])
         except JMESPathError:
             raise DSSException(
-                requests.codes.unprocessable,
+                requests.codes.bad_request,
                 "invalid_jmespath",
                 "JMESPath query is invalid"
             )
-    # TODO: check that attachment JMESPath filters will parse? - Brian Hnnafious 2019.01.25
+    # validate attachment JMESPath if present
+    attachments = subscription_doc.get(SubscriptionData.ATTACHMENTS)
+    if attachments is not None:
+        for name, definition in attachments.items():
+            if name.startswith('_'):
+                raise DSSException(requests.codes.bad_request,
+                                   "invalid_attachment_name",
+                                   f"Attachment names must not start with underscore ({name})")
+            type_ = definition['type']
+            if type_ == 'jmespath':
+                expression = definition['expression']
+                try:
+                    jmespath.compile(expression)
+                except JMESPathError as e:
+                    raise DSSException(requests.codes.bad_request,
+                                       "invalid_attachment_expression",
+                                       f"Unable to compile JMESPath expression for attachment {name}") from e
+            else:
+                assert False, type_
     put_subscription(subscription_doc)
     return subscription_doc, requests.codes.created
 

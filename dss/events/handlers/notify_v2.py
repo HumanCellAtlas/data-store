@@ -20,8 +20,9 @@ from dss.subscriptions_v2 import SubscriptionData, get_subscriptions_for_replica
 logger = logging.getLogger(__name__)
 
 notification_queue_name = "dss-notify-v2-" + os.environ['DSS_DEPLOYMENT_STAGE']
+_attachment_size_limit = 128 * 1024
 
-def should_notify(replica: Replica, subscription: dict, event_type: str, key: str) -> bool:
+def should_notify(replica: Replica, subscription: dict, metadata_document: dict, event_type: str, key: str) -> bool:
     """
     Check if a notification should be attempted for subscription and key
     """
@@ -30,10 +31,8 @@ def should_notify(replica: Replica, subscription: dict, event_type: str, key: st
     if not jmespath_query:
         return True
     else:
-        replica = Replica[subscription[SubscriptionData.REPLICA]]
-        doc = build_bundle_metadata_document(replica, key)
         try:
-            if jmespath.search(jmespath_query, doc):
+            if jmespath.search(jmespath_query, metadata_document):
                 return True
             else:
                 return False
@@ -47,7 +46,7 @@ def should_notify(replica: Replica, subscription: dict, event_type: str, key: st
             ))
             return False
 
-def notify_or_queue(replica: Replica, subscription: dict, event_type: str, key: str):
+def notify_or_queue(replica: Replica, subscription: dict, metadata_document: dict, event_type: str, key: str):
     """
     Notify or queue for later processing. There are three cases:
         1) For a normal bundle: attempt notification, queue on delivery failure
@@ -60,10 +59,10 @@ def notify_or_queue(replica: Replica, subscription: dict, event_type: str, key: 
             if not bundle_key.endswith("dead"):  # don't re-notify old versioned tombstones
                 queue_notification(replica, subscription, event_type, bundle_key, delay_seconds=0)
     else:
-        if not notify(subscription, event_type, key):
+        if not notify(subscription, metadata_document, event_type, key):
             queue_notification(replica, subscription, event_type, key)
 
-def notify(subscription: dict, event_type: str, key: str):
+def notify(subscription: dict, metadata_document: dict, event_type: str, key: str):
     """
     Attempt notification delivery. Return True for success, False for failure
     """
@@ -83,9 +82,24 @@ def notify(subscription: dict, event_type: str, key: str):
     if jmespath_query is not None:
         payload[SubscriptionData.JMESPATH_QUERY] = jmespath_query
 
-#    definitions = subscription.get('attachments')
-#    if definitions is not None:
-#        payload['attachments'] = attachment.select(definitions, doc)
+    attachments_defs = subscription.get(SubscriptionData.ATTACHMENTS)
+    if attachments_defs is not None:
+        errors = dict()
+        attachments = dict()
+        for name, attachment in attachments_defs.items():
+            if 'jmespath' == attachment['type']:
+                try:
+                    value = jmespath.search(attachment['expression'], metadata_document)
+                except BaseException as e:
+                    errors[name] = str(e)
+                else:
+                    attachments[name] = value
+        if errors:
+            attachments['_errors'] = errors
+        size = len(json.dumps(attachments).encode('utf-8'))
+        if size > _attachment_size_limit:
+            attachments = {'_errors': f"Attachments too large ({size} > {_attachment_size_limit})"}
+        payload['attachments'] = attachments
 
     request = {
         'method': subscription.get(SubscriptionData.METHOD, "POST"),

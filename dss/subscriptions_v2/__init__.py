@@ -19,6 +19,7 @@ class SubscriptionData:
     ENCODING = 'encoding'
     FORM_FIELDS = 'form_fields'
     PAYLOAD_FORM_FIELD = 'payload_form_field'
+    ATTACHMENTS = 'attachments'
 
 
 def put_subscription(doc: dict):
