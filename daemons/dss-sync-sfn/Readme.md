@@ -7,7 +7,7 @@ Events are first received from object storage:
 
 * S3 invokes the `dss-sync-sfn` Lambda via an S3 event notification forwarded via SQS (`app.py:launch_from_s3_event()`).
 
-* GS invokes the `dss-gs-copy-sfn` GCF via a PubSub event notification
+* GS invokes the `dss-gs-event-relay` GCF via a PubSub event notification
   (`/daemons/dss-gs-event-relay-python/main.py:dss_gs_event_relay()`). The GCF then forwards the event to the
   `dss-sync-sfn` Lambda via SQS (`app.py:launch_from_forwarded_event()`).
 
