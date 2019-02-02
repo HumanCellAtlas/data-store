@@ -113,6 +113,8 @@ def notify(subscription: dict, metadata_document: dict, event_type: str, key: st
     if hmac_key:
         hmac_key_id = subscription.get('hmac_key_id', "hca-dss:" + subscription['uuid'])
         request['auth'] = HTTPSignatureAuth(key=hmac_key.encode(), key_id=hmac_key_id)
+        # get rid of this so it doesn't appear in delivery log messages
+        del subscription['hmac_secret_key']
     else:
         request['auth'] = None
 
@@ -131,7 +133,8 @@ def notify(subscription: dict, metadata_document: dict, event_type: str, key: st
     try:
         response = requests.request(**request)
     except BaseException as e:
-        logger.warning("Exception raised while delivering %s:", exc_info=e)
+        logger.warning("Exception raised while delivering notification: %s, subscription: %s",
+                       str(payload), str(subscription), exc_info=e)
         return False
 
     if 200 <= response.status_code < 300:

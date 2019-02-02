@@ -18,7 +18,7 @@ import dss
 from dss import Config, Replica
 from dss.logging import configure_lambda_logging
 from dss.subscriptions_v2 import get_subscriptions_for_replica, get_subscription
-from dss.events.handlers.notify_v2 import should_notify, notify_or_queue, build_bundle_metadata_document
+from dss.events.handlers.notify_v2 import should_notify, notify_or_queue, notify, build_bundle_metadata_document
 
 configure_lambda_logging()
 logger = logging.getLogger(__name__)
@@ -72,7 +72,14 @@ def launch_from_forwarded_event(event, context):
             raise NotImplementedError()
 
 # This entry point is for queued notifications for manual notification or redrive
-@app.sqs_queue_subscriber("dss-notify-v2-" + os.environ['DSS_DEPLOYMENT_STAGE'])
+@app.sqs_queue_subscriber(
+    "dss-notify-v2-" + os.environ['DSS_DEPLOYMENT_STAGE'],
+    batch_size=1,
+    queue_attributes={
+        'VisibilityTimeout': "3600",  # Retry every hour
+        'MessageRetentionPeriod': str(7 * 24 * 3600)  # Retain messages for 7 days
+    }
+)
 def launch_from_notification_queue(event, context):
     for event_record in event['Records']:
         message = json.loads(event_record['body'])
@@ -82,8 +89,13 @@ def launch_from_notification_queue(event, context):
         key = message['key']
         event_type = message['event_type']
         subscription = get_subscription(replica, owner, uuid)
-        metadata_document = build_bundle_metadata_document(replica, key)
         if subscription is not None:
-            notify_or_queue(replica, subscription, metadata_document, event_type, key)
+            metadata_document = build_bundle_metadata_document(replica, key)
+            if not notify(subscription, metadata_document, event_type, key):
+                # Erroring causes the message to remain in the queue
+                raise DSSFailedNotificationDelivery
         else:
             logger.warning(f"Recieved queue message with no matching subscription:{message}")
+
+class DSSFailedNotificationDelivery(Exception):
+    pass
