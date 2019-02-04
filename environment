@@ -74,7 +74,8 @@ ADMIN_USER_EMAILS=""
 DCP_DOMAIN=${DSS_DEPLOYMENT_STAGE}.data.humancellatlas.org
 API_DOMAIN_NAME="dss.${DCP_DOMAIN}"
 TOKENINFO_FUNC=dss.util.security.verify_jwt
-OIDC_AUDIENCE=https://dev.data.humancellatlas.org/
+# TODO remove https://dev.data.humancellatlas.org/ from OIDC_AUDIENCE once seperate deployments are made
+OIDC_AUDIENCE=https://dev.data.humancellatlas.org/,https://${DCP_DOMAIN}/
 OPENID_PROVIDER=https://humancellatlas.auth0.com/
 OIDC_EMAIL_CLAIM=https://auth.data.humancellatlas.org/email
 OIDC_GROUP_CLAIM=https://auth.data.humancellatlas.org/group
