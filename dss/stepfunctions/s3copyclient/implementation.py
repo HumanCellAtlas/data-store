@@ -36,6 +36,7 @@ class Key:
     DESTINATION_BUCKET = "dstbucket"
     DESTINATION_KEY = "dstkey"
     FINISHED = "finished"
+    CACHE_TAG = "cache_tag"
 
 
 # Internal key for the state object.
@@ -54,7 +55,8 @@ def setup_copy_task(event, lambda_context):
     source_key = event[Key.SOURCE_KEY]
     destination_bucket = event[Key.DESTINATION_BUCKET]
     destination_key = event[Key.DESTINATION_KEY]
-
+    if event[Key.CACHE_TAG] != None:
+        cache_tag = event[Key.CACHE_TAG]
     s3_blobstore = S3BlobStore.from_environment()
     blobinfo = s3_blobstore.get_all_metadata(source_bucket, source_key)
     source_etag = blobinfo['ETag'].strip("\"")  # the ETag is returned with an extra set of quotes.

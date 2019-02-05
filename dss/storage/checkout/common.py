@@ -34,7 +34,8 @@ def parallel_copy(
         source_bucket: str,
         source_key: str,
         destination_bucket: str,
-        destination_key: str) -> str:
+        destination_key: str,
+        cache_tag: dict = {}) -> str:
     log.debug(f"Copy file from bucket {source_bucket} with key {source_key} to "
               f"bucket {destination_bucket} destination file: {destination_key}")
 
@@ -42,6 +43,7 @@ def parallel_copy(
         state = s3copyclient.copy_sfn_event(
             source_bucket, source_key,
             destination_bucket, destination_key,
+            cache_tag
         )
         state_machine_name_template = "dss-s3-copy-sfn-{stage}"
     elif replica == Replica.gcp:

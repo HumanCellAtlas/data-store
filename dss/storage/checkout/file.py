@@ -4,11 +4,12 @@ This is the module for file checkouts.
 
 import typing
 
+from .cache_flow import lookup_cache
 from dss.config import Replica
 from .common import parallel_copy
 
 
-def start_file_checkout(replica: Replica, blob_key, dst_bucket: typing.Optional[str] = None) -> str:
+def start_file_checkout(file_metadata: dict, replica: Replica, blob_key, dst_bucket: typing.Optional[str] = None) -> str:
     """
     Starts a file checkout.
 
@@ -18,10 +19,13 @@ def start_file_checkout(replica: Replica, blob_key, dst_bucket: typing.Optional[
                        for the replica.
     :return: The execution ID of the request.
     """
+    # TODO check if file is going to get into cacheflow, need to have class initilized before hand for the file types.
     if dst_bucket is None:
         dst_bucket = replica.checkout_bucket
+    if "dss-checkout" in dst_bucket:
+        cache_required = lookup_cache(dst_bucket, file_metadata)
     source_bucket = replica.bucket
-    return parallel_copy(replica, source_bucket, blob_key, dst_bucket, get_dst_key(blob_key))
+    return parallel_copy(replica, source_bucket, blob_key, dst_bucket, get_dst_key(blob_key), cache_required)
 
 
 def get_dst_key(blob_key: str):
