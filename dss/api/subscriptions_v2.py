@@ -15,9 +15,6 @@ from dss.subscriptions_v2 import (SubscriptionData, get_subscription, get_subscr
                                   delete_subscription)
 
 
-logger = logging.getLogger(__name__)
-
-
 @security.authorized_group_required(['hca', 'public'])
 def get(uuid: str, replica: str):
     owner = security.get_token_email(request.token_info)

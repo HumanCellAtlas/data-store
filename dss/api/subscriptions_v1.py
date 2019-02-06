@@ -16,6 +16,7 @@ from dss.index.es.manager import IndexManager
 from dss.notify import attachment
 from dss.util import security
 
+
 logger = logging.getLogger(__name__)
 
 
@@ -24,7 +25,6 @@ def get(uuid: str, replica: str):
     owner = security.get_token_email(request.token_info)
 
     es_client = ElasticsearchClient.get()
-    logger.info("Get subscription {uuid}, {replica}, {owner}")
     try:
         response = es_client.get(index=Config.get_es_index_name(ESIndexType.subscriptions, Replica[replica]),
                                  doc_type=ESDocType.subscription.name,
@@ -48,7 +48,6 @@ def find(replica: str):
     owner = security.get_token_email(request.token_info)
     es_client = ElasticsearchClient.get()
 
-    logging.info(f"Find subscriptions, {replica}, {owner}")
     search_obj = Search(using=es_client,
                         index=Config.get_es_index_name(ESIndexType.subscriptions, Replica[replica]),
                         doc_type=ESDocType.subscription.name)
@@ -60,8 +59,6 @@ def find(replica: str):
         'owner': owner,
         **{k: v for k, v in hit.to_dict().items() if not k.startswith('hmac_')}}
         for hit in search.scan()]
-
-    logger.info(f"{len(responses)} Subscriptions found")
 
     full_response = {'subscriptions': responses}
     return jsonify(full_response), requests.codes.okay
