@@ -74,8 +74,6 @@ class TestNotifyV2(unittest.TestCase, DSSAssertMixin, DSSUploadMixin):
             cls.owner = json.loads(fh.read())['client_email']
         cls.app = ThreadedLocalServer(handler_cls=MyHandlerClass)
         cls.app.start()
-        # TODO: Upload an object, not re-use existing
-        cls.bundle_key = "bundles/33327857-c214-40f6-874e-1e197af41540.2018-11-12T235854.981860Z"
         cls.s3 = boto3.client('s3')
 
     @classmethod
@@ -361,6 +359,8 @@ class TestNotifyV2(unittest.TestCase, DSSAssertMixin, DSSUploadMixin):
                 self._test_should_notify(replica)
 
     def _test_should_notify(self, replica):
+        bundle_uuid, bundle_version = self._shared_bundle_once(replica)
+        bundle_key = f"bundles/{bundle_uuid}.{bundle_version}"
         subscription = {
             'owner': self.owner,
             'uuid': str(uuid4()),
@@ -378,15 +378,17 @@ class TestNotifyV2(unittest.TestCase, DSSAssertMixin, DSSUploadMixin):
         with self.subTest("Should not notify when jmespath_query does not match document"):
             sub = deepcopy(subscription)
             sub['jmespath_query'] = 'files."assay.json"[?rna.primer==`george`]'
-            self.assertFalse(notify_v2.should_notify(replica, sub, metadata_doc, "CREATE", self.bundle_key))
+            self.assertFalse(notify_v2.should_notify(replica, sub, metadata_doc, "CREATE", bundle_key))
 
         with self.subTest("Should not notify when jmespath_query contains malformed JMESPath"):
             sub = deepcopy(subscription)
             sub['jmespath_query'] = 'files."assay.json"[?rna.primer==`george`'
-            self.assertFalse(notify_v2.should_notify(replica, sub, metadata_doc, "CREATE", self.bundle_key))
+            self.assertFalse(notify_v2.should_notify(replica, sub, metadata_doc, "CREATE", bundle_key))
 
     @testmode.standalone
     def test_notify(self):
+        bundle_uuid, bundle_version = self._shared_bundle_once(Replica.aws)
+        bundle_key = f"bundles/{bundle_uuid}.{bundle_version}"
         subscription = {
             'owner': self.owner,
             'uuid': str(uuid4()),
@@ -403,28 +405,28 @@ class TestNotifyV2(unittest.TestCase, DSSAssertMixin, DSSUploadMixin):
 
         with self.subTest("success"):
             sub = deepcopy(subscription)
-            self.assertTrue(notify_v2.notify(sub, metadata_doc, "CREATE", self.bundle_key))
+            self.assertTrue(notify_v2.notify(sub, metadata_doc, "CREATE", bundle_key))
 
         with self.subTest("Delivery should succeed using hmac_secret_key"):
             sub = deepcopy(subscription)
             sub['callback_url'] = sub['callback_url'] + "_with_auth"
             sub['hmac_secret_key'] = "ribos0me"
-            self.assertTrue(notify_v2.notify(sub, metadata_doc, "CREATE", self.bundle_key))
+            self.assertTrue(notify_v2.notify(sub, metadata_doc, "CREATE", bundle_key))
 
         with self.subTest("Delivery should succeed with multipart/form-data"):
             sub = deepcopy(subscription)
             sub['encoding'] = "multipart/form-data"
-            self.assertTrue(notify_v2.notify(sub, metadata_doc, "CREATE", self.bundle_key))
+            self.assertTrue(notify_v2.notify(sub, metadata_doc, "CREATE", bundle_key))
 
         with self.subTest("Notify should return False when delivery fails"):
             sub = deepcopy(subscription)
             sub['callback_url'] = f"http://127.0.0.1:{self.app._port}/notification_test_fail"
-            self.assertFalse(notify_v2.notify(sub, metadata_doc, "CREATE", self.bundle_key))
+            self.assertFalse(notify_v2.notify(sub, metadata_doc, "CREATE", bundle_key))
 
         with self.subTest("Notify should return False when delivery fails"):
             sub = deepcopy(subscription)
             sub['callback_url'] = f"http://127.0.0.1:{self.app._port}/notification_test_fail"
-            self.assertFalse(notify_v2.notify(sub, metadata_doc, "CREATE", self.bundle_key))
+            self.assertFalse(notify_v2.notify(sub, metadata_doc, "CREATE", bundle_key))
 
         with self.subTest("Test notification with matching attachments"):
             sub = deepcopy(subscription)
@@ -446,7 +448,7 @@ class TestNotifyV2(unittest.TestCase, DSSAssertMixin, DSSUploadMixin):
                     'expression': "blarg.arg"
                 }
             }
-            self.assertTrue(notify_v2.notify(sub, metadata_doc, "CREATE", self.bundle_key))
+            self.assertTrue(notify_v2.notify(sub, metadata_doc, "CREATE", bundle_key))
             self.assertEqual(recieved_notification['attachments']['my_attachment_1'], metadata_doc['foo'])
             self.assertEqual(recieved_notification['attachments']['my_attachment_2'], metadata_doc['bar'])
             self.assertEqual(recieved_notification['attachments']['my_attachment_3'], None)
@@ -454,7 +456,7 @@ class TestNotifyV2(unittest.TestCase, DSSAssertMixin, DSSUploadMixin):
         with self.subTest("Test notification with no attachments"):
             sub = deepcopy(subscription)
             metadata_doc = dict()
-            self.assertTrue(notify_v2.notify(sub, metadata_doc, "CREATE", self.bundle_key))
+            self.assertTrue(notify_v2.notify(sub, metadata_doc, "CREATE", bundle_key))
             self.assertEqual(recieved_notification.get('attachments'), None)
 
     def _put_subscription(self, doc, replica=Replica.aws, codes=requests.codes.created):
@@ -488,6 +490,19 @@ class TestNotifyV2(unittest.TestCase, DSSAssertMixin, DSSUploadMixin):
         else:
             resp = self.assertDeleteResponse(url, codes)
         return json.loads(resp.body)
+
+    def _shared_bundle_once(self, replica: Replica):
+        """
+        Upload a shared test bundle
+        """
+        cls = type(self)
+        uuid_key = f"_bundle_uuid_once_{replica.name}"
+        version_key = f"_bundle_version_once_{replica.name}"
+        if not getattr(cls, uuid_key, None):
+            uuid, version = self._upload_bundle(replica)
+            setattr(cls, uuid_key, uuid)
+            setattr(cls, version_key, version)
+        return getattr(cls, uuid_key), getattr(cls, version_key)
 
     def _upload_bundle(self, replica, uuid=None):
         if replica == Replica.aws:
