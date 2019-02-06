@@ -51,12 +51,20 @@ def notify_or_queue(replica: Replica, subscription: dict, metadata_document: dic
     Notify or queue for later processing. There are three cases:
         1) For a normal bundle: attempt notification, queue on delivery failure
         2) For a versioned tombstone: attempt notifcation, queue on delivery failure
-        3) For unversioned tombstone: queue notification for every versioned bundle
+        3) Unversioned tombstone notify on an unbounded number of bundles. Send these directly to queue.
     """
     parts = key.split(".")
-    if key.endswith("dead") and 4 > len(parts):  # This tests for unversioned tombstone key: bundles/{uuid}.dead
+    if key.endswith("dead") and 2 == len(parts):  # This tests for unversioned tombstone key: bundles/{uuid}.dead
+        tombstones = set()
+        bundles = set()
         for bundle_key in _list_prefix(replica, parts[0]):
-            if not bundle_key.endswith("dead"):  # don't re-notify old versioned tombstones
+            if 2 < len(bundle_key.split(".")):
+                if bundle_key.endswith(".dead"):
+                    tombstones.add(bundle_key[:-5])
+                else:
+                    bundles.add(bundle_key)
+        for bundle_key in bundles:
+            if not bundle_key in tombstones:
                 queue_notification(replica, subscription, event_type, bundle_key, delay_seconds=0)
     else:
         if not notify(subscription, metadata_document, event_type, key):

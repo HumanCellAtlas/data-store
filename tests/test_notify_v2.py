@@ -13,6 +13,7 @@ import botocore.exceptions
 import requests
 from requests_http_signature import HTTPSignatureAuth
 import unittest
+from unittest import mock
 import datetime
 import typing
 from copy import deepcopy
@@ -28,7 +29,7 @@ from tests.infra import DSSAssertMixin, DSSUploadMixin, get_env, testmode
 from dss.config import Replica, BucketConfig, override_bucket_config
 from tests.infra.server import ThreadedLocalServer, SilentHandler
 from tests import eventually, get_auth_header
-from dss.events.handlers.notify_v2 import queue_notification
+from dss.events.handlers.notify_v2 import queue_notification, notify_or_queue
 from dss.util.version import datetime_to_version_format
 
 
@@ -108,34 +109,93 @@ class TestNotifyV2(unittest.TestCase, DSSAssertMixin, DSSUploadMixin):
         self.assertEquals(notification['match']['bundle_uuid'], bundle_uuid)
         self.assertEquals(notification['match']['bundle_version'], f"{bundle_version}.dead")
 
-    @testmode.integration
-    def test_unversioned_tombstone_notifications(self, replica=Replica.aws):
-        bucket = get_env('DSS_S3_BUCKET_TEST')
-        notification_object_key = f"notification-v2/{uuid4()}"
-        url = self.s3.generate_presigned_url(
-            ClientMethod='put_object',
-            Params=dict(Bucket=bucket, Key=notification_object_key, ContentType="application/json")
-        )
-        subscription = self._put_subscription(
-            {
-                'callback_url': url,
-                'method': "PUT",
-                'jmespath_query': "admin_deleted==`true`"
-            },
-            replica
-        )
-        bundle_uuid, bundle_version = self._upload_bundle(replica)
-        bundle_uuid, bundle_version = self._upload_bundle(replica, bundle_uuid)
-        self._tombstone_bundle(replica, bundle_uuid)
+    @testmode.standalone
+    def test_notify_or_queue(self):
+        replica = Replica.aws
+        with self.subTest("Should attempt to notify immediately"):
+            notify_keys = set()
+            queue_keys = set()
+            def mock_notify(subscription: dict, metadata_document: dict, event_type: str, key: str):
+                notify_keys.add(key)
+                return True
+            def mock_queue_notification(replica, subscription, event_type, key, delay_seconds=15 * 60):
+                queue_keys.add(key)
+            with mock.patch("dss.events.handlers.notify_v2.notify", mock_notify):
+                with mock.patch("dss.events.handlers.notify_v2.queue_notification", mock_queue_notification):
+                    notify_or_queue(Replica.aws, {}, {}, "CREATE", "bundles/some_uuid")
+            self.assertEqual(1, len(notify_keys))
+            self.assertEqual(0, len(queue_keys))
 
-        notification = self._get_notification_from_s3_object(bucket, notification_object_key)
-        self.assertEquals(notification['subscription_id'], subscription['uuid'])
-        self.assertEquals(notification['match']['bundle_uuid'], bundle_uuid)
-        # TODO:
-        # Multiple notifications should be delivered for this test. However, the notification
-        # test infrastructure (presigned s3 url) cannot track multiple deliveries. Need another
-        # mechanism.
-        # Brian Hannafious 2019-01-30
+        with self.subTest("Should queue when notify fails"):
+            notify_keys = set()
+            queue_keys = set()
+            def mock_notify(subscription: dict, metadata_document: dict, event_type: str, key: str):
+                notify_keys.add(key)
+                return False
+            def mock_queue_notification(replica, subscription, event_type, key, delay_seconds=15 * 60):
+                queue_keys.add(key)
+            with mock.patch("dss.events.handlers.notify_v2.notify", mock_notify):
+                with mock.patch("dss.events.handlers.notify_v2.queue_notification", mock_queue_notification):
+                    notify_or_queue(Replica.aws, {}, {}, "CREATE", "bundles/some_uuid")
+            self.assertEqual(1, len(notify_keys))
+            self.assertEqual(1, len(queue_keys))
+        
+        with self.subTest("notify_or_queue should attempt to notify immediately for versioned tombsstone"):
+            bundle_uuid, bundle_version = self._upload_bundle(replica)
+            self._tombstone_bundle(replica, bundle_uuid, bundle_version)
+            recieved_uuids = set()
+            recieved_versions = set()
+            def mock_notify(subscription: dict, metadata_document: dict, event_type: str, key: str):
+                _, fqid = key.split("/")
+                uuid, version = fqid.split(".", 1)
+                recieved_uuids.add(uuid)
+                recieved_versions.add(version)
+                return True
+            with mock.patch("dss.events.handlers.notify_v2.notify", mock_notify):
+                notify_or_queue(Replica.aws, {}, {}, "CREATE", f"bundles/{bundle_uuid}.{bundle_version}.dead")
+            self.assertEqual(1, len(recieved_uuids))
+            self.assertEqual(1, len(recieved_versions))
+            self.assertIn(bundle_uuid, recieved_uuids)
+            self.assertIn(bundle_version + ".dead", recieved_versions)
+
+        with self.subTest("notify_or_queue should queue notifications for unversioned tombsstone"):
+            bundle_uuid, bundle_version_1 = self._upload_bundle(replica)
+            bundle_uuid, bundle_version_2 = self._upload_bundle(replica, bundle_uuid)
+            self._tombstone_bundle(replica, bundle_uuid)
+            recieved_uuids = set()
+            recieved_versions = set()
+            def mock_queue_notification(replica, subscription, event_type, key, delay_seconds=15 * 60):
+                _, fqid = key.split("/")
+                uuid, version = fqid.split(".", 1)
+                recieved_uuids.add(uuid)
+                recieved_versions.add(version)
+            with mock.patch("dss.events.handlers.notify_v2.queue_notification", mock_queue_notification):
+                notify_or_queue(Replica.aws, {}, {}, "CREATE", f"bundles/{bundle_uuid}.dead")
+            self.assertEqual(1, len(recieved_uuids))
+            self.assertEqual(2, len(recieved_versions))
+            self.assertIn(bundle_uuid, recieved_uuids)
+            self.assertIn(bundle_version_1, recieved_versions)
+            self.assertIn(bundle_version_2, recieved_versions)
+
+        with self.subTest("notify_or_queue should not re-queue tombstones versions of unversioned tombstones"):
+            bundle_uuid, bundle_version_1 = self._upload_bundle(replica)
+            bundle_uuid, bundle_version_2 = self._upload_bundle(replica, bundle_uuid)
+            self._tombstone_bundle(replica, bundle_uuid, bundle_version_2)
+            self._tombstone_bundle(replica, bundle_uuid)
+            recieved_uuids = set()
+            recieved_versions = set()
+            def foo(replica: Replica, subscription: dict, event_type: str, key: str, delay_seconds=15 * 60):
+                _, fqid = key.split("/")
+                uuid, version = fqid.split(".", 1)
+                recieved_uuids.add(uuid)
+                recieved_versions.add(version)
+            with mock.patch("dss.events.handlers.notify_v2.queue_notification", foo):
+                notify_or_queue(Replica.aws, {}, {}, "CREATE", f"bundles/{bundle_uuid}.dead")
+            self.assertEqual(1, len(recieved_uuids))
+            self.assertEqual(1, len(recieved_versions))
+            self.assertIn(bundle_uuid, recieved_uuids)
+            self.assertIn(bundle_version_1, recieved_versions)
+            self.assertNotIn(bundle_version_2, recieved_versions)
 
     @testmode.integration
     def test_queue_notification(self):
