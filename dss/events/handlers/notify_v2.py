@@ -142,7 +142,6 @@ def notify(subscription: dict, metadata_document: dict, event_type: str, key: st
                     str(payload), response.status_code, str(subscription))
         return True
     else:
-        print("FAILED", response.content)
         logger.warning("Failed delivering %s: HTTP status %i, subscription: %s",
                        str(payload), response.status_code, str(subscription))
         return False
