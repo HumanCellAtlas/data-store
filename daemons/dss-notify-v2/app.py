@@ -93,7 +93,7 @@ def launch_from_notification_queue(event, context):
             metadata_document = build_bundle_metadata_document(replica, key)
             if not notify(subscription, metadata_document, event_type, key):
                 # Erroring causes the message to remain in the queue
-                raise DSSFailedNotificationDelivery
+                raise DSSFailedNotificationDelivery()
         else:
             logger.warning(f"Recieved queue message with no matching subscription:{message}")
 
