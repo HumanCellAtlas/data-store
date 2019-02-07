@@ -64,7 +64,7 @@ def notify_or_queue(replica: Replica, subscription: dict, metadata_document: dic
                 else:
                     bundles.add(bundle_key)
         for bundle_key in bundles:
-            if not bundle_key in tombstones:
+            if bundle_key not in tombstones:
                 queue_notification(replica, subscription, event_type, bundle_key, delay_seconds=0)
     else:
         if not notify(subscription, metadata_document, event_type, key):

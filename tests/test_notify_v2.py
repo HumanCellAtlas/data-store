@@ -115,11 +115,14 @@ class TestNotifyV2(unittest.TestCase, DSSAssertMixin, DSSUploadMixin):
         with self.subTest("Should attempt to notify immediately"):
             notify_keys = set()
             queue_keys = set()
+
             def mock_notify(subscription: dict, metadata_document: dict, event_type: str, key: str):
                 notify_keys.add(key)
                 return True
+
             def mock_queue_notification(replica, subscription, event_type, key, delay_seconds=15 * 60):
                 queue_keys.add(key)
+
             with mock.patch("dss.events.handlers.notify_v2.notify", mock_notify):
                 with mock.patch("dss.events.handlers.notify_v2.queue_notification", mock_queue_notification):
                     notify_or_queue(Replica.aws, {}, {}, "CREATE", "bundles/some_uuid")
@@ -129,28 +132,33 @@ class TestNotifyV2(unittest.TestCase, DSSAssertMixin, DSSUploadMixin):
         with self.subTest("Should queue when notify fails"):
             notify_keys = set()
             queue_keys = set()
+
             def mock_notify(subscription: dict, metadata_document: dict, event_type: str, key: str):
                 notify_keys.add(key)
                 return False
+
             def mock_queue_notification(replica, subscription, event_type, key, delay_seconds=15 * 60):
                 queue_keys.add(key)
+
             with mock.patch("dss.events.handlers.notify_v2.notify", mock_notify):
                 with mock.patch("dss.events.handlers.notify_v2.queue_notification", mock_queue_notification):
                     notify_or_queue(Replica.aws, {}, {}, "CREATE", "bundles/some_uuid")
             self.assertEqual(1, len(notify_keys))
             self.assertEqual(1, len(queue_keys))
-        
+
         with self.subTest("notify_or_queue should attempt to notify immediately for versioned tombsstone"):
             bundle_uuid, bundle_version = self._upload_bundle(replica)
             self._tombstone_bundle(replica, bundle_uuid, bundle_version)
             recieved_uuids = set()
             recieved_versions = set()
+
             def mock_notify(subscription: dict, metadata_document: dict, event_type: str, key: str):
                 _, fqid = key.split("/")
                 uuid, version = fqid.split(".", 1)
                 recieved_uuids.add(uuid)
                 recieved_versions.add(version)
                 return True
+
             with mock.patch("dss.events.handlers.notify_v2.notify", mock_notify):
                 notify_or_queue(Replica.aws, {}, {}, "CREATE", f"bundles/{bundle_uuid}.{bundle_version}.dead")
             self.assertEqual(1, len(recieved_uuids))
@@ -164,11 +172,13 @@ class TestNotifyV2(unittest.TestCase, DSSAssertMixin, DSSUploadMixin):
             self._tombstone_bundle(replica, bundle_uuid)
             recieved_uuids = set()
             recieved_versions = set()
+
             def mock_queue_notification(replica, subscription, event_type, key, delay_seconds=15 * 60):
                 _, fqid = key.split("/")
                 uuid, version = fqid.split(".", 1)
                 recieved_uuids.add(uuid)
                 recieved_versions.add(version)
+
             with mock.patch("dss.events.handlers.notify_v2.queue_notification", mock_queue_notification):
                 notify_or_queue(Replica.aws, {}, {}, "CREATE", f"bundles/{bundle_uuid}.dead")
             self.assertEqual(1, len(recieved_uuids))
@@ -184,11 +194,13 @@ class TestNotifyV2(unittest.TestCase, DSSAssertMixin, DSSUploadMixin):
             self._tombstone_bundle(replica, bundle_uuid)
             recieved_uuids = set()
             recieved_versions = set()
+
             def foo(replica: Replica, subscription: dict, event_type: str, key: str, delay_seconds=15 * 60):
                 _, fqid = key.split("/")
                 uuid, version = fqid.split(".", 1)
                 recieved_uuids.add(uuid)
                 recieved_versions.add(version)
+
             with mock.patch("dss.events.handlers.notify_v2.queue_notification", foo):
                 notify_or_queue(Replica.aws, {}, {}, "CREATE", f"bundles/{bundle_uuid}.dead")
             self.assertEqual(1, len(recieved_uuids))
