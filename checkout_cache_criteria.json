@@ -1,0 +1,5 @@
+{
+  "type": "application/json",
+  "max_size": 12134,
+  "Comment": "This file specifies which files the AWS/Google checkout buckets omit from the regular lifecycle policy, effectively making them long-lived cached files for better user accessibility."
+}

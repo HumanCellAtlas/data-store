@@ -41,6 +41,7 @@ resource google_storage_bucket dss_gs_checkout_bucket {
     }
     condition {
       age = "${var.DSS_BLOB_TTL_DAYS}"
+      matches_storage_class = "DURABLE_REDUCED_AVAILABILITY"
       is_live = true
     }
   }
