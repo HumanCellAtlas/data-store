@@ -4,6 +4,8 @@ from dss import Config, Replica
 from dss.stepfunctions.lambdaexecutor import TimedThread
 from dss.storage.files import write_file_metadata
 from dss.util.async_state import AsyncStateError
+from dss.storage.checkout.cache_flow import lookup_cache
+from dss.storage.hcablobstore import FileMetadata
 
 logger = logging.getLogger(__name__)
 
@@ -58,6 +60,18 @@ def copy_worker(event, lambda_context):
             src_blob = self.gcp_client.bucket(self.source_bucket).get_blob(self.source_key)
             dst_blob = self.gcp_client.bucket(self.destination_bucket).blob(self.destination_key)
 
+            cached = lookup_cache(file_metadata={FileMetadata.CONTENT_TYPE: src_blob._get_content_type(None),
+                                                 FileMetadata.SIZE: self.size})
+
+            # use the DURABLE_REDUCED_AVAILABILITY storage class to mark (short-lived) non-cached files
+            # TODO: DURABLE_REDUCED_AVAILABILITY is being phased out by Google; use a different method in the future
+            if not cached:
+                # non-cached files stored as DURABLE_REDUCED_AVAILABILITY
+                dst_blob._patch_property('storageClass', 'DURABLE_REDUCED_AVAILABILITY')
+
+            # Note: Explicitly include code to cache files as STANDARD?  This is implicitly taken care of by the
+            # bucket's default currently.
+
             while True:
                 response = dst_blob.rewrite(src_blob, token=state.get(_Key.TOKEN, None))
                 if response[0] is None:
@@ -91,6 +105,7 @@ def _retry_default():
             "BackoffRate": 1.618,
         },
     ]
+
 
 def _catch_default():
     return [
