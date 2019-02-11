@@ -63,10 +63,9 @@ def copy_worker(event, lambda_context):
             cached = lookup_cache(file_metadata={FileMetadata.CONTENT_TYPE: src_blob._get_content_type(None),
                                                  FileMetadata.SIZE: self.size})
 
-            # use the DURABLE_REDUCED_AVAILABILITY storage class to mark (short-lived) non-cached files
             # TODO: DURABLE_REDUCED_AVAILABILITY is being phased out by Google; use a different method in the future
             if not cached:
-                # non-cached files stored as DURABLE_REDUCED_AVAILABILITY
+                # the DURABLE_REDUCED_AVAILABILITY storage class marks (short-lived) non-cached files
                 dst_blob._patch_property('storageClass', 'DURABLE_REDUCED_AVAILABILITY')
 
             # Note: Explicitly include code to cache files as STANDARD?  This is implicitly taken care of by the
