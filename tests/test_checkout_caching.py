@@ -53,13 +53,13 @@ class TestCheckoutApi(unittest.TestCase, DSSAssertMixin, DSSUploadMixin):
 
     @testmode.standalone
     def test_google_cached_checkout_creates_standard_storage_type(self):
-        """Verifies that long-lived Google cached objects are of the DURABLE_REDUCED_AVAILABILITY type."""
+        """Verifies that long-lived Google cached objects are of the STANDARD type."""
         pass
 
     @testmode.standalone
     def test_google_normal_checkout_creates_durable_storage_type(self):
         """
-        Verifies object level tagging of short-lived files.
+        Verifies that short-lived Google cached objects are of the DURABLE_REDUCED_AVAILABILITY type.
 
         The current life-cycle policy that regularly deletes files in the Google checkout bucket
         only applies to DURABLE_REDUCED_AVAILABILITY.
