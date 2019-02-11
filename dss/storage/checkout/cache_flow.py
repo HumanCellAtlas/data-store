@@ -7,16 +7,14 @@ from .common import c
 
 
 def _cache_net():
-    with open("checkout_cache.json", "r") as file:
+    with open("checkout_cache_criteria.json", "r") as file:
         temp = json.load(file)
-        file.close()
-        return temp
+    return temp
 
 
 def lookup_cache(file_metadata: dict):
     for file_type in _cache_net():
         if file_type['type'] == file_metadata[FileMetadata.CONTENT_TYPE]:
-            if ["max_size"] >= file_metadata[FileMetadata.SIZE]:
+            if file_type['max_size'] >= file_metadata[FileMetadata.SIZE]:
                 return True
-        else:
-            return False
+    return False
