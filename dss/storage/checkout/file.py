@@ -19,9 +19,10 @@ def start_file_checkout(replica: Replica, blob_key, dst_bucket: typing.Optional[
                        for the replica.
     :return: The execution ID of the request.
     """
-    # TODO check if file is going to get into cacheflow, need to have class initilized before hand for the file types.
+    # TODO check if file is going to get into cache_flow, need to have class initialized beforehand for the file types.
     if dst_bucket is None:
         dst_bucket = replica.checkout_bucket
+    # TODO: Add a 'checkout' tag to the AWS bucket and 'checkout' label to the google bucket in terraform to ID them
     if "dss-checkout" in dst_bucket:
         cache_required = lookup_cache(file_metadata)
     source_bucket = replica.bucket
