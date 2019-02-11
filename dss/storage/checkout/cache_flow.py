@@ -3,7 +3,6 @@ import json
 import typing
 from dss.config import Replica
 from dss.storage.hcablobstore import FileMetadata
-from .common import c
 
 
 def _cache_net():
