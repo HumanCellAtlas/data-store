@@ -5,7 +5,7 @@ from .implementation import CopyWriteMetadataKey, Key, sfn, copy_write_metadata_
 
 def copy_sfn_event(
         source_bucket: str, source_key: str,
-        destination_bucket: str, destination_key: str, cache_tag: dict = {}
+        destination_bucket: str, destination_key: str, cache_tag: bool = False
 ) -> typing.MutableMapping[str, str]:
     """Returns the initial event object to start the s3-s3 copy stepfunction."""
     return {

@@ -9,7 +9,7 @@ from dss.config import Replica
 from .common import parallel_copy
 
 
-def start_file_checkout(file_metadata: dict, replica: Replica, blob_key, dst_bucket: typing.Optional[str] = None) -> str:
+def start_file_checkout(replica: Replica, blob_key, dst_bucket: typing.Optional[str] = None, file_metadata: dict = None) -> str:
     """
     Starts a file checkout.
 
@@ -23,7 +23,7 @@ def start_file_checkout(file_metadata: dict, replica: Replica, blob_key, dst_buc
     if dst_bucket is None:
         dst_bucket = replica.checkout_bucket
     if "dss-checkout" in dst_bucket:
-        cache_required = lookup_cache(dst_bucket, file_metadata)
+        cache_required = lookup_cache(file_metadata)
     source_bucket = replica.bucket
     return parallel_copy(replica, source_bucket, blob_key, dst_bucket, get_dst_key(blob_key), cache_required)
 
