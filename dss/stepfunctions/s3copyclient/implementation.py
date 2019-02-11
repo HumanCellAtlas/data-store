@@ -38,7 +38,7 @@ class Key:
     DESTINATION_BUCKET = "dstbucket"
     DESTINATION_KEY = "dstkey"
     FINISHED = "finished"
-    CACHE_TAG = "cache_tag"
+    UNCACHED_TAG = "uncached_tag"
 
 
 # Internal key for the state object.
@@ -57,8 +57,8 @@ def setup_copy_task(event, lambda_context):
     source_key = event[Key.SOURCE_KEY]
     destination_bucket = event[Key.DESTINATION_BUCKET]
     destination_key = event[Key.DESTINATION_KEY]
-    if event[Key.CACHE_TAG] is not False:
-        cache_tag = event[Key.CACHE_TAG]
+    if event[Key.UNCACHED_TAG] is not False:
+        uncached_tag = event[Key.UNCACHED_TAG]
     s3_blobstore = S3BlobStore.from_environment()
     blobinfo = s3_blobstore.get_all_metadata(source_bucket, source_key)
     source_etag = blobinfo['ETag'].strip("\"")  # the ETag is returned with an extra set of quotes.
@@ -72,10 +72,12 @@ def setup_copy_task(event, lambda_context):
         event[_Key.UPLOAD_ID] = mpu['UploadId']
         event[Key.FINISHED] = False
     else:
-        if cache_tag is not False:
-            _s3_cached_copy(source_bucket, source_key, destination_bucket, destination_key)
-        else:
+        if uncached_tag is not False:
+            # cached files have no tags
             s3_blobstore.copy(source_bucket, source_key, destination_bucket, destination_key)
+        else:
+            # uncached files have tags, which specify deletion
+            _s3_cached_copy(source_bucket, source_key, destination_bucket, destination_key)
         event[_Key.UPLOAD_ID] = None
         event[Key.FINISHED] = True
 
@@ -192,7 +194,7 @@ def _s3_cached_copy(source_bucket: str, source_key: str, destination_bucket: str
     client = boto3.client("s3")
     try:
         tagging_directive = 'Replace'
-        tagging_format = '?cache=True'
+        tagging_format = '?uncached=True'
         client.copy_object(
             dict(
                 Bucket=source_bucket,
