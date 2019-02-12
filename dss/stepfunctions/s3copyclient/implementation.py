@@ -107,7 +107,8 @@ def copy_worker(event, lambda_context, slice_num):
             s3_blobstore = S3BlobStore.from_environment()
             state = self.get_state_copy()
             cached = get_cached_status(file_metadata={FileMetadata.CONTENT_TYPE: event[_Key.CONTENT_TYPE],
-                                                      FileMetadata.SIZE: event[_Key.SIZE]})
+                                                      FileMetadata.SIZE: event[_Key.SIZE],
+                                                      'Destination Bucket': self.destination_bucket})
             if _Key.NEXT_PART not in state or _Key.LAST_PART not in state:
                 # missing the next/last part data.  calculate that from the branch id information.
                 parts_per_branch = ((self.part_count + LAMBDA_PARALLELIZATION_FACTOR - 1)

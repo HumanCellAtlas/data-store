@@ -60,13 +60,17 @@ def copy_worker(event, lambda_context):
             src_blob = self.gcp_client.bucket(self.source_bucket).get_blob(self.source_key)
             dst_blob = self.gcp_client.bucket(self.destination_bucket).blob(self.destination_key)
 
-            cached = get_cached_status(file_metadata={FileMetadata.CONTENT_TYPE: src_blob._get_content_type(None),
-                                                      FileMetadata.SIZE: self.size})
+            content_type = src_blob._get_content_type(None)
+            cached = get_cached_status(file_metadata={FileMetadata.CONTENT_TYPE: content_type,
+                                                      FileMetadata.SIZE: self.size,
+                                                      'Destination Bucket': self.destination_bucket})
 
             # TODO: DURABLE_REDUCED_AVAILABILITY is being phased out by Google; use a different method in the future
             if not cached:
                 # the DURABLE_REDUCED_AVAILABILITY storage class marks (short-lived) non-cached files
                 dst_blob._patch_property('storageClass', 'DURABLE_REDUCED_AVAILABILITY')
+                # setting the storage class explicitly seems like it blanks the content-type, so we add it back
+                dst_blob._patch_property('contentType', content_type)
 
             # Note: Explicitly include code to cache files as STANDARD?  This is implicitly taken care of by the
             # bucket's default currently.
