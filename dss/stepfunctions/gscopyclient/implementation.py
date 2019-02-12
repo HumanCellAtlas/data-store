@@ -60,15 +60,18 @@ def copy_worker(event, lambda_context):
             state = self.get_state_copy()
             src_blob = self.gcp_client.bucket(self.source_bucket).get_blob(self.source_key)
             dst_blob = self.gcp_client.bucket(self.destination_bucket).blob(self.destination_key)
-
             content_type = src_blob._get_content_type(None)
-            assert os.environ['DSS_GS_CHECKOUT_BUCKET'] == self.destination_bucket
+
+            # Files can be checked out to a user bucket or the standard dss checkout bucket.
+            # If a user bucket, files should be unmodified by either object tagging (AWS)
+            # or storage type changes (Google) used to mark cached objects.
+            isnt_user_bucket = os.environ['DSS_GS_CHECKOUT_BUCKET'] == self.destination_bucket
+
             cached = get_cached_status(file_metadata={FileMetadata.CONTENT_TYPE: content_type,
-                                                      FileMetadata.SIZE: self.size,
-                                                      'Destination Bucket': self.destination_bucket})
+                                                      FileMetadata.SIZE: self.size})
 
             # TODO: DURABLE_REDUCED_AVAILABILITY is being phased out by Google; use a different method in the future
-            if not cached:
+            if not cached and isnt_user_bucket:
                 # the DURABLE_REDUCED_AVAILABILITY storage class marks (short-lived) non-cached files
                 dst_blob._patch_property('storageClass', 'DURABLE_REDUCED_AVAILABILITY')
                 # setting the storage class explicitly seems like it blanks the content-type, so we add it back
