@@ -119,6 +119,29 @@ class TestS3ParallelCopy(unittest.TestCase):
 
         self._check_dst_key_etag(test_bucket, test_dst_key, src_etag)
 
+    @testmode.integration
+    def test_cache_mechanism(self):
+        test_bucket = infra.get_env("DSS_S3_BUCKET_TEST")
+        test_checkout_bucket = infra.get_env("DSS_S3_CHECKOUT_BUCKET_TEST")
+        miss_cache_tag = {"uncached": True}
+        test_src_key = infra.generate_test_key()
+        src_data = os.urandom(1024)
+        s3_blobstore = Config.get_blobstore_handle(Replica.aws)
+
+        with tempfile.NamedTemporaryFile(delete=True) as fh:
+            fh.write(src_data)
+            fh.flush()
+            fh.seek(0)
+            s3_blobstore.upload_file_handle(test_bucket, test_src_key, fh)
+        test_dst_key = infra.generate_test_key()
+        state = s3copyclient.copy_sfn_event(
+            test_bucket, test_src_key,
+            test_checkout_bucket, test_dst_key)
+        execution_id = str(uuid.uuid4())
+        stepfunctions.step_functions_invoke("dss-s3-copy-sfn-{stage}", execution_id, state)
+        tagging = s3_blobstore.get_user_metadata(test_checkout_bucket, test_dst_key)
+        self.assertDictEqual(miss_cache_tag, tagging)  # tests uncached files
+
 
 if __name__ == '__main__':
     unittest.main()

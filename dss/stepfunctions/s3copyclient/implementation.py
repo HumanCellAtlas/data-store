@@ -195,7 +195,7 @@ def copy_worker(event, lambda_context, slice_num):
 
 def _set_uncached_tag(destination_bucket: str, destination_key: str):
     client = boto3.client("s3")
-    tag_set = {"TagSet": [{"uncached": "True"}]}
+    tag_set = {"TagSet": [{"uncached": True}]}
     try:
         client.put_object_tagging(Bucket=destination_bucket, Key=destination_key, Tagging=tag_set)
     except ClientError as ex:
