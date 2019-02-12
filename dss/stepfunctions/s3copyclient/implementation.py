@@ -8,12 +8,11 @@ import hashlib
 import typing
 
 import boto3
-from boto3.s3.transfer import TransferConfig
-from botocore.exceptions  import ClientError
+
+from botocore.exceptions import ClientError
 from cloud_blobstore.s3 import S3BlobStore
 from dcplib.s3_multipart import get_s3_multipart_chunk_size
 
-from dss.config import Replica
 from dss.stepfunctions.lambdaexecutor import TimedThread
 from dss.storage.files import write_file_metadata
 from dss.util import parallel_worker
@@ -57,8 +56,6 @@ def setup_copy_task(event, lambda_context):
     source_key = event[Key.SOURCE_KEY]
     destination_bucket = event[Key.DESTINATION_BUCKET]
     destination_key = event[Key.DESTINATION_KEY]
-    if event[Key.UNCACHED_TAG] is not False:
-        uncached_tag = event[Key.UNCACHED_TAG]
     s3_blobstore = S3BlobStore.from_environment()
     blobinfo = s3_blobstore.get_all_metadata(source_bucket, source_key)
     source_etag = blobinfo['ETag'].strip("\"")  # the ETag is returned with an extra set of quotes.
@@ -72,13 +69,10 @@ def setup_copy_task(event, lambda_context):
         event[_Key.UPLOAD_ID] = mpu['UploadId']
         event[Key.FINISHED] = False
     else:
-        if uncached_tag is not False:
-            # cached files have no tags
-            s3_blobstore.copy(source_bucket, source_key, destination_bucket, destination_key)
-        else:
-            # uncached files have tags, which specify deletion
-            _s3_cached_copy(source_bucket, source_key, destination_bucket, destination_key)
+        s3_blobstore.copy(source_bucket, source_key, destination_bucket, destination_key)
         event[_Key.UPLOAD_ID] = None
+        if event[Key.UNCACHED_TAG] == 'True':
+            _set_uncached_tag(destination_bucket, destination_key)
         event[Key.FINISHED] = True
 
     event[_Key.SOURCE_ETAG] = source_etag
@@ -103,6 +97,7 @@ def copy_worker(event, lambda_context, slice_num):
             self.source_etag = state[_Key.SOURCE_ETAG]
             self.destination_bucket = state[Key.DESTINATION_BUCKET]
             self.destination_key = state[Key.DESTINATION_KEY]
+            self.uncached_tag = state[Key.UNCACHED_TAG]
             self.upload_id = state[_Key.UPLOAD_ID]
             self.size = state[_Key.SIZE]
             self.part_size = state[_Key.PART_SIZE]
@@ -122,6 +117,8 @@ def copy_worker(event, lambda_context, slice_num):
 
             if state[_Key.NEXT_PART] > state[_Key.LAST_PART]:
                 state[Key.FINISHED] = True
+                if self.uncached_tag == 'True':
+                    _set_uncached_tag(self.destination_bucket, self.destination_key)
                 return state
 
             queue = collections.deque(s3_blobstore.find_next_missing_parts(
@@ -134,6 +131,8 @@ def copy_worker(event, lambda_context, slice_num):
 
             if len(queue) == 0:
                 state[Key.FINISHED] = True
+                if self.uncached_tag == 'True':
+                    _set_uncached_tag(self.destination_bucket, self.destination_key)
                 return state
 
             class ProgressReporter(parallel_worker.Reporter):
@@ -150,6 +149,8 @@ def copy_worker(event, lambda_context, slice_num):
             assert all(results)
 
             state[Key.FINISHED] = True
+            if self.uncached_tag == 'True':
+                _set_uncached_tag(self.destination_bucket, self.destination_key)
             return state
 
         def copy_one_part(self, part_id: int):
@@ -190,27 +191,13 @@ def copy_worker(event, lambda_context, slice_num):
         return result
 
 
-def _s3_cached_copy(source_bucket: str, source_key: str, destination_bucket: str, destination_key: str):
+def _set_uncached_tag(destination_bucket: str, destination_key: str):
     client = boto3.client("s3")
+    tag_set = {"TagSet": [{"uncached": "True"}]}
     try:
-        tagging_directive = 'Replace'
-        tagging_format = '?uncached=True'
-        client.copy_object(
-            dict(
-                Bucket=source_bucket,
-                Key=source_key
-            ),
-            Bucket=destination_bucket,
-            Key=destination_key,
-            TaggingDirective=tagging_directive,
-            Tagging=tagging_format,
-            Config=TransferConfig(
-                multipart_threshold=(64 * 1024 * 1024) + 1,
-                multipart_chunksize=64 * 1024 * 1024,
-            ),
-        )
+        client.put_object_tagging(Bucket=destination_bucket, Key=destination_key, Tagging=tag_set)
     except ClientError as ex:
-        raise ValueError(f"Could not find s3://{source_bucket}/{source_key}") from ex
+        raise ValueError(f"Could not find s3://{destination_bucket}/{destination_key}") from ex
 
 
 def join(event, lambda_context):

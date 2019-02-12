@@ -35,7 +35,7 @@ def parallel_copy(
         source_key: str,
         destination_bucket: str,
         destination_key: str,
-        uncached_tag: bool = True):
+        uncached_tag: str = "True"):
     log.debug(f"Copy file from bucket {source_bucket} with key {source_key} to "
               f"bucket {destination_bucket} destination file: {destination_key}")
 
