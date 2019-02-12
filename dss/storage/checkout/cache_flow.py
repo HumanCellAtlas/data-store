@@ -16,10 +16,10 @@ def _cache_net():
     return temp
 
 
-def get_uncached_status(file_metadata: dict):
+def get_cached_status(file_metadata: dict):
     # That are over the size limit have an uncached status
     for file_type in _cache_net():
         if file_type['type'] == file_metadata[FileMetadata.CONTENT_TYPE]:
             if file_type['max_size'] >= file_metadata[FileMetadata.SIZE]:
-                return "False"
-    return "True"
+                return True
+    return False

@@ -16,7 +16,10 @@ from dcplib.s3_multipart import get_s3_multipart_chunk_size
 from dss.stepfunctions.lambdaexecutor import TimedThread
 from dss.storage.files import write_file_metadata
 from dss.util import parallel_worker
+from dss.storage.checkout.cache_flow import get_cached_status
+from dss.storage.hcablobstore import FileMetadata
 from dss.util.async_state import AsyncStateItem, AsyncStateError
+
 
 logger = logging.getLogger(__name__)
 
@@ -37,7 +40,6 @@ class Key:
     DESTINATION_BUCKET = "dstbucket"
     DESTINATION_KEY = "dstkey"
     FINISHED = "finished"
-    UNCACHED_TAG = "uncached_tag"
 
 
 # Internal key for the state object.
@@ -49,6 +51,7 @@ class _Key:
     NEXT_PART = "next"
     LAST_PART = "last"
     PART_COUNT = "count"
+    CONTENT_TYPE = "content-type"
 
 
 def setup_copy_task(event, lambda_context):
@@ -71,10 +74,8 @@ def setup_copy_task(event, lambda_context):
     else:
         s3_blobstore.copy(source_bucket, source_key, destination_bucket, destination_key)
         event[_Key.UPLOAD_ID] = None
-        if event[Key.UNCACHED_TAG] == 'True':
-            _set_uncached_tag(destination_bucket, destination_key)
         event[Key.FINISHED] = True
-
+    event[_Key.CONTENT_TYPE] = blobinfo[_Key.CONTENT_TYPE]
     event[_Key.SOURCE_ETAG] = source_etag
     event[_Key.SIZE] = source_size
     event[_Key.PART_SIZE] = part_size
@@ -97,7 +98,6 @@ def copy_worker(event, lambda_context, slice_num):
             self.source_etag = state[_Key.SOURCE_ETAG]
             self.destination_bucket = state[Key.DESTINATION_BUCKET]
             self.destination_key = state[Key.DESTINATION_KEY]
-            self.uncached_tag = state[Key.UNCACHED_TAG]
             self.upload_id = state[_Key.UPLOAD_ID]
             self.size = state[_Key.SIZE]
             self.part_size = state[_Key.PART_SIZE]
@@ -106,7 +106,8 @@ def copy_worker(event, lambda_context, slice_num):
         def run(self) -> dict:
             s3_blobstore = S3BlobStore.from_environment()
             state = self.get_state_copy()
-
+            cached = get_cached_status(file_metadata={FileMetadata.CONTENT_TYPE: event[_Key.CONTENT_TYPE],
+                                                      FileMetadata.SIZE: event[_Key.SIZE]})
             if _Key.NEXT_PART not in state or _Key.LAST_PART not in state:
                 # missing the next/last part data.  calculate that from the branch id information.
                 parts_per_branch = ((self.part_count + LAMBDA_PARALLELIZATION_FACTOR - 1)
@@ -117,7 +118,7 @@ def copy_worker(event, lambda_context, slice_num):
 
             if state[_Key.NEXT_PART] > state[_Key.LAST_PART]:
                 state[Key.FINISHED] = True
-                if self.uncached_tag == 'True':
+                if not cached:
                     _set_uncached_tag(self.destination_bucket, self.destination_key)
                 return state
 
@@ -131,7 +132,7 @@ def copy_worker(event, lambda_context, slice_num):
 
             if len(queue) == 0:
                 state[Key.FINISHED] = True
-                if self.uncached_tag == 'True':
+                if not cached:
                     _set_uncached_tag(self.destination_bucket, self.destination_key)
                 return state
 
@@ -149,7 +150,7 @@ def copy_worker(event, lambda_context, slice_num):
             assert all(results)
 
             state[Key.FINISHED] = True
-            if self.uncached_tag == 'True':
+            if not cached:
                 _set_uncached_tag(self.destination_bucket, self.destination_key)
             return state
 
