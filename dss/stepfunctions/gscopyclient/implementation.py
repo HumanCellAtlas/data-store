@@ -62,7 +62,8 @@ def copy_worker(event, lambda_context):
 
             content_type = src_blob._get_content_type(None)
             cached = get_cached_status(file_metadata={FileMetadata.CONTENT_TYPE: content_type,
-                                                      FileMetadata.SIZE: self.size})
+                                                      FileMetadata.SIZE: self.size,
+                                                      'Destination Bucket': self.destination_bucket})
 
             # TODO: DURABLE_REDUCED_AVAILABILITY is being phased out by Google; use a different method in the future
             if not cached:
