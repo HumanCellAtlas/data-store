@@ -1,5 +1,4 @@
 import json
-import os
 from dss.storage.hcablobstore import FileMetadata
 
 """
@@ -15,10 +14,6 @@ def _cache_net():
     with open("checkout_cache_criteria.json", "r") as file:
         temp = json.load(file)
     return temp
-
-
-def dss_managed_checkout_bucket(bucket):
-    return 'dss-checkout' in bucket
 
 
 def get_cached_status(file_metadata: dict):
