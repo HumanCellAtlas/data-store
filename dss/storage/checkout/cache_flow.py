@@ -18,7 +18,7 @@ def _cache_net():
 
 
 def dss_managed_checkout_bucket(bucket):
-    return bucket in (os.environ['DSS_S3_CHECKOUT_BUCKET'], os.environ['DSS_GS_CHECKOUT_BUCKET'])
+    return 'dss-checkout' in bucket
 
 
 def get_cached_status(file_metadata: dict):

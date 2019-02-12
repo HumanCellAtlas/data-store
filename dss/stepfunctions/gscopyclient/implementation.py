@@ -1,4 +1,5 @@
 import logging
+import os
 
 from dss import Config, Replica
 from dss.stepfunctions.lambdaexecutor import TimedThread
@@ -61,6 +62,7 @@ def copy_worker(event, lambda_context):
             dst_blob = self.gcp_client.bucket(self.destination_bucket).blob(self.destination_key)
 
             content_type = src_blob._get_content_type(None)
+            assert os.environ['DSS_GS_CHECKOUT_BUCKET'] == self.destination_bucket
             cached = get_cached_status(file_metadata={FileMetadata.CONTENT_TYPE: content_type,
                                                       FileMetadata.SIZE: self.size,
                                                       'Destination Bucket': self.destination_bucket})
