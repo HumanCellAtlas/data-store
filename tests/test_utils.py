@@ -9,7 +9,6 @@ pkg_root = os.path.abspath(os.path.join(os.path.dirname(__file__), '..'))  # noq
 sys.path.insert(0, pkg_root)  # noqa
 
 import dss
-import dss.util.networking
 from dss import DSSException, DSSForbiddenException, Config
 from dss.logging import configure_test_logging
 from dss.util import UrlBuilder, security
@@ -190,11 +189,6 @@ class TestSecurity(unittest.TestCase):
     def restore_email_claims(old):
         os.environ['OIDC_EMAIL_CLAIM'] = old
 
-class TestNetworkingUtils(unittest.TestCase):
-    @testmode.standalone
-    def test_request(self):
-        res = dss.util.networking.request(method="GET", url="https://google.com")
-        res.raise_for_status()
 
 if __name__ == '__main__':
     unittest.main()
