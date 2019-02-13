@@ -238,6 +238,8 @@ class TestCheckoutApi(unittest.TestCase, DSSAssertMixin, DSSUploadMixin):
     def test_checkout_file_success(self):
         for replica in Replica:
             bundle_fqid = BundleFQID(uuid=self.bundle_uuid, version=self.bundle_version)
+            execution_id = self.launch_checkout(replica.checkout_bucket, replica)
+            mark_bundle_checkout_started(execution_id, replica, replica.checkout_bucket)
 
             handle = Config.get_blobstore_handle(replica)
             # retrieve the bundle metadata.

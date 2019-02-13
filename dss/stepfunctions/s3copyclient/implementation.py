@@ -1,6 +1,6 @@
 import logging
 import requests
-
+import os
 import binascii
 import collections
 
@@ -75,7 +75,7 @@ def setup_copy_task(event, lambda_context):
         s3_blobstore.copy(source_bucket, source_key, destination_bucket, destination_key)
         event[_Key.UPLOAD_ID] = None
         event[Key.FINISHED] = True
-    event[_Key.CONTENT_TYPE] = blobinfo[_Key.CONTENT_TYPE]
+    event[_Key.CONTENT_TYPE] = blobinfo['ContentType']
     event[_Key.SOURCE_ETAG] = source_etag
     event[_Key.SIZE] = source_size
     event[_Key.PART_SIZE] = part_size
@@ -118,7 +118,7 @@ def copy_worker(event, lambda_context, slice_num):
 
             if state[_Key.NEXT_PART] > state[_Key.LAST_PART]:
                 state[Key.FINISHED] = True
-                if not cached:
+                if not cached and _check_dss_bucket(self.destination_bucket):
                     _set_uncached_tag(self.destination_bucket, self.destination_key)
                 return state
 
@@ -132,7 +132,7 @@ def copy_worker(event, lambda_context, slice_num):
 
             if len(queue) == 0:
                 state[Key.FINISHED] = True
-                if not cached:
+                if not cached and _check_dss_bucket(self.destination_bucket):
                     _set_uncached_tag(self.destination_bucket, self.destination_key)
                 return state
 
@@ -150,7 +150,7 @@ def copy_worker(event, lambda_context, slice_num):
             assert all(results)
 
             state[Key.FINISHED] = True
-            if not cached:
+            if not cached and _check_dss_bucket(self.destination_bucket):
                 _set_uncached_tag(self.destination_bucket, self.destination_key)
             return state
 
@@ -192,9 +192,13 @@ def copy_worker(event, lambda_context, slice_num):
         return result
 
 
+def _check_dss_bucket(dst_bucket: str):
+    return "dss-checkout" in dst_bucket.lower()
+
+
 def _set_uncached_tag(destination_bucket: str, destination_key: str):
     client = boto3.client("s3")
-    tag_set = {"TagSet": [{"uncached": True}]}
+    tag_set = {"TagSet": [{"Key": "uncached", "Value": "True"}]}
     try:
         client.put_object_tagging(Bucket=destination_bucket, Key=destination_key, Tagging=tag_set)
     except ClientError as ex:
