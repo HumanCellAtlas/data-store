@@ -16,7 +16,7 @@ from dcplib.s3_multipart import get_s3_multipart_chunk_size
 from dss.stepfunctions.lambdaexecutor import TimedThread
 from dss.storage.files import write_file_metadata
 from dss.util import parallel_worker
-from dss.storage.checkout.cache_flow import get_cached_status
+from dss.storage.checkout.cache_flow import get_cached_status, check_dss_bucket
 from dss.storage.hcablobstore import FileMetadata
 from dss.util.async_state import AsyncStateItem, AsyncStateError
 
@@ -118,7 +118,7 @@ def copy_worker(event, lambda_context, slice_num):
 
             if state[_Key.NEXT_PART] > state[_Key.LAST_PART]:
                 state[Key.FINISHED] = True
-                if not cached and _check_dss_bucket(self.destination_bucket):
+                if not cached and check_dss_bucket(self.destination_bucket):
                     _set_uncached_tag(self.destination_bucket, self.destination_key)
                 return state
 
@@ -132,7 +132,7 @@ def copy_worker(event, lambda_context, slice_num):
 
             if len(queue) == 0:
                 state[Key.FINISHED] = True
-                if not cached and _check_dss_bucket(self.destination_bucket):
+                if not cached and check_dss_bucket(self.destination_bucket):
                     _set_uncached_tag(self.destination_bucket, self.destination_key)
                 return state
 
@@ -150,7 +150,7 @@ def copy_worker(event, lambda_context, slice_num):
             assert all(results)
 
             state[Key.FINISHED] = True
-            if not cached and _check_dss_bucket(self.destination_bucket):
+            if not cached and check_dss_bucket(self.destination_bucket):
                 _set_uncached_tag(self.destination_bucket, self.destination_key)
             return state
 
@@ -190,10 +190,6 @@ def copy_worker(event, lambda_context, slice_num):
         return {Key.FINISHED: True}
     else:
         return result
-
-
-def _check_dss_bucket(dst_bucket: str):
-    return "dss-checkout" in dst_bucket.lower()
 
 
 def _set_uncached_tag(destination_bucket: str, destination_key: str):

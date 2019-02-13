@@ -39,19 +39,29 @@ class TestCheckoutApi(unittest.TestCase, DSSAssertMixin, DSSUploadMixin):
 
     @testmode.standalone
     def test_aws_uncached_tags(self):
+        src_data = os.urandom(1024)
+        tagging = self._test_aws_cache(src_data, 'binary/octet')
+        self.assertIn("uncached", tagging.keys())
+
+    @testmode.standalone
+    def test_aws_cached_checkout_doesnt_create_tag(self):
+        src_data = os.urandom(1024)
+        tagging = self._test_aws_cache(src_data, 'application/json')
+        self.assertNotIn('uncached', tagging.keys())
+
+    def _test_aws_cache(self, src_data, content_type: str):
         class SpoofContext:
             def get_remaining_time_in_millis(self):
                 return 2000
         replica = Replica.aws
         test_src_key = infra.generate_test_key()
         s3_blobstore = Config.get_blobstore_handle(Replica.aws)
-        src_data = os.urandom(1024)
         # upload
         with tempfile.NamedTemporaryFile(delete=True) as fh:
             fh.write(src_data)
             fh.flush()
             fh.seek(0)
-            s3_blobstore.upload_file_handle(replica.bucket, test_src_key, fh)
+            s3_blobstore.upload_file_handle(replica.bucket, test_src_key, fh, content_type)
         # checkout
         test_dst_key = infra.generate_test_key()
         event = s3copyclient.copy_sfn_event(
@@ -63,16 +73,10 @@ class TestCheckoutApi(unittest.TestCase, DSSAssertMixin, DSSUploadMixin):
         event = copy_worker(event, spoof_context, 1)
         # verify
         tagging = s3_blobstore.get_user_metadata(replica.checkout_bucket, test_dst_key)
-        self.assertIn("uncached", tagging.keys())  # tests uncached files
         # cleanup
         s3_blobstore.delete(replica.bucket, test_src_key)
         s3_blobstore.delete(replica.checkout_bucket, test_dst_key)
-        pass
-
-    @testmode.standalone
-    def test_aws_cached_checkout_doesnt_create_tag(self):
-        """Verifies that long-lived AWS cached objects have no tag."""
-        pass
+        return tagging
 
     @testmode.standalone
     def test_aws_cached_speed(self):

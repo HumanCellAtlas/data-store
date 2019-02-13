@@ -1,4 +1,5 @@
 import json
+import os
 from dss.storage.hcablobstore import FileMetadata
 
 """
@@ -10,24 +11,22 @@ See MetaData Caching RFC for more information (Google Docs)
 """
 
 
-def _cache_net():
-    with open("checkout_cache_criteria.json", "r") as file:
-        temp = json.load(file)
-    return temp
+def check_dss_bucket(dst_bucket: str):
+    return "dss-checkout" in dst_bucket.lower()
 
-
-def _simulated_net():
-    return json.loads('[{"type": "application/json","max_size": 12314}]')
-
-
-def dss_managed_checkout_bucket(bucket):
-    return 'dss-checkout' in bucket
-
+def get_local_criteria():
+    with open("{}/checkout_cache_criteria.json".format(os.environ['DSS_HOME']), "r") as file:
+        criteria = json.load(file)
+    return criteria
 
 def get_cached_status(file_metadata: dict):
     """Returns True if a file should be cached (marked as long-lived) for the dss checkout bucket."""
     # Each file type may have a size limit that determines uncached status.
-    for file_type in _simulated_net():
+    if os.getenv("CHECKOUT_CACHE_CRITERIA") is None:
+        cache_criteria = get_local_criteria()
+    else:
+        cache_criteria = json.loads(os.getenv('CHECKOUT_CACHE_CRITERIA'))
+    for file_type in cache_criteria:
         if file_type['type'] == file_metadata[FileMetadata.CONTENT_TYPE]:
             if file_type['max_size'] >= file_metadata[FileMetadata.SIZE]:
                 return True

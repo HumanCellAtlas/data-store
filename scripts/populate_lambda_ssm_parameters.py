@@ -52,6 +52,11 @@ def set_deployed_lambda_environment(name, env: dict):
         }
     )
 
+def get_cache_criteria():
+    with open("{}/checkout_cache_criteria.json".format(os.environ['DSS_HOME']), "r") as file:
+        temp = json.load(file)
+    return temp
+
 def get_deployed_lambdas():
     root, dirs, files = next(os.walk(os.path.join(os.environ['DSS_HOME'], "daemons")))
     functions = [f"{name}-{os.environ['DSS_DEPLOYMENT_STAGE']}" for name in dirs]
@@ -136,6 +141,7 @@ if __name__ == "__main__":
         lambda_env = get_local_lambda_environment()
         lambda_env['DSS_ES_ENDPOINT'] = get_elasticsearch_endpoint()
         lambda_env['ADMIN_USER_EMAILS'] = get_admin_user_emails()
+        lambda_env['CHECKOUT_CACHE_CRITERIA'] = get_cache_criteria()
         set_ssm_lambda_environment(lambda_env)
         if args.update_deployed_lambdas:
             for lambda_name in get_deployed_lambdas():
