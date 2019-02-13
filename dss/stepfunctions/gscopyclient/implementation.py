@@ -63,7 +63,7 @@ def copy_worker(event, lambda_context):
             content_type = src_blob._get_content_type(None)
 
             # Files can be checked out to a user bucket or the standard dss checkout bucket.
-            # If a user bucket, files should be unmodified by either object tagging (AWS)
+            # If a user bucket, files should be unmodified by either the object tagging (AWS)
             # or storage type changes (Google) used to mark cached objects.
             isnt_user_bucket = os.environ['DSS_GS_CHECKOUT_BUCKET'] == self.destination_bucket
 

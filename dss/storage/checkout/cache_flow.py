@@ -1,5 +1,4 @@
 import json
-import os
 from dss.storage.hcablobstore import FileMetadata
 
 """
