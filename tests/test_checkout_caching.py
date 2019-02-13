@@ -5,6 +5,7 @@ import sys
 import unittest
 import tempfile
 import uuid
+from google.cloud import storage
 
 from dss.stepfunctions.s3copyclient.implementation import setup_copy_task, copy_worker
 
@@ -12,7 +13,7 @@ pkg_root = os.path.abspath(os.path.join(os.path.dirname(__file__), '..'))  # noq
 sys.path.insert(0, pkg_root)  # noqa
 
 from dss import stepfunctions, Config, Replica, BucketConfig
-from dss.stepfunctions import s3copyclient
+from dss.stepfunctions import s3copyclient, gscopyclient
 from tests import infra
 from tests.infra import DSSAssertMixin, DSSUploadMixin, get_env, testmode
 from tests.infra.server import ThreadedLocalServer
@@ -67,10 +68,10 @@ class TestCheckoutApi(unittest.TestCase, DSSAssertMixin, DSSUploadMixin):
         event = s3copyclient.copy_sfn_event(
             replica.bucket, test_src_key,
             replica.checkout_bucket, test_dst_key)
-        event = setup_copy_task(event, None)
+        event = s3copyclient.implementation.setup_copy_task(event, None)
         spoof_context = SpoofContext()
         # parameters of copy_worker are arbitrary, only passed because required.
-        event = copy_worker(event, spoof_context, 1)
+        event = s3copyclient.implementation.copy_worker(event, spoof_context, 1)
         # verify
         tagging = s3_blobstore.get_user_metadata(replica.checkout_bucket, test_dst_key)
         # cleanup
@@ -85,18 +86,48 @@ class TestCheckoutApi(unittest.TestCase, DSSAssertMixin, DSSUploadMixin):
 
     @testmode.standalone
     def test_google_cached_checkout_creates_standard_storage_type(self):
-        """Verifies that long-lived Google cached objects are of the STANDARD type."""
-        pass
+        # cached
+        src_data = os.urandom(1024)
+        blob_type = self._test_gs_cache(src_data, 'application/json')
+        self.assertEqual("MULTI_REGIONAL", blob_type)
 
     @testmode.standalone
     def test_google_normal_checkout_creates_durable_storage_type(self):
-        """
-        Verifies that short-lived Google cached objects are of the DURABLE_REDUCED_AVAILABILITY type.
+        #uncached
+        src_data = os.urandom(1024)
+        blob_type = self._test_gs_cache(src_data, 'binary/octet')
+        self.assertEqual("DURABLE_REDUCED_AVAILABILITY", blob_type)
 
-        The current life-cycle policy that regularly deletes files in the Google checkout bucket
-        only applies to DURABLE_REDUCED_AVAILABILITY.
-        """
-        pass
+    def _test_gs_cache(self, src_data, content_type):
+        class SpoofContext:
+            def get_remaining_time_in_millis(self):
+                return 2000
+        replica = Replica.gcp
+        test_src_key = infra.generate_test_key()
+        gs_blobstore = Config.get_blobstore_handle(Replica.gcp)
+        client = storage.Client()
+        # upload
+        with tempfile.NamedTemporaryFile(delete=True) as fh:
+            fh.write(src_data)
+            fh.flush()
+            fh.seek(0)
+            gs_blobstore.upload_file_handle(replica.bucket, test_src_key, fh, content_type)
+        # checkout
+        test_dst_key = infra.generate_test_key()
+        event = gscopyclient.copy_sfn_event(
+            replica.bucket, test_src_key,
+            replica.checkout_bucket, test_dst_key)
+        event = gscopyclient.implementation.setup_copy_task(event, None)
+        spoof_context = SpoofContext()
+        # parameters of copy_worker are arbitrary, only passed because required.
+        event = gscopyclient.implementation.copy_worker(event, spoof_context)
+        # verify
+        bucket = client.get_bucket(replica.checkout_bucket)
+        blob_class = bucket.get_blob(test_dst_key).storage_class
+        # cleanup
+        gs_blobstore.delete(replica.bucket, test_src_key)
+        gs_blobstore.delete(replica.checkout_bucket, test_dst_key)
+        return blob_class
 
     @testmode.standalone
     def test_google_cached_speed(self):
