@@ -28,7 +28,7 @@ _versioned_tombstone_key_regex = re.compile(f"^(bundles)/({UUID_PATTERN}).({VERS
 _unversioned_tombstone_key_regex = re.compile(f"^(bundles)/({UUID_PATTERN}).{TOMBSTONE_SUFFIX}$")
 _bundle_key_regex = DSS_BUNDLE_KEY_REGEX
 
-def should_notify(replica: Replica, subscription: dict, metadata_document: dict, event_type: str, key: str) -> bool:
+def should_notify(replica: Replica, subscription: dict, metadata_document: dict, key: str) -> bool:
     """
     Check if a notification should be attempted for subscription and key
     """
@@ -52,7 +52,7 @@ def should_notify(replica: Replica, subscription: dict, metadata_document: dict,
             ))
             return False
 
-def notify_or_queue(replica: Replica, subscription: dict, metadata_document: dict, event_type: str, key: str):
+def notify_or_queue(replica: Replica, subscription: dict, metadata_document: dict, key: str):
     """
     Notify or queue for later processing. There are three cases:
         1) For normal bundle: attempt notification, queue on failure
@@ -73,12 +73,12 @@ def notify_or_queue(replica: Replica, subscription: dict, metadata_document: dic
                 bundles.add(key)
         for key in bundles:
             if key not in tombstones:
-                queue_notification(replica, subscription, event_type, key, delay_seconds=0)
+                queue_notification(replica, subscription, "TOMBSTONE", key, delay_seconds=0)
     else:
-        if not notify(subscription, metadata_document, event_type, key):
-            queue_notification(replica, subscription, event_type, key)
+        if not notify(subscription, metadata_document, key):
+            queue_notification(replica, subscription, "CREATE", key)
 
-def notify(subscription: dict, metadata_document: dict, event_type: str, key: str):
+def notify(subscription: dict, metadata_document: dict, key: str):
     """
     Attempt notification delivery. Return True for success, False for failure
     """
@@ -88,7 +88,7 @@ def notify(subscription: dict, metadata_document: dict, event_type: str, key: st
     payload = {
         'transaction_id': str(uuid4()),
         'subscription_id': subscription[SubscriptionData.UUID],
-        'type': event_type,
+        'event_type': metadata_document['event_type'],
         'match': {
             'bundle_uuid': bundle_uuid,
             'bundle_version': bundle_version,
@@ -99,24 +99,25 @@ def notify(subscription: dict, metadata_document: dict, event_type: str, key: st
     if jmespath_query is not None:
         payload[SubscriptionData.JMESPATH_QUERY] = jmespath_query
 
-    attachments_defs = subscription.get(SubscriptionData.ATTACHMENTS)
-    if attachments_defs is not None:
-        errors = dict()
-        attachments = dict()
-        for name, attachment in attachments_defs.items():
-            if 'jmespath' == attachment['type']:
-                try:
-                    value = jmespath.search(attachment['expression'], metadata_document)
-                except BaseException as e:
-                    errors[name] = str(e)
-                else:
-                    attachments[name] = value
-        if errors:
-            attachments['_errors'] = errors
-        size = len(json.dumps(attachments).encode('utf-8'))
-        if size > _attachment_size_limit:
-            attachments = {'_errors': f"Attachments too large ({size} > {_attachment_size_limit})"}
-        payload['attachments'] = attachments
+    if "CREATE" == metadata_document['event_type']:
+        attachments_defs = subscription.get(SubscriptionData.ATTACHMENTS)
+        if attachments_defs is not None:
+            errors = dict()
+            attachments = dict()
+            for name, attachment in attachments_defs.items():
+                if 'jmespath' == attachment['type']:
+                    try:
+                        value = jmespath.search(attachment['expression'], metadata_document)
+                    except BaseException as e:
+                        errors[name] = str(e)
+                    else:
+                        attachments[name] = value
+            if errors:
+                attachments['_errors'] = errors
+            size = len(json.dumps(attachments).encode('utf-8'))
+            if size > _attachment_size_limit:
+                attachments = {'_errors': f"Attachments too large ({size} > {_attachment_size_limit})"}
+            payload['attachments'] = attachments
 
     request = {
         'method': subscription.get(SubscriptionData.METHOD, "POST"),
@@ -170,11 +171,11 @@ def build_bundle_metadata_document(replica: Replica, key: str) -> dict:
     This returns a JSON document with bundle manifest and metadata files suitable for JMESPath filters.
     """
     handle = Config.get_blobstore_handle(replica)
+    manifest = json.loads(handle.get(replica.bucket, key).decode("utf-8"))
     if key.endswith(TOMBSTONE_SUFFIX):
-        manifest = json.loads(handle.get(replica.bucket, key).decode("utf-8"))
+        manifest['event_type'] = "TOMBSTONE"
         return manifest
     else:
-        manifest = json.loads(handle.get(replica.bucket, key).decode("utf-8"))
         files: dict = defaultdict(list)
         for file in manifest['files']:
             if "application/json" == file['content-type']:
@@ -191,9 +192,20 @@ def build_bundle_metadata_document(replica: Replica, key: str) -> dict:
                     logging.info(f"{file['name']} not json decodable")
 
         return {
+            'event_type': "CREATE",
             'manifest': manifest,
             'files': dict(files),
         }
+
+@lru_cache()
+def build_deleted_bundle_metadata_document(key: str) -> dict:
+    _, fqid = key.split("/")
+    uuid, version = fqid.split(".", 1)
+    return {
+        'event_type': "DELETE",
+        "uuid": uuid,
+        "version": version,
+    }
 
 def queue_notification(replica: Replica, subscription: dict, event_type: str, key: str, delay_seconds=15 * 60):
     sqs.send_message(

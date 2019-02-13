@@ -26,15 +26,18 @@ Event handlers in the dss-notify-v2 daemon use utility functions in
 
 ### Payload Format
 
+Bundle creation notifications have the format
+
 ```
 {
   'transaction_id': {uuid},
   'subscription_id': {uuid},
-  'type': "CREATE"|"TOMBSTONE"|"DELETE",
+  'event_type': "CREATE"|"TOMBSTONE"|"DELETE",
   'match': {
     'bundle_uuid': {uuid},
     'bundle_version': {version},
   }
+  'jmespath_query': {jmespath_query},
   'attachments': {
     "attachment_name_1": {value},
     "attachment_name_1": {value},
@@ -43,12 +46,19 @@ Event handlers in the dss-notify-v2 daemon use utility functions in
   }
 }
 ```
-The `attachment` field is subscription dependent and may not be present.
+
+The `jmespath_query` and `attachment` fields are subscription dependent and may not be present.
 
 ## Subscriptions
 
 Event subscriptions are managed via the `/subscriptions` API endpoint, described in detail by the
 [DSS OpenAPI specification](../../dss-api.yml).
+
+The subscription backend is AWS DynamoDB, used as a key-value store. The hash key is the email
+of the subscription owner, and the sort key is the subscription uuid. There is one table per replica.
+
+Subscriptions are accessed via owner for API actions. When notifications are triggered during an object storage event,
+subscriptions are fetched from the backend via `scan`.
 
 ### Bundle Metadata Document
 
@@ -56,10 +66,11 @@ The bundle metadata document is constructed from json files present in the bundl
 includes the bundle manifest describe in the [DSS OpenAPI sepcifications](../../dss-api.yml). The structure
 accomadates the possibility of multiple files sharing a name.
 
-The bundle metadata document format for a normal bundle is
+The bundle metadata document format for a new bundle or version is is
 
 ```
 {
+  'event_type': "CREATE",
   'manifest': {bundle_manifest}
   'files': {
     {file_name_1}: [
@@ -75,15 +86,24 @@ The bundle metadata document format for a normal bundle is
 }
 ```
 
-and for a tombstone is
+For a tombstone it is
 ```
 {
+  'event_type': "TOMBSTONE",
   'admin_deleted': "true",
   'email': {admin_email},
   'reason': "the reason",
   'version': "the version",
 }
 ```
+
+For a deleted bundle it is
+```
+{
+  'event_type': "DELETE",
+  'uuid': {uuid}
+  'version': {version},
+}
 
 ### JMESPath Filtering
 
@@ -95,13 +115,19 @@ bundle metadata document.
 To recieve notifications only for tombstones, use
 
 ```
-jmespath_query = "admin_deleted==`true`"
+jmespath_query = "event_type==`TOMBSTONE`"
+```
+
+and for tombstones and deletes,
+
+```
+jmespath_query = "event_type==`TOMBSTONE` || event_type=`DELETE`"
 ```
 
 To recieve notifications for everything EXCEPT tombstones, use
 
 ```
-jmespath_query = "manifest"
+jmespath_query = "event_type==`CREATE`"
 ```
 
 For the bundle metadata document
