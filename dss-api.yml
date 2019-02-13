@@ -560,6 +560,13 @@ paths:
           required: true
           type: string
           enum: [aws, gcp]
+        - name: subscription_type 
+          in: query
+          description: type of subscriptions to fetch (elasticsearch or jmespath)
+          required: false
+          default: elasticsearch
+          type: string
+          enum: [elasticsearch, jmespath]
       responses:
         200:
           description: OK
@@ -607,8 +614,17 @@ paths:
               es_query:
                 description: >
                   An Elasticsearch query for restricting the set of bundles for which the subscriber is notified. The
-                  subscriber will only be notified for newly indexed bundles that match the given query.
+                  subscriber will only be notified for newly indexed bundles that match the given query. If this
+                  parameter is present the subscription will be of type `elasticsearch`, otherwise it will be of
+                  type `jmespath`.
                 type: object
+              jmespath_query:
+                description: >
+                  An JMESPath query for restricting the set of bundles for which the subscriber is notified. The
+                  subscriber will only be notified for new bundles that match the given query. If `es_query` is
+                  specified, the subscription will be of type `elasticsearch`. If `es_query` is not present, the
+                  subscription will be of type `jmespath`
+                type: string
               callback_url:
                 description: >
                   The subscriber's URL. An HTTP request is made to the specified URL for every attempt to deliver
@@ -743,14 +759,13 @@ paths:
                       enum: [jmespath]
                     expression:
                       description: >
-                        The JMESpath expression to evaluate against the bundle metadata JSON document. That document is
+                        The JMESPath expression to evaluate against the bundle metadata JSON document. That document is
                         of the same structure as those returned by `POST /search` with `output_format: raw`.
                       type: string
                   required:
                     - type
                     - expression
             required:
-              - es_query
               - callback_url
             additionalProperties: false
       responses:
@@ -783,6 +798,9 @@ paths:
                       - elasticsearch_error
                       - invalid_attachment_expression
                       - invalid_attachment_name
+                      - invalid_query_type
+                      - invalid_jmespath
+                      - unprocessable
                       - read_only
                 required:
                   - code
@@ -806,6 +824,13 @@ paths:
           required: true
           type: string
           enum: [aws, gcp]
+        - name: subscription_type 
+          in: query
+          description: type of subscriptions to fetch (elasticsearch or jmespath)
+          required: false
+          default: elasticsearch
+          type: string
+          enum: [elasticsearch, jmespath]
       responses:
         200:
           description: OK
@@ -847,6 +872,13 @@ paths:
           required: true
           type: string
           enum: [aws, gcp]
+        - name: subscription_type 
+          in: query
+          description: type of subscriptions to fetch (elasticsearch or jmespath)
+          required: false
+          default: elasticsearch
+          type: string
+          enum: [elasticsearch, jmespath]
       responses:
         200:
           description: OK
@@ -1790,6 +1822,11 @@ definitions:
           An Elasticsearch query for restricting the set of bundles for which the subscriber is notified. The
           subscriber will only be notified for newly indexed bundles that match the given query.
         type: object
+      jmespath_query:
+        description: >
+          An JMESPath query for restricting the set of bundles for which the subscriber is notified. The
+          subscriber will only be notified for new bundles that match the given query.
+        type: string
       callback_url:
         description: >
           The subscriber\'s URL. An HTTP request is made to the specified URL for every attempt to deliver
@@ -1916,7 +1953,7 @@ definitions:
               enum: [jmespath]
             expression:
               description: >
-                The JMESpath expression to evaluate against the bundle metadata JSON document. That document is
+                The JMESPath expression to evaluate against the bundle metadata JSON document. That document is
                 of the same structure as those returned by `POST /search` with `output_format: raw`.
               type: string
           required:
@@ -1926,7 +1963,6 @@ definitions:
       - uuid
       - replica
       - owner
-      - es_query
       - callback_url
   bundle_version:
     type: object
