@@ -47,7 +47,8 @@ Bundle creation notifications have the format
 }
 ```
 
-The `jmespath_query` and `attachment` fields are subscription dependent and may not be present.
+The `jmespath_query` and `attachment` fields are subscription dependent and may not be present. Attachment
+usage and format description can be found in the /subscription endpoint of the [DSS OpenAPI specifications](../../dss-api.yml).
 
 ## Subscriptions
 
@@ -63,8 +64,8 @@ subscriptions are fetched from the backend via `scan`.
 ### Bundle Metadata Document
 
 The bundle metadata document is constructed from json files present in the bundle manifest, and
-includes the bundle manifest describe in the [DSS OpenAPI sepcifications](../../dss-api.yml). The structure
-accomadates the possibility of multiple files sharing a name.
+includes the bundle manifest describe in the [DSS OpenAPI specifications](../../dss-api.yml). The structure
+accommodates the possibility of multiple files sharing a name.
 
 The bundle metadata document format for a new bundle or version is is
 
@@ -104,15 +105,16 @@ For a deleted bundle it is
   'uuid': {uuid}
   'version': {version},
 }
+```
 
 ### JMESPath Filtering
 
-Subcriptions containing a non-empty `jmespath_query` will recieve notifications when `jmespath_query` matches the
+Subscriptions containing a non-empty `jmespath_query` will receive notifications when `jmespath_query` matches the
 bundle metadata document.
 
 #### Examples
 
-To recieve notifications only for tombstones, use
+To receive notifications only for tombstones, use
 
 ```
 jmespath_query = "event_type==`TOMBSTONE`"
@@ -124,7 +126,7 @@ and for tombstones and deletes,
 jmespath_query = "event_type==`TOMBSTONE` || event_type=`DELETE`"
 ```
 
-To recieve notifications for everything EXCEPT tombstones, use
+To receive notifications for everything EXCEPT tombstones, use
 
 ```
 jmespath_query = "event_type==`CREATE`"
@@ -172,7 +174,7 @@ For the bundle metadata document
 }
 ```
 
-These filters will recieve a notifications
+These filters will receive a notifications
 
 ```
 jmespath_query = "manifest[?name==`cell_suspension.json`].sha"
@@ -181,7 +183,7 @@ jmespath_query = "files.cell_suspension[].biomaterial_core.ncbi_taxon_id[] | con
 jmespath_query = "files.cell_suspension[].biomaterial_core.ncbi_taxon_id[] | contains(@, `9609`)"
 ```
 
-These filters will NOT recieve a notificartion
+These filters will NOT receive a notification
 
 ```
 jmespath_query = "manifest[?name==`dissociation_protocol_0.json.json`]"
