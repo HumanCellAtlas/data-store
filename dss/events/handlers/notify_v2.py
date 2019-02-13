@@ -1,4 +1,5 @@
 import os
+import re
 import json
 import requests
 import urllib3
@@ -16,11 +17,16 @@ import dss
 from dss import Config, Replica
 from dss.util.aws.clients import dynamodb, sqs  # type: ignore
 from dss.subscriptions_v2 import SubscriptionData, get_subscriptions_for_replica
+from dss.storage.identifiers import UUID_PATTERN, VERSION_PATTERN, TOMBSTONE_SUFFIX, DSS_BUNDLE_KEY_REGEX
 
 logger = logging.getLogger(__name__)
 
 notification_queue_name = "dss-notify-v2-" + os.environ['DSS_DEPLOYMENT_STAGE']
 _attachment_size_limit = 128 * 1024
+
+_versioned_tombstone_key_regex = re.compile(f"^(bundles)/({UUID_PATTERN}).({VERSION_PATTERN}).{TOMBSTONE_SUFFIX}$")
+_unversioned_tombstone_key_regex = re.compile(f"^(bundles)/({UUID_PATTERN}).{TOMBSTONE_SUFFIX}$")
+_bundle_key_regex = DSS_BUNDLE_KEY_REGEX
 
 def should_notify(replica: Replica, subscription: dict, metadata_document: dict, event_type: str, key: str) -> bool:
     """
@@ -49,23 +55,25 @@ def should_notify(replica: Replica, subscription: dict, metadata_document: dict,
 def notify_or_queue(replica: Replica, subscription: dict, metadata_document: dict, event_type: str, key: str):
     """
     Notify or queue for later processing. There are three cases:
-        1) For a normal bundle: attempt notification, queue on delivery failure
-        2) For a versioned tombstone: attempt notifcation, queue on delivery failure
-        3) Unversioned tombstone notify on an unbounded number of bundles. Send these directly to queue.
+        1) For normal bundle: attempt notification, queue on failure
+        2) For versioned tombstone: attempt notifcation, queue on failure
+        3) For unversioned tombstone: Queue one notifcation per affected bundle version. Notifications are
+           not attempted for previously tombstoned versions. Since the number of versions is
+           unbounded, inline delivery is not attempted.
     """
-    parts = key.split(".")
-    if key.endswith("dead") and 2 == len(parts):  # This tests for unversioned tombstone key: bundles/{uuid}.dead
+    if _unversioned_tombstone_key_regex.match(key):
         tombstones = set()
         bundles = set()
-        for bundle_key in _list_prefix(replica, parts[0]):
-            if 2 < len(bundle_key.split(".")):
-                if bundle_key.endswith(".dead"):
-                    tombstones.add(bundle_key[:-5])
-                else:
-                    bundles.add(bundle_key)
-        for bundle_key in bundles:
-            if bundle_key not in tombstones:
-                queue_notification(replica, subscription, event_type, bundle_key, delay_seconds=0)
+        key_prefix = key.rsplit(".", 1)[0]  # chop off the tombstone suffix
+        for key in _list_prefix(replica, key_prefix):
+            if _versioned_tombstone_key_regex.match(key):
+                bundle_key = key.rsplit(".", 1)[0]
+                tombstones.add(bundle_key)
+            elif _bundle_key_regex.match(key):
+                bundles.add(key)
+        for key in bundles:
+            if key not in tombstones:
+                queue_notification(replica, subscription, event_type, key, delay_seconds=0)
     else:
         if not notify(subscription, metadata_document, event_type, key):
             queue_notification(replica, subscription, event_type, key)
@@ -80,6 +88,7 @@ def notify(subscription: dict, metadata_document: dict, event_type: str, key: st
     payload = {
         'transaction_id': str(uuid4()),
         'subscription_id': subscription[SubscriptionData.UUID],
+        'type': event_type,
         'match': {
             'bundle_uuid': bundle_uuid,
             'bundle_version': bundle_version,
@@ -161,7 +170,7 @@ def build_bundle_metadata_document(replica: Replica, key: str) -> dict:
     This returns a JSON document with bundle manifest and metadata files suitable for JMESPath filters.
     """
     handle = Config.get_blobstore_handle(replica)
-    if key.endswith("dead"):
+    if key.endswith(TOMBSTONE_SUFFIX):
         manifest = json.loads(handle.get(replica.bucket, key).decode("utf-8"))
         return manifest
     else:

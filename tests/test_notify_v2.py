@@ -85,6 +85,22 @@ class TestNotifyV2(unittest.TestCase, DSSAssertMixin, DSSUploadMixin):
             for s in subs:
                 subscriptions_v2.delete_subscription(replica, cls.owner, s['uuid'])
 
+    @testmode.standalone
+    def test_regex_patterns(self):
+        version = datetime_to_version_format(datetime.datetime.utcnow())
+        key = f"bundles/{uuid4()}.{version}"
+        tombstone_key_with_version = key + ".dead"
+        tombstone_key_without_version = f"bundles/{uuid4()}.dead"
+
+        self.assertIsNone(notify_v2._versioned_tombstone_key_regex.match(key))
+        self.assertIsNone(notify_v2._unversioned_tombstone_key_regex.match(key))
+
+        self.assertIsNotNone(notify_v2._versioned_tombstone_key_regex.match(tombstone_key_with_version))
+        self.assertIsNone(notify_v2._versioned_tombstone_key_regex.match(tombstone_key_without_version))
+
+        self.assertIsNone(notify_v2._unversioned_tombstone_key_regex.match(tombstone_key_with_version))
+        self.assertIsNotNone(notify_v2._unversioned_tombstone_key_regex.match(tombstone_key_without_version))
+
     @testmode.integration
     def test_versioned_tombstone_notifications(self, replica=Replica.aws):
         bucket = get_env('DSS_S3_BUCKET_TEST')
