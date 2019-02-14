@@ -12,7 +12,8 @@ See MetaData Caching RFC for more information (Google Docs)
 
 
 def check_dss_bucket(dst_bucket: str):
-    return "dss-checkout" in dst_bucket.lower()
+    return dst_bucket in (os.environ['DSS_GS_CHECKOUT_BUCKET_TEST'], os.environ['DSS_S3_CHECKOUT_BUCKET_TEST'],
+                          os.environ['DSS_S3_CHECKOUT_BUCKET'], os.environ['DSS_GS_CHECKOUT_BUCKET'])
 
 
 def get_local_criteria():
