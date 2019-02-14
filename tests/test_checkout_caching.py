@@ -4,10 +4,8 @@ import os
 import sys
 import unittest
 import tempfile
-import uuid
 from google.cloud import storage
 
-from dss.stepfunctions.s3copyclient.implementation import setup_copy_task, copy_worker
 
 pkg_root = os.path.abspath(os.path.join(os.path.dirname(__file__), '..'))  # noqa
 sys.path.insert(0, pkg_root)  # noqa
