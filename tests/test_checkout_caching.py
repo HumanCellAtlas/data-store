@@ -94,7 +94,8 @@ class TestCheckoutApi(unittest.TestCase, DSSAssertMixin, DSSUploadMixin):
         return tagging
 
     @testmode.standalone
-    def test_google_cached_checkout_creates_standard_storage_type(self):
+    def test_google_cached_checkout_creates_multiregional_storage_type(self):
+        # Note: The STANDARD storage type is also an alias for MULTI_REGIONAL.
         src_data = os.urandom(1024)
         blob_type = self._test_gs_cache(src_data, 'application/json')
         self.assertEqual('MULTI_REGIONAL', blob_type)
@@ -105,12 +106,13 @@ class TestCheckoutApi(unittest.TestCase, DSSAssertMixin, DSSUploadMixin):
         blob_type = self._test_gs_cache(src_data, 'binary/octet')
         self.assertEqual('DURABLE_REDUCED_AVAILABILITY', blob_type)
 
-    def test_google_user_checkout_creates_standard_storage_type(self):
+    def test_google_user_checkout_creates_multiregional_storage_type(self):
         """
-        Ensures that both cached and uncached data is of the STANDARD/MULTIREGIONAL type when
+        Ensures that both cached and uncached data is of the MULTI_REGIONAL type when
         checked out to a user's bucket, since we don't want to mess about with the user's data
         unnecessarily when they don't need caching.
         """
+        # Note: The STANDARD storage type is also an alias for MULTI_REGIONAL.
         src_data = os.urandom(1024)
         # cached data check
         blob_type = self._test_gs_cache(src_data, 'application/json', checkout_bucket=os.environ['DSS_GS_CHECKOUT_BUCKET_TEST_USER'])
