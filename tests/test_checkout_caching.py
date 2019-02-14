@@ -42,10 +42,10 @@ class TestCheckoutApi(unittest.TestCase, DSSAssertMixin, DSSUploadMixin):
         Config.set_config(BucketConfig.TEST)
 
     @testmode.standalone
-    def test_aws_uncached_tags(self):
+    def test_aws_uncached_checkout_creates_tag(self):
         src_data = os.urandom(1024)
         tagging = self._test_aws_cache(src_data, 'binary/octet')
-        self.assertIn("uncached", tagging.keys())
+        self.assertIn('uncached', tagging.keys())
 
     @testmode.standalone
     def test_aws_cached_checkout_doesnt_create_tag(self):
@@ -53,8 +53,23 @@ class TestCheckoutApi(unittest.TestCase, DSSAssertMixin, DSSUploadMixin):
         tagging = self._test_aws_cache(src_data, 'application/json')
         self.assertNotIn('uncached', tagging.keys())
 
-    def _test_aws_cache(self, src_data, content_type: str):
+    def test_aws_user_checkout_doesnt_create_tag(self):
+        """
+        Ensures that both cached and uncached data is not tagged when checked out
+        to a user's bucket, since we don't want to mess about with the user's data
+        unnecessarily when they don't need caching.
+        """
+        src_data = os.urandom(1024)
+        # cached data check
+        tagging = self._test_aws_cache(src_data, 'application/json', checkout_bucket=os.environ['DSS_S3_CHECKOUT_BUCKET_TEST_USER'])
+        self.assertNotIn('uncached', tagging.keys())
+        # uncached data check
+        tagging = self._test_aws_cache(src_data, 'binary/octet', checkout_bucket=os.environ['DSS_S3_CHECKOUT_BUCKET_TEST_USER'])
+        self.assertNotIn('uncached', tagging.keys())
+
+    def _test_aws_cache(self, src_data, content_type: str, checkout_bucket: str = None):
         replica = Replica.aws
+        checkout_bucket = checkout_bucket if checkout_bucket else replica.checkout_bucket
         test_src_key = infra.generate_test_key()
         s3_blobstore = Config.get_blobstore_handle(Replica.aws)
         # upload
@@ -67,34 +82,47 @@ class TestCheckoutApi(unittest.TestCase, DSSAssertMixin, DSSUploadMixin):
         test_dst_key = infra.generate_test_key()
         event = s3copyclient.copy_sfn_event(
             replica.bucket, test_src_key,
-            replica.checkout_bucket, test_dst_key)
+            checkout_bucket, test_dst_key)
         event = s3copyclient.implementation.setup_copy_task(event, None)
         spoof_context = self.SpoofContext()
         # parameters of copy_worker are arbitrary, only passed because required.
         event = s3copyclient.implementation.copy_worker(event, spoof_context, 1)
         # verify
-        tagging = s3_blobstore.get_user_metadata(replica.checkout_bucket, test_dst_key)
+        tagging = s3_blobstore.get_user_metadata(checkout_bucket, test_dst_key)
         # cleanup
         s3_blobstore.delete(replica.bucket, test_src_key)
-        s3_blobstore.delete(replica.checkout_bucket, test_dst_key)
+        s3_blobstore.delete(checkout_bucket, test_dst_key)
         return tagging
 
     @testmode.standalone
     def test_google_cached_checkout_creates_standard_storage_type(self):
-        # cached
         src_data = os.urandom(1024)
         blob_type = self._test_gs_cache(src_data, 'application/json')
-        self.assertEqual("MULTI_REGIONAL", blob_type)
+        self.assertEqual('MULTI_REGIONAL', blob_type)
 
     @testmode.standalone
-    def test_google_normal_checkout_creates_durable_storage_type(self):
-        # uncached
+    def test_google_uncached_checkout_creates_durable_storage_type(self):
         src_data = os.urandom(1024)
         blob_type = self._test_gs_cache(src_data, 'binary/octet')
-        self.assertEqual("DURABLE_REDUCED_AVAILABILITY", blob_type)
+        self.assertEqual('DURABLE_REDUCED_AVAILABILITY', blob_type)
 
-    def _test_gs_cache(self, src_data, content_type):
+    def test_google_user_checkout_creates_standard_storage_type(self):
+        """
+        Ensures that both cached and uncached data is of the STANDARD/MULTIREGIONAL type when
+        checked out to a user's bucket, since we don't want to mess about with the user's data
+        unnecessarily when they don't need caching.
+        """
+        src_data = os.urandom(1024)
+        # cached data check
+        blob_type = self._test_gs_cache(src_data, 'application/json', checkout_bucket=os.environ['DSS_GS_CHECKOUT_BUCKET_TEST_USER'])
+        self.assertEqual('MULTI_REGIONAL', blob_type)
+        # uncached data check
+        blob_type = self._test_gs_cache(src_data, 'binary/octet', checkout_bucket=os.environ['DSS_GS_CHECKOUT_BUCKET_TEST_USER'])
+        self.assertEqual('MULTI_REGIONAL', blob_type)
+
+    def _test_gs_cache(self, src_data: bytes, content_type: str, checkout_bucket: str = None):
         replica = Replica.gcp
+        checkout_bucket = checkout_bucket if checkout_bucket else replica.checkout_bucket
         test_src_key = infra.generate_test_key()
         gs_blobstore = Config.get_blobstore_handle(Replica.gcp)
         client = storage.Client()
@@ -108,17 +136,17 @@ class TestCheckoutApi(unittest.TestCase, DSSAssertMixin, DSSUploadMixin):
         test_dst_key = infra.generate_test_key()
         event = gscopyclient.copy_sfn_event(
             replica.bucket, test_src_key,
-            replica.checkout_bucket, test_dst_key)
+            checkout_bucket, test_dst_key)
         event = gscopyclient.implementation.setup_copy_task(event, None)
         spoof_context = self.SpoofContext()
         # parameters of copy_worker are arbitrary, only passed because required.
         event = gscopyclient.implementation.copy_worker(event, spoof_context)
         # verify
-        bucket = client.get_bucket(replica.checkout_bucket)
+        bucket = client.get_bucket(checkout_bucket)
         blob_class = bucket.get_blob(test_dst_key).storage_class
         # cleanup
         gs_blobstore.delete(replica.bucket, test_src_key)
-        gs_blobstore.delete(replica.checkout_bucket, test_dst_key)
+        gs_blobstore.delete(checkout_bucket, test_dst_key)
         return blob_class
 
 
