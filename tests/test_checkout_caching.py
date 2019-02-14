@@ -6,14 +6,13 @@ import unittest
 import tempfile
 from google.cloud import storage
 
-
 pkg_root = os.path.abspath(os.path.join(os.path.dirname(__file__), '..'))  # noqa
 sys.path.insert(0, pkg_root)  # noqa
 
-from dss import stepfunctions, Config, Replica, BucketConfig
+from dss import Config, Replica, BucketConfig
 from dss.stepfunctions import s3copyclient, gscopyclient
 from tests import infra
-from tests.infra import DSSAssertMixin, DSSUploadMixin, get_env, testmode
+from tests.infra import DSSAssertMixin, DSSUploadMixin, testmode
 from tests.infra.server import ThreadedLocalServer
 
 
@@ -67,7 +66,7 @@ class TestCheckoutApi(unittest.TestCase, DSSAssertMixin, DSSUploadMixin):
         tagging = self._test_aws_cache(src_data, 'binary/octet', checkout_bucket=os.environ['DSS_S3_CHECKOUT_BUCKET_TEST_USER'])
         self.assertNotIn('uncached', tagging.keys())
 
-    def _test_aws_cache(self, src_data, content_type: str, checkout_bucket: str = None):
+    def _test_aws_cache(self, src_data: bytes, content_type: str, checkout_bucket: str = None):
         replica = Replica.aws
         checkout_bucket = checkout_bucket if checkout_bucket else replica.checkout_bucket
         test_src_key = infra.generate_test_key()
