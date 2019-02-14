@@ -16,9 +16,14 @@ def check_dss_bucket(dst_bucket: str):
                           os.environ['DSS_S3_CHECKOUT_BUCKET'], os.environ['DSS_GS_CHECKOUT_BUCKET'])
 
 
-def get_local_criteria():
-    print("warning: using local")
-    with open("{}/checkout_cache_criteria.json".format(os.environ['DSS_HOME']), "r") as file:
+def get_cache_criteria():
+    """Fetch criteria to determine if files should be cached."""
+    if os.getenv("CHECKOUT_CACHE_CRITERIA"):
+        return json.loads(os.getenv('CHECKOUT_CACHE_CRITERIA'))
+
+    local_cache_criteria_path = f'{os.environ["DSS_HOME"]}/checkout_cache_criteria.json'
+    print(f'CHECKOUT_CACHE_CRITERIA is not set.  Default cache criteria will be pulled from: {local_cache_criteria_path}')
+    with open(local_cache_criteria_path, 'r') as file:
         criteria = json.load(file)
     return criteria
 
@@ -26,10 +31,7 @@ def get_local_criteria():
 def get_cached_status(file_metadata: dict):
     """Returns True if a file should be cached (marked as long-lived) for the dss checkout bucket."""
     # Each file type may have a size limit that determines uncached status.
-    if os.getenv("CHECKOUT_CACHE_CRITERIA") is None:
-        cache_criteria = get_local_criteria()
-    else:
-        cache_criteria = json.loads(os.getenv('CHECKOUT_CACHE_CRITERIA'))
+    cache_criteria = get_cache_criteria()
     for file_type in cache_criteria:
         if file_type['type'] == file_metadata[FileMetadata.CONTENT_TYPE]:
             if file_type['max_size'] >= file_metadata[FileMetadata.SIZE]:
