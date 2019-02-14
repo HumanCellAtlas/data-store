@@ -26,6 +26,10 @@ class TestCheckoutApi(unittest.TestCase, DSSAssertMixin, DSSUploadMixin):
     file_uuid: str
     file_version: str
 
+    class SpoofContext:
+        def get_remaining_time_in_millis(self):
+            return 2000
+
     @classmethod
     def setUpClass(cls):
         cls.app = ThreadedLocalServer()
@@ -51,9 +55,6 @@ class TestCheckoutApi(unittest.TestCase, DSSAssertMixin, DSSUploadMixin):
         self.assertNotIn('uncached', tagging.keys())
 
     def _test_aws_cache(self, src_data, content_type: str):
-        class SpoofContext:
-            def get_remaining_time_in_millis(self):
-                return 2000
         replica = Replica.aws
         test_src_key = infra.generate_test_key()
         s3_blobstore = Config.get_blobstore_handle(Replica.aws)
@@ -69,7 +70,7 @@ class TestCheckoutApi(unittest.TestCase, DSSAssertMixin, DSSUploadMixin):
             replica.bucket, test_src_key,
             replica.checkout_bucket, test_dst_key)
         event = s3copyclient.implementation.setup_copy_task(event, None)
-        spoof_context = SpoofContext()
+        spoof_context = self.SpoofContext()
         # parameters of copy_worker are arbitrary, only passed because required.
         event = s3copyclient.implementation.copy_worker(event, spoof_context, 1)
         # verify
@@ -80,11 +81,6 @@ class TestCheckoutApi(unittest.TestCase, DSSAssertMixin, DSSUploadMixin):
         return tagging
 
     @testmode.standalone
-    def test_aws_cached_speed(self):
-        """Checkout a fresh file and cache it.  Then check it out again and verify that the checkout was faster."""
-        pass
-
-    @testmode.standalone
     def test_google_cached_checkout_creates_standard_storage_type(self):
         # cached
         src_data = os.urandom(1024)
@@ -93,15 +89,12 @@ class TestCheckoutApi(unittest.TestCase, DSSAssertMixin, DSSUploadMixin):
 
     @testmode.standalone
     def test_google_normal_checkout_creates_durable_storage_type(self):
-        #uncached
+        # uncached
         src_data = os.urandom(1024)
         blob_type = self._test_gs_cache(src_data, 'binary/octet')
         self.assertEqual("DURABLE_REDUCED_AVAILABILITY", blob_type)
 
     def _test_gs_cache(self, src_data, content_type):
-        class SpoofContext:
-            def get_remaining_time_in_millis(self):
-                return 2000
         replica = Replica.gcp
         test_src_key = infra.generate_test_key()
         gs_blobstore = Config.get_blobstore_handle(Replica.gcp)
@@ -118,7 +111,7 @@ class TestCheckoutApi(unittest.TestCase, DSSAssertMixin, DSSUploadMixin):
             replica.bucket, test_src_key,
             replica.checkout_bucket, test_dst_key)
         event = gscopyclient.implementation.setup_copy_task(event, None)
-        spoof_context = SpoofContext()
+        spoof_context = self.SpoofContext()
         # parameters of copy_worker are arbitrary, only passed because required.
         event = gscopyclient.implementation.copy_worker(event, spoof_context)
         # verify
@@ -128,11 +121,6 @@ class TestCheckoutApi(unittest.TestCase, DSSAssertMixin, DSSUploadMixin):
         gs_blobstore.delete(replica.bucket, test_src_key)
         gs_blobstore.delete(replica.checkout_bucket, test_dst_key)
         return blob_class
-
-    @testmode.standalone
-    def test_google_cached_speed(self):
-        """Checkout a fresh file and cache it.  Then check it out again and verify that the checkout was faster."""
-        pass
 
 
 if __name__ == "__main__":
