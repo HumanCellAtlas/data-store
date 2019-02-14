@@ -6,6 +6,8 @@ import requests
 from flask import json
 import sys
 
+from dss.index.es import ElasticsearchClient
+
 pkg_root = os.path.abspath(os.path.join(os.path.dirname(__file__), 'chalicelib'))  # noqa
 sys.path.insert(0, pkg_root)  # noqa
 
@@ -17,11 +19,11 @@ def l2_health_checks(*args, **kwargs):
     def _get_es_status():
         es_status = False
         if os.environ['DSS_ES_ENDPOINT']:
-            es_res = requests.request('GET', 'http://' + os.environ['DSS_ES_ENDPOINT'] + '/_cluster/health')
-            es_cluster_data = json.loads(es_res.text)
-            if es_cluster_data['status'] == 'green':
+            es_cleint = ElasticsearchClient().get()
+            es_res = es_cleint.cluster.health()
+            if es_res['status'] == 'green':
                 es_status = True
-        return es_status, es_cluster_data
+        return es_status, es_res
 
     def _get_dynamodb_status():
         db_status = True
