@@ -1,6 +1,4 @@
 import logging
-import requests
-import os
 import binascii
 import collections
 
@@ -40,6 +38,7 @@ class Key:
     DESTINATION_BUCKET = "dstbucket"
     DESTINATION_KEY = "dstkey"
     FINISHED = "finished"
+    CONTENT_TYPE = "content-type"
 
 
 # Internal key for the state object.
@@ -51,7 +50,6 @@ class _Key:
     NEXT_PART = "next"
     LAST_PART = "last"
     PART_COUNT = "count"
-    CONTENT_TYPE = "content-type"
 
 
 def setup_copy_task(event, lambda_context):
@@ -75,7 +73,7 @@ def setup_copy_task(event, lambda_context):
         s3_blobstore.copy(source_bucket, source_key, destination_bucket, destination_key)
         event[_Key.UPLOAD_ID] = None
         event[Key.FINISHED] = True
-    event[_Key.CONTENT_TYPE] = blobinfo['ContentType']
+    event[Key.CONTENT_TYPE] = blobinfo['ContentType']
     event[_Key.SOURCE_ETAG] = source_etag
     event[_Key.SIZE] = source_size
     event[_Key.PART_SIZE] = part_size
@@ -106,7 +104,7 @@ def copy_worker(event, lambda_context, slice_num):
         def run(self) -> dict:
             s3_blobstore = S3BlobStore.from_environment()
             state = self.get_state_copy()
-            cached = get_cached_status(file_metadata={FileMetadata.CONTENT_TYPE: event[_Key.CONTENT_TYPE],
+            cached = get_cached_status(file_metadata={FileMetadata.CONTENT_TYPE: event[Key.CONTENT_TYPE],
                                                       FileMetadata.SIZE: event[_Key.SIZE]})
             if _Key.NEXT_PART not in state or _Key.LAST_PART not in state:
                 # missing the next/last part data.  calculate that from the branch id information.

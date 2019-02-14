@@ -16,6 +16,7 @@ def check_dss_bucket(dst_bucket: str):
 
 
 def get_local_criteria():
+    print("warning: using local")
     with open("{}/checkout_cache_criteria.json".format(os.environ['DSS_HOME']), "r") as file:
         criteria = json.load(file)
     return criteria

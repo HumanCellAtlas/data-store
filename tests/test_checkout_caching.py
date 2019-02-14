@@ -25,7 +25,8 @@ class TestCheckoutApi(unittest.TestCase, DSSAssertMixin, DSSUploadMixin):
     file_version: str
 
     class SpoofContext:
-        def get_remaining_time_in_millis(self):
+        @staticmethod
+        def get_remaining_time_in_millis():
             return 2000
 
     @classmethod

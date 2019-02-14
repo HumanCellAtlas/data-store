@@ -54,8 +54,8 @@ def set_deployed_lambda_environment(name, env: dict):
 
 def get_cache_criteria():
     with open("{}/checkout_cache_criteria.json".format(os.environ['DSS_HOME']), "r") as file:
-        temp = "".join(file.read().splitlines())
-    return json.loads(temp)
+        return "".join(file.read().splitlines())
+
 
 def get_deployed_lambdas():
     root, dirs, files = next(os.walk(os.path.join(os.environ['DSS_HOME'], "daemons")))
