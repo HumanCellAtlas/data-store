@@ -69,7 +69,8 @@
         "Action": [
             "dynamodb:*"
         ],
-        "Resource": "arn:aws:dynamodb:*:$account_id:table/dss-async-state-$stage"
+        "Resource": "arn:aws:dynamodb:*:$account_id:table/dss-async-state-$stage",
+        "Resource": "arn:aws:dynamodb:*:$account_id:*"
     }
   ]
 }
