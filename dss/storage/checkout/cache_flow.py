@@ -22,7 +22,8 @@ def get_cache_criteria():
         return json.loads(os.getenv('CHECKOUT_CACHE_CRITERIA'))
 
     local_cache_criteria_path = f'{os.environ["DSS_HOME"]}/checkout_cache_criteria.json'
-    print(f'CHECKOUT_CACHE_CRITERIA is not set.  Default cache criteria will be pulled from: {local_cache_criteria_path}')
+    print(f'CHECKOUT_CACHE_CRITERIA is not set.  Default cache criteria will be pulled from:'
+          f' {local_cache_criteria_path}')
     with open(local_cache_criteria_path, 'r') as file:
         criteria = json.load(file)
     return criteria

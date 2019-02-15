@@ -65,10 +65,12 @@ class TestCheckoutApi(unittest.TestCase, DSSAssertMixin, DSSUploadMixin):
         """
         src_data = os.urandom(1024)
         # cached data check
-        tagging = self._test_aws_cache(src_data, 'application/json', checkout_bucket=os.environ['DSS_S3_CHECKOUT_BUCKET_TEST_USER'])
+        tagging = self._test_aws_cache(src_data, 'application/json',
+                                       checkout_bucket=os.environ['DSS_S3_CHECKOUT_BUCKET_TEST_USER'])
         self.assertNotIn('uncached', tagging.keys())
         # uncached data check
-        tagging = self._test_aws_cache(src_data, 'binary/octet', checkout_bucket=os.environ['DSS_S3_CHECKOUT_BUCKET_TEST_USER'])
+        tagging = self._test_aws_cache(src_data, 'binary/octet',
+                                       checkout_bucket=os.environ['DSS_S3_CHECKOUT_BUCKET_TEST_USER'])
         self.assertNotIn('uncached', tagging.keys())
 
     def _test_aws_cache(self, src_data: bytes, content_type: str, checkout_bucket: str = None):
@@ -127,10 +129,12 @@ class TestCheckoutApi(unittest.TestCase, DSSAssertMixin, DSSUploadMixin):
         # Note: The STANDARD storage type is also an alias for MULTI_REGIONAL.
         src_data = os.urandom(1024)
         # cached data check
-        blob_type = self._test_gs_cache(src_data, 'application/json', checkout_bucket=os.environ['DSS_GS_CHECKOUT_BUCKET_TEST_USER'])
+        blob_type = self._test_gs_cache(src_data, 'application/json',
+                                        checkout_bucket=os.environ['DSS_GS_CHECKOUT_BUCKET_TEST_USER'])
         self.assertEqual('MULTI_REGIONAL', blob_type)
         # uncached data check
-        blob_type = self._test_gs_cache(src_data, 'binary/octet', checkout_bucket=os.environ['DSS_GS_CHECKOUT_BUCKET_TEST_USER'])
+        blob_type = self._test_gs_cache(src_data, 'binary/octet',
+                                        checkout_bucket=os.environ['DSS_GS_CHECKOUT_BUCKET_TEST_USER'])
         self.assertEqual('MULTI_REGIONAL', blob_type)
 
     def _test_gs_cache(self, src_data: bytes, content_type: str, checkout_bucket: str = None):
