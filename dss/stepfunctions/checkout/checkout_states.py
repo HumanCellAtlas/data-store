@@ -121,11 +121,11 @@ def notify_complete(event, context):
             replica)
     # record results of execution into S3
     mark_bundle_checkout_successful(
-        event[EventConstants.EXECUTION_ID],
-        replica,
-        event[EventConstants.STATUS_BUCKET],
-        get_dst_bucket(event),
-        event[_InternalEventConstants.SCHEDULE][_InternalEventConstants.SCHEDULED_DST_LOCATION],
+        execution_id=event[EventConstants.EXECUTION_ID],
+        replica=replica,
+        sts_bucket=event[EventConstants.STATUS_BUCKET],
+        dst_bucket=get_dst_bucket(event),
+        dst_location=event[_InternalEventConstants.SCHEDULE][_InternalEventConstants.SCHEDULED_DST_LOCATION],
     )
     logger.info("Checkout completed successfully jobId %s", event[EventConstants.EXECUTION_ID])
     return {_InternalEventConstants.RESULT: result}
@@ -146,10 +146,12 @@ def notify_complete_failure(event, context):
         result = send_checkout_failure_email(dss.Config.get_notification_email(), event[EventConstants.EMAIL], cause)
     # record results of execution into S3
     mark_bundle_checkout_failed(
-        event[EventConstants.EXECUTION_ID],
-        Replica[event[EventConstants.REPLICA]],
-        event[EventConstants.STATUS_BUCKET],
-        cause,
+        execution_id=event[EventConstants.EXECUTION_ID],
+        replica=Replica[event[EventConstants.REPLICA]],
+        sts_bucket=event[EventConstants.STATUS_BUCKET],
+        dst_bucket=get_dst_bucket(event),
+        dst_location=event[_InternalEventConstants.SCHEDULE][_InternalEventConstants.SCHEDULED_DST_LOCATION],
+        cause=cause,
     )
     logger.info("Checkout failed jobId %s", event[EventConstants.EXECUTION_ID])
     return {_InternalEventConstants.RESULT: result}

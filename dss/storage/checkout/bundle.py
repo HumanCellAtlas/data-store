@@ -62,7 +62,7 @@ def start_bundle_checkout(
     if email_address is not None:
         sfn_input[EventConstants.EMAIL] = email_address
 
-    mark_bundle_checkout_started(execution_id, replica, sts_bucket)
+    mark_bundle_checkout_started(execution_id, replica, sts_bucket, dst_bucket)
 
     stepfunctions.step_functions_invoke(STATE_MACHINE_NAME_TEMPLATE, execution_id, sfn_input)
     return execution_id
@@ -201,6 +201,7 @@ def get_manifest_files(replica: Replica, src_bucket: str, bundle_uuid: str, bund
 
 _STATUS_KEY = "status"
 _LOCATION_KEY = "location"
+_BUCKET_KEY = "dst_bucket"
 _CAUSE_KEY = "cause"
 
 
@@ -218,7 +219,8 @@ def mark_bundle_checkout_successful(
     handle = Config.get_blobstore_handle(replica)
     data = {
         _STATUS_KEY: 'SUCCEEDED',
-        _LOCATION_KEY: f"{replica.storage_schema}://{dst_bucket}/{dst_location}"
+        _LOCATION_KEY: f"{replica.storage_schema}://{dst_bucket}/{dst_location}",
+        _BUCKET_KEY: dst_bucket,
     }
     handle.upload_file_handle(
         sts_bucket,
@@ -226,22 +228,45 @@ def mark_bundle_checkout_successful(
         io.BytesIO(json.dumps(data).encode("utf-8")))
 
 
-def mark_bundle_checkout_failed(execution_id: str, replica: Replica, sts_bucket: str, cause: str):
+def mark_bundle_checkout_failed(
+        execution_id: str,
+        replica: Replica,
+        sts_bucket: str,
+        dst_bucket: str,
+        dst_location: str,
+        cause: str,
+):
     handle = Config.get_blobstore_handle(replica)
-    data = {_STATUS_KEY: "FAILED", _CAUSE_KEY: cause}
+    data = {_STATUS_KEY: "FAILED",
+            _CAUSE_KEY: cause,
+            _LOCATION_KEY: f"{replica.storage_schema}://{dst_bucket}/{dst_location}",
+            _BUCKET_KEY: dst_bucket,
+    }
     handle.upload_file_handle(
         sts_bucket,
         _bundle_checkout_status_key(execution_id),
         io.BytesIO(json.dumps(data).encode("utf-8")))
 
 
-def mark_bundle_checkout_started(execution_id: str, replica: Replica, sts_bucket: str):
+def mark_bundle_checkout_started(
+        execution_id: str,
+        replica: Replica,
+        sts_bucket: str,
+        dst_bucket: str,
+):
     handle = Config.get_blobstore_handle(replica)
-    data = {_STATUS_KEY: "RUNNING"}
+    data = {_STATUS_KEY: "RUNNING",
+            _BUCKET_KEY: dst_bucket,
+    }
     handle.upload_file_handle(
         sts_bucket,
         _bundle_checkout_status_key(execution_id),
         io.BytesIO(json.dumps(data).encode("utf-8")))
+
+
+def get_bundle_checkout_destination(execution_id: str, replica: Replica, sts_bucket: str):
+    handle = Config.get_blobstore_handle(replica)
+    return json.loads(handle.get(sts_bucket, _bundle_checkout_status_key(execution_id)))[_BUCKET_KEY]
 
 
 def get_bundle_checkout_status(execution_id: str, replica: Replica, sts_bucket: str):
