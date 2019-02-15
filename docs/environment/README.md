@@ -29,6 +29,7 @@ Environment Variable | Description
 `DSS_GS_CHECKOUT_BUCKET_STAGING` | The name of the HCA DSS' checkout bucket in GS on the HCA staging environment.
 `DSS_GS_CHECKOUT_BUCKET_PROD` | The name of the HCA DSS' checkout bucket in GS on the HCA prod environment.
 `DSS_BLOB_TTL_DAYS` | The time to live of an object in cloud storage enforced by the cloud provider's bucket lifecycle poilcy.
+`CHECKOUT_CACHE_CRITERIA` | Lambda ENV variable that contains the content-type and size for cached files
 `DSS_NOTIFICATION_SENDER` | 
 `ADMIN_USER_EMAILS` | 
 `DCP_DOMAIN` | The domain name of the DSS.

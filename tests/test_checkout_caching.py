@@ -42,21 +42,26 @@ class TestCheckoutApi(unittest.TestCase, DSSAssertMixin, DSSUploadMixin):
 
     @testmode.standalone
     def test_aws_uncached_checkout_creates_tag(self):
+        """
+        Uncached files are tagged with {"uncached":"True"}
+        This identifies them to be deleted by TTL rules.
+        """
         src_data = os.urandom(1024)
         tagging = self._test_aws_cache(src_data, 'binary/octet')
         self.assertIn('uncached', tagging.keys())
 
     @testmode.standalone
     def test_aws_cached_checkout_doesnt_create_tag(self):
+        """
+        Cached files do not have any tagging on AWS.
+        """
         src_data = os.urandom(1024)
         tagging = self._test_aws_cache(src_data, 'application/json')
         self.assertNotIn('uncached', tagging.keys())
 
     def test_aws_user_checkout_doesnt_create_tag(self):
         """
-        Ensures that both cached and uncached data is not tagged when checked out
-        to a user's bucket, since we don't want to mess about with the user's data
-        unnecessarily when they don't need caching.
+        Ensures that data is only cached when in a DSS-controlled bucket
         """
         src_data = os.urandom(1024)
         # cached data check
@@ -95,13 +100,20 @@ class TestCheckoutApi(unittest.TestCase, DSSAssertMixin, DSSUploadMixin):
 
     @testmode.standalone
     def test_google_cached_checkout_creates_multiregional_storage_type(self):
-        # Note: The STANDARD storage type is also an alias for MULTI_REGIONAL.
+        """
+        Verifies that long-lived Google cached objects are of the STANDARD type.
+        MULTI_REGIONAL is an alias for STANDARD type
+        """
         src_data = os.urandom(1024)
         blob_type = self._test_gs_cache(src_data, 'application/json')
         self.assertEqual('MULTI_REGIONAL', blob_type)
 
     @testmode.standalone
     def test_google_uncached_checkout_creates_durable_storage_type(self):
+        """
+                Verifies object level tagging of short-lived files.
+                Verifies that short-lived Google cached objects are of the DURABLE_REDUCED_AVAILABILITY type.
+        """
         src_data = os.urandom(1024)
         blob_type = self._test_gs_cache(src_data, 'binary/octet')
         self.assertEqual('DURABLE_REDUCED_AVAILABILITY', blob_type)
