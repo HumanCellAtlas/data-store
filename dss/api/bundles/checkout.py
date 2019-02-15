@@ -12,7 +12,6 @@ from dss.storage.checkout.bundle import (get_bundle_checkout_status,
 
 @dss_handler
 def post(uuid: str, json_request_body: dict, replica: str, version: str = None):
-
     assert replica
     _replica: Replica = Replica[replica]
     dst_bucket = json_request_body.get('destination', _replica.checkout_bucket)
@@ -35,7 +34,7 @@ def post(uuid: str, json_request_body: dict, replica: str, version: str = None):
 
 @dss_handler
 def get(replica: str, checkout_job_id: str):
-    assert replica is not None
+    assert replica
     _replica = Replica[replica]
     try:
         response = get_bundle_checkout_status(checkout_job_id, _replica, _replica.checkout_bucket)

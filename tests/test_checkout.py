@@ -179,7 +179,7 @@ class TestCheckoutApi(unittest.TestCase, DSSAssertMixin, DSSUploadMixin):
     def test_checkout_success(self):
         for replica in Replica:
             execution_id = self.launch_checkout(replica.checkout_bucket, replica)
-            mark_bundle_checkout_started(execution_id, replica, replica.checkout_bucket)
+            mark_bundle_checkout_started(execution_id, replica, sts_bucket=replica.checkout_bucket, dst_bucket='fake')
 
             url = str(UrlBuilder().set(path="/v1/bundles/checkout/" + execution_id).add_query("replica", replica.name))
 
@@ -201,7 +201,7 @@ class TestCheckoutApi(unittest.TestCase, DSSAssertMixin, DSSUploadMixin):
         nonexistent_bucket_name = str(uuid.uuid4())
         for replica in Replica:
             execution_id = self.launch_checkout(nonexistent_bucket_name, replica)
-            mark_bundle_checkout_started(execution_id, replica, replica.checkout_bucket)
+            mark_bundle_checkout_started(execution_id, replica, sts_bucket=replica.checkout_bucket, dst_bucket='fake')
 
             url = str(UrlBuilder().set(path="/v1/bundles/checkout/" + execution_id).add_query("replica", replica.name))
 
@@ -353,19 +353,24 @@ class TestCheckoutApi(unittest.TestCase, DSSAssertMixin, DSSUploadMixin):
     def test_status_failed(self):
         exec_id = get_execution_id()
         self.assertIsNotNone(exec_id)
-        cause = 'Fake cause'
         for replica in Replica:
-            mark_bundle_checkout_failed(exec_id, replica, replica.checkout_bucket, cause)
+            mark_bundle_checkout_failed(execution_id=exec_id,
+                                        replica=replica,
+                                        sts_bucket=replica.checkout_bucket,
+                                        dst_bucket='fake_dest_bucket',
+                                        dst_location='fake_location',
+                                        cause='Fake cause.')
             status = get_bundle_checkout_status(exec_id, replica, replica.checkout_bucket)
             self.assertEquals(status['status'], "FAILED")
-            self.assertEquals(status['cause'], cause)
+            self.assertEquals(status['cause'], 'Fake cause.')
+            self.assertEquals(status['dst_bucket'], 'fake_dest_bucket')
 
     @testmode.standalone
     def test_status_started(self):
         exec_id = get_execution_id()
         self.assertIsNotNone(exec_id)
         for replica in Replica:
-            mark_bundle_checkout_started(exec_id, replica, replica.checkout_bucket)
+            mark_bundle_checkout_started(exec_id, replica, sts_bucket=replica.checkout_bucket, dst_bucket='fake')
             status = get_bundle_checkout_status(exec_id, replica, replica.checkout_bucket)
             self.assertEquals(status['status'], "RUNNING")
 
