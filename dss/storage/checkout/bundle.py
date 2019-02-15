@@ -237,10 +237,11 @@ def mark_bundle_checkout_failed(
         cause: str,
 ):
     handle = Config.get_blobstore_handle(replica)
-    data = {_STATUS_KEY: "FAILED",
-            _CAUSE_KEY: cause,
-            _LOCATION_KEY: f"{replica.storage_schema}://{dst_bucket}/{dst_location}",
-            _BUCKET_KEY: dst_bucket,
+    data = {
+        _STATUS_KEY: "FAILED",
+        _CAUSE_KEY: cause,
+        _LOCATION_KEY: f"{replica.storage_schema}://{dst_bucket}/{dst_location}",
+        _BUCKET_KEY: dst_bucket,
     }
     handle.upload_file_handle(
         sts_bucket,
@@ -255,8 +256,9 @@ def mark_bundle_checkout_started(
         dst_bucket: str,
 ):
     handle = Config.get_blobstore_handle(replica)
-    data = {_STATUS_KEY: "RUNNING",
-            _BUCKET_KEY: dst_bucket,
+    data = {
+        _STATUS_KEY: "RUNNING",
+        _BUCKET_KEY: dst_bucket,
     }
     handle.upload_file_handle(
         sts_bucket,
