@@ -16,7 +16,7 @@ from tests.infra import DSSAssertMixin, DSSUploadMixin, testmode
 from tests.infra.server import ThreadedLocalServer
 
 
-class TestCheckoutApi(unittest.TestCase, DSSAssertMixin, DSSUploadMixin):
+class TestCheckoutCaching(unittest.TestCase, DSSAssertMixin, DSSUploadMixin):
     test_bundle_uploaded: bool = False
     bundle_uuid: str
     bundle_version: str
@@ -114,8 +114,8 @@ class TestCheckoutApi(unittest.TestCase, DSSAssertMixin, DSSUploadMixin):
     @testmode.standalone
     def test_google_uncached_checkout_creates_durable_storage_type(self):
         """
-                Verifies object level tagging of short-lived files.
-                Verifies that short-lived Google cached objects are of the DURABLE_REDUCED_AVAILABILITY type.
+        Verifies object level tagging of short-lived files.
+        Verifies that short-lived Google cached objects are of the DURABLE_REDUCED_AVAILABILITY type.
         """
         src_data = os.urandom(1024)
         blob_type = self._test_gs_cache(src_data, 'binary/octet')

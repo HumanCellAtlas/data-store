@@ -3,11 +3,18 @@ import os
 from dss.storage.hcablobstore import FileMetadata
 
 """
-These functions assist with the caching process, the lifecycle policies are set to delete files within
-the checkout buckets;
-For AWS object tagging is used to mark files for deletion: TagSet=[{uncached:True}]
-For GCP object classes are used to indicate what is to be cached: STANDARD_STORAGE (MULTI-REGIONAL) are cached
-See MetaData Caching RFC for more information (Google Docs)
+These functions assist with the caching process and provide greater availability of heavily accessed files to the user.
+
+The criteria used to determine if a file should be cached or not is set with: CHECKOUT_CACHE_CRITERIA
+For example: CHECKOUT_CACHE_CRITERIA='[{"type":"application/json","max_size":12314}]'
+
+Uncached files are controlled by a lifecycle policy that deletes them regularly.  Cached files are ignored by
+this lifecycle policy and are (currently) never deleted.
+
+For AWS object tagging is used to mark uncached files: TagSet=[{uncached:True}]
+For GCP object storage classes are used to indicate what is to be cached: STANDARD (MULTI_REGIONAL) are cached
+
+Metadata Caching RFC: https://docs.google.com/document/d/1PQBO5qYUVJFAXFNaMdgxq8j0y-OI_EF2b15I6fvEYjo
 """
 
 

@@ -116,7 +116,7 @@ def copy_worker(event, lambda_context, slice_num):
 
             if state[_Key.NEXT_PART] > state[_Key.LAST_PART]:
                 state[Key.FINISHED] = True
-                _set_uncached_tag(will_cache, self.destination_bucket, self.destination_key)
+                _determine_cache_tagging(will_cache, self.destination_bucket, self.destination_key)
                 return state
 
             queue = collections.deque(s3_blobstore.find_next_missing_parts(
@@ -129,7 +129,7 @@ def copy_worker(event, lambda_context, slice_num):
 
             if len(queue) == 0:
                 state[Key.FINISHED] = True
-                _set_uncached_tag(will_cache, self.destination_bucket, self.destination_key)
+                _determine_cache_tagging(will_cache, self.destination_bucket, self.destination_key)
                 return state
 
             class ProgressReporter(parallel_worker.Reporter):
@@ -146,7 +146,7 @@ def copy_worker(event, lambda_context, slice_num):
             assert all(results)
 
             state[Key.FINISHED] = True
-            _set_uncached_tag(will_cache, self.destination_bucket, self.destination_key)
+            _determine_cache_tagging(will_cache, self.destination_bucket, self.destination_key)
             return state
 
         def copy_one_part(self, part_id: int):
@@ -187,7 +187,7 @@ def copy_worker(event, lambda_context, slice_num):
         return result
 
 
-def _set_uncached_tag(cache: bool, destination_bucket: str, destination_key: str):
+def _determine_cache_tagging(cache: bool, destination_bucket: str, destination_key: str):
     if not cache and is_dss_bucket(destination_bucket):
         tag_set = {"TagSet": [{"Key": "uncached", "Value": "True"}]}
         try:

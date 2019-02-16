@@ -89,7 +89,7 @@ resource aws_s3_bucket dss_s3_checkout_bucket_test {
   }
 }
 
-resource dss_s3_checkout_bucket_test_user {
+resource aws_s3_bucket dss_s3_checkout_bucket_test_user {
   count = "${var.DSS_DEPLOYMENT_STAGE == "dev" ? 1 : 0}"
   bucket = "${var.DSS_S3_CHECKOUT_BUCKET_TEST_USER}"
   lifecycle_rule {
