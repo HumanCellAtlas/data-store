@@ -44,6 +44,7 @@ def setup_copy_task(event, lambda_context):
 
 
 def copy_worker(event, lambda_context):
+    """This is what actually does the work of copying the files."""
     class CopyWorkerTimedThread(TimedThread[dict]):
         def __init__(self, timeout_seconds: float, state: dict) -> None:
             super().__init__(timeout_seconds, state)
