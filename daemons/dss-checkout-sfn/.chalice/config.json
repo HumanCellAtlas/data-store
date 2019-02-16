@@ -7,10 +7,7 @@
   "stages": {
     "dev": {
       "api_gateway_stage": "dev",
-      "environment_variables": {},
-      "tags": {
-        "DSS_DEPLOY_ORIGIN": "amar-Specter.local-2019-02-12-00-34-03-integration.release-39-g62ed1e4-2019-02-15-21-07-24.deploy"
-      }
+      "environment_variables": {}
     }
   },
   "lambda_timeout": 300,
