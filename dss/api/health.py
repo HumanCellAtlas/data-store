@@ -12,6 +12,7 @@ pkg_root = os.path.abspath(os.path.join(os.path.dirname(__file__), 'chalicelib')
 sys.path.insert(0, pkg_root)  # noqa
 
 from googleapiclient import discovery
+from dss.util.aws.clients import dynamodb  # type: ignore
 
 
 def l2_health_checks(*args, **kwargs):
@@ -27,14 +28,13 @@ def l2_health_checks(*args, **kwargs):
 
     def _get_dynamodb_status():
         db_status = True
-        client = boto3.client('dynamodb')
         stage = os.environ['DSS_DEPLOYMENT_STAGE']
         ddb_tables = ['dss-async-state-{}'.format(stage), 'dss-subscriptions-v2-aws-{}'.format(stage),
                       'dss-subscriptions-v2-gcp-{}'.format(stage)]
         ddb_table_data = dict.fromkeys(ddb_tables)
         for table in ddb_tables:
             try:
-                table_res = client.describe_table(TableName=table)['Table']
+                table_res = dynamodb.describe_table(TableName=table)['Table']
                 if table_res['TableStatus'] != 'ACTIVE':
                     db_status = False
                     ddb_table_data[table] = table_res.Table['TableStatus']
