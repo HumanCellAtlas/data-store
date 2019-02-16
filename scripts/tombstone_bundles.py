@@ -11,7 +11,7 @@ Usage:
     - Monitor output. Announce errors in #dcp-ops, ask for help in #data-store-eng
 """
 import time
-from hca.dss import import DSSClient
+from hca.dss import DSSClient
 
 stage = ""
 tombstone_reason = ""
