@@ -5,7 +5,7 @@ from dss import Config, Replica
 from dss.stepfunctions.lambdaexecutor import TimedThread
 from dss.storage.files import write_file_metadata
 from dss.util.async_state import AsyncStateError
-from dss.storage.checkout.cache_flow import get_cached_status, check_dss_bucket
+from dss.storage.checkout.cache_flow import should_cache_file, is_dss_bucket
 from dss.storage.hcablobstore import FileMetadata
 
 logger = logging.getLogger(__name__)
@@ -66,11 +66,11 @@ def copy_worker(event, lambda_context):
             # If a user bucket, files should be unmodified by either the object tagging (AWS)
             # or storage type changes (Google) used to mark cached objects.
 
-            cached = get_cached_status(file_metadata={FileMetadata.CONTENT_TYPE: content_type,
+            cached = should_cache_file(file_metadata={FileMetadata.CONTENT_TYPE: content_type,
                                                       FileMetadata.SIZE: self.size})
 
             # TODO: DURABLE_REDUCED_AVAILABILITY is being phased out by Google; use a different method in the future
-            if not cached and check_dss_bucket(self.destination_bucket):
+            if not cached and is_dss_bucket(self.destination_bucket):
                 # the DURABLE_REDUCED_AVAILABILITY storage class marks (short-lived) non-cached files
                 dst_blob._patch_property('storageClass', 'DURABLE_REDUCED_AVAILABILITY')
                 # setting the storage class explicitly seems like it blanks the content-type, so we add it back

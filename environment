@@ -44,6 +44,7 @@ ADMIN_USER_EMAILS_SECRETS_NAME=admin_user_emails
 AWS_DEFAULT_OUTPUT=json
 AWS_DEFAULT_REGION=us-east-1
 GCP_DEFAULT_REGION=us-central1
+CHECKOUT_CACHE_CRITERIA='[{"type":"application/json","max_size":12314}]'
 DSS_S3_BUCKET=org-humancellatlas-dss-dev
 DSS_S3_BUCKET_TEST=org-hca-dss-test
 DSS_S3_BUCKET_TEST_FIXTURES=org-hca-dss-test-fixtures

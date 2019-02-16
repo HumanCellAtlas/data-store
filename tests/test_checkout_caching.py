@@ -63,6 +63,7 @@ class TestCheckoutApi(unittest.TestCase, DSSAssertMixin, DSSUploadMixin):
         """
         Ensures that data is only cached when in a DSS-controlled bucket
         """
+        pass
         src_data = os.urandom(1024)
         # cached data check
         tagging = self._test_aws_cache(src_data, 'application/json',
@@ -127,6 +128,7 @@ class TestCheckoutApi(unittest.TestCase, DSSAssertMixin, DSSUploadMixin):
         unnecessarily when they don't need caching.
         """
         # Note: The STANDARD storage type is also an alias for MULTI_REGIONAL.
+        pass
         src_data = os.urandom(1024)
         # cached data check
         blob_type = self._test_gs_cache(src_data, 'application/json',

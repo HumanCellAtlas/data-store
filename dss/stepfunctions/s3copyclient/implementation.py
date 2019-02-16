@@ -10,13 +10,13 @@ import boto3
 from botocore.exceptions import ClientError
 from cloud_blobstore.s3 import S3BlobStore
 from dcplib.s3_multipart import get_s3_multipart_chunk_size
-
 from dss.stepfunctions.lambdaexecutor import TimedThread
 from dss.storage.files import write_file_metadata
 from dss.util import parallel_worker
-from dss.storage.checkout.cache_flow import get_cached_status, check_dss_bucket
+from dss.storage.checkout.cache_flow import should_cache_file, is_dss_bucket
 from dss.storage.hcablobstore import FileMetadata
 from dss.util.async_state import AsyncStateItem, AsyncStateError
+from dss.util.aws.clients import s3
 
 
 logger = logging.getLogger(__name__)
@@ -104,8 +104,8 @@ def copy_worker(event, lambda_context, slice_num):
         def run(self) -> dict:
             s3_blobstore = S3BlobStore.from_environment()
             state = self.get_state_copy()
-            cached = get_cached_status(file_metadata={FileMetadata.CONTENT_TYPE: event[Key.CONTENT_TYPE],
-                                                      FileMetadata.SIZE: event[_Key.SIZE]})
+            will_cache = should_cache_file(file_metadata={FileMetadata.CONTENT_TYPE: event[Key.CONTENT_TYPE],
+                                                          FileMetadata.SIZE: event[_Key.SIZE]})
             if _Key.NEXT_PART not in state or _Key.LAST_PART not in state:
                 # missing the next/last part data.  calculate that from the branch id information.
                 parts_per_branch = ((self.part_count + LAMBDA_PARALLELIZATION_FACTOR - 1)
@@ -116,8 +116,7 @@ def copy_worker(event, lambda_context, slice_num):
 
             if state[_Key.NEXT_PART] > state[_Key.LAST_PART]:
                 state[Key.FINISHED] = True
-                if not cached and check_dss_bucket(self.destination_bucket):
-                    _set_uncached_tag(self.destination_bucket, self.destination_key)
+                _set_uncached_tag(will_cache, self.destination_bucket, self.destination_key)
                 return state
 
             queue = collections.deque(s3_blobstore.find_next_missing_parts(
@@ -130,8 +129,7 @@ def copy_worker(event, lambda_context, slice_num):
 
             if len(queue) == 0:
                 state[Key.FINISHED] = True
-                if not cached and check_dss_bucket(self.destination_bucket):
-                    _set_uncached_tag(self.destination_bucket, self.destination_key)
+                _set_uncached_tag(will_cache, self.destination_bucket, self.destination_key)
                 return state
 
             class ProgressReporter(parallel_worker.Reporter):
@@ -148,8 +146,7 @@ def copy_worker(event, lambda_context, slice_num):
             assert all(results)
 
             state[Key.FINISHED] = True
-            if not cached and check_dss_bucket(self.destination_bucket):
-                _set_uncached_tag(self.destination_bucket, self.destination_key)
+            _set_uncached_tag(will_cache, self.destination_bucket, self.destination_key)
             return state
 
         def copy_one_part(self, part_id: int):
@@ -190,13 +187,13 @@ def copy_worker(event, lambda_context, slice_num):
         return result
 
 
-def _set_uncached_tag(destination_bucket: str, destination_key: str):
-    client = boto3.client("s3")
-    tag_set = {"TagSet": [{"Key": "uncached", "Value": "True"}]}
-    try:
-        client.put_object_tagging(Bucket=destination_bucket, Key=destination_key, Tagging=tag_set)
-    except ClientError as ex:
-        raise ValueError(f"Could not find s3://{destination_bucket}/{destination_key}") from ex
+def _set_uncached_tag(cache: bool, destination_bucket: str, destination_key: str):
+    if not cache and is_dss_bucket(destination_bucket):
+        tag_set = {"TagSet": [{"Key": "uncached", "Value": "True"}]}
+        try:
+            s3.put_object_tagging(Bucket=destination_bucket, Key=destination_key, Tagging=tag_set)
+        except ClientError as ex:
+            raise ValueError(f"Could not find s3://{destination_bucket}/{destination_key}") from ex
 
 
 def join(event, lambda_context):
