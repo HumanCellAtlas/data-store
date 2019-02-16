@@ -139,7 +139,10 @@
     },
     {
       "Effect": "Allow",
-      "Action": "dynamodb:ListTables",
+      "Action": [
+        "dynamodb:ListTables",
+        "dynamodb:Query"
+      ],
       "Resource": "*"
     },
     {
