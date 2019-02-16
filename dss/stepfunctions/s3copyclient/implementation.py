@@ -1,10 +1,8 @@
 import logging
 import binascii
 import collections
-
 import hashlib
 import typing
-
 import boto3
 
 from botocore.exceptions import ClientError
@@ -16,8 +14,7 @@ from dss.util import parallel_worker
 from dss.storage.checkout.cache_flow import should_cache_file, is_dss_bucket
 from dss.storage.hcablobstore import FileMetadata
 from dss.util.async_state import AsyncStateItem, AsyncStateError
-from dss.util.aws.clients import s3
-
+from dss.util.aws.clients import s3  # type: ignore
 
 logger = logging.getLogger(__name__)
 

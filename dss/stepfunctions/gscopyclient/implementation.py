@@ -65,7 +65,6 @@ def copy_worker(event, lambda_context):
             # Files can be checked out to a user bucket or the standard dss checkout bucket.
             # If a user bucket, files should be unmodified by either the object tagging (AWS)
             # or storage type changes (Google) used to mark cached objects.
-
             cached = should_cache_file(file_metadata={FileMetadata.CONTENT_TYPE: content_type,
                                                       FileMetadata.SIZE: self.size})
 
