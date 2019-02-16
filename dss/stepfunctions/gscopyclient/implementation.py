@@ -1,5 +1,4 @@
 import logging
-import os
 
 from dss import Config, Replica
 from dss.stepfunctions.lambdaexecutor import TimedThread
