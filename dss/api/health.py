@@ -15,9 +15,12 @@ from googleapiclient import discovery
 from dss.util.aws.clients import dynamodb  # type: ignore
 
 
-def _get_es_status():
+def _get_es_status(host: str = "localhost", port: int = None):
     es_status = False
-    es_cleint = ElasticsearchClient().get()
+    if port is not None:
+        es_cleint = ElasticsearchClient().get()
+    else:
+        es_client = ElasticsearchClient()._get(host, port, 1)
     es_res = es_cleint.cluster.health()
     if es_res['status'] == 'green':
         es_status = True
