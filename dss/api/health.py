@@ -19,11 +19,10 @@ def l2_health_checks(*args, **kwargs):
 
     def _get_es_status():
         es_status = False
-        if os.environ['DSS_ES_ENDPOINT']:
-            es_cleint = ElasticsearchClient().get()
-            es_res = es_cleint.cluster.health()
-            if es_res['status'] == 'green':
-                es_status = True
+        es_cleint = ElasticsearchClient().get()
+        es_res = es_cleint.cluster.health()
+        if es_res['status'] == 'green':
+            es_status = True
         return es_status, es_res
 
     def _get_dynamodb_status():
@@ -48,7 +47,7 @@ def l2_health_checks(*args, **kwargs):
         try:
             er_name = "projects/{}/locations/{}/functions/{}".format(
                 os.environ["GCP_PROJECT_NAME"], os.environ["GCP_DEFAULT_REGION"], os.environ["DSS_EVENT_RELAY_NAME"])
-            service = discovery.build('cloudfunctions', 'v1')
+            service = discovery.build('cloudfunctions', 'v1', cache_discovery=False)
             er_res = service.projects().locations().functions().get(name=er_name).execute()
             if er_res['status'] == 'ACTIVE':
                 er_status = True
