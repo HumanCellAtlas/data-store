@@ -137,9 +137,10 @@
     },
     {
       "Effect": "Allow",
-      "Action":[
-	"dynamodb:ListTables",
-	"dynamodb:Query"
+      "Action": [
+        "dynamodb:ListTables",
+        "dynamodb:Query",
+        "dynamodb:DescribeTable"
 	],
       "Resource": "*"
     },
