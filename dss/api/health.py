@@ -29,9 +29,8 @@ def _get_es_status(host: str = "localhost", port: int = None):
 
 def _get_dynamodb_status():
     db_status = True
-    stage = os.environ['DSS_DEPLOYMENT_STAGE']
-    ddb_tables = ['dss-async-state-{}'.format(stage), 'dss-subscriptions-v2-aws-{}'.format(stage),
-                  'dss-subscriptions-v2-gcp-{}'.format(stage)]
+    ddb_tables = list(filter(lambda x: x.startswith("dss") and x.endswith(os.getenv("DSS_DEPLOYMENT_STAGE")),
+                             dynamodb.list_tables()["TableNames"]))
     ddb_table_data = dict.fromkeys(ddb_tables)
     for table in ddb_tables:
         try:
