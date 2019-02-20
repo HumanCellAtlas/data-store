@@ -19,7 +19,6 @@ class TestHealth(unittest.TestCase):
 
     @classmethod
     def setUpClass(cls):
-        super().setUpClass()
         cls.server = ElasticsearchServer()
         os.environ['DSS_ES_PORT'] = str(cls.server.port)
         pass
@@ -28,7 +27,6 @@ class TestHealth(unittest.TestCase):
     def tearDownClass(cls):
         cls.server.shutdown()
         os.unsetenv('DSS_ES_PORT')
-        super().tearDownClass()
         pass
 
     @testmode.standalone

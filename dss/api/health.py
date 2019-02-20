@@ -1,18 +1,14 @@
-import datetime
 import os
-import boto3
+import logging
 from botocore import errorfactory
 import requests
 from flask import json
-import sys
+from googleapiclient import discovery, errors
 
 from dss.index.es import ElasticsearchClient
-
-pkg_root = os.path.abspath(os.path.join(os.path.dirname(__file__), 'chalicelib'))  # noqa
-sys.path.insert(0, pkg_root)  # noqa
-
-from googleapiclient import discovery
 from dss.util.aws.clients import dynamodb  # type: ignore
+
+logger = logging.getLogger(__name__)
 
 
 def _get_es_status(host: str = "localhost", port: int = None):
@@ -29,8 +25,11 @@ def _get_es_status(host: str = "localhost", port: int = None):
 
 def _get_dynamodb_status():
     db_status = True
-    ddb_tables = list(filter(lambda x: x.startswith("dss") and x.endswith(os.getenv("DSS_DEPLOYMENT_STAGE")),
-                             dynamodb.list_tables()["TableNames"]))
+    stage = os.getenv("DSS_DEPLOYMENT_STAGE")
+    ddb_tables = ["dss-async-state-{}".format(stage),
+                  "dss-subscriptions-v2-aws-{}".format(stage),
+                  "dss-subscriptions-v2-gcp-{}".format(stage)
+                  ]
     ddb_table_data = dict.fromkeys(ddb_tables)
     for table in ddb_tables:
         try:
@@ -54,7 +53,8 @@ def _get_event_relay_status():
         if er_res['status'] == 'ACTIVE':
             er_status = True
             er_data = er_res
-    except Exception:
+    except errors.HttpError as err:
+        logger.warning("Unable to get event-relay status: %s", err)
         er_status = False
         er_data = "Error"
     return er_status, er_data
