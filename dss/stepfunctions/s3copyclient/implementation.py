@@ -186,18 +186,19 @@ def copy_worker(event, lambda_context, slice_num):
 
 def _determine_cache_tagging(cache: bool, destination_bucket: str, destination_key: str):
     """
-    Function checks and attempts to set object tagging on uncached files during checkout
-    :param cache:
-    :param destination_bucket:
-    :param destination_key:
-    :return:
+    Checks if a file destined for AWS s3 should have tags (to mark uncached files) and
+    adds those tags if necessary.
+
+    Attempts to set object tagging on uncached files but only if the bucket is one of the
+    expected deployed buckets (i.e. no user specific buckets should have files with tags,
+    since we don't expect them to need caching).
     """
     if not cache and is_dss_bucket(destination_bucket):
         tag_set = {"TagSet": [{"Key": "uncached", "Value": "True"}]}
         try:
             s3.put_object_tagging(Bucket=destination_bucket, Key=destination_key, Tagging=tag_set)
         except ClientError as ex:
-            logger.warning("unable to set tagging on uncached object: %s", ex)
+            logger.warning("Unable to set tagging on (file will not be subject to lifecycle rules): %s", ex)
 
 
 def join(event, lambda_context):
