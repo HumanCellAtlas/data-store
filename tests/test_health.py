@@ -1,7 +1,7 @@
 import os
 import sys
 import unittest
-import json
+from unittest import mock
 import logging
 
 pkg_root = os.path.abspath(os.path.join(os.path.dirname(__file__), '..'))  # noqa
@@ -43,6 +43,18 @@ class TestHealth(unittest.TestCase):
     def test_event_relay(self):
         test_er = health._get_event_relay_status()
         self.assertIn(True, test_er)
+
+    @testmode.standalone
+    @mock.patch("dss.api.health._get_es_status")
+    @mock.patch("dss.api.health._get_dynamodb_status")
+    @mock.patch("dss.api.health._get_event_relay_status")
+    def test_full_health_check(self, mock_er, mock_ddb, mock_es):
+        healthy_res = {"Healthy": True}
+        mock_es.return_value = (True, None)
+        mock_ddb.return_value = (True, None)
+        mock_er.return_value = (True, None)
+        mock_res = health.l2_health_checks()
+        self.assertDictEqual(healthy_res, mock_res)
 
 
 if __name__ == "__main__":

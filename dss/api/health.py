@@ -4,7 +4,7 @@ from botocore import errorfactory
 import requests
 from flask import json
 from googleapiclient import discovery, errors
-from requests.exceptions import ConnectionError
+from elasticsearch.exceptions import ConnectionError
 from dss.index.es import ElasticsearchClient
 from dss.util.aws.clients import dynamodb  # type: ignore
 
@@ -14,13 +14,16 @@ logger = logging.getLogger(__name__)
 def _get_es_status(host: str = "localhost", port: int = None):
     """Checks ElasticSearch status, hosts can be specified"""
     try:
-            es_status = False
+        es_status = False
+        es_res = {}
         if port is not None:
             es_client = ElasticsearchClient().get()
         else:
             es_client = ElasticsearchClient()._get(host, port, 1)
         es_res = es_client.cluster.health()
-    
+    except ConnectionError as exception:
+        logger.warning("connection error with ElasticSearch: %s" % exception)
+        es_res['status'] = 'red'
     if es_res['status'] == 'green':
         es_status = True
     return es_status, es_res
@@ -58,12 +61,11 @@ def _get_event_relay_status():
         er_res = service.projects().locations().functions().get(name=er_name).execute()
         if er_res['status'] == 'ACTIVE':
             er_status = True
-            er_data = er_res
     except errors.HttpError as err:
-        logger.warning("Unable to get event-relay status: %s", err)
+        logger.warning("Unable to get event-relay status: %s" % err)
         er_status = False
-        er_data = "Error"
-    return er_status, er_data
+        er_res = "Error"
+    return er_status, er_res
 
 
 def l2_health_checks():
