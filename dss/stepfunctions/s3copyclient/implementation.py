@@ -185,12 +185,19 @@ def copy_worker(event, lambda_context, slice_num):
 
 
 def _determine_cache_tagging(cache: bool, destination_bucket: str, destination_key: str):
+    """
+    Function checks and attempts to set object tagging on uncached files during checkout
+    :param cache:
+    :param destination_bucket:
+    :param destination_key:
+    :return:
+    """
     if not cache and is_dss_bucket(destination_bucket):
         tag_set = {"TagSet": [{"Key": "uncached", "Value": "True"}]}
         try:
             s3.put_object_tagging(Bucket=destination_bucket, Key=destination_key, Tagging=tag_set)
         except ClientError as ex:
-            raise ValueError(f"Could not find s3://{destination_bucket}/{destination_key}") from ex
+            logger.warning("unable to set tagging on uncached object: %s", ex)
 
 
 def join(event, lambda_context):
