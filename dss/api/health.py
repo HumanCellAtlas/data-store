@@ -15,7 +15,7 @@ def _get_es_status(host: str = "localhost", port: int = None):
     """Checks ElasticSearch status, hosts can be specified"""
     try:
         es_status = False
-        es_res = {}
+        es_res = {"status": ""}
         if port is not None:
             es_client = ElasticsearchClient().get()
         else:
