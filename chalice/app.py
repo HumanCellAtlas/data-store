@@ -238,7 +238,7 @@ def get_chalice_app(flask_app) -> DSSChaliceApp:
     @app.route("/internal/health")
     @time_limited(app)
     def health_check(*args, **kwargs):
-        health_status = health.l2_health_checks(**kwargs)
+        health_status = health.l2_health_checks()
         return chalice.Response(status_code=200,
                                 headers={"Content-Type": "application/json"},
                                 body=health_status)

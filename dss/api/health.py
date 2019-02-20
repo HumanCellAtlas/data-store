@@ -74,5 +74,6 @@ def l2_health_checks():
         except requests.exceptions.RequestException:
             health_status['Healthy'] = False
             health_status[key] = 'Error'
-            pass
+    if health_status["Healthy"] is False:
+        logger.warning(health_status)
     return json.dumps(health_status, indent=4, sort_keys=True, default=str)
