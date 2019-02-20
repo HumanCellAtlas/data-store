@@ -45,13 +45,17 @@ resource aws_s3_bucket dss_s3_checkout_bucket {
   lifecycle_rule {
     id = "dss_checkout_expiration"
     enabled = true
-    abort_incomplete_multipart_upload_days = "${var.DSS_BLOB_TTL_DAYS}"
     tags {
       "uncached" = "true"
     }
     expiration {
       days = "${var.DSS_BLOB_TTL_DAYS}"
     }
+  }
+  lifecycle_rule {
+    id = "failed multipart cleanup"
+    enabled = true
+    abort_incomplete_multipart_upload_days = "${var.DSS_BLOB_TTL_DAYS}"
   }
   tags {
     CreatedBy = "Terraform"
