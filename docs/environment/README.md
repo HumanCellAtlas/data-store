@@ -29,6 +29,7 @@ Environment Variable | Description
 `DSS_GS_CHECKOUT_BUCKET_STAGING` | The name of the HCA DSS' checkout bucket in GS on the HCA staging environment.
 `DSS_GS_CHECKOUT_BUCKET_PROD` | The name of the HCA DSS' checkout bucket in GS on the HCA prod environment.
 `DSS_BLOB_TTL_DAYS` | The time to live of an object in cloud storage enforced by the cloud provider's bucket lifecycle poilcy.
+`CHECKOUT_CACHE_CRITERIA` | Specifies which files are cached based on content-type and size.
 `DSS_NOTIFICATION_SENDER` | 
 `ADMIN_USER_EMAILS` | 
 `DCP_DOMAIN` | The domain name of the DSS.
@@ -68,3 +69,5 @@ Environment Variable | Description
 `DSS_GCP_SERVICE_ACCOUNT_NAME` | "travis-test"
 `DSS_CHECKOUT_BUCKET_OBJECT_VIEWERS` | This list manages the GCP Users and serviceAccounts able to access direct URLs on the GS checkout bucket. Other GCP entities must use presigned urls, or checkout to an external GS bucket they have access to. 
 `AWS_SDK_LOAD_CONFIG` | Needed for Terraform to correctly use AWS assumed roles
+`DSS_S3_CHECKOUT_BUCKET_TEST_USER` | S3 bucket representing a non-dss managed user bucket (i.e. testing POST /bundles/{uuid}/checkout)
+`DSS_GS_CHECKOUT_BUCKET_TEST_USER` | GS bucket representing a non-dss managed user bucket (i.e. testing POST /bundles/{uuid}/checkout)

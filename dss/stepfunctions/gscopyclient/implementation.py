@@ -1,10 +1,11 @@
-import json
 import logging
 
 from dss import Config, Replica
 from dss.stepfunctions.lambdaexecutor import TimedThread
 from dss.storage.files import write_file_metadata
 from dss.util.async_state import AsyncStateError
+from dss.storage.checkout.cache_flow import should_cache_file, is_dss_bucket
+from dss.storage.hcablobstore import FileMetadata
 
 logger = logging.getLogger(__name__)
 
@@ -42,6 +43,7 @@ def setup_copy_task(event, lambda_context):
 
 
 def copy_worker(event, lambda_context):
+    """This is what actually does the work of copying the files."""
     class CopyWorkerTimedThread(TimedThread[dict]):
         def __init__(self, timeout_seconds: float, state: dict) -> None:
             super().__init__(timeout_seconds, state)
@@ -58,6 +60,23 @@ def copy_worker(event, lambda_context):
             state = self.get_state_copy()
             src_blob = self.gcp_client.bucket(self.source_bucket).get_blob(self.source_key)
             dst_blob = self.gcp_client.bucket(self.destination_bucket).blob(self.destination_key)
+            content_type = src_blob._get_content_type(None)
+
+            # Files can be checked out to a user bucket or the standard dss checkout bucket.
+            # If a user bucket, files should be unmodified by either the object tagging (AWS)
+            # or storage type changes (Google) used to mark cached objects.
+            cached = should_cache_file(file_metadata={FileMetadata.CONTENT_TYPE: content_type,
+                                                      FileMetadata.SIZE: self.size})
+
+            # TODO: DURABLE_REDUCED_AVAILABILITY is being phased out by Google; use a different method in the future
+            if not cached and is_dss_bucket(self.destination_bucket):
+                # the DURABLE_REDUCED_AVAILABILITY storage class marks (short-lived) non-cached files
+                dst_blob._patch_property('storageClass', 'DURABLE_REDUCED_AVAILABILITY')
+                # setting the storage class explicitly seems like it blanks the content-type, so we add it back
+                dst_blob._patch_property('contentType', content_type)
+
+            # Note: Explicitly include code to cache files as STANDARD?  This is implicitly taken care of by the
+            # bucket's default currently.
 
             while True:
                 response = dst_blob.rewrite(src_blob, token=state.get(_Key.TOKEN, None))
@@ -92,6 +111,7 @@ def _retry_default():
             "BackoffRate": 1.618,
         },
     ]
+
 
 def _catch_default():
     return [
