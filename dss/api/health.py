@@ -4,7 +4,7 @@ from botocore import errorfactory
 import requests
 from flask import json
 from googleapiclient import discovery, errors
-
+from requests.exceptions import ConnectionError
 from dss.index.es import ElasticsearchClient
 from dss.util.aws.clients import dynamodb  # type: ignore
 
@@ -12,18 +12,22 @@ logger = logging.getLogger(__name__)
 
 
 def _get_es_status(host: str = "localhost", port: int = None):
-    es_status = False
-    if port is not None:
-        es_client = ElasticsearchClient().get()
-    else:
-        es_client = ElasticsearchClient()._get(host, port, 1)
-    es_res = es_client.cluster.health()
+    """Checks ElasticSearch status, hosts can be specified"""
+    try:
+            es_status = False
+        if port is not None:
+            es_client = ElasticsearchClient().get()
+        else:
+            es_client = ElasticsearchClient()._get(host, port, 1)
+        es_res = es_client.cluster.health()
+    
     if es_res['status'] == 'green':
         es_status = True
     return es_status, es_res
 
 
 def _get_dynamodb_status():
+    """Checks dynamoDB table status, tables are explicitly specified within the function"""
     db_status = True
     stage = os.getenv("DSS_DEPLOYMENT_STAGE")
     ddb_tables = ["dss-async-state-{}".format(stage),
@@ -44,10 +48,12 @@ def _get_dynamodb_status():
 
 
 def _get_event_relay_status():
+    """Checks Google Cloud Function Event Relay"""
     er_status = False
     try:
         er_name = "projects/{}/locations/{}/functions/{}".format(
-            os.environ["GCP_PROJECT_NAME"], os.environ["GCP_DEFAULT_REGION"], os.environ["DSS_EVENT_RELAY_NAME"])
+            os.environ["GCP_PROJECT_NAME"], os.environ["GCP_DEFAULT_REGION"],
+            os.environ["DSS_EVENT_RELAY_NAME"] + os.environ["DSS_DEPLOYMENT_STAGE"])
         service = discovery.build('cloudfunctions', 'v1', cache_discovery=False)
         er_res = service.projects().locations().functions().get(name=er_name).execute()
         if er_res['status'] == 'ACTIVE':
@@ -76,4 +82,4 @@ def l2_health_checks():
             health_status[key] = 'Error'
     if health_status["Healthy"] is False:
         logger.warning(health_status)
-    return json.dumps(health_status, indent=4, sort_keys=True, default=str)
+    return health_status
