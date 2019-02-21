@@ -7,7 +7,7 @@ import typing
 import nestedcontext
 import requests
 from cloud_blobstore import BlobNotFoundError, BlobStore, BlobStoreTimeoutError
-from flask import jsonify, redirect, request
+from flask import jsonify, redirect, request, make_response
 
 from dss import DSSException, dss_handler, DSSForbiddenException
 from dss.config import Config, Replica
@@ -34,10 +34,12 @@ ADMIN_USER_EMAILS = set(os.environ['ADMIN_USER_EMAILS'].split(','))
 def get(
         uuid: str,
         replica: str,
+        per_page: int,
         version: str = None,
         directurls: bool = False,
         presignedurls: bool = False,
         token: str = None,
+        start_at: int = 0,
 ):
     if directurls and presignedurls:
         raise DSSException(
@@ -65,8 +67,29 @@ def get(
             headers['Retry-After'] = RETRY_AFTER_INTERVAL
             return response
 
+    files = bundle_metadata[BundleMetadata.FILES]
+    if start_at > 0:
+        files = files[start_at:]
+    link = None
+    if len(files) > per_page:
+        files = files[:per_page]
+        next_url = (UrlBuilder().set(path=f"v1/bundles/{uuid}")
+                               .add_query("replica", _replica.name)
+                               .add_query("per_page", str(per_page))
+                               .add_query("start_at", str(start_at + per_page)))
+        if directurls:
+            next_url.add_query("directurls", directurls)
+        if version is not None:
+            next_url.add_query("version", version)
+        if presignedurls:
+            next_url.add_query("presignedurls", presignedurls)
+        if token is not None:
+            next_url.add_query("token", token)
+        next_url = str(next_url)
+        link = f"<{next_url}>; rel='next'"
+
     filesresponse = []  # type: typing.List[dict]
-    for file in bundle_metadata[BundleMetadata.FILES]:
+    for file in files:
         file_version = {
             'name': file[BundleFileMetadata.NAME],
             'content-type': file[BundleFileMetadata.CONTENT_TYPE],
@@ -99,7 +122,7 @@ def get(
             )
         filesresponse.append(file_version)
 
-    return dict(
+    response_body = dict(
         bundle=dict(
             uuid=uuid,
             version=bundle_metadata[BundleMetadata.VERSION],
@@ -107,6 +130,13 @@ def get(
             creator_uid=bundle_metadata[BundleMetadata.CREATOR_UID],
         )
     )
+
+    if link is None:
+        return response_body
+    else:
+        response = make_response(jsonify(response_body), requests.codes.partial)
+        response.headers['Link'] = link
+        return response
 
 
 @dss_handler

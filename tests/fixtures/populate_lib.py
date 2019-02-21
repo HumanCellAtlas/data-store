@@ -154,6 +154,12 @@ def upload(uploader: Uploader):
             "text/plain",
         )
 
+    # Create a large bundle manifest to test GET /bundle paging
+    uploader.upload_file(
+        "7f8c686d-a439-4376-b367-ac93fc28df43.2019-02-21T184000.899031Z",
+        "bundles/7f8c686d-a439-4376-b367-ac93fc28df43.2019-02-21T184000.899031Z"
+    )
+
     # Create an index test bundle that includes a file of with content-type
     # 'application/json' yet cannot be parsed with json.
     # Include that file along with other valid files to ensure the

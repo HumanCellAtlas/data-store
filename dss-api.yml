@@ -1224,6 +1224,18 @@ paths:
       description: >
         Given a bundle UUID, return the latest version of that bundle.  If the version is provided, that version of the
         bundle is returned instead.
+
+        # Pagination
+
+        The DSS API supports pagination in a manner consistent with the
+        [GitHub API](https://developer.github.com/v3/guides/traversing-with-pagination/),
+        which is based on [RFC 5988](https://tools.ietf.org/html/rfc5988). When the results of an API call exceed the
+        page size specified, the HTTP response will contain a `Link` header of the following form:
+        `Link: <https://dss.data.humancellatlas.org/v1/search?replica=aws&per_page=100&start_at=123>; rel="next"`.
+        The URL in the header refers to the next page of the results to be fetched; if no `Link rel="next"` URL is
+        included, then all results have been fetched. The client should recognize and parse the `Link` header
+        appropriately according to RFC 5988, and retrieve the next page if requested by the user, or if all results
+        are being retrieved.
       parameters:
         - name: uuid
           in: path
@@ -1259,6 +1271,25 @@ paths:
           description: Token to manage retries.  End users constructing queries should not set this parameter.
           required: false
           type: string
+        - name: per_page
+          in: query
+          description: Max number of results to return per page. When using `output_format raw` the `per_page` size is
+            limit to no more than 10 to avoid excessively large response sizes.
+          required: false
+          type: integer
+          format: int32
+          minimum: 10
+          maximum: 500
+          default: 500
+        - name: start_at
+          in: query
+          description: >
+            **Search-After-Context**.
+            An internal state pointer parameter for use with pagination. This parameter is referenced by the `Link`
+            header as described in the "Pagination" section. The API client should not need to set this parameter
+            directly; it should instead directly fetch the URL given in the `Link` header.
+          required: false
+          type: integer
       responses:
         200:
           description: OK
