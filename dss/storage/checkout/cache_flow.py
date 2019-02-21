@@ -19,8 +19,8 @@ Metadata Caching RFC: https://docs.google.com/document/d/1PQBO5qYUVJFAXFNaMdgxq8
 
 
 def is_dss_bucket(dst_bucket: str):
-    return dst_bucket in (os.environ['DSS_GS_CHECKOUT_BUCKET_TEST'], os.environ['DSS_S3_CHECKOUT_BUCKET_TEST'],
-                          os.environ['DSS_S3_CHECKOUT_BUCKET'], os.environ['DSS_GS_CHECKOUT_BUCKET'])
+    """Lambdas only have access to the standard checkout buckets, should not modify non-DSS buckets"""
+    return dst_bucket in (os.environ['DSS_S3_CHECKOUT_BUCKET'], os.environ['DSS_GS_CHECKOUT_BUCKET'])
 
 
 def should_cache_file(file_metadata: dict):

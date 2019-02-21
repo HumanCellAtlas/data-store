@@ -5,6 +5,7 @@ import sys
 import unittest
 import tempfile
 from google.cloud import storage
+from unittest import mock
 
 pkg_root = os.path.abspath(os.path.join(os.path.dirname(__file__), '..'))  # noqa
 sys.path.insert(0, pkg_root)  # noqa
@@ -39,24 +40,32 @@ class TestCheckoutCaching(unittest.TestCase, DSSAssertMixin, DSSUploadMixin):
 
     def setUp(self):
         Config.set_config(BucketConfig.TEST)
+        self.aws_checkout_bucket = os.environ['DSS_S3_CHECKOUT_BUCKET']
+        self.gs_checkout_bucket = os.environ['DSS_GS_CHECKOUT_BUCKET']
 
+    @mock.patch("dss.stepfunctions.s3copyclient.implementation.is_dss_bucket")
     @testmode.standalone
-    def test_aws_uncached_checkout_creates_tag(self):
+    def test_aws_uncached_checkout_creates_tag(self, mock_check):
         """
         Uncached files are tagged with {"uncached":"True"}
         This identifies them to be deleted by TTL rules.
         """
+        mock_check.return_value = True
         src_data = os.urandom(1024)
-        tagging = self._test_aws_cache(src_data, 'binary/octet')
+        tagging = self._test_aws_cache(src_data=src_data, content_type='binary/octet',
+                                       checkout_bucket=Replica.aws.checkout_bucket)
         self.assertIn('uncached', tagging.keys())
 
+    @mock.patch("dss.stepfunctions.s3copyclient.implementation.is_dss_bucket")
     @testmode.standalone
-    def test_aws_cached_checkout_doesnt_create_tag(self):
+    def test_aws_cached_checkout_doesnt_create_tag(self, mock_check):
         """
         Cached files do not have any tagging on AWS.
         """
+        mock_check.return_value = True
         src_data = os.urandom(1024)
-        tagging = self._test_aws_cache(src_data, 'application/json')
+        tagging = self._test_aws_cache(src_data=src_data, content_type='application/json',
+                                       checkout_bucket=Replica.aws.checkout_bucket)
         self.assertNotIn('uncached', tagging.keys())
 
     def test_aws_user_checkout_doesnt_create_tag(self):
@@ -66,15 +75,15 @@ class TestCheckoutCaching(unittest.TestCase, DSSAssertMixin, DSSUploadMixin):
         pass
         src_data = os.urandom(1024)
         # cached data check
-        tagging = self._test_aws_cache(src_data, 'application/json',
+        tagging = self._test_aws_cache(src_data=src_data, content_type='application/json',
                                        checkout_bucket=os.environ['DSS_S3_CHECKOUT_BUCKET_TEST_USER'])
         self.assertNotIn('uncached', tagging.keys())
         # uncached data check
-        tagging = self._test_aws_cache(src_data, 'binary/octet',
+        tagging = self._test_aws_cache(src_data=src_data, content_type='binary/octet',
                                        checkout_bucket=os.environ['DSS_S3_CHECKOUT_BUCKET_TEST_USER'])
         self.assertNotIn('uncached', tagging.keys())
 
-    def _test_aws_cache(self, src_data: bytes, content_type: str, checkout_bucket: str = None):
+    def _test_aws_cache(self, src_data, content_type, checkout_bucket):
         replica = Replica.aws
         checkout_bucket = checkout_bucket if checkout_bucket else replica.checkout_bucket
         test_src_key = infra.generate_test_key()
@@ -93,7 +102,7 @@ class TestCheckoutCaching(unittest.TestCase, DSSAssertMixin, DSSUploadMixin):
         event = s3copyclient.implementation.setup_copy_task(event, None)
         spoof_context = self.SpoofContext()
         # parameters of copy_worker are arbitrary, only passed because required.
-        event = s3copyclient.implementation.copy_worker(event, spoof_context, 1)
+        event = s3copyclient.implementation.copy_worker(event, spoof_context, 10)
         # verify
         tagging = s3_blobstore.get_user_metadata(checkout_bucket, test_dst_key)
         # cleanup
@@ -101,24 +110,30 @@ class TestCheckoutCaching(unittest.TestCase, DSSAssertMixin, DSSUploadMixin):
         s3_blobstore.delete(checkout_bucket, test_dst_key)
         return tagging
 
+    @mock.patch("dss.stepfunctions.gscopyclient.implementation.is_dss_bucket")
     @testmode.standalone
-    def test_google_cached_checkout_creates_multiregional_storage_type(self):
+    def test_google_cached_checkout_creates_multiregional_storage_type(self, mock_check):
         """
         Verifies that long-lived Google cached objects are of the STANDARD type.
         MULTI_REGIONAL is an alias for STANDARD type
         """
+        mock_check.return_value = True
         src_data = os.urandom(1024)
-        blob_type = self._test_gs_cache(src_data, 'application/json')
+        blob_type = self._test_gs_cache(src_data=src_data, content_type='application/json',
+                                        checkout_bucket=Replica.gcp.checkout_bucket)
         self.assertEqual('MULTI_REGIONAL', blob_type)
 
+    @mock.patch("dss.stepfunctions.gscopyclient.implementation.is_dss_bucket")
     @testmode.standalone
-    def test_google_uncached_checkout_creates_durable_storage_type(self):
+    def test_google_uncached_checkout_creates_durable_storage_type(self, mock_check):
         """
         Verifies object level tagging of short-lived files.
         Verifies that short-lived Google cached objects are of the DURABLE_REDUCED_AVAILABILITY type.
         """
+        mock_check.return_value = True
         src_data = os.urandom(1024)
-        blob_type = self._test_gs_cache(src_data, 'binary/octet')
+        blob_type = self._test_gs_cache(src_data=src_data, content_type='binary/octet',
+                                        checkout_bucket=Replica.gcp.checkout_bucket)
         self.assertEqual('DURABLE_REDUCED_AVAILABILITY', blob_type)
 
     def test_google_user_checkout_creates_multiregional_storage_type(self):
@@ -131,15 +146,15 @@ class TestCheckoutCaching(unittest.TestCase, DSSAssertMixin, DSSUploadMixin):
         pass
         src_data = os.urandom(1024)
         # cached data check
-        blob_type = self._test_gs_cache(src_data, 'application/json',
+        blob_type = self._test_gs_cache(src_data=src_data, content_type='application/json',
                                         checkout_bucket=os.environ['DSS_GS_CHECKOUT_BUCKET_TEST_USER'])
         self.assertEqual('MULTI_REGIONAL', blob_type)
         # uncached data check
-        blob_type = self._test_gs_cache(src_data, 'binary/octet',
+        blob_type = self._test_gs_cache(src_data=src_data, content_type='binary/octet',
                                         checkout_bucket=os.environ['DSS_GS_CHECKOUT_BUCKET_TEST_USER'])
         self.assertEqual('MULTI_REGIONAL', blob_type)
 
-    def _test_gs_cache(self, src_data: bytes, content_type: str, checkout_bucket: str = None):
+    def _test_gs_cache(self, src_data, content_type, checkout_bucket):
         replica = Replica.gcp
         checkout_bucket = checkout_bucket if checkout_bucket else replica.checkout_bucket
         test_src_key = infra.generate_test_key()
