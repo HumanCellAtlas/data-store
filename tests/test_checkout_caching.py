@@ -40,8 +40,6 @@ class TestCheckoutCaching(unittest.TestCase, DSSAssertMixin, DSSUploadMixin):
 
     def setUp(self):
         Config.set_config(BucketConfig.TEST)
-        self.aws_checkout_bucket = os.environ['DSS_S3_CHECKOUT_BUCKET']
-        self.gs_checkout_bucket = os.environ['DSS_GS_CHECKOUT_BUCKET']
 
     @mock.patch("dss.stepfunctions.s3copyclient.implementation.is_dss_bucket")
     @testmode.standalone
@@ -72,7 +70,6 @@ class TestCheckoutCaching(unittest.TestCase, DSSAssertMixin, DSSUploadMixin):
         """
         Ensures that data is only cached when in a DSS-controlled bucket
         """
-        pass
         src_data = os.urandom(1024)
         # cached data check
         tagging = self._test_aws_cache(src_data=src_data, content_type='application/json',
@@ -143,7 +140,7 @@ class TestCheckoutCaching(unittest.TestCase, DSSAssertMixin, DSSUploadMixin):
         unnecessarily when they don't need caching.
         """
         # Note: The STANDARD storage type is also an alias for MULTI_REGIONAL.
-        pass
+
         src_data = os.urandom(1024)
         # cached data check
         blob_type = self._test_gs_cache(src_data=src_data, content_type='application/json',

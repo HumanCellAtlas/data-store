@@ -19,7 +19,7 @@ Metadata Caching RFC: https://docs.google.com/document/d/1PQBO5qYUVJFAXFNaMdgxq8
 
 
 def is_dss_bucket(dst_bucket: str):
-    """Lambdas only have access to the standard checkout buckets, should not modify non-DSS buckets"""
+    """Function checks if the passed bucket is managed by the DSS"""
     return dst_bucket in (os.environ['DSS_S3_CHECKOUT_BUCKET'], os.environ['DSS_GS_CHECKOUT_BUCKET'])
 
 
