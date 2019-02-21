@@ -2,4 +2,5 @@ requests_oauthlib
 oauthlib
 google_auth_oauthlib
 coverage
+sphinx
 -r requirements.txt

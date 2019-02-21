@@ -45,6 +45,12 @@ To do this, your application should define an access control model consisting of
 
 Installing and configuring Fusillade
 ------------------------------------
+ 
+- pip install -r ./requirements-dev
+- brew install jq
+- brew install pandoc
+- brew install gettext
+- brew link --force gettext 
 
 Using Fusillade as a service
 ----------------------------
