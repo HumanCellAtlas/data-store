@@ -16,6 +16,7 @@ export DSS_HOME="$(cd -P "$(dirname "$SOURCE")" && pwd)"
 
 EXPORT_ENV_VARS_TO_LAMBDA_ARRAY=(
     API_DOMAIN_NAME
+    CHECKOUT_CACHE_CRITERIA
     DSS_AUTHORIZED_DOMAINS
     DSS_BLOB_PUBLIC_TTL_DAYS
     DSS_BLOB_TTL_DAYS
@@ -46,6 +47,7 @@ AWS_DEFAULT_REGION=us-east-1
 GCP_DEFAULT_REGION=us-central1
 GCP_PROJECT_NAME=human-cell-atlas-travis-test
 DSS_EVENT_RELAY_NAME=dss-gs-event-relay-
+CHECKOUT_CACHE_CRITERIA='[{"type":"application/json","max_size":12314}]'
 DSS_S3_BUCKET=org-humancellatlas-dss-dev
 DSS_S3_BUCKET_TEST=org-hca-dss-test
 DSS_S3_BUCKET_TEST_FIXTURES=org-hca-dss-test-fixtures
@@ -54,6 +56,7 @@ DSS_S3_BUCKET_STAGING=org-humancellatlas-dss-staging
 DSS_S3_BUCKET_PROD=org-hca-dss-prod
 DSS_S3_CHECKOUT_BUCKET=org-humancellatlas-dss-checkout-dev
 DSS_S3_CHECKOUT_BUCKET_TEST=org-hca-dss-checkout-test
+DSS_S3_CHECKOUT_BUCKET_TEST_USER=org-hca-dss-checkout-test-user  # for tests w/non-dss managed user bucket (i.e. POST /bundles/{uuid}/checkout)
 DSS_S3_CHECKOUT_BUCKET_UNWRITABLE=org-hca-dss-checkout-unwritable
 DSS_S3_CHECKOUT_BUCKET_INTEGRATION=org-humancellatlas-dss-checkout-integration
 DSS_S3_CHECKOUT_BUCKET_STAGING=org-humancellatlas-dss-checkout-staging
@@ -66,6 +69,7 @@ DSS_GS_BUCKET_STAGING=org-humancellatlas-dss-staging
 DSS_GS_BUCKET_PROD=org-hca-dss-prod
 DSS_GS_CHECKOUT_BUCKET=org-humancellatlas-dss-checkout-dev
 DSS_GS_CHECKOUT_BUCKET_TEST=org-hca-dss-checkout-test
+DSS_GS_CHECKOUT_BUCKET_TEST_USER=org-hca-dss-checkout-test-user  # for tests w/non-dss managed user bucket (i.e. POST /bundles/{uuid}/checkout)
 DSS_GS_CHECKOUT_BUCKET_INTEGRATION=org-humancellatlas-dss-checkout-integration
 DSS_GS_CHECKOUT_BUCKET_STAGING=org-humancellatlas-dss-checkout-staging
 DSS_GS_CHECKOUT_BUCKET_PROD=org-hca-dss-checkout-prod
