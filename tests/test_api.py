@@ -95,9 +95,9 @@ class TestApi(unittest.TestCase, DSSAssertMixin, DSSUploadMixin, DSSStorageMixin
                     self.put_bundles_reponse(good_path, replica, expected_code=[requests.codes.ok, requests.codes.created])
 
     def get_test_fixture_bucket(self, replica: Replica) -> str:
-        if replica == Replica.aws:
+        if replica == 'aws':
             bucket = get_env("DSS_S3_BUCKET_TEST_FIXTURES")
-        elif replica == Replica.gcp:
+        elif replica == 'gcp':
             bucket = get_env("DSS_GS_BUCKET_TEST_FIXTURES")
         return bucket
 
