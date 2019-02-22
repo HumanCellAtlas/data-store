@@ -1385,7 +1385,7 @@ paths:
                     name:
                       description: Name of the file.
                       type: string
-                      pattern: "(?=^((?!\\.\\/).)*$)(?=^((?!\\/\\.).)*$)(?=^(?!\\.).*$)"
+                      pattern: "(?=^((?!\\.\\/).)*$)(?=^((?!\\/\\.).)*$)(?=^(?!\\/).*$)(?=^(?!~\\/).*$)(?=^(?!\\.\\.$).*)(?=^(?!\\.$).*)"
                     indexed:
                       description: True iff this file should be indexed.
                       type: boolean

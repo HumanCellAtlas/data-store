@@ -70,6 +70,60 @@ class TestApi(unittest.TestCase, DSSAssertMixin, DSSUploadMixin, DSSStorageMixin
         self.assertEquals(res.json['version_info']['version'], os.environ['DSS_VERSION'])
 
     @testmode.standalone
+    def test_put_file_pattern(self):
+        """
+        Tests the regex pattern filtering on the PUT file/{uuid} endpoint.
+
+        Ensures that paths with leading slashes (absolute paths) and
+        relative path shortcuts (".", "~/", and "..") are disallowed.
+        """
+
+        examples_of_bad_paths = ['.', '..',
+                                 '~/path',
+                                 './', '../', './path', './../path', '../path', '../../path',
+                                 'path/../path', 'path/..',
+                                 '/path', '/path.json', '/bad..path']
+
+        examples_of_good_paths = ['path', 'path.json', 'good..path', 'path.json/', 'good..path/',
+                                  'pa/th.json', 'go/od..path', 'a/b/c/d', 'a/b.c/d', '.bashrc']
+
+        for path, replica in [("files", "aws"), ("files", "gcp")]:
+            with self.subTest(path=path, replica=replica):
+                for bad_path in examples_of_bad_paths:
+                    self.put_file_reponse(bad_path, replica, expected_code=requests.codes.bad_request)
+                for good_path in examples_of_good_paths:
+                    self.put_file_reponse(good_path, replica, expected_code=requests.codes.ok)
+
+    def put_file_reponse(self, path, replica, expected_code):
+        uuid = "xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx"
+        version = datetime_to_version_format(datetime.datetime.utcnow())
+        f = [{'indexed': False,
+              'name': path,
+              'uuid': uuid,
+              'version': version}]
+        body = dict(
+            files=f,
+            creator_uid=12345,
+            es_query={},
+            callback_url="https://take.me.to.funkytown",
+            source_url="s3://urlurlurlbaby",
+            description="supercalifragilisticexpialidocious",
+            details={},
+            reason="none",
+            contents=[],
+            name="frank",
+        )
+        put_url = str(UrlBuilder().set(path=f"/v1/{path}/{uuid}")
+                      .add_query("version", version)
+                      .add_query("replica", replica))
+        json_request_body = body.copy()
+
+        self.assertPutResponse(put_url,
+                               expected_code,
+                               json_request_body=json_request_body,
+                               headers=get_auth_header())
+
+    @testmode.standalone
     def test_read_only(self):
         uuid = "xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx"
         body = dict(
@@ -145,6 +199,7 @@ class TestApi(unittest.TestCase, DSSAssertMixin, DSSUploadMixin, DSSStorageMixin
                         )
         finally:
             del os.environ['DSS_READ_ONLY_MODE']
+
 
 if __name__ == '__main__':
     unittest.main()
