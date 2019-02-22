@@ -1,6 +1,7 @@
 import json
 import os
 import typing
+import logging
 
 import functools
 import traceback
@@ -10,6 +11,9 @@ import werkzeug.exceptions
 from connexion.lifecycle import ConnexionResponse
 from flask import request
 from flask import Response as FlaskResponse
+
+
+logger = logging.getLogger(__name__)
 
 
 class DSSException(Exception):
@@ -71,6 +75,7 @@ def dss_handler(func):
                 title = str(ex)
                 stacktrace = traceback.format_exc()
                 headers = None
+            logger.error(stacktrace)
         else:
             status = requests.codes.unavailable
             code = "read_only"
