@@ -8,7 +8,7 @@ import datetime
 import os
 import sys
 import unittest
-
+import uuid as u
 import requests
 
 pkg_root = os.path.abspath(os.path.join(os.path.dirname(__file__), '..'))  # noqa
@@ -87,41 +87,53 @@ class TestApi(unittest.TestCase, DSSAssertMixin, DSSUploadMixin, DSSStorageMixin
         examples_of_good_paths = ['path', 'path.json', 'good..path', 'path.json/', 'good..path/',
                                   'pa/th.json', 'go/od..path', 'a/b/c/d', 'a/b.c/d', '.bashrc']
 
-        for path, replica in [("files", "aws"), ("files", "gcp")]:
+        for path, replica in [("bundles", "aws"), ("bundles", "gcp")]:
             with self.subTest(path=path, replica=replica):
                 for bad_path in examples_of_bad_paths:
-                    self.put_file_reponse(bad_path, replica, expected_code=requests.codes.bad_request)
+                    self.put_bundles_reponse(bad_path, replica, expected_code=[requests.codes.bad_request])
                 for good_path in examples_of_good_paths:
-                    self.put_file_reponse(good_path, replica, expected_code=requests.codes.ok)
+                    self.put_bundles_reponse(good_path, replica, expected_code=[requests.codes.ok, requests.codes.created])
 
-    def put_file_reponse(self, path, replica, expected_code):
-        uuid = "xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx"
-        version = datetime_to_version_format(datetime.datetime.utcnow())
-        f = [{'indexed': False,
-              'name': path,
-              'uuid': uuid,
-              'version': version}]
-        body = dict(
-            files=f,
-            creator_uid=12345,
-            es_query={},
-            callback_url="https://take.me.to.funkytown",
-            source_url="s3://urlurlurlbaby",
-            description="supercalifragilisticexpialidocious",
-            details={},
-            reason="none",
-            contents=[],
-            name="frank",
+    def get_test_fixture_bucket(self, replica: Replica) -> str:
+        return 'org-hca-dss-test-fixtures'
+
+    def put_bundles_reponse(self, path, replica, expected_code):
+        fixtures_bucket = self.get_test_fixture_bucket(replica)
+        file_version = datetime_to_version_format(datetime.datetime.utcnow())
+        bundle_version = datetime_to_version_format(datetime.datetime.utcnow())
+        bundle_uuid = str(u.uuid4())
+        file_uuid = str(u.uuid4())
+        storage_schema = 's3' if replica == 'aws' else 'gs'
+
+        self.upload_file_wait(
+            f"{storage_schema}://{fixtures_bucket}/test_good_source_data/0",
+            replica,
+            file_uuid,
+            file_version=file_version,
+            bundle_uuid=bundle_uuid
         )
-        put_url = str(UrlBuilder().set(path=f"/v1/{path}/{uuid}")
-                      .add_query("version", version)
-                      .add_query("replica", replica))
-        json_request_body = body.copy()
 
-        self.assertPutResponse(put_url,
-                               expected_code,
-                               json_request_body=json_request_body,
-                               headers=get_auth_header())
+        builder = UrlBuilder().set(path="/v1/bundles/" + bundle_uuid)
+        builder.add_query("replica", replica)
+        builder.add_query("version", bundle_version)
+        url = str(builder)
+
+        self.assertPutResponse(
+            url,
+            expected_code,
+            json_request_body=dict(
+                files=[
+                    dict(
+                        uuid=file_uuid,
+                        version=file_version,
+                        name=path,
+                        indexed=False,
+                    )
+                ],
+                creator_uid=12345,
+            ),
+            headers=get_auth_header()
+        )
 
     @testmode.standalone
     def test_read_only(self):
