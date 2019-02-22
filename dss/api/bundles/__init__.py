@@ -74,18 +74,17 @@ def get(
     if len(files) > per_page:
         files = files[:per_page]
         next_url = (UrlBuilder().set(path=f"v1/bundles/{uuid}")
-                               .add_query("replica", _replica.name)
-                               .add_query("per_page", str(per_page))
-                               .add_query("start_at", str(start_at + per_page)))
+                    .add_query("replica", _replica.name)
+                    .add_query("per_page", str(per_page))
+                    .add_query("start_at", str(start_at + per_page)))
         if directurls:
-            next_url.add_query("directurls", directurls)
+            next_url.add_query("directurls", "true")
         if version is not None:
             next_url.add_query("version", version)
         if presignedurls:
-            next_url.add_query("presignedurls", presignedurls)
+            next_url.add_query("presignedurls", "true")
         if token is not None:
             next_url.add_query("token", token)
-        next_url = str(next_url)
         link = f"<{next_url}>; rel='next'"
 
     filesresponse = []  # type: typing.List[dict]

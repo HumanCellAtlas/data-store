@@ -119,7 +119,11 @@ class TestBundleApi(unittest.TestCase, TestAuthMixin, DSSAssertMixin, DSSUploadM
             self._test_bundle_get_paging(Replica.aws, list(), 501, codes=requests.codes.bad_request)
             self._test_bundle_get_paging(Replica.gcp, list(), 501, codes=requests.codes.bad_request)
 
-    def _test_bundle_get_paging(self, replica: Replica, expected_files: list, per_page: int, codes={requests.codes.ok, requests.codes.partial}):
+    def _test_bundle_get_paging(self,
+                                replica: Replica,
+                                expected_files: list,
+                                per_page: int,
+                                codes={requests.codes.ok, requests.codes.partial}):
         replica = Replica.aws
         bundle_uuid = "7f8c686d-a439-4376-b367-ac93fc28df43"
         version = "2019-02-21T184000.899031Z"
@@ -127,7 +131,7 @@ class TestBundleApi(unittest.TestCase, TestAuthMixin, DSSAssertMixin, DSSUploadM
         url = str(UrlBuilder()
                   .set(path="/v1/bundles/" + bundle_uuid)
                   .add_query("replica", replica.name)
-                  .add_query("per_page", per_page)
+                  .add_query("per_page", str(per_page))
                   .add_query("version", version))
 
         with override_bucket_config(BucketConfig.TEST_FIXTURE):
@@ -136,7 +140,7 @@ class TestBundleApi(unittest.TestCase, TestAuthMixin, DSSAssertMixin, DSSUploadM
         if not expected_files:
             return
 
-        files = list()
+        files = list()  # type: ignore
         files.extend(resp_obj.json['bundle']['files'])
 
         with override_bucket_config(BucketConfig.TEST_FIXTURE):
