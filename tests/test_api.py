@@ -18,7 +18,7 @@ from dss.config import Replica
 import dss
 from dss.util import UrlBuilder
 from dss.util.version import datetime_to_version_format
-from tests.infra import DSSAssertMixin, DSSUploadMixin, DSSStorageMixin, TestBundle, testmode
+from tests.infra import DSSAssertMixin, DSSUploadMixin, DSSStorageMixin, TestBundle, testmode, get_env
 from tests.infra.server import ThreadedLocalServer
 from tests import get_auth_header
 
@@ -95,7 +95,11 @@ class TestApi(unittest.TestCase, DSSAssertMixin, DSSUploadMixin, DSSStorageMixin
                     self.put_bundles_reponse(good_path, replica, expected_code=[requests.codes.ok, requests.codes.created])
 
     def get_test_fixture_bucket(self, replica: Replica) -> str:
-        return 'org-hca-dss-test-fixtures'
+        if replica == Replica.aws:
+            bucket = get_env("DSS_S3_BUCKET_TEST_FIXTURES")
+        elif replica == Replica.gcp:
+            bucket = get_env("DSS_GS_BUCKET_TEST_FIXTURES")
+        return bucket
 
     def put_bundles_reponse(self, path, replica, expected_code):
         fixtures_bucket = self.get_test_fixture_bucket(replica)
