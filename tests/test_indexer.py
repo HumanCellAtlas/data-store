@@ -481,10 +481,10 @@ class TestIndexerBase(ElasticsearchTestCase, DSSAssertMixin, DSSStorageMixin, DS
         self.delete_subscription(subscription_id_tombstone)
 
     def delete_subscription(self, subscription_id):
-        self.assertDeleteResponse(
-            str(UrlBuilder().set(path=f"/v1/subscriptions/{subscription_id}").add_query("replica", self.replica.name)),
-            requests.codes.ok,
-            headers=get_auth_header())
+        url = str(UrlBuilder().set(path=f"/v1/subscriptions/{subscription_id}")
+                  .add_query("replica", self.replica.name)
+                  .add_query("subscription_type", "elasticsearch"))
+        self.assertDeleteResponse(url, requests.codes.ok, headers=get_auth_header())
 
     @testmode.always
     def test_subscription_notification_successful(self):
@@ -997,7 +997,8 @@ class TestIndexerBase(ElasticsearchTestCase, DSSAssertMixin, DSSStorageMixin, DS
     def subscribe_for_notification(self, **body):
         url = str(UrlBuilder()
                   .set(path="/v1/subscriptions")
-                  .add_query("replica", self.replica.name))
+                  .add_query("replica", self.replica.name)
+                  .add_query("subscription_type", "elasticsearch"))
         resp_obj = self.assertPutResponse(url,
                                           requests.codes.created,
                                           json_request_body=body,

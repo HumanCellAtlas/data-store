@@ -564,7 +564,7 @@ paths:
           in: query
           description: type of subscriptions to fetch (elasticsearch or jmespath)
           required: false
-          default: elasticsearch
+          default: jmespath
           type: string
           enum: [elasticsearch, jmespath]
       responses:
@@ -828,7 +828,7 @@ paths:
           in: query
           description: type of subscriptions to fetch (elasticsearch or jmespath)
           required: false
-          default: elasticsearch
+          default: jmespath
           type: string
           enum: [elasticsearch, jmespath]
       responses:
@@ -876,7 +876,7 @@ paths:
           in: query
           description: type of subscriptions to fetch (elasticsearch or jmespath)
           required: false
-          default: elasticsearch
+          default: jmespath
           type: string
           enum: [elasticsearch, jmespath]
       responses:
