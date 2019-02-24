@@ -141,8 +141,9 @@
       "Effect": "Allow",
       "Action": [
         "dynamodb:ListTables",
-        "dynamodb:Query"
-      ],
+        "dynamodb:Query",
+        "dynamodb:DescribeTable"
+	],
       "Resource": "*"
     },
     {

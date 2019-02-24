@@ -21,6 +21,7 @@ sys.path.insert(0, pkg_root)  # noqa
 from dss import BucketConfig, Config, DeploymentStage, create_app
 from dss.logging import configure_lambda_logging
 from dss.util.tracing import DSS_XRAY_TRACE
+from dss.api import health
 
 if DSS_XRAY_TRACE:  # noqa
     from aws_xray_sdk.core import xray_recorder
@@ -236,10 +237,12 @@ def get_chalice_app(flask_app) -> DSSChaliceApp:
 
     @app.route("/internal/health")
     @time_limited(app)
-    def health():
+    def health_check(*args, **kwargs):
+        health_status = health.l2_health_checks()
+        health_res = {k: v for k, v in health_status.items() if k is "Healthy"}
         return chalice.Response(status_code=200,
-                                headers={"Content-Type": "text/html"},
-                                body="OK")
+                                headers={"Content-Type": "application/json"},
+                                body=json.dumps(health_res, indent=4, sort_keys=True, default=str))
 
     @app.route("/internal/slow_request", methods=["GET"])
     @time_limited(app)
