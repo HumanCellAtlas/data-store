@@ -615,10 +615,11 @@ class TestFileApi(unittest.TestCase, TestAuthMixin, DSSUploadMixin, DSSAssertMix
         # we only use one (AWS) replica b/c we're only testing the API endpoint pattern
         replica = Replica.aws
         for bad_path in examples_of_bad_paths:
-            with self.subTest(path="bundles", replica=replica):
+            with self.subTest(path=bad_path, replica=replica.name, expected_code=[requests.codes.bad_request]):
                 self.put_bundles_reponse(bad_path, replica=replica, expected_code=[requests.codes.bad_request])
         for good_path in examples_of_good_paths:
-            with self.subTest(path="bundles", replica=replica):
+            with self.subTest(path=good_path, replica=replica.name, expected_code=[requests.codes.ok,
+                                                                                   requests.codes.created]):
                 self.put_bundles_reponse(good_path, replica=replica, expected_code=[requests.codes.ok,
                                                                                     requests.codes.created])
 

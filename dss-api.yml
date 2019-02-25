@@ -1383,7 +1383,11 @@ paths:
                       type: string
                       format: DSS_VERSION
                     name:
-                      description: Name of the file.
+                      description: >
+                        Name of the file.
+
+                        - Absolute paths (beginning with a slash) are not allowed.
+                        - Relative paths must not have unix shortcuts (i.e. ".", "..", "~/")
                       type: string
                       pattern: "^(\\.?[\\w\\d][\\w\\d\\s.]*)+((\\.?[\\w\\d][\\w\\d\\s.]*)|\\/)*$"
                     indexed:
