@@ -1838,7 +1838,7 @@ definitions:
         description: >
           The subscriber\'s URL. An HTTP request is made to the specified URL for every attempt to deliver
           a notification to the subscriber. If the HTTP response code is 2XX, the delivery attempt is
-          considered successful and no more attemtpts will be made. Otherwise, more attempts will be made with
+          considered successful and no more attempts will be made. Otherwise, more attempts will be made with
           an exponentially increasing delay between attempts, until an attempt is successful or the a maximum
           number of attempts is reached.
         type: string
