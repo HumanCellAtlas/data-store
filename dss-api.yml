@@ -51,7 +51,7 @@ info:
 
     ```
 
-    # Subscrptions
+    # Subscriptions
 
     DSS supports webhook subscriptions for data events like bundle creation and deletion. Webhooks are callbacks to a public
     HTTPS endpoint provided by your application. When an event matching your subscription occurs, DSS will send a push
