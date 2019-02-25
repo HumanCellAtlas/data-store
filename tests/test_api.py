@@ -1,6 +1,5 @@
 #!/usr/bin/env python
 # coding: utf-8
-
 """
 Functional Test of the API
 """
@@ -8,7 +7,6 @@ import datetime
 import os
 import sys
 import unittest
-import uuid as u
 import requests
 
 pkg_root = os.path.abspath(os.path.join(os.path.dirname(__file__), '..'))  # noqa
@@ -18,7 +16,7 @@ from dss.config import Replica
 import dss
 from dss.util import UrlBuilder
 from dss.util.version import datetime_to_version_format
-from tests.infra import DSSAssertMixin, DSSUploadMixin, DSSStorageMixin, TestBundle, testmode, get_env
+from tests.infra import DSSAssertMixin, DSSUploadMixin, DSSStorageMixin, TestBundle, testmode
 from tests.infra.server import ThreadedLocalServer
 from tests import get_auth_header
 
@@ -68,79 +66,6 @@ class TestApi(unittest.TestCase, DSSAssertMixin, DSSUploadMixin, DSSStorageMixin
         """
         res = self.assertGetResponse("/version", requests.codes.ok, headers=get_auth_header())
         self.assertEquals(res.json['version_info']['version'], os.environ['DSS_VERSION'])
-
-    @testmode.standalone
-    def test_put_file_pattern(self):
-        """
-        Tests the regex pattern filtering on the PUT file/{uuid} endpoint.
-
-        Ensures that paths with leading slashes (absolute paths) and
-        relative path shortcuts (".", "~/", and "..") are disallowed.
-        """
-        examples_of_bad_paths = ['.', '..',
-                                 '~/path',
-                                 './', '../', './path', './../path', '../path', '../../path',
-                                 'path/../path', 'path/..',
-                                 '/path', '/path.json', '/bad..path']
-
-        examples_of_good_paths = ['path', 'path.json', 'good..path', 'path.json/', 'good..path/',
-                                  'pa/th.json', 'go/od..path', 'a/b/c/d', 'a/b.c/d', '.bashrc']
-
-        # we only use one (AWS) replica b/c we're only testing the API endpoint pattern
-        with self.subTest(path="bundles", replica=self.replica):
-            for bad_path in examples_of_bad_paths:
-                self.put_bundles_reponse(bad_path, replica=self.replica, expected_code=[requests.codes.bad_request])
-            for good_path in examples_of_good_paths:
-                self.put_bundles_reponse(good_path, replica=self.replica, expected_code=[requests.codes.ok,
-                                                                                         requests.codes.created])
-
-    @staticmethod
-    def get_test_fixture_bucket(replica: str) -> str:
-        return get_env("DSS_S3_BUCKET_TEST_FIXTURES") if replica == 'aws' else get_env("DSS_GS_BUCKET_TEST_FIXTURES")
-
-    def put_bundles_reponse(self, path, replica, expected_code):
-        """
-        Uploads a file from fixtures to the dss, and then adds it to a bundle with the 'path' name.
-        Asserts expected codes were received at each point.
-        """
-        fixtures_bucket = self.get_test_fixture_bucket(replica.name)  # source a file to upload
-        file_version = datetime_to_version_format(datetime.datetime.utcnow())
-        bundle_version = datetime_to_version_format(datetime.datetime.utcnow())
-        bundle_uuid = str(u.uuid4())
-        file_uuid = str(u.uuid4())
-        storage_schema = 's3' if replica.name == 'aws' else 'gs'
-
-        # upload a file from test fixtures
-        self.upload_file_wait(
-            f"{storage_schema}://{fixtures_bucket}/test_good_source_data/0",
-            replica,
-            file_uuid,
-            file_version=file_version,
-            bundle_uuid=bundle_uuid
-        )
-
-        # add that file to a bundle
-        builder = UrlBuilder().set(path="/v1/bundles/" + bundle_uuid)
-        builder.add_query("replica", replica.name)
-        builder.add_query("version", bundle_version)
-        url = str(builder)
-
-        self.assertPutResponse(
-            url,
-            expected_code,
-            json_request_body=dict(
-                files=[
-                    dict(
-                        uuid=file_uuid,
-                        version=file_version,
-                        name=path,
-                        indexed=False
-                    )
-                ],
-                creator_uid=0,
-            ),
-            headers=get_auth_header()
-        )
 
     @testmode.standalone
     def test_read_only(self):

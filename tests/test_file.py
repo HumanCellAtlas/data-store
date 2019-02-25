@@ -1,7 +1,5 @@
 #!/usr/bin/env python
 # coding: utf-8
-
-import time
 import datetime
 import hashlib
 import json
@@ -596,6 +594,81 @@ class TestFileApi(unittest.TestCase, TestAuthMixin, DSSUploadMixin, DSSAssertMix
         tempdir = tempfile.gettempdir()
         self._test_file_size(Replica.aws, "s3", self.s3_test_bucket, S3Uploader(tempdir, self.s3_test_bucket))
         self._test_file_size(Replica.gcp, "gs", self.gs_test_bucket, GSUploader(tempdir, self.gs_test_bucket))
+
+    @testmode.standalone
+    def test_put_file_pattern(self):
+        """
+        Tests the regex pattern filtering on the PUT file/{uuid} endpoint.
+
+        Ensures that paths with leading slashes (absolute paths) and
+        relative path shortcuts (".", "~/", and "..") are disallowed.
+        """
+        examples_of_bad_paths = ['.', '..',
+                                 '~/path',
+                                 './', '../', './path', './../path', '../path', '../../path',
+                                 'path/../path', 'path/..',
+                                 '/path', '/path.json', '/bad..path']
+
+        examples_of_good_paths = ['path', 'path.json', 'good..path', 'path.json/', 'good..path/',
+                                  'pa/th.json', 'go/od..path', 'a/b/c/d', 'a/b.c/d', '.bashrc']
+
+        # we only use one (AWS) replica b/c we're only testing the API endpoint pattern
+        replica = Replica.aws
+        for bad_path in examples_of_bad_paths:
+            with self.subTest(path="bundles", replica=replica):
+                self.put_bundles_reponse(bad_path, replica=replica, expected_code=[requests.codes.bad_request])
+        for good_path in examples_of_good_paths:
+            with self.subTest(path="bundles", replica=replica):
+                self.put_bundles_reponse(good_path, replica=replica, expected_code=[requests.codes.ok,
+                                                                                         requests.codes.created])
+
+    @staticmethod
+    def get_test_fixture_bucket(replica: str) -> str:
+        return get_env("DSS_S3_BUCKET_TEST_FIXTURES") if replica == 'aws' else get_env("DSS_GS_BUCKET_TEST_FIXTURES")
+
+    def put_bundles_reponse(self, path, replica, expected_code):
+        """
+        Uploads a file from fixtures to the dss, and then adds it to a bundle with the 'path' name.
+        Asserts expected codes were received at each point.
+        """
+        fixtures_bucket = self.get_test_fixture_bucket(replica.name)  # source a file to upload
+        file_version = datetime_to_version_format(datetime.datetime.utcnow())
+        bundle_version = datetime_to_version_format(datetime.datetime.utcnow())
+        bundle_uuid = str(uuid.uuid4())
+        file_uuid = str(uuid.uuid4())
+        storage_schema = 's3' if replica.name == 'aws' else 'gs'
+
+        # upload a file from test fixtures
+        self.upload_file_wait(
+            f"{storage_schema}://{fixtures_bucket}/test_good_source_data/0",
+            replica,
+            file_uuid,
+            file_version=file_version,
+            bundle_uuid=bundle_uuid
+        )
+
+        # add that file to a bundle
+        builder = UrlBuilder().set(path="/v1/bundles/" + bundle_uuid)
+        builder.add_query("replica", replica.name)
+        builder.add_query("version", bundle_version)
+        url = str(builder)
+
+        self.assertPutResponse(
+            url,
+            expected_code,
+            json_request_body=dict(
+                files=[
+                    dict(
+                        uuid=file_uuid,
+                        version=file_version,
+                        name=path,
+                        indexed=False
+                    )
+                ],
+                creator_uid=0,
+            ),
+            headers=get_auth_header()
+        )
 
     def _test_file_size(self, replica: Replica, scheme: str, test_bucket: str, uploader: Uploader):
         src_key = generate_test_key()
