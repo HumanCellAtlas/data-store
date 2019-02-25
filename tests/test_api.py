@@ -77,7 +77,6 @@ class TestApi(unittest.TestCase, DSSAssertMixin, DSSUploadMixin, DSSStorageMixin
         Ensures that paths with leading slashes (absolute paths) and
         relative path shortcuts (".", "~/", and "..") are disallowed.
         """
-
         examples_of_bad_paths = ['.', '..',
                                  '~/path',
                                  './', '../', './path', './../path', '../path', '../../path',
@@ -87,26 +86,31 @@ class TestApi(unittest.TestCase, DSSAssertMixin, DSSUploadMixin, DSSStorageMixin
         examples_of_good_paths = ['path', 'path.json', 'good..path', 'path.json/', 'good..path/',
                                   'pa/th.json', 'go/od..path', 'a/b/c/d', 'a/b.c/d', '.bashrc']
 
-        for path, replica in [("bundles", "aws"), ("bundles", "gcp")]:
-            with self.subTest(path=path, replica=replica):
-                for bad_path in examples_of_bad_paths:
-                    self.put_bundles_reponse(bad_path, replica, expected_code=[requests.codes.bad_request])
-                for good_path in examples_of_good_paths:
-                    self.put_bundles_reponse(good_path, replica, expected_code=[requests.codes.ok,
-                                                                                requests.codes.created])
+        # we only use one (AWS) replica b/c we're only testing the API endpoint pattern
+        with self.subTest(path="bundles", replica=self.replica):
+            for bad_path in examples_of_bad_paths:
+                self.put_bundles_reponse(bad_path, replica=self.replica, expected_code=[requests.codes.bad_request])
+            for good_path in examples_of_good_paths:
+                self.put_bundles_reponse(good_path, replica=self.replica, expected_code=[requests.codes.ok,
+                                                                                         requests.codes.created])
 
     @staticmethod
     def get_test_fixture_bucket(replica: str) -> str:
         return get_env("DSS_S3_BUCKET_TEST_FIXTURES") if replica == 'aws' else get_env("DSS_GS_BUCKET_TEST_FIXTURES")
 
     def put_bundles_reponse(self, path, replica, expected_code):
-        fixtures_bucket = self.get_test_fixture_bucket(replica)  # source a file to upload
+        """
+        Uploads a file from fixtures to the dss, and then adds it to a bundle with the 'path' name.
+        Asserts expected codes were received at each point.
+        """
+        fixtures_bucket = self.get_test_fixture_bucket(replica.name)  # source a file to upload
         file_version = datetime_to_version_format(datetime.datetime.utcnow())
         bundle_version = datetime_to_version_format(datetime.datetime.utcnow())
         bundle_uuid = str(u.uuid4())
         file_uuid = str(u.uuid4())
-        storage_schema = 's3' if replica == 'aws' else 'gs'
+        storage_schema = 's3' if replica.name == 'aws' else 'gs'
 
+        # upload a file from test fixtures
         self.upload_file_wait(
             f"{storage_schema}://{fixtures_bucket}/test_good_source_data/0",
             replica,
@@ -115,8 +119,9 @@ class TestApi(unittest.TestCase, DSSAssertMixin, DSSUploadMixin, DSSStorageMixin
             bundle_uuid=bundle_uuid
         )
 
+        # add that file to a bundle
         builder = UrlBuilder().set(path="/v1/bundles/" + bundle_uuid)
-        builder.add_query("replica", replica)
+        builder.add_query("replica", replica.name)
         builder.add_query("version", bundle_version)
         url = str(builder)
 
