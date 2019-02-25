@@ -1390,7 +1390,7 @@ paths:
                         - Relative paths must not have unix shortcuts (i.e. ".", "..", "~/")
                         - No "\" (back)slashes allowed.  e.g. "C:\\path" or "path\file.json"
                         - Only relative paths with "/" (forward)slashes allowed.  e.g. "path/file.json" or "file.json"
-                        - Please upload using "/" (forward)slashes, even if on Windows.  DL will convert back.
+                        - Please upload using "/" (forward)slashes, even if on Windows.
                       type: string
                       pattern: "^(\\.?[\\w][\\w\\s.]*)+((\\.?[\\w][\\w\\s.]*)|\\/)*$"
                     indexed:
