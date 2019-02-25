@@ -1389,7 +1389,7 @@ paths:
                         - Absolute paths (beginning with a slash) are not allowed.
                         - Relative paths must not have unix shortcuts (i.e. ".", "..", "~/")
                       type: string
-                      pattern: "^(\\.?[\\w\\d][\\w\\d\\s.]*)+((\\.?[\\w\\d][\\w\\d\\s.]*)|\\/)*$"
+                      pattern: "^(\\.?[\\w][\\w\\s.]*)+((\\.?[\\w][\\w\\s.]*)|\\/)*$"
                     indexed:
                       description: True iff this file should be indexed.
                       type: boolean
