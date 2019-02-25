@@ -606,12 +606,13 @@ class TestFileApi(unittest.TestCase, TestAuthMixin, DSSUploadMixin, DSSAssertMix
         unix_bad_paths = ['.', '..', '~/pa2th', './', '../', './path2', './../path2',
                           '../path', '../../pa2th', 'path/../path', '2path/..',
                           '/path', '/path2.json', '/2bad..path2']
-        windows_bad_paths = ['C:\\']
+        # disallow backslashes; windows users should use forward slashes
+        windows_bad_paths = ['C:\\', 'path\\path.json']
         examples_of_bad_paths = unix_bad_paths + windows_bad_paths
 
         unix_good_paths = ['path', 'path.json2', 'good..path', 'path.json2/', 'good..path2/',
-                           'pa/th.2json', 'go/od..2path', 'a/2b/c/22d2', 'a/b.2c/d2', '.2bashrc']
-        windows_good_paths = []  # ['path\\path.json']
+                           'pa/th.2json', 'go/od..2path', 'a/2b/c/22d2', 'a/b.2c/d2.json', '.2bashrc']
+        windows_good_paths = []
         examples_of_good_paths = unix_good_paths + windows_good_paths
 
         # we only use one (AWS) replica b/c we're only testing the API endpoint pattern
