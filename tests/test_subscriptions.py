@@ -77,7 +77,8 @@ class TestSubscriptionsBase(ElasticsearchTestCase, TestAuthMixin, DSSAssertMixin
     def test_auth_errors(self):
         url = str(UrlBuilder()
                   .set(path="/v1/subscriptions/" + str(uuid.uuid4()))
-                  .add_query("replica", self.replica.name))
+                  .add_query("replica", self.replica.name)
+                  .add_query("subscription_type", "elasticsearch"))
         self._test_auth_errors('get', url)
 
     def test_put(self):
@@ -130,7 +131,8 @@ class TestSubscriptionsBase(ElasticsearchTestCase, TestAuthMixin, DSSAssertMixin
 
         url = str(UrlBuilder()
                   .set(path="/v1/subscriptions")
-                  .add_query("replica", self.replica.name))
+                  .add_query("replica", self.replica.name)
+                  .add_query("subscription_type", "elasticsearch"))
         resp_obj = self.assertPutResponse(
             url,
             requests.codes.created,
@@ -147,7 +149,8 @@ class TestSubscriptionsBase(ElasticsearchTestCase, TestAuthMixin, DSSAssertMixin
         # Normal request
         url = str(UrlBuilder()
                   .set(path="/v1/subscriptions/" + str(find_uuid))
-                  .add_query("replica", self.replica.name))
+                  .add_query("replica", self.replica.name)
+                  .add_query("subscription_type", "elasticsearch"))
         resp_obj = self.assertGetResponse(
             url,
             requests.codes.okay,
@@ -159,7 +162,8 @@ class TestSubscriptionsBase(ElasticsearchTestCase, TestAuthMixin, DSSAssertMixin
         # File not found request
         url = str(UrlBuilder()
                   .set(path="/v1/subscriptions/" + str(uuid.uuid4()))
-                  .add_query("replica", self.replica.name))
+                  .add_query("replica", self.replica.name)
+                  .add_query("subscription_type", "elasticsearch"))
         self.assertGetResponse(
             url,
             requests.codes.not_found,
@@ -171,7 +175,8 @@ class TestSubscriptionsBase(ElasticsearchTestCase, TestAuthMixin, DSSAssertMixin
             self._put_subscription()
         url = str(UrlBuilder()
                   .set(path="/v1/subscriptions")
-                  .add_query("replica", self.replica.name))
+                  .add_query("replica", self.replica.name)
+                  .add_query("subscription_type", "elasticsearch"))
         resp_obj = self.assertGetResponse(
             url,
             requests.codes.okay,
@@ -185,7 +190,8 @@ class TestSubscriptionsBase(ElasticsearchTestCase, TestAuthMixin, DSSAssertMixin
         find_uuid = self._put_subscription()
         url = str(UrlBuilder()
                   .set(path="/v1/subscriptions/" + find_uuid)
-                  .add_query("replica", self.replica.name))
+                  .add_query("replica", self.replica.name)
+                  .add_query("subscription_type", "elasticsearch"))
 
         # Authorized delete
         self.assertDeleteResponse(url, requests.codes.okay, headers=get_auth_header())
@@ -197,7 +203,8 @@ class TestSubscriptionsBase(ElasticsearchTestCase, TestAuthMixin, DSSAssertMixin
     def _put_subscription(self, endpoint=None, expect_code=None, attachments=None):
         url = str(UrlBuilder()
                   .set(path="/v1/subscriptions")
-                  .add_query("replica", self.replica.name))
+                  .add_query("replica", self.replica.name)
+                  .add_query("subscription_type", "elasticsearch"))
         if endpoint is None:
             endpoint = self.endpoint
         if isinstance(endpoint, Endpoint):

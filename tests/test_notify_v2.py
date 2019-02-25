@@ -313,8 +313,7 @@ class TestNotifyV2(unittest.TestCase, DSSAssertMixin, DSSUploadMixin):
         )
         url = str(UrlBuilder()
                   .set(path="/v1/subscriptions")
-                  .add_query("replica", replica.name)
-                  .add_query("subscription_type", "jmespath"))
+                  .add_query("replica", replica.name))
         resp = self.assertGetResponse(
             url,
             requests.codes.ok,
@@ -348,8 +347,7 @@ class TestNotifyV2(unittest.TestCase, DSSAssertMixin, DSSUploadMixin):
         )
         url = str(UrlBuilder()
                   .set(path="/v1/subscriptions")
-                  .add_query("replica", replica.name)
-                  .add_query("subscription_type", "jmespath"))
+                  .add_query("replica", replica.name))
         resp = self.assertGetResponse(
             url,
             requests.codes.ok,
@@ -576,16 +574,14 @@ class TestNotifyV2(unittest.TestCase, DSSAssertMixin, DSSUploadMixin):
     def _get_subscription(self, uuid: str, replica: Replica):
         url = str(UrlBuilder()
                   .set(path=f"/v1/subscriptions/{uuid}")
-                  .add_query("replica", replica.name)
-                  .add_query("subscription_type", "jmespath"))
+                  .add_query("replica", replica.name))
         resp = self.assertGetResponse(url, requests.codes.ok, headers=get_auth_header())
         return json.loads(resp.body)
 
     def _delete_subscription(self, uuid: str, replica: Replica, codes=requests.codes.ok, use_auth=True):
         url = str(UrlBuilder()
                   .set(path=f"/v1/subscriptions/{uuid}")
-                  .add_query("replica", replica.name)
-                  .add_query("subscription_type", "jmespath"))
+                  .add_query("replica", replica.name))
         if use_auth:
             resp = self.assertDeleteResponse(url, codes, headers=get_auth_header())
         else:

@@ -135,15 +135,18 @@ class Smoketest(unittest.TestCase):
                                              '--replica', replica.name])
                 subscription_id = put_response['uuid']
                 self.addCleanup(run, f"{self.venv_bin}hca dss delete-subscription --replica {replica.name} "
-                                     f"--uuid {subscription_id}")
+                                     f"--uuid {subscription_id} "
+                                     "--subscription-type elasticsearch")
                 self.addCleanup(s3.delete_object, Bucket=self.notification_bucket, Key=notification_key)
                 notifications_proofs[replica] = (subscription_id, notification_key)
                 get_response = run_for_json(f"{self.venv_bin}hca dss get-subscription "
                                             f"--replica {replica.name} "
-                                            f"--uuid {subscription_id}")
+                                            f"--uuid {subscription_id} "
+                                            "--subscription-type elasticsearch")
                 self.assertEquals(subscription_id, get_response['uuid'])
                 self.assertEquals(url, get_response['callback_url'])
-                list_response = run_for_json(f"{self.venv_bin}hca dss get-subscriptions --replica {replica.name}")
+                list_response = run_for_json(f"{self.venv_bin}hca dss get-subscriptions --replica {replica.name} "
+                                             "--subscription-type elasticsearch")
                 self.assertIn(get_response, list_response['subscriptions'])
 
         with self.subTest(f"{starting_replica.name}: Create the bundle"):
