@@ -49,11 +49,11 @@ class TestFileApi(unittest.TestCase, TestAuthMixin, DSSUploadMixin, DSSAssertMix
         self.s3_test_bucket = get_env("DSS_S3_BUCKET_TEST")
         self.gs_test_bucket = get_env("DSS_GS_BUCKET_TEST")
 
-    # @testmode.standalone
-    # def test_file_put(self):
-    #     tempdir = tempfile.gettempdir()
-    #     self._test_file_put(Replica.aws, "s3", self.s3_test_bucket, S3Uploader(tempdir, self.s3_test_bucket))
-    #     self._test_file_put(Replica.gcp, "gs", self.gs_test_bucket, GSUploader(tempdir, self.gs_test_bucket))
+    @testmode.standalone
+    def test_file_put(self):
+        tempdir = tempfile.gettempdir()
+        self._test_file_put(Replica.aws, "s3", self.s3_test_bucket, S3Uploader(tempdir, self.s3_test_bucket))
+        self._test_file_put(Replica.gcp, "gs", self.gs_test_bucket, GSUploader(tempdir, self.gs_test_bucket))
 
     def _test_put_auth_errors(self, scheme, test_bucket):
         src_key = generate_test_key()
@@ -149,18 +149,18 @@ class TestFileApi(unittest.TestCase, TestAuthMixin, DSSUploadMixin, DSSAssertMix
 
             uploader.checksum_and_upload_file(fh.name, key, "text/plain", s3_part_size=s3_part_size)
 
-    # @testmode.standalone
-    # def test_file_put_large_sync(self):
-    #     """Test PUT /files with the largest file that is copied synchronously."""
-    #     test_data = os.urandom(ASYNC_COPY_THRESHOLD)
-    #     self._test_file_put_large(test_data[:-1])
-    #     self._test_file_put_large(test_data)
-    #
-    # @testmode.integration
-    # def test_file_put_large_async(self):
-    #     """Test PUT /files with the smallest file that is copied asynchronously."""
-    #     test_data = os.urandom(ASYNC_COPY_THRESHOLD + 1)
-    #     self._test_file_put_large(test_data)
+    @testmode.standalone
+    def test_file_put_large_sync(self):
+        """Test PUT /files with the largest file that is copied synchronously."""
+        test_data = os.urandom(ASYNC_COPY_THRESHOLD)
+        self._test_file_put_large(test_data[:-1])
+        self._test_file_put_large(test_data)
+
+    @testmode.integration
+    def test_file_put_large_async(self):
+        """Test PUT /files with the smallest file that is copied asynchronously."""
+        test_data = os.urandom(ASYNC_COPY_THRESHOLD + 1)
+        self._test_file_put_large(test_data)
 
     def _test_file_put_large(self, src_data: bytes) -> None:
         replicas: typing.Sequence[typing.Tuple[Replica, typing.Type[Uploader], str]] = [
@@ -204,34 +204,34 @@ class TestFileApi(unittest.TestCase, TestAuthMixin, DSSUploadMixin, DSSAssertMix
                     )
                     self.assertIn('version', resp_obj.json)
 
-    # @testmode.integration
-    # def test_file_put_large_incorrect_s3_etag(self) -> None:
-    #     bucket = self.s3_test_bucket
-    #     src_key = generate_test_key()
-    #     src_data = os.urandom(ASYNC_COPY_THRESHOLD + 1)
-    #
-    #     # upload file with incompatible s3 part size
-    #     self._upload_file_to_mock_ingest(S3Uploader, bucket, src_key, src_data, s3_part_size=6 * 1024 * 1024)
-    #
-    #     file_uuid = str(uuid.uuid4())
-    #     timestamp = datetime.datetime.utcnow()
-    #     file_version = datetime_to_version_format(timestamp)
-    #     url = UrlBuilder().set(path=f"/v1/files/{file_uuid}")
-    #     url.add_query("version", file_version)
-    #     source_url = f"s3://{bucket}/{src_key}"
-    #
-    #     # put file into DSS, starting an async copy which will fail
-    #     expected_codes = requests.codes.accepted,
-    #     self.assertPutResponse(
-    #         str(url),
-    #         expected_codes,
-    #         json_request_body=dict(
-    #             file_uuid=file_uuid,
-    #             creator_uid=0,
-    #             source_url=source_url,
-    #         ),
-    #         headers=get_auth_header()
-    #     )
+    @testmode.integration
+    def test_file_put_large_incorrect_s3_etag(self) -> None:
+        bucket = self.s3_test_bucket
+        src_key = generate_test_key()
+        src_data = os.urandom(ASYNC_COPY_THRESHOLD + 1)
+
+        # upload file with incompatible s3 part size
+        self._upload_file_to_mock_ingest(S3Uploader, bucket, src_key, src_data, s3_part_size=6 * 1024 * 1024)
+
+        file_uuid = str(uuid.uuid4())
+        timestamp = datetime.datetime.utcnow()
+        file_version = datetime_to_version_format(timestamp)
+        url = UrlBuilder().set(path=f"/v1/files/{file_uuid}")
+        url.add_query("version", file_version)
+        source_url = f"s3://{bucket}/{src_key}"
+
+        # put file into DSS, starting an async copy which will fail
+        expected_codes = requests.codes.accepted,
+        self.assertPutResponse(
+            str(url),
+            expected_codes,
+            json_request_body=dict(
+                file_uuid=file_uuid,
+                creator_uid=0,
+                source_url=source_url,
+            ),
+            headers=get_auth_header()
+        )
 
         # should eventually get unprocessable after async copy fails
         @eventually(120, 1)
@@ -246,25 +246,25 @@ class TestFileApi(unittest.TestCase, TestAuthMixin, DSSUploadMixin, DSSAssertMix
             f"/v1/files/{file_uuid}?replica=gcp&version={file_version}",
             requests.codes.unprocessable)
 
-    # # This is a test specific to AWS since it has separate notion of metadata and tags.
-    # @testmode.standalone
-    # def test_file_put_metadata_from_tags(self):
-    #     resp_obj = self.upload_file_wait(
-    #         f"s3://{self.s3_test_fixtures_bucket}/test_good_source_data/metadata_in_tags",
-    #         Replica.aws,
-    #     )
-    #     self.assertHeaders(
-    #         resp_obj.response,
-    #         {
-    #             'content-type': "application/json",
-    #         }
-    #     )
-    #     self.assertIn('version', resp_obj.json)
-    #
-    # @testmode.standalone
-    # def test_file_put_upper_case_checksums(self):
-    #     self._test_file_put_upper_case_checksums("s3", self.s3_test_fixtures_bucket)
-    #     self._test_file_put_upper_case_checksums("gs", self.gs_test_fixtures_bucket)
+    # This is a test specific to AWS since it has separate notion of metadata and tags.
+    @testmode.standalone
+    def test_file_put_metadata_from_tags(self):
+        resp_obj = self.upload_file_wait(
+            f"s3://{self.s3_test_fixtures_bucket}/test_good_source_data/metadata_in_tags",
+            Replica.aws,
+        )
+        self.assertHeaders(
+            resp_obj.response,
+            {
+                'content-type': "application/json",
+            }
+        )
+        self.assertIn('version', resp_obj.json)
+
+    @testmode.standalone
+    def test_file_put_upper_case_checksums(self):
+        self._test_file_put_upper_case_checksums("s3", self.s3_test_fixtures_bucket)
+        self._test_file_put_upper_case_checksums("gs", self.gs_test_fixtures_bucket)
 
     def _test_file_put_upper_case_checksums(self, scheme, fixtures_bucket):
         resp_obj = self.upload_file_wait(
@@ -279,10 +279,10 @@ class TestFileApi(unittest.TestCase, TestAuthMixin, DSSUploadMixin, DSSAssertMix
         )
         self.assertIn('version', resp_obj.json)
 
-    # @testmode.standalone
-    # def test_file_head(self):
-    #     self._test_file_head(Replica.aws)
-    #     self._test_file_head(Replica.gcp)
+    @testmode.standalone
+    def test_file_head(self):
+        self._test_file_head(Replica.aws)
+        self._test_file_head(Replica.gcp)
 
     def _test_file_head(self, replica: Replica):
         file_uuid = "ce55fd51-7833-469b-be0b-5da88ebebfcd"
@@ -308,10 +308,10 @@ class TestFileApi(unittest.TestCase, TestAuthMixin, DSSUploadMixin, DSSAssertMix
             )
             self.assertHeaders(resp_obj.response, headers)
 
-    # @testmode.standalone
-    # def test_file_get_specific(self):
-    #     self._test_file_get_specific(Replica.aws)
-    #     self._test_file_get_specific(Replica.gcp)
+    @testmode.standalone
+    def test_file_get_specific(self):
+        self._test_file_get_specific(Replica.aws)
+        self._test_file_get_specific(Replica.gcp)
 
     def _test_file_get_specific(self, replica: Replica):
         """
@@ -350,10 +350,10 @@ class TestFileApi(unittest.TestCase, TestAuthMixin, DSSUploadMixin, DSSAssertMix
                 return
         self.fail(f"Failed after {FILE_GET_RETRY_COUNT} retries.")
 
-    # @testmode.standalone
-    # def test_file_get_latest(self):
-    #     self._test_file_get_latest(Replica.aws)
-    #     self._test_file_get_latest(Replica.gcp)
+    @testmode.standalone
+    def test_file_get_latest(self):
+        self._test_file_get_latest(Replica.aws)
+        self._test_file_get_latest(Replica.gcp)
 
     def _test_file_get_latest(self, replica: Replica):
         """
@@ -390,13 +390,13 @@ class TestFileApi(unittest.TestCase, TestAuthMixin, DSSUploadMixin, DSSAssertMix
                 return
         self.fail(f"Failed after {FILE_GET_RETRY_COUNT} retries.")
 
-    # @testmode.standalone
-    # def test_file_get_not_found(self):
-    #     """
-    #     Verify that we return the correct error message when the file cannot be found.
-    #     """
-    #     self._test_file_get_not_found(Replica.aws)
-    #     self._test_file_get_not_found(Replica.gcp)
+    @testmode.standalone
+    def test_file_get_not_found(self):
+        """
+        Verify that we return the correct error message when the file cannot be found.
+        """
+        self._test_file_get_not_found(Replica.aws)
+        self._test_file_get_not_found(Replica.gcp)
 
     def _test_file_get_not_found(self, replica: Replica):
         file_uuid = "ce55fd51-7833-469b-be0b-5da88ec0ffee"
@@ -433,42 +433,42 @@ class TestFileApi(unittest.TestCase, TestAuthMixin, DSSUploadMixin, DSSAssertMix
                     expect_stacktrace=True)
             )
 
-    # @testmode.standalone
-    # def test_file_get_no_replica(self):
-    #     """
-    #     Verify we raise the correct error code when we provide no replica.
-    #     """
-    #     file_uuid = "ce55fd51-7833-469b-be0b-5da88ec0ffee"
-    #
-    #     url = str(UrlBuilder()
-    #               .set(path="/v1/files/" + file_uuid))
-    #
-    #     with override_bucket_config(BucketConfig.TEST_FIXTURE):
-    #         self.assertGetResponse(
-    #             url,
-    #             requests.codes.bad_request,
-    #             headers=get_auth_header(),
-    #             expected_error=ExpectedErrorFields(
-    #                 code="illegal_arguments",
-    #                 status=requests.codes.bad_request,
-    #                 expect_stacktrace=True)
-    #         )
-    #
-    # @testmode.standalone
-    # def test_file_get_invalid_token(self):
-    #     """
-    #     Verifies that a checkout request with a malformed token returns a 400.
-    #     :return:
-    #     """
-    #     tempdir = tempfile.gettempdir()
-    #     self._test_file_get_invalid_token(Replica.aws,
-    #                                       "s3",
-    #                                       self.s3_test_bucket,
-    #                                       S3Uploader(tempdir, self.s3_test_bucket))
-    #     self._test_file_get_invalid_token(Replica.gcp,
-    #                                       "gs",
-    #                                       self.gs_test_bucket,
-    #                                       GSUploader(tempdir, self.gs_test_bucket))
+    @testmode.standalone
+    def test_file_get_no_replica(self):
+        """
+        Verify we raise the correct error code when we provide no replica.
+        """
+        file_uuid = "ce55fd51-7833-469b-be0b-5da88ec0ffee"
+
+        url = str(UrlBuilder()
+                  .set(path="/v1/files/" + file_uuid))
+
+        with override_bucket_config(BucketConfig.TEST_FIXTURE):
+            self.assertGetResponse(
+                url,
+                requests.codes.bad_request,
+                headers=get_auth_header(),
+                expected_error=ExpectedErrorFields(
+                    code="illegal_arguments",
+                    status=requests.codes.bad_request,
+                    expect_stacktrace=True)
+            )
+
+    @testmode.standalone
+    def test_file_get_invalid_token(self):
+        """
+        Verifies that a checkout request with a malformed token returns a 400.
+        :return:
+        """
+        tempdir = tempfile.gettempdir()
+        self._test_file_get_invalid_token(Replica.aws,
+                                          "s3",
+                                          self.s3_test_bucket,
+                                          S3Uploader(tempdir, self.s3_test_bucket))
+        self._test_file_get_invalid_token(Replica.gcp,
+                                          "gs",
+                                          self.gs_test_bucket,
+                                          GSUploader(tempdir, self.gs_test_bucket))
 
     def _test_file_get_invalid_token(self, replica: Replica, scheme: str, test_bucket: str, uploader: Uploader):
         src_key = generate_test_key()
@@ -499,16 +499,16 @@ class TestFileApi(unittest.TestCase, TestAuthMixin, DSSUploadMixin, DSSAssertMix
                 url, requests.codes.bad_request, headers=get_auth_header())
         try_get()
 
-    # @testmode.integration
-    # def test_file_get_checkout(self):
-    #     """
-    #     Verifies checkout occurs on first get and not on second.
-    #     """
-    #     tempdir = tempfile.gettempdir()
-    #     self._test_file_get_checkout(Replica.aws, "s3", self.s3_test_bucket,
-    #                                  S3Uploader(tempdir, self.s3_test_bucket))
-    #     self._test_file_get_checkout(Replica.gcp, "gs", self.gs_test_bucket,
-    #                                  GSUploader(tempdir, self.gs_test_bucket))
+    @testmode.integration
+    def test_file_get_checkout(self):
+        """
+        Verifies checkout occurs on first get and not on second.
+        """
+        tempdir = tempfile.gettempdir()
+        self._test_file_get_checkout(Replica.aws, "s3", self.s3_test_bucket,
+                                     S3Uploader(tempdir, self.s3_test_bucket))
+        self._test_file_get_checkout(Replica.gcp, "gs", self.gs_test_bucket,
+                                     GSUploader(tempdir, self.gs_test_bucket))
 
     def _test_file_get_checkout(self, replica: Replica, scheme: str, test_bucket: str, uploader: Uploader):
         handle = Config.get_blobstore_handle(replica)
@@ -541,30 +541,30 @@ class TestFileApi(unittest.TestCase, TestAuthMixin, DSSUploadMixin, DSSAssertMix
             ).decode("utf-8"))
         file_key = compose_blob_key(file_metadata)
 
-        # @eventually(10, 1)
-        # def test_checkout():
-        #     # assert 302 and verify checksum on checkout completion
-        #     api_get = self.assertGetResponse(
-        #         url, requests.codes.found, headers=get_auth_header(), redirect_follow_retries=0)
-        #     file_get = requests.get(api_get.response.headers['Location'])
-        #     self.assertTrue(file_get.ok)
-        #     self.assertEquals(file_get.content, src_data)
-        #
-        # with self.subTest(f"{replica}: Initiates checkout and returns 301 for GET on 'uncheckedout' file."):
-        #     # assert 301 redirect on first GET
-        #     self.assertGetResponse(url, requests.codes.moved, headers=get_auth_header(), redirect_follow_retries=0)
-        #     test_checkout()
-        #
-        # with self.subTest(f"{replica}: Initiates checkout and returns 301 for GET on nearly expired checkout file."):
-        #     now = datetime.datetime.now(datetime.timezone.utc)
-        #     creation_date_fn = ("cloud_blobstore.s3.S3BlobStore.get_creation_date"
-        #                         if replica.name == "aws"
-        #                         else "cloud_blobstore.gs.GSBlobStore.get_creation_date")
-        #     with mock.patch(creation_date_fn) as mock_creation_date:
-        #         blob_ttl_days = int(os.environ['DSS_BLOB_TTL_DAYS'])
-        #         mock_creation_date.return_value = now - datetime.timedelta(days=blob_ttl_days, hours=1, minutes=5)
-        #         self.assertGetResponse(url, requests.codes.moved, headers=get_auth_header(), redirect_follow_retries=0)
-        #     test_checkout()
+        @eventually(10, 1)
+        def test_checkout():
+            # assert 302 and verify checksum on checkout completion
+            api_get = self.assertGetResponse(
+                url, requests.codes.found, headers=get_auth_header(), redirect_follow_retries=0)
+            file_get = requests.get(api_get.response.headers['Location'])
+            self.assertTrue(file_get.ok)
+            self.assertEquals(file_get.content, src_data)
+
+        with self.subTest(f"{replica}: Initiates checkout and returns 301 for GET on 'uncheckedout' file."):
+            # assert 301 redirect on first GET
+            self.assertGetResponse(url, requests.codes.moved, headers=get_auth_header(), redirect_follow_retries=0)
+            test_checkout()
+
+        with self.subTest(f"{replica}: Initiates checkout and returns 301 for GET on nearly expired checkout file."):
+            now = datetime.datetime.now(datetime.timezone.utc)
+            creation_date_fn = ("cloud_blobstore.s3.S3BlobStore.get_creation_date"
+                                if replica.name == "aws"
+                                else "cloud_blobstore.gs.GSBlobStore.get_creation_date")
+            with mock.patch(creation_date_fn) as mock_creation_date:
+                blob_ttl_days = int(os.environ['DSS_BLOB_TTL_DAYS'])
+                mock_creation_date.return_value = now - datetime.timedelta(days=blob_ttl_days, hours=1, minutes=5)
+                self.assertGetResponse(url, requests.codes.moved, headers=get_auth_header(), redirect_follow_retries=0)
+            test_checkout()
 
         with self.subTest(f"{replica}: Initiates checkout and returns 302 immediately for GET on stale checkout file."):
             @eventually(10, 1)
@@ -586,14 +586,14 @@ class TestFileApi(unittest.TestCase, TestAuthMixin, DSSUploadMixin, DSSAssertMix
         handle.delete(test_bucket, f"files/{file_uuid}.{version}")
         handle.delete(replica.checkout_bucket, file_key)
 
-    # @testmode.standalone
-    # def test_file_size(self):
-    #     """
-    #     Verify size is correct after dss put and get
-    #     """
-    #     tempdir = tempfile.gettempdir()
-    #     self._test_file_size(Replica.aws, "s3", self.s3_test_bucket, S3Uploader(tempdir, self.s3_test_bucket))
-    #     self._test_file_size(Replica.gcp, "gs", self.gs_test_bucket, GSUploader(tempdir, self.gs_test_bucket))
+    @testmode.standalone
+    def test_file_size(self):
+        """
+        Verify size is correct after dss put and get
+        """
+        tempdir = tempfile.gettempdir()
+        self._test_file_size(Replica.aws, "s3", self.s3_test_bucket, S3Uploader(tempdir, self.s3_test_bucket))
+        self._test_file_size(Replica.gcp, "gs", self.gs_test_bucket, GSUploader(tempdir, self.gs_test_bucket))
 
     @testmode.standalone
     def test_put_file_pattern(self):
@@ -747,6 +747,7 @@ class TestFileApi(unittest.TestCase, TestAuthMixin, DSSUploadMixin, DSSAssertMix
                 }
             )
             self.assertIn('version', resp_obj.json)
+
 
 if __name__ == '__main__':
     unittest.main()
