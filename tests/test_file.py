@@ -620,7 +620,7 @@ class TestFileApi(unittest.TestCase, TestAuthMixin, DSSUploadMixin, DSSAssertMix
         for good_path in examples_of_good_paths:
             with self.subTest(path="bundles", replica=replica):
                 self.put_bundles_reponse(good_path, replica=replica, expected_code=[requests.codes.ok,
-                                                                                         requests.codes.created])
+                                                                                    requests.codes.created])
 
     @staticmethod
     def get_test_fixture_bucket(replica: str) -> str:
