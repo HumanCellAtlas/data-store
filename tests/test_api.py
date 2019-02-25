@@ -1,6 +1,5 @@
 #!/usr/bin/env python
 # coding: utf-8
-
 """
 Functional Test of the API
 """
@@ -8,7 +7,6 @@ import datetime
 import os
 import sys
 import unittest
-
 import requests
 
 pkg_root = os.path.abspath(os.path.join(os.path.dirname(__file__), '..'))  # noqa
@@ -145,6 +143,7 @@ class TestApi(unittest.TestCase, DSSAssertMixin, DSSUploadMixin, DSSStorageMixin
                         )
         finally:
             del os.environ['DSS_READ_ONLY_MODE']
+
 
 if __name__ == '__main__':
     unittest.main()
