@@ -92,17 +92,15 @@ class TestApi(unittest.TestCase, DSSAssertMixin, DSSUploadMixin, DSSStorageMixin
                 for bad_path in examples_of_bad_paths:
                     self.put_bundles_reponse(bad_path, replica, expected_code=[requests.codes.bad_request])
                 for good_path in examples_of_good_paths:
-                    self.put_bundles_reponse(good_path, replica, expected_code=[requests.codes.ok, requests.codes.created])
+                    self.put_bundles_reponse(good_path, replica, expected_code=[requests.codes.ok,
+                                                                                requests.codes.created])
 
-    def get_test_fixture_bucket(self, replica: Replica) -> str:
-        if replica == 'aws':
-            bucket = get_env("DSS_S3_BUCKET_TEST_FIXTURES")
-        elif replica == 'gcp':
-            bucket = get_env("DSS_GS_BUCKET_TEST_FIXTURES")
-        return bucket
+    @staticmethod
+    def get_test_fixture_bucket(replica: str) -> str:
+        return get_env("DSS_S3_BUCKET_TEST_FIXTURES") if replica == 'aws' else get_env("DSS_GS_BUCKET_TEST_FIXTURES")
 
     def put_bundles_reponse(self, path, replica, expected_code):
-        fixtures_bucket = self.get_test_fixture_bucket(replica)
+        fixtures_bucket = self.get_test_fixture_bucket(replica)  # source a file to upload
         file_version = datetime_to_version_format(datetime.datetime.utcnow())
         bundle_version = datetime_to_version_format(datetime.datetime.utcnow())
         bundle_uuid = str(u.uuid4())
@@ -131,10 +129,10 @@ class TestApi(unittest.TestCase, DSSAssertMixin, DSSUploadMixin, DSSStorageMixin
                         uuid=file_uuid,
                         version=file_version,
                         name=path,
-                        indexed=False,
+                        indexed=False
                     )
                 ],
-                creator_uid=12345,
+                creator_uid=0,
             ),
             headers=get_auth_header()
         )
