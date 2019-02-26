@@ -1261,8 +1261,7 @@ paths:
           type: string
         - name: per_page
           in: query
-          description: Max number of results to return per page. When using `output_format raw` the `per_page` size is
-            limit to no more than 10 to avoid excessively large response sizes.
+          description: Max number of results to return per page.
           required: false
           type: integer
           format: int32

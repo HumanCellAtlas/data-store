@@ -78,8 +78,6 @@ def get(
                     .add_query("start_at", str(start_at + per_page)))
         if directurls:
             next_url.add_query("directurls", "true")
-        if version is not None:
-            next_url.add_query("version", version)
         if presignedurls:
             next_url.add_query("presignedurls", "true")
         if token is not None:
