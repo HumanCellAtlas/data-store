@@ -92,7 +92,7 @@ class TestBundleApi(unittest.TestCase, TestAuthMixin, DSSAssertMixin, DSSUploadM
             self.assertEqual(resp_obj.json['bundle']['files'][0]['version'], "2017-06-16T193604.240704Z")
 
     @testmode.standalone
-    def test_bundle_get_paging(self):
+    def test_bundle_paging(self):
         bundle_uuid = "7f8c686d-a439-4376-b367-ac93fc28df43"
         version = "2019-02-21T184000.899031Z"
         with override_bucket_config(BucketConfig.TEST_FIXTURE):
@@ -103,21 +103,31 @@ class TestBundleApi(unittest.TestCase, TestAuthMixin, DSSAssertMixin, DSSUploadM
             ))
             expected_files = manifest['files']
 
-        with self.subTest("Should be able to use a variety of valid paging with the same result"):
-            self._test_bundle_get_paging(Replica.aws, expected_files, 11)
-            self._test_bundle_get_paging(Replica.aws, expected_files, 33)
-            self._test_bundle_get_paging(Replica.aws, expected_files, 500)
-            self._test_bundle_get_paging(Replica.gcp, expected_files, 11)
-            self._test_bundle_get_paging(Replica.gcp, expected_files, 33)
-            self._test_bundle_get_paging(Replica.gcp, expected_files, 500)
+        for replica in Replica:
+            for per_page in [11, 33]:
+                with self.subTest(replica=replica, per_page=per_page):
+                    self._test_bundle_get_paging(replica, expected_files, per_page)
 
-        with self.subTest("Should NOT be able to use a too-small per_page"):
-            self._test_bundle_get_paging(Replica.aws, list(), 9, codes=requests.codes.bad_request)
-            self._test_bundle_get_paging(Replica.gcp, list(), 9, codes=requests.codes.bad_request)
+            # This will get the entire manifest
+            per_page = 500
+            with self.subTest(replica=replica, per_page=per_page):
+                self._test_bundle_get_paging(replica, expected_files, per_page, requests.codes.ok)
 
-        with self.subTest("Should NOT be able to use a too-large per_page"):
-            self._test_bundle_get_paging(Replica.aws, list(), 501, codes=requests.codes.bad_request)
-            self._test_bundle_get_paging(Replica.gcp, list(), 501, codes=requests.codes.bad_request)
+    def test_bundle_paging_too_small(self):
+        """
+        Should NOT be able to use a too-small per_page
+        """
+        for replica in Replica:
+            with self.subTest(replica):
+                self._test_bundle_get_paging(replica, list(), 9, codes=requests.codes.bad_request)
+
+    def test_bundle_paging_too_large(self):
+        """
+        Should NOT be able to use a too-large per_page
+        """
+        for replica in Replica:
+            with self.subTest(replica):
+                self._test_bundle_get_paging(Replica.aws, list(), 501, codes=requests.codes.bad_request)
 
     def _test_bundle_get_paging(self,
                                 replica: Replica,
@@ -143,13 +153,23 @@ class TestBundleApi(unittest.TestCase, TestAuthMixin, DSSAssertMixin, DSSUploadM
         files = list()  # type: ignore
         files.extend(resp_obj.json['bundle']['files'])
 
+        link_header = resp_obj.response.headers.get('Link')
+
         with override_bucket_config(BucketConfig.TEST_FIXTURE):
-            while resp_obj.response.headers.get('Link'):
-                link = parse_header_links(resp_obj.response.headers['Link'])[0]
+            while link_header:
+                link = parse_header_links(link_header)[0]
                 self.assertEquals(link['rel'], "next")
                 url = "/" + link['url']
+                self.assertIn("version", url)
                 resp_obj = self.assertGetResponse(url, codes, headers=get_auth_header())
                 files.extend(resp_obj.json['bundle']['files'])
+                link_header = resp_obj.response.headers.get('Link')
+
+                # Make sure we're getting the expected response status code
+                if link_header:
+                    self.assertEqual(resp_obj.response.status_code, requests.codes.partial)
+                else:
+                    self.assertEqual(resp_obj.response.status_code, requests.codes.ok)
 
         self.assertEquals(len(expected_files), len(files))
 

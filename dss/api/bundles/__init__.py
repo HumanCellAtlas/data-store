@@ -67,12 +67,13 @@ def get(
             headers['Retry-After'] = RETRY_AFTER_INTERVAL
             return response
 
-    files = bundle_metadata[BundleMetadata.FILES]
+    all_files = bundle_metadata[BundleMetadata.FILES]
 
     link = None
-    if len(files) - start_at > per_page:
+    if len(all_files) - start_at > per_page:
         next_url = (UrlBuilder().set(path=f"v1/bundles/{uuid}")
                     .add_query("replica", _replica.name)
+                    .add_query("version", version)
                     .add_query("per_page", str(per_page))
                     .add_query("start_at", str(start_at + per_page)))
         if directurls:
@@ -85,7 +86,7 @@ def get(
             next_url.add_query("token", token)
         link = f"<{next_url}>; rel='next'"
 
-    files = files[start_at:start_at + per_page]
+    files = all_files[start_at:start_at + per_page]
 
     filesresponse = []  # type: typing.List[dict]
     for file in files:
