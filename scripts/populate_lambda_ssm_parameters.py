@@ -139,4 +139,6 @@ if __name__ == "__main__":
         set_ssm_lambda_environment(lambda_env)
         if args.update_deployed_lambdas:
             for lambda_name in get_deployed_lambdas():
-                set_deployed_lambda_environment(lambda_name, lambda_env)
+                current_lambda_env = get_deployed_lambda_environment(lambda_name)
+                current_lambda_env.update(lambda_env)
+                set_deployed_lambda_environment(lambda_name, current_lambda_env)
