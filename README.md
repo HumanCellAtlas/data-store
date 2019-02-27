@@ -10,7 +10,7 @@ meeting notes, and [this Zenhub board](https://app.zenhub.com/workspace/o/humanc
 
 ## Overview
 
-The DSS is a replicated data storage system designed for hosting large sets of scientific experimental data on 
+The DSS is a replicated data storage system designed for hosting large sets of scientific experimental data on
 [Amazon S3](https://aws.amazon.com/s3/) and [Google Storage](https://cloud.google.com/storage/). The DSS exposes an API
 for interacting with the data and is built using [Chalice](https://github.com/aws/chalice),
 [API Gateway](https://aws.amazon.com/api-gateway/) and [AWS Lambda](https://aws.amazon.com/lambda/). The API also
@@ -55,15 +55,19 @@ are defined in the file [`environment`](environment). To customize the values of
 
 1. Copy `environment.local.example` to `environment.local`
 1. Edit `environment.local` to add custom entries that override the default values in `environment`
-    
+
 Run `source environment`  now and whenever these environment files are modified.
 
 The full list of configurable environment variables and their descriptions are documented [here](docs/environment/README.md).
 
+#### Configure Terraform
+
+The DSS uses the [Amazon S3 backend](https://www.terraform.io/docs/backends/types/s3.html) for Terraform-deployed resources. To run deployment, make sure that the requisite bucket exists. The bucket is named after `$DSS_TERRAFORM_BACKEND_BUCKET_TEMPLATE`, by default `org-humancellatlas-{account_id}-terraform` with `{account_id}` substituted with your AWS account ID.
+
 #### Configure AWS
 
 1. Follow this [tutorial](http://docs.aws.amazon.com/cli/latest/userguide/cli-chap-getting-started.html) to install the
-AWS command line utility and configure your AWS access credentials.
+   AWS command line utility and configure your AWS access credentials.
 
 1. Specify the names of S3 buckets in `environment.local`, using the environment variables `DSS_S3_BUCKET_*`, and verify
    that `AWS_DEFAULT_REGION` points to your prefered region.
@@ -71,7 +75,30 @@ AWS command line utility and configure your AWS access credentials.
 
 #### Configure GCP
 
-1.  Follow the instructions in https://cloud.google.com/sdk/downloads to get the `gcloud` command line utility.
+1.  Generate OAuth application secrets to be used for your instance:
+
+    1) Go to the [GCP API and Service Credentials page](https://console.developers.google.com/apis/credentials). You may have to select Organization and Project again.
+
+	1) Click *Create Credentials* and select *OAuth client*
+
+	1) For *Application type* choose *Other*
+
+	1) Under application name, use `hca-dss-` followed by the stage name (i.e. the value of `DSS_DEPLOYMENT_STAGE`). This
+    is a convention only and carries no technical significance.
+
+	1) Click *Create*, don't worry about noting the client ID and secret, click *OK*
+
+	1) Click the edit icon for the new credentials and click *Download JSON*
+
+	1) Place the downloaded JSON file into the project root as `application_secrets.json`
+
+	1) Run the command
+
+	   ```
+	   cat $DSS_HOME/application_secrets.json | scripts/set_secret.py --secret-name $GOOGLE_APPLICATION_SECRETS_SECRETS_NAME
+       ```
+
+1.  [Download](https://cloud.google.com/sdk/downloads) the `gcloud` command line utility.
 
 1.  Run the command
 
@@ -85,42 +112,17 @@ AWS command line utility and configure your AWS access credentials.
 	of currently deployed Lambdas may optionally by updated in place with the flag `--update-deployed-lambdas`.
 
 1.  Choose a region that has support for Cloud Functions and set `GCP_DEFAULT_REGION` to that region. See
-    https://cloud.google.com/about/locations/ for a list of supported regions.
+    [the GCP locations list](https://cloud.google.com/about/locations/) for a list of supported regions.
 
 1.  Run `gcloud config set project PROJECT_ID` **where PROJECT_ID is the ID, not the name (i.e: hca-store-21555, NOT just hca-store) of the GCP project you selected earlier**.
 
-1.  Enable required APIs: 
+1.  Enable required APIs:
 
     ```
     gcloud services enable cloudfunctions.googleapis.com
     gcloud services enable runtimeconfig.googleapis.com
+    gcloud services enable iam.googleapis.com
     ```
-
-1.  Generate OAuth application secrets to be used for your instance: 
-
-    1) Go to https://console.developers.google.com/apis/credentials (you may have to select Organization and Project
-    again)
-    
-	1) Click *Create Credentials* and select *OAuth client*
-    
-	1) For *Application type* choose *Other*  
-    
-	1) Under application name, use `hca-dss-` followed by the stage name i.e., the value of DSS_DEPLOYMENT_STAGE. This
-    is a convention only and carries no technical significance.
-    
-	1) Click *Create*, don't worry about noting the client ID and secret, click *OK*
-    
-	1) Click the edit icon for the new credentials and click *Download JSON*
-
-	1) Place the downloaded JSON file into the project root as `application_secrets.json`
-    
-	1) Run the command 
-
-	```
-	cat $DSS_HOME/application_secrets.json | scripts/set_secret.py --secret-name $GOOGLE_APPLICATION_SECRETS_SECRETS_NAME
-	```
-
-1.  Specify the name of the Google Cloud Platform service account in `environment.local` using the variable `DSS_GCP_SERVICE_ACCOUNT_NAME`.
 
 1.  Specify the names of Google Cloud Storage buckets in `environment.local`, using the environment variables `DSS_GS_BUCKET_*`,
     and verify that `GCP_DEFAULT_REGION` points to your prefered region.
@@ -134,7 +136,7 @@ The following environment variables must be set to enable user authentication an
 * `OIDC_GROUP_CLAIM` is the JWT claim that specifies the group the users belongs to.
 * `OIDC_EMAIL_CLAIM` is the JWT claim that specifies the requests email.
 
-Also update `authorizationUrl` in **dss/dss-api.yml** to point to an authorization endpoint which returns a 
+Also update `authorizationUrl` in **dss/dss-api.yml** to point to an authorization endpoint which returns a
 valid JWT.
 
 Optional: To configure a custom swagger auth before deployment run:
@@ -145,7 +147,7 @@ Alternatively, to configure auth for all swagger endpoints, you can run:
 
     python scripts/swagger_auth.py --secure
 
-Note: Removing auth from endpoints will currently break tests, however adding auth should be fine 
+Note: Removing auth from endpoints will currently break tests, however adding auth should be fine
 (`make test` should run successfully).
 
 Note: The auth config file for deployment can also be set in `environment.local` with AUTH_CONFIG_FILE.
@@ -156,35 +158,44 @@ Note: The auth config file for deployment can also be set in `environment.local`
 
 Run `./dss-api` in the top-level `data-store` directory to deploy the DSS API on your `localhost`.
 
-### Aquiring GCP credentials
+### Acquiring GCP credentials
 
 When deploying for the first time, a Google Cloud Platform service account must first be created and credentialed.
+
+1.  Specify the name of the Google Cloud Platform service account in `environment.local` using the variable `DSS_GCP_SERVICE_ACCOUNT_NAME`.
+
+1.  Provision a set of credentials that will allow you to run deployment.
+
+    1) In the [Google Cloud Console](https://console.cloud.google.com/), select the correct Google user account on the top
+       right and the correct GCP project in the drop down in the top center. Go to "IAM & Admin", then "Service accounts".
+
+    1) Click "Create service account" and select "Furnish a new private key". Under "Roles", select
+       a) "Project – Owner",
+       a) "Service Accounts – Service Account User"
+       a) "Cloud Functions – Cloud Function Developer".
+
+    1) Create the account and download the service account key JSON file.
+
+    1) Place the file as `$DSS_HOME/gcp-credentials.json`. You will replace it later.
 
 1.  Create the Google Cloud Platform service account using the command
     ```
     make -C infra COMPONENT=gcp_service_account apply
     ```
-
-1.  In the [Google Cloud Console](https://console.cloud.google.com/), select the correct Google user account on the top
-    right and the correct GCP project in the drop down in the top center. Go to "IAM & Admin", then "Service accounts",
-    then click "Create service account" and select "Furnish a new private key". Under "Roles" select "Project – Owner",
-    "Service Accounts – Service Account User" and "Cloud Functions – Cloud Function Developer". Create the account and 
-    download the service account key JSON file.
+    This step can be skipped if you're rotating credentials.
 
 1.  Place the downloaded JSON file into the project root as `gcp-credentials.json`
 
-1.  Run the command 
+1.  Run the command
 
     ```
     cat $DSS_HOME/gcp-credentials.json | scripts/set_secret.py --secret-name $GOOGLE_APPLICATION_CREDENTIALS_SECRETS_NAME
     ```
 
-When rotating credentials, the first step may be skipped.
-
-### Setting admin emails 
+### Setting admin emails
 
 Set admin account emails within AWS Secret Manager
-``` 
+```
 echo ' ' |  ./scripts/set_secret.py --secret-name $ADMIN_USER_EMAILS_SECRETS_NAME
  ```
 
@@ -223,8 +234,8 @@ And you should be able to list bundles like this:
 
 ### Configure email notifications
 
-Some daemons (dss-checkout-sfn for example) use Amazon SES to send emails. You must set `DSS_NOTIFICATION_SENDER` to 
-your email address and then verify that address using the SES Console enabling SES to send notification emails from it. 
+Some daemons (dss-checkout-sfn for example) use Amazon SES to send emails. You must set `DSS_NOTIFICATION_SENDER` to
+your email address and then verify that address using the SES Console enabling SES to send notification emails from it.
 
 ### Using the HCA Data Store CLI Client
 
@@ -303,7 +314,7 @@ the correct bucket names are provided)_:
 
     `tests/fixtures/populate.py --s3-bucket $DSS_S3_BUCKET_TEST_FIXTURES --gs-bucket $DSS_GS_BUCKET_TEST_FIXTURES`
 
-1. Set the environment variable `DSS_TEST_ES_PATH` to the path of the `elasticsearch` binary on your machine. 
+1. Set the environment variable `DSS_TEST_ES_PATH` to the path of the `elasticsearch` binary on your machine.
 
 1. Run tests with `make test`
 
@@ -343,17 +354,17 @@ test-deploy-test cycle after this (the test after the deploy is required to test
     logger = logging.getLogger(__name__)
     ```
 
-1.  Do not configure logging at module scope. It should be possible to import any module without side-effects on 
-    logging. The `dss.logging` module contains functions that configure logging for this application, its Lambda 
+1.  Do not configure logging at module scope. It should be possible to import any module without side-effects on
+    logging. The `dss.logging` module contains functions that configure logging for this application, its Lambda
     functions and unit tests.
-    
+
 1.  When logging a message, pass either
- 
+
     * an f-string as the first and only positional argument or
-    
-    * a %-string as the first argument and substitution values as subsequent arguments. Do not mix the two string 
+
+    * a %-string as the first argument and substitution values as subsequent arguments. Do not mix the two string
       interpolation methods. If you mix them, any percent sign in a substituted value will raise an exception.
-    
+
     ```python
     # In other words, use
     logger.info(f"Foo is {foo} and bar is {bar}")
@@ -361,15 +372,15 @@ test-deploy-test cycle after this (the test after the deploy is required to test
     logger.info("Foo is %s and bar is %s", foo, bar)
     # but not
     logger.info(f"Foo is {foo} and bar is %s", bar)
-    # Keyword arguments can be used safely in conjunction with f-strings: 
+    # Keyword arguments can be used safely in conjunction with f-strings:
     logger.info(f"Foo is {foo}", exc_info=True)
     ```
-    
-1.  To enable verbose logging by application code, set the environment variable `DSS_DEBUG` to `1`. To enable verbose 
+
+1.  To enable verbose logging by application code, set the environment variable `DSS_DEBUG` to `1`. To enable verbose
     logging by dependencies set `DSS_DEBUG` to `2`. To disable verbose logging unset `DSS_DEBUG` or set it to `0`.
 
-1.  To assert in tests that certain messages were logged, use the `dss` logger or one of its children 
-    
+1.  To assert in tests that certain messages were logged, use the `dss` logger or one of its children
+
     ```python
     dss_logger = logging.getLogger('dss')
     with self.assertLogs(dss_logger) as log_monitor:
@@ -377,12 +388,12 @@ test-deploy-test cycle after this (the test after the deploy is required to test
     # or
     import dss
     with self.assertLogs(dss.logger) as log_monitor:
-        # do stuff     
+        # do stuff
     ```
 
 ### Enabling Profiling
-AWS Xray tracing is used for profiling the performance of deployed lambdas. This can be enabled for `chalice/app.py` by 
-setting the lambda environment variable `DSS_XRAY_TRACE=1`. For all other daemons you must also check 
+AWS Xray tracing is used for profiling the performance of deployed lambdas. This can be enabled for `chalice/app.py` by
+setting the lambda environment variable `DSS_XRAY_TRACE=1`. For all other daemons you must also check
 "Enable active tracking" under "Debugging and error handling" in the AWS Lambda console.
 
 ## Contributing
