@@ -1392,7 +1392,7 @@ paths:
                         - Only relative paths with "/" (forward)slashes allowed.  e.g. "path/file.json" or "file.json"
                         - Please upload using "/" (forward)slashes, even if on Windows.
                       type: string
-                      pattern: "^(\\.?[\\w][\\w\\s.]*)+((\\.?[\\w][\\w\\s.]*)|\\/)*$"
+                      pattern: "^(\\.?[\\w\\-!#%()'][\\w.\\-~!#%()']*)+((\\.?[\\w\\-~!#%()'][\\w.\\-~!#%()']*)|\\/)*$"
                     indexed:
                       description: True iff this file should be indexed.
                       type: boolean

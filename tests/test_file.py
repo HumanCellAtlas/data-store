@@ -611,7 +611,8 @@ class TestFileApi(unittest.TestCase, TestAuthMixin, DSSUploadMixin, DSSAssertMix
         examples_of_bad_paths = unix_bad_paths + windows_bad_paths
 
         unix_good_paths = ['path', 'path.json2', 'good..path', 'path.json2/', 'good..path2/',
-                           'pa/th.2json', 'go/od..2path', 'a/2b/c/22d2', 'a/b.2c/d2.json', '.2bashrc']
+                           'pa/th.2json', 'go/od..2path', 'a/2b/c/22d2', 'a/b.2c/d2.json', '.2bashrc',
+                           'abedf40-299a-484d-a1b7-1c6103fcfc87_qc.bait_bias_summary_metrics.txt']
         windows_good_paths = []
         examples_of_good_paths = unix_good_paths + windows_good_paths
 
