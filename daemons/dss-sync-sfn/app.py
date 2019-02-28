@@ -49,7 +49,8 @@ def launch_from_s3_event(event, context):
                 if exists(dest_replica, obj.key):
                     # Logging error here causes daemons/invoke_lambda.sh to report failure, for some reason
                     # - Brian Hannafious, 2019-01-31
-                    logger.info("Key %s already exists in %s, skipping sync", obj.key, dest_replica)
+                    logger.info("[s3 Event] Key %s already exists in %s, skipping sync.", str(obj.key),
+                                                                                          str(dest_replica.name))
                     continue
                 exec_name = bucket.name + "/" + obj.key + ":" + source_replica.name + ":" + dest_replica.name
                 exec_input = dict(source_replica=source_replica.name,
@@ -71,12 +72,13 @@ def launch_from_forwarded_event(event, context):
             bucket = source_replica.bucket
             for dest_replica in Config.get_replication_destinations(source_replica):
                 if exists(dest_replica, source_key):
-                    logger.info("Key %s already exists in %s, skipping sync", source_key, dest_replica)
+                    logger.info("[Forwarded Event] Key %s already exists in %s, skipping sync.", str(source_key),
+                                                                                                 str(dest_replica.name))
                     continue
-                exec_name = bucket + "/" + message["name"] + ":" + source_replica.name + ":" + dest_replica.name
+                exec_name = bucket + "/" + source_key + ":" + source_replica.name + ":" + dest_replica.name
                 exec_input = dict(source_replica=source_replica.name,
                                   dest_replica=dest_replica.name,
-                                  source_key=message["name"],
+                                  source_key=source_key,
                                   source_obj_metadata=message)
                 executions[exec_name] = app.state_machine.start_execution(**exec_input)["executionArn"]
         else:
