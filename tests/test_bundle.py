@@ -141,12 +141,12 @@ class TestBundleApi(unittest.TestCase, TestAuthMixin, DSSAssertMixin, DSSUploadM
         bundle_uuid = "7f8c686d-a439-4376-b367-ac93fc28df43"
         version = "2019-02-21T184000.899031Z"
 
-        url = UrlBuilder().set(path="/v1/bundles/" + bundle_uuid)
-        url.add_query("replica", replica.name)
-        url.add_query("per_page", str(per_page))
+        url_base = UrlBuilder().set(path="/v1/bundles/" + bundle_uuid)
+        url_base.add_query("replica", replica.name)
+        url_base.add_query("per_page", str(per_page))
         if pass_version:
-            url.add_query("version", version)
-        url = str(url)
+            url_base.add_query("version", version)
+        url = str(url_base)
 
         with override_bucket_config(BucketConfig.TEST_FIXTURE):
             resp_obj = self.assertGetResponse(url, codes, headers=get_auth_header())
