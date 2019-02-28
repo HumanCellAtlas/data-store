@@ -105,9 +105,10 @@ class TestBundleApi(unittest.TestCase, TestAuthMixin, DSSAssertMixin, DSSUploadM
             expected_files = manifest['files']
 
         for replica in Replica:
-            for per_page in [11, 33]:
-                with self.subTest(replica=replica, per_page=per_page):
-                    self._test_bundle_get_paging(replica, expected_files, per_page)
+            for pass_version in [True, False]:
+                for per_page in [11, 33]:
+                    with self.subTest(replica=replica, per_page=per_page, pass_version=pass_version):
+                        self._test_bundle_get_paging(replica, expected_files, per_page, pass_version=pass_version)
 
             # This will get the entire manifest
             per_page = 500
@@ -134,16 +135,18 @@ class TestBundleApi(unittest.TestCase, TestAuthMixin, DSSAssertMixin, DSSUploadM
                                 replica: Replica,
                                 expected_files: list,
                                 per_page: int,
-                                codes={requests.codes.ok, requests.codes.partial}):
+                                codes={requests.codes.ok, requests.codes.partial},
+                                pass_version: bool = True):
         replica = Replica.aws
         bundle_uuid = "7f8c686d-a439-4376-b367-ac93fc28df43"
         version = "2019-02-21T184000.899031Z"
 
-        url = str(UrlBuilder()
-                  .set(path="/v1/bundles/" + bundle_uuid)
-                  .add_query("replica", replica.name)
-                  .add_query("per_page", str(per_page))
-                  .add_query("version", version))
+        url = UrlBuilder().set(path="/v1/bundles/" + bundle_uuid)
+        url.add_query("replica", replica.name)
+        url.add_query("per_page", str(per_page))
+        if pass_version:
+            url.add_query("version", version)
+        url = str(url)
 
         with override_bucket_config(BucketConfig.TEST_FIXTURE):
             resp_obj = self.assertGetResponse(url, codes, headers=get_auth_header())
@@ -151,7 +154,7 @@ class TestBundleApi(unittest.TestCase, TestAuthMixin, DSSAssertMixin, DSSUploadM
         if not expected_files:
             return
 
-        files = list()
+        files = list()  # type: ignore
         files.extend(resp_obj.json['bundle']['files'])
 
         link_header = resp_obj.response.headers.get('Link')
