@@ -71,17 +71,10 @@ def get(
 
     link = None
     if len(all_files) - start_at > per_page:
-        next_url = (UrlBuilder().set(path=f"v1/bundles/{uuid}")
-                    .add_query("replica", _replica.name)
-                    .add_query("version", version)
-                    .add_query("per_page", str(per_page))
-                    .add_query("start_at", str(start_at + per_page)))
-        if directurls:
-            next_url.add_query("directurls", "true")
-        if presignedurls:
-            next_url.add_query("presignedurls", "true")
-        if token is not None:
-            next_url.add_query("token", token)
+        next_url = UrlBuilder(request.url)
+        next_url.replace_query("start_at", str(start_at + per_page))
+        next_url.replace_query("version", version)
+        next_url.replace_query("token", token)
         link = f"<{next_url}>; rel='next'"
 
     files = all_files[start_at:start_at + per_page]

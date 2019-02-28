@@ -17,6 +17,7 @@ import urllib.parse
 import uuid
 import json
 from requests.utils import parse_header_links
+from urllib.parse import parse_qsl, urlparse, urlsplit
 
 pkg_root = os.path.abspath(os.path.join(os.path.dirname(__file__), '..'))  # noqa
 sys.path.insert(0, pkg_root)  # noqa
@@ -150,7 +151,7 @@ class TestBundleApi(unittest.TestCase, TestAuthMixin, DSSAssertMixin, DSSUploadM
         if not expected_files:
             return
 
-        files = list()  # type: ignore
+        files = list()
         files.extend(resp_obj.json['bundle']['files'])
 
         link_header = resp_obj.response.headers.get('Link')
@@ -159,7 +160,8 @@ class TestBundleApi(unittest.TestCase, TestAuthMixin, DSSAssertMixin, DSSUploadM
             while link_header:
                 link = parse_header_links(link_header)[0]
                 self.assertEquals(link['rel'], "next")
-                url = "/" + link['url']
+                parsed = urlsplit(link['url'])
+                url = str(UrlBuilder().set(path=parsed.path, query=parse_qsl(parsed.query), fragment=parsed.fragment))
                 self.assertIn("version", url)
                 resp_obj = self.assertGetResponse(url, codes, headers=get_auth_header())
                 files.extend(resp_obj.json['bundle']['files'])
