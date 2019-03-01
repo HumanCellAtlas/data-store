@@ -64,12 +64,13 @@ info:
     {
       'transaction_id': {uuid},
       'subscription_id': {uuid},
-      'event_type': "CREATE"|"TOMBSTONE"|"DELETE",
+      'event_type': "CREATE"|"TOMBSTONE"|"DELETE",  # JMESPath subscriptions only
       'match': {
         'bundle_uuid': {uuid},
         'bundle_version': {version},
       }
-      'jmespath_query': {jmespath_query},
+      'jmespath_query': {jmespath_query},  # JMESPath subscriptions only
+      'es_query': {es_query},  # Elasticsearch subscriptions only
       'attachments': {
         "attachment_name_1": {value},
         "attachment_name_1": {value},
