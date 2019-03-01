@@ -95,7 +95,7 @@ def launch_from_notification_queue(event, context):
                 metadata_document = build_deleted_bundle_metadata_document(key)
             else:
                 metadata_document = build_bundle_metadata_document(replica, key)
-            if not notify(subscription, metadata_document, event_type, key):
+            if not notify(subscription, metadata_document, key):
                 # Erroring causes the message to remain in the queue
                 raise DSSFailedNotificationDelivery()
         else:
