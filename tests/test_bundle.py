@@ -154,7 +154,7 @@ class TestBundleApi(unittest.TestCase, TestAuthMixin, DSSAssertMixin, DSSUploadM
         if not expected_files:
             return
 
-        files = list()  # type: ignore
+        files: typing.List[dict] = list()
         files.extend(resp_obj.json['bundle']['files'])
 
         link_header = resp_obj.response.headers.get('Link')
