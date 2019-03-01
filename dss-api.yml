@@ -59,6 +59,18 @@ info:
     the time, and the fractional seconds extends to 6 decimal places. Using the first example found [here](https://tools.ietf.org/html/rfc3339#section-5.8),
     the RFC3339 version would be `1985-04-12T23:20:50.52Z` while the DSS_VERSION would be `1985-04-12T232050.520000Z`
 
+    # Pagination
+
+    The DSS API supports pagination in a manner consistent with the
+    [GitHub API](https://developer.github.com/v3/guides/traversing-with-pagination/),
+    which is based on [RFC 5988](https://tools.ietf.org/html/rfc5988). When the results of an API call exceed the
+    page size specified, the HTTP response will contain a `Link` header of the following form:
+    `Link: <https://dss.data.humancellatlas.org/v1/search?replica=aws&per_page=100&search_after=123>; rel="next"`.
+    The URL in the header refers to the next page of the results to be fetched; if no `Link rel="next"` URL is
+    included, then all results have been fetched. The client should recognize and parse the `Link` header
+    appropriately according to RFC 5988, and retrieve the next page if requested by the user, or if all results
+    are being retrieved.
+
 
   version: "0.0.2"
 host: {{API_DOMAIN_NAME}}
@@ -87,18 +99,6 @@ paths:
     post:
       description: >
         Accepts Elasticsearch JSON query and returns matching bundle identifiers
-
-        # Pagination
-
-        The DSS API supports pagination in a manner consistent with the
-        [GitHub API](https://developer.github.com/v3/guides/traversing-with-pagination/),
-        which is based on [RFC 5988](https://tools.ietf.org/html/rfc5988). When the results of an API call exceed the
-        page size specified, the HTTP response will contain a `Link` header of the following form:
-        `Link: <https://dss.data.humancellatlas.org/v1/search?replica=aws&per_page=100&search_after=123>; rel="next"`.
-        The URL in the header refers to the next page of the results to be fetched; if no `Link rel="next"` URL is
-        included, then all results have been fetched. The client should recognize and parse the `Link` header
-        appropriately according to RFC 5988, and retrieve the next page if requested by the user, or if all results
-        are being retrieved.
 
         # Index design
 
@@ -1259,6 +1259,23 @@ paths:
           description: Token to manage retries.  End users constructing queries should not set this parameter.
           required: false
           type: string
+        - name: per_page
+          in: query
+          description: Max number of results to return per page.
+          required: false
+          type: integer
+          format: int32
+          minimum: 10
+          maximum: 500
+          default: 500
+        - name: start_at
+          in: query
+          description: >
+            An internal state pointer parameter for use with pagination. This parameter is referenced by the `Link`
+            header as described in the "Pagination" section. The API client should not need to set this parameter
+            directly; it should instead directly fetch the URL given in the `Link` header.
+          required: false
+          type: integer
       responses:
         200:
           description: OK
@@ -1267,6 +1284,20 @@ paths:
             properties:
               bundle:
                 $ref: "#/definitions/bundle_version"
+        206:
+          description: A single page of results was retrieved.
+          schema:
+            type: object
+            properties:
+              bundle:
+                $ref: "#/definitions/bundle_version"
+          headers:
+            Link:
+              type: string
+              description: >
+                URL to retrieve the next page of results, conforming to [RFC 5988](https://tools.ietf.org/html/rfc5988)
+                The URL in the header refers to the next page of the results to be fetched; if no `Link rel="next"` URL is
+                included, then all results have been fetched.
         301:
           description: Handle asynchronously, downstream users are expected to retry later.
           headers:

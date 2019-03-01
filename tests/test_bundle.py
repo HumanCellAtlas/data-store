@@ -16,6 +16,8 @@ from unittest import mock
 import urllib.parse
 import uuid
 import json
+from requests.utils import parse_header_links
+from urllib.parse import parse_qsl, urlparse, urlsplit
 
 pkg_root = os.path.abspath(os.path.join(os.path.dirname(__file__), '..'))  # noqa
 sys.path.insert(0, pkg_root)  # noqa
@@ -55,7 +57,7 @@ class TestBundleApi(unittest.TestCase, TestAuthMixin, DSSAssertMixin, DSSUploadM
         self.s3_test_fixtures_bucket = get_env("DSS_S3_BUCKET_TEST_FIXTURES")
         self.gs_test_fixtures_bucket = get_env("DSS_GS_BUCKET_TEST_FIXTURES")
 
-    @testmode.integration
+    @testmode.standalone
     def test_bundle_get(self):
         self._test_bundle_get(Replica.aws)
         self._test_bundle_get(Replica.gcp)
@@ -89,6 +91,92 @@ class TestBundleApi(unittest.TestCase, TestAuthMixin, DSSAssertMixin, DSSUploadM
                              "cfc7749b96f63bd31c3c42b5c471bf756814053e847c10f3eb003417bc523d30")
             self.assertEqual(resp_obj.json['bundle']['files'][0]['uuid'], "ce55fd51-7833-469b-be0b-5da88ebebfcd")
             self.assertEqual(resp_obj.json['bundle']['files'][0]['version'], "2017-06-16T193604.240704Z")
+
+    @testmode.standalone
+    def test_bundle_paging(self):
+        bundle_uuid = "7f8c686d-a439-4376-b367-ac93fc28df43"
+        version = "2019-02-21T184000.899031Z"
+        with override_bucket_config(BucketConfig.TEST_FIXTURE):
+            handle = Config.get_blobstore_handle(Replica.aws)
+            manifest = json.loads(handle.get(
+                Replica.aws.bucket,
+                f"bundles/{bundle_uuid}.{version}"
+            ))
+            expected_files = manifest['files']
+
+        for replica in Replica:
+            for pass_version in [True, False]:
+                for per_page in [11, 33]:
+                    with self.subTest(replica=replica, per_page=per_page, pass_version=pass_version):
+                        self._test_bundle_get_paging(replica, expected_files, per_page, pass_version=pass_version)
+
+            # This will get the entire manifest
+            per_page = 500
+            with self.subTest(replica=replica, per_page=per_page):
+                self._test_bundle_get_paging(replica, expected_files, per_page, requests.codes.ok)
+
+    def test_bundle_paging_too_small(self):
+        """
+        Should NOT be able to use a too-small per_page
+        """
+        for replica in Replica:
+            with self.subTest(replica):
+                self._test_bundle_get_paging(replica, list(), 9, codes=requests.codes.bad_request)
+
+    def test_bundle_paging_too_large(self):
+        """
+        Should NOT be able to use a too-large per_page
+        """
+        for replica in Replica:
+            with self.subTest(replica):
+                self._test_bundle_get_paging(Replica.aws, list(), 501, codes=requests.codes.bad_request)
+
+    def _test_bundle_get_paging(self,
+                                replica: Replica,
+                                expected_files: list,
+                                per_page: int,
+                                codes={requests.codes.ok, requests.codes.partial},
+                                pass_version: bool = True):
+        replica = Replica.aws
+        bundle_uuid = "7f8c686d-a439-4376-b367-ac93fc28df43"
+        version = "2019-02-21T184000.899031Z"
+
+        url_base = UrlBuilder().set(path="/v1/bundles/" + bundle_uuid)
+        url_base.add_query("replica", replica.name)
+        url_base.add_query("per_page", str(per_page))
+        if pass_version:
+            url_base.add_query("version", version)
+        url = str(url_base)
+
+        with override_bucket_config(BucketConfig.TEST_FIXTURE):
+            resp_obj = self.assertGetResponse(url, codes, headers=get_auth_header())
+
+        if not expected_files:
+            return
+
+        files: typing.List[dict] = list()
+        files.extend(resp_obj.json['bundle']['files'])
+
+        link_header = resp_obj.response.headers.get('Link')
+
+        with override_bucket_config(BucketConfig.TEST_FIXTURE):
+            while link_header:
+                link = parse_header_links(link_header)[0]
+                self.assertEquals(link['rel'], "next")
+                parsed = urlsplit(link['url'])
+                url = str(UrlBuilder().set(path=parsed.path, query=parse_qsl(parsed.query), fragment=parsed.fragment))
+                self.assertIn("version", url)
+                resp_obj = self.assertGetResponse(url, codes, headers=get_auth_header())
+                files.extend(resp_obj.json['bundle']['files'])
+                link_header = resp_obj.response.headers.get('Link')
+
+                # Make sure we're getting the expected response status code
+                if link_header:
+                    self.assertEqual(resp_obj.response.status_code, requests.codes.partial)
+                else:
+                    self.assertEqual(resp_obj.response.status_code, requests.codes.ok)
+
+        self.assertEquals(len(expected_files), len(files))
 
     @testmode.integration
     def test_bundle_get_directaccess(self):
