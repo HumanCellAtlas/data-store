@@ -51,8 +51,38 @@ info:
 
     ```
 
-    # Special String Formats
+    # Subscriptions
 
+    DSS supports webhook subscriptions for data events like bundle creation and deletion. Webhooks are callbacks to a public
+    HTTPS endpoint provided by your application. When an event matching your subscription occurs, DSS will send a push
+    notification (via an HTTPS POST or PUT request), giving your application an up-to-date stream of system activity.
+
+    Subscriptions are delivered with the payload format
+
+    ```
+
+    {
+      'transaction_id': {uuid},
+      'subscription_id': {uuid},
+      'event_type': "CREATE"|"TOMBSTONE"|"DELETE",  # JMESPath subscriptions only
+      'match': {
+        'bundle_uuid': {uuid},
+        'bundle_version': {version},
+      }
+      'jmespath_query': {jmespath_query},  # JMESPath subscriptions only
+      'es_query': {es_query},  # Elasticsearch subscriptions only
+      'attachments': {
+        "attachment_name_1": {value},
+        "attachment_name_1": {value},
+        ...
+        "_errors": [...]
+      }
+    }
+
+    ```
+
+
+    # Special String Formats
 
     **DSS_VERSION**: a timestamp that generally follows [RFC3339](https://tools.ietf.org/html/rfc3339#section-5.6)
     format guide. However there are a few differences. DSS_VERSION must always be in UTC time, ':' are removed from
