@@ -3,7 +3,7 @@ SHELL=/bin/bash
 tests:=$(wildcard tests/test_*.py)
 
 before-test:
-	cat fusillade-api.yml | envsubst '$$API_HOST' > chalicelib/swagger.yml
+	cat fusillade-api.yml | envsubst '$$API_DOMAIN_NAME' > chalicelib/swagger.yml
 
 lint:
 	flake8 app.py fusillade/*.py
@@ -30,10 +30,16 @@ install: docs
 set_oauth2_config:
 	cat ./oauth2_config.json | ./scripts/set_secret.py --secret-name oauth2_config
 
+plan-infra:
+	$(MAKE) -C infra plan-all
+
+deploy-infra:
+	$(MAKE) -C infra apply-all
+
 deploy:
 	git clean -df chalicelib vendor
 	shopt -s nullglob; for wheel in vendor.in/*/*.whl; do unzip -q -o -d vendor $$wheel; done
-	cat fusillade-api.yml | envsubst '$$API_HOST' > chalicelib/swagger.yml
+	cat fusillade-api.yml | envsubst '$$API_DOMAIN_NAME' > chalicelib/swagger.yml
 	./build_chalice_config.sh $(FUS_DEPLOYMENT_STAGE)
 	chalice deploy --no-autogen-policy --stage $(FUS_DEPLOYMENT_STAGE) --api-gateway-stage $(FUS_DEPLOYMENT_STAGE)
 

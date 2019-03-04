@@ -56,6 +56,11 @@ authenticate users. This file is uploaded to AWS secrets manager using `make set
 - brew install moreutils
 - brew install gettext
 - brew link --force gettext 
+- brew install terraform
+
+- Setup AWS CLI with the correct profile, default region, and output format.
+
+- Environment variables can be set in `environment.local` for convenience.
 
 Using Fusillade as a service
 ----------------------------

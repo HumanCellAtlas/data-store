@@ -42,3 +42,9 @@ npm-debug.log
 
 # fusillade specific
 /oauth2_config.json
+
+# terraform
+.terraform
+/infra/*/backend.tf
+/infra/*/providers.tf
+/infra/*/variables.tf

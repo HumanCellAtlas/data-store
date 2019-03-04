@@ -8,5 +8,7 @@
   },
   "environment_variables": {
     "OPENID_PROVIDER": "humancellatlas.auth0.com"
-  }
+  },
+  "lambda_timeout": 30,
+  "lambda_memory_size": 1536
 }
