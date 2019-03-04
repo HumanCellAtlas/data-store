@@ -39,7 +39,8 @@ def serve_swagger_definition():
     return swagger_defn
 
 
-oauth2_config = json.loads(secretsmanager.get_secret_value(SecretId="fusillade.oauth2_config")["SecretString"])
+oauth2_config = json.loads(secretsmanager.get_secret_value(
+    SecretId=f"{os.environ['FUS_SECRETS_STORE']}/{os.environ['FUS_DEPLOYMENT_STAGE']}/oauth2_config")["SecretString"])
 
 
 @functools.lru_cache(maxsize=32)

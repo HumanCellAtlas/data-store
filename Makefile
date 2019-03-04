@@ -1,6 +1,4 @@
 SHELL=/bin/bash
-STAGE=dev
-export API_HOST=auth.${STAGE}.data.humancellatlas.org
 
 tests:=$(wildcard tests/test_*.py)
 
@@ -29,12 +27,15 @@ install: docs
 	python setup.py bdist_wheel
 	pip install --upgrade dist/*.whl
 
+set_oauth2_config:
+	cat ./oauth2_config.json | ./scripts/set_secret.py --secret-name oauth2_config
+
 deploy:
 	git clean -df chalicelib vendor
 	shopt -s nullglob; for wheel in vendor.in/*/*.whl; do unzip -q -o -d vendor $$wheel; done
 	cat fusillade-api.yml | envsubst '$$API_HOST' > chalicelib/swagger.yml
-	./build_chalice_config.sh $(STAGE)
-	chalice deploy --no-autogen-policy --stage $(STAGE) --api-gateway-stage $(STAGE)
+	./build_chalice_config.sh $(FUS_DEPLOYMENT_STAGE)
+	chalice deploy --no-autogen-policy --stage $(FUS_DEPLOYMENT_STAGE) --api-gateway-stage $(FUS_DEPLOYMENT_STAGE)
 
 .PHONY: test release docs
 

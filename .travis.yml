@@ -10,6 +10,7 @@ env:
   - AWS_DEFAULT_OUTPUT=json
 
 before_install:
+  - source environment
   - pip install --quiet coverage flake8 pyyaml
 
 install:

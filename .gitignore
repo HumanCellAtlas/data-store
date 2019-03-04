@@ -39,3 +39,6 @@ npm-debug.log
 /.chalice/deployed.json
 /.chalice/policy-*.json
 /README.rst
+
+# fusillade specific
+/oauth2_config.json

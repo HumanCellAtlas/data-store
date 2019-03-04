@@ -18,6 +18,14 @@
         "clouddirectory:*"
       ],
       "Resource": "*"
+    },
+    {
+      "Action": [
+        "secretsmanager:GetSecretValue"
+      ],
+      "Effect": "Allow",
+      "Resource": [
+      ]
     }
   ]
 }

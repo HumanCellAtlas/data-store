@@ -2,12 +2,12 @@
 
 set -euo pipefail
 
-if [[ $# != 1 ]]; then
-    echo "Usage: $(basename $0) stage"
+if [[ -z $FUS_DEPLOYMENT_STAGE ]]; then
+    echo 'Please run "source environment" in the data-store repo root directory before running this command'
     exit 1
 fi
 
-export stage=$1
+export stage=$FUS_DEPLOYMENT_STAGE
 deployed_json="$(dirname $0)/.chalice/deployed.json"
 config_json="$(dirname $0)/.chalice/config.json"
 policy_json="$(dirname $0)/.chalice/policy.json"
@@ -34,4 +34,15 @@ else
            .$stage.lambda_functions = {}" > "$deployed_json"
 fi
 
+cat "$config_json" | jq ".stages.$stage.api_gateway_stage=env.stage" | sponge "$config_json"
+export DEPLOY_ORIGIN="$(whoami)-$(hostname)-$(git describe --tags --always)-$(date -u +'%Y-%m-%d-%H-%M-%S').deploy"
+cat "$config_json" | jq .stages.$stage.tags.FUS_DEPLOY_ORIGIN=env.DEPLOY_ORIGIN | sponge "$config_json"
+env_json=$(aws ssm get-parameter --name /${FUS_PARAMETER_STORE}/${FUS_DEPLOYMENT_STAGE}/environment | jq -r .Parameter.Value)
+for var in $(echo $env_json | jq -r keys[]); do
+    val=$(echo $env_json | jq .$var)
+    cat "$config_json" | jq .stages.$stage.environment_variables.$var="$val" | sponge "$config_json"
+done
+
 cp "$policy_json" "$stage_policy_json"
+export secret_arn=$(aws secretsmanager describe-secret --secret-id ${FUS_SECRETS_STORE}/${FUS_DEPLOYMENT_STAGE}/oauth2_config | jq .ARN)
+cat "$stage_policy_json" | jq .Statement[2].Resource[0]=$secret_arn | sponge "$stage_policy_json"

@@ -45,10 +45,15 @@ To do this, your application should define an access control model consisting of
 
 Installing and configuring Fusillade
 ------------------------------------
- 
+Create `oauth2_config.json` with the OIDC providers you'd like to use to 
+authenticate users. This file is uploaded to AWS secrets manager using `make set_oauth2_config`. Use 
+[`oauth2_config.example.json`](../blob/master/oauth2_config.example.json) for help.
+    
+
 - pip install -r ./requirements-dev
 - brew install jq
 - brew install pandoc
+- brew install moreutils
 - brew install gettext
 - brew link --force gettext 
 
