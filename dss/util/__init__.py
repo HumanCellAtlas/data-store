@@ -122,7 +122,8 @@ def get_gcp_credentials_file():
     """
     secret_store = os.environ['DSS_SECRETS_STORE']
     stage = os.environ['DSS_DEPLOYMENT_STAGE']
-    secret_id = f"{secret_store}/{stage}/gcp-credentials.json"
+    credentials_secrets_name = os.environ['GOOGLE_APPLICATION_CREDENTIALS_SECRETS_NAME']
+    secret_id = f"{secret_store}/{stage}/{credentials_secrets_name}"
     resp = boto3.client("secretsmanager").get_secret_value(SecretId=secret_id)
     tf = tempfile.NamedTemporaryFile("w")
     tf.write(resp['SecretString'])
