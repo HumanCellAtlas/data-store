@@ -123,7 +123,7 @@ class TestNotifyV2(unittest.TestCase, DSSAssertMixin, DSSUploadMixin):
         notification = self._get_notification_from_s3_object(bucket, notification_object_key)
         self.assertEquals(notification['subscription_id'], subscription['uuid'])
         self.assertEquals(notification['match']['bundle_uuid'], bundle_uuid)
-        self.assertEquals(notification['match']['bundle_version'], f"{bundle_version}.dead")
+        self.assertEquals(notification['match']['bundle_version'], f"{bundle_version}")
 
     @testmode.standalone
     def _test_notify_or_queue(self, metadata_document):
