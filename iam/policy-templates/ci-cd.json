@@ -132,12 +132,9 @@
         "arn:aws:dynamodb:*:$account_id:table/dss-async-state-dev",
         "arn:aws:dynamodb:*:$account_id:table/dss-async-state-integration",
         "arn:aws:dynamodb:*:$account_id:table/dss-async-state-staging",
-        "arn:aws:dynamodb:*:$account_id:table/dss-subscriptions-v2-aws-dev",
-        "arn:aws:dynamodb:*:$account_id:table/dss-subscriptions-v2-aws-integration",
-        "arn:aws:dynamodb:*:$account_id:table/dss-subscriptions-v2-aws-staging",
-        "arn:aws:dynamodb:*:$account_id:table/dss-subscriptions-v2--dev",
-        "arn:aws:dynamodb:*:$account_id:table/dss-subscriptions-v2--integration",
-        "arn:aws:dynamodb:*:$account_id:table/dss-subscriptions-v2--staging"
+        "arn:aws:dynamodb:*:$account_id:table/dss-subscriptions-v2-*-dev",
+        "arn:aws:dynamodb:*:$account_id:table/dss-subscriptions-v2-*-integration",
+        "arn:aws:dynamodb:*:$account_id:table/dss-subscriptions-v2-*-staging"
       ]
     },
     {
