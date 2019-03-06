@@ -1432,11 +1432,10 @@ paths:
             properties:
               files:
                 description: >
-                  The list of files making up the contents of the new bundle.  This is a list of dictionaries, each one
-                  describing the file, required, and including:
+                  This is a list of dictionaries describing each of the files. Each dictionary includes the fields:
                   - The "uuid" of a file already previously uploaded with "PUT file/{uuid}".
                   - The "version" timestamp of the file.
-                  - The "name" of the file. This can be most anything, & is the name the file will have when downloaded.
+                  - The "name" of the file. This can be most anything, and is the name the file will have when downloaded.
                   - The "indexed" field, which specifies whether a file should be indexed or not.
 
                   Example representing 2 files with dummy values:
