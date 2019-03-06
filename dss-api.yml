@@ -466,7 +466,7 @@ paths:
             type: object
             properties:
               source_url:
-                description: Cloud URL for source data.
+                description: Cloud bucket URL for source data.  Example is "s3://bucket_name/serious_dna.fa" .
                 type: string
                 pattern: "^(gs|s3|wasb)://"
               creator_uid:
@@ -1403,7 +1403,7 @@ paths:
         - dcpAuth: []
       summary: Create a bundle
       description: >
-        Create a new version of a bundle with a given UUID.  The list of file UUID+versions to be included must be
+        Create a new version of a bundle with a given UUID.  The list of file UUID and versions to be included must be
         provided.
       parameters:
         - name: uuid
@@ -1431,6 +1431,22 @@ paths:
             type: object
             properties:
               files:
+                description: >
+                  This is a list of dictionaries describing each of the files. Each dictionary includes the fields:
+                  - The "uuid" of a file already previously uploaded with "PUT file/{uuid}".
+                  - The "version" timestamp of the file.
+                  - The "name" of the file. This can be most anything, and is the name the file will have when downloaded.
+                  - The "indexed" field, which specifies whether a file should be indexed or not.
+
+                  Example representing 2 files with dummy values:
+                  [{'uuid': 'ce55fd51-7833-469b-be0b-5da88ebebfcd',
+                    'version': '2017-06-16T193604.240704Z',
+                    'name': 'dinosaur_dna.fa',
+                    'indexed': False},
+                   {'uuid': 'ae55fd51-7833-469b-be0b-5da88ebebfca',
+                    'version': '0303-04-23T193604.240704Z',
+                    'name': 'dragon_dna.fa',
+                    'indexed': False}]
                 type: array
                 items:
                   type: object
