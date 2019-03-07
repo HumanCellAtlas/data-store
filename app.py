@@ -13,7 +13,7 @@ from cryptography.hazmat.primitives import serialization
 ad = boto3.client("clouddirectory")
 iam = boto3.client("iam")
 secretsmanager = boto3.client("secretsmanager")
-app = Chalice(app_name='authd')
+app = Chalice(app_name='fusillade')
 app.debug = True
 
 pkg_root = os.path.abspath(os.path.join(os.path.dirname(__file__), 'chalicelib'))
