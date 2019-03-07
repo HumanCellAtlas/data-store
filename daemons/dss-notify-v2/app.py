@@ -20,6 +20,7 @@ from dss.logging import configure_lambda_logging
 from dss.subscriptions_v2 import get_subscriptions_for_replica, get_subscription
 from dss.events.handlers.notify_v2 import (should_notify, notify_or_queue, notify, build_bundle_metadata_document,
                                            build_deleted_bundle_metadata_document)
+from dss.events.handlers.sync import exists
 
 configure_lambda_logging()
 logger = logging.getLogger(__name__)
@@ -94,6 +95,9 @@ def launch_from_notification_queue(event, context):
             if "DELETE" == event_type:
                 metadata_document = build_deleted_bundle_metadata_document(key)
             else:
+                if not exists(replica, key):
+                    logger.warning(f"Key %s not found in replica %s, unable to notify %s", key, replica.name, uuid)
+                    return
                 metadata_document = build_bundle_metadata_document(replica, key)
             if not notify(subscription, metadata_document, key):
                 # Erroring causes the message to remain in the queue

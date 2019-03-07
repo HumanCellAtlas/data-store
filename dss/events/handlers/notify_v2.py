@@ -84,6 +84,9 @@ def notify(subscription: dict, metadata_document: dict, key: str):
     """
     fqid = key.split("/")[1]
     bundle_uuid, bundle_version = fqid.split(".", 1)
+    sfx = f".{TOMBSTONE_SUFFIX}"
+    if bundle_version.endswith(sfx):
+        bundle_version = bundle_version[:-len(sfx)]
 
     payload = {
         'transaction_id': str(uuid4()),
