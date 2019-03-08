@@ -260,6 +260,34 @@ paths:
             Link:
               type: string
               description: URL to retrieve the next page of results.
+        500:
+          description: Server error.
+          headers:
+            Retry-After:
+              description: Delay in seconds, downstream users should retry after the delay.
+              type: integer
+              format: int64
+        502:
+          description: Bad Gateway.
+          headers:
+            Retry-After:
+              description: Delay in seconds, downstream users should retry after the delay.
+              type: integer
+              format: int64
+        503:
+          description: Service Unavailable.
+          headers:
+            Retry-After:
+              description: Delay in seconds, downstream users should retry after the delay.
+              type: integer
+              format: int64
+        504:
+          description: Gateway Timeout.
+          headers:
+            Retry-After:
+              description: Delay in seconds, downstream users should retry after the delay.
+              type: integer
+              format: int64
         default:
           description: Unexpected error
           schema:
@@ -325,6 +353,34 @@ paths:
               description: SHA-256 (in hex format) of the file contents in hex.
               type: string
               pattern: "^[a-z0-9]{64}$"
+        500:
+          description: Server error.
+          headers:
+            Retry-After:
+              description: Delay in seconds, downstream users should retry after the delay.
+              type: integer
+              format: int64
+        502:
+          description: Bad Gateway.
+          headers:
+            Retry-After:
+              description: Delay in seconds, downstream users should retry after the delay.
+              type: integer
+              format: int64
+        503:
+          description: Service Unavailable.
+          headers:
+            Retry-After:
+              description: Delay in seconds, downstream users should retry after the delay.
+              type: integer
+              format: int64
+        504:
+          description: Gateway Timeout.
+          headers:
+            Retry-After:
+              description: Delay in seconds, downstream users should retry after the delay.
+              type: integer
+              format: int64
     get:
       summary: Retrieve a file given a UUID and optionally a version.
       description: >
@@ -416,6 +472,34 @@ paths:
                     enum: [illegal_token]
                 required:
                   - code
+        500:
+          description: Server error.
+          headers:
+            Retry-After:
+              description: Delay in seconds, downstream users should retry after the delay.
+              type: integer
+              format: int64
+        502:
+          description: Bad Gateway.
+          headers:
+            Retry-After:
+              description: Delay in seconds, downstream users should retry after the delay.
+              type: integer
+              format: int64
+        503:
+          description: Service Unavailable.
+          headers:
+            Retry-After:
+              description: Delay in seconds, downstream users should retry after the delay.
+              type: integer
+              format: int64
+        504:
+          description: Gateway Timeout.
+          headers:
+            Retry-After:
+              description: Delay in seconds, downstream users should retry after the delay.
+              type: integer
+              format: int64
         default:
           description: Unexpected error
           schema:
@@ -565,6 +649,34 @@ paths:
                     enum: [missing_checksum]
                 required:
                 - code
+        500:
+          description: Server error.
+          headers:
+            Retry-After:
+              description: Delay in seconds, downstream users should retry after the delay.
+              type: integer
+              format: int64
+        502:
+          description: Bad Gateway.
+          headers:
+            Retry-After:
+              description: Delay in seconds, downstream users should retry after the delay.
+              type: integer
+              format: int64
+        503:
+          description: Service Unavailable.
+          headers:
+            Retry-After:
+              description: Delay in seconds, downstream users should retry after the delay.
+              type: integer
+              format: int64
+        504:
+          description: Gateway Timeout.
+          headers:
+            Retry-After:
+              description: Delay in seconds, downstream users should retry after the delay.
+              type: integer
+              format: int64
         default:
           description: Unexpected error
           schema:
@@ -612,6 +724,34 @@ paths:
                   $ref: "#/definitions/Subscription"
             required:
               - subscriptions
+        500:
+          description: Server error.
+          headers:
+            Retry-After:
+              description: Delay in seconds, downstream users should retry after the delay.
+              type: integer
+              format: int64
+        502:
+          description: Bad Gateway.
+          headers:
+            Retry-After:
+              description: Delay in seconds, downstream users should retry after the delay.
+              type: integer
+              format: int64
+        503:
+          description: Service Unavailable.
+          headers:
+            Retry-After:
+              description: Delay in seconds, downstream users should retry after the delay.
+              type: integer
+              format: int64
+        504:
+          description: Gateway Timeout.
+          headers:
+            Retry-After:
+              description: Delay in seconds, downstream users should retry after the delay.
+              type: integer
+              format: int64
         default:
           description: Unexpected error
           schema:
@@ -813,6 +953,34 @@ paths:
                 pattern: "[A-Za-z0-9]{8}-[A-Za-z0-9]{4}-[A-Za-z0-9]{4}-[A-Za-z0-9]{4}-[A-Za-z0-9]{12}"
             required:
               - uuid
+        500:
+          description: Server error.
+          headers:
+            Retry-After:
+              description: Delay in seconds, downstream users should retry after the delay.
+              type: integer
+              format: int64
+        502:
+          description: Bad Gateway.
+          headers:
+            Retry-After:
+              description: Delay in seconds, downstream users should retry after the delay.
+              type: integer
+              format: int64
+        503:
+          description: Service Unavailable.
+          headers:
+            Retry-After:
+              description: Delay in seconds, downstream users should retry after the delay.
+              type: integer
+              format: int64
+        504:
+          description: Gateway Timeout.
+          headers:
+            Retry-After:
+              description: Delay in seconds, downstream users should retry after the delay.
+              type: integer
+              format: int64
         default:
           description: Unexpected error
           schema:
@@ -872,6 +1040,34 @@ paths:
             properties:
               subscription:
                 $ref: "#/definitions/Subscription"
+        500:
+          description: Server error.
+          headers:
+            Retry-After:
+              description: Delay in seconds, downstream users should retry after the delay.
+              type: integer
+              format: int64
+        502:
+          description: Bad Gateway.
+          headers:
+            Retry-After:
+              description: Delay in seconds, downstream users should retry after the delay.
+              type: integer
+              format: int64
+        503:
+          description: Service Unavailable.
+          headers:
+            Retry-After:
+              description: Delay in seconds, downstream users should retry after the delay.
+              type: integer
+              format: int64
+        504:
+          description: Gateway Timeout.
+          headers:
+            Retry-After:
+              description: Delay in seconds, downstream users should retry after the delay.
+              type: integer
+              format: int64
         default:
           description: Unexpected error
           schema:
@@ -924,6 +1120,34 @@ paths:
                 format: DSS_VERSION
             required:
               - timeDeleted
+        500:
+          description: Server error.
+          headers:
+            Retry-After:
+              description: Delay in seconds, downstream users should retry after the delay.
+              type: integer
+              format: int64
+        502:
+          description: Bad Gateway.
+          headers:
+            Retry-After:
+              description: Delay in seconds, downstream users should retry after the delay.
+              type: integer
+              format: int64
+        503:
+          description: Service Unavailable.
+          headers:
+            Retry-After:
+              description: Delay in seconds, downstream users should retry after the delay.
+              type: integer
+              format: int64
+        504:
+          description: Gateway Timeout.
+          headers:
+            Retry-After:
+              description: Delay in seconds, downstream users should retry after the delay.
+              type: integer
+              format: int64
         default:
           description: Unexpected error
           schema:
@@ -994,6 +1218,34 @@ paths:
                 pattern: "[A-Za-z0-9]{8}-[A-Za-z0-9]{4}-[A-Za-z0-9]{4}-[A-Za-z0-9]{4}-[A-Za-z0-9]{12}"
             required:
               - uuid
+        500:
+          description: Server error.
+          headers:
+            Retry-After:
+              description: Delay in seconds, downstream users should retry after the delay.
+              type: integer
+              format: int64
+        502:
+          description: Bad Gateway.
+          headers:
+            Retry-After:
+              description: Delay in seconds, downstream users should retry after the delay.
+              type: integer
+              format: int64
+        503:
+          description: Service Unavailable.
+          headers:
+            Retry-After:
+              description: Delay in seconds, downstream users should retry after the delay.
+              type: integer
+              format: int64
+        504:
+          description: Gateway Timeout.
+          headers:
+            Retry-After:
+              description: Delay in seconds, downstream users should retry after the delay.
+              type: integer
+              format: int64
         default:
           description: Unexpected error
           schema:
@@ -1048,6 +1300,34 @@ paths:
             properties:
               collection:
                 $ref: "#/definitions/Collection"
+        500:
+          description: Server error.
+          headers:
+            Retry-After:
+              description: Delay in seconds, downstream users should retry after the delay.
+              type: integer
+              format: int64
+        502:
+          description: Bad Gateway.
+          headers:
+            Retry-After:
+              description: Delay in seconds, downstream users should retry after the delay.
+              type: integer
+              format: int64
+        503:
+          description: Service Unavailable.
+          headers:
+            Retry-After:
+              description: Delay in seconds, downstream users should retry after the delay.
+              type: integer
+              format: int64
+        504:
+          description: Gateway Timeout.
+          headers:
+            Retry-After:
+              description: Delay in seconds, downstream users should retry after the delay.
+              type: integer
+              format: int64
         default:
           description: Unexpected error
           schema:
@@ -1202,6 +1482,34 @@ paths:
                     enum: [invalid_link]
                 required:
                   - code
+        500:
+          description: Server error.
+          headers:
+            Retry-After:
+              description: Delay in seconds, downstream users should retry after the delay.
+              type: integer
+              format: int64
+        502:
+          description: Bad Gateway.
+          headers:
+            Retry-After:
+              description: Delay in seconds, downstream users should retry after the delay.
+              type: integer
+              format: int64
+        503:
+          description: Service Unavailable.
+          headers:
+            Retry-After:
+              description: Delay in seconds, downstream users should retry after the delay.
+              type: integer
+              format: int64
+        504:
+          description: Gateway Timeout.
+          headers:
+            Retry-After:
+              description: Delay in seconds, downstream users should retry after the delay.
+              type: integer
+              format: int64
         default:
           description: Unexpected error
           schema:
@@ -1238,6 +1546,34 @@ paths:
       responses:
         200:
           description: OK
+        500:
+          description: Server error.
+          headers:
+            Retry-After:
+              description: Delay in seconds, downstream users should retry after the delay.
+              type: integer
+              format: int64
+        502:
+          description: Bad Gateway.
+          headers:
+            Retry-After:
+              description: Delay in seconds, downstream users should retry after the delay.
+              type: integer
+              format: int64
+        503:
+          description: Service Unavailable.
+          headers:
+            Retry-After:
+              description: Delay in seconds, downstream users should retry after the delay.
+              type: integer
+              format: int64
+        504:
+          description: Gateway Timeout.
+          headers:
+            Retry-After:
+              description: Delay in seconds, downstream users should retry after the delay.
+              type: integer
+              format: int64
         default:
           description: Unexpected error
           schema:
@@ -1364,7 +1700,61 @@ paths:
                 required:
                   - code
         500:
-          description: Server error
+          description: Server error.
+          headers:
+            Retry-After:
+              description: Delay in seconds, downstream users should retry after the delay.
+              type: integer
+              format: int64
+          schema:
+            allOf:
+              - $ref: '#/definitions/Error'
+              - type: object
+                properties:
+                  code:
+                    type: string
+                    description: >
+                      Machine-readable error code.  The types of return values should not be changed lightly.
+                      The code `unhandled_exception` is returned when an unexpected exception is encountered.
+                      The code `checkout_error` is returned when the checkout fails.
+                    enum: [unhandled_exception, checkout_error]
+                required:
+                  - code
+        503:
+          description: Service unavailable.
+          headers:
+            Retry-After:
+              description: Delay in seconds, downstream users should retry after the delay.
+              type: integer
+              format: int64
+          schema:
+            allOf:
+              - $ref: '#/definitions/Error'
+              - type: object
+                properties:
+                  code:
+                    type: string
+                    description: >
+                      Machine-readable error code.  The types of return values should not be changed lightly.
+                      The code `service_unavailable` is returned when service is unavailable because of unusually high
+                      load/latency
+                    enum: [service_unavailable]
+                required:
+                  - code
+        502:
+          description: Bad Gateway.
+          headers:
+            Retry-After:
+              description: Delay in seconds, downstream users should retry after the delay.
+              type: integer
+              format: int64
+        504:
+          description: Gateway Timeout.
+          headers:
+            Retry-After:
+              description: Delay in seconds, downstream users should retry after the delay.
+              type: integer
+              format: int64
           schema:
             allOf:
               - $ref: '#/definitions/Error'
@@ -1553,6 +1943,34 @@ paths:
                     enum: [bundle_already_exists]
                 required:
                   - code
+        500:
+          description: Server error.
+          headers:
+            Retry-After:
+              description: Delay in seconds, downstream users should retry after the delay.
+              type: integer
+              format: int64
+        502:
+          description: Bad Gateway.
+          headers:
+            Retry-After:
+              description: Delay in seconds, downstream users should retry after the delay.
+              type: integer
+              format: int64
+        503:
+          description: Service Unavailable.
+          headers:
+            Retry-After:
+              description: Delay in seconds, downstream users should retry after the delay.
+              type: integer
+              format: int64
+        504:
+          description: Gateway Timeout.
+          headers:
+            Retry-After:
+              description: Delay in seconds, downstream users should retry after the delay.
+              type: integer
+              format: int64
         default:
           description: Unexpected error
           schema:
@@ -1645,6 +2063,34 @@ paths:
                     enum: [bundle_tombstone_already_exists]
                 required:
                   - code
+        500:
+          description: Server error.
+          headers:
+            Retry-After:
+              description: Delay in seconds, downstream users should retry after the delay.
+              type: integer
+              format: int64
+        502:
+          description: Bad Gateway.
+          headers:
+            Retry-After:
+              description: Delay in seconds, downstream users should retry after the delay.
+              type: integer
+              format: int64
+        503:
+          description: Service Unavailable.
+          headers:
+            Retry-After:
+              description: Delay in seconds, downstream users should retry after the delay.
+              type: integer
+              format: int64
+        504:
+          description: Gateway Timeout.
+          headers:
+            Retry-After:
+              description: Delay in seconds, downstream users should retry after the delay.
+              type: integer
+              format: int64
         default:
           description: Unexpected error
           schema:
@@ -1779,6 +2225,34 @@ paths:
                     description: Detailed error message.
                 required:
                   - code
+        500:
+          description: Server error.
+          headers:
+            Retry-After:
+              description: Delay in seconds, downstream users should retry after the delay.
+              type: integer
+              format: int64
+        502:
+          description: Bad Gateway.
+          headers:
+            Retry-After:
+              description: Delay in seconds, downstream users should retry after the delay.
+              type: integer
+              format: int64
+        503:
+          description: Service Unavailable.
+          headers:
+            Retry-After:
+              description: Delay in seconds, downstream users should retry after the delay.
+              type: integer
+              format: int64
+        504:
+          description: Gateway Timeout.
+          headers:
+            Retry-After:
+              description: Delay in seconds, downstream users should retry after the delay.
+              type: integer
+              format: int64
         default:
           description: Unexpected error
           schema:
