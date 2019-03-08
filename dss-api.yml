@@ -260,26 +260,6 @@ paths:
             Link:
               type: string
               description: URL to retrieve the next page of results.
-        500:
-          description:
-            $ref: '#/definitions/retry_defaults/500/description'
-          headers:
-            $ref: '#/definitions/retry_defaults/500/headers'
-        502:
-          description:
-            $ref: '#/definitions/retry_defaults/502/description'
-          headers:
-            $ref: '#/definitions/retry_defaults/502/headers'
-        503:
-          description:
-            $ref: '#/definitions/retry_defaults/503/description'
-          headers:
-            $ref: '#/definitions/retry_defaults/503/headers'
-        504:
-          description:
-            $ref: '#/definitions/retry_defaults/504/description'
-          headers:
-            $ref: '#/definitions/retry_defaults/504/headers'
         default:
           description: Unexpected error
           schema:
@@ -346,25 +326,13 @@ paths:
               type: string
               pattern: "^[a-z0-9]{64}$"
         500:
-          description:
-            $ref: '#/definitions/retry_defaults/500/description'
-          headers:
-            $ref: '#/definitions/retry_defaults/500/headers'
+          $ref: '#/responses/ServerError'
         502:
-          description:
-            $ref: '#/definitions/retry_defaults/502/description'
-          headers:
-            $ref: '#/definitions/retry_defaults/502/headers'
+          $ref: '#/responses/BadGateway'
         503:
-          description:
-            $ref: '#/definitions/retry_defaults/503/description'
-          headers:
-            $ref: '#/definitions/retry_defaults/503/headers'
+          $ref: '#/responses/ServiceUnavailable'
         504:
-          description:
-            $ref: '#/definitions/retry_defaults/504/description'
-          headers:
-            $ref: '#/definitions/retry_defaults/504/headers'
+          $ref: '#/responses/GatewayTimeout'
     get:
       summary: Retrieve a file given a UUID and optionally a version.
       description: >
@@ -457,25 +425,13 @@ paths:
                 required:
                   - code
         500:
-          description:
-            $ref: '#/definitions/retry_defaults/500/description'
-          headers:
-            $ref: '#/definitions/retry_defaults/500/headers'
+          $ref: '#/responses/ServerError'
         502:
-          description:
-            $ref: '#/definitions/retry_defaults/502/description'
-          headers:
-            $ref: '#/definitions/retry_defaults/502/headers'
+          $ref: '#/responses/BadGateway'
         503:
-          description:
-            $ref: '#/definitions/retry_defaults/503/description'
-          headers:
-            $ref: '#/definitions/retry_defaults/503/headers'
+          $ref: '#/responses/ServiceUnavailable'
         504:
-          description:
-            $ref: '#/definitions/retry_defaults/504/description'
-          headers:
-            $ref: '#/definitions/retry_defaults/504/headers'
+          $ref: '#/responses/GatewayTimeout'
         default:
           description: Unexpected error
           schema:
@@ -626,25 +582,13 @@ paths:
                 required:
                 - code
         500:
-          description:
-            $ref: '#/definitions/retry_defaults/500/description'
-          headers:
-            $ref: '#/definitions/retry_defaults/500/headers'
+          $ref: '#/responses/ServerError'
         502:
-          description:
-            $ref: '#/definitions/retry_defaults/502/description'
-          headers:
-            $ref: '#/definitions/retry_defaults/502/headers'
+          $ref: '#/responses/BadGateway'
         503:
-          description:
-            $ref: '#/definitions/retry_defaults/503/description'
-          headers:
-            $ref: '#/definitions/retry_defaults/503/headers'
+          $ref: '#/responses/ServiceUnavailable'
         504:
-          description:
-            $ref: '#/definitions/retry_defaults/504/description'
-          headers:
-            $ref: '#/definitions/retry_defaults/504/headers'
+          $ref: '#/responses/GatewayTimeout'
         default:
           description: Unexpected error
           schema:
@@ -693,25 +637,13 @@ paths:
             required:
               - subscriptions
         500:
-          description:
-            $ref: '#/definitions/retry_defaults/500/description'
-          headers:
-            $ref: '#/definitions/retry_defaults/500/headers'
+          $ref: '#/responses/ServerError'
         502:
-          description:
-            $ref: '#/definitions/retry_defaults/502/description'
-          headers:
-            $ref: '#/definitions/retry_defaults/502/headers'
+          $ref: '#/responses/BadGateway'
         503:
-          description:
-            $ref: '#/definitions/retry_defaults/503/description'
-          headers:
-            $ref: '#/definitions/retry_defaults/503/headers'
+          $ref: '#/responses/ServiceUnavailable'
         504:
-          description:
-            $ref: '#/definitions/retry_defaults/504/description'
-          headers:
-            $ref: '#/definitions/retry_defaults/504/headers'
+          $ref: '#/responses/GatewayTimeout'
         default:
           description: Unexpected error
           schema:
@@ -914,25 +846,13 @@ paths:
             required:
               - uuid
         500:
-          description:
-            $ref: '#/definitions/retry_defaults/500/description'
-          headers:
-            $ref: '#/definitions/retry_defaults/500/headers'
+          $ref: '#/responses/ServerError'
         502:
-          description:
-            $ref: '#/definitions/retry_defaults/502/description'
-          headers:
-            $ref: '#/definitions/retry_defaults/502/headers'
+          $ref: '#/responses/BadGateway'
         503:
-          description:
-            $ref: '#/definitions/retry_defaults/503/description'
-          headers:
-            $ref: '#/definitions/retry_defaults/503/headers'
+          $ref: '#/responses/ServiceUnavailable'
         504:
-          description:
-            $ref: '#/definitions/retry_defaults/504/description'
-          headers:
-            $ref: '#/definitions/retry_defaults/504/headers'
+          $ref: '#/responses/GatewayTimeout'
         default:
           description: Unexpected error
           schema:
@@ -993,25 +913,13 @@ paths:
               subscription:
                 $ref: "#/definitions/Subscription"
         500:
-          description:
-            $ref: '#/definitions/retry_defaults/500/description'
-          headers:
-            $ref: '#/definitions/retry_defaults/500/headers'
+          $ref: '#/responses/ServerError'
         502:
-          description:
-            $ref: '#/definitions/retry_defaults/502/description'
-          headers:
-            $ref: '#/definitions/retry_defaults/502/headers'
+          $ref: '#/responses/BadGateway'
         503:
-          description:
-            $ref: '#/definitions/retry_defaults/503/description'
-          headers:
-            $ref: '#/definitions/retry_defaults/503/headers'
+          $ref: '#/responses/ServiceUnavailable'
         504:
-          description:
-            $ref: '#/definitions/retry_defaults/504/description'
-          headers:
-            $ref: '#/definitions/retry_defaults/504/headers'
+          $ref: '#/responses/GatewayTimeout'
         default:
           description: Unexpected error
           schema:
@@ -1065,25 +973,13 @@ paths:
             required:
               - timeDeleted
         500:
-          description:
-            $ref: '#/definitions/retry_defaults/500/description'
-          headers:
-            $ref: '#/definitions/retry_defaults/500/headers'
+          $ref: '#/responses/ServerError'
         502:
-          description:
-            $ref: '#/definitions/retry_defaults/502/description'
-          headers:
-            $ref: '#/definitions/retry_defaults/502/headers'
+          $ref: '#/responses/BadGateway'
         503:
-          description:
-            $ref: '#/definitions/retry_defaults/503/description'
-          headers:
-            $ref: '#/definitions/retry_defaults/503/headers'
+          $ref: '#/responses/ServiceUnavailable'
         504:
-          description:
-            $ref: '#/definitions/retry_defaults/504/description'
-          headers:
-            $ref: '#/definitions/retry_defaults/504/headers'
+          $ref: '#/responses/GatewayTimeout'
         default:
           description: Unexpected error
           schema:
@@ -1155,25 +1051,13 @@ paths:
             required:
               - uuid
         500:
-          description:
-            $ref: '#/definitions/retry_defaults/500/description'
-          headers:
-            $ref: '#/definitions/retry_defaults/500/headers'
+          $ref: '#/responses/ServerError'
         502:
-          description:
-            $ref: '#/definitions/retry_defaults/502/description'
-          headers:
-            $ref: '#/definitions/retry_defaults/502/headers'
+          $ref: '#/responses/BadGateway'
         503:
-          description:
-            $ref: '#/definitions/retry_defaults/503/description'
-          headers:
-            $ref: '#/definitions/retry_defaults/503/headers'
+          $ref: '#/responses/ServiceUnavailable'
         504:
-          description:
-            $ref: '#/definitions/retry_defaults/504/description'
-          headers:
-            $ref: '#/definitions/retry_defaults/504/headers'
+          $ref: '#/responses/GatewayTimeout'
         default:
           description: Unexpected error
           schema:
@@ -1229,25 +1113,13 @@ paths:
               collection:
                 $ref: "#/definitions/Collection"
         500:
-          description:
-            $ref: '#/definitions/retry_defaults/500/description'
-          headers:
-            $ref: '#/definitions/retry_defaults/500/headers'
+          $ref: '#/responses/ServerError'
         502:
-          description:
-            $ref: '#/definitions/retry_defaults/502/description'
-          headers:
-            $ref: '#/definitions/retry_defaults/502/headers'
+          $ref: '#/responses/BadGateway'
         503:
-          description:
-            $ref: '#/definitions/retry_defaults/503/description'
-          headers:
-            $ref: '#/definitions/retry_defaults/503/headers'
+          $ref: '#/responses/ServiceUnavailable'
         504:
-          description:
-            $ref: '#/definitions/retry_defaults/504/description'
-          headers:
-            $ref: '#/definitions/retry_defaults/504/headers'
+          $ref: '#/responses/GatewayTimeout'
         default:
           description: Unexpected error
           schema:
@@ -1403,25 +1275,13 @@ paths:
                 required:
                   - code
         500:
-          description:
-            $ref: '#/definitions/retry_defaults/500/description'
-          headers:
-            $ref: '#/definitions/retry_defaults/500/headers'
+          $ref: '#/responses/ServerError'
         502:
-          description:
-            $ref: '#/definitions/retry_defaults/502/description'
-          headers:
-            $ref: '#/definitions/retry_defaults/502/headers'
+          $ref: '#/responses/BadGateway'
         503:
-          description:
-            $ref: '#/definitions/retry_defaults/503/description'
-          headers:
-            $ref: '#/definitions/retry_defaults/503/headers'
+          $ref: '#/responses/ServiceUnavailable'
         504:
-          description:
-            $ref: '#/definitions/retry_defaults/504/description'
-          headers:
-            $ref: '#/definitions/retry_defaults/504/headers'
+          $ref: '#/responses/GatewayTimeout'
         default:
           description: Unexpected error
           schema:
@@ -1458,6 +1318,14 @@ paths:
       responses:
         200:
           description: OK
+        500:
+          $ref: '#/responses/ServerError'
+        502:
+          $ref: '#/responses/BadGateway'
+        503:
+          $ref: '#/responses/ServiceUnavailable'
+        504:
+          $ref: '#/responses/GatewayTimeout'
         default:
           description: Unexpected error
           schema:
@@ -1471,26 +1339,6 @@ paths:
                     enum: [unhandled_exception, Forbidden, Unauthorized, OAuthResponseProblem, not_found, read_only]
                 required:
                   - code
-        500:
-          description:
-            $ref: '#/definitions/retry_defaults/500/description'
-          headers:
-            $ref: '#/definitions/retry_defaults/500/headers'
-        502:
-          description:
-            $ref: '#/definitions/retry_defaults/502/description'
-          headers:
-            $ref: '#/definitions/retry_defaults/502/headers'
-        503:
-          description:
-            $ref: '#/definitions/retry_defaults/503/description'
-          headers:
-            $ref: '#/definitions/retry_defaults/503/headers'
-        504:
-          description:
-            $ref: '#/definitions/retry_defaults/504/description'
-          headers:
-            $ref: '#/definitions/retry_defaults/504/headers'
   /bundles/{uuid}:
     get:
       summary: Retrieve a bundle given a UUID and optionally a version.
@@ -1604,12 +1452,7 @@ paths:
                 required:
                   - code
         500:
-          description: Server error.
-          headers:
-            Retry-After:
-              description: Delay in seconds, downstream users should retry after the delay.
-              type: integer
-              format: int64
+          description: Server error
           schema:
             allOf:
               - $ref: '#/definitions/Error'
@@ -1629,17 +1472,9 @@ paths:
                 required:
                   - code
         502:
-          description:
-            $ref: '#/definitions/retry_defaults/502/description'
-          headers:
-            $ref: '#/definitions/retry_defaults/502/headers'
+          $ref: '#/responses/BadGateway'
         503:
-          description: Service unavailable.
-          headers:
-            Retry-After:
-              description: Delay in seconds, downstream users should retry after the delay.
-              type: integer
-              format: int64
+          description: Service unavailable
           schema:
             allOf:
               - $ref: '#/definitions/Error'
@@ -1657,10 +1492,7 @@ paths:
                 required:
                   - code
         504:
-          description:
-            $ref: '#/definitions/retry_defaults/504/description'
-          headers:
-            $ref: '#/definitions/retry_defaults/504/headers'
+          $ref: '#/responses/GatewayTimeout'
     put:
       security:
         - dcpAuth: []
@@ -1814,25 +1646,13 @@ paths:
                 required:
                   - code
         500:
-          description:
-            $ref: '#/definitions/retry_defaults/500/description'
-          headers:
-            $ref: '#/definitions/retry_defaults/500/headers'
+          $ref: '#/responses/ServerError'
         502:
-          description:
-            $ref: '#/definitions/retry_defaults/502/description'
-          headers:
-            $ref: '#/definitions/retry_defaults/502/headers'
+          $ref: '#/responses/BadGateway'
         503:
-          description:
-            $ref: '#/definitions/retry_defaults/503/description'
-          headers:
-            $ref: '#/definitions/retry_defaults/503/headers'
+          $ref: '#/responses/ServiceUnavailable'
         504:
-          description:
-            $ref: '#/definitions/retry_defaults/504/description'
-          headers:
-            $ref: '#/definitions/retry_defaults/504/headers'
+          $ref: '#/responses/GatewayTimeout'
         default:
           description: Unexpected error
           schema:
@@ -1926,25 +1746,13 @@ paths:
                 required:
                   - code
         500:
-          description:
-            $ref: '#/definitions/retry_defaults/500/description'
-          headers:
-            $ref: '#/definitions/retry_defaults/500/headers'
+          $ref: '#/responses/ServerError'
         502:
-          description:
-            $ref: '#/definitions/retry_defaults/502/description'
-          headers:
-            $ref: '#/definitions/retry_defaults/502/headers'
+          $ref: '#/responses/BadGateway'
         503:
-          description:
-            $ref: '#/definitions/retry_defaults/503/description'
-          headers:
-            $ref: '#/definitions/retry_defaults/503/headers'
+          $ref: '#/responses/ServiceUnavailable'
         504:
-          description:
-            $ref: '#/definitions/retry_defaults/504/description'
-          headers:
-            $ref: '#/definitions/retry_defaults/504/headers'
+          $ref: '#/responses/GatewayTimeout'
         default:
           description: Unexpected error
           schema:
@@ -2080,25 +1888,13 @@ paths:
                 required:
                   - code
         500:
-          description:
-            $ref: '#/definitions/retry_defaults/500/description'
-          headers:
-            $ref: '#/definitions/retry_defaults/500/headers'
+          $ref: '#/responses/ServerError'
         502:
-          description:
-            $ref: '#/definitions/retry_defaults/502/description'
-          headers:
-            $ref: '#/definitions/retry_defaults/502/headers'
+          $ref: '#/responses/BadGateway'
         503:
-          description:
-            $ref: '#/definitions/retry_defaults/503/description'
-          headers:
-            $ref: '#/definitions/retry_defaults/503/headers'
+          $ref: '#/responses/ServiceUnavailable'
         504:
-          description:
-            $ref: '#/definitions/retry_defaults/504/description'
-          headers:
-            $ref: '#/definitions/retry_defaults/504/headers'
+          $ref: '#/responses/GatewayTimeout'
         default:
           description: Unexpected error
           schema:
@@ -2479,32 +2275,33 @@ definitions:
     properties:
       files:
         type: string
-  retry_defaults:
-    500:
-      description: Server error.
-      headers:
-        Retry-After:
-          description: Delay in seconds, downstream users should retry after the delay.
-          type: integer
-          format: int64
-    502:
-      description: Bad Gateway.
-      headers:
-        Retry-After:
-          description: Delay in seconds, downstream users should retry after the delay.
-          type: integer
-          format: int64
-    503:
-      description: Service Unavailable.
-      headers:
-        Retry-After:
-          description: Delay in seconds, downstream users should retry after the delay.
-          type: integer
-          format: int64
-    504:
-      description: Gateway Timeout.
-      headers:
-        Retry-After:
-          description: Delay in seconds, downstream users should retry after the delay.
-          type: integer
-          format: int64
+
+responses:
+  ServerError:
+    description: Server error.
+    headers:
+      Retry-After:
+        description: Delay in seconds, downstream users should retry after the delay.
+        type: integer
+        format: int64
+  BadGateway:
+    description: Bad Gateway.
+    headers:
+      Retry-After:
+        description: Delay in seconds, downstream users should retry after the delay.
+        type: integer
+        format: int64
+  ServiceUnavailable:
+    description: Service Unavailable.
+    headers:
+      Retry-After:
+        description: Delay in seconds, downstream users should retry after the delay.
+        type: integer
+        format: int64
+  GatewayTimeout:
+    description: Gateway Timeout.
+    headers:
+      Retry-After:
+        description: Delay in seconds, downstream users should retry after the delay.
+        type: integer
+        format: int64
