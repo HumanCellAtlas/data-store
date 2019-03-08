@@ -261,13 +261,25 @@ paths:
               type: string
               description: URL to retrieve the next page of results.
         500:
-          $ref: '#/definitions/retry_defaults/500'
+          description:
+            $ref: '#/definitions/retry_defaults/500/description'
+          headers:
+            $ref: '#/definitions/retry_defaults/500/headers'
         502:
-          $ref: '#/definitions/retry_defaults/502'
+          description:
+            $ref: '#/definitions/retry_defaults/502/description'
+          headers:
+            $ref: '#/definitions/retry_defaults/502/headers'
         503:
-          $ref: '#/definitions/retry_defaults/503'
+          description:
+            $ref: '#/definitions/retry_defaults/503/description'
+          headers:
+            $ref: '#/definitions/retry_defaults/503/headers'
         504:
-          $ref: '#/definitions/retry_defaults/504'
+          description:
+            $ref: '#/definitions/retry_defaults/504/description'
+          headers:
+            $ref: '#/definitions/retry_defaults/504/headers'
         default:
           description: Unexpected error
           schema:
@@ -334,13 +346,25 @@ paths:
               type: string
               pattern: "^[a-z0-9]{64}$"
         500:
-          $ref: '#/definitions/retry_defaults/500'
+          description:
+            $ref: '#/definitions/retry_defaults/500/description'
+          headers:
+            $ref: '#/definitions/retry_defaults/500/headers'
         502:
-          $ref: '#/definitions/retry_defaults/502'
+          description:
+            $ref: '#/definitions/retry_defaults/502/description'
+          headers:
+            $ref: '#/definitions/retry_defaults/502/headers'
         503:
-          $ref: '#/definitions/retry_defaults/503'
+          description:
+            $ref: '#/definitions/retry_defaults/503/description'
+          headers:
+            $ref: '#/definitions/retry_defaults/503/headers'
         504:
-          $ref: '#/definitions/retry_defaults/504'
+          description:
+            $ref: '#/definitions/retry_defaults/504/description'
+          headers:
+            $ref: '#/definitions/retry_defaults/504/headers'
     get:
       summary: Retrieve a file given a UUID and optionally a version.
       description: >
@@ -433,13 +457,25 @@ paths:
                 required:
                   - code
         500:
-          $ref: '#/definitions/retry_defaults/500'
+          description:
+            $ref: '#/definitions/retry_defaults/500/description'
+          headers:
+            $ref: '#/definitions/retry_defaults/500/headers'
         502:
-          $ref: '#/definitions/retry_defaults/502'
+          description:
+            $ref: '#/definitions/retry_defaults/502/description'
+          headers:
+            $ref: '#/definitions/retry_defaults/502/headers'
         503:
-          $ref: '#/definitions/retry_defaults/503'
+          description:
+            $ref: '#/definitions/retry_defaults/503/description'
+          headers:
+            $ref: '#/definitions/retry_defaults/503/headers'
         504:
-          $ref: '#/definitions/retry_defaults/504'
+          description:
+            $ref: '#/definitions/retry_defaults/504/description'
+          headers:
+            $ref: '#/definitions/retry_defaults/504/headers'
         default:
           description: Unexpected error
           schema:
@@ -590,13 +626,25 @@ paths:
                 required:
                 - code
         500:
-          $ref: '#/definitions/retry_defaults/500'
+          description:
+            $ref: '#/definitions/retry_defaults/500/description'
+          headers:
+            $ref: '#/definitions/retry_defaults/500/headers'
         502:
-          $ref: '#/definitions/retry_defaults/502'
+          description:
+            $ref: '#/definitions/retry_defaults/502/description'
+          headers:
+            $ref: '#/definitions/retry_defaults/502/headers'
         503:
-          $ref: '#/definitions/retry_defaults/503'
+          description:
+            $ref: '#/definitions/retry_defaults/503/description'
+          headers:
+            $ref: '#/definitions/retry_defaults/503/headers'
         504:
-          $ref: '#/definitions/retry_defaults/504'
+          description:
+            $ref: '#/definitions/retry_defaults/504/description'
+          headers:
+            $ref: '#/definitions/retry_defaults/504/headers'
         default:
           description: Unexpected error
           schema:
@@ -645,13 +693,25 @@ paths:
             required:
               - subscriptions
         500:
-          $ref: '#/definitions/retry_defaults/500'
+          description:
+            $ref: '#/definitions/retry_defaults/500/description'
+          headers:
+            $ref: '#/definitions/retry_defaults/500/headers'
         502:
-          $ref: '#/definitions/retry_defaults/502'
+          description:
+            $ref: '#/definitions/retry_defaults/502/description'
+          headers:
+            $ref: '#/definitions/retry_defaults/502/headers'
         503:
-          $ref: '#/definitions/retry_defaults/503'
+          description:
+            $ref: '#/definitions/retry_defaults/503/description'
+          headers:
+            $ref: '#/definitions/retry_defaults/503/headers'
         504:
-          $ref: '#/definitions/retry_defaults/504'
+          description:
+            $ref: '#/definitions/retry_defaults/504/description'
+          headers:
+            $ref: '#/definitions/retry_defaults/504/headers'
         default:
           description: Unexpected error
           schema:
@@ -854,13 +914,25 @@ paths:
             required:
               - uuid
         500:
-          $ref: '#/definitions/retry_defaults/500'
+          description:
+            $ref: '#/definitions/retry_defaults/500/description'
+          headers:
+            $ref: '#/definitions/retry_defaults/500/headers'
         502:
-          $ref: '#/definitions/retry_defaults/502'
+          description:
+            $ref: '#/definitions/retry_defaults/502/description'
+          headers:
+            $ref: '#/definitions/retry_defaults/502/headers'
         503:
-          $ref: '#/definitions/retry_defaults/503'
+          description:
+            $ref: '#/definitions/retry_defaults/503/description'
+          headers:
+            $ref: '#/definitions/retry_defaults/503/headers'
         504:
-          $ref: '#/definitions/retry_defaults/504'
+          description:
+            $ref: '#/definitions/retry_defaults/504/description'
+          headers:
+            $ref: '#/definitions/retry_defaults/504/headers'
         default:
           description: Unexpected error
           schema:
@@ -921,13 +993,25 @@ paths:
               subscription:
                 $ref: "#/definitions/Subscription"
         500:
-          $ref: '#/definitions/retry_defaults/500'
+          description:
+            $ref: '#/definitions/retry_defaults/500/description'
+          headers:
+            $ref: '#/definitions/retry_defaults/500/headers'
         502:
-          $ref: '#/definitions/retry_defaults/502'
+          description:
+            $ref: '#/definitions/retry_defaults/502/description'
+          headers:
+            $ref: '#/definitions/retry_defaults/502/headers'
         503:
-          $ref: '#/definitions/retry_defaults/503'
+          description:
+            $ref: '#/definitions/retry_defaults/503/description'
+          headers:
+            $ref: '#/definitions/retry_defaults/503/headers'
         504:
-          $ref: '#/definitions/retry_defaults/504'
+          description:
+            $ref: '#/definitions/retry_defaults/504/description'
+          headers:
+            $ref: '#/definitions/retry_defaults/504/headers'
         default:
           description: Unexpected error
           schema:
@@ -981,13 +1065,25 @@ paths:
             required:
               - timeDeleted
         500:
-          $ref: '#/definitions/retry_defaults/500'
+          description:
+            $ref: '#/definitions/retry_defaults/500/description'
+          headers:
+            $ref: '#/definitions/retry_defaults/500/headers'
         502:
-          $ref: '#/definitions/retry_defaults/502'
+          description:
+            $ref: '#/definitions/retry_defaults/502/description'
+          headers:
+            $ref: '#/definitions/retry_defaults/502/headers'
         503:
-          $ref: '#/definitions/retry_defaults/503'
+          description:
+            $ref: '#/definitions/retry_defaults/503/description'
+          headers:
+            $ref: '#/definitions/retry_defaults/503/headers'
         504:
-          $ref: '#/definitions/retry_defaults/504'
+          description:
+            $ref: '#/definitions/retry_defaults/504/description'
+          headers:
+            $ref: '#/definitions/retry_defaults/504/headers'
         default:
           description: Unexpected error
           schema:
@@ -1059,13 +1155,25 @@ paths:
             required:
               - uuid
         500:
-          $ref: '#/definitions/retry_defaults/500'
+          description:
+            $ref: '#/definitions/retry_defaults/500/description'
+          headers:
+            $ref: '#/definitions/retry_defaults/500/headers'
         502:
-          $ref: '#/definitions/retry_defaults/502'
+          description:
+            $ref: '#/definitions/retry_defaults/502/description'
+          headers:
+            $ref: '#/definitions/retry_defaults/502/headers'
         503:
-          $ref: '#/definitions/retry_defaults/503'
+          description:
+            $ref: '#/definitions/retry_defaults/503/description'
+          headers:
+            $ref: '#/definitions/retry_defaults/503/headers'
         504:
-          $ref: '#/definitions/retry_defaults/504'
+          description:
+            $ref: '#/definitions/retry_defaults/504/description'
+          headers:
+            $ref: '#/definitions/retry_defaults/504/headers'
         default:
           description: Unexpected error
           schema:
@@ -1121,13 +1229,25 @@ paths:
               collection:
                 $ref: "#/definitions/Collection"
         500:
-          $ref: '#/definitions/retry_defaults/500'
+          description:
+            $ref: '#/definitions/retry_defaults/500/description'
+          headers:
+            $ref: '#/definitions/retry_defaults/500/headers'
         502:
-          $ref: '#/definitions/retry_defaults/502'
+          description:
+            $ref: '#/definitions/retry_defaults/502/description'
+          headers:
+            $ref: '#/definitions/retry_defaults/502/headers'
         503:
-          $ref: '#/definitions/retry_defaults/503'
+          description:
+            $ref: '#/definitions/retry_defaults/503/description'
+          headers:
+            $ref: '#/definitions/retry_defaults/503/headers'
         504:
-          $ref: '#/definitions/retry_defaults/504'
+          description:
+            $ref: '#/definitions/retry_defaults/504/description'
+          headers:
+            $ref: '#/definitions/retry_defaults/504/headers'
         default:
           description: Unexpected error
           schema:
@@ -1283,13 +1403,25 @@ paths:
                 required:
                   - code
         500:
-          $ref: '#/definitions/retry_defaults/500'
+          description:
+            $ref: '#/definitions/retry_defaults/500/description'
+          headers:
+            $ref: '#/definitions/retry_defaults/500/headers'
         502:
-          $ref: '#/definitions/retry_defaults/502'
+          description:
+            $ref: '#/definitions/retry_defaults/502/description'
+          headers:
+            $ref: '#/definitions/retry_defaults/502/headers'
         503:
-          $ref: '#/definitions/retry_defaults/503'
+          description:
+            $ref: '#/definitions/retry_defaults/503/description'
+          headers:
+            $ref: '#/definitions/retry_defaults/503/headers'
         504:
-          $ref: '#/definitions/retry_defaults/504'
+          description:
+            $ref: '#/definitions/retry_defaults/504/description'
+          headers:
+            $ref: '#/definitions/retry_defaults/504/headers'
         default:
           description: Unexpected error
           schema:
@@ -1340,13 +1472,25 @@ paths:
                 required:
                   - code
         500:
-          $ref: '#/definitions/retry_defaults/500'
+          description:
+            $ref: '#/definitions/retry_defaults/500/description'
+          headers:
+            $ref: '#/definitions/retry_defaults/500/headers'
         502:
-          $ref: '#/definitions/retry_defaults/502'
+          description:
+            $ref: '#/definitions/retry_defaults/502/description'
+          headers:
+            $ref: '#/definitions/retry_defaults/502/headers'
         503:
-          $ref: '#/definitions/retry_defaults/503'
+          description:
+            $ref: '#/definitions/retry_defaults/503/description'
+          headers:
+            $ref: '#/definitions/retry_defaults/503/headers'
         504:
-          $ref: '#/definitions/retry_defaults/504'
+          description:
+            $ref: '#/definitions/retry_defaults/504/description'
+          headers:
+            $ref: '#/definitions/retry_defaults/504/headers'
   /bundles/{uuid}:
     get:
       summary: Retrieve a bundle given a UUID and optionally a version.
@@ -1484,7 +1628,11 @@ paths:
                     enum: [unhandled_exception, checkout_error]
                 required:
                   - code
-        $ref: '#/definitions/retry_defaults/502'
+        502:
+          description:
+            $ref: '#/definitions/retry_defaults/502/description'
+          headers:
+            $ref: '#/definitions/retry_defaults/502/headers'
         503:
           description: Service unavailable.
           headers:
@@ -1508,7 +1656,11 @@ paths:
                     enum: [service_unavailable]
                 required:
                   - code
-        $ref: '#/definitions/retry_defaults/504'
+        504:
+          description:
+            $ref: '#/definitions/retry_defaults/504/description'
+          headers:
+            $ref: '#/definitions/retry_defaults/504/headers'
     put:
       security:
         - dcpAuth: []
@@ -1662,13 +1814,25 @@ paths:
                 required:
                   - code
         500:
-          $ref: '#/definitions/retry_defaults/500'
+          description:
+            $ref: '#/definitions/retry_defaults/500/description'
+          headers:
+            $ref: '#/definitions/retry_defaults/500/headers'
         502:
-          $ref: '#/definitions/retry_defaults/502'
+          description:
+            $ref: '#/definitions/retry_defaults/502/description'
+          headers:
+            $ref: '#/definitions/retry_defaults/502/headers'
         503:
-          $ref: '#/definitions/retry_defaults/503'
+          description:
+            $ref: '#/definitions/retry_defaults/503/description'
+          headers:
+            $ref: '#/definitions/retry_defaults/503/headers'
         504:
-          $ref: '#/definitions/retry_defaults/504'
+          description:
+            $ref: '#/definitions/retry_defaults/504/description'
+          headers:
+            $ref: '#/definitions/retry_defaults/504/headers'
         default:
           description: Unexpected error
           schema:
@@ -1762,13 +1926,25 @@ paths:
                 required:
                   - code
         500:
-          $ref: '#/definitions/retry_defaults/500'
+          description:
+            $ref: '#/definitions/retry_defaults/500/description'
+          headers:
+            $ref: '#/definitions/retry_defaults/500/headers'
         502:
-          $ref: '#/definitions/retry_defaults/502'
+          description:
+            $ref: '#/definitions/retry_defaults/502/description'
+          headers:
+            $ref: '#/definitions/retry_defaults/502/headers'
         503:
-          $ref: '#/definitions/retry_defaults/503'
+          description:
+            $ref: '#/definitions/retry_defaults/503/description'
+          headers:
+            $ref: '#/definitions/retry_defaults/503/headers'
         504:
-          $ref: '#/definitions/retry_defaults/504'
+          description:
+            $ref: '#/definitions/retry_defaults/504/description'
+          headers:
+            $ref: '#/definitions/retry_defaults/504/headers'
         default:
           description: Unexpected error
           schema:
@@ -1904,13 +2080,25 @@ paths:
                 required:
                   - code
         500:
-          $ref: '#/definitions/retry_defaults/500'
+          description:
+            $ref: '#/definitions/retry_defaults/500/description'
+          headers:
+            $ref: '#/definitions/retry_defaults/500/headers'
         502:
-          $ref: '#/definitions/retry_defaults/502'
+          description:
+            $ref: '#/definitions/retry_defaults/502/description'
+          headers:
+            $ref: '#/definitions/retry_defaults/502/headers'
         503:
-          $ref: '#/definitions/retry_defaults/503'
+          description:
+            $ref: '#/definitions/retry_defaults/503/description'
+          headers:
+            $ref: '#/definitions/retry_defaults/503/headers'
         504:
-          $ref: '#/definitions/retry_defaults/504'
+          description:
+            $ref: '#/definitions/retry_defaults/504/description'
+          headers:
+            $ref: '#/definitions/retry_defaults/504/headers'
         default:
           description: Unexpected error
           schema:
