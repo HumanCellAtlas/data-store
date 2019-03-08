@@ -124,35 +124,6 @@ securityDefinitions:
       email: This scope value requests access to the email and email_verified Claims.
       openid: see http://openid.net/specs/openid-connect-core-1_0.html#ScopeClaims
       offline_access: see http://openid.net/specs/openid-connect-core-1_0.html#OfflineAccessPrivacy
-retry_defaults:
-  500:
-    description: Server error.
-    headers:
-      Retry-After:
-        description: Delay in seconds, downstream users should retry after the delay.
-        type: integer
-        format: int64
-  502:
-    description: Bad Gateway.
-    headers:
-      Retry-After:
-        description: Delay in seconds, downstream users should retry after the delay.
-        type: integer
-        format: int64
-  503:
-    description: Service Unavailable.
-    headers:
-      Retry-After:
-        description: Delay in seconds, downstream users should retry after the delay.
-        type: integer
-        format: int64
-  504:
-    description: Gateway Timeout.
-    headers:
-      Retry-After:
-        description: Delay in seconds, downstream users should retry after the delay.
-        type: integer
-        format: int64
 paths:
   /search:
     post:
@@ -289,10 +260,10 @@ paths:
             Link:
               type: string
               description: URL to retrieve the next page of results.
-        $ref: '#/retry_defaults/500'
-        $ref: '#/retry_defaults/502'
-        $ref: '#/retry_defaults/503'
-        $ref: '#/retry_defaults/504'
+        $ref: '#/definitions/retry_defaults/500'
+        $ref: '#/definitions/retry_defaults/502'
+        $ref: '#/definitions/retry_defaults/503'
+        $ref: '#/definitions/retry_defaults/504'
         default:
           description: Unexpected error
           schema:
@@ -358,10 +329,10 @@ paths:
               description: SHA-256 (in hex format) of the file contents in hex.
               type: string
               pattern: "^[a-z0-9]{64}$"
-        $ref: '#/retry_defaults/500'
-        $ref: '#/retry_defaults/502'
-        $ref: '#/retry_defaults/503'
-        $ref: '#/retry_defaults/504'
+        $ref: '#/definitions/retry_defaults/500'
+        $ref: '#/definitions/retry_defaults/502'
+        $ref: '#/definitions/retry_defaults/503'
+        $ref: '#/definitions/retry_defaults/504'
     get:
       summary: Retrieve a file given a UUID and optionally a version.
       description: >
@@ -453,10 +424,10 @@ paths:
                     enum: [illegal_token]
                 required:
                   - code
-        $ref: '#/retry_defaults/500'
-        $ref: '#/retry_defaults/502'
-        $ref: '#/retry_defaults/503'
-        $ref: '#/retry_defaults/504'
+        $ref: '#/definitions/retry_defaults/500'
+        $ref: '#/definitions/retry_defaults/502'
+        $ref: '#/definitions/retry_defaults/503'
+        $ref: '#/definitions/retry_defaults/504'
         default:
           description: Unexpected error
           schema:
@@ -606,10 +577,10 @@ paths:
                     enum: [missing_checksum]
                 required:
                 - code
-        $ref: '#/retry_defaults/500'
-        $ref: '#/retry_defaults/502'
-        $ref: '#/retry_defaults/503'
-        $ref: '#/retry_defaults/504'
+        $ref: '#/definitions/retry_defaults/500'
+        $ref: '#/definitions/retry_defaults/502'
+        $ref: '#/definitions/retry_defaults/503'
+        $ref: '#/definitions/retry_defaults/504'
         default:
           description: Unexpected error
           schema:
@@ -657,10 +628,10 @@ paths:
                   $ref: "#/definitions/Subscription"
             required:
               - subscriptions
-        $ref: '#/retry_defaults/500'
-        $ref: '#/retry_defaults/502'
-        $ref: '#/retry_defaults/503'
-        $ref: '#/retry_defaults/504'
+        $ref: '#/definitions/retry_defaults/500'
+        $ref: '#/definitions/retry_defaults/502'
+        $ref: '#/definitions/retry_defaults/503'
+        $ref: '#/definitions/retry_defaults/504'
         default:
           description: Unexpected error
           schema:
@@ -862,10 +833,10 @@ paths:
                 pattern: "[A-Za-z0-9]{8}-[A-Za-z0-9]{4}-[A-Za-z0-9]{4}-[A-Za-z0-9]{4}-[A-Za-z0-9]{12}"
             required:
               - uuid
-        $ref: '#/retry_defaults/500'
-        $ref: '#/retry_defaults/502'
-        $ref: '#/retry_defaults/503'
-        $ref: '#/retry_defaults/504'
+        $ref: '#/definitions/retry_defaults/500'
+        $ref: '#/definitions/retry_defaults/502'
+        $ref: '#/definitions/retry_defaults/503'
+        $ref: '#/definitions/retry_defaults/504'
         default:
           description: Unexpected error
           schema:
@@ -925,10 +896,10 @@ paths:
             properties:
               subscription:
                 $ref: "#/definitions/Subscription"
-        $ref: '#/retry_defaults/500'
-        $ref: '#/retry_defaults/502'
-        $ref: '#/retry_defaults/503'
-        $ref: '#/retry_defaults/504'
+        $ref: '#/definitions/retry_defaults/500'
+        $ref: '#/definitions/retry_defaults/502'
+        $ref: '#/definitions/retry_defaults/503'
+        $ref: '#/definitions/retry_defaults/504'
         default:
           description: Unexpected error
           schema:
@@ -981,10 +952,10 @@ paths:
                 format: DSS_VERSION
             required:
               - timeDeleted
-        $ref: '#/retry_defaults/500'
-        $ref: '#/retry_defaults/502'
-        $ref: '#/retry_defaults/503'
-        $ref: '#/retry_defaults/504'
+        $ref: '#/definitions/retry_defaults/500'
+        $ref: '#/definitions/retry_defaults/502'
+        $ref: '#/definitions/retry_defaults/503'
+        $ref: '#/definitions/retry_defaults/504'
         default:
           description: Unexpected error
           schema:
@@ -1055,10 +1026,10 @@ paths:
                 pattern: "[A-Za-z0-9]{8}-[A-Za-z0-9]{4}-[A-Za-z0-9]{4}-[A-Za-z0-9]{4}-[A-Za-z0-9]{12}"
             required:
               - uuid
-        $ref: '#/retry_defaults/500'
-        $ref: '#/retry_defaults/502'
-        $ref: '#/retry_defaults/503'
-        $ref: '#/retry_defaults/504'
+        $ref: '#/definitions/retry_defaults/500'
+        $ref: '#/definitions/retry_defaults/502'
+        $ref: '#/definitions/retry_defaults/503'
+        $ref: '#/definitions/retry_defaults/504'
         default:
           description: Unexpected error
           schema:
@@ -1113,10 +1084,10 @@ paths:
             properties:
               collection:
                 $ref: "#/definitions/Collection"
-        $ref: '#/retry_defaults/500'
-        $ref: '#/retry_defaults/502'
-        $ref: '#/retry_defaults/503'
-        $ref: '#/retry_defaults/504'
+        $ref: '#/definitions/retry_defaults/500'
+        $ref: '#/definitions/retry_defaults/502'
+        $ref: '#/definitions/retry_defaults/503'
+        $ref: '#/definitions/retry_defaults/504'
         default:
           description: Unexpected error
           schema:
@@ -1271,10 +1242,10 @@ paths:
                     enum: [invalid_link]
                 required:
                   - code
-        $ref: '#/retry_defaults/500'
-        $ref: '#/retry_defaults/502'
-        $ref: '#/retry_defaults/503'
-        $ref: '#/retry_defaults/504'
+        $ref: '#/definitions/retry_defaults/500'
+        $ref: '#/definitions/retry_defaults/502'
+        $ref: '#/definitions/retry_defaults/503'
+        $ref: '#/definitions/retry_defaults/504'
         default:
           description: Unexpected error
           schema:
@@ -1324,10 +1295,10 @@ paths:
                     enum: [unhandled_exception, Forbidden, Unauthorized, OAuthResponseProblem, not_found, read_only]
                 required:
                   - code
-        $ref: '#/retry_defaults/500'
-        $ref: '#/retry_defaults/502'
-        $ref: '#/retry_defaults/503'
-        $ref: '#/retry_defaults/504'
+        $ref: '#/definitions/retry_defaults/500'
+        $ref: '#/definitions/retry_defaults/502'
+        $ref: '#/definitions/retry_defaults/503'
+        $ref: '#/definitions/retry_defaults/504'
   /bundles/{uuid}:
     get:
       summary: Retrieve a bundle given a UUID and optionally a version.
@@ -1465,7 +1436,7 @@ paths:
                     enum: [unhandled_exception, checkout_error]
                 required:
                   - code
-        $ref: '#/retry_defaults/502'
+        $ref: '#/definitions/retry_defaults/502'
         503:
           description: Service unavailable.
           headers:
@@ -1489,7 +1460,7 @@ paths:
                     enum: [service_unavailable]
                 required:
                   - code
-        $ref: '#/retry_defaults/504'
+        $ref: '#/definitions/retry_defaults/504'
     put:
       security:
         - dcpAuth: []
@@ -1642,10 +1613,10 @@ paths:
                     enum: [bundle_already_exists]
                 required:
                   - code
-        $ref: '#/retry_defaults/500'
-        $ref: '#/retry_defaults/502'
-        $ref: '#/retry_defaults/503'
-        $ref: '#/retry_defaults/504'
+        $ref: '#/definitions/retry_defaults/500'
+        $ref: '#/definitions/retry_defaults/502'
+        $ref: '#/definitions/retry_defaults/503'
+        $ref: '#/definitions/retry_defaults/504'
         default:
           description: Unexpected error
           schema:
@@ -1738,10 +1709,10 @@ paths:
                     enum: [bundle_tombstone_already_exists]
                 required:
                   - code
-        $ref: '#/retry_defaults/500'
-        $ref: '#/retry_defaults/502'
-        $ref: '#/retry_defaults/503'
-        $ref: '#/retry_defaults/504'
+        $ref: '#/definitions/retry_defaults/500'
+        $ref: '#/definitions/retry_defaults/502'
+        $ref: '#/definitions/retry_defaults/503'
+        $ref: '#/definitions/retry_defaults/504'
         default:
           description: Unexpected error
           schema:
@@ -1876,10 +1847,10 @@ paths:
                     description: Detailed error message.
                 required:
                   - code
-        $ref: '#/retry_defaults/500'
-        $ref: '#/retry_defaults/502'
-        $ref: '#/retry_defaults/503'
-        $ref: '#/retry_defaults/504'
+        $ref: '#/definitions/retry_defaults/500'
+        $ref: '#/definitions/retry_defaults/502'
+        $ref: '#/definitions/retry_defaults/503'
+        $ref: '#/definitions/retry_defaults/504'
         default:
           description: Unexpected error
           schema:
@@ -2260,3 +2231,32 @@ definitions:
     properties:
       files:
         type: string
+  retry_defaults:
+    500:
+      description: Server error.
+      headers:
+        Retry-After:
+          description: Delay in seconds, downstream users should retry after the delay.
+          type: integer
+          format: int64
+    502:
+      description: Bad Gateway.
+      headers:
+        Retry-After:
+          description: Delay in seconds, downstream users should retry after the delay.
+          type: integer
+          format: int64
+    503:
+      description: Service Unavailable.
+      headers:
+        Retry-After:
+          description: Delay in seconds, downstream users should retry after the delay.
+          type: integer
+          format: int64
+    504:
+      description: Gateway Timeout.
+      headers:
+        Retry-After:
+          description: Delay in seconds, downstream users should retry after the delay.
+          type: integer
+          format: int64
