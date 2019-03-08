@@ -289,14 +289,10 @@ paths:
             Link:
               type: string
               description: URL to retrieve the next page of results.
-        500:
-          $ref: '#/retry_defaults/500'
-        502:
-          $ref: '#/retry_defaults/502'
-        503:
-          $ref: '#/retry_defaults/503'
-        504:
-          $ref: '#/retry_defaults/504'
+        $ref: '#/retry_defaults/500'
+        $ref: '#/retry_defaults/502'
+        $ref: '#/retry_defaults/503'
+        $ref: '#/retry_defaults/504'
         default:
           description: Unexpected error
           schema:
@@ -362,6 +358,10 @@ paths:
               description: SHA-256 (in hex format) of the file contents in hex.
               type: string
               pattern: "^[a-z0-9]{64}$"
+        $ref: '#/retry_defaults/500'
+        $ref: '#/retry_defaults/502'
+        $ref: '#/retry_defaults/503'
+        $ref: '#/retry_defaults/504'
     get:
       summary: Retrieve a file given a UUID and optionally a version.
       description: >
@@ -453,14 +453,10 @@ paths:
                     enum: [illegal_token]
                 required:
                   - code
-        500:
-          $ref: '#/retry_defaults/500'
-        502:
-          $ref: '#/retry_defaults/502'
-        503:
-          $ref: '#/retry_defaults/503'
-        504:
-          $ref: '#/retry_defaults/504'
+        $ref: '#/retry_defaults/500'
+        $ref: '#/retry_defaults/502'
+        $ref: '#/retry_defaults/503'
+        $ref: '#/retry_defaults/504'
         default:
           description: Unexpected error
           schema:
@@ -610,14 +606,10 @@ paths:
                     enum: [missing_checksum]
                 required:
                 - code
-        500:
-          $ref: '#/retry_defaults/500'
-        502:
-          $ref: '#/retry_defaults/502'
-        503:
-          $ref: '#/retry_defaults/503'
-        504:
-          $ref: '#/retry_defaults/504'
+        $ref: '#/retry_defaults/500'
+        $ref: '#/retry_defaults/502'
+        $ref: '#/retry_defaults/503'
+        $ref: '#/retry_defaults/504'
         default:
           description: Unexpected error
           schema:
@@ -665,14 +657,10 @@ paths:
                   $ref: "#/definitions/Subscription"
             required:
               - subscriptions
-        500:
-          $ref: '#/retry_defaults/500'
-        502:
-          $ref: '#/retry_defaults/502'
-        503:
-          $ref: '#/retry_defaults/503'
-        504:
-          $ref: '#/retry_defaults/504'
+        $ref: '#/retry_defaults/500'
+        $ref: '#/retry_defaults/502'
+        $ref: '#/retry_defaults/503'
+        $ref: '#/retry_defaults/504'
         default:
           description: Unexpected error
           schema:
@@ -874,14 +862,10 @@ paths:
                 pattern: "[A-Za-z0-9]{8}-[A-Za-z0-9]{4}-[A-Za-z0-9]{4}-[A-Za-z0-9]{4}-[A-Za-z0-9]{12}"
             required:
               - uuid
-        500:
-          $ref: '#/retry_defaults/500'
-        502:
-          $ref: '#/retry_defaults/502'
-        503:
-          $ref: '#/retry_defaults/503'
-        504:
-          $ref: '#/retry_defaults/504'
+        $ref: '#/retry_defaults/500'
+        $ref: '#/retry_defaults/502'
+        $ref: '#/retry_defaults/503'
+        $ref: '#/retry_defaults/504'
         default:
           description: Unexpected error
           schema:
@@ -941,14 +925,10 @@ paths:
             properties:
               subscription:
                 $ref: "#/definitions/Subscription"
-        500:
-          $ref: '#/retry_defaults/500'
-        502:
-          $ref: '#/retry_defaults/502'
-        503:
-          $ref: '#/retry_defaults/503'
-        504:
-          $ref: '#/retry_defaults/504'
+        $ref: '#/retry_defaults/500'
+        $ref: '#/retry_defaults/502'
+        $ref: '#/retry_defaults/503'
+        $ref: '#/retry_defaults/504'
         default:
           description: Unexpected error
           schema:
@@ -1001,14 +981,10 @@ paths:
                 format: DSS_VERSION
             required:
               - timeDeleted
-        500:
-          $ref: '#/retry_defaults/500'
-        502:
-          $ref: '#/retry_defaults/502'
-        503:
-          $ref: '#/retry_defaults/503'
-        504:
-          $ref: '#/retry_defaults/504'
+        $ref: '#/retry_defaults/500'
+        $ref: '#/retry_defaults/502'
+        $ref: '#/retry_defaults/503'
+        $ref: '#/retry_defaults/504'
         default:
           description: Unexpected error
           schema:
@@ -1079,14 +1055,10 @@ paths:
                 pattern: "[A-Za-z0-9]{8}-[A-Za-z0-9]{4}-[A-Za-z0-9]{4}-[A-Za-z0-9]{4}-[A-Za-z0-9]{12}"
             required:
               - uuid
-        500:
-          $ref: '#/retry_defaults/500'
-        502:
-          $ref: '#/retry_defaults/502'
-        503:
-          $ref: '#/retry_defaults/503'
-        504:
-          $ref: '#/retry_defaults/504'
+        $ref: '#/retry_defaults/500'
+        $ref: '#/retry_defaults/502'
+        $ref: '#/retry_defaults/503'
+        $ref: '#/retry_defaults/504'
         default:
           description: Unexpected error
           schema:
@@ -1141,14 +1113,10 @@ paths:
             properties:
               collection:
                 $ref: "#/definitions/Collection"
-        500:
-          $ref: '#/retry_defaults/500'
-        502:
-          $ref: '#/retry_defaults/502'
-        503:
-          $ref: '#/retry_defaults/503'
-        504:
-          $ref: '#/retry_defaults/504'
+        $ref: '#/retry_defaults/500'
+        $ref: '#/retry_defaults/502'
+        $ref: '#/retry_defaults/503'
+        $ref: '#/retry_defaults/504'
         default:
           description: Unexpected error
           schema:
@@ -1303,14 +1271,10 @@ paths:
                     enum: [invalid_link]
                 required:
                   - code
-        500:
-          $ref: '#/retry_defaults/500'
-        502:
-          $ref: '#/retry_defaults/502'
-        503:
-          $ref: '#/retry_defaults/503'
-        504:
-          $ref: '#/retry_defaults/504'
+        $ref: '#/retry_defaults/500'
+        $ref: '#/retry_defaults/502'
+        $ref: '#/retry_defaults/503'
+        $ref: '#/retry_defaults/504'
         default:
           description: Unexpected error
           schema:
@@ -1360,14 +1324,10 @@ paths:
                     enum: [unhandled_exception, Forbidden, Unauthorized, OAuthResponseProblem, not_found, read_only]
                 required:
                   - code
-        500:
-          $ref: '#/retry_defaults/500'
-        502:
-          $ref: '#/retry_defaults/502'
-        503:
-          $ref: '#/retry_defaults/503'
-        504:
-          $ref: '#/retry_defaults/504'
+        $ref: '#/retry_defaults/500'
+        $ref: '#/retry_defaults/502'
+        $ref: '#/retry_defaults/503'
+        $ref: '#/retry_defaults/504'
   /bundles/{uuid}:
     get:
       summary: Retrieve a bundle given a UUID and optionally a version.
@@ -1505,8 +1465,7 @@ paths:
                     enum: [unhandled_exception, checkout_error]
                 required:
                   - code
-        502:
-          $ref: '#/retry_defaults/502'
+        $ref: '#/retry_defaults/502'
         503:
           description: Service unavailable.
           headers:
@@ -1530,8 +1489,7 @@ paths:
                     enum: [service_unavailable]
                 required:
                   - code
-        504:
-          $ref: '#/retry_defaults/504'
+        $ref: '#/retry_defaults/504'
     put:
       security:
         - dcpAuth: []
@@ -1684,14 +1642,10 @@ paths:
                     enum: [bundle_already_exists]
                 required:
                   - code
-        500:
-          $ref: '#/retry_defaults/500'
-        502:
-          $ref: '#/retry_defaults/502'
-        503:
-          $ref: '#/retry_defaults/503'
-        504:
-          $ref: '#/retry_defaults/504'
+        $ref: '#/retry_defaults/500'
+        $ref: '#/retry_defaults/502'
+        $ref: '#/retry_defaults/503'
+        $ref: '#/retry_defaults/504'
         default:
           description: Unexpected error
           schema:
@@ -1784,14 +1738,10 @@ paths:
                     enum: [bundle_tombstone_already_exists]
                 required:
                   - code
-        500:
-          $ref: '#/retry_defaults/500'
-        502:
-          $ref: '#/retry_defaults/502'
-        503:
-          $ref: '#/retry_defaults/503'
-        504:
-          $ref: '#/retry_defaults/504'
+        $ref: '#/retry_defaults/500'
+        $ref: '#/retry_defaults/502'
+        $ref: '#/retry_defaults/503'
+        $ref: '#/retry_defaults/504'
         default:
           description: Unexpected error
           schema:
@@ -1926,14 +1876,10 @@ paths:
                     description: Detailed error message.
                 required:
                   - code
-        500:
-          $ref: '#/retry_defaults/500'
-        502:
-          $ref: '#/retry_defaults/502'
-        503:
-          $ref: '#/retry_defaults/503'
-        504:
-          $ref: '#/retry_defaults/504'
+        $ref: '#/retry_defaults/500'
+        $ref: '#/retry_defaults/502'
+        $ref: '#/retry_defaults/503'
+        $ref: '#/retry_defaults/504'
         default:
           description: Unexpected error
           schema:
