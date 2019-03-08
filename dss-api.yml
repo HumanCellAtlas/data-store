@@ -1453,6 +1453,11 @@ paths:
                   - code
         500:
           description: Server error
+          headers:
+            Retry-After:
+              description: Delay in seconds, downstream users should retry after the delay.
+              type: integer
+              format: int64
           schema:
             allOf:
               - $ref: '#/definitions/Error'
@@ -1475,6 +1480,11 @@ paths:
           $ref: '#/responses/BadGateway'
         503:
           description: Service unavailable
+          headers:
+            Retry-After:
+              description: Delay in seconds, downstream users should retry after the delay.
+              type: integer
+              format: int64
           schema:
             allOf:
               - $ref: '#/definitions/Error'
