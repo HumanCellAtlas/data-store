@@ -3,7 +3,6 @@
   "Version": "2012-10-17",
   "Statement": [
     {
-      "Sid": "hcaDssCiCdS3WriteAccess",
       "Effect": "Allow",
       "Action": [
         "s3:AbortMultipartUpload",
@@ -27,7 +26,6 @@
       ]
     },
     {
-      "Sid": "hcaDssCiCdS3ConfigAccess",
       "Effect": "Allow",
       "Action": [
         "s3:PutAccelerateConfiguration",
@@ -47,7 +45,6 @@
       ]
     },
     {
-      "Sid": "hcaDssCiCdS3ReadOnlyAccess",
       "Effect": "Allow",
       "Action": [
         "s3:Get*",
@@ -67,38 +64,19 @@
       ]
     },
     {
-      "Sid": "hcaDssCiCdLambdaReadAccess",
-      "Action": [
-        "lambda:List*",
-        "lambda:CreateEventSourceMapping",
-        "lambda:GetEventSourceMapping",
-        "lambda:TagResource",
-        "apigateway:*"
-      ],
-      "Resource": "*",
-      "Effect": "Allow"
-    },
-    {
-      "Sid": "hcaDssCiCdIamListRolesAccess",
       "Effect": "Allow",
-      "Action": [
-        "iam:ListRoles"
-      ],
+      "Action": "iam:ListRoles",
       "Resource": "arn:aws:iam::$account_id:role/"
     },
     {
-      "Sid": "hcaDssCiCdTestLogging",
       "Effect": "Allow",
-      "Action": [
-        "logs:*"
-      ],
+      "Action": "logs:*",
       "Resource": [
         "arn:aws:logs:*:$account_id:log-group:dss-*-$DSS_DEPLOYMENT_STAGE*",
         "arn:aws:logs:*:$account_id:log-group:dss-test-logging*"
       ]
     },
     {
-      "Sid": "hcaDssCiCdLambdaElasticsearchSNSAdminAccess",
       "Action": [
         "lambda:*",
         "es:*",
@@ -117,7 +95,6 @@
       "Effect": "Allow"
     },
     {
-      "Sid": "hcaDssCiCdAllowStateMachineAccess",
       "Action": "states:ListStateMachines",
       "Resource": "arn:aws:states:*:$account_id:*",
       "Effect": "Allow"
@@ -140,9 +117,15 @@
     {
       "Effect": "Allow",
       "Action": [
+        "lambda:List*",
+        "lambda:CreateEventSourceMapping",
+        "lambda:GetEventSourceMapping",
+        "lambda:TagResource",
+        "apigateway:*",
         "dynamodb:ListTables",
         "dynamodb:Query",
-        "dynamodb:DescribeTable"
+        "dynamodb:DescribeTable",
+        "sqs:ListQueues"
 	],
       "Resource": "*"
     },
@@ -159,15 +142,10 @@
     },
     {
       "Effect": "Allow",
-      "Action": [
-        "sqs:*"
-      ],
-      "Resource": [
-        "arn:aws:sqs:*:$account_id:dss-dlq-*"
-      ]
+      "Action": "sqs:*",
+      "Resource": "arn:aws:sqs:*:$account_id:dss-dlq-*"
     },
     {
-      "Sid": "hcaDssCiCdSqsReadWriteQueues",
       "Effect": "Allow",
       "Action": [
         "sqs:CreateQueue",
@@ -188,23 +166,9 @@
       ]
     },
     {
-      "Sid": "hcaDssCiCdSqsReadListAllQueues",
       "Effect": "Allow",
-      "Action": [
-        "sqs:ListQueues"
-      ],
-      "Resource": [
-        "arn:aws:sqs:*:$account_id:*"
-      ]
-    },
-    {
-      "Effect": "Allow",
-      "Action": [
-        "secretsmanager:Get*"
-      ],
-      "Resource": [
-        "arn:aws:secretsmanager:*:$account_id:secret:$DSS_SECRETS_STORE/*"
-      ]
+      "Action": "secretsmanager:Get*",
+      "Resource": "arn:aws:secretsmanager:*:$account_id:secret:$DSS_SECRETS_STORE/*"
     }
   ]
 }
