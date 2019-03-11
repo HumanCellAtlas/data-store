@@ -1452,10 +1452,10 @@ paths:
                 required:
                   - code
         500:
-          description: Server error
+          description: Server Error.
           headers:
             Retry-After:
-              description: Delay in seconds, downstream users should retry after the delay.
+              description: Delay in seconds, service clients should retry after the delay.
               type: integer
               format: int64
           schema:
@@ -1479,10 +1479,10 @@ paths:
         502:
           $ref: '#/responses/BadGateway'
         503:
-          description: Service unavailable
+          description: Service Unavailable.
           headers:
             Retry-After:
-              description: Delay in seconds, downstream users should retry after the delay.
+              description: Delay in seconds, service clients should retry after the delay.
               type: integer
               format: int64
           schema:
@@ -2288,30 +2288,30 @@ definitions:
 
 responses:
   ServerError:
-    description: Server error.
+    description: Server Error.
     headers:
       Retry-After:
-        description: Delay in seconds, downstream users should retry after the delay.
+        description: Delay in seconds, service clients should retry after the delay.
         type: integer
         format: int64
   BadGateway:
     description: Bad Gateway.
     headers:
       Retry-After:
-        description: Delay in seconds, downstream users should retry after the delay.
+        description: Delay in seconds, service clients should retry after the delay.
         type: integer
         format: int64
   ServiceUnavailable:
     description: Service Unavailable.
     headers:
       Retry-After:
-        description: Delay in seconds, downstream users should retry after the delay.
+        description: Delay in seconds, service clients should retry after the delay.
         type: integer
         format: int64
   GatewayTimeout:
     description: Gateway Timeout.
     headers:
       Retry-After:
-        description: Delay in seconds, downstream users should retry after the delay.
+        description: Delay in seconds, service clients should retry after the delay.
         type: integer
         format: int64
