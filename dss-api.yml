@@ -325,6 +325,14 @@ paths:
               description: SHA-256 (in hex format) of the file contents in hex.
               type: string
               pattern: "^[a-z0-9]{64}$"
+        500:
+          $ref: '#/responses/ServerError'
+        502:
+          $ref: '#/responses/BadGateway'
+        503:
+          $ref: '#/responses/ServiceUnavailable'
+        504:
+          $ref: '#/responses/GatewayTimeout'
     get:
       summary: Retrieve a file given a UUID and optionally a version.
       description: >
@@ -416,6 +424,14 @@ paths:
                     enum: [illegal_token]
                 required:
                   - code
+        500:
+          $ref: '#/responses/ServerError'
+        502:
+          $ref: '#/responses/BadGateway'
+        503:
+          $ref: '#/responses/ServiceUnavailable'
+        504:
+          $ref: '#/responses/GatewayTimeout'
         default:
           description: Unexpected error
           schema:
@@ -565,6 +581,14 @@ paths:
                     enum: [missing_checksum]
                 required:
                 - code
+        500:
+          $ref: '#/responses/ServerError'
+        502:
+          $ref: '#/responses/BadGateway'
+        503:
+          $ref: '#/responses/ServiceUnavailable'
+        504:
+          $ref: '#/responses/GatewayTimeout'
         default:
           description: Unexpected error
           schema:
@@ -593,7 +617,7 @@ paths:
           required: true
           type: string
           enum: [aws, gcp]
-        - name: subscription_type 
+        - name: subscription_type
           in: query
           description: type of subscriptions to fetch (elasticsearch or jmespath)
           required: false
@@ -612,6 +636,14 @@ paths:
                   $ref: "#/definitions/Subscription"
             required:
               - subscriptions
+        500:
+          $ref: '#/responses/ServerError'
+        502:
+          $ref: '#/responses/BadGateway'
+        503:
+          $ref: '#/responses/ServiceUnavailable'
+        504:
+          $ref: '#/responses/GatewayTimeout'
         default:
           description: Unexpected error
           schema:
@@ -813,6 +845,14 @@ paths:
                 pattern: "[A-Za-z0-9]{8}-[A-Za-z0-9]{4}-[A-Za-z0-9]{4}-[A-Za-z0-9]{4}-[A-Za-z0-9]{12}"
             required:
               - uuid
+        500:
+          $ref: '#/responses/ServerError'
+        502:
+          $ref: '#/responses/BadGateway'
+        503:
+          $ref: '#/responses/ServiceUnavailable'
+        504:
+          $ref: '#/responses/GatewayTimeout'
         default:
           description: Unexpected error
           schema:
@@ -857,7 +897,7 @@ paths:
           required: true
           type: string
           enum: [aws, gcp]
-        - name: subscription_type 
+        - name: subscription_type
           in: query
           description: type of subscriptions to fetch (elasticsearch or jmespath)
           required: false
@@ -872,6 +912,14 @@ paths:
             properties:
               subscription:
                 $ref: "#/definitions/Subscription"
+        500:
+          $ref: '#/responses/ServerError'
+        502:
+          $ref: '#/responses/BadGateway'
+        503:
+          $ref: '#/responses/ServiceUnavailable'
+        504:
+          $ref: '#/responses/GatewayTimeout'
         default:
           description: Unexpected error
           schema:
@@ -905,7 +953,7 @@ paths:
           required: true
           type: string
           enum: [aws, gcp]
-        - name: subscription_type 
+        - name: subscription_type
           in: query
           description: type of subscriptions to fetch (elasticsearch or jmespath)
           required: false
@@ -924,6 +972,14 @@ paths:
                 format: DSS_VERSION
             required:
               - timeDeleted
+        500:
+          $ref: '#/responses/ServerError'
+        502:
+          $ref: '#/responses/BadGateway'
+        503:
+          $ref: '#/responses/ServiceUnavailable'
+        504:
+          $ref: '#/responses/GatewayTimeout'
         default:
           description: Unexpected error
           schema:
@@ -994,6 +1050,14 @@ paths:
                 pattern: "[A-Za-z0-9]{8}-[A-Za-z0-9]{4}-[A-Za-z0-9]{4}-[A-Za-z0-9]{4}-[A-Za-z0-9]{12}"
             required:
               - uuid
+        500:
+          $ref: '#/responses/ServerError'
+        502:
+          $ref: '#/responses/BadGateway'
+        503:
+          $ref: '#/responses/ServiceUnavailable'
+        504:
+          $ref: '#/responses/GatewayTimeout'
         default:
           description: Unexpected error
           schema:
@@ -1048,6 +1112,14 @@ paths:
             properties:
               collection:
                 $ref: "#/definitions/Collection"
+        500:
+          $ref: '#/responses/ServerError'
+        502:
+          $ref: '#/responses/BadGateway'
+        503:
+          $ref: '#/responses/ServiceUnavailable'
+        504:
+          $ref: '#/responses/GatewayTimeout'
         default:
           description: Unexpected error
           schema:
@@ -1202,6 +1274,14 @@ paths:
                     enum: [invalid_link]
                 required:
                   - code
+        500:
+          $ref: '#/responses/ServerError'
+        502:
+          $ref: '#/responses/BadGateway'
+        503:
+          $ref: '#/responses/ServiceUnavailable'
+        504:
+          $ref: '#/responses/GatewayTimeout'
         default:
           description: Unexpected error
           schema:
@@ -1238,6 +1318,14 @@ paths:
       responses:
         200:
           description: OK
+        500:
+          $ref: '#/responses/ServerError'
+        502:
+          $ref: '#/responses/BadGateway'
+        503:
+          $ref: '#/responses/ServiceUnavailable'
+        504:
+          $ref: '#/responses/GatewayTimeout'
         default:
           description: Unexpected error
           schema:
@@ -1364,7 +1452,12 @@ paths:
                 required:
                   - code
         500:
-          description: Server error
+          description: Server Error.
+          headers:
+            Retry-After:
+              description: Delay in seconds, service clients should retry after the delay.
+              type: integer
+              format: int64
           schema:
             allOf:
               - $ref: '#/definitions/Error'
@@ -1383,8 +1476,15 @@ paths:
                     enum: [unhandled_exception, checkout_error]
                 required:
                   - code
+        502:
+          $ref: '#/responses/BadGateway'
         503:
-          description: Service unavailable
+          description: Service Unavailable.
+          headers:
+            Retry-After:
+              description: Delay in seconds, service clients should retry after the delay.
+              type: integer
+              format: int64
           schema:
             allOf:
               - $ref: '#/definitions/Error'
@@ -1401,6 +1501,8 @@ paths:
                     enum: [service_unavailable]
                 required:
                   - code
+        504:
+          $ref: '#/responses/GatewayTimeout'
     put:
       security:
         - dcpAuth: []
@@ -1553,6 +1655,14 @@ paths:
                     enum: [bundle_already_exists]
                 required:
                   - code
+        500:
+          $ref: '#/responses/ServerError'
+        502:
+          $ref: '#/responses/BadGateway'
+        503:
+          $ref: '#/responses/ServiceUnavailable'
+        504:
+          $ref: '#/responses/GatewayTimeout'
         default:
           description: Unexpected error
           schema:
@@ -1645,6 +1755,14 @@ paths:
                     enum: [bundle_tombstone_already_exists]
                 required:
                   - code
+        500:
+          $ref: '#/responses/ServerError'
+        502:
+          $ref: '#/responses/BadGateway'
+        503:
+          $ref: '#/responses/ServiceUnavailable'
+        504:
+          $ref: '#/responses/GatewayTimeout'
         default:
           description: Unexpected error
           schema:
@@ -1779,6 +1897,14 @@ paths:
                     description: Detailed error message.
                 required:
                   - code
+        500:
+          $ref: '#/responses/ServerError'
+        502:
+          $ref: '#/responses/BadGateway'
+        503:
+          $ref: '#/responses/ServiceUnavailable'
+        504:
+          $ref: '#/responses/GatewayTimeout'
         default:
           description: Unexpected error
           schema:
@@ -2159,3 +2285,33 @@ definitions:
     properties:
       files:
         type: string
+
+responses:
+  ServerError:
+    description: Server Error.
+    headers:
+      Retry-After:
+        description: Delay in seconds, service clients should retry after the delay.
+        type: integer
+        format: int64
+  BadGateway:
+    description: Bad Gateway.
+    headers:
+      Retry-After:
+        description: Delay in seconds, service clients should retry after the delay.
+        type: integer
+        format: int64
+  ServiceUnavailable:
+    description: Service Unavailable.
+    headers:
+      Retry-After:
+        description: Delay in seconds, service clients should retry after the delay.
+        type: integer
+        format: int64
+  GatewayTimeout:
+    description: Gateway Timeout.
+    headers:
+      Retry-After:
+        description: Delay in seconds, service clients should retry after the delay.
+        type: integer
+        format: int64
