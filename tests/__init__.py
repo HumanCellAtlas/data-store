@@ -80,13 +80,12 @@ def eventually(timeout: float, interval: float, errors: set = {AssertionError}):
     return decorate
 
 
-def get_service_jwt(service_credentials, group: str = None, email=True, email_claim=False):
-    audience = Config.get_audience()
+def get_service_jwt(service_credentials, group: str = None, email=True, email_claim=False, audience=None):
     iat = time.time()
     exp = iat + 3600
     payload = {'iss': service_credentials["client_email"],
                'sub': service_credentials["client_email"],
-               'aud': audience,
+               'aud': audience or Config.get_audience(),
                'iat': iat,
                'exp': exp,
                'scope': ['email', 'openid', 'offline_access']

@@ -145,13 +145,45 @@ class TestSecurity(unittest.TestCase):
                 with self.assertRaises(DSSForbiddenException):
                     security.assert_authorized_group(['hca'], token_info)
 
+    @mock.patch('dss.Config._OIDC_AUDIENCE', new=["https://dev.data.humancellatlas.org/",
+                                                  "https://data.humancellatlas.org/"])
+    @mock.patch('dss.Config._TRUSTED_GOOGLE_PROJECTS', new=['cool-project-188401.iam.gserviceaccount.com'])
+    def test_verify_jwt_multiple_audience(self):
+        jwts_positive = [
+            get_service_jwt(UNAUTHORIZED_GCP_CREDENTIALS),
+            get_service_jwt(UNAUTHORIZED_GCP_CREDENTIALS, audience="https://dev.data.humancellatlas.org/"),
+            get_service_jwt(UNAUTHORIZED_GCP_CREDENTIALS, audience="https://data.humancellatlas.org/"),
+            get_service_jwt(UNAUTHORIZED_GCP_CREDENTIALS, audience=["https://dev.data.humancellatlas.org/", "e"])
+        ]
+        jwt_negative = [
+            get_service_jwt(UNAUTHORIZED_GCP_CREDENTIALS, audience="something else"),
+            get_service_jwt(UNAUTHORIZED_GCP_CREDENTIALS, audience=["something", "e"])
+        ]
+        for jwt in jwts_positive:
+            with self.subTest("Positive: " + jwt):
+                security.verify_jwt(jwt)
+        for jwt in jwt_negative:
+            with self.subTest("Negative: " + jwt):
+                self.assertRaises(dss.error.DSSException, security.verify_jwt, jwt)
+
     @mock.patch('dss.Config._OIDC_AUDIENCE', new="https://dev.data.humancellatlas.org/")
     @mock.patch('dss.Config._TRUSTED_GOOGLE_PROJECTS', new=['cool-project-188401.iam.gserviceaccount.com'])
-    def test_verify_jwt(self):
-        jwts = [get_service_jwt(UNAUTHORIZED_GCP_CREDENTIALS)]
-        for jwt in jwts:
-            with self.subTest(jwt):
+    def test_verify_jwt_single_audience(self):
+        jwts_positive = [
+            get_service_jwt(UNAUTHORIZED_GCP_CREDENTIALS),
+            get_service_jwt(UNAUTHORIZED_GCP_CREDENTIALS, audience="https://dev.data.humancellatlas.org/"),
+            get_service_jwt(UNAUTHORIZED_GCP_CREDENTIALS, audience=["https://dev.data.humancellatlas.org/", "e"])
+        ]
+        jwt_negative = [
+            get_service_jwt(UNAUTHORIZED_GCP_CREDENTIALS, audience="something else"),
+            get_service_jwt(UNAUTHORIZED_GCP_CREDENTIALS, audience=["something", "e"])
+        ]
+        for jwt in jwts_positive:
+            with self.subTest("Positive: " + jwt):
                 security.verify_jwt(jwt)
+        for jwt in jwt_negative:
+            with self.subTest("Negative: " + jwt):
+                self.assertRaises(dss.error.DSSException, security.verify_jwt, jwt)
 
     def test_negative_verify_jwt(self):
         jwts = [get_service_jwt(UNAUTHORIZED_GCP_CREDENTIALS)]
