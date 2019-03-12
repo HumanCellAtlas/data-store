@@ -11,7 +11,7 @@ DCP_DOMAIN=data.humancellatlas.org
 # TODO remove https://dev.data.humancellatlas.org/ from OIDC_AUDIENCE
 OIDC_AUDIENCE=https://dev.data.humancellatlas.org/,https://${DCP_DOMAIN}/
 API_DOMAIN_NAME="dss.${DCP_DOMAIN}"
-ACM_CERTIFICATE_IDENTIFIER=""
+ACM_CERTIFICATE_IDENTIFIER="8dac5c5d-2742-4564-bc85-b7b3e251a51c"
 DSS_GCP_SERVICE_ACCOUNT_NAME="org-humancellatlas-prod"
 DSS_TERRAFORM_BACKEND_BUCKET_TEMPLATE="org-humancellatlas-109067257620-terraform"
 DSS_ZONE_NAME="${DCP_DOMAIN}."
