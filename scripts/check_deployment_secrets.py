@@ -2,59 +2,79 @@
 """
 Script to ensure that the secrets in the various HCA stage deployments are not accidentally
 changed to personal user credentials (or otherwise).
+
+Requires Terraform.
 """
 import subprocess
 import os
 import json
 
 
-auth_uri = ['https://auth.data.humancellatlas.org/authorize', 'https://auth.dev.data.humancellatlas.org/authorize']
-token_uri = ['https://auth.data.humancellatlas.org/oauth/token','https://auth.dev.data.humancellatlas.org/oauth/token']
-dev_email = ['travis-test@human-cell-atlas-travis-test.iam.gserviceaccount.com']
-integration_email = ['org-humancellatlas-integration@human-cell-atlas-travis-test.iam.gserviceaccount.com']
-staging_email = ['org-humancellatlas-staging@human-cell-atlas-travis-test.iam.gserviceaccount.com']
+class SecretsChecker(object):
+    def __init__(self, stage):
+        self.stage = stage
+        self.project = ['human-cell-atlas-travis-test']
+        self.auth_uri = ['https://auth.data.humancellatlas.org/authorize',
+                         'https://auth.dev.data.humancellatlas.org/authorize']
+        self.token_uri = ['https://auth.data.humancellatlas.org/oauth/token',
+                          'https://auth.dev.data.humancellatlas.org/oauth/token']
+        self.email = self.fetch_terraform_output("email", "gcp_service_account")
 
+        self.app_secret_name = os.environ['GOOGLE_APPLICATION_SECRETS_SECRETS_NAME']
+        self.gcp_cred_secret_name = os.environ['GOOGLE_APPLICATION_CREDENTIALS_SECRETS_NAME']
+        self.app_secret = self.fetch_secret(self.app_secret_name)
+        self.gcp_cred_secret = self.fetch_secret(self.gcp_cred_secret_name)
 
-def fetch_secret(secret_name='application_secrets.json'):
-    cmd = ' '.join([os.path.join(os.path.dirname(__file__), 'fetch_secret.sh'), secret_name])
-    p = subprocess.Popen(cmd, shell=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
-    stdout, stderr = p.communicate()
-    secret = json.loads(stdout)
-    return secret
+    @staticmethod
+    def run_cmd(cmd, cwd=os.getcwd()):
+        p = subprocess.Popen(cmd,
+                             shell=True,
+                             stdout=subprocess.PIPE,
+                             stderr=subprocess.PIPE,
+                             cwd=cwd)
+        stdout, stderr = p.communicate()
+        return stdout.decode('utf-8')
 
+    def fetch_secret(self, secret_name):
+        script_path = os.path.join(os.path.dirname(__file__), "fetch_secret.sh")
+        return json.loads(self.run_cmd(f'{script_path} {secret_name}'))
 
-def check(current, expected, stage, secret):
-    if current not in expected:
-        raise ValueError(f'\n\nDeploying to {stage.upper()} could not be completed, because it looks like an AWS secret'
-                         f' has an unexpected value.  Please do not change AWS secrets for releases.\n'
-                         f'The following secret                : {secret}\n'
-                         f'Had the unexpected setting          : {current}\n'
-                         f'When one of these items was expected: {expected}\n')
+    def fetch_terraform_output(self, output_name, output_infra_dir):
+        """See: https://www.terraform.io/docs/commands/output.html"""
+        output_infra_dir = os.path.abspath(os.path.join(os.path.dirname(__file__), '..', 'infra', output_infra_dir))
+
+        # populate infra's vars for the current stage
+        self.run_cmd(cmd=f'make -C infra')
+        self.run_cmd(cmd=f'terraform refresh', cwd=output_infra_dir)
+
+        # query terraform as to what the needed var is and return it
+        terraform_output = self.run_cmd(cmd=f'terraform output {output_name}', cwd=output_infra_dir)
+        return terraform_output.strip()
+
+    def check(self, current, expected, secret):
+        if current not in expected:
+            raise ValueError(f'\n\nDeploying to {self.stage.upper()} could not be completed.'
+                             f'It looks like an AWS secret has an unexpected value.\n'
+                             f'Please do not change AWS secrets for releases.\n'
+                             f'The following secret                : {secret}\n'
+                             f'Had the unexpected setting          : {current}\n'
+                             f'When one of these items was expected: {expected}\n')
+
+    def run(self):
+        # do not check user-custom deploys or prod
+        if self.stage in ('dev', 'integration', 'staging'):
+            self.check(self.app_secret['installed']['auth_uri'], self.auth_uri, secret=self.app_secret_name)
+            self.check(self.app_secret['installed']['token_uri'], self.token_uri, secret=self.app_secret_name)
+            self.check(self.gcp_cred_secret['type'], ['service_account'], secret=self.gcp_cred_secret_name)
+            self.check(self.gcp_cred_secret['project_id'], self.project, secret=self.app_secret_name)
+            self.check(self.gcp_cred_secret['client_email'], self.email, secret=self.gcp_cred_secret_name)
 
 
 def main(stage=None):
     if not stage:
         stage = os.environ['DSS_DEPLOYMENT_STAGE']
-
-    app_secret_name = 'application_secrets.json'
-    gcp_cred_secret_name = 'gcp-credentials.json'
-    app_secret = fetch_secret(app_secret_name)
-    gcp_cred_secret = fetch_secret(gcp_cred_secret_name)
-
-    # shared checks
-    if stage in ('dev', 'integration', 'staging'):
-        check(app_secret['installed']['auth_uri'], auth_uri, stage=stage, secret=app_secret_name)
-        check(app_secret['installed']['token_uri'], token_uri, stage=stage, secret=app_secret_name)
-        check(gcp_cred_secret['type'], ['service_account'], stage=stage, secret=gcp_cred_secret_name)
-        check(gcp_cred_secret['project_id'], ['human-cell-atlas-travis-test'], stage=stage, secret=app_secret_name)
-
-    # stage-specific checks
-    if stage == 'dev':
-        check(gcp_cred_secret['client_email'], dev_email, stage=stage, secret=gcp_cred_secret_name)
-    elif stage == 'integration':
-        check(gcp_cred_secret['client_email'], integration_email, stage=stage, secret=gcp_cred_secret_name)
-    elif stage == 'staging':
-        check(gcp_cred_secret['client_email'], staging_email, stage=stage, secret=gcp_cred_secret_name)
+    s = SecretsChecker(stage)
+    s.run()
 
 
 if __name__ == '__main__':

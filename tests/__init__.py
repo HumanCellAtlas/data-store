@@ -3,11 +3,12 @@ import json
 import time
 import uuid
 import logging
-
+import unittest
 import jwt
 import functools
 import io
 import os
+import shutil
 
 from dss import Config
 from dss.api import bundles
@@ -112,3 +113,11 @@ def get_auth_header(real_header=True, authorized=True, group='hca', email=True, 
         info = UNAUTHORIZED_GCP_CREDENTIALS
     token = get_service_jwt(info, group, email=email, email_claim=email_claim) if real_header else str(uuid.uuid4())
     return {"Authorization": f"Bearer {token}"}
+
+
+def needs_terraform(test_item):
+    """Use as a decorator before tests to only run them if Terraform is installed."""
+    if shutil.which('terraform'):
+        return test_item
+    else:
+        return unittest.skip("Install Terraform to include this test.")(test_item)
