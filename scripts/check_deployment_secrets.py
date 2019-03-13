@@ -40,8 +40,12 @@ class SecretsChecker(object):
 
     def fetch_secret(self, secret_name):
         script_path = os.path.join(os.path.dirname(__file__), "fetch_secret.sh")
-        secret = json.loads(self.run_cmd(f'{script_path} {secret_name}'))
-        if ('installed' not in secret or 'client_email' not in secret) and self.stage in self.stages:
+        raw_response = self.run_cmd(f'{script_path} {secret_name}')
+        try:
+            secret = json.loads(raw_response)
+        except json.decoder.JSONDecodeError:
+            raise RuntimeError(f'The following secret, {secret_name}, appears to no longer exist or is malformed.')
+        if not (('installed' not in secret) or ('client_email' not in secret)) and (self.stage in self.stages):
             raise RuntimeError(f'The following secret, {secret_name}, appears to no longer exist or is malformed.')
         return secret
 
