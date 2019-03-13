@@ -26,6 +26,10 @@ install:
 - mkdir make4
 - dpkg -x make*.deb make4
 - export PATH=$(pwd)/make4/usr/bin:$PATH
+- export TERRAFORM_VER=$(curl -s https://checkpoint-api.hashicorp.com/v1/check/terraform | jq -r -M '.current_version')
+- curl -sLo terraform.zip "https://releases.hashicorp.com/terraform/${TERRAFORM_VER}/terraform_${TERRAFORM_VER}_linux_amd64.zip"
+- unzip terraform.zip -d ~/bin
+- export PATH=~/bin:$PATH
 
 before_script:
 - export -n _JAVA_OPTIONS # https://github.com/travis-ci/travis-ci/issues/8408

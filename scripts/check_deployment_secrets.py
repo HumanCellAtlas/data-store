@@ -13,12 +13,14 @@ import json
 class SecretsChecker(object):
     def __init__(self, stage):
         self.stage = stage
+        self.service_account = self.fetch_terraform_output("service_account", "gcp_service_account").strip()
+
+        self.email = [f'{self.service_account}@human-cell-atlas-travis-test.iam.gserviceaccount.com']
         self.project = ['human-cell-atlas-travis-test']
         self.auth_uri = ['https://auth.data.humancellatlas.org/authorize',
                          'https://auth.dev.data.humancellatlas.org/authorize']
         self.token_uri = ['https://auth.data.humancellatlas.org/oauth/token',
                           'https://auth.dev.data.humancellatlas.org/oauth/token']
-        self.email = self.fetch_terraform_output("email", "gcp_service_account")
 
         self.app_secret_name = os.environ['GOOGLE_APPLICATION_SECRETS_SECRETS_NAME']
         self.gcp_cred_secret_name = os.environ['GOOGLE_APPLICATION_CREDENTIALS_SECRETS_NAME']
