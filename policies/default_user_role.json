@@ -1,0 +1,13 @@
+{
+  "Version": "2012-10-17",
+  "Statement": [
+    {
+      "Sid": "fus_user",
+      "Effect": "Allow",
+      "Action": [
+        "fus:GetUser"
+      ],
+       "Resource": "arn:hca:fus:*:*:user/${fus:user_email}/*"
+    }
+  ]
+}

@@ -1,0 +1,13 @@
+{
+  "Version": "2012-10-17",
+  "Statement": [
+    {
+      "Sid": "fus_admin",
+      "Effect": "Allow",
+      "Action": [
+        "fus:*"
+      ],
+       "Resource": "arn:hca:fus:*:*:*"
+    }
+  ]
+}

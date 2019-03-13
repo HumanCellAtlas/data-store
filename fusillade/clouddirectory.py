@@ -61,6 +61,13 @@ def create_directory(name: str, schema: str):
         directory.create_folder('/', 'Users')
         directory.create_folder('/', 'Roles')
         directory.create_folder('/', 'Policies')
+
+        # create roles
+        with open("./policies/default_user_role.json", 'r') as fp:
+            Role.create(directory, "default_user", statement=fp.read())
+        with open("./policies/default_admin_role.json", 'r') as fp:
+            Role.create(directory, "admin", statement=fp.read())
+
     except ad.exceptions.DirectoryAlreadyExistsException:
         directory = CloudDirectory.from_name(name)
     return directory
@@ -449,11 +456,9 @@ class Role(CloudNode):
     def create(cls,
                cloud_directory: CloudDirectory,
                name: str,
-               statement: typing.Optional[str] = None):
-        if statement:
-            _, policy_ref = cloud_directory.create_object(quote(name), statement, 'Role', name=name)
-            new_node = cls(cloud_directory, name)
-            new_node._statement = statement
-            new_node._policy = policy_ref
-            return new_node
-        raise ValueError("statement and file_name cannot be None.")
+               statement: str = ''):
+        object_ref, policy_ref = cloud_directory.create_object(quote(name), statement, 'Role', name=name)
+        new_node = cls(cloud_directory, name)
+        new_node._statement = statement
+        new_node._policy = policy_ref
+        return new_node

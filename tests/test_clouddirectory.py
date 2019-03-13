@@ -59,6 +59,12 @@ class TestCloudDirectory(unittest.TestCase):
                 resp = directory.get_object_information(f'/{folder}')
                 self.assertTrue(resp['ObjectIdentifier'])
 
+        roles = ['Roles/admin', 'Roles/default_user']
+        for role in roles:
+            with self.subTest(f"{role} roles is created when directory is created"):
+                resp = directory.get_object_information(f'/{role}')
+                self.assertTrue(resp['ObjectIdentifier'])
+
 
 if __name__ == '__main__':
     unittest.main()
