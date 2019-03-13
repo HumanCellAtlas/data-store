@@ -562,7 +562,7 @@ class CloudNode:
 
 
 class User(CloudNode):
-    _attributes = CloudNode._attributes
+    _attributes = ['status'] + CloudNode._attributes
 
     def __init__(self, cloud_directory: CloudDirectory, name: str, local: bool = False):
         """
@@ -573,6 +573,7 @@ class User(CloudNode):
         :param local: use if you don't want to retrieve information from the directory when initializing
         """
         super(User, self).__init__(cloud_directory, name, 'User')
+        self._status = None
         self._roles: typing.Optional[typing.List[str]] = None  # TODO make a property
         self._policy = None
         self._statement = None
@@ -584,6 +585,37 @@ class User(CloudNode):
                 self.add_roles(['default_user'])
                 self._set_attributes(self._attributes)
 
+    @property
+    def status(self):
+        if not self._status:
+            self._set_attributes(['status'])
+        return self._status
+
+    def enable(self):
+        """change the status of a user to enabled"""
+        update_params = [
+            UpdateObjectParams('User',
+                               'status',
+                               ValueTypes.StringValue,
+                               'Enabled',
+                               UpdateActions.CREATE_OR_UPDATE)
+        ]
+        self.cd.update_object_attribute(self.object_reference, update_params)
+
+        self._status = None
+
+    def disable(self):
+        """change the status of a user to disabled"""
+        update_params = [
+            UpdateObjectParams('User',
+                               'status',
+                               ValueTypes.StringValue,
+                               'Disabled',
+                               UpdateActions.CREATE_OR_UPDATE)
+        ]
+        self.cd.update_object_attribute(self.object_reference, update_params)
+        self._status = None
+
     def provision_user(self, statement: str = None):
         if not statement:
             with open("./policies/default_user_policy.json", 'r') as fp:
@@ -591,7 +623,8 @@ class User(CloudNode):
         return self.cd.create_object(self._path_name,
                                      json.dumps(statement),
                                      'User',
-                                     name=self.name)
+                                     name=self.name,
+                                     status='Enabled')
 
     @property
     def roles(self):

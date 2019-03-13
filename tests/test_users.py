@@ -56,6 +56,19 @@ class TestUser(unittest.TestCase):
         with self.subTest("The user policy changes when set_policy is used."):
             self.assertEqual(user.lookup_policies(), ["Something else"])
 
+    def test_status(self):
+        name = "test_sete_policy@test.com"
+        user = User(directory, name)
+
+        with self.subTest("A user's status is enabled when provisioned."):
+            self.assertEqual(user.status, 'Enabled')
+        with self.subTest("A user's status is disabled when user.disable is called."):
+            user.disable()
+            self.assertEqual(user.status, 'Disabled')
+        with self.subTest("A user's status is enabled when user.enabled is called."):
+            user.enable()
+            self.assertEqual(user.status, 'Enabled')
+
     def test_roles(self):
         name = "test_sete_policy@test.com"
         test_roles = [(f"group_{i}", f"Policy_{i}") for i in range(5)]
