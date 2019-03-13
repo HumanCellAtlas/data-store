@@ -3,6 +3,7 @@ import os
 import json
 import time
 import typing
+import datetime
 
 import nestedcontext
 import requests
@@ -17,7 +18,8 @@ from dss.storage.checkout import CheckoutError, TokenError
 from dss.storage.checkout.bundle import get_dst_bundle_prefix, verify_checkout
 from dss.storage.identifiers import BundleTombstoneID, BundleFQID, FileFQID
 from dss.storage.hcablobstore import BundleFileMetadata, BundleMetadata, FileMetadata
-from dss.util import UrlBuilder, security
+from dss.util import UrlBuilder, security, hashabledict
+from dss.util.version import datetime_to_version_format
 
 """The retry-after interval in seconds. Sets up downstream libraries / users to
 retry request after the specified interval."""
@@ -147,86 +149,27 @@ def put(uuid: str, replica: str, json_request_body: dict, version: str):
     handle = Config.get_blobstore_handle(Replica[replica])
     bucket = Replica[replica].bucket
 
-    # what's the target object name for the bundle manifest?
-    bundle_manifest_key = BundleFQID(uuid=uuid, version=version).to_key()
-
-    # decode the list of files.
-    files = list()
-    filenames: typing.Set[str] = set()
-    for file in json_request_body['files']:
-        name = file['name']
-        if name in filenames:
-            raise DSSException(
-                requests.codes.bad_request,
-                "duplicate_filename",
-                f"Duplicate file name detected: {name}. This test fails on the first occurance. Please check bundle "
-                "layout to ensure no duplicated file names are present."
-            )
-        filenames.add(name)
-        files.append({'user_supplied_metadata': file})
-
-    time_left = nestedcontext.inject("time_left")
-
-    while True:  # each time through the outer while-loop, we try to gather up all the file metadata.
-        for file in files:
-            user_supplied_metadata = file['user_supplied_metadata']
-            metadata_key = FileFQID(
-                uuid=user_supplied_metadata['uuid'],
-                version=user_supplied_metadata['version'],
-            ).to_key()
-            if 'file_metadata' not in file:
-                try:
-                    file_metadata = handle.get(bucket, metadata_key)
-                except BlobNotFoundError:
-                    continue
-                file['file_metadata'] = json.loads(file_metadata)
-
-        # check to see if any file metadata is still not yet loaded.
-        for file in files:
-            if 'file_metadata' not in file:
-                missing_file_user_metadata = file['user_supplied_metadata']
-                break
-        else:
-            break
-
-        # if we're out of time, give up.
-        if time_left() > PUT_TIME_ALLOWANCE_SECONDS:
-            time.sleep(1)
-            continue
-
-        raise DSSException(
-            requests.codes.bad_request,
-            "file_missing",
-            f"Could not find file {missing_file_user_metadata['uuid']}/{missing_file_user_metadata['version']}."
-        )
+    files = build_bundle_file_metadata(Replica[replica], json_request_body['files'])
+    detect_filename_collisions(files)
 
     # build a manifest consisting of all the files.
     bundle_metadata = {
         BundleMetadata.FORMAT: BundleMetadata.FILE_FORMAT_VERSION,
         BundleMetadata.VERSION: version,
-        BundleMetadata.FILES: [
-            {
-                BundleFileMetadata.NAME: file['user_supplied_metadata']['name'],
-                BundleFileMetadata.UUID: file['user_supplied_metadata']['uuid'],
-                BundleFileMetadata.VERSION: file['user_supplied_metadata']['version'],
-                BundleFileMetadata.CONTENT_TYPE: file['file_metadata'][FileMetadata.CONTENT_TYPE],
-                BundleFileMetadata.SIZE: file['file_metadata'][FileMetadata.SIZE],
-                BundleFileMetadata.INDEXED: file['user_supplied_metadata']['indexed'],
-                BundleFileMetadata.CRC32C: file['file_metadata'][FileMetadata.CRC32C],
-                BundleFileMetadata.S3_ETAG: file['file_metadata'][FileMetadata.S3_ETAG],
-                BundleFileMetadata.SHA1: file['file_metadata'][FileMetadata.SHA1],
-                BundleFileMetadata.SHA256: file['file_metadata'][FileMetadata.SHA256],
-            }
-            for file in files
-        ],
+        BundleMetadata.FILES: files,
         BundleMetadata.CREATOR_UID: json_request_body['creator_uid'],
     }
 
+    status_code = _save_bundle(handle, bucket, uuid, version, bundle_metadata)
+
+    return jsonify(dict(version=bundle_metadata['version'], manifest=bundle_metadata)), status_code
+
+def _save_bundle(handle, bucket, uuid, version, bundle_metadata):
     try:
         created, idempotent = _idempotent_save(
             handle,
             bucket,
-            bundle_manifest_key,
+            BundleFQID(uuid, version).to_key(),
             bundle_metadata,
         )
     except BlobStoreTimeoutError:
@@ -244,7 +187,38 @@ def put(uuid: str, replica: str, json_request_body: dict, version: str):
         )
     status_code = requests.codes.created if created else requests.codes.ok
 
-    return jsonify(dict(version=version, manifest=bundle_metadata)), status_code
+    return status_code
+
+
+def bundle_file_id_metadata(bundle_file_metadata):
+    return hashabledict({
+        # 'indexed': bundle_file_metadata['indexed'],
+        'name': bundle_file_metadata['name'],
+        'uuid': bundle_file_metadata['uuid'],
+        'version': bundle_file_metadata['version'],
+    })
+
+
+@dss_handler
+@security.authorized_group_required(['hca'])
+def patch(uuid: str, json_request_body: dict, replica: str, version: str):
+    handle = Config.get_blobstore_handle(Replica[replica])
+    try:
+        cur_bundle_blob = handle.get(Replica[replica].bucket, BundleFQID(uuid, version).to_key())
+    except BlobNotFoundError:
+        raise DSSException(404, "not_found", "Could not find bundle for UUID {}".format(uuid))
+    bundle = json.loads(cur_bundle_blob)
+
+    remove_files_set = {bundle_file_id_metadata(f) for f in json_request_body.get("remove_files", [])}
+    bundle['files'] = [f for f in bundle['files'] if bundle_file_id_metadata(f) not in remove_files_set]
+    bundle['files'].extend(build_bundle_file_metadata(Replica[replica],
+                           json_request_body.get("add_files", [])))
+    detect_filename_collisions(bundle['files'])
+
+    timestamp = datetime.datetime.utcnow()
+    new_bundle_version = datetime_to_version_format(timestamp)
+    _save_bundle(handle, Replica[replica].bucket, uuid, new_bundle_version, bundle)
+    return jsonify(dict(uuid=uuid, version=new_bundle_version)), requests.codes.ok
 
 
 @dss_handler
@@ -288,6 +262,76 @@ def delete(uuid: str, replica: str, json_request_body: dict, version: str = None
 
     return jsonify(response_body), status_code
 
+def build_bundle_file_metadata(replica: Replica, user_supplied_files: dict):
+    handle = Config.get_blobstore_handle(replica)
+
+    time_left = nestedcontext.inject("time_left")
+
+    # decode the list of files.
+    files = [{'user_supplied_metadata': file} for file in user_supplied_files]
+
+    while True:  # each time through the outer while-loop, we try to gather up all the file metadata.
+        for file in files:
+            user_supplied_metadata = file['user_supplied_metadata']
+            metadata_key = FileFQID(
+                uuid=user_supplied_metadata['uuid'],
+                version=user_supplied_metadata['version'],
+            ).to_key()
+            if 'file_metadata' not in file:
+                try:
+                    file_metadata = handle.get(replica.bucket, metadata_key)
+                except BlobNotFoundError:
+                    continue
+                file['file_metadata'] = json.loads(file_metadata)
+
+        # check to see if any file metadata is still not yet loaded.
+        for file in files:
+            if 'file_metadata' not in file:
+                missing_file_user_metadata = file['user_supplied_metadata']
+                break
+        else:
+            break
+
+        # if we're out of time, give up.
+        if time_left() > PUT_TIME_ALLOWANCE_SECONDS:
+            time.sleep(1)
+            continue
+
+        raise DSSException(
+            requests.codes.bad_request,
+            "file_missing",
+            f"Could not find file {missing_file_user_metadata['uuid']}/{missing_file_user_metadata['version']}."
+        )
+
+    return [
+        {
+            BundleFileMetadata.NAME: file['user_supplied_metadata']['name'],
+            BundleFileMetadata.UUID: file['user_supplied_metadata']['uuid'],
+            BundleFileMetadata.VERSION: file['user_supplied_metadata']['version'],
+            BundleFileMetadata.CONTENT_TYPE: file['file_metadata'][FileMetadata.CONTENT_TYPE],
+            BundleFileMetadata.SIZE: file['file_metadata'][FileMetadata.SIZE],
+            BundleFileMetadata.INDEXED: file['user_supplied_metadata']['indexed'],
+            BundleFileMetadata.CRC32C: file['file_metadata'][FileMetadata.CRC32C],
+            BundleFileMetadata.S3_ETAG: file['file_metadata'][FileMetadata.S3_ETAG],
+            BundleFileMetadata.SHA1: file['file_metadata'][FileMetadata.SHA1],
+            BundleFileMetadata.SHA256: file['file_metadata'][FileMetadata.SHA256],
+        }
+        for file in files
+    ]
+
+def detect_filename_collisions(bundle_file_metadata):
+    filenames: typing.Set[str] = set()
+    for file in bundle_file_metadata:
+        name = file[BundleFileMetadata.NAME]
+        if name not in filenames:
+            filenames.add(name)
+        else:
+            raise DSSException(
+                requests.codes.bad_request,
+                "duplicate_filename",
+                f"Duplicate file name detected: {name}. This test fails on the first occurance. Please check bundle "
+                "layout to ensure no duplicated file names are present."
+            )
 
 def _idempotent_save(blobstore: BlobStore, bucket: str, key: str, data: dict) -> typing.Tuple[bool, bool]:
     """

@@ -110,6 +110,11 @@ def reject(condition: bool, *args, exception: type = RequirementError):
         raise exception(*args)
 
 
+class hashabledict(dict):
+    def __hash__(self):
+        return hash(tuple(sorted(self.items())))
+
+
 @lru_cache()
 def get_gcp_credentials_file():
     """

@@ -14,7 +14,7 @@ from dss.error import DSSException, dss_handler
 from dss.storage.blobstore import test_object_exists
 from dss.storage.hcablobstore import BlobStore, compose_blob_key
 from dss.storage.identifiers import CollectionFQID, CollectionTombstoneID
-from dss.util import security
+from dss.util import security, hashabledict
 from dss.util.version import datetime_to_version_format
 from dss.api.bundles import _idempotent_save
 
@@ -73,10 +73,6 @@ def put(json_request_body: dict, replica: str, uuid: str, version: str):
                               CollectionFQID(collection_uuid, collection_version).to_key(),
                               io.BytesIO(json.dumps(collection_body).encode("utf-8")))
     return jsonify(dict(uuid=collection_uuid, version=collection_version)), requests.codes.created
-
-class hashabledict(dict):
-    def __hash__(self):
-        return hash(tuple(sorted(self.items())))
 
 @dss_handler
 @security.authorized_group_required(['hca'])
