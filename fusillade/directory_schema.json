@@ -59,6 +59,27 @@
       },
       "objectType": "LEAF_NODE"
     },
+    "Role": {
+      "facetAttributes": {
+        "name": {
+          "attributeDefinition": {
+            "attributeType": "STRING",
+            "isImmutable": true,
+            "attributeRules": {
+              "nameLength": {
+                "parameters": {
+                  "min": "1",
+                  "max": "64"
+                },
+                "ruleType": "STRING_LENGTH"
+              }
+            }
+          },
+          "requiredBehavior": "REQUIRED_ALWAYS"
+        }
+      },
+      "objectType": "NODE"
+    },
     "IAMPolicy": {
       "facetAttributes": {
         "Statement": {
