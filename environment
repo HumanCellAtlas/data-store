@@ -15,6 +15,7 @@ EXPORT_ENV_VARS_TO_LAMBDA_ARRAY=(
     FUS_DEPLOYMENT_STAGE
     FUS_SECRETS_STORE
     OPENID_PROVIDER
+    FUS_ADMIN_EMAILS
 )
 
 set -a
@@ -25,6 +26,7 @@ FUS_SECRETS_STORE=dcp/fusillade
 OPENID_PROVIDER=humancellatlas.auth0.com
 ACM_CERTIFICATE_IDENTIFIER="826dbdb8-2b23-4cc9-8fd6-73aa6fc658d7"
 FUS_TERRAFORM_BACKEND_BUCKET_TEMPLATE=terraform-tsmith
+FUS_ADMIN_EMAILS=test_email@domain.com
 set +a
 
 if [[ -f "${FUS_HOME}/environment.local" ]]; then

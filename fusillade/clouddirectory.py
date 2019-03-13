@@ -68,6 +68,11 @@ def create_directory(name: str, schema: str):
         with open("./policies/default_admin_role.json", 'r') as fp:
             Role.create(directory, "admin", statement=fp.read())
 
+        # create admins
+        for admin in os.environ['FUS_ADMIN_EMAILS'].split(','):
+            user = User(directory, admin)
+            user.add_roles(['admin'])
+
     except ad.exceptions.DirectoryAlreadyExistsException:
         directory = CloudDirectory.from_name(name)
     return directory
