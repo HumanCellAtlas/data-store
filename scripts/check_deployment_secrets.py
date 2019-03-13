@@ -13,6 +13,7 @@ import json
 class SecretsChecker(object):
     def __init__(self, stage):
         self.stage = stage
+        self.stages = ('dev', 'integration', 'staging')
         self.service_account = self.fetch_terraform_output("service_account", "gcp_service_account").strip()
 
         self.email = [f'{self.service_account}@human-cell-atlas-travis-test.iam.gserviceaccount.com']
@@ -39,7 +40,10 @@ class SecretsChecker(object):
 
     def fetch_secret(self, secret_name):
         script_path = os.path.join(os.path.dirname(__file__), "fetch_secret.sh")
-        return json.loads(self.run_cmd(f'{script_path} {secret_name}'))
+        secret = json.loads(self.run_cmd(f'{script_path} {secret_name}'))
+        if ('installed' not in secret or 'client_email' not in secret) and self.stage in self.stages:
+            raise RuntimeError(f'The following secret, {secret_name}, appears to no longer exist or is malformed.')
+        return secret
 
     def fetch_terraform_output(self, output_name, output_infra_dir):
         """See: https://www.terraform.io/docs/commands/output.html"""
@@ -64,11 +68,11 @@ class SecretsChecker(object):
 
     def run(self):
         # do not check user-custom deploys or prod
-        if self.stage in ('dev', 'integration', 'staging'):
+        if self.stage in self.stages:
             self.check(self.app_secret['installed']['auth_uri'], self.auth_uri, secret=self.app_secret_name)
             self.check(self.app_secret['installed']['token_uri'], self.token_uri, secret=self.app_secret_name)
             self.check(self.gcp_cred_secret['type'], ['service_account'], secret=self.gcp_cred_secret_name)
-            self.check(self.gcp_cred_secret['project_id'], self.project, secret=self.app_secret_name)
+            self.check(self.gcp_cred_secret['project_id'], self.project, secret=self.gcp_cred_secret_name)
             self.check(self.gcp_cred_secret['client_email'], self.email, secret=self.gcp_cred_secret_name)
 
 
