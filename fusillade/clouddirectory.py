@@ -170,6 +170,22 @@ class CloudDirectory:
                 else:
                     break
 
+    def list_object_policies(self, object_ref: str) -> typing.Iterator[str]:
+        resp = ad.list_object_policies(DirectoryArn=self._dir_arn,
+                                       ObjectReference={'Selector': object_ref},
+                                       MaxResults=self._page_limit)
+        while True:
+            for policy in resp['AttachedPolicyIds']:
+                yield '$' + policy
+            next_token = resp.get('NextToken')
+            if next_token:
+                resp = ad.list_object_policies(DirectoryArn=self._dir_arn,
+                                               ObjectReference={'Selector': object_ref},
+                                               NextToken=next_token,
+                                               MaxResults=self._page_limit)
+            else:
+                break
+
     def list_policy_attachments(self, policy: str) -> typing.Iterator[str]:
         resp = ad.list_policy_attachments(DirectoryArn=self._dir_arn,
                                           PolicyReference={'Selector': policy})
@@ -294,6 +310,13 @@ class CloudDirectory:
                           for parent_ref, link_name in self.list_object_parents(policy_ref)])
         ad.delete_object(DirectoryArn=self._dir_arn, ObjectReference={'Selector': policy_ref})
 
+    def delete_object(self, obj_ref):
+        self.batch_write([self.batch_detach_policy(policy_ref, obj_ref)
+                          for policy_ref in self.list_object_policies(obj_ref)])
+        self.batch_write([self.batch_detach_object(parent_ref, link_name)
+                          for parent_ref, link_name in self.list_object_parents(obj_ref)])
+        ad.delete_object(DirectoryArn=self._dir_arn, ObjectReference={'Selector': obj_ref})
+
     @staticmethod
     def batch_detach_policy(policy_ref, object_ref):
         return {
@@ -389,6 +412,48 @@ class CloudDirectory:
                      role='/Roles/')
         return paths[obj_type]
 
+    def lookup_policy(self, object_id):
+        max_results = 3
+
+        # retrieve all of the policies attached to an object and its parents.
+        response = ad.lookup_policy(
+            DirectoryArn=self._dir_arn,
+            ObjectReference={'Selector': object_id},
+            MaxResults=max_results
+        )
+        policies_paths = response['PolicyToPathList']
+        while response.get('NextToken'):
+            response = ad.lookup_policy(
+                DirectoryArn=self._dir_arn,
+                ObjectReference={'Selector': object_id},
+                NextToken=response['NextToken'],
+                MaxResults=max_results
+            )
+            policies_paths += response['PolicyToPathList']
+
+        # Parse the policyIds from the policies path. Only keep the unique ids
+        policy_ids = set()
+        for p in policies_paths:
+            for o in p['Policies']:
+                if o.get('PolicyId'):
+                    policy_ids.add((o['PolicyId'], o['PolicyType']))
+
+        # retrieve the policies in a single request
+        operations = [{'GetObjectAttributes': {
+            'ObjectReference': {'Selector': f'${policy_id[0]}'},
+            'SchemaFacet': {'SchemaArn': self._schema, 'FacetName': 'IAMPolicy'},
+            'AttributeNames': ['Statement']}} for policy_id in policy_ids]
+        responses = ad.batch_read(
+            DirectoryArn=self._dir_arn,
+            Operations=operations
+        )['Responses']
+
+        # parse the policies from the responses
+        policies = []
+        for response in responses:
+            policies.append(response['SuccessfulResponse']['GetObjectAttributes']['Attributes'][0]['Value'])
+        return policies
+
     def get_object_information(self, obj_ref: str):
         return ad.get_object_information(
             DirectoryArn=self._dir_arn,
@@ -401,6 +466,7 @@ class CloudDirectory:
 
 class CloudNode:
     _attributes = ["name"]
+    _link_formats = {"role": "R->{parent}->{child}"}
 
     def __init__(self, cloud_directory: CloudDirectory, name: str, object_type):
         """
@@ -416,6 +482,39 @@ class CloudNode:
         self.object_reference: str = cloud_directory.get_obj_type_path(object_type) + self._path_name
         self._policy: typing.Optional[str] = None
         self._statement: typing.Optional[str] = None
+
+    def _get_links(self):
+        self._roles = []
+        self._groups = []
+        for _, link_name in self.cd.list_object_parents(self.object_reference):
+            if link_name.startswith('G'):
+                self._groups.append(unquote(link_name.split('->')[1]))
+            elif link_name.startswith('R'):
+                self._roles.append(unquote(link_name.split('->')[1]))
+
+    def _add_links(self, links: typing.List[str], link_type):
+        if not len(links):
+            return
+        parent_path = self.cd.get_obj_type_path(link_type)
+        operations = [self.cd.batch_attach_object(parent_path + link,
+                                                  self.object_reference,
+                                                  self._link_formats[link_type].format(parent=quote(link),
+                                                                                       child=self._path_name))
+                      for link in links]
+        self.cd.batch_write(operations)
+
+    def _remove_links(self, links: typing.List[str], link_type):
+        if not len(links):
+            return
+        parent_path = self.cd.get_obj_type_path(link_type)
+        operations = [self.cd.batch_detach_object(parent_path + link,
+                                                  self._link_formats[link_type].format(parent=quote(link),
+                                                                                       child=self._path_name))
+                      for link in links]
+        self.cd.batch_write(operations)
+
+    def lookup_policies(self) -> typing.List[str]:
+        return [policy['StringValue'] for policy in self.cd.lookup_policy(self.object_reference)]
 
     @property
     def name(self):
@@ -446,6 +545,67 @@ class CloudNode:
         ]
         self.cd.update_object_attribute(self.policy, params)
         self._statement = None
+
+    def _set_attributes(self, attributes: typing.List[str]):
+        resp = self.cd.get_object_attrtibutes(self.object_reference, self._object_type, attributes)
+        for attr in resp['Attributes']:
+            self.__setattr__('_' + attr['Key']['Name'], attr['Value'].popitem()[1])
+
+    def get_attributes(self, attributes: typing.List[str]):
+        attrs = dict()
+        if not attributes:
+            return attrs
+        resp = self.cd.get_object_attrtibutes(self.object_reference, self._object_type, attributes)
+        for attr in resp['Attributes']:
+            attrs[attr['Key']['Name']] = attr['Value'].popitem()[1]   # noqa
+        return attrs
+
+
+class User(CloudNode):
+    _attributes = CloudNode._attributes
+
+    def __init__(self, cloud_directory: CloudDirectory, name: str, local: bool = False):
+        """
+
+        :param cloud_directory:
+        :param name:
+        :param style: email|id
+        :param local: use if you don't want to retrieve information from the directory when initializing
+        """
+        super(User, self).__init__(cloud_directory, name, 'User')
+        self._roles: typing.Optional[typing.List[str]] = None  # TODO make a property
+        self._policy = None
+        self._statement = None
+        if not local:
+            try:
+                self._set_attributes(self._attributes)
+            except ad.exceptions.ResourceNotFoundException:
+                self.provision_user()
+                self.add_roles(['default_user'])
+                self._set_attributes(self._attributes)
+
+    def provision_user(self, statement: str = None):
+        if not statement:
+            with open("./policies/default_user_policy.json", 'r') as fp:
+                statement = json.load(fp)
+        return self.cd.create_object(self._path_name,
+                                     json.dumps(statement),
+                                     'User',
+                                     name=self.name)
+
+    @property
+    def roles(self):
+        if not self._roles:
+            self._get_links()
+        return self._roles
+
+    def add_roles(self, roles: typing.List[str]):
+        self._add_links(roles, 'role')
+        self._roles = None  # update roles
+
+    def remove_roles(self, roles: typing.List[str]):
+        self._remove_links(roles, 'role')
+        self._roles = None  # update roles
 
 
 class Role(CloudNode):

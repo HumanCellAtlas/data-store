@@ -24,31 +24,15 @@
     },
     "User": {
       "facetAttributes": {
-        "email": {
+        "name": {
           "attributeDefinition": {
             "attributeType": "STRING",
-            "isImmutable": false,
+            "isImmutable": true,
             "attributeRules": {
               "nameLength": {
                 "parameters": {
                   "min": "1",
-                  "max": "1024"
-                },
-                "ruleType": "STRING_LENGTH"
-              }
-            }
-          },
-          "requiredBehavior": "REQUIRED_ALWAYS"
-        },
-        "username": {
-          "attributeDefinition": {
-            "attributeType": "STRING",
-            "isImmutable": false,
-            "attributeRules": {
-              "nameLength": {
-                "parameters": {
-                  "min": "1",
-                  "max": "1024"
+                  "max": "64"
                 },
                 "ruleType": "STRING_LENGTH"
               }
