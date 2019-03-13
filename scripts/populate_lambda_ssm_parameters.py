@@ -27,9 +27,12 @@ def get_local_lambda_environment():
             print(f"Warning: {name} not defined")
     return env
 
-def get_ssm_lambda_environment():
+def get_ssm_lambda_environment(stage=None):
+    if stage is None:
+        stage = os.environ['DSS_DEPLOYMENT_STAGE']
     parms = ssm_client.get_parameter(
-        Name=f"/{os.environ['DSS_PARAMETER_STORE']}/{os.environ['DSS_DEPLOYMENT_STAGE']}/environment"
+        #Name=f"/{os.environ['DSS_PARAMETER_STORE']}/{stage}/environment"
+        Name=f"/{os.environ['DSS_PARAMETER_STORE']}/amar-dev/environment"
     )['Parameter']['Value']
     return json.loads(parms)
 
@@ -82,6 +85,43 @@ def get_admin_user_emails():
     admin_user_emails.append(gcp_service_account_email)
     return ",".join(admin_user_emails)
 
+
+def compare_local():
+    """Compares local env values to deployed values"""
+    ssm_env = get_ssm_lambda_environment()
+    local_env = get_local_lambda_environment()
+    missing_local, diff_local = compare_env_dicts(local_env, ssm_env)
+    if len(missing_local) > 0:
+        print(f"missing values when comparing local env to deployment\n {missing_local}")
+    if len(diff_local) > 0:
+        print(f"Found different values when comparing local env to deployment \n{diff_local}")
+
+
+def compare_stages(stage: str, previous_stage: str = None):
+    """compares lambda env from current deployment stage to the previous stage"""
+    stages = ['dev', 'integration', 'staging', 'prod']
+    compare_stage = None
+    ssm_env_1 = get_ssm_lambda_environment(stage)
+    if previous_stage is not None:
+        compare_stage = previous_stage # comparison stage was defined
+    elif stage in stages[1:]:  # dont check dev.....
+        compare_stage = stages[stages.index(stage) - 1]  # get previous stage in deployment
+    else:
+        print(f"did not find suitable comparison for {stage}, try specifying a previous stage")
+        return
+    ssm_env_2 = get_ssm_lambda_environment(stage=compare_stage)
+    missing, diff = compare_env_dicts(ssm_env_1, ssm_env_2)
+    if len(missing) > 0:
+        print(f"missing values when comparing {stage} to {compare_stage}\n {missing}")
+    if len(diff) > 0:
+        print(f"Found different values when comparing comparing {stage} to {compare_stage}\n{diff}")
+
+
+def compare_env_dicts(d1: dict, d2: dict):
+    missing_env_values = set.symmetric_difference(set(d1.keys()), set(d2.keys()))
+    different_env_values = {k: d2[k] for k in d2 if k in d1 and d2[k] != d1[k]}
+    return missing_env_values, different_env_values
+
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
     parser.add_argument("--update-deployed-lambdas",
@@ -92,7 +132,7 @@ if __name__ == "__main__":
     parser.add_argument("-p", "--print",
         default=False,
         action="store_true",
-        help="Display the current environemnt stored in SSM"
+        help="Display the current environment stored in SSM"
     )
     parser.add_argument("--set",
         default=None,
@@ -102,12 +142,21 @@ if __name__ == "__main__":
         default=None,
         help="Remove a single environment variable in SSM parameters and all deployed lambdas"
     )
+    parser.add_argument("--verify",
+        nargs='*',
+        help='Verify the deployed Lambda Environment Variables for a current stage'
+    )
     args = parser.parse_args()
 
     if args.print:
         ssm_env = get_ssm_lambda_environment()
         for name, val in ssm_env.items():
             print(f"{name}={val}")
+    elif args.verify:
+        print(f"Deployment Stage: {os.getenv('DSS_DEPLOYMENT_STAGE')}")
+        compare_local()
+        compare_stages(os.getenv('DSS_DEPLOYMENT_STAGE')) # TODO adjust argument parsing to allow specification of stage
+        exit()
     elif args.set is not None:
         name, val = args.set.split("=")
         ssm_env = get_ssm_lambda_environment()
