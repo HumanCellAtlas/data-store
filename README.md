@@ -398,3 +398,6 @@ setting the lambda environment variable `DSS_XRAY_TRACE=1`. For all other daemon
 
 ## Contributing
 External contributions are welcome. Please review the [Contributing Guidelines](CONTRIBUTING.md)
+
+## Security
+See our [Security Policy](SECURITY.md)
