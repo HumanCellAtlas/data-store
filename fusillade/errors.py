@@ -1,0 +1,2 @@
+class FusilladeException(Exception):
+    pass
