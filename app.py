@@ -1,5 +1,4 @@
 import os, sys, hashlib, base64, json, functools
-from urllib.parse import quote
 from furl import furl
 import boto3
 from botocore.vendored import requests
@@ -8,15 +7,17 @@ import jwt, yaml
 
 from cryptography.hazmat.primitives.asymmetric import rsa
 from cryptography.hazmat.backends import default_backend
-from cryptography.hazmat.primitives import serialization
 
-ad = boto3.client("clouddirectory")
+from fusillade.clouddirectory import CloudDirectory, User, Role
+from fusillade.errors import FusilladeException
+
 iam = boto3.client("iam")
 secretsmanager = boto3.client("secretsmanager")
 app = Chalice(app_name='fusillade')
 app.debug = True
 
 pkg_root = os.path.abspath(os.path.join(os.path.dirname(__file__), 'chalicelib'))
+
 with open(os.path.join(pkg_root, "index.html")) as fh:
     swagger_ui_html = fh.read()
 
@@ -201,60 +202,15 @@ def cb():
             }
 
 
-schema_name = "authd4"
-directory_name = "authd4"
-schema_version = "1"
-directory_arn = None
-
-for directory in ad.list_directories()["Directories"]:
-    if directory["Name"] == directory_name:
-        directory_arn = directory["DirectoryArn"]
-        break
-
-schema_arn = "{}/schema/{}/{}".format(directory_arn, schema_name, schema_version)
-
-
-def get_object_attribute_list(facet="User", **kwargs):
-    return [dict(Key=dict(SchemaArn=schema_arn, FacetName=facet, Name=k), Value=dict(StringValue=v))
-            for k, v in kwargs.items()]
-
-
-def provision_user(email):
-    username = quote(email)
-    default_group = service_config["Services"][0]["DefaultProvisioningGroups"][0]
-    policy = service_config["Services"][0]["DefaultGroupPolicies"][default_group]
-    for statement in policy["Statement"]:
-        statement["Resource"] = statement["Resource"].format(user_id=email)
-    print("POLICY:")
-    print(policy)
-    try:
-        res = ad.create_object(DirectoryArn=directory_arn,
-                               SchemaFacets=[dict(SchemaArn=schema_arn, FacetName="User")],
-                               ObjectAttributeList=get_object_attribute_list(username=username, email=email),
-                               ParentReference=dict(Selector="/"),
-                               LinkName=username)
-        print(res["ObjectIdentifier"])
-    except ad.exceptions.LinkNameAlreadyInUseException as e:
-        print(e)
-    res = ad.create_object(
-        DirectoryArn=directory_arn,
-        SchemaFacets=[dict(SchemaArn=schema_arn, FacetName="IAMPolicy")],
-        ObjectAttributeList=[
-            dict(Key=dict(SchemaArn=schema_arn, FacetName="IAMPolicy", Name="policy_type"),
-                 Value=dict(StringValue="IAMPolicy")),
-            dict(Key=dict(SchemaArn=schema_arn, FacetName="IAMPolicy", Name="policy_document"),
-                 Value=dict(BinaryValue=json.dumps(policy).encode()))
-        ]
-    )
-    policy_id = res["ObjectIdentifier"]
-    for pid in ad.list_object_policies(DirectoryArn=directory_arn,
-                                       ObjectReference=dict(Selector="/" + username))["AttachedPolicyIds"]:
-        ad.detach_policy(DirectoryArn=directory_arn,
-                         PolicyReference=dict(Selector="$" + pid),
-                         ObjectReference=dict(Selector="/" + username))
-    ad.attach_policy(DirectoryArn=directory_arn,
-                     PolicyReference=dict(Selector="$" + policy_id),
-                     ObjectReference=dict(Selector="/" + username))
+directory_name = os.getenv("FUSILLADE_DIR", f"hca_fusillade_{os.environ['FUS_DEPLOYMENT_STAGE']}")
+try:
+    directory = CloudDirectory.from_name(directory_name)
+except FusilladeException:
+    from fusillade.clouddirectory import publish_schema, create_directory
+    schema_name = f"hca_fusillade_{os.environ['FUS_DEPLOYMENT_STAGE']}"
+    schema_version = "0.1"
+    schema_arn = publish_schema(schema_name, schema_version)
+    directory = create_directory(directory_name, schema_arn)
 
 
 @app.route('/policies/evaluate', methods=["POST"])
@@ -263,24 +219,11 @@ def evaluate_policy():
     action = app.current_request.json_body["action"]
     resource = app.current_request.json_body["resource"]
     try:
-        provision_user(principal)
+        user = User(directory, principal)
     except Exception:
         pass
-
-    username = quote(principal)
-    policies_to_evaluate = []
-    for ppl in ad.lookup_policy(DirectoryArn=directory_arn,
-                                ObjectReference=dict(Selector="/" + username))["PolicyToPathList"]:
-        for policy_info in ppl["Policies"]:
-            if "PolicyId" in policy_info:
-                print(policy_info["PolicyId"])
-                for attr in ad.list_object_attributes(DirectoryArn=directory_arn,
-                                                      ObjectReference=dict(
-                                                          Selector="$" + policy_info["PolicyId"]))["Attributes"]:
-                    if attr["Key"]["Name"] == "policy_document":
-                        policies_to_evaluate.append(attr["Value"]["BinaryValue"].decode())
-
-    result = iam.simulate_custom_policy(PolicyInputList=policies_to_evaluate,
+    user.lookup_policies()
+    result = iam.simulate_custom_policy(PolicyInputList=user.lookup_policies(),
                                         ActionNames=[action],
                                         ResourceArns=[resource])
     # "arn:hca:dss:*:*:subscriptions/{}/*".format(username)]))

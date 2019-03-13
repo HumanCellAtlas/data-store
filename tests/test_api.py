@@ -15,10 +15,28 @@ from oauthlib.oauth2 import WebApplicationClient
 pkg_root = os.path.abspath(os.path.join(os.path.dirname(__file__), '..'))  # noqa
 sys.path.insert(0, pkg_root)  # noqa
 
-os.environ['OPENID_PROVIDER'] = "https://humancellatlas.auth0.com/"
+import fusillade
+from fusillade.clouddirectory import cleanup_directory, CloudDirectory
+from tests.common import random_hex_string, eventually
 
+old_directory_name = os.getenv("FUSILLADE_DIR", None)
+directory_name = "test_api_" + random_hex_string()
+
+os.environ['OPENID_PROVIDER'] = "https://humancellatlas.auth0.com/"
+os.environ["FUSILLADE_DIR"] = directory_name
 
 from tests.infra.server import ChaliceTestHarness
+# ChaliceTestHarness must be imported after FUSILLADE_DIR has be set
+
+
+@eventually(5,1, {fusillade.errors.FusilladeException})
+def tearDownModule():
+    global old_directory_name
+    from app import directory
+    cleanup_directory(directory._dir_arn)
+    if old_directory_name:
+        os.environ["FUSILLADE_DIR"] = old_directory_name
+
 
 class JWTClient(WebApplicationClient):
     def _add_bearer_token(self, uri, http_method='GET', body=None, headers=None, *args, **kwargs):
