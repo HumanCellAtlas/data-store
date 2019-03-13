@@ -55,6 +55,12 @@ def create_directory(name: str, schema: str):
             SchemaArn=schema
         )
         directory = CloudDirectory(response['DirectoryArn'])
+
+        # create structure
+        directory.create_folder('/', 'Groups')
+        directory.create_folder('/', 'Users')
+        directory.create_folder('/', 'Roles')
+        directory.create_folder('/', 'Policies')
     except ad.exceptions.DirectoryAlreadyExistsException:
         directory = CloudDirectory.from_name(name)
     return directory
@@ -88,3 +94,29 @@ class CloudDirectory:
                 dir_arn = i['DirectoryArn']
                 return cls(dir_arn)
         raise FusilladeException(f"{dir_name} does not exist")
+
+    def _get_object_attribute_list(self, facet="User", **kwargs):
+        return [dict(Key=dict(SchemaArn=self._schema, FacetName=facet, Name=k), Value=dict(StringValue=v))
+                for k, v in kwargs.items()]
+
+    def create_folder(self, path, name):
+        # A folder is just a Group
+        schema_facets = [dict(SchemaArn=self._schema, FacetName="Group")]
+        object_attribute_list = self._get_object_attribute_list(facet="Group", name=name)
+        try:
+            ad.create_object(DirectoryArn=self._dir_arn,
+                             SchemaFacets=schema_facets,
+                             ObjectAttributeList=object_attribute_list,
+                             ParentReference=dict(Selector=path),
+                             LinkName=name)
+        except ad.exceptions.LinkNameAlreadyInUseException:
+            pass
+
+    def get_object_information(self, obj_ref: str):
+        return ad.get_object_information(
+            DirectoryArn=self._dir_arn,
+            ObjectReference={
+                'Selector': obj_ref
+            },
+            ConsistencyLevel='EVENTUAL'
+        )

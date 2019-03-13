@@ -43,6 +43,22 @@ class TestCloudDirectory(unittest.TestCase):
         with self.subTest("error returned when deleting a nonexistent schema."):
             self.assertRaises(ad.exceptions.ResourceNotFoundException, cleanup_schema, schema_arn_2)
 
+    def test_structure(self):
+        """Check that cloud directory is setup for fusillade"""
+        schema_name = "authz"
+        schema_version = random_hex_string()
+        directory_name = "test_dir_" + random_hex_string()
+        schema_arn = publish_schema(schema_name, schema_version)
+        self.addCleanup(cleanup_schema, schema_arn)
+        directory = create_directory(directory_name, schema_arn)
+        self.addCleanup(cleanup_directory, CloudDirectory.from_name(directory_name)._dir_arn)
+
+        folders = ['Users', 'Roles', 'Groups', 'Policies']
+        for folder in folders:
+            with self.subTest(f"{folder} node is created when directory is created"):
+                resp = directory.get_object_information(f'/{folder}')
+                self.assertTrue(resp['ObjectIdentifier'])
+
 
 if __name__ == '__main__':
     unittest.main()
