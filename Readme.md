@@ -47,7 +47,7 @@ Installing and configuring Fusillade
 ------------------------------------
 Create `oauth2_config.json` with the OIDC providers you'd like to use to 
 authenticate users. This file is uploaded to AWS secrets manager using `make set_oauth2_config`. Use 
-[`oauth2_config.example.json`](../blob/master/oauth2_config.example.json) for help.
+[`oauth2_config.example.json`](../master/oauth2_config.example.json) for help.
     
 
 - pip install -r ./requirements-dev
@@ -58,7 +58,10 @@ authenticate users. This file is uploaded to AWS secrets manager using `make set
 - brew link --force gettext 
 - brew install terraform
 
-- Setup AWS CLI with the correct profile, default region, and output format.
+- Setup [AWS CLI](https://github.com/aws/aws-cli) with the correct profile, default region, and output format.
+- Local environment variables can be set in *environment.local* for convenience. If you use "source environment" and it 
+  will set environment variables from *environment.local* after *environment* varaibles have been set, if you choose to 
+  set them.
 
 - Environment variables can be set in `environment.local` for convenience.
 
