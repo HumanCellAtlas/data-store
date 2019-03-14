@@ -9,7 +9,7 @@ import boto3
 import json
 
 
-ssm_client = boto3.client("ssm")
+lambda_client = boto3.client("lambda")
 
 
 def get_local_lambda_environment_keys():
@@ -20,10 +20,10 @@ def get_local_lambda_environment_keys():
 
 
 def get_ssm_lambda_environment(stage):
-    parms = ssm_client.get_parameter(
-        Name=f"/{os.environ['DSS_PARAMETER_STORE']}/{stage}/environment"
-    )['Parameter']['Value']
-    return json.loads(parms)
+    parms = lambda_client.get_function_configuration(
+        FunctionName=f"dss-{stage}"
+    )['Environment']['Variables']
+    return parms
 
 
 def compare_local_stage(stage=None):
@@ -42,6 +42,7 @@ def compare_env_lists(l1: list, l2: list):
 
 
 if __name__ == '__main__':
-    missing_keys = json.dumps(compare_local_stage())
-    if len(missing_keys) > 0:
-        print(f"WARNING: Missing Environment Variables Found: \n{missing_keys}")
+    missing_keys = compare_local_stage()
+    number_of_missing_keys = sum(map(lambda v: len(v), missing_keys.values()))
+    if number_of_missing_keys > 0:
+        print(f"WARNING: Missing Environment Variables Found: \n{json.dumps(missing_keys)}")
