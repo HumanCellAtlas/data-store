@@ -5,7 +5,13 @@ changed to personal user credentials (or otherwise).  Requires Terraform.
 
 Will only check the canoncial HCA stages ('dev', 'integration', 'staging', 'prod').
 
-It does this by checking as follows:
+Run to check current deployment:
+`scripts/check_deployment_secrets.py`
+
+Run to check dev:
+`scripts/check_deployment_secrets.py dev`
+
+Checking occurs as follows:
 
 #1
 For the json returned from the secret in GOOGLE_APPLICATION_SECRETS_SECRETS_NAME:
@@ -30,6 +36,8 @@ class SecretsChecker(object):
     def __init__(self, stage):
         self.stage = stage
         self.stages = ('dev', 'integration', 'staging', 'prod')
+        if self.stage not in self.stages:
+            print('Custom stage provided.  Secret checking will be skipped.')
         self.service_account = self.fetch_terraform_output("service_account", "gcp_service_account").strip()
 
         self.email = [f'{self.service_account}@human-cell-atlas-travis-test.iam.gserviceaccount.com']
