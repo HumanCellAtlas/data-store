@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 """
 Used to check missing deployed lambda env variables with local environment variables.
-Does not check
+Does not check the values of the variables, limited to a check if they key is present.
 
 """
 import os
@@ -10,7 +10,6 @@ import json
 
 
 ssm_client = boto3.client("ssm")
-stages = ['dev', 'integration', 'staging', 'prod']
 
 
 def get_local_lambda_environment_keys():
@@ -20,20 +19,22 @@ def get_local_lambda_environment_keys():
     return env
 
 
-def get_ssm_lambda_environment(stage=None):
-    if stage is None:
-        stage = os.environ['DSS_DEPLOYMENT_STAGE']
+def get_ssm_lambda_environment(stage):
     parms = ssm_client.get_parameter(
         Name=f"/{os.environ['DSS_PARAMETER_STORE']}/{stage}/environment"
     )['Parameter']['Value']
     return json.loads(parms)
 
 
-def compare_local_stages(stage=None):
+def compare_local_stage(stage=None):
     """Compares local env values to deployed values"""
-    ssm_env = get_ssm_lambda_environment(stage)
-    local_env = get_local_lambda_environment_keys()
-    return compare_env_lists(local_env, ssm_env.keys())
+    if stage is None:
+        stage = os.environ['DSS_DEPLOYMENT_STAGE']
+    ssm_env = set(get_ssm_lambda_environment(stage))
+    local_env = set(get_local_lambda_environment_keys())
+    in_ssm = list(ssm_env - local_env)
+    in_local = list(local_env - ssm_env)
+    return {stage: in_ssm, "local": in_local}
 
 
 def compare_env_lists(l1: list, l2: list):
@@ -41,4 +42,6 @@ def compare_env_lists(l1: list, l2: list):
 
 
 if __name__ == '__main__':
-    print(compare_local_stages())
+    missing_keys = json.dumps(compare_local_stage())
+    if len(missing_keys) > 0:
+        print(f"Warning: Missing Environment Variables Found: \n{missing_keys}")
