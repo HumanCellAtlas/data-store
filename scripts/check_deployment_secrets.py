@@ -10,14 +10,10 @@ import os
 import json
 
 
-class SecretFetchingError(Exception):
-    pass
-
-
 class SecretsChecker(object):
     def __init__(self, stage):
         self.stage = stage
-        self.stages = ('dev', 'integration', 'staging')
+        self.stages = ('dev', 'integration', 'staging', 'prod')
         self.service_account = self.fetch_terraform_output("service_account", "gcp_service_account").strip()
 
         self.email = [f'{self.service_account}@human-cell-atlas-travis-test.iam.gserviceaccount.com']
@@ -31,6 +27,13 @@ class SecretsChecker(object):
         self.gcp_cred_secret_name = os.environ['GOOGLE_APPLICATION_CREDENTIALS_SECRETS_NAME']
         self.app_secret = self.fetch_secret(self.app_secret_name)
         self.gcp_cred_secret = self.fetch_secret(self.gcp_cred_secret_name)
+
+        self.missing_secrets = []
+        self.incomplete_secrets = []
+        self.error_message = f'\n\n' \
+                             f'Deploying to {self.stage.upper()} could not be completed.\n' \
+                             f'It looks like an AWS secret has an unexpected value.\n' \
+                             f'Please do not change AWS secrets for releases.\n'
 
     @staticmethod
     def run_cmd(cmd, cwd=os.getcwd()):
@@ -48,9 +51,11 @@ class SecretsChecker(object):
         try:
             secret = json.loads(raw_response)
         except json.decoder.JSONDecodeError:
-            raise SecretFetchingError(f'The following secret, {secret_name}, appears to no longer exist or is malformed.')
+            self.missing_secrets.append(secret_name)
+            return
         if not (('installed' not in secret) or ('client_email' not in secret)) and (self.stage in self.stages):
-            raise SecretFetchingError(f'The following secret, {secret_name}, appears to no longer exist or is malformed.')
+            self.missing_secrets.append(secret_name)
+            return
         return secret
 
     def fetch_terraform_output(self, output_name, output_infra_dir):
@@ -67,12 +72,9 @@ class SecretsChecker(object):
 
     def check(self, current, expected, secret):
         if current not in expected:
-            raise ValueError(f'\n\nDeploying to {self.stage.upper()} could not be completed.'
-                             f'It looks like an AWS secret has an unexpected value.\n'
-                             f'Please do not change AWS secrets for releases.\n'
-                             f'The following secret                : {secret}\n'
-                             f'Had the unexpected setting          : {current}\n'
-                             f'When one of these items was expected: {expected}\n')
+            self.incomplete_secrets.append({'secret': secret,
+                                            'current': current,
+                                            'expected': expected})
 
     def run(self):
         # do not check user-custom deploys or prod
@@ -82,6 +84,17 @@ class SecretsChecker(object):
             self.check(self.gcp_cred_secret['type'], ['service_account'], secret=self.gcp_cred_secret_name)
             self.check(self.gcp_cred_secret['project_id'], self.project, secret=self.gcp_cred_secret_name)
             self.check(self.gcp_cred_secret['client_email'], self.email, secret=self.gcp_cred_secret_name)
+
+        if self.missing_secrets or self.incomplete_secrets:
+            for s in self.incomplete_secrets:
+                self.error_message += f'\n' \
+                                      f'The following secret                : {s["secret"]}\n' \
+                                      f'Had the unexpected setting          : {s["current"]}\n' \
+                                      f'When one of these items was expected: {s["expected"]}\n'
+            self.error_message += '\n'
+            for s in self.missing_secrets:
+                self.error_message += f'The following secret was missing    : {s}\n'
+            raise ValueError(self.error_message)
 
 
 def main(stage=None):

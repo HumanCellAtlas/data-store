@@ -60,6 +60,8 @@ smoketest:
 scaletest:
 	./tests/scalability/scale_test_runner.py -r 10 -d 30
 
+force-deploy: deploy-chalice deploy-daemons
+
 deploy: check-secrets deploy-chalice deploy-daemons
 
 deploy-chalice:
