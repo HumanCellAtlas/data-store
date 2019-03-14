@@ -115,7 +115,7 @@ class SecretsChecker(object):
             self.check(self.gcp_cred_secret['project_id'], self.project, secret=self.gcp_cred_secret_name)
             self.check(self.gcp_cred_secret['client_email'], self.email, secret=self.gcp_cred_secret_name)
 
-        if self.missing_secrets or self.incomplete_secrets:
+        if self.missing_secrets or self.incomplete_secrets or self.malformed_secrets:
             for s in self.incomplete_secrets:
                 self.error_message += f'\n' \
                                       f'The following secret                : {s["secret"]}\n' \
