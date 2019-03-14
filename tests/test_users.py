@@ -5,7 +5,7 @@ import os, sys
 pkg_root = os.path.abspath(os.path.join(os.path.dirname(__file__), '..'))  # noqa
 sys.path.insert(0, pkg_root)  # noqa
 
-from fusillade.clouddirectory import User, Role, ad, cleanup_directory, cleanup_schema
+from fusillade.clouddirectory import User, Group, Role, ad, cleanup_directory, cleanup_schema
 from tests.common import new_test_directory
 directory = None
 schema_arn = None
@@ -45,6 +45,55 @@ class TestUser(unittest.TestCase):
         with self.subTest("an existing users info is retrieved when instantiating User class for an existing user"):
             user = User(directory, name)
             self.assertEqual(user.lookup_policies(), [self.default_policy])
+
+    def test_get_groups(self):
+        name = "test_get_groups@test.com"
+        test_groups = [(f"group_{i}", f"Group_Policy_{i}") for i in range(5)]
+        groups = [Group.create(directory, *i) for i in test_groups]
+
+        user = User(directory, name)
+        with self.subTest("A user is in no groups when user is first created."):
+            self.assertEqual(len(user.groups), 0)
+
+        user.add_groups([])
+        with self.subTest("A user is added to no groups when add_groups is called with no groups"):
+            self.assertEqual(len(user.groups), 0)
+
+        with self.subTest("An error is returned when add a user to a group that does not exist."):
+            with self.assertRaises(ad.exceptions.BatchWriteException) as ex:
+                user.add_groups(["ghost_group"])
+                self.assertTrue(ex.response['Error']['Message'].endswith("/ Groups / ghost_group\\' does not exist.'"))
+            self.assertEqual(len(user.groups), 0)
+
+        user.add_groups([group.name for group in groups])
+        with self.subTest("A user is added to multiple groups when add_groups is called with multiple groups"):
+            self.assertEqual(len(user.groups), 5)
+
+        with self.subTest("A user inherits the groups policies when joining a group"):
+            policies = set(user.lookup_policies())
+            expected_policies = set([i[1] for i in test_groups] + [self.default_policy])
+            self.assertEqual(policies, expected_policies)
+
+    def test_remove_groups(self):
+        name = "test_remove_group@test.com"
+        test_groups = [(f"group_{i}", f"Policy_{i}") for i in range(5)]
+        groups = [Group.create(directory, *i).name for i in test_groups]
+        user = User(directory, name)
+        with self.subTest("A user is removed from a group when remove_group is called for a group the user belongs "
+                          "too."):
+            user.add_groups(groups)
+            self.assertEqual(len(user.groups), 5)
+            user.remove_groups(groups)
+            self.assertEqual(len(user.groups), 0)
+        with self.subTest("Error is raised when removing a user from a group it's not in."):
+            self.assertRaises(ad.exceptions.BatchWriteException, user.remove_groups, groups)
+            self.assertEqual(len(user.groups), 0)
+        with self.subTest("An error is raised and the user is not removed from any groups when the user is in some of "
+                          "the groups to remove."):
+            user.add_groups(groups[:2])
+            self.assertEqual(len(user.groups), 2)
+            self.assertRaises(ad.exceptions.BatchWriteException, user.remove_groups, groups)
+            self.assertEqual(len(user.groups), 2)
 
     def test_set_policy(self):
         name = "test_sete_policy@test.com"
@@ -120,6 +169,32 @@ class TestUser(unittest.TestCase):
         with self.subTest("Multiple roles are removed from a user when a multiple roles are specified for removal."):
             user.remove_roles(role_names)
             self.assertEqual(user.roles, [])
+
+    def test_group_and_role(self):
+        """
+        A user inherits policies from groups and roles when the user is apart of a group and assigned a role.
+        """
+        name = "test_sete_policy@test.com"
+        user = User(directory, name)
+        test_groups = [(f"group_{i}", f"Group policy_{i}") for i in range(5)]
+        groups = [Group.create(directory, *i) for i in test_groups]
+        group_names, group_statements = zip(*test_groups)
+        group_names = sorted(group_names)
+        group_statements = sorted(group_statements)
+        test_roles = [(f"role_{i}", f"Role policy_{i}") for i in range(5)]
+        roles = [Role.create(directory, *i) for i in test_roles]
+        role_names, role_statements = zip(*test_roles)
+        role_names = sorted(role_names)
+        role_statements = sorted(role_statements)
+
+        user.add_roles(role_names)
+        user.add_groups(group_names)
+
+        self.assertListEqual(sorted(user.roles), ['default_user'] + role_names)
+        self.assertEqual(user.groups, group_names)
+        self.assertSequenceEqual(sorted(user.lookup_policies()), sorted(
+            [user.statement] + group_statements + role_statements)
+                             )
 
     @unittest.skip("unfinished and low priority")
     def test_remove_user(self):

@@ -1,0 +1,36 @@
+{
+  "Version": "2012-10-17",
+  "Description": "Needs testing",
+  "Statement": [
+    {
+      "Sid": "fus_group_member",
+      "Effect": "Allow",
+      "Action": [
+        "fus:GetGroup"
+      ],
+       "Resource": [
+         "arn:hca:fus:*:*:group/${fus:group_name}/policy",
+         "arn:hca:fus:*:*:group/${fus:group_name}/groups"
+       ]
+    },
+    {
+      "Sid": "fus_group_admin",
+      "Effect": "Allow",
+      "Action": [
+        "fus:PutUser",
+        "fus:RemoveUser",
+        "fus:PutGroup"
+      ],
+       "Resource": [
+         "arn:hca:fus:*:*:group/${fus:group_name}/policy",
+         "arn:hca:fus:*:*:group/${fus:group_name}/users"
+       ],
+      "Condition": {
+        "StringEquals": {
+          "fus:user_email": []
+        }
+      }
+    }
+  ]
+}
+

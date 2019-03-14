@@ -355,6 +355,20 @@ class CloudDirectory:
         }
         }
 
+    def batch_get_attributes(self, obj_ref, facet, attributes: typing.List[str]):
+        return {
+            'GetObjectAttributes': {
+                'ObjectReference': {
+                    'Selector': obj_ref
+                },
+                'SchemaFacet': {
+                    'SchemaArn': self._schema,
+                    'FacetName': facet
+                },
+                'AttributeNames': attributes
+            }
+        }
+
     @staticmethod
     def batch_attach_object(parent, child, name):
         """
@@ -406,6 +420,9 @@ class CloudDirectory:
 
     def batch_write(self, operations: list) -> dict:
         return ad.batch_write(DirectoryArn=self._dir_arn, Operations=operations)
+
+    def batch_read(self, operations: list) -> dict:
+        return ad.batch_read(DirectoryArn=self._dir_arn, Operations=operations)
 
     @staticmethod
     def get_obj_type_path(obj_type):
@@ -471,7 +488,7 @@ class CloudDirectory:
 
 class CloudNode:
     _attributes = ["name"]
-    _link_formats = {"role": "R->{parent}->{child}"}
+    _link_formats = {"group": "G->{parent}->{child}", "role": "R->{parent}->{child}"}
 
     def __init__(self, cloud_directory: CloudDirectory, name: str, object_type):
         """
@@ -579,6 +596,7 @@ class User(CloudNode):
         """
         super(User, self).__init__(cloud_directory, name, 'User')
         self._status = None
+        self._groups: typing.Optional[typing.List[str]] = None
         self._roles: typing.Optional[typing.List[str]] = None  # TODO make a property
         self._policy = None
         self._statement = None
@@ -632,6 +650,20 @@ class User(CloudNode):
                                      status='Enabled')
 
     @property
+    def groups(self):
+        if not self._groups:
+            self._get_links()
+        return self._groups
+
+    def add_groups(self, groups: typing.List[str]):
+        self._add_links(groups, 'group')
+        self._groups = None  # update groups
+
+    def remove_groups(self, groups: typing.List[str]):
+        self._remove_links(groups, 'group')
+        self._groups = None  # update groups
+
+    @property
     def roles(self):
         if not self._roles:
             self._get_links()
@@ -644,6 +676,100 @@ class User(CloudNode):
     def remove_roles(self, roles: typing.List[str]):
         self._remove_links(roles, 'role')
         self._roles = None  # update roles
+
+
+class Group(CloudNode):
+    def __init__(self, cloud_directory: CloudDirectory, name: str, local: bool = False):
+        """
+
+        :param cloud_directory:
+        :param name:
+        :param local: use if you don't want to retrieve information from the directory when initializing
+        """
+        super(Group, self).__init__(cloud_directory, name, 'Group')
+        self._groups = None
+        self._roles = None
+        if not local:
+            self._set_attributes(self._attributes)
+
+    @classmethod
+    def create(cls,
+               cloud_directory: CloudDirectory,
+               name: str,
+               statement: typing.Optional[str] = None,
+               file_name: typing.Optional[str] = None):
+        if file_name:
+            with open(file_name, 'r') as fp:
+                statement = fp.read()
+        if statement:
+            object_ref, policy_ref = cloud_directory.create_object(quote(name), statement, 'Group', name=name)
+            new_node = cls(cloud_directory, name)
+            new_node._statement = statement
+            new_node._policy = policy_ref
+            return new_node
+        raise ValueError("statement and file_name cannot be None.")
+
+    def get_user_names(self, batch_size=30) -> typing.Iterator[str]:
+        """
+        Retrieves the user names for all user in this group.
+        :param batch_size: the max number of results to fetch in a single batch request
+        :return:
+        """
+        end_loop = False
+        user_iterator = self.cd.list_object_children(self.object_reference)
+        while True:
+            operations = []
+            try:
+                for i in range(batch_size):
+                    user = user_iterator.__next__()
+                    operations.append(self.cd.batch_get_attributes(user, 'User', ['name']))
+            except StopIteration:
+                end_loop = True
+            for resp in self.cd.batch_read(operations)['Responses']:
+                yield resp['SuccessfulResponse']['GetObjectAttributes']['Attributes'][0]['Value']['StringValue']
+            if end_loop:
+                break
+
+    def get_users(self) -> typing.Iterator[str]:
+        """
+        Retrieves the object_references for all user in this group.
+        :return:
+        """
+        for user in self.cd.list_object_children(self.object_reference):
+            yield user
+
+    @property
+    def roles(self):
+        if not self._roles:
+            self._get_links()
+        return self._roles
+
+    def add_roles(self, roles: typing.List[str]):
+        self._add_links(roles, 'role')
+        self._roles = None  # update roles
+
+    def remove_roles(self, roles: typing.List[str]):
+        self._remove_links(roles, 'role')
+        self._roles = None  # update roles
+
+    def add_users(self, users: typing.List[User]) -> None:
+        if len(users):
+            operations = [
+                self.cd.batch_attach_object(self.object_reference,
+                                            i.object_reference,
+                                            self._link_formats['group'].format(parent=self._path_name,
+                                                                               child=i._path_name))
+                for i in users]
+            self.cd.batch_write(operations)
+
+    def remove_users(self, users: typing.List[str]) -> None:
+        """
+
+        :param users: a list of user names to remove from group
+        :return:
+        """
+        for user in users:
+            User(self.cd, user, local=True).remove_groups([self._path_name])
 
 
 class Role(CloudNode):
