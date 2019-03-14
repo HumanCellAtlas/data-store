@@ -6,25 +6,26 @@ changed to personal user credentials (or otherwise).  Requires Terraform.
 Will only check the canoncial HCA stages ('dev', 'integration', 'staging', 'prod').
 
 Run to check current deployment:
-`scripts/check_deployment_secrets.py`
+    `scripts/check_deployment_secrets.py`
 
 Run to check dev:
-`scripts/check_deployment_secrets.py dev`
+    `scripts/check_deployment_secrets.py dev`
 
 Checking occurs as follows:
 
 #1
 For the json returned from the secret in GOOGLE_APPLICATION_SECRETS_SECRETS_NAME:
-`auth_uri` should be in ['https://auth.data.humancellatlas.org/authorize',
-                         'https://auth.dev.data.humancellatlas.org/authorize']
-`token_uri` should be in ['https://auth.data.humancellatlas.org/oauth/token',
-                          'https://auth.dev.data.humancellatlas.org/oauth/token']
+    `auth_uri` should be in ['https://auth.data.humancellatlas.org/authorize',
+                             'https://auth.dev.data.humancellatlas.org/authorize']
+    `token_uri` should be in ['https://auth.data.humancellatlas.org/oauth/token',
+                              'https://auth.dev.data.humancellatlas.org/oauth/token']
 
 #2
 For the json returned from the secret in GOOGLE_APPLICATION_CREDENTIALS_SECRETS_NAME:
-`project_id` should be `human-cell-atlas-travis-test`
-`type` should be `service_account`
-`client_email` should be `travis-test@human-cell-atlas-travis-test.iam.gserviceaccount.com`
+    `project_id` should be `human-cell-atlas-travis-test`
+    `type` should be `service_account`
+    `client_email` should be the user account returned from the terraform output "service_account".
+                   For example: dev should be `travis-test@human-cell-atlas-travis-test.iam.gserviceaccount.com`.
 """
 import subprocess
 import os
