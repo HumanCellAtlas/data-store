@@ -31,12 +31,16 @@ import subprocess
 import os
 import sys
 import json
+import copy
 
 
 class SecretsChecker(object):
     def __init__(self, stage):
         self.stage = stage
-        self.stages = ('dev', 'integration', 'staging', 'prod')
+        self.stages = {'dev': 'environment',
+                       'integration': 'enviroment.integration',
+                       'staging': 'environment.staging',
+                       'prod': 'environment.prod'}
 
         self.missing_secrets = []
         self.malformed_secrets = []
@@ -47,9 +51,11 @@ class SecretsChecker(object):
                              f'Please do not change AWS secrets for releases.\n'
 
         if self.stage not in self.stages:
-            print('Custom stage provided.  Secret checking skipped.')
+            print(f'Custom stage "{self.stage}" provided.  Secret checking skipped.')
             return
 
+        self.stage_env = copy.deepcopy(os.environ)
+        self.stage_env = self.get_stage_env(self.stages[self.stage])
         self.service_account = self.fetch_terraform_output("service_account", "gcp_service_account").strip()
 
         self.email = [f'{self.service_account}@human-cell-atlas-travis-test.iam.gserviceaccount.com']
@@ -65,15 +71,20 @@ class SecretsChecker(object):
         self.app_secret = self.fetch_secret(self.app_secret_name)
         self.gcp_cred_secret = self.fetch_secret(self.gcp_cred_secret_name)
 
-    @staticmethod
-    def run_cmd(cmd, cwd=os.getcwd()):
+    def run_cmd(self, cmd, cwd=os.getcwd(), shell=True):
         p = subprocess.Popen(cmd,
-                             shell=True,
+                             shell=shell,
                              stdout=subprocess.PIPE,
                              stderr=subprocess.PIPE,
-                             cwd=cwd)
+                             cwd=cwd,
+                             env=self.stage_env)
         stdout, stderr = p.communicate()
         return stdout.decode('utf-8')
+
+    def get_stage_env(self, env_file):
+        dump = '/usr/bin/python -c "import os, json; print(json.dumps(dict(os.environ)))"'
+        cmd = ['/bin/bash', '-c', f'source {env_file} && {dump}']
+        return json.loads(self.run_cmd(cmd, shell=False))
 
     def fetch_secret(self, secret_name):
         script_path = os.path.join(os.path.dirname(__file__), "fetch_secret.sh")
@@ -107,13 +118,15 @@ class SecretsChecker(object):
                                             'expected': expected})
 
     def run(self):
-        # do not check user-custom deploys or prod
+        # do not check user-custom deploys
         if self.stage in self.stages:
+            print(f'Now checking the secrets for {stage}...')
             self.check(self.app_secret['installed']['auth_uri'], self.auth_uri, secret=self.app_secret_name)
             self.check(self.app_secret['installed']['token_uri'], self.token_uri, secret=self.app_secret_name)
             self.check(self.gcp_cred_secret['type'], self.type, secret=self.gcp_cred_secret_name)
             self.check(self.gcp_cred_secret['project_id'], self.project, secret=self.gcp_cred_secret_name)
             self.check(self.gcp_cred_secret['client_email'], self.email, secret=self.gcp_cred_secret_name)
+            print(f'Secret check complete for {stage}.')
 
         if self.missing_secrets or self.incomplete_secrets or self.malformed_secrets:
             for s in self.incomplete_secrets:
