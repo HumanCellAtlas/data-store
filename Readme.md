@@ -1,5 +1,5 @@
-Fusillade
-=========
+# Fusillade
+
 
 Fusillade (Federated User Identity Login & Access Decision Engine) is a service and library for managing user
 authentication and authorization in federated services. Fusillade is built to be simple and to leverage well-known auth
@@ -43,8 +43,8 @@ To do this, your application should define an access control model consisting of
   }
   ```
 
-Installing and configuring Fusillade
-------------------------------------
+# Installing and configuring Fusillade
+
 Create `oauth2_config.json` with the OIDC providers you'd like to use to 
 authenticate users. This file is uploaded to AWS secrets manager using `make set_oauth2_config`. Use 
 [`oauth2_config.example.json`](../master/oauth2_config.example.json) for help.
@@ -62,28 +62,35 @@ authenticate users. This file is uploaded to AWS secrets manager using `make set
 - Local environment variables can be set in *environment.local* for convenience. If you use "source environment" and it 
   will set environment variables from *environment.local* after *environment* varaibles have been set, if you choose to 
   set them.
-
+- Populate `FUS_ADMIN_EMAILS` with a list of admins to assigned upon creating the fusillade deployment. This
+  is only used when fusillade is first deployed to create the first users. Afterwards this variable has no effect.
 - Environment variables can be set in `environment.local` for convenience.
 
-Using Fusillade as a service
-----------------------------
+## Setup
+When Fusillade is first deployed two roles are created. The first role is `admin` and is assigned
+to the users created from the csv of emails found in `FUS_ADMIN_EMAILS`. The second role is `default_user` this role is 
+assigned to all other users created using the login API. The policies assigned to these role can be customized prior to
+deployment. Afterwards all modifications to users, roles, groups, and policies must be made using the fusillade API.
 
-Using Fusillade as a library
-----------------------------
+# Using Fusillade as a service
 
-Using Fusillade as a proxy
---------------------------
 
-Bundling native cloud credentials
----------------------------------
+# Using Fusillade as a library
+
+# Using Fusillade as a proxy
+
+# Bundling native cloud credentials
+
+
+# Creating Custom Policy
+
+Uses [AWS IAM Policy grammar](https://docs.aws.amazon.com/IAM/latest/UserGuide/reference_policies_grammar.html)
 
 ### AWS
 
 ### GCP
 
-Service access control
-----------------------
-
+# Service access control
 To use Fusillade, your service must itself be authenticated and authorized. The access control model for this depends on
 how you're using Fusillade.
 
