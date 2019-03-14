@@ -2,5 +2,6 @@ requests_oauthlib
 oauthlib
 google_auth_oauthlib
 coverage
+flake8
 sphinx
 -r requirements.txt

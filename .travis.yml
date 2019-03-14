@@ -11,7 +11,6 @@ env:
 
 before_install:
   - source environment
-  - pip install --quiet coverage flake8 pyyaml
 
 install:
   - pip install -r requirements-dev.txt
