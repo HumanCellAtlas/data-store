@@ -37,8 +37,18 @@ class SecretsChecker(object):
     def __init__(self, stage):
         self.stage = stage
         self.stages = ('dev', 'integration', 'staging', 'prod')
+
+        self.missing_secrets = []
+        self.incomplete_secrets = []
+        self.error_message = f'\n\n' \
+                             f'Deploying to {self.stage.upper()} could not be completed.\n' \
+                             f'It looks like an AWS secret has an unexpected value.\n' \
+                             f'Please do not change AWS secrets for releases.\n'
+
         if self.stage not in self.stages:
-            print('Custom stage provided.  Secret checking will be skipped.')
+            print('Custom stage provided.  Secret checking skipped.')
+            return
+
         self.service_account = self.fetch_terraform_output("service_account", "gcp_service_account").strip()
 
         self.email = [f'{self.service_account}@human-cell-atlas-travis-test.iam.gserviceaccount.com']
@@ -53,13 +63,6 @@ class SecretsChecker(object):
         self.gcp_cred_secret_name = os.environ['GOOGLE_APPLICATION_CREDENTIALS_SECRETS_NAME']
         self.app_secret = self.fetch_secret(self.app_secret_name)
         self.gcp_cred_secret = self.fetch_secret(self.gcp_cred_secret_name)
-
-        self.missing_secrets = []
-        self.incomplete_secrets = []
-        self.error_message = f'\n\n' \
-                             f'Deploying to {self.stage.upper()} could not be completed.\n' \
-                             f'It looks like an AWS secret has an unexpected value.\n' \
-                             f'Please do not change AWS secrets for releases.\n'
 
     @staticmethod
     def run_cmd(cmd, cwd=os.getcwd()):
@@ -124,8 +127,8 @@ class SecretsChecker(object):
 
 
 def main(stage=None):
-    if sys.argv:
-        stage = sys.argv[0]
+    if len(sys.argv) > 1:
+        stage = sys.argv[1]
     elif not stage:
         stage = os.environ['DSS_DEPLOYMENT_STAGE']
     s = SecretsChecker(stage)
