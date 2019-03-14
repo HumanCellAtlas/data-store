@@ -13,10 +13,16 @@ lambda_client = boto3.client("lambda")
 
 
 def get_local_lambda_environment_keys():
-    env = ["ADMIN_USER_EMAILS", "DSS_ES_ENDPOINT", "GOOGLE_APPLICATION_CREDENTIALS", "GOOGLE_APPLICATION_SECRETS"]
-    for name in os.environ['EXPORT_ENV_VARS_TO_LAMBDA'].split():
-            env.append(name)
-    return env
+    env = dict()
+    deployment_env = ["ADMIN_USER_EMAILS", "DSS_ES_ENDPOINT",
+                      "GOOGLE_APPLICATION_CREDENTIALS", "GOOGLE_APPLICATION_SECRETS"]
+    deployment_env += os.environ['EXPORT_ENV_VARS_TO_LAMBDA'].split()
+    for name in deployment_env:
+        try:
+            env[name] = os.environ[name]
+        except KeyError:
+            print(f"Warning: {name} not defined")
+    return env.keys()
 
 
 def get_lambda_environment(stage):
@@ -31,17 +37,12 @@ def compare_local_stage():
     stage = os.environ['DSS_DEPLOYMENT_STAGE']
     ssm_env = set(get_lambda_environment(stage))
     local_env = set(get_local_lambda_environment_keys())
-    in_ssm = list(ssm_env - local_env)
-    in_local = list(local_env - ssm_env)
+    in_ssm = [ x for x in ssm_env if x not in local_env]
+    in_local = [ x for x in local_env if x not in ssm_env]
     return {stage: in_ssm, "local": in_local}
-
-
-def compare_env_lists(l1: list, l2: list):
-    return list(set.symmetric_difference(set(l1), set(l2)))
 
 
 if __name__ == '__main__':
     missing_keys = compare_local_stage()
-    number_of_missing_keys = sum(map(lambda v: len(v), missing_keys.values()))
-    if number_of_missing_keys > 0:
-        print(f"WARNING: Missing Environment Variables Found: \n{json.dumps(missing_keys)}")
+    if any(missing_keys.values()):
+        print(f"Warning: Found differences in variables for : \n{json.dumps(missing_keys)}")
