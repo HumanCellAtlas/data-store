@@ -21,21 +21,9 @@ logger = logging.getLogger(__name__)
 
 class TestSecretCheck(unittest.TestCase):
     @needs_terraform
-    def test_dev_secrets(self):
-        """Checks if the secrets in dev are gucci."""
-        s = SecretsChecker(stage='dev')
-        s.run()
-
-    @needs_terraform
-    def test_integration_secrets(self):
-        """Checks if the secrets in integration are prada."""
-        s = SecretsChecker(stage='integration')
-        s.run()
-
-    @needs_terraform
-    def test_staging_secrets(self):
-        """Checks if the secrets in staging are ready to take the fashion world by storm."""
-        s = SecretsChecker(stage='staging')
+    def test_secrets(self):
+        """Checks if the current stage's secrets are gucci."""
+        s = SecretsChecker(stage=os.environ['DSS_DEPLOYMENT_STAGE'])
         s.run()
 
     @needs_terraform

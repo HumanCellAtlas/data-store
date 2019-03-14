@@ -10,6 +10,10 @@ import os
 import json
 
 
+class SecretFetchingError(Exception):
+    pass
+
+
 class SecretsChecker(object):
     def __init__(self, stage):
         self.stage = stage
@@ -44,9 +48,9 @@ class SecretsChecker(object):
         try:
             secret = json.loads(raw_response)
         except json.decoder.JSONDecodeError:
-            raise RuntimeError(f'The following secret, {secret_name}, appears to no longer exist or is malformed.')
+            raise SecretFetchingError(f'The following secret, {secret_name}, appears to no longer exist or is malformed.')
         if not (('installed' not in secret) or ('client_email' not in secret)) and (self.stage in self.stages):
-            raise RuntimeError(f'The following secret, {secret_name}, appears to no longer exist or is malformed.')
+            raise SecretFetchingError(f'The following secret, {secret_name}, appears to no longer exist or is malformed.')
         return secret
 
     def fetch_terraform_output(self, output_name, output_infra_dir):
