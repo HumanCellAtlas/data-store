@@ -44,4 +44,4 @@ def compare_env_lists(l1: list, l2: list):
 if __name__ == '__main__':
     missing_keys = json.dumps(compare_local_stage())
     if len(missing_keys) > 0:
-        print(f"Warning: Missing Environment Variables Found: \n{missing_keys}")
+        print(f"WARNING: Missing Environment Variables Found: \n{missing_keys}")
