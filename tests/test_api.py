@@ -31,7 +31,6 @@ from tests.infra.server import ChaliceTestHarness
 
 @eventually(5,1, {fusillade.errors.FusilladeException})
 def tearDownModule():
-    global old_directory_name
     from app import directory
     cleanup_directory(directory._dir_arn)
     if old_directory_name:

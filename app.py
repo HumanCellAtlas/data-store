@@ -207,9 +207,8 @@ try:
     directory = CloudDirectory.from_name(directory_name)
 except FusilladeException:
     from fusillade.clouddirectory import publish_schema, create_directory
-    schema_name = f"hca_fusillade_{os.environ['FUS_DEPLOYMENT_STAGE']}"
-    schema_version = "0.1"
-    schema_arn = publish_schema(schema_name, schema_version)
+    schema_name = f"hca_fusillade_base_{os.environ['FUS_DEPLOYMENT_STAGE']}"
+    schema_arn = publish_schema(schema_name, version="0.1")
     directory = create_directory(directory_name, schema_arn)
 
 
@@ -218,10 +217,7 @@ def evaluate_policy():
     principal = app.current_request.json_body["principal"]
     action = app.current_request.json_body["action"]
     resource = app.current_request.json_body["resource"]
-    try:
-        user = User(directory, principal)
-    except Exception:
-        pass
+    user = User(directory, principal)
     user.lookup_policies()
     result = iam.simulate_custom_policy(PolicyInputList=user.lookup_policies(),
                                         ActionNames=[action],

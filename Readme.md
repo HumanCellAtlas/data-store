@@ -63,17 +63,22 @@ authenticate users. This file is uploaded to AWS secrets manager using `make set
   will set environment variables from *environment.local* after *environment* varaibles have been set, if you choose to 
   set them.
 - Populate `FUS_ADMIN_EMAILS` with a list of admins to assigned upon creating the fusillade deployment. This
-  is only used when fusillade is first deployed to create the first users. Afterwards this variable has no effect.
+  is only used when fusillade is first deployed to create the first users. Afterwards this variable has no effect. If
+  more admins are required assign a user the admin role.
 - Environment variables can be set in `environment.local` for convenience.
+- **Optionally** modify the [default policies and roles](../blob/master/policies) to suite your needs prior to 
+  deployment. 
 
-## Setup
+# Using Fusillade as a Service
+
 When Fusillade is first deployed two roles are created. The first role is `admin` and is assigned
 to the users created from the csv of emails found in `FUS_ADMIN_EMAILS`. The second role is `default_user` this role is 
-assigned to all other users created using the login API. The policies assigned to these role can be customized prior to
+assigned to all other users created using the login API. The policies assigned to these roles can be customized prior to
 deployment. Afterwards all modifications to users, roles, groups, and policies must be made using the fusillade API.
 
-# Using Fusillade as a service
+## Adding Users to Roles
 
+New admins can be assigned using the fusillade API and assigning the role of admin to a user.
 
 # Using Fusillade as a library
 

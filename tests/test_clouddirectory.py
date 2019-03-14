@@ -13,6 +13,7 @@ from fusillade.clouddirectory import ad, cleanup_directory, cleanup_schema, publ
 class TestCloudDirectory(unittest.TestCase):
 
     def test_cd(self):
+        """ Testing the process of creating and destroying an AWS CloudDirectory"""
         schema_name = "authz"
         schema_version = random_hex_string()
         directory_name = "test_dir_" + random_hex_string()

@@ -7,51 +7,44 @@ sys.path.insert(0, pkg_root)  # noqa
 
 from fusillade.clouddirectory import User, Group, Role, ad, cleanup_directory, cleanup_schema
 from tests.common import new_test_directory
-directory = None
-schema_arn = None
-
-
-def setUpModule():
-    global directory, schema_arn
-    directory, schema_arn = new_test_directory()
-
-
-def tearDownModule():
-    global directory, schema_arn
-    cleanup_directory(directory._dir_arn)
-    cleanup_schema(schema_arn)
 
 
 class TestUser(unittest.TestCase):
     @classmethod
     def setUpClass(cls):
-        with open(f"{pkg_root}/policies/default_user_policy.json", 'r') as fp:
+        cls.directory, cls.schema_arn = new_test_directory()
+        with open(f"{pkg_root}/policies/default_user_policy.json", 'r') as fp:  # TODO move to config
             policy_json = json.load(fp)
         cls.default_policy = json.dumps(policy_json)
 
+    @classmethod
+    def tearDownClass(cls):
+        cleanup_directory(cls.directory._dir_arn)
+        cleanup_schema(cls.schema_arn)
+
     def tearDown(self):
-        directory.clear()
+        self.directory.clear()
 
     def test_get_attributes(self):
         name = "test_get_attributes@test.com"
-        user = User(directory, name)
+        user = User(self.directory, name)
         self.assertEqual(user.get_attributes(['name'])['name'], name)
 
     def test_get_user_policy(self):
         with self.subTest("new user is created when instantiating User class with an new user name "):
             name = "test_get_user_policy@test.com"
-            user = User(directory, name)
+            user = User(self.directory, name)
             self.assertEqual(user.lookup_policies(), [self.default_policy])
         with self.subTest("an existing users info is retrieved when instantiating User class for an existing user"):
-            user = User(directory, name)
+            user = User(self.directory, name)
             self.assertEqual(user.lookup_policies(), [self.default_policy])
 
     def test_get_groups(self):
         name = "test_get_groups@test.com"
         test_groups = [(f"group_{i}", f"Group_Policy_{i}") for i in range(5)]
-        groups = [Group.create(directory, *i) for i in test_groups]
+        groups = [Group.create(self.directory, *i) for i in test_groups]
 
-        user = User(directory, name)
+        user = User(self.directory, name)
         with self.subTest("A user is in no groups when user is first created."):
             self.assertEqual(len(user.groups), 0)
 
@@ -77,10 +70,10 @@ class TestUser(unittest.TestCase):
     def test_remove_groups(self):
         name = "test_remove_group@test.com"
         test_groups = [(f"group_{i}", f"Policy_{i}") for i in range(5)]
-        groups = [Group.create(directory, *i).name for i in test_groups]
-        user = User(directory, name)
+        groups = [Group.create(self.directory, *i).name for i in test_groups]
+        user = User(self.directory, name)
         with self.subTest("A user is removed from a group when remove_group is called for a group the user belongs "
-                          "too."):
+                          "to."):
             user.add_groups(groups)
             self.assertEqual(len(user.groups), 5)
             user.remove_groups(groups)
@@ -97,7 +90,7 @@ class TestUser(unittest.TestCase):
 
     def test_set_policy(self):
         name = "test_sete_policy@test.com"
-        user = User(directory, name)
+        user = User(self.directory, name)
         with self.subTest("The initial user policy is default_policy, when the user is first created"):
             self.assertEqual(user.lookup_policies(), [self.default_policy])
 
@@ -107,7 +100,7 @@ class TestUser(unittest.TestCase):
 
     def test_status(self):
         name = "test_sete_policy@test.com"
-        user = User(directory, name)
+        user = User(self.directory, name)
 
         with self.subTest("A user's status is enabled when provisioned."):
             self.assertEqual(user.status, 'Enabled')
@@ -121,12 +114,12 @@ class TestUser(unittest.TestCase):
     def test_roles(self):
         name = "test_sete_policy@test.com"
         test_roles = [(f"group_{i}", f"Policy_{i}") for i in range(5)]
-        roles = [Role.create(directory, *i).name for i in test_roles]
+        roles = [Role.create(self.directory, *i).name for i in test_roles]
         role_names, role_statements = zip(*test_roles)
         role_names = sorted(role_names)
         role_statements = sorted(role_statements)
 
-        user = User(directory, name)
+        user = User(self.directory, name)
         with self.subTest("a user has the default_user roles when created."):
             self.assertEqual(user.roles, ['default_user'])
 
@@ -175,14 +168,14 @@ class TestUser(unittest.TestCase):
         A user inherits policies from groups and roles when the user is apart of a group and assigned a role.
         """
         name = "test_sete_policy@test.com"
-        user = User(directory, name)
+        user = User(self.directory, name)
         test_groups = [(f"group_{i}", f"Group policy_{i}") for i in range(5)]
-        groups = [Group.create(directory, *i) for i in test_groups]
+        groups = [Group.create(self.directory, *i) for i in test_groups]
         group_names, group_statements = zip(*test_groups)
         group_names = sorted(group_names)
         group_statements = sorted(group_statements)
         test_roles = [(f"role_{i}", f"Role policy_{i}") for i in range(5)]
-        roles = [Role.create(directory, *i) for i in test_roles]
+        roles = [Role.create(self.directory, *i) for i in test_roles]
         role_names, role_statements = zip(*test_roles)
         role_names = sorted(role_names)
         role_statements = sorted(role_statements)
@@ -196,13 +189,13 @@ class TestUser(unittest.TestCase):
             [user.statement] + group_statements + role_statements)
                              )
 
-    @unittest.skip("unfinished and low priority")
+    @unittest.skip("TODO: unfinished and low priority")
     def test_remove_user(self):
         name = "test_get_user_policy@test.com"
-        user = User(directory, name)
-        self.assertEqual(len(directory.lookup_policy(user.reference)), 1)
+        user = User(self.directory, name)
+        self.assertEqual(len(self.directory.lookup_policy(user.reference)), 1)
         user.remove_user()
-        directory.lookup_policy(user.reference)
+        self.directory.lookup_policy(user.reference)
 
 if __name__ == '__main__':
     unittest.main()
