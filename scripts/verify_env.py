@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 """
 Used to check missing deployed lambda env variables with local environment variables.
-Does not check the values of the variables, limited to a check if they key is present.
+Does not check the values of the variables, limited to a check if the key is present.
 
 """
 import os
@@ -19,18 +19,17 @@ def get_local_lambda_environment_keys():
     return env
 
 
-def get_ssm_lambda_environment(stage):
+def get_lambda_environment(stage):
     parms = lambda_client.get_function_configuration(
         FunctionName=f"dss-{stage}"
     )['Environment']['Variables']
     return parms
 
 
-def compare_local_stage(stage=None):
-    """Compares local env values to deployed values"""
-    if stage is None:
-        stage = os.environ['DSS_DEPLOYMENT_STAGE']
-    ssm_env = set(get_ssm_lambda_environment(stage))
+def compare_local_stage():
+    """Compares local env values to deployed lambda end value"""
+    stage = os.environ['DSS_DEPLOYMENT_STAGE']
+    ssm_env = set(get_lambda_environment(stage))
     local_env = set(get_local_lambda_environment_keys())
     in_ssm = list(ssm_env - local_env)
     in_local = list(local_env - ssm_env)
