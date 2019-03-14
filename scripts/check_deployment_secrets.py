@@ -1,12 +1,28 @@
 #!/usr/bin/env python
 """
-Script to ensure that the secrets in the various HCA stage deployments are not accidentally
-changed to personal user credentials (or otherwise).
+Script to ensure that the secrets in an HCA stage deployment are not accidentally
+changed to personal user credentials (or otherwise).  Requires Terraform.
 
-Requires Terraform.
+Will only check the canoncial HCA stages ('dev', 'integration', 'staging', 'prod').
+
+It does this by checking as follows:
+
+#1
+For the json returned from the secret in GOOGLE_APPLICATION_SECRETS_SECRETS_NAME:
+`auth_uri` should be in ['https://auth.data.humancellatlas.org/authorize',
+                         'https://auth.dev.data.humancellatlas.org/authorize']
+`token_uri` should be in ['https://auth.data.humancellatlas.org/oauth/token',
+                          'https://auth.dev.data.humancellatlas.org/oauth/token']
+
+#2
+For the json returned from the secret in GOOGLE_APPLICATION_CREDENTIALS_SECRETS_NAME:
+`project_id` should be `human-cell-atlas-travis-test`
+`type` should be `service_account`
+`client_email` should be `travis-test@human-cell-atlas-travis-test.iam.gserviceaccount.com`
 """
 import subprocess
 import os
+import sys
 import json
 
 
@@ -18,6 +34,7 @@ class SecretsChecker(object):
 
         self.email = [f'{self.service_account}@human-cell-atlas-travis-test.iam.gserviceaccount.com']
         self.project = ['human-cell-atlas-travis-test']
+        self.type = ['service_account']
         self.auth_uri = ['https://auth.data.humancellatlas.org/authorize',
                          'https://auth.dev.data.humancellatlas.org/authorize']
         self.token_uri = ['https://auth.data.humancellatlas.org/oauth/token',
@@ -81,7 +98,7 @@ class SecretsChecker(object):
         if self.stage in self.stages:
             self.check(self.app_secret['installed']['auth_uri'], self.auth_uri, secret=self.app_secret_name)
             self.check(self.app_secret['installed']['token_uri'], self.token_uri, secret=self.app_secret_name)
-            self.check(self.gcp_cred_secret['type'], ['service_account'], secret=self.gcp_cred_secret_name)
+            self.check(self.gcp_cred_secret['type'], self.type, secret=self.gcp_cred_secret_name)
             self.check(self.gcp_cred_secret['project_id'], self.project, secret=self.gcp_cred_secret_name)
             self.check(self.gcp_cred_secret['client_email'], self.email, secret=self.gcp_cred_secret_name)
 
@@ -98,7 +115,9 @@ class SecretsChecker(object):
 
 
 def main(stage=None):
-    if not stage:
+    if sys.argv:
+        stage = sys.argv[0]
+    elif not stage:
         stage = os.environ['DSS_DEPLOYMENT_STAGE']
     s = SecretsChecker(stage)
     s.run()
