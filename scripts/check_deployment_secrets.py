@@ -120,13 +120,13 @@ class SecretsChecker(object):
     def run(self):
         # do not check user-custom deploys
         if self.stage in self.stages:
-            print(f'Now checking the secrets for {stage}...')
+            print(f'Now checking the secrets for {self.stage}...')
             self.check(self.app_secret['installed']['auth_uri'], self.auth_uri, secret=self.app_secret_name)
             self.check(self.app_secret['installed']['token_uri'], self.token_uri, secret=self.app_secret_name)
             self.check(self.gcp_cred_secret['type'], self.type, secret=self.gcp_cred_secret_name)
             self.check(self.gcp_cred_secret['project_id'], self.project, secret=self.gcp_cred_secret_name)
             self.check(self.gcp_cred_secret['client_email'], self.email, secret=self.gcp_cred_secret_name)
-            print(f'Secret check complete for {stage}.')
+            print(f'Secret check complete for {self.stage}.')
 
         if self.missing_secrets or self.incomplete_secrets or self.malformed_secrets:
             for s in self.incomplete_secrets:
