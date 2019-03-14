@@ -39,6 +39,7 @@ class SecretsChecker(object):
         self.stages = ('dev', 'integration', 'staging', 'prod')
 
         self.missing_secrets = []
+        self.malformed_secrets = []
         self.incomplete_secrets = []
         self.error_message = f'\n\n' \
                              f'Deploying to {self.stage.upper()} could not be completed.\n' \
@@ -83,7 +84,7 @@ class SecretsChecker(object):
             self.missing_secrets.append(secret_name)
             return
         if not (('installed' not in secret) or ('client_email' not in secret)) and (self.stage in self.stages):
-            self.missing_secrets.append(secret_name)
+            self.malformed_secrets.append(secret_name)
             return
         return secret
 
@@ -123,6 +124,9 @@ class SecretsChecker(object):
             self.error_message += '\n'
             for s in self.missing_secrets:
                 self.error_message += f'The following secret was missing    : {s}\n'
+            self.error_message += '\n'
+            for s in self.malformed_secrets:
+                self.error_message += f'The following secret seems malformed: {s}\n'
             raise ValueError(self.error_message)
 
 
