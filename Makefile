@@ -60,6 +60,9 @@ smoketest:
 scaletest:
 	./tests/scalability/scale_test_runner.py -r 10 -d 30
 
+check-env:
+    scripts/verify_env.py
+
 deploy: deploy-chalice deploy-daemons
 
 deploy-chalice:
@@ -78,6 +81,7 @@ plan-infra:
 
 deploy-infra:
 	$(MAKE) -C infra apply-all
+
 
 create-github-deployment:
 	$(eval REMOTE=$(shell git remote get-url origin | perl -ne '/([^\/\:]+\/.+?)(\.git)?$$/; print $$1'))
