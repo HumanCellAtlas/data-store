@@ -39,8 +39,7 @@ class SecretsChecker(object):
         self.stage = stage
         self.stages = {'dev': 'environment',
                        'integration': 'enviroment.integration',
-                       'staging': 'environment.staging',
-                       'prod': 'environment.prod'}
+                       'staging': 'environment.staging'}
 
         self.missing_secrets = []
         self.malformed_secrets = []
