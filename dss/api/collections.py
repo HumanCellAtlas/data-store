@@ -48,6 +48,20 @@ def get_impl(uuid: str, replica: str, version: str = None):
 
 @dss_handler
 @security.authorized_group_required(['hca'])
+def list(replica: str):
+    authenticated_user_email = security.get_token_email(request.token_info)
+    bucket = Replica[replica].bucket
+    handle = Config.get_blobstore_handle(Replica[replica])
+    collections = []
+    for key in handle.list(bucket):
+        collection_blob = handle.get(bucket, CollectionFQID.from_key(key))
+        collection = json.loads(collection_blob)
+        if collection['owner'] == authenticated_user_email:
+            collections.append(collection)
+    return jsonify(collections), requests.codes.ok
+
+@dss_handler
+@security.authorized_group_required(['hca'])
 def get(uuid: str, replica: str, version: str = None):
     authenticated_user_email = security.get_token_email(request.token_info)
     collection_body = get_impl(uuid=uuid, replica=replica, version=version)

@@ -88,6 +88,14 @@ class TestCollections(unittest.TestCase, DSSAssertMixin, DSSUploadMixin):
                                params=dict(replica="aws"))
             self.assertEqual(res.json()["contents"], [self.col_file_item, self.col_ptr_item])
 
+    def test_list(self):
+        "GET collections belonging to user"
+        res = self.app.get('/v1/collections',
+                           headers=get_auth_header(authorized=True),
+                           params=dict(replica='aws'))
+        res.raise_for_status()
+        self.assertEqual(len(res.json()), 1)
+
     def test_get(self):
         "GET created collection"
         res = self.app.get("/v1/collections/{}".format(self.uuid),

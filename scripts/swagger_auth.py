@@ -12,7 +12,7 @@ sys.path.insert(0, pkg_root)  # noqa
 default_auth = {"/files/{uuid}": ["put"],
                 "/subscriptions": ["get", "put"],
                 "/subscriptions/{uuid}": ["get", "delete"],
-                "/collections": ["put"],
+                "/collections": ["get", "put"],
                 "/collections/{uuid}": ["get", "patch", "delete"],
                 "/bundles/{uuid}": ["put", "delete"]
                }
@@ -22,7 +22,7 @@ full_auth = {"/search": ["post"],
              "/files/{uuid}": ["head", "get", "put"],
              "/subscriptions": ["get", "put"],
              "/subscriptions/{uuid}": ["get", "delete"],
-             "/collections": ["put"],
+             "/collections": ["get", "put"],
              "/collections/{uuid}": ["get", "patch", "delete"],
              "/bundles/{uuid}": ["get", "put", "delete"],
              "/bundles/{uuid}/checkout": ["post"],
