@@ -78,7 +78,7 @@ class SecretsChecker(object):
                              stderr=subprocess.PIPE,
                              cwd=cwd,
                              env=self.stage_env)
-        stdout, stderr = p.communicate()
+        stdout, _ = p.communicate()
         return stdout.decode('utf-8')
 
     def get_stage_env(self, env_file):

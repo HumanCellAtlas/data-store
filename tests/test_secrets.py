@@ -22,7 +22,7 @@ logger = logging.getLogger(__name__)
 class TestSecretCheck(unittest.TestCase):
     @needs_terraform
     def test_secrets(self):
-        """Checks if the current stage's secrets are gucci."""
+        """Checks that the current stage's secrets conform to expected values, else this will raise a ValueError."""
         s = SecretsChecker(stage=os.environ['DSS_DEPLOYMENT_STAGE'])
         s.run()
 
@@ -37,7 +37,7 @@ class TestSecretCheck(unittest.TestCase):
 
     @needs_terraform
     def test_invalid_secrets(self):
-        """This should raise a ValueError and warn the user since it will check dev against an unqualified email."""
+        """Checks that a ValueError is raised when an unqualified email is stored in a secret."""
         s = SecretsChecker(stage='dev')
         s.email = ['nonsense']
         with self.assertRaises(ValueError):
