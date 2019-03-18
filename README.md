@@ -29,6 +29,10 @@ You can use the
 [Swagger Editor](http://editor.swagger.io/#/?import=https://raw.githubusercontent.com/HumanCellAtlas/data-store/master/dss-api.yml)
 to review and edit the API specification. When the API is live, the spec is also available at `/v1/swagger.json`.
 
+## Table of Contents
+
+
+
 ## Getting Started
 In this section, you'll configure and deploy a local API server and your own suite of cloud services to run a
 development version of the DSS.
@@ -55,8 +59,7 @@ are defined in the file [`environment`](environment). To customize the values of
 
 1. Copy `environment.local.example` to `environment.local`
 1. Edit `environment.local` to add custom entries that override the default values in `environment`
-
-Run `source environment`  now and whenever these environment files are modified.
+1. Run `source environment`  now and whenever these environment files are modified.
 
 The full list of configurable environment variables and their descriptions are documented [here](docs/environment/README.md).
 
@@ -210,15 +213,48 @@ incorporate dependent infrastructure, such SQS queues or SNS topics, by placing 
 usual plan/review Terraform workflow, and should therefore be lightweight in nature. Large infrastructure should be
 added to `$DSS_HOME/infra` instead.
 
-The AWS Elasticsearch Service is used for metadata indexing. For typical development deployments the
-t2.small.elasticsearch instance type is sufficient.
+##### Resources
+Cloud resources have the potential for naming collision in both [AWS](https://docs.aws.amazon.com/general/latest/gr/aws-arns-and-namespaces.html)
+ and [GCP](https://cloud.google.com/storage/docs/naming), ensure to rename resources as needed.
 
+#### Buckets
+
+Buckets within AWS and GCP need to be available for use by the DSS. Use Terraform to setup these resources:
+```
+cd infra
+./build_deploy_config.py buckets/
+cd buckets/
+terraform init
+terraform apply
+
+```
+
+#### ElasticSearch
+The AWS Elasticsearch Service is used for metadata indexing. For typical development deployments the
+t2.small.elasticsearch instance type is sufficient. Use the [`DSS_ES_`](./docs/environment/README.md) variables to adjust the cluster as needed. 
+
+Add allowed IPs for ElasticSearch to the secret manager, use comma separated IPs:
+```
+echo ' ' | ./scripts/set_secret.py --secret-name $ES_ALLOWED_SOURCE_IP_SECRETS_NAME
+
+```
+Use Terraform to deploy ES resource:
+```
+cd infra
+./build_deploy_config.py elasticsearch/
+cd elasticsearch/
+terraform init
+terraform apply
+```
+
+#### Certificates
 A certificate matching your domain must be registered with
 [AWS Certificate Manager](https://docs.aws.amazon.com/acm/latest/userguide/acm-overview.html). Set `ACM_CERTIFICATE_IDENTIFIER`
 to the identifier of the certificate, which can be found on the AWS console.
 
 An AWS route53 zone must be available for your domain name and configured in `environment`.
 
+#### Deploying
 Now deploy using make:
 
     make deploy-infra
