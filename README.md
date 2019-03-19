@@ -396,5 +396,8 @@ AWS Xray tracing is used for profiling the performance of deployed lambdas. This
 setting the lambda environment variable `DSS_XRAY_TRACE=1`. For all other daemons you must also check
 "Enable active tracking" under "Debugging and error handling" in the AWS Lambda console.
 
+## Security Policy
+See our [Security Policy](https://github.com/HumanCellAtlas/dcp/blob/master/SECURITY.md).
+
 ## Contributing
 External contributions are welcome. Please review the [Contributing Guidelines](CONTRIBUTING.md)

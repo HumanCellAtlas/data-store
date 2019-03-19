@@ -367,10 +367,12 @@ paths:
           type: string
       responses:
         301:
-          description: Handle asynchronously, downstream users are expected to retry later.
+          description: >
+            The file is still being fetched. The request is being handled asynchronously. The client should follow the
+            redirect after the delay specified in the Retry-After header.
           headers:
             Retry-After:
-              description: Delay in seconds, downstream users are expected to retry after the delay.
+              description: Delay in seconds. The client should follow the redirect after waiting for this duration.
               type: integer
               format: int64
         302:
@@ -1420,10 +1422,12 @@ paths:
                 The URL in the header refers to the next page of the results to be fetched; if no `Link rel="next"` URL is
                 included, then all results have been fetched.
         301:
-          description: Handle asynchronously, downstream users are expected to retry later.
+          description: >
+            The bundle is still being fetched. The request is being handled asynchronously. The client should follow the
+            redirect after the delay specified in the Retry-After header.
           headers:
             Retry-After:
-              description: Delay in seconds, downstream users are expected to retry after the delay.
+              description: Delay in seconds. The client should follow the redirect after waiting for this duration.
               type: integer
               format: int64
         400:

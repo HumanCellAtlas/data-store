@@ -43,3 +43,7 @@ resource "google_project_iam_member" "viewer" {
   role    = "roles/viewer"
   member  = "serviceAccount:${google_service_account.dss.email}"
 }
+
+output "service_account" {
+  value = "${var.DSS_GCP_SERVICE_ACCOUNT_NAME}"
+}

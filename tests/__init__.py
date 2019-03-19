@@ -3,11 +3,12 @@ import json
 import time
 import uuid
 import logging
-
+import unittest
 import jwt
 import functools
 import io
 import os
+import shutil
 
 from dss import Config
 from dss.api import bundles
@@ -112,3 +113,10 @@ def get_auth_header(real_header=True, authorized=True, group='hca', email=True, 
         info = UNAUTHORIZED_GCP_CREDENTIALS
     token = get_service_jwt(info, group, email=email, email_claim=email_claim) if real_header else str(uuid.uuid4())
     return {"Authorization": f"Bearer {token}"}
+
+
+def skip_on_travis(test_item):
+    if os.environ.get('TRAVIS') == 'true':
+        return unittest.skip("Test doesn't run on travis.")(test_item)
+    else:
+        return test_item
