@@ -115,9 +115,8 @@ def get_auth_header(real_header=True, authorized=True, group='hca', email=True, 
     return {"Authorization": f"Bearer {token}"}
 
 
-def needs_terraform(test_item):
-    """Use as a decorator before tests to only run them if Terraform is installed."""
-    if shutil.which('terraform'):
-        return test_item
+def skip_on_travis(test_item):
+    if os.environ.get('TRAVIS') == 'true':
+        return unittest.skip("Test doesn't run on travis.")(test_item)
     else:
-        return unittest.skip("Install Terraform to include this test.")(test_item)
+        return test_item

@@ -13,20 +13,20 @@ pkg_root = os.path.abspath(os.path.join(os.path.dirname(__file__), ".."))  # noq
 sys.path.insert(0, pkg_root)  # noqa
 
 from scripts.check_deployment_secrets import SecretsChecker
-from tests import needs_terraform
+from tests import skip_on_travis
 
 
 logger = logging.getLogger(__name__)
 
 
 class TestSecretCheck(unittest.TestCase):
-    @needs_terraform
+    @skip_on_travis
     def test_secrets(self):
         """Checks that the current stage's secrets conform to expected values, else this will raise a ValueError."""
         s = SecretsChecker(stage=os.environ['DSS_DEPLOYMENT_STAGE'])
         s.run()
 
-    @needs_terraform
+    @skip_on_travis
     def test_custom_stage_secrets(self):
         """
         This should not test other stages because we have no way of knowing what
@@ -35,7 +35,7 @@ class TestSecretCheck(unittest.TestCase):
         s = SecretsChecker(stage='somenonsensenamelikeprod')
         s.run()
 
-    @needs_terraform
+    @skip_on_travis
     def test_invalid_secrets(self):
         """Checks that a ValueError is raised when an unqualified email is stored in a secret."""
         s = SecretsChecker(stage='dev')

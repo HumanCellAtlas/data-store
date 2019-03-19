@@ -81,8 +81,8 @@ class SecretsChecker(object):
         return stdout.decode('utf-8')
 
     def get_stage_env(self, env_file):
-        dump = '/usr/bin/python -c "import os, json; print(json.dumps(dict(os.environ)))"'
-        cmd = ['/bin/bash', '-c', f'source {env_file} && {dump}']
+        dump = 'python -c "import os, json; print(json.dumps(dict(os.environ)))"'
+        cmd = ['bash', '-c', f'source {env_file} && {dump}']
         return json.loads(self.run_cmd(cmd, shell=False))
 
     def fetch_secret(self, secret_name):
