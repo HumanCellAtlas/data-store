@@ -3,7 +3,7 @@
 Script to ensure that the secrets in an HCA stage deployment are not accidentally
 changed to personal user credentials (or otherwise).  Requires Terraform.
 
-Will only check the canoncial HCA stages ('dev', 'integration', 'staging', 'prod').
+Will only check the canoncial HCA stages ('dev', 'integration', 'staging').
 
 Run to check current deployment:
     `scripts/check_deployment_secrets.py`
