@@ -61,7 +61,7 @@ scaletest:
 	./tests/scalability/scale_test_runner.py -r 10 -d 30
 
 check-env:
-    scripts/verify_env.py
+	scripts/verify_env.py
 
 deploy: deploy-chalice deploy-daemons
 
