@@ -1,4 +1,7 @@
 # HCA DSS: The Human Cell Atlas Data Storage System
+
+--- 
+
 [![](https://img.shields.io/badge/slack-%23data--store-557EBF.svg)](https://humancellatlas.slack.com/messages/data-store/)
 [![Build Status](https://travis-ci.com/HumanCellAtlas/data-store.svg?branch=master)](https://travis-ci.com/HumanCellAtlas/data-store)
 [![codecov](https://codecov.io/gh/HumanCellAtlas/data-store/branch/master/graph/badge.svg)](https://codecov.io/gh/HumanCellAtlas/data-store)
@@ -9,6 +12,8 @@ This repository maintains a prototype for the data storage system of the
 meeting notes, and [this Zenhub board](https://app.zenhub.com/workspace/o/humancellatlas/data-store) to track our GitHub work.
 
 ## Overview
+
+---
 
 The DSS is a replicated data storage system designed for hosting large sets of scientific experimental data on
 [Amazon S3](https://aws.amazon.com/s3/) and [Google Storage](https://cloud.google.com/storage/). The DSS exposes an API
@@ -31,7 +36,39 @@ to review and edit the API specification. When the API is live, the spec is also
 
 ## Table of Contents
 
-
+   * [HCA DSS: The Human Cell Atlas Data Storage System](#hca-dss-the-human-cell-atlas-data-storage-system)
+      * [Overview](#overview)
+        * [DSS API](#dss-api)
+      * [Table of Contents](#table-of-contents)
+      * [Getting Started](#getting-started)
+        * [Install Dependencies](#install-dependencies)
+        * [Configuration](#configuration)
+          * [Configure Terraform](#configure-terraform)
+          * [Configure AWS](#configure-aws)
+          * [Configure GCP](#configure-gcp)
+          * [Configure User Authentication/Authorization](#configure-user-authenticationauthorization)
+          * [Configure email notifications](#configure-email-notifications)
+      * [Deployment](#deployment)
+        * [Running the DSS API locally](#running-the-dss-api-locally)
+        * [Acquiring GCP credentials](#acquiring-gcp-credentials)
+        * [Setting admin emails](#setting-admin-emails)
+        * [Deploying the DSS](#deploying-the-dss)
+          * [Resources](#resources)
+          * [Buckets](#buckets)
+          * [ElasticSearch](#elasticsearch)
+          * [Certificates](#certificates)
+          * [Deploying](#deploying)
+        * [CI/CD with Travis CI and GitLab](#cicd-with-travis-ci-and-gitlab)
+        * [Authorizing Travis CI to deploy](#authorizing-travis-ci-to-deploy)
+        * [Authorizing the event relay](#authorizing-the-event-relay)
+      * [Using the HCA Data Store CLI Client](#using-the-hca-data-store-cli-client)
+      * [Checking Indexing](#checking-indexing)
+      * [Running Tests](#running-tests)
+      * [Development](#development)
+         * [Managing dependencies](#managing-dependencies)
+         * [Logging conventions](#logging-conventions)
+         * [Enabling Profiling](#enabling-profiling)
+      * [Contributing](#contributing)
 
 ## Getting Started
 In this section, you'll configure and deploy a local API server and your own suite of cloud services to run a
@@ -53,6 +90,7 @@ pip install -r requirements-dev.txt
 Also install [terraform from Hashicorp](https://www.terraform.io/) from your favourite package manager.
 
 ### Configuration
+
 
 The DSS is configured via environment variables. The required environment variables and their default values
 are defined in the file [`environment`](environment). To customize the values of these environment variables:
@@ -131,7 +169,7 @@ The DSS uses the [Amazon S3 backend](https://www.terraform.io/docs/backends/type
     and verify that `GCP_DEFAULT_REGION` points to your prefered region.
     These buckets will be created with Terraform, and should not exist before deploying for the first time.
 
-### Configure User Authentication/Authorization
+#### Configure User Authentication/Authorization
 The following environment variables must be set to enable user authentication and authorization.
 
 * `OIDC_AUDIENCE` must be populated with the expected JWT (JSON web token) audience.
@@ -155,7 +193,16 @@ Note: Removing auth from endpoints will currently break tests, however adding au
 
 Note: The auth config file for deployment can also be set in `environment.local` with AUTH_CONFIG_FILE.
 
+#### Configure email notifications
+
+Some daemons (dss-checkout-sfn for example) use Amazon SES to send emails. You must set `DSS_NOTIFICATION_SENDER` to
+your email address and then verify that address using the SES Console enabling SES to send notification emails from it.
+
+
+
 ## Deployment
+
+---
 
 ### Running the DSS API locally
 
@@ -268,49 +315,7 @@ And you should be able to list bundles like this:
 
     curl -X GET "https://<domain_name>/v1/bundles" -H  "accept: application/json"
 
-### Configure email notifications
 
-Some daemons (dss-checkout-sfn for example) use Amazon SES to send emails. You must set `DSS_NOTIFICATION_SENDER` to
-your email address and then verify that address using the SES Console enabling SES to send notification emails from it.
-
-### Using the HCA Data Store CLI Client
-
-Now that you have deployed the data store, the next step is to use the HCA Data Store CLI to upload and download data to
-the system. See [data-store-cli](https://github.com/HumanCellAtlas/data-store-cli) for installation instructions. The
-client requires you change `hca/api_spec.json` to point to the correct host, schemes, and, possibly, basePath. Examples
-of CLI use:
-
-    # list bundles
-    hca dss post-search --es-query "{}" --replica=aws | less
-    # upload full bundle
-    hca dss upload --replica aws --staging-bucket staging_bucket_name --src-dir ${DSS_HOME}/tests/fixtures/datafiles/example_bundle
-
-### Checking Indexing
-
-Now that you've uploaded data, the next step is to confirm the indexing is working properly and you can query the
-indexed metadata.
-
-    hca dss post-search --replica aws --es-query '
-    {
-        "query": {
-            "bool": {
-                "must": [{
-                    "match": {
-                        "files.donor_organism_json.medical_history.smoking_history": "yes"
-                    }
-                }, {
-                    "match": {
-                        "files.specimen_from_organism_json.genus_species.text": "Homo sapiens"
-                    }
-                }, {
-                    "match": {
-                        "files.specimen_from_organism_json.organ.text": "brain"
-                    }
-                }]
-            }
-        }
-    }
-    '
 
 ### CI/CD with Travis CI and GitLab
 
@@ -339,6 +344,45 @@ Environment variables provide the AWS credentials needed to relay events origina
 outside of AWS. Run `scripts/create_config_aws_event_relay_user.py` to create an AWS IAM user with the appropriate
 restricted access policy. This script also creates the user access key and stores it in an AWS Secrets Manager
 store.
+
+## Using the HCA Data Store CLI Client
+
+Now that you have deployed the data store, the next step is to use the HCA Data Store CLI to upload and download data to
+the system. See [data-store-cli](https://github.com/HumanCellAtlas/data-store-cli) for installation instructions. The
+client requires you change `hca/api_spec.json` to point to the correct host, schemes, and, possibly, basePath. Examples
+of CLI use:
+
+    # list bundles
+    hca dss post-search --es-query "{}" --replica=aws | less
+    # upload full bundle
+    hca dss upload --replica aws --staging-bucket staging_bucket_name --src-dir ${DSS_HOME}/tests/fixtures/datafiles/example_bundle
+
+## Checking Indexing
+
+Now that you've uploaded data, the next step is to confirm the indexing is working properly and you can query the
+indexed metadata.
+
+    hca dss post-search --replica aws --es-query '
+    {
+        "query": {
+            "bool": {
+                "must": [{
+                    "match": {
+                        "files.donor_organism_json.medical_history.smoking_history": "yes"
+                    }
+                }, {
+                    "match": {
+                        "files.specimen_from_organism_json.genus_species.text": "Homo sapiens"
+                    }
+                }, {
+                    "match": {
+                        "files.specimen_from_organism_json.organ.text": "brain"
+                    }
+                }]
+            }
+        }
+    }
+    '
 
 ## Running Tests
 1. Check that software packages required to test and deploy are available, and install them if necessary:
