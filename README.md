@@ -268,12 +268,7 @@ Cloud resources have the potential for naming collision in both [AWS](https://do
 
 Buckets within AWS and GCP need to be available for use by the DSS. Use Terraform to setup these resources:
 ```
-cd infra
-./build_deploy_config.py buckets/
-cd buckets/
-terraform init
-terraform apply
-
+make -C infra COMPONENT=buckets apply
 ```
 
 #### ElasticSearch
@@ -287,11 +282,7 @@ echo ' ' | ./scripts/set_secret.py --secret-name $ES_ALLOWED_SOURCE_IP_SECRETS_N
 ```
 Use Terraform to deploy ES resource:
 ```
-cd infra
-./build_deploy_config.py elasticsearch/
-cd elasticsearch/
-terraform init
-terraform apply
+make -C infra COMPONENT=elasticsearch apply
 ```
 
 #### Certificates
