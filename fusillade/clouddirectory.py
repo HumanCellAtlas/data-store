@@ -15,8 +15,33 @@ from enum import Enum, auto
 from urllib.parse import quote, unquote
 import os
 
-ad = boto3.client("clouddirectory")  # TODO move to config.py
 project_arn = "arn:aws:clouddirectory:us-east-1:861229788715:"  # TODO move to config.py
+ad = boto3.client("clouddirectory")
+
+
+def get_directory_schema():
+    with open('./fusillade/directory_schema.json') as fp:
+        return json.dumps(json.load(fp))
+
+
+def get_default_user_policy():
+    with open("./policies/default_user_policy.json", 'r') as fp:
+        return json.dumps(json.load(fp))
+
+
+def get_default_group_policy():
+    with open("./policies/default_group_policy.json", 'r') as fp:
+        return json.dumps(json.load(fp))
+
+
+def get_default_admin_role():
+    with open("./policies/default_admin_role.json", 'r') as fp:
+        return json.dumps(json.load(fp))
+
+
+def get_default_user_role():
+    with open("./policies/default_user_role.json", 'r') as fp:
+        return json.dumps(json.load(fp))
 
 
 def get_published_schema_from_directory(dir_arn: str) -> str:
@@ -47,8 +72,7 @@ def publish_schema(name: str, version: str) -> str:
         dev_schema_arn = f"{project_arn}schema/development/{name}"
 
     # update the schema
-    with open('./fusillade/directory_schema.json') as schema_json:  # TODO move to  config
-        schema = json.dumps(json.load(schema_json))
+    schema = get_directory_schema()
     ad.put_schema_from_json(SchemaArn=dev_schema_arn, Document=schema)
     try:
         pub_schema_arn = ad.publish_schema(DevelopmentSchemaArn=dev_schema_arn,
@@ -80,10 +104,8 @@ def create_directory(name: str, schema: str) -> 'CloudDirectory':
             directory.create_folder('/', folder_name)
 
         # create roles
-        with open("./policies/default_user_role.json", 'r') as fp:
-            Role.create(directory, "default_user", statement=fp.read())
-        with open("./policies/default_admin_role.json", 'r') as fp:
-            Role.create(directory, "admin", statement=fp.read())
+        Role.create(directory, "default_user", statement=get_default_user_role())
+        Role.create(directory, "admin", statement=get_default_admin_role())
 
         # create admins
         for admin in os.environ['FUS_ADMIN_EMAILS'].split(','):
@@ -709,10 +731,9 @@ class User(CloudNode):
 
     def provision_user(self, statement: str = None) -> None:
         if not statement:
-            with open("./policies/default_user_policy.json", 'r') as fp:  # TODO move to config
-                statement = json.load(fp)
+            statement = get_default_user_policy()
         self.cd.create_object(self._path_name,
-                              json.dumps(statement),
+                              statement,
                               'User',
                               name=self.name,
                               status='Enabled')

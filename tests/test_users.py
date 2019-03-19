@@ -5,7 +5,8 @@ import os, sys
 pkg_root = os.path.abspath(os.path.join(os.path.dirname(__file__), '..'))  # noqa
 sys.path.insert(0, pkg_root)  # noqa
 
-from fusillade.clouddirectory import User, Group, Role, ad, cleanup_directory, cleanup_schema
+from fusillade.clouddirectory import User, Group, Role, ad, cleanup_directory, cleanup_schema, \
+    get_default_user_policy
 from tests.common import new_test_directory
 
 
@@ -13,9 +14,7 @@ class TestUser(unittest.TestCase):
     @classmethod
     def setUpClass(cls):
         cls.directory, cls.schema_arn = new_test_directory()
-        with open(f"{pkg_root}/policies/default_user_policy.json", 'r') as fp:  # TODO move to config
-            policy_json = json.load(fp)
-        cls.default_policy = json.dumps(policy_json)
+        cls.default_policy = get_default_user_policy()
 
     @classmethod
     def tearDownClass(cls):
