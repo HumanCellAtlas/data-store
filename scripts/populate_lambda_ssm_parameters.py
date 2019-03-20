@@ -92,7 +92,7 @@ if __name__ == "__main__":
     parser.add_argument("-p", "--print",
         default=False,
         action="store_true",
-        help="Display the current environemnt stored in SSM"
+        help="Display the current environment stored in SSM"
     )
     parser.add_argument("--set",
         default=None,
