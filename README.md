@@ -341,7 +341,7 @@ outside of AWS. Run `scripts/create_config_aws_event_relay_user.py` to create an
 restricted access policy. This script also creates the user access key and stores it in an AWS Secrets Manager
 store.
 
-Note when executing the script above, ensure that the role/user used within AWS has IAM permissions to CreateUser
+**Note** when executing the script above, ensure that the role/user used within AWS is  authorized to perform: iam:CreateUser
 
 ## Using the HCA Data Store CLI Client
 
