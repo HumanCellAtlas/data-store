@@ -1594,10 +1594,10 @@ paths:
             properties:
               uuid:
                 type: string
-                description: A RFC4122-compliant ID of this collection.
+                description: A RFC4122-compliant ID of this bundle.
               version:
                 type: string
-                description: New version of the updated collection.
+                description: New version of the updated bundle.
                 format: DSS_VERSION
             required:
               - uuid
@@ -1621,7 +1621,7 @@ paths:
                   - code
         403:
           description: >
-            Returned when credentials presented do not grant access to this collection.
+            Returned when credentials presented do not grant access to this bundle.
           schema:
             allOf:
               - $ref: '#/definitions/Error'
@@ -1632,7 +1632,7 @@ paths:
                     description: >
                       Machine-readable error code.  The types of return values should not be changed lightly.
 
-                      The code `Forbidden` indicates that the user does not have access to this collection.
+                      The code `Forbidden` indicates that the user does not have access to this bundle.
 
                       The code `OAuthResponseProblem` indicates that the OAuth credentials presented were not
                       understood.
@@ -1641,7 +1641,7 @@ paths:
                   - code
         404:
           description: >
-            Returned when the server could not find the collection to patch.
+            Returned when the server could not find the bundle to patch.
           schema:
             allOf:
               - $ref: '#/definitions/Error'

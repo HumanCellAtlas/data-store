@@ -905,10 +905,12 @@ class TestBundleApi(unittest.TestCase, TestAuthMixin, DSSAssertMixin, DSSUploadM
         bundle_uuid, bundle_version = self._put_bundle()
         files = self._patch_files()
         tests = [
-            (dict(add_files=files), files, requests.codes.ok),
-            (dict(remove_files=files), [], requests.codes.ok)
+            (dict(add_files=files[2:]), files[2:]),
+            (dict(add_files=files[:2], remove_files=files[-2:]), files[:-2]),
+            (dict(), files[:-2]),
+            (dict(remove_files=files), []),
         ]
-        for patch_payload, expected_files, expected_code in tests:
+        for patch_payload, expected_files in tests:
             with self.subTest(patch_payload):
                 res = self.app.patch(
                     f"/v1/bundles/{bundle_uuid}",
@@ -916,9 +918,7 @@ class TestBundleApi(unittest.TestCase, TestAuthMixin, DSSAssertMixin, DSSUploadM
                     params=dict(version=bundle_version, replica="aws"),
                     json=patch_payload
                 )
-                self.assertEqual(res.status_code, expected_code)
-                if requests.codes.ok != expected_code:
-                    continue
+                self.assertEqual(res.status_code, requests.codes.ok)
                 bundle_version = res.json()['version']
                 self.assertEqual(res.json()['uuid'], bundle_uuid)
                 res = self.app.get(
@@ -934,13 +934,22 @@ class TestBundleApi(unittest.TestCase, TestAuthMixin, DSSAssertMixin, DSSUploadM
     def test_patch_excessive(self):
         bundle_uuid, bundle_version = self._put_bundle()
         files = self._patch_files(number_of_files=2000)
-        res = self.app.patch(
-            f"/v1/bundles/{bundle_uuid}",
-            headers=get_auth_header(authorized=True),
-            params=dict(version=bundle_version, replica="aws"),
-            json=dict(add_files=files),
-        )
-        self.assertEqual(res.status_code, requests.codes.bad_request)
+        with self.subTest("Bad request is returned when adding > 1000 files in a single request."):
+            res = self.app.patch(
+                f"/v1/bundles/{bundle_uuid}",
+                headers=get_auth_header(authorized=True),
+                params=dict(version=bundle_version, replica="aws"),
+                json=dict(add_files=files),
+            )
+            self.assertEqual(res.status_code, requests.codes.bad_request)
+        with self.subTest("BAD REQUEST is returned when removing > 1000 files in a single request."):
+            res = self.app.patch(
+                f"/v1/bundles/{bundle_uuid}",
+                headers=get_auth_header(authorized=True),
+                params=dict(version=bundle_version, replica="aws"),
+                json=dict(remove_files=files),
+            )
+            self.assertEqual(res.status_code, requests.codes.bad_request)
 
     def test_patch_name_collision(self):
         "BAD REQUEST is returned for file name collisions."

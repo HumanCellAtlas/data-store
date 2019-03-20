@@ -192,7 +192,6 @@ def _save_bundle(handle, bucket, uuid, version, bundle_metadata):
 
 def bundle_file_id_metadata(bundle_file_metadata):
     return hashabledict({
-        # 'indexed': bundle_file_metadata['indexed'],
         'name': bundle_file_metadata['name'],
         'uuid': bundle_file_metadata['uuid'],
         'version': bundle_file_metadata['version'],
