@@ -262,17 +262,20 @@ added to `$DSS_HOME/infra` instead.
 
 ##### Resources
 Cloud resources have the potential for naming collision in both [AWS](https://docs.aws.amazon.com/general/latest/gr/aws-arns-and-namespaces.html)
- and [GCP](https://cloud.google.com/storage/docs/naming), ensure to rename resources as needed.
+ and [GCP](https://cloud.google.com/storage/docs/naming), ensure that you rename resources as needed.
 
 #### Buckets
 
 Buckets within AWS and GCP need to be available for use by the DSS. Use Terraform to setup these resources:
+
+
 ```
+make -C infra COMPONENT=buckets plan
 make -C infra COMPONENT=buckets apply
 ```
 
 #### ElasticSearch
-The AWS Elasticsearch Service is used for metadata indexing. For typical development deployments the
+The AWS Elasticsearch Service is used for metadata indexing. Currently the DSS uses version 5.5 of ElasticSearch. For typical development deployments the
 t2.small.elasticsearch instance type is sufficient. Use the [`DSS_ES_`](./docs/environment/README.md) variables to adjust the cluster as needed. 
 
 Add allowed IPs for ElasticSearch to the secret manager, use comma separated IPs:
@@ -282,6 +285,7 @@ echo ' ' | ./scripts/set_secret.py --secret-name $ES_ALLOWED_SOURCE_IP_SECRETS_N
 ```
 Use Terraform to deploy ES resource:
 ```
+make -C infra COMPONENT=elasticsearch plan
 make -C infra COMPONENT=elasticsearch apply
 ```
 
@@ -295,6 +299,7 @@ An AWS route53 zone must be available for your domain name and configured in `en
 #### Deploying
 Now deploy using make:
 
+    make plan-infra
     make deploy-infra
     make deploy
 
@@ -335,6 +340,8 @@ Environment variables provide the AWS credentials needed to relay events origina
 outside of AWS. Run `scripts/create_config_aws_event_relay_user.py` to create an AWS IAM user with the appropriate
 restricted access policy. This script also creates the user access key and stores it in an AWS Secrets Manager
 store.
+
+Note when executing the script above, ensure that the role/user used within AWS has IAM permissions to CreateUser
 
 ## Using the HCA Data Store CLI Client
 
