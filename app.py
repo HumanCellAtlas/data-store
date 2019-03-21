@@ -8,15 +8,16 @@ import jwt, yaml
 from cryptography.hazmat.primitives.asymmetric import rsa
 from cryptography.hazmat.backends import default_backend
 
-from fusillade.clouddirectory import CloudDirectory, User, Role
-from fusillade.errors import FusilladeException
-
 iam = boto3.client("iam")
 secretsmanager = boto3.client("secretsmanager")
 app = Chalice(app_name='fusillade')
 app.debug = True
 
 pkg_root = os.path.abspath(os.path.join(os.path.dirname(__file__), 'chalicelib'))
+sys.path.insert(0, pkg_root)  # noqa
+
+from fusillade.clouddirectory import CloudDirectory, User, Role
+from fusillade.errors import FusilladeException
 
 with open(os.path.join(pkg_root, "index.html")) as fh:
     swagger_ui_html = fh.read()
