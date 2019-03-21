@@ -23,6 +23,9 @@ before_script:
   - virtualenv ~/venv
   - source ~/venv/bin/activate
   - pip install -r requirements-dev.txt
+  - wget -O regex.json https://raw.githubusercontent.com/HumanCellAtlas/dcplib/master/components/trufflehog_regex_patterns.json
+  - trufflehog --regex --rules regex.json --entropy=False https://github.com/HumanCellAtlas/data-store.git
+  - rm regex.json
   - source environment
   - if [[ -f "environment.$CI_COMMIT_REF_NAME" ]]; then
   -   source environment.$CI_COMMIT_REF_NAME
