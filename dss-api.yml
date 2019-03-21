@@ -1558,35 +1558,7 @@ paths:
                     'indexed': False}]
                 type: array
                 items:
-                  type: object
-                  properties:
-                    uuid:
-                      description: A RFC4122-compliant ID for the file.
-                      type: string
-                      pattern: "[A-Za-z0-9]{8}-[A-Za-z0-9]{4}-[A-Za-z0-9]{4}-[A-Za-z0-9]{4}-[A-Za-z0-9]{12}"
-                    version:
-                      description: Timestamp of file creation in DSS_VERSION format.
-                      type: string
-                      format: DSS_VERSION
-                    name:
-                      description: >
-                        Name of the file.
-
-                        - Absolute paths (beginning with a slash) are not allowed.
-                        - Relative paths must not have unix shortcuts (i.e. ".", "..", "~/")
-                        - No "\" (back)slashes allowed.  e.g. "C:\\path" or "path\file.json"
-                        - Only relative paths with "/" (forward)slashes allowed.  e.g. "path/file.json" or "file.json"
-                        - Please upload using "/" (forward)slashes, even if on Windows.
-                      type: string
-                      pattern: "(?=^((?!\\.\\/).)*$)(?=^((?!\\\\).)*$)(?=^((?!\\/\\.).)*$)(?=^(?!\\/).*$)(?=^(?!~\\/).*$)(?=^(?!\\.\\.$).*)(?=^(?!\\.$).*)"
-                    indexed:
-                      description: True iff this file should be indexed.
-                      type: boolean
-                  required:
-                    - uuid
-                    - version
-                    - name
-                    - indexed
+                  $ref: '#/definitions/BundleFile'
               creator_uid:
                 description: User ID who is creating this bundle.
                 type: integer
@@ -1678,6 +1650,152 @@ paths:
                     type: string
                     description: Machine-readable error code.  The types of return values should not be changed lightly.
                     enum: [unhandled_exception, Forbidden, Unauthorized, illegal_arguments, read_only]
+                required:
+                  - code
+    patch:
+      security:
+        - dcpAuth: []
+      summary: Update a bundle.
+      description: >
+        Add or remove files from a bundle. A specific version of the bundle to update must be provided, and a
+        new version will be written.
+      parameters:
+        - name: uuid
+          in: path
+          description: A RFC4122-compliant ID of the bundle to update.
+          required: true
+          type: string
+          pattern: "[A-Za-z0-9]{8}-[A-Za-z0-9]{4}-[A-Za-z0-9]{4}-[A-Za-z0-9]{4}-[A-Za-z0-9]{12}"
+        - name: replica
+          in: query
+          description: Replica to update the bundle on. Updates are propagated to other replicas.
+          required: true
+          type: string
+          enum: [aws, gcp]
+        - name: version
+          in: query
+          description: >
+            Timestamp of the bundle to update in DSS_VERSION format format (required).
+          required: true
+          type: string
+          format: DSS_VERSION
+        - name: json_request_body
+          in: body
+          required: true
+          schema:
+            type: object
+            properties:
+              add_files:
+                type: array
+                description: >
+                  List of new files to add to the bundle. File names must be unique.
+                items:
+                  $ref: '#/definitions/BundleFile'
+                maxItems: 1000
+              remove_files:
+                type: array
+                description: >
+                  List of files to remove from the bundle. Files must match exactly to be removed. Files not found
+                  in the bundle are ignored.
+                items:
+                  $ref: '#/definitions/BundleFile'
+                maxItems: 1000
+      responses:
+        200:
+          description: OK
+          schema:
+            type: object
+            properties:
+              uuid:
+                type: string
+                description: A RFC4122-compliant ID of this bundle.
+              version:
+                type: string
+                description: New version of the updated bundle.
+                format: DSS_VERSION
+            required:
+              - uuid
+              - version
+        400:
+          description: >
+            Returned when the server could not process the request due to incorrect inputs.  Examine the code for more
+            details.
+          schema:
+            allOf:
+              - $ref: '#/definitions/Error'
+              - type: object
+                properties:
+                  code:
+                    type: string
+                    description: >
+                      The code `illegal_version` is returned when version is not a DSS_VERSION format-compliant timestamp.
+                      The code `duplicate_filename` is returned when the bundle contains two files of the same name.
+                    enum: [duplicate_filename, illegal_version]
+                required:
+                  - code
+        403:
+          description: >
+            Returned when credentials presented do not grant access to this bundle.
+          schema:
+            allOf:
+              - $ref: '#/definitions/Error'
+              - type: object
+                properties:
+                  code:
+                    type: string
+                    description: >
+                      Machine-readable error code.  The types of return values should not be changed lightly.
+
+                      The code `Forbidden` indicates that the user does not have access to this bundle.
+
+                      The code `OAuthResponseProblem` indicates that the OAuth credentials presented were not
+                      understood.
+                    enum: [Forbidden, OAuthResponseProblem]
+                required:
+                  - code
+        404:
+          description: >
+            Returned when the server could not find the bundle to patch.
+          schema:
+            allOf:
+              - $ref: '#/definitions/Error'
+              - type: object
+                properties:
+                  code:
+                    type: string
+                    description: >
+                      Machine-readable error code.  The types of return values should not be changed lightly.
+                    enum: [not_found]
+                required:
+                  - code
+        422:
+          description: >
+            Returned when the server could not find some of the files necessary to complete the operation or if the JSON
+            Pointer reference could not be resolved within the specified file.
+          schema:
+            allOf:
+              - $ref: '#/definitions/Error'
+              - type: object
+                properties:
+                  code:
+                    type: string
+                    description: >
+                      Machine-readable error code.  The types of return values should not be changed lightly.
+                    enum: [invalid_link]
+                required:
+                  - code
+        default:
+          description: Unexpected error
+          schema:
+            allOf:
+              - $ref: '#/definitions/Error'
+              - type: object
+                properties:
+                  code:
+                    type: string
+                    description: >
+                      Machine-readable error code.  The types of return values should not be changed lightly.
+                    enum: [unhandled_exception, illegal_arguments]
                 required:
                   - code
     delete:
@@ -2017,6 +2135,36 @@ definitions:
     required:
       - uuid
       - versions
+  BundleFile:
+    type: object
+    properties:
+      uuid:
+        description: A RFC4122-compliant ID for the file.
+        type: string
+        pattern: "[A-Za-z0-9]{8}-[A-Za-z0-9]{4}-[A-Za-z0-9]{4}-[A-Za-z0-9]{4}-[A-Za-z0-9]{12}"
+      version:
+        description: Timestamp of file creation in DSS_VERSION format.
+        type: string
+        format: DSS_VERSION
+      name:
+        description: >
+          Name of the file.
+
+          - Absolute paths (beginning with a slash) are not allowed.
+          - Relative paths must not have unix shortcuts (i.e. ".", "..", "~/")
+          - No "\" (back)slashes allowed.  e.g. "C:\\path" or "path\file.json"
+          - Only relative paths with "/" (forward)slashes allowed.  e.g. "path/file.json" or "file.json"
+          - Please upload using "/" (forward)slashes, even if on Windows.
+        type: string
+        pattern: "(?=^((?!\\.\\/).)*$)(?=^((?!\\\\).)*$)(?=^((?!\\/\\.).)*$)(?=^(?!\\/).*$)(?=^(?!~\\/).*$)(?=^(?!\\.\\.$).*)(?=^(?!\\.$).*)"
+      indexed:
+        description: True iff this file should be indexed.
+        type: boolean
+    required:
+      - uuid
+      - version
+      - name
+      - indexed
   Subscription:
     type: object
     properties:

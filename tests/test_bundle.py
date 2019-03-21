@@ -18,13 +18,14 @@ import uuid
 import json
 from requests.utils import parse_header_links
 from urllib.parse import parse_qsl, urlparse, urlsplit
+from functools import lru_cache
 
 pkg_root = os.path.abspath(os.path.join(os.path.dirname(__file__), '..'))  # noqa
 sys.path.insert(0, pkg_root)  # noqa
 
 from cloud_blobstore import BlobMetadataField
 import dss
-from dss.api.bundles import RETRY_AFTER_INTERVAL
+from dss.api.bundles import RETRY_AFTER_INTERVAL, bundle_file_id_metadata
 from dss.config import BucketConfig, Config, override_bucket_config, Replica
 from dss.util import UrlBuilder
 from dss.storage.blobstore import test_object_exists
@@ -286,20 +287,20 @@ class TestBundleApi(unittest.TestCase, TestAuthMixin, DSSAssertMixin, DSSUploadM
 
     @testmode.standalone
     def test_bundle_get_deleted(self):
-        uuid = "deadbeef-0000-4a6b-8f0d-a7d2105c23be"
+        bundle_uuid = "deadbeef-0000-4a6b-8f0d-a7d2105c23be"
         version = "2017-12-05T235850.950361Z"
         # whole bundle delete
-        self._test_bundle_get_deleted(Replica.aws, uuid, version, None)
-        self._test_bundle_get_deleted(Replica.gcp, uuid, version, None)
+        self._test_bundle_get_deleted(Replica.aws, bundle_uuid, version, None)
+        self._test_bundle_get_deleted(Replica.gcp, bundle_uuid, version, None)
         # get latest undeleted version
-        uuid = "deadbeef-0001-4a6b-8f0d-a7d2105c23be"
+        bundle_uuid = "deadbeef-0001-4a6b-8f0d-a7d2105c23be"
         expected_version = "2017-12-05T235728.441373Z"
-        self._test_bundle_get_deleted(Replica.aws, uuid, None, expected_version)
-        self._test_bundle_get_deleted(Replica.gcp, uuid, None, expected_version)
+        self._test_bundle_get_deleted(Replica.aws, bundle_uuid, None, expected_version)
+        self._test_bundle_get_deleted(Replica.gcp, bundle_uuid, None, expected_version)
         # specific version delete
         version = "2017-12-05T235850.950361Z"
-        self._test_bundle_get_deleted(Replica.aws, uuid, version, None)
-        self._test_bundle_get_deleted(Replica.gcp, uuid, version, None)
+        self._test_bundle_get_deleted(Replica.aws, bundle_uuid, version, None)
+        self._test_bundle_get_deleted(Replica.gcp, bundle_uuid, version, None)
 
     def _test_bundle_get_deleted(self,
                                  replica: Replica,
@@ -576,6 +577,18 @@ class TestBundleApi(unittest.TestCase, TestAuthMixin, DSSAssertMixin, DSSUploadM
                     expected_code=requests.codes.bad_request
                 )
                 self.assertEqual(json.loads(resp.body)['code'], 'duplicate_filename')
+
+        with self.subTest(f'{replica}: put succeeds when bundle contains multiple files with different names.'):
+            with nestedcontext.bind(time_left=lambda: 0):
+                bundle_version = datetime_to_version_format(datetime.datetime.utcnow())
+                bundle_uuid3 = str(uuid.uuid4())
+                resp = self.put_bundle(
+                    replica,
+                    bundle_uuid3,
+                    [(file_uuid, file_version, "LICENSE"), (file_uuid, file_version, "LIasdfCENSE")],
+                    bundle_version,
+                    expected_code=requests.codes.created
+                )
 
         with self.subTest(f'{replica}: put fails when an invalid bundle_uuid is supplied.'):
             bundle_version = datetime_to_version_format(datetime.datetime.utcnow())
@@ -865,6 +878,113 @@ class TestBundleApi(unittest.TestCase, TestAuthMixin, DSSAssertMixin, DSSUploadM
             json_request_body=json_request_body,
             headers=get_auth_header(authorized=authorized),
         )
+
+    @lru_cache()
+    def _put_bundle(self, replica=Replica.aws):
+        bundle_uuid = str(uuid.uuid4())
+        bundle_version = datetime_to_version_format(datetime.datetime.utcnow())
+        self.put_bundle(replica, bundle_uuid, files=[], bundle_version=bundle_version)
+        return bundle_uuid, bundle_version
+
+    @lru_cache()
+    def _put_file(self, replica=Replica.aws):
+        file_uuid = str(uuid.uuid4())
+        resp_obj = self.upload_file_wait(
+            f"s3://{get_env('DSS_S3_BUCKET_TEST_FIXTURES')}/test_good_source_data/0",
+            Replica.aws,
+            file_uuid,
+        )
+        file_version = resp_obj.json['version']
+        return file_uuid, file_version
+
+    def _patch_files(self, number_of_files=10, replica=Replica.aws):
+        file_uuid, file_version = self._put_file(replica)
+        return [{'indexed': False,
+                 'name': str(uuid.uuid4()),
+                 'uuid': file_uuid,
+                 'version': file_version} for _ in range(number_of_files)]
+
+    def test_patch_no_version(self):
+        "BAD REQUEST is returned when patching without the version."
+        bundle_uuid, _ = self._put_bundle()
+        res = self.app.patch("/v1/bundles/{}".format(bundle_uuid),
+                             headers=get_auth_header(authorized=True),
+                             params=dict(replica="aws"),
+                             json=dict())
+        self.assertEqual(res.status_code, requests.codes.bad_request)
+
+    def test_patch(self):
+        bundle_uuid, bundle_version = self._put_bundle()
+        files = self._patch_files()
+        tests = [
+            (dict(add_files=files[2:]), files[2:]),
+            (dict(add_files=files[:2], remove_files=files[-2:]), files[:-2]),
+            (dict(), files[:-2]),
+            (dict(remove_files=files), []),
+            (dict(remove_files=files), []),
+        ]
+        for patch_payload, expected_files in tests:
+            with self.subTest(patch_payload):
+                res = self.app.patch(
+                    f"/v1/bundles/{bundle_uuid}",
+                    headers=get_auth_header(authorized=True),
+                    params=dict(version=bundle_version, replica="aws"),
+                    json=patch_payload
+                )
+                self.assertEqual(res.status_code, requests.codes.ok)
+                bundle_version = res.json()['version']
+                self.assertEqual(res.json()['uuid'], bundle_uuid)
+                res = self.app.get(
+                    f"/v1/bundles/{bundle_uuid}",
+                    headers=get_auth_header(authorized=True),
+                    params=dict(version=res.json()['version'], replica="aws"),
+                )
+                self.assertEqual(
+                    set([bundle_file_id_metadata(f) for f in expected_files]),
+                    set([bundle_file_id_metadata(f) for f in res.json()['bundle']['files']])
+                )
+
+    def test_patch_excessive(self):
+        bundle_uuid, bundle_version = self._put_bundle()
+        files = self._patch_files(number_of_files=1001)
+        with self.subTest("Bad request is returned when adding > 1000 files in a single request."):
+            res = self.app.patch(
+                f"/v1/bundles/{bundle_uuid}",
+                headers=get_auth_header(authorized=True),
+                params=dict(version=bundle_version, replica="aws"),
+                json=dict(add_files=files),
+            )
+            self.assertEqual(res.status_code, requests.codes.bad_request)
+        with self.subTest("BAD REQUEST is returned when removing > 1000 files in a single request."):
+            res = self.app.patch(
+                f"/v1/bundles/{bundle_uuid}",
+                headers=get_auth_header(authorized=True),
+                params=dict(version=bundle_version, replica="aws"),
+                json=dict(remove_files=files),
+            )
+            self.assertEqual(res.status_code, requests.codes.bad_request)
+
+    def test_patch_name_collision(self):
+        "BAD REQUEST is returned for file name collisions."
+        bundle_uuid, bundle_version = self._put_bundle()
+        files = self._patch_files(1)
+        # First patch should work
+        res = self.app.patch(
+            f"/v1/bundles/{bundle_uuid}",
+            headers=get_auth_header(authorized=True),
+            params=dict(version=bundle_version, replica="aws"),
+            json=dict(add_files=files),
+        )
+        self.assertEqual(res.status_code, requests.codes.ok)
+        bundle_version = res.json()['version']
+        # should NOT be able to patch again with the same name
+        res = self.app.patch(
+            f"/v1/bundles/{bundle_uuid}",
+            headers=get_auth_header(authorized=True),
+            params=dict(version=bundle_version, replica="aws"),
+            json=dict(add_files=files),
+        )
+        self.assertEqual(res.status_code, requests.codes.bad_request)
 
 
 if __name__ == '__main__':
