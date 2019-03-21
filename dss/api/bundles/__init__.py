@@ -82,18 +82,18 @@ def get(
     files = all_files[start_at:start_at + per_page]
 
     filesresponse = []  # type: typing.List[dict]
-    for file in files:
+    for _file in files:
         file_version = {
-            'name': file[BundleFileMetadata.NAME],
-            'content-type': file[BundleFileMetadata.CONTENT_TYPE],
-            'size': file[BundleFileMetadata.SIZE],
-            'uuid': file[BundleFileMetadata.UUID],
-            'version': file[BundleFileMetadata.VERSION],
-            'crc32c': file[BundleFileMetadata.CRC32C],
-            's3_etag': file[BundleFileMetadata.S3_ETAG],
-            'sha1': file[BundleFileMetadata.SHA1],
-            'sha256': file[BundleFileMetadata.SHA256],
-            'indexed': file[BundleFileMetadata.INDEXED],
+            'name': _file[BundleFileMetadata.NAME],
+            'content-type': _file[BundleFileMetadata.CONTENT_TYPE],
+            'size': _file[BundleFileMetadata.SIZE],
+            'uuid': _file[BundleFileMetadata.UUID],
+            'version': _file[BundleFileMetadata.VERSION],
+            'crc32c': _file[BundleFileMetadata.CRC32C],
+            's3_etag': _file[BundleFileMetadata.S3_ETAG],
+            'sha1': _file[BundleFileMetadata.SHA1],
+            'sha256': _file[BundleFileMetadata.SHA256],
+            'indexed': _file[BundleFileMetadata.INDEXED],
         }
         if directurls:
             file_version['url'] = str(UrlBuilder().set(
@@ -101,7 +101,7 @@ def get(
                 netloc=_replica.checkout_bucket,
                 path="{}/{}".format(
                     get_dst_bundle_prefix(uuid, bundle_metadata[BundleMetadata.VERSION]),
-                    file[BundleFileMetadata.NAME],
+                    _file[BundleFileMetadata.NAME],
                 ),
             ))
         elif presignedurls:
@@ -110,7 +110,7 @@ def get(
                 _replica.checkout_bucket,
                 "{}/{}".format(
                     get_dst_bundle_prefix(uuid, bundle_metadata[BundleMetadata.VERSION]),
-                    file[BundleFileMetadata.NAME],
+                    _file[BundleFileMetadata.NAME],
                 ),
             )
         filesresponse.append(file_version)
@@ -210,8 +210,8 @@ def patch(uuid: str, json_request_body: dict, replica: str, version: str):
 
     remove_files_set = {bundle_file_id_metadata(f) for f in json_request_body.get("remove_files", [])}
     bundle['files'] = [f for f in bundle['files'] if bundle_file_id_metadata(f) not in remove_files_set]
-    bundle['files'].extend(build_bundle_file_metadata(Replica[replica],
-                           json_request_body.get("add_files", [])))
+    add_files = json_request_body.get("add_files", [])
+    bundle['files'].extend(build_bundle_file_metadata(Replica[replica], add_files))
     detect_filename_collisions(bundle['files'])
 
     timestamp = datetime.datetime.utcnow()
@@ -267,26 +267,26 @@ def build_bundle_file_metadata(replica: Replica, user_supplied_files: dict):
     time_left = nestedcontext.inject("time_left")
 
     # decode the list of files.
-    files = [{'user_supplied_metadata': file} for file in user_supplied_files]
+    files = [{'user_supplied_metadata': _file} for _file in user_supplied_files]
 
     while True:  # each time through the outer while-loop, we try to gather up all the file metadata.
-        for file in files:
-            user_supplied_metadata = file['user_supplied_metadata']
+        for _file in files:
+            user_supplied_metadata = _file['user_supplied_metadata']
             metadata_key = FileFQID(
                 uuid=user_supplied_metadata['uuid'],
                 version=user_supplied_metadata['version'],
             ).to_key()
-            if 'file_metadata' not in file:
+            if 'file_metadata' not in _file:
                 try:
                     file_metadata = handle.get(replica.bucket, metadata_key)
                 except BlobNotFoundError:
                     continue
-                file['file_metadata'] = json.loads(file_metadata)
+                _file['file_metadata'] = json.loads(file_metadata)
 
         # check to see if any file metadata is still not yet loaded.
-        for file in files:
-            if 'file_metadata' not in file:
-                missing_file_user_metadata = file['user_supplied_metadata']
+        for _file in files:
+            if 'file_metadata' not in _file:
+                missing_file_user_metadata = _file['user_supplied_metadata']
                 break
         else:
             break
@@ -304,24 +304,24 @@ def build_bundle_file_metadata(replica: Replica, user_supplied_files: dict):
 
     return [
         {
-            BundleFileMetadata.NAME: file['user_supplied_metadata']['name'],
-            BundleFileMetadata.UUID: file['user_supplied_metadata']['uuid'],
-            BundleFileMetadata.VERSION: file['user_supplied_metadata']['version'],
-            BundleFileMetadata.CONTENT_TYPE: file['file_metadata'][FileMetadata.CONTENT_TYPE],
-            BundleFileMetadata.SIZE: file['file_metadata'][FileMetadata.SIZE],
-            BundleFileMetadata.INDEXED: file['user_supplied_metadata']['indexed'],
-            BundleFileMetadata.CRC32C: file['file_metadata'][FileMetadata.CRC32C],
-            BundleFileMetadata.S3_ETAG: file['file_metadata'][FileMetadata.S3_ETAG],
-            BundleFileMetadata.SHA1: file['file_metadata'][FileMetadata.SHA1],
-            BundleFileMetadata.SHA256: file['file_metadata'][FileMetadata.SHA256],
+            BundleFileMetadata.NAME: _file['user_supplied_metadata']['name'],
+            BundleFileMetadata.UUID: _file['user_supplied_metadata']['uuid'],
+            BundleFileMetadata.VERSION: _file['user_supplied_metadata']['version'],
+            BundleFileMetadata.CONTENT_TYPE: _file['file_metadata'][FileMetadata.CONTENT_TYPE],
+            BundleFileMetadata.SIZE: _file['file_metadata'][FileMetadata.SIZE],
+            BundleFileMetadata.INDEXED: _file['user_supplied_metadata']['indexed'],
+            BundleFileMetadata.CRC32C: _file['file_metadata'][FileMetadata.CRC32C],
+            BundleFileMetadata.S3_ETAG: _file['file_metadata'][FileMetadata.S3_ETAG],
+            BundleFileMetadata.SHA1: _file['file_metadata'][FileMetadata.SHA1],
+            BundleFileMetadata.SHA256: _file['file_metadata'][FileMetadata.SHA256],
         }
-        for file in files
+        for _file in files
     ]
 
 def detect_filename_collisions(bundle_file_metadata):
     filenames: typing.Set[str] = set()
-    for file in bundle_file_metadata:
-        name = file[BundleFileMetadata.NAME]
+    for _file in bundle_file_metadata:
+        name = _file[BundleFileMetadata.NAME]
         if name not in filenames:
             filenames.add(name)
         else:

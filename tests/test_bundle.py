@@ -578,6 +578,18 @@ class TestBundleApi(unittest.TestCase, TestAuthMixin, DSSAssertMixin, DSSUploadM
                 )
                 self.assertEqual(json.loads(resp.body)['code'], 'duplicate_filename')
 
+        with self.subTest(f'{replica}: put succeeds when bundle contains multiple files with different names.'):
+            with nestedcontext.bind(time_left=lambda: 0):
+                bundle_version = datetime_to_version_format(datetime.datetime.utcnow())
+                bundle_uuid3 = str(uuid.uuid4())
+                resp = self.put_bundle(
+                    replica,
+                    bundle_uuid3,
+                    [(file_uuid, file_version, "LICENSE"), (file_uuid, file_version, "LIasdfCENSE")],
+                    bundle_version,
+                    expected_code=requests.codes.created
+                )
+
         with self.subTest(f'{replica}: put fails when an invalid bundle_uuid is supplied.'):
             bundle_version = datetime_to_version_format(datetime.datetime.utcnow())
             self.put_bundle(
@@ -909,6 +921,7 @@ class TestBundleApi(unittest.TestCase, TestAuthMixin, DSSAssertMixin, DSSUploadM
             (dict(add_files=files[:2], remove_files=files[-2:]), files[:-2]),
             (dict(), files[:-2]),
             (dict(remove_files=files), []),
+            (dict(remove_files=files), []),
         ]
         for patch_payload, expected_files in tests:
             with self.subTest(patch_payload):
@@ -933,7 +946,7 @@ class TestBundleApi(unittest.TestCase, TestAuthMixin, DSSAssertMixin, DSSUploadM
 
     def test_patch_excessive(self):
         bundle_uuid, bundle_version = self._put_bundle()
-        files = self._patch_files(number_of_files=2000)
+        files = self._patch_files(number_of_files=1001)
         with self.subTest("Bad request is returned when adding > 1000 files in a single request."):
             res = self.app.patch(
                 f"/v1/bundles/{bundle_uuid}",
