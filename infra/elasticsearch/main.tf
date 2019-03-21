@@ -7,7 +7,7 @@ locals {
 
 resource "aws_cloudwatch_log_group" "es_index_log" {
   name = "/aws/aes/domains/${var.DSS_ES_DOMAIN}/es-index-${var.DSS_DEPLOYMENT_STAGE}-logs"
-  retention_in_days = 90
+  retention_in_days = 1827
   tags {
     CreatedBy = "Terraform"
     Application = "DSS"
@@ -16,7 +16,7 @@ resource "aws_cloudwatch_log_group" "es_index_log" {
 
 resource "aws_cloudwatch_log_group" "es_search_log" {
   name = "/aws/aes/domains/${var.DSS_ES_DOMAIN}/es-search-${var.DSS_DEPLOYMENT_STAGE}-logs"
-  retention_in_days = 90
+  retention_in_days = 1827
   tags {
     CreatedBy = "Terraform"
     Application = "DSS"
@@ -25,7 +25,7 @@ resource "aws_cloudwatch_log_group" "es_search_log" {
 
 resource "aws_cloudwatch_log_group" "es_application_log" {
   name = "/aws/aes/domains/${var.DSS_ES_DOMAIN}/es-application-${var.DSS_DEPLOYMENT_STAGE}-logs"
-  retention_in_days = 90
+  retention_in_days = 1827
   tags {
     CreatedBy = "Terraform"
     Application = "DSS"
