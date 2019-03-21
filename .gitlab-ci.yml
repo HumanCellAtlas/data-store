@@ -23,7 +23,7 @@ before_script:
   - virtualenv ~/venv
   - source ~/venv/bin/activate
   - pip install -r requirements-dev.txt
-  - wget -O regex.json https://raw.githubusercontent.com/DailyDreaming/test/master/regex_security.json
+  - wget -O regex.json https://raw.githubusercontent.com/HumanCellAtlas/dcplib/master/components/trufflehog_regex_patterns.json
   - trufflehog --regex --rules regex.json --entropy=False https://github.com/HumanCellAtlas/data-store.git
   - rm regex.json
   - source environment
