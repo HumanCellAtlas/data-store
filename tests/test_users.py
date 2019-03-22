@@ -5,7 +5,7 @@ import os, sys
 pkg_root = os.path.abspath(os.path.join(os.path.dirname(__file__), '..'))  # noqa
 sys.path.insert(0, pkg_root)  # noqa
 
-from fusillade.clouddirectory import User, Group, Role, ad, cleanup_directory, cleanup_schema, \
+from fusillade.clouddirectory import User, Group, Role, cd_client, cleanup_directory, cleanup_schema, \
     get_default_user_policy
 from tests.common import new_test_directory
 
@@ -52,7 +52,7 @@ class TestUser(unittest.TestCase):
             self.assertEqual(len(user.groups), 0)
 
         with self.subTest("An error is returned when add a user to a group that does not exist."):
-            with self.assertRaises(ad.exceptions.BatchWriteException) as ex:
+            with self.assertRaises(cd_client.exceptions.BatchWriteException) as ex:
                 user.add_groups(["ghost_group"])
                 self.assertTrue(ex.response['Error']['Message'].endswith("/ Groups / ghost_group\\' does not exist.'"))
             self.assertEqual(len(user.groups), 0)
@@ -78,13 +78,13 @@ class TestUser(unittest.TestCase):
             user.remove_groups(groups)
             self.assertEqual(len(user.groups), 0)
         with self.subTest("Error is raised when removing a user from a group it's not in."):
-            self.assertRaises(ad.exceptions.BatchWriteException, user.remove_groups, groups)
+            self.assertRaises(cd_client.exceptions.BatchWriteException, user.remove_groups, groups)
             self.assertEqual(len(user.groups), 0)
         with self.subTest("An error is raised and the user is not removed from any groups when the user is in some of "
                           "the groups to remove."):
             user.add_groups(groups[:2])
             self.assertEqual(len(user.groups), 2)
-            self.assertRaises(ad.exceptions.BatchWriteException, user.remove_groups, groups)
+            self.assertRaises(cd_client.exceptions.BatchWriteException, user.remove_groups, groups)
             self.assertEqual(len(user.groups), 2)
 
     def test_set_policy(self):
@@ -129,14 +129,14 @@ class TestUser(unittest.TestCase):
             self.assertEqual(user.roles, [role_name])
 
         with self.subTest("An error is raised when adding a role a user already has."):
-            with self.assertRaises(ad.exceptions.BatchWriteException) as ex:
+            with self.assertRaises(cd_client.exceptions.BatchWriteException) as ex:
                user.add_roles([role_name])
                self.assertTrue(ex.response['Error']['Message'].endswith(
                    "LinkNameAlreadyInUseException: link name "
                    "R->FakeRole_0->test_sete_policy%40test.com is already in use"))
 
         with self.subTest("An error is raised when adding a role that does not exist."):
-            with self.assertRaises(ad.exceptions.BatchWriteException) as ex:
+            with self.assertRaises(cd_client.exceptions.BatchWriteException) as ex:
                user.add_roles(["ghost_role"])
                self.assertTrue(ex.response['Error']['Message'].endswith("/ Roles / ghost_role\\' does not exist.'"))
 

@@ -1,4 +1,5 @@
 from . import clouddirectory
+from .config import Config
 '''
 system config:
 - directory schema

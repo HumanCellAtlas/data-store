@@ -4,7 +4,7 @@ import os, sys
 pkg_root = os.path.abspath(os.path.join(os.path.dirname(__file__), '..'))  # noqa
 sys.path.insert(0, pkg_root)  # noqa
 
-from fusillade.clouddirectory import User, Group, ad, cleanup_directory, cleanup_schema
+from fusillade.clouddirectory import User, Group, cd_client, cleanup_directory, cleanup_schema
 from tests.common import new_test_directory
 
 
@@ -24,7 +24,7 @@ class TestGroup(unittest.TestCase):
 
     def test_create_group(self):
         with self.subTest("an error is returned when the group has not been created."):
-            self.assertRaises(ad.exceptions.ResourceNotFoundException, Group, self.directory, 'not_created')
+            self.assertRaises(cd_client.exceptions.ResourceNotFoundException, Group, self.directory, 'not_created')
 
         with self.subTest("The group is returned when the group has been created."):
             group = Group.create(self.directory, "new_group", "does things")
@@ -63,7 +63,7 @@ class TestGroup(unittest.TestCase):
             group.add_users(users)
             try:
                 group.add_users(users)
-            except ad.exceptions.BatchWriteException:
+            except cd_client.exceptions.BatchWriteException:
                 pass
             actual_users = [i[1] for i in group.get_users()]
             self.assertEqual(len(actual_users), 3)

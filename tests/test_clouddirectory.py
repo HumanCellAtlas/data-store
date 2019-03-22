@@ -6,7 +6,7 @@ pkg_root = os.path.abspath(os.path.join(os.path.dirname(__file__), '..'))  # noq
 sys.path.insert(0, pkg_root)  # noqa
 
 from tests.common import random_hex_string
-from fusillade.clouddirectory import ad, cleanup_directory, cleanup_schema, publish_schema, create_directory, \
+from fusillade.clouddirectory import cd_client, cleanup_directory, cleanup_schema, publish_schema, create_directory, \
     CloudDirectory
 
 
@@ -37,13 +37,13 @@ class TestCloudDirectory(unittest.TestCase):
             cleanup_directory(CloudDirectory.from_name(directory_name)._dir_arn)
 
         with self.subTest("An error is returned when deleting a nonexistant directory."):
-            self.assertRaises(ad.exceptions.AccessDeniedException, cleanup_directory, directory_1._dir_arn)
+            self.assertRaises(cd_client.exceptions.AccessDeniedException, cleanup_directory, directory_1._dir_arn)
 
         with self.subTest("schema is deleted  when cleanup_schema is called."):
             cleanup_schema(schema_arn_1)
 
         with self.subTest("error returned when deleting a nonexistent schema."):
-            self.assertRaises(ad.exceptions.ResourceNotFoundException, cleanup_schema, schema_arn_2)
+            self.assertRaises(cd_client.exceptions.ResourceNotFoundException, cleanup_schema, schema_arn_2)
 
     def test_structure(self):
         """Check that cloud directory is setup for fusillade"""
