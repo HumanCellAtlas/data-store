@@ -1,1 +1,13 @@
-{}
+{
+  "Version": "2012-10-17",
+  "Statement": [
+    {
+      "Sid": "user_example",
+      "Effect": "Allow",
+      "Action": [
+        "resource:GetSomething"
+      ],
+       "Resource": "arn:hca:resource:*:*:path/*"
+    }
+  ]
+}

@@ -547,7 +547,8 @@ class CloudDirectory:
         # parse the policies from the responses
         policies = []
         for response in responses:
-            policies.append(response['SuccessfulResponse']['GetObjectAttributes']['Attributes'][0]['Value'])
+            policies.append(response['SuccessfulResponse']['GetObjectAttributes']['Attributes'][0]['Value']
+                            ['StringValue'])
         return policies
 
     def get_object_information(self, obj_ref: str) -> typing.Dict[str, typing.Any]:
@@ -626,7 +627,7 @@ class CloudNode:
         self.cd.batch_write(operations)
 
     def lookup_policies(self) -> typing.List[str]:
-        return [policy['StringValue'] for policy in self.cd.lookup_policy(self.object_reference)]
+        return self.cd.lookup_policy(self.object_reference)
 
     @property
     def name(self):

@@ -18,10 +18,10 @@ class ChaliceTestHarness:
         item = item.upper()
         return functools.partial(self.request, method=item)
 
-    def request(self, path, headers={}, body={}, method="GET"):
+    def request(self, path, headers={}, data='', method="GET"):
         resp_obj = requests.Response()
         try:
-            response = self._gateway.handle_request(method, path, headers, body)
+            response = self._gateway.handle_request(method, path, headers, data)
         except LocalGatewayException as error:
             resp_obj.status_code = error.CODE
             resp_obj.headers = error.headers
@@ -30,6 +30,6 @@ class ChaliceTestHarness:
             resp_obj.status_code = response['statusCode']
             resp_obj.headers = response['headers']
             resp_obj.body = response['body']
-        resp_obj.headers['Content-Length'] = str(len(body))
+        resp_obj.headers['Content-Length'] = str(len(data))
         return resp_obj
 

@@ -218,14 +218,19 @@ def evaluate_policy():
     action = json_body["action"]
     resource = json_body["resource"]
     user = User(directory, principal)
-    user.lookup_policies()
-    result = iam.simulate_custom_policy(PolicyInputList=user.lookup_policies(),
-                                        ActionNames=[action],
-                                        ResourceArns=[resource])
-    # "arn:hca:dss:*:*:subscriptions/{}/*".format(username)]))
-
-    # result["EvaluationResults"][0]["EvalDecision"]]
-    del result["ResponseMetadata"]
+    result = iam.simulate_custom_policy(
+        PolicyInputList=user.lookup_policies(),
+        ActionNames=[action],
+        ResourceArns=[resource],
+        ContextEntries=[
+            {
+                'ContextKeyName': 'fus:user_email',
+                'ContextKeyValues': [principal],
+                'ContextKeyType': 'string'
+            }
+        ]
+    )['EvaluationResults'][0]['EvalDecision']
+    result = True if result == 'allowed' else False
     return dict(principal=principal, action=action, resource=resource, result=result)
 
 
