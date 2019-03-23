@@ -82,7 +82,7 @@ deploy-infra:
 	$(MAKE) -C infra apply-all
 
 check-env:
-	scripts/verify_env.py
+	scripts/check_env.py --special
 
 check-secrets:
 	scripts/check_deployment_secrets.py
