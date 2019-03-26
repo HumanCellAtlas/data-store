@@ -133,6 +133,9 @@ class Config:
             boto_config.read_timeout = Config.BLOBSTORE_READ_TIMEOUT
         if Config.BLOBSTORE_RETRIES is not None:
             boto_config.retries = {'max_attempts': Config.BLOBSTORE_RETRIES}
+        if boto_config.max_pool_connections < 20:
+            # increase the number of parallel network connections available to boto
+            boto_config.max_pool_connections = 20
         return boto3.client("s3", config=boto_config)
 
     @staticmethod
