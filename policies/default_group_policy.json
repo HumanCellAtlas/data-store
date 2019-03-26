@@ -1,9 +1,8 @@
 {
   "Version": "2012-10-17",
-  "Description": "Needs testing",
   "Statement": [
     {
-      "Sid": "fus_group_member",
+      "Sid": "fusGroupMember",
       "Effect": "Allow",
       "Action": [
         "fus:GetGroup"
@@ -14,7 +13,7 @@
        ]
     },
     {
-      "Sid": "fus_group_admin",
+      "Sid": "fusGroupAdmin",
       "Effect": "Allow",
       "Action": [
         "fus:PutUser",
@@ -27,7 +26,7 @@
        ],
       "Condition": {
         "StringEquals": {
-          "fus:user_email": []
+          "fus:userEmail": ["owner"]
         }
       }
     }

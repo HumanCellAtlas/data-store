@@ -1,13 +1,13 @@
-import json
 import unittest
 import os, sys
 
 pkg_root = os.path.abspath(os.path.join(os.path.dirname(__file__), '..'))  # noqa
 sys.path.insert(0, pkg_root)  # noqa
 
+from fusillade.errors import FusilladeException
 from fusillade.clouddirectory import User, Group, Role, cd_client, cleanup_directory, cleanup_schema, \
     get_default_user_policy
-from tests.common import new_test_directory
+from tests.common import new_test_directory, create_test_statement
 
 
 class TestUser(unittest.TestCase):
@@ -40,7 +40,7 @@ class TestUser(unittest.TestCase):
 
     def test_get_groups(self):
         name = "test_get_groups@test.com"
-        test_groups = [(f"group_{i}", f"Group_Policy_{i}") for i in range(5)]
+        test_groups = [(f"group_{i}", create_test_statement(f"GroupPolicy{i}")) for i in range(5)]
         groups = [Group.create(self.directory, *i) for i in test_groups]
 
         user = User(self.directory, name)
@@ -68,7 +68,7 @@ class TestUser(unittest.TestCase):
 
     def test_remove_groups(self):
         name = "test_remove_group@test.com"
-        test_groups = [(f"group_{i}", f"Policy_{i}") for i in range(5)]
+        test_groups = [(f"group_{i}", create_test_statement(f"GroupPolicy{i}")) for i in range(5)]
         groups = [Group.create(self.directory, *i).name for i in test_groups]
         user = User(self.directory, name)
         with self.subTest("A user is removed from a group when remove_group is called for a group the user belongs "
@@ -88,14 +88,22 @@ class TestUser(unittest.TestCase):
             self.assertEqual(len(user.groups), 2)
 
     def test_set_policy(self):
-        name = "test_sete_policy@test.com"
+        name = "test_set_policy@test.com"
         user = User(self.directory, name)
         with self.subTest("The initial user policy is default_policy, when the user is first created"):
-            self.assertEqual(user.lookup_policies(), [self.default_policy])
+            self.assertEqual(user.statement, self.default_policy)
+            self.assertIn(self.default_policy, user.lookup_policies())
 
-        user.statement = "Something else"
+        statement = create_test_statement(f"UserPolicySomethingElse")
+        user.statement = statement
         with self.subTest("The user policy changes when set_policy is used."):
-            self.assertEqual(user.lookup_policies(), ["Something else"])
+            self.assertEqual(user.statement, statement)
+            self.assertIn(statement, user.lookup_policies())
+
+        with self.subTest("Error raised when setting policy to an invalid statement"):
+            with self.assertRaises(FusilladeException):
+                user.statement = "Something else"
+            self.assertEqual(user.statement, statement)
 
     def test_status(self):
         name = "test_sete_policy@test.com"
@@ -112,7 +120,7 @@ class TestUser(unittest.TestCase):
 
     def test_roles(self):
         name = "test_sete_policy@test.com"
-        test_roles = [(f"group_{i}", f"Policy_{i}") for i in range(5)]
+        test_roles = [(f"Role_{i}", create_test_statement(f"RolePolicy{i}")) for i in range(5)]
         roles = [Role.create(self.directory, *i).name for i in test_roles]
         role_names, role_statements = zip(*test_roles)
         role_names = sorted(role_names)
@@ -168,12 +176,12 @@ class TestUser(unittest.TestCase):
         """
         name = "test_sete_policy@test.com"
         user = User(self.directory, name)
-        test_groups = [(f"group_{i}", f"Group policy_{i}") for i in range(5)]
+        test_groups = [(f"group_{i}", create_test_statement(f"GroupPolicy{i}")) for i in range(5)]
         groups = [Group.create(self.directory, *i) for i in test_groups]
         group_names, group_statements = zip(*test_groups)
         group_names = sorted(group_names)
         group_statements = sorted(group_statements)
-        test_roles = [(f"role_{i}", f"Role policy_{i}") for i in range(5)]
+        test_roles = [(f"role_{i}", create_test_statement(f"RolePolicy{i}")) for i in range(5)]
         roles = [Role.create(self.directory, *i) for i in test_roles]
         role_names, role_statements = zip(*test_roles)
         role_names = sorted(role_names)

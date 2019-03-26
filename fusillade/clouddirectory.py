@@ -5,10 +5,10 @@ This modules is used to simplify access to AWS Cloud Directory. For more informa
 https://boto3.amazonaws.com/v1/documentation/api/latest/reference/services/clouddirectory.html
 
 """
+from dcplib.aws import clients as aws_clients
 import functools
 import json
 import typing
-import boto3
 from collections import namedtuple
 from enum import Enum, auto
 from urllib.parse import quote, unquote
@@ -17,7 +17,7 @@ from fusillade.errors import FusilladeException
 from fusillade.config import Config
 
 project_arn = "arn:aws:clouddirectory:us-east-1:861229788715:"  # TODO move to config.py
-cd_client = boto3.client("clouddirectory")
+cd_client = aws_clients.clouddirectory
 
 
 def get_directory_schema():
@@ -42,6 +42,11 @@ def get_default_admin_role():
 
 def get_default_user_role():
     with open("./policies/default_user_role.json", 'r') as fp:
+        return json.dumps(json.load(fp))
+
+
+def get_default_role():
+    with open("./policies/default_role.json", 'r') as fp:
         return json.dumps(json.load(fp))
 
 
@@ -128,6 +133,7 @@ def _paging_loop(fn, key, upack_response, **kwarg):
 def list_directories(state: str = 'ENABLED') -> typing.Iterator:
     def unpack_response(i):
         return i
+
     return _paging_loop(cd_client.list_directories, 'Directories', unpack_response, state=state)
 
 
@@ -256,7 +262,7 @@ class CloudDirectory:
         operations.append(self.batch_create_object(parent_path, link_name, obj_type, object_attribute_list))
         object_ref = parent_path + link_name
 
-        object_attribute_list = self.get_policy_attribute_list(f'{obj_type}Policy', statement, Statement=statement)
+        object_attribute_list = self.get_policy_attribute_list(obj_type, statement)
         policy_link_name = f"{link_name}_policy"
         parent_path = self.get_obj_type_path('policy')
         operations.append(self.batch_create_object(parent_path,
@@ -289,24 +295,26 @@ class CloudDirectory:
 
     def get_policy_attribute_list(self,
                                   policy_type: str,
-                                  policy_document: str,
+                                  statement: str,
                                   facet: str = "IAMPolicy",
                                   **kwargs) -> typing.List[typing.Dict[str, typing.Any]]:
         """
-        policy_type and policy_document are required field for a policy object. See the section on Policies for more
+        policy_type and policy_document are required field for a policy object. However only policy_type is used by
+        fusillade. Statement is used to store policy information. See the section on Policies for more
         info https://docs.aws.amazon.com/clouddirectory/latest/developerguide/key_concepts_directory.html
         """
+        kwargs["Statement"] = statement
         obj = self._get_object_attribute_list(facet=facet, **kwargs)
         obj.append(dict(Key=dict(
             SchemaArn=self.schema,
             FacetName=facet,
             Name='policy_type'),
-            Value=dict(StringValue=policy_type)))
+            Value=dict(StringValue=f"{policy_type}_{facet}")))
         obj.append(
             dict(Key=dict(SchemaArn=self.schema,
                           FacetName=facet,
                           Name="policy_document"),
-                 Value=dict(BinaryValue=json.dumps(policy_document).encode())))
+                 Value=dict(BinaryValue='None'.encode())))
         return obj
 
     def update_object_attribute(self,
@@ -570,6 +578,7 @@ class CloudNode:
     """
     _attributes = ["name"]  # the different attributes of a node stored
     _link_formats = {"group": "G->{parent}->{child}", "role": "R->{parent}->{child}"}
+
     # The format string for the links that connect different nodes in cloud directory
 
     def __init__(self, cloud_directory: CloudDirectory, name: str, object_type: str):
@@ -643,14 +652,20 @@ class CloudNode:
 
     @property
     def statement(self):
+        """
+        Policy statements follow AWS IAM Policy Grammer. See for grammar details
+        https://docs.aws.amazon.com/IAM/latest/UserGuide/reference_policies_grammar.html
+        """
         if not self._statement:
             self._statement = self.cd.get_object_attributes(self.policy,
                                                             'IAMPolicy',
                                                             ['Statement'])['Attributes'][0]['Value'].popitem()[1]
+
         return self._statement
 
     @statement.setter
     def statement(self, statement: str):
+        self._verify_statement(statement)
         params = [
             UpdateObjectParams('IAMPolicy',
                                'Statement',
@@ -675,8 +690,22 @@ class CloudNode:
             return attrs
         resp = self.cd.get_object_attributes(self.object_reference, self._object_type, attributes)
         for attr in resp['Attributes']:
-            attrs[attr['Key']['Name']] = attr['Value'].popitem()[1]   # noqa
+            attrs[attr['Key']['Name']] = attr['Value'].popitem()[1]  # noqa
         return attrs
+
+    @staticmethod
+    def _verify_statement(statement):
+        """
+        Verifies the policy statement is syntactically correct based on AWS's IAM Policy Grammar.
+        A fake ActionNames and ResourceArns are used to facilitate the simulation of the policy.
+        """
+        iam = aws_clients.iam
+        try:
+            iam.simulate_custom_policy(PolicyInputList=[statement],
+                                       ActionNames=["fake:action"],
+                                       ResourceArns=["arn:aws:iam::123456789012:user/Bob"])
+        except iam.exceptions.InvalidInputException as ex:
+            raise FusilladeException from ex
 
 
 class User(CloudNode):
@@ -696,8 +725,6 @@ class User(CloudNode):
         self._status = None
         self._groups: typing.Optional[typing.List[str]] = None
         self._roles: typing.Optional[typing.List[str]] = None  # TODO make a property
-        self._policy = None
-        self._statement = None
         if not local:
             try:
                 self._set_attributes(self._attributes)
@@ -737,9 +764,10 @@ class User(CloudNode):
         self.cd.update_object_attribute(self.object_reference, update_params)
         self._status = None
 
-    def provision_user(self, statement: str = None) -> None:
+    def provision_user(self, statement: typing.Optional[str] = None) -> None:
         if not statement:
             statement = get_default_user_policy()
+        self._verify_statement(statement)
         self.cd.create_object(self._path_name,
                               statement,
                               'User',
@@ -779,6 +807,7 @@ class Group(CloudNode):
     """
     Represents a group in CloudDirectory
     """
+
     def __init__(self, cloud_directory: CloudDirectory, name: str, local: bool = False):
         """
 
@@ -796,7 +825,10 @@ class Group(CloudNode):
     def create(cls,
                cloud_directory: CloudDirectory,
                name: str,
-               statement: str = '') -> 'Group':
+               statement: typing.Optional[str] = None) -> 'Group':
+        if not statement:
+            statement = get_default_group_policy()
+        cls._verify_statement(statement)
         object_ref, policy_ref = cloud_directory.create_object(quote(name), statement, 'Group', name=name)
         new_node = cls(cloud_directory, name)
         new_node._statement = statement
@@ -850,6 +882,7 @@ class Role(CloudNode):
     """
     Represents a role in CloudDirectory
     """
+
     def __init__(self, cloud_directory: CloudDirectory, name: str):
         super(Role, self).__init__(cloud_directory, name, 'Role')
 
@@ -857,7 +890,10 @@ class Role(CloudNode):
     def create(cls,
                cloud_directory: CloudDirectory,
                name: str,
-               statement: str = '') -> 'Role':
+               statement: typing.Optional[str] = None) -> 'Role':
+        if not statement:
+            statement = get_default_role()
+        cls._verify_statement(statement)
         object_ref, policy_ref = cloud_directory.create_object(quote(name), statement, 'Role', name=name)
         new_node = cls(cloud_directory, name)
         new_node._statement = statement

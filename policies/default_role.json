@@ -2,7 +2,7 @@
   "Version": "2012-10-17",
   "Statement": [
     {
-      "Sid": "DefaulUserPolicy",
+      "Sid": "DefaultRole",
       "Effect": "Deny",
       "Action": [
         "fake:action"

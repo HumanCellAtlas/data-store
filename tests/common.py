@@ -1,4 +1,5 @@
 import functools
+import json
 import random
 import string
 import time
@@ -22,6 +23,25 @@ def new_test_directory(directory_name=None):
     schema_arn = publish_schema(schema_name, 'T' + random_hex_string())
     directory = create_directory(directory_name, schema_arn)
     return directory, schema_arn
+
+
+def create_test_statement(name: str):
+    """Assists with the creation of policy statements for testing"""
+    statement = {
+        "Version": "2012-10-17",
+        "Statement": [
+            {
+                "Sid": "DefaultRole",
+                "Effect": "Deny",
+                "Action": [
+                    "fake:action"
+                ],
+                "Resource": "fake:resource"
+            }
+        ]
+    }
+    statement["Statement"][0]["Sid"] = name
+    return json.dumps(statement)
 
 
 def eventually(timeout: float, interval: float, errors: set = {AssertionError}):
