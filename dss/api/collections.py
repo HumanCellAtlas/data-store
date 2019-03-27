@@ -48,7 +48,7 @@ def get_impl(uuid: str, replica: str, version: str = None):
 
 @dss_handler
 @security.authorized_group_required(['hca'])
-def list(replica: str):
+def find(replica: str):
     authenticated_user_email = security.get_token_email(request.token_info)
     bucket = Replica[replica].bucket
     handle = Config.get_blobstore_handle(Replica[replica])
