@@ -187,6 +187,6 @@ def verify_collection(contents: List[dict], replica: Replica, blobstore_handle: 
     """
     verifier = partial(resolve_content_item, replica, blobstore_handle)
     for i in range(0, len(contents), batch_size):
-        with ThreadPoolExecutor(max_workers=8) as e:
+        with ThreadPoolExecutor(max_workers=20) as e:
             for result in e.map(verifier, contents[i:i + batch_size]):
                 pass
