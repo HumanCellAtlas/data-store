@@ -60,9 +60,9 @@ smoketest:
 scaletest:
 	./tests/scalability/scale_test_runner.py -r 10 -d 30
 
-force-deploy: deploy-chalice deploy-daemons
+deploy: check-env check-secrets deploy-chalice deploy-daemons
 
-deploy: check-secrets deploy-chalice deploy-daemons
+force-deploy: deploy-chalice deploy-daemons
 
 deploy-chalice:
 	$(MAKE) -C chalice deploy
@@ -80,6 +80,9 @@ plan-infra:
 
 deploy-infra:
 	$(MAKE) -C infra apply-all
+
+check-env:
+	scripts/check_env.py --special
 
 check-secrets:
 	scripts/check_deployment_secrets.py
