@@ -85,8 +85,8 @@ def authorize():
         # openid_provider = query_params["openid_provider"]
         oauth2_config = Config.get_oauth2_config()
         auth_params = dict(client_id=oauth2_config[openid_provider]["client_id"],
-                           response_type=query_params.get("response_type", "code"),
-                           scope=query_params.get("scope", "openid email"),
+                           response_type="code",
+                           scope="openid email profile",
                            redirect_uri=oauth2_config[openid_provider]["redirect_uri"],
                            state=state)
     dest = furl(get_openid_config(openid_provider)["authorization_endpoint"]).add(query_params=auth_params).url
