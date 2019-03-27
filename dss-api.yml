@@ -995,6 +995,7 @@ paths:
                   - code
   /collections:
     get:
+      operationId: dss.api.collections.list
       security:
         - dcpAuth: []
       summary: Retrieve a user's collections.
