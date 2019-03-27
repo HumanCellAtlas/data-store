@@ -9,6 +9,7 @@ import nestedcontext
 import requests
 from cloud_blobstore import BlobNotFoundError, BlobStore, BlobStoreTimeoutError
 from flask import jsonify, redirect, request, make_response
+from concurrent.futures import ThreadPoolExecutor, as_completed
 
 from dss import DSSException, dss_handler, DSSForbiddenException
 from dss.config import Config, Replica
@@ -269,38 +270,38 @@ def build_bundle_file_metadata(replica: Replica, user_supplied_files: dict):
     # decode the list of files.
     files = [{'user_supplied_metadata': _file} for _file in user_supplied_files]
 
-    while True:  # each time through the outer while-loop, we try to gather up all the file metadata.
-        for _file in files:
-            user_supplied_metadata = _file['user_supplied_metadata']
-            metadata_key = FileFQID(
-                uuid=user_supplied_metadata['uuid'],
-                version=user_supplied_metadata['version'],
-            ).to_key()
-            if 'file_metadata' not in _file:
-                try:
-                    file_metadata = handle.get(replica.bucket, metadata_key)
-                except BlobNotFoundError:
-                    continue
-                _file['file_metadata'] = json.loads(file_metadata)
+    def _get_file_metadata(_file):
+        metadata_key = FileFQID(
+            uuid=_file['user_supplied_metadata']['uuid'],
+            version=_file['user_supplied_metadata']['version'],
+        ).to_key()
+        while True:
+            try:
+                file_metadata = handle.get(replica.bucket, metadata_key)
+            except BlobNotFoundError:
+                if time_left() > PUT_TIME_ALLOWANCE_SECONDS:
+                    time.sleep(1)
+                else:
+                    break
+            else:
+                return json.loads(file_metadata)
+        return None
 
-        # check to see if any file metadata is still not yet loaded.
-        for _file in files:
-            if 'file_metadata' not in _file:
+    with ThreadPoolExecutor(max_workers=20) as e:
+        futures = {e.submit(_get_file_metadata, _file): _file
+                   for _file in files}
+        for future in as_completed(futures):
+            _file = futures[future]
+            res = future.result()
+            if res is not None:
+                _file['file_metadata'] = res
+            else:
                 missing_file_user_metadata = _file['user_supplied_metadata']
-                break
-        else:
-            break
-
-        # if we're out of time, give up.
-        if time_left() > PUT_TIME_ALLOWANCE_SECONDS:
-            time.sleep(1)
-            continue
-
-        raise DSSException(
-            requests.codes.bad_request,
-            "file_missing",
-            f"Could not find file {missing_file_user_metadata['uuid']}/{missing_file_user_metadata['version']}."
-        )
+                raise DSSException(
+                    requests.codes.bad_request,
+                    "file_missing",
+                    f"Could not find file {missing_file_user_metadata['uuid']}/{missing_file_user_metadata['version']}."
+                )
 
     return [
         {
