@@ -36,11 +36,13 @@ plan-infra:
 deploy-infra:
 	$(MAKE) -C infra apply-all
 
-deploy:
+package:
 	git clean -df chalicelib vendor
 	shopt -s nullglob; for wheel in vendor.in/*/*.whl; do unzip -q -o -d vendor $$wheel; done
 	cat fusillade-api.yml | envsubst '$$API_DOMAIN_NAME' > chalicelib/swagger.yml
 	cp -R ./fusillade ./policies chalicelib
+
+deploy: package
 	./build_chalice_config.sh $(FUS_DEPLOYMENT_STAGE)
 	chalice deploy --no-autogen-policy --stage $(FUS_DEPLOYMENT_STAGE) --api-gateway-stage $(FUS_DEPLOYMENT_STAGE)
 
