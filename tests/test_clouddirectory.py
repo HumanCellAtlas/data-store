@@ -6,6 +6,7 @@ pkg_root = os.path.abspath(os.path.join(os.path.dirname(__file__), '..'))  # noq
 sys.path.insert(0, pkg_root)  # noqa
 
 from tests.common import random_hex_string
+import fusillade
 from fusillade.clouddirectory import cd_client, cleanup_directory, cleanup_schema, publish_schema, create_directory, \
     CloudDirectory
 
@@ -67,10 +68,11 @@ class TestCloudDirectory(unittest.TestCase):
                 resp = directory.get_object_information(role)
                 self.assertTrue(resp['ObjectIdentifier'])
 
-        with self.subTest("Admin users created when the directory is created"):
-            user = '/Users/' +  quote("test_email@domain.com")
-            resp = directory.get_object_information(user)
-            self.assertTrue(resp['ObjectIdentifier'])
+            for admin in fusillade.Config.get_admin_emails():
+                with self.subTest(f"Admin user {admin} created when the directory is created"):
+                    user = '/Users/' + quote(admin)
+                    resp = directory.get_object_information(user)
+                    self.assertTrue(resp['ObjectIdentifier'])
 
 
 
