@@ -11,9 +11,7 @@ from cryptography.hazmat.backends import default_backend
 pkg_root = os.path.abspath(os.path.join(os.path.dirname(__file__), 'chalicelib'))
 sys.path.insert(0, pkg_root)  # noqa
 
-from fusillade.clouddirectory import CloudDirectory, User, Role
-from fusillade import Config
-from fusillade.errors import FusilladeException
+from fusillade import Config, User, Role, Group, directory
 
 iam = boto3.client("iam")
 app = Chalice(app_name='fusillade')
@@ -205,18 +203,6 @@ def cb():
                 "res": res.json(),
                 "tok": tok,
             }
-
-
-directory_name = Config.get_directory_name()
-try:
-    directory = CloudDirectory.from_name(directory_name)
-except FusilladeException:
-    from fusillade.clouddirectory import publish_schema, create_directory
-
-    schema_name = Config.get_schema_name()
-    schema_arn = publish_schema(schema_name, version="0.1")
-    directory = create_directory(directory_name, schema_arn)
-
 
 @app.route('/policies/evaluate', methods=["POST"])
 def evaluate_policy():
