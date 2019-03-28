@@ -5,6 +5,7 @@ This modules is used to simplify access to AWS Cloud Directory. For more informa
 https://boto3.amazonaws.com/v1/documentation/api/latest/reference/services/clouddirectory.html
 
 """
+import os
 from dcplib.aws import clients as aws_clients
 import functools
 import json
@@ -19,34 +20,17 @@ from fusillade.config import Config
 project_arn = "arn:aws:clouddirectory:us-east-1:861229788715:"  # TODO move to config.py
 cd_client = aws_clients.clouddirectory
 
-
-def get_directory_schema():
-    with open('./fusillade/directory_schema.json') as fp:
-        return json.dumps(json.load(fp))
-
-
-def get_default_user_policy():
-    with open("./policies/default_user_policy.json", 'r') as fp:
-        return json.dumps(json.load(fp))
+proj_path = os.path.dirname(__file__)
+directory_schema_path = os.path.join(proj_path, 'directory_schema.json')
+default_user_policy_path = os.path.join(proj_path, '..', 'policies', 'default_user_policy.json')
+default_group_policy_path = os.path.join(proj_path, '..', 'policies', 'default_group_policy.json')
+default_admin_role_path = os.path.join(proj_path, '..', 'policies', 'default_admin_role.json')
+default_user_role_path = os.path.join(proj_path, '..', 'policies', 'default_user_role.json')
+default_role_path = os.path.join(proj_path, '..', 'policies', 'default_role.json')
 
 
-def get_default_group_policy():
-    with open("./policies/default_group_policy.json", 'r') as fp:
-        return json.dumps(json.load(fp))
-
-
-def get_default_admin_role():
-    with open("./policies/default_admin_role.json", 'r') as fp:
-        return json.dumps(json.load(fp))
-
-
-def get_default_user_role():
-    with open("./policies/default_user_role.json", 'r') as fp:
-        return json.dumps(json.load(fp))
-
-
-def get_default_role():
-    with open("./policies/default_role.json", 'r') as fp:
+def get_json_file(file_name):
+    with open(file_name, 'r') as fp:
         return json.dumps(json.load(fp))
 
 
@@ -78,7 +62,7 @@ def publish_schema(name: str, version: str) -> str:
         dev_schema_arn = f"{project_arn}schema/development/{name}"
 
     # update the schema
-    schema = get_directory_schema()
+    schema = get_json_file(directory_schema_path)
     cd_client.put_schema_from_json(SchemaArn=dev_schema_arn, Document=schema)
     try:
         pub_schema_arn = cd_client.publish_schema(DevelopmentSchemaArn=dev_schema_arn,
@@ -110,8 +94,8 @@ def create_directory(name: str, schema: str) -> 'CloudDirectory':
             directory.create_folder('/', folder_name)
 
         # create roles
-        Role.create(directory, "default_user", statement=get_default_user_role())
-        Role.create(directory, "admin", statement=get_default_admin_role())
+        Role.create(directory, "default_user", statement=get_json_file(default_user_role_path))
+        Role.create(directory, "admin", statement=get_json_file(default_admin_role_path))
 
         # create admins
         for admin in Config.get_admin_emails():
@@ -766,7 +750,7 @@ class User(CloudNode):
 
     def provision_user(self, statement: typing.Optional[str] = None) -> None:
         if not statement:
-            statement = get_default_user_policy()
+            statement = get_json_file(default_user_policy_path)
         self._verify_statement(statement)
         self.cd.create_object(self._path_name,
                               statement,
@@ -827,7 +811,7 @@ class Group(CloudNode):
                name: str,
                statement: typing.Optional[str] = None) -> 'Group':
         if not statement:
-            statement = get_default_group_policy()
+            statement = get_json_file(default_group_policy_path)
         cls._verify_statement(statement)
         object_ref, policy_ref = cloud_directory.create_object(quote(name), statement, 'Group', name=name)
         new_node = cls(cloud_directory, name)
@@ -892,7 +876,7 @@ class Role(CloudNode):
                name: str,
                statement: typing.Optional[str] = None) -> 'Role':
         if not statement:
-            statement = get_default_role()
+            statement = get_json_file(default_role_path)
         cls._verify_statement(statement)
         object_ref, policy_ref = cloud_directory.create_object(quote(name), statement, 'Role', name=name)
         new_node = cls(cloud_directory, name)

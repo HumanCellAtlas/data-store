@@ -5,7 +5,8 @@ pkg_root = os.path.abspath(os.path.join(os.path.dirname(__file__), '..'))  # noq
 sys.path.insert(0, pkg_root)  # noqa
 
 from fusillade.errors import FusilladeException
-from fusillade.clouddirectory import User, Group, cd_client, cleanup_directory, cleanup_schema, get_default_group_policy
+from fusillade.clouddirectory import User, Group, cd_client, cleanup_directory, cleanup_schema, get_json_file, \
+    default_group_policy_path
 from tests.common import new_test_directory, create_test_statement
 
 
@@ -14,7 +15,7 @@ class TestGroup(unittest.TestCase):
     @classmethod
     def setUpClass(cls):
         cls.directory, cls.schema_arn = new_test_directory()
-        cls.default_group_statement = get_default_group_policy()
+        cls.default_group_statement = get_json_file(default_group_policy_path)
 
     @classmethod
     def tearDownClass(cls):
