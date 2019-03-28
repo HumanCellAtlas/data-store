@@ -70,7 +70,9 @@ def authorize():
     query_params = app.current_request.query_params if app.current_request.query_params else {}
     openid_provider = os.environ["OPENID_PROVIDER"]
     query_params["openid_provider"] = openid_provider
-    if "client_id" in query_params:
+    client_id = query_params.get("client_id")
+    client_id = client_id if client_id != 'None' else None
+    if client_id:
         # TODO: audit this
         auth_params = dict(client_id=query_params["client_id"],
                            response_type="code",
@@ -164,7 +166,12 @@ def cb():
     openid_config = get_openid_config(openid_provider)
     token_endpoint = openid_config["token_endpoint"]
 
-    if "redirect_uri" in state and "client_id" in state:
+    client_id = state.get("client_id")
+    client_id = client_id if client_id != 'None' else None
+
+    redirect_uri = state.get("redirect_uri")
+    redirect_uri = redirect_uri if redirect_uri != 'None' else None
+    if redirect_uri and client_id:
         # OIDC proxy flow
         resp_params = dict(code=query_params["code"], state=state.get("state"))
         dest = furl(state["redirect_uri"]).add(resp_params).url
@@ -184,7 +191,7 @@ def cb():
                          key=public_keys[token_header["kid"]],
                          audience=oauth2_config[openid_provider]["client_id"])
         assert tok["email_verified"]
-        if "redirect_uri" in state:
+        if redirect_uri:
             # Simple flow - redirect with QS
             resp_params = dict(res.json(), decoded_token=json.dumps(tok), state=state.get("state"))
             dest = furl(state["redirect_uri"]).add(resp_params).url
