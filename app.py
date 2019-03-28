@@ -100,9 +100,9 @@ def serve_openid_config():
     openid_config.update(authorization_endpoint=f"https://{auth_host}/authorize",
                          token_endpoint=f"https://{auth_host}/oauth/token",
                          jwks_uri=f"https://{auth_host}/.well-known/jwks.json",
-                         revocation_endpoint="https://{auth_host}/oauth/revoke",
-                         userinfo_endpoint="https://{auth_host}/userinfo")
-    return openid_config
+                         revocation_endpoint=f"https://{auth_host}/oauth/revoke",
+                         userinfo_endpoint=f"https://{auth_host}/userinfo")
+    return Response(status_code=200, body=openid_config)
 
 
 def proxy_response(dest_url, **extra_query_params):

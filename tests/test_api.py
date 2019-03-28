@@ -4,6 +4,7 @@
 """
 Functional Test of the API
 """
+import base64
 import json
 import os
 import sys
@@ -16,13 +17,13 @@ pkg_root = os.path.abspath(os.path.join(os.path.dirname(__file__), '..'))  # noq
 sys.path.insert(0, pkg_root)  # noqa
 
 import fusillade
-from fusillade.clouddirectory import cleanup_directory, CloudDirectory
+from fusillade.clouddirectory import cleanup_directory
 from tests.common import random_hex_string, eventually
 
 old_directory_name = os.getenv("FUSILLADE_DIR", None)
 directory_name = "test_api_" + random_hex_string()
 
-os.environ['OPENID_PROVIDER'] = "https://humancellatlas.auth0.com/"
+os.environ['OPENID_PROVIDER'] = "humancellatlas.auth0.com"
 os.environ["FUSILLADE_DIR"] = directory_name
 
 from tests.infra.server import ChaliceTestHarness
@@ -72,41 +73,81 @@ class TestApi(unittest.TestCase):
     def test_login(self):
         resp = self.app.get('/login')
         self.assertEqual(resp.status_code, 301)
+        self.assertEqual(resp.headers['Location'], '/authorize')
 
     def test_authorize(self):
-        scopes = ["openid", "email", "offline_access"]  # Is offline_access needed for CLI
+        scopes = "openid email profile"  # Is offline_access needed for CLI
         CLIENT_ID = "qtMgNk9fqVeclLtZl6WkbdJ59dP3WeAt"
-        REDIRECT_URIS = [
-            "urn:ietf:wg:oauth:2.0:oob",
-            "http://localhost:8080"
-        ]
+        REDIRECT_URI = "http://localhost:8080"
 
         from uuid import uuid4
         state = str(uuid4())
+        query_params = {
+            "response_type": "code",
+            "state": state,
+            "redirect_uri": REDIRECT_URI,
+            "scope": scopes
+        }
         url = furl("/authorize")
-        url.add(query_params={"client_id": CLIENT_ID,
-                              "response_type": "code",
-                              "state": state,
-                              "redirect_uri": REDIRECT_URIS,
-                              "duration": "temporary",
-                              "scope": scopes})
+        url.add(query_params=query_params)
+        url.add(query_params={"client_id": CLIENT_ID})
 
         with self.subTest("with client_id"):
             resp = self.app.get(url.url)
             self.assertEqual(resp.status_code, 302)
-
+            redirect_url = furl(resp.headers['Location'])
+            self.assertEqual(redirect_url.args["client_id"], CLIENT_ID)
+            self.assertEqual(redirect_url.args["response_type"], 'code')
+            self.assertEqual(redirect_url.args["state"], state)
+            self.assertEqual(redirect_url.args["redirect_uri"], REDIRECT_URI)
+            self.assertEqual(redirect_url.args["scope"], scopes)
+            self.assertEqual(redirect_url.host, 'humancellatlas.auth0.com')
+            self.assertEqual(redirect_url.path, '/authorize')
         with self.subTest("without client_id"):
             url.remove(query_params=["client_id"])
             resp = self.app.get(url.url)
-            self.assertEqual(resp.status_code, 500)
+            self.assertEqual(resp.status_code, 302)
+            redirect_url = furl(resp.headers['Location'])
+            self.assertIn('client_id', redirect_url.args)
+            self.assertEqual(redirect_url.args["response_type"], 'code')
+            query_params["openid_provider"] = "humancellatlas.auth0.com"
+            self.assertDictEqual(json.loads(base64.b64decode(redirect_url.args["state"])), query_params)
+            expected_redirect_uri = furl(scheme='https', host=os.environ['API_DOMAIN_NAME'], path='cb')
+            self.assertEqual(redirect_url.args["redirect_uri"], str(expected_redirect_uri))
+            self.assertEqual(redirect_url.args["scope"], scopes)
+            self.assertEqual(redirect_url.host, 'humancellatlas.auth0.com')
+            self.assertEqual(redirect_url.path, '/authorize')
 
     def test_well_know_openid_configuration(self):
-        resp = self.app.get('/.well-known/openid-configuration', headers={'host':'auth.dev.data.humancellatlas.org'})
-        resp.raise_for_status()
+        expected_keys = ['issuer']
+        expected_host = ['authorization_endpoint', 'token_endpoint', 'userinfo_endpoint', 'jwks_uri',
+                         'revocation_endpoint']
+        expected_response_types_supported = ['code']
+        expected_supported_scopes = ['openid', 'profile', 'email']
+
+        with self.subTest("openid cponfiguration returned when host is provided in header."):
+            host = 'localhost:8000'
+            resp = self.app.get('/.well-known/openid-configuration', headers={'host': host})
+            resp.raise_for_status()
+            body = json.loads(resp.body)
+            for key in expected_keys:
+                self.assertIn(key, body)
+            for key in expected_host:
+                self.assertIn(host, body[key])
+            for key in expected_supported_scopes:
+                self.assertIn(key, body['scopes_supported'])
+            for key in expected_response_types_supported:
+                self.assertIn(key, body['response_types_supported'])
+
+        with self.subTest("error when no host in header."):
+            resp = self.app.get('/.well-known/openid-configuration')
+            self.assertEqual(resp.status_code, 500)
 
     def test_serve_jwks_json(self):
         resp = self.app.get('/.well-known/jwks.json')
-        self.assertEqual(resp.status_code, 200)  # TODO fix
+        body = json.loads(resp.body)
+        self.assertIn('keys', body)
+        self.assertEqual(resp.status_code, 200)
 
     def test_revoke(self):
         resp = self.app.get('/oauth/revoke')
