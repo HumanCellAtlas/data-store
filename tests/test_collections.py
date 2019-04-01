@@ -69,8 +69,16 @@ class TestCollections(unittest.TestCase, DSSAssertMixin, DSSUploadMixin):
         cls._delete_collection(cls, cls.uuid)
         cls.app.shutdown()
 
+    def test_get(self):
+        """GET a list of all collections belonging to the user."""
+        res = self.app.get('/v1/collections',
+                           headers=get_auth_header(authorized=True),
+                           params=dict(replica='aws'))
+        res.raise_for_status()
+        self.assertIn('collections', res.json())
+
     def test_put(self):
-        "PUT new collection"
+        """PUT new collection."""
         with self.subTest("with unique contents"):
             contents = [self.col_file_item, self.col_ptr_item]
             uuid, _ = self._put(contents)
@@ -88,24 +96,16 @@ class TestCollections(unittest.TestCase, DSSAssertMixin, DSSUploadMixin):
                                params=dict(replica="aws"))
             self.assertEqual(res.json()["contents"], [self.col_file_item, self.col_ptr_item])
 
-    def test_list(self):
-        "GET collections belonging to user"
-        res = self.app.get('/v1/collections',
-                           headers=get_auth_header(authorized=True),
-                           params=dict(replica='aws'))
-        res.raise_for_status()
-        self.assertEqual(len(res.json()), 1)
-
-    def test_get(self):
-        "GET created collection"
+    def test_get_uuid(self):
+        """GET created collection."""
         res = self.app.get("/v1/collections/{}".format(self.uuid),
                            headers=get_auth_header(authorized=True),
                            params=dict(version=self.version, replica="aws"))
         res.raise_for_status()
         self.assertEqual(res.json()["contents"], [self.col_file_item, self.col_ptr_item])
 
-    def test_get_latest(self):
-        "GET latest version of collection."
+    def test_get_uuid_latest(self):
+        """GET latest version of collection."""
         res = self.app.get("/v1/collections/{}".format(self.uuid),
                            headers=get_auth_header(authorized=True),
                            params=dict(replica="aws"))
@@ -113,14 +113,14 @@ class TestCollections(unittest.TestCase, DSSAssertMixin, DSSUploadMixin):
         self.assertEqual(res.json()["contents"], [self.col_file_item, self.col_ptr_item])
 
     def test_get_version_not_found(self):
-        "NOT FOUND is returned when version does not exist."
+        """NOT FOUND is returned when version does not exist."""
         res = self.app.get("/v1/collections/{}".format(self.uuid),
                            headers=get_auth_header(authorized=True),
                            params=dict(replica="aws", version="9000"))
         self.assertEqual(res.status_code, requests.codes.not_found)
 
     def test_patch_no_version(self):
-        "BAD REQUEST is returned when patching without the version."
+        """BAD REQUEST is returned when patching without the version."""
         res = self.app.patch("/v1/collections/{}".format(self.uuid),
                              headers=get_auth_header(authorized=True),
                              params=dict(replica="aws"),
@@ -167,7 +167,7 @@ class TestCollections(unittest.TestCase, DSSAssertMixin, DSSUploadMixin):
                 self.assertEqual(collection, expected_contents)
 
     def test_put_invalid_fragment(self):
-        "PUT invalid fragment reference"
+        """PUT invalid fragment reference."""
         uuid = str(uuid4())
         self.addCleanup(self._delete_collection, uuid)
         res = self.app.put("/v1/collections",
@@ -177,7 +177,7 @@ class TestCollections(unittest.TestCase, DSSAssertMixin, DSSUploadMixin):
         self.assertEqual(res.status_code, requests.codes.unprocessable_entity)
 
     def test_patch_invalid_fragment(self):
-        "PATCH invalid fragment reference"
+        """PATCH invalid fragment reference."""
         res = self.app.patch("/v1/collections/{}".format(self.uuid),
                              headers=get_auth_header(authorized=True),
                              params=dict(version=self.version, replica="aws"),
@@ -185,7 +185,7 @@ class TestCollections(unittest.TestCase, DSSAssertMixin, DSSUploadMixin):
         self.assertEqual(res.status_code, requests.codes.unprocessable_entity)
 
     def test_patch_excessive(self):
-        "PATCH excess payload"
+        """PATCH excess payload."""
         res = self.app.patch("/v1/collections/{}".format(self.uuid),
                              headers=get_auth_header(authorized=True),
                              params=dict(version=self.version, replica="aws"),

@@ -997,12 +997,21 @@ paths:
                   - code
   /collections:
     get:
-      operationId: dss.api.collections.list
+      operationId: dss.api.collections.listc
       security:
         - dcpAuth: []
       summary: Retrieve a user's collections.
       description: >
-        Return a list of associated collections.
+        Return a list of a user's collections.
+
+        Collections are sets of links to files, bundles, other collections, or fragments of JSON metadata files. Each
+        entry in the input set of links is checked for referential integrity (the link target must exist in the replica
+        referenced). Up to 1000 items can be referenced in a new collection, or added or removed using
+        `PATCH /collections`. New collections are private to the authenticated user.
+
+        Collection items are de-duplicated (if an identical item is given multiple times, it will only be added once).
+
+        Collections are replicated across storage replicas similarly to files and bundles.
       parameters:
         - name: replica
           in: query
@@ -1017,9 +1026,10 @@ paths:
             type: object
             properties:
               collections:
+                description: A user's collections.
                 type: array
                 items:
-                  $ref: "#/definitions/Collection"
+                  $ref: '#/definitions/CollectionOfCollectionsItem'
         500:
           $ref: '#/responses/ServerError'
         502:
@@ -1037,15 +1047,8 @@ paths:
                 properties:
                   code:
                     type: string
-                    description: >
-                      Machine-readable error code.  The types of return values should not be changed lightly.
-
-
-                      The code `invalid_link` indicates that an item listed in the collection contents field of the
-                      input could not be resolved (either because the file, bundle, or collection does not exist on the
-                      replica specified, or because the JSON Pointer reference could not be resolved within the
-                      specified file).
-                    enum: [unhandled_exception, Forbidden, Unauthorized, OAuthResponseProblem, not_found, invalid_link, read_only]
+                    description: Machine-readable error code.  The types of return values should not be changed lightly.
+                    enum: [unhandled_exception, Forbidden, Unauthorized, OAuthResponseProblem, not_found]
                 required:
                   - code
     put:
@@ -1055,15 +1058,12 @@ paths:
       description: >
         Create a new collection.
 
-
         Collections are sets of links to files, bundles, other collections, or fragments of JSON metadata files. Each
         entry in the input set of links is checked for referential integrity (the link target must exist in the replica
         referenced). Up to 1000 items can be referenced in a new collection, or added or removed using
         `PATCH /collections`. New collections are private to the authenticated user.
 
-
         Collection items are de-duplicated (if an identical item is given multiple times, it will only be added once).
-
 
         Collections are replicated across storage replicas similarly to files and bundles.
       parameters:
@@ -2415,6 +2415,22 @@ definitions:
         description: The total number of matching results found.
         type: integer
       #TODO add next page
+  CollectionOfCollectionsItem:
+    type: object
+    properties:
+      collection_uuid:
+        type: string
+        description: A UUID identifying the collection.
+        pattern: "[a-z0-9]{8}-[a-z0-9]{4}-[a-z0-9]{4}-[a-z0-9]{4}-[a-z0-9]{12}"
+      collection_version:
+        type: string
+        description: The version of the UUID identifying the collection.
+      collection:
+        $ref: '#/definitions/Collection'
+    required:
+      - collection_uuid
+      - collection_version
+      - collection
   Collection:
     type: object
     properties:
@@ -2456,7 +2472,7 @@ definitions:
       path:
         type: string
         description: >
-          JSON Pointer indexing into the JSON conents of the file containing a metadata fragment.
+          JSON Pointer indexing into the JSON contents of the file containing a metadata fragment.
           Required for links of type other than file, bundle, or collection. Ignored otherwise.
     required:
       - type
