@@ -114,8 +114,8 @@ class TestCollections(unittest.TestCase, DSSAssertMixin, DSSUploadMixin):
             link = parse_header_links(link_header)[0]
             self.assertEquals(link['rel'], 'next')
             parsed = urlsplit(link['url'])
-            url = str(UrlBuilder().set(path=parsed.path, query=parse_qsl(parsed.query), fragment=parsed.fragment))
-            resp_obj = self.assertGetResponse(url,
+            url = UrlBuilder().set(path=parsed.path, query=parse_qsl(parsed.query), fragment=parsed.fragment)
+            resp_obj = self.assertGetResponse(str(url),
                                               expected_code=codes,
                                               headers=get_auth_header(authorized=True))
             link_header = resp_obj.response.headers.get('Link')

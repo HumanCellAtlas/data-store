@@ -133,7 +133,7 @@ class TestBundleApi(unittest.TestCase, TestAuthMixin, DSSAssertMixin, DSSUploadM
                 self._test_bundle_get_paging(replica, list(), 501, codes=requests.codes.bad_request)
 
     def _test_bundle_get_paging(self,
-                                replica: str,
+                                replica,
                                 expected_files: list,
                                 per_page: int,
                                 codes={requests.codes.ok, requests.codes.partial},
