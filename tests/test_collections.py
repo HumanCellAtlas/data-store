@@ -142,7 +142,6 @@ class TestCollections(unittest.TestCase, DSSAssertMixin, DSSUploadMixin):
         res.raise_for_status()
         self.assertIn('collections', res.json())
 
-    @testmode.standalone
     def test_collection_paging(self):
         # seems to take about 15 seconds per page when "per_page" == 100
         # so this scales linearly with the total number of collections in the bucket
