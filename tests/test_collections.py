@@ -109,6 +109,9 @@ class TestCollections(unittest.TestCase, DSSAssertMixin, DSSUploadMixin):
         resp_obj = self.assertGetResponse(str(url), codes, headers=get_auth_header(authorized=True))
         link_header = resp_obj.response.headers.get('Link')
 
+        if codes == requests.codes.bad_request:
+            return True
+
         paging_res, normal_res = None, None
         while link_header:
             link = parse_header_links(link_header)[0]
