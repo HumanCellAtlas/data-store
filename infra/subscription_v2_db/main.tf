@@ -19,8 +19,5 @@ resource "aws_dynamodb_table" "subscriptions-aws" {
     type = "S"
   }
 
-  tags {
-    CreatedBy = "Terraform"
-    Application = "DSS"
-  }
+  tags = "${local.common_tags}"
 }

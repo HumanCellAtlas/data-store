@@ -8,8 +8,5 @@ resource "aws_dynamodb_table" "sfn_state" {
     type = "S"
   }
 
-  tags {
-    CreatedBy = "Terraform"
-    Application = "DSS"
-  }
+  tags = "${local.common_tags}"
 }

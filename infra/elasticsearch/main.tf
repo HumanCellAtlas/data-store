@@ -8,28 +8,19 @@ locals {
 resource "aws_cloudwatch_log_group" "es_index_log" {
   name = "/aws/aes/domains/${var.DSS_ES_DOMAIN}/es-index-${var.DSS_DEPLOYMENT_STAGE}-logs"
   retention_in_days = 1827
-  tags {
-    CreatedBy = "Terraform"
-    Application = "DSS"
-  }
+  tags = "${local.common_tags}"
 }
 
 resource "aws_cloudwatch_log_group" "es_search_log" {
   name = "/aws/aes/domains/${var.DSS_ES_DOMAIN}/es-search-${var.DSS_DEPLOYMENT_STAGE}-logs"
   retention_in_days = 1827
-  tags {
-    CreatedBy = "Terraform"
-    Application = "DSS"
-  }
+  tags = "${local.common_tags}"
 }
 
 resource "aws_cloudwatch_log_group" "es_application_log" {
   name = "/aws/aes/domains/${var.DSS_ES_DOMAIN}/es-application-${var.DSS_DEPLOYMENT_STAGE}-logs"
   retention_in_days = 1827
-  tags {
-    CreatedBy = "Terraform"
-    Application = "DSS"
-  }
+  tags = "${local.common_tags}"
 }
 
 data "aws_iam_policy_document" "dss_es_cloudwatch_policy_document" {
@@ -123,11 +114,12 @@ resource aws_elasticsearch_domain elasticsearch {
     automated_snapshot_start_hour = 23
   }
 
-  tags {
-    Domain = "${var.DSS_ES_DOMAIN}"
-    CreatedBy = "Terraform"
-    Application = "DSS"
-  }
+    tags = "${merge(
+        local.common_tags,
+        map(
+           "Domain", "${var.DSS_ES_DOMAIN}"
+        )
+    )}"
 
   access_policies = "${data.aws_iam_policy_document.dss_es_access_policy_documennt.json}"
 }

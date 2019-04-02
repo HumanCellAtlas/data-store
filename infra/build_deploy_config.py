@@ -11,9 +11,30 @@ GCP_PROJECT_ID = Client().project
 infra_root = os.path.abspath(os.path.dirname(__file__))
 
 
+def validate_aws_config():
+    current_caller = boto3.client('sts').get_caller_identity()
+    if '@' not in current_caller['UserId'].split(':')[1]:
+        print('~/.aw/config needs to have an email under the role_session_name')
+        return False
+    return True
+
+
 parser = argparse.ArgumentParser(description=__doc__)
 parser.add_argument("component")
 args = parser.parse_args()
+
+terraform_aws_tagging_template = """
+locals {
+  common_tags = "${map(
+    "managedBy" , "terraform",
+    "Name"      , "${var.project}-${var.env}-${var.service}",
+    "project"   , "${var.project}",
+    "env"       , "${var.env}",
+    "service"   , "${var.service}",
+    "owner"     , "${var.owner}"
+  )}"   
+}
+"""
 
 
 terraform_variable_template = """
@@ -89,8 +110,16 @@ env_vars_to_infra = [
     "GCP_DEFAULT_REGION",
 ]
 
+if not validate_aws_config():
+    exit(1)
+
+caller_info = boto3.client("sts").get_caller_identity()
+owner = caller_info['UserId'].split(':')[1]
+project = 'dcp'
+env = os.environ.get('DSS_DEPLOYMENT_STAGE')
+service = 'dss'
+
 with open(os.path.join(infra_root, args.component, "backend.tf"), "w") as fp:
-    caller_info = boto3.client("sts").get_caller_identity()
     if os.environ.get('AWS_PROFILE'):
         profile = os.environ['AWS_PROFILE']
         profile_setting = f'profile = "{profile}"'
@@ -110,6 +139,12 @@ with open(os.path.join(infra_root, args.component, "variables.tf"), "w") as fp:
     for key in env_vars_to_infra:
         val = os.environ[key]
         fp.write(terraform_variable_template.format(name=key, val=val))
+
+    fp.write(terraform_variable_template.format(name="project", val=project))
+    fp.write(terraform_variable_template.format(name="env", val=env ))
+    fp.write(terraform_variable_template.format(name="service", val=service))
+    fp.write(terraform_variable_template.format(name="owner", val=owner))
+    fp.write(terraform_aws_tagging_template)
 
 with open(os.path.join(infra_root, args.component, "providers.tf"), "w") as fp:
     fp.write(terraform_providers_template.format(
