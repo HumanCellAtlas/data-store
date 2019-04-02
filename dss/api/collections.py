@@ -1,5 +1,5 @@
 import json, logging, datetime, io, functools
-from typing import List
+from typing import List, Dict, Any
 from uuid import uuid4
 from concurrent.futures import ThreadPoolExecutor
 from functools import partial
@@ -45,6 +45,24 @@ def get_impl(uuid: str, replica: str, version: str = None):
     except BlobNotFoundError:
         raise DSSException(404, "not_found", "Could not find collection for UUID {}".format(uuid))
     return json.loads(collection_blob)
+
+@dss_handler
+@security.authorized_group_required(['hca'])
+def listcollections(replica: str):
+    authenticated_user_email = security.get_token_email(request.token_info)
+    bucket = Replica[replica].bucket
+    handle = Config.get_blobstore_handle(Replica[replica])
+
+    collections = []
+    for key in handle.list(bucket, prefix='collections'):
+        uuid, version = key[len('collections/'):].split('.', 1)
+        if version != 'dead':
+            collection = json.loads(handle.get(bucket, key))
+            if collection['owner'] == authenticated_user_email:
+                collections.append({'collection_uuid': uuid,
+                                    'collection_version': version,
+                                    'collection': collection})
+    return jsonify({'collections': collections}), requests.codes.ok
 
 @dss_handler
 @security.authorized_group_required(['hca'])
