@@ -1,12 +1,12 @@
 import json, logging, datetime, io, functools
-from typing import List, Dict, Any
+from typing import List
 from uuid import uuid4
 from concurrent.futures import ThreadPoolExecutor
 from functools import partial
 from collections import OrderedDict
 
 import requests
-from flask import jsonify, request
+from flask import jsonify, request, make_response
 import jsonpointer
 
 from dss import Config, Replica
@@ -14,7 +14,7 @@ from dss.error import DSSException, dss_handler
 from dss.storage.blobstore import test_object_exists
 from dss.storage.hcablobstore import BlobStore, compose_blob_key
 from dss.storage.identifiers import CollectionFQID, CollectionTombstoneID
-from dss.util import security, hashabledict
+from dss.util import security, hashabledict, UrlBuilder
 from dss.util.version import datetime_to_version_format
 from dss.api.bundles import _idempotent_save
 
@@ -46,23 +46,43 @@ def get_impl(uuid: str, replica: str, version: str = None):
         raise DSSException(404, "not_found", "Could not find collection for UUID {}".format(uuid))
     return json.loads(collection_blob)
 
+def fetch_collections(handle, bucket, collection_keys):
+    authenticated_user_email = security.get_token_email(request.token_info)
+
+    all_collections = []
+    for key in collection_keys:
+        uuid, version = key[len('collections/'):].split('.', 1)
+        assert version != 'dead'
+        collection = json.loads(handle.get(bucket, key))
+        if collection['owner'] == authenticated_user_email:
+            all_collections.append({'collection_uuid': uuid,
+                                    'collection_version': version,
+                                    'collection': collection})
+    return all_collections
+
 @dss_handler
 @security.authorized_group_required(['hca'])
-def listcollections(replica: str):
-    authenticated_user_email = security.get_token_email(request.token_info)
+def listcollections(replica: str, per_page: int, start_at: int = 0):
     bucket = Replica[replica].bucket
     handle = Config.get_blobstore_handle(Replica[replica])
 
-    collections = []
-    for key in handle.list(bucket, prefix='collections'):
-        uuid, version = key[len('collections/'):].split('.', 1)
-        if version != 'dead':
-            collection = json.loads(handle.get(bucket, key))
-            if collection['owner'] == authenticated_user_email:
-                collections.append({'collection_uuid': uuid,
-                                    'collection_version': version,
-                                    'collection': collection})
-    return jsonify({'collections': collections}), requests.codes.ok
+    # expensively list every collection file in the bucket, even those not belonging to the user (possibly 1000's... )
+    collection_keys = [i for i in handle.list(bucket, prefix='collections') if not i.endswith('dead')]
+
+    # paged response
+    if len(collection_keys) - start_at > per_page:
+        next_url = UrlBuilder(request.url)
+        next_url.replace_query("start_at", str(start_at + per_page))
+        # each chunk will be searched for collections belonging to that user (even more expensive; per bucket file)
+        # hits returned will vary between zero and the "per_page" size of the chunk
+        collections = fetch_collections(handle, bucket, collection_keys[start_at:start_at + per_page])
+        response = make_response(jsonify({'collections': collections}), requests.codes.partial)
+        response.headers['Link'] = f"<{next_url}>; rel='next'"
+        return response
+    # single response returning all collections (or those remaining)
+    else:
+        collections = fetch_collections(handle, bucket, collection_keys[start_at:])
+        return jsonify({'collections': collections}), requests.codes.ok
 
 @dss_handler
 @security.authorized_group_required(['hca'])

@@ -105,7 +105,7 @@ class TestBundleApi(unittest.TestCase, TestAuthMixin, DSSAssertMixin, DSSUploadM
             ))
             expected_files = manifest['files']
 
-        for replica in Replica:
+        for replica in (Replica.aws, Replica.gcp):
             for pass_version in [True, False]:
                 for per_page in [11, 33]:
                     with self.subTest(replica=replica, per_page=per_page, pass_version=pass_version):
@@ -120,7 +120,7 @@ class TestBundleApi(unittest.TestCase, TestAuthMixin, DSSAssertMixin, DSSUploadM
         """
         Should NOT be able to use a too-small per_page
         """
-        for replica in Replica:
+        for replica in (Replica.aws, Replica.gcp):
             with self.subTest(replica):
                 self._test_bundle_get_paging(replica, list(), 9, codes=requests.codes.bad_request)
 
@@ -128,17 +128,16 @@ class TestBundleApi(unittest.TestCase, TestAuthMixin, DSSAssertMixin, DSSUploadM
         """
         Should NOT be able to use a too-large per_page
         """
-        for replica in Replica:
+        for replica in (Replica.aws, Replica.gcp):
             with self.subTest(replica):
-                self._test_bundle_get_paging(Replica.aws, list(), 501, codes=requests.codes.bad_request)
+                self._test_bundle_get_paging(replica, list(), 501, codes=requests.codes.bad_request)
 
     def _test_bundle_get_paging(self,
-                                replica: Replica,
+                                replica,
                                 expected_files: list,
                                 per_page: int,
                                 codes={requests.codes.ok, requests.codes.partial},
                                 pass_version: bool = True):
-        replica = Replica.aws
         bundle_uuid = "7f8c686d-a439-4376-b367-ac93fc28df43"
         version = "2019-02-21T184000.899031Z"
 
