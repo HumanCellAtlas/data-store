@@ -217,6 +217,7 @@ def patch(uuid: str, json_request_body: dict, replica: str, version: str):
 
     timestamp = datetime.datetime.utcnow()
     new_bundle_version = datetime_to_version_format(timestamp)
+    bundle['version'] = new_bundle_version
     _save_bundle(handle, Replica[replica].bucket, uuid, new_bundle_version, bundle)
     return jsonify(dict(uuid=uuid, version=new_bundle_version)), requests.codes.ok
 

@@ -936,8 +936,9 @@ class TestBundleApi(unittest.TestCase, TestAuthMixin, DSSAssertMixin, DSSUploadM
                 res = self.app.get(
                     f"/v1/bundles/{bundle_uuid}",
                     headers=get_auth_header(authorized=True),
-                    params=dict(version=res.json()['version'], replica="aws"),
+                    params=dict(version=bundle_version, replica="aws"),
                 )
+                self.assertEqual(bundle_version, res.json()['bundle']['version'])
                 self.assertEqual(
                     set([bundle_file_id_metadata(f) for f in expected_files]),
                     set([bundle_file_id_metadata(f) for f in res.json()['bundle']['files']])
