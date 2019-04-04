@@ -98,14 +98,13 @@ class ProdSmoketest(unittest.TestCase):
         cls.prod_bundle_file_count = None
 
     def _test_query_es(self, starting_replica):
-        with self.subTest(f"{starting_replica.name}: Querying ES "):
-            es_res = run_for_json('hca dss post-search  --es-query {} --replica aws')
-            bundle_fqid = es_res['results'][0]['bundle_fqid']
-            return bundle_fqid.split('.')[0], bundle_fqid.split('.')[1]
+        es_res = run_for_json(f'{self.venv_bin}hca dss post-search  --es-query {{}} --replica aws')
+        bundle_fqid = es_res['results'][0]['bundle_fqid']
+        return bundle_fqid.split('.')[0], bundle_fqid.split('.')[1]
 
     def _test_checkout_start(self, starting_replica, bundle_uuid):
         res = run_for_json(f"{self.venv_bin}hca dss post-bundles-checkout --uuid {bundle_uuid} "
-                               f"--replica {starting_replica.name}")
+                           f"--replica {starting_replica.name}")
         checkout_job_id = res['checkout_job_id']
         print(f"Checkout jobId: {checkout_job_id}")
         self.assertTrue(checkout_job_id)
@@ -139,16 +138,14 @@ class ProdSmoketest(unittest.TestCase):
             self.fail("Timed out waiting for checkout job to succeed")
 
     def _test_subscription_create(self, starting_replica):
-        s3 = boto3.client('s3', config=botocore.client.Config(signature_version='s3v4'))
-        with self.subTest(f"{starting_replica.name}: Create a subscription for replica {starting_replica.name}"
-                          f" using the query: { '{}' }"):
-            url = 'https://www.example.com'
-            put_response = run_for_json([f'{self.venv_bin}hca', 'dss', 'put-subscription',
-                                         '--callback-url', url,
-                                         '--es-query', " {}",
-                                         '--replica', starting_replica.name])
-            subscription_id = put_response['uuid']
-            return subscription_id
+        url = 'https://www.example.com'
+        query = {"query": {"bool": {"must": [{"term": {"admin_deleted": "true"}}]}}}
+        put_response = run_for_json([f"{self.venv_bin}hca dss put-subscription "
+                                     f"--callback-url {url} "
+                                     f"--es-query {json.dumps(query)} "
+                                     f"--replica {starting_replica.name} "])
+        subscription_id = put_response['uuid']
+        return subscription_id
 
     def _test_subscription_fetch(self, starting_replica, subscription_id):
         get_response = run_for_json(f"{self.venv_bin}hca dss get-subscription "
