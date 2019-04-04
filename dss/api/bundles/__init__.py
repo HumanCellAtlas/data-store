@@ -352,16 +352,14 @@ def _idempotent_save(blobstore: BlobStore, bucket: str, key: str, data: dict) ->
     else:
         # write manifest to persistent store
         _d = json.dumps(data).encode("utf-8")
-        size = len(_d)
         part_size = 16 * 1024 * 1024
-        if isinstance(blobstore, S3BlobStore) and size > part_size:
+        if isinstance(blobstore, S3BlobStore) and len(_d) > part_size:
             with io.BytesIO(_d) as fh:
                 multipart_parallel_upload(
                     blobstore.s3_client,
                     bucket,
                     key,
                     fh,
-                    size=size,
                     part_size=part_size,
                     parallelization_factor=20
                 )

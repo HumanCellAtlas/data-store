@@ -218,9 +218,9 @@ class TestSecurity(unittest.TestCase):
                 security.get_token_email({})
             self.assertEqual(ex.exception.status, 401)
             self.assertEqual(ex.exception.message, 'Authorization token is missing email claims.')
+
     def test_multipart_parallel_upload(self):
-        size = 7 * 1024 * 1024
-        data = os.urandom(size)
+        data = os.urandom(7 * 1024 * 1024)
         metadata = {'something': "foolish"}
         part_size = 5 * 1024 * 1024
         s3_client = Config.get_native_handle(Replica.aws)
@@ -232,7 +232,6 @@ class TestSecurity(unittest.TestCase):
                     bucket,
                     "fake_key",
                     fh,
-                    size=size,
                     part_size=part_size,
                     metadata=metadata,
                     content_type="application/octet-stream",
@@ -245,20 +244,7 @@ class TestSecurity(unittest.TestCase):
                     bucket,
                     "fake_key",
                     fh,
-                    size=size,
                     part_size=part_size,
-                )
-        part_size = 5 * 1024 * 1024
-        with self.subTest("should work parallelization factor of 1"):
-            with io.BytesIO(data) as fh:
-                multipart_parallel_upload(
-                    s3_client,
-                    bucket,
-                    "fake_key",
-                    fh,
-                    size=size,
-                    part_size=part_size,
-                    parallelization_factor=1,
                 )
 
     @staticmethod

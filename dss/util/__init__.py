@@ -143,7 +143,6 @@ def multipart_parallel_upload(
         key: str,
         src_file_handle: typing.BinaryIO,
         *,
-        size: int,
         part_size: int,
         content_type: str=None,
         metadata: dict=None,
@@ -158,26 +157,28 @@ def multipart_parallel_upload(
         kwargs['Metadata'] = metadata
     mpu = s3_client.create_multipart_upload(Bucket=bucket, Key=key, **kwargs)
 
-    part_count = size // part_size
-    if part_count * part_size < size:
-        part_count += 1
-
-    def _copy_part(part_number):
-        return s3_client.upload_part(
-            Body=src_file_handle.read(part_size),
+    def _copy_part(data, part_number):
+        resp = s3_client.upload_part(
+            Body=data,
             Bucket=bucket,
             Key=key,
             PartNumber=part_number,
             UploadId=mpu['UploadId'],
         )
+        return resp['ETag']
+
+    def _chunks():
+        while True:
+            data = src_file_handle.read(part_size)
+            if not data:
+                break
+            yield data
 
     with ThreadPoolExecutor(max_workers=parallelization_factor) as e:
-        futures = {e.submit(_copy_part, part_number): part_number
-                   for part_number in range(1, 1 + part_count)}
-        parts = sorted(
-            [dict(ETag=future.result()['ETag'], PartNumber=futures[future]) for future in futures],
-            key=lambda p: p['PartNumber']
-        )
+        futures = {e.submit(_copy_part, data, part_number): part_number
+                   for part_number, data in enumerate(_chunks(), start=1)}
+        parts = [dict(ETag=f.result(), PartNumber=futures[f]) for f in as_completed(futures)]
+        parts.sort(key=lambda p: p['PartNumber'])
     s3_client.complete_multipart_upload(
         Bucket=bucket,
         Key=key,
