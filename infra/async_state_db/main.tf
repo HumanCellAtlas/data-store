@@ -1,8 +1,14 @@
-module "tagging" {
-  source = "../"
-  PROJECT = "${var.PROJECT}"
-  SERVICE = "${var.SERVICE}"
-  ENV = "${var.ENV}"
+data "aws_caller_identity" "current" {}
+
+locals {
+  common_tags = "${map(
+    "managedBy" , "terraform",
+    "Name"      , "${var.PROJECT}-${var.ENV}-${var.SERVICE}",
+    "project"   , "${var.PROJECT}",
+    "env"       , "${var.ENV}",
+    "service"   , "${var.SERVICE}",
+    "owner"     , "${element(split(":", "${data.aws_caller_identity.current.user_id}"),1)}"
+  )}"
 }
 
 resource "aws_dynamodb_table" "sfn_state" {
@@ -15,5 +21,5 @@ resource "aws_dynamodb_table" "sfn_state" {
     type = "S"
   }
 
-  tags = "${module.tagging.common_tags}"
+  tags = "${local.common_tags}"
 }
