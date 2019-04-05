@@ -20,10 +20,6 @@ variable "{name}" {{
 }}
 """
 
-terraform_env_variable_template = """
-variable "{name}" {{}}
-"""
-
 terraform_backend_template = """# Auto-generated during infra build process.
 # Please edit infra/build_deploy_config.py directly.
 terraform {{
@@ -72,6 +68,9 @@ env_vars_to_infra = [
     "DSS_GS_CHECKOUT_BUCKET_STAGING",
     "DSS_GS_CHECKOUT_BUCKET_TEST",
     "DSS_GS_CHECKOUT_BUCKET_TEST_USER",
+    "DSS_INFRA_TAG_PROJECT",
+    "DSS_INFRA_TAG_SERVICE",
+    "DSS_INFRA_TAG_ENV",
     "DSS_S3_BUCKET",
     "DSS_S3_BUCKET_INTEGRATION",
     "DSS_S3_BUCKET_PROD",
@@ -113,9 +112,6 @@ with open(os.path.join(infra_root, args.component, "variables.tf"), "w") as fp:
     for key in env_vars_to_infra:
         val = os.environ[key]
         fp.write(terraform_variable_template.format(name=key, val=val))
-    fp.write(terraform_env_variable_template.format(name="SERVICE"))
-    fp.write(terraform_env_variable_template.format(name="PROJECT"))
-    fp.write(terraform_env_variable_template.format(name="ENV"))
 
 with open(os.path.join(infra_root, args.component, "providers.tf"), "w") as fp:
     fp.write(terraform_providers_template.format(

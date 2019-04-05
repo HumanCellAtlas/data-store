@@ -4,12 +4,12 @@ locals {
   region = "${data.aws_region.current.name}"
   account_id = "${data.aws_caller_identity.current.account_id}"
   common_tags = "${map(
-  "managedBy" , "terraform",
-  "Name"      , "${var.PROJECT}-${var.ENV}-${var.SERVICE}",
-  "project"   , "${var.PROJECT}",
-  "env"       , "${var.ENV}",
-  "service"   , "${var.SERVICE}",
-  "owner"     , "${element(split(":", "${data.aws_caller_identity.current.user_id}"),1)}"
+    "managedBy" , "terraform",
+    "Name"      , "${var.DSS_INFRA_TAG_PROJECT}-${var.DSS_INFRA_TAG_ENV}-${var.DSS_INFRA_TAG_SERVICE}",
+    "project"   , "${var.DSS_INFRA_TAG_PROJECT}",
+    "env"       , "${var.DSS_INFRA_TAG_ENV}",
+    "service"   , "${var.DSS_INFRA_TAG_SERVICE}",
+    "owner"     , "${element(split(":", "${data.aws_caller_identity.current.user_id}"),1)}"
   )}"
 }
 
