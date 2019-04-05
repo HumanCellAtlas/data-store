@@ -1,3 +1,6 @@
+module "tagging" {
+  source = "../"
+}
 resource "aws_dynamodb_table" "sfn_state" {
   name         = "dss-async-state-${var.DSS_DEPLOYMENT_STAGE}"
   billing_mode = "PAY_PER_REQUEST"
@@ -8,5 +11,5 @@ resource "aws_dynamodb_table" "sfn_state" {
     type = "S"
   }
 
-  tags = "${local.common_tags}"
+  tags = "${module.tagging.common_tags}"
 }

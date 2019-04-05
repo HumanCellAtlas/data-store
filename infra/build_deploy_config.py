@@ -10,26 +10,9 @@ GCP_PROJECT_ID = Client().project
 
 infra_root = os.path.abspath(os.path.dirname(__file__))
 
-
-
-
 parser = argparse.ArgumentParser(description=__doc__)
 parser.add_argument("component")
 args = parser.parse_args()
-
-terraform_aws_tagging_template = """
-locals {
-  common_tags = "${map(
-    "managedBy" , "terraform",
-    "Name"      , "${var.project}-${var.env}-${var.service}",
-    "project"   , "${var.project}",
-    "env"       , "${var.env}",
-    "service"   , "${var.service}",
-    "owner"     , "${var.owner}"
-  )}"   
-}
-"""
-
 
 terraform_variable_template = """
 variable "{name}" {{
@@ -85,6 +68,7 @@ env_vars_to_infra = [
     "DSS_GS_CHECKOUT_BUCKET_STAGING",
     "DSS_GS_CHECKOUT_BUCKET_TEST",
     "DSS_GS_CHECKOUT_BUCKET_TEST_USER",
+    "DSS_HOME",
     "DSS_S3_BUCKET",
     "DSS_S3_BUCKET_INTEGRATION",
     "DSS_S3_BUCKET_PROD",
@@ -102,16 +86,13 @@ env_vars_to_infra = [
     "DSS_ZONE_NAME",
     "ES_ALLOWED_SOURCE_IP_SECRETS_NAME",
     "GCP_DEFAULT_REGION",
+    "TF_TAG_PROJECT",
+    "TF_TAG_SERVICE",
 ]
-
 
 caller_info = boto3.client("sts").get_caller_identity()
 if '@' not in caller_info['UserId']:
     raise ValueError('~/.aw/config needs to have an email under the role_session_name')
-owner = caller_info['UserId'].split(':')[1]
-project = 'dcp'
-env = os.environ.get('DSS_DEPLOYMENT_STAGE')
-service = 'dss'
 
 with open(os.path.join(infra_root, args.component, "backend.tf"), "w") as fp:
     if os.environ.get('AWS_PROFILE'):
@@ -133,31 +114,16 @@ with open(os.path.join(infra_root, args.component, "variables.tf"), "w") as fp:
     for key in env_vars_to_infra:
         val = os.environ[key]
         fp.write(terraform_variable_template.format(name=key, val=val))
+
+
+with open(os.path.join(infra_root, args.component, "providers.tf"), "w") as fp:
+    fp.write(terraform_providers_template.format(
+        aws_region=os.environ['AWS_DEFAULT_REGION'],
+        gcp_project_id=GCP_PROJECT_ID,
+    ))
     
 with open(os.path.join(infra_root, args.component, "providers.tf"), "w") as fp:
     fp.write(terraform_providers_template.format(
         aws_region=os.environ['AWS_DEFAULT_REGION'],
         gcp_project_id=GCP_PROJECT_ID,
     ))
-
-with open(os.path.join(infra_root, args.component, "tagging.tf"), "w") as fp:
-    fp.write("# Auto-generated during infra build process." + os.linesep)
-    fp.write("# Please edit infra/build_deploy_config.py directly." + os.linesep)
-    for key in env_vars_to_infra:
-        val = os.environ[key]
-        fp.write(terraform_variable_template.format(name=key, val=val))
-    
-with open(os.path.join(infra_root, args.component, "providers.tf"), "w") as fp:
-    fp.write(terraform_providers_template.format(
-        aws_region=os.environ['AWS_DEFAULT_REGION'],
-        gcp_project_id=GCP_PROJECT_ID,
-    ))
-
-with open(os.path.join(infra_root, args.component, "tagging.tf"), "w") as fp:
-    fp.write("# Auto-generated during infra build process." + os.linesep)
-    fp.write("# Please edit infra/build_deploy_config.py directly." + os.linesep)
-    fp.write(terraform_variable_template.format(name="project", val=project))
-    fp.write(terraform_variable_template.format(name="env", val=env))
-    fp.write(terraform_variable_template.format(name="service", val=service))
-    fp.write(terraform_variable_template.format(name="owner", val=owner))
-    fp.write(terraform_aws_tagging_template)

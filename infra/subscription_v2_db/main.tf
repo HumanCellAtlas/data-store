@@ -1,3 +1,7 @@
+module "tagging" {
+  source = "../"
+}
+
 locals {
   replicas = ["aws", "gcp"]
 } 
@@ -19,5 +23,5 @@ resource "aws_dynamodb_table" "subscriptions-aws" {
     type = "S"
   }
 
-  tags = "${local.common_tags}"
+  tags = "${module.tagging.common_tags}"
 }

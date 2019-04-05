@@ -1,3 +1,7 @@
+module "tagging" {
+  source = "../"
+}
+
 data aws_caller_identity current {}
 data aws_region current {}
 locals {
@@ -8,19 +12,19 @@ locals {
 resource "aws_cloudwatch_log_group" "es_index_log" {
   name = "/aws/aes/domains/${var.DSS_ES_DOMAIN}/es-index-${var.DSS_DEPLOYMENT_STAGE}-logs"
   retention_in_days = 1827
-  tags = "${local.common_tags}"
+  tags = "${module.tagging.common_tags}"
 }
 
 resource "aws_cloudwatch_log_group" "es_search_log" {
   name = "/aws/aes/domains/${var.DSS_ES_DOMAIN}/es-search-${var.DSS_DEPLOYMENT_STAGE}-logs"
   retention_in_days = 1827
-  tags = "${local.common_tags}"
+  tags = "${module.tagging.common_tags}"
 }
 
 resource "aws_cloudwatch_log_group" "es_application_log" {
   name = "/aws/aes/domains/${var.DSS_ES_DOMAIN}/es-application-${var.DSS_DEPLOYMENT_STAGE}-logs"
   retention_in_days = 1827
-  tags = "${local.common_tags}"
+  tags = "${module.tagging.common_tags}"
 }
 
 data "aws_iam_policy_document" "dss_es_cloudwatch_policy_document" {
@@ -115,7 +119,7 @@ resource aws_elasticsearch_domain elasticsearch {
   }
 
     tags = "${merge(
-        local.common_tags,
+        module.tagging.common_tags,
         map(
            "Domain", "${var.DSS_ES_DOMAIN}"
         )

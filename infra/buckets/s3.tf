@@ -1,10 +1,14 @@
+module "tagging" {
+  source = "../"
+}
+
 resource aws_s3_bucket dss_s3_bucket {
   count = "${length(var.DSS_S3_BUCKET) > 0 ? 1 : 0}"
   bucket = "${var.DSS_S3_BUCKET}"
   server_side_encryption_configuration {
     rule {apply_server_side_encryption_by_default {sse_algorithm = "AES256"}}
   }
-  tags = "${local.common_tags}"
+  tags = "${module.tagging.common_tags}"
 }
 
 resource aws_s3_bucket dss_s3_bucket_test {
@@ -18,13 +22,13 @@ resource aws_s3_bucket dss_s3_bucket_test {
       days = "${var.DSS_BLOB_TTL_DAYS}"
     }
   }
-  tags = "${local.common_tags}"
+  tags = "${module.tagging.common_tags}"
 }
 
 resource aws_s3_bucket dss_s3_bucket_test_fixtures {
   count = "${var.DSS_DEPLOYMENT_STAGE == "dev" ? 1 : 0}"
   bucket = "${var.DSS_S3_BUCKET_TEST_FIXTURES}"
-  tags = "${local.common_tags}"
+  tags = "${module.tagging.common_tags}"
 }
 
 resource aws_s3_bucket dss_s3_checkout_bucket {
@@ -48,7 +52,7 @@ resource aws_s3_bucket dss_s3_checkout_bucket {
     enabled = true
     abort_incomplete_multipart_upload_days = "${var.DSS_BLOB_TTL_DAYS}"
   }
-  tags = "${local.common_tags}"
+  tags = "${module.tagging.common_tags}"
   cors_rule {
     allowed_methods = [
       "HEAD",
@@ -75,7 +79,7 @@ resource aws_s3_bucket dss_s3_checkout_bucket_test {
       days = "${var.DSS_BLOB_TTL_DAYS}"
     }
   }
-  tags = "${local.common_tags}"
+  tags = "${module.tagging.common_tags}"
 }
 
 resource aws_s3_bucket dss_s3_checkout_bucket_test_user {
@@ -89,13 +93,13 @@ resource aws_s3_bucket dss_s3_checkout_bucket_test_user {
       days = "${var.DSS_BLOB_TTL_DAYS}"
     }
   }
-  tags = "${local.common_tags}"
+  tags = "${module.tagging.common_tags}"
 }
 
 resource aws_s3_bucket dss_s3_checkout_bucket_unwritable {
   count = "${var.DSS_DEPLOYMENT_STAGE == "dev" ? 1 : 0}"
   bucket = "${var.DSS_S3_CHECKOUT_BUCKET_UNWRITABLE}"
-  tags = "${local.common_tags}"
+  tags = "${module.tagging.common_tags}"
   policy = <<POLICY
 {
   "Version": "2012-10-17",
