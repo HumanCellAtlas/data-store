@@ -19,6 +19,9 @@ DSS_ES_INSTANCE_TYPE="m4.2xlarge.elasticsearch"
 DSS_ES_INSTANCE_COUNT="3"
 DSS_ES_VOLUME_SIZE="512"  # Maximum volume size for m4.large.elasticsearch
 DSS_AUTHORIZED_DOMAINS="hca-dcp-production.iam.gserviceaccount.com hca-dcp-pipelines-prod.iam.gserviceaccount.com ${DSS_AUTHORIZED_DOMAINS}"
+TF_VAR_PROJECT=dcp
+TF_VAR_SERVICE=dss
+TF_VAR_ENV=${DSS_DEPLOYMENT_STAGE}
 set +a
 
 if [[ -f "${DSS_HOME}/environment.prod.local" ]]; then
