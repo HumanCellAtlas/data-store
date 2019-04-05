@@ -1,24 +1,29 @@
 #!/usr/bin/env python3
 import typing
-
 import itertools
-import os, sys, unittest, io, json
+import os
+import sys
+import unittest
+import io
+import json
+import boto3
+
 from uuid import uuid4
 from datetime import datetime
-
-import boto3
+from requests.utils import parse_header_links
 from botocore.vendored import requests
 from dcplib.s3_multipart import get_s3_multipart_chunk_size
+from urllib.parse import parse_qsl, urlparse, urlsplit
 
 pkg_root = os.path.abspath(os.path.join(os.path.dirname(__file__), '..'))  # noqa
 sys.path.insert(0, pkg_root)  # noqa
 
 from tests import get_auth_header
-from tests.infra import generate_test_key, get_env, DSSAssertMixin, DSSUploadMixin
+from tests.infra import generate_test_key, get_env, DSSAssertMixin, DSSUploadMixin, testmode
+from tests.infra.server import ThreadedLocalServer
 from tests.fixtures.cloud_uploader import ChecksummingSink
 from dss.util.version import datetime_to_version_format
 from dss.util import UrlBuilder
-from tests.infra.server import ThreadedLocalServer
 
 
 class TestCollections(unittest.TestCase, DSSAssertMixin, DSSUploadMixin):
@@ -30,9 +35,16 @@ class TestCollections(unittest.TestCase, DSSAssertMixin, DSSUploadMixin):
         cls.file_uuid, cls.file_version = cls.upload_file(cls.app, {"foo": 1})
         cls.col_file_item = dict(type="file", uuid=cls.file_uuid, version=cls.file_version)
         cls.col_ptr_item = dict(type="foo", uuid=cls.file_uuid, version=cls.file_version, fragment="/foo")
+
         cls.contents = [cls.col_file_item] * 8 + [cls.col_ptr_item] * 8
         cls.uuid, cls.version = cls._put(cls, cls.contents)
         cls.invalid_ptr = dict(type="foo", uuid=cls.file_uuid, version=cls.file_version, fragment="/xyz")
+        cls.replicas = ('aws', 'gcp')
+
+    @classmethod
+    def teardownClass(cls):
+        cls._delete_collection(cls, cls.uuid)
+        cls.app.shutdown()
 
     @staticmethod
     def upload_file(app, contents):
@@ -64,13 +76,106 @@ class TestCollections(unittest.TestCase, DSSAssertMixin, DSSUploadMixin):
         resp_obj.raise_for_status()
         return file_uuid, resp_obj.json()["version"]
 
-    @classmethod
-    def teardownClass(cls):
-        cls._delete_collection(cls, cls.uuid)
-        cls.app.shutdown()
+    def _test_collection_get_paging(self, codes, replica: str, per_page: int, fetch_all: bool=False):
+        """
+        Attempts to ensure that a GET /collections call responds with a 206.
+
+        If unsuccessful on the first attempt, temp collections will be added for the user to ensure a response
+        and the GET /collections will be reattempted.
+        """
+        paging_res = self._fetch_collection_get_paging_responses(codes, replica, per_page, fetch_all)
+
+        # only create a ton of collections when not enough collections exist in the bucket to elicit a paging response
+        if not paging_res:
+            self.create_temp_user_collections(num=per_page + 1)  # guarantee a paging response
+            paging_res = self._fetch_collection_get_paging_responses(codes, replica, per_page, fetch_all)
+            self.assertTrue(paging_res)
+
+    def create_temp_user_collections(self, num: int):
+        for i in range(num):
+            contents = [self.col_file_item, self.col_ptr_item]
+            uuid, _ = self._put(contents)
+            self.addCleanup(self._delete_collection, uuid)
+
+    def _fetch_collection_get_paging_responses(self, codes, replica: str, per_page: int, fetch_all: bool):
+        """
+        GET /collections and iterate through the paging responses containing all of a user's collections.
+
+        If fetch_all is not True, this will return as soon as it gets one successful 206 paging reply.
+        """
+        url = UrlBuilder().set(path="/v1/collections/")
+        url.add_query("replica", replica)
+        url.add_query("per_page", str(per_page))
+        resp_obj = self.assertGetResponse(str(url), codes, headers=get_auth_header(authorized=True))
+        link_header = resp_obj.response.headers.get('Link')
+
+        if codes == requests.codes.bad_request:
+            return True
+
+        paging_res, normal_res = None, None
+        while link_header:
+            link = parse_header_links(link_header)[0]
+            self.assertEquals(link['rel'], 'next')
+            parsed = urlsplit(link['url'])
+            url = UrlBuilder().set(path=parsed.path, query=parse_qsl(parsed.query), fragment=parsed.fragment)
+            resp_obj = self.assertGetResponse(str(url),
+                                              expected_code=codes,
+                                              headers=get_auth_header(authorized=True))
+            link_header = resp_obj.response.headers.get('Link')
+
+            # Make sure we're getting the expected response status code
+            if link_header:
+                self.assertEqual(resp_obj.response.status_code, requests.codes.partial)
+                paging_res = True
+                if not fetch_all:
+                    return paging_res
+            else:
+                self.assertEqual(resp_obj.response.status_code, requests.codes.ok)
+                normal_res = True
+        if fetch_all:
+            self.assertTrue(normal_res)
+        return paging_res
+
+    @testmode.standalone
+    def test_get(self):
+        """GET a list of all collections belonging to the user."""
+        res = self.app.get('/v1/collections',
+                           headers=get_auth_header(authorized=True),
+                           params=dict(replica='aws'))
+        res.raise_for_status()
+        self.assertIn('collections', res.json())
+
+    def test_collection_paging(self):
+        # seems to take about 15 seconds per page when "per_page" == 100
+        # so this scales linearly with the total number of collections in the bucket
+        # slow because the collection API has to open ALL collections files in the bucket
+        # since it cannot determine the owner without opening the file
+        # TODO collections desperately need indexing to run in a reasonable amount of time
+        codes = {requests.codes.ok, requests.codes.partial}
+        for replica in ['aws']:  # TODO: change ['aws'] to self.replicas when GET collections is faster (indexed)
+            for per_page in [50, 100]:
+                with self.subTest(replica=replica, per_page=per_page):
+                    # only check a full run if per_page == 100 because it takes forever
+                    fetch_all = True if per_page == 100 else False
+                    self._test_collection_get_paging(codes=codes,
+                                                     replica=replica,
+                                                     per_page=per_page,
+                                                     fetch_all=fetch_all)
+
+    def test_collection_paging_too_small(self):
+        """Should NOT be able to use a too-small per_page."""
+        for replica in self.replicas:
+            with self.subTest(replica):
+                self._test_collection_get_paging(replica=replica, per_page=49, codes=requests.codes.bad_request)
+
+    def test_collection_paging_too_large(self):
+        """Should NOT be able to use a too-large per_page."""
+        for replica in self.replicas:
+            with self.subTest(replica):
+                self._test_collection_get_paging(replica=replica, per_page=101, codes=requests.codes.bad_request)
 
     def test_put(self):
-        "PUT new collection"
+        """PUT new collection."""
         with self.subTest("with unique contents"):
             contents = [self.col_file_item, self.col_ptr_item]
             uuid, _ = self._put(contents)
@@ -88,16 +193,16 @@ class TestCollections(unittest.TestCase, DSSAssertMixin, DSSUploadMixin):
                                params=dict(replica="aws"))
             self.assertEqual(res.json()["contents"], [self.col_file_item, self.col_ptr_item])
 
-    def test_get(self):
-        "GET created collection"
+    def test_get_uuid(self):
+        """GET created collection."""
         res = self.app.get("/v1/collections/{}".format(self.uuid),
                            headers=get_auth_header(authorized=True),
                            params=dict(version=self.version, replica="aws"))
         res.raise_for_status()
         self.assertEqual(res.json()["contents"], [self.col_file_item, self.col_ptr_item])
 
-    def test_get_latest(self):
-        "GET latest version of collection."
+    def test_get_uuid_latest(self):
+        """GET latest version of collection."""
         res = self.app.get("/v1/collections/{}".format(self.uuid),
                            headers=get_auth_header(authorized=True),
                            params=dict(replica="aws"))
@@ -105,14 +210,14 @@ class TestCollections(unittest.TestCase, DSSAssertMixin, DSSUploadMixin):
         self.assertEqual(res.json()["contents"], [self.col_file_item, self.col_ptr_item])
 
     def test_get_version_not_found(self):
-        "NOT FOUND is returned when version does not exist."
+        """NOT FOUND is returned when version does not exist."""
         res = self.app.get("/v1/collections/{}".format(self.uuid),
                            headers=get_auth_header(authorized=True),
                            params=dict(replica="aws", version="9000"))
         self.assertEqual(res.status_code, requests.codes.not_found)
 
     def test_patch_no_version(self):
-        "BAD REQUEST is returned when patching without the version."
+        """BAD REQUEST is returned when patching without the version."""
         res = self.app.patch("/v1/collections/{}".format(self.uuid),
                              headers=get_auth_header(authorized=True),
                              params=dict(replica="aws"),
@@ -159,7 +264,7 @@ class TestCollections(unittest.TestCase, DSSAssertMixin, DSSUploadMixin):
                 self.assertEqual(collection, expected_contents)
 
     def test_put_invalid_fragment(self):
-        "PUT invalid fragment reference"
+        """PUT invalid fragment reference."""
         uuid = str(uuid4())
         self.addCleanup(self._delete_collection, uuid)
         res = self.app.put("/v1/collections",
@@ -169,7 +274,7 @@ class TestCollections(unittest.TestCase, DSSAssertMixin, DSSUploadMixin):
         self.assertEqual(res.status_code, requests.codes.unprocessable_entity)
 
     def test_patch_invalid_fragment(self):
-        "PATCH invalid fragment reference"
+        """PATCH invalid fragment reference."""
         res = self.app.patch("/v1/collections/{}".format(self.uuid),
                              headers=get_auth_header(authorized=True),
                              params=dict(version=self.version, replica="aws"),
@@ -177,7 +282,7 @@ class TestCollections(unittest.TestCase, DSSAssertMixin, DSSUploadMixin):
         self.assertEqual(res.status_code, requests.codes.unprocessable_entity)
 
     def test_patch_excessive(self):
-        "PATCH excess payload"
+        """PATCH excess payload."""
         res = self.app.patch("/v1/collections/{}".format(self.uuid),
                              headers=get_auth_header(authorized=True),
                              params=dict(version=self.version, replica="aws"),

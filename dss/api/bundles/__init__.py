@@ -203,11 +203,9 @@ def bundle_file_id_metadata(bundle_file_metadata):
 @security.authorized_group_required(['hca'])
 def patch(uuid: str, json_request_body: dict, replica: str, version: str):
     handle = Config.get_blobstore_handle(Replica[replica])
-    try:
-        cur_bundle_blob = handle.get(Replica[replica].bucket, BundleFQID(uuid, version).to_key())
-    except BlobNotFoundError:
+    bundle = get_bundle_manifest(uuid, Replica[replica], version)
+    if bundle is None:
         raise DSSException(404, "not_found", "Could not find bundle for UUID {}".format(uuid))
-    bundle = json.loads(cur_bundle_blob)
 
     remove_files_set = {bundle_file_id_metadata(f) for f in json_request_body.get("remove_files", [])}
     bundle['files'] = [f for f in bundle['files'] if bundle_file_id_metadata(f) not in remove_files_set]
@@ -217,6 +215,7 @@ def patch(uuid: str, json_request_body: dict, replica: str, version: str):
 
     timestamp = datetime.datetime.utcnow()
     new_bundle_version = datetime_to_version_format(timestamp)
+    bundle['version'] = new_bundle_version
     _save_bundle(handle, Replica[replica].bucket, uuid, new_bundle_version, bundle)
     return jsonify(dict(uuid=uuid, version=new_bundle_version)), requests.codes.ok
 
