@@ -68,7 +68,6 @@ env_vars_to_infra = [
     "DSS_GS_CHECKOUT_BUCKET_STAGING",
     "DSS_GS_CHECKOUT_BUCKET_TEST",
     "DSS_GS_CHECKOUT_BUCKET_TEST_USER",
-    "DSS_HOME",
     "DSS_S3_BUCKET",
     "DSS_S3_BUCKET_INTEGRATION",
     "DSS_S3_BUCKET_PROD",
@@ -86,8 +85,6 @@ env_vars_to_infra = [
     "DSS_ZONE_NAME",
     "ES_ALLOWED_SOURCE_IP_SECRETS_NAME",
     "GCP_DEFAULT_REGION",
-    "TF_TAG_PROJECT",
-    "TF_TAG_SERVICE",
 ]
 
 caller_info = boto3.client("sts").get_caller_identity()
