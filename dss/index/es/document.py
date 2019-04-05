@@ -1,3 +1,4 @@
+import os
 import json
 import string
 import logging
@@ -94,6 +95,13 @@ class BundleDocument(IndexDocument):
     def from_bundle(cls, bundle: Bundle):
         self = cls(bundle.replica, bundle.fqid)
         self['manifest'] = bundle.manifest
+        number_of_manifest_files = len(self['manifest']['files'])
+        if number_of_manifest_files > 20000:
+            self['manifest']['files'] = []
+            logger.warning("Bundle with %s>20000 files not indexed. uuid=%s, version=%s",
+                           number_of_manifest_files,
+                           self.fqid.uuid,
+                           self.fqid.version)
         self['state'] = 'new'
 
         # There are two reasons in favor of not using dot in the name of the individual files in the index document,
