@@ -10,9 +10,11 @@ GCP_PROJECT_ID = Client().project
 
 infra_root = os.path.abspath(os.path.dirname(__file__))
 
+
 parser = argparse.ArgumentParser(description=__doc__)
 parser.add_argument("component")
 args = parser.parse_args()
+
 
 terraform_variable_template = """
 variable "{name}" {{
@@ -70,7 +72,6 @@ env_vars_to_infra = [
     "DSS_GS_CHECKOUT_BUCKET_TEST_USER",
     "DSS_INFRA_TAG_PROJECT",
     "DSS_INFRA_TAG_SERVICE",
-    "DSS_INFRA_TAG_ENV",
     "DSS_S3_BUCKET",
     "DSS_S3_BUCKET_INTEGRATION",
     "DSS_S3_BUCKET_PROD",
@@ -90,9 +91,8 @@ env_vars_to_infra = [
     "GCP_DEFAULT_REGION",
 ]
 
-caller_info = boto3.client("sts").get_caller_identity()
-
 with open(os.path.join(infra_root, args.component, "backend.tf"), "w") as fp:
+    caller_info = boto3.client("sts").get_caller_identity()
     if os.environ.get('AWS_PROFILE'):
         profile = os.environ['AWS_PROFILE']
         profile_setting = f'profile = "{profile}"'
@@ -113,12 +113,6 @@ with open(os.path.join(infra_root, args.component, "variables.tf"), "w") as fp:
         val = os.environ[key]
         fp.write(terraform_variable_template.format(name=key, val=val))
 
-with open(os.path.join(infra_root, args.component, "providers.tf"), "w") as fp:
-    fp.write(terraform_providers_template.format(
-        aws_region=os.environ['AWS_DEFAULT_REGION'],
-        gcp_project_id=GCP_PROJECT_ID,
-    ))
-    
 with open(os.path.join(infra_root, args.component, "providers.tf"), "w") as fp:
     fp.write(terraform_providers_template.format(
         aws_region=os.environ['AWS_DEFAULT_REGION'],
