@@ -1,6 +1,10 @@
 module "tagging" {
   source = "../"
+  PROJECT = "${var.PROJECT}"
+  SERVICE = "${var.SERVICE}"
+  ENV = "${var.ENV}"
 }
+
 resource "aws_dynamodb_table" "sfn_state" {
   name         = "dss-async-state-${var.DSS_DEPLOYMENT_STAGE}"
   billing_mode = "PAY_PER_REQUEST"

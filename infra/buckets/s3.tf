@@ -1,5 +1,8 @@
 module "tagging" {
   source = "../"
+  PROJECT = "${var.PROJECT}"
+  SERVICE = "${var.SERVICE}"
+  ENV = "${var.ENV}"
 }
 
 resource aws_s3_bucket dss_s3_bucket {

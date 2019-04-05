@@ -1,6 +1,10 @@
 module "tagging" {
   source = "../"
+  PROJECT = "${var.PROJECT}"
+  SERVICE = "${var.SERVICE}"
+  ENV = "${var.ENV}"
 }
+
 
 data aws_caller_identity current {}
 data aws_region current {}

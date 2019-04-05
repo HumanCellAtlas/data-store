@@ -1,29 +1,22 @@
+#These variables are populated from the enviornment; TF_VAR_{name}
+variable "PROJECT" {}
+variable "SERVICE" {}
+variable "ENV" {}
 
 data "aws_caller_identity" "current" {}
 
-variable "project" {
-  default = "dcp"
-}
-
-variable "service" {
-  default = "dss"
-}
-
-variable "env" {
-  default = "dev"
-}
-
 locals {
   owner = "${element(split(":", "${data.aws_caller_identity.current.user_id}"),1)}"
+
 }
 
 output "common_tags" {
   value = "${map(
     "managedBy" , "terraform",
-    "Name"      , "${var.project}-${var.env}-${var.service}",
-    "project"   , "${var.project}",
-    "env"       , "${var.env}",
-    "service"   , "${var.service}",
+    "Name"      , "${var.PROJECT}-${var.ENV}-${var.SERVICE}",
+    "project"   , "${var.PROJECT}",
+    "env"       , "${var.ENV}",
+    "service"   , "${var.SERVICE}",
     "owner"     , "${local.owner}"
   )}"
 }

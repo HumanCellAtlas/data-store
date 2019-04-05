@@ -20,6 +20,10 @@ variable "{name}" {{
 }}
 """
 
+terraform_env_variable_template = """
+variable "{name}" {{}}
+"""
+
 terraform_backend_template = """# Auto-generated during infra build process.
 # Please edit infra/build_deploy_config.py directly.
 terraform {{
@@ -88,8 +92,6 @@ env_vars_to_infra = [
 ]
 
 caller_info = boto3.client("sts").get_caller_identity()
-if '@' not in caller_info['UserId']:
-    raise ValueError('~/.aw/config needs to have an email under the role_session_name')
 
 with open(os.path.join(infra_root, args.component, "backend.tf"), "w") as fp:
     if os.environ.get('AWS_PROFILE'):
@@ -111,7 +113,9 @@ with open(os.path.join(infra_root, args.component, "variables.tf"), "w") as fp:
     for key in env_vars_to_infra:
         val = os.environ[key]
         fp.write(terraform_variable_template.format(name=key, val=val))
-
+    fp.write(terraform_env_variable_template.format(name="SERVICE"))
+    fp.write(terraform_env_variable_template.format(name="PROJECT"))
+    fp.write(terraform_env_variable_template.format(name="ENV"))
 
 with open(os.path.join(infra_root, args.component, "providers.tf"), "w") as fp:
     fp.write(terraform_providers_template.format(

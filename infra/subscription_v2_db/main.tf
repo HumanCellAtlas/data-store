@@ -1,6 +1,10 @@
 module "tagging" {
   source = "../"
+  PROJECT = "${var.PROJECT}"
+  SERVICE = "${var.SERVICE}"
+  ENV = "${var.ENV}"
 }
+
 
 locals {
   replicas = ["aws", "gcp"]
