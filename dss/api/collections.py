@@ -17,12 +17,16 @@ from dss.storage.identifiers import CollectionFQID, CollectionTombstoneID
 from dss.util import security, hashabledict, UrlBuilder
 from dss.util.version import datetime_to_version_format
 from dss.api.bundles import _idempotent_save
-
+from dss.collections import (CollectionData,
+                             get_collections_for_owner,
+                             put_collection,
+                             delete_collection)
 from cloud_blobstore import BlobNotFoundError
 
 MAX_METADATA_SIZE = 1024 * 1024
 
 logger = logging.getLogger(__name__)
+
 
 def get_impl(uuid: str, replica: str, version: str = None):
     uuid = uuid.lower()
@@ -46,43 +50,29 @@ def get_impl(uuid: str, replica: str, version: str = None):
         raise DSSException(404, "not_found", "Could not find collection for UUID {}".format(uuid))
     return json.loads(collection_blob)
 
-def fetch_collections(handle, bucket, collection_keys):
-    authenticated_user_email = security.get_token_email(request.token_info)
-
-    all_collections = []
-    for key in collection_keys:
-        uuid, version = key[len('collections/'):].split('.', 1)
-        assert version != 'dead'
-        collection = json.loads(handle.get(bucket, key))
-        if collection['owner'] == authenticated_user_email:
-            all_collections.append({'collection_uuid': uuid,
-                                    'collection_version': version,
-                                    'collection': collection})
-    return all_collections
 
 @dss_handler
 @security.authorized_group_required(['hca'])
 def listcollections(replica: str, per_page: int, start_at: int = 0):
-    bucket = Replica[replica].bucket
-    handle = Config.get_blobstore_handle(Replica[replica])
-
-    # expensively list every collection file in the bucket, even those not belonging to the user (possibly 1000's... )
-    collection_keys = [i for i in handle.list(bucket, prefix='collections') if not i.endswith('dead')]
+    """Look up an owner's collections based on a table in dynamoDB."""
+    owner = security.get_token_email(request.token_info)
+    collections = get_collections_for_owner(Replica[replica], owner)
 
     # paged response
-    if len(collection_keys) - start_at > per_page:
+    if len(collections) - start_at > per_page:
         next_url = UrlBuilder(request.url)
         next_url.replace_query("start_at", str(start_at + per_page))
         # each chunk will be searched for collections belonging to that user (even more expensive; per bucket file)
         # hits returned will vary between zero and the "per_page" size of the chunk
-        collections = fetch_collections(handle, bucket, collection_keys[start_at:start_at + per_page])
-        response = make_response(jsonify({'collections': collections}), requests.codes.partial)
+        collection_page = collections[start_at:start_at + per_page]
+        response = make_response(jsonify({'collections': collection_page}), requests.codes.partial)
         response.headers['Link'] = f"<{next_url}>; rel='next'"
         return response
     # single response returning all collections (or those remaining)
     else:
-        collections = fetch_collections(handle, bucket, collection_keys[start_at:])
-        return jsonify({'collections': collections}), requests.codes.ok
+        collection_page = collections[start_at:]
+        return jsonify({'collections': collection_page}), requests.codes.ok
+
 
 @dss_handler
 @security.authorized_group_required(['hca'])
@@ -92,6 +82,7 @@ def get(uuid: str, replica: str, version: str = None):
     if collection_body["owner"] != authenticated_user_email:
         raise DSSException(requests.codes.forbidden, "forbidden", f"Collection access denied")
     return collection_body
+
 
 @dss_handler
 @security.authorized_group_required(['hca'])
@@ -107,10 +98,16 @@ def put(json_request_body: dict, replica: str, uuid: str, version: str):
         timestamp = datetime.datetime.utcnow()
         version = datetime_to_version_format(timestamp)
     collection_version = version
+    # update dynamoDB; used to speed up lookup time
+    put_collection({CollectionData.OWNER: authenticated_user_email,
+                    CollectionData.UUID: collection_uuid,
+                    CollectionData.VERSION: collection_version})
+    # add the collection file to the bucket
     handle.upload_file_handle(Replica[replica].bucket,
                               CollectionFQID(collection_uuid, collection_version).to_key(),
                               io.BytesIO(json.dumps(collection_body).encode("utf-8")))
     return jsonify(dict(uuid=collection_uuid, version=collection_version)), requests.codes.created
+
 
 @dss_handler
 @security.authorized_group_required(['hca'])
@@ -138,16 +135,23 @@ def patch(uuid: str, json_request_body: dict, replica: str, version: str):
     collection["contents"] = _dedpuplicate_contents(collection["contents"])
     timestamp = datetime.datetime.utcnow()
     new_collection_version = datetime_to_version_format(timestamp)
+    # update dynamoDB; used to speed up lookup time
+    put_collection({CollectionData.OWNER: authenticated_user_email,
+                    CollectionData.UUID: uuid,
+                    CollectionData.VERSION: new_collection_version})
+    # add the collection file to the bucket
     handle.upload_file_handle(Replica[replica].bucket,
                               CollectionFQID(uuid, new_collection_version).to_key(),
                               io.BytesIO(json.dumps(collection).encode("utf-8")))
     return jsonify(dict(uuid=uuid, version=new_collection_version)), requests.codes.ok
+
 
 def _dedpuplicate_contents(contents: List) -> List:
     dedup_collection: OrderedDict[int, dict] = OrderedDict()
     for item in contents:
         dedup_collection[hash(tuple(sorted(item.items())))] = item
     return list(dedup_collection.values())
+
 
 @dss_handler
 @security.authorized_group_required(['hca'])
@@ -172,8 +176,10 @@ def delete(uuid: str, replica: str):
                            f"collection tombstone with UUID {uuid} already exists")
     status_code = requests.codes.ok
     response_body = dict()  # type: dict
-
+    # update dynamoDB
+    delete_collection(Replica[replica], authenticated_user_email, uuid)
     return jsonify(response_body), status_code
+
 
 @functools.lru_cache(maxsize=64)
 def get_json_metadata(entity_type: str, uuid: str, version: str, replica: Replica, blobstore_handle: BlobStore):
@@ -194,6 +200,7 @@ def get_json_metadata(entity_type: str, uuid: str, version: str, replica: Replic
             requests.codes.unprocessable_entity,
             "invalid_link",
             "Could not find file for UUID {}".format(uuid))
+
 
 def resolve_content_item(replica: Replica, blobstore_handle: BlobStore, item: dict):
     try:
@@ -217,6 +224,7 @@ def resolve_content_item(replica: Replica, blobstore_handle: BlobStore, item: di
             "invalid_link",
             'Error while parsing the link "{}": {}: {}'.format(item, type(e).__name__, e)
         )
+
 
 def verify_collection(contents: List[dict], replica: Replica, blobstore_handle: BlobStore, batch_size=64):
     """
