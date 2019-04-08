@@ -1025,9 +1025,9 @@ paths:
           required: false
           type: integer
           format: int32
-          minimum: 50
-          maximum: 100
-          default: 100
+          minimum: 10
+          maximum: 500
+          default: 500
         - name: start_at
           in: query
           description: >
@@ -1043,7 +1043,7 @@ paths:
             type: object
             properties:
               collections:
-                description: A user's collections.
+                description: A user's collection UUIDs, and a list of versions associated with each.
                 type: array
                 items:
                   $ref: '#/definitions/CollectionOfCollectionsItem'
@@ -1053,7 +1053,7 @@ paths:
             type: object
             properties:
               collections:
-                description: A user's collections.
+                description: A user's collection UUIDs, and a list of versions associated with each.
                 type: array
                 items:
                   $ref: '#/definitions/CollectionOfCollectionsItem'
@@ -2458,13 +2458,12 @@ definitions:
         pattern: "[a-z0-9]{8}-[a-z0-9]{4}-[a-z0-9]{4}-[a-z0-9]{4}-[a-z0-9]{12}"
       collection_version:
         type: string
-        description: The version of the UUID identifying the collection.
+        description: The versions of the UUID identifying the collection.
       collection:
         $ref: '#/definitions/Collection'
     required:
       - collection_uuid
-      - collection_version
-      - collection
+      - collection_versions
   Collection:
     type: object
     properties:

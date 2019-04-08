@@ -4,7 +4,7 @@ from dss.config import Replica
 from dss.util.aws.clients import dynamodb  # type: ignore
 
 
-_ddb_table_template = f"dss-collections-db-{{}}-{os.environ['DSS_DEPLOYMENT_STAGE']}"
+_collectionsdb_table_template = f"dss-collections-db-{{}}-{os.environ['DSS_DEPLOYMENT_STAGE']}"
 
 
 class CollectionData:
@@ -19,7 +19,7 @@ def put_collection(doc: dict):
     curr = get_collection(Replica[doc[CollectionData.REPLICA]], doc[CollectionData.OWNER], doc[CollectionData.UUID])
     ver = f'{doc[CollectionData.VERSION]},{curr[0]["collection_versions"]}' if curr else doc[CollectionData.VERSION]
     dynamodb.update_item(
-        TableName=_ddb_table_template.format(doc[CollectionData.REPLICA]),
+        TableName=_collectionsdb_table_template.format(doc[CollectionData.REPLICA]),
         Item={
             'hash_key': {
                 'S': doc[CollectionData.OWNER]
@@ -37,7 +37,7 @@ def put_collection(doc: dict):
 def get_collection(replica: Replica, owner: str, uuid: str):
     """Returns all versions of a collection UUID for a user."""
     db_resp = dynamodb.get_item(
-        TableName=_ddb_table_template.format(replica.name),
+        TableName=_collectionsdb_table_template.format(replica.name),
         Key={
             'hash_key': {
                 'S': owner
@@ -61,7 +61,7 @@ def collections_from_items(items: list) -> list:
 
 def get_collections_for_owner(replica: Replica, owner: str) -> list:
     db_resp = dynamodb.query(
-        TableName=_ddb_table_template.format(replica.name),
+        TableName=_collectionsdb_table_template.format(replica.name),
         KeyConditionExpression="hash_key=:owner",
         ExpressionAttributeValues={':owner': {'S': owner}}
     )
@@ -69,13 +69,13 @@ def get_collections_for_owner(replica: Replica, owner: str) -> list:
 
 
 def get_collections_for_replica(replica: Replica) -> list:
-    db_resp = dynamodb.scan(TableName=_ddb_table_template.format(replica.name))
+    db_resp = dynamodb.scan(TableName=_collectionsdb_table_template.format(replica.name))
     return collections_from_items(db_resp['Items'])
 
 
 def delete_collection(replica: Replica, owner: str, uuid: str):
     dynamodb.delete_item(
-        TableName=_ddb_table_template.format(replica.name),
+        TableName=_collectionsdb_table_template.format(replica.name),
         Key={
             'hash_key': {
                 'S': owner
