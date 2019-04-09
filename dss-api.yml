@@ -1633,8 +1633,6 @@ paths:
                   - The "name" of the file. This can be most anything, and is the name the file will have when downloaded.
                   - The "indexed" field, which specifies whether a file should be indexed or not.
 
-                  There is a limit of 20,000 items per bundle.
-
                   Example representing 2 files with dummy values:
                   [{'uuid': 'ce55fd51-7833-469b-be0b-5da88ebebfcd',
                     'version': '2017-06-16T193604.240704Z',
@@ -1645,8 +1643,6 @@ paths:
                     'name': 'dragon_dna.fa',
                     'indexed': False}]
                 type: array
-                minItems: 1
-                maxItems: 20000
                 items:
                   $ref: '#/definitions/BundleFile'
               creator_uid:

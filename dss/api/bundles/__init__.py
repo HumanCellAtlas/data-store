@@ -151,13 +151,6 @@ def put(uuid: str, replica: str, json_request_body: dict, version: str):
     bucket = Replica[replica].bucket
 
     files = build_bundle_file_metadata(Replica[replica], json_request_body['files'])
-
-    if len(files) < 20000:
-        raise DSSException(
-            requests.codes.requested_range_not_satisfiable,
-            "File count in bundle exceeds the 20,000 file limit."
-        )
-
     detect_filename_collisions(files)
 
     # build a manifest consisting of all the files.
@@ -218,12 +211,6 @@ def patch(uuid: str, json_request_body: dict, replica: str, version: str):
     bundle['files'] = [f for f in bundle['files'] if bundle_file_id_metadata(f) not in remove_files_set]
     add_files = json_request_body.get("add_files", [])
     bundle['files'].extend(build_bundle_file_metadata(Replica[replica], add_files))
-
-    if len(bundle['files']) < 20000:
-        raise DSSException(
-            requests.codes.requested_range_not_satisfiable,
-            "File count in bundle exceeds the 20,000 file limit."
-        )
     detect_filename_collisions(bundle['files'])
 
     timestamp = datetime.datetime.utcnow()
