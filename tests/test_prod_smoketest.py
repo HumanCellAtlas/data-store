@@ -51,7 +51,7 @@ def run_for_json(command, **kwargs):
     return json.loads(run(command, stdout=subprocess.PIPE, **kwargs).stdout.decode(sys.stdout.encoding))
 
 
-# @testmode.integration
+@testmode.integration
 class ProdSmoketest(unittest.TestCase):
     params = [
         {
@@ -97,6 +97,13 @@ class ProdSmoketest(unittest.TestCase):
         cls.prod_bundle_version = None
         cls.prod_bundle_file_count = None
 
+    @classmethod
+    def tearDownClass(cls):
+        if args.clean:
+            cls.workdir.cleanup()
+        else:
+            print(f"Leaving temporary working directory at {cls.workdir}.", file=sys.stderr)
+
     def _test_query_es(self, starting_replica):
         es_res = run_for_json(f'{self.venv_bin}hca dss post-search  --es-query {{}} --replica aws')
         bundle_fqid = es_res['results'][0]['bundle_fqid']
@@ -117,7 +124,8 @@ class ProdSmoketest(unittest.TestCase):
         self.assertEqual(bundle_uuid, download_res['bundle']['uuid'])
         return prod_bundle_file_count
 
-    def _test_checkout(self, starting_replica, bundle_uuid, checkout_job_id, checkout_bucket, file_count):
+    def _test_checkout(self, starting_replica, bundle_uuid, bundle_version,
+                       checkout_job_id, checkout_bucket, file_count):
         for i in range(10):
             res = run_for_json(f"{self.venv_bin}hca dss get-bundles-checkout --checkout-job-id {checkout_job_id} "
                                f"--replica {starting_replica.name}")
@@ -128,7 +136,7 @@ class ProdSmoketest(unittest.TestCase):
             else:
                 self.assertEqual(status, 'SUCCEEDED')
                 blob_handle = self.get_blobstore(starting_replica)
-                object_key = get_dst_bundle_prefix(bundle_uuid, self.prod_bundle_version)
+                object_key = get_dst_bundle_prefix(bundle_uuid, bundle_version)
                 print(f"Checking bucket {checkout_bucket} "
                       f"object key: {object_key}")
                 files = list(blob_handle.list(checkout_bucket, object_key))
@@ -140,10 +148,12 @@ class ProdSmoketest(unittest.TestCase):
     def _test_subscription_create(self, starting_replica):
         url = 'https://www.example.com'
         query = {"query": {"bool": {"must": [{"term": {"admin_deleted": "true"}}]}}}
-        put_response = run_for_json([f"{self.venv_bin}hca dss put-subscription "
-                                     f"--callback-url {url} "
-                                     f"--es-query {json.dumps(query)} "
-                                     f"--replica {starting_replica.name} "])
+        print(json.dumps(query))
+        put_response = run_for_json([f'{self.venv_bin}hca', 'dss', 'put-subscription',
+                                     '--callback-url', url,
+                                     '--method', 'PUT',
+                                     '--es-query', json.dumps(query),
+                                     '--replica', starting_replica.name])
         subscription_id = put_response['uuid']
         return subscription_id
 
@@ -154,11 +164,11 @@ class ProdSmoketest(unittest.TestCase):
                                     "--subscription-type elasticsearch")
         self.assertEquals(subscription_id, get_response['uuid'])
 
-    def _test_subscription_delete(self,starting_replica, subscription_id):
+    def _test_subscription_delete(self, starting_replica, subscription_id):
         delete_res = run_for_json(f"{self.venv_bin}hca dss delete-subscription --replica {starting_replica.name} "
                                   f"--uuid {subscription_id} "
                                   "--subscription-type elasticsearch")
-        self.assertIs(200, delete_res['status'])
+        self.assertIn('timeDeleted', delete_res.keys())
 
     def test_prod_smoketest(self):
         os.chdir(self.workdir.name)
@@ -173,7 +183,7 @@ class ProdSmoketest(unittest.TestCase):
             subscription_id = self._test_subscription_create(starting_replica=replica)
             self._test_subscription_fetch(replica, subscription_id)
             self._test_subscription_delete(replica, subscription_id)
-            self._test_checkout(replica, bundle_uuid, checkout_id, checkout_bucket, bundle_file_count)
+            self._test_checkout(replica, bundle_uuid, bundle_version, checkout_id, checkout_bucket, bundle_file_count)
 
     def get_blobstore(self, replica: Replica) -> BlobStore:
         if replica is Replica.aws:
@@ -186,8 +196,8 @@ class ProdSmoketest(unittest.TestCase):
 
 if __name__ == "__main__":
     if os.environ.get("DSS_DEPLOYMENT_STAGE") is not "prod":
-        print("prod_smoketest is not applicable")
-        #  TODO exit(0)
-    #else:
+        print("prod_smoketest is not applicable to stage: {}".format(os.environ.get("DSS_DEPLOYMENT_STAGE")))
+        exit(0)
+    else:
         args, sys.argv[1:] = parser.parse_known_args()
         unittest.main()

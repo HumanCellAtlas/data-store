@@ -57,6 +57,9 @@ integration_test:
 smoketest:
 	$(MAKE) DSS_TEST_MODE="integration" tests/test_smoketest.py
 
+smoketest-prod:
+	$(MAKE) DSS_TEST_MODE="integration" tests/test_prod_smoketest.py 
+
 scaletest:
 	./tests/scalability/scale_test_runner.py -r 10 -d 30
 
