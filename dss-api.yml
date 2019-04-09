@@ -2456,11 +2456,11 @@ definitions:
         type: string
         description: A UUID identifying the collection.
         pattern: "[a-z0-9]{8}-[a-z0-9]{4}-[a-z0-9]{4}-[a-z0-9]{4}-[a-z0-9]{12}"
-      collection_version:
-        type: string
+      collection_versions:
         description: The versions of the UUID identifying the collection.
-      collection:
-        $ref: '#/definitions/Collection'
+        type: array
+        items:
+          type: string
     required:
       - collection_uuid
       - collection_versions

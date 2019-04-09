@@ -16,9 +16,15 @@ class CollectionData:
 
 def put_collection(doc: dict):
     """Edits an existing item's attributes, or adds a new item to the table if it does not already exist."""
-    curr = get_collection(Replica[doc[CollectionData.REPLICA]], doc[CollectionData.OWNER], doc[CollectionData.UUID])
-    ver = f'{doc[CollectionData.VERSION]},{curr[0]["collection_versions"]}' if curr else doc[CollectionData.VERSION]
-    dynamodb.update_item(
+    current = get_collection(Replica[doc[CollectionData.REPLICA]], doc[CollectionData.OWNER], doc[CollectionData.UUID])
+    versions = ','.join([doc[CollectionData.VERSION]] + current)
+    with open('/home/quokka/delete/data-store/out.log', 'w') as f:
+        f.write(doc[CollectionData.OWNER])
+        f.write('\n')
+        f.write(versions)
+        f.write('\n')
+        f.write(doc[CollectionData.UUID])
+    dynamodb.put_item(
         TableName=_collectionsdb_table_template.format(doc[CollectionData.REPLICA]),
         Item={
             'hash_key': {
@@ -28,7 +34,7 @@ def put_collection(doc: dict):
                 'S': doc[CollectionData.UUID]
             },
             'versions': {
-                'S': ver  # comma-delimited string
+                'S': versions  # comma-delimited string
             }
         }
     )
@@ -47,7 +53,7 @@ def get_collection(replica: Replica, owner: str, uuid: str):
             }
         }
     )
-    return collections_from_items(db_resp.get('Item', []))
+    return collections_from_items(db_resp.get('Items', []))
 
 
 def collections_from_items(items: list) -> list:

@@ -6,7 +6,7 @@ locals {
     "project"   , "${var.DSS_INFRA_TAG_PROJECT}",
     "env"       , "${var.DSS_DEPLOYMENT_STAGE}",
     "service"   , "${var.DSS_INFRA_TAG_SERVICE}",
-    "owner"     , "${element(split(":", "${data.aws_caller_identity.current.user_id}"),1)}"
+    "owner"     , "admin@dss"
   )}"
 }
 
@@ -14,7 +14,7 @@ locals {
   replicas = ["aws", "gcp"]
 }
 
-resource "aws_dynamodb_table" "subscriptions-aws" {
+resource "aws_dynamodb_table" "collections-db-aws" {
   count        = "${length(local.replicas)}"
   name         = "dss-collections-db-${local.replicas[count.index]}-${var.DSS_DEPLOYMENT_STAGE}"
   billing_mode = "PAY_PER_REQUEST"

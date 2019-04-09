@@ -99,7 +99,8 @@ def put(json_request_body: dict, replica: str, uuid: str, version: str):
         version = datetime_to_version_format(timestamp)
     collection_version = version
     # update dynamoDB; used to speed up lookup time
-    put_collection({CollectionData.OWNER: authenticated_user_email,
+    put_collection({CollectionData.REPLICA: replica,
+                    CollectionData.OWNER: authenticated_user_email,
                     CollectionData.UUID: collection_uuid,
                     CollectionData.VERSION: collection_version})
     # add the collection file to the bucket
@@ -136,7 +137,8 @@ def patch(uuid: str, json_request_body: dict, replica: str, version: str):
     timestamp = datetime.datetime.utcnow()
     new_collection_version = datetime_to_version_format(timestamp)
     # update dynamoDB; used to speed up lookup time
-    put_collection({CollectionData.OWNER: authenticated_user_email,
+    put_collection({CollectionData.REPLICA: replica,
+                    CollectionData.OWNER: authenticated_user_email,
                     CollectionData.UUID: uuid,
                     CollectionData.VERSION: new_collection_version})
     # add the collection file to the bucket
