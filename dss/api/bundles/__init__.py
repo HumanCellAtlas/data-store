@@ -174,7 +174,6 @@ def put(uuid: str, replica: str, json_request_body: dict, version: str):
         log.warning('PUT /bundle/{uuid} request exceeds 20,000 file limit.  '
                     'Files will not be indexed and will not be queryable.')
 
-
     return jsonify(dict(version=bundle_metadata['version'], manifest=bundle_metadata)), status_code
 
 def _save_bundle(handle, bucket, uuid, version, bundle_metadata):
