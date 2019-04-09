@@ -108,7 +108,7 @@ class TestVisitationWalker(unittest.TestCase):
     def test_implementation_job_failed(self):
         implementation.job_failed(self.job_state, None)
 
-    @testmode.standalone
+    @testmode.integration
     def test_integration_walk(self):
         self._test_integration_walk('aws', self.s3_test_fixtures_bucket)
         self._test_integration_walk('gcp', self.gs_test_fixtures_bucket)

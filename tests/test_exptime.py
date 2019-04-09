@@ -16,6 +16,7 @@ from tests.infra import DSSAssertMixin, DSSUploadMixin, ExpectedErrorFields, tes
 from tests.infra.server import ThreadedLocalServer
 
 
+@testmode.standalone
 class TestExptime(unittest.TestCase, DSSAssertMixin, DSSUploadMixin):
     @classmethod
     def setUpClass(cls):
@@ -27,7 +28,6 @@ class TestExptime(unittest.TestCase, DSSAssertMixin, DSSUploadMixin):
     def tearDownClass(cls):
         cls.app.shutdown()
 
-    @testmode.standalone
     def test_exptime(self):
         self.assertGetResponse(
             "/internal/slow_request",
@@ -38,7 +38,6 @@ class TestExptime(unittest.TestCase, DSSAssertMixin, DSSUploadMixin):
             )
         )
 
-    @testmode.standalone
     @unittest.skipIf(DeploymentStage.IS_PROD(), "Skipping synthetic 504 test for PROD.")
     def test_synthetic_504(self):
         file_uuid = str(uuid.uuid4())

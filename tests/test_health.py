@@ -14,6 +14,7 @@ from tests.es import ElasticsearchServer
 logger = logging.getLogger(__name__)
 
 
+@testmode.integration
 class TestHealth(unittest.TestCase):
     server = None
 
@@ -29,22 +30,18 @@ class TestHealth(unittest.TestCase):
         os.unsetenv('DSS_ES_PORT')
         pass
 
-    @testmode.standalone
     def test_elastic_search(self):
         test_es = health._get_es_status(port=os.getenv("DSS_ES_PORT"))
         self.assertIn(True, test_es)
 
-    @testmode.standalone
     def test_dynamodb(self):
         test_ddb = health._get_dynamodb_status()
         self.assertIn(True, test_ddb)
 
-    @testmode.standalone
     def test_event_relay(self):
         test_er = health._get_event_relay_status()
         self.assertIn(True, test_er)
 
-    @testmode.standalone
     @mock.patch("dss.api.health._get_es_status")
     @mock.patch("dss.api.health._get_dynamodb_status")
     @mock.patch("dss.api.health._get_event_relay_status")
