@@ -23,8 +23,8 @@ def setUpModule():
     configure_test_logging()
 
 
+@testmode.standalone
 class TestAwsUtils(unittest.TestCase):
-    @testmode.standalone
     def test_aws_utils(self):
         arn = ARN(service="sns", resource="my_topic")
         arn.get_region()
@@ -32,8 +32,8 @@ class TestAwsUtils(unittest.TestCase):
         str(arn)
 
 
+@testmode.standalone
 class TestUrlBuilder(unittest.TestCase):
-    @testmode.standalone
     def test_simple(self):
         builder = UrlBuilder().set(
             scheme="https",
@@ -46,7 +46,6 @@ class TestUrlBuilder(unittest.TestCase):
             fragment="def")
         self.assertEqual("https://humancellatlas.org/abc?ghi=1&ghi=2#def", str(builder))
 
-    @testmode.standalone
     def test_has_query(self):
         builder = UrlBuilder().set(
             scheme="https",
@@ -60,7 +59,6 @@ class TestUrlBuilder(unittest.TestCase):
         self.assertTrue(builder.has_query("ghi"))
         self.assertFalse(builder.has_query("abc"))
 
-    @testmode.standalone
     def test_add_query(self):
         builder = UrlBuilder().set(
             scheme="https",
@@ -82,18 +80,15 @@ class TestUrlBuilder(unittest.TestCase):
 
         self.assertEqual("https://humancellatlas.org/abc?ghi=1&ghi=2&abc=3#def", str(builder))
 
-    @testmode.standalone
     def test_parse(self):
         builder = UrlBuilder("https://humancellatlas.org/abc?def=2#ghi")
         self.assertEqual("https://humancellatlas.org/abc?def=2#ghi", str(builder))
 
-    @testmode.standalone
     def test_replace_query(self):
         builder = UrlBuilder("https://humancellatlas.org/abc?def=2#ghi")
         builder.replace_query("def", "4")
         self.assertEqual("https://humancellatlas.org/abc?def=4#ghi", str(builder))
 
-    @testmode.standalone
     def test_replace_query_mulitple(self):
         builder = UrlBuilder("https://humancellatlas.org/abc?def=2&def=boo#ghi")
         builder.replace_query("def", "4")

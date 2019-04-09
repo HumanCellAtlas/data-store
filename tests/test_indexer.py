@@ -133,7 +133,6 @@ class TestIndexerBase(ElasticsearchTestCase, DSSAssertMixin, DSSStorageMixin, DS
     def process_new_indexable_object(self, event):
         self.indexer.process_new_indexable_object(event)
 
-    @testmode.standalone
     def test_create(self):
         sample_event = self.create_bundle_created_event(self.bundle_key)
         with self.subTest("Index bundle"):
@@ -149,19 +148,15 @@ class TestIndexerBase(ElasticsearchTestCase, DSSAssertMixin, DSSStorageMixin, DS
             search_results = self.get_search_results(smartseq2_paired_ends_vx_query, 1)
             self.assertEqual(1, len(search_results))
 
-    @testmode.standalone
     def test_delete(self):
         self._test_delete(all_versions=False, zombie=False)
 
-    @testmode.standalone
     def test_delete_all_versions(self):
         self._test_delete(all_versions=True, zombie=False)
 
-    @testmode.standalone
     def test_delete_zombie(self):
         self._test_delete(all_versions=False, zombie=True)
 
-    @testmode.standalone
     def test_delete_all_versions_zombie(self):
         self._test_delete(all_versions=True, zombie=True)
 
@@ -245,7 +240,6 @@ class TestIndexerBase(ElasticsearchTestCase, DSSAssertMixin, DSSStorageMixin, DS
             expected_search_result = dss.index.es.document.BundleTombstoneDocument.from_tombstone(tombstone)
             self.assertDictEqual(search_results[0], expected_search_result)
 
-    @testmode.standalone
     def test_reindexing_with_changed_content(self):
         bundle_key = self.load_test_data_bundle_for_path("fixtures/example_bundle")
         sample_event = self.create_bundle_created_event(bundle_key)
@@ -285,7 +279,6 @@ class TestIndexerBase(ElasticsearchTestCase, DSSAssertMixin, DSSStorageMixin, DS
             self.process_new_indexable_object(sample_event)
         self.assertTrue(any('is already up-to-date' in e for e in log.output))
 
-    @testmode.standalone
     def test_reindexing_with_changed_shape(self):
         bundle_key = self.load_test_data_bundle_for_path("fixtures/example_bundle")
         sample_event = self.create_bundle_created_event(bundle_key)
@@ -310,7 +303,6 @@ class TestIndexerBase(ElasticsearchTestCase, DSSAssertMixin, DSSStorageMixin, DS
         # There should only be one hit and it should be from a different index, the "right" one
         _assert_reindexing_results(expect_shape_descriptor=False)
 
-    @testmode.standalone
     def test_indexed_file_with_invalid_content_type(self):
         bundle = TestBundle(self.blobstore, "fixtures/example_bundle",
                             self.test_fixture_bucket, self.replica)
@@ -327,7 +319,6 @@ class TestIndexerBase(ElasticsearchTestCase, DSSAssertMixin, DSSStorageMixin, DS
                          " yet has content type 'text/plain' instead of the required"
                          " content type 'application/json'. This file will not be indexed.")
 
-    @testmode.standalone
     def test_key_is_not_indexed_when_processing_an_event_with_a_file_key(self):
         file_fqid = get_file_fqid()
         sample_event = self.create_bundle_created_event(file_fqid.to_key())
@@ -337,7 +328,6 @@ class TestIndexerBase(ElasticsearchTestCase, DSSAssertMixin, DSSStorageMixin, DS
         self.assertIn(str(file_fqid), log_monitor.output[0])
         self.assertFalse(ElasticsearchClient.get().indices.exists_alias(name=self.dss_alias_name))
 
-    @testmode.standalone
     def test_error_message_logged_when_invalid_bucket_in_event(self):
         bundle_key = "bundles/{}.{}".format(str(uuid.uuid4()), get_version())
         sample_event = self.create_bundle_created_event(bundle_key)
@@ -346,7 +336,6 @@ class TestIndexerBase(ElasticsearchTestCase, DSSAssertMixin, DSSStorageMixin, DS
                 self.process_new_indexable_object(sample_event)
         self.assertRegex(log_monitor.output[0], "ERROR:.*Exception occurred while processing .* event:.*")
 
-    @testmode.standalone
     def test_indexed_file_unparsable(self):
         bundle_key = self.load_test_data_bundle_for_path("fixtures/indexing/bundles/unparseable_indexed_file")
         sample_event = self.create_bundle_created_event(bundle_key)
@@ -356,7 +345,6 @@ class TestIndexerBase(ElasticsearchTestCase, DSSAssertMixin, DSSStorageMixin, DS
                          "WARNING:.*:In bundle .* the file 'unparseable_json.json' is marked for indexing"
                          " yet could not be parsed. This file will not be indexed. Exception:")
 
-    @testmode.standalone
     def test_indexed_file_access_error(self):
         inaccesssible_filename = "inaccessible_file.json"
         bundle_key = self.load_test_data_bundle_with_inaccessible_file(
@@ -369,7 +357,6 @@ class TestIndexerBase(ElasticsearchTestCase, DSSAssertMixin, DSSStorageMixin, DS
             log_monitor.output[-1],
             f".* This bundle will not be indexed. Bundle: .*, File Blob Key: .*, File Name: '{inaccesssible_filename}'")
 
-    @testmode.standalone
     def test_not_enough_time_to_index(self):
         remaining_time = SpecificRemainingTime(0)
         backend = CompositeIndexBackend(self.executor, remaining_time, DEFAULT_BACKENDS)
@@ -384,7 +371,6 @@ class TestIndexerBase(ElasticsearchTestCase, DSSAssertMixin, DSSStorageMixin, DS
                         method='POST',
                         **kwargs)
 
-    @testmode.standalone
     def test_notify(self):
         backend = ElasticsearchIndexBackend(notify_async=False)
 
@@ -444,7 +430,6 @@ class TestIndexerBase(ElasticsearchTestCase, DSSAssertMixin, DSSStorageMixin, DS
         self.delete_subscription(subscription_id)
         self.delete_subscription(subscription_id_tombstone)
 
-    @testmode.standalone
     def test_unversioned_tombstone_notifications(self):
         """verify that multiple deletion notifications for an unversioned bundle tombstone are received when multiple
         versions of the bundle exist."""
@@ -531,7 +516,6 @@ class TestIndexerBase(ElasticsearchTestCase, DSSAssertMixin, DSSStorageMixin, DS
                 self.verify_notification(subscription_id, smartseq2_paired_ends_vx_query, bundle_fqid, endpoint)
                 self.delete_subscription(subscription_id)
 
-    @testmode.standalone
     def test_subscription_with_attachments(self):
         self.set_indexer(notify=True)
         # setting notify to true allows us create subscriptions and receive notification without uploading a new bundle
@@ -568,7 +552,6 @@ class TestIndexerBase(ElasticsearchTestCase, DSSAssertMixin, DSSStorageMixin, DS
 
     # TODO: This should be @testmode.always once we find a way to emulate HTTP status errors with signed-PUT/POST to S3
 
-    @testmode.standalone
     def test_subscription_notification_unsuccessful(self):
         sample_event = self.create_bundle_created_event(self.bundle_key)
         self.process_new_indexable_object(sample_event)
@@ -778,7 +761,6 @@ class TestIndexerBase(ElasticsearchTestCase, DSSAssertMixin, DSSStorageMixin, DS
         test_requirements('File name is number', '7_json', 'sample',
                           "A metadata file name must contain at least one non-digit: 7")
 
-    @testmode.standalone
     def test_alias_and_versioned_index_exists(self):
         sample_event = self.create_bundle_created_event(self.bundle_key)
         self.process_new_indexable_object(sample_event)
@@ -798,7 +780,6 @@ class TestIndexerBase(ElasticsearchTestCase, DSSAssertMixin, DSSStorageMixin, DS
         self.assertIn(doc_index_name, alias)
         self.assertTrue(es_client.indices.exists(index=doc_index_name))
 
-    @testmode.standalone
     def test_scrub_index_data_with_describedBy(self):
         index_data_master = {
             "files": {
@@ -970,7 +951,6 @@ class TestIndexerBase(ElasticsearchTestCase, DSSAssertMixin, DSSStorageMixin, DS
         self.assertEqual(bundle_version, posted_json['match']['bundle_version'])
         self.assertEquals(posted_json.get('attachments'), attachments)
 
-    @testmode.standalone
     def test_indexer_lookup(self):
         for replica in Replica:
             indexer = Indexer.for_replica(replica)
@@ -1083,6 +1063,7 @@ class TestIndexerBase(ElasticsearchTestCase, DSSAssertMixin, DSSStorageMixin, DS
         raise NotImplementedError()
 
 
+@testmode.integration
 class TestAWSIndexer(TestIndexerBase):
 
     replica = Replica.aws
@@ -1101,7 +1082,7 @@ class TestAWSIndexer(TestIndexerBase):
         return sample_event
 
 
-@testmode.standalone  # It's sufficient to run the integration tests in TestIndexerBase for one replica only
+@testmode.integration  # It's sufficient to run the integration tests in TestIndexerBase for one replica only
 class TestGCPIndexer(TestIndexerBase):
 
     replica = Replica.gcp

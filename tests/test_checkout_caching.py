@@ -18,6 +18,7 @@ from tests.infra import DSSAssertMixin, DSSUploadMixin, testmode
 from tests.infra.server import ThreadedLocalServer
 
 
+@testmode.integration
 class TestCheckoutCaching(unittest.TestCase, DSSAssertMixin, DSSUploadMixin):
     test_bundle_uploaded: bool = False
     bundle_uuid: str
@@ -53,7 +54,6 @@ class TestCheckoutCaching(unittest.TestCase, DSSAssertMixin, DSSUploadMixin):
                 self.assertEqual(should_cache_file(content_type, size), outcome)
 
     @mock.patch("dss.stepfunctions.s3copyclient.implementation.is_dss_bucket")
-    @testmode.standalone
     def test_aws_uncached_checkout_creates_tag(self, mock_check):
         """
         Uncached files are tagged with {"uncached":"True"}
@@ -66,7 +66,6 @@ class TestCheckoutCaching(unittest.TestCase, DSSAssertMixin, DSSUploadMixin):
         self.assertIn('uncached', tagging.keys())
 
     @mock.patch("dss.stepfunctions.s3copyclient.implementation.is_dss_bucket")
-    @testmode.standalone
     def test_aws_cached_checkout_doesnt_create_tag(self, mock_check):
         """
         Cached files do not have any tagging on AWS.
@@ -119,7 +118,6 @@ class TestCheckoutCaching(unittest.TestCase, DSSAssertMixin, DSSUploadMixin):
         return tagging
 
     @mock.patch("dss.stepfunctions.gscopyclient.implementation.is_dss_bucket")
-    @testmode.standalone
     def test_google_cached_checkout_creates_multiregional_storage_type(self, mock_check):
         """
         Verifies that long-lived Google cached objects are of the STANDARD type.
@@ -132,7 +130,6 @@ class TestCheckoutCaching(unittest.TestCase, DSSAssertMixin, DSSUploadMixin):
         self.assertEqual('MULTI_REGIONAL', blob_type)
 
     @mock.patch("dss.stepfunctions.gscopyclient.implementation.is_dss_bucket")
-    @testmode.standalone
     def test_google_uncached_checkout_creates_durable_storage_type(self, mock_check):
         """
         Verifies object level tagging of short-lived files.
