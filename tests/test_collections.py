@@ -7,7 +7,6 @@ import unittest
 import io
 import json
 import boto3
-import copy
 
 from uuid import uuid4
 from datetime import datetime
@@ -15,7 +14,6 @@ from requests.utils import parse_header_links
 from botocore.vendored import requests
 from dcplib.s3_multipart import get_s3_multipart_chunk_size
 from urllib.parse import parse_qsl, urlsplit
-from contextlib import contextmanager
 
 pkg_root = os.path.abspath(os.path.join(os.path.dirname(__file__), '..'))  # noqa
 sys.path.insert(0, pkg_root)  # noqa
@@ -47,15 +45,6 @@ class TestCollections(unittest.TestCase, DSSAssertMixin, DSSUploadMixin):
     def teardownClass(cls):
         cls._delete_collection(cls, cls.uuid)
         cls.app.shutdown()
-
-    # @contextmanager
-    # def fake_user(self):
-    #     real_user = copy.copy(os.environ['OIDC_EMAIL_CLAIM'])
-    #     os.environ['OIDC_EMAIL_CLAIM'] = 'no one'
-    #     try:
-    #         yield
-    #     finally:
-    #         os.environ['OIDC_EMAIL_CLAIM'] = real_user
 
     @staticmethod
     def upload_file(app, contents):

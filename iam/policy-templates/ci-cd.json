@@ -125,6 +125,7 @@
         "dynamodb:ListTables",
         "dynamodb:Query",
         "dynamodb:DescribeTable",
+        "dynamodb:GetItem",
         "sqs:ListQueues"
 	],
       "Resource": "*"
