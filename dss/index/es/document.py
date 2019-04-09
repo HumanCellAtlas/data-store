@@ -17,6 +17,7 @@ from dss.index.es import ElasticsearchClient, elasticsearch_retry, refresh_perco
 from dss.index.es.manager import IndexManager
 from dss.index.es.validator import scrub_index_data
 from dss.index.es.schemainfo import SchemaInfo
+from dss.api.bundles import BUNDLE_FILE_INDEX_LIMIT
 from dss.storage.identifiers import BundleFQID, ObjectIdentifier
 from dss.util import reject
 
@@ -96,10 +97,11 @@ class BundleDocument(IndexDocument):
         self = cls(bundle.replica, bundle.fqid)
         self['manifest'] = bundle.manifest
         number_of_manifest_files = len(self['manifest']['files'])
-        if number_of_manifest_files > 20000:
+        if number_of_manifest_files > BUNDLE_FILE_INDEX_LIMIT:
             self['manifest']['files'] = []
-            logger.warning("Bundle with %s>20000 files not indexed. uuid=%s, version=%s",
-                           number_of_manifest_files,
+            logger.warning("Bundle with %s>%s files not indexed. uuid=%s, version=%s",
+                           str(number_of_manifest_files),
+                           str(BUNDLE_FILE_INDEX_LIMIT),
                            self.fqid.uuid,
                            self.fqid.version)
         self['state'] = 'new'
