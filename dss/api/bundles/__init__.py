@@ -171,8 +171,8 @@ def put(uuid: str, replica: str, json_request_body: dict, version: str):
     status_code = _save_bundle(handle, bucket, uuid, version, bundle_metadata)
 
     if len(files) > BUNDLE_FILE_INDEX_LIMIT:
-        log.warning('PUT /bundle/{uuid} request exceeds 20,000 file limit.  '
-                    'Files will not be indexed and will not be queryable.')
+        log.warning(f'PUT /bundle request exceeds {str(BUNDLE_FILE_INDEX_LIMIT)} file limit.  '
+                    f'Files will not be indexed and will not be queryable.')
 
     return jsonify(dict(version=bundle_metadata['version'], manifest=bundle_metadata)), status_code
 
@@ -230,8 +230,8 @@ def patch(uuid: str, json_request_body: dict, replica: str, version: str):
     _save_bundle(handle, Replica[replica].bucket, uuid, new_bundle_version, bundle)
 
     if len(bundle['files']) > BUNDLE_FILE_INDEX_LIMIT:
-        log.warning('PUT /bundle/{uuid} request exceeds 20,000 file limit.  '
-                    'Files will not be indexed and will not be queryable.')
+        log.warning(f'PATCH /bundle request exceeds {str(BUNDLE_FILE_INDEX_LIMIT)} file limit.  '
+                    f'Files will not be indexed and will not be queryable.')
 
     return jsonify(dict(uuid=uuid, version=new_bundle_version)), requests.codes.ok
 
