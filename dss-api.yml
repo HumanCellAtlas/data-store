@@ -1633,8 +1633,7 @@ paths:
                   - The "name" of the file. This can be most anything, and is the name the file will have when downloaded.
                   - The "indexed" field, which specifies whether a file should be indexed or not.
 
-                  Bundles containing 20,000 files or more will not be indexed due to current limitations in our indexer
-                  and will not be searchable.  The user will be warned upon upload.
+                  Bundle manifests exceeding 20,000 files will not be indexed.
 
                   Example representing 2 files with dummy values:
                   [{'uuid': 'ce55fd51-7833-469b-be0b-5da88ebebfcd',
@@ -1749,8 +1748,7 @@ paths:
         Add or remove files from a bundle. A specific version of the bundle to update must be provided, and a
         new version will be written.
 
-        Bundles that now exceed 20,000 files will not be indexed due to current limitations in our indexer
-        and will not be searchable.  The user will be warned if their patch exceeds this limit.
+        Bundles manifests exceeding 20,000 files will not be indexed.
       parameters:
         - name: uuid
           in: path
