@@ -139,9 +139,10 @@ DSS_CHECKOUT_BUCKET_OBJECT_VIEWERS="serviceAccount:619310558212-compute@develope
 
 AWS_SDK_LOAD_CONFIG=1 # Needed for Terraform to correctly use AWS assumed roles
 
-#
 # AWS managed elasticsearch limits us to 100mb files or it pipe fails, so
-# bundles containing this many files are allowed but will not be indexed.
+# bundles manifests exceeding this many files are not included in the index document.
+# https://docs.aws.amazon.com/elasticsearch-service/latest/developerguide/aes-limits.html#network-limits
+# https://stackoverflow.com/questions/55541625/aws-elasticsearch-cluster-method-to-update-http-max-content-length
 DSS_BUNDLE_MANIFEST_INDEX_LIMIT="20000"
 set +a
 
