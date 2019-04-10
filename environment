@@ -20,6 +20,7 @@ EXPORT_ENV_VARS_TO_LAMBDA_ARRAY=(
     DSS_AUTHORIZED_DOMAINS
     DSS_BLOB_PUBLIC_TTL_DAYS
     DSS_BLOB_TTL_DAYS
+    DSS_BUNDLE_MANIFEST_INDEX_LIMIT,
     DSS_DEBUG
     DSS_DEPLOYMENT_STAGE
     DSS_GS_BUCKET
@@ -138,6 +139,10 @@ DSS_CHECKOUT_BUCKET_OBJECT_VIEWERS="serviceAccount:619310558212-compute@develope
 
 AWS_SDK_LOAD_CONFIG=1 # Needed for Terraform to correctly use AWS assumed roles
 
+#
+# AWS managed elasticsearch limits us to 100mb files or it pipe fails, so
+# bundles containing this many files are allowed but will not be indexed.
+DSS_BUNDLE_MANIFEST_INDEX_LIMIT="20000"
 set +a
 
 if [[ -f "${DSS_HOME}/environment.local" ]]; then

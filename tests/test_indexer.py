@@ -34,7 +34,6 @@ sys.path.insert(0, pkg_root)  # noqa
 import dss
 from dss import BucketConfig, Config, DeploymentStage
 from dss.config import Replica
-from dss.api.bundles import BUNDLE_FILE_INDEX_LIMIT
 from dss.index import DEFAULT_BACKENDS
 import dss.index.es.backend
 from dss.index.backend import CompositeIndexBackend
@@ -694,7 +693,7 @@ class TestIndexerBase(ElasticsearchTestCase, DSSAssertMixin, DSSStorageMixin, DS
             'format': '0.0.1',
             'version': '2019-04-05T174905.443832Z',
             'creator_uid': 0,
-            'files': [_file_metadata() for _ in range(BUNDLE_FILE_INDEX_LIMIT + 1)]
+            'files': [_file_metadata() for _ in range(int(os.environ['DSS_BUNDLE_MANIFEST_INDEX_LIMIT']) + 1)]
         }
         fqid = BundleFQID.from_key("bundles/012d89aa-98e2-46aa-ab46-65540e08ec4d.2019-04-05T174905.443832Z")
         bundle = Bundle(Replica.aws, fqid, manifest, [])
