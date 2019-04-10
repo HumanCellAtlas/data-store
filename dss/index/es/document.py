@@ -98,7 +98,7 @@ class BundleDocument(IndexDocument):
         number_of_manifest_files = len(self['manifest']['files'])
         if number_of_manifest_files > int(os.environ['DSS_BUNDLE_MANIFEST_INDEX_LIMIT']):
             self['manifest']['files'] = []
-            logger.warning("Bundle manifest with %s>%s files not indexed. uuid=%s, version=%s",
+            logger.warning("Bundle manifest with %s>%s files not included in index document. uuid=%s, version=%s",
                            str(number_of_manifest_files),
                            str(os.environ['DSS_BUNDLE_MANIFEST_INDEX_LIMIT']),
                            self.fqid.uuid,
