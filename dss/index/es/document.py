@@ -17,11 +17,15 @@ from dss.index.es import ElasticsearchClient, elasticsearch_retry, refresh_perco
 from dss.index.es.manager import IndexManager
 from dss.index.es.validator import scrub_index_data
 from dss.index.es.schemainfo import SchemaInfo
-from dss.api.bundles import BUNDLE_FILE_INDEX_LIMIT
 from dss.storage.identifiers import BundleFQID, ObjectIdentifier
 from dss.util import reject
 
 logger = logging.getLogger(__name__)
+
+#
+# AWS managed elasticsearch limits us to 100mb files or it pipe fails, so
+# bundles containing this many files are allowed but will not be indexed.
+BUNDLE_FILE_INDEX_LIMIT = 20000
 
 
 class IndexDocument(dict):
@@ -97,11 +101,11 @@ class BundleDocument(IndexDocument):
         self = cls(bundle.replica, bundle.fqid)
         self['manifest'] = bundle.manifest
         number_of_manifest_files = len(self['manifest']['files'])
-        if number_of_manifest_files > BUNDLE_FILE_INDEX_LIMIT:
+        if number_of_manifest_files > os.environ['BUNDLE_FILE_INDEX_LIMIT']:
             self['manifest']['files'] = []
-            logger.warning("Bundle with %s>%s files not indexed. uuid=%s, version=%s",
+            logger.warning("Bundle manifest with %s>%s files not indexed. uuid=%s, version=%s",
                            str(number_of_manifest_files),
-                           str(BUNDLE_FILE_INDEX_LIMIT),
+                           str(os.environ['BUNDLE_FILE_INDEX_LIMIT']),
                            self.fqid.uuid,
                            self.fqid.version)
         self['state'] = 'new'

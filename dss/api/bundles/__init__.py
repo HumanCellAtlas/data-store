@@ -23,8 +23,6 @@ from dss.storage.hcablobstore import BundleFileMetadata, BundleMetadata, FileMet
 from dss.util import UrlBuilder, security, hashabledict
 from dss.util.version import datetime_to_version_format
 
-log = logging.getLogger(__name__)
-
 """The retry-after interval in seconds. Sets up downstream libraries / users to
 retry request after the specified interval."""
 RETRY_AFTER_INTERVAL = 10
@@ -34,10 +32,6 @@ PUT_TIME_ALLOWANCE_SECONDS = 10
 """This is the minimum amount of time remaining on the lambda for us to retry on a PUT /bundles request."""
 
 ADMIN_USER_EMAILS = set(os.environ['ADMIN_USER_EMAILS'].split(','))
-
-# AWS managed elasticsearch limits us to 100mb files or it pipe fails, so
-# bundles containing this many files are allowed but will not be indexed.
-BUNDLE_FILE_INDEX_LIMIT = 20000
 
 
 @dss_handler
@@ -170,10 +164,6 @@ def put(uuid: str, replica: str, json_request_body: dict, version: str):
 
     status_code = _save_bundle(handle, bucket, uuid, version, bundle_metadata)
 
-    if len(files) > BUNDLE_FILE_INDEX_LIMIT:
-        log.warning(f'PUT /bundle request exceeds {str(BUNDLE_FILE_INDEX_LIMIT)} file limit.  '
-                    f'Files will not be indexed and will not be queryable.')
-
     return jsonify(dict(version=bundle_metadata['version'], manifest=bundle_metadata)), status_code
 
 def _save_bundle(handle, bucket, uuid, version, bundle_metadata):
@@ -228,10 +218,6 @@ def patch(uuid: str, json_request_body: dict, replica: str, version: str):
     new_bundle_version = datetime_to_version_format(timestamp)
     bundle['version'] = new_bundle_version
     _save_bundle(handle, Replica[replica].bucket, uuid, new_bundle_version, bundle)
-
-    if len(bundle['files']) > BUNDLE_FILE_INDEX_LIMIT:
-        log.warning(f'PATCH /bundle request exceeds {str(BUNDLE_FILE_INDEX_LIMIT)} file limit.  '
-                    f'Files will not be indexed and will not be queryable.')
 
     return jsonify(dict(uuid=uuid, version=new_bundle_version)), requests.codes.ok
 
