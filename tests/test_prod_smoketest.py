@@ -39,18 +39,6 @@ def ENDC():
     return "\033[0m" if sys.stdout.isatty() else ""
 
 
-def run(command, **kwargs):
-    print(GREEN(command))
-    try:
-        return subprocess.run(command, check=True, shell=isinstance(command, str), **kwargs)
-    except subprocess.CalledProcessError as e:
-        parser.exit(RED(f'{parser.prog}: Exit status {e.returncode} while running "{command}". Stopping.'))
-
-
-def run_for_json(command, **kwargs):
-    return json.loads(run(command, stdout=subprocess.PIPE, **kwargs).stdout.decode(sys.stdout.encoding))
-
-
 @testmode.integration
 class ProdSmoketest(BaseSmokeTest):
     params = [
@@ -197,6 +185,7 @@ class ProdSmoketest(BaseSmokeTest):
 if __name__ == "__main__":
     if os.environ.get("DSS_DEPLOYMENT_STAGE") is not "prod":
         print("prod_smoketest is not applicable to stage: {}".format(os.environ.get("DSS_DEPLOYMENT_STAGE")))
+    # TODO 
     # exit(0)
     # else:
         args, sys.argv[1:] = parser.parse_known_args()
