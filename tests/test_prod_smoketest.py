@@ -81,9 +81,8 @@ class ProdSmoketest(BaseSmokeTest):
         with open(cli_config_filename, "w") as fh2:
             fh2.write(json.dumps(cli_config))
         os.environ["HCA_CONFIG_FILE"] = f"{cls.workdir.name}/cli_config.json"
-        cls.prod_bundle_id = None
-        cls.prod_bundle_version = None
-        cls.prod_bundle_file_count = None
+        cls.query = {"query": {"bool": {"must": [{"term": {"admin_deleted": "true"}}]}}}
+        cls.url = 'https://www.example.com'
 
     @classmethod
     def tearDownClass(cls):
@@ -158,17 +157,41 @@ class ProdSmoketest(BaseSmokeTest):
                                   "--subscription-type elasticsearch")
         self.assertIn('timeDeleted', delete_res.keys())
 
-    def test_prod_smoketest(self):
+
+    def prod_smokeTest(self):
         os.chdir(self.workdir.name)
         for param in self.params:
             replica = param['starting_replica']
             checkout_bucket = param['checkout_bucket']
 
+            query_res = BaseSmokeTest.post_search_es(self, replica, "{}")
+            bundle_uuid = query_res['results'][0]['bundle_fqid'].split(':')[0]
+            bundle_version = query_res['results'][0]['bundle_fqid'].split(':')[1]
+            checkout_id = BaseSmokeTest.checkout_initiate(self, replica, bundle_uuid)
+            self.assertTrue(checkout_id)
+            bundle_file_count = BaseSmokeTest.get_bundle(self, replica, bundle_uuid)
+
+            subscription_id = BaseSmokeTest.subscription_create_es(self, replica, self.query, self.url)
+            BaseSmokeTest._test_subscription_get_es(self, replica, subscription_id, )
+
+            self._test_subscription_fetch(replica, subscription_id)
+            self._test_subscription_delete(replica, subscription_id)
+            self._test_checkout(replica, bundle_uuid, bundle_version, checkout_id, checkout_bucket, bundle_file_count)
+
+    @classmethod
+    def test_prod_smoketest(cls):
+        os.chdir(cls.workdir.name)
+        for param in cls.params:
+            replica = param['starting_replica']
+            checkout_bucket = param['checkout_bucket']
+
             bundle_uuid, bundle_version = self._test_query_es(replica)
+            query_res = BaseSmokeTest.post_search_es(self, replica, "{}")
             checkout_id = self._test_checkout_start(replica, bundle_uuid)
             bundle_file_count = self._test_get_bundle(replica, bundle_uuid)
 
-            subscription_id = self._test_subscription_create(starting_replica=replica)
+            query = {"query": {"bool": {"must": [{"term": {"admin_deleted": "true"}}]}}}
+            subscription_id = BaseSmokeTest.subscription_create_es(self, replica, query, url='https://www.example.com')
             self._test_subscription_fetch(replica, subscription_id)
             self._test_subscription_delete(replica, subscription_id)
             self._test_checkout(replica, bundle_uuid, bundle_version, checkout_id, checkout_bucket, bundle_file_count)
@@ -185,7 +208,7 @@ class ProdSmoketest(BaseSmokeTest):
 if __name__ == "__main__":
     if os.environ.get("DSS_DEPLOYMENT_STAGE") is not "prod":
         print("prod_smoketest is not applicable to stage: {}".format(os.environ.get("DSS_DEPLOYMENT_STAGE")))
-    # TODO 
+    # TODO
     # exit(0)
     # else:
         args, sys.argv[1:] = parser.parse_known_args()

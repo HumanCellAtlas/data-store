@@ -148,7 +148,7 @@ class BaseSmokeTest(unittest.TestCase):
             self.fail("Timed out waiting for checkout job to succeed")
 
     def post_search_es(self, replica, es_query):
-        """ post-search using es, returns response """
+        """ post-search using es, returns post-search response """
         return run_for_json(f'{self.venv_bin}hca dss post-search  --es-query {es_query} --replica {replica}')
 
     def subscription_create_es(self, replica, es_query, url):
