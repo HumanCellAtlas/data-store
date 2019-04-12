@@ -1,5 +1,6 @@
 #!/usr/bin/env python
 
+import io
 import os
 import sys
 import unittest
@@ -10,8 +11,9 @@ sys.path.insert(0, pkg_root)  # noqa
 
 import dss
 from dss import DSSException, DSSForbiddenException, Config
+from dss.config import Replica
 from dss.logging import configure_test_logging
-from dss.util import UrlBuilder, security
+from dss.util import UrlBuilder, security, multipart_parallel_upload
 from dss.util.aws import ARN
 from tests import UNAUTHORIZED_GCP_CREDENTIALS, get_service_jwt
 from tests.infra import testmode
@@ -216,6 +218,34 @@ class TestSecurity(unittest.TestCase):
                 security.get_token_email({})
             self.assertEqual(ex.exception.status, 401)
             self.assertEqual(ex.exception.message, 'Authorization token is missing email claims.')
+
+    def test_multipart_parallel_upload(self):
+        data = os.urandom(7 * 1024 * 1024)
+        metadata = {'something': "foolish"}
+        part_size = 5 * 1024 * 1024
+        s3_client = Config.get_native_handle(Replica.aws)
+        bucket = os.environ['DSS_S3_BUCKET_TEST']
+        with self.subTest("copy multiple parts"):
+            with io.BytesIO(data) as fh:
+                multipart_parallel_upload(
+                    s3_client,
+                    bucket,
+                    "fake_key",
+                    fh,
+                    part_size=part_size,
+                    metadata=metadata,
+                    content_type="application/octet-stream",
+                )
+        part_size = 14 * 1024 * 1024
+        with self.subTest("should work with single part"):
+            with io.BytesIO(data) as fh:
+                multipart_parallel_upload(
+                    s3_client,
+                    bucket,
+                    "fake_key",
+                    fh,
+                    part_size=part_size,
+                )
 
     @staticmethod
     def restore_email_claims(old):
