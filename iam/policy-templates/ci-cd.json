@@ -111,7 +111,8 @@
         "arn:aws:dynamodb:*:$account_id:table/dss-async-state-staging",
         "arn:aws:dynamodb:*:$account_id:table/dss-subscriptions-v2-*-dev",
         "arn:aws:dynamodb:*:$account_id:table/dss-subscriptions-v2-*-integration",
-        "arn:aws:dynamodb:*:$account_id:table/dss-subscriptions-v2-*-staging"
+        "arn:aws:dynamodb:*:$account_id:table/dss-subscriptions-v2-*-staging",
+        "arn:aws:dynamodb:*:$account_id:table/dss-collections-db-*"
       ]
     },
     {
@@ -125,9 +126,6 @@
         "dynamodb:ListTables",
         "dynamodb:Query",
         "dynamodb:DescribeTable",
-        "dynamodb:GetItem",
-        "dynamodb:PutItem",
-        "dynamodb:DeleteItem",
         "sqs:ListQueues"
 	],
       "Resource": "*"
