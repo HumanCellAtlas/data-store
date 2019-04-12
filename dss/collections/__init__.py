@@ -15,10 +15,7 @@ class CollectionData:
 
 
 def put_collection(doc: dict):
-    """Edits an existing item's attributes, or adds a new item to the table if it does not already exist."""
-    current = get_collection(Replica[doc[CollectionData.REPLICA]], doc[CollectionData.OWNER], doc[CollectionData.UUID])
-    versions = ','.join([doc[CollectionData.VERSION]] + current)
-    # TODO: correctly use put vs. update & test multiple versions
+    """Adds a new owner associated collection to the table if it does not already exist."""
     dynamodb.put_item(
         TableName=_collections_db_table_template.format(doc[CollectionData.REPLICA]),
         Item={
@@ -29,6 +26,29 @@ def put_collection(doc: dict):
                 'S': doc[CollectionData.UUID]
             },
             'versions': {
+                'S': doc[CollectionData.VERSION]  # comma-delimited string
+            }
+        }
+    )
+
+
+def patch_collection(doc: dict):
+    """Edits an existing owner associated collection to append a new collection."""
+    current = get_collection(Replica[doc[CollectionData.REPLICA]], doc[CollectionData.OWNER], doc[CollectionData.UUID])
+    versions = ','.join([doc[CollectionData.VERSION]] + current[0]['collection_versions'])
+    dynamodb.update_item(
+        TableName=_collections_db_table_template.format(doc[CollectionData.REPLICA]),
+        Key={
+            'hash_key': {
+                'S': doc[CollectionData.OWNER]
+            },
+            'sort_key': {
+                'S': doc[CollectionData.UUID]
+            }
+        },
+        UpdateExpression='SET versions = :val1',
+        ExpressionAttributeValues={
+            ':val1': {
                 'S': versions  # comma-delimited string
             }
         }
@@ -48,7 +68,8 @@ def get_collection(replica: Replica, owner: str, uuid: str):
             }
         }
     )
-    return collections_from_items(db_resp.get('Items', []))
+    items = [db_resp.get('Item', None)] if db_resp.get('Item', None) else []
+    return collections_from_items(items)
 
 
 def collections_from_items(items: list) -> list:
@@ -66,7 +87,7 @@ def get_collections_for_owner(replica: Replica, owner: str) -> list:
         KeyConditionExpression="hash_key=:owner",
         ExpressionAttributeValues={':owner': {'S': owner}}
     )
-    return collections_from_items(db_resp['Items'])
+    return collections_from_items(db_resp.get('Items', []))
 
 
 def get_collections_for_replica(replica: Replica) -> list:

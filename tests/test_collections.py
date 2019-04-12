@@ -24,6 +24,13 @@ from tests.infra.server import ThreadedLocalServer
 from tests.fixtures.cloud_uploader import ChecksummingSink
 from dss.util.version import datetime_to_version_format
 from dss.util import UrlBuilder
+from dss import Replica
+from dss.collections import (CollectionData,
+                             get_collection,
+                             get_collections_for_owner,
+                             put_collection,
+                             patch_collection,
+                             delete_collection)
 
 
 class TestCollections(unittest.TestCase, DSSAssertMixin, DSSUploadMixin):
@@ -40,6 +47,9 @@ class TestCollections(unittest.TestCase, DSSAssertMixin, DSSUploadMixin):
         cls.uuid, cls.version = cls._put(cls, cls.contents)
         cls.invalid_ptr = dict(type="foo", uuid=cls.file_uuid, version=cls.file_version, fragment="/xyz")
         cls.replicas = ('aws', 'gcp')
+
+        with open(os.environ['GOOGLE_APPLICATION_CREDENTIALS'], "r") as fh:
+            cls.owner_email = json.loads(fh.read())['client_email']
 
     @classmethod
     def teardownClass(cls):
@@ -77,12 +87,13 @@ class TestCollections(unittest.TestCase, DSSAssertMixin, DSSUploadMixin):
         return file_uuid, resp_obj.json()["version"]
 
     def create_temp_user_collections(self, num: int):
-        for i in range(num):
-            contents = [self.col_file_item, self.col_ptr_item]
-            uuid, _ = self._put(contents)
-            self.addCleanup(self._delete_collection, uuid)
+        contents = [self.col_file_item, self.col_ptr_item]
+        for replica in self.replicas:
+            for i in range(num):
+                uuid, _ = self._put(contents, replica=replica)
+                self.addCleanup(self._delete_collection, uuid, replica)
 
-    def get_collection_paging_responses(self, codes, replica: str, per_page: int):
+    def fetch_collection_paging_response(self, codes, replica: str, per_page: int):
         """
         GET /collections and iterate through the paging responses containing all of a user's collections.
 
@@ -92,12 +103,17 @@ class TestCollections(unittest.TestCase, DSSAssertMixin, DSSUploadMixin):
         url.add_query("replica", replica)
         url.add_query("per_page", str(per_page))
         resp_obj = self.assertGetResponse(str(url), codes, headers=get_auth_header(authorized=True))
-        link_header = resp_obj.response.headers.get('Link')
 
         if codes == requests.codes.bad_request:
             return True
 
+        link_header = resp_obj.response.headers.get('Link')
+        paging_response = False
+
         while link_header:
+            # Make sure we're getting the expected response status code
+            self.assertEqual(resp_obj.response.status_code, requests.codes.partial)
+            paging_response = True
             link = parse_header_links(link_header)[0]
             self.assertEquals(link['rel'], 'next')
             parsed = urlsplit(link['url'])
@@ -107,33 +123,82 @@ class TestCollections(unittest.TestCase, DSSAssertMixin, DSSUploadMixin):
                                               headers=get_auth_header(authorized=True))
             link_header = resp_obj.response.headers.get('Link')
 
-            # Make sure we're getting the expected response status code
-            if link_header:
-                self.assertEqual(resp_obj.response.status_code, requests.codes.partial)
-            else:
-                self.assertEqual(resp_obj.response.status_code, requests.codes.ok)
+        self.assertEqual(resp_obj.response.status_code, requests.codes.ok)
+        return paging_response
 
     def test_collection_paging(self):
-        self.create_temp_user_collections(num=20)  # guarantee a paging response
+        self.create_temp_user_collections(num=11)  # guarantee at least one paging response
         codes = {requests.codes.ok, requests.codes.partial}
         for replica in self.replicas:
-            for per_page in [10]:
+            for per_page in [10, 100, 500]:
                 with self.subTest(replica=replica, per_page=per_page):
-                    self.get_collection_paging_responses(codes=codes,
-                                                         replica=replica,
-                                                         per_page=per_page)
+                    paging_response = self.fetch_collection_paging_response(codes=codes,
+                                                                            replica=replica,
+                                                                            per_page=per_page)
+                    if per_page == 10:
+                        self.assertTrue(paging_response)
+
+    def test_collections_db(self):
+        """Test that the dynamoDB functions work for a collection."""
+        for replica in self.replicas:
+            fake_uuid = str(uuid4())
+            fake_version = '1'
+
+            with self.subTest(replica):
+                collections = get_collection(replica=Replica[replica], owner=self.owner_email, uuid=fake_uuid)
+                collections_uuids = [c['collection_uuid'] for c in collections]
+                self.assertNotIn(fake_uuid, collections_uuids)
+
+            # put_collection
+            with self.subTest(replica):
+                fake_collection_item = {CollectionData.OWNER: self.owner_email,
+                                        CollectionData.UUID: fake_uuid,
+                                        CollectionData.VERSION: fake_version,
+                                        CollectionData.REPLICA: replica}
+                put_collection(fake_collection_item)
+
+            # get_collection
+            with self.subTest(replica):
+                collections = get_collection(replica=Replica[replica], owner=self.owner_email, uuid=fake_uuid)
+                collection_uuid = collections[0]['collection_uuid']
+                collection_versions = collections[0]['collection_versions']
+                self.assertEquals(fake_uuid, collection_uuid)
+                self.assertEquals([fake_version], collection_versions)
+
+            # get_collections_for_owner
+            with self.subTest(replica):
+                collections = get_collections_for_owner(Replica[replica], self.owner_email)
+                collections_uuids = [c['collection_uuid'] for c in collections]
+                self.assertIn(fake_uuid, collections_uuids)
+
+            # patch_collection
+            with self.subTest(replica):
+                new_version = '2'
+                fake_collection_item[CollectionData.VERSION] = new_version
+                patch_collection(fake_collection_item)
+                collections = get_collection(replica=Replica[replica], owner=self.owner_email, uuid=fake_uuid)
+                collection_versions = collections[0]['collection_versions']
+                self.assertEquals(fake_uuid, collection_uuid)
+                self.assertEquals([new_version, fake_version], collection_versions)
+
+            # delete_collection
+            with self.subTest(replica):
+                delete_collection(replica=Replica[replica], owner=self.owner_email, uuid=fake_uuid)
+                collections = get_collection(replica=Replica[replica], owner=self.owner_email, uuid=fake_uuid)
+                collections_uuids = [c['collection_uuid'] for c in collections]
+                self.assertNotIn(fake_uuid, collections_uuids)
 
     def test_collection_paging_too_small(self):
         """Should NOT be able to use a too-small per_page."""
         for replica in self.replicas:
             with self.subTest(replica):
-                self.get_collection_paging_responses(replica=replica, per_page=9, codes=requests.codes.bad_request)
+                self.fetch_collection_paging_response(replica=replica, per_page=9, codes=requests.codes.bad_request)
 
     def test_collection_paging_too_large(self):
         """Should NOT be able to use a too-large per_page."""
         for replica in self.replicas:
             with self.subTest(replica):
-                self.get_collection_paging_responses(replica=replica, per_page=501, codes=requests.codes.bad_request)
+                self.fetch_collection_paging_response(replica=replica, per_page=501, codes=requests.codes.bad_request)
 
     @testmode.standalone
     def test_get(self):
@@ -200,15 +265,12 @@ class TestCollections(unittest.TestCase, DSSAssertMixin, DSSUploadMixin):
         contents = [col_file_item] * 8 + [col_ptr_item] * 8
         uuid, version = self._put(contents)
 
-        with open(os.environ['GOOGLE_APPLICATION_CREDENTIALS'], "r") as fh:
-            owner_email = json.loads(fh.read())['client_email']
-
         expected_contents = {'contents': [col_file_item,
                                           col_ptr_item],
                              'description': 'd',
                              'details': {},
                              'name': 'n',
-                             'owner': owner_email
+                             'owner': self.owner_email
                              }
         tests = [(dict(), None),
                  (dict(description="foo", name="cn"), dict(description="foo", name="cn")),

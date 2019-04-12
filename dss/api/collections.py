@@ -20,6 +20,7 @@ from dss.api.bundles import _idempotent_save
 from dss.collections import (CollectionData,
                              get_collections_for_owner,
                              put_collection,
+                             patch_collection,
                              delete_collection)
 from cloud_blobstore import BlobNotFoundError
 
@@ -137,10 +138,10 @@ def patch(uuid: str, json_request_body: dict, replica: str, version: str):
     timestamp = datetime.datetime.utcnow()
     new_collection_version = datetime_to_version_format(timestamp)
     # update dynamoDB; used to speed up lookup time
-    put_collection({CollectionData.REPLICA: replica,
-                    CollectionData.OWNER: authenticated_user_email,
-                    CollectionData.UUID: uuid,
-                    CollectionData.VERSION: new_collection_version})
+    patch_collection({CollectionData.REPLICA: replica,
+                      CollectionData.OWNER: authenticated_user_email,
+                      CollectionData.UUID: uuid,
+                      CollectionData.VERSION: new_collection_version})
     # add the collection file to the bucket
     handle.upload_file_handle(Replica[replica].bucket,
                               CollectionFQID(uuid, new_collection_version).to_key(),
