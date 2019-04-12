@@ -287,6 +287,7 @@ def build_bundle_file_metadata(replica: Replica, user_supplied_files: dict):
                 return json.loads(file_metadata)
         return None
 
+    # TODO: Consider scaling parallelization with Lambda size
     with ThreadPoolExecutor(max_workers=20) as e:
         futures = {e.submit(_get_file_metadata, _file): _file
                    for _file in files}
