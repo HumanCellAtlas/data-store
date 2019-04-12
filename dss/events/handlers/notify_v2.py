@@ -3,19 +3,20 @@ import re
 import json
 import requests
 import urllib3
+import threading
 from requests_http_signature import HTTPSignatureAuth
 import logging
 from uuid import uuid4
 from collections import defaultdict
 
 from functools import lru_cache
+from concurrent.futures import ThreadPoolExecutor
 import jmespath
 from jmespath.exceptions import JMESPathError
-import boto3
 
 import dss
 from dss import Config, Replica
-from dss.util.aws.clients import dynamodb, sqs  # type: ignore
+from dss.util.aws.clients import sqs  # type: ignore
 from dss.subscriptions_v2 import SubscriptionData, get_subscriptions_for_replica
 from dss.storage.identifiers import UUID_PATTERN, VERSION_PATTERN, TOMBSTONE_SUFFIX, DSS_BUNDLE_KEY_REGEX
 
@@ -78,7 +79,7 @@ def notify_or_queue(replica: Replica, subscription: dict, metadata_document: dic
         if not notify(subscription, metadata_document, key):
             queue_notification(replica, subscription, "CREATE", key)
 
-def notify(subscription: dict, metadata_document: dict, key: str):
+def notify(subscription: dict, metadata_document: dict, key: str) -> bool:
     """
     Attempt notification delivery. Return True for success, False for failure
     """
@@ -168,7 +169,7 @@ def notify(subscription: dict, metadata_document: dict, key: str):
         return False
 
 
-@lru_cache()
+@lru_cache(maxsize=2)
 def build_bundle_metadata_document(replica: Replica, key: str) -> dict:
     """
     This returns a JSON document with bundle manifest and metadata files suitable for JMESPath filters.
@@ -179,20 +180,29 @@ def build_bundle_metadata_document(replica: Replica, key: str) -> dict:
         manifest['event_type'] = "TOMBSTONE"
         return manifest
     else:
+        lock = threading.Lock()
         files: dict = defaultdict(list)
-        for file in manifest['files']:
-            if "application/json" == file['content-type']:
-                blob_key = "blobs/{}.{}.{}.{}".format(
-                    file['sha256'],
-                    file['sha1'],
-                    file['s3-etag'],
-                    file['crc32c'],
-                )
-                contents = handle.get(replica.bucket, blob_key).decode("utf-8")
-                try:
-                    files[file['name']].append(json.loads(contents))
-                except json.decoder.JSONDecodeError:
-                    logging.info(f"{file['name']} not json decodable")
+
+        def _read_file(file_metadata):
+            blob_key = "blobs/{}.{}.{}.{}".format(
+                file_metadata['sha256'],
+                file_metadata['sha1'],
+                file_metadata['s3-etag'],
+                file_metadata['crc32c'],
+            )
+            contents = handle.get(replica.bucket, blob_key).decode("utf-8")
+            try:
+                file_info = json.loads(contents)
+            except json.decoder.JSONDecodeError:
+                logging.info(f"{file_metadata['name']} not json decodable")
+            else:
+                with lock:
+                    files[file_metadata['name']].append(file_info)
+
+        # TODO: Consider scaling parallelization with Lambda size
+        with ThreadPoolExecutor(max_workers=20) as e:
+            e.map(_read_file, [file_metadata for file_metadata in manifest['files']
+                               if "application/json" == file_metadata['content-type']])
 
         return {
             'event_type': "CREATE",
@@ -200,7 +210,7 @@ def build_bundle_metadata_document(replica: Replica, key: str) -> dict:
             'files': dict(files),
         }
 
-@lru_cache()
+@lru_cache(maxsize=2)
 def build_deleted_bundle_metadata_document(key: str) -> dict:
     _, fqid = key.split("/")
     uuid, version = fqid.split(".", 1)
