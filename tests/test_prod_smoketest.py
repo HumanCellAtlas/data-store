@@ -23,21 +23,6 @@ parser.add_argument("--no-clean", dest="clean", action="store_false",
                     help="Don't remove the temporary working directory on exit.")
 args = argparse.Namespace(clean=True)
 
-def GREEN(message=None):
-    if message is None:
-        return "\033[32m" if sys.stdout.isatty() else ""
-    else:
-        return GREEN() + str(message) + ENDC()
-
-def RED(message=None):
-    if message is None:
-        return "\033[31m" if sys.stdout.isatty() else ""
-    else:
-        return RED() + str(message) + ENDC()
-
-def ENDC():
-    return "\033[0m" if sys.stdout.isatty() else ""
-
 
 @testmode.integration
 class ProdSmoketest(BaseSmokeTest):
@@ -88,7 +73,7 @@ class ProdSmoketest(BaseSmokeTest):
 if __name__ == "__main__":
     if os.environ.get("DSS_DEPLOYMENT_STAGE") is not "prod":
         print("prod_smoketest is not applicable to stage: {}".format(os.environ.get("DSS_DEPLOYMENT_STAGE")))
-        exit(0)
-    else:
+    #   exit(0)
+    # else:
         args, sys.argv[1:] = parser.parse_known_args()
         unittest.main()

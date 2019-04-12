@@ -14,7 +14,6 @@ pkg_root = os.path.abspath(os.path.join(os.path.dirname(__file__), ".."))  # noq
 sys.path.insert(0, pkg_root)  # noqa
 
 from dss import Replica
-from tests.infra import testmode
 from dss.storage.checkout.bundle import get_dst_bundle_prefix
 
 
@@ -105,29 +104,25 @@ class BaseSmokeTest(unittest.TestCase):
         return create_res
 
     def get_bundle(self, replica, bundle_uuid):
+        """ returns bundle manifest from DSS"""
         return run_for_json(f"{self.venv_bin}hca dss get-bundle --replica {replica.name}"
                             f" --uuid {bundle_uuid}")
 
     def _test_get_bundle(self, replica, bundle_uuid):
-        """ tests that a bundle can be downloaded, returns the bundle manifest"""
+        """ tests that a bundle can be downloaded"""
         download_res = self.get_bundle(replica, bundle_uuid)
         self.assertEqual(bundle_uuid, download_res['bundle']['uuid'])
 
     def checkout_initiate(self, replica, bundle_uuid):
-        """initiates a bundle checkout, return the checkout job"""
+        """ initiates a bundle checkout, return the checkout job"""
         res = run_for_json(f"{self.venv_bin}hca dss post-bundles-checkout --uuid {bundle_uuid} "
                            f"--replica {replica.name}")
-        checkout_job_id = res['checkout_job_id']
-        print(f"Checkout jobId: {checkout_job_id}")
-        return checkout_job_id
-
-    def _test_checkout_initiate(self, replica, bundle_uuid):
-        """ asserts the checkout initiation is successful """
-        checkout_job_id = self.checkout_initiate(replica, bundle_uuid)
-        self.assertTrue(checkout_job_id)
+        print(f"Checkout jobId: {res['checkout_job_id']}")
+        return res
 
     def _test_checkout(self, starting_replica, bundle_uuid, bundle_version,
                        checkout_job_id, checkout_bucket, file_count):
+        """ asserts that the checkout mechanism is operational """
         for i in range(10):
             res = run_for_json(f"{self.venv_bin}hca dss get-bundles-checkout --checkout-job-id {checkout_job_id} "
                                f"--replica {starting_replica.name}")
@@ -149,30 +144,26 @@ class BaseSmokeTest(unittest.TestCase):
 
     def post_search_es(self, replica, es_query):
         """ post-search using es, returns post-search response """
-        return run_for_json(f'{self.venv_bin}hca dss post-search  --es-query {es_query} --replica {replica}')
+        return run_for_json(f'{self.venv_bin}hca dss post-search  --es-query {es_query} --replica {replica.name}')
 
     def subscription_create_es(self, replica, es_query, url):
-        put_response = run_for_json([f'{self.venv_bin}hca', 'dss', 'put-subscription',
-                                     '--callback-url', url,
-                                     '--method', 'PUT',
-                                     '--es-query', json.dumps(es_query),
-                                     '--replica', replica.name])
-        subscription_id = put_response['uuid']
-        return subscription_id
+        """ creates es subscription, return the response"""
+        return run_for_json([f'{self.venv_bin}hca', 'dss', 'put-subscription',
+                             '--callback-url', url,
+                             '--method', 'PUT',
+                             '--es-query', json.dumps(es_query),
+                             '--replica', replica.name])
 
-    def get_subscriptions(self, replica):
-        """ returns all subscriptions"""
-        return run_for_json(f"{self.venv_bin}hca dss get-subscriptions --replica {replica.name} "
-                            f"--subscription-type elasticsearch")
-
-    def _test_get_subscirptions(self, replica, requested_subscription):
-        get_response = self.get_subscriptions(replica)
-        self.assertIn(requested_subscription, get_response['subscriptions'])
+    def subscription_delete(self, replica, subscription_id):
+        """ delete's subscription created, should be wrapped in self.addCleanup() """
+        self.addCleanup(run, f"{self.venv_bin}hca dss delete-subscription --replica {replica.name} "
+                             f"--uuid {subscription_id} "
+                             f"--subscription-type elasticsearch")
 
     def subscription_get_es(self, replica, subscription_id):
         """returns subscription information"""
         get_response = run_for_json(f"{self.venv_bin}hca dss get-subscription --replica {replica.name} "
-                                    f"--subscription-type elasticsearch"
+                                    f"--subscription-type elasticsearch "
                                     f"--uuid {subscription_id} ")
         return get_response
 
@@ -181,11 +172,13 @@ class BaseSmokeTest(unittest.TestCase):
         self.assertEquals(subscription_id, get_response['uuid'])
         self.assertEquals(callback_url, get_response['callback_url'])
 
-    def subscription_delete(self, replica, subscription_id):
-        """ delete's subscription created, should be wrapped in self.addCleanup() """
-        self.addCleanup(run, f"{self.venv_bin}hca dss delete-subscription --replica {replica.name} "
-                             f"--uuid {subscription_id} "
-                             f"--subscription-type elasticsearch")
+    def get_subscriptions(self, replica):
+        """ returns all subscriptions"""
+        return run_for_json(f"{self.venv_bin}hca dss get-subscriptions --replica {replica.name} ")
+
+    def _test_get_subscriptions(self, replica, requested_subscription):
+        get_response = self.get_subscriptions(replica)
+        self.assertIn(requested_subscription, get_response['subscriptions']['uuid'])
 
     def _test_replica_sync(self, current_replica, bundle_uuid, ):
         other_replicas = self.replicas - {current_replica}
