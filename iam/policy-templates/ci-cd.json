@@ -162,7 +162,11 @@
         "arn:aws:sqs:*:$account_id:dss-notify-test-*",
         "arn:aws:sqs:*:$account_id:dss-notify-dev-*",
         "arn:aws:sqs:*:$account_id:dss-notify-integration-*",
-        "arn:aws:sqs:*:$account_id:dss-notify-staging-*"
+        "arn:aws:sqs:*:$account_id:dss-notify-staging-*",
+        "arn:aws:sqs:*:$account_id:dss-notify-v2-test-*",
+        "arn:aws:sqs:*:$account_id:dss-notify-v2-dev-*",
+        "arn:aws:sqs:*:$account_id:dss-notify-v2-integration-*",
+        "arn:aws:sqs:*:$account_id:dss-notify-v2-staging-*",
       ]
     },
     {
