@@ -14,6 +14,7 @@ stages:
   - integration_test
   - scale_and_performance
   - release
+  - scale
 
 before_script:
   - export COMMITS_URL=${GITHUB_API}/repos/HumanCellAtlas/data-store/commits
@@ -171,3 +172,11 @@ force_release_prod:
     RELEASE_COMMAND: scripts/release.sh staging prod --force --no-deploy --skip-account-verification
   only:
     - staging
+
+patch_bundle:
+  stage: scale
+  script:
+    - pip install hca
+    - tests/scale/patch_bundle.py --patch-size 500 --number-of-patches 2000
+  only:
+    - schedules

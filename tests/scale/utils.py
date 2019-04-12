@@ -6,7 +6,7 @@ import boto3
 from uuid import uuid4
 from io import BytesIO
 from functools import lru_cache
-from concurrent.futures import ThreadPoolExecutor
+from concurrent.futures import ThreadPoolExecutor, as_completed
 
 from cloud_blobstore.s3 import S3BlobStore
 from cloud_blobstore.gs import GSBlobStore
@@ -19,9 +19,9 @@ from dcplib.checksumming_io import ChecksummingSink
 @lru_cache()
 def get_dss_client(deployment="dev"):
     if "prod" == deployment:
-        swagger_url=f"https://dss.data.humancellatlas.org/v1/swagger.json"
+        swagger_url = f"https://dss.data.humancellatlas.org/v1/swagger.json"
     else:
-        swagger_url=f"https://dss.{deployment}.data.humancellatlas.org/v1/swagger.json"
+        swagger_url = f"https://dss.{deployment}.data.humancellatlas.org/v1/swagger.json"
     return DSSClient(swagger_url=swagger_url)
 
 def get_bucket(deployment="dev"):
@@ -56,7 +56,7 @@ def list_chunks(handle, bucket, pfx, chunk_size=1000):
             keys = list()
     yield keys
 
-def get_content_chunks(contents_type="file", chunk_size=200):
+def get_collection_content_chunks(bucket, contents_type="file", chunk_size=200):
     items = list()
     for key in list_objects(bucket, f"{contents_type}s"):
         if key.endswith("dead"):
@@ -105,21 +105,24 @@ def put_file(dss_client, source_url, replica="aws"):
         source_url=source_url,
         creator_uid=123,
     )
+    assert 'version' in resp
     return f"{uuid}.{version}"
 
 def put_many_versions(dss_client, source_url, number_of_version=100, replica="aws"):
     def _put_file(i):
         fqid = put_file(dss_client, source_url, replica)
-        print(i, fqid)
+        return i, fqid
     with ThreadPoolExecutor(max_workers=100) as e:
-        for i in range(number_of_version):
-            e.submit(_put_file, i)
+        futures = [e.submit(_put_file, i) for i in range(number_of_version)]
+        for f in as_completed(futures):
+            res = f.result()
+            print(res[0], res[1])
 
 if __name__ == "__main__":
     handle = get_handle("aws")
     dss_client = get_dss_client("dev")
-    staging_bucket = "org-hca-dss-test"
+    staging_bucket = os.environ['DSS_S3_BUCKET_TEST']
     uuid = str(uuid4())
     key = f"bhannafi_test/{uuid}"
     stage_file(handle, staging_bucket, key)
-    put_many_versions(dss_client, f"s3://{staging_bucket}/{key}", number_of_version=100000)
+    put_many_versions(dss_client, f"s3://{staging_bucket}/{key}", number_of_version=10)

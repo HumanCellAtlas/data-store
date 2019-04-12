@@ -11,7 +11,7 @@ from cloud_blobstore.s3 import S3BlobStore
 
 import utils
 
-deployment = "dev"
+deployment = os.environ['DSS_DEPLOYMENT_STAGE']
 
 _handle = utils.get_handle("aws")
 _bucket = utils.get_bucket(deployment)
@@ -43,7 +43,7 @@ def get_files_chunks(contents_type="file", patch_size=200):
     items = list()
     while True:
         fqid = keys[i]
-        i = (i+1) % len(keys)
+        i = (i + 1) % len(keys)
         uuid, version = fqid.split(".", 1)
         items.append({
             "indexed": False,
@@ -83,7 +83,7 @@ def patch_bundle(files, uuid, version):
                 version=version,
                 add_files=files,
             )
-        except:
+        except Exception:
             if not tries:
                 raise
             print("------> retrying", uuid, version)
@@ -95,19 +95,19 @@ def _parse_args():
     parser = argparse.ArgumentParser()
     parser.add_argument("--patch-size", type=int, default=1000)
     parser.add_argument("--number-of-patches", type=int, default=3)
-    args = parser.parse_args()
     return parser.parse_args()
-                   
+
 if __name__ == "__main__":
     args = _parse_args()
     uuid = str(uuid4())
     version = str(datetime.datetime.utcnow().strftime("%Y-%m-%dT%H%M%S.%fZ"))
     resp = create_bundle(uuid, version)
+    number_of_files = 0
     for i, c in enumerate(get_files_chunks(patch_size=args.patch_size)):
         version = resp['version']
-        number_of_files = len([f for f in _dss_client.get_bundle.iterate(replica="aws", uuid=uuid, version=version)])
         start_time = time.time()
         resp = patch_bundle(c, uuid, version)
+        number_of_files += args.patch_size
         duration = time.time() - start_time
         print(uuid, version, "number of files:", number_of_files, "patch duration:", duration)
         sys.stdout.flush()
