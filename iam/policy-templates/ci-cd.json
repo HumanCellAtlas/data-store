@@ -148,6 +148,16 @@
     {
       "Effect": "Allow",
       "Action": [
+        "sqs:GetQueueUrl",
+        "sqs:SendMessage"
+      ],
+      "Resource": [
+        "arn:aws:sqs:*:$account_id:dss-notify-v2-*"
+      ]
+    },
+    {
+      "Effect": "Allow",
+      "Action": [
         "sqs:CreateQueue",
         "sqs:DeleteQueue",
         "sqs:ChangeMessageVisibility*",
