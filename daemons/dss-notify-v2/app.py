@@ -109,6 +109,7 @@ def _notify_subscribers(replica: Replica, key: str):
         if should_notify(replica, subscription, metadata_document, key):
             notify_or_queue(replica, subscription, metadata_document, key)
 
+    # TODO: Consider scaling parallelization with Lambda size
     with ThreadPoolExecutor(max_workers=20) as e:
         e.map(_func, [s for s in get_subscriptions_for_replica(replica)])
 
