@@ -166,12 +166,26 @@ def put(uuid: str, replica: str, json_request_body: dict, version: str):
 
     return jsonify(dict(version=bundle_metadata['version'], manifest=bundle_metadata)), status_code
 
+_patch_version_hot_cache: dict = dict()
+
+def _load_bundle(replica, uuid, version):
+    key = BundleFQID(uuid, version).to_key()
+    if key in _patch_version_hot_cache:
+        return _patch_version_hot_cache[key]
+    else:
+        bundle = get_bundle_manifest(uuid, replica, version)
+        if bundle is None:
+            raise DSSException(404, "not_found", "Could not find bundle for UUID {}".format(uuid))
+        _patch_version_hot_cache[key] = bundle
+        return bundle
+
 def _save_bundle(handle, bucket, uuid, version, bundle_metadata):
+    key = BundleFQID(uuid, version).to_key()
     try:
         created, idempotent = _idempotent_save(
             handle,
             bucket,
-            BundleFQID(uuid, version).to_key(),
+            key,
             bundle_metadata,
         )
     except BlobStoreTimeoutError:
@@ -189,6 +203,10 @@ def _save_bundle(handle, bucket, uuid, version, bundle_metadata):
         )
     status_code = requests.codes.created if created else requests.codes.ok
 
+    for k in list(_patch_version_hot_cache.keys()):
+        del _patch_version_hot_cache[k]
+    _patch_version_hot_cache[key] = bundle_metadata
+
     return status_code
 
 
@@ -204,9 +222,7 @@ def bundle_file_id_metadata(bundle_file_metadata):
 @security.authorized_group_required(['hca'])
 def patch(uuid: str, json_request_body: dict, replica: str, version: str):
     handle = Config.get_blobstore_handle(Replica[replica])
-    bundle = get_bundle_manifest(uuid, Replica[replica], version)
-    if bundle is None:
-        raise DSSException(404, "not_found", "Could not find bundle for UUID {}".format(uuid))
+    bundle = _load_bundle(Replica[replica], uuid, version)
 
     remove_files_set = {bundle_file_id_metadata(f) for f in json_request_body.get("remove_files", [])}
     bundle['files'] = [f for f in bundle['files'] if bundle_file_id_metadata(f) not in remove_files_set]
