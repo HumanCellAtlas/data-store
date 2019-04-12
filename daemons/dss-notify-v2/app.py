@@ -7,6 +7,7 @@ storage_event -> invoke_notify_daemon -> invoke_sfn -> sfn_dynamodb_loop -> sqs 
 import os, sys, json, logging
 import boto3
 from urllib.parse import unquote
+from functools import partial
 from concurrent.futures import ThreadPoolExecutor
 
 import domovoi
@@ -29,7 +30,12 @@ dss.Config.set_config(dss.BucketConfig.NORMAL)
 app = domovoi.Domovoi()
 
 # This entry point is for S3 native events forwarded through SQS.
-@app.s3_event_handler(bucket=Config.get_s3_bucket(), events=["s3:ObjectCreated:*"], use_sqs=True)
+@app.s3_event_handler(
+    bucket=Config.get_s3_bucket(),
+    events=["s3:ObjectCreated:*"],
+    use_sqs=True,
+    sqs_queue_attributes=dict(VisibilityTimeout="920"),  # Lambda timeout + 20 seconds
+)
 def launch_from_s3_event(event, context):
     replica = Replica.aws
     if event.get("Event") == "s3:TestEvent":
@@ -41,33 +47,24 @@ def launch_from_s3_event(event, context):
                 logger.error("Received S3 event for bucket %s with no configured replica", bucket)
                 continue
             key = unquote(event_record['s3']['object']['key'])
-            # TODO:
-            # Parallelize sending subscriptions
-            # - xbrianh
             if key.startswith("bundles"):
-                for subscription in get_subscriptions_for_replica(replica):
-                    metadata_document = build_bundle_metadata_document(replica, key)
-                    if should_notify(replica, subscription, metadata_document, key):
-                        notify_or_queue(replica, subscription, metadata_document, key)
+                _notify_subscribers(replica, key)
             else:
                 logger.warning(f"Notifications not supported for {key}")
 
 # This entry point is for external events forwarded by dss-gs-event-relay (or other event sources) through SNS-SQS.
-@app.sqs_queue_subscriber("dss-notify-v2-event-relay-" + os.environ['DSS_DEPLOYMENT_STAGE'])
+@app.sqs_queue_subscriber(
+    "dss-notify-v2-event-relay-" + os.environ['DSS_DEPLOYMENT_STAGE'],
+    queue_attributes=dict(VisibilityTimeout="920"),  # Lambda timeout + 20 seconds
+)
 def launch_from_forwarded_event(event, context):
     replica = Replica.gcp
     for event_record in event['Records']:
         message = json.loads(json.loads(event_record['body'])['Message'])
         if message['selfLink'].startswith("https://www.googleapis.com/storage"):
             key = message['name']
-            # TODO:
-            # Parallelize sending subscriptions
-            # - xbrianh
             if key.startswith("bundles"):
-                for subscription in get_subscriptions_for_replica(Replica.gcp):
-                    metadata_document = build_bundle_metadata_document(replica, key)
-                    if should_notify(replica, subscription, metadata_document, key):
-                        notify_or_queue(replica, subscription, metadata_document, key)
+                _notify_subscribers(replica, key)
             else:
                 logger.warning(f"Notifications not supported for {key}")
         else:
@@ -77,10 +74,10 @@ def launch_from_forwarded_event(event, context):
 @app.sqs_queue_subscriber(
     "dss-notify-v2-" + os.environ['DSS_DEPLOYMENT_STAGE'],
     batch_size=1,
-    queue_attributes={
-        'VisibilityTimeout': "3600",  # Retry every hour
-        'MessageRetentionPeriod': str(7 * 24 * 3600)  # Retain messages for 7 days
-    }
+    queue_attributes=dict(
+        VisibilityTimeout="3600",  # Retry every hour
+        MessageRetentionPeriod=str(7 * 24 * 3600)  # Retain messages for 7 days
+    )
 )
 def launch_from_notification_queue(event, context):
     for event_record in event['Records']:
@@ -104,6 +101,17 @@ def launch_from_notification_queue(event, context):
                 raise DSSFailedNotificationDelivery()
         else:
             logger.warning(f"Recieved queue message with no matching subscription:{message}")
+
+def _notify_subscribers(replica: Replica, key: str):
+    metadata_document = build_bundle_metadata_document(replica, key)
+
+    def _func(subscription):
+        if should_notify(replica, subscription, metadata_document, key):
+            notify_or_queue(replica, subscription, metadata_document, key)
+
+    # TODO: Consider scaling parallelization with Lambda size
+    with ThreadPoolExecutor(max_workers=20) as e:
+        e.map(_func, [s for s in get_subscriptions_for_replica(replica)])
 
 class DSSFailedNotificationDelivery(Exception):
     pass
