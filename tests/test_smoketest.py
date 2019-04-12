@@ -24,8 +24,7 @@ parser.add_argument("--no-clean", dest="clean", action="store_false",
 args = argparse.Namespace(clean=True)
 
 
-# TODO  delete <v
-# @testmode.integration
+@testmode.integration
 class Smoketest(BaseSmokeTest):
     # params = super().params
     @classmethod
