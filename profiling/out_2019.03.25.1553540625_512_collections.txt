@@ -1,0 +1,12 @@
+3805bb9a-93bf-40e4-b93d-310fd1f63cf3 size before patch: 0 patch duration: 16.079260110855103
+3805bb9a-93bf-40e4-b93d-310fd1f63cf3 size before patch: 500 patch duration: 15.84272837638855
+3805bb9a-93bf-40e4-b93d-310fd1f63cf3 size before patch: 1000 patch duration: 15.706833600997925
+3805bb9a-93bf-40e4-b93d-310fd1f63cf3 size before patch: 1500 patch duration: 15.19565486907959
+3805bb9a-93bf-40e4-b93d-310fd1f63cf3 size before patch: 2000 patch duration: 15.530226469039917
+3805bb9a-93bf-40e4-b93d-310fd1f63cf3 size before patch: 2500 patch duration: 16.959765911102295
+3805bb9a-93bf-40e4-b93d-310fd1f63cf3 size before patch: 3000 patch duration: 16.083069324493408
+3805bb9a-93bf-40e4-b93d-310fd1f63cf3 size before patch: 3500 patch duration: 16.14048480987549
+3805bb9a-93bf-40e4-b93d-310fd1f63cf3 size before patch: 4000 patch duration: 16.250381231307983
+3805bb9a-93bf-40e4-b93d-310fd1f63cf3 size before patch: 4500 patch duration: 15.408196926116943
+3805bb9a-93bf-40e4-b93d-310fd1f63cf3 size before patch: 5000 patch duration: 16.64374852180481
+./profile.sh: line 22: f-chunks: command not found

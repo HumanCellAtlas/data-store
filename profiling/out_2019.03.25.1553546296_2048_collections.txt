@@ -1,0 +1,11 @@
+3030a2ce-439c-4cdf-9422-a01381e7d40f size before patch: 0 patch duration: 4.224334716796875
+3030a2ce-439c-4cdf-9422-a01381e7d40f size before patch: 500 patch duration: 4.152402877807617
+3030a2ce-439c-4cdf-9422-a01381e7d40f size before patch: 1000 patch duration: 4.013368129730225
+3030a2ce-439c-4cdf-9422-a01381e7d40f size before patch: 1500 patch duration: 4.130732297897339
+3030a2ce-439c-4cdf-9422-a01381e7d40f size before patch: 2000 patch duration: 5.013411998748779
+3030a2ce-439c-4cdf-9422-a01381e7d40f size before patch: 2500 patch duration: 4.3267035484313965
+3030a2ce-439c-4cdf-9422-a01381e7d40f size before patch: 3000 patch duration: 4.4947733879089355
+3030a2ce-439c-4cdf-9422-a01381e7d40f size before patch: 3500 patch duration: 4.368662118911743
+3030a2ce-439c-4cdf-9422-a01381e7d40f size before patch: 4000 patch duration: 5.700026273727417
+3030a2ce-439c-4cdf-9422-a01381e7d40f size before patch: 4500 patch duration: 4.9741222858428955
+3030a2ce-439c-4cdf-9422-a01381e7d40f size before patch: 5000 patch duration: 4.276543378829956

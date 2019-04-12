@@ -1,0 +1,11 @@
+9cab37b1-5883-49db-a2fc-d0367ad0558e size before patch: 0 patch duration: 7.241018533706665
+9cab37b1-5883-49db-a2fc-d0367ad0558e size before patch: 500 patch duration: 7.054231643676758
+9cab37b1-5883-49db-a2fc-d0367ad0558e size before patch: 1000 patch duration: 7.731168031692505
+9cab37b1-5883-49db-a2fc-d0367ad0558e size before patch: 1500 patch duration: 7.397729396820068
+9cab37b1-5883-49db-a2fc-d0367ad0558e size before patch: 2000 patch duration: 8.048510313034058
+9cab37b1-5883-49db-a2fc-d0367ad0558e size before patch: 2500 patch duration: 7.3032426834106445
+9cab37b1-5883-49db-a2fc-d0367ad0558e size before patch: 3000 patch duration: 8.336264610290527
+9cab37b1-5883-49db-a2fc-d0367ad0558e size before patch: 3500 patch duration: 12.49967098236084
+9cab37b1-5883-49db-a2fc-d0367ad0558e size before patch: 4000 patch duration: 7.231588125228882
+9cab37b1-5883-49db-a2fc-d0367ad0558e size before patch: 4500 patch duration: 7.003903865814209
+9cab37b1-5883-49db-a2fc-d0367ad0558e size before patch: 5000 patch duration: 7.475571870803833

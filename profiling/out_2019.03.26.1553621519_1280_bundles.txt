@@ -1,0 +1,10 @@
+04a39c74-a7fa-47ad-8aed-8276b2a8677f size before patch: 0 patch duration: 6.477578639984131
+04a39c74-a7fa-47ad-8aed-8276b2a8677f size before patch: 1000 patch duration: 6.460273742675781
+04a39c74-a7fa-47ad-8aed-8276b2a8677f size before patch: 2000 patch duration: 5.841825008392334
+04a39c74-a7fa-47ad-8aed-8276b2a8677f size before patch: 3000 patch duration: 5.812579154968262
+04a39c74-a7fa-47ad-8aed-8276b2a8677f size before patch: 4000 patch duration: 5.933287858963013
+04a39c74-a7fa-47ad-8aed-8276b2a8677f size before patch: 5000 patch duration: 6.0547685623168945
+04a39c74-a7fa-47ad-8aed-8276b2a8677f size before patch: 6000 patch duration: 5.8525309562683105
+04a39c74-a7fa-47ad-8aed-8276b2a8677f size before patch: 7000 patch duration: 6.228384733200073
+04a39c74-a7fa-47ad-8aed-8276b2a8677f size before patch: 8000 patch duration: 5.958803415298462
+04a39c74-a7fa-47ad-8aed-8276b2a8677f size before patch: 9000 patch duration: 6.668969631195068
