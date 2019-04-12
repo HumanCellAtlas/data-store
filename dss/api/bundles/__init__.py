@@ -8,6 +8,7 @@ import datetime
 import nestedcontext
 import requests
 from cloud_blobstore import BlobNotFoundError, BlobStore, BlobStoreTimeoutError
+from cloud_blobstore.s3 import S3BlobStore
 from flask import jsonify, redirect, request, make_response
 from concurrent.futures import ThreadPoolExecutor, as_completed
 
@@ -19,7 +20,7 @@ from dss.storage.checkout import CheckoutError, TokenError
 from dss.storage.checkout.bundle import get_dst_bundle_prefix, verify_checkout
 from dss.storage.identifiers import BundleTombstoneID, BundleFQID, FileFQID
 from dss.storage.hcablobstore import BundleFileMetadata, BundleMetadata, FileMetadata
-from dss.util import UrlBuilder, security, hashabledict
+from dss.util import UrlBuilder, security, hashabledict, multipart_parallel_upload
 from dss.util.version import datetime_to_version_format
 
 """The retry-after interval in seconds. Sets up downstream libraries / users to
@@ -286,6 +287,7 @@ def build_bundle_file_metadata(replica: Replica, user_supplied_files: dict):
                 return json.loads(file_metadata)
         return None
 
+    # TODO: Consider scaling parallelization with Lambda size
     with ThreadPoolExecutor(max_workers=20) as e:
         futures = {e.submit(_get_file_metadata, _file): _file
                    for _file in files}
@@ -350,11 +352,20 @@ def _idempotent_save(blobstore: BlobStore, bucket: str, key: str, data: dict) ->
         return False, existing_data == data
     else:
         # write manifest to persistent store
-        blobstore.upload_file_handle(
-            bucket,
-            key,
-            io.BytesIO(json.dumps(data).encode("utf-8")),
-        )
+        _d = json.dumps(data).encode("utf-8")
+        part_size = 16 * 1024 * 1024
+        if isinstance(blobstore, S3BlobStore) and len(_d) > part_size:
+            with io.BytesIO(_d) as fh:
+                multipart_parallel_upload(
+                    blobstore.s3_client,
+                    bucket,
+                    key,
+                    fh,
+                    part_size=part_size,
+                    parallelization_factor=20
+                )
+        else:
+            blobstore.upload_file_handle(bucket, key, io.BytesIO(_d))
         return True, True
 
 
