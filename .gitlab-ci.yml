@@ -38,6 +38,8 @@ before_script:
 
 .tests:
   stage: test
+  script:
+    - make -j4 parallel_test
   except:
     - tags
     - schedules
