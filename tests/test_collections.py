@@ -32,7 +32,7 @@ from dss.collections import (CollectionData,
                              patch_collection,
                              delete_collection)
 
-
+@testmode.integration
 class TestCollections(unittest.TestCase, DSSAssertMixin, DSSUploadMixin):
     @classmethod
     def setUpClass(cls):
