@@ -1,16 +1,39 @@
+import io
 from functools import lru_cache
 import json
 import typing
+import time
 
-from cloud_blobstore import BlobNotFoundError
+import cachetools
+from cloud_blobstore import BlobNotFoundError, BlobStore
+from cloud_blobstore.s3 import S3BlobStore
 
 from dss import Config, Replica
 from dss.storage.identifiers import DSS_BUNDLE_KEY_REGEX, DSS_BUNDLE_TOMBSTONE_REGEX, BundleTombstoneID, BundleFQID
 from dss.storage.blobstore import test_object_exists
+from dss.util import multipart_parallel_upload
 
 
-@lru_cache(maxsize=32)
+_bundle_manifest_cache = cachetools.LRUCache(maxsize=4)
+
+
 def get_bundle_manifest(
+        uuid: str,
+        replica: Replica,
+        version: typing.Optional[str],
+        *,
+        bucket: typing.Optional[str] = None) -> typing.Optional[dict]:
+    key = BundleFQID(uuid, version).to_key()
+    if key in _bundle_manifest_cache:
+        return _bundle_manifest_cache[key]
+    else:
+        bundle = _get_bundle_manifest(uuid, replica, version)
+        if bundle is not None:
+            _bundle_manifest_cache[key] = bundle
+        return bundle
+
+
+def _get_bundle_manifest(
         uuid: str,
         replica: Replica,
         version: typing.Optional[str],
@@ -59,6 +82,44 @@ def get_bundle_manifest(
         return json.loads(bundle_manifest_blob)
     except BlobNotFoundError:
         return None
+
+
+def idempotent_save(blobstore: BlobStore, bucket: str, key: str, data: dict) -> typing.Tuple[bool, bool]:
+    """
+    idempotent_save attempts to save an object to the BlobStore. Its return values indicate whether the save was made
+    successfully and whether the operation could be completed idempotently. If the data in the blobstore does not match
+    the data parameter, the data in the blobstore is _not_ overwritten.
+
+    :param blobstore: the blobstore to save the data to
+    :param bucket: the bucket in the blobstore to save the data to
+    :param key: the key of the object to save
+    :param data: the data to save
+    :return: a tuple of booleans (was the data saved?, was the save idempotent?)
+    """
+    if test_object_exists(blobstore, bucket, key):
+        # fetch the file metadata, compare it to what we have.
+        existing_data = json.loads(blobstore.get(bucket, key).decode("utf-8"))
+        return False, existing_data == data
+    else:
+        # write manifest to persistent store
+        _d = json.dumps(data).encode("utf-8")
+        part_size = 16 * 1024 * 1024
+        if isinstance(blobstore, S3BlobStore) and len(_d) > part_size:
+            with io.BytesIO(_d) as fh:
+                multipart_parallel_upload(
+                    blobstore.s3_client,
+                    bucket,
+                    key,
+                    fh,
+                    part_size=part_size,
+                    parallelization_factor=20
+                )
+        else:
+            blobstore.upload_file_handle(bucket, key, io.BytesIO(_d))
+
+        _bundle_manifest_cache[key] = data
+
+        return True, True
 
 
 def _latest_version_from_object_names(object_names: typing.Iterator[str]) -> str:
