@@ -1116,7 +1116,7 @@ paths:
         - name: version
           in: query
           description: >
-            Timestamp of collection creation in DSS_VERSION format format. If this is not provided, the version is automatically
+            Timestamp of collection creation in DSS_VERSION format format.
             generated.
           required: true
           type: string
