@@ -61,7 +61,9 @@ def launch_from_forwarded_event(event, context):
     replica = Replica.gcp
     for event_record in event['Records']:
         message = json.loads(json.loads(event_record['body'])['Message'])
-        if message['selfLink'].startswith("https://www.googleapis.com/storage"):
+        if message['resourceState'] == "not_exists":
+            logger.info("Ignoring object deletion event")
+        elif message['selfLink'].startswith("https://www.googleapis.com/storage"):
             key = message['name']
             if key.startswith("bundles"):
                 _notify_subscribers(replica, key)
