@@ -90,11 +90,6 @@ def get_collections_for_owner(replica: Replica, owner: str) -> list:
     return collections_from_items(db_resp.get('Items', []))
 
 
-def get_collections_for_replica(replica: Replica) -> list:
-    db_resp = dynamodb.scan(TableName=_collections_db_table_template.format(replica.name))
-    return collections_from_items(db_resp['Items'])
-
-
 def delete_collection(replica: Replica, owner: str, uuid: str):
     dynamodb.delete_item(
         TableName=_collections_db_table_template.format(replica.name),
