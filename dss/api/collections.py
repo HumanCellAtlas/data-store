@@ -63,8 +63,6 @@ def listcollections(replica: str, per_page: int, start_at: int = 0):
     if len(collections) - start_at > per_page:
         next_url = UrlBuilder(request.url)
         next_url.replace_query("start_at", str(start_at + per_page))
-        # each chunk will be searched for collections belonging to that user (even more expensive; per bucket file)
-        # hits returned will vary between zero and the "per_page" size of the chunk
         collection_page = collections[start_at:start_at + per_page]
         response = make_response(jsonify({'collections': collection_page}), requests.codes.partial)
         response.headers['Link'] = f"<{next_url}>; rel='next'"
