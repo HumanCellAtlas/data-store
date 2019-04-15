@@ -67,34 +67,42 @@ class Smoketest(BaseSmokeTest):
             with self.subTest(f"{starting_replica.name}: Create a subscription for replica {replica} using the "
                               f"query: {query}"):
                 notification_key = f'notifications/{uuid.uuid4()}'
-                url = BaseSmokeTest.generate_presigned_url(self, self.notification_bucket, notification_key)
-                put_response = BaseSmokeTest.subscription_create_es(self, replica, query, url)
+                url = self.generate_presigned_url(self.notification_bucket, notification_key)
+                put_response = self.subscription_put_es(replica, query, url)
                 print(put_response)
                 subscription_id = put_response['uuid']
-                BaseSmokeTest.subscription_delete(self, replica, subscription_id)
                 self.addCleanup(s3.delete_object, Bucket=self.notification_bucket, Key=notification_key)
                 notifications_proofs[replica] = (subscription_id, notification_key)
-                self.subTest(BaseSmokeTest._test_subscription_get_es(self, replica, subscription_id, url))
-                self.subTest(BaseSmokeTest._test_get_subscriptions(self, replica, subscription_id))
+                self.subTest(self._test_subscription_get_es(replica, subscription_id, url))
+                self.subTest(self._test_get_subscriptions(replica, subscription_id))
+                self.subscription_delete(replica, subscription_id)
+
+        for replica in self.replicas:
+            with self.subTest(f"{starting_replica.name}: Hit search route directly against each replica {replica}"):
+                search_route = "https://${API_DOMAIN_NAME}/v1/search"
+                res = run_for_json(f'http --check {search_route} replica=={replica.name}',
+                                   input=json.dumps({'es_query': bundle_query}).encode())
+                print(json.dumps(res, indent=4))
+                self.assertEqual(len(res['results']), 1)
 
         with self.subTest(f"{starting_replica.name}: Create the bundle"):
-            upload_response = BaseSmokeTest.upload_bundle(self, replica, test_bucket, self.bundle_dir)
+            upload_response = self.upload_bundle(replica, test_bucket, self.bundle_dir)
             bundle_uuid = upload_response['bundle_uuid']
             bundle_version = upload_response['version']
             file_count = len(upload_response['files'])
 
         with self.subTest(f"{starting_replica.name}: Download that bundle"):
-            BaseSmokeTest._test_get_bundle(self, replica, bundle_uuid)
+            self._test_get_bundle(replica, bundle_uuid)
 
         with self.subTest(f"{starting_replica.name}: Initiate a bundle checkout"):
-            checkout_response = BaseSmokeTest.checkout_initiate(self, replica, bundle_uuid)
+            checkout_response = self.checkout_initiate(replica, bundle_uuid)
             checkout_job_id = checkout_response['checkout_job_id']
             self.assertTrue(checkout_job_id)
-            BaseSmokeTest._test_replica_sync(self, replica, bundle_uuid)
+            self._test_replica_sync(replica, bundle_uuid)
 
         with self.subTest(f"{starting_replica.name}: Wait for the checkout to complete and assert its success"):
-            BaseSmokeTest._test_checkout(self, replica, bundle_uuid, bundle_version,
-                                         checkout_job_id, checkout_bucket, file_count)
+            self._test_checkout(replica, bundle_uuid, bundle_version,
+                                checkout_job_id, checkout_bucket, file_count)
 
         for replica in self.replicas:
             with self.subTest(f"{starting_replica.name}: Tombstone the bundle on replica {replica}"):

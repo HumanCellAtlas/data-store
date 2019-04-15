@@ -45,24 +45,24 @@ class ProdSmoketest(BaseSmokeTest):
         replica = kwargs['starting_replica']
         checkout_bucket = kwargs['checkout_bucket']
 
-        query_res = BaseSmokeTest.post_search_es(self, replica, "{}")
+        query_res = self.post_search_es(replica, "{}")
         bundle_uuid = query_res['results'][0]['bundle_fqid'].split('.')[0]
         bundle_version = query_res['results'][0]['bundle_fqid'].split('.')[1]
 
-        checkout_res = BaseSmokeTest.checkout_initiate(self, replica, bundle_uuid)
+        checkout_res = self.checkout_initiate(replica, bundle_uuid)
         checkout_job_id = checkout_res['checkout_job_id']
         self.assertTrue(checkout_job_id)
 
-        bundle_res = BaseSmokeTest.get_bundle(self, replica, bundle_uuid)
+        bundle_res = self.get_bundle(replica, bundle_uuid)
         bundle_file_count = len(bundle_res['bundle']['files'])
 
-        subscription_res = BaseSmokeTest.subscription_create_es(self, replica, self.query, self.url)
+        subscription_res = self.subscription_put_es(replica, self.query, self.url)
         subscription_id = subscription_res['uuid']
-        BaseSmokeTest._test_subscription_get_es(self, replica, subscription_id, self.url)
-        BaseSmokeTest.subscription_delete(self, replica, subscription_id)
+        self._test_subscription_get_es(replica, subscription_id, self.url)
+        self.subscription_delete(replica, subscription_id)
 
-        BaseSmokeTest._test_checkout(self, replica, bundle_uuid, bundle_version, checkout_job_id,
-                                     checkout_bucket, bundle_file_count)
+        self._test_checkout(replica, bundle_uuid, bundle_version, checkout_job_id,
+                            checkout_bucket, bundle_file_count)
 
     def test_prod_smoketest(self):
         for params in self.params:
@@ -73,7 +73,7 @@ class ProdSmoketest(BaseSmokeTest):
 if __name__ == "__main__":
     if os.environ.get("DSS_DEPLOYMENT_STAGE") is not "prod":
         print("prod_smoketest is not applicable to stage: {}".format(os.environ.get("DSS_DEPLOYMENT_STAGE")))
-        exit(0)
-    else:
+    #    exit(0)
+    # else:
         args, sys.argv[1:] = parser.parse_known_args()
         unittest.main()

@@ -146,7 +146,7 @@ class BaseSmokeTest(unittest.TestCase):
         """ post-search using es, returns post-search response """
         return run_for_json(f'{self.venv_bin}hca dss post-search  --es-query {es_query} --replica {replica.name}')
 
-    def subscription_create_es(self, replica, es_query, url):
+    def subscription_put_es(self, replica, es_query, url):
         """ creates es subscription, return the response"""
         return run_for_json([f'{self.venv_bin}hca', 'dss', 'put-subscription',
                              '--callback-url', url,
@@ -174,11 +174,14 @@ class BaseSmokeTest(unittest.TestCase):
 
     def get_subscriptions(self, replica):
         """ returns all subscriptions"""
-        return run_for_json(f"{self.venv_bin}hca dss get-subscriptions --replica {replica.name} ")
+        return run_for_json(f"{self.venv_bin}hca dss get-subscriptions --replica {replica.name}"
+                            f" --subscription-type elasticsearch  ")
 
     def _test_get_subscriptions(self, replica, requested_subscription):
         get_response = self.get_subscriptions(replica)
-        self.assertIn(requested_subscription, get_response['subscriptions']['uuid'])
+        list_of_subscriptions = get_response['subscriptions']
+        list_of_subscription_uuids = [x['uuid'] for x in list_of_subscriptions if x['uuid']]
+        self.assertIn(requested_subscription, list_of_subscription_uuids)
 
     def _test_replica_sync(self, current_replica, bundle_uuid, ):
         other_replicas = self.replicas - {current_replica}
