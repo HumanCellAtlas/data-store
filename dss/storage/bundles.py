@@ -117,7 +117,8 @@ def idempotent_save(blobstore: BlobStore, bucket: str, key: str, data: dict) -> 
         else:
             blobstore.upload_file_handle(bucket, key, io.BytesIO(_d))
 
-        _bundle_manifest_cache[key] = data
+        if DSS_BUNDLE_KEY_REGEX.match(key) is not None:
+            _bundle_manifest_cache[key] = data
 
         return True, True
 
