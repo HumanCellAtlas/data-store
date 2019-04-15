@@ -77,14 +77,6 @@ class Smoketest(BaseSmokeTest):
                 self.subTest(self._test_get_subscriptions(replica, subscription_id))
                 self.subscription_delete(replica, subscription_id)
 
-        for replica in self.replicas:
-            with self.subTest(f"{starting_replica.name}: Hit search route directly against each replica {replica}"):
-                search_route = "https://${API_DOMAIN_NAME}/v1/search"
-                res = run_for_json(f'http --check {search_route} replica=={replica.name}',
-                                   input=json.dumps({'es_query': bundle_query}).encode())
-                print(json.dumps(res, indent=4))
-                self.assertEqual(len(res['results']), 1)
-
         with self.subTest(f"{starting_replica.name}: Create the bundle"):
             upload_response = self.upload_bundle(replica, test_bucket, self.bundle_dir)
             bundle_uuid = upload_response['bundle_uuid']
@@ -103,6 +95,14 @@ class Smoketest(BaseSmokeTest):
         with self.subTest(f"{starting_replica.name}: Wait for the checkout to complete and assert its success"):
             self._test_checkout(replica, bundle_uuid, bundle_version,
                                 checkout_job_id, checkout_bucket, file_count)
+
+        for replica in self.replicas:
+            with self.subTest(f"{starting_replica.name}: Hit search route directly against each replica {replica}"):
+                search_route = "https://${API_DOMAIN_NAME}/v1/search"
+                res = run_for_json(f'http --check {search_route} replica=={replica.name}',
+                                   input=json.dumps({'es_query': bundle_query}).encode())
+                print(json.dumps(res, indent=4))
+                self.assertEqual(len(res['results']), 1)
 
         for replica in self.replicas:
             with self.subTest(f"{starting_replica.name}: Tombstone the bundle on replica {replica}"):
