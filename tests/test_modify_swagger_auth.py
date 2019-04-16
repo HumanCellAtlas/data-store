@@ -8,11 +8,9 @@ import shutil
 pkg_root = os.path.abspath(os.path.join(os.path.dirname(__file__), '..'))  # noqa
 sys.path.insert(0, pkg_root)  # noqa
 
-from tests.infra import testmode
 from scripts.swagger_auth import SecureSwagger, default_auth, full_auth
 
 
-@testmode.standalone
 class TestSecureSwagger(unittest.TestCase):
     """Tests scripts/swagger_auth.py, that it parses and makes the new swagger file correctly."""
     def setUp(self):

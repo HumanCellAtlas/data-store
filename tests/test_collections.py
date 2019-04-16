@@ -26,7 +26,6 @@ from dss.util.version import datetime_to_version_format
 from dss.util import UrlBuilder
 
 
-@testmode.integration
 class TestCollections(unittest.TestCase, DSSAssertMixin, DSSUploadMixin):
     @classmethod
     def setUpClass(cls):

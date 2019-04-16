@@ -5,13 +5,13 @@ from cloud_blobstore import BlobNotFoundError
 from tests.infra import testmode
 
 
-@testmode.integration
 class HCABlobStoreTests:
     """
     Common HCA blobstore tests.  We want to avoid repeating ourselves, so if we
     built the abstractions correctly, common operations can all be tested here.
     """
 
+    @testmode.standalone
     def test_verify_blob_checksum_from_staging_metadata(self):
         bucket = self.test_fixtures_bucket
         key = "test_good_source_data/0"
@@ -31,6 +31,7 @@ class HCABlobStoreTests:
             self.hcahandle.verify_blob_checksum_from_staging_metadata(
                 bucket, key, {})
 
+    @testmode.standalone
     def test_verify_blob_checksum_from_dss_metadata(self):
         bucket = self.test_fixtures_bucket
         key = ("blobs/cfc7749b96f63bd31c3c42b5c471bf756814053e847c10f3eb003417bc523d30."

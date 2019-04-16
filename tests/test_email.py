@@ -12,8 +12,8 @@ from tests.infra import testmode
 from dss import Replica
 
 
-@testmode.standalone
 class TestEmail(unittest.TestCase):
+
     @classmethod
     def tearDownClass(cls):
         pass
@@ -22,12 +22,14 @@ class TestEmail(unittest.TestCase):
     def setUp(self):
         pass
 
+    @testmode.standalone
     @mock.patch('dss.util.email.send_email')
     def test_send_email(self, send_email_func):
         send_email_func.return_value = 'Success'
         dss.util.email.send_email('sender', 'receiver', 'subject', 'html', 'txt')
         self.assertEquals(send_email_func('sender', 'receiver', 'subject', 'html', 'txt'), 'Success')
 
+    @testmode.standalone
     @mock.patch('dss.util.email.send_email')
     def test_send_checkout_success_email(self, send_email_func):
         send_email_func.return_value = 'Success'
@@ -40,6 +42,7 @@ class TestEmail(unittest.TestCase):
         self.assertIn('<html>', args[3])
         self.assertNotIn('<html>', args[4])
 
+    @testmode.standalone
     @mock.patch('dss.util.email.send_email')
     def test_send_checkout_failure_email(self, send_email_func):
         send_email_func.return_value = 'Success'

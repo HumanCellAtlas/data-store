@@ -41,7 +41,6 @@ BUNDLE_GET_RETRY_COUNT = 60
 """For GET /bundles requests that require a retry, this is the maximum number of attempts we make."""
 
 
-@testmode.integration
 class TestBundleApi(unittest.TestCase, TestAuthMixin, DSSAssertMixin, DSSUploadMixin):
     @classmethod
     def setUpClass(cls):
@@ -59,6 +58,7 @@ class TestBundleApi(unittest.TestCase, TestAuthMixin, DSSAssertMixin, DSSUploadM
         self.s3_test_fixtures_bucket = get_env("DSS_S3_BUCKET_TEST_FIXTURES")
         self.gs_test_fixtures_bucket = get_env("DSS_GS_BUCKET_TEST_FIXTURES")
 
+    @testmode.standalone
     def test_bundle_get(self):
         self._test_bundle_get(Replica.aws)
         self._test_bundle_get(Replica.gcp)
@@ -93,6 +93,7 @@ class TestBundleApi(unittest.TestCase, TestAuthMixin, DSSAssertMixin, DSSUploadM
             self.assertEqual(resp_obj.json['bundle']['files'][0]['uuid'], "ce55fd51-7833-469b-be0b-5da88ebebfcd")
             self.assertEqual(resp_obj.json['bundle']['files'][0]['version'], "2017-06-16T193604.240704Z")
 
+    @testmode.standalone
     def test_bundle_paging(self):
         bundle_uuid = "7f8c686d-a439-4376-b367-ac93fc28df43"
         version = "2019-02-21T184000.899031Z"
@@ -177,6 +178,7 @@ class TestBundleApi(unittest.TestCase, TestAuthMixin, DSSAssertMixin, DSSUploadM
 
         self.assertEquals(len(expected_files), len(files))
 
+    @testmode.integration
     def test_bundle_get_directaccess(self):
         self._test_bundle_get_directaccess(Replica.aws, True)
         self._test_bundle_get_directaccess(Replica.aws, False)
@@ -221,6 +223,7 @@ class TestBundleApi(unittest.TestCase, TestAuthMixin, DSSAssertMixin, DSSUploadM
             self.assertEqual(bucket, replica.checkout_bucket)
             self.assertEqual(sha1, "2b8b815229aa8a61e483fb4ba0588b8b6c491890")
 
+    @testmode.integration
     def test_bundle_get_presigned(self):
         self._test_bundle_get_presigned(Replica.aws, True)
         self._test_bundle_get_presigned(Replica.aws, False)
@@ -256,6 +259,7 @@ class TestBundleApi(unittest.TestCase, TestAuthMixin, DSSAssertMixin, DSSUploadM
             sha1 = hasher.hexdigest()
             self.assertEqual(sha1, "2b8b815229aa8a61e483fb4ba0588b8b6c491890")
 
+    @testmode.standalone
     def test_bundle_get_directurl_and_presigned(self):
         self._test_bundle_get_directurl_and_presigned(Replica.aws)
         self._test_bundle_get_directurl_and_presigned(Replica.gcp)
@@ -280,6 +284,7 @@ class TestBundleApi(unittest.TestCase, TestAuthMixin, DSSAssertMixin, DSSUploadM
                 )
                 self.assertEqual(resp_obj.json['code'], "only_one_urltype")
 
+    @testmode.standalone
     def test_bundle_get_deleted(self):
         bundle_uuid = "deadbeef-0000-4a6b-8f0d-a7d2105c23be"
         version = "2017-12-05T235850.950361Z"
@@ -315,6 +320,7 @@ class TestBundleApi(unittest.TestCase, TestAuthMixin, DSSAssertMixin, DSSUploadM
                 expected_version
             )
 
+    @testmode.standalone
     def test_bundle_get_checkout(self):
         self._test_bundle_get_checkout(Replica.aws, self.s3_test_fixtures_bucket, self.s3_test_bucket)
         self._test_bundle_get_checkout(Replica.gcp, self.gs_test_fixtures_bucket, self.gs_test_bucket)
@@ -464,6 +470,7 @@ class TestBundleApi(unittest.TestCase, TestAuthMixin, DSSAssertMixin, DSSUploadM
             handle.delete(test_bucket, f"bundles/{bundle_uuid}.{bundle_version}")
             handle.delete(replica.checkout_bucket, f"bundles/{bundle_uuid}.{bundle_version}")
 
+    @testmode.standalone
     def test_bundle_put(self):
         tests = [(Replica.aws, self.s3_test_fixtures_bucket), (Replica.gcp, self.gs_test_fixtures_bucket)]
         for replica, bucket in tests:
@@ -656,6 +663,7 @@ class TestBundleApi(unittest.TestCase, TestAuthMixin, DSSAssertMixin, DSSUploadM
                     expected_code=requests.codes.created,
                 )
 
+    @testmode.standalone
     def test_bundle_delete(self):
         tests = [
             (Replica.aws, self.s3_test_fixtures_bucket, True),
@@ -714,6 +722,7 @@ class TestBundleApi(unittest.TestCase, TestAuthMixin, DSSAssertMixin, DSSUploadM
         tombstone_exists = test_object_exists(handle, bucket, f"bundles/{bundle_uuid}.{bundle_version}.dead")
         self.assertEquals(tombstone_exists, authorized)
 
+    @testmode.standalone
     def test_no_replica(self):
         """
         Verify we raise the correct error code when we provide no replica.
@@ -737,6 +746,7 @@ class TestBundleApi(unittest.TestCase, TestAuthMixin, DSSAssertMixin, DSSUploadM
                 headers=get_auth_header()
             )
 
+    @testmode.standalone
     def test_no_files(self):
         """
         Verify we raise the correct error code when we do not provide the list of files.
@@ -761,6 +771,7 @@ class TestBundleApi(unittest.TestCase, TestAuthMixin, DSSAssertMixin, DSSUploadM
                 headers=get_auth_header()
             )
 
+    @testmode.standalone
     def test_bundle_get_not_found(self):
         """
         Verify that we return the correct error message when the bundle cannot be found.

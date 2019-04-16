@@ -21,8 +21,8 @@ def setUpModule():
     configure_test_logging()
 
 
-@testmode.standalone
 class TestCloudwatchLogging(unittest.TestCase):
+    @testmode.standalone
     def test_aws_logging_new_stream(self):
         stream_name = str(uuid.uuid4())
         cloudwatch_logging.log_message("dss-test-logging", stream_name, "hello world")
@@ -42,6 +42,7 @@ class TestCloudwatchLogging(unittest.TestCase):
         else:
             self.fail("Did not find message in logs")
 
+    @testmode.standalone
     def test_aws_logging_fixed_stream(self):
         stream_name = "test_stream"
         message1, message2 = str(uuid.uuid4()), str(uuid.uuid4())

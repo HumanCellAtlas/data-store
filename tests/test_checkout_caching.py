@@ -66,7 +66,6 @@ class TestCheckoutCaching(unittest.TestCase, DSSAssertMixin, DSSUploadMixin):
                                        checkout_bucket=Replica.aws.checkout_bucket)
         self.assertNotIn('uncached', tagging.keys())
 
-    @testmode.integration
     def test_aws_user_checkout_doesnt_create_tag(self):
         """
         Ensures that data is only cached when in a DSS-controlled bucket
@@ -134,7 +133,6 @@ class TestCheckoutCaching(unittest.TestCase, DSSAssertMixin, DSSUploadMixin):
                                         checkout_bucket=Replica.gcp.checkout_bucket)
         self.assertEqual('DURABLE_REDUCED_AVAILABILITY', blob_type)
 
-    @testmode.integration
     def test_google_user_checkout_creates_multiregional_storage_type(self):
         """
         Ensures that both cached and uncached data is of the MULTI_REGIONAL type when

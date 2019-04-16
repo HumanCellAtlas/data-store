@@ -396,17 +396,6 @@ the correct bucket names are provided)_:
 
 1. Run tests with `make test`
 
-### Test suites
-
-All tests for the DSS fall into one of two categories:
-
-* *Standalone tests*, which do not depend on deployed components, and
-* *Integration tests*, which depend on deployed components.
-
-As such, standalone tests can be expected to pass even if no deployment is configured,
-and in fact should pass before an initial deployment. For more information on tests,
-see [tests/README.md](tests/README.md).
-
 ## Development
 
 ### Managing dependencies
