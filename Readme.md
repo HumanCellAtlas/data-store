@@ -1,6 +1,5 @@
 # Fusillade
 
-
 Fusillade (Federated User Identity Login & Access Decision Engine) is a service and library for managing user
 authentication and authorization in federated services. Fusillade is built to be simple and to leverage well-known auth
 protocols and standards together with existing global, scalable and supported IaaS APIs.
@@ -127,3 +126,6 @@ Licensed under the terms of the [MIT License](https://opensource.org/licenses/MI
 [![PyPI version](https://img.shields.io/pypi/v/fusillade.svg)](https://pypi.python.org/pypi/fusillade)
 [![PyPI license](https://img.shields.io/pypi/l/fusillade.svg)](https://pypi.python.org/pypi/fusillade)
 [![Read The Docs](https://readthedocs.org/projects/fusillade/badge/?version=latest)](https://pypi.python.org/pypi/fusillade)
+[![Known Vulnerabilities](https://snyk.io/test/github/HumanCellAtlas/fusillade/badge.svg)](https://snyk.io/test/github/HumanCellAtlas/fusillade)
+[![Build Status](https://travis-ci.com/HumanCellAtlas/fusillade.svg?branch=master)](https://travis-ci.com/HumanCellAtlas/fusillade)
+[![codecov](https://codecov.io/gh/HumanCellAtlas/fusillade/branch/master/graph/badge.svg)](https://codecov.io/gh/HumanCellAtlas/fusillade)
