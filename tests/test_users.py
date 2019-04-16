@@ -24,6 +24,13 @@ class TestUser(unittest.TestCase):
     def tearDown(self):
         self.directory.clear()
 
+    def test_user_statement(self):
+        name = "user_statement@test.com"
+        user = User(self.directory, name, local=True)
+        user.provision_user(self.default_policy)
+        test_user = User(self.directory, name)
+        self.assertEqual(test_user.statement, self.default_policy)
+
     def test_get_attributes(self):
         name = "test_get_attributes@test.com"
         user = User(self.directory, name)
@@ -33,10 +40,10 @@ class TestUser(unittest.TestCase):
         with self.subTest("new user is created when instantiating User class with an new user name "):
             name = "test_get_user_policy@test.com"
             user = User(self.directory, name)
-            self.assertEqual(user.lookup_policies(), [self.default_policy])
+            self.assertEqual(user.lookup_policies(), [])
         with self.subTest("an existing users info is retrieved when instantiating User class for an existing user"):
             user = User(self.directory, name)
-            self.assertEqual(user.lookup_policies(), [self.default_policy])
+            self.assertEqual(user.lookup_policies(), [])
 
     def test_get_groups(self):
         name = "test_get_groups@test.com"
@@ -63,7 +70,7 @@ class TestUser(unittest.TestCase):
 
         with self.subTest("A user inherits the groups policies when joining a group"):
             policies = set(user.lookup_policies())
-            expected_policies = set([i[1] for i in test_groups] + [self.default_policy])
+            expected_policies = set([i[1] for i in test_groups])
             self.assertEqual(policies, expected_policies)
 
     def test_remove_groups(self):
@@ -90,11 +97,16 @@ class TestUser(unittest.TestCase):
     def test_set_policy(self):
         name = "test_set_policy@test.com"
         user = User(self.directory, name)
-        with self.subTest("The initial user policy is default_policy, when the user is first created"):
-            self.assertEqual(user.statement, self.default_policy)
-            self.assertIn(self.default_policy, user.lookup_policies())
+        with self.subTest("The initial user policy is None, when the user is first created"):
+            self.assertEqual(user.statement, None)
 
         statement = create_test_statement(f"UserPolicySomethingElse")
+        user.statement = statement
+        with self.subTest("The user policy is set when statement setter is used."):
+            self.assertEqual(user.statement, statement)
+            self.assertIn(statement, user.lookup_policies())
+
+        statement = create_test_statement(f"UserPolicySomethingElse2")
         user.statement = statement
         with self.subTest("The user policy changes when set_policy is used."):
             self.assertEqual(user.statement, statement)
@@ -148,6 +160,7 @@ class TestUser(unittest.TestCase):
                user.add_roles(["ghost_role"])
                self.assertTrue(ex.response['Error']['Message'].endswith("/ Roles / ghost_role\\' does not exist.'"))
 
+        user.statement = self.default_policy
         with self.subTest("A user inherits a roles policies when a role is added to a user."):
             self.assertListEqual(sorted(user.lookup_policies()), sorted([user.statement, role_statement]))
 
@@ -189,6 +202,7 @@ class TestUser(unittest.TestCase):
 
         user.add_roles(role_names)
         user.add_groups(group_names)
+        user.statement = self.default_policy
 
         self.assertListEqual(sorted(user.roles), ['default_user'] + role_names)
         self.assertEqual(user.groups, group_names)

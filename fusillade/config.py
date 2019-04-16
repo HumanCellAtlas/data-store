@@ -12,6 +12,7 @@ class Config:
     def get_admin_emails(cls):
         if not cls._admin_emails:
             cls._admin_emails = [admin.strip() for admin in os.environ['FUS_ADMIN_EMAILS'].split(',') if admin.strip()]
+            assert cls._admin_emails, "Initial administrator must be specified. Set FUS_ADMIN_EMAILS."
         return cls._admin_emails
 
     @classmethod

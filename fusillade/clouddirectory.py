@@ -21,6 +21,8 @@ project_arn = "arn:aws:clouddirectory:us-east-1:861229788715:"  # TODO move to c
 cd_client = aws_clients.clouddirectory
 
 proj_path = os.path.dirname(__file__)
+
+# TODO make all configurable
 directory_schema_path = os.path.join(proj_path, 'directory_schema.json')
 default_user_policy_path = os.path.join(proj_path, '..', 'policies', 'default_user_policy.json')
 default_group_policy_path = os.path.join(proj_path, '..', 'policies', 'default_group_policy.json')
@@ -239,26 +241,24 @@ class CloudDirectory:
     def _make_ref(i):
         return '$' + i
 
-    def create_object(self, link_name: str, statement: str, obj_type: str, **kwargs) -> typing.Tuple[str, str]:
-        operations = list()
+    def create_object(self, link_name: str, obj_type: str, **kwargs) -> str:
+        """
+        Create an object and store in cloud directory.
+        """
         object_attribute_list = self._get_object_attribute_list(facet=obj_type, **kwargs)
         parent_path = self.get_obj_type_path(obj_type)
-        operations.append(self.batch_create_object(parent_path, link_name, obj_type, object_attribute_list))
+        cd_client.create_object(DirectoryArn=self._dir_arn,
+                                SchemaFacets=[
+                                    {
+                                        'SchemaArn': self.schema,
+                                        'FacetName': obj_type
+                                    },
+                                ],
+                                ObjectAttributeList=object_attribute_list,
+                                ParentReference=dict(Selector=parent_path),
+                                LinkName=link_name)
         object_ref = parent_path + link_name
-
-        object_attribute_list = self.get_policy_attribute_list(obj_type, statement)
-        policy_link_name = f"{link_name}_policy"
-        parent_path = self.get_obj_type_path('policy')
-        operations.append(self.batch_create_object(parent_path,
-                                                   policy_link_name,
-                                                   'IAMPolicy',
-                                                   object_attribute_list))
-        policy_ref = parent_path + policy_link_name
-
-        operations.append(self.batch_attach_policy(policy_ref, object_ref))
-        self.batch_write(operations)  # TODO check that everything passed
-
-        return object_ref, policy_ref
+        return object_ref
 
     def get_object_attributes(self, obj_ref: str, facet: str, attributes: typing.List[str]) -> typing.Dict[str, str]:
         """
@@ -630,9 +630,34 @@ class CloudNode:
     def policy(self):
         if not self._policy:
             policies = [i for i in self.cd.list_object_policies(self.object_reference)]
-            assert len(policies) == 1
-            self._policy = policies[0]
+            if not policies:
+                return None
+            elif len(policies) > 1:
+                raise ValueError("Node has multiple policies attached")
+            else:
+                self._policy = policies[0]
         return self._policy
+
+    def create_policy(self, statement: str, ) -> str:
+        """
+        Create a policy object and attach it to the CloudNode
+        :param statement: Json string that follow AWS IAM Policy Grammar.
+          https://docs.aws.amazon.com/IAM/latest/UserGuide/reference_policies_grammar.html
+        :return:
+        """
+        operations = list()
+        object_attribute_list = self.cd.get_policy_attribute_list(self._object_type, statement)
+        policy_link_name = f"{self._path_name}_{self._object_type}_IAMPolicy"
+        parent_path = self.cd.get_obj_type_path('policy')
+        operations.append(self.cd.batch_create_object(parent_path,
+                                                      policy_link_name,
+                                                      'IAMPolicy',
+                                                      object_attribute_list))
+        policy_ref = parent_path + policy_link_name
+
+        operations.append(self.cd.batch_attach_policy(policy_ref, self.object_reference))
+        self.cd.batch_write(operations)
+        return policy_ref
 
     @property
     def statement(self):
@@ -640,7 +665,7 @@ class CloudNode:
         Policy statements follow AWS IAM Policy Grammer. See for grammar details
         https://docs.aws.amazon.com/IAM/latest/UserGuide/reference_policies_grammar.html
         """
-        if not self._statement:
+        if not self._statement and self.policy:
             self._statement = self.cd.get_object_attributes(self.policy,
                                                             'IAMPolicy',
                                                             ['Statement'])['Attributes'][0]['Value'].popitem()[1]
@@ -650,14 +675,20 @@ class CloudNode:
     @statement.setter
     def statement(self, statement: str):
         self._verify_statement(statement)
-        params = [
-            UpdateObjectParams('IAMPolicy',
-                               'Statement',
-                               ValueTypes.StringValue,
-                               statement,
-                               UpdateActions.CREATE_OR_UPDATE)
-        ]
-        self.cd.update_object_attribute(self.policy, params)
+        self._set_statement(statement)
+
+    def _set_statement(self, statement: str):
+        if not self.policy:
+            self.create_policy(statement)
+        else:
+            params = [
+                UpdateObjectParams('IAMPolicy',
+                                   'Statement',
+                                   ValueTypes.StringValue,
+                                   statement,
+                                   UpdateActions.CREATE_OR_UPDATE)
+            ]
+            self.cd.update_object_attribute(self.policy, params)
         self._statement = None
 
     def _set_attributes(self, attributes: typing.List[str]):
@@ -749,14 +780,12 @@ class User(CloudNode):
         self._status = None
 
     def provision_user(self, statement: typing.Optional[str] = None) -> None:
-        if not statement:
-            statement = get_json_file(default_user_policy_path)
-        self._verify_statement(statement)
         self.cd.create_object(self._path_name,
-                              statement,
                               'User',
                               name=self.name,
                               status='Enabled')
+        if statement:  # TODO make using user default configurable
+            self.statement = statement
 
     @property
     def groups(self):
@@ -813,10 +842,9 @@ class Group(CloudNode):
         if not statement:
             statement = get_json_file(default_group_policy_path)
         cls._verify_statement(statement)
-        object_ref, policy_ref = cloud_directory.create_object(quote(name), statement, 'Group', name=name)
+        cloud_directory.create_object(quote(name), 'Group', name=name)
         new_node = cls(cloud_directory, name)
-        new_node._statement = statement
-        new_node._policy = policy_ref
+        new_node._set_statement(statement)
         return new_node
 
     def get_users(self) -> typing.Iterator[typing.Tuple[str, str]]:
@@ -878,8 +906,7 @@ class Role(CloudNode):
         if not statement:
             statement = get_json_file(default_role_path)
         cls._verify_statement(statement)
-        object_ref, policy_ref = cloud_directory.create_object(quote(name), statement, 'Role', name=name)
+        cloud_directory.create_object(quote(name), 'Role', name=name)
         new_node = cls(cloud_directory, name)
-        new_node._statement = statement
-        new_node._policy = policy_ref
+        new_node._set_statement(statement)
         return new_node
