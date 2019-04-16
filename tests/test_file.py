@@ -32,6 +32,7 @@ from tests.infra.server import ThreadedLocalServer
 FILE_GET_RETRY_COUNT = 10
 
 
+@testmode.integration
 class TestFileApi(unittest.TestCase, TestAuthMixin, DSSUploadMixin, DSSAssertMixin):
     @classmethod
     def setUpClass(cls):
@@ -49,7 +50,6 @@ class TestFileApi(unittest.TestCase, TestAuthMixin, DSSUploadMixin, DSSAssertMix
         self.s3_test_bucket = get_env("DSS_S3_BUCKET_TEST")
         self.gs_test_bucket = get_env("DSS_GS_BUCKET_TEST")
 
-    @testmode.standalone
     def test_file_put(self):
         tempdir = tempfile.gettempdir()
         self._test_file_put(Replica.aws, "s3", self.s3_test_bucket, S3Uploader(tempdir, self.s3_test_bucket))
@@ -149,14 +149,12 @@ class TestFileApi(unittest.TestCase, TestAuthMixin, DSSUploadMixin, DSSAssertMix
 
             uploader.checksum_and_upload_file(fh.name, key, "text/plain", s3_part_size=s3_part_size)
 
-    @testmode.standalone
     def test_file_put_large_sync(self):
         """Test PUT /files with the largest file that is copied synchronously."""
         test_data = os.urandom(ASYNC_COPY_THRESHOLD)
         self._test_file_put_large(test_data[:-1])
         self._test_file_put_large(test_data)
 
-    @testmode.integration
     def test_file_put_large_async(self):
         """Test PUT /files with the smallest file that is copied asynchronously."""
         test_data = os.urandom(ASYNC_COPY_THRESHOLD + 1)
@@ -204,7 +202,6 @@ class TestFileApi(unittest.TestCase, TestAuthMixin, DSSUploadMixin, DSSAssertMix
                     )
                     self.assertIn('version', resp_obj.json)
 
-    @testmode.integration
     def test_file_put_large_incorrect_s3_etag(self) -> None:
         bucket = self.s3_test_bucket
         src_key = generate_test_key()
@@ -247,7 +244,6 @@ class TestFileApi(unittest.TestCase, TestAuthMixin, DSSUploadMixin, DSSAssertMix
             requests.codes.unprocessable)
 
     # This is a test specific to AWS since it has separate notion of metadata and tags.
-    @testmode.standalone
     def test_file_put_metadata_from_tags(self):
         resp_obj = self.upload_file_wait(
             f"s3://{self.s3_test_fixtures_bucket}/test_good_source_data/metadata_in_tags",
@@ -261,7 +257,6 @@ class TestFileApi(unittest.TestCase, TestAuthMixin, DSSUploadMixin, DSSAssertMix
         )
         self.assertIn('version', resp_obj.json)
 
-    @testmode.standalone
     def test_file_put_upper_case_checksums(self):
         self._test_file_put_upper_case_checksums("s3", self.s3_test_fixtures_bucket)
         self._test_file_put_upper_case_checksums("gs", self.gs_test_fixtures_bucket)
@@ -279,7 +274,6 @@ class TestFileApi(unittest.TestCase, TestAuthMixin, DSSUploadMixin, DSSAssertMix
         )
         self.assertIn('version', resp_obj.json)
 
-    @testmode.standalone
     def test_file_head(self):
         self._test_file_head(Replica.aws)
         self._test_file_head(Replica.gcp)
@@ -308,7 +302,6 @@ class TestFileApi(unittest.TestCase, TestAuthMixin, DSSUploadMixin, DSSAssertMix
             )
             self.assertHeaders(resp_obj.response, headers)
 
-    @testmode.standalone
     def test_file_get_specific(self):
         self._test_file_get_specific(Replica.aws)
         self._test_file_get_specific(Replica.gcp)
@@ -350,7 +343,6 @@ class TestFileApi(unittest.TestCase, TestAuthMixin, DSSUploadMixin, DSSAssertMix
                 return
         self.fail(f"Failed after {FILE_GET_RETRY_COUNT} retries.")
 
-    @testmode.standalone
     def test_file_get_latest(self):
         self._test_file_get_latest(Replica.aws)
         self._test_file_get_latest(Replica.gcp)
@@ -390,7 +382,6 @@ class TestFileApi(unittest.TestCase, TestAuthMixin, DSSUploadMixin, DSSAssertMix
                 return
         self.fail(f"Failed after {FILE_GET_RETRY_COUNT} retries.")
 
-    @testmode.standalone
     def test_file_get_not_found(self):
         """
         Verify that we return the correct error message when the file cannot be found.
@@ -433,7 +424,6 @@ class TestFileApi(unittest.TestCase, TestAuthMixin, DSSUploadMixin, DSSAssertMix
                     expect_stacktrace=True)
             )
 
-    @testmode.standalone
     def test_file_get_no_replica(self):
         """
         Verify we raise the correct error code when we provide no replica.
@@ -454,7 +444,6 @@ class TestFileApi(unittest.TestCase, TestAuthMixin, DSSUploadMixin, DSSAssertMix
                     expect_stacktrace=True)
             )
 
-    @testmode.standalone
     def test_file_get_invalid_token(self):
         """
         Verifies that a checkout request with a malformed token returns a 400.
@@ -499,7 +488,6 @@ class TestFileApi(unittest.TestCase, TestAuthMixin, DSSUploadMixin, DSSAssertMix
                 url, requests.codes.bad_request, headers=get_auth_header())
         try_get()
 
-    @testmode.integration
     def test_file_get_checkout(self):
         """
         Verifies checkout occurs on first get and not on second.
@@ -586,7 +574,6 @@ class TestFileApi(unittest.TestCase, TestAuthMixin, DSSUploadMixin, DSSAssertMix
         handle.delete(test_bucket, f"files/{file_uuid}.{version}")
         handle.delete(replica.checkout_bucket, file_key)
 
-    @testmode.standalone
     def test_file_size(self):
         """
         Verify size is correct after dss put and get
@@ -595,7 +582,6 @@ class TestFileApi(unittest.TestCase, TestAuthMixin, DSSUploadMixin, DSSAssertMix
         self._test_file_size(Replica.aws, "s3", self.s3_test_bucket, S3Uploader(tempdir, self.s3_test_bucket))
         self._test_file_size(Replica.gcp, "gs", self.gs_test_bucket, GSUploader(tempdir, self.gs_test_bucket))
 
-    @testmode.standalone
     def test_put_file_pattern(self):
         """
         Tests the regex pattern filtering on the PUT file/{uuid} endpoint.

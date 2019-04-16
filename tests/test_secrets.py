@@ -14,11 +14,13 @@ sys.path.insert(0, pkg_root)  # noqa
 
 from scripts.check_deployment_secrets import SecretsChecker
 from tests import skip_on_travis
+from tests.infra import testmode
 
 
 logger = logging.getLogger(__name__)
 
 
+@testmode.integration
 class TestSecretCheck(unittest.TestCase):
     @skip_on_travis
     def test_secrets(self):
