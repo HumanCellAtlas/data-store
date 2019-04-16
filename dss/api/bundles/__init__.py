@@ -14,12 +14,12 @@ from concurrent.futures import ThreadPoolExecutor, as_completed
 from dss import DSSException, dss_handler, DSSForbiddenException
 from dss.config import Config, Replica
 from dss.storage.blobstore import test_object_exists, ObjectTest
-from dss.storage.bundles import get_bundle_manifest
+from dss.storage.bundles import get_bundle_manifest, idempotent_save
 from dss.storage.checkout import CheckoutError, TokenError
 from dss.storage.checkout.bundle import get_dst_bundle_prefix, verify_checkout
 from dss.storage.identifiers import BundleTombstoneID, BundleFQID, FileFQID
 from dss.storage.hcablobstore import BundleFileMetadata, BundleMetadata, FileMetadata
-from dss.util import UrlBuilder, security, hashabledict
+from dss.util import UrlBuilder, security, hashabledict, multipart_parallel_upload
 from dss.util.version import datetime_to_version_format
 
 """The retry-after interval in seconds. Sets up downstream libraries / users to
@@ -167,7 +167,7 @@ def put(uuid: str, replica: str, json_request_body: dict, version: str):
 
 def _save_bundle(handle, bucket, uuid, version, bundle_metadata):
     try:
-        created, idempotent = _idempotent_save(
+        created, idempotent = idempotent_save(
             handle,
             bucket,
             BundleFQID(uuid, version).to_key(),
@@ -241,7 +241,7 @@ def delete(uuid: str, replica: str, json_request_body: dict, version: str = None
     bucket = Replica[replica].bucket
 
     if test_object_exists(handle, bucket, bundle_prefix, test_type=ObjectTest.PREFIX):
-        created, idempotent = _idempotent_save(
+        created, idempotent = idempotent_save(
             handle,
             bucket,
             tombstone_id.to_key(),
@@ -286,6 +286,7 @@ def build_bundle_file_metadata(replica: Replica, user_supplied_files: dict):
                 return json.loads(file_metadata)
         return None
 
+    # TODO: Consider scaling parallelization with Lambda size
     with ThreadPoolExecutor(max_workers=20) as e:
         futures = {e.submit(_get_file_metadata, _file): _file
                    for _file in files}
@@ -331,32 +332,6 @@ def detect_filename_collisions(bundle_file_metadata):
                 f"Duplicate file name detected: {name}. This test fails on the first occurance. Please check bundle "
                 "layout to ensure no duplicated file names are present."
             )
-
-def _idempotent_save(blobstore: BlobStore, bucket: str, key: str, data: dict) -> typing.Tuple[bool, bool]:
-    """
-    _idempotent_save attempts to save an object to the BlobStore. Its return values indicate whether the save was made
-    successfully and whether the operation could be completed idempotently. If the data in the blobstore does not match
-    the data parameter, the data in the blobstore is _not_ overwritten.
-
-    :param blobstore: the blobstore to save the data to
-    :param bucket: the bucket in the blobstore to save the data to
-    :param key: the key of the object to save
-    :param data: the data to save
-    :return: a tuple of booleans (was the data saved?, was the save idempotent?)
-    """
-    if test_object_exists(blobstore, bucket, key):
-        # fetch the file metadata, compare it to what we have.
-        existing_data = json.loads(blobstore.get(bucket, key).decode("utf-8"))
-        return False, existing_data == data
-    else:
-        # write manifest to persistent store
-        blobstore.upload_file_handle(
-            bucket,
-            key,
-            io.BytesIO(json.dumps(data).encode("utf-8")),
-        )
-        return True, True
-
 
 def _create_tombstone_data(email: str, reason: str, version: typing.Optional[str]) -> dict:
     # Future-proofing the case in which garbage collection is added

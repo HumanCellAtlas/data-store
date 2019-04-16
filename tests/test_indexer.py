@@ -655,6 +655,35 @@ class TestIndexerBase(ElasticsearchTestCase, DSSAssertMixin, DSSStorageMixin, DS
         self.verify_notification(subscription_id, subscription_query, bundle_fqid, endpoint)
         self.delete_subscription(subscription_id)
 
+    @testmode.standalone
+    def test_too_large_manifest(self):
+        def _file_metadata():
+            uuid_name = str(uuid.uuid4())
+            return {
+                "name": uuid_name,
+                "uuid": uuid_name,
+                "version": "2019-04-05T174905.443832Z",
+                "content-type": "gzip",
+                "size": 23675941,
+                "indexed": False,
+                "crc32c": "942cd9d6",
+                "s3-etag": "fb9bbafee8a92ced414b3658b1bb9517",
+                "sha1": "bb5c8a68c155bad257cb7b93faef71a116cecba2",
+                "sha256": "c0d11199740a66150b8bb70a0474d8de9819e77f3f77b55dd04790e3fe6fb53c"
+            }
+
+        manifest = {
+            'format': '0.0.1',
+            'version': '2019-04-05T174905.443832Z',
+            'creator_uid': 0,
+            'files': [_file_metadata() for _ in range(int(os.environ['DSS_BUNDLE_MANIFEST_INDEX_LIMIT']) + 1)]
+        }
+        fqid = BundleFQID.from_key("bundles/012d89aa-98e2-46aa-ab46-65540e08ec4d.2019-04-05T174905.443832Z")
+        bundle = Bundle(Replica.aws, fqid, manifest, [])
+        index_document = BundleDocument.from_bundle(bundle)
+        self.assertEqual([], index_document['manifest']['files'])
+
+    @testmode.standalone
     def test_get_shape_descriptor(self):
 
         def describedBy(schema_type, schema_version):

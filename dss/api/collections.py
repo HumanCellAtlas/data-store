@@ -16,7 +16,7 @@ from dss.storage.hcablobstore import BlobStore, compose_blob_key
 from dss.storage.identifiers import CollectionFQID, CollectionTombstoneID
 from dss.util import security, hashabledict, UrlBuilder
 from dss.util.version import datetime_to_version_format
-from dss.api.bundles import _idempotent_save
+from dss.storage.bundles import idempotent_save
 
 from cloud_blobstore import BlobNotFoundError
 
@@ -165,7 +165,7 @@ def delete(uuid: str, replica: str):
 
     blobstore = Config.get_blobstore_handle(Replica[replica])
     bucket = Replica[replica].bucket
-    created, idempotent = _idempotent_save(blobstore, bucket, tombstone_key, tombstone_object_data)
+    created, idempotent = idempotent_save(blobstore, bucket, tombstone_key, tombstone_object_data)
     if not idempotent:
         raise DSSException(requests.codes.conflict,
                            f"collection_tombstone_already_exists",

@@ -20,6 +20,7 @@ EXPORT_ENV_VARS_TO_LAMBDA_ARRAY=(
     DSS_AUTHORIZED_DOMAINS
     DSS_BLOB_PUBLIC_TTL_DAYS
     DSS_BLOB_TTL_DAYS
+    DSS_BUNDLE_MANIFEST_INDEX_LIMIT
     DSS_DEBUG
     DSS_DEPLOYMENT_STAGE
     DSS_GS_BUCKET
@@ -75,6 +76,7 @@ DSS_GS_CHECKOUT_BUCKET_STAGING=org-humancellatlas-dss-checkout-staging
 DSS_GS_CHECKOUT_BUCKET_PROD=org-humancellatlas-dss-checkout-prod
 DSS_INFRA_TAG_PROJECT=dcp
 DSS_INFRA_TAG_SERVICE=dss
+DSS_INFRA_TAG_OWNER=dss-team@data.humancellatlas.org
 DSS_BLOB_TTL_DAYS=7
 DSS_BLOB_PUBLIC_TTL_DAYS=4
 DSS_NOTIFICATION_SENDER="DSS Notifier <dss.humancellatlas@gmail.com>"
@@ -138,6 +140,11 @@ DSS_CHECKOUT_BUCKET_OBJECT_VIEWERS="serviceAccount:619310558212-compute@develope
 
 AWS_SDK_LOAD_CONFIG=1 # Needed for Terraform to correctly use AWS assumed roles
 
+# AWS managed elasticsearch limits us to 100mb files or it pipe fails, so
+# bundles manifests exceeding this many files are not included in the index document.
+# https://docs.aws.amazon.com/elasticsearch-service/latest/developerguide/aes-limits.html#network-limits
+# https://stackoverflow.com/questions/55541625/aws-elasticsearch-cluster-method-to-update-http-max-content-length
+DSS_BUNDLE_MANIFEST_INDEX_LIMIT="20000"
 set +a
 
 if [[ -f "${DSS_HOME}/environment.local" ]]; then
