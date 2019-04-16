@@ -4,164 +4,795 @@ info:
   description: |
     Human Cell Atlas Data Coordination Platform Fusillade app demo
 
-    Log in: [Auth0](/login?state=ABC&redirect_uri=https://auth.dev.data.humancellatlas.org/echo)
+    Log in: [Auth0](/login?state=ABC&redirect_uri=https://auth.data.humancellatlas.org/echo)
+    OIDC spec https://openid.net/specs/openid-connect-core-1_0.html#toc
   version: "0.0.1"
-host: $API_DOMAIN_NAME
-schemes:
-  - https
-produces:
-  - application/json
-components:
-  securitySchemes:
-    Authorization:
-      type: http
-      scheme: bearer
-      in: header
-      bearerFormat: JWT
-#      type: apiKey
-#      name: Authorization
-#      in: header
-#    openId:
-#      type: openIdConnect
-#      openIdConnectUrl: https://accounts.google.com/.well-known/openid-configuration
-#    oauth2:
-#      type: oauth2
-#      flow:
-#        authorizationCode:
-#          authorizationUrl: https://accounts.google.com/o/oauth2/v2/auth
-#          scopes:
-#            https://www.googleapis.com/auth/userinfo.email: read user email
-# FIXME: https://github.com/swagger-api/swagger-ui/issues/3641
+servers:
+  - url: https://$API_DOMAIN_NAME
 paths:
   /login:
     get:
-      summary: Send the user agent to an identity provider selector.
+      summary: Send the user agent to an identity provider selector and generate a user account. This is redirect endpoint.
       parameters:
-        - name: openid_provider
+        - name: redirect_uri
+          description: where to redirect to once login is complete
           in: query
-        - name: nav_src
+          required: true
+          schema:
+           type: object
+        - name: state
+          description: an opaque paramater that is returned back to the redirect_uri
           in: query
-  /policies/evaluate:
+          schema:
+            type: string
+      responses:
+        301:
+          description: OK
+        default:
+          description: Unexpected error
+  /v1/oauth/authorize:
+    get:
+      summary: This endpoint is part of OIDC and is used to redirect to an openid provider
+        see https://openid.net/specs/openid-connect-core-1_0.html#AuthRequest
+      parameters:
+        - name: redirect_uri
+          in: query
+          schema:
+            type: string
+        - name: state
+          in: query
+          schema:
+            type: string
+        - name: client_id
+          in: query
+          schema:
+            type: string
+        - name: scope
+          in: query
+          schema:
+            type: string
+        - name: respone_type
+          in: query
+          schema:
+            type: string
+      responses:
+        302:
+          description: redirecting to authentication server
+          headers:
+            Location:
+              schema:
+                type: string
+        default:
+          description: Unexpected error
+  /v1/oauth/token:
+    get:
+      summary: This endpoint is part of OIDC and is used to redirect to an openid provider
+        see https://openid.net/specs/openid-connect-core-1_0.html#TokenEndpoint
+      parameters:
+        - in: query
+          name: redirect_uri
+          description: where to redirect to once login is complete
+          required: true
+          schema:
+            type: object
+        - in: query
+          name: state
+          description: an opaque paramater that is returned back to the redirect_uri
+          schema:
+            type: string
+        - in: query
+          name: code
+          description: the code used to retrive an access token from OIDC authentication flow.
+          schema:
+            type: string
+        - in: query
+          name: grant_type
+          description: the type of grant requested.
+          schema:
+            type: string
+        - in: query
+          name: client_id
+          schema:
+            type: string
+        - in: query
+          name: client_secret
+          schema:
+            type: string
+      responses:
+        302:
+          description: OK
+          headers:
+            Cache-Control:
+              schema:
+                type: string
+            Pragma:
+              schema:
+                type: string
+          content:
+            application/json:
+              schema:
+                type: object
+        default:
+          description: Unexpected error
+  /v1/oauth/refresh:
+    post:
+      description: This endpoint is part of OIDC and is used to redirect to an openid provider
+        see https://openid.net/specs/openid-connect-core-1_0.html#RefreshTokens
+      parameters:
+        - name: grant_type
+          description: the type of grant requested.
+          in: query
+          schema:
+            type: string
+        - name: refresh_token
+          description: the type of grant requested.
+          in: query
+          schema:
+            type: string
+        - name: client_id
+          in: query
+          schema:
+            type: string
+        - name: client_secret
+          in: query
+          schema:
+            type: string
+      responses:
+        200:
+          description: OK
+        default:
+          description: Unexpected error
+  /v1/oauth/userinfo:
+    get:
+      summary: This endpoint is part of OIDC and is used to redirect to an openid provider
+        see https://openid.net/specs/openid-connect-core-1_0.html#UserInfo
+      security:
+        - bearerAuth: []
+      responses:
+        200:
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: object
+        401:
+          $ref: '#/components/responses/401'
+    post:
+      summary: This endpoint is part of OIDC and is used to redirect to an openid provider
+        see https://openid.net/specs/openid-connect-core-1_0.html#UserInfo
+      security:
+        - bearerAuth: []
+      responses:
+        200:
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: object
+        401:
+          $ref: '#/components/responses/401'
+  /v1/policies/evaluate:
     post:
       summary: Given a set of principals, actions, and resources return a set of access control decisions.
-      parameters:
-        - name: json_request_body
-          in: body
-          required: true
-          schema:
-            type: object
-            properties:
-              principal:
-                description: Attested user identifier
-                type: string
-              action:
-                description: The action the principal is attempting to perform
-                type: string
-              resource:
-                description: The resource the principal will perform the action against
-                type: string
-      response:
+      requestBody:
+        content:
+          application/json:
+            schema:
+              required:
+                - principal
+                - action
+                - resource
+              type: object
+              properties:
+                principal:
+                  description: Attested user identifier
+                  type: string
+                action:
+                  description: The action the principal is attempting to perform
+                  type: string
+                resource:
+                  description: The resource the principal will perform the action against
+                  type: string
+      responses:
         200:
-          description: the principal is authorized
+          description: The result of the policy evaluation
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  decision:
+                    type: boolean
+        default:
+          description: Unexpected error
+  /v1/users:
+    put:
+      summary: Create a new user
+      security:
+        - bearerAuth: []
+      requestBody:
+        content:
+          application/json:
+            schema:
+              required:
+                - username
+              type: object
+              properties:
+                username:
+                  type: string
+                groups:
+                  type: array
+                  items:
+                    type: string
+                roles:
+                  type: array
+                  items:
+                    type: string
+                policy:
+                  type: string
+      tags:
+        - user
+      responses:
+        201:
+          description: User was created
         401:
-          description: the principal is not authorized
+          $ref: '#/components/responses/401'
         default:
           description: Unexpected error
-  /users:
-    put:
-      summary: Create or update a user and attached policy.
-      security:
-        - openId:
-            - https://www.googleapis.com/auth/userinfo.email
-      parameters:
-        - name: json_request_body
-          in: body
-          required: true
-          schema:
-            type: object
-            properties:
-              policy:
-                description: IAM policy to attach to the user, if any
-                type: object
-      responses:
-        201:
-          description: OK
-          schema:
-            type: object
-        default:
-          description: Unexpected error
-  /users/{user_id}:
+  /v1/users/{user_id}:
     get:
-      summary: "Retrieve information about a user."
+      summary: Retrieve information about a user's status
       security:
-        - Authorization:
-            - null
-        - openId:
-            - https://www.googleapis.com/auth/userinfo.email
+        - bearerAuth: []
       parameters:
-        - name: user_id
-          in: path
-          description: User ID (email)
-          required: true
-          type: string
+        - $ref: '#/components/parameters/user_id'
+      tags:
+        - user
       responses:
         200:
-          description: OK
+          description: Information about the user is returned
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/User'
+        404:
+          $ref: '#/components/responses/404'
         default:
           description: Unexpected error
-  /groups:
     put:
-      summary: Create or update a group and attached policy.
+      summary: Modify the users status
       security:
-        - openId:
-            - https://www.googleapis.com/auth/userinfo.email
+        - bearerAuth: []
       parameters:
-        - name: json_request_body
-          in: body
+        - $ref: '#/components/parameters/user_id'
+        - in: query
+          name: status
           required: true
           schema:
-            type: object
-            properties:
-              policy:
-                description: IAM policy to attach, if any
-                type: object
-      responses:
-        201:
-          description: OK
-          schema:
-            type: object
-        default:
-          description: Unexpected error
-  /groups/{group_id}:
-    get:
-      summary: Retrieve a group.
-      security:
-        - openId:
-            - https://www.googleapis.com/auth/userinfo.email
-      parameters:
-        - name: group_id
-          in: path
-          required: true
-          type: string
+            type: string
+            enum: ['enabled', 'disabled']
+      tags:
+        - user
       responses:
         200:
-          description: OK
-          schema:
-            type: object
+          description: Status set
+        401:
+          $ref: '#/components/responses/401'
         default:
           description: Unexpected error
     delete:
-      summary: Delete a group.
+      summary: Remove user from the system.
       security:
-        - openId:
-            - https://www.googleapis.com/auth/userinfo.email
+        - bearerAuth: []
       parameters:
-        - name: group_id
-          in: path
-          required: true
-          type: string
+        - $ref: '#/components/parameters/user_id'
+      tags:
+        - user
+      responses:
+        200:
+          description: User was deleted
+        401:
+          $ref: '#/components/responses/401'
+        default:
+          description: Unexpected error
+  /v1/users/{user_id}/groups:
+    get:
+      summary: Retrieve groups a user is in.
+      security:
+        - bearerAuth: []
+      parameters:
+        - $ref: '#/components/parameters/user_id'
+      tags:
+        - user
+      responses:
+        200:
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  groups:
+                    type: array
+                    items:
+                      type: string
+        404:
+          $ref: '#/components/responses/404'
+        default:
+          description: Unexpected error
+    put:
+      summary: Add or remove groups from user
+      security:
+        - bearerAuth: []
+      parameters:
+        - $ref: '#/components/parameters/user_id'
+        - $ref: '#/components/parameters/action'
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                groups:
+                  type: array
+                  items:
+                    type: string
+      tags:
+        - user
+      responses:
+        200:
+          description: Action successful
+        401:
+          $ref: '#/components/responses/401'
+        304:
+          description: The user is already a part of the group
+        default:
+          description: Unexpected error
+  /v1/users/{user_id}/roles:
+    get:
+      summary: Retrieve roles a user is in.
+      security:
+        - bearerAuth: []
+      parameters:
+        - $ref: '#/components/parameters/user_id'
+      tags:
+        - user
+      responses:
+        200:
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  role:
+                    type: array
+                    items:
+                      type: string
+        404:
+          $ref: '#/components/responses/404'
+        default:
+          description: Unexpected error
+    put:
+      summary: Add or remove roles from user
+      security:
+        - bearerAuth: []
+      parameters:
+        - $ref: '#/components/parameters/user_id'
+        - $ref: '#/components/parameters/action'
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                roles:
+                  type: array
+                  items:
+                    type: string
+      tags:
+        - user
+      responses:
+        200:
+          description: Action successful
+        401:
+          $ref: '#/components/responses/401'
+        304:
+          description: The user is already apart of the role
+        default:
+          description: Unexpected error
+  /v1/users/{user_id}/policy:
+    put:
+      summary: Modify policy
+      security:
+        - bearerAuth: []
+      parameters:
+        - $ref: '#/components/parameters/user_id'
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                policy:
+                  type: string
+      responses:
+        200:
+          description: policy modified
+        401:
+          $ref: '#/components/responses/401'
+        default:
+          description: Unexpected error
+      tags:
+        - user
+  /v1/groups/:
+    get:
+      summary: List groups
+      security:
+        - bearerAuth: []
+      responses:
+        200:
+          description: A list of groups
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  groups:
+                    type: array
+                    items:
+                      type: string
+        404:
+          $ref: '#/components/responses/404'
+        default:
+          description: Unexpected error
+      tags:
+        - group
+    put:
+      summary: Create a new group
+      security:
+        - bearerAuth: []
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - name
+              properties:
+                name:
+                  type: string
+                policy:
+                  type: string
+                roles:
+                  type: array
+                  items:
+                    type: string
+      responses:
+        201:
+          description: Group was created
+        401:
+          $ref: '#/components/responses/401'
+        default:
+          description: Unexpected error
+      tags:
+        - group
+  /v1/groups/{group_id}:
+    get:
+      summary: Get properties of a group
+      security:
+        - bearerAuth: []
+      parameters:
+        - $ref: '#/components/parameters/group_id'
+      responses:
+        200:
+          description: Information about the group is returned
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Group'
+        404:
+          $ref: '#/components/responses/404'
+        default:
+          description: Unexpected error
+      tags:
+        - group
+    delete:
+      summary: Remove Group from the system.
+      security:
+        - bearerAuth: []
+      parameters:
+        - $ref: '#/components/parameters/group_id'
+      responses:
+        200:
+          description: Group was deleted
+        401:
+          $ref: '#/components/responses/401'
+        default:
+          description: Unexpected error
+      tags:
+        - group
+  /v1/groups/{group_id}/roles:
+    get:
+      summary: Retrieve roles a group is in.
+      security:
+        - bearerAuth: []
+      parameters:
+        - $ref: '#/components/parameters/group_id'
+      responses:
+        200:
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  role:
+                    type: array
+                    items:
+                      type: string
+        404:
+          $ref: '#/components/responses/404'
+        default:
+          description: Unexpected error
+      tags:
+        - group
+    put:
+      summary: Add or remove role from group.
+      security:
+        - bearerAuth: []
+      parameters:
+        - $ref: '#/components/parameters/group_id'
+        - $ref: '#/components/parameters/action'
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                roles:
+                  type: array
+                  items:
+                    type: string
+      responses:
+        200:
+          description: Action successful
+        401:
+          $ref: '#/components/responses/401'
+        304:
+          description: The group is already apart of the role
+        default:
+          description: Unexpected error
+      tags:
+        - group
+  /v1/groups/{group_id}/users:
+    get:
+      summary: Retrieve user in a group.
+      security:
+        - bearerAuth: []
+      parameters:
+        - $ref: '#/components/parameters/group_id'
+      responses:
+        200:
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  users:
+                    type: array
+                    items:
+                      type: string
+        404:
+          $ref: '#/components/responses/404'
+        default:
+          description: Unexpected error
+      tags:
+        - group
+  /v1/groups/{group_id}/policy:
+    put:
+      summary: Modify policy
+      security:
+        - bearerAuth: []
+      parameters:
+        - $ref: '#/components/parameters/group_id'
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                policy:
+                  type: string
+      responses:
+        200:
+          description: policy modified
+        401:
+          $ref: '#/components/responses/401'
+        default:
+          description: Unexpected error
+      tags:
+        - group
+  /v1/roles:
+    get:
+      summary: List roles
+      security:
+        - bearerAuth: []
+      responses:
+        200:
+          description: a lost of roles is returned
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  roles:
+                    type: array
+                    items:
+                      type: string
+        404:
+          $ref: '#/components/responses/404'
+        default:
+          description: Unexpected error
+      tags:
+        - role
+    put:
+      summary: Create a new role
+      security:
+        - bearerAuth: []
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - name
+                - policy
+              properties:
+                name:
+                  type: string
+                policy:
+                  type: string
+      responses:
+        201:
+          description: Role was created
+        401:
+          $ref: '#/components/responses/401'
+        default:
+          description: Unexpected error
+      tags:
+        - role
+  /v1/roles/{role_id}:
+    get:
+      summary: Get properties of a role
+      security:
+        - bearerAuth: []
+      parameters:
+        - $ref: '#/components/parameters/role_id'
+      responses:
+        200:
+          description: Information about the role is returned
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Role'
+        404:
+          $ref: '#/components/responses/404'
+        default:
+          description: Unexpected error
+      tags:
+        - role
+  /v1/roles/{role_id}/policy:
+    put:
+      summary: Modify policy
+      security:
+        - bearerAuth: []
+      parameters:
+        - $ref: '#/components/parameters/role_id'
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                policy:
+                  type: string
+      responses:
+        200:
+          description: policy modified
+        401:
+          $ref: '#/components/responses/401'
+        default:
+          description: Unexpected error
+      tags:
+        - role
+  /v1/status:
+    get:
+      summary: get the system's status TODO Should not be revealed in swagger. Check with Matt.
+      responses:
+        200:
+          description: system is passing
+        500:
+          description: system is failing
+  /v1/version:
+    get:
+      summary: get the current version of the system
       responses:
         200:
           description: OK
         default:
           description: Unexpected error
+components:
+  parameters:
+    user_id:
+      name: user_id
+      in: path
+      required: true
+      description: User ID (email)
+      schema:
+        type: string
+    role_id:
+      name: role_id
+      in: path
+      description: The name of the role
+      required: true
+      schema:
+        type: string
+    group_id:
+      name: group_id
+      in: path
+      description: The name of the group
+      required: true
+      schema:
+        type: string
+    action:
+      name: action
+      in: query
+      required: true
+      schema:
+        type: string
+        enum: [add, remove]
+  schemas:
+    User:
+      type: object
+      properties:
+        name:
+          type: string
+        status:
+          type: string
+        policy:
+          type: string
+    Group:
+      type: object
+      properties:
+        name:
+          type: string
+        policy:
+          type: string
+        roles:
+          type: array
+          items:
+            type: string
+        users:
+          type: array
+          items:
+            type: string
+    Role:
+      type: object
+      properties:
+        name:
+          type: string
+        policy:
+          type: string
+  responses:
+    401:
+      description: The user is not authorized because the object has already been created and the user does not
+        have permission to modify, or user does not have permission to create objects.
+    404:
+      description: Resource not found.
+  securitySchemes:
+      BearerAuth:
+        type: http
+        scheme: bearer
+        bearerFormat: JWT

@@ -71,7 +71,7 @@ class TestApi(unittest.TestCase):
         cls.app = ChaliceTestHarness()
 
     def test_login(self):
-        resp = self.app.get('/login')
+        resp = self.app.get('/login?state=ABC')
         self.assertEqual(resp.status_code, 301)
         self.assertEqual(resp.headers['Location'], '/authorize')
 
