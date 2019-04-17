@@ -27,7 +27,7 @@ def get_bundle_manifest(
     if key in _bundle_manifest_cache:
         return _bundle_manifest_cache[key]
     else:
-        bundle = _get_bundle_manifest(uuid, replica, version)
+        bundle = _get_bundle_manifest(uuid, replica, version, bucket=bucket)
         if bundle is not None:
             _bundle_manifest_cache[key] = bundle
         return bundle
