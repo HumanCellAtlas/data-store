@@ -56,6 +56,16 @@ class TestHealth(unittest.TestCase):
         mock_res = health.l2_health_checks()
         self.assertDictEqual(healthy_res, mock_res)
 
+    @testmode.standalone
+    def test_resource_fetch(self):
+
+        service_tags = {"Key": "service", "Values": ["dss"]}
+        resource_list = health.get_resource_by_tag(resource_string='dynamodb:table', tag_filter=service_tags)
+        ddb_tables = [x['ResourceARN'].split('/')[1] for x in resource_list['ResourceTagMappingList'] if
+                      os.environ.get('DSS_DEPLOYMENT_STAGE') in x['ResourceARN']]
+        print(ddb_tables)
+        self.assertGreater(len(ddb_tables), 0)
+
 
 if __name__ == "__main__":
     unittest.main()
