@@ -75,9 +75,7 @@ class GRTCClient(GCPAPIClient):
 grtc_client = GRTCClient()
 
 def dss_gs_event_relay(data, context):
-    if data["resourceState"] == "not_exists":
-        print("Ignoring object deletion event")
-    elif data["metageneration"] == 1:
+    if data["metageneration"] == 1:
         # Metageneration is updated on metadata changes and starts at 1
         print("Ignoring object metadata update event")
     elif re.match(r".+\.part\d+$", data["name"]):
