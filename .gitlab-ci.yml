@@ -205,7 +205,6 @@ release_prod:
     -   exit 1
     - fi
     - scripts/release.sh staging prod --no-deploy --skip-account-verification
-    - make smoketest-prod
   only:
     - staging
   except:

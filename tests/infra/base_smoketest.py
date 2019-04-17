@@ -215,4 +215,8 @@ class BaseSmokeTest(unittest.TestCase):
 
     @classmethod
     def tearDownClass(cls):
-        super().tearDownClass()
+        if args.clean:
+            print('cleaning up: ' + cls.workdir.name)
+            cls.workdir.cleanup()
+        else:
+            print(f"Leaving temporary working directory at {cls.workdir}.", file=sys.stderr)

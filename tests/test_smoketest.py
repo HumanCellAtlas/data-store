@@ -14,7 +14,7 @@ from itertools import product
 pkg_root = os.path.abspath(os.path.join(os.path.dirname(__file__), ".."))  # noqa
 sys.path.insert(0, pkg_root)  # noqa
 
-from tests.smoktest.base_smoketest import BaseSmokeTest, run, run_for_json
+from tests.infra.base_smoketest import BaseSmokeTest, run, run_for_json
 from dss.api.files import ASYNC_COPY_THRESHOLD
 from tests.infra import testmode
 
@@ -40,10 +40,7 @@ class Smoketest(BaseSmokeTest):
 
     @classmethod
     def tearDownClass(cls):
-        if args.clean:
-            cls.workdir.cleanup()
-        else:
-            print(f"Leaving temporary working directory at {cls.workdir}.", file=sys.stderr)
+        super().tearDownClass()
 
     def smoketest(self, starting_replica, checkout_bucket, test_bucket):
         # Tweak the metadata to a specific biomaterial_id UUID

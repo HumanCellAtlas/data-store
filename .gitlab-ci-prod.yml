@@ -39,3 +39,14 @@ deploy:
   only:
     - prod
   when: manual
+
+testing:
+  stage: deploy
+  script:
+    -make smoketest-prod
+  environment:
+    name: prod
+    url: https://dss.data.humancellatlas.org
+  only:
+    - prod
+  when: on_sucess

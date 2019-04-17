@@ -2,19 +2,13 @@
 """
 A prod test for the DSS, checks core API Requests to know whats available. Works with data present.
 """
-import os, sys, argparse, time, uuid, json, shutil, tempfile, unittest
-import subprocess
-
-import boto3
-import botocore
-from cloud_blobstore import BlobStore
-from itertools import product
+import os, sys, argparse, unittest
 
 pkg_root = os.path.abspath(os.path.join(os.path.dirname(__file__), ".."))  # noqa
 sys.path.insert(0, pkg_root)  # noqa
 
 from tests.infra import testmode
-from tests.smoktest.base_smoketest import BaseSmokeTest, run, run_for_json
+from tests.infra.base_smoketest import BaseSmokeTest
 
 parser = argparse.ArgumentParser(description=__doc__)
 parser.add_argument("--no-clean", dest="clean", action="store_false",
@@ -34,10 +28,7 @@ class ProdSmoketest(BaseSmokeTest):
 
     @classmethod
     def tearDownClass(cls):
-        if args.clean:
-            cls.workdir.cleanup()
-        else:
-            print(f"Leaving temporary working directory at {cls.workdir}.", file=sys.stderr)
+        super().tearDownClass()
 
     def prod_smokeTest(self, **kwargs):
         os.chdir(self.workdir.name)
