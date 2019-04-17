@@ -179,6 +179,15 @@
       "Effect": "Allow",
       "Action": "secretsmanager:Get*",
       "Resource": "arn:aws:secretsmanager:*:$account_id:secret:$DSS_SECRETS_STORE/*"
+    },
+    {
+      "Effect": "Allow",
+      "Action": [
+        "tag:GetTagKeys",
+        "tag:GetResources",
+        "tag:GetTagValues"
+      ],
+      "Resource": "*"
     }
   ]
 }
