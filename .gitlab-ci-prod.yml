@@ -11,6 +11,7 @@ variables:
 
 stages:
   - deploy
+  - test
 
 before_script:
   - export COMMITS_URL=${GITHUB_API}/repos/HumanCellAtlas/data-store/commits
@@ -40,8 +41,8 @@ deploy:
     - prod
   when: manual
 
-testing:
-  stage: deploy
+test:
+  stage: test
   script:
     -make smoketest-prod
   environment:
@@ -49,4 +50,3 @@ testing:
     url: https://dss.data.humancellatlas.org
   only:
     - prod
-  when: on_sucess
