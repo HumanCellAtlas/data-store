@@ -44,9 +44,6 @@ deploy:
 test:
   stage: test
   script:
-    -make smoketest-prod
-  environment:
-    name: prod
-    url: https://dss.data.humancellatlas.org
+    - make smoketest-prod
   only:
     - prod
