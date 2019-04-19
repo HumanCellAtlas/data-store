@@ -16,6 +16,7 @@ from jmespath.exceptions import JMESPathError
 
 import dss
 from dss import Config, Replica
+from dss.util.xcache import JSONCacheToS3
 from dss.util.aws.clients import sqs  # type: ignore
 from dss.subscriptions_v2 import SubscriptionData, get_subscriptions_for_replica
 from dss.storage.identifiers import UUID_PATTERN, VERSION_PATTERN, TOMBSTONE_SUFFIX, DSS_BUNDLE_KEY_REGEX
@@ -169,7 +170,11 @@ def notify(subscription: dict, metadata_document: dict, key: str) -> bool:
         return False
 
 
-@lru_cache(maxsize=2)
+@JSONCacheToS3(
+    cache_argument="key",
+    bucket="bhannafi-dst",
+    prefix="cache-test/"
+)
 def build_bundle_metadata_document(replica: Replica, key: str) -> dict:
     """
     This returns a JSON document with bundle manifest and metadata files suitable for JMESPath filters.
