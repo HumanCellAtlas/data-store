@@ -32,4 +32,4 @@ lambda_output="$(aws lambda invoke --function-name $lambda_name --invocation-typ
 echo "$lambda_output"
 echo "$lambda_output" | jq -r .LogResult | base64 --decode
 
-[[ $(echo "$lambda_output" | jq -r .FunctionError) == null ]]
+[[ $(echo "$lambda_output" | jq -r '. | select(.LogResult) | .FunctionError') == null ]]
