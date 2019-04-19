@@ -38,7 +38,7 @@ class SecretsChecker(object):
     def __init__(self, stage):
         self.stage = stage
         self.stages = {'dev': 'environment',
-                       'integration': 'enviroment.integration',
+                       'integration': 'environment.integration',
                        'staging': 'environment.staging'}
 
         self.missing_secrets = []
@@ -77,7 +77,11 @@ class SecretsChecker(object):
                              stderr=subprocess.PIPE,
                              cwd=cwd,
                              env=self.stage_env)
-        stdout, _ = p.communicate()
+        stdout, stderr = p.communicate()
+        if stderr:
+            raise RuntimeError(f'While checking secrets, an error occured:\n'
+                               f'stdout: {stdout}\n\n'
+                               f'stderr: {stderr}\n')
         return stdout.decode('utf-8')
 
     def get_stage_env(self, env_file):

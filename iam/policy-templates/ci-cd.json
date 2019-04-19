@@ -149,6 +149,16 @@
     {
       "Effect": "Allow",
       "Action": [
+        "sqs:GetQueueUrl",
+        "sqs:SendMessage"
+      ],
+      "Resource": [
+        "arn:aws:sqs:*:$account_id:dss-notify-v2-*"
+      ]
+    },
+    {
+      "Effect": "Allow",
+      "Action": [
         "sqs:CreateQueue",
         "sqs:DeleteQueue",
         "sqs:ChangeMessageVisibility*",
@@ -170,6 +180,15 @@
       "Effect": "Allow",
       "Action": "secretsmanager:Get*",
       "Resource": "arn:aws:secretsmanager:*:$account_id:secret:$DSS_SECRETS_STORE/*"
+    },
+    {
+      "Effect": "Allow",
+      "Action": [
+        "tag:GetTagKeys",
+        "tag:GetResources",
+        "tag:GetTagValues"
+      ],
+      "Resource": "*"
     }
   ]
 }

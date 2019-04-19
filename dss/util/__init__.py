@@ -4,6 +4,7 @@ import tempfile
 from urllib.parse import SplitResult, parse_qsl, urlencode, urlsplit, urlunsplit
 import typing
 from functools import lru_cache
+from concurrent.futures import ThreadPoolExecutor, as_completed
 
 
 def paginate(boto3_paginator, *args, **kwargs):
@@ -134,3 +135,54 @@ def get_gcp_credentials_file():
     tf.write(resp['SecretString'])
     tf.flush()
     return tf
+
+
+def multipart_parallel_upload(
+        s3_client: typing.Any,
+        bucket: str,
+        key: str,
+        src_file_handle: typing.BinaryIO,
+        *,
+        part_size: int,
+        content_type: str=None,
+        metadata: dict=None,
+        parallelization_factor=8) -> typing.Sequence[dict]:
+    """
+    Upload a file object to s3 in parallel.
+    """
+    kwargs: dict = dict()
+    if content_type is not None:
+        kwargs['ContentType'] = content_type
+    if metadata is not None:
+        kwargs['Metadata'] = metadata
+    mpu = s3_client.create_multipart_upload(Bucket=bucket, Key=key, **kwargs)
+
+    def _copy_part(data, part_number):
+        resp = s3_client.upload_part(
+            Body=data,
+            Bucket=bucket,
+            Key=key,
+            PartNumber=part_number,
+            UploadId=mpu['UploadId'],
+        )
+        return resp['ETag']
+
+    def _chunks():
+        while True:
+            data = src_file_handle.read(part_size)
+            if not data:
+                break
+            yield data
+
+    with ThreadPoolExecutor(max_workers=parallelization_factor) as e:
+        futures = {e.submit(_copy_part, data, part_number): part_number
+                   for part_number, data in enumerate(_chunks(), start=1)}
+        parts = [dict(ETag=f.result(), PartNumber=futures[f]) for f in as_completed(futures)]
+        parts.sort(key=lambda p: p['PartNumber'])
+    s3_client.complete_multipart_upload(
+        Bucket=bucket,
+        Key=key,
+        MultipartUpload=dict(Parts=parts),
+        UploadId=mpu['UploadId'],
+    )
+    return parts
