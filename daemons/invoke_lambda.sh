@@ -27,10 +27,9 @@ for varname in ${envsubst_vars}; do
     export ${varname##$}
 done
 
-raw_lambda_output="$(aws lambda invoke --function-name $lambda_name --invocation-type RequestResponse --payload "$(envsubst "${envsubst_vars}" < "${lambda_input_file}")" --log-type Tail /dev/stdout | sed 's/^null//' | sed 's/^{}//')"
+raw_lambda_output="$(aws lambda invoke --function-name $lambda_name --invocation-type RequestResponse --payload "$(envsubst "${envsubst_vars}" < "${lambda_input_file}")" --log-type Tail /dev/stdout)"
 lambda_output="$(echo $raw_lambda_output | jq -r '. | select(.LogResult)')"
 
-echo "$raw_lambda_output"
 echo "$lambda_output" | jq -r .LogResult | base64 --decode
 
 [[ $(echo "$lambda_output" | jq -r .FunctionError) == null ]]
