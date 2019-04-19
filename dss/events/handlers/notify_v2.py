@@ -16,7 +16,7 @@ from jmespath.exceptions import JMESPathError
 
 import dss
 from dss import Config, Replica
-from dss.util.json_cache import JSONCacheToS3
+from dss.util.cloud_cache import S3CloudCache
 from dss.util.aws.clients import sqs  # type: ignore
 from dss.subscriptions_v2 import SubscriptionData, get_subscriptions_for_replica
 from dss.storage.identifiers import UUID_PATTERN, VERSION_PATTERN, TOMBSTONE_SUFFIX, DSS_BUNDLE_KEY_REGEX
@@ -170,7 +170,7 @@ def notify(subscription: dict, metadata_document: dict, key: str) -> bool:
         return False
 
 
-@JSONCacheToS3(
+@S3CloudCache(
     cache_argument="key",
     bucket="bhannafi-dst",
     prefix="cache-test/"
