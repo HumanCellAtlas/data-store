@@ -1,12 +1,8 @@
 import os
 import json
-from functools import lru_cache
 
 from dss.config import Replica
-from dss.util.aws.clients import dynamodb  # type: ignore
-
-
-_ddb_table_template = f"dss-subscriptions-v2-{{}}-{os.environ['DSS_DEPLOYMENT_STAGE']}"
+from dss.util.dynamodb import DynamoOwnershipLookup
 
 
 class SubscriptionData:
@@ -22,64 +18,24 @@ class SubscriptionData:
     ATTACHMENTS = 'attachments'
 
 
-def put_subscription(doc: dict):
-    dynamodb.put_item(
-        TableName=_ddb_table_template.format(doc[SubscriptionData.REPLICA]),
-        Item={
-            'hash_key': {
-                'S': doc[SubscriptionData.OWNER]
-            },
-            'sort_key': {
-                'S': doc[SubscriptionData.UUID]
-            },
-            'body': {
-                'S': json.dumps(doc)
-            },
-        }
-    )
+class SubscriptionLookup(DynamoOwnershipLookup):
+    def __init__(self):
+        self.db_table_template = f"dss-subscriptions-v2-{{}}-{os.environ['DSS_DEPLOYMENT_STAGE']}"
 
-def get_subscription(replica: Replica, owner: str, uuid: str) -> dict:
-    db_resp = dynamodb.get_item(
-        TableName=_ddb_table_template.format(replica.name),
-        Key={
-            'hash_key': {
-                'S': owner
-            },
-            'sort_key': {
-                'S': uuid
-            }
-        }
-    )
-    item = db_resp.get('Item')
-    if item is not None:
-        return json.loads(item['body']['S'])
-    else:
-        return None
+    def put_subscription(self, doc: dict):
+        self.put_item(replica=doc[SubscriptionData.REPLICA],
+                      owner=doc[SubscriptionData.OWNER],
+                      key=doc[SubscriptionData.UUID],
+                      value=json.dumps(doc))
 
-def get_subscriptions_for_owner(replica: Replica, owner: str) -> list:
-    db_resp = dynamodb.query(
-        TableName=_ddb_table_template.format(replica.name),
-        KeyConditionExpression="#hash_key=:owner",
-        ExpressionAttributeNames={'#hash_key': "hash_key"},
-        ExpressionAttributeValues={':owner': {'S': owner}}
-    )
-    subscriptions = [json.loads(item['body']['S']) for item in db_resp['Items']]
-    return subscriptions
+    def get_subscription(self, replica: Replica, owner: str, uuid: str) -> dict:
+        return self.get_item(replica=replica, owner=owner, key=uuid)
 
-def get_subscriptions_for_replica(replica: Replica) -> list:
-    db_resp = dynamodb.scan(TableName=_ddb_table_template.format(replica.name))
-    subscriptions = [json.loads(item['body']['S']) for item in db_resp['Items']]
-    return subscriptions
+    def get_subscriptions_for_owner(self, replica: Replica, owner: str) -> list:
+        return self.get_items_for_owner(replica=replica, owner=owner)
 
-def delete_subscription(replica: Replica, owner: str, uuid: str):
-    dynamodb.delete_item(
-        TableName=_ddb_table_template.format(replica.name),
-        Key={
-            'hash_key': {
-                'S': owner
-            },
-            'sort_key': {
-                'S': uuid
-            }
-        }
-    )
+    def get_subscriptions_for_replica(self, replica: Replica) -> list:
+        return self.get_items_for_replica(replica=replica)
+
+    def delete_subscription(self, replica: Replica, owner: str, uuid: str):
+        self.delete_item(replica=replica, owner=owner, key=uuid)

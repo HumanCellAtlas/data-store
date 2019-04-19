@@ -26,13 +26,9 @@ from dss.util.version import datetime_to_version_format
 from dss.util import UrlBuilder
 from dss import Replica
 from dss.collections import (CollectionData,
-                             get_collection,
-                             get_collections_for_owner,
-                             put_collection,
-                             patch_collection,
-                             delete_collection)
+                             CollectionLookup)
 
-@testmode.integration
+# @testmode.integration
 class TestCollections(unittest.TestCase, DSSAssertMixin, DSSUploadMixin):
     @classmethod
     def setUpClass(cls):
@@ -140,12 +136,13 @@ class TestCollections(unittest.TestCase, DSSAssertMixin, DSSUploadMixin):
 
     def test_collections_db(self):
         """Test that the dynamoDB functions work for a collection."""
+        collection_lookup = CollectionLookup()
         for replica in self.replicas:
             fake_uuid = str(uuid4())
             fake_version = '1'
 
             with self.subTest(replica):
-                collections = get_collection(replica=Replica[replica], owner=self.owner_email, uuid=fake_uuid)
+                collections = collection_lookup.get_collection(replica=Replica[replica], owner=self.owner_email, uuid=fake_uuid)
                 collections_uuids = [c['collection_uuid'] for c in collections]
                 self.assertNotIn(fake_uuid, collections_uuids)
 
@@ -155,11 +152,11 @@ class TestCollections(unittest.TestCase, DSSAssertMixin, DSSUploadMixin):
                                         CollectionData.UUID: fake_uuid,
                                         CollectionData.VERSION: fake_version,
                                         CollectionData.REPLICA: replica}
-                put_collection(fake_collection_item)
+                collection_lookup.put_collection(fake_collection_item)
 
             # get_collection
             with self.subTest(replica):
-                collections = get_collection(replica=Replica[replica], owner=self.owner_email, uuid=fake_uuid)
+                collections = collection_lookup.get_collection(replica=Replica[replica], owner=self.owner_email, uuid=fake_uuid)
                 collection_uuid = collections[0]['collection_uuid']
                 collection_versions = collections[0]['collection_versions']
                 self.assertEquals(fake_uuid, collection_uuid)
@@ -167,7 +164,7 @@ class TestCollections(unittest.TestCase, DSSAssertMixin, DSSUploadMixin):
 
             # get_collections_for_owner
             with self.subTest(replica):
-                collections = get_collections_for_owner(Replica[replica], self.owner_email)
+                collections = collection_lookup.get_collections_for_owner(Replica[replica], self.owner_email)
                 collections_uuids = [c['collection_uuid'] for c in collections]
                 self.assertIn(fake_uuid, collections_uuids)
 
@@ -175,16 +172,16 @@ class TestCollections(unittest.TestCase, DSSAssertMixin, DSSUploadMixin):
             with self.subTest(replica):
                 new_version = '2'
                 fake_collection_item[CollectionData.VERSION] = new_version
-                patch_collection(fake_collection_item)
-                collections = get_collection(replica=Replica[replica], owner=self.owner_email, uuid=fake_uuid)
+                collection_lookup.patch_collection(fake_collection_item)
+                collections = collection_lookup.get_collection(replica=Replica[replica], owner=self.owner_email, uuid=fake_uuid)
                 collection_versions = collections[0]['collection_versions']
                 self.assertEquals(fake_uuid, collection_uuid)
                 self.assertEquals([new_version, fake_version], collection_versions)
 
             # delete_collection
             with self.subTest(replica):
-                delete_collection(replica=Replica[replica], owner=self.owner_email, uuid=fake_uuid)
-                collections = get_collection(replica=Replica[replica], owner=self.owner_email, uuid=fake_uuid)
+                collection_lookup.delete_collection(replica=Replica[replica], owner=self.owner_email, uuid=fake_uuid)
+                collections = collection_lookup.get_collection(replica=Replica[replica], owner=self.owner_email, uuid=fake_uuid)
                 collections_uuids = [c['collection_uuid'] for c in collections]
                 self.assertNotIn(fake_uuid, collections_uuids)
 

@@ -17,16 +17,13 @@ from dss.storage.identifiers import CollectionFQID, CollectionTombstoneID
 from dss.util import security, hashabledict, UrlBuilder
 from dss.util.version import datetime_to_version_format
 from dss.api.bundles import _idempotent_save
-from dss.collections import (CollectionData,
-                             get_collections_for_owner,
-                             put_collection,
-                             patch_collection,
-                             delete_collection)
+from dss.collections import CollectionData, CollectionLookup
 from cloud_blobstore import BlobNotFoundError
 
 MAX_METADATA_SIZE = 1024 * 1024
 
 logger = logging.getLogger(__name__)
+collection_lookup = CollectionLookup()
 
 
 def get_impl(uuid: str, replica: str, version: str = None):
@@ -57,7 +54,7 @@ def get_impl(uuid: str, replica: str, version: str = None):
 def listcollections(replica: str, per_page: int, start_at: int = 0):
     """Look up an owner's collections based on a table in dynamoDB."""
     owner = security.get_token_email(request.token_info)
-    collections = get_collections_for_owner(Replica[replica], owner)
+    collections = collection_lookup.get_collections_for_owner(Replica[replica], owner)
 
     # paged response
     if len(collections) - start_at > per_page:
@@ -98,7 +95,7 @@ def put(json_request_body: dict, replica: str, uuid: str, version: str):
         version = datetime_to_version_format(timestamp)
     collection_version = version
     # update dynamoDB; used to speed up lookup time
-    put_collection({CollectionData.REPLICA: replica,
+    collection_lookup.put_collection({CollectionData.REPLICA: replica,
                     CollectionData.OWNER: authenticated_user_email,
                     CollectionData.UUID: collection_uuid,
                     CollectionData.VERSION: collection_version})
@@ -136,7 +133,7 @@ def patch(uuid: str, json_request_body: dict, replica: str, version: str):
     timestamp = datetime.datetime.utcnow()
     new_collection_version = datetime_to_version_format(timestamp)
     # update dynamoDB; used to speed up lookup time
-    patch_collection({CollectionData.REPLICA: replica,
+    collection_lookup.patch_collection({CollectionData.REPLICA: replica,
                       CollectionData.OWNER: authenticated_user_email,
                       CollectionData.UUID: uuid,
                       CollectionData.VERSION: new_collection_version})
@@ -178,7 +175,7 @@ def delete(uuid: str, replica: str):
     status_code = requests.codes.ok
     response_body = dict()  # type: dict
     # update dynamoDB
-    delete_collection(Replica[replica], authenticated_user_email, uuid)
+    collection_lookup.delete_collection(Replica[replica], authenticated_user_email, uuid)
     return jsonify(response_body), status_code
 
 
