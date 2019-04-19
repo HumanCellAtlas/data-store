@@ -202,7 +202,7 @@ def build_bundle_metadata_document(replica: Replica, key: str) -> dict:
         # TODO: Consider scaling parallelization with Lambda size
         with ThreadPoolExecutor(max_workers=20) as e:
             e.map(_read_file, [file_metadata for file_metadata in manifest['files']
-                               if "application/json" == file_metadata['content-type']])
+                               if file_metadata['content-type'].startswith("application/json")])
 
         return {
             'event_type': "CREATE",
