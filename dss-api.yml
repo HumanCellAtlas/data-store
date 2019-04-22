@@ -1013,12 +1013,6 @@ paths:
 
         Collections are replicated across storage replicas similarly to files and bundles.
       parameters:
-        - name: replica
-          in: query
-          description: Replica to fetch from.
-          required: true
-          type: string
-          enum: [aws, gcp]
         - name: per_page
           in: query
           description: Max number of results to return per page.

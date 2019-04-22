@@ -1,81 +1,56 @@
 import os
 
-from dss.config import Replica
 from dss.util.aws.clients import dynamodb  # type: ignore
-from dss.util.dynamodb import DynamoOwnershipLookup
+from dss.util.dynamodb import DynamoLookup
 
 
-class CollectionData:
-    REPLICA = 'replica'
-    OWNER = 'owner'
-    UUID = 'uuid'
-    VERSION = 'version'
-
-
-class CollectionLookup(DynamoOwnershipLookup):
+class CollectionLookup(DynamoLookup):
     def __init__(self):
-        self.db_table_template = f"dss-collections-db-{{}}-{os.environ['DSS_DEPLOYMENT_STAGE']}"
+        # user: uuid: owner/read-only
+        self.user_db_table = f"dss-collections-db-users-{os.environ['DSS_DEPLOYMENT_STAGE']}"
+        # uuid: version
+        self.version_db_table = f"dss-collections-db-versions-{os.environ['DSS_DEPLOYMENT_STAGE']}"
 
-    def put_collection(self, doc: dict):
-        """Adds a new owner associated collection to the table if it does not already exist."""
-        dynamodb.put_item(
-            TableName=self.db_table_template.format(doc[CollectionData.REPLICA]),
-            Item={
-                'hash_key': {
-                    'S': doc[CollectionData.OWNER]
-                },
-                'sort_key': {
-                    'S': f'{doc[CollectionData.UUID]}.{doc[CollectionData.VERSION]}'
-                },
-                'body': {
-                    'S': 'owner'  # comma-delimited string
-                }
-            }
-        )
+    def put_collection(self, owner: str, key: str, permission_level: str = 'owner'):
+        """
+        Adds a new owner associated collection to the table if it does not already exist.
+        key  # {uuid}.{version}
+        permission_level  # 'owner' or 'read-only'
+        """
+        uuid, version = key.split('.', 1)
+        # create user -> collection -> permission level association if not present
+        if not self.get_item(table=self.user_db_table, key1=owner, key2=uuid):
+            self.put_item(table=self.user_db_table, key1=owner, key2=uuid, value=permission_level)
+        # create uuid -> version association if not present
+        if not self.get_item(table=self.version_db_table, key1=uuid, key2=version):
+            self.put_item(table=self.version_db_table, key1=uuid, key2=version, value='')
 
-    def get_collection(self, replica: Replica, owner: str, uuid: str):
-        """Returns all versions of a collection UUID for a user."""
-        db_resp = dynamodb.get_item(
-            TableName=self.db_table_template.format(replica.name),
-            Key={
-                'hash_key': {
-                    'S': owner
-                },
-                'sort_key': {
-                    'S': uuid
-                }
-            }
-        )
-        items = [db_resp.get('Item', None)] if db_resp.get('Item', None) else []
-        return self.collections_from_items(items)
+    def get_collection(self, owner: str, uuid: str) -> str:
+        """Returns the user permission level for a collection ('owner', 'read-only', or None)."""
+        item = self.get_item(table=self.user_db_table, key1=owner, key2=uuid)
+        if item is not None:
+            return item['body']['S']
+        else:
+            return None
 
-    def collections_from_items(self, items: list) -> list:
-        collections = []
-        for item in items:
-            for uuid, version in item['sort_key']['S'].split('.'):
-                if collections and collections[-1]['collection_uuid'] == uuid:
-
-                collections.append({'collection_uuid': item['sort_key']['S'],
-                                    'collection_versions': versions})
-        return collections
-
-    def get_collections_for_owner(self, replica: Replica, owner: str) -> list:
+    def get_collections_for_owner(self, owner: str) -> list:
         db_resp = dynamodb.query(
-            TableName=self.db_table_template.format(replica.name),
+            TableName=self.user_db_table,
             KeyConditionExpression="hash_key=:owner",
             ExpressionAttributeValues={':owner': {'S': owner}}
         )
-        return self.collections_from_items(db_resp.get('Items', []))
+        collections = []
+        for uuid in db_resp.get('Items', []):
+            collection = {'collection_uuid': uuid,
+                          'collection_versions': []}
+            for version in self.get_primary_key_items(table=self.version_db_table, key=uuid):
+                collection['collection_versions'].append(version['sort_key']['S'])
+            collections.append(collection)
 
-    def delete_collection(self, replica: Replica, owner: str, uuid: str):
-        dynamodb.delete_item(
-            TableName=self.db_table_template.format(replica.name),
-            Key={
-                'hash_key': {
-                    'S': owner
-                },
-                'sort_key': {
-                    'S': uuid
-                }
-            }
-        )
+    def delete_collection(self, owner: str, uuid: str):
+        # delete that user's association with the uuid
+        if self.get_item(table=self.user_db_table, key1=owner, key2=uuid):
+            self.delete_item(table=self.user_db_table, key1=owner, key2=uuid)
+        # delete all versions from the uuid/version table
+        for item in self.get_primary_key_items(table=self.user_db_table, key=uuid):
+            self.delete_item(table=self.version_db_table, key1=uuid, key2=item['sort_key']['S'])

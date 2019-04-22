@@ -17,7 +17,7 @@ from dss.storage.identifiers import CollectionFQID, CollectionTombstoneID
 from dss.util import security, hashabledict, UrlBuilder
 from dss.util.version import datetime_to_version_format
 
-from dss.collections import CollectionData, CollectionLookup
+from dss.collections import CollectionLookup
 from dss.storage.bundles import idempotent_save
 from cloud_blobstore import BlobNotFoundError
 
@@ -52,10 +52,12 @@ def get_impl(uuid: str, replica: str, version: str = None):
 
 @dss_handler
 @security.authorized_group_required(['hca'])
-def listcollections(replica: str, per_page: int, start_at: int = 0):
+def listcollections(per_page: int, start_at: int = 0):
     """Look up an owner's collections based on a table in dynamoDB."""
+    # TODO: Replica was taken out... but is still in other methods.
+    # TODO: This should be consistent.
     owner = security.get_token_email(request.token_info)
-    collections = collection_lookup.get_collections_for_owner(Replica[replica], owner)
+    collections = collection_lookup.get_collections_for_owner(owner)
 
     # paged response
     if len(collections) - start_at > per_page:
@@ -76,7 +78,7 @@ def listcollections(replica: str, per_page: int, start_at: int = 0):
 def get(uuid: str, replica: str, version: str = None):
     authenticated_user_email = security.get_token_email(request.token_info)
     collection_body = get_impl(uuid=uuid, replica=replica, version=version)
-    if collection_body["owner"] != authenticated_user_email:
+    if not collection_lookup.get_collection(owner=authenticated_user_email, uuid=uuid):
         raise DSSException(requests.codes.forbidden, "forbidden", f"Collection access denied")
     return collection_body
 
@@ -88,7 +90,7 @@ def put(json_request_body: dict, replica: str, uuid: str, version: str):
     collection_body = dict(json_request_body, owner=authenticated_user_email)
     uuid = uuid.lower()
     handle = Config.get_blobstore_handle(Replica[replica])
-    collection_body["contents"] = _dedpuplicate_contents(collection_body["contents"])
+    collection_body["contents"] = _deduplicate_contents(collection_body["contents"])
     verify_collection(collection_body["contents"], Replica[replica], handle)
     collection_uuid = uuid if uuid else str(uuid4())
     if version is None:
@@ -96,10 +98,9 @@ def put(json_request_body: dict, replica: str, uuid: str, version: str):
         version = datetime_to_version_format(timestamp)
     collection_version = version
     # update dynamoDB; used to speed up lookup time
-    collection_lookup.put_collection({CollectionData.REPLICA: replica,
-                    CollectionData.OWNER: authenticated_user_email,
-                    CollectionData.UUID: collection_uuid,
-                    CollectionData.VERSION: collection_version})
+    collection_lookup.put_collection(owner=authenticated_user_email,
+                                     key=f'{collection_uuid}.{collection_version}',
+                                     permission_level='owner')  # default for now
     # add the collection file to the bucket
     handle.upload_file_handle(Replica[replica].bucket,
                               CollectionFQID(collection_uuid, collection_version).to_key(),
@@ -130,22 +131,17 @@ def patch(uuid: str, json_request_body: dict, replica: str, version: str):
     collection["contents"] = [i for i in collection["contents"] if hashabledict(i) not in remove_contents_set]
     verify_collection(json_request_body.get("add_contents", []), Replica[replica], handle)
     collection["contents"].extend(json_request_body.get("add_contents", []))
-    collection["contents"] = _dedpuplicate_contents(collection["contents"])
+    collection["contents"] = _deduplicate_contents(collection["contents"])
     timestamp = datetime.datetime.utcnow()
     new_collection_version = datetime_to_version_format(timestamp)
-    # update dynamoDB; used to speed up lookup time
-    collection_lookup.patch_collection({CollectionData.REPLICA: replica,
-                      CollectionData.OWNER: authenticated_user_email,
-                      CollectionData.UUID: uuid,
-                      CollectionData.VERSION: new_collection_version})
-    # add the collection file to the bucket
+    # TODO: Allow patch to update dynamoDB table with read-only permissions for other users
     handle.upload_file_handle(Replica[replica].bucket,
                               CollectionFQID(uuid, new_collection_version).to_key(),
                               io.BytesIO(json.dumps(collection).encode("utf-8")))
     return jsonify(dict(uuid=uuid, version=new_collection_version)), requests.codes.ok
 
 
-def _dedpuplicate_contents(contents: List) -> List:
+def _deduplicate_contents(contents: List) -> List:
     dedup_collection: OrderedDict[int, dict] = OrderedDict()
     for item in contents:
         dedup_collection[hash(tuple(sorted(item.items())))] = item
@@ -176,7 +172,7 @@ def delete(uuid: str, replica: str):
     status_code = requests.codes.ok
     response_body = dict()  # type: dict
     # update dynamoDB
-    collection_lookup.delete_collection(Replica[replica], authenticated_user_email, uuid)
+    collection_lookup.delete_collection(owner=authenticated_user_email, uuid=uuid)
     return jsonify(response_body), status_code
 
 

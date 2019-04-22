@@ -1,22 +1,19 @@
 import json
 
-from dss.config import Replica
 from dss.util.aws.clients import dynamodb  # type: ignore
 
 
-class DynamoOwnershipLookup(object):
-    def __init__(self):
-        self.db_table_template = 'base_template'
-
-    def put_item(self, replica: Replica, owner: str, key: str, value: str):
+class DynamoLookup(object):
+    @staticmethod
+    def put_item(table: str, key1: str, key2: str, value: str):
         dynamodb.put_item(
-            TableName=self.db_table_template.format(replica.name),
+            TableName=table,
             Item={
                 'hash_key': {
-                    'S': owner
+                    'S': key1
                 },
                 'sort_key': {
-                    'S': key
+                    'S': key2
                 },
                 'body': {
                     'S': value
@@ -24,49 +21,47 @@ class DynamoOwnershipLookup(object):
             }
         )
 
-    def get_item(self, replica: Replica, owner: str, key: str) -> dict:
+    @staticmethod
+    def get_item(table: str, key1: str, key2: str) -> dict:
         db_resp = dynamodb.get_item(
-            TableName=self.db_table_template.format(replica.name),
+            TableName=table,
             Key={
                 'hash_key': {
-                    'S': owner
+                    'S': key1
                 },
                 'sort_key': {
-                    'S': key
+                    'S': key2
                 }
             }
         )
-        item = db_resp.get('Item')
-        if item is not None:
-            return json.loads(item['body']['S'])
-        else:
-            return None
+        return db_resp.get('Item')
 
-    def get_items_for_owner(self, replica: Replica, owner: str) -> list:
+    @staticmethod
+    def get_primary_key_items(table: str, key: str) -> list:
         db_resp = dynamodb.query(
-            TableName=self.db_table_template.format(replica.name),
+            TableName=table,
             ScanIndexForward=False,  # True = ascending, False = descending
-            KeyConditionExpression="#hash_key=:owner",
+            KeyConditionExpression="#hash_key=:key",
             ExpressionAttributeNames={'#hash_key': "hash_key"},
-            ExpressionAttributeValues={':owner': {'S': owner}}
+            ExpressionAttributeValues={':key': {'S': key}}
         )
-        subscriptions = [json.loads(item['body']['S']) for item in db_resp['Items']]
-        return subscriptions
+        return db_resp.get('Items')
 
-    def get_items_for_replica(self, replica: Replica) -> list:
-        db_resp = dynamodb.scan(TableName=self.db_table_template.format(replica.name))
-        subscriptions = [json.loads(item['body']['S']) for item in db_resp['Items']]
-        return subscriptions
+    @staticmethod
+    def get_items_for_table(table: str) -> list:
+        db_resp = dynamodb.scan(TableName=table)
+        return db_resp.get('Items')
 
-    def delete_item(self, replica: Replica, owner: str, key: str):
+    @staticmethod
+    def delete_item(table: str, key1: str, key2: str):
         dynamodb.delete_item(
-            TableName=self.db_table_template.format(replica.name),
+            TableName=table,
             Key={
                 'hash_key': {
-                    'S': owner
+                    'S': key1
                 },
                 'sort_key': {
-                    'S': key
+                    'S': key2
                 }
             }
         )
