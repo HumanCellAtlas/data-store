@@ -16,7 +16,6 @@ from dss.storage.hcablobstore import BlobStore, compose_blob_key
 from dss.storage.identifiers import CollectionFQID, CollectionTombstoneID
 from dss.util import security, hashabledict, UrlBuilder
 from dss.util.version import datetime_to_version_format
-
 from dss.collections import CollectionLookup
 from dss.storage.bundles import idempotent_save
 from cloud_blobstore import BlobNotFoundError
@@ -162,9 +161,12 @@ def delete(uuid: str, replica: str):
     if owner != authenticated_user_email:
         raise DSSException(requests.codes.forbidden, "forbidden", f"Collection access denied")
 
-    blobstore = Config.get_blobstore_handle(Replica[replica])
-    bucket = Replica[replica].bucket
-    created, idempotent = idempotent_save(blobstore, bucket, tombstone_key, tombstone_object_data)
+    created, idempotent = idempotent_save(
+        Config.get_blobstore_handle(Replica[replica]),
+        Replica[replica].bucket,
+        tombstone_key,
+        json.dumps(tombstone_object_data).encode("utf-8")
+    )
     if not idempotent:
         raise DSSException(requests.codes.conflict,
                            f"collection_tombstone_already_exists",

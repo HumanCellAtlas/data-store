@@ -13,8 +13,8 @@ from concurrent.futures import ThreadPoolExecutor, as_completed
 
 from dss import DSSException, dss_handler, DSSForbiddenException
 from dss.config import Config, Replica
-from dss.storage.blobstore import test_object_exists, ObjectTest
-from dss.storage.bundles import get_bundle_manifest, idempotent_save
+from dss.storage.blobstore import idempotent_save, test_object_exists, ObjectTest
+from dss.storage.bundles import get_bundle_manifest, save_bundle_manifest
 from dss.storage.checkout import CheckoutError, TokenError
 from dss.storage.checkout.bundle import get_dst_bundle_prefix, verify_checkout
 from dss.storage.identifiers import BundleTombstoneID, BundleFQID, FileFQID
@@ -147,8 +147,6 @@ def post():
 @security.authorized_group_required(['hca'])
 def put(uuid: str, replica: str, json_request_body: dict, version: str):
     uuid = uuid.lower()
-    handle = Config.get_blobstore_handle(Replica[replica])
-    bucket = Replica[replica].bucket
 
     files = build_bundle_file_metadata(Replica[replica], json_request_body['files'])
     detect_filename_collisions(files)
@@ -161,18 +159,13 @@ def put(uuid: str, replica: str, json_request_body: dict, version: str):
         BundleMetadata.CREATOR_UID: json_request_body['creator_uid'],
     }
 
-    status_code = _save_bundle(handle, bucket, uuid, version, bundle_metadata)
+    status_code = _save_bundle(Replica[replica], uuid, version, bundle_metadata)
 
     return jsonify(dict(version=bundle_metadata['version'], manifest=bundle_metadata)), status_code
 
-def _save_bundle(handle, bucket, uuid, version, bundle_metadata):
+def _save_bundle(replica: Replica, uuid: str, version: str, bundle_metadata: dict) -> int:
     try:
-        created, idempotent = idempotent_save(
-            handle,
-            bucket,
-            BundleFQID(uuid, version).to_key(),
-            bundle_metadata,
-        )
+        created, idempotent = save_bundle_manifest(replica, uuid, version, bundle_metadata)
     except BlobStoreTimeoutError:
         raise DSSException(
             requests.codes.unavailable,
@@ -202,7 +195,6 @@ def bundle_file_id_metadata(bundle_file_metadata):
 @dss_handler
 @security.authorized_group_required(['hca'])
 def patch(uuid: str, json_request_body: dict, replica: str, version: str):
-    handle = Config.get_blobstore_handle(Replica[replica])
     bundle = get_bundle_manifest(uuid, Replica[replica], version)
     if bundle is None:
         raise DSSException(404, "not_found", "Could not find bundle for UUID {}".format(uuid))
@@ -216,7 +208,7 @@ def patch(uuid: str, json_request_body: dict, replica: str, version: str):
     timestamp = datetime.datetime.utcnow()
     new_bundle_version = datetime_to_version_format(timestamp)
     bundle['version'] = new_bundle_version
-    _save_bundle(handle, Replica[replica].bucket, uuid, new_bundle_version, bundle)
+    _save_bundle(Replica[replica], uuid, new_bundle_version, bundle)
     return jsonify(dict(uuid=uuid, version=new_bundle_version)), requests.codes.ok
 
 
@@ -238,14 +230,12 @@ def delete(uuid: str, replica: str, json_request_body: dict, version: str = None
     )
 
     handle = Config.get_blobstore_handle(Replica[replica])
-    bucket = Replica[replica].bucket
-
-    if test_object_exists(handle, bucket, bundle_prefix, test_type=ObjectTest.PREFIX):
+    if test_object_exists(handle, Replica[replica].bucket, bundle_prefix, test_type=ObjectTest.PREFIX):
         created, idempotent = idempotent_save(
             handle,
-            bucket,
+            Replica[replica].bucket,
             tombstone_id.to_key(),
-            tombstone_object_data
+            json.dumps(tombstone_object_data).encode("utf-8")
         )
         if not idempotent:
             raise DSSException(
