@@ -1,6 +1,4 @@
-import os
 import datetime
-import logging
 from uuid import uuid4
 
 import requests
@@ -11,14 +9,16 @@ from jmespath.exceptions import JMESPathError
 from dss.config import Replica
 from dss.error import DSSException
 from dss.util import security
-from dss.subscriptions_v2 import (SubscriptionData, get_subscription, get_subscriptions_for_owner, put_subscription,
-                                  delete_subscription)
+from dss.subscriptions_v2 import SubscriptionData, SubscriptionLookup
+
+
+subscription_lookup = SubscriptionLookup()
 
 
 @security.authorized_group_required(['hca', 'public'])
 def get(uuid: str, replica: str):
     owner = security.get_token_email(request.token_info)
-    subscription = get_subscription(Replica[replica], owner, uuid)
+    subscription = subscription_lookup.get_subscription(Replica[replica], owner, uuid)
     if subscription is None or owner != subscription[SubscriptionData.OWNER]:
         raise DSSException(404, "not_found", "Cannot find subscription!")
     return subscription, requests.codes.ok
@@ -27,7 +27,7 @@ def get(uuid: str, replica: str):
 @security.authorized_group_required(['hca', 'public'])
 def find(replica: str):
     owner = security.get_token_email(request.token_info)
-    subs = [subscription for subscription in get_subscriptions_for_owner(Replica[replica], owner)
+    subs = [subscription for subscription in subscription_lookup.get_subscriptions_for_owner(Replica[replica], owner)
             if owner == subscription['owner']]
     for s in subs:
         s['replica'] = Replica[replica].name
@@ -69,17 +69,17 @@ def put(json_request_body: dict, replica: str):
                                        f"Unable to compile JMESPath expression for attachment {name}") from e
             else:
                 assert False, type_
-    put_subscription(subscription_doc)
+        subscription_lookup.put_subscription(subscription_doc)
     return subscription_doc, requests.codes.created
 
 
 @security.authorized_group_required(['hca', 'public'])
 def delete(uuid: str, replica: str):
     owner = security.get_token_email(request.token_info)
-    subscription = get_subscription(Replica[replica], owner, uuid)
+    subscription = subscription_lookup.get_subscription(Replica[replica], owner, uuid)
     if subscription is None or owner != subscription[SubscriptionData.OWNER]:
         raise DSSException(404, "not_found", "Cannot find subscription!")
-    delete_subscription(Replica[replica], owner, uuid)
+        subscription_lookup.delete_subscription(Replica[replica], owner, uuid)
     timestamp = datetime.datetime.utcnow()
     time_deleted = timestamp.strftime("%Y-%m-%dT%H%M%S.%fZ")
     return jsonify({'timeDeleted': time_deleted}), requests.codes.okay
