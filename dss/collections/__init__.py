@@ -34,13 +34,10 @@ class CollectionLookup(DynamoLookup):
             return None
 
     def get_collections_for_owner(self, owner: str) -> list:
-        db_resp = dynamodb.query(
-            TableName=self.user_db_table,
-            KeyConditionExpression="hash_key=:owner",
-            ExpressionAttributeValues={':owner': {'S': owner}}
-        )
         collections = []
-        for uuid in db_resp.get('Items', []):
+        items = self.get_primary_key_items(table=self.user_db_table, key=owner)
+        uuids = [item['sort_key']['S'] for item in items]
+        for uuid in uuids:
             collection = {'collection_uuid': uuid,
                           'collection_versions': []}
             for version in self.get_primary_key_items(table=self.version_db_table, key=uuid):

@@ -43,12 +43,12 @@ class DynamoLookup(object):
             ExpressionAttributeNames={'#hash_key': "hash_key"},
             ExpressionAttributeValues={':key': {'S': key}}
         )
-        return db_resp.get('Items')
+        return db_resp.get('Items', [])
 
     @staticmethod
     def get_items_for_table(table: str) -> list:
         db_resp = dynamodb.scan(TableName=table)
-        return db_resp.get('Items')
+        return db_resp.get('Items', [])
 
     @staticmethod
     def delete_item(table: str, key1: str, key2: str):
