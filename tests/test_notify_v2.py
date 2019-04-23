@@ -2,12 +2,9 @@
 # coding: utf-8
 
 import os
-import io
 import sys
 import json
 from uuid import uuid4
-import time
-import pytz
 import boto3
 import botocore.exceptions
 import requests
@@ -22,17 +19,18 @@ pkg_root = os.path.abspath(os.path.join(os.path.dirname(__file__), '..'))  # noq
 sys.path.insert(0, pkg_root)  # noqa
 
 from dss.util import UrlBuilder
-from dss.subscriptions_v2 import SubscriptionLookup, SubscriptionData
 from dss.events.handlers import notify_v2
 from tests.infra import DSSAssertMixin, DSSUploadMixin, get_env, testmode
-from dss.config import Replica, BucketConfig, override_bucket_config
+from dss.config import Replica
 from tests.infra.server import ThreadedLocalServer, SilentHandler
 from tests import eventually, get_auth_header
 from dss.events.handlers.notify_v2 import queue_notification, notify_or_queue
 from dss.util.version import datetime_to_version_format
+from dss.subscriptions_v2 import (delete_subscription,
+                                  get_subscriptions_for_replica,
+                                  get_subscriptions_for_owner)
 
 
-subscription_lookup = SubscriptionLookup()
 recieved_notification = None
 
 
@@ -82,10 +80,10 @@ class TestNotifyV2(unittest.TestCase, DSSAssertMixin, DSSUploadMixin):
     @classmethod
     def tearDownClass(cls):
         for replica in Replica:
-            subs = [s for s in subscription_lookup.get_subscriptions_for_owner(replica, cls.owner)
+            subs = [s for s in get_subscriptions_for_owner(replica, cls.owner)
                     if s['owner'] == cls.owner]
             for s in subs:
-                subscription_lookup.delete_subscription(replica, cls.owner, s['uuid'])
+                delete_subscription(replica, cls.owner, s['uuid'])
 
     @testmode.standalone
     def test_regex_patterns(self):
@@ -366,7 +364,7 @@ class TestNotifyV2(unittest.TestCase, DSSAssertMixin, DSSUploadMixin):
     def test_get_subscriptions_for_replica(self):
         for replica in Replica:
             with self.subTest(replica.name):
-                subscription_lookup.get_subscriptions_for_replica(replica)
+                get_subscriptions_for_replica(replica)
 
     @testmode.integration
     def test_subscription_api(self):
