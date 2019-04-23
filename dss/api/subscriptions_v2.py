@@ -1,9 +1,8 @@
 import datetime
-from uuid import uuid4
-
-import requests
-from flask import jsonify, request
 import jmespath
+import requests
+from uuid import uuid4
+from flask import jsonify, request
 from jmespath.exceptions import JMESPathError
 
 from dss.config import Replica
