@@ -14,11 +14,10 @@ from concurrent.futures import ThreadPoolExecutor
 import jmespath
 from jmespath.exceptions import JMESPathError
 
-import dss
 from dss import Config, Replica
 from dss.util.aws.clients import sqs  # type: ignore
-from dss.subscriptions_v2 import SubscriptionData, get_subscriptions_for_replica
-from dss.storage.identifiers import UUID_PATTERN, VERSION_PATTERN, TOMBSTONE_SUFFIX, DSS_BUNDLE_KEY_REGEX
+from dss.subscriptions_v2 import SubscriptionData
+from dss.storage.identifiers import TOMBSTONE_SUFFIX, DSS_BUNDLE_KEY_REGEX
 
 logger = logging.getLogger(__name__)
 
