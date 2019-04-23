@@ -68,7 +68,7 @@ def put(json_request_body: dict, replica: str):
                                        f"Unable to compile JMESPath expression for attachment {name}") from e
             else:
                 assert False, type_
-        put_subscription(subscription_doc)
+    put_subscription(subscription_doc)
     return subscription_doc, requests.codes.created
 
 

@@ -80,8 +80,7 @@ class TestNotifyV2(unittest.TestCase, DSSAssertMixin, DSSUploadMixin):
     @classmethod
     def tearDownClass(cls):
         for replica in Replica:
-            subs = [s for s in get_subscriptions_for_owner(replica, cls.owner)
-                    if s['owner'] == cls.owner]
+            subs = [s for s in get_subscriptions_for_owner(replica, cls.owner) if s['owner'] == cls.owner]
             for s in subs:
                 delete_subscription(replica, cls.owner, s['uuid'])
 
