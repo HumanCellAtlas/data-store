@@ -118,7 +118,7 @@ def _notify_subscribers(replica: Replica, key: str, is_delete_event: bool):
 
     # TODO: Consider scaling parallelization with Lambda size
     with ThreadPoolExecutor(max_workers=20) as e:
-        e.map(_func, [s for s in subscription_lookup.get_subscriptions_for_replica(replica)])
+        e.map(_func, subscription_lookup.get_subscriptions_for_replica(replica))
 
 class DSSFailedNotificationDelivery(Exception):
     pass

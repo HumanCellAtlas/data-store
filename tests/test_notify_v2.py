@@ -21,9 +21,8 @@ from copy import deepcopy
 pkg_root = os.path.abspath(os.path.join(os.path.dirname(__file__), '..'))  # noqa
 sys.path.insert(0, pkg_root)  # noqa
 
-import dss
 from dss.util import UrlBuilder
-from dss import subscriptions_v2
+from dss.subscriptions_v2 import SubscriptionLookup, SubscriptionData
 from dss.events.handlers import notify_v2
 from tests.infra import DSSAssertMixin, DSSUploadMixin, get_env, testmode
 from dss.config import Replica, BucketConfig, override_bucket_config
@@ -33,7 +32,10 @@ from dss.events.handlers.notify_v2 import queue_notification, notify_or_queue
 from dss.util.version import datetime_to_version_format
 
 
+subscription_lookup = SubscriptionLookup()
 recieved_notification = None
+
+
 class MyHandlerClass(SilentHandler):
     """
     Modify ThreadedLocalServer to respond to our notification deliveries.
@@ -80,10 +82,10 @@ class TestNotifyV2(unittest.TestCase, DSSAssertMixin, DSSUploadMixin):
     @classmethod
     def tearDownClass(cls):
         for replica in Replica:
-            subs = [s for s in subscriptions_v2.get_subscriptions_for_owner(replica, cls.owner)
+            subs = [s for s in subscription_lookup.get_subscriptions_for_owner(replica, cls.owner)
                     if s['owner'] == cls.owner]
             for s in subs:
-                subscriptions_v2.delete_subscription(replica, cls.owner, s['uuid'])
+                subscription_lookup.delete_subscription(replica, cls.owner, s['uuid'])
 
     @testmode.standalone
     def test_regex_patterns(self):
@@ -364,7 +366,7 @@ class TestNotifyV2(unittest.TestCase, DSSAssertMixin, DSSUploadMixin):
     def test_get_subscriptions_for_replica(self):
         for replica in Replica:
             with self.subTest(replica.name):
-                subscriptions_v2.get_subscriptions_for_replica(replica)
+                subscription_lookup.get_subscriptions_for_replica(replica)
 
     @testmode.integration
     def test_subscription_api(self):
