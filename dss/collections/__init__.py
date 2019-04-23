@@ -46,6 +46,7 @@ class CollectionLookup(DynamoLookup):
             for version in self.get_primary_key_items(table=self.version_db_table, key=uuid):
                 collection['collection_versions'].append(version['sort_key']['S'])
             collections.append(collection)
+        return collections
 
     def delete_collection(self, owner: str, uuid: str):
         # delete that user's association with the uuid

@@ -24,7 +24,6 @@ from tests.infra.server import ThreadedLocalServer
 from tests.fixtures.cloud_uploader import ChecksummingSink
 from dss.util.version import datetime_to_version_format
 from dss.util import UrlBuilder
-from dss import Replica
 from dss.collections import CollectionLookup
 
 @testmode.integration

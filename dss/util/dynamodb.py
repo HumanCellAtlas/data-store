@@ -1,5 +1,3 @@
-import json
-
 from dss.util.aws.clients import dynamodb  # type: ignore
 
 
