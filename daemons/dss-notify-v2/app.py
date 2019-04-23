@@ -18,18 +18,19 @@ sys.path.insert(0, pkg_root)  # noqa
 import dss
 from dss import Config, Replica
 from dss.logging import configure_lambda_logging
-from dss.subscriptions_v2 import SubscriptionLookup
+from dss.util import dynamodb
+from dss.api.subscriptions_v2 import subscription_db_table
 from dss.events.handlers.notify_v2 import (should_notify, notify_or_queue, notify, build_bundle_metadata_document,
                                            build_deleted_bundle_metadata_document)
 from dss.events.handlers.sync import exists
 
 
-subscription_lookup = SubscriptionLookup()
 configure_lambda_logging()
 logger = logging.getLogger(__name__)
 dss.Config.set_config(dss.BucketConfig.NORMAL)
 
 app = domovoi.Domovoi()
+
 
 # This entry point is for S3 native events forwarded through SQS.
 @app.s3_event_handler(
@@ -55,6 +56,7 @@ def launch_from_s3_event(event, context):
             else:
                 logger.warning(f"Notifications not supported for {key}")
 
+
 # This entry point is for external events forwarded by dss-gs-event-relay (or other event sources) through SNS-SQS.
 @app.sqs_queue_subscriber(
     "dss-notify-v2-event-relay-" + os.environ['DSS_DEPLOYMENT_STAGE'],
@@ -74,6 +76,7 @@ def launch_from_forwarded_event(event, context):
         else:
             raise NotImplementedError()
 
+
 # This entry point is for queued notifications for manual notification or redrive
 @app.sqs_queue_subscriber(
     "dss-notify-v2-" + os.environ['DSS_DEPLOYMENT_STAGE'],
@@ -91,8 +94,11 @@ def launch_from_notification_queue(event, context):
         uuid = message['uuid']
         key = message['key']
         event_type = message['event_type']
-        subscription = subscription_lookup.get_subscription(replica, owner, uuid)
+        subscription = dynamodb.get_item(table=subscription_db_table.format(Replica[replica].name),
+                                         key1=owner,
+                                         key2=uuid)
         if subscription is not None:
+            subscription = json.loads(subscription['body']['S'])
             if "DELETE" == event_type:
                 metadata_document = build_deleted_bundle_metadata_document(key)
             else:
@@ -106,6 +112,7 @@ def launch_from_notification_queue(event, context):
         else:
             logger.warning(f"Recieved queue message with no matching subscription:{message}")
 
+
 def _notify_subscribers(replica: Replica, key: str, is_delete_event: bool):
     if is_delete_event:
         metadata_document = build_deleted_bundle_metadata_document(key)
@@ -118,7 +125,10 @@ def _notify_subscribers(replica: Replica, key: str, is_delete_event: bool):
 
     # TODO: Consider scaling parallelization with Lambda size
     with ThreadPoolExecutor(max_workers=20) as e:
-        e.map(_func, subscription_lookup.get_subscriptions_for_replica(replica))
+        # fetch all subscriptions for that replica
+        replica_table = subscription_db_table.format(replica.name)
+        e.map(_func, [json.loads(i['body']['S']) for i in dynamodb.get_all_table_items(replica_table)])
+
 
 class DSSFailedNotificationDelivery(Exception):
     pass
