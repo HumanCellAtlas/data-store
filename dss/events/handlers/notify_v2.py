@@ -16,7 +16,7 @@ from jmespath.exceptions import JMESPathError
 
 from dss import Config, Replica
 from dss.util.aws.clients import sqs  # type: ignore
-from dss.api.subscriptions_v2 import SubscriptionData
+from dss.subscriptions_v2 import SubscriptionData
 from dss.storage.identifiers import UUID_PATTERN, VERSION_PATTERN, TOMBSTONE_SUFFIX, DSS_BUNDLE_KEY_REGEX
 
 logger = logging.getLogger(__name__)

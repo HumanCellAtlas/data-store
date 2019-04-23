@@ -1,5 +1,4 @@
 import datetime
-import json
 from uuid import uuid4
 
 import requests
@@ -9,33 +8,17 @@ from jmespath.exceptions import JMESPathError
 
 from dss.config import Replica
 from dss.error import DSSException
-from dss.util import security, dynamodb
+from dss.util import security
+from dss.subscriptions_v2 import SubscriptionData, SubscriptionLookup
 
 
-subscription_db_table = f"dss-subscriptions-v2-{{}}-{os.environ['DSS_DEPLOYMENT_STAGE']}"
-
-
-class SubscriptionData:
-    REPLICA = 'replica'
-    OWNER = 'owner'
-    UUID = 'uuid'
-    CALLBACK_URL = 'callback_url'
-    JMESPATH_QUERY = 'jmespath_query'
-    METHOD = 'method'
-    ENCODING = 'encoding'
-    FORM_FIELDS = 'form_fields'
-    PAYLOAD_FORM_FIELD = 'payload_form_field'
-    ATTACHMENTS = 'attachments'
+subscription_lookup = SubscriptionLookup()
 
 
 @security.authorized_group_required(['hca', 'public'])
 def get(uuid: str, replica: str):
     owner = security.get_token_email(request.token_info)
-    subscription = dynamodb.get_item(table=subscription_db_table.format(Replica[replica].name),
-                                     key1=owner,
-                                     key2=uuid)
-    if subscription is not None:
-        subscription = json.loads(subscription['body']['S'])
+    subscription = subscription_lookup.get_subscription(Replica[replica], owner, uuid)
     if subscription is None or owner != subscription[SubscriptionData.OWNER]:
         raise DSSException(404, "not_found", "Cannot find subscription!")
     return subscription, requests.codes.ok
@@ -44,9 +27,8 @@ def get(uuid: str, replica: str):
 @security.authorized_group_required(['hca', 'public'])
 def find(replica: str):
     owner = security.get_token_email(request.token_info)
-    subscriptions = dynamodb.get_primary_key_items(table=subscription_db_table.format(Replica[replica].name),
-                                                   key=owner)
-    subs = [json.loads(s['body']['S']) for s in subscriptions if owner == s['body']['S']['owner']]
+    subs = [subscription for subscription in subscription_lookup.get_subscriptions_for_owner(Replica[replica], owner)
+            if owner == subscription['owner']]
     for s in subs:
         s['replica'] = Replica[replica].name
     return {'subscriptions': subs}, requests.codes.ok
@@ -87,24 +69,17 @@ def put(json_request_body: dict, replica: str):
                                        f"Unable to compile JMESPath expression for attachment {name}") from e
             else:
                 assert False, type_
-        dynamodb.put_item(table=subscription_db_table.format(Replica[replica].name),
-                          key1=subscription_doc[SubscriptionData.OWNER],
-                          key2=subscription_doc[SubscriptionData.UUID],
-                          value=json.dumps(subscription_doc))
+        subscription_lookup.put_subscription(subscription_doc)
     return subscription_doc, requests.codes.created
 
 
 @security.authorized_group_required(['hca', 'public'])
 def delete(uuid: str, replica: str):
     owner = security.get_token_email(request.token_info)
-    subscription = dynamodb.get_item(table=subscription_db_table.format(Replica[replica].name),
-                                     key1=owner,
-                                     key2=uuid)
-    if subscription is not None:
-        subscription = json.loads(subscription['body']['S'])
+    subscription = subscription_lookup.get_subscription(Replica[replica], owner, uuid)
     if subscription is None or owner != subscription[SubscriptionData.OWNER]:
         raise DSSException(404, "not_found", "Cannot find subscription!")
-        # subscription_lookup.delete_subscription(Replica[replica], owner, uuid)
+        subscription_lookup.delete_subscription(Replica[replica], owner, uuid)
     timestamp = datetime.datetime.utcnow()
     time_deleted = timestamp.strftime("%Y-%m-%dT%H%M%S.%fZ")
     return jsonify({'timeDeleted': time_deleted}), requests.codes.okay

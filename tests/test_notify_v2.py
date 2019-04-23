@@ -22,8 +22,7 @@ pkg_root = os.path.abspath(os.path.join(os.path.dirname(__file__), '..'))  # noq
 sys.path.insert(0, pkg_root)  # noqa
 
 from dss.util import UrlBuilder
-from dss.util import dynamodb
-from dss.api.subscriptions_v2 import subscription_db_table
+from dss.subscriptions_v2 import SubscriptionLookup, SubscriptionData
 from dss.events.handlers import notify_v2
 from tests.infra import DSSAssertMixin, DSSUploadMixin, get_env, testmode
 from dss.config import Replica, BucketConfig, override_bucket_config
@@ -33,6 +32,7 @@ from dss.events.handlers.notify_v2 import queue_notification, notify_or_queue
 from dss.util.version import datetime_to_version_format
 
 
+subscription_lookup = SubscriptionLookup()
 recieved_notification = None
 
 
@@ -82,11 +82,10 @@ class TestNotifyV2(unittest.TestCase, DSSAssertMixin, DSSUploadMixin):
     @classmethod
     def tearDownClass(cls):
         for replica in Replica:
-            subscriptions = dynamodb.get_primary_key_items(table=subscription_db_table.format(Replica[replica].name),
-                                                           key=cls.owner)
-            subs = [json.loads(s['body']['S']) for s in subscriptions if cls.owner == s['body']['S']['owner']]
+            subs = [s for s in subscription_lookup.get_subscriptions_for_owner(replica, cls.owner)
+                    if s['owner'] == cls.owner]
             for s in subs:
-                dynamodb.delete_subscription(replica, cls.owner, s['uuid'])
+                subscription_lookup.delete_subscription(replica, cls.owner, s['uuid'])
 
     @testmode.standalone
     def test_regex_patterns(self):
