@@ -1,3 +1,5 @@
+from typing import Generator
+
 from dss.util.aws.clients import dynamodb as db  # type: ignore
 
 
@@ -53,7 +55,7 @@ def get_item(table: str, hash_key: str, sort_key: str):
     return item
 
 
-def get_primary_key_items(table: str, key: str, return_key: str='body') -> list:
+def get_primary_key_items(table: str, key: str, return_key: str='body') -> Generator[str, None, None]:
     """
     Get associated value for a given set of keys from a dynamoDB table.
 
@@ -73,7 +75,7 @@ def get_primary_key_items(table: str, key: str, return_key: str='body') -> list:
         yield item[return_key]['S']
 
 
-def get_all_table_items(table: str, return_key: str='body') -> list:
+def get_all_table_items(table: str, return_key: str='body') -> Generator[str, None, None]:
     """
     Return all items from a table.
 
