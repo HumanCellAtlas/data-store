@@ -2,7 +2,7 @@ import os
 import json
 
 from dss.config import Replica
-from dss.util import dynamodb  # type: ignore
+from dss import dynamodb  # type: ignore
 
 
 class SubscriptionData:
