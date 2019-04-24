@@ -8,7 +8,7 @@ def put_item(table: str, value: str, hash_key: str, sort_key: str=None):
     Put an item into a dynamoDB table.
 
     Will determine the type of db this is being called on by the number of keys provided (omit
-    sort_key to PUT into a db with only 1 primary key)
+    sort_key to PUT into a db with only 1 primary key).
 
     :param table: Name of the table in AWS.
     :param str value: Value stored by the two primary keys.
@@ -51,7 +51,7 @@ def get_item(table: str, hash_key: str, sort_key: str=None):
     Get associated value for a given set of keys from a dynamoDB table.
 
     Will determine the type of db this is being called on by the number of keys provided (omit
-    sort_key to GET a value from a db with only 1 primary key)
+    sort_key to GET a value from a db with only 1 primary key).
 
     :param table: Name of the table in AWS.
     :param str hash_key: 1st primary key that can be used to fetch associated sort_keys and values.
@@ -123,10 +123,13 @@ def delete_item(table: str, hash_key: str, sort_key: str=None):
     """
     Delete an item from a dynamoDB table.
 
+    Will determine the type of db this is being called on by the number of keys provided (omit
+    sort_key to PUT into a db with only 1 primary key).
+
     :param table: Name of the table in AWS.
-    :param str value: Value stored by the two primary keys.
     :param str hash_key: 1st primary key that can be used to fetch associated sort_keys and values.
     :param str sort_key: 2nd primary key, used with hash_key to fetch a specific value.
+                         Note: If not specified, this will DELETE only 1 key (hash_key) and 1 value.
     :return: None
     """
     if sort_key:
