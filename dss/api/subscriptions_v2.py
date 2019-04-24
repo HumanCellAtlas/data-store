@@ -1,18 +1,18 @@
-import os
 import datetime
-import logging
-from uuid import uuid4
-
-import requests
-from flask import jsonify, request
 import jmespath
+import requests
+from uuid import uuid4
+from flask import jsonify, request
 from jmespath.exceptions import JMESPathError
 
 from dss.config import Replica
 from dss.error import DSSException
 from dss.util import security
-from dss.subscriptions_v2 import (SubscriptionData, get_subscription, get_subscriptions_for_owner, put_subscription,
-                                  delete_subscription)
+from dss.subscriptions_v2 import (SubscriptionData,
+                                  get_subscription,
+                                  put_subscription,
+                                  delete_subscription,
+                                  get_subscriptions_for_owner)
 
 
 @security.authorized_group_required(['hca', 'public'])
@@ -27,8 +27,7 @@ def get(uuid: str, replica: str):
 @security.authorized_group_required(['hca', 'public'])
 def find(replica: str):
     owner = security.get_token_email(request.token_info)
-    subs = [subscription for subscription in get_subscriptions_for_owner(Replica[replica], owner)
-            if owner == subscription['owner']]
+    subs = [s for s in get_subscriptions_for_owner(Replica[replica], owner) if owner == s['owner']]
     for s in subs:
         s['replica'] = Replica[replica].name
     return {'subscriptions': subs}, requests.codes.ok

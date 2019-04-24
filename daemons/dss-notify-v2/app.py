@@ -5,9 +5,7 @@ storage_event -> invoke_notify_daemon -> invoke_sfn -> sfn_dynamodb_loop -> sqs 
 """
 
 import os, sys, json, logging
-import boto3
 from urllib.parse import unquote
-from functools import partial
 from concurrent.futures import ThreadPoolExecutor
 
 import domovoi
@@ -18,10 +16,11 @@ sys.path.insert(0, pkg_root)  # noqa
 import dss
 from dss import Config, Replica
 from dss.logging import configure_lambda_logging
-from dss.subscriptions_v2 import get_subscriptions_for_replica, get_subscription
 from dss.events.handlers.notify_v2 import (should_notify, notify_or_queue, notify, build_bundle_metadata_document,
                                            build_deleted_bundle_metadata_document)
 from dss.events.handlers.sync import exists
+from dss.subscriptions_v2 import get_subscription, get_subscriptions_for_replica
+
 
 configure_lambda_logging()
 logger = logging.getLogger(__name__)
@@ -116,7 +115,7 @@ def _notify_subscribers(replica: Replica, key: str, is_delete_event: bool):
 
     # TODO: Consider scaling parallelization with Lambda size
     with ThreadPoolExecutor(max_workers=20) as e:
-        e.map(_func, [s for s in get_subscriptions_for_replica(replica)])
+        e.map(_func, get_subscriptions_for_replica(replica))
 
 class DSSFailedNotificationDelivery(Exception):
     pass
