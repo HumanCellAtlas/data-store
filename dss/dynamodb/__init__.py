@@ -4,23 +4,12 @@ from dss.util.aws.clients import dynamodb as db  # type: ignore
 
 
 def format_item(value, hash_key, sort_key):
-    item = {}
+    item = {'hash_key': {'S': hash_key}}
     if value:
         item['body'] = {'S': value}
     if sort_key:
-        item['hash_key'] = {'S': hash_key}
         item['sort_key'] = {'S': sort_key}
-    else:
-        item['key'] = {'S': hash_key}
     return item
-
-# def format_item(value, hash_key, sort_key):
-#     item = {'hash_key': {'S': hash_key}}
-#     if value:
-#         item['body'] = {'S': value}
-#     if sort_key:
-#         item['sort_key'] = {'S': sort_key}
-#     return item
 
 
 def put_item(table: str, value: str, hash_key: str, sort_key: str=None, overwrite: str=None):

@@ -17,7 +17,7 @@ resource "aws_dynamodb_table" "sfn_state" {
   hash_key     = "key"
 
   attribute {
-    name = "key"
+    name = "hash_key"
     type = "S"
   }
 
