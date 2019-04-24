@@ -1,7 +1,16 @@
 from dss.util.aws.clients import dynamodb as db  # type: ignore
 
 
-def put_item(table: str, value: str, hash_key: str, sort_key: str=None):
+def put_item(table: str, value: str, hash_key: str, sort_key: str):
+    """
+    Put an item into a dynamoDB table.
+
+    :param table: Name of the table in AWS.
+    :param str value: Value stored by the two primary keys.
+    :param str hash_key: 1st primary key that can be used to fetch associated sort_keys and values.
+    :param str sort_key: 2nd primary key, used with hash_key to fetch a specific value.
+    :return: None
+    """
     db.put_item(
         TableName=table,
         Item={
@@ -18,7 +27,15 @@ def put_item(table: str, value: str, hash_key: str, sort_key: str=None):
     )
 
 
-def get_item(table: str, hash_key: str, sort_key: str=None):
+def get_item(table: str, hash_key: str, sort_key: str):
+    """
+    Get associated value for a given set of keys from a dynamoDB table.
+
+    :param table: Name of the table in AWS.
+    :param str hash_key: 1st primary key that can be used to fetch associated sort_keys and values.
+    :param str sort_key: 2nd primary key, used with hash_key to fetch a specific value.
+    :return: None or str
+    """
     db_resp = db.get_item(
         TableName=table,
         Key={
@@ -37,6 +54,14 @@ def get_item(table: str, hash_key: str, sort_key: str=None):
 
 
 def get_primary_key_items(table: str, key: str, return_key: str='body') -> list:
+    """
+    Get associated value for a given set of keys from a dynamoDB table.
+
+    :param table: Name of the table in AWS.
+    :param str key: 1st primary key that can be used to fetch associated sort_keys and values.
+    :param str return_key: Either "body" (to return all values) or "sort_key" (to return all 2nd primary keys).
+    :return: Iterable (str)
+    """
     db_resp = db.query(
         TableName=table,
         ScanIndexForward=False,  # True = ascending, False = descending
@@ -48,12 +73,28 @@ def get_primary_key_items(table: str, key: str, return_key: str='body') -> list:
         yield item[return_key]['S']
 
 
-def get_all_table_items(table: str) -> list:
+def get_all_table_items(table: str, return_key: str='body') -> list:
+    """
+    Return all items from a table.
+
+    :param table: Name of the table in AWS.
+    :param str return_key: Either "body" (to return all values) or "sort_key" (to return all 2nd primary keys).
+    :return: Iterable (str)
+    """
     db_resp = db.scan(TableName=table)
-    return db_resp.get('Items', [])
+    for item in db_resp.get('Items', []):
+        yield item[return_key]['S']
 
 
-def delete_item(table: str, hash_key: str, sort_key: str=None):
+def delete_item(table: str, hash_key: str, sort_key: str):
+    """
+    Delete an item from a dynamoDB table.
+
+    :param str value: Value stored by the two primary keys.
+    :param str hash_key: 1st primary key that can be used to fetch associated sort_keys and values.
+    :param str sort_key: 2nd primary key, used with hash_key to fetch a specific value.
+    :return: None
+    """
     db.delete_item(
         TableName=table,
         Key={

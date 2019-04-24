@@ -19,8 +19,7 @@ from dss.logging import configure_lambda_logging
 from dss.events.handlers.notify_v2 import (should_notify, notify_or_queue, notify, build_bundle_metadata_document,
                                            build_deleted_bundle_metadata_document)
 from dss.events.handlers.sync import exists
-from dss.subscriptions_v2 import (get_subscription,
-                                  get_subscriptions_for_replica)
+from dss.subscriptions_v2 import get_subscription, get_subscriptions_for_replica
 
 
 configure_lambda_logging()
