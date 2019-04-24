@@ -32,21 +32,18 @@ def get_subscription(replica: Replica, owner: str, uuid: str):
     item = dynamodb.get_item(table=subscription_db_table.format(replica.name),
                              key1=owner,
                              key2=uuid)
-    if item is not None:
-        return json.loads(item['body']['S'])
-    else:
-        return None
+    return json.loads(item)
 
 
 def get_subscriptions_for_owner(replica: Replica, owner: str) -> list:
     items = dynamodb.get_primary_key_items(table=subscription_db_table.format(replica.name),
                                            key=owner)
-    return [json.loads(item['body']['S']) for item in items]
+    return [json.loads(item) for item in items]
 
 
 def get_subscriptions_for_replica(replica: Replica) -> list:
     items = dynamodb.get_all_table_items(table=subscription_db_table.format(replica.name))
-    return [json.loads(item['body']['S']) for item in items]
+    return [json.loads(item) for item in items]
 
 
 def delete_subscription(replica: Replica, owner: str, uuid: str):
