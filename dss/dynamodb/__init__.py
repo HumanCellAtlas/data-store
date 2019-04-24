@@ -105,7 +105,7 @@ def delete_item(table: str, hash_key: str, sort_key: str=None):
     Delete an item from a dynamoDB table.
 
     Will determine the type of db this is being called on by the number of keys provided (omit
-    sort_key to PUT into a db with only 1 primary key).
+    sort_key to DELETE from a db with only 1 primary key).
 
     :param table: Name of the table in AWS.
     :param str hash_key: 1st primary key that can be used to fetch associated sort_keys and values.
@@ -115,4 +115,4 @@ def delete_item(table: str, hash_key: str, sort_key: str=None):
     """
     query = {'TableName': table,
              'Key': format_item(value=None, hash_key=hash_key, sort_key=sort_key)}
-    db.delete_item(query)
+    db.delete_item(**query)
