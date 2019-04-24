@@ -3,7 +3,27 @@ from typing import Generator
 from dss.util.aws.clients import dynamodb as db  # type: ignore
 
 
-def put_item(table: str, value: str, hash_key: str, sort_key: str=None):
+def format_item(value, hash_key, sort_key):
+    item = {}
+    if value:
+        item['body'] = {'S': value}
+    if sort_key:
+        item['hash_key'] = {'S': hash_key}
+        item['sort_key'] = {'S': sort_key}
+    else:
+        item['key'] = {'S': hash_key}
+    return item
+
+# def format_item(value, hash_key, sort_key):
+#     item = {'hash_key': {'S': hash_key}}
+#     if value:
+#         item['body'] = {'S': value}
+#     if sort_key:
+#         item['sort_key'] = {'S': sort_key}
+#     return item
+
+
+def put_item(table: str, value: str, hash_key: str, sort_key: str=None, overwrite: str=None):
     """
     Put an item into a dynamoDB table.
 
@@ -15,35 +35,15 @@ def put_item(table: str, value: str, hash_key: str, sort_key: str=None):
     :param str hash_key: 1st primary key that can be used to fetch associated sort_keys and values.
     :param str sort_key: 2nd primary key, used with hash_key to fetch a specific value.
                          Note: If not specified, this will PUT only 1 key (hash_key) and 1 value.
+    :param str overwrite: Don't overwrite if this parameter exists.  For example, setting this
+                          to 'sort_key' won't overwrite if that sort_key already exists in the table.
     :return: None
     """
-    if sort_key:
-        db.put_item(
-            TableName=table,
-            Item={
-                'hash_key': {
-                    'S': hash_key
-                },
-                'sort_key': {
-                    'S': sort_key
-                },
-                'body': {
-                    'S': value
-                },
-            }
-        )
-    else:
-        db.put_item(
-            TableName=table,
-            Item={
-                'key': {
-                    'S': hash_key
-                },
-                'body': {
-                    'S': value
-                },
-            }
-        )
+    query = {'TableName': table,
+             'Item': format_item(value=value, hash_key=hash_key, sort_key=sort_key)}
+    if overwrite:
+        query['ConditionExpression'] = f'attribute_not_exists({overwrite})'
+    db.put_item(**query)
 
 
 def get_item(table: str, hash_key: str, sort_key: str=None):
@@ -59,28 +59,9 @@ def get_item(table: str, hash_key: str, sort_key: str=None):
                          Note: If not specified, this will GET only 1 key (hash_key) and 1 value.
     :return: None or str
     """
-    if sort_key:
-        db_resp = db.get_item(
-            TableName=table,
-            Key={
-                'hash_key': {
-                    'S': hash_key
-                },
-                'sort_key': {
-                    'S': sort_key
-                }
-            }
-        )
-    else:
-        db_resp = db.get_item(
-            TableName=table,
-            Key={
-                'key': {
-                    'S': hash_key
-                }
-            }
-        )
-    item = db_resp.get('Item')
+    query = {'TableName': table,
+             'Key': format_item(value=None, hash_key=hash_key, sort_key=sort_key)}
+    item = db.get_item(**query).get('Item')
     if item is not None:
         return item['body']['S']
     return item
@@ -132,24 +113,6 @@ def delete_item(table: str, hash_key: str, sort_key: str=None):
                          Note: If not specified, this will DELETE only 1 key (hash_key) and 1 value.
     :return: None
     """
-    if sort_key:
-        db.delete_item(
-            TableName=table,
-            Key={
-                'hash_key': {
-                    'S': hash_key
-                },
-                'sort_key': {
-                    'S': sort_key
-                }
-            }
-        )
-    else:
-        db.delete_item(
-            TableName=table,
-            Key={
-                'key': {
-                    'S': hash_key
-                },
-            }
-        )
+    query = {'TableName': table,
+             'Key': format_item(value=None, hash_key=hash_key, sort_key=sort_key)}
+    db.delete_item(query)
