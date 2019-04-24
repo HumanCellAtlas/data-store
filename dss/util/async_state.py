@@ -2,9 +2,7 @@ import os
 import json
 import typing
 
-import dss
-from dss import Replica
-from dss.util.aws.clients import dynamodb  # type: ignore
+from dss.dynamodb import get_item, put_item, delete_item
 
 
 class AsyncStateItem:
@@ -19,7 +17,6 @@ class AsyncStateItem:
         type(foo) == MyAsyncSubclass  # True
         type(bar) == MyAsyncSubclass  # True
     """
-
     table = f"dss-async-state-{os.environ['DSS_DEPLOYMENT_STAGE']}"
 
     def __init__(self, key: str, body: dict) -> None:
@@ -29,17 +26,7 @@ class AsyncStateItem:
         self.body = body
 
     def _put(self) -> typing.Any:
-        return dynamodb.put_item(
-            TableName=self.table,
-            Item={
-                'key': {
-                    'S': self.key
-                },
-                'body': {
-                    'S': json.dumps(self.body)
-                },
-            }
-        )
+        return put_item(table=self.table, value=json.dumps(self.body), hash_key=self.key)
 
     @classmethod
     def put(cls, key: str, body: dict = None) -> typing.Any:
@@ -49,32 +36,15 @@ class AsyncStateItem:
 
     @classmethod
     def get(cls, key: str) -> typing.Any:
-        try:
-            item = dynamodb.get_item(  # mypy: ignore
-                TableName=cls.table,
-                Key={
-                    'key': {
-                        'S': key
-                    }
-                }
-            )['Item']
-        except KeyError:
-            return None
-
-        body = json.loads(item['body']['S'])
-        item_class = _all_subclasses(cls)[body['_type']]
-        return item_class(key, body)
+        item = get_item(table=cls.table, hash_key=key)
+        if item:
+            body = json.loads(item)
+            item_class = _all_subclasses(cls)[body['_type']]
+            return item_class(key, body)
 
     @classmethod
     def delete(cls, key: str) -> None:
-        dynamodb.delete_item(
-            TableName=cls.table,
-            Key={
-                'key': {
-                    'S': key
-                },
-            }
-        )
+        delete_item(table=cls.table, hash_key=key)
 
     def delete_item(self):
         AsyncStateItem.delete(self.key)
