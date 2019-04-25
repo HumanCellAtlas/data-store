@@ -35,7 +35,7 @@ def put_item(*, table: str, hash_key: str, sort_key: str=None, value: str, overw
     db.put_item(**query)
 
 
-def get_item(table: str, hash_key: str, sort_key: str=None):
+def get_item(*, table: str, hash_key: str, sort_key: str=None):
     """
     Get associated value for a given set of keys from a dynamoDB table.
 
@@ -56,7 +56,7 @@ def get_item(table: str, hash_key: str, sort_key: str=None):
     return item
 
 
-def get_primary_key_items(table: str, key: str, return_key: str='body') -> Generator[str, None, None]:
+def get_primary_key_items(*, table: str, key: str, return_key: str='body') -> Generator[str, None, None]:
     """
     Get associated value for a given set of keys from a dynamoDB table.
 
@@ -76,7 +76,7 @@ def get_primary_key_items(table: str, key: str, return_key: str='body') -> Gener
         yield item[return_key]['S']
 
 
-def get_all_table_items(table: str, return_key: str='body') -> Generator[str, None, None]:
+def get_all_table_items(*, table: str, return_key: str='body') -> Generator[str, None, None]:
     """
     Return all items from a dynamoDB table.
 
@@ -89,7 +89,7 @@ def get_all_table_items(table: str, return_key: str='body') -> Generator[str, No
         yield item[return_key]['S']
 
 
-def delete_item(table: str, hash_key: str, sort_key: str=None):
+def delete_item(*, table: str, hash_key: str, sort_key: str=None):
     """
     Delete an item from a dynamoDB table.
 
