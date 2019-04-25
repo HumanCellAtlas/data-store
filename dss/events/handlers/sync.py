@@ -133,7 +133,9 @@ def initiate_multipart_upload(source_replica: Replica, dest_replica: Replica, so
     s3_object = s3_bucket.Object(source_key)
     source_blobstore = Config.get_blobstore_handle(source_replica)
     source_metadata = source_blobstore.get_user_metadata(source_replica.bucket, source_key) or {}
-    mpu = s3_object.initiate_multipart_upload(Metadata=source_metadata)
+    source_content_type = source_blobstore.get_content_type(source_replica.bucket, source_key)
+    mpu = s3_object.initiate_multipart_upload(Metadata=source_metadata,
+                                              ContentType=source_content_type)
     return mpu.id
 
 def complete_multipart_upload(msg: dict):
@@ -181,6 +183,8 @@ def compose_upload(msg: dict):
         source_blob = resources.s3.Bucket(msg["source_bucket"]).Object(msg["source_key"])  # type: ignore
         dest_blob = gs_bucket.get_blob(msg["dest_key"])
         dest_blob.metadata = source_blob.metadata
+        dest_blob.content_type = source_blob.content_type
+        dest_blob.patch()
     else:
         raise NotImplementedError()
 

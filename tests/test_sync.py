@@ -48,6 +48,10 @@ class DSSSyncMixin:
             self.payload += os.urandom(size - len(self.payload))
         return self.payload[:size]
 
+    def _assert_content_type(self, s3_blob, gs_blob):
+        gs_blob.reload()
+        self.assertEqual(s3_blob.content_type, gs_blob.content_type)
+
 @testmode.standalone
 class TestSyncUtils(unittest.TestCase, DSSSyncMixin):
     def setUp(self):
@@ -228,10 +232,6 @@ class TestSyncUtils(unittest.TestCase, DSSSyncMixin):
                 self.assertTrue(sync.dependencies_exist(Replica.aws, Replica.aws, file_key))
             check_blob_revdeps()
 
-    def _assert_content_type(self, s3_blob, gs_blob):
-        gs_blob.reload()
-        self.assertEqual(s3_blob.content_type, gs_blob.content_type)
-
 # TODO: (akislyuk) integration test of SQS fault injection, SFN fault injection
 
 @testmode.integration
@@ -275,6 +275,7 @@ class TestSyncDaemon(unittest.TestCase, DSSSyncMixin):
 
             gs_dest_blob.reload()
             self.assertEqual(gs_dest_blob.metadata, test_metadata)
+            self._assert_content_type(src_blob, gs_dest_blob)
 
         with self.subTest("gs to s3"):
             test_key = "{}/gs-to-s3/{}".format(self.test_blob_prefix, uuid.uuid4())
@@ -288,6 +289,7 @@ class TestSyncDaemon(unittest.TestCase, DSSSyncMixin):
                 self.assertEqual(dest_blob.get()["Body"].read(), payload)
                 self.assertEqual(dest_blob.metadata, test_metadata)
             check_s3_dest(dest_blob)
+            self._assert_content_type(dest_blob, src_blob)
 
 
 if __name__ == '__main__':
