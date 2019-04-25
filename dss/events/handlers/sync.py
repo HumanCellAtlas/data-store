@@ -69,6 +69,8 @@ def sync_s3_to_gs_oneshot(source: BlobLocation, dest: BlobLocation):
         gs_blob = dest.bucket.blob(source.blob.key, chunk_size=1024 * 1024)
         gs_blob.metadata = source.blob.metadata
         gs_blob.upload_from_file(fh)
+        gs_blob.content_type = source.blob.content_type
+        gs_blob.patch()
 
 def sync_gs_to_s3_oneshot(source: BlobLocation, dest: BlobLocation):
     expires_timestamp = int(time.time() + presigned_url_lifetime_seconds)
@@ -78,7 +80,8 @@ def sync_gs_to_s3_oneshot(source: BlobLocation, dest: BlobLocation):
             msg = f"request to gs presigned url for {source.blob.name} returned status {fh.status}"
             logger.info(msg)
             raise Exception(msg)  # This will trigger SFN retry behaviour through States.TaskFailed
-        dest.blob.upload_fileobj(fh, ExtraArgs=dict(Metadata=source.blob.metadata or {}))
+        dest.blob.upload_fileobj(fh, ExtraArgs=dict(Metadata=source.blob.metadata or {},
+                                                    ContentType=source.blob.content_type))
 
 def compose_gs_blobs(gs_bucket, blob_names, dest_blob_name):
     blobs = [gs_bucket.get_blob(b) for b in blob_names]
@@ -130,7 +133,9 @@ def initiate_multipart_upload(source_replica: Replica, dest_replica: Replica, so
     s3_object = s3_bucket.Object(source_key)
     source_blobstore = Config.get_blobstore_handle(source_replica)
     source_metadata = source_blobstore.get_user_metadata(source_replica.bucket, source_key) or {}
-    mpu = s3_object.initiate_multipart_upload(Metadata=source_metadata)
+    source_content_type = source_blobstore.get_content_type(source_replica.bucket, source_key)
+    mpu = s3_object.initiate_multipart_upload(Metadata=source_metadata,
+                                              ContentType=source_content_type)
     return mpu.id
 
 def complete_multipart_upload(msg: dict):
@@ -178,6 +183,8 @@ def compose_upload(msg: dict):
         source_blob = resources.s3.Bucket(msg["source_bucket"]).Object(msg["source_key"])  # type: ignore
         dest_blob = gs_bucket.get_blob(msg["dest_key"])
         dest_blob.metadata = source_blob.metadata
+        dest_blob.content_type = source_blob.content_type
+        dest_blob.patch()
     else:
         raise NotImplementedError()
 

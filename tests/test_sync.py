@@ -48,6 +48,10 @@ class DSSSyncMixin:
             self.payload += os.urandom(size - len(self.payload))
         return self.payload[:size]
 
+    def _assert_content_type(self, s3_blob, gs_blob):
+        gs_blob.reload()
+        self.assertEqual(s3_blob.content_type, gs_blob.content_type)
+
 @testmode.standalone
 class TestSyncUtils(unittest.TestCase, DSSSyncMixin):
     def setUp(self):
@@ -72,6 +76,7 @@ class TestSyncUtils(unittest.TestCase, DSSSyncMixin):
         sync.sync_s3_to_gs_oneshot(source, dest)
         sync.do_oneshot_copy(Replica.aws, Replica.gcp, test_key)
         self.assertEqual(gs_dest_blob.download_as_string(), payload)
+        self._assert_content_type(source.blob, dest.blob)
 
         gs_dest_blob.reload()
         self.assertEqual(gs_dest_blob.metadata, test_metadata)
@@ -87,6 +92,7 @@ class TestSyncUtils(unittest.TestCase, DSSSyncMixin):
         sync.do_oneshot_copy(Replica.gcp, Replica.aws, test_key)
         self.assertEqual(dest_blob.get()["Body"].read(), payload)
         self.assertEqual(dest_blob.metadata, test_metadata)
+        self._assert_content_type(dest.blob, source.blob)
 
         # Hit some code paths with mock data. The full tests for these are in the integration test suite.
         sync.initiate_multipart_upload(Replica.gcp, Replica.aws, test_key)
@@ -269,6 +275,7 @@ class TestSyncDaemon(unittest.TestCase, DSSSyncMixin):
 
             gs_dest_blob.reload()
             self.assertEqual(gs_dest_blob.metadata, test_metadata)
+            self._assert_content_type(src_blob, gs_dest_blob)
 
         with self.subTest("gs to s3"):
             test_key = "{}/gs-to-s3/{}".format(self.test_blob_prefix, uuid.uuid4())
@@ -282,6 +289,7 @@ class TestSyncDaemon(unittest.TestCase, DSSSyncMixin):
                 self.assertEqual(dest_blob.get()["Body"].read(), payload)
                 self.assertEqual(dest_blob.metadata, test_metadata)
             check_s3_dest(dest_blob)
+            self._assert_content_type(dest_blob, src_blob)
 
 
 if __name__ == '__main__':
