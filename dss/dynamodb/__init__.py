@@ -3,7 +3,7 @@ from typing import Generator
 from dss.util.aws.clients import dynamodb as db  # type: ignore
 
 
-def _format_item(value, hash_key, sort_key):
+def _format_item(hash_key, sort_key, value):
     item = {'hash_key': {'S': hash_key}}
     if value:
         item['body'] = {'S': value}
@@ -12,7 +12,7 @@ def _format_item(value, hash_key, sort_key):
     return item
 
 
-def put_item(table: str, value: str, hash_key: str, sort_key: str=None, overwrite: str=None):
+def put_item(*, table: str, hash_key: str, sort_key: str=None, value: str, overwrite: str=None):
     """
     Put an item into a dynamoDB table.
 
@@ -29,7 +29,7 @@ def put_item(table: str, value: str, hash_key: str, sort_key: str=None, overwrit
     :return: None
     """
     query = {'TableName': table,
-             'Item': _format_item(value=value, hash_key=hash_key, sort_key=sort_key)}
+             'Item': _format_item(hash_key=hash_key, sort_key=sort_key, value=value)}
     if overwrite:
         query['ConditionExpression'] = f'attribute_not_exists({overwrite})'
     db.put_item(**query)
@@ -49,7 +49,7 @@ def get_item(table: str, hash_key: str, sort_key: str=None):
     :return: None or str
     """
     query = {'TableName': table,
-             'Key': _format_item(value=None, hash_key=hash_key, sort_key=sort_key)}
+             'Key': _format_item(hash_key=hash_key, sort_key=sort_key, value=None)}
     item = db.get_item(**query).get('Item')
     if item is not None:
         return item['body']['S']
@@ -103,5 +103,5 @@ def delete_item(table: str, hash_key: str, sort_key: str=None):
     :return: None
     """
     query = {'TableName': table,
-             'Key': _format_item(value=None, hash_key=hash_key, sort_key=sort_key)}
+             'Key': _format_item(hash_key=hash_key, sort_key=sort_key, value=None)}
     db.delete_item(**query)
