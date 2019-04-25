@@ -22,7 +22,7 @@ subscription_db_table = f"dss-subscriptions-v2-{{}}-{os.environ['DSS_DEPLOYMENT_
 
 
 def put_subscription(doc: dict):
-    dynamodb.put_item(table=subscription_db_table.format(doc[SubscriptionData.REPLICA].name),
+    dynamodb.put_item(table=subscription_db_table.format(doc[SubscriptionData.REPLICA]),
                       hash_key=doc[SubscriptionData.OWNER],
                       sort_key=doc[SubscriptionData.UUID],
                       value=json.dumps(doc))
@@ -32,7 +32,7 @@ def get_subscription(replica: Replica, owner: str, uuid: str):
     item = dynamodb.get_item(table=subscription_db_table.format(replica.name),
                              hash_key=owner,
                              sort_key=uuid)
-    return json.loads(item)
+    return json.loads(item) if item else None
 
 
 def get_subscriptions_for_owner(replica: Replica, owner: str) -> list:
