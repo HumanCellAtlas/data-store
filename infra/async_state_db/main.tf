@@ -14,10 +14,10 @@ locals {
 resource "aws_dynamodb_table" "sfn_state" {
   name         = "dss-async-state-${var.DSS_DEPLOYMENT_STAGE}"
   billing_mode = "PAY_PER_REQUEST"
-  hash_key     = "key"
+  hash_key     = "hash_key"
 
   attribute {
-    name = "key"
+    name = "hash_key"
     type = "S"
   }
 
