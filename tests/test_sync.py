@@ -72,6 +72,7 @@ class TestSyncUtils(unittest.TestCase, DSSSyncMixin):
         sync.sync_s3_to_gs_oneshot(source, dest)
         sync.do_oneshot_copy(Replica.aws, Replica.gcp, test_key)
         self.assertEqual(gs_dest_blob.download_as_string(), payload)
+        self._assert_content_type(source.blob, dest.blob)
 
         gs_dest_blob.reload()
         self.assertEqual(gs_dest_blob.metadata, test_metadata)
@@ -87,6 +88,7 @@ class TestSyncUtils(unittest.TestCase, DSSSyncMixin):
         sync.do_oneshot_copy(Replica.gcp, Replica.aws, test_key)
         self.assertEqual(dest_blob.get()["Body"].read(), payload)
         self.assertEqual(dest_blob.metadata, test_metadata)
+        self._assert_content_type(dest.blob, source.blob)
 
         # Hit some code paths with mock data. The full tests for these are in the integration test suite.
         sync.initiate_multipart_upload(Replica.gcp, Replica.aws, test_key)
@@ -225,6 +227,10 @@ class TestSyncUtils(unittest.TestCase, DSSSyncMixin):
                 self.assertTrue(sync.dependencies_exist(Replica.aws, Replica.aws, bundle_key))
                 self.assertTrue(sync.dependencies_exist(Replica.aws, Replica.aws, file_key))
             check_blob_revdeps()
+
+    def _assert_content_type(self, s3_blob, gs_blob):
+        gs_blob.reload()
+        self.assertEqual(s3_blob.content_type, gs_blob.content_type)
 
 # TODO: (akislyuk) integration test of SQS fault injection, SFN fault injection
 
