@@ -69,6 +69,8 @@ def sync_s3_to_gs_oneshot(source: BlobLocation, dest: BlobLocation):
         gs_blob = dest.bucket.blob(source.blob.key, chunk_size=1024 * 1024)
         gs_blob.metadata = source.blob.metadata
         gs_blob.upload_from_file(fh)
+        gs_blob.content_type = source.blob.content_type
+        gs_blob.patch()
 
 def sync_gs_to_s3_oneshot(source: BlobLocation, dest: BlobLocation):
     expires_timestamp = int(time.time() + presigned_url_lifetime_seconds)
@@ -78,7 +80,8 @@ def sync_gs_to_s3_oneshot(source: BlobLocation, dest: BlobLocation):
             msg = f"request to gs presigned url for {source.blob.name} returned status {fh.status}"
             logger.info(msg)
             raise Exception(msg)  # This will trigger SFN retry behaviour through States.TaskFailed
-        dest.blob.upload_fileobj(fh, ExtraArgs=dict(Metadata=source.blob.metadata or {}))
+        dest.blob.upload_fileobj(fh, ExtraArgs=dict(Metadata=source.blob.metadata or {},
+                                                    ContentType=source.blob.content_type))
 
 def compose_gs_blobs(gs_bucket, blob_names, dest_blob_name):
     blobs = [gs_bucket.get_blob(b) for b in blob_names]
