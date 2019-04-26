@@ -24,13 +24,12 @@ from tests.infra.server import ThreadedLocalServer
 from tests.fixtures.cloud_uploader import ChecksummingSink
 from dss.util.version import datetime_to_version_format
 from dss.util import UrlBuilder
-from dss.collections import (get_collection,
-                             get_collection_uuids_for_owner,
+from dss.collections import (get_collection_uuids_for_owner,
                              put_collection,
                              delete_collection)
 
 
-# @testmode.integration
+@testmode.integration
 class TestCollections(unittest.TestCase, DSSAssertMixin, DSSUploadMixin):
     @classmethod
     def setUpClass(cls):
@@ -146,10 +145,6 @@ class TestCollections(unittest.TestCase, DSSAssertMixin, DSSUploadMixin):
 
         with self.subTest("Test dynamoDB put_collection."):
             put_collection(owner=self.owner_email, uuid=fake_uuid)
-
-        with self.subTest("Test dynamoDB get_collection."):
-            user_permission_level = get_collection(owner=self.owner_email, uuid=fake_uuid)
-            self.assertEqual(user_permission_level, 'owner')
 
         with self.subTest("Test dynamoDB get_collections_for_owner."):
             collections = get_collection_uuids_for_owner(owner=self.owner_email)
