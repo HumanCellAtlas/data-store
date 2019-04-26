@@ -18,7 +18,7 @@ app = Chalice(app_name='fusillade')
 app.debug = True
 
 with open(os.path.join(pkg_root, "service_config.json")) as fh:
-    service_config = yaml.load(fh.read())
+    service_config = yaml.BaseLoader(fh.read())
 
 
 @app.route("/")
