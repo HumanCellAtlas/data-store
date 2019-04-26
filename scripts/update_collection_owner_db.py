@@ -7,6 +7,16 @@ sys.path.insert(0, pkg_root)  # noqa
 
 from dss import BucketConfig, Config, Replica
 from dss.collections import get_all_collection_uuids, put_collection, delete_collection
+"""
+Updates the dynamoDB table that tracks collections.
+
+To only update the table with new uuids from the bucket:
+    scripts/update_collection_owner_db.py
+
+To reset the table (delete table and repopulate) run:
+    scripts/update_collection_owner_db.py hard-reset
+"""
+
 
 Config.set_config(BucketConfig.NORMAL)
 
@@ -84,8 +94,15 @@ class CollectionDatabaseTools(object):
         self._read_collection_bucket_files_to_database(uuids=self.all_bucket_uuids)
 
 
-if __name__ == '__main__':
+def main():
     c = CollectionDatabaseTools(replica='aws')
-    # TODO: Add args to switch between the two.
-    # c.collection_database_hard_reset()
-    c.read_collection_bucket_files_to_database()
+
+    if len(sys.argv) > 1:
+        assert sys.argv[1] == 'hard-reset', 'Invalid argument: {sys.argv[1]}'
+        c.collection_database_hard_reset()
+    else:
+        c.collection_database_update()
+
+
+if __name__ == '__main__':
+    main()
