@@ -23,7 +23,7 @@ def get_collection_uuids_for_owner(owner: str) -> list:
 
 def get_all_collection_uuids():
     items = dynamodb.get_all_table_items(table=collection_db_table, return_key='sort_key')
-    return items
+    return [item for item in items]
 
 
 def delete_collection(owner: str, uuid: str):
