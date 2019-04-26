@@ -12,7 +12,7 @@ def _format_item(hash_key, sort_key, value):
     return item
 
 
-def put_item(*, table: str, hash_key: str, sort_key: str=None, value: str, overwrite: str=None):
+def put_item(*, table: str, hash_key: str, sort_key: str=None, value: str, dont_overwrite: str=None):
     """
     Put an item into a dynamoDB table.
 
@@ -24,14 +24,14 @@ def put_item(*, table: str, hash_key: str, sort_key: str=None, value: str, overw
     :param str hash_key: 1st primary key that can be used to fetch associated sort_keys and values.
     :param str sort_key: 2nd primary key, used with hash_key to fetch a specific value.
                          Note: If not specified, this will PUT only 1 key (hash_key) and 1 value.
-    :param str overwrite: Don't overwrite if this parameter exists.  For example, setting this
-                          to 'sort_key' won't overwrite if that sort_key already exists in the table.
+    :param str dont_overwrite: Don't overwrite if this parameter exists.  For example, setting this
+                               to 'sort_key' won't overwrite if that sort_key already exists in the table.
     :return: None
     """
     query = {'TableName': table,
              'Item': _format_item(hash_key=hash_key, sort_key=sort_key, value=value)}
-    if overwrite:
-        query['ConditionExpression'] = f'attribute_not_exists({overwrite})'
+    if dont_overwrite:
+        query['ConditionExpression'] = f'attribute_not_exists({dont_overwrite})'
     db.put_item(**query)
 
 
@@ -95,6 +95,11 @@ def delete_item(*, table: str, hash_key: str, sort_key: str=None):
 
     Will determine the type of db this is being called on by the number of keys provided (omit
     sort_key to DELETE from a db with only 1 primary key).
+
+    NOTE:
+    Unless you specify conditions, DeleteItem is an idempotent operation; running it multiple times
+    on the same item or attribute does not result in an error response:
+    https://docs.aws.amazon.com/amazondynamodb/latest/APIReference/API_DeleteItem.html
 
     :param table: Name of the table in AWS.
     :param str hash_key: 1st primary key that can be used to fetch associated sort_keys and values.

@@ -13,7 +13,7 @@ from datetime import datetime
 from requests.utils import parse_header_links
 from botocore.vendored import requests
 from dcplib.s3_multipart import get_s3_multipart_chunk_size
-from urllib.parse import parse_qsl, urlparse, urlsplit
+from urllib.parse import parse_qsl, urlsplit
 
 pkg_root = os.path.abspath(os.path.join(os.path.dirname(__file__), '..'))  # noqa
 sys.path.insert(0, pkg_root)  # noqa
@@ -24,8 +24,13 @@ from tests.infra.server import ThreadedLocalServer
 from tests.fixtures.cloud_uploader import ChecksummingSink
 from dss.util.version import datetime_to_version_format
 from dss.util import UrlBuilder
+from dss import Replica
+from dss.collections import (get_collection,
+                             get_collection_uuids_for_owner,
+                             put_collection,
+                             delete_collection)
 
-
+@testmode.integration
 class TestCollections(unittest.TestCase, DSSAssertMixin, DSSUploadMixin):
     @classmethod
     def setUpClass(cls):
@@ -40,6 +45,9 @@ class TestCollections(unittest.TestCase, DSSAssertMixin, DSSUploadMixin):
         cls.uuid, cls.version = cls._put(cls, cls.contents)
         cls.invalid_ptr = dict(type="foo", uuid=cls.file_uuid, version=cls.file_version, fragment="/xyz")
         cls.replicas = ('aws', 'gcp')
+
+        with open(os.environ['GOOGLE_APPLICATION_CREDENTIALS'], "r") as fh:
+            cls.owner_email = json.loads(fh.read())['client_email']
 
     @classmethod
     def teardownClass(cls):
@@ -76,28 +84,14 @@ class TestCollections(unittest.TestCase, DSSAssertMixin, DSSUploadMixin):
         resp_obj.raise_for_status()
         return file_uuid, resp_obj.json()["version"]
 
-    def _test_collection_get_paging(self, codes, replica: str, per_page: int, fetch_all: bool=False):
-        """
-        Attempts to ensure that a GET /collections call responds with a 206.
-
-        If unsuccessful on the first attempt, temp collections will be added for the user to ensure a response
-        and the GET /collections will be reattempted.
-        """
-        paging_res = self._fetch_collection_get_paging_responses(codes, replica, per_page, fetch_all)
-
-        # only create a ton of collections when not enough collections exist in the bucket to elicit a paging response
-        if not paging_res:
-            self.create_temp_user_collections(num=per_page + 1)  # guarantee a paging response
-            paging_res = self._fetch_collection_get_paging_responses(codes, replica, per_page, fetch_all)
-            self.assertTrue(paging_res)
-
     def create_temp_user_collections(self, num: int):
-        for i in range(num):
-            contents = [self.col_file_item, self.col_ptr_item]
-            uuid, _ = self._put(contents)
-            self.addCleanup(self._delete_collection, uuid)
+        contents = [self.col_file_item, self.col_ptr_item]
+        for replica in self.replicas:
+            for i in range(num):
+                uuid, _ = self._put(contents, replica=replica)
+                self.addCleanup(self._delete_collection, uuid, replica)
 
-    def _fetch_collection_get_paging_responses(self, codes, replica: str, per_page: int, fetch_all: bool):
+    def fetch_collection_paging_response(self, codes, replica: str, per_page: int):
         """
         GET /collections and iterate through the paging responses containing all of a user's collections.
 
@@ -107,13 +101,17 @@ class TestCollections(unittest.TestCase, DSSAssertMixin, DSSUploadMixin):
         url.add_query("replica", replica)
         url.add_query("per_page", str(per_page))
         resp_obj = self.assertGetResponse(str(url), codes, headers=get_auth_header(authorized=True))
-        link_header = resp_obj.response.headers.get('Link')
 
         if codes == requests.codes.bad_request:
             return True
 
-        paging_res, normal_res = None, None
+        link_header = resp_obj.response.headers.get('Link')
+        paging_response = False
+
         while link_header:
+            # Make sure we're getting the expected response status code
+            self.assertEqual(resp_obj.response.status_code, requests.codes.partial)
+            paging_response = True
             link = parse_header_links(link_header)[0]
             self.assertEquals(link['rel'], 'next')
             parsed = urlsplit(link['url'])
@@ -123,18 +121,56 @@ class TestCollections(unittest.TestCase, DSSAssertMixin, DSSUploadMixin):
                                               headers=get_auth_header(authorized=True))
             link_header = resp_obj.response.headers.get('Link')
 
-            # Make sure we're getting the expected response status code
-            if link_header:
-                self.assertEqual(resp_obj.response.status_code, requests.codes.partial)
-                paging_res = True
-                if not fetch_all:
-                    return paging_res
-            else:
-                self.assertEqual(resp_obj.response.status_code, requests.codes.ok)
-                normal_res = True
-        if fetch_all:
-            self.assertTrue(normal_res)
-        return paging_res
+        self.assertEqual(resp_obj.response.status_code, requests.codes.ok)
+        return paging_response
+
+    def test_collection_paging(self):
+        self.create_temp_user_collections(num=11)  # guarantee at least one paging response
+        codes = {requests.codes.ok, requests.codes.partial}
+        for replica in self.replicas:
+            for per_page in [10, 100, 500]:
+                with self.subTest(replica=replica, per_page=per_page):
+                    paging_response = self.fetch_collection_paging_response(codes=codes,
+                                                                            replica=replica,
+                                                                            per_page=per_page)
+                    if per_page == 10:
+                        self.assertTrue(paging_response)
+
+    def test_collections_db(self):
+        """Test that the dynamoDB functions work for a collection."""
+        fake_uuid = str(uuid4())
+
+        with self.subTest("Assert uuid is not already among the user's collections."):
+            collections = get_collection_uuids_for_owner(owner=self.owner_email)
+            self.assertNotIn(fake_uuid, collections)
+
+        with self.subTest("Test dynamoDB put_collection."):
+            put_collection(owner=self.owner_email, uuid=fake_uuid)
+
+        with self.subTest("Test dynamoDB get_collection."):
+            user_permission_level = get_collection(owner=self.owner_email, uuid=fake_uuid)
+            self.assertEqual(user_permission_level, 'owner')
+
+        with self.subTest("Test dynamoDB get_collections_for_owner."):
+            collections = get_collection_uuids_for_owner(owner=self.owner_email)
+            self.assertIn(fake_uuid, collections)
+
+        with self.subTest("Test dynamoDB delete_collection."):
+            delete_collection(owner=self.owner_email, uuid=fake_uuid)
+            collections = get_collection_uuids_for_owner(owner=self.owner_email)
+            self.assertNotIn(fake_uuid, collections)
+
+    def test_collection_paging_too_small(self):
+        """Should NOT be able to use a too-small per_page."""
+        for replica in self.replicas:
+            with self.subTest(replica):
+                self.fetch_collection_paging_response(replica=replica, per_page=9, codes=requests.codes.bad_request)
+
+    def test_collection_paging_too_large(self):
+        """Should NOT be able to use a too-large per_page."""
+        for replica in self.replicas:
+            with self.subTest(replica):
+                self.fetch_collection_paging_response(replica=replica, per_page=501, codes=requests.codes.bad_request)
 
     @testmode.standalone
     def test_get(self):
@@ -144,35 +180,6 @@ class TestCollections(unittest.TestCase, DSSAssertMixin, DSSUploadMixin):
                            params=dict(replica='aws'))
         res.raise_for_status()
         self.assertIn('collections', res.json())
-
-    def test_collection_paging(self):
-        # seems to take about 15 seconds per page when "per_page" == 100
-        # so this scales linearly with the total number of collections in the bucket
-        # slow because the collection API has to open ALL collections files in the bucket
-        # since it cannot determine the owner without opening the file
-        # TODO collections desperately need indexing to run in a reasonable amount of time
-        codes = {requests.codes.ok, requests.codes.partial}
-        for replica in ['aws']:  # TODO: change ['aws'] to self.replicas when GET collections is faster (indexed)
-            for per_page in [50, 100]:
-                with self.subTest(replica=replica, per_page=per_page):
-                    # only check a full run if per_page == 100 because it takes forever
-                    fetch_all = True if per_page == 100 else False
-                    self._test_collection_get_paging(codes=codes,
-                                                     replica=replica,
-                                                     per_page=per_page,
-                                                     fetch_all=fetch_all)
-
-    def test_collection_paging_too_small(self):
-        """Should NOT be able to use a too-small per_page."""
-        for replica in self.replicas:
-            with self.subTest(replica):
-                self._test_collection_get_paging(replica=replica, per_page=49, codes=requests.codes.bad_request)
-
-    def test_collection_paging_too_large(self):
-        """Should NOT be able to use a too-large per_page."""
-        for replica in self.replicas:
-            with self.subTest(replica):
-                self._test_collection_get_paging(replica=replica, per_page=101, codes=requests.codes.bad_request)
 
     def test_put(self):
         """PUT new collection."""
@@ -230,15 +237,12 @@ class TestCollections(unittest.TestCase, DSSAssertMixin, DSSUploadMixin):
         contents = [col_file_item] * 8 + [col_ptr_item] * 8
         uuid, version = self._put(contents)
 
-        with open(os.environ['GOOGLE_APPLICATION_CREDENTIALS'], "r") as fh:
-            owner_email = json.loads(fh.read())['client_email']
-
         expected_contents = {'contents': [col_file_item,
                                           col_ptr_item],
                              'description': 'd',
                              'details': {},
                              'name': 'n',
-                             'owner': owner_email
+                             'owner': self.owner_email
                              }
         tests = [(dict(), None),
                  (dict(description="foo", name="cn"), dict(description="foo", name="cn")),
