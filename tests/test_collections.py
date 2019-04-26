@@ -24,13 +24,13 @@ from tests.infra.server import ThreadedLocalServer
 from tests.fixtures.cloud_uploader import ChecksummingSink
 from dss.util.version import datetime_to_version_format
 from dss.util import UrlBuilder
-from dss import Replica
 from dss.collections import (get_collection,
                              get_collection_uuids_for_owner,
                              put_collection,
                              delete_collection)
 
-@testmode.integration
+
+# @testmode.integration
 class TestCollections(unittest.TestCase, DSSAssertMixin, DSSUploadMixin):
     @classmethod
     def setUpClass(cls):

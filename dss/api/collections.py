@@ -71,9 +71,12 @@ def listcollections(replica: str, per_page: int, start_at: int = 0):
     for uuid in uuids:
         prefix = f'collections/{uuid}'
         versions = [i.split('.', 1)[1] for i in handle.list(bucket, prefix=prefix) if not i.endswith('.dead')]
-        assert versions, f'{uuid} not found for user: {owner}'  # TODO: Determine how to handle this if it occurs.
-        collections.append({'collection_uuid': uuid,
-                            'collection_versions': versions})
+        if versions:
+            collections.append({'collection_uuid': uuid,
+                                'collection_versions': versions})
+        else:
+            # update index if actual file does not exist since the bucket is truth
+            delete_collection(owner=owner, uuid=uuid)
 
     # paged response
     if len(collections) - start_at > per_page:
