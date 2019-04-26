@@ -16,7 +16,7 @@ from dss.storage.hcablobstore import BlobStore, compose_blob_key
 from dss.storage.identifiers import CollectionFQID, CollectionTombstoneID
 from dss.util import security, hashabledict, UrlBuilder
 from dss.util.version import datetime_to_version_format
-from dss.api.bundles import idempotent_save
+from dss.storage.blobstore import idempotent_save
 from dss.collections import put_collection, delete_collection, get_collection_uuids_for_owner
 from cloud_blobstore import BlobNotFoundError
 
@@ -117,7 +117,7 @@ def put(json_request_body: dict, replica: str, uuid: str, version: str):
         version = datetime_to_version_format(timestamp)
     collection_version = version
     # update dynamoDB; used to speed up lookup time; will not update if owner already associated w/uuid
-    put_collection(owner=authenticated_user_email, uuid=collection_uuid, permission_level='owner')
+    put_collection(owner=authenticated_user_email, uuid=collection_uuid)
     # add the collection file to the bucket
     handle.upload_file_handle(Replica[replica].bucket,
                               CollectionFQID(collection_uuid, collection_version).to_key(),
