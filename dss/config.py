@@ -171,7 +171,7 @@ class Config:
                           backoff_factor=0.3,
                           status_forcelist=(500, 502, 504)
                           )
-            adapter = HTTPAdapter(max_retries=retry)
+            adapter = HTTPAdapter(max_retries=retry, pool_maxsize=20)
             # _http is a "private" parameter, and we may need to re-visit GCP timeout retry
             # strategies in the future.
             client._http.mount('https://', adapter)
