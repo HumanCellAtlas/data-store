@@ -311,23 +311,20 @@ class CloudDirectory:
         :param update_params: a list of attributes to modify.
         :return:
         """
-        updates = []
-        for i in update_params:
-            updates.append(
-                {
-                    'ObjectAttributeKey': {
-                        'SchemaArn': self.schema,
-                        'FacetName': i.facet,
-                        'Name': i.attribute
-                    },
-                    'ObjectAttributeAction': {
-                        'ObjectAttributeActionType': i.action.name,
-                        'ObjectAttributeUpdateValue': {
-                            i.value_type.name: i.value
-                        }
+        updates = [
+            {
+                'ObjectAttributeKey': {
+                    'SchemaArn': self.schema,
+                    'FacetName': i.facet,
+                    'Name': i.attribute
+                },
+                'ObjectAttributeAction': {
+                    'ObjectAttributeActionType': i.action.name,
+                    'ObjectAttributeUpdateValue': {
+                        i.value_type.name: i.value
                     }
                 }
-            )
+            } for i in update_params]
         return cd_client.update_object_attributes(
             DirectoryArn=self._dir_arn,
             ObjectReference={
@@ -509,7 +506,7 @@ class CloudDirectory:
             ObjectReference={'Selector': object_id},
             MaxResults=max_results
         )
-        policies_paths = response['PolicyToPathList']
+        policies_paths: list = response['PolicyToPathList']
         while response.get('NextToken'):
             response = cd_client.lookup_policy(
                 DirectoryArn=self._dir_arn,
@@ -517,30 +514,38 @@ class CloudDirectory:
                 NextToken=response['NextToken'],
                 MaxResults=max_results
             )
-            policies_paths += response['PolicyToPathList']
+            policies_paths.extend(response['PolicyToPathList'])
 
         # Parse the policyIds from the policies path. Only keep the unique ids
-        policy_ids = set()
-        for p in policies_paths:
-            for o in p['Policies']:
-                if o.get('PolicyId'):
-                    policy_ids.add((o['PolicyId'], o['PolicyType']))
+        policy_ids = set(
+            [
+                (o['PolicyId'], o['PolicyType'])
+                for p in policies_paths
+                for o in p['Policies']
+                if o.get('PolicyId')
+            ]
+        )
 
         # retrieve the policies in a single request
-        operations = [{'GetObjectAttributes': {
-            'ObjectReference': {'Selector': f'${policy_id[0]}'},
-            'SchemaFacet': {'SchemaArn': self.schema, 'FacetName': 'IAMPolicy'},
-            'AttributeNames': ['Statement']}} for policy_id in policy_ids]
-        responses = cd_client.batch_read(
-            DirectoryArn=self._dir_arn,
-            Operations=operations
-        )['Responses']
+        operations = [
+            {
+                'GetObjectAttributes': {
+                    'ObjectReference': {'Selector': f'${policy_id[0]}'},
+                    'SchemaFacet': {
+                        'SchemaArn': self.schema,
+                        'FacetName': 'IAMPolicy'
+                    },
+                    'AttributeNames': ['Statement']
+                }
+            }
+            for policy_id in policy_ids
+        ]
 
         # parse the policies from the responses
-        policies = []
-        for response in responses:
-            policies.append(response['SuccessfulResponse']['GetObjectAttributes']['Attributes'][0]['Value']
-                            ['StringValue'])
+        policies = [
+            response['SuccessfulResponse']['GetObjectAttributes']['Attributes'][0]['Value']['StringValue']
+            for response in cd_client.batch_read(DirectoryArn=self._dir_arn, Operations=operations)['Responses']
+        ]
         return policies
 
     def get_object_information(self, obj_ref: str) -> typing.Dict[str, typing.Any]:
