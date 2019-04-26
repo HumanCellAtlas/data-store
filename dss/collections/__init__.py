@@ -26,7 +26,7 @@ def get_collection_uuids_for_owner(owner: str) -> list:
     items = dynamodb.get_primary_key_items(table=collection_db_table,
                                            key=owner,
                                            return_key='sort_key')
-    return items
+    return [item for item in items]
 
 
 def get_all_collection_uuids():
