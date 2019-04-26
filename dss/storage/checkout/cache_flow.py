@@ -1,6 +1,5 @@
 import json
 import os
-from dss.storage.hcablobstore import FileMetadata
 
 """
 These functions assist with the caching process and provide greater availability of heavily accessed files to the user.
@@ -23,12 +22,11 @@ def is_dss_bucket(dst_bucket: str):
     return dst_bucket in (os.environ['DSS_S3_CHECKOUT_BUCKET'], os.environ['DSS_GS_CHECKOUT_BUCKET'])
 
 
-def should_cache_file(file_metadata: dict):
+def should_cache_file(content_type: str, size: int) -> bool:
     """Returns True if a file should be cached (marked as long-lived) for the dss checkout bucket."""
     # Each file type may have a size limit that determines uncached status.
     cache_criteria = json.loads(os.getenv("CHECKOUT_CACHE_CRITERIA"))
-    for file_type in cache_criteria:
-        if file_type['type'] == file_metadata[FileMetadata.CONTENT_TYPE]:
-            if file_type['max_size'] >= file_metadata[FileMetadata.SIZE]:
-                return True
+    for file_criteria in cache_criteria:
+        if content_type.startswith(file_criteria['type']) and file_criteria['max_size'] >= size:
+            return True
     return False

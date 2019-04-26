@@ -65,11 +65,13 @@ def copy_worker(event, lambda_context):
             # Files can be checked out to a user bucket or the standard dss checkout bucket.
             # If a user bucket, files should be unmodified by either the object tagging (AWS)
             # or storage type changes (Google) used to mark cached objects.
-            cached = should_cache_file(file_metadata={FileMetadata.CONTENT_TYPE: content_type,
-                                                      FileMetadata.SIZE: self.size})
+            will_cache = should_cache_file(content_type, self.size)
+            if not will_cache:
+                logger.info("Not caching %s with content-type %s size %s",
+                            self.source_key, content_type, self.size)
 
             # TODO: DURABLE_REDUCED_AVAILABILITY is being phased out by Google; use a different method in the future
-            if not cached and is_dss_bucket(self.destination_bucket):
+            if not will_cache and is_dss_bucket(self.destination_bucket):
                 # the DURABLE_REDUCED_AVAILABILITY storage class marks (short-lived) non-cached files
                 dst_blob._patch_property('storageClass', 'DURABLE_REDUCED_AVAILABILITY')
                 # setting the storage class explicitly seems like it blanks the content-type, so we add it back
