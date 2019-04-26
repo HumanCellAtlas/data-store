@@ -1,3 +1,12 @@
+"""
+Updates the dynamoDB table that tracks collections.
+
+To only update the table with new uuids from the bucket:
+    scripts/update_collection_db.py
+
+To reset the table (delete table and repopulate from bucket) run:
+    scripts/update_collection_db.py hard-reset
+"""
 import os
 import sys
 import json
@@ -7,15 +16,6 @@ sys.path.insert(0, pkg_root)  # noqa
 
 from dss import BucketConfig, Config, Replica
 from dss.collections import get_all_collection_uuids, put_collection, delete_collection
-"""
-Updates the dynamoDB table that tracks collections.
-
-To only update the table with new uuids from the bucket:
-    scripts/update_collection_owner_db.py
-
-To reset the table (delete table and repopulate) run:
-    scripts/update_collection_owner_db.py hard-reset
-"""
 
 
 Config.set_config(BucketConfig.NORMAL)
@@ -48,20 +48,20 @@ class CollectionDatabaseTools(object):
         print(f'Found {str(len(self.all_database_uuids))} collections in database.')
 
     def _read_collection_bucket_files_to_database(self, uuids):
-        print(f'Adding {str(len(uuids))} user-collection associations to database.\n')
+        print(f'\nAdding {str(len(uuids))} user-collection associations to database.\n')
         counter = 0
         for uuid in uuids:
-            print(f'{str(round(counter * 100 / len(self.uuids_not_in_db), 1))}% Added.')
+            print(f'{str(round(counter * 100 / len(uuids), 1))}% Added.')
             key = f'collections/{uuid}.{self.key_set[uuid]}'
             collection = json.loads(self.handle.get(self.bucket, key))
-            put_collection(owner=collection['owner'], uuid=uuid, permission_level='owner')
+            put_collection(owner=collection['owner'], uuid=uuid)
             counter += 1
 
     def _delete_collection_bucket_files_from_database(self, uuids):
-        print(f'Removing {str(len(uuids))} user-collection associations to database.\n')
+        print(f'\nRemoving {str(len(uuids))} user-collection associations from database.\n')
         counter = 0
-        for uuid in self.all_bucket_uuids:
-            print(f'{str(round(counter * 100 / len(self.uuids_not_in_db), 1))}% Deleted.')
+        for uuid in uuids:
+            print(f'{str(round(counter * 100 / len(uuids), 1))}% Deleted.')
             key = f'collections/{uuid}.{self.key_set[uuid]}'
             collection = json.loads(self.handle.get(self.bucket, key))
             delete_collection(owner=collection['owner'], uuid=uuid)
@@ -98,7 +98,7 @@ def main():
     c = CollectionDatabaseTools(replica='aws')
 
     if len(sys.argv) > 1:
-        assert sys.argv[1] == 'hard-reset', 'Invalid argument: {sys.argv[1]}'
+        assert sys.argv[1] == 'hard-reset', f'Invalid argument: {sys.argv[1]}'
         c.collection_database_hard_reset()
     else:
         c.collection_database_update()

@@ -65,15 +65,14 @@ def get_primary_key_items(*, table: str, key: str, return_key: str='body') -> Ge
     :param str return_key: Either "body" (to return all values) or "sort_key" (to return all 2nd primary keys).
     :return: Iterable (str)
     """
-    db_resp = db.query(
-        TableName=table,
-        ScanIndexForward=False,  # True = ascending, False = descending
-        KeyConditionExpression="#hash_key=:key",
-        ExpressionAttributeNames={'#hash_key': "hash_key"},
-        ExpressionAttributeValues={':key': {'S': key}}
-    )
-    for item in db_resp.get('Items', []):
-        yield item[return_key]['S']
+    paginator = db.get_paginator('query')
+    for db_resp in paginator.paginate(TableName=table,
+                                      ScanIndexForward=False,  # True = ascending, False = descending
+                                      KeyConditionExpression="#hash_key=:key",
+                                      ExpressionAttributeNames={'#hash_key': "hash_key"},
+                                      ExpressionAttributeValues={':key': {'S': key}}):
+        for item in db_resp.get('Items', []):
+            yield item[return_key]['S']
 
 
 def get_all_table_items(*, table: str, return_key: str='body') -> Generator[str, None, None]:
@@ -84,9 +83,10 @@ def get_all_table_items(*, table: str, return_key: str='body') -> Generator[str,
     :param str return_key: Either "body" (to return all values) or "sort_key" (to return all 2nd primary keys).
     :return: Iterable (str)
     """
-    db_resp = db.scan(TableName=table)
-    for item in db_resp.get('Items', []):
-        yield item[return_key]['S']
+    paginator = db.get_paginator('scan')
+    for db_resp in paginator.paginate(TableName=table):
+        for item in db_resp.get('Items', []):
+            yield item[return_key]['S']
 
 
 def delete_item(*, table: str, hash_key: str, sort_key: str=None):
