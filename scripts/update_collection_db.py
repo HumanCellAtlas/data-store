@@ -32,36 +32,35 @@ class CollectionDatabaseTools(object):
                            self.handle.list(self.bucket, prefix='collections') if i.endswith('.dead')]
 
         self.key_set = {}
-        # only one key per uuid, since different versions should have the same owner and we don't need to open them all
-        for uuid, version in [key[len('collections/'):].split('.', 1) for key in raw_keys]:
+        for uuid, version in [key[len('collections/'):].split('.', 1) for key in raw_keys if key != 'collections/']:
             # also filter for tombstones
             if uuid not in self.key_set and uuid not in tombstone_uuids:
                 self.key_set[uuid] = version
 
         self.all_bucket_uuids = set(self.key_set.keys())
         self.all_database_uuids = set(get_all_collection_uuids())
-        self.uuids_not_in_db = self.all_bucket_uuids.symmetric_difference(self.all_database_uuids)
+        self.uuids_not_in_db = self.all_bucket_uuids - self.all_database_uuids
 
         bucket_name = f'{Replica[replica].storage_schema}://{self.bucket}'
-        print(f'Found {str(len(self.all_bucket_uuids))} collections in {bucket_name}.')
-        print(f'Found {str(len(tombstone_uuids))} tombstoned collections in {bucket_name}.')
-        print(f'Found {str(len(self.all_database_uuids))} collections in database.')
+        print(f'Found {len(self.all_bucket_uuids)} collections in {bucket_name}.')
+        print(f'Found {len(tombstone_uuids)} tombstoned collections in {bucket_name}.')
+        print(f'Found {len(self.all_database_uuids)} collections in database.')
 
     def _read_collection_bucket_files_to_database(self, uuids):
-        print(f'\nAdding {str(len(uuids))} user-collection associations to database.\n')
+        print(f'\nAdding {len(uuids)} user-collection associations to database.\n')
         counter = 0
         for uuid in uuids:
-            print(f'{str(round(counter * 100 / len(uuids), 1))}% Added.')
+            print(f'{round(counter * 100 / len(uuids), 1)}% Added.')
             key = f'collections/{uuid}.{self.key_set[uuid]}'
             collection = json.loads(self.handle.get(self.bucket, key))
             put_collection(owner=collection['owner'], uuid=uuid)
             counter += 1
 
     def _delete_collection_bucket_files_from_database(self, uuids):
-        print(f'\nRemoving {str(len(uuids))} user-collection associations from database.\n')
+        print(f'\nRemoving {len(uuids)} user-collection associations from database.\n')
         counter = 0
         for uuid in uuids:
-            print(f'{str(round(counter * 100 / len(uuids), 1))}% Deleted.')
+            print(f'{round(counter * 100 / len(uuids), 1)}% Deleted.')
             key = f'collections/{uuid}.{self.key_set[uuid]}'
             collection = json.loads(self.handle.get(self.bucket, key))
             delete_collection(owner=collection['owner'], uuid=uuid)
