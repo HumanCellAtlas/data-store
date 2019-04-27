@@ -13,7 +13,7 @@ from dss import Config, Replica
 from dss.error import DSSException, dss_handler
 from dss.storage.blobstore import test_object_exists
 from dss.storage.hcablobstore import BlobStore, compose_blob_key
-from dss.storage.identifiers import CollectionFQID, CollectionTombstoneID
+from dss.storage.identifiers import CollectionFQID, CollectionTombstoneID, TOMBSTONE_SUFFIX, COLLECTION_PREFIX
 from dss.util import security, hashabledict, UrlBuilder
 from dss.util.version import datetime_to_version_format
 from dss.storage.blobstore import idempotent_save
@@ -69,8 +69,9 @@ def listcollections(replica: str, per_page: int, start_at: int = 0):
 
     collections = []
     for uuid in uuids:
-        prefix = f'collections/{uuid}'
-        versions = [i.split('.', 1)[1] for i in handle.list(bucket, prefix=prefix) if not i.endswith('.dead')]
+        prefix = f'{COLLECTION_PREFIX}/{uuid}'
+        versions = [i.split('.', 1)[1] for i in handle.list(bucket, prefix=prefix)
+                    if not i.endswith(f'.{TOMBSTONE_SUFFIX}')]
         if versions:
             collections.append({'collection_uuid': uuid,
                                 'collection_versions': versions})

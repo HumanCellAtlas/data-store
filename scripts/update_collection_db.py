@@ -15,6 +15,7 @@ pkg_root = os.path.abspath(os.path.join(os.path.dirname(__file__), '..'))  # noq
 sys.path.insert(0, pkg_root)  # noqa
 
 from dss import BucketConfig, Config, Replica
+from dss.storage.identifiers import TOMBSTONE_SUFFIX, COLLECTION_PREFIX
 from dss.collections import get_all_collection_uuids, put_collection, delete_collection
 
 
@@ -27,12 +28,14 @@ class CollectionDatabaseTools(object):
         self.bucket = Replica[replica].bucket
         self.handle = Config.get_blobstore_handle(Replica[replica])
 
-        raw_keys = self.handle.list(self.bucket, prefix='collections')
-        tombstone_uuids = [i[len('collections/'):-len('.dead')] for i in
-                           self.handle.list(self.bucket, prefix='collections') if i.endswith('.dead')]
+        raw_keys = self.handle.list(self.bucket, prefix=COLLECTION_PREFIX)
+        tombstone_uuids = [i[len(f'{COLLECTION_PREFIX}/'):-len(f'.{TOMBSTONE_SUFFIX}')] for i in
+                           self.handle.list(self.bucket, prefix=COLLECTION_PREFIX)
+                           if i.endswith(f'.{TOMBSTONE_SUFFIX}')]
 
         self.key_set = {}
-        for uuid, version in [key[len('collections/'):].split('.', 1) for key in raw_keys if key != 'collections/']:
+        for uuid, version in [key[len(f'{COLLECTION_PREFIX}/'):].split('.', 1)
+                              for key in raw_keys if key != f'{COLLECTION_PREFIX}/']:
             # also filter for tombstones
             if uuid not in self.key_set and uuid not in tombstone_uuids:
                 self.key_set[uuid] = version
@@ -51,7 +54,7 @@ class CollectionDatabaseTools(object):
         counter = 0
         for uuid in uuids:
             print(f'{round(counter * 100 / len(uuids), 1)}% Added.')
-            key = f'collections/{uuid}.{self.key_set[uuid]}'
+            key = f'{COLLECTION_PREFIX}/{uuid}.{self.key_set[uuid]}'
             collection = json.loads(self.handle.get(self.bucket, key))
             put_collection(owner=collection['owner'], uuid=uuid)
             counter += 1
@@ -61,7 +64,7 @@ class CollectionDatabaseTools(object):
         counter = 0
         for uuid in uuids:
             print(f'{round(counter * 100 / len(uuids), 1)}% Deleted.')
-            key = f'collections/{uuid}.{self.key_set[uuid]}'
+            key = f'{COLLECTION_PREFIX}/{uuid}.{self.key_set[uuid]}'
             collection = json.loads(self.handle.get(self.bucket, key))
             delete_collection(owner=collection['owner'], uuid=uuid)
             counter += 1
