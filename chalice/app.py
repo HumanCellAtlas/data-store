@@ -239,7 +239,7 @@ def get_chalice_app(flask_app) -> DSSChaliceApp:
     @time_limited(app)
     def health_check(*args, **kwargs):
         health_status = health.l2_health_checks()
-        health_res = {k: v for k, v in health_status.items() if k is "Healthy"}
+        health_res = {k: v for k, v in health_status.items() if k == "Healthy"}
         return chalice.Response(status_code=200,
                                 headers={"Content-Type": "application/json"},
                                 body=json.dumps(health_res, indent=4, sort_keys=True, default=str))

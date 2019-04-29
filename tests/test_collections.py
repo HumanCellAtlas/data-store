@@ -397,11 +397,11 @@ class TestCollections(unittest.TestCase, DSSAssertMixin, DSSUploadMixin):
         version = datetime_to_version_format(datetime.now()) if version is None else version
 
         params = dict()
-        if uuid is not 'missing':
+        if uuid != 'missing':
             params['uuid'] = uuid
-        if version is not 'missing':
+        if version != 'missing':
             params['version'] = version
-        if replica is not 'missing':
+        if replica != 'missing':
             params['replica'] = replica
 
         res = self.app.put("/v1/collections",

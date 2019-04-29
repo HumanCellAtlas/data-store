@@ -151,7 +151,7 @@ class zipalign(Iterator['zipalign.Row']):
                 raise ValueError(f"Row length ({len(self.row.values)}) "
                                  f"does not match number of columns ({len(self.columns)})")
 
-    def __next__(self) -> Row:
+    def __next__(self) -> Row:  # noqa
         if self.row is None:
             raise StopIteration
         else:
