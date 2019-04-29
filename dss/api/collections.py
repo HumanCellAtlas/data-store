@@ -1,4 +1,4 @@
-import json, logging, datetime, io, functools
+import json, logging, datetime, io, functools, time
 from typing import List
 from uuid import uuid4
 from concurrent.futures import ThreadPoolExecutor
@@ -17,7 +17,7 @@ from dss.storage.identifiers import CollectionFQID, CollectionTombstoneID, TOMBS
 from dss.util import security, hashabledict, UrlBuilder
 from dss.util.version import datetime_to_version_format
 from dss.storage.blobstore import idempotent_save
-from dss.collections import put_collection, delete_collection, get_collection_uuids_for_owner
+from dss.collections import owner_lookup
 from cloud_blobstore import BlobNotFoundError
 
 MAX_METADATA_SIZE = 1024 * 1024
@@ -60,24 +60,15 @@ def listcollections(replica: str, per_page: int, start_at: int = 0):
     :param Replica replica: AWS or GCP.
     :param int per_page: # of collections returned per paged response.
     :param int start_at: Where the next chunk of paged response should start at.
-    :return: A list of dictionaries looking like: [{'collection_uuid': uuid, 'collection_versions': [v1, v2]}, ... ].
+    :return: A list of dictionaries looking like: [{'collection_uuid': uuid, 'collection_version': [v1, v2]}, ... ].
     """
     owner = security.get_token_email(request.token_info)
-    uuids = get_collection_uuids_for_owner(owner)  # fetch from dynamodb index
-    bucket = Replica[replica].bucket
-    handle = Config.get_blobstore_handle(Replica[replica])
 
     collections = []
-    for uuid in uuids:
-        prefix = f'{COLLECTION_PREFIX}/{uuid}'
-        versions = [i.split('.', 1)[1] for i in handle.list(bucket, prefix=prefix)
-                    if not i.endswith(f'.{TOMBSTONE_SUFFIX}')]
-        if versions:
-            collections.append({'collection_uuid': uuid,
-                                'collection_versions': versions})
-        else:
-            # update index if actual file does not exist since the bucket is truth
-            delete_collection(owner=owner, uuid=uuid)
+    for collection in owner_lookup.get_collection_uuids_for_owner(owner):
+        uuid, version = collection.split('.', 1)
+        collections.append({'collection_uuid': uuid,
+                            'collection_version': version})
 
     # paged response
     if len(collections) - start_at > per_page:
@@ -118,7 +109,8 @@ def put(json_request_body: dict, replica: str, uuid: str, version: str):
         version = datetime_to_version_format(timestamp)
     collection_version = version
     # update dynamoDB; used to speed up lookup time; will not update if owner already associated w/uuid
-    put_collection(owner=authenticated_user_email, uuid=collection_uuid)
+    owner_lookup.put_collection(owner=authenticated_user_email,
+                                versioned_uuid=f'{collection_uuid}.{collection_version}')
     # add the collection file to the bucket
     handle.upload_file_handle(Replica[replica].bucket,
                               CollectionFQID(collection_uuid, collection_version).to_key(),
@@ -193,7 +185,7 @@ def delete(uuid: str, replica: str):
     status_code = requests.codes.ok
     response_body = dict()  # type: dict
     # update dynamoDB
-    delete_collection(owner=authenticated_user_email, uuid=uuid)
+    owner_lookup.delete_collection_uuid(owner=authenticated_user_email, uuid=uuid)
     return jsonify(response_body), status_code
 
 

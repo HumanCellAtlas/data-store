@@ -2458,14 +2458,12 @@ definitions:
         type: string
         description: A UUID identifying the collection.
         pattern: "[a-z0-9]{8}-[a-z0-9]{4}-[a-z0-9]{4}-[a-z0-9]{4}-[a-z0-9]{12}"
-      collection_versions:
+      collection_version:
         description: The versions of the UUID identifying the collection.
-        type: array
-        items:
-          type: string
+        type: string
     required:
       - collection_uuid
-      - collection_versions
+      - collection_version
   Collection:
     type: object
     properties:

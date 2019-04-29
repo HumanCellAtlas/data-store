@@ -16,7 +16,7 @@ sys.path.insert(0, pkg_root)  # noqa
 
 from dss import BucketConfig, Config, Replica
 from dss.storage.identifiers import TOMBSTONE_SUFFIX, COLLECTION_PREFIX
-from dss.collections import get_all_collection_uuids, put_collection, delete_collection
+from dss.collections import owner_lookup
 
 
 Config.set_config(BucketConfig.NORMAL)
@@ -34,18 +34,19 @@ class CollectionDatabaseTools(object):
                            if i.endswith(f'.{TOMBSTONE_SUFFIX}')]
 
         self.key_set = {}
-        for uuid, version in [key[len(f'{COLLECTION_PREFIX}/'):].split('.', 1)
-                              for key in raw_keys if key != f'{COLLECTION_PREFIX}/']:
-            # also filter for tombstones
-            if uuid not in self.key_set and uuid not in tombstone_uuids:
+        self.all_bucket_uuids = {}
+        for uuid, version in [key[len(f'{COLLECTION_PREFIX}/'):].split('.', 1) for key in raw_keys if key != f'{COLLECTION_PREFIX}/']:
+            self.all_bucket_uuids[uuid] = version
+            if uuid not in tombstone_uuids:
                 self.key_set[uuid] = version
 
-        self.all_bucket_uuids = set(self.key_set.keys())
-        self.all_database_uuids = set(get_all_collection_uuids())
-        self.uuids_not_in_db = self.all_bucket_uuids - self.all_database_uuids
+        self.valid_bucket_uuids = set(self.key_set.keys())
+        items = [i for i in owner_lookup.get_all_collection_uuids()]  # TODO: 1 by 1
+        self.all_database_uuids = set(items)
+        self.uuids_not_in_db = self.valid_bucket_uuids - self.all_database_uuids
 
         bucket_name = f'{Replica[replica].storage_schema}://{self.bucket}'
-        print(f'Found {len(self.all_bucket_uuids)} collections in {bucket_name}.')
+        print(f'Found {len(self.valid_bucket_uuids)} collections in {bucket_name}.')
         print(f'Found {len(tombstone_uuids)} tombstoned collections in {bucket_name}.')
         print(f'Found {len(self.all_database_uuids)} collections in database.')
 
@@ -56,18 +57,14 @@ class CollectionDatabaseTools(object):
             print(f'{round(counter * 100 / len(uuids), 1)}% Added.')
             key = f'{COLLECTION_PREFIX}/{uuid}.{self.key_set[uuid]}'
             collection = json.loads(self.handle.get(self.bucket, key))
-            put_collection(owner=collection['owner'], uuid=uuid)
+            owner_lookup.put_collection(owner=collection['owner'], versioned_uuid=uuid)
             counter += 1
 
-    def _delete_collection_bucket_files_from_database(self, uuids):
-        print(f'\nRemoving {len(uuids)} user-collection associations from database.\n')
-        counter = 0
-        for uuid in uuids:
-            print(f'{round(counter * 100 / len(uuids), 1)}% Deleted.')
-            key = f'{COLLECTION_PREFIX}/{uuid}.{self.key_set[uuid]}'
-            collection = json.loads(self.handle.get(self.bucket, key))
-            delete_collection(owner=collection['owner'], uuid=uuid)
-            counter += 1
+    def _delete_collection_bucket_files_from_database(self):
+        print(f'\nRemoving user-collection associations from database.\n')
+        for owner, uuid in owner_lookup.get_all_collection_keys():
+            print(f"\n{owner}'s collection: {uuid}\n")
+            owner_lookup.delete_collection(owner=owner, versioned_uuid=uuid)
 
     def collection_database_update(self):
         """
@@ -92,8 +89,8 @@ class CollectionDatabaseTools(object):
         TODO: Is it safe to assume that this will load completely from only one replica?  Or use both?
         TODO: Handle repopulating read-only access once implemented?  Can it be done?
         """
-        self._delete_collection_bucket_files_from_database(uuids=self.all_database_uuids)
-        self._read_collection_bucket_files_to_database(uuids=self.all_bucket_uuids)
+        self._delete_collection_bucket_files_from_database()
+        # self._read_collection_bucket_files_to_database(uuids=self.valid_bucket_uuids)
 
 
 def main():

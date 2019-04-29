@@ -24,12 +24,10 @@ from tests.infra.server import ThreadedLocalServer
 from tests.fixtures.cloud_uploader import ChecksummingSink
 from dss.util.version import datetime_to_version_format
 from dss.util import UrlBuilder
-from dss.collections import (get_collection_uuids_for_owner,
-                             put_collection,
-                             delete_collection)
+from dss.collections import owner_lookup
 
 
-@testmode.integration
+# @testmode.integration
 class TestCollections(unittest.TestCase, DSSAssertMixin, DSSUploadMixin):
     @classmethod
     def setUpClass(cls):
@@ -124,15 +122,16 @@ class TestCollections(unittest.TestCase, DSSAssertMixin, DSSUploadMixin):
         return paging_response
 
     def test_collection_paging(self):
-        self.create_temp_user_collections(num=11)  # guarantee at least one paging response
+        min_page = 10
+        self.create_temp_user_collections(num=min_page + 1)  # guarantee at least one paging response
         codes = {requests.codes.ok, requests.codes.partial}
         for replica in self.replicas:
-            for per_page in [10, 100, 500]:
+            for per_page in [min_page, 100, 500]:
                 with self.subTest(replica=replica, per_page=per_page):
                     paging_response = self.fetch_collection_paging_response(codes=codes,
                                                                             replica=replica,
                                                                             per_page=per_page)
-                    if per_page == 10:
+                    if per_page == min_page:
                         self.assertTrue(paging_response)
 
     def test_collections_db(self):
@@ -140,19 +139,19 @@ class TestCollections(unittest.TestCase, DSSAssertMixin, DSSUploadMixin):
         fake_uuid = str(uuid4())
 
         with self.subTest("Assert uuid is not already among the user's collections."):
-            collections = get_collection_uuids_for_owner(owner=self.owner_email)
+            collections = owner_lookup.get_collection_uuids_for_owner(owner=self.owner_email)
             self.assertNotIn(fake_uuid, collections)
 
         with self.subTest("Test dynamoDB put_collection."):
-            put_collection(owner=self.owner_email, uuid=fake_uuid)
+            owner_lookup.put_collection(owner=self.owner_email, versioned_uuid=fake_uuid)
 
         with self.subTest("Test dynamoDB get_collections_for_owner."):
-            collections = get_collection_uuids_for_owner(owner=self.owner_email)
+            collections = owner_lookup.get_collection_uuids_for_owner(owner=self.owner_email)
             self.assertIn(fake_uuid, collections)
 
         with self.subTest("Test dynamoDB delete_collection."):
-            delete_collection(owner=self.owner_email, uuid=fake_uuid)
-            collections = get_collection_uuids_for_owner(owner=self.owner_email)
+            owner_lookup.delete_collection(owner=self.owner_email, versioned_uuid=fake_uuid)
+            collections = owner_lookup.get_collection_uuids_for_owner(owner=self.owner_email)
             self.assertNotIn(fake_uuid, collections)
 
     def test_collection_paging_too_small(self):
