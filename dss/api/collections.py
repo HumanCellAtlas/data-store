@@ -55,11 +55,11 @@ def listcollections(per_page: int, start_at: int = 0):
     Return a list of a user's collections.
 
     Collection uuids are indexed and called by the user's email in a dynamoDB table.
-    Versions are collected by listing the files in the bucket with the prefix of that uuid.
 
     :param int per_page: # of collections returned per paged response.
     :param int start_at: Where the next chunk of paged response should start at.
-    :return: A list of dictionaries looking like: [{'uuid': uuid, 'version': version}, ... ].
+    :return: A dictionary containing a list of dictionaries looking like:
+        {'collections': [{'uuid': uuid, 'version': version}, {'uuid': uuid, 'version': version}, ... , ...]}
     """
     # TODO: Replica is unused, so this does not use replica.  Appropriate?
     owner = security.get_token_email(request.token_info)
@@ -67,8 +67,7 @@ def listcollections(per_page: int, start_at: int = 0):
     collections = []
     for collection in owner_lookup.get_collection_versioned_uuids_for_owner(owner):
         uuid, version = collection.split('.', 1)
-        collections.append({'uuid': uuid,
-                            'version': version})
+        collections.append({'uuid': uuid, 'version': version})
 
     # paged response
     if len(collections) - start_at > per_page:
@@ -144,7 +143,6 @@ def patch(uuid: str, json_request_body: dict, replica: str, version: str):
     collection["contents"] = _dedpuplicate_contents(collection["contents"])
     timestamp = datetime.datetime.utcnow()
     new_collection_version = datetime_to_version_format(timestamp)
-    # add the collection file to the bucket
     handle.upload_file_handle(Replica[replica].bucket,
                               CollectionFQID(uuid, new_collection_version).to_key(),
                               io.BytesIO(json.dumps(collection).encode("utf-8")))
