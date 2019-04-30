@@ -57,7 +57,6 @@ def listcollections(per_page: int, start_at: int = 0):
     Collection uuids are indexed and called by the user's email in a dynamoDB table.
     Versions are collected by listing the files in the bucket with the prefix of that uuid.
 
-    :param Replica replica: AWS or GCP.
     :param int per_page: # of collections returned per paged response.
     :param int start_at: Where the next chunk of paged response should start at.
     :return: A list of dictionaries looking like: [{'uuid': uuid, 'version': version}, ... ].
