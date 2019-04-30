@@ -25,6 +25,7 @@ from tests.fixtures.cloud_uploader import ChecksummingSink
 from dss.util.version import datetime_to_version_format
 from dss.util import UrlBuilder
 from dss.collections import owner_lookup
+from dss.dynamodb import ItemNotFoundInDatabase
 
 
 @testmode.integration
@@ -154,8 +155,7 @@ class TestCollections(unittest.TestCase, DSSAssertMixin, DSSUploadMixin):
             self.assertEqual(found, True)
 
         with self.subTest("Test dynamoDB get_collection successfully finds collection."):
-            resp = owner_lookup.get_collection(owner=self.owner_email, versioned_uuid=fake_uuid)
-            self.assertEqual(resp, 'owner')
+            owner_lookup.get_collection(owner=self.owner_email, versioned_uuid=fake_uuid)
 
         with self.subTest("Test dynamoDB delete_collection."):
             owner_lookup.delete_collection(owner=self.owner_email, versioned_uuid=fake_uuid)
@@ -181,10 +181,10 @@ class TestCollections(unittest.TestCase, DSSAssertMixin, DSSUploadMixin):
                     raise ValueError(f'{fake_uuid} was removed from db, but {value} was found.')
 
         with self.subTest("Test dynamoDB get_collection does not find deleted versions."):
-            resp = owner_lookup.get_collection(owner=self.owner_email, versioned_uuid=fake_uuid + '.v1')
-            self.assertEqual(resp, None)
-            resp = owner_lookup.get_collection(owner=self.owner_email, versioned_uuid=fake_uuid + '.v2')
-            self.assertEqual(resp, None)
+            self.assertRaises(owner_lookup.get_collection(owner=self.owner_email, versioned_uuid=fake_uuid + '.v1'),
+                              ItemNotFoundInDatabase)
+            self.assertRaises(owner_lookup.get_collection(owner=self.owner_email, versioned_uuid=fake_uuid + '.v2'),
+                              ItemNotFoundInDatabase)
 
     def test_collection_paging_too_small(self):
         """Should NOT be able to use a too-small per_page."""

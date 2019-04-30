@@ -4,6 +4,10 @@ from botocore.exceptions import ClientError
 from dss.util.aws.clients import dynamodb as db  # type: ignore
 
 
+class ItemNotFoundInDatabase(Exception):
+    pass
+
+
 def _format_item(hash_key, sort_key, value):
     item = {'hash_key': {'S': hash_key}}
     if value:
@@ -41,7 +45,7 @@ def put_item(*, table: str, hash_key: str, sort_key: str=None, value: str, dont_
             raise
 
 
-def get_item(*, table: str, hash_key: str, sort_key: str=None):
+def get_item(*, table: str, hash_key: str, sort_key: str=None, return_key: str='body'):
     """
     Get associated value for a given set of keys from a dynamoDB table.
 
@@ -52,14 +56,15 @@ def get_item(*, table: str, hash_key: str, sort_key: str=None):
     :param str hash_key: 1st primary key that can be used to fetch associated sort_keys and values.
     :param str sort_key: 2nd primary key, used with hash_key to fetch a specific value.
                          Note: If not specified, this will GET only 1 key (hash_key) and 1 value.
+    :param str return_key: Either "body" (to return all values) or "sort_key" (to return all 2nd primary keys).
     :return: None or str
     """
     query = {'TableName': table,
              'Key': _format_item(hash_key=hash_key, sort_key=sort_key, value=None)}
     item = db.get_item(**query).get('Item')
-    if item is not None:
-        return item['body']['S']
-    return item
+    if item is None:
+        raise ItemNotFoundInDatabase(f'Query failed to fetch item from database: {query}')
+    return item[return_key]['S']
 
 
 def get_primary_key_items(*, table: str, key: str, return_key: str='body') -> Generator[str, None, None]:

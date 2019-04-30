@@ -29,10 +29,13 @@ def put_subscription(doc: dict):
 
 
 def get_subscription(replica: Replica, owner: str, uuid: str):
-    item = dynamodb.get_item(table=subscription_db_table.format(replica.name),
-                             hash_key=owner,
-                             sort_key=uuid)
-    return json.loads(item) if item else None
+    try:
+        item = dynamodb.get_item(table=subscription_db_table.format(replica.name),
+                                 hash_key=owner,
+                                 sort_key=uuid)
+        return json.loads(item)
+    except dynamodb.ItemNotFoundInDatabase:
+        return None
 
 
 def get_subscriptions_for_owner(replica: Replica, owner: str) -> list:

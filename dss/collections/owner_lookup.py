@@ -17,7 +17,8 @@ def put_collection(owner: str, versioned_uuid: str, permission_level: str = 'own
 def get_collection(owner: str, versioned_uuid: str):
     return dynamodb.get_item(table=collection_db_table,
                              hash_key=owner,
-                             sort_key=versioned_uuid)
+                             sort_key=versioned_uuid,
+                             return_key='sort_key')
 
 
 def get_collection_versioned_uuids_for_owner(owner: str):
