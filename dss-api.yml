@@ -2453,7 +2453,7 @@ definitions:
         description: A UUID identifying the collection.
         pattern: "[a-z0-9]{8}-[a-z0-9]{4}-[a-z0-9]{4}-[a-z0-9]{4}-[a-z0-9]{12}"
       version:
-        description: The versions of the UUID identifying the collection.
+        description: The version of the UUID identifying the collection.
         type: string
     required:
       - uuid
