@@ -20,7 +20,7 @@ def get_collection(owner: str, versioned_uuid: str):
                              sort_key=versioned_uuid)
 
 
-def get_collection_uuids_for_owner(owner: str):
+def get_collection_versioned_uuids_for_owner(owner: str):
     """Returns an Iterator of uuid strings."""
     return dynamodb.get_primary_key_items(table=collection_db_table,
                                           key=owner,
@@ -41,7 +41,7 @@ def delete_collection(owner: str, versioned_uuid: str):
 
 def delete_collection_uuid(owner: str, uuid: str):
     """Deletes all versions of a uuid in the database."""
-    for versioned_uuid in get_collection_uuids_for_owner(owner):
+    for versioned_uuid in get_collection_versioned_uuids_for_owner(owner):
         if versioned_uuid.startswith(uuid):
             dynamodb.delete_item(table=collection_db_table,
                                  hash_key=owner,

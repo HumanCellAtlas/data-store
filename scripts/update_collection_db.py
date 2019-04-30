@@ -56,8 +56,8 @@ class CollectionDatabaseTools(object):
         """
         Determines collection items in the table that:
         1. No longer exist in the bucket.
-        2. Is tombstoned in the bucket.
-        3. Has an owner that doesn't match the owner found in the bucket's collection file.
+        2. Are tombstoned in the bucket.
+        3. Have an owner that doesn't match the owner found in the bucket's collection file.
 
         Returns an iterable tuple of strings: (owner, versioned_uuid) representing the item's key pair.
 

@@ -65,7 +65,7 @@ def listcollections(per_page: int, start_at: int = 0):
     owner = security.get_token_email(request.token_info)
 
     collections = []
-    for collection in owner_lookup.get_collection_uuids_for_owner(owner):
+    for collection in owner_lookup.get_collection_versioned_uuids_for_owner(owner):
         uuid, version = collection.split('.', 1)
         collections.append({'uuid': uuid,
                             'version': version})
