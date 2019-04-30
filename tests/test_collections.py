@@ -181,10 +181,10 @@ class TestCollections(unittest.TestCase, DSSAssertMixin, DSSUploadMixin):
                     raise ValueError(f'{fake_uuid} was removed from db, but {value} was found.')
 
         with self.subTest("Test dynamoDB get_collection does not find deleted versions."):
-            self.assertRaises(owner_lookup.get_collection(owner=self.owner_email, versioned_uuid=fake_uuid + '.v1'),
-                              ItemNotFoundInDatabase)
-            self.assertRaises(owner_lookup.get_collection(owner=self.owner_email, versioned_uuid=fake_uuid + '.v2'),
-                              ItemNotFoundInDatabase)
+            with self.assertRaises(ItemNotFoundInDatabase):
+                owner_lookup.get_collection(owner=self.owner_email, versioned_uuid=fake_uuid + '.v1')
+            with self.assertRaises(ItemNotFoundInDatabase):
+                owner_lookup.get_collection(owner=self.owner_email, versioned_uuid=fake_uuid + '.v2')
 
     def test_collection_paging_too_small(self):
         """Should NOT be able to use a too-small per_page."""
