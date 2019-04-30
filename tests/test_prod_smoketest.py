@@ -62,7 +62,7 @@ class ProdSmoketest(BaseSmokeTest):
 
 
 if __name__ == "__main__":
-    if os.environ.get("DSS_DEPLOYMENT_STAGE") is not "prod":
+    if os.environ.get("DSS_DEPLOYMENT_STAGE") != "prod":
         print("prod_smoketest is not applicable to stage: {}".format(os.environ.get("DSS_DEPLOYMENT_STAGE")))
         exit(0)
     else:
