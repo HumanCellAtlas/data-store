@@ -1,16 +1,20 @@
 """
 Updates the dynamoDB table that tracks collections.
 
-To only update the table with new uuids from the bucket:
+To update the table run (slow):
     scripts/update_collection_db.py
 
-To reset the table (delete table and repopulate from bucket) run:
+CAUTION: Faster, but doing a hard-reset will break some collections usage during the time it is updating.
+To run a hard reset on the table (delete table and repopulate from bucket):
     scripts/update_collection_db.py hard-reset
+
+Tries to be efficient, since this potentially opens 1000's of files one by one and takes a long time.
 """
 import os
 import sys
 import json
-from collections import defaultdict
+import time
+from cloud_blobstore import BlobNotFoundError
 
 pkg_root = os.path.abspath(os.path.join(os.path.dirname(__file__), '..'))  # noqa
 sys.path.insert(0, pkg_root)  # noqa
@@ -28,85 +32,122 @@ class CollectionDatabaseTools(object):
         self.replica = replica
         self.bucket = Replica[replica].bucket
         self.handle = Config.get_blobstore_handle(Replica[replica])
+        self.bucket_name = f'{Replica[replica].storage_schema}://{self.bucket}'
+        self.tombstone_cache = dict()
+        self.tombstone_cache_max_len = 100000
 
-        # all collections in the bucket
-        raw_keys = self.handle.list(self.bucket, prefix=COLLECTION_PREFIX)
-        # filter for tombstoned collections
-        tombstone_uuids = [i[len(f'{COLLECTION_PREFIX}/'):-len(f'.{TOMBSTONE_SUFFIX}')] for i in
-                           self.handle.list(self.bucket, prefix=COLLECTION_PREFIX)
-                           if i.endswith(f'.{TOMBSTONE_SUFFIX}')]
+        self.total_database_collection_items = 0
+        self.total_bucket_collection_items = 0
+        self.total_tombstoned_bucket_collection_items = 0
 
-        self.valid_bucket_uuids = set()
-        self.all_bucket_uuids = defaultdict(list)
-        for uuid, version in [key[len(f'{COLLECTION_PREFIX}/'):].split('.', 1)
-                              for key in raw_keys if key != f'{COLLECTION_PREFIX}/']:
-            self.all_bucket_uuids[uuid].append(version)
-            if uuid not in tombstone_uuids:
-                self.valid_bucket_uuids.add(uuid)
+    def _is_uuid_tombstoned(self, uuid: str):
+        if len(self.tombstone_cache) >= self.tombstone_cache_max_len:
+            self.tombstone_cache.popitem()
 
-        # TODO: Iterate?
-        # Probably only necessary once the collections db reaches 10s of millions
-        self.all_database_uuids = set([uuid.split('.', 1)[0] for _, uuid in owner_lookup.get_all_collection_keys()])
-        self.uuids_not_in_db = self.valid_bucket_uuids - self.all_database_uuids
+        if uuid not in self.tombstone_cache:
+            try:
+                self.tombstone_cache[uuid] = self.handle.get(self.bucket,
+                                                             key=f'{COLLECTION_PREFIX}/{uuid}.{TOMBSTONE_SUFFIX}')
+            except BlobNotFoundError:
+                self.tombstone_cache[uuid] = None
+        return self.tombstone_cache[uuid]
 
-        bucket_name = f'{Replica[replica].storage_schema}://{self.bucket}'
-        print(f'Found {len(self.valid_bucket_uuids)} valid collections in {bucket_name}.')
-        print(f'Found {len(tombstone_uuids)} tombstoned collections in {bucket_name}.')
-        print(f'Found {len(self.all_database_uuids)} collections in db table: {owner_lookup.collection_db_table}.')
+    def _collections_in_database_but_not_in_bucket(self):
+        """
+        Determines collection items in the table that:
+        1. No longer exist in the bucket.
+        2. Is tombstoned in the bucket.
+        3. Has an owner that doesn't match the owner found in the bucket's collection file.
 
-    def _read_collection_bucket_files_to_database(self, uuids):
-        print(f'\nAdding {len(uuids)} user-collection associations to database.\n')
-        counter = 0
-        for uuid in uuids:
-            print(f'{round(counter * 100 / len(uuids), 1)}% Added.')
-            for version in self.all_bucket_uuids[uuid]:
-                key = f'{COLLECTION_PREFIX}/{uuid}.{version}'
-                collection = json.loads(self.handle.get(self.bucket, key))
-                owner_lookup.put_collection(owner=collection['owner'], versioned_uuid=f'{uuid}.{version}')
-            counter += 1
+        Returns an iterable tuple of strings: (owner, versioned_uuid) representing the item's key pair.
 
-    @staticmethod
-    def _delete_collection_bucket_files_from_database():
-        print(f'\nRemoving all user-collection associations from database.\n')
+        The returned keys can then be removed from the collections dynamodb table.
+        """
         for owner, versioned_uuid in owner_lookup.get_all_collection_keys():
-            print(f"Deleting {owner}'s collection: {versioned_uuid}")
+            self.total_database_collection_items += 1
+            uuid = versioned_uuid.split('.', 1)[0]
+            try:
+                collection = json.loads(self.handle.get(self.bucket, f'{COLLECTION_PREFIX}/{versioned_uuid}'))
+
+                assert not self._is_uuid_tombstoned(uuid)
+                assert collection['owner'] == owner
+
+            except BlobNotFoundError:
+                yield owner, versioned_uuid
+
+            except AssertionError:
+                yield owner, versioned_uuid
+
+    def _collections_in_bucket_but_not_in_database(self):
+        """
+        Returns any (owner, versioned_uuid) present in the bucket but not in the collections table.
+
+        Returns an iterable tuple of strings: (owner, versioned_uuid) representing the item's key pair.
+
+        The returned keys can then be added to the collections dynamodb table.
+        """
+        for collection_key in self.handle.list(self.bucket, prefix=COLLECTION_PREFIX):
+            self.total_bucket_collection_items += 1
+            if collection_key != f'{COLLECTION_PREFIX}/':
+                uuid, version = collection_key[len(f'{COLLECTION_PREFIX}/'):].split('.', 1)
+                versioned_uuid = f'{uuid}.{version}'
+                if not self._is_uuid_tombstoned(uuid):
+                    try:
+                        collection = json.loads(self.handle.get(self.bucket, collection_key))
+                        if not owner_lookup.get_collection(owner=collection['owner'], versioned_uuid=versioned_uuid):
+                            yield collection['owner'], versioned_uuid
+                    except BlobNotFoundError:
+                        pass  # if deleted from bucket while being listed
+                else:
+                    self.total_tombstoned_bucket_collection_items += 1
+
+    def remove_collections_from_database(self, all: bool=False):
+        if all:
+            collections = owner_lookup.get_all_collection_keys()
+            text = 'ALL'
+        else:
+            collections = self._collections_in_database_but_not_in_bucket()
+            text = 'INVALID'
+
+        print(f'\nRemoving {text} user-collection associations from database: {owner_lookup.collection_db_table}\n')
+        removed = 0
+        for owner, versioned_uuid in collections:
+            print(f"Removing {owner}'s collection: {versioned_uuid}")
             owner_lookup.delete_collection(owner=owner, versioned_uuid=versioned_uuid)
+            removed += 1
+        print(f'{removed} collection items removed from: {owner_lookup.collection_db_table}')
+        return removed
 
-    def collection_database_update(self):
-        """
-        Any collection uuids in the replica bucket not already in dynamoDB will be recorded along with their owner.
-
-        Tries to be efficient, since this potentially opens 1000's of files one by one and takes a long time.
-
-        For a hard reset, use collection_database_hard_reset(), which will clear the database and repopulate all
-        collections from their bucket files from scratch.
-
-        This will also not remove any entries in the database, since the current behavior is a GET request that
-        does not see the file will delete the entry from the database since the file is considered truth.
-
-        TODO: Handle repopulating read-only access once implemented?  Can it be done?
-        """
-        self._read_collection_bucket_files_to_database(uuids=self.uuids_not_in_db)
-
-    def collection_database_hard_reset(self):
-        """
-        Clears the database and repopulates all collections from their bucket files from scratch.
-
-        TODO: Is it safe to assume that this will load completely from only one replica?  Or use both?
-        TODO: Handle repopulating read-only access once implemented?  Can it be done?
-        """
-        self._delete_collection_bucket_files_from_database()
-        self._read_collection_bucket_files_to_database(uuids=self.valid_bucket_uuids)
+    def add_missing_collections_to_database(self):
+        print(f'\nAdding missing user-collection associations to database from: {self.bucket_name}\n')
+        added = 0
+        for owner, versioned_uuid in self._collections_in_bucket_but_not_in_database():
+            print(f"Adding {owner}'s collection: {versioned_uuid}")
+            owner_lookup.put_collection(owner=owner, versioned_uuid=versioned_uuid)
+            added += 1
+        print(f'{added} collection items added from: {self.bucket_name}')
+        return added
 
 
 def main():
+    start = time.time()
     c = CollectionDatabaseTools(replica='aws')
 
     if len(sys.argv) > 1:
         assert sys.argv[1] == 'hard-reset', f'Invalid argument: {sys.argv[1]}'
-        c.collection_database_hard_reset()
+        removed = c.remove_collections_from_database(all=True)
     else:
-        c.collection_database_update()
+        removed = c.remove_collections_from_database()
+    print(f'Removal took: {time.time() - start} seconds.')
+
+    added = c.add_missing_collections_to_database()
+
+    print(f'Database had: {c.total_database_collection_items} items.')
+    print(f'Bucket had  : {c.total_bucket_collection_items} items.')
+    print(f'Of which    : {c.total_tombstoned_bucket_collection_items} items were tombstoned.')
+    print(f'{removed} items removed from: {owner_lookup.collection_db_table}')
+    print(f'{added} collection items added from: {c.bucket_name}')
+    print(f'Collections Database Updated Successfully in {time.time() - start} seconds.')
 
 
 if __name__ == '__main__':

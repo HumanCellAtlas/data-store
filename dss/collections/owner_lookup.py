@@ -14,6 +14,12 @@ def put_collection(owner: str, versioned_uuid: str, permission_level: str = 'own
                       dont_overwrite='sort_key')
 
 
+def get_collection(owner: str, versioned_uuid: str):
+    return dynamodb.get_item(table=collection_db_table,
+                             hash_key=owner,
+                             sort_key=versioned_uuid)
+
+
 def get_collection_uuids_for_owner(owner: str):
     """Returns an Iterator of uuid strings."""
     return dynamodb.get_primary_key_items(table=collection_db_table,
