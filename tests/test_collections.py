@@ -27,7 +27,7 @@ from dss.util import UrlBuilder
 from dss.collections import owner_lookup
 
 
-# @testmode.integration
+@testmode.integration
 class TestCollections(unittest.TestCase, DSSAssertMixin, DSSUploadMixin):
     @classmethod
     def setUpClass(cls):
