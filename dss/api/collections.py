@@ -1,4 +1,4 @@
-import json, logging, datetime, io, functools, time
+import json, logging, datetime, io, functools
 from typing import List
 from uuid import uuid4
 from concurrent.futures import ThreadPoolExecutor
@@ -13,7 +13,7 @@ from dss import Config, Replica
 from dss.error import DSSException, dss_handler
 from dss.storage.blobstore import test_object_exists
 from dss.storage.hcablobstore import BlobStore, compose_blob_key
-from dss.storage.identifiers import CollectionFQID, CollectionTombstoneID, TOMBSTONE_SUFFIX, COLLECTION_PREFIX
+from dss.storage.identifiers import CollectionFQID, CollectionTombstoneID
 from dss.util import security, hashabledict, UrlBuilder
 from dss.util.version import datetime_to_version_format
 from dss.storage.blobstore import idempotent_save
@@ -60,15 +60,16 @@ def listcollections(replica: str, per_page: int, start_at: int = 0):
     :param Replica replica: AWS or GCP.
     :param int per_page: # of collections returned per paged response.
     :param int start_at: Where the next chunk of paged response should start at.
-    :return: A list of dictionaries looking like: [{'collection_uuid': uuid, 'collection_version': [v1, v2]}, ... ].
+    :return: A list of dictionaries looking like: [{'uuid': uuid, 'version': version}, ... ].
     """
+    # TODO: Replica is unused.  Use it or ditch?
     owner = security.get_token_email(request.token_info)
 
     collections = []
     for collection in owner_lookup.get_collection_uuids_for_owner(owner):
         uuid, version = collection.split('.', 1)
-        collections.append({'collection_uuid': uuid,
-                            'collection_version': version})
+        collections.append({'uuid': uuid,
+                            'version': version})
 
     # paged response
     if len(collections) - start_at > per_page:

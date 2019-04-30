@@ -2454,16 +2454,16 @@ definitions:
   CollectionOfCollectionsItem:
     type: object
     properties:
-      collection_uuid:
+      uuid:
         type: string
         description: A UUID identifying the collection.
         pattern: "[a-z0-9]{8}-[a-z0-9]{4}-[a-z0-9]{4}-[a-z0-9]{4}-[a-z0-9]{12}"
-      collection_version:
+      version:
         description: The versions of the UUID identifying the collection.
         type: string
     required:
-      - collection_uuid
-      - collection_version
+      - uuid
+      - version
   Collection:
     type: object
     properties:
