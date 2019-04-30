@@ -2,7 +2,7 @@
 """
 A prod test for the DSS, checks core API Requests to know whats available. Works with data present.
 """
-import os, sys, argparse, unittest
+import os, sys, argparse, unittest, json
 
 pkg_root = os.path.abspath(os.path.join(os.path.dirname(__file__), ".."))  # noqa
 sys.path.insert(0, pkg_root)  # noqa
@@ -36,7 +36,7 @@ class ProdSmoketest(BaseSmokeTest):
         replica = kwargs['starting_replica']
         checkout_bucket = kwargs['checkout_bucket']
 
-        query_res = self.post_search_es(replica, "{}")
+        query_res = self.post_search_es(replica, f"'{json.dumps(self.query)}'")
         bundle_uuid = query_res['results'][0]['bundle_fqid'].split('.')[0]
         bundle_version = query_res['results'][0]['bundle_fqid'].split('.')[1]
 
