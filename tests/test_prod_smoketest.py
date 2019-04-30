@@ -24,7 +24,7 @@ class ProdSmoketest(BaseSmokeTest):
     def setUpClass(cls):
         super().setUpClass()
         cls.url = "https://www.example.com"
-        cls.query = {"query": {"bool": {"must": [{"term": {"admin_deleted": "true"}}]}}}
+        cls.query = {"query": {"bool": {"must_not": [{"term": {"admin_deleted": "true"}}]}}}
 
     @classmethod
     def tearDownClass(cls):
@@ -64,7 +64,7 @@ class ProdSmoketest(BaseSmokeTest):
 if __name__ == "__main__":
     if os.environ.get("DSS_DEPLOYMENT_STAGE") is not "prod":
         print("prod_smoketest is not applicable to stage: {}".format(os.environ.get("DSS_DEPLOYMENT_STAGE")))
-        exit(0)
-    else:
+        # exit(0)
+    # else:
         args, sys.argv[1:] = parser.parse_known_args()
         unittest.main()
