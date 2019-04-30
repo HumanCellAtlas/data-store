@@ -98,6 +98,8 @@ class CollectionDatabaseTools(object):
                             yield collection['owner'], versioned_uuid
                     except BlobNotFoundError:
                         pass  # if deleted from bucket while being listed
+                    except KeyError:
+                        pass  # unexpected response
                 else:
                     self.total_tombstoned_bucket_collection_items += 1
 
