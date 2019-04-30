@@ -18,8 +18,10 @@ class ChaliceTestHarness:
         item = item.upper()
         return functools.partial(self.request, method=item)
 
-    def request(self, path, headers={}, data='', method="GET"):
+    def request(self, path, headers=None, data='', method="GET"):
         resp_obj = requests.Response()
+        if not headers:
+            headers = {}
         try:
             response = self._gateway.handle_request(method, path, headers, data)
         except LocalGatewayException as error:

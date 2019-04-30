@@ -40,6 +40,7 @@ cat "$config_json" | jq .stages.$stage.tags.FUS_DEPLOY_ORIGIN=env.DEPLOY_ORIGIN 
 env_json=$(aws ssm get-parameter --name /${FUS_PARAMETER_STORE}/${FUS_DEPLOYMENT_STAGE}/environment | jq -r .Parameter.Value)
 for var in $(echo $env_json | jq -r keys[]); do
     val=$(echo $env_json | jq .$var)
+    # TODO add version variable
     cat "$config_json" | jq .stages.$stage.environment_variables.$var="$val" | sponge "$config_json"
 done
 

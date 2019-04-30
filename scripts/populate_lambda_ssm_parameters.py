@@ -9,7 +9,6 @@ Individual environment variables may also be set and unset across both SSM and
 deployed lambdas.
 """
 import os
-import sys
 import json
 import boto3
 import argparse
@@ -129,4 +128,5 @@ if __name__ == "__main__":
         set_ssm_lambda_environment(lambda_env)
         if args.update_deployed_lambdas:
             lambda_name = get_deployed_lambda()
-            set_deployed_lambda_environment(lambda_name, lambda_env)
+            for name in lambda_name:
+                set_deployed_lambda_environment(name, lambda_env)

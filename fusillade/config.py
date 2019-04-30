@@ -5,8 +5,14 @@ import boto3
 
 
 class Config:
-    _admin_emails = None
+    _admin_emails: list = None
     _oauth2_config = None
+    app = None
+    audience = ["https://data.humancellatlas.org/" if os.environ["FUS_DEPLOYMENT_STAGE"] == 'prod'
+                else "https://dev.data.humancellatlas.org/",
+                "https://auth.data.humancellatlas.org/"]
+    _openid_provider = None
+    # TODO make configurable
 
     @classmethod
     def get_admin_emails(cls):
@@ -32,3 +38,17 @@ class Config:
     @classmethod
     def get_schema_name(cls):
         return f"hca_fusillade_base_{os.environ['FUS_DEPLOYMENT_STAGE']}"
+
+    @classmethod
+    def get_audience(cls):
+        return cls.audience
+
+    @classmethod
+    def get_openid_provider(cls):
+        if not cls._openid_provider:
+            cls._openid_provider = os.environ['OPENID_PROVIDER']
+        return cls._openid_provider
+
+    @classmethod
+    def debug_level(cls):
+        return int(os.environ.get("DEBUG", "0"))
