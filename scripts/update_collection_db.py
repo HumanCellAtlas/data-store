@@ -145,8 +145,9 @@ def main():
     print(f'Database had: {c.total_database_collection_items} items.')
     print(f'Bucket had  : {c.total_bucket_collection_items} items.')
     print(f'Of which    : {c.total_tombstoned_bucket_collection_items} items were tombstoned.')
-    print(f'{removed} items removed from: {owner_lookup.collection_db_table}')
-    print(f'{added} collection items added from: {c.bucket_name}')
+    print(f'From bucket: {c.bucket_name} to dynamodb table: {owner_lookup.collection_db_table}')
+    print(f'{removed} collection items were removed.')
+    print(f'{added} collection items were added.')
     print(f'Collections Database Updated Successfully in {time.time() - start} seconds.')
 
 
