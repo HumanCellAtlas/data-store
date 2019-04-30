@@ -44,13 +44,15 @@ class CollectionDatabaseTools(object):
             if uuid not in tombstone_uuids:
                 self.valid_bucket_uuids.add(uuid)
 
-        self.all_database_uuids = set([uuid for _, uuid in owner_lookup.get_all_collection_keys()])  # TODO: Iterate?
+        # TODO: Iterate?
+        # Probably only necessary once the collections db reaches 10s of millions
+        self.all_database_uuids = set([uuid.split('.', 1)[0] for _, uuid in owner_lookup.get_all_collection_keys()])
         self.uuids_not_in_db = self.valid_bucket_uuids - self.all_database_uuids
 
         bucket_name = f'{Replica[replica].storage_schema}://{self.bucket}'
-        print(f'Found {len(self.valid_bucket_uuids)} collections in {bucket_name}.')
+        print(f'Found {len(self.valid_bucket_uuids)} valid collections in {bucket_name}.')
         print(f'Found {len(tombstone_uuids)} tombstoned collections in {bucket_name}.')
-        print(f'Found {len(self.all_database_uuids)} collections in database.')
+        print(f'Found {len(self.all_database_uuids)} collections in db table: {owner_lookup.collection_db_table}.')
 
     def _read_collection_bucket_files_to_database(self, uuids):
         print(f'\nAdding {len(uuids)} user-collection associations to database.\n')
@@ -65,7 +67,7 @@ class CollectionDatabaseTools(object):
 
     @staticmethod
     def _delete_collection_bucket_files_from_database():
-        print(f'\nRemoving user-collection associations from database.\n')
+        print(f'\nRemoving all user-collection associations from database.\n')
         for owner, versioned_uuid in owner_lookup.get_all_collection_keys():
             print(f"Deleting {owner}'s collection: {versioned_uuid}")
             owner_lookup.delete_collection(owner=owner, versioned_uuid=versioned_uuid)

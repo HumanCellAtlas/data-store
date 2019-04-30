@@ -230,6 +230,7 @@ class TestCollections(unittest.TestCase, DSSAssertMixin, DSSUploadMixin):
         col_ptr_item = dict(type="foo", uuid=self.file_uuid, version=self.file_version, fragment="/foo")
         contents = [col_file_item] * 8 + [col_ptr_item] * 8
         uuid, version = self._put(contents, replica='aws')
+        self.addCleanup(self._delete_collection, uuid, replica='aws')
 
         expected_contents = {'contents': [col_file_item,
                                           col_ptr_item],
@@ -260,7 +261,6 @@ class TestCollections(unittest.TestCase, DSSAssertMixin, DSSUploadMixin):
                 if content_changes:
                     expected_contents.update(content_changes)
                 self.assertEqual(collection, expected_contents)
-        self.addCleanup(self._delete_collection, uuid, replica='aws')
 
     def test_put_invalid_fragment(self):
         """PUT invalid fragment reference."""
