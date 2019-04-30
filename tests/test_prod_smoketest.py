@@ -24,6 +24,8 @@ class ProdSmoketest(BaseSmokeTest):
     def setUpClass(cls):
         super().setUpClass()
         cls.url = "https://www.example.com"
+        # query is used to ensure we can get a non-tombstoned bundle to download; its also used to
+        # check if subscriptions can be created/retrieved. 
         cls.query = {"query": {"bool": {"must_not": [{"term": {"admin_deleted": "true"}}]}}}
 
     @classmethod
