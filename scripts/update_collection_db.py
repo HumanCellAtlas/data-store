@@ -29,21 +29,22 @@ class CollectionDatabaseTools(object):
         self.bucket = Replica[replica].bucket
         self.handle = Config.get_blobstore_handle(Replica[replica])
 
+        # all collections in the bucket
         raw_keys = self.handle.list(self.bucket, prefix=COLLECTION_PREFIX)
+        # filter for tombstoned collections
         tombstone_uuids = [i[len(f'{COLLECTION_PREFIX}/'):-len(f'.{TOMBSTONE_SUFFIX}')] for i in
                            self.handle.list(self.bucket, prefix=COLLECTION_PREFIX)
                            if i.endswith(f'.{TOMBSTONE_SUFFIX}')]
 
-        self.key_set = defaultdict(list)
+        self.valid_bucket_uuids = set()
         self.all_bucket_uuids = defaultdict(list)
-        for uuid, version in [key[len(f'{COLLECTION_PREFIX}/'):].split('.', 1) for key in raw_keys if key != f'{COLLECTION_PREFIX}/']:
+        for uuid, version in [key[len(f'{COLLECTION_PREFIX}/'):].split('.', 1)
+                              for key in raw_keys if key != f'{COLLECTION_PREFIX}/']:
             self.all_bucket_uuids[uuid].append(version)
             if uuid not in tombstone_uuids:
-                self.key_set[uuid].append(version)
+                self.valid_bucket_uuids.add(uuid)
 
-        self.valid_bucket_uuids = set(self.key_set.keys())
-        items = [i for i in owner_lookup.get_all_collection_uuids()]  # TODO: Iterate.
-        self.all_database_uuids = set(items)
+        self.all_database_uuids = set([i for i in owner_lookup.get_all_collection_uuids()])  # TODO: Iterate.
         self.uuids_not_in_db = self.valid_bucket_uuids - self.all_database_uuids
 
         bucket_name = f'{Replica[replica].storage_schema}://{self.bucket}'
@@ -56,7 +57,7 @@ class CollectionDatabaseTools(object):
         counter = 0
         for uuid in uuids:
             print(f'{round(counter * 100 / len(uuids), 1)}% Added.')
-            for version in self.key_set[uuid]:
+            for version in self.all_bucket_uuids[uuid]:
                 key = f'{COLLECTION_PREFIX}/{uuid}.{version}'
                 collection = json.loads(self.handle.get(self.bucket, key))
                 owner_lookup.put_collection(owner=collection['owner'], versioned_uuid=f'{uuid}.{version}')
@@ -65,9 +66,9 @@ class CollectionDatabaseTools(object):
     @staticmethod
     def _delete_collection_bucket_files_from_database():
         print(f'\nRemoving user-collection associations from database.\n')
-        for owner, uuid in owner_lookup.get_all_collection_keys():
-            print(f"Deleting {owner}'s collection: {uuid}")
-            owner_lookup.delete_collection(owner=owner, versioned_uuid=uuid)
+        for owner, versioned_uuid in owner_lookup.get_all_collection_keys():
+            print(f"Deleting {owner}'s collection: {versioned_uuid}")
+            owner_lookup.delete_collection(owner=owner, versioned_uuid=versioned_uuid)
 
     def collection_database_update(self):
         """

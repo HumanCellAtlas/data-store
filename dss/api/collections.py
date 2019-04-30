@@ -50,7 +50,7 @@ def get_impl(uuid: str, replica: str, version: str = None):
 
 @dss_handler
 @security.authorized_group_required(['hca'])
-def listcollections(replica: str, per_page: int, start_at: int = 0):
+def listcollections(per_page: int, start_at: int = 0):
     """
     Return a list of a user's collections.
 
@@ -62,7 +62,7 @@ def listcollections(replica: str, per_page: int, start_at: int = 0):
     :param int start_at: Where the next chunk of paged response should start at.
     :return: A list of dictionaries looking like: [{'uuid': uuid, 'version': version}, ... ].
     """
-    # TODO: Replica is unused.  Use it or ditch?
+    # TODO: Replica is unused, so this does not use replica.  Appropriate?
     owner = security.get_token_email(request.token_info)
 
     collections = []

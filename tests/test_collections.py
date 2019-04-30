@@ -171,7 +171,7 @@ class TestCollections(unittest.TestCase, DSSAssertMixin, DSSUploadMixin):
         """GET a list of all collections belonging to the user."""
         res = self.app.get('/v1/collections',
                            headers=get_auth_header(authorized=True),
-                           params=dict(replica='aws'))
+                           params=dict())
         res.raise_for_status()
         self.assertIn('collections', res.json())
 
@@ -229,7 +229,7 @@ class TestCollections(unittest.TestCase, DSSAssertMixin, DSSUploadMixin):
         col_file_item = dict(type="file", uuid=self.file_uuid, version=self.file_version)
         col_ptr_item = dict(type="foo", uuid=self.file_uuid, version=self.file_version, fragment="/foo")
         contents = [col_file_item] * 8 + [col_ptr_item] * 8
-        uuid, version = self._put(contents)
+        uuid, version = self._put(contents, replica='aws')
 
         expected_contents = {'contents': [col_file_item,
                                           col_ptr_item],
@@ -260,6 +260,7 @@ class TestCollections(unittest.TestCase, DSSAssertMixin, DSSUploadMixin):
                 if content_changes:
                     expected_contents.update(content_changes)
                 self.assertEqual(collection, expected_contents)
+        self.addCleanup(self._delete_collection, uuid, replica='aws')
 
     def test_put_invalid_fragment(self):
         """PUT invalid fragment reference."""
