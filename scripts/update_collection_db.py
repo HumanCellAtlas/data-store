@@ -10,6 +10,7 @@ To reset the table (delete table and repopulate from bucket) run:
 import os
 import sys
 import json
+from collections import defaultdict
 
 pkg_root = os.path.abspath(os.path.join(os.path.dirname(__file__), '..'))  # noqa
 sys.path.insert(0, pkg_root)  # noqa
@@ -33,15 +34,15 @@ class CollectionDatabaseTools(object):
                            self.handle.list(self.bucket, prefix=COLLECTION_PREFIX)
                            if i.endswith(f'.{TOMBSTONE_SUFFIX}')]
 
-        self.key_set = {}
-        self.all_bucket_uuids = {}
+        self.key_set = defaultdict(list)
+        self.all_bucket_uuids = defaultdict(list)
         for uuid, version in [key[len(f'{COLLECTION_PREFIX}/'):].split('.', 1) for key in raw_keys if key != f'{COLLECTION_PREFIX}/']:
-            self.all_bucket_uuids[uuid] = version
+            self.all_bucket_uuids[uuid].append(version)
             if uuid not in tombstone_uuids:
-                self.key_set[uuid] = version
+                self.key_set[uuid].append(version)
 
         self.valid_bucket_uuids = set(self.key_set.keys())
-        items = [i for i in owner_lookup.get_all_collection_uuids()]  # TODO: 1 by 1
+        items = [i for i in owner_lookup.get_all_collection_uuids()]  # TODO: Iterate.
         self.all_database_uuids = set(items)
         self.uuids_not_in_db = self.valid_bucket_uuids - self.all_database_uuids
 
@@ -55,15 +56,17 @@ class CollectionDatabaseTools(object):
         counter = 0
         for uuid in uuids:
             print(f'{round(counter * 100 / len(uuids), 1)}% Added.')
-            key = f'{COLLECTION_PREFIX}/{uuid}.{self.key_set[uuid]}'
-            collection = json.loads(self.handle.get(self.bucket, key))
-            owner_lookup.put_collection(owner=collection['owner'], versioned_uuid=uuid)
+            for version in self.key_set[uuid]:
+                key = f'{COLLECTION_PREFIX}/{uuid}.{version}'
+                collection = json.loads(self.handle.get(self.bucket, key))
+                owner_lookup.put_collection(owner=collection['owner'], versioned_uuid=f'{uuid}.{version}')
             counter += 1
 
-    def _delete_collection_bucket_files_from_database(self):
+    @staticmethod
+    def _delete_collection_bucket_files_from_database():
         print(f'\nRemoving user-collection associations from database.\n')
         for owner, uuid in owner_lookup.get_all_collection_keys():
-            print(f"\n{owner}'s collection: {uuid}\n")
+            print(f"Deleting {owner}'s collection: {uuid}")
             owner_lookup.delete_collection(owner=owner, versioned_uuid=uuid)
 
     def collection_database_update(self):
@@ -90,7 +93,7 @@ class CollectionDatabaseTools(object):
         TODO: Handle repopulating read-only access once implemented?  Can it be done?
         """
         self._delete_collection_bucket_files_from_database()
-        # self._read_collection_bucket_files_to_database(uuids=self.valid_bucket_uuids)
+        self._read_collection_bucket_files_to_database(uuids=self.valid_bucket_uuids)
 
 
 def main():

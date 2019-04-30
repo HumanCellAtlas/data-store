@@ -1,4 +1,5 @@
 from typing import Generator
+from botocore.exceptions import ClientError
 
 from dss.util.aws.clients import dynamodb as db  # type: ignore
 
@@ -32,7 +33,12 @@ def put_item(*, table: str, hash_key: str, sort_key: str=None, value: str, dont_
              'Item': _format_item(hash_key=hash_key, sort_key=sort_key, value=value)}
     if dont_overwrite:
         query['ConditionExpression'] = f'attribute_not_exists({dont_overwrite})'
-    db.put_item(**query)
+
+    try:
+        db.put_item(**query)
+    except ClientError as e:
+        if e.response['Error']['Code'] != 'ConditionalCheckFailedException':
+            raise
 
 
 def get_item(*, table: str, hash_key: str, sort_key: str=None):
