@@ -44,7 +44,7 @@ class CollectionDatabaseTools(object):
             if uuid not in tombstone_uuids:
                 self.valid_bucket_uuids.add(uuid)
 
-        self.all_database_uuids = set([i for i in owner_lookup.get_all_collection_uuids()])  # TODO: Iterate.
+        self.all_database_uuids = set([uuid for _, uuid in owner_lookup.get_all_collection_keys()])  # TODO: Iterate?
         self.uuids_not_in_db = self.valid_bucket_uuids - self.all_database_uuids
 
         bucket_name = f'{Replica[replica].storage_schema}://{self.bucket}'

@@ -21,13 +21,8 @@ def get_collection_uuids_for_owner(owner: str):
                                           return_key='sort_key')
 
 
-def get_all_collection_uuids():
-    """Returns an Iterator of uuid strings."""
-    return dynamodb.get_all_table_items(table=collection_db_table, return_key='sort_key')
-
-
 def get_all_collection_keys():
-    """Returns an Iterator of (owner, uuid)."""
+    """Returns an Iterator of (owner, uuid) for all items in the collections db table."""
     return dynamodb.get_all_table_items(table=collection_db_table, both_keys=True)
 
 

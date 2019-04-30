@@ -81,7 +81,7 @@ def get_primary_key_items(*, table: str, key: str, return_key: str='body') -> Ge
             yield item[return_key]['S']
 
 
-def get_all_table_items(*, table: str, return_key: str='body', both_keys: bool=False):
+def get_all_table_items(*, table: str, both_keys: bool=False):
     """
     Return all items from a dynamoDB table.
 
@@ -95,7 +95,7 @@ def get_all_table_items(*, table: str, return_key: str='body', both_keys: bool=F
             if both_keys:
                 yield item['hash_key']['S'], item['sort_key']['S']
             else:
-                yield item[return_key]['S']
+                yield item['body']['S']
 
 
 def delete_item(*, table: str, hash_key: str, sort_key: str=None):
