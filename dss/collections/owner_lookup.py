@@ -8,7 +8,6 @@ collection_db_table = f"dss-collections-db-{os.environ['DSS_DEPLOYMENT_STAGE']}"
 
 
 def put_collection(owner: str, collection_fqid: str, permission_level: str = 'owner'):
-
     try:
         dynamodb.put_item(table=collection_db_table,
                           hash_key=owner,

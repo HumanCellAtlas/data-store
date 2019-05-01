@@ -50,7 +50,7 @@ def get_impl(uuid: str, replica: str, version: str = None):
 
 @dss_handler
 @security.authorized_group_required(['hca'])
-def listcollections(per_page: int, start_at: int = 0):
+def list_collections(per_page: int, start_at: int = 0):
     """
     Return a list of a user's collections.
 
