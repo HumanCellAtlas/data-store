@@ -4,7 +4,7 @@ Updates the dynamoDB table that tracks collections.
 To update the table run (slow):
     scripts/update_collection_db.py
 
-CAUTION: Faster, but doing a hard-reset will break some collections usage during the time it is updating.
+CAUTION: Doing a hard-reset will break some collections usage during the time it is updating.
 To run a hard reset on the table (delete table and repopulate from bucket):
     scripts/update_collection_db.py hard-reset
 
@@ -153,8 +153,7 @@ def main(argv=sys.argv[1:]):
         """), formatter_class=argparse.RawTextHelpFormatter)
     parser.add_argument('--hard-reset', dest="hard_reset", default=False, required=False, action='store_true',
                         help='CAUTION: Breaks some collections usage during the time it is updating.\n'
-                             'This deletes the entire table and then repopulates from the bucket files.\n'
-                             'This is faster than the normal update (still slow though).')
+                             'This deletes the entire table and then repopulates from the bucket files.')
     o = parser.parse_args(argv)
     start = time.time()
     c = CollectionDatabaseTools(replica='aws')
