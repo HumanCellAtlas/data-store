@@ -94,7 +94,7 @@ def create_directory(name: str, schema: str) -> 'CloudDirectory':
         directory = CloudDirectory.from_name(name)
     else:
         # create structure
-        for folder_name in ('Groups', 'Users', 'Roles', 'Policies'):
+        for folder_name in ('group', 'user', 'role', 'policy'):
             directory.create_folder('/', folder_name)
 
         # create roles
@@ -486,11 +486,11 @@ class CloudDirectory:
         }
 
     def clear(self) -> None:
-        for _, obj_ref in self.list_object_children('/Users/'):
+        for _, obj_ref in self.list_object_children('/user/'):
             self.delete_object(obj_ref)
-        for _, obj_ref in self.list_object_children('/Groups/'):
+        for _, obj_ref in self.list_object_children('/group/'):
             self.delete_object(obj_ref)
-        for name, obj_ref in self.list_object_children('/Roles/'):
+        for name, obj_ref in self.list_object_children('/role/'):
             if name not in ["admin", "default_user"]:
                 self.delete_object(obj_ref)
 
@@ -657,11 +657,11 @@ class CloudDirectory:
     @staticmethod
     def get_obj_type_path(obj_type: str) -> str:
         obj_type = obj_type.lower()
-        paths = dict(group='/Groups/',
-                     index='/Indices/',
-                     user='/Users/',
-                     policy='/Policies/',
-                     role='/Roles/')
+        paths = dict(group='/group/',
+                     index='/index/',
+                     user='/user/',
+                     policy='/policy/',
+                     role='/role/')
         return paths[obj_type]
 
     def lookup_policy(self, object_id: str) -> typing.List[str]:

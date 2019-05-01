@@ -59,13 +59,13 @@ class TestCloudDirectory(unittest.TestCase):
         directory = create_directory(directory_name, schema_arn)
         self.addCleanup(cleanup_directory, CloudDirectory.from_name(directory_name)._dir_arn)
 
-        folders = ['Users', 'Roles', 'Groups', 'Policies']
+        folders = ['user', 'role', 'group', 'policy']
         for folder in folders:
             with self.subTest(f"{folder} node is created when directory is created"):
                 resp = directory.get_object_information(f'/{folder}')
                 self.assertTrue(resp['ObjectIdentifier'])
 
-        roles = ['/Roles/admin', '/Roles/default_user']
+        roles = ['/role/admin', '/role/default_user']
         for role in roles:
             with self.subTest(f"{role} roles is created when directory is created"):
                 resp = directory.get_object_information(role)
@@ -73,7 +73,7 @@ class TestCloudDirectory(unittest.TestCase):
 
         for admin in fusillade.Config.get_admin_emails():
             with self.subTest(f"Admin user {admin} created when the directory is created"):
-                user = '/Users/' + quote(admin)
+                user = '/user/' + quote(admin)
                 resp = directory.get_object_information(user)
                 self.assertTrue(resp['ObjectIdentifier'])
 

@@ -62,7 +62,7 @@ class TestUser(unittest.TestCase):
         with self.subTest("An error is returned when add a user to a group that does not exist."):
             with self.assertRaises(cd_client.exceptions.BatchWriteException) as ex:
                 user.add_groups(["ghost_group"])
-                self.assertTrue(ex.response['Error']['Message'].endswith("/ Groups / ghost_group\\' does not exist.'"))
+                self.assertTrue(ex.response['Error']['Message'].endswith("/ group / ghost_group\\' does not exist.'"))
             self.assertEqual(len(user.groups), 0)
 
         user.add_groups([group.name for group in groups])
@@ -162,7 +162,7 @@ class TestUser(unittest.TestCase):
         with self.subTest("An error is raised when adding a role that does not exist."):
             with self.assertRaises(cd_client.exceptions.BatchWriteException) as ex:
                user.add_roles(["ghost_role"])
-               self.assertTrue(ex.response['Error']['Message'].endswith("/ Roles / ghost_role\\' does not exist.'"))
+               self.assertTrue(ex.response['Error']['Message'].endswith("/ role / ghost_role\\' does not exist.'"))
 
         user.statement = self.default_policy
         with self.subTest("A user inherits a roles policies when a role is added to a user."):
