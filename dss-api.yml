@@ -1037,7 +1037,7 @@ paths:
             type: object
             properties:
               collections:
-                description: A user's collection UUIDs, and a list of versions associated with each.
+                description: A user's collection UUIDs and versions.
                 type: array
                 items:
                   $ref: '#/definitions/CollectionOfCollectionsItem'
@@ -1047,7 +1047,7 @@ paths:
             type: object
             properties:
               collections:
-                description: A user's collection UUIDs, and a list of versions associated with each.
+                description: A user's collection UUIDs and versions.
                 type: array
                 items:
                   $ref: '#/definitions/CollectionOfCollectionsItem'

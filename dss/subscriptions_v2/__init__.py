@@ -34,7 +34,7 @@ def get_subscription(replica: Replica, owner: str, uuid: str):
                                  hash_key=owner,
                                  sort_key=uuid)
         return json.loads(item)
-    except dynamodb.ItemNotFoundInDatabase:
+    except dynamodb.DynamoDBItemNotFound:
         return None
 
 

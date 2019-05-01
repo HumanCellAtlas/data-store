@@ -25,10 +25,10 @@ from tests.fixtures.cloud_uploader import ChecksummingSink
 from dss.util.version import datetime_to_version_format
 from dss.util import UrlBuilder
 from dss.collections import owner_lookup
-from dss.dynamodb import ItemNotFoundInDatabase
+from dss.dynamodb import DynamoDBItemNotFound
 
 
-@testmode.integration
+# @testmode.integration
 class TestCollections(unittest.TestCase, DSSAssertMixin, DSSUploadMixin):
     @classmethod
     def setUpClass(cls):
@@ -140,51 +140,51 @@ class TestCollections(unittest.TestCase, DSSAssertMixin, DSSUploadMixin):
         fake_uuid = str(uuid4())
 
         with self.subTest("Assert uuid is not already among the user's collections."):
-            for value in owner_lookup.get_collection_versioned_uuids_for_owner(owner=self.owner_email):
+            for value in owner_lookup.get_collection_fqids_for_owner(owner=self.owner_email):
                 self.assertNotEqual(fake_uuid, value)
 
         with self.subTest("Test dynamoDB put_collection."):
-            owner_lookup.put_collection(owner=self.owner_email, versioned_uuid=fake_uuid)
+            owner_lookup.put_collection(owner=self.owner_email, collection_fqid=fake_uuid)
 
         with self.subTest("Test dynamoDB get_collections_for_owner finds the put collection."):
             found = False
-            for value in owner_lookup.get_collection_versioned_uuids_for_owner(owner=self.owner_email):
+            for value in owner_lookup.get_collection_fqids_for_owner(owner=self.owner_email):
                 if fake_uuid == value:
                     found = True
                     break
             self.assertEqual(found, True)
 
         with self.subTest("Test dynamoDB get_collection successfully finds collection."):
-            owner_lookup.get_collection(owner=self.owner_email, versioned_uuid=fake_uuid)
+            owner_lookup.get_collection(owner=self.owner_email, collection_fqid=fake_uuid)
 
         with self.subTest("Test dynamoDB delete_collection."):
-            owner_lookup.delete_collection(owner=self.owner_email, versioned_uuid=fake_uuid)
-            for value in owner_lookup.get_collection_versioned_uuids_for_owner(owner=self.owner_email):
+            owner_lookup.delete_collection(owner=self.owner_email, collection_fqid=fake_uuid)
+            for value in owner_lookup.get_collection_fqids_for_owner(owner=self.owner_email):
                 self.assertNotEqual(fake_uuid, value)
 
         with self.subTest("Test dynamoDB delete_collection silently deletes now non-existent item."):
-            owner_lookup.delete_collection(owner=self.owner_email, versioned_uuid=fake_uuid)
+            owner_lookup.delete_collection(owner=self.owner_email, collection_fqid=fake_uuid)
 
         with self.subTest("Test dynamoDB put_collection (2 versions)."):
-            owner_lookup.put_collection(owner=self.owner_email, versioned_uuid=fake_uuid + '.v1')
-            owner_lookup.put_collection(owner=self.owner_email, versioned_uuid=fake_uuid + '.v2')
+            owner_lookup.put_collection(owner=self.owner_email, collection_fqid=fake_uuid + '.v1')
+            owner_lookup.put_collection(owner=self.owner_email, collection_fqid=fake_uuid + '.v2')
             versions = 0
-            for value in owner_lookup.get_collection_versioned_uuids_for_owner(owner=self.owner_email):
+            for value in owner_lookup.get_collection_fqids_for_owner(owner=self.owner_email):
                 if value.startswith(fake_uuid):
                     versions += 1
             self.assertEqual(versions, 2)
 
         with self.subTest("Test dynamoDB delete_collection uuid (test 2 versions get deleted using one uuid)."):
             owner_lookup.delete_collection_uuid(owner=self.owner_email, uuid=fake_uuid)
-            for value in owner_lookup.get_collection_versioned_uuids_for_owner(owner=self.owner_email):
+            for value in owner_lookup.get_collection_fqids_for_owner(owner=self.owner_email):
                 if value.startswith(fake_uuid):
                     raise ValueError(f'{fake_uuid} was removed from db, but {value} was found.')
 
         with self.subTest("Test dynamoDB get_collection does not find deleted versions."):
-            with self.assertRaises(ItemNotFoundInDatabase):
-                owner_lookup.get_collection(owner=self.owner_email, versioned_uuid=fake_uuid + '.v1')
-            with self.assertRaises(ItemNotFoundInDatabase):
-                owner_lookup.get_collection(owner=self.owner_email, versioned_uuid=fake_uuid + '.v2')
+            with self.assertRaises(DynamoDBItemNotFound):
+                owner_lookup.get_collection(owner=self.owner_email, collection_fqid=fake_uuid + '.v1')
+            with self.assertRaises(DynamoDBItemNotFound):
+                owner_lookup.get_collection(owner=self.owner_email, collection_fqid=fake_uuid + '.v2')
 
     def test_collection_paging_too_small(self):
         """Should NOT be able to use a too-small per_page."""

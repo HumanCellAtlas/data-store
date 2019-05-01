@@ -1,10 +1,9 @@
 from typing import Generator
-from botocore.exceptions import ClientError
 
 from dss.util.aws.clients import dynamodb as db  # type: ignore
 
 
-class ItemNotFoundInDatabase(Exception):
+class DynamoDBItemNotFound(Exception):
     pass
 
 
@@ -37,12 +36,7 @@ def put_item(*, table: str, hash_key: str, sort_key: str=None, value: str, dont_
              'Item': _format_item(hash_key=hash_key, sort_key=sort_key, value=value)}
     if dont_overwrite:
         query['ConditionExpression'] = f'attribute_not_exists({dont_overwrite})'
-
-    try:
-        db.put_item(**query)
-    except ClientError as e:
-        if e.response['Error']['Code'] != 'ConditionalCheckFailedException':
-            raise
+    db.put_item(**query)
 
 
 def get_item(*, table: str, hash_key: str, sort_key: str=None, return_key: str='body'):
@@ -63,7 +57,7 @@ def get_item(*, table: str, hash_key: str, sort_key: str=None, return_key: str='
              'Key': _format_item(hash_key=hash_key, sort_key=sort_key, value=None)}
     item = db.get_item(**query).get('Item')
     if item is None:
-        raise ItemNotFoundInDatabase(f'Query failed to fetch item from database: {query}')
+        raise DynamoDBItemNotFound(f'Query failed to fetch item from database: {query}')
     return item[return_key]['S']
 
 

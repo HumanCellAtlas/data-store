@@ -13,7 +13,7 @@ from dss import Config, Replica
 from dss.error import DSSException, dss_handler
 from dss.storage.blobstore import test_object_exists
 from dss.storage.hcablobstore import BlobStore, compose_blob_key
-from dss.storage.identifiers import CollectionFQID, CollectionTombstoneID
+from dss.storage.identifiers import CollectionFQID, CollectionTombstoneID, COLLECTION_PREFIX
 from dss.util import security, hashabledict, UrlBuilder
 from dss.util.version import datetime_to_version_format
 from dss.storage.blobstore import idempotent_save
@@ -65,9 +65,9 @@ def listcollections(per_page: int, start_at: int = 0):
     owner = security.get_token_email(request.token_info)
 
     collections = []
-    for collection in owner_lookup.get_collection_versioned_uuids_for_owner(owner):
-        uuid, version = collection.split('.', 1)
-        collections.append({'uuid': uuid, 'version': version})
+    for collection in owner_lookup.get_collection_fqids_for_owner(owner):
+        fqid = CollectionFQID.from_key(f'{COLLECTION_PREFIX}/{collection}')
+        collections.append({'uuid': fqid.uuid, 'version': fqid.version})
 
     # paged response
     if len(collections) - start_at > per_page:
@@ -109,7 +109,7 @@ def put(json_request_body: dict, replica: str, uuid: str, version: str):
     collection_version = version
     # update dynamoDB; used to speed up lookup time; will not update if owner already associated w/uuid
     owner_lookup.put_collection(owner=authenticated_user_email,
-                                versioned_uuid=f'{collection_uuid}.{collection_version}')
+                                collection_fqid=str(CollectionFQID(collection_uuid, collection_version)))
     # add the collection file to the bucket
     handle.upload_file_handle(Replica[replica].bucket,
                               CollectionFQID(collection_uuid, collection_version).to_key(),
