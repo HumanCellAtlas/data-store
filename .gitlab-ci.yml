@@ -136,6 +136,7 @@ release_integration:
     - master
 
 force_release_integration:
+  extends: .release
   variables:
     RELEASE_COMMAND: "scripts/release.sh master integration --force --no-deploy --skip-account-verification"
   only:
@@ -149,6 +150,7 @@ release_staging:
     - integration
 
 force_release_staging:
+  extends: .release
   variables:
     RELEASE_COMMAND: "scripts/release.sh integration staging --force --no-deploy --skip-account-verification"
   only:
@@ -162,6 +164,7 @@ release_prod:
     - staging
 
 force_release_prod:
+  extends: .release
   variables:
     RELEASE_COMMAND: "scripts/release.sh staging prod --force --no-deploy --skip-account-verification"
   only:
