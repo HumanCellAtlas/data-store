@@ -1109,7 +1109,7 @@ paths:
           pattern: "[A-Za-z0-9]{8}-[A-Za-z0-9]{4}-[A-Za-z0-9]{4}-[A-Za-z0-9]{4}-[A-Za-z0-9]{12}"
         - name: version
           in: query
-          description: Timestamp of collection creation in DSS_VERSION format format.
+          description: Timestamp of collection creation in DSS_VERSION format.
           required: true
           type: string
           format: DSS_VERSION
@@ -1163,8 +1163,7 @@ paths:
       security:
         - dcpAuth: []
       summary: Retrieve a collection given a UUID.
-      description: >
-        Given a collection UUID, return the associated collection object.
+      description: Given a collection UUID, return the associated collection object.
       parameters:
         - name: uuid
           in: path
