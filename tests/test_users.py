@@ -6,7 +6,7 @@ sys.path.insert(0, pkg_root)  # noqa
 
 from fusillade.errors import FusilladeException
 from fusillade.clouddirectory import User, Group, Role, cd_client, cleanup_directory, cleanup_schema, \
-    get_json_file, default_user_policy_path
+    get_json_file, default_user_policy_path, default_user_role_path
 from tests.common import new_test_directory, create_test_statement
 
 
@@ -15,6 +15,7 @@ class TestUser(unittest.TestCase):
     def setUpClass(cls):
         cls.directory, cls.schema_arn = new_test_directory()
         cls.default_policy = get_json_file(default_user_policy_path)
+        cls.default_user_role_policy = get_json_file(default_user_role_path)
 
     @classmethod
     def tearDownClass(cls):
@@ -40,10 +41,10 @@ class TestUser(unittest.TestCase):
         with self.subTest("new user is created when instantiating User class with an new user name "):
             name = "test_get_user_policy@test.com"
             user = User(self.directory, name)
-            self.assertEqual(user.lookup_policies(), [])
+            self.assertEqual(user.lookup_policies(), [self.default_user_role_policy])
         with self.subTest("an existing users info is retrieved when instantiating User class for an existing user"):
             user = User(self.directory, name)
-            self.assertEqual(user.lookup_policies(), [])
+            self.assertEqual(user.lookup_policies(), [self.default_user_role_policy])
 
     def test_get_groups(self):
         name = "test_get_groups@test.com"
@@ -71,6 +72,7 @@ class TestUser(unittest.TestCase):
         with self.subTest("A user inherits the groups policies when joining a group"):
             policies = set(user.lookup_policies())
             expected_policies = set([i[1] for i in test_groups])
+            expected_policies.add(self.default_user_role_policy)
             self.assertEqual(policies, expected_policies)
 
     def test_remove_groups(self):
@@ -139,14 +141,16 @@ class TestUser(unittest.TestCase):
         role_statements = sorted(role_statements)
 
         user = User(self.directory, name)
+        user_role_names = [Role(self.directory,None,role).name for role in user.roles]
         with self.subTest("a user has the default_user roles when created."):
-            self.assertEqual(user.roles, ['default_user'])
+            self.assertEqual(user_role_names, ['default_user'])
 
         user.remove_roles(['default_user'])
         role_name, role_statement = test_roles[0]
         with self.subTest("A user has one role when a role is added."):
             user.add_roles([role_name])
-            self.assertEqual(user.roles, [role_name])
+            user_role_names = [Role(self.directory, None, role).name for role in user.roles]
+            self.assertEqual(user_role_names, [role_name])
 
         with self.subTest("An error is raised when adding a role a user already has."):
             with self.assertRaises(cd_client.exceptions.BatchWriteException) as ex:
@@ -170,14 +174,16 @@ class TestUser(unittest.TestCase):
 
         with self.subTest("A user has multiple roles when multiple roles are added to user."):
             user.add_roles(role_names)
-            self.assertEqual(user.roles, role_names)
+            user_role_names = [Role(self.directory, None, role).name for role in user.roles]
+            self.assertEqual(sorted(user_role_names), sorted(role_names))
 
         with self.subTest("A user inherits multiple role policies when the user has multiple roles."):
             self.assertListEqual(sorted(user.lookup_policies()),
                                  sorted([user.statement] + role_statements))
 
         with self.subTest("A user's roles are listed when a listing a users roles."):
-            self.assertListEqual(sorted(user.roles), sorted(role_names))
+            user_role_names = [Role(self.directory, None, role).name for role in user.roles]
+            self.assertListEqual(sorted(user_role_names), sorted(role_names))
 
         with self.subTest("Multiple roles are removed from a user when a multiple roles are specified for removal."):
             user.remove_roles(role_names)
@@ -187,15 +193,15 @@ class TestUser(unittest.TestCase):
         """
         A user inherits policies from groups and roles when the user is apart of a group and assigned a role.
         """
-        name = "test_sete_policy@test.com"
+        name = "test_set_policy@test.com"
         user = User(self.directory, name)
         test_groups = [(f"group_{i}", create_test_statement(f"GroupPolicy{i}")) for i in range(5)]
-        groups = [Group.create(self.directory, *i) for i in test_groups]
+        [Group.create(self.directory, *i) for i in test_groups]
         group_names, group_statements = zip(*test_groups)
         group_names = sorted(group_names)
         group_statements = sorted(group_statements)
         test_roles = [(f"role_{i}", create_test_statement(f"RolePolicy{i}")) for i in range(5)]
-        roles = [Role.create(self.directory, *i) for i in test_roles]
+        [Role.create(self.directory, *i) for i in test_roles]
         role_names, role_statements = zip(*test_roles)
         role_names = sorted(role_names)
         role_statements = sorted(role_statements)
@@ -203,11 +209,13 @@ class TestUser(unittest.TestCase):
         user.add_roles(role_names)
         user.add_groups(group_names)
         user.statement = self.default_policy
+        user_role_names = [Role(self.directory,None,role).name for role in user.roles]
+        user_group_names = [Group(self.directory,None,group).name for group in user.groups]
 
-        self.assertListEqual(sorted(user.roles), ['default_user'] + role_names)
-        self.assertEqual(user.groups, group_names)
+        self.assertListEqual(sorted(user_role_names), ['default_user'] + role_names)
+        self.assertEqual(sorted(user_group_names), group_names)
         self.assertSequenceEqual(sorted(user.lookup_policies()), sorted(
-            [user.statement] + group_statements + role_statements)
+            [user.statement, self.default_user_role_policy] + group_statements + role_statements)
                              )
 
     @unittest.skip("TODO: unfinished and low priority")

@@ -5,6 +5,8 @@ This modules is used to simplify access to AWS Cloud Directory. For more informa
 https://boto3.amazonaws.com/v1/documentation/api/latest/reference/services/clouddirectory.html
 
 """
+import hashlib
+from datetime import datetime
 import os
 from dcplib.aws import clients as aws_clients
 import functools
@@ -106,7 +108,7 @@ def create_directory(name: str, schema: str) -> 'CloudDirectory':
     return directory
 
 
-def _paging_loop(fn, key, upack_response, **kwarg):
+def _paging_loop(fn: typing.Callable, key: str, upack_response: typing.Callable, **kwarg):
     while True:
         resp = fn(**kwarg)
         for i in resp[key]:
@@ -237,21 +239,75 @@ class CloudDirectory:
                             MaxResults=self._page_limit
                             )
 
+    def _list_typed_links(self,
+                          func: typing.Callable,
+                          key: str,
+                          object_ref: str,
+                          filter_attribute_ranges: typing.Optional[typing.List],
+                          filter_typed_link: typing.Optional[str]
+                          ):
+        def unpack_response(i):
+            return i
+
+        kwargs = dict(
+            DirectoryArn=self._dir_arn,
+            ObjectReference={'Selector': object_ref},
+            MaxResults=self._page_limit
+        )
+        if filter_attribute_ranges:
+            kwargs['FilterAttributeRanges'] = filter_attribute_ranges
+        if filter_typed_link:
+            kwargs['FilterTypedLink'] = {
+                'SchemaArn': self.schema,
+                'TypedLinkName': filter_typed_link
+            }
+        return _paging_loop(func, key, unpack_response, **kwargs)
+
+    def list_outgoing_typed_links(self,
+                                  object_ref: str,
+                                  filter_attribute_ranges: typing.List = None,
+                                  filter_typed_link: str = None) -> typing.Iterator[dict]:
+        """
+        a wrapper around CloudDirectory.Client.list_outgoing_typed_links
+
+        :return: typed link specifier generator
+        """
+        return self._list_typed_links(cd_client.list_outgoing_typed_links,
+                                      'TypedLinkSpecifiers',
+                                      object_ref,
+                                      filter_attribute_ranges,
+                                      filter_typed_link)
+
+    def list_incoming_typed_links(self,
+                                  object_ref: str,
+                                  filter_attribute_ranges: typing.List = None,
+                                  filter_typed_link: str = None) -> typing.Iterator[dict]:
+        """
+        a wrapper around CloudDirectory.Client.list_incoming_typed_links
+
+        :return: typed link specifier generator
+        """
+        return self._list_typed_links(cd_client.list_incoming_typed_links,
+                                      'LinkSpecifiers',
+                                      object_ref,
+                                      filter_attribute_ranges,
+                                      filter_typed_link)
+
     @staticmethod
     def _make_ref(i):
         return '$' + i
 
-    def create_object(self, link_name: str, obj_type: str, **kwargs) -> str:
+    def create_object(self, link_name: str, facet_type: str, obj_type: str, **kwargs) -> str:
         """
         Create an object and store in cloud directory.
         """
-        object_attribute_list = self._get_object_attribute_list(facet=obj_type, **kwargs)
+        object_attribute_list = self._get_object_attribute_list(facet=facet_type, obj_type=obj_type, **kwargs)
         parent_path = self.get_obj_type_path(obj_type)
         cd_client.create_object(DirectoryArn=self._dir_arn,
                                 SchemaFacets=[
                                     {
                                         'SchemaArn': self.schema,
-                                        'FacetName': obj_type
+                                        'FacetName': facet_type
                                     },
                                 ],
                                 ObjectAttributeList=object_attribute_list,
@@ -335,8 +391,8 @@ class CloudDirectory:
 
     def create_folder(self, path: str, name: str) -> None:
         """ A folder is just a Group"""
-        schema_facets = [dict(SchemaArn=self.schema, FacetName="Group")]
-        object_attribute_list = self._get_object_attribute_list(facet="Group", name=name)
+        schema_facets = [dict(SchemaArn=self.schema, FacetName="BasicFacet")]
+        object_attribute_list = self._get_object_attribute_list(facet="BasicFacet", name=name, obj_type="folder")
         try:
             cd_client.create_object(DirectoryArn=self._dir_arn,
                                     SchemaFacets=schema_facets,
@@ -346,9 +402,90 @@ class CloudDirectory:
         except cd_client.exceptions.LinkNameAlreadyInUseException:
             pass
 
+    def attach_typed_link(
+            self,
+            source: str,
+            target: str,
+            typed_link_facet: str,
+            attributes: typing.Dict[str, typing.Any]):
+        """
+        a wrapper around CloudDirectory.Client.attach_typed_link
+        """
+        return cd_client.attach_typed_link(
+            DirectoryArn=self._dir_arn,
+            SourceObjectReference={
+                'Selector': source
+            },
+            TargetObjectReference={
+                'Selector': target
+            },
+            TypedLinkFacet={
+                'SchemaArn': self.schema,
+                'TypedLinkName': typed_link_facet
+            },
+            Attributes=attributes
+        )
+
+    def detach_typed_link(self, typed_link_specifier: typing.Dict):
+        """
+        a wrapper around CloudDirectory.Client.detach_typed_link
+
+        :param typed_link_specifier: identifies the typed link to remove
+        :return:
+        """
+        return cd_client.detach_typed_link(
+            DirectoryArn=self._dir_arn,
+            TypedLinkSpecifier=typed_link_specifier
+        )
+
+    @staticmethod
+    def make_attributes(kwargs: typing.Dict) -> typing.List:
+        """
+        A helper function used to create
+        :param kwargs:
+        :return:
+        """
+
+        def _make_attribute(name: str, value: any):
+            attribute = {'AttributeName': name}
+            if isinstance(value, str):
+                attribute['Value'] = {ValueTypes.StringValue.name: value}
+            elif isinstance(value, bytes):
+                attribute['Value'] = {ValueTypes.BinaryValue.name: value}
+            elif isinstance(value, bool):
+                attribute['Value'] = {ValueTypes.BooleanValue.name: value}
+            elif isinstance(value, int):
+                attribute['Value'] = {ValueTypes.NumberValue.name: str(value)}
+                #  int to str is required by cloud directory
+            elif isinstance(value, datetime):
+                attribute['Value'] = {ValueTypes.DatetimeValue.name: value}
+            else:
+                raise ValueError()
+            return attribute
+
+        return [_make_attribute(name, value) for name, value in kwargs.items()]
+
+    def make_typed_link_specifier(
+            self,
+            source_object_ref: str,
+            target_object_ref: str,
+            typed_link_facet_name: str,
+            attributes: typing.Dict):
+        return {
+            'SourceObjectReference': {
+                'Selector': source_object_ref
+            },
+            'TargetObjectReference': {
+                'Selector': target_object_ref
+            },
+            'TypedLinkFacet': {
+                'SchemaArn': self.schema,
+                'TypedLinkName': typed_link_facet_name
+            },
+            'IdentityAttributeValues': self.make_attributes(attributes)
+        }
+
     def clear(self) -> None:
-        for _, policy_ref in self.list_object_children('/Policies/'):
-            self.delete_policy(policy_ref)
         for _, obj_ref in self.list_object_children('/Users/'):
             self.delete_object(obj_ref)
         for _, obj_ref in self.list_object_children('/Groups/'):
@@ -373,10 +510,11 @@ class CloudDirectory:
         See details on deletion requirements for more info
         https://docs.aws.amazon.com/clouddirectory/latest/developerguide/directory_objects_access_objects.html
         """
-        self.batch_write([self.batch_detach_policy(policy_ref, obj_ref)
-                          for policy_ref in self.list_object_policies(obj_ref)])
+        [self.delete_policy(policy_ref) for policy_ref in self.list_object_policies(obj_ref)]
         self.batch_write([self.batch_detach_object(parent_ref, link_name)
                           for parent_ref, link_name in self.list_object_parents(obj_ref)])
+        self.batch_write([self.batch_detach_typed_link(i) for i in self.list_incoming_typed_links(object_ref=obj_ref)])
+        self.batch_write([self.batch_detach_typed_link(i) for i in self.list_outgoing_typed_links(obj_ref)])
         cd_client.delete_object(DirectoryArn=self._dir_arn, ObjectReference={'Selector': obj_ref})
 
     @staticmethod
@@ -475,6 +613,35 @@ class CloudDirectory:
             }
         }
 
+    def batch_attach_typed_link(self,
+                                source_ref: str,
+                                target_ref: str,
+                                facet_name: str,
+                                attributes: typing.Dict) -> typing.Dict[str, typing.Any]:
+        return {
+            'AttachTypedLink': {
+                'SourceObjectReference': {
+                    'Selector': source_ref
+                },
+                'TargetObjectReference': {
+                    'Selector': target_ref
+                },
+                'TypedLinkFacet': {
+                    'SchemaArn': self.schema,
+                    'TypedLinkName': facet_name
+                },
+                'Attributes': self.make_attributes(attributes)
+            }
+        }
+
+    @staticmethod
+    def batch_detach_typed_link(typed_link_specifier) -> typing.Dict[str, typing.Any]:
+        return {
+            'DetachTypedLink': {
+                'TypedLinkSpecifier': typed_link_specifier
+            },
+        }
+
     def batch_write(self, operations: list) -> typing.Dict[str, typing.Any]:
         """
         A wrapper around CloudDirectory.Client.batch_write
@@ -566,36 +733,62 @@ class CloudNode:
     Contains shared code across the different types of nodes stored in Fusillade CloudDirectory
     """
     _attributes = ["name"]  # the different attributes of a node stored
-    _link_formats = {"group": "G->{parent}->{child}", "role": "R->{parent}->{child}"}
 
-    # The format string for the links that connect different nodes in cloud directory
-
-    def __init__(self, cloud_directory: CloudDirectory, name: str, object_type: str):
+    def __init__(self,
+                 cloud_directory: CloudDirectory,
+                 object_type: str,
+                 name: str = None,
+                 object_ref: str = None,
+                 facet="BasicFacet"):
         """
 
         :param cloud_directory:
+        :param object_type:
         :param name:
+        :param object_reference:
+        :param facet:
         """
-        self._name: str = name
+        if name and object_ref:
+            raise FusilladeException("object_reference XOR name")
+        if name:
+            self._name: str = name
+            self._path_name: str = quote(name)
+            self.object_ref: str = cloud_directory.get_obj_type_path(object_type) + self._path_name
+        else:
+            self._name: str = None
+            self._path_name: str = None
+            self.object_ref: str = object_ref
         self._object_type: str = object_type
+        self._facet: str = facet
         self.cd: CloudDirectory = cloud_directory
-        self._path_name: str = quote(name)
-        self.object_reference: str = cloud_directory.get_obj_type_path(object_type) + self._path_name
         self._policy: typing.Optional[str] = None
         self._statement: typing.Optional[str] = None
 
-    def _get_links(self):
+    @staticmethod
+    def _get_link_name(parent_path: str, child_path: str):
+        return hashlib.sha1(bytes(parent_path + child_path, "utf-8")).hexdigest()
+        # links names must be unique between two objects
+
+    def _get_links(self, object_type):
         """
         Retrieves the links attached to this object from CloudDirectory and separates them into groups and roles
         based on the link name
         """
-        self._roles = []
-        self._groups = []
-        for _, link_name in self.cd.list_object_parents(self.object_reference):
-            if link_name.startswith('G'):
-                self._groups.append(unquote(link_name.split('->')[1]))
-            elif link_name.startswith('R'):
-                self._roles.append(unquote(link_name.split('->')[1]))
+        filter_attribute_ranges = [
+            {
+                'AttributeName': 'parent_type',
+                'Range': {
+                    'StartMode': 'INCLUSIVE',
+                    'StartValue': {'StringValue': object_type},
+                    'EndMode': 'INCLUSIVE',
+                    'EndValue': {'StringValue': object_type}
+                }
+            }
+        ]
+        return [
+            type_link['SourceObjectReference']['Selector']
+            for type_link in self.cd.list_incoming_typed_links(self.object_ref, filter_attribute_ranges, 'association')
+        ]
 
     def _add_links(self, links: typing.List[str], link_type: str):
         """
@@ -604,11 +797,30 @@ class CloudNode:
         if not links:
             return
         parent_path = self.cd.get_obj_type_path(link_type)
-        operations = [self.cd.batch_attach_object(parent_path + link,
-                                                  self.object_reference,
-                                                  self._link_formats[link_type].format(parent=quote(link),
-                                                                                       child=self._path_name))
-                      for link in links]
+        batch_attach_object = self.cd.batch_attach_object
+        batch_attach_typed_link = self.cd.batch_attach_typed_link
+        operations = []
+        for link in links:
+            parent_ref = parent_path + link  # TODO use f-string
+            operations.append(
+                batch_attach_object(
+                    parent_ref,
+                    self.object_ref,
+                    self._get_link_name(parent_ref, self.object_ref)
+                )
+            )
+            attributes = {
+                'parent_type': link_type,
+                'child_type': self._object_type,
+            }
+            operations.append(
+                batch_attach_typed_link(
+                    parent_ref,
+                    self.object_ref,
+                    'association',
+                    attributes
+                )
+            )
         self.cd.batch_write(operations)
 
     def _remove_links(self, links: typing.List[str], link_type: str):
@@ -618,23 +830,41 @@ class CloudNode:
         if not links:
             return
         parent_path = self.cd.get_obj_type_path(link_type)
-        operations = [self.cd.batch_detach_object(parent_path + link,
-                                                  self._link_formats[link_type].format(parent=quote(link),
-                                                                                       child=self._path_name))
-                      for link in links]
+        batch_detach_object = self.cd.batch_detach_object
+        batch_detach_typed_link = self.cd.batch_detach_typed_link
+        make_typed_link_specifier = self.cd.make_typed_link_specifier
+        operations = []
+        for link in links:
+            parent_ref = parent_path + link
+            operations.append(
+                batch_detach_object(
+                    parent_ref,
+                    self._get_link_name(parent_ref, self.object_ref)
+                )
+            )
+            typed_link_specifier = make_typed_link_specifier(
+                parent_ref,
+                self.object_ref,
+                'association',
+                {'parent_type': link_type, 'child_type': self._object_type}
+            )
+            operations.append(batch_detach_typed_link(typed_link_specifier))
         self.cd.batch_write(operations)
 
     def lookup_policies(self) -> typing.List[str]:
-        return self.cd.lookup_policy(self.object_reference)
+        return self.cd.lookup_policy(self.object_ref)
 
     @property
     def name(self):
+        if not self._name:
+            self._set_attributes(['name'])
+            self._path_name = quote(self._name)
         return self._name
 
     @property
     def policy(self):
         if not self._policy:
-            policies = [i for i in self.cd.list_object_policies(self.object_reference)]
+            policies = [i for i in self.cd.list_object_policies(self.object_ref)]
             if not policies:
                 return None
             elif len(policies) > 1:
@@ -651,7 +881,7 @@ class CloudNode:
         :return:
         """
         operations = list()
-        object_attribute_list = self.cd.get_policy_attribute_list(self._object_type, statement)
+        object_attribute_list = self.cd.get_policy_attribute_list(self._facet, statement)
         policy_link_name = f"{self._path_name}_{self._object_type}_IAMPolicy"
         parent_path = self.cd.get_obj_type_path('policy')
         operations.append(self.cd.batch_create_object(parent_path,
@@ -660,7 +890,7 @@ class CloudNode:
                                                       object_attribute_list))
         policy_ref = parent_path + policy_link_name
 
-        operations.append(self.cd.batch_attach_policy(policy_ref, self.object_reference))
+        operations.append(self.cd.batch_attach_policy(policy_ref, self.object_ref))
         self.cd.batch_write(operations)
         return policy_ref
 
@@ -700,7 +930,7 @@ class CloudNode:
         """
         retrieve attributes for this from CloudDirectory and sets local private variables.
         """
-        resp = self.cd.get_object_attributes(self.object_reference, self._object_type, attributes)
+        resp = self.cd.get_object_attributes(self.object_ref, self._facet, attributes)
         for attr in resp['Attributes']:
             self.__setattr__('_' + attr['Key']['Name'], attr['Value'].popitem()[1])
 
@@ -708,7 +938,7 @@ class CloudNode:
         attrs = dict()
         if not attributes:
             return attrs
-        resp = self.cd.get_object_attributes(self.object_reference, self._object_type, attributes)
+        resp = self.cd.get_object_attributes(self.object_ref, self._facet, attributes)
         for attr in resp['Attributes']:
             attrs[attr['Key']['Name']] = attr['Value'].popitem()[1]  # noqa
         return attrs
@@ -734,17 +964,21 @@ class User(CloudNode):
     """
     _attributes = ['status'] + CloudNode._attributes
 
-    def __init__(self, cloud_directory: CloudDirectory, name: str, local: bool = False):
+    def __init__(self, cloud_directory: CloudDirectory, name: str = None, object_ref: str = None, local: bool = False):
         """
 
         :param cloud_directory:
         :param name:
         :param local: Set to True if you want to retrieve information from the external directory on initialization.
         """
-        super(User, self).__init__(cloud_directory, name, 'User')
+        super(User, self).__init__(cloud_directory,
+                                   'user',
+                                   name=name,
+                                   object_ref=object_ref,
+                                   facet='UserFacet')
         self._status = None
         self._groups: typing.Optional[typing.List[str]] = None
-        self._roles: typing.Optional[typing.List[str]] = None  # TODO make a property
+        self._roles: typing.Optional[typing.List[str]] = None
         if not local:
             try:
                 self._set_attributes(self._attributes)
@@ -762,40 +996,42 @@ class User(CloudNode):
     def enable(self):
         """change the status of a user to enabled"""
         update_params = [
-            UpdateObjectParams('User',
+            UpdateObjectParams(self._facet,
                                'status',
                                ValueTypes.StringValue,
                                'Enabled',
                                UpdateActions.CREATE_OR_UPDATE)
         ]
-        self.cd.update_object_attribute(self.object_reference, update_params)
+        self.cd.update_object_attribute(self.object_ref, update_params)
 
         self._status = None
 
     def disable(self):
         """change the status of a user to disabled"""
         update_params = [
-            UpdateObjectParams('User',
+            UpdateObjectParams(self._facet,
                                'status',
                                ValueTypes.StringValue,
                                'Disabled',
                                UpdateActions.CREATE_OR_UPDATE)
         ]
-        self.cd.update_object_attribute(self.object_reference, update_params)
+        self.cd.update_object_attribute(self.object_ref, update_params)
         self._status = None
 
     def provision_user(self, statement: typing.Optional[str] = None) -> None:
         self.cd.create_object(self._path_name,
-                              'User',
+                              self._facet,
                               name=self.name,
-                              status='Enabled')
+                              status='Enabled',
+                              obj_type='user'
+                              )
         if statement:  # TODO make using user default configurable
             self.statement = statement
 
     @property
-    def groups(self):
+    def groups(self) -> typing.List[str]:
         if not self._groups:
-            self._get_links()
+            self._groups = self._get_links('group')
         return self._groups
 
     def add_groups(self, groups: typing.List[str]):
@@ -807,9 +1043,9 @@ class User(CloudNode):
         self._groups = None  # update groups
 
     @property
-    def roles(self):
+    def roles(self) -> typing.List[str]:
         if not self._roles:
-            self._get_links()
+            self._roles = self._get_links('role')
         return self._roles
 
     def add_roles(self, roles: typing.List[str]):
@@ -826,14 +1062,14 @@ class Group(CloudNode):
     Represents a group in CloudDirectory
     """
 
-    def __init__(self, cloud_directory: CloudDirectory, name: str, local: bool = False):
+    def __init__(self, cloud_directory: CloudDirectory, name: str = None, object_ref: str = None, local: bool = False):
         """
 
         :param cloud_directory:
         :param name:
         :param local: Set to True if you want to retrieve information from the external directory on initialization.
         """
-        super(Group, self).__init__(cloud_directory, name, 'Group')
+        super(Group, self).__init__(cloud_directory, 'group', name=name, object_ref=object_ref)
         self._groups = None
         self._roles = None
         if not local:
@@ -847,23 +1083,23 @@ class Group(CloudNode):
         if not statement:
             statement = get_json_file(default_group_policy_path)
         cls._verify_statement(statement)
-        cloud_directory.create_object(quote(name), 'Group', name=name)
+        cloud_directory.create_object(quote(name), 'BasicFacet', name=name, obj_type="group")
         new_node = cls(cloud_directory, name)
         new_node._set_statement(statement)
         return new_node
 
     def get_users(self) -> typing.Iterator[typing.Tuple[str, str]]:
         """
-        Retrieves the object_references for all user in this group.
+        Retrieves the object_refs for all user in this group.
         :return: (user name, user object reference)
         """
-        for link, ref in self.cd.list_object_children(self.object_reference):
-            yield unquote(link.split('->')[1]), ref
+        for link, object_ref in self.cd.list_object_children(self.object_ref):
+            yield User(self.cd, object_ref).name, object_ref
 
     @property
     def roles(self):
         if not self._roles:
-            self._get_links()
+            self._roles = self._get_links('role')
         return self._roles
 
     def add_roles(self, roles: typing.List[str]):
@@ -877,10 +1113,9 @@ class Group(CloudNode):
     def add_users(self, users: typing.List[User]) -> None:
         if users:
             operations = [
-                self.cd.batch_attach_object(self.object_reference,
-                                            i.object_reference,
-                                            self._link_formats['group'].format(parent=self._path_name,
-                                                                               child=i._path_name))
+                self.cd.batch_attach_object(self.object_ref,
+                                            i.object_ref,
+                                            self._get_link_name(self.object_ref, i.object_ref))
                 for i in users]
             self.cd.batch_write(operations)
 
@@ -900,8 +1135,8 @@ class Role(CloudNode):
     Represents a role in CloudDirectory
     """
 
-    def __init__(self, cloud_directory: CloudDirectory, name: str):
-        super(Role, self).__init__(cloud_directory, name, 'Role')
+    def __init__(self, cloud_directory: CloudDirectory, name: str = None, object_ref: str = None):
+        super(Role, self).__init__(cloud_directory, 'role', name=name, object_ref=object_ref)
 
     @classmethod
     def create(cls,
@@ -911,7 +1146,7 @@ class Role(CloudNode):
         if not statement:
             statement = get_json_file(default_role_path)
         cls._verify_statement(statement)
-        cloud_directory.create_object(quote(name), 'Role', name=name)
+        cloud_directory.create_object(quote(name), 'BasicFacet', name=name, obj_type='role')
         new_node = cls(cloud_directory, name)
         new_node._set_statement(statement)
         return new_node
