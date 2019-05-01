@@ -25,7 +25,9 @@ def check_file(bucket, key):
                                           file_metadata['s3-etag'],
                                           file_metadata['crc32c'])
     blob_metadata = bucket.Object(blob_key).get()
-    if file_metadata['size'] != blob_metadata['ContentLength']:
+    reported_size = file_metadata['size']
+    actual_size = blob_metadata['ContentLength']
+    if reported_size != actual_size:
         print("size mismatch:", key, blob_key)
 
 def check_prefix(bucket, pfx):
@@ -38,8 +40,9 @@ if __name__ == "__main__":
     args = parser.parse_args()
     bucket = get_bucket(args.deployment)
 
-    with ThreadPoolExecutor(max_workers=20) as e:
-        futures = [e.submit(check_prefix, bucket, pfx) for pfx in "0123456789abcdef"]
+    with ThreadPoolExecutor(max_workers=32) as e:
+        hexd = "0123456789abcdef"
+        futures = [e.submit(check_prefix, bucket, a+b) for a in hexd for b in hexd]
         for f in as_completed(futures):
             try:
                 f.result()
