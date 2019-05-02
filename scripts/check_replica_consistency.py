@@ -18,17 +18,21 @@ def get_bucket(deployment):
     return bucket
 
 def check_file(bucket, key):
-    data = bucket.Object(key).get()['Body'].read()
-    file_metadata = json.loads(data.decode("utf-8"))
-    blob_key = "blobs/{}.{}.{}.{}".format(file_metadata['sha256'],
-                                          file_metadata['sha1'],
-                                          file_metadata['s3-etag'],
-                                          file_metadata['crc32c'])
-    blob_metadata = bucket.Object(blob_key).get()
-    reported_size = file_metadata['size']
-    actual_size = blob_metadata['ContentLength']
-    if reported_size != actual_size:
-        print("size mismatch:", key, blob_key)
+    try:
+        data = bucket.Object(key).get()['Body'].read()
+        file_metadata = json.loads(data.decode("utf-8"))
+        blob_key = "blobs/{}.{}.{}.{}".format(file_metadata['sha256'],
+                                              file_metadata['sha1'],
+                                              file_metadata['s3-etag'],
+                                              file_metadata['crc32c'])
+        blob_metadata = bucket.Object(blob_key).get()
+        reported_size = file_metadata['size']
+        actual_size = blob_metadata['ContentLength']
+        if reported_size != actual_size:
+            print("size mismatch:", key, blob_key)
+    except Exception as e:
+        print("Exception while processing", bucket.name, key)
+        traceback.print_exc()
 
 def check_prefix(bucket, pfx):
     for item in bucket.objects.filter(Prefix=f"files/{pfx}"):
