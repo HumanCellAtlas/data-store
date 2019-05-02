@@ -68,6 +68,7 @@ class MyHandlerClass(SilentHandler):
         self.my_handle("POST")
 
 
+@testmode.integration
 class TestNotifyV2(unittest.TestCase, DSSAssertMixin, DSSUploadMixin):
     @classmethod
     def setUpClass(cls):
@@ -84,7 +85,6 @@ class TestNotifyV2(unittest.TestCase, DSSAssertMixin, DSSUploadMixin):
             for s in subs:
                 delete_subscription(replica, cls.owner, s['uuid'])
 
-    @testmode.standalone
     def test_regex_patterns(self):
         version = datetime_to_version_format(datetime.datetime.utcnow())
         key = f"bundles/{uuid4()}.{version}"
@@ -100,7 +100,6 @@ class TestNotifyV2(unittest.TestCase, DSSAssertMixin, DSSUploadMixin):
         self.assertIsNone(notify_v2._unversioned_tombstone_key_regex.match(tombstone_key_with_version))
         self.assertIsNotNone(notify_v2._unversioned_tombstone_key_regex.match(tombstone_key_without_version))
 
-    @testmode.integration
     def test_versioned_tombstone_notifications(self, replica=Replica.aws):
         bucket = get_env('DSS_S3_BUCKET_TEST')
         notification_object_key = f"notification-v2/{uuid4()}"
@@ -124,7 +123,6 @@ class TestNotifyV2(unittest.TestCase, DSSAssertMixin, DSSUploadMixin):
         self.assertEquals(notification['match']['bundle_uuid'], bundle_uuid)
         self.assertEquals(notification['match']['bundle_version'], f"{bundle_version}")
 
-    @testmode.standalone
     def _test_notify_or_queue(self, metadata_document):
         replica = Replica.aws
         with self.subTest("Should attempt to notify immediately"):
@@ -224,7 +222,6 @@ class TestNotifyV2(unittest.TestCase, DSSAssertMixin, DSSUploadMixin):
             self.assertIn(bundle_version_1, recieved_versions)
             self.assertNotIn(bundle_version_2, recieved_versions)
 
-    @testmode.integration
     def test_queue_notification(self):
         replica = Replica.aws
         bucket = get_env('DSS_S3_BUCKET_TEST')
@@ -256,7 +253,6 @@ class TestNotifyV2(unittest.TestCase, DSSAssertMixin, DSSUploadMixin):
         notification = self._get_notification_from_s3_object(bucket, key)
         self.assertEquals(notification['subscription_id'], subscription['uuid'])
 
-    @testmode.integration
     def test_bundle_notification(self):
         for replica in Replica:
             with self.subTest(replica):
@@ -291,7 +287,6 @@ class TestNotifyV2(unittest.TestCase, DSSAssertMixin, DSSUploadMixin):
         obj = self.s3.get_object(Bucket=bucket, Key=key)['Body'].read().decode("utf-8")
         return json.loads(obj)
 
-    @testmode.integration
     def test_subscription_update(self, replica=Replica.aws):
         """
         Test recover of subscriptions during enumeration
@@ -325,7 +320,6 @@ class TestNotifyV2(unittest.TestCase, DSSAssertMixin, DSSUploadMixin):
         for key in subscription_2:
             self.assertEquals(subscription_2[key], subs[subscription_2['uuid']][key])
 
-    @testmode.integration
     def test_subscription_enumerate(self, replica=Replica.aws):
         """
         Test recover of subscriptions during enumeration
@@ -359,13 +353,11 @@ class TestNotifyV2(unittest.TestCase, DSSAssertMixin, DSSUploadMixin):
             self.assertIn(subscription_1['uuid'], subs)
             self.assertIn(subscription_2['uuid'], subs)
 
-    @testmode.integration
     def test_get_subscriptions_for_replica(self):
         for replica in Replica:
             with self.subTest(replica.name):
                 get_subscriptions_for_replica(replica)
 
-    @testmode.integration
     def test_subscription_api(self):
         """
         Test PUT, GET, DELETE subscription endpoints
@@ -435,7 +427,6 @@ class TestNotifyV2(unittest.TestCase, DSSAssertMixin, DSSUploadMixin):
         with self.subTest(f"{replica}, DELETE on non-existent subscription should return not-found"):
             self._delete_subscription(str(uuid4()), replica, codes=404)
 
-    @testmode.standalone
     def test_should_notify(self):
         """
         Test logic of dss.events.handlers.should_notify()
@@ -473,7 +464,6 @@ class TestNotifyV2(unittest.TestCase, DSSAssertMixin, DSSUploadMixin):
             sub['jmespath_query'] = 'files."assay.json"[?rna.primer==`george`'
             self.assertFalse(notify_v2.should_notify(replica, sub, metadata_doc, bundle_key))
 
-    @testmode.standalone
     def test_notify(self):
         self._test_notify({'event_type': "CREATE"})
         self._test_notify({'event_type': "TOMBSTONE"})

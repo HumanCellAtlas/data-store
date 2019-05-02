@@ -35,7 +35,7 @@ def setUpModule():
     configure_test_logging()
 
 
-@testmode.standalone
+@testmode.integration
 class TestSubscriptionsBase(ElasticsearchTestCase, TestAuthMixin, DSSAssertMixin):
     @classmethod
     def setUpClass(cls):

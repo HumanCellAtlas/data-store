@@ -28,7 +28,7 @@ from dss.collections import owner_lookup
 from dss.dynamodb import DynamoDBItemNotFound
 
 
-# @testmode.integration
+@testmode.integration
 class TestCollections(unittest.TestCase, DSSAssertMixin, DSSUploadMixin):
     @classmethod
     def setUpClass(cls):
