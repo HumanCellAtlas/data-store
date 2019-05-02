@@ -55,6 +55,32 @@ class TestFileApi(unittest.TestCase, TestAuthMixin, DSSUploadMixin, DSSAssertMix
         self._test_file_put(Replica.aws, "s3", self.s3_test_bucket, S3Uploader(tempdir, self.s3_test_bucket))
         self._test_file_put(Replica.gcp, "gs", self.gs_test_bucket, GSUploader(tempdir, self.gs_test_bucket))
 
+    def test_file_put_bad_checksum(self):
+        clearly_bad_metadata = {
+            'hca-dss-crc32c': '!!!!',
+            'hca-dss-s3_etag': '@@@@',
+            'hca-dss-sha1': '####',
+            'hca-dss-sha256': '$$$$'
+        }
+
+        src_key = generate_test_key()
+        uploader = S3Uploader(tempfile.gettempdir(), self.s3_test_bucket)
+        with tempfile.NamedTemporaryFile(delete=True) as fh:
+            fh.write(os.urandom(1024))
+            fh.flush()
+            uploader.upload_file(fh.name, src_key, 'text/plain',
+                                 metadata_keys=clearly_bad_metadata)
+
+        source_url = f's3://{self.s3_test_bucket}/{src_key}'
+        file_uuid = str(uuid.uuid4())
+        bundle_uuid = str(uuid.uuid4())
+        version = datetime_to_version_format(datetime.datetime.utcnow())
+        # catch AssertionError raised when upload returns 422 instead of 201
+        with self.assertRaises(AssertionError):
+            r = self.upload_file(source_url, file_uuid, bundle_uuid=bundle_uuid,
+                                 version=version)
+            self.assertEqual(r.json['code'], 'invalid_checksum')
+
     def _test_put_auth_errors(self, scheme, test_bucket):
         src_key = generate_test_key()
         source_url = f"{scheme}://{test_bucket}/{src_key}"

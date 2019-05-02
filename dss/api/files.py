@@ -34,6 +34,14 @@ retry request after the specified interval."""
 RETRY_AFTER_INTERVAL = 10
 
 logger = logging.getLogger(__name__)
+checksum_format = {
+    'hca-dss-crc32c': r'^[a-z0-9]{8}$',
+    'hca-dss-s3_etag': r'^[a-z0-9]{32}(-([2-9]|[1-8][0-9]|9[0-9]|[1-8][0-9]{2'
+                       r'}|9[0-8][0-9]|99[0-9]|[1-8][0-9]{3}|9[0-8][0-9]{2}|9'
+                       r'9[0-8][0-9]|999[0-9]|10000))?$',
+    'hca-dss-sha1': r'^[a-z0-9]{40}$',
+    'hca-dss-sha256': r'^[a-z0-9]{64}$'
+}
 
 
 @dss_handler
@@ -222,6 +230,13 @@ def put(uuid: str, json_request_body: dict, version: str):
             requests.codes.unprocessable,
             "missing_checksum",
             f"missing {keyname}")
+
+    # verify that provided checksums are valid
+    for sum_type, fmt in checksum_format.items():
+        if not re.match(fmt, metadata[sum_type]):
+            raise DSSException(requests.codes.unprocessable,
+                               "invalid_checksum",
+                               f"malformed checksum {sum_type}")
 
     # what's the target object name for the actual data?
     dst_key = ("blobs/" + ".".join(
