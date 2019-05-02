@@ -273,7 +273,7 @@ def copy_parts(event, context):
 
     event.update(last_completed_part=part_index)
     event.setdefault("finished", False)
-    if part_index >= object_size // part_size:
+    if (part_index + 1) * part_size >= object_size:
         event.update(finished=True)
     return event
 

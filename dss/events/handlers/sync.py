@@ -1,5 +1,6 @@
 import logging
 import time
+import math
 from contextlib import closing
 from string import ascii_letters
 
@@ -209,7 +210,7 @@ def get_sync_work_state(event: dict):
                 dest_bucket=dest_replica.bucket,
                 dest_key=event["source_key"],
                 mpu=event.get("mpu_id"),
-                total_parts=(object_size // part_size) + 1)
+                total_parts=math.ceil(object_size / part_size))
 
 def exists(replica: Replica, key: str):
     if replica == Replica.aws:

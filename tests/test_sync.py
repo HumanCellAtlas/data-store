@@ -10,6 +10,7 @@ import sys
 import json
 import hashlib
 import unittest
+from unittest import mock
 import uuid
 
 import boto3
@@ -231,6 +232,17 @@ class TestSyncUtils(unittest.TestCase, DSSSyncMixin):
                 self.assertTrue(sync.dependencies_exist(Replica.aws, Replica.aws, bundle_key))
                 self.assertTrue(sync.dependencies_exist(Replica.aws, Replica.aws, file_key))
             check_blob_revdeps()
+
+    def test_get_sync_work_state(self):
+        event = dict(source_replica=Replica.aws.name,
+                     dest_replica=Replica.gcp.name,
+                     source_obj_metadata=dict(size=8),
+                     source_key="fake",
+                     dest_key="fake")
+        for part_size, expected_total_parts in [(3, 3), (4, 2), (5, 2)]:
+            with mock.patch("dss.events.handlers.sync.get_part_size", lambda object_size, dest_replica: part_size):
+                with self.subTest(part_size=part_size, object_size=event['source_obj_metadata']['size']):
+                    self.assertEqual(sync.get_sync_work_state(event)['total_parts'], expected_total_parts)
 
 # TODO: (akislyuk) integration test of SQS fault injection, SFN fault injection
 
