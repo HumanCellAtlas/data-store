@@ -15,12 +15,12 @@ def get_groups():
 
 
 def get_group(group_id):
-    group = Group(directory, group_id, local=True)
+    group = Group(directory, group_id)
     return make_response(jsonify(name=group.name, policy=group.statement), 200)
 
 
 def put_group_policy(group_id):
-    group = Group(directory, group_id, local=True)
+    group = Group(directory, group_id)
     group.statement = request.json['policy']
     return make_response("", 200)
 
@@ -30,12 +30,12 @@ def get_group_users(group_id):
 
 
 def get_groups_roles(group_id):
-    group = Group(directory, group_id, local=True)
+    group = Group(directory, group_id)
     return make_response(jsonify(roles=group.roles), 200)
 
 
 def put_groups_roles(group_id):
-    group = Group(directory, group_id, local=True)
+    group = Group(directory, group_id)
     action = request.args['action']
     if action == 'add':
         group.add_roles(request.json['roles'])

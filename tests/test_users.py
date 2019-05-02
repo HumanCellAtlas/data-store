@@ -27,21 +27,23 @@ class TestUser(unittest.TestCase):
 
     def test_user_statement(self):
         name = "user_statement@test.com"
-        user = User(self.directory, name, local=True)
-        user.provision_user(self.default_policy)
+        User.provision_user(self.directory, name, statement=self.default_policy)
         test_user = User(self.directory, name)
         self.assertEqual(test_user.statement, self.default_policy)
 
     def test_get_attributes(self):
         name = "test_get_attributes@test.com"
-        user = User(self.directory, name)
+        user = User.provision_user(self.directory, name)
         self.assertEqual(user.get_attributes(['name'])['name'], name)
 
     def test_get_user_policy(self):
-        with self.subTest("new user is created when instantiating User class with an new user name "):
-            name = "test_get_user_policy@test.com"
-            user = User(self.directory, name)
+        name = "test_get_user_policy@test.com"
+        user = User(self.directory, name)
+        with self.subTest("new user is automatically provisioned on demand with default settings when "
+                          "lookup_policy is called for a new user."):
             self.assertEqual(user.lookup_policies(), [self.default_user_role_policy])
+        with self.subTest("error is returned when provision_user is called for an existing user"):
+            self.assertRaises(FusilladeException, user.provision_user, self.directory, name)
         with self.subTest("an existing users info is retrieved when instantiating User class for an existing user"):
             user = User(self.directory, name)
             self.assertEqual(user.lookup_policies(), [self.default_user_role_policy])
@@ -51,7 +53,7 @@ class TestUser(unittest.TestCase):
         test_groups = [(f"group_{i}", create_test_statement(f"GroupPolicy{i}")) for i in range(5)]
         groups = [Group.create(self.directory, *i) for i in test_groups]
 
-        user = User(self.directory, name)
+        user = User.provision_user(self.directory, name)
         with self.subTest("A user is in no groups when user is first created."):
             self.assertEqual(len(user.groups), 0)
 
@@ -79,7 +81,7 @@ class TestUser(unittest.TestCase):
         name = "test_remove_group@test.com"
         test_groups = [(f"group_{i}", create_test_statement(f"GroupPolicy{i}")) for i in range(5)]
         groups = [Group.create(self.directory, *i).name for i in test_groups]
-        user = User(self.directory, name)
+        user = User.provision_user(self.directory, name)
         with self.subTest("A user is removed from a group when remove_group is called for a group the user belongs "
                           "to."):
             user.add_groups(groups)
@@ -98,7 +100,7 @@ class TestUser(unittest.TestCase):
 
     def test_set_policy(self):
         name = "test_set_policy@test.com"
-        user = User(self.directory, name)
+        user = User.provision_user(self.directory, name)
         with self.subTest("The initial user policy is None, when the user is first created"):
             self.assertEqual(user.statement, None)
 
@@ -121,7 +123,7 @@ class TestUser(unittest.TestCase):
 
     def test_status(self):
         name = "test_sete_policy@test.com"
-        user = User(self.directory, name)
+        user = User.provision_user(self.directory, name)
 
         with self.subTest("A user's status is enabled when provisioned."):
             self.assertEqual(user.status, 'Enabled')
@@ -140,7 +142,7 @@ class TestUser(unittest.TestCase):
         role_names = sorted(role_names)
         role_statements = sorted(role_statements)
 
-        user = User(self.directory, name)
+        user = User.provision_user(self.directory, name)
         user_role_names = [Role(self.directory,None,role).name for role in user.roles]
         with self.subTest("a user has the default_user roles when created."):
             self.assertEqual(user_role_names, ['default_user'])
@@ -194,7 +196,7 @@ class TestUser(unittest.TestCase):
         A user inherits policies from groups and roles when the user is apart of a group and assigned a role.
         """
         name = "test_set_policy@test.com"
-        user = User(self.directory, name)
+        user = User.provision_user(self.directory, name)
         test_groups = [(f"group_{i}", create_test_statement(f"GroupPolicy{i}")) for i in range(5)]
         [Group.create(self.directory, *i) for i in test_groups]
         group_names, group_statements = zip(*test_groups)
@@ -221,7 +223,7 @@ class TestUser(unittest.TestCase):
     @unittest.skip("TODO: unfinished and low priority")
     def test_remove_user(self):
         name = "test_get_user_policy@test.com"
-        user = User(self.directory, name)
+        user = User.provision_user(self.directory, name)
         self.assertEqual(len(self.directory.lookup_policy(user.reference)), 1)
         user.remove_user()
         self.directory.lookup_policy(user.reference)

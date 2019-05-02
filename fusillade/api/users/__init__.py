@@ -4,7 +4,7 @@ from fusillade import User, directory
 
 def put_new_user():
     json_body = request.json
-    user = User(directory, json_body['username'], local=True)
+    user = User(directory, json_body['username'])
     user.provision_user(statement=json_body.get('policy'))
     user.add_roles(json_body.get('roles', []))
     user.add_groups(json_body.get('groups', []))
@@ -12,12 +12,12 @@ def put_new_user():
 
 
 def get_user(user_id):
-    user = User(directory, user_id, local=True)
+    user = User(directory, user_id)
     return make_response(jsonify(name=user.name, status=user.status, policy=user.statement), 200)
 
 
 def put_user(user_id):
-    user = User(directory, user_id, local=True)
+    user = User(directory, user_id)
     new_status = request.args['status']
     if new_status == 'enabled':
         user.enable()
@@ -31,18 +31,18 @@ def put_user(user_id):
 
 
 def put_user_policy(user_id):
-    user = User(directory, user_id, local=True)
+    user = User(directory, user_id)
     user.statement = request.json['policy']
     return make_response('', 200)
 
 
 def get_users_groups(user_id):
-    user = User(directory, user_id, local=True)
+    user = User(directory, user_id)
     return make_response(jsonify(groups=user.groups), 200)
 
 
 def put_users_groups(user_id):
-    user = User(directory, user_id, local=True)
+    user = User(directory, user_id)
     action = request.args['action']
     if action == 'add':
         user.add_groups(request.json['groups'])
@@ -52,12 +52,12 @@ def put_users_groups(user_id):
 
 
 def get_users_roles(user_id):
-    user = User(directory, user_id, local=True)
+    user = User(directory, user_id)
     return make_response(jsonify(roles=user.roles), 200)
 
 
 def put_users_roles(user_id):
-    user = User(directory, user_id, local=True)
+    user = User(directory, user_id)
     action = request.args['action']
     if action == 'add':
         user.add_roles(request.json['roles'])

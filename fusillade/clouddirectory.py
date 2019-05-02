@@ -14,7 +14,7 @@ import json
 import typing
 from collections import namedtuple
 from enum import Enum, auto
-from urllib.parse import quote, unquote
+from urllib.parse import quote
 
 from fusillade.errors import FusilladeException
 from fusillade.config import Config
@@ -103,8 +103,7 @@ def create_directory(name: str, schema: str) -> 'CloudDirectory':
 
         # create admins
         for admin in Config.get_admin_emails():
-            user = User(directory, admin)
-            user.add_roles(['admin'])
+            User.provision_user(directory, admin, roles=['admin'])
     return directory
 
 
@@ -857,7 +856,7 @@ class CloudNode:
     @property
     def name(self):
         if not self._name:
-            self._set_attributes(['name'])
+            self._get_attributes(self._attributes)
             self._path_name = quote(self._name)
         return self._name
 
@@ -926,7 +925,7 @@ class CloudNode:
             self.cd.update_object_attribute(self.policy, params)
         self._statement = None
 
-    def _set_attributes(self, attributes: typing.List[str]):
+    def _get_attributes(self, attributes: typing.List[str]):
         """
         retrieve attributes for this from CloudDirectory and sets local private variables.
         """
@@ -963,13 +962,14 @@ class User(CloudNode):
     Represents a user in CloudDirectory
     """
     _attributes = ['status'] + CloudNode._attributes
+    default_roles = ['default_user']  # TODO: make configurable
+    default_groups = []  # TODO: make configurable
 
-    def __init__(self, cloud_directory: CloudDirectory, name: str = None, object_ref: str = None, local: bool = False):
+    def __init__(self, cloud_directory: CloudDirectory, name: str = None, object_ref: str = None):
         """
 
         :param cloud_directory:
         :param name:
-        :param local: Set to True if you want to retrieve information from the external directory on initialization.
         """
         super(User, self).__init__(cloud_directory,
                                    'user',
@@ -979,18 +979,19 @@ class User(CloudNode):
         self._status = None
         self._groups: typing.Optional[typing.List[str]] = None
         self._roles: typing.Optional[typing.List[str]] = None
-        if not local:
-            try:
-                self._set_attributes(self._attributes)
-            except cd_client.exceptions.ResourceNotFoundException:
-                self.provision_user()
-                self.add_roles(['default_user'])
-                self._set_attributes(self._attributes)
+
+    def lookup_policies(self) -> typing.List[str]:
+        try:
+            policies = self.cd.lookup_policy(self.object_ref)
+        except cd_client.exceptions.ResourceNotFoundException:
+            self.provision_user(self.cd, self.name)
+            policies = self.cd.lookup_policy(self.object_ref)
+        return policies
 
     @property
     def status(self):
         if not self._status:
-            self._set_attributes(['status'])
+            self._get_attributes(['status'])
         return self._status
 
     def enable(self):
@@ -1018,15 +1019,47 @@ class User(CloudNode):
         self.cd.update_object_attribute(self.object_ref, update_params)
         self._status = None
 
-    def provision_user(self, statement: typing.Optional[str] = None) -> None:
-        self.cd.create_object(self._path_name,
-                              self._facet,
-                              name=self.name,
-                              status='Enabled',
-                              obj_type='user'
-                              )
+    @classmethod
+    def provision_user(
+            cls,
+            cloud_directory: CloudDirectory,
+            name: str,
+            statement: typing.Optional[str] = None,
+            roles: typing.List[str] = None,
+            groups: typing.List[str] = None,
+    ) -> 'User':
+        """
+        Creates a user in cloud directory if the users does not already exists.
+
+        :param statement: A policy to apply to the user.
+        :param roles: a list of roles to add to user
+        :param groups: a list of groups to add the user to.
+        :return:
+        """
+        user = cls(cloud_directory, name)
+        try:
+            user.cd.create_object(user._path_name,
+                                  user._facet,
+                                  name=user.name,
+                                  status='Enabled',
+                                  obj_type='user'
+                                  )
+        except cd_client.exceptions.LinkNameAlreadyInUseException:
+            raise FusilladeException("User already exists.")
+
+        if roles:
+            user.add_roles(roles + cls.default_roles)
+        else:
+            user.add_roles(cls.default_roles)
+
+        if groups:
+            user.add_groups(groups + cls.default_groups)
+        else:
+            user.add_groups(cls.default_groups)
+
         if statement:  # TODO make using user default configurable
-            self.statement = statement
+            user.statement = statement
+        return user
 
     @property
     def groups(self) -> typing.List[str]:
@@ -1062,18 +1095,15 @@ class Group(CloudNode):
     Represents a group in CloudDirectory
     """
 
-    def __init__(self, cloud_directory: CloudDirectory, name: str = None, object_ref: str = None, local: bool = False):
+    def __init__(self, cloud_directory: CloudDirectory, name: str = None, object_ref: str = None):
         """
 
         :param cloud_directory:
         :param name:
-        :param local: Set to True if you want to retrieve information from the external directory on initialization.
         """
         super(Group, self).__init__(cloud_directory, 'group', name=name, object_ref=object_ref)
         self._groups = None
         self._roles = None
-        if not local:
-            self._set_attributes(self._attributes)
 
     @classmethod
     def create(cls,
@@ -1127,7 +1157,7 @@ class Group(CloudNode):
         :return:
         """
         for user in users:
-            User(self.cd, user, local=True).remove_groups([self._path_name])
+            User(self.cd, user).remove_groups([self._path_name])
 
 
 class Role(CloudNode):

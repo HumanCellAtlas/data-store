@@ -26,9 +26,6 @@ class TestGroup(unittest.TestCase):
         self.directory.clear()
 
     def test_create_group(self):
-        with self.subTest("an error is returned when the group has not been created."):
-            self.assertRaises(cd_client.exceptions.ResourceNotFoundException, Group, self.directory, 'not_created')
-
         with self.subTest("an error is returned when creating a group with an invalid statement."):
             with self.assertRaises(FusilladeException):
                 group = Group.create(self.directory, "new_group1", "does things")
@@ -66,10 +63,10 @@ class TestGroup(unittest.TestCase):
 
     def test_users(self):
         emails = ["test@test.com", "why@not.com", "hello@world.com"]
-        users = [User(self.directory, email) for email in emails]
+        users = [User.provision_user(self.directory, email) for email in emails]
         with self.subTest("A user is added to the group when add_users is called"):
             group = Group.create(self.directory, "test")
-            user = User(self.directory, "another@place.com")
+            user = User.provision_user(self.directory, "another@place.com")
             group.add_users([user])
             actual_users = [i[1] for i in group.get_users()]
             self.assertEqual(len(actual_users), 1)
@@ -93,7 +90,7 @@ class TestGroup(unittest.TestCase):
 
         with self.subTest("Error returned when adding a user that does not exist"):
             group = Group.create(self.directory, "test4")
-            user = User(self.directory, "ghost_user@nowhere.com", local=True)
+            user = User(self.directory, "ghost_user@nowhere.com")
             try:
                 group.add_users([user])
             except cd_client.exceptions.BatchWriteException:
