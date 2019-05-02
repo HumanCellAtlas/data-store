@@ -2,7 +2,7 @@ import os
 import json
 import typing
 
-from dss.dynamodb import get_item, put_item, delete_item
+from dss.dynamodb import get_item, put_item, delete_item, DynamoDBItemNotFound
 
 
 class AsyncStateItem:
@@ -36,11 +36,13 @@ class AsyncStateItem:
 
     @classmethod
     def get(cls, key: str) -> typing.Any:
-        item = get_item(table=cls.table, hash_key=key)
-        if item:
+        try:
+            item = get_item(table=cls.table, hash_key=key)
             body = json.loads(item)
             item_class = _all_subclasses(cls)[body['_type']]
             return item_class(key, body)
+        except DynamoDBItemNotFound:
+            return None
 
     @classmethod
     def delete(cls, key: str) -> None:
