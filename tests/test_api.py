@@ -16,6 +16,8 @@ from oauthlib.oauth2 import WebApplicationClient
 pkg_root = os.path.abspath(os.path.join(os.path.dirname(__file__), '..'))  # noqa
 sys.path.insert(0, pkg_root)  # noqa
 
+os.environ['FUS_ADMIN_EMAILS'] = 'project-viewer@cool-project-188401.iam.gserviceaccount.com'
+
 import fusillade
 from fusillade import directory
 from fusillade.clouddirectory import cleanup_directory
@@ -192,39 +194,40 @@ class TestApi(unittest.TestCase):
         cls.app = ChaliceTestHarness()
 
     def test_evaluate_policy(self):
-        email = "test@email.com"
-        tests = [
-            {
-                'json_request_body': {
-                    "action": "dss:CreateSubscription",
-                    "resource": f"arn:hca:dss:*:*:subscriptions/{email}/*",
-                    "principal": "test@email.com"
+        for i in range(1):
+            email = f"test{i}@email.com"
+            tests = [
+                {
+                    'json_request_body': {
+                        "action": ["dss:CreateSubscription"],
+                        "resource": [f"arn:hca:dss:*:*:subscriptions/{email}/*"],
+                        "principal": "test@email.com"
+                    },
+                    'response': {
+                        'code': 200,
+                        'result': False
+                    }
                 },
-                'response': {
-                    'code': 200,
-                    'result': False
+                {
+                    'json_request_body': {
+                        "action": ["fus:GetUser"],
+                        "resource": [f"arn:hca:fus:*:*:user/{email}/policy"],
+                        "principal": email
+                    },
+                    'response': {
+                        'code': 200,
+                        'result': True
+                    }
                 }
-            },
-            {
-                'json_request_body': {
-                    "action": "fus:GetUser",
-                    "resource": f"arn:hca:fus:*:*:user/{email}/policy",
-                    "principal": email
-                },
-                'response': {
-                    'code': 200,
-                    'result': True
-                }
-            }
-        ]
-        for test in tests:
-            with self.subTest(test['json_request_body']):
-                data=json.dumps(test['json_request_body'])
-                headers={'Content-Type': "application/json"}
-                headers.update(get_auth_header())
-                resp = self.app.post('/v1/policies/evaluate', headers=headers, data=data)
-                self.assertEqual(test['response']['code'], resp.status_code)  # TODO fix
-                self.assertEqual(test['response']['result'], json.loads(resp.body)['result'])
+            ]
+            for test in tests:
+                with self.subTest(test['json_request_body']):
+                    data=json.dumps(test['json_request_body'])
+                    headers={'Content-Type': "application/json"}
+                    headers.update(get_auth_header())
+                    resp = self.app.post('/v1/policies/evaluate', headers=headers, data=data)
+                    self.assertEqual(test['response']['code'], resp.status_code)  # TODO fix
+                    self.assertEqual(test['response']['result'], json.loads(resp.body)['result'])
 
     @unittest.skip("incomplete")
     def test_put_user(self):

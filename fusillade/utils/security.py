@@ -3,7 +3,7 @@
 Used by connexion to verify the JWT in Authorization header of the request.
 """
 import json
-import os, functools, base64, typing
+import functools, base64, typing
 
 import requests
 import jwt
@@ -12,11 +12,10 @@ import logging
 from cryptography.hazmat.primitives.asymmetric import rsa
 from cryptography.hazmat.backends import default_backend
 
-from flask import request
 from furl import furl
 
 from fusillade import Config
-from fusillade.errors import FusilladeForbiddenException, FusilladeHTTPException
+from fusillade.errors import FusilladeHTTPException
 
 logger = logging.getLogger(__name__)
 

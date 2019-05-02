@@ -1,28 +1,51 @@
-from dcplib.aws import clients as aws_clients
-from flask import make_response, request, jsonify
+from threading import Thread
+from concurrent.futures import Future
+import typing
+
+from flask import make_response, jsonify
 
 from fusillade import User, directory
+from fusillade.utils.authorize import assert_authorized, evaluate_policy
 
-iam = aws_clients.iam
+
+def evaluate_policy_api(user, body):
+    with AuthorizeThread(user, ['fus:Evaluate'], ['arn:hca:fus:*:*:user']):
+        policies = User(directory, body['principal']).lookup_policies()
+        result = evaluate_policy(body['principal'], body['action'], body['resource'], policies)
+    return make_response(jsonify(**body, result=result), 200)
 
 
-def evaluate_policy():
-    json_body = request.json
-    principal = json_body["principal"]
-    action = json_body["action"]
-    resource = json_body["resource"]
-    user = User(directory, principal)
-    result = iam.simulate_custom_policy(
-        PolicyInputList=user.lookup_policies(),
-        ActionNames=[action],
-        ResourceArns=[resource],
-        ContextEntries=[
-            {
-                'ContextKeyName': 'fus:user_email',
-                'ContextKeyValues': [principal],
-                'ContextKeyType': 'string'
-            }
-        ]
-    )['EvaluationResults'][0]['EvalDecision']
-    result = True if result == 'allowed' else False
-    return make_response(jsonify(principal=principal, action=action, resource=resource, result=result), 200)
+class AuthorizeThread:
+    """
+    Authorize the requester in a separate thread while executing the request. This is safe only when performing
+    read operations. If authorization fails a 403 is returned and the original request results are discarded.
+    """
+    def __init__(
+            self,
+            user: str,
+            actions: typing.List[str],
+            resources: typing.List[str]
+    ):
+        self.args = (user, actions, resources)
+
+    def __enter__(self):
+        self.future = self.evaluate()
+
+    def __exit__(self, exc_type, exc_val, exc_tb):
+        self.future.result()
+
+    @staticmethod
+    def _call_with_future(fn, future, args):
+        """
+        Returns the result of the wrapped threaded function.
+        """
+        try:
+            result = fn(*args)
+            future.set_result(result)
+        except Exception as exc:
+            future.set_exception(exc)
+
+    def evaluate(self):
+        future = Future()
+        Thread(target=self._call_with_future, args=(assert_authorized, future, self.args)).start()
+        return future

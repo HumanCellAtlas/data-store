@@ -1,0 +1,98 @@
+[
+  {
+    "Resource": "arn:hca:fus:user",
+    "Actions": [
+      "fus:GetUser",
+      "fus:PutUser"
+      ]
+  },
+  {
+    "Resource": "arn:hca:fus:user/{username}/status",
+    "Actions": [
+      "fus:GetUser",
+      "fus:PutUser"
+      ]
+  },
+  {
+    "Resource": "arn:hca:fus:user/{username}/policy",
+    "Actions": [
+      "fus:GetUser",
+      "fus:PutUser"
+    ]
+  },
+  {
+    "Resource": "arn:hca:fus:user/{username}/groups",
+    "Actions": [
+      "fus:GetGroup",
+      "fus:PutGroup"
+    ]
+  },
+  {
+    "Resource": "arn:hca:fus:user/{username}/roles",
+    "Actions": [
+      "fus:GetRole",
+      "fus:PutRole"
+    ]
+  },
+  {
+    "Resource": "arn:hca:fus:group",
+    "Actions": [
+      "fus:GetGroup",
+      "fus:PutGroup"
+      ]
+  },
+  {
+    "Resource": "arn:hca:fus:group/{groupname}",
+    "Actions": [
+      "fus:DeleteGroup"
+    ]
+  },
+  {
+    "Resource": "arn:hca:fus:group/{groupname}/policy",
+    "Actions": [
+      "fus:GetGroup",
+      "fus:PutGroup"
+    ]
+  },
+  {
+    "Resource": "arn:hca:fus:group/{groupname}/users",
+    "Actions": [
+      "fus:GetUsers",
+      "fus:PutUsers"
+    ]
+  },
+    {
+    "Resource": "arn:hca:fus:group/{groupname}/groups",
+    "Actions": [
+      "fus:GetGroup",
+      "fus:PutGroup"
+    ]
+  },
+  {
+    "Resource": "arn:hca:fus:group/{groupname}/roles",
+    "Actions": [
+      "fus:GetRole",
+      "fus:PutRole"
+    ]
+  },
+  {
+    "Resource": "arn:hca:fus:role",
+    "Actions": [
+      "fus:GetRole",
+      "fus:PutRole"
+    ]
+  },
+  {
+    "Resource": "arn:hca:fus:role/{rolename}",
+    "Actions": [
+      "fus:DeleteRole"
+    ]
+  },
+  {
+    "Resource": "arn:hca:fus:role/{rolename}/policy",
+    "Actions": [
+      "fus:GetRole",
+      "fus:PutRole"
+    ]
+  }
+]
