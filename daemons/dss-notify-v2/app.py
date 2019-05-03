@@ -5,9 +5,7 @@ storage_event -> invoke_notify_daemon -> invoke_sfn -> sfn_dynamodb_loop -> sqs 
 """
 
 import os, sys, json, logging
-import boto3
 from urllib.parse import unquote
-from functools import partial
 from concurrent.futures import ThreadPoolExecutor
 
 import domovoi
@@ -18,10 +16,11 @@ sys.path.insert(0, pkg_root)  # noqa
 import dss
 from dss import Config, Replica
 from dss.logging import configure_lambda_logging
-from dss.subscriptions_v2 import get_subscriptions_for_replica, get_subscription
 from dss.events.handlers.notify_v2 import (should_notify, notify_or_queue, notify, build_bundle_metadata_document,
                                            build_deleted_bundle_metadata_document)
 from dss.events.handlers.sync import exists
+from dss.subscriptions_v2 import get_subscription, get_subscriptions_for_replica
+
 
 configure_lambda_logging()
 logger = logging.getLogger(__name__)
@@ -32,7 +31,7 @@ app = domovoi.Domovoi()
 # This entry point is for S3 native events forwarded through SQS.
 @app.s3_event_handler(
     bucket=Config.get_s3_bucket(),
-    events=["s3:ObjectCreated:*"],
+    events=["s3:ObjectCreated:*", "s3:ObjectRemoved:Delete"],
     use_sqs=True,
     sqs_queue_attributes=dict(VisibilityTimeout="920"),  # Lambda timeout + 20 seconds
 )
@@ -48,7 +47,8 @@ def launch_from_s3_event(event, context):
                 continue
             key = unquote(event_record['s3']['object']['key'])
             if key.startswith("bundles"):
-                _notify_subscribers(replica, key)
+                is_delete_event = (event_record['eventName'] == "ObjectRemoved:Delete")
+                _notify_subscribers(replica, key, is_delete_event)
             else:
                 logger.warning(f"Notifications not supported for {key}")
 
@@ -64,7 +64,8 @@ def launch_from_forwarded_event(event, context):
         if message['selfLink'].startswith("https://www.googleapis.com/storage"):
             key = message['name']
             if key.startswith("bundles"):
-                _notify_subscribers(replica, key)
+                is_delete_event = (message['resourceState'] == "not_exists")
+                _notify_subscribers(replica, key, is_delete_event)
             else:
                 logger.warning(f"Notifications not supported for {key}")
         else:
@@ -102,8 +103,11 @@ def launch_from_notification_queue(event, context):
         else:
             logger.warning(f"Recieved queue message with no matching subscription:{message}")
 
-def _notify_subscribers(replica: Replica, key: str):
-    metadata_document = build_bundle_metadata_document(replica, key)
+def _notify_subscribers(replica: Replica, key: str, is_delete_event: bool):
+    if is_delete_event:
+        metadata_document = build_deleted_bundle_metadata_document(key)
+    else:
+        metadata_document = build_bundle_metadata_document(replica, key)
 
     def _func(subscription):
         if should_notify(replica, subscription, metadata_document, key):
@@ -111,7 +115,7 @@ def _notify_subscribers(replica: Replica, key: str):
 
     # TODO: Consider scaling parallelization with Lambda size
     with ThreadPoolExecutor(max_workers=20) as e:
-        e.map(_func, [s for s in get_subscriptions_for_replica(replica)])
+        e.map(_func, get_subscriptions_for_replica(replica))
 
 class DSSFailedNotificationDelivery(Exception):
     pass

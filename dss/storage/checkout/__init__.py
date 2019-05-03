@@ -48,7 +48,7 @@ def validate_dst_bucket(replica: Replica, dst_bucket: str) -> bool:
 def validate_bundle_exists(replica: Replica, dss_bucket: str, bundle_uuid: str, bundle_version: str) -> bool:
     bundle_manifest = get_bundle_manifest(bundle_uuid, replica, bundle_version, bucket=dss_bucket)
     if bundle_manifest is None:
-        raise BundleNotFoundError(f"Bundle {bundle_uuid}/{bundle_version} does not exist")
+        raise BundleNotFoundError(f"Bundle {bundle_uuid}.{bundle_version} does not exist")
     return True
 
 

@@ -14,10 +14,9 @@ from concurrent.futures import ThreadPoolExecutor
 import jmespath
 from jmespath.exceptions import JMESPathError
 
-import dss
 from dss import Config, Replica
 from dss.util.aws.clients import sqs  # type: ignore
-from dss.subscriptions_v2 import SubscriptionData, get_subscriptions_for_replica
+from dss.subscriptions_v2 import SubscriptionData
 from dss.storage.identifiers import UUID_PATTERN, VERSION_PATTERN, TOMBSTONE_SUFFIX, DSS_BUNDLE_KEY_REGEX
 
 logger = logging.getLogger(__name__)
@@ -196,13 +195,15 @@ def build_bundle_metadata_document(replica: Replica, key: str) -> dict:
             except json.decoder.JSONDecodeError:
                 logging.info(f"{file_metadata['name']} not json decodable")
             else:
+                # Modify name to avoid confusion with JMESPath syntax
+                name = _dot_to_underscore_and_strip_numeric_suffix(file_metadata['name'])
                 with lock:
-                    files[file_metadata['name']].append(file_info)
+                    files[name].append(file_info)
 
         # TODO: Consider scaling parallelization with Lambda size
         with ThreadPoolExecutor(max_workers=20) as e:
             e.map(_read_file, [file_metadata for file_metadata in manifest['files']
-                               if "application/json" == file_metadata['content-type']])
+                               if file_metadata['content-type'].startswith("application/json")])
 
         return {
             'event_type': "CREATE",
@@ -219,6 +220,19 @@ def build_deleted_bundle_metadata_document(key: str) -> dict:
         "uuid": uuid,
         "version": version,
     }
+
+def _dot_to_underscore_and_strip_numeric_suffix(name: str) -> str:
+    """
+    e.g. "library_preparation_protocol_0.json" -> "library_preparation_protocol_json"
+    """
+    name = name.replace('.', '_')
+    if name.endswith('_json'):
+        name = name[:-5]
+        parts = name.rpartition("_")
+        if name != parts[2]:
+            name = parts[0]
+        name += "_json"
+    return name
 
 def queue_notification(replica: Replica, subscription: dict, event_type: str, key: str, delay_seconds=15 * 60):
     sqs.send_message(

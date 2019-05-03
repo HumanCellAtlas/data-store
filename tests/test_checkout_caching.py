@@ -12,6 +12,7 @@ sys.path.insert(0, pkg_root)  # noqa
 
 from dss import Config, Replica, BucketConfig
 from dss.stepfunctions import s3copyclient, gscopyclient
+from dss.storage.checkout.cache_flow import should_cache_file
 from tests import infra
 from tests.infra import DSSAssertMixin, DSSUploadMixin, testmode
 from tests.infra.server import ThreadedLocalServer
@@ -41,6 +42,16 @@ class TestCheckoutCaching(unittest.TestCase, DSSAssertMixin, DSSUploadMixin):
     def setUp(self):
         Config.set_config(BucketConfig.TEST)
 
+    def test_should_cache_file(self):
+        tests = [('application/json; dcp-type=\"metadata/biomaterial\"', 1, True),
+                 ('application/json', 1, True),
+                 ('bapplication/json', 1, False),
+                 ('application/json', 1e20, False),
+                 ('binary/octet', 1, False)]
+        for content_type, size, outcome in tests:
+            with self.subTest("checkout should cache {content_type} {size} {outcome}"):
+                self.assertEqual(should_cache_file(content_type, size), outcome)
+
     @mock.patch("dss.stepfunctions.s3copyclient.implementation.is_dss_bucket")
     @testmode.standalone
     def test_aws_uncached_checkout_creates_tag(self, mock_check):
@@ -66,6 +77,7 @@ class TestCheckoutCaching(unittest.TestCase, DSSAssertMixin, DSSUploadMixin):
                                        checkout_bucket=Replica.aws.checkout_bucket)
         self.assertNotIn('uncached', tagging.keys())
 
+    @testmode.integration
     def test_aws_user_checkout_doesnt_create_tag(self):
         """
         Ensures that data is only cached when in a DSS-controlled bucket
@@ -133,6 +145,7 @@ class TestCheckoutCaching(unittest.TestCase, DSSAssertMixin, DSSUploadMixin):
                                         checkout_bucket=Replica.gcp.checkout_bucket)
         self.assertEqual('DURABLE_REDUCED_AVAILABILITY', blob_type)
 
+    @testmode.integration
     def test_google_user_checkout_creates_multiregional_storage_type(self):
         """
         Ensures that both cached and uncached data is of the MULTI_REGIONAL type when

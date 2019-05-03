@@ -43,8 +43,11 @@ def dispatch_gs_indexer_event(event, context):
     This handler receives GS events via the Google Cloud Function deployed from daemons/dss-gs-event-relay.
     """
     for event_record in event["Records"]:
-        gs_event = json.loads(json.loads(event_record["body"])["Message"])
-        _handle_event(Replica.gcp, gs_event, context)
+        message = json.loads(json.loads(event_record["body"])["Message"])
+        if message['resourceState'] == "not_exists":
+            logger.info("Ignoring object deletion event")
+        else:
+            _handle_event(Replica.gcp, message, context)
 
 
 def _handle_event(replica, event, context):

@@ -38,7 +38,7 @@ class SecretsChecker(object):
     def __init__(self, stage):
         self.stage = stage
         self.stages = {'dev': 'environment',
-                       'integration': 'enviroment.integration',
+                       'integration': 'environment.integration',
                        'staging': 'environment.staging'}
 
         self.missing_secrets = []
@@ -77,7 +77,11 @@ class SecretsChecker(object):
                              stderr=subprocess.PIPE,
                              cwd=cwd,
                              env=self.stage_env)
-        stdout, _ = p.communicate()
+        stdout, stderr = p.communicate()
+        if p.returncode != 0:
+            raise RuntimeError(f'While checking secrets, an error occured:\n'
+                               f'stdout: {stdout}\n\n'
+                               f'stderr: {stderr}\n')
         return stdout.decode('utf-8')
 
     def get_stage_env(self, env_file):
@@ -108,6 +112,10 @@ class SecretsChecker(object):
 
         # query terraform as to what the needed var is and return it
         terraform_output = self.run_cmd(cmd=f'terraform output {output_name}', cwd=output_infra_dir)
+        if not terraform_output:
+            print(f'Terraform output returned nothing.\n'
+                  f'Check your terraform setup by running "terraform output {output_name}" in dir:\n'
+                  f'data-store/infra/gcp_service_account\n\n')
         return terraform_output.strip()
 
     def check(self, current, expected, secret):

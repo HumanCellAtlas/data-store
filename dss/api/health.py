@@ -7,8 +7,15 @@ from googleapiclient import discovery, errors
 from elasticsearch.exceptions import ConnectionError
 from dss.index.es import ElasticsearchClient
 from dss.util.aws.clients import dynamodb  # type: ignore
+from dss.util.aws.clients import resourcegroupstaggingapi  # type: ignore
 
 logger = logging.getLogger(__name__)
+
+
+def get_resource_by_tag(resource_string: str, tag_filter: dict):
+    dss_resources = resourcegroupstaggingapi.get_resources(ResourceTypeFilters=[resource_string],
+                                                           TagFilters=[tag_filter])
+    return dss_resources
 
 
 def _get_es_status(host: str = "localhost", port: int = None):
@@ -33,10 +40,10 @@ def _get_dynamodb_status():
     """Checks dynamoDB table status, tables are explicitly specified within the function"""
     db_status = True
     stage = os.getenv("DSS_DEPLOYMENT_STAGE")
-    ddb_tables = ["dss-async-state-{}".format(stage),
-                  "dss-subscriptions-v2-aws-{}".format(stage),
-                  "dss-subscriptions-v2-gcp-{}".format(stage)
-                  ]
+    service_tags = {"Key": "service", "Values": ["dss"]}
+    resource_list = get_resource_by_tag(resource_string='dynamodb:table', tag_filter=service_tags)
+    ddb_tables = [x['ResourceARN'].split('/')[1] for x in resource_list['ResourceTagMappingList'] if
+                  stage in x['ResourceARN']]
     ddb_table_data = dict.fromkeys(ddb_tables)
     for table in ddb_tables:
         try:

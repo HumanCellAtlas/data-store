@@ -65,7 +65,9 @@ def launch_from_forwarded_event(event, context):
     executions = {}
     for event_record in event["Records"]:
         message = json.loads(json.loads(event_record["body"])["Message"])
-        if message["selfLink"].startswith("https://www.googleapis.com/storage"):
+        if message['resourceState'] == "not_exists":
+            logger.info("Ignoring object deletion event")
+        elif message["selfLink"].startswith("https://www.googleapis.com/storage"):
             source_replica = Replica.gcp
             source_key = message["name"]
             bucket = source_replica.bucket
@@ -271,7 +273,7 @@ def copy_parts(event, context):
 
     event.update(last_completed_part=part_index)
     event.setdefault("finished", False)
-    if part_index >= object_size // part_size:
+    if (part_index + 1) * part_size >= object_size:
         event.update(finished=True)
     return event
 

@@ -8,14 +8,13 @@ import datetime
 import nestedcontext
 import requests
 from cloud_blobstore import BlobNotFoundError, BlobStore, BlobStoreTimeoutError
-from cloud_blobstore.s3 import S3BlobStore
 from flask import jsonify, redirect, request, make_response
 from concurrent.futures import ThreadPoolExecutor, as_completed
 
 from dss import DSSException, dss_handler, DSSForbiddenException
 from dss.config import Config, Replica
-from dss.storage.blobstore import test_object_exists, ObjectTest
-from dss.storage.bundles import get_bundle_manifest
+from dss.storage.blobstore import idempotent_save, test_object_exists, ObjectTest
+from dss.storage.bundles import get_bundle_manifest, save_bundle_manifest
 from dss.storage.checkout import CheckoutError, TokenError
 from dss.storage.checkout.bundle import get_dst_bundle_prefix, verify_checkout
 from dss.storage.identifiers import BundleTombstoneID, BundleFQID, FileFQID
@@ -148,8 +147,6 @@ def post():
 @security.authorized_group_required(['hca'])
 def put(uuid: str, replica: str, json_request_body: dict, version: str):
     uuid = uuid.lower()
-    handle = Config.get_blobstore_handle(Replica[replica])
-    bucket = Replica[replica].bucket
 
     files = build_bundle_file_metadata(Replica[replica], json_request_body['files'])
     detect_filename_collisions(files)
@@ -162,18 +159,13 @@ def put(uuid: str, replica: str, json_request_body: dict, version: str):
         BundleMetadata.CREATOR_UID: json_request_body['creator_uid'],
     }
 
-    status_code = _save_bundle(handle, bucket, uuid, version, bundle_metadata)
+    status_code = _save_bundle(Replica[replica], uuid, version, bundle_metadata)
 
     return jsonify(dict(version=bundle_metadata['version'], manifest=bundle_metadata)), status_code
 
-def _save_bundle(handle, bucket, uuid, version, bundle_metadata):
+def _save_bundle(replica: Replica, uuid: str, version: str, bundle_metadata: dict) -> int:
     try:
-        created, idempotent = _idempotent_save(
-            handle,
-            bucket,
-            BundleFQID(uuid, version).to_key(),
-            bundle_metadata,
-        )
+        created, idempotent = save_bundle_manifest(replica, uuid, version, bundle_metadata)
     except BlobStoreTimeoutError:
         raise DSSException(
             requests.codes.unavailable,
@@ -203,7 +195,6 @@ def bundle_file_id_metadata(bundle_file_metadata):
 @dss_handler
 @security.authorized_group_required(['hca'])
 def patch(uuid: str, json_request_body: dict, replica: str, version: str):
-    handle = Config.get_blobstore_handle(Replica[replica])
     bundle = get_bundle_manifest(uuid, Replica[replica], version)
     if bundle is None:
         raise DSSException(404, "not_found", "Could not find bundle for UUID {}".format(uuid))
@@ -217,7 +208,7 @@ def patch(uuid: str, json_request_body: dict, replica: str, version: str):
     timestamp = datetime.datetime.utcnow()
     new_bundle_version = datetime_to_version_format(timestamp)
     bundle['version'] = new_bundle_version
-    _save_bundle(handle, Replica[replica].bucket, uuid, new_bundle_version, bundle)
+    _save_bundle(Replica[replica], uuid, new_bundle_version, bundle)
     return jsonify(dict(uuid=uuid, version=new_bundle_version)), requests.codes.ok
 
 
@@ -239,14 +230,12 @@ def delete(uuid: str, replica: str, json_request_body: dict, version: str = None
     )
 
     handle = Config.get_blobstore_handle(Replica[replica])
-    bucket = Replica[replica].bucket
-
-    if test_object_exists(handle, bucket, bundle_prefix, test_type=ObjectTest.PREFIX):
-        created, idempotent = _idempotent_save(
+    if test_object_exists(handle, Replica[replica].bucket, bundle_prefix, test_type=ObjectTest.PREFIX):
+        created, idempotent = idempotent_save(
             handle,
-            bucket,
+            Replica[replica].bucket,
             tombstone_id.to_key(),
-            tombstone_object_data
+            json.dumps(tombstone_object_data).encode("utf-8")
         )
         if not idempotent:
             raise DSSException(
@@ -333,41 +322,6 @@ def detect_filename_collisions(bundle_file_metadata):
                 f"Duplicate file name detected: {name}. This test fails on the first occurance. Please check bundle "
                 "layout to ensure no duplicated file names are present."
             )
-
-def _idempotent_save(blobstore: BlobStore, bucket: str, key: str, data: dict) -> typing.Tuple[bool, bool]:
-    """
-    _idempotent_save attempts to save an object to the BlobStore. Its return values indicate whether the save was made
-    successfully and whether the operation could be completed idempotently. If the data in the blobstore does not match
-    the data parameter, the data in the blobstore is _not_ overwritten.
-
-    :param blobstore: the blobstore to save the data to
-    :param bucket: the bucket in the blobstore to save the data to
-    :param key: the key of the object to save
-    :param data: the data to save
-    :return: a tuple of booleans (was the data saved?, was the save idempotent?)
-    """
-    if test_object_exists(blobstore, bucket, key):
-        # fetch the file metadata, compare it to what we have.
-        existing_data = json.loads(blobstore.get(bucket, key).decode("utf-8"))
-        return False, existing_data == data
-    else:
-        # write manifest to persistent store
-        _d = json.dumps(data).encode("utf-8")
-        part_size = 16 * 1024 * 1024
-        if isinstance(blobstore, S3BlobStore) and len(_d) > part_size:
-            with io.BytesIO(_d) as fh:
-                multipart_parallel_upload(
-                    blobstore.s3_client,
-                    bucket,
-                    key,
-                    fh,
-                    part_size=part_size,
-                    parallelization_factor=20
-                )
-        else:
-            blobstore.upload_file_handle(bucket, key, io.BytesIO(_d))
-        return True, True
-
 
 def _create_tombstone_data(email: str, reason: str, version: typing.Optional[str]) -> dict:
     # Future-proofing the case in which garbage collection is added
