@@ -15,12 +15,29 @@ from requests_http_signature import HTTPSignatureAuth
 from requests import Request
 import time
 import boto3
+import json
+import subprocess
 
 
-secret = ''  # hmac; TODO: change this to a secrets manager value
 bucket = 'dss-scale-notifications-test'
 app = Chalice(app_name='dss-scale-test-notification-receiver')
 client = boto3.client('s3')
+
+
+def get_hmac_key():
+    secret_name = 'dcp/dss/dev/scale-test/hmacsecretkey'
+    p = subprocess.Popen(f'aws secretsmanager get-secret-value --secret-id {secret_name}',
+                         shell=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+    stdout, stderr = p.communicate()
+
+    try:
+        hmac_key = json.loads(json.loads(stdout.decode('utf-8'))['SecretString'])['secret']
+    except:
+        raise RuntimeError(f"An error occured:\n{stderr.decode('utf-8')}")
+    return hmac_key
+
+
+hmac_key = get_hmac_key()
 
 
 def log_to_bucket(body, key, retries=[1, 2, 4, 8, 16, 32, 64]):
@@ -42,7 +59,7 @@ def subscription_notification():
 
     try:
         HTTPSignatureAuth.verify(Request(request.method, request.path, request.headers),
-                                 key_resolver=lambda key_id, algorithm: secret.encode())
+                                 key_resolver=lambda key_id, algorithm: hmac_key.encode())
         response = request.data.json()
 
         # can be used to ID who sent the notification
@@ -60,7 +77,7 @@ def subscription_notification():
         log_to_bucket(body=f'{str(e)}!', key='.'.join([time_sent, 'error']))
         return app.make_response(f'{str(e)}!\n')
 
-    return 'Authorized Success!\n'
+    return 'Subscription Notification Successful!\n'
 
 
 @app.route('/', methods=['GET', 'POST'])
