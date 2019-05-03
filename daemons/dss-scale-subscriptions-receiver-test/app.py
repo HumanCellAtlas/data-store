@@ -55,7 +55,7 @@ def log_to_bucket(body, key, retries=[1, 2, 4, 8, 16, 32, 64]):
 def subscription_notification():
     request = app.current_request
 
-    time_sent = time.time().split('.')[0]  # whole seconds will do
+    time_sent = int(time.time())  # whole seconds will do
 
     try:
         HTTPSignatureAuth.verify(Request(request.method, request.path, request.headers),
