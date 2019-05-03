@@ -8,7 +8,7 @@ sys.path.insert(0, pkg_root)  # noqa
 from tests.common import random_hex_string
 import fusillade
 from fusillade.clouddirectory import cd_client, cleanup_directory, cleanup_schema, publish_schema, create_directory, \
-    CloudDirectory
+    CloudDirectory, CloudNode
 
 admin_email = "test_email1@domain.com,test_email2@domain.com, test_email3@domain.com "
 
@@ -65,7 +65,7 @@ class TestCloudDirectory(unittest.TestCase):
                 resp = directory.get_object_information(f'/{folder}')
                 self.assertTrue(resp['ObjectIdentifier'])
 
-        roles = ['/role/admin', '/role/default_user']
+        roles = [f"/role/{CloudNode.hash_name(name)}" for name in ['admin', 'default_user']]
         for role in roles:
             with self.subTest(f"{role} roles is created when directory is created"):
                 resp = directory.get_object_information(role)
@@ -73,7 +73,7 @@ class TestCloudDirectory(unittest.TestCase):
 
         for admin in fusillade.Config.get_admin_emails():
             with self.subTest(f"Admin user {admin} created when the directory is created"):
-                user = '/user/' + quote(admin)
+                user = '/user/' + CloudNode.hash_name(admin)
                 resp = directory.get_object_information(user)
                 self.assertTrue(resp['ObjectIdentifier'])
 

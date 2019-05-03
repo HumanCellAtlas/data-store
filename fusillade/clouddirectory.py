@@ -14,7 +14,6 @@ import json
 import typing
 from collections import namedtuple
 from enum import Enum, auto
-from urllib.parse import quote
 
 from fusillade.errors import FusilladeException
 from fusillade.config import Config
@@ -490,7 +489,7 @@ class CloudDirectory:
         for _, obj_ref in self.list_object_children('/group/'):
             self.delete_object(obj_ref)
         for name, obj_ref in self.list_object_children('/role/'):
-            if name not in ["admin", "default_user"]:
+            if name not in [CloudNode.hash_name("admin"), CloudNode.hash_name("default_user")]:
                 self.delete_object(obj_ref)
 
     def delete_policy(self, policy_ref: str) -> None:
@@ -744,7 +743,7 @@ class CloudNode:
             raise FusilladeException("object_reference XOR name")
         if name:
             self._name: str = name
-            self._path_name: str = quote(name)
+            self._path_name: str = self.hash_name(name)
             self.object_ref: str = cloud_directory.get_obj_type_path(object_type) + self._path_name
         else:
             self._name: str = None
@@ -755,6 +754,10 @@ class CloudNode:
         self.cd: CloudDirectory = cloud_directory
         self._policy: typing.Optional[str] = None
         self._statement: typing.Optional[str] = None
+
+    @staticmethod
+    def hash_name(name):
+        return hashlib.sha1(bytes(name, "utf-8")).hexdigest()
 
     @staticmethod
     def _get_link_name(parent_path: str, child_path: str):
@@ -793,7 +796,7 @@ class CloudNode:
         batch_attach_typed_link = self.cd.batch_attach_typed_link
         operations = []
         for link in links:
-            parent_ref = parent_path + link  # TODO use f-string
+            parent_ref = f"{parent_path}{self.hash_name(link)}"
             operations.append(
                 batch_attach_object(
                     parent_ref,
@@ -827,7 +830,7 @@ class CloudNode:
         make_typed_link_specifier = self.cd.make_typed_link_specifier
         operations = []
         for link in links:
-            parent_ref = parent_path + link
+            parent_ref = f"{parent_path}{self.hash_name(link)}"
             operations.append(
                 batch_detach_object(
                     parent_ref,
@@ -850,7 +853,7 @@ class CloudNode:
     def name(self):
         if not self._name:
             self._get_attributes(self._attributes)
-            self._path_name = quote(self._name)
+            self._path_name = self.hash_name(self._name)
         return self._name
 
     @property
@@ -865,7 +868,7 @@ class CloudNode:
                 self._policy = policies[0]
         return self._policy
 
-    def create_policy(self, statement: str, ) -> str:
+    def create_policy(self, statement: str) -> str:
         """
         Create a policy object and attach it to the CloudNode
         :param statement: Json string that follow AWS IAM Policy Grammar.
@@ -874,7 +877,7 @@ class CloudNode:
         """
         operations = list()
         object_attribute_list = self.cd.get_policy_attribute_list(self._facet, statement)
-        policy_link_name = f"{self._path_name}_{self._object_type}_IAMPolicy"
+        policy_link_name = self.get_policy_name('IAMPolicy')
         parent_path = self.cd.get_obj_type_path('policy')
         operations.append(self.cd.batch_create_object(parent_path,
                                                       policy_link_name,
@@ -885,6 +888,9 @@ class CloudNode:
         operations.append(self.cd.batch_attach_policy(policy_ref, self.object_ref))
         self.cd.batch_write(operations)
         return policy_ref
+
+    def get_policy_name(self, policy_type):
+        return self.hash_name(f"{self._path_name}{self._object_type}{policy_type}")
 
     @property
     def statement(self):
@@ -1106,7 +1112,7 @@ class Group(CloudNode):
         if not statement:
             statement = get_json_file(default_group_policy_path)
         cls._verify_statement(statement)
-        cloud_directory.create_object(quote(name), 'BasicFacet', name=name, obj_type="group")
+        cloud_directory.create_object(cls.hash_name(name), 'BasicFacet', name=name, obj_type="group")
         new_node = cls(cloud_directory, name)
         new_node._set_statement(statement)
         return new_node
@@ -1169,7 +1175,7 @@ class Role(CloudNode):
         if not statement:
             statement = get_json_file(default_role_path)
         cls._verify_statement(statement)
-        cloud_directory.create_object(quote(name), 'BasicFacet', name=name, obj_type='role')
+        cloud_directory.create_object(cls.hash_name(name), 'BasicFacet', name=name, obj_type='role')
         new_node = cls(cloud_directory, name)
         new_node._set_statement(statement)
         return new_node
