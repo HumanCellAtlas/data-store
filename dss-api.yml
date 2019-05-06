@@ -1036,7 +1036,7 @@ paths:
           schema:
             type: object
             properties:
-              collections:
+              contents:
                 description: A user's collection UUIDs and versions.
                 type: array
                 items:
@@ -1046,7 +1046,7 @@ paths:
           schema:
             type: object
             properties:
-              collections:
+              contents:
                 description: A user's collection UUIDs and versions.
                 type: array
                 items:
@@ -1482,15 +1482,43 @@ paths:
           schema:
             type: object
             properties:
-              bundle:
-                $ref: "#/definitions/bundle_version"
+              contents:
+                type: array
+                items:
+                  $ref: "#/definitions/file_version"
+              uuid:
+                type: string
+                description: Bundle unique ID
+                pattern: "[a-z0-9]{8}-[a-z0-9]{4}-[a-z0-9]{4}-[a-z0-9]{4}-[a-z0-9]{12}"
+              version:
+                type: string
+                format: DSS_VERSION
+                description: Timestamp of bundle creation in DSS_VERSION format.
+              creator_uid:
+                type: integer
+                format: int
+                description: User ID who created this bundle manifest.
         206:
           description: A single page of results was retrieved.
           schema:
             type: object
             properties:
-              bundle:
-                $ref: "#/definitions/bundle_version"
+              contents:
+                type: array
+                items:
+                  $ref: "#/definitions/file_version"
+              uuid:
+                type: string
+                description: Bundle unique ID
+                pattern: "[a-z0-9]{8}-[a-z0-9]{4}-[a-z0-9]{4}-[a-z0-9]{4}-[a-z0-9]{12}"
+              version:
+                type: string
+                format: DSS_VERSION
+                description: Timestamp of bundle creation in DSS_VERSION format.
+              creator_uid:
+                type: integer
+                format: int
+                description: User ID who created this bundle manifest.
           headers:
             Link:
               type: string
@@ -2435,7 +2463,7 @@ definitions:
       es_query:
         description: Elasticsearch query used to produce the results.
         type: object
-      results:
+      contents:
         description: Results matching the `es_query`.
         type: array
         items:
