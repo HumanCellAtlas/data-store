@@ -11,27 +11,28 @@ import sys
 import unittest
 from furl import furl
 
-from oauthlib.oauth2 import WebApplicationClient
-
 pkg_root = os.path.abspath(os.path.join(os.path.dirname(__file__), '..'))  # noqa
 sys.path.insert(0, pkg_root)  # noqa
 
-os.environ['FUS_ADMIN_EMAILS'] = 'project-viewer@cool-project-188401.iam.gserviceaccount.com'
+from tests import random_hex_string, eventually
 
-import fusillade
-from fusillade import directory
-from fusillade.clouddirectory import cleanup_directory
-from tests.common import random_hex_string, eventually
-from tests import get_auth_header
-
-old_directory_name = os.getenv("FUSILLADE_DIR", None)
 directory_name = "test_api_" + random_hex_string()
-
 os.environ['OPENID_PROVIDER'] = "humancellatlas.auth0.com"
+old_directory_name = os.getenv("FUSILLADE_DIR", None)
 os.environ["FUSILLADE_DIR"] = directory_name
+
+
+from tests.common import get_auth_header, service_accounts
+import fusillade
+from fusillade import directory, User
+from fusillade.clouddirectory import cleanup_directory
 
 from tests.infra.server import ChaliceTestHarness
 # ChaliceTestHarness must be imported after FUSILLADE_DIR has be set
+
+
+def setUpModule():
+    User.provision_user(directory, service_accounts['admin']['client_email'], roles=['admin'])
 
 
 @eventually(5,1, {fusillade.errors.FusilladeException})
@@ -39,33 +40,6 @@ def tearDownModule():
     cleanup_directory(directory._dir_arn)
     if old_directory_name:
         os.environ["FUSILLADE_DIR"] = old_directory_name
-
-
-class JWTClient(WebApplicationClient):
-    def _add_bearer_token(self, uri, http_method='GET', body=None, headers=None, *args, **kwargs):
-        headers["Authorization"] = "Bearer {}".format(self.token["id_token"])
-        return uri, headers, body
-
-
-def application_secrets(domain):
-    """
-    client_secret is a public secret from the auth0 secret for the HCA DCP CLI.
-    
-    :param domain:
-    :return:
-    """
-    return {
-        "installed": {
-            "auth_uri": f"https://{domain}/authorize",
-            "client_id": "qtMgNk9fqVeclLtZl6WkbdJ59dP3WeAt",
-            "client_secret": "JDE9KHBzrvNryDdzr3gNkyCMhXEUdMrzMcBrTXoRCNM0RlODP6NzlOxqF7Yx7O1F",
-            "redirect_uris": [
-                "urn:ietf:wg:oauth:2.0:oob",
-                "http://localhost:8080"
-            ],
-            "token_uri": f"https://{domain}/oauth/token"
-        }
-    }
 
 
 class TestAuthentication(unittest.TestCase):
@@ -121,8 +95,8 @@ class TestAuthentication(unittest.TestCase):
             self.assertEqual(redirect_url.args["response_type"], 'code')
             query_params["openid_provider"] = "humancellatlas.auth0.com"
             self.assertDictEqual(json.loads(base64.b64decode(redirect_url.args["state"])), query_params)
-            expected_redirect_uri = furl(scheme='https', host=os.environ['API_DOMAIN_NAME'], path='cb')
-            self.assertEqual(redirect_url.args["redirect_uri"], str(expected_redirect_uri))
+            redirect_uri = furl(redirect_url.args["redirect_uri"])
+            self.assertTrue(redirect_uri.pathstr.endswith('/cb'))
             self.assertEqual(redirect_url.args["scope"], scopes)
             self.assertEqual(redirect_url.host, 'humancellatlas.auth0.com')
             self.assertEqual(redirect_url.path, '/authorize')
@@ -224,7 +198,7 @@ class TestApi(unittest.TestCase):
                 with self.subTest(test['json_request_body']):
                     data=json.dumps(test['json_request_body'])
                     headers={'Content-Type': "application/json"}
-                    headers.update(get_auth_header())
+                    headers.update(get_auth_header(service_accounts['admin']))
                     resp = self.app.post('/v1/policies/evaluate', headers=headers, data=data)
                     self.assertEqual(test['response']['code'], resp.status_code)  # TODO fix
                     self.assertEqual(test['response']['result'], json.loads(resp.body)['result'])

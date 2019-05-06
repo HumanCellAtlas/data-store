@@ -16,7 +16,6 @@ from collections import namedtuple
 from enum import Enum, auto
 
 from fusillade.errors import FusilladeException
-from fusillade.config import Config
 
 project_arn = "arn:aws:clouddirectory:us-east-1:861229788715:"  # TODO move to config.py
 cd_client = aws_clients.clouddirectory
@@ -75,12 +74,13 @@ def publish_schema(name: str, version: str) -> str:
     return pub_schema_arn
 
 
-def create_directory(name: str, schema: str) -> 'CloudDirectory':
+def create_directory(name: str, schema: str, admins: typing.List[str]) -> 'CloudDirectory':
     """
     Retrieve the fusillade cloud directory or do a one time setup of cloud directory to be used with fusillade.
 
     :param name:
     :param schema:
+    :param admins: a list of admins to create
     :return:
     """
     try:
@@ -101,7 +101,7 @@ def create_directory(name: str, schema: str) -> 'CloudDirectory':
         Role.create(directory, "admin", statement=get_json_file(default_admin_role_path))
 
         # create admins
-        for admin in Config.get_admin_emails():
+        for admin in admins:
             User.provision_user(directory, admin, roles=['admin'])
     return directory
 
