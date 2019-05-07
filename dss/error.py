@@ -1,35 +1,41 @@
 import json
 import os
+import typing
 import logging
+
 import functools
 import traceback
+
 import requests
 import werkzeug.exceptions
 from connexion.lifecycle import ConnexionResponse
 from flask import request
 from flask import Response as FlaskResponse
-from builtins import Exception
+
 
 logger = logging.getLogger(__name__)
 
 
 class DSSException(Exception):
-    def __init__(self, status: int, code: str, title: str, *args) -> None:
-        super().__init__(*args)
+    def __init__(self, status: int, code: str, title: str, *args, **kwargs) -> None:
+        super().__init__(*args, **kwargs)  # type: ignore
         self.status = status
         self.code = code
         self.message = title
 
 
 class DSSBindingException(DSSException):
-    def __init__(self, title, *args) -> None:
-        super().__init__(requests.codes.bad_request, "illegal_arguments", title, *args)
+    def __init__(self, title, *args, **kwargs) -> None:
+        super().__init__(requests.codes.bad_request, "illegal_arguments", title, *args, **kwargs)
 
 
 class DSSForbiddenException(DSSException):
-    def __init__(self, title: str = "User is not authorized to access this resource", *args) -> None:
-        super().__init__(requests.codes.forbidden, "Forbidden", title, *args)
-
+    def __init__(self, title: str = "User is not authorized to access this resource",
+                 *args, **kwargs) -> None:
+        super().__init__(requests.codes.forbidden,
+                         "Forbidden",
+                         title,
+                         *args, **kwargs)
 
 def dss_exception_handler(e: DSSException) -> FlaskResponse:
     return FlaskResponse(
@@ -40,9 +46,8 @@ def dss_exception_handler(e: DSSException) -> FlaskResponse:
             'status': e.status,
             'code': e.code,
             'title': e.message,
-            'stacktrace': traceback.format_exc()
+            'stacktrace': traceback.format_exc(),
         }))
-
 
 def dss_handler(func):
     @functools.wraps(func)
