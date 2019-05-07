@@ -42,6 +42,12 @@ To do this, your application should define an access control model consisting of
   }
   ```
 
+## AWS Cloud Architecture
+![AWS Cloud Architecture](https://www.lucidchart.com/publicSegments/view/b3470977-3924-4fb3-a07f-ce97be59dac1/image.png)
+## Cloud Directory Structure
+![Cloud Directory Structure](https://www.lucidchart.com/publicSegments/view/3f6f3cdc-7429-460c-b45f-33ae35d9e07c/image.png)
+
+
 # Installing and configuring Fusillade
 
 Create `oauth2_config.json` with the OIDC providers you'd like to use to 
