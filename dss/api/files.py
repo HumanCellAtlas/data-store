@@ -221,7 +221,7 @@ def put(uuid: str, json_request_body: dict, version: str):
         raise DSSException(
             requests.codes.unprocessable,
             "missing_checksum",
-            f"mssing {keyname}")
+            f"missing {keyname}")
 
     # what's the target object name for the actual data?
     dst_key = ("blobs/" + ".".join(
