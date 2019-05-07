@@ -122,7 +122,7 @@ scale_and_performance:
     -   echo "DCP Integration test returned status ${status}";
     -   exit 1
     - fi
-    - ${DSS_RELEASE_COMMAND}
+    - ${RELEASE_COMMAND}
   except:
     - schedules
   when: manual
@@ -131,41 +131,41 @@ scale_and_performance:
 release_integration:
   extends: .release
   variables: 
-    RELEASE_COMMAND: "scripts/release.sh master integration --no-deploy --skip-account-verification"
+    RELEASE_COMMAND: scripts/release.sh master integration --no-deploy --skip-account-verification
   only:
     - master
 
 force_release_integration:
   extends: .release
   variables:
-    RELEASE_COMMAND: "scripts/release.sh master integration --force --no-deploy --skip-account-verification"
+    RELEASE_COMMAND: scripts/release.sh master integration --force --no-deploy --skip-account-verification
   only:
     - master
 
 release_staging:
   extends: .release
   variables:
-    RELEASE_COMMAND: "scripts/release.sh integration staging --no-deploy --skip-account-verification"
+    RELEASE_COMMAND: scripts/release.sh integration staging --no-deploy --skip-account-verification
   only:
     - integration
 
 force_release_staging:
   extends: .release
   variables:
-    RELEASE_COMMAND: "scripts/release.sh integration staging --force --no-deploy --skip-account-verification"
+    RELEASE_COMMAND: scripts/release.sh integration staging --force --no-deploy --skip-account-verification
   only:
     - integration
 
 release_prod:
   extends: .release
   variables:
-    RELEASE_COMMAND: "scripts/release.sh staging prod --no-deploy --skip-account-verification"
+    RELEASE_COMMAND: scripts/release.sh staging prod --no-deploy --skip-account-verification
   only:
     - staging
 
 force_release_prod:
   extends: .release
   variables:
-    RELEASE_COMMAND: "scripts/release.sh staging prod --force --no-deploy --skip-account-verification"
+    RELEASE_COMMAND: scripts/release.sh staging prod --force --no-deploy --skip-account-verification
   only:
     - staging
