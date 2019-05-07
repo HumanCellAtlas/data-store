@@ -12,6 +12,7 @@ stages:
   - test
   - deploy
   - integration_test
+  - scale_and_performance
   - release
 
 before_script:
@@ -35,63 +36,40 @@ before_script:
   - scripts/fetch_secret.sh gcp-credentials.json > gcp-credentials.json
   - export GOOGLE_APPLICATION_CREDENTIALS=$(pwd -P)/gcp-credentials.json
 
-unit_tests:
+.tests:
   stage: test
-  script:
-    - whoami
-    - ls -alh /
-    - make -j4 parallel_test
   except:
     - tags
     - schedules
+
+unit_tests:
+  extends: .tests
+  script:
+    - make -j4 parallel_test
 
 test_search:
-  stage: test
+  extends: .tests
   script:
     - make -j1 tests/test_search.py
-  except:
-    - tags
-    - schedules
 
 test_aws_indexer:
-  stage: test
+  extends: .tests
   variables:
     DSS_UNITTEST_OPTS: "-v TestAWSIndexer"
   script:
     - make -j1 tests/test_indexer.py
-  except:
-    - tags
-    - schedules
 
 test_gcp_indexer:
-  stage: test
+  extends: .tests
   variables:
     DSS_UNITTEST_OPTS: "-v TestGCPIndexer"
   script:
     - make -j1 tests/test_indexer.py
-  except:
-    - tags
-    - schedules
 
 test_subscriptions:
-  stage: test
+  extends: .tests
   script:
     - make -j1 tests/test_subscriptions.py
-  except:
-    - tags
-    - schedules
-
-test_sync_large_blob:
-  stage: test
-  variables:
-    DSS_TEST_MODE: "integration"
-  script:
-    - python tests/test_sync.py TestSyncDaemon.test_sync_large_blob
-  only:
-    refs:
-      - schedules
-    variables:
-      - $DSS_TEST_LARGE_FILE_SYNC
 
 deploy:
   stage: deploy
@@ -126,99 +104,68 @@ integration_test:
   except:
     - schedules
 
-release_integration:
+scale_and_performance:
+  stage: scale_and_performance
+  script:
+    - echo $DSS_JOB_COMMAND
+    - $DSS_JOB_COMMAND
+  only:
+    variables:
+      - $DSS_JOB_COMMAND
+
+.release:
   stage: release
   script:
     - git remote set-url origin https://$GITHUB_TOKEN@github.com/HumanCellAtlas/data-store.git
-    - for i in $(seq 1 40); do
-    -   status=$(scripts/status.py HumanCellAtlas dcp integration)
-    -   if [[ pending != "${status}" && running != "${status}" ]]; then break; fi
-    -   echo "waiting for DCP Integration test to complete";
-    -   sleep 30;  # This loop will check status for 20 minutes and then quit
-    - done
-    - if [[ success != "${status}" ]]; then
+    - export status=$(scripts/status.py HumanCellAtlas dcp $(echo $RELEASE_COMMAND | cut -d ' ' -f 2))
+    - if [[ ${RELEASE_COMMAND} != *"--force"* && ${status} != "success" ]]; then
     -   echo "DCP Integration test returned status ${status}";
     -   exit 1
     - fi
-    - scripts/release.sh master integration --no-deploy --skip-account-verification
-  only:
-    - master
+    - ${RELEASE_COMMAND}
   except:
     - schedules
   when: manual
   allow_failure: true
 
-force_release_integration:
-  stage: release
-  script:
-    - git remote set-url origin https://$GITHUB_TOKEN@github.com/HumanCellAtlas/data-store.git
-    - scripts/release.sh master integration --force --no-deploy --skip-account-verification
+release_integration:
+  extends: .release
+  variables: 
+    RELEASE_COMMAND: scripts/release.sh master integration --no-deploy --skip-account-verification
   only:
     - master
-  except:
-    - schedules
-  when: manual
+
+force_release_integration:
+  extends: .release
+  variables:
+    RELEASE_COMMAND: scripts/release.sh master integration --force --no-deploy --skip-account-verification
+  only:
+    - master
 
 release_staging:
-  stage: release
-  script:
-    - git remote set-url origin https://$GITHUB_TOKEN@github.com/HumanCellAtlas/data-store.git
-    - for i in $(seq 1 40); do
-    -   status=$(scripts/status.py HumanCellAtlas dcp staging)
-    -   if [[ pending != "${status}" && running != "${status}" ]]; then break; fi
-    -   echo "waiting for DCP Integration test to complete";
-    -   sleep 30;  # This loop will check status for 20 minutes and then quit
-    - done
-    - if [[ success != "${status}" ]]; then
-    -   echo "DCP Integration test returned status ${status}";
-    -   exit 1
-    - fi
-    - scripts/release.sh integration staging --no-deploy --skip-account-verification
+  extends: .release
+  variables:
+    RELEASE_COMMAND: scripts/release.sh integration staging --no-deploy --skip-account-verification
   only:
     - integration
-  except:
-    - schedules
-  when: manual 
 
 force_release_staging:
-  stage: release
-  script:
-    - git remote set-url origin https://$GITHUB_TOKEN@github.com/HumanCellAtlas/data-store.git
-    - scripts/release.sh integration staging --force --no-deploy --skip-account-verification
+  extends: .release
+  variables:
+    RELEASE_COMMAND: scripts/release.sh integration staging --force --no-deploy --skip-account-verification
   only:
     - integration
-  except:
-    - schedules
-  when: manual
 
 release_prod:
-  stage: release
-  script:
-    - git remote set-url origin https://$GITHUB_TOKEN@github.com/HumanCellAtlas/data-store.git
-    - for i in $(seq 1 40); do
-    -   status=$(scripts/status.py HumanCellAtlas dcp prod)
-    -   if [[ pending != "${status}" && running != "${status}" ]]; then break; fi
-    -   echo "waiting for DCP Integration test to complete";
-    -   sleep 30;  # This loop will check status for 20 minutes and then quit
-    - done
-    - if [[ success != "${status}" ]]; then
-    -   echo "DCP Integration test returned status ${status}";
-    -   exit 1
-    - fi
-    - scripts/release.sh staging prod --no-deploy --skip-account-verification
+  extends: .release
+  variables:
+    RELEASE_COMMAND: scripts/release.sh staging prod --no-deploy --skip-account-verification
   only:
     - staging
-  except:
-    - schedules
-  when: manual 
 
 force_release_prod:
-  stage: release
-  script:
-    - git remote set-url origin https://$GITHUB_TOKEN@github.com/HumanCellAtlas/data-store.git
-    - scripts/release.sh staging prod --force --no-deploy --skip-account-verification
+  extends: .release
+  variables:
+    RELEASE_COMMAND: scripts/release.sh staging prod --force --no-deploy --skip-account-verification
   only:
     - staging
-  except:
-    - schedules
-  when: manual

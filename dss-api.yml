@@ -459,13 +459,15 @@ paths:
         The metadata fields required are:
 
         - hca-dss-sha256: SHA-256 checksum of the file
+
         - hca-dss-sha1: SHA-1 checksum of the file
-        - hca-dss-s3_etag: S3 ETAG checksum of the file.  See
-        https://stackoverflow.com/questions/12186993/what-is-the-algorithm-to-compute-the-amazon-s3-etag-for-a-file-larger-than-5gb
-        for the general algorithm for how checksum is calculated.  For files smaller than 64MB, this is the MD5 checksum
+
+        - hca-dss-s3_etag: S3 ETAG checksum of the file.  See https://stackoverflow.com/q/12186993 for the
+        general algorithm for how checksum is calculated.  For files smaller than 64MB, this is the MD5 checksum
         of the file.  For files larger than 64MB but smaller than 640,000MB, we use 64MB chunks.  For files larger than
         640,000MB, we use a chunk size equal to the total file size divided by 10000, rounded up to the nearest MB.
         MB, in this section, refers to 1,048,576 bytes.  Note that 640,000MB is not the same as 640GB!
+
         - hca-dss-crc32c: CRC-32C checksum of the file
       parameters:
         - name: uuid
@@ -997,7 +999,7 @@ paths:
                   - code
   /collections:
     get:
-      operationId: dss.api.collections.listcollections
+      operationId: dss.api.collections.list_collections
       security:
         - dcpAuth: []
       summary: Retrieve a user's collections.
@@ -1013,21 +1015,15 @@ paths:
 
         Collections are replicated across storage replicas similarly to files and bundles.
       parameters:
-        - name: replica
-          in: query
-          description: Replica to fetch from.
-          required: true
-          type: string
-          enum: [aws, gcp]
         - name: per_page
           in: query
           description: Max number of results to return per page.
           required: false
           type: integer
           format: int32
-          minimum: 50
-          maximum: 100
-          default: 100
+          minimum: 10
+          maximum: 500
+          default: 500
         - name: start_at
           in: query
           description: >
@@ -1043,7 +1039,7 @@ paths:
             type: object
             properties:
               collections:
-                description: A user's collections.
+                description: A user's collection UUIDs and versions.
                 type: array
                 items:
                   $ref: '#/definitions/CollectionOfCollectionsItem'
@@ -1053,7 +1049,7 @@ paths:
             type: object
             properties:
               collections:
-                description: A user's collections.
+                description: A user's collection UUIDs and versions.
                 type: array
                 items:
                   $ref: '#/definitions/CollectionOfCollectionsItem'
@@ -1115,9 +1111,7 @@ paths:
           pattern: "[A-Za-z0-9]{8}-[A-Za-z0-9]{4}-[A-Za-z0-9]{4}-[A-Za-z0-9]{4}-[A-Za-z0-9]{12}"
         - name: version
           in: query
-          description: >
-            Timestamp of collection creation in DSS_VERSION format format.
-            generated.
+          description: Timestamp of collection creation in DSS_VERSION format.
           required: true
           type: string
           format: DSS_VERSION
@@ -1171,8 +1165,7 @@ paths:
       security:
         - dcpAuth: []
       summary: Retrieve a collection given a UUID.
-      description: >
-        Given a collection UUID, return the associated collection object.
+      description: Given a collection UUID, return the associated collection object.
       parameters:
         - name: uuid
           in: path
@@ -1748,7 +1741,7 @@ paths:
         Add or remove files from a bundle. A specific version of the bundle to update must be provided, and a
         new version will be written.
 
-        Bundles manifests exceeding 20,000 files will not be included in the Elasticsearch index document.
+        Bundle manifests exceeding 20,000 files will not be included in the Elasticsearch index document.
       parameters:
         - name: uuid
           in: path
@@ -2456,19 +2449,16 @@ definitions:
   CollectionOfCollectionsItem:
     type: object
     properties:
-      collection_uuid:
+      uuid:
         type: string
         description: A UUID identifying the collection.
         pattern: "[a-z0-9]{8}-[a-z0-9]{4}-[a-z0-9]{4}-[a-z0-9]{4}-[a-z0-9]{12}"
-      collection_version:
-        type: string
+      version:
         description: The version of the UUID identifying the collection.
-      collection:
-        $ref: '#/definitions/Collection'
+        type: string
     required:
-      - collection_uuid
-      - collection_version
-      - collection
+      - uuid
+      - version
   Collection:
     type: object
     properties:

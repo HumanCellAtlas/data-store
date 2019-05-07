@@ -13,12 +13,14 @@ OIDC_AUDIENCE=https://dev.data.humancellatlas.org/,https://${DCP_DOMAIN}/
 API_DOMAIN_NAME="dss.${DCP_DOMAIN}"
 ACM_CERTIFICATE_IDENTIFIER="8dac5c5d-2742-4564-bc85-b7b3e251a51c"
 DSS_GCP_SERVICE_ACCOUNT_NAME="org-humancellatlas-prod"
-DSS_TERRAFORM_BACKEND_BUCKET_TEMPLATE="org-humancellatlas-109067257620-terraform"
+DSS_TERRAFORM_BACKEND_BUCKET_TEMPLATE="org-humancellatlas-dss-109067257620-${DSS_DEPLOYMENT_STAGE}-terraform"
 DSS_ZONE_NAME="${DCP_DOMAIN}."
 DSS_ES_INSTANCE_TYPE="m4.2xlarge.elasticsearch"
 DSS_ES_INSTANCE_COUNT="3"
 DSS_ES_VOLUME_SIZE="512"  # Maximum volume size for m4.large.elasticsearch
 DSS_AUTHORIZED_DOMAINS="hca-dcp-production.iam.gserviceaccount.com hca-dcp-pipelines-prod.iam.gserviceaccount.com ${DSS_AUTHORIZED_DOMAINS}"
+DSS_TERRAFORM_BACKEND_BUCKET_TEMPLATE="org-humancellatlas-dss-{account_id}-${DSS_DEPLOYMENT_STAGE}-terraform"
+
 set +a
 
 if [[ -f "${DSS_HOME}/environment.prod.local" ]]; then

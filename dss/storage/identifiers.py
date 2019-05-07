@@ -116,8 +116,10 @@ class BundleTombstoneID(TombstoneID):
     prefix = BUNDLE_PREFIX
     subject_identity_cls = BundleFQID
 
+
 class CollectionFQID(ObjectIdentifier):
     prefix = COLLECTION_PREFIX
+
 
 class CollectionTombstoneID(TombstoneID):
     prefix = COLLECTION_PREFIX

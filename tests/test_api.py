@@ -21,6 +21,7 @@ from tests.infra.server import ThreadedLocalServer
 from tests import get_auth_header
 
 
+@testmode.integration
 class TestApi(unittest.TestCase, DSSAssertMixin, DSSUploadMixin, DSSStorageMixin):
     @classmethod
     def setUpClass(cls):
@@ -40,7 +41,6 @@ class TestApi(unittest.TestCase, DSSAssertMixin, DSSUploadMixin, DSSStorageMixin
 
     BUNDLE_FIXTURE = "fixtures/example_bundle"
 
-    @testmode.standalone
     def test_creation_and_retrieval_of_files_and_bundle(self):
 
         # FIXME: This test doesn't do much because it uses the test bucket which lacks the fixtures for the test bundle.
@@ -59,7 +59,6 @@ class TestApi(unittest.TestCase, DSSAssertMixin, DSSUploadMixin, DSSStorageMixin
         self.upload_files_and_create_bundle(bundle, self.replica)
         self.get_bundle_and_check_files(bundle, self.replica)
 
-    @testmode.standalone
     def test_get_version(self):
         """
         Test /version endpoint and configuration
@@ -67,7 +66,6 @@ class TestApi(unittest.TestCase, DSSAssertMixin, DSSUploadMixin, DSSStorageMixin
         res = self.assertGetResponse("/version", requests.codes.ok, headers=get_auth_header())
         self.assertEquals(res.json['version_info']['version'], os.environ['DSS_VERSION'])
 
-    @testmode.standalone
     def test_read_only(self):
         uuid = "xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx"
         body = dict(

@@ -2,7 +2,7 @@
 """
 A prod test for the DSS, checks core API Requests to know whats available. Works with data present.
 """
-import os, sys, argparse, unittest
+import os, sys, argparse, unittest, json
 
 pkg_root = os.path.abspath(os.path.join(os.path.dirname(__file__), ".."))  # noqa
 sys.path.insert(0, pkg_root)  # noqa
@@ -24,7 +24,9 @@ class ProdSmoketest(BaseSmokeTest):
     def setUpClass(cls):
         super().setUpClass()
         cls.url = "https://www.example.com"
-        cls.query = {"query": {"bool": {"must": [{"term": {"admin_deleted": "true"}}]}}}
+        # query is used to ensure we can get a non-tombstoned bundle to download; its also used to
+        # check if subscriptions can be created/retrieved.
+        cls.query = {"query": {"bool": {"must_not": [{"term": {"admin_deleted": "true"}}]}}}
 
     @classmethod
     def tearDownClass(cls):
@@ -36,7 +38,7 @@ class ProdSmoketest(BaseSmokeTest):
         replica = kwargs['starting_replica']
         checkout_bucket = kwargs['checkout_bucket']
 
-        query_res = self.post_search_es(replica, "{}")
+        query_res = self.post_search_es(replica, f"'{json.dumps(self.query)}'")
         bundle_uuid = query_res['results'][0]['bundle_fqid'].split('.')[0]
         bundle_version = query_res['results'][0]['bundle_fqid'].split('.')[1]
 
