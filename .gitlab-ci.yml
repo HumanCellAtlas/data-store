@@ -23,6 +23,7 @@ before_script:
   - git reset --hard HEAD
   - virtualenv ~/venv
   - source ~/venv/bin/activate
+  - pip install --trusted-host pypi.org --trusted-host files.pythonhosted.org pip setuptools
   - pip install -r requirements-dev.txt
   - pip install trufflehog
   - wget -O regex.json https://raw.githubusercontent.com/HumanCellAtlas/dcplib/master/components/trufflehog_regex_patterns.json
