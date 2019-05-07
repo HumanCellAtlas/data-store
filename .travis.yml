@@ -19,7 +19,6 @@ addons:
     - gettext
 
 install:
-- pip install --trusted-host pypi.org --trusted-host files.pythonhosted.org pip setuptools
 - pip install -r requirements-dev.txt
 - wget -q ${ES_DOWNLOAD_URL}
 - tar -xzf elasticsearch-${ES_VERSION}.tar.gz

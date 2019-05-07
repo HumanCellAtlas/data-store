@@ -21,7 +21,6 @@ before_script:
   - git reset --hard HEAD
   - virtualenv ~/venv
   - source ~/venv/bin/activate
-  - pip install --trusted-host pypi.org --trusted-host files.pythonhosted.org pip setuptools
   - pip install -r requirements-dev.txt
   - source environment
   - source environment.prod
