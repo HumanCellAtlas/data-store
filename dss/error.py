@@ -18,7 +18,7 @@ logger = logging.getLogger(__name__)
 
 class DSSException(Exception):
     def __init__(self, status: int, code: str, title: str, *args, **kwargs) -> None:
-        super().__init__(*args, **kwargs)
+        super().__init__(*args, **kwargs)  # type: ignore
         self.status = status
         self.code = code
         self.message = title

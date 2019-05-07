@@ -256,7 +256,7 @@ def put(uuid: str, json_request_body: dict, version: str):
     file_metadata_json = json.dumps(file_metadata)
 
     if copy_mode != CopyMode.NO_COPY and size > ASYNC_COPY_THRESHOLD:
-            copy_mode = CopyMode.COPY_ASYNC
+        copy_mode = CopyMode.COPY_ASYNC
 
     if copy_mode == CopyMode.COPY_ASYNC:
         if replica == Replica.aws:
