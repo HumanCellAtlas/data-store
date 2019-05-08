@@ -444,7 +444,7 @@ class TestCollections(unittest.TestCase, DSSAssertMixin, DSSUploadMixin):
                                    params=params,
                                    json=dict(name="n", description="d", details={}, contents=contents))
                 res.raise_for_status()
-            except:
+            except requests.exceptions.HTTPError:
                 time.sleep(retries.pop(0))
 
         return res.json()["uuid"], res.json()["version"]
