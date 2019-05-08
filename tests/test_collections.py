@@ -7,6 +7,8 @@ import unittest
 import io
 import json
 import boto3
+import time
+import logging
 
 from uuid import uuid4
 from datetime import datetime
@@ -26,6 +28,9 @@ from dss.util.version import datetime_to_version_format
 from dss.util import UrlBuilder
 from dss.collections import owner_lookup
 from dss.dynamodb import DynamoDBItemNotFound
+
+
+logger = logging.getLogger(__name__)
 
 
 @testmode.integration
@@ -435,11 +440,24 @@ class TestCollections(unittest.TestCase, DSSAssertMixin, DSSUploadMixin):
         if replica != 'missing':
             params['replica'] = replica
 
-        res = self.app.put("/v1/collections",
-                           headers=get_auth_header(authorized=authorized),
-                           params=params,
-                           json=dict(name="n", description="d", details={}, contents=contents))
-        res.raise_for_status()
+        def retriable_put(authorized, params, contents, timeout=40, interval=2):
+            timeout_time = time.time() + timeout
+            while True:
+                res = self.app.put("/v1/collections",
+                                   headers=get_auth_header(authorized=authorized),
+                                   params=params,
+                                   json=dict(name="n", description="d", details={}, contents=contents))
+                try:
+                    res.raise_for_status()
+                    return res
+                except requests.exceptions.HTTPError as e:
+                    if time.time() >= timeout_time or res.status_code != requests.codes.unprocessable:
+                        raise
+                    logger.debug("Error in PUT /collection/uuid: %s.\nRetrying after %s s...", e, interval)
+                    time.sleep(interval)
+
+        res = retriable_put(authorized=authorized, params=params, contents=contents)
+
         return res.json()["uuid"], res.json()["version"]
 
     def _delete_collection(self, uuid: str, replica: str = 'aws'):
