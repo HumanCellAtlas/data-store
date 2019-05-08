@@ -33,7 +33,7 @@ from dss.dynamodb import DynamoDBItemNotFound
 logger = logging.getLogger(__name__)
 
 
-@testmode.integration
+# @testmode.integration
 class TestCollections(unittest.TestCase, DSSAssertMixin, DSSUploadMixin):
     @classmethod
     def setUpClass(cls):
@@ -424,23 +424,6 @@ class TestCollections(unittest.TestCase, DSSAssertMixin, DSSUploadMixin):
                                params=dict(replica="aws"))
             self.assertEqual(res.status_code, requests.codes.not_found)
 
-    @classmethod
-    def _retriable_put(cls, authorized: bool, params: dict, contents: typing.List, timeout: int=20, interval: int=2):
-        timeout_time = time.time() + timeout
-        while True:
-            res = cls.app.put("/v1/collections",
-                              headers=get_auth_header(authorized=authorized),
-                              params=params,
-                              json=dict(name="n", description="d", details={}, contents=contents))
-            try:
-                res.raise_for_status()
-                return res
-            except requests.exceptions.HTTPError as e:
-                if time.time() >= timeout_time or res.status_code != requests.codes.unprocessable:
-                    raise
-                logger.debug("Error in PUT /collection/uuid: %s.\nRetrying after %s s...", e, interval)
-                time.sleep(interval)
-
     def _put(self, contents: typing.List,
              authorized: bool = True,
              uuid: typing.Optional[str] = None,
@@ -457,7 +440,23 @@ class TestCollections(unittest.TestCase, DSSAssertMixin, DSSUploadMixin):
         if replica != 'missing':
             params['replica'] = replica
 
-        res = self._retriable_put(authorized=authorized, params=params, contents=contents)
+        def retriable_put(authorized, params, contents, timeout=40, interval=2):
+            timeout_time = time.time() + timeout
+            while True:
+                res = self.app.put("/v1/collections",
+                                   headers=get_auth_header(authorized=authorized),
+                                   params=params,
+                                   json=dict(name="n", description="d", details={}, contents=contents))
+                try:
+                    res.raise_for_status()
+                    return res
+                except requests.exceptions.HTTPError as e:
+                    if time.time() >= timeout_time or res.status_code != requests.codes.unprocessable:
+                        raise
+                    logger.debug("Error in PUT /collection/uuid: %s.\nRetrying after %s s...", e, interval)
+                    time.sleep(interval)
+
+        res = retriable_put(authorized=authorized, params=params, contents=contents)
 
         return res.json()["uuid"], res.json()["version"]
 
