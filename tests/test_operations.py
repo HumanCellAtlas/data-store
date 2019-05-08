@@ -73,7 +73,7 @@ class TestOperations(unittest.TestCase):
                         for key in keys:
                             count += 1
                         return count
-            
+
                     total = 0
                     for count in map_bucket(counter, handle, replica.bucket, "bundles/", 2):
                         total += count

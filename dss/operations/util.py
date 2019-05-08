@@ -1,4 +1,3 @@
-
 import os
 import traceback
 import typing
@@ -7,11 +6,11 @@ from contextlib import AbstractContextManager
 
 from cloud_blobstore import BlobStore
 
-from dss.util.aws.clients import sqs, sts
+from dss.util.aws.clients import sqs, sts  # type: ignore
 from concurrent.futures import ThreadPoolExecutor, as_completed
 
 
-_account_id = sts.get_caller_identity()['Account']  # type: ignore
+_account_id = sts.get_caller_identity()['Account']
 _queue_url = "https://sqs.{}.amazonaws.com/{}/dss-operations-{}".format(os.environ['AWS_DEFAULT_REGION'],
                                                                         _account_id,
                                                                         os.environ['DSS_DEPLOYMENT_STAGE'])
@@ -52,7 +51,7 @@ def map_bucket(func: typing.Callable, handle: BlobStore, bucket: str, base_pfx: 
 
 def _enqueue_command_batch(commands: typing.List[str]):
     assert 10 >= len(commands)
-    resp = sqs.send_message_batch(  # type: ignore
+    resp = sqs.send_message_batch(
         QueueUrl=_queue_url,
         Entries=[dict(Id=str(uuid4()), MessageBody=command)
                  for command in commands]
