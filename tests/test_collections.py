@@ -19,7 +19,7 @@ from urllib.parse import parse_qsl, urlsplit
 pkg_root = os.path.abspath(os.path.join(os.path.dirname(__file__), '..'))  # noqa
 sys.path.insert(0, pkg_root)  # noqa
 
-from tests import get_auth_header
+from tests import get_auth_header, eventually
 from tests.infra import generate_test_key, get_env, DSSAssertMixin, DSSUploadMixin, testmode
 from tests.infra.server import ThreadedLocalServer
 from tests.fixtures.cloud_uploader import ChecksummingSink
@@ -83,6 +83,7 @@ class TestCollections(unittest.TestCase, DSSAssertMixin, DSSUploadMixin):
         resp_obj.raise_for_status()
         return file_uuid, resp_obj.json()["version"]
 
+    @eventually(timeout=60, interval=1, errors={requests.exceptions.HTTPError})
     def create_temp_user_collections(self, num: int):
         contents = [self.col_file_item, self.col_ptr_item]
         for replica in self.replicas:
@@ -436,16 +437,11 @@ class TestCollections(unittest.TestCase, DSSAssertMixin, DSSUploadMixin):
         if replica != 'missing':
             params['replica'] = replica
 
-        retries = [1, 2, 4, 8]
-        while retries:
-            try:
-                res = self.app.put("/v1/collections",
-                                   headers=get_auth_header(authorized=authorized),
-                                   params=params,
-                                   json=dict(name="n", description="d", details={}, contents=contents))
-                res.raise_for_status()
-            except requests.exceptions.HTTPError:
-                time.sleep(retries.pop(0))
+        res = self.app.put("/v1/collections",
+                           headers=get_auth_header(authorized=authorized),
+                           params=params,
+                           json=dict(name="n", description="d", details={}, contents=contents))
+        res.raise_for_status()
 
         return res.json()["uuid"], res.json()["version"]
 
