@@ -1,3 +1,4 @@
+#!/usr/bin/env python
 """
 Updates the dynamoDB table that tracks collections.
 
