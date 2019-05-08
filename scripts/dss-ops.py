@@ -9,7 +9,6 @@ pkg_root = os.path.abspath(os.path.join(os.path.dirname(__file__), '..'))  # noq
 sys.path.insert(0, pkg_root)  # noqa
 
 import dss
-from dss.operations import storage_operations
 from dss.operations import dispatch
 
 dss.Config.set_config(dss.BucketConfig.NORMAL)

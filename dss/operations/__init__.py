@@ -66,11 +66,15 @@ class _target:
         return register_action
 
 class DSSOperationsCommandDispatch:
+    """
+    Central dispatch for the DSS Operations CLI.
+    """
+
     targets: dict = dict()
     actions: dict = dict()
 
     def __init__(self):
-        self.parser = argparse.ArgumentParser()
+        self.parser = argparse.ArgumentParser(description=self.__doc__)
         self.parser_targets = self.parser.add_subparsers()
         self.job_id = str(uuid4())
 
@@ -85,14 +89,15 @@ class DSSOperationsCommandDispatch:
     def __call__(self, argv):
         try:
             args = self.parser.parse_args(argv)
-        except SystemExit:
-            pass
-        else:
             logger.debug("Job ID: %s", args.job_id)
             action_handler = args.func(argv, args) if isinstance(args.func, type) else args.func
             try:
                 action_handler(argv, args)
             except Exception:
                 logger.error(traceback.format_exc())
+        except SystemExit:
+            pass
+        except AttributeError:
+            print(self.__doc__)
 
 dispatch = DSSOperationsCommandDispatch()
