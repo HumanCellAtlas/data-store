@@ -9,7 +9,7 @@ e.g
 ```
 dispatch = DSSOperationsCommandDispatch()
 
-storage = dispatch.target("storage", arguments={"replica": dict(choices=["dev", "integration", "staging", "prod"])})
+storage = dispatch.target("storage", arguments={"--replica": dict(choices=["dev", "integration", "staging", "prod"])})
 
 @storage.action("verify-referential-integrity")
 def verify_ref_integrity(argv, args):
@@ -23,7 +23,6 @@ import os
 import argparse
 import logging
 import traceback
-from functools import partial
 from uuid import uuid4
 
 
