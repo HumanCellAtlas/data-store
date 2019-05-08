@@ -26,8 +26,6 @@ import traceback
 from functools import partial
 from uuid import uuid4
 
-import dss
-from dss import Replica
 
 logger = logging.getLogger(__name__)
 if not os.environ.get("DSS_VERSION"):  # detect non-lambda environment
@@ -35,6 +33,7 @@ if not os.environ.get("DSS_VERSION"):  # detect non-lambda environment
     ch = logging.StreamHandler()
     ch.setLevel(logging.DEBUG)
     logger.addHandler(ch)
+
 
 class _target:
     def __init__(self, target_name, dispatcher):
