@@ -7,6 +7,7 @@ import unittest
 import io
 import json
 import boto3
+import time
 
 from uuid import uuid4
 from datetime import datetime
@@ -435,11 +436,17 @@ class TestCollections(unittest.TestCase, DSSAssertMixin, DSSUploadMixin):
         if replica != 'missing':
             params['replica'] = replica
 
-        res = self.app.put("/v1/collections",
-                           headers=get_auth_header(authorized=authorized),
-                           params=params,
-                           json=dict(name="n", description="d", details={}, contents=contents))
-        res.raise_for_status()
+        retries = [1, 2, 4, 8]
+        while retries:
+            try:
+                res = self.app.put("/v1/collections",
+                                   headers=get_auth_header(authorized=authorized),
+                                   params=params,
+                                   json=dict(name="n", description="d", details={}, contents=contents))
+                res.raise_for_status()
+            except:
+                time.sleep(retries.pop(0))
+
         return res.json()["uuid"], res.json()["version"]
 
     def _delete_collection(self, uuid: str, replica: str = 'aws'):
