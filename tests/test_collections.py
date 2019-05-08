@@ -8,6 +8,7 @@ import io
 import json
 import boto3
 import time
+import logging
 
 from uuid import uuid4
 from datetime import datetime
@@ -19,7 +20,7 @@ from urllib.parse import parse_qsl, urlsplit
 pkg_root = os.path.abspath(os.path.join(os.path.dirname(__file__), '..'))  # noqa
 sys.path.insert(0, pkg_root)  # noqa
 
-from tests import get_auth_header, eventually
+from tests import get_auth_header
 from tests.infra import generate_test_key, get_env, DSSAssertMixin, DSSUploadMixin, testmode
 from tests.infra.server import ThreadedLocalServer
 from tests.fixtures.cloud_uploader import ChecksummingSink
@@ -27,6 +28,9 @@ from dss.util.version import datetime_to_version_format
 from dss.util import UrlBuilder
 from dss.collections import owner_lookup
 from dss.dynamodb import DynamoDBItemNotFound
+
+
+logger = logging.getLogger(__name__)
 
 
 @testmode.integration
@@ -83,7 +87,6 @@ class TestCollections(unittest.TestCase, DSSAssertMixin, DSSUploadMixin):
         resp_obj.raise_for_status()
         return file_uuid, resp_obj.json()["version"]
 
-    @eventually(timeout=60, interval=1, errors={requests.exceptions.HTTPError})
     def create_temp_user_collections(self, num: int):
         contents = [self.col_file_item, self.col_ptr_item]
         for replica in self.replicas:
@@ -421,6 +424,23 @@ class TestCollections(unittest.TestCase, DSSAssertMixin, DSSUploadMixin):
                                params=dict(replica="aws"))
             self.assertEqual(res.status_code, requests.codes.not_found)
 
+    @classmethod
+    def _retriable_put(cls, authorized: bool, params: dict, contents: typing.List, timeout: int=20, interval: int=2):
+        timeout_time = time.time() + timeout
+        while True:
+            res = cls.app.put("/v1/collections",
+                              headers=get_auth_header(authorized=authorized),
+                              params=params,
+                              json=dict(name="n", description="d", details={}, contents=contents))
+            try:
+                res.raise_for_status()
+                return res
+            except requests.exceptions.HTTPError as e:
+                if time.time() >= timeout_time or res.status_code != requests.codes.unprocessable:
+                    raise
+                logger.debug("Error in PUT /collection/uuid: %s.\nRetrying after %s s...", e, interval)
+                time.sleep(interval)
+
     def _put(self, contents: typing.List,
              authorized: bool = True,
              uuid: typing.Optional[str] = None,
@@ -437,11 +457,7 @@ class TestCollections(unittest.TestCase, DSSAssertMixin, DSSUploadMixin):
         if replica != 'missing':
             params['replica'] = replica
 
-        res = self.app.put("/v1/collections",
-                           headers=get_auth_header(authorized=authorized),
-                           params=params,
-                           json=dict(name="n", description="d", details={}, contents=contents))
-        res.raise_for_status()
+        res = self._retriable_put(authorized=authorized, params=params, contents=contents)
 
         return res.json()["uuid"], res.json()["version"]
 
