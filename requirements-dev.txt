@@ -34,7 +34,7 @@ elasticsearch-dsl==5.4.0
 enum-compat==0.0.2
 Faker==1.0.1
 fasteners==0.14.1
-flake8==3.7.7
+flake8==3.6.0
 Flask==1.0.2
 future==0.17.1
 google-api-core==1.7.0
@@ -62,7 +62,7 @@ keymaker==1.0.7
 MarkupSafe==1.1.0
 mccabe==0.6.1
 monotonic==1.5
-mypy==0.701
+mypy==0.650
 mypy-extensions==0.4.1
 nestedcontext==0.0.4
 oauth2client==4.1.3
