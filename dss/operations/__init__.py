@@ -9,7 +9,7 @@ e.g
 ```
 dispatch = DSSOperationsCommandDispatch()
 
-storage = dispatch.target("storage", arguments={"replica", dict(choices=["dev", "integration", "staging", "prod"])}
+storage = dispatch.target("storage", arguments={"replica": dict(choices=["dev", "integration", "staging", "prod"])}
 
 @storage.action("verify-referential-integrity")
 def verify_ref_integrity(argv, args):
@@ -98,6 +98,6 @@ class DSSOperationsCommandDispatch:
         except SystemExit:
             pass
         except AttributeError:
-            print(self.__doc__)
+            print(help(args))
 
 dispatch = DSSOperationsCommandDispatch()
