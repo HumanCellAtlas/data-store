@@ -9,7 +9,7 @@ e.g
 ```
 dispatch = DSSOperationsCommandDispatch()
 
-storage = dispatch.target("storage", arguments={"replica": dict(choices=["dev", "integration", "staging", "prod"])}
+storage = dispatch.target("storage", arguments={"replica": dict(choices=["dev", "integration", "staging", "prod"])})
 
 @storage.action("verify-referential-integrity")
 def verify_ref_integrity(argv, args):
@@ -39,17 +39,17 @@ if not os.environ.get("DSS_VERSION"):  # detect non-lambda environment
 class _target:
     def __init__(self, target_name, dispatcher):
         self.target_name = target_name
-        self.dispatch = dispatch
+        self.dispatcher = dispatcher
 
     def action(self, name: str, *, arguments: dict=None, mutually_exclusive: list=None):
-        dispatch = self.dispatch
+        dispatcher = self.dispatcher
         arguments = arguments or dict()
         if mutually_exclusive is None:
-            mutually_exclusive = dispatch.targets[self.target_name]['mutually_exclusive'] or list()
+            mutually_exclusive = dispatcher.targets[self.target_name]['mutually_exclusive'] or list()
 
         def register_action(obj):
-            parser = dispatch.targets[self.target_name]['subparser'].add_parser(name, help=obj.__doc__)
-            action_arguments = dispatch.targets[self.target_name]['arguments'].copy()
+            parser = dispatcher.targets[self.target_name]['subparser'].add_parser(name, help=obj.__doc__)
+            action_arguments = dispatcher.targets[self.target_name]['arguments'].copy()
             action_arguments.update(arguments)
             for argname, kwargs in action_arguments.items():
                 if argname not in mutually_exclusive:
@@ -59,9 +59,9 @@ class _target:
                 for argname in mutually_exclusive:
                     kwargs = action_arguments.get(argname) or dict()
                     group.add_argument(argname, **kwargs)
-            parser.add_argument("--job-id", default=dispatch.job_id)
+            parser.add_argument("--job-id", default=dispatcher.job_id)
             parser.set_defaults(func=obj)
-            dispatch.actions[obj] = dict(target=dispatch.targets[self.target_name], name=name)
+            dispatcher.actions[obj] = dict(target=dispatcher.targets[self.target_name], name=name)
             return obj
         return register_action
 
@@ -98,6 +98,6 @@ class DSSOperationsCommandDispatch:
         except SystemExit:
             pass
         except AttributeError:
-            print(help(args))
+            self.parser.print_help()
 
 dispatch = DSSOperationsCommandDispatch()
