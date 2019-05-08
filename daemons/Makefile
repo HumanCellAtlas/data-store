@@ -3,6 +3,7 @@ include ../common.mk
 SERIAL_AWS_DAEMONS := \
 	dss-sync-sfn \
 	dss-notify-v2 \
+	dss-operations \
 	dss-index
 
 SERIAL_GCP_DAEMONS :=
