@@ -124,6 +124,26 @@ class verify_file_blob_metadata(StorageOperationHandler):
                                       file_metadata_content_type=file_metadata['content-type'],
                                       blob_content_type=blob_content_type))
 
+@storage.action("repair-file-blob-metadata",
+                arguments={"--entity-type": dict(default="file", choices=["file"])})
+class repair_blob_content_type(StorageOperationHandler):
+    """
+    Make blob metadata consistent with file metadata.
+    """
+    def process_key(self, key):
+        try:
+            file_metadata = json.loads(self.handle.get(self.replica.bucket, key))
+        except BlobNotFoundError:
+            self.log_warning(BlobNotFoundError.__name__, dict(key=key))
+        blob_key = compose_blob_key(file_metadata)
+        blob_content_type = self.handle.get_content_type(self.replica.bucket, blob_key)
+        client = Config.get_native_handle(self.replica)
+        if blob_content_type != file_metadata['content-type']:
+            if Replica.aws == self.replica:
+                update_aws_content_type(client, self.replica.bucket, blob_key, file_metadata['content-type'])
+            elif Replica.gcp == self.replica:
+                update_gcp_content_type(client, self.replica.bucket, blob_key, file_metadata['content-type'])
+
 @storage.action("verify-referential-integrity",
                 mutually_exclusive=["--entity-type", "--keys"])
 class verify_referential_integrity(StorageOperationHandler):
@@ -145,3 +165,22 @@ class verify_referential_integrity(StorageOperationHandler):
         logger.debug("%s Checking %s %s", self.job_id, key, self.replica)
         if not dependencies_exist(self.replica, self.replica, key):
             self.log_warning("EntityMissingDependencies", dict(key=key))
+
+# TODO: Move to cloud_blobstore
+def update_aws_content_type(s3_client, bucket, key, content_type):
+    s3_client.copy_object(
+        Bucket=bucket,
+        Key=key,
+        CopySource=dict(Bucket=bucket, Key=key),
+        ContentType=content_type,
+        MetadataDirective="REPLACE",
+    )
+
+# TODO: Move to cloud_blobstore
+def update_gcp_content_type(gs_client, bucket, key, content_type):
+    gs = Config.get_native_handle(Replica.gcp)
+    gs_bucket = gs.bucket(bucket)
+    gs_blob = gs_bucket.blob(key)
+    gs_blob.reload()
+    gs_blob.content_type = content_type
+    gs_blob.patch()
