@@ -140,3 +140,9 @@ resource aws_s3_bucket dss_s3_checkout_bucket_unwritable {
 }
 POLICY
 }
+
+resource aws_s3_bucket dss_ops {
+  count = "${length(var.DSS_OPS_BUCKET) > 0 ? 1 : 0}"
+  bucket = "${var.DSS_OPS_BUCKET}"
+  tags = "${local.common_tags}"
+}

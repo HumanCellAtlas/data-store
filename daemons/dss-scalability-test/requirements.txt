@@ -1,2 +1,0 @@
-hca >= 3.2.0
--r ../../requirements-dev.txt
