@@ -2,7 +2,7 @@
 flake8  >= 3.4.1
 mypy  >= 0.700
 domovoi  >= 1.8.2
-chalice  >= 1.7.0
+chalice  >= 1.8.0
 coverage  >= 4.4.1
 awscli  >= 1.15.0
 crcmod  >= 1.7

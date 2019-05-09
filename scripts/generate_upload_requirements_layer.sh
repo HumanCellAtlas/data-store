@@ -1,6 +1,7 @@
 #!/usr/bin/env bash
-# TODO make this description not suck
-# This script is used to generate a requirements layer for chalice to use
+# This script is used to generate a dependency layer for the lambdas to utilize
+# It's not really for direct usage, `make generate-dependencies` can be used
+# but its part of the `make deploy` 
 
 set -euo pipefail
 
@@ -59,30 +60,3 @@ else
  echo "$aws_zip_key found in aws"
  check
 fi
-
-
-#                            ~
-#                           /~
-#                     \  \ /**
-#                      \ ////
-#                      // //
-#                     // //
-#                   ///&//
-#                  / & /\ \
-#                /  & .,,  \
-#              /& %  :       \
-#            /&  %   :  ;     `\
-#           /&' &..%   !..    `.\
-#          /&' : &''" !  ``. : `.\
-#         /#' % :  "" * .   : : `.\
-#        I# :& :  !"  *  `.  : ::  I
-#        I &% : : !%.` '. . : : :  I
-#        I && :%: .&.   . . : :  : I
-#        I %&&&%%: WW. .%. : :     I
-#         \&&&##%%%`W! & '  :   ,'/
-#          \####ITO%% W &..'  #,'/
-#            \W&&##%%&&&&### %./
-#              \###j[\##//##}/
-#                 ++///~~\//_
-#                  \\ \ \ \  \_
-#                  /  /    \
