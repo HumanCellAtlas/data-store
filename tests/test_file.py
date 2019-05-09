@@ -4,6 +4,7 @@ import datetime
 import hashlib
 import json
 import os
+import re
 import requests
 import sys
 import tempfile
@@ -16,7 +17,7 @@ pkg_root = os.path.abspath(os.path.join(os.path.dirname(__file__), '..'))  # noq
 sys.path.insert(0, pkg_root)  # noqa
 
 import dss
-from dss.api.files import ASYNC_COPY_THRESHOLD, RETRY_AFTER_INTERVAL
+from dss.api.files import ASYNC_COPY_THRESHOLD, checksum_format, RETRY_AFTER_INTERVAL
 from dss.config import BucketConfig, Config, override_bucket_config, Replica
 from dss.storage.hcablobstore import compose_blob_key
 from dss.util import UrlBuilder
@@ -38,6 +39,12 @@ class TestFileApi(unittest.TestCase, TestAuthMixin, DSSUploadMixin, DSSAssertMix
     def setUpClass(cls):
         cls.app = ThreadedLocalServer()
         cls.app.start()
+        cls.bad_checksums = {
+            'hca-dss-crc32c': '!!!!',
+            'hca-dss-s3_etag': '@@@@',
+            'hca-dss-sha1': '####',
+            'hca-dss-sha256': '$$$$'
+        }
 
     @classmethod
     def tearDownClass(cls):
@@ -55,21 +62,27 @@ class TestFileApi(unittest.TestCase, TestAuthMixin, DSSUploadMixin, DSSAssertMix
         self._test_file_put(Replica.aws, "s3", self.s3_test_bucket, S3Uploader(tempdir, self.s3_test_bucket))
         self._test_file_put(Replica.gcp, "gs", self.gs_test_bucket, GSUploader(tempdir, self.gs_test_bucket))
 
-    def test_file_put_bad_checksum(self):
-        clearly_bad_metadata = {
-            'hca-dss-crc32c': '!!!!',
-            'hca-dss-s3_etag': '@@@@',
-            'hca-dss-sha1': '####',
-            'hca-dss-sha256': '$$$$'
+    def test_checksum_regex(self):
+        # tests/fixtures/datafiles/011c7340-9b3c-4d62-bf49-090d79daf198.2017-06-20T214506.766634Z
+        good_checksums = {
+            "hca-dss-crc32c": "e16e07b9",
+            "hca-dss-s3_etag": "3b83ef96387f14655fc854ddc3c6bd57",
+            "hca-dss-sha1": "2b8b815229aa8a61e483fb4ba0588b8b6c491890",
+            "hca-dss-sha256": "cfc7749b96f63bd31c3c42b5c471bf75681405"
+                              "3e847c10f3eb003417bc523d30"
         }
+        for sum_type, fmt in checksum_format.items():
+            self.assertEqual(re.match(fmt, self.bad_checksums[sum_type]), None)
+            self.assertTrue(re.match(fmt, good_checksums[sum_type]), sum_type)
 
+    def test_file_put_bad_checksum(self):
         src_key = generate_test_key()
         uploader = S3Uploader(tempfile.gettempdir(), self.s3_test_bucket)
         with tempfile.NamedTemporaryFile(delete=True) as fh:
             fh.write(os.urandom(1024))
             fh.flush()
             uploader.upload_file(fh.name, src_key, 'text/plain',
-                                 metadata_keys=clearly_bad_metadata)
+                                 metadata_keys=self.bad_checksums)
 
         source_url = f's3://{self.s3_test_bucket}/{src_key}'
         file_uuid = str(uuid.uuid4())
