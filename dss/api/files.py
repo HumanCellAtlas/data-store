@@ -35,6 +35,9 @@ RETRY_AFTER_INTERVAL = 10
 
 logger = logging.getLogger(__name__)
 checksum_format = {
+    # These are regular expressions that are used to verify the forms of
+    # checksums provided to a `PUT /file/{uuid}` API call. You can see the
+    # same ones in the Swagger spec (see definitions.file_version).
     'hca-dss-crc32c': r'^[a-z0-9]{8}$',
     'hca-dss-s3_etag': r'^[a-z0-9]{32}(-([2-9]|[1-8][0-9]|9[0-9]|[1-8][0-9]{2'
                        r'}|9[0-8][0-9]|99[0-9]|[1-8][0-9]{3}|9[0-8][0-9]{2}|9'
