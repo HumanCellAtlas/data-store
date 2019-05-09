@@ -15,7 +15,7 @@ import typing
 from collections import namedtuple
 from enum import Enum, auto
 
-from fusillade.errors import FusilladeException
+from fusillade.errors import FusilladeException, FusilladeHTTPException
 
 project_arn = "arn:aws:clouddirectory:us-east-1:861229788715:"  # TODO move to config.py
 cd_client = aws_clients.clouddirectory
@@ -483,12 +483,29 @@ class CloudDirectory:
             'IdentityAttributeValues': self.make_attributes(attributes)
         }
 
-    def clear(self) -> None:
-        for _, obj_ref in self.list_object_children('/user/'):
-            self.delete_object(obj_ref)
-        for _, obj_ref in self.list_object_children('/group/'):
-            self.delete_object(obj_ref)
-        protected_roles = [CloudNode.hash_name(name) for name in ["admin", "default_user"]]
+    def clear(self, users: typing.List[str] = None,
+              groups: typing.List[str] = None,
+              roles: typing.List[str] = None) -> None:
+        """
+
+        :param users: a list of users to keep
+        :param groups: a list of groups to keep
+        :param roles: a list of roles to keep
+        :return:
+        """
+        users = users if users else []
+        groups = groups if groups else []
+        roles = roles if roles else []
+        protected_users = [CloudNode.hash_name(name) for name in users]
+        protected_groups = [CloudNode.hash_name(name) for name in groups]
+        protected_roles = [CloudNode.hash_name(name) for name in ["admin", "default_user"] + roles]
+
+        for name, obj_ref in self.list_object_children('/user/'):
+            if name not in protected_users:
+                self.delete_object(obj_ref)
+        for name, obj_ref in self.list_object_children('/group/'):
+            if name not in protected_groups:
+                self.delete_object(obj_ref)
         for name, obj_ref in self.list_object_children('/role/'):
             if name not in protected_roles:
                 self.delete_object(obj_ref)
@@ -860,7 +877,10 @@ class CloudNode:
     @property
     def policy(self):
         if not self._policy:
-            policies = [i for i in self.cd.list_object_policies(self.object_ref)]
+            try:
+                policies = [i for i in self.cd.list_object_policies(self.object_ref)]
+            except cd_client.exceptions.ResourceNotFoundException:
+                raise FusilladeHTTPException(status=404, title="Not Found", detail="Resource does not exist.")
             if not policies:
                 return None
             elif len(policies) > 1:
@@ -929,7 +949,10 @@ class CloudNode:
         """
         retrieve attributes for this from CloudDirectory and sets local private variables.
         """
-        resp = self.cd.get_object_attributes(self.object_ref, self._facet, attributes)
+        try:
+            resp = self.cd.get_object_attributes(self.object_ref, self._facet, attributes)
+        except cd_client.exceptions.ResourceNotFoundException:
+            raise FusilladeHTTPException(status=404, title="Not Found", detail="Resource does not exist.")
         for attr in resp['Attributes']:
             self.__setattr__('_' + attr['Key']['Name'], attr['Value'].popitem()[1])
 
@@ -937,7 +960,10 @@ class CloudNode:
         attrs = dict()
         if not attributes:
             return attrs
-        resp = self.cd.get_object_attributes(self.object_ref, self._facet, attributes)
+        try:
+            resp = self.cd.get_object_attributes(self.object_ref, self._facet, attributes)
+        except cd_client.exceptions.ResourceNotFoundException:
+            raise FusilladeHTTPException(status=404, title="Not Found", detail="Resource does not exist.")
         for attr in resp['Attributes']:
             attrs[attr['Key']['Name']] = attr['Value'].popitem()[1]  # noqa
         return attrs
@@ -953,8 +979,8 @@ class CloudNode:
             iam.simulate_custom_policy(PolicyInputList=[statement],
                                        ActionNames=["fake:action"],
                                        ResourceArns=["arn:aws:iam::123456789012:user/Bob"])
-        except iam.exceptions.InvalidInputException as ex:
-            raise FusilladeException from ex
+        except iam.exceptions.InvalidInputException:
+            raise FusilladeHTTPException(status=400, title="Bad Request", detail="Invalid policy format.")
 
 
 class User(CloudNode):
@@ -1176,7 +1202,10 @@ class Role(CloudNode):
         if not statement:
             statement = get_json_file(default_role_path)
         cls._verify_statement(statement)
-        cloud_directory.create_object(cls.hash_name(name), 'BasicFacet', name=name, obj_type='role')
+        try:
+            cloud_directory.create_object(cls.hash_name(name), 'BasicFacet', name=name, obj_type='role')
+        except cd_client.exceptions.LinkNameAlreadyInUseException:
+            raise FusilladeHTTPException(status=409, title="Conflict", detail="The object already exists")
         new_node = cls(cloud_directory, name)
         new_node._set_statement(statement)
         return new_node

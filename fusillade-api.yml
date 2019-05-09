@@ -282,15 +282,15 @@ paths:
               type: object
               properties:
                 username:
-                  type: string
+                  $ref: '#/components/schemas/custom_identifier'
                 groups:
                   type: array
                   items:
-                    type: string
+                    $ref: '#/components/schemas/custom_identifier'
                 roles:
                   type: array
                   items:
-                    type: string
+                    $ref: '#/components/schemas/custom_identifier'
                 policy:
                   type: string
       tags:
@@ -518,7 +518,7 @@ paths:
                 - name
               properties:
                 name:
-                  type: string
+                  $ref: '#/components/schemas/custom_identifier'
                 policy:
                   type: string
                 roles:
@@ -716,7 +716,7 @@ paths:
                 - policy
               properties:
                 name:
-                  type: string
+                  $ref: '#/components/schemas/custom_identifier'
                 policy:
                   type: string
       responses:
@@ -724,6 +724,10 @@ paths:
           description: Role was created
         401:
           $ref: '#/components/responses/401'
+        403:
+          $ref: '#/components/responses/403'
+        409:
+          $ref: '#/components/responses/409'
         default:
           description: Unexpected error
       tags:
@@ -782,21 +786,21 @@ components:
       required: true
       description: User ID (email)
       schema:
-        type: string
+        $ref: '#/components/schemas/custom_identifier'
     role_id:
       name: role_id
       in: path
       description: The name of the role
       required: true
       schema:
-        type: string
+        $ref: '#/components/schemas/custom_identifier'
     group_id:
       name: group_id
       in: path
       description: The name of the group
       required: true
       schema:
-        type: string
+        $ref: '#/components/schemas/custom_identifier'
     action:
       name: action
       in: query
@@ -805,11 +809,17 @@ components:
         type: string
         enum: [add, remove]
   schemas:
+    custom_identifier:
+      description: used to identify users, groups, and roles.
+      type: string
+      minLength: 1
+      maxLength: 128
+      pattern: '^[0-9a-zA-Z.@_\-$,=]*$'
     User:
       type: object
       properties:
         name:
-          type: string
+          $ref: '#/components/schemas/custom_identifier'
         status:
           type: string
         policy:
@@ -818,30 +828,33 @@ components:
       type: object
       properties:
         name:
-          type: string
+          $ref: '#/components/schemas/custom_identifier'
         policy:
           type: string
         roles:
           type: array
           items:
-            type: string
+            $ref: '#/components/schemas/custom_identifier'
         users:
           type: array
           items:
-            type: string
+            $ref: '#/components/schemas/custom_identifier'
     Role:
       type: object
       properties:
         name:
-          type: string
+          $ref: '#/components/schemas/custom_identifier'
         policy:
           type: string
   responses:
     401:
-      description: The user is not authorized because the object has already been created and the user does not
-        have permission to modify, or user does not have permission to create objects.
+      description: The users credentials failed to authenticate.
+    403:
+      description: The user is not authorized because they do not have adequate permission to perform the action.
     404:
       description: Resource not found.
+    409:
+      description: The object already exists.
   securitySchemes:
       BearerAuth:
         type: http

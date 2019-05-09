@@ -4,7 +4,7 @@ import os, sys
 pkg_root = os.path.abspath(os.path.join(os.path.dirname(__file__), '..'))  # noqa
 sys.path.insert(0, pkg_root)  # noqa
 
-from fusillade.errors import FusilladeException
+from fusillade.errors import FusilladeException, FusilladeHTTPException
 from fusillade.clouddirectory import User, Group, Role, cd_client, cleanup_directory, cleanup_schema, \
     get_json_file, default_user_policy_path, default_user_role_path
 from tests.common import new_test_directory, create_test_statement
@@ -117,7 +117,7 @@ class TestUser(unittest.TestCase):
             self.assertIn(statement, user.lookup_policies())
 
         with self.subTest("Error raised when setting policy to an invalid statement"):
-            with self.assertRaises(FusilladeException):
+            with self.assertRaises(FusilladeHTTPException):
                 user.statement = "Something else"
             self.assertEqual(user.statement, statement)
 

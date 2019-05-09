@@ -4,7 +4,7 @@ import os, sys
 pkg_root = os.path.abspath(os.path.join(os.path.dirname(__file__), '..'))  # noqa
 sys.path.insert(0, pkg_root)  # noqa
 
-from fusillade.errors import FusilladeException
+from fusillade.errors import FusilladeHTTPException
 from fusillade.clouddirectory import User, Group, cd_client, cleanup_directory, cleanup_schema, get_json_file, \
     default_group_policy_path
 from tests.common import new_test_directory, create_test_statement
@@ -27,7 +27,7 @@ class TestGroup(unittest.TestCase):
 
     def test_create_group(self):
         with self.subTest("an error is returned when creating a group with an invalid statement."):
-            with self.assertRaises(FusilladeException):
+            with self.assertRaises(FusilladeHTTPException):
                 group = Group.create(self.directory, "new_group1", "does things")
 
         with self.subTest("The group is returned when the group has been created with default valid statement"):
@@ -57,7 +57,7 @@ class TestGroup(unittest.TestCase):
             self.assertEqual(policies[0], statement)
 
         with self.subTest("error raised when invalid statement assigned to group.statement."):
-            with self.assertRaises(FusilladeException):
+            with self.assertRaises(FusilladeHTTPException):
                 group.statement = "invalid statement"
             self.assertEqual(policies[0], statement)
 
