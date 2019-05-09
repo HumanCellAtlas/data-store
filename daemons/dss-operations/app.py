@@ -1,5 +1,15 @@
 """
-This Lambda executes commands forwarded from the DSS operations CLI
+This Lambda executes commands forwarded by the DSS operations CLI. Commands are forward via SQS by embedding the
+command as plain text directly in the message body.
+
+For example the command
+```
+scripts/dss-ops.py storage verify-referential integrity --replica aws --keys key1 key2 key
+```
+would be forwarded with the message
+```
+"storage verify-referential integrity --replica aws --keys key1 key2 key"
+```
 """
 
 import os
