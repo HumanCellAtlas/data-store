@@ -22,11 +22,13 @@ pkg_root = os.path.abspath(os.path.join(os.path.dirname(__file__), 'domovoilib')
 sys.path.insert(0, pkg_root)  # noqa
 
 import dss
-from dss.logging import configure_lambda_logging
 from dss.operations import dispatch
 
-configure_lambda_logging()
-logger = logging.getLogger(__name__)
+logging.basicConfig(stream=sys.stdout)
+logger = logging.getLogger(__name__)  # noqa
+logger.setLevel(logging.WARNING)  # noqa
+# TODO: Can log level be passed in through command arguments?
+
 dss.Config.set_config(dss.BucketConfig.NORMAL)
 
 app = domovoi.Domovoi()
