@@ -33,7 +33,7 @@ class CommandForwarder(AbstractContextManager):
         if len(self.chunk):
             _enqueue_command_batch(self.chunk)
 
-def map_bucket(func: typing.Callable, handle: BlobStore, bucket: str, base_pfx: str, parallelization=16):
+def map_bucket_results(func: typing.Callable, handle: BlobStore, bucket: str, base_pfx: str, parallelization=16):
     """
     Call `func` on an iterable of keys
     func is expected to be thread safe.
@@ -48,6 +48,10 @@ def map_bucket(func: typing.Callable, handle: BlobStore, bucket: str, base_pfx: 
                 yield f.result()
             except Exception:
                 traceback.print_exc()
+
+def map_bucket(*args, **kwargs):
+    for _ in map_bucket_results(*args, **kwargs):
+        pass
 
 def _enqueue_command_batch(commands: typing.List[str]):
     assert 10 >= len(commands)

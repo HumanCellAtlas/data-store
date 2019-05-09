@@ -13,7 +13,7 @@ sys.path.insert(0, pkg_root)  # noqa
 import dss
 from tests.infra import testmode
 from dss.operations import DSSOperationsCommandDispatch
-from dss.operations.util import map_bucket, CommandForwarder
+from dss.operations.util import map_bucket_results, CommandForwarder
 from dss.logging import configure_test_logging
 from dss.config import BucketConfig, Config, Replica, override_bucket_config
 
@@ -75,7 +75,7 @@ class TestOperations(unittest.TestCase):
                         return count
 
                     total = 0
-                    for count in map_bucket(counter, handle, replica.bucket, "bundles/", 2):
+                    for count in map_bucket_results(counter, handle, replica.bucket, "bundles/", 2):
                         total += count
 
                     self.assertGreater(count_list, 0)
