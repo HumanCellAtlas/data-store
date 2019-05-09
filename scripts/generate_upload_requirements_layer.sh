@@ -10,6 +10,12 @@ if [[ -z $DSS_DEPLOYMENT_STAGE ]]; then
     exit 1
 fi
 
+if [[ $(aws s3api get-bucket-location --bucket ${DSS_OPS_BUCKET} &>/dev/null ;echo $?) -ne 0 ]]
+then
+	echo "verify if bucket: ${DSS_OPS_BUCKET} exist"
+	exit 126
+fi
+
 build_path="$DSS_HOME/dependencies/python/lib/python3.6/site-packages"
 dependency_dir="$DSS_HOME/dependencies"
 aws_req_key=$DSS_DEPLOYMENT_STAGE/requirements.txt
@@ -62,7 +68,7 @@ else
 fi
 
 
-# Lambdas have layers, Onions have layers
+# Onions have layers, Lambdas have layers
 #                            ~
 #                           /~
 #                     \  \ /**
