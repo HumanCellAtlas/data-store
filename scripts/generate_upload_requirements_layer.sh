@@ -13,7 +13,7 @@ fi
 if [[ $(aws s3api get-bucket-location --bucket ${DSS_OPS_BUCKET} &>/dev/null ;echo $?) -ne 0 ]]
 then
 	echo "verify if bucket: ${DSS_OPS_BUCKET} exist"
-	exit 126
+	exit 1
 fi
 
 build_path="$DSS_HOME/dependencies/python/lib/python3.6/site-packages"
