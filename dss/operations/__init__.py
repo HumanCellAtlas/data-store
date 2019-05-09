@@ -20,18 +20,13 @@ scripts/dss-ops.py storage verify-referential-integrity --replica staging
 ```
 """
 import os
-import argparse
 import logging
+import argparse
 import traceback
 from uuid import uuid4
 
 
 logger = logging.getLogger(__name__)
-if not os.environ.get("DSS_VERSION"):  # detect non-lambda environment
-    logger.setLevel(logging.DEBUG)
-    ch = logging.StreamHandler()
-    ch.setLevel(logging.DEBUG)
-    logger.addHandler(ch)
 
 
 class _target:
@@ -46,7 +41,7 @@ class _target:
             mutually_exclusive = dispatcher.targets[self.target_name]['mutually_exclusive'] or list()
 
         def register_action(obj):
-            parser = dispatcher.targets[self.target_name]['subparser'].add_parser(name, help=obj.__doc__)
+            parser = dispatcher.targets[self.target_name]['subparser'].add_parser(name, description=obj.__doc__)
             action_arguments = dispatcher.targets[self.target_name]['arguments'].copy()
             action_arguments.update(arguments)
             for argname, kwargs in action_arguments.items():
@@ -87,7 +82,6 @@ class DSSOperationsCommandDispatch:
     def __call__(self, argv):
         try:
             args = self.parser.parse_args(argv)
-            logger.debug("Job ID: %s", args.job_id)
             action_handler = args.func(argv, args) if isinstance(args.func, type) else args.func
             try:
                 action_handler(argv, args)
@@ -96,6 +90,7 @@ class DSSOperationsCommandDispatch:
         except SystemExit:
             pass
         except AttributeError:
+            # TODO: dump error message when executed in Lambda
             self.parser.print_help()
 
 dispatch = DSSOperationsCommandDispatch()
