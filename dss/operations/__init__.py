@@ -22,6 +22,7 @@ scripts/dss-ops.py storage verify-referential-integrity --replica staging
 import os
 import logging
 import argparse
+from argparse import RawTextHelpFormatter
 import traceback
 from uuid import uuid4
 
@@ -41,7 +42,7 @@ class _target:
             mutually_exclusive = dispatcher.targets[self.target_name]['mutually_exclusive'] or list()
 
         def register_action(obj):
-            parser = dispatcher.targets[self.target_name]['subparser'].add_parser(name, description=obj.__doc__)
+            parser = dispatcher.targets[self.target_name]['subparser'].add_parser(name, description=obj.__doc__, formatter_class=RawTextHelpFormatter)
             action_arguments = dispatcher.targets[self.target_name]['arguments'].copy()
             action_arguments.update(arguments)
             for argname, kwargs in action_arguments.items():
@@ -67,7 +68,7 @@ class DSSOperationsCommandDispatch:
     actions: dict = dict()
 
     def __init__(self):
-        self.parser = argparse.ArgumentParser(description=self.__doc__)
+        self.parser = argparse.ArgumentParser(description=self.__doc__, formatter_class=RawTextHelpFormatter)
         self.parser_targets = self.parser.add_subparsers()
         self.job_id = str(uuid4())
 

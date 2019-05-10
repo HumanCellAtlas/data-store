@@ -31,7 +31,7 @@ class StorageOperationHandler:
     def forward_command_to_lambda(self, argv: typing.List[str], args: argparse.Namespace):
         """
         This transforms a command into a format appropriate for Lambda execution. To take advantage of Lambda scaling,
-        commands operating any multiple keys are forwarded as multiple commands operating on a single key.
+        commands operating on multiple keys are forwarded as multiple commands operating on a single key.
         """
         cmd_template = f"{argv[0]} {argv[1]}"
         if "entity_type" in args.__dict__.keys() and "keys" in args.__dict__.keys():
@@ -77,7 +77,10 @@ class StorageOperationHandler:
 
 storage = dispatch.target(
     "storage",
-    arguments={"--forward-to-lambda": dict(default=False, action="store_true"),
+    arguments={"--forward-to-lambda": dict(default=False,
+                                           action="store_true",
+                                           help=('execute this command with Lambda parallelization\n'
+                                                 'output will be available in CloudWatch logs')),
                "--replica": dict(choices=[r.name for r in Replica], required=True),
                "--entity-type": dict(choices=[FILE_PREFIX, BUNDLE_PREFIX, COLLECTION_PREFIX]),
                "--keys": dict(default=None, nargs="*", help="keys to check. Omit to check all files")},
@@ -92,6 +95,14 @@ class verify_file_blob_metadata(StorageOperationHandler):
         1) file size matches blob size
         2) file content-type matches blob content-type
         3) TODO: content-disposition is _not_ set for blob
+
+        Local execution examples:
+        scripts/dss-ops.py storage verify-file-blob-metadata --replica $replica --keys $key1 $key2
+        scripts/dss-ops.py storage verify-file-blob-metadata --replica $replica
+
+        Lambd execution examples (output will be dumped to CloudWatch logs):
+        scripts/dss-ops.py storage verify-file-blob-metadata --replica $replica --forward-to-lambda
+        scripts/dss-ops.py storage verify-file-blob-metadata --replica $replica --keys $key1 $key2 --forward-to-lambda
     """
     def process_key(self, key):
         file_metadata = json.loads(self.handle.get(self.replica.bucket, key))
@@ -121,6 +132,14 @@ class verify_referential_integrity(StorageOperationHandler):
         1) For files, verify that blob object exists
         2) For bundles, verify that file metadata objects exist
         3) For collections, verify that all items exist
+
+        Local execution examples:
+        scripts/dss-ops.py storage verify-referential-integrity --replica $replica --keys $key1 $key2
+        scripts/dss-ops.py storage verify-referential-integrity --replica $replica --entity-type bundles
+
+        Lambd execution examples (output will be dumped to CloudWatch logs):
+        scripts/dss-ops.py storage verify-referential-integrity --replica $replica --keys $key1 $key2 --forward-to-lambda
+        scripts/dss-ops.py storage verify-referential-integrity --replica $replica --entity-type bundles --forward-to-lambda
     """
     def process_key(self, key):
         logger.debug("%s Checking %s %s", self.job_id, key, self.replica)
