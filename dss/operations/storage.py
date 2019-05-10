@@ -120,4 +120,4 @@ class verify_referential_integrity(StorageOperationHandler):
     def process_key(self, key):
         logger.debug("%s Checking %s %s", self.job_id, key, self.replica)
         if not dependencies_exist(self.replica, self.replica, key):
-            self.log_warning("EnttyMissingDependencies", dict(key=key))
+            self.log_warning("EntityMissingDependencies", dict(key=key))
