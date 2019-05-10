@@ -10,11 +10,16 @@ if [[ -z $DSS_DEPLOYMENT_STAGE ]]; then
     exit 1
 fi
 
-if [[ $(aws s3api get-bucket-location --bucket ${DSS_TERRAFORM_BACKEND_BUCKET_TEMPLATE} &>/dev/null ;echo $?) -ne 0 ]]
+account_id=$(aws sts get-caller-identity | jq -r ".Account" )
+populated_dss_tf_backend=$(echo ${DSS_TERRAFORM_BACKEND_BUCKET_TEMPLATE} | sed 's/{account_id}/'"${account_id}"'/'  )
+
+if [[ $(aws s3api get-bucket-location --bucket ${populated_dss_tf_backend} &>/dev/null ;echo $?) -ne 0 ]]
 then
-	echo "verify if bucket: ${DSS_TERRAFORM_BACKEND_BUCKET_TEMPLATE} exist"
+	echo "verify if bucket: ${populated_dss_tf_backend} exist"
 	exit 1
 fi
+
+
 
 build_path="$DSS_HOME/dependencies/python/lib/python3.6/site-packages"
 dependency_dir="$DSS_HOME/dependencies"
@@ -25,12 +30,12 @@ local_zip=$DSS_HOME/dss-dependencies-$DSS_DEPLOYMENT_STAGE.zip
 layer_name=dss-dependencies-${DSS_DEPLOYMENT_STAGE}
 
 function create_layer(){
-layer_version_arn=$(aws lambda publish-layer-version --layer-name $layer_name --content S3Bucket=${DSS_TERRAFORM_BACKEND_BUCKET_TEMPLATE},S3Key=${aws_zip_key}| jq -r .LayerVersionArn )
+layer_version_arn=$(aws lambda publish-layer-version --layer-name $layer_name --content S3Bucket=${populated_dss_tf_backend},S3Key=${aws_zip_key}| jq -r .LayerVersionArn )
 echo "created layer/-version_arn: ${layer_version_arn}"
 }
 
 function check() {
- aws_req_hash=$(aws s3api head-object --bucket ${DSS_TERRAFORM_BACKEND_BUCKET_TEMPLATE} --key ${aws_req_key} | jq -r .ETag | xxd -r -p | base64)
+ aws_req_hash=$(aws s3api head-object --bucket ${populated_dss_tf_backend} --key ${aws_req_key} | jq -r .ETag | xxd -r -p | base64)
  local_req_hash=$(openssl md5 -binary ${local_req} | base64)
 if [[ $aws_req_hash != $local_req_hash ]]; then
  echo "checksum missmatch, uploading new ${aws_zip_key}"
@@ -48,16 +53,16 @@ function upload() {
  cd ${dependency_dir}
  zip -qq -r -o $local_zip *
  cd ..
- echo "uploading zip to ${DSS_TERRAFORM_BACKEND_BUCKET_TEMPLATE} for stage: ${DSS_DEPLOYMENT_STAGE}"
- aws s3 cp $local_zip s3://${DSS_TERRAFORM_BACKEND_BUCKET_TEMPLATE}/$aws_zip_key
- aws s3 cp $local_req s3://${DSS_TERRAFORM_BACKEND_BUCKET_TEMPLATE}/$aws_req_key
+ echo "uploading zip to ${populated_dss_tf_backend} for stage: ${DSS_DEPLOYMENT_STAGE}"
+ aws s3 cp $local_zip s3://${populated_dss_tf_backend}/$aws_zip_key
+ aws s3 cp $local_req s3://${populated_dss_tf_backend}/$aws_req_key
  echo "deleting ${dependency_dir} and ${local_zip}"
  rm -rf ${dependency_dir}
  rm -f ${local_zip}
  create_layer
 }
 
-if [[ $(aws s3api head-object --bucket ${DSS_TERRAFORM_BACKEND_BUCKET_TEMPLATE} --key $aws_zip_key &>/dev/null; echo $?) -eq 255 ]]
+if [[ $(aws s3api head-object --bucket ${populated_dss_tf_backend} --key $aws_zip_key &>/dev/null; echo $?) -eq 255 ]]
 then
  echo "Could not locate $aws_zip_key in aws, starting upload"
  upload
