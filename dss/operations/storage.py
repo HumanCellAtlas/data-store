@@ -14,6 +14,7 @@ from dss.storage.hcablobstore import compose_blob_key
 from dss.operations import dispatch
 from dss.operations.util import CommandForwarder, map_bucket
 from dss.events.handlers.sync import dependencies_exist
+from dss.storage.identifiers import BUNDLE_PREFIX, FILE_PREFIX, COLLECTION_PREFIX
 
 
 logger = logging.getLogger(__name__)
@@ -24,9 +25,8 @@ class StorageOperationHandler:
         self.keys = args.keys.copy() if args.keys else None
         self.entity_type = args.entity_type
         self.job_id = args.job_id
-        if args.replica:
-            self.replica = Replica[args.replica]
-            self.handle = Config.get_blobstore_handle(self.replica)
+        self.replica = Replica[args.replica]
+        self.handle = Config.get_blobstore_handle(self.replica)
 
     def forward_command_to_lambda(self, argv: typing.List[str], args: argparse.Namespace):
         """
@@ -50,7 +50,7 @@ class StorageOperationHandler:
         if args.keys is not None:
             forward_keys(args.keys)
         else:
-            map_bucket(forward_keys, self.handle, self.replica.bucket, f"{self.entity_type}s/")
+            map_bucket(forward_keys, self.handle, self.replica.bucket, f"{self.entity_type}/")
 
     def process_command_locally(self, argv: typing.List[str], args: argparse.Namespace):
         if self.keys is not None:
@@ -61,7 +61,7 @@ class StorageOperationHandler:
                 for key in keys:
                     self.process_key(key)
 
-            map_bucket(process_keys, self.handle, self.replica.bucket, f"{self.entity_type}s/")
+            map_bucket(process_keys, self.handle, self.replica.bucket, f"{self.entity_type}/")
 
     def log_warning(self, name: str, info: dict):
         logger.warning(json.dumps({'job_id': self.job_id, name: info}))
@@ -79,13 +79,13 @@ storage = dispatch.target(
     "storage",
     arguments={"--forward-to-lambda": dict(default=False, action="store_true"),
                "--replica": dict(choices=[r.name for r in Replica], required=True),
-               "--entity-type": dict(choices=["file", "bundle", "collection"]),
+               "--entity-type": dict(choices=[FILE_PREFIX, BUNDLE_PREFIX, COLLECTION_PREFIX]),
                "--keys": dict(default=None, nargs="*", help="keys to check. Omit to check all files")},
     help=__doc__
 )
 
 @storage.action("verify-file-blob-metadata",
-                arguments={"--entity-type": dict(default="file", choices=["file"])})
+                arguments={"--entity-type": dict(default=FILE_PREFIX, choices=[FILE_PREFIX])})
 class verify_file_blob_metadata(StorageOperationHandler):
     """
     Verify that:
