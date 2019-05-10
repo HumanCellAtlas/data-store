@@ -19,7 +19,7 @@ except FileNotFoundError:
         f"/test_service_accounts")["SecretString"]
     )
     with open(f"{os.environ['FUS_HOME']}/test_accounts_{os.environ['FUS_DEPLOYMENT_STAGE']}.json", 'w') as fh:
-        json.dump(service_accounts,fh)
+        json.dump(service_accounts, fh)
 
 
 def create_test_statement(name: str):
@@ -38,6 +38,23 @@ def create_test_statement(name: str):
         ]
     }
     statement["Statement"][0]["Sid"] = name
+    return json.dumps(statement)
+
+
+def create_test_statements(length=1):
+    """Assists with the creation of policy statements for testing"""
+    statement = {
+        "Version": "2012-10-17",
+        "Statement": [
+            {
+                "Effect": "Deny",
+                "Action": [
+                    "fake:action"
+                ],
+                "Resource": "fake:resource"
+            } for i in range(length)
+        ]
+    }
     return json.dumps(statement)
 
 
@@ -70,4 +87,3 @@ def get_auth_header(service_credentials: dict, email=True):
     info = service_credentials
     token = get_service_jwt(info, email=email)
     return {"Authorization": f"Bearer {token}"}
-

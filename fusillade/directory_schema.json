@@ -93,14 +93,6 @@
     },
     "IAMPolicy": {
       "facetAttributes": {
-        "Statement": {
-          "attributeDefinition": {
-            "attributeType": "STRING",
-            "isImmutable": false,
-            "attributeRules": {}
-          },
-          "requiredBehavior": "REQUIRED_ALWAYS"
-        }
       },
       "objectType": "POLICY"
     }
