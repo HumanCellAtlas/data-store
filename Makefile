@@ -63,19 +63,19 @@ smoketest-prod:
 scaletest:
 	./tests/scalability/scale_test_runner.py -r 10 -d 30
 
-deploy: check-env check-secrets deploy-chalice deploy-daemons
+deploy: check-env check-secrets generate-dependencies deploy-chalice deploy-daemons
 
-force-deploy: deploy-chalice deploy-daemons
+force-deploy: generate-dependencies deploy-chalice deploy-daemons
 
-deploy-chalice:
+deploy-chalice: generate-dependencies
 	$(MAKE) -C chalice deploy
 
 deploy-daemons: deploy-daemons-serial deploy-daemons-parallel
 
-deploy-daemons-serial:
+deploy-daemons-serial: generate-dependencies
 	$(MAKE) -j1 -C daemons deploy-serial
 
-deploy-daemons-parallel:
+deploy-daemons-parallel: generate-dependencies
 	$(MAKE) -C daemons deploy-parallel
 
 plan-infra:
@@ -95,6 +95,9 @@ create-github-deployment:
 	$(eval BRANCH=$(shell git rev-parse --abbrev-ref HEAD))
 	$(eval DEPLOY_API=https://api.github.com/repos/$(REMOTE)/deployments)
 	http POST $(DEPLOY_API) Authorization:"Bearer $(GH_TOKEN)" ref=$(BRANCH) environment=dev auto_merge:=false
+
+generate-dependencies:
+	scripts/generate_upload_requirements_layer.sh
 
 release_integration:
 	scripts/release.sh master integration
