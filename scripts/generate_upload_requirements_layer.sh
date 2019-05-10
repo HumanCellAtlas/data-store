@@ -30,8 +30,8 @@ echo "created layer/-version_arn: ${layer_version_arn}"
 }
 
 function check() {
- aws_req_hash=$(aws s3api head-object --bucket ${DSS_TERRAFORM_BACKEND_BUCKET_TEMPLATE} --key ${DSS_DEPLOYMENT_STAGE}/requirements.txt | jq -r .ETag | xxd -r -p | base64)
- local_req_hash=$(openssl md5 -binary requirements.txt | base64)
+ aws_req_hash=$(aws s3api head-object --bucket ${DSS_TERRAFORM_BACKEND_BUCKET_TEMPLATE} --key ${aws_req_key} | jq -r .ETag | xxd -r -p | base64)
+ local_req_hash=$(openssl md5 -binary ${local_req} | base64)
 if [[ $aws_req_hash != $local_req_hash ]]; then
  echo "checksum missmatch, uploading new ${aws_zip_key}"
  upload
