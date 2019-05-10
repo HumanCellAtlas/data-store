@@ -100,7 +100,7 @@ class verify_file_blob_metadata(StorageOperationHandler):
         scripts/dss-ops.py storage verify-file-blob-metadata --replica $replica --keys $key1 $key2
         scripts/dss-ops.py storage verify-file-blob-metadata --replica $replica
 
-        Lambd execution examples (output will be dumped to CloudWatch logs):
+        Lambda execution examples (output will be dumped to CloudWatch logs):
         scripts/dss-ops.py storage verify-file-blob-metadata --replica $replica --forward-to-lambda
         scripts/dss-ops.py storage verify-file-blob-metadata --replica $replica --keys $key1 $key2 --forward-to-lambda
     """
@@ -137,7 +137,7 @@ class verify_referential_integrity(StorageOperationHandler):
         scripts/dss-ops.py storage verify-referential-integrity --replica $replica --keys $key1 $key2
         scripts/dss-ops.py storage verify-referential-integrity --replica $replica --entity-type bundles
 
-        Lambd execution examples (output will be dumped to CloudWatch logs):
+        Lambda execution examples (output will be dumped to CloudWatch logs):
         scripts/dss-ops.py storage verify-referential-integrity --replica $replica --keys $key1 $key2 --forward-to-lambda
         scripts/dss-ops.py storage verify-referential-integrity --replica $replica --entity-type bundles --forward-to-lambda
     """

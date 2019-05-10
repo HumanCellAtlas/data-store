@@ -61,9 +61,26 @@ class _target:
 
 class DSSOperationsCommandDispatch:
     """
-    Central dispatch for the DSS Operations CLI.
+    Grand central dispatch for DSS operations
+         ___                       
+       _(((,|    What's DNA??         
+      /  _-\\                       
+     / C o\o \                     
+   _/_    __\ \     __ __     __ __     __ __     __
+  /   \ \___/  )   /--X--\   /--X--\   /--X--\   /--
+  |    |\_|\  /   /--/ \--\ /--/ \--\ /--/ \--\ /--/
+  |    |#  #|/          \__X__/   \__X__/   \__X__/ 
+  (   /     | 
+   |  |#  # | 
+   |  |    #|                      
+   |  | #___n_,_                  
+,-/   7-' .     `\                 
+`-\...\-_   -  o /                 
+   |#  # `---U--'                  
+   `-v-^-'\/                       
+     \  |_|_ Wny                  
+     (___mnnm
     """
-
     targets: dict = dict()
     actions: dict = dict()
 
