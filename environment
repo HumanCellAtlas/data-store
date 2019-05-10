@@ -74,7 +74,6 @@ DSS_GS_CHECKOUT_BUCKET_TEST_USER=org-hca-dss-checkout-test-user  # for tests w/n
 DSS_GS_CHECKOUT_BUCKET_INTEGRATION=org-humancellatlas-dss-checkout-integration
 DSS_GS_CHECKOUT_BUCKET_STAGING=org-humancellatlas-dss-checkout-staging
 DSS_GS_CHECKOUT_BUCKET_PROD=org-humancellatlas-dss-checkout-prod
-DSS_OPS_BUCKET=org-humancellatlas-dss-ops
 DSS_INFRA_TAG_PROJECT=dcp
 DSS_INFRA_TAG_SERVICE=dss
 DSS_INFRA_TAG_OWNER=dss-team@data.humancellatlas.org
