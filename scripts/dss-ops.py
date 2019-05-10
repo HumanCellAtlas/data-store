@@ -17,5 +17,6 @@ logging.basicConfig(stream=sys.stdout)
 dss.Config.set_config(dss.BucketConfig.NORMAL)
 
 if __name__ == "__main__":
-    print(dispatch.job_id)
+    # dispatch.job_id is inserted into the log output of DSS operations
+    print("DSS Operation Job ID:", dispatch.job_id)
     dispatch(sys.argv[1:])

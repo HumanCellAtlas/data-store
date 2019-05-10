@@ -2,7 +2,9 @@
 Storage consistency checks
 """
 import json
+import typing
 import logging
+import argparse
 from uuid import uuid4
 
 from cloud_blobstore import BlobNotFoundError
@@ -18,7 +20,7 @@ logger = logging.getLogger(__name__)
 
 
 class StorageOperationHandler:
-    def __init__(self, argv, args):
+    def __init__(self, argv: typing.List[str], args: argparse.Namespace):
         self.keys = args.keys.copy() if args.keys else None
         self.entity_type = args.entity_type
         self.job_id = args.job_id
@@ -26,7 +28,11 @@ class StorageOperationHandler:
             self.replica = Replica[args.replica]
             self.handle = Config.get_blobstore_handle(self.replica)
 
-    def forward_command_to_lambda(self, argv, args):
+    def forward_command_to_lambda(self, argv: typing.List[str], args: argparse.Namespace):
+        """
+        This transforms a command into a format appropriate for Lambda execution. To take advantage of Lambda scaling,
+        commands operating any multiple keys are forwarded as multiple commands operating on a single key.
+        """
         cmd_template = f"{argv[0]} {argv[1]}"
         if "entity_type" in args.__dict__.keys() and "keys" in args.__dict__.keys():
             del args.entity_type
@@ -34,7 +40,6 @@ class StorageOperationHandler:
             argname = argname.replace("_", "-")
             if argname not in ["forward-to-lambda", "keys", "func"]:
                 cmd_template += f" --{argname} {argval}"
-        assert "{}" not in cmd_template
         cmd_template += " --keys {}"
 
         def forward_keys(keys):
@@ -47,7 +52,7 @@ class StorageOperationHandler:
         else:
             map_bucket(forward_keys, self.handle, self.replica.bucket, f"{self.entity_type}s/")
 
-    def process_command_locally(self, argv, args):
+    def process_command_locally(self, argv: typing.List[str], args: argparse.Namespace):
         if self.keys is not None:
             for key in self.keys:
                 self.process_key(key)
@@ -64,7 +69,7 @@ class StorageOperationHandler:
     def process_key(self, key):
         raise NotImplementedError()
 
-    def __call__(self, argv, args):
+    def __call__(self, argv: typing.List[str], args: argparse.Namespace):
         if args.forward_to_lambda:
             self.forward_command_to_lambda(argv, args)
         else:
