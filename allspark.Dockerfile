@@ -29,12 +29,12 @@ RUN apt-get update --quiet \
         jq \
         make \
         moreutils \
-	openssl \ 
+		openssl \
         python3-pip \
         python3.6-dev \
         unzip \
         wget \
-	xxd \
+		xxd \
         zlib1g-dev
 
 RUN apt-get update --quiet
