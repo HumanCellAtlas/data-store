@@ -1,0 +1,8 @@
+# Be sure to run "make requirements-dev.txt" after editing this file.
+requests_oauthlib
+oauthlib
+google_auth_oauthlib
+coverage
+sphinx
+flake8
+-r requirements.txt

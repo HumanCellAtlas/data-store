@@ -1,0 +1,13 @@
+# Be sure to run "make requirements.txt requirements-dev.txt" after editing this file.
+boto3 >= 1.5.12, < 2
+chalice >= 1.1.0, < 2
+pyjwt >= 1.5.3, < 2
+cryptography >= 2.3, < 3
+furl >= 1.2.1
+flask >= 1.0.2
+connexion >= 2.2.0
+werkzeug >= 0.14
+requests >= 2.21.0
+connexion[swagger-ui]
+dcplib
+pyyaml
