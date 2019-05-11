@@ -92,17 +92,17 @@ storage = dispatch.target(
 class verify_file_blob_metadata(StorageOperationHandler):
     """
     Verify that:
-        1) file size matches blob size
-        2) file content-type matches blob content-type
-        3) TODO: content-disposition is _not_ set for blob
+    1) file size matches blob size
+    2) file content-type matches blob content-type
+    3) TODO: content-disposition is _not_ set for blob
 
-        Local execution examples:
-        scripts/dss-ops.py storage verify-file-blob-metadata --replica $replica --keys $key1 $key2
-        scripts/dss-ops.py storage verify-file-blob-metadata --replica $replica
+    Local execution examples:
+    scripts/dss-ops.py storage verify-file-blob-metadata --replica $rplc --keys $key1 $key2
+    scripts/dss-ops.py storage verify-file-blob-metadata --replica $rplc
 
-        Lambda execution examples (output will be dumped to CloudWatch logs):
-        scripts/dss-ops.py storage verify-file-blob-metadata --replica $replica --forward-to-lambda
-        scripts/dss-ops.py storage verify-file-blob-metadata --replica $replica --keys $key1 $key2 --forward-to-lambda
+    Lambda execution examples (output will be dumped to CloudWatch logs):
+    scripts/dss-ops.py storage verify-file-blob-metadata --replica $rplc --forward-to-lambda
+    scripts/dss-ops.py storage verify-file-blob-metadata --replica $rplc --keys $key1 $key2 --forward-to-lambda
     """
     def process_key(self, key):
         file_metadata = json.loads(self.handle.get(self.replica.bucket, key))
@@ -129,17 +129,17 @@ class verify_file_blob_metadata(StorageOperationHandler):
 class verify_referential_integrity(StorageOperationHandler):
     """
     This uses DSS API patterns to verify the referential integrity of datastore objects:
-        1) For files, verify that blob object exists
-        2) For bundles, verify that file metadata objects exist
-        3) For collections, verify that all items exist
+    1) For files, verify that blob object exists
+    2) For bundles, verify that file metadata objects exist
+    3) For collections, verify that all items exist
 
-        Local execution examples:
-        scripts/dss-ops.py storage verify-referential-integrity --replica $replica --keys $key1 $key2
-        scripts/dss-ops.py storage verify-referential-integrity --replica $replica --entity-type bundles
+    Local execution examples:
+    scripts/dss-ops.py storage verify-referential-integrity --replica $rplc --keys $key1 $key2
+    scripts/dss-ops.py storage verify-referential-integrity --replica $rplc --entity-type bundles
 
-        Lambda execution examples (output will be dumped to CloudWatch logs):
-        scripts/dss-ops.py storage verify-referential-integrity --replica $replica --keys $key1 $key2 --forward-to-lambda
-        scripts/dss-ops.py storage verify-referential-integrity --replica $replica --entity-type bundles --forward-to-lambda
+    Lambda execution examples (output will be dumped to CloudWatch logs):
+    scripts/dss-ops.py storage verify-referential-integrity --replica $rplc --keys $key1 $key2 --forward-to-lambda
+    scripts/dss-ops.py storage verify-referential-integrity --replica $rplc --entity-type bundles --forward-to-lambda
     """
     def process_key(self, key):
         logger.debug("%s Checking %s %s", self.job_id, key, self.replica)

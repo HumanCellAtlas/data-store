@@ -42,7 +42,11 @@ class _target:
             mutually_exclusive = dispatcher.targets[self.target_name]['mutually_exclusive'] or list()
 
         def register_action(obj):
-            parser = dispatcher.targets[self.target_name]['subparser'].add_parser(name, description=obj.__doc__, formatter_class=RawTextHelpFormatter)
+            parser = dispatcher.targets[self.target_name]['subparser'].add_parser(
+                name,
+                description=obj.__doc__,
+                formatter_class=RawTextHelpFormatter
+            )
             action_arguments = dispatcher.targets[self.target_name]['arguments'].copy()
             action_arguments.update(arguments)
             for argname, kwargs in action_arguments.items():
@@ -62,23 +66,23 @@ class _target:
 class DSSOperationsCommandDispatch:
     """
     Grand central dispatch for DSS operations
-         ___                       
-       _(((,|    What's DNA??         
-      /  _-\\                       
-     / C o\o \                     
-   _/_    __\ \     __ __     __ __     __ __     __
+         ___
+       _(((,|    What's DNA??
+      /  _-\\\\
+     / C o\o \\
+   _/_    __\ \\     __ __     __ __     __ __     __
   /   \ \___/  )   /--X--\   /--X--\   /--X--\   /--
   |    |\_|\  /   /--/ \--\ /--/ \--\ /--/ \--\ /--/
-  |    |#  #|/          \__X__/   \__X__/   \__X__/ 
-  (   /     | 
-   |  |#  # | 
-   |  |    #|                      
-   |  | #___n_,_                  
-,-/   7-' .     `\                 
-`-\...\-_   -  o /                 
-   |#  # `---U--'                  
-   `-v-^-'\/                       
-     \  |_|_ Wny                  
+  |    |#  #|/          \__X__/   \__X__/   \__X__/
+  (   /     |
+   |  |#  # |
+   |  |    #|
+   |  | #___n_,_
+,-/   7-' .     `\\
+`-\...\-_   -  o /
+   |#  # `---U--'
+   `-v-^-'\/
+     \  |_|_ Wny
      (___mnnm
     """
     targets: dict = dict()
