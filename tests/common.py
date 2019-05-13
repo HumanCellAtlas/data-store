@@ -73,7 +73,8 @@ def get_service_jwt(service_credentials, email=True, audience=None):
                'aud': audience or Config.audience,
                'iat': iat,
                'exp': exp,
-               'scope': ['email', 'openid', 'offline_access']
+               'scope': ['email', 'openid', 'offline_access'],
+               'https://auth.data.humancellatlas.org/email': service_credentials["client_email"]
                }
     if email:
         payload['email'] = service_credentials["client_email"]
