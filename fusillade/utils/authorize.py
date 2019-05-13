@@ -1,3 +1,4 @@
+import json
 import logging
 import typing
 
@@ -16,7 +17,8 @@ def evaluate_policy(
         resources: typing.List[str],
         policies: typing.List[str],
 ) -> bool:
-    result = iam.simulate_custom_policy(
+    logger.debug(json.dumps(policies))
+    response = iam.simulate_custom_policy(
         PolicyInputList=policies,
         ActionNames=actions,
         ResourceArns=resources,
@@ -27,12 +29,23 @@ def evaluate_policy(
                 'ContextKeyType': 'string'
             }
         ]
-    )['EvaluationResults'][0]['EvalDecision']
-    return True if result == 'allowed' else False
+    )
+    logger.debug(json.dumps(response))
+    results = [result['EvalDecision'] for result in response['EvaluationResults']]
+    if 'explicitDeny' in results:
+        return False
+    elif 'allowed' in results:
+        return True
+    else:
+        return False
 
 
 def assert_authorized(user, actions, resources):
-    policies = User(directory, user).lookup_policies()
+    u = User(directory, user)
+    policies = u.lookup_policies()
     if not evaluate_policy(user, actions, resources, policies):
-        logger.info(f"User not authorized. {user}, {actions}, {resources}")
+        logger.info(
+            json.dumps(dict(msg="User not authorized.", user=u._path_name, action=actions, resources=resources)))
         raise FusilladeForbiddenException()
+    else:
+        logger.info(json.dumps(dict(msg="User authorized.", user=u._path_name, action=actions, resources=resources)))

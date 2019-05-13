@@ -127,6 +127,7 @@ class ChaliceWithLoggingConfig(chalice.Chalice):
         logging.basicConfig()
         if Config.debug_level() == 0:
             self.debug = False
+            logging.root.setLevel(logging.WARN)
         elif Config.debug_level() == 1:
             self.debug = True
             logging.root.setLevel(logging.INFO)

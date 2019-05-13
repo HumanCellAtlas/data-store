@@ -14,8 +14,11 @@ import json
 import typing
 from collections import namedtuple
 from enum import Enum, auto
+import logging
 
 from fusillade.errors import FusilladeException, FusilladeHTTPException
+
+logger = logging.getLogger(__name__)
 
 project_arn = "arn:aws:clouddirectory:us-east-1:861229788715:"  # TODO move to config.py
 cd_client = aws_clients.clouddirectory
@@ -939,6 +942,19 @@ class CloudNode:
 
         operations.append(self.cd.batch_attach_policy(policy_ref, self.object_ref))
         self.cd.batch_write(operations)
+        logger.info(
+            json.dumps(
+                dict(msg="Policy created",
+                     object=dict(
+                         type=self._object_type,
+                         path_name=self._path_name
+                     ),
+                     policy=dict(
+                         link_name=policy_link_name,
+                         policy_type="IAMPolicy")
+                     )
+            )
+        )
         return policy_ref
 
     def get_policy_name(self, policy_type):
@@ -980,6 +996,20 @@ class CloudNode:
                 self.cd.update_object_attribute(self.policy, params, self.cd.node_schema)
         except cd_client.exceptions.LimitExceededException as ex:
             raise FusilladeHTTPException(ex)
+        else:
+            logger.info(
+                json.dumps(
+                    dict(msg="Policy updated",
+                         object=dict(
+                             type=self._object_type,
+                             path_name=self._path_name
+                         ),
+                         policy=dict(
+                             link_name=self.get_policy_name('IAMPolicy'),
+                             policy_type="IAMPolicy")
+                         )
+                )
+            )
         self._statement = None
 
     def _get_attributes(self, attributes: typing.List[str]):
@@ -1067,7 +1097,8 @@ class User(CloudNode):
                                UpdateActions.CREATE_OR_UPDATE)
         ]
         self.cd.update_object_attribute(self.object_ref, update_params)
-
+        logger.info(
+            json.dumps(dict(msg="User Enabled", object=dict(type=self._object_type, path_name=self._path_name))))
         self._status = None
 
     def disable(self):
@@ -1080,6 +1111,8 @@ class User(CloudNode):
                                UpdateActions.CREATE_OR_UPDATE)
         ]
         self.cd.update_object_attribute(self.object_ref, update_params)
+        logger.info(
+            json.dumps(dict(msg="User Disabled", object=dict(type=self._object_type, path_name=self._path_name))))
         self._status = None
 
     @classmethod
@@ -1109,7 +1142,11 @@ class User(CloudNode):
                                   )
         except cd_client.exceptions.LinkNameAlreadyInUseException:
             raise FusilladeException("User already exists.")
-
+        else:
+            logger.info(
+                json.dumps(
+                    dict(msg="User created",
+                         object=dict(type=user._object_type, path_name=user._path_name))))
         if roles:
             user.add_roles(roles + cls.default_roles)
         else:
@@ -1133,10 +1170,20 @@ class User(CloudNode):
     def add_groups(self, groups: typing.List[str]):
         self._add_links(groups, 'group')
         self._groups = None  # update groups
+        logger.info(
+            json.dumps(
+                dict(msg="Groups joined",
+                     object=dict(type=self._object_type, path_name=self._path_name),
+                     groups=groups)))
 
     def remove_groups(self, groups: typing.List[str]):
         self._remove_links(groups, 'group')
         self._groups = None  # update groups
+        logger.info(
+            json.dumps(
+                dict(msg="Groups left",
+                     object=dict(type=self._object_type, path_name=self._path_name),
+                     groups=groups)))
 
     @property
     def roles(self) -> typing.List[str]:
@@ -1147,10 +1194,20 @@ class User(CloudNode):
     def add_roles(self, roles: typing.List[str]):
         self._add_links(roles, 'role')
         self._roles = None  # update roles
+        logger.info(
+            json.dumps(
+                dict(msg="Roles added",
+                     object=dict(type=self._object_type, path_name=self._path_name),
+                     roles=roles)))
 
     def remove_roles(self, roles: typing.List[str]):
         self._remove_links(roles, 'role')
         self._roles = None  # update roles
+        logger.info(
+            json.dumps(
+                dict(msg="Roles removed",
+                     object=dict(type=self._object_type, path_name=self._path_name),
+                     roles=roles)))
 
 
 class Group(CloudNode):
@@ -1178,6 +1235,10 @@ class Group(CloudNode):
         cls._verify_statement(statement)
         cloud_directory.create_object(cls.hash_name(name), 'BasicFacet', name=name, obj_type="group")
         new_node = cls(cloud_directory, name)
+        logger.info(
+            json.dumps(
+                dict(msg="Group created",
+                     object=dict(type=new_node._object_type, path_name=new_node._path_name))))
         new_node._set_statement(statement)
         return new_node
 
@@ -1198,10 +1259,20 @@ class Group(CloudNode):
     def add_roles(self, roles: typing.List[str]):
         self._add_links(roles, 'role')
         self._roles = None  # update roles
+        logger.info(
+            json.dumps(
+                dict(msg="Roles added",
+                     object=dict(type=self._object_type, path_name=self._path_name),
+                     roles=roles)))
 
     def remove_roles(self, roles: typing.List[str]):
         self._remove_links(roles, 'role')
         self._roles = None  # update roles
+        logger.info(
+            json.dumps(
+                dict(msg="Roles added",
+                     object=dict(type=self._object_type, path_name=self._path_name),
+                     roles=roles)))
 
     def add_users(self, users: typing.List[User]) -> None:
         if users:
@@ -1211,6 +1282,11 @@ class Group(CloudNode):
                                             self._get_link_name(self.object_ref, i.object_ref))
                 for i in users]
             self.cd.batch_write(operations)
+            logger.info(
+                json.dumps(
+                    dict(msg="Adding users to group",
+                         object=dict(type=self._object_type, path_name=self._path_name),
+                         users=[user._path_name for user in users])))
 
     def remove_users(self, users: typing.List[str]) -> None:
         """
@@ -1221,6 +1297,11 @@ class Group(CloudNode):
         """
         for user in users:
             User(self.cd, user).remove_groups([self._path_name])
+        logger.info(
+            json.dumps(
+                dict(msg="Removing users from group",
+                     object=dict(type=self._object_type, path_name=self._path_name),
+                     users=[user for user in users])))
 
 
 class Role(CloudNode):
@@ -1244,5 +1325,9 @@ class Role(CloudNode):
         except cd_client.exceptions.LinkNameAlreadyInUseException:
             raise FusilladeHTTPException(status=409, title="Conflict", detail="The object already exists")
         new_node = cls(cloud_directory, name)
+        logger.info(
+            json.dumps(
+                dict(msg="Role created",
+                     object=dict(type=new_node._object_type, path_name=new_node._path_name))))
         new_node._set_statement(statement)
         return new_node

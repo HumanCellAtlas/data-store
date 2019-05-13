@@ -51,4 +51,4 @@ class Config:
 
     @classmethod
     def debug_level(cls):
-        return int(os.environ.get("DEBUG", "0"))
+        return int(os.environ.get("DEBUG", "1"))

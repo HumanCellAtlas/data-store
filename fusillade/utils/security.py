@@ -80,7 +80,7 @@ def verify_jwt(token: str) -> typing.Optional[typing.Mapping]:
     try:
         unverified_token = jwt.decode(token, verify=False)
     except jwt.DecodeError:
-        logger.info(f"Failed to decode JWT: {token}", exc_info=True)
+        logger.debug('{"msg": "Failed to decode token."}', exc_info=True)
         raise FusilladeHTTPException(401, 'Unauthorized', 'Failed to decode token.')
 
     issuer = unverified_token['iss']
@@ -94,8 +94,8 @@ def verify_jwt(token: str) -> typing.Optional[typing.Mapping]:
                                   audience=Config.get_audience(),
                                   algorithms=allowed_algorithms,
                                   )
-        logger.info("""{"valid": true, "token": %s}""", json.dumps(verified_tok))
+        logger.debug("""{"msg": "Token Validated"}""")
     except jwt.PyJWTError as ex:  # type: ignore
-        logger.info("""{"valid": false, "token": %s}""", json.dumps(unverified_token), exc_info=True)
+        logger.debug("""{"msg": "Failed to validate token."}""", exc_info=True)
         raise FusilladeHTTPException(401, 'Unauthorized', 'Authorization token is invalid') from ex
     return verified_tok
