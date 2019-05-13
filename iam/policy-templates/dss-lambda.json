@@ -71,6 +71,15 @@
         ],
         "Resource": "arn:aws:dynamodb:*:$account_id:table/dss-async-state-$stage",
         "Resource": "arn:aws:dynamodb:*:$account_id:*"
+    },
+    {
+      "Effect": "Allow",
+      "Action": [
+        "tag:GetTagKeys",
+        "tag:GetResources",
+        "tag:GetTagValues"
+      ],
+      "Resource": "*"
     }
   ]
 }
