@@ -22,6 +22,7 @@ pkg_root = os.path.abspath(os.path.join(os.path.dirname(__file__), 'domovoilib')
 sys.path.insert(0, pkg_root)  # noqa
 
 import dss
+import dss.operations.storage
 from dss.operations import dispatch
 
 logging.basicConfig(stream=sys.stdout)
@@ -32,6 +33,7 @@ logger.setLevel(logging.WARNING)  # noqa
 dss.Config.set_config(dss.BucketConfig.NORMAL)
 
 app = domovoi.Domovoi()
+app.log.setLevel(logging.WARNING)  # suppress domovoi info logs
 
 # Handle commands forwarded from the DSS Operations CLI
 @app.sqs_queue_subscriber(
