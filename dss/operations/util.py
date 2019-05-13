@@ -1,5 +1,6 @@
 import os
 import traceback
+import logging
 import typing
 from uuid import uuid4
 from contextlib import AbstractContextManager
@@ -8,6 +9,9 @@ from cloud_blobstore import BlobStore
 
 from dss.util.aws.clients import sqs, sts  # type: ignore
 from concurrent.futures import ThreadPoolExecutor, as_completed
+
+
+logger = logging.getLogger(__name__)
 
 
 _account_id = sts.get_caller_identity()['Account']
@@ -47,7 +51,7 @@ def map_bucket_results(func: typing.Callable, handle: BlobStore, bucket: str, ba
             try:
                 yield f.result()
             except Exception:
-                traceback.print_exc()
+                logger.error(traceback.format_exc())
 
 def map_bucket(*args, **kwargs):
     for _ in map_bucket_results(*args, **kwargs):
