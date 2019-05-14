@@ -420,12 +420,12 @@ class TestFileApi(unittest.TestCase, TestAuthMixin, DSSUploadMixin, DSSAssertMix
 
             verify_headers = ['X-DSS-VERSION', 'X-DSS-CREATOR-UID', 'X-DSS-S3-ETAG', 'X-DSS-SHA256',
                               'X-DSS-SHA1', 'X-DSS-CRC32C']
-            native_headers_verify = {k: v for k,v in native_resp_obj.response.headers.items() if k in verify_headers}
-            presigned_headers_verify = {k: v for k,v in resp_obj.response.headers.items() if k in verify_headers}
+            native_headers_verify = {k: v for k, v in native_resp_obj.response.headers.items() if k in verify_headers}
+            presigned_headers_verify = {k: v for k, v in resp_obj.response.headers.items() if k in verify_headers}
             self.assertDictEqual(native_headers_verify, presigned_headers_verify)
 
             blob_path = native_resp_obj.response.headers['Location'].split('/blobs/')[1]
-            native_size = handle.get_size(replica.checkout_bucket,f'blobs/{blob_path}')
+            native_size = handle.get_size(replica.checkout_bucket, f'blobs/{blob_path}')
             self.assertGreater(native_size, 0)
             self.assertEqual(native_size, resp_obj.response.headers['Content-Size'])
 
