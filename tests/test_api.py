@@ -235,6 +235,13 @@ class TestApi(unittest.TestCase):
         resp = self.app.get('/internal/version')
         resp.raise_for_status()
 
+    def test_health_check(self):
+        resp = self.app.get('/internal/health')
+        resp.raise_for_status()
+        body = json.loads(resp.body)
+        self.assertEqual(body['health_status'], 'ok')
+        self.assertTrue(isinstance(body['services'], dict))
+
 
 if __name__ == '__main__':
     unittest.main()

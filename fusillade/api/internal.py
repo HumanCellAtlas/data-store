@@ -3,6 +3,9 @@ import json
 import requests
 from connexion.lifecycle import ConnexionResponse
 from flask import request
+from furl import furl
+from fusillade.config import Config
+from fusillade import directory
 
 
 def version():
@@ -19,10 +22,33 @@ def version():
 
 
 def health_check(*args, **kwargs):
-    health_status = 'OK'
-    return ConnexionResponse(status_code=200,
-                             headers={"Content-Type": "application/json"},
-                             body=json.dumps(health_status, indent=4, sort_keys=True, default=str))
+    health_checks = dict()
+    health_checks.update(**directory.get_health_status(),
+                         **get_openip_health_status())
+    if all([check == 'ok' for check in health_checks.values()]):
+        body = dict(
+            health_status='ok',
+            services=health_checks
+        )
+        status = 200
+        headers = {"Content-Type": "application/json"}
+    else:
+        body = dict(
+            health_status='unhealthy',
+            services=health_checks
+        )
+        status = 500
+        headers = {"Content-Type": "application/json+problem"}
+    return ConnexionResponse(status_code=status,
+                             headers=headers,
+                             body=body)
+
+
+def get_openip_health_status() -> dict:
+    status = requests.get(
+        furl(scheme="https", host=Config.get_openid_provider(), path="/testall").url).status_code
+    status = 'ok' if status == 200 else 'unhealthy'
+    return dict(openip_health_status=status)
 
 
 def echo():

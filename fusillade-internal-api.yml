@@ -24,7 +24,7 @@ paths:
         200:
           description: Version returned
 
-  /status:
+  /health:
     get:
       summary: return the health status of the deployed system
       operationId: fusillade.api.internal.health_check

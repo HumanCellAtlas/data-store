@@ -22,6 +22,7 @@ logger = logging.getLogger(__name__)
 
 project_arn = "arn:aws:clouddirectory:us-east-1:861229788715:"  # TODO move to config.py
 cd_client = aws_clients.clouddirectory
+iam = aws_clients.iam
 
 proj_path = os.path.dirname(__file__)
 
@@ -753,6 +754,37 @@ class CloudDirectory:
             ConsistencyLevel='EVENTUAL'
         )
 
+    def get_health_status(self) -> dict:
+        """
+        Runs a health check on AWS cloud directory and iam policy simulator
+        :return: the status of the services.
+        """
+        health_status = {}
+        try:
+            iam.simulate_custom_policy(
+                PolicyInputList=[json.dumps({
+                    "Version": "2012-10-17",
+                    "Statement": [{
+                        "Sid": "DefaultRole",
+                        "Effect": "Deny",
+                        "Action": ["fake:action"],
+                        "Resource": "fake:resource"
+                    }]})],
+                ActionNames=["fake:action"],
+                ResourceArns=["arn:aws:iam::123456789012:user/Bob"])
+        except Exception:
+            health_status.update(iam_health_status='unhealthy')
+        else:
+            health_status.update(iam_health_status='ok')
+
+        try:
+            self.get_object_information('/')['ResponseMetadata']['HTTPStatusCode']
+        except Exception:
+            health_status.update(clouddirectory_health_status='unhealthy')
+        else:
+            health_status.update(clouddirectory_health_status='ok')
+        return health_status
+
 
 class CloudNode:
     """
@@ -1041,7 +1073,7 @@ class CloudNode:
         Verifies the policy statement is syntactically correct based on AWS's IAM Policy Grammar.
         A fake ActionNames and ResourceArns are used to facilitate the simulation of the policy.
         """
-        iam = aws_clients.iam
+
         try:
             iam.simulate_custom_policy(PolicyInputList=[statement],
                                        ActionNames=["fake:action"],
