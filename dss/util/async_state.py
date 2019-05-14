@@ -21,6 +21,7 @@ class AsyncStateItem:
 
     def __init__(self, key: str, body: dict) -> None:
         self.key = key
+        body = body.copy()
         if not body.get('_type'):
             body['_type'] = type(self).__name__
         self.body = body
@@ -28,9 +29,15 @@ class AsyncStateItem:
     def _put(self) -> typing.Any:
         return put_item(table=self.table, value=json.dumps(self.body), hash_key=self.key)
 
+    @property
+    def data(self):
+        data = self.body.copy()
+        del data['_type']
+        return data
+
     @classmethod
     def put(cls, key: str, body: dict = None) -> typing.Any:
-        item = cls(key, body if body else dict())
+        item = cls(key, body or dict())
         item._put()
         return item
 
