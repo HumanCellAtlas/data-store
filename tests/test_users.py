@@ -211,8 +211,8 @@ class TestUser(unittest.TestCase):
         user.add_roles(role_names)
         user.add_groups(group_names)
         user.statement = self.default_policy
-        user_role_names = [Role(self.directory,None,role).name for role in user.roles]
-        user_group_names = [Group(self.directory,None,group).name for group in user.groups]
+        user_role_names = [Role(self.directory, object_ref=role).name for role in user.roles]
+        user_group_names = [Group(self.directory, object_ref=group).name for group in user.groups]
 
         self.assertListEqual(sorted(user_role_names), ['default_user'] + role_names)
         self.assertEqual(sorted(user_group_names), group_names)

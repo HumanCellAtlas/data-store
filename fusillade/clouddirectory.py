@@ -13,6 +13,8 @@ import functools
 import json
 import typing
 from collections import namedtuple
+from threading import Thread
+from concurrent.futures import Future
 from enum import Enum, auto
 import logging
 
@@ -338,7 +340,7 @@ class CloudDirectory:
                                                AttributeNames=attributes
                                                )
 
-    def get_object_attribute_list(self, facet="UserFacet", **kwargs) -> typing.List[typing.Dict[str, typing.Any]]:
+    def get_object_attribute_list(self, facet="LeafFacet", **kwargs) -> typing.List[typing.Dict[str, typing.Any]]:
         return [dict(Key=dict(SchemaArn=self.schema, FacetName=facet, Name=k), Value=dict(StringValue=v))
                 for k, v in kwargs.items()]
 
@@ -406,8 +408,8 @@ class CloudDirectory:
 
     def create_folder(self, path: str, name: str) -> None:
         """ A folder is just a Group"""
-        schema_facets = [dict(SchemaArn=self.schema, FacetName="BasicFacet")]
-        object_attribute_list = self.get_object_attribute_list(facet="BasicFacet", name=name, obj_type="folder")
+        schema_facets = [dict(SchemaArn=self.schema, FacetName="NodeFacet")]
+        object_attribute_list = self.get_object_attribute_list(facet="NodeFacet", name=name, obj_type="folder")
         try:
             cd_client.create_object(DirectoryArn=self._dir_arn,
                                     SchemaFacets=schema_facets,
@@ -647,17 +649,17 @@ class CloudDirectory:
         }
 
     def batch_attach_typed_link(self,
-                                source_ref: str,
-                                target_ref: str,
+                                parent: str,
+                                child: str,
                                 facet_name: str,
                                 attributes: typing.Dict) -> typing.Dict[str, typing.Any]:
         return {
             'AttachTypedLink': {
                 'SourceObjectReference': {
-                    'Selector': source_ref
+                    'Selector': parent
                 },
                 'TargetObjectReference': {
-                    'Selector': target_ref
+                    'Selector': child
                 },
                 'TypedLinkFacet': {
                     'SchemaArn': self.schema,
@@ -708,12 +710,14 @@ class CloudDirectory:
             )
             for path in response['PolicyToPathList']
         ]
+        return policies_paths
 
+    def get_policies(self, policy_paths: typing.List[str]) -> typing.List[str]:
         # Parse the policyIds from the policies path. Only keep the unique ids
         policy_ids = set(
             [
                 (o['PolicyId'], o['PolicyType'])
-                for p in policies_paths
+                for p in policy_paths
                 for o in p['Policies']
                 if o.get('PolicyId')
             ]
@@ -797,7 +801,7 @@ class CloudNode:
                  object_type: str,
                  name: str = None,
                  object_ref: str = None,
-                 facet="BasicFacet"):
+                 facet="NodeFacet"):
         """
 
         :param cloud_directory:
@@ -852,15 +856,14 @@ class CloudNode:
             for type_link in self.cd.list_incoming_typed_links(self.object_ref, filter_attribute_ranges, 'association')
         ]
 
-    def _add_links(self, links: typing.List[str], link_type: str):
+    def _add_links_batch(self, links: typing.List[str], link_type: str):
         """
         Attaches links to this object in CloudDirectory.
         """
         if not links:
-            return
+            return []
         parent_path = self.cd.get_obj_type_path(link_type)
         batch_attach_object = self.cd.batch_attach_object
-        batch_attach_typed_link = self.cd.batch_attach_typed_link
         operations = []
         for link in links:
             parent_ref = f"{parent_path}{self.hash_name(link)}"
@@ -871,6 +874,19 @@ class CloudNode:
                     self._get_link_name(parent_ref, self.object_ref)
                 )
             )
+        return operations
+
+    def _add_typed_links_batch(self, links: typing.List[str], link_type: str):
+        """
+        Attaches links to this object in CloudDirectory.
+        """
+        if not links:
+            return []
+        parent_path = self.cd.get_obj_type_path(link_type)
+        batch_attach_typed_link = self.cd.batch_attach_typed_link
+        operations = []
+        for link in links:
+            parent_ref = f"{parent_path}{self.hash_name(link)}"
             attributes = {
                 'parent_type': link_type,
                 'child_type': self._object_type,
@@ -883,18 +899,16 @@ class CloudNode:
                     attributes
                 )
             )
-        self.cd.batch_write(operations)
+        return operations
 
-    def _remove_links(self, links: typing.List[str], link_type: str):
+    def _remove_links_batch(self, links: typing.List[str], link_type: str):
         """
         Removes links from this object in CloudDirectory.
         """
         if not links:
-            return
+            return []
         parent_path = self.cd.get_obj_type_path(link_type)
         batch_detach_object = self.cd.batch_detach_object
-        batch_detach_typed_link = self.cd.batch_detach_typed_link
-        make_typed_link_specifier = self.cd.make_typed_link_specifier
         operations = []
         for link in links:
             parent_ref = f"{parent_path}{self.hash_name(link)}"
@@ -904,6 +918,20 @@ class CloudNode:
                     self._get_link_name(parent_ref, self.object_ref)
                 )
             )
+        return operations
+
+    def _remove_typed_links_batch(self, links: typing.List[str], link_type: str):
+        """
+        Removes links from this object in CloudDirectory.
+        """
+        if not links:
+            return []
+        parent_path = self.cd.get_obj_type_path(link_type)
+        batch_detach_typed_link = self.cd.batch_detach_typed_link
+        make_typed_link_specifier = self.cd.make_typed_link_specifier
+        operations = []
+        for link in links:
+            parent_ref = f"{parent_path}{self.hash_name(link)}"
             typed_link_specifier = make_typed_link_specifier(
                 parent_ref,
                 self.object_ref,
@@ -911,10 +939,11 @@ class CloudNode:
                 {'parent_type': link_type, 'child_type': self._object_type}
             )
             operations.append(batch_detach_typed_link(typed_link_specifier))
-        self.cd.batch_write(operations)
+        return operations
 
     def lookup_policies(self) -> typing.List[str]:
-        return self.cd.lookup_policy(self.object_ref)
+        policy_paths = self.cd.lookup_policy(self.object_ref)
+        return self.cd.get_policies(policy_paths)
 
     @property
     def name(self):
@@ -1100,18 +1129,42 @@ class User(CloudNode):
                                    'user',
                                    name=name,
                                    object_ref=object_ref,
-                                   facet='UserFacet')
+                                   facet='LeafFacet')
         self._status = None
         self._groups: typing.Optional[typing.List[str]] = None
         self._roles: typing.Optional[typing.List[str]] = None
 
     def lookup_policies(self) -> typing.List[str]:
         try:
-            policies = self.cd.lookup_policy(self.object_ref)
+            if self.groups:
+                policy_paths = self._lookup_policies_threaded()
+            else:
+                policy_paths = self.cd.lookup_policy(self.object_ref)
         except cd_client.exceptions.ResourceNotFoundException:
             self.provision_user(self.cd, self.name)
-            policies = self.cd.lookup_policy(self.object_ref)
-        return policies
+            policy_paths = self.cd.lookup_policy(self.object_ref)
+        return self.cd.get_policies(policy_paths)
+
+    def _lookup_policies_threaded(self):
+        object_refs = self.groups + [self.object_ref]
+
+        def _call_with_future(fn, _future, args):
+            """
+            Returns the result of the wrapped threaded function.
+            """
+            try:
+                result = fn(*args)
+                _future.set_result(result)
+            except Exception as exc:
+                _future.set_exception(exc)
+
+        futures = []
+        for object_ref in object_refs:
+            future = Future()
+            Thread(target=_call_with_future, args=(self.cd.lookup_policy, future, [object_ref])).start()
+            futures.append(future)
+        results = [i for future in futures for i in future.result()]
+        return results
 
     @property
     def status(self):
@@ -1200,7 +1253,9 @@ class User(CloudNode):
         return self._groups
 
     def add_groups(self, groups: typing.List[str]):
-        self._add_links(groups, 'group')
+        operations = []
+        operations.extend(self._add_typed_links_batch(groups, 'group'))
+        self.cd.batch_write(operations)
         self._groups = None  # update groups
         logger.info(
             json.dumps(
@@ -1209,7 +1264,9 @@ class User(CloudNode):
                      groups=groups)))
 
     def remove_groups(self, groups: typing.List[str]):
-        self._remove_links(groups, 'group')
+        operations = []
+        operations.extend(self._remove_typed_links_batch(groups, 'group'))
+        self.cd.batch_write(operations)
         self._groups = None  # update groups
         logger.info(
             json.dumps(
@@ -1224,7 +1281,10 @@ class User(CloudNode):
         return self._roles
 
     def add_roles(self, roles: typing.List[str]):
-        self._add_links(roles, 'role')
+        operations = []
+        operations.extend(self._add_links_batch(roles, 'role'))
+        operations.extend(self._add_typed_links_batch(roles, 'role'))
+        self.cd.batch_write(operations)
         self._roles = None  # update roles
         logger.info(
             json.dumps(
@@ -1233,7 +1293,10 @@ class User(CloudNode):
                      roles=roles)))
 
     def remove_roles(self, roles: typing.List[str]):
-        self._remove_links(roles, 'role')
+        operations = []
+        operations.extend(self._remove_links_batch(roles, 'role'))
+        operations.extend(self._remove_typed_links_batch(roles, 'role'))
+        self.cd.batch_write(operations)
         self._roles = None  # update roles
         logger.info(
             json.dumps(
@@ -1253,7 +1316,7 @@ class Group(CloudNode):
         :param cloud_directory:
         :param name:
         """
-        super(Group, self).__init__(cloud_directory, 'group', name=name, object_ref=object_ref)
+        super(Group, self).__init__(cloud_directory, 'group', name=name, object_ref=object_ref, facet='LeafFacet')
         self._groups = None
         self._roles = None
 
@@ -1265,7 +1328,7 @@ class Group(CloudNode):
         if not statement:
             statement = get_json_file(default_group_policy_path)
         cls._verify_statement(statement)
-        cloud_directory.create_object(cls.hash_name(name), 'BasicFacet', name=name, obj_type="group")
+        cloud_directory.create_object(cls.hash_name(name), 'LeafFacet', name=name, obj_type="group")
         new_node = cls(cloud_directory, name)
         logger.info(
             json.dumps(
@@ -1279,8 +1342,10 @@ class Group(CloudNode):
         Retrieves the object_refs for all user in this group.
         :return: (user name, user object reference)
         """
-        for link, object_ref in self.cd.list_object_children(self.object_ref):
-            yield User(self.cd, object_ref).name, object_ref
+        filter_attribute_ranges = [
+        ]
+        for type_link in self.cd.list_outgoing_typed_links(self.object_ref, filter_attribute_ranges, 'association'):
+            yield type_link['TargetObjectReference']['Selector']
 
     @property
     def roles(self):
@@ -1289,7 +1354,10 @@ class Group(CloudNode):
         return self._roles
 
     def add_roles(self, roles: typing.List[str]):
-        self._add_links(roles, 'role')
+        operations = []
+        operations.extend(self._add_links_batch(roles, 'role'))
+        operations.extend(self._add_typed_links_batch(roles, 'role'))
+        self.cd.batch_write(operations)
         self._roles = None  # update roles
         logger.info(
             json.dumps(
@@ -1298,7 +1366,10 @@ class Group(CloudNode):
                      roles=roles)))
 
     def remove_roles(self, roles: typing.List[str]):
-        self._remove_links(roles, 'role')
+        operations = []
+        operations.extend(self._remove_links_batch(roles, 'role'))
+        operations.extend(self._remove_typed_links_batch(roles, 'role'))
+        self.cd.batch_write(operations)
         self._roles = None  # update roles
         logger.info(
             json.dumps(
@@ -1309,9 +1380,15 @@ class Group(CloudNode):
     def add_users(self, users: typing.List[User]) -> None:
         if users:
             operations = [
-                self.cd.batch_attach_object(self.object_ref,
-                                            i.object_ref,
-                                            self._get_link_name(self.object_ref, i.object_ref))
+                self.cd.batch_attach_typed_link(
+                    self.object_ref,
+                    i.object_ref,
+                    'association',
+                    {
+                        'parent_type': self._object_type,
+                        'child_type': i._object_type,
+                    }
+                )
                 for i in users]
             self.cd.batch_write(operations)
             logger.info(
@@ -1342,7 +1419,7 @@ class Role(CloudNode):
     """
 
     def __init__(self, cloud_directory: CloudDirectory, name: str = None, object_ref: str = None):
-        super(Role, self).__init__(cloud_directory, 'role', name=name, object_ref=object_ref)
+        super(Role, self).__init__(cloud_directory, 'role', name=name, object_ref=object_ref, facet='NodeFacet')
 
     @classmethod
     def create(cls,
@@ -1353,7 +1430,7 @@ class Role(CloudNode):
             statement = get_json_file(default_role_path)
         cls._verify_statement(statement)
         try:
-            cloud_directory.create_object(cls.hash_name(name), 'BasicFacet', name=name, obj_type='role')
+            cloud_directory.create_object(cls.hash_name(name), 'NodeFacet', name=name, obj_type='role')
         except cd_client.exceptions.LinkNameAlreadyInUseException:
             raise FusilladeHTTPException(status=409, title="Conflict", detail="The object already exists")
         new_node = cls(cloud_directory, name)

@@ -1,7 +1,7 @@
 {
   "sourceSchemaArn": "",
   "facets": {
-    "BasicFacet": {
+    "NodeFacet": {
       "facetAttributes": {
         "name": {
           "attributeDefinition": {
@@ -38,7 +38,7 @@
       },
       "objectType": "NODE"
     },
-    "UserFacet": {
+    "LeafFacet": {
       "facetAttributes": {
         "name": {
           "attributeDefinition": {
@@ -86,7 +86,7 @@
               }
             }
           },
-          "requiredBehavior": "REQUIRED_ALWAYS"
+          "requiredBehavior": "NOT_REQUIRED"
         }
       },
       "objectType": "LEAF_NODE"
