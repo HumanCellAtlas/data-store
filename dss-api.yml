@@ -581,8 +581,9 @@ paths:
                     description: Machine-readable error code.  The types of return values should not be changed lightly.
 
                       The code `missing_checksum` is returned when the file uploaded is missing a required checksum.
+                      The code `invalid_checksum` is returned when a checksum is provided but badly-formed.
 
-                    enum: [missing_checksum]
+                    enum: [missing_checksum, invalid_checksum]
                 required:
                 - code
         500:
