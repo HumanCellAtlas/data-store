@@ -32,7 +32,7 @@ from tests.infra.server import ThreadedLocalServer
 FILE_GET_RETRY_COUNT = 10
 
 
-@testmode.integration
+@testmode.standalone
 class TestFileApi(unittest.TestCase, TestAuthMixin, DSSUploadMixin, DSSAssertMixin):
     @classmethod
     def setUpClass(cls):
@@ -393,17 +393,16 @@ class TestFileApi(unittest.TestCase, TestAuthMixin, DSSUploadMixin, DSSAssertMix
         file_uuid = "ce55fd51-7833-469b-be0b-5da88ebebfcd"
         handle = Config.get_blobstore_handle(replica)
 
-        # TODO variable name
-        native_url = str(UrlBuilder()
-                         .set(path="/v1/files/" + file_uuid)
-                         .add_query("replica", replica.name)
-                         .add_query("directurl", "True"))
-        presigned_url = str(UrlBuilder()
-                            .set(path="/v1/files/" + file_uuid)
-                            .add_query("replica", replica.name))
+        direct_url_req = str(UrlBuilder()
+                             .set(path="/v1/files/" + file_uuid)
+                             .add_query("replica", replica.name)
+                             .add_query("directurl", "True"))
+        presigned_url_req = str(UrlBuilder()
+                                .set(path="/v1/files/" + file_uuid)
+                                .add_query("replica", replica.name))
         with override_bucket_config(BucketConfig.TEST_FIXTURE):
             native_resp_obj = self.assertGetResponse(
-                native_url,
+                direct_url_req,
                 requests.codes.found,
                 headers=get_auth_header(),
                 redirect_follow_retries=FILE_GET_RETRY_COUNT,
@@ -411,7 +410,7 @@ class TestFileApi(unittest.TestCase, TestAuthMixin, DSSUploadMixin, DSSAssertMix
                 override_retry_interval=1,
             )
             resp_obj = self.assertGetResponse(
-                presigned_url,
+                presigned_url_req,
                 requests.codes.found,
                 headers=get_auth_header(),
                 redirect_follow_retries=FILE_GET_RETRY_COUNT,
@@ -421,16 +420,14 @@ class TestFileApi(unittest.TestCase, TestAuthMixin, DSSUploadMixin, DSSAssertMix
 
             verify_headers = ['X-DSS-VERSION', 'X-DSS-CREATOR-UID', 'X-DSS-S3-ETAG', 'X-DSS-SHA256',
                               'X-DSS-SHA1', 'X-DSS-CRC32C']
-            # TODO verify that values are compared
-            native_headers_verify = [x for x in native_resp_obj.response.headers if x in verify_headers]
-            presigned_headers_verify = [x for x in resp_obj.response.headers if x in verify_headers]
-            self.assertListEqual(native_headers_verify, presigned_headers_verify)
+            native_headers_verify = {k: v for k,v in native_resp_obj.response.headers.items() if k in verify_headers}
+            presigned_headers_verify = {k: v for k,v in resp_obj.response.headers.items() if k in verify_headers}
+            self.assertDictEqual(native_headers_verify, presigned_headers_verify)
 
-            handle.get_size(replica.checkout_bucket,)
-            # TODO verify url
-            # TODO cloud blob store sizes get_size()
-            # TODO fallback compare what we think the URL should be to what we got.
-            #
+            blob_path = native_resp_obj.response.headers['Location'].split('/blobs/')[1]
+            native_size = handle.get_size(replica.checkout_bucket,f'blobs/{blob_path}')
+            self.assertGreater(native_size, 0)
+            self.assertEqual(native_size, resp_obj.response.headers['Content-Size'])
 
     def test_file_get_not_found(self):
         """
