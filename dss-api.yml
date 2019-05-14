@@ -365,6 +365,11 @@ paths:
           description: Token to manage retries.  End users constructing queries should not set this parameter.
           required: false
           type: string
+        - name: directurl
+          in: query
+          required: false
+          description: When set to true, the response will contain API-specific URLs that are tied to the specified replica
+          type: boolean
       responses:
         301:
           description: >
@@ -1447,7 +1452,7 @@ paths:
         - name: directurls
           in: query
           description: >
-            Include direct-access URLs in the response.  This is mutually exclusive with the presignedurls parameter.
+            Include API-specific direct-access URLs in the response.  This is mutually exclusive with the presignedurls parameter.
           required: false
           type: boolean
         - name: presignedurls

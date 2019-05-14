@@ -382,6 +382,49 @@ class TestFileApi(unittest.TestCase, TestAuthMixin, DSSUploadMixin, DSSAssertMix
                 return
         self.fail(f"Failed after {FILE_GET_RETRY_COUNT} retries.")
 
+    def test_file_get_direct(self):
+        self._test_file_get_direct(Replica.aws)
+        self._test_file_get_direct(Replica.gcp)
+
+    def _test_file_get_direct(self, replica: Replica):
+        """
+        Verify that the direct URL option works for GET/ file
+        """
+        file_uuid = "ce55fd51-7833-469b-be0b-5da88ebebfcd"
+        handle = Config.get_blobstore_handle(replica)
+
+        native_url = str(UrlBuilder()
+                         .set(path="/v1/files/" + file_uuid)
+                         .add_query("replica", replica.name)
+                         .add_query("directurl", "True"))
+        presigned_url = str(UrlBuilder()
+                            .set(path="/v1/files/" + file_uuid)
+                            .add_query("replica", replica.name))
+        with override_bucket_config(BucketConfig.TEST_FIXTURE):
+            native_resp_obj = self.assertGetResponse(
+                native_url,
+                requests.codes.found,
+                headers=get_auth_header(),
+                redirect_follow_retries=FILE_GET_RETRY_COUNT,
+                min_retry_interval_header=RETRY_AFTER_INTERVAL,
+                override_retry_interval=1,
+            )
+            resp_obj = self.assertGetResponse(
+                presigned_url,
+                requests.codes.found,
+                headers=get_auth_header(),
+                redirect_follow_retries=FILE_GET_RETRY_COUNT,
+                min_retry_interval_header=RETRY_AFTER_INTERVAL,
+                override_retry_interval=1,
+            )
+
+            verify_headers = ['X-DSS-VERSION', 'X-DSS-CREATOR-UID', 'X-DSS-S3-ETAG',  'X-DSS-SHA256',
+                              'X-DSS-SHA1', 'X-DSS-CRC32C']
+            native_headers_verify = [x for x in native_resp_obj.response.headers if x in verify_headers]
+            presigned_headers_verify = [x for x in resp_obj.response.headers if x in verify_headers]
+            self.assertListEqual(native_headers_verify, presigned_headers_verify)
+
+
     def test_file_get_not_found(self):
         """
         Verify that we return the correct error message when the file cannot be found.

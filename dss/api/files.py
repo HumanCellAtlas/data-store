@@ -42,11 +42,11 @@ def head(uuid: str, replica: str, version: str = None, token: str = None):
 
 
 @dss_handler
-def get(uuid: str, replica: str, version: str = None, token: str = None):
-    return get_helper(uuid, Replica[replica], version, token)
+def get(uuid: str, replica: str, version: str = None, token: str = None, directurl: bool = False):
+    return get_helper(uuid, Replica[replica], version, token, directurl)
 
 
-def get_helper(uuid: str, replica: Replica, version: str = None, token: str = None):
+def get_helper(uuid: str, replica: Replica, version: str = None, token: str = None, directurl: bool = False):
     with tracing.Subsegment('parameterization'):
         handle = Config.get_blobstore_handle(replica)
         bucket = replica.bucket
@@ -62,7 +62,7 @@ def get_helper(uuid: str, replica: Replica, version: str = None, token: str = No
 
     if version is None:
         # no matches!
-        raise DSSException(404, "not_found", "Cannot find file!")
+        raise DSSException(404, "not_found", f"Cannot find file! UUID: {uuid} Version: {version}")
 
     # retrieve the file metadata.
     try:
@@ -92,9 +92,16 @@ def get_helper(uuid: str, replica: Replica, version: str = None, token: str = No
     if request.method == "GET":
         token, ready = _verify_checkout(replica, token, file_metadata, blob_path)
         if ready:
-            response = redirect(handle.generate_presigned_GET_url(
-                replica.checkout_bucket,
-                get_dst_key(blob_path)))
+            if directurl:
+                response = redirect(str(UrlBuilder().set(
+                    scheme=replica.storage_schema,
+                    netloc=replica.checkout_bucket,
+                    path=get_dst_key(blob_path)
+                )))
+            else:
+                response = redirect(handle.generate_presigned_GET_url(
+                                    replica.checkout_bucket,
+                                    get_dst_key(blob_path)))
         else:
             with tracing.Subsegment('make_retry'):
                 builder = UrlBuilder(request.url)
