@@ -391,7 +391,9 @@ class TestFileApi(unittest.TestCase, TestAuthMixin, DSSUploadMixin, DSSAssertMix
         Verify that the direct URL option works for GET/ file
         """
         file_uuid = "ce55fd51-7833-469b-be0b-5da88ebebfcd"
+        handle = Config.get_blobstore_handle(replica)
 
+        # TODO variable name
         native_url = str(UrlBuilder()
                          .set(path="/v1/files/" + file_uuid)
                          .add_query("replica", replica.name)
@@ -419,9 +421,16 @@ class TestFileApi(unittest.TestCase, TestAuthMixin, DSSUploadMixin, DSSAssertMix
 
             verify_headers = ['X-DSS-VERSION', 'X-DSS-CREATOR-UID', 'X-DSS-S3-ETAG', 'X-DSS-SHA256',
                               'X-DSS-SHA1', 'X-DSS-CRC32C']
+            # TODO verify that values are compared
             native_headers_verify = [x for x in native_resp_obj.response.headers if x in verify_headers]
             presigned_headers_verify = [x for x in resp_obj.response.headers if x in verify_headers]
             self.assertListEqual(native_headers_verify, presigned_headers_verify)
+
+            handle.get_size(replica.checkout_bucket,)
+            # TODO verify url
+            # TODO cloud blob store sizes get_size()
+            # TODO fallback compare what we think the URL should be to what we got.
+            #
 
     def test_file_get_not_found(self):
         """

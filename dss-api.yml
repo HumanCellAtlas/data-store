@@ -368,7 +368,7 @@ paths:
         - name: directurl
           in: query
           required: false
-          description: When set to true, the response will contain API-specific URLs that are tied to the specified replica
+          description: When set to true, the response will contain API-specific URLs that are tied to the specified replica, for example `gs://bucket/object` or `s3://bucket/object`
           type: boolean
       responses:
         301:
@@ -1452,7 +1452,7 @@ paths:
         - name: directurls
           in: query
           description: >
-            Include API-specific direct-access URLs in the response.  This is mutually exclusive with the presignedurls parameter.
+            When set to true, the response will contain API-specific URLs that are tied to the specified replica, for example `gs://bucket/object` or `s3://bucket/object`. This parameter is mutually exclusive with the presigned urls parameter.
           required: false
           type: boolean
         - name: presignedurls
