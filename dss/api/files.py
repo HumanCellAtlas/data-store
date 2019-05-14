@@ -62,7 +62,7 @@ def get_helper(uuid: str, replica: Replica, version: str = None, token: str = No
 
     if version is None:
         # no matches!
-        raise DSSException(404, "not_found", f"Cannot find file! UUID: {uuid} Version: {version}")
+        raise DSSException(404, "not_found", f"Cannot find file!")
 
     # retrieve the file metadata.
     try:
