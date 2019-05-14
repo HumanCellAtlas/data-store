@@ -77,8 +77,6 @@ DSS_GS_CHECKOUT_BUCKET_PROD=org-humancellatlas-dss-checkout-prod
 DSS_INFRA_TAG_PROJECT=dcp
 DSS_INFRA_TAG_SERVICE=dss
 DSS_INFRA_TAG_OWNER=dss-team@data.humancellatlas.org
-DSS_BLOB_TTL_DAYS=14
-DSS_BLOB_PUBLIC_TTL_DAYS=7
 DSS_NOTIFICATION_SENDER="DSS Notifier <dss.humancellatlas@gmail.com>"
 ADMIN_USER_EMAILS=""
 DCP_DOMAIN=${DSS_DEPLOYMENT_STAGE}.data.humancellatlas.org
@@ -112,6 +110,10 @@ GOOGLE_APPLICATION_SECRETS_SECRETS_NAME="application_secrets.json"
 ES_ALLOWED_SOURCE_IP_SECRETS_NAME="es_source_ip"
 DSS_DEBUG=0
 
+
+# (DSS_BLOB_TTL_DAYS - DSS_BLOB_PUBLIC_TTL_DAYS ) >= DSS_BLOB_PUBLIC_TTL_DAYS
+DSS_BLOB_TTL_DAYS=14
+DSS_BLOB_PUBLIC_TTL_DAYS=7
 
 # `{account_id}`, if present, will be replaced with the account ID associated with the AWS credentials used for
 # deployment. It can be safely omitted.
