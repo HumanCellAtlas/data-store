@@ -8,6 +8,7 @@ import boto3
 from botocore.exceptions import ClientError
 from cloud_blobstore.s3 import S3BlobStore
 from dcplib.s3_multipart import get_s3_multipart_chunk_size
+from dss.config import Replica
 from dss.stepfunctions.lambdaexecutor import TimedThread
 from dss.storage.files import write_file_metadata
 from dss.util import parallel_worker
@@ -75,9 +76,6 @@ def setup_copy_task(event, lambda_context):
     event[_Key.SIZE] = source_size
     event[_Key.PART_SIZE] = part_size
     event[_Key.PART_COUNT] = part_count
-
-    # clear out any previous error state
-    AsyncStateItem.delete(_error_key(event))
 
     return event
 
@@ -232,9 +230,12 @@ def join(event, lambda_context):
                         for part in parts])
     composite_etag = hashlib.md5(bin_md5).hexdigest() + "-" + str(len(parts))
     if composite_etag != state[_Key.SOURCE_ETAG]:
-        raise S3CopyEtagError.put(_error_key(state), "s3-etag mismatch")
+        raise S3CopyEtagError.put(_async_key(state), "s3-etag mismatch")
 
     mpu.complete(MultipartUpload=dict(Parts=parts_list))
+
+    AsyncStateItem.delete(_async_key(event))
+
     return state
 
 
@@ -244,25 +245,30 @@ def fail(event, lambda_context):
         state = event[0]
     else:
         state = event
-    error_key = _error_key(state)
+    error_key = _async_key(state)
     if not AsyncStateError.get(error_key):
         AsyncStateError.put(error_key, state['error'])
     return state
 
 
-def _error_key(event):
+def _async_key(event):
     try:
         file_uuid = event[CopyWriteMetadataKey.FILE_UUID]
         file_version = event[CopyWriteMetadataKey.FILE_VERSION]
-        return f"files/{file_uuid}.{file_version}"
+        key = f"files/{file_uuid}.{file_version}"
     except KeyError:
-        return event[Key.DESTINATION_KEY]
+        key = event[Key.DESTINATION_KEY]
+    return f"{Replica.aws.name}/{key}"
 
 
 def _retry_default(interval=30, attempts=10, backoff_rate=1.618, errors=None):
     if errors is None:
         errors = ["States.Timeout", "States.TaskFailed"]
     return [
+        {
+            "ErrorEquals": ["S3CopyEtagError"],
+            "MaxAttempts": 0,
+        },
         {
             "ErrorEquals": errors,
             "IntervalSeconds": interval,

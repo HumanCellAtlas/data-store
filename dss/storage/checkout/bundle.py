@@ -72,7 +72,6 @@ def verify_checkout(
         replica: Replica,
         bundle_uuid: str,
         bundle_version: typing.Optional[str],
-        token: typing.Optional[str]
 ) -> typing.Tuple[str, bool]:
     """
     Ensures that for a specified bundle either:
@@ -80,13 +79,12 @@ def verify_checkout(
     b) a job processing a bundle checkout exists
 
     This function will first check if a valid checkout exists. Else, it will
-    create or use a supplied checkout job token to process a bundle checkout job.
+    create or use a checkout job token to process a bundle checkout job.
 
     :param replica: Cloud replica
     :param bundle_uuid: Bundle UUID
     :param bundle_version: Bundle version
-    :param token: Token used to track the status of a checkout job.
-    :return: (checkout_job_token, is_checkout_ready)
+    :return: is_checkout_ready
     """
     if _is_checkout_valid(replica, bundle_uuid, bundle_version):
         if _is_checkout_stale(replica, bundle_uuid, bundle_version):
@@ -94,28 +92,27 @@ def verify_checkout(
         return "", True
 
     decoded_token: dict
+
+    async_key = f"{replica.name}/{bundle_uuid}.{bundle_version}"
+    token = AsyncStateItem.get(async_key)
+    if isinstance(token, AsyncStateError):
+        raise token
+
     if token is None:
         execution_id = start_bundle_checkout(replica, bundle_uuid, bundle_version, dst_bucket=replica.checkout_bucket)
 
-        decoded_token = {
+        token = {
             CheckoutTokenKeys.EXECUTION_ID: execution_id,
             CheckoutTokenKeys.START_TIME: time.time(),
             CheckoutTokenKeys.ATTEMPTS: 0,
         }
-    else:
-        try:
-            decoded_token = json.loads(token)
-            execution_id = decoded_token[CheckoutTokenKeys.EXECUTION_ID]
-            decoded_token[CheckoutTokenKeys.ATTEMPTS] += 1
-        except (KeyError, ValueError) as ex:
-            raise TokenError(ex)
+        AsyncStateItem.put(async_key, token)
 
-    encoded_token = json.dumps(decoded_token)
     status = get_bundle_checkout_status(execution_id, replica, replica.checkout_bucket)
     if status['status'] == "SUCCEEDED":
-        return encoded_token, True
+        return True
     elif status['status'] == "RUNNING":
-        return encoded_token, False
+        return False
 
     raise CheckoutError(f"status: {status}")
 

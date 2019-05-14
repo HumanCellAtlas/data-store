@@ -37,16 +37,16 @@ logger = logging.getLogger(__name__)
 
 
 @dss_handler
-def head(uuid: str, replica: str, version: str = None, token: str = None):
-    return get_helper(uuid, Replica[replica], version, token)
+def head(uuid: str, replica: str, version: str = None):
+    return get_helper(uuid, Replica[replica], version)
 
 
 @dss_handler
-def get(uuid: str, replica: str, version: str = None, token: str = None):
-    return get_helper(uuid, Replica[replica], version, token)
+def get(uuid: str, replica: str, version: str = None):
+    return get_helper(uuid, Replica[replica], version)
 
 
-def get_helper(uuid: str, replica: Replica, version: str = None, token: str = None):
+def get_helper(uuid: str, replica: Replica, version: str = None):
     with tracing.Subsegment('parameterization'):
         handle = Config.get_blobstore_handle(replica)
         bucket = replica.bucket
@@ -90,7 +90,7 @@ def get_helper(uuid: str, replica: Replica, version: str = None, token: str = No
         blob_path = compose_blob_key(file_metadata)
 
     if request.method == "GET":
-        token, ready = _verify_checkout(replica, token, file_metadata, blob_path)
+        ready = _verify_checkout(replica, file_metadata, blob_path)
         if ready:
             response = redirect(handle.generate_presigned_GET_url(
                 replica.checkout_bucket,
@@ -98,7 +98,6 @@ def get_helper(uuid: str, replica: Replica, version: str = None, token: str = No
         else:
             with tracing.Subsegment('make_retry'):
                 builder = UrlBuilder(request.url)
-                builder.replace_query("token", token)
                 response = redirect(str(builder), code=301)
                 headers = response.headers
                 headers['Retry-After'] = RETRY_AFTER_INTERVAL
@@ -121,11 +120,21 @@ def get_helper(uuid: str, replica: Replica, version: str = None, token: str = No
     return response
 
 
-def _verify_checkout(
-        replica: Replica, token: typing.Optional[str], file_metadata: dict, blob_path: str,
-) -> typing.Tuple[str, bool]:
+def _verify_checkout(replica: Replica, file_metadata: dict, blob_path: str,) -> typing.Tuple[str, bool]:
     cloud_handle = Config.get_blobstore_handle(replica)
     hca_handle = Config.get_hcablobstore_handle(replica)
+
+    # Lookup existing checkout job. token is an exception if checkout failed
+    async_key = f"{replica.name}/{blob_path}"
+    token = AsyncStateItem.get(async_key)
+    if isinstance(token, S3CopyEtagError):
+        raise DSSException(
+            requests.codes.unprocessable,
+            "missing_checksum",
+            "Incorrect s3-etag"
+        )
+    elif isinstance(token, AsyncStateError):
+        raise token
 
     try:
         now = datetime.datetime.now(datetime.timezone.utc)
@@ -141,33 +150,27 @@ def _verify_checkout(
             if hca_handle.verify_blob_checksum_from_dss_metadata(replica.checkout_bucket,
                                                                  blob_path,
                                                                  file_metadata):
-                return "", True
+                return True
             else:
                 logger.error(
                     f"Checksum verification failed for file {replica.checkout_bucket}/{blob_path}")
     except BlobNotFoundError:
         pass
 
-    decoded_token: dict
+    token: dict
     if token is None:
         execution_id = start_file_checkout(replica, blob_path)
         start_time = time.time()
         attempts = 0
 
-        decoded_token = {
+        token = {
             CheckoutTokenKeys.EXECUTION_ID: execution_id,
             CheckoutTokenKeys.START_TIME: start_time,
             CheckoutTokenKeys.ATTEMPTS: attempts
         }
-    else:
-        try:
-            decoded_token = json.loads(token)
-            decoded_token[CheckoutTokenKeys.ATTEMPTS] += 1
-        except (KeyError, ValueError) as ex:
-            raise DSSException(requests.codes.bad_request, "illegal_token", "Could not understand token", ex)
+        AsyncStateItem.put(async_key, token)
 
-    encoded_token = json.dumps(decoded_token)
-    return encoded_token, False
+    return False
 
 
 @dss_handler

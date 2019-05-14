@@ -41,7 +41,6 @@ def get(
         version: str = None,
         directurls: bool = False,
         presignedurls: bool = False,
-        token: str = None,
         start_at: int = 0,
 ):
     if directurls and presignedurls:
@@ -57,14 +56,11 @@ def get(
 
     if directurls or presignedurls:
         try:
-            token, ready = verify_checkout(_replica, uuid, version, token)
-        except TokenError as ex:
-            raise DSSException(requests.codes.bad_request, "illegal_token", "Could not understand token", ex)
+            ready = verify_checkout(_replica, uuid, version)
         except CheckoutError as ex:
             raise DSSException(requests.codes.server_error, "checkout_error", "Could not complete checkout", ex)
         if not ready:
             builder = UrlBuilder(request.url)
-            builder.replace_query("token", token)
             response = redirect(str(builder), code=requests.codes.moved)
             headers = response.headers
             headers['Retry-After'] = RETRY_AFTER_INTERVAL
@@ -77,7 +73,6 @@ def get(
         next_url = UrlBuilder(request.url)
         next_url.replace_query("start_at", str(start_at + per_page))
         next_url.replace_query("version", version)
-        next_url.replace_query("token", token)
         link = f"<{next_url}>; rel='next'"
 
     files = all_files[start_at:start_at + per_page]

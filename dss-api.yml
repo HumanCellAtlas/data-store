@@ -360,11 +360,6 @@ paths:
           description: Timestamp of file creation in DSS_VERSION format.  If this is not provided, the latest version is returned.
           required: false
           type: string
-        - name: token
-          in: query
-          description: Token to manage retries.  End users constructing queries should not set this parameter.
-          required: false
-          type: string
       responses:
         301:
           description: >
@@ -410,22 +405,6 @@ paths:
               description: SHA-256 (in hex format) of the file contents in hex.
               type: string
               pattern: "^[a-z0-9]{64}$"
-        400:
-          description: Bad request
-          schema:
-            allOf:
-              - $ref: '#/definitions/Error'
-              - type: object
-                properties:
-                  code:
-                    type: string
-                    description: >
-                      Machine-readable error code.  The types of return values should not be changed lightly.
-
-                      The code `illegal_token` is returned when the token parameter cannot be understood.
-                    enum: [illegal_token]
-                required:
-                  - code
         500:
           $ref: '#/responses/ServerError'
         502:
@@ -1526,12 +1505,10 @@ paths:
                       match the requirements in the specification.
 
 
-                      The code `illegal_token` is returned when the token parameter cannot be understood.
-
 
                       The code `only_one_urltype` is returned when more than one url type (`directurls` and
                       `presignedurls`) is requested.
-                    enum: [illegal_arguments, illegal_token, only_one_urltype]
+                    enum: [illegal_arguments, only_one_urltype]
                 required:
                   - code
         500:
