@@ -427,7 +427,7 @@ class TestFileApi(unittest.TestCase, TestAuthMixin, DSSUploadMixin, DSSAssertMix
             blob_path = native_resp_obj.response.headers['Location'].split('/blobs/')[1]
             native_size = handle.get_size(replica.checkout_bucket, f'blobs/{blob_path}')
             self.assertGreater(native_size, 0)
-            self.assertEqual(native_size, resp_obj.response.headers['Content-Size'])
+            self.assertEqual(native_size, int(resp_obj.response.headers['X-DSS-SIZE']))
 
     def test_file_get_not_found(self):
         """
