@@ -26,6 +26,7 @@ Config.set_config(dss.BucketConfig.NORMAL)
 
 
 DEPLOYMENT = os.environ['DSS_DEPLOYMENT_STAGE']
+DEPLOYMENT = "prod"
 
 
 @functools.lru_cache()
@@ -202,9 +203,10 @@ def integration_subscriptions_conversion():
     # )
 
 if __name__ == "__main__":
-    for hit in get(doc_type="subscription"):
-        if hit['owner'].startswith("b"):
-            print(json.dumps(hit.to_dict(), indent=2))
+    print_subscription_owners()
+    # for hit in get(doc_type="subscription"):
+    #     if hit['owner'].startswith("b"):
+    #         print(json.dumps(hit.to_dict(), indent=2))
     # integration_subscriptions_conversion()
     # find_bundles_with_jmespath_filter_green_2()
     # find_bundles_with_jmespath_filter_orange_1()
