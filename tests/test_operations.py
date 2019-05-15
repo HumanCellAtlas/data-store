@@ -5,9 +5,13 @@ import io
 import os
 import sys
 import uuid
+import json
+import argparse
 import unittest
 from collections import namedtuple
 from unittest import mock
+
+from cloud_blobstore import BlobNotFoundError
 
 pkg_root = os.path.abspath(os.path.join(os.path.dirname(__file__), '..'))  # noqa
 sys.path.insert(0, pkg_root)  # noqa
@@ -16,9 +20,10 @@ import dss
 from tests.infra import testmode
 from dss.operations import DSSOperationsCommandDispatch
 from dss.operations.util import map_bucket_results, CommandForwarder
-from dss.operations.storage import update_aws_content_type, update_gcp_content_type
+from dss.operations import storage
 from dss.logging import configure_test_logging
 from dss.config import BucketConfig, Config, Replica, override_bucket_config
+from dss.storage.hcablobstore import FileMetadata, compose_blob_key
 
 def setUpModule():
     configure_test_logging()
@@ -99,13 +104,48 @@ class TestOperations(unittest.TestCase):
         self.assertEqual(batches[1], [str(i) for i in range(10, 20)])
         self.assertEqual(batches[2], [str(i) for i in range(20, 21)])
 
+    def test_repair_blob_metadata(self):
+        uploader = {Replica.aws: self._put_s3_file, Replica.gcp: self._put_gs_file}
+        with override_bucket_config(BucketConfig.TEST):
+            for replica in Replica:
+                handle = Config.get_blobstore_handle(replica)
+                key = str(uuid.uuid4())
+                file_metadata = {
+                    FileMetadata.SHA256: "foo",
+                    FileMetadata.SHA1: "foo",
+                    FileMetadata.S3_ETAG: "foo",
+                    FileMetadata.CRC32C: "foo",
+                    FileMetadata.CONTENT_TYPE: "foo"
+                }
+                blob_key = compose_blob_key(file_metadata)
+                uploader[replica](key, json.dumps(file_metadata).encode("utf-8"), "application/json")
+                uploader[replica](blob_key, b"123", "bar")
+                args = argparse.Namespace(keys=[key], entity_type="files", job_id="", replica=replica.name)
+
+                with self.subTest("Blob content type repaired", replica=replica):
+                    storage.repair_blob_content_type([], args).process_key(key)
+                    self.assertEqual(handle.get_content_type(replica.bucket, blob_key),
+                                     file_metadata[FileMetadata.CONTENT_TYPE])
+
+                with self.subTest("Should handle missing file metadata", replica=replica):
+                    storage.repair_blob_content_type([], args).process_key("wrong key")
+
+                with self.subTest("Should handle missing blob", replica=replica):
+                    file_metadata[FileMetadata.SHA256] = "wrong"
+                    uploader[replica](key, json.dumps(file_metadata).encode("utf-8"), "application/json")
+                    storage.repair_blob_content_type([], args).process_key(key)
+
+                with self.subTest("Should handle corrupt file metadata", replica=replica):
+                    uploader[replica](key, b"this is not json", "application/json")
+                    storage.repair_blob_content_type([], args).process_key(key)
+
     def test_update_content_type(self):
         TestCase = namedtuple("TestCase", "replica upload update initial_content_type expected_content_type")
         with override_bucket_config(BucketConfig.TEST):
             key = f"operations/{uuid.uuid4()}"
             tests = [
-                TestCase(Replica.aws, self._put_s3_file, update_aws_content_type, "a", "b"),
-                TestCase(Replica.gcp, self._put_gs_file, update_gcp_content_type, "a", "b")
+                TestCase(Replica.aws, self._put_s3_file, storage.update_aws_content_type, "a", "b"),
+                TestCase(Replica.gcp, self._put_gs_file, storage.update_gcp_content_type, "a", "b")
             ]
             data = b"foo"
             for test in tests:

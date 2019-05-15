@@ -133,16 +133,18 @@ class repair_blob_content_type(StorageOperationHandler):
     def process_key(self, key):
         try:
             file_metadata = json.loads(self.handle.get(self.replica.bucket, key))
-        except BlobNotFoundError:
-            self.log_warning(BlobNotFoundError.__name__, dict(key=key))
-        blob_key = compose_blob_key(file_metadata)
-        blob_content_type = self.handle.get_content_type(self.replica.bucket, blob_key)
-        client = Config.get_native_handle(self.replica)
-        if blob_content_type != file_metadata['content-type']:
-            if Replica.aws == self.replica:
-                update_aws_content_type(client, self.replica.bucket, blob_key, file_metadata['content-type'])
-            elif Replica.gcp == self.replica:
-                update_gcp_content_type(client, self.replica.bucket, blob_key, file_metadata['content-type'])
+            blob_key = compose_blob_key(file_metadata)
+            blob_content_type = self.handle.get_content_type(self.replica.bucket, blob_key)
+            client = Config.get_native_handle(self.replica)
+            if blob_content_type != file_metadata['content-type']:
+                if Replica.aws == self.replica:
+                    update_aws_content_type(client, self.replica.bucket, blob_key, file_metadata['content-type'])
+                elif Replica.gcp == self.replica:
+                    update_gcp_content_type(client, self.replica.bucket, blob_key, file_metadata['content-type'])
+        except BlobNotFoundError as e:
+            self.log_warning(BlobNotFoundError.__name__, dict(error=str(e)))
+        except json.decoder.JSONDecodeError as e:
+            self.log_warning(json.decoder.JSONDecodeError.__name__, dict(error=str(e)))
 
 @storage.action("verify-referential-integrity",
                 mutually_exclusive=["--entity-type", "--keys"])
