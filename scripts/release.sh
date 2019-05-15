@@ -38,9 +38,8 @@ if [[ $# != 2 ]]; then
     echo "this script checks the continuous integration status of the source branch,"
     echo "creates a Git tag, resets the head of the destination branch to the head"
     echo "of the source branch, and pushes the results to the Git remote."
-    echo "If .travis.yml contains no deploy directives for the destination branch,"
-    echo 'then this script runs "make deploy" after sourcing "environment.{DEST}",'
-    echo "where DEST is the destination branch."
+    echo 'If an "environment.{DEST}" file is found in the repo (where DEST is the'
+    echo 'destination branch), then this script runs "make deploy" after sourcing it.'
     echo
     echo "If the --force flag is given, deployment will proceed even if CI checks fail."
     echo

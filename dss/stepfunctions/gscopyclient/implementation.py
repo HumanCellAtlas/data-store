@@ -67,8 +67,7 @@ def copy_worker(event, lambda_context):
             # or storage type changes (Google) used to mark cached objects.
             will_cache = should_cache_file(content_type, self.size)
             if not will_cache:
-                logger.info("Not caching %s with content-type %s size %s",
-                            self.source_key, content_type, self.size)
+                logger.info("Not caching %s with content-type %s size %s", self.source_key, content_type, self.size)
 
             # TODO: DURABLE_REDUCED_AVAILABILITY is being phased out by Google; use a different method in the future
             if not will_cache and is_dss_bucket(self.destination_bucket):

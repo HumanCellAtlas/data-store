@@ -12,6 +12,6 @@ from dss.util import tracing
 
 
 configure_lambda_logging()
-app = domovoi.Domovoi(configure_logs=False)
 
+app = domovoi.Domovoi(configure_logs=False)
 app.register_state_machine(s3copyclient.sfn)
