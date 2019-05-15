@@ -83,6 +83,12 @@ def dss_handler(func):
             stacktrace = ""
             headers = {'Retry-After': 600}
 
+        if status in (requests.codes.server_error,         # 500 status code
+                      requests.codes.bad_gateway,          # 502 status code
+                      requests.codes.service_unavailable,  # 503 status code
+                      requests.codes.gateway_timeout):     # 504 status code
+            headers = {'Retry-After': 10}
+
         return ConnexionResponse(
             status_code=status,
             mimetype="application/problem+json",
