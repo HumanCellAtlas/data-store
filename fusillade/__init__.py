@@ -1,7 +1,7 @@
 from .errors import FusilladeException, FusilladeBindingException
 from .config import Config
 from .clouddirectory import User, Group, Role, CloudDirectory
-
+from fusillade import logging
 
 '''
 system config:

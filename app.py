@@ -8,8 +8,10 @@ from chalice import Response as chalice_response
 pkg_root = os.path.abspath(os.path.join(os.path.dirname(__file__), 'chalicelib'))
 sys.path.insert(0, pkg_root)  # noqa
 
-from fusillade import Config
+from fusillade import Config, logging
 from fusillade.api import FusilladeServer
+
+logging.configure_lambda_logging()
 
 with open(os.path.join(pkg_root, "service_config.json")) as fh:
     service_config = yaml.BaseLoader(fh.read())

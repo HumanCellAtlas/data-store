@@ -1,5 +1,5 @@
 import collections
-import logging
+import json
 import os
 import re
 
@@ -10,6 +10,7 @@ from connexion import FlaskApp
 from connexion.resolver import RestyResolver
 
 from fusillade import Config
+from fusillade import logging
 
 
 class ChaliceWithConnexion(chalice.Chalice):
@@ -78,13 +79,16 @@ class ChaliceWithConnexion(chalice.Chalice):
         # TODO figure out of host should be os.environ["API_DOMAIN_NAME"]
 
         self.log.info(
-            """[request] "%s %s" %s %s "%s" %s""",
-            method,
-            path,
-            context['identity']['sourceIp'],
-            cr.headers.get('content-length', '-'),
-            cr.headers.get('user-agent'),
-            str(query_params) if query_params is not None else '',
+            {
+                "request": {
+                    'method': method,
+                    'path': path,
+                    'sourceIp': context['identity']['sourceIp'],
+                    'content-length': cr.headers.get('content-length', '-'),
+                    'user-agent': cr.headers.get('user-agent'),
+                    'query-params': str(query_params) if query_params is not None else ''
+                }
+            }
         )
         with self.connexion_request_context(path=path,
                                             base_url=os.environ["API_DOMAIN_NAME"],
@@ -96,16 +100,19 @@ class ChaliceWithConnexion(chalice.Chalice):
             try:
                 flask_res = self.connexion_full_dispatch_request()
                 status_code = flask_res._status_code
-            except Exception:
-                self.log.exception('The request failed!')
+            except Exception as ex:
+                self.log.exception(json.dumps(dict(
+                    msg='The request failed!',
+                    exception=ex
+                )))
             finally:
-                self.log.info(
-                    "[dispatch] \"%s %s\" %s%s",
-                    method,
-                    path,
-                    str(status_code),
-                    ' ' + str(query_params) if query_params is not None else '',
-                )
+                self.log.info(dict(
+                    dispatch=dict(
+                        method=method,
+                        path=path,
+                        status_code=status_code,
+                        query_params=' ' + str(query_params) if query_params is not None else ''
+                    )))
         res_headers = dict(flask_res.headers)
         res_headers.update(
             {"X-AWS-REQUEST-ID": self.lambda_context.aws_request_id,
@@ -117,25 +124,9 @@ class ChaliceWithConnexion(chalice.Chalice):
 
 
 class ChaliceWithLoggingConfig(chalice.Chalice):
-    """
-    Subclasses Chalice to configure all Python loggers to our liking.
-    """
-    silence_debug_loggers = ["botocore"]
-
     def __init__(self, *args, **kwargs):
-        super().__init__(*args, **kwargs)
-        logging.basicConfig()
-        if Config.debug_level() == 0:
-            self.debug = False
-            logging.root.setLevel(logging.WARN)
-        elif Config.debug_level() == 1:
-            self.debug = True
-            logging.root.setLevel(logging.INFO)
-        elif Config.debug_level() > 1:
-            self.debug = True
-            logging.root.setLevel(logging.DEBUG)
-            for logger_name in self.silence_debug_loggers:
-                logging.getLogger(logger_name).setLevel(logging.INFO)
+        super().__init__(*args, configure_logs=False, **kwargs)
+        self.debug = logging.is_debug()
 
 
 class FusilladeServer(ChaliceWithConnexion, ChaliceWithLoggingConfig):

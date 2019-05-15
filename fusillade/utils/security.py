@@ -2,7 +2,6 @@
 """
 Used by connexion to verify the JWT in Authorization header of the request.
 """
-import json
 import functools, base64, typing
 
 import requests
@@ -80,7 +79,7 @@ def verify_jwt(token: str) -> typing.Optional[typing.Mapping]:
     try:
         unverified_token = jwt.decode(token, verify=False)
     except jwt.DecodeError:
-        logger.debug('{"msg": "Failed to decode token."}', exc_info=True)
+        logger.debug({"msg": "Failed to decode token."}, exc_info=True)
         raise FusilladeHTTPException(401, 'Unauthorized', 'Failed to decode token.')
 
     issuer = unverified_token['iss']
@@ -94,8 +93,8 @@ def verify_jwt(token: str) -> typing.Optional[typing.Mapping]:
                                   audience=Config.get_audience(),
                                   algorithms=allowed_algorithms,
                                   )
-        logger.debug("""{"msg": "Token Validated"}""")
+        logger.debug({"message": "Token Validated"})
     except jwt.PyJWTError as ex:  # type: ignore
-        logger.debug("""{"msg": "Failed to validate token."}""", exc_info=True)
+        logger.debug({"message": "Failed to validate token."}, exc_info=True)
         raise FusilladeHTTPException(401, 'Unauthorized', 'Authorization token is invalid') from ex
     return verified_tok

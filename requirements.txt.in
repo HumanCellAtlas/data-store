@@ -11,3 +11,4 @@ requests >= 2.21.0
 connexion[swagger-ui]
 dcplib
 pyyaml
+python-json-logger

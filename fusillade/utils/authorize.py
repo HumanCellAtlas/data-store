@@ -17,7 +17,7 @@ def evaluate_policy(
         resources: typing.List[str],
         policies: typing.List[str],
 ) -> bool:
-    logger.debug(json.dumps(policies))
+    logger.debug(dict(policies=policies))
     response = iam.simulate_custom_policy(
         PolicyInputList=policies,
         ActionNames=actions,
@@ -44,8 +44,8 @@ def assert_authorized(user, actions, resources):
     u = User(directory, user)
     policies = u.lookup_policies()
     if not evaluate_policy(user, actions, resources, policies):
-        logger.info(
-            json.dumps(dict(msg="User not authorized.", user=u._path_name, action=actions, resources=resources)))
+        logger.info(dict(message="User not authorized.", user=u._path_name, action=actions, resources=resources))
         raise FusilladeForbiddenException()
     else:
-        logger.info(json.dumps(dict(msg="User authorized.", user=u._path_name, action=actions, resources=resources)))
+        logger.info(dict(message="User authorized.", user=u._path_name, action=actions,
+                         resources=resources))
