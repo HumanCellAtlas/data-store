@@ -47,8 +47,13 @@ function upload() {
 	# if this docker fails with `pull access denied` your credentials might be expired, perform a `docker logout`
 	docker pull humancellatlas/dss-lambda-layer
 	echo "downloading requirements to ${dependency_dir}"
+	# this command can get simplifed to remove `mv`, the issue is inconsistent `pip install -t` https://github.com/googleapis/google-cloud-python/issues/3806
 	docker run -v "${DSS_HOME}":/mnt humancellatlas/dss-lambda-layer /bin/bash -c \
-	"cd /mnt/ ; python3 -m pip -q --no-cache-dir install --target=${docker_download_path} -r requirements.txt"
+	"cd /mnt/ ; python3 -m virtualenv tempvenv; source tempvenv/bin/activate; \
+	 python3 -m pip -q --no-cache-dir install -r requirements.txt; \
+	 mkdir -p ${docker_download_path}; mv tempvenv/lib/python3.6/site-packages/* ${docker_download_path}; \
+	 deactivate; \
+	 rm -rf tempvenv"
 	if [[ ! -d $dependency_dir ]]
 	then
 		echo "was not able to download directories from docker image"
