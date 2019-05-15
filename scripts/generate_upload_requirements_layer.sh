@@ -17,6 +17,7 @@ fi
 
 
 build_path="$DSS_HOME/dependencies/python/lib/python3.6/site-packages"
+docker_download_path="/mnt/dependencies/python/lib/python3.6/site-packages"
 dependency_dir="$DSS_HOME/dependencies"
 aws_req_key=$DSS_DEPLOYMENT_STAGE/requirements.txt
 aws_zip_key=$DSS_DEPLOYMENT_STAGE/dss-dependencies-$DSS_DEPLOYMENT_STAGE.zip
@@ -42,8 +43,18 @@ fi
 }
 
 function upload() {
-    echo "downloading requirements to ${dependency_dir}"
-    pip -q --no-cache-dir install --target=${build_path} -r $local_req # target looks like site-package
+
+	# if this docker fails with `pull access denied` your credentials might be expired, perform a `docker logout`
+	docker pull humancellatlas/dss-lambda-layer
+	echo "downloading requirements to ${dependency_dir}"
+	docker run -v "${DSS_HOME}":/mnt humancellatlas/dss-lambda-layer /bin/bash -c \
+	"cd /mnt/ ; python3 -m pip -q --no-cache-dir install --target=${docker_download_path} -r requirements.txt"
+	if [[ ! -d $dependency_dir ]]
+	then
+		echo "was not able to download directories from docker image"
+		exit 1
+	fi
+     # target looks like site-package
     echo "compressing......"
     cd ${dependency_dir}
     zip -qq -r -o $local_zip *
