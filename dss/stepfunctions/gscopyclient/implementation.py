@@ -141,7 +141,7 @@ def _sfn():
                 "Catch": _catch_default(),
                 "Next": "TestFinished",
             },
-            f"TestFinished": {
+            "TestFinished": {
                 "Type": "Choice",
                 "Choices": [{
                     "Variable": "$.finished",
@@ -193,7 +193,6 @@ def write_metadata(event, lambda_context):
 copy_write_metadata_sfn = _sfn()
 
 # tweak to add one more state.
-# del copy_write_metadata_sfn['States']['Copy']['End']
 copy_write_metadata_sfn['States']['TestFinished']['Choices'][0]['Next'] = "WriteMetadata"
 copy_write_metadata_sfn['States']['WriteMetadata'] = {
     "Type": "Task",
