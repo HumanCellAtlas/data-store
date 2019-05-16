@@ -62,7 +62,7 @@ function upload() {
      # target looks like site-package
     echo "compressing......"
     cd ${dependency_dir}
-    zip -qq -r -o $local_zip *
+    zip -qq -r -o $local_zip .
     cd ..
     echo "uploading zip to ${populated_dss_tf_backend} for stage: ${DSS_DEPLOYMENT_STAGE}"
     aws s3 cp $local_zip s3://${populated_dss_tf_backend}/$aws_zip_key
