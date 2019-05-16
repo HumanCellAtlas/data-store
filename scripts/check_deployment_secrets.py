@@ -60,8 +60,8 @@ class SecretsChecker(object):
         self.email = [f'{self.service_account}@human-cell-atlas-travis-test.iam.gserviceaccount.com']
         self.project = ['human-cell-atlas-travis-test']
         self.type = ['service_account']
-        self.auth_uri = ['https://auth.data.humancellatlas.org/authorize',
-                         'https://auth.dev.data.humancellatlas.org/authorize']
+        self.auth_uri = ['https://auth.data.humancellatlas.org/oauth/authorize',
+                         'https://auth.dev.data.humancellatlas.org/oauth/authorize']
         self.token_uri = ['https://auth.data.humancellatlas.org/oauth/token',
                           'https://auth.dev.data.humancellatlas.org/oauth/token']
 
