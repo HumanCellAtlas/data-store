@@ -4,7 +4,7 @@ info:
   description: |
     Human Cell Atlas Data Coordination Platform Fusillade app demo
 
-    Log in: [Auth0](/login?state=ABC&redirect_uri=https://$API_DOMAIN_NAME/echo)
+    Log in: [Auth0](/login?state=ABC&redirect_uri=https://$API_DOMAIN_NAME/internal/echo)
 
     OIDC spec https://openid.net/specs/openid-connect-core-1_0.html#toc
   version: "0.0.1"

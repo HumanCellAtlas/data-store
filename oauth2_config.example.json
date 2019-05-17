@@ -7,6 +7,6 @@
   "example.auth0.com": {
     "client_id": "the_client_id",
     "client_secret": "super_secret_2",
-    "redirect_uri": "https://auth.example2.com/cb"
+    "redirect_uri": "https://auth.example2.com/internal/cb"
   }
 }
