@@ -44,6 +44,12 @@ fi
 
 export DEPLOY_ORIGIN="$(whoami)-$(hostname)-$(git describe --tags --always)-$(date -u +'%Y-%m-%d-%H-%M-%S').deploy"
 cat "$config_json" | jq .stages.$stage.tags.DSS_DEPLOY_ORIGIN=env.DEPLOY_ORIGIN | sponge "$config_json"
+cat "$config_json" | jq .stages.$stage.tags.Name=${DSS_INFRA_TAG_PROJECT}-${DSS_DEPLOYMENT_STAGE}-${DSS_INFRA_TAG_SERVICE} | sponge "$config_json"
+cat "$config_json" | jq .stages.$stage.tags.project=${DSS_INFRA_TAG_PROJECT} | sponge "$config_json"
+cat "$config_json" | jq .stages.$stage.tags.env=${DSS_DEPLOYMENT_STAGE} | sponge "$config_json"
+cat "$config_json" | jq .stages.$stage.tags.service=${DSS_INFRA_TAG_SERVICE} | sponge "$config_json"
+cat "$config_json" | jq .stages.$stage.tags.owner=${DSS_INFRA_TAG_OWNER} | sponge "$config_json"
+
 
 env_json=$(aws ssm get-parameter --name /dcp/dss/${DSS_DEPLOYMENT_STAGE}/environment | jq -r .Parameter.Value)
 for var in $(echo $env_json | jq -r keys[]); do
