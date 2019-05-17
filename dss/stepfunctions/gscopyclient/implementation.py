@@ -72,7 +72,7 @@ def copy_worker(event, lambda_context):
             # TODO: DURABLE_REDUCED_AVAILABILITY is being phased out by Google; use a different method in the future
             if not will_cache and is_dss_bucket(self.destination_bucket):
                 # the DURABLE_REDUCED_AVAILABILITY storage class marks (short-lived) non-cached files
-                dst_blob._patch_property('storageClass', 'DURABLE_REDUCED_AVAILABILITY')
+                dst_blob._patch_property('storageClass', 'STANDARD')
                 # setting the storage class explicitly seems like it blanks the content-type, so we add it back
                 dst_blob._patch_property('contentType', content_type)
 
