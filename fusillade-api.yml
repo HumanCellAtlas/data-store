@@ -103,36 +103,30 @@ paths:
       summary: This endpoint is part of OIDC and is used to redirect to an openid provider
         see https://openid.net/specs/openid-connect-core-1_0.html#TokenEndpoint
       operationId: fusillade.api.oauth.serve_oauth_token
-      parameters:
-        - in: query
-          name: redirect_uri
-          description: where to redirect to once login is complete
-          required: true
-          schema:
-            type: object
-        - in: query
-          name: state
-          description: an opaque paramater that is returned back to the redirect_uri
-          schema:
-            type: string
-        - in: query
-          name: code
-          description: the code used to retrive an access token from OIDC authentication flow.
-          schema:
-            type: string
-        - in: query
-          name: grant_type
-          description: the type of grant requested.
-          schema:
-            type: string
-        - in: query
-          name: client_id
-          schema:
-            type: string
-        - in: query
-          name: client_secret
-          schema:
-            type: string
+      requestBody:
+        content:
+          application/x-www-form-urlencoded:
+            schema:
+              type: object
+              properties:
+                redirect_uri:
+                  description: where to redirect to once login is complete
+                  type: string
+                code:
+                  description: the code used to retrive an access token from OIDC authentication flow.
+                  type: string
+                grant_type:
+                  description: the type of grant requested.
+                  type: string
+                client_id:
+                  type: string
+                client_secret:
+                  type: string
+                refresh_token:
+                  type: string
+                scope:
+                  type: string
+
       tags:
         - oauth
       responses:

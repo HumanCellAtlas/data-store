@@ -2,6 +2,7 @@ import collections
 import json
 import os
 import re
+import typing
 
 import chalice
 import requests
@@ -22,6 +23,7 @@ class ChaliceWithConnexion(chalice.Chalice):
         super().__init__(*args, **kwargs)
         self.swagger_spec_path = swagger_spec_path
         self.swagger_internal_spec_path = swagger_internal_spec_path
+        self.connexion_apis = []
         self.connexion_app = self.create_connexion_app()
         self.connexion_full_dispatch_request = self.connexion_app.app.full_dispatch_request
         self.connexion_request_context = self.connexion_app.app.test_request_context
@@ -32,9 +34,33 @@ class ChaliceWithConnexion(chalice.Chalice):
             stripped_route = route.rstrip("/")
             if route.endswith("/"):
                 self.trailing_slash_routes.append(stripped_route)
-            routes[stripped_route] += rule.methods
-        for route, methods in routes.items():
-            self.route(route, methods=list(set(methods) - {"OPTIONS"}), cors=True)(self.dispatch)
+            route = routes.get(stripped_route, dict(methods=set(), content_types=[]))
+            route['methods'] |= rule.methods
+            route['content_types'].extend(self._get_content_types(rule))
+            routes[stripped_route] = route
+        for route, args in routes.items():
+            self.route(route,
+                       methods=list(set(args['methods']) - {"OPTIONS"}),
+                       cors=True,
+                       content_types=args['content_types'])(self.dispatch)
+
+    def _get_content_types(self, rule) -> typing.List[str]:
+        content_types = []
+        methods = {}
+        for api in self.connexion_apis:
+            try:
+                methods = api.specification.raw['paths'][rule.rule]
+            except KeyError:
+                continue
+            else:
+                # There shouldn't be duplicates across the APIs so take the first hit.
+                break
+        for method in methods.values():
+            try:
+                content_types = [content for content in method["requestBody"]['content'].keys()]
+            except KeyError:
+                return content_types
+        return content_types
 
     def create_connexion_app(self):
         app = FlaskApp('fusillade')
@@ -48,12 +74,12 @@ class ChaliceWithConnexion(chalice.Chalice):
         app.app.logger.info('Flask debug is %s.', 'enabled' if debug else 'disabled')
 
         resolver = RestyResolver("fusillade.api", collection_endpoint_name="list")
-        app.add_api(self.swagger_spec_path,
-                    resolver=resolver,
-                    validate_responses=True,
-                    arguments=os.environ,
-                    options={"swagger_path": self.swagger_spec_path})
-        app.add_api(self.swagger_internal_spec_path, validate_responses=True)
+        self.connexion_apis.append(app.add_api(self.swagger_spec_path,
+                                               resolver=resolver,
+                                               validate_responses=True,
+                                               arguments=os.environ,
+                                               options={"swagger_path": self.swagger_spec_path}))
+        self.connexion_apis.append(app.add_api(self.swagger_internal_spec_path, validate_responses=True))
         return app
 
     def dispatch(self, *args, **kwargs):

@@ -154,8 +154,8 @@ class TestAuthentication(unittest.TestCase):
         # TODO: login
         # TODO: get token
         with self.subTest("token denied when no query params provided."):
-            resp = self.app.post('/oauth/token')
-            self.assertEqual(400, resp.status_code)  # TODO fix
+            resp = self.app.post('/oauth/token', headers={'Content-Type': "application/x-www-form-urlencoded"})
+            self.assertEqual(401, resp.status_code)  # TODO fix
 
     def test_cb(self):
         resp = self.app.get('/internal/cb')
