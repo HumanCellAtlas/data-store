@@ -60,7 +60,7 @@ def copy_worker(event, lambda_context):
             state = self.get_state_copy()
             src_blob = self.gcp_client.bucket(self.source_bucket).get_blob(self.source_key)
             dst_blob = self.gcp_client.bucket(self.destination_bucket).blob(self.destination_key)
-            content_type = src_blob._get_content_type(None)
+            content_type = src_blob.content_type or "application/octet-stream"
 
             # Files can be checked out to a user bucket or the standard dss checkout bucket.
             # If a user bucket, files should be unmodified by either the object tagging (AWS)
