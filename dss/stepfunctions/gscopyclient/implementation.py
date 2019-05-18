@@ -69,7 +69,6 @@ def copy_worker(event, lambda_context):
             if not will_cache:
                 logger.info("Not caching %s with content-type %s size %s", self.source_key, content_type, self.size)
 
-            # TODO: STANDARD is being phased out by Google; use a different method in the future
             if not will_cache and is_dss_bucket(self.destination_bucket):
                 # the STANDARD storage class marks (short-lived) non-cached files
                 dst_blob._patch_property('storageClass', 'STANDARD')
