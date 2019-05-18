@@ -60,6 +60,7 @@ def copy_worker(event, lambda_context):
             state = self.get_state_copy()
             src_blob = self.gcp_client.bucket(self.source_bucket).get_blob(self.source_key)
             dst_blob = self.gcp_client.bucket(self.destination_bucket).blob(self.destination_key)
+            src_blob.reload()
             content_type = src_blob.content_type
 
             # Files can be checked out to a user bucket or the standard dss checkout bucket.
