@@ -63,8 +63,7 @@ def copy_worker(event, lambda_context):
 
             # get content-type
             gs_blobstore = GSBlobStore.from_environment()
-            blobinfo = gs_blobstore.get_all_metadata(self.source_bucket, self.source_key)
-            content_type = blobinfo['ContentType']
+            content_type = gs_blobstore.get_content_type(self.source_bucket, self.source_key)
 
             # Files can be checked out to a user bucket or the standard dss checkout bucket.
             # If a user bucket, files should be unmodified by either the object tagging (AWS)
