@@ -10,7 +10,6 @@ fi
 export stage=$DSS_DEPLOYMENT_STAGE
 export dss_infra_tag_project=${DSS_INFRA_TAG_PROJECT}
 export dss_infra_tag_service=${DSS_INFRA_TAG_SERVICE}
-export dss_infra_tag_env=${DSS_DEPLOYMENT_STAGE}
 export dss_infra_tag_owner=${DSS_INFRA_TAG_OWNER}
 export dss_infra_tag_name=${DSS_INFRA_TAG_PROJECT}-${DSS_DEPLOYMENT_STAGE}-${DSS_INFRA_TAG_SERVICE}
 
@@ -30,7 +29,6 @@ if ! aws es describe-elasticsearch-domain --domain-name $dss_es_domain; then
 fi
 
 cat "$config_json" | jq ".stages.$stage.api_gateway_stage=env.stage" | sponge "$config_json"
-
 export lambda_arn=$(aws lambda list-functions | jq -r '.Functions[] | select(.FunctionName==env.lambda_name) | .FunctionArn')
 if [[ -z $lambda_arn ]]; then
     echo "Lambda function $lambda_name not found, resetting Chalice config"
@@ -48,12 +46,11 @@ else
            .$stage.lambda_functions = {}" > "$deployed_json"
 fi
 
-tags='{"env":"'"$dss_infra_tag_env"'","Name":"'"$dss_infra_tag_name"'","service":"'"$dss_infra_tag_service"'",
-			"owner":"'"$dss_infra_tag_owner"'","project":"'"$dss_infra_tag_project"'"}'
 export DEPLOY_ORIGIN="$(whoami)-$(hostname)-$(git describe --tags --always)-$(date -u +'%Y-%m-%d-%H-%M-%S').deploy"
-echo ${tags}
-cat "$config_json" | jq --argjson my_tags ${tags} '.stages.dev.tags=$my_tags' | sponge "$config_json"
-cat "$config_json" | jq .stages.$stage.tags.DSS_DEPLOY_ORIGIN=env.DEPLOY_ORIGIN | sponge "$config_json"
+cat "$config_json" | jq ".stages.$stage.tags.DSS_DEPLOY_ORIGIN=env.DEPLOY_ORIGIN | \
+	.stages.$stage.tags.Name=env.dss_infra_tag_name |  .stages.$stage.tags.project=env.dss_infra_tag_project | \
+	.stages.$stage.tags.env=env.dss_infra_tag_stage | .stages.$stage.tags.service=env.dss_infra_tag_service  | \
+	.stages.$stage.tags.owner=env.dss_infra_tag_owner" | sponge "$config_json"
 
 env_json=$(aws ssm get-parameter --name /dcp/dss/${DSS_DEPLOYMENT_STAGE}/environment | jq -r .Parameter.Value)
 for var in $(echo $env_json | jq -r keys[]); do
