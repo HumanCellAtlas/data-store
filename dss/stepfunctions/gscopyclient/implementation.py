@@ -1,11 +1,11 @@
 import logging
+from cloud_blobstore.gs import GSBlobStore
 
 from dss import Config, Replica
 from dss.stepfunctions.lambdaexecutor import TimedThread
 from dss.storage.files import write_file_metadata
 from dss.util.async_state import AsyncStateError
 from dss.storage.checkout.cache_flow import should_cache_file, is_dss_bucket
-from dss.storage.hcablobstore import FileMetadata
 
 logger = logging.getLogger(__name__)
 
@@ -60,7 +60,11 @@ def copy_worker(event, lambda_context):
             state = self.get_state_copy()
             src_blob = self.gcp_client.bucket(self.source_bucket).get_blob(self.source_key)
             dst_blob = self.gcp_client.bucket(self.destination_bucket).blob(self.destination_key)
-            content_type = src_blob.content_type
+
+            # get content-type
+            gs_blobstore = GSBlobStore.from_environment()
+            blobinfo = gs_blobstore.get_all_metadata(self.source_bucket, self.source_key)
+            content_type = blobinfo['ContentType']
 
             # Files can be checked out to a user bucket or the standard dss checkout bucket.
             # If a user bucket, files should be unmodified by either the object tagging (AWS)
