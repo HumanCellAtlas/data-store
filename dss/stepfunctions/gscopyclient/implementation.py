@@ -69,9 +69,9 @@ def copy_worker(event, lambda_context):
             if not will_cache:
                 logger.info("Not caching %s with content-type %s size %s", self.source_key, content_type, self.size)
 
-            # TODO: DURABLE_REDUCED_AVAILABILITY is being phased out by Google; use a different method in the future
+            # TODO: STANDARD is being phased out by Google; use a different method in the future
             if not will_cache and is_dss_bucket(self.destination_bucket):
-                # the DURABLE_REDUCED_AVAILABILITY storage class marks (short-lived) non-cached files
+                # the STANDARD storage class marks (short-lived) non-cached files
                 dst_blob._patch_property('storageClass', 'STANDARD')
                 # setting the storage class explicitly seems like it blanks the content-type, so we add it back
                 dst_blob._patch_property('contentType', content_type)
