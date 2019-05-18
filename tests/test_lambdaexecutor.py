@@ -58,7 +58,7 @@ class TestLambdaExecutor(unittest.TestCase):
 
     @testmode.standalone
     def test_exception(self):
-        """Test that we save the final state that `run()` returns."""
+        """Test that worker exceptions are exposed to caller"""
         class MyException(Exception):
             pass
 
