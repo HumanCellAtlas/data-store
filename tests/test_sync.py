@@ -278,7 +278,9 @@ class TestSyncDaemon(unittest.TestCase, DSSSyncMixin):
             test_key = "{}/s3-to-gs/{}".format(self.test_blob_prefix, uuid.uuid4())
             src_blob = self.s3_bucket.Object(test_key)
             gs_dest_blob = self.gs_bucket.blob(test_key)
-            src_blob.put(Body=payload, Metadata=test_metadata, ContentType="binary/octet-stream; dss-s3-to-gs-sync-test")
+            src_blob.put(Body=payload,
+                         Metadata=test_metadata,
+                         ContentType="binary/octet-stream; dss-s3-to-gs-sync-test")
 
             @eventually(timeout=60, interval=1, errors={Exception})
             def check_gs_dest():
