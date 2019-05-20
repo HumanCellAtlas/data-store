@@ -4,6 +4,7 @@
 import os
 import sys
 import uuid
+import time
 import unittest
 
 pkg_root = os.path.abspath(os.path.join(os.path.dirname(__file__), '..'))  # noqa
@@ -32,7 +33,12 @@ class TestAsyncState(unittest.TestCase):
         put_item = AsyncStateItem.put(key, {'message': msg})
 
         # test get item
-        item = AsyncStateItem.get(key)
+        for _ in range(3):
+            item = AsyncStateItem.get(key)
+            if item is not None:
+                break
+            else:
+                time.sleep(1)
         self.assertEqual(item.body['message'], put_item.body['message'])
 
         # test delete item
