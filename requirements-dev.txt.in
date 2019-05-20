@@ -5,4 +5,5 @@ google_auth_oauthlib
 coverage
 sphinx
 flake8
+semver
 -r requirements.txt

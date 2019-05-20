@@ -32,6 +32,10 @@ FUS_TERRAFORM_BACKEND_BUCKET_TEMPLATE=terraform-tsmith
 FUS_ADMIN_EMAILS=test_email@domain.com
 DEBUG=0
 AWS_SDK_LOAD_CONFIG=1 # Needed for Terraform to correctly use AWS assumed roles
+
+GITHUB_TOKEN_PATH=None
+# Used for publishing releases.
+
 set +a
 
 if [[ -f "${FUS_HOME}/environment.local" ]]; then
