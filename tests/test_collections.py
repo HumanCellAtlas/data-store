@@ -33,7 +33,7 @@ from dss.dynamodb import DynamoDBItemNotFound
 logger = logging.getLogger(__name__)
 
 
-# @testmode.integration
+@testmode.integration
 class TestCollections(unittest.TestCase, DSSAssertMixin, DSSUploadMixin):
     @classmethod
     def setUpClass(cls):
