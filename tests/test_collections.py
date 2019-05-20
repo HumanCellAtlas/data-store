@@ -33,7 +33,7 @@ from dss.dynamodb import DynamoDBItemNotFound
 logger = logging.getLogger(__name__)
 
 
-@testmode.integration
+# @testmode.integration
 class TestCollections(unittest.TestCase, DSSAssertMixin, DSSUploadMixin):
     @classmethod
     def setUpClass(cls):
@@ -47,7 +47,7 @@ class TestCollections(unittest.TestCase, DSSAssertMixin, DSSUploadMixin):
         cls.contents = [cls.col_file_item] * 8 + [cls.col_ptr_item] * 8
         cls.uuid, cls.version = cls._put(cls, cls.contents)
         cls.invalid_ptr = dict(type="foo", uuid=cls.file_uuid, version=cls.file_version, fragment="/xyz")
-        cls.replicas = ('aws', )  # only necessary to test in AWS
+        cls.paging_test_replicas = ('aws', )  # only necessary to test in AWS
 
         with open(os.environ['GOOGLE_APPLICATION_CREDENTIALS'], "r") as fh:
             cls.owner_email = json.loads(fh.read())['client_email']
