@@ -47,7 +47,7 @@ class TestCollections(unittest.TestCase, DSSAssertMixin, DSSUploadMixin):
         cls.contents = [cls.col_file_item] * 8 + [cls.col_ptr_item] * 8
         cls.uuid, cls.version = cls._put(cls, cls.contents)
         cls.invalid_ptr = dict(type="foo", uuid=cls.file_uuid, version=cls.file_version, fragment="/xyz")
-        cls.replicas = ('aws', 'gcp')
+        cls.replicas = ('aws', )  # only necessary to test in AWS
 
         with open(os.environ['GOOGLE_APPLICATION_CREDENTIALS'], "r") as fh:
             cls.owner_email = json.loads(fh.read())['client_email']
@@ -129,7 +129,6 @@ class TestCollections(unittest.TestCase, DSSAssertMixin, DSSUploadMixin):
 
     def test_collection_paging(self):
         min_page = 10
-        time.sleep(4)  # wait for collection replicas to sync
         self.create_temp_user_collections(num=min_page + 1)  # guarantee at least one paging response
         codes = {requests.codes.ok, requests.codes.partial}
         for replica in self.replicas:
