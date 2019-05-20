@@ -129,6 +129,7 @@ class TestCollections(unittest.TestCase, DSSAssertMixin, DSSUploadMixin):
 
     def test_collection_paging(self):
         min_page = 10
+        time.sleep(4)  # wait for collection replicas to sync
         self.create_temp_user_collections(num=min_page + 1)  # guarantee at least one paging response
         codes = {requests.codes.ok, requests.codes.partial}
         for replica in self.replicas:
@@ -453,7 +454,7 @@ class TestCollections(unittest.TestCase, DSSAssertMixin, DSSUploadMixin):
                 except requests.exceptions.HTTPError as e:
                     if time.time() >= timeout_time or res.status_code != requests.codes.unprocessable:
                         raise
-                    logger.debug("Error in PUT /collection/uuid: %s.\nRetrying after %s s...", e, interval)
+                    logger.warning("Error in PUT /collection/uuid: %s.\nRetrying after %s s...", e, interval)
                     time.sleep(interval)
 
         res = retriable_put(authorized=authorized, params=params, contents=contents)
