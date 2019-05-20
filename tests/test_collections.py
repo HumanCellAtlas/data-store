@@ -87,11 +87,11 @@ class TestCollections(unittest.TestCase, DSSAssertMixin, DSSUploadMixin):
         resp_obj.raise_for_status()
         return file_uuid, resp_obj.json()["version"]
 
-    def create_temp_user_collections(self, num: int):
+    def create_temp_user_collections(self, num: int, replica: str):
         contents = [self.col_file_item, self.col_ptr_item]
         for i in range(num):
-            uuid, _ = self._put(contents, wait_for_sync=True)
-            self.addCleanup(self._delete_collection, uuid)
+            uuid, _ = self._put(contents, replica=replica)
+            self.addCleanup(self._delete_collection, uuid, replica)
 
     def fetch_collection_paging_response(self, codes, replica: str, per_page: int):
         """
@@ -128,9 +128,9 @@ class TestCollections(unittest.TestCase, DSSAssertMixin, DSSUploadMixin):
 
     def test_collection_paging(self):
         min_page = 10
-        self.create_temp_user_collections(num=min_page + 1)  # guarantee at least one paging response
         codes = {requests.codes.ok, requests.codes.partial}
         for replica in self.paging_test_replicas:
+            self.create_temp_user_collections(num=min_page + 1, replica=replica)  # guarantee at least 1 paging response
             for per_page in [min_page, 100, 500]:
                 with self.subTest(replica=replica, per_page=per_page):
                     paging_response = self.fetch_collection_paging_response(codes=codes,
@@ -423,27 +423,11 @@ class TestCollections(unittest.TestCase, DSSAssertMixin, DSSUploadMixin):
                                params=dict(replica="aws"))
             self.assertEqual(res.status_code, requests.codes.not_found)
 
-    def _wait_for_synced_collection_to_appear(self, replica, version, uuid, timeout=60, interval=2):
-        timeout_time = time.time() + timeout
-        sync_check_res = dict()
-        params = dict()
-        params['replica'] = replica
-        params['version'] = version
-        while 'contents' not in sync_check_res:
-            sync_check_res = self.app.get(f'/v1/collections/{uuid}',
-                                          headers=get_auth_header(authorized=True),
-                                          params=params).json()
-            if time.time() >= timeout_time:
-                raise RuntimeError(f'Syncing collection {uuid}.{version} took too long for this test ({timeout}s): '
-                                   f'{sync_check_res}')
-            time.sleep(interval)
-
     def _put(self, contents: typing.List,
              authorized: bool = True,
              uuid: typing.Optional[str] = None,
              version: typing.Optional[str] = None,
-             replica: str = 'aws',
-             wait_for_sync: bool = False) -> typing.Tuple[str, str]:
+             replica: str = 'aws') -> typing.Tuple[str, str]:
         uuid = str(uuid4()) if uuid is None else uuid
         version = datetime_to_version_format(datetime.now()) if version is None else version
 
@@ -459,10 +443,6 @@ class TestCollections(unittest.TestCase, DSSAssertMixin, DSSUploadMixin):
                            headers=get_auth_header(authorized=authorized),
                            params=params,
                            json=dict(name="n", description="d", details={}, contents=contents))
-
-        if wait_for_sync:
-            replica = 'gcp' if replica == 'aws' else 'aws'
-            self._wait_for_synced_collection_to_appear(replica, version, uuid)
 
         return res.json()["uuid"], res.json()["version"]
 
