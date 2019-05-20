@@ -47,7 +47,7 @@ class TestCollections(unittest.TestCase, DSSAssertMixin, DSSUploadMixin):
         cls.contents = [cls.col_file_item] * 8 + [cls.col_ptr_item] * 8
         cls.uuid, cls.version = cls._put(cls, cls.contents)
         cls.invalid_ptr = dict(type="foo", uuid=cls.file_uuid, version=cls.file_version, fragment="/xyz")
-        cls.paging_test_replicas = ('aws', )  # only necessary to test in AWS
+        cls.paging_test_replicas = ('aws', 'gcp')
 
         with open(os.environ['GOOGLE_APPLICATION_CREDENTIALS'], "r") as fh:
             cls.owner_email = json.loads(fh.read())['client_email']
@@ -89,10 +89,9 @@ class TestCollections(unittest.TestCase, DSSAssertMixin, DSSUploadMixin):
 
     def create_temp_user_collections(self, num: int):
         contents = [self.col_file_item, self.col_ptr_item]
-        for replica in self.replicas:
-            for i in range(num):
-                uuid, _ = self._put(contents, replica=replica)
-                self.addCleanup(self._delete_collection, uuid, replica)
+        for i in range(num):
+            uuid, _ = self._put(contents, wait_for_sync=True)
+            self.addCleanup(self._delete_collection, uuid)
 
     def fetch_collection_paging_response(self, codes, replica: str, per_page: int):
         """
@@ -131,7 +130,7 @@ class TestCollections(unittest.TestCase, DSSAssertMixin, DSSUploadMixin):
         min_page = 10
         self.create_temp_user_collections(num=min_page + 1)  # guarantee at least one paging response
         codes = {requests.codes.ok, requests.codes.partial}
-        for replica in self.replicas:
+        for replica in self.paging_test_replicas:
             for per_page in [min_page, 100, 500]:
                 with self.subTest(replica=replica, per_page=per_page):
                     paging_response = self.fetch_collection_paging_response(codes=codes,
@@ -193,13 +192,13 @@ class TestCollections(unittest.TestCase, DSSAssertMixin, DSSUploadMixin):
 
     def test_collection_paging_too_small(self):
         """Should NOT be able to use a too-small per_page."""
-        for replica in self.replicas:
+        for replica in self.paging_test_replicas:
             with self.subTest(replica):
                 self.fetch_collection_paging_response(replica=replica, per_page=9, codes=requests.codes.bad_request)
 
     def test_collection_paging_too_large(self):
         """Should NOT be able to use a too-large per_page."""
-        for replica in self.replicas:
+        for replica in self.paging_test_replicas:
             with self.subTest(replica):
                 self.fetch_collection_paging_response(replica=replica, per_page=501, codes=requests.codes.bad_request)
 
@@ -424,11 +423,27 @@ class TestCollections(unittest.TestCase, DSSAssertMixin, DSSUploadMixin):
                                params=dict(replica="aws"))
             self.assertEqual(res.status_code, requests.codes.not_found)
 
+    def _wait_for_synced_collection_to_appear(self, replica, version, uuid, timeout=60, interval=2):
+        timeout_time = time.time() + timeout
+        sync_check_res = dict()
+        params = dict()
+        params['replica'] = replica
+        params['version'] = version
+        while 'contents' not in sync_check_res:
+            sync_check_res = self.app.get(f'/v1/collections/{uuid}',
+                                          headers=get_auth_header(authorized=True),
+                                          params=params).json()
+            if time.time() >= timeout_time:
+                raise RuntimeError(f'Syncing collection {uuid}.{version} took too long for this test ({timeout}s): '
+                                   f'{sync_check_res}')
+            time.sleep(interval)
+
     def _put(self, contents: typing.List,
              authorized: bool = True,
              uuid: typing.Optional[str] = None,
              version: typing.Optional[str] = None,
-             replica: str = 'aws') -> typing.Tuple[str, str]:
+             replica: str = 'aws',
+             wait_for_sync: bool = False) -> typing.Tuple[str, str]:
         uuid = str(uuid4()) if uuid is None else uuid
         version = datetime_to_version_format(datetime.now()) if version is None else version
 
@@ -440,23 +455,14 @@ class TestCollections(unittest.TestCase, DSSAssertMixin, DSSUploadMixin):
         if replica != 'missing':
             params['replica'] = replica
 
-        def retriable_put(authorized, params, contents, timeout=40, interval=2):
-            timeout_time = time.time() + timeout
-            while True:
-                res = self.app.put("/v1/collections",
-                                   headers=get_auth_header(authorized=authorized),
-                                   params=params,
-                                   json=dict(name="n", description="d", details={}, contents=contents))
-                try:
-                    res.raise_for_status()
-                    return res
-                except requests.exceptions.HTTPError as e:
-                    if time.time() >= timeout_time or res.status_code != requests.codes.unprocessable:
-                        raise
-                    logger.warning("Error in PUT /collection/uuid: %s.\nRetrying after %s s...", e, interval)
-                    time.sleep(interval)
+        res = self.app.put("/v1/collections",
+                           headers=get_auth_header(authorized=authorized),
+                           params=params,
+                           json=dict(name="n", description="d", details={}, contents=contents))
 
-        res = retriable_put(authorized=authorized, params=params, contents=contents)
+        if wait_for_sync:
+            replica = 'gcp' if replica == 'aws' else 'aws'
+            self._wait_for_synced_collection_to_appear(replica, version, uuid)
 
         return res.json()["uuid"], res.json()["version"]
 
