@@ -619,7 +619,7 @@ class TestFileApi(unittest.TestCase, TestAuthMixin, DSSUploadMixin, DSSAssertMix
             ).decode("utf-8"))
         file_key = compose_blob_key(file_metadata)
 
-        @eventually(10, 1)
+        @eventually(20, 1)
         def test_checkout():
             # assert 302 and verify checksum on checkout completion
             api_get = self.assertGetResponse(
@@ -645,7 +645,7 @@ class TestFileApi(unittest.TestCase, TestAuthMixin, DSSUploadMixin, DSSAssertMix
             test_checkout()
 
         with self.subTest(f"{replica}: Initiates checkout and returns 302 immediately for GET on stale checkout file."):
-            @eventually(10, 1)
+            @eventually(20, 1)
             def test_creation_date_updated(key, prev_creation_date):
                 self.assertTrue(prev_creation_date < handle.get_creation_date(replica.checkout_bucket, key))
 
