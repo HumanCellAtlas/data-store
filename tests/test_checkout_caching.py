@@ -134,7 +134,7 @@ class TestCheckoutCaching(unittest.TestCase, DSSAssertMixin, DSSUploadMixin):
 
     @mock.patch("dss.stepfunctions.gscopyclient.implementation.is_dss_bucket")
     @testmode.standalone
-    def test_google_uncached_checkout_creates_durable_storage_type(self, mock_check):
+    def test_google_uncached_checkout_creates_standard_storage_type(self, mock_check):
         """
         Verifies object level tagging of short-lived files.
         Verifies that short-lived Google cached objects are of the STANDARD type.
