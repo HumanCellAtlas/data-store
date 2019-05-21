@@ -22,6 +22,7 @@ os.environ["FUSILLADE_DIR"] = directory_name
 
 
 from tests.common import get_auth_header, service_accounts, create_test_statement
+from tests.data import TEST_NAMES_NEG, TEST_NAMES_POS
 import fusillade
 from fusillade import directory, User
 from fusillade.clouddirectory import cleanup_directory, Role
@@ -42,23 +43,6 @@ def tearDownModule():
 
 
 class TestRoleApi(unittest.TestCase):
-    test_postive_names = [
-        ('helloworl12345', "alpha numerica characters"),
-         ('hello@world.com', "email format") ,
-        ('hello-world=_@.,ZDc', "special characters"),
-        ('HellOWoRLd', "different cases"),
-        ('ABCDEF0123456789ABCDEF0123456789ABCDEF0123456789ABCDEF0123456789'
-        'ABCDEF0123456789ABCDEF0123456789ABCDEF0123456789ABCDEF0123456789', "== 128 characters"),
-        ("1", "one character")
-                          ]
-    test_negative_names = [
-        ("&^#$Hello", "illegal characters 1"),
-        ("! <>?world", "illegal characters 2"),
-        ('ABCDEF0123456789ABCDEF0123456789ABCDEF0123456789ABCDEF0123456789'
-        'ABCDEF0123456789ABCDEF0123456789ABCDEF0123456789ABCDEF01234567890', "> 128 characters"),
-        ('', "empty")
-    ]
-
     @classmethod
     def setUpClass(cls):
         cls.app = ChaliceTestHarness()
@@ -185,7 +169,7 @@ class TestRoleApi(unittest.TestCase):
                 }),
                 'headers': admin_auth_header,
                 'expected_resp': 201
-            } for name, description in self.test_postive_names
+            } for name, description in TEST_NAMES_POS
         ])
         tests.extend([
             {
@@ -196,7 +180,7 @@ class TestRoleApi(unittest.TestCase):
                 }),
                 'headers': admin_auth_header,
                 'expected_resp': 400
-            } for name, description in self.test_negative_names
+            } for name, description in TEST_NAMES_NEG
         ])
         for test in tests:
             with self.subTest(test['name']):
@@ -246,7 +230,7 @@ class TestRoleApi(unittest.TestCase):
                 'role_id': role_id,
                 'headers': admin_auth_header,
                 'expected_resp': 200
-            } for name, description in self.test_postive_names
+            } for name, description in TEST_NAMES_POS
         ])
         tests.extend([
             {
@@ -254,11 +238,11 @@ class TestRoleApi(unittest.TestCase):
                 'role_id': role_id,
                 'headers': admin_auth_header,
                 'expected_resp': 400
-            } for role_id, description in self.test_negative_names if role_id is not ''
+            } for role_id, description in TEST_NAMES_NEG if role_id is not ''
         ])
         policy = create_test_statement("test_role")
         Role.create(directory, role_id, policy)
-        [Role.create(directory, role_id, policy) for role_id, _ in self.test_postive_names]
+        [Role.create(directory, role_id, policy) for role_id, _ in TEST_NAMES_POS]
         for test in tests:
             with self.subTest(test['name']):
                 url = furl('/v1/roles/{}'.format(test['role_id']))

@@ -22,6 +22,7 @@ os.environ["FUSILLADE_DIR"] = directory_name
 
 
 from tests.common import get_auth_header, service_accounts, create_test_statement
+from tests.data import TEST_NAMES_NEG, TEST_NAMES_POS
 import fusillade
 from fusillade import directory, User
 from fusillade.clouddirectory import cleanup_directory, User, Group, Role
@@ -41,21 +42,6 @@ def tearDownModule():
 
 
 class TestGroupApi(unittest.TestCase):
-    test_postive_names = [('helloworl12345', "alpha numerica characters"),
-         ('hello@world.com', "email format") ,
-        ('hello-world=_@.,ZDc', "special characters"),
-        ('HellOWoRLd', "different cases"),
-        ('ABCDEF0123456789ABCDEF0123456789ABCDEF0123456789ABCDEF0123456789'
-        'ABCDEF0123456789ABCDEF0123456789ABCDEF0123456789ABCDEF0123456789', "== 128 characters"),
-        ("1", "one character")]
-    test_negative_names = [
-        ("&^#$Hello", "illegal characters 1"),
-        ("! <>?world", "illegal characters 2"),
-        ('ABCDEF0123456789ABCDEF0123456789ABCDEF0123456789ABCDEF0123456789'
-        'ABCDEF0123456789ABCDEF0123456789ABCDEF0123456789ABCDEF01234567890', "> 128 characters"),
-        ('', "empty")
-    ]
-
     @classmethod
     def setUpClass(cls):
         cls.app = ChaliceTestHarness()
@@ -136,7 +122,7 @@ class TestGroupApi(unittest.TestCase):
             'response': {
                 'code': 201
             }
-        } for name, description in self.test_postive_names
+        } for name, description in TEST_NAMES_POS
         ])
         tests.extend([{
             'name': f'400 returned when creating a role when name is {description}',
@@ -146,7 +132,7 @@ class TestGroupApi(unittest.TestCase):
             'response': {
                 'code': 400
             }
-        } for name, description in self.test_negative_names
+        } for name, description in TEST_NAMES_NEG
         ])
         for test in tests:
             with self.subTest(test['name']):
