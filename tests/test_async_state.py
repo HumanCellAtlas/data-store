@@ -30,10 +30,12 @@ class TestAsyncState(unittest.TestCase):
 
         # insert item
         put_item = AsyncStateItem.put(key, {'message': msg})
+        self.assertEqual(put_item.data, {'message': msg})
 
         # test get item
         item = AsyncStateItem.get(key)
         self.assertEqual(item.body['message'], put_item.body['message'])
+        self.assertEqual(item.data, {'message': msg})
 
         # test delete item
         item.delete_item()
