@@ -119,7 +119,7 @@ class TestUserApi(unittest.TestCase):
                 }
             },
             {
-                'name': f'201 returned when creating a user without username',
+                'name': f'400 returned when creating a user without username',
                 'json_request_body': {
                     "groups": [Group.create(directory, "group_05").name],
                     "roles": [Role.create(directory, "role_05").name],
@@ -130,7 +130,7 @@ class TestUserApi(unittest.TestCase):
                 }
             },
             {
-                'name': f'400 returned when creating a user that already exists',
+                'name': f'500 returned when creating a user that already exists',
                 'json_request_body': {
                     "user_id": "test_put_user4@email.com"
                 },
@@ -163,7 +163,7 @@ class TestUserApi(unittest.TestCase):
             with self.subTest(test['name']):
                 headers={'Content-Type': "application/json"}
                 headers.update(get_auth_header(service_accounts['admin']))
-                if test['name']=="400 returned when creating a user that already exists":
+                if test['name']=="500 returned when creating a user that already exists":
                     self.app.put('/v1/users', headers=headers, data=json.dumps(test['json_request_body']))
                 resp = self.app.put('/v1/users', headers=headers, data=json.dumps(test['json_request_body']))
                 self.assertEqual(test['response']['code'], resp.status_code)

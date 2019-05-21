@@ -5,7 +5,7 @@ from fusillade import directory, Group
 
 def put_new_group():
     json_body = request.json
-    group = Group.create(directory, json_body['name'], statement=json_body.get('policy'))
+    group = Group.create(directory, json_body['group_id'], statement=json_body.get('policy'))
     group.add_roles(json_body.get('roles', []))  # Determine what response to return if roles don't exist
     return make_response("", 201)
 
