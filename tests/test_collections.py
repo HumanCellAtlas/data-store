@@ -7,7 +7,6 @@ import unittest
 import io
 import json
 import boto3
-import time
 import logging
 
 from uuid import uuid4
@@ -16,6 +15,7 @@ from requests.utils import parse_header_links
 from botocore.vendored import requests
 from dcplib.s3_multipart import get_s3_multipart_chunk_size
 from urllib.parse import parse_qsl, urlsplit
+from google.cloud import storage as gs_storage
 
 pkg_root = os.path.abspath(os.path.join(os.path.dirname(__file__), '..'))  # noqa
 sys.path.insert(0, pkg_root)  # noqa
@@ -33,23 +33,27 @@ from dss.dynamodb import DynamoDBItemNotFound
 logger = logging.getLogger(__name__)
 
 
-@testmode.integration
+# @testmode.integration
 class TestCollections(unittest.TestCase, DSSAssertMixin, DSSUploadMixin):
     @classmethod
     def setUpClass(cls):
         cls.app = ThreadedLocalServer()
         cls.app.start()
 
-        cls.file_uuid, cls.file_version = cls.upload_file(cls.app, {"foo": 1})
-        cls.col_file_item = dict(type="file", uuid=cls.file_uuid, version=cls.file_version)
-        cls.col_ptr_item = dict(type="foo", uuid=cls.file_uuid, version=cls.file_version, fragment="/foo")
+        cls.s3_file_uuid, cls.s3_file_version = cls.upload_file(cls.app, {"foo": 1}, replica='aws')
+        cls.s3_col_file_item = dict(type="file", uuid=cls.s3_file_uuid, version=cls.s3_file_version)
+        cls.s3_col_ptr_item = dict(type="foo", uuid=cls.s3_file_uuid, version=cls.s3_file_version, fragment="/foo")
 
-        cls.contents = [cls.col_file_item] * 8 + [cls.col_ptr_item] * 8
+        cls.gs_file_uuid, cls.gs_file_version = cls.upload_file(cls.app, {"foo": 1}, replica='gcp')
+        cls.gs_col_file_item = dict(type="file", uuid=cls.gs_file_uuid, version=cls.gs_file_version)
+        cls.gs_col_ptr_item = dict(type="foo", uuid=cls.gs_file_uuid, version=cls.gs_file_version, fragment="/foo")
+
+        cls.contents = [cls.s3_col_file_item] * 8 + [cls.s3_col_ptr_item] * 8
         cls.uuid, cls.version = cls._put(cls, cls.contents)
-        cls.invalid_ptr = dict(type="foo", uuid=cls.file_uuid, version=cls.file_version, fragment="/xyz")
+        cls.invalid_ptr = dict(type="foo", uuid=cls.s3_file_uuid, version=cls.s3_file_version, fragment="/xyz")
         cls.paging_test_replicas = ('aws', 'gcp')
 
-        with open(os.environ['GOOGLE_APPLICATION_CREDENTIALS'], "r") as fh:
+        with open(os.environ['GOOGLE_APPLICATION_CREDENTIALS'], 'r') as fh:
             cls.owner_email = json.loads(fh.read())['client_email']
 
     @classmethod
@@ -58,10 +62,8 @@ class TestCollections(unittest.TestCase, DSSAssertMixin, DSSUploadMixin):
         cls.app.shutdown()
 
     @staticmethod
-    def upload_file(app, contents):
-        s3_test_bucket = get_env("DSS_S3_BUCKET_TEST")
+    def upload_file(app, contents, replica):
         src_key = generate_test_key()
-        s3 = boto3.resource('s3')
         encoded = json.dumps(contents).encode()
         chunk_size = get_s3_multipart_chunk_size(len(encoded))
         with io.BytesIO(encoded) as fh, ChecksummingSink(write_chunk_size=chunk_size) as sink:
@@ -72,9 +74,24 @@ class TestCollections(unittest.TestCase, DSSAssertMixin, DSSUploadMixin):
                         'hca-dss-sha1': sums['sha1'].lower(),
                         'hca-dss-sha256': sums['sha256'].lower()}
             fh.seek(0)
-            # TODO: consider switching to unmanaged uploader (putobject w/blob)
-            s3.Bucket(s3_test_bucket).Object(src_key).upload_fileobj(fh, ExtraArgs={"Metadata": metadata})
-        source_url = f"s3://{s3_test_bucket}/{src_key}"
+
+            if replica == 'gcp':
+                gs_test_bucket = get_env("DSS_GS_BUCKET_TEST")
+                gcp_client = gs_storage.Client.from_service_account_json(os.getenv("GOOGLE_APPLICATION_CREDENTIALS"))
+                gs_bucket = gcp_client.bucket(gs_test_bucket)
+                blob = gs_bucket.blob(src_key)
+                blob.upload_from_file(fh, content_type="application/json")
+                blob.metadata = metadata
+                blob.patch()
+                source_url = f"gs://{gs_test_bucket}/{src_key}"
+
+            if replica == 'aws':
+                # TODO: consider switching to unmanaged uploader (putobject w/blob)
+                s3_test_bucket = get_env("DSS_S3_BUCKET_TEST")
+                s3 = boto3.resource('s3')
+                s3.Bucket(s3_test_bucket).Object(src_key).upload_fileobj(fh, ExtraArgs={"Metadata": metadata})
+                source_url = f"s3://{s3_test_bucket}/{src_key}"
+
         file_uuid = str(uuid4())
         version = datetime_to_version_format(datetime.utcnow())
         urlbuilder = UrlBuilder().set(path='/v1/files/' + file_uuid)
@@ -82,13 +99,17 @@ class TestCollections(unittest.TestCase, DSSAssertMixin, DSSUploadMixin):
 
         resp_obj = app.put(str(urlbuilder),
                            json=dict(creator_uid=0,
-                           source_url=source_url),
+                                     source_url=source_url),
                            headers=get_auth_header())
         resp_obj.raise_for_status()
         return file_uuid, resp_obj.json()["version"]
 
     def create_temp_user_collections(self, num: int, replica: str):
-        contents = [self.col_file_item, self.col_ptr_item]
+        if replica == 'aws':
+            contents = [self.s3_col_file_item, self.s3_col_ptr_item]
+        if replica == 'gcp':
+            contents = [self.gs_col_file_item, self.gs_col_ptr_item]
+
         for i in range(num):
             uuid, _ = self._put(contents, replica=replica)
             self.addCleanup(self._delete_collection, uuid, replica)
@@ -214,13 +235,13 @@ class TestCollections(unittest.TestCase, DSSAssertMixin, DSSUploadMixin):
     def test_put(self):
         """PUT new collection."""
         with self.subTest("with unique contents"):
-            contents = [self.col_file_item, self.col_ptr_item]
+            contents = [self.s3_col_file_item, self.s3_col_ptr_item]
             uuid, _ = self._put(contents)
             self.addCleanup(self._delete_collection, uuid)
             res = self.app.get("/v1/collections/{}".format(self.uuid),
                                headers=get_auth_header(authorized=True),
                                params=dict(replica="aws"))
-            self.assertEqual(res.json()["contents"], [self.col_file_item, self.col_ptr_item])
+            self.assertEqual(res.json()["contents"], [self.s3_col_file_item, self.s3_col_ptr_item])
 
         with self.subTest("with duplicated contents."):
             uuid, _ = self._put(self.contents)
@@ -228,7 +249,7 @@ class TestCollections(unittest.TestCase, DSSAssertMixin, DSSUploadMixin):
             res = self.app.get("/v1/collections/{}".format(self.uuid),
                                headers=get_auth_header(authorized=True),
                                params=dict(replica="aws"))
-            self.assertEqual(res.json()["contents"], [self.col_file_item, self.col_ptr_item])
+            self.assertEqual(res.json()["contents"], [self.s3_col_file_item, self.s3_col_ptr_item])
 
     def test_get_uuid(self):
         """GET created collection."""
@@ -236,7 +257,7 @@ class TestCollections(unittest.TestCase, DSSAssertMixin, DSSUploadMixin):
                            headers=get_auth_header(authorized=True),
                            params=dict(version=self.version, replica="aws"))
         res.raise_for_status()
-        self.assertEqual(res.json()["contents"], [self.col_file_item, self.col_ptr_item])
+        self.assertEqual(res.json()["contents"], [self.s3_col_file_item, self.s3_col_ptr_item])
 
     def test_get_uuid_latest(self):
         """GET latest version of collection."""
@@ -244,7 +265,7 @@ class TestCollections(unittest.TestCase, DSSAssertMixin, DSSUploadMixin):
                            headers=get_auth_header(authorized=True),
                            params=dict(replica="aws"))
         res.raise_for_status()
-        self.assertEqual(res.json()["contents"], [self.col_file_item, self.col_ptr_item])
+        self.assertEqual(res.json()["contents"], [self.s3_col_file_item, self.s3_col_ptr_item])
 
     def test_get_version_not_found(self):
         """NOT FOUND is returned when version does not exist."""
@@ -262,8 +283,8 @@ class TestCollections(unittest.TestCase, DSSAssertMixin, DSSUploadMixin):
         self.assertEqual(res.status_code, requests.codes.bad_request)
 
     def test_patch(self):
-        col_file_item = dict(type="file", uuid=self.file_uuid, version=self.file_version)
-        col_ptr_item = dict(type="foo", uuid=self.file_uuid, version=self.file_version, fragment="/foo")
+        col_file_item = dict(type="file", uuid=self.s3_file_uuid, version=self.s3_file_version)
+        col_ptr_item = dict(type="foo", uuid=self.s3_file_uuid, version=self.s3_file_version, fragment="/foo")
         contents = [col_file_item] * 8 + [col_ptr_item] * 8
         uuid, version = self._put(contents, replica='aws')
         self.addCleanup(self._delete_collection, uuid, replica='aws')
@@ -321,7 +342,7 @@ class TestCollections(unittest.TestCase, DSSAssertMixin, DSSUploadMixin):
         res = self.app.patch("/v1/collections/{}".format(self.uuid),
                              headers=get_auth_header(authorized=True),
                              params=dict(version=self.version, replica="aws"),
-                             json=dict(add_contents=[self.col_ptr_item] * 1024))
+                             json=dict(add_contents=[self.s3_col_ptr_item] * 1024))
         self.assertEqual(res.status_code, requests.codes.bad_request)
 
     def test_patch_missing_params(self):
@@ -443,7 +464,6 @@ class TestCollections(unittest.TestCase, DSSAssertMixin, DSSUploadMixin):
                            headers=get_auth_header(authorized=authorized),
                            params=params,
                            json=dict(name="n", description="d", details={}, contents=contents))
-
         return res.json()["uuid"], res.json()["version"]
 
     def _delete_collection(self, uuid: str, replica: str = 'aws'):
