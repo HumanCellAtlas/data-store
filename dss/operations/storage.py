@@ -66,6 +66,9 @@ class StorageOperationHandler:
     def log_warning(self, name: str, info: dict):
         logger.warning(json.dumps({'job_id': self.job_id, name: info}))
 
+    def log_error(self, name: str, info: dict):
+        logger.error(json.dumps({'job_id': self.job_id, name: info}))
+
     def process_key(self, key):
         raise NotImplementedError()
 
@@ -142,9 +145,11 @@ class repair_blob_content_type(StorageOperationHandler):
                 elif Replica.gcp == self.replica:
                     update_gcp_content_type(client, self.replica.bucket, blob_key, file_metadata['content-type'])
         except BlobNotFoundError as e:
-            self.log_warning(BlobNotFoundError.__name__, dict(error=str(e)))
+            self.log_warning("BlobNotFoundError", dict(key=key, error=str(e)))
         except json.decoder.JSONDecodeError as e:
-            self.log_warning(json.decoder.JSONDecodeError.__name__, dict(error=str(e)))
+            self.log_warning("JSONDecodeError", dict(key=key, error=str(e)))
+        except Exception as e:
+            self.log_error("Exception", dict(key=key, error=str(e)))
 
 @storage.action("verify-referential-integrity",
                 mutually_exclusive=["--entity-type", "--keys"])
