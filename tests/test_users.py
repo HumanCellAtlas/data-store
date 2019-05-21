@@ -125,7 +125,7 @@ class TestUser(unittest.TestCase):
             self.assertEqual(user.statement, statement)
 
     def test_status(self):
-        name = "test_sete_policy@test.com"
+        name = "test_set_policy@test.com"
         user = User.provision_user(self.directory, name)
 
         with self.subTest("A user's status is enabled when provisioned."):
@@ -133,7 +133,7 @@ class TestUser(unittest.TestCase):
         with self.subTest("A user's status is disabled when user.disable is called."):
             user.disable()
             self.assertEqual(user.status, 'Disabled')
-        with self.subTest("A user's status is enabled when user.enabled is called."):
+        with self.subTest("A user's status is enabled when user.enable is called."):
             user.enable()
             self.assertEqual(user.status, 'Enabled')
 

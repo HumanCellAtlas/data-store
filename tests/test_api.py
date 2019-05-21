@@ -22,9 +22,9 @@ old_directory_name = os.getenv("FUSILLADE_DIR", None)
 os.environ["FUSILLADE_DIR"] = directory_name
 
 
-from tests.common import get_auth_header, service_accounts
+from tests.common import get_auth_header, service_accounts, create_test_statement
 import fusillade
-from fusillade import directory, User
+from fusillade import directory, User, Group, Role
 from fusillade.clouddirectory import cleanup_directory
 
 from tests.infra.server import ChaliceTestHarness
@@ -167,57 +167,47 @@ class TestApi(unittest.TestCase):
     def setUpClass(cls):
         cls.app = ChaliceTestHarness()
 
+    def tearDown(self):
+        directory.clear(
+            users=[
+                service_accounts['admin']['client_email'],
+                service_accounts['user']['client_email']
+            ])
+
     def test_evaluate_policy(self):
-        for i in range(1):
-            email = f"test{i}@email.com"
-            tests = [
-                {
-                    'json_request_body': {
-                        "action": ["dss:CreateSubscription"],
-                        "resource": [f"arn:hca:dss:*:*:subscriptions/{email}/*"],
-                        "principal": "test@email.com"
-                    },
-                    'response': {
-                        'code': 200,
-                        'result': False
-                    }
+        email = "test_evaluate_api@email.com"
+        tests = [
+            {
+                'json_request_body': {
+                    "action": ["dss:CreateSubscription"],
+                    "resource": [f"arn:hca:dss:*:*:subscriptions/{email}/*"],
+                    "principal": "test@email.com"
                 },
-                {
-                    'json_request_body': {
-                        "action": ["fus:GetUser"],
-                        "resource": [f"arn:hca:fus:*:*:user/{email}/policy"],
-                        "principal": email
-                    },
-                    'response': {
-                        'code': 200,
-                        'result': True
-                    }
+                'response': {
+                    'code': 200,
+                    'result': False
                 }
-            ]
-            for test in tests:
-                with self.subTest(test['json_request_body']):
-                    data=json.dumps(test['json_request_body'])
-                    headers={'Content-Type': "application/json"}
-                    headers.update(get_auth_header(service_accounts['admin']))
-                    resp = self.app.post('/v1/policies/evaluate', headers=headers, data=data)
-                    self.assertEqual(test['response']['code'], resp.status_code)  # TODO fix
-                    self.assertEqual(test['response']['result'], json.loads(resp.body)['result'])
-
-    @unittest.skip("incomplete")
-    def test_put_user(self):
-        pass
-
-    @unittest.skip("incomplete")
-    def test_get_user(self):
-        pass
-
-    @unittest.skip("incomplete")
-    def test_put_group(self):
-        pass
-
-    @unittest.skip("incomplete")
-    def test_get_group(self):
-        pass
+            },
+            {
+                'json_request_body': {
+                    "action": ["fus:GetUser"],
+                    "resource": [f"arn:hca:fus:*:*:user/{email}/policy"],
+                    "principal": email
+                },
+                'response': {
+                    'code': 200,
+                    'result': True
+                }
+            }
+        ]
+        for test in tests:
+            with self.subTest(test['json_request_body']):
+                data=json.dumps(test['json_request_body'])
+                headers={'Content-Type': "application/json"}
+                headers.update(get_auth_header(service_accounts['admin']))
+                resp = self.app.post('/v1/policies/evaluate', headers=headers, data=data)
+                self.assertEqual(test['response']['code'], resp.status_code)
+                self.assertEqual(test['response']['result'], json.loads(resp.body)['result'])
 
     def test_serve_swagger_ui(self):
         routes = ['/swagger.json', '/']

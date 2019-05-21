@@ -26,3 +26,4 @@ def get_directory():
 
 
 directory = get_directory()
+# TODO: change the deployment to be in a separate file

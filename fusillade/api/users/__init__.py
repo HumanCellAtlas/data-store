@@ -4,8 +4,7 @@ from fusillade import User, directory
 
 def put_new_user():
     json_body = request.json
-    user = User(directory, json_body['username'])
-    user.provision_user(statement=json_body.get('policy'))
+    user = User.provision_user(directory, json_body['user_id'], statement=json_body.get('policy'))
     user.add_roles(json_body.get('roles', []))
     user.add_groups(json_body.get('groups', []))
     return make_response('', 201)
