@@ -28,7 +28,7 @@ class TestCheckoutCaching(unittest.TestCase, DSSAssertMixin, DSSUploadMixin):
     class SpoofContext:
         @staticmethod
         def get_remaining_time_in_millis():
-            return 2000
+            return 11000  # This should be longer than 10 seconds to satisfy timing logic GS copy client sfn
 
     @classmethod
     def setUpClass(cls):

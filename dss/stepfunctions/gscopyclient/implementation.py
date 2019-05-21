@@ -88,7 +88,7 @@ def copy_worker(event, lambda_context):
                     state[_Key.TOKEN] = response[0]
                     self.save_state(state)
 
-    return CopyWorkerTimedThread(lambda_context.get_remaining_time_in_millis() / 1000, event).start()
+    return CopyWorkerTimedThread(lambda_context.get_remaining_time_in_millis() / 1000 - 10, event).start()
 
 
 def fail(event, lambda_context):
@@ -139,6 +139,19 @@ def _sfn():
                 "Resource": copy_worker,
                 "Retry": _retry_default(),
                 "Catch": _catch_default(),
+                "Next": "TestFinished",
+            },
+            "TestFinished": {
+                "Type": "Choice",
+                "Choices": [{
+                    "Variable": "$.finished",
+                    "BooleanEquals": True,
+                    "Next": "Finish"
+                }],
+                "Default": "Copy",
+            },
+            "Finish": {
+                "Type": "Pass",
                 "End": True,
             },
             "FailTask": {
@@ -180,10 +193,9 @@ def write_metadata(event, lambda_context):
 copy_write_metadata_sfn = _sfn()
 
 # tweak to add one more state.
-del copy_write_metadata_sfn['States']['Copy']['End']
-copy_write_metadata_sfn['States']['Copy']['Next'] = "WriteMetadata"
+copy_write_metadata_sfn['States']['TestFinished']['Choices'][0]['Next'] = "WriteMetadata"
 copy_write_metadata_sfn['States']['WriteMetadata'] = {
     "Type": "Task",
     "Resource": write_metadata,
-    "End": True,
+    "Next": "Finish",
 }
