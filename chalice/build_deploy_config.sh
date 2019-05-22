@@ -8,10 +8,6 @@ if [[ -z $DSS_DEPLOYMENT_STAGE ]]; then
 fi
 
 export stage=$DSS_DEPLOYMENT_STAGE
-export dss_infra_tag_project=${DSS_INFRA_TAG_PROJECT}
-export dss_infra_tag_service=${DSS_INFRA_TAG_SERVICE}
-export dss_infra_tag_owner=${DSS_INFRA_TAG_OWNER}
-export dss_infra_tag_name=${DSS_INFRA_TAG_PROJECT}-${DSS_DEPLOYMENT_STAGE}-${DSS_INFRA_TAG_SERVICE}
 
 deployed_json="$(dirname $0)/.chalice/deployed.json"
 config_json="$(dirname $0)/.chalice/config.json"
@@ -46,11 +42,14 @@ else
            .$stage.lambda_functions = {}" > "$deployed_json"
 fi
 
+
 export DEPLOY_ORIGIN="$(whoami)-$(hostname)-$(git describe --tags --always)-$(date -u +'%Y-%m-%d-%H-%M-%S').deploy"
-cat "$config_json" | jq ".stages.$stage.tags.DSS_DEPLOY_ORIGIN=env.DEPLOY_ORIGIN | \
-	.stages.$stage.tags.Name=env.dss_infra_tag_name |  .stages.$stage.tags.project=env.dss_infra_tag_project | \
-	.stages.$stage.tags.env=env.dss_infra_tag_stage | .stages.$stage.tags.service=env.dss_infra_tag_service  | \
-	.stages.$stage.tags.owner=env.dss_infra_tag_owner" | sponge "$config_json"
+cat "$config_json" | jq ".stages.$stage.tags.DSS_DEPLOY_ORIGIN=\"$DEPLOY_ORIGIN\" | \
+	.stages.$stage.tags.Name=\"${DSS_INFRA_TAG_PROJECT}-${DSS_DEPLOYMENT_STAGE}-${DSS_INFRA_TAG_SERVICE}\" | \
+	.stages.$stage.tags.service=\"${DSS_INFRA_TAG_SERVICE}\"  | \
+	.stages.$stage.tags.project=\"$DSS_INFRA_TAG_PROJECT\" | \
+	.stages.$stage.tags.owner=\"${DSS_INFRA_TAG_OWNER}\" | \
+	.stages.$stage.tags.env=\"${DSS_DEPLOYMENT_STAGE}\""  | sponge "$config_json"
 
 env_json=$(aws ssm get-parameter --name /dcp/dss/${DSS_DEPLOYMENT_STAGE}/environment | jq -r .Parameter.Value)
 for var in $(echo $env_json | jq -r keys[]); do
