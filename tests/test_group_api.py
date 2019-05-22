@@ -208,5 +208,18 @@ class TestGroupApi(unittest.TestCase):
         resp = self.app.get(f'/v1/groups/{name}/roles', headers=headers)
         self.assertEqual(2, len(json.loads(resp.body)['roles']))
 
+    @unittest.skip("Incomplete - need to add the paging for groups")
+    def test_get_group_users(self):
+        headers = {'Content-Type': "application/json"}
+        headers.update(get_auth_header(service_accounts['admin']))
+        name = "Group1"
+        group = Group.create(directory,name)
+        resp = self.app.get(f'/v1/groups/{name}/users', headers=headers)
+        group_user_names = [User(directory,user).name for user in group.get_users()]
+        self.assertEqual(0, len(json.loads(resp.body)['users']))
+        group.add_users([User.create(directory, "user_1").name, User.create(directory, "user_2").name])
+        resp = self.app.get(f'/v1/groups/{name}/users', headers=headers)
+        self.assertEqual(2, len(json.loads(resp.body)['users']))
+
 if __name__ == '__main__':
     unittest.main()
