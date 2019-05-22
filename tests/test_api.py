@@ -8,17 +8,45 @@ import os
 import sys
 import unittest
 import requests
+from unittest import mock
 
 pkg_root = os.path.abspath(os.path.join(os.path.dirname(__file__), '..'))  # noqa
 sys.path.insert(0, pkg_root)  # noqa
 
-from dss.config import Replica
 import dss
+from dss.error import DSSException
 from dss.util import UrlBuilder
 from dss.util.version import datetime_to_version_format
+from dss.config import BucketConfig, override_bucket_config,Replica
 from tests.infra import DSSAssertMixin, DSSUploadMixin, DSSStorageMixin, TestBundle, testmode
 from tests.infra.server import ThreadedLocalServer
 from tests import get_auth_header
+
+
+class TestApiErrors(unittest.TestCase, DSSAssertMixin, DSSUploadMixin, DSSStorageMixin):
+    def setUp(self):
+        self.app = None
+
+    def test_retry_after_response_headers(self):
+        with mock.patch("dss.api.bundles.get") as foo:
+            foo.side_effect = DSSException(502, "foo", "bar")
+            self.app = ThreadedLocalServer()
+            self.app.start()
+
+        bundle_uuid = "011c7340-9b3c-4d62-bf49-090d79daf198"
+        version = "2017-06-20T214506.766634Z"
+
+        url = str(UrlBuilder()
+                  .set(path="/v1/bundles/" + bundle_uuid)
+                  .add_query("replica", "aws")
+                  .add_query("version", version))
+
+        with override_bucket_config(BucketConfig.TEST_FIXTURE):
+            resp_obj = self.assertGetResponse(
+                url,
+                502,  # requests.codes.server_error,
+                headers=get_auth_header())
+            assert 'Retry-After' in resp_obj.response.headers
 
 
 @testmode.integration

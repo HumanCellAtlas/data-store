@@ -63,6 +63,13 @@ class DSSChaliceApp(chalice.Chalice):
         super().__init__(*args, **kwargs)
         self._override_exptime_seconds = None
 
+    def _validate_response(self, response):
+        """Allows returned header values to be integers."""
+        for header, value in response.headers.items():
+            if not isinstance(value, int):
+                if '\n' in value:
+                    raise self.ChaliceError("Bad value for header '%s': %r" % (header, value))
+
 
 def timeout_response() -> chalice.Response:
     """
@@ -200,6 +207,15 @@ def get_chalice_app(flask_app) -> DSSChaliceApp:
         res_headers.pop("Content-Length", None)
         res_headers["Strict-Transport-Security"] = "max-age=31536000; includeSubDomains; preload"
         res_headers["X-AWS-REQUEST-ID"] = app.lambda_context.aws_request_id
+
+        if status_code in (requests.codes.server_error,         # 500 status code
+                           requests.codes.bad_gateway,          # 502 status code
+                           requests.codes.service_unavailable,  # 503 status code
+                           requests.codes.gateway_timeout       # 504 status code
+                           ) \
+                and not (app.current_request.method == 'POST' and path.startswith('/v1/bundles')):
+            res_headers['Retry-After'] = 10
+
         return chalice.Response(status_code=status_code,
                                 headers=res_headers,
                                 body="".join([c.decode() if isinstance(c, bytes) else c for c in flask_res.response]))

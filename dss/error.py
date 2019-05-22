@@ -83,6 +83,8 @@ def dss_handler(func):
             stacktrace = ""
             headers = {'Retry-After': 600}
 
+        # We most likely won't hit this here, as a general server error will
+        # likely be handled and returned by the chalice app before reaching here.
         if status in (requests.codes.server_error,         # 500 status code
                       requests.codes.bad_gateway,          # 502 status code
                       requests.codes.service_unavailable,  # 503 status code
