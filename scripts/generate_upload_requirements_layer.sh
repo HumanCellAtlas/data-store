@@ -14,8 +14,6 @@ then
     exit 1
 fi
 
-
-
 build_path="$DSS_HOME/dependencies/python/lib/python3.6/site-packages"
 docker_download_path="/mnt/dependencies/python/lib/python3.6/site-packages"
 dependency_dir="$DSS_HOME/dependencies"
@@ -42,8 +40,7 @@ else
 fi
 }
 
-function upload() {
-
+function build(){
 	# if this docker fails with `pull access denied` your credentials might be expired, perform a `docker logout`
 	docker pull humancellatlas/dss-lambda-layer
 	echo "downloading requirements to ${dependency_dir}"
@@ -64,19 +61,61 @@ function upload() {
     cd ${dependency_dir}
     zip -qq -r -o $local_zip . .[^.]*
     cd ..
+}
+
+function upload() {
+	if [[ ! -f $local_zip ]]
+	then
+		echo "unable to locate zip file at: $local_zip"
+		exit 1
+	fi
     echo "uploading zip to ${populated_dss_tf_backend} for stage: ${DSS_DEPLOYMENT_STAGE}"
     aws s3 cp $local_zip s3://${populated_dss_tf_backend}/$aws_zip_key
     aws s3 cp $local_req s3://${populated_dss_tf_backend}/$aws_req_key
-    echo "deleting ${dependency_dir} and ${local_zip}"
-    rm -rf ${dependency_dir}
-    rm -f ${local_zip}
     create_layer
 }
+function clean (){
+	echo "deleting $1"
+    rm -rf $1
+}
 
+optspec=":hbcd"
+while getopts "$optspec" optchar; do
+    case "${optchar}" in
+        b)
+            build
+            echo "created: $local_zip"
+            clean $dependency_dir
+            exit 0
+            ;;
+       	c)
+       		clean $dependency_dir
+       		clean $local_zip
+       		exit 0
+       		;;
+       	d)
+       		upload
+       		exit 0
+       		;;
+		h)
+			echo "usage: $0 [-bd]" >&2
+			echo "Description:"
+			echo " -b | builds out the zip package"
+			echo " -d | upload from $local_zip and requirements.txt to s3://${populated_dss_tf_backend}, registers new layer"
+			echo " No Args | checks if requirements file has change from whats in s3, updates if needed"
+			exit 2
+			;;
+esac
+done
+
+
+# if no arguments then
 if [[ $(aws s3api head-object --bucket ${populated_dss_tf_backend} --key $aws_zip_key &>/dev/null; echo $?) -eq 255 ]]
 then
     echo "Could not locate $aws_zip_key in aws, starting upload"
     upload
+   	clean $dependency_dir
+    clean $local_zip
     exit 0
 else
     echo "$aws_zip_key found in aws"
