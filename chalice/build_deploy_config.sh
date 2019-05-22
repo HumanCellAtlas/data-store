@@ -8,7 +8,6 @@ if [[ -z $DSS_DEPLOYMENT_STAGE ]]; then
 fi
 
 export stage=$DSS_DEPLOYMENT_STAGE
-
 deployed_json="$(dirname $0)/.chalice/deployed.json"
 config_json="$(dirname $0)/.chalice/config.json"
 policy_json="$(dirname $0)/.chalice/policy.json"
