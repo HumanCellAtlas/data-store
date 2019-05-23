@@ -2,6 +2,7 @@ import re
 from collections import namedtuple
 from typing import Type
 
+BLOB_PREFIX = "blobs"
 BUNDLE_PREFIX = "bundles"
 FILE_PREFIX = "files"
 COLLECTION_PREFIX = "collections"
