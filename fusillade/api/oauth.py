@@ -7,7 +7,7 @@ import os
 
 import jwt
 import requests
-from flask import json, request
+from flask import json, request, make_response
 from connexion.lifecycle import ConnexionResponse
 from furl import furl
 
@@ -59,19 +59,7 @@ def proxy_response(dest_url, **extra_query_params):
                                  url=dest_url,
                                  headers=cr.headers,
                                  data=cr.raw_body)
-    if proxy_res.headers.get("Content-Type", "").startswith("application/json"):
-        body = proxy_res.json()
-    else:
-        body = proxy_res.content
-    for header in "connection", "content-length", "date":
-        proxy_res.headers.pop(header, None)
-    content_type = mimetype = proxy_res.headers.get('Content-Type')
-    proxy_resp = ConnexionResponse(body=body,
-                                   status_code=proxy_res.status_code,
-                                   headers=dict(proxy_res.headers),
-                                   mimetype=mimetype,
-                                   content_type=content_type)
-    return proxy_resp
+    return make_response(proxy_res.text, proxy_res.status_code, proxy_res.headers.items())
 
 
 proxied_endpoints = dict(authorization_endpoint=f"https://{os.environ['API_DOMAIN_NAME']}/oauth/authorize",
