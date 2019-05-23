@@ -21,7 +21,7 @@ from tests.infra.server import ThreadedLocalServer
 from tests import get_auth_header
 
 
-@testmode.integration
+@testmode.standalone
 class TestApi(unittest.TestCase, DSSAssertMixin, DSSUploadMixin, DSSStorageMixin):
     @classmethod
     def setUpClass(cls):

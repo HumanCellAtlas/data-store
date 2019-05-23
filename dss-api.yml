@@ -365,6 +365,14 @@ paths:
           description: Token to manage retries.  End users constructing queries should not set this parameter.
           required: false
           type: string
+        - name: directurl
+          in: query
+          required: false
+          description: |
+            When set to true, the response will contain API-specific URLs that are tied to the specified replica, for example `gs://bucket/object` or `s3://bucket/object`
+
+            The use of presigned URLs is recommended for data access. Cloud native URLs are currently provided for a limited set of use cases and may not be provided in the future. If cloud native URLs are required, please contact the data store team regarding the credentials necessary to use them.
+          type: boolean
       responses:
         301:
           description: >
@@ -1447,8 +1455,10 @@ paths:
           enum: [aws, gcp]
         - name: directurls
           in: query
-          description: >
-            Include direct-access URLs in the response.  This is mutually exclusive with the presignedurls parameter.
+          description: |
+            When set to true, the response will contain API-specific URLs that are tied to the specified replica, for example `gs://bucket/object` or `s3://bucket/object`
+
+            This parameter is mutually exclusive with the presigned urls parameter. The use of presigned URLs is recommended for data access. Cloud native URLs are currently provided for a limited set of use cases and may not be provided in the future. If cloud native URLs are required, please contact the data store team regarding the credentials necessary to use them.
           required: false
           type: boolean
         - name: presignedurls

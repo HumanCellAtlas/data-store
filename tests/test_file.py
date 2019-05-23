@@ -33,7 +33,7 @@ from tests.infra.server import ThreadedLocalServer
 FILE_GET_RETRY_COUNT = 10
 
 
-@testmode.integration
+@testmode.standalone
 class TestFileApi(unittest.TestCase, TestAuthMixin, DSSUploadMixin, DSSAssertMixin):
     @classmethod
     def setUpClass(cls):
@@ -421,6 +421,57 @@ class TestFileApi(unittest.TestCase, TestAuthMixin, DSSUploadMixin, DSSAssertMix
                 return
         self.fail(f"Failed after {FILE_GET_RETRY_COUNT} retries.")
 
+    def test_file_get_direct(self):
+        self._test_file_get_direct(Replica.aws)
+        self._test_file_get_direct(Replica.gcp)
+
+    def _test_file_get_direct(self, replica: Replica):
+        """
+        Verify that the direct URL option works for GET/ file
+        """
+        file_uuid = "ce55fd51-7833-469b-be0b-5da88ebebfcd"
+        handle = Config.get_blobstore_handle(replica)
+
+        direct_url_req = str(UrlBuilder()
+                             .set(path="/v1/files/" + file_uuid)
+                             .add_query("replica", replica.name)
+                             .add_query("directurl", "True"))
+        presigned_url_req = str(UrlBuilder()
+                                .set(path="/v1/files/" + file_uuid)
+                                .add_query("replica", replica.name))
+        with override_bucket_config(BucketConfig.TEST_FIXTURE):
+            native_resp_obj = self.assertGetResponse(
+                direct_url_req,
+                requests.codes.found,
+                headers=get_auth_header(),
+                redirect_follow_retries=FILE_GET_RETRY_COUNT,
+                min_retry_interval_header=RETRY_AFTER_INTERVAL,
+                override_retry_interval=1,
+            )
+            resp_obj = self.assertGetResponse(
+                presigned_url_req,
+                requests.codes.found,
+                headers=get_auth_header(),
+                redirect_follow_retries=FILE_GET_RETRY_COUNT,
+                min_retry_interval_header=RETRY_AFTER_INTERVAL,
+                override_retry_interval=1,
+            )
+
+            verify_headers = ['X-DSS-VERSION', 'X-DSS-CREATOR-UID', 'X-DSS-S3-ETAG', 'X-DSS-SHA256',
+                              'X-DSS-SHA1', 'X-DSS-CRC32C']
+            native_headers_verify = {k: v for k, v in native_resp_obj.response.headers.items() if k in verify_headers}
+            presigned_headers_verify = {k: v for k, v in resp_obj.response.headers.items() if k in verify_headers}
+            self.assertDictEqual(native_headers_verify, presigned_headers_verify)
+
+            self.assertTrue(
+                native_resp_obj.response.headers['Location'].split('//')[0].startswith(replica.storage_schema))
+            self.assertTrue(
+                native_resp_obj.response.headers['Location'].split('//')[1].startswith(replica.checkout_bucket))
+            blob_path = native_resp_obj.response.headers['Location'].split('/blobs/')[1]
+            native_size = handle.get_size(replica.checkout_bucket, f'blobs/{blob_path}')
+            self.assertGreater(native_size, 0)
+            self.assertEqual(native_size, int(resp_obj.response.headers['X-DSS-SIZE']))
+
     def test_file_get_not_found(self):
         """
         Verify that we return the correct error message when the file cannot be found.
@@ -568,7 +619,7 @@ class TestFileApi(unittest.TestCase, TestAuthMixin, DSSUploadMixin, DSSAssertMix
             ).decode("utf-8"))
         file_key = compose_blob_key(file_metadata)
 
-        @eventually(10, 1)
+        @eventually(20, 1)
         def test_checkout():
             # assert 302 and verify checksum on checkout completion
             api_get = self.assertGetResponse(
@@ -594,7 +645,7 @@ class TestFileApi(unittest.TestCase, TestAuthMixin, DSSUploadMixin, DSSAssertMix
             test_checkout()
 
         with self.subTest(f"{replica}: Initiates checkout and returns 302 immediately for GET on stale checkout file."):
-            @eventually(10, 1)
+            @eventually(20, 1)
             def test_creation_date_updated(key, prev_creation_date):
                 self.assertTrue(prev_creation_date < handle.get_creation_date(replica.checkout_bucket, key))
 

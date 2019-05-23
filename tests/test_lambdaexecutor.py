@@ -57,6 +57,23 @@ class TestLambdaExecutor(unittest.TestCase):
         self.assertEqual(result[UUT.KEY], 15)
 
     @testmode.standalone
+    def test_exception(self):
+        """Test that worker exceptions are exposed to caller"""
+        class MyException(Exception):
+            pass
+
+        class UUT(lambdaexecutor.TimedThread[dict]):
+            def __init__(self) -> None:
+                super().__init__(5, {"key": 0})
+
+            def run(self) -> dict:
+                raise MyException()
+
+        uut = UUT()
+        with self.assertRaises(MyException):
+            uut.start()
+
+    @testmode.standalone
     def test_immutable_constructor_state(self):
         """Test that we make a copy of the state when we construct a TimedThread."""
         class UUT(lambdaexecutor.TimedThread[dict]):

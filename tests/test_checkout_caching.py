@@ -28,7 +28,7 @@ class TestCheckoutCaching(unittest.TestCase, DSSAssertMixin, DSSUploadMixin):
     class SpoofContext:
         @staticmethod
         def get_remaining_time_in_millis():
-            return 2000
+            return 11000  # This should be longer than 10 seconds to satisfy timing logic GS copy client sfn
 
     @classmethod
     def setUpClass(cls):
@@ -134,16 +134,16 @@ class TestCheckoutCaching(unittest.TestCase, DSSAssertMixin, DSSUploadMixin):
 
     @mock.patch("dss.stepfunctions.gscopyclient.implementation.is_dss_bucket")
     @testmode.standalone
-    def test_google_uncached_checkout_creates_durable_storage_type(self, mock_check):
+    def test_google_uncached_checkout_creates_standard_storage_type(self, mock_check):
         """
         Verifies object level tagging of short-lived files.
-        Verifies that short-lived Google cached objects are of the DURABLE_REDUCED_AVAILABILITY type.
+        Verifies that short-lived Google cached objects are of the STANDARD type.
         """
         mock_check.return_value = True
         src_data = os.urandom(1024)
         blob_type = self._test_gs_cache(src_data=src_data, content_type='binary/octet',
                                         checkout_bucket=Replica.gcp.checkout_bucket)
-        self.assertEqual('DURABLE_REDUCED_AVAILABILITY', blob_type)
+        self.assertEqual('STANDARD', blob_type)
 
     @testmode.integration
     def test_google_user_checkout_creates_multiregional_storage_type(self):
