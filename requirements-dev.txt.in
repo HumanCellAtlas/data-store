@@ -1,6 +1,6 @@
 # Be sure to run "make requirements-dev.txt" after editing this file.
 flake8  >= 3.4.1
-mypy  >= 0.700
+mypy  >= 0.701
 domovoi  >= 1.8.2
 chalice  >= 1.1.0
 coverage  >= 4.4.1
