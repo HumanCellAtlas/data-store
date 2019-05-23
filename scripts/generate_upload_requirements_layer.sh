@@ -4,6 +4,7 @@
 # but its part of the `make deploy` 
 
 set -euo pipefail
+shopt -s nullglob;
 
 account_id=$(aws sts get-caller-identity | jq -r ".Account" )
 populated_dss_tf_backend=$(echo ${DSS_TERRAFORM_BACKEND_BUCKET_TEMPLATE} | sed 's/{account_id}/'"${account_id}"'/'  )
@@ -40,12 +41,12 @@ else
 fi
 }
 
-function build(){
+function build_zip(){
 	# if this docker fails with `pull access denied` your credentials might be expired, perform a `docker logout`
 	docker pull humancellatlas/dss-lambda-layer
 	echo "downloading requirements to ${dependency_dir}"
 	# this command can get simplifed to remove `mv`, the issue is inconsistent `pip install -t` https://github.com/googleapis/google-cloud-python/issues/3806
-	docker run -v "${DSS_HOME}":/mnt humancellatlas/dss-lambda-layer /bin/bash -c \
+	docker run --rm -v "${DSS_HOME}":/mnt humancellatlas/dss-lambda-layer /bin/bash -c \
 	"cd /mnt/ ; python3 -m virtualenv tempvenv; source tempvenv/bin/activate; \
 	 python3 -m pip -q --no-cache-dir install -r requirements.txt; \
 	 mkdir -p ${docker_download_path}; mv tempvenv/lib/python3.6/site-packages/* ${docker_download_path}; \
@@ -59,8 +60,29 @@ function build(){
      # target looks like site-package
     echo "compressing......"
     cd ${dependency_dir}
-    zip -qq -r -o $local_zip . .[^.]*
+    zip -qq -r -o $local_zip ./
     cd ..
+}
+
+function build_clean_zip(){
+	unzip -q -o -d $build_path deployment.zip
+	cd $dependency_dir
+	zip -qq -r -o $local_zip ./
+    cd ..
+}
+
+function build_chalice(){
+	# utilize challice to build out dependencies
+	# chalice requires a a configured chalice application to package.
+	# copy chalice folder TODO verify that in process this folder will be clean....
+	cp -R ${DSS_HOME}/chalice ${DSS_HOME}/temp_chalice
+	mkdir ${DSS_HOME}/temp_chalice/vendor
+	cp -R ${DSS_HOME}/vendor.in temp_chalice; ln -s ${DSS_HOME}/requirements.txt temp_chalice/requirements.txt;
+	cd temp_chalice
+	shopt -s nullglob;for wheel in vendor.in/*/*.whl; do unzip -q -o -d vendor $wheel; done
+	chalice package .
+	zip -d deployment.zip chalicelib/\*
+	zip -d deployment.zip app.py
 }
 
 function upload() {
@@ -83,9 +105,10 @@ optspec=":hbcd"
 while getopts "$optspec" optchar; do
     case "${optchar}" in
         b)
-            build
+            build_chalice
+            build_clean_zip
             echo "created: $local_zip"
-            clean $dependency_dir
+            # clean $dependency_dir
             exit 0
             ;;
        	c)
@@ -113,6 +136,7 @@ done
 if [[ $(aws s3api head-object --bucket ${populated_dss_tf_backend} --key $aws_zip_key &>/dev/null; echo $?) -eq 255 ]]
 then
     echo "Could not locate $aws_zip_key in aws, starting upload"
+    build_zip
     upload
    	clean $dependency_dir
     clean $local_zip
