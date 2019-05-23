@@ -70,7 +70,7 @@ class TestRoleApi(unittest.TestCase):
 
         url = furl('/v1/roles')
         data = json.dumps({
-            'name': role_id,
+            'role_id': role_id,
             'policy': policy
         })
         resp = self.app.put(url.url, data=data, headers=headers)
@@ -80,7 +80,7 @@ class TestRoleApi(unittest.TestCase):
         resp = self.app.get(url.url, headers=headers)
         self.assertEqual(200, resp.status_code)
         expected_body = {
-            'name': role_id,
+            'role_id': role_id,
             'policy': policy
         }
         self.assertEqual(expected_body, json.loads(resp.body))
@@ -97,7 +97,7 @@ class TestRoleApi(unittest.TestCase):
         resp = self.app.get(url.url, headers=headers)
         self.assertEqual(200, resp.status_code)
         expected_body = {
-            'name': role_id,
+            'role_id': role_id,
             'policy': policy
         }
         self.assertEqual(expected_body, json.loads(resp.body))
@@ -105,7 +105,7 @@ class TestRoleApi(unittest.TestCase):
     def test_put_role(self):
         url = furl('/v1/roles')
         data = json.dumps({
-            'name': 'test_put_role',
+            'role_id': 'test_put_role',
             'policy': create_test_statement("test_role")
         })
         admin_auth_header = get_auth_header(service_accounts['admin'])
@@ -137,7 +137,7 @@ class TestRoleApi(unittest.TestCase):
             {
                 'name': '400 returned when an invalid policy is used',
                 'data': json.dumps({
-                    'name': 'test_role2',
+                    'role_id': 'test_role2',
                     'policy': 'garbage statement'
                 }),
                 'headers': admin_auth_header,
@@ -154,7 +154,7 @@ class TestRoleApi(unittest.TestCase):
             {
                 'name': '400 returned when creating a role with no policy.',
                 'data': json.dumps({
-                    'name': 'abcd',
+                    'role_id': 'abcd',
                 }),
                 'headers': admin_auth_header,
                 'expected_resp': 400
@@ -164,7 +164,7 @@ class TestRoleApi(unittest.TestCase):
             {
                 'name': f'201 returned when creating a role when name is {description}',
                 'data': json.dumps({
-                    'name': name,
+                    'role_id': name,
                     'policy': create_test_statement("test_role")
                 }),
                 'headers': admin_auth_header,
@@ -175,7 +175,7 @@ class TestRoleApi(unittest.TestCase):
             {
                 'name': f'400 returned when creating a role when name is {description}',
                 'data': json.dumps({
-                    'name': name,
+                    'role_id': name,
                     'policy': create_test_statement("test_role")
                 }),
                 'headers': admin_auth_header,
@@ -252,7 +252,7 @@ class TestRoleApi(unittest.TestCase):
                 self.assertEqual(test['expected_resp'], resp.status_code)
                 if test['expected_resp'] == 200:
                     expected_body = {
-                        'name': test['role_id'],
+                        'role_id': test['role_id'],
                         'policy': policy
                     }
                     self.assertEqual(expected_body, json.loads(resp.body))

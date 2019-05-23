@@ -9,8 +9,8 @@ def put_new_role(token_info: dict):
                       ['fus:PutRole'],
                       ['arn:hca:fus:*:*:role'])
     json_body = request.json
-    Role.create(directory, json_body['name'], statement=json_body.get('policy'))
-    return make_response(f"New role {json_body['name']} created.", 201)
+    Role.create(directory, json_body['role_id'], statement=json_body.get('policy'))
+    return make_response(f"New role {json_body['role_id']} created.", 201)
 
 
 def get_roles(token_info: dict):
@@ -23,7 +23,7 @@ def get_role(token_info: dict, role_id: str):
                       [f'arn:hca:fus:*:*:role/{role_id}'])
     role = Role(directory, role_id)
     resp = dict(
-        name=role.name,
+        role_id=role.name,
         policy=role.statement
     )
     return make_response(jsonify(resp), 200)

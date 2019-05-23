@@ -701,10 +701,10 @@ paths:
             schema:
               type: object
               required:
-                - name
+                - role_id
                 - policy
               properties:
-                name:
+                role_id:
                   $ref: '#/components/schemas/custom_identifier'
                 policy:
                   type: string
