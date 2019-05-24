@@ -35,7 +35,8 @@ RUN apt-get update --quiet \
         unzip \
         wget \
 		xxd \
-        zlib1g-dev
+        zlib1g-dev \
+        zip
 
 RUN apt-get update --quiet
 
