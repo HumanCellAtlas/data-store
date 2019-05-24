@@ -3,12 +3,26 @@
   "app_name": "fusillade",
   "stages": {
     "dev": {
-      "api_gateway_stage": "api"
+      "tags": {
+        "project": "dcp",
+        "owner": "test@email.com",
+        "env": "dev"
+      },
+      "api_gateway_stage": "dev",
+      "environment_variables": {
+        "API_DOMAIN_NAME": "auth.dev.data.humancellatlas.org",
+        "DEBUG": "1",
+        "FUS_ADMIN_EMAILS": "test@email.com",
+        "FUS_DEPLOYMENT_STAGE": "dev",
+        "FUS_SECRETS_STORE": "dcp/fusillade",
+        "OPENID_PROVIDER": "humancellatlas.auth0.com"
+      }
     }
   },
-  "environment_variables": {
-    "OPENID_PROVIDER": "humancellatlas.auth0.com"
-  },
-  "lambda_timeout": 30,
-  "lambda_memory_size": 1536
+  "lambda_timeout": 10,
+  "lambda_memory_size": 1536,
+  "tags": {
+    "managedBy": "chalice",
+    "service": "fusillade"
+  }
 }

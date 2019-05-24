@@ -1,0 +1,12 @@
+{
+    "version": "2.0",
+    "app_name": "fusillade",
+    "stages": {
+    },
+    "lambda_timeout": 10,
+    "lambda_memory_size": 1536,
+    "tags": {
+        "managedBy": "chalice",
+        "service": "fusillade"
+    }
+}

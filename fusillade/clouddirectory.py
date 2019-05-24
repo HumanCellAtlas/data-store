@@ -104,6 +104,16 @@ def create_directory(name: str, schema: str, admins: typing.List[str]) -> 'Cloud
         )
         directory = CloudDirectory(response['DirectoryArn'])
         logger.info({"message": "Created new directory", "directory_arn": directory._dir_arn})
+        cd_client.tag_resource(
+            ResourceArn=directory._dir_arn,
+            Tags=[
+                {'Key': 'project', "Value": os.getenv("FUS_PROJECT_TAG", '')},
+                {'Key': 'owner', "Value": os.getenv("FUS_OWNER_TAG", '')},
+                {'Key': 'env', "Value": os.getenv("FUS_DEPLOYMENT_STAGE")},
+                {'Key': 'Name', "Value": "fusillade-directory"},
+                {'Key': 'managedBy', "Value": "manual"}
+            ]
+        )
     except cd_client.exceptions.DirectoryAlreadyExistsException:
         directory = CloudDirectory.from_name(name)
     else:

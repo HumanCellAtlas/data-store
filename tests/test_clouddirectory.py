@@ -80,6 +80,22 @@ class TestCloudDirectory(unittest.TestCase):
                 self.assertTrue(resp['ObjectIdentifier'])
 
 
+            expected_tags = [
+                {'Key': 'project', "Value": os.getenv("FUS_PROJECT_TAG", '')},
+                {'Key': 'owner', "Value": os.getenv("FUS_OWNER_TAG", '')},
+                {'Key': 'env', "Value": os.getenv("FUS_DEPLOYMENT_STAGE")},
+                {'Key': 'Name', "Value": "fusillade-directory"},
+                {'Key': 'managedBy', "Value": "manual"}
+            ]
+            response = cd_client.list_tags_for_resource(
+                ResourceArn=directory._dir_arn
+            )
+            for tag in expected_tags:
+                with self.subTest(f"Directory has {tag} tag when created"):
+                    self.assertIn(tag, response['Tags'])
+
+
+
 
 
 if __name__ == '__main__':

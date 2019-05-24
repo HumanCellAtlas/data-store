@@ -9,7 +9,9 @@ fi
 
 export stage=$FUS_DEPLOYMENT_STAGE
 deployed_json="$(dirname $0)/.chalice/deployed.json"
+config_template_json="$(dirname $0)/.chalice/config_template.json"
 config_json="$(dirname $0)/.chalice/config.json"
+cp $config_template_json $config_json
 policy_json="$(dirname $0)/.chalice/policy.json"
 stage_policy_json="$(dirname $0)/.chalice/policy-${stage}.json"
 export app_name=$(cat "$config_json" | jq -r .app_name)
@@ -34,9 +36,14 @@ else
            .$stage.lambda_functions = {}" > "$deployed_json"
 fi
 
-cat "$config_json" | jq ".stages.$stage.api_gateway_stage=env.stage" | sponge "$config_json"
 export DEPLOY_ORIGIN="$(whoami)-$(hostname)-$(git describe --tags --always)-$(date -u +'%Y-%m-%d-%H-%M-%S').deploy"
-cat "$config_json" | jq .stages.$stage.tags.FUS_DEPLOY_ORIGIN=env.DEPLOY_ORIGIN | sponge "$config_json"
+export Name=fusillade-api-$stage
+cat "$config_json" | jq ".stages.$stage.tags.FUS_DEPLOY_ORIGIN=env.DEPLOY_ORIGIN | \
+                         .stages.$stage.tags.project=env.FUS_PROJECT_TAG | \
+                         .stages.$stage.tags.owner=env.FUS_OWNER_TAG | \
+                         .stages.$stage.tags.env=env.stage | \
+                         .stages.$stage.tags.Name=env.Name | \
+                         .stages.$stage.api_gateway_stage=env.stage" | sponge "$config_json"
 env_json=$(aws ssm get-parameter --name /${FUS_PARAMETER_STORE}/${FUS_DEPLOYMENT_STAGE}/environment | jq -r .Parameter.Value)
 for var in $(echo $env_json | jq -r keys[]); do
     val=$(echo $env_json | jq .$var)

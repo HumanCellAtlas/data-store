@@ -36,6 +36,10 @@ AWS_SDK_LOAD_CONFIG=1 # Needed for Terraform to correctly use AWS assumed roles
 GITHUB_TOKEN_PATH=None
 # Used for publishing releases.
 
+# tags for AWS resources
+FUS_PROJECT_TAG=dcp
+FUS_OWNER_TAG=user@email.com
+
 set +a
 
 if [[ -f "${FUS_HOME}/environment.local" ]]; then
