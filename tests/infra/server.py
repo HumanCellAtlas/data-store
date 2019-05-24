@@ -1,16 +1,18 @@
 import chalice.config
-import logging
-
 import functools
 import os
+import time
 import threading
 import types
-
 import requests
 from chalice.cli import CLIFactory
 from chalice.local import LocalDevServer, ChaliceRequestHandler
 
 from dss.util import networking
+
+import socket
+sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+# result = sock.connect_ex(('127.0.0.1', 80))
 
 
 class SilentHandler(ChaliceRequestHandler):
@@ -28,7 +30,7 @@ class ThreadedLocalServer(threading.Thread):
     """
     def __init__(self, handler_cls=SilentHandler):
         super().__init__(daemon=True)
-        self._port = networking.unused_tcp_port()
+        self._port = networking.unused_tcp_port()  # 56411
         self._server = None
         self._server_ready = threading.Event()
         self._chalice_app = None

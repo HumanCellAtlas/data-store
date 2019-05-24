@@ -8,6 +8,9 @@ import os
 import sys
 import unittest
 import requests
+import importlib
+import functools
+import copy
 from unittest import mock
 
 pkg_root = os.path.abspath(os.path.join(os.path.dirname(__file__), '..'))  # noqa
@@ -17,36 +20,89 @@ import dss
 from dss.error import DSSException
 from dss.util import UrlBuilder
 from dss.util.version import datetime_to_version_format
-from dss.config import BucketConfig, override_bucket_config,Replica
-from tests.infra import DSSAssertMixin, DSSUploadMixin, DSSStorageMixin, TestBundle, testmode
+from dss.config import Replica, DeploymentStage, Config
+from tests.infra import DSSAssertMixin, DSSUploadMixin, DSSStorageMixin, TestBundle, testmode, ExpectedErrorFields
 from tests.infra.server import ThreadedLocalServer
 from tests import get_auth_header
 
 
-class TestApiErrors(unittest.TestCase, DSSAssertMixin, DSSUploadMixin, DSSStorageMixin):
-    def setUp(self):
-        self.app = None
+class TestApiErrors(unittest.TestCase, DSSAssertMixin):
+    @unittest.skipIf(DeploymentStage.IS_PROD(), "Skipping synthetic 504 test for PROD.")
+    def test_504_post_bundle_HAS_NO_retry_after_response(self):
+        self.app = ThreadedLocalServer()
+        self.app.start()
+        self.app._chalice_app._override_exptime_seconds = 15.0
+        uuid = "xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx"
+        version = datetime_to_version_format(datetime.datetime.utcnow())
 
-    def test_retry_after_response_headers(self):
-        with mock.patch("dss.api.bundles.get") as foo:
-            foo.side_effect = DSSException(502, "foo", "bar")
+        url = str(UrlBuilder().set(path=f"/v1/bundles/{uuid}/checkout")
+                  .add_query("version", version)
+                  .add_query("replica", 'aws'))
+
+        r = self.assertPostResponse(
+            url,
+            504,
+            expected_error=ExpectedErrorFields(
+                code="timed_out",
+                status=requests.codes.gateway_timeout,
+            ),
+            headers={"DSS_FAKE_504_PROBABILITY": "1.0"}
+        )
+        self.assertTrue('Retry-After' not in r.response.headers)
+        self.app.shutdown()
+
+    @unittest.skipIf(DeploymentStage.IS_PROD(), "Skipping synthetic 504 test for PROD.")
+    def test_504_get_bundle_HAS_retry_after_response(self):
+        self.app = ThreadedLocalServer()
+        self.app.start()
+        self.app._chalice_app._override_exptime_seconds = 15.0
+        uuid = "xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx"
+        version = datetime_to_version_format(datetime.datetime.utcnow())
+
+        url = str(UrlBuilder().set(path=f"/v1/bundles/{uuid}")
+                  .add_query("version", version)
+                  .add_query("replica", 'aws'))
+
+        r = self.assertGetResponse(
+            url,
+            504,
+            expected_error=ExpectedErrorFields(
+                code="timed_out",
+                status=requests.codes.gateway_timeout,
+            ),
+            headers={"DSS_FAKE_504_PROBABILITY": "1.0"}
+        )
+        self.assertEqual(int(r.response.headers['Retry-After']), 10)
+        self.app.shutdown()
+
+    def test_500_get_bundle_HAS_retry_after_response(self):
+        with mock.patch('dss.api.bundles.get') as foo:
+            foo.side_effect = DSSException(500, 'server_error', "Internal Server Error.")
             self.app = ThreadedLocalServer()
             self.app.start()
+            self.app._chalice_app._override_exptime_seconds = 15.0
+            uuid = "xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx"
+            version = datetime_to_version_format(datetime.datetime.utcnow())
 
-        bundle_uuid = "011c7340-9b3c-4d62-bf49-090d79daf198"
-        version = "2017-06-20T214506.766634Z"
+            url = str(UrlBuilder().set(path=f"/v1/bundles/{uuid}")
+                      .add_query("version", version)
+                      .add_query("replica", 'aws'))
 
-        url = str(UrlBuilder()
-                  .set(path="/v1/bundles/" + bundle_uuid)
-                  .add_query("replica", "aws")
-                  .add_query("version", version))
+            headers = get_auth_header()
+            r = self.assertGetResponse(url, 500)
+            self.assertEqual(int(r.response.headers['Retry-After']), 10)
 
-        with override_bucket_config(BucketConfig.TEST_FIXTURE):
-            resp_obj = self.assertGetResponse(
-                url,
-                502,  # requests.codes.server_error,
-                headers=get_auth_header())
-            assert 'Retry-After' in resp_obj.response.headers
+            # ##################
+            # url = str(UrlBuilder().set(path=f"/v1/bundles/{uuid}/checkout")
+            #           .add_query("version", version)
+            #           .add_query("replica", 'aws'))
+            # request_body = {'destination': Config.get_test_bucket()}
+            #
+            #
+            # headers = get_auth_header()
+            # r = self.assertPostResponse(url, 500, request_body, headers=get_auth_header())
+            # self.assertTrue('Retry-After' not in r.response.headers)
+            # self.app.shutdown()
 
 
 @testmode.integration

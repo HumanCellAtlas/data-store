@@ -22,6 +22,7 @@ from dss import BucketConfig, Config, DeploymentStage, create_app
 from dss.logging import configure_lambda_logging
 from dss.util.tracing import DSS_XRAY_TRACE
 from dss.api import health
+from dss.error import DSSException
 
 if DSS_XRAY_TRACE:  # noqa
     from aws_xray_sdk.core import xray_recorder
@@ -71,11 +72,7 @@ class DSSChaliceApp(chalice.Chalice):
                     raise self.ChaliceError("Bad value for header '%s': %r" % (header, value))
 
 
-def timeout_response() -> chalice.Response:
-    """
-    Produce a chalice Response object that indicates a timeout.  Stacktraces for all running threads, other than the
-    current thread, are provided in the response object.
-    """
+def error_response(method: str, status: int, code: str, title: str) -> chalice.Response:
     frames = sys._current_frames()
     current_threadid = threading.get_ident()
     trace_dump = {
@@ -84,16 +81,31 @@ def timeout_response() -> chalice.Response:
         if thread_id != current_threadid}
 
     problem = {
-        'status': requests.codes.gateway_timeout,
-        'code': "timed_out",
-        'title': "Timed out processing request.",
+        'status': status,
+        'code': code,
+        'title': title,
         'traces': trace_dump,
     }
-    return chalice.Response(
-        status_code=problem['status'],
-        headers={"Content-Type": "application/problem+json"},
-        body=json.dumps(problem),
-    )
+
+    headers = {"Content-Type": "application/problem+json"}
+
+    if not method.startswith('POST /v1/bundles') or ('bundle' in method and method.endswith('.post')):
+        headers['Retry-After'] = '10'
+
+    return chalice.Response(status_code=problem['status'],
+                            headers=headers,
+                            body=json.dumps(problem))
+
+
+def timeout_response(method: str) -> chalice.Response:
+    """
+    Produce a chalice Response object that indicates a timeout.  Stacktraces for all running threads, other than the
+    current thread, are provided in the response object.
+    """
+    return error_response(method,
+                          status=requests.codes.gateway_timeout,
+                          code="timed_out",
+                          title="Timed out processing request.")
 
 
 def calculate_seconds_left(chalice_app: DSSChaliceApp) -> int:
@@ -127,7 +139,7 @@ def time_limited(chalice_app: DSSChaliceApp):
                     chalice_response = future.result(timeout=time_remaining_s)
                     return chalice_response
                 except TimeoutError:
-                    return timeout_response()
+                    return timeout_response(method.__qualname__)
             finally:
                 executor.shutdown(wait=False)
         return wrapper
@@ -158,23 +170,21 @@ def get_chalice_app(flask_app) -> DSSChaliceApp:
             ' ' + str(query_params) if query_params is not None else '',
         )
 
-        def maybe_fake_504() -> typing.Optional[chalice.Response]:
-            fake_504_probability_str = app.current_request.headers.get("DSS_FAKE_504_PROBABILITY", "0.0")
+        def maybe_fake_error(code) -> typing.Optional[chalice.Response]:
+            fake_error_probability_str = app.current_request.headers.get(f"DSS_FAKE_{code}_PROBABILITY", "0.0")
 
             try:
-                fake_504_probability = float(fake_504_probability_str)
+                fake_error_probability = float(fake_error_probability_str)
             except ValueError:
                 return None
 
-            if random.random() > fake_504_probability:
+            if random.random() > fake_error_probability:
                 return None
 
-            return timeout_response()
+            return True
 
-        if not DeploymentStage.IS_PROD():
-            maybe_fake_504_result = maybe_fake_504()
-            if maybe_fake_504_result is not None:
-                return maybe_fake_504_result
+        if not DeploymentStage.IS_PROD() and maybe_fake_error(code=504):
+            return timeout_response(' '.join([method, path]))
 
         status_code = None
         try:
@@ -191,6 +201,7 @@ def get_chalice_app(flask_app) -> DSSChaliceApp:
                         skip_on_conflicts=True):
                     flask_res = flask_app.full_dispatch_request()
                     status_code = flask_res._status_code
+
         except Exception:
             app.log.exception('The request failed!')
         finally:
