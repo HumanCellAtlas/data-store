@@ -1,3 +1,4 @@
+import json
 import os
 import sys
 
@@ -14,7 +15,8 @@ from fusillade.api import FusilladeServer
 logging.configure_lambda_logging()
 
 with open(os.path.join(pkg_root, "service_config.json")) as fh:
-    service_config = yaml.BaseLoader(fh.read())
+    service_config = json.load(fh)
+    Config.version = service_config['version']
 
 swagger_spec_path = os.path.join(pkg_root, "fusillade-api.yml")
 swagger_internal_spec_path = os.path.join(pkg_root, "fusillade-internal-api.yml")

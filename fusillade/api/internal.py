@@ -1,5 +1,3 @@
-import json
-
 import requests
 from connexion.lifecycle import ConnexionResponse
 from flask import request
@@ -11,7 +9,7 @@ from fusillade import directory
 def version():
     data = {
         'version_info': {
-            'version': 0.0
+            'version': Config.version
         }
     }
     return ConnexionResponse(
