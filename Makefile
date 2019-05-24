@@ -114,6 +114,9 @@ clean:
 	git checkout $$(git status --porcelain {chalice,daemons/*}/.chalice/config.json | awk '{print $$2}')
 	-rm -rf .*-env
 	-rm -rf node_modules
+	rm -rf dependencies
+	rm -rf temp_chalice
+	rm -rf dss-dependencies-${DSS_DEPLOYMENT_STAGE}.zip
 
 refresh_all_requirements:
 	@echo -n '' >| requirements.txt
