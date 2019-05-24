@@ -4,12 +4,12 @@ mypy  >= 0.700
 domovoi  >= 1.8.2
 chalice  >= 1.8.0
 coverage  >= 4.4.1
-awscli  >= 1.15.0
+awscli  >= 1.16.0
 crcmod  >= 1.7
 httpie  >= 0.9.9
 yq  >= 2.3.3
 Faker >= 0.8.11
 rstr >=2.2.6
-click >= 5.7
+click >= 6.6, < 7.0
 aegea >= 2.1.9
 -r requirements.txt.in
