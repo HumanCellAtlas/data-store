@@ -6,48 +6,19 @@ Functional Test of the API
 """
 import base64
 import json
-import os
-import sys
 import unittest
 from itertools import combinations, product
 from furl import furl
+import os
+import sys
 
 pkg_root = os.path.abspath(os.path.join(os.path.dirname(__file__), '..'))  # noqa
 sys.path.insert(0, pkg_root)  # noqa
 
-from tests import random_hex_string, eventually
+from tests.base_api_test import BaseAPITest
+from tests.common import get_auth_header, service_accounts
 
-directory_name = "test_api_" + random_hex_string()
-os.environ['OPENID_PROVIDER'] = "humancellatlas.auth0.com"
-old_directory_name = os.getenv("FUSILLADE_DIR", None)
-os.environ["FUSILLADE_DIR"] = directory_name
-
-
-from tests.common import get_auth_header, service_accounts, create_test_statement
-import fusillade
-from fusillade import directory, User, Group, Role
-from fusillade.clouddirectory import cleanup_directory
-
-from tests.infra.server import ChaliceTestHarness
-# ChaliceTestHarness must be imported after FUSILLADE_DIR has be set
-
-
-def setUpModule():
-    User.provision_user(directory, service_accounts['admin']['client_email'], roles=['admin'])
-
-
-@eventually(5,1, {fusillade.errors.FusilladeException})
-def tearDownModule():
-    cleanup_directory(directory._dir_arn)
-    if old_directory_name:
-        os.environ["FUSILLADE_DIR"] = old_directory_name
-
-
-class TestAuthentication(unittest.TestCase):
-    @classmethod
-    def setUpClass(cls):
-        cls.app = ChaliceTestHarness()
-
+class TestAuthentication(BaseAPITest, unittest.TestCase):
     def test_login(self):
         url = furl('/login')
         query_params = {
@@ -130,14 +101,15 @@ class TestAuthentication(unittest.TestCase):
             for key in expected_response_types_supported:
                 self.assertIn(key, body['response_types_supported'])
 
-        with self.subTest("an error is returned when no host is provided in the header"):
-            resp = self.app.get('/.well-known/openid-configuration')
-            self.assertEqual(400, resp.status_code)
+        if self.integration:
+            with self.subTest("openid config is returned when no host is provided in the header"):
+                resp = self.app.get('/.well-known/openid-configuration')
+                self.assertEqual(200, resp.status_code)
 
-        with self.subTest("Error return when invalid host is provided in header."):
-            host = 'localhost:8080'
-            resp = self.app.get('/.well-known/openid-configuration', headers={'host': host})
-            self.assertEqual(400, resp.status_code)
+            with self.subTest("Error return when invalid host is provided in header."):
+                host = 'localhost:8080'
+                resp = self.app.get('/.well-known/openid-configuration', headers={'host': host})
+                self.assertEqual(403, resp.status_code)
 
     def test_serve_jwks_json(self):
         resp = self.app.get('/.well-known/jwks.json')
@@ -153,10 +125,21 @@ class TestAuthentication(unittest.TestCase):
 
     def test_userinfo(self):
         # TODO: login
-        # TODO: use token to get userinfo
-        with self.subTest("userinfo denied when no token is included."):
-            resp = self.app.get('/oauth/userinfo')
-            self.assertEqual(401, resp.status_code)  # TODO fix
+        # TODO:use token to get userinfo
+        tests =[
+            {
+                "headers": {},
+                "expected_status_code": 401,
+                "description": "userinfo denied when no token is included."
+            }
+        ]
+        for test in tests:
+            with self.subTest("POST " + test["description"]):
+                resp = self.app.post('/oauth/userinfo', headers=test['headers'])
+                self.assertEqual(test["expected_status_code"], resp.status_code)
+            with self.subTest("GET " + test["description"]):
+                resp = self.app.get('/oauth/userinfo', headers=test['headers'])
+                self.assertEqual(test["expected_status_code"], resp.status_code)
 
     def test_serve_oauth_token(self):
         # TODO: login
@@ -170,18 +153,7 @@ class TestAuthentication(unittest.TestCase):
         self.assertEqual(400, resp.status_code)  # TODO fix
 
 
-class TestApi(unittest.TestCase):
-    @classmethod
-    def setUpClass(cls):
-        cls.app = ChaliceTestHarness()
-
-    def tearDown(self):
-        directory.clear(
-            users=[
-                service_accounts['admin']['client_email'],
-                service_accounts['user']['client_email']
-            ])
-
+class TestApi(BaseAPITest, unittest.TestCase):
     def test_evaluate_policy(self):
         email = "test_evaluate_api@email.com"
         tests = [
