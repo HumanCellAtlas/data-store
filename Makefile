@@ -63,19 +63,19 @@ smoketest-prod:
 scaletest:
 	./tests/scalability/scale_test_runner.py -r 10 -d 30
 
-deploy: check-env check-secrets generate-dependencies deploy-chalice deploy-daemons
+deploy: check-env check-secrets deploy-chalice deploy-daemons
 
-force-deploy: generate-dependencies deploy-chalice deploy-daemons
+force-deploy: deploy-chalice deploy-daemons
 
-deploy-chalice: generate-dependencies
+deploy-chalice:
 	$(MAKE) -C chalice deploy
 
 deploy-daemons: deploy-daemons-serial deploy-daemons-parallel
 
-deploy-daemons-serial: generate-dependencies
+deploy-daemons-serial:
 	$(MAKE) -j1 -C daemons deploy-serial
 
-deploy-daemons-parallel: generate-dependencies
+deploy-daemons-parallel:
 	$(MAKE) -C daemons deploy-parallel
 
 plan-infra:
