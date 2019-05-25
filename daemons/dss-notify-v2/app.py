@@ -76,8 +76,8 @@ def launch_from_forwarded_event(event, context):
     "dss-notify-v2-" + os.environ['DSS_DEPLOYMENT_STAGE'],
     batch_size=1,
     queue_attributes=dict(
-        VisibilityTimeout="3600",  # Retry every hour
-        MessageRetentionPeriod=str(7 * 24 * 3600)  # Retain messages for 7 days
+        VisibilityTimeout=str(6 * 3600),  # Retry every six hour
+        MessageRetentionPeriod=str(3 * 24 * 3600)  # Retain messages for 7 days
     )
 )
 def launch_from_notification_queue(event, context):
