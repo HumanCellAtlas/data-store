@@ -114,14 +114,14 @@ def dss_handler(func):
             code = "read_only"
             title = "The DSS is currently read-only"
             stacktrace = ""
-            headers = {'Retry-After': 600}
+            headers = {'Retry-After': '600'}
 
         # These errors may be returned by the chalice app before reaching here.
         if status in (requests.codes.server_error,         # 500 status code
                       requests.codes.bad_gateway,          # 502 status code
                       requests.codes.service_unavailable,  # 503 status code
                       requests.codes.gateway_timeout):     # 504 status code
-            headers = {'Retry-After': 10}
+            headers = {'Retry-After': '10'}
 
         return ConnexionResponse(
             status_code=status,
