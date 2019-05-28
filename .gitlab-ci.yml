@@ -130,7 +130,7 @@ scale_and_performance:
 
 release_integration:
   extends: .release
-  variables: 
+  variables:
     RELEASE_COMMAND: scripts/release.sh master integration --no-deploy --skip-account-verification
   only:
     - master

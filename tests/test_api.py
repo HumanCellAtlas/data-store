@@ -94,7 +94,7 @@ class TestApiErrors(unittest.TestCase, DSSAssertMixin):
         return response
 
 
-@testmode.integration
+@testmode.standalone
 class TestApi(unittest.TestCase, DSSAssertMixin, DSSUploadMixin, DSSStorageMixin):
     @classmethod
     def setUpClass(cls):

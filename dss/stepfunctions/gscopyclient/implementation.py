@@ -60,7 +60,7 @@ def copy_worker(event, lambda_context):
             state = self.get_state_copy()
             src_blob = self.gcp_client.bucket(self.source_bucket).get_blob(self.source_key)
             dst_blob = self.gcp_client.bucket(self.destination_bucket).blob(self.destination_key)
-            content_type = src_blob._get_content_type(None)
+            content_type = src_blob.content_type or "application/octet-stream"
 
             # Files can be checked out to a user bucket or the standard dss checkout bucket.
             # If a user bucket, files should be unmodified by either the object tagging (AWS)
@@ -69,10 +69,9 @@ def copy_worker(event, lambda_context):
             if not will_cache:
                 logger.info("Not caching %s with content-type %s size %s", self.source_key, content_type, self.size)
 
-            # TODO: DURABLE_REDUCED_AVAILABILITY is being phased out by Google; use a different method in the future
             if not will_cache and is_dss_bucket(self.destination_bucket):
-                # the DURABLE_REDUCED_AVAILABILITY storage class marks (short-lived) non-cached files
-                dst_blob._patch_property('storageClass', 'DURABLE_REDUCED_AVAILABILITY')
+                # the STANDARD storage class marks (short-lived) non-cached files
+                dst_blob._patch_property('storageClass', 'STANDARD')
                 # setting the storage class explicitly seems like it blanks the content-type, so we add it back
                 dst_blob._patch_property('contentType', content_type)
 
@@ -88,7 +87,7 @@ def copy_worker(event, lambda_context):
                     state[_Key.TOKEN] = response[0]
                     self.save_state(state)
 
-    return CopyWorkerTimedThread(lambda_context.get_remaining_time_in_millis() / 1000, event).start()
+    return CopyWorkerTimedThread(lambda_context.get_remaining_time_in_millis() / 1000 - 10, event).start()
 
 
 def fail(event, lambda_context):
@@ -139,6 +138,19 @@ def _sfn():
                 "Resource": copy_worker,
                 "Retry": _retry_default(),
                 "Catch": _catch_default(),
+                "Next": "TestFinished",
+            },
+            "TestFinished": {
+                "Type": "Choice",
+                "Choices": [{
+                    "Variable": "$.finished",
+                    "BooleanEquals": True,
+                    "Next": "Finish"
+                }],
+                "Default": "Copy",
+            },
+            "Finish": {
+                "Type": "Pass",
                 "End": True,
             },
             "FailTask": {
@@ -180,10 +192,9 @@ def write_metadata(event, lambda_context):
 copy_write_metadata_sfn = _sfn()
 
 # tweak to add one more state.
-del copy_write_metadata_sfn['States']['Copy']['End']
-copy_write_metadata_sfn['States']['Copy']['Next'] = "WriteMetadata"
+copy_write_metadata_sfn['States']['TestFinished']['Choices'][0]['Next'] = "WriteMetadata"
 copy_write_metadata_sfn['States']['WriteMetadata'] = {
     "Type": "Task",
     "Resource": write_metadata,
-    "End": True,
+    "Next": "Finish",
 }

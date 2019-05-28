@@ -15,13 +15,18 @@ class TimedThread(typing.Generic[StateType]):
         self.timeout_seconds = timeout_seconds
         self.__state = copy.deepcopy(state)
         self.lock = threading.Lock()
+        self._exception: Exception = None
 
     def run(self) -> StateType:
         raise NotImplementedError()
 
     def _run(self) -> None:
-        state = self.run()
-        self.save_state(state)
+        try:
+            state = self.run()
+        except Exception as e:
+            self._exception = e
+        else:
+            self.save_state(state)
 
     def _start_async(self) -> None:
         self.thread = threading.Thread(target=self._run, daemon=True)
@@ -36,7 +41,10 @@ class TimedThread(typing.Generic[StateType]):
 
     def start(self) -> StateType:
         self._start_async()
-        return self._join()
+        state = self._join()
+        if self._exception:
+            raise self._exception
+        return state
 
     def get_state_copy(self) -> StateType:
         with self.lock:
