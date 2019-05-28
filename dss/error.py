@@ -1,6 +1,6 @@
 import json
 import os
-import typing
+import random
 import logging
 
 import functools
@@ -37,6 +37,22 @@ class DSSForbiddenException(DSSException):
                          title,
                          *args, **kwargs)
 
+
+def maybe_fake_error(headers, code) -> bool:
+    # sometimes the capitalization gets a little funky when the headers come out the other end
+    probability = headers.get(f"DSS_FAKE_{code}_PROBABILITY") or headers.get(f"Dss_Fake_{code}_Probability") or "0.0"
+
+    try:
+        fake_error_probability = float(probability)
+    except ValueError:
+        return None
+
+    if random.random() > fake_error_probability:
+        return None
+
+    return True
+
+
 def dss_exception_handler(e: DSSException) -> FlaskResponse:
     return FlaskResponse(
         status=e.status,
@@ -49,10 +65,27 @@ def dss_exception_handler(e: DSSException) -> FlaskResponse:
             'stacktrace': traceback.format_exc(),
         }))
 
+
 def dss_handler(func):
     @functools.wraps(func)
     def wrapper(*args, **kwargs):
-        if (os.environ.get('DSS_READ_ONLY_MODE') is None
+        if maybe_fake_error(headers=request.headers, code=500):
+            status = 500
+            code = 'unhandled_exception'
+            title = 'Unhandled Exception'
+            stacktrace = ''
+        elif maybe_fake_error(headers=request.headers, code=502):
+            status = 502
+            code = 'bad_gateway'
+            title = 'Bad Gateway'
+            stacktrace = ''
+        elif maybe_fake_error(headers=request.headers, code=503):
+            status = 503
+            code = 'service_unavailable'
+            title = 'Service Unavailable'
+            stacktrace = ''
+        # fake/real 504 responses are raised via a similar mechanic in data-store/chalice/app.py
+        elif (os.environ.get('DSS_READ_ONLY_MODE') is None
                 or "GET" == request.method
                 or ("POST" == request.method and "search" in request.path)):
             try:
@@ -83,8 +116,7 @@ def dss_handler(func):
             stacktrace = ""
             headers = {'Retry-After': 600}
 
-        # We most likely won't hit this here, as a general server error will
-        # likely be handled and returned by the chalice app before reaching here.
+        # These errors may be returned by the chalice app before reaching here.
         if status in (requests.codes.server_error,         # 500 status code
                       requests.codes.bad_gateway,          # 502 status code
                       requests.codes.service_unavailable,  # 503 status code

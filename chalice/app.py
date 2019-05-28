@@ -22,7 +22,7 @@ from dss import BucketConfig, Config, DeploymentStage, create_app
 from dss.logging import configure_lambda_logging
 from dss.util.tracing import DSS_XRAY_TRACE
 from dss.api import health
-from dss.error import DSSException
+from dss.error import maybe_fake_error
 
 if DSS_XRAY_TRACE:  # noqa
     from aws_xray_sdk.core import xray_recorder
@@ -170,20 +170,7 @@ def get_chalice_app(flask_app) -> DSSChaliceApp:
             ' ' + str(query_params) if query_params is not None else '',
         )
 
-        def maybe_fake_error(code) -> typing.Optional[chalice.Response]:
-            fake_error_probability_str = app.current_request.headers.get(f"DSS_FAKE_{code}_PROBABILITY", "0.0")
-
-            try:
-                fake_error_probability = float(fake_error_probability_str)
-            except ValueError:
-                return None
-
-            if random.random() > fake_error_probability:
-                return None
-
-            return True
-
-        if not DeploymentStage.IS_PROD() and maybe_fake_error(code=504):
+        if not DeploymentStage.IS_PROD() and maybe_fake_error(headers=app.current_request.headers, code=504):
             return timeout_response(' '.join([method, path]))
 
         status_code = None

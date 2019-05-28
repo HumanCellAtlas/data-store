@@ -8,16 +8,11 @@ import os
 import sys
 import unittest
 import requests
-import importlib
-import functools
-import copy
-from unittest import mock
 
 pkg_root = os.path.abspath(os.path.join(os.path.dirname(__file__), '..'))  # noqa
 sys.path.insert(0, pkg_root)  # noqa
 
 import dss
-from dss.error import DSSException
 from dss.util import UrlBuilder
 from dss.util.version import datetime_to_version_format
 from dss.config import Replica, DeploymentStage, Config
@@ -27,11 +22,19 @@ from tests import get_auth_header
 
 
 class TestApiErrors(unittest.TestCase, DSSAssertMixin):
+    @classmethod
+    def setUpClass(cls):
+        cls.app = ThreadedLocalServer()
+        cls.app.start()
+        cls.app._chalice_app._override_exptime_seconds = 15.0
+
+    @classmethod
+    def tearDownClass(cls):
+        cls.app.shutdown()
+
     @unittest.skipIf(DeploymentStage.IS_PROD(), "Skipping synthetic 504 test for PROD.")
     def test_504_post_bundle_HAS_NO_retry_after_response(self):
-        self.app = ThreadedLocalServer()
-        self.app.start()
-        self.app._chalice_app._override_exptime_seconds = 15.0
+        """This is the only endpoint we care about NOT having a response with no Retry-After in the header."""
         uuid = "xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx"
         version = datetime_to_version_format(datetime.datetime.utcnow())
 
@@ -49,13 +52,29 @@ class TestApiErrors(unittest.TestCase, DSSAssertMixin):
             headers={"DSS_FAKE_504_PROBABILITY": "1.0"}
         )
         self.assertTrue('Retry-After' not in r.response.headers)
-        self.app.shutdown()
+
+    def test_500_get_bundle_HAS_retry_after_response(self):
+        """All endpoints except POST /bundles/{uuid}/checkout should have a Retry-After header for 500 errors."""
+        res = self.get_bundle_response(code=requests.codes.server_error, code_alias='unhandled_exception')
+        self.assertEqual(int(res.response.headers['Retry-After']), 10)
+
+    def test_502_get_bundle_HAS_retry_after_response(self):
+        """All endpoints except POST /bundles/{uuid}/checkout should have a Retry-After header for 502 errors."""
+        res = self.get_bundle_response(code=requests.codes.bad_gateway, code_alias='bad_gateway')
+        self.assertEqual(int(res.response.headers['Retry-After']), 10)
+
+    def test_503_get_bundle_HAS_retry_after_response(self):
+        """All endpoints except POST /bundles/{uuid}/checkout should have a Retry-After header for 503 errors."""
+        res = self.get_bundle_response(code=requests.codes.service_unavailable, code_alias='service_unavailable')
+        self.assertEqual(int(res.response.headers['Retry-After']), 10)
 
     @unittest.skipIf(DeploymentStage.IS_PROD(), "Skipping synthetic 504 test for PROD.")
     def test_504_get_bundle_HAS_retry_after_response(self):
-        self.app = ThreadedLocalServer()
-        self.app.start()
-        self.app._chalice_app._override_exptime_seconds = 15.0
+        """All endpoints except POST /bundles/{uuid}/checkout should have a Retry-After header for 504 errors."""
+        res = self.get_bundle_response(code=requests.codes.gateway_timeout, code_alias='timed_out')
+        self.assertEqual(int(res.response.headers['Retry-After']), 10)
+
+    def get_bundle_response(self, code, code_alias):
         uuid = "xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx"
         version = datetime_to_version_format(datetime.datetime.utcnow())
 
@@ -63,46 +82,16 @@ class TestApiErrors(unittest.TestCase, DSSAssertMixin):
                   .add_query("version", version)
                   .add_query("replica", 'aws'))
 
-        r = self.assertGetResponse(
+        response = self.assertGetResponse(
             url,
-            504,
+            code,
             expected_error=ExpectedErrorFields(
-                code="timed_out",
-                status=requests.codes.gateway_timeout,
+                code=code_alias,
+                status=code,
             ),
-            headers={"DSS_FAKE_504_PROBABILITY": "1.0"}
+            headers={f'DSS_FAKE_{code}_PROBABILITY': '1.0'}
         )
-        self.assertEqual(int(r.response.headers['Retry-After']), 10)
-        self.app.shutdown()
-
-    def test_500_get_bundle_HAS_retry_after_response(self):
-        with mock.patch('dss.api.bundles.get') as foo:
-            foo.side_effect = DSSException(500, 'server_error', "Internal Server Error.")
-            self.app = ThreadedLocalServer()
-            self.app.start()
-            self.app._chalice_app._override_exptime_seconds = 15.0
-            uuid = "xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx"
-            version = datetime_to_version_format(datetime.datetime.utcnow())
-
-            url = str(UrlBuilder().set(path=f"/v1/bundles/{uuid}")
-                      .add_query("version", version)
-                      .add_query("replica", 'aws'))
-
-            headers = get_auth_header()
-            r = self.assertGetResponse(url, 500)
-            self.assertEqual(int(r.response.headers['Retry-After']), 10)
-
-            # ##################
-            # url = str(UrlBuilder().set(path=f"/v1/bundles/{uuid}/checkout")
-            #           .add_query("version", version)
-            #           .add_query("replica", 'aws'))
-            # request_body = {'destination': Config.get_test_bucket()}
-            #
-            #
-            # headers = get_auth_header()
-            # r = self.assertPostResponse(url, 500, request_body, headers=get_auth_header())
-            # self.assertTrue('Retry-After' not in r.response.headers)
-            # self.app.shutdown()
+        return response
 
 
 @testmode.integration
