@@ -1,7 +1,6 @@
 import collections
 import functools
 import os
-import random
 import re
 import sys
 import threading
