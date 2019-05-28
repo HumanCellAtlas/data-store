@@ -15,7 +15,7 @@ sys.path.insert(0, pkg_root)  # noqa
 import dss
 from dss.util import UrlBuilder
 from dss.util.version import datetime_to_version_format
-from dss.config import Replica, DeploymentStage, Config
+from dss.config import Replica, DeploymentStage
 from tests.infra import DSSAssertMixin, DSSUploadMixin, DSSStorageMixin, TestBundle, testmode, ExpectedErrorFields
 from tests.infra.server import ThreadedLocalServer
 from tests import get_auth_header
@@ -58,26 +58,26 @@ class TestApiErrors(unittest.TestCase, DSSAssertMixin):
     # Only POST /bundles/{uuid}/checkout should have no Retry-After header for 50x responses and we check this below
 
     def test_NO_retry_after_response_500_POST_bundle(self):
-        """This is the only endpoint we care about NOT having a response with no Retry-After in the header."""
+        """This is the only endpoint we care about NOT having a response with a Retry-After in the header."""
         res = self.bundle_response(code=requests.codes.server_error, code_alias='unhandled_exception',
                                    api_path='post_bundle')
         self.assertTrue('Retry-After' not in res.response.headers)
 
     def test_NO_retry_after_response_502_POST_bundle(self):
-        """This is the only endpoint we care about NOT having a response with no Retry-After in the header."""
+        """This is the only endpoint we care about NOT having a response with a Retry-After in the header."""
         res = self.bundle_response(code=requests.codes.bad_gateway, code_alias='unhandled_exception',
                                    api_path='post_bundle')
         self.assertTrue('Retry-After' not in res.response.headers)
 
     def test_NO_retry_after_response_503_POST_bundle(self):
-        """This is the only endpoint we care about NOT having a response with no Retry-After in the header."""
+        """This is the only endpoint we care about NOT having a response with a Retry-After in the header."""
         res = self.bundle_response(code=requests.codes.service_unavailable, code_alias='service_unavailable',
                                    api_path='post_bundle')
         self.assertTrue('Retry-After' not in res.response.headers)
 
     @unittest.skipIf(DeploymentStage.IS_PROD(), "Skipping synthetic 504 test for PROD.")
     def test_NO_retry_after_response_504_POST_bundle(self):
-        """This is the only endpoint we care about NOT having a response with no Retry-After in the header."""
+        """This is the only endpoint we care about NOT having a response with a Retry-After in the header."""
         res = self.bundle_response(code=requests.codes.gateway_timeout, code_alias='timed_out',
                                    api_path='post_bundle')
         self.assertTrue('Retry-After' not in res.response.headers)
@@ -95,7 +95,6 @@ class TestApiErrors(unittest.TestCase, DSSAssertMixin):
             assertreply = self.assertPostResponse
         else:
             raise NotImplementedError
-
 
         url = str(UrlBuilder().set(path=path)
                   .add_query("version", version)
