@@ -196,7 +196,7 @@ def get_chalice_app(flask_app) -> DSSChaliceApp:
                            requests.codes.gateway_timeout       # 504 status code
                            ) \
                 and not (app.current_request.method == 'POST' and path.startswith('/v1/bundles')):
-            res_headers['Retry-After'] = 10
+            res_headers['Retry-After'] = '10'
 
         return chalice.Response(status_code=status_code,
                                 headers=res_headers,

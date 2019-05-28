@@ -32,59 +32,79 @@ class TestApiErrors(unittest.TestCase, DSSAssertMixin):
     def tearDownClass(cls):
         cls.app.shutdown()
 
-    @unittest.skipIf(DeploymentStage.IS_PROD(), "Skipping synthetic 504 test for PROD.")
-    def test_504_post_bundle_HAS_NO_retry_after_response(self):
-        """This is the only endpoint we care about NOT having a response with no Retry-After in the header."""
-        uuid = "xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx"
-        version = datetime_to_version_format(datetime.datetime.utcnow())
+    # all endpoints should return Retry-After headers for 50x responses, though we only test GET /bundle/{uuid} here
 
-        url = str(UrlBuilder().set(path=f"/v1/bundles/{uuid}/checkout")
-                  .add_query("version", version)
-                  .add_query("replica", 'aws'))
-
-        r = self.assertPostResponse(
-            url,
-            504,
-            expected_error=ExpectedErrorFields(
-                code="timed_out",
-                status=requests.codes.gateway_timeout,
-            ),
-            headers={"DSS_FAKE_504_PROBABILITY": "1.0"}
-        )
-        self.assertTrue('Retry-After' not in r.response.headers)
-
-    def test_500_get_bundle_HAS_retry_after_response(self):
+    def test_retry_after_response_500_GET_bundle(self):
         """All endpoints except POST /bundles/{uuid}/checkout should have a Retry-After header for 500 errors."""
-        res = self.get_bundle_response(code=requests.codes.server_error, code_alias='unhandled_exception')
+        res = self.bundle_response(code=requests.codes.server_error, code_alias='unhandled_exception')
         self.assertEqual(int(res.response.headers['Retry-After']), 10)
 
-    def test_502_get_bundle_HAS_retry_after_response(self):
+    def test_retry_after_response_502_GET_bundle(self):
         """All endpoints except POST /bundles/{uuid}/checkout should have a Retry-After header for 502 errors."""
-        res = self.get_bundle_response(code=requests.codes.bad_gateway, code_alias='bad_gateway')
+        res = self.bundle_response(code=requests.codes.bad_gateway, code_alias='unhandled_exception')
         self.assertEqual(int(res.response.headers['Retry-After']), 10)
 
-    def test_503_get_bundle_HAS_retry_after_response(self):
+    def test_retry_after_response_503_GET_bundle(self):
         """All endpoints except POST /bundles/{uuid}/checkout should have a Retry-After header for 503 errors."""
-        res = self.get_bundle_response(code=requests.codes.service_unavailable, code_alias='service_unavailable')
+        res = self.bundle_response(code=requests.codes.service_unavailable, code_alias='service_unavailable')
         self.assertEqual(int(res.response.headers['Retry-After']), 10)
 
     @unittest.skipIf(DeploymentStage.IS_PROD(), "Skipping synthetic 504 test for PROD.")
-    def test_504_get_bundle_HAS_retry_after_response(self):
+    def test_retry_after_response_504_GET_bundle(self):
         """All endpoints except POST /bundles/{uuid}/checkout should have a Retry-After header for 504 errors."""
-        res = self.get_bundle_response(code=requests.codes.gateway_timeout, code_alias='timed_out')
+        res = self.bundle_response(code=requests.codes.gateway_timeout, code_alias='timed_out')
         self.assertEqual(int(res.response.headers['Retry-After']), 10)
 
-    def get_bundle_response(self, code, code_alias):
+    # Only POST /bundles/{uuid}/checkout should have no Retry-After header for 50x responses and we check this below
+
+    def test_NO_retry_after_response_500_POST_bundle(self):
+        """This is the only endpoint we care about NOT having a response with no Retry-After in the header."""
+        res = self.bundle_response(code=requests.codes.server_error, code_alias='unhandled_exception',
+                                   api_path='post_bundle')
+        self.assertTrue('Retry-After' not in res.response.headers)
+
+    def test_NO_retry_after_response_502_POST_bundle(self):
+        """This is the only endpoint we care about NOT having a response with no Retry-After in the header."""
+        res = self.bundle_response(code=requests.codes.bad_gateway, code_alias='unhandled_exception',
+                                   api_path='post_bundle')
+        self.assertTrue('Retry-After' not in res.response.headers)
+
+    def test_NO_retry_after_response_503_POST_bundle(self):
+        """This is the only endpoint we care about NOT having a response with no Retry-After in the header."""
+        res = self.bundle_response(code=requests.codes.service_unavailable, code_alias='service_unavailable',
+                                   api_path='post_bundle')
+        self.assertTrue('Retry-After' not in res.response.headers)
+
+    @unittest.skipIf(DeploymentStage.IS_PROD(), "Skipping synthetic 504 test for PROD.")
+    def test_NO_retry_after_response_504_POST_bundle(self):
+        """This is the only endpoint we care about NOT having a response with no Retry-After in the header."""
+        res = self.bundle_response(code=requests.codes.gateway_timeout, code_alias='timed_out',
+                                   api_path='post_bundle')
+        self.assertTrue('Retry-After' not in res.response.headers)
+
+    def bundle_response(self, code, code_alias, api_path='get_bundle'):
         uuid = "xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx"
         version = datetime_to_version_format(datetime.datetime.utcnow())
+        request_body = {"destination": 'nonexistent_bucket'}
 
-        url = str(UrlBuilder().set(path=f"/v1/bundles/{uuid}")
+        if api_path == 'get_bundle':
+            path = f"/v1/bundles/{uuid}"
+            assertreply = self.assertGetResponse
+        elif api_path == 'post_bundle':
+            path = f"/v1/bundles/{uuid}/checkout"
+            assertreply = self.assertPostResponse
+        else:
+            raise NotImplementedError
+
+
+        url = str(UrlBuilder().set(path=path)
                   .add_query("version", version)
                   .add_query("replica", 'aws'))
 
-        response = self.assertGetResponse(
+        response = assertreply(
             url,
             code,
+            request_body,
             expected_error=ExpectedErrorFields(
                 code=code_alias,
                 status=code,
