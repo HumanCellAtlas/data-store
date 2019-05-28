@@ -96,6 +96,9 @@ create-github-deployment:
 	$(eval DEPLOY_API=https://api.github.com/repos/$(REMOTE)/deployments)
 	http POST $(DEPLOY_API) Authorization:"Bearer $(GH_TOKEN)" ref=$(BRANCH) environment=dev auto_merge:=false
 
+generate-dependencies:
+	scripts/generate_upload_requirements_layer.sh
+
 release_integration:
 	scripts/release.sh master integration
 
@@ -111,6 +114,9 @@ clean:
 	git checkout $$(git status --porcelain {chalice,daemons/*}/.chalice/config.json | awk '{print $$2}')
 	-rm -rf .*-env
 	-rm -rf node_modules
+	rm -rf dependencies
+	rm -rf temp_chalice
+	rm -rf dss-dependencies-${DSS_DEPLOYMENT_STAGE}.zip
 
 refresh_all_requirements:
 	@echo -n '' >| requirements.txt

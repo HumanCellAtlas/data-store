@@ -6,5 +6,6 @@ deploy:
 	cp -R ../dss ../dss-api.yml chalicelib
 	aws secretsmanager get-secret-value --secret-id ${DSS_SECRETS_STORE}/${DSS_DEPLOYMENT_STAGE}/gcp-credentials.json | jq -r .SecretString > chalicelib/gcp-credentials.json
 	aws secretsmanager get-secret-value --secret-id ${DSS_SECRETS_STORE}/${DSS_DEPLOYMENT_STAGE}/application_secrets.json | jq -r .SecretString > chalicelib/application_secrets.json
+	${DSS_HOME}/scripts/generate_upload_requirements_layer.sh
 	./build_deploy_config.sh
 	chalice deploy --no-autogen-policy --stage $(DSS_DEPLOYMENT_STAGE) --api-gateway-stage $(DSS_DEPLOYMENT_STAGE)

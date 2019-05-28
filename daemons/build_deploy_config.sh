@@ -29,6 +29,12 @@ if ! aws es describe-elasticsearch-domain --domain-name $dss_es_domain; then
 fi
 
 cat "$config_json" | jq ".stages.$stage.api_gateway_stage=env.stage" | sponge "$config_json"
+
+export layer_name=dss-dependencies-${stage}
+export layer_version_arn=$(aws lambda list-layers | jq -r '.Layers[] | select(.LayerName == env.layer_name) | .LatestMatchingVersion.LayerVersionArn')
+cat "$config_json" | jq ".stages.$stage.layers=[env.layer_version_arn]" | sponge "$config_json"
+
+
 export DEPLOY_ORIGIN="$(whoami)-$(hostname)-$(git describe --tags --always)-$(date -u +'%Y-%m-%d-%H-%M-%S').deploy"
 cat "$config_json" | jq ".stages.$stage.tags.DSS_DEPLOY_ORIGIN=\"$DEPLOY_ORIGIN\" | \
 	.stages.$stage.tags.Name=\"${DSS_INFRA_TAG_PROJECT}-${DSS_DEPLOYMENT_STAGE}-${DSS_INFRA_TAG_SERVICE}\" | \

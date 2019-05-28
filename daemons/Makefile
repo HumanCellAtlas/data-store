@@ -29,7 +29,10 @@ deploy: deploy-serial deploy-parallel
 deploy-serial: $(SERIAL_AWS_DAEMONS) $(SERIAL_GCP_DAEMONS)
 deploy-parallel: $(PARALLEL_AWS_DAEMONS) $(PARALLEL_GCP_DAEMONS)
 
-$(SERIAL_AWS_DAEMONS) $(PARALLEL_AWS_DAEMONS):
+generate-dependencies:
+	${DSS_HOME}/scripts/generate_upload_requirements_layer.sh
+
+$(SERIAL_AWS_DAEMONS) $(PARALLEL_AWS_DAEMONS): generate-dependencies
 	@for f in $@/*.tf; do \
 		echo "Terraforming $@"; \
 		if [ -e $$f ]; then \

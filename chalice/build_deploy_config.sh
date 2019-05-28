@@ -24,6 +24,11 @@ if ! aws es describe-elasticsearch-domain --domain-name $dss_es_domain; then
 fi
 
 cat "$config_json" | jq ".stages.$stage.api_gateway_stage=env.stage" | sponge "$config_json"
+
+export layer_name=dss-dependencies-${stage}
+export layer_version_arn=$(aws lambda list-layers | jq -r '.Layers[] | select(.LayerName == env.layer_name) | .LatestMatchingVersion.LayerVersionArn')
+cat "$config_json" | jq ".stages.$stage.layers=[env.layer_version_arn]" | sponge "$config_json"
+
 export lambda_arn=$(aws lambda list-functions | jq -r '.Functions[] | select(.FunctionName==env.lambda_name) | .FunctionArn')
 if [[ -z $lambda_arn ]]; then
     echo "Lambda function $lambda_name not found, resetting Chalice config"
@@ -40,7 +45,6 @@ else
            .$stage.chalice_version = \"1.0.1\" | \
            .$stage.lambda_functions = {}" > "$deployed_json"
 fi
-
 
 export DEPLOY_ORIGIN="$(whoami)-$(hostname)-$(git describe --tags --always)-$(date -u +'%Y-%m-%d-%H-%M-%S').deploy"
 cat "$config_json" | jq ".stages.$stage.tags.DSS_DEPLOY_ORIGIN=\"$DEPLOY_ORIGIN\" | \
