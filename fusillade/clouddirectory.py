@@ -22,7 +22,6 @@ from fusillade.errors import FusilladeException, FusilladeHTTPException
 
 logger = logging.getLogger(__name__)
 
-
 cd_client = aws_clients.clouddirectory
 iam = aws_clients.iam
 project_arn = "arn:aws:clouddirectory:{}:{}:".format(
@@ -818,31 +817,26 @@ class CloudNode:
 
     def __init__(self,
                  cloud_directory: CloudDirectory,
-                 object_type: str,
                  name: str = None,
-                 object_ref: str = None,
-                 facet="NodeFacet"):
+                 object_ref: str = None):
         """
 
         :param cloud_directory:
-        :param object_type:
         :param name:
         :param object_reference:
-        :param facet:
         """
         self.log = logging.getLogger('.'.join([__name__, self.__class__.__name__]))
+        self._object_type = self.__class__.__name__.lower()
         if name and object_ref:
             raise FusilladeException("object_reference XOR name")
         if name:
             self._name: str = name
             self._path_name: str = self.hash_name(name)
-            self.object_ref: str = cloud_directory.get_obj_type_path(object_type) + self._path_name
+            self.object_ref: str = cloud_directory.get_obj_type_path(self._object_type) + self._path_name
         else:
             self._name: str = None
             self._path_name: str = None
             self.object_ref: str = object_ref
-        self._object_type: str = object_type
-        self._facet: str = facet
         self.cd: CloudDirectory = cloud_directory
         self._policy: typing.Optional[str] = None
         self._statement: typing.Optional[str] = None
@@ -1132,6 +1126,7 @@ class User(CloudNode):
     _attributes = ['status'] + CloudNode._attributes
     default_roles = ['default_user']  # TODO: make configurable
     default_groups = []  # TODO: make configurable
+    _facet = 'LeafFacet'
 
     def __init__(self, cloud_directory: CloudDirectory, name: str = None, object_ref: str = None):
         """
@@ -1140,10 +1135,8 @@ class User(CloudNode):
         :param name:
         """
         super(User, self).__init__(cloud_directory,
-                                   'user',
                                    name=name,
-                                   object_ref=object_ref,
-                                   facet='LeafFacet')
+                                   object_ref=object_ref)
         self._status = None
         self._groups: typing.Optional[typing.List[str]] = None
         self._roles: typing.Optional[typing.List[str]] = None
@@ -1311,6 +1304,7 @@ class Group(CloudNode):
     """
     Represents a group in CloudDirectory
     """
+    _facet = 'LeafFacet'
 
     def __init__(self, cloud_directory: CloudDirectory, name: str = None, object_ref: str = None):
         """
@@ -1318,7 +1312,7 @@ class Group(CloudNode):
         :param cloud_directory:
         :param name:
         """
-        super(Group, self).__init__(cloud_directory, 'group', name=name, object_ref=object_ref, facet='LeafFacet')
+        super(Group, self).__init__(cloud_directory, name=name, object_ref=object_ref)
         self._groups = None
         self._roles = None
 
@@ -1409,9 +1403,10 @@ class Role(CloudNode):
     """
     Represents a role in CloudDirectory
     """
+    _facet = 'NodeFacet'
 
     def __init__(self, cloud_directory: CloudDirectory, name: str = None, object_ref: str = None):
-        super(Role, self).__init__(cloud_directory, 'role', name=name, object_ref=object_ref, facet='NodeFacet')
+        super(Role, self).__init__(cloud_directory, name=name, object_ref=object_ref)
 
     @classmethod
     def create(cls,
