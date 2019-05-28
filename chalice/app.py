@@ -64,15 +64,12 @@ class DSSChaliceApp(chalice.Chalice):
         super().__init__(*args, **kwargs)
         self._override_exptime_seconds = None
 
-    def _validate_response(self, response):
-        """Allows returned header values to be integers."""
-        for header, value in response.headers.items():
-            if not isinstance(value, int):
-                if '\n' in value:
-                    raise self.ChaliceError("Bad value for header '%s': %r" % (header, value))
 
-
-def error_response(method: str, status: int, code: str, title: str) -> chalice.Response:
+def timeout_response(method: str) -> chalice.Response:
+    """
+    Produce a chalice Response object that indicates a timeout.  Stacktraces for all running threads, other than the
+    current thread, are provided in the response object.
+    """
     frames = sys._current_frames()
     current_threadid = threading.get_ident()
     trace_dump = {
@@ -81,31 +78,19 @@ def error_response(method: str, status: int, code: str, title: str) -> chalice.R
         if thread_id != current_threadid}
 
     problem = {
-        'status': status,
-        'code': code,
-        'title': title,
-        'traces': trace_dump,
+        'status': requests.codes.gateway_timeout,
+        'code': 'timed_out',
+        'title': 'Timed out processing request.',
+        'traces': trace_dump
     }
 
     headers = {"Content-Type": "application/problem+json"}
-
     if not method.startswith('POST /v1/bundles') or ('bundle' in method and method.endswith('.post')):
         headers['Retry-After'] = '10'
 
     return chalice.Response(status_code=problem['status'],
                             headers=headers,
                             body=json.dumps(problem))
-
-
-def timeout_response(method: str) -> chalice.Response:
-    """
-    Produce a chalice Response object that indicates a timeout.  Stacktraces for all running threads, other than the
-    current thread, are provided in the response object.
-    """
-    return error_response(method,
-                          status=requests.codes.gateway_timeout,
-                          code="timed_out",
-                          title="Timed out processing request.")
 
 
 def calculate_seconds_left(chalice_app: DSSChaliceApp) -> int:
