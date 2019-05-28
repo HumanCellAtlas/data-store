@@ -73,17 +73,17 @@ def dss_handler(func):
             status = 500
             code = 'unhandled_exception'
             title = 'Unhandled Exception'
-            stacktrace = ''
+            stacktrace = 'This is a fake error used for testing.'
         elif maybe_fake_error(headers=request.headers, code=502):
             status = 502
             code = 'bad_gateway'
             title = 'Bad Gateway'
-            stacktrace = ''
+            stacktrace = 'This is a fake error used for testing.'
         elif maybe_fake_error(headers=request.headers, code=503):
             status = 503
             code = 'service_unavailable'
             title = 'Service Unavailable'
-            stacktrace = ''
+            stacktrace = 'This is a fake error used for testing.'
         # fake/real 504 responses are raised via a similar mechanic in data-store/chalice/app.py
         elif (os.environ.get('DSS_READ_ONLY_MODE') is None
                 or "GET" == request.method
