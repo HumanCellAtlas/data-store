@@ -34,6 +34,7 @@ def verify_entity_replication(argv: typing.List[str], args: argparse.Namespace):
     for example, if a bundle key is provided, replication will be verified for the bundle and all referenced files and
     blobs.
     """
+    assert args.source_replica != args.destination_replica
     src_replica = Replica[args.source_replica]
     dst_replica = Replica[args.destination_replica]
     src_handle = Config.get_blobstore_handle(src_replica)
