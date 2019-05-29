@@ -130,21 +130,18 @@ def create_directory(name: str, schema: str, admins: List[str]) -> 'CloudDirecto
     return directory
 
 
-def _paging_loop(fn: Callable, key: str, upack_response: Callable, **kwarg):
+def _paging_loop(fn: Callable, key: str, upack_response: Optional[Callable] = None, **kwarg):
     while True:
         resp = fn(**kwarg)
         for i in resp[key]:
-            yield upack_response(i)
+            yield i if not upack_response else upack_response(i)
         kwarg['NextToken'] = resp.get("NextToken")
         if not kwarg['NextToken']:
             break
 
 
 def list_directories(state: str = 'ENABLED') -> Iterator:
-    def unpack_response(i):
-        return i
-
-    return _paging_loop(cd_client.list_directories, 'Directories', unpack_response, state=state)
+    return _paging_loop(cd_client.list_directories, 'Directories', state=state)
 
 
 class UpdateActions(Enum):
@@ -272,9 +269,6 @@ class CloudDirectory:
                           filter_attribute_ranges: Optional[List],
                           filter_typed_link: Optional[str]
                           ):
-        def unpack_response(i):
-            return i
-
         kwargs = dict(
             DirectoryArn=self._dir_arn,
             ObjectReference={'Selector': object_ref},
@@ -287,7 +281,7 @@ class CloudDirectory:
                 'SchemaArn': self.schema,
                 'TypedLinkName': filter_typed_link
             }
-        return _paging_loop(func, key, unpack_response, **kwargs)
+        return _paging_loop(func, key, **kwargs)
 
     def list_outgoing_typed_links(self,
                                   object_ref: str,
