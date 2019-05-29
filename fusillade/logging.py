@@ -1,3 +1,4 @@
+import os
 import time
 from pythonjsonlogger import jsonlogger
 import logging
@@ -110,9 +111,10 @@ def _configure_logging(**kwargs):
     global _logging_configured, _debug, silence_debug_loggers
     logging.basicConfig()
 
-    for handler in root_logger.handlers:
-        formatter = DSSJsonFormatter(LOG_FORMAT)
-        handler.setFormatter(formatter)
+    if bool(os.getenv('JSON_LOGS', False)):
+        for handler in root_logger.handlers:
+            formatter = DSSJsonFormatter(LOG_FORMAT)
+            handler.setFormatter(formatter)
 
     if _logging_configured:
         root_logger.info("Logging was already configured in this interpreter process. The currently "
@@ -121,9 +123,10 @@ def _configure_logging(**kwargs):
         if len(root_logger.handlers) == 0:
             logging.basicConfig(**kwargs)
         else:
-            for handler in root_logger.handlers:
-                formatter = DSSJsonFormatter(LOG_FORMAT)
-                handler.setFormatter(formatter)
+            if bool(os.getenv('JSON_LOGS', False)):
+                for handler in root_logger.handlers:
+                    formatter = DSSJsonFormatter(LOG_FORMAT)
+                    handler.setFormatter(formatter)
         if Config.debug_level() == 0:
             _debug = False
             root_logger.setLevel(logging.WARN)

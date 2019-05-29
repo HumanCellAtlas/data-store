@@ -31,6 +31,7 @@ ACM_CERTIFICATE_IDENTIFIER="826dbdb8-2b23-4cc9-8fd6-73aa6fc658d7"
 FUS_TERRAFORM_BACKEND_BUCKET_TEMPLATE=terraform-tsmith
 FUS_ADMIN_EMAILS=test_email@domain.com
 DEBUG=0
+JSON_LOGS=False
 AWS_SDK_LOAD_CONFIG=1 # Needed for Terraform to correctly use AWS assumed roles
 
 GITHUB_TOKEN_PATH=None
