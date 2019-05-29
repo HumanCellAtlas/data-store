@@ -1,5 +1,5 @@
 """
-Replication consistency checks
+Replication consistency checks: verify and repair synchronization across replicas
 """
 import json
 import typing

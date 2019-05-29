@@ -1,5 +1,5 @@
 """
-Storage consistency checks
+Storage consistency checks: verify and repair storage integrity within a single replica.
 """
 import json
 import typing
