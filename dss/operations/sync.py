@@ -55,11 +55,14 @@ def verify_entity_replication(argv: typing.List[str], args: argparse.Namespace):
             _log_warning(ReplicationAnomaly=dict(key=anomaly.key, anomaly=anomaly.anomaly))
 
 
-@sync.action("sync",
+@sync.action("trigger-sync",
              arguments={"--source-replica": dict(choices=[r.name for r in Replica], required=True),
                         "--destination-replica": dict(choices=[r.name for r in Replica], required=True),
                         "--keys": dict(default=None, nargs="*", help="keys to check.")})
 def trigger_sync(argv: typing.List[str], args: argparse.Namespace):
+    """
+    Invoke the sync daemon on a set of keys via sqs.
+    """
     sync_queue_url = get_queue_url("dss-sync-operation-" + os.environ['DSS_DEPLOYMENT_STAGE'])
     with MessageQueuer(sync_queue_url) as mq:
         for key in args.keys:
