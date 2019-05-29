@@ -20,7 +20,7 @@ import dss
 from tests.infra import testmode
 from dss.operations import DSSOperationsCommandDispatch
 from dss.operations.util import map_bucket_results, CommandForwarder
-from dss.operations import storage
+from dss.operations import storage, sync
 from dss.logging import configure_test_logging
 from dss.config import BucketConfig, Config, Replica, override_bucket_config
 from dss.storage.hcablobstore import FileMetadata, compose_blob_key
@@ -170,6 +170,95 @@ class TestOperations(unittest.TestCase):
                     test.update(native_handle, test.replica.bucket, key, test.expected_content_type)
                     self.assertEqual(test.expected_content_type, handle.get_content_type(test.replica.bucket, key))
                     self.assertEqual(handle.get(test.replica.bucket, key), data)
+
+    def test_verify_blob_replication(self):
+        key = "blobs/alsdjflaskjdf"
+        from_handle = mock.Mock()
+        to_handle = mock.Mock()
+        from_handle.get_size = mock.Mock(return_value=10)
+        to_handle.get_size = mock.Mock(return_value=10)
+
+        with self.subTest("no replication error"):
+            res = sync.verify_blob_replication(from_handle, to_handle, "", "", key)
+            self.assertEqual(res, list())
+
+        with self.subTest("Unequal size blobs reports error"):
+            to_handle.get_size = mock.Mock(return_value=11)
+            res = sync.verify_blob_replication(from_handle, to_handle, "", "", key)
+            self.assertEqual(res[0].key, key)
+            self.assertIn("mismatch", res[0].anomaly)
+
+        with self.subTest("Missing target blob reports error"):
+            to_handle.get_size.side_effect = BlobNotFoundError
+            res = sync.verify_blob_replication(from_handle, to_handle, "", "", key)
+            self.assertEqual(res[0].key, key)
+            self.assertIn("missing", res[0].anomaly)
+
+    def test_verify_file_replication(self):
+        key = "blobs/alsdjflaskjdf"
+        from_handle = mock.Mock()
+        to_handle = mock.Mock()
+        file_metadata = json.dumps({'sha256': "", 'sha1': "", 's3-etag': "", 'crc32c': ""})
+        from_handle.get = mock.Mock(return_value=file_metadata)
+        to_handle.get = mock.Mock(return_value=file_metadata)
+
+        with self.subTest("no replication error"):
+            with mock.patch("dss.operations.sync.verify_blob_replication") as vbr:
+                vbr.return_value = list()
+                res = sync.verify_file_replication(from_handle, to_handle, "", "", key)
+                self.assertEqual(res, list())
+
+        with self.subTest("Unequal file metadata"):
+            to_handle.get.return_value = "{}"
+            res = sync.verify_file_replication(from_handle, to_handle, "", "", key)
+            self.assertEqual(res[0].key, key)
+            self.assertIn("mismatch", res[0].anomaly)
+
+        with self.subTest("Missing file metadata"):
+            to_handle.get.side_effect = BlobNotFoundError
+            res = sync.verify_file_replication(from_handle, to_handle, "", "", key)
+            self.assertEqual(res[0].key, key)
+            self.assertIn("missing", res[0].anomaly)
+
+    def test_verify_bundle_replication(self):
+        key = "blobs/alsdjflaskjdf"
+        from_handle = mock.Mock()
+        to_handle = mock.Mock()
+        bundle_metadata = json.dumps({
+            "creator_uid": 8008,
+            "files": [{"uuid": None, "version": None}]
+        })
+        from_handle.get = mock.Mock(return_value=bundle_metadata)
+        to_handle.get = mock.Mock(return_value=bundle_metadata)
+
+        with mock.patch("dss.operations.sync.verify_file_replication") as vfr:
+            with self.subTest("replication ok"):
+                vfr.return_value = list()
+                res = sync.verify_bundle_replication(from_handle, to_handle, "", "", key)
+                self.assertEqual(res, [])
+
+            with self.subTest("replication problem"):
+                vfr.return_value = [sync.ReplicationAnomaly(key="", anomaly="")]
+                res = sync.verify_bundle_replication(from_handle, to_handle, "", "", key)
+                self.assertEqual(res, vfr.return_value)
+
+            with self.subTest("Unequal bundle metadata"):
+                to_handle.get.return_value = "{}"
+                res = sync.verify_bundle_replication(from_handle, to_handle, "", "", key)
+                self.assertEqual(res[0].key, key)
+                self.assertIn("mismatch", res[0].anomaly)
+
+            with self.subTest("Missing destination bundle metadata"):
+                to_handle.get.side_effect = BlobNotFoundError
+                res = sync.verify_bundle_replication(from_handle, to_handle, "", "", key)
+                self.assertEqual(res[0].key, key)
+                self.assertIn("missing on target", res[0].anomaly)
+
+            with self.subTest("Missing source bundle metadata"):
+                from_handle.get.side_effect = BlobNotFoundError
+                res = sync.verify_bundle_replication(from_handle, to_handle, "", "", key)
+                self.assertEqual(res[0].key, key)
+                self.assertIn("missing on source", res[0].anomaly)
 
     def _put_s3_file(self, key, data, content_type="blah"):
         s3 = Config.get_native_handle(Replica.aws)
