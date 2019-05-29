@@ -814,6 +814,7 @@ class CloudNode:
     Contains shared code across the different types of nodes stored in Fusillade CloudDirectory
     """
     _attributes = ["name"]  # the different attributes of a node stored
+    object_type = 'node'
 
     def __init__(self,
                  cloud_directory: CloudDirectory,
@@ -1127,6 +1128,7 @@ class User(CloudNode):
     default_roles = ['default_user']  # TODO: make configurable
     default_groups = []  # TODO: make configurable
     _facet = 'LeafFacet'
+    object_type = 'user'
 
     def __init__(self, cloud_directory: CloudDirectory, name: str = None, object_ref: str = None):
         """
@@ -1228,7 +1230,7 @@ class User(CloudNode):
                                   user._facet,
                                   name=user.name,
                                   status='Enabled',
-                                  obj_type='user'
+                                  obj_type=cls.object_type
                                   )
         except cd_client.exceptions.LinkNameAlreadyInUseException:
             raise FusilladeException("User already exists.")
@@ -1252,12 +1254,12 @@ class User(CloudNode):
     @property
     def groups(self) -> typing.List[str]:
         if not self._groups:
-            self._groups = self._get_links('group')
+            self._groups = self._get_links(Group.object_type)
         return self._groups
 
     def add_groups(self, groups: typing.List[str]):
         operations = []
-        operations.extend(self._add_typed_links_batch(groups, 'group'))
+        operations.extend(self._add_typed_links_batch(groups, Group.object_type))
         self.cd.batch_write(operations)
         self._groups = None  # update groups
         self.log.info(dict(message="Groups joined",
@@ -1266,7 +1268,7 @@ class User(CloudNode):
 
     def remove_groups(self, groups: typing.List[str]):
         operations = []
-        operations.extend(self._remove_typed_links_batch(groups, 'group'))
+        operations.extend(self._remove_typed_links_batch(groups, Group.object_type))
         self.cd.batch_write(operations)
         self._groups = None  # update groups
         self.log.info(dict(message="Groups left",
@@ -1276,13 +1278,13 @@ class User(CloudNode):
     @property
     def roles(self) -> typing.List[str]:
         if not self._roles:
-            self._roles = self._get_links('role')
+            self._roles = self._get_links(Role.object_type)
         return self._roles
 
     def add_roles(self, roles: typing.List[str]):
         operations = []
-        operations.extend(self._add_links_batch(roles, 'role'))
-        operations.extend(self._add_typed_links_batch(roles, 'role'))
+        operations.extend(self._add_links_batch(roles, Role.object_type))
+        operations.extend(self._add_typed_links_batch(roles, Role.object_type))
         self.cd.batch_write(operations)
         self._roles = None  # update roles
         self.log.info(dict(message="Roles added",
@@ -1291,8 +1293,8 @@ class User(CloudNode):
 
     def remove_roles(self, roles: typing.List[str]):
         operations = []
-        operations.extend(self._remove_links_batch(roles, 'role'))
-        operations.extend(self._remove_typed_links_batch(roles, 'role'))
+        operations.extend(self._remove_links_batch(roles, Role.object_type))
+        operations.extend(self._remove_typed_links_batch(roles, Role.object_type))
         self.cd.batch_write(operations)
         self._roles = None  # update roles
         self.log.info(dict(message="Roles removed",
@@ -1305,6 +1307,7 @@ class Group(CloudNode):
     Represents a group in CloudDirectory
     """
     _facet = 'LeafFacet'
+    object_type = 'group'
 
     def __init__(self, cloud_directory: CloudDirectory, name: str = None, object_ref: str = None):
         """
@@ -1344,13 +1347,13 @@ class Group(CloudNode):
     @property
     def roles(self):
         if not self._roles:
-            self._roles = self._get_links('role')
+            self._roles = self._get_links(Role.object_type)
         return self._roles
 
     def add_roles(self, roles: typing.List[str]):
         operations = []
-        operations.extend(self._add_links_batch(roles, 'role'))
-        operations.extend(self._add_typed_links_batch(roles, 'role'))
+        operations.extend(self._add_links_batch(roles, Role.object_type))
+        operations.extend(self._add_typed_links_batch(roles, Role.object_type))
         self.cd.batch_write(operations)
         self._roles = None  # update roles
         self.log.info(dict(message="Roles added",
@@ -1359,8 +1362,8 @@ class Group(CloudNode):
 
     def remove_roles(self, roles: typing.List[str]):
         operations = []
-        operations.extend(self._remove_links_batch(roles, 'role'))
-        operations.extend(self._remove_typed_links_batch(roles, 'role'))
+        operations.extend(self._remove_links_batch(roles, Role.object_type))
+        operations.extend(self._remove_typed_links_batch(roles, Role.object_type))
         self.cd.batch_write(operations)
         self._roles = None  # update roles
         self.log.info(dict(message="Roles added",
@@ -1404,6 +1407,7 @@ class Role(CloudNode):
     Represents a role in CloudDirectory
     """
     _facet = 'NodeFacet'
+    object_type = 'role'
 
     def __init__(self, cloud_directory: CloudDirectory, name: str = None, object_ref: str = None):
         super(Role, self).__init__(cloud_directory, name=name, object_ref=object_ref)
@@ -1417,7 +1421,7 @@ class Role(CloudNode):
             statement = get_json_file(default_role_path)
         cls._verify_statement(statement)
         try:
-            cloud_directory.create_object(cls.hash_name(name), 'NodeFacet', name=name, obj_type='role')
+            cloud_directory.create_object(cls.hash_name(name), 'NodeFacet', name=name, obj_type=Role.object_type)
         except cd_client.exceptions.LinkNameAlreadyInUseException:
             raise FusilladeHTTPException(status=409, title="Conflict", detail="The object already exists")
         new_node = cls(cloud_directory, name)
