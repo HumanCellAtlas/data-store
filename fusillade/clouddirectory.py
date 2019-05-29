@@ -96,6 +96,7 @@ def create_directory(name: str, schema: str, admins: List[str]) -> 'CloudDirecto
     :param admins: a list of admins to create
     :return:
     """
+    directory = None
     try:
         response = cd_client.create_directory(
             Name=name,
@@ -127,7 +128,8 @@ def create_directory(name: str, schema: str, admins: List[str]) -> 'CloudDirecto
         # create admins
         for admin in admins:
             User.provision_user(directory, admin, roles=['admin'])
-    return directory
+    finally:
+        return directory
 
 
 def _paging_loop(fn: Callable, key: str, upack_response: Optional[Callable] = None, **kwarg):
