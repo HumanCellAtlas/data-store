@@ -330,21 +330,19 @@ class TestIndexerBase(ElasticsearchTestCase, DSSAssertMixin, DSSStorageMixin, DS
     @testmode.standalone
     def test_key_is_not_indexed_when_processing_an_event_with_a_file_key(self):
         file_fqid = get_file_fqid()
-        sample_event = self.create_bundle_created_event(file_fqid.to_key())
         with self.assertLogs(dss.logger, level="DEBUG") as log_monitor:
-            self.process_new_indexable_object(sample_event)
+            self.indexer.index_object(file_fqid.to_key())
         self.assertIn('Indexing of individual files is not supported.', log_monitor.output[0])
         self.assertIn(str(file_fqid), log_monitor.output[0])
         self.assertFalse(ElasticsearchClient.get().indices.exists_alias(name=self.dss_alias_name))
 
     @testmode.standalone
-    def test_error_message_logged_when_invalid_bucket_in_event(self):
+    def test_error_message_logged_when_object_not_found(self):
         bundle_key = "bundles/{}.{}".format(str(uuid.uuid4()), get_version())
         sample_event = self.create_bundle_created_event(bundle_key)
         with self.assertLogs(dss.logger, level="ERROR") as log_monitor:
-            with self.assertRaises(Exception):
-                self.process_new_indexable_object(sample_event)
-        self.assertRegex(log_monitor.output[0], "ERROR:.*Exception occurred while processing .* event:.*")
+            self.process_new_indexable_object(sample_event)
+        self.assertRegex(log_monitor.output[0], "ERROR:.*Key .* not found in replica .*")
 
     @testmode.standalone
     def test_indexed_file_unparsable(self):

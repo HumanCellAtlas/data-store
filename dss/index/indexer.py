@@ -11,6 +11,7 @@ from dss.storage.identifiers import BundleFQID, FileFQID, ObjectIdentifier, Obje
 from dss.util.time import RemainingTime
 from .backend import IndexBackend
 from .bundle import Bundle, Tombstone
+from dss.events.handlers.sync import exists
 
 logger = logging.getLogger(__name__)
 
@@ -29,11 +30,14 @@ class Indexer(metaclass=ABCMeta):
     def process_new_indexable_object(self, event: Mapping[str, Any]) -> None:
         try:
             key = self._parse_event(event)
-            try:
-                self.index_object(key)
-            except ObjectIdentifierError:
-                # This is expected with events about blobs as they don't have a valid object identifier
-                logger.debug(f"Not processing {self.replica.name} event for key: {key}")
+            if exists(self.replica, key):
+                try:
+                    self.index_object(key)
+                except ObjectIdentifierError:
+                    # This is expected with events about blobs as they don't have a valid object identifier
+                    logger.debug(f"Not processing {self.replica.name} event for key: {key}")
+            else:
+                logger.error("Key %s not found in replica %s", key, self.replica.name)
         except Exception:
             logger.error("Exception occurred while processing %s event: %s",
                          self.replica, json.dumps(event, indent=4), exc_info=True)
