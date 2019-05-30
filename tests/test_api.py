@@ -67,7 +67,7 @@ class TestApi(unittest.TestCase, DSSAssertMixin, DSSUploadMixin, DSSStorageMixin
         self.assertEquals(res.json['version_info']['version'], os.environ['DSS_VERSION'])
 
     def test_read_only(self):
-        uuid = "xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx"
+        uuid = "11111111-1111-1111-1111-111111111111"
         body = dict(
             files=[],
             creator_uid=12345,

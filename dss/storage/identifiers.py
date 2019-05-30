@@ -2,7 +2,6 @@ import re
 from collections import namedtuple
 from typing import Type
 
-BLOB_PREFIX = "blobs"
 BUNDLE_PREFIX = "bundles"
 FILE_PREFIX = "files"
 COLLECTION_PREFIX = "collections"
@@ -10,7 +9,7 @@ COLLECTION_PREFIX = "collections"
 # versioned tombstones are indexed after all bundles during a reindex operation.
 TOMBSTONE_SUFFIX = "dead"
 
-UUID_PATTERN = "[0-9A-Fa-f]{8}-[0-9A-Fa-f]{4}-[0-9A-Fa-f]{4}-[0-9A-Fa-f]{4}-[0-9A-Fa-f]{12}"
+UUID_PATTERN = "[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}"
 UUID_REGEX = re.compile(UUID_PATTERN)
 
 VERSION_PATTERN = "\d{4}-\d{2}-\d{2}T\d{2}\d{2}\d{2}[.]\d{6}Z"
@@ -28,6 +27,10 @@ DSS_BUNDLE_TOMBSTONE_REGEX = re.compile(
 # matches all bundle objects
 DSS_OBJECT_NAME_REGEX = re.compile(
     f"^({BUNDLE_PREFIX}|{FILE_PREFIX}|{COLLECTION_PREFIX})/({UUID_PATTERN})(?:\.({VERSION_PATTERN}))?(\.{TOMBSTONE_SUFFIX})?$")  # noqa
+
+# API endpoint patterns
+BUNDLE_CHECKOUT_PATTERN = f'/v1/bundles/{UUID_PATTERN}/checkout'
+BUNDLE_CHECKOUT_URI_REGEX = re.compile(BUNDLE_CHECKOUT_PATTERN)
 
 
 class ObjectIdentifierError(ValueError):
