@@ -69,8 +69,7 @@ class TestRetryAfterHeaders(unittest.TestCase, DSSAssertMixin):
     def test_502_get_bundle_HAS_retry_after_response(self):
         """Mock seems resistant to multiple calls, therefore this is only used for one endpoint."""
         # TODO: Add additional tests as defined in dss.error.include_retry_after_header
-        with mock.patch('dss.api.bundles.get') as foo:
-            foo.side_effect = DSSException(502, 'bad_gateway', "Bad Gateway")
+        with mock.patch('dss.api.bundles.get', side_effect=DSSException(502, 'bad_gateway', "Bad Gateway")):
             self.app = ThreadedLocalServer()
             self.app.start()
             uuid = "xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx"

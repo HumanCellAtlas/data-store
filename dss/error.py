@@ -1,15 +1,19 @@
 import json
 import os
+import sys
 import logging
-import re
 import functools
 import traceback
-
 import requests
 import werkzeug.exceptions
 from connexion.lifecycle import ConnexionResponse
 from flask import request
 from flask import Response as FlaskResponse
+
+pkg_root = os.path.abspath(os.path.join(os.path.dirname(__file__), '..'))  # noqa
+sys.path.insert(0, pkg_root)  # noqa
+
+from dss.storage.identifiers import BUNDLE_CHECKOUT_URI_REGEX
 
 
 logger = logging.getLogger(__name__)
@@ -38,21 +42,19 @@ class DSSForbiddenException(DSSException):
 
 
 def include_retry_after_header(return_code, method, uri):
-    uuid_pattern = '[A-Za-z0-9]{8}-[A-Za-z0-9]{4}-[A-Za-z0-9]{4}-[A-Za-z0-9]{4}-[A-Za-z0-9]{12}'
-    bundle_checkout_pattern = f'/v1/bundles/{uuid_pattern}/checkout'
-    bundle_checkout = re.compile(bundle_checkout_pattern)
+    # we do not include Retry-After headers for these API endpoints
+    exclusion_list = [('POST', BUNDLE_CHECKOUT_URI_REGEX)]
 
-    # we do not include Retry-After headers for these return codes and API endpoints
-    exclusion_list = [(requests.codes.server_error,        'POST', bundle_checkout),  # noqa
-                      (requests.codes.bad_gateway,         'POST', bundle_checkout),  # noqa
-                      (requests.codes.service_unavailable, 'POST', bundle_checkout),  # noqa
-                      (requests.codes.gateway_timeout,     'POST', bundle_checkout)]  # noqa
+    # we only include Retry-After headers for these return codes
+    retry_after_codes = [requests.codes.server_error,
+                         requests.codes.bad_gateway,
+                         requests.codes.service_unavailable,
+                         requests.codes.gateway_timeout]
 
-    for excluded_call in exclusion_list:
-        if excluded_call[0] == return_code and \
-           excluded_call[1] == method and \
-           excluded_call[2].match(uri):
-            return False
+    if return_code in retry_after_codes:
+        for api_call in exclusion_list:
+            if method == api_call[0] and api_call[1].match(uri):
+                return False
     return True
 
 
