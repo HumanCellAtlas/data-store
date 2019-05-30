@@ -107,7 +107,11 @@ def _notify_subscribers(replica: Replica, key: str, is_delete_event: bool):
     if is_delete_event:
         metadata_document = build_deleted_bundle_metadata_document(key)
     else:
-        metadata_document = build_bundle_metadata_document(replica, key)
+        if exists(replica, key):
+            metadata_document = build_bundle_metadata_document(replica, key)
+        else:
+            logger.error(f"Key %s not found in replica %s, unable to notify subscribers", key, replica.name)
+            return
 
     def _func(subscription):
         if should_notify(replica, subscription, metadata_document, key):
