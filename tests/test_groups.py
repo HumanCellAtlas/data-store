@@ -71,14 +71,14 @@ class TestGroup(unittest.TestCase):
             group = Group.create(self.directory, "test")
             user = User.provision_user(self.directory, "another@place.com")
             group.add_users([user])
-            actual_users = [i for i in group.get_users()]
+            actual_users = [i for i in group.get_users_iter()]
             self.assertEqual(len(actual_users), 1)
             self.assertEqual(User(self.directory,object_ref=actual_users[0]).name, user.name)
 
         with self.subTest("Multiple users are added to the group when multiple users are passed to add_users"):
             group = Group.create(self.directory, "test2")
             group.add_users(users)
-            actual_users = [i[1] for i in group.get_users()]
+            actual_users = [i[1] for i in group.get_users_iter()]
             self.assertEqual(len(actual_users), 3)
 
         with self.subTest("Error returned when a user is added to a group it's already apart of."):
@@ -88,7 +88,7 @@ class TestGroup(unittest.TestCase):
                 group.add_users(users)
             except cd_client.exceptions.BatchWriteException:
                 pass
-            actual_users = [i[1] for i in group.get_users()]
+            actual_users = [i[1] for i in group.get_users_iter()]
             self.assertEqual(len(actual_users), 3)
 
         with self.subTest("Error returned when adding a user that does not exist"):

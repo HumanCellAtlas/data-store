@@ -76,6 +76,20 @@ class TestRoleApi(BaseAPITest, unittest.TestCase):
         }
         self.assertEqual(expected_body, json.loads(resp.body))
 
+    def test_get_roles(self):
+        headers = {'Content-Type': "application/json"}
+        headers.update(get_auth_header(service_accounts['admin']))
+        for i in range(10):
+            resp = self.app.put(
+                '/v1/roles',
+                headers=headers,
+                data=json.dumps({"role_id": f"test_put_role{i}",
+                                 'policy': create_test_statement("test_role")})
+
+            )
+            self.assertEqual(201, resp.status_code)
+        self._test_paging(f'/v1/roles', headers, 6, 'roles')
+
     def test_put_role(self):
         url = furl('/v1/roles')
         data = json.dumps({
@@ -190,12 +204,6 @@ class TestRoleApi(BaseAPITest, unittest.TestCase):
                 'headers': admin_auth_header,
                 'role_id': 'ghost_role',
                 'expected_resp': 404
-            },
-            {
-                'name': f'500 returned when getting a role when name is empty',
-                'role_id': '',
-                'headers': admin_auth_header,
-                'expected_resp': 500
             }
         ]
         tests.extend([
@@ -230,7 +238,6 @@ class TestRoleApi(BaseAPITest, unittest.TestCase):
                         'policy': policy
                     }
                     self.assertEqual(expected_body, json.loads(resp.body))
-
 
     def test_put_role_id_policy(self):
         role_id = 'test_put_role_id_policy'

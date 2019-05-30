@@ -7,6 +7,18 @@ info:
     Log in: [Auth0](/login?state=ABC&redirect_uri=https://$API_DOMAIN_NAME/internal/echo)
 
     OIDC spec https://openid.net/specs/openid-connect-core-1_0.html#toc
+
+    # Pagination
+    The Fusillade API supports pagination in a manner consistent with the
+    [GitHub API](https://developer.github.com/v3/guides/traversing-with-pagination/),
+    which is based on [RFC 5988](https://tools.ietf.org/html/rfc5988). When the results of an API call exceed the
+    page size specified, the HTTP response will contain a `Link` header of the following form:
+    `Link: <https://dss.data.humancellatlas.org/v1/search?replica=aws&per_page=100&search_after=123>; rel="next"`.
+    The URL in the header refers to the next page of the results to be fetched; if no `Link rel="next"` URL is
+    included, then all results have been fetched. The client should recognize and parse the `Link` header
+    appropriately according to RFC 5988, and retrieve the next page if requested by the user, or if all results
+    are being retrieved.
+
   version: "0.0.1"
 servers:
   - url: https://$API_DOMAIN_NAME
@@ -230,6 +242,39 @@ paths:
         default:
           description: Unexpected error
   /v1/users:
+    get:
+      summary: List users
+      operationId: fusillade.api.users.get_users
+      security:
+        - BearerAuth: []
+      parameters:
+        - $ref: '#/components/parameters/next_token'
+        - $ref: '#/components/parameters/per_page'
+      responses:
+        200:
+          description: all users have been returned
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  users:
+                    $ref: '#/components/schemas/paged_results'
+        206:
+          $ref: '#/components/responses/206'
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  users:
+                    $ref: '#/components/schemas/paged_results'
+        404:
+          $ref: '#/components/responses/404'
+        default:
+          description: Unexpected error
+      tags:
+        - user
     put:
       summary: Create a new user
       operationId: fusillade.api.users.put_new_user
@@ -310,20 +355,29 @@ paths:
         - BearerAuth: []
       parameters:
         - $ref: '#/components/parameters/user_id'
+        - $ref: '#/components/parameters/next_token'
+        - $ref: '#/components/parameters/per_page'
       tags:
         - user
       responses:
         200:
-          description: OK
+          description: all groups have been returned
           content:
             application/json:
               schema:
                 type: object
                 properties:
                   groups:
-                    type: array
-                    items:
-                      type: string
+                    $ref: '#/components/schemas/paged_results'
+        206:
+          $ref: '#/components/responses/206'
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  groups:
+                    $ref: '#/components/schemas/paged_results'
         404:
           $ref: '#/components/responses/404'
         default:
@@ -365,20 +419,29 @@ paths:
         - BearerAuth: []
       parameters:
         - $ref: '#/components/parameters/user_id'
+        - $ref: '#/components/parameters/next_token'
+        - $ref: '#/components/parameters/per_page'
       tags:
         - user
       responses:
         200:
-          description: OK
+          description: all roles have been returned
           content:
             application/json:
               schema:
                 type: object
                 properties:
-                  role:
-                    type: array
-                    items:
-                      type: string
+                  roles:
+                    $ref: '#/components/schemas/paged_results'
+        206:
+          $ref: '#/components/responses/206'
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  roles:
+                    $ref: '#/components/schemas/paged_results'
         404:
           $ref: '#/components/responses/404'
         default:
@@ -443,18 +506,28 @@ paths:
       operationId: fusillade.api.groups.get_groups
       security:
         - BearerAuth: []
+      parameters:
+        - $ref: '#/components/parameters/next_token'
+        - $ref: '#/components/parameters/per_page'
       responses:
         200:
-          description: A list of groups
+          description: all groups have been returned
           content:
             application/json:
               schema:
                 type: object
                 properties:
                   groups:
-                    type: array
-                    items:
-                      type: string
+                    $ref: '#/components/schemas/paged_results'
+        206:
+          $ref: '#/components/responses/206'
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  groups:
+                    $ref: '#/components/schemas/paged_results'
         404:
           $ref: '#/components/responses/404'
         default:
@@ -536,18 +609,27 @@ paths:
         - BearerAuth: []
       parameters:
         - $ref: '#/components/parameters/group_id'
+        - $ref: '#/components/parameters/next_token'
+        - $ref: '#/components/parameters/per_page'
       responses:
         200:
-          description: OK
+          description: all roles have been returned
           content:
             application/json:
               schema:
                 type: object
                 properties:
-                  role:
-                    type: array
-                    items:
-                      type: string
+                  roles:
+                    $ref: '#/components/schemas/paged_results'
+        206:
+          $ref: '#/components/responses/206'
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  roles:
+                    $ref: '#/components/schemas/paged_results'
         404:
           $ref: '#/components/responses/404'
         default:
@@ -591,18 +673,27 @@ paths:
         - BearerAuth: []
       parameters:
         - $ref: '#/components/parameters/group_id'
+        - $ref: '#/components/parameters/next_token'
+        - $ref: '#/components/parameters/per_page'
       responses:
         200:
-          description: OK
+          description: all users have been returned
           content:
             application/json:
               schema:
                 type: object
                 properties:
                   users:
-                    type: array
-                    items:
-                      type: string
+                    $ref: '#/components/schemas/paged_results'
+        206:
+          $ref: '#/components/responses/206'
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  users:
+                    $ref: '#/components/schemas/paged_results'
         404:
           $ref: '#/components/responses/404'
         default:
@@ -640,18 +731,28 @@ paths:
       operationId: fusillade.api.roles.get_roles
       security:
         - BearerAuth: []
+      parameters:
+        - $ref: '#/components/parameters/next_token'
+        - $ref: '#/components/parameters/per_page'
       responses:
         200:
-          description: a lost of roles is returned
+          description: all roles have been returned
           content:
             application/json:
               schema:
                 type: object
                 properties:
                   roles:
-                    type: array
-                    items:
-                      type: string
+                    $ref: '#/components/schemas/paged_results'
+        206:
+          $ref: '#/components/responses/206'
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  roles:
+                    $ref: '#/components/schemas/paged_results'
         404:
           $ref: '#/components/responses/404'
         default:
@@ -772,7 +873,26 @@ components:
       schema:
         type: string
         enum: ['enabled', 'disabled']
+    next_token:
+      name: next_token
+      in: query
+      required: false
+      schema:
+        type: string
+    per_page:
+      name: per_page
+      in: query
+      required: false
+      schema:
+        type: integer
+        minimum: 5
+        maximum: 30
+        default: 15
   schemas:
+    paged_results:
+      type: array
+      items:
+        type: string
     custom_identifier:
       description: used to identify users, groups, and roles.
       type: string
@@ -812,6 +932,13 @@ components:
         policy:
           type: string
   responses:
+    206:
+      description: A single page of results was retrieved.
+      headers:
+        Link:
+          description: URL to retrieve the next page of results.
+          schema:
+            type: string
     401:
       description: The users credentials failed to authenticate.
     403:

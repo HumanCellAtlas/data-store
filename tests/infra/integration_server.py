@@ -19,7 +19,8 @@ class IntegrationTestHarness:
         resp_obj = Response()
         if not headers:
             headers = {}
-        response = request(method, self.domain + path, headers=headers, data=data, allow_redirects=False)
+        url = path if os.environ["API_DOMAIN_NAME"] in path else self.domain + path
+        response = request(method, url, headers=headers, data=data, allow_redirects=False)
         resp_obj.status_code = response.status_code
         resp_obj.headers = response.headers
         resp_obj.body = response.content
