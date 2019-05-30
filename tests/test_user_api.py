@@ -152,6 +152,7 @@ class TestUserApi(BaseAPITest, unittest.TestCase):
         resp = self.app.get(f'/v1/users/test_user_api@email.com/', headers=headers)
         self.assertEqual(403, resp.status_code)
         resp = self.app.get(f'/v1/users/{name}/', headers=headers)
+        resp.raise_for_status()
         self.assertEqual(name, json.loads(resp.body)['name'])
 
     def test_put_user_id(self):
