@@ -43,10 +43,10 @@ def include_retry_after_header(return_code, method, uri):
     bundle_checkout = re.compile(bundle_checkout_pattern)
 
     # we do not include Retry-After headers for these return codes and API endpoints
-    exclusion_list = [(requests.codes.server_error,        'POST', bundle_checkout),
-                      (requests.codes.bad_gateway,         'POST', bundle_checkout),
-                      (requests.codes.service_unavailable, 'POST', bundle_checkout),
-                      (requests.codes.gateway_timeout,     'POST', bundle_checkout)]
+    exclusion_list = [(requests.codes.server_error,        'POST', bundle_checkout),  # noqa
+                      (requests.codes.bad_gateway,         'POST', bundle_checkout),  # noqa
+                      (requests.codes.service_unavailable, 'POST', bundle_checkout),  # noqa
+                      (requests.codes.gateway_timeout,     'POST', bundle_checkout)]  # noqa
 
     for excluded_call in exclusion_list:
         if excluded_call[0] == return_code and \
