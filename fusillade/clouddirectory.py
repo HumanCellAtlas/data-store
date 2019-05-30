@@ -5,18 +5,19 @@ This modules is used to simplify access to AWS Cloud Directory. For more informa
 https://boto3.amazonaws.com/v1/documentation/api/latest/reference/services/clouddirectory.html
 
 """
-import hashlib
-from datetime import datetime
-import os
-from dcplib.aws import clients as aws_clients
 import functools
+import hashlib
 import json
-from typing import Iterator, Any, Tuple, Dict, List, Callable, Optional, Union, Type
-from collections import namedtuple
-from threading import Thread
-from concurrent.futures import Future
-from enum import Enum, auto
 import logging
+import os
+from collections import namedtuple
+from concurrent.futures import Future
+from datetime import datetime
+from enum import Enum, auto
+from threading import Thread
+from typing import Iterator, Any, Tuple, Dict, List, Callable, Optional, Union, Type
+
+from dcplib.aws import clients as aws_clients
 
 from fusillade.errors import FusilladeException, FusilladeHTTPException
 from fusillade.utils.retry import retry
@@ -1233,7 +1234,55 @@ class CloudNode:
         return {f"{cls.object_type}s": results}, next_token
 
 
-class User(CloudNode):
+class CreateMixin:
+    @classmethod
+    def create(cls, cloud_directory: CloudDirectory, name: str, statement: Optional[str] = None) -> Type['CloudNode']:
+        if not statement:
+            statement = get_json_file(cls._default_policy_path)
+        cls._verify_statement(statement)
+        try:
+            cloud_directory.create_object(cls.hash_name(name), cls._facet, name=name, obj_type=cls.object_type)
+        except cd_client.exceptions.LinkNameAlreadyInUseException:
+            raise FusilladeHTTPException(status=409, title="Conflict", detail="The object already exists")
+        new_node = cls(cloud_directory, name)
+        new_node.log.info(dict(message=f"{cls.object_type} created",
+                               object=dict(type=new_node.object_type, path_name=new_node._path_name)))
+        new_node._set_statement_with_retry(statement)
+        return new_node
+
+
+class RolesMixin:
+    @property
+    def roles(self) -> List[str]:
+        if not self._roles:
+            self._roles = self._get_links(Role)
+        return self._roles
+
+    def get_roles(self, next_token: str = None, per_page: str = None):
+        return self._get_links(Role, paged=True, next_token=next_token, per_page=per_page)
+
+    def add_roles(self, roles: List[str]):
+        operations = []
+        operations.extend(self._add_links_batch(roles, Role.object_type))
+        operations.extend(self._add_typed_links_batch(roles, Role.object_type))
+        self.cd.batch_write(operations)
+        self._roles = None  # update roles
+        self.log.info(dict(message="Roles added",
+                           object=dict(type=self.object_type, path_name=self._path_name),
+                           roles=roles))
+
+    def remove_roles(self, roles: List[str]):
+        operations = []
+        operations.extend(self._remove_links_batch(roles, Role.object_type))
+        operations.extend(self._remove_typed_links_batch(roles, Role.object_type))
+        self.cd.batch_write(operations)
+        self._roles = None  # update roles
+        self.log.info(dict(message="Roles removed",
+                           object=dict(type=self.object_type, path_name=self._path_name),
+                           roles=roles))
+
+
+class User(CloudNode, RolesMixin):
     """
     Represents a user in CloudDirectory
     """
@@ -1394,42 +1443,14 @@ class User(CloudNode):
                            object=dict(type=self.object_type, path_name=self._path_name),
                            groups=groups))
 
-    @property
-    def roles(self) -> List[str]:
-        if not self._roles:
-            self._roles = self._get_links(Role)
-        return self._roles
 
-    def get_roles(self, next_token: str = None, per_page: str = None):
-        return self._get_links(Role, paged=True, next_token=next_token, per_page=per_page)
-
-    def add_roles(self, roles: List[str]):
-        operations = []
-        operations.extend(self._add_links_batch(roles, Role.object_type))
-        operations.extend(self._add_typed_links_batch(roles, Role.object_type))
-        self.cd.batch_write(operations)
-        self._roles = None  # update roles
-        self.log.info(dict(message="Roles added",
-                           object=dict(type=self.object_type, path_name=self._path_name),
-                           roles=roles))
-
-    def remove_roles(self, roles: List[str]):
-        operations = []
-        operations.extend(self._remove_links_batch(roles, Role.object_type))
-        operations.extend(self._remove_typed_links_batch(roles, Role.object_type))
-        self.cd.batch_write(operations)
-        self._roles = None  # update roles
-        self.log.info(dict(message="Roles removed",
-                           object=dict(type=self.object_type, path_name=self._path_name),
-                           roles=roles))
-
-
-class Group(CloudNode):
+class Group(CloudNode, RolesMixin, CreateMixin):
     """
     Represents a group in CloudDirectory
     """
     _facet = 'LeafFacet'
     object_type = 'group'
+    _default_policy_path = default_group_policy_path
 
     def __init__(self, cloud_directory: CloudDirectory, name: str = None, object_ref: str = None):
         """
@@ -1440,21 +1461,6 @@ class Group(CloudNode):
         super(Group, self).__init__(cloud_directory, name=name, object_ref=object_ref)
         self._groups = None
         self._roles = None
-
-    @classmethod
-    def create(cls,
-               cloud_directory: CloudDirectory,
-               name: str,
-               statement: Optional[str] = None) -> 'Group':
-        if not statement:
-            statement = get_json_file(default_group_policy_path)
-        cls._verify_statement(statement)
-        cloud_directory.create_object(cls.hash_name(name), 'LeafFacet', name=name, obj_type="group")
-        new_node = cls(cloud_directory, name)
-        new_node.log.info(dict(message="Group created",
-                               object=dict(type=new_node.object_type, path_name=new_node._path_name)))
-        new_node._set_statement_with_retry(statement)
-        return new_node
 
     def get_users_iter(self) -> List[str]:
         """
@@ -1476,35 +1482,6 @@ class Group(CloudNode):
             per_page=per_page,
             incoming=False,
             next_token=next_token)
-
-    @property
-    def roles(self):
-        if not self._roles:
-            self._roles = self._get_links(Role)
-        return self._roles
-
-    def get_roles(self, next_token: str = None, per_page: int = None):
-        return self._get_links(Role, paged=True, next_token=next_token, per_page=per_page)
-
-    def add_roles(self, roles: List[str]):
-        operations = []
-        operations.extend(self._add_links_batch(roles, Role.object_type))
-        operations.extend(self._add_typed_links_batch(roles, Role.object_type))
-        self.cd.batch_write(operations)
-        self._roles = None  # update roles
-        self.log.info(dict(message="Roles added",
-                           object=dict(type=self.object_type, path_name=self._path_name),
-                           roles=roles))
-
-    def remove_roles(self, roles: List[str]):
-        operations = []
-        operations.extend(self._remove_links_batch(roles, Role.object_type))
-        operations.extend(self._remove_typed_links_batch(roles, Role.object_type))
-        self.cd.batch_write(operations)
-        self._roles = None  # update roles
-        self.log.info(dict(message="Roles added",
-                           object=dict(type=self.object_type, path_name=self._path_name),
-                           roles=roles))
 
     def add_users(self, users: List[User]) -> None:
         if users:
@@ -1538,30 +1515,13 @@ class Group(CloudNode):
                            users=[user for user in users]))
 
 
-class Role(CloudNode):
+class Role(CloudNode, CreateMixin):
     """
     Represents a role in CloudDirectory
     """
     _facet = 'NodeFacet'
     object_type = 'role'
+    _default_policy_path = default_role_path
 
     def __init__(self, cloud_directory: CloudDirectory, name: str = None, object_ref: str = None):
         super(Role, self).__init__(cloud_directory, name=name, object_ref=object_ref)
-
-    @classmethod
-    def create(cls,
-               cloud_directory: CloudDirectory,
-               name: str,
-               statement: Optional[str] = None) -> 'Role':
-        if not statement:
-            statement = get_json_file(default_role_path)
-        cls._verify_statement(statement)
-        try:
-            cloud_directory.create_object(cls.hash_name(name), 'NodeFacet', name=name, obj_type=cls.object_type)
-        except cd_client.exceptions.LinkNameAlreadyInUseException:
-            raise FusilladeHTTPException(status=409, title="Conflict", detail="The object already exists")
-        new_node = cls(cloud_directory, name)
-        new_node.log.info(dict(message="Role created",
-                               object=dict(type=new_node.object_type, path_name=new_node._path_name)))
-        new_node._set_statement_with_retry(statement)
-        return new_node

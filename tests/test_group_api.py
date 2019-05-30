@@ -85,7 +85,7 @@ class TestGroupApi(BaseAPITest, unittest.TestCase):
                     "group_id": "Group3"
                 },
                 'response': {
-                    'code': 500
+                    'code': 409
                 }
             }
         ]
