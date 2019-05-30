@@ -102,7 +102,7 @@ def dss_handler(func):
             title = "The DSS is currently read-only"
             stacktrace = ""
             headers = {'Retry-After': '600'}
-        # These errors may be returned by the chalice app before reaching here.
+
         if include_retry_after_header(return_code=status, method=request.method, uri=request.path):
             headers = {'Retry-After': '10'}
 

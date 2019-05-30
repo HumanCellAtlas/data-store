@@ -171,6 +171,7 @@ def get_chalice_app(flask_app) -> DSSChaliceApp:
         if not DeploymentStage.IS_PROD() and maybe_fake_504():
             return timeout_response(method=method, uri=path)
 
+        status_code = None
         try:
             with flask_app.test_request_context(
                     path=path,
