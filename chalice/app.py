@@ -156,7 +156,7 @@ def get_chalice_app(flask_app) -> DSSChaliceApp:
         )
 
         def maybe_fake_504() -> bool:
-            fake_504_probability_str = app.current_request.headers.get(f"DSS_FAKE_504_PROBABILITY", "0.0")
+            fake_504_probability_str = app.current_request.headers.get("DSS_FAKE_504_PROBABILITY", "0.0")
 
             try:
                 fake_504_probability = float(fake_504_probability_str)
