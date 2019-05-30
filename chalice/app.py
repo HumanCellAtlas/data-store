@@ -7,6 +7,7 @@ import threading
 import time
 import traceback
 import typing
+import random
 from concurrent.futures import ThreadPoolExecutor, TimeoutError
 
 import chalice
@@ -21,7 +22,7 @@ from dss import BucketConfig, Config, DeploymentStage, create_app
 from dss.logging import configure_lambda_logging
 from dss.util.tracing import DSS_XRAY_TRACE
 from dss.api import health
-from dss.error import maybe_fake_error, include_retry_after_header
+from dss.error import include_retry_after_header
 
 if DSS_XRAY_TRACE:  # noqa
     from aws_xray_sdk.core import xray_recorder
@@ -154,10 +155,22 @@ def get_chalice_app(flask_app) -> DSSChaliceApp:
             ' ' + str(query_params) if query_params is not None else '',
         )
 
-        if not DeploymentStage.IS_PROD() and maybe_fake_error(headers=app.current_request.headers, code=504):
+        def maybe_fake_504() -> bool:
+            fake_504_probability_str = app.current_request.headers.get(f"DSS_FAKE_504_PROBABILITY", "0.0")
+
+            try:
+                fake_504_probability = float(fake_504_probability_str)
+            except ValueError:
+                return None
+
+            if random.random() > fake_504_probability:
+                return None
+
+            return True
+
+        if not DeploymentStage.IS_PROD() and maybe_fake_504():
             return timeout_response(method=method, uri=path)
 
-        status_code = None
         try:
             with flask_app.test_request_context(
                     path=path,

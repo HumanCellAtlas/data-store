@@ -1,6 +1,5 @@
 import json
 import os
-import random
 import logging
 import re
 import functools
@@ -57,21 +56,6 @@ def include_retry_after_header(return_code, method, uri):
     return True
 
 
-def maybe_fake_error(headers, code) -> bool:
-    # sometimes the capitalization gets a little funky when the headers come out the other end
-    probability = headers.get(f"DSS_FAKE_{code}_PROBABILITY") or headers.get(f"Dss_Fake_{code}_Probability") or "0.0"
-
-    try:
-        fake_error_probability = float(probability)
-    except ValueError:
-        return None
-
-    if random.random() > fake_error_probability:
-        return None
-
-    return True
-
-
 def dss_exception_handler(e: DSSException) -> FlaskResponse:
     return FlaskResponse(
         status=e.status,
@@ -88,26 +72,7 @@ def dss_exception_handler(e: DSSException) -> FlaskResponse:
 def dss_handler(func):
     @functools.wraps(func)
     def wrapper(*args, **kwargs):
-        if maybe_fake_error(headers=request.headers, code=500):
-            status = 500
-            code = 'unhandled_exception'
-            title = 'Server Error'
-            stacktrace = 'This is a fake error used for testing.'
-            headers = None
-        elif maybe_fake_error(headers=request.headers, code=502):
-            status = 502
-            code = 'unhandled_exception'
-            title = 'Bad Gateway'
-            stacktrace = 'This is a fake error used for testing.'
-            headers = None
-        elif maybe_fake_error(headers=request.headers, code=503):
-            status = 503
-            code = 'service_unavailable'
-            title = 'Service Unavailable'
-            stacktrace = 'This is a fake error used for testing.'
-            headers = None
-        # fake/real 504 responses are raised via a similar mechanic in data-store/chalice/app.py
-        elif (os.environ.get('DSS_READ_ONLY_MODE') is None
+        if (os.environ.get('DSS_READ_ONLY_MODE') is None
                 or "GET" == request.method
                 or ("POST" == request.method and "search" in request.path)):
             try:
