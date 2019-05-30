@@ -24,11 +24,11 @@ from tests.infra import DSSAssertMixin, DSSUploadMixin, get_env, testmode
 from dss.config import Replica
 from tests.infra.server import ThreadedLocalServer, SilentHandler
 from tests import eventually, get_auth_header
-from dss.events.handlers.notify_v2 import queue_notification, notify_or_queue
+from dcplib.aws.sqs import SQSMessenger, get_queue_url
+from dss.events.handlers.notify_v2 import notify_or_queue
 from dss.util.version import datetime_to_version_format
-from dss.subscriptions_v2 import (delete_subscription,
-                                  get_subscriptions_for_replica,
-                                  get_subscriptions_for_owner)
+from dss.subscriptions_v2 import (delete_subscription, get_subscriptions_for_replica, get_subscriptions_for_owner,
+                                  SubscriptionData)
 
 
 recieved_notification = None
@@ -68,7 +68,6 @@ class MyHandlerClass(SilentHandler):
         self.my_handle("POST")
 
 
-@testmode.integration
 class TestNotifyV2(unittest.TestCase, DSSAssertMixin, DSSUploadMixin):
     @classmethod
     def setUpClass(cls):
@@ -85,6 +84,7 @@ class TestNotifyV2(unittest.TestCase, DSSAssertMixin, DSSUploadMixin):
             for s in subs:
                 delete_subscription(replica, cls.owner, s['uuid'])
 
+    @testmode.integration
     def test_regex_patterns(self):
         version = datetime_to_version_format(datetime.datetime.utcnow())
         key = f"bundles/{uuid4()}.{version}"
@@ -100,6 +100,7 @@ class TestNotifyV2(unittest.TestCase, DSSAssertMixin, DSSUploadMixin):
         self.assertIsNone(notify_v2._unversioned_tombstone_key_regex.match(tombstone_key_with_version))
         self.assertIsNotNone(notify_v2._unversioned_tombstone_key_regex.match(tombstone_key_without_version))
 
+    @testmode.integration
     def test_versioned_tombstone_notifications(self, replica=Replica.aws):
         bucket = get_env('DSS_S3_BUCKET_TEST')
         notification_object_key = f"notification-v2/{uuid4()}"
@@ -123,105 +124,81 @@ class TestNotifyV2(unittest.TestCase, DSSAssertMixin, DSSUploadMixin):
         self.assertEquals(notification['match']['bundle_uuid'], bundle_uuid)
         self.assertEquals(notification['match']['bundle_version'], f"{bundle_version}")
 
-    def _test_notify_or_queue(self, metadata_document):
+    @testmode.standalone
+    def test_notify_or_queue(self):
         replica = Replica.aws
+        metadata_document = dict()
+        subscription = {
+            SubscriptionData.REPLICA: replica,
+            SubscriptionData.OWNER: "bob",
+            SubscriptionData.UUID: str(uuid4()),
+        }
+
         with self.subTest("Should attempt to notify immediately"):
-            notify_keys = set()
-            queue_keys = set()
-
-            def mock_notify(subscription: dict, metadata_document: dict, key: str):
-                notify_keys.add(key)
-                return True
-
-            def mock_queue_notification(replica, subscription, event_type, key, delay_seconds=15 * 60):
-                queue_keys.add(key)
-
-            with mock.patch("dss.events.handlers.notify_v2.notify", mock_notify):
-                with mock.patch("dss.events.handlers.notify_v2.queue_notification", mock_queue_notification):
-                    notify_or_queue(Replica.aws, {}, {}, "bundles/some_uuid")
-            self.assertEqual(1, len(notify_keys))
-            self.assertEqual(0, len(queue_keys))
+            with mock.patch("dss.events.handlers.notify_v2.notify") as mock_notify:
+                with mock.patch.object(SQSMessenger, "send") as mock_send:
+                    notify_or_queue(replica, subscription, metadata_document, "bundles/some_uuid")
+                    mock_notify.assert_called()
+                    mock_send.assert_not_called()
 
         with self.subTest("Should queue when notify fails"):
-            notify_keys = set()
-            queue_keys = set()
-
-            def mock_notify(subscription: dict, metadata_document: dict, key: str):
-                notify_keys.add(key)
-                return False
-
-            def mock_queue_notification(replica, subscription, event_type, key, delay_seconds=15 * 60):
-                queue_keys.add(key)
-
-            with mock.patch("dss.events.handlers.notify_v2.notify", mock_notify):
-                with mock.patch("dss.events.handlers.notify_v2.queue_notification", mock_queue_notification):
-                    notify_or_queue(Replica.aws, {}, {}, "bundles/some_uuid")
-            self.assertEqual(1, len(notify_keys))
-            self.assertEqual(1, len(queue_keys))
+            with mock.patch("dss.events.handlers.notify_v2.notify") as mock_notify:
+                mock_notify.return_value = False
+                with mock.patch.object(SQSMessenger, "send", mock_send):
+                    notify_or_queue(Replica.aws, subscription, metadata_document, "bundles/some_uuid")
+                    mock_notify.assert_called()
+                    mock_send.assert_called()
 
         with self.subTest("notify_or_queue should attempt to notify immediately for versioned tombsstone"):
-            bundle_uuid, bundle_version = self._upload_bundle(replica)
-            self._tombstone_bundle(replica, bundle_uuid, bundle_version)
-            recieved_uuids = set()
-            recieved_versions = set()
-
-            def mock_notify(subscription: dict, metadata_document: dict, key: str):
-                _, fqid = key.split("/")
-                uuid, version = fqid.split(".", 1)
-                recieved_uuids.add(uuid)
-                recieved_versions.add(version)
-                return True
-
-            with mock.patch("dss.events.handlers.notify_v2.notify", mock_notify):
-                notify_or_queue(Replica.aws, {}, {}, f"bundles/{bundle_uuid}.{bundle_version}.dead")
-            self.assertEqual(1, len(recieved_uuids))
-            self.assertEqual(1, len(recieved_versions))
-            self.assertIn(bundle_uuid, recieved_uuids)
-            self.assertIn(bundle_version + ".dead", recieved_versions)
+            with mock.patch("dss.events.handlers.notify_v2.notify") as mock_notify:
+                with mock.patch("dss.events.handlers.notify_v2._list_prefix") as mock_list_prefix:
+                    bundle_uuid = str(uuid4())
+                    bundle_version = datetime_to_version_format(datetime.datetime.utcnow())
+                    key = f"bundles/{bundle_uuid}.{bundle_version}"
+                    mock_list_prefix.return_value = [key]
+                    notify_or_queue(Replica.aws, subscription, metadata_document, key + ".dead")
+                    mock_notify.assert_called_with(subscription, metadata_document, key)
 
         with self.subTest("notify_or_queue should queue notifications for unversioned tombsstone"):
-            bundle_uuid, bundle_version_1 = self._upload_bundle(replica)
-            bundle_uuid, bundle_version_2 = self._upload_bundle(replica, bundle_uuid)
-            self._tombstone_bundle(replica, bundle_uuid)
-            recieved_uuids = set()
-            recieved_versions = set()
+            bundle_uuid = str(uuid4())
+            bundle_version_1 = datetime_to_version_format(datetime.datetime.utcnow())
+            bundle_version_2 = datetime_to_version_format(datetime.datetime.utcnow())
+            bundle_key_1 = f"bundles/{bundle_uuid}.{bundle_version_1}"
+            bundle_key_2 = f"bundles/{bundle_uuid}.{bundle_version_2}"
+            unversioned_tombstone_key = f"bundles/{bundle_uuid}.dead"
 
-            def mock_queue_notification(replica, subscription, event_type, key, delay_seconds=15 * 60):
-                _, fqid = key.split("/")
-                uuid, version = fqid.split(".", 1)
-                recieved_uuids.add(uuid)
-                recieved_versions.add(version)
-
-            with mock.patch("dss.events.handlers.notify_v2.queue_notification", mock_queue_notification):
-                notify_or_queue(Replica.aws, {}, {}, f"bundles/{bundle_uuid}.dead")
-            self.assertEqual(1, len(recieved_uuids))
-            self.assertEqual(2, len(recieved_versions))
-            self.assertIn(bundle_uuid, recieved_uuids)
-            self.assertIn(bundle_version_1, recieved_versions)
-            self.assertIn(bundle_version_2, recieved_versions)
+            with mock.patch.object(SQSMessenger, "send") as mock_send:
+                with mock.patch("dss.events.handlers.notify_v2._list_prefix") as mock_list_prefix:
+                    mock_list_prefix.return_value = [
+                        unversioned_tombstone_key,
+                        bundle_key_1,
+                        bundle_key_2,
+                    ]
+                    notify_or_queue(Replica.aws, subscription, metadata_document, unversioned_tombstone_key)
+                    keys = [json.loads(a[0][0])['key'] for a in mock_send.call_args_list]
+                    self.assertIn(bundle_key_1, keys)
+                    self.assertIn(bundle_key_2, keys)
 
         with self.subTest("notify_or_queue should not re-queue tombstones versions of unversioned tombstones"):
-            bundle_uuid, bundle_version_1 = self._upload_bundle(replica)
-            bundle_uuid, bundle_version_2 = self._upload_bundle(replica, bundle_uuid)
-            self._tombstone_bundle(replica, bundle_uuid, bundle_version_2)
-            self._tombstone_bundle(replica, bundle_uuid)
-            recieved_uuids = set()
-            recieved_versions = set()
+            bundle_uuid = str(uuid4())
+            bundle_version_1 = datetime_to_version_format(datetime.datetime.utcnow())
+            bundle_version_2 = datetime_to_version_format(datetime.datetime.utcnow())
+            bundle_key_1 = f"bundles/{bundle_uuid}.{bundle_version_1}"
+            bundle_key_2 = f"bundles/{bundle_uuid}.{bundle_version_2}.dead"
+            unversioned_tombstone_key = f"bundles/{bundle_uuid}.dead"
+            with mock.patch.object(SQSMessenger, "send") as mock_send:
+                with mock.patch("dss.events.handlers.notify_v2._list_prefix") as mock_list_prefix:
+                    mock_list_prefix.return_value = [
+                        unversioned_tombstone_key,
+                        bundle_key_1,
+                        bundle_key_2,
+                    ]
+                    notify_or_queue(Replica.aws, subscription, metadata_document, unversioned_tombstone_key)
+                    mock_send.assert_called_once()
+                    keys = [json.loads(a[0][0])['key'] for a in mock_send.call_args_list]
+                    self.assertIn(bundle_key_1, keys)
 
-            def foo(replica: Replica, subscription: dict, event_type: str, key: str, delay_seconds=15 * 60):
-                _, fqid = key.split("/")
-                uuid, version = fqid.split(".", 1)
-                recieved_uuids.add(uuid)
-                recieved_versions.add(version)
-
-            with mock.patch("dss.events.handlers.notify_v2.queue_notification", foo):
-                notify_or_queue(Replica.aws, {}, {}, f"bundles/{bundle_uuid}.dead")
-            self.assertEqual(1, len(recieved_uuids))
-            self.assertEqual(1, len(recieved_versions))
-            self.assertIn(bundle_uuid, recieved_uuids)
-            self.assertIn(bundle_version_1, recieved_versions)
-            self.assertNotIn(bundle_version_2, recieved_versions)
-
+    @testmode.integration
     def test_queue_notification(self):
         replica = Replica.aws
         bucket = get_env('DSS_S3_BUCKET_TEST')
@@ -243,16 +220,18 @@ class TestNotifyV2(unittest.TestCase, DSSAssertMixin, DSSUploadMixin):
             replica
         )
 
-        queue_notification(
-            replica,
-            subscription,
-            "CREATE",
-            "bundles/a47b90b2-0967-4fbf-87bc-c6c12db3fedf.2017-07-12T055120.037644Z",
-            delay_seconds=0
-        )
+        with SQSMessenger(get_queue_url(notify_v2.notification_queue_name)) as mq:
+            msg = notify_v2._format_sqs_message(
+                replica,
+                subscription,
+                "CREATE",
+                "bundles/a47b90b2-0967-4fbf-87bc-c6c12db3fedf.2017-07-12T055120.037644Z",
+            )
+            mq.send(msg, delay_seconds=0)
         notification = self._get_notification_from_s3_object(bucket, key)
         self.assertEquals(notification['subscription_id'], subscription['uuid'])
 
+    @testmode.integration
     def test_bundle_notification(self):
         for replica in Replica:
             with self.subTest(replica):
@@ -287,6 +266,7 @@ class TestNotifyV2(unittest.TestCase, DSSAssertMixin, DSSUploadMixin):
         obj = self.s3.get_object(Bucket=bucket, Key=key)['Body'].read().decode("utf-8")
         return json.loads(obj)
 
+    @testmode.integration
     def test_subscription_update(self, replica=Replica.aws):
         """
         Test recover of subscriptions during enumeration
@@ -320,6 +300,7 @@ class TestNotifyV2(unittest.TestCase, DSSAssertMixin, DSSUploadMixin):
         for key in subscription_2:
             self.assertEquals(subscription_2[key], subs[subscription_2['uuid']][key])
 
+    @testmode.integration
     def test_subscription_enumerate(self, replica=Replica.aws):
         """
         Test recover of subscriptions during enumeration
@@ -353,11 +334,13 @@ class TestNotifyV2(unittest.TestCase, DSSAssertMixin, DSSUploadMixin):
             self.assertIn(subscription_1['uuid'], subs)
             self.assertIn(subscription_2['uuid'], subs)
 
+    @testmode.integration
     def test_get_subscriptions_for_replica(self):
         for replica in Replica:
             with self.subTest(replica.name):
                 get_subscriptions_for_replica(replica)
 
+    @testmode.integration
     def test_subscription_api(self):
         """
         Test PUT, GET, DELETE subscription endpoints
@@ -427,6 +410,7 @@ class TestNotifyV2(unittest.TestCase, DSSAssertMixin, DSSUploadMixin):
         with self.subTest(f"{replica}, DELETE on non-existent subscription should return not-found"):
             self._delete_subscription(str(uuid4()), replica, codes=404)
 
+    @testmode.integration
     def test_should_notify(self):
         """
         Test logic of dss.events.handlers.should_notify()
@@ -464,6 +448,7 @@ class TestNotifyV2(unittest.TestCase, DSSAssertMixin, DSSUploadMixin):
             sub['jmespath_query'] = 'files."assay.json"[?rna.primer==`george`'
             self.assertFalse(notify_v2.should_notify(replica, sub, metadata_doc, bundle_key))
 
+    @testmode.integration
     def test_notify(self):
         self._test_notify({'event_type': "CREATE"})
         self._test_notify({'event_type': "TOMBSTONE"})

@@ -13,9 +13,9 @@ from functools import lru_cache
 from concurrent.futures import ThreadPoolExecutor
 import jmespath
 from jmespath.exceptions import JMESPathError
+from dcplib.aws.sqs import SQSMessenger, get_queue_url
 
 from dss import Config, Replica
-from dss.util.aws.clients import sqs  # type: ignore
 from dss.subscriptions_v2 import SubscriptionData
 from dss.storage.identifiers import UUID_PATTERN, VERSION_PATTERN, TOMBSTONE_SUFFIX, DSS_BUNDLE_KEY_REGEX
 
@@ -61,22 +61,24 @@ def notify_or_queue(replica: Replica, subscription: dict, metadata_document: dic
            not attempted for previously tombstoned versions. Since the number of versions is
            unbounded, inline delivery is not attempted.
     """
-    if _unversioned_tombstone_key_regex.match(key):
-        tombstones = set()
-        bundles = set()
-        key_prefix = key.rsplit(".", 1)[0]  # chop off the tombstone suffix
-        for key in _list_prefix(replica, key_prefix):
-            if _versioned_tombstone_key_regex.match(key):
-                bundle_key = key.rsplit(".", 1)[0]
-                tombstones.add(bundle_key)
-            elif _bundle_key_regex.match(key):
-                bundles.add(key)
-        for key in bundles:
-            if key not in tombstones:
-                queue_notification(replica, subscription, "TOMBSTONE", key, delay_seconds=0)
-    else:
-        if not notify(subscription, metadata_document, key):
-            queue_notification(replica, subscription, "CREATE", key)
+    with SQSMessenger(get_queue_url(notification_queue_name)) as sqsm:
+        if _unversioned_tombstone_key_regex.match(key):
+            tombstones = set()
+            bundles = set()
+            key_prefix = key.rsplit(".", 1)[0]  # chop off the tombstone suffix
+            for key in _list_prefix(replica, key_prefix):
+                if _versioned_tombstone_key_regex.match(key):
+                    bundle_key = key.rsplit(".", 1)[0]
+                    tombstones.add(bundle_key)
+                elif _bundle_key_regex.match(key):
+                    bundles.add(key)
+            for key in bundles:
+                if key not in tombstones:
+                    sqsm.send(_format_sqs_message(replica, subscription, "TOMBSTONE", key), delay_seconds=0)
+        else:
+            bundle_key = key.rsplit(".", 1)[0]
+            if not notify(subscription, metadata_document, bundle_key):
+                sqsm.send(_format_sqs_message(replica, subscription, "TOMBSTONE", bundle_key), delay_seconds=15 * 60)
 
 def notify(subscription: dict, metadata_document: dict, key: str) -> bool:
     """
@@ -234,24 +236,16 @@ def _dot_to_underscore_and_strip_numeric_suffix(name: str) -> str:
         name += "_json"
     return name
 
-def queue_notification(replica: Replica, subscription: dict, event_type: str, key: str, delay_seconds=15 * 60):
-    sqs.send_message(
-        QueueUrl=_get_notification_queue_url(),
-        MessageBody=json.dumps({
-            SubscriptionData.REPLICA: replica.name,
-            SubscriptionData.OWNER: subscription['owner'],
-            SubscriptionData.UUID: subscription['uuid'],
-            'event_type': event_type,
-            'key': key
-        }),
-        DelaySeconds=delay_seconds
-    )
+def _format_sqs_message(replica: Replica, subscription: dict, event_type: str, key: str):
+    return json.dumps({
+        SubscriptionData.REPLICA: replica.name,
+        SubscriptionData.OWNER: subscription['owner'],
+        SubscriptionData.UUID: subscription['uuid'],
+        'event_type': event_type,
+        'key': key
+    })
 
 @lru_cache()
 def _list_prefix(replica: Replica, prefix: str):
     handle = Config.get_blobstore_handle(replica)
     return [object_key for object_key in handle.list(replica.bucket, prefix)]
-
-@lru_cache()
-def _get_notification_queue_url():
-    return sqs.get_queue_url(QueueName=notification_queue_name)['QueueUrl']
