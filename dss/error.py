@@ -2,7 +2,7 @@ import json
 import os
 import random
 import logging
-
+import re
 import functools
 import traceback
 
@@ -36,6 +36,25 @@ class DSSForbiddenException(DSSException):
                          "Forbidden",
                          title,
                          *args, **kwargs)
+
+
+def include_retry_after_header(return_code, method, uri):
+    uuid_pattern = '[A-Za-z0-9]{8}-[A-Za-z0-9]{4}-[A-Za-z0-9]{4}-[A-Za-z0-9]{4}-[A-Za-z0-9]{12}'
+    bundle_checkout_pattern = f'/v1/bundles/{uuid_pattern}/checkout'
+    bundle_checkout = re.compile(bundle_checkout_pattern)
+
+    # we do not include Retry-After headers for these return codes and API endpoints
+    exclusion_list = [(requests.codes.server_error,        'POST', bundle_checkout),
+                      (requests.codes.bad_gateway,         'POST', bundle_checkout),
+                      (requests.codes.service_unavailable, 'POST', bundle_checkout),
+                      (requests.codes.gateway_timeout,     'POST', bundle_checkout)]
+
+    for excluded_call in exclusion_list:
+        if excluded_call[0] == return_code and \
+           excluded_call[1] == method and \
+           excluded_call[2].match(uri):
+            return False
+    return True
 
 
 def maybe_fake_error(headers, code) -> bool:
@@ -118,14 +137,8 @@ def dss_handler(func):
             title = "The DSS is currently read-only"
             stacktrace = ""
             headers = {'Retry-After': '600'}
-
         # These errors may be returned by the chalice app before reaching here.
-        if status in (requests.codes.server_error,         # 500 status code
-                      requests.codes.bad_gateway,          # 502 status code
-                      requests.codes.service_unavailable,  # 503 status code
-                      requests.codes.gateway_timeout       # 504 status code
-                      ) \
-                and not (func.__qualname__.upper() == 'POST' and 'uuid' in kwargs):  # not POST /bundle/{uuid}/checkout
+        if include_retry_after_header(return_code=status, method=request.method, uri=request.path):
             headers = {'Retry-After': '10'}
 
         return ConnexionResponse(

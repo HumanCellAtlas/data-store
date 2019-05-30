@@ -12,7 +12,7 @@ from concurrent.futures import ThreadPoolExecutor, TimeoutError
 import chalice
 import nestedcontext
 import requests
-from flask import json
+from flask import json, request
 
 pkg_root = os.path.abspath(os.path.join(os.path.dirname(__file__), 'chalicelib'))  # noqa
 sys.path.insert(0, pkg_root)  # noqa
@@ -21,7 +21,7 @@ from dss import BucketConfig, Config, DeploymentStage, create_app
 from dss.logging import configure_lambda_logging
 from dss.util.tracing import DSS_XRAY_TRACE
 from dss.api import health
-from dss.error import maybe_fake_error
+from dss.error import maybe_fake_error, include_retry_after_header
 
 if DSS_XRAY_TRACE:  # noqa
     from aws_xray_sdk.core import xray_recorder
@@ -64,7 +64,7 @@ class DSSChaliceApp(chalice.Chalice):
         self._override_exptime_seconds = None
 
 
-def timeout_response(method: str) -> chalice.Response:
+def timeout_response(method: str, uri: str) -> chalice.Response:
     """
     Produce a chalice Response object that indicates a timeout.  Stacktraces for all running threads, other than the
     current thread, are provided in the response object.
@@ -84,7 +84,7 @@ def timeout_response(method: str) -> chalice.Response:
     }
 
     headers = {"Content-Type": "application/problem+json"}
-    if not method.startswith('POST /v1/bundles') or ('bundle' in method and method.endswith('.post')):
+    if include_retry_after_header(return_code=requests.codes.gateway_timeout, method=method, uri=uri):
         headers['Retry-After'] = '10'
 
     return chalice.Response(status_code=problem['status'],
@@ -123,7 +123,7 @@ def time_limited(chalice_app: DSSChaliceApp):
                     chalice_response = future.result(timeout=time_remaining_s)
                     return chalice_response
                 except TimeoutError:
-                    return timeout_response(method.__qualname__)
+                    return timeout_response(method=request.method, uri=request.path)
             finally:
                 executor.shutdown(wait=False)
         return wrapper
@@ -155,7 +155,7 @@ def get_chalice_app(flask_app) -> DSSChaliceApp:
         )
 
         if not DeploymentStage.IS_PROD() and maybe_fake_error(headers=app.current_request.headers, code=504):
-            return timeout_response(' '.join([method, path]))
+            return timeout_response(method=method, uri=path)
 
         status_code = None
         try:
@@ -190,12 +190,7 @@ def get_chalice_app(flask_app) -> DSSChaliceApp:
         res_headers["Strict-Transport-Security"] = "max-age=31536000; includeSubDomains; preload"
         res_headers["X-AWS-REQUEST-ID"] = app.lambda_context.aws_request_id
 
-        if status_code in (requests.codes.server_error,         # 500 status code
-                           requests.codes.bad_gateway,          # 502 status code
-                           requests.codes.service_unavailable,  # 503 status code
-                           requests.codes.gateway_timeout       # 504 status code
-                           ) \
-                and not (app.current_request.method == 'POST' and path.startswith('/v1/bundles')):
+        if include_retry_after_header(return_code=status_code, method=app.current_request.method, uri=path):
             res_headers['Retry-After'] = '10'
 
         return chalice.Response(status_code=status_code,
