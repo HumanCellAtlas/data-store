@@ -1,13 +1,13 @@
 import collections
 import functools
 import os
+import random
 import re
 import sys
 import threading
 import time
 import traceback
 import typing
-import random
 from concurrent.futures import ThreadPoolExecutor, TimeoutError
 
 import chalice

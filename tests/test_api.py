@@ -12,11 +12,11 @@ import requests
 pkg_root = os.path.abspath(os.path.join(os.path.dirname(__file__), '..'))  # noqa
 sys.path.insert(0, pkg_root)  # noqa
 
+from dss.config import Replica
 import dss
 from dss.util import UrlBuilder
 from dss.util.version import datetime_to_version_format
-from dss.config import Replica
-from tests.infra import DSSAssertMixin, DSSUploadMixin, DSSStorageMixin, TestBundle, testmode, ExpectedErrorFields
+from tests.infra import DSSAssertMixin, DSSUploadMixin, DSSStorageMixin, TestBundle, testmode
 from tests.infra.server import ThreadedLocalServer
 from tests import get_auth_header
 
