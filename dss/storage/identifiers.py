@@ -28,10 +28,6 @@ DSS_BUNDLE_TOMBSTONE_REGEX = re.compile(
 DSS_OBJECT_NAME_REGEX = re.compile(
     f"^({BUNDLE_PREFIX}|{FILE_PREFIX}|{COLLECTION_PREFIX})/({UUID_PATTERN})(?:\.({VERSION_PATTERN}))?(\.{TOMBSTONE_SUFFIX})?$")  # noqa
 
-# API endpoint patterns
-BUNDLE_CHECKOUT_PATTERN = f'/v1/bundles/{UUID_PATTERN}/checkout'
-BUNDLE_CHECKOUT_URI_REGEX = re.compile(BUNDLE_CHECKOUT_PATTERN)
-
 
 class ObjectIdentifierError(ValueError):
     pass
