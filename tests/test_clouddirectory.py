@@ -8,6 +8,7 @@ sys.path.insert(0, pkg_root)  # noqa
 from fusillade import logging
 logging.configure_test_logging()
 
+from tests.infra.testmode import standalone
 from tests.common import random_hex_string, service_accounts
 from fusillade.clouddirectory import cd_client, cleanup_directory, cleanup_schema, publish_schema, create_directory, \
     CloudDirectory, CloudNode
@@ -15,6 +16,7 @@ from fusillade.clouddirectory import cd_client, cleanup_directory, cleanup_schem
 admin_email = "test_email1@domain.com,test_email2@domain.com, test_email3@domain.com "
 
 
+@standalone
 class TestCloudDirectory(unittest.TestCase):
 
     def test_cd(self):

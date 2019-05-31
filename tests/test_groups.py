@@ -11,8 +11,10 @@ from fusillade.errors import FusilladeHTTPException
 from fusillade.clouddirectory import User, Group, cd_client, cleanup_directory, cleanup_schema, get_json_file, \
     default_group_policy_path, Role
 from tests.common import new_test_directory, create_test_statement
+from tests.infra.testmode import standalone
 
 
+@standalone
 class TestGroup(unittest.TestCase):
 
     @classmethod

@@ -6,16 +6,19 @@ Functional Test of the Authn
 """
 import base64
 import json
-import unittest
-from itertools import combinations, product
-from furl import furl
 import os
 import sys
+import unittest
+from itertools import combinations, product
+
+from furl import furl
 
 pkg_root = os.path.abspath(os.path.join(os.path.dirname(__file__), '..'))  # noqa
 sys.path.insert(0, pkg_root)  # noqa
 
+from tests.infra.testmode import is_integration
 from tests.base_api_test import BaseAPITest
+
 
 class TestAuthentication(BaseAPITest, unittest.TestCase):
     def test_login(self):
@@ -61,7 +64,7 @@ class TestAuthentication(BaseAPITest, unittest.TestCase):
                 self.assertEqual(redirect_url.args["scope"], _scope)
                 self.assertEqual(redirect_url.host, os.environ["OPENID_PROVIDER"])
                 self.assertEqual(redirect_url.path, '/authorize')
-            with self.subTest(f"without client_id: {state} {scope}"): #TODO improve description
+            with self.subTest(f"without client_id: {state} {scope}"):  # TODO improve description
                 url = furl("/oauth/authorize")
                 url.add(query_params=query_params)
                 url.remove(query_params=["client_id"])
@@ -100,7 +103,7 @@ class TestAuthentication(BaseAPITest, unittest.TestCase):
             for key in expected_response_types_supported:
                 self.assertIn(key, body['response_types_supported'])
 
-        if self.integration:
+        if is_integration():
             with self.subTest("openid config is returned when no host is provided in the header"):
                 resp = self.app.get('/.well-known/openid-configuration')
                 self.assertEqual(200, resp.status_code)
@@ -125,7 +128,7 @@ class TestAuthentication(BaseAPITest, unittest.TestCase):
     def test_userinfo(self):
         # TODO: login
         # TODO:use token to get userinfo
-        tests =[
+        tests = [
             {
                 "headers": {},
                 "expected_status_code": 401,

@@ -4,9 +4,9 @@ import os
 from furl import furl
 
 from tests import random_hex_string
+from tests.infra.testmode import is_integration
 
-integration = os.getenv('INTEGRATION_TEST', 'False').lower() == 'true'
-if not integration:
+if not is_integration():
     old_directory_name = os.getenv("FUSILLADE_DIR", None)
     os.environ["FUSILLADE_DIR"] = "test_api_" + random_hex_string()
 
@@ -16,7 +16,6 @@ from fusillade.clouddirectory import cleanup_directory, User
 
 
 class BaseAPITest():
-    integration = False
 
     @classmethod
     def setUpClass(cls):
@@ -25,10 +24,9 @@ class BaseAPITest():
         except Exception:
             pass
 
-        if integration:
+        if is_integration():
             from tests.infra.integration_server import IntegrationTestHarness
             cls.app = IntegrationTestHarness()
-            cls.integration = integration
         else:
             from tests.infra.server import ChaliceTestHarness
             # ChaliceTestHarness must be imported after FUSILLADE_DIR has be set
@@ -43,7 +41,7 @@ class BaseAPITest():
     def tearDownClass(cls):
         cls.clear_directory()
 
-        if not integration:
+        if not is_integration():
             cleanup_directory(directory._dir_arn)
             if old_directory_name:
                 os.environ["FUSILLADE_DIR"] = old_directory_name
