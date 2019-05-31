@@ -69,7 +69,7 @@ class ChaliceWithConnexion(chalice.Chalice):
         # Most of the Fusillade web app's logging is done through the FusilladeChaliceApp.app logger not the Flask
         # app's logger.
         app.app.logger_name = 'fus.api'
-        debug = Config.debug_level() > 0
+        debug = Config.log_level() > 1
         app.app.debug = debug
         app.app.logger.info('Flask debug is %s.', 'enabled' if debug else 'disabled')
 

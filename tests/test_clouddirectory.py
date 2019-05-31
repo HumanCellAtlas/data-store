@@ -5,9 +5,6 @@ from unittest import mock
 pkg_root = os.path.abspath(os.path.join(os.path.dirname(__file__), '..'))  # noqa
 sys.path.insert(0, pkg_root)  # noqa
 
-from fusillade import logging
-logging.configure_test_logging()
-
 from tests.infra.testmode import standalone
 from tests.common import random_hex_string, service_accounts
 from fusillade.clouddirectory import cd_client, cleanup_directory, cleanup_schema, publish_schema, create_directory, \

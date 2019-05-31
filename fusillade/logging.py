@@ -1,11 +1,11 @@
-import os
-import time
-from pythonjsonlogger import jsonlogger
 import logging
-from logging import LogRecord
+import os
 import sys
+import time
+from logging import LogRecord
 from typing import List
 
+from pythonjsonlogger import jsonlogger
 from pythonjsonlogger.jsonlogger import merge_record_extra
 
 from fusillade import Config
@@ -18,7 +18,7 @@ The fields to log using the json logger.
 """
 
 
-class DSSJsonFormatter(jsonlogger.JsonFormatter):
+class FUSJsonFormatter(jsonlogger.JsonFormatter):
     default_time_format = '%Y-%m-%dT%H:%M:%S'
     default_msec_format = '%s.%03dZ'
 
@@ -71,31 +71,18 @@ class DSSJsonFormatter(jsonlogger.JsonFormatter):
 
 def _get_json_log_handler():
     log_handler = logging.StreamHandler(stream=sys.stderr)
-    log_handler.setFormatter(DSSJsonFormatter())
+    log_handler.setFormatter(FUSJsonFormatter(LOG_FORMAT))
     return log_handler
-
-
-def configure_cli_logging():
-    """
-    Prepare logging for use in a command line application.
-    """
-    _configure_logging(handlers=[_get_json_log_handler()])
 
 
 def configure_lambda_logging():
     """
     Prepare logging for use within a AWS Lambda function.
     """
-    _configure_logging(handlers=[_get_json_log_handler()])
-
-
-def configure_test_logging(**kwargs):
-    """
-    Configure logging for use during unit tests.
-    """
-    _configure_logging(test=True,
-                       handlers=[_get_json_log_handler()],
-                       **kwargs)
+    if _json_logs:
+        _configure_logging(handlers=[_get_json_log_handler()])
+    else:
+        _configure_logging()
 
 
 """
@@ -104,38 +91,40 @@ Subclasses Chalice to configure all Python loggers to our liking.
 silence_debug_loggers = ["botocore"]
 _logging_configured = False
 _debug = True
+_json_logs = bool(os.getenv('JSON_LOGS', False))
 
 
 def _configure_logging(**kwargs):
     root_logger = logging.root
-    global _logging_configured, _debug, silence_debug_loggers
-    logging.basicConfig()
-
-    if bool(os.getenv('JSON_LOGS', False)):
-        for handler in root_logger.handlers:
-            formatter = DSSJsonFormatter(LOG_FORMAT)
-            handler.setFormatter(formatter)
-
+    global _logging_configured, _debug, silence_debug_loggers, _json_logs
     if _logging_configured:
         root_logger.info("Logging was already configured in this interpreter process. The currently "
                          "registered handlers, formatters, filters and log levels will be left as is.")
     else:
+        root_logger.setLevel(logging.WARNING)
         if len(root_logger.handlers) == 0:
             logging.basicConfig(**kwargs)
         else:
-            if bool(os.getenv('JSON_LOGS', False)):
-                for handler in root_logger.handlers:
-                    formatter = DSSJsonFormatter(LOG_FORMAT)
-                    handler.setFormatter(formatter)
-        if Config.debug_level() == 0:
+            # If this happens, the process can likely proceed but the underlying issue needs to be investigated. Some
+            # module isn't playing nicely and configured logging before we had a chance to do so. The backtrace
+            # included in the log message may look scary but it should aid in finding the culprit.
+            root_logger.warning("It appears that logging was already configured in this interpreter process. "
+                                "Currently registered handlers, formatters and filters will be left as is.",
+                                stack_info=True)
+        if _json_logs:
+            for handler in root_logger.handlers:
+                formatter = FUSJsonFormatter(LOG_FORMAT)
+                handler.setFormatter(formatter)
+        if Config.log_level() == 0:
             _debug = False
             root_logger.setLevel(logging.WARN)
-        elif Config.debug_level() == 1:
+        elif Config.log_level() == 1:
             root_logger.setLevel(logging.INFO)
-        elif Config.debug_level() > 1:
+        elif Config.log_level() > 1:
             root_logger.setLevel(logging.DEBUG)
             for logger_name in silence_debug_loggers:
                 logging.getLogger(logger_name).setLevel(logging.INFO)
+        _logging_configured = True
 
 
 def is_debug() -> bool:
