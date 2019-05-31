@@ -11,7 +11,7 @@ from collections import namedtuple
 from cloud_blobstore import BlobNotFoundError
 
 from dss import Config, Replica
-from dss.sqs import MessageQueuer, get_queue_url
+from dcplib.aws.sqs import SQSMessenger, get_queue_url
 from dss.storage.hcablobstore import compose_blob_key
 from dss.operations import dispatch
 from dss.storage.identifiers import BLOB_PREFIX, FILE_PREFIX, BUNDLE_PREFIX
@@ -64,12 +64,12 @@ def trigger_sync(argv: typing.List[str], args: argparse.Namespace):
     Invoke the sync daemon on a set of keys via sqs.
     """
     sync_queue_url = get_queue_url("dss-sync-operation-" + os.environ['DSS_DEPLOYMENT_STAGE'])
-    with MessageQueuer(sync_queue_url) as mq:
+    with SQSMessenger(sync_queue_url) as sqsm:
         for key in args.keys:
             msg = json.dumps(dict(source_replica=args.source_replica,
                                   dest_replica=args.destination_replica,
                                   key=key))
-            mq.send(msg)
+            sqsm.send(msg)
 
 def verify_blob_replication(src_handle, dst_handle, src_bucket, dst_bucket, key):
     """
