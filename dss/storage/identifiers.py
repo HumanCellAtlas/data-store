@@ -10,7 +10,8 @@ COLLECTION_PREFIX = "collections"
 # versioned tombstones are indexed after all bundles during a reindex operation.
 TOMBSTONE_SUFFIX = "dead"
 
-UUID_PATTERN = "[A-Za-z0-9]{8}-[A-Za-z0-9]{4}-[A-Za-z0-9]{4}-[A-Za-z0-9]{4}-[A-Za-z0-9]{12}"
+# does not allow caps (though our swagger params allow users to input this, s3 keys are changed to lowercase after ingested)
+UUID_PATTERN = "[a-z0-9]{8}-[a-z0-9]{4}-[a-z0-9]{4}-[a-z0-9]{4}-[a-z0-9]{12}"
 UUID_REGEX = re.compile(UUID_PATTERN)
 
 VERSION_PATTERN = "\d{4}-\d{2}-\d{2}T\d{2}\d{2}\d{2}[.]\d{6}Z"
