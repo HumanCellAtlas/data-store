@@ -87,7 +87,7 @@ def launch_from_forwarded_event(event, context):
     return executions
 
 # This entry point is for operator initiated replication
-@app.sqs_queue_subscriber("dss-sync-operation-" + os.environ['DSS_DEPLOYMENT_STAGE'], batch_size=1)
+@app.sqs_queue_subscriber("dss-sync-operation-" + os.environ['DSS_DEPLOYMENT_STAGE'])
 def launch_from_operator_queue(event, context):
     executions = {}
     for event_record in event['Records']:
