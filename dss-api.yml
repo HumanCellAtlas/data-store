@@ -348,7 +348,7 @@ paths:
           description: A RFC4122-compliant ID for the file.
           required: true
           type: string
-          pattern: "[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}"
+          pattern: "[0-9A-Fa-f]{8}-[0-9A-Fa-f]{4}-[0-9A-Fa-f]{4}-[0-9A-Fa-f]{4}-[0-9A-Fa-f]{12}"
         - name: replica
           in: query
           description: Replica to fetch from.
@@ -483,7 +483,7 @@ paths:
           description: A RFC4122-compliant ID for the file.
           required: true
           type: string
-          pattern: "[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}"
+          pattern: "[0-9A-Fa-f]{8}-[0-9A-Fa-f]{4}-[0-9A-Fa-f]{4}-[0-9A-Fa-f]{4}-[0-9A-Fa-f]{12}"
         - name: version
           in: query
           description: Timestamp of file creation in DSS_VERSION format.  If this is not provided, the latest version is returned.
@@ -542,7 +542,7 @@ paths:
               task_id:
                 description: ID for the task responsible for managing the copy.
                 type: string
-                pattern: "[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}"
+                pattern: "[0-9A-Fa-f]{8}-[0-9A-Fa-f]{4}-[0-9A-Fa-f]{4}-[0-9A-Fa-f]{4}-[0-9A-Fa-f]{12}"
             required:
               - version
         400:
@@ -855,7 +855,7 @@ paths:
               uuid:
                 description: A RFC4122-compliant ID for the subscription.
                 type: string
-                pattern: "[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}"
+                pattern: "[0-9A-Fa-f]{8}-[0-9A-Fa-f]{4}-[0-9A-Fa-f]{4}-[0-9A-Fa-f]{4}-[0-9A-Fa-f]{12}"
             required:
               - uuid
         500:
@@ -903,7 +903,7 @@ paths:
           description: A RFC4122-compliant ID for the subscription.
           required: true
           type: string
-          pattern: "[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}"
+          pattern: "[0-9A-Fa-f]{8}-[0-9A-Fa-f]{4}-[0-9A-Fa-f]{4}-[0-9A-Fa-f]{4}-[0-9A-Fa-f]{12}"
         - name: replica
           in: query
           description: Replica to fetch from.
@@ -959,7 +959,7 @@ paths:
           description: A RFC4122-compliant ID for the subscription.
           required: true
           type: string
-          pattern: "[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}"
+          pattern: "[0-9A-Fa-f]{8}-[0-9A-Fa-f]{4}-[0-9A-Fa-f]{4}-[0-9A-Fa-f]{4}-[0-9A-Fa-f]{12}"
         - name: replica
           in: query
           description: Replica to delete from.
@@ -1117,7 +1117,7 @@ paths:
           description: A RFC4122-compliant ID for the collection.
           required: true
           type: string
-          pattern: "[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}"
+          pattern: "[0-9A-Fa-f]{8}-[0-9A-Fa-f]{4}-[0-9A-Fa-f]{4}-[0-9A-Fa-f]{4}-[0-9A-Fa-f]{12}"
         - name: version
           in: query
           description: Timestamp of collection creation in DSS_VERSION format.
@@ -1138,7 +1138,7 @@ paths:
               uuid:
                 description: A RFC4122-compliant ID for the collection.
                 type: string
-                pattern: "[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}"
+                pattern: "[0-9A-Fa-f]{8}-[0-9A-Fa-f]{4}-[0-9A-Fa-f]{4}-[0-9A-Fa-f]{4}-[0-9A-Fa-f]{12}"
             required:
               - uuid
         500:
@@ -1181,7 +1181,7 @@ paths:
           description: A RFC4122-compliant ID for the collection.
           required: true
           type: string
-          pattern: "[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}"
+          pattern: "[0-9A-Fa-f]{8}-[0-9A-Fa-f]{4}-[0-9A-Fa-f]{4}-[0-9A-Fa-f]{4}-[0-9A-Fa-f]{12}"
         - name: replica
           in: query
           description: Replica to fetch from.
@@ -1236,7 +1236,7 @@ paths:
           description: A RFC4122-compliant ID of the collection to update.
           required: true
           type: string
-          pattern: "[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}"
+          pattern: "[0-9A-Fa-f]{8}-[0-9A-Fa-f]{4}-[0-9A-Fa-f]{4}-[0-9A-Fa-f]{4}-[0-9A-Fa-f]{12}"
         - name: replica
           in: query
           description: Replica to update the collection on. Updates are propagated to other replicas.
@@ -1398,7 +1398,7 @@ paths:
           description: A RFC4122-compliant ID for the collection.
           required: true
           type: string
-          pattern: "[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}"
+          pattern: "[0-9A-Fa-f]{8}-[0-9A-Fa-f]{4}-[0-9A-Fa-f]{4}-[0-9A-Fa-f]{4}-[0-9A-Fa-f]{12}"
         - name: replica
           in: query
           description: Replica to delete from.
@@ -1441,7 +1441,7 @@ paths:
           description: Bundle unique ID.
           required: true
           type: string
-          pattern: "[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}"
+          pattern: "[0-9A-Fa-f]{8}-[0-9A-Fa-f]{4}-[0-9A-Fa-f]{4}-[0-9A-Fa-f]{4}-[0-9A-Fa-f]{12}"
         - name: version
           in: query
           description: Timestamp of bundle creation in DSS_VERSION format.
@@ -1610,7 +1610,7 @@ paths:
           description: A RFC4122-compliant ID for the bundle.
           required: true
           type: string
-          pattern: "[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}"
+          pattern: "[0-9A-Fa-f]{8}-[0-9A-Fa-f]{4}-[0-9A-Fa-f]{4}-[0-9A-Fa-f]{4}-[0-9A-Fa-f]{12}"
         - name: version
           in: query
           description: Timestamp of bundle creation in DSS_VERSION format.
@@ -1759,7 +1759,7 @@ paths:
           description: A RFC4122-compliant ID of the bundle to update.
           required: true
           type: string
-          pattern: "[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}"
+          pattern: "[0-9A-Fa-f]{8}-[0-9A-Fa-f]{4}-[0-9A-Fa-f]{4}-[0-9A-Fa-f]{4}-[0-9A-Fa-f]{12}"
         - name: replica
           in: query
           description: Replica to update the bundle on. Updates are propagated to other replicas.
@@ -1904,7 +1904,7 @@ paths:
           description: A RFC4122-compliant ID for the bundle.
           required: true
           type: string
-          pattern: "[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}"
+          pattern: "[0-9A-Fa-f]{8}-[0-9A-Fa-f]{4}-[0-9A-Fa-f]{4}-[0-9A-Fa-f]{4}-[0-9A-Fa-f]{12}"
         - name: replica
           in: query
           description: Replica to write to.
@@ -2008,7 +2008,7 @@ paths:
           description: A RFC4122-compliant ID for the bundle.
           required: true
           type: string
-          pattern: "[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}"
+          pattern: "[0-9A-Fa-f]{8}-[0-9A-Fa-f]{4}-[0-9A-Fa-f]{4}-[0-9A-Fa-f]{4}-[0-9A-Fa-f]{12}"
         - name: version
           in: query
           description: Timestamp of file creation in DSS_VERSION format.  If this is not provided, the latest version is returned.
@@ -2041,7 +2041,7 @@ paths:
             properties:
               checkout_job_id:
                 description: A RFC4122-compliant ID for the checkout job request.
-                pattern: "[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}"
+                pattern: "[0-9A-Fa-f]{8}-[0-9A-Fa-f]{4}-[0-9A-Fa-f]{4}-[0-9A-Fa-f]{4}-[0-9A-Fa-f]{12}"
                 type: string
             required:
               - checkout_job_id
@@ -2075,7 +2075,7 @@ paths:
         - name: checkout_job_id
           in: path
           description: A RFC4122-compliant ID for the checkout job request.
-          pattern: "[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}"
+          pattern: "[0-9A-Fa-f]{8}-[0-9A-Fa-f]{4}-[0-9A-Fa-f]{4}-[0-9A-Fa-f]{4}-[0-9A-Fa-f]{12}"
           required: true
           type: string
       responses:
@@ -2145,7 +2145,7 @@ definitions:
       uuid:
         type: string
         description: File unique ID
-        pattern: "[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}"
+        pattern: "[0-9A-Fa-f]{8}-[0-9A-Fa-f]{4}-[0-9A-Fa-f]{4}-[0-9A-Fa-f]{4}-[0-9A-Fa-f]{12}"
       name:
         type: string
         description: Filename (unique within a bundle)
@@ -2177,7 +2177,7 @@ definitions:
       uuid:
         type: string
         description: A RFC4122-compliant ID for the file.
-        pattern: "[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}"
+        pattern: "[0-9A-Fa-f]{8}-[0-9A-Fa-f]{4}-[0-9A-Fa-f]{4}-[0-9A-Fa-f]{4}-[0-9A-Fa-f]{12}"
       version:
         type: string
         format: DSS_VERSION
@@ -2219,7 +2219,7 @@ definitions:
       uuid:
         type: string
         description: Bundle unique ID
-        pattern: "[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}"
+        pattern: "[0-9A-Fa-f]{8}-[0-9A-Fa-f]{4}-[0-9A-Fa-f]{4}-[0-9A-Fa-f]{4}-[0-9A-Fa-f]{12}"
       versions:
         type: array
         items:
@@ -2235,7 +2235,7 @@ definitions:
       uuid:
         description: A RFC4122-compliant ID for the file.
         type: string
-        pattern: "[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}"
+        pattern: "[0-9A-Fa-f]{8}-[0-9A-Fa-f]{4}-[0-9A-Fa-f]{4}-[0-9A-Fa-f]{4}-[0-9A-Fa-f]{12}"
       version:
         description: Timestamp of file creation in DSS_VERSION format.
         type: string
@@ -2265,7 +2265,7 @@ definitions:
       uuid:
         type: string
         description: Uniquely identifies this subscription.
-        pattern: "[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}"
+        pattern: "[0-9A-Fa-f]{8}-[0-9A-Fa-f]{4}-[0-9A-Fa-f]{4}-[0-9A-Fa-f]{4}-[0-9A-Fa-f]{12}"
       replica:
         description: >
           The DSS replica to subscribe. When a new bundle is indexed in a particular replica, only subscriptions for
@@ -2429,7 +2429,7 @@ definitions:
       uuid:
         type: string
         description: Bundle unique ID
-        pattern: "[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}"
+        pattern: "[0-9A-Fa-f]{8}-[0-9A-Fa-f]{4}-[0-9A-Fa-f]{4}-[0-9A-Fa-f]{4}-[0-9A-Fa-f]{12}"
       version:
         type: string
         format: DSS_VERSION
@@ -2463,7 +2463,7 @@ definitions:
       uuid:
         type: string
         description: A UUID identifying the collection.
-        pattern: "[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}"
+        pattern: "[0-9A-Fa-f]{8}-[0-9A-Fa-f]{4}-[0-9A-Fa-f]{4}-[0-9A-Fa-f]{4}-[0-9A-Fa-f]{12}"
       version:
         description: The version of the UUID identifying the collection.
         type: string
@@ -2503,7 +2503,7 @@ definitions:
       uuid:
         type: string
         description: Unique ID of the file, bundle, collection, or file containing a metadata fragment.
-        pattern: "[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}"
+        pattern: "[0-9A-Fa-f]{8}-[0-9A-Fa-f]{4}-[0-9A-Fa-f]{4}-[0-9A-Fa-f]{4}-[0-9A-Fa-f]{12}"
       version:
         type: string
         format: DSS_VERSION
