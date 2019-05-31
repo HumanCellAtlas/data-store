@@ -142,3 +142,7 @@ else
     echo "Error: Could not find environment config file ${DSS_HOME}/environment.${PROMOTE_DEST_BRANCH}. Unable to deploy."
     exit 1
 fi
+
+# We have the option to use the Github deployments API. It's not exposed through the UI, which makes it difficult.
+# It also requires Github token authentication. But it has built-in CI pass/fail checks (and a bypass option for them).
+# http --auth user:token ${GH_API}/repos/${REPO}/deployments ref=${PROMOTE_DEST_BRANCH} required_contexts:=[]
