@@ -1,17 +1,17 @@
 #!/usr/bin/env bash
-# This script is used to generate a dependency layer for the lambdas to utilize
-# It's not really for direct usage, `make generate-dependencies` can be used
-# but its part of the `make deploy` 
+# This script is used to generate a dependency layer for the lambdas to utilize.
+# It's not really for direct usage - `make generate-dependencies` can be used
+# but its part of the dependency chain of `make deploy`.
 
 set -euo pipefail
 shopt -s nullglob;
 
-account_id=$(aws sts get-caller-identity | jq -r ".Account" )
-layers_bucket=$(echo ${DSS_TERRAFORM_BACKEND_BUCKET_TEMPLATE} | sed 's/{account_id}/'"${account_id}"'/'  )
+account_id=$(aws sts get-caller-identity | jq -r ".Account")
+layers_bucket=$(echo ${DSS_TERRAFORM_BACKEND_BUCKET_TEMPLATE} | sed 's/{account_id}/'"${account_id}"'/')
 
-if [[ $(aws s3api get-bucket-location --bucket ${layers_bucket} &>/dev/null ;echo $?) -ne 0 ]]
+if [[ $(aws s3api get-bucket-location --bucket ${layers_bucket} &>/dev/null ; echo $?) -ne 0 ]]
 then
-    echo "verify if bucket: ${layers_bucket} exist"
+    echo "Bucket ${layers_bucket} not found, please verify it exists"
     exit 1
 fi
 
@@ -24,28 +24,28 @@ local_req=$DSS_HOME/requirements.txt
 local_zip=$DSS_HOME/dss-dependencies-$DSS_DEPLOYMENT_STAGE.zip
 layer_name=dss-dependencies-${DSS_DEPLOYMENT_STAGE}
 
-function create_layer(){
+function create_layer() {
     layer_version_arn=$(aws lambda publish-layer-version --layer-name $layer_name --content S3Bucket=${layers_bucket},S3Key=${aws_zip_key}| jq -r .LayerVersionArn )
     echo "created layer/-version_arn: ${layer_version_arn}"
 }
 
 
-function build_clean_zip(){
+function build_clean_zip() {
     mkdir -p $build_path
     unzip -q -o -d $build_path deployment.zip
-    cd $dependency_dir ; zip -qq -r -o $local_zip .
-    cd ..
+    pushd $dependency_dir; zip -qq -r -o $local_zip .
+    popd
 }
 
-function verify_chalice_folder(){
-	if [[ ! -d $1/.chalicelib/dss ]]
+function verify_chalice_folder() {
+	if [[ ! -d $1/chalicelib/dss ]]
 	then
 		cp -R ${DSS_HOME}/dss ${DSS_HOME}/dss-api.yml $1/chalicelib
 	fi
 
 }
 
-function build_chalice(){
+function build_chalice() {
     # utilize challice to build out dependencies
     # chalice requires a a configured chalice application to package.
     # copy chalice folder TODO verify that in process this folder will be clean....
@@ -64,27 +64,27 @@ function build_chalice(){
 function upload() {
     if [[ ! -f $local_zip ]]
     then
-        echo "unable to locate zip file at: $local_zip"
+        echo "Unable to locate zip file at: $local_zip"
         exit 1
     fi
-    echo "uploading zip to ${layers_bucket} for stage: ${DSS_DEPLOYMENT_STAGE}"
+    echo "Uploading zip to ${layers_bucket} for stage: ${DSS_DEPLOYMENT_STAGE}"
     aws s3 cp $local_zip s3://${layers_bucket}/$aws_zip_key
     aws s3 cp $local_req s3://${layers_bucket}/$aws_req_key
     create_layer
 }
 
-function clean (){
-    echo "deleting $1"
+function clean() {
+    echo "Deleting $1"
     rm -rf $1
 }
 
-function clean_all(){
+function clean_all() {
     clean $dependency_dir
     clean $local_temp_chalice
     clean $local_zip
 }
 
-function build_upload(){
+function build_upload() {
     build_chalice
     build_clean_zip
     upload
@@ -94,10 +94,10 @@ function check() {
     aws_req_hash=$(aws s3api head-object --bucket ${layers_bucket} --key ${aws_req_key} | jq -r .ETag | xxd -r -p | base64)
     local_req_hash=$(openssl md5 -binary ${local_req} | base64)
     if [[ $aws_req_hash != $local_req_hash ]]; then
-        echo "checksum missmatch, uploading new ${aws_zip_key}"
+        echo "Checksum missmatch, uploading new ${aws_zip_key}"
         build_upload
     else
-        echo "requirements have not changed, no need to update"
+        echo "Requirements have not changed, no need to update"
         exit 0
     fi
 }
