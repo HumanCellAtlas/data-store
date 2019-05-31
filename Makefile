@@ -90,12 +90,6 @@ check-env:
 check-secrets:
 	scripts/check_deployment_secrets.py
 
-create-github-deployment:
-	$(eval REMOTE=$(shell git remote get-url origin | perl -ne '/([^\/\:]+\/.+?)(\.git)?$$/; print $$1'))
-	$(eval BRANCH=$(shell git rev-parse --abbrev-ref HEAD))
-	$(eval DEPLOY_API=https://api.github.com/repos/$(REMOTE)/deployments)
-	http POST $(DEPLOY_API) Authorization:"Bearer $(GH_TOKEN)" ref=$(BRANCH) environment=dev auto_merge:=false
-
 generate-dependencies:
 	scripts/generate_upload_requirements_layer.sh
 
