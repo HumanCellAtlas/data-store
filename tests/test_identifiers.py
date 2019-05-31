@@ -17,7 +17,7 @@ from tests.infra import testmode
 @testmode.standalone
 class TestRegexIdentifiers(unittest.TestCase):
     def test_REGEX_MATCHING(self):
-        chars = string.ascii_letters + string.digits
+        chars = string.lowercase + string.digits
         for i, c in enumerate(chars):
             uuid = f'{c*8}-{c*4}-{c*4}-{c*4}-{c*12}'
             self.assertTrue(UUID_REGEX.match(uuid), uuid)
