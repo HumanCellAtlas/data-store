@@ -131,6 +131,7 @@ class ChaliceWithConnexion(chalice.Chalice):
                     msg='The request failed!',
                     exception=ex
                 )))
+                status_code = 500
             finally:
                 self.log.info(dict(
                     dispatch=dict(

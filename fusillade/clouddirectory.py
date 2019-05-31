@@ -165,6 +165,11 @@ class UpdateObjectParams(namedtuple("UpdateObjectParams", ['facet', 'attribute',
     pass
 
 
+cd_retry_parameters = dict(timeout=.5,
+                           delay=0.1,
+                           retryable=lambda e: isinstance(e, cd_client.exceptions.RetryableConflictException))
+
+
 class CloudDirectory:
     _page_limit = 30  # This is the max allowed by AWS
     _batch_write_max = 20  # This is the max allowed by AWS
@@ -733,6 +738,7 @@ class CloudDirectory:
             },
         }
 
+    @retry(**cd_retry_parameters)
     def batch_write(self, operations: list) -> List[dict]:
         """
         A wrapper around CloudDirectory.Client.batch_write
@@ -745,6 +751,7 @@ class CloudDirectory:
                     Operations=operations[i:i + self._batch_write_max])['Responses'])
         return responses
 
+    @retry(**cd_retry_parameters)
     def batch_read(self, operations: List[Dict[str, Any]]) -> Dict[str, Any]:
         """
         A wrapper around CloudDirectory.Client.batch_read
