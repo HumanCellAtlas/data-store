@@ -8,11 +8,12 @@ import argparse
 from uuid import uuid4
 
 from cloud_blobstore import BlobNotFoundError
+from dcplib.aws.sqs import SQSMessenger
 
 from dss import Config, Replica
 from dss.storage.hcablobstore import compose_blob_key
 from dss.operations import dispatch
-from dss.operations.util import CommandForwarder, map_bucket
+from dss.operations.util import command_queue_url, map_bucket
 from dss.events.handlers.sync import dependencies_exist
 from dss.storage.identifiers import BUNDLE_PREFIX, FILE_PREFIX, COLLECTION_PREFIX
 
@@ -43,9 +44,9 @@ class StorageOperationHandler:
         cmd_template += " --keys {}"
 
         def forward_keys(keys):
-            with CommandForwarder() as f:
+            with SQSMessenger(command_queue_url) as sqsm:
                 for key in keys:
-                    f.forward(cmd_template.format(key))
+                    sqsm.send(cmd_template.format(key))
 
         if args.keys is not None:
             forward_keys(args.keys)

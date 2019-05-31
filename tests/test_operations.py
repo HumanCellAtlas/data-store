@@ -19,7 +19,7 @@ sys.path.insert(0, pkg_root)  # noqa
 import dss
 from tests.infra import testmode
 from dss.operations import DSSOperationsCommandDispatch
-from dss.operations.util import map_bucket_results, CommandForwarder
+from dss.operations.util import map_bucket_results
 from dss.operations import storage, sync
 from dss.logging import configure_test_logging
 from dss.config import BucketConfig, Config, Replica, override_bucket_config
@@ -88,21 +88,6 @@ class TestOperations(unittest.TestCase):
 
                     self.assertGreater(count_list, 0)
                     self.assertEqual(count_list, total)
-
-    def test_command_forwarder(self):
-        batches = list()
-
-        def mock_enqueue(commands):
-            batches.append(commands)
-
-        with mock.patch("dss.operations.util._enqueue_command_batch", mock_enqueue):
-            with CommandForwarder() as f:
-                for i in range(21):
-                    f.forward(str(i))
-
-        self.assertEqual(batches[0], [str(i) for i in range(10)])
-        self.assertEqual(batches[1], [str(i) for i in range(10, 20)])
-        self.assertEqual(batches[2], [str(i) for i in range(20, 21)])
 
     def test_repair_blob_metadata(self):
         uploader = {Replica.aws: self._put_s3_file, Replica.gcp: self._put_gs_file}
