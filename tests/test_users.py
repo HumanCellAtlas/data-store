@@ -46,7 +46,7 @@ class TestUser(unittest.TestCase):
                           "lookup_policy is called for a new user."):
             self.assertEqual(user.lookup_policies(), [self.default_user_role_policy])
         with self.subTest("error is returned when provision_user is called for an existing user"):
-            self.assertRaises(FusilladeException, user.provision_user, self.directory, name)
+            self.assertRaises(FusilladeHTTPException, user.provision_user, self.directory, name)
         with self.subTest("an existing users info is retrieved when instantiating User class for an existing user"):
             user = User(self.directory, name)
             self.assertEqual(user.lookup_policies(), [self.default_user_role_policy])
