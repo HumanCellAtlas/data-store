@@ -1,6 +1,7 @@
 """
 Replication consistency checks: verify and repair synchronization across replicas
 """
+import os
 import json
 import typing
 import logging
@@ -10,6 +11,7 @@ from collections import namedtuple
 from cloud_blobstore import BlobNotFoundError
 
 from dss import Config, Replica
+from dcplib.aws.sqs import SQSMessenger, get_queue_url
 from dss.storage.hcablobstore import compose_blob_key
 from dss.operations import dispatch
 from dss.storage.identifiers import BLOB_PREFIX, FILE_PREFIX, BUNDLE_PREFIX
@@ -21,7 +23,7 @@ ReplicationAnomaly = namedtuple("ReplicationAnomaly", "key anomaly")
 
 
 def _log_warning(**kwargs):
-    logger.warning(json.dumps(**kwargs))
+    logger.warning(json.dumps(kwargs))
 
 
 @sync.action("verify-entity-replication",
@@ -51,6 +53,23 @@ def verify_entity_replication(argv: typing.List[str], args: argparse.Namespace):
             raise ValueError(f"cannot handle key {key}")
         for anomaly in verify(src_handle, dst_handle, src_replica.bucket, dst_replica.bucket, key):
             _log_warning(ReplicationAnomaly=dict(key=anomaly.key, anomaly=anomaly.anomaly))
+
+
+@sync.action("trigger-sync",
+             arguments={"--source-replica": dict(choices=[r.name for r in Replica], required=True),
+                        "--destination-replica": dict(choices=[r.name for r in Replica], required=True),
+                        "--keys": dict(default=None, nargs="*", help="keys to check.")})
+def trigger_sync(argv: typing.List[str], args: argparse.Namespace):
+    """
+    Invoke the sync daemon on a set of keys via sqs.
+    """
+    sync_queue_url = get_queue_url("dss-sync-operation-" + os.environ['DSS_DEPLOYMENT_STAGE'])
+    with SQSMessenger(sync_queue_url) as sqsm:
+        for key in args.keys:
+            msg = json.dumps(dict(source_replica=args.source_replica,
+                                  dest_replica=args.destination_replica,
+                                  key=key))
+            sqsm.send(msg)
 
 def verify_blob_replication(src_handle, dst_handle, src_bucket, dst_bucket, key):
     """

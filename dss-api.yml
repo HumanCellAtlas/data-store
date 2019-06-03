@@ -2145,7 +2145,7 @@ definitions:
       uuid:
         type: string
         description: File unique ID
-        pattern: "[a-z0-9]{8}-[a-z0-9]{4}-[a-z0-9]{4}-[a-z0-9]{4}-[a-z0-9]{12}"
+        pattern: "[A-Za-z0-9]{8}-[A-Za-z0-9]{4}-[A-Za-z0-9]{4}-[A-Za-z0-9]{4}-[A-Za-z0-9]{12}"
       name:
         type: string
         description: Filename (unique within a bundle)
@@ -2177,7 +2177,7 @@ definitions:
       uuid:
         type: string
         description: A RFC4122-compliant ID for the file.
-        pattern: "[a-z0-9]{8}-[a-z0-9]{4}-[a-z0-9]{4}-[a-z0-9]{4}-[a-z0-9]{12}"
+        pattern: "[A-Za-z0-9]{8}-[A-Za-z0-9]{4}-[A-Za-z0-9]{4}-[A-Za-z0-9]{4}-[A-Za-z0-9]{12}"
       version:
         type: string
         format: DSS_VERSION
@@ -2219,7 +2219,7 @@ definitions:
       uuid:
         type: string
         description: Bundle unique ID
-        pattern: "[a-z0-9]{8}-[a-z0-9]{4}-[a-z0-9]{4}-[a-z0-9]{4}-[a-z0-9]{12}"
+        pattern: "[A-Za-z0-9]{8}-[A-Za-z0-9]{4}-[A-Za-z0-9]{4}-[A-Za-z0-9]{4}-[A-Za-z0-9]{12}"
       versions:
         type: array
         items:
@@ -2265,7 +2265,7 @@ definitions:
       uuid:
         type: string
         description: Uniquely identifies this subscription.
-        pattern: "[a-z0-9]{8}-[a-z0-9]{4}-[a-z0-9]{4}-[a-z0-9]{4}-[a-z0-9]{12}"
+        pattern: "[A-Za-z0-9]{8}-[A-Za-z0-9]{4}-[A-Za-z0-9]{4}-[A-Za-z0-9]{4}-[A-Za-z0-9]{12}"
       replica:
         description: >
           The DSS replica to subscribe. When a new bundle is indexed in a particular replica, only subscriptions for
@@ -2429,7 +2429,7 @@ definitions:
       uuid:
         type: string
         description: Bundle unique ID
-        pattern: "[a-z0-9]{8}-[a-z0-9]{4}-[a-z0-9]{4}-[a-z0-9]{4}-[a-z0-9]{12}"
+        pattern: "[A-Za-z0-9]{8}-[A-Za-z0-9]{4}-[A-Za-z0-9]{4}-[A-Za-z0-9]{4}-[A-Za-z0-9]{12}"
       version:
         type: string
         format: DSS_VERSION
@@ -2463,7 +2463,7 @@ definitions:
       uuid:
         type: string
         description: A UUID identifying the collection.
-        pattern: "[a-z0-9]{8}-[a-z0-9]{4}-[a-z0-9]{4}-[a-z0-9]{4}-[a-z0-9]{12}"
+        pattern: "[A-Za-z0-9]{8}-[A-Za-z0-9]{4}-[A-Za-z0-9]{4}-[A-Za-z0-9]{4}-[A-Za-z0-9]{12}"
       version:
         description: The version of the UUID identifying the collection.
         type: string
@@ -2503,7 +2503,7 @@ definitions:
       uuid:
         type: string
         description: Unique ID of the file, bundle, collection, or file containing a metadata fragment.
-        pattern: "[a-z0-9]{8}-[a-z0-9]{4}-[a-z0-9]{4}-[a-z0-9]{4}-[a-z0-9]{12}"
+        pattern: "[A-Za-z0-9]{8}-[A-Za-z0-9]{4}-[A-Za-z0-9]{4}-[A-Za-z0-9]{4}-[A-Za-z0-9]{12}"
       version:
         type: string
         format: DSS_VERSION
