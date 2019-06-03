@@ -23,7 +23,7 @@ ReplicationAnomaly = namedtuple("ReplicationAnomaly", "key anomaly")
 
 
 def _log_warning(**kwargs):
-    logger.warning(json.dumps(**kwargs))
+    logger.warning(json.dumps(kwargs))
 
 
 @sync.action("verify-entity-replication",
