@@ -47,6 +47,7 @@ AWS_DEFAULT_OUTPUT=json
 AWS_DEFAULT_REGION=us-east-1
 GCP_DEFAULT_REGION=us-central1
 GCP_PROJECT_NAME=human-cell-atlas-travis-test
+DSS_AVAILABILITY_ZONES="${AWS_DEFAULT_REGION}a ${AWS_DEFAULT_REGION}c ${AWS_DEFAULT_REGION}d"
 DSS_EVENT_RELAY_NAME=dss-gs-event-relay-
 CHECKOUT_CACHE_CRITERIA='[{"type":"application/json","max_size":12314}]'
 DSS_S3_BUCKET=org-humancellatlas-dss-dev

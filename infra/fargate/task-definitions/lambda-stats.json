@@ -1,0 +1,15 @@
+[
+  {
+    "name": "dcp-monitor",
+    "image": "humancellatlas/dss-monitor-image",
+    "cpu": 10,
+    "memory": 512,
+    "essential": true,
+    "portMappings": [
+      {
+        "containerPort": 80,
+        "hostPort": 80
+      }
+    ]
+  }
+]

@@ -1,0 +1,165 @@
+data "aws_caller_identity" "current" {}
+locals {
+  common_tags = "${map(
+    "managedBy" , "terraform",
+    "Name"      , "${var.DSS_INFRA_TAG_PROJECT}-${var.DSS_DEPLOYMENT_STAGE}-${var.DSS_INFRA_TAG_SERVICE}",
+    "project"   , "${var.DSS_INFRA_TAG_PROJECT}",
+    "env"       , "${var.DSS_DEPLOYMENT_STAGE}",
+    "service"   , "${var.DSS_INFRA_TAG_SERVICE}",
+    "owner"     , "${var.DSS_INFRA_TAG_OWNER}"
+  )}",
+  availability_zones = "${split(" ", "${var.DSS_AVAILABILITY_ZONES}")}"
+}
+resource "aws_iam_role" "task_executor" {
+  name = "dss-monitor-${var.DSS_DEPLOYMENT_STAGE}"
+  assume_role_policy = <<EOF
+{
+  "Version": "2012-10-17",
+  "Statement": [
+    {
+      "Effect": "Allow",
+      "Principal": {
+        "Service": [
+          "ecs.amazonaws.com",
+          "ecs-tasks.amazonaws.com"
+        ]
+      },
+      "Action": "sts:AssumeRole"
+    }
+  ]
+}
+EOF
+}
+
+resource "aws_iam_role_policy_attachment" "task_executor_ecs" {
+  role = "${aws_iam_role.task_executor.name}"
+  policy_arn = "arn:aws:iam::aws:policy/service-role/AmazonECSTaskExecutionRolePolicy"
+}
+
+resource "aws_iam_role" "query_runner" {
+  name = "dss-monitor-query-runner-${var.DSS_DEPLOYMENT_STAGE}"
+  assume_role_policy = <<EOF
+{
+  "Version": "2012-10-17",
+  "Statement": [
+    {
+      "Effect": "Allow",
+      "Principal": {
+        "Service": [
+          "ecs-tasks.amazonaws.com"
+        ]
+      },
+      "Action": "sts:AssumeRole"
+    }
+  ]
+}
+EOF
+}
+
+resource "aws_iam_role_policy" "query_runner" {
+  name = "dss-monitor-query-runner-${var.DSS_DEPLOYMENT_STAGE}"
+  role = "${aws_iam_role.query_runner.id}"
+  policy = <<EOF
+{
+  "Version": "2012-10-17",
+  "Statement": [
+            {
+      "Effect": "Allow",
+      "Action": "secretsmanager:Get*",
+      "Resource": "arn:aws:secretsmanager:*:${var.AWS_ACCOUNT_ID}:secret:${var.DSS_SECRETS_STORE}/*"
+    },
+    {
+      "Effect": "Allow",
+      "Action": [
+        "tag:GetTagKeys",
+        "tag:GetResources",
+        "tag:GetTagValues"
+      ],
+      "Resource": "*"
+    }
+  ]
+}
+EOF
+
+}
+
+
+resource "aws_ecs_task_definition" "monitor" {
+  family = "dss-monitor-${var.DSS_DEPLOYMENT_STAGE}"
+  execution_role_arn = "${aws_iam_role.task_executor.arn}"
+  task_role_arn = "${aws_iam_role.query_runner.arn}"
+  requires_compatibilities = ["FARGATE"]
+  network_mode = "awsvpc"
+  cpu = "256"
+  memory = "512"
+  # TODO add logging below.
+  container_definitions = <<DEFINITION
+[
+  {
+    "name": "dss-monitor-lambda",
+    "image": "humancellatlas/dss-monitor-image",
+    "cpu": 1,
+    "memory": 512,
+    "essential": true,
+    "command": ["git clone https://github.com/HumanCellAtlas/data-store.git",
+                "cd data-store",
+                "git fetch","git checkout amar-monitorLiz",
+                "python3 scripts/monitDSS.py"],
+    "portMappings": [
+      {
+        "containerPort": 80,
+        "hostPort": 80
+      }
+    ]
+  }
+]
+DEFINITION
+  # tags = "${local.common_tags}"
+}
+
+resource "aws_vpc" "dss_fargate" {
+  cidr_block = "10.0.0.0/16"
+  enable_dns_support = true
+  enable_dns_hostnames = true
+}
+
+# These subnets need to be associated with a route table providing
+# internet access.
+resource "aws_subnet" "dss_monitor" {
+  count 		    = "${length(local.availability_zones)}"
+  vpc_id 			= "${aws_vpc.dss_fargate.id}"
+  availability_zone = "${local.availability_zones[count.index]}"
+  cidr_block = "10.0.0.0/16"
+}
+
+
+resource "aws_ecs_cluster" "dss_monitor" {
+  name = "dss-monitor-${var.DSS_DEPLOYMENT_STAGE}"
+  # tags = "${local.common_tags}"
+}
+
+resource "aws_ecs_service" "notification-builder" {
+  name            = "dss-monitor-${var.DSS_DEPLOYMENT_STAGE}"
+  cluster         = "${aws_ecs_cluster.dss_monitor.id}"
+  task_definition = "${aws_ecs_task_definition.monitor.arn}"
+  desired_count   = 0
+  launch_type = "FARGATE"
+  # depends_on      = ["aws_subnet.dss-monitor"]
+  # tags = "${local.common_tags}"
+
+  lifecycle {
+    ignore_changes = ["desired_count"]
+  }
+  placement_constraints {
+    type       = "memberOf"
+    expression = "attribute:ecs.availability-zone in [us-east-1]"
+  }
+
+  network_configuration {
+    # security_groups = ["${aws_vpc.vpc.default_security_group_id}"]
+    subnets         = ["${aws_subnet.dss_monitor.id}"]
+    assign_public_ip = true
+  }
+}
+
+
