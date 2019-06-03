@@ -3,11 +3,11 @@ import boto3
 import datetime
 import json
 import requests
-from dss.util.aws.clients import cloudwatch  # type: ignore
-from dss.util.aws.clients import resourcegroupstaggingapi  # type: ignore
-from dss.util.aws.clients import secretsmanager  # type: ignore
 
 
+cloudwatch = boto3.client('cloudwatch')
+resourcegroupstaggingapi = boto3.client('resourcegroupstaggingapi')
+secretsmanager = boto3.client('secretsmanager')
 
 def get_resource_by_tag(resource_string: str, tag_filter: list):
     dss_resources = resourcegroupstaggingapi.get_resources(ResourceTypeFilters=[resource_string],

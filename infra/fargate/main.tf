@@ -2,7 +2,7 @@ data "aws_caller_identity" "current" {}
 locals {
   common_tags = "${map(
     "managedBy" , "terraform",
-    "Name"      , "${var.DSS_INFRA_TAG_PROJECT}-${var.DSS_DEPLOYMENT_STAGE}-${var.DSS_INFRA_TAG_SERVICE}",
+    "Name"      , "${var.DSS_INFRA_TAG_SERVICE}-monitor-${var.DSS_INFRA_TAG_SERVICE}",
     "project"   , "${var.DSS_INFRA_TAG_PROJECT}",
     "env"       , "${var.DSS_DEPLOYMENT_STAGE}",
     "service"   , "${var.DSS_INFRA_TAG_SERVICE}",
@@ -98,13 +98,22 @@ resource "aws_ecs_task_definition" "monitor" {
   {
     "name": "dss-monitor-lambda",
     "image": "humancellatlas/dss-monitor-image",
-    "cpu": 1,
+    "cpu": 256,
     "memory": 512,
     "essential": true,
+    "logConfiguration": {
+        "logDriver": "awslogs",
+        "options": {
+          "awslogs-group": "${aws_cloudwatch_log_group.query_runner.name}",
+          "awslogs-region": "us-east-1",
+          "awslogs-stream-prefix": "ecs"
+        }
+    },
     "command": ["git clone https://github.com/HumanCellAtlas/data-store.git",
                 "cd data-store",
                 "git fetch","git checkout amar-monitorLiz",
-                "python3 scripts/monitDSS.py"],
+                "virtualenv venv", "source venv/bin/activate","pip install -r requirements.txt",
+                "source environment", "python3 scripts/monitDSS.py"],
     "portMappings": [
       {
         "containerPort": 80,
@@ -117,10 +126,18 @@ DEFINITION
   # tags = "${local.common_tags}"
 }
 
+
+resource "aws_cloudwatch_log_group" "query_runner" {
+  name              = "/aws/service/dss-monitor-query-runner-${var.DSS_DEPLOYMENT_STAGE}"
+  retention_in_days = 1827
+}
+
+
 resource "aws_vpc" "dss_fargate" {
   cidr_block = "10.0.0.0/16"
   enable_dns_support = true
   enable_dns_hostnames = true
+  tags = "${local.common_tags}"
 }
 
 # These subnets need to be associated with a route table providing
@@ -129,8 +146,20 @@ resource "aws_subnet" "dss_monitor" {
   count 		    = "${length(local.availability_zones)}"
   vpc_id 			= "${aws_vpc.dss_fargate.id}"
   availability_zone = "${local.availability_zones[count.index]}"
-  cidr_block = "10.0.0.0/16"
+  cidr_block = "${cidrsubnet("10.0.0.0/16", "4", count.index)}"
 }
+
+resource "aws_internet_gateway" "gw" {
+  vpc_id = "${aws_vpc.dss_fargate.id}"
+}
+
+# Route the public subnet trafic through the IGW
+resource "aws_route" "internet_access" {
+  route_table_id         = "${aws_vpc.dss_fargate.main_route_table_id}"
+  destination_cidr_block = "0.0.0.0/0"
+  gateway_id             = "${aws_internet_gateway.gw.id}"
+}
+
 
 
 resource "aws_ecs_cluster" "dss_monitor" {
@@ -150,14 +179,10 @@ resource "aws_ecs_service" "notification-builder" {
   lifecycle {
     ignore_changes = ["desired_count"]
   }
-  placement_constraints {
-    type       = "memberOf"
-    expression = "attribute:ecs.availability-zone in [us-east-1]"
-  }
 
   network_configuration {
     # security_groups = ["${aws_vpc.vpc.default_security_group_id}"]
-    subnets         = ["${aws_subnet.dss_monitor.id}"]
+    subnets         = ["${aws_subnet.dss_monitor.*.id}"]
     assign_public_ip = true
   }
 }
