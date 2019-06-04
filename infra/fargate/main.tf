@@ -73,7 +73,8 @@ resource "aws_iam_role_policy" "query_runner" {
       "Action": [
         "tag:GetTagKeys",
         "tag:GetResources",
-        "tag:GetTagValues"
+        "tag:GetTagValues",
+        "cloudwatch:*"
       ],
       "Resource": "*"
     }
@@ -96,6 +97,7 @@ resource "aws_ecs_task_definition" "monitor" {
   container_definitions = <<DEFINITION
 [
   {
+    "family": "dss-monitor",
     "name": "dss-monitor-lambda",
     "image": "humancellatlas/dss-monitor-image",
     "cpu": 256,
@@ -109,11 +111,6 @@ resource "aws_ecs_task_definition" "monitor" {
           "awslogs-stream-prefix": "ecs"
         }
     },
-    "command": ["git clone https://github.com/HumanCellAtlas/data-store.git",
-                "cd data-store",
-                "git fetch","git checkout amar-monitorLiz",
-                "virtualenv venv", "source venv/bin/activate","pip install -r requirements.txt",
-                "source environment", "python3 scripts/monitDSS.py"],
     "portMappings": [
       {
         "containerPort": 80,
@@ -187,4 +184,34 @@ resource "aws_ecs_service" "notification-builder" {
   }
 }
 
+resource "aws_cloudwatch_event_rule" "dss-monitor" {
+  alarm_name = "dss-monitor-lambda-trigger"
+  schedule_expression = "cron(0 0 * * MON-FRI *)"
+  description = "daily event trigger for dss-monitor notifications"
+  tags = "${local.common_tags}"
 
+}
+
+resource "aws_cloudwatch_event_target" "scheduled_task" {
+  rule      = "${aws_cloudwatch_event_rule.scheduled_task.name}"
+  arn       = "${aws_ecs_cluster.dss_monitor.arn}"
+
+  ecs_target = {
+    task_count          = 1
+    task_definition_arn = "${aws_ecs_task_definition.monitor.arn}"
+    launch_type         = "FARGATE"
+    platform_version    = "LATEST"
+    group               = ""
+
+    network_configuration {
+      assign_public_ip = false
+      security_groups  = ["${aws_security_group.nsg_task.id}"]
+      subnets          = ["${split(",", var.private_subnets)}"]
+    }
+  }
+
+  # allow the task definition to be managed by external ci/cd system
+  lifecycle = {
+    ignore_changes = ["ecs_target.0.task_definition_arn"]
+  }
+}
