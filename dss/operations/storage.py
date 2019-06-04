@@ -35,6 +35,7 @@ class StorageOperationHandler:
         commands operating on multiple keys are forwarded as multiple commands operating on a single key.
         """
         cmd_template = f"{argv[0]} {argv[1]}"
+        args.job_id = args.job_id or uuid4()
         if "entity_type" in args.__dict__.keys() and "keys" in args.__dict__.keys():
             del args.entity_type
         for argname, argval in args.__dict__.items():
@@ -42,6 +43,9 @@ class StorageOperationHandler:
             if argname not in ["forward-to-lambda", "keys", "func"]:
                 cmd_template += f" --{argname} {argval}"
         cmd_template += " --keys {}"
+
+        # dump forwarded command format to stdout, including correlation id
+        print(f"Forwarding `{cmd_template}`")
 
         def forward_keys(keys):
             with SQSMessenger(command_queue_url) as sqsm:
@@ -87,6 +91,7 @@ storage = dispatch.target(
                                                  'output will be available in CloudWatch logs')),
                "--replica": dict(choices=[r.name for r in Replica], required=True),
                "--entity-type": dict(choices=[FILE_PREFIX, BUNDLE_PREFIX, COLLECTION_PREFIX]),
+               "--job-id": dict(default=None),
                "--keys": dict(default=None, nargs="*", help="keys to check. Omit to check all files")},
     help=__doc__
 )

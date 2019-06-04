@@ -187,7 +187,7 @@ class BaseSmokeTest(unittest.TestCase):
         other_replicas = self.replicas - {current_replica}
         for replica in other_replicas:
             with self.subTest(f"{current_replica.name}: Wait for the bundle to appear in the {replica} replicas"):
-                for i in range(10):
+                for i in range(120):
                     try:
                         run(f"http -Iv --check-status "
                             f"GET https://${{API_DOMAIN_NAME}}/v1/bundles/{bundle_uuid}?replica={replica.name}")
