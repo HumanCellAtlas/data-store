@@ -19,34 +19,34 @@ def get_groups(token_info: dict):
     return get_page(Group.list_all, next_token, per_page, directory)
 
 
-@authorize(['fus:GetGroup'], ['arn:hca:fus:*:*:group/{group_id}/'], ['group_id'])
+@authorize(['fus:GetGroup'], ['arn:hca:fus:*:*:group/{group_id}/'], ['group_id'], {'fus:group_id': 'group_id'})
 def get_group(token_info: dict, group_id: str):
     group = Group(directory, group_id)
     return make_response(jsonify(name=group.name, policy=group.statement), 200)
 
 
-@authorize(['fus:PutGroup'], ['arn:hca:fus:*:*:group/{group_id}/policy'], ['group_id'])
+@authorize(['fus:PutGroup'], ['arn:hca:fus:*:*:group/{group_id}/policy'], ['group_id'], {'fus:group_id': 'group_id'})
 def put_group_policy(token_info: dict, group_id: str):
     group = Group(directory, group_id)
     group.statement = request.json['policy']
     return make_response(f"{group_id} policy modified.", 200)
 
 
-@authorize(['fus:GetUser'], ['arn:hca:fus:*:*:group/{group_id}/users'], ['group_id'])
+@authorize(['fus:GetUser'], ['arn:hca:fus:*:*:group/{group_id}/users'], ['group_id'], {'fus:group_id': 'group_id'})
 def get_group_users(token_info: dict, group_id: str):
     next_token, per_page = get_next_token(request.args)
     group = Group(directory, group_id)
     return get_page(group.get_users_page, next_token, per_page)
 
 
-@authorize(['fus:GetRole'], ['arn:hca:fus:*:*:group/{group_id}/roles'], ['group_id'])
+@authorize(['fus:GetRole'], ['arn:hca:fus:*:*:group/{group_id}/roles'], ['group_id'], {'fus:group_id': 'group_id'})
 def get_groups_roles(token_info: dict, group_id: str):
     next_token, per_page = get_next_token(request.args)
     group = Group(directory, group_id)
     return get_page(group.get_roles, next_token, per_page)
 
 
-@authorize(['fus:PutRole'], ['arn:hca:fus:*:*:group/{group_id}/roles'], ['group_id'])
+@authorize(['fus:PutRole'], ['arn:hca:fus:*:*:group/{group_id}/roles'], ['group_id'], {'fus:group_id': 'group_id'})
 def put_groups_roles(token_info: dict, group_id: str):
     group = Group(directory, group_id)
     action = request.args['action']
@@ -57,6 +57,6 @@ def put_groups_roles(token_info: dict, group_id: str):
     return make_response(f"Roles: {request.json['roles']} added to {group_id} policy modified.", 200)
 
 
-@authorize(['fus:DeleteGroup'], ['arn:hca:fus:*:*:group/{group_id}/'], ['group_id'])
+@authorize(['fus:DeleteGroup'], ['arn:hca:fus:*:*:group/{group_id}/'], ['group_id'], {'fus:group_id': 'group_id'})
 def delete_group(token_info: dict, group_id):
     pass

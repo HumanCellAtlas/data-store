@@ -2,6 +2,7 @@ import functools
 import json
 import logging
 from typing import List, Dict, Optional, Any
+
 from dcplib.aws import clients as aws_clients
 
 from fusillade import User, directory
@@ -16,6 +17,7 @@ def evaluate_policy(
         actions: List[str],
         resources: List[str],
         policies: List[str],
+        context_entries: List[Dict] = []
 ) -> bool:
     logger.debug(dict(policies=policies))
     response = iam.simulate_custom_policy(
@@ -27,7 +29,7 @@ def evaluate_policy(
                 'ContextKeyName': 'fus:user_email',
                 'ContextKeyValues': [principal],
                 'ContextKeyType': 'string'
-            }
+            }, *context_entries
         ]
     )
     logger.debug(json.dumps(response))
@@ -40,18 +42,25 @@ def evaluate_policy(
         return False
 
 
-def assert_authorized(user, actions, resources):
+def assert_authorized(user, actions, resources, context_entries=None):
     """
     Asserts a user has permission to perform actions on resources.
 
     :param user:
     :param actions:
     :param resources:
+    :param context_entries:
     :return:
     """
     u = User(directory, user)
     policies = u.lookup_policies()
-    if not evaluate_policy(user, actions, resources, policies):
+    _context_entries = [
+        {
+            'ContextKeyName': key,
+            'ContextKeyValues': value if isinstance(value, list) else [value],
+            'ContextKeyType': 'string'
+        } for key, value in context_entries.items()] if context_entries else []
+    if not evaluate_policy(user, actions, resources, policies, _context_entries):
         logger.info(dict(message="User not authorized.", user=u._path_name, action=actions, resources=resources))
         raise FusilladeForbiddenException()
     else:
@@ -80,7 +89,38 @@ def format_resources(resources: List[str], resource_param: List[str], kwargs: Di
     return [resource.format_map(_rp) for resource in resources]
 
 
-def authorize(actions: List[str], resources: List[str], resource_params: Optional[List[str]] = None):
+def format_context_entries(context_entries, kwargs):
+    """
+    >>> context_entries={"fus:context": "user_name"}
+    >>> kwargs={'user_name': "bob"}
+    >>> x = format_resources(context_entries, kwargs)
+    >>> x == {"fus:context": "bob"}
+
+    :param context_entries:
+    :param kwargs:
+    :return:
+    """
+    _ce = dict()
+    for key, value in context_entries.items():
+        if isinstance(value, list):
+            temp = []
+            for i in value:
+                v = kwargs.get(i)
+                if isinstance(v, str):
+                    temp.append(v)
+            _ce[key] = temp
+        else:
+            v = kwargs.get(value)
+            if isinstance(v, str):
+                _ce[key] = v
+    return _ce
+
+
+def authorize(actions: List[str],
+              resources: List[str],
+              resource_params: Optional[List[str]] = None,
+              context_entries: Optional[List[str]] = None
+              ):
     """
     A decorator for assert_authorized
 
@@ -93,10 +133,11 @@ def authorize(actions: List[str], resources: List[str], resource_params: Optiona
     def decorate(func):
         @functools.wraps(func)
         def call(*args, **kwargs):
-            sub_resource = format_resources(resources, resource_params, kwargs) if resource_params else resources
             assert_authorized(kwargs['token_info']['https://auth.data.humancellatlas.org/email'],
                               actions,
-                              sub_resource)
+                              format_resources(resources, resource_params, kwargs) if resource_params else resources,
+                              format_context_entries(context_entries, kwargs) if context_entries else None
+                              )
             return func(*args, **kwargs)
 
         return call

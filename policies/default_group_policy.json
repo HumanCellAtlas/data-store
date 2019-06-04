@@ -5,30 +5,13 @@
       "Sid": "fusGroupMember",
       "Effect": "Allow",
       "Action": [
-        "fus:GetGroup"
+        "fus:GetGroup",
+        "fus:GetRole"
       ],
-       "Resource": [
-         "arn:hca:fus:*:*:group/${fus:group_name}/policy",
-         "arn:hca:fus:*:*:group/${fus:group_name}/groups"
-       ]
-    },
-    {
-      "Sid": "fusGroupAdmin",
-      "Effect": "Allow",
-      "Action": [
-        "fus:PutUser",
-        "fus:RemoveUser",
-        "fus:PutGroup"
-      ],
-       "Resource": [
-         "arn:hca:fus:*:*:group/${fus:group_name}/policy",
-         "arn:hca:fus:*:*:group/${fus:group_name}/users"
-       ],
-      "Condition": {
-        "StringEquals": {
-          "fus:userEmail": ["owner"]
-        }
-      }
+      "Resource": [
+        "arn:hca:fus:*:*:group/${fus:group_id}/*",
+        "arn:hca:fus:*:*:group/${fus:group_id}"
+      ]
     }
   ]
 }
