@@ -134,8 +134,7 @@ def put(json_request_body: dict, replica: str):
                         f"replica: {replica}, Exception: {ex}")
 
         # Delete percolate query to make sure queries and subscriptions are in sync.
-        doc_indexes = _get_indexes_by_alias(es_client, alias_name)
-        _unregister_percolate(es_client, doc_indexes, uuid)
+        _unregister_percolate(es_client, uuid)
 
         raise DSSException(requests.codes.internal_server_error,
                            "elasticsearch_error",
@@ -163,11 +162,7 @@ def delete(uuid: str, replica: str):
         # common_error_handler defaults code to capitalized 'Forbidden' for Werkzeug exception. Keeping consistent.
         raise DSSException(requests.codes.forbidden, "Forbidden", "Your credentials can't access this subscription!")
 
-    #  get all indexes that use current alias
-    alias_name = Config.get_es_alias_name(ESIndexType.docs, Replica[replica])
-    doc_indexes = _get_indexes_by_alias(es_client, alias_name)
-    _unregister_percolate(es_client, doc_indexes, uuid)
-
+    _unregister_percolate(es_client, uuid)
     es_client.delete(index=Config.get_es_index_name(ESIndexType.subscriptions, Replica[replica]),
                      doc_type=ESDocType.subscription.name,
                      id=uuid)
@@ -178,8 +173,8 @@ def delete(uuid: str, replica: str):
     return jsonify({'timeDeleted': time_deleted}), requests.codes.okay
 
 
-def _unregister_percolate(es_client: Elasticsearch, subscribed_indexes: List[str], uuid: str):
-    response = es_client.delete_by_query(index=subscribed_indexes,
+def _unregister_percolate(es_client: Elasticsearch, uuid: str):
+    response = es_client.delete_by_query(index="_all",
                                          doc_type=ESDocType.query.name,
                                          body={"query": {"ids": {"type": ESDocType.query.name, "values": [uuid]}}},
                                          conflicts="proceed",
