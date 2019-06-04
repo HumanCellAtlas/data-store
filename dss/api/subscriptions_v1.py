@@ -134,8 +134,7 @@ def put(json_request_body: dict, replica: str):
                         f"replica: {replica}, Exception: {ex}")
 
         # Delete percolate query to make sure queries and subscriptions are in sync.
-        doc_indexes = _get_indexes_by_alias(es_client, alias_name)
-        _unregister_percolate(es_client, doc_indexes, uuid)
+        _unregister_percolate(es_client, uuid)
 
         raise DSSException(requests.codes.internal_server_error,
                            "elasticsearch_error",
@@ -178,8 +177,8 @@ def delete(uuid: str, replica: str):
     return jsonify({'timeDeleted': time_deleted}), requests.codes.okay
 
 
-def _unregister_percolate(es_client: Elasticsearch, subscribed_indexes: List[str], uuid: str):
-    response = es_client.delete_by_query(index=subscribed_indexes,
+def _unregister_percolate(es_client: Elasticsearch, uuid: str):
+    response = es_client.delete_by_query(index="_all",
                                          doc_type=ESDocType.query.name,
                                          body={"query": {"ids": {"type": ESDocType.query.name, "values": [uuid]}}},
                                          conflicts="proceed",
