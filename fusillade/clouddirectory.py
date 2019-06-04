@@ -125,11 +125,13 @@ def create_directory(name: str, schema: str, admins: List[str]) -> 'CloudDirecto
 
         # create roles
         Role.create(directory, "default_user", statement=get_json_file(default_user_role_path))
-        Role.create(directory, "admin", statement=get_json_file(default_admin_role_path))
+        Role.create(directory, "fusillade_admin", statement=get_json_file(default_admin_role_path))
+        Group.create(directory, "user_default").add_roles(['default_user'])
 
         # create admins
         for admin in admins:
-            User.provision_user(directory, admin, roles=['admin'])
+            User.provision_user(directory, admin, roles=['fusillade_admin'])
+        User.provision_user(directory, 'public')
     finally:
         return directory
 
@@ -173,6 +175,7 @@ cd_retry_parameters = dict(timeout=.5,
 class CloudDirectory:
     _page_limit = 30  # This is the max allowed by AWS
     _batch_write_max = 20  # This is the max allowed by AWS
+    _lookup_policy_max = 3  # Max recommended by AWS Support
 
     def __init__(self, directory_arn: str):
         self._dir_arn = directory_arn
@@ -577,9 +580,9 @@ class CloudDirectory:
         users = users if users else []
         groups = groups if groups else []
         roles = roles if roles else []
-        protected_users = [CloudNode.hash_name(name) for name in users]
-        protected_groups = [CloudNode.hash_name(name) for name in groups]
-        protected_roles = [CloudNode.hash_name(name) for name in ["admin", "default_user"] + roles]
+        protected_users = [CloudNode.hash_name(name) for name in ['public'] + users]
+        protected_groups = [CloudNode.hash_name(name) for name in ['user_default'] + groups]
+        protected_roles = [CloudNode.hash_name(name) for name in ["fusillade_admin", "default_user"] + roles]
 
         for name, obj_ref in self.list_object_children('/user/'):
             if name not in protected_users:
@@ -739,6 +742,17 @@ class CloudDirectory:
             },
         }
 
+    def batch_lookup_policy(self, obj_ref: str, next_token: str = None) -> Dict[str, Any]:
+        temp = {
+            'ObjectReference': {
+                'Selector': obj_ref
+            },
+            'MaxResults': self._lookup_policy_max
+        }
+        if next_token:
+            temp['NextToken'] = next_token
+        return {'LookupPolicy': temp}
+
     @retry(**cd_retry_parameters)
     def batch_write(self, operations: list) -> List[dict]:
         """
@@ -776,7 +790,7 @@ class CloudDirectory:
             for response in cd_client.get_paginator('lookup_policy').paginate(
                 DirectoryArn=self._dir_arn,
                 ObjectReference={'Selector': object_id},
-                PaginationConfig={'PageSize': 3}  # Max recommended by AWS Support
+                PaginationConfig={'PageSize': self._lookup_policy_max}
             )
             for path in response['PolicyToPathList']
         ]
@@ -1296,8 +1310,8 @@ class User(CloudNode, RolesMixin):
     Represents a user in CloudDirectory
     """
     _attributes = ['status'] + CloudNode._attributes
-    default_roles = ['default_user']  # TODO: make configurable
-    default_groups = []  # TODO: make configurable
+    default_roles = []  # TODO: make configurable
+    default_groups = ['user_default']  # TODO: make configurable
     _facet = 'LeafFacet'
     object_type = 'user'
 
@@ -1316,14 +1330,25 @@ class User(CloudNode, RolesMixin):
 
     def lookup_policies(self) -> List[str]:
         try:
-            if self.groups:
-                policy_paths = self._lookup_policies_threaded()
-            else:
-                policy_paths = self.cd.lookup_policy(self.object_ref)
+            policy_paths = self._lookup_policies_threaded()
         except cd_client.exceptions.ResourceNotFoundException:
             self.provision_user(self.cd, self.name)
-            policy_paths = self.cd.lookup_policy(self.object_ref)
+            policy_paths = self._lookup_policies_threaded()
         return self.cd.get_policies(policy_paths)
+
+    def lookup_policies_batched(self):
+        object_refs = self.groups + [self.object_ref]
+        operations = [self.cd.batch_lookup_policy(object_ref) for object_ref in object_refs]
+        all_results = []
+        while True:
+            results = self.cd.batch_read(operations)['SuccessfulResponse']
+            operations = []
+            for result in results:
+                all_results.extend(result['PolicyToPathList'])  # get results
+                if result.get('NextToken'):
+                    operations.append(self.cd.batch_lookup_policy(result['Path'], result['NextToken']))
+            if not operations:
+                break
 
     def _lookup_policies_threaded(self):
         object_refs = self.groups + [self.object_ref]

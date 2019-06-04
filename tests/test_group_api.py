@@ -143,7 +143,7 @@ class TestGroupApi(BaseAPITest, unittest.TestCase):
 
             )
             self.assertEqual(201, resp.status_code)
-        self._test_paging('/v1/groups', headers, 5, 'groups')
+        self._test_paging('/v1/groups', headers, 6, 'groups')
 
     def test_put_group_roles(self):
         tests = [
@@ -210,5 +210,18 @@ class TestGroupApi(BaseAPITest, unittest.TestCase):
         users = [User.provision_user(directory, f"user_{i}",groups=[name]).name for i in range(10)]
         self._test_paging(f'/v1/group/{name}/users', headers, 5, key)
 
+    def test_default_group(self):
+        headers = {'Content-Type': "application/json"}
+        users = ['admin', 'user']
+        for user in users:
+            with self.subTest(f"{user} has permission to access default_user group."):
+                headers.update(get_auth_header(service_accounts[user]))
+                resp = self.app.get(f'/v1/group/user_default', headers=headers)
+                resp.raise_for_status()
+                resp = self.app.get(f'/v1/group/user_default/roles', headers=headers)
+                resp.raise_for_status()
+                if user == 'admin':
+                    resp = self.app.get(f'/v1/group/user_default/users', headers=headers)
+                    resp.raise_for_status()
 if __name__ == '__main__':
     unittest.main()

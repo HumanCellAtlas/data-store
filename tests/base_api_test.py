@@ -20,7 +20,7 @@ class BaseAPITest():
     @classmethod
     def setUpClass(cls):
         try:
-            User.provision_user(directory, service_accounts['admin']['client_email'], roles=['admin'])
+            User.provision_user(directory, service_accounts['admin']['client_email'], roles=['fusillade_admin'])
         except Exception:
             pass
 
@@ -58,6 +58,6 @@ class BaseAPITest():
         self.assertEqual(200, resp.status_code)
         self.assertFalse("Link" in resp.headers)
         next_results = json.loads(resp.body)[key]
-        self.assertEqual(len(next_results), per_page)
+        self.assertLessEqual(len(next_results), per_page)
         result.extend(next_results)
         return result

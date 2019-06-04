@@ -71,8 +71,11 @@ authenticate users. This file is uploaded to AWS secrets manager using `make set
   is only used when fusillade is first deployed to create the first users. Afterwards this variable has no effect. If
   more admins are required assign a user the admin role.
 - Environment variables can be set in `environment.local` for convenience.
-- **Optionally** modify the [default policies and roles](../blob/master/policies) to suite your needs prior to 
-  deployment. 
+- **Optionally** Before deploying fusillade you can modify the [default policies and roles](../blob/master/policies) 
+ to suite your needs. The `default_admin_role.json` is policy attached to the fusillade_admin role created during 
+ deployment. The `default_group_policy.json` is assigned to all new group when they are created. The 
+ `default_user_role.json` is the role assigned to the group `default_user` which is created during deployment. All of 
+ these policies and role can be modified after deployment using the fusillade API.
 
 ## Set secrets
 Fusillade uses AWS Secret Store for its secrets. Use ./scripts/set_secrets to set the following secrets:
@@ -84,13 +87,18 @@ expected format
 
 # Using Fusillade as a Service
 
-When Fusillade is first deployed two roles are created. The first role is `admin` and is assigned
-to the users created from the csv of emails found in `FUS_ADMIN_EMAILS`. The second role is `default_user` this role is 
-assigned to all other users created using the login API. The policies assigned to these roles can be customized prior to
-deployment. Afterwards all modifications to users, roles, groups, and policies must be made using the fusillade API.
+The following are created on deployment:
+* `/role/fusillade_admin` - contains a policy based on `default_admin_role.json`
+* `/role/default_user` - contains a policy based on `default_user_role.json`
+* `/user/{FUS_ADMIN_EMAILS}` - a user for each admin in `FUS_ADMIN_EMAILS` with `/role/fusillade_admin` attached.
+* `/user/public` -  a user for evaluating policies without an authenticated principle. Attach policies to this role 
+ to limit what unauthenticated user can do.
+* `/group/user_default` - a group assigned to all users upon creation. It has the `/role/default_user` attached. Add 
+ new roles to this group to apply that role to all users.
+
+All of these resources can be modified using the fusillade API after deployment.
 
 ## Adding Users to Roles
-
 New admins can be assigned using the fusillade API and assigning the role of admin to a user.
 
 # Using Fusillade as a library
