@@ -42,15 +42,15 @@ class TestRoleApi(BaseAPITest, unittest.TestCase):
         headers = {'Content-Type': "application/json"}
         headers.update(get_auth_header(service_accounts['admin']))
 
-        url = furl('/v1/roles')
+        url = furl('/v1/role')
         data = json.dumps({
             'role_id': role_id,
             'policy': policy
         })
-        resp = self.app.put(url.url, data=data, headers=headers)
+        resp = self.app.post(url.url, data=data, headers=headers)
         self.assertEqual(201, resp.status_code)
 
-        url = furl(f'/v1/roles/{role_id}')
+        url = furl(f'/v1/role/{role_id}')
         resp = self.app.get(url.url, headers=headers)
         self.assertEqual(200, resp.status_code)
         expected_body = {
@@ -59,7 +59,7 @@ class TestRoleApi(BaseAPITest, unittest.TestCase):
         }
         self.assertEqual(expected_body, json.loads(resp.body))
 
-        url = furl(f'/v1/roles/{role_id}/policy')
+        url = furl(f'/v1/role/{role_id}/policy')
         policy = create_test_statement('ABCD')
         data = json.dumps({
             'policy': policy
@@ -67,7 +67,7 @@ class TestRoleApi(BaseAPITest, unittest.TestCase):
         resp = self.app.put(url.url, data=data, headers=headers)
         self.assertEqual(200, resp.status_code)
 
-        url = furl(f'/v1/roles/{role_id}')
+        url = furl(f'/v1/role/{role_id}')
         resp = self.app.get(url.url, headers=headers)
         self.assertEqual(200, resp.status_code)
         expected_body = {
@@ -80,8 +80,8 @@ class TestRoleApi(BaseAPITest, unittest.TestCase):
         headers = {'Content-Type': "application/json"}
         headers.update(get_auth_header(service_accounts['admin']))
         for i in range(10):
-            resp = self.app.put(
-                '/v1/roles',
+            resp = self.app.post(
+                '/v1/role',
                 headers=headers,
                 data=json.dumps({"role_id": f"test_put_role{i}",
                                  'policy': create_test_statement("test_role")})
@@ -90,8 +90,8 @@ class TestRoleApi(BaseAPITest, unittest.TestCase):
             self.assertEqual(201, resp.status_code)
         self._test_paging(f'/v1/roles', headers, 6, 'roles')
 
-    def test_put_role(self):
-        url = furl('/v1/roles')
+    def test_post_role(self):
+        url = furl('/v1/role')
         data = json.dumps({
             'role_id': 'test_put_role',
             'policy': create_test_statement("test_role")
@@ -174,7 +174,7 @@ class TestRoleApi(BaseAPITest, unittest.TestCase):
             with self.subTest(test['name']):
                 headers = {'Content-Type': "application/json"}
                 headers.update(test['headers'])
-                resp = self.app.put(url.url, data=test['data'], headers=headers)
+                resp = self.app.post(url.url, data=test['data'], headers=headers)
                 self.assertEqual(test['expected_resp'], resp.status_code)
 
     def test_get_role_id(self):
@@ -227,7 +227,7 @@ class TestRoleApi(BaseAPITest, unittest.TestCase):
         [Role.create(directory, role_id, policy) for role_id, _ in TEST_NAMES_POS]
         for test in tests:
             with self.subTest(test['name']):
-                url = furl('/v1/roles/{}'.format(test['role_id']))
+                url = furl('/v1/role/{}'.format(test['role_id']))
                 headers = {'Content-Type': "application/json"}
                 headers.update(test['headers'])
                 resp = self.app.get(url.url, headers=headers)
@@ -297,7 +297,7 @@ class TestRoleApi(BaseAPITest, unittest.TestCase):
             with self.subTest(test['name']):
                 headers = {'Content-Type': "application/json"}
                 headers.update(test['headers'])
-                url = furl(f"/v1/roles/{test['role_id']}/policy")
+                url = furl(f"/v1/role/{test['role_id']}/policy")
                 data = json.dumps(test['data'])
                 resp = self.app.put(url.url, data=data, headers=headers)
                 self.assertEqual(test['expected_resp'], resp.status_code)

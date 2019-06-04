@@ -5,8 +5,8 @@ from fusillade.utils.authorize import authorize
 from fusillade.api.paging import get_next_token, get_page
 
 
-@authorize(['fus:PutRole'], ['arn:hca:fus:*:*:role'])
-def put_new_role(token_info: dict):
+@authorize(['fus:PostRole'], ['arn:hca:fus:*:*:role'])
+def post_role(token_info: dict):
     json_body = request.json
     Role.create(directory, json_body['role_id'], statement=json_body.get('policy'))
     return make_response(f"New role {json_body['role_id']} created.", 201)

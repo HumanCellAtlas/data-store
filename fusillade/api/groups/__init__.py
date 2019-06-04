@@ -5,8 +5,8 @@ from fusillade.utils.authorize import authorize
 from fusillade.api.paging import get_next_token, get_page
 
 
-@authorize(['fus:PutGroup'], ['arn:hca:fus:*:*:group'])
-def put_new_group(token_info: dict):
+@authorize(['fus:PostGroup'], ['arn:hca:fus:*:*:group'])
+def post_group(token_info: dict):
     json_body = request.json
     group = Group.create(directory, json_body['group_id'], statement=json_body.get('policy'))
     group.add_roles(json_body.get('roles', []))  # Determine what response to return if roles don't exist

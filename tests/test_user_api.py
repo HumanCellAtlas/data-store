@@ -26,12 +26,12 @@ class TestUserApi(BaseAPITest, unittest.TestCase):
             service_accounts['admin']['client_email']
         ])
 
-    def test_put_new_user(self):
+    def test_post_new_user(self):
         tests = [
             {
                 'name': f'201 returned when creating a user',
                 'json_request_body': {
-                    "user_id": "test_put_user0@email.com"
+                    "user_id": "test_post_user0@email.com"
 
                 },
                 'response': {
@@ -41,7 +41,7 @@ class TestUserApi(BaseAPITest, unittest.TestCase):
             {
                 'name': f'201 returned when creating a user with group only',
                 'json_request_body': {
-                    "user_id": "test_put_user1@email.com",
+                    "user_id": "test_post_user1@email.com",
                     "groups": [Group.create(directory, "group_01").name]
                 },
                 'response': {
@@ -51,7 +51,7 @@ class TestUserApi(BaseAPITest, unittest.TestCase):
             {
                 'name': f'201 returned when creating a user with role only',
                 'json_request_body': {
-                    "user_id": "test_put_user2@email.com",
+                    "user_id": "test_post_user2@email.com",
                     "roles": [Role.create(directory, "role_02").name]
                 },
                 'response': {
@@ -61,7 +61,7 @@ class TestUserApi(BaseAPITest, unittest.TestCase):
             {
                 'name': f'201 returned when creating a user with policy only',
                 'json_request_body': {
-                    "user_id": "test_put_user3@email.com",
+                    "user_id": "test_post_user3@email.com",
                     "policy": create_test_statement("policy_03")
                 },
                 'response': {
@@ -71,7 +71,7 @@ class TestUserApi(BaseAPITest, unittest.TestCase):
             {
                 'name': f'201 returned when creating a user with group, role and policy',
                 'json_request_body': {
-                    "user_id": "test_put_user4@email.com",
+                    "user_id": "test_post_user4@email.com",
                     "groups": [Group.create(directory, "group_04").name],
                     "roles": [Role.create(directory, "role_04").name],
                     "policy": create_test_statement("policy_04")
@@ -94,7 +94,7 @@ class TestUserApi(BaseAPITest, unittest.TestCase):
             {
                 'name': f'409 returned when creating a user that already exists',
                 'json_request_body': {
-                    "user_id": "test_put_user4@email.com"
+                    "user_id": "test_post_user4@email.com"
                 },
                 'response': {
                     'code': 409
@@ -126,21 +126,21 @@ class TestUserApi(BaseAPITest, unittest.TestCase):
                 headers = {'Content-Type': "application/json"}
                 headers.update(get_auth_header(service_accounts['admin']))
                 if test['name'] == "409 returned when creating a user that already exists":
-                    self.app.put('/v1/users', headers=headers, data=json.dumps(test['json_request_body']))
-                resp = self.app.put('/v1/users', headers=headers, data=json.dumps(test['json_request_body']))
+                    self.app.post('/v1/user', headers=headers, data=json.dumps(test['json_request_body']))
+                resp = self.app.post('/v1/user', headers=headers, data=json.dumps(test['json_request_body']))
                 self.assertEqual(test['response']['code'], resp.status_code)
                 if resp.status_code == 201:
-                    resp = self.app.get(f'/v1/users/{test["json_request_body"]["user_id"]}/', headers=headers)
+                    resp = self.app.get(f'/v1/user/{test["json_request_body"]["user_id"]}/', headers=headers)
                     self.assertEqual(test["json_request_body"]["user_id"], json.loads(resp.body)['name'])
 
     def test_get_users(self):
         headers = {'Content-Type': "application/json"}
         headers.update(get_auth_header(service_accounts['admin']))
         for i in range(10):
-            resp = self.app.put(
-                '/v1/users',
+            resp = self.app.post(
+                '/v1/user',
                 headers=headers,
-                data=json.dumps({"user_id": f"test_put_user{i}@email.com"})
+                data=json.dumps({"user_id": f"test_post_user{i}@email.com"})
             )
             self.assertEqual(201, resp.status_code)
         self._test_paging(f'/v1/users', headers, 6, 'users')
@@ -149,9 +149,9 @@ class TestUserApi(BaseAPITest, unittest.TestCase):
         headers = {'Content-Type': "application/json"}
         headers.update(get_auth_header(service_accounts['user']))
         name = service_accounts['user']['client_email']
-        resp = self.app.get(f'/v1/users/test_user_api@email.com/', headers=headers)
+        resp = self.app.get(f'/v1/user/test_user_api@email.com', headers=headers)
         self.assertEqual(403, resp.status_code)
-        resp = self.app.get(f'/v1/users/{name}/', headers=headers)
+        resp = self.app.get(f'/v1/user/{name}/', headers=headers)
         resp.raise_for_status()
         self.assertEqual(name, json.loads(resp.body)['name'])
 
@@ -176,7 +176,7 @@ class TestUserApi(BaseAPITest, unittest.TestCase):
             with self.subTest(test["name"]):
                 headers = {'Content-Type': "application/json"}
                 headers.update(get_auth_header(service_accounts['admin']))
-                url = furl(f'/v1/users/{test["name"]}')
+                url = furl(f'/v1/user/{test["name"]}')
                 query_params = {
                     'user_id': test['name'],
                     'status': test['status']
@@ -216,7 +216,7 @@ class TestUserApi(BaseAPITest, unittest.TestCase):
                 data = json.dumps(test['json_request_body'])
                 headers = {'Content-Type': "application/json"}
                 headers.update(get_auth_header(service_accounts['admin']))
-                url = furl(f'/v1/users/{test["name"]}/groups/')
+                url = furl(f'/v1/user/{test["name"]}/groups/')
                 query_params = {
                     'user_id': test['name'],
                     'action': test['action']
@@ -234,11 +234,11 @@ class TestUserApi(BaseAPITest, unittest.TestCase):
         name = "test_user_group_api@email.com"
         key = 'groups'
         user = User.provision_user(directory, name)
-        resp = self.app.get(f'/v1/users/{name}/groups', headers=headers)
+        resp = self.app.get(f'/v1/user/{name}/groups', headers=headers)
         self.assertEqual(0, len(json.loads(resp.body)[key]))
         groups = [Group.create(directory, f"group_{i}").name for i in range(10)]
         user.add_groups(groups)
-        self._test_paging(f'/v1/users/{name}/groups', headers, 5, key)
+        self._test_paging(f'/v1/user/{name}/groups', headers, 5, key)
 
     def test_put_username_roles(self):
         tests = [
@@ -268,7 +268,7 @@ class TestUserApi(BaseAPITest, unittest.TestCase):
                 data = json.dumps(test['json_request_body'])
                 headers = {'Content-Type': "application/json"}
                 headers.update(get_auth_header(service_accounts['admin']))
-                url = furl(f'/v1/users/{test["name"]}/roles/')
+                url = furl(f'/v1/user/{test["name"]}/roles/')
                 query_params = {
                     'user_id': test['name'],
                     'action': test['action']
@@ -286,13 +286,13 @@ class TestUserApi(BaseAPITest, unittest.TestCase):
         name = "test_user_role_api@email.com"
         key = 'roles'
         user = User.provision_user(directory, name)
-        resp = self.app.get(f'/v1/users/{name}/roles', headers=headers)
+        resp = self.app.get(f'/v1/user/{name}/roles', headers=headers)
         user_role_names = [Role(directory, None, role).name for role in user.roles]
         self.assertEqual(1, len(json.loads(resp.body)[key]))
         self.assertEqual(user_role_names, ['default_user'])
         roles = [Role.create(directory, f"role_{i}").name for i in range(11)]
         user.add_roles(roles)
-        self._test_paging(f'/v1/users/{name}/roles', headers, 6, key)
+        self._test_paging(f'/v1/user/{name}/roles', headers, 6, key)
 
 if __name__ == '__main__':
     unittest.main()

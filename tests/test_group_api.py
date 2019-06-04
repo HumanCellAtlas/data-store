@@ -26,7 +26,7 @@ class TestGroupApi(BaseAPITest, unittest.TestCase):
                 service_accounts['admin']['client_email']
             ])
 
-    def test_put_new_group(self):
+    def test_post_group(self):
         tests = [
             {
                 'name': f'201 returned when creating a group',
@@ -114,29 +114,29 @@ class TestGroupApi(BaseAPITest, unittest.TestCase):
                 headers={'Content-Type': "application/json"}
                 headers.update(get_auth_header(service_accounts['admin']))
                 if test['name']=="400 returned when creating a group that already exists":
-                    self.app.put('/v1/groups', headers=headers, data=json.dumps(test['json_request_body']))
-                resp = self.app.put('/v1/groups/', headers=headers, data=json.dumps(test['json_request_body']))
+                    self.app.post('/v1/group', headers=headers, data=json.dumps(test['json_request_body']))
+                resp = self.app.post('/v1/group', headers=headers, data=json.dumps(test['json_request_body']))
                 self.assertEqual(test['response']['code'], resp.status_code)
                 if resp.status_code==201:
-                    resp = self.app.get(f'/v1/groups/{test["json_request_body"]["group_id"]}/', headers=headers)
+                    resp = self.app.get(f'/v1/group/{test["json_request_body"]["group_id"]}/', headers=headers)
                     self.assertEqual(test["json_request_body"]["group_id"], json.loads(resp.body)['name'])
 
     def test_get_group(self):
         headers = {'Content-Type': "application/json"}
         headers.update(get_auth_header(service_accounts['admin']))
         name = "Groupx"
-        resp = self.app.get(f'/v1/groups/{name}/', headers=headers)
+        resp = self.app.get(f'/v1/group/{name}/', headers=headers)
         self.assertEqual(404, resp.status_code)
         Group.create(directory,name)
-        resp = self.app.get(f'/v1/groups/{name}/', headers=headers)
+        resp = self.app.get(f'/v1/group/{name}/', headers=headers)
         self.assertEqual(name, json.loads(resp.body)['name'])
 
     def test_get_groups(self):
         headers = {'Content-Type': "application/json"}
         headers.update(get_auth_header(service_accounts['admin']))
         for i in range(10):
-            resp = self.app.put(
-                '/v1/groups',
+            resp = self.app.post(
+                '/v1/group',
                 headers=headers,
                 data=json.dumps({"group_id": f"test_put_group{i}",
                                  'policy': create_test_statement("test_group")})
@@ -173,7 +173,7 @@ class TestGroupApi(BaseAPITest, unittest.TestCase):
                 data = json.dumps(test['json_request_body'])
                 headers = {'Content-Type': "application/json"}
                 headers.update(get_auth_header(service_accounts['admin']))
-                url = furl(f'/v1/groups/{test["group_id"]}/roles/')
+                url = furl(f'/v1/group/{test["group_id"]}/roles/')
                 query_params = {
                     'group_id': test['group_id'],
                     'action': test['action']
@@ -191,12 +191,12 @@ class TestGroupApi(BaseAPITest, unittest.TestCase):
         name = "Group1"
         key = 'roles'
         group = Group.create(directory,name)
-        resp = self.app.get(f'/v1/groups/{name}/roles', headers=headers)
+        resp = self.app.get(f'/v1/group/{name}/roles', headers=headers)
         group_role_names = [Role(directory, None, role).name for role in group.roles]
         self.assertEqual(0, len(json.loads(resp.body)[key]))
         roles = [Role.create(directory, f"role_{i}").name for i in range(10)]
         group.add_roles(roles)
-        self._test_paging(f'/v1/groups/{name}/roles', headers, 5, key)
+        self._test_paging(f'/v1/group/{name}/roles', headers, 5, key)
 
     def test_get_group_users(self):
         headers = {'Content-Type': "application/json"}
@@ -204,11 +204,11 @@ class TestGroupApi(BaseAPITest, unittest.TestCase):
         name = "Group1"
         key = 'users'
         group = Group.create(directory,name)
-        resp = self.app.get(f'/v1/groups/{name}/users', headers=headers)
+        resp = self.app.get(f'/v1/group/{name}/users', headers=headers)
         group_user_names = [User(directory,user).name for user in group.get_users_iter()]
         self.assertEqual(0, len(json.loads(resp.body)[key]))
         users = [User.provision_user(directory, f"user_{i}",groups=[name]).name for i in range(10)]
-        self._test_paging(f'/v1/groups/{name}/users', headers, 5, key)
+        self._test_paging(f'/v1/group/{name}/users', headers, 5, key)
 
 if __name__ == '__main__':
     unittest.main()
