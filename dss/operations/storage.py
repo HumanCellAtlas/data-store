@@ -34,15 +34,9 @@ class StorageOperationHandler:
         This transforms a command into a format appropriate for Lambda execution. To take advantage of Lambda scaling,
         commands operating on multiple keys are forwarded as multiple commands operating on a single key.
         """
-        cmd_template = f"{argv[0]} {argv[1]}"
-        args.job_id = args.job_id or uuid4()
-        if "entity_type" in args.__dict__.keys() and "keys" in args.__dict__.keys():
-            del args.entity_type
-        for argname, argval in args.__dict__.items():
-            argname = argname.replace("_", "-")
-            if argname not in ["forward-to-lambda", "keys", "func"]:
-                cmd_template += f" --{argname} {argval}"
-        cmd_template += " --keys {}"
+        target, action = argv[0:2]
+        job_id = self.job_id or uuid4()
+        cmd_template = f"{target} {action} --job-id {job_id} --replica {self.replica.name} --keys {{}}"
 
         # dump forwarded command format to stdout, including correlation id
         print(f"Forwarding `{cmd_template}`")
