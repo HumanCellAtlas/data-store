@@ -113,17 +113,19 @@ class verify_file_blob_metadata(StorageOperationHandler):
         try:
             blob_size = self.handle.get_size(self.replica.bucket, blob_key)
         except BlobNotFoundError:
-            self.log_warning(BlobNotFoundError.__name__, dict(key=key, blob_key=blob_key))
+            self.log_warning(BlobNotFoundError.__name__, dict(key=key, replica=self.replica.name, blob_key=blob_key))
         else:
             blob_content_type = self.handle.get_content_type(self.replica.bucket, blob_key)
             if file_metadata['size'] != blob_size:
                 self.log_warning("FileSizeMismatch",
                                  dict(key=key,
+                                      replica=self.replica.name,
                                       file_metadata_size=file_metadata['size'],
                                       blob_size=blob_size))
             if file_metadata['content-type'] != blob_content_type:
                 self.log_warning("FileContentTypeMismatch",
                                  dict(key=key,
+                                      replica=self.replica.name,
                                       file_metadata_content_type=file_metadata['content-type'],
                                       blob_content_type=blob_content_type))
 
@@ -145,9 +147,9 @@ class repair_blob_content_type(StorageOperationHandler):
                 elif Replica.gcp == self.replica:
                     update_gcp_content_type(client, self.replica.bucket, blob_key, file_metadata['content-type'])
         except BlobNotFoundError as e:
-            self.log_warning("BlobNotFoundError", dict(key=key, error=str(e)))
+            self.log_warning("BlobNotFoundError", dict(key=key, replica=self.replica.name, error=str(e)))
         except json.decoder.JSONDecodeError as e:
-            self.log_warning("JSONDecodeError", dict(key=key, error=str(e)))
+            self.log_warning("JSONDecodeError", dict(key=key, replica=self.replica.name, error=str(e)))
         except Exception as e:
             self.log_error("Exception", dict(key=key, error=str(e)))
 
@@ -171,7 +173,7 @@ class verify_referential_integrity(StorageOperationHandler):
     def process_key(self, key):
         logger.debug("%s Checking %s %s", self.job_id, key, self.replica)
         if not dependencies_exist(self.replica, self.replica, key):
-            self.log_warning("EntityMissingDependencies", dict(key=key))
+            self.log_warning("EntityMissingDependencies", dict(key=key, replica=self.replica.name))
 
 # TODO: Move to cloud_blobstore
 def update_aws_content_type(s3_client, bucket, key, content_type):
