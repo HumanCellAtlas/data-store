@@ -163,7 +163,6 @@ def delete(uuid: str, replica: str):
         raise DSSException(requests.codes.forbidden, "Forbidden", "Your credentials can't access this subscription!")
 
     #  get all indexes that use current alias
-    alias_name = Config.get_es_alias_name(ESIndexType.docs, Replica[replica])
     _unregister_percolate(es_client, uuid)
 
     es_client.delete(index=Config.get_es_index_name(ESIndexType.subscriptions, Replica[replica]),
