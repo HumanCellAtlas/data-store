@@ -20,7 +20,7 @@ command_queue_url = "https://sqs.{}.amazonaws.com/{}/dss-operations-{}".format(
 )
 
 
-def map_bucket_results(func: typing.Callable, handle: BlobStore, bucket: str, base_pfx: str, parallelization=16):
+def map_bucket_results(func: typing.Callable, handle: BlobStore, bucket: str, base_pfx: str, parallelization=10):
     """
     Call `func` on an iterable of keys
     func is expected to be thread safe.
