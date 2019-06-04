@@ -1,4 +1,4 @@
-# This is the build image for the DSS, intended for use with the allspark GitLab server
+# This is the build image for the DSS, intended for use with dss-monitor fargate cluster
 # It may be built and uploaded with the commands:
 #   `docker login
 #   `docker build -f fargate.Dockerfile -t {docker_username}/{tag_key}:{tag_value} .`
@@ -7,9 +7,6 @@
 #   `docker login
 #   `docker build -f fargate.Dockerfile -t humancellatlas/dss-monitor-image .`
 #   `docker push humancellatlas/dss-monitor-image`
-#
-# Now reference the image in .gitlab-ci.yml with the line:
-#   `image: {docker_username}/{tag_key}:{tag_value}
 #
 # Please see Docker startup guide for additional info:
 #   https://docs.docker.com/get-started/

@@ -185,33 +185,26 @@ resource "aws_ecs_service" "notification-builder" {
 }
 
 resource "aws_cloudwatch_event_rule" "dss-monitor" {
-  alarm_name = "dss-monitor-lambda-trigger"
-  schedule_expression = "cron(0 0 * * MON-FRI *)"
+  name = "dss-monitor-lambda-trigger"
+  schedule_expression = "cron(* 1 * * ? *)"
   description = "daily event trigger for dss-monitor notifications"
   tags = "${local.common_tags}"
 
 }
 
 resource "aws_cloudwatch_event_target" "scheduled_task" {
-  rule      = "${aws_cloudwatch_event_rule.scheduled_task.name}"
+  rule      = "${aws_cloudwatch_event_rule.dss-monitor.name}"
   arn       = "${aws_ecs_cluster.dss_monitor.arn}"
-
+  role_arn = "${aws_iam_role.query_runner.arn}"
   ecs_target = {
     task_count          = 1
     task_definition_arn = "${aws_ecs_task_definition.monitor.arn}"
     launch_type         = "FARGATE"
     platform_version    = "LATEST"
-    group               = ""
 
     network_configuration {
-      assign_public_ip = false
-      security_groups  = ["${aws_security_group.nsg_task.id}"]
-      subnets          = ["${split(",", var.private_subnets)}"]
+      assign_public_ip = true
+      subnets         = ["${aws_subnet.dss_monitor.*.id}"]
     }
-  }
-
-  # allow the task definition to be managed by external ci/cd system
-  lifecycle = {
-    ignore_changes = ["ecs_target.0.task_definition_arn"]
   }
 }
