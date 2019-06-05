@@ -126,6 +126,8 @@ def time_limited(chalice_app: DSSChaliceApp):
         return wrapper
     return real_decorator
 
+def post_analytics():
+
 
 def get_chalice_app(flask_app) -> DSSChaliceApp:
     app = DSSChaliceApp(app_name=flask_app.name, configure_logs=False)
@@ -141,15 +143,17 @@ def get_chalice_app(flask_app) -> DSSChaliceApp:
         source_ip = app.current_request.context['identity']['sourceIp']
         content_length = app.current_request.headers.get('content-length')
         user_agent = app.current_request.headers.get('user-agent')
-        app.log.info(
-            """[request] "%s %s" %s %s "%s" %s""",
-            method,
-            path,
-            source_ip,
-            content_length if content_length else '-',
-            user_agent,
-            ' ' + str(query_params) if query_params is not None else '',
-        )
+
+        msg = {"log-msg-type": "analytics",
+               "system": "data-storage-service",
+               "request_info": {"method": method,
+                                "path": path,
+                                "source_ip": source_ip,
+                                "content_length": content_length if content_length else '-',
+                                "user_agent": user_agent,
+                                "query_params": str(query_params) if query_params is not None else ' '}
+               }
+        app.log.info(json.dumps(msg))
 
         def maybe_fake_504() -> typing.Optional[chalice.Response]:
             fake_504_probability_str = app.current_request.headers.get("DSS_FAKE_504_PROBABILITY", "0.0")
