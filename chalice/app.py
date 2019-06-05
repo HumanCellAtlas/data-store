@@ -126,8 +126,6 @@ def time_limited(chalice_app: DSSChaliceApp):
         return wrapper
     return real_decorator
 
-def post_analytics():
-
 
 def get_chalice_app(flask_app) -> DSSChaliceApp:
     app = DSSChaliceApp(app_name=flask_app.name, configure_logs=False)
