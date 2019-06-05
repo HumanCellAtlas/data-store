@@ -119,8 +119,8 @@ DEFINITION
 }
 
 
-resource "aws_cloudwatch_log_group" "query_runner" {
-  name              = "/aws/service/dss-monitor-query-runner-${var.DSS_DEPLOYMENT_STAGE}"
+resource "aws_cloudwatch_log_group" "task-performer" {
+  name              = "/aws/service/dss-monitor-task-performer-${var.DSS_DEPLOYMENT_STAGE}"
   retention_in_days = 1827
 }
 
