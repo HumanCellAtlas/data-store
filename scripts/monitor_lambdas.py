@@ -84,8 +84,11 @@ def get_webhook_ssm(secret_name=None):
     res = secretsmanager.get_secret_value(SecretId=secret_id)
     return res['SecretString']
 
+if os.environ["DSS_DEPLOYMENT_STAGE"] is None:
+    raise ValueError('Missing DSS_DEPLOYMENT_STAGE, exiting....')
+    exit(1)
 
-stages = {f'{os.getenv("DSS_DEPLOYMENT_STAGE")}': None }
+stages = {f'{os.environ["DSS_DEPLOYMENT_STAGE"]}': None }
 
 for stage in stages.keys():
     stage_lambdas = {i: {} for i in get_lambda_names(stage)}
