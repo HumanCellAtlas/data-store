@@ -11,10 +11,8 @@ import json
 import logging
 import os
 from collections import namedtuple
-from concurrent.futures import Future
 from datetime import datetime
 from enum import Enum, auto
-from threading import Thread
 from typing import Iterator, Any, Tuple, Dict, List, Callable, Optional, Union, Type
 
 from dcplib.aws import clients as aws_clients
@@ -1330,10 +1328,10 @@ class User(CloudNode, RolesMixin):
 
     def lookup_policies(self) -> List[str]:
         try:
-            policy_paths = self._lookup_policies_threaded()
+            policy_paths = self.lookup_policies_batched()
         except cd_client.exceptions.ResourceNotFoundException:
             self.provision_user(self.cd, self.name)
-            policy_paths = self._lookup_policies_threaded()
+            policy_paths = self.lookup_policies_batched()
         return self.cd.get_policies(policy_paths)
 
     def lookup_policies_batched(self):
@@ -1341,35 +1339,18 @@ class User(CloudNode, RolesMixin):
         operations = [self.cd.batch_lookup_policy(object_ref) for object_ref in object_refs]
         all_results = []
         while True:
-            results = self.cd.batch_read(operations)['SuccessfulResponse']
-            operations = []
-            for result in results:
-                all_results.extend(result['PolicyToPathList'])  # get results
-                if result.get('NextToken'):
-                    operations.append(self.cd.batch_lookup_policy(result['Path'], result['NextToken']))
+            results = [r['SuccessfulResponse']['LookupPolicy'] for r in self.cd.batch_read(operations)['Responses']]
+            ops_index_modifier = 0
+            for i in range(len(results)):
+                all_results.extend(results[i]['PolicyToPathList'])  # get results
+                if results[i].get('NextToken'):
+                    operations[i - ops_index_modifier]['LookupPolicy']['NextToken'] = results[i]['NextToken']
+                else:
+                    operations.pop(i - ops_index_modifier)
+                    ops_index_modifier += 1
             if not operations:
                 break
-
-    def _lookup_policies_threaded(self):
-        object_refs = self.groups + [self.object_ref]
-
-        def _call_with_future(fn, _future, args):
-            """
-            Returns the result of the wrapped threaded function.
-            """
-            try:
-                result = fn(*args)
-                _future.set_result(result)
-            except Exception as exc:
-                _future.set_exception(exc)
-
-        futures = []
-        for object_ref in object_refs:
-            future = Future()
-            Thread(target=_call_with_future, args=(self.cd.lookup_policy, future, [object_ref])).start()
-            futures.append(future)
-        results = [i for future in futures for i in future.result()]
-        return results
+        return all_results
 
     @property
     def status(self):
