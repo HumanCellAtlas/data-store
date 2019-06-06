@@ -1,5 +1,21 @@
 data "aws_caller_identity" "current" {}
 
+data "aws_vpc" "default" {
+  default = true
+}
+
+data "aws_availability_zones" "available" {}
+
+data "aws_subnet" "default" {
+  count             = 3
+  vpc_id            = "${data.aws_vpc.default.id}"
+  availability_zone = "${data.aws_availability_zones.available.names[count.index]}"
+  default_for_az    = true
+}
+
+data "aws_ecs_cluster" "default"{
+  cluster_name = "default"
+}
 
 locals {
   common_tags = "${map(
@@ -11,6 +27,7 @@ locals {
     "owner"     , "${var.DSS_INFRA_TAG_OWNER}"
   )}"
 }
+
 resource "aws_iam_role" "task-executor" {
   name = "dss-monitor-${var.DSS_DEPLOYMENT_STAGE}"
   assume_role_policy = <<EOF
@@ -22,7 +39,8 @@ resource "aws_iam_role" "task-executor" {
       "Principal": {
         "Service": [
           "ecs.amazonaws.com",
-          "ecs-tasks.amazonaws.com"
+          "ecs-tasks.amazonaws.com",
+          "events.amazonaws.com"
         ]
       },
       "Action": "sts:AssumeRole"
@@ -32,9 +50,47 @@ resource "aws_iam_role" "task-executor" {
 EOF
 }
 
-resource "aws_iam_role_policy_attachment" "task-executor_ecs" {
+resource "aws_iam_role_policy_attachment" "task-executor-ecs" {
   role = "${aws_iam_role.task-executor.name}"
   policy_arn = "arn:aws:iam::aws:policy/service-role/AmazonECSTaskExecutionRolePolicy"
+}
+
+resource "aws_iam_role_policy" "AWS-Events-Invoke" {
+  name = "dss-monitor-cloudwatch-event-invoke-${var.DSS_DEPLOYMENT_STAGE}"
+  role = "${aws_iam_role.task-executor.id}"
+  policy = <<EOF
+{
+    "Version": "2012-10-17",
+    "Statement": [
+        {
+            "Effect": "Allow",
+            "Action": [
+                "ecs:RunTask"
+            ],
+            "Resource": [
+                "arn:aws:ecs:*:${data.aws_caller_identity.current.account_id}:task-definition/dss-monitor-${var.DSS_DEPLOYMENT_STAGE}:16"
+            ],
+            "Condition": {
+                "ArnLike": {
+                    "ecs:cluster": "arn:aws:ecs:*:${data.aws_caller_identity.current.account_id}:cluster/default"
+                }
+            }
+        },
+        {
+            "Effect": "Allow",
+            "Action": "iam:PassRole",
+            "Resource": [
+                "*"
+            ],
+            "Condition": {
+                "StringLike": {
+                    "iam:PassedToService": "ecs-tasks.amazonaws.com"
+                }
+            }
+        }
+    ]
+}
+EOF
 }
 
 resource "aws_iam_role" "task-performer" {
@@ -83,11 +139,10 @@ resource "aws_iam_role_policy" "task-performer" {
   ]
 }
 EOF
-
 }
 
-
 resource "aws_ecs_task_definition" "monitor" {
+  # Note if changing the family, also change the IAM ROLE POLICY under ecs:RunTask; unable to reference due to dependency cycle.
   family = "dss-monitor-${var.DSS_DEPLOYMENT_STAGE}"
   execution_role_arn = "${aws_iam_role.task-executor.arn}"
   task_role_arn = "${aws_iam_role.task-performer.arn}"
@@ -95,7 +150,7 @@ resource "aws_ecs_task_definition" "monitor" {
   network_mode = "awsvpc"
   cpu = "256"
   memory = "512"
-  # TODO add logging below. 
+  # TODO add logging below.
   container_definitions = <<DEFINITION
 [
   {
@@ -111,9 +166,10 @@ resource "aws_ecs_task_definition" "monitor" {
           "awslogs-stream-prefix": "ecs"
         }
     },
-    "environment" : {
-        {"name": "DSS_DEPLOYMENT_STAGE", "value": "${var.DSS_DEPLOYMENT_STAGE}"}
-    }
+    "environment" :[
+          {"name": "DSS_DEPLOYMENT_STAGE", "value": "${var.DSS_DEPLOYMENT_STAGE}"},
+          {"name": "DSS_SECRETS_STORE", "value": "${var.DSS_SECRETS_STORE}"}
+    ]
   }
 ]
 DEFINITION
@@ -126,27 +182,9 @@ resource "aws_cloudwatch_log_group" "task-performer" {
   retention_in_days = 1827
 }
 
-
-data "aws_vpc" "default" {
-  default = true
-}
-
-data "aws_availability_zones" "available" {}
-
-data "aws_subnet" "default" {
-  count             = 3
-  vpc_id            = "${data.aws_vpc.default.id}"
-  availability_zone = "${data.aws_availability_zones.available.names[count.index]}"
-  default_for_az    = true
-}
-
-data "aws_ecs_cluster" "default"{
-  cluster_name = "default"
-}
-
 resource "aws_cloudwatch_event_rule" "dss-monitor" {
   name = "dss-monitor-trigger"
-  schedule_expression = "cron(* 0 * * ? *)"
+  schedule_expression = "cron(0 0 * * ? *)"
   description = "daily event trigger for dss-monitor notifications"
   tags = "${local.common_tags}"
 
@@ -155,7 +193,7 @@ resource "aws_cloudwatch_event_rule" "dss-monitor" {
 resource "aws_cloudwatch_event_target" "scheduled_task" {
   rule      = "${aws_cloudwatch_event_rule.dss-monitor.name}"
   arn       = "${data.aws_ecs_cluster.default.arn}"
-  role_arn = "${aws_iam_role.task-performer.arn}"
+  role_arn = "${aws_iam_role.task-executor.arn}"
   ecs_target = {
     task_count          = 1
     task_definition_arn = "${aws_ecs_task_definition.monitor.arn}"
