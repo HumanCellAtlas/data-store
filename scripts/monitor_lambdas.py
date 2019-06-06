@@ -9,7 +9,7 @@ cloudwatch = boto3.client('cloudwatch')
 resourcegroupstaggingapi = boto3.client('resourcegroupstaggingapi')
 secretsmanager = boto3.client('secretsmanager')
 script_end_time = datetime.datetime.now()
-script_start_time = end_time - datetime.timedelta(days=1)
+script_start_time = script_end_time - datetime.timedelta(days=1)
 
 def get_resource_by_tag(resource_string: str, tag_filter: list):
     dss_resources = resourcegroupstaggingapi.get_resources(ResourceTypeFilters=[resource_string],
