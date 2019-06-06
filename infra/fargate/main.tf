@@ -9,8 +9,7 @@ locals {
     "env"       , "${var.DSS_DEPLOYMENT_STAGE}",
     "service"   , "${var.DSS_INFRA_TAG_SERVICE}",
     "owner"     , "${var.DSS_INFRA_TAG_OWNER}"
-  )}",
-  availability_zones = "${split(" ", "${var.DSS_AVAILABILITY_ZONES}")}"
+  )}"
 }
 resource "aws_iam_role" "task-executor" {
   name = "dss-monitor-${var.DSS_DEPLOYMENT_STAGE}"
@@ -69,7 +68,7 @@ resource "aws_iam_role_policy" "task-performer" {
             {
       "Effect": "Allow",
       "Action": "secretsmanager:Get*",
-      "Resource": "arn:aws:secretsmanager:*:${var.AWS_ACCOUNT_ID}:secret:${var.DSS_SECRETS_STORE}/*"
+      "Resource": "arn:aws:secretsmanager:*:${data.aws_caller_identity.current.account_id}:secret:${var.DSS_SECRETS_STORE}/*"
     },
     {
       "Effect": "Allow",
@@ -107,10 +106,13 @@ resource "aws_ecs_task_definition" "monitor" {
     "logConfiguration": {
         "logDriver": "awslogs",
         "options": {
-          "awslogs-group": "${aws_cloudwatch_log_group.query_runner.name}",
+          "awslogs-group": "${aws_cloudwatch_log_group.task-performer.name}",
           "awslogs-region": "us-east-1",
           "awslogs-stream-prefix": "ecs"
         }
+    },
+    "environment" : {
+        {"name": "DSS_DEPLOYMENT_STAGE", "value": "${var.DSS_DEPLOYMENT_STAGE}"}
     }
   }
 ]

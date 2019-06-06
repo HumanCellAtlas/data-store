@@ -51,7 +51,6 @@ env_vars_to_infra = [
     "AWS_DEFAULT_REGION",
     "DSS_BLOB_TTL_DAYS",
     "ACM_CERTIFICATE_IDENTIFIER",
-    "DSS_AVAILABILITY_ZONES",
     "DSS_CHECKOUT_BUCKET_OBJECT_VIEWERS",
     "DSS_DEPLOYMENT_STAGE",
     "DSS_ES_DOMAIN",
@@ -93,8 +92,8 @@ env_vars_to_infra = [
     "GCP_DEFAULT_REGION",
 ]
 
-caller_info = boto3.client("sts").get_caller_identity()
 with open(os.path.join(infra_root, args.component, "backend.tf"), "w") as fp:
+    caller_info = boto3.client("sts").get_caller_identity()
     if os.environ.get('AWS_PROFILE'):
         profile = os.environ['AWS_PROFILE']
         profile_setting = f'profile = "{profile}"'
@@ -111,7 +110,6 @@ with open(os.path.join(infra_root, args.component, "backend.tf"), "w") as fp:
 with open(os.path.join(infra_root, args.component, "variables.tf"), "w") as fp:
     fp.write("# Auto-generated during infra build process." + os.linesep)
     fp.write("# Please edit infra/build_deploy_config.py directly." + os.linesep)
-    fp.write(terraform_variable_template.format(name='AWS_ACCOUNT_ID', val=caller_info['Account']))
     for key in env_vars_to_infra:
         val = os.environ[key]
         fp.write(terraform_variable_template.format(name=key, val=val))

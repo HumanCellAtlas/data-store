@@ -8,5 +8,4 @@ git checkout amar-monitorLiz
 virtualenv venv
 source venv/bin/activate
 pip install boto3 requests
-source environment
 python3 scripts/monitor_lambdas.py
