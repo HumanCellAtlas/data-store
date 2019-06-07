@@ -7,5 +7,3 @@ virtualenv venv
 source venv/bin/activate
 pip install boto3 requests
 python3 scripts/monitor_lambdas.py
-
-
