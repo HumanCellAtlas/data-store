@@ -168,7 +168,8 @@ resource "aws_ecs_task_definition" "monitor" {
     },
     "environment" :[
           {"name": "DSS_DEPLOYMENT_STAGE", "value": "${var.DSS_DEPLOYMENT_STAGE}"},
-          {"name": "DSS_SECRETS_STORE", "value": "${var.DSS_SECRETS_STORE}"}
+          {"name": "DSS_SECRETS_STORE", "value": "${var.DSS_SECRETS_STORE}"},
+          {"name": "DSS_MONITOR_WEBHOOK_SECRET_NAME", "value": "${var.DSS_MONITOR_WEBHOOK_SECRET_NAME}"}
     ]
   }
 ]
