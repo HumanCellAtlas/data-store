@@ -794,14 +794,14 @@ class CloudDirectory:
         ]
         return policies_paths
 
-    def get_policies(self, policy_paths: List[Dict[str, Any]]) -> List[str]:
+    def get_policies(self, policy_paths: List[Dict[str, Any]], policy_type='IAMPolicy') -> List[str]:
         # Parse the policyIds from the policies path. Only keep the unique ids
         policy_ids = set(
             [
-                (o['PolicyId'], o['PolicyType'])
+                o['PolicyId']
                 for p in policy_paths
                 for o in p['Policies']
-                if o.get('PolicyId')
+                if o.get('PolicyId') and o['PolicyType'] == policy_type
             ]
         )
 
@@ -809,7 +809,7 @@ class CloudDirectory:
         operations = [
             {
                 'GetObjectAttributes': {
-                    'ObjectReference': {'Selector': f'${policy_id[0]}'},
+                    'ObjectReference': {'Selector': f'${policy_id}'},
                     'SchemaFacet': {
                         'SchemaArn': self.node_schema,
                         'FacetName': 'POLICY'
