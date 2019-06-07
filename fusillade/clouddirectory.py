@@ -890,8 +890,6 @@ class CloudNode:
         :param name:
         :param object_ref:
         """
-        self.log = logging.getLogger('.'.join([__name__, self.__class__.__name__]))
-        self.object_type = self.__class__.__name__.lower()
         if name and object_ref:
             raise FusilladeException("object_reference XOR name")
         if name:
@@ -1128,15 +1126,15 @@ class CloudNode:
 
         operations.append(self.cd.batch_attach_policy(policy_ref, self.object_ref))
         self.cd.batch_write(operations)
-        self.log.info(dict(message="Policy created",
-                           object=dict(
-                               type=self.object_type,
-                               path_name=self._path_name
-                           ),
-                           policy=dict(
-                               link_name=policy_link_name,
-                               policy_type="IAMPolicy")
-                           ))
+        logger.info(dict(message="Policy created",
+                         object=dict(
+                             type=self.object_type,
+                             path_name=self._path_name
+                         ),
+                         policy=dict(
+                             link_name=policy_link_name,
+                             policy_type="IAMPolicy")
+                         ))
         return policy_ref
 
     def get_policy_name(self, policy_type):
@@ -1179,15 +1177,15 @@ class CloudNode:
         except cd_client.exceptions.LimitExceededException as ex:
             raise FusilladeHTTPException(ex)
         else:
-            self.log.info(dict(message="Policy updated",
-                               object=dict(
-                                   type=self.object_type,
-                                   path_name=self._path_name
-                               ),
-                               policy=dict(
-                                   link_name=self.get_policy_name('IAMPolicy'),
-                                   policy_type="IAMPolicy")
-                               ))
+            logger.info(dict(message="Policy updated",
+                             object=dict(
+                                 type=self.object_type,
+                                 path_name=self._path_name
+                             ),
+                             policy=dict(
+                                 link_name=self.get_policy_name('IAMPolicy'),
+                                 policy_type="IAMPolicy")
+                             ))
 
         self._statement = None
 
@@ -1266,8 +1264,8 @@ class CreateMixin:
             raise FusilladeHTTPException(
                 status=409, title="Conflict", detail=f"The {cls.object_type} named {name} already exists.")
         new_node = cls(cloud_directory, name)
-        new_node.log.info(dict(message=f"{cls.object_type} created",
-                               object=dict(type=new_node.object_type, path_name=new_node._path_name)))
+        logger.info(dict(message=f"{cls.object_type} created",
+                         object=dict(type=new_node.object_type, path_name=new_node._path_name)))
         new_node._set_statement_with_retry(statement)
         return new_node
 
@@ -1288,9 +1286,9 @@ class RolesMixin:
         operations.extend(self._add_typed_links_batch(roles, Role.object_type))
         self.cd.batch_write(operations)
         self._roles = None  # update roles
-        self.log.info(dict(message="Roles added",
-                           object=dict(type=self.object_type, path_name=self._path_name),
-                           roles=roles))
+        logger.info(dict(message="Roles added",
+                         object=dict(type=self.object_type, path_name=self._path_name),
+                         roles=roles))
 
     def remove_roles(self, roles: List[str]):
         operations = []
@@ -1298,9 +1296,9 @@ class RolesMixin:
         operations.extend(self._remove_typed_links_batch(roles, Role.object_type))
         self.cd.batch_write(operations)
         self._roles = None  # update roles
-        self.log.info(dict(message="Roles removed",
-                           object=dict(type=self.object_type, path_name=self._path_name),
-                           roles=roles))
+        logger.info(dict(message="Roles removed",
+                         object=dict(type=self.object_type, path_name=self._path_name),
+                         roles=roles))
 
 
 class User(CloudNode, RolesMixin):
@@ -1368,7 +1366,7 @@ class User(CloudNode, RolesMixin):
                                UpdateActions.CREATE_OR_UPDATE)
         ]
         self.cd.update_object_attribute(self.object_ref, update_params)
-        self.log.info(dict(message="User Enabled", object=dict(type=self.object_type, path_name=self._path_name)))
+        logger.info(dict(message="User Enabled", object=dict(type=self.object_type, path_name=self._path_name)))
         self._status = None
 
     def disable(self):
@@ -1381,7 +1379,7 @@ class User(CloudNode, RolesMixin):
                                UpdateActions.CREATE_OR_UPDATE)
         ]
         self.cd.update_object_attribute(self.object_ref, update_params)
-        self.log.info(dict(message="User Disabled", object=dict(type=self.object_type, path_name=self._path_name)))
+        logger.info(dict(message="User Disabled", object=dict(type=self.object_type, path_name=self._path_name)))
         self._status = None
 
     @classmethod
@@ -1415,8 +1413,8 @@ class User(CloudNode, RolesMixin):
             raise FusilladeHTTPException(
                 status=409, title="Conflict", detail=f"The {cls.object_type} named {name} already exists.")
         else:
-            user.log.info(dict(message="User created",
-                               object=dict(type=user.object_type, path_name=user._path_name)))
+            logger.info(dict(message="User created",
+                             object=dict(type=user.object_type, path_name=user._path_name)))
         if roles:
             user.add_roles(roles + cls.default_roles)
         else:
@@ -1446,18 +1444,18 @@ class User(CloudNode, RolesMixin):
         operations.extend(self._add_typed_links_batch(groups, Group.object_type))
         self.cd.batch_write(operations)
         self._groups = None  # update groups
-        self.log.info(dict(message="Groups joined",
-                           object=dict(type=self.object_type, path_name=self._path_name),
-                           groups=groups))
+        logger.info(dict(message="Groups joined",
+                         object=dict(type=self.object_type, path_name=self._path_name),
+                         groups=groups))
 
     def remove_groups(self, groups: List[str]):
         operations = []
         operations.extend(self._remove_typed_links_batch(groups, Group.object_type))
         self.cd.batch_write(operations)
         self._groups = None  # update groups
-        self.log.info(dict(message="Groups left",
-                           object=dict(type=self.object_type, path_name=self._path_name),
-                           groups=groups))
+        logger.info(dict(message="Groups left",
+                         object=dict(type=self.object_type, path_name=self._path_name),
+                         groups=groups))
 
 
 class Group(CloudNode, RolesMixin, CreateMixin):
@@ -1513,9 +1511,9 @@ class Group(CloudNode, RolesMixin, CreateMixin):
                 )
                 for i in users]
             self.cd.batch_write(operations)
-            self.log.info(dict(message="Adding users to group",
-                               object=dict(type=self.object_type, path_name=self._path_name),
-                               users=[user._path_name for user in users]))
+            logger.info(dict(message="Adding users to group",
+                             object=dict(type=self.object_type, path_name=self._path_name),
+                             users=[user._path_name for user in users]))
 
     def remove_users(self, users: List[str]) -> None:
         """
@@ -1526,9 +1524,9 @@ class Group(CloudNode, RolesMixin, CreateMixin):
         """
         for user in users:
             User(self.cd, user).remove_groups([self._path_name])
-        self.log.info(dict(message="Removing users from group",
-                           object=dict(type=self.object_type, path_name=self._path_name),
-                           users=[user for user in users]))
+        logger.info(dict(message="Removing users from group",
+                         object=dict(type=self.object_type, path_name=self._path_name),
+                         users=[user for user in users]))
 
 
 class Role(CloudNode, CreateMixin):
