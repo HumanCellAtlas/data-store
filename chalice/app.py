@@ -162,7 +162,7 @@ def get_chalice_app(flask_app) -> DSSChaliceApp:
                                 "user_agent": user_agent,
                                 "query_params": ' ' + str(query_params) if query_params is not None else ''}
                }
-        app.log.info(json.dumps(msg))
+        app.log.info(json.dumps(msg, indent=4))
 
         def maybe_fake_504() -> typing.Optional[chalice.Response]:
             fake_504_probability_str = app.current_request.headers.get("DSS_FAKE_504_PROBABILITY", "0.0")
@@ -207,7 +207,7 @@ def get_chalice_app(flask_app) -> DSSChaliceApp:
                                      "status_code": status_code,
                                      "query_params": ' ' + str(query_params) if query_params is not None else ''}
                    }
-            app.log.info(json.dumps(msg))
+            app.log.info(json.dumps(msg, indent=4))
 
         # API Gateway/Cloudfront adds a duplicate Content-Length with a different value (not sure why)
         res_headers = dict(flask_res.headers)
@@ -275,7 +275,7 @@ def get_chalice_app(flask_app) -> DSSChaliceApp:
                    "system": "data-storage-service",
                    "info": "Ignoring Google Object Change Notification"
                    }
-            app.log.info(json.dumps(msg))
+            app.log.info(json.dumps(msg, indent=4))
         else:
             raise NotImplementedError()
 
