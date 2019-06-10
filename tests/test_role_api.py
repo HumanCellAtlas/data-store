@@ -55,7 +55,7 @@ class TestRoleApi(BaseAPITest, unittest.TestCase):
         self.assertEqual(200, resp.status_code)
         expected_body = {
             'role_id': role_id,
-            'policy': policy
+            'policies': {"IAMPolicy": policy}
         }
         self.assertEqual(expected_body, json.loads(resp.body))
 
@@ -72,7 +72,7 @@ class TestRoleApi(BaseAPITest, unittest.TestCase):
         self.assertEqual(200, resp.status_code)
         expected_body = {
             'role_id': role_id,
-            'policy': policy
+            'policies': {"IAMPolicy": policy}
         }
         self.assertEqual(expected_body, json.loads(resp.body))
 
@@ -235,7 +235,7 @@ class TestRoleApi(BaseAPITest, unittest.TestCase):
                 if test['expected_resp'] == 200:
                     expected_body = {
                         'role_id': test['role_id'],
-                        'policy': policy
+                        'policies': {'IAMPolicy': policy}
                     }
                     self.assertEqual(expected_body, json.loads(resp.body))
 

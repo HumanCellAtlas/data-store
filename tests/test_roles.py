@@ -31,7 +31,7 @@ class TestRole(unittest.TestCase):
             role_name = "test_role_default"
             role = Role.create(self.directory, role_name)
             self.assertEqual(role.name, role_name)
-            self.assertEqual(role.statement, self.default_role_statement)
+            self.assertEqual(role.get_policy(), self.default_role_statement)
 
     def test_role_statement(self):
         role_name = "test_role_specified"
@@ -40,23 +40,23 @@ class TestRole(unittest.TestCase):
         with self.subTest("a role is created with specified statement when role.create is called with a statement"):
             self.assertEqual(role.name, role_name)
 
-        with self.subTest("a roles statement is retrieved when role.statement is called"):
-            self.assertEqual(role.statement, statement)
+        with self.subTest("a roles statement is retrieved when role.get_policy() is called"):
+            self.assertEqual(role.get_policy(), statement)
 
-        with self.subTest("a roles statement is changed when role.statement is assigned"):
+        with self.subTest("a roles statement is changed when role.get_policy() is assigned"):
             statement = create_test_statement(f"UserPolicySomethingElse")
-            role.statement = statement
-            self.assertEqual(role.statement, statement)
+            role.set_policy(statement)
+            self.assertEqual(role.get_policy(), statement)
 
         with self.subTest("Error raised when setting policy to an invalid statement"):
             with self.assertRaises(FusilladeHTTPException):
-                role.statement = "Something else"
-            self.assertEqual(role.statement, statement)
+                role.set_policy("Something else")
+            self.assertEqual(role.get_policy(), statement)
 
         with self.subTest("an error is returned when a policy exceed 10 Kb"):
             statement = create_test_statements(150)
             with self.assertRaises(FusilladeHTTPException) as ex:
-                role.statement = statement
+                role.set_policy(statement)
 
 
 if __name__ == '__main__':

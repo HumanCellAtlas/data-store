@@ -1,11 +1,11 @@
+import os
+import sys
 import unittest
-import os, sys
-
 
 pkg_root = os.path.abspath(os.path.join(os.path.dirname(__file__), '..'))  # noqa
 sys.path.insert(0, pkg_root)  # noqa
 
-from fusillade.errors import FusilladeException, FusilladeHTTPException
+from fusillade.errors import FusilladeHTTPException
 from fusillade.clouddirectory import User, Group, Role, cd_client, cleanup_directory, cleanup_schema, \
     get_json_file, default_user_policy_path, default_user_role_path, default_group_policy_path
 from tests.common import new_test_directory, create_test_statement
@@ -19,7 +19,7 @@ class TestUser(unittest.TestCase):
         cls.directory, cls.schema_arn = new_test_directory()
         cls.default_policy = get_json_file(default_user_policy_path)
         cls.default_user_policies = sorted([get_json_file(default_user_role_path),
-                                        get_json_file(default_group_policy_path)])
+                                            get_json_file(default_group_policy_path)])
 
     @classmethod
     def tearDownClass(cls):
@@ -33,7 +33,7 @@ class TestUser(unittest.TestCase):
         name = "user_statement@test.com"
         User.provision_user(self.directory, name, statement=self.default_policy)
         test_user = User(self.directory, name)
-        self.assertEqual(test_user.statement, self.default_policy)
+        self.assertEqual(test_user.get_policy(), self.default_policy)
 
     def test_get_attributes(self):
         name = "test_get_attributes@test.com"
@@ -106,24 +106,24 @@ class TestUser(unittest.TestCase):
         name = "test_set_policy@test.com"
         user = User.provision_user(self.directory, name)
         with self.subTest("The initial user policy is None, when the user is first created"):
-            self.assertEqual(user.statement, None)
+            self.assertFalse(user.get_policy())
 
         statement = create_test_statement(f"UserPolicySomethingElse")
-        user.statement = statement
+        user.set_policy(statement)
         with self.subTest("The user policy is set when statement setter is used."):
-            self.assertEqual(user.statement, statement)
+            self.assertEqual(user.get_policy(), statement)
             self.assertIn(statement, user.lookup_policies())
 
         statement = create_test_statement(f"UserPolicySomethingElse2")
-        user.statement = statement
+        user.set_policy(statement)
         with self.subTest("The user policy changes when set_policy is used."):
-            self.assertEqual(user.statement, statement)
+            self.assertEqual(user.get_policy(), statement)
             self.assertIn(statement, user.lookup_policies())
 
         with self.subTest("Error raised when setting policy to an invalid statement"):
             with self.assertRaises(FusilladeHTTPException):
-                user.statement = "Something else"
-            self.assertEqual(user.statement, statement)
+                user.set_policy("Something else")
+            self.assertEqual(user.get_policy(), statement)
 
     def test_status(self):
         name = "test_set_policy@test.com"
@@ -147,7 +147,7 @@ class TestUser(unittest.TestCase):
         role_statements = sorted(role_statements)
 
         user = User.provision_user(self.directory, name)
-        user_role_names = [Role(self.directory,None,role).name for role in user.roles]
+        user_role_names = [Role(self.directory, None, role).name for role in user.roles]
         with self.subTest("a user has the default_user roles when created."):
             self.assertEqual(user_role_names, [])
 
@@ -164,13 +164,13 @@ class TestUser(unittest.TestCase):
 
         with self.subTest("An error is raised when adding a role that does not exist."):
             with self.assertRaises(cd_client.exceptions.BatchWriteException) as ex:
-               user.add_roles(["ghost_role"])
-               self.assertTrue(ex.response['Error']['Message'].endswith("/ role / ghost_role\\' does not exist.'"))
+                user.add_roles(["ghost_role"])
+                self.assertTrue(ex.response['Error']['Message'].endswith("/ role / ghost_role\\' does not exist.'"))
 
-        user.statement = self.default_policy
+        user.set_policy(self.default_policy)
         with self.subTest("A user inherits a roles policies when a role is added to a user."):
             self.assertListEqual(sorted(user.lookup_policies()),
-                                 sorted([user.statement, role_statement, *self.default_user_policies]))
+                                 sorted([user.get_policy(), role_statement, *self.default_user_policies]))
 
         with self.subTest("A role is removed from user when remove role is called."):
             user.remove_roles([role_name])
@@ -183,7 +183,7 @@ class TestUser(unittest.TestCase):
 
         with self.subTest("A user inherits multiple role policies when the user has multiple roles."):
             self.assertListEqual(sorted(user.lookup_policies()),
-                                 sorted([user.statement, *self.default_user_policies, *role_statements]))
+                                 sorted([user.get_policy(), *self.default_user_policies, *role_statements]))
 
         with self.subTest("A user's roles are listed when a listing a users roles."):
             user_role_names = [Role(self.directory, None, role).name for role in user.roles]
@@ -212,15 +212,15 @@ class TestUser(unittest.TestCase):
 
         user.add_roles(role_names)
         user.add_groups(group_names)
-        user.statement = self.default_policy
+        user.set_policy(self.default_policy)
         user_role_names = [Role(self.directory, object_ref=role).name for role in user.roles]
         user_group_names = [Group(self.directory, object_ref=group).name for group in user.groups]
 
         self.assertListEqual(sorted(user_role_names), role_names)
         self.assertEqual(sorted(user_group_names), group_names + ['user_default'])
         self.assertSequenceEqual(sorted(user.lookup_policies()), sorted(
-            [user.statement, *self.default_user_policies] + group_statements + role_statements)
-                             )
+            [user.get_policy(), *self.default_user_policies] + group_statements + role_statements)
+                                 )
 
     @unittest.skip("TODO: unfinished and low priority")
     def test_remove_user(self):
@@ -229,6 +229,7 @@ class TestUser(unittest.TestCase):
         self.assertEqual(len(self.directory.lookup_policy(user.reference)), 1)
         user.remove_user()
         self.directory.lookup_policy(user.reference)
+
 
 if __name__ == '__main__':
     unittest.main()

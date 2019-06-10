@@ -119,7 +119,7 @@ class TestGroupApi(BaseAPITest, unittest.TestCase):
                 self.assertEqual(test['response']['code'], resp.status_code)
                 if resp.status_code==201:
                     resp = self.app.get(f'/v1/group/{test["json_request_body"]["group_id"]}/', headers=headers)
-                    self.assertEqual(test["json_request_body"]["group_id"], json.loads(resp.body)['name'])
+                    self.assertEqual(test["json_request_body"]["group_id"], json.loads(resp.body)['group_id'])
 
     def test_get_group(self):
         headers = {'Content-Type': "application/json"}
@@ -129,7 +129,8 @@ class TestGroupApi(BaseAPITest, unittest.TestCase):
         self.assertEqual(404, resp.status_code)
         Group.create(directory,name)
         resp = self.app.get(f'/v1/group/{name}/', headers=headers)
-        self.assertEqual(name, json.loads(resp.body)['name'])
+        self.assertEqual(name, json.loads(resp.body)['group_id'])
+        self.assertTrue(json.loads(resp.body)['policies'])
 
     def test_get_groups(self):
         headers = {'Content-Type': "application/json"}

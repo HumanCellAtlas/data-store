@@ -35,14 +35,14 @@ class TestGroup(unittest.TestCase):
         with self.subTest("The group is returned when the group has been created with default valid statement"):
             group = Group.create(self.directory, "new_group2")
             self.assertEqual(group.name,  "new_group2")
-            self.assertEqual(group.statement, self.default_group_statement)
+            self.assertEqual(group.get_policy(), self.default_group_statement)
 
         with self.subTest("The group is returned when the group has been created with specified valid statement."):
             group_name = "NewGroup1234"
             statement = create_test_statement(group_name)
             group = Group.create(self.directory, "new_group3", statement)
             self.assertEqual(group.name,  "new_group3")
-            self.assertEqual(group.statement, statement)
+            self.assertEqual(group.get_policy(), statement)
 
     def test_policy(self):
         group = Group.create(self.directory, "new_group")
@@ -54,13 +54,13 @@ class TestGroup(unittest.TestCase):
         group_name = "NewGroup1234"
         statement = create_test_statement(group_name)
         with self.subTest("The group policy changes when satement is set"):
-            group.statement = statement
+            group.set_policy(statement)
             policies = group.lookup_policies()
             self.assertEqual(policies[0], statement)
 
-        with self.subTest("error raised when invalid statement assigned to group.statement."):
+        with self.subTest("error raised when invalid statement assigned to group.get_policy()."):
             with self.assertRaises(FusilladeHTTPException):
-                group.statement = "invalid statement"
+                group.set_policy("invalid statement")
             self.assertEqual(policies[0], statement)
 
     def test_users(self):
@@ -107,7 +107,7 @@ class TestGroup(unittest.TestCase):
             self.assertEqual(len(group.roles), 2)
         with self.subTest("policies inherited from roles are returned when lookup policies is called"):
             group_policies = sorted(group.lookup_policies())
-            role_policies = sorted([role.statement for role in role_objs] + [self.default_group_statement])
+            role_policies = sorted([role.get_policy() for role in role_objs] + [self.default_group_statement])
             self.assertListEqual(group_policies, role_policies)
 
 

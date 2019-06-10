@@ -22,7 +22,7 @@ def get_users(token_info: dict):
 @authorize(['fus:GetUser'], ['arn:hca:fus:*:*:user/{user_id}/'], ['user_id'])
 def get_user(token_info: dict, user_id: str):
     user = User(directory, user_id)
-    return make_response(jsonify(name=user.name, status=user.status, policy=user.statement), 200)
+    return make_response(jsonify(user.get_info()), 200)
 
 
 @authorize(['fus:PutUser'], ['arn:hca:fus:*:*:user/{user_id}/status'], ['user_id'])
@@ -43,7 +43,7 @@ def put_user(token_info: dict, user_id: str):
 @authorize(['fus:PutUser'], ['arn:hca:fus:*:*:user/{user_id}/policy'], ['user_id'])
 def put_user_policy(token_info: dict, user_id: str):
     user = User(directory, user_id)
-    user.statement = request.json['policy']
+    user.set_policy(request.json['policy'])
     return make_response('', 200)
 
 

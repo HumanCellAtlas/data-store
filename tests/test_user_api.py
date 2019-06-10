@@ -131,7 +131,7 @@ class TestUserApi(BaseAPITest, unittest.TestCase):
                 self.assertEqual(test['response']['code'], resp.status_code)
                 if resp.status_code == 201:
                     resp = self.app.get(f'/v1/user/{test["json_request_body"]["user_id"]}/', headers=headers)
-                    self.assertEqual(test["json_request_body"]["user_id"], json.loads(resp.body)['name'])
+                    self.assertEqual(test["json_request_body"]["user_id"], json.loads(resp.body)['user_id'])
 
     def test_get_users(self):
         headers = {'Content-Type': "application/json"}
@@ -153,7 +153,7 @@ class TestUserApi(BaseAPITest, unittest.TestCase):
         self.assertEqual(403, resp.status_code)
         resp = self.app.get(f'/v1/user/{name}/', headers=headers)
         resp.raise_for_status()
-        self.assertEqual(name, json.loads(resp.body)['name'])
+        self.assertEqual(name, json.loads(resp.body)['user_id'])
 
     def test_put_user_id(self):
         tests = [

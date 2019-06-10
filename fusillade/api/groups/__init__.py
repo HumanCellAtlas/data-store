@@ -22,13 +22,13 @@ def get_groups(token_info: dict):
 @authorize(['fus:GetGroup'], ['arn:hca:fus:*:*:group/{group_id}/'], ['group_id'], {'fus:group_id': 'group_id'})
 def get_group(token_info: dict, group_id: str):
     group = Group(directory, group_id)
-    return make_response(jsonify(name=group.name, policy=group.statement), 200)
+    return make_response(jsonify(group.get_info()), 200)
 
 
 @authorize(['fus:PutGroup'], ['arn:hca:fus:*:*:group/{group_id}/policy'], ['group_id'], {'fus:group_id': 'group_id'})
 def put_group_policy(token_info: dict, group_id: str):
     group = Group(directory, group_id)
-    group.statement = request.json['policy']
+    group.set_policy(request.json['policy'])
     return make_response(f"{group_id} policy modified.", 200)
 
 
