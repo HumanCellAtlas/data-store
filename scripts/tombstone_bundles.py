@@ -11,8 +11,9 @@ Usage:
     - Monitor output. Announce errors in #dcp-ops, ask for help in #data-store-eng
 """
 import time
-import urllib3.exceptions.MaxRetryError
+from requests import exceptions
 from hca.dss import DSSClient
+
 
 stage = ""
 tombstone_reason = ""
@@ -33,7 +34,7 @@ def tombstone_bundle(uuid, version):
                                         uuid=uuid,
                                         version=version,
                                         reason=tombstone_reason)
-    except urllib3.exceptions.MaxRetryError as e:
+    except exceptions.RetryError as e:
         print(f'unable to tombstone: {uuid}.{version} too many 500 error responses : {e}')
         error_bundles.append(f'{uuid}.{version}')
         return
