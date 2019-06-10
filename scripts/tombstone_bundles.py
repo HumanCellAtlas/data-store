@@ -11,10 +11,12 @@ Usage:
     - Monitor output. Announce errors in #dcp-ops, ask for help in #data-store-eng
 """
 import time
+import urllib3.exceptions.MaxRetryError
 from hca.dss import DSSClient
 
 stage = ""
 tombstone_reason = ""
+error_bundles = []
 assert stage
 assert tombstone_reason
 
@@ -23,14 +25,18 @@ if stage == "prod":
 else:
     dss_client = DSSClient(swagger_url=f"https://dss.{stage}.data.humancellatlas.org/v1/swagger.json")
 
+
 def tombstone_bundle(uuid, version):
     print(f"tombstoning {uuid} {version}")
-    resp = dss_client.delete_bundle(
-        replica="aws",
-        uuid=uuid,
-        version=version,
-        reason=tombstone_reason,
-    )
+    try:
+        resp = dss_client.delete_bundle(replica="aws",
+                                        uuid=uuid,
+                                        version=version,
+                                        reason=tombstone_reason)
+    except urllib3.exceptions.MaxRetryError as e:
+        print(f'unable to tombstone: {uuid}.{version} too many 500 error responses : {e}')
+        error_bundles.append(f'{uuid}.{version}')
+        return
     for _ in range(30):
         try:
             print(f"verifying tombstone {uuid} {version}")
@@ -43,10 +49,11 @@ def tombstone_bundle(uuid, version):
     else:
         raise Exception(f"Unable to verity tombstone {uuid}")
 
-bundles_to_tombstone = [
-    # Place bundles list here
-]
+bundles_to_tombstone = []
 
 for fqid in bundles_to_tombstone:
     uuid, version = fqid.split(".", 1)
     tombstone_bundle(uuid, version)
+if error_bundles:
+    print(f'Errors present for the following bundles: {error_bundles}')
+
