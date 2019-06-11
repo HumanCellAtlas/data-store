@@ -1,13 +1,15 @@
 from flask import request, make_response, jsonify
+
 from fusillade import User, directory
-from fusillade.utils.authorize import authorize
 from fusillade.api.paging import get_next_token, get_page
+from fusillade.utils.authorize import authorize
 
 
 @authorize(['fus:PostUser'], ['arn:hca:fus:*:*:user'])
 def post_user(token_info: dict):
     json_body = request.json
-    user = User.provision_user(directory, json_body['user_id'], statement=json_body.get('policy'))
+    user = User.provision_user(directory, json_body['user_id'], statement=json_body.get('policy'),
+                               creator=token_info['https://auth.data.humancellatlas.org/email'])
     user.add_roles(json_body.get('roles', []))
     user.add_groups(json_body.get('groups', []))
     return make_response('', 201)
@@ -38,6 +40,17 @@ def put_user(token_info: dict, user_id: str):
     else:
         resp = make_response('', 500)
     return resp
+
+
+@authorize(['fus:GetUser'], ['arn:hca:fus:*:*:user/{user_id}/owns'], ['user_id'])
+def get_users_owns(token_info: dict, user_id: str):
+    next_token, per_page = get_next_token(request.args)
+    user = User(directory, user_id)
+    return get_page(user.get_owned,
+                    next_token,
+                    per_page,
+                    request.args['resource_type'],
+                    paged=True)
 
 
 @authorize(['fus:PutUser'], ['arn:hca:fus:*:*:user/{user_id}/policy'], ['user_id'])

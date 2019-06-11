@@ -34,6 +34,22 @@
             }
           },
           "requiredBehavior": "REQUIRED_ALWAYS"
+        },
+        "created_by": {
+          "attributeDefinition": {
+            "attributeType": "STRING",
+            "isImmutable": true,
+            "attributeRules": {
+              "nameLength": {
+                "parameters": {
+                  "min": "1",
+                  "max": "128"
+                },
+                "ruleType": "STRING_LENGTH"
+              }
+            }
+          },
+          "requiredBehavior": "REQUIRED_ALWAYS"
         }
       },
       "objectType": "NODE"
@@ -72,6 +88,22 @@
           },
           "requiredBehavior": "REQUIRED_ALWAYS"
         },
+        "created_by": {
+          "attributeDefinition": {
+            "attributeType": "STRING",
+            "isImmutable": true,
+            "attributeRules": {
+              "nameLength": {
+                "parameters": {
+                  "min": "1",
+                  "max": "128"
+                },
+                "ruleType": "STRING_LENGTH"
+              }
+            }
+          },
+          "requiredBehavior": "REQUIRED_ALWAYS"
+        },
         "status": {
           "attributeDefinition": {
             "attributeType": "STRING",
@@ -92,52 +124,39 @@
       "objectType": "LEAF_NODE"
     },
     "IAMPolicy": {
-      "facetAttributes": {
-      },
+      "facetAttributes": {},
       "objectType": "POLICY"
     }
   },
   "typedLinkFacets": {
-    "association": {
+    "membership_link": {
       "facetAttributes": {
-        "parent_type": {
-            "attributeDefinition": {
-                "attributeType": "STRING",
-                "isImmutable": false,
-                "attributeRules": {}
-            },
-            "requiredBehavior": "REQUIRED_ALWAYS"
-        },
-        "child_type": {
+        "member_of": {
           "attributeDefinition": {
-              "attributeType": "STRING",
-              "isImmutable": false,
-              "attributeRules": {}
+            "attributeType": "STRING",
+            "isImmutable": true,
+            "attributeRules": {}
           },
           "requiredBehavior": "REQUIRED_ALWAYS"
         }
       },
       "identityAttributeOrder": [
-        "parent_type",
-        "child_type"
+        "member_of"
       ]
     },
-    "ownership": {
+    "ownership_link": {
       "facetAttributes": {
-        "owner": {
-            "attributeDefinition": {
-                "attributeType": "BOOLEAN",
-                "isImmutable": false,
-                "defaultValue": {
-                  "booleanValue": true
-                },
-                "attributeRules": {}
-            },
-            "requiredBehavior": "REQUIRED_ALWAYS"
+        "owner_of": {
+          "attributeDefinition": {
+            "attributeType": "STRING",
+            "isImmutable": true,
+            "attributeRules": {}
+          },
+          "requiredBehavior": "REQUIRED_ALWAYS"
         }
       },
       "identityAttributeOrder": [
-          "owner"
+        "owner_of"
       ]
     }
   }

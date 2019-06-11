@@ -47,7 +47,8 @@ class BaseAPITest():
                 os.environ["FUSILLADE_DIR"] = old_directory_name
 
     def _test_paging(self, url, headers, per_page, key):
-        url = furl(url, query_params={'per_page': per_page})
+        url = furl(url)
+        url.add(query_params={'per_page': per_page})
         resp = self.app.get(url.url, headers=headers)
         self.assertEqual(206, resp.status_code)
         self.assertEqual(per_page, len(json.loads(resp.body)[key]))

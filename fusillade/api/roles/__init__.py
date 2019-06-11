@@ -1,14 +1,15 @@
 from flask import request, make_response, jsonify
 
 from fusillade import Role, directory
-from fusillade.utils.authorize import authorize
 from fusillade.api.paging import get_next_token, get_page
+from fusillade.utils.authorize import authorize
 
 
 @authorize(['fus:PostRole'], ['arn:hca:fus:*:*:role'])
 def post_role(token_info: dict):
     json_body = request.json
-    Role.create(directory, json_body['role_id'], statement=json_body.get('policy'))
+    Role.create(directory, json_body['role_id'], statement=json_body.get('policy'),
+                creator=token_info['https://auth.data.humancellatlas.org/email'])
     return make_response(f"New role {json_body['role_id']} created.", 201)
 
 

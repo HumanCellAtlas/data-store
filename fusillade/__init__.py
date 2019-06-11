@@ -19,7 +19,7 @@ def get_directory():
     except FusilladeException:
         from .clouddirectory import publish_schema, create_directory
         schema_name = Config.get_schema_name()
-        schema_arn = publish_schema(schema_name, version="0.4")  # TODO make version an environment variable
+        schema_arn = publish_schema(schema_name, version="0.8")  # TODO make version an environment variable
         admins = Config.get_admin_emails()
         _directory = create_directory(directory_name, schema_arn, admins)
     return _directory

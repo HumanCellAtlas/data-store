@@ -222,6 +222,21 @@ class TestUser(unittest.TestCase):
             [user.get_policy(), *self.default_user_policies] + group_statements + role_statements)
                                  )
 
+    def test_ownership(self):
+        user = User.provision_user(self.directory, 'test_user')
+        group = Group.create(self.directory, "group_ownership")
+        with self.subTest("A user is not an owner when new group is created"):
+            self.assertFalse(user.is_owner(group))
+        user.add_ownership(group)
+        with self.subTest("A user is owner after assigning ownership."):
+            self.assertTrue(user.is_owner(group))
+        group2 = Group.create(self.directory, "group_ownership2")
+        user.add_ownership(group2)
+        with self.subTest("List groups owned, when list_owned is called"):
+            resp = user.list_owned(Group)
+        user.remove_ownership(group)
+        self.assertFalse(user.is_owner(group))
+
     @unittest.skip("TODO: unfinished and low priority")
     def test_remove_user(self):
         name = "test_get_user_policy@test.com"

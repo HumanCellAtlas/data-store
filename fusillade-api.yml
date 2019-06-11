@@ -256,19 +256,9 @@ paths:
           content:
             application/json:
               schema:
-                type: object
-                properties:
-                  users:
-                    $ref: '#/components/schemas/paged_results'
+                $ref: '#/components/schemas/users'
         206:
           $ref: '#/components/responses/206'
-          content:
-            application/json:
-              schema:
-                type: object
-                properties:
-                  users:
-                    $ref: '#/components/schemas/paged_results'
         404:
           $ref: '#/components/responses/404'
         default:
@@ -348,6 +338,34 @@ paths:
           $ref: '#/components/responses/401'
         default:
           description: Unexpected error
+  /v1/user/{user_id}/owns:
+    get:
+      summary: Retrieve the resources owned by the user
+      operationId: fusillade.api.users.get_users_owns
+      security:
+        - BearerAuth: []
+      parameters:
+        - $ref: '#/components/parameters/user_id'
+        - $ref: '#/components/parameters/next_token'
+        - $ref: '#/components/parameters/per_page'
+        - $ref: '#/components/parameters/resource_type'
+      tags:
+        - user
+      responses:
+        200:
+          description: all owned resources have been returned
+          content:
+            application/json:
+              schema:
+                anyOf:
+                  - $ref: '#/components/schemas/groups'
+                  - $ref: '#/components/schemas/roles'
+        206:
+          $ref: '#/components/responses/206'
+        404:
+          $ref: '#/components/responses/404'
+        default:
+          description: Unexpected error
   /v1/user/{user_id}/groups:
     get:
       summary: Retrieve group(s) a user is in.
@@ -366,19 +384,9 @@ paths:
           content:
             application/json:
               schema:
-                type: object
-                properties:
-                  groups:
-                    $ref: '#/components/schemas/paged_results'
+                $ref: '#/components/schemas/groups'
         206:
           $ref: '#/components/responses/206'
-          content:
-            application/json:
-              schema:
-                type: object
-                properties:
-                  groups:
-                    $ref: '#/components/schemas/paged_results'
         404:
           $ref: '#/components/responses/404'
         default:
@@ -430,19 +438,9 @@ paths:
           content:
             application/json:
               schema:
-                type: object
-                properties:
-                  roles:
-                    $ref: '#/components/schemas/paged_results'
+                $ref: '#/components/schemas/roles'
         206:
           $ref: '#/components/responses/206'
-          content:
-            application/json:
-              schema:
-                type: object
-                properties:
-                  roles:
-                    $ref: '#/components/schemas/paged_results'
         404:
           $ref: '#/components/responses/404'
         default:
@@ -516,19 +514,9 @@ paths:
           content:
             application/json:
               schema:
-                type: object
-                properties:
-                  groups:
-                    $ref: '#/components/schemas/paged_results'
+                $ref: '#/components/schemas/groups'
         206:
           $ref: '#/components/responses/206'
-          content:
-            application/json:
-              schema:
-                type: object
-                properties:
-                  groups:
-                    $ref: '#/components/schemas/paged_results'
         404:
           $ref: '#/components/responses/404'
         default:
@@ -619,19 +607,9 @@ paths:
           content:
             application/json:
               schema:
-                type: object
-                properties:
-                  roles:
-                    $ref: '#/components/schemas/paged_results'
+                $ref: '#/components/schemas/roles'
         206:
           $ref: '#/components/responses/206'
-          content:
-            application/json:
-              schema:
-                type: object
-                properties:
-                  roles:
-                    $ref: '#/components/schemas/paged_results'
         404:
           $ref: '#/components/responses/404'
         default:
@@ -683,19 +661,9 @@ paths:
           content:
             application/json:
               schema:
-                type: object
-                properties:
-                  users:
-                    $ref: '#/components/schemas/paged_results'
+                $ref: '#/components/schemas/users'
         206:
           $ref: '#/components/responses/206'
-          content:
-            application/json:
-              schema:
-                type: object
-                properties:
-                  users:
-                    $ref: '#/components/schemas/paged_results'
         404:
           $ref: '#/components/responses/404'
         default:
@@ -742,19 +710,9 @@ paths:
           content:
             application/json:
               schema:
-                type: object
-                properties:
-                  roles:
-                    $ref: '#/components/schemas/paged_results'
+                $ref: '#/components/schemas/roles'
         206:
           $ref: '#/components/responses/206'
-          content:
-            application/json:
-              schema:
-                type: object
-                properties:
-                  roles:
-                    $ref: '#/components/schemas/paged_results'
         404:
           $ref: '#/components/responses/404'
         default:
@@ -862,6 +820,13 @@ components:
       required: true
       schema:
         $ref: '#/components/schemas/custom_identifier'
+    resource_type:
+      name: resource_type
+      in: query
+      required: true
+      schema:
+        type: string
+        enum: [group, role]
     action:
       name: action
       in: query
@@ -896,6 +861,21 @@ components:
       type: array
       items:
         type: string
+    groups:
+      type: object
+      properties:
+        groups:
+          $ref: '#/components/schemas/paged_results'
+    roles:
+      type: object
+      properties:
+        groups:
+          $ref: '#/components/schemas/paged_results'
+    users:
+      type: object
+      properties:
+        users:
+          $ref: '#/components/schemas/paged_results'
     custom_identifier:
       description: used to identify users, groups, and roles.
       type: string
@@ -943,6 +923,13 @@ components:
           description: URL to retrieve the next page of results.
           schema:
             type: string
+      content:
+        application/json:
+          schema:
+            anyOf:
+              - $ref: '#/components/schemas/groups'
+              - $ref: '#/components/schemas/roles'
+              - $ref: '#/components/schemas/users'
     401:
       description: The users credentials failed to authenticate.
     403:

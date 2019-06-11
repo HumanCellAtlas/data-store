@@ -2,11 +2,11 @@ from flask import request, make_response, jsonify
 from furl import furl
 
 
-def get_page(func, next_token, per_page, *args):
+def get_page(func, next_token, per_page, *args, **kwargs):
     if args:
-        result, next_token = func(*args, next_token=next_token, per_page=per_page)
+        result, next_token = func(*args, **kwargs, next_token=next_token, per_page=per_page)
     else:
-        result, next_token = func(next_token, per_page)
+        result, next_token = func(next_token, per_page, *args, **kwargs)
     if next_token:
         next_url = build_next_url(next_token, per_page)
         headers = {'Link': build_link_header({next_url: {"rel": "next"}})}
@@ -22,7 +22,8 @@ def get_next_token(query_params: dict):
 
 
 def build_next_url(next_token: str, per_page: int) -> str:
-    url = furl(request.host_url, path=request.path, query_params={'next_token': next_token, 'per_page': per_page})
+    url = furl(request.host_url, path=request.path, query_params=request.args)
+    url.add(query_params={'next_token': next_token, 'per_page': per_page})
     if not url.scheme:
         if 'localhost' == url.host:
             url.scheme = 'http'

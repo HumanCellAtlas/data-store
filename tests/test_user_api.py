@@ -293,5 +293,20 @@ class TestUserApi(BaseAPITest, unittest.TestCase):
         user.add_roles(roles)
         self._test_paging(f'/v1/user/{name}/roles', headers, 6, key)
 
+    def test_user_owned(self):
+        headers = {'Content-Type': "application/json"}
+        headers.update(get_auth_header(service_accounts['admin']))
+        name = "test_user_role_api@email.com"
+        key = 'roles'
+        user = User.provision_user(directory, name)
+        url = furl(f"/v1/user/{name}/owns", query_params={'resource_type': 'role'}).url
+        resp = self.app.get(url, headers=headers)
+        user_role_names = [Role(directory, None, role).name for role in user.roles]
+        self.assertEqual(0, len(json.loads(resp.body)[key]))
+        roles = [Role.create(directory, f"role_{i}") for i in range(11)]
+        user.add_roles([role.name for role in roles])
+        [user.add_ownership(role) for role in roles]
+        self._test_paging(url, headers, 6, key)
+
 if __name__ == '__main__':
     unittest.main()
