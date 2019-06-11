@@ -31,6 +31,13 @@ DSS_BUNDLE_TOMBSTONE_REGEX = re.compile(
 DSS_OBJECT_NAME_REGEX = re.compile(
     f"^({BUNDLE_PREFIX}|{FILE_PREFIX}|{COLLECTION_PREFIX})/({UUID_PATTERN})(?:\.({VERSION_PATTERN}))?(\.{TOMBSTONE_SUFFIX})?$")  # noqa
 
+# API endpoint patterns
+FILES_PATTERN = f'/v1/files/{UUID_PATTERN}'
+FILES_URI_REGEX = re.compile(FILES_PATTERN)
+
+BUNDLES_PATTERN = f'/v1/bundles/{UUID_PATTERN}'
+BUNDLES_URI_REGEX = re.compile(BUNDLES_PATTERN)
+
 
 class ObjectIdentifierError(ValueError):
     pass
