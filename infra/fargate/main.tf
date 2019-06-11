@@ -168,7 +168,9 @@ resource "aws_ecs_task_definition" "monitor" {
     },
     "environment" :[
           {"name": "DSS_DEPLOYMENT_STAGE", "value": "${var.DSS_DEPLOYMENT_STAGE}"},
-          {"name": "DSS_SECRETS_STORE", "value": "${var.DSS_SECRETS_STORE}"}
+          {"name": "DSS_SECRETS_STORE", "value": "${var.DSS_SECRETS_STORE}"},
+          {"name": "DSS_S3_CHECKOUT_BUCKET", "value": "${var.DSS_S3_CHECKOUT_BUCKET}"},
+          {"name": "DSS_S3_BUCKET", "value": "${var.DSS_S3_BUCKET}"}
     ]
   }
 ]

@@ -3,13 +3,33 @@ import boto3
 import datetime
 import json
 import requests
+import argparse
+import collections
 
+
+#
 
 cloudwatch = boto3.client('cloudwatch')
 resourcegroupstaggingapi = boto3.client('resourcegroupstaggingapi')
 secretsmanager = boto3.client('secretsmanager')
-script_end_time = datetime.datetime.now()
-script_start_time = script_end_time - datetime.timedelta(days=1)
+
+
+parser = argparse.ArgumentParser(description=__doc__)
+parser.add_argument("--no-webhook", required=False, action='store_true',
+                    help='does not push to webhook, outputs json to screen')
+args = parser.parse_args()
+
+
+def get_webhook_ssm(secret_name=None):
+    #  fetch webhook url from Secrets Store.
+    stage = os.environ['DSS_DEPLOYMENT_STAGE']
+    secrets_store = os.environ['DSS_SECRETS_STORE']
+    if secret_name is None:
+        secret_name = 'monitor-webhook'
+    secret_id = f'{secrets_store}/{stage}/{secret_name}'
+    res = secretsmanager.get_secret_value(SecretId=secret_id)
+    return res['SecretString']
+
 
 def get_resource_by_tag(resource_string: str, tag_filter: list):
     dss_resources = resourcegroupstaggingapi.get_resources(ResourceTypeFilters=[resource_string],
@@ -18,6 +38,7 @@ def get_resource_by_tag(resource_string: str, tag_filter: list):
 
 
 def get_lambda_names(stage=None):
+    # Returns all the names for deployed lambdas
     if stage is None:
         stage = os.getenv('DSS_DEPLOYMENT_STAGE')
     service_tags = [{"Key": "service", "Values": ["dss"]}, {"Key": "env", "Values": [stage]}]
@@ -27,24 +48,24 @@ def get_lambda_names(stage=None):
     return sorted(lambda_names)
 
 
-def lambda_query(lambda_name, metric_name):
-    namespace = 'AWS/Lambda'
-    metric_name = metric_name
+def get_cloudwatch_metric_stat(namespace: str, metric_name: str, stats: list, dimensions):
+    #  Returns a formatted MetricDataQuery that can be used with CloudWatch Metrics
     end_time = script_end_time
     start_time = script_start_time
     period = 43200
-    statistics = ['Sum']
-    dimensions = [{"Name": "FunctionName", "Value": lambda_name}]
+    if not stats:
+        stats = ['Sum']
     return {"Namespace": namespace,
             "MetricName": metric_name,
             "StartTime": start_time,
             "EndTime": end_time,
             "Period": period,
-            "Statistics": statistics,
-            "Dimensions": dimensions }
+            "Statistics": stats,
+            "Dimensions": dimensions}
 
 
 def summation_from_datapoints_response(response):
+    # Datapoints from CloudWatch queries may need to be summed due to how durations for time delta's are calculated.
     temp_sum = 0.0
     if len(response['Datapoints']) is not 0:
         for x in response['Datapoints']:
@@ -54,18 +75,27 @@ def summation_from_datapoints_response(response):
 
 
 def format_lambda_results_for_slack(results: dict):
-    header = '\n {} : {} -> {} |  name | Invocations | Duration (seconds) \n'
+    # Formats json lambda data into something that can be presented in slack
+    header = '\n {} : {} -> {} | \n  Lambda Name | Invocations | Duration (seconds) \n'
+    bucket_header = '\n Bucket | BytesUploaded | BytesDownloaded \n'
     payload = []
-    for stage, _ in results.items():
-        temp_header = header.format(stage, script_start_time, script_end_time)
-        temp_results = []
-        for k, v in results[stage].items():
-            temp_results.append(f'\t | {k} | {v["Invocations"]} | {v["Duration"]} ')
-        payload.append(temp_header + '\n'.join(temp_results))
+    for stage, infra in results.items():
+        temp_results_lambdas = [header.format(stage, script_start_time, script_end_time)]
+        temp_results_buckets = [bucket_header]
+        for k, v in infra.items():
+            if 'lambdas' in k:
+                for ln, val in v.items():
+                    temp_results_lambdas.append(f'\n\t | {ln} | {val["Invocations"]} | {val["Duration"]/1000} ')
+            elif 'buckets' in k:
+                for bn, val in v.items():
+                    temp_results_buckets.append(f'\n\t | {bn} | {format_data_size(val["BytesUploaded"])} | '
+                                                f'{format_data_size(val["BytesDownloaded"])}')
+        payload.append(''.join(temp_results_lambdas+temp_results_buckets))
+
     return ''.join(payload)
 
 
-def send_slack_post(webhook:str, stages:dict):
+def send_slack_post(webhook:str, stages: dict):
     payload = {"text": f"{format_lambda_results_for_slack(stages)}"}
     res = requests.post(webhook, json=payload, headers={'Content-Type': 'application/json'})
     if res.status_code != 200:
@@ -75,28 +105,57 @@ def send_slack_post(webhook:str, stages:dict):
         )
 
 
-def get_webhook_ssm(secret_name=None):
-    stage = os.environ['DSS_DEPLOYMENT_STAGE']
-    secrets_store = os.environ['DSS_SECRETS_STORE']
-    if secret_name is None:
-        secret_name = 'monitor-webhook'
-    secret_id = f'{secrets_store}/{stage}/{secret_name}'
-    res = secretsmanager.get_secret_value(SecretId=secret_id)
-    return res['SecretString']
+def format_data_size(value: int):
+    base = 1000
+    bytes = float(value)
+    suffix = ('kB', 'MB', 'GB', 'TB', 'PB', 'EB', 'ZB', 'YB')
+    if bytes < base:
+        return '%d Bytes' % bytes
+    for i, s in enumerate(suffix):
+        unit = base ** (i + 2)
+        if bytes < unit:
+            return (format + ' %s') % ((base * bytes / unit), s)
+        elif bytes < unit:
+            return (format + '%s') % ((base * bytes / unit), s)
 
+# conditionals
 if os.environ["DSS_DEPLOYMENT_STAGE"] is None:
     raise ValueError('Missing DSS_DEPLOYMENT_STAGE, exiting....')
     exit(1)
 
-stages = {f'{os.environ["DSS_DEPLOYMENT_STAGE"]}': None }
+# variables
+script_end_time = datetime.datetime.now()
+script_start_time = script_end_time - datetime.timedelta(days=1)
+bucket_list = [os.environ['DSS_S3_BUCKET'], os.environ['DSS_S3_CHECKOUT_BUCKET']]
+bucket_query_metric_names = ['BytesDownloaded', 'BytesUploaded']
+lambda_query_metric_names = ['Duration', 'Invocations']
+stages = {f'{os.environ["DSS_DEPLOYMENT_STAGE"]}': collections.defaultdict(collections.defaultdict)}
 
 for stage in stages.keys():
-    stage_lambdas = {i: {} for i in get_lambda_names(stage)}
+    stage_lambdas = {i: collections.defaultdict(collections.defaultdict) for i in get_lambda_names(stage)}
     for ln in stage_lambdas.keys():
-        duration_res = cloudwatch.get_metric_statistics(**lambda_query(ln, 'Duration'))
-        invocation_res = cloudwatch.get_metric_statistics(**lambda_query(ln, 'Invocations'))
-        stage_lambdas[ln]['Duration'] = int(summation_from_datapoints_response(duration_res)/1000)
-        stage_lambdas[ln]['Invocations'] = int(summation_from_datapoints_response(invocation_res))
-    stages[stage] = stage_lambdas
-send_slack_post(get_webhook_ssm(), stages)
-
+        for lambda_metric in lambda_query_metric_names:
+            lambda_res = cloudwatch.get_metric_statistics(**get_cloudwatch_metric_stat('AWS/Lambda',
+                                                                                         lambda_metric,
+                                                                                         ['Sum'],
+                                                                                         [{"Name": "FunctionName",
+                                                                                           "Value": ln}]))
+            stage_lambdas[ln][lambda_metric] = int(summation_from_datapoints_response(lambda_res))
+    stages[stage]['lambdas'].update(stage_lambdas)
+    for bucket_name in bucket_list:
+        #  Fetch Data for Buckets Data Consumption
+        temp_dir = collections.defaultdict(int)
+        for metric in bucket_query_metric_names:
+            bucket_upload_res = cloudwatch.get_metric_statistics(**get_cloudwatch_metric_stat('AWS/S3',
+                                                                                              metric,
+                                                                                              ['Sum'],
+                                                                                              [{"Name": "BucketName",
+                                                                                                "Value": bucket_name},
+                                                                                               {"Name": "FilterId",
+                                                                                                "Value": "EntireBucket"}]))
+            temp_dir[metric] = int(summation_from_datapoints_response(bucket_upload_res))
+        stages[stage]['buckets'].update({bucket_name: temp_dir})
+if args.no_webhook:
+    print(json.dumps(stages, indent=4, sort_keys=True))
+else:
+    send_slack_post(get_webhook_ssm(), stages)
