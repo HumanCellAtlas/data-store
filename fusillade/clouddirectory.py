@@ -61,7 +61,7 @@ def cleanup_schema(sch_arn: str) -> None:
     logger.warning({"message": "Deleted schema", "schema_arn": sch_arn})
 
 
-def publish_schema(name: str, version: str) -> str:
+def publish_schema(name: str, Version: str, MinorVersion: str = '0') -> str:
     """
     More info about schemas
     https://docs.aws.amazon.com/clouddirectory/latest/developerguide/schemas.html
@@ -78,12 +78,13 @@ def publish_schema(name: str, version: str) -> str:
     cd_client.put_schema_from_json(SchemaArn=dev_schema_arn, Document=schema)
     try:
         pub_schema_arn = cd_client.publish_schema(DevelopmentSchemaArn=dev_schema_arn,
-                                                  Version=version)['PublishedSchemaArn']
+                                                  Version=Version,
+                                                  MinorVersion=MinorVersion)['PublishedSchemaArn']
         logger.info({"message": "Published development schema",
                      "developement_schema_arn": dev_schema_arn,
                      "published_schema_arn": pub_schema_arn})
     except cd_client.exceptions.SchemaAlreadyPublishedException:
-        pub_schema_arn = f"{project_arn}schema/published/{name}/{version}"
+        pub_schema_arn = f"{project_arn}schema/published/{name}/{Version}/{MinorVersion}"
     return pub_schema_arn
 
 
@@ -369,7 +370,7 @@ class CloudDirectory:
         """
         Create an object and store in cloud directory.
         """
-        object_attribute_list = self.get_object_attribute_list(facet=facet_type, obj_type=obj_type, **kwargs)
+        object_attribute_list = self.get_object_attribute_list(facet=facet_type, **kwargs)
         parent_path = self.get_obj_type_path(obj_type)
         cd_client.create_object(DirectoryArn=self._dir_arn,
                                 SchemaFacets=[
@@ -470,8 +471,7 @@ class CloudDirectory:
     def create_folder(self, path: str, name: str) -> None:
         """ A folder is just a NodeFacet"""
         schema_facets = [dict(SchemaArn=self.schema, FacetName="NodeFacet")]
-        object_attribute_list = self.get_object_attribute_list(facet="NodeFacet", name=name, obj_type="folder",
-                                                               created_by="fusillade")
+        object_attribute_list = self.get_object_attribute_list(facet="NodeFacet", name=name, created_by="fusillade")
         try:
             cd_client.create_object(DirectoryArn=self._dir_arn,
                                     SchemaFacets=schema_facets,

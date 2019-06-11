@@ -19,22 +19,6 @@
           },
           "requiredBehavior": "REQUIRED_ALWAYS"
         },
-        "obj_type": {
-          "attributeDefinition": {
-            "attributeType": "STRING",
-            "isImmutable": false,
-            "attributeRules": {
-              "nameLength": {
-                "parameters": {
-                  "min": "1",
-                  "max": "64"
-                },
-                "ruleType": "STRING_LENGTH"
-              }
-            }
-          },
-          "requiredBehavior": "REQUIRED_ALWAYS"
-        },
         "created_by": {
           "attributeDefinition": {
             "attributeType": "STRING",
@@ -65,22 +49,6 @@
                 "parameters": {
                   "min": "1",
                   "max": "128"
-                },
-                "ruleType": "STRING_LENGTH"
-              }
-            }
-          },
-          "requiredBehavior": "REQUIRED_ALWAYS"
-        },
-        "obj_type": {
-          "attributeDefinition": {
-            "attributeType": "STRING",
-            "isImmutable": false,
-            "attributeRules": {
-              "nameLength": {
-                "parameters": {
-                  "min": "1",
-                  "max": "64"
                 },
                 "ruleType": "STRING_LENGTH"
               }

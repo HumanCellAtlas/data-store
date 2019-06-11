@@ -1,3 +1,8 @@
 {
-  "version":"0.0.1"
+  "version":"0.0.1",
+  "directory_schema":{
+    "Version": "0",
+    "MinorVersion": "1"
+  }
 }
+

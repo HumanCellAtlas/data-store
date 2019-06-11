@@ -13,6 +13,7 @@ class Config:
                 "https://auth.data.humancellatlas.org/"]
     _openid_provider = None
     version = "unversioned"
+    directory_schema_version = {"Version": '0', "MinorVersion": '0'}
 
     # TODO make configurable
 
