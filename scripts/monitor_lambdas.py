@@ -107,16 +107,17 @@ def send_slack_post(webhook:str, stages: dict):
 
 def format_data_size(value: int):
     base = 1000
-    bytes = float(value)
+    value = float(value)
     suffix = ('kB', 'MB', 'GB', 'TB', 'PB', 'EB', 'ZB', 'YB')
-    if bytes < base:
-        return '%d Bytes' % bytes
+    if value < base:
+        return '%d Bytes' % value
     for i, s in enumerate(suffix):
         unit = base ** (i + 2)
-        if bytes < unit:
-            return (format + ' %s') % ((base * bytes / unit), s)
-        elif bytes < unit:
-            return (format + '%s') % ((base * bytes / unit), s)
+        if value < unit:
+            return (format + ' %s') % ((base * value / unit), s)
+        elif value < unit:
+            return (format + '%s') % ((base * value / unit), s)
+
 
 # conditionals
 if os.environ["DSS_DEPLOYMENT_STAGE"] is None:
