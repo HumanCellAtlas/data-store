@@ -131,6 +131,10 @@ When using Fusillade as a service, your application is itself subject to an IAM 
 write permissions data. The Fusillade service administrator configures the Fusillade policy governing this in the
 service configuration.
 
+# How To
+## Upgrade Clouddirectory Schema
+1. Run `./scripts/upgrade` to check if your local schema matches the the published schema.
+1. If the published schema does not match your local run `./scripts/upgrade --upgrade True`
 ## Links
 
 * [Project home page (GitHub)](https://github.com/HumanCellAtlas/fusillade)
