@@ -173,14 +173,24 @@ def delete(uuid: str, replica: str):
     return jsonify({'timeDeleted': time_deleted}), requests.codes.okay
 
 
-def _unregister_percolate(es_client: Elasticsearch, uuid: str):
-    response = es_client.delete_by_query(index="_all",
-                                         doc_type=ESDocType.query.name,
-                                         body={"query": {"ids": {"type": ESDocType.query.name, "values": [uuid]}}},
-                                         conflicts="proceed",
-                                         refresh=True)
-    if response['failures']:
-        logger.error("Failed to unregister percolate query for subscription %s: %s", uuid, response)
+def _unregister_percolate(es_client: Elasticsearch, subscribed_indexes: List[str], uuid: str):
+    indices = es_client.indices.get('*').keys()
+
+    def chunked(input_list, chunk_size=20):
+        """Yields sublists of a specified chunk size from a single list."""
+        for i in range(0, len(input_list), chunk_size):
+            yield input_list[i:i + chunk_size]
+
+    # we chunk the indices because otherwise the url query extends to be too long and produces a 413 error
+    # https://github.com/HumanCellAtlas/data-store/issues/2204
+    for indices_group in chunked(indices):
+        response = es_client.delete_by_query(index=','.join(indices_group),
+                                             doc_type=ESDocType.query.name,
+                                             body={"query": {"ids": {"type": ESDocType.query.name, "values": [uuid]}}},
+                                             conflicts="proceed",
+                                             refresh=True)
+        if response['failures']:
+            logger.error("Failed to unregister percolate query for subscription %s: %s", uuid, response)
 
 
 def _register_percolate(es_client: Elasticsearch, index_name: str, uuid: str, es_query: dict, replica: str):
