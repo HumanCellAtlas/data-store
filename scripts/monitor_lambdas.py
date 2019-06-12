@@ -50,8 +50,8 @@ def get_lambda_names(stage=None):
 
 def get_cloudwatch_metric_stat(namespace: str, metric_name: str, stats: list, dimensions):
     #  Returns a formatted MetricDataQuery that can be used with CloudWatch Metrics
-    end_time = script_end_time
-    start_time = script_start_time
+    end_time = aws_end_time
+    start_time = aws_start_time
     period = 43200
     if not stats:
         stats = ['Sum']
@@ -80,7 +80,7 @@ def format_lambda_results_for_slack(results: dict):
     bucket_header = '\n Bucket | BytesUploaded | BytesDownloaded \n'
     payload = []
     for stage, infra in results.items():
-        temp_results_lambdas = [header.format(stage, script_start_time, script_end_time)]
+        temp_results_lambdas = [header.format(stage, aws_start_time, aws_end_time)]
         temp_results_buckets = [bucket_header]
         for k, v in infra.items():
             if 'lambdas' in k:
@@ -125,8 +125,8 @@ if os.environ["DSS_DEPLOYMENT_STAGE"] is None:
     exit(1)
 
 # variables
-script_end_time = datetime.datetime.now()
-script_start_time = script_end_time - datetime.timedelta(days=1)
+aws_end_time = datetime.datetime.now()
+aws_start_time = aws_end_time - datetime.timedelta(days=1)
 bucket_list = [os.environ['DSS_S3_BUCKET'], os.environ['DSS_S3_CHECKOUT_BUCKET']]
 bucket_query_metric_names = ['BytesDownloaded', 'BytesUploaded']
 lambda_query_metric_names = ['Duration', 'Invocations']
