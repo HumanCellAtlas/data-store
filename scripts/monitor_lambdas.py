@@ -124,7 +124,7 @@ def get_cloudwatch_log_events(group_name: str, filter_pattern: str, token: str =
         epoch = datetime.datetime.utcfromtimestamp(0)
         events = []
 
-        # TODO fix timing 
+        # TODO fix timing
         kwargs = {'endTime': int((aws_end_time - epoch).total_seconds()*1000),
                   'startTime': int((aws_start_time - epoch).total_seconds()*1000),
                   'logGroupName': group_name, 'filterPattern': filter_pattern, 'interleaved': True}
