@@ -1,3 +1,5 @@
+#! /usr/bin/env python
+
 import os
 import boto3
 import datetime
@@ -7,11 +9,10 @@ import argparse
 import collections
 
 
-#
-
 cloudwatch = boto3.client('cloudwatch')
 resourcegroupstaggingapi = boto3.client('resourcegroupstaggingapi')
 secretsmanager = boto3.client('secretsmanager')
+logsmanager = boto3.client('logs')
 
 
 parser = argparse.ArgumentParser(description=__doc__)
@@ -119,13 +120,34 @@ def format_data_size(value: int):
             return (format + '%s') % ((base * value / unit), s)
 
 
+def get_cloudwatch_log_events(group_name: str, filter_pattern: str, token: str = None):
+        epoch = datetime.datetime.utcfromtimestamp(0)
+        events = []
+
+        # TODO fix timing 
+        kwargs = {'endTime': int((aws_end_time - epoch).total_seconds()*1000),
+                  'startTime': int((aws_start_time - epoch).total_seconds()*1000),
+                  'logGroupName': group_name, 'filterPattern': filter_pattern, 'interleaved': True}
+        if token:
+            kwargs['nextToken'] = token
+        res = logsmanager.filter_log_events(**kwargs)
+        print(res)
+        if len(res["events"]) > 0:
+            print(f'found events : {len(res["events"])}')
+            events.extend(res["events"])
+
+        if res['nextToken']:
+            print('recurse')
+            events.extend(get_cloudwatch_log_events(group_name, filter_pattern, token))
+        return events
+
 # conditionals
 if os.environ["DSS_DEPLOYMENT_STAGE"] is None:
     raise ValueError('Missing DSS_DEPLOYMENT_STAGE, exiting....')
     exit(1)
 
 # variables
-aws_end_time = datetime.datetime.now()
+aws_end_time = datetime.datetime.utcnow()
 aws_start_time = aws_end_time - datetime.timedelta(days=1)
 bucket_list = [os.environ['DSS_S3_BUCKET'], os.environ['DSS_S3_CHECKOUT_BUCKET']]
 bucket_query_metric_names = ['BytesDownloaded', 'BytesUploaded']
