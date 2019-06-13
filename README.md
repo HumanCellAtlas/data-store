@@ -311,7 +311,23 @@ And you should be able to list bundles like this:
 
     curl -X GET "https://<domain_name>/v1/bundles" -H  "accept: application/json"
 
+#### Monitoring
+Currently the following metrics can be provided from the DSS Lambdas:
+	
+	* Lambda Duration
+	* Lambda Invocations 
 
+This monitoring feature must be explicitly deployed:
+
+```
+# First set the callback URL secret in the Secret Manager. 
+source environment
+echo "https://CALLBACKURL" | $DSS_HOME/scripts/set_secret.py --secret-name $DSS_MONITOR_WEBHOOK_SECRET_NAME
+# Then build out infra/fargate
+make -C infra COMPONENT=fargate plan
+make -C infra COMPONENT=fargate apply
+```
+By default the Monitor Task will post every 24 hours at 00:00 UTC; and display the past 24 hours of collected metrics. 
 
 ### CI/CD with Travis CI and GitLab
 

@@ -168,7 +168,8 @@ resource "aws_ecs_task_definition" "monitor" {
     },
     "environment" :[
           {"name": "DSS_DEPLOYMENT_STAGE", "value": "${var.DSS_DEPLOYMENT_STAGE}"},
-          {"name": "DSS_SECRETS_STORE", "value": "${var.DSS_SECRETS_STORE}"}
+          {"name": "DSS_SECRETS_STORE", "value": "${var.DSS_SECRETS_STORE}"},
+          {"name": "DSS_MONITOR_WEBHOOK_SECRET_NAME", "value": "${var.DSS_MONITOR_WEBHOOK_SECRET_NAME}"}
     ]
   }
 ]
@@ -183,8 +184,8 @@ resource "aws_cloudwatch_log_group" "task-performer" {
 }
 
 resource "aws_cloudwatch_event_rule" "dss-monitor" {
-  name = "dss-monitor-trigger"
-  schedule_expression = "cron(0 0 * * ? *)"
+  name = "dss-monitor-trigger-${var.DSS_DEPLOYMENT_STAGE}"
+  schedule_expression = "cron(0 17 * * ? *)"
   description = "daily event trigger for dss-monitor notifications"
   tags = "${local.common_tags}"
 
