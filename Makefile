@@ -32,6 +32,12 @@ install: docs
 set_oauth2_config:
 	cat ./oauth2_config.json | ./scripts/set_secret.py --secret-name oauth2_config
 
+check_directory_schema:
+	./scripts/upgrade_schema.py
+
+upgrade_directory_schema: check_directory_schema
+	./scripts/upgrade_schema.py --upgrade-published --upgrade-directory
+
 plan-infra:
 	$(MAKE) -C infra plan-all
 
