@@ -55,7 +55,7 @@ package:
 setup_directory:
 	./scripts/make_directory.py
 
-deploy: package setup_directory
+deploy: package setup_directory check_directory_schema
 	./build_chalice_config.sh $(FUS_DEPLOYMENT_STAGE)
 	chalice deploy --no-autogen-policy --stage $(FUS_DEPLOYMENT_STAGE) --api-gateway-stage $(FUS_DEPLOYMENT_STAGE)
 

@@ -13,7 +13,7 @@ info:
     [GitHub API](https://developer.github.com/v3/guides/traversing-with-pagination/),
     which is based on [RFC 5988](https://tools.ietf.org/html/rfc5988). When the results of an API call exceed the
     page size specified, the HTTP response will contain a `Link` header of the following form:
-    `Link: <https://dss.data.humancellatlas.org/v1/search?replica=aws&per_page=100&search_after=123>; rel="next"`.
+    `Link: <https://auth.data.humancellatlas.org/v1/users?per_page=30&next_token=123>; rel="next"`.
     The URL in the header refers to the next page of the results to be fetched; if no `Link rel="next"` URL is
     included, then all results have been fetched. The client should recognize and parse the `Link` header
     appropriately according to RFC 5988, and retrieve the next page if requested by the user, or if all results
