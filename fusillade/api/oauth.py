@@ -161,7 +161,10 @@ def cb():
                                                  client_secret=oauth2_config[openid_provider]["client_secret"],
                                                  redirect_uri=oauth2_config[openid_provider]["redirect_uri"],
                                                  grant_type="authorization_code"))
-        res.raise_for_status()
+        try:
+            res.raise_for_status()
+        except requests.exceptions.HTTPError:
+            return make_response(res.text, res.status_code, res.headers.items())
         token_header = jwt.get_unverified_header(res.json()["id_token"])
         public_keys = get_public_keys(openid_provider)
         tok = jwt.decode(res.json()["id_token"],
