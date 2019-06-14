@@ -17,6 +17,7 @@ from typing import Iterator, Any, Tuple, Dict, List, Callable, Optional, Union, 
 
 from dcplib.aws import clients as aws_clients
 
+from fusillade import Config
 from fusillade.errors import FusilladeException, FusilladeHTTPException, FusilladeNotFoundException
 from fusillade.utils.retry import retry
 
@@ -117,21 +118,21 @@ def create_directory(name: str, schema: str, admins: List[str]) -> 'CloudDirecto
         )
     except cd_client.exceptions.DirectoryAlreadyExistsException:
         directory = CloudDirectory.from_name(name)
+        return directory
     else:
         # create structure
         for folder_name in ('group', 'user', 'role', 'policy'):
             directory.create_folder('/', folder_name)
 
         # create roles
-        Role.create(directory, "default_user", statement=get_json_file(default_user_role_path))
-        Role.create(directory, "fusillade_admin", statement=get_json_file(default_admin_role_path))
-        Group.create(directory, "user_default").add_roles(['default_user'])
+        Role.create("default_user", statement=get_json_file(default_user_role_path))
+        Role.create("fusillade_admin", statement=get_json_file(default_admin_role_path))
+        Group.create("user_default").add_roles(['default_user'])
 
         # create admins
         for admin in admins:
-            User.provision_user(directory, admin, roles=['fusillade_admin'])
-        User.provision_user(directory, 'public')
-    finally:
+            User.provision_user(admin, roles=['fusillade_admin'])
+        User.provision_user('public')
         return directory
 
 
@@ -891,26 +892,24 @@ class CloudNode:
     allowed_policy_types = ('IAMPolicy',)
 
     def __init__(self,
-                 cloud_directory: CloudDirectory,
                  name: str = None,
                  object_ref: str = None):
         """
 
-        :param cloud_directory:
         :param name:
         :param object_ref:
         """
+        self.cd: CloudDirectory = Config.get_directory()
         if name and object_ref:
             raise FusilladeException("object_reference XOR name")
         if name:
             self._name: str = name
             self._path_name: str = self.hash_name(name)
-            self.object_ref: str = cloud_directory.get_obj_type_path(self.object_type) + self._path_name
+            self.object_ref: str = self.cd.get_obj_type_path(self.object_type) + self._path_name
         else:
             self._name: str = None
             self._path_name: str = None
             self.object_ref: str = object_ref
-        self.cd: CloudDirectory = cloud_directory
         self.attached_policies: Dict[str, str] = dict()
 
     @staticmethod
@@ -1083,12 +1082,13 @@ class CloudNode:
         return dict([(attr['Key']['Name'], attr['Value'].popitem()[1]) for attr in resp['Attributes']])
 
     @classmethod
-    def list_all(cls, directory: CloudDirectory, next_token: str, per_page: int):
-        resp, next_token = directory.list_object_children_paged(f'/{cls.object_type}/', next_token, per_page)
-        operations = [directory.batch_get_attributes(f'${obj_ref}', cls._facet, ['name'])
+    def list_all(cls, next_token: str, per_page: int):
+        cd = Config.get_directory()
+        resp, next_token = cd.list_object_children_paged(f'/{cls.object_type}/', next_token, per_page)
+        operations = [cd.batch_get_attributes(f'${obj_ref}', cls._facet, ['name'])
                       for obj_ref in resp.values()]
         results = []
-        for r in directory.batch_read(operations)['Responses']:
+        for r in cd.batch_read(operations)['Responses']:
             if r.get('SuccessfulResponse'):
                 results.append(
                     r.get('SuccessfulResponse')['GetObjectAttributes']['Attributes'][0]['Value']['StringValue'])
@@ -1267,21 +1267,21 @@ class CreateMixin(PolicyMixin):
     """Adds creation support to a cloudNode"""
 
     @classmethod
-    def create(cls, cloud_directory: CloudDirectory, name: str, statement: Optional[str] = None,
+    def create(cls, name: str, statement: Optional[str] = None,
                creator=None) -> Type['CloudNode']:
         if not statement:
             statement = get_json_file(cls._default_policy_path)
         cls._verify_statement(statement)
         _creator = creator if creator else "fusillade"
         try:
-            cloud_directory.create_object(cls.hash_name(name), cls._facet, name=name, obj_type=cls.object_type,
-                                          created_by=_creator)
+            Config.get_directory().create_object(cls.hash_name(name), cls._facet, name=name, obj_type=cls.object_type,
+                                                 created_by=_creator)
         except cd_client.exceptions.LinkNameAlreadyInUseException:
             raise FusilladeHTTPException(
                 status=409, title="Conflict", detail=f"The {cls.object_type} named {name} already exists.")
-        new_node = cls(cloud_directory, name)
+        new_node = cls(name)
         if creator:
-            User(cloud_directory, name=creator).add_ownership(new_node)
+            User(name=creator).add_ownership(new_node)
         logger.info(dict(message=f"{cls.object_type} created by {_creator}",
                          object=dict(type=new_node.object_type, path_name=new_node._path_name)))
         new_node._set_policy_with_retry(statement)
@@ -1397,14 +1397,12 @@ class User(CloudNode, RolesMixin, PolicyMixin, OwnershipMixin):
     _facet = 'LeafFacet'
     object_type = 'user'
 
-    def __init__(self, cloud_directory: CloudDirectory, name: str = None, object_ref: str = None):
+    def __init__(self, name: str = None, object_ref: str = None):
         """
 
-        :param cloud_directory:
         :param name:
         """
-        super(User, self).__init__(cloud_directory,
-                                   name=name,
+        super(User, self).__init__(name=name,
                                    object_ref=object_ref)
         self._status = None
         self._groups: Optional[List[str]] = None
@@ -1414,7 +1412,7 @@ class User(CloudNode, RolesMixin, PolicyMixin, OwnershipMixin):
         try:
             policy_paths = self.lookup_policies_batched()
         except cd_client.exceptions.ResourceNotFoundException:
-            self.provision_user(self.cd, self.name)
+            self.provision_user(self.name)
             policy_paths = self.lookup_policies_batched()
         return self.cd.get_policies(policy_paths)
 
@@ -1471,7 +1469,6 @@ class User(CloudNode, RolesMixin, PolicyMixin, OwnershipMixin):
     @classmethod
     def provision_user(
             cls,
-            cloud_directory: CloudDirectory,
             name: str,
             statement: Optional[str] = None,
             roles: List[str] = None,
@@ -1481,14 +1478,13 @@ class User(CloudNode, RolesMixin, PolicyMixin, OwnershipMixin):
         """
         Creates a user in cloud directory if the users does not already exists.
 
-        :param cloud_directory:
         :param name:
         :param statement:
         :param roles:
         :param groups:
         :return:
         """
-        user = cls(cloud_directory, name)
+        user = cls(name)
         _creator = creator if creator else "fusillade"
         try:
             user.cd.create_object(user._path_name,
@@ -1577,13 +1573,12 @@ class Group(CloudNode, RolesMixin, CreateMixin, OwnershipMixin):
     object_type = 'group'
     _default_policy_path = default_group_policy_path
 
-    def __init__(self, cloud_directory: CloudDirectory, name: str = None, object_ref: str = None):
+    def __init__(self, name: str = None, object_ref: str = None):
         """
 
-        :param cloud_directory:
         :param name:
         """
-        super(Group, self).__init__(cloud_directory, name=name, object_ref=object_ref)
+        super(Group, self).__init__(name=name, object_ref=object_ref)
         self._groups: Optional[List[str]] = None
         self._roles: Optional[List[str]] = None
 
@@ -1638,7 +1633,7 @@ class Group(CloudNode, RolesMixin, CreateMixin, OwnershipMixin):
         :return:
         """
         for user in users:
-            User(self.cd, user).remove_groups([self._path_name])
+            User(user).remove_groups([self._path_name])
         logger.info(dict(message="Removing users from group",
                          object=dict(type=self.object_type, path_name=self._path_name),
                          users=[user for user in users]))
@@ -1657,8 +1652,8 @@ class Role(CloudNode, CreateMixin):
     object_type: str = 'role'
     _default_policy_path: str = default_role_path
 
-    def __init__(self, cloud_directory: CloudDirectory, name: str = None, object_ref: str = None):
-        super(Role, self).__init__(cloud_directory, name=name, object_ref=object_ref)
+    def __init__(self, name: str = None, object_ref: str = None):
+        super(Role, self).__init__(name=name, object_ref=object_ref)
 
     def get_info(self):
         info = super(Role, self).get_info()

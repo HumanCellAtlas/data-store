@@ -16,7 +16,6 @@ sys.path.insert(0, pkg_root)  # noqa
 from tests.base_api_test import BaseAPITest
 from tests.common import get_auth_header, service_accounts, create_test_statement
 from tests.data import TEST_NAMES_NEG, TEST_NAMES_POS
-from fusillade import directory
 from fusillade.clouddirectory import Role, Group, User
 
 
@@ -42,7 +41,7 @@ class TestGroupApi(BaseAPITest, unittest.TestCase):
                 'name': f'201 returned when creating a group with role only',
                 'json_request_body': {
                     "group_id": "Group1",
-                    "roles": [Role.create(directory, "role_02").name]
+                    "roles": [Role.create( "role_02").name]
                 },
                 'response': {
                     'code': 201
@@ -62,7 +61,7 @@ class TestGroupApi(BaseAPITest, unittest.TestCase):
                 'name': f'201 returned when creating a group with role and policy',
                 'json_request_body': {
                     "group_id": "Group3",
-                    "roles": [Role.create(directory, "role_04").name],
+                    "roles": [Role.create( "role_04").name],
                     "policy": create_test_statement("policy_04")
                 },
                 'response': {
@@ -72,7 +71,7 @@ class TestGroupApi(BaseAPITest, unittest.TestCase):
             {
                 'name': f'400 returned when creating a group without group_id',
                 'json_request_body': {
-                    "roles": [Role.create(directory, "role_05").name],
+                    "roles": [Role.create( "role_05").name],
                     "policy": create_test_statement("policy_05")
                 },
                 'response': {
@@ -127,7 +126,7 @@ class TestGroupApi(BaseAPITest, unittest.TestCase):
         name = "Groupx"
         resp = self.app.get(f'/v1/group/{name}/', headers=headers)
         self.assertEqual(404, resp.status_code)
-        Group.create(directory,name)
+        Group.create(name)
         resp = self.app.get(f'/v1/group/{name}/', headers=headers)
         self.assertEqual(name, json.loads(resp.body)['group_id'])
         self.assertTrue(json.loads(resp.body)['policies'])
@@ -152,7 +151,7 @@ class TestGroupApi(BaseAPITest, unittest.TestCase):
                 'group_id': "Group1",
                 'action': 'add',
                 'json_request_body': {
-                    "roles": [Role.create(directory, "role_0").name]
+                    "roles": [Role.create( "role_0").name]
                 },
                 'response': {
                     'code': 200
@@ -162,7 +161,7 @@ class TestGroupApi(BaseAPITest, unittest.TestCase):
                 'group_id': "Group2",
                 'action': 'remove',
                 'json_request_body': {
-                    "roles": [Role.create(directory, "role_1").name]
+                    "roles": [Role.create( "role_1").name]
                 },
                 'response': {
                     'code': 200
@@ -180,7 +179,7 @@ class TestGroupApi(BaseAPITest, unittest.TestCase):
                     'action': test['action']
                 }
                 url.add(query_params=query_params)
-                group = Group.create(directory, test['group_id'])
+                group = Group.create( test['group_id'])
                 if test['action'] == 'remove':
                     group.add_roles(test['json_request_body']['roles'])
                 resp = self.app.put(url.url, headers=headers, data=data)
@@ -191,11 +190,11 @@ class TestGroupApi(BaseAPITest, unittest.TestCase):
         headers.update(get_auth_header(service_accounts['admin']))
         name = "Group1"
         key = 'roles'
-        group = Group.create(directory,name)
+        group = Group.create(name)
         resp = self.app.get(f'/v1/group/{name}/roles', headers=headers)
-        group_role_names = [Role(directory, None, role).name for role in group.roles]
+        group_role_names = [Role( None, role).name for role in group.roles]
         self.assertEqual(0, len(json.loads(resp.body)[key]))
-        roles = [Role.create(directory, f"role_{i}").name for i in range(10)]
+        roles = [Role.create( f"role_{i}").name for i in range(10)]
         group.add_roles(roles)
         self._test_paging(f'/v1/group/{name}/roles', headers, 5, key)
 
@@ -204,11 +203,11 @@ class TestGroupApi(BaseAPITest, unittest.TestCase):
         headers.update(get_auth_header(service_accounts['admin']))
         name = "Group1"
         key = 'users'
-        group = Group.create(directory,name)
+        group = Group.create(name)
         resp = self.app.get(f'/v1/group/{name}/users', headers=headers)
-        group_user_names = [User(directory,user).name for user in group.get_users_iter()]
+        group_user_names = [User(user).name for user in group.get_users_iter()]
         self.assertEqual(0, len(json.loads(resp.body)[key]))
-        users = [User.provision_user(directory, f"user_{i}",groups=[name]).name for i in range(10)]
+        users = [User.provision_user( f"user_{i}",groups=[name]).name for i in range(10)]
         self._test_paging(f'/v1/group/{name}/users', headers, 5, key)
 
     def test_default_group(self):

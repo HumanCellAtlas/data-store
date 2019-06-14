@@ -52,7 +52,10 @@ package:
 	rm ./chalicelib/service_config.json
 	cp -R ./fusillade ./policies ./service_config.json chalicelib
 
-deploy: package
+setup_directory:
+	./scripts/make_directory.py
+
+deploy: package setup_directory
 	./build_chalice_config.sh $(FUS_DEPLOYMENT_STAGE)
 	chalice deploy --no-autogen-policy --stage $(FUS_DEPLOYMENT_STAGE) --api-gateway-stage $(FUS_DEPLOYMENT_STAGE)
 

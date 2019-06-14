@@ -16,7 +16,6 @@ sys.path.insert(0, pkg_root)  # noqa
 from tests.base_api_test import BaseAPITest
 from tests.common import get_auth_header, service_accounts, create_test_statement
 from tests.data import TEST_NAMES_POS, TEST_NAMES_NEG
-from fusillade import directory
 from fusillade.clouddirectory import User, Group, Role
 
 
@@ -42,7 +41,7 @@ class TestUserApi(BaseAPITest, unittest.TestCase):
                 'name': f'201 returned when creating a user with group only',
                 'json_request_body': {
                     "user_id": "test_post_user1@email.com",
-                    "groups": [Group.create(directory, "group_01").name]
+                    "groups": [Group.create( "group_01").name]
                 },
                 'response': {
                     'code': 201
@@ -52,7 +51,7 @@ class TestUserApi(BaseAPITest, unittest.TestCase):
                 'name': f'201 returned when creating a user with role only',
                 'json_request_body': {
                     "user_id": "test_post_user2@email.com",
-                    "roles": [Role.create(directory, "role_02").name]
+                    "roles": [Role.create( "role_02").name]
                 },
                 'response': {
                     'code': 201
@@ -72,8 +71,8 @@ class TestUserApi(BaseAPITest, unittest.TestCase):
                 'name': f'201 returned when creating a user with group, role and policy',
                 'json_request_body': {
                     "user_id": "test_post_user4@email.com",
-                    "groups": [Group.create(directory, "group_04").name],
-                    "roles": [Role.create(directory, "role_04").name],
+                    "groups": [Group.create( "group_04").name],
+                    "roles": [Role.create( "role_04").name],
                     "policy": create_test_statement("policy_04")
                 },
                 'response': {
@@ -83,8 +82,8 @@ class TestUserApi(BaseAPITest, unittest.TestCase):
             {
                 'name': f'400 returned when creating a user without username',
                 'json_request_body': {
-                    "groups": [Group.create(directory, "group_05").name],
-                    "roles": [Role.create(directory, "role_05").name],
+                    "groups": [Group.create( "group_05").name],
+                    "roles": [Role.create( "role_05").name],
                     "policy": create_test_statement("policy_05")
                 },
                 'response': {
@@ -182,7 +181,7 @@ class TestUserApi(BaseAPITest, unittest.TestCase):
                     'status': test['status']
                 }
                 url.add(query_params=query_params)
-                user = User.provision_user(directory, test['name'])
+                user = User.provision_user( test['name'])
                 if test['status'] == 'disabled':
                     user.enable()
                 resp = self.app.put(url.url, headers=headers)
@@ -194,7 +193,7 @@ class TestUserApi(BaseAPITest, unittest.TestCase):
                 'name': "test_put_user_group0@email.com",
                 'action': 'add',
                 'json_request_body': {
-                    "groups": [Group.create(directory, "group_0").name]
+                    "groups": [Group.create( "group_0").name]
                 },
                 'response': {
                     'code': 200
@@ -204,7 +203,7 @@ class TestUserApi(BaseAPITest, unittest.TestCase):
                 'name': "test_put_user_group1@email.com",
                 'action': 'remove',
                 'json_request_body': {
-                    "groups": [Group.create(directory, "group_1").name]
+                    "groups": [Group.create( "group_1").name]
                 },
                 'response': {
                     'code': 200
@@ -222,7 +221,7 @@ class TestUserApi(BaseAPITest, unittest.TestCase):
                     'action': test['action']
                 }
                 url.add(query_params=query_params)
-                user = User.provision_user(directory, test['name'])
+                user = User.provision_user( test['name'])
                 if test['action'] == 'remove':
                     user.add_groups(test['json_request_body']['groups'])
                 resp = self.app.put(url.url, headers=headers, data=data)
@@ -233,10 +232,10 @@ class TestUserApi(BaseAPITest, unittest.TestCase):
         headers.update(get_auth_header(service_accounts['admin']))
         name = "test_user_group_api@email.com"
         key = 'groups'
-        user = User.provision_user(directory, name)
+        user = User.provision_user( name)
         resp = self.app.get(f'/v1/user/{name}/groups', headers=headers)
         self.assertEqual(1, len(json.loads(resp.body)[key]))
-        groups = [Group.create(directory, f"group_{i}").name for i in range(10)]
+        groups = [Group.create( f"group_{i}").name for i in range(10)]
         user.add_groups(groups)
         self._test_paging(f'/v1/user/{name}/groups', headers, 6, key)
 
@@ -246,7 +245,7 @@ class TestUserApi(BaseAPITest, unittest.TestCase):
                 'name': "test_put_user_role0@email.com",
                 'action': 'add',
                 'json_request_body': {
-                    "roles": [Role.create(directory, "role_0").name]
+                    "roles": [Role.create( "role_0").name]
                 },
                 'response': {
                     'code': 200
@@ -256,7 +255,7 @@ class TestUserApi(BaseAPITest, unittest.TestCase):
                 'name': "test_put_user_role1@email.com",
                 'action': 'remove',
                 'json_request_body': {
-                    "roles": [Role.create(directory, "role_1").name]
+                    "roles": [Role.create( "role_1").name]
                 },
                 'response': {
                     'code': 200
@@ -274,7 +273,7 @@ class TestUserApi(BaseAPITest, unittest.TestCase):
                     'action': test['action']
                 }
                 url.add(query_params=query_params)
-                user = User.provision_user(directory, test['name'])
+                user = User.provision_user( test['name'])
                 if test['action'] == 'remove':
                     user.add_roles(test['json_request_body']['roles'])
                 resp = self.app.put(url.url, headers=headers, data=data)
@@ -285,11 +284,11 @@ class TestUserApi(BaseAPITest, unittest.TestCase):
         headers.update(get_auth_header(service_accounts['admin']))
         name = "test_user_role_api@email.com"
         key = 'roles'
-        user = User.provision_user(directory, name)
+        user = User.provision_user( name)
         resp = self.app.get(f'/v1/user/{name}/roles', headers=headers)
-        user_role_names = [Role(directory, None, role).name for role in user.roles]
+        user_role_names = [Role( None, role).name for role in user.roles]
         self.assertEqual(0, len(json.loads(resp.body)[key]))
-        roles = [Role.create(directory, f"role_{i}").name for i in range(11)]
+        roles = [Role.create( f"role_{i}").name for i in range(11)]
         user.add_roles(roles)
         self._test_paging(f'/v1/user/{name}/roles', headers, 6, key)
 
@@ -298,12 +297,12 @@ class TestUserApi(BaseAPITest, unittest.TestCase):
         headers.update(get_auth_header(service_accounts['admin']))
         name = "test_user_role_api@email.com"
         key = 'roles'
-        user = User.provision_user(directory, name)
+        user = User.provision_user( name)
         url = furl(f"/v1/user/{name}/owns", query_params={'resource_type': 'role'}).url
         resp = self.app.get(url, headers=headers)
-        user_role_names = [Role(directory, None, role).name for role in user.roles]
+        user_role_names = [Role( None, role).name for role in user.roles]
         self.assertEqual(0, len(json.loads(resp.body)[key]))
-        roles = [Role.create(directory, f"role_{i}") for i in range(11)]
+        roles = [Role.create( f"role_{i}") for i in range(11)]
         user.add_roles([role.name for role in roles])
         [user.add_ownership(role) for role in roles]
         self._test_paging(url, headers, 6, key)

@@ -16,7 +16,6 @@ sys.path.insert(0, pkg_root)  # noqa
 from tests.base_api_test import BaseAPITest
 from tests.common import get_auth_header, service_accounts, create_test_statement
 from tests.data import TEST_NAMES_NEG, TEST_NAMES_POS
-from fusillade import directory, Config
 from fusillade.clouddirectory import Role
 
 
@@ -223,8 +222,8 @@ class TestRoleApi(BaseAPITest, unittest.TestCase):
             } for role_id, description in TEST_NAMES_NEG if role_id is not ''
         ])
         policy = create_test_statement("test_role")
-        Role.create(directory, role_id, policy)
-        [Role.create(directory, role_id, policy) for role_id, _ in TEST_NAMES_POS]
+        Role.create(role_id, policy)
+        [Role.create(role_id, policy) for role_id, _ in TEST_NAMES_POS]
         for test in tests:
             with self.subTest(test['name']):
                 url = furl('/v1/role/{}'.format(test['role_id']))
@@ -244,7 +243,7 @@ class TestRoleApi(BaseAPITest, unittest.TestCase):
         policy_1 = create_test_statement(role_id)
         policy_2 = create_test_statement('ABCD')
         policy_invalid = "invalid policy"
-        Role.create(directory, role_id, policy_1)
+        Role.create(role_id, policy_1)
         admin_auth_header = get_auth_header(service_accounts['admin'])
         tests = [
             {

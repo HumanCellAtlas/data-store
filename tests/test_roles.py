@@ -29,14 +29,14 @@ class TestRole(unittest.TestCase):
     def test_role_default(self):
         with self.subTest("a role is set to default policy when role.create is called without a statement."):
             role_name = "test_role_default"
-            role = Role.create(self.directory, role_name)
+            role = Role.create(role_name)
             self.assertEqual(role.name, role_name)
             self.assertEqual(role.get_policy(), self.default_role_statement)
 
     def test_role_statement(self):
         role_name = "test_role_specified"
         statement = create_test_statement(role_name)
-        role = Role.create(self.directory, role_name, statement)
+        role = Role.create(role_name, statement)
         with self.subTest("a role is created with specified statement when role.create is called with a statement"):
             self.assertEqual(role.name, role_name)
 

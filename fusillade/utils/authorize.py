@@ -5,7 +5,7 @@ from typing import List, Dict, Optional, Any
 
 from dcplib.aws import clients as aws_clients
 
-from fusillade import User, directory
+from fusillade import User
 from fusillade.errors import FusilladeForbiddenException
 
 logger = logging.getLogger(__name__)
@@ -52,7 +52,7 @@ def assert_authorized(user, actions, resources, context_entries=None):
     :param context_entries:
     :return:
     """
-    u = User(directory, user)
+    u = User(user)
     policies = u.lookup_policies()
     _context_entries = [
         {

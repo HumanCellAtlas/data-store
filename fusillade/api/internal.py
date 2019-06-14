@@ -2,8 +2,8 @@ import requests
 from connexion.lifecycle import ConnexionResponse
 from flask import request
 from furl import furl
+
 from fusillade.config import Config
-from fusillade import directory
 
 
 def version():
@@ -21,7 +21,7 @@ def version():
 
 def health_check(*args, **kwargs):
     health_checks = dict()
-    health_checks.update(**directory.get_health_status(),
+    health_checks.update(**Config.get_directory().get_health_status(),
                          **get_openip_health_status())
     if all([check == 'ok' for check in health_checks.values()]):
         body = dict(
