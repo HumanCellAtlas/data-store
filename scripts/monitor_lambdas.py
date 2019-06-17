@@ -79,19 +79,23 @@ def format_lambda_results_for_slack(results: dict):
     # Formats json lambda data into something that can be presented in slack
     header = '\n {} : {} -> {} | \n  Lambda Name | Invocations | Duration (seconds) \n'
     bucket_header = '\n Bucket | BytesUploaded | BytesDownloaded \n'
+    bundle_header = '\n Bundles | {} Ingested | {} Tombstoned \n'
     payload = []
     for stage, infra in results.items():
         temp_results_lambdas = [header.format(stage, aws_start_time, aws_end_time)]
         temp_results_buckets = [bucket_header]
+        temp_results_bundles = []
         for k, v in infra.items():
             if 'lambdas' in k:
                 for ln, val in v.items():
                     temp_results_lambdas.append(f'\n\t | {ln} | {val["Invocations"]} | {val["Duration"]/1000} ')
             elif 'buckets' in k:
                 for bn, val in v.items():
-                    temp_results_buckets.append(f'\n\t | {bn} | {format_data_size(val["BytesUploaded"])} | '
+                    temp_results_buckets.append(f'\n\t | {bn} | {format_data_size(val["BytesUploaded"])}, | '
                                                 f'{format_data_size(val["BytesDownloaded"])}')
-        payload.append(''.join(temp_results_lambdas+temp_results_buckets))
+            elif 'bundles' in k:
+                temp_results_bundles.append(bundle_header.format(v["PUT"], v["DELETE"]))
+        payload.append(''.join(temp_results_lambdas+temp_results_buckets+temp_results_bundles))
 
     return ''.join(payload)
 
@@ -115,9 +119,7 @@ def format_data_size(value: int):
     for i, s in enumerate(suffix):
         unit = base ** (i + 2)
         if value < unit:
-            return (format + ' %s') % ((base * value / unit), s)
-        elif value < unit:
-            return (format + '%s') % ((base * value / unit), s)
+            return f'{round((base * value / unit),2)} {s})'
 
 
 def get_cloudwatch_log_events(group_name: str, filter_pattern: str, token: str = None):
@@ -192,7 +194,7 @@ for stage in stages.keys():
 
         print(x)
         api_temp_dict[x["request_info"]["method"]] += 1
-    stages[stage]['Bundles'].update(api_temp_dict)
+    stages[stage]['bundles'].update(api_temp_dict)
 
 print(json.dumps(stages, indent=4, sort_keys=True))
 if args.no_webhook is False:
