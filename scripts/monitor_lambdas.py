@@ -17,7 +17,7 @@ logsmanager = boto3.client('logs')
 
 parser = argparse.ArgumentParser(description=__doc__)
 parser.add_argument("--no-webhook", required=False, action='store_true',
-                    help='does not push to webhook, outputs json to screen')
+                    help='does not push to webhook')
 args = parser.parse_args()
 
 
@@ -127,16 +127,19 @@ def get_cloudwatch_log_events(group_name: str, filter_pattern: str, token: str =
         # TODO fix timing
         kwargs = {'endTime': int((aws_end_time - epoch).total_seconds()*1000),
                   'startTime': int((aws_start_time - epoch).total_seconds()*1000),
-                  'logGroupName': group_name, 'filterPattern': filter_pattern, 'interleaved': True}
+                  'logGroupName': group_name, 'filterPattern': filter_pattern, 'interleaved': True,
+                  'logStreamNamePrefix': '2019/06/17/[$LATEST]1318818dd1a04fcebd63cff4d5d8a4eb'}
         if token:
             kwargs['nextToken'] = token
         res = logsmanager.filter_log_events(**kwargs)
-        print(res)
-        if len(res["events"]) > 0:
-            print(f'found events : {len(res["events"])}')
-            events.extend(res["events"])
 
-        if res['nextToken']:
+        if len(res["events"]) > 0:
+            for x in res["events"]:
+                index = x['message'].find('{')
+                x = json.loads(x['message'][index:])
+                events.append(x)
+
+        if "nextToken" in res:
             print('recurse')
             events.extend(get_cloudwatch_log_events(group_name, filter_pattern, token))
         return events
@@ -152,6 +155,7 @@ aws_start_time = aws_end_time - datetime.timedelta(days=1)
 bucket_list = [os.environ['DSS_S3_BUCKET'], os.environ['DSS_S3_CHECKOUT_BUCKET']]
 bucket_query_metric_names = ['BytesDownloaded', 'BytesUploaded']
 lambda_query_metric_names = ['Duration', 'Invocations']
+chalice_log_filter_names = ['DELETE', 'PUT']  # TODO need to see how to differ /DELETE logical vs physical.
 stages = {f'{os.environ["DSS_DEPLOYMENT_STAGE"]}': collections.defaultdict(collections.defaultdict)}
 
 for stage in stages.keys():
@@ -167,7 +171,7 @@ for stage in stages.keys():
     stages[stage]['lambdas'].update(stage_lambdas)
     for bucket_name in bucket_list:
         #  Fetch Data for Buckets Data Consumption
-        temp_dir = collections.defaultdict(int)
+        temp_dict = collections.defaultdict(int)
         for metric in bucket_query_metric_names:
             bucket_upload_res = cloudwatch.get_metric_statistics(**get_cloudwatch_metric_stat('AWS/S3',
                                                                                               metric,
@@ -176,9 +180,20 @@ for stage in stages.keys():
                                                                                                 "Value": bucket_name},
                                                                                                {"Name": "FilterId",
                                                                                                 "Value": "EntireBucket"}]))
-            temp_dir[metric] = int(summation_from_datapoints_response(bucket_upload_res))
-        stages[stage]['buckets'].update({bucket_name: temp_dir})
-if args.no_webhook:
-    print(json.dumps(stages, indent=4, sort_keys=True))
-else:
+            temp_dict[metric] = int(summation_from_datapoints_response(bucket_upload_res))
+        stages[stage]['buckets'].update({bucket_name: temp_dict})
+    #
+    api_temp_dict = dict.fromkeys(chalice_log_filter_names, 0)
+    events = get_cloudwatch_log_events('/aws/lambda/dss-dev',
+                                       '{($.request_info.path = "/v1/bundles/*" ) &&'
+                                       '( ($.request_info.method = "PUT") ||'
+                                       '  ($.request_info.method = "DELETE")) }')
+    for x in events:
+
+        print(x)
+        api_temp_dict[x["request_info"]["method"]] += 1
+    stages[stage]['apiMetrics'].update(api_temp_dict)
+
+print(json.dumps(stages, indent=4, sort_keys=True))
+if args.no_webhook is False:
     send_slack_post(get_webhook_ssm(), stages)
