@@ -192,7 +192,7 @@ for stage in stages.keys():
 
         print(x)
         api_temp_dict[x["request_info"]["method"]] += 1
-    stages[stage]['apiMetrics'].update(api_temp_dict)
+    stages[stage]['apiMetrics-Bundles'].update(api_temp_dict)
 
 print(json.dumps(stages, indent=4, sort_keys=True))
 if args.no_webhook is False:
