@@ -17,8 +17,8 @@ from concurrent.futures import ThreadPoolExecutor, as_completed
 from hca.dss import DSSClient
 from hca.util.exceptions import SwaggerAPIException
 
-stage = "dev"
-tombstone_reason = "testing"
+stage = ""
+tombstone_reason = ""
 assert stage
 assert tombstone_reason
 
@@ -58,18 +58,7 @@ def _bundle_status(uuid, version):
     return "FOUND"
 
 bundles_to_tombstone = [
-    "3bfec149-c92d-4769-85a0-044b7b22979e.2019-06-24T141732.340450Z",
-    "67e984df-5207-4666-bfe8-8dbadbbaff10.2019-06-24T135130.200679Z",
-    "746cdb29-eae5-4f9e-b5dd-4c09e952a774.2019-06-24T142206.926728Z",
-    "cf16d40c-11e6-41ca-9302-84a19bd0f549.2019-06-24T143214.239611Z",
-    "d40135d5-c7ec-4508-8b33-1575985c614a.2019-06-24T143625.506479Z",
-    "285ecfaa-b7f5-4c97-819e-cb9dec8fa584.2019-06-24T144152.785863Z",
-    "1c26ea90-a2f2-447b-88ca-708ca1e9fbb7.2019-06-24T144606.217829Z",
-    "b27c1f20-ad63-4bfb-a861-1d0a15d7f7cb.2019-06-24T145741.849241Z",
-    "e97afb85-827c-4f3d-a650-acdf46cb4a70.2019-06-24T145750.816643Z",
-    "c58495b9-aff6-4a84-896a-dfef6d33ba4a.2019-06-24T145805.291749Z",
-    "bdce2a6d-e46b-4b81-8752-98e170a2c465.2019-06-24T145813.718122Z",
-    "48e8ef92-94b9-4a8a-b3ab-abf6f9dee976.2019-06-24T145822.229287Z",
+    # bundles fqid list
 ]
 
 with ThreadPoolExecutor(max_workers=10) as e:
