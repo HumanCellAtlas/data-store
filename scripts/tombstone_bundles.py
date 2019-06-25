@@ -12,6 +12,7 @@ Usage:
 """
 import sys
 import time
+from traceback import format_exc
 from concurrent.futures import ThreadPoolExecutor, as_completed
 
 from hca.dss import DSSClient
@@ -29,8 +30,9 @@ else:
 
 def tombstone_bundle(fqid):
     uuid, version = fqid.split(".", 1)
-    bundle_status = _bundle_status(uuid, version)
-    if "FOUND" == bundle_status:
+    bundle_found = _bundle_found(uuid, version)
+    bundle_already_tombstoned = _bundle_tombstoned(uuid, version)
+    if bundle_found and not bundle_already_tombstoned:
         resp = dss_client.delete_bundle(
             replica="aws",
             uuid=uuid,
@@ -38,24 +40,33 @@ def tombstone_bundle(fqid):
             reason=tombstone_reason,
         )
         for _ in range(30):
-            try:
-                bundle_status = _bundle_status(uuid, version)
-                if "TOMBSTONED" == bundle_status:
-                    break
-            except (KeyError, IndexError, AssertionError):
+            if _bundle_tombstoned(uuid, version):
+                break
+            else:
                 time.sleep(1)
         else:
             raise Exception(f"Unable to verity tombstone {uuid}")
-    return bundle_status, fqid
+    return bundle_found, bundle_already_tombstoned, fqid
 
-def _bundle_status(uuid, version):
-    bundle_query_with_version = {'query':{'bool':{'must':[{'match':{'uuid':uuid}},{'match':{'version':version}},]}}}
+def _bundle_found(uuid, version):
+    try:
+        resp = dss_client.get_bundle(replica="aws", uuid=uuid, version=version)
+        return True
+    except SwaggerAPIException as e:
+        if 404 == e.code:
+            return False
+        else:
+            raise
+
+def _bundle_tombstoned(uuid, version):
+    bundle_query_with_version = {"query":{"bool":{"must":[{"match":{"uuid":uuid}},{"match":{"version":version}},]}}}
     resp = dss_client.post_search(replica="aws", es_query=bundle_query_with_version, output_format="raw")
     if 0 == resp['total_hits']:
-        return "NOT_FOUND"
+        return False
     elif 'admin_deleted' in resp['results'][0]['metadata']:
-        return "TOMBSTONED"
-    return "FOUND"
+        return True
+    else:
+        return False
 
 bundles_to_tombstone = [
     # bundles fqid list
@@ -67,7 +78,17 @@ with ThreadPoolExecutor(max_workers=10) as e:
         futures.append(e.submit(tombstone_bundle, fqid))
     for f in as_completed(futures):
         try:
-            bundle_status, fqid = f.result()
+            bundle_found, bundle_already_tombstoned, fqid = f.result()
+            if bundle_already_tombstoned:
+                bundle_status = "ALLREADY_TOMBSTONED"            
+            elif not bundle_found:
+                bundle_status = "NOT_FOUND"
+            else:
+                bundle_status = "TOMBSTONED"            
             print(bundle_status, fqid)
+        except SwaggerAPIException as e:
+            if 403 == e.code:
+                print(e)
+                sys.exit(1)
         except Exception as e:
-            sys.stderr.write(str(e))
+            sys.stderr.write(format_exc())
