@@ -22,7 +22,7 @@ from fusillade.clouddirectory import User, Group, Role
 class TestUserApi(BaseAPITest, unittest.TestCase):
     def tearDown(self):
         self.clear_directory(users=[
-            service_accounts['admin']['client_email']
+            service_accounts['admin']['client_email'],
         ])
 
     def test_post_new_user(self):
@@ -145,6 +145,7 @@ class TestUserApi(BaseAPITest, unittest.TestCase):
         self._test_paging(f'/v1/users', headers, 7, 'users')
 
     def test_get_user(self):
+        User.provision_user(service_accounts['user']['client_email'])
         headers = {'Content-Type': "application/json"}
         headers.update(get_auth_header(service_accounts['user']))
         name = service_accounts['user']['client_email']
@@ -186,6 +187,39 @@ class TestUserApi(BaseAPITest, unittest.TestCase):
                     user.enable()
                 resp = self.app.put(url.url, headers=headers)
                 self.assertEqual(test['response']['code'], resp.status_code)
+
+    def test_user_status(self):
+        User.provision_user(service_accounts['user']['client_email'])
+        user_id = service_accounts['user']['client_email']
+        user_headers = {'Content-Type': "application/json"}
+        user_headers.update(get_auth_header(service_accounts['user']))
+        admin_headers = {'Content-Type': "application/json"}
+        admin_headers.update(get_auth_header(service_accounts['admin']))
+
+        disable_url = furl(f"/v1/user/{user_id}", query_params={'user_id': user_id, 'status': 'disabled'})
+        enable_url = furl(f"/v1/user/{user_id}", query_params={'user_id': user_id, 'status': 'enabled'})
+        test_user_url = furl(f"/v1/user/{user_id}/")
+
+        # check user can get info
+        resp = self.app.get(test_user_url.url, headers=user_headers)
+        self.assertEqual(200, resp.status_code)
+
+        # disable the user
+        resp = self.app.put(disable_url.url, headers=admin_headers)
+        self.assertEqual(200, resp.status_code)
+
+        # verify that user cannot access things
+        resp = self.app.get(test_user_url.url, headers=user_headers)
+        self.assertEqual(403, resp.status_code)
+
+        # enable user
+        resp = self.app.put(enable_url.url, headers=admin_headers)
+        self.assertEqual(200, resp.status_code)
+
+        # verify that user has access
+        resp = self.app.get(test_user_url.url, headers=user_headers)
+        self.assertEqual(200, resp.status_code)
+
 
     def test_put_username_groups(self):
         tests = [

@@ -5,9 +5,11 @@
 Functional Test of the API
 """
 import json
-import unittest
 import os
 import sys
+import unittest
+
+from furl import furl
 
 pkg_root = os.path.abspath(os.path.join(os.path.dirname(__file__), '..'))  # noqa
 sys.path.insert(0, pkg_root)  # noqa
@@ -46,14 +48,25 @@ class TestApi(BaseAPITest, unittest.TestCase):
                 }
             }
         ]
+        headers = {'Content-Type': "application/json"}
+        headers.update(get_auth_header(service_accounts['admin']))
+
         for test in tests:
             with self.subTest(test['json_request_body']):
-                data=json.dumps(test['json_request_body'])
-                headers={'Content-Type': "application/json"}
-                headers.update(get_auth_header(service_accounts['admin']))
+                data = json.dumps(test['json_request_body'])
                 resp = self.app.post('/v1/policies/evaluate', headers=headers, data=data)
                 self.assertEqual(test['response']['code'], resp.status_code)
                 self.assertEqual(test['response']['result'], json.loads(resp.body)['result'])
+
+        with self.subTest("User Disabled"):
+            resp = self.app.put(furl(f"/v1/user/{email}",
+                                     query_params={'user_id': email, 'status': 'disabled'}).url,
+                                headers=headers)
+            self.assertEqual(200, resp.status_code)
+            resp = self.app.post('/v1/policies/evaluate', headers=headers,
+                                 data=json.dumps(tests[1]['json_request_body']))
+            self.assertEqual(200, resp.status_code)
+            self.assertEqual(False, json.loads(resp.body)['result'])
 
     def test_serve_swagger_ui(self):
         routes = ['/swagger.json', '/']
@@ -63,7 +76,7 @@ class TestApi(BaseAPITest, unittest.TestCase):
                 resp.raise_for_status()
 
     def test_echo(self):
-        body='Hello World!'
+        body = 'Hello World!'
         resp = self.app.get('/echo', data=body)
         resp.raise_for_status()
 

@@ -18,7 +18,8 @@ from typing import Iterator, Any, Tuple, Dict, List, Callable, Optional, Union, 
 from dcplib.aws import clients as aws_clients
 
 from fusillade import Config
-from fusillade.errors import FusilladeException, FusilladeHTTPException, FusilladeNotFoundException
+from fusillade.errors import FusilladeException, FusilladeHTTPException, FusilladeNotFoundException, \
+    AuthorizationException
 from fusillade.utils.retry import retry
 
 logger = logging.getLogger(__name__)
@@ -1409,11 +1410,10 @@ class User(CloudNode, RolesMixin, PolicyMixin, OwnershipMixin):
         self._roles: Optional[List[str]] = None
 
     def lookup_policies(self) -> List[str]:
-        try:
+        if self.is_enabled():
             policy_paths = self.lookup_policies_batched()
-        except cd_client.exceptions.ResourceNotFoundException:
-            self.provision_user(self.name)
-            policy_paths = self.lookup_policies_batched()
+        else:
+            raise AuthorizationException(f"User {self.status}")
         return self.cd.get_policies(policy_paths)
 
     def lookup_policies_batched(self):
@@ -1439,6 +1439,20 @@ class User(CloudNode, RolesMixin, PolicyMixin, OwnershipMixin):
         if not self._status:
             self._get_attributes(['status'])
         return self._status
+
+    def is_enabled(self) -> bool:
+        """
+        Check if the user is enabled. Create the users with defaults if the user does not exist already.
+        :return: users status
+        """
+        try:
+            # check if the node has been created in cloud directory.
+            result = self.status == 'Enabled'
+        except FusilladeNotFoundException:
+            # node does not exist, create the node.
+            self.provision_user(self.name)
+            result = self.is_enabled()
+        return result
 
     def enable(self):
         """change the status of a user to enabled"""
@@ -1562,6 +1576,7 @@ class User(CloudNode, RolesMixin, PolicyMixin, OwnershipMixin):
     def get_info(self):
         info = super(User, self).get_info()
         info.update(super(User, self).get_policy_info())
+        info['status'] = self.status
         return info
 
 
