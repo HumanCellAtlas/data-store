@@ -170,10 +170,6 @@ paths:
       responses:
         200:
           description: OK
-          content:
-            application/json:
-              schema:
-                type: object
         401:
           $ref: '#/components/responses/401'
     post:
@@ -187,10 +183,6 @@ paths:
       responses:
         200:
           description: OK
-          content:
-            application/json:
-              schema:
-                type: object
         401:
           $ref: '#/components/responses/401'
   /echo:
