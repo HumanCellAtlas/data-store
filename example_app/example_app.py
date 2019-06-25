@@ -181,7 +181,9 @@ def profile():
     """Fetching a protected resource using an OAuth 2 token.
     """
     url = furl(f"{domain}/v1/user/{session['username']}").url
-    return jsonify(requests.get(url, headers=get_auth_header()).json())
+    resp = requests.get(url, headers=get_auth_header()).json()
+    resp['access_token'] = session['access_token']
+    return jsonify(resp)
 
 
 @app.route("/data/<slot>", methods=["GET"])
@@ -195,12 +197,12 @@ def get_data(slot):
             headers=headers,
             data=json.dumps({
                 "action": ["SP:GetData"],
-                "resource": [f"arn:hca:SP:*:*:data/{slot}"],
+                "resource": [f"arn:project:SP:*:*:data/{slot}"],
                 "principal": session['username']
             }))
         response.raise_for_status()
         assert response.json()['result']
-    except KeyError or HTTPError or AssertionError:
+    except (KeyError, HTTPError, AssertionError):
         return make_response("Unauthorize", 403)
     else:
         return jsonify(slot=slots[slot])
@@ -215,7 +217,7 @@ def put_data(slot):
             headers=get_auth_header(),
             data=json.dumps({
                 "action": ["SP:PutData"],
-                "resource": [f"arn:hca:SP:*:*:data/{slot}"],
+                "resource": [f"arn:project:SP:*:*:data/{slot}"],
                 "principal": session['username']
             }))
         response.raise_for_status()
@@ -284,6 +286,12 @@ def setup_fusillade():
                 }
             )
             resp.raise_for_status()
+        elif resp.status_code == requests.codes.ok:
+            requests.put(
+                f"{domain}/v1/role/{name}/policy",
+                json={"policy": json.dumps(policy)},
+                headers=headers,
+            )
         elif resp.status_code != requests.codes.ok:
             if resp.status_code == requests.codes.forbidden:
                 print(f"the service account {google_service_account_credentials['client_email']} has insufficent "
