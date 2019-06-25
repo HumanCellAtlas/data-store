@@ -87,7 +87,7 @@ with ThreadPoolExecutor(max_workers=10) as e:
                 bundle_status = "TOMBSTONED"            
             print(bundle_status, fqid)
         except SwaggerAPIException as e:
-            if 403 == e.code:
+            if 403 == e.code: # bail out on the first credentials denial
                 print(e)
                 sys.exit(1)
         except Exception as e:
