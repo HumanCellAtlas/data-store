@@ -1,5 +1,6 @@
+import os
+import sys
 import unittest
-import os, sys
 
 pkg_root = os.path.abspath(os.path.join(os.path.dirname(__file__), '..'))  # noqa
 sys.path.insert(0, pkg_root)  # noqa
@@ -34,14 +35,14 @@ class TestGroup(unittest.TestCase):
 
         with self.subTest("The group is returned when the group has been created with default valid statement"):
             group = Group.create("new_group2")
-            self.assertEqual(group.name,  "new_group2")
+            self.assertEqual(group.name, "new_group2")
             self.assertEqual(group.get_policy(), self.default_group_statement)
 
         with self.subTest("The group is returned when the group has been created with specified valid statement."):
             group_name = "NewGroup1234"
             statement = create_test_statement(group_name)
             group = Group.create("new_group3", statement)
-            self.assertEqual(group.name,  "new_group3")
+            self.assertEqual(group.name, "new_group3")
             self.assertEqual(group.get_policy(), statement)
 
     def test_policy(self):

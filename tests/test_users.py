@@ -159,8 +159,8 @@ class TestUser(unittest.TestCase):
 
         with self.subTest("An error is raised when adding a role a user already has."):
             with self.assertRaises(cd_client.exceptions.BatchWriteException) as ex:
-               user.add_roles([role_name])
-               self.assertTrue('LinkNameAlreadyInUseException' in ex.response['Error']['Message'])
+                user.add_roles([role_name])
+                self.assertTrue('LinkNameAlreadyInUseException' in ex.response['Error']['Message'])
 
         with self.subTest("An error is raised when adding a role that does not exist."):
             with self.assertRaises(cd_client.exceptions.BatchWriteException) as ex:

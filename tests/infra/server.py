@@ -1,7 +1,7 @@
 import functools
 import os
-import requests
 
+import requests
 from chalice.cli import CLIFactory
 from chalice.local import LocalGateway, LocalGatewayException
 
@@ -34,4 +34,3 @@ class ChaliceTestHarness:
             resp_obj.body = response['body']
         resp_obj.headers['Content-Length'] = str(len(data))
         return resp_obj
-

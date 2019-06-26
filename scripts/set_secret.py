@@ -1,15 +1,14 @@
 #!/usr/bin/env python
-import os
-import sys
-import boto3
-import select
 import argparse
+import os
+import select
+import sys
 
+import boto3
 
 SM = boto3.client('secretsmanager')
 stage = os.environ['FUS_DEPLOYMENT_STAGE']
 secrets_store = os.environ['FUS_SECRETS_STORE']
-
 
 parser = argparse.ArgumentParser(description=__doc__)
 parser.add_argument("--secret-name", required=True)
@@ -25,15 +24,12 @@ tags = [
 ]
 secret_id = f'{secrets_store}/{stage}/{args.secret_name}'
 
-
 if not select.select([sys.stdin, ], [], [], 0.0)[0]:
     print(f"No data in stdin, exiting without setting {secret_id}")
     sys.exit()
 val = sys.stdin.read()
 
-
 print("setting", secret_id)
-
 
 try:
     resp = SM.describe_secret(SecretId=secret_id)
@@ -45,13 +41,13 @@ except SM.exceptions.ResourceNotFoundException:
         resp = SM.create_secret(
             Name=secret_id,
             SecretString=val,
-            Tags = tags
+            Tags=tags
         )
         print(resp)
 else:
-    missing_tags=[]
+    missing_tags = []
     for tag in tags:
-        if tag in resp.get('Tags',[]):
+        if tag in resp.get('Tags', []):
             pass
         else:
             missing_tags.append(tag)
@@ -73,4 +69,3 @@ else:
             SecretId=secret_id,
             Tags=missing_tags
         )
-
