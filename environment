@@ -139,7 +139,7 @@ DSS_GCP_SERVICE_ACCOUNT_NAME="travis-test"
 
 # This list manages the GCP Users and serviceAccounts able to access direct URLs on the GS checkout bucket.
 # Other GCP entities must use presigned urls, or checkout to an external GS bucket they have access to. 
-DSS_CHECKOUT_BUCKET_OBJECT_VIEWERS="serviceAccount:619310558212-compute@developer.gserviceaccount.com,serviceAccount:caas-account@broad-dsde-mint-dev.iam.gserviceaccount.com,serviceAccount:caas-prod-account-for-dev@broad-dsde-mint-dev.iam.gserviceaccount.com,GROUP_All_Users@firecloud.org"
+DSS_CHECKOUT_BUCKET_OBJECT_VIEWERS="serviceAccount:619310558212-compute@developer.gserviceaccount.com,serviceAccount:caas-account@broad-dsde-mint-dev.iam.gserviceaccount.com,serviceAccount:caas-prod-account-for-dev@broad-dsde-mint-dev.iam.gserviceaccount.com,group:GROUP_All_Users@firecloud.org"
 
 AWS_SDK_LOAD_CONFIG=1 # Needed for Terraform to correctly use AWS assumed roles
 
