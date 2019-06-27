@@ -8,7 +8,6 @@ from tests.infra.testmode import is_integration
 
 if not is_integration():
     old_directory_name = os.getenv("FUSILLADE_DIR", None)
-    directory, schema_arn = new_test_directory()
 
 from fusillade import Config
 from fusillade.clouddirectory import cleanup_directory, User, get_published_schema_from_directory, cleanup_schema
@@ -18,6 +17,9 @@ class BaseAPITest():
 
     @classmethod
     def setUpClass(cls):
+        if not is_integration():
+            new_test_directory()
+
         try:
             User.provision_user(service_accounts['admin']['client_email'], roles=['fusillade_admin'])
         except Exception:
