@@ -154,9 +154,10 @@ class TestGroupApi(BaseAPITest, unittest.TestCase):
                 'json_request_body': {
                     "roles": [Role.create("role_0").name]
                 },
-                'response': {
-                    'code': 200
-                }
+                'responses': [
+                    {'code': 200},
+                    {'code': 304}
+                ]
             },
             {
                 'group_id': "Group2",
@@ -164,9 +165,10 @@ class TestGroupApi(BaseAPITest, unittest.TestCase):
                 'json_request_body': {
                     "roles": [Role.create("role_1").name]
                 },
-                'response': {
-                    'code': 200
-                }
+                'responses': [
+                    {'code': 200},
+                    {'code': 304}
+                ]
             }
         ]
         for test in tests:
@@ -184,7 +186,9 @@ class TestGroupApi(BaseAPITest, unittest.TestCase):
                 if test['action'] == 'remove':
                     group.add_roles(test['json_request_body']['roles'])
                 resp = self.app.put(url.url, headers=headers, data=data)
-                self.assertEqual(test['response']['code'], resp.status_code)
+                self.assertEqual(test['responses'][0]['code'], resp.status_code)
+                resp = self.app.put(url.url, headers=headers, data=data)
+                self.assertEqual(test['responses'][1]['code'], resp.status_code)
 
     def test_get_group_roles(self):
         headers = {'Content-Type': "application/json"}

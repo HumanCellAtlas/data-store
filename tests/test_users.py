@@ -70,7 +70,13 @@ class TestUser(unittest.TestCase):
         with self.subTest("An error is returned when add a user to a group that does not exist."):
             with self.assertRaises(cd_client.exceptions.BatchWriteException) as ex:
                 user.add_groups(["ghost_group"])
-                self.assertTrue(ex.response['Error']['Message'].endswith("/ group / ghost_group\\' does not exist.'"))
+            self.assertTrue('ResourceNotFoundException' in ex.exception.response['Error']['Message'])
+            self.assertEqual(len(user.groups), 1)
+
+        with self.subTest("An error is returned when add a user to a group that they are already apart."):
+            with self.assertRaises(cd_client.exceptions.BatchWriteException) as ex:
+                user.add_groups(["user_default"])
+            self.assertTrue('InvalidAttachmentException' in ex.exception.response['Error']['Message'])
             self.assertEqual(len(user.groups), 1)
 
         user.add_groups([group.name for group in groups])

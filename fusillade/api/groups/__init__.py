@@ -1,6 +1,7 @@
 from flask import request, make_response, jsonify
 
 from fusillade import Group
+from fusillade.api._helper import _modify_roles
 from fusillade.api.paging import get_next_token, get_page
 from fusillade.utils.authorize import authorize
 
@@ -50,15 +51,8 @@ def get_groups_roles(token_info: dict, group_id: str):
 @authorize(['fus:PutRole'], ['arn:hca:fus:*:*:group/{group_id}/roles'], ['group_id'], {'fus:group_id': 'group_id'})
 def put_groups_roles(token_info: dict, group_id: str):
     group = Group(group_id)
-    action = request.args['action']
-    if action == 'add':
-        group.add_roles(request.json['roles'])
-    elif action == 'remove':
-        group.remove_roles(request.json['roles'])
-    return make_response(jsonify({'roles': request.json['roles'],
-                                  'action': action,
-                                  'group_id': group_id,
-                                  'msg': "Group's roles successfully modified."}), 200)
+    resp, code = _modify_roles(group, request)
+    return make_response(jsonify(resp), code)
 
 
 @authorize(['fus:DeleteGroup'], ['arn:hca:fus:*:*:group/{group_id}/'], ['group_id'], {'fus:group_id': 'group_id'})

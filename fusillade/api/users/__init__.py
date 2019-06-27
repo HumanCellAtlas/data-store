@@ -1,6 +1,7 @@
 from flask import request, make_response, jsonify
 
 from fusillade import User
+from fusillade.api._helper import _modify_roles, _modify_groups
 from fusillade.api.paging import get_next_token, get_page
 from fusillade.utils.authorize import authorize
 
@@ -74,15 +75,8 @@ def get_users_groups(token_info: dict, user_id: str):
 @authorize(['fus:PutGroup'], ['arn:hca:fus:*:*:user/{user_id}/groups'], ['user_id'])
 def put_users_groups(token_info: dict, user_id: str):
     user = User(user_id)
-    action = request.args['action']
-    if action == 'add':
-        user.add_groups(request.json['groups'])
-    elif action == 'remove':
-        user.remove_groups(request.json['groups'])
-    return make_response(jsonify({'groups': request.json['groups'],
-                                  'action': action,
-                                  'user_id': user_id,
-                                  'msg': "User's groups successfully modified."}), 200)
+    resp, code = _modify_groups(user, request)
+    return make_response(jsonify(resp), code)
 
 
 @authorize(['fus:GetRole'], ['arn:hca:fus:*:*:user/{user_id}/roles'], ['user_id'])
@@ -95,12 +89,5 @@ def get_users_roles(token_info: dict, user_id: str):
 @authorize(['fus:PutRole'], ['arn:hca:fus:*:*:user/{user_id}/roles'], ['user_id'])
 def put_users_roles(token_info: dict, user_id: str):
     user = User(user_id)
-    action = request.args['action']
-    if action == 'add':
-        user.add_roles(request.json['roles'])
-    elif action == 'remove':
-        user.remove_roles(request.json['roles'])
-    return make_response(jsonify({'roles': request.json['roles'],
-                                  'action': action,
-                                  'user_id': user_id,
-                                  'msg': "User's roles successfully modified."}), 200)
+    resp, code = _modify_roles(user, request)
+    return make_response(jsonify(resp), code)
