@@ -68,7 +68,7 @@ resource "aws_iam_role_policy" "AWS-Events-Invoke" {
                 "ecs:RunTask"
             ],
             "Resource": [
-                "arn:aws:ecs:*:${data.aws_caller_identity.current.account_id}:task-definition/dss-monitor-${var.DSS_DEPLOYMENT_STAGE}:16"
+                "arn:aws:ecs:*:${data.aws_caller_identity.current.account_id}:task-definition/dss-monitor-${var.DSS_DEPLOYMENT_STAGE}:*"
             ],
             "Condition": {
                 "ArnLike": {
@@ -185,8 +185,8 @@ resource "aws_cloudwatch_log_group" "task-performer" {
 
 resource "aws_cloudwatch_event_rule" "dss-monitor" {
   name = "dss-monitor-trigger-${var.DSS_DEPLOYMENT_STAGE}"
-  schedule_expression = "cron(0 17 * * ? *)"
-  description = "daily event trigger for dss-monitor notifications"
+  schedule_expression = "cron(0 17 * * * *)"
+  description = "schedule trigger for dss-monitor notifications"
   tags = "${local.common_tags}"
 
 }
