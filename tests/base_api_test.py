@@ -8,10 +8,10 @@ from tests.infra.testmode import is_integration
 
 if not is_integration():
     old_directory_name = os.getenv("FUSILLADE_DIR", None)
-    new_test_directory()
+    directory, schema_arn = new_test_directory()
 
 from fusillade import Config
-from fusillade.clouddirectory import cleanup_directory, User
+from fusillade.clouddirectory import cleanup_directory, User, get_published_schema_from_directory, cleanup_schema
 
 
 class BaseAPITest():
@@ -39,9 +39,11 @@ class BaseAPITest():
     @classmethod
     def tearDownClass(cls):
         cls.clear_directory()
-
         if not is_integration():
-            cleanup_directory(Config.get_directory()._dir_arn)
+            directory_arn = Config.get_directory()._dir_arn
+            schema_arn = get_published_schema_from_directory(directory_arn)
+            cleanup_directory(directory_arn)
+            cleanup_schema(f"{schema_arn}/0")
             if old_directory_name:
                 os.environ["FUSILLADE_DIR"] = old_directory_name
 

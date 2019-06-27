@@ -111,7 +111,7 @@ def revoke():
     return proxy_response(openid_config["revocation_endpoint"])
 
 
-def userinfo():
+def userinfo(token_info):
     """
     Part of OIDC
     """
@@ -119,18 +119,18 @@ def userinfo():
     return proxy_response(openid_config["userinfo_endpoint"])
 
 
-def get_userinfo():
+def get_userinfo(token_info):
     """
     Part of OIDC
     """
-    return userinfo()
+    return userinfo(token_info)
 
 
-def post_userinfo():
+def post_userinfo(token_info):
     """
     Part of OIDC
     """
-    return userinfo()
+    return userinfo(token_info)
 
 
 def cb():

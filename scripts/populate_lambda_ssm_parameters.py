@@ -8,13 +8,15 @@ the environment of every deployed lambda.
 Individual environment variables may also be set and unset across both SSM and
 deployed lambdas.
 """
-import os
-import json
-import boto3
 import argparse
+import json
+import os
+
+import boto3
 
 ssm_client = boto3.client("ssm")
 lambda_client = boto3.client("lambda")
+
 
 def get_local_lambda_environment():
     env = dict()
@@ -25,11 +27,13 @@ def get_local_lambda_environment():
             print(f"Warning: {name} not defined")
     return env
 
+
 def get_ssm_lambda_environment():
     parms = ssm_client.get_parameter(
         Name=f"/{os.environ['FUS_PARAMETER_STORE']}/{os.environ['FUS_DEPLOYMENT_STAGE']}/environment"
     )['Parameter']['Value']
     return json.loads(parms)
+
 
 def set_ssm_lambda_environment(parms: dict):
     ssm_client.put_parameter(
@@ -39,8 +43,10 @@ def set_ssm_lambda_environment(parms: dict):
         Overwrite=True,
     )
 
+
 def get_deployed_lambda_environment(name):
     return lambda_client.get_function_configuration(FunctionName=name)['Environment']['Variables']
+
 
 def set_deployed_lambda_environment(name, env: dict):
     lambda_client.update_function_configuration(
@@ -50,6 +56,7 @@ def set_deployed_lambda_environment(name, env: dict):
         }
     )
 
+
 def get_deployed_lambda():
     name = f"fusillade-{os.environ['FUS_DEPLOYMENT_STAGE']}"
     try:
@@ -57,6 +64,7 @@ def get_deployed_lambda():
         yield name
     except lambda_client.exceptions.ResourceNotFoundException:
         print(f"{name} not deployed, or does not deploy a Lambda function")
+
 
 def get_admin_user_emails():
     secret_base = "{}/{}/".format(
@@ -72,26 +80,27 @@ def get_admin_user_emails():
     admin_user_emails.append(gcp_service_account_email)
     return ",".join(admin_user_emails)
 
+
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
     parser.add_argument("--update-deployed-lambdas",
-        default=False,
-        action="store_true",
-        help="update the environment of all deployed lambdas"
-    )
+                        default=False,
+                        action="store_true",
+                        help="update the environment of all deployed lambdas"
+                        )
     parser.add_argument("-p", "--print",
-        default=False,
-        action="store_true",
-        help="Display the current environemnt stored in SSM"
-    )
+                        default=False,
+                        action="store_true",
+                        help="Display the current environemnt stored in SSM"
+                        )
     parser.add_argument("--set",
-        default=None,
-        help="Set a single environment variable in SSM parameters and all deployed lambdas"
-    )
+                        default=None,
+                        help="Set a single environment variable in SSM parameters and all deployed lambdas"
+                        )
     parser.add_argument("--unset",
-        default=None,
-        help="Remove a single environment variable in SSM parameters and all deployed lambdas"
-    )
+                        default=None,
+                        help="Remove a single environment variable in SSM parameters and all deployed lambdas"
+                        )
     args = parser.parse_args()
 
     if args.print:

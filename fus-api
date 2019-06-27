@@ -4,12 +4,12 @@
 Entry point for starting a local test Fusillade API server.
 """
 
+import argparse
+import logging
 import os
 import sys
-import logging
-import argparse
 
-from chalice.cli import CLIFactory, run_local_server
+from chalice.cli import CLIFactory
 
 parser = argparse.ArgumentParser(description=__doc__)
 parser.add_argument("--host", default="localhost")

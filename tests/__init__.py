@@ -4,7 +4,6 @@ import random
 import string
 import time
 
-
 schema_name = 'authz'
 random.seed(time.time())
 logger = logging.getLogger()
@@ -22,6 +21,7 @@ def eventually(timeout: float, interval: float, errors: set = {AssertionError}):
     :param errors: the exceptions to catch and retry on
     :return: the result of the function or a raised assertion error
     """
+
     def decorate(func):
         @functools.wraps(func)
         def call(*args, **kwargs):

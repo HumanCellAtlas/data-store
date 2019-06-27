@@ -5,9 +5,10 @@ import typing
 
 import jwt
 from dcplib.aws import clients
-from tests import schema_name, random_hex_string
-from fusillade.config import Config
+
 from fusillade.clouddirectory import publish_schema, create_directory, CloudDirectory
+from fusillade.config import Config
+from tests import schema_name, random_hex_string
 
 try:
     with open(f"{os.environ['FUS_HOME']}/test_accounts_{os.environ['FUS_DEPLOYMENT_STAGE']}.json", 'r') as fh:

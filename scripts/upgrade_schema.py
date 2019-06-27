@@ -31,6 +31,7 @@ schema_name = f"hca_fusillade_base_{args.stage}"
 directory_name = f"hca_fusillade_{args.stage}"
 rv = 0
 
+
 def update_service_config(schema_arn):
     # upgrade service config
     with open(os.path.join(pkg_root, "service_config.json")) as fh:
@@ -93,7 +94,6 @@ if major_version == schema_name:  # Check if their is a minor version by parsing
     # No minor version so set major version to the parsed minor_version.
     major_version = minor_version
     minor_version = '0'
-
 
 # --- Check if the directory is up to date with the most recent published schema.
 pub_schemas = get_published(major_version)

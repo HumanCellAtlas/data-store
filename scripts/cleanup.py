@@ -10,7 +10,6 @@ sys.path.insert(0, pkg_root)  # noqa
 
 from fusillade.clouddirectory import cleanup_directory, cleanup_schema, cd_client
 
-
 if __name__ == "__main__":
     for response in cd_client.get_paginator('list_directories').paginate(MaxResults=30, state='ENABLED'):
         for directory in response['Directories']:
@@ -34,7 +33,6 @@ if __name__ == "__main__":
                         SchemaArn=schema_0, MaxResults=30):
                     for schema_1 in response_1['SchemaArns']:
                         cleanup_schema(schema_1)
-
 
     schemas = cd_client.list_published_schema_arns(
         MaxResults=30
