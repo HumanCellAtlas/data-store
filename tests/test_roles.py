@@ -31,7 +31,7 @@ class TestRole(unittest.TestCase):
             role_name = "test_role_default"
             role = Role.create(role_name)
             self.assertEqual(role.name, role_name)
-            self.assertEqual(role.get_policy(), self.default_role_statement)
+            self.assertEqual(role.get_policy(), role._set_policy_id(self.default_role_statement, role.name))
 
     def test_role_statement(self):
         role_name = "test_role_specified"
@@ -41,17 +41,17 @@ class TestRole(unittest.TestCase):
             self.assertEqual(role.name, role_name)
 
         with self.subTest("a roles statement is retrieved when role.get_policy() is called"):
-            self.assertEqual(role.get_policy(), statement)
+            self.assertEqual(role.get_policy(), role._set_policy_id(statement, role.name))
 
         with self.subTest("a roles statement is changed when role.get_policy() is assigned"):
             statement = create_test_statement(f"UserPolicySomethingElse")
             role.set_policy(statement)
-            self.assertEqual(role.get_policy(), statement)
+            self.assertEqual(role.get_policy(), role._set_policy_id(statement, role.name))
 
         with self.subTest("Error raised when setting policy to an invalid statement"):
             with self.assertRaises(FusilladeHTTPException):
                 role.set_policy("Something else")
-            self.assertEqual(role.get_policy(), statement)
+            self.assertEqual(role.get_policy(), role._set_policy_id(statement, role.name))
 
         with self.subTest("an error is returned when a policy exceed 10 Kb"):
             statement = create_test_statements(150)

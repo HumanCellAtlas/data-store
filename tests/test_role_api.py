@@ -55,7 +55,7 @@ class TestRoleApi(BaseAPITest, unittest.TestCase):
         self.assertEqual(200, resp.status_code)
         expected_body = {
             'role_id': role_id,
-            'policies': {"IAMPolicy": policy}
+            'policies': {"IAMPolicy": Role(role_id)._set_policy_id(policy, role_id)}
         }
         self.assertEqual(expected_body, json.loads(resp.body))
 
@@ -72,7 +72,7 @@ class TestRoleApi(BaseAPITest, unittest.TestCase):
         self.assertEqual(200, resp.status_code)
         expected_body = {
             'role_id': role_id,
-            'policies': {"IAMPolicy": policy}
+            'policies': {"IAMPolicy": Role(role_id)._set_policy_id(policy, role_id)}
         }
         self.assertEqual(expected_body, json.loads(resp.body))
 
@@ -223,7 +223,8 @@ class TestRoleApi(BaseAPITest, unittest.TestCase):
             } for role_id, description in TEST_NAMES_NEG if role_id is not ''
         ])
         policy = create_test_statement("test_role")
-        Role.create(role_id, policy)
+        role = Role.create(role_id, policy)
+        expected_policy = role._set_policy_id(policy, role.name)
         [Role.create(role_id, policy) for role_id, _ in TEST_NAMES_POS]
         for test in tests:
             with self.subTest(test['name']):
@@ -235,7 +236,7 @@ class TestRoleApi(BaseAPITest, unittest.TestCase):
                 if test['expected_resp'] == 200:
                     expected_body = {
                         'role_id': test['role_id'],
-                        'policies': {'IAMPolicy': policy}
+                        'policies': {'IAMPolicy': expected_policy}
                     }
                     self.assertEqual(expected_body, json.loads(resp.body))
 

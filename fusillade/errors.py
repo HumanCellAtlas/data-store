@@ -24,6 +24,14 @@ class FusilladeNotFoundException(FusilladeHTTPException):
                          ext={'stacktrace': traceback.format_exc()}, *args,
                          **kwargs)
 
+
+class FusilladeBadRequestException(FusilladeHTTPException):
+    def __init__(self, detail, *args, **kwargs) -> None:
+        super().__init__(status=requests.codes.bad_request, title="illegal_arguments", detail=detail,
+                         ext={'stacktrace': traceback.format_exc()}, *args,
+                         **kwargs)
+
+
 class FusilladeBindingException(FusilladeHTTPException):
     def __init__(self, detail, *args, **kwargs) -> None:
         super().__init__(status=requests.codes.bad_request, title="illegal_arguments", detail=detail,

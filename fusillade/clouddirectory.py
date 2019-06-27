@@ -13,13 +13,14 @@ import os
 from collections import namedtuple
 from datetime import datetime
 from enum import Enum, auto
+from json import JSONDecodeError
 from typing import Iterator, Any, Tuple, Dict, List, Callable, Optional, Union, Type
 
 from dcplib.aws import clients as aws_clients
 
 from fusillade import Config
 from fusillade.errors import FusilladeException, FusilladeHTTPException, FusilladeNotFoundException, \
-    AuthorizationException
+    AuthorizationException, FusilladeBindingException
 from fusillade.utils.retry import retry
 
 logger = logging.getLogger(__name__)
@@ -1154,7 +1155,7 @@ class PolicyMixin:
                          ),
                          policy=dict(
                              link_name=policy_link_name,
-                             policy_type="IAMPolicy")
+                             policy_type=policy_type)
                          ))
         return policy_ref
 
@@ -1200,8 +1201,19 @@ class PolicyMixin:
             except cd_client.exceptions.ResourceNotFoundException:
                 raise FusilladeNotFoundException(detail="Resource does not exist.")
             else:
-                self._verify_statement(statement)
-                self._set_policy(statement, policy_type)
+                _statement = self._set_policy_id(statement, self.name)
+                self._verify_statement(_statement)
+                self._set_policy(_statement, policy_type)
+
+    @classmethod
+    def _set_policy_id(cls, statement: str, object_name: str) -> str:
+        try:
+            s = json.loads(statement)
+        except JSONDecodeError as ex:
+            raise FusilladeBindingException(detail=f"JSONDecodeError: {ex}")
+        policy_id = ':'.join([cls.object_type, object_name])
+        s['Id'] = policy_id
+        return json.dumps(s)
 
     def _set_policy(self, statement: str, policy_type: str):
         params = [
@@ -1272,6 +1284,7 @@ class CreateMixin(PolicyMixin):
                creator=None) -> Type['CloudNode']:
         if not statement:
             statement = get_json_file(cls._default_policy_path)
+        statement = cls._set_policy_id(statement, name)
         cls._verify_statement(statement)
         _creator = creator if creator else "fusillade"
         try:

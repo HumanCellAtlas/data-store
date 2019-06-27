@@ -18,8 +18,10 @@ class TestUser(unittest.TestCase):
     def setUpClass(cls):
         cls.directory, cls.schema_arn = new_test_directory()
         cls.default_policy = get_json_file(default_user_policy_path)
-        cls.default_user_policies = sorted([get_json_file(default_user_role_path),
-                                            get_json_file(default_group_policy_path)])
+        cls.default_user_policies = sorted([
+            Role._set_policy_id(get_json_file(default_user_role_path), 'default_user'),
+            Group._set_policy_id(get_json_file(default_group_policy_path), 'user_default')
+        ])
 
     @classmethod
     def tearDownClass(cls):
@@ -77,7 +79,7 @@ class TestUser(unittest.TestCase):
 
         with self.subTest("A user inherits the groups policies when joining a group"):
             policies = set(user.lookup_policies())
-            expected_policies = set([i[1] for i in test_groups])
+            expected_policies = set([Group._set_policy_id(*i[::-1]) for i in test_groups])
             expected_policies.update(self.default_user_policies)
             self.assertEqual(policies, expected_policies)
 
@@ -111,19 +113,21 @@ class TestUser(unittest.TestCase):
         statement = create_test_statement(f"UserPolicySomethingElse")
         user.set_policy(statement)
         with self.subTest("The user policy is set when statement setter is used."):
-            self.assertEqual(user.get_policy(), statement)
-            self.assertIn(statement, user.lookup_policies())
+            expected_statement = user._set_policy_id(statement, user.name)
+            self.assertEqual(user.get_policy(), expected_statement)
+            self.assertIn(expected_statement, user.lookup_policies())
 
         statement = create_test_statement(f"UserPolicySomethingElse2")
         user.set_policy(statement)
         with self.subTest("The user policy changes when set_policy is used."):
-            self.assertEqual(user.get_policy(), statement)
-            self.assertIn(statement, user.lookup_policies())
+            expected_statement = user._set_policy_id(statement, user.name)
+            self.assertEqual(user.get_policy(), expected_statement)
+            self.assertIn(expected_statement, user.lookup_policies())
 
         with self.subTest("Error raised when setting policy to an invalid statement"):
             with self.assertRaises(FusilladeHTTPException):
                 user.set_policy("Something else")
-            self.assertEqual(user.get_policy(), statement)
+            self.assertEqual(user.get_policy(), expected_statement)
 
     def test_status(self):
         name = "test_set_policy@test.com"
@@ -142,9 +146,9 @@ class TestUser(unittest.TestCase):
         name = "test_sete_policy@test.com"
         test_roles = [(f"Role_{i}", create_test_statement(f"RolePolicy{i}")) for i in range(5)]
         roles = [Role.create(*i).name for i in test_roles]
-        role_names, role_statements = zip(*test_roles)
+        role_names, _ = zip(*test_roles)
         role_names = sorted(role_names)
-        role_statements = sorted(role_statements)
+        role_statements = [Role._set_policy_id(*i[::-1]) for i in test_roles]
 
         user = User.provision_user(name)
         user_role_names = [Role(None, role).name for role in user.roles]
@@ -170,7 +174,8 @@ class TestUser(unittest.TestCase):
         user.set_policy(self.default_policy)
         with self.subTest("A user inherits a roles policies when a role is added to a user."):
             self.assertListEqual(sorted(user.lookup_policies()),
-                                 sorted([user.get_policy(), role_statement, *self.default_user_policies]))
+                                 sorted([user.get_policy(), Role._set_policy_id(role_statement, role_name),
+                                         *self.default_user_policies]))
 
         with self.subTest("A role is removed from user when remove role is called."):
             user.remove_roles([role_name])
@@ -179,7 +184,7 @@ class TestUser(unittest.TestCase):
         with self.subTest("A user has multiple roles when multiple roles are added to user."):
             user.add_roles(role_names)
             user_role_names = [Role(None, role).name for role in user.roles]
-            self.assertEqual(sorted(user_role_names), sorted(role_names))
+            self.assertEqual(sorted(user_role_names), role_names)
 
         with self.subTest("A user inherits multiple role policies when the user has multiple roles."):
             self.assertListEqual(sorted(user.lookup_policies()),
@@ -187,7 +192,7 @@ class TestUser(unittest.TestCase):
 
         with self.subTest("A user's roles are listed when a listing a users roles."):
             user_role_names = [Role(None, role).name for role in user.roles]
-            self.assertListEqual(sorted(user_role_names), sorted(role_names))
+            self.assertListEqual(sorted(user_role_names), role_names)
 
         with self.subTest("Multiple roles are removed from a user when a multiple roles are specified for removal."):
             user.remove_roles(role_names)
@@ -201,14 +206,14 @@ class TestUser(unittest.TestCase):
         user = User.provision_user(name)
         test_groups = [(f"group_{i}", create_test_statement(f"GroupPolicy{i}")) for i in range(5)]
         [Group.create(*i) for i in test_groups]
-        group_names, group_statements = zip(*test_groups)
+        group_names, _ = zip(*test_groups)
         group_names = sorted(group_names)
-        group_statements = sorted(group_statements)
+        group_statements = [Group._set_policy_id(*i[::-1]) for i in test_groups]
         test_roles = [(f"role_{i}", create_test_statement(f"RolePolicy{i}")) for i in range(5)]
         [Role.create(*i) for i in test_roles]
-        role_names, role_statements = zip(*test_roles)
+        role_names, _ = zip(*test_roles)
         role_names = sorted(role_names)
-        role_statements = sorted(role_statements)
+        role_statements = [Role._set_policy_id(*i[::-1]) for i in test_roles]
 
         user.add_roles(role_names)
         user.add_groups(group_names)
