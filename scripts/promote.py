@@ -163,7 +163,7 @@ release_map = {
 s = requests.Session()
 token_path = os.environ['GITHUB_TOKEN_PATH']
 with open(os.path.expanduser(token_path), 'r') as fp:
-    token = fp.read()
+    token = fp.read().strip()
 
 if __name__ == "__main__":
     src, dst, prerelease = release_map[args.stage]
@@ -185,7 +185,7 @@ if __name__ == "__main__":
         )
         resp = s.post(
             f"https://api.github.com/repos/HumancellAtlas/fusillade/releases",
-            params={"access_token": token},
+            headers={"Authorization": f"token {token}"},
             data=json.dumps(body)
         )
         try:
