@@ -7,6 +7,7 @@ https://boto3.amazonaws.com/v1/documentation/api/latest/reference/services/cloud
 """
 import functools
 import hashlib
+import itertools
 import json
 import logging
 import os
@@ -20,7 +21,7 @@ from dcplib.aws import clients as aws_clients
 
 from fusillade import Config
 from fusillade.errors import FusilladeException, FusilladeHTTPException, FusilladeNotFoundException, \
-    AuthorizationException, FusilladeBindingException
+    AuthorizationException, FusilladeLimitException, FusilladeBindingException
 from fusillade.utils.retry import retry
 
 logger = logging.getLogger(__name__)
@@ -1577,30 +1578,39 @@ class User(CloudNode, RolesMixin, PolicyMixin, OwnershipMixin):
                                              per_page=per_page)
         return {'groups': result}, next_token
 
-    def add_groups(self, groups: List[str]):
+    def add_groups(self, groups: List[str], run=True):
         operations = []
-
+        if len(self.groups) + len(groups) >= Config.group_max:
+            raise FusilladeLimitException(
+                f"Failed to add groups [{groups}]. The user belongs to {len(self.groups)} groups. "
+                f"Only {Config.group_max - len(self.groups)} can be added.")
         operations.extend(self._add_typed_links_batch(groups,
                                                       Group.object_type,
                                                       'membership_link',
                                                       {'member_of': Group.object_type}))
-        self.cd.batch_write(operations)
-        self._groups = None  # update groups
-        logger.info(dict(message="Groups joined",
-                         object=dict(type=self.object_type, path_name=self._path_name),
-                         groups=groups))
+        if run:
+            self.cd.batch_write(operations)
+            self._groups = None  # update groups
+            logger.info(dict(message="Groups joined",
+                             object=dict(type=self.object_type, path_name=self._path_name),
+                             groups=groups))
+        else:
+            return operations
 
-    def remove_groups(self, groups: List[str]):
+    def remove_groups(self, groups: List[str], run=True):
         operations = []
         operations.extend(self._remove_typed_links_batch(groups,
                                                          Group.object_type,
                                                          'membership_link',
                                                          {'member_of': Group.object_type}))
-        self.cd.batch_write(operations)
-        self._groups = None  # update groups
-        logger.info(dict(message="Groups left",
-                         object=dict(type=self.object_type, path_name=self._path_name),
-                         groups=groups))
+        if run:
+            self.cd.batch_write(operations)
+            self._groups = None  # update groups
+            logger.info(dict(message="Groups left",
+                             object=dict(type=self.object_type, path_name=self._path_name),
+                             groups=groups))
+        else:
+            return operations
 
     def get_info(self):
         info = super(User, self).get_info()
@@ -1656,31 +1666,25 @@ class Group(CloudNode, RolesMixin, CreateMixin, OwnershipMixin):
 
     def add_users(self, users: List['User']) -> None:
         if users:
-            operations = [
-                self.cd.batch_attach_typed_link(
-                    i.object_ref,
-                    self.object_ref,
-                    'membership_link',
-                    {'member_of': 'group'}
-                )
-                for i in users]
+            operations = [i for i in itertools.chain(*[user.add_groups([self.name], False) for user in users])]
             self.cd.batch_write(operations)
             logger.info(dict(message="Adding users to group",
                              object=dict(type=self.object_type, path_name=self._path_name),
                              users=[user._path_name for user in users]))
 
-    def remove_users(self, users: List[str]) -> None:
+    def remove_users(self, users: List['User']) -> None:
         """
         Removes users from this group.
 
         :param users: a list of user names to remove from group
         :return:
         """
-        for user in users:
-            User(user).remove_groups([self._path_name])
-        logger.info(dict(message="Removing users from group",
-                         object=dict(type=self.object_type, path_name=self._path_name),
-                         users=[user for user in users]))
+        if users:
+            operations = [i for i in itertools.chain(*[user.remove_groups([self.name], False) for user in users])]
+            self.cd.batch_write(operations)
+            logger.info(dict(message="Removing users from group",
+                             object=dict(type=self.object_type, path_name=self._path_name),
+                             users=[user for user in users]))
 
     def get_info(self):
         info = super(Group, self).get_info()

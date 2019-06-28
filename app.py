@@ -19,6 +19,7 @@ with open(os.path.join(pkg_root, "service_config.json")) as fh:
     Config.version = service_config['version']
     Config.directory_schema_version = (service_config['directory_schema']['Version'],
                                        service_config['directory_schema']['MinorVersion'])
+    Config.group_max = service_config['user'].get('group_max', 10)
 
 swagger_spec_path = os.path.join(pkg_root, "fusillade-api.yml")
 swagger_internal_spec_path = os.path.join(pkg_root, "fusillade-internal-api.yml")

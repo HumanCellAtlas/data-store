@@ -265,6 +265,47 @@ class TestUserApi(BaseAPITest, unittest.TestCase):
                 resp = self.app.put(url.url, headers=headers, data=data)
                 self.assertEqual(test['responses'][1]['code'], resp.status_code)
 
+    def test_user_group_limit(self):
+        groups = [Group.create(f"group_{i}").name for i in range(10)]
+        name = "test_put_user_group0@email.com"
+        user = User.provision_user(name)
+        tests = [
+            {
+                'action': 'add',
+                'json_request_body': {
+                    "groups": groups[:8]
+                },
+                'response': {
+                    'code': 200
+                }
+            },
+            {
+                'action': 'add',
+                'json_request_body': {
+                    "groups": [groups[9]]
+                },
+                'response': {
+                    'code': 409
+                }
+            }
+        ]
+        for test in tests:
+            with self.subTest(test['json_request_body']):
+                data = json.dumps(test['json_request_body'])
+                headers = {'Content-Type': "application/json"}
+                headers.update(get_auth_header(service_accounts['admin']))
+                url = furl(f'/v1/user/{name}/groups/')
+                query_params = {
+                    'user_id': name,
+                    'action': test['action']
+                }
+                url.add(query_params=query_params)
+
+                if test['action'] == 'remove':
+                    user.add_groups(test['json_request_body']['groups'])
+                resp = self.app.put(url.url, headers=headers, data=data)
+                self.assertEqual(test['response']['code'], resp.status_code)
+
     def test_get_username_groups(self):
         headers = {'Content-Type': "application/json"}
         headers.update(get_auth_header(service_accounts['admin']))
@@ -273,9 +314,9 @@ class TestUserApi(BaseAPITest, unittest.TestCase):
         user = User.provision_user(name)
         resp = self.app.get(f'/v1/user/{name}/groups', headers=headers)
         self.assertEqual(1, len(json.loads(resp.body)[key]))
-        groups = [Group.create(f"group_{i}").name for i in range(10)]
+        groups = [Group.create(f"group_{i}").name for i in range(8)]
         user.add_groups(groups)
-        self._test_paging(f'/v1/user/{name}/groups', headers, 6, key)
+        self._test_paging(f'/v1/user/{name}/groups', headers, 5, key)
 
     def test_put_username_roles(self):
         tests = [

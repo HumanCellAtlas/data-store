@@ -8,6 +8,12 @@ class FusilladeException(Exception):
     pass
 
 
+class FusilladeLimitException(FusilladeException):
+    def __init__(self, reason, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.reason = reason
+
+
 class AuthorizationException(FusilladeException):
     def __init__(self, reason, *args, **kwargs):
         super().__init__(*args, **kwargs)

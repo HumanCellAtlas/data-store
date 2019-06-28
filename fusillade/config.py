@@ -16,6 +16,7 @@ class Config:
     directory_schema_version = {"Version": '0', "MinorVersion": '0'}
     _directory = None
     _directory_name = None
+    group_max = 10
 
     @classmethod
     def get_admin_emails(cls):

@@ -96,7 +96,7 @@ class TestGroup(unittest.TestCase):
             user = User("ghost_user@nowhere.com")
             try:
                 group.add_users([user])
-            except cd_client.exceptions.BatchWriteException:
+            except cd_client.exceptions.ResourceNotFoundException:
                 pass
 
     def test_roles(self):

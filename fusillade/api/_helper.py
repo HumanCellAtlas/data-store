@@ -1,4 +1,7 @@
+import requests
+
 from fusillade.clouddirectory import cd_client
+from fusillade.errors import FusilladeLimitException, FusilladeHTTPException
 
 
 def _modify_roles(cloud_node, request):
@@ -35,6 +38,8 @@ def _modify_groups(cloud_node, request):
     except cd_client.exceptions.BatchWriteException as ex:
         resp['msg'] = ex.response['Error']['Message']
         code = 304
+    except FusilladeLimitException as ex:
+        raise FusilladeHTTPException(detail=ex.reason, status=requests.codes.conflict, title="Conflict")
     else:
         resp['msg'] = f"{cloud_node.object_type}'s groups successfully modified."
         code = 200

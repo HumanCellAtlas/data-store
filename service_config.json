@@ -3,6 +3,9 @@
   "directory_schema":{
     "Version": "0",
     "MinorVersion": "2"
+  },
+  "user": {
+    "max_groups": 10
   }
 }
 
