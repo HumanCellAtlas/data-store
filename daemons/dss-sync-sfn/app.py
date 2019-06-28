@@ -29,7 +29,10 @@ dss.Config.set_config(dss.BucketConfig.NORMAL)
 app = domovoi.Domovoi()
 
 # This entry point is for S3 native events forwarded through SQS.
-@app.s3_event_handler(bucket=Config.get_s3_bucket(), events=["s3:ObjectCreated:*"], use_sqs=True)
+@app.s3_event_handler(bucket=Config.get_s3_bucket(),
+                      events=["s3:ObjectCreated:*"],
+                      use_sqs=True,
+                      sqs_queue_attributes=dict(VisibilityTimeout="920"))
 def launch_from_s3_event(event, context):
     source_replica = Replica.aws
     executions = {}
@@ -61,7 +64,8 @@ def launch_from_s3_event(event, context):
     return executions
 
 # This entry point is for external events forwarded by dss-gs-event-relay (or other event sources) through SNS-SQS.
-@app.sqs_queue_subscriber("dss-sync-" + os.environ["DSS_DEPLOYMENT_STAGE"])
+@app.sqs_queue_subscriber("dss-sync-" + os.environ["DSS_DEPLOYMENT_STAGE"],
+                          queue_attributes=dict(VisibilityTimeout="920"))
 def launch_from_forwarded_event(event, context):
     executions = {}
     for event_record in event["Records"]:
@@ -87,7 +91,8 @@ def launch_from_forwarded_event(event, context):
     return executions
 
 # This entry point is for operator initiated replication
-@app.sqs_queue_subscriber("dss-sync-operation-" + os.environ['DSS_DEPLOYMENT_STAGE'])
+@app.sqs_queue_subscriber("dss-sync-operation-" + os.environ['DSS_DEPLOYMENT_STAGE'],
+                          queue_attributes=dict(VisibilityTimeout="920"))
 def launch_from_operator_queue(event, context):
     executions = {}
     for event_record in event['Records']:
