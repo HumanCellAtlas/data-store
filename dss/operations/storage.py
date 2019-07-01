@@ -23,7 +23,14 @@ logger = logging.getLogger(__name__)
 
 class StorageOperationHandler:
     def __init__(self, argv: typing.List[str], args: argparse.Namespace):
-        self.keys = args.keys.copy() if args.keys else None
+        if args.keys is not None:
+            if 1 == len(args.keys) and args.keys[0].endswith("json"):
+                with open(args.keys[0], "r") as fh:
+                    self.keys = json.loads(fh.read())
+            else:
+                self.keys = args.keys.copy()
+        else:
+            self.keys = None
         self.entity_type = args.entity_type
         self.job_id = args.job_id
         self.replica = Replica[args.replica]
@@ -46,8 +53,8 @@ class StorageOperationHandler:
                 for key in keys:
                     sqsm.send(cmd_template.format(key))
 
-        if args.keys is not None:
-            forward_keys(args.keys)
+        if self.keys is not None:
+            forward_keys(self.keys)
         else:
             map_bucket(forward_keys, self.handle, self.replica.bucket, f"{self.entity_type}/")
 
@@ -86,7 +93,10 @@ storage = dispatch.target(
                "--replica": dict(choices=[r.name for r in Replica], required=True),
                "--entity-type": dict(choices=[FILE_PREFIX, BUNDLE_PREFIX, COLLECTION_PREFIX]),
                "--job-id": dict(default=None),
-               "--keys": dict(default=None, nargs="*", help="keys to check. Omit to check all files")},
+               "--keys": dict(default=None,
+                              nargs="*",
+                              help="keys to check. Omit to check all files. A JSON file of keys may be passed in"
+                                   " as `{filename}.json`, which must contain a single list of keys")},
     help=__doc__
 )
 
