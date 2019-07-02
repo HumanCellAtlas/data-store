@@ -1,7 +1,6 @@
 import json
 import logging
 from typing import Any, Mapping, MutableMapping, Optional, Type
-from urllib.parse import unquote
 
 from abc import ABCMeta, abstractmethod
 
@@ -27,20 +26,19 @@ class Indexer(metaclass=ABCMeta):
         self.backend = backend
         self.remaining_time = remaining_time
 
-    def process_new_indexable_object(self, event: Mapping[str, Any]) -> None:
+    def process_new_indexable_object(self, key: str) -> None:
         try:
-            key = self._parse_event(event)
             if exists(self.replica, key):
                 try:
                     self.index_object(key)
                 except ObjectIdentifierError:
                     # This is expected with events about blobs as they don't have a valid object identifier
-                    logger.debug(f"Not processing {self.replica.name} event for key: {key}")
+                    logger.debug(f"Not processing {self.replica.name} key: {key}")
             else:
                 logger.error("Key %s not found in replica %s", key, self.replica.name)
         except Exception:
             logger.error("Exception occurred while processing %s event: %s",
-                         self.replica, json.dumps(event, indent=4), exc_info=True)
+                         self.replica, key, exc_info=True)
             raise
 
     def index_object(self, key):
@@ -57,10 +55,6 @@ class Indexer(metaclass=ABCMeta):
                          f"Ignoring collection {identifier} in {self.replica.name}.")
         else:
             assert False, f"{identifier} is of unknown type"
-
-    @abstractmethod
-    def _parse_event(self, event: Mapping[str, Any]):
-        raise NotImplementedError()
 
     def _index_bundle(self, bundle_fqid: BundleFQID):
         logger.info(f"Indexing bundle {bundle_fqid} from replica {self.replica.name}.")
@@ -106,20 +100,8 @@ class Indexer(metaclass=ABCMeta):
 
 
 class AWSIndexer(Indexer):
-
     replica = Replica.aws
-
-    def _parse_event(self, event):
-        assert event['s3']['bucket']['name'] == Config.get_s3_bucket()
-        key = unquote(event['s3']['object']['key'])
-        return key
 
 
 class GCPIndexer(Indexer):
-
     replica = Replica.gcp
-
-    def _parse_event(self, event):
-        key = event['name']
-        assert event['bucket'] == Config.get_gs_bucket()
-        return key
