@@ -92,7 +92,24 @@
       "objectType": "LEAF_NODE"
     },
     "IAMPolicy": {
-      "facetAttributes": {},
+      "facetAttributes": {
+        "type": {
+          "attributeDefinition": {
+            "attributeType": "STRING",
+            "isImmutable": true,
+            "attributeRules": {}
+          },
+          "requiredBehavior": "NOT_REQUIRED"
+        },
+        "name": {
+          "attributeDefinition": {
+            "attributeType": "STRING",
+            "isImmutable": true,
+            "attributeRules": {}
+          },
+          "requiredBehavior": "NOT_REQUIRED"
+        }
+      },
       "objectType": "POLICY"
     }
   },

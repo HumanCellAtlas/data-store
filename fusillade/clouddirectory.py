@@ -11,7 +11,7 @@ import itertools
 import json
 import logging
 import os
-from collections import namedtuple
+from collections import namedtuple, defaultdict
 from datetime import datetime
 from enum import Enum, auto
 from json import JSONDecodeError
@@ -823,7 +823,7 @@ class CloudDirectory:
             ConsistencyLevel='EVENTUAL'
         )
 
-    def get_policies(self, policy_paths: List[Dict[str, Any]], policy_type='IAMPolicy') -> List[str]:
+    def get_policies(self, policy_paths: List[Dict[str, Any]], policy_type='IAMPolicy') -> Dict[str, List[str]]:
         # Parse the policyIds from the policies path. Only keep the unique ids
         policy_ids = set(
             [
@@ -848,14 +848,36 @@ class CloudDirectory:
             }
             for policy_id in policy_ids
         ]
+        operations.extend([
+            {
+                'GetObjectAttributes': {
+                    'ObjectReference': {'Selector': f'${policy_id}'},
+                    'SchemaFacet': {
+                        'SchemaArn': self._schema,
+                        'FacetName': 'IAMPolicy'
+                    },
+                    'AttributeNames': ['name', 'type']
+                }
+            }
+            for policy_id in policy_ids
+        ])
 
         # parse the policies from the responses
-        policies = [
+        responses = cd_client.batch_read(DirectoryArn=self._dir_arn, Operations=operations)['Responses']
+        middle = len(responses) // 2
+        results = defaultdict(list)
+        results['policies'].extend([
             response['SuccessfulResponse']['GetObjectAttributes']['Attributes'][0]['Value']['BinaryValue'].decode(
                 'utf-8')
-            for response in cd_client.batch_read(DirectoryArn=self._dir_arn, Operations=operations)['Responses']
-        ]
-        return policies
+            for response in responses[:middle]]
+        )
+        for response in responses[middle:]:
+            try:
+                _type, name = response['SuccessfulResponse']['GetObjectAttributes']['Attributes']
+            except KeyError:
+                continue
+            results[_type['Value']['StringValue']].append(name['Value']['StringValue'])
+        return results
 
     def get_object_information(self, obj_ref: str) -> Dict[str, Any]:
         """
@@ -1127,7 +1149,7 @@ class PolicyMixin:
 
     def lookup_policies(self) -> List[str]:
         policy_paths = self.cd.lookup_policy(self.object_ref)
-        return self.cd.get_policies(policy_paths)
+        return self.cd.get_policies(policy_paths)['policies']  # TODO use roles and groups extraced from policy
 
     def create_policy(self, statement: str, policy_type='IAMPolicy', **kwargs) -> str:
         """
@@ -1247,7 +1269,7 @@ class PolicyMixin:
                                                 params,
                                                 self.cd.node_schema)
             except cd_client.exceptions.ResourceNotFoundException:
-                self.create_policy(statement, policy_type)
+                self.create_policy(statement, policy_type, type=self.object_type, name=self.name)
         except cd_client.exceptions.LimitExceededException as ex:
             raise FusilladeHTTPException(ex)
         else:
@@ -1444,7 +1466,7 @@ class User(CloudNode, RolesMixin, PolicyMixin, OwnershipMixin):
             policy_paths = self.lookup_policies_batched()
         else:
             raise AuthorizationException(f"User {self.status}")
-        return self.cd.get_policies(policy_paths)
+        return self.cd.get_policies(policy_paths)['policies']  # TODO use roles and groups extraced from policy
 
     def lookup_policies_batched(self):
         object_refs = self.groups + [self.object_ref]
