@@ -25,6 +25,7 @@ from dss.operations import storage, sync
 from dss.logging import configure_test_logging
 from dss.config import BucketConfig, Config, Replica, override_bucket_config
 from dss.storage.hcablobstore import FileMetadata, compose_blob_key
+from dss.util.aws import resources
 
 def setUpModule():
     configure_test_logging()
@@ -155,9 +156,11 @@ class TestOperations(unittest.TestCase):
                     handle = Config.get_blobstore_handle(test.replica)
                     native_handle = Config.get_native_handle(test.replica)
                     test.upload(key, data, test.initial_content_type)
+                    old_checksum = handle.get_cloud_checksum(test.replica.bucket, key)
                     test.update(native_handle, test.replica.bucket, key, test.expected_content_type)
                     self.assertEqual(test.expected_content_type, handle.get_content_type(test.replica.bucket, key))
                     self.assertEqual(handle.get(test.replica.bucket, key), data)
+                    self.assertEqual(old_checksum, handle.get_cloud_checksum(test.replica.bucket, key))
 
     def test_verify_blob_replication(self):
         key = "blobs/alsdjflaskjdf"
