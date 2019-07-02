@@ -5,10 +5,13 @@ import json
 import typing
 import logging
 import argparse
+import math
 from uuid import uuid4
 
+import boto3
 from cloud_blobstore import BlobNotFoundError
 from dcplib.aws.sqs import SQSMessenger
+from dcplib.s3_multipart import get_s3_multipart_chunk_size
 
 from dss import Config, Replica
 from dss.storage.hcablobstore import compose_blob_key
@@ -19,6 +22,9 @@ from dss.storage.identifiers import BUNDLE_PREFIX, FILE_PREFIX, COLLECTION_PREFI
 
 
 logger = logging.getLogger(__name__)
+
+
+s3_resource = boto3.resource("s3")
 
 
 class StorageOperationHandler:
@@ -177,13 +183,44 @@ class verify_referential_integrity(StorageOperationHandler):
 
 # TODO: Move to cloud_blobstore
 def update_aws_content_type(s3_client, bucket, key, content_type):
-    s3_client.copy_object(
-        Bucket=bucket,
-        Key=key,
-        CopySource=dict(Bucket=bucket, Key=key),
-        ContentType=content_type,
-        MetadataDirective="REPLACE",
-    )
+    blob = s3_resource.Bucket(bucket).Object(key)
+    size = blob.content_length
+    source_etag = blob.e_tag
+    part_size = get_s3_multipart_chunk_size(size)
+    if size <= part_size:
+        s3_client.copy_object(
+            Bucket=bucket,
+            Key=key,
+            CopySource=dict(Bucket=bucket, Key=key),
+            ContentType=content_type,
+            MetadataDirective="REPLACE",
+        )
+    else:
+        blobstore = Config.get_blobstore_handle(Replica.aws)
+        number_of_parts = math.ceil(size / part_size)
+        resp = s3_client.create_multipart_upload(Bucket=bucket,
+                                                 Key=key,
+                                                 Metadata=blobstore.get_user_metadata(bucket, key),
+                                                 ContentType=content_type)
+        upload_id = resp['UploadId']
+        multipart_upload = dict(Parts=list())
+        for i in range(number_of_parts):
+            start_range = i * part_size
+            end_range = (i + 1) * part_size - 1
+            if end_range >= size:
+                end_range = size - 1
+            resp = s3_client.upload_part_copy(CopySource=dict(Bucket=bucket, Key=key),
+                                              Bucket=bucket,
+                                              Key=key,
+                                              CopySourceRange=f"bytes={start_range}-{end_range}",
+                                              PartNumber=i + 1,
+                                              UploadId=upload_id)
+            multipart_upload['Parts'].append(dict(ETag=resp['CopyPartResult']['ETag'], PartNumber=i + 1))
+        s3_client.complete_multipart_upload(Bucket=bucket,
+                                            Key=key,
+                                            MultipartUpload=multipart_upload,
+                                            UploadId=upload_id)
+        assert source_etag == s3_resource.Bucket(bucket).Object(key).e_tag
 
 # TODO: Move to cloud_blobstore
 def update_gcp_content_type(gs_client, bucket, key, content_type):

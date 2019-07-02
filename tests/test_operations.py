@@ -10,6 +10,7 @@ import argparse
 import unittest
 from collections import namedtuple
 from unittest import mock
+from boto3.s3.transfer import TransferConfig
 
 from cloud_blobstore import BlobNotFoundError
 
@@ -139,15 +140,17 @@ class TestOperations(unittest.TestCase):
                         self.assertEqual(log_warning.call_args[0][0], "JSONDecodeError")
 
     def test_update_content_type(self):
-        TestCase = namedtuple("TestCase", "replica upload update initial_content_type expected_content_type")
+        TestCase = namedtuple("TestCase", "replica upload size update initial_content_type expected_content_type")
         with override_bucket_config(BucketConfig.TEST):
             key = f"operations/{uuid.uuid4()}"
+            large_size = 64 * 1024 * 1024 + 1
             tests = [
-                TestCase(Replica.aws, self._put_s3_file, storage.update_aws_content_type, "a", "b"),
-                TestCase(Replica.gcp, self._put_gs_file, storage.update_gcp_content_type, "a", "b")
+                TestCase(Replica.aws, self._put_s3_file, 1, storage.update_aws_content_type, "a", "b"),
+                TestCase(Replica.aws, self._put_s3_file, large_size, storage.update_aws_content_type, "a", "b"),
+                TestCase(Replica.gcp, self._put_gs_file, 1, storage.update_gcp_content_type, "a", "b"),
             ]
-            data = b"foo"
             for test in tests:
+                data = os.urandom(test.size)
                 with self.subTest(test.replica.name):
                     handle = Config.get_blobstore_handle(test.replica)
                     native_handle = Config.get_native_handle(test.replica)
@@ -245,9 +248,14 @@ class TestOperations(unittest.TestCase):
                 self.assertEqual(res[0].key, key)
                 self.assertIn("missing on source", res[0].anomaly)
 
-    def _put_s3_file(self, key, data, content_type="blah"):
+    def _put_s3_file(self, key, data, content_type="blah", part_size=None):
         s3 = Config.get_native_handle(Replica.aws)
-        s3.put_object(Bucket=Replica.aws.bucket, Key=key, Body=data, ContentType=content_type)
+        with io.BytesIO(data) as fh:
+            s3.upload_fileobj(Bucket=Replica.aws.bucket,
+                              Key=key,
+                              Fileobj=fh,
+                              ExtraArgs=dict(ContentType=content_type),
+                              Config=TransferConfig(multipart_chunksize=64 * 1024 * 1024))
 
     def _put_gs_file(self, key, data, content_type="blah"):
         gs = Config.get_native_handle(Replica.gcp)
