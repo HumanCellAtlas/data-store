@@ -54,6 +54,21 @@ def dispatch_gs_indexer_event(event, context):
             _handle_event(Replica.gcp, key, context)
 
 
+# This entry point is for operator initiated indexing
+@app.sqs_queue_subscriber("dss-index-operation-" + os.environ['DSS_DEPLOYMENT_STAGE'],
+                          queue_attributes=dict(VisibilityTimeout="320"))
+def launch_from_operator_queue(event, context):
+    for event_record in event['Records']:
+        message = json.loads(event_record['body'])
+        try:
+            replica = Replica[message['replica']]
+            key = message['key']
+            _handle_event(replica, key, context)
+        except (KeyError, AssertionError):
+            logger.error("Inoperable operation index message %s", message)
+            continue
+
+
 def _handle_event(replica, key, context):
     executor = ThreadPoolExecutor(len(DEFAULT_BACKENDS))
     # We can't use executor as context manager because we don't want the shutdown to block
