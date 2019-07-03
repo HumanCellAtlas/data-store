@@ -158,10 +158,12 @@ class repair_file_blob_metadata(StorageOperationHandler):
                     update_aws_content_type(client, self.replica.bucket, blob_key, file_metadata['content-type'])
                 elif Replica.gcp == self.replica:
                     update_gcp_content_type(client, self.replica.bucket, blob_key, file_metadata['content-type'])
+            #TODO: GCP checksum
             elif Replica.aws == self.replica:
                 blob_etag = self.handle.get_cloud_checksum(self.replica.bucket, blob_key)
                 if blob_etag != file_metadata['s3-etag']:
                     update_aws_content_type(client, self.replica.bucket, blob_key, file_metadata['content-type'])
+                assert file_metadata['s3-etag'] == self.handle.get_cloud_checksum(self.replica.bucket, blob_key)
         except BlobNotFoundError as e:
             self.log_warning("BlobNotFoundError", dict(key=key, replica=self.replica.name, error=str(e)))
         except json.decoder.JSONDecodeError as e:
