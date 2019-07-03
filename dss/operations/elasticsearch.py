@@ -1,5 +1,5 @@
 """
-Elasticsearch tools
+Tools for maintaining the main Elasticsearch index and subscriptions.
 """
 import os
 import json
