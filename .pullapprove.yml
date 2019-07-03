@@ -1,0 +1,7 @@
+version: 3
+
+groups:
+  software-review:
+    reviews:
+      required: 1
+      author_value: 1 # if author in group reduce number of approvals needed by this number
