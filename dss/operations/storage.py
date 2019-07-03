@@ -5,10 +5,14 @@ import json
 import typing
 import logging
 import argparse
+import math
 from uuid import uuid4
+from traceback import format_exc
 
+import boto3
 from cloud_blobstore import BlobNotFoundError
 from dcplib.aws.sqs import SQSMessenger
+from dcplib.s3_multipart import get_s3_multipart_chunk_size
 
 from dss import Config, Replica
 from dss.storage.hcablobstore import compose_blob_key
@@ -16,6 +20,7 @@ from dss.operations import dispatch
 from dss.operations.util import command_queue_url, map_bucket
 from dss.events.handlers.sync import dependencies_exist
 from dss.storage.identifiers import BUNDLE_PREFIX, FILE_PREFIX, COLLECTION_PREFIX
+from dss.util.aws import resources
 
 
 logger = logging.getLogger(__name__)
@@ -122,6 +127,7 @@ class verify_file_blob_metadata(StorageOperationHandler):
         blob_key = compose_blob_key(file_metadata)
         try:
             blob_size = self.handle.get_size(self.replica.bucket, blob_key)
+            blob_etag = self.handle.get_cloud_checksum(self.replica.bucket, blob_key)
         except BlobNotFoundError:
             self.log_warning(BlobNotFoundError.__name__, dict(key=key, replica=self.replica.name, blob_key=blob_key))
         else:
@@ -138,10 +144,16 @@ class verify_file_blob_metadata(StorageOperationHandler):
                                       replica=self.replica.name,
                                       file_metadata_content_type=file_metadata['content-type'],
                                       blob_content_type=blob_content_type))
+            if file_metadata['s3-etag'] != blob_etag:
+                self.log_warning("FileEtagMismatch",
+                                 dict(key=key,
+                                      replica=self.replica.name,
+                                      file_etag=file_metadata['s3-etag'],
+                                      blob_etag=blob_etag))
 
 @storage.action("repair-file-blob-metadata",
                 arguments={"--entity-type": dict(default="file", choices=["file"])})
-class repair_blob_content_type(StorageOperationHandler):
+class repair_file_blob_metadata(StorageOperationHandler):
     """
     Make blob metadata consistent with file metadata.
     """
@@ -156,12 +168,18 @@ class repair_blob_content_type(StorageOperationHandler):
                     update_aws_content_type(client, self.replica.bucket, blob_key, file_metadata['content-type'])
                 elif Replica.gcp == self.replica:
                     update_gcp_content_type(client, self.replica.bucket, blob_key, file_metadata['content-type'])
+            # TODO: GCP checksum
+            elif Replica.aws == self.replica:
+                blob_etag = self.handle.get_cloud_checksum(self.replica.bucket, blob_key)
+                if blob_etag != file_metadata['s3-etag']:
+                    update_aws_content_type(client, self.replica.bucket, blob_key, file_metadata['content-type'])
+                assert file_metadata['s3-etag'] == self.handle.get_cloud_checksum(self.replica.bucket, blob_key)
         except BlobNotFoundError as e:
             self.log_warning("BlobNotFoundError", dict(key=key, replica=self.replica.name, error=str(e)))
         except json.decoder.JSONDecodeError as e:
             self.log_warning("JSONDecodeError", dict(key=key, replica=self.replica.name, error=str(e)))
-        except Exception as e:
-            self.log_error("Exception", dict(key=key, error=str(e)))
+        except Exception:
+            self.log_error("Exception", dict(key=key, error=format_exc()))
 
 @storage.action("verify-referential-integrity",
                 mutually_exclusive=["--entity-type", "--keys"])
@@ -187,13 +205,39 @@ class verify_referential_integrity(StorageOperationHandler):
 
 # TODO: Move to cloud_blobstore
 def update_aws_content_type(s3_client, bucket, key, content_type):
-    s3_client.copy_object(
-        Bucket=bucket,
-        Key=key,
-        CopySource=dict(Bucket=bucket, Key=key),
-        ContentType=content_type,
-        MetadataDirective="REPLACE",
-    )
+    blob = resources.s3.Bucket(bucket).Object(key)
+    size = blob.content_length
+    part_size = get_s3_multipart_chunk_size(size)
+    if size <= part_size:
+        s3_client.copy_object(Bucket=bucket,
+                              Key=key,
+                              CopySource=dict(Bucket=bucket, Key=key),
+                              ContentType=content_type,
+                              MetadataDirective="REPLACE")
+    else:
+        blobstore = Config.get_blobstore_handle(Replica.aws)
+        resp = s3_client.create_multipart_upload(Bucket=bucket,
+                                                 Key=key,
+                                                 Metadata=blobstore.get_user_metadata(bucket, key),
+                                                 ContentType=content_type)
+        upload_id = resp['UploadId']
+        multipart_upload = dict(Parts=list())
+        for i in range(math.ceil(size / part_size)):
+            start_range = i * part_size
+            end_range = (i + 1) * part_size - 1
+            if end_range >= size:
+                end_range = size - 1
+            resp = s3_client.upload_part_copy(CopySource=dict(Bucket=bucket, Key=key),
+                                              Bucket=bucket,
+                                              Key=key,
+                                              CopySourceRange=f"bytes={start_range}-{end_range}",
+                                              PartNumber=i + 1,
+                                              UploadId=upload_id)
+            multipart_upload['Parts'].append(dict(ETag=resp['CopyPartResult']['ETag'], PartNumber=i + 1))
+        s3_client.complete_multipart_upload(Bucket=bucket,
+                                            Key=key,
+                                            MultipartUpload=multipart_upload,
+                                            UploadId=upload_id)
 
 # TODO: Move to cloud_blobstore
 def update_gcp_content_type(gs_client, bucket, key, content_type):

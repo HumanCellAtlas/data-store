@@ -10,6 +10,7 @@ import argparse
 import unittest
 from collections import namedtuple
 from unittest import mock
+from boto3.s3.transfer import TransferConfig
 
 from cloud_blobstore import BlobNotFoundError
 
@@ -24,6 +25,7 @@ from dss.operations import storage, sync
 from dss.logging import configure_test_logging
 from dss.config import BucketConfig, Config, Replica, override_bucket_config
 from dss.storage.hcablobstore import FileMetadata, compose_blob_key
+from dss.util.aws import resources
 
 def setUpModule():
     configure_test_logging()
@@ -108,7 +110,7 @@ class TestOperations(unittest.TestCase):
                 args = argparse.Namespace(keys=[key], entity_type="files", job_id="", replica=replica.name)
 
                 with self.subTest("Blob content type repaired", replica=replica):
-                    storage.repair_blob_content_type([], args).process_key(key)
+                    storage.repair_file_blob_metadata([], args).process_key(key)
                     self.assertEqual(handle.get_content_type(replica.bucket, blob_key),
                                      file_metadata[FileMetadata.CONTENT_TYPE])
 
@@ -116,45 +118,49 @@ class TestOperations(unittest.TestCase):
                     with mock.patch("dss.operations.storage.StorageOperationHandler.log_error") as log_error:
                         with mock.patch("dss.config.Config.get_native_handle") as thrower:
                             thrower.side_effect = Exception()
-                            storage.repair_blob_content_type([], args).process_key(key)
+                            storage.repair_file_blob_metadata([], args).process_key(key)
                             log_error.assert_called()
                             self.assertEqual(log_error.call_args[0][0], "Exception")
 
                 with self.subTest("Should handle missing file metadata", replica=replica):
                     with mock.patch("dss.operations.storage.StorageOperationHandler.log_warning") as log_warning:
-                        storage.repair_blob_content_type([], args).process_key("wrong key")
+                        storage.repair_file_blob_metadata([], args).process_key("wrong key")
                         self.assertEqual(log_warning.call_args[0][0], "BlobNotFoundError")
 
                 with self.subTest("Should handle missing blob", replica=replica):
                     with mock.patch("dss.operations.storage.StorageOperationHandler.log_warning") as log_warning:
                         file_metadata[FileMetadata.SHA256] = "wrong"
                         uploader[replica](key, json.dumps(file_metadata).encode("utf-8"), "application/json")
-                        storage.repair_blob_content_type([], args).process_key(key)
+                        storage.repair_file_blob_metadata([], args).process_key(key)
                         self.assertEqual(log_warning.call_args[0][0], "BlobNotFoundError")
 
                 with self.subTest("Should handle corrupt file metadata", replica=replica):
                     with mock.patch("dss.operations.storage.StorageOperationHandler.log_warning") as log_warning:
                         uploader[replica](key, b"this is not json", "application/json")
-                        storage.repair_blob_content_type([], args).process_key(key)
+                        storage.repair_file_blob_metadata([], args).process_key(key)
                         self.assertEqual(log_warning.call_args[0][0], "JSONDecodeError")
 
     def test_update_content_type(self):
-        TestCase = namedtuple("TestCase", "replica upload update initial_content_type expected_content_type")
+        TestCase = namedtuple("TestCase", "replica upload size update initial_content_type expected_content_type")
         with override_bucket_config(BucketConfig.TEST):
             key = f"operations/{uuid.uuid4()}"
+            large_size = 64 * 1024 * 1024 + 1
             tests = [
-                TestCase(Replica.aws, self._put_s3_file, storage.update_aws_content_type, "a", "b"),
-                TestCase(Replica.gcp, self._put_gs_file, storage.update_gcp_content_type, "a", "b")
+                TestCase(Replica.aws, self._put_s3_file, 1, storage.update_aws_content_type, "a", "b"),
+                TestCase(Replica.aws, self._put_s3_file, large_size, storage.update_aws_content_type, "a", "b"),
+                TestCase(Replica.gcp, self._put_gs_file, 1, storage.update_gcp_content_type, "a", "b"),
             ]
-            data = b"foo"
             for test in tests:
+                data = os.urandom(test.size)
                 with self.subTest(test.replica.name):
                     handle = Config.get_blobstore_handle(test.replica)
                     native_handle = Config.get_native_handle(test.replica)
                     test.upload(key, data, test.initial_content_type)
+                    old_checksum = handle.get_cloud_checksum(test.replica.bucket, key)
                     test.update(native_handle, test.replica.bucket, key, test.expected_content_type)
                     self.assertEqual(test.expected_content_type, handle.get_content_type(test.replica.bucket, key))
                     self.assertEqual(handle.get(test.replica.bucket, key), data)
+                    self.assertEqual(old_checksum, handle.get_cloud_checksum(test.replica.bucket, key))
 
     def test_verify_blob_replication(self):
         key = "blobs/alsdjflaskjdf"
@@ -245,9 +251,14 @@ class TestOperations(unittest.TestCase):
                 self.assertEqual(res[0].key, key)
                 self.assertIn("missing on source", res[0].anomaly)
 
-    def _put_s3_file(self, key, data, content_type="blah"):
+    def _put_s3_file(self, key, data, content_type="blah", part_size=None):
         s3 = Config.get_native_handle(Replica.aws)
-        s3.put_object(Bucket=Replica.aws.bucket, Key=key, Body=data, ContentType=content_type)
+        with io.BytesIO(data) as fh:
+            s3.upload_fileobj(Bucket=Replica.aws.bucket,
+                              Key=key,
+                              Fileobj=fh,
+                              ExtraArgs=dict(ContentType=content_type),
+                              Config=TransferConfig(multipart_chunksize=64 * 1024 * 1024))
 
     def _put_gs_file(self, key, data, content_type="blah"):
         gs = Config.get_native_handle(Replica.gcp)
