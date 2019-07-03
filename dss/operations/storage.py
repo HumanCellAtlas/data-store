@@ -158,7 +158,7 @@ class repair_file_blob_metadata(StorageOperationHandler):
                     update_aws_content_type(client, self.replica.bucket, blob_key, file_metadata['content-type'])
                 elif Replica.gcp == self.replica:
                     update_gcp_content_type(client, self.replica.bucket, blob_key, file_metadata['content-type'])
-            #TODO: GCP checksum
+            # TODO: GCP checksum
             elif Replica.aws == self.replica:
                 blob_etag = self.handle.get_cloud_checksum(self.replica.bucket, blob_key)
                 if blob_etag != file_metadata['s3-etag']:
@@ -168,7 +168,7 @@ class repair_file_blob_metadata(StorageOperationHandler):
             self.log_warning("BlobNotFoundError", dict(key=key, replica=self.replica.name, error=str(e)))
         except json.decoder.JSONDecodeError as e:
             self.log_warning("JSONDecodeError", dict(key=key, replica=self.replica.name, error=str(e)))
-        except Exception as e:
+        except Exception:
             self.log_error("Exception", dict(key=key, error=format_exc()))
 
 @storage.action("verify-referential-integrity",
@@ -197,7 +197,6 @@ class verify_referential_integrity(StorageOperationHandler):
 def update_aws_content_type(s3_client, bucket, key, content_type):
     blob = resources.s3.Bucket(bucket).Object(key)
     size = blob.content_length
-    source_etag = blob.e_tag
     part_size = get_s3_multipart_chunk_size(size)
     if size <= part_size:
         s3_client.copy_object(Bucket=bucket,

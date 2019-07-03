@@ -110,7 +110,7 @@ class TestOperations(unittest.TestCase):
                 args = argparse.Namespace(keys=[key], entity_type="files", job_id="", replica=replica.name)
 
                 with self.subTest("Blob content type repaired", replica=replica):
-                    storage.repair_blob_content_type([], args).process_key(key)
+                    storage.repair_file_blob_metadata([], args).process_key(key)
                     self.assertEqual(handle.get_content_type(replica.bucket, blob_key),
                                      file_metadata[FileMetadata.CONTENT_TYPE])
 
@@ -118,26 +118,26 @@ class TestOperations(unittest.TestCase):
                     with mock.patch("dss.operations.storage.StorageOperationHandler.log_error") as log_error:
                         with mock.patch("dss.config.Config.get_native_handle") as thrower:
                             thrower.side_effect = Exception()
-                            storage.repair_blob_content_type([], args).process_key(key)
+                            storage.repair_file_blob_metadata([], args).process_key(key)
                             log_error.assert_called()
                             self.assertEqual(log_error.call_args[0][0], "Exception")
 
                 with self.subTest("Should handle missing file metadata", replica=replica):
                     with mock.patch("dss.operations.storage.StorageOperationHandler.log_warning") as log_warning:
-                        storage.repair_blob_content_type([], args).process_key("wrong key")
+                        storage.repair_file_blob_metadata([], args).process_key("wrong key")
                         self.assertEqual(log_warning.call_args[0][0], "BlobNotFoundError")
 
                 with self.subTest("Should handle missing blob", replica=replica):
                     with mock.patch("dss.operations.storage.StorageOperationHandler.log_warning") as log_warning:
                         file_metadata[FileMetadata.SHA256] = "wrong"
                         uploader[replica](key, json.dumps(file_metadata).encode("utf-8"), "application/json")
-                        storage.repair_blob_content_type([], args).process_key(key)
+                        storage.repair_file_blob_metadata([], args).process_key(key)
                         self.assertEqual(log_warning.call_args[0][0], "BlobNotFoundError")
 
                 with self.subTest("Should handle corrupt file metadata", replica=replica):
                     with mock.patch("dss.operations.storage.StorageOperationHandler.log_warning") as log_warning:
                         uploader[replica](key, b"this is not json", "application/json")
-                        storage.repair_blob_content_type([], args).process_key(key)
+                        storage.repair_file_blob_metadata([], args).process_key(key)
                         self.assertEqual(log_warning.call_args[0][0], "JSONDecodeError")
 
     def test_update_content_type(self):
