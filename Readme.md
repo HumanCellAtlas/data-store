@@ -141,6 +141,21 @@ service configuration.
 * [Documentation (Read the Docs)](https://fusillade.readthedocs.io/)
 * [Package distribution (PyPI)](https://pypi.python.org/pypi/fusillade)
 
+# Policies
+
+
+## Special Fusillade Context Keys
+
+In the same way AWS iam provides [context keys available to all services](https://docs.aws.amazon
+.com/IAM/latest/UserGuide/reference_policies_condition-keys.html#condition-keys-globally-available), fusillade provides 
+context keys that can be used in your policies.
+
+- `fus:groups` - is a list of groups the current user belongs. This can be used to restrict permission based on 
+  the group association
+- `fus:roles` - is a list of roles the current user belongs. This can be used to restrict permission based on 
+  the role association
+- `fus:user_email` - is the email of the user. This can be used to restrict permission based on the users email.
+
 ### Bugs
 Please report bugs, issues, feature requests, etc. on [GitHub](https://github.com/HumanCellAtlas/fusillade/issues).
 

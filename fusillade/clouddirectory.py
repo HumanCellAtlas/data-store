@@ -873,10 +873,16 @@ class CloudDirectory:
         )
         for response in responses[middle:]:
             try:
-                _type, name = response['SuccessfulResponse']['GetObjectAttributes']['Attributes']
+                attrs = response['SuccessfulResponse']['GetObjectAttributes']['Attributes']
+                if attrs[0]['Key']['Name'] == 'name':
+                    name = attrs[0]['Value']['StringValue']
+                    _type = attrs[1]['Value']['StringValue']
+                else:
+                    name = attrs[1]['Value']['StringValue']
+                    _type = attrs[0]['Value']['StringValue']
             except KeyError:
                 continue
-            results[_type['Value']['StringValue']].append(name['Value']['StringValue'])
+            results[_type].append(name)
         return results
 
     def get_object_information(self, obj_ref: str) -> Dict[str, Any]:
@@ -1147,9 +1153,9 @@ class PolicyMixin:
     """Adds policy support to a cloudNode"""
     allowed_policy_types = ['IAMPolicy']
 
-    def lookup_policies(self) -> List[str]:
+    def get_authz_params(self) -> Dict[str, List[str]]:
         policy_paths = self.cd.lookup_policy(self.object_ref)
-        return self.cd.get_policies(policy_paths)['policies']  # TODO use roles and groups extraced from policy
+        return self.cd.get_policies(policy_paths)
 
     def create_policy(self, statement: str, policy_type='IAMPolicy', **kwargs) -> str:
         """
@@ -1461,12 +1467,12 @@ class User(CloudNode, RolesMixin, PolicyMixin, OwnershipMixin):
         self._groups: Optional[List[str]] = None
         self._roles: Optional[List[str]] = None
 
-    def lookup_policies(self) -> List[str]:
+    def get_authz_params(self) -> Dict[str, List[str]]:
         if self.is_enabled():
             policy_paths = self.lookup_policies_batched()
         else:
             raise AuthorizationException(f"User {self.status}")
-        return self.cd.get_policies(policy_paths)['policies']  # TODO use roles and groups extraced from policy
+        return self.cd.get_policies(policy_paths)
 
     def lookup_policies_batched(self):
         object_refs = self.groups + [self.object_ref]

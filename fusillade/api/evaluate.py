@@ -6,19 +6,23 @@ from flask import make_response, jsonify
 
 from fusillade import User
 from fusillade.errors import AuthorizationException
-from fusillade.utils.authorize import assert_authorized, evaluate_policy
+from fusillade.utils.authorize import assert_authorized, evaluate_policy, restricted_context_entries
 
 
-def evaluate_policy_api(token_info, body):
+def evaluate_policy_api(token_info, body):  # TODO allow context variables to be specified in the body.
     with AuthorizeThread(token_info['https://auth.data.humancellatlas.org/email'],
                          ['fus:Evaluate'],
                          ['arn:hca:fus:*:*:user']):
         try:
-            policies = User(body['principal']).lookup_policies()
+            authz_params = User(body['principal']).get_authz_params()
         except AuthorizationException:
             result = False
         else:
-            result = evaluate_policy(body['principal'], body['action'], body['resource'], policies)
+            result = evaluate_policy(body['principal'],
+                                     body['action'],
+                                     body['resource'],
+                                     authz_params['policies'],
+                                     context_entries=restricted_context_entries(authz_params))
     return make_response(jsonify(**body, result=result), 200)
 
 
