@@ -8,6 +8,7 @@ import argparse
 import math
 from uuid import uuid4
 from traceback import format_exc
+from concurrent.futures import ThreadPoolExecutor, as_completed
 
 import boto3
 from cloud_blobstore import BlobNotFoundError
@@ -65,8 +66,9 @@ class StorageOperationHandler:
 
     def process_command_locally(self, argv: typing.List[str], args: argparse.Namespace):
         if self.keys is not None:
-            for key in self.keys:
-                self.process_key(key)
+            with ThreadPoolExecutor(max_workers=10) as e:
+                for f in as_completed([e.submit(self.process_key, key) for key in self.keys]):
+                    f.result()
         else:
             def process_keys(keys):
                 for key in keys:
