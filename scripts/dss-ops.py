@@ -12,6 +12,7 @@ sys.path.insert(0, pkg_root)  # noqa
 import dss
 import dss.operations.storage
 import dss.operations.sync
+import dss.operations.elasticsearch
 from dss.operations import dispatch
 
 logging.basicConfig(stream=sys.stdout)
