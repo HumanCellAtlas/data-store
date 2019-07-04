@@ -145,12 +145,16 @@ class TestSubscriptionsBase(ElasticsearchTestCase, TestAuthMixin, DSSAssertMixin
 
     def test_get(self):
         find_uuid = self._put_subscription()
+        hmac_id = 'dss_test'
+        hmac_key = '23/33'
 
         # Normal request
         url = str(UrlBuilder()
                   .set(path="/v1/subscriptions/" + str(find_uuid))
                   .add_query("replica", self.replica.name)
-                  .add_query("subscription_type", "elasticsearch"))
+                  .add_query("subscription_type", "elasticsearch")
+                  .add_query("hmac_key_id", hmac_id)
+                  .add_query("hmac_secret_key", hmac_key))
         resp_obj = self.assertGetResponse(
             url,
             requests.codes.okay,
@@ -158,6 +162,7 @@ class TestSubscriptionsBase(ElasticsearchTestCase, TestAuthMixin, DSSAssertMixin
         json_response = resp_obj.json
         self.assertEqual(self.sample_percolate_query, json_response['es_query'])
         self.assertEqual(self.endpoint, Endpoint.from_subscription(json_response))
+        self.assertEquals(hmac_key, json_response['hmac_secret_key'])
 
         # File not found request
         url = str(UrlBuilder()

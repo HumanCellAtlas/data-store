@@ -35,6 +35,7 @@ def get(uuid: str, replica: str):
     source = response['_source']
     source['uuid'] = uuid
     source['replica'] = replica
+    source['hmac_secret_key'] = response['hmac_secret_key']
 
     if source['owner'] != owner:
         # common_error_handler defaults code to capitalized 'Forbidden' for Werkzeug exception. Keeping consistent.

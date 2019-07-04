@@ -2294,6 +2294,10 @@ definitions:
           an exponentially increasing delay between attempts, until an attempt is successful or the a maximum
           number of attempts is reached.
         type: string
+      hmac_secret_key:
+          description: >
+            Key used to verify authenticity of subscription
+          type: string
         pattern: 'https?://'
       method:
         description: The HTTP request method to use when delivering a notification to the subscriber.
