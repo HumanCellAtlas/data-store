@@ -35,7 +35,7 @@ def get(uuid: str, replica: str):
     source = response['_source']
     source['uuid'] = uuid
     source['replica'] = replica
-    if response['hmac_secret_key']:
+    if 'hmac_secret_key' in response.keys():
         source['hmac_secret_key'] = response['hmac_secret_key']
 
     if source['owner'] != owner:
