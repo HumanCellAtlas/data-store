@@ -12,21 +12,30 @@ import hashlib
 import unittest
 from unittest import mock
 import uuid
+from concurrent.futures import ThreadPoolExecutor, as_completed
 
+import flask
 import boto3
 import crcmod
 from botocore.vendored import requests
+from dcplib.s3_multipart import MULTIPART_THRESHOLD, get_s3_multipart_chunk_size
+from dcplib.checksumming_io import ChecksummingSink
 
 pkg_root = os.path.abspath(os.path.join(os.path.dirname(__file__), '..'))  # noqa
 sys.path.insert(0, pkg_root)  # noqa
 
 import dss
+from dss.api import bundles as bundles_api
+from dss.api import files as files_api
 from dss.config import Config, Replica
 from dss.events.handlers import sync
 from dss.logging import configure_test_logging
+from dss.util import UrlBuilder
 from dss.util.streaming import get_pool_manager, S3SigningChunker
 from dss.storage.identifiers import FILE_PREFIX, BUNDLE_PREFIX, COLLECTION_PREFIX, FileFQID, BundleFQID, CollectionFQID
 from dss.storage.hcablobstore import BundleFileMetadata, BundleMetadata, FileMetadata, compose_blob_key
+from tests import get_auth_header
+from tests.infra.server import ThreadedLocalServer
 from tests import eventually, get_version, get_collection_fqid
 from tests.infra import testmode
 
@@ -306,6 +315,81 @@ class TestSyncDaemon(unittest.TestCase, DSSSyncMixin):
                 self.assertEqual(dest_blob.metadata, test_metadata)
             check_s3_dest(dest_blob)
             self._assert_content_type(dest_blob, src_blob)
+
+@testmode.integration
+class TestSyncDaemonLargeManifests(unittest.TestCase, DSSSyncMixin):
+    @classmethod
+    def setUpClass(cls):
+        cls.app = ThreadedLocalServer()
+        cls.app.start()
+        cls.flask_app = flask.Flask(__name__)
+
+    @classmethod
+    def teardownClass(cls):
+        cls.app.shutdown()
+
+    def setUp(self):
+        dss.Config.set_config(dss.BucketConfig.NORMAL)
+        self.s3 = boto3.resource("s3")
+        self.number_of_files = 1000000
+
+    @unittest.skipUnless(json.loads(os.environ.get("DSS_TEST_LARGE_MANIFEST_SYNC", "false")),
+                         "Skipping large bundle manifest sync test. Set DSS_TEST_LARGE_MANIFEST_SYNC=1 to run it")
+    def test_sync_large_manifest(self):
+        file_url = self._stage_file(str(uuid.uuid4()))
+        files = [dict(name=str(uuid.uuid4()), uuid=file_uuid, version=file_version, indexed=False)
+                 for file_uuid, file_version in self._put_files(file_url, number_of_files=self.number_of_files)]
+        bundle_uuid = str(uuid.uuid4())
+        bundle_version = str(datetime.datetime.utcnow().strftime("%Y-%m-%dT%H%M%S.%fZ"))
+        with mock.patch.object(bundles_api.security, "request"):
+            with mock.patch.object(bundles_api.security, "assert_authorized_group"):
+                with mock.patch.object(bundles_api, "nestedcontext"):
+                    with self.flask_app.test_request_context('/'):
+                        bundles_api.put(bundle_uuid, "aws", dict(creator_uid=1, files=files), bundle_version)
+
+        @eventually(timeout=600, interval=10, errors={AssertionError})
+        def check_dest():
+            url = str(UrlBuilder().set(path='/v1/bundles/' + bundle_uuid)
+                      .add_query("version", bundle_version)
+                      .add_query("replica", "gcp"))
+            resp = self.app.get(url, headers=get_auth_header())
+            assert (200 == resp.status_code) or (206 == resp.status_code)
+
+        check_dest()
+
+    # TODO: (bhannafi) integration test of large collection manifest
+
+    def _stage_file(self, key, size=7):
+        assert size < MULTIPART_THRESHOLD
+        data = os.urandom(size)
+        chunk_size = get_s3_multipart_chunk_size(size)
+        with ChecksummingSink(write_chunk_size=chunk_size) as sink:
+            sink.write(data)
+            sums = sink.get_checksums()
+        metadata = {
+            'hca-dss-crc32c': sums['crc32c'].lower(),
+            'hca-dss-s3_etag': sums['s3_etag'].lower(),
+            'hca-dss-sha1': sums['sha1'].lower(),
+            'hca-dss-sha256': sums['sha256'].lower(),
+        }
+        fh = io.BytesIO(data)
+        blob = self.s3.Bucket(os.environ['DSS_S3_BUCKET_TEST']).Object(key)
+        blob.upload_fileobj(fh, ExtraArgs=dict(Metadata=metadata, ContentType="application/octet-stream"))
+        return f"s3://{os.environ['DSS_S3_BUCKET_TEST']}/{key}"
+
+    def _put_files(self, source_url, replica="aws", number_of_files=10):
+        def _put():
+            file_uuid = str(uuid.uuid4())
+            file_version = str(datetime.datetime.utcnow().strftime("%Y-%m-%dT%H%M%S.%fZ"))
+            with self.flask_app.test_request_context('/'):
+                files_api.put(file_uuid, dict(source_url=source_url, creator_uid=1), file_version)
+            return file_uuid, file_version
+
+        with mock.patch.object(files_api.security, "request"):
+            with mock.patch.object(files_api.security, "assert_authorized_group"):
+                with ThreadPoolExecutor(max_workers=20) as e:
+                    futures = [e.submit(_put) for _ in range(number_of_files)]
+                    return [future.result() for future in futures]
 
 
 if __name__ == '__main__':

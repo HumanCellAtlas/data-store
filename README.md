@@ -6,7 +6,7 @@
 [![Build Status](https://travis-ci.com/HumanCellAtlas/data-store.svg?branch=master)](https://travis-ci.com/HumanCellAtlas/data-store)
 [![codecov](https://codecov.io/gh/HumanCellAtlas/data-store/branch/master/graph/badge.svg)](https://codecov.io/gh/HumanCellAtlas/data-store)
 
-This repository maintains a prototype for the data storage system of the
+This repository maintains the data storage system of the
 [Human Cell Atlas](https://www.humancellatlas.org/). We use this
 [Google Drive folder](https://drive.google.com/open?id=0B-_4IWxXwazQbWE5YmtqUWx3RVE) for design docs and
 meeting notes, and [this Zenhub board](https://app.zenhub.com/workspace/o/humancellatlas/data-store) to track our GitHub work.
@@ -311,7 +311,23 @@ And you should be able to list bundles like this:
 
     curl -X GET "https://<domain_name>/v1/bundles" -H  "accept: application/json"
 
+#### Monitoring
+Currently the following metrics can be provided from the DSS Lambdas:
+	
+	* Lambda Duration
+	* Lambda Invocations 
 
+This monitoring feature must be explicitly deployed:
+
+```
+# First set the callback URL secret in the Secret Manager. 
+source environment
+echo "https://CALLBACKURL" | $DSS_HOME/scripts/set_secret.py --secret-name $DSS_MONITOR_WEBHOOK_SECRET_NAME
+# Then build out infra/fargate
+make -C infra COMPONENT=fargate plan
+make -C infra COMPONENT=fargate apply
+```
+By default the Monitor Task will post every 24 hours at 00:00 UTC; and display the past 24 hours of collected metrics. 
 
 ### CI/CD with Travis CI and GitLab
 

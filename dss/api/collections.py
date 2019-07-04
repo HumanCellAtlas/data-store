@@ -188,12 +188,17 @@ def delete(uuid: str, replica: str):
 
 
 @functools.lru_cache(maxsize=64)
-def get_json_metadata(entity_type: str, uuid: str, version: str, replica: Replica, blobstore_handle: BlobStore):
+def get_json_metadata(entity_type: str,
+                      uuid: str,
+                      version: str,
+                      replica: Replica,
+                      blobstore_handle: BlobStore,
+                      max_metadata_size: int=MAX_METADATA_SIZE):
     try:
         key = "{}s/{}.{}".format(entity_type, uuid, version)
         # TODO: verify that file is a metadata file
         size = blobstore_handle.get_size(replica.bucket, key)
-        if size > MAX_METADATA_SIZE:
+        if size > max_metadata_size:
             raise DSSException(
                 requests.codes.unprocessable_entity,
                 "invalid_link",
