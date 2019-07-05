@@ -2298,7 +2298,7 @@ definitions:
       hmac_secret_key:
         description: >
           Key used to verify authenticity of subscription
-          type: string
+        type: string
       method:
         description: The HTTP request method to use when delivering a notification to the subscriber.
         enum: [POST, PUT]
