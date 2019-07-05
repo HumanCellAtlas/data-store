@@ -59,7 +59,7 @@ def find(replica: str):
         'uuid': hit.meta.id,
         'replica': replica,
         'owner': owner,
-        **{k: v for k, v in hit.to_dict().items() if not k.startswith('hmac_')}}
+        **{k: v for k, v in hit.to_dict().items() if not k.startswith('hmac_key_id')}}
         for hit in search.scan()]
 
     full_response = {'subscriptions': responses}

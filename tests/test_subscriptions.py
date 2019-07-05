@@ -186,6 +186,7 @@ class TestSubscriptionsBase(ElasticsearchTestCase, TestAuthMixin, DSSAssertMixin
             headers=get_auth_header())
         json_response = resp_obj.json
         self.assertEqual(self.sample_percolate_query, json_response['subscriptions'][0]['es_query'])
+        self.assertEqual(self.hmac_secret_key, json_response['subscriptions'][0]['hmac_secret_key'])
         self.assertEqual(self.endpoint, Endpoint.from_subscription(json_response['subscriptions'][0]))
         self.assertEqual(num_additions, len(json_response['subscriptions']))
 
