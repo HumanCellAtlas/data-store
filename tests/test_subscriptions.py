@@ -73,6 +73,8 @@ class TestSubscriptionsBase(ElasticsearchTestCase, TestAuthMixin, DSSAssertMixin
                                  form_fields={'foo': 'bar'},
                                  payload_form_field='baz')
         self.sample_percolate_query = smartseq2_paired_ends_vx_query
+        self.hmac_key_id = 'dss_test'
+        self.hmac_secret_key = '23/33'
 
     def test_auth_errors(self):
         url = str(UrlBuilder()
@@ -158,6 +160,7 @@ class TestSubscriptionsBase(ElasticsearchTestCase, TestAuthMixin, DSSAssertMixin
         json_response = resp_obj.json
         self.assertEqual(self.sample_percolate_query, json_response['es_query'])
         self.assertEqual(self.endpoint, Endpoint.from_subscription(json_response))
+        self.assertEquals(self.hmac_secret_key, json_response['hmac_secret_key'])
 
         # File not found request
         url = str(UrlBuilder()
@@ -209,7 +212,8 @@ class TestSubscriptionsBase(ElasticsearchTestCase, TestAuthMixin, DSSAssertMixin
             endpoint = self.endpoint
         if isinstance(endpoint, Endpoint):
             endpoint = endpoint.to_dict()
-        json_request_body = dict(endpoint, es_query=self.sample_percolate_query)
+        json_request_body = dict(endpoint, es_query=self.sample_percolate_query, hmac_key_id=self.hmac_key_id,
+                                 hmac_secret_key=self.hmac_secret_key)
         if attachments is not None:
             json_request_body['attachments'] = attachments
         resp_obj = self.assertPutResponse(

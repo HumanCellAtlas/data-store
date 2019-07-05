@@ -2295,6 +2295,10 @@ definitions:
           number of attempts is reached.
         type: string
         pattern: 'https?://'
+      hmac_secret_key:
+        description: >
+          Key used to verify authenticity of subscription
+        type: string
       method:
         description: The HTTP request method to use when delivering a notification to the subscriber.
         enum: [POST, PUT]
