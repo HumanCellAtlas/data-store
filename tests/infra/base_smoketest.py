@@ -202,7 +202,7 @@ class BaseSmokeTest(unittest.TestCase):
                     try:
                         run(f"{self.venv_bin}hca dss download --replica {replica.name} --bundle-uuid {bundle_uuid}")
                         break
-                    except:
+                    except:  # noqa
                         print(f'Waiting for {replica.name} bundle uuid: {bundle_uuid}')
                         time.sleep(1)
                 else:
