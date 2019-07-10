@@ -205,7 +205,7 @@ class BaseSmokeTest(unittest.TestCase):
                     except:
                         print(f'Waiting for {replica.name} bundle uuid: {bundle_uuid}')
                         time.sleep(1)
-                    else:
+                    if i == 2:
                         run(f"{self.venv_bin}hca dss download --replica {replica.name} --bundle-uuid {bundle_uuid}")
 
     def generate_presigned_url(self, bucket, key):
