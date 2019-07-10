@@ -198,7 +198,12 @@ class BaseSmokeTest(unittest.TestCase):
                 else:
                     parser.exit(RED(f"Failed to replicate bundle from {current_replica.name} to {replica.name}"))
             with self.subTest(f"{current_replica.name}: Download bundle from {replica}"):
-                run(f"{self.venv_bin}hca dss download --replica {replica.name} --bundle-uuid {bundle_uuid}")
+                for i in range(30):
+                    try:
+                        run(f"{self.venv_bin}hca dss download --replica {replica.name} --bundle-uuid {bundle_uuid}")
+                        break
+                    except:
+                        time.sleep(1)
 
     def generate_presigned_url(self, bucket, key):
         s3 = boto3.client('s3', config=botocore.client.Config(signature_version='s3v4'))
