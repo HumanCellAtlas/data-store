@@ -204,6 +204,8 @@ class BaseSmokeTest(unittest.TestCase):
                         break
                     except:
                         time.sleep(1)
+                    else:
+                        run(f"{self.venv_bin}hca dss download --replica {replica.name} --bundle-uuid {bundle_uuid}")
 
     def generate_presigned_url(self, bucket, key):
         s3 = boto3.client('s3', config=botocore.client.Config(signature_version='s3v4'))
