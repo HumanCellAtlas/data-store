@@ -198,7 +198,7 @@ class BaseSmokeTest(unittest.TestCase):
                 else:
                     parser.exit(RED(f"Failed to replicate bundle from {current_replica.name} to {replica.name}"))
             with self.subTest(f"{current_replica.name}: Download bundle from {replica}"):
-                for i in range(30):
+                for i in range(3):
                     try:
                         run(f"{self.venv_bin}hca dss download --replica {replica.name} --bundle-uuid {bundle_uuid}")
                         break
