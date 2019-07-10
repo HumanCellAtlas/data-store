@@ -41,7 +41,7 @@ class TestExptime(unittest.TestCase, DSSAssertMixin, DSSUploadMixin):
     @unittest.skipIf(DeploymentStage.IS_PROD(), "Skipping synthetic 504 test for PROD.")
     def test_synthetic_504(self):
         file_uuid = str(uuid.uuid4())
-        self.assertGetResponse(
+        r = self.assertGetResponse(
             f"/v1/files/{file_uuid}?replica=aws",
             requests.codes.gateway_timeout,
             expected_error=ExpectedErrorFields(
@@ -52,6 +52,8 @@ class TestExptime(unittest.TestCase, DSSAssertMixin, DSSUploadMixin):
                 "DSS_FAKE_504_PROBABILITY": "1.0",
             }
         )
+        with self.subTest('Retry-After headers are included in a GET /v1/bundles/{uuid} 504 response.'):
+            self.assertEqual(int(r.response.headers['Retry-After']), 10)
 
 
 if __name__ == '__main__':
