@@ -45,5 +45,7 @@ test:
   stage: test
   script:
     - make smoketest-prod
+  dependencies:
+    - deploy
   only:
     - prod

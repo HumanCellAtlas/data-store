@@ -36,6 +36,7 @@ Environment Variable | Description
 `DSS_GS_CHECKOUT_BUCKET_TEST_USER` | GS bucket representing a non-dss managed user bucket (i.e. testing POST /bundles/{uuid}/checkout)
 `DSS_GS_CHECKOUT_BUCKET_TEST` | The name of the DSS' test checkout bucket in GS. This bucket replaces `DSS_S3_CHECKOUT_BUCKET` during unit and integration tests. This bucket name should be suffixed with `DSS_DEPLOYMENT_STAGE`.
 `DSS_GS_CHECKOUT_BUCKET` | The name of the DSS' checkout bucket in GS. On `GET` during the checkout process copies files from `DSS_S3_BUCKET` to this bucket. This bucket name should be suffixed with `DSS_DEPLOYMENT_STAGE`.
+`DSS_MONITOR_WEBHOOK_SECRET_NAME`	| Webhook URL to post metrics notifications from the DSS Monitor Fargate Task
 `DSS_NOTIFICATION_SENDER` |
 `DSS_NOTIFY_DELAYS` | Configure the delays between notification attempts. The first attempt is immediate. The second attempt is one minute later. Then ten minutes, one hour, and six hours in between. Then 24 hours minus all previous delays and lastly every 24 hours for six days. This is exponential initially and then levels off where exponential would be too infrequent. The last attempt is made seven days after the first one, which is easy to remember.
 `DSS_NOTIFY_TIMEOUT` | This may seem excessive but the default of 10s is not enough for Green's Lira and would cause the notification to be retried, causing Lira to make a duplicate submission.

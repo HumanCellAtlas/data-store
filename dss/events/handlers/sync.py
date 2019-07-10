@@ -3,6 +3,7 @@ import time
 import math
 from contextlib import closing
 from string import ascii_letters
+from concurrent.futures import ThreadPoolExecutor, as_completed
 
 import boto3
 import google.cloud.storage
@@ -258,14 +259,19 @@ def dependencies_exist(source_replica: Replica, dest_replica: Replica, key: str)
                                             replica=source_replica,
                                             blobstore_handle=source_handle)
         try:
-            for file in bundle_manifest[BundleMetadata.FILES]:
-                file_uuid = file[BundleFileMetadata.UUID]
-                file_version = file[BundleFileMetadata.VERSION]
-                get_json_metadata(entity_type="file",
-                                  uuid=file_uuid,
-                                  version=file_version,
-                                  replica=dest_replica,
-                                  blobstore_handle=dest_handle)
+            with ThreadPoolExecutor(max_workers=20) as e:
+                futures = list()
+                for file in bundle_manifest[BundleMetadata.FILES]:
+                    file_uuid = file[BundleFileMetadata.UUID]
+                    file_version = file[BundleFileMetadata.VERSION]
+                    futures.append(e.submit(get_json_metadata,
+                                            entity_type="file",
+                                            uuid=file_uuid,
+                                            version=file_version,
+                                            replica=dest_replica,
+                                            blobstore_handle=source_handle))
+                for future in as_completed(futures):
+                    future.result()
             return True
         except Exception:
             pass

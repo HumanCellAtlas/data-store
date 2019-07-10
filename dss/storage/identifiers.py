@@ -2,6 +2,7 @@ import re
 from collections import namedtuple
 from typing import Type
 
+BLOB_PREFIX = "blobs"
 BUNDLE_PREFIX = "bundles"
 FILE_PREFIX = "files"
 COLLECTION_PREFIX = "collections"
@@ -9,7 +10,9 @@ COLLECTION_PREFIX = "collections"
 # versioned tombstones are indexed after all bundles during a reindex operation.
 TOMBSTONE_SUFFIX = "dead"
 
-UUID_PATTERN = '[A-Za-z0-9]{8}-[A-Za-z0-9]{4}-[A-Za-z0-9]{4}-[A-Za-z0-9]{4}-[A-Za-z0-9]{12}'
+# does not allow caps
+# (though our swagger params allow users to input this, s3 keys are changed to lowercase after ingestion)
+UUID_PATTERN = "[a-z0-9]{8}-[a-z0-9]{4}-[a-z0-9]{4}-[a-z0-9]{4}-[a-z0-9]{12}"
 UUID_REGEX = re.compile(UUID_PATTERN)
 
 VERSION_PATTERN = "\d{4}-\d{2}-\d{2}T\d{2}\d{2}\d{2}[.]\d{6}Z"
@@ -31,6 +34,12 @@ DSS_OBJECT_NAME_REGEX = re.compile(
 # API endpoint patterns
 BUNDLE_CHECKOUT_PATTERN = f'/v1/bundles/{UUID_PATTERN}/checkout'
 BUNDLE_CHECKOUT_URI_REGEX = re.compile(BUNDLE_CHECKOUT_PATTERN)
+
+FILES_PATTERN = f'/v1/files/{UUID_PATTERN}'
+FILES_URI_REGEX = re.compile(FILES_PATTERN)
+
+BUNDLES_PATTERN = f'/v1/bundles/{UUID_PATTERN}'
+BUNDLES_URI_REGEX = re.compile(BUNDLES_PATTERN)
 
 
 class ObjectIdentifierError(ValueError):

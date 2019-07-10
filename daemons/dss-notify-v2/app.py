@@ -76,8 +76,8 @@ def launch_from_forwarded_event(event, context):
     "dss-notify-v2-" + os.environ['DSS_DEPLOYMENT_STAGE'],
     batch_size=1,
     queue_attributes=dict(
-        VisibilityTimeout="3600",  # Retry every hour
-        MessageRetentionPeriod=str(7 * 24 * 3600)  # Retain messages for 7 days
+        VisibilityTimeout=str(6 * 3600),  # Retry every six hour
+        MessageRetentionPeriod=str(3 * 24 * 3600)  # Retain messages for 7 days
     )
 )
 def launch_from_notification_queue(event, context):
@@ -107,7 +107,11 @@ def _notify_subscribers(replica: Replica, key: str, is_delete_event: bool):
     if is_delete_event:
         metadata_document = build_deleted_bundle_metadata_document(key)
     else:
-        metadata_document = build_bundle_metadata_document(replica, key)
+        if exists(replica, key):
+            metadata_document = build_bundle_metadata_document(replica, key)
+        else:
+            logger.error(f"Key %s not found in replica %s, unable to notify subscribers", key, replica.name)
+            return
 
     def _func(subscription):
         if should_notify(replica, subscription, metadata_document, key):

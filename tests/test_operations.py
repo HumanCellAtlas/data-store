@@ -10,6 +10,7 @@ import argparse
 import unittest
 from collections import namedtuple
 from unittest import mock
+from boto3.s3.transfer import TransferConfig
 
 from cloud_blobstore import BlobNotFoundError
 
@@ -19,11 +20,12 @@ sys.path.insert(0, pkg_root)  # noqa
 import dss
 from tests.infra import testmode
 from dss.operations import DSSOperationsCommandDispatch
-from dss.operations.util import map_bucket_results, CommandForwarder
-from dss.operations import storage
+from dss.operations.util import map_bucket_results
+from dss.operations import storage, sync
 from dss.logging import configure_test_logging
 from dss.config import BucketConfig, Config, Replica, override_bucket_config
 from dss.storage.hcablobstore import FileMetadata, compose_blob_key
+from dss.util.aws import resources
 
 def setUpModule():
     configure_test_logging()
@@ -89,21 +91,6 @@ class TestOperations(unittest.TestCase):
                     self.assertGreater(count_list, 0)
                     self.assertEqual(count_list, total)
 
-    def test_command_forwarder(self):
-        batches = list()
-
-        def mock_enqueue(commands):
-            batches.append(commands)
-
-        with mock.patch("dss.operations.util._enqueue_command_batch", mock_enqueue):
-            with CommandForwarder() as f:
-                for i in range(21):
-                    f.forward(str(i))
-
-        self.assertEqual(batches[0], [str(i) for i in range(10)])
-        self.assertEqual(batches[1], [str(i) for i in range(10, 20)])
-        self.assertEqual(batches[2], [str(i) for i in range(20, 21)])
-
     def test_repair_blob_metadata(self):
         uploader = {Replica.aws: self._put_s3_file, Replica.gcp: self._put_gs_file}
         with override_bucket_config(BucketConfig.TEST):
@@ -123,7 +110,7 @@ class TestOperations(unittest.TestCase):
                 args = argparse.Namespace(keys=[key], entity_type="files", job_id="", replica=replica.name)
 
                 with self.subTest("Blob content type repaired", replica=replica):
-                    storage.repair_blob_content_type([], args).process_key(key)
+                    storage.repair_file_blob_metadata([], args).process_key(key)
                     self.assertEqual(handle.get_content_type(replica.bucket, blob_key),
                                      file_metadata[FileMetadata.CONTENT_TYPE])
 
@@ -131,49 +118,147 @@ class TestOperations(unittest.TestCase):
                     with mock.patch("dss.operations.storage.StorageOperationHandler.log_error") as log_error:
                         with mock.patch("dss.config.Config.get_native_handle") as thrower:
                             thrower.side_effect = Exception()
-                            storage.repair_blob_content_type([], args).process_key(key)
+                            storage.repair_file_blob_metadata([], args).process_key(key)
                             log_error.assert_called()
                             self.assertEqual(log_error.call_args[0][0], "Exception")
 
                 with self.subTest("Should handle missing file metadata", replica=replica):
                     with mock.patch("dss.operations.storage.StorageOperationHandler.log_warning") as log_warning:
-                        storage.repair_blob_content_type([], args).process_key("wrong key")
+                        storage.repair_file_blob_metadata([], args).process_key("wrong key")
                         self.assertEqual(log_warning.call_args[0][0], "BlobNotFoundError")
 
                 with self.subTest("Should handle missing blob", replica=replica):
                     with mock.patch("dss.operations.storage.StorageOperationHandler.log_warning") as log_warning:
                         file_metadata[FileMetadata.SHA256] = "wrong"
                         uploader[replica](key, json.dumps(file_metadata).encode("utf-8"), "application/json")
-                        storage.repair_blob_content_type([], args).process_key(key)
+                        storage.repair_file_blob_metadata([], args).process_key(key)
                         self.assertEqual(log_warning.call_args[0][0], "BlobNotFoundError")
 
                 with self.subTest("Should handle corrupt file metadata", replica=replica):
                     with mock.patch("dss.operations.storage.StorageOperationHandler.log_warning") as log_warning:
                         uploader[replica](key, b"this is not json", "application/json")
-                        storage.repair_blob_content_type([], args).process_key(key)
+                        storage.repair_file_blob_metadata([], args).process_key(key)
                         self.assertEqual(log_warning.call_args[0][0], "JSONDecodeError")
 
     def test_update_content_type(self):
-        TestCase = namedtuple("TestCase", "replica upload update initial_content_type expected_content_type")
+        TestCase = namedtuple("TestCase", "replica upload size update initial_content_type expected_content_type")
         with override_bucket_config(BucketConfig.TEST):
             key = f"operations/{uuid.uuid4()}"
+            large_size = 64 * 1024 * 1024 + 1
             tests = [
-                TestCase(Replica.aws, self._put_s3_file, storage.update_aws_content_type, "a", "b"),
-                TestCase(Replica.gcp, self._put_gs_file, storage.update_gcp_content_type, "a", "b")
+                TestCase(Replica.aws, self._put_s3_file, 1, storage.update_aws_content_type, "a", "b"),
+                TestCase(Replica.aws, self._put_s3_file, large_size, storage.update_aws_content_type, "a", "b"),
+                TestCase(Replica.gcp, self._put_gs_file, 1, storage.update_gcp_content_type, "a", "b"),
             ]
-            data = b"foo"
             for test in tests:
+                data = os.urandom(test.size)
                 with self.subTest(test.replica.name):
                     handle = Config.get_blobstore_handle(test.replica)
                     native_handle = Config.get_native_handle(test.replica)
                     test.upload(key, data, test.initial_content_type)
+                    old_checksum = handle.get_cloud_checksum(test.replica.bucket, key)
                     test.update(native_handle, test.replica.bucket, key, test.expected_content_type)
                     self.assertEqual(test.expected_content_type, handle.get_content_type(test.replica.bucket, key))
                     self.assertEqual(handle.get(test.replica.bucket, key), data)
+                    self.assertEqual(old_checksum, handle.get_cloud_checksum(test.replica.bucket, key))
 
-    def _put_s3_file(self, key, data, content_type="blah"):
+    def test_verify_blob_replication(self):
+        key = "blobs/alsdjflaskjdf"
+        from_handle = mock.Mock()
+        to_handle = mock.Mock()
+        from_handle.get_size = mock.Mock(return_value=10)
+        to_handle.get_size = mock.Mock(return_value=10)
+
+        with self.subTest("no replication error"):
+            res = sync.verify_blob_replication(from_handle, to_handle, "", "", key)
+            self.assertEqual(res, list())
+
+        with self.subTest("Unequal size blobs reports error"):
+            to_handle.get_size = mock.Mock(return_value=11)
+            res = sync.verify_blob_replication(from_handle, to_handle, "", "", key)
+            self.assertEqual(res[0].key, key)
+            self.assertIn("mismatch", res[0].anomaly)
+
+        with self.subTest("Missing target blob reports error"):
+            to_handle.get_size.side_effect = BlobNotFoundError
+            res = sync.verify_blob_replication(from_handle, to_handle, "", "", key)
+            self.assertEqual(res[0].key, key)
+            self.assertIn("missing", res[0].anomaly)
+
+    def test_verify_file_replication(self):
+        key = "blobs/alsdjflaskjdf"
+        from_handle = mock.Mock()
+        to_handle = mock.Mock()
+        file_metadata = json.dumps({'sha256': "", 'sha1': "", 's3-etag': "", 'crc32c': ""})
+        from_handle.get = mock.Mock(return_value=file_metadata)
+        to_handle.get = mock.Mock(return_value=file_metadata)
+
+        with self.subTest("no replication error"):
+            with mock.patch("dss.operations.sync.verify_blob_replication") as vbr:
+                vbr.return_value = list()
+                res = sync.verify_file_replication(from_handle, to_handle, "", "", key)
+                self.assertEqual(res, list())
+
+        with self.subTest("Unequal file metadata"):
+            to_handle.get.return_value = "{}"
+            res = sync.verify_file_replication(from_handle, to_handle, "", "", key)
+            self.assertEqual(res[0].key, key)
+            self.assertIn("mismatch", res[0].anomaly)
+
+        with self.subTest("Missing file metadata"):
+            to_handle.get.side_effect = BlobNotFoundError
+            res = sync.verify_file_replication(from_handle, to_handle, "", "", key)
+            self.assertEqual(res[0].key, key)
+            self.assertIn("missing", res[0].anomaly)
+
+    def test_verify_bundle_replication(self):
+        key = "blobs/alsdjflaskjdf"
+        from_handle = mock.Mock()
+        to_handle = mock.Mock()
+        bundle_metadata = json.dumps({
+            "creator_uid": 8008,
+            "files": [{"uuid": None, "version": None}]
+        })
+        from_handle.get = mock.Mock(return_value=bundle_metadata)
+        to_handle.get = mock.Mock(return_value=bundle_metadata)
+
+        with mock.patch("dss.operations.sync.verify_file_replication") as vfr:
+            with self.subTest("replication ok"):
+                vfr.return_value = list()
+                res = sync.verify_bundle_replication(from_handle, to_handle, "", "", key)
+                self.assertEqual(res, [])
+
+            with self.subTest("replication problem"):
+                vfr.return_value = [sync.ReplicationAnomaly(key="", anomaly="")]
+                res = sync.verify_bundle_replication(from_handle, to_handle, "", "", key)
+                self.assertEqual(res, vfr.return_value)
+
+            with self.subTest("Unequal bundle metadata"):
+                to_handle.get.return_value = "{}"
+                res = sync.verify_bundle_replication(from_handle, to_handle, "", "", key)
+                self.assertEqual(res[0].key, key)
+                self.assertIn("mismatch", res[0].anomaly)
+
+            with self.subTest("Missing destination bundle metadata"):
+                to_handle.get.side_effect = BlobNotFoundError
+                res = sync.verify_bundle_replication(from_handle, to_handle, "", "", key)
+                self.assertEqual(res[0].key, key)
+                self.assertIn("missing on target", res[0].anomaly)
+
+            with self.subTest("Missing source bundle metadata"):
+                from_handle.get.side_effect = BlobNotFoundError
+                res = sync.verify_bundle_replication(from_handle, to_handle, "", "", key)
+                self.assertEqual(res[0].key, key)
+                self.assertIn("missing on source", res[0].anomaly)
+
+    def _put_s3_file(self, key, data, content_type="blah", part_size=None):
         s3 = Config.get_native_handle(Replica.aws)
-        s3.put_object(Bucket=Replica.aws.bucket, Key=key, Body=data, ContentType=content_type)
+        with io.BytesIO(data) as fh:
+            s3.upload_fileobj(Bucket=Replica.aws.bucket,
+                              Key=key,
+                              Fileobj=fh,
+                              ExtraArgs=dict(ContentType=content_type),
+                              Config=TransferConfig(multipart_chunksize=64 * 1024 * 1024))
 
     def _put_gs_file(self, key, data, content_type="blah"):
         gs = Config.get_native_handle(Replica.gcp)

@@ -23,6 +23,7 @@ from dss.logging import configure_lambda_logging
 from dss.util.tracing import DSS_XRAY_TRACE
 from dss.api import health
 from dss.error import include_retry_after_header
+from dss.storage.identifiers import BUNDLES_URI_REGEX, FILES_URI_REGEX
 
 if DSS_XRAY_TRACE:  # noqa
     from aws_xray_sdk.core import xray_recorder
@@ -131,6 +132,16 @@ def time_limited(chalice_app: DSSChaliceApp):
     return real_decorator
 
 
+def analytics_reply(method, uri):
+    analytics_endpoints = [('GET', FILES_URI_REGEX),
+                           ('GET', BUNDLES_URI_REGEX)]
+
+    for api_call in analytics_endpoints:
+        if method == api_call[0] and api_call[1].match(uri):
+            return True
+    return False
+
+
 def get_chalice_app(flask_app) -> DSSChaliceApp:
     app = DSSChaliceApp(app_name=flask_app.name, configure_logs=False)
 
@@ -145,15 +156,17 @@ def get_chalice_app(flask_app) -> DSSChaliceApp:
         source_ip = app.current_request.context['identity']['sourceIp']
         content_length = app.current_request.headers.get('content-length')
         user_agent = app.current_request.headers.get('user-agent')
-        app.log.info(
-            """[request] "%s %s" %s %s "%s" %s""",
-            method,
-            path,
-            source_ip,
-            content_length if content_length else '-',
-            user_agent,
-            ' ' + str(query_params) if query_params is not None else '',
-        )
+
+        msg = {"log-msg-type": "analytics" if analytics_reply(method, path) else "info",
+               "system": "data-storage-service",
+               "request_info": {"method": method,
+                                "path": path,
+                                "source_ip": source_ip,
+                                "content_length": content_length if content_length else '-',
+                                "user_agent": user_agent,
+                                "query_params": ' ' + str(query_params) if query_params is not None else ''}
+               }
+        app.log.info(json.dumps(msg, indent=4))
 
         def maybe_fake_504() -> bool:
             fake_504_probability_str = app.current_request.headers.get("DSS_FAKE_504_PROBABILITY", "0.0")
@@ -190,13 +203,14 @@ def get_chalice_app(flask_app) -> DSSChaliceApp:
         except Exception:
             app.log.exception('The request failed!')
         finally:
-            app.log.info(
-                "[dispatch] \"%s %s\" %s%s",
-                method,
-                path,
-                str(status_code),
-                ' ' + str(query_params) if query_params is not None else '',
-            )
+            msg = {"log-msg-type": "analytics" if analytics_reply(method, path) else "info",
+                   "system": "data-storage-service",
+                   "dispatch_info": {"method": method,
+                                     "path": path,
+                                     "status_code": status_code,
+                                     "query_params": ' ' + str(query_params) if query_params is not None else ''}
+                   }
+            app.log.info(json.dumps(msg, indent=4))
 
         # API Gateway/Cloudfront adds a duplicate Content-Length with a different value (not sure why)
         res_headers = dict(flask_res.headers)
@@ -264,7 +278,11 @@ def get_chalice_app(flask_app) -> DSSChaliceApp:
     def handle_notification():
         event = app.current_request.json_body
         if event["kind"] == "storage#object" and event["selfLink"].startswith("https://www.googleapis.com/storage"):
-            app.log.info("Ignoring Google Object Change Notification")
+            msg = {"log-msg-type": "info",
+                   "system": "data-storage-service",
+                   "info": "Ignoring Google Object Change Notification"
+                   }
+            app.log.info(json.dumps(msg, indent=4))
         else:
             raise NotImplementedError()
 

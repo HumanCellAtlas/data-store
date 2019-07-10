@@ -77,6 +77,7 @@ DSS_GS_CHECKOUT_BUCKET_PROD=org-humancellatlas-dss-checkout-prod
 DSS_INFRA_TAG_PROJECT=dcp
 DSS_INFRA_TAG_SERVICE=dss
 DSS_INFRA_TAG_OWNER=dss-team@data.humancellatlas.org
+DSS_MONITOR_WEBHOOK_SECRET_NAME=monitor-webhook
 DSS_NOTIFICATION_SENDER="DSS Notifier <dss.humancellatlas@gmail.com>"
 ADMIN_USER_EMAILS=""
 DCP_DOMAIN=${DSS_DEPLOYMENT_STAGE}.data.humancellatlas.org
@@ -138,7 +139,7 @@ DSS_GCP_SERVICE_ACCOUNT_NAME="travis-test"
 
 # This list manages the GCP Users and serviceAccounts able to access direct URLs on the GS checkout bucket.
 # Other GCP entities must use presigned urls, or checkout to an external GS bucket they have access to. 
-DSS_CHECKOUT_BUCKET_OBJECT_VIEWERS="serviceAccount:619310558212-compute@developer.gserviceaccount.com,serviceAccount:caas-account@broad-dsde-mint-dev.iam.gserviceaccount.com,serviceAccount:caas-prod-account-for-dev@broad-dsde-mint-dev.iam.gserviceaccount.com"
+DSS_CHECKOUT_BUCKET_OBJECT_VIEWERS="serviceAccount:619310558212-compute@developer.gserviceaccount.com,serviceAccount:caas-account@broad-dsde-mint-dev.iam.gserviceaccount.com,serviceAccount:caas-prod-account-for-dev@broad-dsde-mint-dev.iam.gserviceaccount.com,group:GROUP_All_Users@firecloud.org"
 
 AWS_SDK_LOAD_CONFIG=1 # Needed for Terraform to correctly use AWS assumed roles
 

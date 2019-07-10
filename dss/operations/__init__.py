@@ -24,7 +24,6 @@ import logging
 import argparse
 from argparse import RawTextHelpFormatter
 import traceback
-from uuid import uuid4
 
 
 logger = logging.getLogger(__name__)
@@ -57,7 +56,6 @@ class _target:
                 for argname in mutually_exclusive:
                     kwargs = action_arguments.get(argname) or dict()
                     group.add_argument(argname, **kwargs)
-            parser.add_argument("--job-id", default=dispatcher.job_id)
             parser.set_defaults(func=obj)
             dispatcher.actions[obj] = dict(target=dispatcher.targets[self.target_name], name=name)
             return obj
@@ -91,7 +89,6 @@ class DSSOperationsCommandDispatch:
     def __init__(self):
         self.parser = argparse.ArgumentParser(description=self.__doc__, formatter_class=RawTextHelpFormatter)
         self.parser_targets = self.parser.add_subparsers()
-        self.job_id = str(uuid4())
 
     def target(self, name: str, *, arguments: dict=None, mutually_exclusive: list=None, help=None):
         arguments = arguments or dict()

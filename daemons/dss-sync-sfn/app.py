@@ -7,6 +7,7 @@ from urllib.parse import unquote
 from concurrent.futures import ThreadPoolExecutor
 
 import domovoi
+from cloud_blobstore import BlobNotFoundError
 
 from dcplib.s3_multipart import AWS_MIN_CHUNK_SIZE
 
@@ -28,7 +29,10 @@ dss.Config.set_config(dss.BucketConfig.NORMAL)
 app = domovoi.Domovoi()
 
 # This entry point is for S3 native events forwarded through SQS.
-@app.s3_event_handler(bucket=Config.get_s3_bucket(), events=["s3:ObjectCreated:*"], use_sqs=True)
+@app.s3_event_handler(bucket=Config.get_s3_bucket(),
+                      events=["s3:ObjectCreated:*"],
+                      use_sqs=True,
+                      sqs_queue_attributes=dict(VisibilityTimeout="920"))
 def launch_from_s3_event(event, context):
     source_replica = Replica.aws
     executions = {}
@@ -60,7 +64,8 @@ def launch_from_s3_event(event, context):
     return executions
 
 # This entry point is for external events forwarded by dss-gs-event-relay (or other event sources) through SNS-SQS.
-@app.sqs_queue_subscriber("dss-sync-" + os.environ["DSS_DEPLOYMENT_STAGE"])
+@app.sqs_queue_subscriber("dss-sync-" + os.environ["DSS_DEPLOYMENT_STAGE"],
+                          queue_attributes=dict(VisibilityTimeout="920"))
 def launch_from_forwarded_event(event, context):
     executions = {}
     for event_record in event["Records"]:
@@ -83,6 +88,38 @@ def launch_from_forwarded_event(event, context):
                 executions[exec_name] = app.state_machine.start_execution(**exec_input)["executionArn"]
         else:
             raise NotImplementedError()
+    return executions
+
+# This entry point is for operator initiated replication
+@app.sqs_queue_subscriber("dss-sync-operation-" + os.environ['DSS_DEPLOYMENT_STAGE'],
+                          queue_attributes=dict(VisibilityTimeout="920"))
+def launch_from_operator_queue(event, context):
+    executions = {}
+    for event_record in event['Records']:
+        message = json.loads(event_record['body'])
+        try:
+            source_replica = Replica[message['source_replica']]
+            dest_replica = Replica[message['dest_replica']]
+            key = message['key']
+            assert source_replica != dest_replica
+        except (KeyError, AssertionError):
+            logger.error("Inoperable operation sync message %s", message)
+            continue
+        bucket = source_replica.bucket
+        if exists(dest_replica, key):
+            logger.info("Key %s already exists in %s, skipping sync", key, dest_replica)
+            continue
+        try:
+            size = Config.get_blobstore_handle(source_replica).get_size(bucket, key)
+        except BlobNotFoundError:
+            logger.error("Key %s does not exist on source replica %s", key, source_replica)
+            continue
+        exec_name = bucket + "/" + key + ":" + source_replica.name + ":" + dest_replica.name
+        exec_input = dict(source_replica=source_replica.name,
+                          dest_replica=dest_replica.name,
+                          source_key=key,
+                          source_obj_metadata=dict(size=size))
+        executions[exec_name] = app.state_machine.start_execution(**exec_input)["executionArn"]
     return executions
 
 retry_config = [

@@ -3,6 +3,7 @@ import logging
 import json
 import os
 import sys
+from urllib.parse import unquote
 
 import domovoi
 
@@ -34,7 +35,8 @@ def dispatch_s3_indexer_event(event, context) -> None:
         logger.info("DSS index daemon received S3 test event")
     else:
         for event_record in event["Records"]:
-            _handle_event(Replica.aws, event_record, context)
+            key = unquote(event_record['s3']['object']['key'])
+            _handle_event(Replica.aws, key, context)
 
 
 @app.sqs_queue_subscriber("dss-index-" + os.environ["DSS_DEPLOYMENT_STAGE"])
@@ -47,10 +49,27 @@ def dispatch_gs_indexer_event(event, context):
         if message['resourceState'] == "not_exists":
             logger.info("Ignoring object deletion event")
         else:
-            _handle_event(Replica.gcp, message, context)
+            key = message['name']
+            assert message['bucket'] == Config.get_gs_bucket()
+            _handle_event(Replica.gcp, key, context)
 
 
-def _handle_event(replica, event, context):
+# This entry point is for operator initiated indexing
+@app.sqs_queue_subscriber("dss-index-operation-" + os.environ['DSS_DEPLOYMENT_STAGE'],
+                          queue_attributes=dict(VisibilityTimeout="320"))
+def launch_from_operator_queue(event, context):
+    for event_record in event['Records']:
+        message = json.loads(event_record['body'])
+        try:
+            replica = Replica[message['replica']]
+            key = message['key']
+            _handle_event(replica, key, context)
+        except (KeyError, AssertionError):
+            logger.error("Inoperable operation index message %s", message)
+            continue
+
+
+def _handle_event(replica, key, context):
     executor = ThreadPoolExecutor(len(DEFAULT_BACKENDS))
     # We can't use executor as context manager because we don't want the shutdown to block
     try:
@@ -59,6 +78,6 @@ def _handle_event(replica, event, context):
         backend = CompositeIndexBackend(executor, remaining_time, DEFAULT_BACKENDS)
         indexer_cls = Indexer.for_replica(replica)
         indexer = indexer_cls(backend, remaining_time)
-        indexer.process_new_indexable_object(event)
+        indexer.process_new_indexable_object(key)
     finally:
         executor.shutdown(False)
