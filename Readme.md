@@ -50,11 +50,7 @@ To do this, your application should define an access control model consisting of
 
 # Installing and configuring Fusillade
 
-Create `oauth2_config.json` with the OIDC providers you'd like to use to 
-authenticate users. This file is uploaded to AWS secrets manager using `make set_oauth2_config`. Use 
-[`oauth2_config.example.json`](../master/oauth2_config.example.json) for help.
-    
-
+## Setup Environment
 - pip install -r ./requirements-dev
 - brew install jq
 - brew install pandoc
@@ -70,20 +66,36 @@ authenticate users. This file is uploaded to AWS secrets manager using `make set
 - Populate `FUS_ADMIN_EMAILS` with a list of admins to assigned upon creating the fusillade deployment. This
   is only used when fusillade is first deployed to create the first users. Afterwards this variable has no effect. If
   more admins are required assign a user the admin role.
-- Environment variables can be set in `environment.local` for convenience.
+- Deployment specific environment variables can be set in `./deployment/${FUS_DEPLOYMENT_STAGE}/environment.local` 
+  per deployment for convenience.
 - **Optionally** Before deploying fusillade you can modify the [default policies and roles](../blob/master/policies) 
  to suite your needs. The `default_admin_role.json` is policy attached to the fusillade_admin role created during 
  deployment. The `default_group_policy.json` is assigned to all new group when they are created. The 
  `default_user_role.json` is the role assigned to the group `default_user` which is created during deployment. All of 
  these policies and role can be modified after deployment using the fusillade API.
 
-## Set secrets
-Fusillade uses AWS Secret Store for its secrets. Use ./scripts/set_secrets to set the following secrets:
+## Set Secrets
+Fusillade uses AWS Secret Store for its secrets. You can set secrets using *./scripts/set_secrets*. For example:
 
-* **test_service_accounts** - contains google service accounts to test users access and admin access. See 
-*./test_accounts_example.json* for the expected format.
-* **oauth2_config** - contains the fields needed to proxy an OIDC provider. See *./oauth2_config.example.json* for 
-expected format
+ `cat ./deployments/$(FUS_DEPLOYMENT_STAGE)/oauth2_config.json | ./scripts/set_secret.py --secret-name oauth2_config`
+ 
+ The following secrets are use by Fusillade:
+
+* **oauth2_config** - contains the fields needed to proxy an OIDC provider. Populate this file with the OIDC providers 
+you'd like to use to authenticate users. See [oauth2_config.json](../master/deployment/example/oauth2_config.example.json) 
+for the expected format. This secret can also be set using `make set_oauth2_config`.
+* **test_service_accounts Optional** - contains google service accounts to test users access and admin access. This 
+only required for running tests See [test_service_accounts.json](../master/deployment/example/oauth2_config.example.json) 
+for the expected format.
+
+
+## Deploy Infrastructure 
+Set `FUS_TERRAFORM_BACKEND_BUCKET_TEMPLATE` in your environment to an AWS S3 bucket to store your terraform state files.
+run `make plan-infra` to verify what changes need to be made.
+If you're ok with the changes run `make deploy-infra`.
+
+## Deploy Fusillade
+`make deploy`
 
 # Using Fusillade as a Service
 
@@ -133,8 +145,9 @@ service configuration.
 
 # How To
 ## Upgrade Clouddirectory Schema
-1. Run `./scripts/upgrade` to check if your local schema matches the the published schema.
-1. If the published schema does not match your local run `./scripts/upgrade --upgrade True`
+1. Run `make check_directory_schema` to check if your local schema matches the the published schema.
+1. If the published schema does not match your local run `make upgrade_directory_schema`
+
 ## Links
 
 * [Project home page (GitHub)](https://github.com/HumanCellAtlas/fusillade)

@@ -20,11 +20,17 @@ EXPORT_ENV_VARS_TO_LAMBDA_ARRAY=(
     DEBUG
 )
 
+if [[ -z "${DEPLOYMENT}" ]]; then
+    export FUS_DEPLOYMENT_STAGE=dev
+else
+    # Used for deploying different stages from make files
+    export FUS_DEPLOYMENT_STAGE=${DEPLOYMENT}
+fi
+
 set -a
 AWS_DEFAULT_REGION=us-east-1
 EXPORT_ENV_VARS_TO_LAMBDA=${EXPORT_ENV_VARS_TO_LAMBDA_ARRAY[*]}
 FUS_PARAMETER_STORE=dcp/fusillade
-FUS_DEPLOYMENT_STAGE=dev
 FUS_SECRETS_STORE=dcp/fusillade
 OPENID_PROVIDER=humancellatlas.auth0.com
 ACM_CERTIFICATE_IDENTIFIER="826dbdb8-2b23-4cc9-8fd6-73aa6fc658d7"
@@ -43,8 +49,8 @@ FUS_OWNER_TAG=user@email.com
 
 set +a
 
-if [[ -f "${FUS_HOME}/environment.local" ]]; then
-    source "${FUS_HOME}/environment.local"
+if [[ -f "${FUS_HOME}/deployments/${FUS_DEPLOYMENT_STAGE}/environment.local" ]]; then
+    source "${FUS_HOME}/deployments/${FUS_DEPLOYMENT_STAGE}/environment.local"
 fi
 
 set -a

@@ -1,4 +1,4 @@
-SHELL=/bin/bash
+SHELL:=/bin/bash
 
 tests:=$(wildcard tests/test_*.py)
 
@@ -15,7 +15,7 @@ $(tests): %.py : lint
 	coverage run -p --source=fusillade $*.py -v
 
 integration_test:
-	$(MAKE) FUS_TEST_MODE=integration test
+	source environment && $(MAKE) FUS_TEST_MODE=integration test
 	
 init_docs:
 	cd docs; sphinx-quickstart
@@ -30,19 +30,25 @@ install: docs
 	pip install --upgrade dist/*.whl
 
 set_oauth2_config:
-	cat ./oauth2_config.json | ./scripts/set_secret.py --secret-name oauth2_config
+	source environment && cat ./deployments/$(FUS_DEPLOYMENT_STAGE)/oauth2_config.json | ./scripts/set_secret.py --secret-name oauth2_config
+
+set_test_service_accounts:
+	source environment && cat ./deployments/$(FUS_DEPLOYMENT_STAGE)/test_service_accounts.json | ./scripts/set_secret.py --secret-name test_service_accounts
 
 check_directory_schema:
-	./scripts/upgrade_schema.py
+	source environment && ./scripts/upgrade_schema.py
 
 upgrade_directory_schema: check_directory_schema
-	./scripts/upgrade_schema.py --upgrade-published --upgrade-directory
+	source environment && /scripts/upgrade_schema.py --upgrade-published --upgrade-directory
 
 plan-infra:
-	$(MAKE) -C infra plan-all
+	source environment && $(MAKE) -C infra plan-all
 
 deploy-infra:
-	$(MAKE) -C infra apply-all
+	source environment && $(MAKE) -C infra apply-all
+
+_package:
+	source environment && $(MAKE) package
 
 package:
 	git clean -df chalicelib vendor
@@ -53,11 +59,14 @@ package:
 	cp -R ./fusillade ./policies ./service_config.json chalicelib
 
 setup_directory:
-	./scripts/make_directory.py
+	source environment && ./scripts/make_directory.py
 
-deploy: package setup_directory check_directory_schema
+_deploy: package setup_directory check_directory_schema
 	./build_chalice_config.sh $(FUS_DEPLOYMENT_STAGE)
 	chalice deploy --no-autogen-policy --stage $(FUS_DEPLOYMENT_STAGE) --api-gateway-stage $(FUS_DEPLOYMENT_STAGE)
+
+deploy:
+	source environment && $(MAKE) _deploy
 
 
 refresh_all_requirements:
