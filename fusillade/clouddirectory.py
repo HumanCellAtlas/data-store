@@ -21,7 +21,7 @@ from dcplib.aws import clients as aws_clients
 
 from fusillade import Config
 from fusillade.errors import FusilladeException, FusilladeHTTPException, FusilladeNotFoundException, \
-    AuthorizationException, FusilladeLimitException, FusilladeBindingException
+    AuthorizationException, FusilladeLimitException, FusilladeBindingException, FusilladeBadRequestException
 from fusillade.utils.retry import retry
 
 logger = logging.getLogger(__name__)
@@ -755,6 +755,15 @@ class CloudDirectory:
         if next_token:
             temp['NextToken'] = next_token
         return {'LookupPolicy': temp}
+
+    def batch_get_object_info(self, obj_ref: str):
+        return {
+            'GetObjectInformation': {
+                'ObjectReference': {
+                    'Selector': obj_ref
+                }
+            }
+        }
 
     @retry(**cd_retry_parameters)
     def batch_write(self, operations: list) -> List[dict]:
@@ -1558,6 +1567,23 @@ class User(CloudNode, RolesMixin, PolicyMixin, OwnershipMixin):
         """
         user = cls(name)
         _creator = creator if creator else "fusillade"
+
+        # verify parameters
+        operations = []
+        directory = Config.get_directory()
+        try:
+            if roles:
+                for role in roles:
+                    operations.append(directory.batch_get_object_info(Role(role).object_ref))
+            if groups:
+                for group in groups:
+                    operations.append(directory.batch_get_object_info(Group(group).object_ref))
+            directory.batch_read(operations)
+        except cd_client.exceptions.ResourceNotFoundException:
+            FusilladeBadRequestException(f"One or more groups or roles does not exist.")
+        if statement:
+            user._verify_statement(statement)
+
         try:
             user.cd.create_object(user._path_name,
                                   user._facet,
@@ -1568,10 +1594,12 @@ class User(CloudNode, RolesMixin, PolicyMixin, OwnershipMixin):
                                   )
         except cd_client.exceptions.LinkNameAlreadyInUseException:
             raise FusilladeHTTPException(
-                status=409, title="Conflict", detail=f"The {cls.object_type} named {name} already exists.")
+                status=409, title="Conflict", detail=f"The {cls.object_type} named {name} already exists. "
+                f"{cls.object_type} was not modified.")
         else:
             logger.info(dict(message=f"{user.object_ref} created by {_creator}",
                              object=dict(type=user.object_type, path_name=user._path_name)))
+
         if roles:
             user.add_roles(roles + cls.default_roles)
         else:
@@ -1583,7 +1611,6 @@ class User(CloudNode, RolesMixin, PolicyMixin, OwnershipMixin):
             user.add_groups(cls.default_groups)
 
         if statement:  # TODO make using user default configurable
-            user._verify_statement(statement)
             user._set_policy_with_retry(statement)
         return user
 
