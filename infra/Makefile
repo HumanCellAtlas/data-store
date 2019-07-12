@@ -1,4 +1,4 @@
-DIRS=${shell find . -path ./fargate -prune -o -name "*.tf"  -exec dirname {} \; | sort --unique}
+DIRS=${shell find . -name "*.tf" -exec dirname {} \; | sort --unique}
 COMPONENTS=${shell for d in $(DIRS); do basename $$d; done}
 
 all: init-all
