@@ -56,11 +56,20 @@ class TestFileApi(unittest.TestCase, TestAuthMixin, DSSUploadMixin, DSSAssertMix
         self.gs_test_fixtures_bucket = get_env("DSS_GS_BUCKET_TEST_FIXTURES")
         self.s3_test_bucket = get_env("DSS_S3_BUCKET_TEST")
         self.gs_test_bucket = get_env("DSS_GS_BUCKET_TEST")
+        self.s3_test_checkout_bucket = get_env("DSS_S3_CHECKOUT_BUCKET_TEST")
+        self.gs_test_checkout_bucket = get_env("DSS_GS_CHECKOUT_BUCKET_TEST")
 
     def test_file_put(self):
         tempdir = tempfile.gettempdir()
         self._test_file_put(Replica.aws, "s3", self.s3_test_bucket, S3Uploader(tempdir, self.s3_test_bucket))
         self._test_file_put(Replica.gcp, "gs", self.gs_test_bucket, GSUploader(tempdir, self.gs_test_bucket))
+
+    def test_file_put_cached_files_init_into_checkout(self):
+        tempdir = tempfile.gettempdir()
+        self._test_file_put_cached(Replica.aws, "s3", self.s3_test_bucket, self.s3_test_checkout_bucket,
+                                   S3Uploader(tempdir, self.s3_test_bucket))
+        self._test_file_put_cached(Replica.gcp, "gs", self.gs_test_bucket, self.gs_test_checkout_bucket,
+                                   GSUploader(tempdir, self.gs_test_bucket))
 
     def test_checksum_regex(self):
         # tests/fixtures/datafiles/011c7340-9b3c-4d62-bf49-090d79daf198.2017-06-20T214506.766634Z
@@ -112,6 +121,47 @@ class TestFileApi(unittest.TestCase, TestAuthMixin, DSSUploadMixin, DSSAssertMix
                                    creator_uid=0,
                                    source_url=source_url)
                                )
+
+    def _test_file_put_cached(self,
+                              replica: Replica,
+                              scheme: str,
+                              test_bucket: str,
+                              test_checkout_bucket: str,
+                              uploader: Uploader):
+        stored_cache_criteria = os.environ.get('CHECKOUT_CACHE_CRITERIA')
+        try:
+            os.environ['CHECKOUT_CACHE_CRITERIA'] = '[{"type":"application/json","max_size":12314}]'
+            handle = Config.get_blobstore_handle(replica)
+            src_key = generate_test_key()
+            src_data = '{"status":"valid"}'
+            source_url = f"{scheme}://{test_bucket}/{src_key}"
+            file_uuid = str(uuid.uuid4())
+            bundle_uuid = str(uuid.uuid4())
+            version = datetime_to_version_format(datetime.datetime.utcnow())
+
+            # write dummy file and upload to upload area
+            with tempfile.NamedTemporaryFile(delete=True) as fh:
+                fh.write(src_data)
+                fh.flush()
+
+                uploader.checksum_and_upload_file(fh.name, src_key, "application/json")
+
+            # upload file to DSS
+            self.upload_file(source_url, file_uuid, bundle_uuid=bundle_uuid, version=version)
+            url = str(UrlBuilder()
+                      .set(path="/v1/files/" + file_uuid)
+                      .add_query("replica", replica.name)
+                      .add_query("version", version))
+
+            # get uploaded blob key
+            file_metadata = json.loads(
+                handle.get(
+                    test_checkout_bucket,
+                    f"files/{file_uuid}.{version}"
+                ).decode("utf-8"))
+            assert file_metadata["status"] == "valid"  # the file exists in the checkout bucket
+        finally:
+            os.environ['CHECKOUT_CACHE_CRITERIA'] = stored_cache_criteria
 
     def _test_file_put(self, replica: Replica, scheme: str, test_bucket: str, uploader: Uploader):
         src_key = generate_test_key()

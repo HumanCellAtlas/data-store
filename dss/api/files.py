@@ -15,7 +15,7 @@ from flask import jsonify, make_response, redirect, request
 
 from dss import DSSException, dss_handler, stepfunctions
 from dss.config import Config, Replica
-from dss.storage.checkout.validate import CheckoutTokenKeys
+from dss.storage.checkout.common import CheckoutTokenKeys
 from dss.storage.checkout.file import get_dst_key, start_file_checkout
 from dss.storage.files import write_file_metadata
 from dss.storage.hcablobstore import FileMetadata, HCABlobStore, compose_blob_key
