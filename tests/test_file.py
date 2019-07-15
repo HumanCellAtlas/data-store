@@ -133,7 +133,7 @@ class TestFileApi(unittest.TestCase, TestAuthMixin, DSSUploadMixin, DSSAssertMix
             os.environ['CHECKOUT_CACHE_CRITERIA'] = '[{"type":"application/json","max_size":12314}]'
             handle = Config.get_blobstore_handle(replica)
             src_key = generate_test_key()
-            src_data = '{"status":"valid"}'
+            src_data = b'{"status":"valid"}'
             source_url = f"{scheme}://{test_bucket}/{src_key}"
             file_uuid = str(uuid.uuid4())
             bundle_uuid = str(uuid.uuid4())
@@ -148,12 +148,8 @@ class TestFileApi(unittest.TestCase, TestAuthMixin, DSSUploadMixin, DSSAssertMix
 
             # upload file to DSS
             self.upload_file(source_url, file_uuid, bundle_uuid=bundle_uuid, version=version)
-            url = str(UrlBuilder()
-                      .set(path="/v1/files/" + file_uuid)
-                      .add_query("replica", replica.name)
-                      .add_query("version", version))
 
-            # get uploaded blob key
+            # get uploaded blob key from the checkout bucket
             file_metadata = json.loads(
                 handle.get(
                     test_checkout_bucket,
