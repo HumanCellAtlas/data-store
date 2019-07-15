@@ -8,8 +8,10 @@ from dss.config import Config, Replica
 from dss.storage.bundles import get_bundle_manifest
 from .error import (
     BundleNotFoundError,
+    CheckoutError,
     DestinationBucketNotFoundError,
-    DestinationBucketNotWritableError
+    DestinationBucketNotWritableError,
+    TokenError,
 )
 
 
