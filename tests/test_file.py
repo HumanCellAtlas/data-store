@@ -874,7 +874,6 @@ class TestFileApi(unittest.TestCase, TestAuthMixin, DSSUploadMixin, DSSAssertMix
             ),
             headers=get_auth_header()
         )
-        print(resp_obj)
         if resp_obj.response.status_code == requests.codes.created:
             self.assertHeaders(
                 resp_obj.response,
