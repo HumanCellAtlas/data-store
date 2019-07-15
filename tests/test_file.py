@@ -5,6 +5,7 @@ import hashlib
 import json
 import os
 import re
+import time
 import requests
 import sys
 import tempfile
@@ -17,6 +18,7 @@ pkg_root = os.path.abspath(os.path.join(os.path.dirname(__file__), '..'))  # noq
 sys.path.insert(0, pkg_root)  # noqa
 
 import dss
+from cloud_blobstore import BlobNotFoundError
 from dss.api.files import ASYNC_COPY_THRESHOLD, checksum_format, RETRY_AFTER_INTERVAL
 from dss.config import BucketConfig, Config, override_bucket_config, Replica
 from dss.storage.hcablobstore import compose_blob_key
@@ -149,12 +151,22 @@ class TestFileApi(unittest.TestCase, TestAuthMixin, DSSUploadMixin, DSSAssertMix
             # upload file to DSS
             self.upload_file(source_url, file_uuid, bundle_uuid=bundle_uuid, version=version)
 
-            # get uploaded blob key from the checkout bucket
-            file_metadata = json.loads(
-                handle.get(
-                    test_checkout_bucket,
-                    f"files/{file_uuid}.{version}"
-                ).decode("utf-8"))
+            metadata = handle.get_user_metadata(test_bucket, src_key)
+            # what's the target object name for the actual data?
+            dst_key = ("blobs/" + ".".join([metadata['hca-dss-sha256'],
+                                            metadata['hca-dss-sha1'],
+                                            metadata['hca-dss-s3_etag'],
+                                            metadata['hca-dss-crc32c']])).lower()
+
+            for wait_to_upload_into_checkout_bucket in range(30):
+                try:
+                    # get uploaded blob key from the checkout bucket
+                    file_metadata = json.loads(handle.get(test_checkout_bucket, dst_key).decode("utf-8"))
+                    break
+                except BlobNotFoundError:
+                    time.sleep(1)
+            else:
+                file_metadata = json.loads(handle.get(test_checkout_bucket, dst_key).decode("utf-8"))
             assert file_metadata["status"] == "valid"  # the file exists in the checkout bucket
         finally:
             os.environ['CHECKOUT_CACHE_CRITERIA'] = stored_cache_criteria
@@ -863,6 +875,7 @@ class TestFileApi(unittest.TestCase, TestAuthMixin, DSSUploadMixin, DSSAssertMix
             ),
             headers=get_auth_header()
         )
+        print(resp_obj)
         if resp_obj.response.status_code == requests.codes.created:
             self.assertHeaders(
                 resp_obj.response,
