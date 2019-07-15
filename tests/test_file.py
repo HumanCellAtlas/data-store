@@ -3,7 +3,6 @@
 import datetime
 import hashlib
 import json
-import io
 import os
 import re
 import time
@@ -142,8 +141,11 @@ class TestFileApi(unittest.TestCase, TestAuthMixin, DSSUploadMixin, DSSAssertMix
             version = datetime_to_version_format(datetime.datetime.utcnow())
 
             # write dummy file and upload to upload area
-            with io.BytesIO(src_data):
-                uploader.checksum_and_upload_file("test_file_name", src_key, "application/json")
+            with tempfile.NamedTemporaryFile(delete=True) as fh:
+                fh.write(src_data)
+                fh.flush()
+
+                uploader.checksum_and_upload_file(fh.name, src_key, "application/json")
 
             # upload file to DSS
             self.upload_file(source_url, file_uuid, bundle_uuid=bundle_uuid, version=version)
