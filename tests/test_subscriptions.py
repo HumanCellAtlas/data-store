@@ -160,7 +160,7 @@ class TestSubscriptionsBase(ElasticsearchTestCase, TestAuthMixin, DSSAssertMixin
         json_response = resp_obj.json
         self.assertEqual(self.sample_percolate_query, json_response['es_query'])
         self.assertEqual(self.endpoint, Endpoint.from_subscription(json_response))
-        self.assertEquals(self.hmac_secret_key, json_response['hmac_secret_key'])
+        self.assertEquals(self.hmac_key_id, json_response['hmac_key_id'])
 
         # File not found request
         url = str(UrlBuilder()
@@ -186,7 +186,7 @@ class TestSubscriptionsBase(ElasticsearchTestCase, TestAuthMixin, DSSAssertMixin
             headers=get_auth_header())
         json_response = resp_obj.json
         self.assertEqual(self.sample_percolate_query, json_response['subscriptions'][0]['es_query'])
-        self.assertEqual(self.hmac_secret_key, json_response['subscriptions'][0]['hmac_secret_key'])
+        self.assertEqual(self.hmac_key_id, json_response['subscriptions'][0]['hmac_key_id'])
         self.assertEqual(self.endpoint, Endpoint.from_subscription(json_response['subscriptions'][0]))
         self.assertEqual(num_additions, len(json_response['subscriptions']))
 
