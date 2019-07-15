@@ -6,7 +6,7 @@ import datetime
 
 import nestedcontext
 import requests
-from cloud_blobstore import BlobNotFoundError, BlobStore, BlobStoreTimeoutError
+from cloud_blobstore import BlobNotFoundError, BlobStoreTimeoutError
 from flask import jsonify, redirect, request, make_response
 from concurrent.futures import ThreadPoolExecutor, as_completed
 
@@ -14,11 +14,11 @@ from dss import DSSException, dss_handler, DSSForbiddenException
 from dss.config import Config, Replica
 from dss.storage.blobstore import idempotent_save, test_object_exists, ObjectTest
 from dss.storage.bundles import get_bundle_manifest, save_bundle_manifest
-from dss.storage.checkout import CheckoutError, TokenError
+from dss.storage.checkout.validate import CheckoutError, TokenError
 from dss.storage.checkout.bundle import get_dst_bundle_prefix, verify_checkout
-from dss.storage.identifiers import BundleTombstoneID, BundleFQID, FileFQID
+from dss.storage.identifiers import BundleTombstoneID, FileFQID
 from dss.storage.hcablobstore import BundleFileMetadata, BundleMetadata, FileMetadata
-from dss.util import UrlBuilder, security, hashabledict, multipart_parallel_upload
+from dss.util import UrlBuilder, security, hashabledict
 from dss.util.version import datetime_to_version_format
 
 """The retry-after interval in seconds. Sets up downstream libraries / users to

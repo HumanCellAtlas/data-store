@@ -5,7 +5,6 @@ from dss.stepfunctions.lambdaexecutor import TimedThread
 from dss.storage.files import write_file_metadata
 from dss.util.async_state import AsyncStateError
 from dss.storage.checkout.cache_flow import should_cache_file, is_dss_bucket
-from dss.storage.hcablobstore import FileMetadata
 
 logger = logging.getLogger(__name__)
 

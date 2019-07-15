@@ -1,7 +1,6 @@
 """
 This is the module for file checkouts.
 """
-
 import typing
 
 from dss.config import Replica

@@ -17,7 +17,7 @@ import dss
 from dss.config import override_bucket_config, BucketConfig, Replica, Config
 from dss.util import UrlBuilder
 from dss.util.version import datetime_to_version_format
-from dss.storage.checkout import (
+from dss.storage.checkout.validate import (
     pre_exec_validate,
     validate_file_dst,
     touch_test_file,

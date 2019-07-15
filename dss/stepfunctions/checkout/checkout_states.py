@@ -5,7 +5,7 @@ from dss.config import Replica
 from dss.storage.checkout.error import PreExecCheckoutError
 
 from dss.util.email import send_checkout_success_email, send_checkout_failure_email
-from dss.storage.checkout import parallel_copy, pre_exec_validate, validate_file_dst
+from dss.storage.checkout.validate import parallel_copy, pre_exec_validate, validate_file_dst
 from dss.storage.checkout.bundle import (
     get_dst_bundle_prefix,
     get_manifest_files,
