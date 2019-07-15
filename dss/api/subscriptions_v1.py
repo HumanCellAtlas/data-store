@@ -35,7 +35,7 @@ def get(uuid: str, replica: str):
     source = response['_source']
     source['uuid'] = uuid
     source['replica'] = replica
-    if 'hmac_key_id' in response.keys():
+    if 'hmac_key_id' in response:
         source['hmac_key_id'] = response['hmac_key_id']
 
     if source['owner'] != owner:
@@ -59,7 +59,7 @@ def find(replica: str):
         'uuid': hit.meta.id,
         'replica': replica,
         'owner': owner,
-        **{k: v for k, v in hit.to_dict().items() if not k.startswith('hmac_secret_key')}}
+        **{k: v for k, v in hit.to_dict().items() if k != 'hmac_secret_key'}}
         for hit in search.scan()]
 
     full_response = {'subscriptions': responses}
