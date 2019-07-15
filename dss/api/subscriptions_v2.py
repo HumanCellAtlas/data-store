@@ -30,6 +30,8 @@ def find(replica: str):
     subs = [s for s in get_subscriptions_for_owner(Replica[replica], owner) if owner == s['owner']]
     for s in subs:
         s['replica'] = Replica[replica].name
+        if 'hmac_secret_key' in s:
+            s.pop('hmac_secret_key')
     return {'subscriptions': subs}, requests.codes.ok
 
 

@@ -75,6 +75,7 @@ class TestSubscriptionsBase(ElasticsearchTestCase, TestAuthMixin, DSSAssertMixin
         self.sample_percolate_query = smartseq2_paired_ends_vx_query
         self.hmac_key_id = 'dss_test'
         self.hmac_secret_key = '23/33'
+        self.jmespath_query = "event_type=='CREATE'"
 
     def test_auth_errors(self):
         url = str(UrlBuilder()
@@ -160,7 +161,8 @@ class TestSubscriptionsBase(ElasticsearchTestCase, TestAuthMixin, DSSAssertMixin
         json_response = resp_obj.json
         self.assertEqual(self.sample_percolate_query, json_response['es_query'])
         self.assertEqual(self.endpoint, Endpoint.from_subscription(json_response))
-        self.assertEquals(self.hmac_secret_key, json_response['hmac_secret_key'])
+        self.assertEquals(self.hmac_key_id, json_response['hmac_key_id'])
+        self.assertNotIn('hmac_secret_key', json_response)
 
         # File not found request
         url = str(UrlBuilder()
@@ -186,8 +188,46 @@ class TestSubscriptionsBase(ElasticsearchTestCase, TestAuthMixin, DSSAssertMixin
             headers=get_auth_header())
         json_response = resp_obj.json
         self.assertEqual(self.sample_percolate_query, json_response['subscriptions'][0]['es_query'])
-        self.assertEqual(self.hmac_secret_key, json_response['subscriptions'][0]['hmac_secret_key'])
+        self.assertEqual(self.hmac_key_id, json_response['subscriptions'][0]['hmac_key_id'])
         self.assertEqual(self.endpoint, Endpoint.from_subscription(json_response['subscriptions'][0]))
+        self.assertNotIn('hmac_secret_key', json_response['subscriptions'][0])
+        self.assertEqual(num_additions, len(json_response['subscriptions']))
+
+    def test_jmespath_get(self):
+        find_uuid = self._put_jmespath_subscription()
+
+        # Normal request
+        url = str(UrlBuilder()
+                  .set(path="/v1/subscriptions/" + str(find_uuid))
+                  .add_query("replica", self.replica.name)
+                  .add_query("subscription_type", "jmespath"))
+        resp_obj = self.assertGetResponse(
+            url,
+            requests.codes.okay,
+            headers=get_auth_header())
+        json_response = resp_obj.json
+        self.assertEqual(self.jmespath_query, json_response['jmespath_query'])
+        self.assertEqual(self.endpoint, Endpoint.from_subscription(json_response))
+        self.assertEquals(self.hmac_key_id, json_response['hmac_key_id'])
+        self.assertNotIn('hmac_secret_key', json_response)
+
+    def test_jmespath_find(self):
+        num_additions = 25
+        for _ in range(num_additions):
+            self._put_subscription()
+        url = str(UrlBuilder()
+                  .set(path="/v1/subscriptions")
+                  .add_query("replica", self.replica.name)
+                  .add_query("subscription_type", "elasticsearch"))
+        resp_obj = self.assertGetResponse(
+            url,
+            requests.codes.okay,
+            headers=get_auth_header())
+        json_response = resp_obj.json
+        self.assertEqual(self.jmespath_query, json_response['subscriptions'][0]['jmespath_query'])
+        self.assertEqual(self.hmac_key_id, json_response['subscriptions'][0]['hmac_key_id'])
+        self.assertEqual(self.endpoint, Endpoint.from_subscription(json_response['subscriptions'][0]))
+        self.assertNotIn('hmac_secret_key', json_response['subscriptions'][0])
         self.assertEqual(num_additions, len(json_response['subscriptions']))
 
     def test_delete(self):
@@ -225,6 +265,26 @@ class TestSubscriptionsBase(ElasticsearchTestCase, TestAuthMixin, DSSAssertMixin
         )
         return resp_obj.json.get('uuid')
 
+    def _put_jmespath_subscription(self, endpoint=None, expect_code=None, attachments=None):
+        url = str(UrlBuilder()
+                  .set(path="/v1/subscriptions")
+                  .add_query("replica", self.replica.name)
+                  .add_query("subscription_type", "jmespath"))
+        if endpoint is None:
+            endpoint = self.endpoint
+        if isinstance(endpoint, Endpoint):
+            endpoint = endpoint.to_dict()
+        json_request_body = dict(endpoint, jmespath_query=self.jmespath_query, hmac_key_id=self.hmac_key_id,
+                                 hmac_secret_key=self.hmac_secret_key)
+        if attachments is not None:
+            json_request_body['attachments'] = attachments
+        resp_obj = self.assertPutResponse(
+            url,
+            expect_code or requests.codes.created,
+            json_request_body=json_request_body,
+            headers=get_auth_header()
+        )
+        return resp_obj.json.get('uuid')
 
 class TestGCPSubscription(TestSubscriptionsBase):
     replica = dss.Replica.gcp
