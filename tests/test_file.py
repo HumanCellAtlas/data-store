@@ -66,12 +66,12 @@ class TestFileApi(unittest.TestCase, TestAuthMixin, DSSUploadMixin, DSSAssertMix
         self._test_file_put(Replica.aws, "s3", self.s3_test_bucket, S3Uploader(tempdir, self.s3_test_bucket))
         self._test_file_put(Replica.gcp, "gs", self.gs_test_bucket, GSUploader(tempdir, self.gs_test_bucket))
 
-    # def test_file_put_cached_files_init_into_checkout(self):
-    #     tempdir = tempfile.gettempdir()
-    #     self._test_file_put_cached(Replica.aws, "s3", self.s3_test_bucket, self.s3_test_checkout_bucket,
-    #                                S3Uploader(tempdir, self.s3_test_bucket))
-    #     self._test_file_put_cached(Replica.gcp, "gs", self.gs_test_bucket, self.gs_test_checkout_bucket,
-    #                                GSUploader(tempdir, self.gs_test_bucket))
+    def test_file_put_cached_files_init_into_checkout(self):
+        tempdir = tempfile.gettempdir()
+        self._test_file_put_cached(Replica.aws, "s3", self.s3_test_bucket, self.s3_test_checkout_bucket,
+                                   S3Uploader(tempdir, self.s3_test_bucket))
+        self._test_file_put_cached(Replica.gcp, "gs", self.gs_test_bucket, self.gs_test_checkout_bucket,
+                                   GSUploader(tempdir, self.gs_test_bucket))
 
     def test_checksum_regex(self):
         # tests/fixtures/datafiles/011c7340-9b3c-4d62-bf49-090d79daf198.2017-06-20T214506.766634Z
