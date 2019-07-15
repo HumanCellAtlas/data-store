@@ -118,7 +118,7 @@ def authorized_group_required(groups: typing.List[str]):
 def assert_authorized(principal: str,
                       actions: typing.List[str],
                       resources: typing.List[str]):
-    resp = session.post(Config.get_authz_url(),
+    resp = session.post(f"{Config.get_authz_url()}/v1/policies/evaluate",
                         headers='jwt',
                         data=json.dumps(
                             {"action": actions,
