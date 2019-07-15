@@ -4,7 +4,7 @@ from flask import jsonify
 
 from dss import dss_handler, Replica
 from dss.error import DSSException
-from dss.storage.checkout.validate import BundleNotFoundError
+from dss.storage.checkout.error import BundleNotFoundError
 from dss.storage.checkout.bundle import get_bundle_checkout_status, start_bundle_checkout
 
 
