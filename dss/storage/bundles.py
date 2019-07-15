@@ -6,7 +6,6 @@ from cloud_blobstore import BlobNotFoundError
 from dss import Config, Replica
 from dss.storage.identifiers import DSS_BUNDLE_KEY_REGEX, DSS_BUNDLE_TOMBSTONE_REGEX, BundleTombstoneID, BundleFQID
 from dss.storage.blobstore import test_object_exists, idempotent_save
-from dss.storage.checkout.cache_flow import should_cache_file
 
 
 _cache_key_template = "{replica}{fqid}"
@@ -85,8 +84,6 @@ def save_bundle_manifest(replica: Replica, uuid: str, version: str, bundle: dict
     data = json.dumps(bundle).encode("utf-8")
     fqid = BundleFQID(uuid, version).to_key()
     created, idempotent = idempotent_save(handle, replica.bucket, fqid, data)
-    if should_cache_file(content_type='application/json', size=len(data)):
-        idempotent_save(handle, replica.checkout_bucket, fqid, data)
     if created and idempotent:
         cache_key = _cache_key_template.format(replica=replica.name, fqid=fqid)
         _bundle_manifest_cache[cache_key] = bundle
