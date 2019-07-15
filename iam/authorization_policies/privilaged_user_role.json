@@ -1,0 +1,15 @@
+{
+  "Version": "2012-10-17",
+  "Statement": [
+    {
+      "Sid": "dss_privilaged_user",
+      "Effect": "Allow",
+      "Action": [
+        "dss:PutBundle",
+        "dss:PatchBundle",
+        "dss:PostBundle"
+      ],
+       "Resource": "arn:hca:dss:*:*:dss/bundle/*"
+    }
+  ]
+}

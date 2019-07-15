@@ -1,0 +1,13 @@
+{
+  "Version": "2012-10-17",
+  "Statement": [
+    {
+      "Sid": "dss_admin",
+      "Effect": "Allow",
+      "Action": [
+        "dss:*"
+      ],
+       "Resource": "arn:hca:dss:*:*:*"
+    }
+  ]
+}

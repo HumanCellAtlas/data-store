@@ -1,14 +1,14 @@
 #!/usr/bin/env python3.6
+import base64
+import functools
 import json
-import os, functools, base64, typing
-
-import requests
-import jwt
 import logging
+import typing
 
-from cryptography.hazmat.primitives.asymmetric import rsa
+import jwt
+import requests
 from cryptography.hazmat.backends import default_backend
-
+from cryptography.hazmat.primitives.asymmetric import rsa
 from flask import request
 
 from dss import Config
@@ -113,3 +113,18 @@ def authorized_group_required(groups: typing.List[str]):
             return func(*args, **kwargs)
         return wrapper
     return real_decorator
+
+
+def assert_authorized(principal: str,
+                      actions: typing.List[str],
+                      resources: typing.List[str]):
+    resp = session.post(Config.get_authz_url(),
+                        headers='jwt',
+                        data=json.dumps(
+                            {"action": actions,
+                             "resource": resources,
+                             "principal": principal}))
+    if not json.loads(resp.body)['result']:
+        raise DSSForbiddenException()
+    else:
+        return

@@ -108,6 +108,7 @@ class Config:
     _NOTIFICATION_SENDER_EMAIL: typing.Optional[str] = None
     _TRUSTED_GOOGLE_PROJECTS: typing.Optional[typing.List[str]] = None
     _OIDC_AUDIENCE: typing.Optional[typing.List[str]] = None
+    _AUTHZ_URL: typing.Optional[str] = None
 
     test_index_suffix = IndexSuffix()
 
@@ -374,6 +375,12 @@ class Config:
     @staticmethod
     def get_OIDC_email_claim():
         return os.environ.get("OIDC_EMAIL_CLAIM", 'email')
+
+    @staticmethod
+    def get_authz_url():
+        if Config._AUTHZ_URL is None:
+            Config._AUTHZ_URL = Config._get_required_envvar("AUTHZ_URL")
+        return Config._AUTHZ_URL
 
     @staticmethod
     def _get_required_envvar(envvar: str) -> str:
