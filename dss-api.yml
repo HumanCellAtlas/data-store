@@ -2297,7 +2297,7 @@ definitions:
         pattern: 'https?://'
       hmac_key_id:
         description: >
-          id used to verify authenticity of subscription
+          The HMAC key-id used to verify authenticity of subscription
         type: string
       method:
         description: The HTTP request method to use when delivering a notification to the subscriber.
