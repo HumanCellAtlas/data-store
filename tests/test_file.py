@@ -3,6 +3,7 @@
 import datetime
 import hashlib
 import json
+import io
 import os
 import re
 import time
@@ -101,8 +102,7 @@ class TestFileApi(unittest.TestCase, TestAuthMixin, DSSUploadMixin, DSSAssertMix
         version = datetime_to_version_format(datetime.datetime.utcnow())
         # catch AssertionError raised when upload returns 422 instead of 201
         with self.assertRaises(AssertionError):
-            r = self.upload_file(source_url, file_uuid, bundle_uuid=bundle_uuid,
-                                 version=version)
+            r = self.upload_file(source_url, file_uuid, bundle_uuid=bundle_uuid, version=version)
             self.assertEqual(r.json['code'], 'invalid_checksum')
 
     def _test_put_auth_errors(self, scheme, test_bucket):
@@ -142,11 +142,8 @@ class TestFileApi(unittest.TestCase, TestAuthMixin, DSSUploadMixin, DSSAssertMix
             version = datetime_to_version_format(datetime.datetime.utcnow())
 
             # write dummy file and upload to upload area
-            with tempfile.NamedTemporaryFile(delete=True) as fh:
-                fh.write(src_data)
-                fh.flush()
-
-                uploader.checksum_and_upload_file(fh.name, src_key, "application/json")
+            with io.BytesIO(src_data):
+                uploader.checksum_and_upload_file("test_file_name", src_key, "application/json")
 
             # upload file to DSS
             self.upload_file(source_url, file_uuid, bundle_uuid=bundle_uuid, version=version)
