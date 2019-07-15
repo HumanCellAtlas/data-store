@@ -21,9 +21,9 @@ from dss.storage.files import write_file_metadata
 from dss.storage.hcablobstore import FileMetadata, HCABlobStore, compose_blob_key
 from dss.stepfunctions import gscopyclient, s3copyclient
 from dss.util import tracing, UrlBuilder, security
-from dss.util.version import datetime_to_version_format
 from dss.util.async_state import AsyncStateItem, AsyncStateError
 from dss.stepfunctions.s3copyclient.implementation import S3CopyEtagError
+from dss.storage.checkout.cache_flow import should_cache_file
 
 
 ASYNC_COPY_THRESHOLD = AWS_MIN_CHUNK_SIZE
@@ -329,5 +329,7 @@ def put(uuid: str, json_request_body: dict, version: str):
                 f"file with UUID {uuid} and version {version} already exists")
         status_code = requests.codes.ok
 
-    return jsonify(
-        dict(version=version)), status_code
+    if should_cache_file(content_type=content_type, size=size):
+        start_file_checkout(replica=replica, blob_key=dst_key)
+
+    return jsonify(dict(version=version)), status_code
