@@ -710,7 +710,7 @@ paths:
                   considered successful. Otherwise, more attempts will be made with an exponentially increasing delay
                   between attempts, until an attempt is successful or the a maximum number of attempts is reached.
 
-                  Occasionally duplicate notifications maybe be sent. It is up to the receiver of the notification to
+                  Occasionally, duplicate notifications may be sent. It is up to the receiver of the notification to
                   tolerate duplicate notifications.
                 type: string
                 pattern: 'https?://'
