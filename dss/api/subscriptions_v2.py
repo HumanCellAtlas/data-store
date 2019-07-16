@@ -21,6 +21,8 @@ def get(uuid: str, replica: str):
     subscription = get_subscription(Replica[replica], owner, uuid)
     if subscription is None or owner != subscription[SubscriptionData.OWNER]:
         raise DSSException(404, "not_found", "Cannot find subscription!")
+    if 'hmac_secret_key' in subscription:
+        subscription.pop('hmac_secret_key')
     return subscription, requests.codes.ok
 
 

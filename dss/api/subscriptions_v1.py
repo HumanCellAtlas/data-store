@@ -37,7 +37,8 @@ def get(uuid: str, replica: str):
     source['replica'] = replica
     if 'hmac_key_id' in response:
         source['hmac_key_id'] = response['hmac_key_id']
-
+    if 'hmac_secret_key' in source:
+        source.pop('hmac_secret_key')
     if source['owner'] != owner:
         # common_error_handler defaults code to capitalized 'Forbidden' for Werkzeug exception. Keeping consistent.
         raise DSSException(requests.codes.forbidden, "Forbidden", "Your credentials can't access this subscription!")
