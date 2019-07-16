@@ -311,6 +311,7 @@ def put(uuid: str, json_request_body: dict, version: str):
         # verify the copy was done correctly.
         assert hca_handle.verify_blob_checksum_from_staging_metadata(dst_bucket, dst_key, metadata)
 
+    blob_content_type = handle.get_content_type(dst_bucket, dst_key)
     try:
         write_file_metadata(handle, dst_bucket, uuid, version, file_metadata_json)
         status_code = requests.codes.created
@@ -321,12 +322,19 @@ def put(uuid: str, json_request_body: dict, version: str):
                 dst_bucket,
                 "files/{}.{}".format(uuid, version)
             ).decode("utf-8"))
+        assert existing_file_metadata['content-type'] == blob_content_type, \
+            f"{existing_file_metadata['content-type']} != {blob_content_type}"
         if existing_file_metadata != file_metadata:
             raise DSSException(
                 requests.codes.conflict,
                 "file_already_exists",
                 f"file with UUID {uuid} and version {version} already exists")
         status_code = requests.codes.ok
+    else:
+        assert file_metadata['content-type'] == blob_content_type, \
+            f"{file_metadata['content-type']} != {blob_content_type}"
+
+
 
     if should_cache_file(content_type=content_type, size=size) and size <= ASYNC_COPY_THRESHOLD:
         start_file_checkout(replica=replica, blob_key=dst_key)
