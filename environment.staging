@@ -18,7 +18,7 @@ ACM_CERTIFICATE_IDENTIFIER="f4f2b043-41ba-4116-b2f0-8d4296c3b97b"
 DSS_GCP_SERVICE_ACCOUNT_NAME="org-humancellatlas-staging"
 DSS_CHECKOUT_BUCKET_OBJECT_VIEWERS="serviceAccount:154609999906-compute@developer.gserviceaccount.com,serviceAccount:caas-account@broad-dsde-mint-staging.iam.gserviceaccount.com,serviceAccount:caas-prod-account-for-staging@broad-dsde-mint-staging.iam.gserviceaccount.com"
 DSS_TERRAFORM_BACKEND_BUCKET_TEMPLATE="org-humancellatlas-dss-{account_id}-${DSS_DEPLOYMENT_STAGE}-terraform"
-AUTHZ_URL=https://auth.staging.data.humancellatlas.org/v1/policies/evaluate
+AUTH_URL=https://auth.staging.data.humancellatlas.org
 set +a
 
 if [[ -f "${DSS_HOME}/environment.staging.local" ]]; then

@@ -1,18 +1,20 @@
+#!/usr/bin/env python
+"""
+This script creates new or updates existing roles from 'data-store/iam
+"""
+import json
 import os
-import time
 
 import jwt
 import requests
-import json
-
-
+import time
 
 auth_url = os.getenv('AUTH_URL')
 
 # supply google service account credentials and register them in fusillade.
 # This will allow the server to configure the application to run using fusillade
-google_service_account_credentials = {
-}
+with open(f"{os.environ('DSS_HOME')}/{os.environ('GOOGLE_APPLICATION_CREDENTIALS_SECRETS_NAME')}") as fp:
+    google_service_account_credentials = json.load(fp)
 
 
 def get_service_jwt(audience=None):
