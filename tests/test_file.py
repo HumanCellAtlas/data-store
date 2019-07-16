@@ -151,7 +151,6 @@ class TestFileApi(unittest.TestCase, TestAuthMixin, DSSUploadMixin, DSSAssertMix
             self.upload_file(source_url, file_uuid, bundle_uuid=bundle_uuid, version=version)
 
             metadata = handle.get_user_metadata(test_bucket, src_key)
-            # what's the target object name for the actual data?
             dst_key = ("blobs/" + ".".join([metadata['hca-dss-sha256'],
                                             metadata['hca-dss-sha1'],
                                             metadata['hca-dss-s3_etag'],

@@ -248,7 +248,6 @@ def put(uuid: str, json_request_body: dict, version: str):
                                "invalid_checksum",
                                f"malformed checksum {sum_type}")
 
-    # what's the target object name for the actual data?
     dst_key = ("blobs/" + ".".join(
         (
             metadata['hca-dss-sha256'],
