@@ -1,6 +1,5 @@
 import json
 import os
-
 """
 These functions assist with the caching process and provide greater availability of heavily accessed files to the user.
 

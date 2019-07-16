@@ -134,16 +134,6 @@ def get(
 
 
 @dss_handler
-def list_versions(uuid: str):
-    return ["2014-10-23T00:35:14.800221Z"]
-
-
-@dss_handler
-def post():
-    pass
-
-
-@dss_handler
 def put(uuid: str, replica: str, json_request_body: dict, version: str):
     security.assert_authorized(security.get_token_email(request.token_info),
                                ["dss:PutBundle"],
@@ -164,6 +154,7 @@ def put(uuid: str, replica: str, json_request_body: dict, version: str):
     status_code = _save_bundle(Replica[replica], uuid, version, bundle_metadata)
 
     return jsonify(dict(version=bundle_metadata['version'], manifest=bundle_metadata)), status_code
+
 
 def _save_bundle(replica: Replica, uuid: str, version: str, bundle_metadata: dict) -> int:
     try:
@@ -257,6 +248,7 @@ def delete(uuid: str, replica: str, json_request_body: dict, version: str = None
 
     return jsonify(response_body), status_code
 
+
 def build_bundle_file_metadata(replica: Replica, user_supplied_files: dict):
     handle = Config.get_blobstore_handle(replica)
 
@@ -315,6 +307,7 @@ def build_bundle_file_metadata(replica: Replica, user_supplied_files: dict):
         for _file in files
     ]
 
+
 def detect_filename_collisions(bundle_file_metadata):
     filenames: typing.Set[str] = set()
     for _file in bundle_file_metadata:
@@ -328,6 +321,7 @@ def detect_filename_collisions(bundle_file_metadata):
                 f"Duplicate file name detected: {name}. This test fails on the first occurance. Please check bundle "
                 "layout to ensure no duplicated file names are present."
             )
+
 
 def _create_tombstone_data(email: str, reason: str, version: typing.Optional[str]) -> dict:
     # Future-proofing the case in which garbage collection is added

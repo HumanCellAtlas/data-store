@@ -35,8 +35,8 @@ def get(uuid: str, replica: str):
     source = response['_source']
     source['uuid'] = uuid
     source['replica'] = replica
-    if 'hmac_secret_key' in response.keys():
-        source['hmac_secret_key'] = response['hmac_secret_key']
+    if 'hmac_key_id' in response:
+        source['hmac_key_id'] = response['hmac_key_id']
 
     if source['owner'] != owner:
         # common_error_handler defaults code to capitalized 'Forbidden' for Werkzeug exception. Keeping consistent.
@@ -59,7 +59,7 @@ def find(replica: str):
         'uuid': hit.meta.id,
         'replica': replica,
         'owner': owner,
-        **{k: v for k, v in hit.to_dict().items() if not k.startswith('hmac_key_id')}}
+        **{k: v for k, v in hit.to_dict().items() if k != 'hmac_secret_key'}}
         for hit in search.scan()]
 
     full_response = {'subscriptions': responses}
