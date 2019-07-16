@@ -16,14 +16,6 @@ from .error import (
 )
 
 
-class ValidationEnum(Enum):
-    NO_SRC_BUNDLE_FOUND = auto(),
-    WRONG_DST_BUCKET = auto(),
-    WRONG_PERMISSIONS_DST_BUCKET = auto(),
-    WRONG_BUNDLE_KEY = auto(),
-    PASSED = auto()
-
-
 def validate_file_dst(replica: Replica, dst_bucket: str, dst_key: str):
     try:
         Config.get_blobstore_handle(replica).get_user_metadata(dst_bucket, dst_key)

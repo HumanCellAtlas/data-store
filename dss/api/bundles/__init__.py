@@ -134,16 +134,6 @@ def get(
 
 
 @dss_handler
-def list_versions(uuid: str):
-    return ["2014-10-23T00:35:14.800221Z"]
-
-
-@dss_handler
-def post():
-    pass
-
-
-@dss_handler
 @security.authorized_group_required(['hca'])
 def put(uuid: str, replica: str, json_request_body: dict, version: str):
     uuid = uuid.lower()
@@ -251,6 +241,7 @@ def delete(uuid: str, replica: str, json_request_body: dict, version: str = None
         response_body = dict(title="bundle not found")
 
     return jsonify(response_body), status_code
+
 
 def build_bundle_file_metadata(replica: Replica, user_supplied_files: dict):
     handle = Config.get_blobstore_handle(replica)
