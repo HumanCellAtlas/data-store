@@ -328,7 +328,7 @@ def put(uuid: str, json_request_body: dict, version: str):
                 f"file with UUID {uuid} and version {version} already exists")
         status_code = requests.codes.ok
 
-    if should_cache_file(content_type=content_type, size=size):
+    if should_cache_file(content_type=content_type, size=size) and size <= ASYNC_COPY_THRESHOLD:
         start_file_checkout(replica=replica, blob_key=dst_key)
 
     return jsonify(dict(version=version)), status_code
