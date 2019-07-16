@@ -315,6 +315,8 @@ def put(uuid: str, json_request_body: dict, version: str):
     try:
         write_file_metadata(handle, dst_bucket, uuid, version, file_metadata_json)
         status_code = requests.codes.created
+        assert file_metadata['content-type'] == blob_content_type, \
+            f"{file_metadata['content-type']} != {blob_content_type}"
     except BlobAlreadyExistsError:
         # fetch the file metadata, compare it to what we have.
         existing_file_metadata = json.loads(
@@ -330,11 +332,6 @@ def put(uuid: str, json_request_body: dict, version: str):
                 "file_already_exists",
                 f"file with UUID {uuid} and version {version} already exists")
         status_code = requests.codes.ok
-    else:
-        assert file_metadata['content-type'] == blob_content_type, \
-            f"{file_metadata['content-type']} != {blob_content_type}"
-
-
 
     if should_cache_file(content_type=content_type, size=size) and size <= ASYNC_COPY_THRESHOLD:
         start_file_checkout(replica=replica, blob_key=dst_key)
