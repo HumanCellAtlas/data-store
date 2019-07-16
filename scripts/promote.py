@@ -112,8 +112,8 @@ def make_release_notes(src, dst) -> str:
 
 def commit(src, dst):
     print(_subprocess(['git', 'fetch', '--all']))
-    print(_subprocess(['git', 'checkout', dst]))
-    print(_subprocess(['git', 'merge', src]))
+    print(_subprocess(['git', '-c', 'advice.detachedHead=false', 'checkout', f'origin/{src}']))
+    print(_subprocess(['git', 'checkout', '-B', dst]))
     new_version = update_version()
     print(_subprocess(['git', 'push', '--force', 'origin', dst]))
     return new_version
@@ -142,13 +142,6 @@ def update_version() -> str:
         new_version = semver.finalize_version(str(version))
     else:
         new_version = str(semver.bump_prerelease(str(version), token=args.stage))
-    with open(f"{os.environ['FUS_HOME']}/service_config.json", 'r') as fp:
-        sys_config = json.load(fp)
-    sys_config['version'] = str(new_version)
-    with open(f"{os.environ['FUS_HOME']}/service_config.json", 'w') as fp:
-        json.dump(sys_config, fp, indent=4)
-    print(_subprocess(['git', 'add', './service_config.json']))
-    print(_subprocess(['git', 'commit', '-o', './service_config.json', '-m', f"updating {version} to {new_version}"]))
     return new_version
 
 
