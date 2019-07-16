@@ -357,6 +357,8 @@ class TestNotifyV2(unittest.TestCase, DSSAssertMixin, DSSUploadMixin):
             'encoding': "application/json",
             'form_fields': {'foo': "bar"},
             'payload_form_field': "baz",
+            'hmac_key_id': 'test_notify_v2',
+            'hmac_secret_key': '2333',
             'attachments': {
                 "my_attachment_1": {
                     'type': "jmespath",
@@ -398,6 +400,12 @@ class TestNotifyV2(unittest.TestCase, DSSAssertMixin, DSSUploadMixin):
         with self.subTest(f"{replica}, GET should succeed"):
             sub = self._get_subscription(subscription['uuid'], replica)
             self.assertEquals(sub['uuid'], subscription['uuid'])
+
+        with self.subTest(f"{replica}, hmac_secret_key should not be present, hmac_key_id should be found"):
+            sub = self._get_subscription(subscription['uuid'], replica)
+            self.assertEquals(sub['uuid'], subscription['uuid'])
+            self.assertNotIn('hmac_secret_ket', sub)
+            self.assertEquals(sub['hmac_key_id'], subscription['hmac_key_id'])
 
         with self.subTest(f"{replica}, DELETE should fail for un-owned subscription"):
             sub = self._get_subscription(subscription['uuid'], replica)
