@@ -8,7 +8,6 @@ import jwt
 import functools
 import io
 import os
-import shutil
 
 from dss import Config
 from dss.api import bundles
