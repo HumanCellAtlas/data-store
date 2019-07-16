@@ -315,8 +315,6 @@ def put(uuid: str, json_request_body: dict, version: str):
     try:
         write_file_metadata(handle, dst_bucket, uuid, version, file_metadata_json)
         status_code = requests.codes.created
-        assert file_metadata['content-type'] == blob_content_type, \
-            f"{file_metadata['content-type']} != {blob_content_type}"
     except BlobAlreadyExistsError:
         # fetch the file metadata, compare it to what we have.
         existing_file_metadata = json.loads(
@@ -324,8 +322,6 @@ def put(uuid: str, json_request_body: dict, version: str):
                 dst_bucket,
                 "files/{}.{}".format(uuid, version)
             ).decode("utf-8"))
-        assert existing_file_metadata['content-type'] == blob_content_type, \
-            f"{existing_file_metadata['content-type']} != {blob_content_type}"
         if existing_file_metadata != file_metadata:
             raise DSSException(
                 requests.codes.conflict,
