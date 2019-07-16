@@ -205,6 +205,7 @@ class verify_referential_integrity(StorageOperationHandler):
         if not dependencies_exist(self.replica, self.replica, key):
             self.log_warning("EntityMissingDependencies", dict(key=key, replica=self.replica.name))
 
+
 # TODO: Move to cloud_blobstore
 def update_aws_content_type(s3_client, bucket, key, content_type):
     blob = resources.s3.Bucket(bucket).Object(key)
@@ -240,6 +241,7 @@ def update_aws_content_type(s3_client, bucket, key, content_type):
                                             Key=key,
                                             MultipartUpload=multipart_upload,
                                             UploadId=upload_id)
+
 
 # TODO: Move to cloud_blobstore
 def update_gcp_content_type(gs_client, bucket, key, content_type):
