@@ -48,3 +48,5 @@ npm-debug.log
 /infra/*/backend.tf
 /infra/*/providers.tf
 /infra/*/variables.tf
+test_service_accounts.json
+oauth2_config.json

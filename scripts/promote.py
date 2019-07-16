@@ -112,11 +112,9 @@ def make_release_notes(src, dst) -> str:
 
 def commit(src, dst):
     print(_subprocess(['git', 'fetch', '--all']))
-    print(_subprocess(['git', 'checkout', dst]))
-    print(_subprocess(['git', 'merge', src]))
-    new_version = update_version()
+    print(_subprocess(['git', '-c', 'advice.detachedHead=false', 'checkout', f'origin/{src}']))
+    print(_subprocess(['git', 'checkout', '-B', dst]))
     print(_subprocess(['git', 'push', '--force', 'origin', dst]))
-    return new_version
 
 
 def get_current_version() -> semver.VersionInfo:
@@ -135,24 +133,20 @@ def update_version() -> str:
     committing to the dst branch
     :return: the new version./
     """
-    version = get_current_version()
+    new_version = cur_version = get_current_version()
     if args.release:
-        version = getattr(semver, f'bump_{args.release}')(str(version))
+        new_version = getattr(semver, f'bump_{args.release}')(str(new_version))
     if args.stage == "production":
-        new_version = semver.finalize_version(str(version))
+        new_version = semver.finalize_version(str(new_version))
     else:
-        new_version = str(semver.bump_prerelease(str(version), token=args.stage))
-    with open(f"{os.environ['FUS_HOME']}/service_config.json", 'r') as fp:
-        sys_config = json.load(fp)
-    sys_config['version'] = str(new_version)
-    with open(f"{os.environ['FUS_HOME']}/service_config.json", 'w') as fp:
-        json.dump(sys_config, fp, indent=4)
-    print(_subprocess(['git', 'add', './service_config.json']))
-    print(_subprocess(['git', 'commit', '-o', './service_config.json', '-m', f"updating {version} to {new_version}"]))
+        new_version = str(semver.bump_prerelease(str(new_version), token=args.stage))
+    print(f"Upgrading: {cur_version} -> {new_version}")
     return new_version
 
 
 Release_msg = "Releasing {src} to {dst}"
+if args.dry_run:
+    Release_msg = Release_msg + " (dry run)"
 Release_name = "{dst} {new_version}"
 release_map = {
     "integration": ("master", "integration", True),
@@ -171,9 +165,9 @@ if __name__ == "__main__":
     check_working_tree()
     check_diff(src, dst)
     release_notes = make_release_notes(src, dst)
-
+    new_version = update_version()
     if not args.dry_run:
-        new_version = commit(src, dst)
+        commit(src, dst)
         name = Release_name.format(dst=dst, new_version=new_version)
         body = dict(
             tag_name=str(new_version),

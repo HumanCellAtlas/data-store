@@ -55,8 +55,9 @@ package:
 	shopt -s nullglob; for wheel in vendor.in/*/*.whl; do unzip -q -o -d vendor $$wheel; done
 	cat fusillade-api.yml | envsubst '$$API_DOMAIN_NAME' > chalicelib/fusillade-api.yml
 	cat fusillade-internal-api.yml | envsubst '$$API_DOMAIN_NAME' > chalicelib/fusillade-internal-api.yml
-	rm ./chalicelib/service_config.json
-	cp -R ./fusillade ./policies ./service_config.json chalicelib
+	git fetch --all
+	cat service_config.json | jq .version=\"$(shell git describe --tags --abbrev=0)\" > ./chalicelib/service_config.json
+	cp -R ./fusillade ./policies chalicelib
 
 setup_directory:
 	source environment && ./scripts/make_directory.py
