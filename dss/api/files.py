@@ -311,7 +311,6 @@ def put(uuid: str, json_request_body: dict, version: str):
         # verify the copy was done correctly.
         assert hca_handle.verify_blob_checksum_from_staging_metadata(dst_bucket, dst_key, metadata)
 
-    blob_content_type = handle.get_content_type(dst_bucket, dst_key)
     try:
         write_file_metadata(handle, dst_bucket, uuid, version, file_metadata_json)
         status_code = requests.codes.created
