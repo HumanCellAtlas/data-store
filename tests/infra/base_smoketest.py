@@ -184,8 +184,8 @@ class BaseSmokeTest(unittest.TestCase):
         self.assertIn(requested_subscription, list_of_subscription_uuids)
 
     def _download_bundle(self, replica_name: str, bundle_uuid: str):
-        with tempfile.TemporaryDirectory(prefix=f'{self.workdir.name}/') as tempdir:
-            run(f"{self.venv_bin}hca dss download --replica {replica_name} --bundle-uuid {bundle_uuid}"
+        with tempfile.TemporaryDirectory(prefix=f'{self.workdir.name}/') as tempdir:  # type: ignore
+            run(f"{self.venv_bin}hca dss download --replica {replica_name} --bundle-uuid {bundle_uuid}"  # type: ignore
                 f" --download-dir {tempdir}")
 
     def _test_replica_sync(self, current_replica, bundle_uuid):
