@@ -66,6 +66,7 @@ def setup_copy_task(event, lambda_context):
         mpu = s3_blobstore.s3_client.create_multipart_upload(
             Bucket=destination_bucket,
             Key=destination_key,
+            Metadata=s3_blobstore.get_all_metadata(source_bucket, source_key),
             ContentType=blobinfo['ContentType'])
         event[_Key.UPLOAD_ID] = mpu['UploadId']
         event[Key.FINISHED] = False
