@@ -63,7 +63,10 @@ def setup_copy_task(event, lambda_context):
     if part_count * part_size < source_size:
         part_count += 1
     if part_count > 1:
-        mpu = s3_blobstore.s3_client.create_multipart_upload(Bucket=destination_bucket, Key=destination_key)
+        mpu = s3_blobstore.s3_client.create_multipart_upload(
+            Bucket=destination_bucket,
+            Key=destination_key,
+            ContentType=blobinfo['ContentType'])
         event[_Key.UPLOAD_ID] = mpu['UploadId']
         event[Key.FINISHED] = False
     else:
