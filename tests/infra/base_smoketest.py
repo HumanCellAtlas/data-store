@@ -183,7 +183,14 @@ class BaseSmokeTest(unittest.TestCase):
         list_of_subscription_uuids = [x['uuid'] for x in list_of_subscriptions if x['uuid']]
         self.assertIn(requested_subscription, list_of_subscription_uuids)
 
-    def _test_replica_sync(self, current_replica, bundle_uuid, ):
+    def _download_bundle(self, replica_name: str, bundle_uuid: str):
+        tempdir = tempfile.mkdtemp()
+        run(f"{self.venv_bin}hca dss download --replica {replica_name} --bundle-uuid {bundle_uuid}"
+            f" --download-dir {tempdir}")
+        if os.path.exists(tempdir):
+            shutil.rmtree(tempdir)
+
+    def _test_replica_sync(self, current_replica, bundle_uuid):
         other_replicas = self.replicas - {current_replica}
         for replica in other_replicas:
             with self.subTest(f"{current_replica.name}: Wait for the bundle to appear in the {replica} replicas"):
@@ -200,13 +207,13 @@ class BaseSmokeTest(unittest.TestCase):
             with self.subTest(f"{current_replica.name}: Download bundle from {replica}"):
                 for i in range(3):
                     try:
-                        run(f"{self.venv_bin}hca dss download --replica {replica.name} --bundle-uuid {bundle_uuid}")
+                        self._download_bundle(replica.name, bundle_uuid)
                         break
                     except:  # noqa
                         print(f'Waiting for {replica.name} bundle uuid: {bundle_uuid}')
                         time.sleep(1)
                 else:
-                    run(f"{self.venv_bin}hca dss download --replica {replica.name} --bundle-uuid {bundle_uuid}")
+                    self._download_bundle(replica.name, bundle_uuid)
 
     def generate_presigned_url(self, bucket, key):
         s3 = boto3.client('s3', config=botocore.client.Config(signature_version='s3v4'))

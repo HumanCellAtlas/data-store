@@ -9,7 +9,6 @@ import json
 import time
 import unittest
 
-
 from itertools import product
 pkg_root = os.path.abspath(os.path.join(os.path.dirname(__file__), ".."))  # noqa
 sys.path.insert(0, pkg_root)  # noqa
@@ -26,7 +25,6 @@ args = argparse.Namespace(clean=True)
 
 @testmode.integration
 class Smoketest(BaseSmokeTest):
-    # params = super().params
     @classmethod
     def setUpClass(cls):
         super().setUpClass()
