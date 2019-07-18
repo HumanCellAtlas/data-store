@@ -107,6 +107,13 @@ def find_orphan_queries(argv: typing.List[str], args: argparse.Namespace):
         for hit in get(es, index="_all", doc_type="query"):
             e.submit(_find_subs_for_query, hit.meta.id)
 
+@elasticsearch.action("get-by-id", arguments={"--ids": dict(required=True, nargs="*")})
+def get_doc_by_id(argv: typing.List[str], args: argparse.Namespace):
+    es = get_es_client()
+    for id_ in args.ids:
+        for doc in get_by_id(es, id_):
+            print(doc)
+
 @functools.lru_cache()
 def get_es_client():
     domain_name = "dss-index-" + os.environ['DSS_DEPLOYMENT_STAGE']
