@@ -17,17 +17,17 @@ checkout = dispatch.target("checkout", help=__doc__)
 
 
 def verify_delete(handler, bucket, key):
-        logger.warning(f'attempting removal of key: {key}')
-        handler.delete(bucket, key)
-        try:
-            handler.get(bucket=bucket, key=key)
-        except BlobNotFoundError:
-            logger.warning(f'Success! unable to locate key {key} in bucket: {bucket} ')
+    logger.warning(f'attempting removal of key: {key}')
+    handler.delete(bucket, key)
+    try:
+        handler.get(bucket=bucket, key=key)
+    except BlobNotFoundError:
+        logger.warning(f'Success! unable to locate key {key} in bucket: {bucket} ')
 
 
 @checkout.action("remove_checkout",
                  arguments={"--replica": dict(choices=[r.name for r in Replica], required=True),
-                            "--keys": dict(nargs="+", help="bundle keys from checkout bucket to remove", required=True)})
+                            "--keys": dict(nargs="+", help="keys from checkout bucket to remove", required=True)})
 def remove_checkout(argv: typing.List[str], args: argparse.Namespace):
     """
     Remove a bundle from the checkout bucket
