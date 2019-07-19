@@ -21,11 +21,6 @@ from google.cloud.storage import Client
 logger = logging.getLogger(__name__)
 
 checkout = dispatch.target("checkout", help=__doc__)
-BUCKETS = dict(
-    aws=os.environ['DSS_S3_CHECKOUT_BUCKET'],
-    gcp=os.environ['DSS_GS_CHECKOUT_BUCKET'],
-)
-
 
 @functools.lru_cache()
 def get_handle(replica):
@@ -49,21 +44,30 @@ def remove_bundle_from_checkout(argv: typing.List[str], args: argparse.Namespace
     """
     Remove a bundle from the checkout bucket
     """
-    handler = get_handle(replica=args.replica)
-    bucket = BUCKETS[args.replica]
-    for _fqid in args.fquids:
-        uuid, version = _fqid.split(':')
-        manifest = get_bundle_manifest(replica=args.replica, uuid=uuid, version=version)
+    replica = Replica.aws if args.replica == 'aws' else Replica.gcp
+    handler = get_handle(replica=replica.name)
+    bucket = replica.checkout_bucket
+    for _fqid in args.fqid:
+        uuid, version = _fqid.split('.', 1)
+        manifest = get_bundle_manifest(replica=replica, uuid=uuid, version=version)
+        if manifest is None:
+            logger.warning(f"unable to locate manifest for fqid: {'fqid'}")
+            continue
         for _files in manifest['files']:
-            key = compose_blob_key(_files)
-            logger.info(f'attempting removal of file: {_files["uuid"]}:{_files["version"]}')
-            handler.delete(bucket, key)
-
+            # key = compose_blob_key(_files)
+            key = f'bundles/{uuid}.{version}/{_files["name"]}'
             try:
-                handler.get(bucket=bucket, key=key)
+                size = handler.get_size(bucket, key)
             except BlobNotFoundError:
-                logger.info(f'Success! unable to locate file:  {_files["uuid"]}:{_files["version"]} \
-                in bucket: {bucket} ')
+                logger.warning(f'Unable to locate {bucket}/{key} in ')
+                continue
+            if size:
+                logger.warning(f'attempting removal of key: {key}')
+                handler.delete(bucket, key)
+                try:
+                    handler.get(bucket=bucket, key=key)
+                except BlobNotFoundError:
+                    logger.warning(f'Success! unable to locate key {key} in bucket: {bucket} ')
 
 
 

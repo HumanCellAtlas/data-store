@@ -13,6 +13,7 @@ import dss
 import dss.operations.storage
 import dss.operations.sync
 import dss.operations.elasticsearch
+import dss.operations.checkout
 from dss.operations import dispatch
 
 logging.basicConfig(stream=sys.stdout)
