@@ -105,6 +105,18 @@ def calculate_seconds_left(chalice_app: DSSChaliceApp) -> int:
     return time_remaining_s
 
 
+def determine_internal_method(method):
+    """Handles internal path determination, else returns None."""
+    if method.__name__ == 'slow_request':
+        return 'GET', '/internal/slow_request'
+    elif method.__name__ == 'application_secrets':
+        return 'GET', '/internal/application_secrets'
+    elif method.__name__ == 'notify':
+        return 'POST', '/internal/notify'
+    elif method.__name__ == 'health':
+        return 'GET', '/internal/health'
+
+
 def time_limited(chalice_app: DSSChaliceApp):
     """
     When this decorator is applied to a route handler, we will process the request in a secondary thread.  If the
@@ -125,7 +137,13 @@ def time_limited(chalice_app: DSSChaliceApp):
                     chalice_response = future.result(timeout=time_remaining_s)
                     return chalice_response
                 except TimeoutError:
-                    return timeout_response(method=request.method, uri=request.path)
+                    if determine_internal_method(method):
+                        # used for "/internal/{endpoint}" methods
+                        request_method, request_path = determine_internal_method(method)
+                    else:
+                        # used for swagger defined methods
+                        request_method, request_path = request.method, request.path
+                    return timeout_response(method=request_method, uri=request_path)
             finally:
                 executor.shutdown(wait=False)
         return wrapper
