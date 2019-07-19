@@ -456,6 +456,8 @@ class TestFileApi(unittest.TestCase, TestAuthMixin, DSSUploadMixin, DSSAssertMix
                 min_retry_interval_header=RETRY_AFTER_INTERVAL,
                 override_retry_interval=1,
             )
+            with self.subTest('Retry-After headers are not included in a successful response.'):
+                self.assertEqual(resp_obj.headers.get('Retry-After'), None)
 
             verify_headers = ['X-DSS-VERSION', 'X-DSS-CREATOR-UID', 'X-DSS-S3-ETAG', 'X-DSS-SHA256',
                               'X-DSS-SHA1', 'X-DSS-CRC32C']

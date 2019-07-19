@@ -13,9 +13,12 @@ from flask import Response as FlaskResponse
 pkg_root = os.path.abspath(os.path.join(os.path.dirname(__file__), '..'))  # noqa
 sys.path.insert(0, pkg_root)  # noqa
 
-from dss.storage.identifiers import BUNDLE_CHECKOUT_URI_REGEX
+from dss.storage.identifiers import FILES_URI_REGEX, BUNDLES_URI_REGEX, ROOT_SEARCH_URI_REGEX, BUNDLE_CHECKOUT_URI_REGEX
+from dss.storage.identifiers import SUBSCRIPTIONS_URI_REGEX, ROOT_SUBSCRIPTIONS_URI_REGEX
+from dss.storage.identifiers import COLLECTIONS_URI_REGEX, ROOT_COLLECTIONS_URI_REGEX
+from dss.storage.identifiers import MOCK_PATTERN, MOCK_URI_REGEX
 
-
+MOCK_METHOD = 'GET'
 logger = logging.getLogger(__name__)
 
 
@@ -42,8 +45,32 @@ class DSSForbiddenException(DSSException):
 
 
 def include_retry_after_header(return_code, method, uri):
-    # we do not include Retry-After headers for these API endpoints
-    exclusion_list = [('POST', BUNDLE_CHECKOUT_URI_REGEX)]
+    # include Retry-After headers for these API endpoints
+    inclusion_list = [('GET', BUNDLE_CHECKOUT_URI_REGEX),
+
+                      ('GET', BUNDLES_URI_REGEX),
+                      ('DELETE', BUNDLES_URI_REGEX),
+                      ('PATCH', BUNDLES_URI_REGEX),
+                      ('PUT', BUNDLES_URI_REGEX),
+
+                      ('GET', ROOT_COLLECTIONS_URI_REGEX),
+                      ('PUT', ROOT_COLLECTIONS_URI_REGEX),
+                      ('DELETE', COLLECTIONS_URI_REGEX),
+                      ('GET', COLLECTIONS_URI_REGEX),
+                      ('PATCH', COLLECTIONS_URI_REGEX),
+
+                      ('GET', FILES_URI_REGEX),
+                      ('HEAD', FILES_URI_REGEX),
+                      ('PUT', FILES_URI_REGEX),
+
+                      ('POST', ROOT_SEARCH_URI_REGEX),
+
+                      ('GET', ROOT_SUBSCRIPTIONS_URI_REGEX),
+                      ('PUT', ROOT_SUBSCRIPTIONS_URI_REGEX),
+                      ('DELETE', SUBSCRIPTIONS_URI_REGEX),
+                      ('GET', SUBSCRIPTIONS_URI_REGEX),
+
+                      (MOCK_METHOD, MOCK_URI_REGEX)]
 
     # we only include Retry-After headers for these return codes
     retry_after_codes = [requests.codes.server_error,
@@ -52,10 +79,10 @@ def include_retry_after_header(return_code, method, uri):
                          requests.codes.gateway_timeout]
 
     if return_code in retry_after_codes:
-        for api_call in exclusion_list:
+        for api_call in inclusion_list:
             if method == api_call[0] and api_call[1].match(uri):
-                return False
-    return True
+                return True
+    return False
 
 
 def dss_exception_handler(e: DSSException) -> FlaskResponse:
@@ -71,12 +98,17 @@ def dss_exception_handler(e: DSSException) -> FlaskResponse:
         }))
 
 
+def determine_method_path(func):
+    if 'mock' in func.__name__:
+        return MOCK_METHOD, MOCK_PATTERN
+    return request.method, request.path
+
+
 def dss_handler(func):
     @functools.wraps(func)
     def wrapper(*args, **kwargs):
-        if (os.environ.get('DSS_READ_ONLY_MODE') is None
-                or "GET" == request.method
-                or ("POST" == request.method and "search" in request.path)):
+        method, path = determine_method_path(func)
+        if os.environ.get('DSS_READ_ONLY_MODE') is None or "GET" == method or ("POST" == method and "search" in path):
             try:
                 return func(*args, **kwargs)
             except werkzeug.exceptions.HTTPException as ex:
@@ -105,7 +137,7 @@ def dss_handler(func):
             stacktrace = ""
             headers = {'Retry-After': '600'}
 
-        if include_retry_after_header(return_code=status, method=request.method, uri=request.path):
+        if include_retry_after_header(return_code=status, method=method, uri=path):
             headers = {'Retry-After': '10'}
 
         return ConnexionResponse(
