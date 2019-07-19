@@ -37,6 +37,21 @@ def get_handle(replica):
         raise Exception(msg)
 
 
+def verify_delete(handler, bucket, key):
+    try:
+        size = handler.get_size(bucket, key)
+    except BlobNotFoundError:
+        logger.warning(f'Unable to locate {bucket}/{key} ')
+        return
+    if size:
+        logger.warning(f'attempting removal of key: {key}')
+        handler.delete(bucket, key)
+        try:
+            handler.get(bucket=bucket, key=key)
+        except BlobNotFoundError:
+            logger.warning(f'Success! unable to locate key {key} in bucket: {bucket} ')
+
+
 @checkout.action("remove_bundle_from_checkout",
                  arguments={"--replica": dict(choices=[r.name for r in Replica], required=True),
                             "--fqid": dict(nargs="+", help="bundle fqids to remove", required=True)})
@@ -57,19 +72,6 @@ def remove_bundle_from_checkout(argv: typing.List[str], args: argparse.Namespace
             # key = compose_blob_key(_files)
             key = f'bundles/{uuid}.{version}/{_files["name"]}'
             try:
-                size = handler.get_size(bucket, key)
+                verify_delete(handler, bucket, key)
             except BlobNotFoundError:
-                logger.warning(f'Unable to locate {bucket}/{key} in ')
                 continue
-            if size:
-                logger.warning(f'attempting removal of key: {key}')
-                handler.delete(bucket, key)
-                try:
-                    handler.get(bucket=bucket, key=key)
-                except BlobNotFoundError:
-                    logger.warning(f'Success! unable to locate key {key} in bucket: {bucket} ')
-
-
-
-
-
