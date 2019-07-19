@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 # coding: utf-8
 """
-Test header values across multiple endpoints.
+Test header values.
 """
 import datetime
 import os
