@@ -16,7 +16,6 @@ from dcplib.aws.sqs import SQSMessenger, get_queue_url
 
 from dss import Replica
 from dss.operations import dispatch
-from dss.index.es import ElasticsearchClient
 from dss.api.subscriptions_v1 import _delete_subscription
 from dss.index.es import ElasticsearchClient
 
@@ -111,8 +110,8 @@ def find_orphan_queries(argv: typing.List[str], args: argparse.Namespace):
 def get_doc_by_id(argv: typing.List[str], args: argparse.Namespace):
     es = get_es_client()
     for id_ in args.ids:
-        for doc in get_by_id(es, id_):
-            print(doc)
+        for hit in get_by_id(es, id_):
+            print(hit.to_dict())
 
 @functools.lru_cache()
 def get_es_client():
