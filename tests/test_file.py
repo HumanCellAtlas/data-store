@@ -456,14 +456,15 @@ class TestFileApi(unittest.TestCase, TestAuthMixin, DSSUploadMixin, DSSAssertMix
                 min_retry_interval_header=RETRY_AFTER_INTERVAL,
                 override_retry_interval=1,
             )
-            with self.subTest('Retry-After headers are not included in a successful response.'):
-                self.assertEqual(native_resp_obj.headers.get('Retry-After'), None)
 
             verify_headers = ['X-DSS-VERSION', 'X-DSS-CREATOR-UID', 'X-DSS-S3-ETAG', 'X-DSS-SHA256',
                               'X-DSS-SHA1', 'X-DSS-CRC32C']
             native_headers_verify = {k: v for k, v in native_resp_obj.response.headers.items() if k in verify_headers}
             presigned_headers_verify = {k: v for k, v in resp_obj.response.headers.items() if k in verify_headers}
             self.assertDictEqual(native_headers_verify, presigned_headers_verify)
+
+            with self.subTest('Retry-After headers are not included in a successful response.'):
+                self.assertEqual(native_resp_obj.response.headers.get('Retry-After'), None)
 
             self.assertTrue(
                 native_resp_obj.response.headers['Location'].split('//')[0].startswith(replica.storage_schema))
