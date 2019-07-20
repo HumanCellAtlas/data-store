@@ -36,7 +36,7 @@ def remove_checkout(argv: typing.List[str], args: argparse.Namespace):
     handler = Config.get_blobstore_handle(replica)
     bucket = replica.checkout_bucket
     for _key in args.keys:
-        if 'bundle/' in _key:
+        if 'bundles/' in _key:
             for key in handler.list(bucket, _key):
                 try:
                     verify_delete(handler, bucket, key)
