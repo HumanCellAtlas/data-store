@@ -63,5 +63,5 @@ def remove_checkout(argv: typing.List[str], args: argparse.Namespace):
                 continue
             for _files in manifest['files']:
                 key = compose_blob_key(_files)
-                logger.info(f'attempting removal of file: {_files["uuid"]}:{_files["version"]}')
+                logger.info(f'attempting removal of key: {key}')
                 verify_delete(handler,bucket,key)
