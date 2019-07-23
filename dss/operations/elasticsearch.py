@@ -61,7 +61,7 @@ def get_subscriptions(argv: typing.List[str], args: argparse.Namespace):
             with lock:
                 print(hit.meta.to_dict(), hit.to_dict())
 
-    with ThreadPoolExecutor(max_workers=8) as e:
+    with ThreadPoolExecutor(max_workers=2) as e:
         for uuid in args.uuids:
             _get(uuid)
 
@@ -83,28 +83,10 @@ def delete_subscriptions(argv: typing.List[str], args: argparse.Namespace):
             with lock:
                 print(f"No subscriptions found for {uuid}")
 
-    with ThreadPoolExecutor(max_workers=1) as e:
+    with ThreadPoolExecutor(max_workers=2) as e:
         futures = [e.submit(_delete, uuid) for uuid in args.uuids]
         for f in as_completed(futures):
             f.result()
-
-
-@elasticsearch.action("find-orphan-queries")
-def find_orphan_queries(argv: typing.List[str], args: argparse.Namespace):
-    """
-    Find percolate queries unattached to a subscription.
-    """
-    es = get_es_client()
-    lock = Lock()
-
-    def _find_subs_for_query(query_id):
-        subs = [hit for hit in get_by_id(es, hit.meta.id, doc_type="subscription")]
-        with lock:
-            print(hit, len(subs))
-
-    with ThreadPoolExecutor(max_workers=8) as e:
-        for hit in get(es, index="_all", doc_type="query"):
-            e.submit(_find_subs_for_query, hit.meta.id)
 
 @elasticsearch.action("get-by-id", arguments={"--ids": dict(required=True, nargs="*")})
 def get_doc_by_id(argv: typing.List[str], args: argparse.Namespace):
