@@ -50,7 +50,8 @@ class DSSSyncMixin:
                 key.delete()
         for key in self.gs_bucket.list_blobs(prefix=self.test_blob_prefix):
             if key.time_created < datetime.datetime.now(datetime.timezone.utc) - age:
-                key.delete()
+                if key.exists():
+                    key.delete()
 
     payload = b''
     def get_payload(self, size):
