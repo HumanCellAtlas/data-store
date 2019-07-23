@@ -8,7 +8,6 @@ import jwt
 import functools
 import io
 import os
-import shutil
 
 from dss import Config
 from dss.api import bundles
@@ -39,8 +38,10 @@ with open(os.environ['GOOGLE_APPLICATION_CREDENTIALS'], "r") as fh:
     gcp_service_email = json.loads(fh.read())['client_email']
 bundles.ADMIN_USER_EMAILS = set([gcp_service_email])
 
+
 def get_collection_fqid() -> CollectionFQID:
     return CollectionFQID(uuid=str(uuid.uuid4()), version=get_version())
+
 
 def get_bundle_fqid() -> BundleFQID:
     return BundleFQID(uuid=str(uuid.uuid4()), version=get_version())

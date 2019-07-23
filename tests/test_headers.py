@@ -15,7 +15,7 @@ sys.path.insert(0, pkg_root)  # noqa
 
 from dss import dss_handler
 from dss.error import DSSException
-from dss.util import UrlBuilder, security
+from dss.util import UrlBuilder
 from dss.util.version import datetime_to_version_format
 from tests.infra import DSSAssertMixin, testmode
 from tests.infra.server import ThreadedLocalServer

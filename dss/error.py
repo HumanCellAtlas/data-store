@@ -6,6 +6,7 @@ import functools
 import traceback
 import requests
 import werkzeug.exceptions
+from urllib3.util.retry import Retry
 from connexion.lifecycle import ConnexionResponse
 from flask import request
 from flask import Response as FlaskResponse
@@ -13,12 +14,9 @@ from flask import Response as FlaskResponse
 pkg_root = os.path.abspath(os.path.join(os.path.dirname(__file__), '..'))  # noqa
 sys.path.insert(0, pkg_root)  # noqa
 
-from dss.storage.identifiers import FILES_URI_REGEX, BUNDLES_URI_REGEX, ROOT_SEARCH_URI_REGEX, BUNDLE_CHECKOUT_URI_REGEX
-from dss.storage.identifiers import SUBSCRIPTIONS_URI_REGEX, ROOT_SUBSCRIPTIONS_URI_REGEX
-from dss.storage.identifiers import COLLECTIONS_URI_REGEX, ROOT_COLLECTIONS_URI_REGEX
-from dss.storage.identifiers import MOCK_PATTERN, MOCK_URI_REGEX
-
 MOCK_METHOD = 'GET'
+MOCK_PATH = f'/mock'
+
 logger = logging.getLogger(__name__)
 
 
@@ -45,32 +43,8 @@ class DSSForbiddenException(DSSException):
 
 
 def include_retry_after_header(return_code, method, uri):
-    # include Retry-After headers for these API endpoints
-    inclusion_list = [('GET', BUNDLE_CHECKOUT_URI_REGEX),
-
-                      ('GET', BUNDLES_URI_REGEX),
-                      ('DELETE', BUNDLES_URI_REGEX),
-                      ('PATCH', BUNDLES_URI_REGEX),
-                      ('PUT', BUNDLES_URI_REGEX),
-
-                      ('GET', ROOT_COLLECTIONS_URI_REGEX),
-                      ('PUT', ROOT_COLLECTIONS_URI_REGEX),
-                      ('DELETE', COLLECTIONS_URI_REGEX),
-                      ('GET', COLLECTIONS_URI_REGEX),
-                      ('PATCH', COLLECTIONS_URI_REGEX),
-
-                      ('GET', FILES_URI_REGEX),
-                      ('HEAD', FILES_URI_REGEX),
-                      ('PUT', FILES_URI_REGEX),
-
-                      ('POST', ROOT_SEARCH_URI_REGEX),
-
-                      ('GET', ROOT_SUBSCRIPTIONS_URI_REGEX),
-                      ('PUT', ROOT_SUBSCRIPTIONS_URI_REGEX),
-                      ('DELETE', SUBSCRIPTIONS_URI_REGEX),
-                      ('GET', SUBSCRIPTIONS_URI_REGEX),
-
-                      (MOCK_METHOD, MOCK_URI_REGEX)]
+    # include Retry-After headers for these methods (all are considered idempotent)
+    inclusion_list = Retry.DEFAULT_METHOD_WHITELIST
 
     # we only include Retry-After headers for these return codes
     retry_after_codes = [requests.codes.server_error,
@@ -78,10 +52,8 @@ def include_retry_after_header(return_code, method, uri):
                          requests.codes.service_unavailable,
                          requests.codes.gateway_timeout]
 
-    if return_code in retry_after_codes:
-        for api_call in inclusion_list:
-            if method == api_call[0] and api_call[1].match(uri):
-                return True
+    if return_code in retry_after_codes and (method in inclusion_list or ("POST" == method and "search" in uri)):
+        return True
     return False
 
 
@@ -100,7 +72,7 @@ def dss_exception_handler(e: DSSException) -> FlaskResponse:
 
 def determine_method_path(func):
     if 'mock' in func.__name__:
-        return MOCK_METHOD, MOCK_PATTERN
+        return MOCK_METHOD, MOCK_PATH
     return request.method, request.path
 
 
