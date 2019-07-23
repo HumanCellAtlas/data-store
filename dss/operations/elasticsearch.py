@@ -63,7 +63,7 @@ def get_subscriptions(argv: typing.List[str], args: argparse.Namespace):
 
     with ThreadPoolExecutor(max_workers=2) as e:
         for uuid in args.uuids:
-            _get(uuid)
+            e.submit(_get, uuid)
 
 @elasticsearch.action("delete-subscriptions", arguments={"--uuids": dict(required=True, nargs="*")})
 def delete_subscriptions(argv: typing.List[str], args: argparse.Namespace):
@@ -74,7 +74,9 @@ def delete_subscriptions(argv: typing.List[str], args: argparse.Namespace):
     lock = Lock()
 
     def _delete(uuid):
-        count = es.search(index="_all", doc_type="subscription", body={"query":{"terms":{"_id":[uuid]}}})['hits']['total']
+        count = es.search(index="_all",
+                          doc_type="subscription",
+                          body={"query": {"terms": {"_id": [uuid]}}})['hits']['total']
         if count > 0:
             _delete_subscription(es, uuid)
             with lock:
@@ -106,7 +108,7 @@ def get_by_id(es, doc_id, doc_type=None):
     kwargs = dict(using=es, index="_all")
     if doc_type is not None:
         kwargs['doc_type'] = doc_type
-    for hit in Search(**kwargs).query({"terms":{"_id":[doc_id]}}).scan():
+    for hit in Search(**kwargs).query({"terms": {"_id": [doc_id]}}).scan():
         yield hit
 
 def get(es, index="_all", doc_type=None, owner=None):

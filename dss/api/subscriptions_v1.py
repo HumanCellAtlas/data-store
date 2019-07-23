@@ -175,11 +175,11 @@ def delete(uuid: str, replica: str):
 
 def _delete_subscription(es_client: Elasticsearch, uuid: str):
     _unregister_percolate(es_client, uuid)
-    response = es_client.delete_by_query(index="_all",
-                                         doc_type=ESDocType.subscription.name,
-                                         body={"query": {"ids": {"type": ESDocType.subscription.name, "values": [uuid]}}},
-                                         conflicts="proceed",
-                                         refresh=True)
+    es_client.delete_by_query(index="_all",
+                              doc_type=ESDocType.subscription.name,
+                              body={"query": {"ids": {"type": ESDocType.subscription.name, "values": [uuid]}}},
+                              conflicts="proceed",
+                              refresh=True)
 
 
 def _unregister_percolate(es_client: Elasticsearch, uuid: str):
