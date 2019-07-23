@@ -105,8 +105,7 @@ def calculate_seconds_left(chalice_app: DSSChaliceApp) -> int:
     return time_remaining_s
 
 
-def determine_internal_method(method):
-    """Handles internal path determination, else returns None."""
+def determine_path(method):
     if method.__name__ == 'slow_request':
         return 'GET', '/internal/slow_request'
     elif method.__name__ == 'application_secrets':
@@ -115,6 +114,8 @@ def determine_internal_method(method):
         return 'POST', '/internal/notify'
     elif method.__name__ == 'health':
         return 'GET', '/internal/health'
+    else:
+        return request.method, request.path
 
 
 def time_limited(chalice_app: DSSChaliceApp):
@@ -137,12 +138,7 @@ def time_limited(chalice_app: DSSChaliceApp):
                     chalice_response = future.result(timeout=time_remaining_s)
                     return chalice_response
                 except TimeoutError:
-                    if determine_internal_method(method):
-                        # used for "/internal/{endpoint}" methods
-                        request_method, request_path = determine_internal_method(method)
-                    else:
-                        # used for swagger defined methods
-                        request_method, request_path = request.method, request.path
+                    request_method, request_path = determine_path(method)
                     return timeout_response(method=request_method, uri=request_path)
             finally:
                 executor.shutdown(wait=False)
