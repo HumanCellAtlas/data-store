@@ -8,6 +8,7 @@ import os
 import sys
 import unittest
 import requests
+import flask
 from unittest import mock
 
 pkg_root = os.path.abspath(os.path.join(os.path.dirname(__file__), '..'))  # noqa
@@ -20,6 +21,8 @@ from dss.util.version import datetime_to_version_format
 from tests.infra import DSSAssertMixin, testmode
 from tests.infra.server import ThreadedLocalServer
 from tests import get_auth_header
+
+app = flask.Flask(__name__)
 
 
 @dss_handler
@@ -78,28 +81,33 @@ class TestRetryAfterHeaders(unittest.TestCase, DSSAssertMixin):
 
     def test_500_server_error(self):
         """Test that the dss_handler includes retry-after headers."""
-        r = mock_500_server_error()
-        self.assertEqual(int(r.headers['Retry-After']), 10)
+        with app.test_request_context('/test'):
+            r = mock_500_server_error()
+            self.assertEqual(int(r.headers['Retry-After']), 10)
 
     def test_501_not_implemented(self):
         """501 should not be retried."""
-        r = mock_501_not_implemented()
-        self.assertEqual(r.headers.get('Retry-After'), None)
+        with app.test_request_context('/test'):
+            r = mock_501_not_implemented()
+            self.assertEqual(r.headers.get('Retry-After'), None)
 
     def test_502_bad_gateway(self):
         """Test that the dss_handler includes retry-after headers."""
-        r = mock_502_bad_gateway()
-        self.assertEqual(int(r.headers['Retry-After']), 10)
+        with app.test_request_context('/test'):
+            r = mock_502_bad_gateway()
+            self.assertEqual(int(r.headers['Retry-After']), 10)
 
     def test_503_service_unavailable(self):
         """Test that the dss_handler includes retry-after headers."""
-        r = mock_503_service_unavailable()
-        self.assertEqual(int(r.headers['Retry-After']), 10)
+        with app.test_request_context('/test'):
+            r = mock_503_service_unavailable()
+            self.assertEqual(int(r.headers['Retry-After']), 10)
 
     def test_504_504_gateway_timeout(self):
         """Test that the dss_handler includes retry-after headers."""
-        r = mock_504_gateway_timeout()
-        self.assertEqual(int(r.headers['Retry-After']), 10)
+        with app.test_request_context('/test'):
+            r = mock_504_gateway_timeout()
+            self.assertEqual(int(r.headers['Retry-After']), 10)
 
 
 if __name__ == '__main__':

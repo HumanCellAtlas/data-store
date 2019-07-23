@@ -14,9 +14,6 @@ from flask import Response as FlaskResponse
 pkg_root = os.path.abspath(os.path.join(os.path.dirname(__file__), '..'))  # noqa
 sys.path.insert(0, pkg_root)  # noqa
 
-MOCK_METHOD = 'GET'
-MOCK_PATH = f'/mock'
-
 logger = logging.getLogger(__name__)
 
 
@@ -70,16 +67,10 @@ def dss_exception_handler(e: DSSException) -> FlaskResponse:
         }))
 
 
-def determine_method_path(func):
-    if 'mock' in func.__name__:
-        return MOCK_METHOD, MOCK_PATH
-    return request.method, request.path
-
-
 def dss_handler(func):
     @functools.wraps(func)
     def wrapper(*args, **kwargs):
-        method, path = determine_method_path(func)
+        method, path = request.method, request.path  # swagger endpoints
         if os.environ.get('DSS_READ_ONLY_MODE') is None or "GET" == method or ("POST" == method and "search" in path):
             try:
                 return func(*args, **kwargs)
