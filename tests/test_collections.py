@@ -20,7 +20,7 @@ from google.cloud import storage as gs_storage
 pkg_root = os.path.abspath(os.path.join(os.path.dirname(__file__), '..'))  # noqa
 sys.path.insert(0, pkg_root)  # noqa
 
-from tests import get_auth_header
+from tests import get_auth_header, eventually
 from tests.infra import generate_test_key, get_env, DSSAssertMixin, DSSUploadMixin, testmode
 from tests.infra.server import ThreadedLocalServer
 from tests.fixtures.cloud_uploader import ChecksummingSink
@@ -147,6 +147,11 @@ class TestCollections(unittest.TestCase, DSSAssertMixin, DSSUploadMixin):
         self.assertEqual(resp_obj.response.status_code, requests.codes.ok)
         return paging_response
 
+    @eventually(timeout=5, interval=1, errors={ValueError})
+    def check_collection_not_found(self, uuid):
+        with self.assertRaises(DynamoDBItemNotFound):
+            owner_lookup.get_collection(owner=self.owner_email, collection_fqid=uuid)
+
     def test_collection_paging(self):
         min_page = 10
         codes = {requests.codes.ok, requests.codes.partial}
@@ -184,8 +189,7 @@ class TestCollections(unittest.TestCase, DSSAssertMixin, DSSUploadMixin):
 
         with self.subTest("Test dynamoDB delete_collection."):
             owner_lookup.delete_collection(owner=self.owner_email, collection_fqid=fake_uuid)
-            for value in owner_lookup.get_collection_fqids_for_owner(owner=self.owner_email):
-                self.assertNotEqual(fake_uuid, value)
+            self.check_collection_not_found(fake_uuid)
 
         with self.subTest("Test dynamoDB delete_collection silently deletes now non-existent item."):
             owner_lookup.delete_collection(owner=self.owner_email, collection_fqid=fake_uuid)
@@ -206,10 +210,8 @@ class TestCollections(unittest.TestCase, DSSAssertMixin, DSSUploadMixin):
                     raise ValueError(f'{fake_uuid} was removed from db, but {value} was found.')
 
         with self.subTest("Test dynamoDB get_collection does not find deleted versions."):
-            with self.assertRaises(DynamoDBItemNotFound):
-                owner_lookup.get_collection(owner=self.owner_email, collection_fqid=fake_uuid + '.v1')
-            with self.assertRaises(DynamoDBItemNotFound):
-                owner_lookup.get_collection(owner=self.owner_email, collection_fqid=fake_uuid + '.v2')
+            self.check_collection_not_found(fake_uuid + '.v1')
+            self.check_collection_not_found(fake_uuid + '.v2')
 
     def test_collection_paging_too_small(self):
         """Should NOT be able to use a too-small per_page."""
