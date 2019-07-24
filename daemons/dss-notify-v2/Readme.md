@@ -30,9 +30,12 @@ Bundle creation notifications have the format
 
 ```
 {
+  'dss-api': dss_api
+  'bundle_url': {dss_api}"/bundles/{uuid}?version={version}
   'transaction_id': {uuid},
   'subscription_id': {uuid},
   'event_type': "CREATE"|"TOMBSTONE"|"DELETE",
+  'event_timestamp': "timestamp"
   'match': {
     'bundle_uuid': {uuid},
     'bundle_version': {version},
@@ -50,6 +53,9 @@ Bundle creation notifications have the format
 The `jmespath_query` and `attachment` fields are subscription dependent and may not be present. Attachment
 usage and format description can be found in the /subscription endpoint of the [DSS OpenAPI specifications](../../dss-api.yml).
 
+The `event_timestamp` field is a timestamp for when the event was created, the formatting is in the `DSS_VERSION` format.
+
+The `dss_api` field is the URL for 
 ## Subscriptions
 
 Event subscriptions are managed via the `/subscriptions` API endpoint, described in detail by the

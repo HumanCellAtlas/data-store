@@ -463,7 +463,7 @@ class TestNotifyV2(unittest.TestCase, DSSAssertMixin, DSSUploadMixin):
         self._test_notify({'event_type': "DELETE"})
 
     def _test_notify(self, metadata_document):
-        api_name = f"https://os.getenv('API_DOMAIN_NAME')"
+        api_name = f"https://{os.getenv('API_DOMAIN_NAME')}"
         bundle_uuid, bundle_version = self._shared_bundle_once(Replica.aws)
         bundle_key = f"bundles/{bundle_uuid}.{bundle_version}"
         subscription = {
