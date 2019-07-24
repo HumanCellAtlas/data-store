@@ -1,11 +1,8 @@
 import chalice.config
-import logging
-
 import functools
 import os
 import threading
 import types
-
 import requests
 from chalice.cli import CLIFactory
 from chalice.local import LocalDevServer, ChaliceRequestHandler

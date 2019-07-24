@@ -1,17 +1,14 @@
 import json
 import os
-import typing
 import logging
-
 import functools
 import traceback
-
 import requests
 import werkzeug.exceptions
+from urllib3.util.retry import Retry
 from connexion.lifecycle import ConnexionResponse
 from flask import request
 from flask import Response as FlaskResponse
-
 
 logger = logging.getLogger(__name__)
 
@@ -37,6 +34,22 @@ class DSSForbiddenException(DSSException):
                          title,
                          *args, **kwargs)
 
+
+def include_retry_after_header(return_code, method, uri):
+    # include Retry-After headers for these methods (all are considered idempotent)
+    inclusion_list = Retry.DEFAULT_METHOD_WHITELIST
+
+    # we only include Retry-After headers for these return codes
+    retry_after_codes = [requests.codes.server_error,
+                         requests.codes.bad_gateway,
+                         requests.codes.service_unavailable,
+                         requests.codes.gateway_timeout]
+
+    if return_code in retry_after_codes and (method in inclusion_list or ("POST" == method and "search" in uri)):
+        return True
+    return False
+
+
 def dss_exception_handler(e: DSSException) -> FlaskResponse:
     return FlaskResponse(
         status=e.status,
@@ -49,12 +62,12 @@ def dss_exception_handler(e: DSSException) -> FlaskResponse:
             'stacktrace': traceback.format_exc(),
         }))
 
+
 def dss_handler(func):
     @functools.wraps(func)
     def wrapper(*args, **kwargs):
-        if (os.environ.get('DSS_READ_ONLY_MODE') is None
-                or "GET" == request.method
-                or ("POST" == request.method and "search" in request.path)):
+        method, path = request.method, request.path
+        if os.environ.get('DSS_READ_ONLY_MODE') is None or "GET" == method or ("POST" == method and "search" in path):
             try:
                 return func(*args, **kwargs)
             except werkzeug.exceptions.HTTPException as ex:
@@ -81,7 +94,10 @@ def dss_handler(func):
             code = "read_only"
             title = "The DSS is currently read-only"
             stacktrace = ""
-            headers = {'Retry-After': 600}
+            headers = {'Retry-After': '600'}
+
+        if include_retry_after_header(return_code=status, method=method, uri=path):
+            headers = {'Retry-After': '10'}
 
         return ConnexionResponse(
             status_code=status,
