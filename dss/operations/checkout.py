@@ -11,7 +11,6 @@ from dss import Config
 from cloud_blobstore import BlobNotFoundError
 from dss.api.bundles import get_bundle_manifest
 from dss.storage.hcablobstore import compose_blob_key
-from dss.storage.hcablobstore import compose_blob_key
 
 
 logger = logging.getLogger(__name__)
