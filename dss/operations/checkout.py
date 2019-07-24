@@ -30,7 +30,7 @@ def verify_delete(handler, bucket, key):
 
 @checkout.action("remove_checkout",
                  arguments={"--replica": dict(choices=[r.name for r in Replica], required=True),
-                            "--keys": dict(nargs="+", help="keys from checkout bucket to remove", required=True),
+                            "--keys": dict(nargs="+", help="keys from checkout bucket to remove", required=False),
                             "--bundle-fqid": dict(nargs="+", help="fqid checkout bucket to remove", required=False)})
 def remove_checkout(argv: typing.List[str], args: argparse.Namespace):
     """
@@ -42,6 +42,7 @@ def remove_checkout(argv: typing.List[str], args: argparse.Namespace):
     if args.keys:
         for _key in args.keys:
             if 'bundles/' in _key:
+                # get-bundle presignedurl uses key based prefix
                 print(handler.list(bucket, _key))
                 for key in handler.list(bucket, _key):
                     try:
@@ -55,6 +56,7 @@ def remove_checkout(argv: typing.List[str], args: argparse.Namespace):
                 except BlobNotFoundError:
                     continue
     elif args.bundle_fqid:
+        # get-bundle that has a manifest context does is under /blob prefix
         for _fqid in args.bundle_fqid:
             uuid, version = _fqid.split('.', 1)
             manifest = get_bundle_manifest(replica=replica, uuid=uuid, version=version)
@@ -64,4 +66,4 @@ def remove_checkout(argv: typing.List[str], args: argparse.Namespace):
             for _files in manifest['files']:
                 key = compose_blob_key(_files)
                 logger.info(f'attempting removal of key: {key}')
-                verify_delete(handler,bucket,key)
+                verify_delete(handler, bucket, key)
