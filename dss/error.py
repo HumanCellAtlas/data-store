@@ -94,10 +94,10 @@ def dss_handler(func):
             code = "read_only"
             title = "The DSS is currently read-only"
             stacktrace = ""
-            headers = {'Retry-After': '600'}
+            headers = {'Retry-After': 600}
 
         if include_retry_after_header(return_code=status, method=method, uri=path):
-            headers = {'Retry-After': '10'}
+            headers = {'Retry-After': 10}
 
         return ConnexionResponse(
             status_code=status,

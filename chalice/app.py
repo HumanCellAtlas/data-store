@@ -100,7 +100,7 @@ def timeout_response(method, uri: str) -> chalice.Response:
             method, uri = request.method, request.path
 
     if include_retry_after_header(return_code=requests.codes.gateway_timeout, method=method, uri=uri):
-        headers['Retry-After'] = '10'
+        headers['Retry-After'] = 10
 
     return chalice.Response(status_code=problem['status'],
                             headers=headers,
@@ -232,7 +232,7 @@ def get_chalice_app(flask_app) -> DSSChaliceApp:
         res_headers["X-AWS-REQUEST-ID"] = app.lambda_context.aws_request_id
 
         if include_retry_after_header(return_code=status_code, method=app.current_request.method, uri=path):
-            res_headers['Retry-After'] = '10'
+            res_headers['Retry-After'] = 10
 
         return chalice.Response(status_code=status_code,
                                 headers=res_headers,
