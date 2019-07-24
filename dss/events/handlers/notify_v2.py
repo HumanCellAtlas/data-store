@@ -10,7 +10,6 @@ import datetime
 from uuid import uuid4
 from collections import defaultdict
 
-from flask import request
 from functools import lru_cache
 from concurrent.futures import ThreadPoolExecutor
 import jmespath
@@ -96,7 +95,7 @@ def notify(subscription: dict, metadata_document: dict, key: str) -> bool:
         bundle_version = bundle_version[:-len(sfx)]
     api_domain_name = f'https://{os.environ.get("API_DOMAIN_NAME")}'
     payload = {
-        'bundle_url': api_domain_name+f'/v1/bundles/{bundle_uuid}?version={bundle_version}',
+        'bundle_url': api_domain_name + f'/v1/bundles/{bundle_uuid}?version={bundle_version}',
         'dss_api': api_domain_name,
         'subscription_id': subscription[SubscriptionData.UUID],
         'event_timestamp': datetime_to_version_format(datetime.datetime.utcnow()),

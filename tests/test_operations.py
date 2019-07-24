@@ -21,7 +21,7 @@ import dss
 from tests.infra import testmode
 from dss.operations import DSSOperationsCommandDispatch
 from dss.operations.util import map_bucket_results
-from dss.operations import storage, sync
+from dss.operations import storage, sync, checkout
 from dss.logging import configure_test_logging
 from dss.config import BucketConfig, Config, Replica, override_bucket_config
 from dss.storage.hcablobstore import FileMetadata, compose_blob_key
@@ -266,6 +266,7 @@ class TestOperations(unittest.TestCase):
         gs_blob = gs_bucket.blob(key, chunk_size=1 * 1024 * 1024)
         with io.BytesIO(data) as fh:
             gs_blob.upload_from_file(fh, content_type="application/octet-stream")
+
 
 if __name__ == '__main__':
     unittest.main()

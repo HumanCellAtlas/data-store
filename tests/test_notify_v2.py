@@ -482,7 +482,6 @@ class TestNotifyV2(unittest.TestCase, DSSAssertMixin, DSSUploadMixin):
             'event_type': "CREATE",
         }
 
-
         with self.subTest("success"):
             sub = deepcopy(subscription)
             self.assertTrue(notify_v2.notify(sub, metadata_doc, bundle_key))
