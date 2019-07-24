@@ -1,6 +1,5 @@
 import json
 import os
-import sys
 import logging
 import functools
 import traceback
@@ -10,9 +9,6 @@ from urllib3.util.retry import Retry
 from connexion.lifecycle import ConnexionResponse
 from flask import request
 from flask import Response as FlaskResponse
-
-pkg_root = os.path.abspath(os.path.join(os.path.dirname(__file__), '..'))  # noqa
-sys.path.insert(0, pkg_root)  # noqa
 
 logger = logging.getLogger(__name__)
 
@@ -70,7 +66,7 @@ def dss_exception_handler(e: DSSException) -> FlaskResponse:
 def dss_handler(func):
     @functools.wraps(func)
     def wrapper(*args, **kwargs):
-        method, path = request.method, request.path  # swagger endpoints
+        method, path = request.method, request.path
         if os.environ.get('DSS_READ_ONLY_MODE') is None or "GET" == method or ("POST" == method and "search" in path):
             try:
                 return func(*args, **kwargs)

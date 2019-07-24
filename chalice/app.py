@@ -66,7 +66,7 @@ class DSSChaliceApp(chalice.Chalice):
         self._override_exptime_seconds = None
 
 
-def timeout_response(method: str, uri: str) -> chalice.Response:
+def timeout_response(method, uri: str) -> chalice.Response:
     """
     Produce a chalice Response object that indicates a timeout.  Stacktraces for all running threads, other than the
     current thread, are provided in the response object.
@@ -86,6 +86,19 @@ def timeout_response(method: str, uri: str) -> chalice.Response:
     }
 
     headers = {"Content-Type": "application/problem+json"}
+
+    if not uri:
+        if method.__name__ == 'slow_request':
+            method, uri = 'GET', '/internal/slow_request'
+        elif method.__name__ == 'application_secrets':
+            method, uri = 'GET', '/internal/application_secrets'
+        elif method.__name__ == 'notify':
+            method, uri = 'POST', '/internal/notify'
+        elif method.__name__ == 'health':
+            method, uri = 'GET', '/internal/health'
+        else:
+            method, uri = request.method, request.path
+
     if include_retry_after_header(return_code=requests.codes.gateway_timeout, method=method, uri=uri):
         headers['Retry-After'] = '10'
 
@@ -103,19 +116,6 @@ def calculate_seconds_left(chalice_app: DSSChaliceApp) -> int:
         chalice_app.lambda_context.get_remaining_time_in_millis() / 1000)
     time_remaining_s = max(0.0, time_remaining_s - EXECUTION_TERMINATION_THRESHOLD_SECONDS)
     return time_remaining_s
-
-
-def determine_path(method):
-    if method.__name__ == 'slow_request':
-        return 'GET', '/internal/slow_request'
-    elif method.__name__ == 'application_secrets':
-        return 'GET', '/internal/application_secrets'
-    elif method.__name__ == 'notify':
-        return 'POST', '/internal/notify'
-    elif method.__name__ == 'health':
-        return 'GET', '/internal/health'
-    else:
-        return request.method, request.path
 
 
 def time_limited(chalice_app: DSSChaliceApp):
@@ -138,8 +138,7 @@ def time_limited(chalice_app: DSSChaliceApp):
                     chalice_response = future.result(timeout=time_remaining_s)
                     return chalice_response
                 except TimeoutError:
-                    request_method, request_path = determine_path(method)
-                    return timeout_response(method=request_method, uri=request_path)
+                    return timeout_response(method=method, uri=None)
             finally:
                 executor.shutdown(wait=False)
         return wrapper
