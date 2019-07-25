@@ -60,7 +60,7 @@ for var in $(echo $env_json | jq -r keys[]); do
     cat "$config_json" | jq .stages.$stage.environment_variables.$var="$val" | sponge "$config_json"
 done
 
-if [[ ${CI:-} == true ]]; then
+if [[ ${CI_COMMIT_REF_NAME:-} == true ]]; then
     account_id=$(aws sts get-caller-identity | jq -r .Account)
     export iam_role_arn="arn:aws:iam::${account_id}:role/dss-${stage}"
     cat "$config_json" | jq .manage_iam_role=false | jq .iam_role_arn=env.iam_role_arn | sponge "$config_json"
