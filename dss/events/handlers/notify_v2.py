@@ -6,6 +6,7 @@ import urllib3
 import threading
 from requests_http_signature import HTTPSignatureAuth
 import logging
+import datetime
 from uuid import uuid4
 from collections import defaultdict
 
@@ -15,7 +16,7 @@ import jmespath
 from jmespath.exceptions import JMESPathError
 from dcplib.aws.sqs import SQSMessenger, get_queue_url
 
-from dss import Config, Replica
+from dss import Config, Replica, datetime_to_version_format
 from dss.subscriptions_v2 import SubscriptionData
 from dss.storage.identifiers import UUID_PATTERN, VERSION_PATTERN, TOMBSTONE_SUFFIX, DSS_BUNDLE_KEY_REGEX
 
@@ -27,6 +28,7 @@ _attachment_size_limit = 128 * 1024
 _versioned_tombstone_key_regex = re.compile(f"^(bundles)/({UUID_PATTERN}).({VERSION_PATTERN}).{TOMBSTONE_SUFFIX}$")
 _unversioned_tombstone_key_regex = re.compile(f"^(bundles)/({UUID_PATTERN}).{TOMBSTONE_SUFFIX}$")
 _bundle_key_regex = DSS_BUNDLE_KEY_REGEX
+
 
 def should_notify(replica: Replica, subscription: dict, metadata_document: dict, key: str) -> bool:
     """
@@ -51,6 +53,7 @@ def should_notify(replica: Replica, subscription: dict, metadata_document: dict,
                 key
             ))
             return False
+
 
 def notify_or_queue(replica: Replica, subscription: dict, metadata_document: dict, key: str):
     """
@@ -80,6 +83,7 @@ def notify_or_queue(replica: Replica, subscription: dict, metadata_document: dic
             if not notify(subscription, metadata_document, bundle_key):
                 sqsm.send(_format_sqs_message(replica, subscription, "TOMBSTONE", bundle_key), delay_seconds=15 * 60)
 
+
 def notify(subscription: dict, metadata_document: dict, key: str) -> bool:
     """
     Attempt notification delivery. Return True for success, False for failure
@@ -89,15 +93,18 @@ def notify(subscription: dict, metadata_document: dict, key: str) -> bool:
     sfx = f".{TOMBSTONE_SUFFIX}"
     if bundle_version.endswith(sfx):
         bundle_version = bundle_version[:-len(sfx)]
-
+    api_domain_name = f'https://{os.environ.get("API_DOMAIN_NAME")}'
     payload = {
-        'transaction_id': str(uuid4()),
+        'bundle_url': api_domain_name + f'/v1/bundles/{bundle_uuid}?version={bundle_version}',
+        'dss_api': api_domain_name,
         'subscription_id': subscription[SubscriptionData.UUID],
+        'event_timestamp': datetime_to_version_format(datetime.datetime.utcnow()),
         'event_type': metadata_document['event_type'],
         'match': {
             'bundle_uuid': bundle_uuid,
             'bundle_version': bundle_version,
-        }
+        },
+        'transaction_id': str(uuid4())
     }
 
     jmespath_query = subscription.get(SubscriptionData.JMESPATH_QUERY)
