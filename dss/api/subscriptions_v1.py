@@ -37,7 +37,8 @@ def get(uuid: str, replica: str):
     source['replica'] = replica
     if 'hmac_key_id' in response:
         source['hmac_key_id'] = response['hmac_key_id']
-
+    if 'hmac_secret_key' in source:
+        source.pop('hmac_secret_key')
     if source['owner'] != owner:
         # common_error_handler defaults code to capitalized 'Forbidden' for Werkzeug exception. Keeping consistent.
         raise DSSException(requests.codes.forbidden, "Forbidden", "Your credentials can't access this subscription!")
@@ -164,15 +165,21 @@ def delete(uuid: str, replica: str):
         # common_error_handler defaults code to capitalized 'Forbidden' for Werkzeug exception. Keeping consistent.
         raise DSSException(requests.codes.forbidden, "Forbidden", "Your credentials can't access this subscription!")
 
-    _unregister_percolate(es_client, uuid)
-    es_client.delete(index=Config.get_es_index_name(ESIndexType.subscriptions, Replica[replica]),
-                     doc_type=ESDocType.subscription.name,
-                     id=uuid)
+    _delete_subscription(es_client, uuid)
 
     timestamp = datetime.datetime.utcnow()
     time_deleted = timestamp.strftime("%Y-%m-%dT%H%M%S.%fZ")
 
     return jsonify({'timeDeleted': time_deleted}), requests.codes.okay
+
+
+def _delete_subscription(es_client: Elasticsearch, uuid: str):
+    _unregister_percolate(es_client, uuid)
+    es_client.delete_by_query(index="_all",
+                              doc_type=ESDocType.subscription.name,
+                              body={"query": {"ids": {"type": ESDocType.subscription.name, "values": [uuid]}}},
+                              conflicts="proceed",
+                              refresh=True)
 
 
 def _unregister_percolate(es_client: Elasticsearch, uuid: str):

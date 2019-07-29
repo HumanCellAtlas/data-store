@@ -20,6 +20,7 @@ import crcmod
 from botocore.vendored import requests
 from dcplib.s3_multipart import MULTIPART_THRESHOLD, get_s3_multipart_chunk_size
 from dcplib.checksumming_io import ChecksummingSink
+from google.cloud.exceptions import NotFound
 
 pkg_root = os.path.abspath(os.path.join(os.path.dirname(__file__), '..'))  # noqa
 sys.path.insert(0, pkg_root)  # noqa
@@ -50,7 +51,10 @@ class DSSSyncMixin:
                 key.delete()
         for key in self.gs_bucket.list_blobs(prefix=self.test_blob_prefix):
             if key.time_created < datetime.datetime.now(datetime.timezone.utc) - age:
-                key.delete()
+                try:
+                    key.delete()
+                except NotFound:
+                    pass
 
     payload = b''
     def get_payload(self, size):

@@ -519,6 +519,9 @@ class TestFileApi(unittest.TestCase, TestAuthMixin, DSSUploadMixin, DSSAssertMix
             presigned_headers_verify = {k: v for k, v in resp_obj.response.headers.items() if k in verify_headers}
             self.assertDictEqual(native_headers_verify, presigned_headers_verify)
 
+            with self.subTest('Retry-After headers are not included in a successful response.'):
+                self.assertEqual(native_resp_obj.response.headers.get('Retry-After'), None)
+
             self.assertTrue(
                 native_resp_obj.response.headers['Location'].split('//')[0].startswith(replica.storage_schema))
             self.assertTrue(
@@ -701,7 +704,7 @@ class TestFileApi(unittest.TestCase, TestAuthMixin, DSSUploadMixin, DSSAssertMix
             test_checkout()
 
         with self.subTest(f"{replica}: Initiates checkout and returns 302 immediately for GET on stale checkout file."):
-            @eventually(20, 1)
+            @eventually(30, 1)
             def test_creation_date_updated(key, prev_creation_date):
                 self.assertTrue(prev_creation_date < handle.get_creation_date(replica.checkout_bucket, key))
 
