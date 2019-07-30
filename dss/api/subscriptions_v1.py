@@ -46,7 +46,7 @@ def get(uuid: str, replica: str):
                                  doc_type=ESDocType.subscription.name,
                                  id=uuid)
     except NotFoundError:
-        raise DSSException(requests.codes.forbidden, "Forbidden", "Your credentials can't access this subscription!")
+        raise DSSException(requests.codes.not_found, "not_found", "Cannot find subscription!")
 
     source = response['_source']
     source['uuid'] = uuid
