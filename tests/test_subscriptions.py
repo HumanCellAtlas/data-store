@@ -92,6 +92,7 @@ class TestSubscriptionsBase(ElasticsearchTestCase, TestAuthMixin, DSSAssertMixin
                                  id=uuid_)
         registered_query = response['_source']
         self.assertEqual(self.sample_percolate_query, registered_query)
+        self._delete_subscription(uuid=uuid)
 
     def test_validation(self):
         with self.subTest("Missing URL"):
@@ -194,8 +195,8 @@ class TestSubscriptionsBase(ElasticsearchTestCase, TestAuthMixin, DSSAssertMixin
         self.assertNotIn('hmac_secret_key', json_response['subscriptions'][0])
         self.assertEqual(num_additions, len(json_response['subscriptions']))
 
-        for uuid in uuids:
-            self._delete_subscription(uuid=uuid)
+        for _uuid in uuids:
+            self._delete_subscription(uuid=_uuid)
 
     def test_delete(self):
         find_uuid = self._put_subscription()
@@ -239,7 +240,7 @@ class TestSubscriptionsBase(ElasticsearchTestCase, TestAuthMixin, DSSAssertMixin
                .set(path=f"v1/subscriptions/{uuid}")
                .add_query("replica", self.replica.name)
                .add_query('subscription_type', subscription_type))
-        self.assertDeleteResponse(url, requests.codes.ok, headers=get_auth_header())
+        self.assertDeleteResponse(url, requests.codes.okay, headers=get_auth_header())
 
 
 class TestGCPSubscription(TestSubscriptionsBase):
