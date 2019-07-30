@@ -13,7 +13,7 @@ from concurrent.futures import ThreadPoolExecutor, TimeoutError
 import chalice
 import nestedcontext
 import requests
-from flask import json, request
+from flask import json
 
 pkg_root = os.path.abspath(os.path.join(os.path.dirname(__file__), 'chalicelib'))  # noqa
 sys.path.insert(0, pkg_root)  # noqa
@@ -66,7 +66,7 @@ class DSSChaliceApp(chalice.Chalice):
         self._override_exptime_seconds = None
 
 
-def timeout_response(method: str=None, path: str=None) -> chalice.Response:
+def timeout_response(method: str, path: str) -> chalice.Response:
     """
     Produce a chalice Response object that indicates a timeout.  Stacktraces for all running threads, other than the
     current thread, are provided in the response object.
