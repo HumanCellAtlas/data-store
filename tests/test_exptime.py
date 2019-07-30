@@ -41,7 +41,7 @@ class TestExptime(unittest.TestCase, DSSAssertMixin, DSSUploadMixin):
     @unittest.skipIf(DeploymentStage.IS_PROD(), "Skipping synthetic 504 test for PROD.")
     def test_synthetic_504(self):
         file_uuid = str(uuid.uuid4())
-        r = self.assertGetResponse(
+        self.assertGetResponse(
             f"/v1/files/{file_uuid}?replica=aws",
             requests.codes.gateway_timeout,
             expected_error=ExpectedErrorFields(
