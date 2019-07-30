@@ -1,9 +1,8 @@
 import datetime
 import logging
-from typing import List
-from uuid import uuid4
-
 import requests
+
+from uuid import uuid4
 from elasticsearch import Elasticsearch
 from elasticsearch.exceptions import ElasticsearchException, NotFoundError
 from elasticsearch_dsl import Search
@@ -17,12 +16,33 @@ from dss.notify import attachment
 from dss.util import security
 
 
+SUBSCRIPTION_LIMIT = 5
 logger = logging.getLogger(__name__)
+
+
+def owner_subscriptions(owner: str, replica: str):
+    es_client = ElasticsearchClient.get()
+
+    search_obj = Search(using=es_client,
+                        index=Config.get_es_index_name(ESIndexType.subscriptions, Replica[replica]),
+                        doc_type=ESDocType.subscription.name)
+    search = search_obj.query({'bool': {'must': [{'term': {'owner': owner}}]}})
+
+    return [{
+        'uuid': hit.meta.id,
+        'replica': replica,
+        'owner': owner,
+        **{k: v for k, v in hit.to_dict().items() if k != 'hmac_secret_key'}}
+        for hit in search.scan()]
 
 
 @security.authorized_group_required(['hca', 'public'])
 def get(uuid: str, replica: str):
     owner = security.get_token_email(request.token_info)
+
+    if len(owner_subscriptions(owner=owner, replica=replica)) > SUBSCRIPTION_LIMIT:
+        raise DSSException(requests.codes.not_acceptable, "not_acceptable",
+                           f"Users cannot exceed {SUBSCRIPTION_LIMIT} subscriptions!")
 
     es_client = ElasticsearchClient.get()
     try:
@@ -30,7 +50,7 @@ def get(uuid: str, replica: str):
                                  doc_type=ESDocType.subscription.name,
                                  id=uuid)
     except NotFoundError:
-        raise DSSException(requests.codes.not_found, "not_found", "Cannot find subscription!")
+        raise DSSException(requests.codes.forbidden, "Forbidden", "Your credentials can't access this subscription!")
 
     source = response['_source']
     source['uuid'] = uuid
@@ -49,21 +69,8 @@ def get(uuid: str, replica: str):
 @security.authorized_group_required(['hca', 'public'])
 def find(replica: str):
     owner = security.get_token_email(request.token_info)
-    es_client = ElasticsearchClient.get()
 
-    search_obj = Search(using=es_client,
-                        index=Config.get_es_index_name(ESIndexType.subscriptions, Replica[replica]),
-                        doc_type=ESDocType.subscription.name)
-    search = search_obj.query({'bool': {'must': [{'term': {'owner': owner}}]}})
-
-    responses = [{
-        'uuid': hit.meta.id,
-        'replica': replica,
-        'owner': owner,
-        **{k: v for k, v in hit.to_dict().items() if k != 'hmac_secret_key'}}
-        for hit in search.scan()]
-
-    full_response = {'subscriptions': responses}
+    full_response = {'subscriptions': owner_subscriptions(owner=owner, replica=replica)}
     return jsonify(full_response), requests.codes.okay
 
 
