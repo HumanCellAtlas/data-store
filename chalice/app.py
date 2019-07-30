@@ -85,8 +85,7 @@ def timeout_response() -> chalice.Response:
         'traces': trace_dump
     }
 
-    headers = {"Content-Type": "application/problem+json",
-               'Retry-After': '10'}
+    headers = {"Content-Type": "application/problem+json"}  # add retry-after headers to timeouts
 
     return chalice.Response(status_code=problem['status'],
                             headers=headers,

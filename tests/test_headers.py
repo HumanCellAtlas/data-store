@@ -103,11 +103,11 @@ class TestRetryAfterHeaders(unittest.TestCase, DSSAssertMixin):
             r = mock_503_service_unavailable()
             self.assertEqual(int(r.headers['Retry-After']), 10)
 
-    def test_504_504_gateway_timeout(self):
+    def test_504_gateway_timeout(self):
         """Test that the dss_handler includes retry-after headers."""
         with app.test_request_context('/test'):
             r = mock_504_gateway_timeout()
-            self.assertEqual(int(r.headers['Retry-After']), 10)
+            self.assertEqual(r.headers.get('Retry-After'), None)
 
 
 if __name__ == '__main__':
