@@ -52,8 +52,6 @@ class TestExptime(unittest.TestCase, DSSAssertMixin, DSSUploadMixin):
                 "DSS_FAKE_504_PROBABILITY": "1.0",
             }
         )
-        with self.subTest('Retry-After headers are included in a GET /v1/bundles/{uuid} 504 response.'):
-            self.assertEqual(int(r.response.headers['Retry-After']), 10)
 
 
 if __name__ == '__main__':
