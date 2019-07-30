@@ -66,7 +66,7 @@ class DSSChaliceApp(chalice.Chalice):
         self._override_exptime_seconds = None
 
 
-def timeout_response(method, uri: str) -> chalice.Response:
+def timeout_response() -> chalice.Response:
     """
     Produce a chalice Response object that indicates a timeout.  Stacktraces for all running threads, other than the
     current thread, are provided in the response object.
@@ -85,22 +85,8 @@ def timeout_response(method, uri: str) -> chalice.Response:
         'traces': trace_dump
     }
 
-    headers = {"Content-Type": "application/problem+json"}
-
-    if not uri:
-        if method.__name__ == 'slow_request':
-            method, uri = 'GET', '/internal/slow_request'
-        elif method.__name__ == 'application_secrets':
-            method, uri = 'GET', '/internal/application_secrets'
-        elif method.__name__ == 'notify':
-            method, uri = 'POST', '/internal/notify'
-        elif method.__name__ == 'health':
-            method, uri = 'GET', '/internal/health'
-        else:
-            method, uri = request.method, request.path
-
-    if include_retry_after_header(return_code=requests.codes.gateway_timeout, method=method, uri=uri):
-        headers['Retry-After'] = '10'
+    headers = {"Content-Type": "application/problem+json",
+               'Retry-After': '10'}
 
     return chalice.Response(status_code=problem['status'],
                             headers=headers,
@@ -138,7 +124,7 @@ def time_limited(chalice_app: DSSChaliceApp):
                     chalice_response = future.result(timeout=time_remaining_s)
                     return chalice_response
                 except TimeoutError:
-                    return timeout_response(method=method, uri=None)
+                    return timeout_response()
             finally:
                 executor.shutdown(wait=False)
         return wrapper
@@ -195,7 +181,7 @@ def get_chalice_app(flask_app) -> DSSChaliceApp:
             return True
 
         if not DeploymentStage.IS_PROD() and maybe_fake_504():
-            return timeout_response(method=method, uri=path)
+            return timeout_response()
 
         status_code = None
         try:
