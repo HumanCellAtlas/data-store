@@ -162,6 +162,7 @@ class TestSubscriptionsBase(ElasticsearchTestCase, TestAuthMixin, DSSAssertMixin
         self.assertEqual(self.endpoint, Endpoint.from_subscription(json_response))
         self.assertEquals(self.hmac_key_id, json_response['hmac_key_id'])
         self.assertNotIn('hmac_secret_key', json_response)
+        self._delete_subscription(uuid=json_response['uuid'])
 
         # File not found request
         url = str(UrlBuilder()
@@ -175,8 +176,9 @@ class TestSubscriptionsBase(ElasticsearchTestCase, TestAuthMixin, DSSAssertMixin
 
     def test_find(self):
         num_additions = 25
+        uuids = list()
         for _ in range(num_additions):
-            self._put_subscription()
+            uuids.append(self._put_subscription())
         url = str(UrlBuilder()
                   .set(path="/v1/subscriptions")
                   .add_query("replica", self.replica.name)
@@ -191,6 +193,9 @@ class TestSubscriptionsBase(ElasticsearchTestCase, TestAuthMixin, DSSAssertMixin
         self.assertEqual(self.endpoint, Endpoint.from_subscription(json_response['subscriptions'][0]))
         self.assertNotIn('hmac_secret_key', json_response['subscriptions'][0])
         self.assertEqual(num_additions, len(json_response['subscriptions']))
+
+        for uuid in uuids:
+            self._delete_subscription(uuid=uuid)
 
     def test_delete(self):
         find_uuid = self._put_subscription()
@@ -226,6 +231,15 @@ class TestSubscriptionsBase(ElasticsearchTestCase, TestAuthMixin, DSSAssertMixin
             headers=get_auth_header()
         )
         return resp_obj.json.get('uuid')
+
+    def _delete_subscription(self, uuid, subscription_type=None):
+        if not subscription_type:
+            subscription_type = 'elasticsearch'
+        url = (UrlBuilder()
+               .set(path=f"v1/subscriptions/{uuid}")
+               .add_query("replica", self.replica.name)
+               .add_query('subscription_type', subscription_type))
+        self.assertDeleteResponse(url, requests.codes.ok, headers=get_auth_header())
 
 
 class TestGCPSubscription(TestSubscriptionsBase):
