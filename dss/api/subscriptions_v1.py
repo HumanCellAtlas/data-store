@@ -16,7 +16,7 @@ from dss.notify import attachment
 from dss.util import security
 
 
-SUBSCRIPTION_LIMIT = 5
+SUBSCRIPTION_LIMIT = 10
 logger = logging.getLogger(__name__)
 
 
@@ -39,10 +39,6 @@ def owner_subscriptions(owner: str, replica: str):
 @security.authorized_group_required(['hca', 'public'])
 def get(uuid: str, replica: str):
     owner = security.get_token_email(request.token_info)
-
-    if len(owner_subscriptions(owner=owner, replica=replica)) > SUBSCRIPTION_LIMIT:
-        raise DSSException(requests.codes.not_acceptable, "not_acceptable",
-                           f"Users cannot exceed {SUBSCRIPTION_LIMIT} subscriptions!")
 
     es_client = ElasticsearchClient.get()
     try:
@@ -80,6 +76,10 @@ def put(json_request_body: dict, replica: str):
     es_query = json_request_body['es_query']
 
     owner = security.get_token_email(request.token_info)
+
+    if len(owner_subscriptions(owner=owner, replica=replica)) > SUBSCRIPTION_LIMIT:
+        raise DSSException(requests.codes.not_acceptable, "not_acceptable",
+                           f"Users cannot exceed {SUBSCRIPTION_LIMIT} subscriptions!")
 
     attachment.validate(json_request_body.get('attachments', {}))
 
