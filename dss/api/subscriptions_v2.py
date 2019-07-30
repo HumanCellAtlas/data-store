@@ -8,6 +8,7 @@ from jmespath.exceptions import JMESPathError
 from dss.config import Replica
 from dss.error import DSSException
 from dss.util import security
+from dss.api.subscriptions_v1 import SUBSCRIPTION_LIMIT
 from dss.subscriptions_v2 import (SubscriptionData,
                                   get_subscription,
                                   put_subscription,
@@ -39,6 +40,11 @@ def find(replica: str):
 
 @security.authorized_group_required(['hca', 'public'])
 def put(json_request_body: dict, replica: str):
+    owner = security.get_token_email(request.token_info)
+    if len([s for s in get_subscriptions_for_owner(Replica[replica], owner) if owner == s['owner']]):
+        raise DSSException(requests.codes.not_acceptable, "not_acceptable",
+                           f"Users cannot exceed {SUBSCRIPTION_LIMIT} subscriptions!")
+
     subscription_doc = json_request_body.copy()
     subscription_doc[SubscriptionData.OWNER] = security.get_token_email(request.token_info)
     subscription_uuid = str(uuid4())
