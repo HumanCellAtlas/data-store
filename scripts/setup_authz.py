@@ -1,6 +1,11 @@
 #!/usr/bin/env python
 """
-This script creates new or updates existing roles from 'data-store/iam
+This script creates new or updates existing roles from 'data-store/authorization_roles'.
+
+To use you must have a google service account that has been authorized to created an modify roles in fusillade.
+Roles are created and a policy attached for each file in the 'data-store/authorization_roles' directory. The role name
+will be the name of file without the file extension, prefixed with 'dss_'. For example the file
+"data-store/authorization_roles/admin.json" would create the role, "dss_admin" in fusillade.
 """
 import json
 import os
@@ -73,7 +78,7 @@ def setup_fusillade():
     if not fusillade_setup:
         headers = {'Content-Type': "application/json"}
         headers.update(get_auth_header(get_service_jwt()))
-        path = f"{os.getenv('DSS_HOME')}/iam/authorization_policies"
+        path = f"{os.getenv('DSS_HOME')}/authorization_roles"
         files = os.listdir(path)
         for file in files:
             with open(f"{path}/{file}", 'r') as fp:
