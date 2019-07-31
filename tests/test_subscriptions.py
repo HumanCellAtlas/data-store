@@ -167,7 +167,7 @@ class TestSubscriptionsBase(ElasticsearchTestCase, TestAuthMixin, DSSAssertMixin
             self.assertEquals(self.hmac_key_id, json_response['hmac_key_id'])
             self.assertNotIn('hmac_secret_key', json_response)
         finally:
-            self._cleanup_subscription(json_response['uuid'])
+            self._cleanup_subscription(find_uuid)
 
         # File not found request
         url = str(UrlBuilder()
