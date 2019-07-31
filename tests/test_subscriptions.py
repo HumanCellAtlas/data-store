@@ -84,15 +84,17 @@ class TestSubscriptionsBase(ElasticsearchTestCase, TestAuthMixin, DSSAssertMixin
         self._test_auth_errors('get', url)
 
     def test_put(self):
-        uuid_ = self._put_subscription()
+        try:
+            uuid_ = self._put_subscription()
 
-        es_client = ElasticsearchClient.get()
-        response = es_client.get(index=self.doc_index_name,
-                                 doc_type=dss.ESDocType.query.name,
-                                 id=uuid_)
-        registered_query = response['_source']
-        self.assertEqual(self.sample_percolate_query, registered_query)
-        self.addCleanup(self._cleanup_subscription, uuid)
+            es_client = ElasticsearchClient.get()
+            response = es_client.get(index=self.doc_index_name,
+                                     doc_type=dss.ESDocType.query.name,
+                                     id=uuid_)
+            registered_query = response['_source']
+            self.assertEqual(self.sample_percolate_query, registered_query)
+        finally:
+            self._cleanup_subscription(uuid)
 
     def test_validation(self):
         with self.subTest("Missing URL"):
@@ -165,7 +167,7 @@ class TestSubscriptionsBase(ElasticsearchTestCase, TestAuthMixin, DSSAssertMixin
             self.assertEquals(self.hmac_key_id, json_response['hmac_key_id'])
             self.assertNotIn('hmac_secret_key', json_response)
         finally:
-            self.addCleanup(self._cleanup_subscription, json_response['uuid'])
+            self._cleanup_subscription(json_response['uuid'])
 
         # File not found request
         url = str(UrlBuilder()
@@ -199,7 +201,7 @@ class TestSubscriptionsBase(ElasticsearchTestCase, TestAuthMixin, DSSAssertMixin
             self.assertEqual(num_additions, len(json_response['subscriptions']))
         finally:
             for _uuid in uuids:
-                self.addCleanup(self._cleanup_subscription, _uuid)
+                self._cleanup_subscription(_uuid)
 
     def test_delete(self):
         find_uuid = self._put_subscription()
