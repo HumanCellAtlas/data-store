@@ -181,7 +181,7 @@ class TestSubscriptionsBase(ElasticsearchTestCase, TestAuthMixin, DSSAssertMixin
 
     def test_find(self):
         try:
-            num_additions = 25
+            num_additions = 3
             uuids = list()
             for _ in range(num_additions):
                 uuids.append(self._put_subscription())
