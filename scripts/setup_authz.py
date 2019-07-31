@@ -13,15 +13,19 @@ import os
 import jwt
 import requests
 import time
+import boto3
 
-auth_url = os.getenv('AUTH_URL')
-
+auth_url = os.environ.get('AUTH_URL')
+"travis-test@human-cell-atlas-travis-test.iam.gserviceaccount.com"
 # supply google service account credentials and register them in fusillade.
 # This will allow the server to configure the application to run using fusillade
-with open(f"{os.environ('DSS_HOME')}/{os.environ('GOOGLE_APPLICATION_CREDENTIALS_SECRETS_NAME')}") as fp:
-    google_service_account_credentials = json.load(fp)
+secret_id = '/'.join([os.environ.get('DSS_SECRETS_STORE'),
+                      os.environ.get('DSS_DEPLOYMENT_STAGE'),
+                      os.environ.get('GOOGLE_APPLICATION_CREDENTIALS_SECRETS_NAME')])
+SM = boto3.client('secretsmanager')
+google_service_account_credentials = json.loads(SM.get_secret_value(SecretId=secret_id)['SecretString'])
 
-
+os.environ.get("DSS_SECRETS_STORE")
 def get_service_jwt(audience=None):
     iat = time.time()
     exp = iat + 3600
@@ -44,7 +48,8 @@ def get_auth_header(token):
 
 
 def setup_fusillade():
-    global fusillade_setup
+    headers = {'Content-Type': "application/json"}
+    headers.update(get_auth_header(get_service_jwt()))
 
     def add_role(name, policy):
         resp = requests.get(
@@ -75,20 +80,13 @@ def setup_fusillade():
             resp.raise_for_status()
         print(f"role {name} created")
 
-    if not fusillade_setup:
-        headers = {'Content-Type': "application/json"}
-        headers.update(get_auth_header(get_service_jwt()))
-        path = f"{os.getenv('DSS_HOME')}/authorization_roles"
-        files = os.listdir(path)
-        for file in files:
-            with open(f"{path}/{file}", 'r') as fp:
-                data = json.load(fp)
-            add_role(f"dss_{file.split('.')[0]}", data)
+    path = f"{os.getenv('DSS_HOME')}/authorization_roles"
+    files = os.listdir(path)
+    for file in files:
+        with open(f"{path}/{file}", 'r') as fp:
+            data = json.load(fp)
+        add_role(f"dss_{file.split('.')[0]}", data)
 
 
 if __name__ == "__main__":
-    try:
-        setup_fusillade()
-    except:
-        print("setup failed!")
-        exit(1)
+    setup_fusillade()
