@@ -31,7 +31,7 @@ Bundle creation notifications have the format
 ```
 {
   'dss_api': {dss_api_url},
-  'bundle_url': {dss_api}"/v1/bundles/{uuid}?version={version}",
+  'bundle_url': "{dss_api_url}/v1/bundles/{uuid}?version={version}",
   'transaction_id': {uuid},
   'subscription_id': {uuid},
   'event_type': "CREATE"|"TOMBSTONE"|"DELETE",
