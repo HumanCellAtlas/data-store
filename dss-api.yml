@@ -1429,6 +1429,61 @@ paths:
                     enum: [unhandled_exception, Forbidden, Unauthorized, OAuthResponseProblem, not_found, read_only]
                 required:
                   - code
+  /bundles:
+    get:
+      summary: Retreive all bundles or bundle contents within a primary bucket.
+      description: >
+        Given a prefix, list out the contexts of the prefix. If a prefix is omitted, return a list of bundles instead.
+      parameters:
+        - name: replica
+          in: query
+          description: Replica to fetch from.
+          required: true
+          type: string
+          enum: [aws, gcp]
+        - name: prefix
+          in: query
+          description: Prefix to for searching through specific keys
+          required: false
+          type: string
+        - name: token
+          in: query
+          description: Token to manage retries.  End users constructing queries should not set this parameter.
+          required: false
+          type: string
+        - name: search_after
+          in: query
+          description: >
+            **Search-After-Context**.
+            An internal state pointer parameter for use with pagination. This parameter is used as a reference to what information the previous page has, and what needs to be returned next. This value should not be set by the user.
+          required: false
+          type: string
+        - name: per_page
+          in: query
+          description: Max number of results to return per page.
+          required: false
+          type: integer
+          format: int32
+          minimum: 10
+          maximum: 500
+          default: 500
+      responses:
+        200:
+          description: All results retrieved.
+          schema:
+            $ref: '#/definitions/SearchResult'
+        206:
+          description: A single page of results was retrieved.
+          schema:
+            $ref: '#/definitions/SearchResult'
+          headers:
+            Link:
+              type: string
+              description: URL to retrieve the next page of results.
+        default:
+          description: Unexpected error
+          schema:
+            $ref: '#/definitions/Error'
   /bundles/{uuid}:
     get:
       summary: Retrieve a bundle given a UUID and optionally a version.

@@ -10,17 +10,21 @@ import requests
 from cloud_blobstore import BlobNotFoundError, BlobStore, BlobStoreTimeoutError
 from flask import jsonify, redirect, request, make_response
 from concurrent.futures import ThreadPoolExecutor, as_completed
+from itertools import islice
+
 
 from dss import DSSException, dss_handler, DSSForbiddenException
+from dss.api.search import PerPageBounds
 from dss.config import Config, Replica
 from dss.storage.blobstore import idempotent_save, test_object_exists, ObjectTest
 from dss.storage.bundles import get_bundle_manifest, save_bundle_manifest
 from dss.storage.checkout import CheckoutError, TokenError
 from dss.storage.checkout.bundle import get_dst_bundle_prefix, verify_checkout
-from dss.storage.identifiers import BundleTombstoneID, BundleFQID, FileFQID
+from dss.storage.identifiers import BundleTombstoneID, BundleFQID, FileFQID, TOMBSTONE_SUFFIX
 from dss.storage.hcablobstore import BundleFileMetadata, BundleMetadata, FileMetadata
 from dss.util import UrlBuilder, security, hashabledict, multipart_parallel_upload
 from dss.util.version import datetime_to_version_format
+
 
 """The retry-after interval in seconds. Sets up downstream libraries / users to
 retry request after the specified interval."""
@@ -131,6 +135,47 @@ def get(
         response = make_response(jsonify(response_body), requests.codes.partial)
         response.headers['Link'] = link
         return response
+
+@dss_handler
+def enumerate(replica: str, prefix: str, token: str = None,
+              per_page: int = PerPageBounds.per_page_max,
+              search_after: typing.Optional[str] = None):
+
+    storage_handler = Config.get_blobstore_handle(Replica[replica])
+    key_prefix = prefix if prefix else 'bundles/'  # might need to add filtering over here (no files/blobs allowed)
+    """Does this even need to have prefix? the only option is bundles, only in the checkout bucket does the
+        Bundles/ prefix actually have files, and thats after a --presigned url, otherwise contents after bundles/ are not
+        exposed........"""
+    kwargs = dict(bucket=Replica[replica].bucket, prefix=key_prefix, k_page_max=per_page)
+    if search_after:
+        kwargs['start_after_key'] = search_after
+    if token:
+        kwargs['token'] = token
+    prefix_iterator = storage_handler.list_v2(**kwargs)
+
+    keys = [x[0] for x in islice(prefix_iterator, 0, per_page) if not x.endswith(TOMBSTONE_SUFFIX)]
+    try:
+        prefix_iterator.next()
+    except StopIteration:
+        """ No more keys, we have them all
+        # This addresses issue of having 1000 bundles, asking for 500, then another 500.
+        # if this was not used then there would be another partial return, which would cause errors. 
+        # 206 ->206 -> ? vs 206 -> 200 
+        # Delete this block of text 
+        """
+        return make_response(jsonify(dict(keys=keys)), requests.codes.ok)
+    if len(keys) < per_page:
+        response = make_response(jsonify(dict(keys=keys)), requests.codes.ok)
+    else:
+        payload = dict(keys=keys, token=prefix_iterator.token, search_after=keys[-1])
+        response = make_response(jsonify(payload), requests.codes.partial)
+        # TODO pass back LINK in the headers for the user to follow. if so; token and search after can be removed.
+
+    return response
+
+
+
+    # per-page reponse, give back incomplete headers
 
 
 @dss_handler
