@@ -120,11 +120,8 @@ def assert_authorized(principal: str,
                       resources: typing.List[str]):
     resp = session.post(f"{Config.get_authz_url()}/v1/policies/evaluate",
                         headers='jwt',
-                        json=json.dumps(
-                            {"action": actions,
-                             "resource": resources,
-                             "principal": principal}))
+                        json={"action": actions,
+                              "resource": resources,
+                              "principal": principal})
     if not resp.json()['result']:
         raise DSSForbiddenException()
-    else:
-        return
