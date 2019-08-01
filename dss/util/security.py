@@ -3,16 +3,19 @@ import base64
 import functools
 import json
 import logging
+import os
 import typing
 
 import jwt
 import requests
+import time
 from cryptography.hazmat.backends import default_backend
 from cryptography.hazmat.primitives.asymmetric import rsa
 from flask import request
 
 from dss import Config
 from dss.error import DSSForbiddenException, DSSException
+from dss.util import get_gcp_credentials_file
 
 logger = logging.getLogger(__name__)
 
@@ -119,9 +122,56 @@ def assert_authorized(principal: str,
                       actions: typing.List[str],
                       resources: typing.List[str]):
     resp = session.post(f"{Config.get_authz_url()}/v1/policies/evaluate",
-                        headers='jwt',
+                        headers=DSS_AUTHZ.get_header(),
                         json={"action": actions,
                               "resource": resources,
                               "principal": principal})
     if not resp.json()['result']:
         raise DSSForbiddenException()
+
+
+class DSS_AUTHZ:
+    _token = None
+    _renew_buffer = 30  # If the token will expire in less than this amount of time in seconds, generate a new token.
+    _lifetime = 3600  # How long the token should live.
+
+    @classmethod
+    def get_header(cls):
+        return {"Authorization": f"Bearer {cls.get_service_jwt()}"}
+
+    @classmethod
+    def get_service_jwt(cls):
+        if cls._token is None or cls.is_expired():
+            # create a JWT
+            if not os.environ.get('GOOGLE_APPLICATION_CREDENTIALS'):
+                os.environ['GOOGLE_APPLICATION_CREDENTIALS'] = get_gcp_credentials_file().name
+            with open(os.environ['GOOGLE_APPLICATION_CREDENTIALS'], "r") as fh:
+                service_credentials = json.loads(fh.read())
+
+            iat = time.time()
+            exp = iat + cls._lifetime
+            payload = {'iss': service_credentials["client_email"],
+                       'sub': service_credentials["client_email"],
+                       'aud': Config.get_audience(),
+                       'iat': iat,
+                       'exp': exp,
+                       'scope': ['email', 'openid', 'offline_access']
+                       }
+            additional_headers = {'kid': service_credentials["private_key_id"]}
+            cls._token = jwt.encode(payload, service_credentials["private_key"], headers=additional_headers,
+                                    algorithm='RS256').decode()
+        return cls._token
+
+    @classmethod
+    def is_expired(cls):
+        try:
+            decoded_token = jwt.decode(cls._token, options={'verify_signature': False})
+        except jwt.ExpiredSignatureError:  # type: ignore
+            return True
+        else:
+            if decoded_token['exp'] - time.time() <= cls._renew_buffer:
+                # If the token will expire in less than cls._renew_buffer amount of time in seconds, the token is
+                # considered expired.
+                return True
+            else:
+                return False
