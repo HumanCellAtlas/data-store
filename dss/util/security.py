@@ -134,6 +134,11 @@ class DSS_AUTHZ:
     _token = None
     _renew_buffer = 30  # If the token will expire in less than this amount of time in seconds, generate a new token.
     _lifetime = 3600  # How long the token should live.
+    _options = {
+        'verify_signature': False,
+        'verify_aud': False,
+        'verify_iss': False
+    }
 
     @classmethod
     def get_header(cls):
@@ -155,7 +160,8 @@ class DSS_AUTHZ:
                        'aud': Config.get_audience(),
                        'iat': iat,
                        'exp': exp,
-                       'scope': ['email', 'openid', 'offline_access']
+                       'scope': ['email', 'openid', 'offline_access'],
+                       Config.get_OIDC_email_claim(): service_credentials["client_email"]
                        }
             additional_headers = {'kid': service_credentials["private_key_id"]}
             cls._token = jwt.encode(payload, service_credentials["private_key"], headers=additional_headers,
@@ -165,7 +171,7 @@ class DSS_AUTHZ:
     @classmethod
     def is_expired(cls):
         try:
-            decoded_token = jwt.decode(cls._token, options={'verify_signature': False})
+            decoded_token = jwt.decode(cls._token, options=cls._options)
         except jwt.ExpiredSignatureError:  # type: ignore
             return True
         else:

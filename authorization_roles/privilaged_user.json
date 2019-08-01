@@ -9,7 +9,7 @@
         "dss:PatchBundle",
         "dss:PostBundle"
       ],
-       "Resource": "arn:hca:dss:*:*:dss/bundle/*"
+       "Resource": ["arn:hca:dss:*:*:dss/bundle/*", "arn:hca:dss:*:*:dss/file/*"]
     }
   ]
 }
