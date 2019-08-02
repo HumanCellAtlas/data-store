@@ -153,7 +153,7 @@ def enumerate(replica: str, prefix: str, token: str = None,
         kwargs['token'] = token
     prefix_iterator = storage_handler.list_v2(**kwargs)
 
-    keys = [x[0] for x in islice(prefix_iterator, 0, per_page) if not x.endswith(TOMBSTONE_SUFFIX)]
+    keys = [x[0] for x in islice(prefix_iterator, 0, per_page)]
     try:
         prefix_iterator.next()
     except StopIteration:
@@ -167,10 +167,13 @@ def enumerate(replica: str, prefix: str, token: str = None,
     if len(keys) < per_page:
         response = make_response(jsonify(dict(keys=keys)), requests.codes.ok)
     else:
+        next_url = UrlBuilder(request.url)
+        next_url.replace_query("start_at", keys[-1])
+        next_url.replace_query("token", token)
+        link = f"<{next_url}>; rel='next'"
         payload = dict(keys=keys, token=prefix_iterator.token, search_after=keys[-1])
         response = make_response(jsonify(payload), requests.codes.partial)
-        # TODO pass back LINK in the headers for the user to follow. if so; token and search after can be removed.
-
+        response.headers['Link'] = link
     return response
 
 
