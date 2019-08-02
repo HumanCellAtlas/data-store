@@ -446,15 +446,6 @@ class TestCollections(unittest.TestCase, DSSAssertMixin, DSSUploadMixin):
                                params=dict(replica="aws"))
             self.assertEqual(res.status_code, requests.codes.not_found)
 
-    def test_put_excessive(self):
-        """Test trying to PUT a collection with more than 1k items"""
-        contents = [self.s3_col_ptr_item] * 1001  # the limit is 1000
-        res = self.app.put('/v1/collections',
-                           headers=get_auth_header(authorized=True),
-                           params=dict(version=self.version, replica='aws', uuid=uuid4()),
-                           json=dict(name="n", description="d", details={}, contents=contents))
-        self.assertEqual(res.status_code, requests.codes.bad_request)
-
     def _put(self, contents: typing.List,
              authorized: bool = True,
              uuid: typing.Optional[str] = None,
