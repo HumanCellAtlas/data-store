@@ -1128,12 +1128,7 @@ paths:
           in: body
           required: true
           schema:
-            allOf:
-              - $ref: "#/definitions/Collection"
-              - type: object
-                properties:
-                  contents:
-                    maxItems: 1000
+            $ref: "#/definitions/Collection"
       responses:
         201:
           description: OK
