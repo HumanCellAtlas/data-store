@@ -143,9 +143,6 @@ def enumerate(replica: str, prefix: str, token: str = None,
 
     storage_handler = Config.get_blobstore_handle(Replica[replica])
     key_prefix = prefix if prefix else 'bundles/'  # might need to add filtering over here (no files/blobs allowed)
-    """Does this even need to have prefix? the only option is bundles, only in the checkout bucket does the
-        Bundles/ prefix actually have files, and thats after a --presigned url, otherwise contents after bundles/ are not
-        exposed........"""
     kwargs = dict(bucket=Replica[replica].bucket, prefix=key_prefix, k_page_max=per_page)
     if search_after:
         kwargs['start_after_key'] = search_after
@@ -154,16 +151,6 @@ def enumerate(replica: str, prefix: str, token: str = None,
     prefix_iterator = storage_handler.list_v2(**kwargs)
 
     keys = [x[0] for x in islice(prefix_iterator, 0, per_page)]
-    try:
-        prefix_iterator.next()
-    except StopIteration:
-        """ No more keys, we have them all
-        # This addresses issue of having 1000 bundles, asking for 500, then another 500.
-        # if this was not used then there would be another partial return, which would cause errors. 
-        # 206 ->206 -> ? vs 206 -> 200 
-        # Delete this block of text 
-        """
-        return make_response(jsonify(dict(keys=keys)), requests.codes.ok)
     if len(keys) < per_page:
         response = make_response(jsonify(dict(keys=keys)), requests.codes.ok)
     else:
