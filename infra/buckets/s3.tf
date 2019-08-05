@@ -2,14 +2,14 @@ data "aws_caller_identity" "current" {}
 
 locals {
   common_tags = "${map(
-    "managedBy" , "terraform",
     "project"   , "${var.DSS_INFRA_TAG_PROJECT}",
     "env"       , "${var.DSS_DEPLOYMENT_STAGE}",
-    "service"   , "${var.DSS_INFRA_TAG_SERVICE}",
-    "owner"     , "${var.DSS_INFRA_TAG_OWNER}"
+    "service"   , "${var.DSS_INFRA_TAG_SERVICE}"
   )}",
   aws_tags = "${map(
-  "Name"      , "${var.DSS_INFRA_TAG_SERVICE}-s3-storage"
+  "Name"      , "${var.DSS_INFRA_TAG_SERVICE}-s3-storage",
+  "owner"     , "${var.DSS_INFRA_TAG_OWNER}",
+  "managedBy" , "terraform"
   )}"
 }
 

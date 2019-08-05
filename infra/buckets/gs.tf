@@ -54,7 +54,9 @@ resource google_storage_bucket dss_gs_checkout_bucket {
 locals {
   checkout_bucket_viewers = "${compact(split(",", var.DSS_CHECKOUT_BUCKET_OBJECT_VIEWERS))}",
   gcp_tags = "${map(
-    "Name"      , "${var.DSS_INFRA_TAG_SERVICE}-gs-storage"
+    "name"      , "${var.DSS_INFRA_TAG_SERVICE}-gs-storage",
+    "owner"     , "${element(split("@", var.DSS_INFRA_TAG_OWNER),0)}",
+    "managed-by" , "terraform"
   )}"
 }
 
