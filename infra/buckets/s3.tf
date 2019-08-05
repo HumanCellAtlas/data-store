@@ -39,7 +39,7 @@ resource aws_s3_bucket dss_s3_bucket_test {
 resource aws_s3_bucket dss_s3_bucket_test_fixtures {
   count = "${var.DSS_DEPLOYMENT_STAGE == "dev" ? 1 : 0}"
   bucket = "${var.DSS_S3_BUCKET_TEST_FIXTURES}"
-  tags = "${merge(local.common_tags,local.aws_tags)}"
+  tags = "${merge(local.common_tags, local.aws_tags)}"
 }
 
 resource aws_s3_bucket dss_s3_checkout_bucket {
