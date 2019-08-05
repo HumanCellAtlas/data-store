@@ -3,7 +3,7 @@ data "aws_caller_identity" "current" {}
 locals {
   common_tags = "${map(
     "managedBy" , "terraform",
-    "Name"      , "${var.DSS_INFRA_TAG_SERVICE}-asyncdynamodb-${var.DSS_DEPLOYMENT_STAGE}",
+    "Name"      , "${var.DSS_INFRA_TAG_SERVICE}-asyncdynamodb",
     "project"   , "${var.DSS_INFRA_TAG_PROJECT}",
     "env"       , "${var.DSS_DEPLOYMENT_STAGE}",
     "service"   , "${var.DSS_INFRA_TAG_SERVICE}",

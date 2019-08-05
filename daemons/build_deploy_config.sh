@@ -38,7 +38,7 @@ cat "$config_json" | jq ".stages.$stage.layers=[env.layer_version_arn]" | sponge
 
 export DEPLOY_ORIGIN="$(whoami)-$(hostname)-$(git describe --tags --always)-$(date -u +'%Y-%m-%d-%H-%M-%S').deploy"
 cat "$config_json" | jq ".stages.$stage.tags.DSS_DEPLOY_ORIGIN=\"$DEPLOY_ORIGIN\" | \
-	.stages.$stage.tags.Name=\"${DSS_INFRA_TAG_SERVICE}-$daemon_tag-${DSS_DEPLOYMENT_STAGE}\" | \
+	.stages.$stage.tags.Name=\"${DSS_INFRA_TAG_SERVICE}-$daemon_tag\" | \
 	.stages.$stage.tags.service=\"${DSS_INFRA_TAG_SERVICE}\"  | \
 	.stages.$stage.tags.project=\"$DSS_INFRA_TAG_PROJECT\" | \
 	.stages.$stage.tags.owner=\"${DSS_INFRA_TAG_OWNER}\" | \
