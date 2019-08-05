@@ -13,6 +13,7 @@ config_json="$(dirname $0)/.chalice/config.json"
 policy_json="$(dirname $0)/.chalice/policy.json"
 stage_policy_json="$(dirname $0)/.chalice/policy-${stage}.json"
 export app_name=$(cat "$config_json" | jq -r .app_name)
+export app_tag=$(echo $app_name | cut -d '-' -f2-)
 iam_policy_template="$(dirname $0)/../iam/policy-templates/${app_name}-lambda.json"
 export lambda_name="${app_name}-${stage}"
 export account_id=$(aws sts get-caller-identity | jq -r .Account)
