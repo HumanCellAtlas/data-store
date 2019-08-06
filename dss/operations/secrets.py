@@ -25,7 +25,24 @@ events = dispatch.target("secrets",
 @events.action("list-secrets")
 def list_secrets(argv: typing.List[str], args: argparse.Namespace):
     """Print a list of all secrets"""
-    pass
+    # Also see boto docs:
+    # https://boto3.amazonaws.com/v1/documentation/api/latest/reference/services/ssm.html#SSM.Client.describe_parameters
+    # https://boto3.amazonaws.com/v1/documentation/api/latest/reference/services/ssm.html#SSM.Paginator.DescribeParameters
+    sm = boto3.client('ssm')
+    param_names = []
+
+    # Create a paginator from the describe_parameters endpoint
+    # and use it to get the name of each parameter
+    paginator = sm.get_paginator('describe_parameters')
+    for response in paginator.paginate():
+        while response['NextToken'] != '':
+            for param in response['Parameters']:
+                param_names.append(param['Name'])
+
+    # Use the name of each parameter to print its value
+    for param_name in param_names:
+        response = sm.get_parameter(Name=param_name)
+        print("{} = {}".format(response['Parameter']['Name'], response['Parameter']['Value']))
 
 @events.action("get-secret",
                arguments={
