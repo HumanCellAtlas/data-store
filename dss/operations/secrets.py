@@ -22,14 +22,15 @@ events = dispatch.target("secrets",
                          help=__doc__)
 
 
-@events.action("list-secrets")
-def list_secrets(argv: typing.List[str], args: argparse.Namespace):
-    """Print a list of all secrets"""
+def get_secret_names(sm_client):
+    """
+    This retrieves a list of names of all secret variables 
+    in the secret manager
+    """
     # Also see boto docs:
     # https://boto3.amazonaws.com/v1/documentation/api/latest/reference/services/ssm.html#SSM.Client.describe_parameters
     # https://boto3.amazonaws.com/v1/documentation/api/latest/reference/services/ssm.html#SSM.Paginator.DescribeParameters
-    sm = boto3.client('ssm')
-    param_names = []
+    secret_names = []
 
     # Create a paginator from the describe_parameters endpoint
     # and use it to get the name of each parameter
@@ -37,11 +38,31 @@ def list_secrets(argv: typing.List[str], args: argparse.Namespace):
     for response in paginator.paginate():
         while response['NextToken'] != '':
             for param in response['Parameters']:
-                param_names.append(param['Name'])
+                secret_names.append(param['Name'])
 
-    # Use the name of each parameter to print its value
-    for param_name in param_names:
-        response = sm.get_parameter(Name=param_name)
+    return secret_names
+
+@events.action("name-secrets")
+def name_secrets(argv: typing.List[str], args: argparse.Namespace):
+    """Print the names of all secret variables"""
+    sm = boto3.client('ssm')
+
+    # Print the name of each secret
+    names = get_secret_names(sm)
+    for secret_name in secret_names:
+        print("{}".format(secret_name))
+
+@events.action("list-secrets")
+def list_secrets(argv: typing.List[str], args: argparse.Namespace):
+    """Print a list of all secrets"""
+    sm = boto3.client('ssm')
+
+    # Get the name of each secret
+    secret_names = get_secret_names(sm)
+
+    # Use the name of each secret to retrieve/print its value
+    for secret_name in secret_names:
+        response = sm.get_parameter(Name=secret_name)
         print("{} = {}".format(response['Parameter']['Name'], response['Parameter']['Value']))
 
 @events.action("get-secret",
