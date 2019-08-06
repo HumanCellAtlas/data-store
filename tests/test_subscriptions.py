@@ -94,7 +94,7 @@ class TestSubscriptionsBase(ElasticsearchTestCase, TestAuthMixin, DSSAssertMixin
             registered_query = response['_source']
             self.assertEqual(self.sample_percolate_query, registered_query)
         finally:
-            self._cleanup_subscription(uuid)
+            self._cleanup_subscription(uuid_)
 
     def test_validation(self):
         with self.subTest("Missing URL"):
