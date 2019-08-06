@@ -80,6 +80,23 @@ def get_primary_key_items(*, table: str, key: str, return_key: str='body') -> Ge
             yield item[return_key]['S']
 
 
+def get_primary_key_count(*, table: str, key: str) -> int:
+    """
+    Returns the number of values associated with a primary key from a dynamoDB table.
+
+    :param table: Name of the table in AWS.
+    :param str key: 1st primary key that can be used to fetch associated sort_keys and values.
+    :return: Int
+    """
+    res = db.query(TableName=table,
+                   KeyConditionExpression="#hash_key=:key",
+                   ExpressionAttributeNames={'#hash_key': "hash_key"},
+                   ExpressionAttributeValues={':key': {'S': key}},
+                   Select='COUNT')
+    print(f'RES===========RES: {res}')
+    return res['Count']
+
+
 def get_all_table_items(*, table: str, both_keys: bool=False):
     """
     Return all items from a dynamoDB table.

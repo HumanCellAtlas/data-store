@@ -44,6 +44,11 @@ def get_subscriptions_for_owner(replica: Replica, owner: str) -> list:
     return [json.loads(item) for item in items]
 
 
+def count_subscriptions_for_owner(replica: Replica, owner: str) -> int:
+    return dynamodb.get_primary_key_count(table=subscription_db_table.format(replica.name),
+                                          key=owner)
+
+
 def get_subscriptions_for_replica(replica: Replica) -> list:
     items = dynamodb.get_all_table_items(table=subscription_db_table.format(replica.name))
     return [json.loads(item) for item in items]

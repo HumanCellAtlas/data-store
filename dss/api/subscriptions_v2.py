@@ -13,7 +13,8 @@ from dss.subscriptions_v2 import (SubscriptionData,
                                   get_subscription,
                                   put_subscription,
                                   delete_subscription,
-                                  get_subscriptions_for_owner)
+                                  get_subscriptions_for_owner,
+                                  count_subscriptions_for_owner)
 
 
 @security.authorized_group_required(['hca', 'public'])
@@ -30,7 +31,7 @@ def get(uuid: str, replica: str):
 @security.authorized_group_required(['hca', 'public'])
 def find(replica: str):
     owner = security.get_token_email(request.token_info)
-    subs = [s for s in get_subscriptions_for_owner(Replica[replica], owner) if owner == s['owner']]
+    subs = [s for s in get_subscriptions_for_owner(Replica[replica], owner)]
     for s in subs:
         s['replica'] = Replica[replica].name
         if 'hmac_secret_key' in s:
@@ -41,7 +42,7 @@ def find(replica: str):
 @security.authorized_group_required(['hca', 'public'])
 def put(json_request_body: dict, replica: str):
     owner = security.get_token_email(request.token_info)
-    if len([s for s in get_subscriptions_for_owner(Replica[replica], owner) if owner == s['owner']]):
+    if count_subscriptions_for_owner(Replica[replica], owner) > SUBSCRIPTION_LIMIT:
         raise DSSException(requests.codes.not_acceptable, "not_acceptable",
                            f"Users cannot exceed {SUBSCRIPTION_LIMIT} subscriptions!")
 
