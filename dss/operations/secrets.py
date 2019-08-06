@@ -35,16 +35,16 @@ def list_secrets(argv: typing.List[str], args: argparse.Namespace):
                        help="name of secret to retrieve")})
 def get_secret(argv: typing.List[str], args: argparse.Namespace):
     """Get the value of the secret variable specified by the --secret-name flag"""
-    SM = boto3.client('secretsmanager')
+    sm = boto3.client('secretsmanager')
     stage = os.environ['DSS_DEPLOYMENT_STAGE']
     secrets_store = os.environ['DSS_SECRETS_STORE']
     secret_id = f'{secrets_store}/{stage}/{args.secret_name}'
 
     try:
         # Start by trying to get the secret variable
-        secret_val = SM.get_secret_value(SecretId=secret_id)
+        secret_val = sm.get_secret_value(SecretId=secret_id)
 
-    except SM.exceptions.ResourceNotFoundException:
+    except sm.exceptions.ResourceNotFoundException:
         # The secret variable does not exist
         print("Resource Not Found: {}".format(secret_id))
 
@@ -60,7 +60,7 @@ def get_secret(argv: typing.List[str], args: argparse.Namespace):
                    "--dry-run": dict(help="do a dry run of the actual operation")})
 def set_secret(argv: typing.List[str], args: argparse.Namespace):
     """Set the value of the secret variable specified by the --secret-name flag"""
-    SM = boto3.client('secretsmanager')
+    sm = boto3.client('secretsmanager')
     stage = os.environ['DSS_DEPLOYMENT_STAGE']
     secrets_store = os.environ['DSS_SECRETS_STORE']
     secret_id = f'{secrets_store}/{stage}/{args.secret_name}'
@@ -78,16 +78,16 @@ def set_secret(argv: typing.List[str], args: argparse.Namespace):
 
     try:
         # Start by trying to get the secret variable
-        _ = SM.get_secret_value(SecretId=secret_id)
+        _ = sm.get_secret_value(SecretId=secret_id)
 
-    except SM.exceptions.ResourceNotFoundException:
+    except sm.exceptions.ResourceNotFoundException:
         # The secret variable does not exist, so create it
         if args.dry_run:
             # Create it for fakes
             print("Resource Not Found: Creating {}".format(secret_id))
         else:
             # Create it for real
-            _ = SM.create_secret(
+            _ = sm.create_secret(
                 Name=secret_id,
                 SecretString=val
             )
@@ -97,7 +97,7 @@ def set_secret(argv: typing.List[str], args: argparse.Namespace):
         if args.dry_run:
             print('Resource Found: Updating {}'.format(secret_id))
         else:
-            _ = SM.update_secret(
+            _ = sm.update_secret(
                 SecretId=secret_id,
                 SecretString=val
             )
