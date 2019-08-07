@@ -37,7 +37,6 @@ def get_long_name(secret_name, arn_prefix, store_prefix):
       and ARN prefix present)
     """
     # Figure out what kind of prefix the user provided
-    # with the provided list of list
     user_provided_arn = secret_name.startswith(arn_prefix)
     user_provided_store = secret_name.startswith(store_prefix)
 
@@ -72,7 +71,8 @@ def get_short_name(secret_name, arn_prefix, store_prefix):
     user_provided_arn = secret_name.startswith(arn_prefix)
     user_provided_store = secret_name.startswith(store_prefix)
 
-    # Remove any prefix that is needed, get the store/stage prefixed name
+    # Remove any prefix that is present,
+    # then add the store/stage prefixed name
     if user_provided_arn:
         short_secret_name = secret_name[len(arn_prefix):]
     elif user_provided_store:
@@ -111,7 +111,7 @@ def list_secrets(argv: typing.List[str], args: argparse.Namespace):
 
     paginator = secretsmanager.get_paginator('list_secrets')
 
-    prefix = f'{store_name}/{stage_name}/'
+    prefix = f"{store_name}/{stage_name}/"
     secret_names = []
     for response in paginator.paginate():
         for secret in response['SecretList']:
@@ -170,8 +170,8 @@ def get_secret(argv: typing.List[str], args: argparse.Namespace):
     # Necessary because AWS requires full resource identifiers to fetch secrets
     region_name = arn.get_region()
     account_id = arn.get_account_id()
-    arn_prefix = f'arn:aws:secretsmanager:{region_name}:{account_id}:secret:'
-    store_prefix = f'{store_name}/{stage_name}/'
+    arn_prefix = f"arn:aws:secretsmanager:{region_name}:{account_id}:secret:"
+    store_prefix = f"{store_name}/{stage_name}/"
 
     for secret_name in args.secret_name:
         full_secret_name = get_long_name(secret_name, arn_prefix, store_prefix)
@@ -237,8 +237,8 @@ def set_secret(argv: typing.List[str], args: argparse.Namespace):
     # Necessary because AWS requires full resource identifiers to fetch secrets
     region_name = arn.get_region()
     account_id = arn.get_account_id()
-    arn_prefix = f'arn:aws:secretsmanager:{region_name}:{account_id}:secret:'
-    store_prefix = f'{store_name}/{stage_name}/'
+    arn_prefix = f"arn:aws:secretsmanager:{region_name}:{account_id}:secret:"
+    store_prefix = f"{store_name}/{stage_name}/"
 
     full_secret_name = get_long_name(secret_name, arn_prefix, store_prefix)
     short_secret_name = get_short_name(full_secret_name, arn_prefix, store_prefix)
@@ -251,10 +251,10 @@ def set_secret(argv: typing.List[str], args: argparse.Namespace):
         # A secret variable with that name does not exist, so create it
         if args.dry_run:
             # Create it for fakes
-            print("Secret variable {} not found in secrets manager, dry-run creating it".format(short_secret_name))
+            print(f"Secret variable {short_secret_name} not found in secrets manager, dry-run creating it")
         else:
             # Create it for real
-            print("Secret variable {} not found in secrets manager, creating it".format(short_secret_name))
+            print(f"Secret variable {short_secret_name} not found in secrets manager, creating it")
             _ = secretsmanager.create_secret(
                 Name=short_secret_name, SecretString=secret_val
             )
@@ -262,10 +262,10 @@ def set_secret(argv: typing.List[str], args: argparse.Namespace):
         # Get operation was successful, secret variable exists
         if args.dry_run:
             # Update it for fakes
-            print("Secret variable {} found in secrets manager, dry-run updating it".format(short_secret_name))
+            print(f"Secret variable {short_secret_name} found in secrets manager, dry-run updating it")
         else:
             # Update it for real
-            print("Secret variable {} found in secrets manager, updating it".format(short_secret_name))
+            print(f"Secret variable {short_secret_name} found in secrets manager, updating it")
             _ = secretsmanager.update_secret(
                 SecretId=short_secret_name, SecretString=secret_val
             )
@@ -301,8 +301,8 @@ def del_secret(argv: typing.List[str], args: argparse.Namespace):
     # Necessary because AWS requires full resource identifiers to delete secrets
     region_name = arn.get_region()
     account_id = arn.get_account_id()
-    arn_prefix = f'arn:aws:secretsmanager:{region_name}:{account_id}:secret:'
-    store_prefix = f'{store_name}/{stage_name}/'
+    arn_prefix = f"arn:aws:secretsmanager:{region_name}:{account_id}:secret:"
+    store_prefix = f"{store_name}/{stage_name}/"
 
     full_secret_name = get_long_name(secret_name, arn_prefix, store_prefix)
     short_secret_name = get_short_name(full_secret_name, arn_prefix, store_prefix)
@@ -322,18 +322,18 @@ def del_secret(argv: typing.List[str], args: argparse.Namespace):
 
     except secretsmanager.exceptions.ResourceNotFoundException:
         # No secret var found
-        logger.warning("Secret variable {} not found in secrets manager!".format(short_secret_name))
+        logger.warning(f"Secret variable {short_secret_name} not found in secrets manager!")
 
     except secretsmanager.exceptions.InvalidRequestException:
         # Already deleted secret var
-        logger.warning("Secret variable {} already marked for deletion in secrets manager!".format(short_secret_name))
+        logger.warning(f"Secret variable {short_secret_name} already marked for deletion in secrets manager!")
 
     else:
         # Get operation was successful, secret variable exists
         if args.dry_run:
             # Delete it for fakes
-            print("Secret variable {} found in secrets manager, dry-run deleting it".format(short_secret_name))
+            print("Secret variable {short_secret_name} found in secrets manager, dry-run deleting it")
         else:
             # Delete it for real
-            print("Secret variable {} found in secrets manager, deleting it".format(short_secret_name))
+            print("Secret variable {short_secret_name} found in secrets manager, deleting it")
             _ = secretsmanager.delete_secret(SecretId=full_secret_name)
