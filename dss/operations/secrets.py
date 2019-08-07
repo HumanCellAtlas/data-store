@@ -19,68 +19,46 @@ from dss.util.aws.clients import secretsmanager # type: ignore
 logger = logging.getLogger(__name__)
 
 
-def get_long_name(secret_name, arn_prefix, store_prefix):
+def long_short_conversion(secret_name, arn_prefix, store_prefix, return_short=True):
     """
     Given a (user-provided) name of a secret variable,
     determine whether the ARN prefix and store/stage
-    prefix must be added to that variable to get its
-    long name.
+    prefix are present, and convert between the long
+    and short resource names.
 
-    Users can specify variable names in any of the
-    following forms, and this function will return
-    the full ARN resource name:
-
-    - es_source_ip-q2baD1 (no store/stage prefix present)
-    - dcp/dss/dev/es_source_ip-q2baD1 (no ARN prefix present)
+    Examples of resource names:
+    - es_source_ip-q2baD1 (no prefixes)
+    - dcp/dss/dev/es_source_ip-q2baD1 (store/stage prefix, no ARN prefix)
     - arn:aws:secretsmanager:us-east-1:861229788715:secret:(continued)
-      dcp/dss/dev/es_source_ip-q2baD1 (target output, store/stage prefix
-      and ARN prefix present)
+      dcp/dss/dev/es_source_ip-q2baD1 (both store/stage prefix and ARN prefix)
     """
+
     # Figure out what kind of prefix the user provided
     user_provided_arn = secret_name.startswith(arn_prefix)
     user_provided_store = secret_name.startswith(store_prefix)
 
-    # Add any prefix that is needed, get the full ARN
-    if user_provided_arn:
-        full_secret_name = secret_name
-    elif user_provided_store:
-        full_secret_name = arn_prefix + secret_name
+    if return_short:
+        # Convert long resource ID to short resource ID
+        if user_provided_arn:
+            short_secret_name = secret_name[len(arn_prefix):]
+        elif user_provided_store:
+            short_secret_name = secret_name
+        else:
+            short_secret_name = store_prefix + secret_name
+
+        return short_secret_name
+
     else:
-        full_secret_name = arn_prefix + store_prefix + secret_name
+        # Convert short resource ID to long resource ID
+        if user_provided_arn:
+            full_secret_name = secret_name
+        elif user_provided_store:
+            full_secret_name = arn_prefix + secret_name
+        else:
+            full_secret_name = arn_prefix + store_prefix + secret_name
 
-    return full_secret_name
-
-
-def get_short_name(secret_name, arn_prefix, store_prefix):
-    """
-    Given a (user-provided) name of a secret variable,
-    determine whether the ARN prefix and store/stage
-    prefix must be removed from that variable to get
-    its short name.
-
-    Users can specify variable names in any of the
-    following forms, and this function will return
-    the store/stage prefixed resource name only:
-
-    - es_source_ip-q2baD1 (no store/stage prefix present)
-    - dcp/dss/dev/es_source_ip-q2baD1 (target output)
-    - arn:aws:secretsmanager:us-east-1:861229788715:secret:dcp/dss/dev/es_source_ip-q2baD1 (ARN prefix present)
-    """
-    # Figure out what kind of prefix the user provided
-    # with the provided list of list
-    user_provided_arn = secret_name.startswith(arn_prefix)
-    user_provided_store = secret_name.startswith(store_prefix)
-
-    # Remove any prefix that is present,
-    # then add the store/stage prefixed name
-    if user_provided_arn:
-        short_secret_name = secret_name[len(arn_prefix):]
-    elif user_provided_store:
-        short_secret_name = secret_name
-    else:
-        short_secret_name = store_prefix + secret_name
-
-    return short_secret_name
+        # Return long resource ID
+        return full_secret_name
 
 
 events = dispatch.target("secrets",
@@ -174,8 +152,8 @@ def get_secret(argv: typing.List[str], args: argparse.Namespace):
     store_prefix = f"{store_name}/{stage_name}/"
 
     for secret_name in args.secret_name:
-        full_secret_name = get_long_name(secret_name, arn_prefix, store_prefix)
-        short_secret_name = get_short_name(full_secret_name, arn_prefix, store_prefix)
+        full_secret_name = long_short_conversion(secret_name, arn_prefix, store_prefix, return_short=False)
+        short_secret_name = long_short_conversion(full_secret_name, arn_prefix, store_prefix, return_short=True)
 
         try:
             response = secretsmanager.get_secret_value(SecretId=full_secret_name)
@@ -240,8 +218,8 @@ def set_secret(argv: typing.List[str], args: argparse.Namespace):
     arn_prefix = f"arn:aws:secretsmanager:{region_name}:{account_id}:secret:"
     store_prefix = f"{store_name}/{stage_name}/"
 
-    full_secret_name = get_long_name(secret_name, arn_prefix, store_prefix)
-    short_secret_name = get_short_name(full_secret_name, arn_prefix, store_prefix)
+    full_secret_name = long_short_conversion(secret_name, arn_prefix, store_prefix, return_short=False)
+    short_secret_name = long_short_conversion(full_secret_name, arn_prefix, store_prefix, return_short=True)
 
     try:
         # Start by trying to get the secret variable
