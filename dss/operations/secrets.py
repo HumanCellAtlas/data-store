@@ -10,11 +10,10 @@ import typing
 import argparse
 import json
 import logging
-from pprint import pprint
 
 from dss.operations import dispatch
 from dss.util.aws import ARN as arn
-from dss.util.aws.clients import secretsmanager # note: ssm = param store, not secrets manager
+from dss.util.aws.clients import secretsmanager
 
 
 logger = logging.getLogger(__name__)
@@ -22,18 +21,20 @@ logger = logging.getLogger(__name__)
 
 def get_long_name(secret_name, arn_prefix, store_prefix):
     """
-    Given a (user-provided) name of a secret variable, 
-    determine whether the ARN prefix and store/stage 
+    Given a (user-provided) name of a secret variable,
+    determine whether the ARN prefix and store/stage
     prefix must be added to that variable to get its
     long name.
 
-    Users can specify variable names in any of the 
+    Users can specify variable names in any of the
     following forms, and this function will return
     the full ARN resource name:
 
     - es_source_ip-q2baD1 (no store/stage prefix present)
     - dcp/dss/dev/es_source_ip-q2baD1 (no ARN prefix present)
-    - arn:aws:secretsmanager:us-east-1:861229788715:secret:dcp/dss/dev/es_source_ip-q2baD1 (target output; store/stage prefix and ARN prefix present)
+    - arn:aws:secretsmanager:us-east-1:861229788715:secret:(continued)
+      dcp/dss/dev/es_source_ip-q2baD1 (target output, store/stage prefix
+      and ARN prefix present)
     """
     # Figure out what kind of prefix the user provided
     # with the provided list of list
@@ -53,12 +54,12 @@ def get_long_name(secret_name, arn_prefix, store_prefix):
 
 def get_short_name(secret_name, arn_prefix, store_prefix):
     """
-    Given a (user-provided) name of a secret variable, 
-    determine whether the ARN prefix and store/stage 
+    Given a (user-provided) name of a secret variable,
+    determine whether the ARN prefix and store/stage
     prefix must be removed from that variable to get
     its short name.
 
-    Users can specify variable names in any of the 
+    Users can specify variable names in any of the
     following forms, and this function will return
     the store/stage prefixed resource name only:
 
@@ -118,7 +119,7 @@ def list_secrets(argv: typing.List[str], args: argparse.Namespace):
             long_name = secret['ARN']
             short_name = long_name.split(":")[-1]
             if short_name.startswith(prefix):
-                # If the prefix matches the store and stage specified, 
+                # If the prefix matches the store and stage specified,
                 # store this secret's name for later
                 if args.long:
                     secret_names.append(long_name)
@@ -158,7 +159,7 @@ def get_secret(argv: typing.List[str], args: argparse.Namespace):
     if args.stage is None:
         stage_name = os.environ['DSS_DEPLOYMENT_STAGE']
 
-    if args.secret_name is None or len(args.secret_name)==0:
+    if args.secret_name is None or len(args.secret_name) == 0:
         logger.error("Unable to get secret: no secret was specified! Use the --secret-name flag.")
         sys.exit()
 
@@ -205,7 +206,7 @@ def set_secret(argv: typing.List[str], args: argparse.Namespace):
         stage_name = os.environ['DSS_DEPLOYMENT_STAGE']
 
     # Make sure a secret name was specified
-    if args.secret_name is None or len(args.secret_name)==0:
+    if args.secret_name is None or len(args.secret_name) == 0:
         logger.error("Unable to set secret: no secret name was specified! Use the --secret-name flag.")
         sys.exit()
     secret_name = args.secret_name
@@ -216,7 +217,7 @@ def set_secret(argv: typing.List[str], args: argparse.Namespace):
     # user provides secret variable *name* via --secret-name flag.
     if not select.select([sys.stdin, ], [], [], 0.0)[0]:
         err_msg = f"No data in stdin, cannot set secret {secret_name} without a value from stdin!"
-        logger.error()
+        logger.error(err_msg)
         sys.exit()
     secret_val = sys.stdin.read()
 
@@ -242,8 +243,7 @@ def set_secret(argv: typing.List[str], args: argparse.Namespace):
             # Create it for real
             print("Secret variable {} not found in secrets manager, creating it".format(short_secret_name))
             _ = secretsmanager.create_secret(
-                    Name=short_secret_name,
-                    SecretString=secret_val
+                Name=short_secret_name, SecretString=secret_val
             )
     else:
         # Get operation was successful, secret variable exists
@@ -254,8 +254,7 @@ def set_secret(argv: typing.List[str], args: argparse.Namespace):
             # Update it for real
             print("Secret variable {} found in secrets manager, updating it".format(short_secret_name))
             _ = secretsmanager.update_secret(
-                    SecretId=short_secret_name,
-                    SecretString=secret_val
+                SecretId=short_secret_name, SecretString=secret_val
             )
 
 
@@ -273,7 +272,7 @@ def set_secret(argv: typing.List[str], args: argparse.Namespace):
                        help="do a dry run of the actual operation")})
 def del_secret(argv: typing.List[str], args: argparse.Namespace):
     """
-    Delete the value of the secret variable specified by the 
+    Delete the value of the secret variable specified by the
     --secret-name flag from the secrets manager
     """
     store_name = os.environ['DSS_SECRETS_STORE']
@@ -281,7 +280,7 @@ def del_secret(argv: typing.List[str], args: argparse.Namespace):
         stage_name = os.environ['DSS_DEPLOYMENT_STAGE']
 
     # Make sure a secret name was specified
-    if args.secret_name is None or len(args.secret_name)==0:
+    if args.secret_name is None or len(args.secret_name) == 0:
         logger.error("Unable to set secret: no secret name was specified! Use the --secret-name flag.")
         sys.exit()
     secret_name = args.secret_name
@@ -296,8 +295,11 @@ def del_secret(argv: typing.List[str], args: argparse.Namespace):
     short_secret_name = get_short_name(full_secret_name, arn_prefix, store_prefix)
 
     # Make sure the user really wants to do this
-    response = input("Are you really sure you want to delete secret {}? (Type 'y' or 'yes' to confirm): ".format(secret_name))
-    if response.lower() not in ['y','yes']:
+    confirm = """
+    Are you really sure you want to delete secret {}? (Type 'y' or 'yes' to confirm):
+    """
+    response = input(confirm.format(secret_name))
+    if response.lower() not in ['y', 'yes']:
         logger.error("You safely aborted the delete secret operation!")
         sys.exit()
 
@@ -322,4 +324,3 @@ def del_secret(argv: typing.List[str], args: argparse.Namespace):
             # Delete it for real
             print("Secret variable {} found in secrets manager, deleting it".format(short_secret_name))
             _ = secretsmanager.delete_secret(SecretId=full_secret_name)
-
