@@ -19,16 +19,43 @@ from dss.util.aws.clients import secretsmanager # type: ignore
 logger = logging.getLogger(__name__)
 
 
-def long_short_conversion(secret_name, arn_prefix, store_prefix, return_short=True):
+def get_secretsmanager_names(args):
+    """
+    Get the keyword arguments used to access the secrets manager and
+    assemble secrets prefixes
+    """
+    store_name = os.environ['DSS_SECRETS_STORE']
+    if args.stage is None:
+        stage_name = os.environ['DSS_DEPLOYMENT_STAGE']
+
+    return store_name, stage_name
+
+def get_secretsmanager_prefixes(args):
+    """
+    Use information from the environment to assemble ARN and Secrets Manager
+    prefixes for secret variables (necessary because AWS requires full resource
+    identifiers to fetch secrets)
+    """
+    store_name, stage_name = get_secretsmanager_names(args)
+    region_name = arn.get_region()
+    account_id = arn.get_account_id()
+    arn_prefix = f"arn:aws:secretsmanager:{region_name}:{account_id}:secret:"
+    store_prefix = f"{store_name}/{stage_name}/"
+
+    return arn_prefix, store_prefix
+
+
+def long_short_resource_names(secret_name, arn_prefix, store_prefix):
     """
     Given a (user-provided) name of a secret variable,
     determine whether the ARN prefix and store/stage
-    prefix are present, and convert between the long
-    and short resource names.
+    prefix are present, then determine and return the
+    long and short versions of the resource name.
 
-    Examples of resource names:
-    - es_source_ip-q2baD1 (no prefixes)
+    Example short resouce name:
     - dcp/dss/dev/es_source_ip-q2baD1 (store/stage prefix, no ARN prefix)
+
+    Example long resource name:
     - arn:aws:secretsmanager:us-east-1:861229788715:secret:(continued)
       dcp/dss/dev/es_source_ip-q2baD1 (both store/stage prefix and ARN prefix)
     """
@@ -37,28 +64,19 @@ def long_short_conversion(secret_name, arn_prefix, store_prefix, return_short=Tr
     user_provided_arn = secret_name.startswith(arn_prefix)
     user_provided_store = secret_name.startswith(store_prefix)
 
-    if return_short:
-        # Convert long resource ID to short resource ID
-        if user_provided_arn:
-            short_secret_name = secret_name[len(arn_prefix):]
-        elif user_provided_store:
-            short_secret_name = secret_name
-        else:
-            short_secret_name = store_prefix + secret_name
+    if user_provided_arn:
+        short_secret_name = secret_name[len(arn_prefix):]
+        long_secret_name = secret_name
 
-        return short_secret_name
+    elif user_provided_store:
+        short_secret_name = secret_name
+        long_secret_name = arn_prefix + secret_name
 
     else:
-        # Convert short resource ID to long resource ID
-        if user_provided_arn:
-            full_secret_name = secret_name
-        elif user_provided_store:
-            full_secret_name = arn_prefix + secret_name
-        else:
-            full_secret_name = arn_prefix + store_prefix + secret_name
+        short_secret_name = store_prefix + secret_name
+        long_secret_name = arn_prefix + store_prefix + secret_name
 
-        # Return long resource ID
-        return full_secret_name
+    return short_secret_name, long_secret_name
 
 
 events = dispatch.target("secrets",
@@ -73,7 +91,7 @@ events = dispatch.target("secrets",
                    "--long": dict(
                        default=False,
                        action="store_true",
-                       help="use long identifiers (incl. ARN, region, project ID) for resources"),
+                       help="use long (full ARN) identifiers when printing secret variables"),
                    "--json": dict(
                        default=False,
                        action="store_true",
@@ -83,26 +101,25 @@ def list_secrets(argv: typing.List[str], args: argparse.Namespace):
     Print a list of names of every secret variable in the secrets manager
     for the given store and stage
     """
-    store_name = os.environ['DSS_SECRETS_STORE']
-    if args.stage is None:
-        stage_name = os.environ['DSS_DEPLOYMENT_STAGE']
+    store_name, stage_name = get_secretsmanager_names(args)
+    arn_prefix, store_prefix = get_secretsmanager_prefixes(args)
 
     paginator = secretsmanager.get_paginator('list_secrets')
 
-    prefix = f"{store_name}/{stage_name}/"
     secret_names = []
     for response in paginator.paginate():
         for secret in response['SecretList']:
 
-            long_name = secret['ARN']
-            short_name = long_name.split(":")[-1]
-            if short_name.startswith(prefix):
-                # If the prefix matches the store and stage specified,
-                # store this secret's name for later
+            # Get resource IDs
+            secret_name = secret['ARN']
+            short_secret_name, long_secret_name = long_short_resource_names(secret_name, arn_prefix, store_prefix)
+
+            # Only save secrets for this store and stage
+            if short_secret_name.startswith(store_prefix):
                 if args.long:
-                    secret_names.append(long_name)
+                    secret_names.append(long_secret_name)
                 else:
-                    secret_names.append(short_name)
+                    secret_names.append(short_secret_name)
 
     secret_names.sort()
 
@@ -122,10 +139,10 @@ def list_secrets(argv: typing.List[str], args: argparse.Namespace):
                        required=True,
                        nargs="*",
                        help="name of secret or secrets to retrieve (list values can be separated by a space)"),
-                   "--arn": dict(
+                   "--long": dict(
                        default=False,
                        action="store_true",
-                       help="include the AWS Resource Number (ARN) when printing secret variable(s)"),
+                       help="use long (full ARN) identifiers when printing secret variable(s)"),
                    "--json": dict(
                        default=False,
                        action="store_true",
@@ -137,43 +154,40 @@ def get_secret(argv: typing.List[str], args: argparse.Namespace):
     """
     # Note: this function should not print anything except the final JSON,
     # in case the user pipes the JSON output of this script to something else
-    store_name = os.environ['DSS_SECRETS_STORE']
-    if args.stage is None:
-        stage_name = os.environ['DSS_DEPLOYMENT_STAGE']
+    store_name, stage_name = get_secretsmanager_names(args)
+    arn_prefix, store_prefix = get_secretsmanager_prefixes(args)
 
+    # Make sure a secret name was specified
     if args.secret_name is None or len(args.secret_name) == 0:
-        logger.error("Unable to get secret: no secret was specified! Use the --secret-name flag.")
+        logger.error("Unable to set secret: no secret name was specified! Use the --secret-name flag.")
         sys.exit()
+    secret_names = args.secret_name
 
-    # Necessary because AWS requires full resource identifiers to fetch secrets
-    region_name = arn.get_region()
-    account_id = arn.get_account_id()
-    arn_prefix = f"arn:aws:secretsmanager:{region_name}:{account_id}:secret:"
-    store_prefix = f"{store_name}/{stage_name}/"
+    for secret_name in secret_names:
 
-    for secret_name in args.secret_name:
-        full_secret_name = long_short_conversion(secret_name, arn_prefix, store_prefix, return_short=False)
-        short_secret_name = long_short_conversion(full_secret_name, arn_prefix, store_prefix, return_short=True)
+        # Get resource IDs
+        short_secret_name, long_secret_name = long_short_resource_names(secret_name, arn_prefix, store_prefix)
 
+        # Attempt to obtain secret
         try:
-            response = secretsmanager.get_secret_value(SecretId=full_secret_name)
+            response = secretsmanager.get_secret_value(SecretId=long_secret_name)
             secret_val = response['SecretString']
         except secretsmanager.exceptions.ResourceNotFoundException:
             # A secret variable with that name does not exist
-            if args.arn:
-                logger.warning(f"Resource not found: {full_secret_name}")
+            if args.long:
+                logger.warning(f"Resource not found: {long_secret_name}")
             else:
                 logger.warning(f"Resource not found: {short_secret_name}")
         else:
             # Get operation was successful, secret variable exists
             if args.json:
-                if args.arn:
-                    print(json.dumps({full_secret_name: secret_val}))
+                if args.long:
+                    print(json.dumps({long_secret_name: secret_val}))
                 else:
                     print(json.dumps({short_secret_name: secret_val}))
             else:
-                if args.arn:
-                    print(f"{full_secret_name}={secret_val}")
+                if args.long:
+                    print(f"{long_secret_name}={secret_val}")
                 else:
                     print(f"{short_secret_name}={secret_val}")
 
@@ -192,9 +206,8 @@ def get_secret(argv: typing.List[str], args: argparse.Namespace):
                        help="do a dry run of the actual operation")})
 def set_secret(argv: typing.List[str], args: argparse.Namespace):
     """Set the value of the secret variable specified by the --secret-name flag"""
-    store_name = os.environ['DSS_SECRETS_STORE']
-    if args.stage is None:
-        stage_name = os.environ['DSS_DEPLOYMENT_STAGE']
+    store_name, stage_name = get_secretsmanager_names(args)
+    arn_prefix, store_prefix = get_secretsmanager_prefixes(args)
 
     # Make sure a secret name was specified
     if args.secret_name is None or len(args.secret_name) == 0:
@@ -202,28 +215,20 @@ def set_secret(argv: typing.List[str], args: argparse.Namespace):
         sys.exit()
     secret_name = args.secret_name
 
-    # Use the `select` module to obtain the value that is passed
-    # to this script via stdin (i.e., piped to this script).
-    # Note: user provides secret variable *value* via stdin,
-    # user provides secret variable *name* via --secret-name flag.
+    # Use stdin (input piped to this script) as secret value.
+    # stdin provides secret value, flag --secret-name provides secret name.
     if not select.select([sys.stdin, ], [], [], 0.0)[0]:
         err_msg = f"No data in stdin, cannot set secret {secret_name} without a value from stdin!"
         logger.error(err_msg)
         sys.exit()
     secret_val = sys.stdin.read()
 
-    # Necessary because AWS requires full resource identifiers to fetch secrets
-    region_name = arn.get_region()
-    account_id = arn.get_account_id()
-    arn_prefix = f"arn:aws:secretsmanager:{region_name}:{account_id}:secret:"
-    store_prefix = f"{store_name}/{stage_name}/"
-
-    full_secret_name = long_short_conversion(secret_name, arn_prefix, store_prefix, return_short=False)
-    short_secret_name = long_short_conversion(full_secret_name, arn_prefix, store_prefix, return_short=True)
+    # Get resouce IDs
+    short_secret_name, long_secret_name = long_short_resource_names(secret_name, arn_prefix, store_prefix)
 
     try:
         # Start by trying to get the secret variable
-        _ = secretsmanager.get_secret_value(SecretId=full_secret_name)
+        _ = secretsmanager.get_secret_value(SecretId=long_secret_name)
 
     except secretsmanager.exceptions.ResourceNotFoundException:
         # A secret variable with that name does not exist, so create it
@@ -266,9 +271,8 @@ def del_secret(argv: typing.List[str], args: argparse.Namespace):
     Delete the value of the secret variable specified by the
     --secret-name flag from the secrets manager
     """
-    store_name = os.environ['DSS_SECRETS_STORE']
-    if args.stage is None:
-        stage_name = os.environ['DSS_DEPLOYMENT_STAGE']
+    store_name, stage_name = get_secretsmanager_names(args)
+    arn_prefix, store_prefix = get_secretsmanager_prefixes(args)
 
     # Make sure a secret name was specified
     if args.secret_name is None or len(args.secret_name) == 0:
@@ -276,14 +280,8 @@ def del_secret(argv: typing.List[str], args: argparse.Namespace):
         sys.exit()
     secret_name = args.secret_name
 
-    # Necessary because AWS requires full resource identifiers to delete secrets
-    region_name = arn.get_region()
-    account_id = arn.get_account_id()
-    arn_prefix = f"arn:aws:secretsmanager:{region_name}:{account_id}:secret:"
-    store_prefix = f"{store_name}/{stage_name}/"
-
-    full_secret_name = get_long_name(secret_name, arn_prefix, store_prefix)
-    short_secret_name = get_short_name(full_secret_name, arn_prefix, store_prefix)
+    # Get resouce IDs
+    short_secret_name, long_secret_name = long_short_resource_names(secret_name, arn_prefix, store_prefix)
 
     # Make sure the user really wants to do this
     confirm = f"""
@@ -296,7 +294,7 @@ def del_secret(argv: typing.List[str], args: argparse.Namespace):
 
     try:
         # Start by trying to get the secret variable
-        _ = secretsmanager.get_secret_value(SecretId=full_secret_name)
+        _ = secretsmanager.get_secret_value(SecretId=long_secret_name)
 
     except secretsmanager.exceptions.ResourceNotFoundException:
         # No secret var found
@@ -310,8 +308,8 @@ def del_secret(argv: typing.List[str], args: argparse.Namespace):
         # Get operation was successful, secret variable exists
         if args.dry_run:
             # Delete it for fakes
-            print("Secret variable {short_secret_name} found in secrets manager, dry-run deleting it")
+            print(f"Secret variable {short_secret_name} found in secrets manager, dry-run deleting it")
         else:
             # Delete it for real
-            print("Secret variable {short_secret_name} found in secrets manager, deleting it")
-            _ = secretsmanager.delete_secret(SecretId=full_secret_name)
+            print(f"Secret variable {short_secret_name} found in secrets manager, deleting it")
+            _ = secretsmanager.delete_secret(SecretId=long_secret_name)
