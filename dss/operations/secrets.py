@@ -3,8 +3,6 @@ Get/set secret variable values from the AWS Secrets Manager
 """
 import os
 import sys
-import click
-import boto3
 import select
 import typing
 import argparse
@@ -13,7 +11,7 @@ import logging
 
 from dss.operations import dispatch
 from dss.util.aws import ARN as arn
-from dss.util.aws.clients import secretsmanager # type: ignore
+from dss.util.aws.clients import secretsmanager  # type: ignore
 
 
 logger = logging.getLogger(__name__)
