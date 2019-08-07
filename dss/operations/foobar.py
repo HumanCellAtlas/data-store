@@ -31,12 +31,13 @@ def plink(argv: typing.List[str], args: argparse.Namespace):
     stage_name = os.environ['DSS_DEPLOYMENT_STAGE']
 
     tiny_secret_name = "es_source_ip-q2baD1"
-    short_secret_name = "dcp/dss/dev/es_source_ip-q2baD1"
+    short_secret_name_broken = "dcp/dss/dev/es_source_ip-q2baD1"
+    short_secret_name = "dcp/dss/dev/es_source_ip"
     full_secret_name = "arn:aws:secretsmanager:us-east-1:861229788715:secret:dcp/dss/dev/es_source_ip-q2baD1"
 
     try:
         print("------------------")
-        print("Full secret name:")
+        print(f"Full secret name {full_secret_name}:")
         print(full_secret_name)
         response1 = secretsmanager.get_secret_value(SecretId=full_secret_name)
         pprint(response1)
@@ -45,7 +46,7 @@ def plink(argv: typing.List[str], args: argparse.Namespace):
 
     try:
         print("------------------")
-        print("Short secret name:")
+        print(f"Short secret name {short_secret_name}:")
         print(short_secret_name)
         response2 = secretsmanager.get_secret_value(SecretId=short_secret_name)
         pprint(response2)
