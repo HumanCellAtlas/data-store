@@ -4,7 +4,9 @@ Tools for managing checkout buckets
 import typing
 import argparse
 import logging
+import json
 import os
+import collections
 
 from dss import Replica
 from dss.operations import dispatch
@@ -12,7 +14,9 @@ from dss import Config
 from cloud_blobstore import BlobNotFoundError
 from dss.api.bundles import get_bundle_manifest
 from dss.storage.hcablobstore import compose_blob_key
-from dss.storage.identifiers import DSS_BUNDLE_KEY_REGEX, DSS_BUNDLE_FQID_REGEX
+from dss.storage.identifiers import DSS_BUNDLE_KEY_REGEX, DSS_BUNDLE_FQID_REGEX, VERSION_REGEX, UUID_REGEX, FILE_PREFIX
+from dss.storage.checkout.bundle import verify_checkout
+from dss.storage.checkout import cache_flow
 
 logger = logging.getLogger(__name__)
 
@@ -30,10 +34,19 @@ def verify_delete(handle, bucket, key):
         raise RuntimeError(f'attempted to delete {bucket}/{key} but it did not work ;(')
 
 
-@checkout.action("remove_checkout",
+def verify_get(handle, bucket, key):
+    try:
+        file_metadata = json.loads(handle.get(bucket=bucket, key=key).decode('utf-8'))
+    except BlobNotFoundError:
+        logger.warning(f'unable to locate {bucket}/{key}')
+        return None
+    return file_metadata
+
+
+@checkout.action("remove",
                  arguments={"--replica": dict(choices=[r.name for r in Replica], required=True),
                             "--keys": dict(nargs="+", help="keys to remove from checkout", required=False)})
-def remove_checkout(argv: typing.List[str], args: argparse.Namespace):
+def remove(argv: typing.List[str], args: argparse.Namespace):
     """
     Remove a bundle from the checkout bucket
     """
@@ -43,10 +56,9 @@ def remove_checkout(argv: typing.List[str], args: argparse.Namespace):
     if args.keys:
         for _key in args.keys:
             if DSS_BUNDLE_KEY_REGEX.match(_key):
-                for key in handle.list(bucket, _key):
+                for key in handle.list(bucket, _key):  # handles checkout/bundle/*
                     verify_delete(handle, bucket, key)
-            elif DSS_BUNDLE_FQID_REGEX.match(_key):
-                uuid, version = _key.split('.', 1)
+                uuid, version = parse_key(key)
                 manifest = get_bundle_manifest(replica=replica, uuid=uuid, version=version)
                 if manifest is None:
                     logger.warning(f"unable to locate manifest for fqid: {bucket}/{_key}")
@@ -54,6 +66,48 @@ def remove_checkout(argv: typing.List[str], args: argparse.Namespace):
                 for _files in manifest['files']:
                     key = compose_blob_key(_files)
                     verify_delete(handle, bucket, key)
-            else:
+            elif FILE_PREFIX in _key:
                 # should handle other keys, files/blobs
-                    verify_delete(handle, bucket, _key)
+                file_metadata = verify_get(handle, replica.bucket, _key)
+                verify_delete(handle, bucket, key=compose_blob_key(file_metadata))
+
+
+@checkout.action("verify",
+                 arguments={"--replica": dict(choices=[r.name for r in Replica], required=True),
+                            "--keys": dict(nargs="+", help="keys to check the status of", required=False)})
+def verify(argv: typing.List[str], args: argparse.Namespace):
+    """
+    Verify that keys are in the checkout bucket
+    """
+    replica = Replica[args.replica]
+    handle = Config.get_blobstore_handle(replica)
+    bucket = replica.checkout_bucket
+    checkout_status = dict()
+    for _key in args.keys:
+        if DSS_BUNDLE_KEY_REGEX.match(_key):  # handles bundles/fqid keys or fqid
+            uuid, version = parse_key(_key)
+            bundle_manifest = get_bundle_manifest(replica=replica, uuid=uuid, version=version)
+            checkout_bundle_contents = [x[0] for x in handle.list_v2(bucket=bucket, prefix=f'bundles/{uuid}.{version}')]
+
+            for _file in bundle_manifest['files']:
+                temp = dict(blob_checkout=False, bundle_checkout=False, should_be_cached=False)
+                bundle_key = f'bundles/{uuid}.{version}/{_file["name"]}'
+                blob_key = compose_blob_key(_file)
+
+                blob_status = verify_get(handle, bucket, blob_key)
+                if blob_status:
+                    temp['blob_checkout'] = True
+                if bundle_key in checkout_bundle_contents:
+                    temp['bundle_checkout'] = True
+                if cache_flow.should_cache_file(_file['content-type'], _file['size']):
+                    temp['should_be_cached'] = True
+                checkout_status.update()
+    print(json.dumps(checkout_status))
+
+def parse_key(key):
+    try:
+        version = VERSION_REGEX.search(key).group(0)
+        uuid = UUID_REGEX.search(key).group(0)
+    except IndexError:
+        RuntimeError(f'unable to parse the key {key}')
+    return uuid, version
