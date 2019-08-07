@@ -79,10 +79,13 @@ def post(json_request_body: dict,
 
         if len(request_dict['results']) < per_page:
             response = make_response(request_body, requests.codes.ok)
+            response.headers['X-OpenAPI-Pagination'] = 'false'
         else:
             response = make_response(request_body, requests.codes.partial)
             next_url = _build_next_url(page, per_page, replica_enum, output_format)
             response.headers['Link'] = _build_link_header({next_url: {"rel": "next"}})
+            response.headers['X-OpenAPI-Pagination'] = 'true'
+            response.headers['X-OpenAPI-Paginated-Content-Key'] = 'results'
         return response
 
 

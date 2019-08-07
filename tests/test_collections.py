@@ -143,7 +143,10 @@ class TestCollections(unittest.TestCase, DSSAssertMixin, DSSUploadMixin):
                                               expected_code=codes,
                                               headers=get_auth_header(authorized=True))
             link_header = resp_obj.response.headers.get('Link')
+            self.assertEqual(resp_obj.response.headers['X-OpenAPI-Pagination'], 'true')
+            self.assertEqual(resp_obj.response.headers['X-OpenAPI-Paginated-Content-Key'], 'collections')
 
+        self.assertEqual(resp_obj.response.headers['X-OpenAPI-Pagination'], 'false')
         self.assertEqual(resp_obj.response.status_code, requests.codes.ok)
         return paging_response
 
