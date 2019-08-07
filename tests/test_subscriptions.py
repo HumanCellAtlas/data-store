@@ -84,14 +84,17 @@ class TestSubscriptionsBase(ElasticsearchTestCase, TestAuthMixin, DSSAssertMixin
         self._test_auth_errors('get', url)
 
     def test_put(self):
-        uuid_ = self._put_subscription()
+        try:
+            uuid_ = self._put_subscription()
 
-        es_client = ElasticsearchClient.get()
-        response = es_client.get(index=self.doc_index_name,
-                                 doc_type=dss.ESDocType.query.name,
-                                 id=uuid_)
-        registered_query = response['_source']
-        self.assertEqual(self.sample_percolate_query, registered_query)
+            es_client = ElasticsearchClient.get()
+            response = es_client.get(index=self.doc_index_name,
+                                     doc_type=dss.ESDocType.query.name,
+                                     id=uuid_)
+            registered_query = response['_source']
+            self.assertEqual(self.sample_percolate_query, registered_query)
+        finally:
+            self._cleanup_subscription(uuid_)
 
     def test_validation(self):
         with self.subTest("Missing URL"):
@@ -146,22 +149,25 @@ class TestSubscriptionsBase(ElasticsearchTestCase, TestAuthMixin, DSSAssertMixin
         self.assertIn('uuid', resp_obj.json)
 
     def test_get(self):
-        find_uuid = self._put_subscription()
+        try:
+            find_uuid = self._put_subscription()
 
-        # Normal request
-        url = str(UrlBuilder()
-                  .set(path="/v1/subscriptions/" + str(find_uuid))
-                  .add_query("replica", self.replica.name)
-                  .add_query("subscription_type", "elasticsearch"))
-        resp_obj = self.assertGetResponse(
-            url,
-            requests.codes.okay,
-            headers=get_auth_header())
-        json_response = resp_obj.json
-        self.assertEqual(self.sample_percolate_query, json_response['es_query'])
-        self.assertEqual(self.endpoint, Endpoint.from_subscription(json_response))
-        self.assertEquals(self.hmac_key_id, json_response['hmac_key_id'])
-        self.assertNotIn('hmac_secret_key', json_response)
+            # Normal request
+            url = str(UrlBuilder()
+                      .set(path="/v1/subscriptions/" + str(find_uuid))
+                      .add_query("replica", self.replica.name)
+                      .add_query("subscription_type", "elasticsearch"))
+            resp_obj = self.assertGetResponse(
+                url,
+                requests.codes.okay,
+                headers=get_auth_header())
+            json_response = resp_obj.json
+            self.assertEqual(self.sample_percolate_query, json_response['es_query'])
+            self.assertEqual(self.endpoint, Endpoint.from_subscription(json_response))
+            self.assertEquals(self.hmac_key_id, json_response['hmac_key_id'])
+            self.assertNotIn('hmac_secret_key', json_response)
+        finally:
+            self._cleanup_subscription(find_uuid)
 
         # File not found request
         url = str(UrlBuilder()
@@ -174,23 +180,28 @@ class TestSubscriptionsBase(ElasticsearchTestCase, TestAuthMixin, DSSAssertMixin
             headers=get_auth_header())
 
     def test_find(self):
-        num_additions = 25
-        for _ in range(num_additions):
-            self._put_subscription()
-        url = str(UrlBuilder()
-                  .set(path="/v1/subscriptions")
-                  .add_query("replica", self.replica.name)
-                  .add_query("subscription_type", "elasticsearch"))
-        resp_obj = self.assertGetResponse(
-            url,
-            requests.codes.okay,
-            headers=get_auth_header())
-        json_response = resp_obj.json
-        self.assertEqual(self.sample_percolate_query, json_response['subscriptions'][0]['es_query'])
-        self.assertEqual(self.hmac_key_id, json_response['subscriptions'][0]['hmac_key_id'])
-        self.assertEqual(self.endpoint, Endpoint.from_subscription(json_response['subscriptions'][0]))
-        self.assertNotIn('hmac_secret_key', json_response['subscriptions'][0])
-        self.assertEqual(num_additions, len(json_response['subscriptions']))
+        try:
+            num_additions = 3
+            uuids = list()
+            for _ in range(num_additions):
+                uuids.append(self._put_subscription())
+            url = str(UrlBuilder()
+                      .set(path="/v1/subscriptions")
+                      .add_query("replica", self.replica.name)
+                      .add_query("subscription_type", "elasticsearch"))
+            resp_obj = self.assertGetResponse(
+                url,
+                requests.codes.okay,
+                headers=get_auth_header())
+            json_response = resp_obj.json
+            self.assertEqual(self.sample_percolate_query, json_response['subscriptions'][0]['es_query'])
+            self.assertEqual(self.hmac_key_id, json_response['subscriptions'][0]['hmac_key_id'])
+            self.assertEqual(self.endpoint, Endpoint.from_subscription(json_response['subscriptions'][0]))
+            self.assertNotIn('hmac_secret_key', json_response['subscriptions'][0])
+            self.assertEqual(num_additions, len(json_response['subscriptions']))
+        finally:
+            for _uuid in uuids:
+                self._cleanup_subscription(_uuid)
 
     def test_delete(self):
         find_uuid = self._put_subscription()
@@ -226,6 +237,15 @@ class TestSubscriptionsBase(ElasticsearchTestCase, TestAuthMixin, DSSAssertMixin
             headers=get_auth_header()
         )
         return resp_obj.json.get('uuid')
+
+    def _cleanup_subscription(self, uuid, subscription_type=None):
+        if not subscription_type:
+            subscription_type = 'elasticsearch'
+        url = (UrlBuilder()
+               .set(path=f"/v1/subscriptions/{uuid}")
+               .add_query("replica", self.replica.name)
+               .add_query('subscription_type', subscription_type))
+        self.assertDeleteResponse(url, requests.codes.okay, headers=get_auth_header())
 
 
 class TestGCPSubscription(TestSubscriptionsBase):
