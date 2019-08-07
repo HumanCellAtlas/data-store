@@ -144,6 +144,10 @@ def list_secrets(argv: typing.List[str], args: argparse.Namespace):
                        required=True,
                        nargs="*",
                        help="name of secret or secrets to retrieve (list values can be separated by a space)"),
+                   "--arn": dict(
+                       default=False,
+                       action="store_true",
+                       help="include the AWS Resource Number (ARN) when printing secret variable(s)"),
                    "--json": dict(
                        default=False,
                        action="store_true",
@@ -178,13 +182,22 @@ def get_secret(argv: typing.List[str], args: argparse.Namespace):
             secret_val = response['SecretString']
         except secretsmanager.exceptions.ResourceNotFoundException:
             # A secret variable with that name does not exist
-            logger.warning("Resource not found: {}".format(full_secret_name))
-        else:
-            if args.json:
-                print(json.dumps({full_secret_name: secret_val}))
+            if args.arn:
+                logger.warning(f"Resource not found: {full_secret_name}")
             else:
-                # Get operation was successful, secret variable exists
-                print("{}={}".format(short_secret_name, secret_val))
+                logger.warning(f"Resource not found: {short_secret_name}")
+        else:
+            # Get operation was successful, secret variable exists
+            if args.json:
+                if args.arn:
+                    print(json.dumps({full_secret_name: secret_val}))
+                else:
+                    print(json.dumps({short_secret_name: secret_val}))
+            else:
+                if args.arn:
+                    print(f"{full_secret_name}={secret_val}")
+                else:
+                    print(f"{short_secret_name}={secret_val}")
 
 
 @events.action("set",
@@ -295,10 +308,10 @@ def del_secret(argv: typing.List[str], args: argparse.Namespace):
     short_secret_name = get_short_name(full_secret_name, arn_prefix, store_prefix)
 
     # Make sure the user really wants to do this
-    confirm = """
-    Are you really sure you want to delete secret {}? (Type 'y' or 'yes' to confirm):
+    confirm = f"""
+    Are you really sure you want to delete secret {secret_name}? (Type 'y' or 'yes' to confirm):
     """
-    response = input(confirm.format(secret_name))
+    response = input(confirm)
     if response.lower() not in ['y', 'yes']:
         logger.error("You safely aborted the delete secret operation!")
         sys.exit()
