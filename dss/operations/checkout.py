@@ -35,12 +35,23 @@ def verify_delete(handle, bucket, key):
 
 
 def verify_get(handle, bucket, key):
+    """ Helper Function to get file_metadata from cloud-blobstore"""
     try:
         file_metadata = json.loads(handle.get(bucket=bucket, key=key).decode('utf-8'))
     except BlobNotFoundError:
         logger.warning(f'unable to locate {bucket}/{key}')
         return None
     return file_metadata
+
+
+def verify_blob_existance(handle, bucket, key):
+    """Helper Functiont to see if blob data exists"""
+    try:
+        file_metadata = handle.get(bucket=bucket, key=key)
+    except BlobNotFoundError:
+        return False
+    return True
+
 
 
 @checkout.action("remove",
@@ -88,21 +99,40 @@ def verify(argv: typing.List[str], args: argparse.Namespace):
             uuid, version = parse_key(_key)
             bundle_manifest = get_bundle_manifest(replica=replica, uuid=uuid, version=version)
             checkout_bundle_contents = [x[0] for x in handle.list_v2(bucket=bucket, prefix=f'bundles/{uuid}.{version}')]
+            bundle_internal_status = list()
 
             for _file in bundle_manifest['files']:
-                temp = dict(blob_checkout=False, bundle_checkout=False, should_be_cached=False)
+                temp = collections.defaultdict(blob_checkout=False, bundle_checkout=False, should_be_cached=False)
                 bundle_key = f'bundles/{uuid}.{version}/{_file["name"]}'
                 blob_key = compose_blob_key(_file)
 
-                blob_status = verify_get(handle, bucket, blob_key)
+                blob_status = verify_blob_existance(handle, bucket, blob_key)
                 if blob_status:
                     temp['blob_checkout'] = True
                 if bundle_key in checkout_bundle_contents:
                     temp['bundle_checkout'] = True
                 if cache_flow.should_cache_file(_file['content-type'], _file['size']):
                     temp['should_be_cached'] = True
-                checkout_status.update()
-    print(json.dumps(checkout_status))
+
+                for x in ['name', 'uuid', 'version']:
+                    temp.update({x: _file[x]})
+                bundle_internal_status.append(temp)
+            checkout_status[_key] = bundle_internal_status
+        elif FILE_PREFIX in _key:
+            temp = collections.defaultdict(blob_checkout=False, should_be_cached=False)
+            file_metadata = verify_get(handle, replica.bucket, _key)
+            blob_key = compose_blob_key(file_metadata)
+            blob_status = verify_blob_existance(handle, bucket, blob_key)
+            if blob_status:
+                temp['blob_checkout'] = True
+            if cache_flow.should_cache_file(_file['content-type'], _file['size']):
+                temp['should_be_cached'] = True
+
+            for x in ['name', 'uuid', 'version']:
+                temp.update({x: _file[x]})
+            checkout_status[_key] = collections.defaultdict(uuid=temp)
+    print(json.dumps(checkout_status, indent=4, sort_keys=True))
+
 
 def parse_key(key):
     try:
