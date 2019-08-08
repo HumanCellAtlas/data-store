@@ -57,11 +57,10 @@ def verify_blob_existance(handle, bucket, key):
 def sleepy_checkout(function=None, **kwargs):
     status = False
     token = None
-    key = kwargs["file_metadata"]['name'] if kwargs['file_metadata'] else kwargs.get("bundle_uuid")
+    key = kwargs["file_metadata"]['name'] if kwargs.get('file_metadata') else kwargs.get("bundle_uuid")
     logger.warning(f'starting {function.__name__} on {key}')
     while status is not True:
-        if token:
-            kwargs['token'] = token
+        kwargs['token'] = token
         token, status = function(**kwargs)
         if not status:
             time.sleep(4)  # wait 10 seconds for checkout to complete, then try again
@@ -91,7 +90,7 @@ def remove(argv: typing.List[str], args: argparse.Namespace):
             if DSS_BUNDLE_KEY_REGEX.match(_key):
                 for key in handle.list(bucket, _key):  # handles checkout/bundle/*
                     verify_delete(handle, bucket, key)
-                uuid, version = parse_key(key)
+                uuid, version = parse_key(_key)
                 manifest = get_bundle_manifest(replica=replica, uuid=uuid, version=version)
                 if manifest is None:
                     logger.warning(f"unable to locate manifest for fqid: {bucket}/{_key}")
