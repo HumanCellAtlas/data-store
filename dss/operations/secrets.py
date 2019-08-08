@@ -42,7 +42,6 @@ def get_secretsmanager_prefixes(args):
 
     return arn_prefix, store_prefix
 
-
 def long_short_resource_names(secret_name, arn_prefix, store_prefix):
     """
     Given a (user-provided) name of a secret variable,
