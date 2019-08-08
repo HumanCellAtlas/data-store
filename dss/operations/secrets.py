@@ -48,7 +48,7 @@ events = dispatch.target("secrets", arguments={}, help=__doc__)
 def list_secrets(argv: typing.List[str], args: argparse.Namespace):
     """
     Print a list of names of every secret variable in the secrets manager
-    for the given store and stage
+    for the given store and stage.
     """
     store_prefix = get_secretsmanager_prefix(args)
 
