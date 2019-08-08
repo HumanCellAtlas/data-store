@@ -55,14 +55,14 @@ def find(replica: str):
                         doc_type=ESDocType.subscription.name)
     search = search_obj.query({'bool': {'must': [{'term': {'owner': owner}}]}})
 
-    response = [{
+    responses = [{
         'uuid': hit.meta.id,
         'replica': replica,
         'owner': owner,
         **{k: v for k, v in hit.to_dict().items() if k != 'hmac_secret_key'}}
         for hit in search.scan()]
 
-    full_response = {'subscriptions': response}
+    full_response = {'subscriptions': responses}
     return jsonify(full_response), requests.codes.okay
 
 
