@@ -18,7 +18,7 @@ logger = logging.getLogger(__name__)
 
 def get_secretsmanager_prefix(args):
     """
-    Use information from the environment to assemble 
+    Use information from the environment to assemble
     the necessary prefix for accessing variables in
     the SecretsManager.
     """
