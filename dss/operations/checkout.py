@@ -30,7 +30,7 @@ def verify_delete(handle, bucket, key):
         handle.delete(bucket=bucket, key=key)
         handle.get(bucket=bucket, key=key)
     except BlobNotFoundError:
-        logger.warning(f'Success! unable to locate key {bucket}/{key} ')
+        logger.warning(f'Successfully deleted key {bucket}/{key}')
     else:
         raise RuntimeError(f'attempted to delete {bucket}/{key} but it did not work ;(')
 
@@ -46,7 +46,7 @@ def verify_get(handle, bucket, key):
 
 
 def verify_blob_existance(handle, bucket, key):
-    """Helper Functiont to see if blob data exists"""
+    """Helper Function to see if blob data exists"""
     try:
         file_metadata = handle.get(bucket=bucket, key=key)
     except BlobNotFoundError:
@@ -77,7 +77,7 @@ def parse_key(key):
 
 @checkout.action("remove",
                  arguments={"--replica": dict(choices=[r.name for r in Replica], required=True),
-                            "--keys": dict(nargs="+", help="keys to remove from checkout", required=False)})
+                            "--keys": dict(nargs="+", help="keys to remove from checkout", required=True)})
 def remove(argv: typing.List[str], args: argparse.Namespace):
     """
     Remove a bundle from the checkout bucket
@@ -106,7 +106,7 @@ def remove(argv: typing.List[str], args: argparse.Namespace):
 
 @checkout.action("verify",
                  arguments={"--replica": dict(choices=[r.name for r in Replica], required=True),
-                            "--keys": dict(nargs="+", help="keys to check the status of", required=False)})
+                            "--keys": dict(nargs="+", help="keys to check the status of", required=True)})
 def verify(argv: typing.List[str], args: argparse.Namespace):
     """
     Verify that keys are in the checkout bucket
@@ -157,7 +157,7 @@ def verify(argv: typing.List[str], args: argparse.Namespace):
 
 @checkout.action("start",
                  arguments={"--replica": dict(choices=[r.name for r in Replica], required=True),
-                            "--keys": dict(nargs="+", help="keys to check the status of", required=False)})
+                            "--keys": dict(nargs="+", help="keys to check the status of", required=True)})
 def start(argv: typing.List[str], args: argparse.Namespace):
     replica = Replica[args.replica]
     handle = Config.get_blobstore_handle(replica)
