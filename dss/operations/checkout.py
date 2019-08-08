@@ -5,7 +5,7 @@ import typing
 import argparse
 import logging
 import json
-import os
+import time
 import collections
 
 from dss import Replica
@@ -14,8 +14,9 @@ from dss import Config
 from cloud_blobstore import BlobNotFoundError
 from dss.api.bundles import get_bundle_manifest
 from dss.storage.hcablobstore import compose_blob_key
-from dss.storage.identifiers import DSS_BUNDLE_KEY_REGEX, DSS_BUNDLE_FQID_REGEX, VERSION_REGEX, UUID_REGEX, FILE_PREFIX
-from dss.storage.checkout.bundle import verify_checkout
+from dss.storage.identifiers import DSS_BUNDLE_KEY_REGEX, VERSION_REGEX, UUID_REGEX, FILE_PREFIX
+from dss.storage.checkout.bundle import verify_checkout as bundle_checkout
+from dss.api.files import _verify_checkout as file_checkout
 from dss.storage.checkout import cache_flow
 
 logger = logging.getLogger(__name__)
@@ -52,6 +53,27 @@ def verify_blob_existance(handle, bucket, key):
         return False
     return True
 
+
+def sleepy_checkout(function=None, **kwargs):
+    status = False
+    token = None
+    key = kwargs["file_metadata"]['name'] if kwargs['file_metadata'] else kwargs.get("bundle_uuid")
+    logger.warning(f'starting {function.__name__} on {key}')
+    while status is not True:
+        if token:
+            kwargs['token'] = token
+        token, status = function(**kwargs)
+        if not status:
+            time.sleep(4)  # wait 10 seconds for checkout to complete, then try again
+
+
+def parse_key(key):
+    try:
+        version = VERSION_REGEX.search(key).group(0)
+        uuid = UUID_REGEX.search(key).group(0)
+    except IndexError:
+        RuntimeError(f'unable to parse the key {key}')
+    return uuid, version
 
 
 @checkout.action("remove",
@@ -134,10 +156,28 @@ def verify(argv: typing.List[str], args: argparse.Namespace):
     print(json.dumps(checkout_status, indent=4, sort_keys=True))
 
 
-def parse_key(key):
-    try:
-        version = VERSION_REGEX.search(key).group(0)
-        uuid = UUID_REGEX.search(key).group(0)
-    except IndexError:
-        RuntimeError(f'unable to parse the key {key}')
-    return uuid, version
+@checkout.action("start",
+                 arguments={"--replica": dict(choices=[r.name for r in Replica], required=True),
+                            "--keys": dict(nargs="+", help="keys to check the status of", required=False)})
+def start(argv: typing.List[str], args: argparse.Namespace):
+    replica = Replica[args.replica]
+    handle = Config.get_blobstore_handle(replica)
+    bucket = replica.checkout_bucket
+    for _key in args.keys:
+        if DSS_BUNDLE_KEY_REGEX.match(_key):
+            uuid, version = parse_key(_key)
+            bundle_manifest = get_bundle_manifest(uuid=uuid, replica=replica, version=version)
+            sleepy_checkout(bundle_checkout, replica=replica, bundle_uuid=uuid, bundle_version=version)
+            for _files in bundle_manifest['files']:
+                blob_path = compose_blob_key(_files)
+                sleepy_checkout(file_checkout, replica=replica, file_metadata=_files, blob_path=blob_path)
+        elif FILE_PREFIX in _key:
+            uuid, version = parse_key(_key)
+            file_metadata = handle.get(replica.bucket, _key)
+            blob_path = compose_blob_key(file_metadata)
+            sleepy_checkout(file_checkout, replica=replica, file_metadata=file_metadata, blob_path=blob_path)
+
+
+
+
+
