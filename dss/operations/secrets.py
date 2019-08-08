@@ -10,7 +10,7 @@ import json
 import logging
 
 from dss.operations import dispatch
-from dss.util.aws import ARN as arn
+from dss.util.aws import ARN as arn  # type: ignore
 from dss.util.aws.clients import secretsmanager  # type: ignore
 
 logger = logging.getLogger(__name__)
