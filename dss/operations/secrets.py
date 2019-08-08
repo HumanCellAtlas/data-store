@@ -156,8 +156,7 @@ def get_secret(argv: typing.List[str], args: argparse.Namespace):
 
     # Make sure a secret name was specified
     if args.secret_name is None or len(args.secret_name) == 0:
-        logger.error("Unable to set secret: no secret name was specified! Use the --secret-name flag.")
-        sys.exit()
+        raise RuntimeError("Unable to set secret: no secret name was specified! Use the --secret-name flag.")
     secret_names = args.secret_name
 
     for secret_name in secret_names:
@@ -208,16 +207,14 @@ def set_secret(argv: typing.List[str], args: argparse.Namespace):
 
     # Make sure a secret name was specified
     if args.secret_name is None or len(args.secret_name) == 0:
-        logger.error("Unable to set secret: no secret name was specified! Use the --secret-name flag.")
-        sys.exit()
+        raise RuntimeError("Unable to set secret: no secret name was specified! Use the --secret-name flag.")
     secret_name = args.secret_name
 
     # Use stdin (input piped to this script) as secret value.
     # stdin provides secret value, flag --secret-name provides secret name.
     if not select.select([sys.stdin, ], [], [], 0.0)[0]:
         err_msg = f"No data in stdin, cannot set secret {secret_name} without a value from stdin!"
-        logger.error(err_msg)
-        sys.exit()
+        raise RuntimeError(err_msg)
     secret_val = sys.stdin.read()
 
     # Get resouce IDs
@@ -273,8 +270,7 @@ def del_secret(argv: typing.List[str], args: argparse.Namespace):
 
     # Make sure a secret name was specified
     if args.secret_name is None or len(args.secret_name) == 0:
-        logger.error("Unable to set secret: no secret name was specified! Use the --secret-name flag.")
-        sys.exit()
+        raise RuntimeError("Unable to set secret: no secret name was specified! Use the --secret-name flag.")
     secret_name = args.secret_name
 
     # Get resouce IDs
@@ -286,8 +282,7 @@ def del_secret(argv: typing.List[str], args: argparse.Namespace):
     """
     response = input(confirm)
     if response.lower() not in ['y', 'yes']:
-        logger.error("You safely aborted the delete secret operation!")
-        sys.exit()
+        raise RuntimeError("You safely aborted the delete secret operation!")
 
     try:
         # Start by trying to get the secret variable
