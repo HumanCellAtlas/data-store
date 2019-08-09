@@ -2,13 +2,17 @@
 """
 A basic integration test of the DSS. This can also be invoked via `make smoketest`.
 """
-import os, sys, argparse, time, uuid, json, shutil, tempfile, unittest
+import os
+import sys
+import argparse
+import time
+import json
+import tempfile
+import unittest
 import subprocess
-
 import boto3
 import botocore
 from cloud_blobstore import BlobStore
-from itertools import product
 
 pkg_root = os.path.abspath(os.path.join(os.path.dirname(__file__), ".."))  # noqa
 sys.path.insert(0, pkg_root)  # noqa
