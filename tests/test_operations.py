@@ -285,7 +285,7 @@ class TestOperations(unittest.TestCase):
         with self.subTest("Create a new secret"):
             # Use mock stdin (this cmd expects secret value from stdin)
             with MockStdin(testvar_value) as output:
-                secrets.set_secrets([], args)
+                secrets.set_secret([], args)
 
         with self.subTest("List secrets"):
             # Test variable name should be in list of secret names
@@ -295,14 +295,14 @@ class TestOperations(unittest.TestCase):
 
         with self.subTest("Get secret value"):
             with CaptureStdout() as output:
-                secrets.get_secrets([], args)
+                secrets.get_secret([], args)
             self.assertIn(testvar_name, output)
             self.assertIn(testvar_value, output)
 
         with self.subTest("Get secret value as JSON"):
             json_args = argparse.Namespace(secret_name=testvar_name, json=True)
             with CaptureStdout() as output:
-                secrets.get_secrets([], json_args)
+                secrets.get_secret([], json_args)
             # Output is a list of strings; convert to single string and read as
             # JSON/dict
             d = json.loads("".join(output))
@@ -312,16 +312,16 @@ class TestOperations(unittest.TestCase):
             args = argparse.Namespace(secret_name=testvar_name)
             # Use mock stdin (this cmd expects secret value from stdin)
             with MockStdin(testvar_value2) as output:
-                secrets.set_secrets([], args)
+                secrets.set_secret([], args)
 
         with self.subTest("Get secret value"):
             with CaptureStdout() as output:
-                secrets.get_secrets([], args)
+                secrets.get_secret([], args)
             self.assertIn(testvar_name, output)
             self.assertIn(testvar_value2, output)
 
         with self.subTest("Delete secret"):
-            secrets.del_secrets([], args)
+            secrets.del_secret([], args)
             # Test variable name should not be in list of secret names
             with CaptureStdout() as output:
                 secrets.list_secrets([], argparse.Namespace())
