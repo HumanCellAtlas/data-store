@@ -110,17 +110,14 @@ class TestSubscriptionsBase(ElasticsearchTestCase, TestAuthMixin, DSSAssertMixin
                                 SubscriptionData.REPLICA: replica}
 
             with self.subTest(f'DynamoDB: Counting initial (zero) subscriptions for {owner} in {replica}.'):
-                assert isinstance(count_subscriptions_for_owner(Replica[replica], owner), int)
                 assert count_subscriptions_for_owner(Replica[replica], owner) == 0
 
             with self.subTest(f'DynamoDB: put_subscription for {owner} in {replica} and check count is one.'):
                 put_subscription(subscription_doc)
-                assert isinstance(count_subscriptions_for_owner(Replica[replica], owner), int)
                 assert count_subscriptions_for_owner(Replica[replica], owner) == 1
 
             with self.subTest(f'DynamoDB: Counting (zero) subscriptions for {owner} in {replica} after deletion.'):
                 delete_subscription(Replica[replica], owner=owner, uuid=subscription_uuid)
-                assert isinstance(count_subscriptions_for_owner(Replica[replica], owner), int)
                 assert count_subscriptions_for_owner(Replica[replica], owner) == 0
 
     def test_validation(self):
