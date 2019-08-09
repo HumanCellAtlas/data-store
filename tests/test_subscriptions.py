@@ -15,14 +15,14 @@ pkg_root = os.path.abspath(os.path.join(os.path.dirname(__file__), '..'))  # noq
 sys.path.insert(0, pkg_root)  # noqa
 
 import dss
-from dss.config import Replica, Config
+from dss.config import Replica
 from dss.index.es import ElasticsearchClient
 from dss.index.es.document import BundleDocument
 from dss.index.es.manager import IndexManager
 from dss.notify.notification import Endpoint
 from dss.logging import configure_test_logging
-from dss.util import UrlBuilder, security
-from dss.subscriptions_v2 import count_subscriptions_for_owner
+from dss.util import UrlBuilder
+from dss.subscriptions_v2 import count_subscriptions_for_owner, put_subscription, delete_subscription, SubscriptionData
 from tests import get_auth_header, get_bundle_fqid
 from tests.infra import DSSAssertMixin, testmode, TestAuthMixin
 from tests.infra.elasticsearch_test_case import ElasticsearchTestCase
@@ -37,7 +37,7 @@ def setUpModule():
     configure_test_logging()
 
 
-# @testmode.integration
+@testmode.integration
 class TestSubscriptionsBase(ElasticsearchTestCase, TestAuthMixin, DSSAssertMixin):
     @classmethod
     def setUpClass(cls):
@@ -77,6 +77,7 @@ class TestSubscriptionsBase(ElasticsearchTestCase, TestAuthMixin, DSSAssertMixin
         self.sample_percolate_query = smartseq2_paired_ends_vx_query
         self.hmac_key_id = 'dss_test'
         self.hmac_secret_key = '23/33'
+        self.replicas = ['aws', 'gcp']
 
     def test_auth_errors(self):
         url = str(UrlBuilder()
@@ -99,11 +100,28 @@ class TestSubscriptionsBase(ElasticsearchTestCase, TestAuthMixin, DSSAssertMixin
             self._cleanup_subscription(uuid_)
 
     def test_db_count_subscriptions_for_owner(self):
+        """Test dynamoDB helper functions used to store and retrieve subscription information."""
         owner = 'email@email.com'
-        assert isinstance(count_subscriptions_for_owner(Replica['aws'], owner), int)
-        assert isinstance(count_subscriptions_for_owner(Replica['gcp'], owner), int)
-        assert count_subscriptions_for_owner(Replica['aws'], owner) == 0
-        assert count_subscriptions_for_owner(Replica['gcp'], owner) == 0
+        subscription_uuid = str(uuid.uuid4())
+
+        for replica in self.replicas:
+            subscription_doc = {SubscriptionData.OWNER: owner,
+                                SubscriptionData.UUID: subscription_uuid,
+                                SubscriptionData.REPLICA: replica}
+
+            with self.subTest(f'DynamoDB: Counting initial (zero) subscriptions for {owner} in {replica}.'):
+                assert isinstance(count_subscriptions_for_owner(Replica[replica], owner), int)
+                assert count_subscriptions_for_owner(Replica[replica], owner) == 0
+
+            with self.subTest(f'DynamoDB: put_subscription for {owner} in {replica} and check count is one.'):
+                put_subscription(subscription_doc)
+                assert isinstance(count_subscriptions_for_owner(Replica[replica], owner), int)
+                assert count_subscriptions_for_owner(Replica[replica], owner) == 1
+
+            with self.subTest(f'DynamoDB: Counting (zero) subscriptions for {owner} in {replica} after deletion.'):
+                delete_subscription(Replica[replica], owner=owner, uuid=subscription_uuid)
+                assert isinstance(count_subscriptions_for_owner(Replica[replica], owner), int)
+                assert count_subscriptions_for_owner(Replica[replica], owner) == 0
 
     def test_validation(self):
         with self.subTest("Missing URL"):
@@ -263,6 +281,7 @@ class TestGCPSubscription(TestSubscriptionsBase):
 
 class TestAWSSubscription(TestSubscriptionsBase):
     replica = dss.Replica.aws
+
 
 # Prevent unittest's discovery from attempting to discover the base test class. The alterative, not inheriting
 # TestCase in the base class, is too inconvenient because it interferes with auto-complete and generates PEP-8
