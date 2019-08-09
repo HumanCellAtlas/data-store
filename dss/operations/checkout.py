@@ -21,162 +21,171 @@ from dss.storage.checkout import cache_flow
 
 logger = logging.getLogger(__name__)
 
+
+class CheckoutHandler:
+    def __init__(self, argv: typing.List[str], args: argparse.Namespace):
+        if args.keys is not None:
+            self.keys = args.keys.copy()
+        else:
+            self.keys = None
+        self.replica = Replica[args.replica]
+        self.handle = Config.get_blobstore_handle(self.replica)
+        self.bucket = self.replica.checkout_bucket
+
+    def process_command_locally(self, argv: typing.List[str], args: argparse.Namespace):
+        if self.keys is not None:
+            self.process_key(self.keys)
+
+    def _verify_delete(self, handle, bucket, key):
+        logger.warning(f'attempting removal of key: {bucket}/{key}')
+        try:
+            handle.delete(bucket=bucket, key=key)
+            handle.get(bucket=bucket, key=key)
+        except BlobNotFoundError:
+            logger.warning(f'Successfully deleted key {bucket}/{key}')
+        else:
+            raise RuntimeError(f'attempted to delete {bucket}/{key} but it did not work ;(')
+
+    def _verify_get(self, handle, bucket, key):
+        """ Helper Function to get file_metadata from cloud-blobstore"""
+        try:
+            file_metadata = json.loads(handle.get(bucket=bucket, key=key).decode('utf-8'))
+        except BlobNotFoundError:
+            logger.warning(f'unable to locate {bucket}/{key}')
+            return None
+        return file_metadata
+
+    def _verify_blob_existance(self, handle, bucket, key):
+        """Helper Function to see if blob data exists"""
+        try:
+            handle.get(bucket=bucket, key=key)
+        except BlobNotFoundError:
+            return False
+        return True
+
+    def _sleepy_checkout(self, function=None, **kwargs):
+        status = False
+        token = None
+        key = kwargs["file_metadata"]['name'] if kwargs.get('file_metadata') else kwargs.get("bundle_uuid")
+        logger.warning(f'starting {function.__name__} on {key}')
+        while status is not True:
+            kwargs['token'] = token
+            token, status = function(**kwargs)
+            if not status:
+                time.sleep(4)  # wait 10 seconds for checkout to complete, then try again
+
+    def _parse_key(self, key):
+        try:
+            version = VERSION_REGEX.search(key).group(0)
+            uuid = UUID_REGEX.search(key).group(0)
+        except IndexError:
+            RuntimeError(f'unable to parse the key {key}')
+        return uuid, version
+
+    def process_key(self, key):
+        raise NotImplementedError()
+
+    def __call__(self, argv: typing.List[str], args: argparse.Namespace):
+        return self.process_command_locally(argv, args)
+
+
 checkout = dispatch.target("checkout", help=__doc__)
-
-
-def verify_delete(handle, bucket, key):
-    logger.warning(f'attempting removal of key: {bucket}/{key}')
-    try:
-        handle.delete(bucket=bucket, key=key)
-        handle.get(bucket=bucket, key=key)
-    except BlobNotFoundError:
-        logger.warning(f'Successfully deleted key {bucket}/{key}')
-    else:
-        raise RuntimeError(f'attempted to delete {bucket}/{key} but it did not work ;(')
-
-
-def verify_get(handle, bucket, key):
-    """ Helper Function to get file_metadata from cloud-blobstore"""
-    try:
-        file_metadata = json.loads(handle.get(bucket=bucket, key=key).decode('utf-8'))
-    except BlobNotFoundError:
-        logger.warning(f'unable to locate {bucket}/{key}')
-        return None
-    return file_metadata
-
-
-def verify_blob_existance(handle, bucket, key):
-    """Helper Function to see if blob data exists"""
-    try:
-        file_metadata = handle.get(bucket=bucket, key=key)
-    except BlobNotFoundError:
-        return False
-    return True
-
-
-def sleepy_checkout(function=None, **kwargs):
-    status = False
-    token = None
-    key = kwargs["file_metadata"]['name'] if kwargs.get('file_metadata') else kwargs.get("bundle_uuid")
-    logger.warning(f'starting {function.__name__} on {key}')
-    while status is not True:
-        kwargs['token'] = token
-        token, status = function(**kwargs)
-        if not status:
-            time.sleep(4)  # wait 10 seconds for checkout to complete, then try again
-
-
-def parse_key(key):
-    try:
-        version = VERSION_REGEX.search(key).group(0)
-        uuid = UUID_REGEX.search(key).group(0)
-    except IndexError:
-        RuntimeError(f'unable to parse the key {key}')
-    return uuid, version
 
 
 @checkout.action("remove",
                  arguments={"--replica": dict(choices=[r.name for r in Replica], required=True),
                             "--keys": dict(nargs="+", help="keys to remove from checkout", required=True)})
-def remove(argv: typing.List[str], args: argparse.Namespace):
-    """
-    Remove a bundle from the checkout bucket
-    """
-    replica = Replica[args.replica]
-    handle = Config.get_blobstore_handle(replica)
-    bucket = replica.checkout_bucket
-    if args.keys:
-        for _key in args.keys:
+class remove(CheckoutHandler):
+    def process_keys(self):
+        """
+        Remove a bundle from the checkout bucket
+        """
+        for _key in self.keys:
             if DSS_BUNDLE_KEY_REGEX.match(_key):
-                for key in handle.list(bucket, _key):  # handles checkout/bundle/*
-                    verify_delete(handle, bucket, key)
-                uuid, version = parse_key(_key)
-                manifest = get_bundle_manifest(replica=replica, uuid=uuid, version=version)
+                for key in self.handle.list(self.bucket, _key):  # handles checkout/bundle/*
+                    self._verify_delete(self.handle, self.bucket, key)
+                uuid, version = self._parse_key(_key)
+                manifest = get_bundle_manifest(replica=self.replica, uuid=uuid, version=version)
                 if manifest is None:
-                    logger.warning(f"unable to locate manifest for fqid: {bucket}/{_key}")
+                    logger.warning(f"unable to locate manifest for fqid: {self.bucket}/{_key}")
                     continue
                 for _files in manifest['files']:
                     key = compose_blob_key(_files)
-                    verify_delete(handle, bucket, key)
+                    self._verify_delete(self.handle, self.bucket, key)
             elif FILE_PREFIX in _key:
                 # should handle other keys, files/blobs
-                file_metadata = verify_get(handle, replica.bucket, _key)
-                verify_delete(handle, bucket, key=compose_blob_key(file_metadata))
+                file_metadata = self._verify_get(self.handle, self.replica.bucket, _key)
+                self._verify_delete(self.handle, self.bucket, key=compose_blob_key(file_metadata))
 
 
 @checkout.action("verify",
                  arguments={"--replica": dict(choices=[r.name for r in Replica], required=True),
                             "--keys": dict(nargs="+", help="keys to check the status of", required=True)})
-def verify(argv: typing.List[str], args: argparse.Namespace):
-    """
-    Verify that keys are in the checkout bucket
-    """
-    replica = Replica[args.replica]
-    handle = Config.get_blobstore_handle(replica)
-    bucket = replica.checkout_bucket
-    checkout_status = dict()
-    for _key in args.keys:
-        if DSS_BUNDLE_KEY_REGEX.match(_key):  # handles bundles/fqid keys or fqid
-            uuid, version = parse_key(_key)
-            bundle_manifest = get_bundle_manifest(replica=replica, uuid=uuid, version=version)
-            checkout_bundle_contents = [x[0] for x in handle.list_v2(bucket=bucket, prefix=f'bundles/{uuid}.{version}')]
-            bundle_internal_status = list()
+class verify(CheckoutHandler):
+    def process_keys(self):
+        """
+        Verify that keys are in the checkout bucket
+        """
+        checkout_status = dict(replica=self.replica.name)
+        for _key in self.keys:
+            if DSS_BUNDLE_KEY_REGEX.match(_key):  # handles bundles/fqid keys or fqid
+                uuid, version = self._parse_key(_key)
+                bundle_manifest = get_bundle_manifest(replica=self.replica, uuid=uuid, version=version)
+                checkout_bundle_contents = [x[0] for x in self.handle.list_v2(bucket=self.bucket,
+                                                                              prefix=f'bundles/{uuid}.{version}')]
+                bundle_internal_status = list()
 
-            for _file in bundle_manifest['files']:
-                temp = collections.defaultdict(blob_checkout=False, bundle_checkout=False, should_be_cached=False)
-                bundle_key = f'bundles/{uuid}.{version}/{_file["name"]}'
-                blob_key = compose_blob_key(_file)
+                for _file in bundle_manifest['files']:
+                    temp = collections.defaultdict(blob_checkout=False, bundle_checkout=False, should_be_cached=False)
+                    bundle_key = f'bundles/{uuid}.{version}/{_file["name"]}'
+                    blob_key = compose_blob_key(_file)
 
-                blob_status = verify_blob_existance(handle, bucket, blob_key)
+                    blob_status = self._verify_blob_existance(self.handle, self.bucket, blob_key)
+                    if blob_status:
+                        temp['blob_checkout'] = True
+                    if bundle_key in checkout_bundle_contents:
+                        temp['bundle_checkout'] = True
+                    if cache_flow.should_cache_file(_file['content-type'], _file['size']):
+                        temp['should_be_cached'] = True
+
+                    for x in ['name', 'uuid', 'version']:
+                        temp.update({x: _file[x]})
+                    bundle_internal_status.append(temp)
+                checkout_status[_key] = bundle_internal_status
+            elif FILE_PREFIX in _key:
+                temp = collections.defaultdict(blob_checkout=False, should_be_cached=False)
+                file_metadata = self._verify_get(self.handle, self.replica.bucket, _key)
+                blob_key = compose_blob_key(file_metadata)
+                blob_status = self._verify_blob_existance(self.handle, self.bucket, blob_key)
                 if blob_status:
                     temp['blob_checkout'] = True
-                if bundle_key in checkout_bundle_contents:
-                    temp['bundle_checkout'] = True
                 if cache_flow.should_cache_file(_file['content-type'], _file['size']):
                     temp['should_be_cached'] = True
 
                 for x in ['name', 'uuid', 'version']:
                     temp.update({x: _file[x]})
-                bundle_internal_status.append(temp)
-            checkout_status[_key] = bundle_internal_status
-        elif FILE_PREFIX in _key:
-            temp = collections.defaultdict(blob_checkout=False, should_be_cached=False)
-            file_metadata = verify_get(handle, replica.bucket, _key)
-            blob_key = compose_blob_key(file_metadata)
-            blob_status = verify_blob_existance(handle, bucket, blob_key)
-            if blob_status:
-                temp['blob_checkout'] = True
-            if cache_flow.should_cache_file(_file['content-type'], _file['size']):
-                temp['should_be_cached'] = True
-
-            for x in ['name', 'uuid', 'version']:
-                temp.update({x: _file[x]})
-            checkout_status[_key] = collections.defaultdict(uuid=temp)
-    print(json.dumps(checkout_status, indent=4, sort_keys=True))
+                checkout_status[_key] = collections.defaultdict(uuid=temp)
+        print(json.dumps(checkout_status, sort_keys=True))
+        return checkout_status  # action_handler does not really use this, its just testing
 
 
 @checkout.action("start",
                  arguments={"--replica": dict(choices=[r.name for r in Replica], required=True),
                             "--keys": dict(nargs="+", help="keys to check the status of", required=True)})
-def start(argv: typing.List[str], args: argparse.Namespace):
-    replica = Replica[args.replica]
-    handle = Config.get_blobstore_handle(replica)
-    bucket = replica.checkout_bucket
-    for _key in args.keys:
-        if DSS_BUNDLE_KEY_REGEX.match(_key):
-            uuid, version = parse_key(_key)
-            bundle_manifest = get_bundle_manifest(uuid=uuid, replica=replica, version=version)
-            sleepy_checkout(bundle_checkout, replica=replica, bundle_uuid=uuid, bundle_version=version)
-            for _files in bundle_manifest['files']:
-                blob_path = compose_blob_key(_files)
-                sleepy_checkout(file_checkout, replica=replica, file_metadata=_files, blob_path=blob_path)
-        elif FILE_PREFIX in _key:
-            uuid, version = parse_key(_key)
-            file_metadata = handle.get(replica.bucket, _key)
-            blob_path = compose_blob_key(file_metadata)
-            sleepy_checkout(file_checkout, replica=replica, file_metadata=file_metadata, blob_path=blob_path)
-
-
-
-
-
+class start(CheckoutHandler):
+    def process_keys(self):
+        for _key in self.keys:
+            if DSS_BUNDLE_KEY_REGEX.match(_key):
+                uuid, version = self._parse_key(_key)
+                bundle_manifest = get_bundle_manifest(uuid=uuid, replica=self.replica, version=version)
+                self._sleepy_checkout(bundle_checkout, replica=self.replica, bundle_uuid=uuid, bundle_version=version)
+                for _files in bundle_manifest['files']:
+                    blob_path = compose_blob_key(_files)
+                    self._sleepy_checkout(file_checkout, replica=self.replica,
+                                          file_metadata=_files, blob_path=blob_path)
+            elif FILE_PREFIX in _key:
+                uuid, version = self._parse_key(_key)
+                file_metadata = self.handle.get(self.replica.bucket, _key)
+                blob_path = compose_blob_key(file_metadata)
+                self._sleepy_checkout(file_checkout, replica=self.replica,
+                                      file_metadata=file_metadata, blob_path=blob_path)
