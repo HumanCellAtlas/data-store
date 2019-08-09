@@ -1,9 +1,8 @@
 import datetime
 import logging
-from typing import List
-from uuid import uuid4
-
 import requests
+
+from uuid import uuid4
 from elasticsearch import Elasticsearch
 from elasticsearch.exceptions import ElasticsearchException, NotFoundError
 from elasticsearch_dsl import Search
@@ -15,7 +14,7 @@ from dss.index.es import ElasticsearchClient
 from dss.index.es.manager import IndexManager
 from dss.notify import attachment
 from dss.util import security
-
+from dss.config import SUBSCRIPTION_LIMIT
 
 logger = logging.getLogger(__name__)
 SUBSCRIPTION_LIMIT = 100
@@ -72,7 +71,6 @@ def find(replica: str):
 def put(json_request_body: dict, replica: str):
     uuid = str(uuid4())
     es_query = json_request_body['es_query']
-
     owner = security.get_token_email(request.token_info)
 
     attachment.validate(json_request_body.get('attachments', {}))
@@ -105,6 +103,15 @@ def put(json_request_body: dict, replica: str):
     #  get all indexes that use current alias
     alias_name = Config.get_es_alias_name(ESIndexType.docs, Replica[replica])
     doc_indexes = _get_indexes_by_alias(es_client, alias_name)
+
+    search_obj = Search(using=es_client,
+                        index=index_name,
+                        doc_type=ESDocType.subscription.name)
+    search = search_obj.query({'bool': {'must': [{'term': {'owner': owner}}]}})
+
+    if search.count() > SUBSCRIPTION_LIMIT:
+        raise DSSException(requests.codes.not_acceptable, "not_acceptable",
+                           f"Users cannot exceed {SUBSCRIPTION_LIMIT} subscriptions!")
 
     #  try to subscribe query to each of the indexes.
     subscribed_indexes = []

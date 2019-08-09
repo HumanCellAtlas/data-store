@@ -374,6 +374,7 @@ class BundleTombstoneDocument(IndexDocument):
         self['manifest'] = {'version': self.fqid.version}
         return self
 
+
 def prepare_filename(name: str) -> str:
     name = name.replace('.', '_')
     if name.endswith('_json'):
