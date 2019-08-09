@@ -21,11 +21,12 @@ import dss
 from tests.infra import testmode
 from dss.operations import DSSOperationsCommandDispatch
 from dss.operations.util import map_bucket_results
-from dss.operations import storage, sync
+from dss.operations import storage, sync, secrets
 from dss.logging import configure_test_logging
 from dss.config import BucketConfig, Config, Replica, override_bucket_config
 from dss.storage.hcablobstore import FileMetadata, compose_blob_key
 from dss.util.aws import resources
+from tests import MockStdin, CaptureStdout
 
 def setUpModule():
     configure_test_logging()
@@ -266,6 +267,66 @@ class TestOperations(unittest.TestCase):
         gs_blob = gs_bucket.blob(key, chunk_size=1 * 1024 * 1024)
         with io.BytesIO(data) as fh:
             gs_blob.upload_from_file(fh, content_type="application/octet-stream")
+
+    def test_secrets_crud(self):
+        # CRUD (create read update delete) test procedure:
+        # - create new secret
+        # - list secrets and verify new secret shows up
+        # - get secret value and verify it is correct
+        # - update secret value
+        # - get secret value and verify it is correct
+        # - delete secret
+        testvar_name = "DSS_TEST_TURTLE"
+        testvar_value = "Hello world!"
+        testvar_value2 = "Goodbye world!"
+
+        args = argparse.Namespace(secret_name=testvar_name)
+
+        with self.subTest("Create a new secret"):
+            # Use mock stdin (this cmd expects secret value from stdin)
+            with MockStdin(testvar_value) as output:
+                secrets.set_secrets([], args)
+
+        with self.subTest("List secrets"):
+            # Test variable name should be in list of secret names
+            with CaptureStdout() as output:
+                secrets.list_secrets([], argparse.Namespace())
+            self.assertIn(testvar_name, output)
+
+        with self.subTest("Get secret value"):
+            with CaptureStdout() as output:
+                secrets.get_secrets([], args)
+            self.assertIn(testvar_name, output)
+            self.assertIn(testvar_value, output)
+
+        with self.subTest("Get secret value as JSON"):
+            json_args = argparse.Namespace(secret_name=testvar_name, json=True)
+            with CaptureStdout() as output:
+                secrets.get_secrets([], json_args)
+            # Output is a list of strings; convert to single string and read as
+            # JSON/dict
+            d = json.loads("".join(output))
+            self.assertIn(testvar_name, d.keys())
+
+        with self.subTest("Update existing secret"):
+            args = argparse.Namespace(secret_name=testvar_name)
+            # Use mock stdin (this cmd expects secret value from stdin)
+            with MockStdin(testvar_value2) as output:
+                secrets.set_secrets([], args)
+
+        with self.subTest("Get secret value"):
+            with CaptureStdout() as output:
+                secrets.get_secrets([], args)
+            self.assertIn(testvar_name, output)
+            self.assertIn(testvar_value2, output)
+
+        with self.subTest("Delete secret"):
+            secrets.del_secrets([], args)
+            # Test variable name should not be in list of secret names
+            with CaptureStdout() as output:
+                secrets.list_secrets([], argparse.Namespace())
+            self.assertNotIn(testvar_name, output)
+
 
 if __name__ == '__main__':
     unittest.main()
