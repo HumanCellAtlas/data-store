@@ -7,7 +7,7 @@ locals {
     "env"       , "${var.DSS_DEPLOYMENT_STAGE}",
     "service"   , "${var.DSS_INFRA_TAG_SERVICE}",
     "owner"     , "${var.DSS_INFRA_TAG_OWNER}"
-  )}",
+  )}"
   replicas = ["aws", "gcp"]
 }
 
