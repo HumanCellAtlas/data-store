@@ -125,24 +125,19 @@ def skip_on_travis(test_item):
 
 class CaptureStdout(list):
     """
-    Utility object using a context manager
-    to capture stdout for a given block
-    of Python code. Subclass of list so
-    that you can access stdout lines like
-    a list.
+    Utility object using a context manager to capture stdout for a given block
+    of Python code. Subclass of list so that you can access stdout lines like a
+    list.
     """
     def __init__(self, *args, **kwargs):
         super().__init__()
 
     def __enter__(self, *args, **kwargs):
         """
-        The function called when we open the context,
-        this function swaps out sys.stdout with a
-        string buffer and saves the sys.stdout
-        reference.
+        The function called when we open the context, this function swaps out
+        sys.stdout with a string buffer and saves the sys.stdout reference.
         """
-        # Save existing stdout object so we can
-        # restore it when we're done
+        # Save existing stdout object so we can restore it when we're done
         self._stdout = sys.stdout
         # Swap out stdout
         sys.stdout = self._stringio = StringIO()
@@ -150,28 +145,26 @@ class CaptureStdout(list):
 
     def __exit__(self, *args, **kwargs):
         """
-        Close the context and clean up; the *args are
-        needed in case there is an exception (we
-        don't deal with those here)
+        Close the context and clean up; the *args are needed in case there is
+        an exception (we don't deal with those here)
         """
-        # This class extends the list class, so call
-        # self.extend to add a list to the end of
-        # self. This is to add all of the new lines
-        # from the StringIO object.
+        # This class extends the list class, so call self.extend to add a list
+        # to the end of self. This is to add all of the new lines from the
+        # StringIO object.
         self.extend(self._stringio.getvalue().splitlines())
 
-        # Clean up (if this is missing, the garbage
-        # collector will eventually take care of this...)
+        # Clean up (if this is missing, the garbage collector will eventually
+        # take care of this...)
         del self._stringio
 
-        # Clean up by setting sys.stdout back to what it
-        # was before we opened up this context
+        # Clean up by setting sys.stdout back to what it was before we opened
+        # up this context
         sys.stdout = self._stdout
 
 class MockStdin(object):
     """
-    Utility object using a context manager
-    to replace stdin with a mock input string.
+    Utility object using a context manager to replace stdin with a mock input
+    string.
     """
     def __init__(self, *args, **kwargs):
         if len(args) == 0:
@@ -181,12 +174,10 @@ class MockStdin(object):
 
     def __enter__(self, *args, **kwargs):
         """
-        The function called when we open
-        the context, this function swaps out
+        The function called when we open the context, this function swaps out
         sys.stdin with a string self.msg.
         """
-        # Save existing stdin object so we can
-        # restore it when we're done
+        # Save existing stdin object so we can restore it when we're done
         self._stdin = sys.stdin
         # Swap out stdin
         sys.stdin = self.msg
@@ -196,5 +187,4 @@ class MockStdin(object):
         """
         Close the context and clean up.
         """
-        # Clean up
         sys.stdin = self._stdin
