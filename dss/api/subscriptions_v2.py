@@ -31,12 +31,12 @@ def get(uuid: str, replica: str):
 @security.authorized_group_required(['hca', 'public'])
 def find(replica: str):
     owner = security.get_token_email(request.token_info)
-    subs = [s for s in get_subscriptions_for_owner(Replica[replica], owner)]
-    for s in subs:
-        s['replica'] = Replica[replica].name
-        if 'hmac_secret_key' in s:
-            s.pop('hmac_secret_key')
-    return {'subscriptions': subs}, requests.codes.ok
+    subscriptions = get_subscriptions_for_owner(Replica[replica], owner)
+    for subscription in subscriptions:
+        subscription['replica'] = Replica[replica].name
+        if 'hmac_secret_key' in subscription:
+            subscription.pop('hmac_secret_key')
+    return {'subscriptions': subscriptions}, requests.codes.ok
 
 
 @security.authorized_group_required(['hca', 'public'])
