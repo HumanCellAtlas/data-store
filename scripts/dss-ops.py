@@ -10,10 +10,12 @@ pkg_root = os.path.abspath(os.path.join(os.path.dirname(__file__), '..'))  # noq
 sys.path.insert(0, pkg_root)  # noqa
 
 import dss
+import dss.operations.checkout
 import dss.operations.storage
 import dss.operations.sync
 import dss.operations.elasticsearch
-import dss.operations.checkout
+import dss.operations.events
+
 from dss.operations import dispatch
 
 logging.basicConfig(stream=sys.stdout)

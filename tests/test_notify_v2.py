@@ -463,6 +463,7 @@ class TestNotifyV2(unittest.TestCase, DSSAssertMixin, DSSUploadMixin):
         self._test_notify({'event_type': "DELETE"})
 
     def _test_notify(self, metadata_document):
+        api_name = f"https://{os.getenv('API_DOMAIN_NAME')}"
         bundle_uuid, bundle_version = self._shared_bundle_once(Replica.aws)
         bundle_key = f"bundles/{bundle_uuid}.{bundle_version}"
         subscription = {
@@ -531,6 +532,9 @@ class TestNotifyV2(unittest.TestCase, DSSAssertMixin, DSSUploadMixin):
             self.assertEqual(recieved_notification['attachments']['my_attachment_1'], metadata_doc['foo'])
             self.assertEqual(recieved_notification['attachments']['my_attachment_2'], metadata_doc['bar'])
             self.assertEqual(recieved_notification['attachments']['my_attachment_3'], None)
+            self.assertEquals(api_name, recieved_notification['dss_api'])
+            self.assertIn('bundle_url', recieved_notification)
+            self.assertIn('event_timestamp', recieved_notification)
 
         with self.subTest("Test notification with no attachments"):
             sub = deepcopy(subscription)
@@ -539,6 +543,9 @@ class TestNotifyV2(unittest.TestCase, DSSAssertMixin, DSSUploadMixin):
             }
             self.assertTrue(notify_v2.notify(sub, metadata_doc, bundle_key))
             self.assertEqual(recieved_notification.get('attachments'), None)
+            self.assertEquals(api_name, recieved_notification['dss_api'])
+            self.assertIn('bundle_url', recieved_notification)
+            self.assertIn('event_timestamp', recieved_notification)
 
     def _put_subscription(self, doc, replica=Replica.aws, codes=requests.codes.created):
         url = str(UrlBuilder()

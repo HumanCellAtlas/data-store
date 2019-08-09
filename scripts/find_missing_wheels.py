@@ -9,7 +9,7 @@ import os, sys, argparse, platform, subprocess, glob, shutil
 from tempfile import TemporaryDirectory
 
 import chalice.deploy.packager
-from chalice.deploy.packager import DependencyBuilder
+from chalice.deploy.packager import LambdaDeploymentPackager, DependencyBuilder
 from chalice.utils import OSUtils
 
 def build_wheel(wheel_identifier, wheels_dir):
@@ -46,7 +46,9 @@ if args.build_wheels:
     print(f'Please run "git add {args.wheels_dir}" and commit the result.')
 else:
     with TemporaryDirectory() as td:
-        compat_wheels, missing_wheels = DependencyBuilder(OSUtils())._download_dependencies(td, args.pip_reqs)
+        python_version = f"python{sys.version_info.major}.{sys.version_info.minor}"
+        abi = LambdaDeploymentPackager._RUNTIME_TO_ABI[python_version]
+        compat_wheels, missing_wheels = DependencyBuilder(OSUtils())._download_dependencies(abi, td, args.pip_reqs)
         need_wheels = [w for w in missing_wheels if not os.path.exists(os.path.join(args.wheels_dir, w.identifier))]
         if need_wheels:
             msg = 'Missing wheels: {}. Please run "{}" in a Linux VM'

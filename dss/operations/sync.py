@@ -26,11 +26,11 @@ def _log_warning(**kwargs):
     logger.warning(json.dumps(kwargs))
 
 
-@sync.action("verify-entity-replication",
+@sync.action("verify-sync",
              arguments={"--source-replica": dict(choices=[r.name for r in Replica], required=True),
                         "--destination-replica": dict(choices=[r.name for r in Replica], required=True),
                         "--keys": dict(default=None, nargs="*", help="keys to check.")})
-def verify_entity_replication(argv: typing.List[str], args: argparse.Namespace):
+def verify_sync(argv: typing.List[str], args: argparse.Namespace):
     """
     Verify replication for a DSS entity, following references.
     for example, if a bundle key is provided, replication will be verified for the bundle and all referenced files and
