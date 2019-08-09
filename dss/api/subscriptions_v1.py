@@ -17,7 +17,6 @@ from dss.util import security
 from dss.config import SUBSCRIPTION_LIMIT
 
 logger = logging.getLogger(__name__)
-SUBSCRIPTION_LIMIT = 100
 
 
 @security.authorized_group_required(['hca', 'public'])

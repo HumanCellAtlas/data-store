@@ -8,7 +8,7 @@ from jmespath.exceptions import JMESPathError
 from dss.config import Replica
 from dss.error import DSSException
 from dss.util import security
-from dss.api.subscriptions_v1 import SUBSCRIPTION_LIMIT
+from dss.config import SUBSCRIPTION_LIMIT
 from dss.subscriptions_v2 import (SubscriptionData,
                                   get_subscription,
                                   put_subscription,

@@ -93,7 +93,6 @@ def get_primary_key_count(*, table: str, key: str) -> int:
                    ExpressionAttributeNames={'#hash_key': "hash_key"},
                    ExpressionAttributeValues={':key': {'S': key}},
                    Select='COUNT')
-    print(f'RES===========RES: {res}')
     return res['Count']
 
 

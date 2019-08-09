@@ -15,12 +15,14 @@ pkg_root = os.path.abspath(os.path.join(os.path.dirname(__file__), '..'))  # noq
 sys.path.insert(0, pkg_root)  # noqa
 
 import dss
+from dss.config import Replica, Config
 from dss.index.es import ElasticsearchClient
 from dss.index.es.document import BundleDocument
 from dss.index.es.manager import IndexManager
 from dss.notify.notification import Endpoint
 from dss.logging import configure_test_logging
-from dss.util import UrlBuilder
+from dss.util import UrlBuilder, security
+from dss.subscriptions_v2 import count_subscriptions_for_owner
 from tests import get_auth_header, get_bundle_fqid
 from tests.infra import DSSAssertMixin, testmode, TestAuthMixin
 from tests.infra.elasticsearch_test_case import ElasticsearchTestCase
@@ -35,7 +37,7 @@ def setUpModule():
     configure_test_logging()
 
 
-@testmode.integration
+# @testmode.integration
 class TestSubscriptionsBase(ElasticsearchTestCase, TestAuthMixin, DSSAssertMixin):
     @classmethod
     def setUpClass(cls):
@@ -95,6 +97,13 @@ class TestSubscriptionsBase(ElasticsearchTestCase, TestAuthMixin, DSSAssertMixin
             self.assertEqual(self.sample_percolate_query, registered_query)
         finally:
             self._cleanup_subscription(uuid_)
+
+    def test_db_count_subscriptions_for_owner(self):
+        owner = 'email@email.com'
+        assert isinstance(count_subscriptions_for_owner(Replica['aws'], owner), int)
+        assert isinstance(count_subscriptions_for_owner(Replica['gcp'], owner), int)
+        assert count_subscriptions_for_owner(Replica['aws'], owner) == 0
+        assert count_subscriptions_for_owner(Replica['gcp'], owner) == 0
 
     def test_validation(self):
         with self.subTest("Missing URL"):
