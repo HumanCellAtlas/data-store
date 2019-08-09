@@ -286,7 +286,7 @@ class test_operations_integration(TestBundleApi, TestAuthMixin, DSSAssertMixin, 
         cls.app.shutdown()
 
     def setUp(self):
-        dss.Config.set_config(dss.BucketConfig.TEST)
+        Config.set_config(BucketConfig.TEST)
         self.s3_test_fixtures_bucket = get_env("DSS_S3_BUCKET_TEST_FIXTURES")
         self.gs_test_fixtures_bucket = get_env("DSS_GS_BUCKET_TEST_FIXTURES")
 
