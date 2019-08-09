@@ -21,6 +21,9 @@ from dss.storage.hcablobstore.s3 import S3HCABlobStore
 from dss.storage.hcablobstore.gs import GSHCABlobStore
 
 
+SUBSCRIPTION_LIMIT = 100
+
+
 class DeploymentStageMeta(EnumMeta):
     _MAGIC_PREFIX = "IS_"
 
