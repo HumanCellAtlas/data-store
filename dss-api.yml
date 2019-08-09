@@ -891,6 +891,7 @@ paths:
                       - invalid_jmespath
                       - unprocessable
                       - read_only
+                      - not_acceptable
                 required:
                   - code
   /subscriptions/{uuid}:

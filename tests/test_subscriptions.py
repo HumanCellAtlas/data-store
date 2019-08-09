@@ -77,7 +77,6 @@ class TestSubscriptionsBase(ElasticsearchTestCase, TestAuthMixin, DSSAssertMixin
         self.sample_percolate_query = smartseq2_paired_ends_vx_query
         self.hmac_key_id = 'dss_test'
         self.hmac_secret_key = '23/33'
-        self.replicas = ['aws', 'gcp']
 
     def test_auth_errors(self):
         url = str(UrlBuilder()
@@ -104,7 +103,8 @@ class TestSubscriptionsBase(ElasticsearchTestCase, TestAuthMixin, DSSAssertMixin
         owner = 'email@email.com'
         subscription_uuid = str(uuid.uuid4())
 
-        for replica in self.replicas:
+        for r in Replica:
+            replica = r.name
             subscription_doc = {SubscriptionData.OWNER: owner,
                                 SubscriptionData.UUID: subscription_uuid,
                                 SubscriptionData.REPLICA: replica}
