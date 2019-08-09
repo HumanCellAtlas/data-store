@@ -12,15 +12,11 @@ import datetime
 from collections import namedtuple
 from unittest import mock
 from boto3.s3.transfer import TransferConfig
-
 from cloud_blobstore import BlobNotFoundError
-
-from dss.util import UrlBuilder
 
 pkg_root = os.path.abspath(os.path.join(os.path.dirname(__file__), '..'))  # noqa
 sys.path.insert(0, pkg_root)  # noqa
 
-import dss
 from tests.infra import testmode
 from dss.operations import DSSOperationsCommandDispatch
 from dss.operations.util import map_bucket_results
