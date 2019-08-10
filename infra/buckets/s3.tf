@@ -5,7 +5,7 @@ locals {
     "project"   , "${var.DSS_INFRA_TAG_PROJECT}",
     "env"       , "${var.DSS_DEPLOYMENT_STAGE}",
     "service"   , "${var.DSS_INFRA_TAG_SERVICE}"
-  )}",
+  )}"
   aws_tags = "${map(
   "Name"      , "${var.DSS_INFRA_TAG_SERVICE}-s3-storage",
   "owner"     , "${var.DSS_INFRA_TAG_OWNER}",
@@ -17,7 +17,11 @@ resource aws_s3_bucket dss_s3_bucket {
   count = "${length(var.DSS_S3_BUCKET) > 0 ? 1 : 0}"
   bucket = "${var.DSS_S3_BUCKET}"
   server_side_encryption_configuration {
-    rule {apply_server_side_encryption_by_default {sse_algorithm = "AES256"}}
+    rule {
+	  apply_server_side_encryption_by_default {
+        sse_algorithm = "AES256"
+      }
+    }
   }
   tags = "${merge(local.common_tags, local.aws_tags)}"
 }
@@ -46,12 +50,16 @@ resource aws_s3_bucket dss_s3_checkout_bucket {
   count = "${length(var.DSS_S3_CHECKOUT_BUCKET) > 0 ? 1 : 0}"
   bucket = "${var.DSS_S3_CHECKOUT_BUCKET}"
   server_side_encryption_configuration {
-    rule {apply_server_side_encryption_by_default {sse_algorithm = "AES256"}}
+    rule {
+      apply_server_side_encryption_by_default {
+        sse_algorithm = "AES256"
+      }
+    }
   }
   lifecycle_rule {
     id = "dss_checkout_expiration"
     enabled = true
-    tags {
+    tags = {
       "uncached" = "true"
     }
     expiration {
