@@ -115,7 +115,7 @@ scale_and_performance:
   stage: release
   script:
     - git remote set-url origin https://$GITHUB_TOKEN@github.com/HumanCellAtlas/data-store.git
-    - export status=$(scripts/status.py HumanCellAtlas dcp $(echo $RELEASE_COMMAND | cut -d ' ' -f 2))
+    - export status=$(scripts/status.py HumanCellAtlas dcp $(echo $RELEASE_COMMAND | cut -d ' ' -f 3))
     - if [[ ${RELEASE_COMMAND} != *"--force"* && ${status} != "success" ]]; then
     -   echo "DCP Integration test returned status ${status}";
     -   exit 1
