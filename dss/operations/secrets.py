@@ -187,7 +187,8 @@ def set_secret(argv: typing.List[str], args: argparse.Namespace):
         # Use stdin (input piped to this script) as secret value.
         # stdin provides secret value, flag --secret-name provides secret name.
         if not select.select([sys.stdin], [], [])[0]:
-            err_msg = f"No data in stdin, cannot set secret {secret_name} without a value from stdin or without --secret-value flag!"
+            err_msg = f"No data in stdin, cannot set secret {secret_name} without "
+            err_msg += "a value from stdin or without --secret-value flag!"
             raise RuntimeError(err_msg)
         secret_val = sys.stdin.read()
 

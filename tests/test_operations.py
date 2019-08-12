@@ -291,28 +291,25 @@ class TestOperations(unittest.TestCase):
 
         with self.subTest("Create a new secret"):
             # Create initial secret value
-            secrets.set_secret([], argparse.Namespace(
+            secrets.set_secret(
+                [],
+                argparse.Namespace(
                     secret_name=testvar_name,
                     secret_value=testvar_value,
-                    stage=which_stage
-                )
+                    stage=which_stage,
+                ),
             )
 
         with self.subTest("List secrets"):
             # Test variable name should be in list of secret names
             with CaptureStdout() as output:
-                secrets.list_secrets([], argparse.Namespace(
-                        stage=which_stage
-                    )
-                )
+                secrets.list_secrets([], argparse.Namespace(stage=which_stage))
             self.assertIn(testvar_name, output)
 
         with self.subTest("Get secret value"):
             with CaptureStdout() as output:
-                secrets.get_secret([], argparse.Namespace(
-                        secret_name=testvar_name,
-                        stage=which_stage
-                    )
+                secrets.get_secret(
+                    [], argparse.Namespace(secret_name=testvar_name, stage=which_stage)
                 )
             output = "".join(output)
             self.assertIn(testvar_name, output)
@@ -320,11 +317,11 @@ class TestOperations(unittest.TestCase):
 
         with self.subTest("Get secret value as JSON"):
             with CaptureStdout() as output:
-                secrets.get_secret([], argparse.Namespace(
-                        secret_name=testvar_name,
-                        stage=which_stage,
-                        json=True
-                    )
+                secrets.get_secret(
+                    [],
+                    argparse.Namespace(
+                        secret_name=testvar_name, stage=which_stage, json=True
+                    ),
                 )
             # Output is a list of strings; convert to single string and read as
             # JSON/dict
@@ -333,37 +330,34 @@ class TestOperations(unittest.TestCase):
 
         with self.subTest("Update existing secret"):
             # Set secret
-            secrets.set_secret([], argparse.Namespace(
+            secrets.set_secret(
+                [],
+                argparse.Namespace(
                     secret_name=testvar_name,
                     secret_value=testvar_value2,
-                    stage=which_stage
-                )
+                    stage=which_stage,
+                ),
             )
 
         with self.subTest("Get updated secret value"):
             with CaptureStdout() as output:
-                secrets.get_secret([], argparse.Namespace(
-                        secret_name=testvar_name,
-                        stage=which_stage
-                    )
+                secrets.get_secret(
+                    [], argparse.Namespace(secret_name=testvar_name, stage=which_stage)
                 )
             output = "".join(output)
             self.assertIn(testvar_name, output)
             self.assertIn(testvar_value2, output)
 
         with self.subTest("Delete secret"):
-            secrets.del_secret([], argparse.Namespace(
-                    secret_name=testvar_name,
-                    stage=which_stage,
-                    force=True
-                )
+            secrets.del_secret(
+                [],
+                argparse.Namespace(
+                    secret_name=testvar_name, stage=which_stage, force=True
+                ),
             )
             # Test variable name should not be in list of secret names
             with CaptureStdout() as output:
-                secrets.list_secrets([], argparse.Namespace(
-                        stage=which_stage
-                    )
-                )
+                secrets.list_secrets([], argparse.Namespace(stage=which_stage))
             self.assertNotIn(testvar_name, output)
 
 
