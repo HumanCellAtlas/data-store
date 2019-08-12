@@ -8,6 +8,8 @@ import uuid
 import json
 import argparse
 import unittest
+import string
+import random
 from collections import namedtuple
 from unittest import mock
 from boto3.s3.transfer import TransferConfig
@@ -26,10 +28,13 @@ from dss.logging import configure_test_logging
 from dss.config import BucketConfig, Config, Replica, override_bucket_config
 from dss.storage.hcablobstore import FileMetadata, compose_blob_key
 from dss.util.aws import resources
-from tests import MockStdin, CaptureStdout
+from tests import CaptureStdout
 
 def setUpModule():
     configure_test_logging()
+
+def random_alphanumeric_string(N=10):
+    return ''.join(random.choices(string.ascii_uppercase + string.digits, k=N))
 
 @testmode.standalone
 class TestOperations(unittest.TestCase):
@@ -276,55 +281,89 @@ class TestOperations(unittest.TestCase):
         # - update secret value
         # - get secret value and verify it is correct
         # - delete secret
-        testvar_name = "DSS_TEST_TURTLE"
+        which_stage = "dev"
+        which_store = os.environ["DSS_SECRETS_STORE"]
+
+        secret_name = random_alphanumeric_string()
+        testvar_name = f"{which_store}/{which_stage}/{secret_name}"
         testvar_value = "Hello world!"
         testvar_value2 = "Goodbye world!"
 
-        args = argparse.Namespace(secret_name=testvar_name)
-
         with self.subTest("Create a new secret"):
-            # Use mock stdin (this cmd expects secret value from stdin)
-            with MockStdin(testvar_value) as output:
-                secrets.set_secret([], args)
+            # Create initial secret value
+            secrets.set_secret([], argparse.Namespace(
+                    secret_name=testvar_name,
+                    secret_value=testvar_value,
+                    stage=which_stage
+                )
+            )
 
         with self.subTest("List secrets"):
             # Test variable name should be in list of secret names
             with CaptureStdout() as output:
-                secrets.list_secrets([], argparse.Namespace())
+                secrets.list_secrets([], argparse.Namespace(
+                        stage=which_stage
+                    )
+                )
             self.assertIn(testvar_name, output)
 
         with self.subTest("Get secret value"):
             with CaptureStdout() as output:
-                secrets.get_secret([], args)
+                secrets.get_secret([], argparse.Namespace(
+                        secret_name=testvar_name,
+                        stage=which_stage
+                    )
+                )
+            output = "".join(output)
             self.assertIn(testvar_name, output)
             self.assertIn(testvar_value, output)
 
         with self.subTest("Get secret value as JSON"):
-            json_args = argparse.Namespace(secret_name=testvar_name, json=True)
             with CaptureStdout() as output:
-                secrets.get_secret([], json_args)
+                secrets.get_secret([], argparse.Namespace(
+                        secret_name=testvar_name,
+                        stage=which_stage,
+                        json=True
+                    )
+                )
             # Output is a list of strings; convert to single string and read as
             # JSON/dict
             d = json.loads("".join(output))
             self.assertIn(testvar_name, d.keys())
 
         with self.subTest("Update existing secret"):
-            args = argparse.Namespace(secret_name=testvar_name)
-            # Use mock stdin (this cmd expects secret value from stdin)
-            with MockStdin(testvar_value2) as output:
-                secrets.set_secret([], args)
+            # Set secret
+            secrets.set_secret([], argparse.Namespace(
+                    secret_name=testvar_name,
+                    secret_value=testvar_value2,
+                    stage=which_stage
+                )
+            )
 
-        with self.subTest("Get secret value"):
+        with self.subTest("Get updated secret value"):
             with CaptureStdout() as output:
-                secrets.get_secret([], args)
+                secrets.get_secret([], argparse.Namespace(
+                        secret_name=testvar_name,
+                        stage=which_stage
+                    )
+                )
+            output = "".join(output)
             self.assertIn(testvar_name, output)
             self.assertIn(testvar_value2, output)
 
         with self.subTest("Delete secret"):
-            secrets.del_secret([], args)
+            secrets.del_secret([], argparse.Namespace(
+                    secret_name=testvar_name,
+                    stage=which_stage,
+                    force=True
+                )
+            )
             # Test variable name should not be in list of secret names
             with CaptureStdout() as output:
-                secrets.list_secrets([], argparse.Namespace())
+                secrets.list_secrets([], argparse.Namespace(
+                        stage=which_stage
+                    )
+                )
             self.assertNotIn(testvar_name, output)
 
 

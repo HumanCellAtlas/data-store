@@ -160,31 +160,3 @@ class CaptureStdout(list):
         # Clean up by setting sys.stdout back to what it was before we opened
         # up this context
         sys.stdout = self._stdout
-
-class MockStdin(object):
-    """
-    Utility object using a context manager to replace stdin with a mock input
-    string.
-    """
-    def __init__(self, *args, **kwargs):
-        if len(args) == 0:
-            self.msg = "Hello world"
-        else:
-            self.msg = args[0]
-
-    def __enter__(self, *args, **kwargs):
-        """
-        The function called when we open the context, this function swaps out
-        sys.stdin with a string self.msg.
-        """
-        # Save existing stdin object so we can restore it when we're done
-        self._stdin = sys.stdin
-        # Swap out stdin
-        sys.stdin = self.msg
-        return self
-
-    def __exit__(self, *args, **kwargs):
-        """
-        Close the context and clean up.
-        """
-        sys.stdin = self._stdin
