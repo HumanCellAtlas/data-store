@@ -325,6 +325,7 @@ class TestOperations(unittest.TestCase):
                 )
             # Output is a list of strings; convert to single string and read as
             # JSON/dict
+            self.assertNotEqual(output, "")
             d = json.loads("".join(output))
             self.assertIn(testvar_name, d.keys())
 
