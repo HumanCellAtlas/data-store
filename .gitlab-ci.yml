@@ -38,6 +38,7 @@ before_script:
     - schedules
 
 trufflehog:
+  stage: trufflehog
   script:
     - pip install trufflehog
     - wget -O regex.json https://raw.githubusercontent.com/HumanCellAtlas/dcplib/master/components/trufflehog_regex_patterns.json
