@@ -714,6 +714,9 @@ class TestBundleApi(unittest.TestCase, TestAuthMixin, DSSAssertMixin, DSSUploadM
         tombstone_exists = test_object_exists(handle, bucket, f"bundles/{bundle_uuid}.{bundle_version}.dead")
         self.assertEquals(tombstone_exists, authorized)
 
+        self.delete_bundle(replica, bundle_uuid, bundle_version, authorized=authorized,
+                           expected_code=404 if authorized else 403)
+
     def test_no_replica(self):
         """
         Verify we raise the correct error code when we provide no replica.
@@ -846,7 +849,8 @@ class TestBundleApi(unittest.TestCase, TestAuthMixin, DSSAssertMixin, DSSUploadM
             replica: Replica,
             bundle_uuid: str,
             bundle_version: typing.Optional[str] = None,
-            authorized: bool = True):
+            authorized: bool = True,
+            expected_code: typing.Optional[int] = None):
         # make delete request
         url_builder = UrlBuilder().set(path="/v1/bundles/" + bundle_uuid).add_query('replica', replica.name)
         if bundle_version:
@@ -857,14 +861,15 @@ class TestBundleApi(unittest.TestCase, TestAuthMixin, DSSAssertMixin, DSSUploadM
         if bundle_version:
             json_request_body['version'] = bundle_version
 
-        expected_code = requests.codes.ok if authorized else requests.codes.forbidden
+        if not expected_code:
+            expected_code = requests.codes.ok if authorized else requests.codes.forbidden
 
         # delete and check results
         return self.assertDeleteResponse(
             url,
             expected_code,
             json_request_body=json_request_body,
-            headers=get_auth_header(authorized=authorized),
+            headers=get_auth_header(authorized=authorized)
         )
 
     @lru_cache()
