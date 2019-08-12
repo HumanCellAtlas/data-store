@@ -34,7 +34,7 @@ class CheckoutHandler:
 
     def process_command_locally(self, argv: typing.List[str], args: argparse.Namespace):
         if self.keys is not None:
-            self.process_key(self.keys)
+            self.process_keys()
 
     def _verify_delete(self, handle, bucket, key):
         logger.warning(f'attempting removal of key: {bucket}/{key}')
@@ -82,7 +82,7 @@ class CheckoutHandler:
             RuntimeError(f'unable to parse the key {key}')
         return uuid, version
 
-    def process_key(self, key):
+    def process_keys(self):
         raise NotImplementedError()
 
     def __call__(self, argv: typing.List[str], args: argparse.Namespace):
