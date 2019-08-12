@@ -22,7 +22,10 @@ def get_secretsmanager_prefix(args):
     the SecretsManager.
     """
     store_name = os.environ["DSS_SECRETS_STORE"]
-    if args.stage is None:
+
+    if hasattr(args,'stage') and args.stage is not None:
+        stage_name = args.stage
+    else:
         stage_name = os.environ["DSS_DEPLOYMENT_STAGE"]
 
     store_prefix = f"{store_name}/{stage_name}/"
@@ -36,7 +39,7 @@ events = dispatch.target("secrets", arguments={}, help=__doc__)
     "list",
     arguments={
         "--stage": dict(
-            required=False, help="the stage for which secrets should be listed"
+            required=True, help="the stage for which secrets should be listed"
         ),
         "--json": dict(
             default=False,
@@ -67,7 +70,7 @@ def list_secrets(argv: typing.List[str], args: argparse.Namespace):
 
     secret_names.sort()
 
-    if args.json:
+    if hasattr(args,'json') and args.json is True:
         print(json.dumps(secret_names))
     else:
         for secret_name in secret_names:
@@ -78,7 +81,7 @@ def list_secrets(argv: typing.List[str], args: argparse.Namespace):
     "get",
     arguments={
         "--stage": dict(
-            required=False, help="the stage for which secrets should be listed"
+            required=True, help="the stage for which secrets should be listed"
         ),
         "--secret-name": dict(
             required=True,
@@ -103,17 +106,23 @@ def get_secret(argv: typing.List[str], args: argparse.Namespace):
     store_prefix = get_secretsmanager_prefix(args)
 
     # Make sure a secret name was specified
-    if args.secret_name is None or len(args.secret_name) == 0:
+    if args.secret_name is None:
         raise RuntimeError(
             "Unable to set secret: no secret name was specified! Use the --secret-name flag."
         )
-    secret_names = args.secret_name
+    secret_names = args.secret_name.split(" ")
 
     # Tack on the store prefix if it isn't there already
     for i in range(len(secret_names)):
         secret_name = secret_names[i]
         if not secret_name.startswith(store_prefix):
             secret_names[i] = store_prefix + secret_name
+
+    # Determine if we should format output as JSON
+    use_json = False
+    if hasattr(args,'json'):
+        if args.json:
+            use_json = True
 
     for secret_name in secret_names:
         # Attempt to obtain secret
@@ -125,7 +134,7 @@ def get_secret(argv: typing.List[str], args: argparse.Namespace):
             logger.warning(f"Resource not found: {secret_name}")
         else:
             # Get operation was successful, secret variable exists
-            if args.json:
+            if use_json:
                 print(json.dumps({secret_name: secret_val}))
             else:
                 print(f"{secret_name}={secret_val}")
@@ -135,10 +144,15 @@ def get_secret(argv: typing.List[str], args: argparse.Namespace):
     "set",
     arguments={
         "--stage": dict(
-            required=False, help="the stage for which secrets should be set"
+            required=True, help="the stage for which secrets should be set"
         ),
         "--secret-name": dict(
             required=True, help="name of secret to set (limit 1 at a time)"
+        ),
+        "--secret-value": dict(
+            required=False,
+            default=None,
+            help="value of secret to set (optional, if not present then stdin will be used)",
         ),
         "--dry-run": dict(
             default=False,
@@ -162,20 +176,36 @@ def set_secret(argv: typing.List[str], args: argparse.Namespace):
     if not secret_name.startswith(store_prefix):
         secret_name = store_prefix + secret_name
 
-    # Use stdin (input piped to this script) as secret value.
-    # stdin provides secret value, flag --secret-name provides secret name.
-    if not select.select([sys.stdin], [], [], 0.0)[0]:
-        err_msg = f"No data in stdin, cannot set secret {secret_name} without a value from stdin!"
-        raise RuntimeError(err_msg)
-    secret_val = sys.stdin.read()
+    # Decide what to use for input
+    if hasattr(args,'secret_value'):
+        if args.secret_value is not None:
+            secret_val = args.secret_value
+        else:
+            msg = f"Error setting secret value for {secret_name}, invalid --secret-value flag"
+            raise RuntimeError(msg)
+    else:
+        # Use stdin (input piped to this script) as secret value.
+        # stdin provides secret value, flag --secret-name provides secret name.
+        if not select.select([sys.stdin], [], [])[0]:
+            err_msg = f"No data in stdin, cannot set secret {secret_name} without a value from stdin or without --secret-value flag!"
+            raise RuntimeError(err_msg)
+        secret_val = sys.stdin.read()
 
+    # Determine if we are doing a dry run
+    dry_run = False
+    if hasattr(args,'dry_run'):
+        if args.dry_run:
+            dry_run = True
+
+    # Create or update
     try:
         # Start by trying to get the secret variable
         _ = secretsmanager.get_secret_value(SecretId=secret_name)
 
     except secretsmanager.exceptions.ResourceNotFoundException:
         # A secret variable with that name does not exist, so create it
-        if args.dry_run:
+
+        if dry_run:
             # Create it for fakes
             print(
                 f"Secret variable {secret_name} not found in secrets manager, dry-run creating it"
@@ -186,9 +216,10 @@ def set_secret(argv: typing.List[str], args: argparse.Namespace):
                 f"Secret variable {secret_name} not found in secrets manager, creating it"
             )
             _ = secretsmanager.create_secret(Name=secret_name, SecretString=secret_val)
+
     else:
         # Get operation was successful, secret variable exists
-        if args.dry_run:
+        if dry_run:
             # Update it for fakes
             print(
                 f"Secret variable {secret_name} found in secrets manager, dry-run updating it"
@@ -207,7 +238,7 @@ def set_secret(argv: typing.List[str], args: argparse.Namespace):
     "delete",
     arguments={
         "--stage": dict(
-            required=False, help="the stage for which secrets should be deleted"
+            required=True, help="the stage for which secrets should be deleted"
         ),
         "--secret-name": dict(
             required=True, help="name of secret to delete (limit 1 at a time)"
@@ -238,11 +269,23 @@ def del_secret(argv: typing.List[str], args: argparse.Namespace):
         )
     secret_name = args.secret_name
 
+    # Determine if we are doing a dry run
+    dry_run = False
+    if hasattr(args,'dry_run'):
+        if args.dry_run:
+            dry_run = True
+
+    # Determine if we are doing a forced action
+    force = False
+    if hasattr(args,'force'):
+        if args.force:
+            force = True
+
     # Tack on the store prefix if it isn't there already
     if not secret_name.startswith(store_prefix):
         secret_name = store_prefix + secret_name
 
-    if args.force is False:
+    if force is False:
         # Make sure the user really wants to do this
         confirm = f"""
         Are you really sure you want to delete secret {secret_name}? (Type 'y' or 'yes' to confirm):
@@ -267,7 +310,7 @@ def del_secret(argv: typing.List[str], args: argparse.Namespace):
 
     else:
         # Get operation was successful, secret variable exists
-        if args.dry_run:
+        if dry_run:
             # Delete it for fakes
             print(
                 f"Secret variable {secret_name} found in secrets manager, dry-run deleting it"
