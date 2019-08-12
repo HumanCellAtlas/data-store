@@ -221,26 +221,22 @@ def delete(uuid: str, replica: str, json_request_body: dict, version: str = None
     )
 
     handle = Config.get_blobstore_handle(Replica[replica])
-    if test_object_exists(handle, Replica[replica].bucket, bundle_prefix, test_type=ObjectTest.PREFIX):
-        created, idempotent = idempotent_save(
-            handle,
-            Replica[replica].bucket,
-            tombstone_id.to_key(),
-            json.dumps(tombstone_object_data).encode("utf-8")
+    if not test_object_exists(handle, Replica[replica].bucket, bundle_prefix, test_type=ObjectTest.PREFIX):
+        raise DSSException(404, "not_found", "Cannot find bundle!")
+    created, idempotent = idempotent_save(
+        handle,
+        Replica[replica].bucket,
+        tombstone_id.to_key(),
+        json.dumps(tombstone_object_data).encode("utf-8")
+    )
+    if not idempotent:
+        raise DSSException(
+            requests.codes.conflict,
+            f"bundle_tombstone_already_exists",
+            f"bundle tombstone with UUID {uuid} and version {version} already exists",
         )
-        if not idempotent:
-            raise DSSException(
-                requests.codes.conflict,
-                f"bundle_tombstone_already_exists",
-                f"bundle tombstone with UUID {uuid} and version {version} already exists",
-            )
-        status_code = requests.codes.ok
-        response_body = dict()  # type: dict
-    else:
-        status_code = requests.codes.not_found
-        response_body = dict(title="bundle not found")
 
-    return jsonify(response_body), status_code
+    return dict(), requests.codes.ok
 
 
 def build_bundle_file_metadata(replica: Replica, user_supplied_files: dict):
