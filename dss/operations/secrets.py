@@ -23,7 +23,7 @@ def get_secretsmanager_prefix(args):
     """
     store_name = os.environ["DSS_SECRETS_STORE"]
 
-    if hasattr(args,'stage') and args.stage is not None:
+    if hasattr(args, "stage") and args.stage is not None:
         stage_name = args.stage
     else:
         stage_name = os.environ["DSS_DEPLOYMENT_STAGE"]
@@ -70,7 +70,7 @@ def list_secrets(argv: typing.List[str], args: argparse.Namespace):
 
     secret_names.sort()
 
-    if hasattr(args,'json') and args.json is True:
+    if hasattr(args, "json") and args.json is True:
         print(json.dumps(secret_names))
     else:
         for secret_name in secret_names:
@@ -120,7 +120,7 @@ def get_secret(argv: typing.List[str], args: argparse.Namespace):
 
     # Determine if we should format output as JSON
     use_json = False
-    if hasattr(args,'json'):
+    if hasattr(args, "json"):
         if args.json:
             use_json = True
 
@@ -177,7 +177,7 @@ def set_secret(argv: typing.List[str], args: argparse.Namespace):
         secret_name = store_prefix + secret_name
 
     # Decide what to use for input
-    if hasattr(args,'secret_value'):
+    if hasattr(args, "secret_value"):
         if args.secret_value is not None:
             secret_val = args.secret_value
         else:
@@ -193,7 +193,7 @@ def set_secret(argv: typing.List[str], args: argparse.Namespace):
 
     # Determine if we are doing a dry run
     dry_run = False
-    if hasattr(args,'dry_run'):
+    if hasattr(args, "dry_run"):
         if args.dry_run:
             dry_run = True
 
@@ -271,13 +271,13 @@ def del_secret(argv: typing.List[str], args: argparse.Namespace):
 
     # Determine if we are doing a dry run
     dry_run = False
-    if hasattr(args,'dry_run'):
+    if hasattr(args, "dry_run"):
         if args.dry_run:
             dry_run = True
 
     # Determine if we are doing a forced action
     force = False
-    if hasattr(args,'force'):
+    if hasattr(args, "force"):
         if args.force:
             force = True
 
