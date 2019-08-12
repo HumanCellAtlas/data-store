@@ -26,5 +26,3 @@ done
 cp -R ../dss ../dss-api.yml $daemon/domovoilib
 aws secretsmanager get-secret-value --secret-id ${DSS_SECRETS_STORE}/${DSS_DEPLOYMENT_STAGE}/gcp-credentials.json \
     | jq -r .SecretString > $daemon/domovoilib/gcp-credentials.json
-
-chmod -R ugo+rX $daemon/domovoilib

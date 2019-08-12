@@ -13,7 +13,7 @@ from concurrent.futures import ThreadPoolExecutor, TimeoutError
 import chalice
 import nestedcontext
 import requests
-from flask import json, request
+from flask import json
 
 pkg_root = os.path.abspath(os.path.join(os.path.dirname(__file__), 'chalicelib'))  # noqa
 sys.path.insert(0, pkg_root)  # noqa
@@ -66,7 +66,7 @@ class DSSChaliceApp(chalice.Chalice):
         self._override_exptime_seconds = None
 
 
-def timeout_response(method, uri: str) -> chalice.Response:
+def timeout_response(method: str, path: str) -> chalice.Response:
     """
     Produce a chalice Response object that indicates a timeout.  Stacktraces for all running threads, other than the
     current thread, are provided in the response object.
@@ -87,19 +87,7 @@ def timeout_response(method, uri: str) -> chalice.Response:
 
     headers = {"Content-Type": "application/problem+json"}
 
-    if not uri:
-        if method.__name__ == 'slow_request':
-            method, uri = 'GET', '/internal/slow_request'
-        elif method.__name__ == 'application_secrets':
-            method, uri = 'GET', '/internal/application_secrets'
-        elif method.__name__ == 'notify':
-            method, uri = 'POST', '/internal/notify'
-        elif method.__name__ == 'health':
-            method, uri = 'GET', '/internal/health'
-        else:
-            method, uri = request.method, request.path
-
-    if include_retry_after_header(return_code=requests.codes.gateway_timeout, method=method, uri=uri):
+    if include_retry_after_header(return_code=requests.codes.gateway_timeout, method=method, uri=path):
         headers['Retry-After'] = '10'
 
     return chalice.Response(status_code=problem['status'],
@@ -123,22 +111,23 @@ def time_limited(chalice_app: DSSChaliceApp):
     When this decorator is applied to a route handler, we will process the request in a secondary thread.  If the
     processing exceeds the time allowed, we will return a standardized error message.
     """
-    def real_decorator(method: callable):
-        @functools.wraps(method)
+    def real_decorator(handler: callable):
+        @functools.wraps(handler)
         def wrapper(*args, **kwargs):
             executor = ThreadPoolExecutor()
             try:
                 app.api_gateway_expiration = time.time() + API_GATEWAY_TIMEOUT_SECONDS
-                future = executor.submit(method, *args, **kwargs)
+                future = executor.submit(handler, *args, **kwargs)
                 time_remaining_s = chalice_app._override_exptime_seconds  # type: typing.Optional[float]
                 if time_remaining_s is None:
                     time_remaining_s = calculate_seconds_left(chalice_app)
-
+                method = chalice_app.current_request.method
+                path = chalice_app.current_request.context['path']
                 try:
                     chalice_response = future.result(timeout=time_remaining_s)
                     return chalice_response
                 except TimeoutError:
-                    return timeout_response(method=method, uri=None)
+                    return timeout_response(method, path)
             finally:
                 executor.shutdown(wait=False)
         return wrapper
@@ -195,14 +184,14 @@ def get_chalice_app(flask_app) -> DSSChaliceApp:
             return True
 
         if not DeploymentStage.IS_PROD() and maybe_fake_504():
-            return timeout_response(method=method, uri=path)
+            return timeout_response(method, path)
 
         status_code = None
         try:
             with flask_app.test_request_context(
                     path=path,
                     base_url="https://{}".format(app.current_request.headers["host"]),
-                    query_string=app.current_request.query_params,
+                    query_string=list((app.current_request.query_params or dict()).items()),
                     method=app.current_request.method,
                     headers=list(app.current_request.headers.items()),
                     data=req_body,
