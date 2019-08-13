@@ -87,18 +87,18 @@ export PROMOTE_FROM_BRANCH=$1 PROMOTE_DEST_BRANCH=$2
 if [[ ${CI:-} == true ]]; then
     echo "CI environment detected, skipping status checks."
 else
-	STATUS=$(${DSS_HOME}/scripts/status.py HumanCellAtlas data-store $PROMOTE_FROM_BRANCH)
-	if [[ "$STATUS" != success ]]; then
-	    if [[ $FORCE == "--force" ]]; then
-	        echo "Status was $STATUS on branch $PROMOTE_FROM_BRANCH."
-	        echo "Status checks failed on branch $PROMOTE_FROM_BRANCH. Forcing promotion and deployment anyway."
-	    else
-	        echo "Status was $STATUS on branch $PROMOTE_FROM_BRANCH."
-	        echo "Status checks failed on branch $PROMOTE_FROM_BRANCH."
-	        echo "Run with --force to promote $PROMOTE_FROM_BRANCH to $PROMOTE_DEST_BRANCH and deploy anyway."
-	        exit 1
-	    fi
-	fi
+    STATUS=$(${DSS_HOME}/scripts/status.py HumanCellAtlas data-store $PROMOTE_FROM_BRANCH)
+    if [[ "$STATUS" != success ]]; then
+        if [[ $FORCE == "--force" ]]; then
+            echo "Status was $STATUS on branch $PROMOTE_FROM_BRANCH."
+            echo "Status checks failed on branch $PROMOTE_FROM_BRANCH. Forcing promotion and deployment anyway."
+        else
+            echo "Status was $STATUS on branch $PROMOTE_FROM_BRANCH."
+            echo "Status checks failed on branch $PROMOTE_FROM_BRANCH."
+            echo "Run with --force to promote $PROMOTE_FROM_BRANCH to $PROMOTE_DEST_BRANCH and deploy anyway."
+            exit 1
+        fi
+    fi
 fi
 
 RELEASE_TAG=$(date -u +"%Y-%m-%d-%H-%M-%S")-${PROMOTE_DEST_BRANCH}.release
@@ -127,7 +127,7 @@ git push --force origin $PROMOTE_DEST_BRANCH
 git push --tags
 
 if [[ ${CI:-} == true ]]; then
-    echo "The --no-deploy flag is set. Skipping deployment."
+    echo "CI environment detected, skipping deployment."
 elif [[ -e "${DSS_HOME}/environment.${PROMOTE_DEST_BRANCH}" ]]; then
     source "${DSS_HOME}/environment.${PROMOTE_DEST_BRANCH}"
     make -C "$DSS_HOME" deploy
