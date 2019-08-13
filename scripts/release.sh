@@ -95,8 +95,10 @@ export PROMOTE_FROM_BRANCH=$1 PROMOTE_DEST_BRANCH=$2
 STATUS=$(${DSS_HOME}/scripts/status.py HumanCellAtlas data-store $PROMOTE_FROM_BRANCH)
 if [[ "$STATUS" != success ]]; then
     if [[ $FORCE == "--force" ]]; then
+        echo "Status was $STATUS on branch $PROMOTE_FROM_BRANCH."
         echo "Status checks failed on branch $PROMOTE_FROM_BRANCH. Forcing promotion and deployment anyway."
     else
+        echo "Status was $STATUS on branch $PROMOTE_FROM_BRANCH."
         echo "Status checks failed on branch $PROMOTE_FROM_BRANCH."
         echo "Run with --force to promote $PROMOTE_FROM_BRANCH to $PROMOTE_DEST_BRANCH and deploy anyway."
         exit 1
