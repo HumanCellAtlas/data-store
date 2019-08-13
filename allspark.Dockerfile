@@ -31,7 +31,7 @@ RUN apt-get update --quiet \
         moreutils \
         openssl \
         python3-pip \
-        python3.6-dev \
+        python3.7-dev \
         unzip \
         wget \
         xxd \
