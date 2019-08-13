@@ -10,8 +10,6 @@ import requests
 from cloud_blobstore import BlobNotFoundError, BlobStore, BlobStoreTimeoutError
 from flask import jsonify, redirect, request, make_response
 from concurrent.futures import ThreadPoolExecutor, as_completed
-from itertools import islice
-
 
 from dss import DSSException, dss_handler, DSSForbiddenException
 from dss.api.search import PerPageBounds
@@ -137,10 +135,11 @@ def get(
         return response
 
 @dss_handler
-def enumerate(replica: str, prefix: str, token: str = None,
+def enumerate(replica: str, prefix: str = None, token: str = None,
               per_page: int = PerPageBounds.per_page_max,
               search_after: typing.Optional[str] = None):
 
+    api_domain_name = f'https://{os.environ.get("API_DOMAIN_NAME")}'
     storage_handler = Config.get_blobstore_handle(Replica[replica])
     key_prefix = prefix if prefix else 'bundles/'  # might need to add filtering over here (no files/blobs allowed)
     kwargs = dict(bucket=Replica[replica].bucket, prefix=key_prefix, k_page_max=per_page)
@@ -150,22 +149,47 @@ def enumerate(replica: str, prefix: str, token: str = None,
         kwargs['token'] = token
     prefix_iterator = storage_handler.list_v2(**kwargs)
 
-    keys = [x[0] for x in islice(prefix_iterator, 0, per_page)]
-    if len(keys) < per_page:
-        response = make_response(jsonify(dict(keys=keys)), requests.codes.ok)
+    payload = dict(dss_api=api_domain_name, object='list', per_page=per_page,
+                   event_timestamp=datetime_to_version_format(datetime.datetime.utcnow()))
+    keys = dict()
+    total_keys = 0
+    search_after = None
+    for key, meta in prefix_iterator:
+        uuid, version = key.split('.', 1)
+        if not version.endswith(TOMBSTONE_SUFFIX):
+            search_after = key
+            if keys.get(uuid) is None:
+                keys[uuid] = [version]
+            else:
+                keys[uuid].append(version)
+            total_keys += 1
+        elif TOMBSTONE_SUFFIX == version:
+            total_keys -= len(keys[uuid])
+            del keys[uuid]
+        if total_keys >= per_page:
+            break
+    key_list = list()
+    for uuid, versions in keys.items():
+        for version in versions:
+            key_list.append(f'bundles/{uuid}/{version}')
+    if total_keys < per_page:  # enumeration is complete
+        payload['data'] = key_list
+        payload['has_more'] = False
+        payload['page_count'] = len(key_list)
+        response = make_response(jsonify(payload), requests.codes.ok)
     else:
         next_url = UrlBuilder(request.url)
-        next_url.replace_query("start_at", keys[-1])
-        next_url.replace_query("token", token)
+        next_url.replace_query("search_after", search_after)
+        next_url.replace_query("token", prefix_iterator.token)
         link = f"<{next_url}>; rel='next'"
-        payload = dict(keys=keys, token=prefix_iterator.token, search_after=keys[-1])
+        payload['data'] = key_list
+        payload['page_count'] = len(key_list)
+        payload['has_more'] = True
+        payload['token'] = prefix_iterator.token
+        payload['link'] = link
         response = make_response(jsonify(payload), requests.codes.partial)
         response.headers['Link'] = link
     return response
-
-
-
-    # per-page reponse, give back incomplete headers
 
 
 @dss_handler
