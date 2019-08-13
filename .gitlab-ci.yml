@@ -9,6 +9,7 @@ variables:
   GITHUB_API: "https://api.github.com"
 
 stages:
+  - trufflehog
   - test
   - deploy
   - integration_test
@@ -22,10 +23,6 @@ before_script:
   - virtualenv ~/venv
   - source ~/venv/bin/activate
   - pip install -r requirements-dev.txt
-  - pip install trufflehog
-  - wget -O regex.json https://raw.githubusercontent.com/HumanCellAtlas/dcplib/master/components/trufflehog_regex_patterns.json
-  - trufflehog --regex --rules regex.json --entropy=False https://github.com/HumanCellAtlas/data-store.git
-  - rm regex.json
   - source environment
   - if [[ -f "environment.$CI_COMMIT_REF_NAME" ]]; then
   -   source environment.$CI_COMMIT_REF_NAME
@@ -39,6 +36,13 @@ before_script:
   except:
     - tags
     - schedules
+
+trufflehog:
+  stage: trufflehog
+  script:
+    - pip install trufflehog
+    - wget -O regex.json https://raw.githubusercontent.com/HumanCellAtlas/dcplib/master/components/trufflehog_regex_patterns.json
+    - trufflehog --regex --rules regex.json --entropy=False https://github.com/HumanCellAtlas/data-store.git
 
 unit_tests:
   extends: .tests
