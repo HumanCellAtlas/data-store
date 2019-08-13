@@ -7,7 +7,7 @@ cache:
   - daemons/dss-sync/.chalice/venv
   - daemons/dss-index/.chalice/venv
 
-python: 3.6
+python: 3.7
 
 dist: trusty
 
