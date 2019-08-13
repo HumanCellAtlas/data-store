@@ -133,41 +133,41 @@ scale_and_performance:
 release_integration:
   extends: .release
   variables:
-    RELEASE_COMMAND: scripts/release.sh master integration --no-deploy --skip-account-verification
+    RELEASE_COMMAND: scripts/release.sh master integration
   only:
     - master
 
 force_release_integration:
   extends: .release
   variables:
-    RELEASE_COMMAND: scripts/release.sh master integration --force --no-deploy --skip-account-verification
+    RELEASE_COMMAND: scripts/release.sh master integration --force
   only:
     - master
 
 release_staging:
   extends: .release
   variables:
-    RELEASE_COMMAND: scripts/release.sh integration staging --no-deploy --skip-account-verification
+    RELEASE_COMMAND: scripts/release.sh integration staging
   only:
     - integration
 
 force_release_staging:
   extends: .release
   variables:
-    RELEASE_COMMAND: scripts/release.sh integration staging --force --no-deploy --skip-account-verification
+    RELEASE_COMMAND: scripts/release.sh integration staging --force
   only:
     - integration
 
 release_prod:
   extends: .release
   variables:
-    RELEASE_COMMAND: scripts/release.sh staging prod --no-deploy --skip-account-verification
+    RELEASE_COMMAND: scripts/release.sh staging prod
   only:
     - staging
 
 force_release_prod:
   extends: .release
   variables:
-    RELEASE_COMMAND: scripts/release.sh staging prod --force --no-deploy --skip-account-verification
+    RELEASE_COMMAND: scripts/release.sh staging prod --force
   only:
     - staging

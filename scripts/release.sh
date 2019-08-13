@@ -6,22 +6,12 @@ set -euo pipefail
 # and passes on positional arguments as $1, $2, etc.
 if [[ $# > 0 ]]; then
     FORCE=
-    NO_DEPLOY=
-    SKIP_ACCOUNT_VERIFICATION=
     POSITIONAL=()
     while [[ $# > 0 ]]; do
         key="$1"
         case $key in
             --force)
             FORCE="--force"
-            shift
-            ;;
-            --no-deploy)
-            NO_DEPLOY="--no-deploy"
-            shift
-            ;;
-            --skip-account-verification)
-            SKIP_ACCOUNT_VERIFICATION="--skip-account-verification"
             shift
             ;;
             *)
@@ -53,7 +43,9 @@ if [[ $# != 2 ]]; then
     exit 1
 fi
 
-if [[ $SKIP_ACCOUNT_VERIFICATION != "--skip-account-verification" ]]; then
+if [[ ${CI:-} == true ]]; then
+    echo "CI environment detected, skipping account verification."
+else
     echo "Please review and confirm your active AWS account configuration:"
     aws configure list
     aws sts get-caller-identity
@@ -92,16 +84,20 @@ fi
 
 export PROMOTE_FROM_BRANCH=$1 PROMOTE_DEST_BRANCH=$2
 
-STATUS=$(${DSS_HOME}/scripts/status.py HumanCellAtlas data-store $PROMOTE_FROM_BRANCH)
-if [[ "$STATUS" != success ]]; then
-    if [[ $FORCE == "--force" ]]; then
-        echo "Status was $STATUS on branch $PROMOTE_FROM_BRANCH."
-        echo "Status checks failed on branch $PROMOTE_FROM_BRANCH. Forcing promotion and deployment anyway."
-    else
-        echo "Status was $STATUS on branch $PROMOTE_FROM_BRANCH."
-        echo "Status checks failed on branch $PROMOTE_FROM_BRANCH."
-        echo "Run with --force to promote $PROMOTE_FROM_BRANCH to $PROMOTE_DEST_BRANCH and deploy anyway."
-        exit 1
+if [[ ${CI:-} == true ]]; then
+    echo "CI environment detected, skipping status checks."
+else
+    STATUS=$(${DSS_HOME}/scripts/status.py HumanCellAtlas data-store $PROMOTE_FROM_BRANCH)
+    if [[ "$STATUS" != success ]]; then
+        if [[ $FORCE == "--force" ]]; then
+            echo "Status was $STATUS on branch $PROMOTE_FROM_BRANCH."
+            echo "Status checks failed on branch $PROMOTE_FROM_BRANCH. Forcing promotion and deployment anyway."
+        else
+            echo "Status was $STATUS on branch $PROMOTE_FROM_BRANCH."
+            echo "Status checks failed on branch $PROMOTE_FROM_BRANCH."
+            echo "Run with --force to promote $PROMOTE_FROM_BRANCH to $PROMOTE_DEST_BRANCH and deploy anyway."
+            exit 1
+        fi
     fi
 fi
 
@@ -130,8 +126,8 @@ git tag $RELEASE_TAG
 git push --force origin $PROMOTE_DEST_BRANCH
 git push --tags
 
-if [[ $NO_DEPLOY == "--no-deploy" ]]; then
-    echo "The --no-deploy flag is set. Skipping deployment."
+if [[ ${CI:-} == true ]]; then
+    echo "CI environment detected, skipping deployment."
 elif [[ -e "${DSS_HOME}/environment.${PROMOTE_DEST_BRANCH}" ]]; then
     source "${DSS_HOME}/environment.${PROMOTE_DEST_BRANCH}"
     make -C "$DSS_HOME" deploy
