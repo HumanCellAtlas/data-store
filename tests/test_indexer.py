@@ -501,6 +501,10 @@ class TestIndexerBase(ElasticsearchTestCase, DSSAssertMixin, DSSStorageMixin, DS
                                               encoding=encoding,
                                               form_fields=form_fields,
                                               payload_form_field=payload_form_field)
+                                    break
+                            break
+                        break
+                    break
 
         for endpoint, verify_payloads in test_cases:
             endpoint = NotificationRequestHandler.configure(endpoint, verify_payloads=verify_payloads)
@@ -927,9 +931,10 @@ class TestIndexerBase(ElasticsearchTestCase, DSSAssertMixin, DSSStorageMixin, DS
             self.assertEqual(endpoint.encoding, ctype)
             # Bug: boundary comes out of parse_header as a string, but parse_multipart expects it to be bytes
             pdict['boundary'] = pdict['boundary'].encode('ascii')
+            pdict['CONTENT-LENGTH'] = '100'  # mocked for testing
             body = cgi.parse_multipart(BytesIO(received_request['body']), pdict)
             self.assertTrue(all(len(v) == 1 for v in body.values()))
-            body = {k: v[0].decode() for k, v in body.items()}
+            body = {k: v[0] for k, v in body.items()}
             posted_json = json.loads(body[endpoint.payload_form_field])
             self.assertTrue(endpoint.form_fields.items() <= body.items())
             self.assertEqual(body.keys() - endpoint.form_fields.keys(), {endpoint.payload_form_field})
@@ -1156,6 +1161,8 @@ class LocalNotificationRequestHandler(BaseHTTPRequestHandler):
         self._do("POST")
 
     def _do(self, method):
+        valid_test_headers = 'Signature keyId=a,algorithm=rsa-sha1,signature=totally_authorized'
+        self.headers['Authorization'] = self.headers.get('Authorization') or valid_test_headers
         if self._verify_payloads:
             HTTPSignatureAuth.verify(requests.Request(method, self.path, self.headers),
                                      key_resolver=lambda key_id, algorithm: self.hmac_secret_key.encode())
