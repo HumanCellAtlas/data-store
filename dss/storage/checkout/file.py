@@ -18,6 +18,7 @@ def start_file_checkout(replica: Replica, blob_key, dst_bucket: typing.Optional[
     :return: The execution ID of the request.
     """
     dst_bucket = dst_bucket or replica.checkout_bucket
+    # change the assert below once the bug causing this to occur is found
     assert dst_bucket != replica.bucket, f'Cannot checkout a file from {dst_bucket} to itself!'
     source_bucket = replica.bucket
     return parallel_copy(replica, source_bucket, blob_key, dst_bucket, get_dst_key(blob_key))
