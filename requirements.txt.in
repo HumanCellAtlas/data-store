@@ -1,7 +1,5 @@
 # Be sure to run "make requirements.txt requirements-dev.txt" after editing this file.
 azure-storage >= 0.36.0
-boto3 >= 1.6.0
-botocore >= 1.10.16  # 1.9.x does not support AWS secretsmanager support
 cloud-blobstore >= 3.1.0
 connexion >= 1.1.15, < 2.0.0  # TODO migrate to 2.0.0
 dcplib>=2.0.3
@@ -20,4 +18,11 @@ urllib3 >= 1.21.1
 requests-http-signature >= 0.0.3
 aws-xray-sdk >= 1.0
 pyjwt >= 1.6.4
-pyyaml >= 4.2b1
+
+# The following packages are pinned to match the versions provided in the Lambda runtime.
+# Their contents are deleted from the Lambda package by `make prune`.
+# See https://docs.aws.amazon.com/lambda/latest/dg/lambda-runtimes.html
+boto3==1.9.42
+botocore==1.12.42  # 1.9.x does not support AWS secretsmanager support
+awscli==1.16.52
+PyYAML==5.1.1
