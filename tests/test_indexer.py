@@ -501,10 +501,6 @@ class TestIndexerBase(ElasticsearchTestCase, DSSAssertMixin, DSSStorageMixin, DS
                                               encoding=encoding,
                                               form_fields=form_fields,
                                               payload_form_field=payload_form_field)
-                                    break
-                            break
-                        break
-                    break
 
         for endpoint, verify_payloads in test_cases:
             endpoint = NotificationRequestHandler.configure(endpoint, verify_payloads=verify_payloads)
