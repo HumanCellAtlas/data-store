@@ -39,7 +39,7 @@ events = dispatch.target("secrets", arguments={}, help=__doc__)
     "list",
     arguments={
         "--stage": dict(
-            required=True, help="the stage for which secrets should be listed"
+            required=False, help="the stage for which secrets should be listed"
         ),
         "--json": dict(
             default=False,
@@ -81,7 +81,7 @@ def list_secrets(argv: typing.List[str], args: argparse.Namespace):
     "get",
     arguments={
         "--stage": dict(
-            required=True, help="the stage for which secrets should be listed"
+            required=False, help="the stage for which secrets should be listed"
         ),
         "--secret-name": dict(
             required=True,
@@ -144,7 +144,7 @@ def get_secret(argv: typing.List[str], args: argparse.Namespace):
     "set",
     arguments={
         "--stage": dict(
-            required=True, help="the stage for which secrets should be set"
+            required=False, help="the stage for which secrets should be set"
         ),
         "--secret-name": dict(
             required=True, help="name of secret to set (limit 1 at a time)"
@@ -239,7 +239,7 @@ def set_secret(argv: typing.List[str], args: argparse.Namespace):
     "delete",
     arguments={
         "--stage": dict(
-            required=True, help="the stage for which secrets should be deleted"
+            required=False, help="the stage for which secrets should be deleted"
         ),
         "--secret-name": dict(
             required=True, help="name of secret to delete (limit 1 at a time)"
