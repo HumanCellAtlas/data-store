@@ -714,8 +714,9 @@ class TestBundleApi(unittest.TestCase, TestAuthMixin, DSSAssertMixin, DSSUploadM
         tombstone_exists = test_object_exists(handle, bucket, f"bundles/{bundle_uuid}.{bundle_version}.dead")
         self.assertEquals(tombstone_exists, authorized)
 
-        self.delete_bundle(replica, bundle_uuid, bundle_version, authorized=authorized,
-                           expected_code=404 if authorized else 403)
+    def test_delete_nonexistent(self):
+        nonexistent_uuid = str(uuid.uuid4())
+        self.delete_bundle(Replica.aws, nonexistent_uuid, authorized=True, expected_code=404)
 
     def test_no_replica(self):
         """
