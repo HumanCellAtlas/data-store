@@ -151,6 +151,7 @@ def enumerate(replica: str, prefix: str = None, token: str = None,
 
     payload = dict(dss_api=api_domain_name, object='list', per_page=per_page,
                    event_timestamp=datetime_to_version_format(datetime.datetime.utcnow()))
+    # build dictionary of bundles
     keys = dict()
     total_keys = 0
     search_after = None
@@ -168,22 +169,24 @@ def enumerate(replica: str, prefix: str = None, token: str = None,
             del keys[uuid]
         if total_keys >= per_page:
             break
-    key_list = list()
+    # format output
+    bundle_list = list()
     for uuid, versions in keys.items():
         for version in versions:
-            key_list.append(f'bundles/{uuid}/{version}')
-    if total_keys < per_page:  # enumeration is complete
-        payload['data'] = key_list
+            bundle_list.append(dict(uuid=uuid, version=version))
+    if total_keys < per_page:
+        # enumeration is complete
+        payload['bundles'] = bundle_list
         payload['has_more'] = False
-        payload['page_count'] = len(key_list)
+        payload['page_count'] = len(bundle_list)
         response = make_response(jsonify(payload), requests.codes.ok)
     else:
         next_url = UrlBuilder(request.url)
         next_url.replace_query("search_after", search_after)
         next_url.replace_query("token", prefix_iterator.token)
         link = f"<{next_url}>; rel='next'"
-        payload['data'] = key_list
-        payload['page_count'] = len(key_list)
+        payload['bundles'] = bundle_list
+        payload['page_count'] = len(bundle_list)
         payload['has_more'] = True
         payload['token'] = prefix_iterator.token
         payload['link'] = link
