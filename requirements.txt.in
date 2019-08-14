@@ -20,7 +20,6 @@ aws-xray-sdk >= 1.0
 pyjwt >= 1.6.4
 
 # The following packages are pinned to match the versions provided in the Lambda runtime.
-# Their contents are deleted from the Lambda package by `make prune`.
 # See https://docs.aws.amazon.com/lambda/latest/dg/lambda-runtimes.html
 boto3==1.9.42
 botocore==1.12.42  # 1.9.x does not support AWS secretsmanager support
