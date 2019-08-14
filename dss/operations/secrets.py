@@ -9,6 +9,8 @@ import argparse
 import json
 import logging
 
+from botocore.exceptions import ClientError
+
 from dss.operations import dispatch
 from dss.util.aws.clients import secretsmanager  # type: ignore
 
@@ -129,7 +131,7 @@ def get_secret(argv: typing.List[str], args: argparse.Namespace):
         try:
             response = secretsmanager.get_secret_value(SecretId=secret_name)
             secret_val = response["SecretString"]
-        except secretsmanager.exceptions.ResourceNotFoundException:
+        except ClientError:
             # A secret variable with that name does not exist
             logger.warning(f"Resource not found: {secret_name}")
         else:
@@ -203,7 +205,7 @@ def set_secret(argv: typing.List[str], args: argparse.Namespace):
         # Start by trying to get the secret variable
         _ = secretsmanager.get_secret_value(SecretId=secret_name)
 
-    except secretsmanager.exceptions.ResourceNotFoundException:
+    except ClientError:
         # A secret variable with that name does not exist, so create it
 
         if dry_run:
@@ -299,7 +301,7 @@ def del_secret(argv: typing.List[str], args: argparse.Namespace):
         # Start by trying to get the secret variable
         _ = secretsmanager.get_secret_value(SecretId=secret_name)
 
-    except secretsmanager.exceptions.ResourceNotFoundException:
+    except ClientError:
         # No secret var found
         logger.warning(f"Secret variable {secret_name} not found in secrets manager!")
 
