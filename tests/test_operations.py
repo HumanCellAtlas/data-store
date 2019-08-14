@@ -13,6 +13,7 @@ import random
 from collections import namedtuple
 from unittest import mock
 from boto3.s3.transfer import TransferConfig
+from botocore.exceptions import ClientError
 
 from cloud_blobstore import BlobNotFoundError
 
@@ -285,10 +286,9 @@ class TestOperations(unittest.TestCase):
         # Note on mocks and testing:
         # - we need to mock the SecretsManager to avoid
         #   the need to give permissions to Travis tester
-        # - most SecretsManager (and other ops) functionality
-        #   just prints information to the screen, so the
-        #   mocking should generally return nothing and 
-        #   print things out as a side effect
+        # - to test the functionality in secrets, don't mock
+        #   the functions in secrets, mock the SecretsManager
+        #   object that it uses
         # 
         which_stage = "dev"
         which_store = os.environ["DSS_SECRETS_STORE"]
@@ -303,9 +303,11 @@ class TestOperations(unittest.TestCase):
 
         with self.subTest("Create a new secret"):
             # Monkeypatch the secrets manager
-            with mock.patch("dss.operations.secrets.secretsmanager.set_secret") as s:
-                # Set fake return value and print behavior
-                s.return_value = None
+            with mock.patch("dss.operations.secrets.secretsmanager") as sm:
+                # Creating a new variable will first call get, which will not find it
+                sm.get_secret_value = mock.MagicMock(return_value=None, side_effect=ClientError({},None))
+                # Next we will use the create secret command
+                sm.create_secret = mock.MagicMock(return_value=None)
                 # Create initial secret value
                 secrets.set_secret(
                     [],
@@ -317,25 +319,38 @@ class TestOperations(unittest.TestCase):
                 )
 
         with self.subTest("List secrets"):
-            # Monkeypatch the secrets manager
-            with mock.patch("dss.operations.secrets.secretsmanager.list_secrets") as s:
-                # Set fake return value and print behavior
-                out_val = [f"{unusedvar_name}", f"{testvar_name}"]
-                s.side_effect = lambda : print("\n".join(out_val))
-                s.return_value = None
+            with mock.patch("dss.operations.secrets.secretsmanager") as sm:
+                # Listing secrets requires creating a paginator first,
+                # so mock what the paginator returns
+                class MockPaginator(object):
+                    def paginate(self):
+                        # Return a mock page from the mock paginator
+                        return [
+                                {
+                                    "SecretList": [
+                                        {
+                                            "Name": testvar_name
+                                        },
+                                        {
+                                            "Name": unusedvar_name
+                                        }
+                                    ]
+                                }
+                        ]
+                sm.get_paginator.return_value = MockPaginator()
                 # Test variable name should be in list of secret names
                 with CaptureStdout() as output:
                     secrets.list_secrets([], argparse.Namespace(stage=which_stage))
                 self.assertIn(testvar_name, output)
 
         with self.subTest("Get secret value"):
-            # Monkeypatch the secrets manager
-            with mock.patch("dss.operations.secrets.secretsmanager.get_secret") as s:
-                # Set fake return value and print behavior
-                out_val = [f"{testvar_name}={testvar_value}"]
-                s.side_effect = lambda : print("\n".join(out_val))
-                s.return_value = None
-                # Test variable name should be in output
+            with mock.patch("dss.operations.secrets.secretsmanager") as sm:
+                # Requesting the variable will try to get secret value and succeed
+                sm.get_secret_value.return_value = {"SecretString": testvar_value}
+                # Now run get secret value in JSON mode and non-JSON mode
+                # and verify variable name/value is in both.
+                # 
+                # Start with non-JSON get call:
                 with CaptureStdout() as output:
                     secrets.get_secret(
                         [], argparse.Namespace(secret_name=testvar_name, stage=which_stage)
@@ -343,19 +358,8 @@ class TestOperations(unittest.TestCase):
                 output = "".join(output)
                 self.assertIn(testvar_name, output)
                 self.assertIn(testvar_value, output)
-
-        with self.subTest("Get secret value as JSON"):
-            # Monkeypatch the secrets manager
-            with mock.patch("dss.operations.secrets.secretsmanager.get_secret") as s:
-                # Set fake return value and print behavior
-                out_val = {
-                        testvar_name: testvar_value,
-                        unusedvar_name: unusedvar_value
-                }
-                out_val = json.dumps(out_val)
-                s.side_effect = lambda : print(out_val)
-                s.return_value = None
-                # Test variable name is in JSON keys
+                #
+                # Now JSON get call:
                 with CaptureStdout() as output:
                     secrets.get_secret(
                         [],
@@ -363,18 +367,17 @@ class TestOperations(unittest.TestCase):
                             secret_name=testvar_name, stage=which_stage, json=True
                         ),
                     )
-                # Output is a list of strings; convert to single string and read as
-                # JSON/dict
-                self.assertNotEqual(output, "")
-                d = json.loads("".join(output))
-                self.assertIn(testvar_name, d.keys())
+                output = "".join(output)
+                self.assertIn(testvar_name, output)
+                self.assertIn(testvar_value, output)
 
         with self.subTest("Update existing secret"):
-            # Monkeypatch the secrets manager
-            with mock.patch("dss.operations.secrets.secretsmanager.set_secret") as s:
-                # Set fake return value and print behavior
-                s.return_value = None
-                # Set secret
+            with mock.patch("dss.operations.secrets.secretsmanager") as sm:
+                # Updating the variable will try to get secret value and succeed
+                sm.get_secret_value = mock.MagicMock(return_value={"SecretString": testvar_value})
+                # Next we will call the update secret command
+                sm.update_secret = mock.MagicMock(return_value=None)
+                # Update secret
                 secrets.set_secret(
                     [],
                     argparse.Namespace(
@@ -384,40 +387,18 @@ class TestOperations(unittest.TestCase):
                     ),
                 )
 
-        with self.subTest("Get updated secret value"):
-            # Monkeypatch the secrets manager
-            with mock.patch("dss.operations.secrets.secretsmanager.get_secret") as s:
-                # Set fake return value and print behavior
-                out_val = [f"{testvar_name}={testvar_value2}"]
-                s.side_effect = lambda : print("\n".join(out_val))
-                s.return_value = None
-                # Test variable name should be in output
-                with CaptureStdout() as output:
-                    secrets.get_secret(
-                        [], argparse.Namespace(secret_name=testvar_name, stage=which_stage)
-                    )
-                output = "".join(output)
-                self.assertIn(testvar_name, output)
-
         with self.subTest("Delete secret"):
-            # Monkeypatch the secrets manager
-            with mock.patch("dss.operations.secrets.secretsmanager.del_secret") as s:
-                s.return_value = None
+            with mock.patch("dss.operations.secrets.secretsmanager") as sm:
+                # Deleting the variable will try to get secret value and succeed
+                sm.get_secret_value = mock.MagicMock(return_value={"SecretString": testvar_value})
+                sm.delete_secret = mock.MagicMock(return_value=None)
+                # Delete secret
                 secrets.del_secret(
                     [],
                     argparse.Namespace(
                         secret_name=testvar_name, stage=which_stage, force=True
                     ),
                 )
-            with mock.patch("dss.operations.secrets.secretsmanager.list_secret") as s:
-                # Set fake return value and print behavior
-                out_val = [f"{unusedvar_name}"]
-                s.side_effect = lambda : print("\n".join(out_val))
-                s.return_value = None
-                # Test variable name should not be in list of secret names
-                with CaptureStdout() as output:
-                    secrets.list_secrets([], argparse.Namespace(stage=which_stage))
-                self.assertNotIn(testvar_name, output)
 
 
 if __name__ == '__main__':
