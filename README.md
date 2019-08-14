@@ -78,7 +78,7 @@ Note that privileged access to cloud accounts (AWS, GCP, etc.) is required to de
 due to access restrictions, please consult your local systems administrators.
 
 ### Install Dependencies
-The DSS requires Python 3.6 to run.
+The DSS requires Python 3.7 to run.
 
 Clone the repo and install dependencies:
 ```
