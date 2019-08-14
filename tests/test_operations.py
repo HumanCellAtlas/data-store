@@ -282,14 +282,6 @@ class TestOperations(unittest.TestCase):
         # - update secret value
         # - get secret value and verify it is correct
         # - delete secret
-        # 
-        # Note on mocks and testing:
-        # - we need to mock the SecretsManager to avoid
-        #   the need to give permissions to Travis tester
-        # - to test the functionality in secrets, don't mock
-        #   the functions in secrets, mock the SecretsManager
-        #   object that it uses
-        # 
         which_stage = "dev"
         which_store = os.environ["DSS_SECRETS_STORE"]
 
@@ -299,13 +291,12 @@ class TestOperations(unittest.TestCase):
         testvar_value2 = "Goodbye world!"
 
         unusedvar_name = f"{which_store}/{which_stage}/admin_user_emails"
-        unusedvar_value = "user@example.com,abc@example.com,def@example.com"
 
         with self.subTest("Create a new secret"):
             # Monkeypatch the secrets manager
             with mock.patch("dss.operations.secrets.secretsmanager") as sm:
                 # Creating a new variable will first call get, which will not find it
-                sm.get_secret_value = mock.MagicMock(return_value=None, side_effect=ClientError({},None))
+                sm.get_secret_value = mock.MagicMock(return_value=None, side_effect=ClientError({}, None))
                 # Next we will use the create secret command
                 sm.create_secret = mock.MagicMock(return_value=None)
                 # Create initial secret value
@@ -326,16 +317,16 @@ class TestOperations(unittest.TestCase):
                     def paginate(self):
                         # Return a mock page from the mock paginator
                         return [
-                                {
-                                    "SecretList": [
-                                        {
-                                            "Name": testvar_name
-                                        },
-                                        {
-                                            "Name": unusedvar_name
-                                        }
-                                    ]
-                                }
+                            {
+                                "SecretList": [
+                                    {
+                                        "Name": testvar_name
+                                    },
+                                    {
+                                        "Name": unusedvar_name
+                                    }
+                                ]
+                            }
                         ]
                 sm.get_paginator.return_value = MockPaginator()
                 # Test variable name should be in list of secret names
@@ -349,7 +340,7 @@ class TestOperations(unittest.TestCase):
                 sm.get_secret_value.return_value = {"SecretString": testvar_value}
                 # Now run get secret value in JSON mode and non-JSON mode
                 # and verify variable name/value is in both.
-                # 
+                #
                 # Start with non-JSON get call:
                 with CaptureStdout() as output:
                     secrets.get_secret(
