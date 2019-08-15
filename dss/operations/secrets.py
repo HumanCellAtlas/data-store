@@ -65,7 +65,7 @@ def list_secrets(argv: typing.List[str], args: argparse.Namespace):
     secret_names.sort()
 
     if args.json is True:
-        print(json.dumps(secret_names))
+        print(json.dumps(secret_names, indent=4))
     else:
         for secret_name in secret_names:
             print(secret_name)
@@ -126,7 +126,12 @@ def get_secret(argv: typing.List[str], args: argparse.Namespace):
         else:
             # Get operation was successful, secret variable exists
             if use_json:
-                print(json.dumps({secret_name: secret_val}))
+                # Sometimes secret_val can be a dictionary
+                try:
+                    secret_val = json.loads(secret_val)
+                except json.decoder.JSONDecodeError:
+                    pass
+                print(json.dumps({secret_name: secret_val}, indent=4))
             else:
                 print(f"{secret_name}={secret_val}")
 
