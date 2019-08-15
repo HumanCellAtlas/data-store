@@ -15,14 +15,13 @@ from dss import DSSException, dss_handler, DSSForbiddenException
 from dss.api.search import PerPageBounds
 from dss.config import Config, Replica
 from dss.storage.blobstore import idempotent_save, test_object_exists, ObjectTest
-from dss.storage.bundles import get_bundle_manifest, save_bundle_manifest
+from dss.storage.bundles import get_bundle_manifest, save_bundle_manifest, list_available_uuids
 from dss.storage.checkout import CheckoutError, TokenError
 from dss.storage.checkout.bundle import get_dst_bundle_prefix, verify_checkout
 from dss.storage.identifiers import BundleTombstoneID, BundleFQID, FileFQID, TOMBSTONE_SUFFIX
 from dss.storage.hcablobstore import BundleFileMetadata, BundleMetadata, FileMetadata
 from dss.util import UrlBuilder, security, hashabledict, multipart_parallel_upload
 from dss.util.version import datetime_to_version_format
-
 
 """The retry-after interval in seconds. Sets up downstream libraries / users to
 retry request after the specified interval."""
@@ -140,56 +139,30 @@ def enumerate(replica: str, prefix: str = None, token: str = None,
               search_after: typing.Optional[str] = None):
 
     api_domain_name = f'https://{os.environ.get("API_DOMAIN_NAME")}'
-    storage_handler = Config.get_blobstore_handle(Replica[replica])
+    payload = dict(dss_api=api_domain_name, object='list', per_page=per_page,
+                   event_timestamp=datetime_to_version_format(datetime.datetime.utcnow()))  # type: typing.Any
+
     key_prefix = prefix if prefix else 'bundles/'  # might need to add filtering over here (no files/blobs allowed)
-    kwargs = dict(bucket=Replica[replica].bucket, prefix=key_prefix, k_page_max=per_page)
+    kwargs = dict(replica=Replica[replica].name, prefix=key_prefix, per_page=per_page)
     if search_after:
-        kwargs['start_after_key'] = search_after
+        kwargs['search_after'] = search_after
     if token:
         kwargs['token'] = token
-    prefix_iterator = storage_handler.list_v2(**kwargs)
 
-    payload = dict(dss_api=api_domain_name, object='list', per_page=per_page,
-                   event_timestamp=datetime_to_version_format(datetime.datetime.utcnow()))
-    # build dictionary of bundles
-    keys = dict()
-    total_keys = 0
-    search_after = None
-    for key, meta in prefix_iterator:
-        uuid, version = key.split('.', 1)
-        if not version.endswith(TOMBSTONE_SUFFIX):
-            search_after = key
-            if keys.get(uuid) is None:
-                keys[uuid] = [version]
-            else:
-                keys[uuid].append(version)
-            total_keys += 1
-        elif TOMBSTONE_SUFFIX == version:
-            total_keys -= len(keys[uuid])
-            del keys[uuid]
-        if total_keys >= per_page:
-            break
-    # format output
-    bundle_list = list()
-    for uuid, versions in keys.items():
-        for version in versions:
-            bundle_list.append(dict(uuid=uuid, version=version))
-    if total_keys < per_page:
+    payload.update(list_available_uuids(**kwargs))  # type: ignore
+
+    if payload['page_count'] < per_page:
         # enumeration is complete
-        payload['bundles'] = bundle_list
-        payload['has_more'] = False
-        payload['page_count'] = len(bundle_list)
+        payload.update(dict(has_more=False))
+        del payload['token']
+        del payload['search_after']
         response = make_response(jsonify(payload), requests.codes.ok)
     else:
         next_url = UrlBuilder(request.url)
-        next_url.replace_query("search_after", search_after)
-        next_url.replace_query("token", prefix_iterator.token)
+        next_url.replace_query("search_after", payload['search_after'])
+        next_url.replace_query("token", payload['token'])
         link = f"<{next_url}>; rel='next'"
-        payload['bundles'] = bundle_list
-        payload['page_count'] = len(bundle_list)
-        payload['has_more'] = True
-        payload['token'] = prefix_iterator.token
-        payload['link'] = link
+        payload.update(dict(has_more=True, token=payload['token'], link=link))
         response = make_response(jsonify(payload), requests.codes.partial)
         response.headers['Link'] = link
     return response

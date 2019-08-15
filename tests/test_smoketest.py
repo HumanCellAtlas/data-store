@@ -122,6 +122,13 @@ class Smoketest(BaseSmokeTest):
                 else:
                     self.fail("Timed out waiting for notification to arrive")
 
+        for replica in self.replicas:
+            with self.subTest(f'Testing Bundle Enumeration on {replica.name}'):
+                resp = self.get_bundle_enumerations(replica.name, 10)
+                print(resp)
+                self.assertEquals(resp['per_page'], 10)
+                self.assertIs(resp['has_more'], True)
+
     def test_smoketest(self):
         for param in self.params:
             self.smoketest(**param)

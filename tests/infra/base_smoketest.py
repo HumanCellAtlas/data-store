@@ -181,6 +181,16 @@ class BaseSmokeTest(unittest.TestCase):
         return run_for_json(f"{self.venv_bin}hca dss get-subscriptions --replica {replica.name}"
                             f" --subscription-type elasticsearch  ")
 
+    def get_bundle_enumerations(self, replica, per_page, search_after=None, token=None):
+        """returns bundle enumeration page"""
+        if search_after is None and token is None:
+            resp = run_for_json(f"{self.venv_bin}hca dss get-bundles --replica {replica}"
+                                f" --per-page {per_page}")
+        else:
+            resp = run_for_json(f"{self.venv_bin}hca dss get-bundles --replica {replica}"
+                                f" --per-page {per_page} --search-after {search_after} --token {token}")
+        return resp
+
     def _test_get_subscriptions(self, replica, requested_subscription):
         get_response = self.get_subscriptions(replica)
         list_of_subscriptions = get_response['subscriptions']
