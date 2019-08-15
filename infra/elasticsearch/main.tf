@@ -75,7 +75,7 @@ data "aws_iam_policy_document" "dss_es_access_policy_documennt" {
     condition {
       test = "IpAddress"
       variable = "aws:SourceIp"
-      values = ["${local.access_ips}"]
+      values = "${local.access_ips}"
     }
   }
 }
@@ -85,40 +85,40 @@ resource aws_elasticsearch_domain elasticsearch {
   domain_name = "${var.DSS_ES_DOMAIN}"
   elasticsearch_version = "5.5"
 
-  cluster_config = {
+  cluster_config {
     instance_type = "${var.DSS_ES_INSTANCE_TYPE}"
 	instance_count = "${var.DSS_ES_INSTANCE_COUNT}"
   }
 
   advanced_options = {
-    rest.action.multi.allow_explicit_index = "true"
+    "rest.action.multi.allow_explicit_index" = "true"
   }
 
-  ebs_options = {
+  ebs_options {
     ebs_enabled = "true"
     volume_type = "gp2"
     volume_size = "${var.DSS_ES_VOLUME_SIZE}"
   }
 
-  log_publishing_options = {
+  log_publishing_options {
     cloudwatch_log_group_arn = "${aws_cloudwatch_log_group.es_index_log.arn}"
     log_type = "INDEX_SLOW_LOGS"
     enabled = "${var.DSS_ES_DOMAIN_INDEX_LOGS_ENABLED}"
   }
 
-  log_publishing_options = {
+  log_publishing_options {
     cloudwatch_log_group_arn = "${aws_cloudwatch_log_group.es_search_log.arn}"
     log_type = "SEARCH_SLOW_LOGS"
     enabled = "${var.DSS_ES_DOMAIN_INDEX_LOGS_ENABLED}"
   }
 
-  log_publishing_options = {
+  log_publishing_options {
     cloudwatch_log_group_arn = "${aws_cloudwatch_log_group.es_application_log.arn}"
     log_type = "ES_APPLICATION_LOGS"
     enabled = "${var.DSS_ES_DOMAIN_INDEX_LOGS_ENABLED}"
   }
 
-  snapshot_options = {
+  snapshot_options {
     automated_snapshot_start_hour = 23
   }
 
