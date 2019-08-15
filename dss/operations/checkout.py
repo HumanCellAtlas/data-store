@@ -32,10 +32,6 @@ class CheckoutHandler:
         self.handle = Config.get_blobstore_handle(self.replica)
         self.bucket = self.replica.checkout_bucket
 
-    def process_command_locally(self, argv: typing.List[str], args: argparse.Namespace):
-        if self.keys is not None:
-            self.process_keys()
-
     def _verify_delete(self, handle, bucket, key):
         logger.warning(f'attempting removal of key: {bucket}/{key}')
         try:
@@ -72,7 +68,7 @@ class CheckoutHandler:
             kwargs['token'] = token
             token, status = function(**kwargs)
             if not status:
-                time.sleep(4)  # wait 10 seconds for checkout to complete, then try again
+                time.sleep(4)  # wait 4 seconds for checkout to complete, then try again
 
     def _parse_key(self, key):
         try:
@@ -86,8 +82,9 @@ class CheckoutHandler:
         raise NotImplementedError()
 
     def __call__(self, argv: typing.List[str], args: argparse.Namespace):
-        return self.process_command_locally(argv, args)
-
+        if self.keys is not None:
+            self.process_keys()
+    
 
 checkout = dispatch.target("checkout", help=__doc__)
 
