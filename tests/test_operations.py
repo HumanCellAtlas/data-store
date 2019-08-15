@@ -345,7 +345,7 @@ class TestOperations(unittest.TestCase):
                 # Single variable:
                 with CaptureStdout() as output:
                     secrets.get_secret(
-                        [], argparse.Namespace(secret_name=[testvar_name])
+                        [], argparse.Namespace(secret_names=[testvar_name])
                     )
                 output = "".join(output)
                 self.assertIn(testvar_name, output)
@@ -353,7 +353,7 @@ class TestOperations(unittest.TestCase):
                 # Multiple variables:
                 with CaptureStdout() as output:
                     secrets.get_secret(
-                        [], argparse.Namespace(secret_name=[testvar_name,unusedvar_name])
+                        [], argparse.Namespace(secret_names=[testvar_name,unusedvar_name])
                     )
                 output = "".join(output)
                 self.assertIn(testvar_name, output)
@@ -363,7 +363,7 @@ class TestOperations(unittest.TestCase):
                 with CaptureStdout() as output:
                     secrets.get_secret(
                         [],
-                        argparse.Namespace(secret_name=[testvar_name], json=True),
+                        argparse.Namespace(secret_names=[testvar_name], json=True),
                     )
                 output = "".join(output)
                 self.assertIn(testvar_name, output)

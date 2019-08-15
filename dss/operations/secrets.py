@@ -74,10 +74,10 @@ def list_secrets(argv: typing.List[str], args: argparse.Namespace):
 @events.action(
     "get",
     arguments={
-        "--secret-name": dict(
+        "--secret-names": dict(
             required=True,
             nargs="*",
-            help="name of secret or secrets to retrieve (list values can be separated by a space)",
+            help="names of secrets to retrieve (separate multiple values with spaces)",
         ),
         "--json": dict(
             default=False,
@@ -89,7 +89,7 @@ def list_secrets(argv: typing.List[str], args: argparse.Namespace):
 def get_secret(argv: typing.List[str], args: argparse.Namespace):
     """
     Get the value of the secret variable (or list of variables) specified by
-    the --secret-name flag; separate multiple secret names using a space.
+    the --secret-names flag; separate multiple secret names using a space.
     """
     # Note: this function should not print anything except the final JSON,
     # in case the user pipes the JSON output of this script to something else
@@ -97,12 +97,12 @@ def get_secret(argv: typing.List[str], args: argparse.Namespace):
     store_prefix = get_secretsmanager_prefix(args)
 
     # Make sure something was specified for secret name(s)
-    if len(args.secret_name) == 0:
+    if len(args.secret_names) == 0:
         raise RuntimeError(
-            "Unable to set secret: no secret name was specified! Use the --secret-name flag."
+            "Unable to set secret: no secret name was specified! Use the --secret-names flag."
         )
     else:
-        secret_names = args.secret_name
+        secret_names = args.secret_names
 
     # Tack on the store prefix if it isn't there already
     for i in range(len(secret_names)):
