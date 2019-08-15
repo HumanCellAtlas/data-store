@@ -24,12 +24,7 @@ def get_secretsmanager_prefix(args):
     the SecretsManager.
     """
     store_name = os.environ["DSS_SECRETS_STORE"]
-
-    if hasattr(args, "stage") and args.stage is not None:
-        stage_name = args.stage
-    else:
-        stage_name = os.environ["DSS_DEPLOYMENT_STAGE"]
-
+    stage_name = os.environ["DSS_DEPLOYMENT_STAGE"]
     store_prefix = f"{store_name}/{stage_name}/"
     return store_prefix
 
@@ -40,9 +35,6 @@ events = dispatch.target("secrets", arguments={}, help=__doc__)
 @events.action(
     "list",
     arguments={
-        "--stage": dict(
-            required=False, help="the stage for which secrets should be listed"
-        ),
         "--json": dict(
             default=False,
             action="store_true",
@@ -82,9 +74,6 @@ def list_secrets(argv: typing.List[str], args: argparse.Namespace):
 @events.action(
     "get",
     arguments={
-        "--stage": dict(
-            required=False, help="the stage for which secrets should be listed"
-        ),
         "--secret-name": dict(
             required=True,
             nargs="*",
@@ -146,9 +135,6 @@ def get_secret(argv: typing.List[str], args: argparse.Namespace):
 @events.action(
     "set",
     arguments={
-        "--stage": dict(
-            required=False, help="the stage for which secrets should be set"
-        ),
         "--secret-name": dict(
             required=True, help="name of secret to set (limit 1 at a time)"
         ),
@@ -241,9 +227,6 @@ def set_secret(argv: typing.List[str], args: argparse.Namespace):
 @events.action(
     "delete",
     arguments={
-        "--stage": dict(
-            required=False, help="the stage for which secrets should be deleted"
-        ),
         "--secret-name": dict(
             required=True, help="name of secret to delete (limit 1 at a time)"
         ),
