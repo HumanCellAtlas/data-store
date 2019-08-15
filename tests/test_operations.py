@@ -305,7 +305,7 @@ class TestOperations(unittest.TestCase):
                     argparse.Namespace(
                         secret_name=testvar_name,
                         secret_value=testvar_value,
-                        stage=which_stage,
+                        dry_run=False
                     ),
                 )
 
@@ -331,7 +331,7 @@ class TestOperations(unittest.TestCase):
                 sm.get_paginator.return_value = MockPaginator()
                 # Test variable name should be in list of secret names
                 with CaptureStdout() as output:
-                    secrets.list_secrets([], argparse.Namespace(stage=which_stage))
+                    secrets.list_secrets([], argparse.Namespace(json=False))
                 self.assertIn(testvar_name, output)
 
         with self.subTest("Get secret value"):
@@ -345,7 +345,7 @@ class TestOperations(unittest.TestCase):
                 # Single variable:
                 with CaptureStdout() as output:
                     secrets.get_secret(
-                        [], argparse.Namespace(secret_names=[testvar_name])
+                        [], argparse.Namespace(secret_names=[testvar_name], json=False)
                     )
                 output = "".join(output)
                 self.assertIn(testvar_name, output)
@@ -353,17 +353,34 @@ class TestOperations(unittest.TestCase):
                 # Multiple variables:
                 with CaptureStdout() as output:
                     secrets.get_secret(
-                        [], argparse.Namespace(secret_names=[testvar_name,unusedvar_name])
+                        [],
+                        argparse.Namespace(
+                            secret_names=[testvar_name,unusedvar_name],
+                            json=False
+                        )
                     )
                 output = "".join(output)
                 self.assertIn(testvar_name, output)
                 self.assertIn(testvar_value, output)
                 #
                 # Now JSON get call:
+                # Single variable:
                 with CaptureStdout() as output:
                     secrets.get_secret(
                         [],
                         argparse.Namespace(secret_names=[testvar_name], json=True),
+                    )
+                output = "".join(output)
+                self.assertIn(testvar_name, output)
+                self.assertIn(testvar_value, output)
+                # Multiple variables:
+                with CaptureStdout() as output:
+                    secrets.get_secret(
+                        [],
+                        argparse.Namespace(
+                            secret_names=[testvar_name,unusedvar_name],
+                            json=True
+                        )
                     )
                 output = "".join(output)
                 self.assertIn(testvar_name, output)
@@ -381,6 +398,7 @@ class TestOperations(unittest.TestCase):
                     argparse.Namespace(
                         secret_name=testvar_name,
                         secret_value=testvar_value2,
+                        dry_run=False,
                     ),
                 )
 
@@ -392,7 +410,11 @@ class TestOperations(unittest.TestCase):
                 # Delete secret
                 secrets.del_secret(
                     [],
-                    argparse.Namespace(secret_name=testvar_name, force=True),
+                    argparse.Namespace(
+                        secret_name=testvar_name,
+                        force=True,
+                        dry_run=False,
+                    ),
                 )
 
 
