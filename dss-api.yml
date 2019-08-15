@@ -632,7 +632,7 @@ paths:
           enum: [aws, gcp]
         - name: subscription_type
           in: query
-          description: type of subscriptions to fetch (elasticsearch or jmespath)
+          description: Type of subscriptions to fetch (elasticsearch or jmespath).
           required: false
           default: jmespath
           type: string
@@ -673,9 +673,12 @@ paths:
     put:
       security:
         - dcpAuth: []
-      summary: Create a event subscription.
+      summary: Create an event subscription.
       description: >
         Register an HTTP endpoint that is to be notified when a given event occurs.
+
+        Each user is allowed 100 subscriptions, a limit that may be increased in the future. Concerns about
+        notification service limitations should be routed to the DSS development team.
       parameters:
         - name: replica
           in: query
@@ -888,6 +891,7 @@ paths:
                       - invalid_jmespath
                       - unprocessable
                       - read_only
+                      - not_acceptable
                 required:
                   - code
   /subscriptions/{uuid}:

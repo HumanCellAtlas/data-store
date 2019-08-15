@@ -3,6 +3,7 @@ resource google_storage_bucket dss_gs_bucket {
   provider      = "google"
   location      = "US"
   storage_class = "MULTI_REGIONAL"
+  labels = "${merge(local.common_tags, local.gcp_tags)}"
 }
 
 resource google_storage_bucket dss_gs_bucket_test {
@@ -11,6 +12,7 @@ resource google_storage_bucket dss_gs_bucket_test {
   provider      = "google"
   location      = "US"
   storage_class = "MULTI_REGIONAL"
+  labels = "${merge(local.common_tags, local.gcp_tags)}"
   lifecycle_rule {
     action {
       type = "Delete"
@@ -28,6 +30,7 @@ resource google_storage_bucket dss_gs_bucket_test_fixtures {
   provider      = "google"
   location      = "US"
   storage_class = "MULTI_REGIONAL"
+  labels = "${merge(local.common_tags, local.gcp_tags)}"
 }
 
 resource google_storage_bucket dss_gs_checkout_bucket {
@@ -35,6 +38,7 @@ resource google_storage_bucket dss_gs_checkout_bucket {
   provider      = "google"
   location      = "US"
   storage_class = "MULTI_REGIONAL"
+  labels = "${merge(local.common_tags, local.gcp_tags)}"
   lifecycle_rule {
     action {
       type = "Delete"
@@ -49,10 +53,15 @@ resource google_storage_bucket dss_gs_checkout_bucket {
 
 locals {
   checkout_bucket_viewers = "${compact(split(",", var.DSS_CHECKOUT_BUCKET_OBJECT_VIEWERS))}"
+  gcp_tags = "${map(
+    "name"      , "${var.DSS_INFRA_TAG_SERVICE}-gs-storage",
+    "owner"     , "${element(split("@", var.DSS_INFRA_TAG_OWNER),0)}",
+    "managed-by" , "terraform"
+  )}"
 }
 
 resource "google_storage_bucket_iam_member" "checkout_viewer" {
-  count  = "${length(local.checkout_bucket_viewers)}",
+  count  = "${length(local.checkout_bucket_viewers)}"
   bucket = "${google_storage_bucket.dss_gs_checkout_bucket.name}"
   role   = "roles/storage.objectViewer"
   member = "${local.checkout_bucket_viewers[count.index]}"
@@ -64,6 +73,7 @@ resource google_storage_bucket dss_gs_checkout_bucket_test {
   provider      = "google"
   location      = "US"
   storage_class = "MULTI_REGIONAL"
+  labels = "${merge(local.common_tags, local.gcp_tags)}"
   lifecycle_rule {
     action {
       type = "Delete"
@@ -81,6 +91,7 @@ resource google_storage_bucket dss_gs_checkout_bucket_test_user {
   provider      = "google"
   location      = "US"
   storage_class = "MULTI_REGIONAL"
+  labels = "${merge(local.common_tags, local.gcp_tags)}"
   lifecycle_rule {
     action {
       type = "Delete"
