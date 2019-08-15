@@ -100,19 +100,20 @@ def list_secrets(argv: typing.List[str], args: argparse.Namespace):
 def get_secret(argv: typing.List[str], args: argparse.Namespace):
     """
     Get the value of the secret variable (or list of variables) specified by
-    the --secret-name flag
+    the --secret-name flag; separate multiple secret names using a space.
     """
     # Note: this function should not print anything except the final JSON,
     # in case the user pipes the JSON output of this script to something else
 
     store_prefix = get_secretsmanager_prefix(args)
 
-    # Make sure a secret name was specified
-    if args.secret_name is None:
+    # Make sure something was specified for secret name(s)
+    if len(args.secret_name) == 0:
         raise RuntimeError(
             "Unable to set secret: no secret name was specified! Use the --secret-name flag."
         )
-    secret_names = args.secret_name.split(" ")
+    else:
+        secret_names = args.secret_name
 
     # Tack on the store prefix if it isn't there already
     for i in range(len(secret_names)):
