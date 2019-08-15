@@ -373,6 +373,14 @@ paths:
 
             The use of presigned URLs is recommended for data access. Cloud native URLs are currently provided for a limited set of use cases and may not be provided in the future. If cloud native URLs are required, please contact the data store team regarding the credentials necessary to use them.
           type: boolean
+        - name: started_at
+          in: query
+          required: false
+          description: >
+            Used to track the initial invocation time the file was requested.  Not required in the initial params,
+            but returned in the response headers of a redirect and expected to be passed through to each subsequent
+            Retry-After attempt.
+          type: boolean
       responses:
         301:
           description: >
@@ -383,6 +391,12 @@ paths:
               description: Delay in seconds. The client should follow the redirect after waiting for this duration.
               type: integer
               format: int64
+            Started-At:
+              description: >
+                Tracks when the initial request was made; expected to be passed through to each
+                subsequent Retry-After attempt.
+              type: number
+              format: float
         302:
           description: Redirects to a signed URL with the data.
           headers:
@@ -418,6 +432,12 @@ paths:
               description: SHA-256 (in hex format) of the file contents in hex.
               type: string
               pattern: "^[a-z0-9]{64}$"
+            Started-At:
+              description: >
+                Tracks when the initial request was made; expected to be passed through to each
+                subsequent Retry-After attempt.
+              type: number
+              format: float
         400:
           description: Bad request
           schema:

@@ -53,11 +53,14 @@ def head(uuid: str, replica: str, version: str = None, token: str = None):
 
 
 @dss_handler
-def get(uuid: str, replica: str, version: str = None, token: str = None, directurl: bool = False):
-    return get_helper(uuid, Replica[replica], version, token, directurl)
+def get(uuid: str, replica: str, version: str = None,
+        token: str = None, directurl: bool = False, started_at: float = None):
+    return get_helper(uuid, Replica[replica], version, token, directurl, started_at)
 
 
-def get_helper(uuid: str, replica: Replica, version: str = None, token: str = None, directurl: bool = False):
+def get_helper(uuid: str, replica: Replica, version: str = None,
+               token: str = None, directurl: bool = False, started_at: float = None):
+    started_at = started_at if started_at else time.time()
     with tracing.Subsegment('parameterization'):
         handle = Config.get_blobstore_handle(replica)
         bucket = replica.bucket
@@ -120,6 +123,7 @@ def get_helper(uuid: str, replica: Replica, version: str = None, token: str = No
                 response = redirect(str(builder), code=301)
                 headers = response.headers
                 headers['Retry-After'] = RETRY_AFTER_INTERVAL
+                headers['Started-At'] = started_at
                 return response
 
     else:
@@ -135,6 +139,7 @@ def get_helper(uuid: str, replica: Replica, version: str = None, token: str = No
         headers['X-DSS-S3-ETAG'] = file_metadata[FileMetadata.S3_ETAG]
         headers['X-DSS-SHA1'] = file_metadata[FileMetadata.SHA1]
         headers['X-DSS-SHA256'] = file_metadata[FileMetadata.SHA256]
+        headers['Started-At'] = started_at
 
     return response
 
