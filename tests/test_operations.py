@@ -355,7 +355,7 @@ class TestOperations(unittest.TestCase):
                     secrets.get_secret(
                         [],
                         argparse.Namespace(
-                            secret_names=[testvar_name,unusedvar_name],
+                            secret_names=[testvar_name, unusedvar_name],
                             json=False
                         )
                     )
@@ -378,7 +378,7 @@ class TestOperations(unittest.TestCase):
                     secrets.get_secret(
                         [],
                         argparse.Namespace(
-                            secret_names=[testvar_name,unusedvar_name],
+                            secret_names=[testvar_name, unusedvar_name],
                             json=True
                         )
                     )
