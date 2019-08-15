@@ -64,7 +64,7 @@ def list_secrets(argv: typing.List[str], args: argparse.Namespace):
 
     secret_names.sort()
 
-    if hasattr(args, "json") and args.json is True:
+    if args.json is True:
         print(json.dumps(secret_names))
     else:
         for secret_name in secret_names:
@@ -112,9 +112,8 @@ def get_secret(argv: typing.List[str], args: argparse.Namespace):
 
     # Determine if we should format output as JSON
     use_json = False
-    if hasattr(args, "json"):
-        if args.json:
-            use_json = True
+    if args.json is True:
+        use_json = True
 
     for secret_name in secret_names:
         # Attempt to obtain secret
@@ -155,7 +154,7 @@ def set_secret(argv: typing.List[str], args: argparse.Namespace):
     store_prefix = get_secretsmanager_prefix(args)
 
     # Make sure a secret name was specified
-    if args.secret_name is None or len(args.secret_name) == 0:
+    if len(args.secret_name) == 0:
         raise RuntimeError(
             "Unable to set secret: no secret name was specified! Use the --secret-name flag."
         )
@@ -166,12 +165,8 @@ def set_secret(argv: typing.List[str], args: argparse.Namespace):
         secret_name = store_prefix + secret_name
 
     # Decide what to use for input
-    if hasattr(args, "secret_value"):
-        if args.secret_value is not None:
-            secret_val = args.secret_value
-        else:
-            msg = f"Error setting secret value for {secret_name}, invalid --secret-value flag"
-            raise RuntimeError(msg)
+    if args.secret_value is not None:
+        secret_val = args.secret_value
     else:
         # Use stdin (input piped to this script) as secret value.
         # stdin provides secret value, flag --secret-name provides secret name.
@@ -181,12 +176,6 @@ def set_secret(argv: typing.List[str], args: argparse.Namespace):
             raise RuntimeError(err_msg)
         secret_val = sys.stdin.read()
 
-    # Determine if we are doing a dry run
-    dry_run = False
-    if hasattr(args, "dry_run"):
-        if args.dry_run:
-            dry_run = True
-
     # Create or update
     try:
         # Start by trying to get the secret variable
@@ -195,7 +184,7 @@ def set_secret(argv: typing.List[str], args: argparse.Namespace):
     except ClientError:
         # A secret variable with that name does not exist, so create it
 
-        if dry_run:
+        if args.dry_run:
             # Create it for fakes
             print(
                 f"Secret variable {secret_name} not found in secrets manager, dry-run creating it"
@@ -209,7 +198,7 @@ def set_secret(argv: typing.List[str], args: argparse.Namespace):
 
     else:
         # Get operation was successful, secret variable exists
-        if dry_run:
+        if args.dry_run:
             # Update it for fakes
             print(
                 f"Secret variable {secret_name} found in secrets manager, dry-run updating it"
@@ -250,29 +239,17 @@ def del_secret(argv: typing.List[str], args: argparse.Namespace):
     store_prefix = get_secretsmanager_prefix(args)
 
     # Make sure a secret name was specified
-    if args.secret_name is None or len(args.secret_name) == 0:
+    if len(args.secret_name) == 0:
         raise RuntimeError(
             "Unable to set secret: no secret name was specified! Use the --secret-name flag."
         )
     secret_name = args.secret_name
 
-    # Determine if we are doing a dry run
-    dry_run = False
-    if hasattr(args, "dry_run"):
-        if args.dry_run:
-            dry_run = True
-
-    # Determine if we are doing a forced action
-    force = False
-    if hasattr(args, "force"):
-        if args.force:
-            force = True
-
     # Tack on the store prefix if it isn't there already
     if not secret_name.startswith(store_prefix):
         secret_name = store_prefix + secret_name
 
-    if force is False:
+    if args.force is False:
         # Make sure the user really wants to do this
         confirm = f"""
         Are you really sure you want to delete secret {secret_name}? (Type 'y' or 'yes' to confirm):
@@ -297,7 +274,7 @@ def del_secret(argv: typing.List[str], args: argparse.Namespace):
 
     else:
         # Get operation was successful, secret variable exists
-        if dry_run:
+        if args.dry_run:
             # Delete it for fakes
             print(
                 f"Secret variable {secret_name} found in secrets manager, dry-run deleting it"
