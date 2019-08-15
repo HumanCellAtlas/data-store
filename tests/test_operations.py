@@ -342,9 +342,18 @@ class TestOperations(unittest.TestCase):
                 # and verify variable name/value is in both.
                 #
                 # Start with non-JSON get call:
+                # Single variable:
                 with CaptureStdout() as output:
                     secrets.get_secret(
-                        [], argparse.Namespace(secret_name=testvar_name, stage=which_stage)
+                        [], argparse.Namespace(secret_name=[testvar_name])
+                    )
+                output = "".join(output)
+                self.assertIn(testvar_name, output)
+                self.assertIn(testvar_value, output)
+                # Multiple variables:
+                with CaptureStdout() as output:
+                    secrets.get_secret(
+                        [], argparse.Namespace(secret_name=[testvar_name,unusedvar_name])
                     )
                 output = "".join(output)
                 self.assertIn(testvar_name, output)
@@ -354,9 +363,7 @@ class TestOperations(unittest.TestCase):
                 with CaptureStdout() as output:
                     secrets.get_secret(
                         [],
-                        argparse.Namespace(
-                            secret_name=testvar_name, stage=which_stage, json=True
-                        ),
+                        argparse.Namespace(secret_name=[testvar_name], json=True),
                     )
                 output = "".join(output)
                 self.assertIn(testvar_name, output)
@@ -374,7 +381,6 @@ class TestOperations(unittest.TestCase):
                     argparse.Namespace(
                         secret_name=testvar_name,
                         secret_value=testvar_value2,
-                        stage=which_stage,
                     ),
                 )
 
@@ -386,9 +392,7 @@ class TestOperations(unittest.TestCase):
                 # Delete secret
                 secrets.del_secret(
                     [],
-                    argparse.Namespace(
-                        secret_name=testvar_name, stage=which_stage, force=True
-                    ),
+                    argparse.Namespace(secret_name=testvar_name, force=True),
                 )
 
 
