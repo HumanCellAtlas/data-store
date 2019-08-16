@@ -9,28 +9,37 @@ import argparse
 import json
 import logging
 
+from botocore.exceptions import ClientError
+
 from dss.operations import dispatch
 from dss.util.aws.clients import secretsmanager  # type: ignore
-from dss.operations.util import get_store_prefix
-
 
 logger = logging.getLogger(__name__)
 
 
-secrets = dispatch.target("secrets", arguments={}, help=__doc__)
+def get_secretsmanager_prefix(args):
+    """
+    Use information from the environment to assemble
+    the necessary prefix for accessing variables in
+    the SecretsManager.
+    """
+    store_name = os.environ["DSS_SECRETS_STORE"]
+    stage_name = os.environ["DSS_DEPLOYMENT_STAGE"]
+    store_prefix = f"{store_name}/{stage_name}/"
+    return store_prefix
 
 
-@secrets.action(
+events = dispatch.target("secrets", arguments={}, help=__doc__)
+
+
+@events.action(
     "list",
     arguments={
-        "--stage": dict(
-            required=False, help="the stage for which secrets should be listed"
-        ),
         "--json": dict(
             default=False,
             action="store_true",
             help="format the output as JSON if this flag is present",
-        ),
+        )
     },
 )
 def list_secrets(argv: typing.List[str], args: argparse.Namespace):
@@ -38,7 +47,7 @@ def list_secrets(argv: typing.List[str], args: argparse.Namespace):
     Print a list of names of every secret variable in the secrets manager
     for the given store and stage.
     """
-    store_prefix = get_store_prefix(args)
+    store_prefix = get_secretsmanager_prefix(args)
 
     paginator = secretsmanager.get_paginator("list_secrets")
 
@@ -55,23 +64,20 @@ def list_secrets(argv: typing.List[str], args: argparse.Namespace):
 
     secret_names.sort()
 
-    if args.json:
-        print(json.dumps(secret_names))
+    if args.json is True:
+        print(json.dumps(secret_names, indent=4))
     else:
         for secret_name in secret_names:
             print(secret_name)
 
 
-@secrets.action(
+@events.action(
     "get",
     arguments={
-        "--stage": dict(
-            required=False, help="the stage for which secrets should be listed"
-        ),
-        "--secret-name": dict(
+        "--secret-names": dict(
             required=True,
             nargs="*",
-            help="name of secret or secrets to retrieve (list values can be separated by a space)",
+            help="names of secrets to retrieve (separate multiple values with spaces)",
         ),
         "--json": dict(
             default=False,
@@ -83,19 +89,20 @@ def list_secrets(argv: typing.List[str], args: argparse.Namespace):
 def get_secret(argv: typing.List[str], args: argparse.Namespace):
     """
     Get the value of the secret variable (or list of variables) specified by
-    the --secret-name flag
+    the --secret-names flag; separate multiple secret names using a space.
     """
     # Note: this function should not print anything except the final JSON,
     # in case the user pipes the JSON output of this script to something else
 
-    store_prefix = get_store_prefix(args)
+    store_prefix = get_secretsmanager_prefix(args)
 
-    # Make sure a secret name was specified
-    if args.secret_name is None or len(args.secret_name) == 0:
+    # Make sure something was specified for secret name(s)
+    if len(args.secret_names) == 0:
         raise RuntimeError(
-            "Unable to set secret: no secret name was specified! Use the --secret-name flag."
+            "Unable to set secret: no secret name was specified! Use the --secret-names flag."
         )
-    secret_names = args.secret_name
+    else:
+        secret_names = args.secret_names
 
     # Tack on the store prefix if it isn't there already
     for i in range(len(secret_names)):
@@ -103,30 +110,42 @@ def get_secret(argv: typing.List[str], args: argparse.Namespace):
         if not secret_name.startswith(store_prefix):
             secret_names[i] = store_prefix + secret_name
 
+    # Determine if we should format output as JSON
+    use_json = False
+    if args.json is True:
+        use_json = True
+
     for secret_name in secret_names:
         # Attempt to obtain secret
         try:
             response = secretsmanager.get_secret_value(SecretId=secret_name)
             secret_val = response["SecretString"]
-        except secretsmanager.exceptions.ResourceNotFoundException:
+        except ClientError:
             # A secret variable with that name does not exist
             logger.warning(f"Resource not found: {secret_name}")
         else:
             # Get operation was successful, secret variable exists
-            if args.json:
-                print(json.dumps({secret_name: secret_val}))
+            if use_json:
+                # Sometimes secret_val can be a dictionary
+                try:
+                    secret_val = json.loads(secret_val)
+                except json.decoder.JSONDecodeError:
+                    pass
+                print(json.dumps({secret_name: secret_val}, indent=4))
             else:
                 print(f"{secret_name}={secret_val}")
 
 
-@secrets.action(
+@events.action(
     "set",
     arguments={
-        "--stage": dict(
-            required=False, help="the stage for which secrets should be set"
-        ),
         "--secret-name": dict(
             required=True, help="name of secret to set (limit 1 at a time)"
+        ),
+        "--secret-value": dict(
+            required=False,
+            default=None,
+            help="value of secret to set (optional, if not present then stdin will be used)",
         ),
         "--dry-run": dict(
             default=False,
@@ -137,10 +156,10 @@ def get_secret(argv: typing.List[str], args: argparse.Namespace):
 )
 def set_secret(argv: typing.List[str], args: argparse.Namespace):
     """Set the value of the secret variable specified by the --secret-name flag"""
-    store_prefix = get_store_prefix(args)
+    store_prefix = get_secretsmanager_prefix(args)
 
     # Make sure a secret name was specified
-    if args.secret_name is None or len(args.secret_name) == 0:
+    if len(args.secret_name) == 0:
         raise RuntimeError(
             "Unable to set secret: no secret name was specified! Use the --secret-name flag."
         )
@@ -150,19 +169,26 @@ def set_secret(argv: typing.List[str], args: argparse.Namespace):
     if not secret_name.startswith(store_prefix):
         secret_name = store_prefix + secret_name
 
-    # Use stdin (input piped to this script) as secret value.
-    # stdin provides secret value, flag --secret-name provides secret name.
-    if not select.select([sys.stdin], [], [], 0.0)[0]:
-        err_msg = f"No data in stdin, cannot set secret {secret_name} without a value from stdin!"
-        raise RuntimeError(err_msg)
-    secret_val = sys.stdin.read()
+    # Decide what to use for input
+    if args.secret_value is not None:
+        secret_val = args.secret_value
+    else:
+        # Use stdin (input piped to this script) as secret value.
+        # stdin provides secret value, flag --secret-name provides secret name.
+        if not select.select([sys.stdin], [], [])[0]:
+            err_msg = f"No data in stdin, cannot set secret {secret_name} without "
+            err_msg += "a value from stdin or without --secret-value flag!"
+            raise RuntimeError(err_msg)
+        secret_val = sys.stdin.read()
 
+    # Create or update
     try:
         # Start by trying to get the secret variable
         secretsmanager.get_secret_value(SecretId=secret_name)
 
-    except secretsmanager.exceptions.ResourceNotFoundException:
+    except ClientError:
         # A secret variable with that name does not exist, so create it
+
         if args.dry_run:
             # Create it for fakes
             print(
@@ -174,6 +200,7 @@ def set_secret(argv: typing.List[str], args: argparse.Namespace):
                 f"Secret variable {secret_name} not found in secrets manager, creating it"
             )
             secretsmanager.create_secret(Name=secret_name, SecretString=secret_val)
+
     else:
         # Get operation was successful, secret variable exists
         if args.dry_run:
@@ -189,12 +216,9 @@ def set_secret(argv: typing.List[str], args: argparse.Namespace):
             secretsmanager.update_secret(SecretId=secret_name, SecretString=secret_val)
 
 
-@secrets.action(
+@events.action(
     "delete",
     arguments={
-        "--stage": dict(
-            required=False, help="the stage for which secrets should be deleted"
-        ),
         "--secret-name": dict(
             required=True, help="name of secret to delete (limit 1 at a time)"
         ),
@@ -215,10 +239,10 @@ def del_secret(argv: typing.List[str], args: argparse.Namespace):
     Delete the value of the secret variable specified by the
     --secret-name flag from the secrets manager
     """
-    store_prefix = get_store_prefix(args)
+    store_prefix = get_secretsmanager_prefix(args)
 
     # Make sure a secret name was specified
-    if args.secret_name is None or len(args.secret_name) == 0:
+    if len(args.secret_name) == 0:
         raise RuntimeError(
             "Unable to set secret: no secret name was specified! Use the --secret-name flag."
         )
@@ -241,7 +265,7 @@ def del_secret(argv: typing.List[str], args: argparse.Namespace):
         # Start by trying to get the secret variable
         secretsmanager.get_secret_value(SecretId=secret_name)
 
-    except secretsmanager.exceptions.ResourceNotFoundException:
+    except ClientError:
         # No secret var found
         logger.warning(f"Secret variable {secret_name} not found in secrets manager!")
 
