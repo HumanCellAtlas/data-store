@@ -32,7 +32,7 @@ part_size = {"s3": 64 * 1024 * 1024, "gs": 640 * 1024 * 1024}
 parts_per_worker = {"s3": 8, "gs": 1}
 gs_upload_chunk_size = 1024 * 1024 * 32
 http = get_pool_manager()
-max_syncable_metadata_size = 50 * 1024 * 1024
+max_syncable_metadata_size = 64 * 1024 * 1024
 
 sns_topics = dict(copy_parts="dss-copy-parts-" + os.environ["DSS_DEPLOYMENT_STAGE"],
                   closer=dict(s3="dss-s3-mpu-ready-" + os.environ["DSS_DEPLOYMENT_STAGE"],
