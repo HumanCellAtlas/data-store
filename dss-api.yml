@@ -1,4 +1,4 @@
-swagger: '2.0'
+openapi: 3.0.0
 info:
   title: HCA DCP DSS API
   description: >
@@ -6,30 +6,20 @@ info:
 
     # HTTP semantics
 
-    The DSS API requires clients to follow certain HTTP protocol semantics that may require extra configuration in your
-    HTTP client. The reference CLI and SDK (https://hca.readthedocs.io/) is pre-configured to do this. If writing your own
-    client, please note the following:
+    The DSS API requires clients to follow certain HTTP protocol semantics that may require extra configuration in your HTTP client. The reference CLI and SDK (https://hca.readthedocs.io/) is pre-configured to do this. If writing your own client, please note the following:
 
 
-    **301 redirects**: Some DSS API routes may return one or more HTTP 301 redirects, including potentially redirects to
-    themselves (combined with the **Retry-After** delay described below). The client must follow these redirects to obtain
-    the resource requested.
+    **301 redirects**: Some DSS API routes may return one or more HTTP 301 redirects, including potentially redirects to themselves (combined with the **Retry-After** delay described below). The client must follow these redirects to obtain the resource requested.
 
 
-    **Retry-After header**: Some DSS API routes may use the **Retry-After** header in combination with HTTP 301 or 500
-    series response codes. The client must follow the HTTP specification and wait the designated time period before
-    continuing with the next request.
+    **Retry-After header**: Some DSS API routes may use the **Retry-After** header in combination with HTTP 301 or 500 series response codes. The client must follow the HTTP specification and wait the designated time period before continuing with the next request.
 
 
-    **General retry logic**: If you are building an application that will issue high numbers of API requests, you should be
-    prepared for the possibility that a small fraction of requests fails due to network or server errors. In these
-    situations, the HTTP client should follow best practice HTTP retry semantics. For example, clients may be configured
-    to retry 5 times while waiting for an exponential number of seconds (1, 2, 4, 8, 16 seconds) upon encountering any 500
-    series response code, connect or read timeout.
+    **General retry logic**: If you are building an application that will issue high numbers of API requests, you should be prepared for the possibility that a small fraction of requests fails due to network or server errors. In these situations, the HTTP client should follow best practice HTTP retry semantics. For example, clients may be configured to retry 5 times while waiting for an exponential number of seconds (1, 2, 4, 8, 16 seconds) upon encountering any 500 series response code, connect or read timeout.
 
 
     The following Python code demonstrates an example configuration of the popular Requests library per the above guidance:
-    
+
     ```
 
     import requests, requests.packages.urllib3.util.retry
@@ -53,9 +43,7 @@ info:
 
     # Subscriptions
 
-    DSS supports webhook subscriptions for data events like bundle creation and deletion. Webhooks are callbacks to a public
-    HTTPS endpoint provided by your application. When an event matching your subscription occurs, DSS will send a push
-    notification (via an HTTPS POST or PUT request), giving your application an up-to-date stream of system activity.
+    DSS supports webhook subscriptions for data events like bundle creation and deletion. Webhooks are callbacks to a public HTTPS endpoint provided by your application. When an event matching your subscription occurs, DSS will send a push notification (via an HTTPS POST or PUT request), giving your application an up-to-date stream of system activity.
 
     Subscriptions are delivered with the payload format
 
@@ -84,46 +72,14 @@ info:
 
     # Special String Formats
 
-    **DSS_VERSION**: a timestamp that generally follows [RFC3339](https://tools.ietf.org/html/rfc3339#section-5.6)
-    format guide. However there are a few differences. DSS_VERSION must always be in UTC time, ':' are removed from
-    the time, and the fractional seconds extends to 6 decimal places. Using the first example found [here](https://tools.ietf.org/html/rfc3339#section-5.8),
-    the RFC3339 version would be `1985-04-12T23:20:50.52Z` while the DSS_VERSION would be `1985-04-12T232050.520000Z`
+    **DSS_VERSION**: a timestamp that generally follows [RFC3339](https://tools.ietf.org/html/rfc3339#section-5.6) format guide. However there are a few differences. DSS_VERSION must always be in UTC time, ':' are removed from the time, and the fractional seconds extends to 6 decimal places. Using the first example found [here](https://tools.ietf.org/html/rfc3339#section-5.8), the RFC3339 version would be `1985-04-12T23:20:50.52Z` while the DSS_VERSION would be `1985-04-12T232050.520000Z`
 
     # Pagination
 
-    The DSS API supports pagination in a manner consistent with the
-    [GitHub API](https://developer.github.com/v3/guides/traversing-with-pagination/),
-    which is based on [RFC 5988](https://tools.ietf.org/html/rfc5988). When the results of an API call exceed the
-    page size specified, the HTTP response will contain a `Link` header of the following form:
-    `Link: <https://dss.data.humancellatlas.org/v1/search?replica=aws&per_page=100&search_after=123>; rel="next"`.
-    The URL in the header refers to the next page of the results to be fetched; if no `Link rel="next"` URL is
-    included, then all results have been fetched. The client should recognize and parse the `Link` header
-    appropriately according to RFC 5988, and retrieve the next page if requested by the user, or if all results
-    are being retrieved.
-
-
-  version: "0.0.2"
-host: {{API_DOMAIN_NAME}}
-schemes:
-  - https
-basePath: /v1
-produces:
-  - application/json
-securityDefinitions:
-  dcpAuth:
-    description: >
-      The following claims must be present in the JWT:
-      - '{{OIDC_GROUP_CLAIM}}': the user group this user belongs.
-      - 'iss': must be {{OPENID_PROVIDER}} or a trusted google project.
-      - 'aud': audience must match {{API_DOMAIN_NAME}}.
-      - '{{OIDC_EMAIL_CLAIM}}': the email of the requester
-    type: oauth2
-    flow: implicit
-    authorizationUrl: https://auth.data.humancellatlas.org/authorize
-    scopes:
-      email: This scope value requests access to the email and email_verified Claims.
-      openid: see http://openid.net/specs/openid-connect-core-1_0.html#ScopeClaims
-      offline_access: see http://openid.net/specs/openid-connect-core-1_0.html#OfflineAccessPrivacy
+    The DSS API supports pagination in a manner consistent with the [GitHub API](https://developer.github.com/v3/guides/traversing-with-pagination/), which is based on [RFC 5988](https://tools.ietf.org/html/rfc5988). When the results of an API call exceed the page size specified, the HTTP response will contain a `Link` header of the following form: `Link: ; rel="next"`. The URL in the header refers to the next page of the results to be fetched; if no `Link rel="next"` URL is included, then all results have been fetched. The client should recognize and parse the `Link` header appropriately according to RFC 5988, and retrieve the next page if requested by the user, or if all results are being retrieved.
+  version: 0.0.2
+servers:
+  - url: https://{{API_DOMAIN_NAME}}/v1
 paths:
   /search:
     post:
@@ -132,18 +88,10 @@ paths:
 
         # Index design
 
-        The metadata seach index is implemented as a
-        [document-oriented database](https://en.wikipedia.org/wiki/Document-oriented_database)
-        using [Elasticsearch](https://www.elastic.co/). The index stores all information relevant to a bundle within
-        each bundle document, largely eliminating the need for
-        [object-relational mapping](https://en.wikipedia.org/wiki/Object-relational_mapping). This design is optimized
-        for queries that filter the data.
+        The metadata seach index is implemented as a [document-oriented database](https://en.wikipedia.org/wiki/Document-oriented_database) using [Elasticsearch](https://www.elastic.co/). The index stores all information relevant to a bundle within each bundle document, largely eliminating the need for [object-relational mapping](https://en.wikipedia.org/wiki/Object-relational_mapping). This design is optimized for queries that filter the data.
 
 
-        To illustrate this concept, say our index stored information on three entities, `foo`, `bar`, and `baz`. A foo
-        can have many bars and bars can have many bazes. If we were to index bazes in a document-oriented design, the
-        information on the foo a bar comes from and the bazes it contains are combined into a single document. A
-        example sketch of this is shown below in [JSON-schema](https://en.wikipedia.org/wiki/JSON#JSON_Schema).
+        To illustrate this concept, say our index stored information on three entities, `foo`, `bar`, and `baz`. A foo can have many bars and bars can have many bazes. If we were to index bazes in a document-oriented design, the information on the foo a bar comes from and the bazes it contains are combined into a single document. A example sketch of this is shown below in [JSON-schema](https://en.wikipedia.org/wiki/JSON#JSON_Schema).
 
         ```
 
@@ -181,9 +129,7 @@ paths:
 
         ```
 
-        This closely resembles the structure of DSS bundle documents: projects have many bundles and bundles have many
-        files. Each bundle document is a concatenation of the metadata on the project it belongs to and the files it
-        contains.
+        This closely resembles the structure of DSS bundle documents: projects have many bundles and bundles have many files. Each bundle document is a concatenation of the metadata on the project it belongs to and the files it contains.
 
         # Limitations to index design
 
@@ -191,85 +137,104 @@ paths:
 
         * [Joins](https://en.wikipedia.org/wiki/Join_(SQL)) between bundle metadata must be conducted client-side
 
-        * Querying is schema-specific; fields or values changed between schema version will break queries that use
-        those fields and values
+        * Querying is schema-specific; fields or values changed between schema version will break queries that use those fields and values
 
         * A new search index must be built for each schema version
 
         * A lot of metadata is duplicated between documents
-      summary: >
+      summary: |
         Find bundles by searching their metadata with an Elasticsearch query
       parameters:
-        - name: json_request_body
-          in: body
-          required: true
-          schema:
-            type: object
-            properties:
-              es_query:
-                description: Elasticsearch query
-                type: object
-            required:
-              - es_query
         - name: output_format
           in: query
           description: >
-            Specifies the output format. The default format, `summary`, is a list of UUIDs for bundles that match
-            the query. Set this parameter to `raw` to get the verbatim JSON metadata for bundles that match the query.
-            When using `output_format raw` the `per_page` size is limit to no more than 10 to avoid excessively large
-            response sizes.
+            Specifies the output format. The default format, `summary`, is a
+            list of UUIDs for bundles that match the query. Set this parameter
+            to `raw` to get the verbatim JSON metadata for bundles that match
+            the query. When using `output_format raw` the `per_page` size is
+            limit to no more than 10 to avoid excessively large response sizes.
           required: false
-          type: string
-          enum: [summary, raw]
-          default: summary
+          schema:
+            type: string
+            enum:
+              - summary
+              - raw
+            default: summary
         - name: replica
           in: query
           description: Replica to search.
           required: true
-          type: string
-          enum: [aws, gcp]
+          schema:
+            type: string
+            enum:
+              - aws
+              - gcp
         - name: per_page
           in: query
-          description: Max number of results to return per page. When using `output_format raw` the `per_page` size is
-            limit to no more than 10 to avoid excessively large response sizes.
+          description: Max number of results to return per page. When using `output_format
+            raw` the `per_page` size is limit to no more than 10 to avoid
+            excessively large response sizes.
           required: false
-          type: integer
-          format: int32
-          minimum: 10
-          maximum: 500
-          default: 100
+          schema:
+            type: integer
+            format: int32
+            minimum: 10
+            maximum: 500
+            default: 100
         - name: search_after
           in: query
           description: >
-            **Search-After-Context**.
-            An internal state pointer parameter for use with pagination. This parameter is referenced by the `Link`
-            header as described in the "Pagination" section. The API client should not need to set this parameter
-            directly; it should instead directly fetch the URL given in the `Link` header.
+            **Search-After-Context**. An internal state pointer parameter for
+            use with pagination. This parameter is referenced by the `Link`
+            header as described in the "Pagination" section. The API client
+            should not need to set this parameter directly; it should instead
+            directly fetch the URL given in the `Link` header.
           required: false
-          type: string
+          schema:
+            type: string
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                es_query:
+                  description: Elasticsearch query
+                  type: object
+              required:
+                - es_query
+        required: true
       responses:
-        200:
+        "200":
           description: All results retrieved.
-          schema:
-            $ref: '#/definitions/SearchResult'
-        206:
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/SearchResult"
+        "206":
           description: A single page of results was retrieved.
-          schema:
-            $ref: '#/definitions/SearchResult'
           headers:
             Link:
-              type: string
               description: URL to retrieve the next page of results.
+              schema:
+                type: string
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/SearchResult"
         default:
           description: Unexpected error
-          schema:
-            $ref: '#/definitions/Error'
-  /files/{uuid}:
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+  "/files/{uuid}":
     head:
       summary: Retrieve a file's metadata given an UUID and optionally a version.
       description: >
-        Given a file UUID, return the metadata for the latest version of that file.  If the version is provided, that
-        version's metadata is returned instead.  The metadata is returned in the headers.
+        Given a file UUID, return the metadata for the latest version of that
+        file.  If the version is provided, that version's metadata is returned
+        instead.  The metadata is returned in the headers.
 
         NOTE When using the HCA CLI, this will stream the file to stdout and may need to be piped.  For example,
           `hca dss get-file --uuid UUID --replica aws > result.txt`
@@ -278,66 +243,79 @@ paths:
           in: path
           description: A RFC4122-compliant ID for the file.
           required: true
-          type: string
+          schema:
+            type: string
         - name: replica
           in: query
           description: Replica to fetch from.
           required: true
-          type: string
-          enum: [aws, gcp]
+          schema:
+            type: string
+            enum:
+              - aws
+              - gcp
         - name: version
           in: query
-          description: Timestamp of file creation in DSS_VERSION format.  If this is not provided, the latest version is returned.
+          description: Timestamp of file creation in DSS_VERSION format.  If this is not
+            provided, the latest version is returned.
           required: false
-          type: string
+          schema:
+            type: string
       responses:
-        200:
+        "200":
           description: Returns metadata
           headers:
-            # edits to here should probably be reflected in the 302 section immediately below.
             X-DSS-CREATOR-UID:
               description: User ID who created this file.
-              type: integer
-              format: int64
+              schema:
+                type: integer
+                format: int64
             X-DSS-VERSION:
               description: Timestamp of file creation in DSS_VERSION format.
-              type: string
+              schema:
+                type: string
             X-DSS-CONTENT-TYPE:
               description: Content-type of the file.
-              type: string
+              schema:
+                type: string
             X-DSS-SIZE:
               description: File size (bytes).
-              type: integer
-              format: int64
+              schema:
+                type: integer
+                format: int64
             X-DSS-CRC32C:
               description: CRC-32C (in hex format) of the file contents in hex.
-              type: string
-              pattern: "^[a-z0-9]{8}$"
+              schema:
+                type: string
+                pattern: ^[a-z0-9]{8}$
             X-DSS-S3-ETAG:
               description: S3 ETag (in hex format) of the file contents.
-              type: string
-              pattern: "^[a-z0-9]{32}(-([2-9]|[1-8][0-9]|9[0-9]|[1-8][0-9]{2}|9[0-8][0-9]|99[0-9]|[1-8][0-9]{3}|9[0-8][0-9]{2}|99[0-8][0-9]|999[0-9]|10000))?$"
+              schema:
+                type: string
+                pattern: ^[a-z0-9]{32}(-([2-9]|[1-8][0-9]|9[0-9]|[1-8][0-9]{2}|9[0-8][0-9]|99[0-9]|[1-8][0-9]{3}|9[0-8][0-9]{2}|99[0-8][0-9]|999[0-9]|10000))?$
             X-DSS-SHA1:
               description: SHA-1 (in hex format) of the file contents in hex.
-              type: string
-              pattern: "^[a-z0-9]{40}$"
+              schema:
+                type: string
+                pattern: ^[a-z0-9]{40}$
             X-DSS-SHA256:
               description: SHA-256 (in hex format) of the file contents in hex.
-              type: string
-              pattern: "^[a-z0-9]{64}$"
-        500:
-          $ref: '#/responses/ServerError'
-        502:
-          $ref: '#/responses/BadGateway'
-        503:
-          $ref: '#/responses/ServiceUnavailable'
-        504:
-          $ref: '#/responses/GatewayTimeout'
+              schema:
+                type: string
+                pattern: ^[a-z0-9]{64}$
+        "500":
+          $ref: "#/components/responses/ServerError"
+        "502":
+          $ref: "#/components/responses/BadGateway"
+        "503":
+          $ref: "#/components/responses/ServiceUnavailable"
+        "504":
+          $ref: "#/components/responses/GatewayTimeout"
     get:
       summary: Retrieve a file given a UUID and optionally a version.
       description: >
-        Given a file UUID, return the latest version of that file.  If the version is provided, that version of the file
-        is returned instead.
+        Given a file UUID, return the latest version of that file.  If the
+        version is provided, that version of the file is returned instead.
 
         Headers will contain the data store metadata for the file.
 
@@ -347,122 +325,156 @@ paths:
           in: path
           description: A RFC4122-compliant ID for the file.
           required: true
-          type: string
-          pattern: "[A-Za-z0-9]{8}-[A-Za-z0-9]{4}-[A-Za-z0-9]{4}-[A-Za-z0-9]{4}-[A-Za-z0-9]{12}"
+          schema:
+            type: string
+            pattern: "[A-Za-z0-9]{8}-[A-Za-z0-9]{4}-[A-Za-z0-9]{4}-[A-Za-z0-9]{4}-[A-Z\
+              a-z0-9]{12}"
         - name: replica
           in: query
           description: Replica to fetch from.
           required: true
-          type: string
-          enum: [aws, gcp]
+          schema:
+            type: string
+            enum:
+              - aws
+              - gcp
         - name: version
           in: query
-          description: Timestamp of file creation in DSS_VERSION format.  If this is not provided, the latest version is returned.
+          description: Timestamp of file creation in DSS_VERSION format.  If this is not
+            provided, the latest version is returned.
           required: false
-          type: string
+          schema:
+            type: string
         - name: token
           in: query
-          description: Token to manage retries.  End users constructing queries should not set this parameter.
+          description: Token to manage retries.  End users constructing queries should not
+            set this parameter.
           required: false
-          type: string
+          schema:
+            type: string
         - name: directurl
           in: query
           required: false
-          description: |
-            When set to true, the response will contain API-specific URLs that are tied to the specified replica, for example `gs://bucket/object` or `s3://bucket/object`
+          description: >
+            When set to true, the response will contain API-specific URLs that
+            are tied to the specified replica, for example `gs://bucket/object`
+            or `s3://bucket/object`
+
 
             The use of presigned URLs is recommended for data access. Cloud native URLs are currently provided for a limited set of use cases and may not be provided in the future. If cloud native URLs are required, please contact the data store team regarding the credentials necessary to use them.
-          type: boolean
+          schema:
+            type: boolean
       responses:
-        301:
+        "301":
           description: >
-            The file is still being fetched. The request is being handled asynchronously. The client should follow the
-            redirect after the delay specified in the Retry-After header.
+            The file is still being fetched. The request is being handled
+            asynchronously. The client should follow the redirect after the
+            delay specified in the Retry-After header.
           headers:
             Retry-After:
-              description: Delay in seconds. The client should follow the redirect after waiting for this duration.
-              type: integer
-              format: int64
-        302:
+              description: Delay in seconds. The client should follow the redirect after
+                waiting for this duration.
+              schema:
+                type: integer
+                format: int64
+        "302":
           description: Redirects to a signed URL with the data.
           headers:
-            # edits to here should probably be reflected in the 200 section above.
             X-DSS-CREATOR-UID:
               description: User ID who created this file.
-              type: integer
-              format: int64
+              schema:
+                type: integer
+                format: int64
             X-DSS-VERSION:
               description: Timestamp of file creation in DSS_VERSION format.
-              type: string
-              format: DSS_VERSION
+              schema:
+                type: string
+                format: DSS_VERSION
             X-DSS-CONTENT-TYPE:
               description: Content-type of the file.
-              type: string
+              schema:
+                type: string
             X-DSS-SIZE:
               description: File size (bytes).
-              type: integer
-              format: int64
+              schema:
+                type: integer
+                format: int64
             X-DSS-CRC32C:
               description: CRC-32C (in hex format) of the file contents in hex.
-              type: string
-              pattern: "^[a-z0-9]{8}$"
+              schema:
+                type: string
+                pattern: ^[a-z0-9]{8}$
             X-DSS-S3-ETAG:
               description: S3 ETag (in hex format) of the file contents.
-              type: string
-              pattern: "^[a-z0-9]{32}(-([2-9]|[1-8][0-9]|9[0-9]|[1-8][0-9]{2}|9[0-8][0-9]|99[0-9]|[1-8][0-9]{3}|9[0-8][0-9]{2}|99[0-8][0-9]|999[0-9]|10000))?$"
+              schema:
+                type: string
+                pattern: ^[a-z0-9]{32}(-([2-9]|[1-8][0-9]|9[0-9]|[1-8][0-9]{2}|9[0-8][0-9]|99[0-9]|[1-8][0-9]{3}|9[0-8][0-9]{2}|99[0-8][0-9]|999[0-9]|10000))?$
             X-DSS-SHA1:
               description: SHA-1 (in hex format) of the file contents in hex.
-              type: string
-              pattern: "^[a-z0-9]{40}$"
+              schema:
+                type: string
+                pattern: ^[a-z0-9]{40}$
             X-DSS-SHA256:
               description: SHA-256 (in hex format) of the file contents in hex.
-              type: string
-              pattern: "^[a-z0-9]{64}$"
-        400:
+              schema:
+                type: string
+                pattern: ^[a-z0-9]{64}$
+        "400":
           description: Bad request
-          schema:
-            allOf:
-              - $ref: '#/definitions/Error'
-              - type: object
-                properties:
-                  code:
-                    type: string
-                    description: >
-                      Machine-readable error code.  The types of return values should not be changed lightly.
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: "#/components/schemas/Error"
+                  - type: object
+                    properties:
+                      code:
+                        type: string
+                        description: >
+                          Machine-readable error code.  The types of return
+                          values should not be changed lightly.
 
-                      The code `illegal_token` is returned when the token parameter cannot be understood.
-                    enum: [illegal_token]
-                required:
-                  - code
-        500:
-          $ref: '#/responses/ServerError'
-        502:
-          $ref: '#/responses/BadGateway'
-        503:
-          $ref: '#/responses/ServiceUnavailable'
-        504:
-          $ref: '#/responses/GatewayTimeout'
+                          The code `illegal_token` is returned when the token parameter cannot be understood.
+                        enum:
+                          - illegal_token
+                    required:
+                      - code
+        "500":
+          $ref: "#/components/responses/ServerError"
+        "502":
+          $ref: "#/components/responses/BadGateway"
+        "503":
+          $ref: "#/components/responses/ServiceUnavailable"
+        "504":
+          $ref: "#/components/responses/GatewayTimeout"
         default:
           description: Unexpected error
-          schema:
-            allOf:
-              - $ref: '#/definitions/Error'
-              - type: object
-                properties:
-                  code:
-                    type: string
-                    description: Machine-readable error code.  The types of return values should not be changed lightly.
-                    enum: [unhandled_exception, illegal_arguments, not_found]
-                required:
-                  - code
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: "#/components/schemas/Error"
+                  - type: object
+                    properties:
+                      code:
+                        type: string
+                        description: Machine-readable error code.  The types of return
+                          values should not be changed lightly.
+                        enum:
+                          - unhandled_exception
+                          - illegal_arguments
+                          - not_found
+                    required:
+                      - code
     put:
       security:
         - dcpAuth: []
       summary: Create a new version of a file
       description: >
-        Create a new version of a file with a given UUID. The contents of the file are provided by the client by
-        reference using a cloud object storage URL. The file on the cloud object storage service must have metadata set
-        listing the file checksums and content-type.
+        Create a new version of a file with a given UUID. The contents of the
+        file are provided by the client by reference using a cloud object
+        storage URL. The file on the cloud object storage service must have
+        metadata set listing the file checksums and content-type.
 
         The metadata fields required are:
 
@@ -470,11 +482,7 @@ paths:
 
         - hca-dss-sha1: SHA-1 checksum of the file
 
-        - hca-dss-s3_etag: S3 ETAG checksum of the file.  See https://stackoverflow.com/q/12186993 for the
-        general algorithm for how checksum is calculated.  For files smaller than 64MB, this is the MD5 checksum
-        of the file.  For files larger than 64MB but smaller than 640,000MB, we use 64MB chunks.  For files larger than
-        640,000MB, we use a chunk size equal to the total file size divided by 10000, rounded up to the nearest MB.
-        MB, in this section, refers to 1,048,576 bytes.  Note that 640,000MB is not the same as 640GB!
+        - hca-dss-s3_etag: S3 ETAG checksum of the file.  See https://stackoverflow.com/q/12186993 for the general algorithm for how checksum is calculated.  For files smaller than 64MB, this is the MD5 checksum of the file.  For files larger than 64MB but smaller than 640,000MB, we use 64MB chunks.  For files larger than 640,000MB, we use a chunk size equal to the total file size divided by 10000, rounded up to the nearest MB. MB, in this section, refers to 1,048,576 bytes.  Note that 640,000MB is not the same as 640GB!
 
         - hca-dss-crc32c: CRC-32C checksum of the file
       parameters:
@@ -482,139 +490,175 @@ paths:
           in: path
           description: A RFC4122-compliant ID for the file.
           required: true
-          type: string
-          pattern: "[A-Za-z0-9]{8}-[A-Za-z0-9]{4}-[A-Za-z0-9]{4}-[A-Za-z0-9]{4}-[A-Za-z0-9]{12}"
+          schema:
+            type: string
+            pattern: "[A-Za-z0-9]{8}-[A-Za-z0-9]{4}-[A-Za-z0-9]{4}-[A-Za-z0-9]{4}-[A-Z\
+              a-z0-9]{12}"
         - name: version
           in: query
-          description: Timestamp of file creation in DSS_VERSION format.  If this is not provided, the latest version is returned.
-          required: true
-          type: string
-          format: DSS_VERSION
-        - name: json_request_body
-          in: body
+          description: Timestamp of file creation in DSS_VERSION format.  If this is not
+            provided, the latest version is returned.
           required: true
           schema:
-            type: object
-            properties:
-              source_url:
-                description: Cloud bucket URL for source data.  Example is "s3://bucket_name/serious_dna.fa" .
-                type: string
-                pattern: "^(gs|s3|wasb)://"
-              creator_uid:
-                description: User ID who is creating this file.
-                type: integer
-                format: int64
-            required:
-              - source_url
-              - creator_uid
+            type: string
+            format: DSS_VERSION
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                source_url:
+                  description: Cloud bucket URL for source data.  Example is
+                    "s3://bucket_name/serious_dna.fa" .
+                  type: string
+                  pattern: ^(gs|s3|wasb)://
+                creator_uid:
+                  description: User ID who is creating this file.
+                  type: integer
+                  format: int64
+              required:
+                - source_url
+                - creator_uid
+        required: true
       responses:
-        200:
-          description: Returned when the file is already present and is identical to the file being uploaded.
-          schema:
-            type: object
-            properties:
-              version:
-                description: Timestamp of file creation in DSS_VERSION format.
-                type: string
-                format: DSS_VERSION
-            required:
-              - version
-        201:
+        "200":
+          description: Returned when the file is already present and is identical to the
+            file being uploaded.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  version:
+                    description: Timestamp of file creation in DSS_VERSION format.
+                    type: string
+                    format: DSS_VERSION
+                required:
+                  - version
+        "201":
           description: Returned when the file is successfully copied.
-          schema:
-            type: object
-            properties:
-              version:
-                description: Timestamp of file creation in DSS_VERSION format.
-                type: string
-                format: DSS_VERSION
-            required:
-              - version
-        202:
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  version:
+                    description: Timestamp of file creation in DSS_VERSION format.
+                    type: string
+                    format: DSS_VERSION
+                required:
+                  - version
+        "202":
           description: Returned when the file has been queued up for copying.
-          schema:
-            type: object
-            properties:
-              version:
-                description: Timestamp of file creation in DSS_VERSION format.
-                type: string
-                format: DSS_VERSION
-              task_id:
-                description: ID for the task responsible for managing the copy.
-                type: string
-                pattern: "[A-Za-z0-9]{8}-[A-Za-z0-9]{4}-[A-Za-z0-9]{4}-[A-Za-z0-9]{4}-[A-Za-z0-9]{12}"
-            required:
-              - version
-        400:
-          description: Returned when the server could not process the request.  Examine the code for more details.
-          schema:
-            allOf:
-              - $ref: '#/definitions/Error'
-              - type: object
+          content:
+            application/json:
+              schema:
+                type: object
                 properties:
-                  code:
+                  version:
+                    description: Timestamp of file creation in DSS_VERSION format.
                     type: string
-                    description: >
-                      Machine-readable error code.  The types of return values should not be changed lightly.
-
-                      The code `unknown_source_schema` is returned when the source_url of the file has an unsupported
-                      schema.
-
-                      The code `illegal_version` is returned when version is not a DSS_VERSION format-compliant timestamp.
-                    enum: [unknown_source_schema, illegal_version]
+                    format: DSS_VERSION
+                  task_id:
+                    description: ID for the task responsible for managing the copy.
+                    type: string
+                    pattern: "[A-Za-z0-9]{8}-[A-Za-z0-9]{4}-[A-Za-z0-9]{4}-[A-Za-z0-9]\
+                      {4}-[A-Za-z0-9]{12}"
                 required:
-                  - code
-        409:
+                  - version
+        "400":
+          description: Returned when the server could not process the request.  Examine the
+            code for more details.
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: "#/components/schemas/Error"
+                  - type: object
+                    properties:
+                      code:
+                        type: string
+                        description: >
+                          Machine-readable error code.  The types of return
+                          values should not be changed lightly.
+
+                          The code `unknown_source_schema` is returned when the source_url of the file has an unsupported schema.
+
+                          The code `illegal_version` is returned when version is not a DSS_VERSION format-compliant timestamp.
+                        enum:
+                          - unknown_source_schema
+                          - illegal_version
+                    required:
+                      - code
+        "409":
           description: Returned when a file with the same UUID and version already exists
-          schema:
-            allOf:
-              - $ref: '#/definitions/Error'
-              - type: object
-                properties:
-                  code:
-                    type: string
-                    description: Machine-readable error code.  The types of return values should not be changed lightly.
-                    enum: [file_already_exists]
-                required:
-                  - code
-        422:
-          description: Returned when a request cannot be processed due to invalid values in a supplied entity.
-          schema:
-            allOf:
-              - $ref: '#/definitions/Error'
-              - type: object
-                properties:
-                  code:
-                    type: string
-                    description: Machine-readable error code.  The types of return values should not be changed lightly.
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: "#/components/schemas/Error"
+                  - type: object
+                    properties:
+                      code:
+                        type: string
+                        description: Machine-readable error code.  The types of return
+                          values should not be changed lightly.
+                        enum:
+                          - file_already_exists
+                    required:
+                      - code
+        "422":
+          description: Returned when a request cannot be processed due to invalid values in
+            a supplied entity.
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: "#/components/schemas/Error"
+                  - type: object
+                    properties:
+                      code:
+                        type: string
+                        description: >-
+                          Machine-readable error code.  The types of return
+                          values should not be changed lightly.
 
-                      The code `missing_checksum` is returned when the file uploaded is missing a required checksum.
-                      The code `invalid_checksum` is returned when a checksum is provided but badly-formed.
-
-                    enum: [missing_checksum, invalid_checksum]
-                required:
-                - code
-        500:
-          $ref: '#/responses/ServerError'
-        502:
-          $ref: '#/responses/BadGateway'
-        503:
-          $ref: '#/responses/ServiceUnavailable'
-        504:
-          $ref: '#/responses/GatewayTimeout'
+                          The code `missing_checksum` is returned when the file uploaded is missing a required checksum. The code `invalid_checksum` is returned when a checksum is provided but badly-formed.
+                        enum:
+                          - missing_checksum
+                          - invalid_checksum
+                    required:
+                      - code
+        "500":
+          $ref: "#/components/responses/ServerError"
+        "502":
+          $ref: "#/components/responses/BadGateway"
+        "503":
+          $ref: "#/components/responses/ServiceUnavailable"
+        "504":
+          $ref: "#/components/responses/GatewayTimeout"
         default:
           description: Unexpected error
-          schema:
-            allOf:
-              - $ref: '#/definitions/Error'
-              - type: object
-                properties:
-                  code:
-                    type: string
-                    description: Machine-readable error code.  The types of return values should not be changed lightly.
-                    enum: [unhandled_exception, Forbidden, Unauthorized, illegal_arguments, read_only]
-                required:
-                  - code
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: "#/components/schemas/Error"
+                  - type: object
+                    properties:
+                      code:
+                        type: string
+                        description: Machine-readable error code.  The types of return
+                          values should not be changed lightly.
+                        enum:
+                          - unhandled_exception
+                          - Forbidden
+                          - Unauthorized
+                          - illegal_arguments
+                          - read_only
+                    required:
+                      - code
   /subscriptions:
     get:
       security:
@@ -628,388 +672,467 @@ paths:
           in: query
           description: Replica to fetch from.
           required: true
-          type: string
-          enum: [aws, gcp]
+          schema:
+            type: string
+            enum:
+              - aws
+              - gcp
         - name: subscription_type
           in: query
           description: Type of subscriptions to fetch (elasticsearch or jmespath).
           required: false
-          default: jmespath
-          type: string
-          enum: [elasticsearch, jmespath]
-      responses:
-        200:
-          description: OK
           schema:
-            type: object
-            properties:
-              subscriptions:
-                type: array
-                items:
-                  $ref: "#/definitions/Subscription"
-            required:
-              - subscriptions
-        500:
-          $ref: '#/responses/ServerError'
-        502:
-          $ref: '#/responses/BadGateway'
-        503:
-          $ref: '#/responses/ServiceUnavailable'
-        504:
-          $ref: '#/responses/GatewayTimeout'
+            type: string
+            enum:
+              - elasticsearch
+              - jmespath
+            default: jmespath
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  subscriptions:
+                    type: array
+                    items:
+                      $ref: "#/components/schemas/Subscription"
+                required:
+                  - subscriptions
+        "500":
+          $ref: "#/components/responses/ServerError"
+        "502":
+          $ref: "#/components/responses/BadGateway"
+        "503":
+          $ref: "#/components/responses/ServiceUnavailable"
+        "504":
+          $ref: "#/components/responses/GatewayTimeout"
         default:
           description: Unexpected error
-          schema:
-            allOf:
-              - $ref: '#/definitions/Error'
-              - type: object
-                properties:
-                  code:
-                    type: string
-                    description: Machine-readable error code.  The types of return values should not be changed lightly.
-                    enum: [unhandled_exception, Forbidden, Unauthorized, OAuthResponseProblem]
-                required:
-                  - code
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: "#/components/schemas/Error"
+                  - type: object
+                    properties:
+                      code:
+                        type: string
+                        description: Machine-readable error code.  The types of return
+                          values should not be changed lightly.
+                        enum:
+                          - unhandled_exception
+                          - Forbidden
+                          - Unauthorized
+                          - OAuthResponseProblem
+                    required:
+                      - code
     put:
       security:
         - dcpAuth: []
       summary: Create an event subscription.
       description: >
-        Register an HTTP endpoint that is to be notified when a given event occurs.
+        Register an HTTP endpoint that is to be notified when a given event
+        occurs.
 
-        Each user is allowed 100 subscriptions, a limit that may be increased in the future. Concerns about
-        notification service limitations should be routed to the DSS development team.
+        Each user is allowed 100 subscriptions, a limit that may be increased in the future. Concerns about notification service limitations should be routed to the DSS development team.
       parameters:
         - name: replica
           in: query
           description: Replica to write to.
           required: true
-          type: string
-          enum: [aws, gcp]
-        - name: json_request_body
-          in: body
-          required: true
           schema:
-            type: object
-            properties:
-              es_query:
-                description: >
-                  An Elasticsearch query for restricting the set of bundles for which the subscriber is notified. The
-                  subscriber will only be notified for newly indexed bundles that match the given query. If this
-                  parameter is present the subscription will be of type `elasticsearch`, otherwise it will be of
-                  type `jmespath`.
-                type: object
-              jmespath_query:
-                description: >
-                  An JMESPath query for restricting the set of bundles for which the subscriber is notified. The
-                  subscriber will only be notified for new bundles that match the given query. If `es_query` is
-                  specified, the subscription will be of type `elasticsearch`. If `es_query` is not present, the
-                  subscription will be of type `jmespath`
-                type: string
-              callback_url:
-                description: >
-                  The subscriber's URL. An HTTP request is made to the specified URL for every attempt to deliver
-                  a notification to the subscriber. If the HTTP response code is 2XX, the delivery attempt is
-                  considered successful. Otherwise, more attempts will be made with an exponentially increasing delay
-                  between attempts, until an attempt is successful or the a maximum number of attempts is reached.
-
-                  Occasionally, duplicate notifications may be sent. It is up to the receiver of the notification to
-                  tolerate duplicate notifications.
-                type: string
-                pattern: 'https?://'
-              method:
-                description: The HTTP request method to use when delivering a notification to the subscriber.
-                enum: [POST, PUT]
-                default: POST
-              encoding:
-                description: >
-                  The MIME type describing the encoding of the request body
-                  * `application/json` - the HTTP request body is the notification payload as JSON
-                  * `multipart/form-data` - the HTTP request body is a list of form fields, each consisting of a name
-                    and a corresponding value. See https://tools.ietf.org/html/rfc7578 for details on this encoding.
-                    The actual notification payload will be placed as JSON into a field of the name specified via
-                    `payload_form_field`.
-                enum:
-                  - application/json
-                  - multipart/form-data
-                default: application/json
-              form_fields:
-                description: >
-                  A collection of static form fields to be supplied in the request body, alongside the actual
-                  notification payload. The value of each field must be a string. For example, if the subscriptions has
-                  this property set to `{"foo" : "bar"}`, the corresponding notification HTTP request body will be
-
-                  ```
-
-                  --2769baffc4f24cbc83ced26aa0c2f712
-                  Content-Disposition: form-data; name="foo"
-
-                  bar
-                  Content-Disposition: form-data; name="payload"
-
-                  {"transaction_id": "301c9079-3b20-4311-a131-bcda9b7f08ba", "subscription_id": ...
-                  --2769baffc4f24cbc83ced26aa0c2f712--
-
-                  ```
-
-                  Since the type of this property is `object`, multi-valued fields are not supported. This property is
-                  ignored unless `encoding` is `multipart/form-data`.
-                type: object
-                default: {}
-                additionalProperties:
+            type: string
+            enum:
+              - aws
+              - gcp
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                es_query:
+                  description: >
+                    An Elasticsearch query for restricting the set of bundles
+                    for which the subscriber is notified. The subscriber will
+                    only be notified for newly indexed bundles that match the
+                    given query. If this parameter is present the subscription
+                    will be of type `elasticsearch`, otherwise it will be of
+                    type `jmespath`.
+                  type: object
+                jmespath_query:
+                  description: >
+                    An JMESPath query for restricting the set of bundles for
+                    which the subscriber is notified. The subscriber will only
+                    be notified for new bundles that match the given query. If
+                    `es_query` is specified, the subscription will be of type
+                    `elasticsearch`. If `es_query` is not present, the
+                    subscription will be of type `jmespath`
                   type: string
-              payload_form_field:
-                description: >
-                  The name of the form field that will hold the notification payload when the request is made. If the
-                  default name of the payload field collides with that of a field in `form_fields`, this porperty can be
-                  used to rename the payload and avoid the collision. This property is ignored unless `encoding` is
-                  `multipart/form-data`.
-                type: string
-                default: payload
-              hmac_secret_key:
-                description: >
-                  The key for signing requests to the subscriber's URL. The signature will be constructed according to
-                  https://tools.ietf.org/html/draft-cavage-http-signatures and transmitted in the HTTP `Authorization`
-                  header.
-                type: string
-              hmac_key_id:
-                description: >
-                  An optional key ID to use with `hmac_secret_key`.
-                type: string
-              attachments:
-                description: >
-                  The set of bundle metadata items to be included in the payload of a notification request to a
-                  subscription endpoint. Each property in this object represents an attachment to the notification
-                  payload. Each attachment will be a child property of the `attachments` property of the payload. The
-                  name of such a child property can be chosen freely provided it does not start with an underscore.
+                callback_url:
+                  description: >
+                    The subscriber's URL. An HTTP request is made to the
+                    specified URL for every attempt to deliver a notification to
+                    the subscriber. If the HTTP response code is 2XX, the
+                    delivery attempt is considered successful. Otherwise, more
+                    attempts will be made with an exponentially increasing delay
+                    between attempts, until an attempt is successful or the a
+                    maximum number of attempts is reached.
 
-                  For example, if the subscription is
+                    Occasionally, duplicate notifications may be sent. It is up to the receiver of the notification to tolerate duplicate notifications.
+                  type: string
+                  pattern: https?://
+                method:
+                  description: The HTTP request method to use when delivering a
+                    notification to the subscriber.
+                  enum:
+                    - POST
+                    - PUT
+                  type: string
+                  default: POST
+                encoding:
+                  description: >
+                    The MIME type describing the encoding of the request body *
+                    `application/json` - the HTTP request body is the
+                    notification payload as JSON * `multipart/form-data` - the
+                    HTTP request body is a list of form fields, each consisting
+                    of a name
+                      and a corresponding value. See https://tools.ietf.org/html/rfc7578 for details on this encoding.
+                      The actual notification payload will be placed as JSON into a field of the name specified via
+                      `payload_form_field`.
+                  enum:
+                    - application/json
+                    - multipart/form-data
+                  default: application/json
+                  type: string
+                form_fields:
+                  description: >
+                    A collection of static form fields to be supplied in the
+                    request body, alongside the actual notification payload. The
+                    value of each field must be a string. For example, if the
+                    subscriptions has this property set to `{"foo" : "bar"}`,
+                    the corresponding notification HTTP request body will be
 
-                  ```
+                    ```
 
-                  {
-                    "attachments": {
-                      "taxon": {
-                        "type": "jmespath",
-                        "expression": "files.biomaterial_json.biomaterials[].content.biomaterial_core.ncbi_taxon_id[]"
+                    --2769baffc4f24cbc83ced26aa0c2f712 Content-Disposition: form-data; name="foo"
+
+                    bar Content-Disposition: form-data; name="payload"
+
+                    {"transaction_id": "301c9079-3b20-4311-a131-bcda9b7f08ba", "subscription_id": ... --2769baffc4f24cbc83ced26aa0c2f712--
+
+                    ```
+
+                    Since the type of this property is `object`, multi-valued fields are not supported. This property is ignored unless `encoding` is `multipart/form-data`.
+                  type: object
+                  default: {}
+                  additionalProperties:
+                    type: string
+                payload_form_field:
+                  description: >
+                    The name of the form field that will hold the notification
+                    payload when the request is made. If the default name of the
+                    payload field collides with that of a field in
+                    `form_fields`, this porperty can be used to rename the
+                    payload and avoid the collision. This property is ignored
+                    unless `encoding` is `multipart/form-data`.
+                  type: string
+                  default: payload
+                hmac_secret_key:
+                  description: >
+                    The key for signing requests to the subscriber's URL. The
+                    signature will be constructed according to
+                    https://tools.ietf.org/html/draft-cavage-http-signatures and
+                    transmitted in the HTTP `Authorization` header.
+                  type: string
+                hmac_key_id:
+                  description: |
+                    An optional key ID to use with `hmac_secret_key`.
+                  type: string
+                attachments:
+                  description: >
+                    The set of bundle metadata items to be included in the
+                    payload of a notification request to a subscription
+                    endpoint. Each property in this object represents an
+                    attachment to the notification payload. Each attachment will
+                    be a child property of the `attachments` property of the
+                    payload. The name of such a child property can be chosen
+                    freely provided it does not start with an underscore.
+
+                    For example, if the subscription is
+
+                    ```
+
+                    {
+                      "attachments": {
+                        "taxon": {
+                          "type": "jmespath",
+                          "expression": "files.biomaterial_json.biomaterials[].content.biomaterial_core.ncbi_taxon_id[]"
+                        }
                       }
                     }
-                  }
 
-                  ```
+                    ```
 
-                  the corresponding notification payload will contain the following entry
+                    the corresponding notification payload will contain the following entry
 
-                  ```
+                    ```
 
-                  "attachments": {
-                    "taxon": [9606, 9606]
-                  }
-
-                  ```
-
-                  If a general error occurs during the processing of attachments, the notification will be sent with
-                  `attachments` containing only the reserved `_errors` attachment containing a string describing the
-                  error. If an error occurs during the processing of a specific attachment, the notification will be
-                  sent with all successfully processed attachments and additionally the `_errors` attachment containing
-                  an object with one property for each failed attachment. For example,
-
-                  ```
-
-                  "attachments": {
-                    "taxon": [9606, 9606]
-                    "_errors" {
-                      "biomaterial": "Some error occurred"
+                    "attachments": {
+                      "taxon": [9606, 9606]
                     }
-                  }
 
-                  ```
+                    ```
 
-                  The value of the `attachments` property must be less than or equal to 128 KiB in size when serialized
-                  to JSON and encoded as UTF-8. If it is not, the notification will be sent with
+                    If a general error occurs during the processing of attachments, the notification will be sent with `attachments` containing only the reserved `_errors` attachment containing a string describing the error. If an error occurs during the processing of a specific attachment, the notification will be sent with all successfully processed attachments and additionally the `_errors` attachment containing an object with one property for each failed attachment. For example,
 
-                  "attachments": {
-                    "_errors": "Attachments too large (131073 bytes)"
-                  }
-                type: object
-                additionalProperties:
+                    ```
+
+                    "attachments": {
+                      "taxon": [9606, 9606]
+                      "_errors" {
+                        "biomaterial": "Some error occurred"
+                      }
+                    }
+
+                    ```
+
+                    The value of the `attachments` property must be less than or equal to 128 KiB in size when serialized to JSON and encoded as UTF-8. If it is not, the notification will be sent with
+
+                    "attachments": {
+                      "_errors": "Attachments too large (131073 bytes)"
+                    }
                   type: object
-                  properties:
-                    type:
-                      description: The type of the attachment. Currently only the `jmespath` type is supported.
-                      enum: [jmespath]
-                    expression:
-                      description: >
-                        The JMESPath expression to evaluate against the bundle metadata JSON document. That document is
-                        of the same structure as those returned by `POST /search` with `output_format: raw`.
-                      type: string
-                  required:
-                    - type
-                    - expression
-            required:
-              - callback_url
-            additionalProperties: false
+                  additionalProperties:
+                    type: object
+                    properties:
+                      type:
+                        description: The type of the attachment. Currently only the
+                          `jmespath` type is supported.
+                        enum:
+                          - jmespath
+                      expression:
+                        description: >
+                          The JMESPath expression to evaluate against the bundle
+                          metadata JSON document. That document is of the same
+                          structure as those returned by `POST /search` with
+                          `output_format: raw`.
+                        type: string
+                    required:
+                      - type
+                      - expression
+              required:
+                - callback_url
+              additionalProperties: false
+        required: true
       responses:
-        201:
+        "201":
           description: OK
-          schema:
-            type: object
-            properties:
-              uuid:
-                description: A RFC4122-compliant ID for the subscription.
-                type: string
-                pattern: "[A-Za-z0-9]{8}-[A-Za-z0-9]{4}-[A-Za-z0-9]{4}-[A-Za-z0-9]{4}-[A-Za-z0-9]{12}"
-            required:
-              - uuid
-        500:
-          $ref: '#/responses/ServerError'
-        502:
-          $ref: '#/responses/BadGateway'
-        503:
-          $ref: '#/responses/ServiceUnavailable'
-        504:
-          $ref: '#/responses/GatewayTimeout'
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  uuid:
+                    description: A RFC4122-compliant ID for the subscription.
+                    type: string
+                    pattern: "[A-Za-z0-9]{8}-[A-Za-z0-9]{4}-[A-Za-z0-9]{4}-[A-Za-z0-9]\
+                      {4}-[A-Za-z0-9]{12}"
+                required:
+                  - uuid
+        "500":
+          $ref: "#/components/responses/ServerError"
+        "502":
+          $ref: "#/components/responses/BadGateway"
+        "503":
+          $ref: "#/components/responses/ServiceUnavailable"
+        "504":
+          $ref: "#/components/responses/GatewayTimeout"
         default:
           description: Unexpected error
-          schema:
-            allOf:
-              - $ref: '#/definitions/Error'
-              - type: object
-                properties:
-                  code:
-                    type: string
-                    description: Machine-readable error code.  The types of return values should not be changed lightly.
-                    enum:
-                      - unhandled_exception
-                      - Forbidden
-                      - Unauthorized
-                      - OAuthResponseProblem
-                      - elasticsearch_error
-                      - invalid_attachment_expression
-                      - invalid_attachment_name
-                      - invalid_query_type
-                      - invalid_jmespath
-                      - unprocessable
-                      - read_only
-                      - not_acceptable
-                required:
-                  - code
-  /subscriptions/{uuid}:
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: "#/components/schemas/Error"
+                  - type: object
+                    properties:
+                      code:
+                        type: string
+                        description: Machine-readable error code.  The types of return
+                          values should not be changed lightly.
+                        enum:
+                          - unhandled_exception
+                          - Forbidden
+                          - Unauthorized
+                          - OAuthResponseProblem
+                          - elasticsearch_error
+                          - invalid_attachment_expression
+                          - invalid_attachment_name
+                          - invalid_query_type
+                          - invalid_jmespath
+                          - unprocessable
+                          - read_only
+                          - not_acceptable
+                    required:
+                      - code
+  "/subscriptions/{uuid}":
     get:
       security:
         - dcpAuth: []
       summary: Retrieve an event subscription given a UUID.
-      description: >
+      description: |
         Given a subscription UUID, return the associated subscription.
       parameters:
         - name: uuid
           in: path
           description: A RFC4122-compliant ID for the subscription.
           required: true
-          type: string
-          pattern: "[A-Za-z0-9]{8}-[A-Za-z0-9]{4}-[A-Za-z0-9]{4}-[A-Za-z0-9]{4}-[A-Za-z0-9]{12}"
+          schema:
+            type: string
+            pattern: "[A-Za-z0-9]{8}-[A-Za-z0-9]{4}-[A-Za-z0-9]{4}-[A-Za-z0-9]{4}-[A-Z\
+              a-z0-9]{12}"
         - name: replica
           in: query
           description: Replica to fetch from.
           required: true
-          type: string
-          enum: [aws, gcp]
+          schema:
+            type: string
+            enum:
+              - aws
+              - gcp
         - name: subscription_type
           in: query
           description: type of subscriptions to fetch (elasticsearch or jmespath)
           required: false
-          default: jmespath
-          type: string
-          enum: [elasticsearch, jmespath]
-      responses:
-        200:
-          description: OK
           schema:
-            type: object
-            properties:
-              subscription:
-                $ref: "#/definitions/Subscription"
-        500:
-          $ref: '#/responses/ServerError'
-        502:
-          $ref: '#/responses/BadGateway'
-        503:
-          $ref: '#/responses/ServiceUnavailable'
-        504:
-          $ref: '#/responses/GatewayTimeout'
+            type: string
+            enum:
+              - elasticsearch
+              - jmespath
+            default: jmespath
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  subscription:
+                    $ref: "#/components/schemas/Subscription"
+        "500":
+          $ref: "#/components/responses/ServerError"
+        "502":
+          $ref: "#/components/responses/BadGateway"
+        "503":
+          $ref: "#/components/responses/ServiceUnavailable"
+        "504":
+          $ref: "#/components/responses/GatewayTimeout"
         default:
           description: Unexpected error
-          schema:
-            allOf:
-              - $ref: '#/definitions/Error'
-              - type: object
-                properties:
-                  code:
-                    type: string
-                    description: Machine-readable error code.  The types of return values should not be changed lightly.
-                    enum: [unhandled_exception, Forbidden, Unauthorized, OAuthResponseProblem, not_found]
-                required:
-                  - code
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: "#/components/schemas/Error"
+                  - type: object
+                    properties:
+                      code:
+                        type: string
+                        description: Machine-readable error code.  The types of return
+                          values should not be changed lightly.
+                        enum:
+                          - unhandled_exception
+                          - Forbidden
+                          - Unauthorized
+                          - OAuthResponseProblem
+                          - not_found
+                    required:
+                      - code
     delete:
       security:
         - dcpAuth: []
       summary: Delete an event subscription.
       description: >
-        Delete a registered event subscription. The associated query will no longer trigger a callback
-        if a matching document is added to the system.
+        Delete a registered event subscription. The associated query will no
+        longer trigger a callback if a matching document is added to the system.
       parameters:
         - name: uuid
           in: path
           description: A RFC4122-compliant ID for the subscription.
           required: true
-          type: string
-          pattern: "[A-Za-z0-9]{8}-[A-Za-z0-9]{4}-[A-Za-z0-9]{4}-[A-Za-z0-9]{4}-[A-Za-z0-9]{12}"
+          schema:
+            type: string
+            pattern: "[A-Za-z0-9]{8}-[A-Za-z0-9]{4}-[A-Za-z0-9]{4}-[A-Za-z0-9]{4}-[A-Z\
+              a-z0-9]{12}"
         - name: replica
           in: query
           description: Replica to delete from.
           required: true
-          type: string
-          enum: [aws, gcp]
+          schema:
+            type: string
+            enum:
+              - aws
+              - gcp
         - name: subscription_type
           in: query
           description: type of subscriptions to fetch (elasticsearch or jmespath)
           required: false
-          default: jmespath
-          type: string
-          enum: [elasticsearch, jmespath]
-      responses:
-        200:
-          description: OK
           schema:
-            type: object
-            properties:
-              timeDeleted:
-                description: Timestamp of query subscription deletion in DSS_VERSION format.
-                type: string
-                format: DSS_VERSION
-            required:
-              - timeDeleted
-        500:
-          $ref: '#/responses/ServerError'
-        502:
-          $ref: '#/responses/BadGateway'
-        503:
-          $ref: '#/responses/ServiceUnavailable'
-        504:
-          $ref: '#/responses/GatewayTimeout'
+            type: string
+            enum:
+              - elasticsearch
+              - jmespath
+            default: jmespath
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  timeDeleted:
+                    description: Timestamp of query subscription deletion in DSS_VERSION
+                      format.
+                    type: string
+                    format: DSS_VERSION
+                required:
+                  - timeDeleted
+        "500":
+          $ref: "#/components/responses/ServerError"
+        "502":
+          $ref: "#/components/responses/BadGateway"
+        "503":
+          $ref: "#/components/responses/ServiceUnavailable"
+        "504":
+          $ref: "#/components/responses/GatewayTimeout"
         default:
           description: Unexpected error
-          schema:
-            allOf:
-              - $ref: '#/definitions/Error'
-              - type: object
-                properties:
-                  code:
-                    type: string
-                    description: Machine-readable error code.  The types of return values should not be changed lightly.
-                    enum: [unhandled_exception, Forbidden, Unauthorized, OAuthResponseProblem, not_found, read_only]
-                required:
-                  - code
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: "#/components/schemas/Error"
+                  - type: object
+                    properties:
+                      code:
+                        type: string
+                        description: Machine-readable error code.  The types of return
+                          values should not be changed lightly.
+                        enum:
+                          - unhandled_exception
+                          - Forbidden
+                          - Unauthorized
+                          - OAuthResponseProblem
+                          - not_found
+                          - read_only
+                    required:
+                      - code
   /collections:
     get:
       operationId: dss.api.collections.list_collections
@@ -1019,10 +1142,7 @@ paths:
       description: >
         Return a list of a user's collections.
 
-        Collections are sets of links to files, bundles, other collections, or fragments of JSON metadata files. Each
-        entry in the input set of links is checked for referential integrity (the link target must exist in the replica
-        referenced). Up to 1000 items can be referenced in a new collection, or added or removed using
-        `PATCH /collections`. New collections are private to the authenticated user.
+        Collections are sets of links to files, bundles, other collections, or fragments of JSON metadata files. Each entry in the input set of links is checked for referential integrity (the link target must exist in the replica referenced). Up to 1000 items can be referenced in a new collection, or added or removed using `PATCH /collections`. New collections are private to the authenticated user.
 
         Collection items are de-duplicated (if an identical item is given multiple times, it will only be added once).
 
@@ -1032,68 +1152,87 @@ paths:
           in: query
           description: Max number of results to return per page.
           required: false
-          type: integer
-          format: int32
-          minimum: 10
-          maximum: 500
-          default: 500
+          schema:
+            type: integer
+            format: int32
+            minimum: 10
+            maximum: 500
+            default: 500
         - name: start_at
           in: query
           description: >
-            An internal state pointer parameter for use with pagination. This parameter is referenced by the `Link`
-            header as described in the "Pagination" section. The API client should not need to set this parameter
-            directly; it should instead directly fetch the URL given in the `Link` header.
+            An internal state pointer parameter for use with pagination. This
+            parameter is referenced by the `Link` header as described in the
+            "Pagination" section. The API client should not need to set this
+            parameter directly; it should instead directly fetch the URL given
+            in the `Link` header.
           required: false
-          type: integer
+          schema:
+            type: integer
       responses:
-        200:
+        "200":
           description: OK
-          schema:
-            type: object
-            properties:
-              collections:
-                description: A user's collection UUIDs and versions.
-                type: array
-                items:
-                  $ref: '#/definitions/CollectionOfCollectionsItem'
-        206:
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  collections:
+                    description: A user's collection UUIDs and versions.
+                    type: array
+                    items:
+                      $ref: "#/components/schemas/CollectionOfCollectionsItem"
+        "206":
           description: A single page of results was retrieved.
-          schema:
-            type: object
-            properties:
-              collections:
-                description: A user's collection UUIDs and versions.
-                type: array
-                items:
-                  $ref: '#/definitions/CollectionOfCollectionsItem'
           headers:
             Link:
-              type: string
               description: >
-                URL to retrieve the next page of results, conforming to [RFC 5988](https://tools.ietf.org/html/rfc5988)
-                The URL in the header refers to the next page of the results to be fetched; if no `Link rel="next"` URL is
-                included, then all results have been fetched.
-        500:
-          $ref: '#/responses/ServerError'
-        502:
-          $ref: '#/responses/BadGateway'
-        503:
-          $ref: '#/responses/ServiceUnavailable'
-        504:
-          $ref: '#/responses/GatewayTimeout'
+                URL to retrieve the next page of results, conforming to [RFC
+                5988](https://tools.ietf.org/html/rfc5988) The URL in the header
+                refers to the next page of the results to be fetched; if no
+                `Link rel="next"` URL is included, then all results have been
+                fetched.
+              schema:
+                type: string
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  collections:
+                    description: A user's collection UUIDs and versions.
+                    type: array
+                    items:
+                      $ref: "#/components/schemas/CollectionOfCollectionsItem"
+        "500":
+          $ref: "#/components/responses/ServerError"
+        "502":
+          $ref: "#/components/responses/BadGateway"
+        "503":
+          $ref: "#/components/responses/ServiceUnavailable"
+        "504":
+          $ref: "#/components/responses/GatewayTimeout"
         default:
           description: Unexpected error
-          schema:
-            allOf:
-              - $ref: '#/definitions/Error'
-              - type: object
-                properties:
-                  code:
-                    type: string
-                    description: Machine-readable error code.  The types of return values should not be changed lightly.
-                    enum: [unhandled_exception, Forbidden, Unauthorized, OAuthResponseProblem, not_found]
-                required:
-                  - code
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: "#/components/schemas/Error"
+                  - type: object
+                    properties:
+                      code:
+                        type: string
+                        description: Machine-readable error code.  The types of return
+                          values should not be changed lightly.
+                        enum:
+                          - unhandled_exception
+                          - Forbidden
+                          - Unauthorized
+                          - OAuthResponseProblem
+                          - not_found
+                    required:
+                      - code
     put:
       security:
         - dcpAuth: []
@@ -1101,10 +1240,7 @@ paths:
       description: >
         Create a new collection.
 
-        Collections are sets of links to files, bundles, other collections, or fragments of JSON metadata files. Each
-        entry in the input set of links is checked for referential integrity (the link target must exist in the replica
-        referenced). Up to 1000 items can be referenced in a new collection, or added or removed using
-        `PATCH /collections`. New collections are private to the authenticated user.
+        Collections are sets of links to files, bundles, other collections, or fragments of JSON metadata files. Each entry in the input set of links is checked for referential integrity (the link target must exist in the replica referenced). Up to 1000 items can be referenced in a new collection, or added or removed using `PATCH /collections`. New collections are private to the authenticated user.
 
         Collection items are de-duplicated (if an identical item is given multiple times, it will only be added once).
 
@@ -1114,66 +1250,83 @@ paths:
           in: query
           description: Replica to write to.
           required: true
-          type: string
-          enum: [aws, gcp]
+          schema:
+            type: string
+            enum:
+              - aws
+              - gcp
         - name: uuid
           in: query
           description: A RFC4122-compliant ID for the collection.
           required: true
-          type: string
-          pattern: "[A-Za-z0-9]{8}-[A-Za-z0-9]{4}-[A-Za-z0-9]{4}-[A-Za-z0-9]{4}-[A-Za-z0-9]{12}"
+          schema:
+            type: string
+            pattern: "[A-Za-z0-9]{8}-[A-Za-z0-9]{4}-[A-Za-z0-9]{4}-[A-Za-z0-9]{4}-[A-Z\
+              a-z0-9]{12}"
         - name: version
           in: query
           description: Timestamp of collection creation in DSS_VERSION format.
           required: true
-          type: string
-          format: DSS_VERSION
-        - name: json_request_body
-          in: body
-          required: true
           schema:
-            $ref: "#/definitions/Collection"
+            type: string
+            format: DSS_VERSION
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/Collection"
+        required: true
       responses:
-        201:
+        "201":
           description: OK
-          schema:
-            type: object
-            properties:
-              uuid:
-                description: A RFC4122-compliant ID for the collection.
-                type: string
-                pattern: "[A-Za-z0-9]{8}-[A-Za-z0-9]{4}-[A-Za-z0-9]{4}-[A-Za-z0-9]{4}-[A-Za-z0-9]{12}"
-            required:
-              - uuid
-        500:
-          $ref: '#/responses/ServerError'
-        502:
-          $ref: '#/responses/BadGateway'
-        503:
-          $ref: '#/responses/ServiceUnavailable'
-        504:
-          $ref: '#/responses/GatewayTimeout'
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  uuid:
+                    description: A RFC4122-compliant ID for the collection.
+                    type: string
+                    pattern: "[A-Za-z0-9]{8}-[A-Za-z0-9]{4}-[A-Za-z0-9]{4}-[A-Za-z0-9]\
+                      {4}-[A-Za-z0-9]{12}"
+                required:
+                  - uuid
+        "500":
+          $ref: "#/components/responses/ServerError"
+        "502":
+          $ref: "#/components/responses/BadGateway"
+        "503":
+          $ref: "#/components/responses/ServiceUnavailable"
+        "504":
+          $ref: "#/components/responses/GatewayTimeout"
         default:
           description: Unexpected error
-          schema:
-            allOf:
-              - $ref: '#/definitions/Error'
-              - type: object
-                properties:
-                  code:
-                    type: string
-                    description: >
-                      Machine-readable error code.  The types of return values should not be changed lightly.
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: "#/components/schemas/Error"
+                  - type: object
+                    properties:
+                      code:
+                        type: string
+                        description: >
+                          Machine-readable error code.  The types of return
+                          values should not be changed lightly.
 
 
-                      The code `invalid_link` indicates that an item listed in the collection contents field of the
-                      input could not be resolved (either because the file, bundle, or collection does not exist on the
-                      replica specified, or because the JSON Pointer reference could not be resolved within the
-                      specified file).
-                    enum: [unhandled_exception, Forbidden, Unauthorized, OAuthResponseProblem, not_found, invalid_link, read_only]
-                required:
-                  - code
-  /collections/{uuid}:
+                          The code `invalid_link` indicates that an item listed in the collection contents field of the input could not be resolved (either because the file, bundle, or collection does not exist on the replica specified, or because the JSON Pointer reference could not be resolved within the specified file).
+                        enum:
+                          - unhandled_exception
+                          - Forbidden
+                          - Unauthorized
+                          - OAuthResponseProblem
+                          - not_found
+                          - invalid_link
+                          - read_only
+                    required:
+                      - code
+  "/collections/{uuid}":
     get:
       security:
         - dcpAuth: []
@@ -1184,577 +1337,720 @@ paths:
           in: path
           description: A RFC4122-compliant ID for the collection.
           required: true
-          type: string
-          pattern: "[A-Za-z0-9]{8}-[A-Za-z0-9]{4}-[A-Za-z0-9]{4}-[A-Za-z0-9]{4}-[A-Za-z0-9]{12}"
+          schema:
+            type: string
+            pattern: "[A-Za-z0-9]{8}-[A-Za-z0-9]{4}-[A-Za-z0-9]{4}-[A-Za-z0-9]{4}-[A-Z\
+              a-z0-9]{12}"
         - name: replica
           in: query
           description: Replica to fetch from.
           required: true
-          type: string
-          enum: [aws, gcp]
+          schema:
+            type: string
+            enum:
+              - aws
+              - gcp
         - name: version
           in: query
           description: >
-            Timestamp of collection creation in DSS_VERSION format.  If this is not provided, the latest version is returned.
+            Timestamp of collection creation in DSS_VERSION format.  If this is
+            not provided, the latest version is returned.
           required: false
-          type: string
-      responses:
-        200:
-          description: OK
           schema:
-            type: object
-            properties:
-              collection:
-                $ref: "#/definitions/Collection"
-        500:
-          $ref: '#/responses/ServerError'
-        502:
-          $ref: '#/responses/BadGateway'
-        503:
-          $ref: '#/responses/ServiceUnavailable'
-        504:
-          $ref: '#/responses/GatewayTimeout'
+            type: string
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  collection:
+                    $ref: "#/components/schemas/Collection"
+        "500":
+          $ref: "#/components/responses/ServerError"
+        "502":
+          $ref: "#/components/responses/BadGateway"
+        "503":
+          $ref: "#/components/responses/ServiceUnavailable"
+        "504":
+          $ref: "#/components/responses/GatewayTimeout"
         default:
           description: Unexpected error
-          schema:
-            allOf:
-              - $ref: '#/definitions/Error'
-              - type: object
-                properties:
-                  code:
-                    type: string
-                    description: Machine-readable error code.  The types of return values should not be changed lightly.
-                    enum: [unhandled_exception, Forbidden, Unauthorized, OAuthResponseProblem, not_found]
-                required:
-                  - code
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: "#/components/schemas/Error"
+                  - type: object
+                    properties:
+                      code:
+                        type: string
+                        description: Machine-readable error code.  The types of return
+                          values should not be changed lightly.
+                        enum:
+                          - unhandled_exception
+                          - Forbidden
+                          - Unauthorized
+                          - OAuthResponseProblem
+                          - not_found
+                    required:
+                      - code
     patch:
       security:
         - dcpAuth: []
       summary: Update a collection.
       description: >
-        Add or remove items from a collection. A specific version of the collection to update must be provided, and a
-        new version will be written.
+        Add or remove items from a collection. A specific version of the
+        collection to update must be provided, and a new version will be
+        written.
       parameters:
         - name: uuid
           in: path
           description: A RFC4122-compliant ID of the collection to update.
           required: true
-          type: string
-          pattern: "[A-Za-z0-9]{8}-[A-Za-z0-9]{4}-[A-Za-z0-9]{4}-[A-Za-z0-9]{4}-[A-Za-z0-9]{12}"
+          schema:
+            type: string
+            pattern: "[A-Za-z0-9]{8}-[A-Za-z0-9]{4}-[A-Za-z0-9]{4}-[A-Za-z0-9]{4}-[A-Z\
+              a-z0-9]{12}"
         - name: replica
           in: query
-          description: Replica to update the collection on. Updates are propagated to other replicas.
+          description: Replica to update the collection on. Updates are propagated to other
+            replicas.
           required: true
-          type: string
-          enum: [aws, gcp]
+          schema:
+            type: string
+            enum:
+              - aws
+              - gcp
         - name: version
           in: query
           description: >
-            Timestamp of the collection to update in DSS_VERSION format format (required).
-          required: true
-          type: string
-          format: DSS_VERSION
-        - name: json_request_body
-          in: body
+            Timestamp of the collection to update in DSS_VERSION format format
+            (required).
           required: true
           schema:
-            type: object
-            properties:
-              add_contents:
-                type: array
-                description: >
-                  List of new items to add to the collection. Items are de-duplicated (if an identical item is already
-                  present in the collection or given multiple times, it will only be added once).
-                items:
-                  $ref: '#/definitions/CollectionItem'
-                maxItems: 1000
-              remove_contents:
-                type: array
-                description: >
-                  List of items to remove from the collection. Items must match exactly to be removed. Items not found
-                  in the collection are ignored.
-                items:
-                  $ref: '#/definitions/CollectionItem'
-                maxItems: 1000
-              name:
-                type: string
-                description: New name for the collection.
-              description:
-                type: string
-                description: New description for the collection.
-              details:
-                type: object
-                description: New details for the collection.
+            type: string
+            format: DSS_VERSION
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                add_contents:
+                  type: array
+                  description: >
+                    List of new items to add to the collection. Items are
+                    de-duplicated (if an identical item is already present in
+                    the collection or given multiple times, it will only be
+                    added once).
+                  items:
+                    $ref: "#/components/schemas/CollectionItem"
+                  maxItems: 1000
+                remove_contents:
+                  type: array
+                  description: >
+                    List of items to remove from the collection. Items must
+                    match exactly to be removed. Items not found in the
+                    collection are ignored.
+                  items:
+                    $ref: "#/components/schemas/CollectionItem"
+                  maxItems: 1000
+                name:
+                  type: string
+                  description: New name for the collection.
+                description:
+                  type: string
+                  description: New description for the collection.
+                details:
+                  type: object
+                  description: New details for the collection.
+        required: true
       responses:
-        200:
+        "200":
           description: OK
-          schema:
-            type: object
-            properties:
-              uuid:
-                type: string
-                description: A RFC4122-compliant ID of this collection.
-              version:
-                type: string
-                description: New version of the updated collection.
-                format: DSS_VERSION
-            required:
-              - uuid
-              - version
-        400:
-          description: >
-            Returned when the server could not process the request due to incorrect inputs.  Examine the code for more
-            details.
-          schema:
-            allOf:
-              - $ref: '#/definitions/Error'
-              - type: object
+          content:
+            application/json:
+              schema:
+                type: object
                 properties:
-                  code:
+                  uuid:
                     type: string
-                    description: >
-                      The code `illegal_version` is returned when version is not a DSS_VERSION format-compliant timestamp.
-                    enum: [illegal_version]
-                required:
-                  - code
-        403:
-          description: >
-            Returned when credentials presented do not grant access to this collection.
-          schema:
-            allOf:
-              - $ref: '#/definitions/Error'
-              - type: object
-                properties:
-                  code:
+                    description: A RFC4122-compliant ID of this collection.
+                  version:
                     type: string
-                    description: >
-                      Machine-readable error code.  The types of return values should not be changed lightly.
-
-                      The code `Forbidden` indicates that the user does not have access to this collection.
-
-                      The code `OAuthResponseProblem` indicates that the OAuth credentials presented were not
-                      understood.
-                    enum: [Forbidden, OAuthResponseProblem]
+                    description: New version of the updated collection.
+                    format: DSS_VERSION
                 required:
-                  - code
-        404:
+                  - uuid
+                  - version
+        "400":
           description: >
+            Returned when the server could not process the request due to
+            incorrect inputs.  Examine the code for more details.
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: "#/components/schemas/Error"
+                  - type: object
+                    properties:
+                      code:
+                        type: string
+                        description: >
+                          The code `illegal_version` is returned when version is
+                          not a DSS_VERSION format-compliant timestamp.
+                        enum:
+                          - illegal_version
+                    required:
+                      - code
+        "403":
+          description: >
+            Returned when credentials presented do not grant access to this
+            collection.
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: "#/components/schemas/Error"
+                  - type: object
+                    properties:
+                      code:
+                        type: string
+                        description: >
+                          Machine-readable error code.  The types of return
+                          values should not be changed lightly.
+
+                          The code `Forbidden` indicates that the user does not have access to this collection.
+
+                          The code `OAuthResponseProblem` indicates that the OAuth credentials presented were not understood.
+                        enum:
+                          - Forbidden
+                          - OAuthResponseProblem
+                    required:
+                      - code
+        "404":
+          description: |
             Returned when the server could not find the collection to patch.
-          schema:
-            allOf:
-              - $ref: '#/definitions/Error'
-              - type: object
-                properties:
-                  code:
-                    type: string
-                    description: >
-                      Machine-readable error code.  The types of return values should not be changed lightly.
-                    enum: [not_found]
-                required:
-                  - code
-        422:
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: "#/components/schemas/Error"
+                  - type: object
+                    properties:
+                      code:
+                        type: string
+                        description: >
+                          Machine-readable error code.  The types of return
+                          values should not be changed lightly.
+                        enum:
+                          - not_found
+                    required:
+                      - code
+        "422":
           description: >
-            Returned when the server could not find some of the files necessary to complete the operation or if the JSON
-            Pointer reference could not be resolved within the specified file.
-          schema:
-            allOf:
-              - $ref: '#/definitions/Error'
-              - type: object
-                properties:
-                  code:
-                    type: string
-                    description: >
-                      Machine-readable error code.  The types of return values should not be changed lightly.
-                    enum: [invalid_link]
-                required:
-                  - code
-        500:
-          $ref: '#/responses/ServerError'
-        502:
-          $ref: '#/responses/BadGateway'
-        503:
-          $ref: '#/responses/ServiceUnavailable'
-        504:
-          $ref: '#/responses/GatewayTimeout'
+            Returned when the server could not find some of the files necessary
+            to complete the operation or if the JSON Pointer reference could not
+            be resolved within the specified file.
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: "#/components/schemas/Error"
+                  - type: object
+                    properties:
+                      code:
+                        type: string
+                        description: >
+                          Machine-readable error code.  The types of return
+                          values should not be changed lightly.
+                        enum:
+                          - invalid_link
+                    required:
+                      - code
+        "500":
+          $ref: "#/components/responses/ServerError"
+        "502":
+          $ref: "#/components/responses/BadGateway"
+        "503":
+          $ref: "#/components/responses/ServiceUnavailable"
+        "504":
+          $ref: "#/components/responses/GatewayTimeout"
         default:
           description: Unexpected error
-          schema:
-            allOf:
-              - $ref: '#/definitions/Error'
-              - type: object
-                properties:
-                  code:
-                    type: string
-                    description: >
-                      Machine-readable error code.  The types of return values should not be changed lightly.
-                    enum: [unhandled_exception, illegal_arguments]
-                required:
-                  - code
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: "#/components/schemas/Error"
+                  - type: object
+                    properties:
+                      code:
+                        type: string
+                        description: >
+                          Machine-readable error code.  The types of return
+                          values should not be changed lightly.
+                        enum:
+                          - unhandled_exception
+                          - illegal_arguments
+                    required:
+                      - code
     delete:
       security:
         - dcpAuth: []
       summary: Delete a collection.
-      description: >
+      description: |
         Delete a collection.
       parameters:
         - name: uuid
           in: path
           description: A RFC4122-compliant ID for the collection.
           required: true
-          type: string
-          pattern: "[A-Za-z0-9]{8}-[A-Za-z0-9]{4}-[A-Za-z0-9]{4}-[A-Za-z0-9]{4}-[A-Za-z0-9]{12}"
+          schema:
+            type: string
+            pattern: "[A-Za-z0-9]{8}-[A-Za-z0-9]{4}-[A-Za-z0-9]{4}-[A-Za-z0-9]{4}-[A-Z\
+              a-z0-9]{12}"
         - name: replica
           in: query
           description: Replica to delete from.
           required: true
-          type: string
-          enum: [aws, gcp]
+          schema:
+            type: string
+            enum:
+              - aws
+              - gcp
       responses:
-        200:
+        "200":
           description: OK
-        500:
-          $ref: '#/responses/ServerError'
-        502:
-          $ref: '#/responses/BadGateway'
-        503:
-          $ref: '#/responses/ServiceUnavailable'
-        504:
-          $ref: '#/responses/GatewayTimeout'
+        "500":
+          $ref: "#/components/responses/ServerError"
+        "502":
+          $ref: "#/components/responses/BadGateway"
+        "503":
+          $ref: "#/components/responses/ServiceUnavailable"
+        "504":
+          $ref: "#/components/responses/GatewayTimeout"
         default:
           description: Unexpected error
-          schema:
-            allOf:
-              - $ref: '#/definitions/Error'
-              - type: object
-                properties:
-                  code:
-                    type: string
-                    description: Machine-readable error code.  The types of return values should not be changed lightly.
-                    enum: [unhandled_exception, Forbidden, Unauthorized, OAuthResponseProblem, not_found, read_only]
-                required:
-                  - code
-  /bundles/{uuid}:
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: "#/components/schemas/Error"
+                  - type: object
+                    properties:
+                      code:
+                        type: string
+                        description: Machine-readable error code.  The types of return
+                          values should not be changed lightly.
+                        enum:
+                          - unhandled_exception
+                          - Forbidden
+                          - Unauthorized
+                          - OAuthResponseProblem
+                          - not_found
+                          - read_only
+                    required:
+                      - code
+  "/bundles/{uuid}":
     get:
       summary: Retrieve a bundle given a UUID and optionally a version.
       description: >
-        Given a bundle UUID, return the latest version of that bundle.  If the version is provided, that version of the
-        bundle is returned instead.
+        Given a bundle UUID, return the latest version of that bundle.  If the
+        version is provided, that version of the bundle is returned instead.
       parameters:
         - name: uuid
           in: path
           description: Bundle unique ID.
           required: true
-          type: string
-          pattern: "[A-Za-z0-9]{8}-[A-Za-z0-9]{4}-[A-Za-z0-9]{4}-[A-Za-z0-9]{4}-[A-Za-z0-9]{12}"
+          schema:
+            type: string
+            pattern: "[A-Za-z0-9]{8}-[A-Za-z0-9]{4}-[A-Za-z0-9]{4}-[A-Za-z0-9]{4}-[A-Z\
+              a-z0-9]{12}"
         - name: version
           in: query
           description: Timestamp of bundle creation in DSS_VERSION format.
           required: false
-          type: string
+          schema:
+            type: string
         - name: replica
           in: query
           description: Replica to fetch from.
           required: true
-          type: string
-          enum: [aws, gcp]
+          schema:
+            type: string
+            enum:
+              - aws
+              - gcp
         - name: directurls
           in: query
-          description: |
-            When set to true, the response will contain API-specific URLs that are tied to the specified replica, for example `gs://bucket/object` or `s3://bucket/object`
+          description: >
+            When set to true, the response will contain API-specific URLs that
+            are tied to the specified replica, for example `gs://bucket/object`
+            or `s3://bucket/object`
+
 
             This parameter is mutually exclusive with the presigned urls parameter. The use of presigned URLs is recommended for data access. Cloud native URLs are currently provided for a limited set of use cases and may not be provided in the future. If cloud native URLs are required, please contact the data store team regarding the credentials necessary to use them.
           required: false
-          type: boolean
+          schema:
+            type: boolean
         - name: presignedurls
           in: query
           description: >
-            Include presigned URLs in the response.  This is mutually exclusive with the directurls parameter.
+            Include presigned URLs in the response.  This is mutually exclusive
+            with the directurls parameter.
           required: false
-          type: boolean
+          schema:
+            type: boolean
         - name: token
           in: query
-          description: Token to manage retries.  End users constructing queries should not set this parameter.
+          description: Token to manage retries.  End users constructing queries should not
+            set this parameter.
           required: false
-          type: string
+          schema:
+            type: string
         - name: per_page
           in: query
           description: Max number of results to return per page.
           required: false
-          type: integer
-          format: int32
-          minimum: 10
-          maximum: 500
-          default: 500
+          schema:
+            type: integer
+            format: int32
+            minimum: 10
+            maximum: 500
+            default: 500
         - name: start_at
           in: query
           description: >
-            An internal state pointer parameter for use with pagination. This parameter is referenced by the `Link`
-            header as described in the "Pagination" section. The API client should not need to set this parameter
-            directly; it should instead directly fetch the URL given in the `Link` header.
+            An internal state pointer parameter for use with pagination. This
+            parameter is referenced by the `Link` header as described in the
+            "Pagination" section. The API client should not need to set this
+            parameter directly; it should instead directly fetch the URL given
+            in the `Link` header.
           required: false
-          type: integer
+          schema:
+            type: integer
       responses:
-        200:
+        "200":
           description: OK
-          schema:
-            type: object
-            properties:
-              bundle:
-                $ref: "#/definitions/bundle_version"
-        206:
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  bundle:
+                    $ref: "#/components/schemas/bundle_version"
+        "206":
           description: A single page of results was retrieved.
-          schema:
-            type: object
-            properties:
-              bundle:
-                $ref: "#/definitions/bundle_version"
           headers:
             Link:
-              type: string
               description: >
-                URL to retrieve the next page of results, conforming to [RFC 5988](https://tools.ietf.org/html/rfc5988)
-                The URL in the header refers to the next page of the results to be fetched; if no `Link rel="next"` URL is
-                included, then all results have been fetched.
-        301:
+                URL to retrieve the next page of results, conforming to [RFC
+                5988](https://tools.ietf.org/html/rfc5988) The URL in the header
+                refers to the next page of the results to be fetched; if no
+                `Link rel="next"` URL is included, then all results have been
+                fetched.
+              schema:
+                type: string
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  bundle:
+                    $ref: "#/components/schemas/bundle_version"
+        "301":
           description: >
-            The bundle is still being fetched. The request is being handled asynchronously. The client should follow the
-            redirect after the delay specified in the Retry-After header.
+            The bundle is still being fetched. The request is being handled
+            asynchronously. The client should follow the redirect after the
+            delay specified in the Retry-After header.
           headers:
             Retry-After:
-              description: Delay in seconds. The client should follow the redirect after waiting for this duration.
-              type: integer
-              format: int64
-        400:
+              description: Delay in seconds. The client should follow the redirect after
+                waiting for this duration.
+              schema:
+                type: integer
+                format: int64
+        "400":
           description: Bad request
-          schema:
-            allOf:
-              - $ref: '#/definitions/Error'
-              - type: object
-                properties:
-                  code:
-                    type: string
-                    description: >
-                      Machine-readable error code.  The types of return values should not be changed lightly.
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: "#/components/schemas/Error"
+                  - type: object
+                    properties:
+                      code:
+                        type: string
+                        description: >
+                          Machine-readable error code.  The types of return
+                          values should not be changed lightly.
 
 
-                      The code `illegal_arguments` is returned when required parameters are missing or parameters do not
-                      match the requirements in the specification.
+                          The code `illegal_arguments` is returned when required parameters are missing or parameters do not match the requirements in the specification.
 
 
-                      The code `illegal_token` is returned when the token parameter cannot be understood.
+                          The code `illegal_token` is returned when the token parameter cannot be understood.
 
 
-                      The code `only_one_urltype` is returned when more than one url type (`directurls` and
-                      `presignedurls`) is requested.
-                    enum: [illegal_arguments, illegal_token, only_one_urltype]
-                required:
-                  - code
-        500:
+                          The code `only_one_urltype` is returned when more than one url type (`directurls` and `presignedurls`) is requested.
+                        enum:
+                          - illegal_arguments
+                          - illegal_token
+                          - only_one_urltype
+                    required:
+                      - code
+        "500":
           description: Server Error.
           headers:
             Retry-After:
               description: Delay in seconds, service clients should retry after the delay.
-              type: integer
-              format: int64
-          schema:
-            allOf:
-              - $ref: '#/definitions/Error'
-              - type: object
-                properties:
-                  code:
-                    type: string
-                    description: >
-                      Machine-readable error code.  The types of return values should not be changed lightly.
+              schema:
+                type: integer
+                format: int64
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: "#/components/schemas/Error"
+                  - type: object
+                    properties:
+                      code:
+                        type: string
+                        description: >
+                          Machine-readable error code.  The types of return
+                          values should not be changed lightly.
 
 
-                      The code `unhandled_exception` is returned when an unexpected exception is encountered.
+                          The code `unhandled_exception` is returned when an unexpected exception is encountered.
 
 
-                      The code `checkout_error` is returned when the checkout fails.
-                    enum: [unhandled_exception, checkout_error]
-                required:
-                  - code
-        502:
-          $ref: '#/responses/BadGateway'
-        503:
+                          The code `checkout_error` is returned when the checkout fails.
+                        enum:
+                          - unhandled_exception
+                          - checkout_error
+                    required:
+                      - code
+        "502":
+          $ref: "#/components/responses/BadGateway"
+        "503":
           description: Service Unavailable.
           headers:
             Retry-After:
               description: Delay in seconds, service clients should retry after the delay.
-              type: integer
-              format: int64
-          schema:
-            allOf:
-              - $ref: '#/definitions/Error'
-              - type: object
-                properties:
-                  code:
-                    type: string
-                    description: >
-                      Machine-readable error code.  The types of return values should not be changed lightly.
+              schema:
+                type: integer
+                format: int64
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: "#/components/schemas/Error"
+                  - type: object
+                    properties:
+                      code:
+                        type: string
+                        description: >
+                          Machine-readable error code.  The types of return
+                          values should not be changed lightly.
 
 
-                      The code `service_unavailable` is returned when service is unavailable because of unusually high
-                      load/latency
-                    enum: [service_unavailable]
-                required:
-                  - code
-        504:
-          $ref: '#/responses/GatewayTimeout'
+                          The code `service_unavailable` is returned when service is unavailable because of unusually high load/latency
+                        enum:
+                          - service_unavailable
+                    required:
+                      - code
+        "504":
+          $ref: "#/components/responses/GatewayTimeout"
     put:
       security:
         - dcpAuth: []
       summary: Create a bundle
       description: >
-        Create a new version of a bundle with a given UUID.  The list of file UUID and versions to be included must be
-        provided.
+        Create a new version of a bundle with a given UUID.  The list of file
+        UUID and versions to be included must be provided.
       parameters:
         - name: uuid
           in: path
           description: A RFC4122-compliant ID for the bundle.
           required: true
-          type: string
-          pattern: "[A-Za-z0-9]{8}-[A-Za-z0-9]{4}-[A-Za-z0-9]{4}-[A-Za-z0-9]{4}-[A-Za-z0-9]{12}"
+          schema:
+            type: string
+            pattern: "[A-Za-z0-9]{8}-[A-Za-z0-9]{4}-[A-Za-z0-9]{4}-[A-Za-z0-9]{4}-[A-Z\
+              a-z0-9]{12}"
         - name: version
           in: query
           description: Timestamp of bundle creation in DSS_VERSION format.
           required: true
-          type: string
-          format: DSS_VERSION
+          schema:
+            type: string
+            format: DSS_VERSION
         - name: replica
           in: query
           description: Replica to write to.
           required: true
-          type: string
-          enum: [aws, gcp]
-        - name: json_request_body
-          in: body
-          required: true
           schema:
-            type: object
-            properties:
-              files:
-                description: >
-                  This is a list of dictionaries describing each of the files. Each dictionary includes the fields:
-                  - The "uuid" of a file already previously uploaded with "PUT file/{uuid}".
-                  - The "version" timestamp of the file.
-                  - The "name" of the file. This can be most anything, and is the name the file will have when downloaded.
-                  - The "indexed" field, which specifies whether a file should be indexed or not.
+            type: string
+            enum:
+              - aws
+              - gcp
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                files:
+                  description: >
+                    This is a list of dictionaries describing each of the files.
+                    Each dictionary includes the fields: - The "uuid" of a file
+                    already previously uploaded with "PUT file/{uuid}". - The
+                    "version" timestamp of the file. - The "name" of the file.
+                    This can be most anything, and is the name the file will
+                    have when downloaded. - The "indexed" field, which specifies
+                    whether a file should be indexed or not.
 
-                  Bundle manifests exceeding 20,000 files will not be included in the Elasticsearch index document.
+                    Bundle manifests exceeding 20,000 files will not be included in the Elasticsearch index document.
 
-                  Example representing 2 files with dummy values:
-                  [{'uuid': 'ce55fd51-7833-469b-be0b-5da88ebebfcd',
-                    'version': '2017-06-16T193604.240704Z',
-                    'name': 'dinosaur_dna.fa',
-                    'indexed': False},
-                   {'uuid': 'ae55fd51-7833-469b-be0b-5da88ebebfca',
-                    'version': '0303-04-23T193604.240704Z',
-                    'name': 'dragon_dna.fa',
-                    'indexed': False}]
-                type: array
-                items:
-                  $ref: '#/definitions/BundleFile'
-              creator_uid:
-                description: User ID who is creating this bundle.
-                type: integer
-                format: int64
-            required:
-              - files
-              - creator_uid
+                    Example representing 2 files with dummy values: [{'uuid': 'ce55fd51-7833-469b-be0b-5da88ebebfcd',
+                      'version': '2017-06-16T193604.240704Z',
+                      'name': 'dinosaur_dna.fa',
+                      'indexed': False},
+                     {'uuid': 'ae55fd51-7833-469b-be0b-5da88ebebfca',
+                      'version': '0303-04-23T193604.240704Z',
+                      'name': 'dragon_dna.fa',
+                      'indexed': False}]
+                  type: array
+                  items:
+                    $ref: "#/components/schemas/BundleFile"
+                creator_uid:
+                  description: User ID who is creating this bundle.
+                  type: integer
+                  format: int64
+              required:
+                - files
+                - creator_uid
+        required: true
       responses:
-        200:
+        "200":
           description: OK
-          schema:
-            type: object
-            properties:
-              version:
-                description: Timestamp of bundle creation in DSS_VERSION format.
-                type: string
-                format: DSS_VERSION
-              manifest:
+          content:
+            application/json:
+              schema:
                 type: object
-                description: The manifest stored in the DSS. It lists the files in the bundle, and metadata describing those files.
-            required:
-              - version
-              - manifest
-        201:
-          description: OK
-          schema:
-            type: object
-            properties:
-              version:
-                description: Timestamp of bundle creation in DSS_VERSION format.
-                type: string
-                format: DSS_VERSION
-              manifest:
-                type: object
-                description: The manifest stored in the DSS. It lists the files in the bundle, and metadata describing those files.
-            required:
-              - version
-              - manifest
-        400:
-          description: Returned when the server could not process the request.  Examine the code for more details.
-          schema:
-            allOf:
-              - $ref: '#/definitions/Error'
-              - type: object
                 properties:
-                  code:
+                  version:
+                    description: Timestamp of bundle creation in DSS_VERSION format.
                     type: string
-                    description: >
-                      Machine-readable error code.  The types of return values should not be changed lightly.
-
-                      The code `duplicate_filename` is returned when the bundle contains two files of the same name.
-
-                      The code `file_missing` is returned when the server cannot find one of the files requested to be
-                      included in the bundle.
-
-                      The code `illegal_version` is returned when version is not a DSS_VERSION format-compliant timestamp.
-                    enum: [duplicate_filename, file_missing, illegal_version]
+                    format: DSS_VERSION
+                  manifest:
+                    type: object
+                    description: The manifest stored in the DSS. It lists the files in the
+                      bundle, and metadata describing those files.
                 required:
-                  - code
-        409:
+                  - version
+                  - manifest
+        "201":
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  version:
+                    description: Timestamp of bundle creation in DSS_VERSION format.
+                    type: string
+                    format: DSS_VERSION
+                  manifest:
+                    type: object
+                    description: The manifest stored in the DSS. It lists the files in the
+                      bundle, and metadata describing those files.
+                required:
+                  - version
+                  - manifest
+        "400":
+          description: Returned when the server could not process the request.  Examine the
+            code for more details.
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: "#/components/schemas/Error"
+                  - type: object
+                    properties:
+                      code:
+                        type: string
+                        description: >
+                          Machine-readable error code.  The types of return
+                          values should not be changed lightly.
+
+                          The code `duplicate_filename` is returned when the bundle contains two files of the same name.
+
+                          The code `file_missing` is returned when the server cannot find one of the files requested to be included in the bundle.
+
+                          The code `illegal_version` is returned when version is not a DSS_VERSION format-compliant timestamp.
+                        enum:
+                          - duplicate_filename
+                          - file_missing
+                          - illegal_version
+                    required:
+                      - code
+        "409":
           description: Returned when a bundle with the same UUID and version already exists
-          schema:
-            allOf:
-              - $ref: '#/definitions/Error'
-              - type: object
-                properties:
-                  code:
-                    type: string
-                    description: Machine-readable error code.  The types of return values should not be changed lightly.
-                    enum: [bundle_already_exists]
-                required:
-                  - code
-        500:
-          $ref: '#/responses/ServerError'
-        502:
-          $ref: '#/responses/BadGateway'
-        503:
-          $ref: '#/responses/ServiceUnavailable'
-        504:
-          $ref: '#/responses/GatewayTimeout'
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: "#/components/schemas/Error"
+                  - type: object
+                    properties:
+                      code:
+                        type: string
+                        description: Machine-readable error code.  The types of return
+                          values should not be changed lightly.
+                        enum:
+                          - bundle_already_exists
+                    required:
+                      - code
+        "500":
+          $ref: "#/components/responses/ServerError"
+        "502":
+          $ref: "#/components/responses/BadGateway"
+        "503":
+          $ref: "#/components/responses/ServiceUnavailable"
+        "504":
+          $ref: "#/components/responses/GatewayTimeout"
         default:
           description: Unexpected error
-          schema:
-            allOf:
-              - $ref: '#/definitions/Error'
-              - type: object
-                properties:
-                  code:
-                    type: string
-                    description: Machine-readable error code.  The types of return values should not be changed lightly.
-                    enum: [unhandled_exception, Forbidden, Unauthorized, illegal_arguments, read_only]
-                required:
-                  - code
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: "#/components/schemas/Error"
+                  - type: object
+                    properties:
+                      code:
+                        type: string
+                        description: Machine-readable error code.  The types of return
+                          values should not be changed lightly.
+                        enum:
+                          - unhandled_exception
+                          - Forbidden
+                          - Unauthorized
+                          - illegal_arguments
+                          - read_only
+                    required:
+                      - code
     patch:
       security:
         - dcpAuth: []
       summary: Update a bundle.
       description: >
-        Add or remove files from a bundle. A specific version of the bundle to update must be provided, and a
-        new version will be written.
+        Add or remove files from a bundle. A specific version of the bundle to
+        update must be provided, and a new version will be written.
 
         Bundle manifests exceeding 20,000 files will not be included in the Elasticsearch index document.
       parameters:
@@ -1762,823 +2058,974 @@ paths:
           in: path
           description: A RFC4122-compliant ID of the bundle to update.
           required: true
-          type: string
-          pattern: "[A-Za-z0-9]{8}-[A-Za-z0-9]{4}-[A-Za-z0-9]{4}-[A-Za-z0-9]{4}-[A-Za-z0-9]{12}"
+          schema:
+            type: string
+            pattern: "[A-Za-z0-9]{8}-[A-Za-z0-9]{4}-[A-Za-z0-9]{4}-[A-Za-z0-9]{4}-[A-Z\
+              a-z0-9]{12}"
         - name: replica
           in: query
-          description: Replica to update the bundle on. Updates are propagated to other replicas.
+          description: Replica to update the bundle on. Updates are propagated to other
+            replicas.
           required: true
-          type: string
-          enum: [aws, gcp]
+          schema:
+            type: string
+            enum:
+              - aws
+              - gcp
         - name: version
           in: query
           description: >
-            Timestamp of the bundle to update in DSS_VERSION format format (required).
-          required: true
-          type: string
-          format: DSS_VERSION
-        - name: json_request_body
-          in: body
+            Timestamp of the bundle to update in DSS_VERSION format format
+            (required).
           required: true
           schema:
-            type: object
-            properties:
-              add_files:
-                type: array
-                description: >
-                  List of new files to add to the bundle. File names must be unique.
-                items:
-                  $ref: '#/definitions/BundleFile'
-                maxItems: 1000
-              remove_files:
-                type: array
-                description: >
-                  List of files to remove from the bundle. Files must match exactly to be removed. Files not found
-                  in the bundle are ignored.
-                items:
-                  $ref: '#/definitions/BundleFile'
-                maxItems: 1000
+            type: string
+            format: DSS_VERSION
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                add_files:
+                  type: array
+                  description: >
+                    List of new files to add to the bundle. File names must be
+                    unique.
+                  items:
+                    $ref: "#/components/schemas/BundleFile"
+                  maxItems: 1000
+                remove_files:
+                  type: array
+                  description: >
+                    List of files to remove from the bundle. Files must match
+                    exactly to be removed. Files not found in the bundle are
+                    ignored.
+                  items:
+                    $ref: "#/components/schemas/BundleFile"
+                  maxItems: 1000
+        required: true
       responses:
-        200:
+        "200":
           description: OK
-          schema:
-            type: object
-            properties:
-              uuid:
-                type: string
-                description: A RFC4122-compliant ID of this bundle.
-              version:
-                type: string
-                description: New version of the updated bundle.
-                format: DSS_VERSION
-            required:
-              - uuid
-              - version
-        400:
-          description: >
-            Returned when the server could not process the request due to incorrect inputs.  Examine the code for more
-            details.
-          schema:
-            allOf:
-              - $ref: '#/definitions/Error'
-              - type: object
+          content:
+            application/json:
+              schema:
+                type: object
                 properties:
-                  code:
+                  uuid:
                     type: string
-                    description: >
-                      The code `illegal_version` is returned when version is not a DSS_VERSION format-compliant timestamp.
-                      The code `duplicate_filename` is returned when the bundle contains two files of the same name.
-                    enum: [duplicate_filename, illegal_version]
-                required:
-                  - code
-        403:
-          description: >
-            Returned when credentials presented do not grant access to this bundle.
-          schema:
-            allOf:
-              - $ref: '#/definitions/Error'
-              - type: object
-                properties:
-                  code:
+                    description: A RFC4122-compliant ID of this bundle.
+                  version:
                     type: string
-                    description: >
-                      Machine-readable error code.  The types of return values should not be changed lightly.
-
-                      The code `Forbidden` indicates that the user does not have access to this bundle.
-
-                      The code `OAuthResponseProblem` indicates that the OAuth credentials presented were not
-                      understood.
-                    enum: [Forbidden, OAuthResponseProblem]
+                    description: New version of the updated bundle.
+                    format: DSS_VERSION
                 required:
-                  - code
-        404:
+                  - uuid
+                  - version
+        "400":
           description: >
+            Returned when the server could not process the request due to
+            incorrect inputs.  Examine the code for more details.
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: "#/components/schemas/Error"
+                  - type: object
+                    properties:
+                      code:
+                        type: string
+                        description: >
+                          The code `illegal_version` is returned when version is
+                          not a DSS_VERSION format-compliant timestamp. The code
+                          `duplicate_filename` is returned when the bundle
+                          contains two files of the same name.
+                        enum:
+                          - duplicate_filename
+                          - illegal_version
+                    required:
+                      - code
+        "403":
+          description: >
+            Returned when credentials presented do not grant access to this
+            bundle.
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: "#/components/schemas/Error"
+                  - type: object
+                    properties:
+                      code:
+                        type: string
+                        description: >
+                          Machine-readable error code.  The types of return
+                          values should not be changed lightly.
+
+                          The code `Forbidden` indicates that the user does not have access to this bundle.
+
+                          The code `OAuthResponseProblem` indicates that the OAuth credentials presented were not understood.
+                        enum:
+                          - Forbidden
+                          - OAuthResponseProblem
+                    required:
+                      - code
+        "404":
+          description: |
             Returned when the server could not find the bundle to patch.
-          schema:
-            allOf:
-              - $ref: '#/definitions/Error'
-              - type: object
-                properties:
-                  code:
-                    type: string
-                    description: >
-                      Machine-readable error code.  The types of return values should not be changed lightly.
-                    enum: [not_found]
-                required:
-                  - code
-        422:
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: "#/components/schemas/Error"
+                  - type: object
+                    properties:
+                      code:
+                        type: string
+                        description: >
+                          Machine-readable error code.  The types of return
+                          values should not be changed lightly.
+                        enum:
+                          - not_found
+                    required:
+                      - code
+        "422":
           description: >
-            Returned when the server could not find some of the files necessary to complete the operation or if the JSON
-            Pointer reference could not be resolved within the specified file.
-          schema:
-            allOf:
-              - $ref: '#/definitions/Error'
-              - type: object
-                properties:
-                  code:
-                    type: string
-                    description: >
-                      Machine-readable error code.  The types of return values should not be changed lightly.
-                    enum: [invalid_link]
-                required:
-                  - code
+            Returned when the server could not find some of the files necessary
+            to complete the operation or if the JSON Pointer reference could not
+            be resolved within the specified file.
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: "#/components/schemas/Error"
+                  - type: object
+                    properties:
+                      code:
+                        type: string
+                        description: >
+                          Machine-readable error code.  The types of return
+                          values should not be changed lightly.
+                        enum:
+                          - invalid_link
+                    required:
+                      - code
         default:
           description: Unexpected error
-          schema:
-            allOf:
-              - $ref: '#/definitions/Error'
-              - type: object
-                properties:
-                  code:
-                    type: string
-                    description: >
-                      Machine-readable error code.  The types of return values should not be changed lightly.
-                    enum: [unhandled_exception, illegal_arguments]
-                required:
-                  - code
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: "#/components/schemas/Error"
+                  - type: object
+                    properties:
+                      code:
+                        type: string
+                        description: >
+                          Machine-readable error code.  The types of return
+                          values should not be changed lightly.
+                        enum:
+                          - unhandled_exception
+                          - illegal_arguments
+                    required:
+                      - code
     delete:
       security:
         - dcpAuth: []
       summary: Delete a bundle or a specific bundle version
       description: >
-        Delete the bundle with the given UUID. This deletion is applied across replicas.
+        Delete the bundle with the given UUID. This deletion is applied across
+        replicas.
       parameters:
         - name: uuid
           in: path
           description: A RFC4122-compliant ID for the bundle.
           required: true
-          type: string
-          pattern: "[A-Za-z0-9]{8}-[A-Za-z0-9]{4}-[A-Za-z0-9]{4}-[A-Za-z0-9]{4}-[A-Za-z0-9]{12}"
+          schema:
+            type: string
+            pattern: "[A-Za-z0-9]{8}-[A-Za-z0-9]{4}-[A-Za-z0-9]{4}-[A-Za-z0-9]{4}-[A-Z\
+              a-z0-9]{12}"
         - name: replica
           in: query
           description: Replica to write to.
           required: true
-          type: string
-          enum: [aws, gcp]
+          schema:
+            type: string
+            enum:
+              - aws
+              - gcp
         - name: version
           in: query
           description: Timestamp of bundle creation in DSS_VERSION format.
           required: false
-          type: string
-        - name: json_request_body
-          in: body
-          required: true
           schema:
-            type: object
-            properties:
-              reason:
-                description: User-friendly reason for the bundle or timestamp-specfic bundle deletion.
-                type: string
-            required:
-              - reason
-      responses:
-        200:
-          description: OK
-          schema:
-            type: object
-        401:
-          description: Unauthorized user is attempting this action.
-          schema:
-            allOf:
-            - $ref: '#/definitions/Error'
-            - type: object
+            type: string
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
               properties:
-                code:
+                reason:
+                  description: User-friendly reason for the bundle or timestamp-specfic
+                    bundle deletion.
                   type: string
-                  description: Machine-readable error code.  The types of return values should not be changed lightly.
-                  enum: [Unauthorized]
               required:
-              - code
-        403:
+                - reason
+        required: true
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: object
+        "401":
           description: Unauthorized user is attempting this action.
-          schema:
-            allOf:
-              - $ref: '#/definitions/Error'
-              - type: object
-                properties:
-                  code:
-                    type: string
-                    description: Machine-readable error code.  The types of return values should not be changed lightly.
-                    enum: [Forbidden]
-                required:
-                  - code
-        409:
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: "#/components/schemas/Error"
+                  - type: object
+                    properties:
+                      code:
+                        type: string
+                        description: Machine-readable error code.  The types of return
+                          values should not be changed lightly.
+                        enum:
+                          - Unauthorized
+                    required:
+                      - code
+        "403":
+          description: Unauthorized user is attempting this action.
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: "#/components/schemas/Error"
+                  - type: object
+                    properties:
+                      code:
+                        type: string
+                        description: Machine-readable error code.  The types of return
+                          values should not be changed lightly.
+                        enum:
+                          - Forbidden
+                    required:
+                      - code
+        "409":
           description: Unexpected error
-          schema:
-            allOf:
-              - $ref: '#/definitions/Error'
-              - type: object
-                properties:
-                  code:
-                    type: string
-                    description: Machine-readable error code.  The types of return values should not be changed lightly.
-                    enum: [bundle_tombstone_already_exists]
-                required:
-                  - code
-        500:
-          $ref: '#/responses/ServerError'
-        502:
-          $ref: '#/responses/BadGateway'
-        503:
-          $ref: '#/responses/ServiceUnavailable'
-        504:
-          $ref: '#/responses/GatewayTimeout'
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: "#/components/schemas/Error"
+                  - type: object
+                    properties:
+                      code:
+                        type: string
+                        description: Machine-readable error code.  The types of return
+                          values should not be changed lightly.
+                        enum:
+                          - bundle_tombstone_already_exists
+                    required:
+                      - code
+        "500":
+          $ref: "#/components/responses/ServerError"
+        "502":
+          $ref: "#/components/responses/BadGateway"
+        "503":
+          $ref: "#/components/responses/ServiceUnavailable"
+        "504":
+          $ref: "#/components/responses/GatewayTimeout"
         default:
           description: Unexpected error
-          schema:
-            allOf:
-              - $ref: '#/definitions/Error'
-              - type: object
-                properties:
-                  code:
-                    type: string
-                    description: Machine-readable error code.  The types of return values should not be changed lightly.
-                    enum: [unhandled_exception, illegal_arguments, read_only]
-                required:
-                  - code
-  /bundles/{uuid}/checkout:
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: "#/components/schemas/Error"
+                  - type: object
+                    properties:
+                      code:
+                        type: string
+                        description: Machine-readable error code.  The types of return
+                          values should not be changed lightly.
+                        enum:
+                          - unhandled_exception
+                          - illegal_arguments
+                          - read_only
+                    required:
+                      - code
+  "/bundles/{uuid}/checkout":
     post:
-      summary: Check out a bundle to DSS-managed or user-managed cloud object storage destination
+      summary: Check out a bundle to DSS-managed or user-managed cloud object storage
+        destination
       description: >
-        Initiate asynchronous checkout of a bundle. The response JSON contains a field, `checkout_job_id`, that can be
-        used to query the status of the checkout via the `GET /bundles/checkout/{checkout_job_id}` API method.
-        FIXME: document the error code returned when the bundle or specified version does not exist.
-        TODO: After some time period, the data will be removed.
-        TBD: This could be based on initial checkout time or last access time.
+        Initiate asynchronous checkout of a bundle. The response JSON contains a
+        field, `checkout_job_id`, that can be used to query the status of the
+        checkout via the `GET /bundles/checkout/{checkout_job_id}` API method.
+        FIXME: document the error code returned when the bundle or specified
+        version does not exist. TODO: After some time period, the data will be
+        removed. TBD: This could be based on initial checkout time or last
+        access time.
       operationId: dss.api.bundles.checkout.post
       parameters:
         - name: uuid
           in: path
           description: A RFC4122-compliant ID for the bundle.
           required: true
-          type: string
-          pattern: "[A-Za-z0-9]{8}-[A-Za-z0-9]{4}-[A-Za-z0-9]{4}-[A-Za-z0-9]{4}-[A-Za-z0-9]{12}"
+          schema:
+            type: string
+            pattern: "[A-Za-z0-9]{8}-[A-Za-z0-9]{4}-[A-Za-z0-9]{4}-[A-Za-z0-9]{4}-[A-Z\
+              a-z0-9]{12}"
         - name: version
           in: query
-          description: Timestamp of file creation in DSS_VERSION format.  If this is not provided, the latest version is returned.
+          description: Timestamp of file creation in DSS_VERSION format.  If this is not
+            provided, the latest version is returned.
           required: false
-          type: string
+          schema:
+            type: string
         - name: replica
           in: query
           description: Replica to fetch from.
           required: true
-          type: string
-          enum: [aws, gcp]
-        - name: json_request_body
-          in: body
-          required: false
           schema:
-            type: object
-            properties:
-              email:
-                description: An email address to send status updates to.
-                type: string
-                format: email
-              destination:
-                description: User-owned destination storage bucket.
-                type: string
+            type: string
+            enum:
+              - aws
+              - gcp
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                email:
+                  description: An email address to send status updates to.
+                  type: string
+                  format: email
+                destination:
+                  description: User-owned destination storage bucket.
+                  type: string
       responses:
-        200:
-          description: Returned when the bundle UUID with optionally specified version exists and checkout has been initiated.
-          schema:
-            type: object
-            properties:
-              checkout_job_id:
-                description: A RFC4122-compliant ID for the checkout job request.
-                pattern: "[A-Za-z0-9]{8}-[A-Za-z0-9]{4}-[A-Za-z0-9]{4}-[A-Za-z0-9]{4}-[A-Za-z0-9]{12}"
-                type: string
-            required:
-              - checkout_job_id
+        "200":
+          description: Returned when the bundle UUID with optionally specified version
+            exists and checkout has been initiated.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  checkout_job_id:
+                    description: A RFC4122-compliant ID for the checkout job request.
+                    pattern: "[A-Za-z0-9]{8}-[A-Za-z0-9]{4}-[A-Za-z0-9]{4}-[A-Za-z0-9]\
+                      {4}-[A-Za-z0-9]{12}"
+                    type: string
+                required:
+                  - checkout_job_id
         default:
           description: Unexpected error
-          schema:
-            allOf:
-              - $ref: '#/definitions/Error'
-              - type: object
-                properties:
-                  code:
-                    type: string
-                    description: Machine-readable error code.  The types of return values should not be changed lightly.
-                    enum: [unhandled_exception, illegal_arguments, not_found]
-                required:
-                  - code
-
-  /bundles/checkout/{checkout_job_id}:
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: "#/components/schemas/Error"
+                  - type: object
+                    properties:
+                      code:
+                        type: string
+                        description: Machine-readable error code.  The types of return
+                          values should not be changed lightly.
+                        enum:
+                          - unhandled_exception
+                          - illegal_arguments
+                          - not_found
+                    required:
+                      - code
+  "/bundles/checkout/{checkout_job_id}":
     get:
       summary: Check the status of a checkout request.
       description: >
-        Use this route with the `checkout_job_id` identifier returned by `POST /bundles/{uuid}/checkout`.
+        Use this route with the `checkout_job_id` identifier returned by `POST
+        /bundles/{uuid}/checkout`.
       operationId: dss.api.bundles.checkout.get
       parameters:
         - name: replica
           in: query
           description: Replica to fetch from.
           required: true
-          type: string
-          enum: [aws, gcp]
+          schema:
+            type: string
+            enum:
+              - aws
+              - gcp
         - name: checkout_job_id
           in: path
           description: A RFC4122-compliant ID for the checkout job request.
-          pattern: "[A-Za-z0-9]{8}-[A-Za-z0-9]{4}-[A-Za-z0-9]{4}-[A-Za-z0-9]{4}-[A-Za-z0-9]{12}"
           required: true
-          type: string
+          schema:
+            type: string
+            pattern: "[A-Za-z0-9]{8}-[A-Za-z0-9]{4}-[A-Za-z0-9]{4}-[A-Za-z0-9]{4}-[A-Z\
+              a-z0-9]{12}"
       responses:
-        200:
+        "200":
           description: Returned when a checkout request for the checkout job id exists.
-          schema:
-            type: object
-            properties:
-              status:
-                description: Status of the checkout request.
-                type: string
-                enum: [RUNNING, SUCCEEDED, FAILED, UNKNOWN_JOB_ID]
-              cause:
-                description: Human readable description of the error, returned for FAILED status only.
-                type: string
-            required:
-              - status
-        404:
-          description: Cannot find checkout.
-          schema:
-            allOf:
-              - $ref: '#/definitions/Error'
-              - type: object
+          content:
+            application/json:
+              schema:
+                type: object
                 properties:
-                  code:
+                  status:
+                    description: Status of the checkout request.
                     type: string
-                    description: >
-                      Machine-readable error code.  The types of return values should not be changed lightly.
-
-
-                      The code `not_found` is returned when there is no record of the checkout being referenced.
-                    enum: [not_found]
-                  message:
+                    enum:
+                      - RUNNING
+                      - SUCCEEDED
+                      - FAILED
+                      - UNKNOWN_JOB_ID
+                  cause:
+                    description: Human readable description of the error, returned for
+                      FAILED status only.
                     type: string
-                    description: Detailed error message.
                 required:
-                  - code
-        500:
-          $ref: '#/responses/ServerError'
-        502:
-          $ref: '#/responses/BadGateway'
-        503:
-          $ref: '#/responses/ServiceUnavailable'
-        504:
-          $ref: '#/responses/GatewayTimeout'
+                  - status
+        "404":
+          description: Cannot find checkout.
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: "#/components/schemas/Error"
+                  - type: object
+                    properties:
+                      code:
+                        type: string
+                        description: >
+                          Machine-readable error code.  The types of return
+                          values should not be changed lightly.
+
+
+                          The code `not_found` is returned when there is no record of the checkout being referenced.
+                        enum:
+                          - not_found
+                      message:
+                        type: string
+                        description: Detailed error message.
+                    required:
+                      - code
+        "500":
+          $ref: "#/components/responses/ServerError"
+        "502":
+          $ref: "#/components/responses/BadGateway"
+        "503":
+          $ref: "#/components/responses/ServiceUnavailable"
+        "504":
+          $ref: "#/components/responses/GatewayTimeout"
         default:
           description: Unexpected error
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: "#/components/schemas/Error"
+                  - type: object
+                    properties:
+                      code:
+                        type: string
+                        description: Machine-readable error code.  The types of return
+                          values should not be changed lightly.
+                        enum:
+                          - unhandled_exception
+                          - illegal_arguments
+                      message:
+                        type: string
+                        description: Detailed error message.
+                    required:
+                      - code
+components:
+  responses:
+    ServerError:
+      description: Server Error.
+      headers:
+        Retry-After:
+          description: Delay in seconds, service clients should retry after the delay.
           schema:
-            allOf:
-              - $ref: '#/definitions/Error'
-              - type: object
-                properties:
-                  code:
-                    type: string
-                    description: Machine-readable error code.  The types of return values should not be changed lightly.
-                    enum: [unhandled_exception, illegal_arguments]
-                  message:
-                    type: string
-                    description: Detailed error message.
-                required:
-                  - code
-
-definitions:
-  File:
-    type: object
-    properties:
-      uuid:
-        type: string
-        description: File unique ID
-        pattern: "[A-Za-z0-9]{8}-[A-Za-z0-9]{4}-[A-Za-z0-9]{4}-[A-Za-z0-9]{4}-[A-Za-z0-9]{12}"
-      name:
-        type: string
-        description: Filename (unique within a bundle)
-      versions:
-        type: array
-        description: List of versions
-        items:
+            type: integer
+            format: int64
+    BadGateway:
+      description: Bad Gateway.
+      headers:
+        Retry-After:
+          description: Delay in seconds, service clients should retry after the delay.
+          schema:
+            type: integer
+            format: int64
+    ServiceUnavailable:
+      description: Service Unavailable.
+      headers:
+        Retry-After:
+          description: Delay in seconds, service clients should retry after the delay.
+          schema:
+            type: integer
+            format: int64
+    GatewayTimeout:
+      description: Gateway Timeout.
+      headers:
+        Retry-After:
+          description: Delay in seconds, service clients should retry after the delay.
+          schema:
+            type: integer
+            format: int64
+  securitySchemes:
+    dcpAuth:
+      description: >
+        The following claims must be present in the JWT: -
+        '{{OIDC_GROUP_CLAIM}}': the user group this user belongs. - 'iss': must
+        be {{OPENID_PROVIDER}} or a trusted google project. - 'aud': audience
+        must match {{API_DOMAIN_NAME}}. - '{{OIDC_EMAIL_CLAIM}}': the email of
+        the requester
+      type: oauth2
+      flows:
+        implicit:
+          authorizationUrl: https://auth.data.humancellatlas.org/authorize
+          scopes:
+            email: This scope value requests access to the email and email_verified
+              Claims.
+            openid: see
+              http://openid.net/specs/openid-connect-core-1_0.html#ScopeClaims
+            offline_access: see
+              http://openid.net/specs/openid-connect-core-1_0.html#OfflineAccessPrivacy
+  schemas:
+    File:
+      type: object
+      properties:
+        uuid:
           type: string
-    required:
-      - uuid
-      - name
-      - versions
-  file_version:
-    type: object
-    description: Object describing a single file in the files list of a bundle.
-    properties:
-      name:
-        type: string
-        description: Filename (unique within a bundle)
-      content-type:
-        type: string
-        description: Content-type of the file.
-      indexed:
-        type: boolean
-        description: True if this file is to be indexed.
-      url:
-        description: Direct access or presigned URL, if requested.
-        type: string
-      uuid:
-        type: string
-        description: A RFC4122-compliant ID for the file.
-        pattern: "[A-Za-z0-9]{8}-[A-Za-z0-9]{4}-[A-Za-z0-9]{4}-[A-Za-z0-9]{4}-[A-Za-z0-9]{12}"
-      version:
-        type: string
-        format: DSS_VERSION
-        description: Timestamp of bundle creation in DSS_VERSION format.
-      size:
-        type: integer
-        format: int64
-        description: File size (bytes).
-      crc32c:
-        type: string
-        description: CRC-32C (in hex format) of the file contents in hex.
-        pattern: "^[a-z0-9]{8}$"
-      s3_etag:
-        type: string
-        description: S3 ETag (in hex format) of the file contents.
-        pattern: "^[a-z0-9]{32}(-([2-9]|[1-8][0-9]|9[0-9]|[1-8][0-9]{2}|9[0-8][0-9]|99[0-9]|[1-8][0-9]{3}|9[0-8][0-9]{2}|99[0-8][0-9]|999[0-9]|10000))?$"
-      sha1:
-        type: string
-        description: SHA-1 (in hex format) of the file contents in hex.
-        pattern: "^[a-z0-9]{40}$"
-      sha256:
-        type: string
-        description: SHA-256 (in hex format) of the file contents in hex.
-        pattern: "^[a-z0-9]{64}$"
-    required:
-      - name
-      - content-type
-      - indexed
-      - uuid
-      - version
-      - size
-      - crc32c
-      - s3_etag
-      - sha1
-      - sha256
-  Bundle:
-    type: object
-    properties:
-      uuid:
-        type: string
-        description: Bundle unique ID
-        pattern: "[A-Za-z0-9]{8}-[A-Za-z0-9]{4}-[A-Za-z0-9]{4}-[A-Za-z0-9]{4}-[A-Za-z0-9]{12}"
-      versions:
-        type: array
-        items:
+          description: File unique ID
+          pattern: "[A-Za-z0-9]{8}-[A-Za-z0-9]{4}-[A-Za-z0-9]{4}-[A-Za-z0-9]{4}-[A-Za-\
+            z0-9]{12}"
+        name:
+          type: string
+          description: Filename (unique within a bundle)
+        versions:
+          type: array
+          description: List of versions
+          items:
+            type: string
+      required:
+        - uuid
+        - name
+        - versions
+    file_version:
+      type: object
+      description: Object describing a single file in the files list of a bundle.
+      properties:
+        name:
+          type: string
+          description: Filename (unique within a bundle)
+        content-type:
+          type: string
+          description: Content-type of the file.
+        indexed:
+          type: boolean
+          description: True if this file is to be indexed.
+        url:
+          description: Direct access or presigned URL, if requested.
+          type: string
+        uuid:
+          type: string
+          description: A RFC4122-compliant ID for the file.
+          pattern: "[A-Za-z0-9]{8}-[A-Za-z0-9]{4}-[A-Za-z0-9]{4}-[A-Za-z0-9]{4}-[A-Za-\
+            z0-9]{12}"
+        version:
           type: string
           format: DSS_VERSION
           description: Timestamp of bundle creation in DSS_VERSION format.
-    required:
-      - uuid
-      - versions
-  BundleFile:
-    type: object
-    properties:
-      uuid:
-        description: A RFC4122-compliant ID for the file.
-        type: string
-        pattern: "[A-Za-z0-9]{8}-[A-Za-z0-9]{4}-[A-Za-z0-9]{4}-[A-Za-z0-9]{4}-[A-Za-z0-9]{12}"
-      version:
-        description: Timestamp of file creation in DSS_VERSION format.
-        type: string
-        format: DSS_VERSION
-      name:
-        description: >
-          Name of the file.
-
-          - Absolute paths (beginning with a slash) are not allowed.
-          - Relative paths must not have unix shortcuts (i.e. ".", "..", "~/")
-          - No "\" (back)slashes allowed.  e.g. "C:\\path" or "path\file.json"
-          - Only relative paths with "/" (forward)slashes allowed.  e.g. "path/file.json" or "file.json"
-          - Please upload using "/" (forward)slashes, even if on Windows.
-        type: string
-        pattern: "(?=^((?!\\.\\/).)*$)(?=^((?!\\\\).)*$)(?=^((?!\\/\\.).)*$)(?=^(?!\\/).*$)(?=^(?!~\\/).*$)(?=^(?!\\.\\.$).*)(?=^(?!\\.$).*)"
-      indexed:
-        description: True iff this file should be indexed.
-        type: boolean
-    required:
-      - uuid
-      - version
-      - name
-      - indexed
-  Subscription:
-    type: object
-    properties:
-      uuid:
-        type: string
-        description: Uniquely identifies this subscription.
-        pattern: "[A-Za-z0-9]{8}-[A-Za-z0-9]{4}-[A-Za-z0-9]{4}-[A-Za-z0-9]{4}-[A-Za-z0-9]{12}"
-      replica:
-        description: >
-          The DSS replica to subscribe. When a new bundle is indexed in a particular replica, only subscriptions for
-          that same replica are notified.
-        type: string
-        enum: [aws, gcp]
-      owner:
-        type: string
-        format: email
-        description: The email of the user who created this subscription.
-      es_query:
-        description: >
-          An Elasticsearch query for restricting the set of bundles for which the subscriber is notified. The
-          subscriber will only be notified for newly indexed bundles that match the given query.
-        type: object
-      jmespath_query:
-        description: >
-          An JMESPath query for restricting the set of bundles for which the subscriber is notified. The
-          subscriber will only be notified for new bundles that match the given query.
-        type: string
-      callback_url:
-        description: >
-          The subscriber\'s URL. An HTTP request is made to the specified URL for every attempt to deliver
-          a notification to the subscriber. If the HTTP response code is 2XX, the delivery attempt is
-          considered successful and no more attempts will be made. Otherwise, more attempts will be made with
-          an exponentially increasing delay between attempts, until an attempt is successful or the a maximum
-          number of attempts is reached.
-        type: string
-        pattern: 'https?://'
-      hmac_key_id:
-        description: >
-          The HMAC key-id used to verify authenticity of subscription
-        type: string
-      method:
-        description: The HTTP request method to use when delivering a notification to the subscriber.
-        enum: [POST, PUT]
-        default: POST
-      encoding:
-        description: >
-          The MIME type describing the encoding of the request body
-          * `application/json` - the HTTP request body is the notification payload as JSON
-          * `multipart/form-data` - the HTTP request body is a list of form fields, each consisting of a name
-            and a corresponding value. See https://tools.ietf.org/html/rfc7578 for details on this encoding.
-            The actual notification payload will be placed as JSON into a field of the name specified via
-            `payload_form_field`.
-        enum:
-          - application/json
-          - multipart/form-data
-        default: application/json
-      form_fields:
-        description: >
-          A collection of static form fields to be supplied in the request body, alongside the actual
-          notification payload. The value of each field must be a string. For example, if the subscriptions has
-          this property set to `{"foo" : "bar"}`, the corresponding notification HTTP request body will be
-
-          ```
-
-          --2769baffc4f24cbc83ced26aa0c2f712
-          Content-Disposition: form-data; name="foo"
-
-          bar
-          Content-Disposition: form-data; name="payload"
-
-          {"transaction_id": "301c9079-3b20-4311-a131-bcda9b7f08ba", "subscription_id": ...
-          --2769baffc4f24cbc83ced26aa0c2f712--
-
-          ```
-
-          Since the type of this property is `object`, multi-valued fields are not supported. This property is
-          ignored unless `encoding` is `multipart/form-data`.
-        type: object
-        default: {}
-        additionalProperties:
+        size:
+          type: integer
+          format: int64
+          description: File size (bytes).
+        crc32c:
           type: string
-      payload_form_field:
-        description: >
-          The name of the form field that will hold the notification payload when the request is made. If the
-          default name of the payload field collides with that of a field in `form_fields`, this porperty can be
-          used to rename the payload and avoid the collision. This property is ignored unless `encoding` is
-          `multipart/form-data`.
-        type: string
-        default: payload
-      attachments:
-        description: >
-          The set of bundle metadata items to be included in the payload of a notification request to a
-          subscription endpoint. Each property in this object represents an attachment to the notification
-          payload. Each attachment will be a child property of the `attachments` property of the payload. The
-          name of such a child property can be chosen freely provided it does not start with an underscore.
+          description: CRC-32C (in hex format) of the file contents in hex.
+          pattern: ^[a-z0-9]{8}$
+        s3_etag:
+          type: string
+          description: S3 ETag (in hex format) of the file contents.
+          pattern: ^[a-z0-9]{32}(-([2-9]|[1-8][0-9]|9[0-9]|[1-8][0-9]{2}|9[0-8][0-9]|99[0-9]|[1-8][0-9]{3}|9[0-8][0-9]{2}|99[0-8][0-9]|999[0-9]|10000))?$
+        sha1:
+          type: string
+          description: SHA-1 (in hex format) of the file contents in hex.
+          pattern: ^[a-z0-9]{40}$
+        sha256:
+          type: string
+          description: SHA-256 (in hex format) of the file contents in hex.
+          pattern: ^[a-z0-9]{64}$
+      required:
+        - name
+        - content-type
+        - indexed
+        - uuid
+        - version
+        - size
+        - crc32c
+        - s3_etag
+        - sha1
+        - sha256
+    Bundle:
+      type: object
+      properties:
+        uuid:
+          type: string
+          description: Bundle unique ID
+          pattern: "[A-Za-z0-9]{8}-[A-Za-z0-9]{4}-[A-Za-z0-9]{4}-[A-Za-z0-9]{4}-[A-Za-\
+            z0-9]{12}"
+        versions:
+          type: array
+          items:
+            type: string
+            format: DSS_VERSION
+            description: Timestamp of bundle creation in DSS_VERSION format.
+      required:
+        - uuid
+        - versions
+    BundleFile:
+      type: object
+      properties:
+        uuid:
+          description: A RFC4122-compliant ID for the file.
+          type: string
+          pattern: "[A-Za-z0-9]{8}-[A-Za-z0-9]{4}-[A-Za-z0-9]{4}-[A-Za-z0-9]{4}-[A-Za-\
+            z0-9]{12}"
+        version:
+          description: Timestamp of file creation in DSS_VERSION format.
+          type: string
+          format: DSS_VERSION
+        name:
+          description: >
+            Name of the file.
 
-          For example, if the subscription is
+            - Absolute paths (beginning with a slash) are not allowed. - Relative paths must not have unix shortcuts (i.e. ".", "..", "~/") - No "\" (back)slashes allowed.  e.g. "C:\\path" or "path\file.json" - Only relative paths with "/" (forward)slashes allowed.  e.g. "path/file.json" or "file.json" - Please upload using "/" (forward)slashes, even if on Windows.
+          type: string
+          pattern: (?=^((?!\.\/).)*$)(?=^((?!\\).)*$)(?=^((?!\/\.).)*$)(?=^(?!\/).*$)(?=^(?!~\/).*$)(?=^(?!\.\.$).*)(?=^(?!\.$).*)
+        indexed:
+          description: True iff this file should be indexed.
+          type: boolean
+      required:
+        - uuid
+        - version
+        - name
+        - indexed
+    Subscription:
+      type: object
+      properties:
+        uuid:
+          type: string
+          description: Uniquely identifies this subscription.
+          pattern: "[A-Za-z0-9]{8}-[A-Za-z0-9]{4}-[A-Za-z0-9]{4}-[A-Za-z0-9]{4}-[A-Za-\
+            z0-9]{12}"
+        replica:
+          description: >
+            The DSS replica to subscribe. When a new bundle is indexed in a
+            particular replica, only subscriptions for that same replica are
+            notified.
+          type: string
+          enum:
+            - aws
+            - gcp
+        owner:
+          type: string
+          format: email
+          description: The email of the user who created this subscription.
+        es_query:
+          description: >
+            An Elasticsearch query for restricting the set of bundles for which
+            the subscriber is notified. The subscriber will only be notified for
+            newly indexed bundles that match the given query.
+          type: object
+        jmespath_query:
+          description: >
+            An JMESPath query for restricting the set of bundles for which the
+            subscriber is notified. The subscriber will only be notified for new
+            bundles that match the given query.
+          type: string
+        callback_url:
+          description: >
+            The subscriber\'s URL. An HTTP request is made to the specified URL
+            for every attempt to deliver a notification to the subscriber. If
+            the HTTP response code is 2XX, the delivery attempt is considered
+            successful and no more attempts will be made. Otherwise, more
+            attempts will be made with an exponentially increasing delay between
+            attempts, until an attempt is successful or the a maximum number of
+            attempts is reached.
+          type: string
+          pattern: https?://
+        hmac_key_id:
+          description: |
+            The HMAC key-id used to verify authenticity of subscription
+          type: string
+        method:
+          description: The HTTP request method to use when delivering a notification to the
+            subscriber.
+          enum:
+            - POST
+            - PUT
+          type: string
+          default: POST
+        encoding:
+          description: >
+            The MIME type describing the encoding of the request body *
+            `application/json` - the HTTP request body is the notification
+            payload as JSON * `multipart/form-data` - the HTTP request body is a
+            list of form fields, each consisting of a name
+              and a corresponding value. See https://tools.ietf.org/html/rfc7578 for details on this encoding.
+              The actual notification payload will be placed as JSON into a field of the name specified via
+              `payload_form_field`.
+          enum:
+            - application/json
+            - multipart/form-data
+          default: application/json
+          type: string
+        form_fields:
+          description: >
+            A collection of static form fields to be supplied in the request
+            body, alongside the actual notification payload. The value of each
+            field must be a string. For example, if the subscriptions has this
+            property set to `{"foo" : "bar"}`, the corresponding notification
+            HTTP request body will be
 
-          ```
+            ```
 
-          {
-            "attachments": {
-              "taxon": {
-                "type": "jmespath",
-                "expression": "files.biomaterial_json.biomaterials[].content.biomaterial_core.ncbi_taxon_id[]"
+            --2769baffc4f24cbc83ced26aa0c2f712 Content-Disposition: form-data; name="foo"
+
+            bar Content-Disposition: form-data; name="payload"
+
+            {"transaction_id": "301c9079-3b20-4311-a131-bcda9b7f08ba", "subscription_id": ... --2769baffc4f24cbc83ced26aa0c2f712--
+
+            ```
+
+            Since the type of this property is `object`, multi-valued fields are not supported. This property is ignored unless `encoding` is `multipart/form-data`.
+          type: object
+          default: {}
+          additionalProperties:
+            type: string
+        payload_form_field:
+          description: >
+            The name of the form field that will hold the notification payload
+            when the request is made. If the default name of the payload field
+            collides with that of a field in `form_fields`, this porperty can be
+            used to rename the payload and avoid the collision. This property is
+            ignored unless `encoding` is `multipart/form-data`.
+          type: string
+          default: payload
+        attachments:
+          description: >
+            The set of bundle metadata items to be included in the payload of a
+            notification request to a subscription endpoint. Each property in
+            this object represents an attachment to the notification payload.
+            Each attachment will be a child property of the `attachments`
+            property of the payload. The name of such a child property can be
+            chosen freely provided it does not start with an underscore.
+
+            For example, if the subscription is
+
+            ```
+
+            {
+              "attachments": {
+                "taxon": {
+                  "type": "jmespath",
+                  "expression": "files.biomaterial_json.biomaterials[].content.biomaterial_core.ncbi_taxon_id[]"
+                }
               }
             }
-          }
 
-          ```
+            ```
 
-          the corresponding notification payload will contain the following entry
+            the corresponding notification payload will contain the following entry
 
-          ```
+            ```
 
-          "attachments": {
-            "taxon": [9606, 9606]
-          }
-
-          ```
-
-          If a general error occurs during the processing of attachments, the notification will be sent with
-          `attachments` containing only the reserved `_errors` attachment containing a string describing the
-          error. If an error occurs during the processing of a specific attachment, the notification will be
-          sent with all successfully processed attachments and additionally the `_errors` attachment containing
-          an object with one property for each failed attachment. For example,
-
-          ```
-
-          "attachments": {
-            "taxon": [9606, 9606]
-            "_errors" {
-              "biomaterial": "Some error occurred"
+            "attachments": {
+              "taxon": [9606, 9606]
             }
-          }
 
-          ```
+            ```
 
-          The value of the `attachments` property must be less than or equal to 128 KiB in size when serialized
-          to JSON and encoded as UTF-8. If it is not, the notification will be sent with
+            If a general error occurs during the processing of attachments, the notification will be sent with `attachments` containing only the reserved `_errors` attachment containing a string describing the error. If an error occurs during the processing of a specific attachment, the notification will be sent with all successfully processed attachments and additionally the `_errors` attachment containing an object with one property for each failed attachment. For example,
 
-          ```
+            ```
 
-          "attachments": {
-            "_errors": "Attachments too large (131073 bytes)"
-          }
+            "attachments": {
+              "taxon": [9606, 9606]
+              "_errors" {
+                "biomaterial": "Some error occurred"
+              }
+            }
 
-          ```
-        type: object
-        additionalProperties:
+            ```
+
+            The value of the `attachments` property must be less than or equal to 128 KiB in size when serialized to JSON and encoded as UTF-8. If it is not, the notification will be sent with
+
+            ```
+
+            "attachments": {
+              "_errors": "Attachments too large (131073 bytes)"
+            }
+
+            ```
           type: object
-          properties:
-            type:
-              description: The type of the attachment. Currently only the `jmespath` type is supported.
-              enum: [jmespath]
-            expression:
-              description: >
-                The JMESPath expression to evaluate against the bundle metadata JSON document. That document is
-                of the same structure as those returned by `POST /search` with `output_format: raw`.
-              type: string
-          required:
-            - type
-            - expression
-    required:
-      - uuid
-      - replica
-      - owner
-      - callback_url
-  bundle_version:
-    type: object
-    properties:
-      uuid:
-        type: string
-        description: Bundle unique ID
-        pattern: "[A-Za-z0-9]{8}-[A-Za-z0-9]{4}-[A-Za-z0-9]{4}-[A-Za-z0-9]{4}-[A-Za-z0-9]{12}"
-      version:
-        type: string
-        format: DSS_VERSION
-        description: Timestamp of bundle creation in DSS_VERSION format.
-      files:
-        type: array
-        items:
-          $ref: "#/definitions/file_version"
-      creator_uid:
-        type: integer
-        format: int
-        description: User ID who created this bundle manifest.
-  SearchResult:
-    type: object
-    properties:
-      es_query:
-        description: Elasticsearch query used to produce the results.
-        type: object
-      results:
-        description: Results matching the `es_query`.
-        type: array
-        items:
+          additionalProperties:
+            type: object
+            properties:
+              type:
+                description: The type of the attachment. Currently only the `jmespath` type
+                  is supported.
+                enum:
+                  - jmespath
+                type: string
+              expression:
+                description: >
+                  The JMESPath expression to evaluate against the bundle
+                  metadata JSON document. That document is of the same structure
+                  as those returned by `POST /search` with `output_format: raw`.
+                type: string
+            required:
+              - type
+              - expression
+      required:
+        - uuid
+        - replica
+        - owner
+        - callback_url
+    bundle_version:
+      type: object
+      properties:
+        uuid:
+          type: string
+          description: Bundle unique ID
+          pattern: "[A-Za-z0-9]{8}-[A-Za-z0-9]{4}-[A-Za-z0-9]{4}-[A-Za-z0-9]{4}-[A-Za-\
+            z0-9]{12}"
+        version:
+          type: string
+          format: DSS_VERSION
+          description: Timestamp of bundle creation in DSS_VERSION format.
+        files:
+          type: array
+          items:
+            $ref: "#/components/schemas/file_version"
+        creator_uid:
+          type: integer
+          format: int
+          description: User ID who created this bundle manifest.
+    SearchResult:
+      type: object
+      properties:
+        es_query:
+          description: Elasticsearch query used to produce the results.
           type: object
-      total_hits:
-        description: The total number of matching results found.
-        type: integer
-      #TODO add next page
-  CollectionOfCollectionsItem:
-    type: object
-    properties:
-      uuid:
-        type: string
-        description: A UUID identifying the collection.
-        pattern: "[A-Za-z0-9]{8}-[A-Za-z0-9]{4}-[A-Za-z0-9]{4}-[A-Za-z0-9]{4}-[A-Za-z0-9]{12}"
-      version:
-        description: The version of the UUID identifying the collection.
-        type: string
-    required:
-      - uuid
-      - version
-  Collection:
-    type: object
-    properties:
-      name:
-        description: A short name identifying the collection.
-        type: string
-      description:
-        description: A long description of the collection, formatted in Markdown.
-        type: string
-      details:
-        description: Supplementary JSON metadata for the collection.
-        type: object
-      contents:
-        description: >
-          A list of objects describing links to files, bundles, other collections, and metadata fragments that are
-          part of the collection.
-        type: array
-        items:
-          $ref: '#/definitions/CollectionItem'
-    required:
-      - name
-      - description
-      - details
-      - contents
-  CollectionItem:
-    type: object
-    properties:
-      type:
-        type: string
-        description: Type of link (file, bundle, collection, or a custom type for a metadata fragment).
-      uuid:
-        type: string
-        description: Unique ID of the file, bundle, collection, or file containing a metadata fragment.
-        pattern: "[A-Za-z0-9]{8}-[A-Za-z0-9]{4}-[A-Za-z0-9]{4}-[A-Za-z0-9]{4}-[A-Za-z0-9]{12}"
-      version:
-        type: string
-        format: DSS_VERSION
-        description: DSS_VERSION format timestamp of the file, bundle, collection, or file containing a metadata fragment.
-      path:
-        type: string
-        description: >
-          JSON Pointer indexing into the JSON contents of the file containing a metadata fragment.
-          Required for links of type other than file, bundle, or collection. Ignored otherwise.
-    required:
-      - type
-      - uuid
-      - version
-  Error:
-    type: object
-    properties:
-      status:
-        type: integer
-        format: int32
-        description: HTTP error code.
-      code:
-        type: string
-        description: >
-          Machine-readable error code.  The types of return values should not be changed lightly.  Individual endpoints
-          should list an enumeration of possible return codes.  All endpoints should expect the possibility of the
-          return code `unhandled_exception` and `illegal_arguments`.
-      title:
-        type: string
-        description: Human-readable error code.
-      stacktrace:
-        type: string
-        description: Exception stacktrace, if any.
-    required:
-      # once we fix up all the existing endpoints, we can add 'code' to the set of required fields.
-      - title
-  FilesGetResponse:
-    type: object
-    properties:
-      files:
-        type: string
-
-responses:
-  ServerError:
-    description: Server Error.
-    headers:
-      Retry-After:
-        description: Delay in seconds, service clients should retry after the delay.
-        type: integer
-        format: int64
-  BadGateway:
-    description: Bad Gateway.
-    headers:
-      Retry-After:
-        description: Delay in seconds, service clients should retry after the delay.
-        type: integer
-        format: int64
-  ServiceUnavailable:
-    description: Service Unavailable.
-    headers:
-      Retry-After:
-        description: Delay in seconds, service clients should retry after the delay.
-        type: integer
-        format: int64
-  GatewayTimeout:
-    description: Gateway Timeout.
-    headers:
-      Retry-After:
-        description: Delay in seconds, service clients should retry after the delay.
-        type: integer
-        format: int64
+        results:
+          description: Results matching the `es_query`.
+          type: array
+          items:
+            type: object
+        total_hits:
+          description: The total number of matching results found.
+          type: integer
+    CollectionOfCollectionsItem:
+      type: object
+      properties:
+        uuid:
+          type: string
+          description: A UUID identifying the collection.
+          pattern: "[A-Za-z0-9]{8}-[A-Za-z0-9]{4}-[A-Za-z0-9]{4}-[A-Za-z0-9]{4}-[A-Za-\
+            z0-9]{12}"
+        version:
+          description: The version of the UUID identifying the collection.
+          type: string
+      required:
+        - uuid
+        - version
+    Collection:
+      type: object
+      properties:
+        name:
+          description: A short name identifying the collection.
+          type: string
+        description:
+          description: A long description of the collection, formatted in Markdown.
+          type: string
+        details:
+          description: Supplementary JSON metadata for the collection.
+          type: object
+        contents:
+          description: >
+            A list of objects describing links to files, bundles, other
+            collections, and metadata fragments that are part of the collection.
+          type: array
+          items:
+            $ref: "#/components/schemas/CollectionItem"
+      required:
+        - name
+        - description
+        - details
+        - contents
+    CollectionItem:
+      type: object
+      properties:
+        type:
+          type: string
+          description: Type of link (file, bundle, collection, or a custom type for a
+            metadata fragment).
+        uuid:
+          type: string
+          description: Unique ID of the file, bundle, collection, or file containing a
+            metadata fragment.
+          pattern: "[A-Za-z0-9]{8}-[A-Za-z0-9]{4}-[A-Za-z0-9]{4}-[A-Za-z0-9]{4}-[A-Za-\
+            z0-9]{12}"
+        version:
+          type: string
+          format: DSS_VERSION
+          description: DSS_VERSION format timestamp of the file, bundle, collection, or
+            file containing a metadata fragment.
+        path:
+          type: string
+          description: >
+            JSON Pointer indexing into the JSON contents of the file containing
+            a metadata fragment. Required for links of type other than file,
+            bundle, or collection. Ignored otherwise.
+      required:
+        - type
+        - uuid
+        - version
+    Error:
+      type: object
+      properties:
+        status:
+          type: integer
+          format: int32
+          description: HTTP error code.
+        code:
+          type: string
+          description: >
+            Machine-readable error code.  The types of return values should not
+            be changed lightly.  Individual endpoints should list an enumeration
+            of possible return codes.  All endpoints should expect the
+            possibility of the return code `unhandled_exception` and
+            `illegal_arguments`.
+        title:
+          type: string
+          description: Human-readable error code.
+        stacktrace:
+          type: string
+          description: Exception stacktrace, if any.
+      required:
+        - title
+    FilesGetResponse:
+      type: object
+      properties:
+        files:
+          type: string
