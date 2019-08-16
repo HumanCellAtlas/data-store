@@ -15,6 +15,7 @@ import dss.operations.sync
 import dss.operations.elasticsearch
 import dss.operations.events
 import dss.operations.secrets
+import dss.operations.params
 from dss.operations import dispatch
 
 logging.basicConfig(stream=sys.stdout)
