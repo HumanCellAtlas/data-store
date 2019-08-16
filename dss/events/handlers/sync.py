@@ -248,7 +248,7 @@ def dependencies_exist(source_replica: Replica, dest_replica: Replica, key: str)
                                           version=file_id.version,
                                           replica=source_replica,
                                           blobstore_handle=source_handle,
-                                          max_syncable_metadata_size)
+                                          max_metadata_size=max_syncable_metadata_size)
         blob_path = compose_blob_key(file_manifest)
         if exists(dest_replica, blob_path):
             return True
@@ -260,7 +260,7 @@ def dependencies_exist(source_replica: Replica, dest_replica: Replica, key: str)
                                             version=bundle_id.version,
                                             replica=source_replica,
                                             blobstore_handle=source_handle,
-                                            max_syncable_metadata_size)
+                                            max_metadata_size=max_syncable_metadata_size)
         try:
             with ThreadPoolExecutor(max_workers=20) as e:
                 futures = list()
@@ -273,7 +273,7 @@ def dependencies_exist(source_replica: Replica, dest_replica: Replica, key: str)
                                             version=file_version,
                                             replica=dest_replica,
                                             blobstore_handle=source_handle,
-                                            max_syncable_metadata_size))
+                                            max_metadata_size=max_syncable_metadata_size))
                 for future in as_completed(futures):
                     future.result()
             return True
@@ -286,7 +286,7 @@ def dependencies_exist(source_replica: Replica, dest_replica: Replica, key: str)
                                                 version=collection_id.version,
                                                 replica=source_replica,
                                                 blobstore_handle=source_handle,
-                                                max_syncable_metadata_size)
+                                                max_metadata_size=max_syncable_metadata_size)
         try:
             verify_collection(contents=collection_manifest["contents"],
                               replica=dest_replica,
