@@ -39,7 +39,7 @@ events = dispatch.target("secrets", arguments={}, help=__doc__)
             default=False,
             action="store_true",
             help="format the output as JSON if this flag is present",
-        ),
+        )
     },
 )
 def list_secrets(argv: typing.List[str], args: argparse.Namespace):
@@ -184,7 +184,7 @@ def set_secret(argv: typing.List[str], args: argparse.Namespace):
     # Create or update
     try:
         # Start by trying to get the secret variable
-        _ = secretsmanager.get_secret_value(SecretId=secret_name)
+        secretsmanager.get_secret_value(SecretId=secret_name)
 
     except ClientError:
         # A secret variable with that name does not exist, so create it
@@ -199,7 +199,7 @@ def set_secret(argv: typing.List[str], args: argparse.Namespace):
             print(
                 f"Secret variable {secret_name} not found in secrets manager, creating it"
             )
-            _ = secretsmanager.create_secret(Name=secret_name, SecretString=secret_val)
+            secretsmanager.create_secret(Name=secret_name, SecretString=secret_val)
 
     else:
         # Get operation was successful, secret variable exists
@@ -213,9 +213,7 @@ def set_secret(argv: typing.List[str], args: argparse.Namespace):
             print(
                 f"Secret variable {secret_name} found in secrets manager, updating it"
             )
-            _ = secretsmanager.update_secret(
-                SecretId=secret_name, SecretString=secret_val
-            )
+            secretsmanager.update_secret(SecretId=secret_name, SecretString=secret_val)
 
 
 @events.action(
@@ -265,7 +263,7 @@ def del_secret(argv: typing.List[str], args: argparse.Namespace):
 
     try:
         # Start by trying to get the secret variable
-        _ = secretsmanager.get_secret_value(SecretId=secret_name)
+        secretsmanager.get_secret_value(SecretId=secret_name)
 
     except ClientError:
         # No secret var found
@@ -289,4 +287,4 @@ def del_secret(argv: typing.List[str], args: argparse.Namespace):
             print(
                 f"Secret variable {secret_name} found in secrets manager, deleting it"
             )
-            _ = secretsmanager.delete_secret(SecretId=secret_name)
+            secretsmanager.delete_secret(SecretId=secret_name)
