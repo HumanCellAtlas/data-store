@@ -11,28 +11,16 @@ import logging
 
 from dss.operations import dispatch
 from dss.util.aws.clients import secretsmanager  # type: ignore
+from dss.operations.util import get_store_prefix
+
 
 logger = logging.getLogger(__name__)
 
 
-def get_secretsmanager_prefix(args):
-    """
-    Use information from the environment to assemble
-    the necessary prefix for accessing variables in
-    the SecretsManager.
-    """
-    store_name = os.environ["DSS_SECRETS_STORE"]
-    if args.stage is None:
-        stage_name = os.environ["DSS_DEPLOYMENT_STAGE"]
-
-    store_prefix = f"{store_name}/{stage_name}/"
-    return store_prefix
+secrets = dispatch.target("secrets", arguments={}, help=__doc__)
 
 
-events = dispatch.target("secrets", arguments={}, help=__doc__)
-
-
-@events.action(
+@secrets.action(
     "list",
     arguments={
         "--stage": dict(
@@ -50,7 +38,7 @@ def list_secrets(argv: typing.List[str], args: argparse.Namespace):
     Print a list of names of every secret variable in the secrets manager
     for the given store and stage.
     """
-    store_prefix = get_secretsmanager_prefix(args)
+    store_prefix = get_store_prefix(args)
 
     paginator = secretsmanager.get_paginator("list_secrets")
 
@@ -74,7 +62,7 @@ def list_secrets(argv: typing.List[str], args: argparse.Namespace):
             print(secret_name)
 
 
-@events.action(
+@secrets.action(
     "get",
     arguments={
         "--stage": dict(
@@ -100,7 +88,7 @@ def get_secret(argv: typing.List[str], args: argparse.Namespace):
     # Note: this function should not print anything except the final JSON,
     # in case the user pipes the JSON output of this script to something else
 
-    store_prefix = get_secretsmanager_prefix(args)
+    store_prefix = get_store_prefix(args)
 
     # Make sure a secret name was specified
     if args.secret_name is None or len(args.secret_name) == 0:
@@ -131,7 +119,7 @@ def get_secret(argv: typing.List[str], args: argparse.Namespace):
                 print(f"{secret_name}={secret_val}")
 
 
-@events.action(
+@secrets.action(
     "set",
     arguments={
         "--stage": dict(
@@ -149,7 +137,7 @@ def get_secret(argv: typing.List[str], args: argparse.Namespace):
 )
 def set_secret(argv: typing.List[str], args: argparse.Namespace):
     """Set the value of the secret variable specified by the --secret-name flag"""
-    store_prefix = get_secretsmanager_prefix(args)
+    store_prefix = get_store_prefix(args)
 
     # Make sure a secret name was specified
     if args.secret_name is None or len(args.secret_name) == 0:
@@ -203,7 +191,7 @@ def set_secret(argv: typing.List[str], args: argparse.Namespace):
             )
 
 
-@events.action(
+@secrets.action(
     "delete",
     arguments={
         "--stage": dict(
@@ -229,7 +217,7 @@ def del_secret(argv: typing.List[str], args: argparse.Namespace):
     Delete the value of the secret variable specified by the
     --secret-name flag from the secrets manager
     """
-    store_prefix = get_secretsmanager_prefix(args)
+    store_prefix = get_store_prefix(args)
 
     # Make sure a secret name was specified
     if args.secret_name is None or len(args.secret_name) == 0:

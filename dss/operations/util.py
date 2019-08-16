@@ -39,3 +39,17 @@ def map_bucket_results(func: typing.Callable, handle: BlobStore, bucket: str, ba
 def map_bucket(*args, **kwargs):
     for _ in map_bucket_results(*args, **kwargs):
         pass
+
+def get_store_prefix(args):
+    """
+    Use information from the environment to assemble
+    the necessary prefix for accessing variables or
+    parameters (useful for secrets manager and param
+    store actions).
+    """
+    store_name = os.environ["DSS_SECRETS_STORE"]
+    if args.stage is None:
+        stage_name = os.environ["DSS_DEPLOYMENT_STAGE"]
+
+    store_prefix = f"{store_name}/{stage_name}/"
+    return store_prefix
