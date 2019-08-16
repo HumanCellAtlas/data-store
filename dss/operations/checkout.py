@@ -84,7 +84,7 @@ class CheckoutHandler:
     def __call__(self, argv: typing.List[str], args: argparse.Namespace):
         if self.keys is not None:
             self.process_keys()
-    
+
 
 checkout = dispatch.target("checkout", help=__doc__)
 
