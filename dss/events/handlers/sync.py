@@ -32,6 +32,7 @@ part_size = {"s3": 64 * 1024 * 1024, "gs": 640 * 1024 * 1024}
 parts_per_worker = {"s3": 8, "gs": 1}
 gs_upload_chunk_size = 1024 * 1024 * 32
 http = get_pool_manager()
+max_syncable_metadata_size = 50 * 1024 * 1024
 
 sns_topics = dict(copy_parts="dss-copy-parts-" + os.environ["DSS_DEPLOYMENT_STAGE"],
                   closer=dict(s3="dss-s3-mpu-ready-" + os.environ["DSS_DEPLOYMENT_STAGE"],
@@ -246,7 +247,8 @@ def dependencies_exist(source_replica: Replica, dest_replica: Replica, key: str)
                                           uuid=file_id.uuid,
                                           version=file_id.version,
                                           replica=source_replica,
-                                          blobstore_handle=source_handle)
+                                          blobstore_handle=source_handle,
+                                          max_syncable_metadata_size)
         blob_path = compose_blob_key(file_manifest)
         if exists(dest_replica, blob_path):
             return True
@@ -257,7 +259,8 @@ def dependencies_exist(source_replica: Replica, dest_replica: Replica, key: str)
                                             uuid=bundle_id.uuid,
                                             version=bundle_id.version,
                                             replica=source_replica,
-                                            blobstore_handle=source_handle)
+                                            blobstore_handle=source_handle,
+                                            max_syncable_metadata_size)
         try:
             with ThreadPoolExecutor(max_workers=20) as e:
                 futures = list()
@@ -269,7 +272,8 @@ def dependencies_exist(source_replica: Replica, dest_replica: Replica, key: str)
                                             uuid=file_uuid,
                                             version=file_version,
                                             replica=dest_replica,
-                                            blobstore_handle=source_handle))
+                                            blobstore_handle=source_handle,
+                                            max_syncable_metadata_size))
                 for future in as_completed(futures):
                     future.result()
             return True
@@ -281,7 +285,8 @@ def dependencies_exist(source_replica: Replica, dest_replica: Replica, key: str)
                                                 uuid=collection_id.uuid,
                                                 version=collection_id.version,
                                                 replica=source_replica,
-                                                blobstore_handle=source_handle)
+                                                blobstore_handle=source_handle,
+                                                max_syncable_metadata_size)
         try:
             verify_collection(contents=collection_manifest["contents"],
                               replica=dest_replica,
