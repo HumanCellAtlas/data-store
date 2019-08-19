@@ -1448,7 +1448,7 @@ paths:
           enum: [aws, gcp]
         - name: prefix
           in: query
-          description: Prefix to for searching through specific keys
+          description: used to search for keys under a specific "bundle/" prefix
           required: false
           type: string
         - name: token

@@ -134,16 +134,16 @@ def get(
         return response
 
 @dss_handler
-def enumerate(replica: str, prefix: str = None, token: str = None,
+def enumerate(replica: str, prefix: str = 'bundles/', token: str = None,
               per_page: int = PerPageBounds.per_page_max,
               search_after: typing.Optional[str] = None):
 
+    if prefix and not prefix.startswith('bundles/'):
+        raise DSSException(requests.codes.bad_request, 'prefix must follow "bundle/" format ')
     api_domain_name = f'https://{os.environ.get("API_DOMAIN_NAME")}'
     payload = dict(dss_api=api_domain_name, object='list', per_page=per_page,
                    event_timestamp=datetime_to_version_format(datetime.datetime.utcnow()))  # type: typing.Any
-
-    key_prefix = prefix if prefix else 'bundles/'  # might need to add filtering over here (no files/blobs allowed)
-    kwargs = dict(replica=Replica[replica].name, prefix=key_prefix, per_page=per_page)
+    kwargs = dict(replica=Replica[replica].name, prefix=prefix, per_page=per_page)
     if search_after:
         kwargs['search_after'] = search_after
     if token:
@@ -162,7 +162,7 @@ def enumerate(replica: str, prefix: str = None, token: str = None,
         next_url.replace_query("search_after", payload['search_after'])
         next_url.replace_query("token", payload['token'])
         link = f"<{next_url}>; rel='next'"
-        payload.update(dict(has_more=True, token=payload['token'], link=link))
+        payload.update(dict(has_more=True, token=payload['token'], link=f'{next_url}'))
         response = make_response(jsonify(payload), requests.codes.partial)
         response.headers['Link'] = link
     return response
