@@ -109,7 +109,7 @@ class remove(CheckoutHandler):
                 for _files in manifest['files']:
                     key = compose_blob_key(_files)
                     self._verify_delete(self.handle, self.bucket, key)
-            elif FILE_PREFIX in _key:
+            elif _key.startswith(FILE_PREFIX):
                 # should handle other keys, files/blobs
                 file_metadata = self._verify_get(self.handle, self.replica.bucket, _key)
                 self._verify_delete(self.handle, self.bucket, key=compose_blob_key(file_metadata))
@@ -149,7 +149,7 @@ class verify(CheckoutHandler):
                         temp.update({x: _file[x]})
                     bundle_internal_status.append(temp)
                 checkout_status[_key] = bundle_internal_status
-            elif FILE_PREFIX in _key:
+            elif _key.startswith(FILE_PREFIX):
                 temp = collections.defaultdict(blob_checkout=False, should_be_cached=False)
                 file_metadata = self._verify_get(self.handle, self.replica.bucket, _key)
                 blob_key = compose_blob_key(file_metadata)
@@ -180,8 +180,7 @@ class start(CheckoutHandler):
                     blob_path = compose_blob_key(_files)
                     self._sleepy_checkout(file_checkout, replica=self.replica,
                                           file_metadata=_files, blob_path=blob_path)
-            elif FILE_PREFIX in _key:
-                uuid, version = self._parse_key(_key)
+            elif _key.startswith(FILE_PREFIX):
                 file_metadata = self.handle.get(self.replica.bucket, _key)
                 blob_path = compose_blob_key(file_metadata)
                 self._sleepy_checkout(file_checkout, replica=self.replica,
