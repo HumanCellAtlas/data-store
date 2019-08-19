@@ -28,7 +28,7 @@ class AsyncStateItem:
         self.body = body
 
     def _put(self) -> typing.Any:
-        expires = int(time.time() + 24*3600*10)  # items expire in 10 days
+        expires = int(time.time() + 24 * 3600 * 10)  # items expire in 10 days
         return put_item(table=self.table, value=json.dumps(self.body), hash_key=self.key, ttl=expires)
 
     @property
