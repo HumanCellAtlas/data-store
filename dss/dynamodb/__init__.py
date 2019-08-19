@@ -32,7 +32,7 @@ def put_item(*, table: str, hash_key: str, sort_key: str=None, value: str, dont_
                          Note: If not specified, this will PUT only 1 key (hash_key) and 1 value.
     :param str dont_overwrite: Don't overwrite if this parameter exists.  For example, setting this
                                to 'sort_key' won't overwrite if that sort_key already exists in the table.
-    :param str ttl: Time to Live for the item.  Only works if enabled for that specific table.
+    :param int ttl: Time to Live for the item.  Only works if enabled for that specific table.
     :return: None
     """
     query = {'TableName': table,
