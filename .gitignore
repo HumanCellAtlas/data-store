@@ -52,6 +52,7 @@ npm-debug.log
 
 # virtualenv folder
 venv
+v3nv
 
 # Terraform files
 .terraform
