@@ -139,7 +139,8 @@ def enumerate(replica: str, prefix: str = 'bundles/', token: str = None,
               search_after: typing.Optional[str] = None):
 
     if prefix and not prefix.startswith('bundles/'):
-        raise DSSException(requests.codes.bad_request, 'prefix must follow "bundle/" format ')
+        raise DSSException(requests.codes.bad_request, 'illegal_arguments',
+                           f'prefix: {prefix} must follow "bundle/" format')
     api_domain_name = f'https://{os.environ.get("API_DOMAIN_NAME")}'
     payload = dict(dss_api=api_domain_name, object='list', per_page=per_page,
                    event_timestamp=datetime_to_version_format(datetime.datetime.utcnow()))  # type: typing.Any
