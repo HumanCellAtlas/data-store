@@ -1436,7 +1436,7 @@ paths:
   /bundles:
     get:
       operationId: dss.api.bundles.enumerate
-      summary: Retreive all bundles or bundle contents within a primary bucket.
+      summary: Retrieve all bundles or bundle contents within a primary bucket.
       description: >
         Given a prefix, list out the contexts of the prefix. If a prefix is omitted, return a list of bundles instead.
       parameters:

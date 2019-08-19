@@ -275,7 +275,6 @@ class TestSecurity(unittest.TestCase):
                 return iter(list_tuples)
         mock_list_v2.return_value = MockStorageHandler()
         resp = list_available_uuids(replica='aws')
-        pprint.pprint(resp)
         dead_bundles = [x.split('.', 1)[0].strip('bundles/') for x in MockStorageHandler.tombstoned_bundle_list
                         if x.endswith(TOMBSTONE_SUFFIX)]
         for x in resp['data']:

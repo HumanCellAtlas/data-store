@@ -141,10 +141,7 @@ def list_available_uuids(replica: str = None, prefix: str = None, per_page: int 
         uuid, version = key.split('.', 1)
         if not version.endswith(TOMBSTONE_SUFFIX):
             search_after = key
-            if keys.get(uuid) is None:
-                keys[uuid] = [version]
-            else:
-                keys[uuid].append(version)
+            keys.setdefault(uuid, []).append(version)
             total_keys += 1
         elif TOMBSTONE_SUFFIX == version:
             if keys.get(uuid) is not None:
@@ -156,5 +153,5 @@ def list_available_uuids(replica: str = None, prefix: str = None, per_page: int 
     for uuid, versions in keys.items():
         for version in versions:
             uuid_list.append(dict(uuid=uuid, version=version))
-
-    return dict(search_after=search_after, data=uuid_list, token=prefix_iterator.token, page_count=len(uuid_list))
+    token = getattr(prefix_iterator, 'token', None)
+    return dict(search_after=search_after, data=uuid_list, token=token, page_count=len(uuid_list))
