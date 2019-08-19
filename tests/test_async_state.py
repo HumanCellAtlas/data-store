@@ -21,6 +21,28 @@ def setUpModule():
 
 @testmode.standalone
 class TestAsyncState(unittest.TestCase):
+    def test_item_expiration(self):
+        key = str(uuid.uuid4())
+        msg = "some test msg"
+        item = AsyncStateItem(key, {'message': msg})
+
+        # Getting a non-existent item should return None
+        self.assertIsNone(item.get(key))
+
+        # insert item
+        ten_seconds = int(time.time() + 10)  # expire in 10 seconds
+        item._put(expires=ten_seconds)
+
+        # Getting an existent item (within 10 seconds) should return the value
+        self.assertEqual(item.get(key).data, {'message': msg})
+
+        # wait for the item to expire
+        while time.time() < ten_seconds + 1:
+            time.sleep(1)
+
+        # Getting an expired item should return None
+        self.assertIsNone(item.get(key))
+
     def test_item(self):
         key = str(uuid.uuid4())
         msg = "some test msg"

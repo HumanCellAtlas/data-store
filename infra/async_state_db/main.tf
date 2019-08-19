@@ -17,7 +17,7 @@ resource "aws_dynamodb_table" "sfn_state" {
   hash_key     = "hash_key"
 
   ttl {
-    attribute_name = "TimeToExist"
+    attribute_name = "ttl"
     enabled        = true
   }
 
