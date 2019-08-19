@@ -81,6 +81,12 @@ class Smoketest(BaseSmokeTest):
         with self.subTest(f"{starting_replica.name}: Download that bundle"):
             self._test_get_bundle(replica, bundle_uuid)
 
+        with self.subTest(f"{starting_replica.name}: Enumerate on that bundle uuid"):
+            key_prefix = f'bundles/{bundle_uuid[0:8]}'
+            bundle_match = dict(uuid=bundle_uuid,version=bundle_version)
+            resp = self.get_bundle_enumerations(starting_replica.name, prefix=key_prefix)
+            self.assertIn(bundle_match, resp['bundles'])
+
         with self.subTest(f"{starting_replica.name}: Initiate a bundle checkout"):
             checkout_response = self.checkout_initiate(replica, bundle_uuid)
             checkout_job_id = checkout_response['checkout_job_id']
