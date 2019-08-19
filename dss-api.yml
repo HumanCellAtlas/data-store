@@ -1993,7 +1993,7 @@ paths:
           schema:
             type: object
         401:
-          description: Unauthorized user it attempting this action.
+          description: Unauthorized user is attempting this action.
           schema:
             allOf:
             - $ref: '#/definitions/Error'
@@ -2006,7 +2006,7 @@ paths:
               required:
               - code
         403:
-          description: Unauthorized user it attempting this action.
+          description: Unauthorized user is attempting this action.
           schema:
             allOf:
               - $ref: '#/definitions/Error'

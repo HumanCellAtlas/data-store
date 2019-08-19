@@ -488,7 +488,7 @@ setting the lambda environment variable `DSS_XRAY_TRACE=1`. For all other daemon
 "Enable active tracking" under "Debugging and error handling" in the AWS Lambda console.
 
 ## Security Policy
-See our [Security Policy](https://github.com/HumanCellAtlas/dcp/blob/master/SECURITY.md).
+See our [Security Policy](https://github.com/HumanCellAtlas/.github/blob/master/SECURITY.md).
 
 ## Contributing
 External contributions are welcome. Please review the [Contributing Guidelines](CONTRIBUTING.md)
