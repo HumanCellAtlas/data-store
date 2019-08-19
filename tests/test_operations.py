@@ -24,7 +24,7 @@ import dss
 from tests.infra import testmode
 from dss.operations import DSSOperationsCommandDispatch
 from dss.operations.util import map_bucket_results
-from dss.operations import storage, sync, secrets
+from dss.operations import storage, sync, secrets, params
 from dss.logging import configure_test_logging
 from dss.config import BucketConfig, Config, Replica, override_bucket_config
 from dss.storage.hcablobstore import FileMetadata, compose_blob_key
@@ -275,7 +275,10 @@ class TestOperations(unittest.TestCase):
             gs_blob.upload_from_file(fh, content_type="application/octet-stream")
 
     def test_secrets_crud(self):
-        # CRUD (create read update delete) test procedure:
+        # CRUD (create read update delete)
+        # test for the secrets manager.
+        # 
+        # Procedure:
         # - create new secret
         # - list secrets and verify new secret shows up
         # - get secret value and verify it is correct
@@ -417,6 +420,117 @@ class TestOperations(unittest.TestCase):
                     ),
                 )
 
+
+    def test_ssmparams_crud(self):
+        # CRUD (create read update delete)
+        # test for setting environment variables
+        # in the SSM store.
+        #
+        # Procedure:
+        # - create new parameter in ssm store
+        # - list ssm parameters, verify new param is set
+        # - update param value
+        # - list ssm parameters, verify new param is set
+        # - delete param
+        which_stage = os.environ["DSS_DEPLOYMENT_STAGE"]
+        which_store = os.environ["DSS_PARAMS_STORE"]
+
+        param_name = random_alphanumeric_string()
+        testvar_name = f"{which_store}/{which_stage}/{param_name}"
+        testvar_value = "Hello world!"
+        testvar_value2 = "Goodbye world!"
+
+        # Package up the environment the way
+        # AWS returns it
+        def wrap_environment(e):
+            ssm_e = {"Parameter" : {
+                "Name": "environment",
+                "Value": json.dumps(e)
+            }
+            return ssm_e
+
+        # Assemble an old and new environment to return
+        old_env = {"dummy_key": "dummy_value"}
+        new_env = dict(**old_env)
+        new_env[testvar_name] = testvar_value)
+        ssm_old_env = wrap_env(old_env)
+        ssm_new_env = wrap_env(new_env)
+
+        with self.subTest("Create a new SSM parameter"):
+            # Monkeypatch ssm client
+            with mock.patch("dss.operations.ssm") as ssm:
+                # ssm_set in params.py first calls ssm.get_parameter
+                # to get the entire environment
+                ssm.get_parameter = mock.MagicMock(return_value=ssm_old_env)
+                # ssm_set then calls ssm.put_parameter
+                ssm.put_parameter = mock.MagicMock(return_value=None)
+                params.ssm_set(
+                    [],
+                    argparse.Namespace(
+                        name=testvar_name,
+                        value=testvar_value,
+                        dry_run=False
+                    ),
+                )
+
+        with self.subTest("List SSM parameters"):
+            # TODO: test json too
+            with mock.patch("dss.operations.ssm") as ssm:
+                # Listing parameters from the environment
+                # does not require a pager, it only calls
+                # ssm.get_parameter, which asks for the 
+                # entire environment as a dictionary
+                ssm.get_parameter = mock.MagicMock(return_value=ssm_new_env)
+                # Now call our params.py module
+                with CaptureStdout() as output:
+                    params.ssm_list([], argparse.Namespace(json=False))
+                assertIn("{testvar_name}={testvar_value}", output)
+
+
+        with self.subTest("Update existing SSM parameter"):
+            with mock.patch("dss.operations.ssm") as ssm:
+                # Mock the same way we did for set new secret above
+                ssm.get_parameter = mock.MagicMock(return_value=ssm_new_env)
+                ssm.put_parameter = mock.MagicMock(return_value=None)
+                params.ssm_set(
+                    [],
+                    argparse.Namespace(
+                        name=testvar_name,
+                        value=testvar_value2,
+                        dry_run=False
+                    ),
+                )
+
+        with self.subTest("Unset SSM parameter"):
+            with mock.patch("dss.operations.ssm") as ssm:
+                # Mock the same way we did for set new secret above
+                ssm.get_parameter = mock.MagicMock(return_value=ssm_new_env)
+                ssm.put_parameter = mock.MagicMock(return_value=None)
+                params.ssm_unset(
+                    [],
+                    argparse.Namespace(
+                        name=testvar_name,
+                        dry_run=False
+                    )
+                )
+
+
+    def test_lambdaparams_crud(self):
+        # CRUD (create read update delete)
+        # test for stting environment variables
+        # in all deployed lambda functions
+        # (and the SSM store).
+        #
+        # Procedure:
+        # - create new parameter for lambdas
+        # - list lambda parameters, verify new lambda param is set
+        # - get param value and verify correct
+        # - update param value
+        # - get param value and verify correct
+        # - delete param
+        which_stage = os.environ["DSS_DEPLOYMENT_STAGE"]
+        which_store = os.environ["DSS_PARAMS_STORE"]
+        pass
 
 if __name__ == '__main__':
     unittest.main()
