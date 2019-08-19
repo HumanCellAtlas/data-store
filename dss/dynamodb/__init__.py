@@ -7,7 +7,7 @@ class DynamoDBItemNotFound(Exception):
     pass
 
 
-def _format_item(hash_key, sort_key, value, ttl):
+def _format_item(hash_key: str, sort_key: str, value: str, ttl: int=None):
     item = {'hash_key': {'S': hash_key}}
     if value:
         item['body'] = {'S': value}
