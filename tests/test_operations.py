@@ -10,7 +10,6 @@ import argparse
 import unittest
 import string
 import random
-import datetime
 from collections import namedtuple
 from unittest import mock
 from boto3.s3.transfer import TransferConfig
@@ -21,27 +20,22 @@ from cloud_blobstore import BlobNotFoundError
 pkg_root = os.path.abspath(os.path.join(os.path.dirname(__file__), '..'))  # noqa
 sys.path.insert(0, pkg_root)  # noqa
 
+import dss
 from tests.infra import testmode
 from dss.operations import DSSOperationsCommandDispatch
 from dss.operations.util import map_bucket_results
-from dss.operations import checkout, storage, sync, secrets
+from dss.operations import storage, sync, secrets
 from dss.logging import configure_test_logging
 from dss.config import BucketConfig, Config, Replica, override_bucket_config
 from dss.storage.hcablobstore import FileMetadata, compose_blob_key
 from dss.util.aws import resources
-from dss.util.version import datetime_to_version_format
 from tests import CaptureStdout
-from tests.test_bundle import TestBundleApi
-from tests.infra import get_env, DSSUploadMixin, TestAuthMixin, DSSAssertMixin
-from tests.infra.server import ThreadedLocalServer
-
 
 def setUpModule():
     configure_test_logging()
 
 def random_alphanumeric_string(N=10):
     return ''.join(random.choices(string.ascii_uppercase + string.digits, k=N))
-
 
 @testmode.standalone
 class TestOperations(unittest.TestCase):
@@ -422,67 +416,6 @@ class TestOperations(unittest.TestCase):
                         dry_run=False,
                     ),
                 )
-
-
-@testmode.integration
-class test_operations_integration(TestBundleApi, TestAuthMixin, DSSAssertMixin, DSSUploadMixin):
-
-    @classmethod
-    def setUpClass(cls):
-        cls.app = ThreadedLocalServer()
-        cls.app.start()
-
-    @classmethod
-    def tearDownClass(cls):
-        cls.app.shutdown()
-
-    def setUp(self):
-        Config.set_config(BucketConfig.TEST)
-        self.s3_test_fixtures_bucket = get_env("DSS_S3_BUCKET_TEST_FIXTURES")
-        self.gs_test_fixtures_bucket = get_env("DSS_GS_BUCKET_TEST_FIXTURES")
-
-    def test_checkout_operations(self):
-        with override_bucket_config(BucketConfig.TEST):
-            for replica, fixture_bucket in [(Replica['aws'],
-                                             self.s3_test_fixtures_bucket),
-                                            (Replica['gcp'],
-                                             self.gs_test_fixtures_bucket)]:
-                bundle, bundle_uuid = self._create_bundle(replica, fixture_bucket)
-                args = argparse.Namespace(replica=replica.name, keys=[f'bundles/{bundle_uuid}.{bundle["version"]}'])
-                checkout_status = checkout.verify([], args).process_keys()
-                for key in args.keys:
-                    self.assertIn(key, checkout_status)
-                checkout.remove([], args).process_keys()
-                checkout_status = checkout.verify([], args).process_keys()
-                for key in args.keys:
-                    for file in checkout_status[key]:
-                        self.assertIs(False, file['bundle_checkout'])
-                        self.assertIs(False, file['blob_checkout'])
-                checkout.start([], args).process_keys()
-                checkout_status = checkout.verify([], args).process_keys()
-                for key in args.keys:
-                    for file in checkout_status[key]:
-                        self.assertIs(True, file['bundle_checkout'])
-                        self.assertIs(True, file['blob_checkout'])
-                self.delete_bundle(replica, bundle_uuid)
-
-    def _create_bundle(self, replica: Replica, fixtures_bucket: str):
-        schema = replica.storage_schema
-        bundle_uuid = str(uuid.uuid4())
-        file_uuid = str(uuid.uuid4())
-        resp_obj = self.upload_file_wait(
-            f"{schema}://{fixtures_bucket}/test_good_source_data/0",
-            replica,
-            file_uuid,
-            bundle_uuid=bundle_uuid,
-        )
-        file_version = resp_obj.json['version']
-        bundle_version = datetime_to_version_format(datetime.datetime.utcnow())
-        resp_obj = self.put_bundle(replica,
-                                   bundle_uuid,
-                                   [(file_uuid, file_version, "LICENSE")],
-                                   bundle_version)
-        return resp_obj.json, bundle_uuid
 
 
 if __name__ == '__main__':
