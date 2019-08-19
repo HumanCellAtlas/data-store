@@ -424,7 +424,6 @@ class TestOperations(unittest.TestCase):
                 )
 
 
-
 @testmode.integration
 class test_operations_integration(TestBundleApi, TestAuthMixin, DSSAssertMixin, DSSUploadMixin):
 
