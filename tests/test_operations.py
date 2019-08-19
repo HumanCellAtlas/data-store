@@ -282,7 +282,7 @@ class TestOperations(unittest.TestCase):
         # - update secret value
         # - get secret value and verify it is correct
         # - delete secret
-        which_stage = "dev"
+        which_stage = os.environ["DSS_DEPLOYMENT_STAGE"]
         which_store = os.environ["DSS_SECRETS_STORE"]
 
         secret_name = random_alphanumeric_string()
