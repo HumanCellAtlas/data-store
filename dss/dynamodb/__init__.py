@@ -14,7 +14,7 @@ def _format_item(hash_key, sort_key, value, ttl):
     if sort_key:
         item['sort_key'] = {'S': sort_key}
     if ttl:
-        item['ttl'] = {'N': str(ttl)}
+        item['TimeToExist'] = {'N': str(ttl)}
     return item
 
 
