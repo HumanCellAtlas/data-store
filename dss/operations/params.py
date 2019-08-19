@@ -27,7 +27,7 @@ def get_ssm_prefix():
     the necessary prefix for accessing variables in
     the parameter store.
     """
-    store_name = os.environ["DSS_SECRETS_STORE"]
+    store_name = os.environ["DSS_PARAMETER_STORE"]
     stage_name = os.environ["DSS_DEPLOYMENT_STAGE"]
     store_prefix = f"{store_name}/{stage_name}"
     return store_prefix
@@ -129,7 +129,7 @@ def ssm_list(argv: typing.List[str], args: argparse.Namespace):
     "ssm-set",
     arguments={
         "--name": dict(
-            required=True, help="name of variable to set " "in the environment"
+            required=True, help="name of environment variable to set in the environment"
         ),
         "--value": dict(
             required=False,
@@ -146,7 +146,7 @@ def ssm_list(argv: typing.List[str], args: argparse.Namespace):
     },
 )
 def ssm_set(argv: typing.List[str], args: argparse.Namespace):
-    """Set new environment variable(s) in the SSM store"""
+    """Set an environment variable in the SSM store"""
     prefix = get_ssm_prefix()
 
     # Ensure variable name specified
@@ -175,6 +175,42 @@ def ssm_set(argv: typing.List[str], args: argparse.Namespace):
         # Set the variable in the SSM store
         ssm_env = get_ssm_lambda_environment(prefix)
         ssm_env[name] = val
+        set_ssm_lambda_environment(ssm_env)
+
+
+@params.action(
+    "ssm-unset",
+    arguments={
+        "--name": dict(
+            required=True, help="name of environment variable to unset in the SSM store"
+        ),
+        "--dry-run": dict(
+            default=False,
+            action="store_true",
+            help="do a dry run of the actual operation",
+        ),
+    },
+)
+def ssm_unset(argv: typing.List[str], args: argparse.Namespace):
+    """Unset an environment variable in the SSM store"""
+    prefix = get_ssm_prefix()
+
+    # Ensure variable name specified
+    if len(args.name) == 0:
+        msg = "Unable to set variable: no variable name provided. "
+        msg += "Use the --name flag to specify variable name."
+        raise RuntimeError(msg)
+    name = args.name
+
+    # Unset the variable from the SSM store first
+    if args.dry_run:
+        print(f"Dry-run deleting variable \"{name}\" in SSM store")
+    else:
+        ssm_env = get_ssm_lambda_environment(prefix)
+        try:
+            del ssm_env[name]
+        except KeyError:
+            pass
         set_ssm_lambda_environment(ssm_env)
 
 
@@ -229,7 +265,7 @@ def lambda_list(argv: typing.List[str], args: argparse.Namespace):
     },
 )
 def lambda_set(argv: typing.List[str], args: argparse.Namespace):
-    """Set a single environment variable in each deployed lambda"""
+    """Set an environment variable in each deployed lambda"""
     prefix = get_ssm_prefix()
 
     # Ensure variable name specified
@@ -283,23 +319,35 @@ def lambda_set(argv: typing.List[str], args: argparse.Namespace):
     },
 )
 def lambda_unset(argv: typing.List[str], args: argparse.Namespace):
-    """Unset a single environment variable into each deployed lambda"""
-    if args.name:
-        name = args.name
+    """Unset an environment variable in each deployed lambda"""
+    prefix = get_ssm_prefix()
+
+    # Ensure variable name specified
+    if len(args.name) == 0:
+        msg = "Unable to unset variable: no variable name provided. "
+        msg += "Use the --name flag to specify variable name."
+        raise RuntimeError(msg)
+    name = args.name
 
     # Unset the variable from the SSM store first
-    ssm_env = get_ssm_lambda_environment()
-    try:
-        del ssm_env[name]
-    except KeyError:
-        pass
-    set_ssm_lambda_environment(ssm_env)
+    if args.dry_run:
+        print(f"Dry-run deleting variable \"{name}\" in SSM store")
+    else:
+        ssm_env = get_ssm_lambda_environment(prefix)
+        try:
+            del ssm_env[name]
+        except KeyError:
+            pass
+        set_ssm_lambda_environment(ssm_env)
 
     # Unset the variable from each lambda function
     for lambda_name in get_deployed_lambdas():
-        lambda_env = get_deployed_lambda_environment(lambda_name)
-        try:
-            del lambda_env[name]
-        except KeyError:
-            pass
-        set_deployed_lambda_environment(lambda_name, lambda_env)
+        if args.dry_run:
+            print(f"Dry-run deleting variable \"{name}\" from lambda function \"{lambda_name}\"")
+        else:
+            lambda_env = get_deployed_lambda_environment(lambda_name)
+            try:
+                del lambda_env[name]
+            except KeyError:
+                pass
+            set_deployed_lambda_environment(lambda_name, lambda_env)
