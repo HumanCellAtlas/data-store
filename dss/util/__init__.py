@@ -1,10 +1,21 @@
 import os
 import boto3
 import tempfile
-from urllib.parse import SplitResult, parse_qsl, urlencode, urlsplit, urlunsplit
+import json
+import requests
 import typing
+from urllib.parse import SplitResult, parse_qsl, urlencode, urlsplit, urlunsplit
 from functools import lru_cache
 from concurrent.futures import ThreadPoolExecutor, as_completed
+
+from dss import Replica
+from dss.error import DSSException
+from dss.storage.hcablobstore import BlobStore
+from dss.util import security, hashabledict, UrlBuilder
+from dss.util.version import datetime_to_version_format
+from cloud_blobstore import BlobNotFoundError
+
+MAX_METADATA_SIZE = 1024 * 1024
 
 
 def paginate(boto3_paginator, *args, **kwargs):
@@ -186,3 +197,29 @@ def multipart_parallel_upload(
         UploadId=mpu['UploadId'],
     )
     return parts
+
+
+@lru_cache(maxsize=64)
+def get_json_metadata(entity_type: str,
+                      uuid: str,
+                      version: str,
+                      replica: Replica,
+                      blobstore_handle: BlobStore,
+                      max_metadata_size: int=MAX_METADATA_SIZE):
+    try:
+        key = "{}s/{}.{}".format(entity_type, uuid, version)
+        # TODO: verify that file is a metadata file
+        size = blobstore_handle.get_size(replica.bucket, key)
+        if size > max_metadata_size:
+            raise DSSException(
+                requests.codes.unprocessable_entity,
+                "invalid_link",
+                "The file UUID {} refers to a file that is too large to process".format(uuid))
+        return json.loads(blobstore_handle.get(
+            replica.bucket,
+            "{}s/{}.{}".format(entity_type, uuid, version)))
+    except BlobNotFoundError:
+        raise DSSException(
+            requests.codes.unprocessable_entity,
+            "invalid_link",
+            "Could not find file for UUID {}".format(uuid))

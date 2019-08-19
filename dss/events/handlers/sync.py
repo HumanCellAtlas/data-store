@@ -15,7 +15,8 @@ from dcplib.s3_multipart import get_s3_multipart_chunk_size
 
 import dss
 from dss import Config, Replica
-from dss.api.collections import get_json_metadata, verify_collection
+from dss.api.collections import verify_collection
+from dss.util import get_json_metadata
 from dss.util.aws import resources, clients
 from dss.util.streaming import get_pool_manager, S3SigningChunker
 from dss.storage.identifiers import (FILE_PREFIX, BUNDLE_PREFIX, COLLECTION_PREFIX, TOMBSTONE_SUFFIX,
@@ -226,6 +227,7 @@ def exists(replica: Replica, key: str):
         return gs_bucket.blob(key).exists()
     else:
         raise NotImplementedError()
+
 
 def dependencies_exist(source_replica: Replica, dest_replica: Replica, key: str):
     """

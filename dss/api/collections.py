@@ -14,7 +14,7 @@ from dss.error import DSSException, dss_handler
 from dss.storage.blobstore import test_object_exists
 from dss.storage.hcablobstore import BlobStore, compose_blob_key
 from dss.storage.identifiers import CollectionFQID, CollectionTombstoneID, COLLECTION_PREFIX
-from dss.util import security, hashabledict, UrlBuilder
+from dss.util import security, hashabledict, UrlBuilder, get_json_metadata
 from dss.util.version import datetime_to_version_format
 from dss.storage.blobstore import idempotent_save
 from dss.collections import owner_lookup
@@ -182,32 +182,6 @@ def delete(uuid: str, replica: str):
     # update dynamoDB
     owner_lookup.delete_collection_uuid(owner=authenticated_user_email, uuid=uuid)
     return jsonify(response_body), status_code
-
-
-@functools.lru_cache(maxsize=64)
-def get_json_metadata(entity_type: str,
-                      uuid: str,
-                      version: str,
-                      replica: Replica,
-                      blobstore_handle: BlobStore,
-                      max_metadata_size: int=MAX_METADATA_SIZE):
-    try:
-        key = "{}s/{}.{}".format(entity_type, uuid, version)
-        # TODO: verify that file is a metadata file
-        size = blobstore_handle.get_size(replica.bucket, key)
-        if size > max_metadata_size:
-            raise DSSException(
-                requests.codes.unprocessable_entity,
-                "invalid_link",
-                "The file UUID {} refers to a file that is too large to process".format(uuid))
-        return json.loads(blobstore_handle.get(
-            replica.bucket,
-            "{}s/{}.{}".format(entity_type, uuid, version)))
-    except BlobNotFoundError:
-        raise DSSException(
-            requests.codes.unprocessable_entity,
-            "invalid_link",
-            "Could not find file for UUID {}".format(uuid))
 
 
 def resolve_content_item(replica: Replica, blobstore_handle: BlobStore, item: dict):
