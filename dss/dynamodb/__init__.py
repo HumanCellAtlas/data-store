@@ -100,7 +100,7 @@ def get_primary_key_count(*, table: str, key: str) -> int:
     return res['Count']
 
 
-def get_all_table_items(*, table: str, both_keys: bool = False) -> Generator[str, None, None]:
+def get_all_table_items(*, table: str, both_keys: bool = False):
     """
     Return all items from a dynamoDB table.
 
