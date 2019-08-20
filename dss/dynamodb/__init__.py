@@ -1,4 +1,4 @@
-from typing import Generator
+from typing import Generator, Optional
 
 from dss.util.aws.clients import dynamodb as db  # type: ignore
 
@@ -7,7 +7,7 @@ class DynamoDBItemNotFound(Exception):
     pass
 
 
-def _format_item(hash_key: str, sort_key: str, value: str, ttl: int=None):
+def _format_item(hash_key: str, sort_key: Optional[str], value: Optional[str], ttl: Optional[int] = None) -> dict:
     item = {'hash_key': {'S': hash_key}}
     if value:
         item['body'] = {'S': value}
@@ -18,7 +18,8 @@ def _format_item(hash_key: str, sort_key: str, value: str, ttl: int=None):
     return item
 
 
-def put_item(*, table: str, hash_key: str, sort_key: str=None, value: str, dont_overwrite: str=None, ttl: int=None):
+def put_item(*, table: str, hash_key: str, sort_key: Optional[str] = None, value: str,
+             dont_overwrite: Optional[str] = None, ttl: Optional[int] = None):
     """
     Put an item into a dynamoDB table.
 
@@ -42,7 +43,7 @@ def put_item(*, table: str, hash_key: str, sort_key: str=None, value: str, dont_
     db.put_item(**query)
 
 
-def get_item(*, table: str, hash_key: str, sort_key: str=None, return_key: str='body'):
+def get_item(*, table: str, hash_key: str, sort_key: Optional[str] = None, return_key: str = 'body') -> str:
     """
     Get associated value for a given set of keys from a dynamoDB table.
 
@@ -64,7 +65,7 @@ def get_item(*, table: str, hash_key: str, sort_key: str=None, return_key: str='
     return item[return_key]['S']
 
 
-def get_primary_key_items(*, table: str, key: str, return_key: str='body') -> Generator[str, None, None]:
+def get_primary_key_items(*, table: str, key: str, return_key: str = 'body') -> Generator[str, None, None]:
     """
     Get associated value for a given set of keys from a dynamoDB table.
 
@@ -99,7 +100,7 @@ def get_primary_key_count(*, table: str, key: str) -> int:
     return res['Count']
 
 
-def get_all_table_items(*, table: str, both_keys: bool=False):
+def get_all_table_items(*, table: str, both_keys: bool = False) -> Generator[str, None, None]:
     """
     Return all items from a dynamoDB table.
 
@@ -116,7 +117,7 @@ def get_all_table_items(*, table: str, both_keys: bool=False):
                 yield item['body']['S']
 
 
-def delete_item(*, table: str, hash_key: str, sort_key: str=None):
+def delete_item(*, table: str, hash_key: str, sort_key: Optional[str] = None):
     """
     Delete an item from a dynamoDB table.
 
