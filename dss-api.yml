@@ -1436,9 +1436,9 @@ paths:
   /bundles:
     get:
       operationId: dss.api.bundles.enumerate
-      summary: Retrieve all bundles or bundle contents within a primary bucket.
+      summary: List through all bundles available to the data-store
       description: >
-        Given a prefix, list out the contexts of the prefix. If a prefix is omitted, return a list of bundles instead.
+        Given a prefix
       parameters:
         - name: replica
           in: query

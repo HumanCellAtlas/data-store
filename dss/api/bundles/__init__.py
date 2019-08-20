@@ -134,16 +134,18 @@ def get(
         return response
 
 @dss_handler
-def enumerate(replica: str, prefix: str = 'bundles/', token: str = None,
+def enumerate(replica: str, prefix: str = None, token: typing.Optional[str] = None,
               per_page: int = PerPageBounds.per_page_max,
               search_after: typing.Optional[str] = None):
 
-    if prefix and not prefix.startswith('bundles/'):
-        raise DSSException(requests.codes.bad_request, 'illegal_arguments',
-                           f'prefix: {prefix} must follow "bundle/" format')
     api_domain_name = f'https://{os.environ.get("API_DOMAIN_NAME")}'
+
+    prefix = f'bundles/{prefix}' if prefix else 'bundles/'
+
     payload = dict(dss_api=api_domain_name, object='list', per_page=per_page,
-                   event_timestamp=datetime_to_version_format(datetime.datetime.utcnow()))  # type: typing.Any
+                   event_timestamp=datetime_to_version_format(datetime.datetime.utcnow()),
+                   prefix=prefix)  # type: typing.Any
+
     kwargs = dict(replica=Replica[replica].name, prefix=prefix, per_page=per_page)
     if search_after:
         kwargs['search_after'] = search_after

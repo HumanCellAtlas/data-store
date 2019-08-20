@@ -277,7 +277,7 @@ class TestSecurity(unittest.TestCase):
         resp = list_available_uuids(replica='aws')
         dead_bundles = [x.split('.', 1)[0].strip('bundles/') for x in MockStorageHandler.tombstoned_bundle_list
                         if x.endswith(TOMBSTONE_SUFFIX)]
-        for x in resp['data']:
+        for x in resp['bundles']:
             self.assertNotIn(x['uuid'], dead_bundles)
         self.assertEquals(resp['page_count'], 11)
 

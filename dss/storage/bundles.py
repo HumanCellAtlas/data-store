@@ -122,7 +122,7 @@ def _latest_version_from_object_names(object_names: typing.Iterator[str]) -> str
     return version
 
 
-def list_available_uuids(replica: str = None, prefix: str = None, per_page: int = PerPageBounds.per_page_max,
+def list_available_uuids(replica: str, prefix: str = None, per_page: int = PerPageBounds.per_page_max,
                          search_after: str = None, token: str = None):
     """Return a list of available uuid's in a given prefix, removes tombstones"""
     kwargs = dict(bucket=Replica[replica].bucket, prefix=prefix, k_page_max=per_page)
@@ -132,12 +132,12 @@ def list_available_uuids(replica: str = None, prefix: str = None, per_page: int 
         kwargs['token'] = token
 
     storage_handler = Config.get_blobstore_handle(Replica[replica])
-    prefix_iterator = storage_handler.list_v2(**kwargs)
+    prefix_iterator = enumerate(storage_handler.list_v2(**kwargs))
     keys = dict()  # type: dict
     uuid_list = list()
     total_keys = 0
 
-    for key, meta in prefix_iterator:
+    for idx, (key, meta) in prefix_iterator:
         uuid, version = key.split('.', 1)
         if not version.endswith(TOMBSTONE_SUFFIX):
             search_after = key
@@ -154,4 +154,4 @@ def list_available_uuids(replica: str = None, prefix: str = None, per_page: int 
         for version in versions:
             uuid_list.append(dict(uuid=uuid, version=version))
     token = getattr(prefix_iterator, 'token', None)
-    return dict(search_after=search_after, data=uuid_list, token=token, page_count=len(uuid_list))
+    return dict(search_after=search_after, bundles=uuid_list, token=token, page_count=len(uuid_list))
