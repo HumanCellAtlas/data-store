@@ -6,18 +6,20 @@ import sys
 import uuid
 import time
 import unittest
+import json
 
 pkg_root = os.path.abspath(os.path.join(os.path.dirname(__file__), '..'))  # noqa
 sys.path.insert(0, pkg_root)  # noqa
 
-import dss
 from dss.logging import configure_test_logging
-from dss.config import Replica
 from tests.infra import testmode
 from dss.util.async_state import AsyncStateItem, AsyncStateError
+from dss.util.aws.clients import dynamodb as db  # type: ignore
+
 
 def setUpModule():
     configure_test_logging()
+
 
 @testmode.standalone
 class TestAsyncState(unittest.TestCase):
@@ -40,8 +42,25 @@ class TestAsyncState(unittest.TestCase):
         while time.time() < ten_seconds + 1:
             time.sleep(1)
 
-        # Getting an expired item should return None
-        self.assertIsNone(item.get(key))
+        # AWS can take up to 48 hours (though often much sooner) to ACTUALLY delete the expired item
+        # so we filter for expired items
+        query = {
+            "TableName": AsyncStateItem.table,
+            "ExpressionAttributeNames": {
+                "#ttl": "ttl"
+            },
+            "FilterExpression": "#ttl > :ttl",
+            "ExpressionAttributeValues": {
+                ":ttl": {"N": str(int(time.time()))}
+            }
+        }
+        r = db.scan(**query)
+        for result in r['Items']:
+            if result['hash_key']['S'] == key:
+                raise RuntimeError(f'Async Item was found to not contain an expired tag!\n'
+                                   f'{json.dumps(result, indent=4)}\n'
+                                   f'Current time: {str(int(time.time()))}\n'
+                                   f'Earlier time: {ten_seconds}\n')
 
     def test_item(self):
         key = str(uuid.uuid4())
