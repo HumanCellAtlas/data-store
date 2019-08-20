@@ -16,6 +16,11 @@ resource "aws_dynamodb_table" "sfn_state" {
   billing_mode = "PAY_PER_REQUEST"
   hash_key     = "hash_key"
 
+  ttl {
+    attribute_name = "ttl"
+    enabled        = true
+  }
+
   attribute {
     name = "hash_key"
     type = "S"

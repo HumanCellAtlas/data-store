@@ -1,6 +1,7 @@
 import os
 import json
 import typing
+import time
 
 from dss.dynamodb import get_item, put_item, delete_item, DynamoDBItemNotFound
 
@@ -26,8 +27,9 @@ class AsyncStateItem:
             body['_type'] = type(self).__name__
         self.body = body
 
-    def _put(self) -> typing.Any:
-        return put_item(table=self.table, value=json.dumps(self.body), hash_key=self.key)
+    def _put(self, expires: int = None) -> typing.Any:
+        ttl = expires or int(time.time() + 24 * 3600 * 10)  # items expire in 10 days by default
+        return put_item(table=self.table, value=json.dumps(self.body), hash_key=self.key, ttl=ttl)
 
     @property
     def data(self):
