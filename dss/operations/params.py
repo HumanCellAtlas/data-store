@@ -71,7 +71,7 @@ def get_deployed_lambdas():
             lambda_client.get_function(FunctionName=name)
             yield name
         except lambda_client.exceptions.ResourceNotFoundException:
-            print(f"{name} not deployed, or does not deploy a Lambda function")
+            logger.warning(f"{name} not deployed, or does not deploy a Lambda function")
 
 
 def get_elasticsearch_endpoint():
@@ -129,12 +129,12 @@ def ssm_list(argv: typing.List[str], args: argparse.Namespace):
     "ssm-set",
     arguments={
         "--name": dict(
-            required=True, help="name of environment variable to set in the environment"
+            required=True, help="name of environment variable to set in SSM param store"
         ),
         "--value": dict(
             required=False,
             default=None,
-            help="value to set for environment variable "
+            help="value of environment variable "
             "(optional, if not present then stdin "
             "will be used)",
         ),
@@ -170,7 +170,7 @@ def ssm_set(argv: typing.List[str], args: argparse.Namespace):
         val = sys.stdin.read()
 
     if args.dry_run:
-        print(f"Dry-run creating variable \"{name}\" with value \"{val}\" in SSM store")
+        print(f'Dry-run creating variable "{name}" with value "{val}" in SSM store')
     else:
         # Set the variable in the SSM store
         ssm_env = get_ssm_lambda_environment(prefix)
@@ -182,7 +182,7 @@ def ssm_set(argv: typing.List[str], args: argparse.Namespace):
     "ssm-unset",
     arguments={
         "--name": dict(
-            required=True, help="name of environment variable to unset in the SSM store"
+            required=True, help="name of environment variable to unset in SSM param store"
         ),
         "--dry-run": dict(
             default=False,
@@ -204,7 +204,7 @@ def ssm_unset(argv: typing.List[str], args: argparse.Namespace):
 
     # Unset the variable from the SSM store first
     if args.dry_run:
-        print(f"Dry-run deleting variable \"{name}\" in SSM store")
+        print(f'Dry-run deleting variable "{name}" in SSM store')
     else:
         ssm_env = get_ssm_lambda_environment(prefix)
         try:
@@ -248,12 +248,13 @@ def lambda_list(argv: typing.List[str], args: argparse.Namespace):
     "lambda-set",
     arguments={
         "--name": dict(
-            required=True, help="name of variable to set " "in the environment"
+            required=True,
+            help="name of environment variable to set in all lambda environments",
         ),
         "--value": dict(
             required=False,
             default=None,
-            help="value to set for environment variable "
+            help="value of environment variable "
             "(optional, if not present then stdin "
             "will be used)",
         ),
@@ -266,8 +267,6 @@ def lambda_list(argv: typing.List[str], args: argparse.Namespace):
 )
 def lambda_set(argv: typing.List[str], args: argparse.Namespace):
     """Set an environment variable in each deployed lambda"""
-    prefix = get_ssm_prefix()
-
     # Ensure variable name specified
     if len(args.name) == 0:
         msg = "Unable to set variable: no variable name provided. "
@@ -294,7 +293,7 @@ def lambda_set(argv: typing.List[str], args: argparse.Namespace):
             print(f"Dry-run creating variable {name} in lambda {lambda_name}")
     else:
         # Set the variable in the SSM store first
-        ssm_env = get_ssm_lambda_environment(prefix)
+        ssm_env = get_ssm_lambda_environment(get_ssm_prefix())
         ssm_env[name] = val
         set_ssm_lambda_environment(ssm_env)
         # Set the variable in each lambda function
@@ -309,7 +308,7 @@ def lambda_set(argv: typing.List[str], args: argparse.Namespace):
     arguments={
         "--name": dict(
             required=True,
-            help="name of environment variable to unset (applies to all lambdas)",
+            help="name of environment variable to unset in all lambda environments",
         ),
         "--dry-run": dict(
             default=False,
@@ -320,8 +319,6 @@ def lambda_set(argv: typing.List[str], args: argparse.Namespace):
 )
 def lambda_unset(argv: typing.List[str], args: argparse.Namespace):
     """Unset an environment variable in each deployed lambda"""
-    prefix = get_ssm_prefix()
-
     # Ensure variable name specified
     if len(args.name) == 0:
         msg = "Unable to unset variable: no variable name provided. "
@@ -331,9 +328,9 @@ def lambda_unset(argv: typing.List[str], args: argparse.Namespace):
 
     # Unset the variable from the SSM store first
     if args.dry_run:
-        print(f"Dry-run deleting variable \"{name}\" in SSM store")
+        print(f'Dry-run deleting variable "{name}" in SSM store')
     else:
-        ssm_env = get_ssm_lambda_environment(prefix)
+        ssm_env = get_ssm_lambda_environment(get_ssm_prefix())
         try:
             del ssm_env[name]
         except KeyError:
@@ -343,7 +340,7 @@ def lambda_unset(argv: typing.List[str], args: argparse.Namespace):
     # Unset the variable from each lambda function
     for lambda_name in get_deployed_lambdas():
         if args.dry_run:
-            print(f"Dry-run deleting variable \"{name}\" from lambda function \"{lambda_name}\"")
+            print(f'Dry-run deleting variable "{name}" from lambda function "{lambda_name}"')
         else:
             lambda_env = get_deployed_lambda_environment(lambda_name)
             try:

@@ -275,9 +275,9 @@ class TestOperations(unittest.TestCase):
             gs_blob.upload_from_file(fh, content_type="application/octet-stream")
 
     def test_secrets_crud(self):
-        # CRUD (create read update delete)
-        # test for the secrets manager.
-        # 
+        # CRUD (create read update delete) test
+        # for the secrets manager.
+        #
         # Procedure:
         # - create new secret
         # - list secrets and verify new secret shows up
@@ -299,7 +299,9 @@ class TestOperations(unittest.TestCase):
             # Monkeypatch the secrets manager
             with mock.patch("dss.operations.secrets.secretsmanager") as sm:
                 # Creating a new variable will first call get, which will not find it
-                sm.get_secret_value = mock.MagicMock(return_value=None, side_effect=ClientError({}, None))
+                sm.get_secret_value = mock.MagicMock(
+                    return_value=None, side_effect=ClientError({}, None)
+                )
                 # Next we will use the create secret command
                 sm.create_secret = mock.MagicMock(return_value=None)
                 # Create initial secret value
@@ -308,7 +310,7 @@ class TestOperations(unittest.TestCase):
                     argparse.Namespace(
                         secret_name=testvar_name,
                         secret_value=testvar_value,
-                        dry_run=False
+                        dry_run=False,
                     ),
                 )
 
@@ -322,20 +324,26 @@ class TestOperations(unittest.TestCase):
                         return [
                             {
                                 "SecretList": [
-                                    {
-                                        "Name": testvar_name
-                                    },
-                                    {
-                                        "Name": unusedvar_name
-                                    }
+                                    {"Name": testvar_name},
+                                    {"Name": unusedvar_name},
                                 ]
                             }
                         ]
+
+                # Start by testing the plain-text-mode listing
                 sm.get_paginator.return_value = MockPaginator()
+
                 # Test variable name should be in list of secret names
                 with CaptureStdout() as output:
                     secrets.list_secrets([], argparse.Namespace(json=False))
                 self.assertIn(testvar_name, output)
+
+                # Now test json output
+                with CaptureStdout() as output:
+                    secrets.list_secrets([], argparse.Namespace(json=True))
+                output = "\n".join(output)
+                d = json.loads(output)
+                self.assertIn(testvar_name, d)
 
         with self.subTest("Get secret value"):
             with mock.patch("dss.operations.secrets.secretsmanager") as sm:
@@ -343,9 +351,8 @@ class TestOperations(unittest.TestCase):
                 sm.get_secret_value.return_value = {"SecretString": testvar_value}
                 # Now run get secret value in JSON mode and non-JSON mode
                 # and verify variable name/value is in both.
-                #
-                # Start with non-JSON get call:
-                # Single variable:
+
+                # Single variable non-JSON:
                 with CaptureStdout() as output:
                     secrets.get_secret(
                         [], argparse.Namespace(secret_names=[testvar_name], json=False)
@@ -353,37 +360,35 @@ class TestOperations(unittest.TestCase):
                 output = "".join(output)
                 self.assertIn(testvar_name, output)
                 self.assertIn(testvar_value, output)
-                # Multiple variables:
+
+                # Multiple variables non-JSON:
                 with CaptureStdout() as output:
                     secrets.get_secret(
                         [],
                         argparse.Namespace(
-                            secret_names=[testvar_name, unusedvar_name],
-                            json=False
-                        )
+                            secret_names=[testvar_name, unusedvar_name], json=False
+                        ),
                     )
                 output = "".join(output)
                 self.assertIn(testvar_name, output)
                 self.assertIn(testvar_value, output)
-                #
-                # Now JSON get call:
-                # Single variable:
+
+                # Single variable JSON:
                 with CaptureStdout() as output:
                     secrets.get_secret(
-                        [],
-                        argparse.Namespace(secret_names=[testvar_name], json=True),
+                        [], argparse.Namespace(secret_names=[testvar_name], json=True)
                     )
                 output = "".join(output)
                 self.assertIn(testvar_name, output)
                 self.assertIn(testvar_value, output)
-                # Multiple variables:
+
+                # Multiple variables JSON:
                 with CaptureStdout() as output:
                     secrets.get_secret(
                         [],
                         argparse.Namespace(
-                            secret_names=[testvar_name, unusedvar_name],
-                            json=True
-                        )
+                            secret_names=[testvar_name, unusedvar_name], json=True
+                        ),
                     )
                 output = "".join(output)
                 self.assertIn(testvar_name, output)
@@ -392,7 +397,9 @@ class TestOperations(unittest.TestCase):
         with self.subTest("Update existing secret"):
             with mock.patch("dss.operations.secrets.secretsmanager") as sm:
                 # Updating the variable will try to get secret value and succeed
-                sm.get_secret_value = mock.MagicMock(return_value={"SecretString": testvar_value})
+                sm.get_secret_value = mock.MagicMock(
+                    return_value={"SecretString": testvar_value}
+                )
                 # Next we will call the update secret command
                 sm.update_secret = mock.MagicMock(return_value=None)
                 # Update secret
@@ -408,23 +415,22 @@ class TestOperations(unittest.TestCase):
         with self.subTest("Delete secret"):
             with mock.patch("dss.operations.secrets.secretsmanager") as sm:
                 # Deleting the variable will try to get secret value and succeed
-                sm.get_secret_value = mock.MagicMock(return_value={"SecretString": testvar_value})
+                sm.get_secret_value = mock.MagicMock(
+                    return_value={"SecretString": testvar_value}
+                )
                 sm.delete_secret = mock.MagicMock(return_value=None)
                 # Delete secret
                 secrets.del_secret(
                     [],
                     argparse.Namespace(
-                        secret_name=testvar_name,
-                        force=True,
-                        dry_run=False,
+                        secret_name=testvar_name, force=True, dry_run=False
                     ),
                 )
 
-
     def test_ssmparams_crud(self):
-        # CRUD (create read update delete)
-        # test for setting environment variables
-        # in the SSM store.
+        # CRUD (create read update delete) test
+        # for setting environment variables in 
+        # the SSM store.
         #
         # Procedure:
         # - create new parameter in ssm store
@@ -433,32 +439,23 @@ class TestOperations(unittest.TestCase):
         # - list ssm parameters, verify new param is set
         # - delete param
         which_stage = os.environ["DSS_DEPLOYMENT_STAGE"]
-        which_store = os.environ["DSS_PARAMS_STORE"]
+        which_store = os.environ["DSS_PARAMETER_STORE"]
 
         param_name = random_alphanumeric_string()
         testvar_name = f"{which_store}/{which_stage}/{param_name}"
         testvar_value = "Hello world!"
         testvar_value2 = "Goodbye world!"
 
-        # Package up the environment the way
-        # AWS returns it
-        def wrap_environment(e):
-            ssm_e = {"Parameter" : {
-                "Name": "environment",
-                "Value": json.dumps(e)
-            }
-            return ssm_e
-
         # Assemble an old and new environment to return
         old_env = {"dummy_key": "dummy_value"}
         new_env = dict(**old_env)
-        new_env[testvar_name] = testvar_value)
-        ssm_old_env = wrap_env(old_env)
-        ssm_new_env = wrap_env(new_env)
+        new_env[testvar_name] = testvar_value
+        ssm_old_env = self._wrap_ssm_env(old_env)
+        ssm_new_env = self._wrap_ssm_env(new_env)
 
         with self.subTest("Create a new SSM parameter"):
             # Monkeypatch ssm client
-            with mock.patch("dss.operations.ssm") as ssm:
+            with mock.patch("dss.operations.params.ssm_client") as ssm:
                 # ssm_set in params.py first calls ssm.get_parameter
                 # to get the entire environment
                 ssm.get_parameter = mock.MagicMock(return_value=ssm_old_env)
@@ -467,53 +464,50 @@ class TestOperations(unittest.TestCase):
                 params.ssm_set(
                     [],
                     argparse.Namespace(
-                        name=testvar_name,
-                        value=testvar_value,
-                        dry_run=False
+                        name=testvar_name, value=testvar_value, dry_run=False
                     ),
                 )
 
         with self.subTest("List SSM parameters"):
-            # TODO: test json too
-            with mock.patch("dss.operations.ssm") as ssm:
+            with mock.patch("dss.operations.params.ssm_client") as ssm:
                 # Listing parameters from the environment
                 # does not require a pager, it only calls
-                # ssm.get_parameter, which asks for the 
+                # ssm.get_parameter, which asks for the
                 # entire environment as a dictionary
                 ssm.get_parameter = mock.MagicMock(return_value=ssm_new_env)
-                # Now call our params.py module
+
+                # Now call our params.py module. Output var=value on each line.
                 with CaptureStdout() as output:
                     params.ssm_list([], argparse.Namespace(json=False))
-                assertIn("{testvar_name}={testvar_value}", output)
+                self.assertIn(f"{testvar_name}={testvar_value}", output)
 
+                # Call params.py module, output in json format.
+                with CaptureStdout() as output:
+                    params.ssm_list([], argparse.Namespace(json=True))
+                output = "\n".join(output)
+                d = json.loads(output)
+                self.assertIn(testvar_name, d.keys())
 
         with self.subTest("Update existing SSM parameter"):
-            with mock.patch("dss.operations.ssm") as ssm:
+            with mock.patch("dss.operations.params.ssm_client") as ssm:
                 # Mock the same way we did for set new secret above
                 ssm.get_parameter = mock.MagicMock(return_value=ssm_new_env)
                 ssm.put_parameter = mock.MagicMock(return_value=None)
                 params.ssm_set(
                     [],
                     argparse.Namespace(
-                        name=testvar_name,
-                        value=testvar_value2,
-                        dry_run=False
+                        name=testvar_name, value=testvar_value2, dry_run=False
                     ),
                 )
 
         with self.subTest("Unset SSM parameter"):
-            with mock.patch("dss.operations.ssm") as ssm:
+            with mock.patch("dss.operations.params.ssm_client") as ssm:
                 # Mock the same way we did for set new secret above
                 ssm.get_parameter = mock.MagicMock(return_value=ssm_new_env)
                 ssm.put_parameter = mock.MagicMock(return_value=None)
                 params.ssm_unset(
-                    [],
-                    argparse.Namespace(
-                        name=testvar_name,
-                        dry_run=False
-                    )
+                    [], argparse.Namespace(name=testvar_name, dry_run=False)
                 )
-
 
     def test_lambdaparams_crud(self):
         # CRUD (create read update delete)
@@ -529,8 +523,71 @@ class TestOperations(unittest.TestCase):
         # - get param value and verify correct
         # - delete param
         which_stage = os.environ["DSS_DEPLOYMENT_STAGE"]
-        which_store = os.environ["DSS_PARAMS_STORE"]
-        pass
+        which_store = os.environ["DSS_PARAMETER_STORE"]
+
+        param_name = random_alphanumeric_string()
+        testvar_name = f"{which_store}/{which_stage}/{param_name}"
+        testvar_value = "Hello world!"
+        testvar_value2 = "Goodbye world!"
+
+        # Assemble an old and new environment to return
+        old_env = {"dummy_key": "dummy_value"}
+        new_env = dict(**old_env)
+        new_env[testvar_name] = testvar_value
+
+        ssm_old_env = self._wrap_ssm_env(old_env)
+        ssm_new_env = self._wrap_ssm_env(new_env)
+
+        lam_old_env = self._wrap_lambda_env(old_env)
+        lam_new_env = self._wrap_lambda_env(new_env)
+
+        with self.subTest("Create a new lambda parameter"):
+            # Monkeypatch ssm and lambda clients both
+            with mock.patch("dss.operations.params.ssm_client") as ssm:
+                with mock.patch("dss.operations.params.lambda_client") as lam:
+                    # If this is not a dry run, lambda_set in params.py
+                    # will update the SSM first, so we mock those first.
+                    ssm.get_parameter = mock.MagicMock(return_value=ssm_new_env)
+                    ssm.put_parameter = mock.MagicMock(return_value=None)
+
+                    # The lambda_set func in params.py will update lambdas,
+                    # so we mock those too.
+                    lam.get_function = mock.MagicMock(return_value=None)
+                    lam.get_function_configuration = mock.MagicMock(return_value=ssm_new_env)
+                    lam.update_function_configuration = mock.MagicMock(return_value=None)
+
+                    # Do it
+                    params.lambda_set(
+                        [], 
+                        argparse.Namespace(
+                            name=testvar_name,
+                            value = testvar_value,
+                            dry_run=False
+                        )
+                    )
+
+        with self.subTest("List lambda parameters"):
+            # Monkeypatch the lambda client
+            with mock.patch("dss.operations.params.lambda_client") as lam:
+                # The lambda_list func in params.py
+                lam.get_function_configuration = mock.MagicMock(return_value=ssm_new_env) 
+
+        with self.subTest("Update existing lambda parameters"):
+            pass
+
+        with self.subTest("Unset lambda parameters"):
+            pass
+
+    def _wrap_lambda_env(self, e):
+        # Package up the lambda environment the way AWS returns it
+        lam_e = {"Environment": {"Variables": json.dumps(e)}}
+        return lam_e
+
+    def _wrap_ssm_env(e):
+        # Package up the SSM environment the way AWS returns it
+        ssm_e = {"Parameter": {"Name": "environment", "Value": json.dumps(e)}}
+        return ssm_e
+
 
 if __name__ == '__main__':
     unittest.main()
