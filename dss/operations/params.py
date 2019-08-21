@@ -36,6 +36,7 @@ def get_ssm_prefix():
 def get_ssm_lambda_environment(prefix):
     p = ssm_client.get_parameter(Name=f"/{prefix}/environment")
     parms = p["Parameter"]["Value"]
+    # above value is a string; convert to dict
     return json.loads(parms)
 
 
@@ -52,6 +53,7 @@ def set_ssm_lambda_environment(parms: dict):
 
 def get_deployed_lambda_environment(name):
     c = lambda_client.get_function_configuration(FunctionName=name)
+    # above value is a dict, no need to convert
     return c["Environment"]["Variables"]
 
 
@@ -221,23 +223,38 @@ def ssm_unset(argv: typing.List[str], args: argparse.Namespace):
             default=False,
             action="store_true",
             help="format the output as JSON if this flag is present",
-        )
+        ),
+        "--lambda-name": dict(
+            required=False,
+            default=None,
+            help="specify the name of a lambda function whose environment will be listed",
+        ),
     },
 )
 def lambda_list(argv: typing.List[str], args: argparse.Namespace):
     """Print out the current environment of all deployed lambda functions"""
-    # Iterate over each deployed lambda,
+    # Determine if we are doing this for all lambdas
+    # or one specific lambda
+    if args.lambda_name:
+        lambda_names = [args.lambda_name]
+    else:
+        lambda_names = get_deployed_lambdas()
+
+    # Iterate over each specified lambda,
     # get its current environment,
-    # and list all env vars
+    # and list all its env vars
     if args.json:
         # Need to assemble our own dictionary
         d = {}
-        for lambda_name in get_deployed_lambdas():
+        for lambda_name in lambda_names:
             lambda_env = get_deployed_lambda_environment(lambda_name)
             d[lambda_name] = lambda_env
         print(json.dumps(d, indent=4))
+
     else:
-        for lambda_name in get_deployed_lambdas():
+        # Iterate over each specified lambda function
+        # and print its environment
+        for lambda_name in lambda_names:
             lambda_env = get_deployed_lambda_environment(lambda_name)
             print(f"\n{lambda_name}:")
             for name, val in lambda_env.items():

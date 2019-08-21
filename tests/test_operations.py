@@ -559,7 +559,7 @@ class TestOperations(unittest.TestCase):
                     # The lambda_set func in params.py will update lambdas,
                     # so we mock those too.
                     lam.get_function = mock.MagicMock(return_value=None)
-                    lam.get_function_configuration = mock.MagicMock(return_value=ssm_new_env)
+                    lam.get_function_configuration = mock.MagicMock(return_value=lam_new_env)
                     lam.update_function_configuration = mock.MagicMock(return_value=None)
 
                     # Do it
@@ -575,8 +575,57 @@ class TestOperations(unittest.TestCase):
         with self.subTest("List lambda parameters"):
             # Monkeypatch the lambda client
             with mock.patch("dss.operations.params.lambda_client") as lam:
+
                 # The lambda_list func in params.py
-                lam.get_function_configuration = mock.MagicMock(return_value=ssm_new_env) 
+                # calls get_deployed_lambas, which calls
+                # lam.get_function() using daemon folder names
+                # (this function is called only to ensure no exception is thrown)
+                lam.get_function = mock.MagicMock(return_value=None)
+                # Next we call get_deployed_lambda_environment(),
+                # which calls lam.get_function_configuration
+                # (which must return the mocked env vars json)
+                lam.get_function_configuration = mock.MagicMock(return_value=lam_new_env)
+
+                # Non-JSON fmt, no lambda name specified
+                with CaptureStdout() as output:
+                    params.lambda_list(
+                        [], 
+                        argparse.Namespace(
+                            lambda_name=None,
+                            json=False
+                        )
+                    )
+                self.assertIn(f"{testvar_name}={testvar_value}",output)
+
+                # JSON fmt, no lambda name specified
+                with CaptureStdout() as output:
+                    params.lambda_list(
+                        [], 
+                        argparse.Namespace(
+                            lambda_name=None,
+                            json=True
+                        )
+                    )
+                all_lam_envs = json.loads("\n".join(output))
+                for lam_name in all_lam_envs.keys():
+                    lam_env = all_lam_envs[lam_name]
+                    self.assertIn(testvar_name, lam_env.keys())
+
+                # JSON fmt, lambda name specified
+                with CaptureStdout() as output:
+                    stage = os.environ["DSS_DEPLOYMENT_STAGE"]
+                    params.lambda_list(
+                        [], 
+                        argparse.Namespace(
+                            lambda_name=f"dss-{stage}",
+                            json=True
+                        )
+                    )
+                all_lam_envs = json.loads("\n".join(output))
+                keys = list(all_lam_envs.keys())
+                self.assertTrue(len(keys)==1)
+                self.assertIn(testvar_name, all_lam_envs[keys[0]])
+
 
         with self.subTest("Update existing lambda parameters"):
             pass
@@ -586,11 +635,13 @@ class TestOperations(unittest.TestCase):
 
     def _wrap_lambda_env(self, e):
         # Package up the lambda environment the way AWS returns it
-        lam_e = {"Environment": {"Variables": json.dumps(e)}}
+        # Value should be dictionary/JSON, not a string
+        lam_e = {"Environment": {"Variables": e}}
         return lam_e
 
-    def _wrap_ssm_env(e):
+    def _wrap_ssm_env(self, e):
         # Package up the SSM environment the way AWS returns it
+        # Value should be a string of JSON data
         ssm_e = {"Parameter": {"Name": "environment", "Value": json.dumps(e)}}
         return ssm_e
 
