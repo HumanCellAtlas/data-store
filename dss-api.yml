@@ -1993,7 +1993,7 @@ paths:
                   code:
                     type: string
                     description: Machine-readable error code.  The types of return values should not be changed lightly.
-                    enum: [unhandled_exception, illegal_arguments, read_only]
+                    enum: [unhandled_exception, illegal_arguments, read_only, not_found]
                 required:
                   - code
   /bundles/{uuid}/checkout:
