@@ -69,14 +69,14 @@ Full disclosure: the ordering constraints enforced by FIFO queues are obviously 
 than one worker consumes a queue. Furthermore, the unqiqueness constraint (aka "exactly-once delivery") of FIFO queues
 is weakened by two rare, but unavoidable race conditions. 
 
-  1) It is possible for a failed notification to become visible on queue N while it is being enqueued in queue N+1.
-  Reversing the order of operations—deleting the message from queue N before enqueueing it in queue N+1—would risk the
-  loss of that notification if the worker thread is interrupted in between the two steps. In other words, the design
-  favors duplication over data loss.
+1) It is possible for a failed notification to become visible on queue N while it is being enqueued in queue N+1.
+Reversing the order of operations—deleting the message from queue N before enqueueing it in queue N+1—would risk the
+loss of that notification if the worker thread is interrupted in between the two steps. In other words, the design
+favors duplication over data loss.
 
-  2) When delivering a notification to a slow endpoint, it is possible that the endpoint considers the request a
-  success whereas the notifier sees it as a timeout. Once the notification attempt times out, the 200 HTTP status
-  response will be discarded, and the message will be enqueued in the next queue for another attempt.
+2) When delivering a notification to a slow endpoint, it is possible that the endpoint considers the request a
+success whereas the notifier sees it as a timeout. Once the notification attempt times out, the 200 HTTP status
+response will be discarded, and the message will be enqueued in the next queue for another attempt.
 
 Lastly, FIFO message groups also interfere with the invariant that messages mature in FIFO order. A call to SQS's
 `ReceiveMessage` API on a FIFO may return a probabalistic sampling of messages from different message groups, therefore
