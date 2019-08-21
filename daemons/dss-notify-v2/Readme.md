@@ -93,6 +93,7 @@ The bundle metadata document format for a new bundle or version is is
 ```
 
 For a tombstone it is
+
 ```
 {
   'event_type': "TOMBSTONE",
@@ -104,6 +105,7 @@ For a tombstone it is
 ```
 
 For a deleted bundle it is
+
 ```
 {
   'event_type': "DELETE",
