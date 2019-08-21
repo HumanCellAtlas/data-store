@@ -13,23 +13,12 @@ from botocore.exceptions import ClientError
 
 from dss.operations import dispatch
 from dss.util.aws.clients import secretsmanager  # type: ignore
+from dss.operations.util import get_variable_prefix
 
 logger = logging.getLogger(__name__)
 
 
-def get_secretsmanager_prefix():
-    """
-    Use information from the environment to assemble
-    the necessary prefix for accessing variables in
-    the SecretsManager.
-    """
-    store_name = os.environ["DSS_SECRETS_STORE"]
-    stage_name = os.environ["DSS_DEPLOYMENT_STAGE"]
-    store_prefix = f"{store_name}/{stage_name}/"
-    return store_prefix
-
-
-events = dispatch.target("secrets", arguments={}, help=__doc__)
+secrets = dispatch.target("secrets", arguments={}, help=__doc__)
 
 
 @events.action(
@@ -47,7 +36,7 @@ def list_secrets(argv: typing.List[str], args: argparse.Namespace):
     Print a list of names of every secret variable in the secrets manager
     for the given store and stage.
     """
-    store_prefix = get_secretsmanager_prefix()
+    store_prefix = get_variable_prefix()
 
     paginator = secretsmanager.get_paginator("list_secrets")
 
@@ -94,7 +83,7 @@ def get_secret(argv: typing.List[str], args: argparse.Namespace):
     # Note: this function should not print anything except the final JSON,
     # in case the user pipes the JSON output of this script to something else
 
-    store_prefix = get_secretsmanager_prefix()
+    store_prefix = get_variable_prefix()
 
     # Make sure something was specified for secret name(s)
     if len(args.secret_names) == 0:
@@ -156,7 +145,7 @@ def get_secret(argv: typing.List[str], args: argparse.Namespace):
 )
 def set_secret(argv: typing.List[str], args: argparse.Namespace):
     """Set the value of the secret variable specified by the --secret-name flag"""
-    store_prefix = get_secretsmanager_prefix()
+    store_prefix = get_variable_prefix()
 
     # Make sure a secret name was specified
     if len(args.secret_name) == 0:
@@ -191,29 +180,21 @@ def set_secret(argv: typing.List[str], args: argparse.Namespace):
 
         if args.dry_run:
             # Create it for fakes
-            print(
-                f"Secret variable {secret_name} not found in secrets manager, dry-run creating it"
-            )
+            print(f"Dry-run creating secret variable {secret_name} in secrets manager")
         else:
             # Create it for real
-            print(
-                f"Secret variable {secret_name} not found in secrets manager, creating it"
-            )
             secretsmanager.create_secret(Name=secret_name, SecretString=secret_val)
+            print(f"Created secret variable {secret_name} in secrets manager")
 
     else:
         # Get operation was successful, secret variable exists
         if args.dry_run:
             # Update it for fakes
-            print(
-                f"Secret variable {secret_name} found in secrets manager, dry-run updating it"
-            )
+            print(f"Dry-run updating secret variable {secret_name} in secrets manager")
         else:
             # Update it for real
-            print(
-                f"Secret variable {secret_name} found in secrets manager, updating it"
-            )
             secretsmanager.update_secret(SecretId=secret_name, SecretString=secret_val)
+            print(f"Updated secret variable {secret_name} in secrets manager")
 
 
 @events.action(
@@ -239,7 +220,7 @@ def del_secret(argv: typing.List[str], args: argparse.Namespace):
     Delete the value of the secret variable specified by the
     --secret-name flag from the secrets manager
     """
-    store_prefix = get_secretsmanager_prefix()
+    store_prefix = get_variable_prefix()
 
     # Make sure a secret name was specified
     if len(args.secret_name) == 0:
@@ -279,12 +260,8 @@ def del_secret(argv: typing.List[str], args: argparse.Namespace):
         # Get operation was successful, secret variable exists
         if args.dry_run:
             # Delete it for fakes
-            print(
-                f"Secret variable {secret_name} found in secrets manager, dry-run deleting it"
-            )
+            print(f"Dry-run deleting secret variable {secret_name} in secrets manager")
         else:
             # Delete it for real
-            print(
-                f"Secret variable {secret_name} found in secrets manager, deleting it"
-            )
             secretsmanager.delete_secret(SecretId=secret_name)
+            print(f"Deleted secret variable {secret_name} in secrets manager")

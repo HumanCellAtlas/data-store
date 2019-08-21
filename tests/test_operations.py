@@ -435,7 +435,7 @@ class TestOperations(unittest.TestCase):
 
     def test_ssmparams_crud(self):
         # CRUD (create read update delete) test
-        # for setting environment variables in 
+        # for setting environment variables in
         # the SSM store.
         #
         # Procedure:
@@ -534,17 +534,17 @@ class TestOperations(unittest.TestCase):
         param_name = random_alphanumeric_string()
         testvar_name = f"{which_store}/{which_stage}/{param_name}"
         testvar_value = "Hello world!"
-        testvar_value2 = "Goodbye world!"
+        # testvar_value2 = "Goodbye world!"
 
         # Assemble an old and new environment to return
         old_env = {"dummy_key": "dummy_value"}
         new_env = dict(**old_env)
         new_env[testvar_name] = testvar_value
 
-        ssm_old_env = self._wrap_ssm_env(old_env)
+        # ssm_old_env = self._wrap_ssm_env(old_env)
         ssm_new_env = self._wrap_ssm_env(new_env)
 
-        lam_old_env = self._wrap_lambda_env(old_env)
+        # lam_old_env = self._wrap_lambda_env(old_env)
         lam_new_env = self._wrap_lambda_env(new_env)
 
         with self.subTest("Create a new lambda parameter"):
@@ -564,10 +564,10 @@ class TestOperations(unittest.TestCase):
 
                     # Do it
                     params.lambda_set(
-                        [], 
+                        [],
                         argparse.Namespace(
                             name=testvar_name,
-                            value = testvar_value,
+                            value=testvar_value,
                             dry_run=False
                         )
                     )
@@ -589,18 +589,18 @@ class TestOperations(unittest.TestCase):
                 # Non-JSON fmt, no lambda name specified
                 with CaptureStdout() as output:
                     params.lambda_list(
-                        [], 
+                        [],
                         argparse.Namespace(
                             lambda_name=None,
                             json=False
                         )
                     )
-                self.assertIn(f"{testvar_name}={testvar_value}",output)
+                self.assertIn(f"{testvar_name}={testvar_value}", output)
 
                 # JSON fmt, no lambda name specified
                 with CaptureStdout() as output:
                     params.lambda_list(
-                        [], 
+                        [],
                         argparse.Namespace(
                             lambda_name=None,
                             json=True
@@ -615,7 +615,7 @@ class TestOperations(unittest.TestCase):
                 with CaptureStdout() as output:
                     stage = os.environ["DSS_DEPLOYMENT_STAGE"]
                     params.lambda_list(
-                        [], 
+                        [],
                         argparse.Namespace(
                             lambda_name=f"dss-{stage}",
                             json=True
@@ -623,9 +623,8 @@ class TestOperations(unittest.TestCase):
                     )
                 all_lam_envs = json.loads("\n".join(output))
                 keys = list(all_lam_envs.keys())
-                self.assertTrue(len(keys)==1)
+                self.assertTrue(len(keys) == 1)
                 self.assertIn(testvar_name, all_lam_envs[keys[0]])
-
 
         with self.subTest("Update existing lambda parameters"):
             pass

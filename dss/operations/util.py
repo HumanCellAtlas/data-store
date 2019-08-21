@@ -40,16 +40,13 @@ def map_bucket(*args, **kwargs):
     for _ in map_bucket_results(*args, **kwargs):
         pass
 
-def get_store_prefix(args):
+def get_variable_prefix():
     """
     Use information from the environment to assemble
-    the necessary prefix for accessing variables or
-    parameters (useful for secrets manager and param
-    store actions).
+    the necessary prefix for accessing variables in
+    the secrets manager or paramter store.
     """
-    store_name = os.environ["DSS_SECRETS_STORE"]
-    if args.stage is None:
-        stage_name = os.environ["DSS_DEPLOYMENT_STAGE"]
-
-    store_prefix = f"{store_name}/{stage_name}/"
+    store_name = os.environ["DSS_PARAMETER_STORE"]
+    stage_name = os.environ["DSS_DEPLOYMENT_STAGE"]
+    store_prefix = f"{store_name}/{stage_name}"
     return store_prefix
