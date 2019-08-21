@@ -18,10 +18,8 @@ or via SQS queue:
 * Lambda-triggered via SQS `dss-notify-v2-{DSS_DEPLOYMENT_STAGE}`
 
 If notification delivery fails, a notification record is made in the queue. Delivery will be attempted once
-after 15 minutes, and again every hour for 7 days.  No further notification will be delivered and 
-be removed from the notify service after 7 days of failure. The old subscription will remain however and the user would
-need to delete the old subscription and create a new subscription in order to receive new notifcations.
-Delivery delay and duration is configured via SQS DelaySeconds and VisibilityTimeout.
+after 15 minutes, and again every hour for 7 days. Delivery delay and duration is 
+configured via SQS DelaySeconds
 
 Event handlers in the dss-notify-v2 daemon use utility functions in
 [dss.events.handlers.notify_v2](../../dss/events/handlers/notify_v2.py).
