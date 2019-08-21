@@ -19,7 +19,7 @@ or via SQS queue:
 
 If notification delivery fails, a notification record is made in the queue. Delivery will be attempted once
 after 15 minutes, and again every hour for 7 days. Delivery delay and duration is 
-configured via SQS attribute.
+configured via SQS attribute DelaySeconds.
 
 Event handlers in the dss-notify-v2 daemon use utility functions in
 [dss.events.handlers.notify_v2](../../dss/events/handlers/notify_v2.py).
