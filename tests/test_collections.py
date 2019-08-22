@@ -139,12 +139,12 @@ class TestCollections(unittest.TestCase, DSSAssertMixin, DSSUploadMixin):
             self.assertEquals(link['rel'], 'next')
             parsed = urlsplit(link['url'])
             url = UrlBuilder().set(path=parsed.path, query=parse_qsl(parsed.query), fragment=parsed.fragment)
+            self.assertEqual(resp_obj.response.headers['X-OpenAPI-Pagination'], 'true')
+            self.assertEqual(resp_obj.response.headers['X-OpenAPI-Paginated-Content-Key'], 'collections')
             resp_obj = self.assertGetResponse(str(url),
                                               expected_code=codes,
                                               headers=get_auth_header(authorized=True))
             link_header = resp_obj.response.headers.get('Link')
-            self.assertEqual(resp_obj.response.headers['X-OpenAPI-Pagination'], 'true')
-            self.assertEqual(resp_obj.response.headers['X-OpenAPI-Paginated-Content-Key'], 'collections')
 
         self.assertEqual(resp_obj.response.headers['X-OpenAPI-Pagination'], 'false')
         self.assertEqual(resp_obj.response.status_code, requests.codes.ok)
