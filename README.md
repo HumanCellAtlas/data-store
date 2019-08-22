@@ -241,14 +241,14 @@ When deploying for the first time, a Google Cloud Platform service account must 
 1.  Run the command
 
     ```
-    cat $DSS_HOME/gcp-credentials.json | scripts/set_secret.py --secret-name $GOOGLE_APPLICATION_CREDENTIALS_SECRETS_NAME
+    cat $DSS_HOME/gcp-credentials.json | ./scripts/dss-ops.py secrets set --secret-name $GOOGLE_APPLICATION_CREDENTIALS_SECRETS_NAME
     ```
 
 ### Setting admin emails
 
 Set admin account emails within AWS Secret Manager
 ```
-echo ' ' |  ./scripts/set_secret.py --secret-name $ADMIN_USER_EMAILS_SECRETS_NAME
+echo ' ' |  ./scripts/dss-ops.py secrets set --secret-name $ADMIN_USER_EMAILS_SECRETS_NAME
  ```
 
 ### Deploying the DSS
@@ -282,7 +282,7 @@ t2.small.elasticsearch instance type is sufficient. Use the [`DSS_ES_`](./docs/e
 
 Add allowed IPs for ElasticSearch to the secret manager, use comma separated IPs:
 ```
-echo ' ' | ./scripts/set_secret.py --secret-name $ES_ALLOWED_SOURCE_IP_SECRETS_NAME
+echo ' ' | ./scripts/dss-ops.py secret set --secret-name $ES_ALLOWED_SOURCE_IP_SECRETS_NAME
 
 ```
 Use Terraform to deploy ES resource:
