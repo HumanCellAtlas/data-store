@@ -136,7 +136,7 @@ The DSS uses the [Amazon S3 backend](https://www.terraform.io/docs/backends/type
 	1) Run the command
 
 	   ```
-	   cat $DSS_HOME/application_secrets.json | scripts/dss-ops.py secrets set --secret-name $GOOGLE_APPLICATION_SECRETS_SECRETS_NAME
+	   cat $DSS_HOME/application_secrets.json | ./scripts/dss-ops.py secrets set --secret-name $GOOGLE_APPLICATION_SECRETS_SECRETS_NAME
        ```
 
        **WARNING:** Running the above command will change secrets!
