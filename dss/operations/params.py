@@ -22,7 +22,8 @@ lambda_client = getattr(dss.util.aws.clients, "lambda")
 logger = logging.getLogger(__name__)
 
 
-def get_ssm_lambda_environment(prefix):
+def get_ssm_lambda_environment():
+    prefix = get_variable_prefix()
     p = ssm_client.get_parameter(Name=f"/{prefix}/environment")
     parms = p["Parameter"]["Value"]
     # above value is a string; convert to dict
@@ -30,10 +31,9 @@ def get_ssm_lambda_environment(prefix):
 
 
 def set_ssm_lambda_environment(parms: dict):
-    store = os.environ["DSS_PARAMETER_STORE"]
-    stage = os.environ["DSS_DEPLOYMENT_STAGE"]
+    prefix = get_variable_prefix()
     ssm_client.put_parameter(
-        Name=f"/{store}/{stage}/environment",
+        Name=f"/{prefix}/environment",
         Value=json.dumps(parms),
         Type="String",
         Overwrite=True,
@@ -53,7 +53,7 @@ def set_deployed_lambda_environment(name, env: dict):
 
 
 def get_deployed_lambdas():
-    root, dirs, files = next(os.walk(os.path.join(os.environ["DSS_HOME"], "daemons")))
+    _, dirs, _ = next(os.walk(os.path.join(os.environ["DSS_HOME"], "daemons")))
     stage = os.environ["DSS_DEPLOYMENT_STAGE"]
     functions = [f"{name}-{stage}" for name in dirs]
     functions.append(f"dss-{stage}")
@@ -104,10 +104,8 @@ params = dispatch.target("params", arguments={}, help=__doc__)
 )
 def ssm_list(argv: typing.List[str], args: argparse.Namespace):
     """Print out all environment variables stored in the SSM store"""
-    prefix = get_variable_prefix()
-
     # Iterate over all env vars and print them out
-    ssm_env = get_ssm_lambda_environment(prefix)
+    ssm_env = get_ssm_lambda_environment()
     if args.json:
         print(json.dumps(ssm_env, indent=4))
     else:
@@ -138,8 +136,6 @@ def ssm_list(argv: typing.List[str], args: argparse.Namespace):
 )
 def ssm_set(argv: typing.List[str], args: argparse.Namespace):
     """Set an environment variable in the SSM store"""
-    prefix = get_variable_prefix()
-
     # Ensure variable name specified
     if len(args.name) == 0:
         msg = "Unable to set variable: no variable name provided. "
@@ -164,7 +160,7 @@ def ssm_set(argv: typing.List[str], args: argparse.Namespace):
         print(f'Dry-run creating variable "{name}" with value "{val}" in SSM store')
     else:
         # Set the variable in the SSM store
-        ssm_env = get_ssm_lambda_environment(prefix)
+        ssm_env = get_ssm_lambda_environment()
         ssm_env[name] = val
         set_ssm_lambda_environment(ssm_env)
         print(f'Created variable "{name}" with value "{val}" in SSM store')
@@ -185,8 +181,6 @@ def ssm_set(argv: typing.List[str], args: argparse.Namespace):
 )
 def ssm_unset(argv: typing.List[str], args: argparse.Namespace):
     """Unset an environment variable in the SSM store"""
-    prefix = get_variable_prefix()
-
     # Ensure variable name specified
     if len(args.name) == 0:
         msg = "Unable to set variable: no variable name provided. "
@@ -198,7 +192,7 @@ def ssm_unset(argv: typing.List[str], args: argparse.Namespace):
     if args.dry_run:
         print(f'Dry-run deleting variable "{name}" from SSM store')
     else:
-        ssm_env = get_ssm_lambda_environment(prefix)
+        ssm_env = get_ssm_lambda_environment()
         try:
             del ssm_env[name]
         except KeyError:
@@ -301,7 +295,7 @@ def lambda_set(argv: typing.List[str], args: argparse.Namespace):
             print(f"Dry-run creating variable {name} in lambda {lambda_name}")
     else:
         # Set the variable in the SSM store first
-        ssm_env = get_ssm_lambda_environment(get_variable_prefix())
+        ssm_env = get_ssm_lambda_environment()
         ssm_env[name] = val
         set_ssm_lambda_environment(ssm_env)
         print(f"Created variable {name} in SSM store")
@@ -340,7 +334,7 @@ def lambda_unset(argv: typing.List[str], args: argparse.Namespace):
     if args.dry_run:
         print(f'Dry-run deleting variable "{name}" from SSM store')
     else:
-        ssm_env = get_ssm_lambda_environment(get_variable_prefix())
+        ssm_env = get_ssm_lambda_environment()
         try:
             del ssm_env[name]
         except KeyError:
