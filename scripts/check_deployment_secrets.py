@@ -100,8 +100,6 @@ class SecretsChecker(object):
         except json.decoder.JSONDecodeError:
             self.missing_secrets.append(secret_name)
             return
-        # Check this
-        # import pdb; pdb.set_trace()
         if not (('installed' not in secret) or ('client_email' not in secret)) and (self.stage in self.stages):
             self.malformed_secrets.append(secret_name)
             return
