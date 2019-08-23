@@ -252,6 +252,9 @@ paths:
           description: All results retrieved.
           schema:
             $ref: '#/definitions/SearchResult'
+          headers:
+            X-OpenAPI-Pagination:
+              type: boolean
         206:
           description: A single page of results was retrieved.
           schema:
@@ -260,6 +263,11 @@ paths:
             Link:
               type: string
               description: URL to retrieve the next page of results.
+            X-OpenAPI-Pagination:
+              type: boolean
+            X-OpenAPI-Paginated-Content-Key:
+              type: string
+              description: The JSON response body key containing an array of results that are paginated.
         default:
           description: Unexpected error
           schema:
@@ -1056,6 +1064,9 @@ paths:
                 type: array
                 items:
                   $ref: '#/definitions/CollectionOfCollectionsItem'
+          headers:
+            X-OpenAPI-Pagination:
+              type: boolean
         206:
           description: A single page of results was retrieved.
           schema:
@@ -1073,6 +1084,11 @@ paths:
                 URL to retrieve the next page of results, conforming to [RFC 5988](https://tools.ietf.org/html/rfc5988)
                 The URL in the header refers to the next page of the results to be fetched; if no `Link rel="next"` URL is
                 included, then all results have been fetched.
+            X-OpenAPI-Pagination:
+              type: boolean
+            X-OpenAPI-Paginated-Content-Key:
+              type: string
+              description: The JSON response body key containing an array of results that are paginated.
         500:
           $ref: '#/responses/ServerError'
         502:
@@ -1501,6 +1517,9 @@ paths:
             properties:
               bundle:
                 $ref: "#/definitions/bundle_version"
+          headers:
+            X-OpenAPI-Pagination:
+              type: boolean
         206:
           description: A single page of results was retrieved.
           schema:
@@ -1515,6 +1534,11 @@ paths:
                 URL to retrieve the next page of results, conforming to [RFC 5988](https://tools.ietf.org/html/rfc5988)
                 The URL in the header refers to the next page of the results to be fetched; if no `Link rel="next"` URL is
                 included, then all results have been fetched.
+            X-OpenAPI-Pagination:
+              type: boolean
+            X-OpenAPI-Paginated-Content-Key:
+              type: string
+              description: The JSON response body key containing an array of results that are paginated.
         301:
           description: >
             The bundle is still being fetched. The request is being handled asynchronously. The client should follow the

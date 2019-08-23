@@ -126,9 +126,13 @@ def get(
     )
 
     if link is None:
-        return response_body
+        response = make_response(jsonify(response_body), requests.codes.ok)
+        response.headers['X-OpenAPI-Pagination'] = 'false'
+        return response
     else:
         response = make_response(jsonify(response_body), requests.codes.partial)
+        response.headers['X-OpenAPI-Pagination'] = 'true'
+        response.headers['X-OpenAPI-Paginated-Content-Key'] = 'files'
         response.headers['Link'] = link
         return response
 

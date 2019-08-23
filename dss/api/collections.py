@@ -76,11 +76,14 @@ def list_collections(per_page: int, start_at: int = 0):
         collection_page = collections[start_at:start_at + per_page]
         response = make_response(jsonify({'collections': collection_page}), requests.codes.partial)
         response.headers['Link'] = f"<{next_url}>; rel='next'"
-        return response
+        response.headers['X-OpenAPI-Pagination'] = 'true'
+        response.headers['X-OpenAPI-Paginated-Content-Key'] = 'collections'
     # single response returning all collections (or those remaining)
     else:
         collection_page = collections[start_at:]
-        return jsonify({'collections': collection_page}), requests.codes.ok
+        response = make_response(jsonify({'collections': collection_page}), requests.codes.ok)
+        response.headers['X-OpenAPI-Pagination'] = 'false'
+    return response
 
 
 @dss_handler
