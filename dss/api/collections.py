@@ -76,11 +76,14 @@ def list_collections(per_page: int, start_at: int = 0):
         collection_page = collections[start_at:start_at + per_page]
         response = make_response(jsonify({'collections': collection_page}), requests.codes.partial)
         response.headers['Link'] = f"<{next_url}>; rel='next'"
-        return response
+        response.headers['X-OpenAPI-Pagination'] = 'true'
+        response.headers['X-OpenAPI-Paginated-Content-Key'] = 'collections'
     # single response returning all collections (or those remaining)
     else:
         collection_page = collections[start_at:]
-        return jsonify({'collections': collection_page}), requests.codes.ok
+        response = make_response(jsonify({'collections': collection_page}), requests.codes.ok)
+        response.headers['X-OpenAPI-Pagination'] = 'false'
+    return response
 
 
 @dss_handler
@@ -103,9 +106,6 @@ def put(json_request_body: dict, replica: str, uuid: str, version: str):
     collection_body["contents"] = _dedpuplicate_contents(collection_body["contents"])
     verify_collection(collection_body["contents"], Replica[replica], handle)
     collection_uuid = uuid if uuid else str(uuid4())
-    if version is None:
-        timestamp = datetime.datetime.utcnow()
-        version = datetime_to_version_format(timestamp)
     collection_version = version
     # update dynamoDB; used to speed up lookup time; will not update if owner already associated w/uuid
     owner_lookup.put_collection(owner=authenticated_user_email,

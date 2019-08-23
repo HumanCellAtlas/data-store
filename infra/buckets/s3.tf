@@ -2,12 +2,14 @@ data "aws_caller_identity" "current" {}
 
 locals {
   common_tags = "${map(
-    "managedBy" , "terraform",
-    "Name"      , "${var.DSS_INFRA_TAG_PROJECT}-${var.DSS_DEPLOYMENT_STAGE}-${var.DSS_INFRA_TAG_SERVICE}",
     "project"   , "${var.DSS_INFRA_TAG_PROJECT}",
     "env"       , "${var.DSS_DEPLOYMENT_STAGE}",
-    "service"   , "${var.DSS_INFRA_TAG_SERVICE}",
-    "owner"     , "${var.DSS_INFRA_TAG_OWNER}"
+    "service"   , "${var.DSS_INFRA_TAG_SERVICE}"
+  )}"
+  aws_tags = "${map(
+  "Name"      , "${var.DSS_INFRA_TAG_SERVICE}-s3-storage",
+  "owner"     , "${var.DSS_INFRA_TAG_OWNER}",
+  "managedBy" , "terraform"
   )}"
 }
 
@@ -15,9 +17,13 @@ resource aws_s3_bucket dss_s3_bucket {
   count = "${length(var.DSS_S3_BUCKET) > 0 ? 1 : 0}"
   bucket = "${var.DSS_S3_BUCKET}"
   server_side_encryption_configuration {
-    rule {apply_server_side_encryption_by_default {sse_algorithm = "AES256"}}
+    rule {
+	  apply_server_side_encryption_by_default {
+        sse_algorithm = "AES256"
+      }
+    }
   }
-  tags = "${local.common_tags}"
+  tags = "${merge(local.common_tags, local.aws_tags)}"
 }
 
 resource aws_s3_bucket dss_s3_bucket_test {
@@ -31,25 +37,29 @@ resource aws_s3_bucket dss_s3_bucket_test {
       days = "${var.DSS_BLOB_TTL_DAYS}"
     }
   }
-  tags = "${local.common_tags}"
+  tags = "${merge(local.common_tags, local.aws_tags)}"
 }
 
 resource aws_s3_bucket dss_s3_bucket_test_fixtures {
   count = "${var.DSS_DEPLOYMENT_STAGE == "dev" ? 1 : 0}"
   bucket = "${var.DSS_S3_BUCKET_TEST_FIXTURES}"
-  tags = "${local.common_tags}"
+  tags = "${merge(local.common_tags, local.aws_tags)}"
 }
 
 resource aws_s3_bucket dss_s3_checkout_bucket {
   count = "${length(var.DSS_S3_CHECKOUT_BUCKET) > 0 ? 1 : 0}"
   bucket = "${var.DSS_S3_CHECKOUT_BUCKET}"
   server_side_encryption_configuration {
-    rule {apply_server_side_encryption_by_default {sse_algorithm = "AES256"}}
+    rule {
+      apply_server_side_encryption_by_default {
+        sse_algorithm = "AES256"
+      }
+    }
   }
   lifecycle_rule {
     id = "dss_checkout_expiration"
     enabled = true
-    tags {
+    tags = {
       "uncached" = "true"
     }
     expiration {
@@ -61,7 +71,7 @@ resource aws_s3_bucket dss_s3_checkout_bucket {
     enabled = true
     abort_incomplete_multipart_upload_days = "${var.DSS_BLOB_TTL_DAYS}"
   }
-  tags = "${local.common_tags}"
+  tags = "${merge(local.common_tags, local.aws_tags)}"
   cors_rule {
     allowed_methods = [
       "HEAD",
@@ -88,7 +98,7 @@ resource aws_s3_bucket dss_s3_checkout_bucket_test {
       days = "${var.DSS_BLOB_TTL_DAYS}"
     }
   }
-  tags = "${local.common_tags}"
+  tags = "${merge(local.common_tags, local.aws_tags)}"
 }
 
 resource aws_s3_bucket dss_s3_checkout_bucket_test_user {
@@ -102,13 +112,13 @@ resource aws_s3_bucket dss_s3_checkout_bucket_test_user {
       days = "${var.DSS_BLOB_TTL_DAYS}"
     }
   }
-  tags = "${local.common_tags}"
+  tags = "${merge(local.common_tags, local.aws_tags)}"
 }
 
 resource aws_s3_bucket dss_s3_checkout_bucket_unwritable {
   count = "${var.DSS_DEPLOYMENT_STAGE == "dev" ? 1 : 0}"
   bucket = "${var.DSS_S3_CHECKOUT_BUCKET_UNWRITABLE}"
-  tags = "${local.common_tags}"
+  tags = "${merge(local.common_tags, local.aws_tags)}"
   policy = <<POLICY
 {
   "Version": "2012-10-17",

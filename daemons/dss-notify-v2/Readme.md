@@ -30,8 +30,8 @@ Bundle creation notifications have the format
 
 ```
 {
-  'dss_api': {dss_api_url}
-  'bundle_url': {dss_api}"/v1/bundles/{uuid}?version={version}
+  'dss_api': {dss_api_url},
+  'bundle_url': "{dss_api_url}/v1/bundles/{uuid}?version={version}",
   'transaction_id': {uuid},
   'subscription_id': {uuid},
   'event_type': "CREATE"|"TOMBSTONE"|"DELETE",
@@ -98,6 +98,7 @@ The bundle metadata document format for a new bundle or version is is
 ```
 
 For a tombstone it is
+
 ```
 {
   'event_type': "TOMBSTONE",
@@ -109,6 +110,7 @@ For a tombstone it is
 ```
 
 For a deleted bundle it is
+
 ```
 {
   'event_type': "DELETE",

@@ -1,13 +1,18 @@
 #### Activating Google Cloud APIs
+
 ```
 gcloud service-management enable cloudfunctions.googleapis.com
 gcloud service-management enable runtimeconfig.googleapis.com
 ```
 
 #### Retrieving GCF logs
-`gcloud beta functions logs read dss-gs-event-relay`
+
+```
+gcloud beta functions logs read dss-gs-event-relay
+```
 
 #### Example Google Storage event
+
 ```
 {
   "timestamp": "2017-08-25T23:08:25.270Z",
@@ -35,6 +40,7 @@ gcloud service-management enable runtimeconfig.googleapis.com
 ```
 
 #### Environment variables in the GCF container
+
 ```
 {
   "WORKER_PORT": "8091",
