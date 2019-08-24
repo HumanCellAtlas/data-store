@@ -18,6 +18,7 @@ from dss.config import Config, Replica
 from dss.storage.checkout import CheckoutTokenKeys
 from dss.storage.checkout.file import get_dst_key, start_file_checkout
 from dss.storage.files import write_file_metadata
+from dss.storage.bundles import get_bundle_manifest
 from dss.storage.hcablobstore import FileMetadata, HCABlobStore, compose_blob_key
 from dss.stepfunctions import gscopyclient, s3copyclient
 from dss.util import tracing, UrlBuilder, security
@@ -57,7 +58,9 @@ def get(uuid: str, replica: str, version: str = None, token: str = None, directu
     return get_helper(uuid, Replica[replica], version, token, directurl)
 
 
-def get_helper(uuid: str, replica: Replica, version: str = None, token: str = None, directurl: bool = False):
+def get_helper(uuid: str, replica: Replica, version: str = None, token: str = None, directurl: bool = False,
+               parent_bundle_fqid: str = None):
+    file_fqid = f'{uuid}.{version}'
     with tracing.Subsegment('parameterization'):
         handle = Config.get_blobstore_handle(replica)
         bucket = replica.bucket
@@ -81,10 +84,10 @@ def get_helper(uuid: str, replica: Replica, version: str = None, token: str = No
             file_metadata = json.loads(
                 handle.get(
                     bucket,
-                    "files/{}.{}".format(uuid, version)
+                    f"files/{file_fqid}"
                 ).decode("utf-8"))
     except BlobNotFoundError:
-        key = f"files/{uuid}.{version}"
+        key = f"files/{file_fqid}"
         item = AsyncStateItem.get(key)
         if isinstance(item, S3CopyEtagError):
             raise DSSException(
@@ -110,9 +113,18 @@ def get_helper(uuid: str, replica: Replica, version: str = None, token: str = No
                     path=get_dst_key(blob_path)
                 )))
             else:
+                # TODO: Add this into the cloud blobstore
+                filename = determine_filename(parent_bundle_fqid, file_fqid) or blob_path[len('blobs/'):]
+                if replica.name == 'aws':
+                    # https://boto3.amazonaws.com/v1/documentation/api/latest/reference/services/s3.html
+                    kwargs = {'ResponseContentDisposition': f'attachment; filename={filename}'}
+                else:
+                    # https://googleapis.github.io/google-cloud-python/latest/storage/blobs.html
+                    kwargs = {'response_disposition': f'attachment; filename={filename}'}
                 response = redirect(handle.generate_presigned_GET_url(
                                     replica.checkout_bucket,
-                                    get_dst_key(blob_path)))
+                                    get_dst_key(blob_path),
+                                    **kwargs))
         else:
             with tracing.Subsegment('make_retry'):
                 builder = UrlBuilder(request.url)
@@ -137,6 +149,16 @@ def get_helper(uuid: str, replica: Replica, version: str = None, token: str = No
         headers['X-DSS-SHA256'] = file_metadata[FileMetadata.SHA256]
 
     return response
+
+
+def determine_filename(bundle_fqid, file_fqid):
+    """
+    Returns the filename for a file from its associated bundle metadata or None if not found in the bundle metadata.
+    """
+    if bundle_fqid:
+        for file in get_bundle_manifest(bundle_fqid)['files']:
+            if f'{file["uuid"]}.{file["version"]}' == file_fqid:
+                return file['name']
 
 
 def _verify_checkout(
