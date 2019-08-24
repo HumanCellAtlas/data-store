@@ -50,3 +50,19 @@ def get_variable_prefix():
     stage_name = os.environ["DSS_DEPLOYMENT_STAGE"]
     store_prefix = f"{store_name}/{stage_name}"
     return store_prefix
+
+def fix_variable_prefix(secret_name):
+    """
+    This adds the variable store and stage prefix
+    to the front of a variable name.
+    """
+    prefix = get_variable_prefix()
+    if not secret_name.startswith(prefix):
+        secret_name = prefix + seret_name
+    return secret_name
+
+class EmptyStdinException(object):
+    def __init__(self):
+        err_msg = f"Attempted to get a value from stdin, "
+        err_msg += "but stdin was empty!"
+        super.__init__(err_msg)

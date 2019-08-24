@@ -14,7 +14,7 @@ from dss.util.aws.clients import ssm as ssm_client  # type: ignore
 from dss.util.aws.clients import es as es_client  # type: ignore
 from dss.util.aws.clients import secretsmanager as sm_client
 import dss.util.aws.clients
-from dss.operations.util import get_variable_prefix
+from dss.operations.util import get_variable_prefix, EmptyStdinException
 
 lambda_client = getattr(dss.util.aws.clients, "lambda")
 
@@ -133,11 +133,6 @@ def ssm_list(argv: typing.List[str], args: argparse.Namespace):
 )
 def ssm_set(argv: typing.List[str], args: argparse.Namespace):
     """Set an environment variable in the SSM store"""
-    # Ensure variable name specified
-    if len(args.name) == 0:
-        msg = "Unable to set variable: no variable name provided. "
-        msg += "Use the --name flag to specify variable name."
-        raise RuntimeError(msg)
     name = args.name
 
     # Decide what to do for input
@@ -147,10 +142,7 @@ def ssm_set(argv: typing.List[str], args: argparse.Namespace):
     else:
         # Use stdin (input piped to script)
         if not select.select([sys.stdin], [], [])[0]:
-            err_msg = f"No data in stdin, cannot set variable {name} "
-            err_msg += "without a value from stdin or specified with "
-            err_msg += "--value flag!"
-            raise RuntimeError(err_msg)
+            raise EmptyStdinException()
         val = sys.stdin.read()
 
     if args.dry_run:
@@ -178,11 +170,6 @@ def ssm_set(argv: typing.List[str], args: argparse.Namespace):
 )
 def ssm_unset(argv: typing.List[str], args: argparse.Namespace):
     """Unset an environment variable in the SSM store"""
-    # Ensure variable name specified
-    if len(args.name) == 0:
-        msg = "Unable to set variable: no variable name provided. "
-        msg += "Use the --name flag to specify variable name."
-        raise RuntimeError(msg)
     name = args.name
 
     # Unset the variable from the SSM store first
@@ -266,11 +253,6 @@ def lambda_list(argv: typing.List[str], args: argparse.Namespace):
 )
 def lambda_set(argv: typing.List[str], args: argparse.Namespace):
     """Set an environment variable in each deployed lambda"""
-    # Ensure variable name specified
-    if len(args.name) == 0:
-        msg = "Unable to set variable: no variable name provided. "
-        msg += "Use the --name flag to specify variable name."
-        raise RuntimeError(msg)
     name = args.name
 
     # Decide what to do for input
@@ -280,10 +262,7 @@ def lambda_set(argv: typing.List[str], args: argparse.Namespace):
     else:
         # Use stdin (input piped to script)
         if not select.select([sys.stdin], [], [])[0]:
-            err_msg = f"No data in stdin, cannot set variable {name} "
-            err_msg += "without a value from stdin or specified with "
-            err_msg += "--value flag!"
-            raise RuntimeError(err_msg)
+            raise EmptyStdinException()
         val = sys.stdin.read()
 
     if args.dry_run:
@@ -320,11 +299,6 @@ def lambda_set(argv: typing.List[str], args: argparse.Namespace):
 )
 def lambda_unset(argv: typing.List[str], args: argparse.Namespace):
     """Unset an environment variable in each deployed lambda"""
-    # Ensure variable name specified
-    if len(args.name) == 0:
-        msg = "Unable to unset variable: no variable name provided. "
-        msg += "Use the --name flag to specify variable name."
-        raise RuntimeError(msg)
     name = args.name
 
     # Unset the variable from the SSM store first

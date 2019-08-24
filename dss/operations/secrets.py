@@ -13,7 +13,7 @@ from botocore.exceptions import ClientError
 
 from dss.operations import dispatch
 from dss.util.aws.clients import secretsmanager  # type: ignore
-from dss.operations.util import get_variable_prefix
+from dss.operations.util import get_variable_prefix, EmptyStdinException
 
 logger = logging.getLogger(__name__)
 
@@ -83,21 +83,10 @@ def get_secret(argv: typing.List[str], args: argparse.Namespace):
     # Note: this function should not print anything except the final JSON,
     # in case the user pipes the JSON output of this script to something else
 
-    store_prefix = get_variable_prefix()
-
-    # Make sure something was specified for secret name(s)
-    if len(args.secret_names) == 0:
-        raise RuntimeError(
-            "Unable to set secret: no secret name was specified! Use the --secret-names flag."
-        )
-    else:
-        secret_names = args.secret_names
+    secret_names = args.secret_names
 
     # Tack on the store prefix if it isn't there already
-    for i in range(len(secret_names)):
-        secret_name = secret_names[i]
-        if not secret_name.startswith(store_prefix):
-            secret_names[i] = store_prefix + secret_name
+    secret_names = [fix_variable_prefix(j) for j in secret_names]
 
     # Determine if we should format output as JSON
     use_json = False
@@ -145,18 +134,10 @@ def get_secret(argv: typing.List[str], args: argparse.Namespace):
 )
 def set_secret(argv: typing.List[str], args: argparse.Namespace):
     """Set the value of the secret variable specified by the --secret-name flag"""
-    store_prefix = get_variable_prefix()
-
-    # Make sure a secret name was specified
-    if len(args.secret_name) == 0:
-        raise RuntimeError(
-            "Unable to set secret: no secret name was specified! Use the --secret-name flag."
-        )
     secret_name = args.secret_name
 
     # Tack on the store prefix if it isn't there already
-    if not secret_name.startswith(store_prefix):
-        secret_name = store_prefix + secret_name
+    secret_name = fix_variable_prefix(secret_name)
 
     # Decide what to use for input
     if args.secret_value is not None:
@@ -165,9 +146,7 @@ def set_secret(argv: typing.List[str], args: argparse.Namespace):
         # Use stdin (input piped to this script) as secret value.
         # stdin provides secret value, flag --secret-name provides secret name.
         if not select.select([sys.stdin], [], [])[0]:
-            err_msg = f"No data in stdin, cannot set secret {secret_name} without "
-            err_msg += "a value from stdin or without --secret-value flag!"
-            raise RuntimeError(err_msg)
+            raise EmptyStdinException()
         secret_val = sys.stdin.read()
 
     # Create or update
@@ -220,18 +199,10 @@ def del_secret(argv: typing.List[str], args: argparse.Namespace):
     Delete the value of the secret variable specified by the
     --secret-name flag from the secrets manager
     """
-    store_prefix = get_variable_prefix()
-
-    # Make sure a secret name was specified
-    if len(args.secret_name) == 0:
-        raise RuntimeError(
-            "Unable to set secret: no secret name was specified! Use the --secret-name flag."
-        )
     secret_name = args.secret_name
 
     # Tack on the store prefix if it isn't there already
-    if not secret_name.startswith(store_prefix):
-        secret_name = store_prefix + secret_name
+    secret_name = fix_variable_prefix(secret_name)
 
     if args.force is False:
         # Make sure the user really wants to do this
