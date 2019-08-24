@@ -25,6 +25,7 @@ from tests.infra import testmode
 from dss.operations import DSSOperationsCommandDispatch
 from dss.operations.util import map_bucket_results
 from dss.operations import checkout, storage, sync, secrets
+from dss.operations import params as ssm_params
 from dss.logging import configure_test_logging
 from dss.config import BucketConfig, Config, Replica, override_bucket_config
 from dss.storage.hcablobstore import FileMetadata, compose_blob_key
@@ -467,7 +468,7 @@ class TestOperations(unittest.TestCase):
                 ssm.get_parameter = mock.MagicMock(return_value=ssm_old_env)
                 # ssm_set then calls ssm.put_parameter
                 ssm.put_parameter = mock.MagicMock(return_value=None)
-                params.ssm_set(
+                ssm_params.ssm_set(
                     [],
                     argparse.Namespace(
                         name=testvar_name, value=testvar_value, dry_run=False
@@ -484,12 +485,12 @@ class TestOperations(unittest.TestCase):
 
                 # Now call our params.py module. Output var=value on each line.
                 with CaptureStdout() as output:
-                    params.ssm_list([], argparse.Namespace(json=False))
+                    ssm_params.ssm_list([], argparse.Namespace(json=False))
                 self.assertIn(f"{testvar_name}={testvar_value}", output)
 
                 # Call params.py module, output in json format.
                 with CaptureStdout() as output:
-                    params.ssm_list([], argparse.Namespace(json=True))
+                    ssm_params.ssm_list([], argparse.Namespace(json=True))
                 output = "\n".join(output)
                 d = json.loads(output)
                 self.assertIn(testvar_name, d.keys())
@@ -499,7 +500,7 @@ class TestOperations(unittest.TestCase):
                 # Mock the same way we did for set new secret above
                 ssm.get_parameter = mock.MagicMock(return_value=ssm_new_env)
                 ssm.put_parameter = mock.MagicMock(return_value=None)
-                params.ssm_set(
+                ssm_params.ssm_set(
                     [],
                     argparse.Namespace(
                         name=testvar_name, value=testvar_value2, dry_run=False
@@ -511,7 +512,7 @@ class TestOperations(unittest.TestCase):
                 # Mock the same way we did for set new secret above
                 ssm.get_parameter = mock.MagicMock(return_value=ssm_new_env)
                 ssm.put_parameter = mock.MagicMock(return_value=None)
-                params.ssm_unset(
+                ssm_params.ssm_unset(
                     [], argparse.Namespace(name=testvar_name, dry_run=False)
                 )
 
@@ -563,7 +564,7 @@ class TestOperations(unittest.TestCase):
                     lam.update_function_configuration = mock.MagicMock(return_value=None)
 
                     # Do it
-                    params.lambda_set(
+                    ssm_params.lambda_set(
                         [],
                         argparse.Namespace(
                             name=testvar_name,
@@ -588,7 +589,7 @@ class TestOperations(unittest.TestCase):
 
                 # Non-JSON fmt, no lambda name specified
                 with CaptureStdout() as output:
-                    params.lambda_list(
+                    ssm_params.lambda_list(
                         [],
                         argparse.Namespace(
                             lambda_name=None,
@@ -599,7 +600,7 @@ class TestOperations(unittest.TestCase):
 
                 # JSON fmt, no lambda name specified
                 with CaptureStdout() as output:
-                    params.lambda_list(
+                    ssm_params.lambda_list(
                         [],
                         argparse.Namespace(
                             lambda_name=None,
@@ -614,7 +615,7 @@ class TestOperations(unittest.TestCase):
                 # JSON fmt, lambda name specified
                 with CaptureStdout() as output:
                     stage = os.environ["DSS_DEPLOYMENT_STAGE"]
-                    params.lambda_list(
+                    ssm_params.lambda_list(
                         [],
                         argparse.Namespace(
                             lambda_name=f"dss-{stage}",
