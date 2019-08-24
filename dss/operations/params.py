@@ -1,7 +1,6 @@
 """
 Get, set, and unset environment variables in the SSM store and in deployed lambda functions
 """
-import boto3
 import os
 import sys
 import typing
@@ -13,6 +12,7 @@ import select
 from dss.operations import dispatch
 from dss.util.aws.clients import ssm as ssm_client  # type: ignore
 from dss.util.aws.clients import es as es_client  # type: ignore
+from dss.util.aws.clients import secretsmanager as sm_client
 import dss.util.aws.clients
 from dss.operations.util import get_variable_prefix
 
@@ -72,16 +72,13 @@ def get_elasticsearch_endpoint():
 
 
 def get_admin_user_emails():
-    store = os.environ["DSS_SECRETS_STORE"]
-    stage = os.environ["DSS_DEPLOYMENT_STAGE"]
-    secret_base = f"{store}/{stage}/"
-
+    prefix = get_variable_prefix()
     g_secrets_name = os.environ["GOOGLE_APPLICATION_CREDENTIALS_SECRETS_NAME"]
-    gcp_secret_id = secret_base + g_secrets_name
-    admin_secret_id = secret_base + os.environ["ADMIN_USER_EMAILS_SECRETS_NAME"]
-    resp = boto3.client("secretsmanager").get_secret_value(SecretId=gcp_secret_id)
+    gcp_secret_id = prefix + g_secrets_name
+    admin_secret_id = prefix + os.environ["ADMIN_USER_EMAILS_SECRETS_NAME"]
+    resp = sm_client.get_secret_value(SecretId=gcp_secret_id)
     gcp_service_account_email = json.loads(resp["SecretString"])["client_email"]
-    resp = boto3.client("secretsmanager").get_secret_value(SecretId=admin_secret_id)
+    resp = sm_client.get_secret_value(SecretId=admin_secret_id)
     admin_user_emails = [
         email for email in resp["SecretString"].split(",") if email.strip()
     ]
