@@ -381,6 +381,10 @@ paths:
 
             The use of presigned URLs is recommended for data access. Cloud native URLs are currently provided for a limited set of use cases and may not be provided in the future. If cloud native URLs are required, please contact the data store team regarding the credentials necessary to use them.
           type: boolean
+        - name: parent_bundle_fqid
+          in: query
+          required: false
+          description: A parent bundle containing this file.  Provides additional metadata containing the filename, etc.
       responses:
         301:
           description: >

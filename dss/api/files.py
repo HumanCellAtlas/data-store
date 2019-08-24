@@ -54,8 +54,9 @@ def head(uuid: str, replica: str, version: str = None, token: str = None):
 
 
 @dss_handler
-def get(uuid: str, replica: str, version: str = None, token: str = None, directurl: bool = False):
-    return get_helper(uuid, Replica[replica], version, token, directurl)
+def get(uuid: str, replica: str, version: str = None, token: str = None, directurl: bool = False,
+        parent_bundle_fqid: str = None):
+    return get_helper(uuid, Replica[replica], version, token, directurl, parent_bundle_fqid)
 
 
 def get_helper(uuid: str, replica: Replica, version: str = None, token: str = None, directurl: bool = False,
