@@ -40,7 +40,52 @@ def map_bucket(*args, **kwargs):
     for _ in map_bucket_results(*args, **kwargs):
         pass
 
-def get_variable_prefix():
+def set_cloud_env_var(
+    environment: dict,
+    set_fn,
+    env_var: str,
+    value,
+    where: str = "",
+) -> None:
+    """
+    Set a variable in a cloud environment by calling set_fn.
+    (We pass the environment in directly, instead of passing
+    a get_fn, because the get_fn may require input arguments.)
+
+    Args:
+        environment: A dictionary containing all environment variables.
+        set_fn: A function handle used to set a new environment.
+        env_var: The name of the environment variable to set.
+        val: The value of the environment variable to set.
+        where: A label for telling the user where the env var was set.
+    """
+    environment[env_var] = value
+    set_fn(environment)
+    print(f'Created variable "{env_var}" {where}')
+
+def unset_cloud_env_var(
+    environment: dict,
+    set_fn,
+    env_var: str,
+    where: str = "",
+) -> None:
+    """
+    Unset a variable in an environment by calling set_fn.
+
+    Args:
+        environment: A dictionary containing all environment variables.
+        set_fn: A function handle used to set a new environment.
+        env_var: The name of the environment variable to unset.
+        where: A label for telling the user where the env var was unset.
+    """
+    try:
+        del environment[env_var]
+        set_fn(environment)
+        print(f'Deleted parameter "{env_var}" {where}')
+    except KeyError:
+        print(f'Nothing to unset for parameter "{env_var}" {where}')
+
+def get_cloud_variable_prefix():
     """
     Use information from the environment to assemble
     the necessary prefix for accessing variables in
@@ -51,17 +96,17 @@ def get_variable_prefix():
     store_prefix = f"{store_name}/{stage_name}"
     return store_prefix
 
-def fix_variable_prefix(secret_name):
+def fix_cloud_variable_prefix(secret_name):
     """
     This adds the variable store and stage prefix
     to the front of a variable name.
     """
-    prefix = get_variable_prefix()
+    prefix = get_cloud_variable_prefix()
     if not secret_name.startswith(prefix):
-        secret_name = prefix + seret_name
+        secret_name = prefix + secret_name
     return secret_name
 
-class EmptyStdinException(object):
+class EmptyStdinException(Exception):
     def __init__(self):
         err_msg = f"Attempted to get a value from stdin, "
         err_msg += "but stdin was empty!"

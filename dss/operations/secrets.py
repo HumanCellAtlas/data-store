@@ -13,7 +13,8 @@ from botocore.exceptions import ClientError
 
 from dss.operations import dispatch
 from dss.util.aws.clients import secretsmanager  # type: ignore
-from dss.operations.util import get_variable_prefix, EmptyStdinException
+from dss.operations.util import get_cloud_variable_prefix, fix_cloud_variable_prefix, EmptyStdinException
+
 
 logger = logging.getLogger(__name__)
 
@@ -36,7 +37,7 @@ def list_secrets(argv: typing.List[str], args: argparse.Namespace):
     Print a list of names of every secret variable in the secrets manager
     for the given store and stage.
     """
-    store_prefix = get_variable_prefix()
+    store_prefix = get_cloud_variable_prefix()
 
     paginator = secretsmanager.get_paginator("list_secrets")
 
@@ -86,7 +87,7 @@ def get_secret(argv: typing.List[str], args: argparse.Namespace):
     secret_names = args.secret_names
 
     # Tack on the store prefix if it isn't there already
-    secret_names = [fix_variable_prefix(j) for j in secret_names]
+    secret_names = [fix_cloud_variable_prefix(j) for j in secret_names]
 
     # Determine if we should format output as JSON
     use_json = False
@@ -137,7 +138,7 @@ def set_secret(argv: typing.List[str], args: argparse.Namespace):
     secret_name = args.secret_name
 
     # Tack on the store prefix if it isn't there already
-    secret_name = fix_variable_prefix(secret_name)
+    secret_name = fix_cloud_variable_prefix(secret_name)
 
     # Decide what to use for input
     if args.secret_value is not None:
@@ -202,7 +203,7 @@ def del_secret(argv: typing.List[str], args: argparse.Namespace):
     secret_name = args.secret_name
 
     # Tack on the store prefix if it isn't there already
-    secret_name = fix_variable_prefix(secret_name)
+    secret_name = fix_cloud_variable_prefix(secret_name)
 
     if args.force is False:
         # Make sure the user really wants to do this
