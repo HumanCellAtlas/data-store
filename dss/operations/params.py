@@ -22,7 +22,7 @@ lambda_client = getattr(dss.util.aws.clients, "lambda")
 logger = logging.getLogger(__name__)
 
 
-def get_ssm_lambda_environment():
+def get_ssm_lambda_environment() -> dict:
     prefix = get_variable_prefix()
     p = ssm_client.get_parameter(Name=f"/{prefix}/environment")
     parms = p["Parameter"]["Value"]
@@ -40,13 +40,13 @@ def set_ssm_lambda_environment(parms: dict):
     )
 
 
-def get_deployed_lambda_environment(name):
+def get_deployed_lambda_environment(name: str) -> dict:
     c = lambda_client.get_function_configuration(FunctionName=name)
     # above value is a dict, no need to convert
     return c["Environment"]["Variables"]
 
 
-def set_deployed_lambda_environment(name, env: dict):
+def set_deployed_lambda_environment(name: str, env: dict):
     lambda_client.update_function_configuration(
         FunctionName=name, Environment={"Variables": env}
     )
@@ -63,27 +63,6 @@ def get_deployed_lambdas():
             yield name
         except lambda_client.exceptions.ResourceNotFoundException:
             logger.warning(f"{name} not deployed, or does not deploy a Lambda function")
-
-
-def get_elasticsearch_endpoint():
-    domain_name = os.environ["DSS_ES_DOMAIN"]
-    domain_info = es_client.describe_elasticsearch_domain(DomainName=domain_name)
-    return domain_info["DomainStatus"]["Endpoint"]
-
-
-def get_admin_user_emails():
-    prefix = get_variable_prefix()
-    g_secrets_name = os.environ["GOOGLE_APPLICATION_CREDENTIALS_SECRETS_NAME"]
-    gcp_secret_id = prefix + g_secrets_name
-    admin_secret_id = prefix + os.environ["ADMIN_USER_EMAILS_SECRETS_NAME"]
-    resp = sm_client.get_secret_value(SecretId=gcp_secret_id)
-    gcp_service_account_email = json.loads(resp["SecretString"])["client_email"]
-    resp = sm_client.get_secret_value(SecretId=admin_secret_id)
-    admin_user_emails = [
-        email for email in resp["SecretString"].split(",") if email.strip()
-    ]
-    admin_user_emails.append(gcp_service_account_email)
-    return ",".join(admin_user_emails)
 
 
 params = dispatch.target("params", arguments={}, help=__doc__)
