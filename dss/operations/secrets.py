@@ -99,9 +99,17 @@ def get_secret(argv: typing.List[str], args: argparse.Namespace):
         try:
             response = secretsmanager.get_secret_value(SecretId=secret_name)
             secret_val = response["SecretString"]
-        except ClientError:
-            # A secret variable with that name does not exist
-            logger.warning(f"Resource not found: {secret_name}")
+        except ClientError as e:
+            if 'Error' not in e.response:
+                raise RuntimeError("Encountered a malformed or unexpected exception")
+            elif e.response['Error']['Code'] == 'InvalidRequestException':
+                # Already marked for deletion
+                logger.warning(
+                    f"Secret variable {secret_name} already marked for deletion in secrets manager!"
+                )
+            elif e.response['Error']['Code'] == 'ResourceNotFoundException':
+                # Does not exist
+                logger.warning(f"Secret variable {secret_name} not found")
         else:
             # Get operation was successful, secret variable exists
             if use_json:
@@ -109,6 +117,7 @@ def get_secret(argv: typing.List[str], args: argparse.Namespace):
                 try:
                     secret_val = json.loads(secret_val)
                 except json.decoder.JSONDecodeError:
+                    # and sometimes it isn't
                     pass
                 print(json.dumps({secret_name: secret_val}, indent=4))
             else:
@@ -152,19 +161,27 @@ def set_secret(argv: typing.List[str], args: argparse.Namespace):
 
     # Create or update
     try:
-        # Start by trying to get the secret variable
+        # Attempt to obtain secret
         secretsmanager.get_secret_value(SecretId=secret_name)
-
-    except ClientError:
-        # A secret variable with that name does not exist, so create it
-
-        if args.dry_run:
-            # Create it for fakes
-            print(f"Dry-run creating secret variable {secret_name} in secrets manager")
+    except ClientError as e:
+        if 'Error' not in e.response:
+            raise RuntimeError("Encountered a malformed or unexpected exception")
+        elif e.response['Error']['Code'] == 'InvalidRequestException':
+            # Already marked for deletion
+            logger.warning(
+                f"Secret variable {secret_name} already marked for deletion in secrets manager!"
+            )
+        elif e.response['Error']['Code'] == 'ResourceNotFoundException':
+            # A secret variable with that name does not exist, so create it
+            if args.dry_run:
+                # Create it for fakes
+                print(f"Dry-run creating secret variable {secret_name} in secrets manager")
+            else:
+                # Create it for real
+                secretsmanager.create_secret(Name=secret_name, SecretString=secret_val)
+                print(f"Created secret variable {secret_name} in secrets manager")
         else:
-            # Create it for real
-            secretsmanager.create_secret(Name=secret_name, SecretString=secret_val)
-            print(f"Created secret variable {secret_name} in secrets manager")
+            raise RuntimeError(f"Encountered exception: {e['Error']['Code']}: {e['Error']['Message']}")
 
     else:
         # Get operation was successful, secret variable exists
@@ -222,7 +239,7 @@ def del_secret(argv: typing.List[str], args: argparse.Namespace):
         # No secret var found
         logger.warning(f"Secret variable {secret_name} not found in secrets manager!")
 
-    except secretsmanager.exceptions.InvalidRequestException:
+    except InvalidRequestException:
         # Already deleted secret var
         logger.warning(
             f"Secret variable {secret_name} already marked for deletion in secrets manager!"

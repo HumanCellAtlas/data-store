@@ -61,7 +61,7 @@ def set_cloud_env_var(
     """
     environment[env_var] = value
     set_fn(environment)
-    print(f'Created variable "{env_var}" {where}')
+    print(f'Set variable "{env_var}" {where}')
 
 def unset_cloud_env_var(
     environment: dict,
@@ -81,9 +81,9 @@ def unset_cloud_env_var(
     try:
         del environment[env_var]
         set_fn(environment)
-        print(f'Deleted parameter "{env_var}" {where}')
+        print(f'Unset variable "{env_var}" {where}')
     except KeyError:
-        print(f'Nothing to unset for parameter "{env_var}" {where}')
+        print(f'Nothing to unset for variable "{env_var}" {where}')
 
 def get_cloud_variable_prefix():
     """
@@ -103,7 +103,7 @@ def fix_cloud_variable_prefix(secret_name):
     """
     prefix = get_cloud_variable_prefix()
     if not secret_name.startswith(prefix):
-        secret_name = prefix + secret_name
+        secret_name = f"{prefix}/{secret_name}"
     return secret_name
 
 class EmptyStdinException(Exception):

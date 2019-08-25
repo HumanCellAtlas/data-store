@@ -23,7 +23,7 @@ sys.path.insert(0, pkg_root)  # noqa
 
 from tests.infra import testmode
 from dss.operations import DSSOperationsCommandDispatch
-from dss.operations.util import map_bucket_results
+from dss.operations.util import map_bucket_results, get_cloud_variable_prefix
 from dss.operations import checkout, storage, sync, secrets
 from dss.operations import params as ssm_params
 from dss.logging import configure_test_logging
@@ -292,26 +292,22 @@ class TestOperations(unittest.TestCase):
         # - update secret value
         # - get secret value and verify it is correct
         # - delete secret
-        which_stage = os.environ["DSS_DEPLOYMENT_STAGE"]
-        which_store = os.environ["DSS_SECRETS_STORE"]
-
+        prefix = get_cloud_variable_prefix()
         secret_name = random_alphanumeric_string()
-        testvar_name = f"{which_store}/{which_stage}/{secret_name}"
+        testvar_name = f"{prefix}/{secret_name}"
         testvar_value = "Hello world!"
         testvar_value2 = "Goodbye world!"
-
-        unusedvar_name = f"{which_store}/{which_stage}/admin_user_emails"
+        unusedvar_name = f"{prefix}/admin_user_emails"
 
         with self.subTest("Create a new secret"):
-            # Monkeypatch the secrets manager
             with mock.patch("dss.operations.secrets.secretsmanager") as sm:
                 # Creating a new variable will first call get, which will not find it
                 sm.get_secret_value = mock.MagicMock(
                     return_value=None, side_effect=ClientError({}, None)
                 )
-                # Next we will use the create secret command
+                # Next it will call create_secret
                 sm.create_secret = mock.MagicMock(return_value=None)
-                # Create initial secret value
+                # Now create initial secret value
                 secrets.set_secret(
                     [],
                     argparse.Namespace(
@@ -445,11 +441,9 @@ class TestOperations(unittest.TestCase):
         # - update param value
         # - list ssm parameters, verify new param is set
         # - delete param
-        which_stage = os.environ["DSS_DEPLOYMENT_STAGE"]
-        which_store = os.environ["DSS_PARAMETER_STORE"]
-
+        prefix = get_cloud_variable_prefix()
         param_name = random_alphanumeric_string()
-        testvar_name = f"{which_store}/{which_stage}/{param_name}"
+        testvar_name = f"{prefix}/{param_name}"
         testvar_value = "Hello world!"
         testvar_value2 = "Goodbye world!"
 
@@ -493,11 +487,11 @@ class TestOperations(unittest.TestCase):
                     ssm_params.ssm_list([], argparse.Namespace(json=True))
                 output = "\n".join(output)
                 d = json.loads(output)
-                self.assertIn(testvar_name, d.keys())
+                self.assertIn(testvar_name, d)
 
         with self.subTest("Update existing SSM parameter"):
             with mock.patch("dss.operations.params.ssm_client") as ssm:
-                # Mock the same way we did for set new secret above
+                # Mock the same way we did for set new param above
                 ssm.get_parameter = mock.MagicMock(return_value=ssm_new_env)
                 ssm.put_parameter = mock.MagicMock(return_value=None)
                 ssm_params.ssm_set(
@@ -518,7 +512,7 @@ class TestOperations(unittest.TestCase):
 
     def test_lambdaparams_crud(self):
         # CRUD (create read update delete)
-        # test for stting environment variables
+        # test for setting environment variables
         # in all deployed lambda functions
         # (and the SSM store).
         #
@@ -529,13 +523,11 @@ class TestOperations(unittest.TestCase):
         # - update param value
         # - get param value and verify correct
         # - delete param
-        which_stage = os.environ["DSS_DEPLOYMENT_STAGE"]
-        which_store = os.environ["DSS_PARAMETER_STORE"]
-
+        prefix = get_cloud_variable_prefix()
         param_name = random_alphanumeric_string()
-        testvar_name = f"{which_store}/{which_stage}/{param_name}"
+        testvar_name = f"{prefix}/{param_name}"
         testvar_value = "Hello world!"
-        # testvar_value2 = "Goodbye world!"
+        testvar_value2 = "Goodbye world!"
 
         # Assemble an old and new environment to return
         old_env = {"dummy_key": "dummy_value"}
@@ -554,11 +546,12 @@ class TestOperations(unittest.TestCase):
                 with mock.patch("dss.operations.params.lambda_client") as lam:
                     # If this is not a dry run, lambda_set in params.py
                     # will update the SSM first, so we mock those first.
-                    ssm.get_parameter = mock.MagicMock(return_value=ssm_new_env)
+                    # Before we have set the new test variable for the
+                    # first time, we will see the old environment.
                     ssm.put_parameter = mock.MagicMock(return_value=None)
 
                     # The lambda_set func in params.py will update lambdas,
-                    # so we mock those too.
+                    # so we mock the calls that those will make too.
                     lam.get_function = mock.MagicMock(return_value=None)
                     lam.get_function_configuration = mock.MagicMock(return_value=lam_new_env)
                     lam.update_function_configuration = mock.MagicMock(return_value=None)
@@ -576,15 +569,15 @@ class TestOperations(unittest.TestCase):
         with self.subTest("List lambda parameters"):
             # Monkeypatch the lambda client
             with mock.patch("dss.operations.params.lambda_client") as lam:
-
                 # The lambda_list func in params.py
                 # calls get_deployed_lambas, which calls
                 # lam.get_function() using daemon folder names
-                # (this function is called only to ensure no exception is thrown)
+                # (this function is called only to ensure no exception
+                # is thrown)
                 lam.get_function = mock.MagicMock(return_value=None)
                 # Next we call get_deployed_lambda_environment(),
                 # which calls lam.get_function_configuration
-                # (which must return the mocked env vars json)
+                # (this returns the mocked new env vars json)
                 lam.get_function_configuration = mock.MagicMock(return_value=lam_new_env)
 
                 # Non-JSON fmt, no lambda name specified
@@ -608,9 +601,8 @@ class TestOperations(unittest.TestCase):
                         )
                     )
                 all_lam_envs = json.loads("\n".join(output))
-                for lam_name in all_lam_envs.keys():
-                    lam_env = all_lam_envs[lam_name]
-                    self.assertIn(testvar_name, lam_env.keys())
+                for _, lam_env in all_lam_envs:
+                    self.assertIn(testvar_name, lam_env)
 
                 # JSON fmt, lambda name specified
                 with CaptureStdout() as output:
