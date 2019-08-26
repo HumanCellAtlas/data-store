@@ -4,6 +4,7 @@ import os
 import sys
 import unittest
 import tempfile
+import time
 from google.cloud import storage
 from unittest import mock
 
@@ -186,8 +187,14 @@ class TestCheckoutCaching(unittest.TestCase, DSSAssertMixin, DSSUploadMixin):
         # parameters of copy_worker are arbitrary, only passed because required.
         event = gscopyclient.implementation.copy_worker(event, spoof_context)
         # verify
-        bucket = client.get_bucket(checkout_bucket)
-        blob_class = bucket.get_blob(test_dst_key).storage_class
+        for retry in [1, 1, 1]:
+            try:
+                bucket = client.get_bucket(checkout_bucket)
+                blob_class = bucket.get_blob(test_dst_key).storage_class
+            except AttributeError:
+                time.sleep(retry)
+            else:
+                break
         # cleanup
         gs_blobstore.delete(replica.bucket, test_src_key)
         gs_blobstore.delete(checkout_bucket, test_dst_key)
