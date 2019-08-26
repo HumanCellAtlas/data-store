@@ -23,9 +23,11 @@ implements [Step Functions](https://aws.amazon.com/step-functions/) to orchestra
 as large file writes. You can find the API documentation and give it a try [here](https://dss.data.humancellatlas.org/).
 
 #### [Architectural Diagram](https://www.lucidchart.com/documents/view/b65c8898-46e3-4560-b3b2-9e85f1c0a4c7)
+
 ![DSS Sync SFN diagram](https://www.lucidchart.com/publicSegments/view/43dfe33a-47c9-466b-9cb6-6d941a406d8f/image.png)
 
 #### DSS API
+
 The DSS API uses [Swagger](http://swagger.io/) to define the [API specification](dss-api.yml) according to the
 [OpenAPI 2.0 specification](https://github.com/OAI/OpenAPI-Specification/blob/master/versions/2.0.md).
 [Connexion](https://github.com/zalando/connexion) is used to map the API specification to its implementation in Python.
@@ -71,6 +73,7 @@ to review and edit the API specification. When the API is live, the spec is also
       * [Contributing](#contributing)
 
 ## Getting Started
+
 In this section, you'll configure and deploy a local API server and your own suite of cloud services to run a
 development version of the DSS.
 
@@ -90,7 +93,6 @@ pip install -r requirements-dev.txt
 Also install [terraform from Hashicorp](https://www.terraform.io/) from your favourite package manager.
 
 ### Configuration
-
 
 The DSS is configured via environment variables. The required environment variables and their default values
 are defined in the file [`environment`](environment). To customize the values of these environment variables:
@@ -245,6 +247,7 @@ When deploying for the first time, a Google Cloud Platform service account must 
 ### Setting admin emails
 
 Set admin account emails within AWS Secret Manager
+
 ```
 echo ' ' |  ./scripts/set_secret.py --secret-name $ADMIN_USER_EMAILS_SECRETS_NAME
  ```
@@ -261,6 +264,7 @@ usual plan/review Terraform workflow, and should therefore be lightweight in nat
 added to `$DSS_HOME/infra` instead.
 
 ##### Resources
+
 Cloud resources have the potential for naming collision in both [AWS](https://docs.aws.amazon.com/general/latest/gr/aws-arns-and-namespaces.html)
  and [GCP](https://cloud.google.com/storage/docs/naming), ensure that you rename resources as needed.
 
@@ -268,28 +272,31 @@ Cloud resources have the potential for naming collision in both [AWS](https://do
 
 Buckets within AWS and GCP need to be available for use by the DSS. Use Terraform to setup these resources:
 
-
 ```
 make -C infra COMPONENT=buckets plan
 make -C infra COMPONENT=buckets apply
 ```
 
 #### ElasticSearch
+
 The AWS Elasticsearch Service is used for metadata indexing. Currently the DSS uses version 5.5 of ElasticSearch. For typical development deployments the
 t2.small.elasticsearch instance type is sufficient. Use the [`DSS_ES_`](./docs/environment/README.md) variables to adjust the cluster as needed. 
 
 Add allowed IPs for ElasticSearch to the secret manager, use comma separated IPs:
-```
-echo ' ' | ./scripts/set_secret.py --secret-name $ES_ALLOWED_SOURCE_IP_SECRETS_NAME
 
 ```
+echo ' ' | ./scripts/set_secret.py --secret-name $ES_ALLOWED_SOURCE_IP_SECRETS_NAME
+```
+
 Use Terraform to deploy ES resource:
+
 ```
 make -C infra COMPONENT=elasticsearch plan
 make -C infra COMPONENT=elasticsearch apply
 ```
 
 #### Certificates
+
 A certificate matching your domain must be registered with
 [AWS Certificate Manager](https://docs.aws.amazon.com/acm/latest/userguide/acm-overview.html). Set `ACM_CERTIFICATE_IDENTIFIER`
 to the identifier of the certificate, which can be found on the AWS console.
@@ -297,6 +304,7 @@ to the identifier of the certificate, which can be found on the AWS console.
 An AWS route53 zone must be available for your domain name and configured in `environment`.
 
 #### Deploying
+
 Now deploy using make:
 
     make plan-infra
@@ -312,8 +320,9 @@ And you should be able to list bundles like this:
     curl -X GET "https://<domain_name>/v1/bundles" -H  "accept: application/json"
 
 #### Monitoring
- Please see the [data-store-monitor](https://www.github.com/humancellatlas/data-store-monitor) repo for additional
- monitoring tools.
+
+Please see the [data-store-monitor](https://www.github.com/humancellatlas/data-store-monitor) repo for additional
+monitoring tools.
 
 ### CI/CD with Travis CI and GitLab
 
@@ -385,14 +394,17 @@ indexed metadata.
     '
 
 ## Running Tests
+
 1. Check that software packages required to test and deploy are available, and install them if necessary:
 
     `make --dry-run`
 
 1. Populate text fixture buckets with test fixture data _**(This command will completely empty the given buckets** before populating them with test fixture data, please ensure
-the correct bucket names are provided)_:
+the correct bucket names are provided)**_:
 
-    `tests/fixtures/populate.py --s3-bucket $DSS_S3_BUCKET_TEST_FIXTURES --gs-bucket $DSS_GS_BUCKET_TEST_FIXTURES`
+    ```
+    tests/fixtures/populate.py --s3-bucket $DSS_S3_BUCKET_TEST_FIXTURES --gs-bucket $DSS_GS_BUCKET_TEST_FIXTURES
+    ```
 
 1. Set the environment variable `DSS_TEST_ES_PATH` to the path of the `elasticsearch` binary on your machine.
 
@@ -483,12 +495,15 @@ test-deploy-test cycle after this (the test after the deploy is required to test
     ```
 
 ### Enabling Profiling
+
 AWS Xray tracing is used for profiling the performance of deployed lambdas. This can be enabled for `chalice/app.py` by
 setting the lambda environment variable `DSS_XRAY_TRACE=1`. For all other daemons you must also check
 "Enable active tracking" under "Debugging and error handling" in the AWS Lambda console.
 
 ## Security Policy
-See our [Security Policy](https://github.com/HumanCellAtlas/dcp/blob/master/SECURITY.md).
+
+See our [Security Policy](https://github.com/HumanCellAtlas/.github/blob/master/SECURITY.md).
 
 ## Contributing
+
 External contributions are welcome. Please review the [Contributing Guidelines](CONTRIBUTING.md)

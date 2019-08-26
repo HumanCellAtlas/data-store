@@ -390,14 +390,16 @@ class TestSearchBase(ElasticsearchTestCase, DSSAssertMixin):
         parsed = urlsplit(next_url)
         return str(UrlBuilder().set(path=parsed.path, query=parse_qsl(parsed.query), fragment=parsed.fragment))
 
-    @staticmethod
-    def get_next_url(headers):
+    def get_next_url(self, headers):
         links = headers.get("Link")
         if links is not None:
+            self.assertEqual(headers['X-OpenAPI-Pagination'], 'true')
+            self.assertEqual(headers['X-OpenAPI-Paginated-Content-Key'], 'results')
             for link in parse_header_links(links):
                 if link['rel'] == 'next':
                     return link["url"]
         else:
+            self.assertEqual(headers['X-OpenAPI-Pagination'], 'false')
             return links
 
     def get_search_results(self, es_query, url_params=None):
