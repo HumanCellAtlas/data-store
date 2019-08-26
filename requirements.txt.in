@@ -1,4 +1,5 @@
 # Be sure to run "make requirements.txt requirements-dev.txt" after editing this file.
+awscli==1.16.52
 azure-storage >= 0.36.0
 boto3 >= 1.6.0
 botocore >= 1.10.16  # 1.9.x does not support AWS secretsmanager support

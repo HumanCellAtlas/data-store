@@ -930,7 +930,12 @@ class TestIndexerBase(ElasticsearchTestCase, DSSAssertMixin, DSSStorageMixin, DS
             pdict['CONTENT-LENGTH'] = '100'  # mocked for testing
             body = cgi.parse_multipart(BytesIO(received_request['body']), pdict)
             self.assertTrue(all(len(v) == 1 for v in body.values()))
-            body = {k: v[0] for k, v in body.items()}
+            try:
+                # py3.6 compatible
+                body = {k: v[0].decode() for k, v in body.items()}
+            except AttributeError:
+                # py3.7 compatible
+                body = {k: v[0] for k, v in body.items()}
             posted_json = json.loads(body[endpoint.payload_form_field])
             self.assertTrue(endpoint.form_fields.items() <= body.items())
             self.assertEqual(body.keys() - endpoint.form_fields.keys(), {endpoint.payload_form_field})
