@@ -130,11 +130,11 @@ DSS_TERRAFORM_BACKEND_BUCKET_TEMPLATE="org-humancellatlas-dss-{account_id}-${DSS
 #
 DSS_NOTIFY_DELAYS="0 60 600 3600 21600 60540 86400 86400 86400 86400 86400 86400"
 
-DSS_NOTIFY_TIMEOUT=60  # This may seem excessive but the default of 10s is not enough for Green's Lira
+DSS_NOTIFY_TIMEOUT=10  # This may seem excessive but the default of 10s is not enough for Green's Lira
                        # and would cause the notification to be retried, causing Lira to make a duplicate
                        # submission.
 
-DSS_NOTIFY_WORKERS=32  # unset to automatically determine the number of workers
+DSS_NOTIFY_WORKERS=24  # unset to automatically determine the number of workers
 
 # Enables X-Ray profiling of daemons running in AWS Lambdas. A value of 0 disables profiling. A value >1 will enable
 # profiling.
