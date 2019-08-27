@@ -381,10 +381,28 @@ paths:
 
             The use of presigned URLs is recommended for data access. Cloud native URLs are currently provided for a limited set of use cases and may not be provided in the future. If cloud native URLs are required, please contact the data store team regarding the credentials necessary to use them.
           type: boolean
-        - name: parent_bundle_fqid
+        - name: bundle_uuid
           in: query
+          description: |
+            The uuid of the parent bundle containing this file.  Provides additional metadata containing the filename
+            for that bundle.  If "bundle_version" is not specified, this will default to the latest version of
+            that bundle uuid and will return the file name inside of that bundle version in the response, if it exists.
+
+            It's recommended that one always includes the "bundle_version" param to ensure the correct metadata is
+            returned.
           required: false
-          description: A parent bundle containing this file.  Provides additional metadata containing the filename, etc.
+          type: string
+        - name: bundle_version
+          in: query
+          description: |
+            The version of the parent bundle containing this file.  Provides additional metadata containing the filename
+            for that bundle.  If "bundle_version" is not specified, this will default to the latest version of
+            that bundle uuid and will return the file name inside of that bundle version in the response, if it exists.
+
+            It's recommended that one always includes the "bundle_version" param to ensure the correct metadata is
+            returned.
+          required: false
+          type: string
       responses:
         301:
           description: >
