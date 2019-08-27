@@ -86,14 +86,14 @@ class Notifier:
 
     def deploy(self) -> None:
         sqs = boto3.client('sqs')
-        one_week = '604800'  # kept the same as the notification v2 timeout for consistency
+        two_weeks = '1209600'  # kept the same as the notification v2 timeout for consistency
         for queue_index in self._queue_indices:
             sqs.create_queue(QueueName=self._queue_name(queue_index),
                              Attributes={'FifoQueue': 'true',
-                                         'MessageRetentionPeriod': one_week})
+                                         'MessageRetentionPeriod': two_weeks})
         sqs.create_queue(QueueName=self._queue_name(None),
                          Attributes={'FifoQueue': 'true',
-                                     'MessageRetentionPeriod': one_week})
+                                     'MessageRetentionPeriod': two_weeks})
 
     def destroy(self, purge_only=False) -> None:
         if self._deployment_stage.startswith('test-'):
