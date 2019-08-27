@@ -388,8 +388,8 @@ paths:
             for that bundle.  If "bundle_version" is not specified, this will default to the latest version of
             that bundle uuid and will return the file name inside of that bundle version in the response, if it exists.
 
-            It's recommended that one always includes the "bundle_version" param to ensure the correct metadata is
-            returned.
+            It's recommended that one always includes the "bundle_version" param when using the "bundle_uuid" param to
+            ensure the correct metadata is returned.
           required: false
           type: string
         - name: bundle_version
@@ -399,8 +399,10 @@ paths:
             for that bundle.  If "bundle_version" is not specified, this will default to the latest version of
             that bundle uuid and will return the file name inside of that bundle version in the response, if it exists.
 
-            It's recommended that one always includes the "bundle_version" param to ensure the correct metadata is
-            returned.
+            It's recommended that one always includes the "bundle_version" param when using the "bundle_uuid" param to
+            ensure the correct metadata is returned.
+
+            The "bundle_version" param does nothing if the "bundle_uuid" param is not specified.
           required: false
           type: string
       responses:
