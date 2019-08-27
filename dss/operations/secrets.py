@@ -19,6 +19,33 @@ from dss.operations.util import get_cloud_variable_prefix, fix_cloud_variable_pr
 logger = logging.getLogger(__name__)
 
 
+# Secrets can be in three different states:
+# - secret exists (gettable, settable)
+# - secret exists but is marked for deletion (not gettable, not settable)
+# - secret does not exist (not gettable, settable)
+
+def secret_is_gettable(secret_name):
+    """Secrets are gettable if they exist in the secrets manager"""
+    try:
+        response = secretsmanager.get_secret_value(SecretId=secret_name)
+    except ClientError as e:
+        return False
+    else:
+        return True
+
+def secret_is_settable(secret_name):
+    """Secrets are settable if they exist in the secrets manager or if they are not found"""
+    try:
+        response = secretsmanager.get_secret_value(SecretId=secret_name)
+    except ClientError as e:
+        if 'Error' in e.response:
+            if e.response['Error']['Code'] == 'ResourceNotFoundException':
+                return True
+        return False
+    else:
+        return True
+
+
 secrets = dispatch.target("secrets", arguments={}, help=__doc__)
 
 
@@ -95,30 +122,17 @@ def get_secret(argv: typing.List[str], args: argparse.Namespace):
         use_json = True
 
     for secret_name in secret_names:
-        # Attempt to obtain secret
-        try:
+        if secret_is_gettable(secret_name):
             response = secretsmanager.get_secret_value(SecretId=secret_name)
             secret_val = response["SecretString"]
-        except ClientError as e:
-            if 'Error' not in e.response:
-                raise RuntimeError("Encountered a malformed or unexpected exception")
-            elif e.response['Error']['Code'] == 'InvalidRequestException':
-                # Already marked for deletion
-                logger.warning(
-                    f"Secret variable {secret_name} already marked for deletion in secrets manager!"
-                )
-            elif e.response['Error']['Code'] == 'ResourceNotFoundException':
-                # Does not exist
-                logger.warning(f"Secret variable {secret_name} not found")
-        else:
-            # Get operation was successful, secret variable exists
+            # Sometimes secret_val is a dictionary
+            try:
+                secret_val = json.loads(secret_val)
+            except json.decoder.JSONDecodeError:
+                # and sometimes it isn't
+                pass
+            # Print
             if use_json:
-                # Sometimes secret_val can be a dictionary
-                try:
-                    secret_val = json.loads(secret_val)
-                except json.decoder.JSONDecodeError:
-                    # and sometimes it isn't
-                    pass
                 print(json.dumps({secret_name: secret_val}, indent=4))
             else:
                 print(f"{secret_name}={secret_val}")
@@ -159,32 +173,7 @@ def set_secret(argv: typing.List[str], args: argparse.Namespace):
             raise EmptyStdinException()
         secret_val = sys.stdin.read()
 
-    # Create or update
-    try:
-        # Attempt to obtain secret
-        secretsmanager.get_secret_value(SecretId=secret_name)
-    except ClientError as e:
-        if 'Error' not in e.response:
-            raise RuntimeError("Encountered a malformed or unexpected exception")
-        elif e.response['Error']['Code'] == 'InvalidRequestException':
-            # Already marked for deletion
-            logger.warning(
-                f"Secret variable {secret_name} already marked for deletion in secrets manager!"
-            )
-        elif e.response['Error']['Code'] == 'ResourceNotFoundException':
-            # A secret variable with that name does not exist, so create it
-            if args.dry_run:
-                # Create it for fakes
-                print(f"Dry-run creating secret variable {secret_name} in secrets manager")
-            else:
-                # Create it for real
-                secretsmanager.create_secret(Name=secret_name, SecretString=secret_val)
-                print(f"Created secret variable {secret_name} in secrets manager")
-        else:
-            raise RuntimeError(f"Encountered exception: {e['Error']['Code']}: {e['Error']['Message']}")
-
-    else:
-        # Get operation was successful, secret variable exists
+    if secret_is_settable(secret_name):
         if args.dry_run:
             # Update it for fakes
             print(f"Dry-run updating secret variable {secret_name} in secrets manager")
@@ -231,22 +220,7 @@ def del_secret(argv: typing.List[str], args: argparse.Namespace):
         if response.lower() not in ["y", "yes"]:
             raise RuntimeError("You safely aborted the delete secret operation!")
 
-    try:
-        # Start by trying to get the secret variable
-        secretsmanager.get_secret_value(SecretId=secret_name)
-
-    except ClientError:
-        # No secret var found
-        logger.warning(f"Secret variable {secret_name} not found in secrets manager!")
-
-    except InvalidRequestException:
-        # Already deleted secret var
-        logger.warning(
-            f"Secret variable {secret_name} already marked for deletion in secrets manager!"
-        )
-
-    else:
-        # Get operation was successful, secret variable exists
+    if secret_is_settable(secret_name):
         if args.dry_run:
             # Delete it for fakes
             print(f"Dry-run deleting secret variable {secret_name} in secrets manager")
