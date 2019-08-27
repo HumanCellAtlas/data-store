@@ -130,9 +130,13 @@ DSS_TERRAFORM_BACKEND_BUCKET_TEMPLATE="org-humancellatlas-dss-{account_id}-${DSS
 #
 DSS_NOTIFY_DELAYS="0 60 600 3600 21600 60540 86400 86400 86400 86400 86400 86400"
 
-DSS_NOTIFY_TIMEOUT=10  # This may seem excessive but the default of 10s is not enough for Green's Lira
+DSS_NOTIFY_TIMEOUT=60  # This may seem excessive but the default of 10s is not enough for Green's Lira
                        # and would cause the notification to be retried, causing Lira to make a duplicate
                        # submission.
+
+                       # Touch base with Lira (Saman and Rex currently) on this timeout once:
+                       # - they have scale-tested their new queue component
+                       # - all subscribers (not only Green Box) agree on the shorter timeout
 
 DSS_NOTIFY_WORKERS=24  # unset to automatically determine the number of workers
 
