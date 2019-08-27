@@ -67,12 +67,10 @@ def get_helper(uuid: str, replica: Replica, version: str = None, token: str = No
         bucket = replica.bucket
 
     if version is None:
-        version = get_latest_version(handle, bucket, f'files/{uuid}')
+        version = get_latest_version(handle, bucket, prefix=f'files/{uuid}.')
     if version is None:
         # no matches!
         raise DSSException(404, "not_found", "Cannot find file!")
-
-    file_fqid = f'{uuid}.{version}'
 
     # retrieve the file metadata.
     try:
@@ -80,10 +78,10 @@ def get_helper(uuid: str, replica: Replica, version: str = None, token: str = No
             file_metadata = json.loads(
                 handle.get(
                     bucket,
-                    f"files/{file_fqid}"
+                    f"files/{uuid}.{version}"
                 ).decode("utf-8"))
     except BlobNotFoundError:
-        key = f"files/{file_fqid}"
+        key = f"files/{uuid}.{version}"
         item = AsyncStateItem.get(key)
         if isinstance(item, S3CopyEtagError):
             raise DSSException(
@@ -111,7 +109,7 @@ def get_helper(uuid: str, replica: Replica, version: str = None, token: str = No
             else:
                 filename = None
                 if bundle_uuid:
-                    filename = determine_filename(file_fqid, bundle_uuid, bundle_version, handle, bucket)
+                    filename = determine_filename(f'{uuid}.{version}', bundle_uuid, bundle_version, handle, bucket)
 
                 if not filename:
                     filename = blob_path[len('blobs/'):]  # default to naming after the giant blob hash
@@ -152,7 +150,7 @@ def get_helper(uuid: str, replica: Replica, version: str = None, token: str = No
 def determine_filename(file_fqid, bundle_uuid, bundle_version, handle, bucket):
     """Returns filename from bundle metadata or None if not found in the bundle metadata."""
     if not bundle_version:
-        bundle_version = get_latest_version(handle, bucket, prefix=f'bundles/{bundle_uuid}')
+        bundle_version = get_latest_version(handle, bucket, prefix=f'bundles/{bundle_uuid}.')
     if not bundle_version:
         raise DSSException(404, "not_found",
                            f'Cannot find any versions for bundle_uuid: "{bundle_uuid}"!')
@@ -175,6 +173,7 @@ def content_disposition_response(replica: str, filename: str) -> dict:
 
 
 def get_latest_version(handle, bucket, prefix):
+    assert prefix.endswith('.')
     with tracing.Subsegment('find_latest_version'):
         # list the files and find the one that is the most recent.
         for matching_file in handle.list(bucket, prefix):
