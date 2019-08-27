@@ -713,7 +713,6 @@ class TestFileApi(unittest.TestCase, TestAuthMixin, DSSUploadMixin, DSSAssertMix
                 # assert 302 found on stale file and that last modified refreshes
                 blob_ttl_days = int(os.environ['DSS_BLOB_PUBLIC_TTL_DAYS'])
                 mock_creation_date.return_value = now - datetime.timedelta(days=blob_ttl_days + 1)
-                print(f'mocked return value: {mock_creation_date.return_value}')
                 self.assertGetResponse(url, requests.codes.found, headers=get_auth_header(), redirect_follow_retries=0)
                 self.assertTrue(creation_date > handle.get_creation_date(replica.checkout_bucket, file_key),
                                 f'\ncurr_creation_date: {creation_date}'
