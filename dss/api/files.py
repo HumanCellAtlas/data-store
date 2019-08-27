@@ -174,6 +174,7 @@ def content_disposition_response(replica: str, filename: str) -> dict:
 
 def get_latest_version(handle, bucket, prefix):
     assert prefix.endswith('.')
+    version = None
     with tracing.Subsegment('find_latest_version'):
         # list the files and find the one that is the most recent.
         for matching_file in handle.list(bucket, prefix):
