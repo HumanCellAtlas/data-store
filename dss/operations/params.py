@@ -102,6 +102,12 @@ def get_deployed_lambdas():
             logger.warning(f"{name} not deployed, or does not deploy a Lambda function")
 
 
+def print_lambda_env(lambda_name, lambda_env):
+    print(f"\n{lambda_name}:")
+    for name, val in lambda_env.items():
+        print(f"{name}={val}")
+
+
 params = dispatch.target("params", arguments={}, help=__doc__)
 
 
@@ -216,25 +222,18 @@ def lambda_list(argv: typing.List[str], args: argparse.Namespace):
     else:
         lambda_names = get_deployed_lambdas()
 
-    # Iterate over each specified lambda,
-    # get its current environment,
-    # and list all its env vars
-    if args.json:
-        # Need to assemble our own dictionary
-        d = {}
-        for lambda_name in lambda_names:
-            lambda_env = get_deployed_lambda_environment(lambda_name)
-            d[lambda_name] = lambda_env
-        print(json.dumps(d, indent=4))
+    # Iterate over each specified lambda and get its env vars
+    d = {}
+    for lambda_name in lambda_names:
+        lambda_env = get_deployed_lambda_environment(lambda_name)
+        d[lambda_name] = lambda_env
 
+    # List each lambda's env vars
+    if args.json:
+        print(json.dumps(d, indent=4))
     else:
-        # Iterate over each specified lambda function
-        # and print its environment
-        for lambda_name in lambda_names:
-            lambda_env = get_deployed_lambda_environment(lambda_name)
-            print(f"\n{lambda_name}:")
-            for name, val in lambda_env.items():
-                print(f"{name}={val}")
+        for lambda_name, lambda_env in d.items:
+            print_lambda_env(lambda_name, lambda_env)
 
 
 @params.action(

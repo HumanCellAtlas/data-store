@@ -534,10 +534,10 @@ class TestOperations(unittest.TestCase):
         new_env = dict(**old_env)
         new_env[testvar_name] = testvar_value
 
-        # ssm_old_env = self._wrap_ssm_env(old_env)
+        ssm_old_env = self._wrap_ssm_env(old_env)
         ssm_new_env = self._wrap_ssm_env(new_env)
 
-        # lam_old_env = self._wrap_lambda_env(old_env)
+        lam_old_env = self._wrap_lambda_env(old_env)
         lam_new_env = self._wrap_lambda_env(new_env)
 
         with self.subTest("Create a new lambda parameter"):
@@ -548,12 +548,13 @@ class TestOperations(unittest.TestCase):
                     # will update the SSM first, so we mock those first.
                     # Before we have set the new test variable for the
                     # first time, we will see the old environment.
+                    ssm.get_parameter = mock.MagicMock(return_value=ssm_old_env)
                     ssm.put_parameter = mock.MagicMock(return_value=None)
 
                     # The lambda_set func in params.py will update lambdas,
                     # so we mock the calls that those will make too.
                     lam.get_function = mock.MagicMock(return_value=None)
-                    lam.get_function_configuration = mock.MagicMock(return_value=lam_new_env)
+                    lam.get_function_configuration = mock.MagicMock(return_value=lam_old_env)
                     lam.update_function_configuration = mock.MagicMock(return_value=None)
 
                     # Do it
@@ -580,12 +581,26 @@ class TestOperations(unittest.TestCase):
                 # (this returns the mocked new env vars json)
                 lam.get_function_configuration = mock.MagicMock(return_value=lam_new_env)
 
+                # Used to specify a lambda by name
+                stage = os.environ["DSS_DEPLOYMENT_STAGE"]
+
                 # Non-JSON fmt, no lambda name specified
                 with CaptureStdout() as output:
                     ssm_params.lambda_list(
                         [],
                         argparse.Namespace(
                             lambda_name=None,
+                            json=False
+                        )
+                    )
+                self.assertIn(f"{testvar_name}={testvar_value}", output)
+
+                # Non-JON fmt, lambda name specified
+                with CaptureStdout() as output:
+                    ssm_params.lambda_list(
+                        [],
+                        argparse.Namespace(
+                            lambda_name=f"dss-{stage}",
                             json=False
                         )
                     )
@@ -606,7 +621,6 @@ class TestOperations(unittest.TestCase):
 
                 # JSON fmt, lambda name specified
                 with CaptureStdout() as output:
-                    stage = os.environ["DSS_DEPLOYMENT_STAGE"]
                     ssm_params.lambda_list(
                         [],
                         argparse.Namespace(
@@ -620,10 +634,52 @@ class TestOperations(unittest.TestCase):
                 self.assertIn(testvar_name, all_lam_envs[keys[0]])
 
         with self.subTest("Update existing lambda parameters"):
-            pass
+            with mock.patch("dss.operations.params.ssm_client") as ssm:
+                with mock.patch("dss.operations.params.lambda_client") as lam:
+                    # Mock the same way we did for set new param above.
+                    # First we mock the SSM param store
+                    ssm.get_parameter = mock.MagicMock(return_value=ssm_new_env)
+                    ssm.put_parameter = mock.MagicMock(return_value=None)
+
+                    # Next we mock the lambda client
+                    lam.get_function = mock.MagicMock(return_value=None)
+                    lam.get_function_configuration = mock.MagicMock(return_value=lam_new_env)
+                    lam.update_function_configuration = mock.MagicMock(return_value=None)
+
+                    # Do it
+                    ssm_params.lambda_set(
+                        [],
+                        argparse.Namespace(
+                            name=testvar_name,
+                            value=testvar_value2,
+                            dry_run=False
+                        )
+                    )
 
         with self.subTest("Unset lambda parameters"):
-            pass
+            with mock.patch("dss.operations.params.ssm_client") as ssm:
+                with mock.patch("dss.operations.params.lambda_client") as lam:
+
+                    # Unsetting a variable unsets it from both
+                    # the SSM param store and the lambda environment
+                    # for every deployed lambda function.
+
+                    # First mock the SSM param store
+                    ssm.get_parameter = mock.MagicMock(return_value=ssm_new_env)
+                    ssm.put_parameter = mock.MagicMock(return_value=None)
+
+                    # Next mock the lambda client
+                    lam.get_function = mock.MagicMock(return_value=lam_new_env)
+                    lam.set_function = mock.MagicMock(return_value=None)
+
+                    # Do it
+                    ssm_params.lambda_unset(
+                        [],
+                        argparse.Namespace(
+                            name=testvar_name,
+                            dry_run=False
+                        )
+                    )
 
     def _wrap_lambda_env(self, e):
         # Package up the lambda environment the way AWS returns it
