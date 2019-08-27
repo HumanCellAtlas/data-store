@@ -1,4 +1,4 @@
-##  FoR REGEX MATCHING 
+##  FOR REGEX MATCHING 
 #TEMPLATE_FQID_DEAD = [A-Za-z0-9]{8}-[A-Za-z0-9]{4}-[A-Za-z0-9]{4}-[A-Za-z0-9]{4}-[A-Za-z0-9]{12}.[0-9]{4}-[0-9]{2}-[A-Za-z0-9]{9}.[A-Za-z0-9]{7}.dead
 #
 ## --------------------------------------------------------------
