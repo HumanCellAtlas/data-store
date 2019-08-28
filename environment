@@ -137,6 +137,7 @@ DSS_NOTIFY_TIMEOUT=60  # This may seem excessive but the default of 10s is not e
                        # Touch base with Lira (Saman and Rex currently) on this timeout once:
                        # - they have scale-tested their new queue component
                        # - all subscribers (not only Green Box) agree on the shorter timeout
+                       # https://github.com/HumanCellAtlas/data-store/issues/2398
 
 DSS_NOTIFY_WORKERS=24  # unset to automatically determine the number of workers
 
