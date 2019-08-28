@@ -1,7 +1,8 @@
 #!/bin/bash
 
-# This script sets the version variable DSS_VERSION into the SSM parameter contianing
-# the environment variables used when deploying lambdas, and into all deployed lambdas
+# This script sets the version variable DSS_VERSION into the SSM parameter
+# containing the environment variables used when deploying lambdas, and into
+# all deployed lambdas
 
 set -euo pipefail
 
@@ -18,4 +19,6 @@ else
     version=$(git describe --tags --always)
 fi
 
-scripts/populate_lambda_ssm_parameters.py --set DSS_VERSION=${version}
+# Update lambda environment in SSM param store, and update deployed lambdas
+scripts/dss-ops.py params ssm-set --name DSS_VERSION --value ${version}
+scripts/dss-ops.py params lambda-set --name DSS_VERSION --value ${version}
