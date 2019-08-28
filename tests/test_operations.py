@@ -300,14 +300,23 @@ class TestOperations(unittest.TestCase):
         unusedvar_name = f"{prefix}/admin_user_emails"
 
         with self.subTest("Create a new secret"):
-            with mock.patch("dss.operations.secrets.secretsmanager") as sm:
+            with mock.patch("dss.operations.secrets.sm_client") as sm:
                 # Creating a new variable will first call get, which will not find it
                 sm.get_secret_value = mock.MagicMock(
                     return_value=None, side_effect=ClientError({}, None)
                 )
                 # Next it will call create_secret
                 sm.create_secret = mock.MagicMock(return_value=None)
-                # Now create initial secret value
+                # Dry run
+                secrets.set_secret(
+                    [],
+                    argparse.Namespace(
+                        secret_name=testvar_name,
+                        secret_value=testvar_value,
+                        dry_run=True,
+                    ),
+                )
+                # Create initial secret value
                 secrets.set_secret(
                     [],
                     argparse.Namespace(
@@ -318,7 +327,7 @@ class TestOperations(unittest.TestCase):
                 )
 
         with self.subTest("List secrets"):
-            with mock.patch("dss.operations.secrets.secretsmanager") as sm:
+            with mock.patch("dss.operations.secrets.sm_client") as sm:
                 # Listing secrets requires creating a paginator first,
                 # so mock what the paginator returns
                 class MockPaginator(object):
@@ -349,62 +358,84 @@ class TestOperations(unittest.TestCase):
                 self.assertIn(testvar_name, d)
 
         with self.subTest("Get secret value"):
-            with mock.patch("dss.operations.secrets.secretsmanager") as sm:
-                # Requesting the variable will try to get secret value and succeed
-                sm.get_secret_value.return_value = {"SecretString": testvar_value}
-                # Now run get secret value in JSON mode and non-JSON mode
-                # and verify variable name/value is in both.
+            with mock.patch("dss.operations.secrets.sm_client") as sm:
+                with mock.patch("dss.operations.secrets.util") as utl:
+                    # Getting the secret value will first check if the
+                    # secret is gettable (i.e., not marked for deletion)
+                    utl.secret_is_gettable = mock.MagicMock(return_value=True)
+                    # Checking if a secret is gettable will first try to
+                    # fix the cloud variable prefix if it is missing
+                    utl.fix_cloud_variable_prefix = mock.MagicMock(side_effect=lambda x: x)
 
-                # Single variable non-JSON:
-                with CaptureStdout() as output:
+                    # Next, we try to get the secret value, and succeed
+                    sm.get_secret_value.return_value = {"SecretString": testvar_value}
+
+                    # Now run get secret value in JSON mode and non-JSON mode
+                    # and verify variable name/value is in both.
+
+                    # Single variable non-JSON:
                     secrets.get_secret(
                         [], argparse.Namespace(secret_names=[testvar_name], json=False)
                     )
-                output = "".join(output)
-                self.assertIn(testvar_name, output)
-                self.assertIn(testvar_value, output)
 
-                # Multiple variables non-JSON:
-                with CaptureStdout() as output:
-                    secrets.get_secret(
-                        [],
-                        argparse.Namespace(
-                            secret_names=[testvar_name, unusedvar_name], json=False
-                        ),
-                    )
-                output = "".join(output)
-                self.assertIn(testvar_name, output)
-                self.assertIn(testvar_value, output)
+                    with CaptureStdout() as output:
+                        secrets.get_secret(
+                            [], argparse.Namespace(secret_names=[testvar_name], json=False)
+                        )
+                    output = "".join(output)
+                    self.assertIn(testvar_name, output)
+                    self.assertIn(testvar_value, output)
 
-                # Single variable JSON:
-                with CaptureStdout() as output:
-                    secrets.get_secret(
-                        [], argparse.Namespace(secret_names=[testvar_name], json=True)
-                    )
-                output = "".join(output)
-                self.assertIn(testvar_name, output)
-                self.assertIn(testvar_value, output)
+                    # Multiple variables non-JSON:
+                    with CaptureStdout() as output:
+                        secrets.get_secret(
+                            [],
+                            argparse.Namespace(
+                                secret_names=[testvar_name, unusedvar_name], json=False
+                            ),
+                        )
+                    output = "".join(output)
+                    self.assertIn(testvar_name, output)
+                    self.assertIn(testvar_value, output)
 
-                # Multiple variables JSON:
-                with CaptureStdout() as output:
-                    secrets.get_secret(
-                        [],
-                        argparse.Namespace(
-                            secret_names=[testvar_name, unusedvar_name], json=True
-                        ),
-                    )
-                output = "".join(output)
-                self.assertIn(testvar_name, output)
-                self.assertIn(testvar_value, output)
+                    # Single variable JSON:
+                    with CaptureStdout() as output:
+                        secrets.get_secret(
+                            [], argparse.Namespace(secret_names=[testvar_name], json=True)
+                        )
+                    output = "".join(output)
+                    self.assertIn(testvar_name, output)
+                    self.assertIn(testvar_value, output)
+
+                    # Multiple variables JSON:
+                    with CaptureStdout() as output:
+                        secrets.get_secret(
+                            [],
+                            argparse.Namespace(
+                                secret_names=[testvar_name, unusedvar_name], json=True
+                            ),
+                        )
+                    output = "".join(output)
+                    self.assertIn(testvar_name, output)
+                    self.assertIn(testvar_value, output)
 
         with self.subTest("Update existing secret"):
-            with mock.patch("dss.operations.secrets.secretsmanager") as sm:
+            with mock.patch("dss.operations.secrets.sm_client") as sm:
                 # Updating the variable will try to get secret value and succeed
                 sm.get_secret_value = mock.MagicMock(
                     return_value={"SecretString": testvar_value}
                 )
                 # Next we will call the update secret command
                 sm.update_secret = mock.MagicMock(return_value=None)
+                # Dry run
+                secrets.set_secret(
+                    [],
+                    argparse.Namespace(
+                        secret_name=testvar_name,
+                        secret_value=testvar_value2,
+                        dry_run=True,
+                    ),
+                )
                 # Update secret
                 secrets.set_secret(
                     [],
@@ -416,12 +447,19 @@ class TestOperations(unittest.TestCase):
                 )
 
         with self.subTest("Delete secret"):
-            with mock.patch("dss.operations.secrets.secretsmanager") as sm:
+            with mock.patch("dss.operations.secrets.sm_client") as sm:
                 # Deleting the variable will try to get secret value and succeed
                 sm.get_secret_value = mock.MagicMock(
                     return_value={"SecretString": testvar_value}
                 )
                 sm.delete_secret = mock.MagicMock(return_value=None)
+                # Dry run
+                secrets.del_secret(
+                    [],
+                    argparse.Namespace(
+                        secret_name=testvar_name, force=True, dry_run=True
+                    ),
+                )
                 # Delete secret
                 secrets.del_secret(
                     [],
@@ -497,6 +535,12 @@ class TestOperations(unittest.TestCase):
                 ssm_params.ssm_set(
                     [],
                     argparse.Namespace(
+                        name=testvar_name, value=testvar_value2, dry_run=True
+                    ),
+                )
+                ssm_params.ssm_set(
+                    [],
+                    argparse.Namespace(
                         name=testvar_name, value=testvar_value2, dry_run=False
                     ),
                 )
@@ -506,6 +550,9 @@ class TestOperations(unittest.TestCase):
                 # Mock the same way we did for set new secret above
                 ssm.get_parameter = mock.MagicMock(return_value=ssm_new_env)
                 ssm.put_parameter = mock.MagicMock(return_value=None)
+                ssm_params.ssm_unset(
+                    [], argparse.Namespace(name=testvar_name, dry_run=True)
+                )
                 ssm_params.ssm_unset(
                     [], argparse.Namespace(name=testvar_name, dry_run=False)
                 )
@@ -556,6 +603,16 @@ class TestOperations(unittest.TestCase):
                     lam.get_function = mock.MagicMock(return_value=None)
                     lam.get_function_configuration = mock.MagicMock(return_value=lam_old_env)
                     lam.update_function_configuration = mock.MagicMock(return_value=None)
+
+                    # Dry run
+                    ssm_params.lambda_set(
+                        [],
+                        argparse.Namespace(
+                            name=testvar_name,
+                            value=testvar_value,
+                            dry_run=True
+                        )
+                    )
 
                     # Do it
                     ssm_params.lambda_set(
@@ -616,7 +673,7 @@ class TestOperations(unittest.TestCase):
                         )
                     )
                 all_lam_envs = json.loads("\n".join(output))
-                for _, lam_env in all_lam_envs:
+                for _, lam_env in all_lam_envs.items():
                     self.assertIn(testvar_name, lam_env)
 
                 # JSON fmt, lambda name specified
@@ -656,6 +713,68 @@ class TestOperations(unittest.TestCase):
                         )
                     )
 
+        with self.subTest("Update lambda environment stored by SSM store"):
+            with mock.patch("dss.operations.params.ssm_client") as ssm:
+                with mock.patch("dss.operations.params.util") as utl:
+
+                    # If we call lambda_update, it calls get_local_lambda_environment()
+                    # to get the current lambda environment from a local env var,
+                    # not from param store, so get_parameter() is not called.
+                    # lambda_update calls set_ssm_environment(),
+                    # which only calls ssm.put_parameter()
+                    ssm.put_parameter = mock.MagicMock(return_value=None)
+
+                    # The following two functions normally call the
+                    # secrets manager to get these two values from the
+                    # secrets manager, but mocking those calls is extra
+                    # work we don't need to do - mock the entire function.
+
+                    # lambda_update will call get_elasticsearch_endpoint()
+                    utl.get_elasticsearch_endpoint = mock.MagicMock(
+                        return_value="search-dss-index-dev-YOURHASHGOESHERE.us-east-1.east.amazonaws.com"
+                    )
+                    # lambda_update will call get_admin_emails()
+                    utl.get_admin_emails = mock.MagicMock(
+                        return_value="foo@bar.com,baz@wuz.com"
+                    )
+
+                    # Finally, we call set_ssm_environment
+                    # which calls ssm.put_parameter()
+                    # (mocked above).
+
+                    # If we also update deployed lambdas, it will call:
+                    # get_deployed_lambdas() -> lam_client.get_function()
+                    # get_deployed_lambda_environment() -> lam_client.get_function_configuration()
+                    # set_deployed_lambda_environment() -> lam_client.update_function_configuration()
+                    lam.get_function = mock.MagicMock(return_value=None)
+                    lam.get_function_configuration = mock.MagicMock(return_value=lam_new_env)
+                    lam.update_function_configuration = mock.MagicMock(return_value=None)
+
+                    # Dry run
+                    ssm_params.lambda_update(
+                        [],
+                        argparse.Namespace(
+                            update_deployed=False,
+                            dry_run=True,
+                        )
+                    )
+                    # Do it
+                    ssm_params.lambda_update(
+                        [],
+                        argparse.Namespace(
+                            update_deployed=False,
+                            dry_run=False,
+                        )
+                    )
+                    # Use the --update-deployed flag
+                    ssm_params.lambda_update(
+                        [],
+                        argparse.Namespace(
+                            update_deployed=True,
+                            dry_run=False,
+                        )
+                    )
+
         with self.subTest("Unset lambda parameters"):
             with mock.patch("dss.operations.params.ssm_client") as ssm:
                 with mock.patch("dss.operations.params.lambda_client") as lam:
@@ -672,6 +791,14 @@ class TestOperations(unittest.TestCase):
                     lam.get_function = mock.MagicMock(return_value=lam_new_env)
                     lam.set_function = mock.MagicMock(return_value=None)
 
+                    # Dry run
+                    ssm_params.lambda_unset(
+                        [],
+                        argparse.Namespace(
+                            name=testvar_name,
+                            dry_run=True
+                        )
+                    )
                     # Do it
                     ssm_params.lambda_unset(
                         [],
