@@ -10,7 +10,7 @@ from cloud_blobstore import BlobNotFoundError, BlobStore
 from dss import Config, Replica
 from dss.api.search import PerPageBounds
 from dss.storage.identifiers import DSS_BUNDLE_KEY_REGEX, DSS_BUNDLE_TOMBSTONE_REGEX, BundleTombstoneID, BundleFQID, \
-    TOMBSTONE_SUFFIX
+    TOMBSTONE_SUFFIX, BUNDLE_PREFIX
 from dss.storage.blobstore import test_object_exists, idempotent_save
 from dss.util import multipart_parallel_upload
 
@@ -122,8 +122,11 @@ def _latest_version_from_object_names(object_names: typing.Iterator[str]) -> str
     return version
 
 
-def list_available_uuids(replica: str = None, prefix: str = None, per_page: int = PerPageBounds.per_page_max,
-                         search_after: str = None, token: str = None):
+def list_available_uuids(replica: str = None,
+                         prefix: typing.Optional[str] = None,
+                         per_page: int = PerPageBounds.per_page_max,
+                         search_after: typing.Optional[str] = None,
+                         token: typing.Optional[str] = None):
     """Return a list of available uuid's in a given prefix, removes tombstones"""
     kwargs = dict(bucket=Replica[replica].bucket, prefix=prefix, k_page_max=per_page)
     if search_after:
@@ -141,7 +144,7 @@ def list_available_uuids(replica: str = None, prefix: str = None, per_page: int 
         uuid, version = key.split('.', 1)
         if not version.endswith(TOMBSTONE_SUFFIX):
             search_after = key
-            keys.setdefault(uuid, []).append(version)
+            keys.setdefault(uuid.strip(f'{BUNDLE_PREFIX}/'), []).append(version)
             total_keys += 1
         elif TOMBSTONE_SUFFIX == version:
             if keys.get(uuid) is not None:
@@ -154,4 +157,4 @@ def list_available_uuids(replica: str = None, prefix: str = None, per_page: int 
         for version in versions:
             uuid_list.append(dict(uuid=uuid, version=version))
     token = getattr(prefix_iterator, 'token', None)
-    return dict(search_after=search_after, data=uuid_list, token=token, page_count=len(uuid_list))
+    return dict(search_after=search_after, bundles=uuid_list, token=token, page_count=len(uuid_list))

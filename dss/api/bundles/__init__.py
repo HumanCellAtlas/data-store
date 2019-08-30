@@ -18,7 +18,7 @@ from dss.storage.blobstore import idempotent_save, test_object_exists, ObjectTes
 from dss.storage.bundles import get_bundle_manifest, save_bundle_manifest, list_available_uuids
 from dss.storage.checkout import CheckoutError, TokenError
 from dss.storage.checkout.bundle import get_dst_bundle_prefix, verify_checkout
-from dss.storage.identifiers import BundleTombstoneID, FileFQID, TOMBSTONE_SUFFIX
+from dss.storage.identifiers import BundleTombstoneID, FileFQID, BUNDLE_PREFIX
 from dss.storage.hcablobstore import BundleFileMetadata, BundleMetadata, FileMetadata
 from dss.util import UrlBuilder, security, hashabledict
 from dss.util.version import datetime_to_version_format
@@ -138,13 +138,21 @@ def get(
         return response
 
 @dss_handler
-def enumerate(replica: str, prefix: str = 'bundles/', token: str = None,
+def enumerate(replica: str,
+              prefix: typing.Optional[str] = f'{BUNDLE_PREFIX}/',
+              token: typing.Optional[str] = None,
               per_page: int = PerPageBounds.per_page_max,
               search_after: typing.Optional[str] = None):
+    """
+    :param replica: replica name to enumerate against
+    :param prefix: uuid prefix used to filter enumeration
+    :param token: used to page searches, should not be set by the user.
+    :param per_page: max items per page to show, 10 <= per_page <= 500
+    :param search_after: used to page searches, should not be set by the user.
+    """
 
-    if prefix and not prefix.startswith('bundles/'):
-        raise DSSException(requests.codes.bad_request, 'illegal_arguments',
-                           f'prefix: {prefix} must follow "bundle/" format')
+    if prefix:
+        prefix = f'{BUNDLE_PREFIX}/{prefix}'
     api_domain_name = f'https://{os.environ.get("API_DOMAIN_NAME")}'
     payload = dict(dss_api=api_domain_name, object='list', per_page=per_page,
                    event_timestamp=datetime_to_version_format(datetime.datetime.utcnow()))  # type: typing.Any
