@@ -18,6 +18,7 @@ logger = logging.getLogger(__name__)
 
 SQS_MAX_VISIBILITY_TIMEOUT = 43200
 
+
 class Notifier:
 
     @classmethod
@@ -85,9 +86,14 @@ class Notifier:
 
     def deploy(self) -> None:
         sqs = boto3.client('sqs')
+        two_weeks = '1209600'
         for queue_index in self._queue_indices:
-            sqs.create_queue(QueueName=self._queue_name(queue_index), Attributes={'FifoQueue': "true"})
-        sqs.create_queue(QueueName=self._queue_name(None), Attributes={'FifoQueue': "true"})
+            sqs.create_queue(QueueName=self._queue_name(queue_index),
+                             Attributes={'FifoQueue': 'true',
+                                         'MessageRetentionPeriod': two_weeks})
+        sqs.create_queue(QueueName=self._queue_name(None),
+                         Attributes={'FifoQueue': 'true',
+                                     'MessageRetentionPeriod': two_weeks})
 
     def destroy(self, purge_only=False) -> None:
         if self._deployment_stage.startswith('test-'):
