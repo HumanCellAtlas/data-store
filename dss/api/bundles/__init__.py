@@ -7,7 +7,7 @@ import datetime
 
 import nestedcontext
 import requests
-from cloud_blobstore import BlobNotFoundError, BlobStore, BlobStoreTimeoutError
+from cloud_blobstore import BlobNotFoundError, BlobStoreTimeoutError
 from flask import jsonify, redirect, request, make_response
 from concurrent.futures import ThreadPoolExecutor, as_completed
 
@@ -18,9 +18,9 @@ from dss.storage.blobstore import idempotent_save, test_object_exists, ObjectTes
 from dss.storage.bundles import get_bundle_manifest, save_bundle_manifest, list_available_uuids
 from dss.storage.checkout import CheckoutError, TokenError
 from dss.storage.checkout.bundle import get_dst_bundle_prefix, verify_checkout
-from dss.storage.identifiers import BundleTombstoneID, BundleFQID, FileFQID, TOMBSTONE_SUFFIX
+from dss.storage.identifiers import BundleTombstoneID, FileFQID, TOMBSTONE_SUFFIX
 from dss.storage.hcablobstore import BundleFileMetadata, BundleMetadata, FileMetadata
-from dss.util import UrlBuilder, security, hashabledict, multipart_parallel_upload
+from dss.util import UrlBuilder, security, hashabledict
 from dss.util.version import datetime_to_version_format
 
 """The retry-after interval in seconds. Sets up downstream libraries / users to
@@ -127,9 +127,13 @@ def get(
     )
 
     if link is None:
-        return response_body
+        response = make_response(jsonify(response_body), requests.codes.ok)
+        response.headers['X-OpenAPI-Pagination'] = 'false'
+        return response
     else:
         response = make_response(jsonify(response_body), requests.codes.partial)
+        response.headers['X-OpenAPI-Pagination'] = 'true'
+        response.headers['X-OpenAPI-Paginated-Content-Key'] = 'files'
         response.headers['Link'] = link
         return response
 
@@ -257,26 +261,23 @@ def delete(uuid: str, replica: str, json_request_body: dict, version: str = None
     )
 
     handle = Config.get_blobstore_handle(Replica[replica])
-    if test_object_exists(handle, Replica[replica].bucket, bundle_prefix, test_type=ObjectTest.PREFIX):
-        created, idempotent = idempotent_save(
-            handle,
-            Replica[replica].bucket,
-            tombstone_id.to_key(),
-            json.dumps(tombstone_object_data).encode("utf-8")
-        )
-        if not idempotent:
-            raise DSSException(
-                requests.codes.conflict,
-                f"bundle_tombstone_already_exists",
-                f"bundle tombstone with UUID {uuid} and version {version} already exists",
-            )
-        status_code = requests.codes.ok
-        response_body = dict()  # type: dict
-    else:
-        status_code = requests.codes.not_found
-        response_body = dict(title="bundle not found")
+    if not test_object_exists(handle, Replica[replica].bucket, bundle_prefix, test_type=ObjectTest.PREFIX):
+        raise DSSException(404, "not_found", "Cannot find bundle!")
 
-    return jsonify(response_body), status_code
+    created, idempotent = idempotent_save(
+        handle,
+        Replica[replica].bucket,
+        tombstone_id.to_key(),
+        json.dumps(tombstone_object_data).encode("utf-8")
+    )
+    if not idempotent:
+        raise DSSException(
+            requests.codes.conflict,
+            f"bundle_tombstone_already_exists",
+            f"bundle tombstone with UUID {uuid} and version {version} already exists",
+        )
+
+    return dict(), requests.codes.ok
 
 
 def build_bundle_file_metadata(replica: Replica, user_supplied_files: dict):

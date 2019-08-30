@@ -1,4 +1,4 @@
-from typing import Generator
+from typing import Generator, Optional
 
 from dss.util.aws.clients import dynamodb as db  # type: ignore
 
@@ -7,16 +7,19 @@ class DynamoDBItemNotFound(Exception):
     pass
 
 
-def _format_item(hash_key, sort_key, value):
+def _format_item(hash_key: str, sort_key: Optional[str], value: Optional[str], ttl: Optional[int] = None) -> dict:
     item = {'hash_key': {'S': hash_key}}
     if value:
         item['body'] = {'S': value}
     if sort_key:
         item['sort_key'] = {'S': sort_key}
+    if ttl:
+        item['ttl'] = {'N': str(ttl)}
     return item
 
 
-def put_item(*, table: str, hash_key: str, sort_key: str=None, value: str, dont_overwrite: str=None):
+def put_item(*, table: str, hash_key: str, sort_key: Optional[str] = None, value: str,
+             dont_overwrite: Optional[str] = None, ttl: Optional[int] = None):
     """
     Put an item into a dynamoDB table.
 
@@ -30,16 +33,17 @@ def put_item(*, table: str, hash_key: str, sort_key: str=None, value: str, dont_
                          Note: If not specified, this will PUT only 1 key (hash_key) and 1 value.
     :param str dont_overwrite: Don't overwrite if this parameter exists.  For example, setting this
                                to 'sort_key' won't overwrite if that sort_key already exists in the table.
+    :param int ttl: Time to Live for the item.  Only works if enabled for that specific table.
     :return: None
     """
     query = {'TableName': table,
-             'Item': _format_item(hash_key=hash_key, sort_key=sort_key, value=value)}
+             'Item': _format_item(hash_key=hash_key, sort_key=sort_key, value=value, ttl=ttl)}
     if dont_overwrite:
         query['ConditionExpression'] = f'attribute_not_exists({dont_overwrite})'
     db.put_item(**query)
 
 
-def get_item(*, table: str, hash_key: str, sort_key: str=None, return_key: str='body'):
+def get_item(*, table: str, hash_key: str, sort_key: Optional[str] = None, return_key: str = 'body') -> str:
     """
     Get associated value for a given set of keys from a dynamoDB table.
 
@@ -61,7 +65,7 @@ def get_item(*, table: str, hash_key: str, sort_key: str=None, return_key: str='
     return item[return_key]['S']
 
 
-def get_primary_key_items(*, table: str, key: str, return_key: str='body') -> Generator[str, None, None]:
+def get_primary_key_items(*, table: str, key: str, return_key: str = 'body') -> Generator[str, None, None]:
     """
     Get associated value for a given set of keys from a dynamoDB table.
 
@@ -96,7 +100,7 @@ def get_primary_key_count(*, table: str, key: str) -> int:
     return res['Count']
 
 
-def get_all_table_items(*, table: str, both_keys: bool=False):
+def get_all_table_items(*, table: str, both_keys: bool = False):
     """
     Return all items from a dynamoDB table.
 
@@ -113,7 +117,7 @@ def get_all_table_items(*, table: str, both_keys: bool=False):
                 yield item['body']['S']
 
 
-def delete_item(*, table: str, hash_key: str, sort_key: str=None):
+def delete_item(*, table: str, hash_key: str, sort_key: Optional[str] = None):
     """
     Delete an item from a dynamoDB table.
 

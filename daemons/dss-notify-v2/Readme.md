@@ -18,8 +18,8 @@ or via SQS queue:
 * Lambda-triggered via SQS `dss-notify-v2-{DSS_DEPLOYMENT_STAGE}`
 
 If notification delivery fails, a notification record is made in the queue. Delivery will be attempted once
-after 15 minutes, and again every hour for 7 days. Delivery delay and duration is configured via SQS DelaySeconds
-and VisibilityTimeout.
+after 15 minutes, and again every hour for 7 days. Delivery delay and duration is 
+configured via SQS attribute DelaySeconds.
 
 Event handlers in the dss-notify-v2 daemon use utility functions in
 [dss.events.handlers.notify_v2](../../dss/events/handlers/notify_v2.py).
@@ -66,6 +66,11 @@ of the subscription owner, and the sort key is the subscription uuid. There is o
 Subscriptions are accessed via owner for API actions. When notifications are triggered during an object storage event,
 subscriptions are fetched from the backend via `scan`.
 
+If notification delivery fails, a notification record is made in the queue.Delivery will be attempted immediately
+after failure and at time intervals of one minute, ten minutes, one hour, six hours, and 16 hours
+after the first failure. Delivery would then continue for the next 6 days at 24 hour intervals. After day 7, no further notification will be delivered and the subscription will be
+removed from the delivery service. The old subscription will remain and the user would need to delete it and create a new subscription in order to receive new notifications.
+
 ### Bundle Metadata Document
 
 The bundle metadata document is constructed from json files present in the bundle manifest, and
@@ -93,6 +98,7 @@ The bundle metadata document format for a new bundle or version is is
 ```
 
 For a tombstone it is
+
 ```
 {
   'event_type': "TOMBSTONE",
@@ -104,6 +110,7 @@ For a tombstone it is
 ```
 
 For a deleted bundle it is
+
 ```
 {
   'event_type': "DELETE",
