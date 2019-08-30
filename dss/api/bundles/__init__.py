@@ -139,7 +139,7 @@ def get(
 
 @dss_handler
 def enumerate(replica: str,
-              prefix: typing.Optional[str] = f'{BUNDLE_PREFIX}/',
+              prefix: typing.Optional[str] = None,
               token: typing.Optional[str] = None,
               per_page: int = PerPageBounds.per_page_max,
               search_after: typing.Optional[str] = None):
@@ -152,11 +152,13 @@ def enumerate(replica: str,
     """
 
     if prefix:
-        prefix = f'{BUNDLE_PREFIX}/{prefix}'
+        search_prefix = f'{BUNDLE_PREFIX}/{prefix}'
+    else:
+        search_prefix = f'{BUNDLE_PREFIX}/'
     api_domain_name = f'https://{os.environ.get("API_DOMAIN_NAME")}'
-    payload = dict(dss_api=api_domain_name, object='list', per_page=per_page,
+    payload = dict(dss_api=api_domain_name, object='list', per_page=per_page, search_prefix=search_prefix,
                    event_timestamp=datetime_to_version_format(datetime.datetime.utcnow()))  # type: typing.Any
-    kwargs = dict(replica=Replica[replica].name, prefix=prefix, per_page=per_page)
+    kwargs = dict(replica=Replica[replica].name, prefix=search_prefix, per_page=per_page)
     if search_after:
         kwargs['search_after'] = search_after
     if token:

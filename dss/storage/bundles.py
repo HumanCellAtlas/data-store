@@ -135,12 +135,12 @@ def list_available_uuids(replica: str = None,
         kwargs['token'] = token
 
     storage_handler = Config.get_blobstore_handle(Replica[replica])
-    prefix_iterator = storage_handler.list_v2(**kwargs)
+    prefix_iterator = enumerate(storage_handler.list_v2(**kwargs))
     keys = dict()  # type: dict
     uuid_list = list()
     total_keys = 0
 
-    for key, meta in prefix_iterator:
+    for idx, (key, meta) in prefix_iterator:
         uuid, version = key.split('.', 1)
         if not version.endswith(TOMBSTONE_SUFFIX):
             search_after = key
