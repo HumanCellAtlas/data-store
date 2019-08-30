@@ -1,11 +1,13 @@
 import os, re
 import logging as logger
 
+from dss import Config, Replica
+from dss.dynamodb import get_item, put_item, delete_item, DynamoDBItemNotFound
+
+from cloud_blobstore import BlobNotFoudError, BlobStoreError
 from hca.dss import DSSClient
 from hca.util.exceptions import SwaggerAPIException
 from dss.storage.identifiers import DSS_BUNDLE_TOMBSTONE_REGEX as dead_template
-
-#need to import: Blobstore, Config, dynamodb
 
 
 def parse_keys_to_fqid(key_list, replica)
@@ -35,7 +37,7 @@ def parse_keys_to_fqid(key_list, replica)
     return parsed_collection_keys, parsed_bundle_keys, replica
     
 # --------------------------------------------------------------
-# bundle / collectione
+# untombsonte bundles / collectione
 # --------------------------------------------------------------
 
 def untombstone_bundle_collection(parsed_bundle_keys, parsed_collection_keys, replica):
@@ -120,7 +122,7 @@ def update_og_bundle(fqid):
         # brings back the version that was labeled dead
         es_client.update_by_query(
             index = "_all",
-            body= {"query":{"terms":{"_id":[fqid]}}}
+            body= {"query":{"terms":{"_id":[uuid]}}}
         )
 
     else:
@@ -128,7 +130,7 @@ def update_og_bundle(fqid):
         # brings back all the versions
         es_client.update_by_query(
             index = "_all",
-            body= {"query":{"terms":{"_id":["{}.{}".format(uuid, "dead")]}}}
+            body= {"query":{"terms":{"_id":["{}.{}".format(uuid, version)]}}}
         )
 
     logger.debug("Untombstoned original bundle {uuid}.{version}")
@@ -148,7 +150,6 @@ def tombstoned_or_not_collection(fqid, replica):
     """
 
      if re.match(dead_template, fqid):
-        # I assume thisthe version comes with the dead tag
         uuid, version = fqid.split(".", 1)
     else:
         # Just dead tag 
@@ -179,7 +180,7 @@ def deindex_dead_reindex_collection(fqid, handle, bucket):
                  }
 
     dynamodb_client.delete_item(**dead_query)
-    logger.debug(f"revmoed collection {fqid} from dynamodb")
+    logger.debug(f"removed collection {fqid} from dynamodb")
     dynamodb_client.put_item(**og_query)
     logger.debug(f"restored original collection {uuid} {version}")
     
