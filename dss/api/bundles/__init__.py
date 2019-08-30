@@ -53,13 +53,13 @@ def restore(replica: str, uuid: str, version: str, confrim_code: str):
     # Finds bundle in post_seearch using query
     if version is not None:
         bundle_query = {"query":{"bool":{"must":[{"match":{"uuid":uuid}},{"match":{"version":version}},]}}}
-        fqids = dss_client.post_serach(es_query=bundle_query, replica=replica)["results"]
+        fqids = dss_client.post_serach(es_query=bundle_query, replica=replica)["results"]["fqid"]
         if fqids is None:
             raise DSSException(404, "not_found", "Cannot find bundle!")
     # finds any previous version of original bundle(s)
     else:
         bundle_query = {"query":{"bool":{"must":[{"match":{"uuid":uuid}},]}}}
-        fqids = dss_client.post_serach(es_query=bundle_query, replica=replica)["results"]
+        fqids = dss_client.post_serach(es_query=bundle_query, replica=replica)["results"]["fqid"]
          if fqids is None:
             raise DSSException(404, "not_found", "Cannot find bundle!")
     
