@@ -61,6 +61,9 @@ def get(uuid: str, replica: str, version: str = None, token: str = None, directu
 
 def get_helper(uuid: str, replica: Replica, version: str = None, token: str = None, directurl: bool = False,
                bundle_uuid: str = None, bundle_version: str = None):
+    if bundle_version and not bundle_uuid:
+        raise DSSException(400, "bad_request",
+                           "If bundle_version is specified, then bundle_uuid MUST be specified as well.")
 
     with tracing.Subsegment('parameterization'):
         handle = Config.get_blobstore_handle(replica)
@@ -107,11 +110,9 @@ def get_helper(uuid: str, replica: Replica, version: str = None, token: str = No
                     path=get_dst_key(blob_path)
                 )))
             else:
-                filename = None
                 if bundle_uuid:
                     filename = determine_filename(f'{uuid}.{version}', bundle_uuid, bundle_version, handle, bucket)
-
-                if not filename:
+                else:
                     filename = blob_path[len('blobs/'):]  # default to naming after the giant blob hash
 
                 # tells a browser to treat the response link as a download rather than open a new tab
@@ -149,6 +150,7 @@ def get_helper(uuid: str, replica: Replica, version: str = None, token: str = No
 
 def determine_filename(file_fqid, bundle_uuid, bundle_version, handle, bucket):
     """Returns filename from bundle metadata or None if not found in the bundle metadata."""
+    unspecified_bundle_version = bool(bundle_version)
     if not bundle_version:
         bundle_version = get_latest_version(handle, bucket, prefix=f'bundles/{bundle_uuid}.')
     if not bundle_version:
@@ -160,6 +162,13 @@ def determine_filename(file_fqid, bundle_uuid, bundle_version, handle, bucket):
         for file in response['files']:
             if f'{file["uuid"]}.{file["version"]}' == file_fqid:
                 return file['name']
+
+    if unspecified_bundle_version:
+        raise DSSException(404, "not_found", f'The latest version of bundle_uuid: "{bundle_uuid}" does not contain '
+                                             f'file: {file_fqid}')
+    else:
+        raise DSSException(404, "not_found", f'bundle_uuid: "{bundle_uuid}" and bundle_version: "{bundle_version}" '
+                                             f'do not contain file: {file_fqid}')
 
 
 def content_disposition_response(replica: str, filename: str) -> dict:

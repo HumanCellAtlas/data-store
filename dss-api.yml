@@ -377,19 +377,23 @@ paths:
           in: query
           required: false
           description: |
-            When set to true, the response will contain API-specific URLs that are tied to the specified replica, for example `gs://bucket/object` or `s3://bucket/object`
+            When set to true, the response will contain API-specific URLs that are tied to the specified replica, for
+            example `gs://bucket/object` or `s3://bucket/object`
 
-            The use of presigned URLs is recommended for data access. Cloud native URLs are currently provided for a limited set of use cases and may not be provided in the future. If cloud native URLs are required, please contact the data store team regarding the credentials necessary to use them.
+            The use of presigned URLs is recommended for data access. Cloud native URLs are currently provided for a
+            limited set of use cases and may not be provided in the future. If cloud native URLs are required, please
+            contact the data store team regarding the credentials necessary to use them.
           type: boolean
         - name: bundle_uuid
           in: query
           description: |
-            The uuid of the parent bundle containing this file.  Provides additional metadata containing the filename
-            for that bundle.  If "bundle_version" is not specified, this will default to the latest version of
-            that bundle uuid and will return the file name inside of that bundle version in the response, if it exists.
+            Optional UUID of the parent bundle containing this file. If this parameter is provided, the response will
+            include a Content-Disposition header set to the actual file name of the file as defined in the specified
+            bundle. Without the parent bundle reference, the Content-Disposition header will be set to a hash of the
+            file's content. If this parameter is specified along with the `bundle_version` parameter, the specific
+            bundle will be used to determine the filename, otherwise the latest version of the bundle will be used.
 
-            It's recommended that one always includes the "bundle_version" param when using the "bundle_uuid" param to
-            ensure the correct metadata is returned.
+            If the specified bundle does not contain the file, a 404 will be returned.
           required: false
           type: string
         - name: bundle_version
@@ -402,7 +406,7 @@ paths:
             It's recommended that one always includes the "bundle_version" param when using the "bundle_uuid" param to
             ensure the correct metadata is returned.
 
-            The "bundle_version" param does nothing if the "bundle_uuid" param is not specified.
+            The "bundle_uuid" param must be specified if "bundle_version" is specified.
           required: false
           type: string
       responses:
