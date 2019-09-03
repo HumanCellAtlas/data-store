@@ -11,10 +11,10 @@ from dss.storage.identifiers import DSS_BUNDLE_TOMBSTONE_REGEX as dead_template
 
 
 # --------------------------------------------------------------
-# untombsonte bundles / collectione
+# untombstone bundles
 # --------------------------------------------------------------
 
-def untombstone_bundl(parsed_bundle_keys, replica):
+def untombstone_bundle(parsed_bundle_keys, replica):
     """
     deletes dead bundles and brings back original bundle 
     """
@@ -67,14 +67,6 @@ def deindex_dead_bundle(fqid):
             body= {"query":{"terms":{"_id":[fqid]}}}
          )
         logger.debug(f"removed dead bundle {fqid} from es")
-    else:
-        # matches query and deletes all versions with the uuid 
-        uuid = fqid.split(".")[0]
-        es_client.delete_by_query(
-            index="_all",
-            body= {"query":{"terms":{"_id":[uuid]}}}
-         )
-        logger.debug(f"removed dead bundle {uuid} from es")
 
 def update_og_bundle(fqid):
     """
@@ -89,22 +81,28 @@ def update_og_bundle(fqid):
             index = "_all",
             body= {"query":{"terms":{"_id":[uuid]}}}
         )
+        logger.debug("Untombstoned original bundle {uuid}.{version}")
 
     else:
         uuid ,dead_tag = fqid.split(".")
         # brings back all the versions
         es_client.update_by_query(
             index = "_all",
-            body= {"query":{"terms":{"_id":["{}.{}".format(uuid, version)]}}}
+            body= {"query":{"terms":{"_id":["{}".format(uuid)]}}}
         )
 
-    logger.debug("Untombstoned original bundle {uuid}.{version}")
+        logger.debug("Untombstoned original bundles {uuid}")
 
 
 # --------------------------------------------------------------
-# tombstone 
+# collection
 # --------------------------------------------------------------
 
+def untombstone_colelction(fqid, replica):
+    if tombstoned_or_not_collection() is False:
+        pass
+    else:
+        deindex_dead_reindex_collection()
 
 def tombstoned_or_not_collection(fqid, replica):
     """
@@ -127,7 +125,7 @@ def tombstoned_or_not_collection(fqid, replica):
           return False
 
 
-def deindex_dead_reindex_collection(fqid, handle, bucket):
+def deindex_dead_reindex_collection(fqid, bucket):
     """
     Finds and deletes dead colletion and restores old collection
     """
