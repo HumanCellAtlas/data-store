@@ -15,7 +15,6 @@ default_auth = {"/files/{uuid}": ["put"],
                 "/subscriptions/{uuid}": ["get", "delete"],
                 "/collections": ["get", "put"],
                 "/collections/{uuid}": ["get", "patch", "delete"],
-                "/bundles": ["get"],
                 "/bundles/{uuid}": ["put", "patch", "delete"]
                }
 
