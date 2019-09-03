@@ -15,6 +15,7 @@ default_auth = {"/files/{uuid}": ["put"],
                 "/subscriptions/{uuid}": ["get", "delete"],
                 "/collections": ["get", "put"],
                 "/collections/{uuid}": ["get", "patch", "delete"],
+                "/bundles/": ["get"],
                 "/bundles/{uuid}": ["put", "patch", "delete"]
                }
 
@@ -25,6 +26,7 @@ full_auth = {"/search": ["post"],
              "/subscriptions/{uuid}": ["get", "delete"],
              "/collections": ["get", "put"],
              "/collections/{uuid}": ["get", "patch", "delete"],
+             "/bundles/": ["get"],
              "/bundles/{uuid}": ["get", "put", "patch", "delete"],
              "/bundles/{uuid}/checkout": ["post"],
              "/bundles/checkout/{checkout_job_id}": ["get"]
