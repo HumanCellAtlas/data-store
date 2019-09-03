@@ -1481,7 +1481,7 @@ paths:
           type: string
         - name: per_page
           in: query
-          description: Max number of results to return per page.
+          description: Max number of results to return per page, between 10 and 500
           required: false
           type: integer
           format: int32
@@ -1492,15 +1492,23 @@ paths:
         200:
           description: All results retrieved.
           schema:
-            $ref: '#/definitions/SearchResult'
+            $ref: '#/definitions/BundleEnumerationResult'
         206:
           description: A single page of results was retrieved.
           schema:
-            $ref: '#/definitions/SearchResult'
+            $ref: '#/definitions/BundleEnumerationResult'
           headers:
             Link:
               type: string
               description: URL to retrieve the next page of results.
+        500:
+          $ref: '#/responses/ServerError'
+        502:
+          $ref: '#/responses/BadGateway'
+        503:
+          $ref: '#/responses/ServiceUnavailable'
+        504:
+          $ref: '#/responses/GatewayTimeout'
         default:
           description: Unexpected error
           schema:
@@ -2530,6 +2538,48 @@ definitions:
         type: integer
         format: int
         description: User ID who created this bundle manifest.
+  BundleEnumerationResult:
+    type: object
+    properties:
+      bundles:
+        description: List of bundle objects returned from request, objects contain keys ("uuid","version")
+        type: array
+        items:
+          type: object
+          properties:
+            uuid:
+              type: string
+            version:
+              type: string
+          required:
+            - uuid
+            - version
+      has_more:
+        description: Boolean value indicating if there are more values to enumerate
+        type: boolean
+      object:
+        description: object type that is being returned
+        type: string
+      page_count:
+        description: Number of items returned on the page
+        type: integer
+      per_page:
+        description: Number of items requested per page
+        type: integer
+      search_prefix:
+        description: The prefix used for enumeration, in the format "bundles/{prefix}"
+      token:
+        description: Internal reference for enumeration, should not be changed by user.
+        type: string
+      search_after:
+        description: Internal reference for enumeration, indicates the last bundle seen.
+        type: string
+      link:
+        description: HTTP Link for the next page, only supplied if the DSS "has_more" for the enumeration.
+        type: string
+      event_timestamp:
+        description: Timestamp for when the request was processed.
+        type: string
   SearchResult:
     type: object
     properties:
