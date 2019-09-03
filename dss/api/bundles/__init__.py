@@ -7,7 +7,6 @@ import typing
 import datetime
 import logging as logger
 
-from hca.dss import DSSClient
 from dss.storage.identifiers import DSS_BUNDLE_TOMBSTONE_REGEX as dead_template
 
 import nestedcontext
@@ -44,51 +43,42 @@ def restore(replica: str, uuid: str, version: str, confrim_code: str):
     # checks for valid bucket
     if version is not None:
         key = f'bundles/{uuid}.{version}'
-        try:
-            handle = Config.get_blobstore_handle(replica)
-            handle.get(replica.bucket, key)
-        except BlobNotFoundError:
-            raise DSSException(404, "not_found", "Cannot find bundle!")
-            
-    # Finds bundle in post_seearch using query
-    if version is not None:
-        bundle_query = {"query":{"bool":{"must":[{"match":{"uuid":uuid}},{"match":{"version":version}},]}}}
-        fqids = dss_client.post_serach(es_query=bundle_query, replica=replica)["results"]["fqid"]
-        if fqids is None:
-            raise DSSException(404, "not_found", "Cannot find bundle!")
-    # finds any previous version of original bundle(s)
     else:
-        bundle_query = {"query":{"bool":{"must":[{"match":{"uuid":uuid}},]}}}
-        fqids = dss_client.post_serach(es_query=bundle_query, replica=replica)["results"]["fqid"]
-        if fqids is None:
-            raise DSSException(404, "not_found", "Cannot find bundle!")
+        key = f'bundles/{uuid}'
     
-    for fqid in fqids:
+    try:
+        handle = Config.get_blobstore_handle(replica)
+        handle.get(replica.bucket, key)
+    except BlobNotFoundError:
+        raise DSSException(404, "not_found", "Cannot find bundle!")
+    
+    
     # Searches for any bundles with given version and uuid
-        if fqid.endswith('.dead'):
-            if re.match(dead_template, fqid):
-                uuid_split, version_split, dead_split = fqid.split(".")
-                # matches query and deletes Specific bundle with given uuid 
-                es_client.delete_by_query(
-                         index="_all",
-                         body= {"query":{"terms":{"_id":[fqid]}}}
-                 )
-                 
-                logger.debug(f"removed dead bundle {uuid} from es")
-                es_client.update_by_query(
-                        index = "all",
-                        body = {"query":{"terms":{"_id":["{}{}".format(uuid_split,version_split)]}}}
-                )
-                logger.debug("Restored bundle {uuid_split}.{version_split}")
-            else:
-                # deindex dead bundle from es
-                es_client.delete_by_query(
-                        index="_all",
-                        body= {"query":{"terms":{"_id":[fqid]}}}
-                )
-                logger.debug(f"removed dead bundle {fqid} from es")
-                    # brings back any previous  version of the bundle given uuid
-                logger.debug("Resored bundles with {uuid}")
+    if version is not None:
+        # matches query and deletes Specific bundle with given uuid 
+        es_client.delete_by_query(
+                index="_all",
+                body= {"query":{"terms":{"_id":["{}.{}.dead".format(uuid,version)]}}}
+        )
+         
+        logger.debug(f"removed dead bundle {uuid}.{version}.dead from es")
+        es_client.update_by_query(
+                index = "all",
+                body = {"query":{"terms":{"_id":["{}.{}".format(uuid,version)]}}}
+        )
+        logger.debug("Restored bundle {uuid}.{version}")
+    else:
+        # deindex dead bundle from es
+        es_client.delete_by_query(
+                index="_all",
+                body= {"query":{"terms":{"_id":["{}.dead".format(uuid)]}}}
+        )
+        logger.debug(f"removed dead bundle {uuid}.dead from es")
+        es_client.update_by_query(
+                index = "_all",
+                body = {"query":{"terms":{"_id":["{}".format(uuid)]}}}
+        )
+        logger.debug("Resored bundles with {uuid}")
     # TODO: 
     # reindex es_client
     # Notify subscription that bundle has been restored
