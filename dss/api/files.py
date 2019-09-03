@@ -107,11 +107,13 @@ def get_helper(uuid: str, replica: Replica, version: str = None,
         token, ready = _verify_checkout(replica, token, file_metadata, blob_path)
         if ready:
             if directurl:
-                response = redirect(str(UrlBuilder().set(
+                directurl_builder = UrlBuilder().set(
                     scheme=replica.storage_schema,
                     netloc=replica.checkout_bucket,
                     path=get_dst_key(blob_path)
-                )))
+                )
+                directurl_builder.add_query('Started-At', started_at)
+                response = redirect(str(directurl_builder))
             else:
                 response = redirect(handle.generate_presigned_GET_url(
                                     replica.checkout_bucket,
@@ -119,11 +121,11 @@ def get_helper(uuid: str, replica: Replica, version: str = None,
         else:
             with tracing.Subsegment('make_retry'):
                 builder = UrlBuilder(request.url)
-                builder.replace_query("token", token)
+                builder.replace_query('token', token)
+                builder.add_query('Started-At', started_at)
                 response = redirect(str(builder), code=301)
                 headers = response.headers
                 headers['Retry-After'] = RETRY_AFTER_INTERVAL
-                headers['Started-At'] = started_at
                 return response
 
     else:

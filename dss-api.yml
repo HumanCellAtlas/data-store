@@ -380,7 +380,8 @@ paths:
             Used to track the initial invocation time the file was requested.  Not required in the initial params,
             but returned in the response headers of a redirect and expected to be passed through to each subsequent
             Retry-After attempt.
-          type: boolean
+          type: number
+          format: float
       responses:
         301:
           description: >
