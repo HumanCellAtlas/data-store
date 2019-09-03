@@ -210,7 +210,8 @@ def get_chalice_app(flask_app) -> DSSChaliceApp:
                    "dispatch_info": {"method": method,
                                      "path": path,
                                      "status_code": status_code,
-                                     "query_params": ' ' + str(query_params) if query_params is not None else ''}
+                                     "query_params": ' ' + str(query_params) if query_params is not None else '',
+                                     "started_at": query_params.get('started_at', '')}
                    }
             app.log.info(json.dumps(msg, indent=4))
 
