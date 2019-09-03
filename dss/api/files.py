@@ -141,7 +141,6 @@ def get_helper(uuid: str, replica: Replica, version: str = None,
         headers['X-DSS-S3-ETAG'] = file_metadata[FileMetadata.S3_ETAG]
         headers['X-DSS-SHA1'] = file_metadata[FileMetadata.SHA1]
         headers['X-DSS-SHA256'] = file_metadata[FileMetadata.SHA256]
-        headers['Started-At'] = started_at
 
     return response
 
