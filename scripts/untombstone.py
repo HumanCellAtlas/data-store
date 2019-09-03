@@ -10,41 +10,12 @@ from hca.util.exceptions import SwaggerAPIException
 from dss.storage.identifiers import DSS_BUNDLE_TOMBSTONE_REGEX as dead_template
 
 
-def parse_keys_to_fqid(key_list, replica)
-    """
-    Param :: key_list :: list ::  [ f'{bundles OR collections}/{uuid}.{version}.dead',...]
-    Param :: replica :: string :: 'aws' or 'gcp' 
-    Return :: bundle_list , collection_list, replica :: list, list, string :: [bundle_list] , [collection_list] , aws or gcp
-    function that will parse through a list of keys 
-    """
-
-    parsed_collection_keys = []
-    parsed_bundle_keys = []
-    for key in key_list:
-        unparsed_key = key
-        try:
-            handle = Config.get_blobostore_handle(replica)
-            handle.get(replica.bucket, unparsed_key)
-        except BlobNotFoundError:
-            pass
-        else: 
-            collection_or_bundle, parsed_fqid = unparsed_key.split("/")
-            if collection_or_bundle == "bundle":
-                parsed_bundle_keys.append(parsed_fqid)
-            else:
-                parsed_collection_keys.append(parsed_fqid)
-    logger.debug("Parsed all keys from {replica}")
-    return parsed_collection_keys, parsed_bundle_keys, replica
-    
 # --------------------------------------------------------------
 # untombsonte bundles / collectione
 # --------------------------------------------------------------
 
-def untombstone_bundle_collection(parsed_bundle_keys, parsed_collection_keys, replica):
+def untombstone_bundl(parsed_bundle_keys, replica):
     """
-    Param :: parsed_colletion_keys :: list :: [ f'/{uuid}.{version}.dead',...]
-    Param :: parsed_collcetion_keys :: list ::  [ f'{uuid}.{version}.dead',...]
-    Param :: replica :: string :: aws or gcp
     deletes dead bundles and brings back original bundle 
     """
 
@@ -56,12 +27,6 @@ def untombstone_bundle_collection(parsed_bundle_keys, parsed_collection_keys, re
                 deindex_dead_bundle()
                 update_og_bundle()
                 es_client.reindex()
-    if len(parsed_collection_keys) > 0:
-       for collection_key in parsed_collection_keys:
-           if tombstoned_or_not_collection(collecton_key) is False:
-               pass
-           else:
-               deindex_dead_reindex_collection()
 
 # --------------------------------------------------------------
 # bundle
