@@ -112,7 +112,7 @@ def get_helper(uuid: str, replica: Replica, version: str = None,
                     netloc=replica.checkout_bucket,
                     path=get_dst_key(blob_path)
                 )
-                directurl_builder.add_query('Started-At', started_at)
+                directurl_builder.add_query('Started-At', str(started_at))
                 response = redirect(str(directurl_builder))
             else:
                 response = redirect(handle.generate_presigned_GET_url(
@@ -122,7 +122,7 @@ def get_helper(uuid: str, replica: Replica, version: str = None,
             with tracing.Subsegment('make_retry'):
                 builder = UrlBuilder(request.url)
                 builder.replace_query('token', token)
-                builder.add_query('Started-At', started_at)
+                builder.add_query('Started-At', str(started_at))
                 response = redirect(str(builder), code=301)
                 headers = response.headers
                 headers['Retry-After'] = RETRY_AFTER_INTERVAL
