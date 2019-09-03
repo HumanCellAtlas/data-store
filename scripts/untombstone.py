@@ -3,92 +3,96 @@ import logging as logger
 
 from dss import Config, Replica
 from dss.dynamodb import get_item, put_item, delete_item, DynamoDBItemNotFound
+from dss.index.es import ElasticsearchClient
+from cloud_blobstore import BlobNotFoundError
+from dss.index.es.backend.ElasticsearchIndexBackend import index_bundle
+from dss import DSSException, dss_handler, DSSForbiddenException
+from dss.collections import owner_lookup
 
-from cloud_blobstore import BlobNotFoudError, BlobStoreError
+import boto3
+
 from hca.dss import DSSClient
 from hca.util.exceptions import SwaggerAPIException
 from dss.storage.identifiers import DSS_BUNDLE_TOMBSTONE_REGEX as dead_template
 
+dynamodb_client = boto3.client("dynamodb")
 
 # --------------------------------------------------------------
 # untombstone bundles
 # --------------------------------------------------------------
 
-def untombstone_bundle(parsed_bundle_keys, replica):
+
+def untombstone_bundle(uuid, replica, version=None):
     """
     deletes dead bundles and brings back original bundle 
     """
+    if version is not None:
+        key = f"{uuid}.{version}.dead"
+    else:
+        key = f"{uuid}.dead"
+    if tombstoned_or_not_bundle(key, replica) is False:
+        pass
+    else:
+        deindex_dead_bundle(key)
+        update_og_bundle(key)
+        # indexs and notifys subs
+        index_bundle(key)
 
-    if len(parsed_bundle_keys) > 0:
-        for bundle_key in parsed_bundle_keys:
-            if tombstoned_or_not_bundle(bundle_key) is False:
-                pass
-            else:
-                deindex_dead_bundle()
-                update_og_bundle()
-                es_client.reindex()
 
 # --------------------------------------------------------------
 # bundle
 # --------------------------------------------------------------
 
-def tombstoned_or_not_bundle(fqid, replica):
+
+def tombstoned_or_not_bundle(key, replica):
     """
-    Param :: fqid :: string :: {uuid}.{version}
-    Param :: replica :: string :: aws or gcp
     Return :: boolean :: True/False
     Checks if bundle is  tombstoned or not 
     """
-    if re.match(dead_template, fqid):
-        uuid, version_and_dead = fqid.split(".", 1)
-        bundle_query = {"query":{"bool":{"must":[{"match":{"uuid":uuid}},{"match":{"version":version_and_dead}},]}}}
-    else:
-        uuid, dead_tag = fqid.split(".")
-        bundle_query = {"query":{"bool":{"must":[{"match":{"uuid":uuid}},{"match":{"version":dead_tag}},]}}}
+
     try:
-        dss_client.get_bundle(replica=replica, es_query=bundle_query, output_format="raw")
-        return True
-    except SwaggerAPIException as e:
-       if e.code = "404" or e.code = "400":
-          return False
+        handle = Config.get_blobstore_handle(replica)
+        handle.get(replica.bucket, key)
+    except BlobNotFoundError:
+        raise DSSException(404, "not_found", "Cannot find bundle!")
 
 
-def deindex_dead_bundle(fqid):
+def deindex_dead_bundle(key):
     """
     Param :: fqid :: string :: {uuid}.{version}
     Removes dead bundle and removes from es
     """
-    es_client = get_es_client()
 
-    if re.match(dead_template, fqid):
+    es_client = ElasticsearchClient.get()
+
+    if re.match(dead_template, key):
         # matches dead fqid and deletes it from es
-         es_client.delete_by_query(
-            index="_all",
-            body= {"query":{"terms":{"_id":[fqid]}}}
-         )
-        logger.debug(f"removed dead bundle {fqid} from es")
+        es_client.delete_by_query(
+            index="_all", body={"query": {"terms": {"_id": [key]}}}
+        )
+    logger.debug(f"removed dead bundle {key} from es")
+
 
 def update_og_bundle(fqid):
     """
     Param :: fqid :: string :: {uuid}.{version}
     Finds original bundle and updates it
     """
-
+    es_client = ElasticsearchClient.get()
     if re.match(dead_template, fqid):
         uuid, version, dead_tag = fqid.split(".")
         # brings back the version that was labeled dead
         es_client.update_by_query(
-            index = "_all",
-            body= {"query":{"terms":{"_id":[uuid]}}}
+            index="_all",
+            body={"query": {"terms": {"_id": ["{}.{}".format(uuid, version)]}}},
         )
         logger.debug("Untombstoned original bundle {uuid}.{version}")
 
     else:
-        uuid ,dead_tag = fqid.split(".")
+        uuid, dead_tag = fqid.split(".")
         # brings back all the versions
         es_client.update_by_query(
-            index = "_all",
-            body= {"query":{"terms":{"_id":["{}".format(uuid)]}}}
+            index="_all", body={"query": {"terms": {"_id": [uuid]}}}
         )
 
         logger.debug("Untombstoned original bundles {uuid}")
@@ -98,34 +102,33 @@ def update_og_bundle(fqid):
 # collection
 # --------------------------------------------------------------
 
-def untombstone_colelction(fqid, replica):
-    if tombstoned_or_not_collection() is False:
+
+def untombstone_colelction(uuid, replica, version=None):
+    if version is not None:
+        key = f"{uuid}.{version}.dead"
+    else:
+        key = f"{uuid}.dead"
+
+    if tombstoned_or_not_collection(key) is False:
         pass
     else:
-        deindex_dead_reindex_collection()
+        deindex_dead_reindex_collection(key)
 
-def tombstoned_or_not_collection(fqid, replica):
+
+def tombstoned_or_not_collection(key):
     """
-    Param :: fqid :: string :: {uuid}.{version}
-    Param :: replica :: string :: aws or gcp
     Return :: boolean :: True/False
     Checks for exiting collection 
     """
 
-     if re.match(dead_template, fqid):
-        uuid, version = fqid.split(".", 1)
+    if re.match(dead_template, key):
+        uuid, version = key.split(".", 1)
     else:
-        # Just dead tag 
-        uuid, version = fqid.split(".")
-    try:
-        dss_client.get_collection(replica=replica, uuid=uuid, version=version)
-        return True
-    except SwaggerAPIException as e:
-       if e.code = "404" or e.code = "400":
-          return False
+        # Just dead tag
+        uuid, version = key.split(".")
 
 
-def deindex_dead_reindex_collection(fqid, bucket):
+def deindex_dead_reindex_collection(fqid):
     """
     Finds and deletes dead colletion and restores old collection
     """
@@ -134,16 +137,17 @@ def deindex_dead_reindex_collection(fqid, bucket):
         uuid, version = fqid.split(".", 1)
     else:
         uuid, version = fqid.split(".")
-    
-    dead_query = { "TableName": collection_db_table,
-                   "Key": _format_dynamodb_item()
-                 }
-    og_query   = { "TableName": collection_db_table,
-                   "Key": _format_dynamodb_item()
-                 }
+
+    dead_query = {
+        "TableName": owner_lookup.collection_db_table,
+        "Key": _format_dynamodb_item(),
+    }
+    og_query = {
+        "TableName": owner_lookup.collection_db_table,
+        "Key": _format_dynamodb_item(),
+    }
 
     dynamodb_client.delete_item(**dead_query)
     logger.debug(f"removed collection {fqid} from dynamodb")
     dynamodb_client.put_item(**og_query)
     logger.debug(f"restored original collection {uuid} {version}")
-    

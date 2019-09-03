@@ -14,6 +14,8 @@ import requests
 from cloud_blobstore import BlobNotFoundError, BlobStoreTimeoutError
 from flask import jsonify, redirect, request, make_response
 from concurrent.futures import ThreadPoolExecutor, as_completed
+from dss.index.es import ElasticsearchClient
+from dss.index.es.backend.ElasticsearchIndexBackend import index_bundle
 
 from dss import DSSException, dss_handler, DSSForbiddenException
 from dss.config import Config, Replica
@@ -38,8 +40,8 @@ ADMIN_USER_EMAILS = set(os.environ['ADMIN_USER_EMAILS'].split(','))
 
 @dss_handler
 def restore(replica: str, uuid: str, version: str, confrim_code: str): 
-    # CREATE ES_CLIENT() 
-    
+    es_client = ElasticsearchClient.get()
+
     # checks for valid bucket
     if version is not None:
         key = f'bundles/{uuid}.{version}'
@@ -52,10 +54,22 @@ def restore(replica: str, uuid: str, version: str, confrim_code: str):
     except BlobNotFoundError:
         raise DSSException(404, "not_found", "Cannot find bundle!")
     
+    if version is not None:
+        key = f'bundles/{uuid}.{version}.dead'
+    else:
+        key = f'bundles/{uuid}.dead'
     
+    try:
+        handle = Config.get_blobstore_handle(replica)
+        handle.get(replica.bucket, key)
+    except BlobNotFoundError:
+        raise DSSException(404, "not_found", "Cannot find bundle!")
+    
+
     # Searches for any bundles with given version and uuid
     if version is not None:
         # matches query and deletes Specific bundle with given uuid 
+        new_key = f'{uuid}.{version}'
         es_client.delete_by_query(
                 index="_all",
                 body= {"query":{"terms":{"_id":["{}.{}.dead".format(uuid,version)]}}}
@@ -67,6 +81,7 @@ def restore(replica: str, uuid: str, version: str, confrim_code: str):
                 body = {"query":{"terms":{"_id":["{}.{}".format(uuid,version)]}}}
         )
         logger.debug("Restored bundle {uuid}.{version}")
+        index_bundle(new_key)
     else:
         # deindex dead bundle from es
         es_client.delete_by_query(
@@ -79,10 +94,12 @@ def restore(replica: str, uuid: str, version: str, confrim_code: str):
                 body = {"query":{"terms":{"_id":["{}".format(uuid)]}}}
         )
         logger.debug("Resored bundles with {uuid}")
+        index_bundle(uuid)
     # TODO: 
     # reindex es_client
     # Notify subscription that bundle has been restored
-    
+   
+    index_bundle() 
     # Return Okay Status "200"
     return requests.code.ok 
 
