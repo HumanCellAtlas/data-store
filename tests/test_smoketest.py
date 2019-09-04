@@ -82,7 +82,7 @@ class Smoketest(BaseSmokeTest):
             self._test_get_bundle(replica, bundle_uuid)
 
         with self.subTest(f"{starting_replica.name}: Enumerate on that bundle uuid"):
-            key_prefix = f'bundles/{bundle_uuid[0:8]}'
+            key_prefix = f'{bundle_uuid[0:8]}'
             bundle_match = dict(uuid=bundle_uuid, version=bundle_version)
             resp = self.get_bundle_enumerations(starting_replica.name, prefix=key_prefix)
             self.assertIn(bundle_match, resp['bundles'])
