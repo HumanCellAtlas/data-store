@@ -1452,9 +1452,10 @@ paths:
   /bundles:
     get:
       operationId: dss.api.bundles.enumerate
-      summary: List through all bundles available to the data-store
+      summary: List through all bundles available.
       description: >
-        Given a prefix
+        List all the bundles available in the data-store, responses will be returned in a paginated format, at most 500 values
+        shall be returned at a time. Tombstoned bundles will be omitted from the list of bundles available.
       parameters:
         - name: replica
           in: query
@@ -1464,7 +1465,7 @@ paths:
           enum: [aws, gcp]
         - name: prefix
           in: query
-          description: used to search for keys under a specific "bundle/" prefix
+          description: Is used to specify the beginning of a particular bundle UUID. Specifying a character(s) would provide all avaliable bundles starting with that character(s).
           required: false
           type: string
         - name: token
@@ -1472,22 +1473,24 @@ paths:
           description: Token to manage retries.  End users constructing queries should not set this parameter.
           required: false
           type: string
-        - name: search_after
-          in: query
-          description: >
-            **Search-After-Context**.
-            An internal state pointer parameter for use with pagination. This parameter is used as a reference to what information the previous page has, and what needs to be returned next. This value should not be set by the user.
-          required: false
-          type: string
         - name: per_page
           in: query
-          description: Max number of results to return per page, between 10 and 500
+          description: Max number of results to return per page.
           required: false
           type: integer
           format: int32
           minimum: 10
           maximum: 500
-          default: 500
+          default: 100
+        - name: search_after
+          in: query
+          description: >
+            **Search-After-Context**.
+            An internal state pointer parameter for use with pagination. This parameter is referenced by the `Link`
+            header as described in the "Pagination" section. The API client should not need to set this parameter
+            directly; it should instead directly fetch the URL given in the `Link` header.
+          required: false
+          type: string
       responses:
         200:
           description: All results retrieved.

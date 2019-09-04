@@ -122,12 +122,15 @@ def _latest_version_from_object_names(object_names: typing.Iterator[str]) -> str
     return version
 
 
-def list_available_uuids(replica: str = None,
-                         prefix: typing.Optional[str] = None,
-                         per_page: int = PerPageBounds.per_page_max,
-                         search_after: typing.Optional[str] = None,
-                         token: typing.Optional[str] = None):
-    """Return a list of available uuid's in a given prefix, removes tombstones"""
+def enumerate_avaliable_bundles(replica: str = None,
+                                prefix: typing.Optional[str] = None,
+                                per_page: int = PerPageBounds.per_page_max,
+                                search_after: typing.Optional[str] = None,
+                                token: typing.Optional[str] = None):
+    """
+    :return: returns object with bundles that are available, provides context of cloud providers internal pagination
+             mechanism.
+    """
     kwargs = dict(bucket=Replica[replica].bucket, prefix=prefix, k_page_max=per_page)
     if search_after:
         kwargs['start_after_key'] = search_after
@@ -142,12 +145,13 @@ def list_available_uuids(replica: str = None,
 
     for key, meta in prefix_iterator:
         uuid, version = key.split('.', 1)
+        uuid = uuid.split(f'{BUNDLE_PREFIX}/')[1]
         if not version.endswith(TOMBSTONE_SUFFIX):
             search_after = key
-            keys.setdefault(uuid.strip(f'{BUNDLE_PREFIX}/'), []).append(version)
+            keys.setdefault(uuid, []).append(version)
             total_keys += 1
         elif TOMBSTONE_SUFFIX == version:
-            if keys.get(uuid) is not None:
+            if uuid in keys:
                 total_keys -= len(keys[uuid])
                 del keys[uuid]
         if total_keys >= per_page:
