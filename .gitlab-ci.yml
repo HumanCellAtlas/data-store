@@ -15,6 +15,7 @@ stages:
   - integration_test
   - scale_and_performance
   - release
+  - verify_sync
 
 before_script:
   - export COMMITS_URL=${GITHUB_API}/repos/HumanCellAtlas/data-store/commits
@@ -173,20 +174,26 @@ force_release_prod:
     - staging
 
 verify_sync_partial:on-schedule:
+  stage: verify_sync
   only:
-    - schedules
+    refs:
+      - schedules
   script:
     - FILES_LAST_VERIFIED="$(python scripts/dss-ops.py secrets get --secret-names dcp/dss/${DSS_DEPLOYMENT_STAGE}/files_last_verified | jq -r '.[]')"
     - BLOBS_LAST_VERIFIED="$(python scripts/dss-ops.py secrets get --secret-names dcp/dss/${DSS_DEPLOYMENT_STAGE}/blobs_last_verified | jq -r '.[]')"
     - BUNDLE_LAST_VERIFIED="$(python scripts/dss-ops.py secrets get --secret-names dcp/dss/${DSS_DEPLOYMENT_STAGE}/bundles_last_verified | jq -r '.[]')"
-    - bash scripts/verify_consistency.sh files "${FILES_LAST_VERIFIED}"
-    - bash scripts/verify_consistency.sh blobs "${BLOBS_LAST_VERIFIED}"
-    - bash scripts/verify_consistency.sh bundles "${BUNDLE_LAST_VERIFIED}"
+    - bash scripts/verify_consistency.sh files "${FILES_LAST_VERIFIED}" | tee file_verify_log
+    - bash scripts/verify_consistency.sh blobs "${BLOBS_LAST_VERIFIED}" | tee blob_verify_log
+    - bash scripts/verify_consistency.sh bundles "${BUNDLE_LAST_VERIFIED}" | tee bundle_verify_log
+    - test "$(cat *_verify_log | wc -l)" -eq 0  # If any inconsistencies, fail pipeline
 
 verify_sync_full:on-schedule:
+  stage: verify_sync
   only:
-   - schedules
+    refs:
+      - schedules
   script:
-    - bash scripts/verify_consistency.sh files 0
-    - bash scripts/verify_consistency.sh blobs 0
-    - bash scripts/verify_consistency.sh bundles 0
+    - bash scripts/verify_consistency.sh files 0 | tee file_verify_log
+    - bash scripts/verify_consistency.sh blobs 0 | tee blob_verify_log
+    - bash scripts/verify_consistency.sh bundles 0 | tee bundle_verify_log
+    - test "$(cat *_verify_log | wc -l)" -eq 0  # If any inconsistencies, fail pipeline
