@@ -79,7 +79,7 @@ def restore(replica: str, uuid: str, version: str, confrim_code: str):
             body={"query": {"terms": {"_id": ["{}.{}".format(uuid, version)]}}},
         )
         logger.debug("Restored bundle {uuid}.{version}")
-        es.back.index_bundle(restore_key)
+        es_back.index_bundle(restore_key)
     else:
         # deindex dead bundle from es
         es_client.delete_by_query(
