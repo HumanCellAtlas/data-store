@@ -1,6 +1,7 @@
 image: humancellatlas/dss-build-box
 # The Docker image `humancellatlas/dss-build-box` is created through a manual process from
-# `${DSS_HOME}/allspark.Dockerfile`. See the contents of `${DSS_HOME}/allspark.Dockerfile` # creation and usage instructions.
+# `${DSS_HOME}/allspark.Dockerfile`. See the contents of `${DSS_HOME}/allspark.Dockerfile`
+# creation and usage instructions.
 
 variables:
   GIT_SUBMODULE_STRATEGY: normal
@@ -16,6 +17,7 @@ stages:
   - integration_test
   - scale_and_performance
   - release
+  - verify_sync
 
 before_script:
   - date && date -u
@@ -202,3 +204,31 @@ force_release_prod:
   only:
     - staging
 
+# This cron job needs to be manually configured using the Gitlab web UI to run
+# periodically. See here for discussion on the proposed schedule:
+# https://github.com/HumanCellAtlas/data-store/pull/2412#issuecomment-528573935
+verify_sync_partial:on-schedule:
+  stage: verify_sync
+  only:
+    refs:
+      - schedules
+  before_script:
+    - VERIFY_SECRET_NAME="${DSS_SECRETS_STORE}/${DSS_DEPLOYMENT_STAGE}/${DSS_VERIFY_SECRETS_NAME}"
+    - LAST_VERIFIED="$(python scripts/dss-ops.py secrets get --secret-names ${VERIFY_SECRET_NAME} --json | jq -r '.[]')"
+    - NEW_LAST_VERIFIED="$(python -c 'import datetime; from dss.util.version import datetime_to_version_format; \
+                                      print(datetime_to_version_format(datetime.datetime.utcnow()))')"
+  script:
+    - python scripts/dss-ops.py sync verify-sync-all --source-replica aws --destination-replica gcp \
+          --since "${LAST_VERIFIED}" | tee verify_log
+  after_script:
+    - python scripts/dss-ops.py secrets set --secret-name "${VERIFY_SECRET_NAME}" --secret-value "${NEW_LAST_VERIFIED}"
+    - test "$(cat verify_log | wc -l)" -eq 0  # If any inconsistencies, fail pipeline
+
+verify_sync_full:on-schedule:
+  stage: verify_sync
+  only:
+    refs:
+      - schedules
+  extends: verify_sync_partial:on-schedule
+  script:
+    - python scripts/dss-ops.py sync verify-sync-all --source-replica aws --destination-replica gcp | tee verify_log

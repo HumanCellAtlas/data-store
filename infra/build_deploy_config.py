@@ -4,8 +4,6 @@ Build the Terraform deployment configuration files using environment variable va
 Requires a Google service account (but only to get the GCP project ID).
 """
 import os
-import glob
-import json
 import boto3
 import argparse
 from google.cloud.storage import Client
@@ -82,6 +80,7 @@ env_vars_to_infra = [
     "DSS_FLASHFLOOD_BUCKET_PROD",
     "DSS_FLASHFLOOD_BUCKET_STAGING",
     "DSS_SECRETS_STORE",
+    "DSS_VERIFY_SECRETS_NAME",
     "DSS_ZONE_NAME",
     "ES_ALLOWED_SOURCE_IP_SECRETS_NAME",
     "GCP_DEFAULT_REGION",
