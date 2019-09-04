@@ -4,7 +4,7 @@
 # CUTOFF_TIME is lower limit as an iso8601 datetime
 set -eu
 
-if [[ "$#" -lt 1 ]]; then
+if [[ "$#" -lt 2 ]]; then
     echo "./$0 OBJECT_TYPE CUTOFF_TIME"
     echo "OBJECT_TYPE is one of 'files', 'bundles', or 'blobs'"
     echo "CUTOFF_TIME determines which objects are selected for review and"
