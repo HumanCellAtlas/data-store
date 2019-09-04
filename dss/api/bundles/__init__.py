@@ -69,7 +69,7 @@ def restore(replica: str, uuid: str, version: str, confrim_code: str):
     # Searches for any bundles with given version and uuid
     if version is not None:
         # matches query and deletes Specific bundle with given uuid 
-        new_key = f'{uuid}.{version}'
+        restore_key = f'{uuid}.{version}'
         es_client.delete_by_query(
                 index="_all",
                 body= {"query":{"terms":{"_id":["{}.{}.dead".format(uuid,version)]}}}
@@ -81,7 +81,7 @@ def restore(replica: str, uuid: str, version: str, confrim_code: str):
                 body = {"query":{"terms":{"_id":["{}.{}".format(uuid,version)]}}}
         )
         logger.debug("Restored bundle {uuid}.{version}")
-        index_bundle(new_key)
+        index_bundle(restore_key)
     else:
         # deindex dead bundle from es
         es_client.delete_by_query(
@@ -95,12 +95,6 @@ def restore(replica: str, uuid: str, version: str, confrim_code: str):
         )
         logger.debug("Resored bundles with {uuid}")
         index_bundle(uuid)
-    # TODO: 
-    # reindex es_client
-    # Notify subscription that bundle has been restored
-   
-    index_bundle() 
-    # Return Okay Status "200"
     return requests.code.ok 
 
 @dss_handler

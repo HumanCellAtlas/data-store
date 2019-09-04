@@ -1,7 +1,7 @@
 import os, re
 import logging as logger
 
-from dss import Config, Replica
+from dss import Config, Replica, dynamodb
 from dss.dynamodb import get_item, put_item, delete_item, DynamoDBItemNotFound
 from dss.index.es import ElasticsearchClient
 from cloud_blobstore import BlobNotFoundError
@@ -9,13 +9,10 @@ from dss.index.es.backend.ElasticsearchIndexBackend import index_bundle
 from dss import DSSException, dss_handler, DSSForbiddenException
 from dss.collections import owner_lookup
 
-import boto3
-
 from hca.dss import DSSClient
 from hca.util.exceptions import SwaggerAPIException
 from dss.storage.identifiers import DSS_BUNDLE_TOMBSTONE_REGEX as dead_template
 
-dynamodb_client = boto3.client("dynamodb")
 
 # --------------------------------------------------------------
 # untombstone bundles
@@ -24,7 +21,7 @@ dynamodb_client = boto3.client("dynamodb")
 
 def untombstone_bundle(uuid, replica, version=None):
     """
-    deletes dead bundles and brings back original bundle 
+    deletes dead bundle and brings back original bundle 
     """
     if version is not None:
         key = f"{uuid}.{version}.dead"
@@ -59,7 +56,7 @@ def tombstoned_or_not_bundle(key, replica):
 
 def deindex_dead_bundle(key):
     """
-    Param :: fqid :: string :: {uuid}.{version}
+    Param :: key :: string :: {uuid}.{version}
     Removes dead bundle and removes from es
     """
 
@@ -147,7 +144,7 @@ def deindex_dead_reindex_collection(fqid):
         "Key": _format_dynamodb_item(),
     }
 
-    dynamodb_client.delete_item(**dead_query)
+    dynamodb.delete_item(**dead_query)
     logger.debug(f"removed collection {fqid} from dynamodb")
-    dynamodb_client.put_item(**og_query)
+    dynamodb.put_item(**og_query)
     logger.debug(f"restored original collection {uuid} {version}")
