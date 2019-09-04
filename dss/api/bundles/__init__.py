@@ -46,10 +46,10 @@ def restore(replica: str, uuid: str, version: str, confrim_code: str):
         key = f"bundles/{uuid}.{version}"
     else:
         key = f"bundles/{uuid}"
-
+    bucket = Replica[replica].checkout_bucket
     try:
         handle = Config.get_blobstore_handle(replica)
-        handle.get(replica.bucket, key)
+        handle.get(bucket=bucket, key=key)
     except BlobNotFoundError:
         raise DSSException(404, "not_found", "Cannot find bundle!")
 
@@ -60,7 +60,7 @@ def restore(replica: str, uuid: str, version: str, confrim_code: str):
 
     try:
         handle = Config.get_blobstore_handle(replica)
-        handle.get(replica.bucket, key)
+        handle.get(bucket=bucket, key=key)
     except BlobNotFoundError:
         raise DSSException(404, "not_found", "Cannot find bundle!")
 
