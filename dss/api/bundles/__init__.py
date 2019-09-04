@@ -15,7 +15,7 @@ from cloud_blobstore import BlobNotFoundError, BlobStoreTimeoutError
 from flask import jsonify, redirect, request, make_response
 from concurrent.futures import ThreadPoolExecutor, as_completed
 from dss.index.es import ElasticsearchClient
-from dss.index.es.backend.ElasticsearchIndexBackend import index_bundle
+from dss.index.es.backend import ElasticsearchIndexBackend as es_back
 
 from dss import DSSException, dss_handler, DSSForbiddenException
 from dss.config import Config, Replica
@@ -79,7 +79,7 @@ def restore(replica: str, uuid: str, version: str, confrim_code: str):
             body={"query": {"terms": {"_id": ["{}.{}".format(uuid, version)]}}},
         )
         logger.debug("Restored bundle {uuid}.{version}")
-        index_bundle(restore_key)
+        es.back.index_bundle(restore_key)
     else:
         # deindex dead bundle from es
         es_client.delete_by_query(
@@ -90,7 +90,7 @@ def restore(replica: str, uuid: str, version: str, confrim_code: str):
             index="_all", body={"query": {"terms": {"_id": ["{}".format(uuid)]}}}
         )
         logger.debug("Resored bundles with {uuid}")
-        index_bundle(uuid)
+        es_back.index_bundle(uuid)
     return requests.code.ok
 
 @dss_handler
