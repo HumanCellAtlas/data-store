@@ -5,10 +5,6 @@ import os
 import sys
 import unittest
 from unittest import mock
-import pprint
-
-from dss.storage.bundles import enumerate_avaliable_bundles
-from dss.storage.identifiers import TOMBSTONE_SUFFIX
 
 pkg_root = os.path.abspath(os.path.join(os.path.dirname(__file__), '..'))  # noqa
 sys.path.insert(0, pkg_root)  # noqa
@@ -17,6 +13,8 @@ import dss
 from dss import DSSException, DSSForbiddenException, Config
 from dss.config import Replica
 from dss.logging import configure_test_logging
+from dss.storage.bundles import enumerate_avaliable_bundles
+from dss.storage.identifiers import TOMBSTONE_SUFFIX
 from dss.util import UrlBuilder, security, multipart_parallel_upload
 from dss.util.aws import ARN
 from tests import UNAUTHORIZED_GCP_CREDENTIALS, get_service_jwt
