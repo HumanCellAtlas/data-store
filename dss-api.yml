@@ -1449,12 +1449,12 @@ paths:
                     enum: [unhandled_exception, Forbidden, Unauthorized, OAuthResponseProblem, not_found, read_only]
                 required:
                   - code
-  /bundles:
+  /bundles/list-all:
     get:
       operationId: dss.api.bundles.enumerate
-      summary: List through all bundles available.
+      summary: List through all available bundles.
       description: >
-        List all the bundles available in the data-store, responses will be returned in a paginated format, at most 500 values
+        Lists all the bundles available in the data-store, responses will be returned in a paginated format, at most 500 values
         shall be returned at a time. Tombstoned bundles will be omitted from the list of bundles available.
       parameters:
         - name: replica

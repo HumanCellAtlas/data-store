@@ -128,7 +128,7 @@ def enumerate_avaliable_bundles(replica: str = None,
                                 search_after: typing.Optional[str] = None,
                                 token: typing.Optional[str] = None):
     """
-    :return: returns object with bundles that are available, provides context of cloud providers internal pagination
+    :return: returns dictionary with bundles that are available, provides context of cloud providers internal pagination
              mechanism.
     """
     kwargs = dict(bucket=Replica[replica].bucket, prefix=prefix, k_page_max=per_page)
@@ -146,8 +146,8 @@ def enumerate_avaliable_bundles(replica: str = None,
     for key, meta in prefix_iterator:
         uuid, version = key.split('.', 1)
         uuid = uuid.split(f'{BUNDLE_PREFIX}/')[1]
+        search_after = key
         if not version.endswith(TOMBSTONE_SUFFIX):
-            search_after = key
             keys.setdefault(uuid, []).append(version)
             total_keys += 1
         elif TOMBSTONE_SUFFIX == version:
