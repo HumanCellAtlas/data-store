@@ -66,6 +66,14 @@ class TestFileApi(unittest.TestCase, TestAuthMixin, DSSUploadMixin, DSSAssertMix
         self._test_file_put(Replica.aws, "s3", self.s3_test_bucket, S3Uploader(tempdir, self.s3_test_bucket))
         self._test_file_put(Replica.gcp, "gs", self.gs_test_bucket, GSUploader(tempdir, self.gs_test_bucket))
 
+    def test_big_file_put_cached_files_init_into_checkout(self):
+        tempdir = tempfile.gettempdir()
+        a_lot = int(ASYNC_COPY_THRESHOLD * 1.25)
+        self._test_file_put_cached(Replica.aws, "s3", self.s3_test_bucket, self.s3_test_checkout_bucket,
+                                   S3Uploader(tempdir, self.s3_test_bucket), src_data=os.urandom(a_lot))
+        self._test_file_put_cached(Replica.gcp, "gs", self.gs_test_bucket, self.gs_test_checkout_bucket,
+                                   GSUploader(tempdir, self.gs_test_bucket), src_data=os.urandom(a_lot))
+
     def test_file_put_cached_files_init_into_checkout(self):
         tempdir = tempfile.gettempdir()
         self._test_file_put_cached(Replica.aws, "s3", self.s3_test_bucket, self.s3_test_checkout_bucket,
@@ -128,13 +136,13 @@ class TestFileApi(unittest.TestCase, TestAuthMixin, DSSUploadMixin, DSSAssertMix
                               scheme: str,
                               test_bucket: str,
                               test_checkout_bucket: str,
-                              uploader: Uploader):
+                              uploader: Uploader,
+                              src_data: bytes = b'{"status": "valid"}'):
         stored_cache_criteria = os.environ.get('CHECKOUT_CACHE_CRITERIA')
         try:
-            os.environ['CHECKOUT_CACHE_CRITERIA'] = '[{"type":"application/json","max_size":12314}]'
+            os.environ['CHECKOUT_CACHE_CRITERIA'] = '[{"type":"application/json","max_size":999999999}]'
             handle = Config.get_blobstore_handle(replica)
             src_key = generate_test_key()
-            src_data = b'{"status":"valid"}'
             source_url = f"{scheme}://{test_bucket}/{src_key}"
             file_uuid = str(uuid.uuid4())
             bundle_uuid = str(uuid.uuid4())
@@ -148,7 +156,8 @@ class TestFileApi(unittest.TestCase, TestAuthMixin, DSSUploadMixin, DSSAssertMix
                 uploader.checksum_and_upload_file(fh.name, src_key, "application/json")
 
             # upload file to DSS
-            self.upload_file(source_url, file_uuid, bundle_uuid=bundle_uuid, version=version)
+            self.upload_file(source_url, file_uuid, bundle_uuid=bundle_uuid,
+                             version=version, expected_code=(201, 202))
 
             metadata = handle.get_user_metadata(test_bucket, src_key)
             dst_key = ("blobs/" + ".".join([metadata['hca-dss-sha256'],
@@ -156,16 +165,16 @@ class TestFileApi(unittest.TestCase, TestAuthMixin, DSSUploadMixin, DSSAssertMix
                                             metadata['hca-dss-s3_etag'],
                                             metadata['hca-dss-crc32c']])).lower()
 
-            for wait_to_upload_into_checkout_bucket in range(30):
+            for wait_to_upload_into_checkout_bucket in range(8):
                 try:
                     # get uploaded blob key from the checkout bucket
-                    file_metadata = json.loads(handle.get(test_checkout_bucket, dst_key).decode("utf-8"))
+                    remote_data = handle.get(test_checkout_bucket, dst_key)
                     break
                 except BlobNotFoundError:
-                    time.sleep(1)
+                    time.sleep(2 ** wait_to_upload_into_checkout_bucket)
             else:
-                file_metadata = json.loads(handle.get(test_checkout_bucket, dst_key).decode("utf-8"))
-            assert file_metadata["status"] == "valid"  # the file exists in the checkout bucket
+                remote_data = handle.get(test_checkout_bucket, dst_key)
+            self.assertEqual(remote_data, src_data)  # the file exists in the checkout bucket
         finally:
             os.environ['CHECKOUT_CACHE_CRITERIA'] = stored_cache_criteria
 
