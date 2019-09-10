@@ -23,7 +23,8 @@ sys.path.insert(0, pkg_root)  # noqa
 
 from tests.infra import testmode
 from dss.operations import DSSOperationsCommandDispatch
-from dss.operations.util import map_bucket_results, get_cloud_variable_prefix
+from dss.operations.util import map_bucket_results
+from dss.operations.params import fix_ssm_variable_prefix
 from dss.operations import checkout, storage, sync, secrets
 from dss.operations import params as ssm_params
 from dss.logging import configure_test_logging
@@ -292,12 +293,10 @@ class TestOperations(unittest.TestCase):
         # - update secret value
         # - get secret value and verify it is correct
         # - delete secret
-        prefix = get_cloud_variable_prefix()
-        secret_name = random_alphanumeric_string()
-        testvar_name = f"{prefix}/{secret_name}"
+        testvar_name = fix_ssm_variable_prefix(random_alphanumeric_string())
         testvar_value = "Hello world!"
         testvar_value2 = "Goodbye world!"
-        unusedvar_name = f"{prefix}/admin_user_emails"
+        unusedvar_name = fix_ssm_variable_prefix("admin_user_emails")
 
         with self.subTest("Create a new secret"):
             with mock.patch("dss.operations.secrets.sm_client") as sm:
@@ -363,9 +362,6 @@ class TestOperations(unittest.TestCase):
                     # Getting the secret value will first check if the
                     # secret is gettable (i.e., not marked for deletion)
                     utl.secret_is_gettable = mock.MagicMock(return_value=True)
-                    # Checking if a secret is gettable will first try to
-                    # fix the cloud variable prefix if it is missing
-                    utl.fix_cloud_variable_prefix = mock.MagicMock(side_effect=lambda x: x)
 
                     # Next, we try to get the secret value, and succeed
                     sm.get_secret_value.return_value = {"SecretString": testvar_value}
@@ -479,9 +475,7 @@ class TestOperations(unittest.TestCase):
         # - update param value
         # - list ssm parameters, verify new param is set
         # - delete param
-        prefix = get_cloud_variable_prefix()
-        param_name = random_alphanumeric_string()
-        testvar_name = f"{prefix}/{param_name}"
+        testvar_name = fix_ssm_variable_prefix(random_alphanumeric_string())
         testvar_value = "Hello world!"
         testvar_value2 = "Goodbye world!"
 
@@ -570,9 +564,7 @@ class TestOperations(unittest.TestCase):
         # - update param value
         # - get param value and verify correct
         # - delete param
-        prefix = get_cloud_variable_prefix()
-        param_name = random_alphanumeric_string()
-        testvar_name = f"{prefix}/{param_name}"
+        testvar_name = fix_ssm_variable_prefix(random_alphanumeric_string())
         testvar_value = "Hello world!"
         testvar_value2 = "Goodbye world!"
 
@@ -752,27 +744,15 @@ class TestOperations(unittest.TestCase):
 
                     # Dry run
                     ssm_params.lambda_update(
-                        [],
-                        argparse.Namespace(
-                            update_deployed=False,
-                            dry_run=True,
-                        )
+                        [], argparse.Namespace(update_deployed=False, dry_run=True)
                     )
                     # Do it
                     ssm_params.lambda_update(
-                        [],
-                        argparse.Namespace(
-                            update_deployed=False,
-                            dry_run=False,
-                        )
+                        [], argparse.Namespace(update_deployed=False, dry_run=False)
                     )
                     # Use the --update-deployed flag
                     ssm_params.lambda_update(
-                        [],
-                        argparse.Namespace(
-                            update_deployed=True,
-                            dry_run=False,
-                        )
+                        [], argparse.Namespace(update_deployed=True, dry_run=False)
                     )
 
         with self.subTest("Unset lambda parameters"):

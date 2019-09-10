@@ -8,6 +8,7 @@ import typing
 import argparse
 import json
 import logging
+from botocore.exceptions import ClientError
 
 from dss.operations import dispatch
 from dss.operations.util import EmptyStdinException
@@ -21,7 +22,50 @@ logger = logging.getLogger(__name__)
 secrets = dispatch.target("secrets", arguments={}, help=__doc__)
 
 
-@events.action(
+def secret_is_gettable(secret_name):
+    """Secrets are gettable if they exist in the secrets manager"""
+    # Secrets can be in three different states:
+    # - secret exists (gettable, settable)
+    # - secret exists but is marked for deletion (not gettable, not settable)
+    # - secret does not exist (not gettable, settable)
+    try:
+        sm_client.get_secret_value(SecretId=secret_name)
+    except ClientError:
+        return False
+    else:
+        return True
+
+
+def secret_is_settable(secret_name):
+    """Secrets are settable if they exist in the secrets manager or if they are not found"""
+    try:
+        sm_client.get_secret_value(SecretId=secret_name)
+    except ClientError as e:
+        if 'Error' in e.response:
+            if e.response['Error']['Code'] == 'ResourceNotFoundException':
+                return True
+        return False
+    else:
+        return True
+
+
+def get_secret_variable_prefix() -> str:
+    """Use information from the environment to assemble the necessary prefix for secret variables."""
+    store_name = os.environ["DSS_SECRETS_STORE"]
+    stage_name = os.environ["DSS_DEPLOYMENT_STAGE"]
+    store_prefix = f"{store_name}/{stage_name}"
+    return store_prefix
+
+
+def fix_secret_variable_prefix(secret_name: str) -> str:
+    """This adds the variable store and stage prefix to the front of a secret variable name"""
+    prefix = get_secret_variable_prefix()
+    if not secret_name.startswith(prefix):
+        secret_name = f"{prefix}/{secret_name}"
+    return secret_name
+
+
+@secrets.action(
     "list",
     arguments={
         "--json": dict(
@@ -36,7 +80,7 @@ def list_secrets(argv: typing.List[str], args: argparse.Namespace):
     Print a list of names of every secret variable in the secrets manager
     for the given store and stage.
     """
-    store_prefix = util.get_cloud_variable_prefix()
+    store_prefix = get_secret_variable_prefix()
 
     paginator = sm_client.get_paginator("list_secrets")
 
@@ -85,7 +129,7 @@ def get_secret(argv: typing.List[str], args: argparse.Namespace):
     secret_names = args.secret_names
 
     # Tack on the store prefix if it isn't there already
-    secret_names = [util.fix_cloud_variable_prefix(j) for j in secret_names]
+    secret_names = [fix_secret_variable_prefix(j) for j in secret_names]
 
     # Determine if we should format output as JSON
     use_json = False
@@ -93,7 +137,7 @@ def get_secret(argv: typing.List[str], args: argparse.Namespace):
         use_json = True
 
     for secret_name in secret_names:
-        if util.secret_is_gettable(secret_name):
+        if secret_is_gettable(secret_name):
             response = sm_client.get_secret_value(SecretId=secret_name)
             secret_val = response["SecretString"]
             # Sometimes secret_val is a dictionary
@@ -132,7 +176,7 @@ def set_secret(argv: typing.List[str], args: argparse.Namespace):
     secret_name = args.secret_name
 
     # Tack on the store prefix if it isn't there already
-    secret_name = util.fix_cloud_variable_prefix(secret_name)
+    secret_name = fix_secret_variable_prefix(secret_name)
 
     # Decide what to use for input
     if args.secret_value is not None:
@@ -144,7 +188,7 @@ def set_secret(argv: typing.List[str], args: argparse.Namespace):
             raise EmptyStdinException()
         secret_val = sys.stdin.read()
 
-    if util.secret_is_settable(secret_name):
+    if secret_is_settable(secret_name):
         if args.dry_run:
             # Update it for fakes
             print(f"Dry-run updating secret variable {secret_name} in secrets manager")
@@ -180,7 +224,7 @@ def del_secret(argv: typing.List[str], args: argparse.Namespace):
     secret_name = args.secret_name
 
     # Tack on the store prefix if it isn't there already
-    secret_name = util.fix_cloud_variable_prefix(secret_name)
+    secret_name = fix_secret_variable_prefix(secret_name)
 
     if args.force is False:
         # Make sure the user really wants to do this
@@ -191,7 +235,7 @@ def del_secret(argv: typing.List[str], args: argparse.Namespace):
         if response.lower() not in ["y", "yes"]:
             raise RuntimeError("You safely aborted the delete secret operation!")
 
-    if util.secret_is_settable(secret_name):
+    if secret_is_settable(secret_name):
         if args.dry_run:
             # Delete it for fakes
             print(f"Dry-run deleting secret variable {secret_name} in secrets manager")

@@ -11,9 +11,11 @@ import select
 
 from dss.operations import dispatch
 from dss.operations.util import EmptyStdinException
+from dss.operations.secrets import fix_secret_variable_prefix, secret_is_gettable
 import dss.operations.util as util
 from dss.util.aws.clients import ssm as ssm_client  # type: ignore
 from dss.util.aws.clients import secretsmanager as sm_client  # type: ignore
+from dss.util.aws.clients import es as es_client  # type: ignore
 import dss.util.aws.clients
 
 lambda_client = getattr(dss.util.aws.clients, "lambda")
@@ -22,9 +24,58 @@ lambda_client = getattr(dss.util.aws.clients, "lambda")
 logger = logging.getLogger(__name__)
 
 
+def get_ssm_variable_prefix() -> str:
+    """Use information from the environment to assemble the necessary prefix for SSM parameter store variables."""
+    store_name = os.environ["DSS_PARAMETER_STORE"]
+    stage_name = os.environ["DSS_DEPLOYMENT_STAGE"]
+    store_prefix = f"{store_name}/{stage_name}"
+    return store_prefix
+
+
+def fix_ssm_variable_prefix(secret_name: str) -> str:
+    """This adds the variable store and stage prefix to the front of a secret variable name"""
+    prefix = get_ssm_variable_prefix()
+    if not secret_name.startswith(prefix):
+        secret_name = f"{prefix}/{secret_name}"
+    return secret_name
+
+
+def get_elasticsearch_endpoint() -> str:
+    domain_name = os.environ['DSS_ES_DOMAIN']
+    domain_info = es_client.describe_elasticsearch_domain(DomainName=domain_name)
+    return domain_info['DomainStatus']['Endpoint']
+
+
+def get_admin_emails() -> str:
+    gcp_var = 'GOOGLE_APPLICATION_CREDENTIALS_SECRETS_NAME'
+    gcp_secret_id = fix_secret_variable_prefix(gcp_var)
+
+    admin_var = 'ADMIN_USER_EMAILS_SECRETS_NAME'
+    admin_secret_id = fix_secret_variable_prefix(admin_var)
+
+    if secret_is_gettable(gcp_secret_id) and secret_is_gettable(admin_secret_id):
+        resp = sm_client.get_secret_value(gcp_secret_id)
+        gcp_service_account_email = json.loads(resp['SecretString'])['client_email']
+        resp = sm_client.get_secret_value(admin_secret_id)
+        email_list = [email.strip() for email in resp['SecretString'].split(',') if email.strip()]
+        if gcp_service_account_email not in email_list:
+            email_list.append(gcp_service_account_email)
+        return ",".join(email_list)
+    else:
+        err = "Error adding Google service account email to admin emails list: "
+        if secret_is_gettable(gcp_secret_id):
+            err += f"Could not get secret {admin_var}"
+            raise RuntimeError(err)
+        elif secret_is_gettable(admin_secret_id):
+            err += f"Could not get secret {gcp_secret_id}"
+            raise RuntimeError(err)
+        else:
+            err += f"Unknown error occurred"
+            raise RuntimeError(err)
+
 def set_ssm_var(env_var: str, value) -> None:
     """Add a single variable to the SSM parameter store"""
-    return util.set_cloud_env_var(
+    return set_cloud_env_var(
         environment=get_ssm_environment(),
         env_set_fn=set_ssm_environment,
         env_var=env_var,
@@ -35,7 +86,7 @@ def set_ssm_var(env_var: str, value) -> None:
 
 def set_lambda_var(env_var: str, value, lambda_name: str) -> None:
     """Set a single variable in the environment of the specified lambda function"""
-    return util.set_cloud_env_var(
+    return set_cloud_env_var(
         environment=get_deployed_lambda_environment(lambda_name),
         env_set_fn=lambda env: set_deployed_lambda_environment(lambda_name, env),
         env_var=env_var,
@@ -46,7 +97,7 @@ def set_lambda_var(env_var: str, value, lambda_name: str) -> None:
 
 def unset_ssm_var(env_var: str) -> None:
     """Unset a single variable in the SSM parameter store"""
-    return util.unset_cloud_env_var(
+    return unset_cloud_env_var(
         environment=get_ssm_environment(),
         env_set_fn=set_ssm_environment,
         env_var=env_var,
@@ -56,7 +107,7 @@ def unset_ssm_var(env_var: str) -> None:
 
 def unset_lambda_var(env_var: str, lambda_name: str) -> None:
     """Unset a single variable in the environment of the specified lambda function"""
-    return util.unset_cloud_env_var(
+    return unset_cloud_env_var(
         environment=get_deployed_lambda_environment(lambda_name),
         env_set_fn=lambda env: set_deployed_lambda_environment(lambda_name, env),
         env_var=env_var,
@@ -66,7 +117,7 @@ def unset_lambda_var(env_var: str, lambda_name: str) -> None:
 
 def get_ssm_environment() -> dict:
     """Get the value of the parameter 'environment' in the SSM parameter store"""
-    prefix = util.get_cloud_variable_prefix()
+    prefix = get_ssm_variable_prefix()
     p = ssm_client.get_parameter(Name=f"/{prefix}/environment")
     parms = p["Parameter"]["Value"]
     # above value is a string; convert to dict
@@ -75,13 +126,48 @@ def get_ssm_environment() -> dict:
 
 def set_ssm_environment(parms: dict) -> None:
     """Set the value of the parameter 'environment' in the SSM parameter store"""
-    prefix = util.get_cloud_variable_prefix()
+    prefix = get_ssm_variable_prefix()
     ssm_client.put_parameter(
         Name=f"/{prefix}/environment",
         Value=json.dumps(parms),
         Type="String",
         Overwrite=True,
     )
+
+
+def set_cloud_env_var(environment: dict, env_set_fn, env_var: str, value, where: str = "") -> None:
+    """
+    Set a variable in a cloud environment by calling env_set_fn.  (We pass the environment in
+    directly, instead of passing a get_fn, because the get_fn may require input arguments.)
+    This is used to set values in the SSM parameter store and in deployed lambda functions.
+
+    Args:
+        environment: A dictionary containing all environment variables.
+        env_set_fn: A function handle used to set a new environment.
+        env_var: The name of the environment variable to set.
+        val: The value of the environment variable to set.
+        where: A label for telling the user where the env var was set.
+    """
+    environment[env_var] = value
+    env_set_fn(environment)
+    print(f'Set variable "{env_var}" {where}')
+
+def unset_cloud_env_var(environment: dict, env_set_fn, env_var: str, where: str = "") -> None:
+    """
+    Unset a variable in an environment by calling env_set_fn.
+
+    Args:
+        environment: A dictionary containing all environment variables.
+        env_set_fn: A function handle used to set a new environment.
+        env_var: The name of the environment variable to unset.
+        where: A label for telling the user where the env var was unset.
+    """
+    try:
+        del environment[env_var]
+        env_set_fn(environment)
+        print(f'Unset variable "{env_var}" {where}')
+    except KeyError:
+        print(f'Nothing to unset for variable "{env_var}" {where}')
 
 
 def get_deployed_lambdas():
@@ -121,8 +207,8 @@ def get_local_lambda_environment() -> dict:
         except KeyError:
             logger.warning(
                 f"Warning: environment variable {name} is in the list of environment variables "
-                f"to export to lambda environment, EXPORT_ENV_VARS_TO_LAMBDA, but variable is "
-                f"not defined in the local environment, so there is no value to set."
+                "to export to lambda functions, EXPORT_ENV_VARS_TO_LAMBDA, but variable is not "
+                "defined in the local environment, so there is no value to set."
             )
     return env
 
@@ -163,14 +249,13 @@ def ssm_list(argv: typing.List[str], args: argparse.Namespace):
     "ssm-set",
     arguments={
         "--name": dict(
-            required=True, help="name of environment variable to set in SSM param store"
+            required=True,
+            help="name of environment variable to set in SSM param store"
         ),
         "--value": dict(
             required=False,
             default=None,
-            help="value of environment variable "
-            "(optional, if not present then stdin "
-            "will be used)",
+            help="value of environment variable (optional, if not present then stdin will be used)",
         ),
         "--dry-run": dict(
             default=False,
@@ -267,14 +352,12 @@ def lambda_list(argv: typing.List[str], args: argparse.Namespace):
     arguments={
         "--name": dict(
             required=True,
-            help="name of environment variable to set in all lambda environments",
+            help="name of environment variable to set in all lambda functions",
         ),
         "--value": dict(
             required=False,
             default=None,
-            help="value of environment variable "
-            "(optional, if not present then stdin "
-            "will be used)",
+            help="value of environment variable (optional, if not present then stdin will be used)",
         ),
         "--dry-run": dict(
             default=False,
@@ -313,7 +396,7 @@ def lambda_set(argv: typing.List[str], args: argparse.Namespace):
     arguments={
         "--name": dict(
             required=True,
-            help="name of environment variable to unset in all lambda environments",
+            help="name of environment variable to unset in all lambda functions",
         ),
         "--dry-run": dict(
             default=False,
@@ -335,9 +418,7 @@ def lambda_unset(argv: typing.List[str], args: argparse.Namespace):
     # Unset the variable from each lambda function
     for lambda_name in get_deployed_lambdas():
         if args.dry_run:
-            print(
-                f'Dry-run deleting variable "{name}" from lambda function "{lambda_name}"'
-            )
+            print(f'Dry-run deleting variable "{name}" from lambda function "{lambda_name}"')
         else:
             unset_lambda_var(name, lambda_name)
 
@@ -348,9 +429,8 @@ def lambda_unset(argv: typing.List[str], args: argparse.Namespace):
         "--update-deployed": dict(
             default=False,
             action="store_true",
-            help="update the environment variables of all deployed lambdas, "
-            "in addition to updating the lambda environment stored in "
-            "the SSM store",
+            help="update the environment variables of all deployed lambdas, in addition to "
+            "updating the lambda environment stored in the SSM store",
         ),
         "--dry-run": dict(
             default=False,
@@ -361,8 +441,8 @@ def lambda_unset(argv: typing.List[str], args: argparse.Namespace):
 )
 def lambda_update(argv: typing.List[str], args: argparse.Namespace):
     """
-    Update the lambda environment stored in the SSM store
-    (and optionally update the environment of each deployed lambda).
+    Update the lambda environment stored in the SSM store (and optionally update each deployed
+    lambda function).
     """
     # Update lambda environment stored in SSM store
     local_env = get_local_lambda_environment()
@@ -381,12 +461,12 @@ def lambda_update(argv: typing.List[str], args: argparse.Namespace):
             lambda_env.update(local_env)
             if args.dry_run:
                 print(
-                    f"Dry-run resetting lambda environment for lambda function {lambda_name} "
+                    f"Dry-run resetting the environment of lambda function {lambda_name} "
                     f"using new lambda environment in SSM parameter store"
                 )
             else:
                 set_deployed_lambda_environment(lambda_name, lambda_env)
                 print(
-                    f"Finished resetting lambda environment for lambda function {lambda_name} "
+                    f"Finished resetting the environment of lambda function {lambda_name} "
                     f"using new lambda environment in SSM parameter store"
                 )
