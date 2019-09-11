@@ -104,7 +104,7 @@ def list_secrets(argv: typing.List[str], args: argparse.Namespace):
             print(secret_name)
 
 
-@events.action(
+@secrets.action(
     "get",
     arguments={
         "--secret-names": dict(
@@ -153,7 +153,7 @@ def get_secret(argv: typing.List[str], args: argparse.Namespace):
                 print(f"{secret_name}={secret_val}")
 
 
-@events.action(
+@secrets.action(
     "set",
     arguments={
         "--secret-name": dict(
@@ -198,7 +198,7 @@ def set_secret(argv: typing.List[str], args: argparse.Namespace):
             print(f"Updated secret variable {secret_name} in secrets manager")
 
 
-@events.action(
+@secrets.action(
     "delete",
     arguments={
         "--secret-name": dict(
