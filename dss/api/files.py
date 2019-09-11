@@ -19,6 +19,7 @@ from dss.storage.checkout import CheckoutTokenKeys
 from dss.storage.checkout.file import get_dst_key, start_file_checkout
 from dss.storage.files import write_file_metadata
 from dss.storage.hcablobstore import FileMetadata, HCABlobStore, compose_blob_key
+from dss.storage.identifiers import blob_checksum_format as checksum_format
 from dss.stepfunctions import gscopyclient, s3copyclient
 from dss.util import tracing, UrlBuilder, security
 from dss.util.async_state import AsyncStateItem, AsyncStateError
@@ -34,17 +35,6 @@ retry request after the specified interval."""
 RETRY_AFTER_INTERVAL = 10
 
 logger = logging.getLogger(__name__)
-checksum_format = {
-    # These are regular expressions that are used to verify the forms of
-    # checksums provided to a `PUT /file/{uuid}` API call. You can see the
-    # same ones in the Swagger spec (see definitions.file_version).
-    'hca-dss-crc32c': r'^[a-z0-9]{8}$',
-    'hca-dss-s3_etag': r'^[a-z0-9]{32}(-([2-9]|[1-8][0-9]|9[0-9]|[1-8][0-9]{2'
-                       r'}|9[0-8][0-9]|99[0-9]|[1-8][0-9]{3}|9[0-8][0-9]{2}|9'
-                       r'9[0-8][0-9]|999[0-9]|10000))?$',
-    'hca-dss-sha1': r'^[a-z0-9]{40}$',
-    'hca-dss-sha256': r'^[a-z0-9]{64}$'
-}
 
 
 @dss_handler

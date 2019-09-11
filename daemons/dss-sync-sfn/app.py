@@ -21,6 +21,7 @@ from dss.logging import configure_lambda_logging
 from dss.events.handlers.sync import (compose_upload, initiate_multipart_upload, complete_multipart_upload, copy_part,
                                       exists, get_part_size, get_sync_work_state, parts_per_worker, dependencies_exist,
                                       do_oneshot_copy, sync_sfn_dep_wait_sleep_seconds, sync_sfn_num_threads)
+from dss.storage.identifiers import BLOB_KEY_REGEX
 
 configure_lambda_logging()
 logger = logging.getLogger(__name__)
@@ -108,6 +109,9 @@ def launch_from_operator_queue(event, context):
         bucket = source_replica.bucket
         if exists(dest_replica, key):
             logger.info("Key %s already exists in %s, skipping sync", key, dest_replica)
+            continue
+        if not BLOB_KEY_REGEX.match(key):
+            logger.info("Key %s does not match blob key format, skipping sync", key)
             continue
         try:
             size = Config.get_blobstore_handle(source_replica).get_size(bucket, key)
