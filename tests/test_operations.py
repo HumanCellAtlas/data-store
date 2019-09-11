@@ -27,6 +27,7 @@ from dss.operations.util import map_bucket_results
 from dss.operations.params import fix_ssm_variable_prefix
 from dss.operations import checkout, storage, sync, secrets
 from dss.operations import params as ssm_params
+
 from dss.logging import configure_test_logging
 from dss.config import BucketConfig, Config, Replica, override_bucket_config
 from dss.storage.hcablobstore import FileMetadata, compose_blob_key
@@ -283,10 +284,7 @@ class TestOperations(unittest.TestCase):
             gs_blob.upload_from_file(fh, content_type="application/octet-stream")
 
     def test_secrets_crud(self):
-        # CRUD (create read update delete) test
-        # for the secrets manager.
-        #
-        # Procedure:
+        # CRUD (create read update delete) test procedure:
         # - create new secret
         # - list secrets and verify new secret shows up
         # - get secret value and verify it is correct
