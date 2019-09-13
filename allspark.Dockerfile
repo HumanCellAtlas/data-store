@@ -58,8 +58,8 @@ ENV DSS_TEST_ES_PATH=/home/hca_cicd/elasticsearch-${ES_VERSION}/bin/elasticsearc
 RUN wget https://artifacts.elastic.co/downloads/elasticsearch/elasticsearch-${ES_VERSION}.tar.gz \
     && tar -xzf elasticsearch-${ES_VERSION}.tar.gz -C /home/hca_cicd
 
-RUN wget https://releases.hashicorp.com/terraform/0.12.6/terraform_0.12.6_linux_amd64.zip \
-    && unzip terraform_0.12.6_linux_amd64.zip -d /home/hca_cicd/bin
+RUN wget https://releases.hashicorp.com/terraform/0.12.8/terraform_0.12.8_linux_amd64.zip \
+    && unzip terraform_0.12.8_linux_amd64.zip -d /home/hca_cicd/bin
 
 # Address locale problem, see "Python 3 Surrogate Handling":
 # http://click.pocoo.org/5/python3/
