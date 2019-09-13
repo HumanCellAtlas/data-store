@@ -206,15 +206,21 @@ def get_chalice_app(flask_app) -> DSSChaliceApp:
             app.log.exception('The request failed!')
         finally:
             res_headers = dict(flask_res.headers)
+            if query_params:
+                msg_query_params = str(query_params)
+                msg_started_at = query_params.get('started_at', '')
+            else:
+                msg_query_params = ''
+                msg_started_at = ''
             msg = {"log-msg-type": "analytics" if analytics_reply(method, path) else "info",
                    "system": "data-storage-service",
                    "dispatch_info": {"method": method,
                                      "path": path,
                                      "status_code": status_code,
-                                     "query_params": ' ' + str(query_params) if query_params is not None else '',
-                                     "started_at": query_params.get('started_at', ''),
-                                     "content-length": res_headers.get("Content-Length", "-"),
-                                     "content-type": res_headers.get("Content-Type", "-")}
+                                     "query_params": msg_query_params,
+                                     "started_at": msg_started_at,
+                                     "content-length": res_headers.get('Content-Length', ''),
+                                     "content-type": res_headers.get('Content-Type', '')}
                    }
             app.log.info(json.dumps(msg, indent=4))
 
