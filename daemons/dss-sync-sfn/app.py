@@ -77,6 +77,9 @@ def launch_from_forwarded_event(event, context):
             source_replica = Replica.gcp
             source_key = message["name"]
             bucket = source_replica.bucket
+            if source_key.startswith(BLOB_PREFIX) and not BLOB_KEY_REGEX.match(source_key):
+                logger.info("Key %s does not match blob key format, skipping sync", source_key)
+                continue
             for dest_replica in Config.get_replication_destinations(source_replica):
                 if exists(dest_replica, source_key):
                     logger.info("Key %s already exists in %s, skipping sync", source_key, dest_replica)
