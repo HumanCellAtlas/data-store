@@ -205,17 +205,26 @@ def get_chalice_app(flask_app) -> DSSChaliceApp:
         except Exception:
             app.log.exception('The request failed!')
         finally:
+            res_headers = dict(flask_res.headers)
+            if query_params:
+                msg_query_params = str(query_params)
+                msg_started_at = query_params.get('started_at', '')
+            else:
+                msg_query_params = ''
+                msg_started_at = ''
             msg = {"log-msg-type": "analytics" if analytics_reply(method, path) else "info",
                    "system": "data-storage-service",
                    "dispatch_info": {"method": method,
                                      "path": path,
                                      "status_code": status_code,
-                                     "query_params": ' ' + str(query_params) if query_params is not None else ''}
+                                     "query_params": msg_query_params,
+                                     "started_at": msg_started_at,
+                                     "content-length": res_headers.get('Content-Length', ''),
+                                     "content-type": res_headers.get('Content-Type', '')}
                    }
             app.log.info(json.dumps(msg, indent=4))
 
         # API Gateway/Cloudfront adds a duplicate Content-Length with a different value (not sure why)
-        res_headers = dict(flask_res.headers)
         res_headers.pop("Content-Length", None)
         res_headers["Strict-Transport-Security"] = "max-age=31536000; includeSubDomains; preload"
         res_headers["X-AWS-REQUEST-ID"] = app.lambda_context.aws_request_id
