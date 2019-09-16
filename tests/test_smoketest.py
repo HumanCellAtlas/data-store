@@ -121,9 +121,9 @@ class Smoketest(BaseSmokeTest):
                         continue
                     else:
                         notification = json.load(obj['Body'])
-                        self.assertEquals(subscription_id, notification['subscription_id'])
-                        self.assertEquals(bundle_uuid, notification['match']['bundle_uuid'])
-                        self.assertEquals(bundle_version, notification['match']['bundle_version'])
+                        self.assertEqual(subscription_id, notification['subscription_id'])
+                        self.assertEqual(bundle_uuid, notification['match']['bundle_uuid'])
+                        self.assertEqual(bundle_version, notification['match']['bundle_version'])
                         break
                 else:
                     self.fail("Timed out waiting for notification to arrive")
@@ -133,14 +133,14 @@ class Smoketest(BaseSmokeTest):
                 enumerate_bundles = list()
                 page_size = 10
                 first_page = self.get_bundle_enumerations(replica.name, page_size)
-                self.assertEquals(first_page['per_page'], 10)
-                self.assertIs(first_page['has_more'], True)
-                self.assertIs(first_page['token'], True)
+                self.assertEqual(first_page['per_page'], 10)
+                self.assertTrue(first_page['has_more'])
+                self.assertTrue(first_page['token'])
                 enumerate_bundles.append(first_page['bundles'])
                 next_page = self.get_bundle_enumerations(replica.name, page_size,
                                                          search_after=first_page['search_after'],
                                                          token=first_page['token'])
-                self.assertEquals(next_page['per_page'], 10)
+                self.assertEqual(next_page['per_page'], 10)
                 self.assertIs(next_page['has_more'], True)
                 self.assertIs(next_page['token'], True)
                 enumerate_bundles.append(next_page['bundles'])

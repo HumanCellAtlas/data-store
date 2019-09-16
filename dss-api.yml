@@ -1449,7 +1449,7 @@ paths:
                     enum: [unhandled_exception, Forbidden, Unauthorized, OAuthResponseProblem, not_found, read_only]
                 required:
                   - code
-  /bundles/list-all:
+  /bundles/all:
     get:
       operationId: dss.api.bundles.enumerate
       summary: List through all available bundles.
@@ -1496,6 +1496,9 @@ paths:
           description: All results retrieved.
           schema:
             $ref: '#/definitions/BundleEnumerationResult'
+          headers:
+            X-OpenAPI-Pagination:
+              type: boolean
         206:
           description: A single page of results was retrieved.
           schema:
@@ -1504,6 +1507,11 @@ paths:
             Link:
               type: string
               description: URL to retrieve the next page of results.
+            X-OpenAPI-Pagination:
+              type: boolean
+            X-OpenAPI-Paginated-Content-Key:
+              type: string
+              description: The JSON response body key containing an array of results that are paginated.
         500:
           $ref: '#/responses/ServerError'
         502:

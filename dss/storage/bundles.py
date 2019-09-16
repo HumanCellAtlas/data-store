@@ -6,11 +6,10 @@ import time
 
 import cachetools
 from cloud_blobstore import BlobNotFoundError, BlobStore
+from cloud_blobstore.s3 import S3BlobStore
 
 from dss import Config, Replica
-from dss.api.search import PerPageBounds
-from dss.storage.identifiers import DSS_BUNDLE_KEY_REGEX, DSS_BUNDLE_TOMBSTONE_REGEX, BundleTombstoneID, BundleFQID, \
-    TOMBSTONE_SUFFIX, BUNDLE_PREFIX
+from dss.storage.identifiers import DSS_BUNDLE_KEY_REGEX, DSS_BUNDLE_TOMBSTONE_REGEX, BundleTombstoneID, BundleFQID
 from dss.storage.blobstore import test_object_exists, idempotent_save
 from dss.util import multipart_parallel_upload
 
@@ -120,45 +119,3 @@ def _latest_version_from_object_names(object_names: typing.Iterator[str]) -> str
             version = current_version
 
     return version
-
-
-def enumerate_avaliable_bundles(replica: str = None,
-                                prefix: typing.Optional[str] = None,
-                                per_page: int = PerPageBounds.per_page_max,
-                                search_after: typing.Optional[str] = None,
-                                token: typing.Optional[str] = None):
-    """
-    :return: returns dictionary with bundles that are available, provides context of cloud providers internal pagination
-             mechanism.
-    """
-    kwargs = dict(bucket=Replica[replica].bucket, prefix=prefix, k_page_max=per_page)
-    if search_after:
-        kwargs['start_after_key'] = search_after
-    if token:
-        kwargs['token'] = token
-
-    storage_handler = Config.get_blobstore_handle(Replica[replica])
-    prefix_iterator = storage_handler.list_v2(**kwargs)  # note dont wrap this in enumerate() it looses the token
-    keys = dict()  # type: dict
-    uuid_list = list()
-    total_keys = 0
-
-    for key, meta in prefix_iterator:
-        uuid, version = key.split('.', 1)
-        uuid = uuid.split(f'{BUNDLE_PREFIX}/')[1]
-        search_after = key
-        if not version.endswith(TOMBSTONE_SUFFIX):
-            keys.setdefault(uuid, []).append(version)
-            total_keys += 1
-        elif TOMBSTONE_SUFFIX == version:
-            if uuid in keys:
-                total_keys -= len(keys[uuid])
-                del keys[uuid]
-        if total_keys >= per_page:
-            break
-
-    for uuid, versions in keys.items():
-        for version in versions:
-            uuid_list.append(dict(uuid=uuid, version=version))
-    token = getattr(prefix_iterator, 'token', None)
-    return dict(search_after=search_after, bundles=uuid_list, token=token, page_count=len(uuid_list))
