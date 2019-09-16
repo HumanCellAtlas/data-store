@@ -55,22 +55,25 @@ def head(uuid: str, replica: str, version: str = None, token: str = None):
 
 @dss_handler
 def get(uuid: str, replica: str, version: str = None, token: str = None, directurl: bool = False,
-        bundle_uuid: str = None, bundle_version: str = None):
-    return get_helper(uuid, Replica[replica], version, token, directurl, bundle_uuid, bundle_version)
+        content_disposition: str = None):
+    return get_helper(uuid, Replica[replica], version, token, directurl, content_disposition)
 
 
 def get_helper(uuid: str, replica: Replica, version: str = None, token: str = None, directurl: bool = False,
-               bundle_uuid: str = None, bundle_version: str = None):
-    if bundle_version and not bundle_uuid:
-        raise DSSException(400, "bad_request",
-                           "If bundle_version is specified, then bundle_uuid MUST be specified as well.")
+               content_disposition: str = None):
 
     with tracing.Subsegment('parameterization'):
         handle = Config.get_blobstore_handle(replica)
         bucket = replica.bucket
 
     if version is None:
-        version = get_latest_version(handle, bucket, prefix=f'files/{uuid}.')
+        with tracing.Subsegment('find_latest_version'):
+            # list the files and find the one that is the most recent.
+            prefix = "files/{}.".format(uuid)
+            for matching_file in handle.list(bucket, prefix):
+                matching_file = matching_file[len(prefix):]
+                if version is None or matching_file > version:
+                    version = matching_file
     if version is None:
         # no matches!
         raise DSSException(404, "not_found", "Cannot find file!")
@@ -110,18 +113,16 @@ def get_helper(uuid: str, replica: Replica, version: str = None, token: str = No
                     path=get_dst_key(blob_path)
                 )))
             else:
-                if bundle_uuid:
-                    filename = determine_filename(f'{uuid}.{version}', bundle_uuid, bundle_version, handle, bucket)
+                if content_disposition:
+                    # can tell a browser to treat the response link as a download rather than open a new tab
+                    response = redirect(handle.generate_presigned_GET_url(
+                                        replica.checkout_bucket,
+                                        get_dst_key(blob_path),
+                                        **content_disposition_response(replica.name, content_disposition)))
                 else:
-                    filename = blob_path[len('blobs/'):]  # default to naming after the giant blob hash
-
-                # tells a browser to treat the response link as a download rather than open a new tab
-                content_disposition = content_disposition_response(replica.name, filename)
-
-                response = redirect(handle.generate_presigned_GET_url(
-                                    replica.checkout_bucket,
-                                    get_dst_key(blob_path),
-                                    **content_disposition))
+                    response = redirect(handle.generate_presigned_GET_url(
+                                        replica.checkout_bucket,
+                                        get_dst_key(blob_path)))
         else:
             with tracing.Subsegment('make_retry'):
                 builder = UrlBuilder(request.url)
@@ -148,49 +149,14 @@ def get_helper(uuid: str, replica: Replica, version: str = None, token: str = No
     return response
 
 
-def determine_filename(file_fqid, bundle_uuid, bundle_version, handle, bucket):
-    """Returns filename from bundle metadata or None if not found in the bundle metadata."""
-    unspecified_bundle_version = bool(bundle_version)
-    if not bundle_version:
-        bundle_version = get_latest_version(handle, bucket, prefix=f'bundles/{bundle_uuid}.')
-    if not bundle_version:
-        raise DSSException(404, "not_found",
-                           f'Cannot find any versions for bundle_uuid: "{bundle_uuid}"!')
-
-    response = get_bundle_manifest(f'{bundle_uuid}.{bundle_version}')
-    if response:
-        for file in response['files']:
-            if f'{file["uuid"]}.{file["version"]}' == file_fqid:
-                return file['name']
-
-    if unspecified_bundle_version:
-        raise DSSException(404, "not_found", f'The latest version of bundle_uuid: "{bundle_uuid}" does not contain '
-                                             f'file: {file_fqid}')
-    else:
-        raise DSSException(404, "not_found", f'bundle_uuid: "{bundle_uuid}" and bundle_version: "{bundle_version}" '
-                                             f'do not contain file: {file_fqid}')
-
-
-def content_disposition_response(replica: str, filename: str) -> dict:
+def content_disposition_response(replica: str, content_disposition: str) -> dict:
     # TODO: Add this into the cloud blobstore
     if replica == 'aws':
         # https://boto3.amazonaws.com/v1/documentation/api/latest/reference/services/s3.html
-        return {'ResponseContentDisposition': f'attachment; filename={filename}'}
+        return {'ResponseContentDisposition': content_disposition}
     else:
         # https://googleapis.github.io/google-cloud-python/latest/storage/blobs.html
-        return {'response_disposition': f'attachment; filename={filename}'}
-
-
-def get_latest_version(handle, bucket, prefix):
-    assert prefix.endswith('.')
-    version = None
-    with tracing.Subsegment('find_latest_version'):
-        # list the files and find the one that is the most recent.
-        for matching_file in handle.list(bucket, prefix):
-            matching_file = matching_file[len(prefix):]
-            if version is None or matching_file > version:
-                version = matching_file
-    return version
+        return {'response_disposition': content_disposition}
 
 
 def _verify_checkout(
