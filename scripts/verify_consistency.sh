@@ -24,7 +24,8 @@ SECRET_NAME="dcp/dss/${DSS_DEPLOYMENT_STAGE}/${OBJECT_TYPE}_last_verified"
 aws s3api list-objects-v2 \
     --bucket "$DSS_S3_BUCKET" \
     --prefix "${OBJECT_TYPE}/" \
-    --query "Contents[?LastModified > ${CUTOFF_TIME}]" > s3_${OBJECT_TYPE}_index
+    --query "Contents[?LastModified > ${CUTOFF_TIME} && !ends_with(Key, '.dead')]" \
+    > s3_${OBJECT_TYPE}_index
 # The list of objects up for verification have at this point been written to
 # s3_{files,bundles,blobs}_index.
 jq '. | to_entries[] | .value.Key' s3_${OBJECT_TYPE}_index \

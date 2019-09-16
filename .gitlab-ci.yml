@@ -183,9 +183,9 @@ verify_sync_partial:on-schedule:
     - FILES_SECRETS_NAME="${DSS_SECRETS_STORE}/${DSS_DEPLOYMENT_STAGE}/${DSS_FILE_VERIFY_SECRETS_NAME}"
     - BLOBS_SECRETS_NAME="${DSS_SECRETS_STORE}/${DSS_DEPLOYMENT_STAGE}/${DSS_BLOB_VERIFY_SECRETS_NAME}"
     - BUNDLES_SECRETS_NAME="${DSS_SECRETS_STORE}/${DSS_DEPLOYMENT_STAGE}/${DSS_BUNDLE_VERIFY_SECRETS_NAME}"
-    - FILES_LAST_VERIFIED="$(python scripts/dss-ops.py secrets get --secret-names ${FILES_SECRETS_NAME} jq -r '.[]')"
-    - BLOBS_LAST_VERIFIED="$(python scripts/dss-ops.py secrets get --secret-names ${BLOBS_SECRETS_NAME} | jq -r '.[]')"
-    - BUNDLE_LAST_VERIFIED="$(python scripts/dss-ops.py secrets get --secret-names ${BUNDLES_SECRETS_NAME} | jq -r '.[]')"
+    - FILES_LAST_VERIFIED="$(python scripts/dss-ops.py secrets get --secret-names ${FILES_SECRETS_NAME} --json | jq -r '.[]')"
+    - BLOBS_LAST_VERIFIED="$(python scripts/dss-ops.py secrets get --secret-names ${BLOBS_SECRETS_NAME} --json | jq -r '.[]')"
+    - BUNDLE_LAST_VERIFIED="$(python scripts/dss-ops.py secrets get --secret-names ${BUNDLES_SECRETS_NAME} --json | jq -r '.[]')"
     - bash scripts/verify_consistency.sh files "${FILES_LAST_VERIFIED}" | tee file_verify_log
     - bash scripts/verify_consistency.sh blobs "${BLOBS_LAST_VERIFIED}" | tee blob_verify_log
     - bash scripts/verify_consistency.sh bundles "${BUNDLE_LAST_VERIFIED}" | tee bundle_verify_log
