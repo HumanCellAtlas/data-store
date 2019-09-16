@@ -13,6 +13,8 @@ import dss
 from dss import DSSException, DSSForbiddenException, Config
 from dss.config import Replica
 from dss.logging import configure_test_logging
+from dss.storage.bundles import enumerate_avaliable_bundles
+from dss.storage.identifiers import TOMBSTONE_SUFFIX
 from dss.util import UrlBuilder, security, multipart_parallel_upload
 from dss.util.aws import ARN
 from tests import UNAUTHORIZED_GCP_CREDENTIALS, get_service_jwt
@@ -245,6 +247,37 @@ class TestSecurity(unittest.TestCase):
     @staticmethod
     def restore_email_claims(old):
         os.environ['OIDC_EMAIL_CLAIM'] = old
+
+    @mock.patch("dss.Config.get_blobstore_handle")
+    def test_uuid_enumeration(self, mock_list_v2):
+        class MockStorageHandler(object):
+            tombstoned_bundle_list = ['bundles/001b92bb-2101-4e52-94d9-293fcb97ba32.2019-05-10T110312.514000Z',
+                                      'bundles/001b92bb-2101-4e52-94d9-293fcb97ba32.dead',
+                                      'bundles/00171d5a-f14f-48b3-a467-0b0ac8208c6b.2019-02-26T033414.851898Z',
+                                      'bundles/00169bc4-f1eb-415e-95d1-12b886550da9.2019-02-26T033907.789762Z',
+                                      'bundles/0007edde-f22c-4858-bf17-513dc2d05863.2019-05-23T220340.829000Z',
+                                      'bundles/00190f26-f491-4d65-8bf4-bb7bd2b38313.2019-02-26T035253.735430Z',
+                                      'bundles/00018f76-1e5d-4a6a-bbcd-8a261c10b121.2019-02-26T035448.489896Z',
+                                      'bundles/0007edde-f22c-4858-bf17-513dc2d05863.2019-02-26T033907.789762Z',
+                                      'bundles/0007edde-f22c-4858-bf17-513dc2d05863.dead',
+                                      'bundles/00176adc-f15d-4e46-8623-96cd047ca3df.2019-02-26T033558.843528Z',
+                                      'bundles/00175253-e8f9-4f19-a070-1fcb25a57519.2018-10-18T203641.653105Z.dead',
+                                      'bundles/001e784d-fbff-4ee4-aefd-6eb2c8cad783.2018-10-08T201847.591231Z',
+                                      'bundles/001650e3-87a0-4145-9560-430930445071.2018-10-09T002318.558884Z',
+                                      'bundles/00193c56-85f3-4c72-b236-21e6359cb933.2019-02-26T035613.863196Z',
+                                      'bundles/001d3eff-b102-4670-9dad-92c9fb6534bb.2019-02-26T033443.407780Z',
+                                      'bundles/001c3895-59ad-4897-967c-d6a33233f65e.2018-09-13T131642.918470Z']
+
+            def list_v2(self, *args, **kwargs):
+                list_tuples = [(x, None) for x in self.tombstoned_bundle_list]
+                return iter(list_tuples)
+        mock_list_v2.return_value = MockStorageHandler()
+        resp = enumerate_avaliable_bundles(replica='aws')
+        dead_bundles = [x.split('.', 1)[0].split('bundles/')[1] for x in MockStorageHandler.tombstoned_bundle_list
+                        if x.endswith(TOMBSTONE_SUFFIX)]
+        for x in resp['bundles']:
+            self.assertNotIn(x['uuid'], dead_bundles)
+        self.assertEquals(resp['page_count'], 10)
 
 
 if __name__ == '__main__':

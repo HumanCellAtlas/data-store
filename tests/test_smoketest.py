@@ -81,6 +81,12 @@ class Smoketest(BaseSmokeTest):
         with self.subTest(f"{starting_replica.name}: Download that bundle"):
             self._test_get_bundle(replica, bundle_uuid)
 
+        with self.subTest(f"{starting_replica.name}: Enumerate on that bundle uuid"):
+            key_prefix = f'{bundle_uuid[0:8]}'
+            bundle_match = dict(uuid=bundle_uuid, version=bundle_version)
+            resp = self.get_bundle_enumerations(starting_replica.name, prefix=key_prefix)
+            self.assertIn(bundle_match, resp['bundles'])
+
         with self.subTest(f"{starting_replica.name}: Initiate a bundle checkout"):
             checkout_response = self.checkout_initiate(replica, bundle_uuid)
             checkout_job_id = checkout_response['checkout_job_id']
@@ -115,12 +121,31 @@ class Smoketest(BaseSmokeTest):
                         continue
                     else:
                         notification = json.load(obj['Body'])
-                        self.assertEquals(subscription_id, notification['subscription_id'])
-                        self.assertEquals(bundle_uuid, notification['match']['bundle_uuid'])
-                        self.assertEquals(bundle_version, notification['match']['bundle_version'])
+                        self.assertEqual(subscription_id, notification['subscription_id'])
+                        self.assertEqual(bundle_uuid, notification['match']['bundle_uuid'])
+                        self.assertEqual(bundle_version, notification['match']['bundle_version'])
                         break
                 else:
                     self.fail("Timed out waiting for notification to arrive")
+
+        for replica in self.replicas:
+            with self.subTest(f'Testing Bundle Enumeration on {replica.name}'):
+                enumerate_bundles = list()
+                page_size = 10
+                first_page = self.get_bundle_enumerations(replica.name, page_size)
+                print(first_page)
+                self.assertEqual(first_page['per_page'], 10)
+                self.assertGreater(first_page['page_count'], 0)
+                if first_page['has_more'] is True:
+                    self.assertTrue(first_page['has_more'])
+                    self.assertTrue(first_page['token'])
+                    enumerate_bundles.extend(first_page['bundles'])
+                    next_page = self.get_bundle_enumerations(replica.name, page_size,
+                                                             search_after=first_page['search_after'],
+                                                             token=first_page['token'])
+                    self.assertEqual(next_page['per_page'], 10)
+                    enumerate_bundles.extend(next_page['bundles'])
+                    self.assertEqual(len(enumerate_bundles), (first_page['page_count'] + next_page['page_count']))
 
     def test_smoketest(self):
         for param in self.params:

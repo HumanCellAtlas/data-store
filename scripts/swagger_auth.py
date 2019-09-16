@@ -25,6 +25,7 @@ full_auth = {"/search": ["post"],
              "/subscriptions/{uuid}": ["get", "delete"],
              "/collections": ["get", "put"],
              "/collections/{uuid}": ["get", "patch", "delete"],
+             "/bundles/all": ["get"],
              "/bundles/{uuid}": ["get", "put", "patch", "delete"],
              "/bundles/{uuid}/checkout": ["post"],
              "/bundles/checkout/{checkout_job_id}": ["get"]
