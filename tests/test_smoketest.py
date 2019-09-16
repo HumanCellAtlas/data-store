@@ -82,7 +82,7 @@ class Smoketest(BaseSmokeTest):
             self._test_get_bundle(replica, bundle_uuid)
 
         with self.subTest(f"{starting_replica.name}: Enumerate on that bundle uuid"):
-            key_prefix = f'bundles/{bundle_uuid[0:8]}'
+            key_prefix = f'{bundle_uuid[0:8]}'
             bundle_match = dict(uuid=bundle_uuid, version=bundle_version)
             resp = self.get_bundle_enumerations(starting_replica.name, prefix=key_prefix)
             self.assertIn(bundle_match, resp['bundles'])
@@ -139,12 +139,12 @@ class Smoketest(BaseSmokeTest):
                 if first_page['has_more'] is True:
                     self.assertTrue(first_page['has_more'])
                     self.assertTrue(first_page['token'])
-                    enumerate_bundles.append(first_page['bundles'])
+                    enumerate_bundles.extend(first_page['bundles'])
                     next_page = self.get_bundle_enumerations(replica.name, page_size,
                                                              search_after=first_page['search_after'],
                                                              token=first_page['token'])
                     self.assertEqual(next_page['per_page'], 10)
-                    enumerate_bundles.append(next_page['bundles'])
+                    enumerate_bundles.extend(next_page['bundles'])
                     self.assertEqual(len(enumerate_bundles), (first_page['page_count'] + next_page['page_count']))
 
     def test_smoketest(self):

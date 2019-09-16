@@ -183,13 +183,11 @@ class BaseSmokeTest(unittest.TestCase):
 
     def get_bundle_enumerations(self, replica, per_page=500, prefix=None, search_after=None, token=None):
         """returns bundle enumeration page"""
-        if search_after is None and token is None:
-            resp = run_for_json(f"{self.venv_bin}hca dss get-bundles-all --replica {replica}"
-                                f" --per-page {per_page} --prefix {prefix}")
-        else:
-            resp = run_for_json(f"{self.venv_bin}hca dss get-bundles --replica {replica}"
-                                f" --per-page {per_page} --search-after {search_after}"
-                                f" --token {token} --prefix {prefix}")
+        passed_args = {"replica": replica, "per-page": per_page, "prefix": prefix,
+                       "search-after": search_after, "token": token}
+        command_args = [f'--{key} {value}' for key, value in passed_args.items() if value is not None]
+        command = f"{self.venv_bin}hca dss get-bundles-all {' '.join(command_args)}"
+        resp = run_for_json(command)
         return resp
 
     def _test_get_subscriptions(self, replica, requested_subscription):
