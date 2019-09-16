@@ -128,7 +128,7 @@ def enumerate_avaliable_bundles(replica: str = None,
                                 search_after: typing.Optional[str] = None,
                                 token: typing.Optional[str] = None):
     """
-    :returns: returns dictionary with bundles that are available, provides context of cloud providers internal pagination
+    :returns: dictionary with bundles that are available, provides context of cloud providers internal pagination
              mechanism.
     :rtype: dictionary
     """
