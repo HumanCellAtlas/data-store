@@ -387,7 +387,10 @@ paths:
         - name: content_disposition
           in: query
           description: |
-            Optional. If this parameter is provided, the response will include a Content-Disposition header.
+            Optional and does not work when directurl=true (only works with the default presigned url response).
+
+            If this parameter is provided, the response from fetching the returned presigned url will include the
+            specified Content-Disposition header.
 
             This can be useful to indicate to a browser that a file should be downloaded rather than opened in a new
             tab, and can also supply the original filename in the response.  Example:
