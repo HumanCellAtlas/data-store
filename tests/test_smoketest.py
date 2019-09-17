@@ -81,12 +81,6 @@ class Smoketest(BaseSmokeTest):
         with self.subTest(f"{starting_replica.name}: Download that bundle"):
             self._test_get_bundle(replica, bundle_uuid)
 
-        with self.subTest(f"{starting_replica.name}: Enumerate on that bundle uuid"):
-            key_prefix = f'{bundle_uuid[0:8]}'
-            bundle_match = dict(uuid=bundle_uuid, version=bundle_version)
-            resp = self.get_bundle_enumerations(starting_replica.name, prefix=key_prefix)
-            self.assertIn(bundle_match, resp['bundles'])
-
         with self.subTest(f"{starting_replica.name}: Initiate a bundle checkout"):
             checkout_response = self.checkout_initiate(replica, bundle_uuid)
             checkout_job_id = checkout_response['checkout_job_id']
@@ -104,6 +98,12 @@ class Smoketest(BaseSmokeTest):
                                    input=json.dumps({'es_query': bundle_query}).encode())
                 print(json.dumps(res, indent=4))
                 self.assertEqual(len(res['results']), 1)
+
+        with self.subTest(f"{starting_replica.name}: Enumerate on created bundle uuid"):
+            key_prefix = f'{bundle_uuid[0:8]}'
+            bundle_match = dict(uuid=bundle_uuid, version=bundle_version)
+            resp = self.get_bundle_enumerations(starting_replica.name, prefix=key_prefix)
+            self.assertIn(bundle_match, resp['bundles'])
 
         for replica in self.replicas:
             with self.subTest(f"{starting_replica.name}: Tombstone the bundle on replica {replica}"):
@@ -129,6 +129,7 @@ class Smoketest(BaseSmokeTest):
                     self.fail("Timed out waiting for notification to arrive")
 
         for replica in self.replicas:
+            # Enumerations against the replicas should be done after the test_replica_sync to ensure consistency.
             with self.subTest(f'Testing Bundle Enumeration on {replica.name}'):
                 enumerate_bundles = list()
                 page_size = 10
