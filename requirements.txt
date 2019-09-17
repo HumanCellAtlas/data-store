@@ -12,7 +12,7 @@ cffi==1.12.3
 chardet==3.0.4
 Click==7.0
 clickclick==1.2.2
-cloud-blobstore==3.1.0
+cloud-blobstore==3.2.0
 connexion==1.5.3
 crc32c==1.7
 cryptography==2.7
