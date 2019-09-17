@@ -160,3 +160,31 @@ class CaptureStdout(list):
         # Clean up by setting sys.stdout back to what it was before we opened
         # up this context
         sys.stdout = self._stdout
+
+class SwapStdin(object):
+    """Utility object using a context manager to swap out stdin with user-provided data."""
+    def __init__(self, *, input=None):
+        if input is None:
+            raise RuntimeError("Error: SwapStdin object was not provided with an 'input' keyword arg")
+        elif type(input) == type(""):
+            input = bytes(input, 'utf-8')
+        self.input = input
+
+    def __enter__(self, *args, **kwargs):
+        """
+        To swap out stdin properly (so it still works with the select module) requires a "real" file
+        with an os-level file descriptor. Fortunately os.pipe() will create a file descriptor for
+        the pipe, so we create a pipe and fill it with mock data, then swap it out with stdin.
+        """
+        fdr, fdw = os.pipe()
+        os.write(fdw, self.input)
+        os.close(fdw)
+        f = os.fdopen(fdr) # use the file descriptor directly
+
+        self._stdin = sys.stdin
+        sys.stdin = f
+
+        return self
+
+    def __exit__(self, *args, **kwargs):
+        sys.stdin = self._stdin
