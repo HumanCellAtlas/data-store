@@ -166,7 +166,7 @@ class SwapStdin(object):
     def __init__(self, *, input=None):
         if input is None:
             raise RuntimeError("Error: SwapStdin object was not provided with an 'input' keyword arg")
-        elif type(input) == type(""):
+        elif isinstance(input, ""):
             input = bytes(input, 'utf-8')
         self.input = input
 
@@ -179,7 +179,7 @@ class SwapStdin(object):
         fdr, fdw = os.pipe()
         os.write(fdw, self.input)
         os.close(fdw)
-        f = os.fdopen(fdr) # use the file descriptor directly
+        f = os.fdopen(fdr)  # use the file descriptor directly
 
         self._stdin = sys.stdin
         sys.stdin = f

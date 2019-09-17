@@ -34,7 +34,7 @@ def get_ssm_variable_prefix() -> str:
 def fix_ssm_variable_prefix(param_name: str) -> str:
     """Add the variable store and stage prefix to the front of an SSM param name"""
     prefix = get_ssm_variable_prefix()
-    if not (param_name.startswith(prefix) or param_name.startswith("/"+prefix)):
+    if not (param_name.startswith(prefix) or param_name.startswith("/" + prefix)):
         param_name = f"{prefix}/{param_name}"
     return param_name
 
@@ -43,7 +43,7 @@ def get_ssm_environment() -> dict:
     """Get the value of the parameter named "environment" in the SSM param store"""
     prefix = get_ssm_variable_prefix()
     p = ssm_client.get_parameter(Name=f"/{prefix}/environment")
-    parms = p["Parameter"]["Value"] # this is a string, so convert to dict
+    parms = p["Parameter"]["Value"]  # this is a string, so convert to dict
     return json.loads(parms)
 
 
@@ -74,14 +74,14 @@ def set_ssm_parameter(env_var: str, value) -> None:
         prev_value = None
     environment[env_var] = value
     set_ssm_environment(environment)
-    print(f'Success! Set variable in SSM parameter store environment:')
-    print(f'Name: {env_var}')
-    print(f'Value: {value}')
+    print(f"Success! Set variable in SSM parameter store environment:")
+    print(f"Name: {env_var}")
+    print(f"Value: {value}")
     if prev_value:
-        print(f'Previous value: {prev_value}')
+        print(f"Previous value: {prev_value}")
 
 
-def unset_ssm_parameter(env_var: str) -> None: 
+def unset_ssm_parameter(env_var: str) -> None:
     """
     Unset a parameter in the SSM param store variable "environment".
 
@@ -92,11 +92,11 @@ def unset_ssm_parameter(env_var: str) -> None:
         prev_value = environment[env_var]
         del environment[env_var]
         set_ssm_environment(environment)
-        print(f'Success! Unset variable in SSM parameter store environment:')
-        print(f'Name: {env_var} ')
-        print(f'Previous value: {prev_value}')
+        print(f"Success! Unset variable in SSM parameter store environment:")
+        print(f"Name: {env_var} ")
+        print(f"Previous value: {prev_value}")
     except KeyError:
-        print(f'Nothing to unset for variable {env_var} in SSM parameter store environment')
+        print(f"Nothing to unset for variable {env_var} in SSM parameter store environment")
 
 
 ssm_params = dispatch.target("params", arguments={}, help=__doc__)
@@ -105,12 +105,8 @@ ssm_params = dispatch.target("params", arguments={}, help=__doc__)
 @ssm_params.action(
     "list",
     arguments={
-        "--json": dict(
-            default=False,
-            action="store_true",
-            help="format the output as JSON"
-        )
-    }
+        "--json": dict(default=False, action="store_true", help="format the output as JSON")
+    },
 )
 def ssm_list(argv: typing.List[str], args: argparse.Namespace):
     """Print out all variables stored in the SSM store"""
@@ -126,29 +122,25 @@ def ssm_list(argv: typing.List[str], args: argparse.Namespace):
 @ssm_params.action(
     "set",
     arguments={
-        "name": dict(
-            help="name of variable to set in SSM param store environment"
-        ),
+        "name": dict(help="name of variable to set in SSM param store environment"),
         "--dry-run": dict(
-            default=False,
-            action="store_true",
-            help="do a dry run of the actual operation",
-        )
-    }
+            default=False, action="store_true", help="do a dry run of the actual operation"
+        ),
+    },
 )
 def ssm_set(argv: typing.List[str], args: argparse.Namespace):
     """Set a variable in the SSM param store environment"""
     name = args.name
 
     # Use stdin (input piped to script)
-    if not select.select([sys.stdin,], [], [], 0.0)[0]:
+    if not select.select([sys.stdin], [], [], 0.0)[0]:
         raise RuntimeError("Error: stdin was empty! A variable value must be provided via stdin")
     val = sys.stdin.read()
 
     if args.dry_run:
-        print(f'Dry-run creating variable in SSM param store environment:')
-        print(f'Name: {name}')
-        print(f'Value: {val}')
+        print(f"Dry-run creating variable in SSM param store environment:")
+        print(f"Name: {name}")
+        print(f"Value: {val}")
     else:
         set_ssm_parameter(name, val)
 
@@ -156,15 +148,11 @@ def ssm_set(argv: typing.List[str], args: argparse.Namespace):
 @ssm_params.action(
     "unset",
     arguments={
-        "name": dict(
-            help="name of variable to unset in SSM param store environment"
-        ),
+        "name": dict(help="name of variable to unset in SSM param store environment"),
         "--dry-run": dict(
-            default=False,
-            action="store_true",
-            help="do a dry run of the actual operation",
-        )
-    }
+            default=False, action="store_true", help="do a dry run of the actual operation"
+        ),
+    },
 )
 def ssm_unset(argv: typing.List[str], args: argparse.Namespace):
     name = args.name
