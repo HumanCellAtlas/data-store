@@ -1,12 +1,17 @@
 """
 Get and set parameters in the "environment" variable in the SSM parameter store.
-These parameters are used in a way that is similar to environment variables.
+
+Parameters in the SSM store are utilized similar to environment variables. Any parameter set with
+this script will be stored in the SSM parameter store, in the "environment" variable, which is
+stored as a serialized JSON object with key-value pairs.
 """
 import os
 import sys
 import select
 import json
 import argparse
+import logging
+import typing
 
 from botocore.exceptions import ClientError
 
