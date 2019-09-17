@@ -1,9 +1,6 @@
 """
-Get and set parameters in the "environment" variable in the SSM parameter store.
-
-Parameters in the SSM store are utilized similar to environment variables. Any parameter set with
-this script will be stored in the SSM parameter store, in the "environment" variable, which is
-stored as a serialized JSON object with key-value pairs.
+Get and set parameters in the SSM parameter store "environment". Parameters are stored as key-value
+pairs in a map named "environment" (stored in the SSM param store).
 """
 import os
 import sys
@@ -141,7 +138,7 @@ def ssm_set(argv: typing.List[str], args: argparse.Namespace):
     name = args.name
 
     # Use stdin (input piped to script)
-    if not select.select([sys.stdin], [], [])[0]:
+    if not select.select([sys.stdin,], [], [], 0.0)[0]:
         raise RuntimeError("Error: stdin was empty! A variable value must be provided via stdin")
     val = sys.stdin.read()
 
