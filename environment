@@ -16,6 +16,7 @@ export DSS_HOME="$(cd -P "$(dirname "$SOURCE")" && pwd)"
 
 EXPORT_ENV_VARS_TO_LAMBDA_ARRAY=(
     API_DOMAIN_NAME
+    AUTH_URL
     CHECKOUT_CACHE_CRITERIA
     DSS_AUTHORIZED_DOMAINS
     DSS_BLOB_PUBLIC_TTL_DAYS
@@ -88,6 +89,7 @@ API_DOMAIN_NAME="dss.${DCP_DOMAIN}"
 TOKENINFO_FUNC=dss.util.security.verify_jwt
 # TODO remove https://dev.data.humancellatlas.org/ from OIDC_AUDIENCE once seperate deployments are made
 OIDC_AUDIENCE=https://dev.data.humancellatlas.org/,https://${DCP_DOMAIN}/
+AUTH_URL=https://auth.dev.data.humancellatlas.org
 OPENID_PROVIDER=https://humancellatlas.auth0.com/
 OIDC_EMAIL_CLAIM=https://auth.data.humancellatlas.org/email
 OIDC_GROUP_CLAIM=https://auth.data.humancellatlas.org/group

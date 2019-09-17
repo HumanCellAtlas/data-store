@@ -20,7 +20,7 @@ DSS_ES_INSTANCE_COUNT="3"
 DSS_ES_VOLUME_SIZE="512"  # Maximum volume size for m4.large.elasticsearch
 DSS_AUTHORIZED_DOMAINS="hca-dcp-production.iam.gserviceaccount.com hca-dcp-pipelines-prod.iam.gserviceaccount.com ${DSS_AUTHORIZED_DOMAINS}"
 DSS_TERRAFORM_BACKEND_BUCKET_TEMPLATE="org-humancellatlas-dss-{account_id}-${DSS_DEPLOYMENT_STAGE}-terraform"
-
+AUTH_URL=https://auth.data.humancellatlas.org
 set +a
 
 if [[ -f "${DSS_HOME}/environment.prod.local" ]]; then
