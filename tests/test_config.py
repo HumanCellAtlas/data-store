@@ -43,6 +43,14 @@ class TestConfig(unittest.TestCase):
         Config.set_config(BucketConfig.TEST_FIXTURE)
         self.assertEquals(Config.get_s3_checkout_bucket(), os.environ["DSS_S3_CHECKOUT_BUCKET_TEST"])
 
+    def test_s3_events_bucket(self):
+        Config.set_config(BucketConfig.NORMAL)
+        self.assertEquals(Config.get_flashflood_bucket(), os.environ["DSS_FLASHFLOOD_BUCKET"])
+        Config.set_config(BucketConfig.TEST)
+        self.assertEquals(Config.get_flashflood_bucket(), os.environ["DSS_S3_BUCKET_TEST"])
+        Config.set_config(BucketConfig.TEST_FIXTURE)
+        self.assertEquals(Config.get_flashflood_bucket(), os.environ["DSS_S3_BUCKET_TEST"])
+
     def test_notification_email(self):
         for bucket_config in BucketConfig:
             Config.set_config(bucket_config)
