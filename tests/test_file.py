@@ -735,12 +735,8 @@ class TestFileApi(unittest.TestCase, TestAuthMixin, DSSUploadMixin, DSSAssertMix
             test_checkout()
 
         with self.subTest(f"{replica}: Initiates checkout and returns 302 immediately for GET on stale checkout file."):
-            @eventually(30, 1)
-            def test_creation_date_updated(key, prev_creation_date):
-                self.assertTrue(prev_creation_date < handle.get_creation_date(replica.checkout_bucket, key))
-
             now = datetime.datetime.now(datetime.timezone.utc)
-            old_creation_date = handle.get_creation_date(replica.checkout_bucket, file_key)
+            creation_date = handle.get_creation_date(replica.checkout_bucket, file_key)
             creation_date_fn = ("cloud_blobstore.s3.S3BlobStore.get_creation_date"
                                 if replica.name == "aws"
                                 else "cloud_blobstore.gs.GSBlobStore.get_creation_date")
@@ -749,7 +745,9 @@ class TestFileApi(unittest.TestCase, TestAuthMixin, DSSUploadMixin, DSSAssertMix
                 blob_ttl_days = int(os.environ['DSS_BLOB_PUBLIC_TTL_DAYS'])
                 mock_creation_date.return_value = now - datetime.timedelta(days=blob_ttl_days + 1)
                 self.assertGetResponse(url, requests.codes.found, headers=get_auth_header(), redirect_follow_retries=0)
-            test_creation_date_updated(file_key, old_creation_date)
+                self.assertTrue(creation_date > handle.get_creation_date(replica.checkout_bucket, file_key),
+                                f'\ncurr_creation_date: {creation_date}'
+                                f'\nprev_creation_date: {handle.get_creation_date(replica.checkout_bucket)}')
 
         handle.delete(test_bucket, f"files/{file_uuid}.{version}")
         handle.delete(replica.checkout_bucket, file_key)

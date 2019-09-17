@@ -29,6 +29,7 @@ EXPORT_ENV_VARS_TO_LAMBDA_ARRAY=(
     DSS_NOTIFICATION_SENDER
     DSS_NOTIFY_DELAYS
     DSS_NOTIFY_TIMEOUT
+    DSS_NOTIFY_WORKERS
     DSS_S3_BUCKET
     DSS_S3_CHECKOUT_BUCKET
     DSS_VERSION
@@ -132,6 +133,13 @@ DSS_NOTIFY_DELAYS="0 60 600 3600 21600 60540 86400 86400 86400 86400 86400 86400
 DSS_NOTIFY_TIMEOUT=60  # This may seem excessive but the default of 10s is not enough for Green's Lira
                        # and would cause the notification to be retried, causing Lira to make a duplicate
                        # submission.
+
+                       # Touch base with Lira (Saman and Rex currently) on this timeout once:
+                       # - they have scale-tested their new queue component
+                       # - all subscribers (not only Green Box) agree on the shorter timeout
+                       # https://github.com/HumanCellAtlas/data-store/issues/2398
+
+DSS_NOTIFY_WORKERS=24  # unset to automatically determine the number of workers
 
 # Enables X-Ray profiling of daemons running in AWS Lambdas. A value of 0 disables profiling. A value >1 will enable
 # profiling.

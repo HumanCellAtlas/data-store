@@ -984,6 +984,12 @@ class TestBundleApi(unittest.TestCase, TestAuthMixin, DSSAssertMixin, DSSUploadM
         )
         self.assertEqual(res.status_code, requests.codes.bad_request)
 
+    def test_enumeration_bundles(self):
+        bundle_uuid, bundle_version = self._put_bundle()
+        res = self.app.get(f"/v1/bundles/all",
+                           params=dict(version=bundle_version, replica="aws", per_page=500))
+        self.assertIn(res.status_code, (requests.codes.okay, requests.codes.partial))
+
 
 if __name__ == '__main__':
     unittest.main()
