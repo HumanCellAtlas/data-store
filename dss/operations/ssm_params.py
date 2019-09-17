@@ -74,7 +74,9 @@ def set_ssm_parameter(env_var: str, value) -> None:
         prev_value = None
     environment[env_var] = value
     set_ssm_environment(environment)
-    print(f'Set variable {env_var} in SSM param store environment')
+    print(f'Success! Set variable in SSM parameter store environment:')
+    print(f'Name: {env_var}')
+    print(f'Value: {value}')
     if prev_value:
         print(f'Previous value: {prev_value}')
 
@@ -90,10 +92,11 @@ def unset_ssm_parameter(env_var: str) -> None:
         prev_value = environment[env_var]
         del environment[env_var]
         set_ssm_environment(environment)
-        print(f'Unset variable {env_var} in SSM param store environment')
+        print(f'Success! Unset variable in SSM parameter store environment:')
+        print(f'Name: {env_var} ')
         print(f'Previous value: {prev_value}')
     except KeyError:
-        print(f'Nothing to unset for variable {env_var} in SSM param store environment')
+        print(f'Nothing to unset for variable {env_var} in SSM parameter store environment')
 
 
 ssm_params = dispatch.target("params", arguments={}, help=__doc__)
