@@ -18,7 +18,6 @@ from dss.config import Config, Replica
 from dss.storage.checkout import CheckoutTokenKeys
 from dss.storage.checkout.file import get_dst_key, start_file_checkout
 from dss.storage.files import write_file_metadata
-from dss.storage.bundles import get_bundle_manifest
 from dss.storage.hcablobstore import FileMetadata, HCABlobStore, compose_blob_key
 from dss.stepfunctions import gscopyclient, s3copyclient
 from dss.util import tracing, UrlBuilder, security
@@ -118,7 +117,7 @@ def get_helper(uuid: str, replica: Replica, version: str = None, token: str = No
                     response = redirect(handle.generate_presigned_GET_url(
                                         replica.checkout_bucket,
                                         get_dst_key(blob_path),
-                                        **content_disposition_response(replica.name, content_disposition)))
+                                        response_content_disposition=content_disposition))
                 else:
                     response = redirect(handle.generate_presigned_GET_url(
                                         replica.checkout_bucket,
@@ -147,16 +146,6 @@ def get_helper(uuid: str, replica: Replica, version: str = None, token: str = No
         headers['X-DSS-SHA256'] = file_metadata[FileMetadata.SHA256]
 
     return response
-
-
-def content_disposition_response(replica: str, content_disposition: str) -> dict:
-    # TODO: Add this into the cloud blobstore
-    if replica == 'aws':
-        # https://boto3.amazonaws.com/v1/documentation/api/latest/reference/services/s3.html
-        return {'ResponseContentDisposition': content_disposition}
-    else:
-        # https://googleapis.github.io/google-cloud-python/latest/storage/blobs.html
-        return {'response_disposition': content_disposition}
 
 
 def _verify_checkout(
