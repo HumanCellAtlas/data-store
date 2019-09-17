@@ -166,7 +166,7 @@ class SwapStdin(object):
     def __init__(self, *, input=None):
         if input is None:
             raise RuntimeError("Error: SwapStdin object was not provided with an 'input' keyword arg")
-        elif isinstance(input, ""):
+        elif isinstance(input, type("")):
             input = bytes(input, 'utf-8')
         self.input = input
 
