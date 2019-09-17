@@ -53,11 +53,14 @@ def head(uuid: str, replica: str, version: str = None, token: str = None):
 
 
 @dss_handler
-def get(uuid: str, replica: str, version: str = None, token: str = None, directurl: bool = False):
-    return get_helper(uuid, Replica[replica], version, token, directurl)
+def get(uuid: str, replica: str, version: str = None, token: str = None, directurl: bool = False,
+        content_disposition: str = None):
+    return get_helper(uuid, Replica[replica], version, token, directurl, content_disposition)
 
 
-def get_helper(uuid: str, replica: Replica, version: str = None, token: str = None, directurl: bool = False):
+def get_helper(uuid: str, replica: Replica, version: str = None, token: str = None, directurl: bool = False,
+               content_disposition: str = None):
+
     with tracing.Subsegment('parameterization'):
         handle = Config.get_blobstore_handle(replica)
         bucket = replica.bucket
@@ -70,7 +73,6 @@ def get_helper(uuid: str, replica: Replica, version: str = None, token: str = No
                 matching_file = matching_file[len(prefix):]
                 if version is None or matching_file > version:
                     version = matching_file
-
     if version is None:
         # no matches!
         raise DSSException(404, "not_found", "Cannot find file!")
@@ -81,7 +83,7 @@ def get_helper(uuid: str, replica: Replica, version: str = None, token: str = No
             file_metadata = json.loads(
                 handle.get(
                     bucket,
-                    "files/{}.{}".format(uuid, version)
+                    f"files/{uuid}.{version}"
                 ).decode("utf-8"))
     except BlobNotFoundError:
         key = f"files/{uuid}.{version}"
@@ -110,9 +112,16 @@ def get_helper(uuid: str, replica: Replica, version: str = None, token: str = No
                     path=get_dst_key(blob_path)
                 )))
             else:
-                response = redirect(handle.generate_presigned_GET_url(
-                                    replica.checkout_bucket,
-                                    get_dst_key(blob_path)))
+                if content_disposition:
+                    # can tell a browser to treat the response link as a download rather than open a new tab
+                    response = redirect(handle.generate_presigned_GET_url(
+                                        replica.checkout_bucket,
+                                        get_dst_key(blob_path),
+                                        response_content_disposition=content_disposition))
+                else:
+                    response = redirect(handle.generate_presigned_GET_url(
+                                        replica.checkout_bucket,
+                                        get_dst_key(blob_path)))
         else:
             with tracing.Subsegment('make_retry'):
                 builder = UrlBuilder(request.url)
