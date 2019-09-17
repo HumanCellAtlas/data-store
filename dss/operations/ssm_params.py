@@ -63,42 +63,40 @@ def set_ssm_environment(env: dict) -> None:
     )
 
 
-def set_ssm_parameter(environment: dict, set_env_fn, env_var: str, value) -> None:
+def set_ssm_parameter(env_var: str, value) -> None:
     """
     Set a parameter in the SSM param store variable "environment".
 
-    :param environment: a dictionary containing environment variables
-    :param set_env_fn: a function handle that will set the SSM parameter variable "environment"
     :param env_var: the name of the environment variable being set
     :param value: the value of the environment variable being set
     """
+    environment = get_ssm_environment()
     try:
         prev_value = environment[env_var]
-    except:
+    except KeyError:
         prev_value = None
     environment[env_var] = value
-    set_env_fn(environment)
+    set_ssm_environment(environment)
     print(f'Set variable {env_var} in SSM param store environment')
     if prev_value:
         print(f'Previous value: {prev_value}')
 
 
-def unset_ssm_parameter(environment: dict, set_env_fn, env_var: str) -> None: 
+def unset_ssm_parameter(env_var: str) -> None: 
     """
     Unset a parameter in the SSM param store variable "environment".
 
-    :param environment: a dictionary containing environment variables
-    :param set_env_fn: a function handle that will set the SSM parameter variable "environment"
     :param env_var: the name of the environment variable being set
     """
+    environment = get_ssm_environment()
     try:
         prev_value = environment[env_var]
         del environment[env_var]
-        env_set_fn(environment)
+        set_ssm_environment(environment)
         print(f'Unset variable {env_var} in SSM param store environment')
         print(f'Previous value: {prev_value}')
     except KeyError:
-        print(f'Nothing to unset for variable "{env_var}" in SSM param store environment')
+        print(f'Nothing to unset for variable {env_var} in SSM param store environment')
 
 
 ssm_params = dispatch.target("params", arguments={}, help=__doc__)
