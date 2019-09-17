@@ -37,7 +37,7 @@ def get_ssm_variable_prefix() -> str:
 def fix_ssm_variable_prefix(param_name: str) -> str:
     """Add the variable store and stage prefix to the front of an SSM param name"""
     prefix = get_ssm_variable_prefix()
-    if not param_name.startswith(prefix):
+    if not (param_name.startswith(prefix) or param_name.startswith("/"+prefix)):
         param_name = f"{prefix}/{param_name}"
     return param_name
 
@@ -152,7 +152,7 @@ def ssm_set(argv: typing.List[str], args: argparse.Namespace):
         print(f'Name: {name}')
         print(f'Value: {val}')
     else:
-        set_ssm_var(name, val)
+        set_ssm_parameter(name, val)
 
 
 @ssm_params.action(
@@ -175,4 +175,4 @@ def ssm_unset(argv: typing.List[str], args: argparse.Namespace):
     if args.dry_run:
         print(f'Dry-run deleting variable "{name}" from SSM store')
     else:
-        unset_ssm_var(name)
+        unset_ssm_parameter(name)
