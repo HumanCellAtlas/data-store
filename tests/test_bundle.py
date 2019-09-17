@@ -986,7 +986,7 @@ class TestBundleApi(unittest.TestCase, TestAuthMixin, DSSAssertMixin, DSSUploadM
 
     def test_enumeration_bundles(self):
         bundle_uuid, bundle_version = self._put_bundle()
-        res = self.app.get(f"/v1/bundles",
+        res = self.app.get(f"/v1/bundles/all",
                            params=dict(version=bundle_version, replica="aws", per_page=500))
         self.assertIn(res.status_code, (requests.codes.okay, requests.codes.partial))
 
