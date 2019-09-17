@@ -129,7 +129,7 @@ class Smoketest(BaseSmokeTest):
                     self.fail("Timed out waiting for notification to arrive")
 
         for replica in self.replicas:
-            # Enumerations against the replicas should be done after the test_replica_sync to ensure consistency. 
+            # Enumerations against the replicas should be done after the test_replica_sync to ensure consistency.
             with self.subTest(f'Testing Bundle Enumeration on {replica.name}'):
                 enumerate_bundles = list()
                 page_size = 10
