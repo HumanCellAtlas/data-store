@@ -2302,6 +2302,9 @@ paths:
                   type: string
                 manifest:
                   $ref: '#/definitions/EventsManifest'
+          headers:
+            X-OpenAPI-Pagination:
+              type: boolean
         206:
           description: A single page of results was retrieved.
           schema:
@@ -2317,10 +2320,15 @@ paths:
           headers:
             Link:
               type: string
-              description: >
+              description:
                 URL to retrieve the next page of results, conforming to [RFC 5988](https://tools.ietf.org/html/rfc5988)
                 The URL in the header refers to the next page of the results to be fetched; if no `Link rel="next"` URL is
                 included, then all results have been fetched.
+            X-OpenAPI-Pagination:
+              type: boolean
+            X-OpenAPI-Paginated-Content-Key:
+              type: string
+              description: The JSON response body key containing an array of results that are paginated.
         500:
           $ref: '#/responses/ServerError'
         502:

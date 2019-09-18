@@ -24,12 +24,15 @@ def list_events(replica: str, from_date: str=None, to_date: str=None, per_page: 
                           per_page)
     if len(urls) < per_page:
         response = make_response(jsonify(urls), requests.codes.ok)
+        response.headers['X-OpenAPI-Pagination'] = 'false'
     else:
         next_url = UrlBuilder(request.url)
         next_url.replace_query("from_date", urls[-1]['manifest']['to_date'])
         link = f"<{next_url}>; rel='next'"
         response = make_response(jsonify(urls), requests.codes.partial)
         response.headers['Link'] = link
+        response.headers['X-OpenAPI-Pagination'] = 'true'
+        response.headers['X-OpenAPI-Paginated-Content-Key'] = 'event_streams'
     return response
 
 @dss_handler
