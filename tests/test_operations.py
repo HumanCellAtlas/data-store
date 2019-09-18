@@ -444,15 +444,14 @@ class TestOperations(unittest.TestCase):
         ssm_new_env = _wrap_ssm_env(new_env)
 
         with self.subTest("Create a new SSM parameter"):
-            with mock.patch("dss.operations.ssm_params.ssm_client") as ssm:
-                with SwapStdin(input=testvar_value):
-                    # ssm_set in ssm_params.py first calls ssm.get_parameter to get the entire environment
-                    ssm.get_parameter = mock.MagicMock(return_value=ssm_old_env)
-                    # ssm_set then calls ssm.put_parameter to put the entire environment
-                    ssm.put_parameter = mock.MagicMock(return_value=None)
-                    ssm_params.ssm_set(
-                        [], argparse.Namespace(name=testvar_name, dry_run=False)
-                    )
+            with mock.patch("dss.operations.ssm_params.ssm_client") as ssm, SwapStdin(testvar_value):
+                # ssm_set in ssm_params.py first calls ssm.get_parameter to get the entire environment
+                ssm.get_parameter = mock.MagicMock(return_value=ssm_old_env)
+                # ssm_set then calls ssm.put_parameter to put the entire environment
+                ssm.put_parameter = mock.MagicMock(return_value=None)
+                ssm_params.ssm_set(
+                    [], argparse.Namespace(name=testvar_name, dry_run=False)
+                )
 
         with self.subTest("List SSM parameters"):
             with mock.patch("dss.operations.ssm_params.ssm_client") as ssm:
@@ -472,29 +471,20 @@ class TestOperations(unittest.TestCase):
                 self.assertIn(testvar_name, d)
 
         with self.subTest("Update existing SSM parameter"):
-            with mock.patch("dss.operations.ssm_params.ssm_client") as ssm:
-                with SwapStdin(input=testvar_value2):
-                    # Mock the same way we did for set new param above
-                    ssm.get_parameter = mock.MagicMock(return_value=ssm_new_env)
-                    ssm.put_parameter = mock.MagicMock(return_value=None)
-                    ssm_params.ssm_set(
-                        [], argparse.Namespace(name=testvar_name, dry_run=True)
-                    )
-                    ssm_params.ssm_set(
-                        [], argparse.Namespace(name=testvar_name, dry_run=False)
-                    )
+            with mock.patch("dss.operations.ssm_params.ssm_client") as ssm, SwapStdin(testvar_value2):
+                # Mock the same way we did for set new param above
+                ssm.get_parameter = mock.MagicMock(return_value=ssm_new_env)
+                ssm.put_parameter = mock.MagicMock(return_value=None)
+                ssm_params.ssm_set([], argparse.Namespace(name=testvar_name, dry_run=True))
+                ssm_params.ssm_set([], argparse.Namespace(name=testvar_name, dry_run=False))
 
         with self.subTest("Unset SSM parameter"):
             with mock.patch("dss.operations.ssm_params.ssm_client") as ssm:
                 # Mock the same way we did for set new secret above
                 ssm.get_parameter = mock.MagicMock(return_value=ssm_new_env)
                 ssm.put_parameter = mock.MagicMock(return_value=None)
-                ssm_params.ssm_unset(
-                    [], argparse.Namespace(name=testvar_name, dry_run=True)
-                )
-                ssm_params.ssm_unset(
-                    [], argparse.Namespace(name=testvar_name, dry_run=False)
-                )
+                ssm_params.ssm_unset([], argparse.Namespace(name=testvar_name, dry_run=True))
+                ssm_params.ssm_unset([], argparse.Namespace(name=testvar_name, dry_run=False))
 
 
 @testmode.integration
