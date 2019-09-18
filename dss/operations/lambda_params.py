@@ -103,11 +103,18 @@ def get_deployed_lambdas(quiet=True):
                 logger.warning(f"{name} not deployed, or does not deploy a lambda function")
 
 
-def get_deployed_lambda_environment(lambda_name: str) -> dict:
+def get_deployed_lambda_environment(lambda_name: str, quiet = True) -> dict:
     """Get the environment variables in a deployed lambda function"""
-    c = lambda_client.get_function_configuration(FunctionName=lambda_name)
-    # above value is a dict, no need to convert
-    return c["Environment"]["Variables"]
+    try:
+        lambda_client.get_function(FunctionName=lambda_name)
+        c = lambda_client.get_function_configuration(FunctionName=lambda_name)
+        # above value is a dict, no need to convert
+        return c["Environment"]["Variables"]
+    except lambda_client.exceptions.ResourceNotFoundException:
+        if quiet:
+            pass
+        else:
+            logger.warning(f"{lambda_name} is not a deployed lambda function")
 
 
 def set_deployed_lambda_environment(lambda_name: str, env: dict) -> None:
@@ -202,3 +209,38 @@ def lambda_list(argv: typing.List[str], args: argparse.Namespace):
             print(lambda_name)
 
 
+@lambda_params.action(
+    "environment",
+    arguments={
+        "--json": json_flag_options,
+        "--lambda-name": dict(
+            required=False,
+            help="specify the name of a lambda function whose environment will be listed"
+        ),
+        "--quiet": dict(
+            required=False,
+            action="store_true",
+            help="suppress warning messages if the lambda function cannot be found"
+        )
+
+    }
+)
+def labmda_environment(argv: typing.List[str], args: argparse.Namespace): 
+    """Print out the current environment of deployed lambda functions"""
+    if args.lambda_name:
+        lambda_names = [args.lambda_name]  # single lambda function
+    else:
+        lambda_names = get_deployed_lambdas()  # all lambda functions
+
+    # Iterate over lambda functions and get their environments
+    d = {}
+    for lambda_name in lambda_names:
+        lambda_env = get_deployed_lambda_environment(lambda_name, args.quiet)
+        d[lambda_name] = lambda_env
+
+    # Print environments
+    if args.json:
+        print(json.dumps(d, indent=4, default=str))
+    else:
+        for lambda_name, lambda_env in d.items():
+            print_lambda_env(lambda_name, lambda_env)
