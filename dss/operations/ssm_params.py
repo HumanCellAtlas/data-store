@@ -65,10 +65,7 @@ def set_ssm_parameter(env_var: str, value) -> None:
     :param value: the value of the environment variable being set
     """
     environment = get_ssm_environment()
-    try:
-        prev_value = environment[env_var]
-    except KeyError:
-        prev_value = None
+    prev_value = environment.get(env_var)
     environment[env_var] = value
     set_ssm_environment(environment)
     print(f"Success! Set variable in SSM parameter store environment:")
