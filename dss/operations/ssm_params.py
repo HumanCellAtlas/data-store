@@ -60,10 +60,17 @@ def set_ssm_environment(env: dict) -> None:
 ssm_params = dispatch.target("params", arguments={}, help=__doc__)
 
 
+dryrun_flag_options = dict(
+    default=False, action="store_true", help="do a dry run of the actual operation"
+)
+
+
 @ssm_params.action(
     "list",
     arguments={
-        "--json": dict(default=False, action="store_true", help="format the output as JSON")
+        "--json": dict(
+            default=False, action="store_true", help="format the output as JSON if this flag is present"
+        )
     },
 )
 def ssm_list(argv: typing.List[str], args: argparse.Namespace):
@@ -81,9 +88,7 @@ def ssm_list(argv: typing.List[str], args: argparse.Namespace):
     "set",
     arguments={
         "name": dict(help="name of variable to set in SSM store under $DSS_DEPLOYMENT_STAGE/environment"),
-        "--dry-run": dict(
-            default=False, action="store_true", help="do a dry run of the actual operation"
-        ),
+        "--dry-run": dryrun_flag_options
     },
 )
 def ssm_set(argv: typing.List[str], args: argparse.Namespace):
@@ -114,9 +119,7 @@ def ssm_set(argv: typing.List[str], args: argparse.Namespace):
     "unset",
     arguments={
         "name": dict(help="name of variable to unset in SSM param store environment"),
-        "--dry-run": dict(
-            default=False, action="store_true", help="do a dry run of the actual operation"
-        ),
+        "--dry-run": dryrun_flag_options
     },
 )
 def ssm_unset(argv: typing.List[str], args: argparse.Namespace):
