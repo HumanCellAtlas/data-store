@@ -163,12 +163,12 @@ class CaptureStdout(list):
 
 class SwapStdin(object):
     """Utility object using a context manager to swap out stdin with user-provided data."""
-    def __init__(self, *, input=None):
-        if input is None:
-            raise RuntimeError("Error: SwapStdin object was not provided with an 'input' keyword arg")
-        elif isinstance(input, type("")):
-            input = bytes(input, 'utf-8')
-        self.input = input
+    def __init__(self, swap_with):
+        if swap_with is None:
+            raise RuntimeError("Error: SwapStdin constructor must be provided with a value to substitute for stdin!")
+        elif isinstance(swap_with, type("")):
+            swap_with = bytes(swap_with, 'utf-8')
+        self.swap_with = swap_with
 
     def __enter__(self, *args, **kwargs):
         """
@@ -177,14 +177,12 @@ class SwapStdin(object):
         the pipe, so we create a pipe and fill it with mock data, then swap it out with stdin.
         """
         fdr, fdw = os.pipe()
-        os.write(fdw, self.input)
+        os.write(fdw, self.swap_with)
         os.close(fdw)
         f = os.fdopen(fdr)  # use the file descriptor directly
-
-        self._stdin = sys.stdin
         sys.stdin = f
 
         return self
 
     def __exit__(self, *args, **kwargs):
-        sys.stdin = self._stdin
+        sys.stdin = sys.__stdin__
