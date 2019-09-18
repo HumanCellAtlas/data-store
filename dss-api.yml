@@ -2889,7 +2889,7 @@ definitions:
         type: string
       size:
         type: integer
-        description: Size of the journa in bytes.
+        description: Size of the journal in bytes.
       events:
         description: A list describing the event content of the journal.
         type: array
