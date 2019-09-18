@@ -14,6 +14,7 @@ from botocore.exceptions import ClientError
 
 from dss.operations import dispatch
 from dss.operations.ssm_params import get_ssm_variable_prefix, fix_ssm_variable_prefix
+from dss.operations.ssm_params import get_ssm_parameter, set_ssm_parameter
 
 from dss.util.aws.clients import ssm as ssm_client  # type: ignore
 from dss.util.aws.clients import secretsmanager as sm_client  # type: ignore
@@ -48,7 +49,7 @@ def get_admin_emails() -> str:
         return secret_name
 
     def fetch_secret_safely(secret_name: str) -> dict:
-        # TODO:
+        # TODO: this functionality should be moved to secrets.py
         try:
             response = sm_client.get_secret_value(SecretId=secret_name)
         except ClientError as e:
@@ -151,10 +152,10 @@ def set_lambda_var(env_var: str, value, lambda_name: str) -> None:
     environment[env_var] = value
     set_deployed_lambda_environment(lambda_name, environment)
     print(f"Success! Set variable in deployed lambda function {lambda_name}:")
-    print(f"Name: {env_var}")
-    print(f"Value: {value}")
+    print(f"    Name: {env_var}")
+    print(f"    Value: {value}")
     if prev_value:
-        print(f"Previous value: {prev_value}")
+        print(f"    Previous value: {prev_value}")
 
 
 def unset_lambda_var(env_var: str, value, lambda_name: str) -> None:
@@ -165,8 +166,8 @@ def unset_lambda_var(env_var: str, value, lambda_name: str) -> None:
         del environment[env_var]
         set_deployed_lambda_environment(lambda_name, environment)
         print(f"Success! Unset variable in deployed lambda function {lambda_name}:")
-        print(f"Name: {env_var} ")
-        print(f"Previous value: {prev_value}")
+        print(f"    Name: {env_var} ")
+        print(f"    Previous value: {prev_value}")
     except KeyError:
         print(f"Nothing to unset for variable {env_var} in deployed lambda function {lambda_name}")
 
@@ -182,9 +183,10 @@ lambda_params = dispatch.target("lambda", arguments={}, help=__doc__)
 
 
 json_flag_options = dict(
-    default = False,
-    action="store_true",
-    help="format the output as JSON if this flag is present",
+    default = False, action="store_true", help="format the output as JSON if this flag is present"
+)
+dryrun_flag_options = dict(
+    default = False, action="store_true", help="do a dry run of the actual operation"
 )
 
 
@@ -233,3 +235,56 @@ def labmda_environment(argv: typing.List[str], args: argparse.Namespace):
     else:
         for lambda_name, lambda_env in d.items():
             print_lambda_env(lambda_name, lambda_env)
+
+
+@lambda_params.action(
+    "set",
+    arguments={
+        "name": dict(help="name of variable to set in environment of deployed lambdas"),
+        "--dry-run": dryrun_flag_options
+    }
+)
+def lambda_set(argv: typing.List[str], args: argparse.Namespace):
+    """Set an environment variable in each deployed lambda"""
+    name = args.name
+
+    # Use stdin for value
+    if not select.select([sys.stdin], [], [], 0.0)[0]:
+        raise RuntimeError("Error: stdin was empty! A variable value must be provided via stdin")
+    val = sys.stdin.read()
+
+    if args.dry_run:
+        print(f"Dry-run creating variable {name} in lambda environment (stored in SSM param store)")
+        print(f"    Name: {name}")
+        print(f"    Value: {val}")
+        for lambda_name in get_deployed_lambdas():
+            print(f"Dry-run creating variable {name} in lambda {lambda_name}")
+
+    else:
+        # Set the variable in the SSM store first, then in each deployed lambda
+        set_ssm_parameter(name, val)
+        for lambda_name in get_deployed_lambdas():
+            set_lambda_var(name, val, lambda_name)
+
+
+@lambda_params.action(
+    "unset",
+    arguments={
+        "name": dict(help="name of variable to unset in environment of deployed lambdas"),
+        "--dry-run": dryrun_flag_options
+    }
+)
+def lambda_unset(argv: typing.List[str], args: argparse.Namespace):
+    """Unset an environment variable in each deployed lambda"""
+    name = args.name
+
+    # Unset the variable from the SSM store first, then from each deployed lambda
+    if args.dry_run:
+        print(f'Dry-run deleting variable {name} from SSM store')
+        for lambda_name in get_deployed_lambdas():
+            print(f'Dry-run deleting variable "{name}" from lambda function "{lambda_name}"')
+
+    else:
+        unset_ssm_parameter(name)
+        for lambda_name in get_deployed_lambdas():
+            unset_lambda_var(name, lambda_name)
