@@ -201,7 +201,7 @@ json_flag_options = dict(
 )
 def lambda_list(argv: typing.List[str], args: argparse.Namespace):
     """Print a list of names of each deployed lambda function"""
-    lambda_names = get_deployed_lambdas()
+    lambda_names = list(get_deployed_lambdas())
     if args.json:
         print(json.dumps(lambda_names, indent=4, default=str))
     else:
@@ -230,7 +230,7 @@ def labmda_environment(argv: typing.List[str], args: argparse.Namespace):
     if args.lambda_name:
         lambda_names = [args.lambda_name]  # single lambda function
     else:
-        lambda_names = get_deployed_lambdas()  # all lambda functions
+        lambda_names = list(get_deployed_lambdas())  # all lambda functions
 
     # Iterate over lambda functions and get their environments
     d = {}
