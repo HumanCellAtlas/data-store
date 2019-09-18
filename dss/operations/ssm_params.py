@@ -13,11 +13,8 @@ import typing
 from botocore.exceptions import ClientError
 
 from dss.operations import dispatch
-from dss.util.aws.clients import secretsmanager  # type: ignore
 import dss.operations.util as util
-
 from dss.util.aws.clients import ssm as ssm_client  # type: ignore
-from dss.util.aws.clients import secretsmanager as sm_client  # type: ignore
 
 
 logger = logging.getLogger(__name__)
