@@ -152,8 +152,8 @@ POLICY
 }
 
 resource aws_s3_bucket dss_s3_events_bucket {
-  count = "${length(var.DSS_S3_BUCKET) > 0 ? 1 : 0}"
-  bucket = "${var.DSS_S3_EVENTS_BUCKET}"
+  count = "${length(var.DSS_FLASHFLOOD_BUCKET) > 0 ? 1 : 0}"
+  bucket = "${var.DSS_FLASHFLOOD_BUCKET}"
   server_side_encryption_configuration {
     rule {apply_server_side_encryption_by_default {sse_algorithm = "AES256"}}
   }
