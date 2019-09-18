@@ -68,29 +68,12 @@ def set_ssm_parameter(env_var: str, value) -> None:
     prev_value = environment.get(env_var)
     environment[env_var] = value
     set_ssm_environment(environment)
-    print(f"Success! Set variable in SSM parameter store environment:")
-    print(f"Name: {env_var}")
-    print(f"Value: {value}")
+    print("Success! Set variable in SSM parameter store environment:")
+    print(f"    Name: {env_var}")
+    print(f"    Value: {value}")
     if prev_value:
         print(f"Previous value: {prev_value}")
 
-
-def unset_ssm_parameter(env_var: str) -> None:
-    """
-    Unset a parameter in the SSM param store variable "environment".
-
-    :param env_var: the name of the environment variable being set
-    """
-    environment = get_ssm_environment()
-    try:
-        prev_value = environment[env_var]
-        del environment[env_var]
-        set_ssm_environment(environment)
-        print(f"Success! Unset variable in SSM parameter store environment:")
-        print(f"Name: {env_var} ")
-        print(f"Previous value: {prev_value}")
-    except KeyError:
-        print(f"Nothing to unset for variable {env_var} in SSM parameter store environment")
 
 
 ssm_params = dispatch.target("params", arguments={}, help=__doc__)
@@ -103,7 +86,7 @@ ssm_params = dispatch.target("params", arguments={}, help=__doc__)
     },
 )
 def ssm_list(argv: typing.List[str], args: argparse.Namespace):
-    """Print out all variables stored in the SSM store"""
+    """Print out all variables stored in the SSM store under $DSS_DEPLOYMENT_STAGE/environment"""
     ssm_env = get_ssm_environment()
     if args.json:
         print(json.dumps(ssm_env, indent=4))
@@ -116,23 +99,26 @@ def ssm_list(argv: typing.List[str], args: argparse.Namespace):
 @ssm_params.action(
     "set",
     arguments={
-        "name": dict(help="name of variable to set in SSM param store environment"),
+        "name": dict(help="name of variable to set in SSM store under $DSS_DEPLOYMENT_STAGE/environment"),
         "--dry-run": dict(
             default=False, action="store_true", help="do a dry run of the actual operation"
         ),
     },
 )
 def ssm_set(argv: typing.List[str], args: argparse.Namespace):
-    """Set a variable in the SSM param store environment"""
-    name = args.name
+    """Set a variable in the SSM store under $DSS_DEPLOYMENT_STAGE/environment"""
+    env_var = args.name
 
     # Use stdin (input piped to script)
     if not select.select([sys.stdin], [], [], 0.0)[0]:
         raise RuntimeError("Error: stdin was empty! A variable value must be provided via stdin")
-    val = sys.stdin.read()
+    value = sys.stdin.read()
+
+    environment = get_ssm_environment()
+    prev_value = environment.get(env_var)
 
     if args.dry_run:
-        print(f"Dry-run creating variable in SSM param store environment:")
+        print("Dry-run creating variable in SSM store under $DSS_DEPLOYMENT_STAGE/environment:")
         print(f"Name: {name}")
         print(f"Value: {val}")
     else:
@@ -153,6 +139,8 @@ def ssm_unset(argv: typing.List[str], args: argparse.Namespace):
 
     # Unset the variable from the SSM store first
     if args.dry_run:
-        print(f'Dry-run deleting variable "{name}" from SSM store')
+        print(f"Dry-run deleting variable {env_var} from SSM store under $DSS_DEPLOYMENT_STAGE/environment:")
+        print(f"    Name: {env_var}")
+        print(f"    Previous value: {prev_value}")
     else:
         unset_ssm_parameter(name)
