@@ -10,6 +10,8 @@ import argparse
 import logging
 import typing
 
+from botocore.exceptions import ClientError
+
 from dss.operations import dispatch
 from dss.operations.ssm_params import get_ssm_variable_prefix, fix_ssm_variable_prefix
 
@@ -25,7 +27,7 @@ logger = logging.getLogger(__name__)
 
 def get_elasticsearch_endpoint() -> str:
     domain_name = os.environ["DSS_ES_DOMAIN"]
-    domain_info = es_client.describe_elasticsearch_domain(DomainName=domain_naame)
+    domain_info = es_client.describe_elasticsearch_domain(DomainName=domain_name)
     return domain_info["DomainStatus"]["Endpoint"]
 
 
@@ -45,7 +47,7 @@ def get_admin_emails() -> str:
             secret_name = f"{prefix}/{secret_name}"
         return secret_name
     
-    def fetch_secret_safely(secret_name: str) -> str:
+    def fetch_secret_safely(secret_name: str) -> dict:
         # TODO: 
         try:
             response = sm_client.get_secret_value(SecretId=secret_name)
@@ -54,10 +56,7 @@ def get_admin_emails() -> str:
                 errtype = e.response['Error']['Code']
                 if errtype == 'ResourceNotFoundException':
                     raise RuntimeError(f"Error: secret {secret_name} was not found!")
-                else:
-                    raise RuntimeError(
-                            f"Error: could not fetch {secret_name}, error type: {errtype}"
-                    )
+            raise RuntimeError(f"Error: could not fetch secret {secret_name} from secrets manager")
         else:
             return response
 
@@ -76,11 +75,11 @@ def get_admin_emails() -> str:
     return ",".join(email_list)
 
 
-def get_deployed_lambdas(quiet=True):
+def get_deployed_lambdas(quiet: bool = True):
     """
     Generator returning names of lambda functions
 
-    :param quiet: (boolean) if true, don't print warning messages
+    :param quiet: (boolean) if true, don't print warnings about lambdas that can't be found
     """
     stage = os.environ["DSS_DEPLOYMENT_STAGE"]
 
@@ -97,24 +96,22 @@ def get_deployed_lambdas(quiet=True):
             lambda_client.get_function(FunctionName=name)
             yield name
         except lambda_client.exceptions.ResourceNotFoundException:
-            if quiet:
-                pass
-            else:
+            if not quiet:
                 logger.warning(f"{name} not deployed, or does not deploy a lambda function")
 
 
-def get_deployed_lambda_environment(lambda_name: str, quiet = True) -> dict:
+def get_deployed_lambda_environment(lambda_name: str, quiet: bool = True) -> dict:
     """Get the environment variables in a deployed lambda function"""
     try:
         lambda_client.get_function(FunctionName=lambda_name)
         c = lambda_client.get_function_configuration(FunctionName=lambda_name)
+    except lambda_client.exceptions.ResourceNotFoundException:
+        if not quiet:
+            logger.warning(f"{lambda_name} is not a deployed lambda function")
+        return {}
+    else:
         # above value is a dict, no need to convert
         return c["Environment"]["Variables"]
-    except lambda_client.exceptions.ResourceNotFoundException:
-        if quiet:
-            pass
-        else:
-            logger.warning(f"{lambda_name} is not a deployed lambda function")
 
 
 def set_deployed_lambda_environment(lambda_name: str, env: dict) -> None:
@@ -124,7 +121,7 @@ def set_deployed_lambda_environment(lambda_name: str, env: dict) -> None:
     )
 
 
-def get_local_lambda_environment(quiet=True) -> dict:
+def get_local_lambda_environment(quiet: bool = True) -> dict:
     """
     For each environment variable being set in deployed lambda functions, get the value of the
     environment variable from the local environment.
@@ -137,9 +134,7 @@ def get_local_lambda_environment(quiet=True) -> dict:
         try:
             env[name] = os.environ[name]
         except KeyError:
-            if quiet:
-                pass
-            else:
+            if not quiet:
                 logger.warning(
                     f"Warning: environment variable {name} is in the list of environment variables "
                     "to export to lambda functions, EXPORT_ENV_VARS_TO_LAMBDA, but variable is not "
@@ -150,7 +145,7 @@ def get_local_lambda_environment(quiet=True) -> dict:
 
 def set_lambda_var(env_var: str, value, lambda_name: str) -> None:
     """Set a single variable in the environment of the specified lambda function"""
-    environment = get_deployed_lambda_environment(lambda_name)
+    environment = get_deployed_lambda_environment(lambda_name, quiet=False)
     if env_var in environment:
         prev_value = environment[env_var]
     environment[env_var] = value
@@ -164,7 +159,7 @@ def set_lambda_var(env_var: str, value, lambda_name: str) -> None:
 
 def unset_lambda_var(env_var: str, value, lambda_name: str) -> None:
     """Unset a single variable in the environment of the specified lambda function"""
-    environment = get_deployed_lambda_environment(lambda_name)
+    environment = get_deployed_lambda_environment(lambda_name, quiet=False)
     try:
         prev_value = environment[env_var]
         del environment[env_var]
@@ -201,7 +196,7 @@ json_flag_options = dict(
 )
 def lambda_list(argv: typing.List[str], args: argparse.Namespace):
     """Print a list of names of each deployed lambda function"""
-    lambda_names = list(get_deployed_lambdas())
+    lambda_names = list(get_deployed_lambdas(quiet=args.json))
     if args.json:
         print(json.dumps(lambda_names, indent=4, default=str))
     else:
@@ -216,13 +211,7 @@ def lambda_list(argv: typing.List[str], args: argparse.Namespace):
         "--lambda-name": dict(
             required=False,
             help="specify the name of a lambda function whose environment will be listed"
-        ),
-        "--quiet": dict(
-            required=False,
-            action="store_true",
-            help="suppress warning messages if the lambda function cannot be found"
         )
-
     }
 )
 def labmda_environment(argv: typing.List[str], args: argparse.Namespace): 
@@ -235,7 +224,7 @@ def labmda_environment(argv: typing.List[str], args: argparse.Namespace):
     # Iterate over lambda functions and get their environments
     d = {}
     for lambda_name in lambda_names:
-        lambda_env = get_deployed_lambda_environment(lambda_name, args.quiet)
+        lambda_env = get_deployed_lambda_environment(lambda_name, quiet=args.json)
         d[lambda_name] = lambda_env
 
     # Print environments
