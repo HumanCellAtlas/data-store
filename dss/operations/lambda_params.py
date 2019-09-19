@@ -80,7 +80,7 @@ def get_deployed_lambdas(quiet: bool = True):
     """
     Generator returning names of lambda functions
 
-    :param quiet: (boolean) if true, don't print warnings about lambdas that can't be found
+    :param bool quiet: if true, don't print warnings about lambdas that can't be found
     """
     stage = os.environ["DSS_DEPLOYMENT_STAGE"]
 
@@ -111,7 +111,7 @@ def get_deployed_lambda_environment(lambda_name: str, quiet: bool = True) -> dic
             print(f"{lambda_name} is not a deployed lambda function")
         return {}
     else:
-        # above value is a dict, no need to convert
+        # get_function_configuration() above returns a dict, no need to convert
         return c["Environment"]["Variables"]
 
 
@@ -124,8 +124,8 @@ def set_deployed_lambda_environment(lambda_name: str, env: dict) -> None:
 
 def get_local_lambda_environment(quiet: bool = True) -> dict:
     """
-    For each environment variable being set in deployed lambda functions, get the value of the
-    environment variable from the local environment.
+    For each environment variable being set in deployed lambda functions, get each environment
+    variable and its value from the local environment, put them in a dict, and return it.
 
     :param bool quiet: if true, don't print warning messages
     :returns: dict containing local environment's value of each variable exported to deployed lambda functions
@@ -289,3 +289,51 @@ def lambda_unset(argv: typing.List[str], args: argparse.Namespace):
         unset_ssm_parameter(name)
         for lambda_name in get_deployed_lambdas():
             unset_lambda_var(name, lambda_name)
+
+
+@lambda_params.action(
+    "update",
+    arguments={
+        "--update-deployed": dict(
+            default=False,
+            action="store_true",
+            help="update the environment variables of all deployed lambdas, in addition to "
+            "updating the lambda environment stored in SSM store under $DSS_DEPLOYMENT_STAGE/environment",
+        ),
+        "--dry-run": dryrun_flag_options
+    }
+)
+def lambda_update(argv: typing.List[str], args: argparse.Namespace):
+    """
+    Update the stored (and optionally, deployed) lambda environment
+    using variable values from the current environment.
+    """
+    # Only elasticsearch endpoint and admin emails are updated dynamically,
+    # everything else comes from the local environment.
+    local_env = get_local_lambda_environment()
+    local_env["DSS_ES_ENDPOINT"] = get_elasticsearch_endpoint()
+    local_env["ADMIN_USER_EMAILS"] = get_admin_emails()
+
+    if args.dry_run:
+        print(f"Dry-run resetting lambda environment stored in SSM store under $DSS_DEPLOYMENT_STAGE/environment")
+    else:
+        set_ssm_environment(local_env)
+        print(f"Finished resetting lambda environment stored in SSM store under $DSS_DEPLOYMENT_STAGE/environment")
+
+    # Optionally, update environment of each deployed lambda
+    if args.update_deployed:
+        for lambda_name in get_deployed_lambdas():
+            # Add the new variable to each lambda's environment
+            lambda_env = get_deployed_lambda_environment(lambda_name)
+            lambda_env.update(local_env)
+            if args.dry_run:
+                print(
+                    f"Dry-run resetting the environment of lambda function {lambda_name} "
+                    "using new lambda environment in SSM store under $DSS_DEPLOYMENT_STAGE/environment"
+                )
+            else:
+                set_deployed_lambda_environment(lambda_name, lambda_env)
+                print(
+                    f"Finished resetting the environment of lambda function {lambda_name} "
+                    "using new lambda environment in SSM store under $DSS_DEPLOYMENT_STAGE/environment"
+                )
