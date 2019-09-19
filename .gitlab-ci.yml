@@ -84,7 +84,7 @@ setup_fusillade:
 # need to source data-store environment one more time, in case dcp-fusillade overwrites vars
 # (e.g. AWS_DEFAULT_REGION)
     - source environment
-    - dcp-fusillade/scripts/setup_fusillade.py --dry-run --file roles.json dev # change to testing l8r
+    - dcp-fusillade/scripts/setup_fusillade.py --dry-run --file roles.json testing
 
 deploy:
   stage: deploy
