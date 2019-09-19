@@ -98,7 +98,7 @@ def get_deployed_lambdas(quiet: bool = True):
             yield name
         except lambda_client.exceptions.ResourceNotFoundException:
             if not quiet:
-                logger.warning(f"{name} not deployed, or does not deploy a lambda function")
+                print(f"{name} not deployed, or does not deploy a lambda function")
 
 
 def get_deployed_lambda_environment(lambda_name: str, quiet: bool = True) -> dict:
@@ -108,7 +108,7 @@ def get_deployed_lambda_environment(lambda_name: str, quiet: bool = True) -> dic
         c = lambda_client.get_function_configuration(FunctionName=lambda_name)
     except lambda_client.exceptions.ResourceNotFoundException:
         if not quiet:
-            logger.warning(f"{lambda_name} is not a deployed lambda function")
+            print(f"{lambda_name} is not a deployed lambda function")
         return {}
     else:
         # above value is a dict, no need to convert
@@ -127,7 +127,7 @@ def get_local_lambda_environment(quiet: bool = True) -> dict:
     For each environment variable being set in deployed lambda functions, get the value of the
     environment variable from the local environment.
 
-    :param quiet: (boolean) if true, don't print warning messages
+    :param bool quiet: if true, don't print warning messages
     :returns: dict containing local environment's value of each variable exported to deployed lambda functions
     """
     env = dict()
@@ -136,7 +136,7 @@ def get_local_lambda_environment(quiet: bool = True) -> dict:
             env[name] = os.environ[name]
         except KeyError:
             if not quiet:
-                logger.warning(
+                print(
                     f"Warning: environment variable {name} is in the list of environment variables "
                     "to export to lambda functions, EXPORT_ENV_VARS_TO_LAMBDA, but variable is not "
                     "defined in the local environment, so there is no value to set."
