@@ -14,7 +14,7 @@ from botocore.exceptions import ClientError
 
 from dss.operations import dispatch
 from dss.operations.ssm_params import get_ssm_variable_prefix, fix_ssm_variable_prefix
-from dss.operations.ssm_params import get_ssm_parameter, set_ssm_parameter
+from dss.operations.ssm_params import set_ssm_parameter, unset_ssm_parameter
 
 from dss.util.aws.clients import ssm as ssm_client  # type: ignore
 from dss.util.aws.clients import secretsmanager as sm_client  # type: ignore
@@ -35,21 +35,21 @@ def get_elasticsearch_endpoint() -> str:
 def get_admin_emails() -> str:
 
     def get_secret_variable_prefix() -> str:
-        # TODO: this functionality should be moved to secrets.py
+        # TODO: this functionality should be moved to dss/operations/secrets.py
         store_name = os.environ["DSS_SECRETS_STORE"]
         stage_name = os.environ["DSS_DEPLOYMENT_STAGE"]
         store_prefix = f"{store_name}/{stage_name}"
         return store_prefix
 
     def fix_secret_variable_prefix(secret_name: str) -> str:
-        # TODO: this functionality should be moved to secrets.py
+        # TODO: this functionality should be moved to dss/operations/secrets.py
         prefix = get_secret_variable_prefix()
         if not (secret_name.startswith(prefix) or secret_name.startswith("/" + prefix)):
             secret_name = f"{prefix}/{secret_name}"
         return secret_name
 
     def fetch_secret_safely(secret_name: str) -> dict:
-        # TODO: this functionality should be moved to secrets.py
+        # TODO: this functionality should be moved to dss/operations/secrets.py
         try:
             response = sm_client.get_secret_value(SecretId=secret_name)
         except ClientError as e:
@@ -216,7 +216,7 @@ def lambda_list(argv: typing.List[str], args: argparse.Namespace):
         )
     }
 )
-def labmda_environment(argv: typing.List[str], args: argparse.Namespace):
+def lambda_environment(argv: typing.List[str], args: argparse.Namespace):
     """Print out the current environment of deployed lambda functions"""
     if args.lambda_name:
         lambda_names = [args.lambda_name]  # single lambda function
@@ -254,7 +254,8 @@ def lambda_set(argv: typing.List[str], args: argparse.Namespace):
     val = sys.stdin.read()
 
     if args.dry_run:
-        print(f"Dry-run creating variable {name} in lambda environment (stored in SSM param store)")
+        print(f"Dry-run creating variable {name} in lambda environment in SSM store under "
+               "$DSS_DEPLOYMENT_STAGE/environment")
         print(f"    Name: {name}")
         print(f"    Value: {val}")
         for lambda_name in get_deployed_lambdas():
