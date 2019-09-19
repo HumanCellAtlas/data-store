@@ -75,7 +75,7 @@ def set_ssm_parameter(env_var: str, value) -> None:
         print(f"Previous value: {prev_value}")
 
 
-def unset_ssm_parameter(env_var: str, value) -> None:
+def unset_ssm_parameter(env_var: str) -> None:
     """
     Unset a parameter in the SSM param store variable "environment".
 
@@ -159,4 +159,4 @@ def ssm_unset(argv: typing.List[str], args: argparse.Namespace):
         print(f"Dry-run deleting variable {env_var} from SSM store under $DSS_DEPLOYMENT_STAGE/environment:")
         print(f"    Name: {env_var}")
     else:
-        unset_ssm_parameter(env_var, value)
+        unset_ssm_parameter(env_var)
