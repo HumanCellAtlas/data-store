@@ -25,6 +25,8 @@ from google.cloud.exceptions import NotFound
 pkg_root = os.path.abspath(os.path.join(os.path.dirname(__file__), '..'))  # noqa
 sys.path.insert(0, pkg_root)  # noqa
 
+import importlib
+daemon_app = importlib.import_module('daemons.dss-sync-sfn.app')
 import dss
 from dss.api import bundles as bundles_api
 from dss.api import files as files_api
@@ -33,7 +35,8 @@ from dss.events.handlers import sync
 from dss.logging import configure_test_logging
 from dss.util import UrlBuilder
 from dss.util.streaming import get_pool_manager, S3SigningChunker
-from dss.storage.identifiers import FILE_PREFIX, BUNDLE_PREFIX, COLLECTION_PREFIX, FileFQID, BundleFQID, CollectionFQID
+from dss.storage.identifiers import FILE_PREFIX, BUNDLE_PREFIX, COLLECTION_PREFIX, FileFQID, BundleFQID, CollectionFQID, \
+    BLOB_KEY_REGEX
 from dss.storage.hcablobstore import BundleFileMetadata, BundleMetadata, FileMetadata, compose_blob_key
 from tests import get_auth_header
 from tests.infra.server import ThreadedLocalServer
@@ -257,7 +260,64 @@ class TestSyncUtils(unittest.TestCase, DSSSyncMixin):
                 with self.subTest(part_size=part_size, object_size=event['source_obj_metadata']['size']):
                     self.assertEqual(sync.get_sync_work_state(event)['total_parts'], expected_total_parts)
 
+    def test_blob_key_format(self):
+        good_blob_key = 'blobs/015b0751073d17e358989649bc49f7e2bcf544073a98bf24d762fbe5c6468cb3.' \
+                        'd3c4a8f1aadcf6036c9c7ca5e80189fce3f12629.70910bba1cc60b415f34254f7e0d9673.93d22640'
+        bad_blob_key = 'blobs/5b0751073d17e358989649bc49f7e2bcf544073a98bf24d762fbe5c6468cb3.' \
+                       'd3c4a8f1aadcf6036c9c7ca5e80189fce3f12629.70910bba1cc60b415f34254f7e0d9673.93d2264'
+        missing_prefix = '015b0751073d17e358989649bc49f7e2bcf544073a98bf24d762fbe5c6468cb3.' \
+                         'd3c4a8f1aadcf6036c9c7ca5e80189fce3f12629.70910bba1cc60b415f34254f7e0d9673.93d22640'
+        gcp_parts = 'blobs/015b0751073d17e358989649bc49f7e2bcf544073a98bf24d762fbe5c6468cb3.' \
+                    'd3c4a8f1aadcf6036c9c7ca5e80189fce3f12629.70910bba1cc60b415f34254f7e0d9673.93d22640.partA'
+
+        expected_results = {"good_blob_key": (good_blob_key, 7),  # good blobs have 7 parts, (e_tag takes 3)
+                            "bad_blob_key": (bad_blob_key, None),
+                            "missing_prefix": (missing_prefix, None),
+                            "gcp_parts": (gcp_parts, None)}
+
+        for k, v in expected_results.items():
+            match = BLOB_KEY_REGEX.match(v[0])
+            num_groups = len(match.groups()) if match else None
+            self.assertEquals(num_groups, v[1])
+
+    def test_skip_part_sync(self):
+        json_message = json.dumps({"bucket": "org-humancellatlas-dss-dev",
+                                   "componentCount": 30,
+                                   "contentType": "application/octet-stream",
+                                   "crc32c": "1n/pig==",
+                                   "etag": "CPjBmfqN1+QCEAE=",
+                                   "generation": "1568697601122552",
+                                   "kind": "storage#object",
+                                   "metageneration": "1",
+                                   "name": "blobs/"
+                                           "ea0b562ab28e22089283de9e691a5985d5118"
+                                           "fb567bab9e0ed11c1efd5d10995"
+                                           ".21a11df0cf55b1e197cf27d4185221dd9d909797."
+                                           "cbc62efcbe1a02c5b2f2fc38dce59287-933.5d0be7cf.partc",
+                                   "resourceState": "exists",
+                                   "selfLink": "https://www.googleapis.com/storage/v1/b/org-humancellatlas-dss-staging/"
+                                               "o/blobs"
+                                               "%2Ffd6f90b244d7bfe32978a5a7d51999d0eed60c5033465375e06ebbd921ba05b7."
+                                               "d0b75abd714f4a9792cdac50a074977bdc07f471."
+                                               "d69e4ed0099e33c1a546f9602fe82973-778.581f32a2.partc",
+                                   "size": "19658416372",
+                                   "storageClass": "MULTI_REGIONAL",
+                                   "timeCreated": "2019-09-17T05:20:01.122Z",
+                                   "timeStorageClassUpdated": "2019-09-17T05:20:01.122Z",
+                                   "updated": "2019-09-17T05:20:01.122Z"})
+        event = {"Records": [{
+                 "source_replica": "gcp",
+                 "dest_replica": "aws",
+                 "source_key": "blobs/ea0b562ab28e22089283de9e691a5985d5118fb567bab9e0ed11c1efd5d10995."
+                 "21a11df0cf55b1e197cf27d4185221dd9d909797.cbc62efcbe1a02c5b2f2fc38dce59287-933.5d0be7cf"
+                 ".partc",
+                 "body": json.dumps({"Message": json_message})
+                  }]
+                }
+        results = daemon_app.launch_from_forwarded_event(event, None)
+        print(results)
 # TODO: (akislyuk) integration test of SQS fault injection, SFN fault injection
+
 
 @testmode.integration
 class TestSyncDaemon(unittest.TestCase, DSSSyncMixin):
