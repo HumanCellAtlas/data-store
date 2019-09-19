@@ -37,24 +37,24 @@ class TestConfig(unittest.TestCase):
 
     def test_s3_checkout_bucket(self):
         Config.set_config(BucketConfig.NORMAL)
-        self.assertEquals(Config.get_s3_checkout_bucket(), os.environ["DSS_S3_CHECKOUT_BUCKET"])
+        self.assertEqual(Config.get_s3_checkout_bucket(), os.environ["DSS_S3_CHECKOUT_BUCKET"])
         Config.set_config(BucketConfig.TEST)
-        self.assertEquals(Config.get_s3_checkout_bucket(), os.environ["DSS_S3_CHECKOUT_BUCKET_TEST"])
+        self.assertEqual(Config.get_s3_checkout_bucket(), os.environ["DSS_S3_CHECKOUT_BUCKET_TEST"])
         Config.set_config(BucketConfig.TEST_FIXTURE)
-        self.assertEquals(Config.get_s3_checkout_bucket(), os.environ["DSS_S3_CHECKOUT_BUCKET_TEST"])
+        self.assertEqual(Config.get_s3_checkout_bucket(), os.environ["DSS_S3_CHECKOUT_BUCKET_TEST"])
 
     def test_s3_events_bucket(self):
         Config.set_config(BucketConfig.NORMAL)
-        self.assertEquals(Config.get_flashflood_bucket(), os.environ["DSS_FLASHFLOOD_BUCKET"])
+        self.assertEqual(Config.get_flashflood_bucket(), os.environ["DSS_FLASHFLOOD_BUCKET"])
         Config.set_config(BucketConfig.TEST)
-        self.assertEquals(Config.get_flashflood_bucket(), os.environ["DSS_S3_BUCKET_TEST"])
+        self.assertEqual(Config.get_flashflood_bucket(), os.environ["DSS_S3_BUCKET_TEST"])
         Config.set_config(BucketConfig.TEST_FIXTURE)
-        self.assertEquals(Config.get_flashflood_bucket(), os.environ["DSS_S3_BUCKET_TEST"])
+        self.assertEqual(Config.get_flashflood_bucket(), os.environ["DSS_S3_BUCKET_TEST"])
 
     def test_notification_email(self):
         for bucket_config in BucketConfig:
             Config.set_config(bucket_config)
-            self.assertEquals(Config.get_notification_email(), os.environ["DSS_NOTIFICATION_SENDER"])
+            self.assertEqual(Config.get_notification_email(), os.environ["DSS_NOTIFICATION_SENDER"])
 
     def test_replica(self):
         # Assert that derived properties are distinct between enum instances
