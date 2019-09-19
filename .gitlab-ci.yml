@@ -11,6 +11,7 @@ variables:
 stages:
   - trufflehog
   - test
+  - fusillade
   - deploy
   - integration_test
   - scale_and_performance
@@ -72,6 +73,18 @@ test_subscriptions:
   extends: .tests
   script:
     - make -j1 tests/test_subscriptions.py
+
+setup_fusillade:
+  stage: fusillade
+  script:
+    - git clone -b master https://github.com/HumanCellAtlas/dcp-fusillade.git
+    - cd dcp-fusillade
+    - source environment
+    - cd ..
+# need to source data-store environment one more time, in case dcp-fusillade overwrites vars
+# (e.g. AWS_DEFAULT_REGION)
+    - source environment
+    - dcp-fusillade/scripts/setup_fusillade.py --dry-run --file roles.json dev # change to testing l8r
 
 deploy:
   stage: deploy
