@@ -101,6 +101,7 @@ class Config:
     _GS_BUCKET: typing.Optional[str] = None
     _S3_CHECKOUT_BUCKET: typing.Optional[str] = None
     _GS_CHECKOUT_BUCKET: typing.Optional[str] = None
+    _FLASHFLOOD_BUCKET: typing.Optional[str] = None
 
     BLOBSTORE_CONNECT_TIMEOUT: float = None
     BLOBSTORE_READ_TIMEOUT: float = None
@@ -227,6 +228,25 @@ class Config:
         return Config._S3_CHECKOUT_BUCKET
 
     @staticmethod
+    def get_flashflood_bucket() -> str:
+        if Config._FLASHFLOOD_BUCKET is None:
+            if Config._CURRENT_CONFIG == BucketConfig.NORMAL:
+                envvar = "DSS_FLASHFLOOD_BUCKET"
+            elif Config._CURRENT_CONFIG == BucketConfig.TEST:
+                envvar = "DSS_S3_BUCKET_TEST"
+            elif Config._CURRENT_CONFIG == BucketConfig.TEST_FIXTURE:
+                envvar = "DSS_S3_BUCKET_TEST"
+            elif Config._CURRENT_CONFIG == BucketConfig.ILLEGAL:
+                raise Exception("bucket config not set")
+
+            if envvar not in os.environ:
+                raise Exception(
+                    "Please set the {} environment variable".format(envvar))
+            Config._FLASHFLOOD_BUCKET = os.environ[envvar]
+
+        return Config._FLASHFLOOD_BUCKET
+
+    @staticmethod
     def get_gs_bucket() -> str:
         if Config._GS_BUCKET is None:
             if Config._CURRENT_CONFIG == BucketConfig.NORMAL:
@@ -323,6 +343,7 @@ class Config:
         Config._S3_BUCKET = None
         Config._GS_BUCKET = None
         Config._S3_CHECKOUT_BUCKET = None
+        Config._FLASHFLOOD_BUCKET = None
 
     @staticmethod
     def _clear_cached_email_config():
@@ -449,8 +470,10 @@ class Config:
 
 
 class Replica(Enum):
-    aws = (Config.get_s3_bucket, Config.get_s3_checkout_bucket, "s3", S3BlobStore, S3HCABlobStore)
-    gcp = (Config.get_gs_bucket, Config.get_gs_checkout_bucket, "gs", GSBlobStore, GSHCABlobStore)
+    aws = (Config.get_s3_bucket, Config.get_s3_checkout_bucket, "s3", S3BlobStore, S3HCABlobStore,
+           "DSS_AWS_FLASHFLOOD_PREFIX")
+    gcp = (Config.get_gs_bucket, Config.get_gs_checkout_bucket, "gs", GSBlobStore, GSHCABlobStore,
+           "DSS_GCP_FLASHFLOOD_PREFIX")
 
     def __init__(
             self,
@@ -459,12 +482,14 @@ class Replica(Enum):
             storage_schema: str,
             blobstore_class: typing.Type[BlobStore],
             hcablobstore_class: typing.Type[HCABlobStore],
+            flashflood_prefix_envvar: str,
     ) -> None:
         self._bucket_getter = bucket_getter
         self._checkout_bucket_getter = checkout_bucket_getter
         self._storage_schema = storage_schema
         self._blobstore_class = blobstore_class
         self._hcablobstore_class = hcablobstore_class
+        self._flashflood_prefix_envvar = flashflood_prefix_envvar
 
     @property
     def bucket(self) -> str:
@@ -485,6 +510,10 @@ class Replica(Enum):
     @property
     def checkout_bucket(self) -> str:
         return self._checkout_bucket_getter()
+
+    @property
+    def flashflood_prefix(self) -> str:
+        return os.environ[self._flashflood_prefix_envvar]
 
 @contextmanager
 def override_bucket_config(temp_config: BucketConfig):
