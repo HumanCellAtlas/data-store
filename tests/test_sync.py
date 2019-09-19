@@ -26,7 +26,6 @@ pkg_root = os.path.abspath(os.path.join(os.path.dirname(__file__), '..'))  # noq
 sys.path.insert(0, pkg_root)  # noqa
 
 import importlib
-daemon_app = importlib.import_module('daemons.dss-sync-sfn.app')
 import dss
 from dss.api import bundles as bundles_api
 from dss.api import files as files_api
@@ -35,13 +34,14 @@ from dss.events.handlers import sync
 from dss.logging import configure_test_logging
 from dss.util import UrlBuilder
 from dss.util.streaming import get_pool_manager, S3SigningChunker
-from dss.storage.identifiers import FILE_PREFIX, BUNDLE_PREFIX, COLLECTION_PREFIX, FileFQID, BundleFQID, CollectionFQID, \
-    BLOB_KEY_REGEX
+from dss.storage.identifiers import FILE_PREFIX, BUNDLE_PREFIX, COLLECTION_PREFIX, FileFQID, BundleFQID,\
+    CollectionFQID, BLOB_KEY_REGEX
 from dss.storage.hcablobstore import BundleFileMetadata, BundleMetadata, FileMetadata, compose_blob_key
 from tests import get_auth_header
 from tests.infra.server import ThreadedLocalServer
 from tests import eventually, get_version, get_collection_fqid
 from tests.infra import testmode
+daemon_app = importlib.import_module('daemons.dss-sync-sfn.app')
 
 def setUpModule():
     configure_test_logging()
@@ -312,10 +312,10 @@ class TestSyncUtils(unittest.TestCase, DSSSyncMixin):
                  "21a11df0cf55b1e197cf27d4185221dd9d909797.cbc62efcbe1a02c5b2f2fc38dce59287-933.5d0be7cf"
                  ".partc",
                  "body": json.dumps({"Message": json_message})
-                  }]
-                }
+                 }]
+                 }
         results = daemon_app.launch_from_forwarded_event(event, None)
-        print(results)
+        self.assertFalse(results)
 # TODO: (akislyuk) integration test of SQS fault injection, SFN fault injection
 
 
