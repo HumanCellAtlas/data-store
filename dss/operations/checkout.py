@@ -75,7 +75,7 @@ class CheckoutHandler:
             version = VERSION_REGEX.search(key).group(0)
             uuid = UUID_REGEX.search(key).group(0)
         except IndexError:
-            RuntimeError(f'unable to parse the key {key}')
+            raise RuntimeError(f'unable to parse the key {key}')
         return uuid, version
 
     def process_keys(self):
