@@ -11,6 +11,7 @@ from cloud_blobstore import BlobStore
 from cloud_blobstore.s3 import S3BlobStore
 from cloud_blobstore.gs import GSBlobStore
 from google.cloud.storage import Client
+from dcplib import security
 from google.auth.transport.requests import AuthorizedSession
 from google.oauth2 import service_account
 from requests.adapters import HTTPAdapter, DEFAULT_POOLSIZE
@@ -71,6 +72,7 @@ class IndexSuffix:
     """
     Manage growing and shrinking suffixes to Elasticsearch index names
     """
+
     def __init__(self) -> None:
         super().__init__()
         self._stack: typing.Deque[str] = deque()
@@ -120,6 +122,10 @@ class Config:
         Config._clear_cached_bucket_config()
         Config._clear_cached_email_config()
         Config._CURRENT_CONFIG = config
+        security.Config.setup(
+            trusted_google_projects=Config.get_trusted_google_projects(),
+            auth_url=Config.get_authz_url(),
+        )
 
     @staticmethod
     @functools.lru_cache()
@@ -492,6 +498,7 @@ class Replica(Enum):
     @property
     def checkout_bucket(self) -> str:
         return self._checkout_bucket_getter()
+
 
 @contextmanager
 def override_bucket_config(temp_config: BucketConfig):

@@ -25,7 +25,6 @@ gserviceaccount_domain = "iam.gserviceaccount.com"
 # recycling the same session for all requests.
 session = requests.Session()
 
-security.Config.setup(trusted_google_projects=Config.get_trusted_google_projects())
 
 
 @functools.lru_cache(maxsize=32)
@@ -126,7 +125,7 @@ def assert_authorized(principal: str,
                       actions: typing.List[str],
                       resources: typing.List[str]):
     resp = session.post(f"{Config.get_authz_url()}/v1/policies/evaluate",
-                        headers=DSS_AUTHZ.get_header(),
+                        headers=DSS_AUTHZ.get_authorization_header(),
                         json={"action": actions,
                               "resource": resources,
                               "principal": principal})
