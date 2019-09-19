@@ -32,6 +32,7 @@ EXPORT_ENV_VARS_TO_LAMBDA_ARRAY=(
     DSS_NOTIFY_WORKERS
     DSS_S3_BUCKET
     DSS_S3_CHECKOUT_BUCKET
+    DSS_FLASHFLOOD_BUCKET
     DSS_VERSION
     DSS_XRAY_TRACE
     GCP_PROJECT_NAME
@@ -66,6 +67,10 @@ DSS_S3_CHECKOUT_BUCKET_UNWRITABLE=org-hca-dss-checkout-unwritable
 DSS_S3_CHECKOUT_BUCKET_INTEGRATION=org-humancellatlas-dss-checkout-integration
 DSS_S3_CHECKOUT_BUCKET_STAGING=org-humancellatlas-dss-checkout-staging
 DSS_S3_CHECKOUT_BUCKET_PROD=org-humancellatlas-dss-checkout-prod
+DSS_FLASHFLOOD_BUCKET=org-humancellatlas-dss-events-dev
+DSS_FLASHFLOOD_BUCKET_INTEGRATION=org-humancellatlas-dss-events-integration
+DSS_FLASHFLOOD_BUCKET_STAGING=org-humancellatlas-dss-events-staging
+DSS_FLASHFLOOD_BUCKET_PROD=org-humancellatlas-dss-events-prod
 DSS_GS_BUCKET=org-humancellatlas-dss-dev
 DSS_GS_BUCKET_TEST=org-hca-dss-test
 DSS_GS_BUCKET_TEST_FIXTURES=org-hca-dss-test-fixtures
@@ -78,6 +83,8 @@ DSS_GS_CHECKOUT_BUCKET_TEST_USER=org-hca-dss-checkout-test-user  # for tests w/n
 DSS_GS_CHECKOUT_BUCKET_INTEGRATION=org-humancellatlas-dss-checkout-integration
 DSS_GS_CHECKOUT_BUCKET_STAGING=org-humancellatlas-dss-checkout-staging
 DSS_GS_CHECKOUT_BUCKET_PROD=org-humancellatlas-dss-checkout-prod
+DSS_AWS_FLASHFLOOD_PREFIX="aws"
+DSS_GCP_FLASHFLOOD_PREFIX="gcp"
 DSS_INFRA_TAG_PROJECT=dcp
 DSS_INFRA_TAG_SERVICE=dss
 DSS_INFRA_TAG_OWNER=dss-team@data.humancellatlas.org
@@ -122,7 +129,7 @@ DSS_BLOB_PUBLIC_TTL_DAYS=7
 # `{account_id}`, if present, will be replaced with the account ID associated with the AWS credentials used for
 # deployment. It can be safely omitted.
 DSS_TERRAFORM_BACKEND_BUCKET_TEMPLATE="org-humancellatlas-dss-{account_id}-${DSS_DEPLOYMENT_STAGE}-terraform"
-
+ 
 # Configure the delays between notification attempts. The first attempt is immediate. The second attempt is one
 # minute later. Then ten minutes, one hour, and six hours in between. Then 24 hours minus all previous delays and
 # lastly every 24 hours for six days. This is exponential initially and then levels off where exponential would be
