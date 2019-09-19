@@ -26,7 +26,6 @@ gserviceaccount_domain = "iam.gserviceaccount.com"
 session = requests.Session()
 
 
-
 @functools.lru_cache(maxsize=32)
 def get_openid_config(openid_provider):
     res = session.get(f"{openid_provider}.well-known/openid-configuration")
