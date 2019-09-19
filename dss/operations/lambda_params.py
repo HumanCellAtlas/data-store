@@ -10,8 +10,6 @@ import argparse
 import logging
 import typing
 
-from botocore.exceptions import ClientError
-
 from dss.operations import dispatch
 from dss.operations.ssm_params import get_ssm_variable_prefix, fix_ssm_variable_prefix
 from dss.operations.ssm_params import get_ssm_parameter, set_ssm_parameter
@@ -52,12 +50,8 @@ def get_admin_emails() -> str:
         # TODO: this functionality should be moved to secrets.py
         try:
             response = sm_client.get_secret_value(SecretId=secret_name)
-        except ClientError as e:
-            if 'Error' in e.response:
-                errtype = e.response['Error']['Code']
-                if errtype == 'ResourceNotFoundException':
-                    raise RuntimeError(f"Error: secret {secret_name} was not found!")
-            raise RuntimeError(f"Error: could not fetch secret {secret_name} from secrets manager")
+        except sm_client.exceptions.ResourceNotFoundException as e:
+            raise RuntimeError(f"Error: secret {secret_name} was not found!") from e
         else:
             return response
 
