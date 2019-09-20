@@ -81,9 +81,11 @@ setup_fusillade:
     - cd dcp-fusillade
     - source environment
     - cd ..
-# need to source data-store environment one more time, in case dcp-fusillade overwrites vars
-# (e.g. AWS_DEFAULT_REGION)
+# need to re-source data-store environment in case dcp-fusillade overwrites vars (e.g. AWS_DEFAULT_REGION)
     - source environment
+    - if [[ -f "environment.$CI_COMMIT_REF_NAME" ]]; then
+    -   source environment.$CI_COMMIT_REF_NAME
+    - fi
     - cat ./roles.json | sed "s/\${stage}/${DSS_DEPLOYMENT_STAGE}/g" > temp-roles.json
     - dcp-fusillade/scripts/setup_fusillade.py --file temp-roles.json --force testing
 
@@ -95,7 +97,7 @@ deploy:
     - scripts/set_version.sh
   environment:
     name: $CI_COMMIT_REF_NAME
-    # TODO: incluude url when GitLab fixes it's wonky interpolation rules
+    # TODO: include url when GitLab fixes it's wonky interpolation rules
     # Variable created in this file (outside of `variables`) are not interpolated,
     # causing GitLabs environment mechanism to fail silently.
     # issue: https://gitlab.com/gitlab-com/support-forum/issues/2814
