@@ -150,12 +150,10 @@ def set_lambda_var(env_var: str, value, lambda_name: str, quiet: bool = False) -
     environment[env_var] = value
     set_deployed_lambda_environment(lambda_name, environment)
     if not quiet:
-        print(f"Success! Set variable in deployed lambda function {lambda_name}:")
-        print(f"    Name: {env_var}")
-        print(f"    Value: {value}")
+        print(f"Success! Set variable {env_var} in deployed lambda function {lambda_name}")
 
 
-def unset_lambda_var(env_var: str, value, lambda_name: str, quiet: bool = False) -> None:
+def unset_lambda_var(env_var: str, lambda_name: str, quiet: bool = False) -> None:
     """Unset a single variable in the environment of the specified lambda function"""
     environment = get_deployed_lambda_environment(lambda_name, quiet=False)
     try:
@@ -163,9 +161,7 @@ def unset_lambda_var(env_var: str, value, lambda_name: str, quiet: bool = False)
         del environment[env_var]
         set_deployed_lambda_environment(lambda_name, environment)
         if not quiet:
-            print(f"Success! Unset variable in deployed lambda function {lambda_name}:")
-            print(f"    Name: {env_var} ")
-            print(f"    Previous value: {prev_value}")
+            print(f"Success! Unset variable {env_var} in deployed lambda function {lambda_name}")
     except KeyError:
         if not quiet:
             print(f"Nothing to unset for variable {env_var} in deployed lambda function {lambda_name}")
@@ -258,14 +254,12 @@ def lambda_set(argv: typing.List[str], args: argparse.Namespace):
 
     if args.dry_run:
         if not args.quiet:
-            print(f"Dry-run creating variable {name} in lambda environment in SSM store under "
+            print(f"Dry-run setting variable {name} in lambda environment in SSM store under "
                    "$DSS_DEPLOYMENT_STAGE/environment")
             print(f"    Name: {name}")
             print(f"    Value: {val}")
             for lambda_name in get_deployed_lambdas():
-                print(f"Dry-run creating variable {name} in lambda {lambda_name}")
-                print(f"    Name: {name}")
-                print(f"    Value: {val}")
+                print(f"Dry-run setting variable {name} in lambda {lambda_name}")
 
     else:
         # Set the variable in the SSM store first, then in each deployed lambda
@@ -291,10 +285,10 @@ def lambda_unset(argv: typing.List[str], args: argparse.Namespace):
         if not args.quiet:
             print(f'Dry-run deleting variable {name} from SSM store')
             for lambda_name in get_deployed_lambdas():
-                print(f'Dry-run deleting variable "{name}" from lambda function "{lambda_name}"')
+                print(f'Dry-run deleting variable {name} from lambda function "{lambda_name}"')
 
     else:
-        unset_ssm_parameter(name)
+        unset_ssm_parameter(name, quiet=args.quiet)
         for lambda_name in get_deployed_lambdas():
             unset_lambda_var(name, lambda_name, quiet=args.quiet)
 
@@ -334,11 +328,13 @@ def lambda_update(argv: typing.List[str], args: argparse.Namespace):
 
     if args.dry_run:
         if not args.quiet:
-            print(f"Dry-run resetting lambda environment stored in SSM store under $DSS_DEPLOYMENT_STAGE/environment")
+            print(f"Dry-run redeploying local environment to lambda function environment "
+                   "stored in SSM store under $DSS_DEPLOYMENT_STAGE/environment")
     else:
         set_ssm_environment(local_env)
         if not args.quiet:
-            print(f"Finished resetting lambda environment stored in SSM store under $DSS_DEPLOYMENT_STAGE/environment")
+            print(f"Finished redeploying local environment to lambda function environment "
+                    "stored in SSM store under $DSS_DEPLOY_STAGE/environment")
 
     # Optionally, update environment of each deployed lambda
     if args.update_deployed:
@@ -348,15 +344,8 @@ def lambda_update(argv: typing.List[str], args: argparse.Namespace):
             lambda_env.update(local_env)
             if args.dry_run:
                 if not args.quiet:
-                    print(
-                        f"Dry-run resetting the environment of lambda function {lambda_name} "
-                        "using new lambda environment in SSM store under $DSS_DEPLOYMENT_STAGE/environment"
-                    )
+                    print(f"Dry-run redeploying lambda function environment from SSM store for {lambda_name}")
             else:
                 set_deployed_lambda_environment(lambda_name, lambda_env)
                 if not args.quiet:
-                    print(
-                        f"Finished resetting the environment of lambda function {lambda_name} "
-                        "using new lambda environment in SSM store under $DSS_DEPLOYMENT_STAGE/environment"
-                    )
-
+                    print(f"Finished redeploying lambda function environment from SSM store for {lambda_name}")

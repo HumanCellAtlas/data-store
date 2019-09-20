@@ -143,7 +143,7 @@ def ssm_set(argv: typing.List[str], args: argparse.Namespace):
     value = sys.stdin.read()
 
     if args.dry_run:
-        print("Dry-run creating variable in SSM store under $DSS_DEPLOYMENT_STAGE/environment:")
+        print("Dry-run setting variable in SSM store under $DSS_DEPLOYMENT_STAGE/environment:")
     else:
         set_ssm_parameter(env_var, value)
 
