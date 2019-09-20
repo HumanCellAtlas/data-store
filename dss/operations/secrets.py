@@ -12,7 +12,7 @@ import logging
 from botocore.exceptions import ClientError
 
 from dss.operations import dispatch
-from dss.util.aws.clients import secretsmanager  # type: ignore
+from dss.util.aws.clients import secretsmanager as sm_client  # type: ignore
 
 logger = logging.getLogger(__name__)
 
@@ -80,7 +80,7 @@ def list_secrets(argv: typing.List[str], args: argparse.Namespace):
     """
     store_prefix = get_secret_store_prefix()
 
-    paginator = secretsmanager.get_paginator("list_secrets")
+    paginator = sm_client.get_paginator("list_secrets")
 
     secret_names = []
     for response in paginator.paginate():
@@ -90,6 +90,8 @@ def list_secrets(argv: typing.List[str], args: argparse.Namespace):
             secret_name = secret["Name"]
 
             # Only save secrets for this store and stage
+            secret_names.append(fix_secret_variable_prefix(secret_name))
+
             if secret_name.startswith(store_prefix):
                 secret_names.append(secret_name)
 
@@ -121,8 +123,6 @@ def get_secret(argv: typing.List[str], args: argparse.Namespace):
     # Note: this function should not print anything except the final JSON, in case the user pipes the JSON
     # output of this script to something else
 
-    store_prefix = get_secret_store_prefix()
-
     if args.outfile:
         if os.path.exists(args.outfile) and not args.force:
             raise RuntimeError(
@@ -133,7 +133,7 @@ def get_secret(argv: typing.List[str], args: argparse.Namespace):
 
     # Attempt to obtain secret
     try:
-        response = secretsmanager.get_secret_value(SecretId=secret_name)
+        response = sm_client.get_secret_value(SecretId=secret_name)
         secret_val = response["SecretString"]
     except ClientError:
         # A secret variable with that name does not exist
@@ -160,8 +160,6 @@ def get_secret(argv: typing.List[str], args: argparse.Namespace):
 )
 def set_secret(argv: typing.List[str], args: argparse.Namespace):
     """Set the value of the secret variable."""
-    store_prefix = get_secret_store_prefix()
-
     secret_name = fix_secret_variable_prefix(args.secret_name)
 
     # Decide what to use for infile
@@ -182,7 +180,7 @@ def set_secret(argv: typing.List[str], args: argparse.Namespace):
     # Create or update
     try:
         # Start by trying to get the secret variable
-        secretsmanager.get_secret_value(SecretId=secret_name)
+        sm_client.get_secret_value(SecretId=secret_name)
 
     except ClientError:
         # A secret variable with that name does not exist, so create it
@@ -193,7 +191,7 @@ def set_secret(argv: typing.List[str], args: argparse.Namespace):
                 print(f"Secret variable {secret_name} not found in secrets manager, creating from input file")
             else:
                 print(f"Secret variable {secret_name} not found in secrets manager, creating from stdin")
-            secretsmanager.create_secret(Name=secret_name, SecretString=secret_val)
+            sm_client.create_secret(Name=secret_name, SecretString=secret_val)
 
     else:
         # Get operation was successful, secret variable exists
@@ -225,7 +223,7 @@ def set_secret(argv: typing.List[str], args: argparse.Namespace):
                 print(f"Secret variable {secret_name} not found in secrets manager, updating from input file")
             else:
                 print(f"Secret variable {secret_name} not found in secrets manager, updating from stdin")
-            secretsmanager.update_secret(SecretId=secret_name, SecretString=secret_val)
+            sm_client.update_secret(SecretId=secret_name, SecretString=secret_val)
 
 
 @events.action(
@@ -245,19 +243,17 @@ def del_secret(argv: typing.List[str], args: argparse.Namespace):
     Delete the value of the secret variable specified by the
     --secret-name flag from the secrets manager
     """
-    store_prefix = get_secret_store_prefix()
-
     secret_name = fix_secret_variable_prefix(args.secret_name)
 
     try:
         # Start by trying to get the secret variable
-        secretsmanager.get_secret_value(SecretId=secret_name)
+        sm_client.get_secret_value(SecretId=secret_name)
 
     except ClientError:
         # No secret var found
         logger.warning(f"Secret variable {secret_name} not found in secrets manager!")
 
-    except secretsmanager.exceptions.InvalidRequestException:
+    except sm_client.exceptions.InvalidRequestException:
         # Already deleted secret var
         logger.warning(f"Secret variable {secret_name} already marked for deletion in secrets manager!")
 
@@ -282,4 +278,4 @@ def del_secret(argv: typing.List[str], args: argparse.Namespace):
         else:
             # Delete it for real
             print(f"Secret variable {secret_name} found in secrets manager, deleting it")
-            secretsmanager.delete_secret(SecretId=secret_name)
+            sm_client.delete_secret(SecretId=secret_name)
