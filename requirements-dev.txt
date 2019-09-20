@@ -75,7 +75,7 @@ Pygments==2.4.2
 PyJWT==1.7.1
 python-dateutil==2.8.0
 pytz==2019.2
-PyYAML==5.1.2
+PyYAML==5.1
 requests==2.22.0
 requests-aws4auth==0.9
 requests-http-signature==0.1.0
@@ -90,7 +90,7 @@ typed-ast==1.4.0
 typing==3.6.4
 typing-extensions==3.7.4
 uritemplate==3.0.0
-urllib3==1.25.4
+urllib3==1.25.5
 Werkzeug==0.16.0
 wrapt==1.11.2
 xmltodict==0.12.0
