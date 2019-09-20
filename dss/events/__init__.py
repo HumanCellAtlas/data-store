@@ -12,6 +12,7 @@ from flashflood import FlashFlood, FlashFloodEventNotFound
 from dss.util.aws import resources
 from dss.config import Config, Replica
 from dss.storage.identifiers import TOMBSTONE_SUFFIX
+from dss.util.version import datetime_from_timestamp
 
 # TODO Support "reindex" for event journals:
 #      1) attempt read from "old" prefix
@@ -124,6 +125,3 @@ def _dot_to_underscore_and_strip_numeric_suffix(name: str) -> str:
             name = parts[0]
         name += "_json"
     return name
-
-def datetime_from_timestamp(ts):
-    return datetime.strptime(ts, "%Y-%m-%dT%H%M%S.%fZ")
