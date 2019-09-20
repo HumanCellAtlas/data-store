@@ -10,7 +10,7 @@ from cloud_blobstore import BlobNotFoundError
 
 from dss.config import Replica
 from dss.operations import dispatch
-from dss.events.handlers.notify_v2 import build_bundle_metadata_document
+from dss.events import get_bundle_metadata_document
 
 
 logger = logging.getLogger(__name__)
@@ -30,7 +30,7 @@ def bundle_metadata_document(argv: typing.List[str], args: argparse.Namespace):
             logger.warning(f"Unable to produce bundle metadata document for '{key}'")
             continue
         try:
-            md = build_bundle_metadata_document(Replica[args.replica], key)
+            md = get_bundle_metadata_document(Replica[args.replica], key)
             print(json.dumps(md))
         except BlobNotFoundError:
             logger.error(f"Bundle not found for '{key}'")

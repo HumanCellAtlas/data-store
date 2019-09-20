@@ -3,15 +3,12 @@ import re
 import json
 import requests
 import urllib3
-import threading
 from requests_http_signature import HTTPSignatureAuth
 import logging
 import datetime
 from uuid import uuid4
-from collections import defaultdict
 
 from functools import lru_cache
-from concurrent.futures import ThreadPoolExecutor
 import jmespath
 from jmespath.exceptions import JMESPathError
 from dcplib.aws.sqs import SQSMessenger, get_queue_url
@@ -175,73 +172,6 @@ def notify(subscription: dict, metadata_document: dict, key: str) -> bool:
         logger.warning("Failed delivering %s: HTTP status %i, subscription: %s",
                        str(payload), response.status_code, str(subscription))
         return False
-
-
-@lru_cache(maxsize=2)
-def build_bundle_metadata_document(replica: Replica, key: str) -> dict:
-    """
-    This returns a JSON document with bundle manifest and metadata files suitable for JMESPath filters.
-    """
-    handle = Config.get_blobstore_handle(replica)
-    manifest = json.loads(handle.get(replica.bucket, key).decode("utf-8"))
-    if key.endswith(TOMBSTONE_SUFFIX):
-        manifest['event_type'] = "TOMBSTONE"
-        return manifest
-    else:
-        lock = threading.Lock()
-        files: dict = defaultdict(list)
-
-        def _read_file(file_metadata):
-            blob_key = "blobs/{}.{}.{}.{}".format(
-                file_metadata['sha256'],
-                file_metadata['sha1'],
-                file_metadata['s3-etag'],
-                file_metadata['crc32c'],
-            )
-            contents = handle.get(replica.bucket, blob_key).decode("utf-8")
-            try:
-                file_info = json.loads(contents)
-            except json.decoder.JSONDecodeError:
-                logging.info(f"{file_metadata['name']} not json decodable")
-            else:
-                # Modify name to avoid confusion with JMESPath syntax
-                name = _dot_to_underscore_and_strip_numeric_suffix(file_metadata['name'])
-                with lock:
-                    files[name].append(file_info)
-
-        # TODO: Consider scaling parallelization with Lambda size
-        with ThreadPoolExecutor(max_workers=20) as e:
-            e.map(_read_file, [file_metadata for file_metadata in manifest['files']
-                               if file_metadata['content-type'].startswith("application/json")])
-
-        return {
-            'event_type': "CREATE",
-            'manifest': manifest,
-            'files': dict(files),
-        }
-
-@lru_cache(maxsize=2)
-def build_deleted_bundle_metadata_document(key: str) -> dict:
-    _, fqid = key.split("/")
-    uuid, version = fqid.split(".", 1)
-    return {
-        'event_type': "DELETE",
-        "uuid": uuid,
-        "version": version,
-    }
-
-def _dot_to_underscore_and_strip_numeric_suffix(name: str) -> str:
-    """
-    e.g. "library_preparation_protocol_0.json" -> "library_preparation_protocol_json"
-    """
-    name = name.replace('.', '_')
-    if name.endswith('_json'):
-        name = name[:-5]
-        parts = name.rpartition("_")
-        if name != parts[2]:
-            name = parts[0]
-        name += "_json"
-    return name
 
 def _format_sqs_message(replica: Replica, subscription: dict, event_type: str, key: str):
     return json.dumps({

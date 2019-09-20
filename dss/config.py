@@ -534,7 +534,6 @@ class Replica(Enum):
     def flashflood_prefix(self) -> str:
         return os.environ[self._flashflood_prefix_envvar]
 
-
 @contextmanager
 def override_bucket_config(temp_config: BucketConfig):
     original_config = Config._CURRENT_CONFIG
