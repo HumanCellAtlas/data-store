@@ -10,6 +10,7 @@ import boto3
 import time
 from uuid import uuid4
 from datetime import datetime
+from requests.utils import parse_header_links
 
 from flashflood import replay_with_urls
 import requests
@@ -52,8 +53,7 @@ class TestEvents(unittest.TestCase, DSSAssertMixin):
         Config.set_config(dss.BucketConfig.TEST)
         events.record_event_for_bundle.cache_clear()
         for replica in Replica:
-            name = f'DSS_{replica.name.upper()}_FLASHFLOOD_PREFIX'
-            os.environ[name] = f"flashflood-{uuid4()}"
+            os.environ[f'DSS_{replica.name.upper()}_FLASHFLOOD_PREFIX'] = f"flashflood-{uuid4()}"
             events.record_event_for_bundle(replica, self.bundle[replica.name]['key'])
 
     def test_list(self):
@@ -61,21 +61,50 @@ class TestEvents(unittest.TestCase, DSSAssertMixin):
             self._test_list(replica)
 
     def _test_list(self, replica):
-        res = self.app.get("/v1/events",
-                           params=dict(replica=replica.name))
-        self.assertIn(res.status_code, [requests.codes.ok, requests.codes.partial])
-        event = [e for e in replay_with_urls(res.json())][0]
-        event_doc = json.loads(event.data.decode("utf-8"))
-        self.assertEqual(events._build_bundle_metadata_document(replica, self.bundle[replica.name]['key']), event_doc)
+        with self.subTest("list events unpaged", replica=replica):
+            res = self.app.get("/v1/events", params=dict(replica=replica.name))
+            self.assertEqual(res.status_code, requests.codes.ok)
+            event = [e for e in replay_with_urls(res.json())][0]
+            event_doc = json.loads(event.data.decode("utf-8"))
+            self.assertEqual(events._build_bundle_metadata_document(replica, self.bundle[replica.name]['key']),
+                             event_doc)
+        new_bundle_uuid, new_bundle_version = self._upload_bundle(replica)
+        new_bundle_key = f"bundles/{new_bundle_uuid}.{new_bundle_version}"
+        events.record_event_for_bundle.cache_clear()
+        events.record_event_for_bundle(replica, new_bundle_key)
+        with self.subTest("list events paged", replica=replica):
+            res = self.app.get("/v1/events", params=dict(replica=replica.name))
+            self.assertEqual(res.status_code, requests.codes.partial)
+            event = [e for e in replay_with_urls(res.json())][0]
+            event_doc = json.loads(event.data.decode("utf-8"))
+            self.assertEqual(events._build_bundle_metadata_document(replica, self.bundle[replica.name]['key']),
+                             event_doc)
+            url = parse_header_links(res.headers['Link'])[0]['url']
+            res = self.app.get("/v1" + url.split("v1", 1)[1])
+            self.assertEqual(res.status_code, requests.codes.ok)
+            event = [e for e in replay_with_urls(res.json())][0]
+            event_doc = json.loads(event.data.decode("utf-8"))
+            self.assertEqual(events._build_bundle_metadata_document(replica, new_bundle_key), event_doc)
+        with self.subTest("bad date range returns 404", replica=replica):
+            to_date = datetime_to_version_format(datetime.utcnow())
+            from_date = datetime_to_version_format(datetime.utcnow())
+            res = self.app.get("/v1/events", params=dict(replica=replica.name, from_date=from_date, to_date=to_date))
+            self.assertEqual(res.status_code, requests.codes.bad_request)
 
     def test_get(self):
         for replica in Replica:
             self._test_get(replica)
 
     def _test_get(self, replica):
-        res = self.app.get("/v1/events/{}".format(self.bundle[replica.name]['uuid']),
-                           params=dict(replica=replica.name, version=self.bundle[replica.name]['version']))
-        self.assertEqual(events._build_bundle_metadata_document(replica, self.bundle[replica.name]['key']), res.json())
+        with self.subTest("event found", replica=replica):
+            res = self.app.get("/v1/events/{}".format(self.bundle[replica.name]['uuid']),
+                               params=dict(replica=replica.name, version=self.bundle[replica.name]['version']))
+            self.assertEqual(events._build_bundle_metadata_document(replica, self.bundle[replica.name]['key']),
+                             res.json())
+        with self.subTest("event not found returns 404", replica=replica):
+            res = self.app.get(f"/v1/events/{uuid4()}",
+                               params=dict(replica=replica.name, version=self.bundle[replica.name]['version']))
+            self.assertEqual(res.status_code, requests.codes.not_found)
 
     @classmethod
     def _upload_bundle(cls, replica, uuid=None):

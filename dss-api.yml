@@ -2347,7 +2347,7 @@ paths:
                   code:
                     type: string
                     description: Machine-readable error code.  The types of return values should not be changed lightly.
-                    enum: [unhandled_exception, Forbidden, Unauthorized, OAuthResponseProblem, not_found]
+                    enum: [unhandled_exception, illegal_arguments, bad_request]
                 required:
                   - code
   /events/{uuid}:
@@ -2378,55 +2378,16 @@ paths:
           description: OK
           schema:
             type: object
-        400:
-          description: Bad request
-          schema:
-            allOf:
-              - $ref: '#/definitions/Error'
-              - type: object
-                properties:
-                  code:
-                    type: string
-                    description: >
-                      Machine-readable error code.  The types of return values should not be changed lightly.
-
-
-                      The code `illegal_arguments` is returned when required parameters are missing or parameters do not
-                      match the requirements in the specification.
-                    enum: [illegal_arguments]
-                required:
-                  - code
         500:
-          description: Server Error.
-          headers:
-            Retry-After:
-              description: Delay in seconds, service clients should retry after the delay.
-              type: integer
-              format: int64
-          schema:
-            allOf:
-              - $ref: '#/definitions/Error'
-              - type: object
-                properties:
-                  code:
-                    type: string
-                    description: >
-                      Machine-readable error code.  The types of return values should not be changed lightly.
-
-
-                      The code `unhandled_exception` is returned when an unexpected exception is encountered.
-                    enum: [unhandled_exception]
-                required:
-                  - code
+          $ref: '#/responses/ServerError'
         502:
           $ref: '#/responses/BadGateway'
         503:
-          description: Service Unavailable.
-          headers:
-            Retry-After:
-              description: Delay in seconds, service clients should retry after the delay.
-              type: integer
-              format: int64
+          $ref: '#/responses/ServiceUnavailable'
+        504:
+          $ref: '#/responses/GatewayTimeout'
+        default:
+          description: Unexpected error
           schema:
             allOf:
               - $ref: '#/definitions/Error'
@@ -2434,17 +2395,10 @@ paths:
                 properties:
                   code:
                     type: string
-                    description: >
-                      Machine-readable error code.  The types of return values should not be changed lightly.
-
-
-                      The code `service_unavailable` is returned when service is unavailable because of unusually high
-                      load/latency
-                    enum: [service_unavailable]
+                    description: Machine-readable error code.  The types of return values should not be changed lightly.
+                    enum: [unhandled_exception, illegal_arguments, not_found]
                 required:
                   - code
-        504:
-          $ref: '#/responses/GatewayTimeout'
 
 definitions:
   File:
