@@ -561,6 +561,7 @@ class TestOperations(unittest.TestCase):
                 # TODO
                 # JSON, lambda name specified
                 # TODO
+                pass
 
         with self.subTest("Update (set) existing lambda parameters"):
             with mock.patch("dss.operations.lambda_params.ssm_client") as ssm, \
