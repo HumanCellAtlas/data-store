@@ -520,6 +520,30 @@ class TestOperations(unittest.TestCase):
                 with SwapStdin(testvar_value):
                     lambda_params.lambda_set([], argparse.Namespace(name=testvar_name, dry_run=True))
 
+        with self.subTest("List lambda parameters"):
+            with mock.patch("dss.operations.lambda_params.lambda_client") as lam:
+                # The lambda_list func in params.py calls get_deployed_lambas, which calls lam.get_function()
+                # using daemon folder names (this function is called only to ensure no exception is thrown)
+                lam.get_function = mock.MagicMock(return_value=None)
+                # Next we call get_deployed_lambda_environment(), which calls lam.get_function_configuration
+                # (this returns the mocked new env vars json)
+                lam.get_function_configuration = mock.MagicMock(return_value=lam_new_env)
+                # Used to specify a lambda by name
+                stage = os.environ["DSS_DEPLOYMENT_STAGE"]
+
+                # Non-JSON fmt
+                with CaptureStdout() as output:
+                    lambda_params.lambda_list([], argparse.Namespace(json=False))
+                # TODO: get all lambda names, iterate through, check each one
+                self.assertIn(f"dss-{stage}", output)
+
+                # JSON fmt
+                with CaptureStdout() as output:
+                    lambda_params.lambda_list([], argparse.Namespace(json=True))
+                # TODO: get all lambda names, iterate through, check each one
+                all_lams = json.loads("\n".join(output))
+                self.assertIn(f"dss-{stage}", all_lams)
+
 
     def _wrap_ssm_env(self, e):
         # Package up the SSM environment the way AWS returns it

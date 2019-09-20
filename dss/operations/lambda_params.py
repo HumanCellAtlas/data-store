@@ -141,16 +141,11 @@ def get_local_lambda_environment(quiet: bool = True) -> dict:
 def set_lambda_var(env_var: str, value, lambda_name: str) -> None:
     """Set a single variable in the environment of the specified lambda function"""
     environment = get_deployed_lambda_environment(lambda_name, quiet=False)
-    prev_value = None
-    if env_var in environment:
-        prev_value = environment[env_var]
     environment[env_var] = value
     set_deployed_lambda_environment(lambda_name, environment)
     print(f"Success! Set variable in deployed lambda function {lambda_name}:")
     print(f"    Name: {env_var}")
     print(f"    Value: {value}")
-    if prev_value:
-        print(f"    Previous value: {prev_value}")
 
 
 def unset_lambda_var(env_var: str, value, lambda_name: str) -> None:
