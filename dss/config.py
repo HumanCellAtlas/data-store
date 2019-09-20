@@ -123,10 +123,16 @@ class Config:
         Config._clear_cached_bucket_config()
         Config._clear_cached_email_config()
         Config._CURRENT_CONFIG = config
-        security.Config.setup(
-            trusted_google_projects=Config.get_trusted_google_projects(),
-            auth_url=Config.get_authz_url(),
-        )
+        if Config._CURRENT_CONFIG != BucketConfig.ILLEGAL:
+            security.Config.setup(
+                trusted_google_projects=Config.get_trusted_google_projects(),
+                auth_url=Config.get_authz_url(),
+            )
+        else:
+            security.Config.setup(
+                trusted_google_projects=[os.getenv("DSS_AUTHORIZED_DOMAINS_TEST")],
+                auth_url=Config.get_authz_url()
+            )
 
     @staticmethod
     @functools.lru_cache()
