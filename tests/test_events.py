@@ -10,6 +10,7 @@ import boto3
 import time
 from uuid import uuid4
 from datetime import datetime
+from datetime import timedelta
 from requests.utils import parse_header_links
 
 from flashflood import replay_with_urls
@@ -85,10 +86,12 @@ class TestEvents(unittest.TestCase, DSSAssertMixin):
             event = [e for e in replay_with_urls(res.json())][0]
             event_doc = json.loads(event.data.decode("utf-8"))
             self.assertEqual(events._build_bundle_metadata_document(replica, new_bundle_key), event_doc)
-        with self.subTest("bad date range returns 404", replica=replica):
-            to_date = datetime_to_version_format(datetime.utcnow())
-            from_date = datetime_to_version_format(datetime.utcnow())
-            res = self.app.get("/v1/events", params=dict(replica=replica.name, from_date=from_date, to_date=to_date))
+        with self.subTest("bad date range returns 400", replica=replica):
+            to_date = datetime.utcnow()
+            from_date = to_date + timedelta(100)
+            res = self.app.get("/v1/events", params=dict(replica=replica.name,
+                                                         from_date=datetime_to_version_format(from_date),
+                                                         to_date=datetime_to_version_format(to_date)))
             self.assertEqual(res.status_code, requests.codes.bad_request)
 
     def test_get(self):

@@ -18,13 +18,13 @@ logger = logging.getLogger(__name__)
 
 
 @dss_handler
-def list_events(replica: str, from_date_str: str=None, to_date_str: str=None, per_page: int=1):
-    from_date = datetime_from_timestamp(from_date_str) if from_date_str else datetime.min
-    to_date = datetime_from_timestamp(to_date_str) if to_date_str else datetime.max
-    if from_date >= to_date:
+def list_events(replica: str, from_date: str=None, to_date: str=None, per_page: int=1):
+    fdate = datetime_from_timestamp(from_date) if from_date else datetime.min
+    tdate = datetime_from_timestamp(to_date) if to_date else datetime.max
+    if fdate >= tdate:
         raise DSSException(400, "bad_request", "to_date must be greater than from_date")
     ff = FlashFlood(resources.s3, Config.get_flashflood_bucket(), Replica[replica].flashflood_prefix)  # type: ignore
-    urls = ff.replay_urls(from_date, to_date, per_page + 1)
+    urls = ff.replay_urls(fdate, tdate, per_page + 1)
     if len(urls) <= per_page:
         response = make_response(jsonify(urls), requests.codes.ok)
         response.headers['X-OpenAPI-Pagination'] = 'false'
