@@ -141,6 +141,7 @@ def get_local_lambda_environment(quiet: bool = True) -> dict:
 def set_lambda_var(env_var: str, value, lambda_name: str) -> None:
     """Set a single variable in the environment of the specified lambda function"""
     environment = get_deployed_lambda_environment(lambda_name, quiet=False)
+    prev_value = None
     if env_var in environment:
         prev_value = environment[env_var]
     environment[env_var] = value
@@ -254,6 +255,8 @@ def lambda_set(argv: typing.List[str], args: argparse.Namespace):
         print(f"    Value: {val}")
         for lambda_name in get_deployed_lambdas():
             print(f"Dry-run creating variable {name} in lambda {lambda_name}")
+            print(f"    Name: {name}")
+            print(f"    Value: {val}")
 
     else:
         # Set the variable in the SSM store first, then in each deployed lambda
