@@ -343,7 +343,6 @@ class TestOperations(unittest.TestCase):
                 # Clean up
                 subprocess.call(['rm', '-f', tempfile])
 
-
         with self.subTest("List secrets"):
             with mock.patch("dss.operations.secrets.secretsmanager") as sm:
                 # Listing secrets requires creating a paginator first,
