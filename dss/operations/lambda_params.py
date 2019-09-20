@@ -220,7 +220,8 @@ def lambda_environment(argv: typing.List[str], args: argparse.Namespace):
     d = {}
     for lambda_name in lambda_names:
         lambda_env = get_deployed_lambda_environment(lambda_name, quiet=args.json)
-        d[lambda_name] = lambda_env
+        if lambda_env != {}:
+            d[lambda_name] = lambda_env
 
     # Print environments
     if args.json:
