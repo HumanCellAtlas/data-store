@@ -1,18 +1,21 @@
 #!/usr/bin/env python3.6
+import base64
 import json
-import os, functools, base64, typing
-
-import requests
-import jwt
 import logging
+import os
 
-from cryptography.hazmat.primitives.asymmetric import rsa
+import functools
+import jwt
+import requests
+import typing
 from cryptography.hazmat.backends import default_backend
-
+from cryptography.hazmat.primitives.asymmetric import rsa
+from dcplib import security
 from flask import request
 
 from dss import Config
 from dss.error import DSSForbiddenException, DSSException
+from dss.util import get_gcp_credentials_file
 
 logger = logging.getLogger(__name__)
 
@@ -111,5 +114,30 @@ def authorized_group_required(groups: typing.List[str]):
         def wrapper(*args, **kwargs):
             assert_authorized_group(groups, request.token_info)
             return func(*args, **kwargs)
+
         return wrapper
+
     return real_decorator
+
+
+def assert_authorized(principal: str,
+                      actions: typing.List[str],
+                      resources: typing.List[str]):
+    resp = session.post(f"{Config.get_authz_url()}/v1/policies/evaluate",
+                        headers=DSS_AUTHZ.get_authorization_header(),
+                        json={"action": actions,
+                              "resource": resources,
+                              "principal": principal})
+    if not resp.json()['result']:
+        raise DSSForbiddenException()
+
+
+def create_DCPServiceAccountManager() -> security.DCPServiceAccountManager:
+    if not os.environ.get('GOOGLE_APPLICATION_CREDENTIALS'):
+        os.environ['GOOGLE_APPLICATION_CREDENTIALS'] = get_gcp_credentials_file().name
+    with open(os.environ['GOOGLE_APPLICATION_CREDENTIALS'], "r") as fh:
+        service_credentials = json.loads(fh.read())
+    return security.DCPServiceAccountManager(service_credentials, Config.get_audience())
+
+
+DSS_AUTHZ = create_DCPServiceAccountManager()

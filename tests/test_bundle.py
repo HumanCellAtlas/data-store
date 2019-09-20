@@ -479,6 +479,7 @@ class TestBundleApi(unittest.TestCase, TestAuthMixin, DSSAssertMixin, DSSUploadM
                 builder.add_query("version", bundle_version)
             url = str(builder)
             self._test_auth_errors('put', url,
+                                   skip_group_test=True,
                                    json_request_body=dict(
                                        files=[
                                            dict(

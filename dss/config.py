@@ -11,6 +11,7 @@ from cloud_blobstore import BlobStore
 from cloud_blobstore.s3 import S3BlobStore
 from cloud_blobstore.gs import GSBlobStore
 from google.cloud.storage import Client
+from dcplib import security
 from google.auth.transport.requests import AuthorizedSession
 from google.oauth2 import service_account
 from requests.adapters import HTTPAdapter, DEFAULT_POOLSIZE
@@ -71,6 +72,7 @@ class IndexSuffix:
     """
     Manage growing and shrinking suffixes to Elasticsearch index names
     """
+
     def __init__(self) -> None:
         super().__init__()
         self._stack: typing.Deque[str] = deque()
@@ -112,6 +114,7 @@ class Config:
     _NOTIFICATION_SENDER_EMAIL: typing.Optional[str] = None
     _TRUSTED_GOOGLE_PROJECTS: typing.Optional[typing.List[str]] = None
     _OIDC_AUDIENCE: typing.Optional[typing.List[str]] = None
+    _AUTH_URL: typing.Optional[str] = None
 
     test_index_suffix = IndexSuffix()
 
@@ -120,6 +123,16 @@ class Config:
         Config._clear_cached_bucket_config()
         Config._clear_cached_email_config()
         Config._CURRENT_CONFIG = config
+        if Config._CURRENT_CONFIG != BucketConfig.ILLEGAL:
+            security.Config.setup(
+                trusted_google_projects=Config.get_trusted_google_projects(),
+                auth_url=Config.get_authz_url(),
+            )
+        else:
+            security.Config.setup(
+                trusted_google_projects=[os.getenv("DSS_AUTHORIZED_DOMAINS_TEST")],
+                auth_url=Config.get_authz_url()
+            )
 
     @staticmethod
     @functools.lru_cache()
@@ -398,6 +411,12 @@ class Config:
     @staticmethod
     def get_OIDC_email_claim():
         return os.environ.get("OIDC_EMAIL_CLAIM", 'email')
+
+    @staticmethod
+    def get_authz_url():
+        if Config._AUTH_URL is None:
+            Config._AUTH_URL = Config._get_required_envvar("AUTH_URL")
+        return Config._AUTH_URL
 
     @staticmethod
     def _get_required_envvar(envvar: str) -> str:
