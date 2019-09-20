@@ -157,7 +157,6 @@ def unset_lambda_var(env_var: str, lambda_name: str, quiet: bool = False) -> Non
     """Unset a single variable in the environment of the specified lambda function"""
     environment = get_deployed_lambda_environment(lambda_name, quiet=False)
     try:
-        prev_value = environment[env_var]
         del environment[env_var]
         set_deployed_lambda_environment(lambda_name, environment)
         if not quiet:
@@ -178,14 +177,10 @@ lambda_params = dispatch.target("lambda", arguments={}, help=__doc__)
 
 
 json_flag_options = dict(
-    default = False, action="store_true", help="format the output as JSON if this flag is present"
+    default=False, action="store_true", help="format the output as JSON if this flag is present"
 )
-dryrun_flag_options = dict(
-    default = False, action="store_true", help="do a dry run of the actual operation"
-)
-quiet_flag_options = dict(
-    default = False, action="store_true", help="suppress output"
-)
+dryrun_flag_options = dict(default=False, action="store_true", help="do a dry run of the actual operation")
+quiet_flag_options = dict(default=False, action="store_true", help="suppress output")
 
 
 @lambda_params.action(
@@ -254,8 +249,10 @@ def lambda_set(argv: typing.List[str], args: argparse.Namespace):
 
     if args.dry_run:
         if not args.quiet:
-            print(f"Dry-run setting variable {name} in lambda environment in SSM store under "
-                   "$DSS_DEPLOYMENT_STAGE/environment")
+            print(
+                f"Dry-run setting variable {name} in lambda environment in SSM store under "
+                "$DSS_DEPLOYMENT_STAGE/environment"
+            )
             print(f"    Name: {name}")
             print(f"    Value: {val}")
             for lambda_name in get_deployed_lambdas():
@@ -318,7 +315,7 @@ def lambda_update(argv: typing.List[str], args: argparse.Namespace):
     """
     if args.force is False:
         # Make sure the user really wants to do this
-        comfirm  = f"""
+        confirm = f"""
         *** WARNING!!! ***
 
         Calling the lambda update function will overwrite the current
@@ -347,13 +344,17 @@ def lambda_update(argv: typing.List[str], args: argparse.Namespace):
 
     if args.dry_run:
         if not args.quiet:
-            print(f"Dry-run redeploying local environment to lambda function environment "
-                   "stored in SSM store under $DSS_DEPLOYMENT_STAGE/environment")
+            print(
+                f"Dry-run redeploying local environment to lambda function environment "
+                "stored in SSM store under $DSS_DEPLOYMENT_STAGE/environment"
+            )
     else:
         set_ssm_environment(local_env)
         if not args.quiet:
-            print(f"Finished redeploying local environment to lambda function environment "
-                    "stored in SSM store under $DSS_DEPLOY_STAGE/environment")
+            print(
+                f"Finished redeploying local environment to lambda function environment "
+                "stored in SSM store under $DSS_DEPLOY_STAGE/environment"
+            )
 
     # Optionally, update environment of each deployed lambda
     if args.update_deployed:

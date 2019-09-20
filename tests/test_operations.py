@@ -626,7 +626,7 @@ class TestOperations(unittest.TestCase):
                 #   (local operations only)
                 # lambda_update() then calls set_ssm_environment(),
                 #   which we mocked above into set_ssm
-                set_ssm = mock.MagicMock(return_value=None)
+                set_ssm = mock.MagicMock(return_value=None) # noqa
 
                 ssm.put_parameter = mock.MagicMock(return_value=None)
 
@@ -664,8 +664,8 @@ class TestOperations(unittest.TestCase):
                 # The function sm.get_secret_value() must return things in the right order
                 # Re-mock it before each call
                 email_side_effect = [
-                        self._wrap_secret(google_service_acct_secret),
-                        self._wrap_secret(admin_email_secret),
+                    self._wrap_secret(google_service_acct_secret),
+                    self._wrap_secret(admin_email_secret),
                 ]
 
                 # Dry run, then real (mocked) thing
@@ -705,7 +705,6 @@ class TestOperations(unittest.TestCase):
                 lambda_params.lambda_unset([], argparse.Namespace(name=testvar_name, dry_run=True, quiet=True))
                 lambda_params.lambda_unset([], argparse.Namespace(name=testvar_name, dry_run=False, quiet=True))
 
-
     def _wrap_ssm_env(self, e):
         """
         Package up the SSM environment the way AWS returns it.
@@ -730,7 +729,6 @@ class TestOperations(unittest.TestCase):
         Package up the secret the way AWS returns it.
         """
         return {"SecretString": val}
-
 
 
 @testmode.integration
