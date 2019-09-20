@@ -124,20 +124,9 @@ def assert_authorized(principal: str,
                       actions: typing.List[str],
                       resources: typing.List[str]):
     resp = session.post(f"{Config.get_authz_url()}/v1/policies/evaluate",
-                        headers=DSS_AUTHZ.get_authorization_header(),
+                        headers=Config.get_ServiceAccountManager().get_authorization_header(),
                         json={"action": actions,
                               "resource": resources,
                               "principal": principal})
     if not resp.json()['result']:
         raise DSSForbiddenException()
-
-
-def create_DCPServiceAccountManager() -> security.DCPServiceAccountManager:
-    if not os.environ.get('GOOGLE_APPLICATION_CREDENTIALS'):
-        os.environ['GOOGLE_APPLICATION_CREDENTIALS'] = get_gcp_credentials_file().name
-    with open(os.environ['GOOGLE_APPLICATION_CREDENTIALS'], "r") as fh:
-        service_credentials = json.loads(fh.read())
-    return security.DCPServiceAccountManager(service_credentials, Config.get_audience())
-
-
-DSS_AUTHZ = create_DCPServiceAccountManager()

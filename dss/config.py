@@ -1,5 +1,6 @@
 from collections import deque
 import functools
+import json
 import os
 import typing
 from contextlib import contextmanager
@@ -20,6 +21,7 @@ from requests.packages.urllib3.util.retry import Retry
 from dss.storage.hcablobstore import HCABlobStore
 from dss.storage.hcablobstore.s3 import S3HCABlobStore
 from dss.storage.hcablobstore.gs import GSHCABlobStore
+from dss.util import get_gcp_credentials_file
 
 
 SUBSCRIPTION_LIMIT = 100
@@ -115,6 +117,7 @@ class Config:
     _TRUSTED_GOOGLE_PROJECTS: typing.Optional[typing.List[str]] = None
     _OIDC_AUDIENCE: typing.Optional[typing.List[str]] = None
     _AUTH_URL: typing.Optional[str] = None
+    _SAM: security.DCPServiceAccountManager = None
 
     test_index_suffix = IndexSuffix()
 
@@ -417,6 +420,14 @@ class Config:
         if Config._AUTH_URL is None:
             Config._AUTH_URL = Config._get_required_envvar("AUTH_URL")
         return Config._AUTH_URL
+
+    @staticmethod
+    def get_ServiceAccountManager() -> security.DCPServiceAccountManager:
+        if Config._SAM is None:
+            with open(get_gcp_credentials_file().name, "r") as fh:
+                service_credentials = json.loads(fh.read())
+            Config._SAM = security.DCPServiceAccountManager(service_credentials, Config.get_audience())
+        return Config._SAM
 
     @staticmethod
     def _get_required_envvar(envvar: str) -> str:
