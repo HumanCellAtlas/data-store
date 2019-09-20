@@ -316,15 +316,34 @@ def lambda_update(argv: typing.List[str], args: argparse.Namespace):
     Update the stored (and optionally, deployed) lambda environment
     using variable values from the current environment.
     """
+    if args.force is False:
+        # Make sure the user really wants to do this
+        comfirm  = f"""
+        *** WARNING!!! ***
 
-    # Also..........
-    # ASK FOR CONFIRMATION!!!
+        Calling the lambda update function will overwrite the current
+        values of the lambda function environment stored in the
+        SSM store at $DSS_DEPLOY_STAGE/environment with local
+        values from environment variables on your machine.
+
+        Note:
+        - To do a dry run of this operation first, use the --dry-run flag.
+        - To ignore this warning, use the --force flag.
+        - To see the current environment stored in the SSM store, run:
+            ./dss-ops.py lambda environment
+
+        Are you really sure you want to update the SSM store environment?
+        (Type 'y' or 'yes' to confirm):
+        """
+        response = input(confirm)
+        if response.lower() not in ["y", "yes"]:
+            raise RuntimeError("You safely aborted the lambda update operation!")
 
     # Only elasticsearch endpoint and admin emails are updated dynamically,
     # everything else comes from the local environment.
     local_env = get_local_lambda_environment()
-    local_env["ABCDEFG_DSS_ES_ENDPOINT"] = get_elasticsearch_endpoint()
-    local_env["ABCDEFG_ADMIN_USER_EMAILS"] = get_admin_emails()
+    local_env["DSS_ES_ENDPOINT"] = get_elasticsearch_endpoint()
+    local_env["ADMIN_USER_EMAILS"] = get_admin_emails()
 
     if args.dry_run:
         if not args.quiet:
