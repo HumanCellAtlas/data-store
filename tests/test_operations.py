@@ -11,6 +11,7 @@ import unittest
 import string
 import random
 import copy
+import subprocess
 import datetime
 from collections import namedtuple
 from unittest import mock
@@ -308,15 +309,40 @@ class TestOperations(unittest.TestCase):
                 sm.get_secret_value = mock.MagicMock(return_value=None, side_effect=ClientError({}, None))
                 # Next we will use the create secret command
                 sm.create_secret = mock.MagicMock(return_value=None)
-                # Create initial secret value
+
+                # Create initial secret value:
+                # Dry run first
+                with SwapStdin(testvar_value):
+                    secrets.set_secret(
+                        [], argparse.Namespace(secret_name=testvar_name, dry_run=True, infile=None, force=False)
+                    )
+
+                # Provide secret via infile
+                tempfile = '.dss-test-operations-temp-input'
+                if os.path.exists(tempfile):
+                    subprocess.call(['rm', '-f', tempfile])
+                with open(tempfile, 'w') as f:
+                    f.write(testvar_value)
                 secrets.set_secret(
-                    [],
-                    argparse.Namespace(
-                        secret_name=testvar_name,
-                        secret_value=testvar_value,
-                        dry_run=False
-                    ),
+                    [], argparse.Namespace(secret_name=testvar_name, dry_run=False, infile=tempfile, force=True)
                 )
+
+                # Provide secret via stdin
+                with SwapStdin(testvar_value):
+                    secrets.set_secret(
+                        [], argparse.Namespace(secret_name=testvar_name, dry_run=False, infile=None, force=False)
+                    )
+
+                # Check error-catching with non-existent files
+                missingfile = '.this-file-is-not-here'
+                with self.assertRaises(RuntimeError):
+                    secrets.set_secret(
+                        [], argparse.Namespace(secret_name=testvar_name, dry_run=False, infile=missingfile, force=True)
+                    )
+
+                # Clean up
+                subprocess.call(['rm', '-f', tempfile])
+
 
         with self.subTest("List secrets"):
             with mock.patch("dss.operations.secrets.secretsmanager") as sm:
@@ -325,23 +351,19 @@ class TestOperations(unittest.TestCase):
                 class MockPaginator(object):
                     def paginate(self):
                         # Return a mock page from the mock paginator
-                        return [
-                            {
-                                "SecretList": [
-                                    {
-                                        "Name": testvar_name
-                                    },
-                                    {
-                                        "Name": unusedvar_name
-                                    }
-                                ]
-                            }
-                        ]
+                        return [{"SecretList": [{"Name": testvar_name}, {"Name": unusedvar_name}]}]
                 sm.get_paginator.return_value = MockPaginator()
-                # Test variable name should be in list of secret names
+
+                # Non-JSON output first
                 with CaptureStdout() as output:
                     secrets.list_secrets([], argparse.Namespace(json=False))
                 self.assertIn(testvar_name, output)
+
+                # JSON output
+                with CaptureStdout() as output:
+                    secrets.list_secrets([], argparse.Namespace(json=True))
+                all_secrets_output = json.loads("\n".join(output))
+                self.assertIn(testvar_name, all_secrets_output)
 
         with self.subTest("Get secret value"):
             with mock.patch("dss.operations.secrets.secretsmanager") as sm:
@@ -349,51 +371,32 @@ class TestOperations(unittest.TestCase):
                 sm.get_secret_value.return_value = {"SecretString": testvar_value}
                 # Now run get secret value in JSON mode and non-JSON mode
                 # and verify variable name/value is in both.
-                #
-                # Start with non-JSON get call:
-                # Single variable:
+
+                # New output file
+                tempfile = '.dss-test-operations-temp-output'
+                if os.path.exists(tempfile):
+                    subprocess.call(['rm', '-f', tempfile])
+                secrets.get_secret(
+                    [], argparse.Namespace(secret_name=testvar_name, outfile=tempfile, force=False)
+                )
+                with open(tempfile, 'r') as f:
+                    file_contents = f.read()
+                self.assertIn(testvar_value, file_contents)
+
+                # Output file already exists, use force
+                secrets.get_secret(
+                    [], argparse.Namespace(secret_name=testvar_name, outfile=tempfile, force=True)
+                )
+
+                # Stdout
                 with CaptureStdout() as output:
                     secrets.get_secret(
-                        [], argparse.Namespace(secret_names=[testvar_name], json=False)
+                        [], argparse.Namespace(secret_name=testvar_name, outfile=None, force=False)
                     )
-                output = "".join(output)
-                self.assertIn(testvar_name, output)
-                self.assertIn(testvar_value, output)
-                # Multiple variables:
-                with CaptureStdout() as output:
-                    secrets.get_secret(
-                        [],
-                        argparse.Namespace(
-                            secret_names=[testvar_name, unusedvar_name],
-                            json=False
-                        )
-                    )
-                output = "".join(output)
-                self.assertIn(testvar_name, output)
-                self.assertIn(testvar_value, output)
-                #
-                # Now JSON get call:
-                # Single variable:
-                with CaptureStdout() as output:
-                    secrets.get_secret(
-                        [],
-                        argparse.Namespace(secret_names=[testvar_name], json=True),
-                    )
-                output = "".join(output)
-                self.assertIn(testvar_name, output)
-                self.assertIn(testvar_value, output)
-                # Multiple variables:
-                with CaptureStdout() as output:
-                    secrets.get_secret(
-                        [],
-                        argparse.Namespace(
-                            secret_names=[testvar_name, unusedvar_name],
-                            json=True
-                        )
-                    )
-                output = "".join(output)
-                self.assertIn(testvar_name, output)
-                self.assertIn(testvar_value, output)
+                self.assertIn(testvar_value, "\n".join(output))
+
+                # Clean up
+                subprocess.call(['rm', '-f', tempfile])
 
         with self.subTest("Update existing secret"):
             with mock.patch("dss.operations.secrets.secretsmanager") as sm:
@@ -401,29 +404,51 @@ class TestOperations(unittest.TestCase):
                 sm.get_secret_value = mock.MagicMock(return_value={"SecretString": testvar_value})
                 # Next we will call the update secret command
                 sm.update_secret = mock.MagicMock(return_value=None)
-                # Update secret
+
+                # Update secret:
+                # Dry run first
+                with SwapStdin(testvar_value2):
+                    secrets.set_secret(
+                        [],
+                        argparse.Namespace(secret_name=testvar_name, dry_run=False, infile=None, force=True),
+                    )
+
+                # Use stdin
+                with SwapStdin(testvar_value2):
+                    secrets.set_secret(
+                        [],
+                        argparse.Namespace(secret_name=testvar_name, dry_run=False, infile=None, force=True),
+                    )
+
+                # Use input file
+                tempfile = '.dss-test-operations-temp-input'
+                if os.path.exists(tempfile):
+                    subprocess.call(['rm', '-f', tempfile])
+                with open(tempfile, 'w') as f:
+                    f.write(testvar_value2)
                 secrets.set_secret(
                     [],
-                    argparse.Namespace(
-                        secret_name=testvar_name,
-                        secret_value=testvar_value2,
-                        dry_run=False,
-                    ),
+                    argparse.Namespace(secret_name=testvar_name, dry_run=False, infile=tempfile, force=True),
                 )
+
+                # Clean up
+                subprocess.call(['rm', '-f', tempfile])
 
         with self.subTest("Delete secret"):
             with mock.patch("dss.operations.secrets.secretsmanager") as sm:
                 # Deleting the variable will try to get secret value and succeed
                 sm.get_secret_value = mock.MagicMock(return_value={"SecretString": testvar_value})
                 sm.delete_secret = mock.MagicMock(return_value=None)
+
                 # Delete secret
+                # Dry run first
                 secrets.del_secret(
-                    [],
-                    argparse.Namespace(
-                        secret_name=testvar_name,
-                        force=True,
-                        dry_run=False,
-                    ),
+                    [], argparse.Namespace(secret_name=testvar_name, force=True, dry_run=True)
+                )
+
+                # Real thing
+                secrets.del_secret(
+                    [], argparse.Namespace(secret_name=testvar_name, force=True, dry_run=False)
                 )
 
     def test_ssmparams_crud(self):
