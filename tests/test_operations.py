@@ -24,7 +24,7 @@ sys.path.insert(0, pkg_root)  # noqa
 from tests.infra import testmode
 from dss.operations import DSSOperationsCommandDispatch
 from dss.operations.util import map_bucket_results
-from dss.operations import checkout, storage, sync, secrets, ssm_params
+from dss.operations import checkout, storage, sync, secrets, ssm_params, lambda_params
 from dss.operations.ssm_params import fix_ssm_variable_prefix
 from dss.logging import configure_test_logging
 from dss.config import BucketConfig, Config, Replica, override_bucket_config
@@ -426,12 +426,6 @@ class TestOperations(unittest.TestCase):
 
     def test_ssmparams_crud(self):
         # CRUD (create read update delete) test for setting environment variables in SSM param store
-        def _wrap_ssm_env(e):
-            # Package up the SSM environment the way AWS returns it
-            # Value should be a string of JSON data
-            ssm_e = {"Parameter": {"Name": "environment", "Value": json.dumps(e)}}
-            return ssm_e
-
         testvar_name = fix_ssm_variable_prefix(random_alphanumeric_string())
         testvar_value = "Hello world!"
         testvar_value2 = "Goodbye world!"
@@ -440,8 +434,8 @@ class TestOperations(unittest.TestCase):
         old_env = {"dummy_key": "dummy_value"}
         new_env = dict(**old_env)
         new_env[testvar_name] = testvar_value
-        ssm_old_env = _wrap_ssm_env(old_env)
-        ssm_new_env = _wrap_ssm_env(new_env)
+        ssm_old_env = self._wrap_ssm_env(old_env)
+        ssm_new_env = self._wrap_ssm_env(new_env)
 
         with self.subTest("Create a new SSM parameter"):
             with mock.patch("dss.operations.ssm_params.ssm_client") as ssm, SwapStdin(testvar_value):
@@ -485,6 +479,55 @@ class TestOperations(unittest.TestCase):
                 ssm.put_parameter = mock.MagicMock(return_value=None)
                 ssm_params.ssm_unset([], argparse.Namespace(name=testvar_name, dry_run=True))
                 ssm_params.ssm_unset([], argparse.Namespace(name=testvar_name, dry_run=False))
+
+    def test_lambdaparams_crud(self):
+        # CRUD (create read update delete) test for setting lambda function environment variables
+        testvar_name = fix_ssm_variable_prefix(random_alphanumeric_string())
+        testvar_value = "Hello world!"
+        testvar_value2 = "Goodbye world!"
+
+        # Assemble an old and new environment to return
+        old_env = {"dummy_key": "dummy_value"}
+        new_env = dict(**old_env)
+        new_env[testvar_name] = testvar_value
+
+        ssm_old_env = self._wrap_ssm_env(old_env)
+        ssm_new_env = self._wrap_ssm_env(new_env)
+
+        lam_old_env = self._wrap_lambda_env(old_env)
+        lam_new_env = self._wrap_lambda_env(new_env)
+
+        with self.subTest("Create a new lambda parameter"):
+            with mock.patch("dss.operations.ssm_params.ssm_client") as ssm, SwapStdin(testvar_value):
+
+                # If this is not a dry run, lambda_set in params.py
+                # will update the SSM first, so we mock those first.
+                # Before we have set the new test variable for the
+                # first time, we will see the old environment.
+                ssm.get_parameter = mock.MagicMock(return_value=ssm_old_env)
+                ssm.put_parameter = mock.MagicMock(return_value=None)
+
+                # The lambda_set func in params.py will update lambdas,
+                # so we mock the calls that those will make too.
+                lam.get_function = mock.MagicMock(return_value=None)
+                lam.get_function_configuration = mock.MagicMock(return_value=lam_old_env)
+                lam.update_function_configuration = mock.MagicMock(return_value=None)
+
+                lambda_params.lambda_set([], argparse.Namespace(name=testvar_name, dry_run=True))
+                lambda_params.lambda_set([], argparse.Namespace(name=testvar_name, dry_run=False))
+
+
+    def _wrap_ssm_env(self, e):
+        # Package up the SSM environment the way AWS returns it
+        # Value should be a string of JSON data
+        ssm_e = {"Parameter": {"Name": "environment", "Value": json.dumps(e)}}
+        return ssm_e
+
+    def _wrap_lambda_env(self, e):
+        # Package up the lambda environment the way AWS returns it
+        # Value should be dictionary/JSON, not a string
+        lam_e = {"Environment": {"Variables": e}}
+        return lam_e
 
 
 @testmode.integration
