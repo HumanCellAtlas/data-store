@@ -498,7 +498,8 @@ class TestOperations(unittest.TestCase):
         lam_new_env = self._wrap_lambda_env(new_env)
 
         with self.subTest("Create a new lambda parameter"):
-            with mock.patch("dss.operations.ssm_params.ssm_client") as ssm, SwapStdin(testvar_value):
+            with mock.patch("dss.operations.lambda_params.ssm_client") as ssm, \
+                    mock.patch("dss.operations.lambda_params.lambda_client") as lam:
 
                 # If this is not a dry run, lambda_set in params.py
                 # will update the SSM first, so we mock those first.
@@ -513,8 +514,11 @@ class TestOperations(unittest.TestCase):
                 lam.get_function_configuration = mock.MagicMock(return_value=lam_old_env)
                 lam.update_function_configuration = mock.MagicMock(return_value=None)
 
-                lambda_params.lambda_set([], argparse.Namespace(name=testvar_name, dry_run=True))
-                lambda_params.lambda_set([], argparse.Namespace(name=testvar_name, dry_run=False))
+                with SwapStdin(testvar_value):
+                    lambda_params.lambda_set([], argparse.Namespace(name=testvar_name, dry_run=False))
+
+                with SwapStdin(testvar_value):
+                    lambda_params.lambda_set([], argparse.Namespace(name=testvar_name, dry_run=True))
 
 
     def _wrap_ssm_env(self, e):
