@@ -544,6 +544,48 @@ class TestOperations(unittest.TestCase):
                 all_lams = json.loads("\n".join(output))
                 self.assertIn(f"dss-{stage}", all_lams)
 
+        with self.subTest("Get environments of each lambda function"):
+            with mock.patch("dss.operations.lambda_params.ssm_client") as ssm, \
+                    mock.patch("dss.operations.lambda_params.lambda_client") as lam:
+                # lambda_env function calls get_deployed_lambdas() which just looks locally for lambda names
+                # then it calls get_deployed_lambda_environment() on every lambda,
+                #   which calls lambda_client.get_function(),
+                #   then calls lambda_client.get_function_configuration(),
+                # then it calls set_ssm_environment() which calls ssm.put_parameter()
+
+                # Non-JSON, no lambda name specified
+                # TODO
+                # Non-JSON, lambda name specified
+                # TODO
+                # JSON, no lambda name specified
+                # TODO
+                # JSON, lambda name specified
+                # TODO
+
+        with self.subTest("Update (set) existing lambda parameters"):
+            with mock.patch("dss.operations.lambda_params.ssm_client") as ssm, \
+                    mock.patch("dss.operations.lambda_params.lambda_client") as lam:
+                # Mock the same way we did for create new param above.
+                # First we mock the SSM param store
+                ssm.get_parameter = mock.MagicMock(return_value=ssm_new_env)
+                ssm.put_parameter = mock.MagicMock(return_value=None)
+                # Next we mock the lambda client
+                lam.get_function = mock.MagicMock(return_value=None)
+                lam.get_function_configuration = mock.MagicMock(return_value=lam_new_env)
+                lam.update_function_configuration = mock.MagicMock(return_value=None)
+
+                with SwapStdin(testvar_value2):
+                    lambda_params.lambda_set(
+                        [], argparse.Namespace(name=testvar_name, dry_run=True)
+                    )
+                with SwapStdin(testvar_value2):
+                    lambda_params.lambda_set(
+                        [], argparse.Namespace(name=testvar_name, dry_run=False)
+                    )
+
+
+
+
 
     def _wrap_ssm_env(self, e):
         # Package up the SSM environment the way AWS returns it
