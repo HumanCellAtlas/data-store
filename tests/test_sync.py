@@ -2,12 +2,13 @@
 # coding: utf-8
 
 import base64
-import binascii
 import datetime
 import io
 import logging
 import os
+import random
 import sys
+import string
 import json
 import hashlib
 import unittest
@@ -261,22 +262,19 @@ class TestSyncUtils(unittest.TestCase, DSSSyncMixin):
                 with self.subTest(part_size=part_size, object_size=event['source_obj_metadata']['size']):
                     self.assertEqual(sync.get_sync_work_state(event)['total_parts'], expected_total_parts)
 
-    def get_random_blob(self):
+    def generate_random_blob_key(self):
         random_uuid = str(uuid.uuid4())
-
-        crc = binascii.crc32(str.encode(random_uuid))
-        random_blob =
-        return random_blob
+        sha1 = hashlib.sha1(str.encode(random_uuid)).hexdigest()
+        sha256 = hashlib.sha256(str.encode(random_uuid)).hexdigest()
+        md5 = hashlib.md5(str.encode(random_uuid)).hexdigest()
+        crc = ''.join(random.choice(string.digits) for x in range(8))
+        return f"{sha256}.{sha1}.{md5}.{crc}"
 
     def test_blob_key_format(self):
-        good_blob_key = 'blobs/015b0751073d17e358989649bc49f7e2bcf544073a98bf24d762fbe5c6468cb3.' \
-                        'd3c4a8f1aadcf6036c9c7ca5e80189fce3f12629.70910bba1cc60b415f34254f7e0d9673.93d22640'
-        bad_blob_key = 'blobs/5b0751073d17e358989649bc49f7e2bcf544073a98bf24d762fbe5c6468cb3.' \
-                       'd3c4a8f1aadcf6036c9c7ca5e80189fce3f12629.70910bba1cc60b415f34254f7e0d9673.93d2264'
-        missing_prefix = '015b0751073d17e358989649bc49f7e2bcf544073a98bf24d762fbe5c6468cb3.' \
-                         'd3c4a8f1aadcf6036c9c7ca5e80189fce3f12629.70910bba1cc60b415f34254f7e0d9673.93d22640'
-        gcp_parts = 'blobs/015b0751073d17e358989649bc49f7e2bcf544073a98bf24d762fbe5c6468cb3.' \
-                    'd3c4a8f1aadcf6036c9c7ca5e80189fce3f12629.70910bba1cc60b415f34254f7e0d9673.93d22640.partA'
+        good_blob_key = f"blobs/{self.generate_random_blob_key()}"
+        bad_blob_key = f"blobs/{self.generate_random_blob_key()[:-1]}"
+        missing_prefix = f"{self.generate_random_blob_key()}"
+        gcp_parts = f"blobs/{self.generate_random_blob_key()}.partA"
 
         expected_results = {"good_blob_key": (good_blob_key, 7),  # good blobs have 7 parts, (e_tag takes 3)
                             "bad_blob_key": (bad_blob_key, None),
