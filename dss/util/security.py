@@ -2,7 +2,6 @@
 import base64
 import json
 import logging
-import os
 
 import functools
 import jwt
@@ -10,12 +9,10 @@ import requests
 import typing
 from cryptography.hazmat.backends import default_backend
 from cryptography.hazmat.primitives.asymmetric import rsa
-from dcplib import security
 from flask import request
 
 from dss import Config
 from dss.error import DSSForbiddenException, DSSException
-from dss.util import get_gcp_credentials_file
 
 logger = logging.getLogger(__name__)
 
