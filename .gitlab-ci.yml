@@ -187,3 +187,4 @@ force_release_prod:
     RELEASE_COMMAND: scripts/release.sh staging prod --force
   only:
     - staging
+
