@@ -92,7 +92,7 @@ def launch_from_notification_queue(event, context):
         subscription = get_subscription(replica, owner, uuid)
         if subscription is not None:
             if "DELETE" == event_type:
-                metadata_document = get_deleted_bundle_metadata_document(key)
+                metadata_document = get_deleted_bundle_metadata_document(replica, key)
             else:
                 if not exists(replica, key):
                     logger.warning(f"Key %s not found in replica %s, unable to notify %s", key, replica.name, uuid)
@@ -106,7 +106,7 @@ def launch_from_notification_queue(event, context):
 
 def _notify_subscribers(replica: Replica, key: str, is_delete_event: bool):
     if is_delete_event:
-        metadata_document = get_deleted_bundle_metadata_document(key)
+        metadata_document = get_deleted_bundle_metadata_document(replica, key)
     else:
         if exists(replica, key):
             metadata_document = record_event_for_bundle(replica, key)

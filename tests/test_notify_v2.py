@@ -14,6 +14,7 @@ from unittest import mock
 import datetime
 import typing
 from copy import deepcopy
+import importlib
 
 pkg_root = os.path.abspath(os.path.join(os.path.dirname(__file__), '..'))  # noqa
 sys.path.insert(0, pkg_root)  # noqa
@@ -29,6 +30,7 @@ from dss.events.handlers.notify_v2 import notify_or_queue
 from dss.util.version import datetime_to_version_format
 from dss.subscriptions_v2 import (delete_subscription, get_subscriptions_for_replica, get_subscriptions_for_owner,
                                   SubscriptionData)
+daemon_app = importlib.import_module('daemons.dss-notify-v2.app')
 
 
 recieved_notification = None
@@ -546,6 +548,19 @@ class TestNotifyV2(unittest.TestCase, DSSAssertMixin, DSSUploadMixin):
             self.assertEquals(api_name, recieved_notification['dss_api'])
             self.assertIn('bundle_url', recieved_notification)
             self.assertIn('event_timestamp', recieved_notification)
+
+    def test_launch_from_notification_queue(self):
+        with mock.patch("daemons.dss-notify-v2.app.get_subscription"), mock.patch("daemons.dss-notify-v2.app.notify"):
+            for replica in Replica:
+                for event_type in ["CREATE", "TOMBSTONE", "DELETE"]:
+                    with self.subTest("Test call", replica=replica.name, event_type=event_type):
+                        message = dict(replica=replica.name,
+                                       owner="owner",
+                                       uuid="uuid",
+                                       key="bundles/uuid.version",
+                                       event_type=event_type)
+                        event = {'Records': [dict(body=json.dumps(message))]}
+                        daemon_app.launch_from_notification_queue(event, None)
 
     def _put_subscription(self, doc, replica=Replica.aws, codes=requests.codes.created):
         url = str(UrlBuilder()
