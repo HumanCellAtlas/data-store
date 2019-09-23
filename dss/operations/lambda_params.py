@@ -61,12 +61,12 @@ def get_admin_emails() -> str:
         else:
             return response
 
-    gcp_var = "GOOGLE_APPLICATION_CREDENTIALS_SECRETS_NAME"
+    gcp_var = os.environ["GOOGLE_APPLICATION_CREDENTIALS_SECRETS_NAME"]
     gcp_secret_id = fix_secret_variable_prefix(gcp_var)
     response = fetch_secret_safely(gcp_secret_id)['SecretString']
     gcp_service_account_email = json.loads(response)['client_email']
 
-    admin_var = "ADMIN_USER_EMAILS_SECRETS_NAME"
+    admin_var = os.environ["ADMIN_USER_EMAILS_SECRETS_NAME"]
     admin_secret_id = fix_secret_variable_prefix(admin_var)
     response = fetch_secret_safely(admin_secret_id)['SecretString']
     email_list = [email.strip() for email in response.split(',') if email.strip()]
