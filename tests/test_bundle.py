@@ -479,6 +479,7 @@ class TestBundleApi(unittest.TestCase, TestAuthMixin, DSSAssertMixin, DSSUploadM
                 builder.add_query("version", bundle_version)
             url = str(builder)
             self._test_auth_errors('put', url,
+                                   skip_group_test=True,
                                    json_request_body=dict(
                                        files=[
                                            dict(
@@ -682,7 +683,7 @@ class TestBundleApi(unittest.TestCase, TestAuthMixin, DSSAssertMixin, DSSUploadM
             url = str(url_builder)
             json_request_body = dict(reason="reason")
             json_request_body['version'] = bundle_version
-            self._test_auth_errors('delete', url, json_request_body=json_request_body)
+            self._test_auth_errors('delete', url, json_request_body=json_request_body, skip_group_test=True)
 
     def _test_bundle_delete(self, replica: Replica, fixtures_bucket: str, authorized: bool):
         schema = replica.storage_schema
