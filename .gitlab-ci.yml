@@ -88,6 +88,8 @@ setup_fusillade:
     - fi
     - cat ./roles.json | sed "s/\${stage}/${DSS_DEPLOYMENT_STAGE}/g" > temp-roles.json
     - dcp-fusillade/scripts/setup_fusillade.py --file temp-roles.json --force testing
+  except:
+    - schedules
 
 deploy:
   stage: deploy
