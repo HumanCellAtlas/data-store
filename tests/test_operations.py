@@ -383,6 +383,10 @@ class TestOperations(unittest.TestCase):
                 self.assertIn(testvar_value, file_contents)
 
                 # Output file already exists, use force
+                with self.assertRaises(RuntimeError):
+                    secrets.get_secret(
+                        [], argparse.Namespace(secret_name=testvar_name, outfile=tempfile, force=False)
+                    )
                 secrets.get_secret(
                     [], argparse.Namespace(secret_name=testvar_name, outfile=tempfile, force=True)
                 )
@@ -409,7 +413,7 @@ class TestOperations(unittest.TestCase):
                 with SwapStdin(testvar_value2):
                     secrets.set_secret(
                         [],
-                        argparse.Namespace(secret_name=testvar_name, dry_run=False, infile=None, force=True),
+                        argparse.Namespace(secret_name=testvar_name, dry_run=True, infile=None, force=True),
                     )
 
                 # Use stdin

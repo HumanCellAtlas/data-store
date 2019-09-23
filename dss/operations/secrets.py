@@ -107,7 +107,7 @@ def list_secrets(argv: typing.List[str], args: argparse.Namespace):
 @events.action(
     "get",
     arguments={
-        "secret_name": dict(help="the name of the secret to retrieve (separate multiple values with spaces)"),
+        "secret_name": dict(help="the name of the secret to retrieve"),
         "--outfile": dict(required=False, type=str, help="specify an output file where the secret will be saved"),
         "--force": dict(
             default=False,
