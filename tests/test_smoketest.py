@@ -73,22 +73,22 @@ class Smoketest(BaseSmokeTest):
                 self.subscription_delete(replica, subscription_id)
 
         with self.subTest(f"{starting_replica.name}: Create the bundle"):
-            upload_response = self.upload_bundle(replica, test_bucket, self.bundle_dir)
+            upload_response = self.upload_bundle(starting_replica, test_bucket, self.bundle_dir)
             bundle_uuid = upload_response['bundle_uuid']
             bundle_version = upload_response['version']
             file_count = len(upload_response['files'])
 
         with self.subTest(f"{starting_replica.name}: Download that bundle"):
-            self._test_get_bundle(replica, bundle_uuid)
+            self._test_get_bundle(starting_replica, bundle_uuid)
 
         with self.subTest(f"{starting_replica.name}: Initiate a bundle checkout"):
-            checkout_response = self.checkout_initiate(replica, bundle_uuid)
+            checkout_response = self.checkout_initiate(starting_replica, bundle_uuid)
             checkout_job_id = checkout_response['checkout_job_id']
             self.assertTrue(checkout_job_id)
-            self._test_replica_sync(replica, bundle_uuid)
+            self._test_replica_sync(starting_replica, bundle_uuid)
 
         with self.subTest(f"{starting_replica.name}: Wait for the checkout to complete and assert its success"):
-            self._test_checkout(replica, bundle_uuid, bundle_version,
+            self._test_checkout(starting_replica, bundle_uuid, bundle_version,
                                 checkout_job_id, checkout_bucket, file_count)
 
         for replica in self.replicas:
