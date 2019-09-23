@@ -304,7 +304,7 @@ class TestOperations(unittest.TestCase):
 
         with self.subTest("Create a new secret"):
             # Monkeypatch the secrets manager
-            with mock.patch("dss.operations.secrets.secretsmanager") as sm:
+            with mock.patch("dss.operations.secrets.sm_client") as sm:
                 # Creating a new variable will first call get, which will not find it
                 sm.get_secret_value = mock.MagicMock(return_value=None, side_effect=ClientError({}, None))
                 # Next we will use the create secret command
@@ -344,7 +344,7 @@ class TestOperations(unittest.TestCase):
                 subprocess.call(['rm', '-f', tempfile])
 
         with self.subTest("List secrets"):
-            with mock.patch("dss.operations.secrets.secretsmanager") as sm:
+            with mock.patch("dss.operations.secrets.sm_client") as sm:
                 # Listing secrets requires creating a paginator first,
                 # so mock what the paginator returns
                 class MockPaginator(object):
@@ -365,7 +365,7 @@ class TestOperations(unittest.TestCase):
                 self.assertIn(testvar_name, all_secrets_output)
 
         with self.subTest("Get secret value"):
-            with mock.patch("dss.operations.secrets.secretsmanager") as sm:
+            with mock.patch("dss.operations.secrets.sm_client") as sm:
                 # Requesting the variable will try to get secret value and succeed
                 sm.get_secret_value.return_value = {"SecretString": testvar_value}
                 # Now run get secret value in JSON mode and non-JSON mode
@@ -398,7 +398,7 @@ class TestOperations(unittest.TestCase):
                 subprocess.call(['rm', '-f', tempfile])
 
         with self.subTest("Update existing secret"):
-            with mock.patch("dss.operations.secrets.secretsmanager") as sm:
+            with mock.patch("dss.operations.secrets.sm_client") as sm:
                 # Updating the variable will try to get secret value and succeed
                 sm.get_secret_value = mock.MagicMock(return_value={"SecretString": testvar_value})
                 # Next we will call the update secret command
@@ -434,7 +434,7 @@ class TestOperations(unittest.TestCase):
                 subprocess.call(['rm', '-f', tempfile])
 
         with self.subTest("Delete secret"):
-            with mock.patch("dss.operations.secrets.secretsmanager") as sm:
+            with mock.patch("dss.operations.secrets.sm_client") as sm:
                 # Deleting the variable will try to get secret value and succeed
                 sm.get_secret_value = mock.MagicMock(return_value={"SecretString": testvar_value})
                 sm.delete_secret = mock.MagicMock(return_value=None)
