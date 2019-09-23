@@ -2,6 +2,7 @@
 # coding: utf-8
 
 import base64
+import binascii
 import datetime
 import io
 import logging
@@ -260,6 +261,13 @@ class TestSyncUtils(unittest.TestCase, DSSSyncMixin):
                 with self.subTest(part_size=part_size, object_size=event['source_obj_metadata']['size']):
                     self.assertEqual(sync.get_sync_work_state(event)['total_parts'], expected_total_parts)
 
+    def get_random_blob(self):
+        random_uuid = str(uuid.uuid4())
+
+        crc = binascii.crc32(str.encode(random_uuid))
+        random_blob =
+        return random_blob
+
     def test_blob_key_format(self):
         good_blob_key = 'blobs/015b0751073d17e358989649bc49f7e2bcf544073a98bf24d762fbe5c6468cb3.' \
                         'd3c4a8f1aadcf6036c9c7ca5e80189fce3f12629.70910bba1cc60b415f34254f7e0d9673.93d22640'
@@ -281,6 +289,7 @@ class TestSyncUtils(unittest.TestCase, DSSSyncMixin):
             self.assertEquals(num_groups, v[1])
 
     def test_skip_part_sync(self):
+
         json_message = json.dumps({"bucket": "org-humancellatlas-dss-dev",
                                    "componentCount": 30,
                                    "contentType": "application/octet-stream",
@@ -316,6 +325,9 @@ class TestSyncUtils(unittest.TestCase, DSSSyncMixin):
                  }
         results = daemon_app.launch_from_forwarded_event(event, None)
         self.assertFalse(results)
+        results = daemon_app.launch_from_s3_event(event, None)
+        self.assertFalse(results)
+
 # TODO: (akislyuk) integration test of SQS fault injection, SFN fault injection
 
 

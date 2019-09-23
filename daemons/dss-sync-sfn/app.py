@@ -43,13 +43,15 @@ def launch_from_s3_event(event, context):
         for event_record in event["Records"]:
             bucket = resources.s3.Bucket(event_record["s3"]["bucket"]["name"])
             obj = bucket.Object(unquote(event_record["s3"]["object"]["key"]))
+            if obj.key.startswith(BLOB_PREFIX) and not BLOB_KEY_REGEX.match(obj.key):
+                logger.info("Key %s does not match blob key format, skipping sync", obj.key)
+                continue
             if obj.key.startswith("cache"):
                 logger.info("Ignoring cache object")
                 continue
             if bucket.name != source_replica.bucket:
                 logger.error("Received S3 event for bucket %s with no configured replica", bucket.name)
                 continue
-
             for dest_replica in Config.get_replication_destinations(source_replica):
                 if exists(dest_replica, obj.key):
                     # Logging error here causes daemons/invoke_lambda.sh to report failure, for some reason
