@@ -19,7 +19,7 @@
               "dss:GetBundle",
               "dss:PostCheckout"
             ],
-            "Resource": "arn:hca:dss:${stage}:*:bundles/*"
+            "Resource": "arn:hca:dss:${stage}:*:bundle/*"
           },
           {
             "Sid": "read_collections",
@@ -90,7 +90,7 @@
               "dss:PatchBundle",
               "dss:PutBundle"
             ],
-            "Resource": "arn:hca:dss:${stage}:*:bundles/*"
+            "Resource": "arn:hca:dss:${stage}:*:bundle/*"
           },
           {
             "Sid": "modify_files",
@@ -123,7 +123,7 @@
             "Action": [
               "dss:GetCollections"
             ],
-            "Resource": "arn:hca:dss:{stage}:*:${fus:user}/collections"
+            "Resource": "arn:hca:dss:${stage}:*:${fus:user}/collections"
           },
           {
             "Sid": "modify_collection",
@@ -134,7 +134,7 @@
               "dss:GetCollection",
               "dss:PatchCollection"
             ],
-            "Resource": "arn:hca:dss:{stage}:*:${fus:user}/collections/{uuid}"
+            "Resource": "arn:hca:dss:${stage}:*:${fus:user}/collections/{uuid}"
           }
         ]
       }
@@ -152,7 +152,7 @@
               "dss:PatchBundle",
               "dss:PutBundle"
             ],
-            "Resource": "arn:hca:dss:${stage}:*:bundles/*"
+            "Resource": "arn:hca:dss:${stage}:*:bundle/*"
           },
           {
             "Sid": "modify_files",
@@ -162,7 +162,7 @@
               "dss:HeadFiles",
               "dss:PutFiles"
             ],
-            "Resource": "arn:hca:dss:${stage}:*:files/*"
+            "Resource": "arn:hca:dss:${stage}:*:file/*"
           },
           {
             "Sid": "read_checkout",
@@ -178,7 +178,7 @@
             "Action": [
               "dss:GetCollections"
             ],
-            "Resource": "arn:hca:dss:{stage}:*:*/collections"
+            "Resource": "arn:hca:dss:${stage}:*:*/collections"
           },
           {
             "Sid": "modify_collection",
@@ -189,7 +189,7 @@
               "dss:GetCollection",
               "dss:PatchCollection"
             ],
-            "Resource": "arn:hca:dss:{stage}:*:*/collections/{uuid}"
+            "Resource": "arn:hca:dss:${stage}:*:*/collections/{uuid}"
           },
           {
             "Sid": "modify_subscription",

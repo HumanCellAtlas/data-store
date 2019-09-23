@@ -11,6 +11,7 @@ variables:
 stages:
   - trufflehog
   - test
+  - fusillade
   - deploy
   - integration_test
   - scale_and_performance
@@ -73,6 +74,23 @@ test_subscriptions:
   script:
     - make -j1 tests/test_subscriptions.py
 
+setup_fusillade:
+  stage: fusillade
+  script:
+    - git clone -b master https://github.com/HumanCellAtlas/dcp-fusillade.git
+    - cd dcp-fusillade
+    - source environment
+    - cd ..
+# need to re-source data-store environment in case dcp-fusillade overwrites vars (e.g. AWS_DEFAULT_REGION)
+    - source environment
+    - if [[ -f "environment.$CI_COMMIT_REF_NAME" ]]; then
+    -   source environment.$CI_COMMIT_REF_NAME
+    - fi
+    - cat ./roles.json | sed "s/\${stage}/${DSS_DEPLOYMENT_STAGE}/g" > temp-roles.json
+    - dcp-fusillade/scripts/setup_fusillade.py --file temp-roles.json --force testing
+  except:
+    - schedules
+
 deploy:
   stage: deploy
   script:
@@ -81,7 +99,7 @@ deploy:
     - scripts/set_version.sh
   environment:
     name: $CI_COMMIT_REF_NAME
-    # TODO: incluude url when GitLab fixes it's wonky interpolation rules
+    # TODO: include url when GitLab fixes it's wonky interpolation rules
     # Variable created in this file (outside of `variables`) are not interpolated,
     # causing GitLabs environment mechanism to fail silently.
     # issue: https://gitlab.com/gitlab-com/support-forum/issues/2814
@@ -171,3 +189,4 @@ force_release_prod:
     RELEASE_COMMAND: scripts/release.sh staging prod --force
   only:
     - staging
+
