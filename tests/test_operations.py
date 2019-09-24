@@ -427,9 +427,9 @@ class TestOperations(unittest.TestCase):
 
                 # Use input file
                 with tempfile.NamedTemporaryFile(prefix='.dss-test-operations-temp-input') as f:
-                    f.write(tetvar_value2)
+                    f.write(testvar_value2)
                     secrets.set_secret(
-                        [], 
+                        [],
                         argparse.Namespace(secret_name=testvar_name, dry_run=False, infile=f.name, force=True),
                     )
 
