@@ -331,17 +331,23 @@ class TestOperations(unittest.TestCase):
                     )
 
                 # Provide secret via infile
-                with tempfile.NamedTemporaryFile(prefix='.dss-test-operations-temp-input') as f:
+                with tempfile.NamedTemporaryFile(prefix='dss-test-operations-new-secret-temp-input', mode='w') as f:
                     f.write(testvar_value)
                     secrets.set_secret(
-                        [], argparse.Namespace(secret_name=testvar_name, dry_run=False, infile=f.name, force=True)
+                        [],
+                        argparse.Namespace(
+                            secret_name=testvar_name, dry_run=False, infile=f.name, force=True, quiet=True
+                        ),
                     )
 
                 # Check error-catching with non-existent infile
-                missingfile = 'this-file-is-not-here'
+                mf = 'this-file-is-not-here'
                 with self.assertRaises(RuntimeError):
                     secrets.set_secret(
-                        [], argparse.Namespace(secret_name=testvar_name, dry_run=False, infile=missingfile, force=True)
+                        [],
+                        argparse.Namespace(
+                            secret_name=testvar_name, dry_run=False, infile=mf, force=True, quiet=True
+                        ),
                     )
 
         with self.subTest("List secrets"):
@@ -373,15 +379,7 @@ class TestOperations(unittest.TestCase):
                 # and verify variable name/value is in both.
 
                 # New output file
-                with tempfile.NamedTemporaryFile(prefix='.dss-test-operations-temp-output') as f:
-                    # Use a new, non-existent output file
-                    secrets.get_secret(
-                        [], argparse.Namespace(secret_name=testvar_name, outfile=f.name, force=False)
-                    )
-                    with open(f.name, 'r') as fr:
-                        file_contents = fr.read()
-                    self.assertIn(testvar_value, file_contents)
-
+                with tempfile.NamedTemporaryFile(prefix='dss-test-operations-get-secret-temp-output', mode='w') as f:
                     # Try to overwrite outfile without --force
                     with self.assertRaises(RuntimeError):
                         secrets.get_secret(
@@ -415,22 +413,28 @@ class TestOperations(unittest.TestCase):
                 with SwapStdin(testvar_value2):
                     secrets.set_secret(
                         [],
-                        argparse.Namespace(secret_name=testvar_name, dry_run=True, infile=None, force=True),
+                        argparse.Namespace(
+                            secret_name=testvar_name, dry_run=True, infile=None, force=True, quiet=True
+                        ),
                     )
 
                 # Use stdin
                 with SwapStdin(testvar_value2):
                     secrets.set_secret(
                         [],
-                        argparse.Namespace(secret_name=testvar_name, dry_run=False, infile=None, force=True),
+                        argparse.Namespace(
+                            secret_name=testvar_name, dry_run=False, infile=None, force=True, quiet=True
+                        ),
                     )
 
                 # Use input file
-                with tempfile.NamedTemporaryFile(prefix='.dss-test-operations-temp-input') as f:
+                with tempfile.NamedTemporaryFile(prefix='dss-test-operations-update-secret-temp-input', mode='w') as f:
                     f.write(testvar_value2)
                     secrets.set_secret(
                         [],
-                        argparse.Namespace(secret_name=testvar_name, dry_run=False, infile=f.name, force=True),
+                        argparse.Namespace(
+                            secret_name=testvar_name, dry_run=False, infile=f.name, force=True, quiet=True
+                        ),
                     )
 
         with self.subTest("Delete secret"):
@@ -442,12 +446,12 @@ class TestOperations(unittest.TestCase):
                 # Delete secret
                 # Dry run first
                 secrets.del_secret(
-                    [], argparse.Namespace(secret_name=testvar_name, force=True, dry_run=True)
+                    [], argparse.Namespace(secret_name=testvar_name, force=True, dry_run=True, quiet=True)
                 )
 
                 # Real thing
                 secrets.del_secret(
-                    [], argparse.Namespace(secret_name=testvar_name, force=True, dry_run=False)
+                    [], argparse.Namespace(secret_name=testvar_name, force=True, dry_run=False, quiet=True)
                 )
 
     def test_ssmparams_crud(self):
