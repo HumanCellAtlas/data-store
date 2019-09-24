@@ -13,6 +13,7 @@ import random
 import copy
 import subprocess
 import datetime
+import tempfile
 from collections import namedtuple
 from unittest import mock
 from boto3.s3.transfer import TransferConfig
@@ -314,34 +315,34 @@ class TestOperations(unittest.TestCase):
                 # Dry run first
                 with SwapStdin(testvar_value):
                     secrets.set_secret(
-                        [], argparse.Namespace(secret_name=testvar_name, dry_run=True, infile=None, force=False)
+                        [],
+                        argparse.Namespace(
+                            secret_name=testvar_name, dry_run=True, infile=None, quiet=True, force=True
+                        ),
                     )
-
-                # Provide secret via infile
-                tempfile = '.dss-test-operations-temp-input'
-                if os.path.exists(tempfile):
-                    subprocess.call(['rm', '-f', tempfile])
-                with open(tempfile, 'w') as f:
-                    f.write(testvar_value)
-                secrets.set_secret(
-                    [], argparse.Namespace(secret_name=testvar_name, dry_run=False, infile=tempfile, force=True)
-                )
 
                 # Provide secret via stdin
                 with SwapStdin(testvar_value):
                     secrets.set_secret(
-                        [], argparse.Namespace(secret_name=testvar_name, dry_run=False, infile=None, force=False)
+                        [],
+                        argparse.Namespace(
+                            secret_name=testvar_name, dry_run=False, infile=None, quiet=True, force=True
+                        ),
                     )
 
-                # Check error-catching with non-existent files
-                missingfile = '.this-file-is-not-here'
+                # Provide secret via infile
+                with tempfile.NamedTemporaryFile(prefix='.dss-test-operations-temp-input') as f:
+                    f.write(testvar_value)
+                    secrets.set_secret(
+                        [], argparse.Namespace(secret_name=testvar_name, dry_run=False, infile=f.name, force=True)
+                    )
+
+                # Check error-catching with non-existent infile
+                missingfile = 'this-file-is-not-here'
                 with self.assertRaises(RuntimeError):
                     secrets.set_secret(
                         [], argparse.Namespace(secret_name=testvar_name, dry_run=False, infile=missingfile, force=True)
                     )
-
-                # Clean up
-                subprocess.call(['rm', '-f', tempfile])
 
         with self.subTest("List secrets"):
             with mock.patch("dss.operations.secrets.sm_client") as sm:
@@ -372,34 +373,35 @@ class TestOperations(unittest.TestCase):
                 # and verify variable name/value is in both.
 
                 # New output file
-                tempfile = '.dss-test-operations-temp-output'
-                if os.path.exists(tempfile):
-                    subprocess.call(['rm', '-f', tempfile])
-                secrets.get_secret(
-                    [], argparse.Namespace(secret_name=testvar_name, outfile=tempfile, force=False)
-                )
-                with open(tempfile, 'r') as f:
-                    file_contents = f.read()
-                self.assertIn(testvar_value, file_contents)
-
-                # Output file already exists, use force
-                with self.assertRaises(RuntimeError):
+                with tempfile.NamedTemporaryFile(prefix='.dss-test-operations-temp-output') as f:
+                    # Use a new, non-existent output file
                     secrets.get_secret(
-                        [], argparse.Namespace(secret_name=testvar_name, outfile=tempfile, force=False)
+                        [], argparse.Namespace(secret_name=testvar_name, outfile=f.name, force=False)
                     )
-                secrets.get_secret(
-                    [], argparse.Namespace(secret_name=testvar_name, outfile=tempfile, force=True)
-                )
+                    with open(f.name, 'r') as fr:
+                        file_contents = fr.read()
+                    self.assertIn(testvar_value, file_contents)
 
-                # Stdout
+                    # Try to overwrite outfile without --force
+                    with self.assertRaises(RuntimeError):
+                        secrets.get_secret(
+                            [], argparse.Namespace(secret_name=testvar_name, outfile=f.name, force=False)
+                        )
+
+                    # Overwrite outfile with --force
+                    secrets.get_secret(
+                        [], argparse.Namespace(secret_name=testvar_name, outfile=f.name, force=True)
+                    )
+                    with open(f.name, 'r') as fr:
+                        file_contents = fr.read()
+                    self.assertIn(testvar_value, file_contents)
+
+                # Output secret to stdout
                 with CaptureStdout() as output:
                     secrets.get_secret(
                         [], argparse.Namespace(secret_name=testvar_name, outfile=None, force=False)
                     )
                 self.assertIn(testvar_value, "\n".join(output))
-
-                # Clean up
-                subprocess.call(['rm', '-f', tempfile])
 
         with self.subTest("Update existing secret"):
             with mock.patch("dss.operations.secrets.sm_client") as sm:
@@ -424,18 +426,12 @@ class TestOperations(unittest.TestCase):
                     )
 
                 # Use input file
-                tempfile = '.dss-test-operations-temp-input'
-                if os.path.exists(tempfile):
-                    subprocess.call(['rm', '-f', tempfile])
-                with open(tempfile, 'w') as f:
-                    f.write(testvar_value2)
-                secrets.set_secret(
-                    [],
-                    argparse.Namespace(secret_name=testvar_name, dry_run=False, infile=tempfile, force=True),
-                )
-
-                # Clean up
-                subprocess.call(['rm', '-f', tempfile])
+                with tempfile.NamedTemporaryFile(prefix='.dss-test-operations-temp-input') as f:
+                    f.write(tetvar_value2)
+                    secrets.set_secret(
+                        [], 
+                        argparse.Namespace(secret_name=testvar_name, dry_run=False, infile=f.name, force=True),
+                    )
 
         with self.subTest("Delete secret"):
             with mock.patch("dss.operations.secrets.sm_client") as sm:
