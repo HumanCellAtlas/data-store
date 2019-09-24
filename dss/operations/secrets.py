@@ -60,17 +60,18 @@ events = dispatch.target("secrets", arguments={}, help=__doc__)
 json_flag_options = dict(
     default=False, action="store_true", help="format the output as JSON if this flag is present"
 )
-dryrun_flag_options = dict(default=False, action="store_true", help="do a dry run of the actual operation")
+dryrun_flag_options = dict(
+    default=False, action="store_true", help="do a dry run of the actual operation"
+)
+quiet_flag_options = dict(
+    default=False, action="store_true", help="suppress output"
+)
 
 
 @events.action(
     "list",
     arguments={
-        "--json": dict(
-            default=False,
-            action="store_true",
-            help="format the output as a JSON list if this flag is present",
-        )
+        "--json": json_flag_options,
     },
 )
 def list_secrets(argv: typing.List[str], args: argparse.Namespace):
@@ -137,7 +138,7 @@ def get_secret(argv: typing.List[str], args: argparse.Namespace):
         secret_val = response["SecretString"]
     except ClientError:
         # A secret variable with that name does not exist
-        print(f"Error: Resource not found: {secret_name}")
+        raise RuntimeError(f"Error: Resource not found: {secret_name}")
     else:
         # Get operation was successful, secret variable exists
         if args.outfile:
@@ -151,11 +152,12 @@ def get_secret(argv: typing.List[str], args: argparse.Namespace):
     "set",
     arguments={
         "secret_name": dict(help="name of secret to set (limit 1 at a time)"),
-        "--dry-run": dict(default=False, action="store_true", help="do a dry run of the actual operation"),
         "--infile": dict(help="specify an input file whose contents is the secret value"),
         "--force": dict(
             default=False, action="store_true", help="force the action to happen (no interactive prompt)"
         ),
+        "--dry-run": dryrun_flag_options,
+        "--quiet": quiet_flag_options
     },
 )
 def set_secret(argv: typing.List[str], args: argparse.Namespace):
@@ -185,12 +187,14 @@ def set_secret(argv: typing.List[str], args: argparse.Namespace):
     except ClientError:
         # A secret variable with that name does not exist, so create it
         if args.dry_run:
-            print(f"Secret variable {secret_name} not found in secrets manager, dry-run creating it")
+            if not args.quiet:
+                print(f"Secret variable {secret_name} not found in secrets manager, dry-run creating it")
         else:
-            if args.infile:
-                print(f"Secret variable {secret_name} not found in secrets manager, creating from input file")
-            else:
-                print(f"Secret variable {secret_name} not found in secrets manager, creating from stdin")
+            if not args.quiet:
+                if args.infile:
+                    print(f"Secret variable {secret_name} not found in secrets manager, creating from input file")
+                else:
+                    print(f"Secret variable {secret_name} not found in secrets manager, creating from stdin")
             sm_client.create_secret(Name=secret_name, SecretString=secret_val)
 
     else:
@@ -214,15 +218,18 @@ def set_secret(argv: typing.List[str], args: argparse.Namespace):
             """
             response = input(confirm)
             if response.lower() not in ["y", "yes"]:
-                raise RuntimeError("You safely aborted the set secret operation!")
+                print("You safely aborted the set secret operation!")
+                sys.exit(0)
 
         if args.dry_run:
-            print(f"Secret variable {secret_name} found in secrets manager, dry-run updating it")
+            if not args.quiet:
+                print(f"Secret variable {secret_name} found in secrets manager, dry-run updating it")
         else:
-            if args.infile:
-                print(f"Secret variable {secret_name} not found in secrets manager, updating from input file")
-            else:
-                print(f"Secret variable {secret_name} not found in secrets manager, updating from stdin")
+            if not args.quiet:
+                if args.infile:
+                    print(f"Secret variable {secret_name} found in secrets manager, updating from input file")
+                else:
+                    print(f"Secret variable {secret_name} found in secrets manager, updating from stdin")
             sm_client.update_secret(SecretId=secret_name, SecretString=secret_val)
 
 
@@ -236,6 +243,7 @@ def set_secret(argv: typing.List[str], args: argparse.Namespace):
             help="force the delete operation to happen non-interactively (no user prompt)",
         ),
         "--dry-run": dict(default=False, action="store_true", help="do a dry run of the actual operation"),
+        "--quiet": quiet_flag_options
     },
 )
 def del_secret(argv: typing.List[str], args: argparse.Namespace):
@@ -251,11 +259,13 @@ def del_secret(argv: typing.List[str], args: argparse.Namespace):
 
     except ClientError:
         # No secret var found
-        logger.warning(f"Secret variable {secret_name} not found in secrets manager!")
+        if not args.quiet:
+            print(f"Secret variable {secret_name} not found in secrets manager!")
 
     except sm_client.exceptions.InvalidRequestException:
         # Already deleted secret var
-        logger.warning(f"Secret variable {secret_name} already marked for deletion in secrets manager!")
+        if not args.quiet:
+            print(f"Secret variable {secret_name} already marked for deletion in secrets manager!")
 
     else:
         # Get operation was successful, secret variable exists
@@ -274,8 +284,10 @@ def del_secret(argv: typing.List[str], args: argparse.Namespace):
 
         if args.dry_run:
             # Delete it for fakes
-            print(f"Secret variable {secret_name} found in secrets manager, dry-run deleting it")
+            if not args.quiet:
+                print(f"Secret variable {secret_name} found in secrets manager, dry-run deleting it")
         else:
             # Delete it for real
-            print(f"Secret variable {secret_name} found in secrets manager, deleting it")
+            if not args.quiet:
+                print(f"Secret variable {secret_name} found in secrets manager, deleting it")
             sm_client.delete_secret(SecretId=secret_name)
