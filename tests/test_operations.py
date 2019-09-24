@@ -10,6 +10,7 @@ import argparse
 import unittest
 import string
 import random
+import copy
 import datetime
 from collections import namedtuple
 from unittest import mock
@@ -24,8 +25,9 @@ sys.path.insert(0, pkg_root)  # noqa
 from tests.infra import testmode
 from dss.operations import DSSOperationsCommandDispatch
 from dss.operations.util import map_bucket_results
-from dss.operations import checkout, storage, sync, secrets, ssm_params
+from dss.operations import checkout, storage, sync, secrets, ssm_params, lambda_params
 from dss.operations.ssm_params import fix_ssm_variable_prefix
+from dss.operations.lambda_params import get_deployed_lambdas
 from dss.logging import configure_test_logging
 from dss.config import BucketConfig, Config, Replica, override_bucket_config
 from dss.storage.hcablobstore import FileMetadata, compose_blob_key
@@ -426,22 +428,16 @@ class TestOperations(unittest.TestCase):
 
     def test_ssmparams_crud(self):
         # CRUD (create read update delete) test for setting environment variables in SSM param store
-        def _wrap_ssm_env(e):
-            # Package up the SSM environment the way AWS returns it
-            # Value should be a string of JSON data
-            ssm_e = {"Parameter": {"Name": "environment", "Value": json.dumps(e)}}
-            return ssm_e
-
-        testvar_name = fix_ssm_variable_prefix(random_alphanumeric_string())
+        testvar_name = random_alphanumeric_string()
         testvar_value = "Hello world!"
         testvar_value2 = "Goodbye world!"
 
         # Assemble an old and new environment to return
-        old_env = {"dummy_key": "dummy_value"}
+        old_env = {"DUMMY_VARIABLE": "dummy_value"}
         new_env = dict(**old_env)
         new_env[testvar_name] = testvar_value
-        ssm_old_env = _wrap_ssm_env(old_env)
-        ssm_new_env = _wrap_ssm_env(new_env)
+        ssm_old_env = self._wrap_ssm_env(old_env)
+        ssm_new_env = self._wrap_ssm_env(new_env)
 
         with self.subTest("Create a new SSM parameter"):
             with mock.patch("dss.operations.ssm_params.ssm_client") as ssm, SwapStdin(testvar_value):
@@ -485,6 +481,254 @@ class TestOperations(unittest.TestCase):
                 ssm.put_parameter = mock.MagicMock(return_value=None)
                 ssm_params.ssm_unset([], argparse.Namespace(name=testvar_name, dry_run=True))
                 ssm_params.ssm_unset([], argparse.Namespace(name=testvar_name, dry_run=False))
+
+    def test_lambdaparams_crud(self):
+        # CRUD (create read update delete) test for setting lambda function environment variables
+        testvar_name = random_alphanumeric_string()
+        testvar_value = "Hello world!"
+        testvar_value2 = "Goodbye world!"
+
+        # Assemble an old and new environment to return
+        old_env = {"DUMMY_VARIABLE": "dummy_value"}
+        new_env = dict(**old_env)
+        new_env[testvar_name] = testvar_value
+
+        ssm_old_env = self._wrap_ssm_env(old_env)
+        ssm_new_env = self._wrap_ssm_env(new_env)
+
+        lam_old_env = self._wrap_lambda_env(old_env)
+        lam_new_env = self._wrap_lambda_env(new_env)
+
+        with self.subTest("Create a new lambda parameter"):
+            with mock.patch("dss.operations.ssm_params.ssm_client") as ssm, \
+                    mock.patch("dss.operations.lambda_params.lambda_client") as lam:
+
+                # If this is not a dry run, lambda_set in params.py
+                # will update the SSM first, so we mock those first.
+                # Before we have set the new test variable for the
+                # first time, we will see the old environment.
+                ssm.put_parameter = mock.MagicMock(return_value=None)
+                ssm.get_parameter = mock.MagicMock(return_value=ssm_old_env)
+
+                # The lambda_set func in params.py will update lambdas,
+                # so we mock the calls that those will make too.
+                lam.get_function = mock.MagicMock(return_value=None)
+                lam.get_function_configuration = mock.MagicMock(return_value=lam_old_env)
+                lam.update_function_configuration = mock.MagicMock(return_value=None)
+
+                with SwapStdin(testvar_value):
+                    lambda_params.lambda_set(
+                        [], argparse.Namespace(name=testvar_name, dry_run=True, quiet=True)
+                    )
+
+                with SwapStdin(testvar_value):
+                    lambda_params.lambda_set(
+                        [], argparse.Namespace(name=testvar_name, dry_run=False, quiet=True)
+                    )
+        with self.subTest("List lambda parameters"):
+            with mock.patch("dss.operations.lambda_params.lambda_client") as lam:
+                # The lambda_list func in params.py calls get_deployed_lambas, which calls lam.get_function()
+                # using daemon folder names (this function is called only to ensure no exception is thrown)
+                lam.get_function = mock.MagicMock(return_value=None)
+                # Next we call get_deployed_lambda_environment(), which calls lam.get_function_configuration
+                # (this returns the mocked new env vars json)
+                lam.get_function_configuration = mock.MagicMock(return_value=lam_new_env)
+                # Used to specify a lambda by name
+                stage = os.environ["DSS_DEPLOYMENT_STAGE"]
+
+                # Non-JSON fmt
+                with CaptureStdout() as output:
+                    lambda_params.lambda_list([], argparse.Namespace(json=False))
+                # Check that all deployed lambdas are present
+                for lambda_name in lambda_params.get_deployed_lambdas(quiet=True):
+                    self.assertIn(f"{lambda_name}", output)
+
+                # JSON fmt
+                with CaptureStdout() as output:
+                    lambda_params.lambda_list([], argparse.Namespace(json=True))
+                # Check that all deployed lambdas are present
+                all_lams_output = json.loads("\n".join(output))
+                for lambda_name in lambda_params.get_deployed_lambdas(quiet=True):
+                    self.assertIn(lambda_name, all_lams_output)
+
+        with self.subTest("Get environments of each lambda function"):
+            with mock.patch("dss.operations.ssm_params.ssm_client") as ssm, \
+                    mock.patch("dss.operations.lambda_params.lambda_client") as lam:
+
+                # lambda_environment() function in dss/operations/lambda_params.py calls get_deployed_lambdas()
+                #   (which only does local operations)
+                # then it calls get_deployed_lambda_environment() on every lambda,
+                #   which calls lambda_client.get_function() (only called to ensure no exception is thrown)
+                lam.get_function = mock.MagicMock(return_value=None)
+                #   then calls lambda_client.get_function_configuration()
+                lam.get_function_configuration = mock.MagicMock(return_value=lam_new_env)
+
+                # TODO: reduce copypasta
+
+                # Non-JSON, no lambda name specified
+                with CaptureStdout() as output:
+                    lambda_params.lambda_environment([], argparse.Namespace(lambda_name=None, json=False))
+                # Check that all deployed lambdas are present
+                output = "\n".join(output)
+                for lambda_name in lambda_params.get_deployed_lambdas(quiet=True):
+                    self.assertIn(lambda_name, output)
+
+                # Non-JSON, lambda name specified
+                with CaptureStdout() as output:
+                    lambda_params.lambda_environment([], argparse.Namespace(lambda_name=f"dss-{stage}", json=False))
+                output = "\n".join(output)
+                self.assertIn(f"dss-{stage}", output)
+
+                # JSON, no lambda name specified
+                with CaptureStdout() as output:
+                    lambda_params.lambda_environment([], argparse.Namespace(lambda_name=None, json=True))
+                # Check that all deployed lambdas are present
+                all_lams_output = json.loads("\n".join(output))
+                for lambda_name in lambda_params.get_deployed_lambdas(quiet=True):
+                    self.assertIn(lambda_name, all_lams_output)
+
+                # JSON, lambda name specified
+                with CaptureStdout() as output:
+                    lambda_params.lambda_environment([], argparse.Namespace(lambda_name=f"dss-{stage}", json=True))
+                all_lams_output = json.loads("\n".join(output))
+                self.assertIn(f"dss-{stage}", all_lams_output)
+
+        with self.subTest("Update (set) existing lambda parameters"):
+            with mock.patch("dss.operations.ssm_params.ssm_client") as ssm, \
+                    mock.patch("dss.operations.lambda_params.lambda_client") as lam:
+                # Mock the same way we did for create new param above.
+                # First we mock the SSM param store
+                ssm.get_parameter = mock.MagicMock(return_value=ssm_new_env)
+                ssm.put_parameter = mock.MagicMock(return_value=None)
+                # Next we mock the lambda client
+                lam.get_function = mock.MagicMock(return_value=None)
+                lam.get_function_configuration = mock.MagicMock(return_value=lam_new_env)
+                lam.update_function_configuration = mock.MagicMock(return_value=None)
+
+                # Dry run then real (mocked) thing
+                with SwapStdin(testvar_value2):
+                    lambda_params.lambda_set(
+                        [], argparse.Namespace(name=testvar_name, dry_run=True, quiet=True)
+                    )
+                with SwapStdin(testvar_value2):
+                    lambda_params.lambda_set(
+                        [], argparse.Namespace(name=testvar_name, dry_run=False, quiet=True)
+                    )
+
+        with self.subTest("Update lambda environment stored in SSM store under $DSS_DEPLOYMENT_STAGE/environment"):
+            with mock.patch("dss.operations.ssm_params.ssm_client") as ssm, \
+                    mock.patch("dss.operations.lambda_params.lambda_client") as lam, \
+                    mock.patch("dss.operations.lambda_params.es_client") as es, \
+                    mock.patch("dss.operations.lambda_params.sm_client") as sm, \
+                    mock.patch("dss.operations.lambda_params.set_ssm_environment") as set_ssm:
+                # If we call lambda_update in dss/operations/lambda_params.py,
+                #   it calls get_local_lambda_environment()
+                #   (local operations only)
+                # lambda_update() then calls set_ssm_environment(),
+                #   which we mocked above into set_ssm
+                set_ssm = mock.MagicMock(return_value=None) # noqa
+
+                ssm.put_parameter = mock.MagicMock(return_value=None)
+
+                # get_elasticsearch_endpoint() calls es.describe_elasticsearch_domain()
+                es_endpoint_secret = {
+                    "DomainStatus": {
+                        "Endpoint": "this-invalid-es-endpoint-value-comes-from-dss-test-operations"
+                    }
+                }
+                es.describe_elasticsearch_domain = mock.MagicMock(
+                    return_value=es_endpoint_secret
+                )
+
+                # get_admin_emails() calls sm.get_secret_value() several times:
+                # - google service acct secret (json string)
+                # - admin email secret
+                # use side_effect when returning multiple values
+                google_service_acct_secret = json.dumps(
+                    {"client_email": "this-invalid-email-comes-from-dss-test-operations"}
+                )
+                admin_email_secret = "this-invalid-email-list-comes-from-dss-test-operations"
+
+                # Finally, we call set_ssm_environment
+                # which calls ssm.put_parameter()
+                # (mocked above).
+
+                # If we also update deployed lambdas:
+                # get_deployed_lambdas() -> lam_client.get_function()
+                # get_deployed_lambda_environment() -> lam_client.get_function_configuration()
+                # set_deployed_lambda_environment() -> lam_client.update_function_configuration()
+                lam.get_function = mock.MagicMock(return_value=None)
+                lam.get_function_configuration = mock.MagicMock(return_value=lam_new_env)
+                lam.update_function_configuration = mock.MagicMock(return_value=None)
+
+                # The function sm.get_secret_value() must return things in the right order
+                # Re-mock it before each call
+                email_side_effect = [
+                    self._wrap_secret(google_service_acct_secret),
+                    self._wrap_secret(admin_email_secret),
+                ]
+
+                # Dry run, then real (mocked) thing
+                sm.get_secret_value = mock.MagicMock(side_effect=email_side_effect)
+                lambda_params.lambda_update(
+                    [], argparse.Namespace(update_deployed=False, dry_run=True, force=True, quiet=True)
+                )
+                sm.get_secret_value = mock.MagicMock(side_effect=email_side_effect)
+                lambda_params.lambda_update(
+                    [], argparse.Namespace(update_deployed=False, dry_run=False, force=True, quiet=True)
+                )
+                sm.get_secret_value = mock.MagicMock(side_effect=email_side_effect)
+                lambda_params.lambda_update(
+                    [], argparse.Namespace(update_deployed=True, dry_run=False, force=True, quiet=True)
+                )
+
+        with self.subTest("Unset lambda parameters"):
+            with mock.patch("dss.operations.ssm_params.ssm_client") as ssm, \
+                    mock.patch("dss.operations.lambda_params.lambda_client") as lam:
+                # If this is not a dry run, lambda_set in params.py
+                # will update the SSM first, so we mock those first.
+                # Before we have set the new test variable for the
+                # first time, we will see the old environment.
+                ssm.put_parameter = mock.MagicMock(return_value=None)
+                # use deepcopy here to prevent delete operation from being permanent
+                ssm.get_parameter = mock.MagicMock(return_value=copy.deepcopy(ssm_new_env))
+
+                # The lambda_set func in params.py will update lambdas,
+                # so we mock the calls that those will make too.
+                lam.get_function = mock.MagicMock(return_value=None)
+                # use side effect here, and copy the environment for each lambda, so that deletes won't be permanent
+                lam.get_function_configuration = mock.MagicMock(
+                    side_effect=[copy.deepcopy(lam_new_env) for j in get_deployed_lambdas()]
+                )
+                lam.update_function_configuration = mock.MagicMock(return_value=None)
+
+                lambda_params.lambda_unset([], argparse.Namespace(name=testvar_name, dry_run=True, quiet=True))
+                lambda_params.lambda_unset([], argparse.Namespace(name=testvar_name, dry_run=False, quiet=True))
+
+    def _wrap_ssm_env(self, e):
+        """
+        Package up the SSM environment the way AWS returns it.
+        :param dict e: the dict containing the environment to package up and send to SSM store at
+            $DSS_DEPLOYMENT_STAGE/environment.
+        """
+        # Value should be serialized JSON
+        ssm_e = {"Parameter": {"Name": "environment", "Value": json.dumps(e)}}
+        return ssm_e
+
+    def _wrap_lambda_env(self, e):
+        """
+        Package up the lambda environment (a.k.a. function configuration) the way AWS returns it.
+        :param dict e: the dict containing the lambda function's environment variables
+        """
+        # Value should be a dict (NOT a string)
+        lam_e = {"Environment": {"Variables": e}}
+        return lam_e
+
+    def _wrap_secret(self, val):
+        """
+        Package up the secret the way AWS returns it.
+        """
+        return {"SecretString": val}
 
 
 @testmode.integration
