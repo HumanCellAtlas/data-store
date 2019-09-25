@@ -190,6 +190,7 @@ for t in range(600):
                          f'{response["error"]}\n'
                          f'See: https://github.com/googleapis/googleapis/blob/master/google/rpc/code.proto '
                          f'for status codes. ^\n')
+        break
     sys.stderr.write(".")
     sys.stderr.flush()
     time.sleep(5)
