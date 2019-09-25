@@ -16,6 +16,7 @@ from dss.operations import dispatch
 from dss.operations.ssm_params import get_ssm_variable_prefix, fix_ssm_variable_prefix
 from dss.operations.ssm_params import set_ssm_parameter, unset_ssm_parameter
 from dss.operations.ssm_params import set_ssm_environment
+from dss.operations.secrets import fix_secret_variable_prefix, fetch_secret_safely
 
 from dss.util.aws.clients import secretsmanager as sm_client  # type: ignore
 from dss.util.aws.clients import es as es_client  # type: ignore
@@ -33,33 +34,6 @@ def get_elasticsearch_endpoint() -> str:
 
 
 def get_admin_emails() -> str:
-
-    def get_secret_variable_prefix() -> str:
-        # TODO: this functionality should be moved to dss/operations/secrets.py
-        store_name = os.environ["DSS_SECRETS_STORE"]
-        stage_name = os.environ["DSS_DEPLOYMENT_STAGE"]
-        store_prefix = f"{store_name}/{stage_name}"
-        return store_prefix
-
-    def fix_secret_variable_prefix(secret_name: str) -> str:
-        # TODO: this functionality should be moved to dss/operations/secrets.py
-        prefix = get_secret_variable_prefix()
-        if not (secret_name.startswith(prefix) or secret_name.startswith("/" + prefix)):
-            secret_name = f"{prefix}/{secret_name}"
-        return secret_name
-
-    def fetch_secret_safely(secret_name: str) -> dict:
-        # TODO: this functionality should be moved to dss/operations/secrets.py
-        try:
-            response = sm_client.get_secret_value(SecretId=secret_name)
-        except ClientError as e:
-            if 'Error' in e.response:
-                errtype = e.response['Error']['Code']
-                if errtype == 'ResourceNotFoundException':
-                    raise RuntimeError(f"Error: secret {secret_name} was not found!")
-            raise RuntimeError(f"Error: could not fetch secret {secret_name} from secrets manager")
-        else:
-            return response
 
     gcp_var = os.environ["GOOGLE_APPLICATION_CREDENTIALS_SECRETS_NAME"]
     gcp_secret_id = fix_secret_variable_prefix(gcp_var)
@@ -179,8 +153,12 @@ lambda_params = dispatch.target("lambda", arguments={}, help=__doc__)
 json_flag_options = dict(
     default=False, action="store_true", help="format the output as JSON if this flag is present"
 )
-dryrun_flag_options = dict(default=False, action="store_true", help="do a dry run of the actual operation")
-quiet_flag_options = dict(default=False, action="store_true", help="suppress output")
+dryrun_flag_options = dict(
+    default=False, action="store_true", help="do a dry run of the actual operation"
+)
+quiet_flag_options = dict(
+    default=False, action="store_true", help="suppress output"
+)
 
 
 @lambda_params.action(
@@ -314,8 +292,8 @@ def lambda_update(argv: typing.List[str], args: argparse.Namespace):
     Update the stored (and optionally, deployed) lambda environment
     using variable values from the current environment.
     """
-    if args.force is False:
-        # Make sure the user really wants to do this
+    if not args.force and not args.dry_run:
+        # Prompt the user to make sure they really want to do this
         confirm = f"""
         *** WARNING!!! ***
 
