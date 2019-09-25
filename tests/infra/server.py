@@ -1,13 +1,92 @@
 import chalice.config
 import functools
 import os
+import sys
 import threading
 import types
 import requests
+import cgi
+import json
+from http.server import BaseHTTPRequestHandler, HTTPServer
 from chalice.cli import CLIFactory
 from chalice.local import LocalDevServer, ChaliceRequestHandler
 
 from dss.util import networking
+from dss import Config
+
+
+class ThreadedMockFusilladeServer(BaseHTTPRequestHandler):
+    """
+    Create a mock Fusillade auth server endpoint so that any operation that tries to check
+    permissions with Fusillade will be handled correctly; we keep it simple and accept/reject
+    based on whether the principal (user) is on the whitelist or the blacklist.
+    """
+    _address = "127.0.0.1"
+    _port = None
+    _server = None
+    _thread = None
+    _request = None
+    _whitelist = ['valid@ucsc.edu']
+    _blacklist = ['invalid@ucsc.edu']
+
+    @classmethod
+    def get_port(cls):
+        authz_url = Config.get_authz_url()
+        split_authz_url = authz_url.split(":")
+        if len(split_authz_url) == 3:
+            return int(split_authz_url[-1])
+        else:
+            raise RuntimeError(
+                f"Error: AuthZ URL {authz_url} is malformed for tests, need a port number.\n "
+                "Check test configuration values and dss/config.py get_authz_url()."
+            )
+
+    @classmethod
+    def get_endpoint(cls):
+        cls._port = cls.get_port()
+        endpoint = f"http://{cls._address}:{cls._port}"
+        return endpoint
+
+    @classmethod
+    def startServing(cls):
+        cls._port = cls.get_port()
+        cls._server = HTTPServer((cls._address, cls._port), cls)
+        cls._thread = threading.Thread(target=cls._server.serve_forever, daemon=True)
+        cls._thread.start()
+        cls._request = []
+
+    @classmethod
+    def stopServing(cls):
+        cls._server.shutdown()
+        cls._thread.join()
+
+    def _set_headers(self):
+        self.send_response(200)
+        self.send_header('Content-type', 'application/json')
+        self.end_headers()
+
+    def do_POST(self):
+        ctype, pdict = cgi.parse_header(self.headers.get('content-type'))
+        # Enforce rule: JSON only
+        if ctype != 'application/json':
+            self.send_response(400)
+            self.end_headers()
+            return
+        # Convert received JSON to dict
+        length = int(self.headers.get('content-length'))
+        message = json.loads(self.rfile.read(length))
+        # Only allow if principal is on whitelist
+        if message['principal'] in self._whitelist:
+            message['result'] = True
+        else:
+            message['result'] = False
+        # Send it back
+        self._set_headers()
+        self.wfile.write(bytes(json.dumps(message), "utf8"))
+
+    def log_request(self, *args, **kwargs):
+        # Quiet plz
+        pass
 
 
 class SilentHandler(ChaliceRequestHandler):
@@ -52,11 +131,12 @@ class ThreadedLocalServer(threading.Thread):
         self._server.server.serve_forever()
 
     def _make_call(self, method, path, **kwargs):
-        return method(
+        result = method(
             f"http://127.0.0.1:{self._port}{path}",
             allow_redirects=False,
             timeout=(1.0, 30.0),
             **kwargs)
+        return result
 
     @classmethod
     def _inject_api_requests_methods(cls):
