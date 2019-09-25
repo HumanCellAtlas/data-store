@@ -11,8 +11,8 @@ variables:
 stages:
   - trufflehog
   - test
-  - fusillade
   - deploy
+  - fusillade
   - integration_test
   - scale_and_performance
   - release
