@@ -119,9 +119,7 @@ except google.cloud.exceptions.Conflict:
     print(f"GRTC config {args.entry_point} found")
 
 var_ns = f"{config_ns}/{args.entry_point}/variables"
-updated_vars = []
 for k, v in config_vars.items():
-    updated_vars.append(k)
     print("Writing GRTC variable", k)
     b64v = base64.b64encode(v.encode()).decode()
     try:
@@ -195,6 +193,7 @@ gcf_config = {
 #                 'eventTrigger.service']
 updated_vars = ['eventTrigger.eventType',
                 'eventTrigger.resource']
+
 # A comma-separated list of fully qualified names of fields. Example: "user.displayName,photo".
 update_mask = {'updateMask': ','.join(updated_vars)}
 
@@ -214,12 +213,12 @@ for t in range(600):
     if response.get("response", {}).get("status") == "READY":
         break
     if response.get("error"):
-        sys.stderr.write(f'ERROR!  While deploying Google cloud function: {response["metadata"]["target"]}\n'
+        sys.stderr.write(f'\nERROR!  While deploying Google cloud function: {response["metadata"]["target"]}\n'
                          f'{response["error"]}\n'
                          f'See: https://github.com/googleapis/googleapis/blob/master/google/rpc/code.proto '
                          f'for status codes. ^\n'
                          f'Error code 10 seems to be a common return code when Google messes up internally: '
-                         f'https://github.com/GoogleCloudPlatform/cloud-functions-go/issues/30\n')
+                         f'https://github.com/GoogleCloudPlatform/cloud-functions-go/issues/30\n\n')
         raise RuntimeError
     sys.stderr.write(".")
     sys.stderr.flush()
