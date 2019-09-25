@@ -189,7 +189,9 @@ for t in range(600):
         sys.stderr.write(f'ERROR!  While deploying Google cloud function: {response["metadata"]["target"]}\n'
                          f'{response["error"]}\n'
                          f'See: https://github.com/googleapis/googleapis/blob/master/google/rpc/code.proto '
-                         f'for status codes. ^\n')
+                         f'for status codes. ^\n'
+                         f'Error code 10 seems to be a common return code when Google messes up internally: '
+                         f'https://github.com/GoogleCloudPlatform/cloud-functions-go/issues/30\n')
         break
     sys.stderr.write(".")
     sys.stderr.flush()
