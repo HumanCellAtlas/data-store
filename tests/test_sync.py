@@ -43,6 +43,7 @@ from tests import get_auth_header
 from tests.infra.server import ThreadedLocalServer
 from tests import eventually, get_version, get_collection_fqid
 from tests.infra import testmode
+
 daemon_app = importlib.import_module('daemons.dss-sync-sfn.app')
 
 def setUpModule():
@@ -287,7 +288,7 @@ class TestSyncUtils(unittest.TestCase, DSSSyncMixin):
             self.assertEquals(num_groups, v[1])
 
     def test_skip_part_sync(self):
-
+        random_part_blob = f"blobs/{self.generate_random_blob_key()}.partc"
         json_message = json.dumps({"bucket": "org-humancellatlas-dss-dev",
                                    "componentCount": 30,
                                    "contentType": "application/octet-stream",
@@ -296,17 +297,10 @@ class TestSyncUtils(unittest.TestCase, DSSSyncMixin):
                                    "generation": "1568697601122552",
                                    "kind": "storage#object",
                                    "metageneration": "1",
-                                   "name": "blobs/"
-                                           "ea0b562ab28e22089283de9e691a5985d5118"
-                                           "fb567bab9e0ed11c1efd5d10995"
-                                           ".21a11df0cf55b1e197cf27d4185221dd9d909797."
-                                           "cbc62efcbe1a02c5b2f2fc38dce59287-933.5d0be7cf.partc",
+                                   "name": random_part_blob,
                                    "resourceState": "exists",
-                                   "selfLink": "https://www.googleapis.com/storage/v1/b/org-humancellatlas-dss-staging/"
-                                               "o/blobs"
-                                               "%2Ffd6f90b244d7bfe32978a5a7d51999d0eed60c5033465375e06ebbd921ba05b7."
-                                               "d0b75abd714f4a9792cdac50a074977bdc07f471."
-                                               "d69e4ed0099e33c1a546f9602fe82973-778.581f32a2.partc",
+                                   "selfLink": f"https://www.googleapis.com/storage/v1/b/org-humancellatlas-dss-staging/"
+                                               f"o/{random_part_blob}",
                                    "size": "19658416372",
                                    "storageClass": "MULTI_REGIONAL",
                                    "timeCreated": "2019-09-17T05:20:01.122Z",
@@ -315,17 +309,39 @@ class TestSyncUtils(unittest.TestCase, DSSSyncMixin):
         event = {"Records": [{
                  "source_replica": "gcp",
                  "dest_replica": "aws",
-                 "source_key": "blobs/ea0b562ab28e22089283de9e691a5985d5118fb567bab9e0ed11c1efd5d10995."
-                 "21a11df0cf55b1e197cf27d4185221dd9d909797.cbc62efcbe1a02c5b2f2fc38dce59287-933.5d0be7cf"
-                 ".partc",
+                 "source_key": random_part_blob,
                  "body": json.dumps({"Message": json_message})
                  }]
                  }
         results = daemon_app.launch_from_forwarded_event(event, None)
         self.assertFalse(results)
+
+    @mock.patch("daemons.dss-sync-sfn.app.resources")
+    def test_s3_skip_sync(self, mock_resource):
+        random_part_blob = f"blobs/{self.generate_random_blob_key()}.partc"
+
+        class MockResource(object):
+            class s3(object):
+                class Bucket(object):
+                    def __init__(bucket_self, *args):
+                        pass
+
+                    class Object(object):
+                        key = str(random_part_blob)
+
+                        def __init__(object_self, *args):
+                            object_self.key = args
+
+        event = {"Records": [{
+            "s3": {
+                "bucket": {"name": self.s3_bucket_name},
+                "object": {"key": random_part_blob}
+            }
+        }]}
+
+        mock_resource = MockResource()
         results = daemon_app.launch_from_s3_event(event, None)
         self.assertFalse(results)
-
 # TODO: (akislyuk) integration test of SQS fault injection, SFN fault injection
 
 
