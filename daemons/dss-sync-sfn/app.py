@@ -115,9 +115,6 @@ def launch_from_operator_queue(event, context):
         if exists(dest_replica, key):
             logger.info("Key %s already exists in %s, skipping sync", key, dest_replica)
             continue
-        if key.startswith(BLOB_PREFIX) and not BLOB_KEY_REGEX.match(key):
-            logger.info("Key %s does not match blob key format, skipping sync", key)
-            continue
         try:
             size = Config.get_blobstore_handle(source_replica).get_size(bucket, key)
         except BlobNotFoundError:
