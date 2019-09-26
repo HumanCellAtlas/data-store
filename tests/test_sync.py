@@ -278,7 +278,7 @@ class TestSyncUtils(unittest.TestCase, DSSSyncMixin):
         gcp_parts = f"blobs/{self.generate_random_blob_key()}.partA"
         temp_etag_modification = f"blobs/{self.generate_random_blob_key()}"
         temp_etag_modification = temp_etag_modification.rsplit('.')
-        temp_etag_modification[2] = temp_etag_modification[2] + f'-{random.choice(string.digits)}'
+        temp_etag_modification[2] = temp_etag_modification[2] + f'-{random.choice([x for x in range(2,10000)])}'
         aws_parts = '.'.join(temp_etag_modification)
 
         expected_results = {"good_blob_key": (good_blob_key, 7),  # good blobs have 7 parts, (e_tag takes 3)
