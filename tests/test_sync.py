@@ -276,11 +276,16 @@ class TestSyncUtils(unittest.TestCase, DSSSyncMixin):
         bad_blob_key = f"blobs/{self.generate_random_blob_key()[:-1]}"
         missing_prefix = f"{self.generate_random_blob_key()}"
         gcp_parts = f"blobs/{self.generate_random_blob_key()}.partA"
+        temp_etag_modification = f"blobs/{self.generate_random_blob_key()}"
+        temp_etag_modification = temp_etag_modification.rsplit('.')
+        temp_etag_modification[2] = temp_etag_modification[2] + f'-{random.choice(string.digits)}'
+        aws_parts = '.'.join(temp_etag_modification)
 
         expected_results = {"good_blob_key": (good_blob_key, 7),  # good blobs have 7 parts, (e_tag takes 3)
                             "bad_blob_key": (bad_blob_key, None),
                             "missing_prefix": (missing_prefix, None),
-                            "gcp_parts": (gcp_parts, None)}
+                            "gcp_parts": (gcp_parts, None),
+                            "aws_parts": (aws_parts, 7)}
 
         for k, v in expected_results.items():
             match = BLOB_KEY_REGEX.match(v[0])
