@@ -21,6 +21,7 @@ from dss.logging import configure_lambda_logging
 from dss.events.handlers.sync import (compose_upload, initiate_multipart_upload, complete_multipart_upload, copy_part,
                                       exists, get_part_size, get_sync_work_state, parts_per_worker, dependencies_exist,
                                       do_oneshot_copy, sync_sfn_dep_wait_sleep_seconds, sync_sfn_num_threads)
+from dss.storage.identifiers import BLOB_KEY_REGEX, BLOB_PREFIX
 
 configure_lambda_logging()
 logger = logging.getLogger(__name__)
@@ -42,13 +43,15 @@ def launch_from_s3_event(event, context):
         for event_record in event["Records"]:
             bucket = resources.s3.Bucket(event_record["s3"]["bucket"]["name"])
             obj = bucket.Object(unquote(event_record["s3"]["object"]["key"]))
+            if obj.key.startswith(BLOB_PREFIX) and not BLOB_KEY_REGEX.match(obj.key):
+                logger.info("Key %s does not match blob key format, skipping sync", obj.key)
+                continue
             if obj.key.startswith("cache"):
                 logger.info("Ignoring cache object")
                 continue
             if bucket.name != source_replica.bucket:
                 logger.error("Received S3 event for bucket %s with no configured replica", bucket.name)
                 continue
-
             for dest_replica in Config.get_replication_destinations(source_replica):
                 if exists(dest_replica, obj.key):
                     # Logging error here causes daemons/invoke_lambda.sh to report failure, for some reason
@@ -76,6 +79,9 @@ def launch_from_forwarded_event(event, context):
             source_replica = Replica.gcp
             source_key = message["name"]
             bucket = source_replica.bucket
+            if source_key.startswith(BLOB_PREFIX) and not BLOB_KEY_REGEX.match(source_key):
+                logger.info("Key %s does not match blob key format, skipping sync", source_key)
+                continue
             for dest_replica in Config.get_replication_destinations(source_replica):
                 if exists(dest_replica, source_key):
                     logger.info("Key %s already exists in %s, skipping sync", source_key, dest_replica)

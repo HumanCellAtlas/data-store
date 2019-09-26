@@ -6,7 +6,9 @@ import datetime
 import io
 import logging
 import os
+import random
 import sys
+import string
 import json
 import hashlib
 import unittest
@@ -25,6 +27,7 @@ from google.cloud.exceptions import NotFound
 pkg_root = os.path.abspath(os.path.join(os.path.dirname(__file__), '..'))  # noqa
 sys.path.insert(0, pkg_root)  # noqa
 
+import importlib
 import dss
 from dss.api import bundles as bundles_api
 from dss.api import files as files_api
@@ -33,12 +36,15 @@ from dss.events.handlers import sync
 from dss.logging import configure_test_logging
 from dss.util import UrlBuilder
 from dss.util.streaming import get_pool_manager, S3SigningChunker
-from dss.storage.identifiers import FILE_PREFIX, BUNDLE_PREFIX, COLLECTION_PREFIX, FileFQID, BundleFQID, CollectionFQID
+from dss.storage.identifiers import FILE_PREFIX, BUNDLE_PREFIX, COLLECTION_PREFIX, FileFQID, BundleFQID,\
+    CollectionFQID, BLOB_KEY_REGEX
 from dss.storage.hcablobstore import BundleFileMetadata, BundleMetadata, FileMetadata, compose_blob_key
 from tests import get_auth_header
 from tests.infra.server import ThreadedLocalServer
 from tests import eventually, get_version, get_collection_fqid
 from tests.infra import testmode
+
+daemon_app = importlib.import_module('daemons.dss-sync-sfn.app')
 
 def setUpModule():
     configure_test_logging()
@@ -257,7 +263,93 @@ class TestSyncUtils(unittest.TestCase, DSSSyncMixin):
                 with self.subTest(part_size=part_size, object_size=event['source_obj_metadata']['size']):
                     self.assertEqual(sync.get_sync_work_state(event)['total_parts'], expected_total_parts)
 
+    def generate_random_blob_key(self):
+        random_uuid = str(uuid.uuid4())
+        sha1 = hashlib.sha1(str.encode(random_uuid)).hexdigest()
+        sha256 = hashlib.sha256(str.encode(random_uuid)).hexdigest()
+        md5 = hashlib.md5(str.encode(random_uuid)).hexdigest()
+        crc = ''.join(random.choice(string.digits) for x in range(8))
+        return f"{sha256}.{sha1}.{md5}.{crc}"
+
+    def test_blob_key_format(self):
+        good_blob_key = f"blobs/{self.generate_random_blob_key()}"
+        bad_blob_key = f"blobs/{self.generate_random_blob_key()[:-1]}"
+        missing_prefix = f"{self.generate_random_blob_key()}"
+        gcp_parts = f"blobs/{self.generate_random_blob_key()}.partA"
+        temp_etag_modification = f"blobs/{self.generate_random_blob_key()}"
+        temp_etag_modification = temp_etag_modification.rsplit('.')
+        temp_etag_modification[2] = temp_etag_modification[2] + f'-{random.choice([x for x in range(2,10000)])}'
+        aws_parts = '.'.join(temp_etag_modification)
+
+        expected_results = {"good_blob_key": (good_blob_key, 7),  # good blobs have 7 parts, (e_tag takes 3)
+                            "bad_blob_key": (bad_blob_key, None),
+                            "missing_prefix": (missing_prefix, None),
+                            "gcp_parts": (gcp_parts, None),
+                            "aws_parts": (aws_parts, 7)}
+
+        for k, v in expected_results.items():
+            match = BLOB_KEY_REGEX.match(v[0])
+            num_groups = len(match.groups()) if match else None
+            self.assertEquals(num_groups, v[1])
+
+    def test_skip_part_sync(self):
+        random_part_blob = f"blobs/{self.generate_random_blob_key()}.partc"
+        json_message = json.dumps({"bucket": "org-humancellatlas-dss-dev",
+                                   "componentCount": 30,
+                                   "contentType": "application/octet-stream",
+                                   "crc32c": "1n/pig==",
+                                   "etag": "CPjBmfqN1+QCEAE=",
+                                   "generation": "1568697601122552",
+                                   "kind": "storage#object",
+                                   "metageneration": "1",
+                                   "name": random_part_blob,
+                                   "resourceState": "exists",
+                                   "selfLink": f"https://www.googleapis.com/storage/v1/b/"
+                                   f"org-humancellatlas-dss-staging/o/{random_part_blob}",
+                                   "size": "19658416372",
+                                   "storageClass": "MULTI_REGIONAL",
+                                   "timeCreated": "2019-09-17T05:20:01.122Z",
+                                   "timeStorageClassUpdated": "2019-09-17T05:20:01.122Z",
+                                   "updated": "2019-09-17T05:20:01.122Z"})
+        event = {"Records": [{
+                 "source_replica": "gcp",
+                 "dest_replica": "aws",
+                 "source_key": random_part_blob,
+                 "body": json.dumps({"Message": json_message})
+                 }]
+                 }
+        results = daemon_app.launch_from_forwarded_event(event, None)
+        self.assertFalse(results)
+
+    @mock.patch("daemons.dss-sync-sfn.app.resources")
+    def test_s3_skip_sync(self, mock_resource):
+        random_part_blob = f"blobs/{self.generate_random_blob_key()}.partc"
+
+        class MagicBucket(object):
+            name = self.s3_bucket_name
+
+            def __init__(bucket_self, *args):
+                pass
+
+            class Object(object):
+                key = random_part_blob
+
+                def __init__(self, *args):
+                    pass
+
+        event = {"Records": [{
+            "s3": {
+                "bucket": {"name": self.s3_bucket_name},
+                "object": {"key": random_part_blob}
+            }
+        }]}
+
+        # Note that MagicBucket must provide anything the callee asks of Bucket
+        thisBucket = mock_resource.s3.Bucket = mock.MagicMock(return_value=MagicBucket())  # noqa
+        results = daemon_app.launch_from_s3_event(event, None)
+        self.assertFalse(results)
 # TODO: (akislyuk) integration test of SQS fault injection, SFN fault injection
+
 
 @testmode.integration
 class TestSyncDaemon(unittest.TestCase, DSSSyncMixin):
