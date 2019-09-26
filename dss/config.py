@@ -417,14 +417,14 @@ class Config:
 
     @staticmethod
     def get_authz_url():
-        if Config._CURRENT_CONFIG == BucketConfig.NORMAL:
-            if Config._AUTH_URL is None:
-                Config._AUTH_URL = Config._get_required_envvar("AUTH_URL")
-            return Config._AUTH_URL
-        elif (Config._CURRENT_CONFIG == BucketConfig.TEST or Config._CURRENT_CONFIG == BucketConfig.TEST_FIXTURE):
+        if Config._CURRENT_CONFIG in [BucketConfig.TEST, BucketConfig.TEST_FIXTURE]:
             host = "127.0.0.1"
             port = "54321"
             return f"http://{host}:{port}"
+        else:
+            if Config._AUTH_URL is None:
+                Config._AUTH_URL = Config._get_required_envvar("AUTH_URL")
+            return Config._AUTH_URL
 
     @staticmethod
     def get_ServiceAccountManager() -> security.DCPServiceAccountManager:
