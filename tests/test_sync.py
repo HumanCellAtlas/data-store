@@ -299,8 +299,8 @@ class TestSyncUtils(unittest.TestCase, DSSSyncMixin):
                                    "metageneration": "1",
                                    "name": random_part_blob,
                                    "resourceState": "exists",
-                                   "selfLink": f"https://www.googleapis.com/storage/v1/b/org-humancellatlas-dss-staging/"
-                                               f"o/{random_part_blob}",
+                                   "selfLink": f"https://www.googleapis.com/storage/v1/b/"
+                                   f"org-humancellatlas-dss-staging/o/{random_part_blob}",
                                    "size": "19658416372",
                                    "storageClass": "MULTI_REGIONAL",
                                    "timeCreated": "2019-09-17T05:20:01.122Z",
@@ -321,11 +321,14 @@ class TestSyncUtils(unittest.TestCase, DSSSyncMixin):
         random_part_blob = f"blobs/{self.generate_random_blob_key()}.partc"
 
         class MagicBucket(object):
-            name = "magic_bucket"
+            name = self.s3_bucket_name
+
             def __init__(bucket_self, *args):
                 pass
+
             class Object(object):
                 key = random_part_blob
+
                 def __init__(self, *args):
                     pass
 
@@ -337,7 +340,7 @@ class TestSyncUtils(unittest.TestCase, DSSSyncMixin):
         }]}
 
         # Note that MagicBucket must provide anything the callee asks of Bucket
-        thisBucket = mock_resource.s3.Bucket = mock.MagicMock(return_value=MagicBucket())
+        thisBucket = mock_resource.s3.Bucket = mock.MagicMock(return_value=MagicBucket())  # noqa
         results = daemon_app.launch_from_s3_event(event, None)
         self.assertFalse(results)
 # TODO: (akislyuk) integration test of SQS fault injection, SFN fault injection
