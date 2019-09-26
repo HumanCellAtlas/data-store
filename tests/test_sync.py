@@ -320,17 +320,14 @@ class TestSyncUtils(unittest.TestCase, DSSSyncMixin):
     def test_s3_skip_sync(self, mock_resource):
         random_part_blob = f"blobs/{self.generate_random_blob_key()}.partc"
 
-        class MockResource(object):
-            class s3(object):
-                class Bucket(object):
-                    def __init__(bucket_self, *args):
-                        pass
-
-                    class Object(object):
-                        key = str(random_part_blob)
-
-                        def __init__(object_self, *args):
-                            object_self.key = args
+        class MagicBucket(object):
+            name = "magic_bucket"
+            def __init__(bucket_self, *args):
+                pass
+            class Object(object):
+                key = random_part_blob
+                def __init__(self, *args):
+                    pass
 
         event = {"Records": [{
             "s3": {
@@ -339,7 +336,8 @@ class TestSyncUtils(unittest.TestCase, DSSSyncMixin):
             }
         }]}
 
-        mock_resource = MockResource()
+        # Note that MagicBucket must provide anything the callee asks of Bucket
+        thisBucket = mock_resource.s3.Bucket = mock.MagicMock(return_value=MagicBucket())
         results = daemon_app.launch_from_s3_event(event, None)
         self.assertFalse(results)
 # TODO: (akislyuk) integration test of SQS fault injection, SFN fault injection
