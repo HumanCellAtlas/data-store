@@ -26,7 +26,7 @@ class ThreadedMockFusilladeServer(BaseHTTPRequestHandler):
     _server = None
     _thread = None
     _request = None
-    _whitelist = ['valid@ucsc.edu']
+    _whitelist = ['valid@ucsc.edu','travis-test@human-cell-atlas-travis-test.iam.gserviceaccount.com']
     _blacklist = ['invalid@ucsc.edu']
 
     @classmethod
