@@ -90,9 +90,9 @@ class ThreadedMockFusilladeServer(BaseHTTPRequestHandler):
         self.wfile.write(bytes(json.dumps(message), "utf8"))
         print("++++++++++ mock fusillade server finished a request ++++++++++")
 
-    #def log_request(self, *args, **kwargs):
-    #    # Quiet plz
-    #    pass
+    # def log_request(self, *args, **kwargs):
+    #     # Quiet plz
+    #     pass
 
 
 class SilentHandler(ChaliceRequestHandler):
