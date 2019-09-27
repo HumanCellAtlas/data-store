@@ -62,7 +62,15 @@ def generate_random_blob_key():
 
 class DSSSyncMixin:
     test_blob_prefix = {"gs": f"blobs/{generate_random_blob_key()}",
-                        "s3": f"blobs/{generate_random_blob_key()}"}
+                        "s3": f"blobs/{generate_random_blob_key()}",
+                        "metadata_gs": f"blobs/{generate_random_blob_key()}",
+                        "metadata_s3": f"blobs/{generate_random_blob_key()}",
+                        "streaming_s3": f"blobs/{generate_random_blob_key()}",
+                        "compose_gs_blobs": f"blobs/{generate_random_blob_key()}",
+                        "copy_part_s3": f"blobs/{generate_random_blob_key()}",
+                        "copy_part_gs": f"blobs/{generate_random_blob_key()}",
+                        "exists_s3": f"blobs/{generate_random_blob_key()}",
+                        "exists_gs": f"blobs/{generate_random_blob_key()}"}
 
     def cleanup_sync_test_objects(self, age=datetime.timedelta(days=1)):
         for replica, blob_key_prefix in self.test_blob_prefix.items():
@@ -88,7 +96,7 @@ class DSSSyncMixin:
         self.assertEqual(s3_blob.content_type, gs_blob.content_type)
 
 
-@testmode.standalone
+@testmode.integration
 class TestSyncUtils(unittest.TestCase, DSSSyncMixin):
     def setUp(self):
         dss.Config.set_config(dss.BucketConfig.TEST)
@@ -103,7 +111,7 @@ class TestSyncUtils(unittest.TestCase, DSSSyncMixin):
         self.cleanup_sync_test_objects()
         payload = self.get_payload(2**20)
         test_metadata = {"metadata-sync-test": str(uuid.uuid4())}
-        test_key = "{}/s3-to-gs/{}".format(self.test_blob_prefix, uuid.uuid4())
+        test_key = self.test_blob_prefix["metadata_s3"]
         src_blob = self.s3_bucket.Object(test_key)
         gs_dest_blob = self.gs_bucket.blob(test_key)
         src_blob.put(Body=payload, Metadata=test_metadata)
@@ -117,7 +125,7 @@ class TestSyncUtils(unittest.TestCase, DSSSyncMixin):
         gs_dest_blob.reload()
         self.assertEqual(gs_dest_blob.metadata, test_metadata)
 
-        test_key = "{}/gs-to-s3/{}".format(self.test_blob_prefix, uuid.uuid4())
+        test_key = self.test_blob_prefix["metadata_gs"]
         src_blob = self.gs_bucket.blob(test_key)
         dest_blob = self.s3_bucket.Object(test_key)
         src_blob.metadata = test_metadata
@@ -140,7 +148,7 @@ class TestSyncUtils(unittest.TestCase, DSSSyncMixin):
     def test_s3_streaming(self):
         boto3_session = boto3.session.Session()
         payload = io.BytesIO(self.get_payload(2**20))
-        test_key = "{}/s3-streaming-upload/{}".format(self.test_blob_prefix, uuid.uuid4())
+        test_key = self.test_blob_prefix['streaming_s3']
         chunker = S3SigningChunker(fh=payload,
                                    total_bytes=len(payload.getvalue()),
                                    credentials=boto3_session.get_credentials(),
@@ -158,7 +166,7 @@ class TestSyncUtils(unittest.TestCase, DSSSyncMixin):
         self.assertEqual(self.s3_bucket.Object(test_key).get()["Body"].read(), payload.getvalue())
 
     def test_compose_gs_blobs(self):
-        test_key = "{}/compose-gs-blobs/{}".format(self.test_blob_prefix, uuid.uuid4())
+        test_key = self.test_blob_prefix['compose_gs_blobs']
         blob_names = []
         total_payload = b""
         for part in range(3):
@@ -173,7 +181,7 @@ class TestSyncUtils(unittest.TestCase, DSSSyncMixin):
 
     def test_copy_part_s3_to_gs(self):
         payload = self.get_payload(2**20)
-        test_key = "{}/copy-part/{}".format(self.test_blob_prefix, uuid.uuid4())
+        test_key = self.test_blob_prefix['copy_part_s3']
         test_blob = self.s3_bucket.Object(test_key)
         test_blob.put(Body=payload)
         source_url = self.s3.meta.client.generate_presigned_url("get_object",
@@ -187,7 +195,7 @@ class TestSyncUtils(unittest.TestCase, DSSSyncMixin):
 
     def test_copy_part_gs_to_s3(self):
         payload = self.get_payload(2**20)
-        test_key = "{}/copy-part/{}".format(self.test_blob_prefix, uuid.uuid4())
+        test_key = self.test_blob_prefix['copy_part_gs']
         test_blob = self.gs_bucket.blob(test_key)
         test_blob.upload_from_string(payload)
         source_url = test_blob.generate_signed_url(datetime.timedelta(hours=1))
@@ -200,14 +208,14 @@ class TestSyncUtils(unittest.TestCase, DSSSyncMixin):
 
     def test_exists(self):
         with self.subTest("gs"):
-            test_key = "{}/exists/{}".format(self.test_blob_prefix, uuid.uuid4())
+            test_key = self.test_blob_prefix['exists_gs']
             test_blob = self.gs_bucket.blob(test_key)
             self.assertFalse(sync.exists(replica=Replica.gcp, key=test_key))
             test_blob.upload_from_string(b"1")
             self.assertTrue(sync.exists(replica=Replica.gcp, key=test_key))
 
         with self.subTest("s3"):
-            test_key = "{}/exists/{}".format(self.test_blob_prefix, uuid.uuid4())
+            test_key = self.test_blob_prefix['exists_s3']
             test_blob = self.s3_bucket.Object(test_key)
             self.assertFalse(sync.exists(replica=Replica.aws, key=test_key))
             test_blob.put(Body=b"2")
