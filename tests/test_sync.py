@@ -96,7 +96,7 @@ class DSSSyncMixin:
         self.assertEqual(s3_blob.content_type, gs_blob.content_type)
 
 
-@testmode.integration
+@testmode.standalone
 class TestSyncUtils(unittest.TestCase, DSSSyncMixin):
     def setUp(self):
         dss.Config.set_config(dss.BucketConfig.TEST)
