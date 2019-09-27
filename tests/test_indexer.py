@@ -92,9 +92,14 @@ def setUpModule():
         NotificationRequestHandler = LocalNotificationRequestHandler
     NotificationRequestHandler.startServing()
 
+    # Start the mock Fusillade server
+    Config.set_config(BucketConfig.TEST)
+    MockFusillade.startServing()
+
 
 def tearDownModule():
     NotificationRequestHandler.stopServing()
+    MockFusillade.stopServing()
 
 
 class TestIndexerBase(ElasticsearchTestCase, DSSAssertMixin, DSSStorageMixin, DSSUploadMixin, metaclass=ABCMeta):
@@ -109,7 +114,6 @@ class TestIndexerBase(ElasticsearchTestCase, DSSAssertMixin, DSSStorageMixin, DS
         cls.blobstore = Config.get_blobstore_handle(cls.replica)
         cls.test_fixture_bucket = cls.replica.bucket
         Config.set_config(BucketConfig.TEST)
-        MockFusillade.startServing()
         cls.test_bucket = cls.replica.bucket
         cls.indexer_cls = Indexer.for_replica(cls.replica)
         cls.executor = ThreadPoolExecutor(len(DEFAULT_BACKENDS))
@@ -120,7 +124,6 @@ class TestIndexerBase(ElasticsearchTestCase, DSSAssertMixin, DSSStorageMixin, DS
     def tearDownClass(cls):
         cls.executor.shutdown(False)
         cls.app.shutdown()
-        MockFusillade.stopServing()
         super().tearDownClass()
 
     def setUp(self):
