@@ -61,17 +61,20 @@ def generate_random_blob_key():
 
 
 class DSSSyncMixin:
-    test_blob_prefix = f"blobs/{generate_random_blob_key()}"
+    test_blob_prefix = {"gs": f"blobs/{generate_random_blob_key()}",
+                        "s3": f"blobs/{generate_random_blob_key()}"}
+
     def cleanup_sync_test_objects(self, age=datetime.timedelta(days=1)):
-        for key in self.s3_bucket.objects.filter(Prefix=self.test_blob_prefix):
-            if key.last_modified < datetime.datetime.now(datetime.timezone.utc) - age:
-                key.delete()
-        for key in self.gs_bucket.list_blobs(prefix=self.test_blob_prefix):
-            if key.time_created < datetime.datetime.now(datetime.timezone.utc) - age:
-                try:
+        for replica, blob_key_prefix in self.test_blob_prefix.items():
+            for key in self.s3_bucket.objects.filter(Prefix=blob_key_prefix):
+                if key.last_modified < datetime.datetime.now(datetime.timezone.utc) - age:
                     key.delete()
-                except NotFound:
-                    pass
+            for key in self.gs_bucket.list_blobs(prefix=blob_key_prefix):
+                if key.time_created < datetime.datetime.now(datetime.timezone.utc) - age:
+                    try:
+                        key.delete()
+                    except NotFound:
+                        pass
 
     payload = b''
 
@@ -385,7 +388,7 @@ class TestSyncDaemon(unittest.TestCase, DSSSyncMixin):
         test_metadata = {"metadata-sync-test": str(uuid.uuid4())}
 
         with self.subTest("s3 to gs"):
-            test_key = "{}/s3-to-gs/{}".format(self.test_blob_prefix, uuid.uuid4())
+            test_key = self.test_blob_prefix['s3']
             src_blob = self.s3_bucket.Object(test_key)
             gs_dest_blob = self.gs_bucket.blob(test_key)
             src_blob.put(Body=payload,
@@ -402,7 +405,7 @@ class TestSyncDaemon(unittest.TestCase, DSSSyncMixin):
             self._assert_content_type(src_blob, gs_dest_blob)
 
         with self.subTest("gs to s3"):
-            test_key = "{}/gs-to-s3/{}".format(self.test_blob_prefix, uuid.uuid4())
+            test_key = self.test_blob_prefix['gs']
             src_blob = self.gs_bucket.blob(test_key)
             dest_blob = self.s3_bucket.Object(test_key)
             src_blob.metadata = test_metadata
