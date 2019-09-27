@@ -46,11 +46,22 @@ from tests.infra import testmode
 
 daemon_app = importlib.import_module('daemons.dss-sync-sfn.app')
 
+
 def setUpModule():
     configure_test_logging()
 
+
+def generate_random_blob_key():
+    random_uuid = str(uuid.uuid4())
+    sha1 = hashlib.sha1(str.encode(random_uuid)).hexdigest()
+    sha256 = hashlib.sha256(str.encode(random_uuid)).hexdigest()
+    md5 = hashlib.md5(str.encode(random_uuid)).hexdigest()
+    crc = ''.join(random.choice(string.digits) for x in range(8))
+    return f"{sha256}.{sha1}.{md5}.{crc}"
+
+
 class DSSSyncMixin:
-    test_blob_prefix = "blobs/hca-dss-sync-test"
+    test_blob_prefix = f"blobs/{generate_random_blob_key()}"
     def cleanup_sync_test_objects(self, age=datetime.timedelta(days=1)):
         for key in self.s3_bucket.objects.filter(Prefix=self.test_blob_prefix):
             if key.last_modified < datetime.datetime.now(datetime.timezone.utc) - age:
@@ -63,6 +74,7 @@ class DSSSyncMixin:
                     pass
 
     payload = b''
+
     def get_payload(self, size):
         if len(self.payload) < size:
             self.payload += os.urandom(size - len(self.payload))
@@ -71,6 +83,7 @@ class DSSSyncMixin:
     def _assert_content_type(self, s3_blob, gs_blob):
         gs_blob.reload()
         self.assertEqual(s3_blob.content_type, gs_blob.content_type)
+
 
 @testmode.standalone
 class TestSyncUtils(unittest.TestCase, DSSSyncMixin):
@@ -263,20 +276,12 @@ class TestSyncUtils(unittest.TestCase, DSSSyncMixin):
                 with self.subTest(part_size=part_size, object_size=event['source_obj_metadata']['size']):
                     self.assertEqual(sync.get_sync_work_state(event)['total_parts'], expected_total_parts)
 
-    def generate_random_blob_key(self):
-        random_uuid = str(uuid.uuid4())
-        sha1 = hashlib.sha1(str.encode(random_uuid)).hexdigest()
-        sha256 = hashlib.sha256(str.encode(random_uuid)).hexdigest()
-        md5 = hashlib.md5(str.encode(random_uuid)).hexdigest()
-        crc = ''.join(random.choice(string.digits) for x in range(8))
-        return f"{sha256}.{sha1}.{md5}.{crc}"
-
     def test_blob_key_format(self):
-        good_blob_key = f"blobs/{self.generate_random_blob_key()}"
-        bad_blob_key = f"blobs/{self.generate_random_blob_key()[:-1]}"
-        missing_prefix = f"{self.generate_random_blob_key()}"
-        gcp_parts = f"blobs/{self.generate_random_blob_key()}.partA"
-        temp_etag_modification = f"blobs/{self.generate_random_blob_key()}"
+        good_blob_key = f"blobs/{generate_random_blob_key()}"
+        bad_blob_key = f"blobs/{generate_random_blob_key()[:-1]}"
+        missing_prefix = f"{generate_random_blob_key()}"
+        gcp_parts = f"blobs/{generate_random_blob_key()}.partA"
+        temp_etag_modification = f"blobs/{generate_random_blob_key()}"
         temp_etag_modification = temp_etag_modification.rsplit('.')
         temp_etag_modification[2] = temp_etag_modification[2] + f'-{random.choice([x for x in range(2,10000)])}'
         aws_parts = '.'.join(temp_etag_modification)
@@ -293,7 +298,7 @@ class TestSyncUtils(unittest.TestCase, DSSSyncMixin):
             self.assertEquals(num_groups, v[1])
 
     def test_skip_part_sync(self):
-        random_part_blob = f"blobs/{self.generate_random_blob_key()}.partc"
+        random_part_blob = f"blobs/{generate_random_blob_key()}.partc"
         json_message = json.dumps({"bucket": "org-humancellatlas-dss-dev",
                                    "componentCount": 30,
                                    "contentType": "application/octet-stream",
@@ -323,7 +328,7 @@ class TestSyncUtils(unittest.TestCase, DSSSyncMixin):
 
     @mock.patch("daemons.dss-sync-sfn.app.resources")
     def test_s3_skip_sync(self, mock_resource):
-        random_part_blob = f"blobs/{self.generate_random_blob_key()}.partc"
+        random_part_blob = f"blobs/{generate_random_blob_key()}.partc"
 
         class MagicBucket(object):
             name = self.s3_bucket_name
