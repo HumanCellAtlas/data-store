@@ -55,6 +55,7 @@ from tests import eventually, get_auth_header, get_bundle_fqid, get_file_fqid, g
 from tests.infra import DSSAssertMixin, DSSStorageMixin, DSSUploadMixin, TestBundle, testmode
 from tests.infra.elasticsearch_test_case import ElasticsearchTestCase
 from tests.infra.server import ThreadedLocalServer
+from tests.infra.server import ThreadedMockFusilladeServer as MockFusillade
 from tests.sample_search_queries import smartseq2_paired_ends_vx_query, tombstone_query
 
 
@@ -108,6 +109,7 @@ class TestIndexerBase(ElasticsearchTestCase, DSSAssertMixin, DSSStorageMixin, DS
         cls.blobstore = Config.get_blobstore_handle(cls.replica)
         cls.test_fixture_bucket = cls.replica.bucket
         Config.set_config(BucketConfig.TEST)
+        MockFusillade.startServing()
         cls.test_bucket = cls.replica.bucket
         cls.indexer_cls = Indexer.for_replica(cls.replica)
         cls.executor = ThreadPoolExecutor(len(DEFAULT_BACKENDS))
@@ -118,6 +120,7 @@ class TestIndexerBase(ElasticsearchTestCase, DSSAssertMixin, DSSStorageMixin, DS
     def tearDownClass(cls):
         cls.executor.shutdown(False)
         cls.app.shutdown()
+        MockFusillade.stopServing()
         super().tearDownClass()
 
     def setUp(self):
