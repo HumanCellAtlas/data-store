@@ -50,6 +50,12 @@ unit_tests:
   script:
     - make -j4 parallel_test
 
+test_server:
+  extends: .tests
+  script:
+    - make tests/test_server.py
+    - make -j4 tests/test_server.py
+
 test_search:
   extends: .tests
   script:
