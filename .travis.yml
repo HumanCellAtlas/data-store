@@ -53,6 +53,9 @@ jobs:
     - MAKE_ARGS="-j4 parallel_test"
   - stage: test
     env:
+    - MAKE_ARGS="-j1 tests/test_visitation.py"
+  - stage: test
+    env:
     - MAKE_ARGS="-j1 tests/test_search.py"
   - stage: test
     env:

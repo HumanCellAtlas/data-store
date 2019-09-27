@@ -49,20 +49,16 @@ class ThreadedMockFusilladeServer(BaseHTTPRequestHandler):
 
     @classmethod
     def startServing(cls):
-        print("++++++++++ mock fusillade server starting now ++++++++++")
         cls._port = cls.get_port()
         cls._server = HTTPServer((cls._address, cls._port), cls)
         cls._thread = threading.Thread(target=cls._server.serve_forever, daemon=True)
         cls._thread.start()
         cls._request = []
-        print("++++++++++ mock fusillade server is serving ++++++++++")
 
     @classmethod
     def stopServing(cls):
-        print("++++++++++ mock fusillade server is stopping ++++++++++")
         cls._server.shutdown()
         cls._thread.join()
-        print("++++++++++ mock fusillade server stopped serving ++++++++++")
 
     def _set_headers(self):
         self.send_response(200)
@@ -70,7 +66,6 @@ class ThreadedMockFusilladeServer(BaseHTTPRequestHandler):
         self.end_headers()
 
     def do_POST(self):
-        print("++++++++++ mock fusillade server got a request ++++++++++")
         ctype, pdict = cgi.parse_header(self.headers.get('content-type'))
         # Enforce rule: JSON only
         if ctype != 'application/json':
@@ -88,9 +83,12 @@ class ThreadedMockFusilladeServer(BaseHTTPRequestHandler):
         # Send it back
         self._set_headers()
         self.wfile.write(bytes(json.dumps(message), "utf8"))
-        print("++++++++++ mock fusillade server finished a request ++++++++++")
 
     # def log_request(self, *args, **kwargs):
+    #     """
+    #     If this empty method is defined, it overrides the (otherwise noisy) log messages
+    #     from the HTTP server as it starts, stops, and receives requests.
+    #     """
     #     # Quiet plz
     #     pass
 
