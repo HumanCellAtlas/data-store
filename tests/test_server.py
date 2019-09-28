@@ -14,7 +14,6 @@ from dss.util import security
 from dss import BucketConfig, Config, DeploymentStage
 
 
-@testmode.standalone
 class TestMockFusilladeServer(unittest.TestCase):
     """Test that the mock Fusillade server in dss/tests/infra/server.py is functioning properly"""
 
