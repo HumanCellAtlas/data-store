@@ -31,6 +31,7 @@ class ThreadedMockFusilladeServer(BaseHTTPRequestHandler):
 
     @classmethod
     def startServing(cls):
+        print("++++++++++ starting mock fusillade server ++++++++++")
         Config.set_config(BucketConfig.TEST)
         cls.stash_oidc_group_claim()
         cls.stash_openid_provider()
@@ -42,6 +43,7 @@ class ThreadedMockFusilladeServer(BaseHTTPRequestHandler):
 
     @classmethod
     def stopServing(cls):
+        print("++++++++++ stopping mock fusillade server ++++++++++")
         cls._server.shutdown()
         cls._thread.join()
         cls.restore_oidc_group_claim()
