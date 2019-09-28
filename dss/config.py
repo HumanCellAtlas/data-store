@@ -500,9 +500,9 @@ class Config:
 
 class Replica(Enum):
     aws = (Config.get_s3_bucket, Config.get_s3_checkout_bucket, "s3", S3BlobStore, S3HCABlobStore,
-           "DSS_AWS_FLASHFLOOD_PREFIX")
+           "DSS_AWS_FLASHFLOOD_PREFIX_READ", "DSS_AWS_FLASHFLOOD_PREFIX_WRITE")
     gcp = (Config.get_gs_bucket, Config.get_gs_checkout_bucket, "gs", GSBlobStore, GSHCABlobStore,
-           "DSS_GCP_FLASHFLOOD_PREFIX")
+           "DSS_GCP_FLASHFLOOD_PREFIX_READ", "DSS_GCP_FLASHFLOOD_PREFIX_WRITE")
 
     def __init__(
             self,
@@ -511,14 +511,16 @@ class Replica(Enum):
             storage_schema: str,
             blobstore_class: typing.Type[BlobStore],
             hcablobstore_class: typing.Type[HCABlobStore],
-            flashflood_prefix_envvar: str,
+            flashflood_prefix_read_envvar: str,
+            flashflood_prefix_write_envvar: str,
     ) -> None:
         self._bucket_getter = bucket_getter
         self._checkout_bucket_getter = checkout_bucket_getter
         self._storage_schema = storage_schema
         self._blobstore_class = blobstore_class
         self._hcablobstore_class = hcablobstore_class
-        self._flashflood_prefix_envvar = flashflood_prefix_envvar
+        self._flashflood_prefix_read_envvar = flashflood_prefix_read_envvar
+        self._flashflood_prefix_write_envvar = flashflood_prefix_write_envvar
 
     @property
     def bucket(self) -> str:
@@ -541,8 +543,12 @@ class Replica(Enum):
         return self._checkout_bucket_getter()
 
     @property
-    def flashflood_prefix(self) -> str:
-        return os.environ[self._flashflood_prefix_envvar]
+    def flashflood_prefix_read(self) -> str:
+        return os.environ[self._flashflood_prefix_read_envvar]
+
+    @property
+    def flashflood_prefix_write(self) -> typing.Tuple[str, ...]:
+        return tuple(os.environ[self._flashflood_prefix_write_envvar].split(","))
 
 @contextmanager
 def override_bucket_config(temp_config: BucketConfig):

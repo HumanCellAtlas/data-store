@@ -23,7 +23,7 @@ def list_events(replica: str, from_date: str=None, to_date: str=None, per_page: 
     tdate = datetime_from_timestamp(to_date) if to_date else datetime.max
     if fdate >= tdate:
         raise DSSException(400, "bad_request", "to_date must be greater than from_date")
-    ff = FlashFlood(resources.s3, Config.get_flashflood_bucket(), Replica[replica].flashflood_prefix)  # type: ignore
+    ff = FlashFlood(resources.s3, Config.get_flashflood_bucket(), Replica[replica].flashflood_prefix_read)
     urls = ff.replay_urls(fdate, tdate, per_page + 1)
     if len(urls) <= per_page:
         response = make_response(jsonify(urls), requests.codes.ok)
