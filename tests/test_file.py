@@ -56,13 +56,10 @@ class TestFileApi(unittest.TestCase, TestAuthMixin, DSSUploadMixin, DSSAssertMix
             'hca-dss-sha1': '####',
             'hca-dss-sha256': '$$$$'
         }
-        Config.set_config(BucketConfig.TEST)
-        MockFusillade.startServing()
 
     @classmethod
     def tearDownClass(cls):
         cls.app.shutdown()
-        MockFusillade.stopServing()
 
     def setUp(self):
         dss.Config.set_config(dss.BucketConfig.TEST)
