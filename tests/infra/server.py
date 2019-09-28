@@ -36,8 +36,9 @@ class ThreadedMockFusilladeServer(BaseHTTPRequestHandler):
         cls.stash_openid_provider()
         cls._port = cls.get_port()
         cls._server = HTTPServer((cls._address, cls._port), cls)
-        cls._thread = threading.Thread(target=cls._server.serve_forever, daemon=True)
-        cls._thread.start()
+        if cls._thread is None:
+            cls._thread = threading.Thread(target=cls._server.serve_forever, daemon=True)
+            cls._thread.start()
         cls._request = []
 
     @classmethod
