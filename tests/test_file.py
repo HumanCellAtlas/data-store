@@ -36,6 +36,14 @@ from tests.infra.server import ThreadedMockFusilladeServer as MockFusillade
 FILE_GET_RETRY_COUNT = 10
 
 
+def setUpModule():
+    MockFusillade.startServing()
+
+
+def tearDownModule():
+    MockFusillade.stopServing()
+
+
 @testmode.standalone
 class TestFileApi(unittest.TestCase, TestAuthMixin, DSSUploadMixin, DSSAssertMixin):
     @classmethod
