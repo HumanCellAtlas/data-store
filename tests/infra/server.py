@@ -68,22 +68,28 @@ class ThreadedMockFusilladeServer(BaseHTTPRequestHandler):
     @classmethod
     def stash_oidc_group_claim(cls):
         """Stash the OIDC_GROUP_CLAIM env var and replace it with a test value"""
-        cls._old_oidc_group_claim = os.environ.pop('OIDC_GROUP_CLAIM', 'EMPTY')
+        key = 'OIDC_GROUP_CLAIM'
+        cls._old_oidc_group_claim = os.environ.pop(key, 'EMPTY')
+        os.environ[key] = 'https://auth.data.humancellatlas.org/group'
 
     @classmethod
     def restore_oidc_group_claim(cls):
         """Restore the OIDC_GROUP_CLAIM env var when mock fusillade server is done"""
-        os.environ['OIDC_GROUP_CLAIM'] = cls._old_oidc_group_claim
+        key = 'OIDC_GROUP_CLAIM'
+        os.environ[key] = cls._old_oidc_group_claim
 
     @classmethod
     def stash_openid_provider(cls):
         """Stash the OPENID_PROVIDER env var and replace it with a test value"""
-        cls._old_openid_provider = os.environ.pop('OPENID_PROVIDER', 'EMPTY')
+        key = 'OPENID_PROVIDER'
+        cls._old_openid_provider = os.environ.pop(key, 'EMPTY')
+        os.environ[key] = 'https://humancellatlas.auth0.com/'
 
     @classmethod
     def restore_openid_provider(cls):
         """Restore the OPENID_PROVIDER env var when mock fusillade server is done"""
-        os.environ['OPENID_PROVIDER'] = cls._old_openid_provider
+        key = 'OPENID_PROVIDER'
+        os.environ[key] = cls._old_openid_provider
 
     def _set_headers(self):
         self.send_response(200)
