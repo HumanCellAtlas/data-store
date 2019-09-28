@@ -11,7 +11,7 @@ import os
 import sys
 from io import StringIO
 
-from dss import Config
+from dss import Config, BucketConfig
 from dss.api import bundles
 from dss.util.version import datetime_to_version_format
 from dss.util import get_gcp_credentials_file
