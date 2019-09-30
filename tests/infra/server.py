@@ -17,6 +17,20 @@ from dss.util import networking
 from dss import Config, BucketConfig
 
 
+lock = threading.Lock()
+
+
+def synchronized(lock):
+    """Thread synchronization decorator"""
+    def wrapper(f):
+        @functools.wraps(f)
+        def inner_wrapper(*args, **kw):
+            with lock:
+                return f(*args, **kw)
+        return inner_wrapper
+    return wrapper
+
+
 class ThreadedMockFusilladeServer(BaseHTTPRequestHandler):
     """
     Create a mock Fusillade auth server endpoint so that any operation that tries to check
@@ -31,6 +45,7 @@ class ThreadedMockFusilladeServer(BaseHTTPRequestHandler):
     _whitelist = ['valid@ucsc.edu', 'travis-test@human-cell-atlas-travis-test.iam.gserviceaccount.com']
 
     @classmethod
+    @synchronized(lock)
     def startServing(cls):
         Config.set_config(BucketConfig.TEST)
         cls.stash_oidc_group_claim()
@@ -44,12 +59,14 @@ class ThreadedMockFusilladeServer(BaseHTTPRequestHandler):
         cls._request = []
 
     @classmethod
+    @synchronized(lock)
     def stopServing(cls):
-        cls._server.shutdown()
-        del cls._server  # Required to create new servers
-        cls._thread.join()
-        cls.restore_oidc_group_claim()
-        cls.restore_openid_provider()
+        pass
+        # cls._server.shutdown()
+        # del cls._server  # Required to create new servers
+        # cls._thread.join()
+        # cls.restore_oidc_group_claim()
+        # cls.restore_openid_provider()
 
     @classmethod
     def get_port(cls):
