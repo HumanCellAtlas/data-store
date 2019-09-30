@@ -19,7 +19,7 @@ class ThreadedMockFusilladeServer(BaseHTTPRequestHandler):
     """
     Create a mock Fusillade auth server endpoint so that any operation that tries to check
     permissions with Fusillade will be handled correctly; we keep it simple and accept/reject
-    based on whether the principal (user) is on the whitelist or the blacklist.
+    based on whether the principal (user) is on the whitelist or not.
     """
     _address = "127.0.0.1"
     _port = None
@@ -27,7 +27,6 @@ class ThreadedMockFusilladeServer(BaseHTTPRequestHandler):
     _thread = None
     _request = None
     _whitelist = ['valid@ucsc.edu', 'travis-test@human-cell-atlas-travis-test.iam.gserviceaccount.com']
-    _blacklist = ['invalid@ucsc.edu']
 
     @classmethod
     def startServing(cls):

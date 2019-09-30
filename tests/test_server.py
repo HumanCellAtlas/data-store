@@ -31,8 +31,8 @@ class TestMockFusilladeServer(unittest.TestCase):
         for principal in MockFusillade._whitelist:
             security.assert_authorized(principal, actions, resources)
 
-        # Ensure blacklisted principals are denied access
-        for principal in MockFusillade._blacklist:
+        # Ensure non-whitelisted principals are denied access
+        for principal in ['invalid@email.com']:
             with self.assertRaises(dss.error.DSSForbiddenException):
                 security.assert_authorized(principal, actions, resources)
 
