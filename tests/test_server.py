@@ -8,11 +8,7 @@ sys.path.insert(0, pkg_root)  # noqa
 
 from tests.infra import testmode
 from tests.infra.server import ThreadedLocalServer
-from tests.infra.mock_fusillade import (
-    start_multiprocess_mock_fusillade_server,
-    stop_multiprocess_mock_fusillade_server,
-    MockFusilladeServer,
-)
+from tests.infra.mock_fusillade import start_multiprocess_mock_fusillade_server, MockFusilladeServer
 import dss.error
 from dss.util import security
 from dss import BucketConfig, Config, DeploymentStage
@@ -39,10 +35,6 @@ class TestMockFusilladeServer(unittest.TestCase):
         for principal in ['invalid@email.com']:
             with self.assertRaises(dss.error.DSSForbiddenException):
                 security.assert_authorized(principal, actions, resources)
-
-    @classmethod
-    def tearDownClass(self):
-        stop_multiprocess_mock_fusillade_server()
 
 
 if __name__ == "__main__":

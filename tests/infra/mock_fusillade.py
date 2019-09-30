@@ -20,14 +20,9 @@ sys.path.insert(0, pkg_root)  # noqa
 from dss import Config, BucketConfig
 
 
-def get_multiprocess_mock_fusillade_pid_file():
-    # Check a known location for PID file
-    return os.path.join(pkg_root, ".mock_fusillade_pid")
-
-
 def start_multiprocess_mock_fusillade_server():
     """Use Popen to start the mock fusillade server and stash the PID in a file"""
-    pid_file = get_multiprocess_mock_fusillade_pid_file()
+    pid_file = MockFusilladeServer.get_pid_filename()
     if not os.path.isfile(pid_file):
         # Start a new mock fusillade server process
         cmd = os.path.join(pkg_root, "tests", "infra", "mock_fusillade_start.py")
@@ -39,23 +34,12 @@ def start_multiprocess_mock_fusillade_server():
     return
 
 
-def stop_multiprocess_mock_fusillade_server():
-    """Kill the mock fusillade server and remove the PID file"""
-    pid_file = get_multiprocess_mock_fusillade_pid_file()
-    if os.path.isfile(pid_file):
-        with open(pid_file, "r") as f:
-            pid = f.read()
-        os.kill(pid, signal.SIGTERM)
-    subprocess.call(["rm", "-f", pid_file])
-
-
 class MockFusilladeServer(BaseHTTPRequestHandler):
     """
     Create a mock Fusillade auth server endpoint so that any operation that tries to check
     permissions with Fusillade will be handled correctly; we keep it simple and accept/reject
     based on whether the principal (user) is on the whitelist or not.
     """
-
     _address = "127.0.0.1"
     _port = None
     _server = None
@@ -72,15 +56,19 @@ class MockFusilladeServer(BaseHTTPRequestHandler):
         HTTPServer.allow_reuse_address = True
         cls._server = HTTPServer((cls._address, cls._port), cls)
         cls._server.serve_forever()
+        signal.signal(signal.SIGTERM, cls.clean_up)
 
     @classmethod
-    def stopServing(cls):
-        pass
-        # cls._server.shutdown()
-        # del cls._server  # Required to create new servers
-        # cls._thread.join()
-        # cls.restore_oidc_group_claim()
-        # cls.restore_openid_provider()
+    def get_pid_filename(cls):
+        """Get filename where PID is stored"""
+        return os.path.join(pkg_root, ".mock_fusillade_pid")
+
+    @classmethod
+    def clean_up(cls):
+        """Remove the PID file"""
+        pid_file = cls.get_pid_filename()
+        rm_cmd = ['rm', '-f', pid_file]
+        subprocess.call(rm_cmd)
 
     @classmethod
     def get_port(cls):

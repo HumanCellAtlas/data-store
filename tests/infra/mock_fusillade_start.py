@@ -1,5 +1,4 @@
 #!/usr/bin/env python3
-import server
 import time
 from mock_fusillade import MockFusilladeServer
 
