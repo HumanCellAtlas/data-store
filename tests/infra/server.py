@@ -7,28 +7,12 @@ import types
 import requests
 import cgi
 import json
-import socket
 from http.server import BaseHTTPRequestHandler, HTTPServer
 from chalice.cli import CLIFactory
 from chalice.local import LocalDevServer, ChaliceRequestHandler
-import socketserver
 
 from dss.util import networking
 from dss import Config, BucketConfig
-
-
-lock = threading.Lock()
-
-
-def synchronized(lock):
-    """Thread synchronization decorator"""
-    def wrapper(f):
-        @functools.wraps(f)
-        def inner_wrapper(*args, **kw):
-            with lock:
-                return f(*args, **kw)
-        return inner_wrapper
-    return wrapper
 
 
 class ThreadedMockFusilladeServer(BaseHTTPRequestHandler):
@@ -45,29 +29,25 @@ class ThreadedMockFusilladeServer(BaseHTTPRequestHandler):
     _whitelist = ['valid@ucsc.edu', 'travis-test@human-cell-atlas-travis-test.iam.gserviceaccount.com']
 
     @classmethod
-    @synchronized(lock)
     def startServing(cls):
-        if cls._server is None:
-            Config.set_config(BucketConfig.TEST)
-            cls.stash_oidc_group_claim()
-            cls.stash_openid_provider()
-            cls._port = cls.get_port()
-            # Allow multiple servers to be created/destroyed during tests
-            HTTPServer.allow_reuse_address = True
-            cls._server = HTTPServer((cls._address, cls._port), cls)
-            cls._thread = threading.Thread(target=cls._server.serve_forever, daemon=True)
-            cls._thread.start()
-            cls._request = []
+        Config.set_config(BucketConfig.TEST)
+        cls.stash_oidc_group_claim()
+        cls.stash_openid_provider()
+        cls._port = cls.get_port()
+        # Allow multiple servers to be created/destroyed during tests
+        HTTPServer.allow_reuse_address = True
+        cls._server = HTTPServer((cls._address, cls._port), cls)
+        cls._thread = threading.Thread(target=cls._server.serve_forever, daemon=True)
+        cls._thread.start()
+        cls._request = []
 
     @classmethod
-    @synchronized(lock)
     def stopServing(cls):
-        pass
-        # cls._server.shutdown()
-        # del cls._server  # Required to create new servers
-        # cls._thread.join()
-        # cls.restore_oidc_group_claim()
-        # cls.restore_openid_provider()
+        cls._server.shutdown()
+        del cls._server  # Required to create new servers
+        cls._thread.join()
+        cls.restore_oidc_group_claim()
+        cls.restore_openid_provider()
 
     @classmethod
     def get_port(cls):
@@ -137,13 +117,9 @@ class ThreadedMockFusilladeServer(BaseHTTPRequestHandler):
         self._set_headers()
         self.wfile.write(bytes(json.dumps(message), "utf8"))
 
-    # def log_request(self, *args, **kwargs):
-    #     """
-    #     If this empty method is defined, it overrides the (otherwise noisy) log messages
-    #     from the HTTP server as it starts, stops, and receives requests.
-    #     """
-    #     # Quiet plz
-    #     pass
+    def log_request(self, *args, **kwargs):
+        """If this method is empty, the HTTP server will not print any log messages"""
+        pass
 
 
 class SilentHandler(ChaliceRequestHandler):
