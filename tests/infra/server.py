@@ -17,10 +17,6 @@ from dss.util import networking
 from dss import Config, BucketConfig
 
 
-# Allow multiple threaded mock fusillade servers to be created/destroyed during tests
-socketserver.TCPServer.allow_reuse_address = True
-
-
 class ThreadedMockFusilladeServer(BaseHTTPRequestHandler):
     """
     Create a mock Fusillade auth server endpoint so that any operation that tries to check
@@ -40,6 +36,8 @@ class ThreadedMockFusilladeServer(BaseHTTPRequestHandler):
         cls.stash_oidc_group_claim()
         cls.stash_openid_provider()
         cls._port = cls.get_port()
+        # Allow multiple servers to be created/destroyed during tests
+        HTTPServer.allow_reuse_address = True
         cls._server = HTTPServer((cls._address, cls._port), cls)
         cls._thread = threading.Thread(target=cls._server.serve_forever, daemon=True)
         cls._thread.start()
@@ -48,6 +46,7 @@ class ThreadedMockFusilladeServer(BaseHTTPRequestHandler):
     @classmethod
     def stopServing(cls):
         cls._server.shutdown()
+        del cls._server  # Required to create new servers
         cls._thread.join()
         cls.restore_oidc_group_claim()
         cls.restore_openid_provider()
