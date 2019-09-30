@@ -47,16 +47,17 @@ class ThreadedMockFusilladeServer(BaseHTTPRequestHandler):
     @classmethod
     @synchronized(lock)
     def startServing(cls):
-        Config.set_config(BucketConfig.TEST)
-        cls.stash_oidc_group_claim()
-        cls.stash_openid_provider()
-        cls._port = cls.get_port()
-        # Allow multiple servers to be created/destroyed during tests
-        HTTPServer.allow_reuse_address = True
-        cls._server = HTTPServer((cls._address, cls._port), cls)
-        cls._thread = threading.Thread(target=cls._server.serve_forever, daemon=True)
-        cls._thread.start()
-        cls._request = []
+        if cls._server is None:
+            Config.set_config(BucketConfig.TEST)
+            cls.stash_oidc_group_claim()
+            cls.stash_openid_provider()
+            cls._port = cls.get_port()
+            # Allow multiple servers to be created/destroyed during tests
+            HTTPServer.allow_reuse_address = True
+            cls._server = HTTPServer((cls._address, cls._port), cls)
+            cls._thread = threading.Thread(target=cls._server.serve_forever, daemon=True)
+            cls._thread.start()
+            cls._request = []
 
     @classmethod
     @synchronized(lock)
