@@ -7,12 +7,18 @@ import types
 import requests
 import cgi
 import json
+import socket
 from http.server import BaseHTTPRequestHandler, HTTPServer
 from chalice.cli import CLIFactory
 from chalice.local import LocalDevServer, ChaliceRequestHandler
+import socketserver
 
 from dss.util import networking
 from dss import Config, BucketConfig
+
+
+# Allow multiple threaded mock fusillade servers to be created/destroyed during tests
+socketserver.TCPServer.allow_reuse_address = True
 
 
 class ThreadedMockFusilladeServer(BaseHTTPRequestHandler):
@@ -34,11 +40,9 @@ class ThreadedMockFusilladeServer(BaseHTTPRequestHandler):
         cls.stash_oidc_group_claim()
         cls.stash_openid_provider()
         cls._port = cls.get_port()
-        if cls._server is None:
-            cls._server = HTTPServer((cls._address, cls._port), cls)
-        if cls._thread is None:
-            cls._thread = threading.Thread(target=cls._server.serve_forever, daemon=True)
-            cls._thread.start()
+        cls._server = HTTPServer((cls._address, cls._port), cls)
+        cls._thread = threading.Thread(target=cls._server.serve_forever, daemon=True)
+        cls._thread.start()
         cls._request = []
 
     @classmethod
