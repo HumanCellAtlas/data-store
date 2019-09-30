@@ -139,7 +139,9 @@ The DSS uses the [Amazon S3 backend](https://www.terraform.io/docs/backends/type
 	1) Run the command
 
 	   ```
-	   cat $DSS_HOME/application_secrets.json | scripts/set_secret.py --secret-name $GOOGLE_APPLICATION_SECRETS_SECRETS_NAME
+       ### WARNING: RUNNING THIS COMMAND WILL
+       ###          CLEAR EXISTING SCRET VALUE
+	   cat $DSS_HOME/application_secrets.json | ./scripts/dss-ops.py secrets set --secret-name $GOOGLE_APPLICATION_SECRETS_SECRETS_NAME
        ```
 
 1.  [Download](https://cloud.google.com/sdk/downloads) the `gcloud` command line utility.
@@ -158,7 +160,7 @@ The DSS uses the [Amazon S3 backend](https://www.terraform.io/docs/backends/type
 1.  Choose a region that has support for Cloud Functions and set `GCP_DEFAULT_REGION` to that region. See
     [the GCP locations list](https://cloud.google.com/about/locations/) for a list of supported regions.
 
-1.  Run `gcloud config set project PROJECT_ID` **where PROJECT_ID is the ID, not the name (i.e: hca-store-21555, NOT just hca-store) of the GCP project you selected earlier**.
+1.  Run `gcloud config set project PROJECT_ID` **where `PROJECT_ID` is the ID, not the name (i.e: hca-store-21555, NOT just hca-store) of the GCP project you selected earlier**.
 
 1.  Enable required APIs:
 
@@ -242,15 +244,17 @@ When deploying for the first time, a Google Cloud Platform service account must 
 1.  Run the command
 
     ```
-    cat $DSS_HOME/gcp-credentials.json | scripts/set_secret.py --secret-name $GOOGLE_APPLICATION_CREDENTIALS_SECRETS_NAME
+    cat $DSS_HOME/gcp-credentials.json | ./scripts/dss-ops.py secrets set --secret-name $GOOGLE_APPLICATION_CREDENTIALS_SECRETS_NAME
     ```
 
 ### Setting admin emails
 
-Set admin account emails within AWS Secret Manager
+Set admin account emails within AWS Secret Manager:
 
 ```
-echo ' ' |  ./scripts/set_secret.py --secret-name $ADMIN_USER_EMAILS_SECRETS_NAME
+### WARNING: RUNNING THIS COMMAND WILL 
+###          CLEAR EXISTING SECRET VALUE
+echo -n 'user1@example.com,user2@example.com' |  ./scripts/dss-ops.py secrets set --secret-name $ADMIN_USER_EMAILS_SECRETS_NAME
  ```
 
 ### Deploying the DSS
@@ -286,7 +290,9 @@ t2.small.elasticsearch instance type is sufficient. Use the [`DSS_ES_`](./docs/e
 Add allowed IPs for ElasticSearch to the secret manager, use comma separated IPs:
 
 ```
-echo ' ' | ./scripts/set_secret.py --secret-name $ES_ALLOWED_SOURCE_IP_SECRETS_NAME
+### WARNING: RUNNING THIS COMMAND WILL 
+###          CLEAR EXISTING SECRET VALUE
+echo -n '1.1.1.1,2.2.2.2' | ./scripts/dss-ops.py secret set --secret-name $ES_ALLOWED_SOURCE_IP_SECRETS_NAME
 ```
 
 Use Terraform to deploy ES resource:
