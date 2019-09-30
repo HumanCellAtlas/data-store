@@ -70,7 +70,6 @@ subprocess.run(
         os.path.join(os.path.dirname(__file__), "dss-ops.py"),
         "secrets",
         "set",
-        "--secret-name",
         secret_name,
     ],
     input=json.dumps(secret_info).encode("utf-8"),
