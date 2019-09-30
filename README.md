@@ -139,10 +139,10 @@ The DSS uses the [Amazon S3 backend](https://www.terraform.io/docs/backends/type
 	1) Run the command
 
 	   ```
+       ### WARNING: RUNNING THIS COMMAND WILL
+       ###          CLEAR EXISTING SCRET VALUE
 	   cat $DSS_HOME/application_secrets.json | ./scripts/dss-ops.py secrets set --secret-name $GOOGLE_APPLICATION_SECRETS_SECRETS_NAME
        ```
-
-       **WARNING:** Running the above command will change secrets!
 
 1.  [Download](https://cloud.google.com/sdk/downloads) the `gcloud` command line utility.
 
@@ -160,7 +160,7 @@ The DSS uses the [Amazon S3 backend](https://www.terraform.io/docs/backends/type
 1.  Choose a region that has support for Cloud Functions and set `GCP_DEFAULT_REGION` to that region. See
     [the GCP locations list](https://cloud.google.com/about/locations/) for a list of supported regions.
 
-1.  Run `gcloud config set project PROJECT_ID` **where PROJECT_ID is the ID, not the name (i.e: hca-store-21555, NOT just hca-store) of the GCP project you selected earlier**.
+1.  Run `gcloud config set project PROJECT_ID` **where `PROJECT_ID` is the ID, not the name (i.e: hca-store-21555, NOT just hca-store) of the GCP project you selected earlier**.
 
 1.  Enable required APIs:
 
