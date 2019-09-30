@@ -1,125 +1,13 @@
 import chalice.config
 import functools
 import os
-import sys
 import threading
 import types
 import requests
-import cgi
-import json
-from http.server import BaseHTTPRequestHandler, HTTPServer
 from chalice.cli import CLIFactory
 from chalice.local import LocalDevServer, ChaliceRequestHandler
 
 from dss.util import networking
-from dss import Config, BucketConfig
-
-
-class ThreadedMockFusilladeServer(BaseHTTPRequestHandler):
-    """
-    Create a mock Fusillade auth server endpoint so that any operation that tries to check
-    permissions with Fusillade will be handled correctly; we keep it simple and accept/reject
-    based on whether the principal (user) is on the whitelist or not.
-    """
-    _address = "127.0.0.1"
-    _port = None
-    _server = None
-    _thread = None
-    _request = None
-    _whitelist = ['valid@ucsc.edu', 'travis-test@human-cell-atlas-travis-test.iam.gserviceaccount.com']
-
-    @classmethod
-    def startServing(cls):
-        Config.set_config(BucketConfig.TEST)
-        cls.stash_oidc_group_claim()
-        cls.stash_openid_provider()
-        cls._port = cls.get_port()
-        # Allow multiple servers to be created/destroyed during tests
-        HTTPServer.allow_reuse_address = True
-        cls._server = HTTPServer((cls._address, cls._port), cls)
-        cls._thread = threading.Thread(target=cls._server.serve_forever, daemon=True)
-        cls._thread.start()
-        cls._request = []
-
-    @classmethod
-    def stopServing(cls):
-        cls._server.shutdown()
-        del cls._server  # Required to create new servers
-        cls._thread.join()
-        cls.restore_oidc_group_claim()
-        cls.restore_openid_provider()
-
-    @classmethod
-    def get_port(cls):
-        authz_url = Config.get_authz_url()
-        split_authz_url = authz_url.split(":")
-        if len(split_authz_url) == 3:
-            return int(split_authz_url[-1])
-        else:
-            raise RuntimeError(
-                f"Error: AuthZ URL {authz_url} is malformed for tests, need a port number.\n "
-                "Check test configuration values and dss/config.py get_authz_url()."
-            )
-
-    @classmethod
-    def get_endpoint(cls):
-        cls._port = cls.get_port()
-        endpoint = f"http://{cls._address}:{cls._port}"
-        return endpoint
-
-    @classmethod
-    def stash_oidc_group_claim(cls):
-        """Stash the OIDC_GROUP_CLAIM env var and replace it with a test value"""
-        key = 'OIDC_GROUP_CLAIM'
-        cls._old_oidc_group_claim = os.environ.pop(key, 'EMPTY')
-        os.environ[key] = 'https://auth.data.humancellatlas.org/group'
-
-    @classmethod
-    def restore_oidc_group_claim(cls):
-        """Restore the OIDC_GROUP_CLAIM env var when mock fusillade server is done"""
-        key = 'OIDC_GROUP_CLAIM'
-        os.environ[key] = cls._old_oidc_group_claim
-
-    @classmethod
-    def stash_openid_provider(cls):
-        """Stash the OPENID_PROVIDER env var and replace it with a test value"""
-        key = 'OPENID_PROVIDER'
-        cls._old_openid_provider = os.environ.pop(key, 'EMPTY')
-        os.environ[key] = 'https://humancellatlas.auth0.com/'
-
-    @classmethod
-    def restore_openid_provider(cls):
-        """Restore the OPENID_PROVIDER env var when mock fusillade server is done"""
-        key = 'OPENID_PROVIDER'
-        os.environ[key] = cls._old_openid_provider
-
-    def _set_headers(self):
-        self.send_response(200)
-        self.send_header('Content-type', 'application/json')
-        self.end_headers()
-
-    def do_POST(self):
-        ctype, pdict = cgi.parse_header(self.headers.get('content-type'))
-        # Enforce rule: JSON only
-        if ctype != 'application/json':
-            self.send_response(400)
-            self.end_headers()
-            return
-        # Convert received JSON to dict
-        length = int(self.headers.get('content-length'))
-        message = json.loads(self.rfile.read(length))
-        # Only allow if principal is on whitelist
-        if message['principal'] in self._whitelist:
-            message['result'] = True
-        else:
-            message['result'] = False
-        # Send it back
-        self._set_headers()
-        self.wfile.write(bytes(json.dumps(message), "utf8"))
-
-    def log_request(self, *args, **kwargs):
-        """If this method is empty, the HTTP server will not print any log messages"""
-        pass
 
 
 class SilentHandler(ChaliceRequestHandler):
@@ -164,12 +52,11 @@ class ThreadedLocalServer(threading.Thread):
         self._server.server.serve_forever()
 
     def _make_call(self, method, path, **kwargs):
-        result = method(
+        return method(
             f"http://127.0.0.1:{self._port}{path}",
             allow_redirects=False,
             timeout=(1.0, 30.0),
             **kwargs)
-        return result
 
     @classmethod
     def _inject_api_requests_methods(cls):
