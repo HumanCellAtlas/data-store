@@ -86,9 +86,8 @@ class TestEvents(unittest.TestCase, DSSAssertMixin):
             events.record_event_for_bundle(replica, self.bundle[replica.name]['key'])
 
     def test_list(self):
-        # for replica in Replica:
-        #     self._test_list(replica)
-        self._test_list(Replica.aws)
+        for replica in Replica:
+            self._test_list(replica)
 
     def _test_list(self, replica):
         with self.subTest("list events unpaged", replica=replica.name):

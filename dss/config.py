@@ -544,10 +544,16 @@ class Replica(Enum):
 
     @property
     def flashflood_prefix_read(self) -> str:
+        """
+        There can only be a single read prefix for `flashflood`. Return a string.
+        """
         return os.environ[self._flashflood_prefix_read_envvar]
 
     @property
     def flashflood_prefix_write(self) -> typing.Tuple[str, ...]:
+        """
+        There can multiple write prefixes for `flashflood`. Return a Tuple.
+        """
         return tuple(os.environ[self._flashflood_prefix_write_envvar].split(","))
 
 @contextmanager
