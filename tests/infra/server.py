@@ -12,14 +12,14 @@ from chalice.cli import CLIFactory
 from chalice.local import LocalDevServer, ChaliceRequestHandler
 
 from dss.util import networking
-from dss import Config
+from dss import Config, BucketConfig
 
 
 class ThreadedMockFusilladeServer(BaseHTTPRequestHandler):
     """
     Create a mock Fusillade auth server endpoint so that any operation that tries to check
     permissions with Fusillade will be handled correctly; we keep it simple and accept/reject
-    based on whether the principal (user) is on the whitelist or the blacklist.
+    based on whether the principal (user) is on the whitelist or not.
     """
     _address = "127.0.0.1"
     _port = None
@@ -27,7 +27,27 @@ class ThreadedMockFusilladeServer(BaseHTTPRequestHandler):
     _thread = None
     _request = None
     _whitelist = ['valid@ucsc.edu', 'travis-test@human-cell-atlas-travis-test.iam.gserviceaccount.com']
-    _blacklist = ['invalid@ucsc.edu']
+
+    @classmethod
+    def startServing(cls):
+        Config.set_config(BucketConfig.TEST)
+        cls.stash_oidc_group_claim()
+        cls.stash_openid_provider()
+        cls._port = cls.get_port()
+        # Allow multiple servers to be created/destroyed during tests
+        HTTPServer.allow_reuse_address = True
+        cls._server = HTTPServer((cls._address, cls._port), cls)
+        cls._thread = threading.Thread(target=cls._server.serve_forever, daemon=True)
+        cls._thread.start()
+        cls._request = []
+
+    @classmethod
+    def stopServing(cls):
+        cls._server.shutdown()
+        del cls._server  # Required to create new servers
+        cls._thread.join()
+        cls.restore_oidc_group_claim()
+        cls.restore_openid_provider()
 
     @classmethod
     def get_port(cls):
@@ -48,17 +68,30 @@ class ThreadedMockFusilladeServer(BaseHTTPRequestHandler):
         return endpoint
 
     @classmethod
-    def startServing(cls):
-        cls._port = cls.get_port()
-        cls._server = HTTPServer((cls._address, cls._port), cls)
-        cls._thread = threading.Thread(target=cls._server.serve_forever, daemon=True)
-        cls._thread.start()
-        cls._request = []
+    def stash_oidc_group_claim(cls):
+        """Stash the OIDC_GROUP_CLAIM env var and replace it with a test value"""
+        key = 'OIDC_GROUP_CLAIM'
+        cls._old_oidc_group_claim = os.environ.pop(key, 'EMPTY')
+        os.environ[key] = 'https://auth.data.humancellatlas.org/group'
 
     @classmethod
-    def stopServing(cls):
-        cls._server.shutdown()
-        cls._thread.join()
+    def restore_oidc_group_claim(cls):
+        """Restore the OIDC_GROUP_CLAIM env var when mock fusillade server is done"""
+        key = 'OIDC_GROUP_CLAIM'
+        os.environ[key] = cls._old_oidc_group_claim
+
+    @classmethod
+    def stash_openid_provider(cls):
+        """Stash the OPENID_PROVIDER env var and replace it with a test value"""
+        key = 'OPENID_PROVIDER'
+        cls._old_openid_provider = os.environ.pop(key, 'EMPTY')
+        os.environ[key] = 'https://humancellatlas.auth0.com/'
+
+    @classmethod
+    def restore_openid_provider(cls):
+        """Restore the OPENID_PROVIDER env var when mock fusillade server is done"""
+        key = 'OPENID_PROVIDER'
+        os.environ[key] = cls._old_openid_provider
 
     def _set_headers(self):
         self.send_response(200)
@@ -85,7 +118,7 @@ class ThreadedMockFusilladeServer(BaseHTTPRequestHandler):
         self.wfile.write(bytes(json.dumps(message), "utf8"))
 
     def log_request(self, *args, **kwargs):
-        # Quiet plz
+        """If this method is empty, the HTTP server will not print any log messages"""
         pass
 
 

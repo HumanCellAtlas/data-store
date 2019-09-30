@@ -91,9 +91,6 @@ def setUpModule():
     else:
         NotificationRequestHandler = LocalNotificationRequestHandler
     NotificationRequestHandler.startServing()
-
-    # Start the mock Fusillade server
-    Config.set_config(BucketConfig.TEST)
     MockFusillade.startServing()
 
 
