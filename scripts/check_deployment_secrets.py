@@ -92,7 +92,7 @@ class SecretsChecker(object):
     def fetch_secret(self, secret_name):
         ops_script = os.path.join(os.path.dirname(__file__), "dss-ops.py")
         ops_verb = "secrets"
-        ops_args = f"--json --secret-name {secret_name}"
+        ops_args = f"{secret_name} --json"
         cmd = f"{ops_script} {ops_verb} {ops_args}"
         raw_response = self.run_cmd(cmd)
         try:
