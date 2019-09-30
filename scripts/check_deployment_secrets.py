@@ -90,11 +90,8 @@ class SecretsChecker(object):
         return json.loads(self.run_cmd(cmd, shell=False))
 
     def fetch_secret(self, secret_name):
-        ops_script = os.path.join(os.path.dirname(__file__), "dss-ops.py")
-        ops_verb = "secrets"
-        ops_args = f"{secret_name} --json"
-        cmd = f"{ops_script} {ops_verb} {ops_args}"
-        raw_response = self.run_cmd(cmd)
+        script_path = os.path.join(os.path.dirname(__file__), "fetch_secret.sh")
+        raw_response = self.run_cmd(f'{script_path} {secret_name}')
         try:
             secret = json.loads(raw_response)
         except json.decoder.JSONDecodeError:
