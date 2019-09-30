@@ -2,6 +2,7 @@ import os
 import json
 import logging
 import threading
+import typing
 from datetime import datetime
 from collections import defaultdict
 from concurrent.futures import ThreadPoolExecutor
@@ -14,12 +15,6 @@ from dss.config import Config, Replica
 from dss.storage.identifiers import TOMBSTONE_SUFFIX
 from dss.util.version import datetime_from_timestamp
 
-# TODO Support "reindex" for event journals:
-#      1) attempt read from "old" prefix
-#      2) attempt read from "new" prefix
-#      3) write to "new" prefix
-#      4) Prevent journaling on "new" prefix until all ald events are added
-
 # TODO: What happens when an event is recorder with timestamp erlier tha latest journal?
 
 @lru_cache(maxsize=2)
@@ -27,9 +22,8 @@ def get_bundle_metadata_document(replica: Replica,
                                  key: str,
                                  flashflood_prefix: str=None) -> dict:
     fqid = key.split("/", 1)[1]
-    ff = FlashFlood(resources.s3,  # type: ignore
-                    Config.get_flashflood_bucket(),
-                    flashflood_prefix or replica.flashflood_prefix)
+    pfx = flashflood_prefix or replica.flashflood_prefix_read
+    ff = FlashFlood(resources.s3, Config.get_flashflood_bucket(), pfx)
     try:
         metadata_document = json.loads(ff.get_event(fqid).data.decode("utf-8"))
     except FlashFloodEventNotFound:
@@ -52,23 +46,25 @@ def get_deleted_bundle_metadata_document(replica: Replica, key: str) -> dict:
 @lru_cache(maxsize=2)
 def record_event_for_bundle(replica: Replica,
                             key: str,
-                            flashflood_prefix: str=None,
+                            flashflood_prefixes: typing.Tuple[str, ...]=None,
                             use_version_for_timestamp: bool=False) -> dict:
     """
     Build the bundle metadata document, record it into flashflood, and return it
     """
     # TODO: Add support for unversioned tombstones
     fqid = key.split("/", 1)[1]
-    ff = FlashFlood(resources.s3,  # type: ignore
-                    Config.get_flashflood_bucket(),
-                    flashflood_prefix or replica.flashflood_prefix)
+    if flashflood_prefixes is None:
+        flashflood_prefixes = replica.flashflood_prefix_write
     metadata_document = _build_bundle_metadata_document(replica, key)
     if use_version_for_timestamp:
         _, version = fqid.split(".", 1)
         event_date = datetime_from_timestamp(version)
     else:
         event_date = datetime.utcnow()
-    ff.put(json.dumps(metadata_document).encode("utf-8"), event_id=fqid, date=event_date)
+    for pfx in flashflood_prefixes:
+        ff = FlashFlood(resources.s3, Config.get_flashflood_bucket(), pfx)
+        if not ff.event_exists(fqid):
+            ff.put(json.dumps(metadata_document).encode("utf-8"), event_id=fqid, date=event_date)
     return metadata_document
 
 def _build_bundle_metadata_document(replica: Replica, key: str) -> dict:
