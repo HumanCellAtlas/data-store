@@ -8,7 +8,11 @@ sys.path.insert(0, pkg_root)  # noqa
 
 from tests.infra import testmode
 from tests.infra.server import ThreadedLocalServer
-from tests.infra.server import ThreadedMockFusilladeServer as MockFusillade
+from tests.infra.mock_fusillade import (
+    start_multiprocess_mock_fusillade_server,
+    stop_multiprocess_mock_fusillade_server,
+    MockFusilladeServer,
+)
 import dss.error
 from dss.util import security
 from dss import BucketConfig, Config, DeploymentStage
@@ -20,15 +24,15 @@ class TestMockFusilladeServer(unittest.TestCase):
     @classmethod
     def setUpClass(self):
         Config.set_config(BucketConfig.TEST)
-        MockFusillade.startServing()
-        self.auth_url = MockFusillade.get_endpoint()
+        start_multiprocess_mock_fusillade_server()
+        self.auth_url = MockFusilladeServer.get_endpoint()
 
     def test_get_policy(self):
         actions = ["dss:PutBundle"]
         resources = ["arn:hca:dss:dev:*:bundle/123456/0"]
 
         # Ensure whitelisted principals are granted access
-        for principal in MockFusillade._whitelist:
+        for principal in MockFusilladeServer._whitelist:
             security.assert_authorized(principal, actions, resources)
 
         # Ensure non-whitelisted principals are denied access
@@ -38,7 +42,7 @@ class TestMockFusilladeServer(unittest.TestCase):
 
     @classmethod
     def tearDownClass(self):
-        MockFusillade.stopServing()
+        stop_multiprocess_mock_fusillade_server()
 
 
 if __name__ == "__main__":
