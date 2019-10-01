@@ -125,7 +125,7 @@ def assert_authorized(principal: str,
                         json={"action": actions,
                               "resource": resources,
                               "principal": principal})
-    resp_json = resp.json()
     resp.raise_for_status()
+    resp_json = resp.json()
     if not resp_json.get('result'):
         raise DSSForbiddenException(title=f"User is not authorized to access this resource:\n{resp_json}")
