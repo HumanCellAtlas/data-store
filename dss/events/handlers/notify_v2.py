@@ -54,13 +54,15 @@ def should_notify(replica: Replica, subscription: dict, metadata_document: dict,
 
 def notify_or_queue(replica: Replica, subscription: dict, metadata_document: dict, key: str):
     """
-    Notify or queue for later processing. There are three cases:
+    Notify or queue for later processing:
         1) For normal bundle: attempt notification, queue on failure
-        2) For versioned tombstone: attempt notifcation, queue on failure
-        3) For unversioned tombstone: Queue one notifcation per affected bundle version. Notifications are
+        2) For delete: attempt notification, queue on failure
+        3) For versioned tombstone: attempt notification, queue on failure
+        4) For unversioned tombstone: Queue one notification per affected bundle version. Notifications are
            not attempted for previously tombstoned versions. Since the number of versions is
            unbounded, inline delivery is not attempted.
     """
+    event_type = metadata_document['event_type']
     with SQSMessenger(get_queue_url(notification_queue_name)) as sqsm:
         if _unversioned_tombstone_key_regex.match(key):
             tombstones = set()
@@ -72,13 +74,11 @@ def notify_or_queue(replica: Replica, subscription: dict, metadata_document: dic
                     tombstones.add(bundle_key)
                 elif _bundle_key_regex.match(key):
                     bundles.add(key)
-            for key in bundles:
-                if key not in tombstones:
-                    sqsm.send(_format_sqs_message(replica, subscription, "TOMBSTONE", key), delay_seconds=0)
+            for key in bundles - tombstones:
+                sqsm.send(_format_sqs_message(replica, subscription, event_type, key), delay_seconds=0)
         else:
-            bundle_key = key.rsplit(".", 1)[0]
-            if not notify(subscription, metadata_document, bundle_key):
-                sqsm.send(_format_sqs_message(replica, subscription, "TOMBSTONE", bundle_key), delay_seconds=15 * 60)
+            if not notify(subscription, metadata_document, key):
+                sqsm.send(_format_sqs_message(replica, subscription, event_type, key), delay_seconds=15 * 60)
 
 
 def notify(subscription: dict, metadata_document: dict, key: str) -> bool:
