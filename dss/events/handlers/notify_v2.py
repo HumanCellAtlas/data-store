@@ -56,9 +56,9 @@ def notify_or_queue(replica: Replica, subscription: dict, metadata_document: dic
     """
     Notify or queue for later processing:
         1) For normal bundle: attempt notification, queue on failure
-        2) For delete: attempt notifcation, queue on failure
-        3) For versioned tombstone: attempt notifcation, queue on failure
-        4) For unversioned tombstone: Queue one notifcation per affected bundle version. Notifications are
+        2) For delete: attempt notification, queue on failure
+        3) For versioned tombstone: attempt notification, queue on failure
+        4) For unversioned tombstone: Queue one notification per affected bundle version. Notifications are
            not attempted for previously tombstoned versions. Since the number of versions is
            unbounded, inline delivery is not attempted.
     """
