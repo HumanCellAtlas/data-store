@@ -69,7 +69,8 @@ class Smoketest(BaseSmokeTest):
                 self.addCleanup(s3.delete_object, Bucket=self.notification_bucket, Key=notification_key)
                 notifications_proofs[replica] = (subscription_id, notification_key)
                 self.subTest(self._test_subscription_get_es(replica, subscription_id, url))
-                self.subTest(self._test_get_subscriptions(replica, subscription_id))
+                self.subTest(self._test_get_subscriptions(replica, subscription_id, "elasticsearch"))
+                #insert call to test successful delivery
                 self.subscription_delete(replica, subscription_id)
 
         with self.subTest(f"{starting_replica.name}: Create the bundle"):

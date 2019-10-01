@@ -14,7 +14,7 @@ from jmespath.exceptions import JMESPathError
 from dcplib.aws.sqs import SQSMessenger, get_queue_url
 
 from dss import Config, Replica, datetime_to_version_format
-from dss.subscriptions_v2 import SubscriptionData
+from dss.subscriptions_v2 import SubscriptionData, update_subcription_stats
 from dss.storage.identifiers import UUID_PATTERN, VERSION_PATTERN, TOMBSTONE_SUFFIX, DSS_BUNDLE_KEY_REGEX
 
 logger = logging.getLogger(__name__)
@@ -77,8 +77,12 @@ def notify_or_queue(replica: Replica, subscription: dict, metadata_document: dic
             for key in bundles - tombstones:
                 sqsm.send(_format_sqs_message(replica, subscription, event_type, key), delay_seconds=0)
         else:
-            if not notify(subscription, metadata_document, key):
+            notify_status = notify(subscription, metadata_document, key)
+            if notify_status:
+                update_subcription_stats(subscription, True)
+            else:
                 sqsm.send(_format_sqs_message(replica, subscription, event_type, key), delay_seconds=15 * 60)
+                update_subcription_stats(subscription, False)
 
 
 def notify(subscription: dict, metadata_document: dict, key: str) -> bool:

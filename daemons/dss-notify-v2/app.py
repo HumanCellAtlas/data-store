@@ -20,7 +20,7 @@ from dss.events import get_bundle_metadata_document, get_deleted_bundle_metadata
 from dss.events.handlers.notify_v2 import should_notify, notify_or_queue, notify
 
 from dss.events.handlers.sync import exists
-from dss.subscriptions_v2 import get_subscription, get_subscriptions_for_replica
+from dss.subscriptions_v2 import get_subscription, get_subscriptions_for_replica, update_subcription_stats
 
 
 configure_lambda_logging()
@@ -99,8 +99,10 @@ def launch_from_notification_queue(event, context):
                     return
                 metadata_document = get_bundle_metadata_document(replica, key)
             if not notify(subscription, metadata_document, key):
+                update_subcription_stats(subscription, False)
                 # Erroring causes the message to remain in the queue
                 raise DSSFailedNotificationDelivery()
+            update_subcription_stats(subscription, True)
         else:
             logger.warning(f"Recieved queue message with no matching subscription:{message}")
 
