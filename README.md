@@ -80,6 +80,10 @@ development version of the DSS.
 Note that privileged access to cloud accounts (AWS, GCP, etc.) is required to deploy the data-store. IF your deployment fails
 due to access restrictions, please consult your local systems administrators.
 
+Also note that all commands given in this Readme should be run from the root of this repository after sourcing the
+correct environment (see the [Configuration](#configuration) section below). The root directory of the repository
+is also available in the environment variable `$DSS_HOME`.
+
 ### Install Dependencies
 
 The DSS requires Python 3.6 to run.
