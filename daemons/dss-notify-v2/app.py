@@ -119,6 +119,7 @@ def _notify_subscribers(replica: Replica, key: str, is_delete_event: bool):
             notify_or_queue(replica, subscription, metadata_document, key)
 
     # TODO: Consider scaling parallelization with Lambda size
+    logger.info(f"Attempting notifications for; replica: {replica}, key: {key} delete: {is_delete_event}")
     with ThreadPoolExecutor(max_workers=20) as e:
         e.map(_func, get_subscriptions_for_replica(replica))
 
