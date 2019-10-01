@@ -44,7 +44,11 @@ class MockFusilladeServer(BaseHTTPRequestHandler):
     _port = None
     _server = None
     _request = None
-    _whitelist = ["valid@ucsc.edu", "travis-test@human-cell-atlas-travis-test.iam.gserviceaccount.com"]
+    _whitelist = [
+        "valid@ucsc.edu",
+        "travis-test@human-cell-atlas-travis-test.iam.gserviceaccount.com",
+        "org-humancellatlas-integration@human-cell-atlas-travis-test.iam.gserviceaccount.com",
+    ]
 
     @classmethod
     def startServing(cls):
