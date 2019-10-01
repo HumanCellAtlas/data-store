@@ -74,9 +74,8 @@ def notify_or_queue(replica: Replica, subscription: dict, metadata_document: dic
                     tombstones.add(bundle_key)
                 elif _bundle_key_regex.match(key):
                     bundles.add(key)
-            for key in bundles:
-                if key not in tombstones:
-                    sqsm.send(_format_sqs_message(replica, subscription, event_type, key), delay_seconds=0)
+            for key in bundles - tombstones:
+                sqsm.send(_format_sqs_message(replica, subscription, event_type, key), delay_seconds=0)
         else:
             if not notify(subscription, metadata_document, key):
                 sqsm.send(_format_sqs_message(replica, subscription, event_type, key), delay_seconds=15 * 60)
