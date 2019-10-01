@@ -123,6 +123,8 @@ class TestNotifyV2(unittest.TestCase, DSSAssertMixin, DSSUploadMixin):
 
         notification = self._get_notification_from_s3_object(bucket, notification_object_key)
         self.assertEquals(notification['subscription_id'], subscription['uuid'])
+        self.assertIn('stats', notification)
+        self.assertGreater(notification['stats']['successful'], 0)
         self.assertEquals(notification['match']['bundle_uuid'], bundle_uuid)
         self.assertEquals(notification['match']['bundle_version'], f"{bundle_version}")
 
@@ -246,6 +248,8 @@ class TestNotifyV2(unittest.TestCase, DSSAssertMixin, DSSUploadMixin):
             mq.send(msg, delay_seconds=0)
         notification = self._get_notification_from_s3_object(bucket, key)
         self.assertEquals(notification['subscription_id'], subscription['uuid'])
+        self.assertIn('stats', notification)
+        self.assertGreater(notification['stats']['successful'], 0)
 
     @testmode.integration
     def test_bundle_notification(self):
@@ -273,6 +277,8 @@ class TestNotifyV2(unittest.TestCase, DSSAssertMixin, DSSUploadMixin):
 
         notification = self._get_notification_from_s3_object(bucket, key)
         self.assertEquals(notification['subscription_id'], subscription['uuid'])
+        self.assertIn('stats', notification)
+        self.assertGreater(notification['stats']['successful'], 0)
         # There's a chance an unrelated bundle will trigger our subscription
         # self.assertEquals(notification['match']['bundle_uuid'], bundle_uuid)
         # self.assertEquals(notification['match']['bundle_version'], bundle_version)
