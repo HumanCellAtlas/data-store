@@ -105,16 +105,3 @@ def delete_all(argv: typing.List[str], args: argparse.Namespace):
     Delete all events recorded or journaled into `prefix`
     """
     FlashFlood(resources.s3, Config.get_flashflood_bucket(), args.prefix)._destroy()
-
-def _get_bundle_metadata_document(replica: Replica,
-                                  key: str,
-                                  flashflood_prefix=None,
-                                  use_version_for_timestamp: bool=False):
-    if not key.startswith("bundles/"):
-        logger.warning(f"bundle metadata document not supported for '{key}'")
-        return None
-    try:
-        return
-    except BlobNotFoundError:
-        logger.error(f"Bundle not found for '{key}'")
-        return None
