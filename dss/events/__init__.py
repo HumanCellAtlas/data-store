@@ -21,14 +21,17 @@ from dss.util.version import datetime_from_timestamp
 def get_bundle_metadata_document(replica: Replica,
                                  key: str,
                                  flashflood_prefix: str=None) -> dict:
-    fqid = key.split("/", 1)[1]
-    pfx = flashflood_prefix or replica.flashflood_prefix_read
-    ff = FlashFlood(resources.s3, Config.get_flashflood_bucket(), pfx)
-    try:
-        metadata_document = json.loads(ff.get_event(fqid).data.decode("utf-8"))
-    except FlashFloodEventNotFound:
-        metadata_document = None
-    return metadata_document
+    if key.endswith(TOMBSTONE_SUFFIX):
+        return _build_bundle_metadata_document(replica, key)
+    else:
+        fqid = key.split("/", 1)[1]
+        pfx = flashflood_prefix or replica.flashflood_prefix_read
+        ff = FlashFlood(resources.s3, Config.get_flashflood_bucket(), pfx)
+        try:
+            metadata_document = json.loads(ff.get_event(fqid).data.decode("utf-8"))
+        except FlashFloodEventNotFound:
+            metadata_document = None
+        return metadata_document
 
 @lru_cache(maxsize=2)
 def get_deleted_bundle_metadata_document(replica: Replica, key: str) -> dict:
