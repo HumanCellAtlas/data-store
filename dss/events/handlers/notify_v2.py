@@ -1,5 +1,6 @@
 import os
 import re
+import typing
 import json
 import requests
 import urllib3
@@ -14,7 +15,7 @@ from jmespath.exceptions import JMESPathError
 from dcplib.aws.sqs import SQSMessenger, get_queue_url
 
 from dss import Config, Replica, datetime_to_version_format
-from dss.subscriptions_v2 import SubscriptionData, update_subcription_stats
+from dss.subscriptions_v2 import SubscriptionData, SubscriptionStats, update_subscription_stats
 from dss.storage.identifiers import UUID_PATTERN, VERSION_PATTERN, TOMBSTONE_SUFFIX, DSS_BUNDLE_KEY_REGEX
 
 logger = logging.getLogger(__name__)
@@ -79,10 +80,10 @@ def notify_or_queue(replica: Replica, subscription: dict, metadata_document: dic
         else:
             notify_status = notify(subscription, metadata_document, key)
             if notify_status:
-                update_subcription_stats(subscription, True)
+                update_subscription_stats(subscription, SubscriptionStats.SUCCESSFUL)
             else:
+                update_subscription_stats(subscription, SubscriptionStats.FAILED)
                 sqsm.send(_format_sqs_message(replica, subscription, event_type, key), delay_seconds=15 * 60)
-                update_subcription_stats(subscription, False)
 
 
 def notify(subscription: dict, metadata_document: dict, key: str) -> bool:
@@ -95,7 +96,7 @@ def notify(subscription: dict, metadata_document: dict, key: str) -> bool:
     if bundle_version.endswith(sfx):
         bundle_version = bundle_version[:-len(sfx)]
     api_domain_name = f'https://{os.environ.get("API_DOMAIN_NAME")}'
-    payload = {
+    payload: typing.Dict[typing.Union[str, SubscriptionData], typing.Any] = {
         'bundle_url': api_domain_name + f'/v1/bundles/{bundle_uuid}?version={bundle_version}',
         'dss_api': api_domain_name,
         'subscription_id': subscription[SubscriptionData.UUID],
@@ -110,7 +111,7 @@ def notify(subscription: dict, metadata_document: dict, key: str) -> bool:
 
     jmespath_query = subscription.get(SubscriptionData.JMESPATH_QUERY)
     if jmespath_query is not None:
-        payload[SubscriptionData.JMESPATH_QUERY] = jmespath_query
+        payload[str(SubscriptionData.JMESPATH_QUERY)] = jmespath_query
 
     if "CREATE" == metadata_document['event_type']:
         attachments_defs = subscription.get(SubscriptionData.ATTACHMENTS)

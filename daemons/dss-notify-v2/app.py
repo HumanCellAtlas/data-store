@@ -20,7 +20,8 @@ from dss.events import get_bundle_metadata_document, get_deleted_bundle_metadata
 from dss.events.handlers.notify_v2 import should_notify, notify_or_queue, notify
 
 from dss.events.handlers.sync import exists
-from dss.subscriptions_v2 import get_subscription, get_subscriptions_for_replica, update_subcription_stats
+from dss.subscriptions_v2 import get_subscription, get_subscriptions_for_replica, update_subscription_stats,\
+    SubscriptionStats
 
 
 configure_lambda_logging()
@@ -99,10 +100,10 @@ def launch_from_notification_queue(event, context):
                     return
                 metadata_document = get_bundle_metadata_document(replica, key)
             if not notify(subscription, metadata_document, key):
-                update_subcription_stats(subscription, False)
+                update_subscription_stats(subscription, SubscriptionStats.FAILED)
                 # Erroring causes the message to remain in the queue
                 raise DSSFailedNotificationDelivery()
-            update_subcription_stats(subscription, True)
+            update_subscription_stats(subscription, SubscriptionStats.SUCCESSFUL)
         else:
             logger.warning(f"Recieved queue message with no matching subscription:{message}")
 
@@ -121,6 +122,7 @@ def _notify_subscribers(replica: Replica, key: str, is_delete_event: bool):
             notify_or_queue(replica, subscription, metadata_document, key)
 
     # TODO: Consider scaling parallelization with Lambda size
+    logger.info(f"Attempting notifications for; replica: {replica}, key: {key} delete: {is_delete_event}")
     with ThreadPoolExecutor(max_workers=20) as e:
         e.map(_func, get_subscriptions_for_replica(replica))
 

@@ -52,25 +52,28 @@ class Smoketest(BaseSmokeTest):
             'query': {'match': {'files.cell_suspension_json.biomaterial_core.biomaterial_id': biomaterial_id}}
         }
         tombstone_query = {"query": {"bool": {"must": [{"term": {"admin_deleted": "true"}}]}}}
-        queries = [bundle_query, tombstone_query]
+        bundle_query_jmes = "event_type=='CREATE'"
+        tombstone_query_jmes = "event_type=='TOMBSTONE'"
+        queries = [(bundle_query, "elasticsearch"), (tombstone_query, "elasticsearch"),
+                   (bundle_query_jmes, "jmespath"), (tombstone_query_jmes, "jmespath")]
 
         os.chdir(self.workdir.name)
 
         s3 = boto3.client('s3', config=botocore.client.Config(signature_version='s3v4'))
         notifications_proofs = {}
-        for replica, query in product(self.replicas, queries):
+        # Elastic Search Section
+        for replica, (query, query_type) in product(self.replicas, queries):
             with self.subTest(f"{starting_replica.name}: Create a subscription for replica {replica} using the "
                               f"query: {query}"):
                 notification_key = f'notifications/{uuid.uuid4()}'
                 url = self.generate_presigned_url(self.notification_bucket, notification_key)
-                put_response = self.subscription_put_es(replica, query, url)
+                put_response = self.put_subscription(replica, query_type, query, url)
                 print(put_response)
                 subscription_id = put_response['uuid']
                 self.addCleanup(s3.delete_object, Bucket=self.notification_bucket, Key=notification_key)
                 notifications_proofs[replica] = (subscription_id, notification_key)
                 self.subTest(self._test_subscription_get_es(replica, subscription_id, url))
-                self.subTest(self._test_get_subscriptions(replica, subscription_id, "elasticsearch"))
-                #insert call to test successful delivery
+                self.subTest(self._test_get_subscriptions(replica, subscription_id))
                 self.subscription_delete(replica, subscription_id)
 
         with self.subTest(f"{starting_replica.name}: Create the bundle"):
@@ -114,7 +117,7 @@ class Smoketest(BaseSmokeTest):
         for replica, (subscription_id, notification_key) in notifications_proofs.items():
             with self.subTest(f"{starting_replica.name}: Check the notifications. "
                               f"{replica.name}, {subscription_id}, {notification_key}"):
-                for i in range(10):
+                for i in range(20):
                     try:
                         obj = s3.get_object(Bucket=self.notification_bucket, Key=notification_key)
                     except s3.exceptions.NoSuchKey:
@@ -132,22 +135,10 @@ class Smoketest(BaseSmokeTest):
         for replica in self.replicas:
             # Enumerations against the replicas should be done after the test_replica_sync to ensure consistency.
             with self.subTest(f'Testing Bundle Enumeration on {replica.name}'):
-                enumerate_bundles = list()
-                page_size = 10
+                page_size = 500
                 first_page = self.get_bundle_enumerations(replica.name, page_size)
-                print(first_page)
-                self.assertEqual(first_page['per_page'], 10)
+                self.assertEqual(first_page['per_page'], 500)
                 self.assertGreater(first_page['page_count'], 0)
-                if first_page['has_more'] is True:
-                    self.assertTrue(first_page['has_more'])
-                    self.assertTrue(first_page['token'])
-                    enumerate_bundles.extend(first_page['bundles'])
-                    next_page = self.get_bundle_enumerations(replica.name, page_size,
-                                                             search_after=first_page['search_after'],
-                                                             token=first_page['token'])
-                    self.assertEqual(next_page['per_page'], 10)
-                    enumerate_bundles.extend(next_page['bundles'])
-                    self.assertEqual(len(enumerate_bundles), (first_page['page_count'] + next_page['page_count']))
 
     def test_smoketest(self):
         for param in self.params:

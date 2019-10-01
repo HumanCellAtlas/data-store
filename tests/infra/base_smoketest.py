@@ -158,14 +158,26 @@ class BaseSmokeTest(unittest.TestCase):
                              '--es-query', json.dumps(es_query),
                              '--replica', replica.name])
 
+        def subscription_put_jmespath(replica, jmespath_query, url):
+            return run_for_json([f'{self.venv_bin}hca', 'dss', 'put-subscription',
+                                 '--callback-url', url,
+                                 '--method', 'PUT',
+                                 '--jmespath-query', f"{jmespath_query}",
+                                 '--replica', replica.name])
+
+        if subscription_type == 'jmespath':
+            return subscription_put_jmespath(replica, query, url)
+        else:
+            return subscription_put_es(replica, query, url)
+
     def subscription_delete(self, replica, subscription_type, uuid):
         """ delete's subscription created, should be wrapped in self.addCleanup() """
         self.addCleanup(run, f"{self.venv_bin}hca dss delete-subscription --replica {replica.name} "
                              f"--uuid {uuid} "
                              f"--subscription-type {subscription_type}")
 
-    def _test_subscription_get_es(self, replica, subscription_id, callback_url):
-        get_response = self.get_subscription(replica, "elasticsearch", subscription_id)
+    def _test_subscription(self, replica, subscription_id, callback_url, subscription_type):
+        get_response = self.get_subscription(replica, subscription_type, subscription_id)
         self.assertEquals(subscription_id, get_response['uuid'])
         self.assertEquals(callback_url, get_response['callback_url'])
 

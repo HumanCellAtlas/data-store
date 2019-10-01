@@ -13,13 +13,11 @@ import typing
 from botocore.exceptions import ClientError
 
 from dss.operations import dispatch
-from dss.operations.ssm_params import get_ssm_variable_prefix, fix_ssm_variable_prefix
-from dss.operations.ssm_params import set_ssm_parameter, unset_ssm_parameter
-from dss.operations.ssm_params import set_ssm_environment
 from dss.operations.secrets import fix_secret_variable_prefix, fetch_secret_safely
 
 from dss.util.aws.clients import secretsmanager as sm_client  # type: ignore
 from dss.util.aws.clients import es as es_client  # type: ignore
+from dss.util.aws.clients import ssm as ssm_client  # type: ignore
 import dss.util.aws.clients
 lambda_client = getattr(dss.util.aws.clients, "lambda")
 
@@ -27,6 +25,101 @@ lambda_client = getattr(dss.util.aws.clients, "lambda")
 logger = logging.getLogger(__name__)
 
 
+# ---
+# Utility functions for SSM parameter store:
+# ---
+def get_ssm_variable_prefix() -> str:
+    """
+    Use info from local environment to assemble necessary prefix for environment variables stored
+    in the SSM param store under $DSS_DEPLOYMENT_STAGE/environment
+    """
+    store_name = os.environ["DSS_PARAMETER_STORE"]
+    stage_name = os.environ["DSS_DEPLOYMENT_STAGE"]
+    store_prefix = f"{store_name}/{stage_name}"
+    return store_prefix
+
+
+def fix_ssm_variable_prefix(param_name: str) -> str:
+    """Add (if necessary) the variable store and stage prefix to the front of the name of an SSM store parameter"""
+    prefix = get_ssm_variable_prefix()
+
+    # Strip leading/trailing slash
+    if param_name.startswith("/"):
+        param_name = param_name[1:]
+    if param_name.endswith("/"):
+        param_name = param_name[:-1]
+
+    if not (param_name.startswith(prefix) or param_name.startswith("/" + prefix)):
+        param_name = f"{prefix}/{param_name}"
+
+    return param_name
+
+
+def get_ssm_environment() -> dict:
+    """Get the value of environment variables stored in the SSM param store under $DSS_DEPLOYMENT_STAGE/environment"""
+    p = ssm_client.get_parameter(Name=fix_ssm_variable_prefix("environment"))
+    parms = p["Parameter"]["Value"]  # this is a string, so convert to dict
+    return json.loads(parms)
+
+
+def set_ssm_environment(env: dict) -> None:
+    """
+    Set the value of environment variables stored in the SSM param store under $DSS_DEPLOYMENT_STAGE/environment
+
+    :param env: dict containing environment variables to set in SSM param store
+    :returns: nothing
+    """
+    prefix = get_ssm_variable_prefix()
+    ssm_client.put_parameter(
+        Name=f"/{prefix}/environment", Value=json.dumps(env), Type="String", Overwrite=True
+    )
+
+
+def set_ssm_parameter(env_var: str, value, quiet: bool = False) -> None:
+    """
+    Set a variable in the lambda environment stored in the SSM store under $DSS_DEPLOYMENT_STAGE/environment
+
+    :param env_var: name of environment variable being set
+    :param value: value of environment variable being set
+    :param bool quiet: suppress all output if true
+    """
+    environment = get_ssm_environment()
+    prev_value = environment.get(env_var)
+    environment[env_var] = value
+    set_ssm_environment(environment)
+    if not quiet:
+        print("Success! Set variable in SSM parameter store environment:")
+        print(f"    Name: {env_var}")
+        print(f"    Value: {value}")
+        if prev_value:
+            print(f"Previous value: {prev_value}")
+
+
+def unset_ssm_parameter(env_var: str, quiet: bool = False) -> None:
+    """
+    Unset a variable in the lambda environment stored in the SSM store undre $DSS_DEPLOYMENT_STAGE/environment
+
+    :param env_var: name of environment variable being set
+    :param value: value of environment variable being set
+    :param bool quiet: suppress all output if true
+    """
+    environment = get_ssm_environment()
+    try:
+        prev_value = environment[env_var]
+        del environment[env_var]
+        set_ssm_environment(environment)
+        if not quiet:
+            print("Success! Unset variable in SSM store under $DSS_DEPLOYMENT_STAGE/environment:")
+            print(f"    Name: {env_var} ")
+            print(f"    Previous value: {prev_value}")
+    except KeyError:
+        if not quiet:
+            print(f"Nothing to unset for variable {env_var} in SSM store under $DSS_DEPLOYMENT_STAGE/environment")
+
+
+# ---
+# Utility functions for lambda functions:
+# ---
 def get_elasticsearch_endpoint() -> str:
     domain_name = os.environ["DSS_ES_DOMAIN"]
     domain_info = es_client.describe_elasticsearch_domain(DomainName=domain_name)
@@ -34,7 +127,6 @@ def get_elasticsearch_endpoint() -> str:
 
 
 def get_admin_emails() -> str:
-
     gcp_var = os.environ["GOOGLE_APPLICATION_CREDENTIALS_SECRETS_NAME"]
     gcp_secret_id = fix_secret_variable_prefix(gcp_var)
     response = fetch_secret_safely(gcp_secret_id)['SecretString']
@@ -76,7 +168,7 @@ def get_deployed_lambdas(quiet: bool = True):
 
 
 def get_deployed_lambda_environment(lambda_name: str, quiet: bool = True) -> dict:
-    """Get the environment variables in a deployed lambda function"""
+    """Get environment variables in a deployed lambda function"""
     try:
         lambda_client.get_function(FunctionName=lambda_name)
         c = lambda_client.get_function_configuration(FunctionName=lambda_name)
@@ -90,7 +182,7 @@ def get_deployed_lambda_environment(lambda_name: str, quiet: bool = True) -> dic
 
 
 def set_deployed_lambda_environment(lambda_name: str, env: dict) -> None:
-    """Set the environment variables in a deployed lambda function"""
+    """Set environment variables in a deployed lambda function"""
     lambda_client.update_function_configuration(
         FunctionName=lambda_name, Environment={"Variables": env}
     )
@@ -119,7 +211,7 @@ def get_local_lambda_environment(quiet: bool = True) -> dict:
 
 
 def set_lambda_var(env_var: str, value, lambda_name: str, quiet: bool = False) -> None:
-    """Set a single variable in the environment of the specified lambda function"""
+    """Set a single variable in environment of the specified lambda function"""
     environment = get_deployed_lambda_environment(lambda_name, quiet=False)
     environment[env_var] = value
     set_deployed_lambda_environment(lambda_name, environment)
@@ -128,7 +220,7 @@ def set_lambda_var(env_var: str, value, lambda_name: str, quiet: bool = False) -
 
 
 def unset_lambda_var(env_var: str, lambda_name: str, quiet: bool = False) -> None:
-    """Unset a single variable in the environment of the specified lambda function"""
+    """Unset a single variable in environment of the specified lambda function"""
     environment = get_deployed_lambda_environment(lambda_name, quiet=False)
     try:
         del environment[env_var]
@@ -141,13 +233,17 @@ def unset_lambda_var(env_var: str, lambda_name: str, quiet: bool = False) -> Non
 
 
 def print_lambda_env(lambda_name, lambda_env):
-    """Print the environment variables set in a specified lambda function"""
+    """Print environment variables set in a specified lambda function"""
     print(f"\n{lambda_name}:")
     for name, val in lambda_env.items():
         print(f"{name}={val}")
 
 
+# ---
+# Command line utility functions
+# ---
 lambda_params = dispatch.target("lambda", arguments={}, help=__doc__)
+ssm_params = dispatch.target("params", arguments={}, help=__doc__)
 
 
 json_flag_options = dict(
@@ -159,6 +255,25 @@ dryrun_flag_options = dict(
 quiet_flag_options = dict(
     default=False, action="store_true", help="suppress output"
 )
+
+
+@ssm_params.action(
+    "environment",
+    arguments={
+        "--json": dict(
+            default=False, action="store_true", help="format the output as JSON if this flag is present"
+        )
+    },
+)
+def ssm_environment(argv: typing.List[str], args: argparse.Namespace):
+    """Print out all variables stored in the SSM store under $DSS_DEPLOYMENT_STAGE/environment"""
+    ssm_env = get_ssm_environment()
+    if args.json:
+        print(json.dumps(ssm_env, indent=4))
+    else:
+        for name, val in ssm_env.items():
+            print(f"{name}={val}")
+        print("\n")
 
 
 @lambda_params.action(
@@ -214,11 +329,14 @@ def lambda_environment(argv: typing.List[str], args: argparse.Namespace):
     arguments={
         "name": dict(help="name of variable to set in environment of deployed lambdas"),
         "--dry-run": dryrun_flag_options,
-        "--quiet": quiet_flag_options
+        "--quiet": quiet_flag_options,
     }
 )
 def lambda_set(argv: typing.List[str], args: argparse.Namespace):
-    """Set an environment variable in each deployed lambda"""
+    """
+    Set a variable in the SSM store under $DSS_DEPLOYMENT_STAGE/environment,
+    then set the variable in each deployed lambda.
+    """
     name = args.name
 
     # Use stdin for value
@@ -253,7 +371,10 @@ def lambda_set(argv: typing.List[str], args: argparse.Namespace):
     }
 )
 def lambda_unset(argv: typing.List[str], args: argparse.Namespace):
-    """Unset an environment variable in each deployed lambda"""
+    """
+    Unset a variable in the SSM store under $DSS_DEPLOYMENT_STAGE/environment,
+    then unset the variable in each deployed lambda.
+    """
     name = args.name
 
     # Unset the variable from the SSM store first, then from each deployed lambda
@@ -289,8 +410,9 @@ def lambda_unset(argv: typing.List[str], args: argparse.Namespace):
 )
 def lambda_update(argv: typing.List[str], args: argparse.Namespace):
     """
-    Update the stored (and optionally, deployed) lambda environment
-    using variable values from the current environment.
+    Update the lambda environment stored in the SSM store under $DSS_DEPLOYMENT_STAGE/environment
+    by taking values from the current (local) environment. If --update-deployed flag is provided,
+    also update the environment of deployed lambda functions.
     """
     if not args.force and not args.dry_run:
         # Prompt the user to make sure they really want to do this
