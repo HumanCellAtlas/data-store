@@ -2,6 +2,7 @@
 """
 This script will tombstone the bundles in `bundles_to_tombstone`
 Usage:
+    - tag HCA/data-ops team in the issue comments with @HumanCellAtlas/data-ops 
     - edit `stage` to target deployment.
     - edit `bundles_to_tombstone` to contain the bundles to tombstone.
     - edit `tombstone_reason` with explanation for tombstoning
