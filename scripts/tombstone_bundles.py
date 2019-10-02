@@ -2,11 +2,13 @@
 """
 This script will tombstone the bundles in `bundles_to_tombstone`
 Usage:
+    - tag HCA/data-ops team in the comments under the Data-Store issue for the tombstone reqeust with @HumanCellAtlas/data-ops 
     - edit `stage` to target deployment.
     - edit `bundles_to_tombstone` to contain the bundles to tombstone.
     - edit `tombstone_reason` with explanation for tombstoning
     - Place the edited script in a GitHub gist
     - Post gist link to Slack in #dcp-ops asking for review and verification that these bundles should be tonbstoned
+    - Tag @dataops in the #dcp-ops channel in the comments to the tread posted above. 
     - If given the go-ahead, execute script
     - Monitor output. Announce errors in #dcp-ops, ask for help in #data-store-eng
 """
