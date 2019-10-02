@@ -113,11 +113,11 @@ class MockFusilladeHandler(BaseHTTPRequestHandler):
 
     @classmethod
     def start_serving(cls):
+        Config.set_config(BucketConfig.TEST)
         cls._addr, cls._port = cls.get_addr_port()
-        Config._set_authz_url(f"http://{cls._addr}:{cls._port}")
         cls.stash_oidc_group_claim()
         cls.stash_openid_provider()
-        Config.set_config(BucketConfig.TEST)
+        Config._set_authz_url(f"http://{cls._addr}:{cls._port}")
         print(f"Mock Fusillade server listening at {cls._addr}:{cls._port}")
         cls._server = HTTPServer((cls._addr, cls._port), cls)
         cls._server.serve_forever()
