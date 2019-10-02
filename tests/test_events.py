@@ -28,6 +28,7 @@ from dss.util.version import datetime_to_version_format
 from dss.util import UrlBuilder
 from tests.infra import DSSAssertMixin, testmode
 from tests.infra.server import ThreadedLocalServer
+from tests.infra.mock_fusillade import start_multiprocess_mock_fusillade_server
 from tests import get_auth_header
 import tests
 
