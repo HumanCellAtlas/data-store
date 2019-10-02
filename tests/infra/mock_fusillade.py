@@ -20,6 +20,34 @@ sys.path.insert(0, pkg_root)  # noqa
 from dss import Config, BucketConfig
 
 
+def start_multiprocess_mock_fusillade_server():
+    """Use Popen to start the mock fusillade server and stash the PID in a file"""
+    pid_file = MockFusilladeServer.get_pid_filename()
+
+    # If there is a PID file, verify process still running or delete PID file
+    if os.path.isfile(pid_file):
+        try:
+            with open(pid_file, 'r') as f:
+                pid = int(f.read())
+            # Does not kill process, just prompts process for status
+            os.kill(pid, 0)
+        except (ValueError, OSError):
+            subprocess.call(['rm', '-f', pid_file])
+
+    # If there is no PID file, start the mock fusillade server
+    if not os.path.isfile(pid_file):
+        # Start a new mock fusillade server process
+        cmd = os.path.join(pkg_root, "tests", "infra", "mock_fusillade_start.py")
+        p = subprocess.Popen([cmd])
+        # Write pid to file
+        with open(pid_file, "w") as f:
+            f.write(str(p.pid))
+
+    # Let the server start
+    time.sleep(3)
+    return
+
+
 class MockFusilladeServer(BaseHTTPRequestHandler):
     """
     Create a mock Fusillade auth server endpoint so that any operation that tries to check
