@@ -150,13 +150,27 @@ class BaseSmokeTest(unittest.TestCase):
         """ post-search using es, returns post-search response """
         return run_for_json(f'{self.venv_bin}hca dss post-search  --es-query {es_query} --replica {replica.name}')
 
-    def subscription_put_es(self, replica, es_query, url):
-        """ creates es subscription, return the response"""
-        return run_for_json([f'{self.venv_bin}hca', 'dss', 'put-subscription',
-                             '--callback-url', url,
-                             '--method', 'PUT',
-                             '--es-query', json.dumps(es_query),
-                             '--replica', replica.name])
+    def put_subscription(self, replica, subscription_type, query, url):
+
+        def subscription_put_es(replica, es_query, url):
+            """ creates es subscription, return the response"""
+            return run_for_json([f'{self.venv_bin}hca', 'dss', 'put-subscription',
+                                 '--callback-url', url,
+                                 '--method', 'PUT',
+                                 '--es-query', json.dumps(es_query),
+                                 '--replica', replica.name])
+
+        def subscription_put_jmespath(replica, jmespath_query, url):
+            return run_for_json([f'{self.venv_bin}hca', 'dss', 'put-subscription',
+                                 '--callback-url', url,
+                                 '--method', 'PUT',
+                                 '--jmespath-query', f"{jmespath_query}",
+                                 '--replica', replica.name])
+
+        if subscription_type == 'jmespath':
+            return subscription_put_jmespath(replica, query, url)
+        else:
+            return subscription_put_es(replica, query, url)
 
     def subscription_delete(self, replica, subscription_type, uuid):
         """ delete's subscription created, should be wrapped in self.addCleanup() """
@@ -164,8 +178,8 @@ class BaseSmokeTest(unittest.TestCase):
                              f"--uuid {uuid} "
                              f"--subscription-type {subscription_type}")
 
-    def _test_subscription_get_es(self, replica, subscription_id, callback_url):
-        get_response = self.get_subscription(replica, "elasticsearch", subscription_id)
+    def _test_subscription(self, replica, subscription_id, callback_url, subscription_type):
+        get_response = self.get_subscription(replica, subscription_type, subscription_id)
         self.assertEquals(subscription_id, get_response['uuid'])
         self.assertEquals(callback_url, get_response['callback_url'])
 
@@ -193,17 +207,6 @@ class BaseSmokeTest(unittest.TestCase):
         list_of_subscriptions = get_response['subscriptions']
         list_of_subscription_uuids = [x['uuid'] for x in list_of_subscriptions if x['uuid']]
         self.assertIn(requested_subscription, list_of_subscription_uuids)
-
-    def subscription_put_jmespath(self, replica, jmespath_query, url):
-        return run_for_json([f'{self.venv_bin}hca', 'dss', 'put-subscription',
-                             '--callback-url', url,
-                             '--method', 'PUT',
-                             '--jmespath_query', jmespath_query,
-                             '--replica', replica.name])
-
-    def _test_subscription_stats(self, replica: str, uuid:str, stat:str):
-        subscription = self.get_subscription(replica, 'jmespath', uuid)
-        self.assertGreater(subscription["stats"]["successful"], 0)
 
     @staticmethod
     def _download_bundle(replica_name: str, bundle_uuid: str, workdir: str, venv_bin: str):
