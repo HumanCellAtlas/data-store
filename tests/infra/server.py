@@ -99,6 +99,7 @@ class MockFusilladeHandler(BaseHTTPRequestHandler):
     based on whether the principal (user) is on the whitelist or not.
     """
     _server = None
+    _thread = None
     _whitelist = [
         "valid@ucsc.edu",
         "travis-test@human-cell-atlas-travis-test.iam.gserviceaccount.com",
@@ -120,11 +121,13 @@ class MockFusilladeHandler(BaseHTTPRequestHandler):
         Config._set_authz_url(f"http://{cls._addr}:{cls._port}")
         print(f"Mock Fusillade server listening at {cls._addr}:{cls._port}")
         cls._server = HTTPServer((cls._addr, cls._port), cls)
-        cls._server.serve_forever()
+        cls._thread = threading.Thread(target=cls._server.serve_forever)
+        cls._thread.start()
 
     @classmethod
     def stop_serving(cls):
-        cls._server.socket.close()
+        cls._server.shutdown()
+        cls._thread.join()
         print(f"Mock Fusillade server has shut down")
 
     @classmethod

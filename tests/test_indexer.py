@@ -113,11 +113,17 @@ class TestIndexerBase(ElasticsearchTestCase, DSSAssertMixin, DSSStorageMixin, DS
         cls.executor = ThreadPoolExecutor(len(DEFAULT_BACKENDS))
         with open(os.path.join(os.path.dirname(__file__), "sample_doc_tombstone.json"), 'r') as fp:
             cls.tombstone_data = json.load(fp)
+        print(" * * * * * mock fusillade server starting * * * * * ")
+        MockFusilladeHandler.start_serving()
+        print(" * * * * * mock fusillade server started - ok * * * * * ")
 
     @classmethod
     def tearDownClass(cls):
         cls.executor.shutdown(False)
         cls.app.shutdown()
+        print(" * * * * * mock fusillade server stopping * * * * * ")
+        MockFusilladeHandler.stop_serving()
+        print(" * * * * * mock fusillade server stopped - ok * * * * * ")
         super().tearDownClass()
 
     def setUp(self):
