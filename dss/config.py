@@ -3,7 +3,6 @@ import functools
 import json
 import os
 import typing
-from dss.util import networking
 from contextlib import contextmanager
 from enum import Enum, EnumMeta, auto
 
@@ -416,15 +415,14 @@ class Config:
         return os.environ.get("OIDC_EMAIL_CLAIM", 'email')
 
     @staticmethod
+    def _set_authz_url(mock_authz_url):
+        Config._AUTH_URL = mock_authz_url
+
+    @staticmethod
     def get_authz_url():
-        if Config._CURRENT_CONFIG in [BucketConfig.TEST, BucketConfig.TEST_FIXTURE]:
-            host = "127.0.0.1"
-            port = "54321"
-            return f"http://{host}:{port}"
-        else:
-            if Config._AUTH_URL is None:
-                Config._AUTH_URL = Config._get_required_envvar("AUTH_URL")
-            return Config._AUTH_URL
+        if Config._AUTH_URL is None:
+            Config._AUTH_URL = Config._get_required_envvar("AUTH_URL")
+        return Config._AUTH_URL
 
     @staticmethod
     def get_ServiceAccountManager() -> security.DCPServiceAccountManager:

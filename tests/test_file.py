@@ -28,17 +28,11 @@ from tests import eventually, get_auth_header
 from tests.fixtures.cloud_uploader import GSUploader, S3Uploader, Uploader
 from tests.infra import DSSAssertMixin, DSSUploadMixin, ExpectedErrorFields, get_env, generate_test_key, testmode, \
     TestAuthMixin
-from tests.infra.server import ThreadedLocalServer
-from tests.infra.mock_fusillade import start_multiprocess_mock_fusillade_server
+from tests.infra.server import ThreadedLocalServer, MockFusilladeHandler
 
 
 # Max number of retries
 FILE_GET_RETRY_COUNT = 10
-
-
-def setUpModule():
-    Config.set_config(BucketConfig.TEST)
-    start_multiprocess_mock_fusillade_server()
 
 
 @testmode.standalone
@@ -53,10 +47,12 @@ class TestFileApi(unittest.TestCase, TestAuthMixin, DSSUploadMixin, DSSAssertMix
             'hca-dss-sha1': '####',
             'hca-dss-sha256': '$$$$'
         }
+        MockFusilladeHandler.start_serving()
 
     @classmethod
     def tearDownClass(cls):
         cls.app.shutdown()
+        MockFusilladeHandler.stop_serving()
 
     def setUp(self):
         dss.Config.set_config(dss.BucketConfig.TEST)

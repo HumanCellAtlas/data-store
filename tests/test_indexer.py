@@ -54,8 +54,7 @@ from dss.util.time import SpecificRemainingTime
 from tests import eventually, get_auth_header, get_bundle_fqid, get_file_fqid, get_version
 from tests.infra import DSSAssertMixin, DSSStorageMixin, DSSUploadMixin, TestBundle, testmode
 from tests.infra.elasticsearch_test_case import ElasticsearchTestCase
-from tests.infra.server import ThreadedLocalServer
-from tests.infra.mock_fusillade import start_multiprocess_mock_fusillade_server
+from tests.infra.server import ThreadedLocalServer, MockFusilladeHandler
 from tests.sample_search_queries import smartseq2_paired_ends_vx_query, tombstone_query
 
 
@@ -91,8 +90,6 @@ def setUpModule():
     else:
         NotificationRequestHandler = LocalNotificationRequestHandler
     NotificationRequestHandler.startServing()
-    Config.set_config(BucketConfig.TEST)
-    start_multiprocess_mock_fusillade_server()
 
 
 def tearDownModule():
@@ -116,11 +113,13 @@ class TestIndexerBase(ElasticsearchTestCase, DSSAssertMixin, DSSStorageMixin, DS
         cls.executor = ThreadPoolExecutor(len(DEFAULT_BACKENDS))
         with open(os.path.join(os.path.dirname(__file__), "sample_doc_tombstone.json"), 'r') as fp:
             cls.tombstone_data = json.load(fp)
+        MockFusilladeHandler.start_serving()
 
     @classmethod
     def tearDownClass(cls):
         cls.executor.shutdown(False)
         cls.app.shutdown()
+        MockFusilladeHandler.stop_serving()
         super().tearDownClass()
 
     def setUp(self):
