@@ -55,6 +55,7 @@ from tests import eventually, get_auth_header, get_bundle_fqid, get_file_fqid, g
 from tests.infra import DSSAssertMixin, DSSStorageMixin, DSSUploadMixin, TestBundle, testmode
 from tests.infra.elasticsearch_test_case import ElasticsearchTestCase
 from tests.infra.server import ThreadedLocalServer
+from tests.infra.mock_fusillade import start_multiprocess_mock_fusillade_server
 from tests.sample_search_queries import smartseq2_paired_ends_vx_query, tombstone_query
 
 

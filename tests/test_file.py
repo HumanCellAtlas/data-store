@@ -29,6 +29,7 @@ from tests.fixtures.cloud_uploader import GSUploader, S3Uploader, Uploader
 from tests.infra import DSSAssertMixin, DSSUploadMixin, ExpectedErrorFields, get_env, generate_test_key, testmode, \
     TestAuthMixin
 from tests.infra.server import ThreadedLocalServer
+from tests.infra.mock_fusillade import start_multiprocess_mock_fusillade_server
 
 
 # Max number of retries
