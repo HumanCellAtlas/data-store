@@ -31,7 +31,7 @@ events = dispatch.target("events", help=__doc__)
 
 @events.action("bundle-metadata-document",
                arguments={"--replica": dict(choices=[r.name for r in Replica], required=True),
-                          "--keys": dict(default=None,
+                          "--keys": dict(required=True,
                                          nargs="*",
                                          help="bundle keys to generate documents.")})
 def bundle_metadata_document(argv: typing.List[str], args: argparse.Namespace):
