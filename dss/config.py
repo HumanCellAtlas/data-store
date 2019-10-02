@@ -416,19 +416,13 @@ class Config:
 
     @staticmethod
     def _set_authz_url(mock_authz_url):
-        Config._mock_authz_url = mock_authz_url
+        Config._AUTH_URL = mock_authz_url
 
     @staticmethod
     def get_authz_url():
-        if Config._CURRENT_CONFIG in [BucketConfig.TEST, BucketConfig.TEST_FIXTURE]:
-            try:
-                return Config._mock_authz_url
-            except AttributeError:
-                Config._AUTH_URL = Config._get_required_envvar("AUTH_URL")
-        else:
-            if Config._AUTH_URL is None:
-                Config._AUTH_URL = Config._get_required_envvar("AUTH_URL")
-            return Config._AUTH_URL
+        if Config._AUTH_URL is None:
+            Config._AUTH_URL = Config._get_required_envvar("AUTH_URL")
+        return Config._AUTH_URL
 
     @staticmethod
     def get_ServiceAccountManager() -> security.DCPServiceAccountManager:
