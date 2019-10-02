@@ -24,15 +24,15 @@ subscription_db_table = f"dss-subscriptions-v2-{{}}-{os.environ['DSS_DEPLOYMENT_
 
 
 def update_subcription_stats(doc: dict, status: bool):
-        status = 'successful' if status else 'failed'
-        item = json.loads(dynamodb.get_item(table=subscription_db_table.format(doc[SubscriptionData.REPLICA]),
-                                            hash_key=doc[SubscriptionData.OWNER],
-                                            sort_key=doc[SubscriptionData.UUID]))
-        current_stats = item.get(SubscriptionData.STATS, SubscriptionData.BLANK_STATS)
-        current_stats[status] += 1
-        current_stats['attempted'] += 1
-        item[SubscriptionData.STATS] = current_stats
-        put_subscription(item)
+    status = 'successful' if status else 'failed'
+    item = json.loads(dynamodb.get_item(table=subscription_db_table.format(doc[SubscriptionData.REPLICA]),
+                                        hash_key=doc[SubscriptionData.OWNER],
+                                        sort_key=doc[SubscriptionData.UUID]))
+    current_stats = item.get(SubscriptionData.STATS, SubscriptionData.BLANK_STATS)
+    current_stats[status] += 1
+    current_stats['attempted'] += 1
+    item[SubscriptionData.STATS] = current_stats
+    put_subscription(item)
 
 
 def put_subscription(doc: dict):
