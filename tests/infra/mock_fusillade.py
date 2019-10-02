@@ -1,3 +1,4 @@
+#!/usr/bin/env python3
 import chalice.config
 import functools
 import os
@@ -37,7 +38,7 @@ def start_multiprocess_mock_fusillade_server():
     # If there is no PID file, start the mock fusillade server
     if not os.path.isfile(pid_file):
         # Start a new mock fusillade server process
-        cmd = os.path.join(pkg_root, "tests", "infra", "mock_fusillade_start.py")
+        cmd = os.path.join(pkg_root, "tests", "infra", "mock_fusillade.py")
         p = subprocess.Popen([cmd])
         # Write pid to file
         with open(pid_file, "w") as f:

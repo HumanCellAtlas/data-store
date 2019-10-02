@@ -28,12 +28,19 @@ from tests import eventually, get_auth_header
 from tests.fixtures.cloud_uploader import GSUploader, S3Uploader, Uploader
 from tests.infra import DSSAssertMixin, DSSUploadMixin, ExpectedErrorFields, get_env, generate_test_key, testmode, \
     TestAuthMixin
-from tests.infra.server import ThreadedLocalServer
-from tests.infra.mock_fusillade import start_multiprocess_mock_fusillade_server
+from tests.infra.server import ThreadedLocalServer, MockFusilladeHandler
 
 
 # Max number of retries
 FILE_GET_RETRY_COUNT = 10
+
+
+def setUpModule():
+    MockFusilladeHandler.start_serving()
+
+
+def tearDownModule():
+    MockFusilladeHandler.stop_serving()
 
 
 @testmode.standalone

@@ -54,8 +54,7 @@ from dss.util.time import SpecificRemainingTime
 from tests import eventually, get_auth_header, get_bundle_fqid, get_file_fqid, get_version
 from tests.infra import DSSAssertMixin, DSSStorageMixin, DSSUploadMixin, TestBundle, testmode
 from tests.infra.elasticsearch_test_case import ElasticsearchTestCase
-from tests.infra.server import ThreadedLocalServer
-from tests.infra.mock_fusillade import start_multiprocess_mock_fusillade_server
+from tests.infra.server import ThreadedLocalServer, MockFusilladeHandler
 from tests.sample_search_queries import smartseq2_paired_ends_vx_query, tombstone_query
 
 
@@ -91,10 +90,12 @@ def setUpModule():
     else:
         NotificationRequestHandler = LocalNotificationRequestHandler
     NotificationRequestHandler.startServing()
+    MockFusilladeHandler.start_serving()
 
 
 def tearDownModule():
     NotificationRequestHandler.stopServing()
+    MockFusilladeHandler.stop_serving()
 
 
 class TestIndexerBase(ElasticsearchTestCase, DSSAssertMixin, DSSStorageMixin, DSSUploadMixin, metaclass=ABCMeta):

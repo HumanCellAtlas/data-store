@@ -43,12 +43,19 @@ from dss.stepfunctions.visitation.storage import StorageVisitation
 
 from tests import eventually
 from tests.infra import get_env, testmode, MockLambdaContext
+from tests.infra.server import MockFusilladeHandler
+
 
 logger = logging.getLogger(__name__)
 
 
 def setUpModule():
     configure_test_logging()
+    MockFusilladeHandler.start_serving()
+
+
+def tearDownModule():
+    MockFusilladeHandler.stop_serving()
 
 
 class TestVisitationWalker(unittest.TestCase):
