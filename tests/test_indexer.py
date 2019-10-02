@@ -90,12 +90,10 @@ def setUpModule():
     else:
         NotificationRequestHandler = LocalNotificationRequestHandler
     NotificationRequestHandler.startServing()
-    MockFusilladeHandler.start_serving()
 
 
 def tearDownModule():
     NotificationRequestHandler.stopServing()
-    MockFusilladeHandler.stop_serving()
 
 
 class TestIndexerBase(ElasticsearchTestCase, DSSAssertMixin, DSSStorageMixin, DSSUploadMixin, metaclass=ABCMeta):

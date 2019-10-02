@@ -36,11 +36,11 @@ FILE_GET_RETRY_COUNT = 10
 
 
 def setUpModule():
-    MockFusilladeHandler.start_serving()
+    pass
 
 
 def tearDownModule():
-    MockFusilladeHandler.stop_serving()
+    pass
 
 
 @testmode.standalone

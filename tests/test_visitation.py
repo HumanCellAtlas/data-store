@@ -51,11 +51,10 @@ logger = logging.getLogger(__name__)
 
 def setUpModule():
     configure_test_logging()
-    MockFusilladeHandler.start_serving()
 
 
 def tearDownModule():
-    MockFusilladeHandler.stop_serving()
+    pass
 
 
 class TestVisitationWalker(unittest.TestCase):
