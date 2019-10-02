@@ -24,8 +24,8 @@ before_script:
   - pip install -r requirements-dev.txt
   - source environment
   - source environment.prod
-  - scripts/fetch_secret.sh application_secrets.json > application_secrets.json
-  - scripts/fetch_secret.sh gcp-credentials.json > gcp-credentials.json
+  - scripts/dss-ops.py secrets get application_secrets.json > application_secrets.json
+  - scripts/dss-ops.py secrets get gcp-credentials.json > gcp-credentials.json
   - export GOOGLE_APPLICATION_CREDENTIALS=$(pwd -P)/gcp-credentials.json
 
 deploy:
