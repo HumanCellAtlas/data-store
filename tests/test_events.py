@@ -27,8 +27,7 @@ from dss.config import BucketConfig, Config, Replica, override_bucket_config
 from dss.util.version import datetime_to_version_format
 from dss.util import UrlBuilder
 from tests.infra import DSSAssertMixin, testmode
-from tests.infra.server import ThreadedLocalServer
-from tests.infra.mock_fusillade import start_multiprocess_mock_fusillade_server
+from tests.infra.server import ThreadedLocalServer, MockFusilladeHandler
 from tests import get_auth_header
 import tests
 
@@ -38,12 +37,15 @@ logger = logging.getLogger(__name__)
 
 def setUpModule():
     Config.set_config(BucketConfig.TEST)
-    start_multiprocess_mock_fusillade_server()
 
 
 class TestEventsUtils(unittest.TestCase, DSSAssertMixin):
     def setUp(self):
         Config.set_config(dss.BucketConfig.TEST)
+        MockFusilladeHandler.start_serving()
+
+    def tearDown(self):
+        MockFusilladeHandler.stop_serving()
 
     def test_record_event_for_bundle(self):
         metadata_document = dict(foo=f"{uuid4()}")
@@ -77,10 +79,12 @@ class TestEvents(unittest.TestCase, DSSAssertMixin):
                 cls.bundle[replica.name] = dict(uuid=bundle_uuid,
                                                 version=bundle_version,
                                                 key=f"bundles/{bundle_uuid}.{bundle_version}",)
+        MockFusilladeHandler.start_serving()
 
     @classmethod
     def teardownClass(cls):
         cls.app.shutdown()
+        MockFusilladeHandler.stop_serving()
 
     def setUp(self):
         Config.set_config(dss.BucketConfig.TEST)
