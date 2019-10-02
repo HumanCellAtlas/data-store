@@ -23,7 +23,7 @@ class SubscriptionData:
 subscription_db_table = f"dss-subscriptions-v2-{{}}-{os.environ['DSS_DEPLOYMENT_STAGE']}"
 
 
-def update_subcription_stats(doc: dict, status: bool):
+def update_subscription_stats(doc: dict, status: bool):
     status_type = 'successful' if status else 'failed'
     item = json.loads(dynamodb.get_item(table=subscription_db_table.format(doc[SubscriptionData.REPLICA]),
                                         hash_key=doc[SubscriptionData.OWNER],
