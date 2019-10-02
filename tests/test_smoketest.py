@@ -117,7 +117,7 @@ class Smoketest(BaseSmokeTest):
         for replica, (subscription_id, notification_key) in notifications_proofs.items():
             with self.subTest(f"{starting_replica.name}: Check the notifications. "
                               f"{replica.name}, {subscription_id}, {notification_key}"):
-                for i in range(10):
+                for i in range(20):
                     try:
                         obj = s3.get_object(Bucket=self.notification_bucket, Key=notification_key)
                     except s3.exceptions.NoSuchKey:
