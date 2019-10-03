@@ -453,6 +453,29 @@ class TestOperations(unittest.TestCase):
                     [], argparse.Namespace(secret_name=testvar_name, force=True, dry_run=False, quiet=True)
                 )
 
+    def test_ssmparams_utilities(self):
+        prefix = f"{os.environ['DSS_PARAMETER_STORE']}/{os.environ['DSS_DEPLOYMENT_STAGE']}"
+
+        var = "dummy_variable"
+        new_var = fix_ssm_variable_prefix(var)
+        gold_var = f"{prefix}/{var}"
+        assertEqual(new_var, gold_var)
+
+        var = "/dummy_variable"
+        new_var = fix_ssm_variable_prefix(var)
+        gold_var = f"{prefix}{var}"
+        assertEqual(new_var, gold_var)
+
+        var = f"{prefix}/dummy_variable"
+        new_var = fix_ssm_variable_prefix(var)
+        gold_var = f"{var}"
+        assertEqual(new_var, gold_var)
+
+        var = f"/{prefix}/dummy_variable"
+        new_var = fix_ssm_variable_prefix(var)
+        gold_var = f"{var[1:]}"
+        assertEqual(new_var, gold_var)
+
     def test_ssmparams_crud(self):
         # CRUD (create read update delete) test for setting environment variables in SSM param store
         testvar_name = random_alphanumeric_string()
