@@ -28,6 +28,93 @@ lambda_client = getattr(dss.util.aws.clients, "lambda")
 logger = logging.getLogger(__name__)
 
 
+# ---
+# Utility functions for SSM parameter store:
+# ---
+def get_ssm_variable_prefix() -> str:
+    """
+    Use info from local environment to assemble necessary prefix for environment variables stored
+    in the SSM param store under $DSS_DEPLOYMENT_STAGE/environment
+    """
+    store_name = os.environ["DSS_PARAMETER_STORE"]
+    stage_name = os.environ["DSS_DEPLOYMENT_STAGE"]
+    store_prefix = f"{store_name}/{stage_name}"
+    return store_prefix
+
+
+def fix_ssm_variable_prefix(param_name: str) -> str:
+    """Add (if necessary) the variable store and stage prefix to the front of the name of an SSM store parameter"""
+    prefix = get_ssm_variable_prefix()
+    if not (param_name.startswith(prefix) or param_name.startswith("/" + prefix)):
+        param_name = f"{prefix}/{param_name}"
+    return param_name
+
+
+def get_ssm_environment() -> dict:
+    """Get the value of the environment variables stored in the SSM param store under $DSS_DEPLOYMENT_STAGE/environment"""
+    p = ssm_client.get_parameter(Name=fix_ssm_variable_prefix("environment"))
+    parms = p["Parameter"]["Value"]  # this is a string, so convert to dict
+    return json.loads(parms)
+
+
+def set_ssm_environment(env: dict) -> None:
+    """
+    Set the value of environment variables stored in the SSM param store under $DSS_DEPLOYMENT_STAGE/environment
+
+    :param env: dict containing environment variables to set in SSM param store
+    :returns: nothing
+    """
+    prefix = get_ssm_variable_prefix()
+    ssm_client.put_parameter(
+        Name=f"/{prefix}/environment", Value=json.dumps(env), Type="String", Overwrite=True
+    )
+
+
+def set_ssm_parameter(env_var: str, value, quiet: bool = False) -> None:
+    """
+    Set a variable in the lambda environment stored in the SSM store under $DSS_DEPLOYMENT_STAGE/environment
+
+    :param env_var: the name of the environment variable being set
+    :param value: the value of the environment variable being set
+    :param bool quiet: suppress all output if true
+    """
+    environment = get_ssm_environment()
+    prev_value = environment.get(env_var)
+    environment[env_var] = value
+    set_ssm_environment(environment)
+    if not quiet:
+        print("Success! Set variable in SSM parameter store environment:")
+        print(f"    Name: {env_var}")
+        print(f"    Value: {value}")
+        if prev_value:
+            print(f"Previous value: {prev_value}")
+
+
+def unset_ssm_parameter(env_var: str, quiet: bool = False) -> None:
+    """
+    Unset a variable in the lambda environment stored in the SSM store undre $DSS_DEPLOYMENT_STAGE/environment
+
+    :param env_var: the name of the environment variable being set
+    :param value: the value of the environment variable being set
+    :param bool quiet: suppress all output if true
+    """
+    environment = get_ssm_environment()
+    try:
+        prev_value = environment[env_var]
+        del environment[env_var]
+        set_ssm_environment(environment)
+        if not quiet:
+            print("Success! Unset variable in SSM store under $DSS_DEPLOYMENT_STAGE/environment:")
+            print(f"    Name: {env_var} ")
+            print(f"    Previous value: {prev_value}")
+    except KeyError:
+        if not quiet:
+            print(f"Nothing to unset for variable {env_var} in SSM store under $DSS_DEPLOYMENT_STAGE/environment")
+
+
+# ---
+# Utility functions for lambda functions:
+# ---
 def get_elasticsearch_endpoint() -> str:
     domain_name = os.environ["DSS_ES_DOMAIN"]
     domain_info = es_client.describe_elasticsearch_domain(DomainName=domain_name)
@@ -35,7 +122,6 @@ def get_elasticsearch_endpoint() -> str:
 
 
 def get_admin_emails() -> str:
-
     gcp_var = os.environ["GOOGLE_APPLICATION_CREDENTIALS_SECRETS_NAME"]
     gcp_secret_id = fix_secret_variable_prefix(gcp_var)
     response = fetch_secret_safely(gcp_secret_id)['SecretString']

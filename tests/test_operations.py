@@ -455,19 +455,24 @@ class TestOperations(unittest.TestCase):
 
     def test_ssmparams_crud(self):
         # CRUD (create read update delete) test for setting environment variables in SSM param store
-        env_str = """var_name_1=value_1
-var_name_2=value_2
-var_name_3=value_3"""
+        testvar_name = random_alphanumeric_string()
+        testvar_value = "Hello world!"
+
+        # Assemble environment to return
+        old_env = {"DUMMY_VARIABLE": "dummy_value"}
+        new_env = dict(**old_env)
+        new_env[testvar_name] = testvar_value
+        ssm_new_env = self._wrap_ssm_env(new_env)
 
         with self.subTest("Print the SSM environment"):
             with mock.patch("dss.operations.lambda_params.ssm_client") as ssm:
                 # listing params will call ssm.get_parameter to get the entire environment
-                ssm.get_parameter = mock.MagicMock(return_value=env_str)
+                ssm.get_parameter = mock.MagicMock(return_value=ssm_new_env)
 
                 # Now call our params.py module. Output var=value on each line.
                 with CaptureStdout() as output:
                     lambda_params.ssm_environment([], argparse.Namespace(json=False))
-                self.assertIn("var_name_1=value_1", output)
+                self.assertIn(f"{testvar_name}={testvar_value}", output)
 
     def test_lambdaparams_crud(self):
         # CRUD (create read update delete) test for setting lambda function environment variables
