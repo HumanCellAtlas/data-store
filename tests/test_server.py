@@ -13,16 +13,16 @@ from dss.util import security
 from dss import BucketConfig, Config, DeploymentStage
 
 
+def setUpModule():
+    MockFusilladeHandler.start_serving()
+
+
+def tearDownModule():
+    MockFusilladeHandler.stop_serving()
+
+
 class TestMockFusilladeServer(unittest.TestCase):
     """Test that the mock Fusillade server in dss/tests/infra/server.py is functioning properly"""
-
-    @classmethod
-    def setUpClass(self):
-        MockFusilladeHandler.start_serving()
-
-    @classmethod
-    def tearDownClass(self):
-        MockFusilladeHandler.stop_serving()
 
     def test_get_policy(self):
         actions = ["dss:PutBundle"]
