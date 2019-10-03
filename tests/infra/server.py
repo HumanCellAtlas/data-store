@@ -107,8 +107,8 @@ class MockFusilladeHandler(BaseHTTPRequestHandler):
     _thread = None
     _whitelist = get_admin_emails().split(",") + ["valid@ucsc.edu"]
 
-    @classmethod
-    def get_addr_port(cls):
+    @staticmethod
+    def get_addr_port():
         addr = "127.0.0.1"
         port = networking.unused_tcp_port()
         return addr, port
