@@ -20,6 +20,7 @@ from dss.operations.secrets import fix_secret_variable_prefix, fetch_secret_safe
 
 from dss.util.aws.clients import secretsmanager as sm_client  # type: ignore
 from dss.util.aws.clients import es as es_client  # type: ignore
+from dss.util.aws.clients import ssm as ssm_client  # type: ignore
 import dss.util.aws.clients
 lambda_client = getattr(dss.util.aws.clients, "lambda")
 
