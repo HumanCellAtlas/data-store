@@ -27,8 +27,7 @@ sys.path.insert(0, pkg_root)  # noqa
 from tests.infra import testmode
 from dss.operations import DSSOperationsCommandDispatch
 from dss.operations.util import map_bucket_results
-from dss.operations import checkout, storage, sync, secrets, ssm_params, lambda_params
-from dss.operations.ssm_params import fix_ssm_variable_prefix
+from dss.operations import checkout, storage, sync, secrets, lambda_params
 from dss.operations.lambda_params import get_deployed_lambdas
 from dss.logging import configure_test_logging
 from dss.config import BucketConfig, Config, Replica, override_bucket_config
@@ -456,59 +455,19 @@ class TestOperations(unittest.TestCase):
 
     def test_ssmparams_crud(self):
         # CRUD (create read update delete) test for setting environment variables in SSM param store
-        testvar_name = random_alphanumeric_string()
-        testvar_value = "Hello world!"
-        testvar_value2 = "Goodbye world!"
+        env_str = """var_name_1=value_1
+var_name_2=value_2
+var_name_3=value_3"""
 
-        # Assemble an old and new environment to return
-        old_env = {"DUMMY_VARIABLE": "dummy_value"}
-        new_env = dict(**old_env)
-        new_env[testvar_name] = testvar_value
-        ssm_old_env = self._wrap_ssm_env(old_env)
-        ssm_new_env = self._wrap_ssm_env(new_env)
-
-        with self.subTest("Create a new SSM parameter"):
-            with mock.patch("dss.operations.ssm_params.ssm_client") as ssm, SwapStdin(testvar_value):
-                # ssm_set in ssm_params.py first calls ssm.get_parameter to get the entire environment
-                ssm.get_parameter = mock.MagicMock(return_value=ssm_old_env)
-                # ssm_set then calls ssm.put_parameter to put the entire environment
-                ssm.put_parameter = mock.MagicMock(return_value=None)
-                ssm_params.ssm_set(
-                    [], argparse.Namespace(name=testvar_name, dry_run=False)
-                )
-
-        with self.subTest("List SSM parameters"):
-            with mock.patch("dss.operations.ssm_params.ssm_client") as ssm:
+        with self.subTest("Print the SSM environment"):
+            with mock.patch("dss.operations.lambda_params.ssm_client") as ssm:
                 # listing params will call ssm.get_parameter to get the entire environment
-                ssm.get_parameter = mock.MagicMock(return_value=ssm_new_env)
+                ssm.get_parameter = mock.MagicMock(return_value=env_str)
 
                 # Now call our params.py module. Output var=value on each line.
                 with CaptureStdout() as output:
-                    ssm_params.ssm_list([], argparse.Namespace(json=False))
-                self.assertIn(f"{testvar_name}={testvar_value}", output)
-
-                # Call params.py module, output in json format.
-                with CaptureStdout() as output:
-                    ssm_params.ssm_list([], argparse.Namespace(json=True))
-                output = "\n".join(output)
-                d = json.loads(output)
-                self.assertIn(testvar_name, d)
-
-        with self.subTest("Update existing SSM parameter"):
-            with mock.patch("dss.operations.ssm_params.ssm_client") as ssm, SwapStdin(testvar_value2):
-                # Mock the same way we did for set new param above
-                ssm.get_parameter = mock.MagicMock(return_value=ssm_new_env)
-                ssm.put_parameter = mock.MagicMock(return_value=None)
-                ssm_params.ssm_set([], argparse.Namespace(name=testvar_name, dry_run=True))
-                ssm_params.ssm_set([], argparse.Namespace(name=testvar_name, dry_run=False))
-
-        with self.subTest("Unset SSM parameter"):
-            with mock.patch("dss.operations.ssm_params.ssm_client") as ssm:
-                # Mock the same way we did for set new secret above
-                ssm.get_parameter = mock.MagicMock(return_value=ssm_new_env)
-                ssm.put_parameter = mock.MagicMock(return_value=None)
-                ssm_params.ssm_unset([], argparse.Namespace(name=testvar_name, dry_run=True))
-                ssm_params.ssm_unset([], argparse.Namespace(name=testvar_name, dry_run=False))
+                    lambda_params.ssm_environment([], argparse.Namespace(json=False))
+                self.assertIn("var_name_1=value_1", output)
 
     def test_lambdaparams_crud(self):
         # CRUD (create read update delete) test for setting lambda function environment variables
@@ -528,7 +487,7 @@ class TestOperations(unittest.TestCase):
         lam_new_env = self._wrap_lambda_env(new_env)
 
         with self.subTest("Create a new lambda parameter"):
-            with mock.patch("dss.operations.ssm_params.ssm_client") as ssm, \
+            with mock.patch("dss.operations.lambda_params.ssm_client") as ssm, \
                     mock.patch("dss.operations.lambda_params.lambda_client") as lam:
 
                 # If this is not a dry run, lambda_set in params.py
@@ -580,7 +539,7 @@ class TestOperations(unittest.TestCase):
                     self.assertIn(lambda_name, all_lams_output)
 
         with self.subTest("Get environments of each lambda function"):
-            with mock.patch("dss.operations.ssm_params.ssm_client") as ssm, \
+            with mock.patch("dss.operations.lambda_params.ssm_client") as ssm, \
                     mock.patch("dss.operations.lambda_params.lambda_client") as lam:
 
                 # lambda_environment() function in dss/operations/lambda_params.py calls get_deployed_lambdas()
@@ -622,7 +581,7 @@ class TestOperations(unittest.TestCase):
                 self.assertIn(f"dss-{stage}", all_lams_output)
 
         with self.subTest("Update (set) existing lambda parameters"):
-            with mock.patch("dss.operations.ssm_params.ssm_client") as ssm, \
+            with mock.patch("dss.operations.lambda_params.ssm_client") as ssm, \
                     mock.patch("dss.operations.lambda_params.lambda_client") as lam:
                 # Mock the same way we did for create new param above.
                 # First we mock the SSM param store
@@ -644,7 +603,7 @@ class TestOperations(unittest.TestCase):
                     )
 
         with self.subTest("Update lambda environment stored in SSM store under $DSS_DEPLOYMENT_STAGE/environment"):
-            with mock.patch("dss.operations.ssm_params.ssm_client") as ssm, \
+            with mock.patch("dss.operations.lambda_params.ssm_client") as ssm, \
                     mock.patch("dss.operations.lambda_params.lambda_client") as lam, \
                     mock.patch("dss.operations.lambda_params.es_client") as es, \
                     mock.patch("dss.operations.lambda_params.sm_client") as sm, \
@@ -711,7 +670,7 @@ class TestOperations(unittest.TestCase):
                 )
 
         with self.subTest("Unset lambda parameters"):
-            with mock.patch("dss.operations.ssm_params.ssm_client") as ssm, \
+            with mock.patch("dss.operations.lambda_params.ssm_client") as ssm, \
                     mock.patch("dss.operations.lambda_params.lambda_client") as lam:
                 # If this is not a dry run, lambda_set in params.py
                 # will update the SSM first, so we mock those first.
