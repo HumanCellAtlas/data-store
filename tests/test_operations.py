@@ -490,7 +490,7 @@ class TestOperations(unittest.TestCase):
         with self.subTest("Print the SSM environment"):
             with mock.patch("dss.operations.lambda_params.ssm_client") as ssm:
                 # listing params will call ssm.get_parameter to get the entire environment
-                ssm.get_parameter = mock.MagicMock(return_value=ssm_new_env)
+                ssm.get_parameter = mock.MagicMock(return_value=env_str)
 
                 # Now call our params.py module. Output var=value on each line.
                 with CaptureStdout() as output:
