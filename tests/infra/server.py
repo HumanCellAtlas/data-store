@@ -20,6 +20,7 @@ sys.path.insert(0, pkg_root)  # noqa
 
 from dss import Config, BucketConfig
 from dss.util import networking
+from dss.operations.lambda_params import get_admin_emails
 
 
 logger = logging.getLogger(__name__)
@@ -104,11 +105,7 @@ class MockFusilladeHandler(BaseHTTPRequestHandler):
     """
     _server = None
     _thread = None
-    _whitelist = [
-        "valid@ucsc.edu",
-        "travis-test@human-cell-atlas-travis-test.iam.gserviceaccount.com",
-        "org-humancellatlas-integration@human-cell-atlas-travis-test.iam.gserviceaccount.com",
-    ]
+    _whitelist = get_admin_emails().split(",") + ["valid@ucsc.edu"]
 
     @classmethod
     def get_addr_port(cls):
