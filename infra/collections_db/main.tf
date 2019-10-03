@@ -17,6 +17,10 @@ resource "aws_dynamodb_table" "collections-db-aws" {
   hash_key     = "hash_key"
   range_key    = "sort_key"
 
+  point_in_time_recovery {
+    enabled = true
+  }
+
   attribute {
     name = "hash_key"
     type = "S"
