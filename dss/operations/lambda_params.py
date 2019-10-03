@@ -29,7 +29,10 @@ logger = logging.getLogger(__name__)
 # Utility functions for SSM parameter store:
 # ---
 def get_ssm_variable_prefix() -> str:
-    """Use info from local environment to assemble necessary prefix for SSM param store variables"""
+    """
+    Use info from local environment to assemble necessary prefix for environment variables stored
+    in the SSM param store under $DSS_DEPLOYMENT_STAGE/environment
+    """
     store_name = os.environ["DSS_PARAMETER_STORE"]
     stage_name = os.environ["DSS_DEPLOYMENT_STAGE"]
     store_prefix = f"{store_name}/{stage_name}"
@@ -37,7 +40,7 @@ def get_ssm_variable_prefix() -> str:
 
 
 def fix_ssm_variable_prefix(param_name: str) -> str:
-    """Add the variable store and stage prefix to the front of an SSM param name"""
+    """Add (if necessary) the variable store and stage prefix to the front of the name of an SSM store parameter"""
     prefix = get_ssm_variable_prefix()
     if not (param_name.startswith(prefix) or param_name.startswith("/" + prefix)):
         param_name = f"{prefix}/{param_name}"
@@ -45,16 +48,15 @@ def fix_ssm_variable_prefix(param_name: str) -> str:
 
 
 def get_ssm_environment() -> dict:
-    """Get the value of the parameter named "environment" in the SSM param store"""
-    prefix = get_ssm_variable_prefix()
-    p = ssm_client.get_parameter(Name=f"/{prefix}/environment")
+    """Get the value of the environment variables stored in the SSM param store under $DSS_DEPLOYMENT_STAGE/environment"""
+    p = ssm_client.get_parameter(Name=fix_ssm_variable_prefix("environment"))
     parms = p["Parameter"]["Value"]  # this is a string, so convert to dict
     return json.loads(parms)
 
 
 def set_ssm_environment(env: dict) -> None:
     """
-    Set the SSM param store param "environment" to the values in env (dict).
+    Set the value of environment variables stored in the SSM param store under $DSS_DEPLOYMENT_STAGE/environment
 
     :param env: dict containing environment variables to set in SSM param store
     :returns: nothing
@@ -67,7 +69,7 @@ def set_ssm_environment(env: dict) -> None:
 
 def set_ssm_parameter(env_var: str, value, quiet: bool = False) -> None:
     """
-    Set a parameter in the SSM param store variable "environment".
+    Set a variable in the lambda environment stored in the SSM store under $DSS_DEPLOYMENT_STAGE/environment
 
     :param env_var: the name of the environment variable being set
     :param value: the value of the environment variable being set
@@ -87,7 +89,7 @@ def set_ssm_parameter(env_var: str, value, quiet: bool = False) -> None:
 
 def unset_ssm_parameter(env_var: str, quiet: bool = False) -> None:
     """
-    Unset a parameter in the SSM param store variable "environment".
+    Unset a variable in the lambda environment stored in the SSM store undre $DSS_DEPLOYMENT_STAGE/environment
 
     :param env_var: the name of the environment variable being set
     :param value: the value of the environment variable being set
@@ -117,7 +119,6 @@ def get_elasticsearch_endpoint() -> str:
 
 
 def get_admin_emails() -> str:
-
     gcp_var = os.environ["GOOGLE_APPLICATION_CREDENTIALS_SECRETS_NAME"]
     gcp_secret_id = fix_secret_variable_prefix(gcp_var)
     response = fetch_secret_safely(gcp_secret_id)['SecretString']
