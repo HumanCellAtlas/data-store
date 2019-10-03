@@ -23,6 +23,7 @@ sys.path.insert(0, pkg_root)  # noqa
 
 import dss
 import dss.operations.storage
+import dss.operations.events
 from dss.operations import dispatch
 
 logging.basicConfig(stream=sys.stdout)
