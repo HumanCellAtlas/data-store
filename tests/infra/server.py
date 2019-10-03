@@ -10,6 +10,7 @@ import json
 import cgi
 import subprocess
 import time
+import logging
 from http.server import BaseHTTPRequestHandler, HTTPServer
 from chalice.cli import CLIFactory
 from chalice.local import LocalDevServer, ChaliceRequestHandler
