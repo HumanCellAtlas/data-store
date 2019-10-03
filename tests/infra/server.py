@@ -126,8 +126,10 @@ class MockFusilladeHandler(BaseHTTPRequestHandler):
 
     @classmethod
     def stop_serving(cls):
-        cls._server.shutdown()
-        cls._thread.join()
+        if cls._server is not None:
+            cls._server.shutdown()
+        cls._thread.join(timeout=10)
+        assert not cls._thread.is_alive(), 'Mock Fusillade server failed to join thread'
         print(f"Mock Fusillade server has shut down")
 
     @classmethod
