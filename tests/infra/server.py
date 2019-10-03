@@ -21,6 +21,9 @@ from dss import Config, BucketConfig
 from dss.util import networking
 
 
+logger = logging.getLogger(__name__)
+
+
 class SilentHandler(ChaliceRequestHandler):
     """
     The default Chalice request handler is very chatty.  We don't want that polluting our unit test output, so we
@@ -119,7 +122,7 @@ class MockFusilladeHandler(BaseHTTPRequestHandler):
         cls.stash_oidc_group_claim()
         cls.stash_openid_provider()
         Config._set_authz_url(f"http://{cls._addr}:{cls._port}")
-        print(f"Mock Fusillade server listening at {cls._addr}:{cls._port}")
+        logger.info(f"Mock Fusillade server listening at {cls._addr}:{cls._port}")
         cls._server = HTTPServer((cls._addr, cls._port), cls)
         cls._thread = threading.Thread(target=cls._server.serve_forever)
         cls._thread.start()
@@ -130,7 +133,7 @@ class MockFusilladeHandler(BaseHTTPRequestHandler):
             cls._server.shutdown()
         cls._thread.join(timeout=10)
         assert not cls._thread.is_alive(), 'Mock Fusillade server failed to join thread'
-        print(f"Mock Fusillade server has shut down")
+        logger.info(f"Mock Fusillade server has shut down")
 
     @classmethod
     def stash_oidc_group_claim(cls):
@@ -181,3 +184,7 @@ class MockFusilladeHandler(BaseHTTPRequestHandler):
         # Send it back
         self._set_headers()
         self.wfile.write(bytes(json.dumps(message), "utf8"))
+
+    def log_request(self, *args, **kwargs):
+        """If this method is empty, it stops logging messages from being sent to the console"""
+        pass
