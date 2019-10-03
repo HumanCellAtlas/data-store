@@ -90,10 +90,12 @@ def setUpModule():
     else:
         NotificationRequestHandler = LocalNotificationRequestHandler
     NotificationRequestHandler.startServing()
+    MockFusilladeHandler.start_serving()
 
 
 def tearDownModule():
     NotificationRequestHandler.stopServing()
+    MockFusilladeHandler.stop_serving()
 
 
 class TestIndexerBase(ElasticsearchTestCase, DSSAssertMixin, DSSStorageMixin, DSSUploadMixin, metaclass=ABCMeta):
@@ -113,13 +115,11 @@ class TestIndexerBase(ElasticsearchTestCase, DSSAssertMixin, DSSStorageMixin, DS
         cls.executor = ThreadPoolExecutor(len(DEFAULT_BACKENDS))
         with open(os.path.join(os.path.dirname(__file__), "sample_doc_tombstone.json"), 'r') as fp:
             cls.tombstone_data = json.load(fp)
-        MockFusilladeHandler.start_serving()
 
     @classmethod
     def tearDownClass(cls):
         cls.executor.shutdown(False)
         cls.app.shutdown()
-        MockFusilladeHandler.stop_serving()
         super().tearDownClass()
 
     def setUp(self):
