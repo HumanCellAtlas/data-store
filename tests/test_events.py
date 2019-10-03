@@ -37,15 +37,16 @@ logger = logging.getLogger(__name__)
 
 def setUpModule():
     Config.set_config(BucketConfig.TEST)
+    MockFusilladeHandler.start_serving()
+
+
+def tearDownModule():
+    MockFusilladeHandler.stop_serving()
 
 
 class TestEventsUtils(unittest.TestCase, DSSAssertMixin):
     def setUp(self):
         Config.set_config(dss.BucketConfig.TEST)
-        MockFusilladeHandler.start_serving()
-
-    def tearDown(self):
-        MockFusilladeHandler.stop_serving()
 
     def test_record_event_for_bundle(self):
         metadata_document = dict(foo=f"{uuid4()}")
@@ -79,12 +80,10 @@ class TestEvents(unittest.TestCase, DSSAssertMixin):
                 cls.bundle[replica.name] = dict(uuid=bundle_uuid,
                                                 version=bundle_version,
                                                 key=f"bundles/{bundle_uuid}.{bundle_version}",)
-        MockFusilladeHandler.start_serving()
 
     @classmethod
     def teardownClass(cls):
         cls.app.shutdown()
-        MockFusilladeHandler.stop_serving()
 
     def setUp(self):
         Config.set_config(dss.BucketConfig.TEST)

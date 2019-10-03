@@ -35,6 +35,15 @@ from tests.infra.server import ThreadedLocalServer, MockFusilladeHandler
 FILE_GET_RETRY_COUNT = 10
 
 
+def setUpModule():
+    Config.set_config(BucketConfig.TEST)
+    MockFusilladeHandler.start_serving()
+
+
+def tearDownModule():
+    MockFusilladeHandler.stop_serving()
+
+
 @testmode.standalone
 class TestFileApi(unittest.TestCase, TestAuthMixin, DSSUploadMixin, DSSAssertMixin):
     @classmethod
@@ -47,12 +56,10 @@ class TestFileApi(unittest.TestCase, TestAuthMixin, DSSUploadMixin, DSSAssertMix
             'hca-dss-sha1': '####',
             'hca-dss-sha256': '$$$$'
         }
-        MockFusilladeHandler.start_serving()
 
     @classmethod
     def tearDownClass(cls):
         cls.app.shutdown()
-        MockFusilladeHandler.stop_serving()
 
     def setUp(self):
         dss.Config.set_config(dss.BucketConfig.TEST)
