@@ -17,7 +17,6 @@ class SubscriptionData:
     PAYLOAD_FORM_FIELD = 'payload_form_field'
     ATTACHMENTS = 'attachments'
     STATS = 'stats'
-    BLANK_STATS = {"attempted": 0, "successful": 0, "failed": 0}
 
 
 subscription_db_table = f"dss-subscriptions-v2-{{}}-{os.environ['DSS_DEPLOYMENT_STAGE']}"
@@ -25,14 +24,13 @@ subscription_db_table = f"dss-subscriptions-v2-{{}}-{os.environ['DSS_DEPLOYMENT_
 
 def update_subscription_stats(doc: dict, status: bool):
     status_type = 'successful' if status else 'failed'
-    item = json.loads(dynamodb.get_item(table=subscription_db_table.format(doc[SubscriptionData.REPLICA]),
-                                        hash_key=doc[SubscriptionData.OWNER],
-                                        sort_key=doc[SubscriptionData.UUID]))
-    current_stats = item.get(SubscriptionData.STATS, SubscriptionData.BLANK_STATS)
-    current_stats[status_type] += 1
-    current_stats['attempted'] += 1
-    item[SubscriptionData.STATS] = current_stats
-    put_subscription(item)
+    update_expression = f"ADD attempted :q, {status_type} :q"
+    expression_attribute_value = '{":q": {"N": "1"}}'
+    json.loads(dynamodb.update_item(table=subscription_db_table.format(doc[SubscriptionData.REPLICA]),
+                                    hash_key=doc[SubscriptionData.OWNER],
+                                    sort_key=doc[SubscriptionData.UUID],
+                                    update_expression=update_expression,
+                                    expression_attribute_values=expression_attribute_value))
 
 
 def put_subscription(doc: dict):
@@ -44,10 +42,10 @@ def put_subscription(doc: dict):
 
 def get_subscription(replica: Replica, owner: str, uuid: str):
     try:
-        item = dynamodb.get_item(table=subscription_db_table.format(replica.name),
-                                 hash_key=owner,
-                                 sort_key=uuid)
-        return json.loads(item)
+        item = dynamodb.get_all_key_attributes(table=subscription_db_table.format(replica.name),
+                                               hash_key=owner,
+                                               sort_key=uuid)
+        return item
     except dynamodb.DynamoDBItemNotFound:
         return None
 
