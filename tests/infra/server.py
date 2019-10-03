@@ -127,6 +127,8 @@ class MockFusilladeHandler(BaseHTTPRequestHandler):
 
     @classmethod
     def stop_serving(cls):
+        cls.restore_oidc_group_claim()
+        cls.restore_openid_provider()
         if cls._server is not None:
             cls._server.shutdown()
         cls._thread.join(timeout=10)
