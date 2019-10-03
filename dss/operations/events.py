@@ -10,7 +10,7 @@ from uuid import uuid4
 from datetime import datetime
 
 from cloud_blobstore import BlobNotFoundError
-from flashflood import FlashFlood
+from flashflood import FlashFlood, FlashFloodJournalingError
 from dcplib.aws.sqs import SQSMessenger
 from dcplib.aws.clients import logs
 
@@ -92,16 +92,30 @@ def record(argv: typing.List[str], args: argparse.Namespace):
 @events.action("journal",
                arguments={"--prefix": dict(required=True,
                                            help="flashflood prefix to journal events"),
-                          "--minimum-number-of-events": dict(default=100),
-                          "--minimum-size": dict(default=1024 * 1024)})
+                          "--minimum-number-of-events": dict(default=1000, type=int),
+                          "--minimum-size": dict(default=1024 * 1024, type=int)})
 def journal(argv: typing.List[str], args: argparse.Namespace):
     ff = FlashFlood(resources.s3, Config.get_flashflood_bucket(), args.prefix)
-    ff.journal(int(args.number_of_events))
+    while True:
+        try:
+            ff.journal(args.minimum_number_of_events, args.minimum_size)
+        except FlashFloodJournalingError:
+            break
+
+@events.action("update",
+               arguments={"--prefix": dict(required=True,
+                                           help="flashflood prefix to journal events"),
+                          "--minimum-number-of-events": dict(default=1000, type=int),
+                          "--minimum-size": dict(default=1024 * 1024, type=int)})
+def update(argv: typing.List[str], args: argparse.Namespace):
+    ff = FlashFlood(resources.s3, Config.get_flashflood_bucket(), args.prefix)
+    ff.update()
 
 @events.action("destroy",
                arguments={"--prefix": dict(required=True)})
-def delete_all(argv: typing.List[str], args: argparse.Namespace):
+def destroy(argv: typing.List[str], args: argparse.Namespace):
     """
     Delete all events recorded or journaled into `prefix`
     """
-    FlashFlood(resources.s3, Config.get_flashflood_bucket(), args.prefix)._destroy()
+    if "yes" == input(f"Are you sure you want to delete all events for {args.prefix}? Enter 'yes' to continue: "):
+        FlashFlood(resources.s3, Config.get_flashflood_bucket(), args.prefix)._destroy()
