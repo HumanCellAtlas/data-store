@@ -28,7 +28,7 @@ from tests.infra import testmode
 from dss.operations import DSSOperationsCommandDispatch
 from dss.operations.util import map_bucket_results
 from dss.operations import checkout, storage, sync, secrets, lambda_params
-from dss.operations.lambda_params import get_deployed_lambdas
+from dss.operations.lambda_params import get_deployed_lambdas, fix_ssm_variable_prefix
 from dss.logging import configure_test_logging
 from dss.config import BucketConfig, Config, Replica, override_bucket_config
 from dss.storage.hcablobstore import FileMetadata, compose_blob_key
@@ -459,22 +459,22 @@ class TestOperations(unittest.TestCase):
         var = "dummy_variable"
         new_var = fix_ssm_variable_prefix(var)
         gold_var = f"{prefix}/{var}"
-        assertEqual(new_var, gold_var)
+        self.assertEqual(new_var, gold_var)
 
         var = "/dummy_variable"
         new_var = fix_ssm_variable_prefix(var)
         gold_var = f"{prefix}{var}"
-        assertEqual(new_var, gold_var)
+        self.assertEqual(new_var, gold_var)
 
         var = f"{prefix}/dummy_variable"
         new_var = fix_ssm_variable_prefix(var)
         gold_var = f"{var}"
-        assertEqual(new_var, gold_var)
+        self.assertEqual(new_var, gold_var)
 
         var = f"/{prefix}/dummy_variable"
         new_var = fix_ssm_variable_prefix(var)
         gold_var = f"{var[1:]}"
-        assertEqual(new_var, gold_var)
+        self.assertEqual(new_var, gold_var)
 
     def test_ssmparams_crud(self):
         # CRUD (create read update delete) test for setting environment variables in SSM param store
