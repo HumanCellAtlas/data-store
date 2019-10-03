@@ -48,7 +48,7 @@ def fix_ssm_variable_prefix(param_name: str) -> str:
 
 
 def get_ssm_environment() -> dict:
-    """Get the value of the environment variables stored in the SSM param store under $DSS_DEPLOYMENT_STAGE/environment"""
+    """Get the value of environment variables stored in the SSM param store under $DSS_DEPLOYMENT_STAGE/environment"""
     p = ssm_client.get_parameter(Name=fix_ssm_variable_prefix("environment"))
     parms = p["Parameter"]["Value"]  # this is a string, so convert to dict
     return json.loads(parms)
@@ -71,8 +71,8 @@ def set_ssm_parameter(env_var: str, value, quiet: bool = False) -> None:
     """
     Set a variable in the lambda environment stored in the SSM store under $DSS_DEPLOYMENT_STAGE/environment
 
-    :param env_var: the name of the environment variable being set
-    :param value: the value of the environment variable being set
+    :param env_var: name of environment variable being set
+    :param value: value of environment variable being set
     :param bool quiet: suppress all output if true
     """
     environment = get_ssm_environment()
@@ -91,8 +91,8 @@ def unset_ssm_parameter(env_var: str, quiet: bool = False) -> None:
     """
     Unset a variable in the lambda environment stored in the SSM store undre $DSS_DEPLOYMENT_STAGE/environment
 
-    :param env_var: the name of the environment variable being set
-    :param value: the value of the environment variable being set
+    :param env_var: name of environment variable being set
+    :param value: value of environment variable being set
     :param bool quiet: suppress all output if true
     """
     environment = get_ssm_environment()
@@ -160,7 +160,7 @@ def get_deployed_lambdas(quiet: bool = True):
 
 
 def get_deployed_lambda_environment(lambda_name: str, quiet: bool = True) -> dict:
-    """Get the environment variables in a deployed lambda function"""
+    """Get environment variables in a deployed lambda function"""
     try:
         lambda_client.get_function(FunctionName=lambda_name)
         c = lambda_client.get_function_configuration(FunctionName=lambda_name)
@@ -174,7 +174,7 @@ def get_deployed_lambda_environment(lambda_name: str, quiet: bool = True) -> dic
 
 
 def set_deployed_lambda_environment(lambda_name: str, env: dict) -> None:
-    """Set the environment variables in a deployed lambda function"""
+    """Set environment variables in a deployed lambda function"""
     lambda_client.update_function_configuration(
         FunctionName=lambda_name, Environment={"Variables": env}
     )
@@ -203,7 +203,7 @@ def get_local_lambda_environment(quiet: bool = True) -> dict:
 
 
 def set_lambda_var(env_var: str, value, lambda_name: str, quiet: bool = False) -> None:
-    """Set a single variable in the environment of the specified lambda function"""
+    """Set a single variable in environment of the specified lambda function"""
     environment = get_deployed_lambda_environment(lambda_name, quiet=False)
     environment[env_var] = value
     set_deployed_lambda_environment(lambda_name, environment)
@@ -212,7 +212,7 @@ def set_lambda_var(env_var: str, value, lambda_name: str, quiet: bool = False) -
 
 
 def unset_lambda_var(env_var: str, lambda_name: str, quiet: bool = False) -> None:
-    """Unset a single variable in the environment of the specified lambda function"""
+    """Unset a single variable in environment of the specified lambda function"""
     environment = get_deployed_lambda_environment(lambda_name, quiet=False)
     try:
         del environment[env_var]
@@ -225,7 +225,7 @@ def unset_lambda_var(env_var: str, lambda_name: str, quiet: bool = False) -> Non
 
 
 def print_lambda_env(lambda_name, lambda_env):
-    """Print the environment variables set in a specified lambda function"""
+    """Print environment variables set in a specified lambda function"""
     print(f"\n{lambda_name}:")
     for name, val in lambda_env.items():
         print(f"{name}={val}")
