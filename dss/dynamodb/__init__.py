@@ -99,8 +99,8 @@ def get_all_key_attributes(*, table: str, hash_key: str, sort_key: str) -> Gener
     if item is None:
         raise DynamoDBItemNotFound(f'Query failed to fetch item from database: {query}')
     return_value = {}
-    for k, v in item:
-        return_value['k'] = v.values()
+    for k, v in item.items():
+        return_value[k] = [*v.values()][0]
     return return_value
 
 

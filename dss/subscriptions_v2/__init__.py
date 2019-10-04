@@ -5,6 +5,12 @@ from dss.config import Replica
 from dss import dynamodb  # type: ignore
 
 
+class SubscriptionStats:
+    ATTEMPTS = 'attempts'
+    SUCCESSFUL = 'successful'
+    FAILED = 'failed'
+
+
 class SubscriptionData:
     REPLICA = 'replica'
     OWNER = 'owner'
@@ -23,14 +29,14 @@ subscription_db_table = f"dss-subscriptions-v2-{{}}-{os.environ['DSS_DEPLOYMENT_
 
 
 def update_subscription_stats(doc: dict, status: bool):
-    status_type = 'successful' if status else 'failed'
-    update_expression = f"ADD attempted :q, {status_type} :q"
-    expression_attribute_value = '{":q": {"N": "1"}}'
-    json.loads(dynamodb.update_item(table=subscription_db_table.format(doc[SubscriptionData.REPLICA]),
-                                    hash_key=doc[SubscriptionData.OWNER],
-                                    sort_key=doc[SubscriptionData.UUID],
-                                    update_expression=update_expression,
-                                    expression_attribute_values=expression_attribute_value))
+    status_type = SubscriptionStats.SUCCESSFUL if status else SubscriptionStats.FAILED
+    update_expression = f"ADD {SubscriptionStats.ATTEMPTS} :q, {status_type} :q"
+    expression_attribute_value = {":q": {"N": "1"}}
+    dynamodb.update_item(table=subscription_db_table.format(doc[SubscriptionData.REPLICA]),
+                         hash_key=doc[SubscriptionData.OWNER],
+                         sort_key=doc[SubscriptionData.UUID],
+                         update_expression=update_expression,
+                         expression_attribute_values=expression_attribute_value)
 
 
 def put_subscription(doc: dict):
@@ -45,7 +51,12 @@ def get_subscription(replica: Replica, owner: str, uuid: str):
         item = dynamodb.get_all_key_attributes(table=subscription_db_table.format(replica.name),
                                                hash_key=owner,
                                                sort_key=uuid)
-        return item
+        payload = json.loads(item['body'])
+        for attribute_type in[SubscriptionStats.ATTEMPTS, SubscriptionStats.SUCCESSFUL, SubscriptionStats.FAILED]:
+            attribute_value = item.get(attribute_type, None)
+            if attribute_value:
+                payload[attribute_type] = attribute_value
+        return payload
     except dynamodb.DynamoDBItemNotFound:
         return None
 
