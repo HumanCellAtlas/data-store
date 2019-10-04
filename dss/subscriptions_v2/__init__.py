@@ -28,9 +28,8 @@ class SubscriptionData:
 subscription_db_table = f"dss-subscriptions-v2-{{}}-{os.environ['DSS_DEPLOYMENT_STAGE']}"
 
 
-def update_subscription_stats(doc: dict, status: bool):
-    status_type = SubscriptionStats.SUCCESSFUL if status else SubscriptionStats.FAILED
-    update_expression = f"ADD {SubscriptionStats.ATTEMPTS} :q, {status_type} :q"
+def update_subscription_stats(doc: dict, status: str):
+    update_expression = f"ADD {SubscriptionStats.ATTEMPTS} :q, {status} :q"
     expression_attribute_value = {":q": {"N": "1"}}
     dynamodb.update_item(table=subscription_db_table.format(doc[SubscriptionData.REPLICA]),
                          hash_key=doc[SubscriptionData.OWNER],
@@ -52,10 +51,12 @@ def get_subscription(replica: Replica, owner: str, uuid: str):
                                                hash_key=owner,
                                                sort_key=uuid)
         payload = json.loads(item['body'])
+        stats = {}
         for attribute_type in[SubscriptionStats.ATTEMPTS, SubscriptionStats.SUCCESSFUL, SubscriptionStats.FAILED]:
             attribute_value = item.get(attribute_type, None)
             if attribute_value:
-                payload[attribute_type] = attribute_value
+                stats[attribute_type] = attribute_value
+        payload[SubscriptionData.STATS] = stats
         return payload
     except dynamodb.DynamoDBItemNotFound:
         return None
