@@ -45,8 +45,16 @@ def get_ssm_variable_prefix() -> str:
 def fix_ssm_variable_prefix(param_name: str) -> str:
     """Add (if necessary) the variable store and stage prefix to the front of the name of an SSM store parameter"""
     prefix = get_ssm_variable_prefix()
+
+    # Strip leading/trailing slash
+    if param_name.startswith("/"):
+        param_name = param_name[1:]
+    if param_name.endswith("/"):
+        param_name = param_name[:-1]
+
     if not (param_name.startswith(prefix) or param_name.startswith("/" + prefix)):
         param_name = f"{prefix}/{param_name}"
+
     return param_name
 
 
