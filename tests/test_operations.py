@@ -458,22 +458,22 @@ class TestOperations(unittest.TestCase):
 
         var = "dummy_variable"
         new_var = fix_ssm_variable_prefix(var)
-        gold_var = f"{prefix}/{var}"
+        gold_var = f"{prefix}/dummy_variable"
         self.assertEqual(new_var, gold_var)
 
         var = "/dummy_variable"
         new_var = fix_ssm_variable_prefix(var)
-        gold_var = f"{prefix}{var}"
+        gold_var = f"{prefix}/dummy_variable"
         self.assertEqual(new_var, gold_var)
 
         var = f"{prefix}/dummy_variable"
         new_var = fix_ssm_variable_prefix(var)
-        gold_var = f"{var}"
+        gold_var = f"{prefix}/dummy_variable"
         self.assertEqual(new_var, gold_var)
 
         var = f"/{prefix}/dummy_variable"
         new_var = fix_ssm_variable_prefix(var)
-        gold_var = f"{var[1:]}"
+        gold_var = f"{prefix}/dummy_variable"
         self.assertEqual(new_var, gold_var)
 
     def test_ssmparams_crud(self):
