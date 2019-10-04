@@ -29,6 +29,8 @@ from dss.util import UrlBuilder
 from tests.infra import DSSAssertMixin, testmode
 from tests.infra.server import ThreadedLocalServer, MockFusilladeHandler
 from tests import get_auth_header
+from dss.storage.identifiers import DSS_BUNDLE_KEY_REGEX, BUNDLE_PREFIX, TOMBSTONE_SUFFIX
+from dss.events.handlers.notify_v2 import _versioned_tombstone_key_regex, _unversioned_tombstone_key_regex
 import tests
 
 
@@ -50,16 +52,26 @@ class TestEventsUtils(unittest.TestCase, DSSAssertMixin):
 
     def test_record_event_for_bundle(self):
         metadata_document = dict(foo=f"{uuid4()}")
-        key = f"bundles/{uuid4()}.{datetime_to_version_format(datetime.utcnow())}"
-        test_parameters = [(replica, pfxs) for replica in Replica for pfxs in [None, ("foo", "bar")]]
-        for replica, prefixes in test_parameters:
-            with self.subTest(replica=replica.name, flashflood_prefixes=prefixes):
-                self._test_record_event_for_bundle(replica, prefixes, metadata_document, key)
+        keys = [f"bundles/{uuid4()}.{datetime_to_version_format(datetime.utcnow())}",
+                f"bundles/{uuid4()}.{datetime_to_version_format(datetime.utcnow())}.dead",
+                f"bundles/{uuid4()}.dead"]
+        test_parameters = [(replica, key, pfxs)
+                           for replica in Replica
+                           for key in keys
+                           for pfxs in [None, ("foo", "bar")]]
+        for replica, key, prefixes in test_parameters:
+            with self.subTest(replica=replica.name, key=key, flashflood_prefixes=prefixes):
+                if key.endswith(TOMBSTONE_SUFFIX):
+                    with self.assertRaises(events.DSSEventRecordError):
+                        self._test_record_event_for_bundle(replica, key, prefixes, metadata_document)
+                else:
+                    self._test_record_event_for_bundle(replica, key, prefixes, metadata_document)
+                    self._test_record_event_for_bundle(replica, key, prefixes, metadata_document, True)
 
-    def _test_record_event_for_bundle(self, replica, prefixes, metadata_document, key):
-        with mock.patch("dss.events._build_bundle_metadata_document", return_value=metadata_document):
+    def _test_record_event_for_bundle(self, replica, key, prefixes, metadata_document, use_version_for_timestamp=False):
+        with mock.patch("dss.events.build_bundle_metadata_document", return_value=metadata_document):
             with mock.patch("dss.events.FlashFlood") as ff:
-                ret = events.record_event_for_bundle(replica, key, prefixes)
+                ret = events.record_event_for_bundle(replica, key, prefixes, use_version_for_timestamp)
                 used_prefixes = prefixes or replica.flashflood_prefix_write
                 self.assertEqual(len(used_prefixes), ff.call_count)
                 self.assertEqual(metadata_document, ret)
@@ -67,6 +79,37 @@ class TestEventsUtils(unittest.TestCase, DSSAssertMixin):
                     expected = ((resources.s3, Config.get_flashflood_bucket(), pfx),)
                     self.assertEqual(args, expected)
 
+    def test_delete_event_for_bundle(self):
+        keys = [f"bundles/{uuid4()}.{datetime_to_version_format(datetime.utcnow())}",
+                f"bundles/{uuid4()}.{datetime_to_version_format(datetime.utcnow())}.dead",
+                f"bundles/{uuid4()}.dead"]
+        test_parameters = [(replica, key, pfxs)
+                           for replica in Replica
+                           for key in keys
+                           for pfxs in [None, ("foo", "bar")]]
+        for replica, key, prefixes in test_parameters:
+            with self.subTest(replica=replica.name, key=key, flashflood_prefixes=prefixes):
+                self._test_delete_event_for_bundle(replica, key, prefixes)
+
+    def _test_delete_event_for_bundle(self, replica, key, prefixes):
+        fqid_listing = set()
+
+        class MockHandle:
+            def list(slf, bucket, pfx):
+                for _ in range(3):
+                    key = f"{pfx}.{datetime_to_version_format(datetime.now())}"
+                    self.assertTrue(DSS_BUNDLE_KEY_REGEX.match(key))
+                    fqid_listing.add(key.split("/", 1)[1])
+                    yield key
+
+        with mock.patch("dss.events.Config.get_blobstore_handle", return_value=MockHandle()):
+            with mock.patch("dss.events.FlashFlood") as ff:
+                events.delete_event_for_bundle(replica, key, prefixes)
+                fqids_called = {kwargs['event_id'] for name, _, kwargs in ff.mock_calls if name == "().delete"}
+                if _unversioned_tombstone_key_regex.match(key):
+                    self.assertEqual(fqids_called, fqid_listing)
+                else:
+                    self.assertEqual(fqids_called.pop(), key.replace(f".{TOMBSTONE_SUFFIX}", "").split("/", 1)[1])
 
 class TestEvents(unittest.TestCase, DSSAssertMixin):
     @classmethod
@@ -104,7 +147,7 @@ class TestEvents(unittest.TestCase, DSSAssertMixin):
             self.assertEqual(res.status_code, requests.codes.ok)
             event = [e for e in replay_with_urls(res.json())][0]
             event_doc = json.loads(event.data.decode("utf-8"))
-            self.assertEqual(events._build_bundle_metadata_document(replica, self.bundle[replica.name]['key']),
+            self.assertEqual(events.build_bundle_metadata_document(replica, self.bundle[replica.name]['key']),
                              event_doc)
         new_bundle_uuid, new_bundle_version = self._upload_bundle(replica)
         new_bundle_key = f"bundles/{new_bundle_uuid}.{new_bundle_version}"
@@ -115,14 +158,14 @@ class TestEvents(unittest.TestCase, DSSAssertMixin):
             self.assertEqual(res.status_code, requests.codes.partial)
             event = [e for e in replay_with_urls(res.json())][0]
             event_doc = json.loads(event.data.decode("utf-8"))
-            self.assertEqual(events._build_bundle_metadata_document(replica, self.bundle[replica.name]['key']),
+            self.assertEqual(events.build_bundle_metadata_document(replica, self.bundle[replica.name]['key']),
                              event_doc)
             url = parse_header_links(res.headers['Link'])[0]['url']
             res = self.app.get("/v1" + url.split("v1", 1)[1])
             self.assertEqual(res.status_code, requests.codes.ok)
             event = [e for e in replay_with_urls(res.json())][0]
             event_doc = json.loads(event.data.decode("utf-8"))
-            self.assertEqual(events._build_bundle_metadata_document(replica, new_bundle_key), event_doc)
+            self.assertEqual(events.build_bundle_metadata_document(replica, new_bundle_key), event_doc)
         with self.subTest("bad date range returns 400", replica=replica.name):
             to_date = datetime.utcnow()
             from_date = to_date + timedelta(100)
@@ -139,7 +182,7 @@ class TestEvents(unittest.TestCase, DSSAssertMixin):
         with self.subTest("event found", replica=replica):
             res = self.app.get("/v1/events/{}".format(self.bundle[replica.name]['uuid']),
                                params=dict(replica=replica.name, version=self.bundle[replica.name]['version']))
-            self.assertEqual(events._build_bundle_metadata_document(replica, self.bundle[replica.name]['key']),
+            self.assertEqual(events.build_bundle_metadata_document(replica, self.bundle[replica.name]['key']),
                              res.json())
         with self.subTest("event not found returns 404", replica=replica):
             res = self.app.get(f"/v1/events/{uuid4()}",

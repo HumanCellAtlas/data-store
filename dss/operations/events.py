@@ -80,7 +80,7 @@ def record(argv: typing.List[str], args: argparse.Namespace):
     else:
         for key in args.keys:
             msg = json.dumps(dict(action="record event", job_id=job_id, replica=replica.name, key=key))
-            record_event_for_bundle(Replica[args.replica], key, (args.prefix,))
+            record_event_for_bundle(Replica[args.replica], key, (args.prefix,), use_version_for_timestamp=True)
             print(msg)
 
 @events.action("journal",

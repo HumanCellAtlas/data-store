@@ -12,8 +12,9 @@ from flashflood import FlashFlood, FlashFloodEventNotFound
 
 from dss.util.aws import resources
 from dss.config import Config, Replica
-from dss.storage.identifiers import TOMBSTONE_SUFFIX
+from dss.storage.identifiers import DSS_BUNDLE_KEY_REGEX, BUNDLE_PREFIX, TOMBSTONE_SUFFIX
 from dss.util.version import datetime_from_timestamp
+from dss.events.handlers.notify_v2 import _versioned_tombstone_key_regex, _unversioned_tombstone_key_regex
 
 # TODO: What happens when an event is recorder with timestamp erlier tha latest journal?
 
@@ -22,7 +23,7 @@ def get_bundle_metadata_document(replica: Replica,
                                  key: str,
                                  flashflood_prefix: str=None) -> dict:
     if key.endswith(TOMBSTONE_SUFFIX):
-        return _build_bundle_metadata_document(replica, key)
+        return build_bundle_metadata_document(replica, key)
     else:
         fqid = key.split("/", 1)[1]
         pfx = flashflood_prefix or replica.flashflood_prefix_read
@@ -43,9 +44,6 @@ def get_deleted_bundle_metadata_document(replica: Replica, key: str) -> dict:
         "version": version,
     }
 
-# TODO: Delete event from flashflood
-# TODO: Update event data in flashflood
-
 @lru_cache(maxsize=2)
 def record_event_for_bundle(replica: Replica,
                             key: str,
@@ -54,23 +52,50 @@ def record_event_for_bundle(replica: Replica,
     """
     Build the bundle metadata document, record it into flashflood, and return it
     """
-    # TODO: Add support for unversioned tombstones
+    if not DSS_BUNDLE_KEY_REGEX.match(key):
+        raise DSSEventRecordError(f"Event recording not supported for: {key}")
     fqid = key.split("/", 1)[1]
     if flashflood_prefixes is None:
         flashflood_prefixes = replica.flashflood_prefix_write
-    metadata_document = _build_bundle_metadata_document(replica, key)
     if use_version_for_timestamp:
         _, version = fqid.split(".", 1)
         event_date = datetime_from_timestamp(version)
     else:
         event_date = datetime.utcnow()
+    metadata_document = build_bundle_metadata_document(replica, key)
     for pfx in flashflood_prefixes:
         ff = FlashFlood(resources.s3, Config.get_flashflood_bucket(), pfx)
         if not ff.event_exists(fqid):
             ff.put(json.dumps(metadata_document).encode("utf-8"), event_id=fqid, date=event_date)
     return metadata_document
 
-def _build_bundle_metadata_document(replica: Replica, key: str) -> dict:
+def delete_event_for_bundle(replica: Replica, key: str, flashflood_prefixes: typing.Tuple[str, ...]=None):
+    if flashflood_prefixes is None:
+        flashflood_prefixes = replica.flashflood_prefix_write
+    if _unversioned_tombstone_key_regex.match(key):
+        key_pfx = key.replace(f".{TOMBSTONE_SUFFIX}", "")
+        handle = Config.get_blobstore_handle(replica)
+        for key in handle.list(replica.bucket, f"{key_pfx}"):
+            if not key.endswith(TOMBSTONE_SUFFIX):
+                fqid = key.split("/")[1]
+                _delete_event_for_bundle(fqid, flashflood_prefixes)
+    elif _versioned_tombstone_key_regex.match(key):
+        fqid = key.replace(f".{TOMBSTONE_SUFFIX}", "").split("/")[1]
+        _delete_event_for_bundle(fqid, flashflood_prefixes)
+    elif DSS_BUNDLE_KEY_REGEX.match(key):
+        fqid = key.split("/")[1]
+        _delete_event_for_bundle(fqid, flashflood_prefixes)
+
+def _delete_event_for_bundle(bundle_fqid: str, flashflood_prefixes: typing.Tuple[str, ...]=None):
+    for pfx in flashflood_prefixes:
+        ff = FlashFlood(resources.s3, Config.get_flashflood_bucket(), pfx)
+        ff.delete(event_id=bundle_fqid)
+
+class DSSEventRecordError(Exception):
+    pass
+
+@lru_cache(maxsize=2)
+def build_bundle_metadata_document(replica: Replica, key: str) -> dict:
     """
     This returns a JSON document with bundle manifest and metadata files suitable for JMESPath filters.
     """

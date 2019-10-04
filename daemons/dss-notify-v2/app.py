@@ -16,7 +16,8 @@ sys.path.insert(0, pkg_root)  # noqa
 import dss
 from dss import Config, Replica
 from dss.logging import configure_lambda_logging
-from dss.events import get_bundle_metadata_document, get_deleted_bundle_metadata_document, record_event_for_bundle
+from dss.events import (get_bundle_metadata_document, get_deleted_bundle_metadata_document, record_event_for_bundle,
+                        build_bundle_metadata_document, delete_event_for_bundle)
 from dss.events.handlers.notify_v2 import should_notify, notify_or_queue, notify
 
 from dss.events.handlers.sync import exists
@@ -104,23 +105,25 @@ def launch_from_notification_queue(event, context):
         else:
             logger.warning(f"Recieved queue message with no matching subscription:{message}")
 
-def _notify_subscribers(replica: Replica, key: str, is_delete_event: bool):
+def handle_bundle_event(replica: Replica, key: str, is_delete_event: bool):
     if is_delete_event:
         metadata_document = get_deleted_bundle_metadata_document(replica, key)
     else:
-        if exists(replica, key):
-            metadata_document = record_event_for_bundle(replica, key)
-        else:
-            logger.error(f"Key %s not found in replica %s, unable to notify subscribers", key, replica.name)
-            return
+        metadata_document = build_bundle_metadata_document(replica, key)
+    if "CREATE" == metadata_document['event_type']:
+        record_event_for_bundle(replica, key)
+    else:
+        delete_event_for_bundle(replica, key)
+    _notify_subscribers(replica, key, metadata_document)
 
+def _notify_subscribers(replica: Replica, key: str, metadata_document: dict):
     def _func(subscription):
         if should_notify(replica, subscription, metadata_document, key):
             notify_or_queue(replica, subscription, metadata_document, key)
 
-    # TODO: Consider scaling parallelization with Lambda size
-    logger.info(f"Attempting notifications for; replica: {replica}, key: {key} delete: {is_delete_event}")
-    with ThreadPoolExecutor(max_workers=20) as e:
+    event_type = metadata_document['event_type']
+    logger.info(f"Attempting notifications for; replica: {replica}, key: {key} event_type: {event_type}")
+    with ThreadPoolExecutor(max_workers=4) as e:
         e.map(_func, get_subscriptions_for_replica(replica))
 
 class DSSFailedNotificationDelivery(Exception):
