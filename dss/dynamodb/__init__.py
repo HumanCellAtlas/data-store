@@ -1,7 +1,5 @@
+import typing
 from typing import Generator, Optional
-
-from pip._internal.utils import typing
-
 from dss.util.aws.clients import dynamodb as db  # type: ignore
 
 
