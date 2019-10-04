@@ -26,35 +26,17 @@ def _make_api_labels_dict_entry(*args):
     Convenience function to unpack 4 values into a dictionary of labels, useful for processing
     API results.
     """
-    assert len(args)==4, "Error: need 4 arguments!"
+    assert len(args) == 4, "Error: need 4 arguments!"
     return dict(
-        extracted_list_label=args[0],
-        name_label=args[1],
-        detail_list_label=args[2],
-        policy_list_label=args[3],
+        extracted_list_label=args[0], name_label=args[1], detail_list_label=args[2], policy_list_label=args[3]
     )
 
 
 def _get_api_labels_dict():
     labels = {
-        'user': _make_api_labels_dict_entry(
-            'User',
-            'UserName',
-            'UserDetailList',
-            'UserPolicyList',
-        ),
-        'group': _make_api_labels_dict_entry(
-            'Group',
-            'GroupName',
-            'GroupDetailList',
-            'GroupPolicyList',
-        ),
-        'role': _make_api_labels_dict_entry(
-            'Role',
-            'RoleName',
-            'RoleDetailList',
-            'RolePolicyList',
-        ),
+        "user": _make_api_labels_dict_entry("User", "UserName", "UserDetailList", "UserPolicyList"),
+        "group": _make_api_labels_dict_entry("Group", "GroupName", "GroupDetailList", "GroupPolicyList"),
+        "role": _make_api_labels_dict_entry("Role", "RoleName", "RoleDetailList", "RolePolicyList"),
     }
     return labels
 
@@ -71,28 +53,28 @@ def extract_aws_policies(action, client, managed):
     :param managed: (boolean) if true, include AWS-managed policies
     :returns: a list of items (policy names if action is list
     """
-    master_list = [] # holds main results
+    master_list = []  # holds main results
 
     if managed:
         paginator_scope = "All"
     else:
         paginator_scope = "Local"
 
-    paginator = client.get_paginator('list_policies')
+    paginator = client.get_paginator("list_policies")
     for page in paginator.paginate(Scope=paginator_scope):
-        for policy in page['Policies']:
+        for policy in page["Policies"]:
 
-            if action=='list':
-                policy_name = policy['PolicyName']
+            if action == "list":
+                policy_name = policy["PolicyName"]
                 master_list.append(policy_name)
-            elif action=='dump':
+            elif action == "dump":
                 # first save as strings
-                master_list.append(json.dumps(policy,sort_keys=True,default=str))
+                master_list.append(json.dumps(policy, sort_keys=True, default=str))
 
-    if action=='list':
+    if action == "list":
         # Sort names, remove duplicates
         master_list = sorted(list(set(master_list)))
-    elif action=='dump':
+    elif action == "dump":
         # Sort strings and remove duplicates,
         # then convert back to dictionaries
         master_list = list(set(master_list))
@@ -104,12 +86,12 @@ def extract_aws_policies(action, client, managed):
 
 def list_aws_policies(client, managed):
     """Extract a list of policies"""
-    return extract_aws_policies('list', client, managed)
+    return extract_aws_policies("list", client, managed)
 
 
 def dump_aws_policies(client, managed):
     """Dump policy documents to JSON"""
-    return extract_aws_policies('dump', client, managed)
+    return extract_aws_policies("dump", client, managed)
 
 
 # ---
@@ -125,22 +107,22 @@ def list_aws_policies_grouped(asset_type, client, managed):
     :returns: a list of items of the form (asset_name, policy_name)
     """
     extracted_list = []
-    managed_policies = set()
 
     # Extract labels needed
     labels = _get_api_labels_dict()
     if asset_type not in labels:
         raise RuntimeError(f"Error: asset type {asset_type} is not valid, try one of: {labels}")
-    extracted_list_label, filter_label, name_label, detail_list_label, policy_list_label = \
-        labels[asset_type]['extracted_list_label'], \
-        labels[asset_type]['extracted_list_label'], \
-        labels[asset_type]['name_label'], \
-        labels[asset_type]['detail_list_label'], \
-        labels[asset_type]['policy_list_label']
+    extracted_list_label, filter_label, name_label, detail_list_label, policy_list_label = (
+        labels[asset_type]["extracted_list_label"],
+        labels[asset_type]["extracted_list_label"],
+        labels[asset_type]["name_label"],
+        labels[asset_type]["detail_list_label"],
+        labels[asset_type]["policy_list_label"],
+    )
 
     # Get the response, using paging if necessary
     response_detail_list = []
-    paginator = client.get_paginator('get_account_authorization_details')
+    paginator = client.get_paginator("get_account_authorization_details")
     for page in paginator.paginate(Filter=[filter_label]):
         response_detail_list += page[detail_list_label]
 
@@ -158,22 +140,21 @@ def list_aws_policies_grouped(asset_type, client, managed):
         # Check if any policies are present
         if policy_list_label in asset_detail:
             for inline_policy in asset_detail[policy_list_label]:
-                policy_name = inline_policy['PolicyName']
-                policy_doc = inline_policy['PolicyDocument']
+                policy_name = inline_policy["PolicyName"]
 
                 extracted_list.append((asset_name, policy_name))
 
         # 2. Managed policies
         # Check if any managed policies are present
-        if 'AttachedManagedPolicies' in asset_detail:
+        if "AttachedManagedPolicies" in asset_detail:
             # Listing of managed policies
-            for managed_policy in asset_detail['AttachedManagedPolicies']:
-                policy_name = managed_policy['PolicyName']
-                policy_arn = managed_policy['PolicyArn']
+            for managed_policy in asset_detail["AttachedManagedPolicies"]:
+                policy_name = managed_policy["PolicyName"]
+                policy_arn = managed_policy["PolicyArn"]
                 arn_scope = policy_arn.split("::")[1].split(":")[0]
 
                 # Make sure this is a policy we want to include in our final returned results
-                if (managed and arn_scope=="aws") or (arn_scope!="aws"):
+                if (managed and arn_scope == "aws") or (arn_scope != "aws"):
                     extracted_list.append((asset_name, policy_name))
 
     # Eliminate dupes
@@ -187,42 +168,40 @@ def list_aws_policies_grouped(asset_type, client, managed):
 
 def list_aws_user_policies(*args):
     """Extract a list of policies that apply to each user"""
-    return list_aws_policies_grouped('user', *args)
+    return list_aws_policies_grouped("user", *args)
 
 
 def list_aws_group_policies(*args):
     """Extract a list of policies that apply to each group"""
-    return list_aws_policies_grouped('group', *args)
+    return list_aws_policies_grouped("group", *args)
 
 
 def list_aws_role_policies(*args):
     """Extract a list of policies that apply to each resource"""
-    return list_aws_policies_grouped('role', *args)
+    return list_aws_policies_grouped("role", *args)
 
 
 iam = dispatch.target("iam", arguments={}, help=__doc__)
+
 
 @iam.action(
     "list",
     arguments={
         "cloud_provider": dict(
-            choices=["aws", "gcp", "fusillade"],
-            help="The cloud provider whose policies are being listed"
+            choices=["aws", "gcp", "fusillade"], help="The cloud provider whose policies are being listed"
         ),
         "--group-by": dict(
             required=False,
             choices=["users", "groups", "roles"],
-            help="Group the listed policies by asset type (user, group, or role)"
+            help="Group the listed policies by asset type (user, group, or role)",
         ),
         "--output": dict(
-            type=str,
-            required=False,
-            help="Specify an output file name (output sent to stdout by default)"
+            type=str, required=False, help="Specify an output file name (output sent to stdout by default)"
         ),
         "--force": dict(
             action="store_true",
-            help="If output file already exists, overwrite it (default is not to overwrite)"
-        )
+            help="If output file already exists, overwrite it (default is not to overwrite)",
+        ),
     },
 )
 def list_policies(argv: typing.List[str], args: argparse.Namespace):
@@ -249,7 +228,7 @@ def list_policies(argv: typing.List[str], args: argparse.Namespace):
 
         if args.output:
             stdout_ = sys.stdout
-            sys.stdout = open(args.output, 'w')
+            sys.stdout = open(args.output, "w")
         for c in contents:
             print(c)
         if args.output:
