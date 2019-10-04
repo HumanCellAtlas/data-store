@@ -1,5 +1,7 @@
 from typing import Generator, Optional
 
+from pip._internal.utils import typing
+
 from dss.util.aws.clients import dynamodb as db  # type: ignore
 
 
@@ -84,7 +86,7 @@ def get_primary_key_items(*, table: str, key: str, return_key: str = 'body') -> 
             yield item[return_key]['S']
 
 
-def get_all_key_attributes(*, table: str, hash_key: str, sort_key: str) -> dict[any, any]:
+def get_all_key_attributes(*, table: str, hash_key: str, sort_key: str) -> typing.Dict[any, any]:
     """
     Get associated value for a given set of keys from a dynamoDB table.
 
@@ -161,7 +163,7 @@ def delete_item(*, table: str, hash_key: str, sort_key: Optional[str] = None):
 
 
 def update_item(*, table: str, hash_key: str, sort_key: Optional[str] = None, update_expression: Optional[str],
-                expression_attribute_values: Optional[str]):
+                expression_attribute_values: typing.Dict[any, any]):
     """
     Update an item from a dynamoDB table.
 
