@@ -1,5 +1,6 @@
 import os
 import json
+import typing
 
 from dss.config import Replica
 from dss import dynamodb  # type: ignore
@@ -51,7 +52,7 @@ def get_subscription(replica: Replica, owner: str, uuid: str):
                                                hash_key=owner,
                                                sort_key=uuid)
         payload = json.loads(item['body'])
-        stats = {}
+        stats = {}  # type: typing.Dict
         for attribute_type in[SubscriptionStats.ATTEMPTS, SubscriptionStats.SUCCESSFUL, SubscriptionStats.FAILED]:
             attribute_value = item.get(attribute_type, None)
             if attribute_value:
