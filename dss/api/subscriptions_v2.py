@@ -51,7 +51,6 @@ def put(json_request_body: dict, replica: str):
     subscription_uuid = str(uuid4())
     subscription_doc[SubscriptionData.UUID] = subscription_uuid
     subscription_doc[SubscriptionData.REPLICA] = Replica[replica].name
-    subscription_doc[SubscriptionData.STATS] = SubscriptionData.BLANK_STATS
     if subscription_doc.get(SubscriptionData.JMESPATH_QUERY) is not None:
         try:
             jmespath.compile(subscription_doc[SubscriptionData.JMESPATH_QUERY])
