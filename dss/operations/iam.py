@@ -166,7 +166,7 @@ def _make_aws_api_labels_dict_entry(*args) -> typing.Dict[str, str]:
     )
 
 
-def _get_aws_api_labels_dict() -> typing.Dict[str, str]:
+def _get_aws_api_labels_dict() -> typing.Dict[str, typing.Dict[str,str]]:
     """Store the labels used to unwrap JSON results from the AWS API"""
     labels = {
         "user": _make_aws_api_labels_dict_entry("User", "UserName", "UserDetailList", "UserPolicyList"),
@@ -299,7 +299,7 @@ def dump_fus_policies(fus_client):
 # ---
 # List policies grouped by asset type
 # ---
-def list_aws_policies_grouped(asset_type: str, client, managed: bool):
+def list_aws_policies_grouped(asset_type, client, managed: bool):
     """
     Call the AWS IAM API to retrieve policies grouped by asset and create a list of policy names.
 
@@ -323,7 +323,7 @@ def list_aws_policies_grouped(asset_type: str, client, managed: bool):
     )
 
     # Get the response, using paging if necessary
-    response_detail_list = []
+    response_detail_list: typing.List[typing.Any] = []
     paginator = client.get_paginator("get_account_authorization_details")
     for page in paginator.paginate(Filter=[filter_label]):
         response_detail_list += page[detail_list_label]
