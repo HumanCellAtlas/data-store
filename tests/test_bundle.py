@@ -41,6 +41,7 @@ BUNDLE_GET_RETRY_COUNT = 60
 """For GET /bundles requests that require a retry, this is the maximum number of attempts we make."""
 
 
+@testmode.standalone
 class TestBundleApi(unittest.TestCase, TestAuthMixin, DSSAssertMixin, DSSUploadMixin):
     @classmethod
     def setUpClass(cls):
