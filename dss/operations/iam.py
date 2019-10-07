@@ -7,11 +7,13 @@ import select
 import typing
 import argparse
 import json
+import requests
 import logging
 from functools import lru_cache
 
 from botocore.exceptions import ClientError
 
+from dcplib.security import DCPServiceAccountManager
 from dss.operations import dispatch
 from dss.util.aws.clients import iam as iam_client  # type: ignore
 
@@ -62,9 +64,7 @@ class FusilladeClient(object):
         headers = {'Content-Type': "application/json"}
         headers.update(**service_account.get_authorization_header())
 
-        # This info will be used to create a
-        # Fusillade client (a simple wrapper
-        # around these two strings...)
+        # This info will be used to create a Fusillade client (a simple wrapper around these 2 strings)
         return auth_url, headers
 
     @lru_cache(maxsize=128)
@@ -181,12 +181,12 @@ def dump_aws_policies(client, managed: bool):
     return extract_aws_policies("dump", client, managed)
 
 
-def extract_fus_policies(action: str, client):
+def extract_fus_policies(action: str, fus_client):
     """
     Call the Fusillade API to retrieve policies and perform an action with them.
 
     :param action: what action to take (list, dump)
-    :param client: the Fusillade client to use
+    :param fus_client: the Fusillade client to use
     :returns: a list of items whose type depends on the action param
         (policy names if action is list, json documents if action is dump)
     """
@@ -217,8 +217,8 @@ def extract_fus_policies(action: str, client):
             # Extract policy name
             for policy in managed_policies:
                 if 'Id' not in policy:
-                    d['Id'] = 'UNNAMED_POLICY'
-                master_list.append((user,policy['Id']))
+                    policy['Id'] = 'UNNAMED_POLICY'
+                master_list.append(policy['Id'])
         elif action=='dump':
             # Export policy json document
             master_list.append(policy)
@@ -251,7 +251,7 @@ def list_aws_policies_grouped(asset_type: str, client, managed: bool):
     """
     Call the AWS IAM API to retrieve policies grouped by asset and create a list of policy names.
 
-    :param asset_type: the type of asset to group policies by
+    :param asset_type: the type of asset to group policies by ("users", "groups", or "roles")
     :param client: the boto client to use
     :param managed: (boolean) if true, include AWS-managed policies
     :returns: list of tuples of two strings in the form (asset_name, policy_name)
@@ -311,7 +311,7 @@ def list_aws_policies_grouped(asset_type: str, client, managed: bool):
     extracted_list = sorted(list(set(extracted_list)))
 
     # Add headers to the final results list
-    extracted_list = [(extracted_list_label, "PolicyName")] + extracted_list
+    extracted_list = [(extracted_list_label, "Policy")] + extracted_list
 
     return extracted_list
 
@@ -372,6 +372,9 @@ def list_fus_user_policies(fus_client):
         for policy in managed_policies:
             result.append((user,policy['Id']))
 
+    # Add headers
+    result = [("User", "Policy")] + result
+
     return result
 
 
@@ -410,6 +413,9 @@ def list_fus_group_policies(fus_client):
         for policy in managed_policies:
             result.append((group,policy['Id']))
 
+    # Add headers
+    result = [("Group", "Policy")] + result
+
     return result
 
 
@@ -432,6 +438,9 @@ def list_fus_role_policies(fus_client):
 
         for policy in inline_policies:
             result.append((role,policy['Id']))
+        
+    # Add headers
+    result = [("Role", "Policy")] + result
 
     return result
 
@@ -489,14 +498,6 @@ def list_policies(argv: typing.List[str], args: argparse.Namespace):
             # Join the tuples
             contents = [SEPARATOR.join(c) for c in contents]
 
-        if args.output:
-            stdout_ = sys.stdout
-            sys.stdout = open(args.output, "w")
-        for c in contents:
-            print(c)
-        if args.output:
-            sys.stdout = stdout_
-
     elif args.cloud_provider == "fusillade":
 
         stage = os.environ['DSS_DEPLOYMENT_STAGE']
@@ -504,16 +505,27 @@ def list_policies(argv: typing.List[str], args: argparse.Namespace):
 
         if args.group_by is None:
             # list policies
-            list_fus_policies(client)
+            contents = list_fus_policies(client)
         else:
             # list policies grouped by asset
             if args.group_by == "users":
-                list_fus_user_policies(client)
+                contents = list_fus_user_policies(client)
             elif args.group_by == "groups":
-                list_fus_group_policies(client)
+                contents = list_fus_group_policies(client)
             elif args.group_by == "roles":
-                list_fus_role_policies(client)
+                contents = list_fus_role_policies(client)
+
+            # Join the tuples
+            contents = [SEPARATOR.join(c) for c in contents]
 
     else:
         raise RuntimeError(f"Error: IAM functionality not implemented for {args.cloud_provider}")
 
+    # Print list to output
+    if args.output:
+        stdout_ = sys.stdout
+        sys.stdout = open(args.output, "w")
+    for c in contents:
+        print(c)
+    if args.output:
+        sys.stdout = stdout_
