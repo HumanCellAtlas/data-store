@@ -135,22 +135,10 @@ class Smoketest(BaseSmokeTest):
         for replica in self.replicas:
             # Enumerations against the replicas should be done after the test_replica_sync to ensure consistency.
             with self.subTest(f'Testing Bundle Enumeration on {replica.name}'):
-                enumerate_bundles = list()
-                page_size = 10
+                page_size = 500
                 first_page = self.get_bundle_enumerations(replica.name, page_size)
-                print(first_page)
-                self.assertEqual(first_page['per_page'], 10)
+                self.assertEqual(first_page['per_page'], 500)
                 self.assertGreater(first_page['page_count'], 0)
-                if first_page['has_more'] is True:
-                    self.assertTrue(first_page['has_more'])
-                    self.assertTrue(first_page['token'])
-                    enumerate_bundles.extend(first_page['bundles'])
-                    next_page = self.get_bundle_enumerations(replica.name, page_size,
-                                                             search_after=first_page['search_after'],
-                                                             token=first_page['token'])
-                    self.assertEqual(next_page['per_page'], 10)
-                    enumerate_bundles.extend(next_page['bundles'])
-                    self.assertEqual(len(enumerate_bundles), (first_page['page_count'] + next_page['page_count']))
 
     def test_smoketest(self):
         for param in self.params:

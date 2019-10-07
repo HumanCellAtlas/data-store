@@ -988,8 +988,17 @@ class TestBundleApi(unittest.TestCase, TestAuthMixin, DSSAssertMixin, DSSUploadM
     def test_enumeration_bundles(self):
         bundle_uuid, bundle_version = self._put_bundle()
         res = self.app.get(f"/v1/bundles/all",
-                           params=dict(version=bundle_version, replica="aws", per_page=500))
+                           params=dict(version=bundle_version, replica="aws", per_page=10))
         self.assertIn(res.status_code, (requests.codes.okay, requests.codes.partial))
+        if res.status_code is requests.codes.partial:
+            body = res.json()
+            page_one = body['bundles']
+            link = urlparse(body['link'])
+            formatted_link = f'{link.path}?{link.query}'
+            res = self.app.get(formatted_link)
+            self.assertIn(res.status_code, (requests.codes.okay, requests.codes.partial))
+            for x in res.json()['bundles']:
+                self.assertNotIn(x, page_one)
 
 
 if __name__ == '__main__':
