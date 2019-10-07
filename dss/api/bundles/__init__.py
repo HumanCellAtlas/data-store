@@ -135,7 +135,7 @@ def get(
         response.headers['X-OpenAPI-Pagination'] = 'true'
         response.headers['Link'] = link
 
-    response.headers['X-OpenAPI-Paginated-Content-Key'] = 'bundles.files'
+    response.headers['X-OpenAPI-Paginated-Content-Key'] = 'bundle.files'
     return response
 
 @dss_handler
