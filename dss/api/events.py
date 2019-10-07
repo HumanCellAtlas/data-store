@@ -35,7 +35,7 @@ def list_events(replica: str, from_date: str=None, to_date: str=None, per_page: 
         response = make_response(jsonify(urls[:-1]), requests.codes.partial)
         response.headers['Link'] = link
         response.headers['X-OpenAPI-Pagination'] = 'true'
-        response.headers['X-OpenAPI-Paginated-Content-Key'] = 'event_streams'
+    response.headers['X-OpenAPI-Paginated-Content-Key'] = 'event_streams'
     return response
 
 @dss_handler

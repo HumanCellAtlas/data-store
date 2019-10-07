@@ -15,7 +15,7 @@ from dss import DSSException, dss_handler, DSSForbiddenException
 from dss.api.search import PerPageBounds
 from dss.config import Config, Replica
 from dss.storage.blobstore import idempotent_save, test_object_exists, ObjectTest
-from dss.storage.bundles import get_bundle_manifest, save_bundle_manifest, enumerate_avaliable_bundles
+from dss.storage.bundles import get_bundle_manifest, save_bundle_manifest, enumerate_available_bundles
 from dss.storage.checkout import CheckoutError, TokenError
 from dss.storage.checkout.bundle import get_dst_bundle_prefix, verify_checkout
 from dss.storage.identifiers import BundleTombstoneID, FileFQID, BUNDLE_PREFIX
@@ -130,13 +130,13 @@ def get(
     if link is None:
         response = make_response(jsonify(response_body), requests.codes.ok)
         response.headers['X-OpenAPI-Pagination'] = 'false'
-        return response
     else:
         response = make_response(jsonify(response_body), requests.codes.partial)
         response.headers['X-OpenAPI-Pagination'] = 'true'
-        response.headers['X-OpenAPI-Paginated-Content-Key'] = 'files'
         response.headers['Link'] = link
-        return response
+
+    response.headers['X-OpenAPI-Paginated-Content-Key'] = 'bundle.files'
+    return response
 
 @dss_handler
 def enumerate(replica: str,
@@ -165,7 +165,7 @@ def enumerate(replica: str,
     if token:
         kwargs['token'] = token
 
-    payload.update(enumerate_avaliable_bundles(**kwargs))  # type: ignore
+    payload.update(enumerate_available_bundles(**kwargs))  # type: ignore
 
     if payload['page_count'] < per_page:
         # enumeration is complete
@@ -183,7 +183,7 @@ def enumerate(replica: str,
         response = make_response(jsonify(payload), requests.codes.partial)
         response.headers['Link'] = link
         response.headers['X-OpenAPI-Pagination'] = 'true'
-        response.headers['X-OpenAPI-Paginated-Content-Key'] = 'bundles'
+    response.headers['X-OpenAPI-Paginated-Content-Key'] = 'bundles'
     return response
 
 

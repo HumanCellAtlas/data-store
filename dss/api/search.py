@@ -85,7 +85,7 @@ def post(json_request_body: dict,
             next_url = _build_next_url(page, per_page, replica_enum, output_format)
             response.headers['Link'] = _build_link_header({next_url: {"rel": "next"}})
             response.headers['X-OpenAPI-Pagination'] = 'true'
-            response.headers['X-OpenAPI-Paginated-Content-Key'] = 'results'
+        response.headers['X-OpenAPI-Paginated-Content-Key'] = 'results'
         return response
 
 
