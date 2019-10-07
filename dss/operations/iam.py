@@ -33,36 +33,36 @@ class FusilladeClient(object):
     Fusillade client.
     A simple wrapper around an authorization URL and a header.
     """
+
     AUTH_DEPLOYMENTS = {
-        'dev': "https://auth.dev.data.humancellatlas.org",
-        'integration': "https://auth.integration.data.humancellatlas.org",
-        'staging': "https://auth.staging.data.humancellatlas.org",
+        "dev": "https://auth.dev.data.humancellatlas.org",
+        "integration": "https://auth.integration.data.humancellatlas.org",
+        "staging": "https://auth.staging.data.humancellatlas.org",
         "testing": "https://auth.testing.data.humancellatlas.org",
-        "production": "https://auth.data.humancellatlas.org"
+        "production": "https://auth.data.humancellatlas.org",
     }
 
     def __init__(self, stage=None):
-        if stage==None:
+        if stage == None:
             RuntimeError("You must provide a stage argument to FusilladeClient(stage)")
         auth_url, headers = self.get_auth_url_headers(stage)
         self.auth_url = auth_url
         self.headers = headers
 
-    def get_auth_url_headers(self,stage):
+    def get_auth_url_headers(self, stage):
         """
         Get authorization url and headers to allow Fusillade requests.
         """
         auth_url = self.AUTH_DEPLOYMENTS[stage]
 
         # @chmreid TODO: what permissions does this require?
-        secret="deployer_service_account.json"
-        secret_id = '/'.join(['dcp', 'fusillade', stage, secret])
+        secret = "deployer_service_account.json"
+        secret_id = "/".join(["dcp", "fusillade", stage, secret])
         service_account = DCPServiceAccountManager.from_secrets_manager(
-            secret_id,
-            "https://auth.data.humancellatlas.org/"
+            secret_id, "https://auth.data.humancellatlas.org/"
         )
         # Create the headers using the DCP service account manager
-        headers = {'Content-Type': "application/json"}
+        headers = {"Content-Type": "application/json"}
         headers.update(**service_account.get_authorization_header())
 
         # This info will be used to create a Fusillade client (a simple wrapper around these 2 strings)
@@ -88,21 +88,68 @@ class FusilladeClient(object):
         items = []
         while "Link" in resp.headers:
             items.extend(resp.json()[key])
-            next_url = resp.headers['Link'].split(';')[0][1:-1]
+            next_url = resp.headers["Link"].split(";")[0][1:-1]
             resp = requests.get(next_url, headers=headers)
             resp.raise_for_status()
         else:
-            if key==None:
+            if key == None:
                 items.extend(resp.json())
             else:
                 items.extend(resp.json()[key])
         return items
 
 
+def get_fus_role_attached_policies(fus_client, action, role):
+    """
+    Get policies attached to a Fusillade role using /v1/role/{role} and requesting the policies field.
+
+    :param fus_client: Fusillade API client
+    :param action: what to do with the policies (list or dump)
+        (list returns a list of names only, dump returns list of JSON policy documents)
+    :param role: get policies attached to this role
+    :returns: list containing the information requested
+    """
+    # @chmreid TODO: figure out the type/structure of this api call.
+    # The API call returns a dictionary with one key and one (string) value (serialized json
+    # policy document). what if there are multiple policies - does the serialized json become
+    # a list? is it a list of strings?
+    result = []
+
+    inline_policies_strpayload = fus_client.call_api(f"/v1/role/{role}", "policies")
+    try:
+        inline_policies = json.loads(inline_policies_strpayload["IAMPolicy"])
+    except (KeyError, TypeError):
+        # @chmreid TODO: use logger.warning?
+        pass
+
+    else:
+        if type(inline_policies) == type({}):
+            if "Id" not in inline_policies:
+                inline_policies["Id"] = ANONYMOUS_POLICY_NAME
+            if action == "list":
+                result.append(inline_policies["Id"])
+            elif action == "dump":
+                result.append(inline_policies)
+
+        elif type(inline_policies) == type([]):
+            for ipolicy in inline_policies:
+                if "Id" not in policy:
+                    ipolicy["Id"] = ANONYMOUS_POLICY_NAME
+                if action == "list":
+                    result.append(ipolicy["Id"])
+                elif action == "dump":
+                    result.append(ipolicy)
+
+        else:
+            raise RuntimeError(f"Error: could not interpret return value from API /v1/role/{role}")
+
+    return result
+
+
 # ---
 # AWS utility functions and variables
 # ---
-def _make_aws_api_labels_dict_entry(*args) -> typing.Dict[str,str]:
+def _make_aws_api_labels_dict_entry(*args) -> typing.Dict[str, str]:
     """
     Convenience function to unpack 4 values into a dictionary of labels, useful for processing
     API results.
@@ -119,7 +166,7 @@ def _make_aws_api_labels_dict_entry(*args) -> typing.Dict[str,str]:
     )
 
 
-def _get_aws_api_labels_dict() -> typing.Dict[str,str]:
+def _get_aws_api_labels_dict() -> typing.Dict[str, str]:
     """Store the labels used to unwrap JSON results from the AWS API"""
     labels = {
         "user": _make_aws_api_labels_dict_entry("User", "UserName", "UserDetailList", "UserPolicyList"),
@@ -193,19 +240,23 @@ def extract_fus_policies(action: str, fus_client):
     """
     master_list = []
 
-    users = list(fus_client.paginate('/v1/users', 'users'))
-    groups = list(fus_client.paginate('/v1/groups', 'groups'))
-    roles = list(fus_client.paginate('/v1/roles', 'roles'))
+    users = list(fus_client.paginate("/v1/users", "users"))
+    groups = list(fus_client.paginate("/v1/groups", "groups"))
+    roles = list(fus_client.paginate("/v1/roles", "roles"))
     for user in users:
+        # @chmreid TODO: use paginate
         membership = {
-            'group': fus_client.call_api(f'/v1/user/{user}/groups', 'groups'),
-            'role': fus_client.call_api(f'/v1/user/{user}/roles', 'roles')
+            "group": fus_client.call_api(f"/v1/user/{user}/groups", "groups"),
+            "role": fus_client.call_api(f"/v1/user/{user}/roles", "roles"),
         }
         managed_policies = []
-        for asset_type in ['group','role']:
-            api_url = f'/v1/{asset_type}/'
+        for asset_type in ["group", "role"]:
+            api_url = f"/v1/{asset_type}/"
+            # Now iterate over each group or role this user is part of, and enumerate policies
             for asset in membership[asset_type]:
-                managed_policy = fus_client.call_api(api_url+asset, 'policies')
+
+                # @chmreid TODO: figure out this API call. If multiple policies attached, is string payload a list?
+                managed_policy = fus_client.call_api(api_url + asset, "policies")
                 try:
                     iam_policy = managed_policy["IAMPolicy"]
                 except (KeyError, TypeError):
@@ -214,13 +265,13 @@ def extract_fus_policies(action: str, fus_client):
                     d = json.loads(iam_policy)
                     managed_policies.append(d)
 
-        if action=='list':
+        if action == "list":
             # Extract policy name
             for policy in managed_policies:
-                if 'Id' not in policy:
-                    policy['Id'] = ANONYMOUS_POLICY_NAME
-                master_list.append(policy['Id'])
-        elif action=='dump':
+                if "Id" not in policy:
+                    policy["Id"] = ANONYMOUS_POLICY_NAME
+                master_list.append(policy["Id"])
+        elif action == "dump":
             # Export policy json document
             master_list.append(policy)
 
@@ -339,40 +390,40 @@ def list_fus_user_policies(fus_client):
     :param fus_client: the Fusillade API client
     :returns: list of tuples of two strings in the form (user_name, policy_name)
     """
-    users = list(fus_client.paginate('/v1/users', 'users'))
-    groups = list(fus_client.paginate('/v1/groups', 'groups'))
-    roles = list(fus_client.paginate('/v1/roles', 'roles'))
+    users = list(fus_client.paginate("/v1/users", "users"))
+    groups = list(fus_client.paginate("/v1/groups", "groups"))
+    roles = list(fus_client.paginate("/v1/roles", "roles"))
 
     result = []
 
     for user in users:
         # First get inline policies - these are directly attached to the user
         # @chmreid TODO: figure out the type/structure of this api call
-        #inline_policies = fus_client.call_api(f'/v1/user/{user}','policies')
+        # inline_policies = fus_client.call_api(f'/v1/user/{user}','policies')
 
         # Next get managed policies - these are policies attached via roles or groups
         membership = {
-            'group': fus_client.call_api(f'/v1/user/{user}/groups', 'groups'),
-            'role': fus_client.call_api(f'/v1/user/{user}/roles', 'roles')
+            "group": fus_client.call_api(f"/v1/user/{user}/groups", "groups"),
+            "role": fus_client.call_api(f"/v1/user/{user}/roles", "roles"),
         }
         managed_policies = []
-        for asset_type in ['group','role']:
-            api_url = f'/v1/{asset_type}/'
+        for asset_type in ["group", "role"]:
+            api_url = f"/v1/{asset_type}/"
             for asset in membership[asset_type]:
                 # @chmreid TODO: paginate
-                managed_policy = fus_client.call_api(api_url+asset, 'policies')
+                managed_policy = fus_client.call_api(api_url + asset, "policies")
                 try:
                     iam_policy = managed_policy["IAMPolicy"]
                 except (KeyError, TypeError):
                     pass
                 else:
                     d = json.loads(iam_policy)
-                    if 'Id' not in d:
-                        d['Id'] = ANONYMOUS_POLICY_NAME
+                    if "Id" not in d:
+                        d["Id"] = ANONYMOUS_POLICY_NAME
                     managed_policies.append(d)
 
         for policy in managed_policies:
-            result.append((user,policy['Id']))
+            result.append((user, policy["Id"]))
 
     # Eliminate dupes
     result = sorted(list(set(result)))
@@ -390,33 +441,23 @@ def list_fus_group_policies(fus_client):
     :param fus_client: the Fusillade API client
     :returns: list of tuples of two strings in the form (group_name, policy_name)
     """
-    groups = list(fus_client.paginate('/v1/groups', 'groups'))
-    roles = list(fus_client.paginate('/v1/roles', 'roles'))
+    groups = list(fus_client.paginate("/v1/groups", "groups"))
+    roles = list(fus_client.paginate("/v1/roles", "roles"))
 
     result = []
 
     for group in groups:
         # First get inline policies directly attached
         # @chmreid TODO: figure out the type/structure of this api call
-        #inline_policies = fus_client.call_api(f'/v1/group/{group}','policies')
+        # inline_policies = fus_client.call_api(f'/v1/group/{group}','policies')
 
         # Next get managed policies (attached via roles)
         managed_policies = []
-        roles_membership = fus_client.call_api(f'/v1/group/{group}/roles', 'roles')
+        roles_membership = fus_client.call_api(f"/v1/group/{group}/roles", "roles")
         for role in roles_membership:
-            managed_policy = fus_client.call_api(f'/v1/role/{role}', 'policies')
-            try:
-                iam_policy = managed_policy["IAMPolicy"]
-            except (KeyError, TypeError):
-                pass
-            else:
-                d = json.loads(iam_policy)
-                if 'Id' not in d:
-                    d['Id'] = ANONYMOUS_POLICY_NAME
-                managed_policies.append(d)
-
-        for policy in managed_policies:
-            result.append((group,policy['Id']))
+            attached_names = get_fus_role_attached_policies(fus_client, "list", role)
+            for attached_name in attached_names:
+                result.append((group, attached_name))
 
     # Eliminate dupes
     result = sorted(list(set(result)))
@@ -434,31 +475,16 @@ def list_fus_role_policies(fus_client):
     :param fus_client: the Fusillade API client
     :returns: list of tuples of two strings in the form (role_name, policy_name)
     """
-    groups = list(fus_client.paginate('/v1/groups', 'groups'))
-    roles = list(fus_client.paginate('/v1/roles', 'roles'))
+    groups = list(fus_client.paginate("/v1/groups", "groups"))
+    roles = list(fus_client.paginate("/v1/roles", "roles"))
 
     result = []
 
     for role in roles:
-        # Get inline policies directly attached
-        # @chmreid TODO: figure out the type/structure of this api call.
-        # The API call returns a dictionary with one key and one (string) value (serialized json
-        # policy document). what if there are multiple policies - does the serialized json become 
-        # a list? is it a list of strings?
-        inline_policies_str = fus_client.call_api(f'/v1/role/{role}','policies')
-        inline_policies = json.loads(inline_policies_str['IAMPolicy'])
-        if type(inline_policies) == type({}):
-            if 'Id' not in inline_policies:
-                inline_policies['Id'] = ANONYMOUS_POLICY_NAME
-            result.append((role, inline_policies['Id']))
-        elif type(inline_policies) == type([]):
-            for ipolicy in inline_policies:
-                if 'Id' not in policy:
-                    ipolicy['Id'] = ANONYMOUS_POLICY_NAME
-                result.append((role, ipolicy['Id']))
-        else:
-            raise RuntimeError(f"Error: could not interpret return value from API /v1/role/{role}")
-        
+        attached_names = get_fus_role_attached_policies(fus_client, "list", role)
+        for attached_name in attached_names:
+            result.append((role, attached_name))
+
     # Eliminate dupes
     result = sorted(list(set(result)))
 
@@ -493,8 +519,7 @@ iam = dispatch.target("iam", arguments={}, help=__doc__)
             help="If output file already exists, overwrite it (default is not to overwrite)",
         ),
         "--include-managed": dict(
-            action="store_true",
-            help="Include policies provided and managed by the cloud provider"
+            action="store_true", help="Include policies provided and managed by the cloud provider"
         ),
     },
 )
@@ -523,7 +548,7 @@ def list_policies(argv: typing.List[str], args: argparse.Namespace):
 
     elif args.cloud_provider == "fusillade":
 
-        stage = os.environ['DSS_DEPLOYMENT_STAGE']
+        stage = os.environ["DSS_DEPLOYMENT_STAGE"]
         client = FusilladeClient(stage=stage)
 
         if args.group_by is None:
