@@ -284,6 +284,12 @@ class TestOperations(unittest.TestCase):
         with io.BytesIO(data) as fh:
             gs_blob.upload_from_file(fh, content_type="application/octet-stream")
 
+    def test_iam_aws(self):
+        pass
+
+    def test_iam_fus(self):
+        pass
+
     def test_secrets_crud(self):
         # CRUD (create read update delete) test procedure:
         # - create new secret
