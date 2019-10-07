@@ -185,7 +185,7 @@ def enumerate(replica: str,
         response = make_response(jsonify(payload), requests.codes.partial)
         response.headers['Link'] = link
         response.headers['X-OpenAPI-Pagination'] = 'true'
-        response.headers['X-OpenAPI-Paginated-Content-Key'] = 'bundles'
+    response.headers['X-OpenAPI-Paginated-Content-Key'] = 'bundles'
     return response
 
 
