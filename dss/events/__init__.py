@@ -3,6 +3,7 @@ import json
 import logging
 import threading
 import typing
+import logging
 from datetime import datetime
 from collections import defaultdict
 from concurrent.futures import ThreadPoolExecutor
@@ -16,6 +17,7 @@ from dss.storage.identifiers import DSS_BUNDLE_KEY_REGEX, BUNDLE_PREFIX, TOMBSTO
 from dss.util.version import datetime_from_timestamp
 from dss.events.handlers.notify_v2 import _versioned_tombstone_key_regex, _unversioned_tombstone_key_regex
 
+logger = logging.getLogger(__name__)
 # TODO: What happens when an event is recorder with timestamp erlier tha latest journal?
 
 @lru_cache(maxsize=2)
@@ -89,6 +91,7 @@ def delete_event_for_bundle(replica: Replica, key: str, flashflood_prefixes: typ
 def _delete_event_for_bundle(bundle_fqid: str, flashflood_prefixes: typing.Tuple[str, ...]=None):
     for pfx in flashflood_prefixes:
         ff = FlashFlood(resources.s3, Config.get_flashflood_bucket(), pfx)
+        logger.info(f"Deleting flashflood event for bundle {bundle_fqid}")
         ff.delete(event_id=bundle_fqid)
 
 class DSSEventRecordError(Exception):
