@@ -21,7 +21,7 @@ logger = logging.getLogger(__name__)
 SEPARATOR = " : "
 
 
-def _make_api_labels_dict_entry(*args):
+def _make_aws_api_labels_dict_entry(*args):
     """
     Convenience function to unpack 4 values into a dictionary of labels, useful for processing
     API results.
@@ -32,11 +32,11 @@ def _make_api_labels_dict_entry(*args):
     )
 
 
-def _get_api_labels_dict():
+def _get_aws_api_labels_dict():
     labels = {
-        "user": _make_api_labels_dict_entry("User", "UserName", "UserDetailList", "UserPolicyList"),
-        "group": _make_api_labels_dict_entry("Group", "GroupName", "GroupDetailList", "GroupPolicyList"),
-        "role": _make_api_labels_dict_entry("Role", "RoleName", "RoleDetailList", "RolePolicyList"),
+        "user": _make_aws_api_labels_dict_entry("User", "UserName", "UserDetailList", "UserPolicyList"),
+        "group": _make_aws_api_labels_dict_entry("Group", "GroupName", "GroupDetailList", "GroupPolicyList"),
+        "role": _make_aws_api_labels_dict_entry("Role", "RoleName", "RoleDetailList", "RolePolicyList"),
     }
     return labels
 
@@ -109,7 +109,7 @@ def list_aws_policies_grouped(asset_type, client, managed):
     extracted_list = []
 
     # Extract labels needed
-    labels = _get_api_labels_dict()
+    labels = _get_aws_api_labels_dict()
     if asset_type not in labels:
         raise RuntimeError(f"Error: asset type {asset_type} is not valid, try one of: {labels}")
     extracted_list_label, filter_label, name_label, detail_list_label, policy_list_label = (
