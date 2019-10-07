@@ -140,17 +140,18 @@ def enumerate_available_bundles(replica: str = None,
         kwargs['token'] = token
 
     storage_handler = Config.get_blobstore_handle(Replica[replica])
-    prefix_iterator = storage_handler.list_v2(**kwargs)  # note dont wrap this in enumerate() it looses the token
+    prefix_iterator = Living(storage_handler.list_v2(**kwargs))  # note dont wrap this in enumerate() it looses the token
 
     uuid_list = list()
-    for fqid in Living(prefix_iterator):
+    for fqid in prefix_iterator:
         uuid_list.append(dict(uuid=fqid.uuid, version=fqid.version))
         if len(uuid_list) >= per_page:
             break
 
-    token = getattr(prefix_iterator, "token", None)
-    key = getattr(prefix_iterator, "start_after_key", None)
-    return dict(search_after=key, bundles=uuid_list, token=token, page_count=len(uuid_list))
+    return dict(search_after=prefix_iterator.start_after_key,
+                bundles=uuid_list,
+                token=prefix_iterator.token,
+                page_count=len(uuid_list))
 
 class Living():
     """
@@ -158,9 +159,11 @@ class Living():
     """
     def __init__(self, paged_iter):
         self.paged_iter = paged_iter
-        self._init_bundle_info(None)
+        self._init_bundle_info()
+        self.start_after_key = None
+        self.token = None
 
-    def _init_bundle_info(self, fqid):
+    def _init_bundle_info(self, fqid=None):
         self.bundle_info = dict(contains_unversioned_tombstone=False, uuid=None, fqids=OrderedDict())
         if fqid:
             self.bundle_info['uuid'] = fqid.uuid
@@ -173,6 +176,7 @@ class Living():
                     yield fqid
 
     def __iter__(self):
+        prev_key, prev_token = None, None
         for key, meta in self.paged_iter:
             fqid = BundleFQID.from_key(key)
             if fqid.uuid != self.bundle_info['uuid']:
@@ -184,6 +188,8 @@ class Living():
                     self.bundle_info['contains_unversioned_tombstone'] = True
                 else:
                     self.bundle_info['fqids'][fqid] = isinstance(fqid, BundleTombstoneID)
+            self.start_after_key, self.token = prev_key, prev_token
+            prev_key, prev_token = key, getattr(self.paged_iter, "token", None)
 
         for bundle_fqid in self._living_fqids_in_bundle_info():
             yield bundle_fqid
