@@ -22,6 +22,7 @@ logger = logging.getLogger(__name__)
 
 
 SEPARATOR = " : "
+ANONYMOUS_POLICY_NAME = "UNNAMED_POLICY"
 
 
 # ---
@@ -217,7 +218,7 @@ def extract_fus_policies(action: str, fus_client):
             # Extract policy name
             for policy in managed_policies:
                 if 'Id' not in policy:
-                    policy['Id'] = 'UNNAMED_POLICY'
+                    policy['Id'] = ANONYMOUS_POLICY_NAME
                 master_list.append(policy['Id'])
         elif action=='dump':
             # Export policy json document
@@ -358,6 +359,7 @@ def list_fus_user_policies(fus_client):
         for asset_type in ['group','role']:
             api_url = f'/v1/{asset_type}/'
             for asset in membership[asset_type]:
+                # @chmreid TODO: paginate
                 managed_policy = fus_client.call_api(api_url+asset, 'policies')
                 try:
                     iam_policy = managed_policy["IAMPolicy"]
@@ -365,12 +367,15 @@ def list_fus_user_policies(fus_client):
                     pass
                 else:
                     d = json.loads(iam_policy)
-                    if 'Id' not in iam_policy:
-                        d['Id'] = 'UNNAMED_POLICY'
+                    if 'Id' not in d:
+                        d['Id'] = ANONYMOUS_POLICY_NAME
                     managed_policies.append(d)
 
         for policy in managed_policies:
             result.append((user,policy['Id']))
+
+    # Eliminate dupes
+    result = sorted(list(set(result)))
 
     # Add headers
     result = [("User", "Policy")] + result
@@ -385,8 +390,8 @@ def list_fus_group_policies(fus_client):
     :param fus_client: the Fusillade API client
     :returns: list of tuples of two strings in the form (group_name, policy_name)
     """
-    groups = [j for j in fus_client.paginate('/v1/group', 'groups')]
-    roles = [j for j in fus_client.paginate('/v1/role', 'roles')]
+    groups = list(fus_client.paginate('/v1/groups', 'groups'))
+    roles = list(fus_client.paginate('/v1/roles', 'roles'))
 
     result = []
 
@@ -406,12 +411,15 @@ def list_fus_group_policies(fus_client):
                 pass
             else:
                 d = json.loads(iam_policy)
-                if 'Id' not in iam_policy:
-                    d['Id'] = 'UNNAMED_POLICY'
+                if 'Id' not in d:
+                    d['Id'] = ANONYMOUS_POLICY_NAME
                 managed_policies.append(d)
 
         for policy in managed_policies:
             result.append((group,policy['Id']))
+
+    # Eliminate dupes
+    result = sorted(list(set(result)))
 
     # Add headers
     result = [("Group", "Policy")] + result
@@ -426,19 +434,34 @@ def list_fus_role_policies(fus_client):
     :param fus_client: the Fusillade API client
     :returns: list of tuples of two strings in the form (role_name, policy_name)
     """
-    groups = [j for j in fus_client.paginate('/v1/group', 'groups')]
-    roles = [j for j in fus_client.paginate('/v1/role', 'roles')]
+    groups = list(fus_client.paginate('/v1/groups', 'groups'))
+    roles = list(fus_client.paginate('/v1/roles', 'roles'))
 
     result = []
 
     for role in roles:
         # Get inline policies directly attached
-        # @chmreid TODO: figure out the type/structure of this api call
-        inline_policies = fus_client.call_api(f'/v1/role/{role}','policies')
-
-        for policy in inline_policies:
-            result.append((role,policy['Id']))
+        # @chmreid TODO: figure out the type/structure of this api call.
+        # The API call returns a dictionary with one key and one (string) value (serialized json
+        # policy document). what if there are multiple policies - does the serialized json become 
+        # a list? is it a list of strings?
+        inline_policies_str = fus_client.call_api(f'/v1/role/{role}','policies')
+        inline_policies = json.loads(inline_policies_str['IAMPolicy'])
+        if type(inline_policies) == type({}):
+            if 'Id' not in inline_policies:
+                inline_policies['Id'] = ANONYMOUS_POLICY_NAME
+            result.append((role, inline_policies['Id']))
+        elif type(inline_policies) == type([]):
+            for ipolicy in inline_policies:
+                if 'Id' not in policy:
+                    ipolicy['Id'] = ANONYMOUS_POLICY_NAME
+                result.append((role, ipolicy['Id']))
+        else:
+            raise RuntimeError(f"Error: could not interpret return value from API /v1/role/{role}")
         
+    # Eliminate dupes
+    result = sorted(list(set(result)))
+
     # Add headers
     result = [("Role", "Policy")] + result
 
