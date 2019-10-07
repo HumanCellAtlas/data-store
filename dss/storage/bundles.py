@@ -143,7 +143,7 @@ def enumerate_available_bundles(replica: str = None,
     prefix_iterator = storage_handler.list_v2(**kwargs)  # note dont wrap this in enumerate() it looses the token
 
     uuid_list = list()
-    for fqid in Fqids(prefix_iterator).living():
+    for fqid in Living(prefix_iterator):
         uuid_list.append(dict(uuid=fqid.uuid, version=fqid.version))
         if len(uuid_list) >= per_page:
             break
@@ -152,7 +152,7 @@ def enumerate_available_bundles(replica: str = None,
     key = getattr(prefix_iterator, "start_after_key", None)
     return dict(search_after=key, bundles=uuid_list, token=token, page_count=len(uuid_list))
 
-class Fqids():
+class Living():
     """
     This utility class takes advantage of lexicographical ordering on object storage to list non-tombstoned bundles.
     """
@@ -172,7 +172,7 @@ class Fqids():
                 if not is_dead:
                     yield fqid
 
-    def living(self):
+    def __iter__(self):
         for key, meta in self.paged_iter:
             fqid = BundleFQID.from_key(key)
             if fqid.uuid != self.bundle_info['uuid']:
