@@ -142,8 +142,6 @@ class Smoketest(BaseSmokeTest):
                 self.assertEqual(first_page['per_page'], 10)
                 self.assertGreater(first_page['page_count'], 0)
                 if first_page['has_more'] is True:
-                    self.assertTrue(first_page['has_more'])
-                    self.assertTrue(first_page['token'])
                     enumerate_bundles.extend(first_page['bundles'])
                     next_page = self.get_bundle_enumerations(replica.name, page_size,
                                                              search_after=first_page['search_after'],

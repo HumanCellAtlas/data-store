@@ -41,7 +41,6 @@ BUNDLE_GET_RETRY_COUNT = 60
 """For GET /bundles requests that require a retry, this is the maximum number of attempts we make."""
 
 
-@testmode.integration
 class TestBundleApi(unittest.TestCase, TestAuthMixin, DSSAssertMixin, DSSUploadMixin):
     @classmethod
     def setUpClass(cls):
@@ -807,6 +806,19 @@ class TestBundleApi(unittest.TestCase, TestAuthMixin, DSSAssertMixin, DSSUploadM
                         code="not_found",
                         status=requests.codes.not_found),
                     headers=get_auth_header())
+
+    def test_bundle_enumeration(self):
+        for replica in Replica:
+            with self.subTest(replica=replica):
+                url = str(UrlBuilder()
+                          .set(path="/v1/bundles/all")
+                          .add_query("replica", replica.name))
+
+                with override_bucket_config(BucketConfig.TEST):
+                    resp_obj = self.assertGetResponse(
+                        url,
+                        [requests.codes.ok, requests.codes.partial],
+                        headers=get_auth_header())
 
     def put_bundle(
             self,
