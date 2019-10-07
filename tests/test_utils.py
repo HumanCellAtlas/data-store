@@ -13,7 +13,7 @@ import dss
 from dss import DSSException, DSSForbiddenException, Config
 from dss.config import Replica
 from dss.logging import configure_test_logging
-from dss.storage.bundles import enumerate_avaliable_bundles
+from dss.storage.bundles import enumerate_available_bundles
 from dss.storage.identifiers import TOMBSTONE_SUFFIX
 from dss.util import UrlBuilder, security, multipart_parallel_upload
 from dss.util.aws import ARN
@@ -261,6 +261,7 @@ class TestSecurity(unittest.TestCase):
                                       'bundles/0007edde-f22c-4858-bf17-513dc2d05863.2019-02-26T033907.789762Z',
                                       'bundles/0007edde-f22c-4858-bf17-513dc2d05863.dead',
                                       'bundles/00176adc-f15d-4e46-8623-96cd047ca3df.2019-02-26T033558.843528Z',
+                                      'bundles/00175253-e8f9-4f19-a070-1fcb25a57519.2018-10-18T203641.653105Z',
                                       'bundles/00175253-e8f9-4f19-a070-1fcb25a57519.2018-10-18T203641.653105Z.dead',
                                       'bundles/001e784d-fbff-4ee4-aefd-6eb2c8cad783.2018-10-08T201847.591231Z',
                                       'bundles/001650e3-87a0-4145-9560-430930445071.2018-10-09T002318.558884Z',
@@ -272,10 +273,11 @@ class TestSecurity(unittest.TestCase):
                 list_tuples = [(x, None) for x in self.tombstoned_bundle_list]
                 return iter(list_tuples)
         mock_list_v2.return_value = MockStorageHandler()
-        resp = enumerate_avaliable_bundles(replica='aws')
-        dead_bundles = [x.split('.', 1)[0].split('bundles/')[1] for x in MockStorageHandler.tombstoned_bundle_list
+        resp = enumerate_available_bundles(replica='aws')
+        dead_bundles = [x.split('bundles/')[1].rsplit('.', 1)[0] for x in MockStorageHandler.tombstoned_bundle_list
                         if x.endswith(TOMBSTONE_SUFFIX)]
         for x in resp['bundles']:
+            self.assertNotIn('.'.join([x['uuid'], x['version']]), dead_bundles)
             self.assertNotIn(x['uuid'], dead_bundles)
         self.assertEquals(resp['page_count'], 10)
 
