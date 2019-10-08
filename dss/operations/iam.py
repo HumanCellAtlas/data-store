@@ -21,7 +21,7 @@ from dss.util.aws.clients import iam as iam_client  # type: ignore
 logger = logging.getLogger(__name__)
 
 
-SEPARATOR = " : "
+IAMSEPARATOR = " : "
 ANONYMOUS_POLICY_NAME = "UNNAMED_POLICY"
 
 
@@ -212,7 +212,8 @@ def extract_fus_policies(action: str, fus_client, do_headers: bool = True):
 
     users = list(fus_client.paginate("/v1/users", "users"))
 
-    # NOTE: This makes unnecessary duplicate API calls. It would be better to get list of groups/roles then mark ones attached to users.
+    # NOTE: This makes unnecessary duplicate API calls.
+    # It would be better to get list of groups/roles then mark ones attached to users.
     for user in users:
         # Are there any user inline policies?
         # inline_policies = fus_client.call_api(f'/v1/user/{user}','policies')
@@ -396,7 +397,8 @@ def list_fus_user_policies(fus_client, do_headers: bool = True):
 
     result = []
 
-    # NOTE: This makes unnecessary duplicate API calls. It would be better to get list of groups/roles then mark ones attached to users.
+    # NOTE: This makes unnecessary duplicate API calls.
+    # It would be better to get list of groups/roles then mark ones attached to users.
     for user in users:
         # Are there any user inline policies?
         # inline_policies = fus_client.call_api(f'/v1/user/{user}','policies')
@@ -538,7 +540,7 @@ def list_policies(argv: typing.List[str], args: argparse.Namespace):
     if args.cloud_provider == "aws":
 
         if args.group_by is None:
-            contents = list_aws_policies(iam_client, managed, do_headers)
+            contents = list_aws_policies(iam_client, managed)
         else:
             if args.group_by == "users":
                 contents = list_aws_user_policies(iam_client, managed, do_headers)
@@ -548,7 +550,7 @@ def list_policies(argv: typing.List[str], args: argparse.Namespace):
                 contents = list_aws_role_policies(iam_client, managed, do_headers)
 
             # Join the tuples
-            contents = [SEPARATOR.join(c) for c in contents]
+            contents = [IAMSEPARATOR.join(c) for c in contents]
 
     elif args.cloud_provider == "fusillade":
 
@@ -568,7 +570,7 @@ def list_policies(argv: typing.List[str], args: argparse.Namespace):
                 contents = list_fus_role_policies(client, do_headers)
 
             # Join the tuples
-            contents = [SEPARATOR.join(c) for c in contents]
+            contents = [IAMSEPARATOR.join(c) for c in contents]
 
     else:
         raise RuntimeError(f"Error: IAM functionality not implemented for {args.cloud_provider}")
