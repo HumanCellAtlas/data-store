@@ -1,5 +1,6 @@
 import os
 import re
+import typing
 import json
 import requests
 import urllib3
@@ -95,7 +96,7 @@ def notify(subscription: dict, metadata_document: dict, key: str) -> bool:
     if bundle_version.endswith(sfx):
         bundle_version = bundle_version[:-len(sfx)]
     api_domain_name = f'https://{os.environ.get("API_DOMAIN_NAME")}'
-    payload = {
+    payload: typing.Dict[typing.Union[str, SubscriptionData], typing.Any] = {
         'bundle_url': api_domain_name + f'/v1/bundles/{bundle_uuid}?version={bundle_version}',
         'dss_api': api_domain_name,
         'subscription_id': subscription[SubscriptionData.UUID],
@@ -110,7 +111,7 @@ def notify(subscription: dict, metadata_document: dict, key: str) -> bool:
 
     jmespath_query = subscription.get(SubscriptionData.JMESPATH_QUERY)
     if jmespath_query is not None:
-        payload[SubscriptionData.JMESPATH_QUERY] = jmespath_query
+        payload[str(SubscriptionData.JMESPATH_QUERY)] = jmespath_query
 
     if "CREATE" == metadata_document['event_type']:
         attachments_defs = subscription.get(SubscriptionData.ATTACHMENTS)

@@ -2,17 +2,19 @@ import os
 import json
 import typing
 
+from enum import Enum
+
 from dss.config import Replica
 from dss import dynamodb  # type: ignore
 
 
-class SubscriptionStats:
+class SubscriptionStats(Enum):
     ATTEMPTS = 'attempts'
     SUCCESSFUL = 'successful'
     FAILED = 'failed'
 
 
-class SubscriptionData:
+class SubscriptionData(Enum):
     REPLICA = 'replica'
     OWNER = 'owner'
     UUID = 'uuid'
@@ -29,7 +31,7 @@ class SubscriptionData:
 subscription_db_table = f"dss-subscriptions-v2-{{}}-{os.environ['DSS_DEPLOYMENT_STAGE']}"
 
 
-def update_subscription_stats(doc: dict, status: str):
+def update_subscription_stats(doc: dict, status: SubscriptionStats):
     update_expression = f"ADD {SubscriptionStats.ATTEMPTS} :q, {status} :q"
     expression_attribute_value = {":q": {"N": "1"}}
     dynamodb.update_item(table=subscription_db_table.format(doc[SubscriptionData.REPLICA]),
