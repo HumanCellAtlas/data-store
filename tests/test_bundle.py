@@ -41,7 +41,7 @@ BUNDLE_GET_RETRY_COUNT = 60
 """For GET /bundles requests that require a retry, this is the maximum number of attempts we make."""
 
 
-@testmode.integration
+@testmode.standalone
 class TestBundleApi(unittest.TestCase, TestAuthMixin, DSSAssertMixin, DSSUploadMixin):
     @classmethod
     def setUpClass(cls):
@@ -170,9 +170,9 @@ class TestBundleApi(unittest.TestCase, TestAuthMixin, DSSAssertMixin, DSSUploadM
                 link_header = resp_obj.response.headers.get('Link')
 
                 # Make sure we're getting the expected response status code
+                self.assertEqual(resp_obj.response.headers['X-OpenAPI-Paginated-Content-Key'], 'bundle.files')
                 if link_header:
                     self.assertEqual(resp_obj.response.headers['X-OpenAPI-Pagination'], 'true')
-                    self.assertEqual(resp_obj.response.headers['X-OpenAPI-Paginated-Content-Key'], 'files')
                     self.assertEqual(resp_obj.response.status_code, requests.codes.partial)
                 else:
                     self.assertEqual(resp_obj.response.headers['X-OpenAPI-Pagination'], 'false')
@@ -988,8 +988,17 @@ class TestBundleApi(unittest.TestCase, TestAuthMixin, DSSAssertMixin, DSSUploadM
     def test_enumeration_bundles(self):
         bundle_uuid, bundle_version = self._put_bundle()
         res = self.app.get(f"/v1/bundles/all",
-                           params=dict(version=bundle_version, replica="aws", per_page=500))
+                           params=dict(version=bundle_version, replica="aws", per_page=10))
         self.assertIn(res.status_code, (requests.codes.okay, requests.codes.partial))
+        if res.status_code is requests.codes.partial:
+            body = res.json()
+            page_one = body['bundles']
+            link = urlparse(body['link'])
+            formatted_link = f'{link.path}?{link.query}'
+            res = self.app.get(formatted_link)
+            self.assertIn(res.status_code, (requests.codes.okay, requests.codes.partial))
+            for x in res.json()['bundles']:
+                self.assertNotIn(x, page_one)
 
 
 if __name__ == '__main__':
