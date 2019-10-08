@@ -27,7 +27,7 @@ sys.path.insert(0, pkg_root)  # noqa
 from tests.infra import testmode
 from dss.operations import DSSOperationsCommandDispatch
 from dss.operations.util import map_bucket_results
-from dss.operations import checkout, storage, sync, secrets, lambda_params
+from dss.operations import checkout, storage, sync, secrets, lambda_params, iam
 from dss.operations.lambda_params import get_deployed_lambdas, fix_ssm_variable_prefix
 from dss.logging import configure_test_logging
 from dss.config import BucketConfig, Config, Replica, override_bucket_config
@@ -288,7 +288,68 @@ class TestOperations(unittest.TestCase):
         pass
 
     def test_iam_fus(self):
-        pass
+        with self.subTest("Fusillade client"):
+            with mock.patch("dss.operations.iam.FusilladeClient") as fus_client:
+                pass
+
+        with self.subTest("List Fusillade policies"):
+
+            def _repatch_fus_client(fus_client):
+                # First mock the paginate() method, which calls for the list of users,
+                # then the list of groups and list of roles for each of those users
+                users_response = ["foo@bar.com"]
+                groups_response = ["fake-group"]
+                roles_response = ["fake-role"]
+                fus_client().paginate = mock.MagicMock(side_effect = [
+                    users_response,
+                    groups_response,
+                    roles_response,
+                ])
+
+                # Next mock the call_api method, which is called on each group and role
+                # to get policies attached to those groups and roles
+                fake_policy = {"IAMPolicy": '{"Id": "fake-policy"}'}
+                groups_policies_response = fake_policy
+                roles_policies_response = fake_policy
+                fus_client().call_api = mock.MagicMock(side_effect = [
+                    groups_policies_response,
+                    roles_policies_response
+                ])
+
+            with mock.patch("dss.operations.iam.FusilladeClient") as fus_client:
+                # Note: Need to call _repatch_fus_client() before each test
+
+                # Plain call to list_fus_policies
+                with CaptureStdout() as output:
+                    _repatch_fus_client(fus_client)
+                    iam.list_policies(
+                        [],
+                        argparse.Namespace(
+                            cloud_provider="fusillade",
+                            group_by=None,
+                            output=None,
+                            force=False,
+                            include_managed=False,
+                            exclude_headers=False
+                        )
+                    )
+                self.assertIn("fake-policy", output)
+
+                ### with tempfile.NamedTemporaryFile(prefix='dss-test-operations-iam-temp-output', mode='w') as f:
+                ###     # Note: file is already open
+                ###     # Check write to output file
+                ###     _repatch_fus_client(fus_client)
+                ###     iam.list_policies(
+                ###         [],
+                ###         argparse.Namespace(
+                ###             cloud_provider="fusillade",
+                ###             group_by=None,
+                ###             output=f.name,
+                ###             force=True,
+                ###             include_managed=False,
+                ###             exclude_headers=False
+                ###         )
+                ###     )
 
     def test_secrets_crud(self):
         # CRUD (create read update delete) test procedure:

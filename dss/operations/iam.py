@@ -213,10 +213,10 @@ def extract_fus_policies(action: str, fus_client, do_headers: bool = True):
     users = list(fus_client.paginate("/v1/users", "users"))
 
     for user in users:
-        # @chmreid TODO: use paginate
+
         membership = {
-            "group": fus_client.call_api(f"/v1/user/{user}/groups", "groups"),
-            "role": fus_client.call_api(f"/v1/user/{user}/roles", "roles"),
+            "group": list(fus_client.paginate(f"/v1/user/{user}/groups", "groups")),
+            "role": list(fus_client.paginate(f"/v1/user/{user}/roles", "roles")),
         }
         managed_policies = []
         for asset_type in ["group", "role"]:
@@ -226,6 +226,7 @@ def extract_fus_policies(action: str, fus_client, do_headers: bool = True):
 
                 # @chmreid TODO: figure out this API call. If multiple policies attached, is string payload a list?
                 managed_policy = fus_client.call_api(api_url + asset, "policies")
+
                 try:
                     iam_policy = managed_policy["IAMPolicy"]
                 except (KeyError, TypeError):
@@ -259,14 +260,14 @@ def extract_fus_policies(action: str, fus_client, do_headers: bool = True):
     return master_list
 
 
-def list_fus_policies(fus_client) -> typing.List[str]:
+def list_fus_policies(fus_client, do_headers) -> typing.List[str]:
     """Return a list of names of Fusillade policies"""
-    return extract_fus_policies("list", fus_client)
+    return extract_fus_policies("list", fus_client, do_headers)
 
 
-def dump_fus_policies(fus_client):
+def dump_fus_policies(fus_client, do_headers):
     """Return a list of dictionaries containing Fusillade policy documents"""
-    return extract_fus_policies("dump", fus_client)
+    return extract_fus_policies("dump", fus_client, do_headers)
 
 
 # ---
@@ -531,18 +532,19 @@ def list_policies(argv: typing.List[str], args: argparse.Namespace):
             raise RuntimeError(f"Error: cannot overwrite {args.output} without --force flag")
 
     managed = args.include_managed
+    do_headers = not args.exclude_headers
 
     if args.cloud_provider == "aws":
 
         if args.group_by is None:
-            contents = list_aws_policies(iam_client, managed)
+            contents = list_aws_policies(iam_client, managed, do_headers)
         else:
             if args.group_by == "users":
-                contents = list_aws_user_policies(iam_client, managed)
+                contents = list_aws_user_policies(iam_client, managed, do_headers)
             elif args.group_by == "groups":
-                contents = list_aws_group_policies(iam_client, managed)
+                contents = list_aws_group_policies(iam_client, managed, do_headers)
             elif args.group_by == "roles":
-                contents = list_aws_role_policies(iam_client, managed)
+                contents = list_aws_role_policies(iam_client, managed, do_headers)
 
             # Join the tuples
             contents = [SEPARATOR.join(c) for c in contents]
@@ -554,15 +556,15 @@ def list_policies(argv: typing.List[str], args: argparse.Namespace):
 
         if args.group_by is None:
             # list policies
-            contents = list_fus_policies(client)
+            contents = list_fus_policies(client, do_headers)
         else:
             # list policies grouped by asset
             if args.group_by == "users":
-                contents = list_fus_user_policies(client)
+                contents = list_fus_user_policies(client, do_headers)
             elif args.group_by == "groups":
-                contents = list_fus_group_policies(client)
+                contents = list_fus_group_policies(client, do_headers)
             elif args.group_by == "roles":
-                contents = list_fus_role_policies(client)
+                contents = list_fus_role_policies(client, do_headers)
 
             # Join the tuples
             contents = [SEPARATOR.join(c) for c in contents]
