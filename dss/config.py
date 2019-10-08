@@ -415,6 +415,10 @@ class Config:
         return os.environ.get("OIDC_EMAIL_CLAIM", 'email')
 
     @staticmethod
+    def _set_authz_url(authz_url):
+        Config._AUTH_URL = authz_url
+
+    @staticmethod
     def get_authz_url():
         if Config._AUTH_URL is None:
             Config._AUTH_URL = Config._get_required_envvar("AUTH_URL")

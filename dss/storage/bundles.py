@@ -122,7 +122,7 @@ def _latest_version_from_object_names(object_names: typing.Iterator[str]) -> str
     return version
 
 
-def enumerate_avaliable_bundles(replica: str = None,
+def enumerate_available_bundles(replica: str = None,
                                 prefix: typing.Optional[str] = None,
                                 per_page: int = PerPageBounds.per_page_max,
                                 search_after: typing.Optional[str] = None,
@@ -148,13 +148,19 @@ def enumerate_avaliable_bundles(replica: str = None,
         uuid, version = key.split('.', 1)
         uuid = uuid.split(f'{BUNDLE_PREFIX}/')[1]
         search_after = key
-        if not version.endswith(TOMBSTONE_SUFFIX):
-            keys.setdefault(uuid, []).append(version)
-            total_keys += 1
-        elif TOMBSTONE_SUFFIX == version:
+        if TOMBSTONE_SUFFIX == version:
             if uuid in keys:
                 total_keys -= len(keys[uuid])
                 del keys[uuid]
+        elif version.endswith(TOMBSTONE_SUFFIX):
+            parsed_versions = keys.get(uuid)
+            target_version = version.split(f'.{TOMBSTONE_SUFFIX}')[0]
+            if target_version in parsed_versions:
+                parsed_versions.remove(target_version)
+                total_keys -= 1
+        elif not version.endswith(TOMBSTONE_SUFFIX):
+            keys.setdefault(uuid, []).append(version)
+            total_keys += 1
         if total_keys >= per_page:
             break
 
