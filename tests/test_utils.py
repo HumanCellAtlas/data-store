@@ -280,7 +280,7 @@ class TestSecurity(unittest.TestCase):
             bundle_list = self.bundle_list
             if search_after:
                 idx = self.bundle_list.index(search_after)
-                bundle_list = self.bundle_list[idx:-1]
+                bundle_list = self.bundle_list[idx+1:-1]
             list_tuples = [(x, None) for x in bundle_list]
             return iter(list_tuples)
 
@@ -314,12 +314,12 @@ class TestSecurity(unittest.TestCase):
                 self.assertNotIn('.'.join([x['uuid'], x['version']]), self.MockStorageHandler.dead_bundles)
             self.assertDictEqual(last_good_bundle, resp['bundles'][-1])
             search_after = resp['search_after']
-            token = resp['token']
             resp = enumerate_available_bundles(replica='aws', per_page=2,
                                                search_after=search_after)
-            for x in resp['bundles']:
-                self.assertNotIn(x, page_one)
             print(resp['bundles'])
+            for x in resp['bundles']:
+                self.assertNotIn('.'.join([x['uuid'], x['version']]), self.MockStorageHandler.dead_bundles)
+                self.assertNotIn(x, page_one)
 
 
 if __name__ == '__main__':
