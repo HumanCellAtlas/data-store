@@ -182,6 +182,6 @@ def update_item(*, table: str, hash_key: str, sort_key: Optional[str] = None, up
     query = {'TableName': table,
              'Key': _format_item(hash_key=hash_key, sort_key=sort_key, value=None)}
     if update_expression:
-        query['UpdateExpression'] = update_expression,
+        query['UpdateExpression'] = update_expression
         query['ExpressionAttributeValues'] = expression_attribute_values
     db.update_item(**query)

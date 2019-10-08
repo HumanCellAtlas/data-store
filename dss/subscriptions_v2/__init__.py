@@ -51,16 +51,16 @@ def get_subscription(replica: Replica, owner: str, uuid: str):
         item = dynamodb.get_all_key_attributes(table=subscription_db_table.format(replica.name),
                                                hash_key=owner,
                                                sort_key=uuid)
-        payload = json.loads(item['body'])
-        stats = {}  # type: typing.Dict
-        for attribute_type in[SubscriptionStats.ATTEMPTS, SubscriptionStats.SUCCESSFUL, SubscriptionStats.FAILED]:
-            attribute_value = item.get(attribute_type, None)
-            if attribute_value:
-                stats[attribute_type] = attribute_value
-        payload[SubscriptionData.STATS] = stats
-        return payload
     except dynamodb.DynamoDBItemNotFound:
         return None
+    payload = json.loads(item['body'])
+    stats = {}  # type: typing.Dict
+    for attribute_type in SubscriptionStats:
+        attribute_value = item.get(attribute_type, None)
+        if attribute_value:
+            stats[attribute_type] = attribute_value
+    payload[SubscriptionData.STATS] = stats
+    return payload
 
 
 def get_subscriptions_for_owner(replica: Replica, owner: str) -> list:
