@@ -27,12 +27,21 @@ from dss.config import BucketConfig, Config, Replica, override_bucket_config
 from dss.util.version import datetime_to_version_format
 from dss.util import UrlBuilder
 from tests.infra import DSSAssertMixin, testmode
-from tests.infra.server import ThreadedLocalServer
+from tests.infra.server import ThreadedLocalServer, MockFusilladeHandler
 from tests import get_auth_header
 import tests
 
 
 logger = logging.getLogger(__name__)
+
+
+def setUpModule():
+    Config.set_config(BucketConfig.TEST)
+    MockFusilladeHandler.start_serving()
+
+
+def tearDownModule():
+    MockFusilladeHandler.stop_serving()
 
 
 class TestEventsUtils(unittest.TestCase, DSSAssertMixin):
