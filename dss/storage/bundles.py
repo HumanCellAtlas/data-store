@@ -176,13 +176,10 @@ class Living():
                     yield fqid
 
     def _keys(self):
-        prev_key = None
-        prev_token = None
         for key, _ in self.paged_iter:
             yield key
-            self.start_after_key, self.token = prev_key, prev_token
-            prev_key = key
-            prev_token = getattr(self.paged_iter, "token", None)
+            self.start_after_key = key
+            self.token = getattr(self.paged_iter, "token", None)
 
     def __iter__(self):
         for key in self._keys():

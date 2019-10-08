@@ -12,13 +12,22 @@ import requests
 pkg_root = os.path.abspath(os.path.join(os.path.dirname(__file__), '..'))  # noqa
 sys.path.insert(0, pkg_root)  # noqa
 
-from dss.config import Replica
+from dss.config import Replica, BucketConfig, Config
 import dss
 from dss.util import UrlBuilder
 from dss.util.version import datetime_to_version_format
 from tests.infra import DSSAssertMixin, DSSUploadMixin, DSSStorageMixin, TestBundle, testmode
-from tests.infra.server import ThreadedLocalServer
+from tests.infra.server import ThreadedLocalServer, MockFusilladeHandler
 from tests import get_auth_header
+
+
+def setUpModule():
+    Config.set_config(BucketConfig.TEST)
+    MockFusilladeHandler.start_serving()
+
+
+def tearDownModule():
+    MockFusilladeHandler.stop_serving()
 
 
 @testmode.standalone
