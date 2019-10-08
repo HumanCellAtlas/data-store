@@ -276,7 +276,12 @@ class TestSecurity(unittest.TestCase):
                         'bundles/001b92bb-2101-4e52-94d9-293fcb97ba32.dead']
 
         def list_v2(self, *args, **kwargs):
-            list_tuples = [(x, None) for x in self.bundle_list]
+            search_after = kwargs.get('start_after_key')
+            bundle_list = self.bundle_list
+            if search_after:
+                idx = self.bundle_list.index(search_after)
+                bundle_list = self.bundle_list[idx:-1]
+            list_tuples = [(x, None) for x in bundle_list]
             return iter(list_tuples)
 
     @mock.patch("dss.Config.get_blobstore_handle")
@@ -304,9 +309,17 @@ class TestSecurity(unittest.TestCase):
             last_good_bundle = tests['last_good_bundle']
             resp = enumerate_available_bundles(replica='aws', per_page=test_size)
             print(resp['bundles'])
+            page_one = resp['bundles']
             for x in resp['bundles']:
                 self.assertNotIn('.'.join([x['uuid'], x['version']]), self.MockStorageHandler.dead_bundles)
             self.assertDictEqual(last_good_bundle, resp['bundles'][-1])
+            search_after = resp['search_after']
+            token = resp['token']
+            resp = enumerate_available_bundles(replica='aws', per_page=2,
+                                               search_after=search_after)
+            for x in resp['bundles']:
+                self.assertNotIn(x, page_one)
+            print(resp['bundles'])
 
 
 if __name__ == '__main__':
