@@ -130,13 +130,13 @@ def get(
     if link is None:
         response = make_response(jsonify(response_body), requests.codes.ok)
         response.headers['X-OpenAPI-Pagination'] = 'false'
-        return response
     else:
         response = make_response(jsonify(response_body), requests.codes.partial)
         response.headers['X-OpenAPI-Pagination'] = 'true'
-        response.headers['X-OpenAPI-Paginated-Content-Key'] = 'files'
         response.headers['Link'] = link
-        return response
+
+    response.headers['X-OpenAPI-Paginated-Content-Key'] = 'bundle.files'
+    return response
 
 @dss_handler
 def enumerate(replica: str,
@@ -185,7 +185,7 @@ def enumerate(replica: str,
         response = make_response(jsonify(payload), requests.codes.partial)
         response.headers['Link'] = link
         response.headers['X-OpenAPI-Pagination'] = 'true'
-        response.headers['X-OpenAPI-Paginated-Content-Key'] = 'bundles'
+    response.headers['X-OpenAPI-Paginated-Content-Key'] = 'bundles'
     return response
 
 
