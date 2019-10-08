@@ -175,9 +175,17 @@ class Living():
                 if not is_dead:
                     yield fqid
 
+    def _keys(self):
+        prev_key = None
+        prev_token = None
+        for key, _ in self.paged_iter:
+            yield key
+            self.start_after_key, self.token = prev_key, prev_token
+            prev_key = key
+            prev_token = getattr(self.paged_iter, "token", None)
+
     def __iter__(self):
-        prev_key, prev_token = None, None
-        for key, meta in self.paged_iter:
+        for key in self._keys():
             fqid = BundleFQID.from_key(key)
             if fqid.uuid != self.bundle_info['uuid']:
                 for bundle_fqid in self._living_fqids_in_bundle_info():
@@ -188,8 +196,6 @@ class Living():
                     self.bundle_info['contains_unversioned_tombstone'] = True
                 else:
                     self.bundle_info['fqids'][fqid] = isinstance(fqid, BundleTombstoneID)
-            self.start_after_key, self.token = prev_key, prev_token
-            prev_key, prev_token = key, getattr(self.paged_iter, "token", None)
 
         for bundle_fqid in self._living_fqids_in_bundle_info():
             yield bundle_fqid
