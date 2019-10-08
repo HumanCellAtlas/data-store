@@ -140,7 +140,7 @@ def enumerate_available_bundles(replica: str = None,
         kwargs['token'] = token
 
     storage_handler = Config.get_blobstore_handle(Replica[replica])
-    prefix_iterator = Living(storage_handler.list_v2(**kwargs))  # note dont wrap this in enumerate() it looses the token
+    prefix_iterator = Living(storage_handler.list_v2(**kwargs))  # note dont wrap this in enumerate; it looses the token
 
     uuid_list = list()
     for fqid in prefix_iterator:
