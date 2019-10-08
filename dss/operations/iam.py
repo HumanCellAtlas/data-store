@@ -212,8 +212,12 @@ def extract_fus_policies(action: str, fus_client, do_headers: bool = True):
 
     users = list(fus_client.paginate("/v1/users", "users"))
 
+    # NOTE: This makes unnecessary duplicate API calls. It would be better to get list of groups/roles then mark ones attached to users.
     for user in users:
+        # Are there any user inline policies?
+        # inline_policies = fus_client.call_api(f'/v1/user/{user}','policies')
 
+        # Next get managed policies - these are policies attached via roles or groups
         membership = {
             "group": list(fus_client.paginate(f"/v1/user/{user}/groups", "groups")),
             "role": list(fus_client.paginate(f"/v1/user/{user}/roles", "roles")),
@@ -223,23 +227,21 @@ def extract_fus_policies(action: str, fus_client, do_headers: bool = True):
             api_url = f"/v1/{asset_type}/"
             # Now iterate over each group or role this user is part of, and enumerate policies
             for asset in membership[asset_type]:
-
                 # @chmreid TODO: figure out this API call. If multiple policies attached, is string payload a list?
                 managed_policy = fus_client.call_api(api_url + asset, "policies")
-
                 try:
                     iam_policy = managed_policy["IAMPolicy"]
                 except (KeyError, TypeError):
                     pass
                 else:
                     d = json.loads(iam_policy)
+                    if "Id" not in d:
+                        d["Id"] = ANONYMOUS_POLICY_NAME
                     managed_policies.append(d)
 
         if action == "list":
             # Extract policy name
             for policy in managed_policies:
-                if "Id" not in policy:
-                    policy["Id"] = ANONYMOUS_POLICY_NAME
                 master_list.append(policy["Id"])
         elif action == "dump":
             # Export policy json document
@@ -251,7 +253,6 @@ def extract_fus_policies(action: str, fus_client, do_headers: bool = True):
         # Headers
         if do_headers:
             master_list = ["Policies:"] + master_list
-
     elif action == "dump":
         # Convert to strings, remove dupes, convert to back dicts
         master_list = list(set(master_list))
@@ -395,21 +396,21 @@ def list_fus_user_policies(fus_client, do_headers: bool = True):
 
     result = []
 
+    # NOTE: This makes unnecessary duplicate API calls. It would be better to get list of groups/roles then mark ones attached to users.
     for user in users:
-        # First get inline policies - these are directly attached to the user
-        # @chmreid TODO: figure out the type/structure of this api call
+        # Are there any user inline policies?
         # inline_policies = fus_client.call_api(f'/v1/user/{user}','policies')
 
         # Next get managed policies - these are policies attached via roles or groups
         membership = {
-            "group": fus_client.call_api(f"/v1/user/{user}/groups", "groups"),
-            "role": fus_client.call_api(f"/v1/user/{user}/roles", "roles"),
+            "group": list(fus_client.paginate(f"/v1/user/{user}/groups", "groups")),
+            "role": list(fus_client.paginate(f"/v1/user/{user}/roles", "roles")),
         }
         managed_policies = []
         for asset_type in ["group", "role"]:
             api_url = f"/v1/{asset_type}/"
             for asset in membership[asset_type]:
-                # @chmreid TODO: paginate
+                # @chmreid TODO: figure out this API call. If multiple policies attached, is string payload a list?
                 managed_policy = fus_client.call_api(api_url + asset, "policies")
                 try:
                     iam_policy = managed_policy["IAMPolicy"]
