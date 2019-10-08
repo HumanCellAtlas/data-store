@@ -33,12 +33,21 @@ from dss.storage.hcablobstore import compose_blob_key
 from dss.util.version import datetime_to_version_format
 from dss.storage.bundles import get_bundle_manifest
 from tests.infra import DSSAssertMixin, DSSUploadMixin, ExpectedErrorFields, get_env, testmode, TestAuthMixin
-from tests.infra.server import ThreadedLocalServer
+from tests.infra.server import ThreadedLocalServer, MockFusilladeHandler
 from tests import eventually, get_auth_header
 
 
 BUNDLE_GET_RETRY_COUNT = 60
 """For GET /bundles requests that require a retry, this is the maximum number of attempts we make."""
+
+
+def setUpModule():
+    Config.set_config(BucketConfig.TEST)
+    MockFusilladeHandler.start_serving()
+
+
+def tearDownModule():
+    MockFusilladeHandler.stop_serving()
 
 
 @testmode.standalone
