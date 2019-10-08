@@ -1,4 +1,3 @@
-import io
 import os
 import json
 import time
@@ -137,6 +136,7 @@ def get(
 
     response.headers['X-OpenAPI-Paginated-Content-Key'] = 'bundle.files'
     return response
+
 
 @dss_handler
 def enumerate(replica: str,
@@ -278,8 +278,7 @@ def delete(uuid: str, replica: str, json_request_body: dict, version: str = None
     bundle_prefix = tombstone_id.to_key_prefix()
     tombstone_object_data = _create_tombstone_data(
         email=email,
-        reason=json_request_body.get('reason'),
-        version=version,
+        reason=json_request_body.get('reason')
     )
 
     handle = Config.get_blobstore_handle(Replica[replica])
@@ -376,14 +375,9 @@ def detect_filename_collisions(bundle_file_metadata):
             )
 
 
-def _create_tombstone_data(email: str, reason: str, version: typing.Optional[str]) -> dict:
-    # Future-proofing the case in which garbage collection is added
-    data = dict(
-        email=email,
-        reason=reason,
-        admin_deleted=True,
-    )
-    # optional params
-    if version is not None:
-        data.update(version=version)
-    return data
+def _create_tombstone_data(email: str, reason: str, details: typing.Optional[dict]) -> dict:
+    return {
+        'email': email,
+        'reason': reason,
+        'admin_deleted': True
+    }
