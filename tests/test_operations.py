@@ -357,22 +357,22 @@ class TestOperations(unittest.TestCase):
 
                 # Check write to output file
                 temp_prefix = "dss-test-operations-iam-list-temp-output"
-                with tempfile.NamedTemporaryFile(prefix=temp_prefix, mode="w") as f:
-                    # Note: file will already be open
-                    _repatch_fus_client(fus_client)
-                    iam.list_policies(
-                        [],
-                        argparse.Namespace(
-                            cloud_provider="fusillade",
-                            group_by=None,
-                            output=f.name,
-                            force=True,
-                            include_managed=False,
-                            exclude_headers=False,
-                        ),
-                    )
-                with open(temp_prefix, "r") as f:
-                    self.assertIn("fake-policy", f.read())
+                f, fname = tempfile.mkstemp(prefix=temp_prefix)
+                _repatch_fus_client(fus_client)
+                iam.list_policies(
+                    [],
+                    argparse.Namespace(
+                        cloud_provider="fusillade",
+                        group_by=None,
+                        output=fname,
+                        force=True,
+                        include_managed=False,
+                        exclude_headers=False,
+                    ),
+                )
+                with open(fname, "r") as f:
+                    output = f.read()
+                self.assertIn("fake-policy", output)
 
         with self.subTest("List Fusillade policies grouped by users"):
 
@@ -456,21 +456,20 @@ class TestOperations(unittest.TestCase):
 
                 # Check write to output file
                 temp_prefix = "dss-test-operations-iam-list-users-temp-output"
-                with tempfile.NamedTemporaryFile(prefix=temp_prefix, mode="w") as f:
-                    # Note: file will already be open
-                    _repatch_fus_client_users(fus_client)
-                    iam.list_policies(
-                        [],
-                        argparse.Namespace(
-                            cloud_provider="fusillade",
-                            group_by="users",
-                            output=f.name,
-                            force=True,
-                            include_managed=False,
-                            exclude_headers=False,
-                        ),
-                    )
-                with open(temp_prefix, "r") as f:
+                f, fname = tempfile.mkstemp(prefix=temp_prefix)
+                _repatch_fus_client_users(fus_client)
+                iam.list_policies(
+                    [],
+                    argparse.Namespace(
+                        cloud_provider="fusillade",
+                        group_by="users",
+                        output=fname,
+                        force=True,
+                        include_managed=False,
+                        exclude_headers=False,
+                    ),
+                )
+                with open(fname, "r") as f:
                     output = f.read()
                 self.assertIn(IAMSEPARATOR.join(["fake-user@foo.bar", "fake-group-policy"]), output)
                 self.assertIn(IAMSEPARATOR.join(["fake-user@foo.bar", "fake-role-policy"]), output)
