@@ -21,7 +21,7 @@ from dss.util.aws.clients import iam as iam_client  # type: ignore
 logger = logging.getLogger(__name__)
 
 
-SEPARATOR = " : "
+IAMSEPARATOR = " : "
 ANONYMOUS_POLICY_NAME = "UNNAMED_POLICY"
 
 
@@ -212,18 +212,22 @@ def extract_fus_policies(action: str, fus_client, do_headers: bool = True):
 
     users = list(fus_client.paginate("/v1/users", "users"))
 
+    # NOTE: This makes unnecessary duplicate API calls.
+    # It would be better to get list of groups/roles then mark ones attached to users.
     for user in users:
-        # @chmreid TODO: use paginate
+        # Are there any user inline policies?
+        # inline_policies = fus_client.call_api(f'/v1/user/{user}','policies')
+
+        # Next get managed policies - these are policies attached via roles or groups
         membership = {
-            "group": fus_client.call_api(f"/v1/user/{user}/groups", "groups"),
-            "role": fus_client.call_api(f"/v1/user/{user}/roles", "roles"),
+            "group": list(fus_client.paginate(f"/v1/user/{user}/groups", "groups")),
+            "role": list(fus_client.paginate(f"/v1/user/{user}/roles", "roles")),
         }
         managed_policies = []
         for asset_type in ["group", "role"]:
             api_url = f"/v1/{asset_type}/"
             # Now iterate over each group or role this user is part of, and enumerate policies
             for asset in membership[asset_type]:
-
                 # @chmreid TODO: figure out this API call. If multiple policies attached, is string payload a list?
                 managed_policy = fus_client.call_api(api_url + asset, "policies")
                 try:
@@ -232,13 +236,13 @@ def extract_fus_policies(action: str, fus_client, do_headers: bool = True):
                     pass
                 else:
                     d = json.loads(iam_policy)
+                    if "Id" not in d:
+                        d["Id"] = ANONYMOUS_POLICY_NAME
                     managed_policies.append(d)
 
         if action == "list":
             # Extract policy name
             for policy in managed_policies:
-                if "Id" not in policy:
-                    policy["Id"] = ANONYMOUS_POLICY_NAME
                 master_list.append(policy["Id"])
         elif action == "dump":
             # Export policy json document
@@ -250,7 +254,6 @@ def extract_fus_policies(action: str, fus_client, do_headers: bool = True):
         # Headers
         if do_headers:
             master_list = ["Policies:"] + master_list
-
     elif action == "dump":
         # Convert to strings, remove dupes, convert to back dicts
         master_list = list(set(master_list))
@@ -259,14 +262,14 @@ def extract_fus_policies(action: str, fus_client, do_headers: bool = True):
     return master_list
 
 
-def list_fus_policies(fus_client) -> typing.List[str]:
+def list_fus_policies(fus_client, do_headers) -> typing.List[str]:
     """Return a list of names of Fusillade policies"""
-    return extract_fus_policies("list", fus_client)
+    return extract_fus_policies("list", fus_client, do_headers)
 
 
-def dump_fus_policies(fus_client):
+def dump_fus_policies(fus_client, do_headers):
     """Return a list of dictionaries containing Fusillade policy documents"""
-    return extract_fus_policies("dump", fus_client)
+    return extract_fus_policies("dump", fus_client, do_headers)
 
 
 # ---
@@ -394,21 +397,22 @@ def list_fus_user_policies(fus_client, do_headers: bool = True):
 
     result = []
 
+    # NOTE: This makes unnecessary duplicate API calls.
+    # It would be better to get list of groups/roles then mark ones attached to users.
     for user in users:
-        # First get inline policies - these are directly attached to the user
-        # @chmreid TODO: figure out the type/structure of this api call
+        # Are there any user inline policies?
         # inline_policies = fus_client.call_api(f'/v1/user/{user}','policies')
 
         # Next get managed policies - these are policies attached via roles or groups
         membership = {
-            "group": fus_client.call_api(f"/v1/user/{user}/groups", "groups"),
-            "role": fus_client.call_api(f"/v1/user/{user}/roles", "roles"),
+            "group": list(fus_client.paginate(f"/v1/user/{user}/groups", "groups")),
+            "role": list(fus_client.paginate(f"/v1/user/{user}/roles", "roles")),
         }
         managed_policies = []
         for asset_type in ["group", "role"]:
             api_url = f"/v1/{asset_type}/"
             for asset in membership[asset_type]:
-                # @chmreid TODO: paginate
+                # @chmreid TODO: figure out this API call. If multiple policies attached, is string payload a list?
                 managed_policy = fus_client.call_api(api_url + asset, "policies")
                 try:
                     iam_policy = managed_policy["IAMPolicy"]
@@ -531,6 +535,7 @@ def list_policies(argv: typing.List[str], args: argparse.Namespace):
             raise RuntimeError(f"Error: cannot overwrite {args.output} without --force flag")
 
     managed = args.include_managed
+    do_headers = not args.exclude_headers
 
     if args.cloud_provider == "aws":
 
@@ -538,14 +543,14 @@ def list_policies(argv: typing.List[str], args: argparse.Namespace):
             contents = list_aws_policies(iam_client, managed)
         else:
             if args.group_by == "users":
-                contents = list_aws_user_policies(iam_client, managed)
+                contents = list_aws_user_policies(iam_client, managed, do_headers)
             elif args.group_by == "groups":
-                contents = list_aws_group_policies(iam_client, managed)
+                contents = list_aws_group_policies(iam_client, managed, do_headers)
             elif args.group_by == "roles":
-                contents = list_aws_role_policies(iam_client, managed)
+                contents = list_aws_role_policies(iam_client, managed, do_headers)
 
             # Join the tuples
-            contents = [SEPARATOR.join(c) for c in contents]
+            contents = [IAMSEPARATOR.join(c) for c in contents]
 
     elif args.cloud_provider == "fusillade":
 
@@ -554,18 +559,18 @@ def list_policies(argv: typing.List[str], args: argparse.Namespace):
 
         if args.group_by is None:
             # list policies
-            contents = list_fus_policies(client)
+            contents = list_fus_policies(client, do_headers)
         else:
             # list policies grouped by asset
             if args.group_by == "users":
-                contents = list_fus_user_policies(client)
+                contents = list_fus_user_policies(client, do_headers)
             elif args.group_by == "groups":
-                contents = list_fus_group_policies(client)
+                contents = list_fus_group_policies(client, do_headers)
             elif args.group_by == "roles":
-                contents = list_fus_role_policies(client)
+                contents = list_fus_role_policies(client, do_headers)
 
             # Join the tuples
-            contents = [SEPARATOR.join(c) for c in contents]
+            contents = [IAMSEPARATOR.join(c) for c in contents]
 
     else:
         raise RuntimeError(f"Error: IAM functionality not implemented for {args.cloud_provider}")
