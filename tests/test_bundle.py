@@ -185,7 +185,6 @@ class TestBundleApi(unittest.TestCase, TestAuthMixin, DSSAssertMixin, DSSUploadM
                 self.assertEqual(resp_obj.response.headers['X-OpenAPI-Paginated-Content-Key'], 'bundle.files')
                 if link_header:
                     self.assertEqual(resp_obj.response.headers['X-OpenAPI-Pagination'], 'true')
-                    self.assertEqual(resp_obj.response.headers['X-OpenAPI-Paginated-Content-Key'], 'files')
                     self.assertEqual(resp_obj.response.status_code, requests.codes.partial)
                 else:
                     self.assertEqual(resp_obj.response.headers['X-OpenAPI-Pagination'], 'false')
