@@ -119,9 +119,7 @@ def get_fus_role_attached_policies(fus_client, action, role):
     try:
         inline_policies = json.loads(inline_policies_strpayload["IAMPolicy"])
     except (KeyError, TypeError):
-        # @chmreid TODO: use logger.warning?
         pass
-
     else:
         if isinstance(inline_policies, dict):
             if "Id" not in inline_policies:
@@ -454,7 +452,7 @@ def list_fus_group_policies(fus_client, do_headers: bool = True):
         # inline_policies = fus_client.call_api(f'/v1/group/{group}','policies')
 
         # Next get managed policies (attached via roles)
-        roles_membership = fus_client.call_api(f"/v1/group/{group}/roles", "roles")
+        roles_membership = list(fus_client.paginate(f"/v1/group/{group}/roles", "roles"))
         for role in roles_membership:
             attached_names = get_fus_role_attached_policies(fus_client, "list", role)
             for attached_name in attached_names:

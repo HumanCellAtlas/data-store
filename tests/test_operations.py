@@ -668,27 +668,6 @@ class TestOperations(unittest.TestCase):
         gold_var = f"{prefix}/dummy_variable"
         self.assertEqual(new_var, gold_var)
 
-    def test_ssmparams_crud(self):
-        # CRUD (create read update delete) test for setting environment variables in SSM param store
-        testvar_name = random_alphanumeric_string()
-        testvar_value = "Hello world!"
-
-        # Assemble environment to return
-        old_env = {"DUMMY_VARIABLE": "dummy_value"}
-        new_env = dict(**old_env)
-        new_env[testvar_name] = testvar_value
-        ssm_new_env = self._wrap_ssm_env(new_env)
-
-        with self.subTest("Print the SSM environment"):
-            with mock.patch("dss.operations.lambda_params.ssm_client") as ssm:
-                # listing params will call ssm.get_parameter to get the entire environment
-                ssm.get_parameter = mock.MagicMock(return_value=ssm_new_env)
-
-                # Now call our params.py module. Output var=value on each line.
-                with CaptureStdout() as output:
-                    lambda_params.ssm_environment([], argparse.Namespace(json=False))
-                self.assertIn(f"{testvar_name}={testvar_value}", output)
-
     def test_lambdaparams_crud(self):
         # CRUD (create read update delete) test for setting lambda function environment variables
         testvar_name = random_alphanumeric_string()
@@ -770,7 +749,7 @@ class TestOperations(unittest.TestCase):
                 #   then calls lambda_client.get_function_configuration()
                 lam.get_function_configuration = mock.MagicMock(return_value=lam_new_env)
 
-                # TODO: reduce copypasta
+                # @chmreid TODO: reduce copypasta
 
                 # Non-JSON, no lambda name specified
                 with CaptureStdout() as output:
