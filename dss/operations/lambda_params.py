@@ -13,9 +13,6 @@ import typing
 from botocore.exceptions import ClientError
 
 from dss.operations import dispatch
-from dss.operations.ssm_params import get_ssm_variable_prefix, fix_ssm_variable_prefix
-from dss.operations.ssm_params import set_ssm_parameter, unset_ssm_parameter
-from dss.operations.ssm_params import set_ssm_environment
 from dss.operations.secrets import fix_secret_variable_prefix, fetch_secret_safely
 
 from dss.util.aws.clients import secretsmanager as sm_client  # type: ignore
