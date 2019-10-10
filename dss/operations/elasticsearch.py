@@ -42,7 +42,7 @@ def index_keys(argv: typing.List[str], args: argparse.Namespace):
 @elasticsearch.action("index",
                       arguments={"--replica": dict(choices=[r.name for r in Replica], required=True),
                                  "--prefix": dict(default="", help="UUID prefix to index."),
-                                 "--send-notifications": dict(action="store_true")})
+                                 "--send-notifications": dict(default="false", choices=["true", "false", "on-change"])})
 def index(argv: typing.List[str], args: argparse.Namespace):
     """
     Queue an SQS message to the indexer lambda for each key in object storage beginning with `bundles/{prefix}`.
@@ -52,10 +52,17 @@ def index(argv: typing.List[str], args: argparse.Namespace):
     handle = Config.get_blobstore_handle(replica)
     index_queue_url = get_queue_url("dss-index-operation-" + os.environ['DSS_DEPLOYMENT_STAGE'])
 
+    if "on-change" == args.send_notifications:
+        send_notifications = None
+    else:
+        send_notifications = ("true" == args.send_notifications)
+
     def _forward_keys(pfx):
         with SQSMessenger(index_queue_url) as sqsm:
             for key in handle.list(replica.bucket, pfx):
-                msg = dict(replica=args.replica, key=key, send_noficiations=args.send_notifications)
+                msg = dict(replica=replica.name, key=key)
+                if send_notifications is not None:
+                    msg['send_notifications'] = send_notifications
                 sqsm.send(json.dumps(msg))
 
     with ThreadPoolExecutor(max_workers=10) as e:
