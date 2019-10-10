@@ -41,7 +41,8 @@ def index_keys(argv: typing.List[str], args: argparse.Namespace):
 
 @elasticsearch.action("index",
                       arguments={"--replica": dict(choices=[r.name for r in Replica], required=True),
-                                 "--prefix": dict(default="", help="UUID prefix to index.")})
+                                 "--prefix": dict(default="", help="UUID prefix to index."),
+                                 "--send-notifications": dict(action="store_true")})
 def index(argv: typing.List[str], args: argparse.Namespace):
     """
     Queue an SQS message to the indexer lambda for each key in object storage beginning with `bundles/{prefix}`.
@@ -54,11 +55,11 @@ def index(argv: typing.List[str], args: argparse.Namespace):
     def _forward_keys(pfx):
         with SQSMessenger(index_queue_url) as sqsm:
             for key in handle.list(replica.bucket, pfx):
-                sqsm.send(json.dumps(dict(replica=args.replica, key=key)))
+                msg = dict(replica=args.replica, key=key, send_noficiations=args.send_notifications)
+                sqsm.send(json.dumps(msg))
 
-    hex_chars = set(hexdigits.lower())
     with ThreadPoolExecutor(max_workers=10) as e:
-        futures = [e.submit(_forward_keys, f"bundles/{args.prefix}{c}") for c in hex_chars]
+        futures = [e.submit(_forward_keys, f"bundles/{args.prefix}{c}") for c in set(hexdigits.lower())]
         for f in as_completed(futures):
             f.result()
 
