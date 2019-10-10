@@ -27,10 +27,10 @@ logger = logging.getLogger(__name__)
 elasticsearch = dispatch.target("elasticsearch", help=__doc__)
 
 
-@elasticsearch.action("index",
+@elasticsearch.action("index-keys",
                       arguments={"--replica": dict(choices=[r.name for r in Replica], required=True),
                                  "--keys": dict(default=None, nargs="*", help="keys to index.")})
-def index(argv: typing.List[str], args: argparse.Namespace):
+def index_keys(argv: typing.List[str], args: argparse.Namespace):
     """
     Queue an SQS message to the indexer lambda for each key in `keys`.
     """
@@ -39,12 +39,13 @@ def index(argv: typing.List[str], args: argparse.Namespace):
         for key in args.keys:
             sqsm.send(json.dumps(dict(replica=args.replica, key=key)))
 
-@elasticsearch.action("index-prefix",
+@elasticsearch.action("index",
                       arguments={"--replica": dict(choices=[r.name for r in Replica], required=True),
-                                 "--prefix": dict(default=None, help="UUID prefix to index.")})
-def index_prefix(argv: typing.List[str], args: argparse.Namespace):
+                                 "--prefix": dict(default="", help="UUID prefix to index.")})
+def index(argv: typing.List[str], args: argparse.Namespace):
     """
-    Queue an SQS message to the indexer lambda for each key in `bundles/{prefix}`.
+    Queue an SQS message to the indexer lambda for each key in object storage beginning with `bundles/{prefix}`.
+    If `prefix` is omitted, send a message for each key in object storage beginning with `bundles/`
     """
     replica = Replica[args.replica]
     handle = Config.get_blobstore_handle(replica)
@@ -53,7 +54,8 @@ def index_prefix(argv: typing.List[str], args: argparse.Namespace):
     def _forward_keys(pfx):
         with SQSMessenger(index_queue_url) as sqsm:
             for key in handle.list(replica.bucket, pfx):
-                sqsm.send(json.dumps(dict(replica=args.replica, key=key)))
+                # sqsm.send(json.dumps(dict(replica=args.replica, key=key)))
+                print(key)
 
     with ThreadPoolExecutor(max_workers=10) as e:
         futures = [e.submit(_forward_keys, f"bundles/{args.prefix}{c}") for c in hexdigits.lower()]
