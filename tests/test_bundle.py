@@ -4,7 +4,6 @@
 import datetime
 import hashlib
 import io
-import tempfile
 import nestedcontext
 import os
 import requests

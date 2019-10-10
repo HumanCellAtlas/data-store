@@ -361,7 +361,7 @@ class TestSecurity(unittest.TestCase):
             for x in resp['bundles']:
                 self.assertNotIn('.'.join([x['uuid'], x['version']]), MockStorageHandler.dead_bundles)
                 self.assertNotIn(x, page_one)
-
+    # TODO add test to enumerate list and ensure all bundles that should be present are there.
 
 if __name__ == '__main__':
     unittest.main()
