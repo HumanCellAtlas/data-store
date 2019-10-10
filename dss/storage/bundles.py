@@ -3,6 +3,7 @@ from functools import lru_cache
 import json
 import typing
 import time
+from collections import OrderedDict
 
 import cachetools
 from cloud_blobstore import BlobNotFoundError, BlobStore
@@ -139,33 +140,59 @@ def enumerate_available_bundles(replica: str = None,
         kwargs['token'] = token
 
     storage_handler = Config.get_blobstore_handle(Replica[replica])
-    prefix_iterator = storage_handler.list_v2(**kwargs)  # note dont wrap this in enumerate() it looses the token
-    keys = dict()  # type: dict
-    uuid_list = list()
-    total_keys = 0
+    prefix_iterator = Living(storage_handler.list_v2(**kwargs))  # note dont wrap this in enumerate; it looses the token
 
-    for key, meta in prefix_iterator:
-        uuid, version = key.split('.', 1)
-        uuid = uuid.split(f'{BUNDLE_PREFIX}/')[1]
-        search_after = key
-        if TOMBSTONE_SUFFIX == version:
-            if uuid in keys:
-                total_keys -= len(keys[uuid])
-                del keys[uuid]
-        elif version.endswith(TOMBSTONE_SUFFIX):
-            parsed_versions = keys.get(uuid)
-            target_version = version.split(f'.{TOMBSTONE_SUFFIX}')[0]
-            if target_version in parsed_versions:
-                parsed_versions.remove(target_version)
-                total_keys -= 1
-        elif not version.endswith(TOMBSTONE_SUFFIX):
-            keys.setdefault(uuid, []).append(version)
-            total_keys += 1
-        if total_keys >= per_page:
+    uuid_list = list()
+    for fqid in prefix_iterator:
+        uuid_list.append(dict(uuid=fqid.uuid, version=fqid.version))
+        if len(uuid_list) >= per_page:
             break
 
-    for uuid, versions in keys.items():
-        for version in versions:
-            uuid_list.append(dict(uuid=uuid, version=version))
-    token = getattr(prefix_iterator, 'token', None)
-    return dict(search_after=search_after, bundles=uuid_list, token=token, page_count=len(uuid_list))
+    return dict(search_after=prefix_iterator.start_after_key,
+                bundles=uuid_list,
+                token=prefix_iterator.token,
+                page_count=len(uuid_list))
+
+class Living():
+    """
+    This utility class takes advantage of lexicographical ordering on object storage to list non-tombstoned bundles.
+    """
+    def __init__(self, paged_iter):
+        self.paged_iter = paged_iter
+        self._init_bundle_info()
+        self.start_after_key = None
+        self.token = None
+
+    def _init_bundle_info(self, fqid=None):
+        self.bundle_info = dict(contains_unversioned_tombstone=False, uuid=None, fqids=OrderedDict())
+        if fqid:
+            self.bundle_info['uuid'] = fqid.uuid
+            self.bundle_info['fqids'][fqid] = False
+
+    def _living_fqids_in_bundle_info(self):
+        if not self.bundle_info['contains_unversioned_tombstone']:
+            for fqid, is_dead in self.bundle_info['fqids'].items():
+                if not is_dead:
+                    yield fqid
+
+    def _keys(self):
+        for key, _ in self.paged_iter:
+            yield key
+            self.start_after_key = key
+            self.token = getattr(self.paged_iter, "token", None)
+
+    def __iter__(self):
+        for key in self._keys():
+            fqid = BundleFQID.from_key(key)
+            if fqid.uuid != self.bundle_info['uuid']:
+                for bundle_fqid in self._living_fqids_in_bundle_info():
+                    yield bundle_fqid
+                self._init_bundle_info(fqid)
+            else:
+                if not fqid.is_fully_qualified():
+                    self.bundle_info['contains_unversioned_tombstone'] = True
+                else:
+                    self.bundle_info['fqids'][fqid] = isinstance(fqid, BundleTombstoneID)
+
+        for bundle_fqid in self._living_fqids_in_bundle_info():
+            yield bundle_fqid
