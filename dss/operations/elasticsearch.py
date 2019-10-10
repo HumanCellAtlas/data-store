@@ -56,8 +56,9 @@ def index(argv: typing.List[str], args: argparse.Namespace):
             for key in handle.list(replica.bucket, pfx):
                 sqsm.send(json.dumps(dict(replica=args.replica, key=key)))
 
+    hex_chars = set(hexdigits.lower())
     with ThreadPoolExecutor(max_workers=10) as e:
-        futures = [e.submit(_forward_keys, f"bundles/{args.prefix}{c}") for c in hexdigits.lower()]
+        futures = [e.submit(_forward_keys, f"bundles/{args.prefix}{c}") for c in hex_chars]
         for f in as_completed(futures):
             f.result()
 
