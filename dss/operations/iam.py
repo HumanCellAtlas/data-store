@@ -18,6 +18,25 @@ from dss.operations import dispatch
 from dss.util.aws.clients import iam as iam_client  # type: ignore
 
 
+"""
+This module is quite long, so here is a table of contents and summary.
+
+Table of Contents:
+- fusillade utility functions
+- functions to dump/list all policies
+    - cloud providers have separate, parallel sets of methods
+    - all cloud providers have an extract method to extract policy information
+    - all cloud providers have wrapper methods to list/dump the information
+- functions to dump/list policies grouped by asset type
+    - an asset is a user, a group, or a role
+    - these functions have a different logical structure from the above
+    - aws has a single function to list policies grouped by asset
+    - fusillade has separate functions for each type of asset: users, groups, and roles
+- dss-ops command line utility functionality
+    - list action
+"""
+
+
 logger = logging.getLogger(__name__)
 
 
