@@ -9,12 +9,13 @@ import logging
 import functools
 from concurrent.futures import ThreadPoolExecutor, as_completed
 from threading import Lock
+from string import hexdigits
 
 import boto3
 from elasticsearch_dsl import Search
 from dcplib.aws.sqs import SQSMessenger, get_queue_url
 
-from dss import Replica
+from dss import Config, Replica
 from dss.operations import dispatch
 from dss.api.subscriptions_v1 import _delete_subscription
 from dss.index.es import ElasticsearchClient
@@ -31,12 +32,33 @@ elasticsearch = dispatch.target("elasticsearch", help=__doc__)
                                  "--keys": dict(default=None, nargs="*", help="keys to index.")})
 def index(argv: typing.List[str], args: argparse.Namespace):
     """
-    Initiate the indexer lambda for `keys`
+    Queue an SQS message to the indexer lambda for each key in `keys`.
     """
     index_queue_url = get_queue_url("dss-index-operation-" + os.environ['DSS_DEPLOYMENT_STAGE'])
     with SQSMessenger(index_queue_url) as sqsm:
         for key in args.keys:
             sqsm.send(json.dumps(dict(replica=args.replica, key=key)))
+
+@elasticsearch.action("index-prefix",
+                      arguments={"--replica": dict(choices=[r.name for r in Replica], required=True),
+                                 "--prefix": dict(default=None, help="UUID prefix to index.")})
+def index_prefix(argv: typing.List[str], args: argparse.Namespace):
+    """
+    Queue an SQS message to the indexer lambda for each key in `bundles/{prefix}`.
+    """
+    replica = Replica[args.replica]
+    handle = Config.get_blobstore_handle(replica)
+    index_queue_url = get_queue_url("dss-index-operation-" + os.environ['DSS_DEPLOYMENT_STAGE'])
+
+    def _forward_keys(pfx):
+        with SQSMessenger(index_queue_url) as sqsm:
+            for key in handle.list(replica.bucket, pfx):
+                sqsm.send(json.dumps(dict(replica=args.replica, key=key)))
+
+    with ThreadPoolExecutor(max_workers=10) as e:
+        futures = [e.submit(_forward_keys, f"bundles/{args.prefix}{c}") for c in hexdigits.lower()]
+        for f in as_completed(futures):
+            f.result()
 
 @elasticsearch.action("list-subscriptions", arguments={"--owner": dict(type=str)})
 def list_subscriptions(argv: typing.List[str], args: argparse.Namespace):
