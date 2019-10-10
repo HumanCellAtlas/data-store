@@ -63,13 +63,14 @@ def launch_from_operator_queue(event, context):
         try:
             replica = Replica[message['replica']]
             key = message['key']
-            _handle_event(replica, key, context)
+            send_notifications = message.get("send_notifications", False)
+            _handle_event(replica, key, context, send_notifications)
         except (KeyError, AssertionError):
             logger.error("Inoperable operation index message %s", message)
             continue
 
 
-def _handle_event(replica, key, context):
+def _handle_event(replica, key, context, send_notifications=True):
     executor = ThreadPoolExecutor(len(DEFAULT_BACKENDS))
     # We can't use executor as context manager because we don't want the shutdown to block
     try:
@@ -78,6 +79,9 @@ def _handle_event(replica, key, context):
         backend = CompositeIndexBackend(executor, remaining_time, DEFAULT_BACKENDS)
         indexer_cls = Indexer.for_replica(replica)
         indexer = indexer_cls(backend, remaining_time)
-        indexer.process_new_indexable_object(key)
+        if send_notifications:
+            indexer.process_new_indexable_object(key)
+        else:
+            indexer.index_object(key)
     finally:
         executor.shutdown(False)
