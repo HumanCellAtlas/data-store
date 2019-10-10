@@ -54,8 +54,7 @@ def index(argv: typing.List[str], args: argparse.Namespace):
     def _forward_keys(pfx):
         with SQSMessenger(index_queue_url) as sqsm:
             for key in handle.list(replica.bucket, pfx):
-                # sqsm.send(json.dumps(dict(replica=args.replica, key=key)))
-                print(key)
+                sqsm.send(json.dumps(dict(replica=args.replica, key=key)))
 
     with ThreadPoolExecutor(max_workers=10) as e:
         futures = [e.submit(_forward_keys, f"bundles/{args.prefix}{c}") for c in hexdigits.lower()]
