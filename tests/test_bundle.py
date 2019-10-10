@@ -1018,9 +1018,7 @@ class TestBundleApi(unittest.TestCase, TestAuthMixin, DSSAssertMixin, DSSUploadM
             bucket = Config.get_s3_bucket()
             key_list = MockStorageHandler.bundle_list
             for key in key_list:
-                tf = tempfile.TemporaryFile()
-                tf.write(os.urandom(8))
-                s3.upload_fileobj(Fileobj=tf, Bucket=bucket, Key=key)
+                s3.upload_fileobj(Fileobj=io.BytesIO(b""), Bucket=bucket, Key=key)
             for tests in MockStorageHandler.test_per_page:
                 test_size = tests['size']
                 last_good_bundle = tests['last_good_bundle']

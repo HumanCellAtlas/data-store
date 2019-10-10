@@ -1496,7 +1496,7 @@ paths:
           required: false
           type: integer
           format: int32
-          minimum: 2
+          minimum: 10
           maximum: 500
           default: 100
         - name: search_after
