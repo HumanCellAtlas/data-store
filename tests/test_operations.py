@@ -298,6 +298,8 @@ class TestOperations(unittest.TestCase):
                     def paginate(self, *args, **kwargs):
                         # Return a mock page from the mock paginator
                         return [{"Policies": [{"PolicyName": "fake-policy"}]}]
+
+                # Plain call to list_policies
                 iam_client.get_paginator.return_value = MockPaginator()
                 with CaptureStdout() as output:
                     iam.list_policies([], argparse.Namespace(
@@ -306,8 +308,27 @@ class TestOperations(unittest.TestCase):
                         output=None,
                         force=False,
                         include_managed=False,
-                        exclude_headers=True,
+                        exclude_headers=False,
                     ))
+                self.assertIn("fake-policy", output)
+
+                # Check write to output file
+                temp_prefix = "dss-test-operations-iam-aws-list-temp-output"
+                f, fname = tempfile.mkstemp(prefix=temp_prefix)
+                iam_client.get_paginator.return_value = MockPaginator()
+                iam.list_policies(
+                    [],
+                    argparse.Namespace(
+                        cloud_provider="aws",
+                        group_by=None,
+                        output=fname,
+                        force=True,
+                        include_managed=False,
+                        exclude_headers=False,
+                    ),
+                )
+                with open(fname, "r") as f:
+                    output = f.read()
                 self.assertIn("fake-policy", output)
 
         with self.subTest("List AWS policies grouped by user"):
@@ -343,13 +364,14 @@ class TestOperations(unittest.TestCase):
                                     "AttachedManagedPolicies": [],
                                     "UserPolicyList": [
                                         {
-                                            "PolicyName": "fake-policy-attached-to-user-1",
+                                            "PolicyName": "fake-policy-attached-to-fake-user-1",
                                             "PolicyDocument": fake_policy_document,
                                         }
                                     ]
                                 }
                             ]
                         }
+                # Plain call to list_policies
                 iam_client.get_paginator.return_value = MockPaginator_UserPolicies()
                 with CaptureStdout() as output:
                     iam.list_policies([], argparse.Namespace(
@@ -360,7 +382,26 @@ class TestOperations(unittest.TestCase):
                         include_managed=False,
                         exclude_headers=True,
                     ))
-                self.assertIn(IAMSEPARATOR.join(["fake-user-1", "fake-policy-attached-to-user-1"]), output)
+                self.assertIn(IAMSEPARATOR.join(["fake-user-1", "fake-policy-attached-to-fake-user-1"]), output)
+
+                # Check write to output file
+                temp_prefix = "dss-test-operations-iam-aws-list-users-temp-output"
+                f, fname = tempfile.mkstemp(prefix=temp_prefix)
+                iam_client.get_paginator.return_value = MockPaginator()
+                iam.list_policies(
+                    [],
+                    argparse.Namespace(
+                        cloud_provider="aws",
+                        group_by="users",
+                        output=fname,
+                        force=True,
+                        include_managed=False,
+                        exclude_headers=False,
+                    ),
+                )
+                with open(fname, "r") as f:
+                    output = f.read()
+                self.assertIn(IAMSEPARATOR.join(["fake-user-1", "fake-policy-attached-to-fake-user-1"]), output)
 
     def test_iam_fus(self):
 
@@ -454,7 +495,7 @@ class TestOperations(unittest.TestCase):
                 self.assertIn("fake-role-2-policy", output)
 
                 # Check write to output file
-                temp_prefix = "dss-test-operations-iam-list-temp-output"
+                temp_prefix = "dss-test-operations-iam-fus-list-temp-output"
                 f, fname = tempfile.mkstemp(prefix=temp_prefix)
                 _repatch_fus_client(fus_client)
                 iam.list_policies(
@@ -518,7 +559,7 @@ class TestOperations(unittest.TestCase):
                 self.assertIn(IAMSEPARATOR.join(["another-fake-user@baz.wuz", "fake-role-2-policy"]), output)
 
                 # Check write to output file
-                temp_prefix = "dss-test-operations-iam-list-users-temp-output"
+                temp_prefix = "dss-test-operations-iam-fus-list-users-temp-output"
                 f, fname = tempfile.mkstemp(prefix=temp_prefix)
                 _repatch_fus_client(fus_client)
                 iam.list_policies(
@@ -608,7 +649,7 @@ class TestOperations(unittest.TestCase):
                 self.assertIn(IAMSEPARATOR.join(["fake-group-2", "fake-role-2-policy"]), output)
 
                 # Check write to output file
-                temp_prefix = "dss-test-operations-iam-list-groups-temp-output"
+                temp_prefix = "dss-test-operations-iam-fus-list-groups-temp-output"
                 f, fname = tempfile.mkstemp(prefix=temp_prefix)
                 _repatch_fus_client_groups(fus_client)
                 iam.list_policies(
