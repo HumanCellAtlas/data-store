@@ -286,6 +286,23 @@ class TestOperations(unittest.TestCase):
             gs_blob.upload_from_file(fh, content_type="application/octet-stream")
 
     def test_iam_aws(self):
+
+        def _get_fake_policy_document():
+            """Utility function to get a fake policy document for mocking the AWS API"""
+            return {
+                "Version": "2000-01-01",
+                "Statement": [
+                    {
+                        "Effect": "Allow",
+                        "Action": ["fakeservice:*"],
+                        "Resource": [
+                            "arn:aws:fakeservice:us-east-1:861229788715:foo:bar*",
+                            "arn:aws:fakeservice:us-east-1:861229788715:foo:bar/baz*",
+                        ],
+                    }
+                ],
+            }
+
         with self.subTest("List AWS policies"):
             with mock.patch("dss.operations.iam.iam_client") as iam_client:
                 # calling list_policies() will call list_aws_policies()
@@ -341,19 +358,6 @@ class TestOperations(unittest.TestCase):
                 class MockPaginator_UserPolicies(object):
                     def paginate(self, *args, **kwargs):
                         # Return a mock page from the mock paginator
-                        fake_policy_document = {
-                            "Version": "2000-01-01",
-                            "Statement": [{
-                                "Effect": "Allow",
-                                "Action": [
-                                    "fakeservice:*"
-                                ],
-                                "Resource": [
-                                    "arn:aws:fakeservice:us-east-1:861229788715:foo:bar*",
-                                    "arn:aws:fakeservice:us-east-1:861229788715:foo:bar/baz*"
-                                ]
-                            }]
-                        }
                         yield {
                             "GroupDetailList": [],
                             "RoleDetailList": [],
@@ -365,7 +369,7 @@ class TestOperations(unittest.TestCase):
                                     "UserPolicyList": [
                                         {
                                             "PolicyName": "fake-policy-attached-to-fake-user-1",
-                                            "PolicyDocument": fake_policy_document,
+                                            "PolicyDocument": _get_fake_policy_document(),
                                         }
                                     ]
                                 }
@@ -387,7 +391,7 @@ class TestOperations(unittest.TestCase):
                 # Check write to output file
                 temp_prefix = "dss-test-operations-iam-aws-list-users-temp-output"
                 f, fname = tempfile.mkstemp(prefix=temp_prefix)
-                iam_client.get_paginator.return_value = MockPaginator()
+                iam_client.get_paginator.return_value = MockPaginator_UserPolicies()
                 iam.list_policies(
                     [],
                     argparse.Namespace(
@@ -401,7 +405,9 @@ class TestOperations(unittest.TestCase):
                 )
                 with open(fname, "r") as f:
                     output = f.read()
-                self.assertIn(IAMSEPARATOR.join(["fake-user-1", "fake-policy-attached-to-fake-user-1"]), output)
+                self.assertIn(
+                    IAMSEPARATOR.join(["fake-user-1", "fake-policy-attached-to-fake-user-1"]), output
+                )
 
     def test_iam_fus(self):
 
