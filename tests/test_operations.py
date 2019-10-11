@@ -286,7 +286,81 @@ class TestOperations(unittest.TestCase):
             gs_blob.upload_from_file(fh, content_type="application/octet-stream")
 
     def test_iam_aws(self):
-        pass
+        with self.subTest("List AWS policies"):
+            with mock.patch("dss.operations.iam.iam_client") as iam_client:
+                # calling list_policies() will call list_aws_policies()
+                # which will call extract_aws_policies()
+                # which will call get_paginator("list_policies")
+                # which will call paginate() to ask for each page,
+                # and ask for ["Policies"] for the page items,
+                # and ["PolicyName"] for the items
+                class MockPaginator(object):
+                    def paginate(self, *args, **kwargs):
+                        # Return a mock page from the mock paginator
+                        return [{"Policies": [{"PolicyName": "fake-policy"}]}]
+                iam_client.get_paginator.return_value = MockPaginator()
+                with CaptureStdout() as output:
+                    iam.list_policies([], argparse.Namespace(
+                        cloud_provider="aws",
+                        group_by=None,
+                        output=None,
+                        force=False,
+                        include_managed=False,
+                        exclude_headers=True,
+                    ))
+                self.assertIn("fake-policy", output)
+
+        with self.subTest("List AWS policies grouped by user"):
+            with mock.patch("dss.operations.iam.iam_client") as iam_client:
+                # this will call list_aws_user_policies()
+                # which will call list_aws_policies_grouped()
+                # which will call get_paginator("get_account_authorization_details")
+                # which will call paginate() to ask for each page,
+                # which looks in different places depending on asset type.
+                class MockPaginator_UserPolicies(object):
+                    def paginate(self, *args, **kwargs):
+                        # Return a mock page from the mock paginator
+                        fake_policy_document = {
+                            "Version": "2000-01-01",
+                            "Statement": [{
+                                "Effect": "Allow",
+                                "Action": [
+                                    "fakeservice:*"
+                                ],
+                                "Resource": [
+                                    "arn:aws:fakeservice:us-east-1:861229788715:foo:bar*",
+                                    "arn:aws:fakeservice:us-east-1:861229788715:foo:bar/baz*"
+                                ]
+                            }]
+                        }
+                        yield {
+                            "GroupDetailList": [],
+                            "RoleDetailList": [],
+                            "UserDetailList": [
+                                {
+                                    "UserName": "fake-user-1",
+                                    "UserId": "AAAAAAAAAAAAAAAAAAAAA",
+                                    "AttachedManagedPolicies": [],
+                                    "UserPolicyList": [
+                                        {
+                                            "PolicyName": "fake-policy-attached-to-user-1",
+                                            "PolicyDocument": fake_policy_document,
+                                        }
+                                    ]
+                                }
+                            ]
+                        }
+                iam_client.get_paginator.return_value = MockPaginator_UserPolicies()
+                with CaptureStdout() as output:
+                    iam.list_policies([], argparse.Namespace(
+                        cloud_provider="aws",
+                        group_by="users",
+                        output=None,
+                        force=False,
+                        include_managed=False,
+                        exclude_headers=True,
+                    ))
+                self.assertIn(IAMSEPARATOR.join(["fake-user-1", "fake-policy-attached-to-user-1"]), output)
 
     def test_iam_fus(self):
 
@@ -701,7 +775,7 @@ class TestOperations(unittest.TestCase):
                 # Listing secrets requires creating a paginator first,
                 # so mock what the paginator returns
                 class MockPaginator(object):
-                    def paginate(self):
+                    def paginate(self, *args, **kwargs):
                         # Return a mock page from the mock paginator
                         return [{"SecretList": [{"Name": testvar_name}, {"Name": unusedvar_name}]}]
                 sm.get_paginator.return_value = MockPaginator()
