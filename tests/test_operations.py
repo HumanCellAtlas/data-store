@@ -286,7 +286,271 @@ class TestOperations(unittest.TestCase):
             gs_blob.upload_from_file(fh, content_type="application/octet-stream")
 
     def test_iam_aws(self):
-        pass
+
+        def _get_fake_policy_document():
+            """Utility function to get a fake policy document for mocking the AWS API"""
+            return {
+                "Version": "2000-01-01",
+                "Statement": [
+                    {
+                        "Effect": "Allow",
+                        "Action": ["fakeservice:*"],
+                        "Resource": [
+                            "arn:aws:fakeservice:us-east-1:861229788715:foo:bar*",
+                            "arn:aws:fakeservice:us-east-1:861229788715:foo:bar/baz*",
+                        ],
+                    }
+                ],
+            }
+
+        with self.subTest("List AWS policies"):
+            with mock.patch("dss.operations.iam.iam_client") as iam_client:
+                # calling list_policies() will call list_aws_policies()
+                # which will call extract_aws_policies()
+                # which will call get_paginator("list_policies")
+                # which will call paginate() to ask for each page,
+                # and ask for ["Policies"] for the page items,
+                # and ["PolicyName"] for the items
+                class MockPaginator(object):
+                    def paginate(self, *args, **kwargs):
+                        # Return a mock page from the mock paginator
+                        return [{"Policies": [{"PolicyName": "fake-policy"}]}]
+
+                # Plain call to list_policies
+                iam_client.get_paginator.return_value = MockPaginator()
+                with CaptureStdout() as output:
+                    iam.list_policies([], argparse.Namespace(
+                        cloud_provider="aws",
+                        group_by=None,
+                        output=None,
+                        force=False,
+                        include_managed=False,
+                        exclude_headers=False,
+                    ))
+                self.assertIn("fake-policy", output)
+
+                # Check write to output file
+                temp_prefix = "dss-test-operations-iam-aws-list-temp-output"
+                f, fname = tempfile.mkstemp(prefix=temp_prefix)
+                iam_client.get_paginator.return_value = MockPaginator()
+                iam.list_policies(
+                    [],
+                    argparse.Namespace(
+                        cloud_provider="aws",
+                        group_by=None,
+                        output=fname,
+                        force=True,
+                        include_managed=False,
+                        exclude_headers=False,
+                    ),
+                )
+                with open(fname, "r") as f:
+                    output = f.read()
+                self.assertIn("fake-policy", output)
+
+        # Define utility functions and classes to help test the --group-by flags
+        def _get_detail_lists(asset_type):
+            """Utility function to return a fake user detail list for mocking AWS API"""
+            if asset_type not in ['users', 'groups', 'roles']:
+                raise RuntimeError("Error: invalid asset type given, cannot mock AWS API")
+
+            user_detail_list = [
+                {
+                    "UserName": "fake-user-1",
+                    "UserId": random_alphanumeric_string(N=21).upper(),
+                    "AttachedManagedPolicies": [],
+                    "UserPolicyList": [
+                        {
+                            "PolicyName": "fake-policy-attached-to-fake-user-1",
+                            "PolicyDocument": _get_fake_policy_document(),
+                        }
+                    ],
+                }
+            ]
+
+            group_detail_list = [
+                {
+                    "GroupName": "fake-group-1",
+                    "GroupId": random_alphanumeric_string(N=21).upper(),
+                    "AttachedManagedPolicies": [],
+                    "GroupPolicyList": [
+                        {
+                            "PolicyName": "fake-policy-attached-to-fake-group-1",
+                            "PolicyDocument": _get_fake_policy_document(),
+                        }
+                    ],
+                }
+            ]
+
+            role_detail_list = [
+                {
+                    "RoleName": "fake-role-1",
+                    "RoleId": random_alphanumeric_string(N=21).upper(),
+                    "AttachedManagedPolicies": [],
+                    "RolePolicyList": [
+                        {
+                            "PolicyName": "fake-policy-attached-to-fake-role-1",
+                            "PolicyDocument": _get_fake_policy_document(),
+                        }
+                    ],
+                }
+            ]
+
+            return {
+                "GroupDetailList": group_detail_list if asset_type == "groups" else [],
+                "RoleDetailList": role_detail_list if asset_type == "roles" else [],
+                "UserDetailList": user_detail_list if asset_type == "users" else [],
+            }
+
+        class MockPaginator_UserPolicies(object):
+            def paginate(self, *args, **kwargs):
+                yield _get_detail_lists("users")
+
+        class MockPaginator_GroupPolicies(object):
+            def paginate(self, *args, **kwargs):
+                yield _get_detail_lists("groups")
+
+        class MockPaginator_RolePolicies(object):
+            def paginate(self, *args, **kwargs):
+                yield _get_detail_lists("roles")
+
+        with self.subTest("List AWS policies grouped by user"):
+            with mock.patch("dss.operations.iam.iam_client") as iam_client:
+                # this will call list_aws_user_policies()
+                # which will call list_aws_policies_grouped()
+                # which will call get_paginator("get_account_authorization_details")
+                # (this is what we mock)
+                # then it calls paginate() to ask for each page,
+                # which we mock in the mock classes above.
+                iam_client.get_paginator.return_value = MockPaginator_UserPolicies()
+
+                # Plain call to list_policies
+                with CaptureStdout() as output:
+                    iam.list_policies(
+                        [],
+                        argparse.Namespace(
+                            cloud_provider="aws",
+                            group_by="users",
+                            output=None,
+                            force=False,
+                            include_managed=False,
+                            exclude_headers=True,
+                        ),
+                    )
+                self.assertIn(IAMSEPARATOR.join(["fake-user-1", "fake-policy-attached-to-fake-user-1"]), output)
+
+                # Check write to output file
+                temp_prefix = "dss-test-operations-iam-aws-list-users-temp-output"
+                f, fname = tempfile.mkstemp(prefix=temp_prefix)
+                iam_client.get_paginator.return_value = MockPaginator_UserPolicies()
+                iam.list_policies(
+                    [],
+                    argparse.Namespace(
+                        cloud_provider="aws",
+                        group_by="users",
+                        output=fname,
+                        force=True,
+                        include_managed=False,
+                        exclude_headers=False,
+                    ),
+                )
+                with open(fname, "r") as f:
+                    output = f.read()
+                self.assertIn(
+                    IAMSEPARATOR.join(["fake-user-1", "fake-policy-attached-to-fake-user-1"]), output
+                )
+
+        with self.subTest("List AWS policies grouped by user"):
+            with mock.patch("dss.operations.iam.iam_client") as iam_client:
+                # calls list_aws_group_policies
+                # then list_aws_policies_grouped
+                # then get_paginator("get_account_authorization_details")
+                # (this is what we mock)
+                iam_client.get_paginator.return_value = MockPaginator_GroupPolicies()
+
+                # Plain call to list_policies
+                with CaptureStdout() as output:
+                    iam.list_policies(
+                        [],
+                        argparse.Namespace(
+                            cloud_provider="aws",
+                            group_by="groups",
+                            output=None,
+                            force=False,
+                            include_managed=False,
+                            exclude_headers=True,
+                        ),
+                    )
+                self.assertIn(
+                    IAMSEPARATOR.join(["fake-group-1", "fake-policy-attached-to-fake-group-1"]), output
+                )
+
+                # Check write to output file
+                temp_prefix = "dss-test-operations-iam-aws-list-groups-temp-output"
+                f, fname = tempfile.mkstemp(prefix=temp_prefix)
+                iam_client.get_paginator.return_value = MockPaginator_GroupPolicies()
+                iam.list_policies(
+                    [],
+                    argparse.Namespace(
+                        cloud_provider="aws",
+                        group_by="groups",
+                        output=fname,
+                        force=True,
+                        include_managed=False,
+                        exclude_headers=False,
+                    ),
+                )
+                with open(fname, "r") as f:
+                    output = f.read()
+                self.assertIn(
+                    IAMSEPARATOR.join(["fake-group-1", "fake-policy-attached-to-fake-group-1"]), output
+                )
+
+        with self.subTest("List AWS policies grouped by role"):
+            with mock.patch("dss.operations.iam.iam_client") as iam_client:
+                # calls list_aws_group_policies
+                # then list_aws_policies_grouped
+                # then get_paginator("get_account_authorization_details")
+                # (this is what we mock)
+                iam_client.get_paginator.return_value = MockPaginator_RolePolicies()
+
+                # Plain call to list_policies
+                with CaptureStdout() as output:
+                    iam.list_policies(
+                        [],
+                        argparse.Namespace(
+                            cloud_provider="aws",
+                            group_by="roles",
+                            output=None,
+                            force=False,
+                            include_managed=False,
+                            exclude_headers=True,
+                        ),
+                    )
+                self.assertIn(
+                    IAMSEPARATOR.join(["fake-role-1", "fake-policy-attached-to-fake-role-1"]), output
+                )
+
+                # Check write to output file
+                temp_prefix = "dss-test-operations-iam-aws-list-roles-temp-output"
+                f, fname = tempfile.mkstemp(prefix=temp_prefix)
+                iam_client.get_paginator.return_value = MockPaginator_RolePolicies()
+                iam.list_policies(
+                    [],
+                    argparse.Namespace(
+                        cloud_provider="aws",
+                        group_by="roles",
+                        output=fname,
+                        force=True,
+                        include_managed=False,
+                        exclude_headers=False,
+                    ),
+                )
+                with open(fname, "r") as f:
+                    output = f.read()
+                self.assertIn(
+                    IAMSEPARATOR.join(["fake-role-1", "fake-policy-attached-to-fake-role-1"]), output
+                )
 
     def test_iam_fus(self):
 
@@ -380,7 +644,7 @@ class TestOperations(unittest.TestCase):
                 self.assertIn("fake-role-2-policy", output)
 
                 # Check write to output file
-                temp_prefix = "dss-test-operations-iam-list-temp-output"
+                temp_prefix = "dss-test-operations-iam-fus-list-temp-output"
                 f, fname = tempfile.mkstemp(prefix=temp_prefix)
                 _repatch_fus_client(fus_client)
                 iam.list_policies(
@@ -444,7 +708,7 @@ class TestOperations(unittest.TestCase):
                 self.assertIn(IAMSEPARATOR.join(["another-fake-user@baz.wuz", "fake-role-2-policy"]), output)
 
                 # Check write to output file
-                temp_prefix = "dss-test-operations-iam-list-users-temp-output"
+                temp_prefix = "dss-test-operations-iam-fus-list-users-temp-output"
                 f, fname = tempfile.mkstemp(prefix=temp_prefix)
                 _repatch_fus_client(fus_client)
                 iam.list_policies(
@@ -534,7 +798,7 @@ class TestOperations(unittest.TestCase):
                 self.assertIn(IAMSEPARATOR.join(["fake-group-2", "fake-role-2-policy"]), output)
 
                 # Check write to output file
-                temp_prefix = "dss-test-operations-iam-list-groups-temp-output"
+                temp_prefix = "dss-test-operations-iam-fus-list-groups-temp-output"
                 f, fname = tempfile.mkstemp(prefix=temp_prefix)
                 _repatch_fus_client_groups(fus_client)
                 iam.list_policies(
@@ -701,7 +965,7 @@ class TestOperations(unittest.TestCase):
                 # Listing secrets requires creating a paginator first,
                 # so mock what the paginator returns
                 class MockPaginator(object):
-                    def paginate(self):
+                    def paginate(self, *args, **kwargs):
                         # Return a mock page from the mock paginator
                         return [{"SecretList": [{"Name": testvar_name}, {"Name": unusedvar_name}]}]
                 sm.get_paginator.return_value = MockPaginator()
