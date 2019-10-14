@@ -150,13 +150,15 @@ class BaseSmokeTest(unittest.TestCase):
         """ post-search using es, returns post-search response """
         return run_for_json(f'{self.venv_bin}hca dss post-search  --es-query {es_query} --replica {replica.name}')
 
-    def subscription_put_es(self, replica, es_query, url):
-        """ creates es subscription, return the response"""
-        return run_for_json([f'{self.venv_bin}hca', 'dss', 'put-subscription',
-                             '--callback-url', url,
-                             '--method', 'PUT',
-                             '--es-query', json.dumps(es_query),
-                             '--replica', replica.name])
+    def put_subscription(self, replica, subscription_type, query, url):
+
+        def subscription_put_es(replica, es_query, url):
+            """ creates es subscription, return the response"""
+            return run_for_json([f'{self.venv_bin}hca', 'dss', 'put-subscription',
+                                 '--callback-url', url,
+                                 '--method', 'PUT',
+                                 '--es-query', json.dumps(es_query),
+                                 '--replica', replica.name])
 
         def subscription_put_jmespath(replica, jmespath_query, url):
             return run_for_json([f'{self.venv_bin}hca', 'dss', 'put-subscription',
@@ -205,13 +207,6 @@ class BaseSmokeTest(unittest.TestCase):
         list_of_subscriptions = get_response['subscriptions']
         list_of_subscription_uuids = [x['uuid'] for x in list_of_subscriptions if x['uuid']]
         self.assertIn(requested_subscription, list_of_subscription_uuids)
-
-    def subscription_put_jmespath(self, replica, jmespath_query, url):
-        return run_for_json([f'{self.venv_bin}hca', 'dss', 'put-subscription',
-                             '--callback-url', url,
-                             '--method', 'PUT',
-                             '--jmespath_query', jmespath_query,
-                             '--replica', replica.name])
 
     def _test_subscription_stats(self, replica: str, uuid:str, stat:str):
         subscription = self.get_subscription(replica, 'jmespath', uuid)
