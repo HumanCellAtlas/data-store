@@ -208,7 +208,7 @@ class BaseSmokeTest(unittest.TestCase):
         list_of_subscription_uuids = [x['uuid'] for x in list_of_subscriptions if x['uuid']]
         self.assertIn(requested_subscription, list_of_subscription_uuids)
 
-    def _test_subscription_stats(self, replica: str, uuid:str, stat:str):
+    def _test_subscription_stats(self, replica: str, uuid: str, stat: str):
         subscription = self.get_subscription(replica, 'jmespath', uuid)
         self.assertGreater(subscription["stats"]["successful"], 0)
 
