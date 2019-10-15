@@ -102,7 +102,7 @@ def _build_bundle_metadata_document(replica: Replica, key: str) -> dict:
                     files[name].append(file_info)
 
         # TODO: Consider scaling parallelization with Lambda size
-        with ThreadPoolExecutor(max_workers=20) as e:
+        with ThreadPoolExecutor(max_workers=4) as e:
             e.map(_read_file, [file_metadata for file_metadata in manifest['files']
                                if file_metadata['content-type'].startswith("application/json")])
 
