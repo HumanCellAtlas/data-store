@@ -353,11 +353,36 @@ def list_policies(argv: typing.List[str], args: argparse.Namespace):
         if os.path.exists(args.output) and not args.force:
             raise RuntimeError(f"Error: cannot overwrite {args.output} without --force flag")
 
+    managed = args.include_managed
+    do_headers = not args.exclude_headers
+
     if args.cloud_provider == "aws":
-        pass
+
+        if args.group_by is None:
+            contents = list_aws_policies(iam_client, managed)
+        else:
+            if args.group_by == "users":
+                contents = list_aws_user_policies(iam_client, managed, do_headers)
+            elif args.group_by == "groups":
+                contents = list_aws_group_policies(iam_client, managed, do_headers)
+            elif args.group_by == "roles":
+                contents = list_aws_role_policies(iam_client, managed, do_headers)
+
+            # Join the tuples
+            contents = [IAMSEPARATOR.join(c) for c in contents]
+
     elif args.cloud_provider == "gcp":
         pass
     elif args.cloud_provider == "fusillade":
         pass
     else:
         raise RuntimeError(f"Error: IAM functionality not implemented for {args.cloud_provider}")
+
+    # Print list to output
+    if args.output:
+        stdout_ = sys.stdout
+        sys.stdout = open(args.output, "w")
+    for c in contents:
+        print(c)
+    if args.output:
+        sys.stdout = stdout_
