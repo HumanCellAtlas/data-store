@@ -303,11 +303,41 @@ def list_policies(argv: typing.List[str], args: argparse.Namespace):
         if os.path.exists(args.output) and not args.force:
             raise RuntimeError(f"Error: cannot overwrite {args.output} without --force flag")
 
+    managed = args.include_managed  # noqa
+    do_headers = not args.exclude_headers
+
     if args.cloud_provider == "aws":
         pass
     elif args.cloud_provider == "gcp":
         pass
     elif args.cloud_provider == "fusillade":
-        pass
+
+        stage = os.environ["DSS_DEPLOYMENT_STAGE"]
+        client = FusilladeClient(stage=stage)
+
+        if args.group_by is None:
+            # list policies
+            contents = list_fus_policies(client, do_headers)
+        else:
+            # list policies grouped by asset
+            if args.group_by == "users":
+                contents = list_fus_user_policies(client, do_headers)
+            elif args.group_by == "groups":
+                contents = list_fus_group_policies(client, do_headers)
+            elif args.group_by == "roles":
+                contents = list_fus_role_policies(client, do_headers)
+
+            # Join the tuples
+            contents = [IAMSEPARATOR.join(c) for c in contents]
+
     else:
         raise RuntimeError(f"Error: IAM functionality not implemented for {args.cloud_provider}")
+
+    # Print list to output
+    if args.output:
+        stdout_ = sys.stdout
+        sys.stdout = open(args.output, "w")
+    for c in contents:
+        print(c)
+    if args.output:
+        sys.stdout = stdout_
