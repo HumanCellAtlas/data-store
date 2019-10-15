@@ -166,22 +166,106 @@ def list_aws_policies_grouped(asset_type, client, managed: bool, do_headers: boo
     :param managed: (boolean) if true, include AWS-managed policies
     :returns: list of tuples of two strings in the form (asset_name, policy_name)
     """
-    pass
+    extracted_list = []
+
+    # Prepare to extract labels for JSON returned by API
+    def _make_aws_api_labels_dict_entry(*args) -> typing.Dict[str, str]:
+        """
+        Convenience function to unpack 4 values into a dictionary of labels, useful for processing
+        API results.
+
+        :params arg[0]: label of asset type
+        :params arg[1]: label of asset name
+        :params arg[2]: label of asset details
+        :params arg[3]: label of asset policy details
+        :returns: dictionary of organized labels
+        """
+        assert len(args) == 4, "Error: need 4 arguments!"
+        return dict(
+            extracted_list_label=args[0], name_label=args[1], detail_list_label=args[2], policy_list_label=args[3]
+        )
+
+    def _get_aws_api_labels_dict() -> typing.Dict[str, typing.Dict[str, str]]:
+        """Store the labels used to unwrap JSON results from the AWS API"""
+        labels = {
+            "user": _make_aws_api_labels_dict_entry("User", "UserName", "UserDetailList", "UserPolicyList"),
+            "group": _make_aws_api_labels_dict_entry("Group", "GroupName", "GroupDetailList", "GroupPolicyList"),
+            "role": _make_aws_api_labels_dict_entry("Role", "RoleName", "RoleDetailList", "RolePolicyList"),
+        }
+        return labels
+
+    # Extract labels needed
+    labels = _get_aws_api_labels_dict()
+    if asset_type not in labels:
+        raise RuntimeError(f"Error: asset type {asset_type} is not valid, try one of: {labels}")
+    extracted_list_label, filter_label, name_label, detail_list_label, policy_list_label = (
+        labels[asset_type]["extracted_list_label"],
+        labels[asset_type]["extracted_list_label"],
+        labels[asset_type]["name_label"],
+        labels[asset_type]["detail_list_label"],
+        labels[asset_type]["policy_list_label"],
+    )
+
+    # Get the response, using paging if necessary
+    response_detail_list: typing.List[typing.Any] = []
+    paginator = client.get_paginator("get_account_authorization_details")
+    for page in paginator.paginate(Filter=[filter_label]):
+        response_detail_list += page[detail_list_label]
+
+    # Inline vs managed policies:
+    # https://docs.aws.amazon.com/IAM/latest/UserGuide/access_policies_managed-vs-inline.html
+
+    # Order of enumeration:
+    # 1. inline policies
+    # 2. managed policies
+
+    for asset_detail in response_detail_list:
+        asset_name = asset_detail[name_label]
+
+        # 1. Inline policies
+        # Check if any policies are present
+        if policy_list_label in asset_detail:
+            for inline_policy in asset_detail[policy_list_label]:
+                policy_name = inline_policy["PolicyName"]
+
+                extracted_list.append((asset_name, policy_name))
+
+        # 2. Managed policies
+        # Check if any managed policies are present
+        if "AttachedManagedPolicies" in asset_detail:
+            # Listing of managed policies
+            for managed_policy in asset_detail["AttachedManagedPolicies"]:
+                policy_name = managed_policy["PolicyName"]
+                policy_arn = managed_policy["PolicyArn"]
+                arn_scope = policy_arn.split("::")[1].split(":")[0]
+
+                # Make sure this is a policy we want to include in our final returned results
+                if (managed and arn_scope == "aws") or (arn_scope != "aws"):
+                    extracted_list.append((asset_name, policy_name))
+
+    # Eliminate dupes
+    extracted_list = sorted(list(set(extracted_list)))
+
+    if do_headers:
+        # Add headers
+        extracted_list = [(extracted_list_label, "Policy")] + extracted_list
+
+    return extracted_list
 
 
 def list_aws_user_policies(*args, **kwargs):
     """Extract a list of policies that apply to each user"""
-    pass
+    return list_aws_policies_grouped("user", *args, **kwargs)
 
 
 def list_aws_group_policies(*args, **kwargs):
     """Extract a list of policies that apply to each group"""
-    pass
+    return list_aws_policies_grouped("group", *args, **kwargs)
 
 
 def list_aws_role_policies(*args, **kwargs):
     """Extract a list of policies that apply to each resource"""
-    pass
+    return list_aws_policies_grouped("role", *args, **kwargs)
 
 
 # ---
