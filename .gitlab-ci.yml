@@ -214,14 +214,14 @@ verify_sync_partial:on-schedule:
       - schedules
   before_script:
     - VERIFY_SECRET_NAME="${DSS_SECRETS_STORE}/${DSS_DEPLOYMENT_STAGE}/${DSS_VERIFY_SECRETS_NAME}"
-    - LAST_VERIFIED="$(python scripts/dss-ops.py secrets get --secret-names ${VERIFY_SECRET_NAME} --json | jq -r '.[]')"
+    - LAST_VERIFIED="$(python scripts/dss-ops.py secrets get ${VERIFY_SECRET_NAME})"
     - NEW_LAST_VERIFIED="$(python -c 'import datetime; from dss.util.version import datetime_to_version_format; \
                                       print(datetime_to_version_format(datetime.datetime.utcnow()))')"
   script:
     - python scripts/dss-ops.py sync verify-sync-all --source-replica aws --destination-replica gcp \
           --since "${LAST_VERIFIED}" | tee verify_log
   after_script:
-    - python scripts/dss-ops.py secrets set --secret-name "${VERIFY_SECRET_NAME}" --secret-value "${NEW_LAST_VERIFIED}"
+    - echo -n "${NEW_LAST_VERIFIED}" | python scripts/dss-ops.py secrets set "${VERIFY_SECRET_NAME}"
     - test "$(cat verify_log | wc -l)" -eq 0  # If any inconsistencies, fail pipeline
 
 verify_sync_full:on-schedule:
