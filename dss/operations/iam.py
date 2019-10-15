@@ -51,7 +51,70 @@ class FusilladeClient(object):
     Fusillade client.
     A simple wrapper around an authorization URL and a header.
     """
-    pass
+
+    AUTH_DEPLOYMENTS = {
+        "dev": "https://auth.dev.data.humancellatlas.org",
+        "integration": "https://auth.integration.data.humancellatlas.org",
+        "staging": "https://auth.staging.data.humancellatlas.org",
+        "testing": "https://auth.testing.data.humancellatlas.org",
+        "production": "https://auth.data.humancellatlas.org",
+    }
+
+    def __init__(self, stage=None):
+        if stage is None:
+            RuntimeError("You must provide a stage argument to FusilladeClient(stage)")
+        auth_url, headers = self.get_auth_url_headers(stage)
+        self.auth_url = auth_url
+        self.headers = headers
+
+    def get_auth_url_headers(self, stage):
+        """
+        Get authorization url and headers to allow Fusillade requests.
+        """
+        auth_url = self.AUTH_DEPLOYMENTS[stage]
+
+        secret = "deployer_service_account.json"
+        secret_id = "/".join(["dcp", "fusillade", stage, secret])
+        service_account = DCPServiceAccountManager.from_secrets_manager(
+            secret_id, "https://auth.data.humancellatlas.org/"
+        )
+        # Create the headers using the DCP service account manager
+        headers = {"Content-Type": "application/json"}
+        headers.update(**service_account.get_authorization_header())
+
+        # This info will be used to create a Fusillade client (a simple wrapper around these 2 strings)
+        return auth_url, headers
+
+    @lru_cache(maxsize=128)
+    def call_api(self, path, key):
+        auth_url = self.auth_url
+        headers = self.headers
+        resp = requests.get(f"{auth_url}{path}", headers=headers)
+        resp.raise_for_status()
+        return resp.json()[key]
+
+    @lru_cache(maxsize=128)
+    def paginate(self, path, key=None):
+        """
+        Pagination utility for Fusillade
+        """
+        auth_url = self.auth_url
+        headers = self.headers
+        resp = requests.get(f"{auth_url}{path}", headers=headers)
+        resp.raise_for_status()
+        items = []
+        while "Link" in resp.headers:
+            items.extend(resp.json()[key])
+            next_url = resp.headers["Link"].split(";")[0][1:-1]
+            resp = requests.get(next_url, headers=headers)
+            resp.raise_for_status()
+        else:
+            if key is None:
+                items.extend(resp.json())
+            else:
+                items.extend(resp.json()[key])
+        return items
+
 
 def get_fus_role_attached_policies(fus_client, action, role):
     """
