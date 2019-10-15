@@ -552,6 +552,40 @@ class TestOperations(unittest.TestCase):
                     IAMSEPARATOR.join(["fake-role-1", "fake-policy-attached-to-fake-role-1"]), output
                 )
 
+                # Make sure we can't overwrite without --force
+                with self.assertRaises(RuntimeError):
+                    iam.list_policies([], argparse.Namespace(
+                        cloud_provider="aws",
+                        group_by="another-invalid-choice",
+                        output=fname,
+                        force=False,
+                        include_managed=False,
+                        exclude_headers=False,
+                    ))
+
+        # Test error-handling and exceptions last
+        with self.subTest("Test exceptions and error-handling for AWS IAM functions in dss-ops"):
+
+            with self.assertRaises(RuntimeError):
+                iam.list_policies([], argparse.Namespace(
+                    cloud_provider="invalid-cloud-provider",
+                    group_by=None,
+                    output=None,
+                    force=False,
+                    include_managed=False,
+                    exclude_headers=False,
+                ))
+
+            with self.assertRaises(RuntimeError):
+                iam.list_policies([], argparse.Namespace(
+                    cloud_provider="aws",
+                    group_by="another-invalid-choice",
+                    output=None,
+                    force=False,
+                    include_managed=False,
+                    exclude_headers=False,
+                ))
+
     def test_iam_gcp(self):
         pass
 

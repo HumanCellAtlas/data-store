@@ -367,6 +367,8 @@ def list_policies(argv: typing.List[str], args: argparse.Namespace):
                 contents = list_aws_group_policies(iam_client, managed, do_headers)
             elif args.group_by == "roles":
                 contents = list_aws_role_policies(iam_client, managed, do_headers)
+            else:
+                raise RuntimeError(f"Invalid --group-by argument passed: {args.group_by}")
 
             # Join the tuples
             contents = [IAMSEPARATOR.join(c) for c in contents]
