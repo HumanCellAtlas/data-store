@@ -53,6 +53,7 @@ class FusilladeClient(object):
     """
     pass
 
+
 def get_fus_role_attached_policies(fus_client, action, role):
     """
     Get policies attached to a Fusillade role using /v1/role/{role} and requesting the policies field.
@@ -73,15 +74,44 @@ def extract_aws_policies(action: str, client, managed: bool):
     :returns: a list of items whose type depends on the action param
         (policy names if action is list, json documents if action is dump)
     """
-    pass
+    master_list = []  # holds main results
+
+    if managed:
+        paginator_scope = "All"
+    else:
+        paginator_scope = "Local"
+
+    paginator = client.get_paginator("list_policies")
+    for page in paginator.paginate(Scope=paginator_scope):
+        for policy in page["Policies"]:
+
+            if action == "list":
+                policy_name = policy["PolicyName"]
+                master_list.append(policy_name)
+            elif action == "dump":
+                # first save as strings
+                master_list.append(json.dumps(policy, sort_keys=True, default=str))
+
+    if action == "list":
+        # Sort names, remove duplicates
+        master_list = sorted(list(set(master_list)))
+    elif action == "dump":
+        # Convert to strings, remove dupes, convert to back dicts
+        master_list = list(set(master_list))
+        master_list = [json.loads(j) for j in master_list]
+
+    # also need to get all inline policies
+    return master_list
+
 
 def list_aws_policies(client, managed: bool):
     """Return a list of names of AWS policies"""
-    pass
+    return extract_aws_policies("list", client, managed)
+
 
 def dump_aws_policies(client, managed: bool):
     """Return a list of dictionaries containing AWS policy documents"""
-    pass
+    return extract_aws_policies("dump", client, managed)
 
 
 # ---
@@ -93,9 +123,11 @@ def extract_gcp_policies(action: str, client, managed: bool):
     """
     pass
 
+
 def list_gcp_policies(client, managed: bool):
     """Return a list of names of GCP policies"""
     pass
+
 
 def dump_gcp_policies(client, managed: bool):
     """Return a list of dictionaries containing GCP policy documents"""
@@ -111,9 +143,11 @@ def extract_fus_policies(action: str, fus_client, do_headers: bool = True):
     """
     pass
 
+
 def list_fus_policies(fus_client, do_headers) -> typing.List[str]:
     """Return a list of names of Fusillade policies"""
     pass
+
 
 def dump_fus_policies(fus_client, do_headers):
     """Return a list of dictionaries containing Fusillade policy documents"""
@@ -134,13 +168,16 @@ def list_aws_policies_grouped(asset_type, client, managed: bool, do_headers: boo
     """
     pass
 
+
 def list_aws_user_policies(*args, **kwargs):
     """Extract a list of policies that apply to each user"""
     pass
 
+
 def list_aws_group_policies(*args, **kwargs):
     """Extract a list of policies that apply to each group"""
     pass
+
 
 def list_aws_role_policies(*args, **kwargs):
     """Extract a list of policies that apply to each resource"""
@@ -156,13 +193,16 @@ def list_gcp_policies_grouped(asset_type, client, managed: bool, do_headers: boo
     """
     pass
 
+
 def list_gcp_user_policies(*args, **kwargs):
     """Extract a list of policies that apply to each user"""
     pass
 
+
 def list_gcp_group_policies(*args, **kwargs):
     """Extract a list of policies that apply to each group"""
     pass
+
 
 def list_gcp_role_policies(*args, **kwargs):
     """Extract a list of policies that apply to each resource"""
@@ -178,11 +218,13 @@ def list_fus_user_policies(fus_client, do_headers: bool = True):
     """
     pass
 
+
 def list_fus_group_policies(fus_client, do_headers: bool = True):
     """
     Call the Fusillade API to retrieve policies grouped by group.
     """
     pass
+
 
 def list_fus_role_policies(fus_client, do_headers: bool = True):
     """
@@ -218,9 +260,7 @@ iam = dispatch.target("iam", arguments={}, help=__doc__)
         "--include-managed": dict(
             action="store_true", help="Include policies provided and managed by the cloud provider"
         ),
-        "--exclude-headers": dict(
-            action="store_true", help="Exclude headers on the list being output"
-        )
+        "--exclude-headers": dict(action="store_true", help="Exclude headers on the list being output"),
     },
 )
 def list_policies(argv: typing.List[str], args: argparse.Namespace):
