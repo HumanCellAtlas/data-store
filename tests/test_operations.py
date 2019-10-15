@@ -27,8 +27,9 @@ sys.path.insert(0, pkg_root)  # noqa
 from tests.infra import testmode
 from dss.operations import DSSOperationsCommandDispatch
 from dss.operations.util import map_bucket_results
-from dss.operations import checkout, storage, sync, secrets, lambda_params
+from dss.operations import checkout, storage, sync, secrets, lambda_params, iam
 from dss.operations.lambda_params import get_deployed_lambdas, fix_ssm_variable_prefix
+from dss.operations.iam import IAMSEPARATOR
 from dss.logging import configure_test_logging
 from dss.config import BucketConfig, Config, Replica, override_bucket_config
 from dss.storage.hcablobstore import FileMetadata, compose_blob_key
@@ -291,7 +292,347 @@ class TestOperations(unittest.TestCase):
         pass
 
     def test_iam_fus(self):
-        pass
+
+        with self.subTest("Fusillade client"):
+            with mock.patch("dss.operations.iam.FusilladeClient") as fus_client:
+                pass
+
+        def _wrap_policy(policy_doc):
+            """Wrap a policy doc the way Fusillade stores/returns them"""
+            return {"IAMPolicy": policy_doc}
+
+        def _repatch_fus_client(fus_client):
+            """
+            Re-patch a mock Fusillade client with the proper responses for no --group-by flag
+            or for the --group-by users flag.
+            """
+            # When we call list_policies(), which calls list_fus_user_policies(),
+            # it calls the paginate() method to get a list of all users,
+            # then the paginate() method twice for each user (once for groups, once for roles),
+            users_response = ["fake-user@foo.bar", "another-fake-user@baz.wuz"]
+            groups_response = ["fake-group"]
+            roles_response = ["fake-role"]
+            groups_response = ["fake-group-2"]
+            roles_response = ["fake-role-2"]
+            fus_client().paginate = mock.MagicMock(
+                side_effect=[
+                    users_response,
+                    groups_response,
+                    roles_response,
+                    groups_response,
+                    roles_response,
+                ]
+            )
+
+            # Once we have called the paginate() methods,
+            # we call the call_api() method to get IAM policies attached to roles and groups
+            policy_doc_g1 = '{"Id": "fake-group-policy"}'
+            policy_doc_r1 = '{"Id": "fake-role-policy"}'
+            policy_doc_g2 = '{"Id": "fake-group-2-policy"}'
+            policy_doc_r2 = '{"Id": "fake-role-2-policy"}'
+            fus_client().call_api = mock.MagicMock(
+                side_effect=[
+                    _wrap_policy(policy_doc_g1),
+                    _wrap_policy(policy_doc_r1),
+                    _wrap_policy(policy_doc_g2),
+                    _wrap_policy(policy_doc_r2),
+                ]
+            )
+
+        with self.subTest("List Fusillade policies"):
+
+            with mock.patch("dss.operations.iam.FusilladeClient") as fus_client:
+                # Note: Need to call _repatch_fus_client() before each test
+
+                # Plain call to list_fus_policies
+                with CaptureStdout() as output:
+                    _repatch_fus_client(fus_client)
+                    iam.list_policies(
+                        [],
+                        argparse.Namespace(
+                            cloud_provider="fusillade",
+                            group_by=None,
+                            output=None,
+                            force=False,
+                            include_managed=False,
+                            exclude_headers=False,
+                        ),
+                    )
+                self.assertIn("fake-group-policy", output)
+                self.assertIn("fake-role-policy", output)
+                self.assertIn("fake-group-2-policy", output)
+                self.assertIn("fake-role-2-policy", output)
+
+                # Check exclude headers
+                with CaptureStdout() as output:
+                    _repatch_fus_client(fus_client)
+                    iam.list_policies(
+                        [],
+                        argparse.Namespace(
+                            cloud_provider="fusillade",
+                            group_by=None,
+                            output=None,
+                            force=False,
+                            include_managed=False,
+                            exclude_headers=True,
+                        ),
+                    )
+                self.assertIn("fake-group-policy", output)
+                self.assertIn("fake-role-policy", output)
+                self.assertIn("fake-group-2-policy", output)
+                self.assertIn("fake-role-2-policy", output)
+
+                # Check write to output file
+                temp_prefix = "dss-test-operations-iam-fus-list-temp-output"
+                f, fname = tempfile.mkstemp(prefix=temp_prefix)
+                _repatch_fus_client(fus_client)
+                iam.list_policies(
+                    [],
+                    argparse.Namespace(
+                        cloud_provider="fusillade",
+                        group_by=None,
+                        output=fname,
+                        force=True,
+                        include_managed=False,
+                        exclude_headers=False,
+                    ),
+                )
+                with open(fname, "r") as f:
+                    output = f.read()
+                self.assertIn("fake-group-policy", output)
+                self.assertIn("fake-role-policy", output)
+                self.assertIn("fake-group-2-policy", output)
+                self.assertIn("fake-role-2-policy", output)
+
+        with self.subTest("List Fusillade policies grouped by users"):
+
+            with mock.patch("dss.operations.iam.FusilladeClient") as fus_client:
+
+                # List fusillade policies grouped by user
+                with CaptureStdout() as output:
+                    _repatch_fus_client(fus_client)
+                    iam.list_policies(
+                        [],
+                        argparse.Namespace(
+                            cloud_provider="fusillade",
+                            group_by="users",
+                            output=None,
+                            force=False,
+                            include_managed=False,
+                            exclude_headers=False,
+                        ),
+                    )
+                self.assertIn(IAMSEPARATOR.join(["fake-user@foo.bar", "fake-group-policy"]), output)
+                self.assertIn(IAMSEPARATOR.join(["fake-user@foo.bar", "fake-role-policy"]), output)
+                self.assertIn(IAMSEPARATOR.join(["another-fake-user@baz.wuz", "fake-group-2-policy"]), output)
+                self.assertIn(IAMSEPARATOR.join(["another-fake-user@baz.wuz", "fake-role-2-policy"]), output)
+
+                # Check exclude headers
+                with CaptureStdout() as output:
+                    _repatch_fus_client(fus_client)
+                    iam.list_policies(
+                        [],
+                        argparse.Namespace(
+                            cloud_provider="fusillade",
+                            group_by="users",
+                            output=None,
+                            force=False,
+                            include_managed=False,
+                            exclude_headers=True,
+                        ),
+                    )
+                self.assertIn(IAMSEPARATOR.join(["fake-user@foo.bar", "fake-group-policy"]), output)
+                self.assertIn(IAMSEPARATOR.join(["fake-user@foo.bar", "fake-role-policy"]), output)
+                self.assertIn(IAMSEPARATOR.join(["another-fake-user@baz.wuz", "fake-group-2-policy"]), output)
+                self.assertIn(IAMSEPARATOR.join(["another-fake-user@baz.wuz", "fake-role-2-policy"]), output)
+
+                # Check write to output file
+                temp_prefix = "dss-test-operations-iam-fus-list-users-temp-output"
+                f, fname = tempfile.mkstemp(prefix=temp_prefix)
+                _repatch_fus_client(fus_client)
+                iam.list_policies(
+                    [],
+                    argparse.Namespace(
+                        cloud_provider="fusillade",
+                        group_by="users",
+                        output=fname,
+                        force=True,
+                        include_managed=False,
+                        exclude_headers=False,
+                    ),
+                )
+                with open(fname, "r") as f:
+                    output = f.read()
+                self.assertIn(IAMSEPARATOR.join(["fake-user@foo.bar", "fake-group-policy"]), output)
+                self.assertIn(IAMSEPARATOR.join(["fake-user@foo.bar", "fake-role-policy"]), output)
+                self.assertIn(IAMSEPARATOR.join(["another-fake-user@baz.wuz", "fake-group-2-policy"]), output)
+                self.assertIn(IAMSEPARATOR.join(["another-fake-user@baz.wuz", "fake-role-2-policy"]), output)
+
+        with self.subTest("List Fusillade policies grouped by groups"):
+
+            # We can't use _repatch_fus_client() to repatch,
+            # since grouping by groups makes different function calls
+            def _repatch_fus_client_groups(fus_client):
+                """Re-patch a mock Fusillade client with the proper responses for using the --group-by groups flag"""
+                # When we call list_policies(), which calls list_fus_group_policies(),
+                # it calls paginate() to get all groups,
+                # then calls paginate() to get roles for each group
+                groups_response = ["fake-group", "fake-group-2"]
+                roles_response1 = ["fake-role"]
+                roles_response2 = ["fake-role-2"]
+                fus_client().paginate = mock.MagicMock(
+                    side_effect=[
+                        groups_response,
+                        roles_response1,
+                        roles_response2
+                    ]
+                )
+
+                # For each role, list_fus_group_policies() calls get_fus_role_attached_policies(),
+                # which calls call_api() on each role and returns a corresponding policy document
+                # @chmreid TODO: should this be calling get policy on each group, too? (inline policies)
+                policy_doc_r1 = '{"Id": "fake-role-policy"}'
+                policy_doc_r2 = '{"Id": "fake-role-2-policy"}'
+                fus_client().call_api = mock.MagicMock(
+                    side_effect=[
+                        _wrap_policy(policy_doc_r1),
+                        _wrap_policy(policy_doc_r2),
+                    ]
+                )
+
+            with mock.patch("dss.operations.iam.FusilladeClient") as fus_client:
+
+                # List fusillade policies grouped by groups
+                with CaptureStdout() as output:
+                    _repatch_fus_client_groups(fus_client)
+                    iam.list_policies(
+                        [],
+                        argparse.Namespace(
+                            cloud_provider="fusillade",
+                            group_by="groups",
+                            output=None,
+                            force=False,
+                            include_managed=False,
+                            exclude_headers=False,
+                        ),
+                    )
+                self.assertIn(IAMSEPARATOR.join(["fake-group", "fake-role-policy"]), output)
+                self.assertIn(IAMSEPARATOR.join(["fake-group-2", "fake-role-2-policy"]), output)
+
+                # Check exclude headers
+                with CaptureStdout() as output:
+                    _repatch_fus_client_groups(fus_client)
+                    iam.list_policies(
+                        [],
+                        argparse.Namespace(
+                            cloud_provider="fusillade",
+                            group_by="groups",
+                            output=None,
+                            force=False,
+                            include_managed=False,
+                            exclude_headers=True,
+                        ),
+                    )
+                self.assertIn(IAMSEPARATOR.join(["fake-group", "fake-role-policy"]), output)
+                self.assertIn(IAMSEPARATOR.join(["fake-group-2", "fake-role-2-policy"]), output)
+
+                # Check write to output file
+                temp_prefix = "dss-test-operations-iam-fus-list-groups-temp-output"
+                f, fname = tempfile.mkstemp(prefix=temp_prefix)
+                _repatch_fus_client_groups(fus_client)
+                iam.list_policies(
+                    [],
+                    argparse.Namespace(
+                        cloud_provider="fusillade",
+                        group_by="groups",
+                        output=fname,
+                        force=True,
+                        include_managed=False,
+                        exclude_headers=False,
+                    ),
+                )
+                with open(fname, "r") as f:
+                    output = f.read()
+                self.assertIn(IAMSEPARATOR.join(["fake-group", "fake-role-policy"]), output)
+                self.assertIn(IAMSEPARATOR.join(["fake-group-2", "fake-role-2-policy"]), output)
+
+        with self.subTest("List Fusillade policies grouped by roles"):
+
+            # repatch the fusillade client for calling a list of policies grouped by roles
+            def _repatch_fus_client_roles(fus_client):
+                """Re-patch a mock Fusillade client with the proper responses for using the --group-by roles flag"""
+                # When we call list_policies, which calls list_fus_role_policies(),
+                # it calls paginate() to get the list of all roles,
+                roles_response = ["fake-role", "fake-role-2"]
+                fus_client().paginate = mock.MagicMock(side_effect=[roles_response])
+
+                # list_fus_role_policies then calls get_fus_role_attached_policies()
+                # to get a list of policies attached to the role,
+                # which calls call_api() for each role returned by the paginate command
+                policy_doc_r1 = '{"Id": "fake-role-policy"}'
+                policy_doc_r2 = '{"Id": "fake-role-2-policy"}'
+                fus_client().call_api = mock.MagicMock(
+                    side_effect=[
+                        _wrap_policy(policy_doc_r1),
+                        _wrap_policy(policy_doc_r2),
+                    ]
+                )
+
+            with mock.patch("dss.operations.iam.FusilladeClient") as fus_client:
+
+                # List fusillade policies grouped by roles
+                with CaptureStdout() as output:
+                    _repatch_fus_client_roles(fus_client)
+                    iam.list_policies(
+                        [],
+                        argparse.Namespace(
+                            cloud_provider="fusillade",
+                            group_by="roles",
+                            output=None,
+                            force=False,
+                            include_managed=False,
+                            exclude_headers=False,
+                        ),
+                    )
+                self.assertIn(IAMSEPARATOR.join(["fake-role", "fake-role-policy"]), output)
+                self.assertIn(IAMSEPARATOR.join(["fake-role-2", "fake-role-2-policy"]), output)
+
+                # Check exclude headers
+                with CaptureStdout() as output:
+                    _repatch_fus_client_roles(fus_client)
+                    iam.list_policies(
+                        [],
+                        argparse.Namespace(
+                            cloud_provider="fusillade",
+                            group_by="roles",
+                            output=None,
+                            force=False,
+                            include_managed=False,
+                            exclude_headers=True,
+                        ),
+                    )
+                self.assertIn(IAMSEPARATOR.join(["fake-role", "fake-role-policy"]), output)
+                self.assertIn(IAMSEPARATOR.join(["fake-role-2", "fake-role-2-policy"]), output)
+
+                # Check write to output file
+                temp_prefix = "dss-test-operations-iam-list-roles-temp-output"
+                f, fname = tempfile.mkstemp(prefix=temp_prefix)
+                _repatch_fus_client_roles(fus_client)
+                iam.list_policies(
+                    [],
+                    argparse.Namespace(
+                        cloud_provider="fusillade",
+                        group_by="roles",
+                        output=fname,
+                        force=True,
+                        include_managed=False,
+                        exclude_headers=False,
+                    ),
+                )
+                with open(fname, "r") as f:
+                    output = f.read()
+                self.assertIn(IAMSEPARATOR.join(["fake-role", "fake-role-policy"]), output)
+                self.assertIn(IAMSEPARATOR.join(["fake-role-2", "fake-role-2-policy"]), output)
 
     def test_secrets_crud(self):
         # CRUD (create read update delete) test procedure:
