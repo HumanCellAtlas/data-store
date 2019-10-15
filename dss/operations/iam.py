@@ -119,6 +119,12 @@ class FusilladeClient(object):
 def get_fus_role_attached_policies(fus_client, action, role):
     """
     Get policies attached to a Fusillade role using /v1/role/{role} and requesting the policies field.
+
+    :param fus_client: Fusillade API client
+    :param action: what to do with the policies (list or dump)
+        (list returns a list of names only, dump returns list of JSON policy documents)
+    :param role: get policies attached to this role
+    :returns: list containing the information requested
     """
     pass
 
@@ -165,6 +171,11 @@ def dump_gcp_policies(client, managed: bool):
 def extract_fus_policies(action: str, fus_client, do_headers: bool = True):
     """
     Call the Fusillade API to retrieve policies and perform an action with them.
+
+    :param action: what action to take (list, dump)
+    :param fus_client: the Fusillade client to use
+    :returns: a list of items whose type depends on the action param
+        (policy names if action is list, json documents if action is dump)
     """
     pass
 
@@ -227,18 +238,29 @@ def list_gcp_role_policies(*args, **kwargs):
 def list_fus_user_policies(fus_client, do_headers: bool = True):
     """
     Call the Fusillade API to retrieve policies grouped by user.
+
+    :param fus_client: the Fusillade API client
+    :returns: list of tuples of two strings in the form (user_name, policy_name)
     """
     pass
 
 def list_fus_group_policies(fus_client, do_headers: bool = True):
     """
     Call the Fusillade API to retrieve policies grouped by group.
+
+    :param fus_client: the Fusillade API client
+    :param do_headers: include column headers in the output list
+    :returns: list of tuples of two strings in the form (group_name, policy_name)
     """
     pass
 
 def list_fus_role_policies(fus_client, do_headers: bool = True):
     """
     Call the Fusillade API to retrieve policies grouped by role.
+
+    :param fus_client: the Fusillade API client
+    :param do_headers: include column headers in the output list
+    :returns: list of tuples of two strings in the form (role_name, policy_name)
     """
     pass
 
