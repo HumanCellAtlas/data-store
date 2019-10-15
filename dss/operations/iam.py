@@ -177,7 +177,58 @@ def extract_fus_policies(action: str, fus_client, do_headers: bool = True):
     :returns: a list of items whose type depends on the action param
         (policy names if action is list, json documents if action is dump)
     """
-    pass
+    master_list = []
+
+    users = list(fus_client.paginate("/v1/users", "users"))
+
+    # NOTE: This makes unnecessary duplicate API calls.
+    # It would be better to get list of groups/roles then mark ones attached to users.
+    for user in users:
+        # Are there any user inline policies?
+        # inline_policies = fus_client.call_api(f'/v1/user/{user}','policies')
+
+        # Next get managed policies - these are policies attached via roles or groups
+        membership = {
+            "group": list(fus_client.paginate(f"/v1/user/{user}/groups", "groups")),
+            "role": list(fus_client.paginate(f"/v1/user/{user}/roles", "roles")),
+        }
+        managed_policies = []
+        for asset_type in ["group", "role"]:
+            api_url = f"/v1/{asset_type}/"
+            # Now iterate over each group or role this user is part of, and enumerate policies
+            for asset in membership[asset_type]:
+                # @chmreid TODO: figure out this API call. If multiple policies attached, is string payload a list?
+                managed_policy = fus_client.call_api(api_url + asset, "policies")
+                try:
+                    iam_policy = managed_policy["IAMPolicy"]
+                except (KeyError, TypeError):
+                    pass
+                else:
+                    d = json.loads(iam_policy)
+                    if "Id" not in d:
+                        d["Id"] = ANONYMOUS_POLICY_NAME
+                    managed_policies.append(d)
+
+        if action == "list":
+            # Extract policy name
+            for policy in managed_policies:
+                master_list.append(policy["Id"])
+        elif action == "dump":
+            # Export policy json document
+            master_list.append(policy)
+
+    if action == "list":
+        # Sort and eliminate dupes
+        master_list = sorted(list(set(master_list)))
+        # Headers
+        if do_headers:
+            master_list = ["Policies:"] + master_list
+    elif action == "dump":
+        # Convert to strings, remove dupes, convert to back dicts
+        master_list = list(set(master_list))
+        master_list = [json.loads(j) for j in master_list]
+
+    return master_list
 
 def list_fus_policies(fus_client, do_headers) -> typing.List[str]:
     """Return a list of names of Fusillade policies"""
