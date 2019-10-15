@@ -3,7 +3,6 @@ import json
 import logging
 import threading
 import typing
-import logging
 from datetime import datetime
 from collections import defaultdict
 from concurrent.futures import ThreadPoolExecutor
