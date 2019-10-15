@@ -178,6 +178,7 @@ def notify(subscription: dict, metadata_document: dict, key: str) -> bool:
                        str(payload), response.status_code, str(subscription))
         return False
 
+
 def _format_sqs_message(replica: Replica, subscription: dict, event_type: str, key: str):
     return json.dumps({
         SubscriptionData.REPLICA: replica.name,
@@ -186,6 +187,7 @@ def _format_sqs_message(replica: Replica, subscription: dict, event_type: str, k
         'event_type': event_type,
         'key': key
     })
+
 
 @lru_cache()
 def _list_prefix(replica: Replica, prefix: str):

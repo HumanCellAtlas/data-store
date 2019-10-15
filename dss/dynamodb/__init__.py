@@ -99,7 +99,7 @@ def get_all_key_attributes(*, table: str, hash_key: str, sort_key: str) -> typin
     if item is None:
         raise DynamoDBItemNotFound(f'Query failed to fetch item from database: {query}')
     return_value = {}
-    for k, v in item.items():
+    for k, v in item.items():  # strips out ddb typing info
         return_value[k] = [*v.values()][0]
     return return_value
 

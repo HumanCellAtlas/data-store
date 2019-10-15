@@ -1,20 +1,22 @@
 import os
 import json
 import typing
-
-from enum import Enum
+import logging
 
 from dss.config import Replica
 from dss import dynamodb  # type: ignore
 
+logger = logging.getLogger(__name__)
 
-class SubscriptionStats(Enum):
+
+class SubscriptionStats:
     ATTEMPTS = 'attempts'
     SUCCESSFUL = 'successful'
     FAILED = 'failed'
+    STATUS_TYPES = [ATTEMPTS, SUCCESSFUL, FAILED]
 
 
-class SubscriptionData(Enum):
+class SubscriptionData:
     REPLICA = 'replica'
     OWNER = 'owner'
     UUID = 'uuid'
@@ -31,7 +33,11 @@ class SubscriptionData(Enum):
 subscription_db_table = f"dss-subscriptions-v2-{{}}-{os.environ['DSS_DEPLOYMENT_STAGE']}"
 
 
-def update_subscription_stats(doc: dict, status: SubscriptionStats):
+def update_subscription_stats(doc: dict, status: str):
+    try:
+        assert status in SubscriptionStats.STATUS_TYPES
+    except AssertionError:
+        logger.error(f" {status} is not in SubscriptionStats, unable to update {doc}")
     update_expression = f"ADD {SubscriptionStats.ATTEMPTS} :q, {status} :q"
     expression_attribute_value = {":q": {"N": "1"}}
     dynamodb.update_item(table=subscription_db_table.format(doc[SubscriptionData.REPLICA]),
@@ -57,7 +63,7 @@ def get_subscription(replica: Replica, owner: str, uuid: str):
         return None
     payload = json.loads(item['body'])
     stats = {}  # type: typing.Dict
-    for attribute_type in SubscriptionStats:
+    for attribute_type in SubscriptionStats.STATUS_TYPES:
         attribute_value = item.get(attribute_type, None)
         if attribute_value:
             stats[attribute_type] = attribute_value
