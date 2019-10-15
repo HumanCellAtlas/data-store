@@ -170,9 +170,11 @@ def extract_aws_policies(action: str, client, managed: bool):
     """
     pass
 
+
 def list_aws_policies(client, managed: bool):
     """Return a list of names of AWS policies"""
     pass
+
 
 def dump_aws_policies(client, managed: bool):
     """Return a list of dictionaries containing AWS policy documents"""
@@ -188,9 +190,11 @@ def extract_gcp_policies(action: str, client, managed: bool):
     """
     pass
 
+
 def list_gcp_policies(client, managed: bool):
     """Return a list of names of GCP policies"""
     pass
+
 
 def dump_gcp_policies(client, managed: bool):
     """Return a list of dictionaries containing GCP policy documents"""
@@ -262,9 +266,11 @@ def extract_fus_policies(action: str, fus_client, do_headers: bool = True):
 
     return master_list
 
+
 def list_fus_policies(fus_client, do_headers) -> typing.List[str]:
     """Return a list of names of Fusillade policies"""
     return extract_fus_policies("list", fus_client, do_headers)
+
 
 def dump_fus_policies(fus_client, do_headers):
     """Return a list of dictionaries containing Fusillade policy documents"""
@@ -280,13 +286,16 @@ def list_aws_policies_grouped(asset_type, client, managed: bool, do_headers: boo
     """
     pass
 
+
 def list_aws_user_policies(*args, **kwargs):
     """Extract a list of policies that apply to each user"""
     pass
 
+
 def list_aws_group_policies(*args, **kwargs):
     """Extract a list of policies that apply to each group"""
     pass
+
 
 def list_aws_role_policies(*args, **kwargs):
     """Extract a list of policies that apply to each resource"""
@@ -302,13 +311,16 @@ def list_gcp_policies_grouped(asset_type, client, managed: bool, do_headers: boo
     """
     pass
 
+
 def list_gcp_user_policies(*args, **kwargs):
     """Extract a list of policies that apply to each user"""
     pass
 
+
 def list_gcp_group_policies(*args, **kwargs):
     """Extract a list of policies that apply to each group"""
     pass
+
 
 def list_gcp_role_policies(*args, **kwargs):
     """Extract a list of policies that apply to each resource"""
@@ -325,7 +337,49 @@ def list_fus_user_policies(fus_client, do_headers: bool = True):
     :param fus_client: the Fusillade API client
     :returns: list of tuples of two strings in the form (user_name, policy_name)
     """
-    pass
+    users = list(fus_client.paginate("/v1/users", "users"))
+
+    result = []
+
+    # NOTE: This makes unnecessary duplicate API calls.
+    # It would be better to get list of groups/roles then mark ones attached to users.
+    for user in users:
+        # Are there any user inline policies?
+        # inline_policies = fus_client.call_api(f'/v1/user/{user}','policies')
+
+        # Next get managed policies - these are policies attached via roles or groups
+        membership = {
+            "group": list(fus_client.paginate(f"/v1/user/{user}/groups", "groups")),
+            "role": list(fus_client.paginate(f"/v1/user/{user}/roles", "roles")),
+        }
+        managed_policies = []
+        for asset_type in ["group", "role"]:
+            api_url = f"/v1/{asset_type}/"
+            for asset in membership[asset_type]:
+                # @chmreid TODO: figure out this API call. If multiple policies attached, is string payload a list?
+                managed_policy = fus_client.call_api(api_url + asset, "policies")
+                try:
+                    iam_policy = managed_policy["IAMPolicy"]
+                except (KeyError, TypeError):
+                    pass
+                else:
+                    d = json.loads(iam_policy)
+                    if "Id" not in d:
+                        d["Id"] = ANONYMOUS_POLICY_NAME
+                    managed_policies.append(d)
+
+        for policy in managed_policies:
+            result.append((user, policy["Id"]))
+
+    # Eliminate dupes
+    result = sorted(list(set(result)))
+
+    if do_headers:
+        # Add headers
+        result = [("User", "Policy")] + result
+
+    return result
+
 
 def list_fus_group_policies(fus_client, do_headers: bool = True):
     """
@@ -335,7 +389,31 @@ def list_fus_group_policies(fus_client, do_headers: bool = True):
     :param do_headers: include column headers in the output list
     :returns: list of tuples of two strings in the form (group_name, policy_name)
     """
-    pass
+    groups = list(fus_client.paginate("/v1/groups", "groups"))
+
+    result = []
+
+    for group in groups:
+        # First get inline policies directly attached
+        # @chmreid TODO: figure out the type/structure of this api call
+        # inline_policies = fus_client.call_api(f'/v1/group/{group}','policies')
+
+        # Next get managed policies (attached via roles)
+        roles_membership = list(fus_client.paginate(f"/v1/group/{group}/roles", "roles"))
+        for role in roles_membership:
+            attached_names = get_fus_role_attached_policies(fus_client, "list", role)
+            for attached_name in attached_names:
+                result.append((group, attached_name))
+
+    # Eliminate dupes
+    result = sorted(list(set(result)))
+
+    if do_headers:
+        # Add headers
+        result = [("Group", "Policy")] + result
+
+    return result
+
 
 def list_fus_role_policies(fus_client, do_headers: bool = True):
     """
@@ -345,7 +423,23 @@ def list_fus_role_policies(fus_client, do_headers: bool = True):
     :param do_headers: include column headers in the output list
     :returns: list of tuples of two strings in the form (role_name, policy_name)
     """
-    pass
+    roles = list(fus_client.paginate("/v1/roles", "roles"))
+
+    result = []
+
+    for role in roles:
+        attached_names = get_fus_role_attached_policies(fus_client, "list", role)
+        for attached_name in attached_names:
+            result.append((role, attached_name))
+
+    # Eliminate dupes
+    result = sorted(list(set(result)))
+
+    if do_headers:
+        # Add headers
+        result = [("Role", "Policy")] + result
+
+    return result
 
 
 # ---
@@ -375,9 +469,7 @@ iam = dispatch.target("iam", arguments={}, help=__doc__)
         "--include-managed": dict(
             action="store_true", help="Include policies provided and managed by the cloud provider"
         ),
-        "--exclude-headers": dict(
-            action="store_true", help="Exclude headers on the list being output"
-        )
+        "--exclude-headers": dict(action="store_true", help="Exclude headers on the list being output"),
     },
 )
 def list_policies(argv: typing.List[str], args: argparse.Namespace):
