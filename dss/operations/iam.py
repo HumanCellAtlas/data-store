@@ -66,6 +66,12 @@ def get_fus_role_attached_policies(fus_client, action, role):
 def extract_aws_policies(action: str, client, managed: bool):
     """
     Call the AWS IAM API to retrieve policies and perform an action with them.
+
+    :param action: what action to take with the IAM policies (list, dump)
+    :param client: the boto client to use
+    :param managed: (boolean) if true, include AWS-managed policies
+    :returns: a list of items whose type depends on the action param
+        (policy names if action is list, json documents if action is dump)
     """
     pass
 
@@ -120,6 +126,11 @@ def dump_fus_policies(fus_client, do_headers):
 def list_aws_policies_grouped(asset_type, client, managed: bool, do_headers: bool = True):
     """
     Call the AWS IAM API to retrieve policies grouped by asset and create a list of policy names.
+
+    :param asset_type: the type of asset to group policies by ("users", "groups", or "roles")
+    :param client: the boto client to use
+    :param managed: (boolean) if true, include AWS-managed policies
+    :returns: list of tuples of two strings in the form (asset_name, policy_name)
     """
     pass
 
