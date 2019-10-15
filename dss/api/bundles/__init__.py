@@ -13,6 +13,7 @@ from concurrent.futures import ThreadPoolExecutor, as_completed
 from dss import DSSException, dss_handler, DSSForbiddenException
 from dss.api.search import PerPageBounds
 from dss.config import Config, Replica
+from dss.storage import Tombstone
 from dss.storage.blobstore import idempotent_save, test_object_exists, ObjectTest
 from dss.storage.bundles import get_bundle_manifest, save_bundle_manifest, enumerate_available_bundles
 from dss.storage.checkout import CheckoutError, TokenError
@@ -266,10 +267,7 @@ def delete(uuid: str, replica: str, json_request_body: dict, version: str = None
     uuid = uuid.lower()
     tombstone_id = BundleTombstoneID(uuid=uuid, version=version)
     bundle_prefix = tombstone_id.to_key_prefix()
-    tombstone_object_data = _create_tombstone_data(
-        email=email,
-        reason=json_request_body.get('reason')
-    )
+    tombstone_object_data = Tombstone(email=email, reason=json_request_body.get('reason'))._asdict()
 
     handle = Config.get_blobstore_handle(Replica[replica])
     if not test_object_exists(handle, Replica[replica].bucket, bundle_prefix, test_type=ObjectTest.PREFIX):
@@ -363,12 +361,3 @@ def detect_filename_collisions(bundle_file_metadata):
                 f"Duplicate file name detected: {name}. This test fails on the first occurance. Please check bundle "
                 "layout to ensure no duplicated file names are present."
             )
-
-
-def _create_tombstone_data(email: str, reason: str, details: typing.Optional[dict] = {}) -> dict:
-    return {
-        'email': email,
-        'reason': reason,
-        'details': details,
-        'admin_deleted': True
-    }
