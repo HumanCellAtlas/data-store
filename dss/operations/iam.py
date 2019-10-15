@@ -118,7 +118,7 @@ class FusilladeClient(object):
 
 def get_fus_role_attached_policies(fus_client, action, role):
     """
-    Get policies attached to a Fusillade role using /v1/role/{role} and requesting the policies field.
+    Utility method to get policies attached to a Fusillade role using /v1/role/{role} and requesting the policies field.
 
     :param fus_client: Fusillade API client
     :param action: what to do with the policies (list or dump)
@@ -126,7 +126,39 @@ def get_fus_role_attached_policies(fus_client, action, role):
     :param role: get policies attached to this role
     :returns: list containing the information requested
     """
-    pass
+    # @chmreid TODO: figure out the type/structure of this api call.
+    # The API call returns a dictionary with one key and one (string) value (serialized json
+    # policy document). what if there are multiple policies - does the serialized json become
+    # a list? is it a list of strings?
+    result = []
+
+    inline_policies_strpayload = fus_client.call_api(f"/v1/role/{role}", "policies")
+    try:
+        inline_policies = json.loads(inline_policies_strpayload["IAMPolicy"])
+    except (KeyError, TypeError):
+        pass
+    else:
+        if isinstance(inline_policies, dict):
+            if "Id" not in inline_policies:
+                inline_policies["Id"] = ANONYMOUS_POLICY_NAME
+            if action == "list":
+                result.append(inline_policies["Id"])
+            elif action == "dump":
+                result.append(inline_policies)
+
+        elif isinstance(inline_policies, list):
+            for ipolicy in inline_policies:
+                if "Id" not in ipolicy:
+                    ipolicy["Id"] = ANONYMOUS_POLICY_NAME
+                if action == "list":
+                    result.append(ipolicy["Id"])
+                elif action == "dump":
+                    result.append(ipolicy)
+
+        else:
+            raise RuntimeError(f"Error: could not interpret return value from API /v1/role/{role}")
+
+    return result
 
 
 # ---
@@ -232,11 +264,11 @@ def extract_fus_policies(action: str, fus_client, do_headers: bool = True):
 
 def list_fus_policies(fus_client, do_headers) -> typing.List[str]:
     """Return a list of names of Fusillade policies"""
-    pass
+    return extract_fus_policies("list", fus_client, do_headers)
 
 def dump_fus_policies(fus_client, do_headers):
     """Return a list of dictionaries containing Fusillade policy documents"""
-    pass
+    return extract_fus_policies("dump", fus_client, do_headers)
 
 
 # ---
