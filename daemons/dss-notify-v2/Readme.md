@@ -28,6 +28,8 @@ Event handlers in the dss-notify-v2 daemon use utility functions in
 
 Bundle creation notifications have the format
 
+FIXME: Don't use `{}` for interpolation ins JSON. Braces are used for dictionaries in JSON and to overload them with interpolation is rather confusing.
+
 ```
 {
   'dss_api': {dss_api_url},
@@ -78,6 +80,12 @@ includes the bundle manifest describe in the [DSS OpenAPI specifications](../../
 accommodates the possibility of multiple files sharing a name.
 
 The bundle metadata document format for a new bundle or version is is
+
+FIXME: You have to document what the manifest looks like. Just saying `{bundle_manifest}` is insufficient.
+
+FIXME: `{file_name_1}` is extremely confusing. For one, it suggests that the keys in that dictionary have numeric suffixes which they don't. In fact there is special code in place that removes those. It also doesn't mention that the file undergoes this transformation: https://github.com/HumanCellAtlas/data-store/blob/23d38f7ded20f0581ee822cecaeb0a69006093a2/dss/events/__init__.py#L115
+
+These inaccuracies are extremely annoying. I have to scrape this stuff together from the source code and there is no way to test a JMESPath query.
 
 ```
 {
@@ -148,7 +156,7 @@ For the bundle metadata document
 
 ```
 {
-  'manifest': [
+  "manifest": { "version": …, "files": [
     {
       "name": "cell_suspension.json",
       "uuid": "48b7bdf2-410a-4d56-969c-e42e91d1f1fe",
@@ -161,9 +169,9 @@ For the bundle metadata document
       "sha1": "58f03f7c6c0887baa54da85db5c820cfbe25d367",
       "sha256": "9b4c0dde8683f924975d0867903dc7a967f46bee5c0a025c451b9ba73e43f120"
     }
-  ],
-  'files': {
-    'cell_suspension': [
+  ]},
+  "files": {
+    "cell_suspension_json": [
       {
         "biomaterial_core": {
           "biomaterial_id": "Q4_DEMO-cellsus_SAMN02797092",
