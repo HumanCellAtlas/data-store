@@ -96,11 +96,6 @@ class Smoketest(BaseSmokeTest):
                                 checkout_job_id, checkout_bucket, file_count)
 
         for replica in self.replicas:
-            with self.subTest(f"{starting_replica.name}: Get event for bundle"):
-                self._test_get_event(replica, bundle_uuid, bundle_version)
-                self._test_replay_event(replica, bundle_uuid, bundle_version)
-
-        for replica in self.replicas:
             with self.subTest(f"{starting_replica.name}: Hit search route directly against each replica {replica}"):
                 search_route = "https://${API_DOMAIN_NAME}/v1/search"
                 res = run_for_json(f'http --check {search_route} replica=={replica.name}',
@@ -113,6 +108,11 @@ class Smoketest(BaseSmokeTest):
             bundle_match = dict(uuid=bundle_uuid, version=bundle_version)
             resp = self.get_bundle_enumerations(starting_replica.name, prefix=key_prefix)
             self.assertIn(bundle_match, resp['bundles'])
+
+        for replica in self.replicas:
+            with self.subTest(f"{starting_replica.name}: Get event for bundle"):
+                self._test_get_event(replica, bundle_uuid, bundle_version)
+                self._test_replay_event(replica, bundle_uuid, bundle_version)
 
         for replica in self.replicas:
             with self.subTest(f"{starting_replica.name}: Tombstone the bundle on replica {replica}"):
