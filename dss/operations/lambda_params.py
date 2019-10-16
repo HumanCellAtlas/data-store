@@ -52,7 +52,7 @@ def fix_ssm_variable_prefix(param_name: str) -> str:
         param_name = param_name[:-1]
 
     if not (
-            param_name.startswith(prefix) 
+            param_name.startswith(prefix)
             or param_name.startswith("/" + prefix)
             or param_name.startswith(prefix[1:])
     ):
@@ -75,7 +75,6 @@ def set_ssm_environment(env: dict) -> None:
     :param env: dict containing environment variables to set in SSM param store
     :returns: nothing
     """
-    prefix = get_ssm_variable_prefix()
     ssm_client.put_parameter(
         Name=fix_ssm_variable_prefix("environment"), Value=json.dumps(env), Type="String", Overwrite=True
     )
