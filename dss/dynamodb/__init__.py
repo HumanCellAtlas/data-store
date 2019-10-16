@@ -114,7 +114,11 @@ def get_all_table_items(*, table: str, both_keys: bool = False):
             if both_keys:
                 yield item['hash_key']['S'], item['sort_key']['S']
             else:
-                yield item['body']['S']
+                body = item.get(['body'], {}).get('S')
+                if body:
+                    yield item['body']['S']
+                else:
+                    pass
 
 
 def delete_item(*, table: str, hash_key: str, sort_key: Optional[str] = None):
