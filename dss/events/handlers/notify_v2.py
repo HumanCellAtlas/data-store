@@ -96,7 +96,6 @@ def notify(subscription: dict, metadata_document: dict, key: str) -> bool:
     if bundle_version.endswith(sfx):
         bundle_version = bundle_version[:-len(sfx)]
     api_domain_name = f'https://{os.environ.get("API_DOMAIN_NAME")}'
-    # payload: typing.Dict[typing.Union[str, SubscriptionData], typing.Any] = {
     payload = {
         'bundle_url': api_domain_name + f'/v1/bundles/{bundle_uuid}?version={bundle_version}',
         'dss_api': api_domain_name,
