@@ -12,7 +12,6 @@ import unittest
 import subprocess
 import boto3
 import botocore
-from datetime import datetime
 
 import flashflood
 from cloud_blobstore import BlobStore
@@ -22,7 +21,6 @@ sys.path.insert(0, pkg_root)  # noqa
 
 from dss import Replica
 from dss.storage.checkout.bundle import get_dst_bundle_prefix
-from dss.util.version import datetime_to_version_format
 
 
 parser = argparse.ArgumentParser(description=__doc__)
