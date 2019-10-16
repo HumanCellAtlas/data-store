@@ -299,16 +299,21 @@ class TestOperations(unittest.TestCase):
 
                 # Mock the service account manager so it won't hit the fusillade server
                 class FakeServiceAcctMgr(object):
+
                     def get_authorization_header(self, *args, **kwargs):
                         return {}
+
                 SAM.from_secrets_manager = mock.MagicMock(return_value=FakeServiceAcctMgr())
 
                 # Create fake API response (one page)
                 class FakeResponse(object):
+
                     def __init__(self):
                         self.headers = {}
+
                     def raise_for_status(self, *args, **kwargs):
                         pass
+
                     def json(self, *args, **kwargs):
                         return {"key": "value"}
 
@@ -320,20 +325,25 @@ class TestOperations(unittest.TestCase):
 
                 # Mock paginated responses with and without Link header
                 class FakePaginatedResponse(object):
+
                     def __init__(self):
                         self.headers = {}
+
                     def raise_for_status(self, *args, **kwargs):
                         pass
+
                     def json(self, *args, **kwargs):
                         return {"key": ["values", "values"]}
+
                 class FakePaginatedResponseWithLink(FakePaginatedResponse):
+
                     def __init__(self):
                         self.headers = {"Link": "<https://api.github.com/user/repos?page=3&per_page=100>;"}
 
                 # Test paginate()
-                req.get = mock.MagicMock(side_effect=[FakePaginatedResponseWithLink(),FakePaginatedResponse()])
+                req.get = mock.MagicMock(side_effect=[FakePaginatedResponseWithLink(), FakePaginatedResponse()])
                 result = client.paginate("/foobar", "key")
-                self.assertEqual(result, ["values"]*4)
+                self.assertEqual(result, ["values"] * 4)
 
         def _wrap_policy(policy_doc):
             """Wrap a policy doc the way Fusillade stores/returns them"""
