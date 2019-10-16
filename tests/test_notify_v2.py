@@ -377,7 +377,6 @@ class TestNotifyV2(unittest.TestCase, DSSAssertMixin, DSSUploadMixin):
 
     def _test_subscription_api(self, replica: Replica):
         subscription_doc = {
-            'callback_url': "https://example.com",
             'method': "POST",
             'encoding': "application/json",
             'form_fields': {'foo': "bar"},
@@ -397,29 +396,34 @@ class TestNotifyV2(unittest.TestCase, DSSAssertMixin, DSSUploadMixin):
         }
         with self.subTest(f"{replica}, PUT should succceed for missing JMESPath"):
             doc = deepcopy(subscription_doc)
+            doc['callback_url']= "https://test-subscription-api-succeed.humancellatlas.com"
             subscription = self._put_subscription(doc, replica)
 
         with self.subTest(f"{replica}, Should not be able to PUT with invalid JMESPath"):
             doc = deepcopy(subscription_doc)
             doc['jmespath_query'] = "this is not valid jmespath"
+            doc['callback_url'] = "https://test-subscription-api-invalid-jmespath.humancellatlas.com"
             resp = self._put_subscription(doc, replica, codes=requests.codes.bad_request)
             self.assertEquals("invalid_jmespath", resp['code'])
 
         with self.subTest(f"{replica}, PUT should NOT succeed for attachment name starting with '_'"):
             doc = deepcopy(subscription_doc)
             doc['attachments']['_illegal_attachment_name'] = doc['attachments']['my_attachment_1']  # type: ignore
+            doc['callback_url'] = "https://test-subscription-api-not-with-underscore.humancellatlas.com"
             resp = self._put_subscription(doc, replica, codes=requests.codes.bad_request)
             self.assertEquals("invalid_attachment_name", resp['code'])
 
         with self.subTest(f"{replica}, PUT should NOT succeed for invalid attachment JMESPath"):
             doc = deepcopy(subscription_doc)
             doc['attachments']['my_attachment_1']['expression'] = "this is not valid jmespath"  # type: ignore
+            doc['callback_url']= "https://test-subscription-api-not-with-invalid-jmespath.humancellatlas.com"
             resp = self._put_subscription(doc, replica, codes=requests.codes.bad_request)
             self.assertEquals("invalid_attachment_expression", resp['code'])
 
         with self.subTest(f"{replica}, PUT should succeed for valid JMESPath"):
             doc = deepcopy(subscription_doc)
             doc['jmespath_query'] = "foo"
+            doc['callback_url']= "https://test-subscription-api-succeed-with-valid-jmespath.humancellatlas.com"
             self._put_subscription(doc, replica)
 
         with self.subTest(f"{replica}, GET should succeed"):

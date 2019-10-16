@@ -78,6 +78,10 @@ def notify_or_queue(replica: Replica, subscription: dict, metadata_document: dic
             for key in bundles - tombstones:
                 sqsm.send(_format_sqs_message(replica, subscription, event_type, key), delay_seconds=0)
         else:
+            try:
+                assert subscription.get('body') is not None
+            except AssertionError:
+                logger.warning(f'unable to find body in {subscription.get("uuid")}')
             notify_status = notify(subscription, metadata_document, key)
             if notify_status:
                 update_subscription_stats(subscription, SubscriptionStats.SUCCESSFUL)
