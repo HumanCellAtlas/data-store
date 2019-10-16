@@ -294,8 +294,46 @@ class TestOperations(unittest.TestCase):
     def test_iam_fus(self):
 
         with self.subTest("Fusillade client"):
-            with mock.patch("dss.operations.iam.FusilladeClient") as fus_client:
-                pass
+            with mock.patch("dss.operations.iam.DCPServiceAccountManager") as SAM, \
+                    mock.patch("dss.operations.iam.requests") as req:
+
+                # Mock the service account manager so it won't hit the fusillade server
+                class FakeServiceAcctMgr(object):
+                    def get_authorization_header(self, *args, **kwargs):
+                        return {}
+                SAM.from_secrets_manager = mock.MagicMock(return_value=FakeServiceAcctMgr())
+
+                # Create fake API response (one page)
+                class FakeResponse(object):
+                    def __init__(self):
+                        self.headers = {}
+                    def raise_for_status(self, *args, **kwargs):
+                        pass
+                    def json(self, *args, **kwargs):
+                        return {"key": "value"}
+
+                # Test call_api()
+                req.get = mock.MagicMock(return_value=FakeResponse())
+                client = iam.FusilladeClient(stage="testing")
+                result = client.call_api("/foobar", "key")
+                self.assertEqual(result, "value")
+
+                # Mock paginated responses with and without Link header
+                class FakePaginatedResponse(object):
+                    def __init__(self):
+                        self.headers = {}
+                    def raise_for_status(self, *args, **kwargs):
+                        pass
+                    def json(self, *args, **kwargs):
+                        return {"key": ["values", "values"]}
+                class FakePaginatedResponseWithLink(FakePaginatedResponse):
+                    def __init__(self):
+                        self.headers = {"Link": "<https://api.github.com/user/repos?page=3&per_page=100>;"}
+
+                # Test paginate()
+                req.get = mock.MagicMock(side_effect=[FakePaginatedResponseWithLink(),FakePaginatedResponse()])
+                result = client.paginate("/foobar", "key")
+                self.assertEqual(result, ["values"]*4)
 
         def _wrap_policy(policy_doc):
             """Wrap a policy doc the way Fusillade stores/returns them"""
