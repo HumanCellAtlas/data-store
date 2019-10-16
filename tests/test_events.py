@@ -14,7 +14,7 @@ from datetime import datetime
 from datetime import timedelta
 from requests.utils import parse_header_links
 
-from flashflood import replay_with_urls
+from flashflood import replay_event_stream
 import requests
 
 pkg_root = os.path.abspath(os.path.join(os.path.dirname(__file__), '..'))  # noqa
@@ -102,7 +102,8 @@ class TestEvents(unittest.TestCase, DSSAssertMixin):
         with self.subTest("list events unpaged", replica=replica.name):
             res = self.app.get("/v1/events", params=dict(replica=replica.name))
             self.assertEqual(res.status_code, requests.codes.ok)
-            event = [e for e in replay_with_urls(res.json())][0]
+            event_stream = res.json()['event_streams'][0]
+            event = [e for e in replay_event_stream(event_stream)][0]
             event_doc = json.loads(event.data.decode("utf-8"))
             self.assertEqual(events._build_bundle_metadata_document(replica, self.bundle[replica.name]['key']),
                              event_doc)
@@ -113,14 +114,16 @@ class TestEvents(unittest.TestCase, DSSAssertMixin):
         with self.subTest("list events paged", replica=replica.name):
             res = self.app.get("/v1/events", params=dict(replica=replica.name))
             self.assertEqual(res.status_code, requests.codes.partial)
-            event = [e for e in replay_with_urls(res.json())][0]
+            event_stream = res.json()['event_streams'][0]
+            event = [e for e in replay_event_stream(event_stream)][0]
             event_doc = json.loads(event.data.decode("utf-8"))
             self.assertEqual(events._build_bundle_metadata_document(replica, self.bundle[replica.name]['key']),
                              event_doc)
             url = parse_header_links(res.headers['Link'])[0]['url']
             res = self.app.get("/v1" + url.split("v1", 1)[1])
             self.assertEqual(res.status_code, requests.codes.ok)
-            event = [e for e in replay_with_urls(res.json())][0]
+            event_stream = res.json()['event_streams'][0]
+            event = [e for e in replay_event_stream(event_stream)][0]
             event_doc = json.loads(event.data.decode("utf-8"))
             self.assertEqual(events._build_bundle_metadata_document(replica, new_bundle_key), event_doc)
         with self.subTest("bad date range returns 400", replica=replica.name):
@@ -134,6 +137,19 @@ class TestEvents(unittest.TestCase, DSSAssertMixin):
     def test_get(self):
         for replica in Replica:
             self._test_get(replica)
+
+    def test_events_paging(self):
+        for replica in Replica:
+            resp = self.app.get(f"/v1/events?replica={replica.name}")
+            self.assertIn(resp.status_code, [200, 206])
+            content_key = resp.headers.get("X-OpenAPI-Paginated-Content-Key")
+            self.assertEqual("event_streams", content_key)
+            results = resp.json()
+            for key in content_key.split("."):
+                results = results[key]
+            for result in results:
+                for event in replay_event_stream(result):
+                    pass
 
     def _test_get(self, replica):
         with self.subTest("event found", replica=replica):

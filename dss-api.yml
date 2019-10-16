@@ -2293,30 +2293,14 @@ paths:
         200:
           description: OK
           schema:
-            type: array
-            items:
-              type: object
-              properties:
-                url:
-                  description: Location of the journal data.
-                  type: string
-                manifest:
-                  $ref: '#/definitions/EventsManifest'
+            $ref: '#/definitions/EventStreams'
           headers:
             X-OpenAPI-Pagination:
               type: boolean
         206:
           description: A single page of results was retrieved.
           schema:
-            type: array
-            items:
-              type: object
-              properties:
-                url:
-                  description: Location of the journal data.
-                  type: string
-                manifest:
-                  $ref: '#/definitions/EventsManifest'
+            $ref: '#/definitions/EventStreams'
           headers:
             Link:
               type: string
@@ -2825,6 +2809,13 @@ definitions:
       - type
       - uuid
       - version
+  EventStreams:
+    type: object
+    properties:
+      event_streams:
+        type: array
+        items:
+          $ref: '#/definitions/EventsManifest'
   EventsManifest:
     type: object
     properties:
