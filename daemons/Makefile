@@ -9,13 +9,11 @@ SERIAL_AWS_DAEMONS := \
 SERIAL_GCP_DAEMONS :=
 
 PARALLEL_AWS_DAEMONS := \
-	dss-admin \
 	dss-checkout-sfn \
 	dss-gs-copy-sfn \
 	dss-gs-copy-write-metadata-sfn \
 	dss-s3-copy-sfn \
 	dss-s3-copy-write-metadata-sfn \
-	dss-visitation \
 	dss-scalability-test \
 	dss-dlq-reaper \
 	dss-sfn-launcher \

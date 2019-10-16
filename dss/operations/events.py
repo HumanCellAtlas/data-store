@@ -7,7 +7,9 @@ import argparse
 import json
 import logging
 from uuid import uuid4
+from string import hexdigits
 from datetime import datetime
+from concurrent.futures import ThreadPoolExecutor, as_completed
 
 from cloud_blobstore import BlobNotFoundError
 from flashflood import FlashFlood, FlashFloodJournalingError
@@ -19,8 +21,9 @@ from dss.util.aws import resources
 from dss.operations import dispatch
 from dss.events import get_bundle_metadata_document, record_event_for_bundle
 from dss.events.handlers.notify_v2 import _versioned_tombstone_key_regex, _unversioned_tombstone_key_regex
+from dss.storage.bundles import Living
 from dss.storage.identifiers import TOMBSTONE_SUFFIX
-from dss.operations.util import map_bucket, monitor_logs, command_queue_url
+from dss.operations.util import monitor_logs, command_queue_url
 
 
 logger = logging.getLogger(__name__)
@@ -63,25 +66,16 @@ def record(argv: typing.List[str], args: argparse.Namespace):
     if args.keys is None:
         start_time = datetime.now()
 
-        def forward_keys(keys):
+        def forward_keys(bundle_fqids):
             with SQSMessenger(command_queue_url) as sqsm:
-                tombstone_id = None
-                for key in keys:
-                    if _versioned_tombstone_key_regex.match(key):
-                        continue
-                    elif _unversioned_tombstone_key_regex.match(key):
-                        fqid = key.rsplit("/")[0]
-                        tombstone_id = fqid.replace(f".{TOMBSTONE_SUFFIX}", "")
-                        continue
-                    else:
-                        if tombstone_id and tombstone_id in key:
-                            continue
-                        else:
-                            tombstone_id = None
-                            sqsm.send(cmd_template.format(key))
+                for fqid in bundle_fqids:
+                    sqsm.send(cmd_template.format(f"bundles/{fqid}"))
 
         handle = Config.get_blobstore_handle(replica)
-        map_bucket(forward_keys, handle, replica.bucket, f"bundles/")
+        with ThreadPoolExecutor(max_workers=4) as e:
+            for c in set(hexdigits.lower()):
+                bundle_fqids = Living(handle.list_v2(replica.bucket, f"bundles/{c}"))
+                e.submit(forward_keys, bundle_fqids)
         monitor_logs(logs, job_id, start_time)
     else:
         for key in args.keys:

@@ -59,7 +59,7 @@ def monitor_logs(logs_client, job_id: str, start_time: datetime):
                 print(e['message'])
                 new_start = e['timestamp'] + 1
         if start == new_start:
-            sys.stderr.write(f"no new CloudWatch log messages, sleeping {LOG_MONITOR_SLEEP_DURATION}s" + os.linesep)
+            sys.stderr.write(f"No new CloudWatch log messages, sleeping {LOG_MONITOR_SLEEP_DURATION}s" + os.linesep)
             time.sleep(LOG_MONITOR_SLEEP_DURATION)
         else:
             start = new_start

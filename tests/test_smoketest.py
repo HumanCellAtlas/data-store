@@ -110,6 +110,16 @@ class Smoketest(BaseSmokeTest):
             self.assertIn(bundle_match, resp['bundles'])
 
         for replica in self.replicas:
+            with self.subTest(f"{starting_replica.name}: Get event for bundle",
+                              uuid=bundle_uuid,
+                              version=bundle_version):
+                self._test_get_event(replica, bundle_uuid, bundle_version)
+            with self.subTest(f"{starting_replica.name}: Replay event for bundle",
+                              uuid=bundle_uuid,
+                              version=bundle_version):
+                self._test_replay_event(replica, bundle_uuid, bundle_version)
+
+        for replica in self.replicas:
             with self.subTest(f"{starting_replica.name}: Tombstone the bundle on replica {replica}"):
                 run_for_json(f"{self.venv_bin}hca dss delete-bundle --uuid {bundle_uuid} --version {bundle_version} "
                              f"--reason 'smoke test' --replica {replica.name}")
@@ -133,6 +143,12 @@ class Smoketest(BaseSmokeTest):
                     self.fail("Timed out waiting for notification to arrive")
             with self.subTest(f"{starting_replica.name}: Check subscription stats for subscription {subscription_id}"):
                 self._test_subscription_stats(replica=replica, uuid=subscription_id)
+
+        for replica in self.replicas:
+            with self.subTest(f"{starting_replica.name}: Get event for bundle",
+                              uuid=bundle_uuid,
+                              version=bundle_version):
+                self._test_get_event(replica, bundle_uuid, bundle_version, event_should_exist=False)
 
         for replica in self.replicas:
             # Enumerations against the replicas should be done after the test_replica_sync to ensure consistency.
