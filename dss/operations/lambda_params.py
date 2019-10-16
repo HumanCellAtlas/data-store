@@ -77,7 +77,7 @@ def set_ssm_environment(env: dict) -> None:
     """
     prefix = get_ssm_variable_prefix()
     ssm_client.put_parameter(
-        Name=f"/{prefix}/environment", Value=json.dumps(env), Type="String", Overwrite=True
+        Name=fix_ssm_variable_prefix("environment"), Value=json.dumps(env), Type="String", Overwrite=True
     )
 
 
