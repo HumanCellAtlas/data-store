@@ -458,12 +458,12 @@ class TestOperations(unittest.TestCase):
 
         var = "dummy_variable"
         new_var = fix_ssm_variable_prefix(var)
-        gold_var = f"{prefix}/dummy_variable"
+        gold_var = f"/{prefix}/dummy_variable"
         self.assertEqual(new_var, gold_var)
 
         var = "/dummy_variable"
         new_var = fix_ssm_variable_prefix(var)
-        gold_var = f"{prefix}/dummy_variable"
+        gold_var = f"/{prefix}/dummy_variable"
         self.assertEqual(new_var, gold_var)
 
         var = f"{prefix}/dummy_variable"
@@ -471,7 +471,7 @@ class TestOperations(unittest.TestCase):
         gold_var = f"{prefix}/dummy_variable"
         self.assertEqual(new_var, gold_var)
 
-        var = f"/{prefix}/dummy_variable"
+        var = f"{prefix}/dummy_variable/"
         new_var = fix_ssm_variable_prefix(var)
         gold_var = f"{prefix}/dummy_variable"
         self.assertEqual(new_var, gold_var)
