@@ -29,7 +29,7 @@ from dcplib.aws.sqs import SQSMessenger, get_queue_url
 from dss.events.handlers.notify_v2 import notify_or_queue
 from dss.util.version import datetime_to_version_format
 from dss.subscriptions_v2 import (delete_subscription, get_subscriptions_for_replica, get_subscriptions_for_owner,
-                                  SubscriptionData)
+                                  SubscriptionData, SubscriptionStats)
 daemon_app = importlib.import_module('daemons.dss-notify-v2.app')
 
 
@@ -284,7 +284,7 @@ class TestNotifyV2(unittest.TestCase, DSSAssertMixin, DSSUploadMixin):
         # self.assertEquals(notification['match']['bundle_version'], bundle_version)
         get_sub = self._get_subscription(uuid=subscription['uuid'], replica=replica)
         self.assertIn('stats', get_sub)
-        self.assertGreater(int(get_sub['stats']['successful']), 0)
+        self.assertGreater(int(get_sub['stats'][SubscriptionStats.SUCCESSFUL]), 0)
 
     @eventually(60, 1, {botocore.exceptions.ClientError})
     def _get_notification_from_s3_object(self, bucket, key):
