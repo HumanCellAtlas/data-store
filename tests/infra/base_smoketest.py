@@ -12,6 +12,9 @@ import unittest
 import subprocess
 import boto3
 import botocore
+from datetime import datetime
+
+import flashflood
 from cloud_blobstore import BlobStore
 
 pkg_root = os.path.abspath(os.path.join(os.path.dirname(__file__), ".."))  # noqa
@@ -19,6 +22,7 @@ sys.path.insert(0, pkg_root)  # noqa
 
 from dss import Replica
 from dss.storage.checkout.bundle import get_dst_bundle_prefix
+from dss.util.version import datetime_to_version_format
 
 
 parser = argparse.ArgumentParser(description=__doc__)
@@ -74,6 +78,7 @@ class BaseSmokeTest(unittest.TestCase):
 
     @classmethod
     def setUpClass(cls):
+        cls.timestamp_started = datetime_to_version_format(datetime.utcnow())
         cls.replicas = {param['starting_replica'] for param in cls.params}
         if os.path.exists("dcp-cli"):
             run("git pull --recurse-submodules", cwd="dcp-cli")
@@ -111,6 +116,31 @@ class BaseSmokeTest(unittest.TestCase):
         """ returns bundle manifest from DSS"""
         return run_for_json(f"{self.venv_bin}hca dss get-bundle --replica {replica.name}"
                             f" --uuid {bundle_uuid}")
+
+    def _test_get_event(self, replica, bundle_uuid, bundle_version, event_should_exist=True):
+        if event_should_exist:
+            res = run_for_json(f"{self.venv_bin}hca dss get-event --replica {replica.name}"
+                               f" --uuid {bundle_uuid}"
+                               f" --version {bundle_version}")
+            self.assertEqual(res['manifest']['version'], bundle_version)
+        else:
+            # TODO: enable this test when flash-flood supports immediate event deletion - BrianH
+            # api = f"https://{os.environ['API_DOMAIN_NAME']}/v1"
+            # params = f"version={bundle_version}&replica={replica.name}"
+            # res = requests.get(f"{api}/events/{bundle_uuid}?{params}")
+            # self.assertEqual(404, res.status_code)
+            pass
+
+    def _test_replay_event(self, replica, bundle_uuid, bundle_version):
+        res = run_for_json(f"hca dss get-events --replica aws --per-page 10 "
+                           f"--from-date {self.timestamp_started}")
+        for event in flashflood.replay_with_urls(res):
+            doc = json.loads(event.data)
+            if doc['manifest']['version'] == bundle_version:
+                break
+        else:
+            self.assertTrue(False)
+        # TODO: Figure out how to test event is deleted after flashflood is updated - BrianH
 
     def _test_get_bundle(self, replica, bundle_uuid):
         """ tests that a bundle can be downloaded"""

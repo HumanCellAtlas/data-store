@@ -96,6 +96,11 @@ class Smoketest(BaseSmokeTest):
                                 checkout_job_id, checkout_bucket, file_count)
 
         for replica in self.replicas:
+            with self.subTest(f"{starting_replica.name}: Get event for bundle"):
+                self._test_get_event(replica, bundle_uuid, bundle_version)
+                self._test_replay_event(replica, bundle_uuid, bundle_version)
+
+        for replica in self.replicas:
             with self.subTest(f"{starting_replica.name}: Hit search route directly against each replica {replica}"):
                 search_route = "https://${API_DOMAIN_NAME}/v1/search"
                 res = run_for_json(f'http --check {search_route} replica=={replica.name}',
@@ -131,6 +136,10 @@ class Smoketest(BaseSmokeTest):
                         break
                 else:
                     self.fail("Timed out waiting for notification to arrive")
+
+        for replica in self.replicas:
+            with self.subTest(f"{starting_replica.name}: Get event for bundle"):
+                self._test_get_event(replica, bundle_uuid, bundle_version, event_should_exist=False)
 
         for replica in self.replicas:
             # Enumerations against the replicas should be done after the test_replica_sync to ensure consistency.
