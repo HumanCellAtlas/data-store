@@ -110,8 +110,13 @@ class Smoketest(BaseSmokeTest):
             self.assertIn(bundle_match, resp['bundles'])
 
         for replica in self.replicas:
-            with self.subTest(f"{starting_replica.name}: Get event for bundle"):
+            with self.subTest(f"{starting_replica.name}: Get event for bundle",
+                              uuid=bundle_uuid,
+                              version=bundle_version):
                 self._test_get_event(replica, bundle_uuid, bundle_version)
+            with self.subTest(f"{starting_replica.name}: Replay event for bundle",
+                              uuid=bundle_uuid,
+                              version=bundle_version):
                 self._test_replay_event(replica, bundle_uuid, bundle_version)
 
         for replica in self.replicas:
@@ -138,7 +143,9 @@ class Smoketest(BaseSmokeTest):
                     self.fail("Timed out waiting for notification to arrive")
 
         for replica in self.replicas:
-            with self.subTest(f"{starting_replica.name}: Get event for bundle"):
+            with self.subTest(f"{starting_replica.name}: Get event for bundle",
+                              uuid=bundle_uuid,
+                              version=bundle_version):
                 self._test_get_event(replica, bundle_uuid, bundle_version, event_should_exist=False)
 
         for replica in self.replicas:

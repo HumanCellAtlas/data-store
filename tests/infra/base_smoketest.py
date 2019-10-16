@@ -78,7 +78,6 @@ class BaseSmokeTest(unittest.TestCase):
 
     @classmethod
     def setUpClass(cls):
-        cls.timestamp_started = datetime_to_version_format(datetime.utcnow())
         cls.replicas = {param['starting_replica'] for param in cls.params}
         if os.path.exists("dcp-cli"):
             run("git pull --recurse-submodules", cwd="dcp-cli")
@@ -132,14 +131,13 @@ class BaseSmokeTest(unittest.TestCase):
             pass
 
     def _test_replay_event(self, replica, bundle_uuid, bundle_version):
-        res = run_for_json(f"hca dss get-events --replica aws --per-page 10 "
-                           f"--from-date {self.timestamp_started}")
+        res = run_for_json(f"hca dss get-events --replica aws --per-page 10 --from-date {bundle_version}")
         for event in flashflood.replay_with_urls(res):
             doc = json.loads(event.data)
             if doc['manifest']['version'] == bundle_version:
                 break
         else:
-            self.assertTrue(False)
+            self.fail("Event not found in flashflood replay")
         # TODO: Figure out how to test event is deleted after flashflood is updated - BrianH
 
     def _test_get_bundle(self, replica, bundle_uuid):
