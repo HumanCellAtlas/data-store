@@ -97,8 +97,7 @@ def extract_aws_policies(action: str, client, managed: bool):
         master_list = sorted(list(set(master_list)))
     elif action == "dump":
         # Convert to strings, remove dupes, convert to back dicts
-        master_list = list(set(master_list))
-        master_list = [json.loads(j) for j in master_list]
+        master_list = [json.loads(j) for j in set(master_list)]
 
     # also need to get all inline policies
     return master_list
