@@ -2828,12 +2828,10 @@ definitions:
         description: The event journal identifier.
         type: string
       from_date:
-        type: string
         format: DSS_VERSION
         description: DSS_VERSION format timestamp of the first event in the journal.
         type: string
       to_date:
-        type: string
         format: DSS_VERSION
         description: DSS_VERSION format timestamp of the last event in the journal.
         type: string
