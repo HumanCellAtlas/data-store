@@ -19,7 +19,8 @@ from dcplib.aws.clients import logs
 from dss.config import Config, Replica
 from dss.util.aws import resources
 from dss.operations import dispatch
-from dss.events import get_bundle_metadata_document, record_event_for_bundle
+from dss.events import (get_bundle_metadata_document, record_event_for_bundle, journal_flashflood,
+                        update_flashflood)
 from dss.events.handlers.notify_v2 import _versioned_tombstone_key_regex, _unversioned_tombstone_key_regex
 from dss.storage.bundles import Living
 from dss.storage.identifiers import TOMBSTONE_SUFFIX
@@ -86,24 +87,21 @@ def record(argv: typing.List[str], args: argparse.Namespace):
 @events.action("journal",
                arguments={"--prefix": dict(required=True,
                                            help="flashflood prefix to journal events"),
-                          "--minimum-number-of-events": dict(default=1000, type=int),
-                          "--minimum-size": dict(default=1024 * 1024, type=int)})
+                          "--minimum-number-of-events": dict(default=None, type=int),
+                          "--number-of-journals-to-create": dict(default=5, type=int)})
 def journal(argv: typing.List[str], args: argparse.Namespace):
-    ff = FlashFlood(resources.s3, Config.get_flashflood_bucket(), args.prefix)
-    while True:
+    for _ in range(args.number_of_journals_to_create):
         try:
-            ff.journal(args.minimum_number_of_events, args.minimum_size)
+            journal_flashflood(args.prefix, args.minimum_number_of_events)
         except FlashFloodJournalingError:
-            break
+            pass
 
 @events.action("update",
                arguments={"--prefix": dict(required=True,
                                            help="flashflood prefix to journal events"),
-                          "--minimum-number-of-events": dict(default=1000, type=int),
-                          "--minimum-size": dict(default=1024 * 1024, type=int)})
+                          "--number-of-updates-to-apply": dict(default=None, type=int)})
 def update(argv: typing.List[str], args: argparse.Namespace):
-    ff = FlashFlood(resources.s3, Config.get_flashflood_bucket(), args.prefix)
-    ff.update()
+    update_flashflood(args.prefix, args.number_of_updates_to_apply)
 
 @events.action("destroy",
                arguments={"--prefix": dict(required=True)})

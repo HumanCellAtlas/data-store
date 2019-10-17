@@ -1,5 +1,7 @@
 import os
 import boto3
+# TODO: renaim dss.util.time to avoid conflict with built in module
+import time as python_time
 import tempfile
 from urllib.parse import SplitResult, parse_qsl, urlencode, urlsplit, urlunsplit
 import typing
@@ -188,3 +190,23 @@ def multipart_parallel_upload(
         UploadId=mpu['UploadId'],
     )
     return parts
+
+def countdown(maximum_duration: float) -> typing.Iterator[float]:
+    """
+    Convenience generator to time limit iterated work.
+    """
+    start_time = python_time.time()
+    while True:
+        seconds_remaining = maximum_duration - (python_time.time() - start_time)
+        if 0 > seconds_remaining:
+            break
+        yield seconds_remaining
+
+def circular_generator(lst: typing.List[typing.Any]) -> typing.Any:
+    """
+    Convenience generator to round-robin the elements in a list.
+    """
+    _i = 0
+    while True:
+        yield lst[_i]
+        _i = (_i + 1) % len(lst)

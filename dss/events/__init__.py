@@ -8,7 +8,7 @@ from collections import defaultdict
 from concurrent.futures import ThreadPoolExecutor
 from functools import lru_cache
 
-from flashflood import FlashFlood, FlashFloodEventNotFound
+from flashflood import FlashFlood, FlashFloodEventNotFound, FlashFloodJournalingError
 
 from dss.util.aws import resources
 from dss.config import Config, Replica
@@ -124,3 +124,18 @@ def _dot_to_underscore_and_strip_numeric_suffix(name: str) -> str:
             name = parts[0]
         name += "_json"
     return name
+
+def journal_flashflood(prefix, minimum_number_of_events: int):
+    """
+    Compile new events into journals.
+    """
+    ff = FlashFlood(resources.s3, Config.get_flashflood_bucket(), prefix)
+    ff.journal(minimum_number_of_events)
+
+def update_flashflood(prefix, number_of_updates_to_apply=1000):
+    """
+    Apply event updates to existing journals.
+    This is typically called after journaling is complete.
+    """
+    ff = FlashFlood(resources.s3, Config.get_flashflood_bucket(), prefix)
+    ff.update(number_of_updates_to_apply)

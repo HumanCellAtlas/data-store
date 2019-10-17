@@ -9,6 +9,7 @@ from urllib.parse import unquote
 from concurrent.futures import ThreadPoolExecutor
 
 import domovoi
+from flashflood import FlashFloodJournalingError
 
 pkg_root = os.path.abspath(os.path.join(os.path.dirname(__file__), 'domovoilib'))  # noqa
 sys.path.insert(0, pkg_root)  # noqa
@@ -16,11 +17,13 @@ sys.path.insert(0, pkg_root)  # noqa
 import dss
 from dss import Config, Replica
 from dss.logging import configure_lambda_logging
-from dss.events import get_bundle_metadata_document, get_deleted_bundle_metadata_document, record_event_for_bundle
+from dss.events import (get_bundle_metadata_document, get_deleted_bundle_metadata_document, record_event_for_bundle,
+                        journal_flashflood, update_flashflood)
 from dss.events.handlers.notify_v2 import should_notify, notify_or_queue, notify
 
 from dss.events.handlers.sync import exists
 from dss.subscriptions_v2 import get_subscription, get_subscriptions_for_replica
+from dss.util import circular_generator, countdown
 
 
 configure_lambda_logging()
@@ -122,6 +125,25 @@ def _notify_subscribers(replica: Replica, key: str, is_delete_event: bool):
     logger.info(f"Attempting notifications for; replica: {replica}, key: {key} delete: {is_delete_event}")
     with ThreadPoolExecutor(max_workers=20) as e:
         e.map(_func, get_subscriptions_for_replica(replica))
+
+@app.scheduled_function("rate(5 minutes)")
+def flashflood_journal_and_update(event, context, maximum_duration=200):
+    # TODO: Make this configurable
+    minimum_number_of_events = 10 if "dev" == os.environ['DSS_DEPLOYMENT_STAGE'] else 1000
+
+    replicas = iter(circular_generator([r for r in Replica]))
+    for seconds_remaining in countdown(maximum_duration):
+        pfx = next(replicas).flashflood_prefix_read
+        try:
+            logging.info(f"Journaling into {pfx} with {seconds_remaining} seconds left")
+            journal_flashflood(pfx, minimum_number_of_events)
+        except FlashFloodJournalingError:
+            break
+
+    for seconds_remaining in countdown(seconds_remaining):
+        pfx = next(replicas).flashflood_prefix_read
+        logging.info(f"Applying updates to {pfx} with {seconds_remaining} seconds left")
+        update_flashflood(pfx)
 
 class DSSFailedNotificationDelivery(Exception):
     pass

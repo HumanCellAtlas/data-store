@@ -15,7 +15,7 @@ from dss.config import Replica
 from dss.logging import configure_test_logging
 from dss.storage.bundles import enumerate_available_bundles
 from dss.storage.identifiers import TOMBSTONE_SUFFIX
-from dss.util import UrlBuilder, security, multipart_parallel_upload
+from dss.util import UrlBuilder, security, multipart_parallel_upload, countdown, circular_generator
 from dss.util.aws import ARN
 from tests import UNAUTHORIZED_GCP_CREDENTIALS, get_service_jwt
 from tests.infra import testmode
@@ -304,34 +304,6 @@ class TestSecurity(unittest.TestCase):
             self.assertEqual(ex.exception.status, 401)
             self.assertEqual(ex.exception.message, 'Authorization token is missing email claims.')
 
-    def test_multipart_parallel_upload(self):
-        data = os.urandom(7 * 1024 * 1024)
-        metadata = {'something': "foolish"}
-        part_size = 5 * 1024 * 1024
-        s3_client = Config.get_native_handle(Replica.aws)
-        bucket = os.environ['DSS_S3_BUCKET_TEST']
-        with self.subTest("copy multiple parts"):
-            with io.BytesIO(data) as fh:
-                multipart_parallel_upload(
-                    s3_client,
-                    bucket,
-                    "fake_key",
-                    fh,
-                    part_size=part_size,
-                    metadata=metadata,
-                    content_type="application/octet-stream",
-                )
-        part_size = 14 * 1024 * 1024
-        with self.subTest("should work with single part"):
-            with io.BytesIO(data) as fh:
-                multipart_parallel_upload(
-                    s3_client,
-                    bucket,
-                    "fake_key",
-                    fh,
-                    part_size=part_size,
-                )
-
     @staticmethod
     def restore_email_claims(old):
         os.environ['OIDC_EMAIL_CLAIM'] = old
@@ -362,6 +334,52 @@ class TestSecurity(unittest.TestCase):
                 self.assertNotIn('.'.join([x['uuid'], x['version']]), MockStorageHandler.dead_bundles)
                 self.assertNotIn(x, page_one)
     # TODO add test to enumerate list and ensure all bundles that should be present are there.
+
+
+class TestUtils(unittest.TestCase):
+    @testmode.standalone
+    def test_countdown(self):
+        for seconds_remaining in countdown(1):
+            pass
+
+    @testmode.standalone
+    def test_circular_generator(self):
+        lst = ['a', 'b', 'c']
+        letters = iter(circular_generator(lst))
+        self.assertEqual('a', next(letters))
+        self.assertEqual('b', next(letters))
+        self.assertEqual('c', next(letters))
+        self.assertEqual('a', next(letters))
+
+    @testmode.standalone
+    def test_multipart_parallel_upload(self):
+        data = os.urandom(7 * 1024 * 1024)
+        metadata = {'something': "foolish"}
+        part_size = 5 * 1024 * 1024
+        s3_client = Config.get_native_handle(Replica.aws)
+        bucket = os.environ['DSS_S3_BUCKET_TEST']
+        with self.subTest("copy multiple parts"):
+            with io.BytesIO(data) as fh:
+                multipart_parallel_upload(
+                    s3_client,
+                    bucket,
+                    "fake_key",
+                    fh,
+                    part_size=part_size,
+                    metadata=metadata,
+                    content_type="application/octet-stream",
+                )
+        part_size = 14 * 1024 * 1024
+        with self.subTest("should work with single part"):
+            with io.BytesIO(data) as fh:
+                multipart_parallel_upload(
+                    s3_client,
+                    bucket,
+                    "fake_key",
+                    fh,
+                    part_size=part_size,
+                )
+
 
 if __name__ == '__main__':
     unittest.main()

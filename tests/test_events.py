@@ -8,13 +8,14 @@ import logging
 import typing
 import boto3
 import time
+import importlib
 from unittest import mock
 from uuid import uuid4
 from datetime import datetime
 from datetime import timedelta
 from requests.utils import parse_header_links
 
-from flashflood import replay_event_stream
+from flashflood import replay_event_stream, FlashFloodJournalingError
 import requests
 
 pkg_root = os.path.abspath(os.path.join(os.path.dirname(__file__), '..'))  # noqa
@@ -31,6 +32,7 @@ from tests.infra import DSSAssertMixin, testmode
 from tests.infra.server import ThreadedLocalServer, MockFusilladeHandler
 from tests import get_auth_header
 import tests
+daemon_app = importlib.import_module('daemons.dss-notify-v2.app')
 
 
 logger = logging.getLogger(__name__)
@@ -65,6 +67,30 @@ class TestEventsUtils(unittest.TestCase, DSSAssertMixin):
                     expected = ((resources.s3, Config.get_flashflood_bucket(), pfx),)
                     self.assertEqual(args, expected)
 
+    def test_journal_flashflood(self):
+        minimum_number_of_events = 5
+        ff = mock.MagicMock()
+        with mock.patch("dss.events.FlashFlood", return_value=ff):
+            events.journal_flashflood("pfx", minimum_number_of_events)
+            name, args, kwargs = ff.mock_calls[0]
+            self.assertEqual(minimum_number_of_events, args[0])
+
+    def test_update_flashflood(self):
+        number_of_updates_to_apply = 3
+        ff = mock.MagicMock()
+        with mock.patch("dss.events.FlashFlood", return_value=ff):
+            events.update_flashflood("pfx", number_of_updates_to_apply)
+            name, args, kwargs = ff.mock_calls[0]
+            self.assertEqual(number_of_updates_to_apply, args[0])
+
+    def test_flashflood_journal_and_update(self):
+        with mock.patch("daemons.dss-notify-v2.app.journal_flashflood"):
+            with mock.patch("daemons.dss-notify-v2.app.update_flashflood"):
+                daemon_app.flashflood_journal_and_update(None, None, maximum_duration=1)
+
+        with mock.patch("daemons.dss-notify-v2.app.journal_flashflood", side_effect=FlashFloodJournalingError()):
+            with mock.patch("daemons.dss-notify-v2.app.update_flashflood"):
+                daemon_app.flashflood_journal_and_update(None, None, maximum_duration=1)
 
 class TestEvents(unittest.TestCase, DSSAssertMixin):
     @classmethod
