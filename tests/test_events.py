@@ -23,7 +23,7 @@ sys.path.insert(0, pkg_root)  # noqa
 import dss
 from dss.util.aws import resources
 from dss import events
-from dss.config import BucketConfig, Config, Replica, override_bucket_config
+from dss.config import BucketConfig, override_bucket_config, Config, Replica
 from dss.util.version import datetime_to_version_format
 from dss.util import UrlBuilder
 from dss.util.version import datetime_from_timestamp
@@ -46,9 +46,6 @@ def tearDownModule():
 
 
 class TestEventsUtils(unittest.TestCase, DSSAssertMixin):
-    def setUp(self):
-        Config.set_config(dss.BucketConfig.TEST)
-
     def test_record_event_for_bundle(self):
         metadata_document = dict(foo=f"{uuid4()}")
         key = f"bundles/{uuid4()}.{datetime_to_version_format(datetime.utcnow())}"
@@ -72,20 +69,23 @@ class TestEventsUtils(unittest.TestCase, DSSAssertMixin):
 class TestEvents(unittest.TestCase, DSSAssertMixin):
     @classmethod
     def setUpClass(cls):
-        Config.set_config(dss.BucketConfig.TEST)
         cls.app = ThreadedLocalServer()
         cls.app.start()
         cls.bundles = {replica.name: list() for replica in Replica}
-        for replica in Replica:
-            pfx = f"flashflood-{replica.name}-{uuid4()}"
-            os.environ[f'DSS_{replica.name.upper()}_FLASHFLOOD_PREFIX_READ'] = pfx
-            os.environ[f'DSS_{replica.name.upper()}_FLASHFLOOD_PREFIX_WRITE'] = pfx
-            for _ in range(3):
-                uuid, version = cls._upload_bundle(replica)
-                cls.bundles[replica.name].append((uuid, version))
-                events.record_event_for_bundle(replica,
-                                               f"bundles/{uuid}.{version}",
-                                               use_version_for_timestamp=True)
+        with override_bucket_config(BucketConfig.TEST):
+            for replica in Replica:
+                pfx = f"flashflood-{replica.name}-{uuid4()}"
+                os.environ[f'DSS_{replica.name.upper()}_FLASHFLOOD_PREFIX_READ'] = pfx
+                os.environ[f'DSS_{replica.name.upper()}_FLASHFLOOD_PREFIX_WRITE'] = pfx
+                for _ in range(3):
+                    uuid, version = cls._upload_bundle(replica)
+                    cls.bundles[replica.name].append((uuid, version))
+                    events.record_event_for_bundle(replica,
+                                                   f"bundles/{uuid}.{version}",
+                                                   use_version_for_timestamp=True)
+
+    def setUp(self):
+        dss.Config.set_config(dss.BucketConfig.TEST)
 
     @classmethod
     def teardownClass(cls):
