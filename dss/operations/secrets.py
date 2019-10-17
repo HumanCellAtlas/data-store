@@ -54,7 +54,7 @@ def fetch_secret_safely(secret_name: str) -> dict:
         return response
 
 
-events = dispatch.target("secrets", arguments={}, help=__doc__)
+secrets = dispatch.target("secrets", arguments={}, help=__doc__)
 
 
 json_flag_options = dict(
@@ -68,7 +68,7 @@ quiet_flag_options = dict(
 )
 
 
-@events.action(
+@secrets.action(
     "list",
     arguments={
         "--json": json_flag_options,
@@ -105,7 +105,7 @@ def list_secrets(argv: typing.List[str], args: argparse.Namespace):
             print(secret_name)
 
 
-@events.action(
+@secrets.action(
     "get",
     arguments={
         "secret_name": dict(help="the name of the secret to retrieve"),
@@ -148,7 +148,7 @@ def get_secret(argv: typing.List[str], args: argparse.Namespace):
             sys.stdout = sys.__stdout__
 
 
-@events.action(
+@secrets.action(
     "set",
     arguments={
         "secret_name": dict(help="name of secret to set (limit 1 at a time)"),
@@ -233,7 +233,7 @@ def set_secret(argv: typing.List[str], args: argparse.Namespace):
             sm_client.update_secret(SecretId=secret_name, SecretString=secret_val)
 
 
-@events.action(
+@secrets.action(
     "delete",
     arguments={
         "secret_name": dict(help="name of secret to delete (limit 1 at a time)"),
