@@ -26,6 +26,7 @@ from dss import events
 from dss.config import BucketConfig, Config, Replica, override_bucket_config
 from dss.util.version import datetime_to_version_format
 from dss.util import UrlBuilder
+from dss.util.version import datetime_from_timestamp
 from tests.infra import DSSAssertMixin, testmode
 from tests.infra.server import ThreadedLocalServer, MockFusilladeHandler
 from tests import get_auth_header
@@ -71,96 +72,80 @@ class TestEventsUtils(unittest.TestCase, DSSAssertMixin):
 class TestEvents(unittest.TestCase, DSSAssertMixin):
     @classmethod
     def setUpClass(cls):
+        Config.set_config(dss.BucketConfig.TEST)
         cls.app = ThreadedLocalServer()
         cls.app.start()
-        cls.bundle = dict()
-        with override_bucket_config(dss.BucketConfig.TEST):
-            for replica in Replica:
-                bundle_uuid, bundle_version = cls._upload_bundle(replica)
-                cls.bundle[replica.name] = dict(uuid=bundle_uuid,
-                                                version=bundle_version,
-                                                key=f"bundles/{bundle_uuid}.{bundle_version}",)
+        cls.bundles = {replica.name: list() for replica in Replica}
+        for replica in Replica:
+            pfx = f"flashflood-{replica.name}-{uuid4()}"
+            os.environ[f'DSS_{replica.name.upper()}_FLASHFLOOD_PREFIX_READ'] = pfx
+            os.environ[f'DSS_{replica.name.upper()}_FLASHFLOOD_PREFIX_WRITE'] = pfx
+            for _ in range(3):
+                uuid, version = cls._upload_bundle(replica)
+                cls.bundles[replica.name].append((uuid, version))
+                events.record_event_for_bundle(replica,
+                                               f"bundles/{uuid}.{version}",
+                                               use_version_for_timestamp=True)
 
     @classmethod
     def teardownClass(cls):
         cls.app.shutdown()
 
-    def setUp(self):
-        Config.set_config(dss.BucketConfig.TEST)
-        events.record_event_for_bundle.cache_clear()
+    def test_get_event(self):
         for replica in Replica:
-            pfx = f"flashflood-{replica.name}-{uuid4()}"
-            os.environ[f'DSS_{replica.name.upper()}_FLASHFLOOD_PREFIX_READ'] = pfx
-            os.environ[f'DSS_{replica.name.upper()}_FLASHFLOOD_PREFIX_WRITE'] = pfx
-            events.record_event_for_bundle(replica, self.bundle[replica.name]['key'])
+            uuid, version = self.bundles[replica.name][0]
+            url = (UrlBuilder()
+                   .set(path="/v1/events/" + uuid)
+                   .add_query("replica", replica.name)
+                   .add_query("version", version))
+            with self.subTest("event found", replica=replica.name):
+                res = self.app.get(str(url))
+                md = events._build_bundle_metadata_document(replica, f"bundles/{uuid}.{version}")
+                self.assertEqual(md, res.json())
+            with self.subTest("event not found returns 404", replica=replica.name):
+                url.set(path=f"/v1/events/{uuid4()}")
+                res = self.app.get(str(url))
+                self.assertEqual(res.status_code, requests.codes.not_found)
 
-    def test_list(self):
+    def test_list_events(self):
         for replica in Replica:
-            self._test_list(replica)
+            expected_docs = [events._build_bundle_metadata_document(replica, f"bundles/{uuid}.{version}")
+                             for uuid, version in self.bundles[replica.name]]
 
-    def _test_list(self, replica):
-        with self.subTest("list events unpaged", replica=replica.name):
-            res = self.app.get("/v1/events", params=dict(replica=replica.name))
-            self.assertEqual(res.status_code, requests.codes.ok)
-            event_stream = res.json()['event_streams'][0]
-            event = [e for e in replay_event_stream(event_stream)][0]
-            event_doc = json.loads(event.data.decode("utf-8"))
-            self.assertEqual(events._build_bundle_metadata_document(replica, self.bundle[replica.name]['key']),
-                             event_doc)
-        new_bundle_uuid, new_bundle_version = self._upload_bundle(replica)
-        new_bundle_key = f"bundles/{new_bundle_uuid}.{new_bundle_version}"
-        events.record_event_for_bundle.cache_clear()
-        events.record_event_for_bundle(replica, new_bundle_key)
-        with self.subTest("list events paged", replica=replica.name):
-            res = self.app.get("/v1/events", params=dict(replica=replica.name))
-            self.assertEqual(res.status_code, requests.codes.partial)
-            event_stream = res.json()['event_streams'][0]
-            event = [e for e in replay_event_stream(event_stream)][0]
-            event_doc = json.loads(event.data.decode("utf-8"))
-            self.assertEqual(events._build_bundle_metadata_document(replica, self.bundle[replica.name]['key']),
-                             event_doc)
-            url = parse_header_links(res.headers['Link'])[0]['url']
-            res = self.app.get("/v1" + url.split("v1", 1)[1])
-            self.assertEqual(res.status_code, requests.codes.ok)
-            event_stream = res.json()['event_streams'][0]
-            event = [e for e in replay_event_stream(event_stream)][0]
-            event_doc = json.loads(event.data.decode("utf-8"))
-            self.assertEqual(events._build_bundle_metadata_document(replica, new_bundle_key), event_doc)
-        with self.subTest("bad date range returns 400", replica=replica.name):
-            to_date = datetime.utcnow()
-            from_date = to_date + timedelta(100)
-            res = self.app.get("/v1/events", params=dict(replica=replica.name,
-                                                         from_date=datetime_to_version_format(from_date),
-                                                         to_date=datetime_to_version_format(to_date)))
-            self.assertEqual(res.status_code, requests.codes.bad_request)
+            from_date = to_date = None
+            with self.subTest("Omitting date range should list all events", replica=replica.name):
+                self._test_list_events(replica, from_date, to_date, expected_docs, {200, 206})
 
-    def test_get(self):
-        for replica in Replica:
-            self._test_get(replica)
+            from_date = self.bundles[replica.name][0][1]
+            to_date = None
+            with self.subTest("Should inclusively list from `from_date`", replica=replica.name):
+                self._test_list_events(replica, from_date, to_date, expected_docs, {200, 206})
 
-    def test_events_paging(self):
-        for replica in Replica:
-            resp = self.app.get(f"/v1/events?replica={replica.name}")
-            self.assertIn(resp.status_code, [200, 206])
-            content_key = resp.headers.get("X-OpenAPI-Paginated-Content-Key")
-            self.assertEqual("event_streams", content_key)
-            results = resp.json()
-            for key in content_key.split("."):
-                results = results[key]
-            for result in results:
-                for event in replay_event_stream(result):
-                    pass
+            from_date = None
+            to_date = self.bundles[replica.name][-1][1]
+            with self.subTest("Should exclusively list to `to_date`", replica=replica.name):
+                self._test_list_events(replica, from_date, to_date, expected_docs[:-1], {200, 206})
 
-    def _test_get(self, replica):
-        with self.subTest("event found", replica=replica):
-            res = self.app.get("/v1/events/{}".format(self.bundle[replica.name]['uuid']),
-                               params=dict(replica=replica.name, version=self.bundle[replica.name]['version']))
-            self.assertEqual(events._build_bundle_metadata_document(replica, self.bundle[replica.name]['key']),
-                             res.json())
-        with self.subTest("event not found returns 404", replica=replica):
-            res = self.app.get(f"/v1/events/{uuid4()}",
-                               params=dict(replica=replica.name, version=self.bundle[replica.name]['version']))
-            self.assertEqual(res.status_code, requests.codes.not_found)
+            from_date = self.bundles[replica.name][0][1]
+            to_date = self.bundles[replica.name][1][1]
+            with self.subTest("Restricted dates should list single event", replica=replica.name):
+                self._test_list_events(replica, from_date, to_date, expected_docs[:1], {200})
+
+    def _test_list_events(self, replica, from_date, to_date, expected_docs, expected_codes):
+        url = (UrlBuilder()
+               .set(path="/v1/events")
+               .add_query("replica", replica.name))
+        if from_date is not None:
+            url.add_query("from_date", from_date)
+        if to_date is not None:
+            url.add_query("to_date", to_date)
+        event_streams = self._get_paged_response(str(url), expected_codes)
+        self.assertEqual(len(expected_docs), len(event_streams))
+        docs = [json.loads(event.data)
+                for event_stream in event_streams
+                for event in replay_event_stream(event_stream)]
+        for doc, expected_doc in zip(docs, expected_docs):
+            self.assertEqual(doc, expected_doc)
 
     @classmethod
     def _upload_bundle(cls, replica, uuid=None):
@@ -185,6 +170,16 @@ class TestEvents(unittest.TestCase, DSSAssertMixin):
         resp.raise_for_status()
         resp = cls.app.get(f"/v1/bundles/{bundle_uuid}?replica={replica.name}&version={bundle_version}")
         return bundle_uuid, bundle_version
+
+    def _get_paged_response(self, url, expected_codes={200, 206}):
+        results = list()
+        while url:
+            res = self.app.get("/v1" + url.split("v1", 1)[1])
+            self.assertIn(res.status_code, expected_codes)
+            content_key = res.headers.get("X-OpenAPI-Paginated-Content-Key", "results")
+            results.extend([result for result in res.json()[content_key]])
+            url = res.links.get("next", {}).get("url")
+        return results
 
 if __name__ == '__main__':
     unittest.main()

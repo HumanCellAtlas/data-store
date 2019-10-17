@@ -2289,6 +2289,11 @@ paths:
           minimum: 1
           maximum: 10
           default: 1
+        - name: token
+          in: query
+          description: Token to manage retries.  End users constructing queries should not set this parameter.
+          required: false
+          type: string
       responses:
         200:
           description: OK
