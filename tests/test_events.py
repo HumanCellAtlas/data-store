@@ -126,10 +126,13 @@ class TestEvents(unittest.TestCase, DSSAssertMixin):
             with self.subTest("Should exclusively list to `to_date`", replica=replica.name):
                 self._test_list_events(replica, from_date, to_date, expected_docs[:-1], {200, 206})
 
-            from_date = self.bundles[replica.name][0][1]
-            to_date = self.bundles[replica.name][1][1]
             with self.subTest("Restricted dates should list single event", replica=replica.name):
+                from_date = self.bundles[replica.name][0][1]
+                to_date = self.bundles[replica.name][1][1]
                 self._test_list_events(replica, from_date, to_date, expected_docs[:1], {200})
+                from_date = self.bundles[replica.name][1][1]
+                to_date = self.bundles[replica.name][2][1]
+                self._test_list_events(replica, from_date, to_date, expected_docs[1:2], {200})
 
     def _test_list_events(self, replica, from_date, to_date, expected_docs, expected_codes):
         url = (UrlBuilder()
