@@ -43,7 +43,7 @@ class _target:
         def register_action(obj):
             parser = dispatcher.targets[self.target_name]['subparser'].add_parser(
                 name,
-                description=obj.__doc__,
+                help=obj.__doc__,
                 formatter_class=RawTextHelpFormatter
             )
             action_arguments = dispatcher.targets[self.target_name]['arguments'].copy()
