@@ -128,7 +128,9 @@ def _dot_to_underscore_and_strip_numeric_suffix(name: str) -> str:
         name += "_json"
     return name
 
-def journal_flashflood(prefix: str, number_of_events: int=1000, start_from_journal_id: JournalID=None):
+def journal_flashflood(prefix: str,
+                       number_of_events: int=1000,
+                       start_from_journal_id: JournalID=None) -> typing.Optional[JournalID]:
     """
     Compile new events into journals.
     """
@@ -138,8 +140,8 @@ def journal_flashflood(prefix: str, number_of_events: int=1000, start_from_journ
         # TODO: Add interface method to flash-flood to avoid private attribute access
         journals.append(ff._Journal.from_id(journal_id))
         if number_of_events == len(journals):
-            ff.combine_journals(journals)
-            break
+            return ff.combine_journals(journals).id_
+    return None
 
 def list_new_flashflood_journals(prefix: str, start_from_journal_id: JournalID=None) -> typing.Iterator[JournalID]:
     """
