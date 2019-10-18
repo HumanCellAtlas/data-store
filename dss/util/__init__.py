@@ -1,5 +1,7 @@
 import os
 import boto3
+# TODO: rename dss.util.time to avoid conflict with built in module
+import time as python_time
 import tempfile
 from urllib.parse import SplitResult, parse_qsl, urlencode, urlsplit, urlunsplit
 import typing
@@ -188,3 +190,14 @@ def multipart_parallel_upload(
         UploadId=mpu['UploadId'],
     )
     return parts
+
+def countdown(maximum_duration: float) -> typing.Iterator[float]:
+    """
+    Convenience generator to time limit iterated work.
+    """
+    start_time = python_time.time()
+    while True:
+        seconds_remaining = maximum_duration - (python_time.time() - start_time)
+        yield seconds_remaining
+        if 0 > seconds_remaining:
+            break
