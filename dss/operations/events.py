@@ -6,20 +6,22 @@ import typing
 import argparse
 import json
 import logging
+import traceback
 from uuid import uuid4
 from string import hexdigits
 from datetime import datetime
 from concurrent.futures import ThreadPoolExecutor, as_completed
 
 from cloud_blobstore import BlobNotFoundError
-from flashflood import FlashFlood, FlashFloodJournalingError
+from flashflood import FlashFlood, JournalID
 from dcplib.aws.sqs import SQSMessenger
 from dcplib.aws.clients import logs
 
 from dss.config import Config, Replica
 from dss.util.aws import resources
 from dss.operations import dispatch
-from dss.events import get_bundle_metadata_document, record_event_for_bundle
+from dss.events import (get_bundle_metadata_document, record_event_for_bundle, journal_flashflood,
+                        update_flashflood, list_new_flashflood_journals)
 from dss.events.handlers.notify_v2 import _versioned_tombstone_key_regex, _unversioned_tombstone_key_regex
 from dss.storage.bundles import Living
 from dss.storage.identifiers import TOMBSTONE_SUFFIX
@@ -86,24 +88,49 @@ def record(argv: typing.List[str], args: argparse.Namespace):
 @events.action("journal",
                arguments={"--prefix": dict(required=True,
                                            help="flashflood prefix to journal events"),
-                          "--minimum-number-of-events": dict(default=1000, type=int),
-                          "--minimum-size": dict(default=1024 * 1024, type=int)})
+                          "--number-of-events": dict(default=None, type=int),
+                          "--starting-journal-id": dict(default=None),
+                          "--job-id": dict(default=None)})
 def journal(argv: typing.List[str], args: argparse.Namespace):
-    ff = FlashFlood(resources.s3, Config.get_flashflood_bucket(), args.prefix)
-    while True:
+    job_id = args.job_id or f"{uuid4()}"
+    cmd_template = (f"events journal --job-id {job_id} "
+                    f"--prefix {args.prefix} "
+                    f"--number-of-events {args.number_of_events} "
+                    f"--starting-journal-id {{}}")
+
+    if args.starting_journal_id is None:
+        start_time = datetime.now()
+        with SQSMessenger(command_queue_url) as sqsm:
+            journals = list()
+            for journal_id in list_new_flashflood_journals(args.prefix):
+                journals.append(journal_id)
+                if args.number_of_events == len(journals):
+                    print(f"Journaling from {journals[0]} with {args.number_of_events} events.")
+                    sqsm.send(cmd_template.format(journals[0]))
+                    journals = list()
+        monitor_logs(logs, job_id, start_time)
+    else:
+        msg = dict(action="journal", job_id=job_id, prefix=args.prefix, key=args.starting_journal_id)
         try:
-            ff.journal(args.minimum_number_of_events, args.minimum_size)
-        except FlashFloodJournalingError:
-            break
+            journal_flashflood(args.prefix, args.number_of_events, JournalID(args.starting_journal_id))
+        except Exception:
+            msg['ERROR'] = traceback.format_exc()
+        print(json.dumps(msg))
 
 @events.action("update",
                arguments={"--prefix": dict(required=True,
                                            help="flashflood prefix to journal events"),
-                          "--minimum-number-of-events": dict(default=1000, type=int),
-                          "--minimum-size": dict(default=1024 * 1024, type=int)})
+                          "--number-of-updates-to-apply": dict(default=None, type=int)})
 def update(argv: typing.List[str], args: argparse.Namespace):
+    update_flashflood(args.prefix, args.number_of_updates_to_apply)
+
+@events.action("list-journals",
+               arguments={"--prefix": dict(required=True,
+                                           help="flashflood prefix to journal events")})
+def list_journals(argv: typing.List[str], args: argparse.Namespace):
     ff = FlashFlood(resources.s3, Config.get_flashflood_bucket(), args.prefix)
-    ff.update()
+    for journal_id in ff.list_journals():
+        print(journal_id)
 
 @events.action("destroy",
                arguments={"--prefix": dict(required=True)})
