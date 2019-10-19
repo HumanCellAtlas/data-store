@@ -27,7 +27,6 @@ def setUpModule():
 
 
 class MockStorageHandler(object):
-
     bundle_list = ['bundles/00000000-1112-416a-bbcd-8a261c10b121.2019-02-26T035448.489896Z',
                    'bundles/00000000-1112-4858-bf17-513dc2d05863.2019-02-26T033907.789762Z',
                    'bundles/00000000-1112-4858-bf17-513dc2d05863.2019-05-23T220340.829000Z',
@@ -113,6 +112,7 @@ class MockStorageHandler(object):
             bundle_list = self.bundle_list[idx + 1:-1]
         list_tuples = [(x, None) for x in bundle_list]
         return iter(list_tuples)
+
 
 @testmode.standalone
 class TestAwsUtils(unittest.TestCase):
