@@ -19,7 +19,7 @@ stages:
 
 before_script:
   - export COMMITS_URL=${GITHUB_API}/repos/HumanCellAtlas/data-store/commits
-  - if not [[ CI_COMMIT_SHA == $(http GET $COMMITS_URL sha==$CI_COMMIT_REF_NAME | jq -r '.[0]["sha"]') ]]; then exit 1; fi
+  - if [[ CI_COMMIT_SHA != $(http GET $COMMITS_URL sha==$CI_COMMIT_REF_NAME | jq -r '.[0]["sha"]') ]]; then exit 1; fi
 # TODO: figure out how to get the gitlab-runner to not clone the repo as root - Brian H
   - virtualenv ~/venv
   - source ~/venv/bin/activate
