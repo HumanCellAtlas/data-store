@@ -19,6 +19,11 @@ DSS_GCP_SERVICE_ACCOUNT_NAME="org-humancellatlas-staging"
 DSS_CHECKOUT_BUCKET_OBJECT_VIEWERS="serviceAccount:154609999906-compute@developer.gserviceaccount.com,serviceAccount:caas-account@broad-dsde-mint-staging.iam.gserviceaccount.com,serviceAccount:caas-prod-account-for-staging@broad-dsde-mint-staging.iam.gserviceaccount.com"
 DSS_TERRAFORM_BACKEND_BUCKET_TEMPLATE="org-humancellatlas-dss-{account_id}-${DSS_DEPLOYMENT_STAGE}-terraform"
 DSS_FLASHFLOOD_BUCKET=$DSS_FLASHFLOOD_BUCKET_STAGING
+AUTH_URL=https://auth.staging.data.humancellatlas.org
+DSS_AWS_FLASHFLOOD_PREFIX_READ=$DSS_AWS_FLASHFLOOD_PREFIX_READ_STAGING
+DSS_AWS_FLASHFLOOD_PREFIX_WRITE=$DSS_AWS_FLASHFLOOD_PREFIX_WRITE_STAGING
+DSS_GCP_FLASHFLOOD_PREFIX_READ=$DSS_GCP_FLASHFLOOD_PREFIX_READ_STAGING
+DSS_GCP_FLASHFLOOD_PREFIX_WRITE=$DSS_GCP_FLASHFLOOD_PREFIX_WRITE_STAGING
 set +a
 
 if [[ -f "${DSS_HOME}/environment.staging.local" ]]; then
