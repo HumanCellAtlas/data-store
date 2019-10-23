@@ -131,13 +131,14 @@ class BaseSmokeTest(unittest.TestCase):
     def _test_replay_event(self, replica, bundle_uuid, bundle_version):
         res = run_for_json(f"{self.venv_bin}hca dss get-events --replica aws --per-page 10 "
                            f"--from-date {bundle_version}")
-        for event in flashflood.replay_with_urls(res):
-            doc = json.loads(event.data)
-            if doc['manifest']['version'] == bundle_version:
-                break
-        else:
-            self.fail("Event not found in flashflood replay")
-        # TODO: Figure out how to test event is deleted after flashflood is updated - BrianH
+        for stream in res['event_streams']:
+            for event in flashflood.replay_event_stream(stream):
+                doc = json.loads(event.data)
+                if doc['manifest']['version'] == bundle_version:
+                    break
+            else:
+                self.fail("Event not found in flashflood replay")
+            # TODO: Figure out how to test event is deleted after flashflood is updated - BrianH
 
     def _test_get_bundle(self, replica, bundle_uuid):
         """ tests that a bundle can be downloaded"""
