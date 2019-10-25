@@ -65,6 +65,24 @@ class TestEventsUtils(unittest.TestCase, DSSAssertMixin):
                     expected = ((resources.s3, Config.get_flashflood_bucket(), pfx),)
                     self.assertEqual(args, expected)
 
+    def test_journal_flashflood(self):
+        number_of_events = 5
+        ff = mock.MagicMock()
+        with mock.patch("dss.events.FlashFlood", return_value=ff):
+            with mock.patch("dss.events.list_new_flashflood_journals", return_value=range(17)):
+                events.journal_flashflood("pfx", number_of_events)
+                name, args, kwargs = ff.mock_calls[-1]
+                self.assertEqual("combine_journals", name)
+
+    # TODO: Add test for dss.events.list_new_flashflood_journals
+
+    def test_update_flashflood(self):
+        number_of_updates_to_apply = 3
+        ff = mock.MagicMock()
+        with mock.patch("dss.events.FlashFlood", return_value=ff):
+            events.update_flashflood("pfx", number_of_updates_to_apply)
+            name, args, kwargs = ff.mock_calls[0]
+            self.assertEqual(number_of_updates_to_apply, args[0])
 
 class TestEvents(unittest.TestCase, DSSAssertMixin):
     @classmethod

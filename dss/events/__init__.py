@@ -8,12 +8,15 @@ from collections import defaultdict
 from concurrent.futures import ThreadPoolExecutor
 from functools import lru_cache
 
-from flashflood import FlashFlood, FlashFloodEventNotFound
+from flashflood import FlashFlood, FlashFloodEventNotFound, JournalID
 
 from dss.util.aws import resources
 from dss.config import Config, Replica
 from dss.storage.identifiers import TOMBSTONE_SUFFIX
 from dss.util.version import datetime_from_timestamp
+
+
+logger = logging.getLogger(__name__)
 
 # TODO: What happens when an event is recorder with timestamp erlier tha latest journal?
 
@@ -124,3 +127,44 @@ def _dot_to_underscore_and_strip_numeric_suffix(name: str) -> str:
             name = parts[0]
         name += "_json"
     return name
+
+def journal_flashflood(prefix: str,
+                       number_of_events: int=1000,
+                       start_from_journal_id: JournalID=None) -> typing.Optional[JournalID]:
+    """
+    Compile new events into journals.
+    """
+    ff = FlashFlood(resources.s3, Config.get_flashflood_bucket(), prefix)
+    journals = list()
+    for journal_id in list_new_flashflood_journals(prefix, start_from_journal_id):
+        # TODO: Add interface method to flash-flood to avoid private attribute access
+        journals.append(ff._Journal.from_id(journal_id))
+        if number_of_events == len(journals):
+            return ff.combine_journals(journals).id_
+    return None
+
+def list_new_flashflood_journals(prefix: str, start_from_journal_id: JournalID=None) -> typing.Iterator[JournalID]:
+    """
+    List new journals.
+    Listing can optionally begin with `start_from_journal_id`
+    """
+    ff = FlashFlood(resources.s3, Config.get_flashflood_bucket(), prefix)
+    # TODO: Add interface method to flash-flood to avoid private attribute access
+    journals = ff._Journal.list(list_from=start_from_journal_id)
+    if start_from_journal_id:
+        next_journal = next(journals)
+        if "new" == start_from_journal_id.version:
+            yield start_from_journal_id
+        if "new" == next_journal.version:
+            yield next_journal
+    for journal_id in journals:
+        if "new" == journal_id.version:
+            yield journal_id
+
+def update_flashflood(prefix: str, number_of_updates_to_apply=1000):
+    """
+    Apply event updates to existing journals.
+    This is typically called after journaling is complete.
+    """
+    ff = FlashFlood(resources.s3, Config.get_flashflood_bucket(), prefix)
+    ff.update(number_of_updates_to_apply)
