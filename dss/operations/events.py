@@ -92,6 +92,11 @@ def record(argv: typing.List[str], args: argparse.Namespace):
                           "--starting-journal-id": dict(default=None),
                           "--job-id": dict(default=None)})
 def journal(argv: typing.List[str], args: argparse.Namespace):
+    """
+    Compile flashflood event journals. If `--starting-journal-id` is not provided, journal contents are
+    determined according to `--number-of-events` and queued into SQS for processing on AWS Lambda.
+    Otherwise the command is executed in the local environment.
+    """
     job_id = args.job_id or f"{uuid4()}"
     cmd_template = (f"events journal --job-id {job_id} "
                     f"--prefix {args.prefix} "
@@ -122,6 +127,10 @@ def journal(argv: typing.List[str], args: argparse.Namespace):
                                            help="flashflood prefix to journal events"),
                           "--number-of-updates-to-apply": dict(default=None, type=int)})
 def update(argv: typing.List[str], args: argparse.Namespace):
+    """
+    Updates and deletions requests flashflood event data are recorded but not applied until `ff.update()` is called.
+    This commmand causes flashflood to apply any available updates or deletions.
+    """
     update_flashflood(args.prefix, args.number_of_updates_to_apply)
 
 @events.action("list-journals",
