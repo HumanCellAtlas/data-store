@@ -63,7 +63,10 @@ def record(argv: typing.List[str], args: argparse.Namespace):
     """
     replica = Replica[args.replica]
     job_id = args.job_id or f"{uuid4()}"
-    cmd_template = f"events record  --prefix {args.prefix} --replica {replica.name} --job-id {job_id} --keys {{}}"
+    cmd_template = (f"events record --job-id {job_id} "
+                    f"--prefix {args.prefix} "
+                    f"--replica {replica.name} "
+                    f"--keys {{keys}}")
 
     if args.keys is None:
         start_time = datetime.now()
@@ -71,7 +74,7 @@ def record(argv: typing.List[str], args: argparse.Namespace):
         def forward_keys(bundle_fqids):
             with SQSMessenger(command_queue_url) as sqsm:
                 for fqid in bundle_fqids:
-                    sqsm.send(cmd_template.format(f"bundles/{fqid}"))
+                    sqsm.send(cmd_template.format(keys=f"bundles/{fqid}"))
 
         handle = Config.get_blobstore_handle(replica)
         with ThreadPoolExecutor(max_workers=4) as e:
@@ -95,13 +98,13 @@ def journal(argv: typing.List[str], args: argparse.Namespace):
     """
     Compile flashflood event journals. If `--starting-journal-id` is not provided, journal contents are
     determined according to `--number-of-events` and queued into SQS for processing on AWS Lambda.
-    Otherwise the command is executed in the local environment.
+    Otherwise, execute the command is executed.
     """
     job_id = args.job_id or f"{uuid4()}"
     cmd_template = (f"events journal --job-id {job_id} "
                     f"--prefix {args.prefix} "
                     f"--number-of-events {args.number_of_events} "
-                    f"--starting-journal-id {{}}")
+                    f"--starting-journal-id {{starting_journal_id}}")
 
     if args.starting_journal_id is None:
         start_time = datetime.now()
@@ -111,7 +114,7 @@ def journal(argv: typing.List[str], args: argparse.Namespace):
                 journals.append(journal_id)
                 if args.number_of_events == len(journals):
                     print(f"Journaling from {journals[0]} with {args.number_of_events} events.")
-                    sqsm.send(cmd_template.format(journals[0]))
+                    sqsm.send(cmd_template.format(starting_journal_id=journals[0]))
                     journals = list()
         monitor_logs(logs, job_id, start_time)
     else:
