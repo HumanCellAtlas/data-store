@@ -771,8 +771,7 @@ class TestOperations(unittest.TestCase):
 
 
 @testmode.integration
-class test_operations_integration(TestBundleApi, TestAuthMixin, DSSAssertMixin, DSSUploadMixin):
-
+class TestOperationsIntegration(TestBundleApi, TestAuthMixin, DSSAssertMixin, DSSUploadMixin):
     @classmethod
     def setUpClass(cls):
         cls.app = ThreadedLocalServer()
@@ -797,17 +796,17 @@ class test_operations_integration(TestBundleApi, TestAuthMixin, DSSAssertMixin, 
                                              self.gs_test_fixtures_bucket)]:
                 bundle, bundle_uuid = self._create_bundle(replica, fixture_bucket)
                 args = argparse.Namespace(replica=replica.name, keys=[f'bundles/{bundle_uuid}.{bundle["version"]}'])
-                checkout_status = checkout.verify([], args).process_keys()
+                checkout_status = checkout.Verify([], args).process_keys()
                 for key in args.keys:
                     self.assertIn(key, checkout_status)
-                checkout.remove([], args).process_keys()
-                checkout_status = checkout.verify([], args).process_keys()
+                checkout.Remove([], args).process_keys()
+                checkout_status = checkout.Verify([], args).process_keys()
                 for key in args.keys:
                     for file in checkout_status[key]:
                         self.assertIs(False, file['bundle_checkout'])
                         self.assertIs(False, file['blob_checkout'])
-                checkout.start([], args).process_keys()
-                checkout_status = checkout.verify([], args).process_keys()
+                checkout.Add([], args).process_keys()
+                checkout_status = checkout.Verify([], args).process_keys()
                 for key in args.keys:
                     for file in checkout_status[key]:
                         self.assertIs(True, file['bundle_checkout'])
