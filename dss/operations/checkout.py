@@ -8,6 +8,7 @@ import json
 import time
 import collections
 import multiprocessing
+from typing import Dict
 from concurrent.futures import ThreadPoolExecutor
 
 from dss import Replica
@@ -31,7 +32,7 @@ class CheckoutHandler:
         self.handle = Config.get_blobstore_handle(self.replica)
         self.checkout_bucket = self.replica.checkout_bucket
 
-        self.tombstone_cache = {}
+        self.tombstone_cache: Dict[str, bytes] = {}
         self.tombstone_cache_max_len = 100000
 
     def _is_file_tombstoned(self, key: str):
