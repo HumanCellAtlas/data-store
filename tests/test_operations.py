@@ -27,7 +27,7 @@ sys.path.insert(0, pkg_root)  # noqa
 from tests.infra import testmode
 from dss.operations import DSSOperationsCommandDispatch
 from dss.operations.util import map_bucket_results
-from dss.operations import checkout, storage, sync, secrets, lambda_params, iam
+from dss.operations import checkout, storage, sync, secrets, lambda_params, iam, events
 from dss.operations.lambda_params import get_deployed_lambdas, fix_ssm_variable_prefix
 from dss.operations.iam import IAMSEPARATOR
 from dss.logging import configure_test_logging
@@ -1150,7 +1150,7 @@ class TestOperations(unittest.TestCase):
                 )
 
     def test_ssmparams_utilities(self):
-        prefix = f"{os.environ['DSS_PARAMETER_STORE']}/{os.environ['DSS_DEPLOYMENT_STAGE']}"
+        prefix = f"/{os.environ['DSS_PARAMETER_STORE']}/{os.environ['DSS_DEPLOYMENT_STAGE']}"
 
         var = "dummy_variable"
         new_var = fix_ssm_variable_prefix(var)
@@ -1167,7 +1167,7 @@ class TestOperations(unittest.TestCase):
         gold_var = f"{prefix}/dummy_variable"
         self.assertEqual(new_var, gold_var)
 
-        var = f"/{prefix}/dummy_variable"
+        var = f"{prefix}/dummy_variable/"
         new_var = fix_ssm_variable_prefix(var)
         gold_var = f"{prefix}/dummy_variable"
         self.assertEqual(new_var, gold_var)
@@ -1415,6 +1415,30 @@ class TestOperations(unittest.TestCase):
 
                 lambda_params.lambda_unset([], argparse.Namespace(name=testvar_name, dry_run=True, quiet=True))
                 lambda_params.lambda_unset([], argparse.Namespace(name=testvar_name, dry_run=False, quiet=True))
+
+    def test_events_operations_journal(self):
+        with self.subTest("Should forward to lambda when `starting_journal_id` is `None`"):
+            self._test_events_operations_journal(None, 0, 2)
+
+        with self.subTest("Should execute journaling when `starting_journal_id` is not `None`"):
+            self._test_events_operations_journal("blah", 1, 0)
+
+    def _test_events_operations_journal(self,
+                                        starting_journal_id: str,
+                                        expected_journal_flashflood_calls: int,
+                                        expected_sqs_messenger_calls: int):
+        sqs_messenger = mock.MagicMock()
+        with mock.patch("dss.operations.events.SQSMessenger", return_value=sqs_messenger), \
+                mock.patch("dss.operations.events.list_new_flashflood_journals"), \
+                mock.patch("dss.operations.events.journal_flashflood") as journal_flashflood, \
+                mock.patch("dss.operations.events.monitor_logs"):
+            args = argparse.Namespace(prefix="pfx",
+                                      number_of_events=5,
+                                      starting_journal_id=starting_journal_id,
+                                      job_id=None)
+            events.journal([], args)
+            self.assertEqual(expected_journal_flashflood_calls, len(journal_flashflood.mock_calls))
+            self.assertEqual(expected_sqs_messenger_calls, len(sqs_messenger.mock_calls))
 
     def _wrap_ssm_env(self, e):
         """

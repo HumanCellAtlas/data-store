@@ -3,6 +3,7 @@
 import io
 import os
 import sys
+import time
 import unittest
 from unittest import mock
 
@@ -15,7 +16,7 @@ from dss.config import Replica
 from dss.logging import configure_test_logging
 from dss.storage.bundles import enumerate_available_bundles
 from dss.storage.identifiers import TOMBSTONE_SUFFIX
-from dss.util import UrlBuilder, security, multipart_parallel_upload
+from dss.util import UrlBuilder, security, multipart_parallel_upload, countdown
 from dss.util.aws import ARN
 from tests import UNAUTHORIZED_GCP_CREDENTIALS, get_service_jwt
 from tests.infra import testmode
@@ -345,7 +346,6 @@ class TestSecurity(unittest.TestCase):
 
     @mock.patch("dss.Config.get_blobstore_handle")
     def test_tombstone_pages(self, mock_list_v2):
-
         mock_list_v2.return_value = MockStorageHandler()
         for tests in MockStorageHandler.test_per_page:
             test_size = tests['size']
@@ -362,6 +362,17 @@ class TestSecurity(unittest.TestCase):
                 self.assertNotIn('.'.join([x['uuid'], x['version']]), MockStorageHandler.dead_bundles)
                 self.assertNotIn(x, page_one)
     # TODO add test to enumerate list and ensure all bundles that should be present are there.
+
+class TestUtils(unittest.TestCase):
+    @testmode.standalone
+    def test_countdown(self):
+        start_time = time.time()
+        duration = 1
+        for seconds_remaining in countdown(duration):
+            pass
+        self.assertLessEqual(seconds_remaining, 0)
+        self.assertLessEqual(duration, time.time() - start_time)
+
 
 if __name__ == '__main__':
     unittest.main()

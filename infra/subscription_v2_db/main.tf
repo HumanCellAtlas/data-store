@@ -12,7 +12,7 @@ locals {
 
 locals {
   replicas = ["aws", "gcp"]
-} 
+}
 
 resource "aws_dynamodb_table" "subscriptions-aws" {
   count        = "${length(local.replicas)}"
@@ -20,6 +20,10 @@ resource "aws_dynamodb_table" "subscriptions-aws" {
   billing_mode = "PAY_PER_REQUEST"
   hash_key     = "hash_key"
   range_key    = "sort_key"
+
+  point_in_time_recovery {
+    enabled = true
+  }
 
   attribute {
     name = "hash_key"

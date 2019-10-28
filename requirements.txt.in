@@ -21,4 +21,4 @@ requests-http-signature >= 0.0.3
 aws-xray-sdk >= 1.0
 pyjwt >= 1.6.4
 pyyaml >= 4.2b1, <= 5.1.0
-flash-flood >= 0.3.0
+flash-flood >= 0.4.1

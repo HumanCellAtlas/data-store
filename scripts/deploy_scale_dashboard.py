@@ -23,10 +23,9 @@ gs_copy_sfn_arn = f"arn:aws:states:{region}:{accountid}:stateMachine:dss-gs-copy
 gs_copy_write_metadata_sfn_arn = f"arn:aws:states:{region}:{accountid}:stateMachine:dss-gs-copy-write-metadata-sfn-{stage}"
 dss_s3_copy_write_metadata_arn = f"arn:aws:states:{region}:{accountid}:stateMachine:dss-s3-copy-write-metadata-sfn-{stage}"
 dss_scalability_test_arn = f"arn:aws:states:{region}:{accountid}:stateMachine:dss-scalability-test-{stage}"
-dss_visitation_arn = f"arn:aws:states:{region}:{accountid}:stateMachine:dss-visitation-{stage}"
 
 sfn_arns = [checkout_bundle_arn_prefix, gs_copy_sfn_arn, gs_copy_write_metadata_sfn_arn, dss_s3_copy_arn,
-            dss_s3_copy_write_metadata_arn, dss_scalability_test_arn, dss_visitation_arn]
+            dss_s3_copy_write_metadata_arn, dss_scalability_test_arn]
 
 LAMBDA_METRIC_RUNTIME = "LambdaFunctionRunTime"
 LAMBDA_METRIC_FAILED = "LambdaFunctionsFailed"
