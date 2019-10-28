@@ -116,7 +116,6 @@ class FusilladeClient(object):
         return items
 
 
-
 def get_fus_role_attached_policies(fus_client, action, role):
     """
     Utility method to get policies attached to a Fusillade role using /v1/role/{role} and requesting the policies field.
@@ -204,11 +203,9 @@ def extract_aws_policies(action: str, client, managed: bool):
     return master_list
 
 
-
 def list_aws_policies(client, managed: bool):
     """Return a list of names of AWS policies"""
     return extract_aws_policies("list", client, managed)
-
 
 
 def dump_aws_policies(client, managed: bool):
@@ -302,11 +299,9 @@ def extract_fus_policies(action: str, fus_client, do_headers: bool = True):
     return master_list
 
 
-
 def list_fus_policies(fus_client, do_headers) -> typing.List[str]:
     """Return a list of names of Fusillade policies"""
     return extract_fus_policies("list", fus_client, do_headers)
-
 
 
 def dump_fus_policies(fus_client, do_headers):
@@ -342,14 +337,19 @@ def list_aws_policies_grouped(asset_type, client, managed: bool, do_headers: boo
         """
         assert len(args) == 4, "Error: need 4 arguments!"
         return dict(
-            extracted_list_label=args[0], name_label=args[1], detail_list_label=args[2], policy_list_label=args[3]
+            extracted_list_label=args[0],
+            name_label=args[1],
+            detail_list_label=args[2],
+            policy_list_label=args[3],
         )
 
     def _get_aws_api_labels_dict() -> typing.Dict[str, typing.Dict[str, str]]:
         """Store the labels used to unwrap JSON results from the AWS API"""
         labels = {
             "user": _make_aws_api_labels_dict_entry("User", "UserName", "UserDetailList", "UserPolicyList"),
-            "group": _make_aws_api_labels_dict_entry("Group", "GroupName", "GroupDetailList", "GroupPolicyList"),
+            "group": _make_aws_api_labels_dict_entry(
+                "Group", "GroupName", "GroupDetailList", "GroupPolicyList"
+            ),
             "role": _make_aws_api_labels_dict_entry("Role", "RoleName", "RoleDetailList", "RolePolicyList"),
         }
         return labels
@@ -413,17 +413,14 @@ def list_aws_policies_grouped(asset_type, client, managed: bool, do_headers: boo
     return extracted_list
 
 
-
 def list_aws_user_policies(*args, **kwargs):
     """Extract a list of policies that apply to each user"""
     return list_aws_policies_grouped("user", *args, **kwargs)
 
 
-
 def list_aws_group_policies(*args, **kwargs):
     """Extract a list of policies that apply to each group"""
     return list_aws_policies_grouped("group", *args, **kwargs)
-
 
 
 def list_aws_role_policies(*args, **kwargs):
@@ -510,7 +507,6 @@ def list_fus_user_policies(fus_client, do_headers: bool = True):
     return result
 
 
-
 def list_fus_group_policies(fus_client, do_headers: bool = True):
     """
     Call the Fusillade API to retrieve policies grouped by group.
@@ -543,7 +539,6 @@ def list_fus_group_policies(fus_client, do_headers: bool = True):
         result = [("Group", "Policy")] + result
 
     return result
-
 
 
 def list_fus_role_policies(fus_client, do_headers: bool = True):
