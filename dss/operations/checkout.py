@@ -1,6 +1,7 @@
 """
 Tools for managing checkout buckets
 """
+import sys
 import typing
 import argparse
 import logging
@@ -112,7 +113,7 @@ class Remove(CheckoutHandler):
                 file_metadata = self._get_metadata(self.handle, self.replica.bucket, _key)
                 self._verify_delete(self.handle, self.checkout_bucket, key=compose_blob_key(file_metadata))
             else:
-                print(f'INVALID KEY REGEX: {_key}')
+                sys.stderr.write(f'Invalid key regex: {_key}')
 
 
 @checkout.action("verify",
@@ -151,7 +152,7 @@ class Verify(CheckoutHandler):
                 temp = collections.defaultdict(blob_checkout=False, should_be_cached=False)
                 file_metadata = self._get_metadata(self.handle, self.replica.bucket, _key)
                 if not file_metadata:
-                    checkout_status[_key] = 'KEY_DOES_NOT_EXIST'
+                    sys.stderr.write(f'Key not in either main bucket or checkout bucket: {_key}')
                     continue
                 blob_key = compose_blob_key(file_metadata)
                 blob_status = self._verify_blob_existance(self.handle, self.checkout_bucket, blob_key)
@@ -164,7 +165,7 @@ class Verify(CheckoutHandler):
                     temp.update({x: file_metadata[x]})
                 checkout_status[_key] = collections.defaultdict(uuid=temp)
             else:
-                checkout_status[_key] = 'INVALID_KEY_REGEX'
+                sys.stderr.write(f'Invalid key regex: {_key}')
         print(json.dumps(checkout_status, sort_keys=True, indent=2))
         return checkout_status  # action_handler does not really use this, its just testing
 
@@ -188,4 +189,4 @@ class Add(CheckoutHandler):
                 blob_path = compose_blob_key(file_metadata)
                 self._sleepy_checkout(file_checkout, file_metadata=file_metadata, blob_path=blob_path)
             else:
-                print(f'INVALID KEY REGEX: {_key}')
+                sys.stderr.write(f'Invalid key regex: {_key}')
