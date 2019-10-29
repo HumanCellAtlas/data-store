@@ -11,7 +11,6 @@ import unittest
 import string
 import random
 import copy
-import subprocess
 import datetime
 import tempfile
 from collections import namedtuple
@@ -32,7 +31,6 @@ from dss.operations.lambda_params import get_deployed_lambdas, fix_ssm_variable_
 from dss.logging import configure_test_logging
 from dss.config import BucketConfig, Config, Replica, override_bucket_config
 from dss.storage.hcablobstore import FileMetadata, compose_blob_key
-from dss.util.aws import resources
 from dss.util.version import datetime_to_version_format
 from tests import CaptureStdout, SwapStdin
 from tests.test_bundle import TestBundleApi
