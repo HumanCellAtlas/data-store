@@ -126,7 +126,6 @@ class Verify(CheckoutHandler):
             if DSS_BUNDLE_KEY_REGEX.match(_key):  # handles bundles/fqid keys or fqid
                 uuid, version = self._parse_key(_key)
                 bundle_manifest = get_bundle_manifest(replica=self.replica, uuid=uuid, version=version)
-                print(bundle_manifest)
                 checkout_bundle_contents = [x[0] for x in self.handle.list_v2(bucket=self.checkout_bucket,
                                                                               prefix=f'bundles/{uuid}.{version}')]
                 bundle_internal_status = list()
