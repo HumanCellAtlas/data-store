@@ -1,6 +1,7 @@
 """
 Tools for managing checkout buckets
 """
+import sys
 import typing
 import argparse
 import logging
