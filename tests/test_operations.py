@@ -11,7 +11,6 @@ import unittest
 import string
 import random
 import copy
-import subprocess
 import datetime
 import tempfile
 from collections import namedtuple
@@ -32,7 +31,6 @@ from dss.operations.lambda_params import get_deployed_lambdas, fix_ssm_variable_
 from dss.logging import configure_test_logging
 from dss.config import BucketConfig, Config, Replica, override_bucket_config
 from dss.storage.hcablobstore import FileMetadata, compose_blob_key
-from dss.util.aws import resources
 from dss.util.version import datetime_to_version_format
 from tests import CaptureStdout, SwapStdin
 from tests.test_bundle import TestBundleApi
@@ -771,8 +769,7 @@ class TestOperations(unittest.TestCase):
 
 
 @testmode.integration
-class test_operations_integration(TestBundleApi, TestAuthMixin, DSSAssertMixin, DSSUploadMixin):
-
+class TestOperationsIntegration(TestBundleApi, TestAuthMixin, DSSAssertMixin, DSSUploadMixin):
     @classmethod
     def setUpClass(cls):
         cls.app = ThreadedLocalServer()
@@ -797,17 +794,17 @@ class test_operations_integration(TestBundleApi, TestAuthMixin, DSSAssertMixin, 
                                              self.gs_test_fixtures_bucket)]:
                 bundle, bundle_uuid = self._create_bundle(replica, fixture_bucket)
                 args = argparse.Namespace(replica=replica.name, keys=[f'bundles/{bundle_uuid}.{bundle["version"]}'])
-                checkout_status = checkout.verify([], args).process_keys()
+                checkout_status = checkout.Verify([], args).process_keys()
                 for key in args.keys:
                     self.assertIn(key, checkout_status)
-                checkout.remove([], args).process_keys()
-                checkout_status = checkout.verify([], args).process_keys()
+                checkout.Remove([], args).process_keys()
+                checkout_status = checkout.Verify([], args).process_keys()
                 for key in args.keys:
                     for file in checkout_status[key]:
                         self.assertIs(False, file['bundle_checkout'])
                         self.assertIs(False, file['blob_checkout'])
-                checkout.start([], args).process_keys()
-                checkout_status = checkout.verify([], args).process_keys()
+                checkout.Add([], args).process_keys()
+                checkout_status = checkout.Verify([], args).process_keys()
                 for key in args.keys:
                     for file in checkout_status[key]:
                         self.assertIs(True, file['bundle_checkout'])
