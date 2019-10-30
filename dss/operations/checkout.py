@@ -32,12 +32,12 @@ class CheckoutHandler:
 
     @staticmethod
     def _verify_delete(handle, bucket, key):
-        logger.warning(f'Attempting removal of key: {bucket}/{key}')
+        sys.stderr.write(f'Attempting removal of key: {bucket}/{key}')
         try:
             handle.delete(bucket=bucket, key=key)
             handle.get(bucket=bucket, key=key)
         except BlobNotFoundError:
-            logger.warning(f'Successfully deleted key {bucket}/{key}')
+            sys.stderr.write(f'Successfully deleted key {bucket}/{key}')
         else:
             raise RuntimeError(f'Attempted to delete {bucket}/{key} but it did not work ;(')
 
@@ -48,7 +48,7 @@ class CheckoutHandler:
             file_metadata = json.loads(handle.get(bucket=bucket, key=key).decode('utf-8'))
             return file_metadata
         except BlobNotFoundError:
-            logger.warning(f'Unable to locate: {bucket}/{key}')
+            sys.stderr.write(f'Unable to locate: {bucket}/{key}')
 
     @staticmethod
     def _verify_blob_existance(handle, bucket, key):
@@ -64,7 +64,7 @@ class CheckoutHandler:
         token = None
         key = kwargs["file_metadata"]['name'] if kwargs.get('file_metadata') else kwargs.get("bundle_uuid")
         kwargs['replica'] = self.replica
-        logger.warning(f'Starting {function.__name__} on {key}')
+        sys.stderr.write(f'Starting {function.__name__} on {key}')
         while status is not True:
             kwargs['token'] = token
             token, status = function(**kwargs)
@@ -103,7 +103,7 @@ class Remove(CheckoutHandler):
                 uuid, version = self._parse_key(_key)
                 manifest = get_bundle_manifest(replica=self.replica, uuid=uuid, version=version)
                 if manifest is None:
-                    logger.warning(f"Unable to locate manifest for fqid: {self.checkout_bucket}/{_key}")
+                    sys.stderr.write(f"Unable to locate manifest for: {self.checkout_bucket}/{_key}")
                     continue
                 for _files in manifest['files']:
                     key = compose_blob_key(_files)
