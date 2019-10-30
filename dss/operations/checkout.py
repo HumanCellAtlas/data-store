@@ -1,13 +1,15 @@
 """
 Tools for managing checkout buckets
 """
-import sys
 import typing
 import argparse
 import logging
 import json
 import time
 import collections
+import multiprocessing
+from typing import Dict
+from concurrent.futures import ThreadPoolExecutor
 
 from dss import Replica
 from dss.operations import dispatch
@@ -15,8 +17,9 @@ from dss import Config
 from cloud_blobstore import BlobNotFoundError
 from dss.api.bundles import get_bundle_manifest
 from dss.storage.hcablobstore import compose_blob_key
-from dss.storage.identifiers import DSS_BUNDLE_KEY_REGEX, VERSION_REGEX, UUID_REGEX, FILE_PREFIX
+from dss.storage.identifiers import DSS_BUNDLE_KEY_REGEX, VERSION_REGEX, UUID_REGEX, FILE_PREFIX, TOMBSTONE_SUFFIX
 from dss.storage.checkout.bundle import verify_checkout as bundle_checkout
+from dss.storage.checkout.file import start_file_checkout
 from dss.api.files import _verify_checkout as file_checkout
 from dss.storage.checkout import cache_flow
 
@@ -190,3 +193,57 @@ class Add(CheckoutHandler):
                 self._sleepy_checkout(file_checkout, file_metadata=file_metadata, blob_path=blob_path)
             else:
                 sys.stderr.write(f'Invalid key regex: {_key}')
+
+
+@checkout.action("sync",
+                 arguments={"--replica": dict(choices=[r.name for r in Replica], required=True)})
+class Sync(CheckoutHandler):
+    """Checkout all files meeting cache criteria."""
+    def __init__(self, argv: typing.List[str], args: argparse.Namespace):
+        self.keys = []
+        self.replica = Replica[args.replica]
+        self.handle = Config.get_blobstore_handle(self.replica)
+        self.checkout_bucket = self.replica.checkout_bucket
+
+        self.tombstone_cache: Dict[str, bytes] = {}
+        self.tombstone_cache_max_len = 100000
+
+    def _is_file_tombstoned(self, key: str):
+        if key.endswith(f'.{TOMBSTONE_SUFFIX}'):
+            return True
+
+        assert key.startswith(FILE_PREFIX)
+
+        uuid, version = self._parse_key(key)
+        if len(self.tombstone_cache) >= self.tombstone_cache_max_len:
+            self.tombstone_cache.popitem()
+
+        if uuid not in self.tombstone_cache:
+            try:
+                self.tombstone_cache[uuid] = self.handle.get(self.replica.bucket,
+                                                             key=f'{FILE_PREFIX}/{uuid}.{TOMBSTONE_SUFFIX}')
+            except BlobNotFoundError:
+                self.tombstone_cache[uuid] = None
+        return self.tombstone_cache[uuid]
+
+    def process_keys(self):
+        with ThreadPoolExecutor(max_workers=multiprocessing.cpu_count() * 2) as e:
+            for _key in self.handle.list(self.replica.bucket, prefix=f'{FILE_PREFIX}/'):
+                e.submit(self.process_key, _key)
+
+    def process_key(self, _key):
+        if self._is_file_tombstoned(_key):
+            return  # skip if tombstoned
+
+        file_metadata = self._get_metadata(self.handle, self.replica.bucket, _key)
+        if not file_metadata:
+            return  # skip if missing metadata (edge case where the file was deleted before we got here)
+
+        # check if file meets cache criteria
+        if cache_flow.should_cache_file(file_metadata['content-type'], file_metadata['size']):
+            blob_key = compose_blob_key(file_metadata)
+            checked_out = self._verify_blob_existance(self.handle, self.replica.checkout_bucket, blob_key)
+            if not checked_out:
+                print(f'Checking out: {_key}')
+                start_file_checkout(replica=self.replica, blob_key=blob_key)
+                assert self._verify_blob_existance(self.handle, self.replica.checkout_bucket, blob_key)
