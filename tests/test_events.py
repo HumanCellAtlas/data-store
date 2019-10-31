@@ -8,6 +8,7 @@ import logging
 import typing
 import boto3
 import time
+import importlib
 from unittest import mock
 from uuid import uuid4
 from datetime import datetime
@@ -31,6 +32,7 @@ from tests.infra import DSSAssertMixin, testmode
 from tests.infra.server import ThreadedLocalServer, MockFusilladeHandler
 from tests import get_auth_header
 import tests
+daemon_app = importlib.import_module('daemons.dss-events-scribe.app')
 
 
 logger = logging.getLogger(__name__)
@@ -201,6 +203,41 @@ class TestEvents(unittest.TestCase, DSSAssertMixin):
             results.extend([result for result in res.json()[content_key]])
             url = res.links.get("next", {}).get("url")
         return results
+
+class TestEventsDaemon(unittest.TestCase, DSSAssertMixin):
+    def test_flashflood_journal_and_update(self):
+        journal_flashflood_returns = {r.flashflood_prefix_read: [True, False] for r in Replica}
+        def mock_journal_flashflood(pfx, minimum_number_of_events):
+            did_journal = journal_flashflood_returns[pfx].pop(0)
+            return did_journal
+
+        update_flashflood_returns = {r.flashflood_prefix_read: [1, 0] for r in Replica}
+        def mock_update_flashflood(pfx, number_of_updates_to_apply):
+            number_of_updates_applied = update_flashflood_returns[pfx].pop(0)
+            return number_of_updates_applied
+
+        daemon_app.journal_flashflood = mock_journal_flashflood
+        daemon_app.update_flashflood = mock_update_flashflood
+
+        class Context:
+            def get_remaining_time_in_millis(self):
+                return 300 * 1000
+        
+        daemon_app.flashflood_journal_and_update({}, Context())
+        for pfx in journal_flashflood_returns:
+            self.assertEqual(0, len(journal_flashflood_returns[pfx]))
+        for pfx in update_flashflood_returns:
+            self.assertEqual(0, len(update_flashflood_returns[pfx]))
+
+    def test_flashflood_journal_and_update_timeout(self):
+        class Context:
+            def get_remaining_time_in_millis(self):
+                return 0.0
+
+        with mock.patch("daemons.dss-events-scribe.app.journal_flashflood", side_effect=Exception()):
+            with mock.patch("daemons.dss-events-scribe.app.update_flashflood", side_effect=Exception()):
+                # This should timeout and not call journal_flashflood or update_flashflood
+                daemon_app.flashflood_journal_and_update({}, Context())
 
 if __name__ == '__main__':
     unittest.main()

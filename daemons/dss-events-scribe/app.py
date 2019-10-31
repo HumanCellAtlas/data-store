@@ -10,6 +10,7 @@ import logging
 import typing
 import time
 from itertools import cycle
+from collections import namedtuple
 
 import domovoi
 from flashflood import FlashFloodJournalingError
@@ -32,43 +33,40 @@ dss.Config.set_config(dss.BucketConfig.NORMAL)
 app = domovoi.Domovoi()
 
 
+class ReplicaStatus:
+    prefix = None
+    finished_journaling = False
+    finished_updating = False
+
+    def __init__(self, prefix):
+        self.prefix = prefix
+
+
 @app.scheduled_function("rate(5 minutes)")
 def flashflood_journal_and_update(event, context):
     # TODO: Make this configurable
     minimum_number_of_events = 10 if "dev" == os.environ['DSS_DEPLOYMENT_STAGE'] else 1000
 
-    class PrefixStatus(str):
-        is_journaled = False
-        is_updated = False
-
     def lambda_seconds_remaining():
-        return context.get_remaining_time_in_millis() / 1000 - 30
+        # lambda time to live is configured with `lambda_timeout` in `daemons/dss-events-scribe/.chalice/config.json`
+        return context.get_remaining_time_in_millis() / 1000
 
-    prefixes = MutableCycle([r.flashflood_prefix_read for r in Replica])
-    for seconds_remaining, pfx in zip(countdown(lambda_seconds_remaining()), prefixes):
-        if not journal_flashflood(pfx, minimum_number_of_events):
-            prefixes.remove(pfx)
+    replicas = [ReplicaStatus(r.flashflood_prefix_read) for r in Replica]
 
-    prefixes = MutableCycle([r.flashflood_prefix_read for r in Replica])
-    for seconds_remaining, pfx in zip(countdown(lambda_seconds_remaining()), prefixes):
-        if not update_flashflood(pfx):
-            prefixes.remove(pfx)
+    for replica in cycle(replicas):
+        if lambda_seconds_remaining() > 120 and not all(replica.finished_journaling for replica in replicas):
+            if not replica.finished_journaling:
+                did_journal = journal_flashflood(replica.prefix, minimum_number_of_events)
+                if not did_journal:
+                    replica.finished_journaling = True
+        else:
+            break
 
-class MutableCycle:
-    """
-    Safely cycle members of a mutable list.
-    """
-    def __init__(self, items: typing.List[typing.Any]):
-        self.items = items.copy()
-        self.index = -1
-
-    def __iter__(self) -> typing.Iterator[typing.Any]:
-        while self.items:
-            self.index = (1 + self.index) % len(self.items)
-            yield self.items[self.index]
-
-    def remove(self, item):
-        r = self.items.index(item)
-        del self.items[r]
-        if r <= self.index:
-            self.index -= 1
+    for replica in cycle(replicas):
+        if lambda_seconds_remaining() > 30 and not all(replica.finished_updating for replica in replicas):
+            if not replica.finished_updating:
+                number_of_updates_applied = update_flashflood(replica.prefix, minimum_number_of_events)
+                if 0 == number_of_updates_applied:
+                    replica.finished_updating = True
+        else:
+            break

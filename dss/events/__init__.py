@@ -161,10 +161,11 @@ def list_new_flashflood_journals(prefix: str, start_from_journal_id: JournalID=N
         if "new" == journal_id.version:
             yield journal_id
 
-def update_flashflood(prefix: str, number_of_updates_to_apply=1000):
+def update_flashflood(prefix: str, number_of_updates_to_apply=1000) -> int:
     """
     Apply event updates to existing journals.
     This is typically called after journaling is complete.
     """
     ff = FlashFlood(resources.s3, Config.get_flashflood_bucket(), prefix)
-    ff.update(number_of_updates_to_apply)
+    number_of_updates_applied = ff.update(number_of_updates_to_apply)
+    return number_of_updates_applied
