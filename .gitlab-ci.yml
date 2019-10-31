@@ -5,7 +5,7 @@ image: humancellatlas/dss-build-box
 variables:
   GIT_SUBMODULE_STRATEGY: normal
   DSS_ES_TIMEOUT: 30
-  DSS_UNITTEST_OPTS: "-v"
+  DSS_UNITTEST_OPTS: "-v -b"
   GITHUB_API: "https://api.github.com"
 
 stages:
@@ -58,14 +58,14 @@ test_search:
 test_aws_indexer:
   extends: .tests
   variables:
-    DSS_UNITTEST_OPTS: "-v TestAWSIndexer"
+    DSS_UNITTEST_OPTS: "-b -v TestAWSIndexer"
   script:
     - make -j1 tests/test_indexer.py
 
 test_gcp_indexer:
   extends: .tests
   variables:
-    DSS_UNITTEST_OPTS: "-v TestGCPIndexer"
+    DSS_UNITTEST_OPTS: "-b -v TestGCPIndexer"
   script:
     - make -j1 tests/test_indexer.py
 
@@ -123,6 +123,8 @@ integration_test:
     - staging
   except:
     - schedules
+  variables:
+    DSS_UNITTEST_OPTS: "-v"
 
 scale_and_performance:
   stage: scale_and_performance

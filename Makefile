@@ -42,7 +42,7 @@ serial_test:
 # A pattern rule that runs a single test script
 #
 $(tests): %.py : mypy lint
-	coverage run -p --source=dss $*.py -b $(DSS_UNITTEST_OPTS)
+	coverage run -p --source=dss $*.py $(DSS_UNITTEST_OPTS)
 
 # Run standalone and integration tests
 #
