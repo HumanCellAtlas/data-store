@@ -20,8 +20,6 @@ from dss import Config, Replica
 from dss.logging import configure_lambda_logging
 from dss.events import journal_flashflood, update_flashflood
 
-from dss.util import countdown
-
 
 configure_lambda_logging()
 logger = logging.getLogger(__name__)
