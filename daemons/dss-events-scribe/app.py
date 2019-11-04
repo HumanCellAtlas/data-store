@@ -1,3 +1,10 @@
+"""
+This is the "offline" event journaling and update daemon. The compilation of flashflood journals, and the application
+of flashflood event updates and event deletes, is not concurrency safe. This daemon should be executed on a schedule,
+and Lambda TTL should be configured such that it is never executed in a concurrent manner. Additionally,
+`reserved_concurrency` has been set to 1 to prevent parallel execution
+(see `dss/daemons/dss-events-scribe/.chalice/config.json`).
+"""
 import os
 import sys
 import logging

@@ -11,6 +11,7 @@
       "environment_variables": {}
     }
   },
+  "reserved_concurrency": 1,
   "lambda_timeout": 300,
   "lambda_memory_size": 2560
 }
