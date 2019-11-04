@@ -207,11 +207,12 @@ class TestEvents(unittest.TestCase, DSSAssertMixin):
 class TestEventsDaemon(unittest.TestCase, DSSAssertMixin):
     def test_flashflood_journal_and_update(self):
         journal_flashflood_returns = {r.flashflood_prefix_read: [True, False] for r in Replica}
+        update_flashflood_returns = {r.flashflood_prefix_read: [1, 0] for r in Replica}
+
         def mock_journal_flashflood(pfx, minimum_number_of_events):
             did_journal = journal_flashflood_returns[pfx].pop(0)
             return did_journal
 
-        update_flashflood_returns = {r.flashflood_prefix_read: [1, 0] for r in Replica}
         def mock_update_flashflood(pfx, number_of_updates_to_apply):
             number_of_updates_applied = update_flashflood_returns[pfx].pop(0)
             return number_of_updates_applied
@@ -222,7 +223,7 @@ class TestEventsDaemon(unittest.TestCase, DSSAssertMixin):
         class Context:
             def get_remaining_time_in_millis(self):
                 return 300 * 1000
-        
+
         daemon_app.flashflood_journal_and_update({}, Context())
         for pfx in journal_flashflood_returns:
             self.assertEqual(0, len(journal_flashflood_returns[pfx]))

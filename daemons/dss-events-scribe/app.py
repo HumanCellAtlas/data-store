@@ -1,19 +1,9 @@
-"""
-See Readme.md in this directory for documentation on the dss-notify-v2 daemon.
-
-storage_event -> invoke_notify_daemon -> invoke_sfn -> sfn_dynamodb_loop -> sqs -> invoke_notify_daemon
-"""
-
 import os
 import sys
 import logging
-import typing
-import time
 from itertools import cycle
-from collections import namedtuple
 
 import domovoi
-from flashflood import FlashFloodJournalingError
 
 pkg_root = os.path.abspath(os.path.join(os.path.dirname(__file__), 'domovoilib'))  # noqa
 sys.path.insert(0, pkg_root)  # noqa
@@ -47,7 +37,7 @@ def flashflood_journal_and_update(event, context):
     # TODO: Make this configurable
     minimum_number_of_events = 10 if "dev" == os.environ['DSS_DEPLOYMENT_STAGE'] else 1000
 
-    def lambda_seconds_remaining():
+    def lambda_seconds_remaining() -> float:
         # lambda time to live is configured with `lambda_timeout` in `daemons/dss-events-scribe/.chalice/config.json`
         return context.get_remaining_time_in_millis() / 1000
 
@@ -57,7 +47,11 @@ def flashflood_journal_and_update(event, context):
         if lambda_seconds_remaining() > 120 and not all(replica.finished_journaling for replica in replicas):
             if not replica.finished_journaling:
                 did_journal = journal_flashflood(replica.prefix, minimum_number_of_events)
-                if not did_journal:
+                if did_journal:
+                    logger.info(f"Compiled event journal with {minimum_number_of_events} events "
+                                f"for flashflood prefix {replica.prefix}")
+                else:
+                    logger.info(f"Finished compiling event journals for flashflood prefix {replica.prefix}")
                     replica.finished_journaling = True
         else:
             break
@@ -66,7 +60,11 @@ def flashflood_journal_and_update(event, context):
         if lambda_seconds_remaining() > 30 and not all(replica.finished_updating for replica in replicas):
             if not replica.finished_updating:
                 number_of_updates_applied = update_flashflood(replica.prefix, minimum_number_of_events)
-                if 0 == number_of_updates_applied:
+                if 0 < number_of_updates_applied:
+                    logger.info(f"Applied {number_of_updates_applied} event updates or deletes "
+                                f"for flashflood prefix {replica.prefix}")
+                else:
+                    logger.info(f"Finished applying event updates for flashflood prefix {replica.prefix}")
                     replica.finished_updating = True
         else:
             break
