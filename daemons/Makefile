@@ -17,7 +17,8 @@ PARALLEL_AWS_DAEMONS := \
 	dss-scalability-test \
 	dss-dlq-reaper \
 	dss-sfn-launcher \
-	dss-notify
+	dss-notify \
+	dss-events-scribe
 
 
 PARALLEL_GCP_DAEMONS := \

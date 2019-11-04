@@ -1,0 +1,63 @@
+{
+  "app_name": "dss-events-scribe",
+  "version": "2.0",
+  "environment_variables": {
+    "GOOGLE_APPLICATION_CREDENTIALS": "/var/task/domovoilib/gcp-credentials.json"
+  },
+  "stages": {
+    "dev": {
+      "api_gateway_stage": "dev",
+      "tags": {
+        "DSS_DEPLOY_ORIGIN": "dcp-b087432b5657-2019-10-01-15-33-51-integration.release-46-g6e447df-2019-11-04-17-30-43.deploy",
+        "Name": "dss-events-scribe",
+        "service": "dss",
+        "project": "dcp",
+        "owner": "dss-team@data.humancellatlas.org",
+        "env": "dev"
+      },
+      "environment_variables": {
+        "ADMIN_USER_EMAILS": "org-humancellatlas-dev@human-cell-atlas-travis-test.iam.gserviceaccount.com,lblauvel-service-account@human-cell-atlas-travis-test.iam.gserviceaccount.com,travis-test@human-cell-atlas-travis-test.iam.gserviceaccount.com,lblauvel@ucsc.edu,bhannafi@ucsc.edu,amarjandu@human-cell-atlas-travis-test.iam.gserviceaccount.com,travis-test@human-cell-atlas-travis-test.iam.gserviceaccount.com",
+        "API_DOMAIN_NAME": "dss.dev.data.humancellatlas.org",
+        "AUTH_URL": "https://auth.testing.data.humancellatlas.org",
+        "CHECKOUT_CACHE_CRITERIA": "[{\"type\":\"application/json\",\"max_size\":12314}]",
+        "DSS_AUTHORIZED_DOMAINS": "human-cell-atlas-travis-test.iam.gserviceaccount.com broad-dsde-mint-dev.iam.gserviceaccount.com broad-dsde-mint-test.iam.gserviceaccount.com broad-dsde-mint-staging.iam.gserviceaccount.com",
+        "DSS_AWS_FLASHFLOOD_PREFIX": "aws",
+        "DSS_AWS_FLASHFLOOD_PREFIX_READ": "aws",
+        "DSS_AWS_FLASHFLOOD_PREFIX_WRITE": "aws",
+        "DSS_BLOB_PUBLIC_TTL_DAYS": "7",
+        "DSS_BLOB_TTL_DAYS": "14",
+        "DSS_BUNDLE_MANIFEST_INDEX_LIMIT": "20000",
+        "DSS_DEBUG": "0",
+        "DSS_DEPLOYMENT_STAGE": "dev",
+        "DSS_ES_ENDPOINT": "search-dss-index-dev-wc7kz2vuj7mpfjbxnp4ftplpuu.us-east-1.es.amazonaws.com",
+        "DSS_EVENT_RELAY_NAME": "dss-gs-event-relay-",
+        "DSS_FLASHFLOOD_BUCKET": "org-humancellatlas-dss-events-dev",
+        "DSS_GCP_FLASHFLOOD_PREFIX": "gcp",
+        "DSS_GCP_FLASHFLOOD_PREFIX_READ": "gcp",
+        "DSS_GCP_FLASHFLOOD_PREFIX_WRITE": "gcp",
+        "DSS_GS_BUCKET": "org-humancellatlas-dss-dev",
+        "DSS_GS_CHECKOUT_BUCKET": "org-humancellatlas-dss-checkout-dev",
+        "DSS_NOTIFICATION_SENDER": "DSS Notifier <dss.humancellatlas@gmail.com>",
+        "DSS_NOTIFY_DELAYS": "0 60 600 3600 21600 60540 86400 86400 86400 86400 86400 86400",
+        "DSS_NOTIFY_TIMEOUT": "60",
+        "DSS_S3_BUCKET": "org-humancellatlas-dss-dev",
+        "DSS_S3_CHECKOUT_BUCKET": "org-humancellatlas-dss-checkout-dev",
+        "DSS_VERSION": "061e71e5027bc94f61f3adea8834a076d4bce1b2",
+        "DSS_XRAY_TRACE": "0",
+        "GCP_DEFAULT_REGION": "us-central1",
+        "GCP_PROJECT_NAME": "human-cell-atlas-travis-test",
+        "OIDC_AUDIENCE": "https://dev.data.humancellatlas.org/,https://dev.data.humancellatlas.org/",
+        "OIDC_EMAIL_CLAIM": "https://auth.data.humancellatlas.org/email",
+        "OIDC_GROUP_CLAIM": "https://auth.data.humancellatlas.org/group",
+        "OPENID_PROVIDER": "https://humancellatlas.auth0.com/",
+        "TOKENINFO_FUNC": "dss.util.security.verify_jwt"
+      },
+      "layers": [
+        "arn:aws:lambda:us-east-1:861229788715:layer:dss-dependencies-dev:45"
+      ]
+    }
+  },
+  "reserved_concurrency": 1,
+  "lambda_timeout": 300,
+  "lambda_memory_size": 2560
+}
