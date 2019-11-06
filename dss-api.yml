@@ -766,14 +766,10 @@ paths:
 
                   ```
 
-                  --2769baffc4f24cbc83ced26aa0c2f712
                   Content-Disposition: form-data; name="foo"
-
                   bar
                   Content-Disposition: form-data; name="payload"
-
                   {"transaction_id": "301c9079-3b20-4311-a131-bcda9b7f08ba", "subscription_id": ...
-                  --2769baffc4f24cbc83ced26aa0c2f712--
 
                   ```
 
