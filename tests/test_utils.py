@@ -13,8 +13,6 @@ import dss
 from dss import DSSException, DSSForbiddenException, Config
 from dss.config import Replica
 from dss.logging import configure_test_logging
-from dss.storage.bundles import enumerate_available_bundles
-from dss.storage.identifiers import TOMBSTONE_SUFFIX
 from dss.util import UrlBuilder, security, multipart_parallel_upload
 from dss.util.aws import ARN
 from tests import UNAUTHORIZED_GCP_CREDENTIALS, get_service_jwt
@@ -23,94 +21,6 @@ from tests.infra import testmode
 
 def setUpModule():
     configure_test_logging()
-
-
-class MockStorageHandler(object):
-    bundle_list = ['bundles/00000000-1112-416a-bbcd-8a261c10b121.2019-02-26T035448.489896Z',
-                   'bundles/00000000-1112-4858-bf17-513dc2d05863.2019-02-26T033907.789762Z',
-                   'bundles/00000000-1112-4858-bf17-513dc2d05863.2019-05-23T220340.829000Z',
-                   'bundles/00000000-1112-4858-bf17-513dc2d05863.dead',
-                   'bundles/00000000-1112-5145-9560-430930445071.2018-10-09T002318.558884Z',
-                   'bundles/00000000-1112-525e-95d1-12b886550da9.2019-02-26T033907.789762Z',
-                   'bundles/00000000-1112-56b3-a467-0b0ac8208c6b.2019-02-26T033414.851898Z',
-                   'bundles/00000000-1112-56b3-a467-0b0ac8208c6b.2019-02-26T033414.851898Z.dead',
-                   'bundles/00000000-1112-5719-a070-1fcb25a57519.2018-10-18T203641.653105Z',
-                   'bundles/00000000-1112-5719-a070-1fcb25a57519.2018-10-18T203641.653105Z.dead',
-                   'bundles/00000000-1112-6146-8623-96cd047ca3df.2019-02-26T033558.843528Z',
-                   'bundles/00000000-1112-6265-8bf4-bb7bd2b38313.2019-02-26T035253.735430Z',
-                   'bundles/00000000-1112-6372-b236-21e6359cb933.2019-02-26T035613.863196Z',
-                   'bundles/00000000-1112-6452-94d9-293fcb97ba32.2019-05-10T110312.514000Z',
-                   'bundles/00000000-1112-6452-94d9-293fcb97ba32.dead',
-                   'bundles/00000000-1112-7197-967c-d6a33233f65e.2018-09-13T131642.918470Z',
-                   'bundles/00000000-1112-7670-9dad-92c9fb6534bb.2019-02-26T033443.407780Z',
-                   'bundles/00000000-1112-7ee4-aefd-6eb2c8cad783.2018-10-08T201847.591231Z',
-                   'bundles/00000000-1112-7ee4-aefd-6eb2c8cad783.2018-10-08T201847.591231Z.dead',
-                   'bundles/00000000-1112-7ee4-aefd-6eb2c8cad786.2018-10-08T201847.591231Z',
-                   'bundles/00000000-1113-416a-bbcd-8a261c10b121.2019-02-26T035448.489896Z',
-                   'bundles/00000000-1113-416a-bbcd-8a261c10b121.2019-02-26T035448.489896Z.dead',
-                   'bundles/00000000-1113-4858-bf17-513dc2d05863.2019-02-26T033907.789762Z',
-                   'bundles/00000000-1113-4858-bf17-513dc2d05863.2019-05-23T220340.829000Z',
-                   'bundles/00000000-1113-4858-bf17-513dc2d05863.dead',
-                   'bundles/00000000-1113-5145-9560-430930445071.2018-10-09T002318.558884Z',
-                   'bundles/00000000-1113-525e-95d1-12b886550da9.2019-02-26T033907.789762Z',
-                   'bundles/00000000-1113-56b3-a467-0b0ac8208c6b.2019-02-26T033414.851898Z',
-                   'bundles/00000000-1113-56b3-a467-0b0ac8208c6b.2019-02-26T033414.851898Z.dead',
-                   'bundles/00000000-1113-5719-a070-1fcb25a57519.2018-10-18T203641.653105Z',
-                   'bundles/00000000-1113-5719-a070-1fcb25a57519.2018-10-18T203641.653105Z.dead',
-                   'bundles/00000000-1113-6146-8623-96cd047ca3df.2019-02-26T033558.843528Z',
-                   'bundles/00000000-1113-6265-8bf4-bb7bd2b38313.2019-02-26T035253.735430Z',
-                   'bundles/00000000-1113-6372-b236-21e6359cb933.2019-02-26T035613.863196Z',
-                   'bundles/00000000-1113-6452-94d9-293fcb97ba32.2019-05-10T110312.514000Z',
-                   'bundles/00000000-1113-6452-94d9-293fcb97ba32.dead',
-                   'bundles/00000000-1113-7197-967c-d6a33233f65e.2018-09-13T131642.918470Z',
-                   'bundles/00000000-1113-7670-9dad-92c9fb6534bb.2019-02-26T033443.407780Z',
-                   'bundles/00000000-1113-7ee4-aefd-6eb2c8cad783.2018-10-08T201847.591231Z',
-                   'bundles/00000000-1113-7ee4-aefd-6eb2c8cad786.2018-10-08T201847.591231Z']
-
-    dead_bundles = ['bundles/00000000-1112-4858-bf17-513dc2d05863.2019-02-26T033907.789762Z',
-                    'bundles/00000000-1112-4858-bf17-513dc2d05863.2019-05-23T220340.829000Z',
-                    'bundles/00000000-1112-4858-bf17-513dc2d05863.dead',
-                    'bundles/00000000-1112-56b3-a467-0b0ac8208c6b.2019-02-26T033414.851898Z',
-                    'bundles/00000000-1112-56b3-a467-0b0ac8208c6b.2019-02-26T033414.851898Z.dead',
-                    'bundles/00000000-1112-5719-a070-1fcb25a57519.2018-10-18T203641.653105Z',
-                    'bundles/00000000-1112-5719-a070-1fcb25a57519.2018-10-18T203641.653105Z.dead',
-                    'bundles/00000000-1112-6452-94d9-293fcb97ba32.2019-05-10T110312.514000Z',
-                    'bundles/00000000-1112-6452-94d9-293fcb97ba32.dead',
-                    'bundles/00000000-1112-6e52-94d9-293fcb97ba32.2019-05-10T110312.514000Z',
-                    'bundles/00000000-1112-6e52-94d9-293fcb97ba32.dead',
-                    'bundles/00000000-1112-7ee4-aefd-6eb2c8cad783.2018-10-08T201847.591231Z',
-                    'bundles/00000000-1112-7ee4-aefd-6eb2c8cad783.2018-10-08T201847.591231Z.dead',
-                    'bundles/00000000-1113-416a-bbcd-8a261c10b121.2019-02-26T035448.489896Z',
-                    'bundles/00000000-1113-416a-bbcd-8a261c10b121.2019-02-26T035448.489896Z.dead',
-                    'bundles/00000000-1113-4858-bf17-513dc2d05863.2019-02-26T033907.789762Z',
-                    'bundles/00000000-1113-4858-bf17-513dc2d05863.2019-05-23T220340.829000Z',
-                    'bundles/00000000-1113-4858-bf17-513dc2d05863.dead',
-                    'bundles/00000000-1113-56b3-a467-0b0ac8208c6b.2019-02-26T033414.851898Z',
-                    'bundles/00000000-1113-56b3-a467-0b0ac8208c6b.2019-02-26T033414.851898Z.dead',
-                    'bundles/00000000-1113-5719-a070-1fcb25a57519.2018-10-18T203641.653105Z',
-                    'bundles/00000000-1113-5719-a070-1fcb25a57519.2018-10-18T203641.653105Z.dead',
-                    'bundles/00000000-1113-6452-94d9-293fcb97ba32.2019-05-10T110312.514000Z',
-                    'bundles/00000000-1113-6452-94d9-293fcb97ba32.dead',
-                    ]
-
-    test_per_page = [{"size": 10,
-                      "last_good_bundle": {"uuid": "00000000-1113-5145-9560-430930445071",
-                                           "version": "2018-10-09T002318.558884Z"}},
-                     {"size": 12,
-                      "last_good_bundle": {"uuid": "00000000-1113-6146-8623-96cd047ca3df",
-                                           "version": "2019-02-26T033558.843528Z"}},
-                     {"size": 14,
-                      "last_good_bundle": {"uuid": "00000000-1113-6372-b236-21e6359cb933",
-                                           "version": "2019-02-26T035613.863196Z"}}]
-
-    def list_v2(self, *args, **kwargs):
-        search_after = kwargs.get('start_after_key')
-        bundle_list = self.bundle_list
-        if search_after:
-            idx = self.bundle_list.index(search_after)
-            bundle_list = self.bundle_list[idx + 1:-1]
-        list_tuples = [(x, None) for x in bundle_list]
-        return iter(list_tuples)
 
 
 @testmode.standalone
@@ -335,33 +245,6 @@ class TestSecurity(unittest.TestCase):
     @staticmethod
     def restore_email_claims(old):
         os.environ['OIDC_EMAIL_CLAIM'] = old
-
-    @mock.patch("dss.Config.get_blobstore_handle")
-    def test_uuid_enumeration(self, mock_list_v2):
-        mock_list_v2.return_value = MockStorageHandler()
-        resp = enumerate_available_bundles(replica='aws')
-        for x in resp['bundles']:
-            self.assertNotIn('.'.join([x['uuid'], x['version']]), MockStorageHandler.dead_bundles)
-
-    @mock.patch("dss.Config.get_blobstore_handle")
-    def test_tombstone_pages(self, mock_list_v2):
-
-        mock_list_v2.return_value = MockStorageHandler()
-        for tests in MockStorageHandler.test_per_page:
-            test_size = tests['size']
-            last_good_bundle = tests['last_good_bundle']
-            resp = enumerate_available_bundles(replica='aws', per_page=test_size)
-            page_one = resp['bundles']
-            for x in resp['bundles']:
-                self.assertNotIn('.'.join([x['uuid'], x['version']]), MockStorageHandler.dead_bundles)
-            self.assertDictEqual(last_good_bundle, resp['bundles'][-1])
-            search_after = resp['search_after']
-            resp = enumerate_available_bundles(replica='aws', per_page=test_size,
-                                               search_after=search_after)
-            for x in resp['bundles']:
-                self.assertNotIn('.'.join([x['uuid'], x['version']]), MockStorageHandler.dead_bundles)
-                self.assertNotIn(x, page_one)
-    # TODO add test to enumerate list and ensure all bundles that should be present are there.
 
 if __name__ == '__main__':
     unittest.main()
