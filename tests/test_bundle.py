@@ -592,7 +592,7 @@ class TestBundleApi(unittest.TestCase, TestAuthMixin, DSSAssertMixin, DSSUploadM
                 resp = self.put_bundle(
                     replica,
                     bundle_uuid3,
-                    [(file_uuid, file_version, "LICENSE"), (file_uuid, file_version, "LIasdfCENSE")],
+                    [(file_uuid, file_version, "LICENSE"), (file_uuid, file_version, "LICENSE")],
                     bundle_version,
                     expected_code=requests.codes.created
                 )
