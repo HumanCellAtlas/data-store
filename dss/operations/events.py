@@ -1,7 +1,6 @@
 """
 JMESPath eventing and subscription admin tooling
 """
-import os
 import typing
 import argparse
 import json
@@ -10,9 +9,8 @@ import traceback
 from uuid import uuid4
 from string import hexdigits
 from datetime import datetime
-from concurrent.futures import ThreadPoolExecutor, as_completed
+from concurrent.futures import ThreadPoolExecutor
 
-from cloud_blobstore import BlobNotFoundError
 from flashflood import FlashFlood, JournalID
 from dcplib.aws.sqs import SQSMessenger
 from dcplib.aws.clients import logs
@@ -22,9 +20,7 @@ from dss.util.aws import resources
 from dss.operations import dispatch
 from dss.events import (get_bundle_metadata_document, record_event_for_bundle, journal_flashflood,
                         update_flashflood, list_new_flashflood_journals)
-from dss.events.handlers.notify_v2 import _versioned_tombstone_key_regex, _unversioned_tombstone_key_regex
 from dss.storage.bundles import Living
-from dss.storage.identifiers import TOMBSTONE_SUFFIX
 from dss.operations.util import monitor_logs, command_queue_url
 
 
