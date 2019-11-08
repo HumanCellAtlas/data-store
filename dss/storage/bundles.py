@@ -3,6 +3,7 @@ from functools import lru_cache
 import json
 import typing
 import time
+import re
 from collections import OrderedDict
 
 import cachetools
@@ -10,8 +11,8 @@ from cloud_blobstore import BlobNotFoundError, BlobStore
 
 from dss import Config, Replica
 from dss.api.search import PerPageBounds
-from dss.storage.identifiers import DSS_BUNDLE_KEY_REGEX, DSS_BUNDLE_TOMBSTONE_REGEX, TOMBSTONE_SUFFIX, BUNDLE_PREFIX, \
-    BundleTombstoneID, BundleFQID
+from dss.storage.identifiers import (DSS_BUNDLE_KEY_REGEX, DSS_BUNDLE_TOMBSTONE_REGEX, TOMBSTONE_SUFFIX, BUNDLE_PREFIX,
+                                     BundleTombstoneID, BundleFQID, UUID_PATTERN, VERSION_PATTERN)
 from dss.storage.blobstore import test_object_exists, idempotent_save
 from dss.util import multipart_parallel_upload
 
@@ -196,3 +197,41 @@ class Living():
 
         for bundle_fqid in self._living_fqids_in_bundle_info():
             yield bundle_fqid
+
+_versioned_tombstone_key_regex = re.compile(f"^(bundles)/({UUID_PATTERN}).({VERSION_PATTERN}).{TOMBSTONE_SUFFIX}$")
+_unversioned_tombstone_key_regex = re.compile(f"^(bundles)/({UUID_PATTERN}).{TOMBSTONE_SUFFIX}$")
+def get_tombstoned_bundles(replica: Replica, tombstone_key: str) -> typing.Iterator[str]:
+    """
+    Return the bundle fqid(s) associated with a versioned or unversioned tombstone, as verified on object storage.
+    Note that an unversioned tombstone returns keys associated with bundles not previously, as show in the example
+    below.
+
+    bundles/uuid.version1
+    bundles/uuid.version2
+    bundles/uuid.version2.dead
+    bundles/uuid.version3
+    bundles/uuid.version3.dead
+    bundles/uuid.dead
+
+    For the above listing:
+        `get_tombstoned_bundles(replica, bundles/uuid.version2.dead)` -> `bundles/uuid.version2`
+        `get_tombstoned_bundles(replica, bundles/uuid.dead)` -> `[bundles/uuid.version1]`
+    """
+    handle = Config.get_blobstore_handle(replica)
+    if _versioned_tombstone_key_regex.match(tombstone_key):
+        pfx = tombstone_key.split(f".{TOMBSTONE_SUFFIX}")[0]
+        prev_key = ""
+        for key in handle.list(replica.bucket, pfx):
+            if key == f"{prev_key}.{TOMBSTONE_SUFFIX}":
+                yield prev_key
+            prev_key = key
+    elif _unversioned_tombstone_key_regex.match(tombstone_key):
+        pfx = tombstone_key.split(f".{TOMBSTONE_SUFFIX}")[0]
+        prev_key = ""
+        for key in handle.list(replica.bucket, pfx):
+            if key != f"{prev_key}.{TOMBSTONE_SUFFIX}" and not prev_key.endswith(TOMBSTONE_SUFFIX):
+                if prev_key:
+                    yield prev_key
+            prev_key = key
+    else:
+        raise ValueError(f"{tombstone_key} is not a tombstone key")
