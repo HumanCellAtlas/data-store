@@ -11,9 +11,9 @@ from cloud_blobstore import BlobNotFoundError, BlobStore
 
 from dss import Config, Replica
 from dss.api.search import PerPageBounds
-from dss.storage.identifiers import (DSS_BUNDLE_KEY_REGEX, DSS_BUNDLE_TOMBSTONE_REGEX, TOMBSTONE_SUFFIX, BUNDLE_PREFIX,
-                                     BundleTombstoneID, BundleFQID, UUID_PATTERN, VERSION_PATTERN,
-                                     VERSIONED_TOMBSTONE_KEY_REGEX, UNVERSIONED_TOMBSTONE_KEY_REGEX)
+from dss.storage.identifiers import (DSS_BUNDLE_KEY_REGEX, TOMBSTONE_SUFFIX, BUNDLE_PREFIX, BundleTombstoneID,
+                                     DSS_VERSIONED_BUNDLE_TOMBSTONE_KEY_REGEX, BundleFQID, UUID_PATTERN,
+                                     DSS_UNVERSIONED_BUNDLE_TOMBSTONE_KEY_REGEX, VERSION_PATTERN,)
 from dss.storage.blobstore import test_object_exists, idempotent_save
 from dss.util import multipart_parallel_upload
 
@@ -104,7 +104,7 @@ def _latest_version_from_object_names(object_names: typing.Iterator[str]) -> str
     dead_versions = set()  # type: typing.Set[str]
     all_versions = set()  # type: typing.Set[str]
     set_checks = [
-        (DSS_BUNDLE_TOMBSTONE_REGEX, dead_versions),
+        (DSS_VERSIONED_BUNDLE_TOMBSTONE_KEY_REGEX, dead_versions),
         (DSS_BUNDLE_KEY_REGEX, all_versions),
     ]
 
@@ -217,14 +217,14 @@ def get_tombstoned_bundles(replica: Replica, tombstone_key: str) -> typing.Itera
         `get_tombstoned_bundles(replica, bundles/uuid.dead)` -> `[bundles/uuid.version1]`
     """
     handle = Config.get_blobstore_handle(replica)
-    if VERSIONED_TOMBSTONE_KEY_REGEX.match(tombstone_key):
+    if DSS_VERSIONED_BUNDLE_TOMBSTONE_KEY_REGEX.match(tombstone_key):
         pfx = tombstone_key.split(f".{TOMBSTONE_SUFFIX}")[0]
         prev_key = ""
         for key in handle.list(replica.bucket, pfx):
             if key == f"{prev_key}.{TOMBSTONE_SUFFIX}":
                 yield prev_key
             prev_key = key
-    elif UNVERSIONED_TOMBSTONE_KEY_REGEX.match(tombstone_key):
+    elif DSS_UNVERSIONED_BUNDLE_TOMBSTONE_KEY_REGEX.match(tombstone_key):
         pfx = tombstone_key.split(f".{TOMBSTONE_SUFFIX}")[0]
         prev_key = ""
         for key in handle.list(replica.bucket, pfx):
