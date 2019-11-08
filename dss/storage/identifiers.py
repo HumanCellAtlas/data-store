@@ -57,6 +57,9 @@ FILES_URI_REGEX = re.compile(FILES_PATTERN)
 BUNDLES_PATTERN = f'/v1/bundles/{UUID_PATTERN}'
 BUNDLES_URI_REGEX = re.compile(BUNDLES_PATTERN)
 
+VERSIONED_TOMBSTONE_KEY_REGEX = re.compile(f"^(bundles)/({UUID_PATTERN}).({VERSION_PATTERN}).{TOMBSTONE_SUFFIX}$")
+UNVERSIONED_TOMBSTONE_KEY_REGEX = re.compile(f"^(bundles)/({UUID_PATTERN}).{TOMBSTONE_SUFFIX}$")
+
 
 class ObjectIdentifierError(ValueError):
     pass
