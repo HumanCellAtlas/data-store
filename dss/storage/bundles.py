@@ -203,7 +203,7 @@ _unversioned_tombstone_key_regex = re.compile(f"^(bundles)/({UUID_PATTERN}).{TOM
 def get_tombstoned_bundles(replica: Replica, tombstone_key: str) -> typing.Iterator[str]:
     """
     Return the bundle fqid(s) associated with a versioned or unversioned tombstone, as verified on object storage.
-    Note that an unversioned tombstone returns keys associated with bundles not previosly, as show in the example
+    Note that an unversioned tombstone returns keys associated with bundles not previously, as show in the example
     below.
 
     bundles/uuid.version1
