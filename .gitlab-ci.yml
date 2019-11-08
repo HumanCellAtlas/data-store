@@ -90,6 +90,10 @@ setup_fusillade:
     - dcp-fusillade/scripts/setup_fusillade.py --file temp-roles.json --force testing
   except:
     - schedules
+  only:
+    - master
+    - integration
+    - staging
 
 deploy:
   stage: deploy
