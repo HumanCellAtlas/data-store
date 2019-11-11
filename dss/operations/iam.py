@@ -614,6 +614,11 @@ def list_policies(argv: typing.List[str], args: argparse.Namespace):
     managed = args.include_managed  # noqa
     do_headers = not args.exclude_headers
 
+    if args.cloud_provider != "fusillade" and args.stage:
+        if not args.quiet:
+            # Print to stderr to prevent interference with pipes
+            print(f"WARNING: --stage argument only valid with cloud provider 'fusillade', ignoring...", file=sys.stderr)
+
     if args.cloud_provider == "aws":
 
         if args.group_by is None:
