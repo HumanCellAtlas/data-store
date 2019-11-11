@@ -160,13 +160,13 @@ The DSS uses the [Amazon S3 backend](https://www.terraform.io/docs/backends/type
 1.  Run the command
 
     ```
-    ./scripts/populate_lambda_ssm_parameters.py
+    ./scripts/dss-ops.py lambda update
     ```
 
 	This populates the environment variables defining your stage into an AWS Simple Systems Manager parameter store.
     These variables will be read from the parameter store and in-lined into the Lambda deployment packages during
 	deployment. This command should be executed whenever the environment variables are updated. The environments
-	of currently deployed Lambdas may optionally by updated in place with the flag `--update-deployed-lambdas`.
+	of currently deployed Lambdas may optionally by updated in place with the flag `--update-deployed`.
 
 1.  Choose a region that has support for Cloud Functions and set `GCP_DEFAULT_REGION` to that region. See
     [the GCP locations list](https://cloud.google.com/about/locations/) for a list of supported regions.
