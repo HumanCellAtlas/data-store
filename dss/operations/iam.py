@@ -60,9 +60,7 @@ class FusilladeClient(object):
         "production": "https://auth.data.humancellatlas.org",
     }
 
-    def __init__(self, stage=None):
-        if stage is None:
-            RuntimeError("You must provide a stage argument to FusilladeClient(stage)")
+    def __init__(self, stage):
         auth_url, headers = self.get_auth_url_headers(stage)
         self.auth_url = auth_url
         self.headers = headers
@@ -595,7 +593,13 @@ iam = dispatch.target("iam", arguments={}, help=__doc__)
         "--include-managed": dict(
             action="store_true", help="Include policies provided and managed by the cloud provider"
         ),
-        "--exclude-headers": dict(action="store_true", help="Exclude headers on the list being output"),
+        "--exclude-headers": dict(
+            action="store_true", help="Exclude headers on the list being output"
+        ),
+        "--quiet": dict(action="store_true", help="Suppress warning messages"),
+        "--stage": dict(
+            type=str, required=False, help="If using Fusillade, specify which deployment stage to target",
+        ),
     },
 )
 def list_policies(argv: typing.List[str], args: argparse.Namespace):
@@ -606,6 +610,11 @@ def list_policies(argv: typing.List[str], args: argparse.Namespace):
 
     managed = args.include_managed  # noqa
     do_headers = not args.exclude_headers
+
+    if args.cloud_provider != "fusillade" and args.stage:
+        if not args.quiet:
+            # Print to stderr to prevent interference with pipes
+            print(f"WARNING: --stage argument only valid with cloud provider 'fusillade', ignoring...", file=sys.stderr)
 
     if args.cloud_provider == "aws":
 
