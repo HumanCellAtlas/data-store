@@ -324,6 +324,8 @@ class TestOperations(unittest.TestCase):
                         force=False,
                         include_managed=False,
                         exclude_headers=False,
+                        quiet=True,
+                        stage=None,
                     ))
                 self.assertIn("fake-policy", output)
 
@@ -340,6 +342,8 @@ class TestOperations(unittest.TestCase):
                         force=True,
                         include_managed=False,
                         exclude_headers=False,
+                        quiet=True,
+                        stage=None,
                     ),
                 )
                 with open(fname, "r") as f:
@@ -433,6 +437,8 @@ class TestOperations(unittest.TestCase):
                             force=False,
                             include_managed=False,
                             exclude_headers=True,
+                            quiet=True,
+                            stage=None,
                         ),
                     )
                 self.assertIn(IAMSEPARATOR.join(["fake-user-1", "fake-policy-attached-to-fake-user-1"]), output)
@@ -450,6 +456,8 @@ class TestOperations(unittest.TestCase):
                         force=True,
                         include_managed=False,
                         exclude_headers=False,
+                        quiet=True,
+                        stage=None,
                     ),
                 )
                 with open(fname, "r") as f:
@@ -477,6 +485,8 @@ class TestOperations(unittest.TestCase):
                             force=False,
                             include_managed=False,
                             exclude_headers=True,
+                            quiet=True,
+                            stage=None,
                         ),
                     )
                 self.assertIn(
@@ -496,6 +506,8 @@ class TestOperations(unittest.TestCase):
                         force=True,
                         include_managed=False,
                         exclude_headers=False,
+                        quiet=True,
+                        stage=None,
                     ),
                 )
                 with open(fname, "r") as f:
@@ -523,6 +535,8 @@ class TestOperations(unittest.TestCase):
                             force=False,
                             include_managed=False,
                             exclude_headers=True,
+                            quiet=True,
+                            stage=None,
                         ),
                     )
                 self.assertIn(
@@ -542,6 +556,8 @@ class TestOperations(unittest.TestCase):
                         force=True,
                         include_managed=False,
                         exclude_headers=False,
+                        quiet=True,
+                        stage=None,
                     ),
                 )
                 with open(fname, "r") as f:
@@ -559,6 +575,8 @@ class TestOperations(unittest.TestCase):
                         force=False,
                         include_managed=False,
                         exclude_headers=False,
+                        quiet=True,
+                        stage=None,
                     ))
 
         # Test error-handling and exceptions last
@@ -572,6 +590,8 @@ class TestOperations(unittest.TestCase):
                     force=False,
                     include_managed=False,
                     exclude_headers=False,
+                    quiet=True,
+                    stage=None,
                 ))
 
             with self.assertRaises(RuntimeError):
@@ -582,6 +602,8 @@ class TestOperations(unittest.TestCase):
                     force=False,
                     include_managed=False,
                     exclude_headers=False,
+                    quiet=True,
+                    stage=None,
                 ))
 
     def test_iam_gcp(self):
@@ -700,6 +722,8 @@ class TestOperations(unittest.TestCase):
                             force=False,
                             include_managed=False,
                             exclude_headers=False,
+                            quiet=True,
+                            stage=None,
                         ),
                     )
                 self.assertIn("fake-group-policy", output)
@@ -719,6 +743,8 @@ class TestOperations(unittest.TestCase):
                             force=False,
                             include_managed=False,
                             exclude_headers=True,
+                            quiet=True,
+                            stage=None,
                         ),
                     )
                 self.assertIn("fake-group-policy", output)
@@ -739,6 +765,8 @@ class TestOperations(unittest.TestCase):
                         force=True,
                         include_managed=False,
                         exclude_headers=False,
+                        quiet=True,
+                        stage=None,
                     ),
                 )
                 with open(fname, "r") as f:
@@ -764,6 +792,8 @@ class TestOperations(unittest.TestCase):
                             force=False,
                             include_managed=False,
                             exclude_headers=False,
+                            quiet=True,
+                            stage=None,
                         ),
                     )
                 self.assertIn(IAMSEPARATOR.join(["fake-user@foo.bar", "fake-group-policy"]), output)
@@ -783,6 +813,8 @@ class TestOperations(unittest.TestCase):
                             force=False,
                             include_managed=False,
                             exclude_headers=True,
+                            quiet=True,
+                            stage=None,
                         ),
                     )
                 self.assertIn(IAMSEPARATOR.join(["fake-user@foo.bar", "fake-group-policy"]), output)
@@ -803,6 +835,8 @@ class TestOperations(unittest.TestCase):
                         force=True,
                         include_managed=False,
                         exclude_headers=False,
+                        quiet=True,
+                        stage=None,
                     ),
                 )
                 with open(fname, "r") as f:
@@ -858,6 +892,8 @@ class TestOperations(unittest.TestCase):
                             force=False,
                             include_managed=False,
                             exclude_headers=False,
+                            quiet=True,
+                            stage=None,
                         ),
                     )
                 self.assertIn(IAMSEPARATOR.join(["fake-group", "fake-role-policy"]), output)
@@ -875,6 +911,8 @@ class TestOperations(unittest.TestCase):
                             force=False,
                             include_managed=False,
                             exclude_headers=True,
+                            quiet=True,
+                            stage=None,
                         ),
                     )
                 self.assertIn(IAMSEPARATOR.join(["fake-group", "fake-role-policy"]), output)
@@ -893,6 +931,8 @@ class TestOperations(unittest.TestCase):
                         force=True,
                         include_managed=False,
                         exclude_headers=False,
+                        quiet=True,
+                        stage=None,
                     ),
                 )
                 with open(fname, "r") as f:
@@ -936,6 +976,8 @@ class TestOperations(unittest.TestCase):
                             force=False,
                             include_managed=False,
                             exclude_headers=False,
+                            quiet=True,
+                            stage=None,
                         ),
                     )
                 self.assertIn(IAMSEPARATOR.join(["fake-role", "fake-role-policy"]), output)
@@ -953,6 +995,8 @@ class TestOperations(unittest.TestCase):
                             force=False,
                             include_managed=False,
                             exclude_headers=True,
+                            quiet=True,
+                            stage=None,
                         ),
                     )
                 self.assertIn(IAMSEPARATOR.join(["fake-role", "fake-role-policy"]), output)
@@ -971,6 +1015,8 @@ class TestOperations(unittest.TestCase):
                         force=True,
                         include_managed=False,
                         exclude_headers=False,
+                        quiet=True,
+                        stage=None,
                     ),
                 )
                 with open(fname, "r") as f:
@@ -1149,25 +1195,22 @@ class TestOperations(unittest.TestCase):
 
     def test_ssmparams_utilities(self):
         prefix = f"/{os.environ['DSS_PARAMETER_STORE']}/{os.environ['DSS_DEPLOYMENT_STAGE']}"
+        gold_var = f"{prefix}/dummy_variable"
 
         var = "dummy_variable"
         new_var = fix_ssm_variable_prefix(var)
-        gold_var = f"{prefix}/dummy_variable"
         self.assertEqual(new_var, gold_var)
 
         var = "/dummy_variable"
         new_var = fix_ssm_variable_prefix(var)
-        gold_var = f"{prefix}/dummy_variable"
         self.assertEqual(new_var, gold_var)
 
         var = f"{prefix}/dummy_variable"
         new_var = fix_ssm_variable_prefix(var)
-        gold_var = f"{prefix}/dummy_variable"
         self.assertEqual(new_var, gold_var)
 
         var = f"{prefix}/dummy_variable/"
         new_var = fix_ssm_variable_prefix(var)
-        gold_var = f"{prefix}/dummy_variable"
         self.assertEqual(new_var, gold_var)
 
     def test_ssmparams_crud(self):
