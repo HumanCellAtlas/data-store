@@ -186,6 +186,7 @@ The DSS uses the [Amazon S3 backend](https://www.terraform.io/docs/backends/type
     These buckets will be created with Terraform, and should not exist before deploying for the first time.
 
 #### Configure User Authentication/Authorization
+
 The following environment variables must be set to enable user authentication and authorization.
 
 * `OIDC_AUDIENCE` must be populated with the expected JWT (JSON web token) audience.
@@ -255,6 +256,8 @@ When deploying for the first time, a Google Cloud Platform service account must 
 1.  Run the command
 
     ```
+    ### WARNING: RUNNING THIS COMMAND WILL 
+    ###          CLEAR EXISTING SECRET VALUE
     cat $DSS_HOME/gcp-credentials.json | ./scripts/dss-ops.py secrets set --secret-name $GOOGLE_APPLICATION_CREDENTIALS_SECRETS_NAME
     ```
 
