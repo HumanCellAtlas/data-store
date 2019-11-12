@@ -276,7 +276,10 @@ def extract_fus_policies(action: str, fus_client, do_headers: bool = True):
                 except (KeyError, TypeError):
                     pass
                 else:
-                    d = json.loads(iam_policy)
+                    try:
+                        d = json.loads(iam_policy)
+                    except TypeError:
+                        d = iam_policy
                     if "Id" not in d:
                         d["Id"] = ANONYMOUS_POLICY_NAME
                     managed_policies.append(d)
