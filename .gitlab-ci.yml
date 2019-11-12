@@ -7,11 +7,6 @@ variables:
   DSS_ES_TIMEOUT: 30
   DSS_UNITTEST_OPTS: "-v -b"
   GITHUB_API: "https://api.github.com"
-  FUSILLADE_MAP:
-    - dev: "testing"
-    - integration: "integration"
-    - staging: "staging"
-    - prod: "prod"
 
 stages:
   - trufflehog
