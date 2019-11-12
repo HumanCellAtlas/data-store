@@ -130,7 +130,10 @@ class TestStorageBundles(unittest.TestCase):
             unversioned_tombstone_key = f"bundles/{mock_handle.bundle_uuid}.{TOMBSTONE_SUFFIX}"
             listed_keys = {e for e in get_tombstoned_bundles(Replica.aws, unversioned_tombstone_key)}
             expected_keys = {e for e in mock_handle.untombstoned_bundles}
+            unexpected_keys = {e for e in mock_handle.tombstoned_bundles}
             self.assertEqual(listed_keys, expected_keys)
+            self.assertNotIn(unversioned_tombstone_key, listed_keys)
+            self.assertEqual(0, len(unexpected_keys.intersection(listed_keys)))
 
         with self.subTest("Passing in non-tombstone key should raise"):
             mock_handle.gen_bundle_listing(1, versioned_tombstone_probability=1.0)
