@@ -7,6 +7,11 @@ variables:
   DSS_ES_TIMEOUT: 30
   DSS_UNITTEST_OPTS: "-v -b"
   GITHUB_API: "https://api.github.com"
+  FUSILLADE_MAP:
+    - dev: "testing"
+    - integration: "integration"
+    - staging: "staging"
+    - prod: "prod"
 
 stages:
   - trufflehog
@@ -87,7 +92,12 @@ setup_fusillade:
     -   source environment.$CI_COMMIT_REF_NAME
     - fi
     - cat ./roles.json | sed "s/\${stage}/${DSS_DEPLOYMENT_STAGE}/g" > temp-roles.json
-    - dcp-fusillade/scripts/setup_fusillade.py --file temp-roles.json --force testing
+    - if [ "$DSS_DEPLOYMENT_STAGE" == "dev" ]; then
+    -   FUS_STAGE='testing'
+    - else
+    -   FUS_STAGE=$DSS_DEPLOYMENT_STAGE
+    - fi
+    - dcp-fusillade/scripts/setup_fusillade.py --file temp-roles.json --force $FUS_STAGE
   except:
     - schedules
   only:
