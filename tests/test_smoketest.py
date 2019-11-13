@@ -162,7 +162,7 @@ class Smoketest(BaseSmokeTest):
 
             with self.subTest(f"{param['starting_replica'].name}: Run a CLI search."):
                 run(f"{self.venv_bin}hca dss post-search --es-query='{{}}' "
-                    f"--replica {param['starting_replica'].name} > /dev/null")
+                    f"--replica {param['starting_replica'].name} --no-paginate > /dev/null")
 
 
 if __name__ == "__main__":

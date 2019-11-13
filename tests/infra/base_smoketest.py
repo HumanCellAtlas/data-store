@@ -116,10 +116,9 @@ class BaseSmokeTest(unittest.TestCase):
 
     def _test_get_event(self, replica, bundle_uuid, bundle_version, event_should_exist=True):
         if event_should_exist:
-            res = run_for_json(f"{self.venv_bin}hca dss get-events --replica {replica.name}"
+            res = run_for_json(f"{self.venv_bin}hca dss get-event --replica {replica.name}"
                                f" --uuid {bundle_uuid}"
-                               f" --version {bundle_version}"
-                               f" --no-paginate")
+                               f" --version {bundle_version}")
             self.assertEqual(res['manifest']['version'], bundle_version)
         else:
             # TODO: enable this test when flash-flood supports immediate event deletion - BrianH
