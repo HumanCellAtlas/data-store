@@ -16,7 +16,10 @@ sys.path.insert(0, pkg_root)  # noqa
 import dss
 from dss import Config, Replica
 from dss.logging import configure_lambda_logging
-from dss.events import get_bundle_metadata_document, get_deleted_bundle_metadata_document, record_event_for_bundle
+from dss.storage.bundles import get_tombstoned_bundles
+from dss.storage.identifiers import TOMBSTONE_SUFFIX
+from dss.events import (get_bundle_metadata_document, get_deleted_bundle_metadata_document, record_event_for_bundle,
+                        delete_event_for_bundle, build_bundle_metadata_document)
 from dss.events.handlers.notify_v2 import should_notify, notify_or_queue, notify
 
 from dss.events.handlers.sync import exists
@@ -107,6 +110,10 @@ def launch_from_notification_queue(event, context):
 def _handle_bucket_event(replica: Replica, key: str, is_delete_event: bool):
     if is_delete_event:
         metadata_document = get_deleted_bundle_metadata_document(replica, key)
+    elif key.endswith(TOMBSTONE_SUFFIX):
+        for zombie_key in get_tombstoned_bundles(replica, key):
+            delete_event_for_bundle(replica, zombie_key)
+        metadata_document = build_bundle_metadata_document(replica, key)
     else:
         if exists(replica, key):
             metadata_document = record_event_for_bundle(replica, key)

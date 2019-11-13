@@ -67,6 +67,22 @@ class TestEventsUtils(unittest.TestCase, DSSAssertMixin):
                     expected = ((resources.s3, Config.get_flashflood_bucket(), pfx),)
                     self.assertEqual(args, expected)
 
+    def test_delete_event_for_bundle(self):
+        key = f"bundles/{uuid4()}.{datetime_to_version_format(datetime.utcnow())}"
+        test_parameters = [(replica, pfxs) for replica in Replica for pfxs in [None, ("foo", "bar")]]
+        for replica, prefixes in test_parameters:
+            with self.subTest(replica=replica.name, flashflood_prefixes=prefixes):
+                self._test_delete_event_for_bundle(replica, prefixes, key)
+
+    def _test_delete_event_for_bundle(self, replica, prefixes, key):
+        with mock.patch("dss.events.FlashFlood") as ff:
+            events.delete_event_for_bundle(replica, key, prefixes)
+            used_prefixes = prefixes or replica.flashflood_prefix_write
+            self.assertEqual(len(used_prefixes), ff.call_count)
+            for args, pfx in zip(ff.call_args_list, used_prefixes):
+                expected = ((resources.s3, Config.get_flashflood_bucket(), pfx),)
+                self.assertEqual(args, expected)
+
     def test_journal_flashflood(self):
         number_of_events = 5
         ff = mock.MagicMock()

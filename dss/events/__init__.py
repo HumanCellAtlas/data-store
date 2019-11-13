@@ -46,9 +46,6 @@ def get_deleted_bundle_metadata_document(replica: Replica, key: str) -> dict:
         "version": version,
     }
 
-# TODO: Delete event from flashflood
-# TODO: Update event data in flashflood
-
 @lru_cache(maxsize=2)
 def record_event_for_bundle(replica: Replica,
                             key: str,
@@ -57,7 +54,6 @@ def record_event_for_bundle(replica: Replica,
     """
     Build the bundle metadata document, record it into flashflood, and return it
     """
-    # TODO: Add support for unversioned tombstones
     fqid = key.split("/", 1)[1]
     if flashflood_prefixes is None:
         flashflood_prefixes = replica.flashflood_prefix_write
@@ -72,6 +68,20 @@ def record_event_for_bundle(replica: Replica,
         if not ff.event_exists(fqid):
             ff.put(json.dumps(metadata_document).encode("utf-8"), event_id=fqid, date=event_date)
     return metadata_document
+
+def delete_event_for_bundle(replica: Replica,
+                            key: str,
+                            flashflood_prefixes: typing.Tuple[str, ...]=None):
+    """
+    Delete a bundle event from flashflood. This operation is eventually consistent, and
+    will not take effect until flashflood.update() is called (typically by daemons/dss-event-scribe)
+    """
+    fqid = key.split("/", 1)[1]
+    if flashflood_prefixes is None:
+        flashflood_prefixes = replica.flashflood_prefix_write
+    for pfx in flashflood_prefixes:
+        ff = FlashFlood(resources.s3, Config.get_flashflood_bucket(), pfx)
+        ff.delete_event(fqid)
 
 def build_bundle_metadata_document(replica: Replica, key: str) -> dict:
     """
