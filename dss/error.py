@@ -86,7 +86,7 @@ def dss_handler(func):
                 title = str(ex)
                 stacktrace = traceback.format_exc()
             headers = None
-            logger.error(json.dumps(dict(status=status, code=code, title=title, stacktrace=stacktrace)))
+            logger.error(json.dumps(dict(status=status, code=code, title=title, stacktrace=stacktrace), indent=4))
         else:
             status = requests.codes.unavailable
             code = "read_only"
