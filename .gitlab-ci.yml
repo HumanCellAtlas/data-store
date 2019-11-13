@@ -78,7 +78,6 @@ test_subscriptions:
 setup_fusillade:
   stage: fusillade
   script:
-    - date && date -u
     - git clone -b master https://github.com/HumanCellAtlas/dcp-fusillade.git
     - cd dcp-fusillade
     - source environment
