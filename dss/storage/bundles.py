@@ -213,7 +213,7 @@ def get_tombstoned_bundles(replica: Replica, tombstone_key: str) -> typing.Itera
     bundles/uuid.dead
 
     For the above listing:
-        `get_tombstoned_bundles(replica, bundles/uuid.version2.dead)` -> `bundles/uuid.version2`
+        `get_tombstoned_bundles(replica, bundles/uuid.version2.dead)` -> `[bundles/uuid.version2]`
         `get_tombstoned_bundles(replica, bundles/uuid.dead)` -> `[bundles/uuid.version1]`
     """
     handle = Config.get_blobstore_handle(replica)
