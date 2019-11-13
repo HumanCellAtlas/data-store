@@ -78,7 +78,6 @@ test_subscriptions:
 setup_fusillade:
   stage: fusillade
   script:
-    - date && date -u
     - git clone -b master https://github.com/HumanCellAtlas/dcp-fusillade.git
     - cd dcp-fusillade
     - source environment
@@ -94,7 +93,6 @@ setup_fusillade:
     - else
     -   FUS_STAGE=$DSS_DEPLOYMENT_STAGE
     - fi
-    - echo $FUS_STAGE
     - dcp-fusillade/scripts/setup_fusillade.py --file temp-roles.json --force $FUS_STAGE
   except:
     - schedules
