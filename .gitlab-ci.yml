@@ -92,6 +92,7 @@ setup_fusillade:
     -   FUS_STAGE=$DSS_DEPLOYMENT_STAGE
     - fi
     - dcp-fusillade/scripts/setup_fusillade.py --file temp-roles.json --force $FUS_STAGE
+    - scripts/check_fusillade.py $FUS_STAGE
   except:
     - schedules
   only:

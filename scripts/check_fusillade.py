@@ -3,12 +3,30 @@
 This script ensures Fusillade roles (defined in this repo at roles.json)
 are correctly applied to the right Fusillade stage, and that the current
 state of the Fusillade cloud directory contains the roles defined in roles.json.
+Operator should provide the Fusillade stage as the first arg or using the
+FUS_DEPLOYMENT_STAGE environment var.
 """
 import subprocess
 import os
 import sys
 import json
 import copy
+
+
+FUS2DSS = {
+    "testing": "dev",
+    "dev": None,
+    "integration": "integration",
+    "staging": "staging",
+    "prod": "prod"
+}
+DSS_ENV_FILES = {
+    "dev": "environment",
+    "integration": "environment.integration",
+    "staging": "environment.staging",
+    "prod": "environment.prod"
+}
+
 
 class FusilladeChecker(object):
     """
@@ -19,22 +37,21 @@ class FusilladeChecker(object):
     - collect info from roles.json in repo and extract list of roles
     - check that each role from roles.json is present in roles listed in fusillade
     """
-    def __init__(self, stage):
+    STAGES = {
+        'dev': 'environment',
+        'testing': 'environment',
+        'integration': 'environment.integration',
+        'staging': 'environment.staging',
+        'prod': 'environment.prod'
+    }
+    def __init__(self, fus_stage):
         """Set up stage info and check values"""
-        self.stages = {
-            'dev': None, # we never use Fusillade dev stage
-            'testing': 'environment',
-            'integration': 'environment.integration',
-            'staging': 'environment.staging'
-        }
-        if stage not in self.stages:
-            print(f'Custom stage "{self.stage}" provided. Skipping Fusillade check.')
+        if fus_stage not in DSS2FUS:
+            print(f'Custom stage "{fus_stage}" provided. Skipping Fusillade check.')
             return
-        elif stage == "dev":
-            # We shouldn't change the dev stage on fusillade
-            self.stage = "testing"
         else:
-            self.stage = stage
+            self.fus_stage = fus_stage
+            self.dss_stage = FUS2DSS[fus_stage]
 
         this_dir = os.path.abspath(os.path.dirname(__file__))
         self.scripts_dir = this_dir
@@ -43,7 +60,8 @@ class FusilladeChecker(object):
         # Bootstrap: stage_env must be set before we can run get_stage_env
         self.stage_env = copy.deepcopy(os.environ)
 
-        env_file = self.stages[self.stage]
+        # Set up the environment vars for this stage
+        env_file = DSS_ENV_FILES[self.dss_stage]
         self.stage_env = self.get_stage_env(os.path.join(self.dss_dir, env_file))
 
     def get_stage_env(self, env_file):
@@ -80,7 +98,7 @@ class FusilladeChecker(object):
         # Call dss-ops script, iam list action
         ops_script = os.path.join(self.scripts_dir, 'dss-ops.py')
         ops_action = "iam list fusillade"
-        ops_args = f"--group-by roles --exclude-headers --quiet --stage {self.stage}"
+        ops_args = f"--group-by roles --exclude-headers --quiet"
         cmd = f"{ops_script} {ops_action} {ops_args}"
         raw_resp = self.run_cmd(cmd)
         return [j for j in raw_resp.split("\n") if len(j)>0]
@@ -104,11 +122,11 @@ class FusilladeChecker(object):
 def main(stage = None):
     if len(sys.argv) > 1:
         stage = sys.argv[1]
-    elif 'DSS_DEPLOYMENT_STAGE' in os.environ:
-        stage = os.environ['DSS_DEPLOYMENT_STAGE']
+    elif 'FUS_DEPLOYMENT_STAGE' in os.environ:
+        stage = os.environ['FUS_DEPLOYMENT_STAGE']
     else:
-        msg = "Error: DSS_DEPLOYMENT_STAGE not defined. Please run 'source environment' "
-        msg += "in the root of the data-store repo, or provide 'stage' as the first argument."
+        msg = "Error: FUS_DEPLOYMENT_STAGE environment variable not defined. Please define it "
+        msg += "or provide 'stage' as the first environment."
         raise RuntimeError(msg)
     s = FusilladeChecker(stage)
     s.run()

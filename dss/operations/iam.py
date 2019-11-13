@@ -59,26 +59,26 @@ class FusilladeClient(object):
     """
 
     AUTH_DEPLOYMENTS = {
+        "testing": "https://auth.testing.data.humancellatlas.org",
         "dev": "https://auth.dev.data.humancellatlas.org",
         "integration": "https://auth.integration.data.humancellatlas.org",
         "staging": "https://auth.staging.data.humancellatlas.org",
-        "testing": "https://auth.testing.data.humancellatlas.org",
         "production": "https://auth.data.humancellatlas.org",
     }
 
-    def __init__(self, stage):
-        auth_url, headers = self.get_auth_url_headers(stage)
+    def __init__(self, fus_stage):
+        auth_url, headers = self.get_auth_url_headers(fus_stage)
         self.auth_url = auth_url
         self.headers = headers
 
-    def get_auth_url_headers(self, stage):
+    def get_auth_url_headers(self, fus_stage):
         """
         Get authorization url and headers to allow Fusillade requests.
         """
-        auth_url = self.AUTH_DEPLOYMENTS[stage]
+        auth_url = self.AUTH_DEPLOYMENTS[fus_stage]
 
         secret = "deployer_service_account.json"
-        secret_id = "/".join(["dcp", "fusillade", stage, secret])
+        secret_id = "/".join(["dcp", "fusillade", fus_stage, secret])
         service_account = DCPServiceAccountManager.from_secrets_manager(
             secret_id, "https://auth.data.humancellatlas.org/"
         )
@@ -617,11 +617,6 @@ def list_policies(argv: typing.List[str], args: argparse.Namespace):
     managed = args.include_managed  # noqa
     do_headers = not args.exclude_headers
 
-    if args.cloud_provider != "fusillade" and args.stage:
-        if not args.quiet:
-            # Print to stderr to prevent interference with pipes
-            print(f"WARNING: --stage argument only valid with cloud provider 'fusillade', ignoring...", file=sys.stderr)
-
     if args.cloud_provider == "aws":
 
         if args.group_by is None:
@@ -643,8 +638,9 @@ def list_policies(argv: typing.List[str], args: argparse.Namespace):
         pass
     elif args.cloud_provider == "fusillade":
 
-        stage = DSS2FUS[os.environ["DSS_DEPLOYMENT_STAGE"]]
-        client = FusilladeClient(stage=stage)
+        dss_stage = os.environ["DSS_DEPLOYMENT_STAGE"]
+        fus_stage = DSS2FUS[dss_stage]
+        client = FusilladeClient(stage=fus_stage)
 
         if args.group_by is None:
             # list policies
