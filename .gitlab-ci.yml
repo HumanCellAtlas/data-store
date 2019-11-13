@@ -18,6 +18,7 @@ stages:
   - release
 
 before_script:
+  - date && date -u
   - export COMMITS_URL=${GITHUB_API}/repos/HumanCellAtlas/data-store/commits
   - if not [[ CI_COMMIT_SHA == $(http GET $COMMITS_URL sha==$CI_COMMIT_REF_NAME | jq -r '.[0]["sha"]') ]]; then exit 1; fi
 # TODO: figure out how to get the gitlab-runner to not clone the repo as root - Brian H
@@ -77,6 +78,7 @@ test_subscriptions:
 setup_fusillade:
   stage: fusillade
   script:
+    - date && date -u
     - git clone -b master https://github.com/HumanCellAtlas/dcp-fusillade.git
     - cd dcp-fusillade
     - source environment
@@ -92,6 +94,7 @@ setup_fusillade:
     - else
     -   FUS_STAGE=$DSS_DEPLOYMENT_STAGE
     - fi
+    - echo $FUS_STAGE
     - dcp-fusillade/scripts/setup_fusillade.py --file temp-roles.json --force $FUS_STAGE
   except:
     - schedules
