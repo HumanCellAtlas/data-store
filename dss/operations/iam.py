@@ -41,6 +41,12 @@ logger = logging.getLogger(__name__)
 
 IAMSEPARATOR = " : "
 ANONYMOUS_POLICY_NAME = "UNNAMED_POLICY"
+DSS2FUS = {
+    "dev": "testing",
+    "integration": "integration",
+    "staging": "staging",
+    "prod": "prod"
+}
 
 
 # ---
@@ -596,10 +602,7 @@ iam = dispatch.target("iam", arguments={}, help=__doc__)
         "--exclude-headers": dict(
             action="store_true", help="Exclude headers on the list being output"
         ),
-        "--quiet": dict(action="store_true", help="Suppress warning messages"),
-        "--stage": dict(
-            type=str, required=False, help="If using Fusillade, specify which deployment stage to target",
-        ),
+        "--quiet": dict(action="store_true", help="Suppress warning messages")
     },
 )
 def list_policies(argv: typing.List[str], args: argparse.Namespace):
@@ -610,11 +613,6 @@ def list_policies(argv: typing.List[str], args: argparse.Namespace):
 
     managed = args.include_managed  # noqa
     do_headers = not args.exclude_headers
-
-    if args.cloud_provider != "fusillade" and args.stage:
-        if not args.quiet:
-            # Print to stderr to prevent interference with pipes
-            print(f"WARNING: --stage argument only valid with cloud provider 'fusillade', ignoring...", file=sys.stderr)
 
     if args.cloud_provider == "aws":
 
@@ -637,7 +635,7 @@ def list_policies(argv: typing.List[str], args: argparse.Namespace):
         pass
     elif args.cloud_provider == "fusillade":
 
-        stage = os.environ["DSS_DEPLOYMENT_STAGE"]
+        stage = DSS2FUS[os.environ["DSS_DEPLOYMENT_STAGE"]]
         client = FusilladeClient(stage=stage)
 
         if args.group_by is None:
