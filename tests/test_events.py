@@ -57,7 +57,7 @@ class TestEventsUtils(unittest.TestCase, DSSAssertMixin):
                 self._test_record_event_for_bundle(replica, prefixes, metadata_document, key)
 
     def _test_record_event_for_bundle(self, replica, prefixes, metadata_document, key):
-        with mock.patch("dss.events._build_bundle_metadata_document", return_value=metadata_document):
+        with mock.patch("dss.events.build_bundle_metadata_document", return_value=metadata_document):
             with mock.patch("dss.events.FlashFlood") as ff:
                 ret = events.record_event_for_bundle(replica, key, prefixes)
                 used_prefixes = prefixes or replica.flashflood_prefix_write
@@ -120,7 +120,7 @@ class TestEvents(unittest.TestCase, DSSAssertMixin):
                    .add_query("version", version))
             with self.subTest("event found", replica=replica.name):
                 res = self.app.get(str(url))
-                md = events._build_bundle_metadata_document(replica, f"bundles/{uuid}.{version}")
+                md = events.build_bundle_metadata_document(replica, f"bundles/{uuid}.{version}")
                 self.assertEqual(md, res.json())
             with self.subTest("event not found returns 404", replica=replica.name):
                 url.set(path=f"/v1/events/{uuid4()}")
@@ -129,7 +129,7 @@ class TestEvents(unittest.TestCase, DSSAssertMixin):
 
     def test_list_events(self):
         for replica in Replica:
-            expected_docs = [events._build_bundle_metadata_document(replica, f"bundles/{uuid}.{version}")
+            expected_docs = [events.build_bundle_metadata_document(replica, f"bundles/{uuid}.{version}")
                              for uuid, version in self.bundles[replica.name]]
 
             from_date = to_date = None

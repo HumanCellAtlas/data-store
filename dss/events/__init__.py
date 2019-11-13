@@ -25,7 +25,7 @@ def get_bundle_metadata_document(replica: Replica,
                                  key: str,
                                  flashflood_prefix: str=None) -> dict:
     if key.endswith(TOMBSTONE_SUFFIX):
-        return _build_bundle_metadata_document(replica, key)
+        return build_bundle_metadata_document(replica, key)
     else:
         fqid = key.split("/", 1)[1]
         pfx = flashflood_prefix or replica.flashflood_prefix_read
@@ -61,7 +61,7 @@ def record_event_for_bundle(replica: Replica,
     fqid = key.split("/", 1)[1]
     if flashflood_prefixes is None:
         flashflood_prefixes = replica.flashflood_prefix_write
-    metadata_document = _build_bundle_metadata_document(replica, key)
+    metadata_document = build_bundle_metadata_document(replica, key)
     if use_version_for_timestamp:
         _, version = fqid.split(".", 1)
         event_date = datetime_from_timestamp(version)
@@ -73,7 +73,7 @@ def record_event_for_bundle(replica: Replica,
             ff.put(json.dumps(metadata_document).encode("utf-8"), event_id=fqid, date=event_date)
     return metadata_document
 
-def _build_bundle_metadata_document(replica: Replica, key: str) -> dict:
+def build_bundle_metadata_document(replica: Replica, key: str) -> dict:
     """
     This returns a JSON document with bundle manifest and metadata files suitable for JMESPath filters.
     """
