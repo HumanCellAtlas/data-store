@@ -26,6 +26,7 @@ DSS_ENV_FILES = {
     "staging": "environment.staging",
     "prod": "environment.prod"
 }
+IAMSEPARATOR = " : "
 
 
 class FusilladeChecker(object):
@@ -101,7 +102,9 @@ class FusilladeChecker(object):
         ops_args = f"--group-by roles --exclude-headers --quiet"
         cmd = f"{ops_script} {ops_action} {ops_args}"
         raw_resp = self.run_cmd(cmd)
-        return [j for j in raw_resp.split("\n") if len(j)>0]
+        resp_lines = [j for j in raw_resp.split("\n") if len(j)>0]
+        roles = [k.split(IAMSEPARATOR)[0] for k in resp_lines]
+        return roles
 
     def run_cmd(self, cmd, cwd=os.getcwd(), shell=True):
         """Wrapper to run a command and return stdout"""
