@@ -24,6 +24,11 @@ logger = logging.getLogger(__name__)
 def get_bundle_metadata_document(replica: Replica,
                                  key: str,
                                  flashflood_prefix: str=None) -> dict:
+    """
+    For a normal bundle, this retrieves the bundle metadata document from the flashflood event journals. If the
+    document is not found, `None` is returned.
+    For a tombstone bundle, the bundle metadata document is rebuilt from main storage.
+    """
     if key.endswith(TOMBSTONE_SUFFIX):
         return build_bundle_metadata_document(replica, key)
     else:
@@ -38,6 +43,9 @@ def get_bundle_metadata_document(replica: Replica,
 
 @lru_cache(maxsize=2)
 def get_deleted_bundle_metadata_document(replica: Replica, key: str) -> dict:
+    """
+    Build the bundle metadata document assocated with a non-existent key.
+    """
     _, fqid = key.split("/")
     uuid, version = fqid.split(".", 1)
     return {
