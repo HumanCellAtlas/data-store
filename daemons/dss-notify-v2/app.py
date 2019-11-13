@@ -49,7 +49,7 @@ def launch_from_s3_event(event, context):
             key = unquote(event_record['s3']['object']['key'])
             if key.startswith("bundles"):
                 is_delete_event = (event_record['eventName'] == "ObjectRemoved:Delete")
-                _notify_subscribers(replica, key, is_delete_event)
+                _handle_bucket_event(replica, key, is_delete_event)
             else:
                 logger.warning(f"Notifications not supported for {key}")
 
@@ -66,7 +66,7 @@ def launch_from_forwarded_event(event, context):
             key = message['name']
             if key.startswith("bundles"):
                 is_delete_event = (message['resourceState'] == "not_exists")
-                _notify_subscribers(replica, key, is_delete_event)
+                _handle_bucket_event(replica, key, is_delete_event)
             else:
                 logger.warning(f"Notifications not supported for {key}")
         else:
@@ -104,7 +104,7 @@ def launch_from_notification_queue(event, context):
         else:
             logger.warning(f"Recieved queue message with no matching subscription:{message}")
 
-def _notify_subscribers(replica: Replica, key: str, is_delete_event: bool):
+def _handle_bucket_event(replica: Replica, key: str, is_delete_event: bool):
     if is_delete_event:
         metadata_document = get_deleted_bundle_metadata_document(replica, key)
     else:
