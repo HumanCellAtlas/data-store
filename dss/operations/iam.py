@@ -640,7 +640,7 @@ def list_policies(argv: typing.List[str], args: argparse.Namespace):
 
         dss_stage = os.environ["DSS_DEPLOYMENT_STAGE"]
         fus_stage = DSS2FUS[dss_stage]
-        client = FusilladeClient(stage=fus_stage)
+        client = FusilladeClient(fus_stage)
 
         if args.group_by is None:
             # list policies
