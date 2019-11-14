@@ -8,6 +8,7 @@ from collections import defaultdict
 from concurrent.futures import ThreadPoolExecutor
 from functools import lru_cache
 
+import flashflood
 from flashflood import FlashFlood, FlashFloodEventNotFound, JournalID
 
 from dss.util.aws import resources
@@ -152,6 +153,7 @@ def journal_flashflood(prefix: str,
     """
     Compile new events into journals.
     """
+    flashflood.config.object_exists_waiter_config['Delay'] = 1
     ff = FlashFlood(resources.s3, Config.get_flashflood_bucket(), prefix)
     journals = list()
     for journal_id in list_new_flashflood_journals(prefix, start_from_journal_id):
@@ -166,6 +168,7 @@ def list_new_flashflood_journals(prefix: str, start_from_journal_id: JournalID=N
     List new journals.
     Listing can optionally begin with `start_from_journal_id`
     """
+    flashflood.config.object_exists_waiter_config['Delay'] = 1
     ff = FlashFlood(resources.s3, Config.get_flashflood_bucket(), prefix)
     # TODO: Add interface method to flash-flood to avoid private attribute access
     journals = ff._Journal.list(list_from=start_from_journal_id)
