@@ -41,6 +41,12 @@ logger = logging.getLogger(__name__)
 
 IAMSEPARATOR = " : "
 ANONYMOUS_POLICY_NAME = "UNNAMED_POLICY"
+DSS2FUS = {
+    "dev": "testing",
+    "integration": "integration",
+    "staging": "staging",
+    "prod": "prod"
+}
 
 
 # ---
@@ -60,9 +66,7 @@ class FusilladeClient(object):
         "production": "https://auth.data.humancellatlas.org",
     }
 
-    def __init__(self, stage=None):
-        if stage is None:
-            RuntimeError("You must provide a stage argument to FusilladeClient(stage)")
+    def __init__(self, stage):
         auth_url, headers = self.get_auth_url_headers(stage)
         self.auth_url = auth_url
         self.headers = headers
@@ -595,7 +599,10 @@ iam = dispatch.target("iam", arguments={}, help=__doc__)
         "--include-managed": dict(
             action="store_true", help="Include policies provided and managed by the cloud provider"
         ),
-        "--exclude-headers": dict(action="store_true", help="Exclude headers on the list being output"),
+        "--exclude-headers": dict(
+            action="store_true", help="Exclude headers on the list being output"
+        ),
+        "--quiet": dict(action="store_true", help="Suppress warning messages")
     },
 )
 def list_policies(argv: typing.List[str], args: argparse.Namespace):
@@ -628,7 +635,7 @@ def list_policies(argv: typing.List[str], args: argparse.Namespace):
         pass
     elif args.cloud_provider == "fusillade":
 
-        stage = os.environ["DSS_DEPLOYMENT_STAGE"]
+        stage = DSS2FUS[os.environ["DSS_DEPLOYMENT_STAGE"]]
         client = FusilladeClient(stage=stage)
 
         if args.group_by is None:
