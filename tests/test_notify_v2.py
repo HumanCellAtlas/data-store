@@ -277,7 +277,7 @@ class TestNotifyV2(unittest.TestCase, DSSAssertMixin, DSSUploadMixin):
         # self.assertEquals(notification['match']['bundle_uuid'], bundle_uuid)
         # self.assertEquals(notification['match']['bundle_version'], bundle_version)
 
-    @eventually(60, 1, {botocore.exceptions.ClientError})
+    @eventually(120, 1, {botocore.exceptions.ClientError})
     def _get_notification_from_s3_object(self, bucket, key):
         obj = self.s3.get_object(Bucket=bucket, Key=key)['Body'].read().decode("utf-8")
         return json.loads(obj)
