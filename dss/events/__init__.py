@@ -8,8 +8,7 @@ from collections import defaultdict
 from concurrent.futures import ThreadPoolExecutor
 from functools import lru_cache
 
-import flashflood
-from flashflood import FlashFlood, FlashFloodEventNotFound, JournalID
+from flashflood import FlashFloodEventNotFound, JournalID
 
 from dss.util.aws import resources
 from dss.config import Config, Replica
@@ -35,7 +34,7 @@ def get_bundle_metadata_document(replica: Replica,
     else:
         fqid = key.split("/", 1)[1]
         pfx = flashflood_prefix or replica.flashflood_prefix_read
-        ff = FlashFlood(resources.s3, Config.get_flashflood_bucket(), pfx)
+        ff = Config.get_flashflood_handle(pfx)
         try:
             metadata_document = json.loads(ff.get_event(fqid).data.decode("utf-8"))
         except FlashFloodEventNotFound:
@@ -73,7 +72,7 @@ def record_event_for_bundle(replica: Replica,
     else:
         event_date = datetime.utcnow()
     for pfx in flashflood_prefixes:
-        ff = FlashFlood(resources.s3, Config.get_flashflood_bucket(), pfx)
+        ff = Config.get_flashflood_handle(pfx)
         if not ff.event_exists(fqid):
             ff.put(json.dumps(metadata_document).encode("utf-8"), event_id=fqid, date=event_date)
     return metadata_document
@@ -89,7 +88,7 @@ def delete_event_for_bundle(replica: Replica,
     if flashflood_prefixes is None:
         flashflood_prefixes = replica.flashflood_prefix_write
     for pfx in flashflood_prefixes:
-        ff = FlashFlood(resources.s3, Config.get_flashflood_bucket(), pfx)
+        ff = Config.get_flashflood_handle(pfx)
         ff.delete_event(fqid)
 
 def build_bundle_metadata_document(replica: Replica, key: str) -> dict:
@@ -153,8 +152,7 @@ def journal_flashflood(prefix: str,
     """
     Compile new events into journals.
     """
-    flashflood.config.object_exists_waiter_config['Delay'] = 1
-    ff = FlashFlood(resources.s3, Config.get_flashflood_bucket(), prefix)
+    ff = Config.get_flashflood_handle(prefix, confirm_writes=True)
     journals = list()
     for journal_id in list_new_flashflood_journals(prefix, start_from_journal_id):
         # TODO: Add interface method to flash-flood to avoid private attribute access
@@ -168,8 +166,7 @@ def list_new_flashflood_journals(prefix: str, start_from_journal_id: JournalID=N
     List new journals.
     Listing can optionally begin with `start_from_journal_id`
     """
-    flashflood.config.object_exists_waiter_config['Delay'] = 1
-    ff = FlashFlood(resources.s3, Config.get_flashflood_bucket(), prefix)
+    ff = Config.get_flashflood_handle(prefix, confirm_writes=True)
     # TODO: Add interface method to flash-flood to avoid private attribute access
     journals = ff._Journal.list(list_from=start_from_journal_id)
     if start_from_journal_id:
@@ -187,6 +184,6 @@ def update_flashflood(prefix: str, number_of_updates_to_apply=1000) -> int:
     Apply event updates to existing journals.
     This is typically called after journaling is complete.
     """
-    ff = FlashFlood(resources.s3, Config.get_flashflood_bucket(), prefix)
+    ff = Config.get_flashflood_handle(prefix, confirm_writes=True)
     number_of_updates_applied = ff.update(number_of_updates_to_apply)
     return number_of_updates_applied

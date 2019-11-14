@@ -58,10 +58,12 @@ class TestEventsUtils(unittest.TestCase, DSSAssertMixin):
 
     def _test_record_event_for_bundle(self, replica, prefixes, metadata_document, key):
         with mock.patch("dss.events.build_bundle_metadata_document", return_value=metadata_document):
-            with mock.patch("dss.events.FlashFlood") as ff:
+            ff = mock.MagicMock()
+            ff.event_exists = mock.MagicMock(return_value=False)
+            with mock.patch("dss.events.Config.get_flashflood_handle", return_value=ff):
                 ret = events.record_event_for_bundle(replica, key, prefixes)
                 used_prefixes = prefixes or replica.flashflood_prefix_write
-                self.assertEqual(len(used_prefixes), ff.call_count)
+                self.assertEqual(len(used_prefixes), ff.put.call_count)
                 self.assertEqual(metadata_document, ret)
                 for args, pfx in zip(ff.call_args_list, used_prefixes):
                     expected = ((resources.s3, Config.get_flashflood_bucket(), pfx),)
@@ -75,10 +77,11 @@ class TestEventsUtils(unittest.TestCase, DSSAssertMixin):
                 self._test_delete_event_for_bundle(replica, prefixes, key)
 
     def _test_delete_event_for_bundle(self, replica, prefixes, key):
-        with mock.patch("dss.events.FlashFlood") as ff:
+        ff = mock.MagicMock()
+        with mock.patch("dss.events.Config.get_flashflood_handle", return_value=ff):
             events.delete_event_for_bundle(replica, key, prefixes)
             used_prefixes = prefixes or replica.flashflood_prefix_write
-            self.assertEqual(len(used_prefixes), ff.call_count)
+            self.assertEqual(len(used_prefixes), ff.delete_event.call_count)
             for args, pfx in zip(ff.call_args_list, used_prefixes):
                 expected = ((resources.s3, Config.get_flashflood_bucket(), pfx),)
                 self.assertEqual(args, expected)
@@ -86,7 +89,7 @@ class TestEventsUtils(unittest.TestCase, DSSAssertMixin):
     def test_journal_flashflood(self):
         number_of_events = 5
         ff = mock.MagicMock()
-        with mock.patch("dss.events.FlashFlood", return_value=ff):
+        with mock.patch("dss.events.Config.get_flashflood_handle", return_value=ff):
             with mock.patch("dss.events.list_new_flashflood_journals", return_value=range(17)):
                 events.journal_flashflood("pfx", number_of_events)
                 name, args, kwargs = ff.mock_calls[-1]
@@ -97,7 +100,7 @@ class TestEventsUtils(unittest.TestCase, DSSAssertMixin):
     def test_update_flashflood(self):
         number_of_updates_to_apply = 3
         ff = mock.MagicMock()
-        with mock.patch("dss.events.FlashFlood", return_value=ff):
+        with mock.patch("dss.config.Config.get_flashflood_handle", return_value=ff):
             events.update_flashflood("pfx", number_of_updates_to_apply)
             name, args, kwargs = ff.mock_calls[0]
             self.assertEqual(number_of_updates_to_apply, args[0])

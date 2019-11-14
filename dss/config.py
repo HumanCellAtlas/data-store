@@ -8,6 +8,7 @@ from enum import Enum, EnumMeta, auto
 
 import boto3
 import botocore.config
+import flashflood
 from cloud_blobstore import BlobStore
 from cloud_blobstore.s3 import S3BlobStore
 from cloud_blobstore.gs import GSBlobStore
@@ -18,6 +19,7 @@ from google.oauth2 import service_account
 from requests.adapters import HTTPAdapter, DEFAULT_POOLSIZE
 from requests.packages.urllib3.util.retry import Retry
 
+from dss.util.aws import resources
 from dss.storage.hcablobstore import HCABlobStore
 from dss.storage.hcablobstore.s3 import S3HCABlobStore
 from dss.storage.hcablobstore.gs import GSHCABlobStore
@@ -203,6 +205,15 @@ class Config:
     @functools.lru_cache()
     def get_hcablobstore_handle(replica: "Replica") -> HCABlobStore:
         return replica.hcablobstore_class(Config.get_blobstore_handle(replica))
+
+    @staticmethod
+    @functools.lru_cache()
+    def get_flashflood_handle(prefix: str, confirm_writes: bool=False) -> flashflood.FlashFlood:
+        if confirm_writes:
+            flashflood.config.object_exists_waiter_config['Delay'] = 1
+        else:
+            flashflood.config.object_exists_waiter_config['Delay'] = 0
+        return flashflood.FlashFlood(resources.s3, Config.get_flashflood_bucket(), prefix)
 
     @staticmethod
     def get_s3_bucket() -> str:
