@@ -66,12 +66,8 @@ owner, and the sort key is the subscription uuid. There is one table per replica
 Subscriptions are accessed via owner for API actions. When notifications are triggered during an object storage
 event, subscriptions are fetched from the backend via `scan`.
 
-If notification delivery fails, a notification record is made in the queue. Delivery will be attempted immediately
-after failure and at time intervals of one minute, ten minutes, one hour, six hours, and 16 hours after the first
-failure. Delivery would then continue for the next 6 days at 24 hour intervals. After day 7, no further
-notification will be delivered and the subscription will be removed from the delivery service. The old subscription
-will remain and the user would need to delete it and create a new subscription in order to receive new
-notifications.
+If notification delivery fails, a notification record is made in the queue. Delivery will be attempted 15 minutes 
+after failure, and then every 6 hours over the course of 7 days.
 
 ### Bundle Metadata Document
 
