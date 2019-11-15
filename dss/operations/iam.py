@@ -217,6 +217,27 @@ def dump_aws_policies(client, managed: bool):
     return extract_aws_policies("dump", client, managed)
 
 
+def list_aws_roles(client):
+    """
+    Call the AWS IAM API to retrieve a list of roles.
+
+    :param client: the boto client to use
+    """
+    master_list = []  # holds main results
+
+    paginator = client.get_paginator("list_roles")
+    for page in paginator.paginate():
+        for policy in page["Roles"]:
+            role_name = policy["RoleName"]
+            master_list.append(policy_name)
+
+    # Sort names, remove duplicates
+    master_list = sorted(list(set(master_list)))
+
+    # also need to get all inline policies
+    return master_list
+
+
 # ---
 # Dump/list GCP policies
 # ---
@@ -311,6 +332,13 @@ def list_fus_policies(fus_client, do_headers) -> typing.List[str]:
 def dump_fus_policies(fus_client, do_headers):
     """Return a list of dictionaries containing Fusillade policy documents"""
     return extract_fus_policies("dump", fus_client, do_headers)
+
+
+def list_fus_roles(fus_client):
+    """Return a list of names of Fusillade roles"""
+    roles = list(fus_client.paginate("/v1/roles", "roles"))
+    roles = sorted(list(set(roles)))
+    return roles
 
 
 # ---
@@ -655,6 +683,52 @@ def list_policies(argv: typing.List[str], args: argparse.Namespace):
 
     else:
         raise RuntimeError(f"Error: IAM functionality not implemented for {args.cloud_provider}")
+
+    # Print list to output
+    if args.output:
+        stdout_ = sys.stdout
+        sys.stdout = open(args.output, "w")
+    for c in contents:
+        print(c)
+    if args.output:
+        sys.stdout = stdout_
+
+
+@iam.action(
+    "list-roles",
+    arguments={
+        "cloud_provider": dict(
+            choices=["aws", "gcp", "fusillade"], help="The cloud provider whose policies are being listed"
+        ),
+        "--output": dict(
+            type=str, required=False, help="Specify an output file name (output sent to stdout by default)"
+        ),
+        "--force": dict(
+            action="store_true",
+            help="If output file already exists, overwrite it (default is not to overwrite)",
+        ),
+        "--exclude-headers": dict(
+            action="store_true", help="Exclude headers on the list being output"
+        )
+    }
+)
+def list_roles(argv: typing.List[str], args: argparse.Namespace):
+    """Print a simple, flat list of IAM roles available"""
+    if args.output:
+        if os.path.exists(args.output) and not args.force:
+            raise RuntimeError(f"Error: cannot overwrite {args.output} without --force flag")
+
+    do_headers = not args.exclude_headers
+    if args.cloud_provider == "aws":
+        contents = list_aws_roles(iam_client)
+    elif args.cloud_provider == "gcp":
+        pass
+    elif args.cloud_provider == "fusillade":
+
+        dss_stage = os.environ["DSS_DEPLOYMENT_STAGE"]
+        fus_stage = DSS2FUS[dss_stage]
+        client = FusilladeClient(fus_stage)
+        contents = list_fus_roles(client)
 
     # Print list to output
     if args.output:
