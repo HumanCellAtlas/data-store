@@ -123,6 +123,10 @@ For a tombstone it is
 ```
 {
   "event_type": "TOMBSTONE",
+  "bundle_info": {
+    "uuid": $uuid,
+    "version": $version,
+  },
   "admin_deleted": "true",
   "email": $admin_email,
   "reason": "the reason",
@@ -135,8 +139,10 @@ For a deleted bundle it is
 ```
 {
   "event_type": "DELETE",
-  "uuid": $uuid
-  "version": $version,
+  "bundle_info": {
+    "uuid": $uuid,
+    "version": $version,
+  },
 }
 ```
 

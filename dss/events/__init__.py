@@ -46,13 +46,8 @@ def get_deleted_bundle_metadata_document(replica: Replica, key: str) -> dict:
     """
     Build the bundle metadata document assocated with a non-existent key.
     """
-    _, fqid = key.split("/")
-    uuid, version = fqid.split(".", 1)
-    return {
-        'event_type': "DELETE",
-        "uuid": uuid,
-        "version": version,
-    }
+    fqid = BundleFQID.from_key(key)
+    return dict(event_type="DELETE", bundle_info=dict(uuid=fqid.uuid, version=fqid.version))
 
 @lru_cache(maxsize=2)
 def record_event_for_bundle(replica: Replica,

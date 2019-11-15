@@ -74,6 +74,14 @@ class TestEventsUtils(unittest.TestCase, DSSAssertMixin):
                 self.assertEqual(md['bundle_info']['uuid'], uuid)
                 self.assertEqual(md['bundle_info']['version'], version)
 
+    def test_get_deleted_bundle_metadata_document(self):
+        uuid = "f3cafb77-84ea-4050-98c9-2e3935f90f16"
+        version = "2019-11-15T183956.169809Z"
+        md = events.get_deleted_bundle_metadata_document("", f"bundles/{uuid}.{version}")
+        self.assertEqual(md['event_type'], "DELETE")
+        self.assertEqual(md['bundle_info']['uuid'], uuid)
+        self.assertEqual(md['bundle_info']['version'], version)
+
     def test_record_event_for_bundle(self):
         metadata_document = dict(foo=f"{uuid4()}")
         key = f"bundles/{uuid4()}.{datetime_to_version_format(datetime.utcnow())}"
