@@ -563,18 +563,21 @@ class TestNotifyV2(unittest.TestCase, DSSAssertMixin, DSSUploadMixin):
             self.assertIn('bundle_url', recieved_notification)
             self.assertIn('event_timestamp', recieved_notification)
 
-    def test_launch_from_notification_queue(self):
-        with mock.patch("daemons.dss-notify-v2.app.get_subscription"), mock.patch("daemons.dss-notify-v2.app.notify"):
-            for replica in Replica:
-                for event_type in ["CREATE", "TOMBSTONE", "DELETE"]:
-                    with self.subTest("Test call", replica=replica.name, event_type=event_type):
-                        message = dict(replica=replica.name,
-                                       owner="owner",
-                                       uuid="uuid",
-                                       key="bundles/uuid.version",
-                                       event_type=event_type)
-                        event = {'Records': [dict(body=json.dumps(message))]}
-                        daemon_app.launch_from_notification_queue(event, None)
+    @mock.patch("daemons.dss-notify-v2.app.get_subscription")
+    @mock.patch("daemons.dss-notify-v2.app.notify")
+    @mock.patch("daemons.dss-notify-v2.app.get_bundle_metadata_document")
+    @mock.patch("daemons.dss-notify-v2.app.get_deleted_bundle_metadata_document")
+    def test_launch_from_notification_queue(self, *args, **kwargs):
+        for replica in Replica:
+            for event_type in ["CREATE", "TOMBSTONE", "DELETE"]:
+                with self.subTest("Test call", replica=replica.name, event_type=event_type):
+                    message = dict(replica=replica.name,
+                                   owner="owner",
+                                   uuid="uuid",
+                                   key="bundles/e32290e0-971c-4063-8707-df56ccc5606b.2019-11-15T202303.689105Z",
+                                   event_type=event_type)
+                    event = {'Records': [dict(body=json.dumps(message))]}
+                    daemon_app.launch_from_notification_queue(event, None)
 
     def _put_subscription(self, doc, replica=Replica.aws, codes=requests.codes.created):
         url = str(UrlBuilder()

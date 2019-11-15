@@ -80,6 +80,10 @@ The bundle metadata document format for a new bundle or version is
 ```
 {
   "event_type": "CREATE",
+  "bundle_info": {
+    "uuid": "48b7bdf2-410a-4d56-969c-e42e91d1f1fe",
+    "version": "2019-02-12T224603.042173Z"
+  },
   "manifest": {
     "version": ...,
     "files": [
@@ -119,6 +123,10 @@ For a tombstone it is
 ```
 {
   "event_type": "TOMBSTONE",
+  "bundle_info": {
+    "uuid": $uuid,
+    "version": $version,
+  },
   "admin_deleted": "true",
   "email": $admin_email,
   "reason": "the reason",
@@ -131,8 +139,10 @@ For a deleted bundle it is
 ```
 {
   "event_type": "DELETE",
-  "uuid": $uuid
-  "version": $version,
+  "bundle_info": {
+    "uuid": $uuid,
+    "version": $version,
+  },
 }
 ```
 

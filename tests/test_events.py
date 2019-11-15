@@ -22,6 +22,7 @@ pkg_root = os.path.abspath(os.path.join(os.path.dirname(__file__), '..'))  # noq
 sys.path.insert(0, pkg_root)  # noqa
 
 import dss
+from dss.storage.identifiers import TOMBSTONE_SUFFIX
 from dss.util.aws import resources
 from dss import events
 from dss.config import BucketConfig, override_bucket_config, Config, Replica
@@ -48,6 +49,39 @@ def tearDownModule():
 
 
 class TestEventsUtils(unittest.TestCase, DSSAssertMixin):
+    def test_build_bundle_metadata_document(self):
+        dss.Config.set_config(dss.BucketConfig.TEST)
+        app = ThreadedLocalServer()
+        app.start()
+        self.addCleanup(app.shutdown)
+        for replica in Replica:
+            uuid, version = _upload_bundle(app, replica)
+            key = f"bundles/{uuid}.{version}"
+            with self.subTest("Build normal bundle metadata document", replica=replica):
+                md = events.build_bundle_metadata_document(replica, key)
+                self.assertIn("manifest", md)
+                self.assertIn("files", md)
+                self.assertIn("version", md['manifest'])
+                self.assertIn("files", md['manifest'])
+                self.assertEqual(md['event_type'], "CREATE")
+                self.assertEqual(md['bundle_info']['uuid'], uuid)
+                self.assertEqual(md['bundle_info']['version'], version)
+            _tombstone_bundle(app, replica, uuid, version)
+            with self.subTest("Build tombstoned bundle metadata document", replica=replica):
+                md = events.build_bundle_metadata_document(replica, f"{key}.{TOMBSTONE_SUFFIX}")
+                self.assertNotIn("manifest", md)
+                self.assertEqual(md['event_type'], "TOMBSTONE")
+                self.assertEqual(md['bundle_info']['uuid'], uuid)
+                self.assertEqual(md['bundle_info']['version'], version)
+
+    def test_get_deleted_bundle_metadata_document(self):
+        uuid = "f3cafb77-84ea-4050-98c9-2e3935f90f16"
+        version = "2019-11-15T183956.169809Z"
+        md = events.get_deleted_bundle_metadata_document("", f"bundles/{uuid}.{version}")
+        self.assertEqual(md['event_type'], "DELETE")
+        self.assertEqual(md['bundle_info']['uuid'], uuid)
+        self.assertEqual(md['bundle_info']['version'], version)
+
     def test_record_event_for_bundle(self):
         metadata_document = dict(foo=f"{uuid4()}")
         key = f"bundles/{uuid4()}.{datetime_to_version_format(datetime.utcnow())}"
@@ -258,6 +292,14 @@ def _upload_bundle(app, replica, uuid=None):
     resp = app.get(f"/v1/bundles/{bundle_uuid}?replica={replica.name}&version={bundle_version}")
     return bundle_uuid, bundle_version
 
+def _tombstone_bundle(app, replica, uuid, version=None):
+    url = f"/v1/bundles/{uuid}?replica={replica.name}"
+    if version is not None:
+        url += f"&version={version}"
+    resp = app.delete(url,
+                      headers={** get_auth_header(), ** {'Content-Type': "application/json"}},
+                      json=dict(reason="testing"))
+    resp.raise_for_status()
 
 if __name__ == '__main__':
     unittest.main()
