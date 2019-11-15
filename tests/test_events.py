@@ -117,7 +117,7 @@ class TestEvents(unittest.TestCase, DSSAssertMixin):
                 os.environ[f'DSS_{replica.name.upper()}_FLASHFLOOD_PREFIX_READ'] = pfx
                 os.environ[f'DSS_{replica.name.upper()}_FLASHFLOOD_PREFIX_WRITE'] = pfx
                 for _ in range(3):
-                    uuid, version = cls._upload_bundle(replica)
+                    uuid, version = _upload_bundle(cls.app, replica)
                     cls.bundles[replica.name].append((uuid, version))
                     events.record_event_for_bundle(replica,
                                                    f"bundles/{uuid}.{version}",
@@ -189,30 +189,6 @@ class TestEvents(unittest.TestCase, DSSAssertMixin):
         for doc, expected_doc in zip(docs, expected_docs):
             self.assertEqual(doc, expected_doc)
 
-    @classmethod
-    def _upload_bundle(cls, replica, uuid=None):
-        files = list()
-        test_fixtures_bucket = os.environ['DSS_GS_BUCKET_TEST_FIXTURES']
-        for i in range(2):
-            file_name = f"file_{i}"
-            file_uuid, file_version = str(uuid4()), datetime_to_version_format(datetime.utcnow())
-            source_url = f"{replica.storage_schema}://{test_fixtures_bucket}/test_good_source_data/0"
-            resp = cls.app.put(f"/v1/files/{file_uuid}?version={file_version}",
-                               headers={** get_auth_header(), ** {'Content-Type': "application/json"}},
-                               json=dict(creator_uid=0, source_url=source_url))
-            resp.raise_for_status()
-            files.append((file_uuid, file_version, file_name))
-        bundle_uuid, bundle_version = str(uuid4()), datetime_to_version_format(datetime.utcnow())
-        json_request_body = dict(creator_uid=0,
-                                 files=[dict(uuid=file_uuid, version=file_version, name=file_name, indexed=False)
-                                        for file_uuid, file_version, file_name in files])
-        resp = cls.app.put(f"/v1/bundles/{bundle_uuid}?replica={replica.name}&version={bundle_version}",
-                           headers={** get_auth_header(), ** {'Content-Type': "application/json"}},
-                           json=json_request_body)
-        resp.raise_for_status()
-        resp = cls.app.get(f"/v1/bundles/{bundle_uuid}?replica={replica.name}&version={bundle_version}")
-        return bundle_uuid, bundle_version
-
     def _get_paged_response(self, url, expected_codes={200, 206}):
         results = list()
         while url:
@@ -258,6 +234,30 @@ class TestEventsDaemon(unittest.TestCase, DSSAssertMixin):
             with mock.patch("daemons.dss-events-scribe.app.update_flashflood", side_effect=Exception()):
                 # This should timeout and not call journal_flashflood or update_flashflood
                 daemon_app.flashflood_journal_and_update({}, Context())
+
+def _upload_bundle(app, replica, uuid=None):
+    files = list()
+    test_fixtures_bucket = os.environ['DSS_GS_BUCKET_TEST_FIXTURES']
+    for i in range(2):
+        file_name = f"file_{i}"
+        file_uuid, file_version = str(uuid4()), datetime_to_version_format(datetime.utcnow())
+        source_url = f"{replica.storage_schema}://{test_fixtures_bucket}/test_good_source_data/0"
+        resp = app.put(f"/v1/files/{file_uuid}?version={file_version}",
+                       headers={** get_auth_header(), ** {'Content-Type': "application/json"}},
+                       json=dict(creator_uid=0, source_url=source_url))
+        resp.raise_for_status()
+        files.append((file_uuid, file_version, file_name))
+    bundle_uuid, bundle_version = str(uuid4()), datetime_to_version_format(datetime.utcnow())
+    json_request_body = dict(creator_uid=0,
+                             files=[dict(uuid=file_uuid, version=file_version, name=file_name, indexed=False)
+                                    for file_uuid, file_version, file_name in files])
+    resp = app.put(f"/v1/bundles/{bundle_uuid}?replica={replica.name}&version={bundle_version}",
+                   headers={** get_auth_header(), ** {'Content-Type': "application/json"}},
+                   json=json_request_body)
+    resp.raise_for_status()
+    resp = app.get(f"/v1/bundles/{bundle_uuid}?replica={replica.name}&version={bundle_version}")
+    return bundle_uuid, bundle_version
+
 
 if __name__ == '__main__':
     unittest.main()
