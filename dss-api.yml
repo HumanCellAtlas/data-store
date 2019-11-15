@@ -762,18 +762,22 @@ paths:
                 description: >
                   A collection of static form fields to be supplied in the request body, alongside the actual
                   notification payload. The value of each field must be a string. For example, if the subscriptions has
-                  this property set to `{"foo" : "bar"}`, the corresponding notification HTTP request body will be
+                  this property set to `{"foo" : "bar"}`, the corresponding notification HTTP request body will consist
+                  of a multipart frame with two frames,
 
                   ```
 
-                  --2769baffc4f24cbc83ced26aa0c2f712
+                  ----------------2769baffc4f24cbc83ced26aa0c2f712
+
                   Content-Disposition: form-data; name="foo"
 
                   bar
+
+                  ----------------2769baffc4f24cbc83ced26aa0c2f712
+
                   Content-Disposition: form-data; name="payload"
 
                   {"transaction_id": "301c9079-3b20-4311-a131-bcda9b7f08ba", "subscription_id": ...
-                  --2769baffc4f24cbc83ced26aa0c2f712--
 
                   ```
 
