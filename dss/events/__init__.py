@@ -12,7 +12,7 @@ from flashflood import FlashFloodEventNotFound, JournalID
 
 from dss.util.aws import resources
 from dss.config import Config, Replica
-from dss.storage.identifiers import TOMBSTONE_SUFFIX
+from dss.storage.identifiers import BundleFQID, TOMBSTONE_SUFFIX
 from dss.util.version import datetime_from_timestamp
 
 
@@ -97,9 +97,10 @@ def build_bundle_metadata_document(replica: Replica, key: str) -> dict:
     """
     handle = Config.get_blobstore_handle(replica)
     manifest = json.loads(handle.get(replica.bucket, key).decode("utf-8"))
+    fqid = BundleFQID.from_key(key)
+    bundle_info = dict(uuid=fqid.uuid, version=fqid.version)
     if key.endswith(TOMBSTONE_SUFFIX):
-        manifest['event_type'] = "TOMBSTONE"
-        return manifest
+        return dict(event_type="TOMBSTONE", bundle_info=bundle_info, ** manifest)
     else:
         lock = threading.Lock()
         files: dict = defaultdict(list)
@@ -127,11 +128,7 @@ def build_bundle_metadata_document(replica: Replica, key: str) -> dict:
             e.map(_read_file, [file_metadata for file_metadata in manifest['files']
                                if file_metadata['content-type'].startswith("application/json")])
 
-        return {
-            'event_type': "CREATE",
-            'manifest': manifest,
-            'files': dict(files),
-        }
+        return dict(event_type="CREATE", bundle_info=bundle_info, manifest=manifest, files=dict(files))
 
 def _dot_to_underscore_and_strip_numeric_suffix(name: str) -> str:
     """
