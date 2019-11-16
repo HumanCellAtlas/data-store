@@ -69,7 +69,13 @@ def record_event_for_bundle(replica: Replica,
     for pfx in flashflood_prefixes:
         ff = Config.get_flashflood_handle(pfx)
         if not ff.event_exists(fqid):
+            logger.info(json.dumps(dict(message="Recorded event", replica=replica.name, prefix=pfx, key=key), indent=4))
             ff.put(json.dumps(metadata_document).encode("utf-8"), event_id=fqid, date=event_date)
+        else:
+            logger.warning(json.dumps(dict(message="Not recording existent event",
+                                           replica=replica.name,
+                                           prefix=pfx,
+                                           key=key), indent=4))
     return metadata_document
 
 def delete_event_for_bundle(replica: Replica,
@@ -84,7 +90,14 @@ def delete_event_for_bundle(replica: Replica,
         flashflood_prefixes = replica.flashflood_prefix_write
     for pfx in flashflood_prefixes:
         ff = Config.get_flashflood_handle(pfx)
-        ff.delete_event(fqid)
+        try:
+            ff.delete_event(fqid)
+            logger.info(json.dumps(dict(message="Deleted event", replica=replica.name, prefix=pfx, key=key), indent=4))
+        except FlashFloodEventNotFound:
+            logger.warning(json.dumps(dict(message="Cannot delete nonexistent event",
+                                           replica=replica.name,
+                                           prefix=pfx,
+                                           key=key), indent=4))
 
 def build_bundle_metadata_document(replica: Replica, key: str) -> dict:
     """
