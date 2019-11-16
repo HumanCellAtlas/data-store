@@ -110,24 +110,31 @@ def launch_from_notification_queue(event, context):
 def _handle_bucket_event(replica: Replica, key: str, is_delete_event: bool):
     if is_delete_event:
         metadata_document = get_deleted_bundle_metadata_document(replica, key)
-    elif key.endswith(TOMBSTONE_SUFFIX):
-        for zombie_key in get_tombstoned_bundles(replica, key):
-            delete_event_for_bundle(replica, zombie_key)
-        metadata_document = build_bundle_metadata_document(replica, key)
     else:
         if exists(replica, key):
-            metadata_document = record_event_for_bundle(replica, key)
+            if key.endswith(TOMBSTONE_SUFFIX):
+                for zombie_key in get_tombstoned_bundles(replica, key):
+                    delete_event_for_bundle(replica, zombie_key)
+                metadata_document = build_bundle_metadata_document(replica, key)
+            else:
+                metadata_document = record_event_for_bundle(replica, key)
         else:
-            logger.error(f"Key %s not found in replica %s, unable to notify subscribers", key, replica.name)
+            logger.error(json.dumps(dict(message="Key not found", replica=replica.name, key=key), indent=4))
             return
 
+    _deliver_notifications(replica, metadata_document, key)
+
+def _deliver_notifications(replica: Replica, metadata_document: dict, key: str):
     def _func(subscription):
         if should_notify(replica, subscription, metadata_document, key):
             notify_or_queue(replica, subscription, metadata_document, key)
 
     # TODO: Consider scaling parallelization with Lambda size
-    logger.info(f"Attempting notifications for; replica: {replica}, key: {key} delete: {is_delete_event}")
-    with ThreadPoolExecutor(max_workers=20) as e:
+    logger.info(json.dumps(dict(message="Attempting notifications",
+                                replica=replica.name,
+                                key=key,
+                                event_type=metadata_document['event_type']), indent=4))
+    with ThreadPoolExecutor(max_workers=6) as e:
         e.map(_func, get_subscriptions_for_replica(replica))
 
 class DSSFailedNotificationDelivery(Exception):
