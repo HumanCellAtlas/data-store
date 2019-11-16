@@ -94,10 +94,10 @@ def delete_event_for_bundle(replica: Replica,
             ff.delete_event(fqid)
             logger.info(json.dumps(dict(message="Deleted event", replica=replica.name, prefix=pfx, key=key), indent=4))
         except FlashFloodEventNotFound:
-            logger.error(json.dumps(dict(message="Cannot delete nonexistent event",
-                                         replica=replica.name,
-                                         prefix=pfx,
-                                         key=key), indent=4))
+            logger.warning(json.dumps(dict(message="Cannot delete nonexistent event",
+                                           replica=replica.name,
+                                           prefix=pfx,
+                                           key=key), indent=4))
 
 def build_bundle_metadata_document(replica: Replica, key: str) -> dict:
     """
