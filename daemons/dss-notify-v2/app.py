@@ -134,7 +134,7 @@ def _deliver_notifications(replica: Replica, metadata_document: dict, key: str):
                                 replica=replica.name,
                                 key=key,
                                 event_type=metadata_document['event_type']), indent=4))
-    with ThreadPoolExecutor(max_workers=6) as e:
+    with ThreadPoolExecutor(max_workers=20) as e:
         e.map(_func, get_subscriptions_for_replica(replica))
 
 class DSSFailedNotificationDelivery(Exception):
