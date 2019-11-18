@@ -682,7 +682,7 @@ def list_policies(argv: typing.List[str], args: argparse.Namespace):
             contents = [IAMSEPARATOR.join(c) for c in contents]
 
     else:
-        raise RuntimeError(f"Error: IAM functionality not implemented for {args.cloud_provider}")
+        raise NotImplementedError(f"Error: IAM functionality not implemented for {args.cloud_provider}")
 
     # Print list to output
     if args.output:
@@ -729,6 +729,9 @@ def list_roles(argv: typing.List[str], args: argparse.Namespace):
         fus_stage = DSS2FUS[dss_stage]
         client = FusilladeClient(fus_stage)
         contents = list_fus_roles(client)
+
+    else:
+        raise NotImplementedError(f"Error: IAM functionality not implemented for {args.cloud_provider}")
 
     # Print list to output
     if args.output:
