@@ -660,7 +660,7 @@ def list_policies(argv: typing.List[str], args: argparse.Namespace):
             contents = [IAMSEPARATOR.join(c) for c in contents]
 
     elif args.cloud_provider == "gcp":
-        pass
+        raise NotImplementedError("Error: IAM functionality for GCP not implemented")
     elif args.cloud_provider == "fusillade":
 
         stage = DSS2FUS[os.environ["DSS_DEPLOYMENT_STAGE"]]
@@ -722,7 +722,7 @@ def list_roles(argv: typing.List[str], args: argparse.Namespace):
     if args.cloud_provider == "aws":
         contents = list_aws_roles(iam_client)
     elif args.cloud_provider == "gcp":
-        pass
+        raise NotImplementedError("Error: IAM functionality for GCP not implemented")
     elif args.cloud_provider == "fusillade":
 
         dss_stage = os.environ["DSS_DEPLOYMENT_STAGE"]
