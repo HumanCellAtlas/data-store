@@ -776,6 +776,50 @@ class TestOperations(unittest.TestCase):
                 self.assertIn(IAMSEPARATOR.join(["fake-role", "fake-role-policy"]), output)
                 self.assertIn(IAMSEPARATOR.join(["fake-role-2", "fake-role-2-policy"]), output)
 
+    def test_iam_fus_list_assets(self):
+
+        def _get_fus_list_assets_kwargs(**kwargs):
+            # Set default kwargs values, then set user-specified kwargs
+            custom_kwargs = dict(
+                cloud_provider="fusillade",
+                output=None,
+                force=False,
+                exclude_headers=False,
+            )
+            for kw, val in kwargs.items():
+                custom_kwargs[kw] = val
+            return custom_kwargs
+
+        with self.subTest("Fusillade list users"):
+            with mock.patch("dss.operations.iam.FusilladeClient") as fus_client:
+                side_effects = [["fake-user-1@foo.bar", "fake-user-2@baz.wuz"]]
+                fus_client().paginate = mock.MagicMock(side_effect=side_effects)
+                kwargs = _get_fus_list_assets_kwargs()
+                with CaptureStdout() as output:
+                    iam.list_users([], argparse.Namespace(**kwargs))
+                self.assertIn("fake-user-1@foo.bar", output)
+                self.assertIn("fake-user-2@baz.wuz", output)
+
+        with self.subTest("Fusillade list groups"):
+            with mock.patch("dss.operations.iam.FusilladeClient") as fus_client:
+                side_effects = [["fake-group-1", "fake-group-2"]]
+                fus_client().paginate = mock.MagicMock(side_effect=side_effects)
+                kwargs = _get_fus_list_assets_kwargs()
+                with CaptureStdout() as output:
+                    iam.list_groups([], argparse.Namespace(**kwargs))
+                self.assertIn("fake-group-1", output)
+                self.assertIn("fake-group-2", output)
+
+        with self.subTest("Fusillade list roles"):
+            with mock.patch("dss.operations.iam.FusilladeClient") as fus_client:
+                side_effects = [["fake-role-1", "fake-role-2"]]
+                fus_client().paginate = mock.MagicMock(side_effect=side_effects)
+                kwargs = _get_fus_list_assets_kwargs()
+                with CaptureStdout() as output:
+                    iam.list_roles([], argparse.Namespace(**kwargs))
+                self.assertIn("fake-role-1", output)
+                self.assertIn("fake-role-2", output)
+
     def test_secrets_crud(self):
         # CRUD (create read update delete) test procedure:
         # - create new secret
