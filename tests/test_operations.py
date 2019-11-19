@@ -602,10 +602,10 @@ class TestOperations(unittest.TestCase):
             # Once we have called the paginate() methods,
             # we call the call_api() method to get IAM policies attached to roles and groups
             policy_docs = [
-                '{"Id": "fake-group-policy"}'
-                '{"Id": "fake-role-policy"}'
-                '{"Id": "fake-group-2-policy"}'
-                '{"Id": "fake-role-2-policy"}'
+                '{"Id": "fake-group-policy"}',
+                '{"Id": "fake-role-policy"}',
+                '{"Id": "fake-group-2-policy"}',
+                '{"Id": "fake-role-2-policy"}',
             ]
             fus_client().call_api = mock.MagicMock(side_effect=[_wrap_policy(doc) for doc in policy_docs])
 
@@ -613,12 +613,6 @@ class TestOperations(unittest.TestCase):
 
             with mock.patch("dss.operations.iam.FusilladeClient") as fus_client:
                 # Note: Need to call _repatch_fus_client() before each test
-
-                # ---
-                _repatch_fus_client(fus_client)
-                kwargs = _get_fus_list_policies_kwargs()
-                iam.list_policies([], argparse.Namespace(**kwargs))
-                # ---
 
                 # Plain call to list_fus_policies
                 with CaptureStdout() as output:
@@ -731,6 +725,7 @@ class TestOperations(unittest.TestCase):
                 f, fname = tempfile.mkstemp(prefix=temp_prefix)
                 _repatch_fus_client_groups(fus_client)
                 kwargs = _get_fus_list_policies_kwargs(group_by="groups", output=fname, force=True)
+                iam.list_policies([], argparse.Namespace(**kwargs))
                 with open(fname, "r") as f:
                     output = f.read()
                 self.assertIn(IAMSEPARATOR.join(["fake-group", "fake-role-policy"]), output)
@@ -775,6 +770,7 @@ class TestOperations(unittest.TestCase):
                 f, fname = tempfile.mkstemp(prefix=temp_prefix)
                 _repatch_fus_client_roles(fus_client)
                 kwargs = _get_fus_list_policies_kwargs(group_by="roles", output=fname, force=True)
+                iam.list_policies([], argparse.Namespace(**kwargs))
                 with open(fname, "r") as f:
                     output = f.read()
                 self.assertIn(IAMSEPARATOR.join(["fake-role", "fake-role-policy"]), output)
