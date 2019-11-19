@@ -2,6 +2,7 @@
 Replication consistency checks: verify and repair synchronization across replicas
 """
 import argparse
+import concurrent
 import datetime
 import itertools
 import json
@@ -53,17 +54,21 @@ def verify_sync_all(argv: typing.List[str], args: argparse.Namespace):
 
     arbitrary_small_date = datetime_from_timestamp("1970-01-01T000000.000000Z")
     cutoff = datetime_from_timestamp(args.since) if args.since else arbitrary_small_date
-    objects_to_check = list_objects_since(args.source_replica, cutoff)
-    for chunk in _chunk(objects_to_check, 1024):
-        # To call :func:`verify_sync`, we need to perform some argument parsing
-        # and simulate command-line invocation.
-        _args = [
-            'sync', 'verify-sync',
-            '--source-replica', args.source_replica,
-            '--destination-replica', args.destination_replica,
-            '--keys', *chunk
-        ]
-        verify_sync(_args, dispatch.parser.parse_args(_args))
+    # The datetime object returned by datetime_from_timestamp is offset-naive
+    # while the date returned by the S3 API is offset-aware, so we need to add
+    # timezone information manually.
+    objects_to_check = list_objects_since(args.source_replica, cutoff.replace(tzinfo=datetime.timezone.utc))
+    with concurrent.futures.ThreadPoolExecutor(max_workers=25) as exec:
+        for chunk in _chunk(objects_to_check, 1024):
+            # To call :func:`verify_sync`, we need to perform some argument
+            # parsing and simulate command-line invocation.
+            _args = [
+                'sync', 'verify-sync',
+                '--source-replica', args.source_replica,
+                '--destination-replica', args.destination_replica,
+                '--keys', *chunk
+            ]
+            exec.submit(verify_sync, _args, dispatch.parser.parse_args(_args))
 
 
 @sync.action("verify-sync",

@@ -25,6 +25,7 @@ sys.path.insert(0, pkg_root)  # noqa
 
 from tests import skip_on_travis
 from tests.infra import testmode
+import dss
 from dss.operations import DSSOperationsCommandDispatch
 from dss.operations.util import map_bucket_results
 from dss.operations import checkout, storage, sync, secrets, lambda_params, iam, events
@@ -332,6 +333,23 @@ class TestOperations(unittest.TestCase):
             for kw, val in kwargs.items():
                 custom_kwargs[kw] = val
             return custom_kwargs
+
+    def test_verify_sync(self):
+        """
+        Naive test of `dss-ops.py sync verify-sync`. `verify-sync` is an
+        amalgamate of other targets that are already tested in this file,
+        so just running it and seeing if it fails or not should be a
+        sufficient test case.
+        """
+        dss.Config.set_config(dss.BucketConfig.NORMAL)
+        yesterday = datetime.datetime.now() - datetime.timedelta(days=1)
+        sync.verify_sync_all([], argparse.Namespace(
+            source_replica='aws',
+            destination_replica='gcp',
+            since=datetime_to_version_format(yesterday)
+        ))
+
+    def test_iam_aws(self):
 
         def _get_fake_policy_document():
             """Utility function to get a fake policy document for mocking the AWS API"""
