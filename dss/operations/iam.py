@@ -356,6 +356,10 @@ def extract_fus_policies(action: str, fus_client, do_headers: bool = True):
                         d = json.loads(iam_policy)
                     except TypeError:
                         d = iam_policy
+                    except json.decoder.JSONDecodeError:
+                        msg = f"Warning: malformed policy document for user {user} and {asset_type} {asset}: \n{iam_policy}"
+                        logger.warning(msg)
+                        d = {}  # Malformed JSON
                     if "Id" not in d:
                         d["Id"] = ANONYMOUS_POLICY_NAME
                     managed_policies.append(d)
@@ -550,8 +554,6 @@ def list_fus_user_policies(fus_client, do_headers: bool = True):
 
     result = []
     
-    import pdb; pdb.set_trace()
-
     # NOTE: This makes unnecessary duplicate API calls.
     # It would be better to get list of groups/roles then mark ones attached to users.
     for user in users:
