@@ -6,7 +6,6 @@ import typing
 import logging
 import argparse
 import math
-import pprint
 from uuid import uuid4
 from traceback import format_exc
 from concurrent.futures import ThreadPoolExecutor, as_completed
