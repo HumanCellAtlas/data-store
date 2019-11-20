@@ -396,35 +396,9 @@ def dump_fus_policies(fus_client, do_headers: bool):
 
 def list_fus_assets(asset_type: str, fus_client) -> typing.List[str]:
     """Return a list of names of Fusillade assets"""
-    if asset_type == "users":
-        return list_fus_users(fus_client)
-    elif asset_type == "groups":
-        return list_fus_groups(fus_client)
-    elif asset_type == "roles":
-        return list_fus_roles(fus_client)
-    else:
-        raise RuntimeError(f"Error: invalid asset type {asset_type}")
-
-
-def list_fus_users(fus_client) -> typing.List[str]:
-    """Return a list of names of Fusillade users"""
-    users = list(fus_client.paginate("/v1/users", "users"))
-    users = sorted(list(set(users)))
-    return users
-
-
-def list_fus_groups(fus_client) -> typing.List[str]:
-    """Return a list of names of Fusillade roles"""
-    groups = list(fus_client.paginate("/v1/groups", "groups"))
-    groups = sorted(list(set(groups)))
-    return groups
-
-
-def list_fus_roles(fus_client) -> typing.List[str]:
-    """Return a list of names of Fusillade roles"""
-    roles = list(fus_client.paginate("/v1/roles", "roles"))
-    roles = sorted(list(set(roles)))
-    return roles
+    res = list(fus_client.paginate(f"/v1/{asset_type}", "{asset_type}"))
+    res = sorted(list(set(res)))
+    return res
 
 
 # ---
