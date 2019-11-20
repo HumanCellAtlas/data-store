@@ -188,24 +188,22 @@ def _get_aws_api_labels_dict() -> typing.Dict[str, typing.Dict[str, str]]:
 
 def _make_aws_api_labels_dict_entry(*args) -> typing.Dict[str, str]:
     """
-    Convenience function to unpack 4 values into a dictionary of labels, useful for processing
-    API results.
+    Convenience function to unpack 4 values into a dictionary of labels, useful for processing API results.
+
+    Example:
+        >>> _make_aws_api_labels_dict_entry("Users", "UserName", "UserDetailList", "UserPolicyList")
+        {
+            "extracted_list_label": "Users",
+            "name_label": "UserName",
+            "detail_list_label": "UserDetailList",
+            "policy_list_label": "UserPolicyList"
+        }
 
     :params arg[0]: label of asset type
     :params arg[1]: label of asset name
     :params arg[2]: label of asset details
     :params arg[3]: label of asset policy details
     :returns: dictionary of organized labels
-
-    Example:
-
-        >>> _make_aws_api_labels_dict_entry("User", "UserName", "UserDetailList", "UserPolicyList")
-        {
-            "extracted_list_label": "User",
-            "name_label": "UserName",
-            "detail_list_label": "UserDetailList",
-            "policy_list_label": "UserPolicyList"
-        }
     """
     assert len(args) == 4, "Error: need 4 arguments!"
     return dict(
@@ -266,7 +264,6 @@ def list_aws_policies(client, managed: bool):
 def dump_aws_policies(client, managed: bool):
     """Return a list of dictionaries containing AWS policy documents"""
     return extract_aws_policies("dump", client, managed)
-
 
 
 def list_aws_assets(asset_type, client):
@@ -357,7 +354,8 @@ def extract_fus_policies(action: str, fus_client, do_headers: bool = True):
                     except TypeError:
                         d = iam_policy
                     except json.decoder.JSONDecodeError:
-                        msg = f"Warning: malformed policy document for user {user} and {asset_type} {asset}: \n{iam_policy}"
+                        msg = f"Warning: malformed policy document for user {user} and {asset_type} {asset}:\n"
+                        msg += f"{iam_policy}"
                         logger.warning(msg)
                         d = {}  # Malformed JSON
                     if "Id" not in d:
@@ -398,11 +396,11 @@ def dump_fus_policies(fus_client, do_headers):
 
 def list_fus_assets(asset_type, fus_client):
     """Return a list of names of Fusillade assets"""
-    if asset_type=="users":
+    if asset_type == "users":
         return list_fus_users(fus_client)
-    elif asset_type=="groups":
+    elif asset_type == "groups":
         return list_fus_groups(fus_client)
-    elif asset_type=="roles":
+    elif asset_type == "roles":
         return list_fus_roles(fus_client)
 
 
@@ -553,7 +551,7 @@ def list_fus_user_policies(fus_client, do_headers: bool = True):
     users = list(fus_client.paginate("/v1/users", "users"))
 
     result = []
-    
+
     # NOTE: This makes unnecessary duplicate API calls.
     # It would be better to get list of groups/roles then mark ones attached to users.
     for user in users:
@@ -763,13 +761,11 @@ list_asset_args = {
     )
 }
 
-def list_asset_action(asset_type, argv: typing.List[str], args: argparse.Namespace): 
+def list_asset_action(asset_type, argv: typing.List[str], args: argparse.Namespace):
     """Print a simple, flat list of IAM assets available"""
     if args.output:
         if os.path.exists(args.output) and not args.force:
             raise RuntimeError(f"Error: cannot overwrite {args.output} without --force flag")
-
-    do_headers = not args.exclude_headers
 
     if args.cloud_provider == "aws":
         contents = list_aws_assets(asset_type, iam_client)
@@ -804,7 +800,7 @@ def list_users(argv: typing.List[str], args: argparse.Namespace):
 @iam.action("list-groups", arguments=list_asset_args)
 def list_groups(argv: typing.List[str], args: argparse.Namespace):
     """Print a simple, flat list of IAM groups available"""
-    list_asset_action("groups", argv=argv, args=args) 
+    list_asset_action("groups", argv=argv, args=args)
 
 @iam.action("list-roles", arguments=list_asset_args)
 def list_roles(argv: typing.List[str], args: argparse.Namespace):
