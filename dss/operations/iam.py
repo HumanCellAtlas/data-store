@@ -698,7 +698,7 @@ def list_policies(argv: typing.List[str], args: argparse.Namespace):
             # list policies
             contents = list_fus_policies(client, do_headers)
         elif args.group_by in ['users', 'groups', 'roles']:
-            contents = list_fus_policies_grouped(args.grouped_by, client, do_headers)
+            contents = list_fus_policies_grouped(args.group_by, client, do_headers)
         else:
             RuntimeError(f"Invalid --group-by argument passed: {args.group_by}")
 
