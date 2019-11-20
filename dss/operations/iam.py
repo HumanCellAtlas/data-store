@@ -384,17 +384,17 @@ def extract_fus_policies(action: str, fus_client, do_headers: bool = True):
     return master_list
 
 
-def list_fus_policies(fus_client, do_headers) -> typing.List[str]:
+def list_fus_policies(fus_client, do_headers: bool) -> typing.List[str]:
     """Return a list of names of Fusillade policies"""
     return extract_fus_policies("list", fus_client, do_headers)
 
 
-def dump_fus_policies(fus_client, do_headers):
+def dump_fus_policies(fus_client, do_headers: bool):
     """Return a list of dictionaries containing Fusillade policy documents"""
     return extract_fus_policies("dump", fus_client, do_headers)
 
 
-def list_fus_assets(asset_type, fus_client):
+def list_fus_assets(asset_type: str, fus_client) -> typing.List[str]:
     """Return a list of names of Fusillade assets"""
     if asset_type == "users":
         return list_fus_users(fus_client)
@@ -404,21 +404,21 @@ def list_fus_assets(asset_type, fus_client):
         return list_fus_roles(fus_client)
 
 
-def list_fus_users(fus_client):
+def list_fus_users(fus_client) -> typing.List[str]:
     """Return a list of names of Fusillade users"""
     users = list(fus_client.paginate("/v1/users", "users"))
     users = sorted(list(set(users)))
     return users
 
 
-def list_fus_groups(fus_client):
+def list_fus_groups(fus_client) -> typing.List[str]:
     """Return a list of names of Fusillade roles"""
     groups = list(fus_client.paginate("/v1/groups", "groups"))
     groups = sorted(list(set(groups)))
     return groups
 
 
-def list_fus_roles(fus_client):
+def list_fus_roles(fus_client) -> typing.List[str]:
     """Return a list of names of Fusillade roles"""
     roles = list(fus_client.paginate("/v1/roles", "roles"))
     roles = sorted(list(set(roles)))
@@ -428,7 +428,7 @@ def list_fus_roles(fus_client):
 # ---
 # List AWS policies grouped by asset type
 # ---
-def list_aws_policies_grouped(asset_type, client, managed: bool, do_headers: bool = True):
+def list_aws_policies_grouped(asset_type, client, managed: bool, do_headers: bool = True) -> typing.List[typing.Any]:
     """
     Call the AWS IAM API to retrieve policies grouped by asset and create a list of policy names.
 
@@ -498,21 +498,6 @@ def list_aws_policies_grouped(asset_type, client, managed: bool, do_headers: boo
     return extracted_list
 
 
-def list_aws_user_policies(*args, **kwargs):
-    """Extract a list of policies that apply to each user"""
-    return list_aws_policies_grouped("users", *args, **kwargs)
-
-
-def list_aws_group_policies(*args, **kwargs):
-    """Extract a list of policies that apply to each group"""
-    return list_aws_policies_grouped("groups", *args, **kwargs)
-
-
-def list_aws_role_policies(*args, **kwargs):
-    """Extract a list of policies that apply to each resource"""
-    return list_aws_policies_grouped("roles", *args, **kwargs)
-
-
 # ---
 # List GCP policies grouped by asset type
 # ---
@@ -523,24 +508,17 @@ def list_gcp_policies_grouped(asset_type, client, managed: bool, do_headers: boo
     pass
 
 
-def list_gcp_user_policies(*args, **kwargs):
-    """Extract a list of policies that apply to each user"""
-    pass
-
-
-def list_gcp_group_policies(*args, **kwargs):
-    """Extract a list of policies that apply to each group"""
-    pass
-
-
-def list_gcp_role_policies(*args, **kwargs):
-    """Extract a list of policies that apply to each resource"""
-    pass
-
-
 # ---
 # List Fusillade policies grouped by asset type
 # ---
+def list_fus_policies_grouped(group_by, fus_client, do_headers: bool = True):
+    if group_by == "users":
+        return list_fus_user_policies(fus_client, do_headers)
+    elif group_by == "groups":
+        return list_fus_group_policies(fus_client, do_headers)
+    elif group_by == "roles":
+        return list_fus_role_policies(fus_client, do_headers)
+
 def list_fus_user_policies(fus_client, do_headers: bool = True):
     """
     Call the Fusillade API to retrieve policies grouped by user.
@@ -698,12 +676,8 @@ def list_policies(argv: typing.List[str], args: argparse.Namespace):
     if args.cloud_provider == "aws":
         if args.group_by is None:
             contents = list_aws_policies(iam_client, managed)
-        elif args.group_by == "users":
-            contents = list_aws_user_policies(iam_client, managed, do_headers)
-        elif args.group_by == "groups":
-            contents = list_aws_group_policies(iam_client, managed, do_headers)
-        elif args.group_by == "roles":
-            contents = list_aws_role_policies(iam_client, managed, do_headers)
+        elif args.group_by in ['users', 'groups', 'roles']:
+            contents = list_aws_policies_grouped(args.group_by, iam_client, managed, do_headers)
         else:
             raise RuntimeError(f"Invalid --group-by argument passed: {args.group_by}")
 
@@ -721,12 +695,10 @@ def list_policies(argv: typing.List[str], args: argparse.Namespace):
         if args.group_by is None:
             # list policies
             contents = list_fus_policies(client, do_headers)
-        elif args.group_by == "users":
-            contents = list_fus_user_policies(client, do_headers)
-        elif args.group_by == "groups":
-            contents = list_fus_group_policies(client, do_headers)
-        elif args.group_by == "roles":
-            contents = list_fus_role_policies(client, do_headers)
+        elif args.group_by in ['users', 'groups', 'roles']:
+            contents = list_fus_policies_grouped(args.grouped_by, client, do_headers)
+        else:
+            RuntimeError(f"Invalid --group-by argument passed: {args.group_by}")
 
         # Join the tuples
         if args.group_by is not None:
@@ -760,6 +732,7 @@ list_asset_args = {
         action="store_true", help="Exclude headers on the list being output"
     )
 }
+
 
 def list_asset_action(asset_type, argv: typing.List[str], args: argparse.Namespace):
     """Print a simple, flat list of IAM assets available"""
