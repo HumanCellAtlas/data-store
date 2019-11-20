@@ -213,16 +213,15 @@ class build_reference_list(StorageOperationHandler):
     def process_key(self, key):
         storage_object_references = list()
         storage_object_references.append(key)
-        bucket = self.replica.bucket
         try:
-            bundle_metadata = json.loads(self.handle.get(bucket,key))
+            bundle_metadata = json.loads(self.handle.get(self.replica.bucket, key))
         except BlobNotFoundError as e:
             logger.error(f"bundle {key} not found {e}")
         for files in bundle_metadata['files']:
             storage_object_references.append(f"files/{files['name']}.{files['uuid']}")
             storage_object_references.append(compose_blob_key(files))
-        print(storage_object_references)
         return storage_object_references
+
 
 # TODO: Move to cloud_blobstore
 def update_aws_content_type(s3_client, bucket, key, content_type):

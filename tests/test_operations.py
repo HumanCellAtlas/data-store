@@ -157,13 +157,30 @@ class TestOperations(unittest.TestCase):
                         self.assertEqual(log_warning.call_args[0][0], "JSONDecodeError")
 
     def test_bundle_reference_list(self):
-        mock_file_data = {"uuid" : uuid.uuid4(),
-                          "version": datetime_to_version_format(datetime.datetime()),"sha256": "",
-                          "sha1": "",
-                          "s3-etag": "",
-                          "crc32c": ""}
-        mock_bundle_metadata = {"files": [mock_file_data]}
-        
+        class MockHandler:
+            mock_file_data = {"uuid" : uuid.uuid4(),
+                              "version": datetime_to_version_format(datetime.datetime.now()),
+                              "sha256": "256k",
+                              "sha1": "1thing",
+                              "s3-etag": "s34me",
+                              "crc32c": "wthisthis"}
+            mock_bundle_metadata = {"files": [mock_file_data]}
+            mock_bundle_key = 'bundles/123.456'
+            handle = mock.Mock()
+            def get(self):
+                return self.mock_bundle_metadata
+
+        for replica in Replica:
+            with self.subTest("Test Bundle Reference"):
+                with mock.patch("dss.operations.storage.StorageOperationHandler") as mock_handle:
+                    mock_handle.return_value = MockHandler()
+                    args = argparse.Namespace(keys=[MockHandler.mock_bundle_key],
+                                              replica=replica.name,
+                                              entity_type='bundles',
+                                              job_id="")
+                    res = storage.build_reference_list([],args).process_key(MockHandler.mock_bundle_key)
+                    print(res)
+
 
     def test_update_content_type(self):
         TestCase = namedtuple("TestCase", "replica upload size update initial_content_type expected_content_type")
