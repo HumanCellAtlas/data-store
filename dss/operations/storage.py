@@ -6,6 +6,7 @@ import typing
 import logging
 import argparse
 import math
+import pprint
 from uuid import uuid4
 from traceback import format_exc
 from concurrent.futures import ThreadPoolExecutor, as_completed
@@ -209,8 +210,11 @@ class verify_referential_integrity(StorageOperationHandler):
 @storage.action("build-reference-list",
                 mutually_exclusive=["--keys"])
 class build_reference_list(StorageOperationHandler):
-    """This uses bundle data to build out a reference list of objects that are relevant to the bundle"""
+    """This uses bundle key to build out a reference list of objects that are relevant to the bundle"""
     def process_key(self, key):
+        if not key.startswith(BUNDLE_PREFIX):
+            logger.error(f"only bundle keys supported, unable to process: {key}")
+            return
         storage_object_references = list()
         storage_object_references.append(key)
         try:
@@ -220,7 +224,8 @@ class build_reference_list(StorageOperationHandler):
         for files in bundle_metadata['files']:
             storage_object_references.append(f"files/{files['uuid']}.{files['version']}")
             storage_object_references.append(compose_blob_key(files))
-        return storage_object_references
+        pprint.pprint(storage_object_references)
+        return storage_object_references # returned for testing
 
 
 # TODO: Move to cloud_blobstore
