@@ -225,7 +225,7 @@ class build_reference_list(StorageOperationHandler):
             storage_object_references.append(f"files/{files['uuid']}.{files['version']}")
             storage_object_references.append(compose_blob_key(files))
         pprint.pprint(storage_object_references)
-        return storage_object_references # returned for testing
+        return storage_object_references  # returned for testing
 
 
 # TODO: Move to cloud_blobstore
