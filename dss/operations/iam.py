@@ -402,6 +402,8 @@ def list_fus_assets(asset_type: str, fus_client) -> typing.List[str]:
         return list_fus_groups(fus_client)
     elif asset_type == "roles":
         return list_fus_roles(fus_client)
+    else:
+        raise RuntimeError(f"Error: invalid asset type {asset_type}")
 
 
 def list_fus_users(fus_client) -> typing.List[str]:
