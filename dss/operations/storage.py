@@ -218,7 +218,7 @@ class build_reference_list(StorageOperationHandler):
         except BlobNotFoundError as e:
             logger.error(f"bundle {key} not found {e}")
         for files in bundle_metadata['files']:
-            storage_object_references.append(f"files/{files['name']}.{files['uuid']}")
+            storage_object_references.append(f"files/{files['uuid']}.{files['version']}")
             storage_object_references.append(compose_blob_key(files))
         return storage_object_references
 

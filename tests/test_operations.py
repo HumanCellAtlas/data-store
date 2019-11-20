@@ -158,8 +158,8 @@ class TestOperations(unittest.TestCase):
 
     def test_bundle_reference_list(self):
         class MockHandler:
-            mock_file_data = {"uuid" : uuid.uuid4(),
-                              "version": datetime_to_version_format(datetime.datetime.now()),
+            mock_file_data = {"uuid" : "987",
+                              "version": "987",
                               "sha256": "256k",
                               "sha1": "1thing",
                               "s3-etag": "s34me",
@@ -167,19 +167,25 @@ class TestOperations(unittest.TestCase):
             mock_bundle_metadata = {"files": [mock_file_data]}
             mock_bundle_key = 'bundles/123.456'
             handle = mock.Mock()
-            def get(self):
-                return self.mock_bundle_metadata
+
+            def get(self,bucket,key):
+                return json.dumps(self.mock_bundle_metadata)
 
         for replica in Replica:
             with self.subTest("Test Bundle Reference"):
-                with mock.patch("dss.operations.storage.StorageOperationHandler") as mock_handle:
-                    mock_handle.return_value = MockHandler()
-                    args = argparse.Namespace(keys=[MockHandler.mock_bundle_key],
-                                              replica=replica.name,
-                                              entity_type='bundles',
-                                              job_id="")
-                    res = storage.build_reference_list([],args).process_key(MockHandler.mock_bundle_key)
-                    print(res)
+                with override_bucket_config(BucketConfig.TEST):
+                    with mock.patch("dss.operations.storage.Config") as mock_handle:
+                        mock_handle.get_blobstore_handle = mock.MagicMock(return_value = MockHandler())
+                        args = argparse.Namespace(keys=[MockHandler.mock_bundle_key],
+                                                  replica=replica.name,
+                                                  entity_type='bundles',
+                                                  job_id="")
+                        res = storage.build_reference_list([],args).process_key(MockHandler.mock_bundle_key)
+                        self.assertIn(MockHandler.mock_bundle_key,res)
+                        self.assertIn(f'files/{MockHandler.mock_file_data["uuid"]}.'
+                                      f'{MockHandler.mock_file_data["version"]}',
+                                      res)
+                        self.assertIn(compose_blob_key(MockHandler.mock_file_data),res)
 
 
     def test_update_content_type(self):
