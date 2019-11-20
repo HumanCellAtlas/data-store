@@ -224,7 +224,8 @@ class build_reference_list(StorageOperationHandler):
         for files in bundle_metadata['files']:
             storage_object_references.append(f"files/{files['uuid']}.{files['version']}")
             storage_object_references.append(compose_blob_key(files))
-        pprint.pprint(storage_object_references)
+        for key in storage_object_references:
+            print(key)
         return storage_object_references  # returned for testing
 
 
