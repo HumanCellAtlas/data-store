@@ -266,6 +266,30 @@ def dump_aws_policies(client, managed: bool):
     return extract_aws_policies("dump", client, managed)
 
 
+def list_aws_assets(asset_type, client):
+    """Use the AWS API to compile a flat list of asset names"""
+    master_list = []  # holds main results
+
+    # Prepare labels for extracting asset info
+    aws_labels = _get_aws_api_labels_dict()
+    if asset_type not in aws_labels:
+        raise RuntimeError(f"Error: unrecognized AWS asset type: {asset_type}")
+    asset_labels = aws_labels[asset_type]
+
+    # Map asset types to AWS API endpoints
+    endpoints = _get_aws_api_list_endpoints_dict()
+
+    paginator = client.get_paginator(endpoints[asset_type])
+    for page in paginator.paginate():
+        for policy in page[asset_labels['extracted_list_label']]:
+            role_name = policy[asset_labels['name_label']]
+            master_list.append(role_name)
+
+    # Sort names, remove duplicates
+    master_list = sorted(list(set(master_list)))
+    return master_list
+
+
 # ---
 # Dump/list GCP policies
 # ---
@@ -370,10 +394,17 @@ def dump_fus_policies(fus_client, do_headers: bool):
     return extract_fus_policies("dump", fus_client, do_headers)
 
 
+def list_fus_assets(asset_type: str, fus_client) -> typing.List[str]:
+    """Return a list of names of Fusillade assets"""
+    res = list(fus_client.paginate(f"/v1/{asset_type}", "{asset_type}"))
+    res = sorted(list(set(res)))
+    return res
+
+
 # ---
 # List AWS policies grouped by asset type
 # ---
-def list_aws_policies_grouped(asset_type, client, managed: bool, do_headers: bool = True):
+def list_aws_policies_grouped(asset_type, client, managed: bool, do_headers: bool = True) -> typing.List[typing.Any]:
     """
     Call the AWS IAM API to retrieve policies grouped by asset and create a list of policy names.
 
@@ -660,3 +691,67 @@ def list_policies(argv: typing.List[str], args: argparse.Namespace):
         print(c)
     if args.output:
         sys.stdout = stdout_
+
+
+list_asset_args = {
+    "cloud_provider": dict(
+        choices=["aws", "gcp", "fusillade"], help="The cloud provider whose policies are being listed"
+    ),
+    "--output": dict(
+        type=str, required=False, help="Specify an output file name (output sent to stdout by default)"
+    ),
+    "--force": dict(
+        action="store_true",
+        help="If output file already exists, overwrite it (default is not to overwrite)",
+    ),
+    "--exclude-headers": dict(
+        action="store_true", help="Exclude headers on the list being output"
+    )
+}
+
+
+def list_asset_action(asset_type, argv: typing.List[str], args: argparse.Namespace):
+    """Print a simple, flat list of IAM assets available"""
+    if args.output:
+        if os.path.exists(args.output) and not args.force:
+            raise RuntimeError(f"Error: cannot overwrite {args.output} without --force flag")
+
+    if args.cloud_provider == "aws":
+        contents = list_aws_assets(asset_type, iam_client)
+
+    elif args.cloud_provider == "gcp":
+        raise NotImplementedError("Error: IAM functionality for GCP not implemented")
+
+    elif args.cloud_provider == "fusillade":
+        dss_stage = os.environ["DSS_DEPLOYMENT_STAGE"]
+        fus_stage = DSS2FUS[dss_stage]
+        fus_client = FusilladeClient(fus_stage)
+        contents = list_fus_assets(asset_type, fus_client)
+
+    else:
+        raise NotImplementedError(f"Error: IAM functionality not implemented for {args.cloud_provider}")
+
+    # Print list to output
+    if args.output:
+        stdout_ = sys.stdout
+        sys.stdout = open(args.output, "w")
+    for c in contents:
+        print(c)
+    if args.output:
+        sys.stdout = stdout_
+
+
+@iam.action("list-users", arguments=list_asset_args)
+def list_users(argv: typing.List[str], args: argparse.Namespace):
+    """Print a simple, flat list of IAM users available"""
+    list_asset_action("users", argv=argv, args=args)
+
+@iam.action("list-groups", arguments=list_asset_args)
+def list_groups(argv: typing.List[str], args: argparse.Namespace):
+    """Print a simple, flat list of IAM groups available"""
+    list_asset_action("groups", argv=argv, args=args)
+
+@iam.action("list-roles", arguments=list_asset_args)
+def list_roles(argv: typing.List[str], args: argparse.Namespace):
+    """Print a simple, flat list of IAM roles available"""
+    list_asset_action("roles", argv=argv, args=args)
