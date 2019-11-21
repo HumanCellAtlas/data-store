@@ -166,6 +166,55 @@ def get_fus_role_attached_policies(fus_client, action, role):
 
 
 # ---
+# AWS utility functions/classes
+# ---
+def _get_aws_api_list_endpoints_dict() -> typing.Dict[str, str]:
+    """Store AWS API endpoints to list each asset type"""
+    return {
+        "users": "list_users",
+        "groups": "list_groups",
+        "roles": "list_roles"
+    }
+
+
+def _get_aws_api_labels_dict() -> typing.Dict[str, typing.Dict[str, str]]:
+    """Store the labels used to unwrap JSON results from the AWS API"""
+    return {
+        "users": _make_aws_api_labels_dict_entry("Users", "UserName", "UserDetailList", "UserPolicyList"),
+        "groups": _make_aws_api_labels_dict_entry("Groups", "GroupName", "GroupDetailList", "GroupPolicyList"),
+        "roles": _make_aws_api_labels_dict_entry("Roles", "RoleName", "RoleDetailList", "RolePolicyList"),
+    }
+
+
+def _make_aws_api_labels_dict_entry(*args) -> typing.Dict[str, str]:
+    """
+    Convenience function to unpack 4 values into a dictionary of labels, useful for processing API results.
+
+    Example:
+        >>> _make_aws_api_labels_dict_entry("Users", "UserName", "UserDetailList", "UserPolicyList")
+        {
+            "extracted_list_label": "Users",
+            "name_label": "UserName",
+            "detail_list_label": "UserDetailList",
+            "policy_list_label": "UserPolicyList"
+        }
+
+    :params arg[0]: label of asset type
+    :params arg[1]: label of asset name
+    :params arg[2]: label of asset details
+    :params arg[3]: label of asset policy details
+    :returns: dictionary of organized labels
+    """
+    assert len(args) == 4, "Error: need 4 arguments!"
+    return dict(
+        extracted_list_label=args[0],
+        name_label=args[1],
+        detail_list_label=args[2],
+        policy_list_label=args[3],
+    )
+
+
+# ---
 # Dump/list AWS policies
 # ---
 def extract_aws_policies(action: str, client, managed: bool):
@@ -276,7 +325,15 @@ def extract_fus_policies(action: str, fus_client, do_headers: bool = True):
                 except (KeyError, TypeError):
                     pass
                 else:
-                    d = json.loads(iam_policy)
+                    try:
+                        d = json.loads(iam_policy)
+                    except TypeError:
+                        d = iam_policy
+                    except json.decoder.JSONDecodeError:
+                        msg = f"Warning: malformed policy document for user {user} and {asset_type} {asset}:\n"
+                        msg += f"{iam_policy}"
+                        logger.warning(msg)
+                        d = {}  # Malformed JSON
                     if "Id" not in d:
                         d["Id"] = ANONYMOUS_POLICY_NAME
                     managed_policies.append(d)
@@ -303,12 +360,12 @@ def extract_fus_policies(action: str, fus_client, do_headers: bool = True):
     return master_list
 
 
-def list_fus_policies(fus_client, do_headers) -> typing.List[str]:
+def list_fus_policies(fus_client, do_headers: bool) -> typing.List[str]:
     """Return a list of names of Fusillade policies"""
     return extract_fus_policies("list", fus_client, do_headers)
 
 
-def dump_fus_policies(fus_client, do_headers):
+def dump_fus_policies(fus_client, do_headers: bool):
     """Return a list of dictionaries containing Fusillade policy documents"""
     return extract_fus_policies("dump", fus_client, do_headers)
 
@@ -327,41 +384,10 @@ def list_aws_policies_grouped(asset_type, client, managed: bool, do_headers: boo
     """
     extracted_list = []
 
-    # Prepare to extract labels for JSON returned by API
-    def _make_aws_api_labels_dict_entry(*args) -> typing.Dict[str, str]:
-        """
-        Convenience function to unpack 4 values into a dictionary of labels, useful for processing
-        API results.
-
-        :params arg[0]: label of asset type
-        :params arg[1]: label of asset name
-        :params arg[2]: label of asset details
-        :params arg[3]: label of asset policy details
-        :returns: dictionary of organized labels
-        """
-        assert len(args) == 4, "Error: need 4 arguments!"
-        return dict(
-            extracted_list_label=args[0],
-            name_label=args[1],
-            detail_list_label=args[2],
-            policy_list_label=args[3],
-        )
-
-    def _get_aws_api_labels_dict() -> typing.Dict[str, typing.Dict[str, str]]:
-        """Store the labels used to unwrap JSON results from the AWS API"""
-        labels = {
-            "user": _make_aws_api_labels_dict_entry("User", "UserName", "UserDetailList", "UserPolicyList"),
-            "group": _make_aws_api_labels_dict_entry(
-                "Group", "GroupName", "GroupDetailList", "GroupPolicyList"
-            ),
-            "role": _make_aws_api_labels_dict_entry("Role", "RoleName", "RoleDetailList", "RolePolicyList"),
-        }
-        return labels
-
     # Extract labels needed
     labels = _get_aws_api_labels_dict()
     if asset_type not in labels:
-        raise RuntimeError(f"Error: asset type {asset_type} is not valid, try one of: {labels}")
+        raise RuntimeError(f"Error: asset type \"{asset_type}\" is not valid, try one of: {labels.keys()}")
     extracted_list_label, filter_label, name_label, detail_list_label, policy_list_label = (
         labels[asset_type]["extracted_list_label"],
         labels[asset_type]["extracted_list_label"],
@@ -417,21 +443,6 @@ def list_aws_policies_grouped(asset_type, client, managed: bool, do_headers: boo
     return extracted_list
 
 
-def list_aws_user_policies(*args, **kwargs):
-    """Extract a list of policies that apply to each user"""
-    return list_aws_policies_grouped("user", *args, **kwargs)
-
-
-def list_aws_group_policies(*args, **kwargs):
-    """Extract a list of policies that apply to each group"""
-    return list_aws_policies_grouped("group", *args, **kwargs)
-
-
-def list_aws_role_policies(*args, **kwargs):
-    """Extract a list of policies that apply to each resource"""
-    return list_aws_policies_grouped("role", *args, **kwargs)
-
-
 # ---
 # List GCP policies grouped by asset type
 # ---
@@ -442,24 +453,17 @@ def list_gcp_policies_grouped(asset_type, client, managed: bool, do_headers: boo
     pass
 
 
-def list_gcp_user_policies(*args, **kwargs):
-    """Extract a list of policies that apply to each user"""
-    pass
-
-
-def list_gcp_group_policies(*args, **kwargs):
-    """Extract a list of policies that apply to each group"""
-    pass
-
-
-def list_gcp_role_policies(*args, **kwargs):
-    """Extract a list of policies that apply to each resource"""
-    pass
-
-
 # ---
 # List Fusillade policies grouped by asset type
 # ---
+def list_fus_policies_grouped(group_by, fus_client, do_headers: bool = True):
+    if group_by == "users":
+        return list_fus_user_policies(fus_client, do_headers)
+    elif group_by == "groups":
+        return list_fus_group_policies(fus_client, do_headers)
+    elif group_by == "roles":
+        return list_fus_role_policies(fus_client, do_headers)
+
 def list_fus_user_policies(fus_client, do_headers: bool = True):
     """
     Call the Fusillade API to retrieve policies grouped by user.
@@ -615,46 +619,38 @@ def list_policies(argv: typing.List[str], args: argparse.Namespace):
     do_headers = not args.exclude_headers
 
     if args.cloud_provider == "aws":
-
         if args.group_by is None:
             contents = list_aws_policies(iam_client, managed)
+        elif args.group_by in ['users', 'groups', 'roles']:
+            contents = list_aws_policies_grouped(args.group_by, iam_client, managed, do_headers)
         else:
-            if args.group_by == "users":
-                contents = list_aws_user_policies(iam_client, managed, do_headers)
-            elif args.group_by == "groups":
-                contents = list_aws_group_policies(iam_client, managed, do_headers)
-            elif args.group_by == "roles":
-                contents = list_aws_role_policies(iam_client, managed, do_headers)
-            else:
-                raise RuntimeError(f"Invalid --group-by argument passed: {args.group_by}")
+            raise RuntimeError(f"Invalid --group-by argument passed: {args.group_by}")
 
-            # Join the tuples
+        # Join the tuples
+        if args.group_by is not None:
             contents = [IAMSEPARATOR.join(c) for c in contents]
 
     elif args.cloud_provider == "gcp":
-        pass
-    elif args.cloud_provider == "fusillade":
+        raise NotImplementedError("Error: IAM functionality for GCP not implemented")
 
-        stage = DSS2FUS[os.environ["DSS_DEPLOYMENT_STAGE"]]
-        client = FusilladeClient(stage=stage)
+    elif args.cloud_provider == "fusillade":
+        fus_stage = DSS2FUS[os.environ["DSS_DEPLOYMENT_STAGE"]]
+        client = FusilladeClient(fus_stage)
 
         if args.group_by is None:
             # list policies
             contents = list_fus_policies(client, do_headers)
+        elif args.group_by in ['users', 'groups', 'roles']:
+            contents = list_fus_policies_grouped(args.group_by, client, do_headers)
         else:
-            # list policies grouped by asset
-            if args.group_by == "users":
-                contents = list_fus_user_policies(client, do_headers)
-            elif args.group_by == "groups":
-                contents = list_fus_group_policies(client, do_headers)
-            elif args.group_by == "roles":
-                contents = list_fus_role_policies(client, do_headers)
+            RuntimeError(f"Invalid --group-by argument passed: {args.group_by}")
 
-            # Join the tuples
+        # Join the tuples
+        if args.group_by is not None:
             contents = [IAMSEPARATOR.join(c) for c in contents]
 
     else:
-        raise RuntimeError(f"Error: IAM functionality not implemented for {args.cloud_provider}")
+        raise NotImplementedError(f"Error: IAM functionality not implemented for {args.cloud_provider}")
 
     # Print list to output
     if args.output:
