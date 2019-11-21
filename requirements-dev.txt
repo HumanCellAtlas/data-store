@@ -18,6 +18,7 @@ click==6.7
 clickclick==1.2.2
 cloud-blobstore==3.2.0
 colorama==0.4.1
+commonmark==0.9.1
 connexion==1.5.3
 coverage==4.5.4
 crc32c==1.7
@@ -58,6 +59,7 @@ jmespath==0.9.4
 jsonpickle==1.2
 jsonpointer==2.0
 jsonschema==2.6.0
+Markdown==3.0.1
 MarkupSafe==1.1.1
 mccabe==0.6.1
 monotonic==1.5
@@ -80,6 +82,7 @@ pyparsing==2.4.5
 python-dateutil==2.8.1
 pytz==2019.3
 PyYAML==5.1
+recommonmark==0.6.0
 requests==2.22.0
 requests-aws4auth==0.9
 requests-http-signature==0.1.0
@@ -89,6 +92,8 @@ s3transfer==0.2.1
 six==1.13.0
 snowballstemmer==2.0.0
 Sphinx==2.2.1
+sphinx-argparse==0.2.5
+sphinx-markdown-tables==0.0.10
 sphinxcontrib-applehelp==1.0.1
 sphinxcontrib-devhelp==1.0.1
 sphinxcontrib-htmlhelp==1.0.2
