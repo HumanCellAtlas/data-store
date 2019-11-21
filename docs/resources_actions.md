@@ -1,3 +1,5 @@
+# DSS Resources and Actions
+
 |Actions|	Resource|
 |-------|-----------|
 |dss:GetCheckout	|arn:hca:dss:{stage}:{replica}:checkout/{checkout_job_id}
