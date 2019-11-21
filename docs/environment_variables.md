@@ -1,3 +1,5 @@
+# DSS Environment Variables
+
 Environment Variable | Description
 --- | ---
 `ACM_CERTIFICATE_IDENTIFIER` | The AWS ACM certificate identifier, which can be found on the AWS console.
@@ -33,7 +35,7 @@ Environment Variable | Description
 `DSS_GS_CHECKOUT_BUCKET_INTEGRATION` | The name of the HCA DSS' checkout bucket in GS on the HCA integration environment.
 `DSS_GS_CHECKOUT_BUCKET_PROD` | The name of the HCA DSS' checkout bucket in GS on the HCA prod environment.
 `DSS_GS_CHECKOUT_BUCKET_STAGING` | The name of the HCA DSS' checkout bucket in GS on the HCA staging environment.
-`DSS_GS_CHECKOUT_BUCKET_TEST_USER` | GS bucket representing a non-dss managed user bucket (i.e. testing POST /bundles/{uuid}/checkout)
+`DSS_GS_CHECKOUT_BUCKET_TEST_USER` | GS bucket representing a non-dss managed user bucket (i.e. testing `POST /bundles/{uuid}/checkout`)
 `DSS_GS_CHECKOUT_BUCKET_TEST` | The name of the DSS' test checkout bucket in GS. This bucket replaces `DSS_S3_CHECKOUT_BUCKET` during unit and integration tests. This bucket name should be suffixed with `DSS_DEPLOYMENT_STAGE`.
 `DSS_GS_CHECKOUT_BUCKET` | The name of the DSS' checkout bucket in GS. On `GET` during the checkout process copies files from `DSS_S3_BUCKET` to this bucket. This bucket name should be suffixed with `DSS_DEPLOYMENT_STAGE`.
 `DSS_MONITOR_WEBHOOK_SECRET_NAME`	| Webhook URL to post metrics notifications from the DSS Monitor Fargate Task
@@ -50,7 +52,7 @@ Environment Variable | Description
 `DSS_S3_CHECKOUT_BUCKET_INTEGRATION` | The name of the HCA DSS' checkout bucket in S3 on the HCA integration environment.
 `DSS_S3_CHECKOUT_BUCKET_PROD` | The name of the HCA DSS' checkout bucket in S3 on the HCA prod environment.
 `DSS_S3_CHECKOUT_BUCKET_STAGING` | The name of the HCA DSS' checkout bucket in S3 on the HCA staging environment.
-`DSS_S3_CHECKOUT_BUCKET_TEST_USER` | S3 bucket representing a non-dss managed user bucket (i.e. testing POST /bundles/{uuid}/checkout)
+`DSS_S3_CHECKOUT_BUCKET_TEST_USER` | S3 bucket representing a non-dss managed user bucket (i.e. testing `POST /bundles/{uuid}/checkout`)
 `DSS_S3_CHECKOUT_BUCKET_TEST` | The name of the DSS' test checkout bucket in S3. This bucket replaces `DSS_S3_CHECKOUT_BUCKET` during unit and integration tests. This bucket name should be suffixed with `DSS_DEPLOYMENT_STAGE`.
 `DSS_S3_CHECKOUT_BUCKET_UNWRITABLE` | The name of the DSS' unwritable checkout bucket. This bucket is used for testing purposes.
 `DSS_S3_CHECKOUT_BUCKET` | The name of the DSS' checkout bucket in S3. On `GET` during the checkout process copies files from `DSS_S3_BUCKET` to this bucket. This bucket name should be suffixed with `DSS_DEPLOYMENT_STAGE`.
