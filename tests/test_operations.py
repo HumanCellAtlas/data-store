@@ -776,6 +776,100 @@ class TestOperations(unittest.TestCase):
                 self.assertIn(IAMSEPARATOR.join(["fake-role", "fake-role-policy"]), output)
                 self.assertIn(IAMSEPARATOR.join(["fake-role-2", "fake-role-2-policy"]), output)
 
+    def test_iam_aws_list_assets(self):
+
+        def _get_aws_list_assets_kwargs(**kwargs):
+            # Set default kwargs values, then set user-specified kwargs
+            custom_kwargs = dict(
+                cloud_provider="aws",
+                output=None,
+                force=False,
+                exclude_headers=False,
+            )
+            for kw, val in kwargs.items():
+                custom_kwargs[kw] = val
+            return custom_kwargs
+
+        with self.subTest("AWS list users"):
+            with mock.patch("dss.operations.iam.iam_client") as iam_client:
+                class MockPaginator_Users(object):
+                    def paginate(self, *args, **kwargs):
+                        return [{"Users": [{"UserName": "fake-user-1@foo.bar"}, {"UserName": "fake-user-2@baz.wuz"}]}]
+                iam_client.get_paginator.return_value = MockPaginator_Users()
+                with CaptureStdout() as output:
+                    kwargs = _get_aws_list_assets_kwargs()
+                    iam.list_users([], argparse.Namespace(**kwargs))
+                self.assertIn("fake-user-1@foo.bar", output)
+                self.assertIn("fake-user-2@baz.wuz", output)
+
+        with self.subTest("AWS list groups"):
+            with mock.patch("dss.operations.iam.iam_client") as iam_client:
+                class MockPaginator_Groups(object):
+                    def paginate(self, *args, **kwargs):
+                        return [{"Groups": [{"GroupName": "fake-group-1"}, {"GroupName": "fake-group-2"}]}]
+                iam_client.get_paginator.return_value = MockPaginator_Groups()
+                with CaptureStdout() as output:
+                    kwargs = _get_aws_list_assets_kwargs()
+                    iam.list_groups([], argparse.Namespace(**kwargs))
+                self.assertIn("fake-group-1", output)
+                self.assertIn("fake-group-2", output)
+
+        with self.subTest("AWS list roles"):
+            with mock.patch("dss.operations.iam.iam_client") as iam_client:
+                class MockPaginator_Roles(object):
+                    def paginate(self, *args, **kwargs):
+                        return [{"Roles": [{"RoleName": "fake-role-1"}, {"RoleName": "fake-role-2"}]}]
+                iam_client.get_paginator.return_value = MockPaginator_Roles()
+                with CaptureStdout() as output:
+                    kwargs = _get_aws_list_assets_kwargs()
+                    iam.list_roles([], argparse.Namespace(**kwargs))
+                self.assertIn("fake-role-1", output)
+                self.assertIn("fake-role-2", output)
+
+    def test_iam_fus_list_assets(self):
+
+        def _get_fus_list_assets_kwargs(**kwargs):
+            # Set default kwargs values, then set user-specified kwargs
+            custom_kwargs = dict(
+                cloud_provider="fusillade",
+                output=None,
+                force=False,
+                exclude_headers=False,
+            )
+            for kw, val in kwargs.items():
+                custom_kwargs[kw] = val
+            return custom_kwargs
+
+        with self.subTest("Fusillade list users"):
+            with mock.patch("dss.operations.iam.FusilladeClient") as fus_client:
+                side_effects = [["fake-user-1@foo.bar", "fake-user-2@baz.wuz"]]
+                fus_client().paginate = mock.MagicMock(side_effect=side_effects)
+                kwargs = _get_fus_list_assets_kwargs()
+                with CaptureStdout() as output:
+                    iam.list_users([], argparse.Namespace(**kwargs))
+                self.assertIn("fake-user-1@foo.bar", output)
+                self.assertIn("fake-user-2@baz.wuz", output)
+
+        with self.subTest("Fusillade list groups"):
+            with mock.patch("dss.operations.iam.FusilladeClient") as fus_client:
+                side_effects = [["fake-group-1", "fake-group-2"]]
+                fus_client().paginate = mock.MagicMock(side_effect=side_effects)
+                kwargs = _get_fus_list_assets_kwargs()
+                with CaptureStdout() as output:
+                    iam.list_groups([], argparse.Namespace(**kwargs))
+                self.assertIn("fake-group-1", output)
+                self.assertIn("fake-group-2", output)
+
+        with self.subTest("Fusillade list roles"):
+            with mock.patch("dss.operations.iam.FusilladeClient") as fus_client:
+                side_effects = [["fake-role-1", "fake-role-2"]]
+                fus_client().paginate = mock.MagicMock(side_effect=side_effects)
+                kwargs = _get_fus_list_assets_kwargs()
+                with CaptureStdout() as output:
+                    iam.list_roles([], argparse.Namespace(**kwargs))
+                self.assertIn("fake-role-1", output)
+                self.assertIn("fake-role-2", output)
+
     def test_secrets_crud(self):
         # CRUD (create read update delete) test procedure:
         # - create new secret
