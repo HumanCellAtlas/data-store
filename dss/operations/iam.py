@@ -396,7 +396,7 @@ def dump_fus_policies(fus_client, do_headers: bool):
 
 def list_fus_assets(asset_type: str, fus_client) -> typing.List[str]:
     """Return a list of names of Fusillade assets"""
-    res = list(fus_client.paginate(f"/v1/{asset_type}", "{asset_type}"))
+    res = list(fus_client.paginate(f"/v1/{asset_type}", f"{asset_type}"))
     res = sorted(list(set(res)))
     return res
 
