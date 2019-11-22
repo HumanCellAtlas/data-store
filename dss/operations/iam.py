@@ -703,9 +703,6 @@ list_asset_args = {
     "--force": dict(
         action="store_true",
         help="If output file already exists, overwrite it (default is not to overwrite)",
-    ),
-    "--exclude-headers": dict(
-        action="store_true", help="Exclude headers on the list being output"
     )
 }
 
