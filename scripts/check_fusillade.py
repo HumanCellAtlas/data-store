@@ -47,7 +47,7 @@ class FusilladeChecker(object):
     }
     def __init__(self, fus_stage):
         """Set up stage info and check values"""
-        if fus_stage not in DSS2FUS:
+        if fus_stage not in FUS2DSS:
             print(f'Custom stage "{fus_stage}" provided. Skipping Fusillade check.')
             return
         else:
@@ -98,9 +98,8 @@ class FusilladeChecker(object):
         """List all Fusillade roles using dss-ops and return the list of roles"""
         # Call dss-ops script, iam list action
         ops_script = os.path.join(self.scripts_dir, 'dss-ops.py')
-        ops_action = "iam list fusillade"
-        ops_args = f"--group-by roles --exclude-headers --quiet"
-        cmd = f"{ops_script} {ops_action} {ops_args}"
+        ops_action = "iam list-roles fusillade"
+        cmd = f"{ops_script} {ops_action}"
         raw_resp = self.run_cmd(cmd)
         resp_lines = [j for j in raw_resp.split("\n") if len(j)>0]
         roles = [k.split(IAMSEPARATOR)[0] for k in resp_lines]
