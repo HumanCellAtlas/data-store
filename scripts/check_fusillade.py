@@ -47,7 +47,7 @@ class FusilladeChecker(object):
     }
     def __init__(self, fus_stage):
         """Set up stage info and check values"""
-        if fus_stage not in DSS2FUS:
+        if fus_stage not in FUS2DSS:
             print(f'Custom stage "{fus_stage}" provided. Skipping Fusillade check.')
             return
         else:
