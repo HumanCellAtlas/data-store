@@ -74,6 +74,7 @@ def setup_copy_task(event, lambda_context):
                           source_key,
                           destination_bucket,
                           destination_key,
+                          # TODO: change to "content_type" when cloud_blobstore change is made
                           ContentType=blobinfo['ContentType'])
         event[_Key.UPLOAD_ID] = None
         event[Key.FINISHED] = True
