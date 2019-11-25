@@ -37,8 +37,8 @@ class ReplicaStatus:
         self.prefix = prefix
 
 
-@app.scheduled_function("rate(5 minutes)")
-def flashflood_journal_and_update(event, context):
+@app.scheduled_function("rate(10 minutes)")
+def dss_events_scribe_journal_and_update(event, context):
     # TODO: Make this configurable
     minimum_number_of_events = 10 if "dev" == os.environ['DSS_DEPLOYMENT_STAGE'] else 1000
 
