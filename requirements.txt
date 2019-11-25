@@ -21,7 +21,7 @@ docutils==0.15.2
 elasticsearch==5.5.3
 elasticsearch-dsl==5.4.0
 fasteners==0.15
-flash-flood==0.4.2
+flash-flood==0.4.3
 Flask==1.1.1
 furl==2.0.0
 future==0.17.1
