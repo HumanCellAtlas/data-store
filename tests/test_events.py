@@ -234,7 +234,7 @@ class TestEvents(unittest.TestCase, DSSAssertMixin):
         return results
 
 class TestEventsDaemon(unittest.TestCase, DSSAssertMixin):
-    def test_flashflood_journal_and_update(self):
+    def test_dss_events_scribe_journal_and_update(self):
         journal_flashflood_returns = {r.flashflood_prefix_read: [True, False] for r in Replica}
         update_flashflood_returns = {r.flashflood_prefix_read: [1, 0] for r in Replica}
 
@@ -253,13 +253,13 @@ class TestEventsDaemon(unittest.TestCase, DSSAssertMixin):
             def get_remaining_time_in_millis(self):
                 return 300 * 1000
 
-        daemon_app.flashflood_journal_and_update({}, Context())
+        daemon_app.dss_events_scribe_journal_and_update({}, Context())
         for pfx in journal_flashflood_returns:
             self.assertEqual(0, len(journal_flashflood_returns[pfx]))
         for pfx in update_flashflood_returns:
             self.assertEqual(0, len(update_flashflood_returns[pfx]))
 
-    def test_flashflood_journal_and_update_timeout(self):
+    def test_dss_events_scribe_journal_and_update_timeout(self):
         class Context:
             def get_remaining_time_in_millis(self):
                 return 0.0
@@ -267,7 +267,7 @@ class TestEventsDaemon(unittest.TestCase, DSSAssertMixin):
         with mock.patch("daemons.dss-events-scribe.app.journal_flashflood", side_effect=Exception()):
             with mock.patch("daemons.dss-events-scribe.app.update_flashflood", side_effect=Exception()):
                 # This should timeout and not call journal_flashflood or update_flashflood
-                daemon_app.flashflood_journal_and_update({}, Context())
+                daemon_app.dss_events_scribe_journal_and_update({}, Context())
 
 def _upload_bundle(app, replica, uuid=None):
     files = list()
