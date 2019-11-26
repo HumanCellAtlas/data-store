@@ -24,6 +24,7 @@ from dss.events import journal_flashflood, update_flashflood
 configure_lambda_logging()
 logger = logging.getLogger(__name__)
 dss.Config.set_config(dss.BucketConfig.NORMAL)
+stage = os.environ['DSS_DEPLOYMENT_STAGE']
 
 app = domovoi.Domovoi()
 
@@ -37,10 +38,10 @@ class ReplicaStatus:
         self.prefix = prefix
 
 
-@app.scheduled_function("rate(10 minutes)")
-def dss_events_scribe_journal_and_update(event, context):
+@app.scheduled_function("rate(10 minutes)", rule_name=f"dss-events-scribe-journal-and-update-{stage}")
+def journal_and_update(event, context):
     # TODO: Make this configurable
-    minimum_number_of_events = 10 if "dev" == os.environ['DSS_DEPLOYMENT_STAGE'] else 1000
+    minimum_number_of_events = 10 if "dev" == stage else 1000
 
     def lambda_seconds_remaining() -> float:
         # lambda time to live is configured with `lambda_timeout` in `daemons/dss-events-scribe/.chalice/config.json`
