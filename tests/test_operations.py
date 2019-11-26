@@ -1070,6 +1070,9 @@ class TestOperations(unittest.TestCase):
                     [], argparse.Namespace(secret_name=testvar_name, force=True, dry_run=False, quiet=True)
                 )
 
+    def test_secrets_check(self):
+        pass
+
     def test_ssmparams_utilities(self):
         prefix = f"/{os.environ['DSS_PARAMETER_STORE']}/{os.environ['DSS_DEPLOYMENT_STAGE']}"
         gold_var = f"{prefix}/dummy_variable"
