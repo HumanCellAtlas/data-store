@@ -1,4 +1,7 @@
 #!/bin/bash
+#
+# Grant an AWS IAM principal (user/group/role) the permissions necessary to
+# test and deploy the data store. Requires AWS credentials with IAM write access.
 
 source "$(dirname $0)/../environment"
 
