@@ -156,15 +156,6 @@ class TestOperations(unittest.TestCase):
                         storage.repair_file_blob_metadata([], args).process_key(key)
                         self.assertEqual(log_warning.call_args[0][0], "JSONDecodeError")
 
-    def test_bundle_reference_list(self):
-        mock_file_data = {"uuid" : uuid.uuid4(),
-                          "version": datetime_to_version_format(datetime.datetime()),"sha256": "",
-                          "sha1": "",
-                          "s3-etag": "",
-                          "crc32c": ""}
-        mock_bundle_metadata = {"files": [mock_file_data]}
-        
-
     def test_update_content_type(self):
         TestCase = namedtuple("TestCase", "replica upload size update initial_content_type expected_content_type")
         with override_bucket_config(BucketConfig.TEST):
