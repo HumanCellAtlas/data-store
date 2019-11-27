@@ -18,4 +18,4 @@ else
     version=$(git describe --tags --always)
 fi
 
-echo ${version} | scripts/dss-ops.py lambda set --quiet DSS_VERSION
+echo -n ${version} | scripts/dss-ops.py lambda set --quiet DSS_VERSION
