@@ -1,5 +1,8 @@
 #!/usr/bin/env python
-
+"""
+Build the Terraform deployment configuration files using environment variable values.
+Requires a Google service account (but only to get the GCP project ID).
+"""
 import os
 import glob
 import json

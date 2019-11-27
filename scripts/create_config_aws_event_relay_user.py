@@ -1,4 +1,8 @@
 #!/usr/bin/env python
+"""
+Create and configure an AWS user with permission to send event notifications to SNS,
+then create an access key for the new AWS user and add it to the DSS secrets store.
+"""
 import os
 import sys
 import json

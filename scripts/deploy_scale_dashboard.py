@@ -1,7 +1,9 @@
 #!/usr/bin/env python
+"""
+Assemble and deploy an AWS CloudWatch dashboard for scale tests
+"""
 import json
 import os
-
 import boto3
 import sys
 
