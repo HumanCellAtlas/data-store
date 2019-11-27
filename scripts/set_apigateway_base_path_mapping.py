@@ -1,5 +1,4 @@
 #!/usr/bin/env python
-
 """
 This script idempotently maps the API Gateway custom domain name to the API Gateway
 stage. It should be executed for a first-time deployment after successfully
