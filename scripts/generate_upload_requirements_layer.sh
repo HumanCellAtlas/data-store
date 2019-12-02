@@ -15,7 +15,7 @@ then
     exit 1
 fi
 
-build_path="$DSS_HOME/dependencies/python/lib/python3.6/site-packages"
+build_path="$DSS_HOME/dependencies/python/lib/python3.7/site-packages"
 dependency_dir="$DSS_HOME/dependencies"
 aws_req_key=$DSS_DEPLOYMENT_STAGE/requirements.txt
 aws_zip_key=$DSS_DEPLOYMENT_STAGE/dss-dependencies-$DSS_DEPLOYMENT_STAGE.zip
