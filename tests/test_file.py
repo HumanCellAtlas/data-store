@@ -28,11 +28,20 @@ from tests import eventually, get_auth_header
 from tests.fixtures.cloud_uploader import GSUploader, S3Uploader, Uploader
 from tests.infra import DSSAssertMixin, DSSUploadMixin, ExpectedErrorFields, get_env, generate_test_key, testmode, \
     TestAuthMixin
-from tests.infra.server import ThreadedLocalServer
+from tests.infra.server import ThreadedLocalServer, MockFusilladeHandler
 
 
 # Max number of retries
 FILE_GET_RETRY_COUNT = 10
+
+
+def setUpModule():
+    Config.set_config(BucketConfig.TEST)
+    MockFusilladeHandler.start_serving()
+
+
+def tearDownModule():
+    MockFusilladeHandler.stop_serving()
 
 
 @testmode.standalone
@@ -422,21 +431,18 @@ class TestFileApi(unittest.TestCase, TestAuthMixin, DSSUploadMixin, DSSAssertMix
                 min_retry_interval_header=RETRY_AFTER_INTERVAL,
                 override_retry_interval=1,
             )
-            if resp_obj.response.status_code == requests.codes.found:
-                url = resp_obj.response.headers['Location']
-                sha1 = resp_obj.response.headers['X-DSS-SHA1']
-                data = requests.get(url)
-                self.assertEqual(len(data.content), 11358)
-                self.assertEqual(resp_obj.response.headers['X-DSS-SIZE'], '11358')
 
-                # verify that the downloaded data matches the stated checksum
-                hasher = hashlib.sha1()
-                hasher.update(data.content)
-                self.assertEqual(hasher.hexdigest(), sha1)
+            # TODO: (ttung) verify more of the headers
+            url = resp_obj.response.headers['Location']
+            sha1 = resp_obj.response.headers['X-DSS-SHA1']
+            data = requests.get(url)
+            self.assertEqual(len(data.content), 11358)
+            self.assertEqual(resp_obj.response.headers['X-DSS-SIZE'], '11358')
 
-                # TODO: (ttung) verify more of the headers
-                return
-        self.fail(f"Failed after {FILE_GET_RETRY_COUNT} retries.")
+            # verify that the downloaded data matches the stated checksum
+            hasher = hashlib.sha1()
+            hasher.update(data.content)
+            self.assertEqual(hasher.hexdigest(), sha1)
 
     def test_file_get_latest(self):
         self._test_file_get_latest(Replica.aws)
@@ -461,21 +467,45 @@ class TestFileApi(unittest.TestCase, TestAuthMixin, DSSUploadMixin, DSSAssertMix
                 min_retry_interval_header=RETRY_AFTER_INTERVAL,
                 override_retry_interval=1,
             )
-            if resp_obj.response.status_code == requests.codes.found:
-                url = resp_obj.response.headers['Location']
-                sha1 = resp_obj.response.headers['X-DSS-SHA1']
-                data = requests.get(url)
-                self.assertEqual(len(data.content), 8685)
-                self.assertEqual(resp_obj.response.headers['X-DSS-SIZE'], '8685')
 
-                # verify that the downloaded data matches the stated checksum
-                hasher = hashlib.sha1()
-                hasher.update(data.content)
-                self.assertEqual(hasher.hexdigest(), sha1)
+            # TODO: (ttung) verify more of the headers
+            url = resp_obj.response.headers['Location']
+            sha1 = resp_obj.response.headers['X-DSS-SHA1']
+            data = requests.get(url)
+            self.assertEqual(len(data.content), 8685)
+            self.assertEqual(resp_obj.response.headers['X-DSS-SIZE'], '8685')
 
-                # TODO: (ttung) verify more of the headers
-                return
-        self.fail(f"Failed after {FILE_GET_RETRY_COUNT} retries.")
+            # verify that the downloaded data matches the stated checksum
+            hasher = hashlib.sha1()
+            hasher.update(data.content)
+            self.assertEqual(hasher.hexdigest(), sha1)
+
+    def test_file_get_content_disposition(self):
+        self._test_file_get_disposition(Replica.aws)
+        self._test_file_get_disposition(Replica.gcp)
+
+    def _test_file_get_disposition(self, replica: Replica):
+        """
+        Verify that passing in "content_disposition" returns the expected "Content-Disposition"
+        header when fetching the final presigned url.
+        """
+        url = str(UrlBuilder()
+                  .set(path="/v1/files/ce55fd51-7833-469b-be0b-5da88ebebfcd")
+                  .add_query("replica", replica.name)
+                  .add_query("content_disposition", 'attachment; filename=test-data.json'))
+
+        with override_bucket_config(BucketConfig.TEST_FIXTURE):
+            resp_obj = self.assertGetResponse(
+                url,
+                requests.codes.found,
+                headers=get_auth_header(),
+                redirect_follow_retries=FILE_GET_RETRY_COUNT,
+                min_retry_interval_header=RETRY_AFTER_INTERVAL,
+                override_retry_interval=1
+            )
+            url = resp_obj.response.headers['Location']
+            response = requests.get(url)
+            self.assertEqual(response.headers['Content-Disposition'], 'attachment; filename=test-data.json')
 
     def test_file_get_direct(self):
         self._test_file_get_direct(Replica.aws)
@@ -704,12 +734,8 @@ class TestFileApi(unittest.TestCase, TestAuthMixin, DSSUploadMixin, DSSAssertMix
             test_checkout()
 
         with self.subTest(f"{replica}: Initiates checkout and returns 302 immediately for GET on stale checkout file."):
-            @eventually(30, 1)
-            def test_creation_date_updated(key, prev_creation_date):
-                self.assertTrue(prev_creation_date < handle.get_creation_date(replica.checkout_bucket, key))
-
             now = datetime.datetime.now(datetime.timezone.utc)
-            old_creation_date = handle.get_creation_date(replica.checkout_bucket, file_key)
+            creation_date = handle.get_creation_date(replica.checkout_bucket, file_key)
             creation_date_fn = ("cloud_blobstore.s3.S3BlobStore.get_creation_date"
                                 if replica.name == "aws"
                                 else "cloud_blobstore.gs.GSBlobStore.get_creation_date")
@@ -718,7 +744,9 @@ class TestFileApi(unittest.TestCase, TestAuthMixin, DSSUploadMixin, DSSAssertMix
                 blob_ttl_days = int(os.environ['DSS_BLOB_PUBLIC_TTL_DAYS'])
                 mock_creation_date.return_value = now - datetime.timedelta(days=blob_ttl_days + 1)
                 self.assertGetResponse(url, requests.codes.found, headers=get_auth_header(), redirect_follow_retries=0)
-            test_creation_date_updated(file_key, old_creation_date)
+                self.assertTrue(creation_date > handle.get_creation_date(replica.checkout_bucket, file_key),
+                                f'\ncurr_creation_date: {creation_date}'
+                                f'\nprev_creation_date: {handle.get_creation_date(replica.checkout_bucket)}')
 
         handle.delete(test_bucket, f"files/{file_uuid}.{version}")
         handle.delete(replica.checkout_bucket, file_key)
@@ -841,13 +869,10 @@ class TestFileApi(unittest.TestCase, TestAuthMixin, DSSUploadMixin, DSSAssertMix
                 min_retry_interval_header=RETRY_AFTER_INTERVAL,
                 override_retry_interval=1,
             )
-            if resp_obj.response.status_code == requests.codes.found:
-                url = resp_obj.response.headers['Location']
-                data = requests.get(url)
-                self.assertEqual(len(data.content), src_size)
-                self.assertEqual(resp_obj.response.headers['X-DSS-SIZE'], str(src_size))
-                return
-        self.fail(f"Failed after {FILE_GET_RETRY_COUNT} retries.")
+            url = resp_obj.response.headers['Location']
+            data = requests.get(url)
+            self.assertEqual(len(data.content), src_size)
+            self.assertEqual(resp_obj.response.headers['X-DSS-SIZE'], str(src_size))
 
     def upload_file(
             self: typing.Any,

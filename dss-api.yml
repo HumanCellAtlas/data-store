@@ -377,10 +377,27 @@ paths:
           in: query
           required: false
           description: |
-            When set to true, the response will contain API-specific URLs that are tied to the specified replica, for example `gs://bucket/object` or `s3://bucket/object`
+            When set to true, the response will contain API-specific URLs that are tied to the specified replica, for
+            example `gs://bucket/object` or `s3://bucket/object`
 
-            The use of presigned URLs is recommended for data access. Cloud native URLs are currently provided for a limited set of use cases and may not be provided in the future. If cloud native URLs are required, please contact the data store team regarding the credentials necessary to use them.
+            The use of presigned URLs is recommended for data access. Cloud native URLs are currently provided for a
+            limited set of use cases and may not be provided in the future. If cloud native URLs are required, please
+            contact the data store team regarding the credentials necessary to use them.
           type: boolean
+        - name: content_disposition
+          in: query
+          description: |
+            Optional and does not work when directurl=true (only works with the default presigned url response).
+
+            If this parameter is provided, the response from fetching the returned presigned url will include the
+            specified Content-Disposition header.
+
+            This can be useful to indicate to a browser that a file should be downloaded rather than opened in a new
+            tab, and can also supply the original filename in the response.  Example:
+
+                content_disposition="attachment; filename=data.json"
+          required: false
+          type: string
       responses:
         301:
           description: >
@@ -745,18 +762,22 @@ paths:
                 description: >
                   A collection of static form fields to be supplied in the request body, alongside the actual
                   notification payload. The value of each field must be a string. For example, if the subscriptions has
-                  this property set to `{"foo" : "bar"}`, the corresponding notification HTTP request body will be
+                  this property set to `{"foo" : "bar"}`, the corresponding notification HTTP request body will consist
+                  of a multipart frame with two frames,
 
                   ```
 
-                  --2769baffc4f24cbc83ced26aa0c2f712
+                  ----------------2769baffc4f24cbc83ced26aa0c2f712
+
                   Content-Disposition: form-data; name="foo"
 
                   bar
+
+                  ----------------2769baffc4f24cbc83ced26aa0c2f712
+
                   Content-Disposition: form-data; name="payload"
 
                   {"transaction_id": "301c9079-3b20-4311-a131-bcda9b7f08ba", "subscription_id": ...
-                  --2769baffc4f24cbc83ced26aa0c2f712--
 
                   ```
 
@@ -1449,6 +1470,81 @@ paths:
                     enum: [unhandled_exception, Forbidden, Unauthorized, OAuthResponseProblem, not_found, read_only]
                 required:
                   - code
+  /bundles/all:
+    get:
+      operationId: dss.api.bundles.enumerate
+      summary: List through all available bundles.
+      description: >
+        Lists all the bundles available in the data-store, responses will be returned in a paginated format, at most 500 values
+        shall be returned at a time. Tombstoned bundles will be omitted from the list of bundles available.
+      parameters:
+        - name: replica
+          in: query
+          description: Replica to fetch from.
+          required: true
+          type: string
+          enum: [aws, gcp]
+        - name: prefix
+          in: query
+          description: Is used to specify the beginning of a particular bundle UUID. Specifying a character(s) would provide all avaliable bundles starting with that character(s).
+          required: false
+          type: string
+        - name: token
+          in: query
+          description: Token to manage retries.  End users constructing queries should not set this parameter.
+          required: false
+          type: string
+        - name: per_page
+          in: query
+          description: Max number of results to return per page.
+          required: false
+          type: integer
+          format: int32
+          minimum: 10
+          maximum: 500
+          default: 100
+        - name: search_after
+          in: query
+          description: >
+            **Search-After-Context**.
+            An internal state pointer parameter for use with pagination. This parameter is referenced by the `Link`
+            header as described in the "Pagination" section. The API client should not need to set this parameter
+            directly; it should instead directly fetch the URL given in the `Link` header.
+          required: false
+          type: string
+      responses:
+        200:
+          description: All results retrieved.
+          schema:
+            $ref: '#/definitions/BundleEnumerationResult'
+          headers:
+            X-OpenAPI-Pagination:
+              type: boolean
+        206:
+          description: A single page of results was retrieved.
+          schema:
+            $ref: '#/definitions/BundleEnumerationResult'
+          headers:
+            Link:
+              type: string
+              description: URL to retrieve the next page of results.
+            X-OpenAPI-Pagination:
+              type: boolean
+            X-OpenAPI-Paginated-Content-Key:
+              type: string
+              description: The JSON response body key containing an array of results that are paginated.
+        500:
+          $ref: '#/responses/ServerError'
+        502:
+          $ref: '#/responses/BadGateway'
+        503:
+          $ref: '#/responses/ServiceUnavailable'
+        504:
+          $ref: '#/responses/GatewayTimeout'
+        default:
+          description: Unexpected error
+          schema:
+            $ref: '#/definitions/Error'
   /bundles/{uuid}:
     get:
       summary: Retrieve a bundle given a UUID and optionally a version.
@@ -2165,6 +2261,137 @@ paths:
                     description: Detailed error message.
                 required:
                   - code
+  /events:
+    get:
+      operationId: dss.api.events.list_events
+      summary: Replay events
+      description: >
+        Return urls where event data is available, with manifest of contents.
+      parameters:
+        - name: from_date
+          in: query
+          description: Timestamp to begin replaying events, in DSS_VERSION format.  If this is not provided, replay from the earliest event.
+          required: false
+          type: string
+        - name: to_date
+          in: query
+          description: Timestamp to stop replaying events, in DSS_VERSION format.  If this is not provided, replay to the latest event.
+          required: false
+          type: string
+        - name: replica
+          in: query
+          description: Replica to fetch from.
+          required: true
+          type: string
+          enum: [aws, gcp]
+        - name: per_page
+          in: query
+          description: Max number of results to return per page.
+          required: false
+          type: integer
+          format: int32
+          minimum: 1
+          maximum: 10
+          default: 1
+        - name: token
+          in: query
+          description: Token to manage retries.  End users constructing queries should not set this parameter.
+          required: false
+          type: string
+      responses:
+        200:
+          description: OK
+          schema:
+            $ref: '#/definitions/EventStreams'
+          headers:
+            X-OpenAPI-Pagination:
+              type: boolean
+        206:
+          description: A single page of results was retrieved.
+          schema:
+            $ref: '#/definitions/EventStreams'
+          headers:
+            Link:
+              type: string
+              description:
+                URL to retrieve the next page of results, conforming to [RFC 5988](https://tools.ietf.org/html/rfc5988)
+                The URL in the header refers to the next page of the results to be fetched; if no `Link rel="next"` URL is
+                included, then all results have been fetched.
+            X-OpenAPI-Pagination:
+              type: boolean
+            X-OpenAPI-Paginated-Content-Key:
+              type: string
+              description: The JSON response body key containing an array of results that are paginated.
+        500:
+          $ref: '#/responses/ServerError'
+        502:
+          $ref: '#/responses/BadGateway'
+        503:
+          $ref: '#/responses/ServiceUnavailable'
+        504:
+          $ref: '#/responses/GatewayTimeout'
+        default:
+          description: Unexpected error
+          schema:
+            allOf:
+              - $ref: '#/definitions/Error'
+              - type: object
+                properties:
+                  code:
+                    type: string
+                    description: Machine-readable error code.  The types of return values should not be changed lightly.
+                    enum: [unhandled_exception, illegal_arguments, bad_request]
+                required:
+                  - code
+  /events/{uuid}:
+    get:
+      summary: Retrieve a bundle metadata document given a UUID and version.
+      description: >
+        Given a bundle UUID and version, return the bundle metadata document.
+      parameters:
+        - name: uuid
+          in: path
+          description: Bundle unique ID.
+          required: true
+          type: string
+          pattern: "[A-Za-z0-9]{8}-[A-Za-z0-9]{4}-[A-Za-z0-9]{4}-[A-Za-z0-9]{4}-[A-Za-z0-9]{12}"
+        - name: version
+          in: query
+          description: Timestamp of bundle creation in DSS_VERSION format.
+          required: true
+          type: string
+        - name: replica
+          in: query
+          description: Replica to fetch from.
+          required: true
+          type: string
+          enum: [aws, gcp]
+      responses:
+        200:
+          description: OK
+          schema:
+            type: object
+        500:
+          $ref: '#/responses/ServerError'
+        502:
+          $ref: '#/responses/BadGateway'
+        503:
+          $ref: '#/responses/ServiceUnavailable'
+        504:
+          $ref: '#/responses/GatewayTimeout'
+        default:
+          description: Unexpected error
+          schema:
+            allOf:
+              - $ref: '#/definitions/Error'
+              - type: object
+                properties:
+                  code:
+                    type: string
+                    description: Machine-readable error code.  The types of return values should not be changed lightly.
+                    enum: [unhandled_exception, illegal_arguments, not_found]
+                required:
+                  - code
 
 definitions:
   File:
@@ -2474,6 +2701,48 @@ definitions:
         type: integer
         format: int
         description: User ID who created this bundle manifest.
+  BundleEnumerationResult:
+    type: object
+    properties:
+      bundles:
+        description: List of bundle objects returned from request, objects contain keys ("uuid","version")
+        type: array
+        items:
+          type: object
+          properties:
+            uuid:
+              type: string
+            version:
+              type: string
+          required:
+            - uuid
+            - version
+      has_more:
+        description: Boolean value indicating if there are more values to enumerate
+        type: boolean
+      object:
+        description: object type that is being returned
+        type: string
+      page_count:
+        description: Number of items returned on the page
+        type: integer
+      per_page:
+        description: Number of items requested per page
+        type: integer
+      search_prefix:
+        description: The prefix used for enumeration, in the format "bundles/{prefix}"
+      token:
+        description: Internal reference for enumeration, should not be changed by user.
+        type: string
+      search_after:
+        description: Internal reference for enumeration, indicates the last bundle seen.
+        type: string
+      link:
+        description: HTTP Link for the next page, only supplied if the DSS "has_more" for the enumeration.
+        type: string
+      event_timestamp:
+        description: Timestamp for when the request was processed.
+        type: string
   SearchResult:
     type: object
     properties:
@@ -2549,6 +2818,59 @@ definitions:
       - type
       - uuid
       - version
+  EventStreams:
+    type: object
+    properties:
+      event_streams:
+        type: array
+        items:
+          $ref: '#/definitions/EventsManifest'
+  EventsManifest:
+    type: object
+    properties:
+      journal_id:
+        description: The event journal identifier.
+        type: string
+      from_date:
+        format: DSS_VERSION
+        description: DSS_VERSION format timestamp of the first event in the journal.
+        type: string
+      to_date:
+        format: DSS_VERSION
+        description: DSS_VERSION format timestamp of the last event in the journal.
+        type: string
+      size:
+        type: integer
+        description: Size of the journal in bytes.
+      events:
+        description: A list describing the event content of the journal.
+        type: array
+        items:
+          type: object
+          properties:
+            event_id:
+              description: The event identifier.
+              type: string
+            timestamp:
+              description: DSS_VERSION format timestamp of the event.
+              type: string
+            offset:
+              description: The location of the event data in the journal, as 0-indexed byte offset.
+              type: integer
+            size:
+              description: The size of the event data in bytes
+              type: integer
+          required:
+            - event_id
+            - timestamp
+            - offset
+            - size
+    required:
+      - journal_id
+      - from_date
+      - to_date
+      - size
+      - events
   Error:
     type: object
     properties:

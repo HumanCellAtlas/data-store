@@ -1,5 +1,8 @@
 #!/usr/bin/env python
-
+"""
+Build the Terraform deployment configuration files using environment variable values.
+Requires a Google service account (but only to get the GCP project ID).
+"""
 import os
 import glob
 import json
@@ -74,6 +77,10 @@ env_vars_to_infra = [
     "DSS_S3_CHECKOUT_BUCKET_TEST",
     "DSS_S3_CHECKOUT_BUCKET_TEST_USER",
     "DSS_S3_CHECKOUT_BUCKET_UNWRITABLE",
+    "DSS_FLASHFLOOD_BUCKET",
+    "DSS_FLASHFLOOD_BUCKET_INTEGRATION",
+    "DSS_FLASHFLOOD_BUCKET_PROD",
+    "DSS_FLASHFLOOD_BUCKET_STAGING",
     "DSS_SECRETS_STORE",
     "DSS_ZONE_NAME",
     "ES_ALLOWED_SOURCE_IP_SECRETS_NAME",

@@ -14,10 +14,16 @@ DCP_DOMAIN=${DSS_DEPLOYMENT_STAGE}.data.humancellatlas.org
 OIDC_AUDIENCE=https://dev.data.humancellatlas.org/,https://${DCP_DOMAIN}/
 API_DOMAIN_NAME="dss.${DCP_DOMAIN}"
 DSS_ZONE_NAME="staging.data.humancellatlas.org."
-ACM_CERTIFICATE_IDENTIFIER="f4f2b043-41ba-4116-b2f0-8d4296c3b97b"
+ACM_CERTIFICATE_IDENTIFIER="99fff90e-6ff5-44a5-852e-67c78f88c1f1"
 DSS_GCP_SERVICE_ACCOUNT_NAME="org-humancellatlas-staging"
-DSS_CHECKOUT_BUCKET_OBJECT_VIEWERS="serviceAccount:154609999906-compute@developer.gserviceaccount.com,serviceAccount:caas-account@broad-dsde-mint-staging.iam.gserviceaccount.com,serviceAccount:caas-prod-account-for-staging@broad-dsde-mint-staging.iam.gserviceaccount.com"
+DSS_CHECKOUT_BUCKET_OBJECT_VIEWERS="serviceAccount:154609999906-compute@developer.gserviceaccount.com,serviceAccount:caas-account@broad-dsde-mint-staging.iam.gserviceaccount.com,serviceAccount:caas-prod-account-for-staging@broad-dsde-mint-staging.iam.gserviceaccount.com,serviceAccount:cromwell-metadata-uploader@broad-dsde-mint-staging.iam.gserviceaccount.com"
 DSS_TERRAFORM_BACKEND_BUCKET_TEMPLATE="org-humancellatlas-dss-{account_id}-${DSS_DEPLOYMENT_STAGE}-terraform"
+DSS_FLASHFLOOD_BUCKET=$DSS_FLASHFLOOD_BUCKET_STAGING
+AUTH_URL=https://auth.staging.data.humancellatlas.org
+DSS_AWS_FLASHFLOOD_PREFIX_READ=$DSS_AWS_FLASHFLOOD_PREFIX_READ_STAGING
+DSS_AWS_FLASHFLOOD_PREFIX_WRITE=$DSS_AWS_FLASHFLOOD_PREFIX_WRITE_STAGING
+DSS_GCP_FLASHFLOOD_PREFIX_READ=$DSS_GCP_FLASHFLOOD_PREFIX_READ_STAGING
+DSS_GCP_FLASHFLOOD_PREFIX_WRITE=$DSS_GCP_FLASHFLOOD_PREFIX_WRITE_STAGING
 set +a
 
 if [[ -f "${DSS_HOME}/environment.staging.local" ]]; then

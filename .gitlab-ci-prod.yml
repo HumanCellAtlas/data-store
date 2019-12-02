@@ -14,8 +14,9 @@ stages:
   - test
 
 before_script:
+  - date && date -u
   - export COMMITS_URL=${GITHUB_API}/repos/HumanCellAtlas/data-store/commits
-  - if not [[ CI_COMMIT_SHA == $(http GET $COMMITS_URL sha==$CI_COMMIT_REF_NAME | jq -r '.[0]["sha"]') ]]; then exit 1; fi
+  - if [[ CI_COMMIT_SHA != $(http GET $COMMITS_URL sha==$CI_COMMIT_REF_NAME | jq -r '.[0]["sha"]') ]]; then exit 1; fi
 # TODO: figure out how to get the gitlab-runner to not clone the repo as root - Brian H
   - cp -r /HumanCellAtlas/data-store ~/data-store && cd ~/data-store
   - git reset --hard HEAD
@@ -24,8 +25,8 @@ before_script:
   - pip install -r requirements-dev.txt
   - source environment
   - source environment.prod
-  - scripts/fetch_secret.sh application_secrets.json > application_secrets.json
-  - scripts/fetch_secret.sh gcp-credentials.json > gcp-credentials.json
+  - scripts/dss-ops.py secrets get application_secrets.json > application_secrets.json
+  - scripts/dss-ops.py secrets get gcp-credentials.json > gcp-credentials.json
   - export GOOGLE_APPLICATION_CREDENTIALS=$(pwd -P)/gcp-credentials.json
 
 deploy:

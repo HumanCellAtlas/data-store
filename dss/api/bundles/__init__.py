@@ -1,4 +1,4 @@
-# -*- coding: utf-8 -*-
+import io
 import os
 import json
 import time
@@ -12,15 +12,17 @@ from flask import jsonify, redirect, request, make_response
 from concurrent.futures import ThreadPoolExecutor, as_completed
 
 from dss import DSSException, dss_handler, DSSForbiddenException
+from dss.api.search import PerPageBounds
 from dss.config import Config, Replica
-from dss.storage.blobstore import idempotent_save, ObjectTest, test_object_exists
-from dss.storage.bundles import get_bundle_manifest, save_bundle_manifest
+from dss.storage.blobstore import idempotent_save, test_object_exists, ObjectTest
+from dss.storage.bundles import get_bundle_manifest, save_bundle_manifest, enumerate_available_bundles
 from dss.storage.checkout import CheckoutError, TokenError
 from dss.storage.checkout.bundle import get_dst_bundle_prefix, verify_checkout
-from dss.storage.identifiers import BundleTombstoneID, FileFQID
+from dss.storage.identifiers import BundleTombstoneID, FileFQID, BUNDLE_PREFIX
 from dss.storage.hcablobstore import BundleFileMetadata, BundleMetadata, FileMetadata
 from dss.util import UrlBuilder, security, hashabledict
 from dss.util.version import datetime_to_version_format
+
 
 """The retry-after interval in seconds. Sets up downstream libraries / users to
 retry request after the specified interval."""
@@ -128,18 +130,70 @@ def get(
     if link is None:
         response = make_response(jsonify(response_body), requests.codes.ok)
         response.headers['X-OpenAPI-Pagination'] = 'false'
-        return response
     else:
         response = make_response(jsonify(response_body), requests.codes.partial)
         response.headers['X-OpenAPI-Pagination'] = 'true'
-        response.headers['X-OpenAPI-Paginated-Content-Key'] = 'files'
         response.headers['Link'] = link
-        return response
+
+    response.headers['X-OpenAPI-Paginated-Content-Key'] = 'bundle.files'
+    return response
+
+@dss_handler
+def enumerate(replica: str,
+              prefix: typing.Optional[str] = None,
+              token: typing.Optional[str] = None,
+              per_page: int = PerPageBounds.per_page_max,
+              search_after: typing.Optional[str] = None):
+    """
+    :param replica: replica name to enumerate against
+    :param prefix: uuid prefix used to filter enumeration
+    :param token: used to page searches, should not be set by the user.
+    :param per_page: max items per page to show, 10 <= per_page <= 500
+    :param search_after: used to page searches, should not be set by the user.
+    """
+
+    if prefix:
+        search_prefix = f'{BUNDLE_PREFIX}/{prefix}'
+    else:
+        search_prefix = f'{BUNDLE_PREFIX}/'
+    api_domain_name = f'https://{os.environ.get("API_DOMAIN_NAME")}'
+    payload = dict(dss_api=api_domain_name, object='list', per_page=per_page, search_prefix=search_prefix,
+                   event_timestamp=datetime_to_version_format(datetime.datetime.utcnow()))  # type: typing.Any
+    kwargs = dict(replica=Replica[replica].name, prefix=search_prefix, per_page=per_page)
+    if search_after:
+        kwargs['search_after'] = search_after
+    if token:
+        kwargs['token'] = token
+
+    payload.update(enumerate_available_bundles(**kwargs))  # type: ignore
+    if payload['token'] is None:
+        payload['token'] = ""
+
+    if payload['page_count'] < per_page:
+        # enumeration is complete
+        payload.update(dict(has_more=False))
+        del payload['token']
+        del payload['search_after']
+        response = make_response(jsonify(payload), requests.codes.ok)
+        response.headers['X-OpenAPI-Pagination'] = 'false'
+    else:
+        next_url = UrlBuilder(request.url)
+        next_url.replace_query("search_after", payload['search_after'])
+        next_url.replace_query("token", payload['token'])
+        link = f"<{next_url}>; rel='next'"
+        payload.update(dict(has_more=True, token=payload['token'], link=f'{next_url}'))
+        response = make_response(jsonify(payload), requests.codes.partial)
+        response.headers['Link'] = link
+        response.headers['X-OpenAPI-Pagination'] = 'true'
+    response.headers['X-OpenAPI-Paginated-Content-Key'] = 'bundles'
+    return response
 
 
 @dss_handler
-@security.authorized_group_required(['hca'])
 def put(uuid: str, replica: str, json_request_body: dict, version: str):
+    security.assert_authorized(security.get_token_email(request.token_info),
+                               ["dss:PutBundle"],
+                               [f'arn:hca:dss:{Config.deployment_stage()}:*:bundle/{uuid}/{version}'])
     uuid = uuid.lower()
 
     files = build_bundle_file_metadata(Replica[replica], json_request_body['files'])
@@ -188,8 +242,10 @@ def bundle_file_id_metadata(bundle_file_metadata):
 
 
 @dss_handler
-@security.authorized_group_required(['hca'])
 def patch(uuid: str, json_request_body: dict, replica: str, version: str):
+    security.assert_authorized(security.get_token_email(request.token_info),
+                               ["dss:PatchBundle"],
+                               [f'arn:hca:dss:{Config.deployment_stage()}:*:bundle/{uuid}/{version}'])
     bundle = get_bundle_manifest(uuid, Replica[replica], version)
     if bundle is None:
         raise DSSException(404, "not_found", "Could not find bundle for UUID {}".format(uuid))
@@ -208,8 +264,10 @@ def patch(uuid: str, json_request_body: dict, replica: str, version: str):
 
 
 @dss_handler
-@security.authorized_group_required(['hca'])
 def delete(uuid: str, replica: str, json_request_body: dict, version: str = None):
+    security.assert_authorized(security.get_token_email(request.token_info),
+                               ["dss:DeleteBundle"],
+                               [f'arn:hca:dss:{Config.deployment_stage()}:*:bundle/{uuid}/{version}'])
     email = security.get_token_email(request.token_info)
 
     if email not in ADMIN_USER_EMAILS:

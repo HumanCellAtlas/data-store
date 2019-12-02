@@ -5,20 +5,20 @@ image: humancellatlas/dss-build-box
 variables:
   GIT_SUBMODULE_STRATEGY: normal
   DSS_ES_TIMEOUT: 30
-  DSS_UNITTEST_OPTS: "-v"
+  DSS_UNITTEST_OPTS: "-v -b"
   GITHUB_API: "https://api.github.com"
 
 stages:
   - trufflehog
   - test
   - deploy
+  - fusillade
   - integration_test
   - scale_and_performance
   - release
 
 before_script:
-  - export COMMITS_URL=${GITHUB_API}/repos/HumanCellAtlas/data-store/commits
-  - if not [[ CI_COMMIT_SHA == $(http GET $COMMITS_URL sha==$CI_COMMIT_REF_NAME | jq -r '.[0]["sha"]') ]]; then exit 1; fi
+  - date && date -u
 # TODO: figure out how to get the gitlab-runner to not clone the repo as root - Brian H
   - virtualenv ~/venv
   - source ~/venv/bin/activate
@@ -27,8 +27,8 @@ before_script:
   - if [[ -f "environment.$CI_COMMIT_REF_NAME" ]]; then
   -   source environment.$CI_COMMIT_REF_NAME
   - fi
-  - scripts/fetch_secret.sh application_secrets.json > application_secrets.json
-  - scripts/fetch_secret.sh gcp-credentials.json > gcp-credentials.json
+  - scripts/dss-ops.py secrets get application_secrets.json > application_secrets.json
+  - scripts/dss-ops.py secrets get gcp-credentials.json > gcp-credentials.json
   - export GOOGLE_APPLICATION_CREDENTIALS=$(pwd -P)/gcp-credentials.json
 
 .tests:
@@ -57,14 +57,14 @@ test_search:
 test_aws_indexer:
   extends: .tests
   variables:
-    DSS_UNITTEST_OPTS: "-v TestAWSIndexer"
+    DSS_UNITTEST_OPTS: "-b -v TestAWSIndexer"
   script:
     - make -j1 tests/test_indexer.py
 
 test_gcp_indexer:
   extends: .tests
   variables:
-    DSS_UNITTEST_OPTS: "-v TestGCPIndexer"
+    DSS_UNITTEST_OPTS: "-b -v TestGCPIndexer"
   script:
     - make -j1 tests/test_indexer.py
 
@@ -72,6 +72,34 @@ test_subscriptions:
   extends: .tests
   script:
     - make -j1 tests/test_subscriptions.py
+
+setup_fusillade:
+  stage: fusillade
+  script:
+    - git clone -b master https://github.com/HumanCellAtlas/dcp-fusillade.git
+    - cd dcp-fusillade
+    - source environment
+    - cd ..
+# need to re-source data-store environment in case dcp-fusillade overwrites vars (e.g. AWS_DEFAULT_REGION)
+    - source environment
+    - if [[ -f "environment.$CI_COMMIT_REF_NAME" ]]; then
+    -   source environment.$CI_COMMIT_REF_NAME
+    - fi
+    - cat ./roles.json | sed "s/\${stage}/${DSS_DEPLOYMENT_STAGE}/g" > temp-roles.json
+    - if [ "$DSS_DEPLOYMENT_STAGE" == "dev" ]; then
+    -   FUS_STAGE='testing'
+    - else
+    -   FUS_STAGE=$DSS_DEPLOYMENT_STAGE
+    - fi
+    - python -m json.tool ./temp-roles.json > /dev/null || exit 1
+    - dcp-fusillade/scripts/setup_fusillade.py --file temp-roles.json --force $FUS_STAGE
+    - scripts/check_fusillade.py $FUS_STAGE
+  except:
+    - schedules
+  only:
+    - master
+    - integration
+    - staging
 
 deploy:
   stage: deploy
@@ -81,7 +109,7 @@ deploy:
     - scripts/set_version.sh
   environment:
     name: $CI_COMMIT_REF_NAME
-    # TODO: incluude url when GitLab fixes it's wonky interpolation rules
+    # TODO: include url when GitLab fixes it's wonky interpolation rules
     # Variable created in this file (outside of `variables`) are not interpolated,
     # causing GitLabs environment mechanism to fail silently.
     # issue: https://gitlab.com/gitlab-com/support-forum/issues/2814
@@ -105,6 +133,8 @@ integration_test:
     - staging
   except:
     - schedules
+  variables:
+    DSS_UNITTEST_OPTS: "-v"
 
 scale_and_performance:
   stage: scale_and_performance
@@ -171,3 +201,4 @@ force_release_prod:
     RELEASE_COMMAND: scripts/release.sh staging prod --force
   only:
     - staging
+

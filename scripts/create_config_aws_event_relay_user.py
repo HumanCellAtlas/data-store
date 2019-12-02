@@ -1,4 +1,8 @@
 #!/usr/bin/env python
+"""
+Create and configure an AWS user with permission to send event notifications to SNS,
+then create an access key for the new AWS user and add it to the DSS secrets store.
+"""
 import os
 import sys
 import json
@@ -67,9 +71,10 @@ secret_info = {
 }
 subprocess.run(
     [
-        os.path.join(os.path.dirname(__file__), "set_secret.py"),
-        "--secret-name",
-        f"{secret_name}"
+        os.path.join(os.path.dirname(__file__), "dss-ops.py"),
+        "secrets",
+        "set",
+        secret_name,
     ],
-    input=json.dumps(secret_info).encode("utf-8")
+    input=json.dumps(secret_info).encode("utf-8"),
 )

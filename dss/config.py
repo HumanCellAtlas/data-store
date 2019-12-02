@@ -1,5 +1,6 @@
 from collections import deque
 import functools
+import json
 import os
 import typing
 from contextlib import contextmanager
@@ -7,15 +8,18 @@ from enum import Enum, EnumMeta, auto
 
 import boto3
 import botocore.config
+import flashflood
 from cloud_blobstore import BlobStore
 from cloud_blobstore.s3 import S3BlobStore
 from cloud_blobstore.gs import GSBlobStore
 from google.cloud.storage import Client
+from dcplib import security
 from google.auth.transport.requests import AuthorizedSession
 from google.oauth2 import service_account
 from requests.adapters import HTTPAdapter, DEFAULT_POOLSIZE
 from requests.packages.urllib3.util.retry import Retry
 
+from dss.util.aws import resources
 from dss.storage.hcablobstore import HCABlobStore
 from dss.storage.hcablobstore.s3 import S3HCABlobStore
 from dss.storage.hcablobstore.gs import GSHCABlobStore
@@ -71,6 +75,7 @@ class IndexSuffix:
     """
     Manage growing and shrinking suffixes to Elasticsearch index names
     """
+
     def __init__(self) -> None:
         super().__init__()
         self._stack: typing.Deque[str] = deque()
@@ -101,6 +106,7 @@ class Config:
     _GS_BUCKET: typing.Optional[str] = None
     _S3_CHECKOUT_BUCKET: typing.Optional[str] = None
     _GS_CHECKOUT_BUCKET: typing.Optional[str] = None
+    _FLASHFLOOD_BUCKET: typing.Optional[str] = None
 
     BLOBSTORE_CONNECT_TIMEOUT: float = None
     BLOBSTORE_READ_TIMEOUT: float = None
@@ -111,6 +117,8 @@ class Config:
     _NOTIFICATION_SENDER_EMAIL: typing.Optional[str] = None
     _TRUSTED_GOOGLE_PROJECTS: typing.Optional[typing.List[str]] = None
     _OIDC_AUDIENCE: typing.Optional[typing.List[str]] = None
+    _AUTH_URL: typing.Optional[str] = None
+    _SAM: security.DCPServiceAccountManager = None
 
     test_index_suffix = IndexSuffix()
 
@@ -119,6 +127,16 @@ class Config:
         Config._clear_cached_bucket_config()
         Config._clear_cached_email_config()
         Config._CURRENT_CONFIG = config
+        if Config._CURRENT_CONFIG != BucketConfig.ILLEGAL:
+            security.Config.setup(
+                trusted_google_projects=Config.get_trusted_google_projects(),
+                auth_url=Config.get_authz_url(),
+            )
+        else:
+            security.Config.setup(
+                trusted_google_projects=[os.getenv("DSS_AUTHORIZED_DOMAINS_TEST")],
+                auth_url=Config.get_authz_url()
+            )
 
     @staticmethod
     @functools.lru_cache()
@@ -189,6 +207,15 @@ class Config:
         return replica.hcablobstore_class(Config.get_blobstore_handle(replica))
 
     @staticmethod
+    @functools.lru_cache()
+    def get_flashflood_handle(prefix: str, confirm_writes: bool=False) -> flashflood.FlashFlood:
+        if confirm_writes:
+            flashflood.config.object_exists_waiter_config['Delay'] = 1
+        else:
+            flashflood.config.object_exists_waiter_config['Delay'] = 0
+        return flashflood.FlashFlood(resources.s3, Config.get_flashflood_bucket(), prefix)
+
+    @staticmethod
     def get_s3_bucket() -> str:
         if Config._S3_BUCKET is None:
             if Config._CURRENT_CONFIG == BucketConfig.NORMAL:
@@ -225,6 +252,25 @@ class Config:
             Config._S3_CHECKOUT_BUCKET = os.environ[envvar]
 
         return Config._S3_CHECKOUT_BUCKET
+
+    @staticmethod
+    def get_flashflood_bucket() -> str:
+        if Config._FLASHFLOOD_BUCKET is None:
+            if Config._CURRENT_CONFIG == BucketConfig.NORMAL:
+                envvar = "DSS_FLASHFLOOD_BUCKET"
+            elif Config._CURRENT_CONFIG == BucketConfig.TEST:
+                envvar = "DSS_S3_BUCKET_TEST"
+            elif Config._CURRENT_CONFIG == BucketConfig.TEST_FIXTURE:
+                envvar = "DSS_S3_BUCKET_TEST"
+            elif Config._CURRENT_CONFIG == BucketConfig.ILLEGAL:
+                raise Exception("bucket config not set")
+
+            if envvar not in os.environ:
+                raise Exception(
+                    "Please set the {} environment variable".format(envvar))
+            Config._FLASHFLOOD_BUCKET = os.environ[envvar]
+
+        return Config._FLASHFLOOD_BUCKET
 
     @staticmethod
     def get_gs_bucket() -> str:
@@ -323,6 +369,7 @@ class Config:
         Config._S3_BUCKET = None
         Config._GS_BUCKET = None
         Config._S3_CHECKOUT_BUCKET = None
+        Config._FLASHFLOOD_BUCKET = None
 
     @staticmethod
     def _clear_cached_email_config():
@@ -377,6 +424,24 @@ class Config:
     @staticmethod
     def get_OIDC_email_claim():
         return os.environ.get("OIDC_EMAIL_CLAIM", 'email')
+
+    @staticmethod
+    def _set_authz_url(authz_url):
+        Config._AUTH_URL = authz_url
+
+    @staticmethod
+    def get_authz_url():
+        if Config._AUTH_URL is None:
+            Config._AUTH_URL = Config._get_required_envvar("AUTH_URL")
+        return Config._AUTH_URL
+
+    @staticmethod
+    def get_ServiceAccountManager() -> security.DCPServiceAccountManager:
+        if Config._SAM is None:
+            with open(os.environ['GOOGLE_APPLICATION_CREDENTIALS'], "r") as fh:
+                service_credentials = json.loads(fh.read())
+            Config._SAM = security.DCPServiceAccountManager(service_credentials, Config.get_audience())
+        return Config._SAM
 
     @staticmethod
     def _get_required_envvar(envvar: str) -> str:
@@ -449,8 +514,10 @@ class Config:
 
 
 class Replica(Enum):
-    aws = (Config.get_s3_bucket, Config.get_s3_checkout_bucket, "s3", S3BlobStore, S3HCABlobStore)
-    gcp = (Config.get_gs_bucket, Config.get_gs_checkout_bucket, "gs", GSBlobStore, GSHCABlobStore)
+    aws = (Config.get_s3_bucket, Config.get_s3_checkout_bucket, "s3", S3BlobStore, S3HCABlobStore,
+           "DSS_AWS_FLASHFLOOD_PREFIX_READ", "DSS_AWS_FLASHFLOOD_PREFIX_WRITE")
+    gcp = (Config.get_gs_bucket, Config.get_gs_checkout_bucket, "gs", GSBlobStore, GSHCABlobStore,
+           "DSS_GCP_FLASHFLOOD_PREFIX_READ", "DSS_GCP_FLASHFLOOD_PREFIX_WRITE")
 
     def __init__(
             self,
@@ -459,12 +526,16 @@ class Replica(Enum):
             storage_schema: str,
             blobstore_class: typing.Type[BlobStore],
             hcablobstore_class: typing.Type[HCABlobStore],
+            flashflood_prefix_read_envvar: str,
+            flashflood_prefix_write_envvar: str,
     ) -> None:
         self._bucket_getter = bucket_getter
         self._checkout_bucket_getter = checkout_bucket_getter
         self._storage_schema = storage_schema
         self._blobstore_class = blobstore_class
         self._hcablobstore_class = hcablobstore_class
+        self._flashflood_prefix_read_envvar = flashflood_prefix_read_envvar
+        self._flashflood_prefix_write_envvar = flashflood_prefix_write_envvar
 
     @property
     def bucket(self) -> str:
@@ -485,6 +556,20 @@ class Replica(Enum):
     @property
     def checkout_bucket(self) -> str:
         return self._checkout_bucket_getter()
+
+    @property
+    def flashflood_prefix_read(self) -> str:
+        """
+        There can only be a single read prefix for `flashflood`. Return a string.
+        """
+        return os.environ[self._flashflood_prefix_read_envvar]
+
+    @property
+    def flashflood_prefix_write(self) -> typing.Tuple[str, ...]:
+        """
+        There can multiple write prefixes for `flashflood`. Return a Tuple.
+        """
+        return tuple(os.environ[self._flashflood_prefix_write_envvar].split(","))
 
 @contextmanager
 def override_bucket_config(temp_config: BucketConfig):

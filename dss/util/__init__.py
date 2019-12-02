@@ -6,6 +6,8 @@ import typing
 from functools import lru_cache
 from concurrent.futures import ThreadPoolExecutor, as_completed
 
+from dss.storage.identifiers import VERSION_REGEX, UUID_REGEX, TOMBSTONE_SUFFIX
+
 
 def paginate(boto3_paginator, *args, **kwargs):
     for page in boto3_paginator.paginate(*args, **kwargs):

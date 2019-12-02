@@ -11,5 +11,6 @@
   },
   "version": "2.0",
   "lambda_timeout": 300,
-  "lambda_memory_size": 1536
+  "lambda_memory_size": 1536,
+  "reserved_concurrent_executions": 200
 }

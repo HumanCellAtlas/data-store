@@ -19,6 +19,7 @@ from dss.storage.checkout import CheckoutTokenKeys
 from dss.storage.checkout.file import get_dst_key, start_file_checkout
 from dss.storage.files import write_file_metadata
 from dss.storage.hcablobstore import FileMetadata, HCABlobStore, compose_blob_key
+from dss.storage.identifiers import blob_checksum_format as checksum_format
 from dss.stepfunctions import gscopyclient, s3copyclient
 from dss.util import tracing, UrlBuilder, security
 from dss.util.async_state import AsyncStateItem, AsyncStateError
@@ -34,17 +35,6 @@ retry request after the specified interval."""
 RETRY_AFTER_INTERVAL = 10
 
 logger = logging.getLogger(__name__)
-checksum_format = {
-    # These are regular expressions that are used to verify the forms of
-    # checksums provided to a `PUT /file/{uuid}` API call. You can see the
-    # same ones in the Swagger spec (see definitions.file_version).
-    'hca-dss-crc32c': r'^[a-z0-9]{8}$',
-    'hca-dss-s3_etag': r'^[a-z0-9]{32}(-([2-9]|[1-8][0-9]|9[0-9]|[1-8][0-9]{2'
-                       r'}|9[0-8][0-9]|99[0-9]|[1-8][0-9]{3}|9[0-8][0-9]{2}|9'
-                       r'9[0-8][0-9]|999[0-9]|10000))?$',
-    'hca-dss-sha1': r'^[a-z0-9]{40}$',
-    'hca-dss-sha256': r'^[a-z0-9]{64}$'
-}
 
 
 @dss_handler
@@ -53,11 +43,14 @@ def head(uuid: str, replica: str, version: str = None, token: str = None):
 
 
 @dss_handler
-def get(uuid: str, replica: str, version: str = None, token: str = None, directurl: bool = False):
-    return get_helper(uuid, Replica[replica], version, token, directurl)
+def get(uuid: str, replica: str, version: str = None, token: str = None, directurl: bool = False,
+        content_disposition: str = None):
+    return get_helper(uuid, Replica[replica], version, token, directurl, content_disposition)
 
 
-def get_helper(uuid: str, replica: Replica, version: str = None, token: str = None, directurl: bool = False):
+def get_helper(uuid: str, replica: Replica, version: str = None, token: str = None, directurl: bool = False,
+               content_disposition: str = None):
+
     with tracing.Subsegment('parameterization'):
         handle = Config.get_blobstore_handle(replica)
         bucket = replica.bucket
@@ -70,7 +63,6 @@ def get_helper(uuid: str, replica: Replica, version: str = None, token: str = No
                 matching_file = matching_file[len(prefix):]
                 if version is None or matching_file > version:
                     version = matching_file
-
     if version is None:
         # no matches!
         raise DSSException(404, "not_found", "Cannot find file!")
@@ -81,7 +73,7 @@ def get_helper(uuid: str, replica: Replica, version: str = None, token: str = No
             file_metadata = json.loads(
                 handle.get(
                     bucket,
-                    "files/{}.{}".format(uuid, version)
+                    f"files/{uuid}.{version}"
                 ).decode("utf-8"))
     except BlobNotFoundError:
         key = f"files/{uuid}.{version}"
@@ -110,9 +102,16 @@ def get_helper(uuid: str, replica: Replica, version: str = None, token: str = No
                     path=get_dst_key(blob_path)
                 )))
             else:
-                response = redirect(handle.generate_presigned_GET_url(
-                                    replica.checkout_bucket,
-                                    get_dst_key(blob_path)))
+                if content_disposition:
+                    # can tell a browser to treat the response link as a download rather than open a new tab
+                    response = redirect(handle.generate_presigned_GET_url(
+                                        replica.checkout_bucket,
+                                        get_dst_key(blob_path),
+                                        response_content_disposition=content_disposition))
+                else:
+                    response = redirect(handle.generate_presigned_GET_url(
+                                        replica.checkout_bucket,
+                                        get_dst_key(blob_path)))
         else:
             with tracing.Subsegment('make_retry'):
                 builder = UrlBuilder(request.url)

@@ -1,4 +1,20 @@
 #!/usr/bin/env python
+"""
+Install a hook into a Python virtual environment that automatically sources `environment`.
+
+This script is useful when using PyCharm or another IDE from a shell, since it eliminates
+the need to explicitly source `environment`. Normally you would have to manually source
+`environment`, and would be limited to sourcing the environment for a single project.
+
+This script installs itself as a sitecustomize.py hook in the currently active virtual
+environment. Whenever that virtual environment is activated, it will source `environment`
+and apply the resulting environment changes to `os.environ` such that the interpreter
+process and all its children can see them.
+
+To install, activate the virtual environment and run `python scripts/envhook.py install`.
+
+To uninstall, run `python scripts/envhook.py remove`.
+"""
 import errno
 import os
 import subprocess

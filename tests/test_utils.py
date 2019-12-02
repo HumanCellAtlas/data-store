@@ -246,6 +246,5 @@ class TestSecurity(unittest.TestCase):
     def restore_email_claims(old):
         os.environ['OIDC_EMAIL_CLAIM'] = old
 
-
 if __name__ == '__main__':
     unittest.main()

@@ -150,3 +150,26 @@ resource aws_s3_bucket dss_s3_checkout_bucket_unwritable {
 }
 POLICY
 }
+
+resource aws_s3_bucket dss_s3_events_bucket {
+  count = "${length(var.DSS_FLASHFLOOD_BUCKET) > 0 ? 1 : 0}"
+  bucket = "${var.DSS_FLASHFLOOD_BUCKET}"
+  server_side_encryption_configuration {
+    rule {
+	  apply_server_side_encryption_by_default {
+        sse_algorithm = "AES256"
+      }
+    }
+  }
+  lifecycle_rule {
+    id = "collect garbage"
+    enabled = true
+    tags = {
+      "garbage" = "true"
+    }
+    expiration {
+      days = "1"
+    }
+  }
+  tags = "${merge(local.common_tags, local.aws_tags)}"
+}

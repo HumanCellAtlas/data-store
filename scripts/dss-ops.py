@@ -13,6 +13,8 @@ import dss
 import dss.operations.checkout
 import dss.operations.storage
 import dss.operations.sync
+import dss.operations.iam
+import dss.operations.lambda_params
 import dss.operations.elasticsearch
 import dss.operations.events
 import dss.operations.secrets

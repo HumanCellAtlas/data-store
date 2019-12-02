@@ -12,6 +12,8 @@ import unittest
 import subprocess
 import boto3
 import botocore
+
+import flashflood
 from cloud_blobstore import BlobStore
 
 pkg_root = os.path.abspath(os.path.join(os.path.dirname(__file__), ".."))  # noqa
@@ -112,6 +114,33 @@ class BaseSmokeTest(unittest.TestCase):
         return run_for_json(f"{self.venv_bin}hca dss get-bundle --replica {replica.name}"
                             f" --uuid {bundle_uuid}")
 
+    def _test_get_event(self, replica, bundle_uuid, bundle_version, event_should_exist=True):
+        if event_should_exist:
+            res = run_for_json(f"{self.venv_bin}hca dss get-event --replica {replica.name}"
+                               f" --uuid {bundle_uuid}"
+                               f" --version {bundle_version}")
+            self.assertEqual(res['manifest']['version'], bundle_version)
+        else:
+            # TODO: enable this test when flash-flood supports immediate event deletion - BrianH
+            # api = f"https://{os.environ['API_DOMAIN_NAME']}/v1"
+            # params = f"version={bundle_version}&replica={replica.name}"
+            # res = requests.get(f"{api}/events/{bundle_uuid}?{params}")
+            # self.assertEqual(404, res.status_code)
+            pass
+
+    def _test_replay_event(self, replica, bundle_uuid, bundle_version):
+        res = run_for_json(f"{self.venv_bin}hca dss get-events --replica aws --per-page 10"
+                           f" --from-date {bundle_version}"
+                           f" --no-paginate")
+        for stream in res['event_streams']:
+            for event in flashflood.replay_event_stream(stream):
+                doc = json.loads(event.data)
+                if doc['manifest']['version'] == bundle_version:
+                    break
+            else:
+                self.fail("Event not found in flashflood replay")
+            # TODO: Figure out how to test event is deleted after flashflood is updated - BrianH
+
     def _test_get_bundle(self, replica, bundle_uuid):
         """ tests that a bundle can be downloaded"""
         download_res = self.get_bundle(replica, bundle_uuid)
@@ -148,41 +177,63 @@ class BaseSmokeTest(unittest.TestCase):
 
     def post_search_es(self, replica, es_query):
         """ post-search using es, returns post-search response """
-        return run_for_json(f'{self.venv_bin}hca dss post-search  --es-query {es_query} --replica {replica.name}')
+        return run_for_json(f'{self.venv_bin}hca dss post-search  --es-query {es_query} --replica {replica.name} '
+                            f'--no-paginate')
 
-    def subscription_put_es(self, replica, es_query, url):
-        """ creates es subscription, return the response"""
-        return run_for_json([f'{self.venv_bin}hca', 'dss', 'put-subscription',
-                             '--callback-url', url,
-                             '--method', 'PUT',
-                             '--es-query', json.dumps(es_query),
-                             '--replica', replica.name])
+    def put_subscription(self, replica, subscription_type, query, url):
 
-    def subscription_delete(self, replica, subscription_id):
+        def subscription_put_es(replica, es_query, url):
+            """ creates es subscription, return the response"""
+            return run_for_json([f'{self.venv_bin}hca', 'dss', 'put-subscription',
+                                 '--callback-url', url,
+                                 '--method', 'PUT',
+                                 '--es-query', json.dumps(es_query),
+                                 '--replica', replica.name])
+
+        def subscription_put_jmespath(replica, jmespath_query, url):
+            return run_for_json([f'{self.venv_bin}hca', 'dss', 'put-subscription',
+                                 '--callback-url', url,
+                                 '--method', 'PUT',
+                                 '--jmespath-query', f"{jmespath_query}",
+                                 '--replica', replica.name])
+
+        if subscription_type == 'jmespath':
+            return subscription_put_jmespath(replica, query, url)
+        else:
+            return subscription_put_es(replica, query, url)
+
+    def subscription_delete(self, replica, subscription_type, uuid):
         """ delete's subscription created, should be wrapped in self.addCleanup() """
         self.addCleanup(run, f"{self.venv_bin}hca dss delete-subscription --replica {replica.name} "
-                             f"--uuid {subscription_id} "
-                             f"--subscription-type elasticsearch")
+                             f"--uuid {uuid} "
+                             f"--subscription-type {subscription_type}")
 
-    def subscription_get_es(self, replica, subscription_id):
-        """returns subscription information"""
-        get_response = run_for_json(f"{self.venv_bin}hca dss get-subscription --replica {replica.name} "
-                                    f"--subscription-type elasticsearch "
-                                    f"--uuid {subscription_id} ")
-        return get_response
-
-    def _test_subscription_get_es(self, replica, subscription_id, callback_url):
-        get_response = self.subscription_get_es(replica, subscription_id)
+    def _test_subscription(self, replica, subscription_id, callback_url, subscription_type):
+        get_response = self.get_subscription(replica, subscription_type, subscription_id)
         self.assertEquals(subscription_id, get_response['uuid'])
         self.assertEquals(callback_url, get_response['callback_url'])
 
-    def get_subscriptions(self, replica):
+    def get_subscriptions(self, replica, subscription_type):
         """ returns all subscriptions"""
         return run_for_json(f"{self.venv_bin}hca dss get-subscriptions --replica {replica.name}"
-                            f" --subscription-type elasticsearch  ")
+                            f" --subscription-type {subscription_type}  ")
 
-    def _test_get_subscriptions(self, replica, requested_subscription):
-        get_response = self.get_subscriptions(replica)
+    def get_subscription(self, replica, subscription_type, uuid):
+        """ returns all subscriptions"""
+        return run_for_json(f"{self.venv_bin}hca dss get-subscription --replica {replica.name}"
+                            f" --subscription-type {subscription_type} --uuid {uuid} ")
+
+    def get_bundle_enumerations(self, replica, per_page=500, prefix=None, search_after=None, token=None):
+        """returns bundle enumeration page"""
+        passed_args = {"replica": replica, "per-page": per_page, "prefix": prefix,
+                       "search-after": search_after, "token": token}
+        command_args = [f'--{key} {value}' for key, value in passed_args.items() if value is not None]
+        command = f"{self.venv_bin}hca dss get-bundles-all {' '.join(command_args)} --no-paginate"
+        resp = run_for_json(command)
+        return resp
+
+    def _test_get_subscriptions(self, replica, requested_subscription, subscription_type):
+        get_response = self.get_subscriptions(replica, subscription_type)
         list_of_subscriptions = get_response['subscriptions']
         list_of_subscription_uuids = [x['uuid'] for x in list_of_subscriptions if x['uuid']]
         self.assertIn(requested_subscription, list_of_subscription_uuids)

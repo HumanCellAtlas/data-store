@@ -16,6 +16,7 @@ export DSS_HOME="$(cd -P "$(dirname "$SOURCE")" && pwd)"
 
 EXPORT_ENV_VARS_TO_LAMBDA_ARRAY=(
     API_DOMAIN_NAME
+    AUTH_URL
     CHECKOUT_CACHE_CRITERIA
     DSS_AUTHORIZED_DOMAINS
     DSS_BLOB_PUBLIC_TTL_DAYS
@@ -29,10 +30,16 @@ EXPORT_ENV_VARS_TO_LAMBDA_ARRAY=(
     DSS_NOTIFICATION_SENDER
     DSS_NOTIFY_DELAYS
     DSS_NOTIFY_TIMEOUT
+    DSS_NOTIFY_WORKERS
     DSS_S3_BUCKET
     DSS_S3_CHECKOUT_BUCKET
+    DSS_FLASHFLOOD_BUCKET
     DSS_VERSION
     DSS_XRAY_TRACE
+    DSS_AWS_FLASHFLOOD_PREFIX_READ
+    DSS_AWS_FLASHFLOOD_PREFIX_WRITE
+    DSS_GCP_FLASHFLOOD_PREFIX_READ
+    DSS_GCP_FLASHFLOOD_PREFIX_WRITE
     GCP_PROJECT_NAME
     GCP_DEFAULT_REGION
     OIDC_AUDIENCE
@@ -56,27 +63,47 @@ DSS_S3_BUCKET=org-humancellatlas-dss-dev
 DSS_S3_BUCKET_TEST=org-hca-dss-test
 DSS_S3_BUCKET_TEST_FIXTURES=org-hca-dss-test-fixtures
 DSS_S3_BUCKET_INTEGRATION=org-humancellatlas-dss-integration
-DSS_S3_BUCKET_STAGING=org-humancellatlas-dss-staging
+DSS_S3_BUCKET_STAGING=org-hca-dss-staging
 DSS_S3_BUCKET_PROD=org-humancellatlas-dss-prod
 DSS_S3_CHECKOUT_BUCKET=org-humancellatlas-dss-checkout-dev
 DSS_S3_CHECKOUT_BUCKET_TEST=org-hca-dss-checkout-test
 DSS_S3_CHECKOUT_BUCKET_TEST_USER=org-hca-dss-checkout-test-user  # for tests w/non-dss managed user bucket (i.e. POST /bundles/{uuid}/checkout)
 DSS_S3_CHECKOUT_BUCKET_UNWRITABLE=org-hca-dss-checkout-unwritable
 DSS_S3_CHECKOUT_BUCKET_INTEGRATION=org-humancellatlas-dss-checkout-integration
-DSS_S3_CHECKOUT_BUCKET_STAGING=org-humancellatlas-dss-checkout-staging
+DSS_S3_CHECKOUT_BUCKET_STAGING=org-hca-dss-checkout-staging
 DSS_S3_CHECKOUT_BUCKET_PROD=org-humancellatlas-dss-checkout-prod
+DSS_FLASHFLOOD_BUCKET=org-humancellatlas-dss-events-dev
+DSS_FLASHFLOOD_BUCKET_INTEGRATION=org-humancellatlas-dss-events-integration
+DSS_FLASHFLOOD_BUCKET_STAGING=org-humancellatlas-dss-events-staging
+DSS_FLASHFLOOD_BUCKET_PROD=org-humancellatlas-dss-events-prod
 DSS_GS_BUCKET=org-humancellatlas-dss-dev
 DSS_GS_BUCKET_TEST=org-hca-dss-test
 DSS_GS_BUCKET_TEST_FIXTURES=org-hca-dss-test-fixtures
 DSS_GS_BUCKET_INTEGRATION=org-humancellatlas-dss-integration
-DSS_GS_BUCKET_STAGING=org-humancellatlas-dss-staging
+DSS_GS_BUCKET_STAGING=org-hca-dss-staging
 DSS_GS_BUCKET_PROD=org-humancellatlas-dss-prod
 DSS_GS_CHECKOUT_BUCKET=org-humancellatlas-dss-checkout-dev
 DSS_GS_CHECKOUT_BUCKET_TEST=org-hca-dss-checkout-test
 DSS_GS_CHECKOUT_BUCKET_TEST_USER=org-hca-dss-checkout-test-user  # for tests w/non-dss managed user bucket (i.e. POST /bundles/{uuid}/checkout)
 DSS_GS_CHECKOUT_BUCKET_INTEGRATION=org-humancellatlas-dss-checkout-integration
-DSS_GS_CHECKOUT_BUCKET_STAGING=org-humancellatlas-dss-checkout-staging
+DSS_GS_CHECKOUT_BUCKET_STAGING=org-hca-dss-checkout-staging
 DSS_GS_CHECKOUT_BUCKET_PROD=org-humancellatlas-dss-checkout-prod
+DSS_AWS_FLASHFLOOD_PREFIX_READ="aws"
+DSS_AWS_FLASHFLOOD_PREFIX_WRITE="aws"  # This can be a comma separated list
+DSS_GCP_FLASHFLOOD_PREFIX_READ="gcp"
+DSS_GCP_FLASHFLOOD_PREFIX_WRITE="gcp"  # This can be a comma separated list
+DSS_AWS_FLASHFLOOD_PREFIX_READ_INTEGRATION="aws"
+DSS_AWS_FLASHFLOOD_PREFIX_WRITE_INTEGRATION="aws"  # This can be a comma separated list
+DSS_GCP_FLASHFLOOD_PREFIX_READ_INTEGRATION="gcp"
+DSS_GCP_FLASHFLOOD_PREFIX_WRITE_INTEGRATION="gcp"  # This can be a comma separated list
+DSS_AWS_FLASHFLOOD_PREFIX_READ_STAGING="aws"
+DSS_AWS_FLASHFLOOD_PREFIX_WRITE_STAGING="aws"  # This can be a comma separated list
+DSS_GCP_FLASHFLOOD_PREFIX_READ_STAGING="gcp"
+DSS_GCP_FLASHFLOOD_PREFIX_WRITE_STAGING="gcp"  # This can be a comma separated list
+DSS_AWS_FLASHFLOOD_PREFIX_READ_PROD="aws"
+DSS_AWS_FLASHFLOOD_PREFIX_WRITE_PROD="aws"  # This can be a comma separated list
+DSS_GCP_FLASHFLOOD_PREFIX_READ_PROD="gcp"
+DSS_GCP_FLASHFLOOD_PREFIX_WRITE_PROD="gcp"  # This can be a comma separated list
 DSS_INFRA_TAG_PROJECT=dcp
 DSS_INFRA_TAG_SERVICE=dss
 DSS_INFRA_TAG_OWNER=dss-team@data.humancellatlas.org
@@ -87,6 +114,7 @@ API_DOMAIN_NAME="dss.${DCP_DOMAIN}"
 TOKENINFO_FUNC=dss.util.security.verify_jwt
 # TODO remove https://dev.data.humancellatlas.org/ from OIDC_AUDIENCE once seperate deployments are made
 OIDC_AUDIENCE=https://dev.data.humancellatlas.org/,https://${DCP_DOMAIN}/
+AUTH_URL=https://auth.testing.data.humancellatlas.org
 OPENID_PROVIDER=https://humancellatlas.auth0.com/
 OIDC_EMAIL_CLAIM=https://auth.data.humancellatlas.org/email
 OIDC_GROUP_CLAIM=https://auth.data.humancellatlas.org/group
@@ -101,7 +129,7 @@ DSS_ES_INSTANCE_TYPE="m4.large.elasticsearch"
 DSS_ES_VOLUME_SIZE="35"
 DSS_ES_INSTANCE_COUNT="2"
 DSS_ES_DOMAIN_INDEX_LOGS_ENABLED="true"
-ACM_CERTIFICATE_IDENTIFIER="826dbdb8-2b23-4cc9-8fd6-73aa6fc658d7"
+ACM_CERTIFICATE_IDENTIFIER="3faaa1cf-1669-4f70-9615-fcf5447b1e22"
 DSS_ZONE_NAME="dev.data.humancellatlas.org."
 PYTHONWARNINGS=ignore:ResourceWarning,ignore::UserWarning:zipfile:
 DSS_SECRETS_STORE="dcp/dss"
@@ -121,7 +149,7 @@ DSS_BLOB_PUBLIC_TTL_DAYS=7
 # `{account_id}`, if present, will be replaced with the account ID associated with the AWS credentials used for
 # deployment. It can be safely omitted.
 DSS_TERRAFORM_BACKEND_BUCKET_TEMPLATE="org-humancellatlas-dss-{account_id}-${DSS_DEPLOYMENT_STAGE}-terraform"
-
+ 
 # Configure the delays between notification attempts. The first attempt is immediate. The second attempt is one
 # minute later. Then ten minutes, one hour, and six hours in between. Then 24 hours minus all previous delays and
 # lastly every 24 hours for six days. This is exponential initially and then levels off where exponential would be
@@ -132,6 +160,13 @@ DSS_NOTIFY_DELAYS="0 60 600 3600 21600 60540 86400 86400 86400 86400 86400 86400
 DSS_NOTIFY_TIMEOUT=60  # This may seem excessive but the default of 10s is not enough for Green's Lira
                        # and would cause the notification to be retried, causing Lira to make a duplicate
                        # submission.
+
+                       # Touch base with Lira (Saman and Rex currently) on this timeout once:
+                       # - they have scale-tested their new queue component
+                       # - all subscribers (not only Green Box) agree on the shorter timeout
+                       # https://github.com/HumanCellAtlas/data-store/issues/2398
+
+DSS_NOTIFY_WORKERS=24  # unset to automatically determine the number of workers
 
 # Enables X-Ray profiling of daemons running in AWS Lambdas. A value of 0 disables profiling. A value >1 will enable
 # profiling.

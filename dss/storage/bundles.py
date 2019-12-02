@@ -3,13 +3,17 @@ from functools import lru_cache
 import json
 import typing
 import time
+import re
+from collections import OrderedDict
 
 import cachetools
 from cloud_blobstore import BlobNotFoundError, BlobStore
-from cloud_blobstore.s3 import S3BlobStore
 
 from dss import Config, Replica
-from dss.storage.identifiers import DSS_BUNDLE_KEY_REGEX, DSS_BUNDLE_TOMBSTONE_REGEX, BundleTombstoneID, BundleFQID
+from dss.api.search import PerPageBounds
+from dss.storage.identifiers import (DSS_BUNDLE_KEY_REGEX, TOMBSTONE_SUFFIX, BUNDLE_PREFIX, BundleTombstoneID,
+                                     DSS_VERSIONED_BUNDLE_TOMBSTONE_KEY_REGEX, BundleFQID, UUID_PATTERN,
+                                     DSS_UNVERSIONED_BUNDLE_TOMBSTONE_KEY_REGEX, VERSION_PATTERN,)
 from dss.storage.blobstore import test_object_exists, idempotent_save
 from dss.util import multipart_parallel_upload
 
@@ -100,7 +104,7 @@ def _latest_version_from_object_names(object_names: typing.Iterator[str]) -> str
     dead_versions = set()  # type: typing.Set[str]
     all_versions = set()  # type: typing.Set[str]
     set_checks = [
-        (DSS_BUNDLE_TOMBSTONE_REGEX, dead_versions),
+        (DSS_VERSIONED_BUNDLE_TOMBSTONE_KEY_REGEX, dead_versions),
         (DSS_BUNDLE_KEY_REGEX, all_versions),
     ]
 
@@ -119,3 +123,114 @@ def _latest_version_from_object_names(object_names: typing.Iterator[str]) -> str
             version = current_version
 
     return version
+
+
+def enumerate_available_bundles(replica: str = None,
+                                prefix: typing.Optional[str] = None,
+                                per_page: int = PerPageBounds.per_page_max,
+                                search_after: typing.Optional[str] = None,
+                                token: typing.Optional[str] = None):
+    """
+    :returns: dictionary with bundles that are available, provides context of cloud providers internal pagination
+             mechanism.
+    :rtype: dictionary
+    """
+    kwargs = dict(bucket=Replica[replica].bucket, prefix=prefix, k_page_max=per_page)
+    if search_after:
+        kwargs['start_after_key'] = search_after
+    if token:
+        kwargs['token'] = token
+
+    storage_handler = Config.get_blobstore_handle(Replica[replica])
+    prefix_iterator = Living(storage_handler.list_v2(**kwargs))  # note dont wrap this in enumerate; it looses the token
+
+    uuid_list = list()
+    for fqid in prefix_iterator:
+        uuid_list.append(dict(uuid=fqid.uuid, version=fqid.version))
+        if len(uuid_list) >= per_page:
+            break
+
+    return dict(search_after=prefix_iterator.start_after_key,
+                bundles=uuid_list,
+                token=prefix_iterator.token,
+                page_count=len(uuid_list))
+
+class Living():
+    """
+    This utility class takes advantage of lexicographical ordering on object storage to list non-tombstoned bundles.
+    """
+    def __init__(self, paged_iter):
+        self.paged_iter = paged_iter
+        self._init_bundle_info()
+        self.start_after_key = None
+        self.token = None
+
+    def _init_bundle_info(self, fqid=None):
+        self.bundle_info = dict(contains_unversioned_tombstone=False, uuid=None, fqids=OrderedDict())
+        if fqid:
+            self.bundle_info['uuid'] = fqid.uuid
+            self.bundle_info['fqids'][fqid] = False
+
+    def _living_fqids_in_bundle_info(self):
+        if not self.bundle_info['contains_unversioned_tombstone']:
+            for fqid, is_dead in self.bundle_info['fqids'].items():
+                if not is_dead:
+                    yield fqid
+
+    def _keys(self):
+        for key, _ in self.paged_iter:
+            yield key
+            self.start_after_key = key
+            self.token = getattr(self.paged_iter, "token", None)
+
+    def __iter__(self):
+        for key in self._keys():
+            fqid = BundleFQID.from_key(key)
+            if fqid.uuid != self.bundle_info['uuid']:
+                for bundle_fqid in self._living_fqids_in_bundle_info():
+                    yield bundle_fqid
+                self._init_bundle_info(fqid)
+            else:
+                if not fqid.is_fully_qualified():
+                    self.bundle_info['contains_unversioned_tombstone'] = True
+                else:
+                    self.bundle_info['fqids'][fqid] = isinstance(fqid, BundleTombstoneID)
+
+        for bundle_fqid in self._living_fqids_in_bundle_info():
+            yield bundle_fqid
+
+def get_tombstoned_bundles(replica: Replica, tombstone_key: str) -> typing.Iterator[str]:
+    """
+    Return the bundle fqid(s) associated with a versioned or unversioned tombstone, as verified on object storage.
+    Note that an unversioned tombstone returns keys associated with bundles not previously, as show in the example
+    below.
+
+    bundles/uuid.version1
+    bundles/uuid.version2
+    bundles/uuid.version2.dead
+    bundles/uuid.version3
+    bundles/uuid.version3.dead
+    bundles/uuid.dead
+
+    For the above listing:
+        `get_tombstoned_bundles(replica, bundles/uuid.version2.dead)` -> `[bundles/uuid.version2]`
+        `get_tombstoned_bundles(replica, bundles/uuid.dead)` -> `[bundles/uuid.version1]`
+    """
+    handle = Config.get_blobstore_handle(replica)
+    if DSS_VERSIONED_BUNDLE_TOMBSTONE_KEY_REGEX.match(tombstone_key):
+        pfx = tombstone_key.split(f".{TOMBSTONE_SUFFIX}")[0]
+        prev_key = ""
+        for key in handle.list(replica.bucket, pfx):
+            if key == f"{prev_key}.{TOMBSTONE_SUFFIX}":
+                yield prev_key
+            prev_key = key
+    elif DSS_UNVERSIONED_BUNDLE_TOMBSTONE_KEY_REGEX.match(tombstone_key):
+        pfx = tombstone_key.split(f".{TOMBSTONE_SUFFIX}")[0]
+        prev_key = ""
+        for key in handle.list(replica.bucket, pfx):
+            if key != f"{prev_key}.{TOMBSTONE_SUFFIX}" and not prev_key.endswith(TOMBSTONE_SUFFIX):
+                if prev_key:
+                    yield prev_key
+            prev_key = key
+    else:
+        raise ValueError(f"{tombstone_key} is not a tombstone key")

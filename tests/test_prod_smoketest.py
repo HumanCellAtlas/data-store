@@ -2,7 +2,12 @@
 """
 A prod test for the DSS, checks core API Requests to know whats available. Works with data present.
 """
-import os, sys, argparse, unittest, json
+import argparse
+import json
+import os
+import sys
+import time
+import unittest
 
 pkg_root = os.path.abspath(os.path.join(os.path.dirname(__file__), ".."))  # noqa
 sys.path.insert(0, pkg_root)  # noqa
@@ -49,10 +54,10 @@ class ProdSmoketest(BaseSmokeTest):
         bundle_res = self.get_bundle(replica, bundle_uuid)
         bundle_file_count = len(bundle_res['bundle']['files'])
 
-        subscription_res = self.subscription_put_es(replica, self.query, self.url)
+        subscription_res = self.put_subscription(replica, "elasticsearch", self.query, self.url)
         subscription_id = subscription_res['uuid']
-        self._test_subscription_get_es(replica, subscription_id, self.url)
-        self.subscription_delete(replica, subscription_id)
+        self._test_subscription(replica, subscription_id, self.url, "elasticsearch")
+        self.subscription_delete(replica, "elasticsearch", subscription_id)
 
         self._test_checkout(replica, bundle_uuid, bundle_version, checkout_job_id,
                             checkout_bucket, bundle_file_count)
@@ -61,6 +66,7 @@ class ProdSmoketest(BaseSmokeTest):
         for params in self.params:
             print(params)
             self.prod_smokeTest(**params)
+            time.sleep(6)
 
 
 if __name__ == "__main__":

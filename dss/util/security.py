@@ -1,14 +1,14 @@
 #!/usr/bin/env python3.6
+import base64
 import json
-import os, functools, base64, typing
-
-import requests
-import jwt
 import logging
 
-from cryptography.hazmat.primitives.asymmetric import rsa
+import functools
+import jwt
+import requests
+import typing
 from cryptography.hazmat.backends import default_backend
-
+from cryptography.hazmat.primitives.asymmetric import rsa
 from flask import request
 
 from dss import Config
@@ -111,5 +111,21 @@ def authorized_group_required(groups: typing.List[str]):
         def wrapper(*args, **kwargs):
             assert_authorized_group(groups, request.token_info)
             return func(*args, **kwargs)
+
         return wrapper
+
     return real_decorator
+
+
+def assert_authorized(principal: str,
+                      actions: typing.List[str],
+                      resources: typing.List[str]):
+    resp = session.post(f"{Config.get_authz_url()}/v1/policies/evaluate",
+                        headers=Config.get_ServiceAccountManager().get_authorization_header(),
+                        json={"action": actions,
+                              "resource": resources,
+                              "principal": principal})
+    resp.raise_for_status()
+    resp_json = resp.json()
+    if not resp_json.get('result'):
+        raise DSSForbiddenException(title=f"User is not authorized to access this resource:\n{resp_json}")

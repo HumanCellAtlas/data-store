@@ -24,6 +24,7 @@ pkg_root = os.path.abspath(os.path.join(os.path.dirname(__file__), '..'))  # noq
 sys.path.insert(0, pkg_root)  # noqa
 
 from cloud_blobstore import BlobMetadataField
+from dcplib.aws.clients import s3  # noqa
 import dss
 from dss.api.bundles import RETRY_AFTER_INTERVAL, bundle_file_id_metadata
 from dss.config import BucketConfig, Config, override_bucket_config, Replica
@@ -32,8 +33,9 @@ from dss.storage.blobstore import test_object_exists
 from dss.storage.hcablobstore import compose_blob_key
 from dss.util.version import datetime_to_version_format
 from dss.storage.bundles import get_bundle_manifest
-from tests.infra import DSSAssertMixin, DSSUploadMixin, ExpectedErrorFields, get_env, testmode, TestAuthMixin
-from tests.infra.server import ThreadedLocalServer
+from tests.infra import (DSSAssertMixin, DSSUploadMixin, ExpectedErrorFields, get_env, testmode, TestAuthMixin,
+                         MockStorageHandler)
+from tests.infra.server import ThreadedLocalServer, MockFusilladeHandler
 from tests import eventually, get_auth_header
 
 
@@ -41,7 +43,16 @@ BUNDLE_GET_RETRY_COUNT = 60
 """For GET /bundles requests that require a retry, this is the maximum number of attempts we make."""
 
 
-@testmode.integration
+def setUpModule():
+    Config.set_config(BucketConfig.TEST)
+    MockFusilladeHandler.start_serving()
+
+
+def tearDownModule():
+    MockFusilladeHandler.stop_serving()
+
+
+@testmode.standalone
 class TestBundleApi(unittest.TestCase, TestAuthMixin, DSSAssertMixin, DSSUploadMixin):
     @classmethod
     def setUpClass(cls):
@@ -170,9 +181,9 @@ class TestBundleApi(unittest.TestCase, TestAuthMixin, DSSAssertMixin, DSSUploadM
                 link_header = resp_obj.response.headers.get('Link')
 
                 # Make sure we're getting the expected response status code
+                self.assertEqual(resp_obj.response.headers['X-OpenAPI-Paginated-Content-Key'], 'bundle.files')
                 if link_header:
                     self.assertEqual(resp_obj.response.headers['X-OpenAPI-Pagination'], 'true')
-                    self.assertEqual(resp_obj.response.headers['X-OpenAPI-Paginated-Content-Key'], 'files')
                     self.assertEqual(resp_obj.response.status_code, requests.codes.partial)
                 else:
                     self.assertEqual(resp_obj.response.headers['X-OpenAPI-Pagination'], 'false')
@@ -479,6 +490,7 @@ class TestBundleApi(unittest.TestCase, TestAuthMixin, DSSAssertMixin, DSSUploadM
                 builder.add_query("version", bundle_version)
             url = str(builder)
             self._test_auth_errors('put', url,
+                                   skip_group_test=True,
                                    json_request_body=dict(
                                        files=[
                                            dict(
@@ -682,7 +694,7 @@ class TestBundleApi(unittest.TestCase, TestAuthMixin, DSSAssertMixin, DSSUploadM
             url = str(url_builder)
             json_request_body = dict(reason="reason")
             json_request_body['version'] = bundle_version
-            self._test_auth_errors('delete', url, json_request_body=json_request_body)
+            self._test_auth_errors('delete', url, json_request_body=json_request_body, skip_group_test=True)
 
     def _test_bundle_delete(self, replica: Replica, fixtures_bucket: str, authorized: bool):
         schema = replica.storage_schema
@@ -983,6 +995,47 @@ class TestBundleApi(unittest.TestCase, TestAuthMixin, DSSAssertMixin, DSSUploadM
             json=dict(add_files=files),
         )
         self.assertEqual(res.status_code, requests.codes.bad_request)
+
+    def test_enumeration_bundles(self):
+        bundle_uuid, bundle_version = self._put_bundle()
+        res = self.app.get(f"/v1/bundles/all",
+                           params=dict(replica="aws", per_page=10))
+        self.assertIn(res.status_code, (requests.codes.okay, requests.codes.partial))
+        if res.status_code is requests.codes.partial:
+            body = res.json()
+            page_one = body['bundles']
+            link = urlparse(body['link'])
+            formatted_link = f'{link.path}?{link.query}'
+            res = self.app.get(formatted_link)
+            self.assertIn(res.status_code, (requests.codes.okay, requests.codes.partial))
+            for x in res.json()['bundles']:
+                self.assertNotIn(x, page_one)
+
+    def test_bundle_enumeration_paging(self):
+        #  Note this test requires a particular /bundle order in s3 test bucket, see test_utils for mocked version
+        with override_bucket_config(BucketConfig.TEST):
+            bucket = Config.get_s3_bucket()
+            key_list = MockStorageHandler.bundle_list
+            for key in key_list:
+                s3.upload_fileobj(Fileobj=io.BytesIO(b""), Bucket=bucket, Key=key)
+            for tests in MockStorageHandler.test_per_page:
+                test_size = tests['size']
+                last_good_bundle = tests['last_good_bundle']
+                resp = self.app.get(f"/v1/bundles/all",
+                                    params=dict(replica="aws", per_page=test_size)).json()
+                page_one = resp['bundles']
+                for x in resp['bundles']:
+                    self.assertNotIn('.'.join([x['uuid'], x['version']]), MockStorageHandler.dead_bundles)
+                self.assertDictEqual(last_good_bundle, resp['bundles'][-1])
+                search_after = resp['search_after']
+                token = resp['token']
+                resp = self.app.get(f"/v1/bundles/all",
+                                    params=dict(replica="aws", per_page=test_size,
+                                                search_after=search_after,
+                                                token=token)).json()
+                for x in resp['bundles']:
+                    self.assertNotIn('.'.join([x['uuid'], x['version']]), MockStorageHandler.dead_bundles)
+                    self.assertNotIn(x, page_one)
 
 
 if __name__ == '__main__':

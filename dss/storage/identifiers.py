@@ -10,6 +10,25 @@ COLLECTION_PREFIX = "collections"
 # versioned tombstones are indexed after all bundles during a reindex operation.
 TOMBSTONE_SUFFIX = "dead"
 
+blob_checksum_format = {
+    # These are regular expressions that are used to verify the forms of
+    # checksums provided to a `PUT /file/{uuid}` API call. You can see the
+    # same ones in the Swagger spec (see definitions.file_version).
+    'hca-dss-crc32c': r'^[a-z0-9]{8}$',
+    'hca-dss-s3_etag': r'^[a-z0-9]{32}(-([2-9]|[1-8][0-9]|9[0-9]|[1-8][0-9]{2'
+                       r'}|9[0-8][0-9]|99[0-9]|[1-8][0-9]{3}|9[0-8][0-9]{2}|9'
+                       r'9[0-8][0-9]|999[0-9]|10000))?$',
+    'hca-dss-sha1': r'^[a-z0-9]{40}$',
+    'hca-dss-sha256': r'^[a-z0-9]{64}$'
+}
+
+blob_checksum_format_pure = {key: value.strip('$^') for key, value in blob_checksum_format.items()}
+BLOB_KEY_REGEX = re.compile(f'^(blobs)/'
+                            f'({blob_checksum_format_pure["hca-dss-sha256"]}).'
+                            f'({blob_checksum_format_pure["hca-dss-sha1"]}).'
+                            f'({blob_checksum_format_pure["hca-dss-s3_etag"]}).'
+                            f'({blob_checksum_format_pure["hca-dss-crc32c"]})$')
+
 # does not allow caps
 # (though our swagger params allow users to input this, s3 keys are changed to lowercase after ingestion)
 UUID_PATTERN = "[a-z0-9]{8}-[a-z0-9]{4}-[a-z0-9]{4}-[a-z0-9]{4}-[a-z0-9]{12}"
@@ -24,9 +43,6 @@ DSS_BUNDLE_FQID_REGEX = re.compile(DSS_BUNDLE_FQID_PATTERN)
 
 # matches just bundle keys
 DSS_BUNDLE_KEY_REGEX = re.compile(f"^{BUNDLE_PREFIX}/{DSS_BUNDLE_FQID_PATTERN}$")
-# matches just bundle tombstones
-DSS_BUNDLE_TOMBSTONE_REGEX = re.compile(
-    f"^{BUNDLE_PREFIX}/({UUID_PATTERN})(?:\.(" + VERSION_PATTERN + "))?\." + TOMBSTONE_SUFFIX + "$")
 # matches all bundle objects
 DSS_OBJECT_NAME_REGEX = re.compile(
     f"^({BUNDLE_PREFIX}|{FILE_PREFIX}|{COLLECTION_PREFIX})/({UUID_PATTERN})(?:\.({VERSION_PATTERN}))?(\.{TOMBSTONE_SUFFIX})?$")  # noqa
@@ -37,6 +53,11 @@ FILES_URI_REGEX = re.compile(FILES_PATTERN)
 
 BUNDLES_PATTERN = f'/v1/bundles/{UUID_PATTERN}'
 BUNDLES_URI_REGEX = re.compile(BUNDLES_PATTERN)
+
+# matches just bundle tombstones
+DSS_VERSIONED_BUNDLE_TOMBSTONE_KEY_REGEX = re.compile(
+    f"^{BUNDLE_PREFIX}/({UUID_PATTERN}).({VERSION_PATTERN}).{TOMBSTONE_SUFFIX}$")
+DSS_UNVERSIONED_BUNDLE_TOMBSTONE_KEY_REGEX = re.compile(f"^{BUNDLE_PREFIX}/({UUID_PATTERN}).{TOMBSTONE_SUFFIX}$")
 
 
 class ObjectIdentifierError(ValueError):

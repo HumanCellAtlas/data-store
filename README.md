@@ -36,6 +36,13 @@ You can use the
 [Swagger Editor](http://editor.swagger.io/#/?import=https://raw.githubusercontent.com/HumanCellAtlas/data-store/master/dss-api.yml)
 to review and edit the API specification. When the API is live, the spec is also available at `/v1/swagger.json`.
 
+You can find the DSS API documentation for each stage listed below:
+
+* [`dev` stage](https://dss.dev.data.humancellatlas.org/)
+* [`staging` stage](https://dss.staging.data.humancellatlas.org/)
+* [`integration` stage](https://dss.integration.data.humancellatlas.org/)
+* [`production` stage](https://dss.data.humancellatlas.org/)
+
 ## Table of Contents
 
    * [HCA DSS: The Human Cell Atlas Data Storage System](#hca-dss-the-human-cell-atlas-data-storage-system)
@@ -79,6 +86,10 @@ development version of the DSS.
 
 Note that privileged access to cloud accounts (AWS, GCP, etc.) is required to deploy the data-store. IF your deployment fails
 due to access restrictions, please consult your local systems administrators.
+
+Also note that all commands given in this Readme should be run from the root of this repository after sourcing the
+correct environment (see the [Configuration](#configuration) section below). The root directory of the repository
+is also available in the environment variable `$DSS_HOME`.
 
 ### Install Dependencies
 The DSS requires Python 3.7 to run.
@@ -138,7 +149,9 @@ The DSS uses the [Amazon S3 backend](https://www.terraform.io/docs/backends/type
 	1) Run the command
 
 	   ```
-	   cat $DSS_HOME/application_secrets.json | scripts/set_secret.py --secret-name $GOOGLE_APPLICATION_SECRETS_SECRETS_NAME
+       ### WARNING: RUNNING THIS COMMAND WILL
+       ###          CLEAR EXISTING SCRET VALUE
+	   cat $DSS_HOME/application_secrets.json | ./scripts/dss-ops.py secrets set --secret-name $GOOGLE_APPLICATION_SECRETS_SECRETS_NAME
        ```
 
 1.  [Download](https://cloud.google.com/sdk/downloads) the `gcloud` command line utility.
@@ -146,18 +159,18 @@ The DSS uses the [Amazon S3 backend](https://www.terraform.io/docs/backends/type
 1.  Run the command
 
     ```
-    ./scripts/populate_lambda_ssm_parameters.py
+    ./scripts/dss-ops.py lambda update
     ```
 
 	This populates the environment variables defining your stage into an AWS Simple Systems Manager parameter store.
     These variables will be read from the parameter store and in-lined into the Lambda deployment packages during
 	deployment. This command should be executed whenever the environment variables are updated. The environments
-	of currently deployed Lambdas may optionally by updated in place with the flag `--update-deployed-lambdas`.
+	of currently deployed Lambdas may optionally by updated in place with the flag `--update-deployed`.
 
 1.  Choose a region that has support for Cloud Functions and set `GCP_DEFAULT_REGION` to that region. See
     [the GCP locations list](https://cloud.google.com/about/locations/) for a list of supported regions.
 
-1.  Run `gcloud config set project PROJECT_ID` **where PROJECT_ID is the ID, not the name (i.e: hca-store-21555, NOT just hca-store) of the GCP project you selected earlier**.
+1.  Run `gcloud config set project PROJECT_ID` **where `PROJECT_ID` is the ID, not the name (i.e: hca-store-21555, NOT just hca-store) of the GCP project you selected earlier**.
 
 1.  Enable required APIs:
 
@@ -172,6 +185,7 @@ The DSS uses the [Amazon S3 backend](https://www.terraform.io/docs/backends/type
     These buckets will be created with Terraform, and should not exist before deploying for the first time.
 
 #### Configure User Authentication/Authorization
+
 The following environment variables must be set to enable user authentication and authorization.
 
 * `OIDC_AUDIENCE` must be populated with the expected JWT (JSON web token) audience.
@@ -241,15 +255,19 @@ When deploying for the first time, a Google Cloud Platform service account must 
 1.  Run the command
 
     ```
-    cat $DSS_HOME/gcp-credentials.json | scripts/set_secret.py --secret-name $GOOGLE_APPLICATION_CREDENTIALS_SECRETS_NAME
+    ### WARNING: RUNNING THIS COMMAND WILL 
+    ###          CLEAR EXISTING SECRET VALUE
+    cat $DSS_HOME/gcp-credentials.json | ./scripts/dss-ops.py secrets set --secret-name $GOOGLE_APPLICATION_CREDENTIALS_SECRETS_NAME
     ```
 
 ### Setting admin emails
 
-Set admin account emails within AWS Secret Manager
+Set admin account emails within AWS Secret Manager:
 
 ```
-echo ' ' |  ./scripts/set_secret.py --secret-name $ADMIN_USER_EMAILS_SECRETS_NAME
+### WARNING: RUNNING THIS COMMAND WILL 
+###          CLEAR EXISTING SECRET VALUE
+echo -n 'user1@example.com,user2@example.com' |  ./scripts/dss-ops.py secrets set --secret-name $ADMIN_USER_EMAILS_SECRETS_NAME
  ```
 
 ### Deploying the DSS
@@ -285,7 +303,9 @@ t2.small.elasticsearch instance type is sufficient. Use the [`DSS_ES_`](./docs/e
 Add allowed IPs for ElasticSearch to the secret manager, use comma separated IPs:
 
 ```
-echo ' ' | ./scripts/set_secret.py --secret-name $ES_ALLOWED_SOURCE_IP_SECRETS_NAME
+### WARNING: RUNNING THIS COMMAND WILL 
+###          CLEAR EXISTING SECRET VALUE
+echo -n '1.1.1.1,2.2.2.2' | ./scripts/dss-ops.py secret set --secret-name $ES_ALLOWED_SOURCE_IP_SECRETS_NAME
 ```
 
 Use Terraform to deploy ES resource:

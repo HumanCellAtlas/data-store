@@ -59,11 +59,11 @@ jobs:
   - stage: test
     env:
     - MAKE_ARGS="-j1 tests/test_indexer.py"
-    - DSS_UNITTEST_OPTS="-v TestAWSIndexer"
+    - DSS_UNITTEST_OPTS="-b -v TestAWSIndexer"
   - stage: test
     env:
     - MAKE_ARGS="-j1 tests/test_indexer.py"
-    - DSS_UNITTEST_OPTS="-v TestGCPIndexer"
+    - DSS_UNITTEST_OPTS="-b -v TestGCPIndexer"
   - stage: test
     env:
     - MAKE_ARGS="-j1 tests/test_subscriptions.py"
@@ -77,4 +77,4 @@ env:
   - ES_DOWNLOAD_URL=https://artifacts.elastic.co/downloads/elasticsearch/elasticsearch-${ES_VERSION}.tar.gz
   - DSS_TEST_ES_PATH=./elasticsearch-${ES_VERSION}/bin/elasticsearch
   - DSS_ES_TIMEOUT=30
-  - DSS_UNITTEST_OPTS="-v"
+  - DSS_UNITTEST_OPTS="-v -b"

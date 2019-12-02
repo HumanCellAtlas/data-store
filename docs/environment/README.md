@@ -72,3 +72,7 @@ Environment Variable | Description
 `OPENID_PROVIDER` |
 `PYTHONWARNINGS` |
 `TOKENINFO_FUNC` | Do Not Modify. Used by connexion to verify the JWT in the authorization header of an authenticated request.
+`DSS_AWS_FLASHFLOOD_PREFIX_READ` | The S3 prefix where flash-flood events will be read for the AWS replica.
+`DSS_AWS_FLASHFLOOD_PREFIX_WRITE` | A comma separated list of S3 prefixes where flash-flood events will be written for the AWS replica.
+`DSS_GCP_FLASHFLOOD_PREFIX_READ` | The S3 prefix where flash-flood events will be read for the GCP replica.
+`DSS_GCP_FLASHFLOOD_PREFIX_WRITE` | A comma separated list of S3 prefixes where flash-flood events will be written for the GCP replica.
