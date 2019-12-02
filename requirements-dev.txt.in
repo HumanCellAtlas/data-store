@@ -4,6 +4,7 @@ mypy  >= 0.700
 domovoi  >= 1.8.2
 chalice  >= 1.8.0
 coverage  >= 4.4.1
+awscli  >= 1.16.0
 crcmod  >= 1.7
 httpie  >= 1.0.3
 yq  >= 2.3.3

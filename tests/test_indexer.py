@@ -929,19 +929,9 @@ class TestIndexerBase(ElasticsearchTestCase, DSSAssertMixin, DSSStorageMixin, DS
             self.assertEqual(endpoint.encoding, ctype)
             # Bug: boundary comes out of parse_header as a string, but parse_multipart expects it to be bytes
             pdict['boundary'] = pdict['boundary'].encode('ascii')
-            pdict['CONTENT-LENGTH'] = '100'  # mocked for testing
             body = cgi.parse_multipart(BytesIO(received_request['body']), pdict)
             self.assertTrue(all(len(v) == 1 for v in body.values()))
-            print('\n')
-            print(body)
-            try:
-                # py3.6 compatible
-                body = {k: v[0].decode() for k, v in body.items()}
-            except AttributeError:
-                # py3.7 compatible
-                body = {k: v[0] for k, v in body.items()}
-            print(body)
-            print('\n')
+            body = {k: v[0].decode() for k, v in body.items()}
             posted_json = json.loads(body[endpoint.payload_form_field])
             self.assertTrue(endpoint.form_fields.items() <= body.items())
             self.assertEqual(body.keys() - endpoint.form_fields.keys(), {endpoint.payload_form_field})
@@ -1167,28 +1157,12 @@ class LocalNotificationRequestHandler(BaseHTTPRequestHandler):
     def do_POST(self):
         self._do("POST")
 
-    def valid_test_headers(self, request):
-        import base64
-        import hmac
-        import hashlib
-        if not self.headers.get('Authorization'):
-            sts = HTTPSignatureAuth.get_string_to_sign(request, ['date', 'digest'])
-            digest = hmac.new(self.hmac_secret_key.encode(), sts, hashlib.sha256).digest()
-            signature = base64.encodebytes(digest).decode().strip()
-
-            return ','.join([f'Signature keyId="{sts.decode()}"',
-                             f'algorithm="hmac-sha256"',
-                             f'headers="date digest"',
-                             f'signature="{signature}"'])
-
     def _do(self, method):
-        request = requests.Request(method, self.path, self.headers)
-        self.headers['Authorization'] = self.headers.get('Authorization') or self.valid_test_headers(request)
         if self._verify_payloads:
-            HTTPSignatureAuth.verify(request,
+            HTTPSignatureAuth.verify(requests.Request(method, self.path, self.headers),
                                      key_resolver=lambda key_id, algorithm: self.hmac_secret_key.encode())
             try:
-                HTTPSignatureAuth.verify(request,
+                HTTPSignatureAuth.verify(requests.Request(method, self.path, self.headers),
                                          key_resolver=lambda key_id, algorithm: self.hmac_secret_key[::-1].encode())
             except AssertionError:
                 pass
