@@ -1486,7 +1486,10 @@ paths:
           enum: [aws, gcp]
         - name: prefix
           in: query
-          description: Is used to specify the beginning of a particular bundle UUID. Specifying a character(s) would provide all avaliable bundles starting with that character(s).
+          description: >
+          Used to specify the beginning of a particular bundle UUID.  Capitalized letters will be lower-cased as is
+          done when users submit a uuid (all uuids have lower-cased letters upon ingestion into the dss).
+          Specifying a character(s) would provide all avaliable bundles starting with that character(s).
           required: false
           type: string
         - name: token
