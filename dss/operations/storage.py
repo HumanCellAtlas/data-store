@@ -214,8 +214,7 @@ class build_reference_list(StorageOperationHandler):
         if not key.startswith(BUNDLE_PREFIX):
             logger.error(f"only bundle keys supported, unable to process: {key}")
             return
-        storage_object_references = list()
-        storage_object_references.append(key)
+        storage_object_references = [key]
         try:
             bundle_metadata = json.loads(self.handle.get(self.replica.bucket, key))
         except BlobNotFoundError as e:
