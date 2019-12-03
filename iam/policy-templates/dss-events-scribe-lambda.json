@@ -17,6 +17,17 @@
         "arn:aws:s3:::*",
         "arn:aws:s3:::*/*"
       ]
+    },
+    {
+      "Effect": "Allow",
+      "Action": [
+        "sqs:GetQueueUrl",
+        "sqs:ReceiveMessage",
+        "sqs:SendMessage",
+        "sqs:DeleteMessage",
+        "sqs:GetQueueAttributes"
+      ],
+      "Resource": "*"
     }
   ]
 }

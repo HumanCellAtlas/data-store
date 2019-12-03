@@ -1,14 +1,7 @@
-"""
-This is the "offline" event journaling and update daemon. The compilation of flashflood journals, and the application
-of flashflood event updates and event deletes, is not concurrency safe. This daemon should be executed on a schedule,
-and Lambda TTL should be configured such that it is never executed in a concurrent manner. Additionally,
-`reserved_concurrency` has been set to 1 to prevent parallel execution
-(see `dss/daemons/dss-events-scribe/.chalice/config.json`).
-"""
 import os
 import sys
+import json
 import logging
-from itertools import cycle
 
 import domovoi
 
@@ -28,48 +21,43 @@ dss.Config.set_config(dss.BucketConfig.NORMAL)
 app = domovoi.Domovoi()
 
 
-class ReplicaStatus:
-    prefix = None
-    finished_journaling = False
-    finished_updating = False
-
-    def __init__(self, prefix):
-        self.prefix = prefix
+# TODO: Make this configurable
+NUMBER_OF_EVENTS_PER_JOURNAL = 10 if "dev" == os.environ['DSS_DEPLOYMENT_STAGE'] else 1000
 
 
-@app.scheduled_function("rate(10 minutes)")
-def dss_events_scribe_journal_and_update(event, context):
-    # TODO: Make this configurable
-    minimum_number_of_events = 10 if "dev" == os.environ['DSS_DEPLOYMENT_STAGE'] else 1000
+@app.sqs_queue_subscriber("dss-events-scribe-" + os.environ['DSS_DEPLOYMENT_STAGE'],
+                          batch_size=1,
+                          queue_attributes=dict(VisibilityTimeout="600"))
+def handle_sqs_message(event, context):
+    if 1 != len(event['Records']):
+        logger.error(f"Received {len(event['Records'])}, expected 1")
+    else:
+        msg = json.loads(event['Records'][0]['body'])
+        replica = Replica[msg['replica']]
+        journal_or_update_events(replica, context)
 
+def journal_or_update_events(replica: Replica, context):
     def lambda_seconds_remaining() -> float:
         # lambda time to live is configured with `lambda_timeout` in `daemons/dss-events-scribe/.chalice/config.json`
         return context.get_remaining_time_in_millis() / 1000
 
-    replicas = [ReplicaStatus(r.flashflood_prefix_read) for r in Replica]
-
-    for replica in cycle(replicas):
-        if lambda_seconds_remaining() > 120 and not all(replica.finished_journaling for replica in replicas):
-            if not replica.finished_journaling:
-                did_journal = journal_flashflood(replica.prefix, minimum_number_of_events)
-                if did_journal:
-                    logger.info(f"Compiled event journal with {minimum_number_of_events} events "
-                                f"for flashflood prefix {replica.prefix}")
-                else:
-                    logger.info(f"Finished compiling event journals for flashflood prefix {replica.prefix}")
-                    replica.finished_journaling = True
-        else:
-            break
-
-    for replica in cycle(replicas):
-        if lambda_seconds_remaining() > 30 and not all(replica.finished_updating for replica in replicas):
-            if not replica.finished_updating:
-                number_of_updates_applied = update_flashflood(replica.prefix, minimum_number_of_events)
-                if 0 < number_of_updates_applied:
-                    logger.info(f"Applied {number_of_updates_applied} event updates or deletes "
-                                f"for flashflood prefix {replica.prefix}")
-                else:
-                    logger.info(f"Finished applying event updates for flashflood prefix {replica.prefix}")
-                    replica.finished_updating = True
-        else:
-            break
+    prefix = replica.flashflood_prefix_read
+    journal_id = journal_flashflood(prefix, NUMBER_OF_EVENTS_PER_JOURNAL)
+    if journal_id is not None:
+        logger.info(json.dumps(dict(message="Compiled new event journal",
+                                    flashflood_prefix=prefix,
+                                    journal_id=journal_id,
+                                    number_of_events=NUMBER_OF_EVENTS_PER_JOURNAL), indent=4))
+    else:
+        # This branch indicates there were not enough new events to compile a journal
+        # Instead, apply event updates until lambda expires
+        update_batch_size = 5
+        total_updates_applied = 0
+        while 30 < lambda_seconds_remaining():
+            number_of_updates_applied = update_flashflood(prefix, update_batch_size)
+            if 0 == number_of_updates_applied:
+                break
+            total_updates_applied += number_of_updates_applied
+        logger.info(json.dumps(dict(message="Applied event updates and deletes",
+                                    flashflood_prefix=prefix,
+                                    number_of_events=total_updates_applied), indent=4))
