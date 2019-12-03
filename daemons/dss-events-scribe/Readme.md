@@ -13,7 +13,7 @@ see [AWS documentation](https://docs.aws.amazon.com/lambda/latest/dg/per-functio
 
 ## Rate limiting
 
-Daemon invication is rate limited similarly to the [token bucket algorithm](https://en.wikipedia.org/wiki/Token_bucket) as follows:
+Daemon invocation is rate limited similarly to the [token bucket algorithm](https://en.wikipedia.org/wiki/Token_bucket) as follows:
   1) A message is added to a queue every N minutes.
   2) Messages older than `M>N` minutes are discarded from the queue.
   3) The event daemon is invoked non-concurrently on each message until the queue is empty.
@@ -27,7 +27,7 @@ and [AWS SQS queues](https://docs.aws.amazon.com/AWSSimpleQueueService/latest/SQ
 
 ## Configuration
 
-A scheduled CloudWatch rule is configureed to send one message per replica to the dss-events-scribe SQS queue. The
+A scheduled CloudWatch rule is configured to send one message per replica to the dss-events-scribe SQS queue. The
 dss-events-scribe lambda is configured to process messages from the queue in batches of size 1.
 
 - The scheduled CloudWatch rule and SQS queue are configured in [infra/dss-events-scribe/main.tf](../../infra/dss-events-scribe/main.tf).
