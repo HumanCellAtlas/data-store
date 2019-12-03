@@ -1488,9 +1488,12 @@ paths:
           in: query
           description: >
             Used to specify the beginning of a particular bundle UUID.  Capitalized letters will be lower-cased as is
-            done when users submit a uuid (all uuids have lower-cased letters upon ingestion into the dss).
-            Specifying a character(s) would provide all avaliable bundles starting with that character(s).
+            done when users submit a uuid (all uuids have lower-cased letters upon ingestion into the dss).  Characters
+            other than letters, numbers, and dashes are not allowed and will error.
+
+            The specified character(s) will return all available bundle uuids starting with that character(s).
           required: false
+          pattern: '^[a-zA-Z0-9-]+$'
           type: string
         - name: token
           in: query

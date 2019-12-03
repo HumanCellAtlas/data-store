@@ -1011,6 +1011,28 @@ class TestBundleApi(unittest.TestCase, TestAuthMixin, DSSAssertMixin, DSSUploadM
             for x in res.json()['bundles']:
                 self.assertNotIn(x, page_one)
 
+    def test_enumeration_bundles_prefix(self):
+        bundle_uuid, bundle_version = self._put_bundle()
+
+        with self.subTest('Test successful case finds full uuid prefix.'):
+            res = self.app.get(f"/v1/bundles/all", params=dict(replica="aws", per_page=10, prefix=bundle_uuid))
+            self.assertEquals(res.json()['bundles'][0]['uuid'], bundle_uuid)
+            self.assertIn(res.json()['bundles'][0]['uuid'], res.json()['search_prefix'])
+            self.assertEquals(res.status_code, requests.codes.okay)
+
+        with self.subTest('Test successful case finds partial uuid prefix.'):
+            partial_uuid = bundle_uuid[:8]
+            res = self.app.get(f"/v1/bundles/all", params=dict(replica="aws", per_page=10, prefix=partial_uuid))
+            self.assertTrue(res.json()['bundles'][0]['uuid'].startswith(partial_uuid))
+            self.assertTrue(res.json()['search_prefix'].endswith(partial_uuid))
+            self.assertEquals(res.status_code, requests.codes.okay)
+
+        with self.subTest('Test failed case on invalid regex.'):
+            # only accept letters, numbers, and dashes; fail on any other characters
+            res = self.app.get(f"/v1/bundles/all", params=dict(replica="aws", per_page=10, prefix='!@#$%^&*'))
+            self.assertEquals(res.json()['code'], 'illegal_arguments')
+            self.assertEquals(res.status_code, requests.codes.bad_request)
+
     def test_bundle_enumeration_paging(self):
         #  Note this test requires a particular /bundle order in s3 test bucket, see test_utils for mocked version
         with override_bucket_config(BucketConfig.TEST):
