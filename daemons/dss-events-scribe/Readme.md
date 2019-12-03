@@ -27,6 +27,9 @@ and [AWS SQS queues](https://docs.aws.amazon.com/AWSSimpleQueueService/latest/SQ
 
 ## Configuration
 
+A scheduled CloudWatch rule is configureed to send one message per replica to the dss-events-scribe SQS queue. The
+dss-events-scribe lambda is configured to process messages from the queue in batches of size 1.
+
 - The scheduled CloudWatch rule and SQS queue are configured in [infra/dss-events-scribe/main.tf](../../infra/dss-events-scribe/main.tf).
 - Reserved concurrency is configured in [daemons/dss-events-scribe/.chalice/config.json](.chalice/config.json).
 - CloudWatch-SQS integration requires an IAM policy on the SQS queue, managed in [infra/dss-events-scribe/main.tf](../../infra/dss-events-scribe/main.tf).
