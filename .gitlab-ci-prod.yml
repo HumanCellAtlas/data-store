@@ -15,7 +15,6 @@ stages:
 
 before_script:
   - date && date -u
-  - export COMMITS_URL=${GITHUB_API}/repos/HumanCellAtlas/data-store/commits
 # TODO: figure out how to get the gitlab-runner to not clone the repo as root - Brian H
   - cp -r /HumanCellAtlas/data-store ~/data-store && cd ~/data-store
   - git reset --hard HEAD
