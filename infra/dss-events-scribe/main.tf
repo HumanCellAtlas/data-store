@@ -6,7 +6,7 @@ locals {
   account_id = "${data.aws_caller_identity.current.account_id}"
   common_tags = "${map(
     "managedBy" , "terraform",
-    "Name"      , "${var.DSS_INFRA_TAG_SERVICE}-subscriptionsdynamodb",
+    "Name"      , "${var.DSS_INFRA_TAG_SERVICE}-dss-events-scribe",
     "project"   , "${var.DSS_INFRA_TAG_PROJECT}",
     "env"       , "${var.DSS_DEPLOYMENT_STAGE}",
     "service"   , "${var.DSS_INFRA_TAG_SERVICE}",
