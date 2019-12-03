@@ -234,40 +234,20 @@ class TestEvents(unittest.TestCase, DSSAssertMixin):
         return results
 
 class TestEventsDaemon(unittest.TestCase, DSSAssertMixin):
-    def test_dss_events_scribe_journal_and_update(self):
-        journal_flashflood_returns = {r.flashflood_prefix_read: [True, False] for r in Replica}
-        update_flashflood_returns = {r.flashflood_prefix_read: [1, 0] for r in Replica}
-
-        def mock_journal_flashflood(pfx, minimum_number_of_events):
-            did_journal = journal_flashflood_returns[pfx].pop(0)
-            return did_journal
-
-        def mock_update_flashflood(pfx, number_of_updates_to_apply):
-            number_of_updates_applied = update_flashflood_returns[pfx].pop(0)
-            return number_of_updates_applied
-
-        daemon_app.journal_flashflood = mock_journal_flashflood
-        daemon_app.update_flashflood = mock_update_flashflood
-
+    def test_journal_or_update_events(self):
         class Context:
             def get_remaining_time_in_millis(self):
                 return 300 * 1000
 
-        daemon_app.dss_events_scribe_journal_and_update({}, Context())
-        for pfx in journal_flashflood_returns:
-            self.assertEqual(0, len(journal_flashflood_returns[pfx]))
-        for pfx in update_flashflood_returns:
-            self.assertEqual(0, len(update_flashflood_returns[pfx]))
-
-    def test_dss_events_scribe_journal_and_update_timeout(self):
-        class Context:
-            def get_remaining_time_in_millis(self):
-                return 0.0
-
-        with mock.patch("daemons.dss-events-scribe.app.journal_flashflood", side_effect=Exception()):
-            with mock.patch("daemons.dss-events-scribe.app.update_flashflood", side_effect=Exception()):
-                # This should timeout and not call journal_flashflood or update_flashflood
-                daemon_app.dss_events_scribe_journal_and_update({}, Context())
+        for replica in Replica:
+            with mock.patch("daemons.dss-events-scribe.app.journal_flashflood", return_value=None):
+                with mock.patch("daemons.dss-events-scribe.app.update_flashflood", return_value=0) as update_flashflood:
+                    daemon_app.journal_or_update_events(replica, Context())
+                    update_flashflood.assert_called_once()
+            with mock.patch("daemons.dss-events-scribe.app.journal_flashflood", return_value="foo"):
+                with mock.patch("daemons.dss-events-scribe.app.update_flashflood", return_value=0) as update_flashflood:
+                    daemon_app.journal_or_update_events(replica, Context())
+                    update_flashflood.assert_not_called()
 
 def _upload_bundle(app, replica, uuid=None):
     files = list()
