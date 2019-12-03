@@ -15,8 +15,6 @@ stages:
 
 before_script:
   - date && date -u
-  - export COMMITS_URL=${GITHUB_API}/repos/HumanCellAtlas/data-store/commits
-  - if [[ CI_COMMIT_SHA != $(http GET $COMMITS_URL sha==$CI_COMMIT_REF_NAME | jq -r '.[0]["sha"]') ]]; then exit 1; fi
 # TODO: figure out how to get the gitlab-runner to not clone the repo as root - Brian H
   - cp -r /HumanCellAtlas/data-store ~/data-store && cd ~/data-store
   - git reset --hard HEAD
