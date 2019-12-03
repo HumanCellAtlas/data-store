@@ -8,6 +8,8 @@ import typing
 import argparse
 import json
 import logging
+import copy
+import subprocess
 
 from botocore.exceptions import ClientError
 
@@ -376,6 +378,7 @@ class SecretsChecker(object):
             secret = fetch_secret_safely(secret_name)
         except RuntimeError:
             self.missing_secrets.append(secret_name)
+            return
         except json.decoder.JSONDecodeError:
             self.missing_secrets.append(secret_name)
             return
@@ -389,8 +392,8 @@ class SecretsChecker(object):
         Use the makefiles in the data-store repository to create terraform resource files and use these to
         check environment variables. See: https://www.terraform.io/docs/commands/output.html
         """
-        output_infra_dir = os.path.abspath(os.path.join(os.path.dirname(__file__), '..', '..', 'infra', output_infra_dir))
-        dss_root_dir = os.path.abspath(os.path.join(os.path.dirname(__file__), '..', '..')
+        dss_root_dir = os.path.abspath(os.path.join(os.path.dirname(__file__), '..', '..'))
+        output_infra_dir = os.path.abspath(os.path.join(dss_root_dir, 'infra', output_infra_dir))
 
         # populate infra's vars for the current stage
         # FIXME: should this have a cwd?
