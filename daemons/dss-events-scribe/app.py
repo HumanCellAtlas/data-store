@@ -30,6 +30,7 @@ NUMBER_OF_EVENTS_PER_JOURNAL = 10 if "dev" == os.environ['DSS_DEPLOYMENT_STAGE']
                           queue_attributes=dict(VisibilityTimeout="600"))
 def handle_sqs_message(event, context):
     if 1 != len(event['Records']):
+        # bail out immediately if `batch_size` is misconfigured to be larger than 1
         logger.error(f"Received {len(event['Records'])}, expected 1")
     else:
         msg = json.loads(event['Records'][0]['body'])
