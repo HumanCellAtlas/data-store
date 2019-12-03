@@ -23,7 +23,7 @@ from dss.notify.notification import Endpoint
 from dss.logging import configure_test_logging
 from dss.util import UrlBuilder
 from dss.subscriptions_v2 import count_subscriptions_for_owner, put_subscription, delete_subscription, SubscriptionData
-from tests import get_auth_header, get_bundle_fqid
+from tests import get_auth_header, get_bundle_fqid, eventually
 from tests.infra import DSSAssertMixin, testmode, TestAuthMixin
 from tests.infra.elasticsearch_test_case import ElasticsearchTestCase
 from tests.infra.server import ThreadedLocalServer
@@ -98,6 +98,10 @@ class TestSubscriptionsBase(ElasticsearchTestCase, TestAuthMixin, DSSAssertMixin
         finally:
             self._cleanup_subscription(uuid_)
 
+    @eventually(timeout=5, interval=1, errors={AssertionError})
+    def assert_owner_subscription_count(self, owner, replica, subscription_count):
+        assert count_subscriptions_for_owner(Replica[replica], owner) == subscription_count
+
     def test_db_count_subscriptions_for_owner(self):
         """Test dynamoDB helper functions used to store and retrieve subscription information."""
         owner = 'email@email.com'
@@ -110,15 +114,15 @@ class TestSubscriptionsBase(ElasticsearchTestCase, TestAuthMixin, DSSAssertMixin
                                 SubscriptionData.REPLICA: replica}
 
             with self.subTest(f'DynamoDB: Counting initial (zero) subscriptions for {owner} in {replica}.'):
-                assert count_subscriptions_for_owner(Replica[replica], owner) == 0
+                self.assert_owner_subscription_count(owner, replica, subscription_count=0)
 
             with self.subTest(f'DynamoDB: put_subscription for {owner} in {replica} and check count is one.'):
                 put_subscription(subscription_doc)
-                assert count_subscriptions_for_owner(Replica[replica], owner) == 1
+                self.assert_owner_subscription_count(owner, replica, subscription_count=1)
 
             with self.subTest(f'DynamoDB: Counting (zero) subscriptions for {owner} in {replica} after deletion.'):
                 delete_subscription(Replica[replica], owner=owner, uuid=subscription_uuid)
-                assert count_subscriptions_for_owner(Replica[replica], owner) == 0
+                self.assert_owner_subscription_count(owner, replica, subscription_count=0)
 
     def test_validation(self):
         with self.subTest("Missing URL"):
