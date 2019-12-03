@@ -1020,6 +1020,12 @@ class TestBundleApi(unittest.TestCase, TestAuthMixin, DSSAssertMixin, DSSUploadM
             self.assertIn(res.json()['bundles'][0]['uuid'], res.json()['search_prefix'])
             self.assertEquals(res.status_code, requests.codes.okay)
 
+        with self.subTest('Test successful case finds full uuid prefix when upper-cased.'):
+            res = self.app.get(f"/v1/bundles/all", params=dict(replica="aws", per_page=10, prefix=bundle_uuid.upper()))
+            self.assertEquals(res.json()['bundles'][0]['uuid'], bundle_uuid)
+            self.assertIn(res.json()['bundles'][0]['uuid'], res.json()['search_prefix'])
+            self.assertEquals(res.status_code, requests.codes.okay)
+
         with self.subTest('Test successful case finds partial uuid prefix.'):
             partial_uuid = bundle_uuid[:8]
             res = self.app.get(f"/v1/bundles/all", params=dict(replica="aws", per_page=10, prefix=partial_uuid))

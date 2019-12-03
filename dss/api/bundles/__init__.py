@@ -152,9 +152,6 @@ def enumerate(replica: str,
     :param search_after: used to page searches, should not be set by the user.
     """
     if prefix:
-        if any(c.isupper() for c in prefix):
-            sys.stderr.write('Note: prefix contains capital letters!  All data-store UUIDs are lower-cased (even if '
-                             'submitted as upper-case).  Supplied prefix will be lower-cased,')
         search_prefix = f'{BUNDLE_PREFIX}/{prefix.lower()}'
     else:
         search_prefix = f'{BUNDLE_PREFIX}/'
